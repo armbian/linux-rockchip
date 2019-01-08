@@ -85,7 +85,8 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 
 	mutex_lock(&userspace->mutex);
 	userspace->is_managed = 1;
-	userspace->setspeed = policy->cur;
+	if (!userspace->setspeed)
+		userspace->setspeed = policy->cur;
 	mutex_unlock(&userspace->mutex);
 	return 0;
 }
@@ -98,7 +99,6 @@ static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 
 	mutex_lock(&userspace->mutex);
 	userspace->is_managed = 0;
-	userspace->setspeed = 0;
 	mutex_unlock(&userspace->mutex);
 }
 
