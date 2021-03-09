@@ -29,6 +29,7 @@ obj-$(CONFIG_ROCKCHIP_RAMDISK) += rockchip_ramdisk.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_DEBUG) += rockchip_pm_debug.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
 obj-$(CONFIG_ROCKCHIP_SYSTEM_MONITOR) += rockchip_system_monitor.o
+obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_CRYPTO) += rockchip_thunderboot_crypto.o
 obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_MMC) += rockchip_thunderboot_mmc.o
 obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_SFC) += rockchip_thunderboot_sfc.o
 obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_SERVICE) += rockchip_thunderboot_service.o
