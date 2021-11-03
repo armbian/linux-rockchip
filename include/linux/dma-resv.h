@@ -283,6 +283,8 @@ int dma_resv_get_fences_rcu(struct dma_resv *obj,
 			    unsigned *pshared_count,
 			    struct dma_fence ***pshared);
 
+int dma_resv_get_singleton(struct dma_resv *obj, bool write,
+			   struct dma_fence **fence);
 int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src);
 
 long dma_resv_wait_timeout_rcu(struct dma_resv *obj, bool wait_all, bool intr,
