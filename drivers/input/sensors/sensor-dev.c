@@ -545,8 +545,10 @@ static irqreturn_t sensor_interrupt(int irq, void *dev_id)
 	struct i2c_client *client = sensor->client;
 
 	mutex_lock(&sensor->sensor_mutex);
+	pm_stay_awake(&client->dev);
 	if (sensor->ops->report(client) < 0)
 		dev_err(&client->dev, "%s: Get data failed\n", __func__);
+	pm_relax(&client->dev);
 	mutex_unlock(&sensor->sensor_mutex);
 
 	return IRQ_HANDLED;
@@ -559,7 +561,7 @@ static int sensor_irq_init(struct i2c_client *client)
 	int result = 0;
 	int irq;
 
-	if ((sensor->pdata->irq_enable) && (!IS_ERR_OR_NULL(sensor->pdata->irq_pin))) {
+	if ((sensor->pdata->irq_enable || sensor->pdata->wake_enable) && (!IS_ERR_OR_NULL(sensor->pdata->irq_pin))) {
 		if (sensor->pdata->poll_delay_ms <= 0)
 			sensor->pdata->poll_delay_ms = 30;
 
@@ -573,7 +575,9 @@ static int sensor_irq_init(struct i2c_client *client)
 		disable_irq_nosync(client->irq);
 
 		dev_info(&client->dev, "%s:use irq=%d\n", __func__, irq);
-	} else if (!sensor->pdata->irq_enable) {
+	}
+
+	if (!sensor->pdata->irq_enable) {
 		INIT_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 		sensor->stop_work = 1;
 		if (sensor->pdata->poll_delay_ms <= 0)
@@ -626,6 +630,15 @@ static int __maybe_unused sensor_of_suspend(struct device *dev)
 	if (sensor->ops->suspend)
 		sensor->ops->suspend(sensor->client);
 
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (mem_sleep_current == PM_SUSPEND_MEM_LITE) {
+		if (sensor->pdata->wake_enable && !IS_ERR_OR_NULL(sensor->pdata->irq_pin)) {
+			enable_irq(sensor->client->irq);
+			enable_irq_wake(sensor->client->irq);
+		}
+	}
+#endif
+
 	return 0;
 }
 
@@ -635,6 +648,19 @@ static int __maybe_unused sensor_of_resume(struct device *dev)
 
 	if (sensor->ops->resume)
 		sensor->ops->resume(sensor->client);
+
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (mem_sleep_current == PM_SUSPEND_MEM_LITE) {
+		if (sensor->pdata->wake_enable && !IS_ERR_OR_NULL(sensor->pdata->irq_pin)) {
+			disable_irq_wake(sensor->client->irq);
+			disable_irq(sensor->client->irq);
+		}
+	} else if (mem_sleep_current == PM_SUSPEND_MEM_ULTRA) {
+		sensor_initial(sensor->client);
+	}
+	return 0;
+#endif
+
 	if (sensor->pdata->power_off_in_suspend)
 		sensor_initial(sensor->client);
 
@@ -1603,6 +1629,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 	pdata->irq_pin = devm_gpiod_get_optional(&client->dev, "irq", GPIOD_IN);
 	pdata->reset_pin = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
 	pdata->power_pin = devm_gpiod_get_optional(&client->dev, "power", GPIOD_OUT_HIGH);
+	pdata->wake_enable = of_property_read_bool(np, "wakeup-source");
 
 	of_property_read_u32(np, "irq_enable", &(pdata->irq_enable));
 	of_property_read_u32(np, "poll_delay_ms", &(pdata->poll_delay_ms));
