@@ -186,6 +186,23 @@
 		pinctrl-0 = <&vcc5v0_host_en>;
 	};
 
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sd";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_3v3_s3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc_sd_en>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
@@ -562,6 +579,12 @@
 		};
 	};
 
+	vcc_sd {
+		vcc_sd_en: vcc-sd-en {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb-typec {
 		usbc0_int: usbc0-int {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -738,6 +761,7 @@
 
 &sdmmc {
 	status = "okay";
+	card-detect-delay = <1200>;
 };
 
 &spdif_tx1 {
