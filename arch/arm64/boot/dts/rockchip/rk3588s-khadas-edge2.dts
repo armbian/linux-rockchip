@@ -710,6 +710,12 @@
 	card-detect-delay = <1200>;
 };
 
+&sfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspim2_pins>;
+	status = "okay";
+};
+
 &spdif_tx1 {
 	status = "disabled";
 	pinctrl-names = "default";
