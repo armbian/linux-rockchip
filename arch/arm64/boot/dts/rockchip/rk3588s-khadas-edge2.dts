@@ -483,7 +483,7 @@
 &pcie2x1l1 {
 //	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie2x1l2 {
@@ -787,11 +787,12 @@
 };
 
 &usbhost3_0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &usbhost_dwc3_0 {
-	status = "disabled";
+	dr_mode = "host";
+	status = "okay";
 };
 
 &vdd_log_s0 {
