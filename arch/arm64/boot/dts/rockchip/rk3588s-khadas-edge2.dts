@@ -103,7 +103,7 @@
 		pinctrl-0 = <&mh248_irq_gpio>;
 		irq-gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_BOTH>;
 		hall-active = <1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	vbus5v0_typec: vbus5v0-typec {
@@ -164,13 +164,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&pt7c4363>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+		uart_rts_gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart8m1_rtsn>, <&bt_gpio>;
-		pinctrl-1 = <&uart8_gpios>;
-		BT,reset_gpio    = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&uart9m2_rtsn>, <&bt_gpio>;
+		pinctrl-1 = <&uart9_gpios>;
+		BT,reset_gpio    = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -345,7 +345,7 @@
 };
 
 &i2c5 {
-	status = "okay";
+	status = "disabled";
 
 	ls_stk3332: light@47 {
 		compatible = "ls_stk3332";
@@ -486,6 +486,7 @@
 
 &pcie2x1l2 {
 //	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
 	status = "okay";
 };
@@ -540,15 +541,15 @@
 	};
 
 	wireless-bluetooth {
-		uart8_gpios: uart8-gpios {
-			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		uart9_gpios: uart9-gpios {
+			rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_gpio: bt-gpio {
 			rockchip,pins =
-				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>,
-				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>;
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -739,10 +740,10 @@
 	phy-supply = <&vcc5v0_host>;
 };
 
-&uart8 {
+&uart9 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart8m1_xfer &uart8m1_ctsn>;
+	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn>;
 };
 
 &usbdp_phy0 {
