@@ -91,6 +91,40 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&red_led_gpio &green_led_gpio &blue_led_gpio>;
+
+		red_led {
+			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_LOW>;
+			label = "red_led";
+			linux,default-trigger = "none";
+			default-state = "off";
+		};
+
+		green_led {
+			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
+			label = "green_led";
+			linux,default-trigger = "default-on";
+			default-state = "on";
+		};
+
+		blue_led {
+			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_LOW>;
+			label = "blue_led";
+			linux,default-trigger = "none";
+			default-state = "off";
+		};
+	};
+
+	khadas_wdt {
+		compatible = "linux,wdt-khadas";
+		status = "okay";
+		hw_margin_ms = <500>;
+		hw-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+	};
+
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
@@ -304,6 +338,10 @@
 
 };
 
+&reboot_mode {
+	mode-reboot_test = <BOOT_REBOOT_TEST>;
+};
+
 &i2c3 {
 	status = "okay";
 
@@ -345,13 +383,15 @@
 	pinctrl-0 = <&i2c4m3_xfer>;
 	status = "okay";
 
-	gsl3673@40 {
-		compatible = "GSL,GSL3673";
-		reg = <0x40>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+	 ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PB5 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_rst_gpio>;
+		status = "okay";
 	};
 };
 
@@ -409,6 +449,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m3_xfer>;
+
+	mcu: khadas-mcu@18 {
+		compatible = "khadas-mcu";
+		status = "okay";
+		reg = <0x18>;
+	};
 
 	usbc0: fusb302@22 {
 		compatible = "fcs,fusb302";
@@ -529,6 +575,20 @@
 		};
 	};
 
+	leds {
+		red_led_gpio: red-led-gpio {
+			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		green_led_gpio: green-led-gpio {
+			rockchip,pins = <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		blue_led_gpio: blue-led-gpio {
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -550,6 +610,12 @@
 			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	ft5336 {
+		tp_rst_gpio: tp-rst-gpio {
+			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+       };
+   };
 
 	wireless-bluetooth {
 		uart9_gpios: uart9-gpios {
