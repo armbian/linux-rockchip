@@ -255,7 +255,7 @@
 	status = "okay";
 };
 
-&dp0_in_vp1 {
+&dp0_in_vp2 {
 	status = "okay";
 };
 
