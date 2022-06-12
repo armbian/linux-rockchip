@@ -325,8 +325,6 @@ static struct regmap *reg_map;
 #define AFC_CALI_READ_FINISH 0x12121212
 #define WCN_AFC_CALI_PATH "/productinfo/wcn/tsx_bt_data.txt"
 
-//#define BIT(nr) (1UL << (nr))
-
 #ifdef CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX
 #define POWER_WQ_DELAYED_MS 0
 #else

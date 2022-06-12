@@ -702,12 +702,12 @@ static int sprdwl_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_core_create;
 	}
-	memcpy(priv->wl_ver.kernel_ver, utsname()->release,
-			strlen(utsname()->release));
-	memcpy(priv->wl_ver.drv_ver, SPRDWL_DRIVER_VERSION,
-			strlen(SPRDWL_DRIVER_VERSION));
-	memcpy(priv->wl_ver.update, SPRDWL_UPDATE, strlen(SPRDWL_UPDATE));
-	memcpy(priv->wl_ver.reserve, SPRDWL_RESERVE, strlen(SPRDWL_RESERVE));
+	strncpy(priv->wl_ver.kernel_ver, utsname()->release,
+			sizeof(priv->wl_ver.kernel_ver));
+	strncpy(priv->wl_ver.drv_ver, SPRDWL_DRIVER_VERSION,
+			sizeof(priv->wl_ver.drv_ver));
+	strncpy(priv->wl_ver.update, SPRDWL_UPDATE, sizeof(priv->wl_ver.update));
+	strncpy(priv->wl_ver.reserve, SPRDWL_RESERVE, sizeof(priv->wl_ver.reserve));
 	wl_info("Spreadtrum WLAN Version:");
 	wl_info("Kernel:%s,Driver:%s,update:%s,reserved:%s\n",
 			 utsname()->release, SPRDWL_DRIVER_VERSION,
