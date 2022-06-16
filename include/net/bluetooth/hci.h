@@ -265,6 +265,12 @@ enum {
 	 */
 	HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER,
 
+	/*
+	 * Device declares that support Park link status, but it really
+	 * does not support it and fails to initialize
+	 */
+	HCI_QUIRK_BROKEN_PARK_LINK_STATUS,
+
 	/* When this quirk is set, HCI_OP_SET_EVENT_FLT requests with
 	 * HCI_FLT_CLEAR_ALL are ignored and event filtering is
 	 * completely avoided. A subset of the CSR controller
