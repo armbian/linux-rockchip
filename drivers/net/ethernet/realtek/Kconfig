@@ -136,4 +136,11 @@ config R8125
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8125.  This is recommended.
 
+config REALTEK_PGTOOL
+	tristate "Realtek PG Tool"
+	depends on PCI
+	select REALTEK_PHY
+	help
+	  Realtek PG Tool.
+
 endif # NET_VENDOR_REALTEK
