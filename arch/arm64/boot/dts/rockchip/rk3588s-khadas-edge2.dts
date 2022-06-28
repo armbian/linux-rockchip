@@ -937,6 +937,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn>;
+	uart-has-rtscts;
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <4000000>;
+		clock-names = "lpo";
+	};
 };
 
 &usbdp_phy0 {
