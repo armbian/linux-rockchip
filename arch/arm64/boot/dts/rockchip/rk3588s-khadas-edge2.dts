@@ -143,7 +143,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
@@ -197,9 +197,9 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
+		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+	//	WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -545,6 +545,12 @@
 		compatible = "khadas-mcu";
 		status = "okay";
 		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		fan,trig_temp_level3 = <80>;
+		hwver = "EDGE2.V10";
+
 	};
 
 	usbc0: fusb302@22 {
@@ -635,6 +641,7 @@
 &pcie2x1l2 {
 //	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie20>;
 	rockchip,skip-scan-in-resume;
 	status = "okay";
 };
@@ -739,9 +746,9 @@
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
-		wifi_poweren_gpio: wifi-poweren-gpio {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
+	//	wifi_poweren_gpio: wifi-poweren-gpio {
+	//		rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+	//	};
 	};
 };
 
@@ -919,6 +926,10 @@
 		spi-max-frequency = <100000000>;
 		status = "okay";
 	};
+};
+
+&tsadc {
+	status = "okay";
 };
 
 &u2phy0_otg {
