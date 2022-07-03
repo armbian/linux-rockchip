@@ -170,7 +170,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc_3v3_s3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc_sd_en>;
