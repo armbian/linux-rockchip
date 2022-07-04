@@ -156,7 +156,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_usb>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc5v0_host_en>;
@@ -704,7 +704,7 @@
 
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
