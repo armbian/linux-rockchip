@@ -505,6 +505,18 @@
         clock-output-names = "pt7c4363";
         wakeup-source;
     };
+
+    mcu: khadas-mcu@18 {
+        compatible = "khadas-mcu";
+        status = "okay";
+        reg = <0x18>;
+        fan,trig_temp_level0 = <50>;
+        fan,trig_temp_level1 = <60>;
+        fan,trig_temp_level2 = <70>;
+        fan,trig_temp_level3 = <80>;
+        hwver = "EDGE2.V11";
+
+    };
 };
 
 &reboot_mode {
@@ -620,18 +632,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m0_xfer>;
-
-	mcu: khadas-mcu@18 {
-		compatible = "khadas-mcu";
-		status = "okay";
-		reg = <0x18>;
-		fan,trig_temp_level0 = <50>;
-		fan,trig_temp_level1 = <60>;
-		fan,trig_temp_level2 = <70>;
-		fan,trig_temp_level3 = <80>;
-		hwver = "EDGE2.V10";
-
-	};
 };
 
 &pcie2x1l1 {
