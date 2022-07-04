@@ -82,21 +82,21 @@
 		pinctrl-0 = <&red_led_gpio &green_led_gpio &blue_led_gpio>;
 
 		red_led {
-			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 			label = "red_led";
 			linux,default-trigger = "none";
 			default-state = "off";
 		};
 
 		green_led {
-			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 			label = "green_led";
 			linux,default-trigger = "default-on";
 			default-state = "on";
 		};
 
 		blue_led {
-			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
 			label = "blue_led";
 			linux,default-trigger = "none";
 			default-state = "off";
