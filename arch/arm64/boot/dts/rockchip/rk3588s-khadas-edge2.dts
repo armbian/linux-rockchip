@@ -472,10 +472,7 @@
             sink-pdos =
                 <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
                  PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
-                 PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM)
-                 PDO_FIXED(15000, 3000, PDO_FIXED_USB_COMM)
-                 PDO_FIXED(18000, 3000, PDO_FIXED_USB_COMM)
-                 PDO_FIXED(20000, 3000, PDO_FIXED_USB_COMM)>;
+                 PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM)>;
             source-pdos =
                 <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
 
