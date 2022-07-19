@@ -333,6 +333,7 @@ struct dw_dp_link {
 	u8 sink_count;
 	u8 vsc_sdp_extension_for_colorimetry_supported;
 	bool sink_support_mst;
+	u8 ignore_msa;
 };
 
 struct dw_dp_video {
@@ -1303,6 +1304,23 @@ static void dw_dp_atomic_connector_destroy_state(struct drm_connector *connector
 	kfree(cstate);
 }
 
+static bool dw_dp_get_vrr_capable(struct dw_dp *dp)
+{
+	struct drm_connector *connector = &dp->connector;
+	struct drm_display_info *info = &connector->display_info;
+
+	if (!info->monitor_range.max_vfreq)
+		return false;
+	if (!info->monitor_range.min_vfreq)
+		return false;
+	if (info->monitor_range.max_vfreq < info->monitor_range.min_vfreq)
+		return false;
+	if (!dp->link.ignore_msa)
+		return false;
+
+	return true;
+}
+
 static int dw_dp_atomic_connector_get_property(struct drm_connector *connector,
 					       const struct drm_connector_state *state,
 					       struct drm_property *property,
@@ -1975,6 +1993,7 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 	link->vsc_sdp_extension_for_colorimetry_supported =
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
+	link->ignore_msa = drm_dp_sink_can_do_video_without_timing_msa(link->dpcd);
 	link->revision = link->dpcd[DP_DPCD_REV];
 	link->max_rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
 			 drm_dp_max_link_rate(link->dpcd));
@@ -2100,6 +2119,8 @@ static int dw_dp_link_configure(struct dw_dp *dp)
 		return ret;
 
 	buf[0] = link->caps.ssc ? DP_SPREAD_AMP_0_5 : 0;
+	if (dw_dp_get_vrr_capable(dp))
+		buf[0] |= DP_MSA_TIMING_PAR_IGNORE_EN;
 	buf[1] = link->caps.channel_coding ? DP_SET_ANSI_8B10B : 0;
 
 	ret = drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, buf,
@@ -3264,6 +3285,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	struct dw_dp_video *video = &dp->video;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
+	int refresh_rate;
 
 	dp->eotf_type = dw_dp_get_eotf(conn_state);
 	switch (video->color_format) {
@@ -3312,6 +3334,27 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 		s->color_encoding = DRM_COLOR_YCBCR_BT709;
 
 	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
+
+	s->max_refresh_rate = di->monitor_range.max_vfreq;
+	s->min_refresh_rate = di->monitor_range.min_vfreq;
+
+	/**
+	 * Timing exposed in DisplayID or legacy EDID is usually optimized
+	 * for bandwidth by using minimum horizontal and vertical blank. If
+	 * timing beyond the Adaptive-Sync range, it should not enable the
+	 * Ignore MSA option in this timing. If the refresh rate of the
+	 * timing is with the Adaptive-Sync range, this timing should support
+	 * the Adaptive-Sync from the timing's refresh rate to minimum
+	 * support range.
+	 */
+	refresh_rate = drm_mode_vrefresh(&crtc_state->adjusted_mode);
+	if (!dw_dp_get_vrr_capable(dp) || refresh_rate > s->max_refresh_rate ||
+	    refresh_rate < s->min_refresh_rate) {
+		s->max_refresh_rate = 0;
+		s->min_refresh_rate = 0;
+	} else if (refresh_rate < s->max_refresh_rate) {
+		s->max_refresh_rate = refresh_rate;
+	}
 
 	return 0;
 }
@@ -4498,6 +4541,27 @@ static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
 	return 0;
 }
 
+static void dw_dp_update_vfp_for_vrr(struct drm_connector *connector, struct drm_display_mode *mode,
+				     int vfp)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	u32 vblank, vactive, v_sync_width, v_front_porch;
+
+	vblank = mode->vtotal - mode->vdisplay;
+	vactive = mode->vdisplay;
+	v_sync_width = mode->vsync_end - mode->vsync_start;
+	v_front_porch = mode->vsync_start - mode->vdisplay;
+
+	vblank += vfp - v_front_porch;
+
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG2_N(0),
+		     FIELD_PREP(VBLANK, vblank) | FIELD_PREP(VACTIVE, vactive));
+
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG4_N(0),
+		     FIELD_PREP(V_SYNC_WIDTH, v_sync_width) |
+		     FIELD_PREP(V_FRONT_PORCH, vfp));
+}
+
 static int dw_dp_connector_init(struct dw_dp *dp)
 {
 	struct drm_connector *connector = &dp->connector;
@@ -4655,6 +4719,7 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 	dp->sub_dev.connector = connector;
 	dp->sub_dev.of_node = dp->dev->of_node;
 	dp->sub_dev.loader_protect = dw_dp_loader_protect;
+	dp->sub_dev.update_vfp_for_vrr = dw_dp_update_vfp_for_vrr;
 	rockchip_drm_register_sub_dev(&dp->sub_dev);
 
 	return 0;
