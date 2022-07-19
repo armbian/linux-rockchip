@@ -275,6 +275,8 @@ struct dw_mipi_dsi2 {
 	struct rockchip_drm_sub_dev sub_dev;
 
 	struct gpio_desc *te_gpio;
+	struct gpio_desc *reset_gpio;
+	unsigned int reset_ms;
 	bool user_split_mode;
 	struct drm_property *user_split_mode_prop;
 };
@@ -476,6 +478,12 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 		return;
 
 	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+	gpiod_direction_output(dsi2->reset_gpio, 0);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+
 }
 
 static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
@@ -838,6 +846,15 @@ static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
 
+	gpiod_direction_output(dsi2->reset_gpio, 1);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+	gpiod_direction_output(dsi2->reset_gpio, 0);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+	gpiod_direction_output(dsi2->reset_gpio, 1);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
 	dw_mipi_dsi2_get_lane_rate(dsi2);
 
 	if (dsi2->dcphy)
@@ -1530,6 +1547,7 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi2 *dsi2;
+	struct device_node *np = dev->of_node;
 	struct resource *res;
 	void __iomem *regs;
 	int id;
@@ -1617,6 +1635,14 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	of_property_read_u32(np, "reset-delay-ms", &dsi2->reset_ms);
+	dsi2->reset_gpio = devm_gpiod_get_optional(dsi2->dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(dsi2->reset_gpio)) {
+		ret = PTR_ERR(dsi2->reset_gpio);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to get reset GPIO: %d\n", ret);
+		return ret;
+	}
 
 	ret = devm_request_irq(dev, dsi2->irq, dw_mipi_dsi2_irq_handler,
 			       IRQF_SHARED, dev_name(dev), dsi2);
@@ -1659,6 +1685,24 @@ static __maybe_unused int dw_mipi_dsi2_runtime_resume(struct device *dev)
 	clk_prepare_enable(dsi2->sys_clk);
 
 	return 0;
+}
+
+static void dw_mipi_dsi2_shutdown(struct platform_device *pdev){
+
+	struct device *dev = &pdev->dev;
+	struct dw_mipi_dsi2 *dsi2 = dev_get_drvdata(dev);
+
+	//printk("hlm dw_mipi_dsi2_shutdown\n");
+	gpiod_direction_output(dsi2->reset_gpio, 1);
+	if(dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+
+	gpiod_direction_output(dsi2->reset_gpio, 0);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
+	gpiod_direction_output(dsi2->reset_gpio, 1);
+	if (dsi2->reset_ms)
+		msleep(dsi2->reset_ms);
 }
 
 static const struct dev_pm_ops dw_mipi_dsi2_rockchip_pm_ops = {
@@ -1708,4 +1752,5 @@ struct platform_driver dw_mipi_dsi2_rockchip_driver = {
 		.pm = &dw_mipi_dsi2_rockchip_pm_ops,
 		.name = "dw-mipi-dsi2",
 	},
+	.shutdown = dw_mipi_dsi2_shutdown,
 };

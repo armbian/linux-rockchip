@@ -125,11 +125,11 @@
 		hw-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		#cooling-cells = <2>;
-		pwms = <&pwm11 0 50000 0>;
-	};
+//	fan: pwm-fan {
+//		compatible = "pwm-fan";
+//		#cooling-cells = <2>;
+//		pwms = <&pwm11 0 50000 0>;
+//	};
 
 	hall_sensor: hall-mh248 {
 		compatible = "hall-mh248";
@@ -217,13 +217,35 @@
 		WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	vcc3v3_lcd_en: vcc3v3-lcd-en {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+
+	};
+
 };
 
-&backlight {
-	pwms = <&pwm12 0 25000 0>;
-	power-supply = <&vcc_3v3_s0>;
+&backlight_mipi0 {
+	pwms = <&pwm7 0 25000 0>;
+	power-supply = <&vcc3v3_lcd_en>;
 	status = "okay";
 };
+
+&backlight_mipi1 {
+	pwms = <&pwm12 0 25000 0>;
+	power-supply = <&vcc3v3_lcd_en>;
+	status = "disabled";
+};
+
 
 &combphy0_ps {
 	status = "okay";
@@ -239,6 +261,67 @@
 
 &dp0_sound{
 	status = "okay";
+};
+
+&dsi0 {
+	status = "okay";
+	reset-delay-ms = <20>;
+	reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+
+};
+
+&dsi0_panel {
+	status = "okay";
+	power-supply = <&vcc3v3_lcd_en>;
+};
+
+&dsi0_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "okay";
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp3_out_dsi0>;
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&dsi1 {
+	reset-delay-ms = <20>;
+	reset-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio1>;
+	status = "disabled";
+};
+
+&dsi1_panel {
+	status = "disabled";
+	power-supply = <&vcc3v3_lcd_en>;
+};
+
+&mipi_dcphy1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "disabled";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
 };
 
 //&hdptxphy0 {
@@ -555,13 +638,16 @@
 &pinctrl {
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
 			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		lcd_rst_gpio1: lcd-rst-gpio1 {
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -746,8 +832,8 @@
 	};
 };
 
-&pwm11 {
-	pinctrl-0 = <&pwm11m1_pins>;
+&pwm7 {
+	pinctrl-0 = <&pwm7m0_pins>;
 	status = "okay";
 };
 
