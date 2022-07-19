@@ -348,7 +348,7 @@
 //};
 
 &hdmi0 {
-	enable-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -539,7 +539,7 @@
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6m3_xfer>;
+	pinctrl-0 = <&i2c6m0_xfer>;
 
 	mcu: khadas-mcu@18 {
 		compatible = "khadas-mcu";
