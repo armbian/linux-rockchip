@@ -285,6 +285,10 @@
 	status = "okay";
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &route_dsi0 {
 	status = "okay";
 	connect = <&vp3_out_dsi0>;
@@ -396,6 +400,10 @@
             regulator-off-in-suspend;
         };
     };
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &i2c2 {
