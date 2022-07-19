@@ -106,40 +106,6 @@
 		status = "okay";
 	};
 
-	panel-edp {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		power-supply = <&vcc3v3_lcd_edp>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
-		width-mm = <129>;
-		height-mm = <171>;
-
-		panel-timing {
-			clock-frequency = <200000000>;
-			hactive = <1536>;
-			vactive = <2048>;
-			hfront-porch = <12>;
-			hsync-len = <16>;
-			hback-porch = <48>;
-			vfront-porch = <8>;
-			vsync-len = <4>;
-			vback-porch = <8>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <0>;
-			pixelclk-active = <0>;
-		};
-
-		port {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
-		};
-	};
-
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
@@ -150,15 +116,6 @@
 		vin-supply = <&vcc5v0_usb>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&typec5v_pwren>;
-	};
-
-	vcc3v3_lcd_edp: vcc3v3-lcd-edp {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd_edp";
-		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-boot-on;
-		vin-supply = <&vcc_3v3_s3>;
 	};
 
 	vcc3v3_pcie20: vcc3v3-pcie20 {
@@ -230,7 +187,7 @@
 
 &backlight {
 	pwms = <&pwm12 0 25000 0>;
-	power-supply = <&vcc3v3_lcd_edp>;
+	power-supply = <&vcc_3v3_s0>;
 	status = "okay";
 };
 
@@ -250,45 +207,39 @@
 	status = "okay";
 };
 
-&edp0 {
-	force-hpd;
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out_panel: endpoint {
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp0_in_vp2 {
-	status = "okay";
-};
-
-&hdptxphy0 {
+//&hdptxphy0 {
 	/* Single Vdiff Training Table for power reduction (optional) */
-	training-table = /bits/ 8 <
+//	training-table = /bits/ 8 <
 		/* voltage swing 0, pre-emphasis 0->3 */
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
 		/* voltage swing 1, pre-emphasis 0->2 */
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
 		/* voltage swing 2, pre-emphasis 0->1 */
-		0x0d 0x00 0x00 0x00 0x00 0x00
-		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//		0x0d 0x00 0x00 0x00 0x00 0x00
 		/* voltage swing 3, pre-emphasis 0 */
-		0x0d 0x00 0x00 0x00 0x00 0x00
-	>;
+//		0x0d 0x00 0x00 0x00 0x00 0x00
+//	>;
+//	status = "okay";
+//};
+
+&hdmi0 {
+	enable-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
+
+&hdmi0_in_vp0 {
+	status = "okay";
+ };
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+ };
 
 &i2c0 {
     status = "okay";
@@ -529,13 +480,13 @@
 };
 
 &pcie2x1l1 {
-	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+//	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
 	status = "okay";
 };
 
 &pcie2x1l2 {
-	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+//	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
 	status = "okay";
 };
@@ -754,11 +705,6 @@
     /delete-node/ force_timing;
 };
 
-&route_edp0 {
-	connect = <&vp2_out_edp0>;
-	status = "okay";
-};
-
 &sdmmc {
 	status = "okay";
 	card-detect-delay = <1200>;
@@ -862,27 +808,4 @@
         regulator-on-in-suspend;
         regulator-suspend-microvolt = <3300000>;
     };
-};
-
-/* vp0 & vp3 are not used on this board */
-&vp0 {
-	/delete-property/ rockchip,plane-mask;
-	/delete-property/ rockchip,primary-plane;
-};
-
-&vp1 {
-	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0 |
-				1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
-};
-
-&vp2 {
-	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2 |
-				1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART2>;
-};
-
-&vp3 {
-	/delete-property/ rockchip,plane-mask;
-	/delete-property/ rockchip,primary-plane;
 };
