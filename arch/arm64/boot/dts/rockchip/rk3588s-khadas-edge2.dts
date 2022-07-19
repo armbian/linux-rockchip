@@ -203,12 +203,26 @@
 		status = "okay";
 	};
 
-	vcc3v3_lcd_en: vcc3v3-lcd-en {
+	vcc3v3_lcd1_en: vcc3v3-lcd1-en {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd_en";
+		regulator-name = "vcc3v3_lcd1_en";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+
+	};
+
+	vcc3v3_lcd2_en: vcc3v3-lcd2-en {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd2_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-state-mem {
@@ -220,14 +234,14 @@
 };
 
 &backlight_mipi0 {
-	pwms = <&pwm7 0 25000 0>;
-	power-supply = <&vcc3v3_lcd_en>;
+	pwms = <&pwm12 0 25000 0>;
+	power-supply = <&vcc3v3_lcd1_en>;
 	status = "okay";
 };
 
 &backlight_mipi1 {
-	pwms = <&pwm12 0 25000 0>;
-	power-supply = <&vcc3v3_lcd_en>;
+	pwms = <&pwm13 0 25000 0>;
+	power-supply = <&vcc3v3_lcd2_en>;
 	status = "disabled";
 };
 
@@ -262,17 +276,17 @@
 };
 
 &dsi0 {
-	status = "disabled";
+	status = "okay";
 	reset-delay-ms = <20>;
 	reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_rst_gpio>;
+	pinctrl-0 = <&lcd1_rst_gpio>;
 
 };
 
 &dsi0_panel {
-	status = "disabled";
-	power-supply = <&vcc3v3_lcd_en>;
+	status = "okay";
+	power-supply = <&vcc3v3_lcd1_en>;
 };
 
 &dsi0_in_vp2 {
@@ -280,7 +294,7 @@
 };
 
 &dsi0_in_vp3 {
-	status = "disabled";
+	status = "okay";
 };
 
 &hdmi0_sound {
@@ -288,25 +302,25 @@
 };
 
 &route_dsi0 {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp3_out_dsi0>;
 };
 
 &mipi_dcphy0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi1 {
 	reset-delay-ms = <20>;
-	reset-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_rst_gpio1>;
+	pinctrl-0 = <&lcd2_rst_gpio1>;
 	status = "disabled";
 };
 
 &dsi1_panel {
 	status = "disabled";
-	power-supply = <&vcc3v3_lcd_en>;
+	power-supply = <&vcc3v3_lcd2_en>;
 };
 
 &mipi_dcphy1 {
@@ -682,11 +696,11 @@
 	};
 
 	lcd {
-		lcd_rst_gpio: lcd-rst-gpio {
-			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		lcd1_rst_gpio: lcd1-rst-gpio {
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
-		lcd_rst_gpio1: lcd-rst-gpio1 {
-			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		lcd2_rst_gpio1: lcd2-rst-gpio1 {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -873,13 +887,19 @@
 
 &pwm7 {
 	pinctrl-0 = <&pwm7m0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pwm12 {
 	pinctrl-0 = <&pwm12m1_pins>;
 	status = "okay";
 };
+
+&pwm13 {
+	pinctrl-0 = <&pwm13m1_pins>;
+	status = "okay";
+};
+
 
 &rockchip_suspend {
 
