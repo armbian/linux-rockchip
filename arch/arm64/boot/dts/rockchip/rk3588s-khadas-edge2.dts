@@ -262,7 +262,7 @@
 };
 
 &dsi0 {
-	status = "okay";
+	status = "disabled";
 	reset-delay-ms = <20>;
 	reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
@@ -271,7 +271,7 @@
 };
 
 &dsi0_panel {
-	status = "okay";
+	status = "disabled";
 	power-supply = <&vcc3v3_lcd_en>;
 };
 
@@ -280,7 +280,7 @@
 };
 
 &dsi0_in_vp3 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi0_sound {
@@ -288,12 +288,12 @@
 };
 
 &route_dsi0 {
-	status = "okay";
+	status = "disabled";
 	connect = <&vp3_out_dsi0>;
 };
 
 &mipi_dcphy0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi1 {
@@ -632,6 +632,18 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m0_xfer>;
+
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC6 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_rst_gpio>;
+		status = "okay";
+	};
+
 };
 
 &pcie2x1l1 {
@@ -710,7 +722,7 @@
 
 	vcc_sd {
 		vcc_sd_en: vcc-sd-en {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -726,7 +738,7 @@
 
 	ft5336 {
 		tp_rst_gpio: tp-rst-gpio {
-			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
        };
    };
 
