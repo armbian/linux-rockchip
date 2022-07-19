@@ -37,7 +37,7 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
-	es7202_sound_micarray: es7202-sound-micarray {
+	sound_micarray: sound-micarray {
 		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -49,9 +49,15 @@
 				sound-dai = <&pdm0>;
 			};
 			codec {
-				sound-dai = <&es7202>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
+	};
+
+	dummy_codec: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+		status = "okay";
 	};
 
 	es8388_sound: es8388-sound {
@@ -640,7 +646,14 @@
 };
 
 &pdm0 {
-	status = "okay";
+	pinctrl-names = "default";
+    pinctrl-0 = <&pdm0m0_clk
+    &pdm0m0_clk1
+    &pdm0m0_sdi0
+    &pdm0m0_sdi1
+    &pdm0m0_sdi2>;
+    rockchip,path-map = <0 1 2 3>;
+    status = "okay";
 };
 
 &pinctrl {
@@ -888,11 +901,11 @@
 };
 
 &spdif_tx1_dc {
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif_tx1_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif_tx2 {
