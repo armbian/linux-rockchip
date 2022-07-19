@@ -21,7 +21,6 @@
 				data-lanes = <1 2 3 4>;
 			};
 		};
-
 		port@1 {
 			reg = <1>;
 			#address-cells = <1>;
@@ -33,6 +32,10 @@
 			};
 		};
 	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
 };
 
 &csi2_dcphy1 {
@@ -65,34 +68,42 @@
 	};
 };
 
+&mipi_dcphy1 {
+	status = "okay";
+};
+
 &csi2_dphy0 {
-   status = "okay";
+	status = "okay";
 
-    ports {
-        #address-cells = <1>;
-       #size-cells = <0>;
-        port@0 {
-           reg = <0>;
-            #address-cells = <1>;
-           #size-cells = <0>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-           mipidphy0_in_ucam0: endpoint@1 {
-               reg = <1>;
-               remote-endpoint = <&imx415c_out0>;
-               data-lanes = <1 2 3 4>;
-           };
-       };
-       port@1 {
-           reg = <1>;
-           #address-cells = <1>;
-           #size-cells = <0>;
+			mipidphy0_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415c_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-           csidphy0_out: endpoint@0 {
-               reg = <0>;
-               remote-endpoint = <&mipi2_csi2_input>;
-           };
-       };
-   };
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
 };
 
 &i2c4 {
@@ -118,8 +129,8 @@
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipim1_camera1_clk &camb_gpio>;
+		pinctrl-names = "default", "camb_gpios";
+		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
 		rockchip,grf = <&sys_grf>;
 		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
@@ -127,7 +138,6 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-	//	eeprom-ctrl = <&otp_eeprom>;
 		lens-focus = <&aw8601b>;
 		port {
 			imx415b_out0: endpoint {
@@ -136,12 +146,6 @@
 			};
 		};
 	};
-
-//	otp_eeprom: otp_eeprom@50 {
-//		compatible = "rk,otp_eeprom";
-//		status = "okay";
-//		reg = <0x50>;
-//	};
 };
 
 &i2c3 {
@@ -167,8 +171,8 @@
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipim1_camera2_clk &camf_gpio>;
+		pinctrl-names = "default", "camf_gpios";
+		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
 		rockchip,grf = <&sys_grf>;
 		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
@@ -176,7 +180,6 @@
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-//		eeprom-ctrl = <&otp_eeprom_b>;
 		lens-focus = <&aw8601f>;
 		port {
 			imx415f_out1: endpoint {
@@ -185,12 +188,6 @@
 			};
 		};
 	};
-
-//	otp_eeprom_b: otp_eeprom_b@50 {
-//		compatible = "rk,otp_eeprom";
-//		status = "okay";
-//		reg = <0x50>;
-//	};
 };
 
 &i2c8 {
@@ -205,7 +202,7 @@
 		rockchip,vcm-start-current = <56>;
 		rockchip,vcm-rated-current = <96>;
 		rockchip,vcm-step-mode = <4>;
-		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
 
@@ -214,18 +211,18 @@
 		reg = <0x37>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipim1_camera3_clk &camc_gpio>;
+		pinctrl-names = "default", "camc_gpios";
+		pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
 		power-domains = <&power RK3588_PD_VI>;
-		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;	
 		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
-		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
 		lens-focus = <&aw8601c>;
 		port {
-				imx415c_out0: endpoint {
+			imx415c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;
 				data-lanes = <1 2 3 4>;
 			};
@@ -234,31 +231,23 @@
 };
 
 &pinctrl {
-   cam {
-       camf_gpio: camf-gpio {
-           rockchip,pins =
-               <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
-               <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
-       };
-       camb_gpio: camb-gpio {
-           rockchip,pins =
-               <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
-               <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
-       };
-       camc_gpio: camc-gpio {
-           rockchip,pins =
-               <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
-               <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
-       };
-   };
-};
-
-&mipi_dcphy0 {
-	status = "okay";
-};
-
-&mipi_dcphy1 {
-	status = "okay";
+	cam {
+		camf_gpio: camf-gpio {
+			rockchip,pins =
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		camb_gpio: camb-gpio {
+			rockchip,pins =
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		camc_gpio: camc-gpio {
+			rockchip,pins =
+				<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &mipi0_csi2 {
@@ -324,34 +313,34 @@
 };
 
 &mipi2_csi2 {
-   status = "okay";
+	status = "okay";
 
-   ports {
-       #address-cells = <1>;
-       #size-cells = <0>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-       port@0 {
-           reg = <0>;
-           #address-cells = <1>;
-           #size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-           mipi2_csi2_input: endpoint@1 {
-               reg = <1>;
-               remote-endpoint = <&csidphy0_out>;
-           };
-       };
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
 
-       port@1 {
-           reg = <1>;
-           #address-cells = <1>;
-           #size-cells = <0>;
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-           mipi2_csi2_output: endpoint@0 {
-               reg = <0>;
-               remote-endpoint = <&cif_mipi2_in0>;
-           };
-       };
-   };
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi2_in0>;
+			};
+		};
+	};
 };
 
 &rkcif {
@@ -388,22 +377,22 @@
 	};
 };
 
-&rkcif_mipi_lvds2 {
-    status = "okay";
-
-   port {
-       cif_mipi2_in0: endpoint {
-           remote-endpoint = <&mipi2_csi2_output>;
-       };
-   };
-};
-
 &rkcif_mipi_lvds1_sditf {
 	status = "okay";
 
 	port {
 		mipi1_lvds_sditf: endpoint {
 			remote-endpoint = <&isp1_in2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi2_in0: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
 		};
 	};
 };

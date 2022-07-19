@@ -116,15 +116,6 @@
 //		pwms = <&pwm11 0 50000 0>;
 //	};
 
-	hall_sensor: hall-mh248 {
-		compatible = "hall-mh248";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mh248_irq_gpio>;
-		irq-gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_BOTH>;
-		hall-active = <1>;
-		status = "disabled";
-	};
-
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
@@ -698,16 +689,6 @@
 		};
 		lcd2_rst_gpio1: lcd2-rst-gpio1 {
 			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	sensor {
-		mh248_irq_gpio: mh248_irq_gpio {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		mpu6500_irq_gpio: mpu6500_irq_gpio {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
