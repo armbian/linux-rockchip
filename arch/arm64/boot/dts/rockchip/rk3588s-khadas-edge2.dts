@@ -60,40 +60,19 @@
 		status = "okay";
 	};
 
-	es8388_sound: es8388-sound {
-		status = "okay";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
-		hp-det-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "adc-detect";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s0_8ch>;
-		rockchip,codec = <&es8388>;
-		rockchip,audio-routing =
-			"Headphone", "LOUT1",
-			"Headphone", "ROUT1",
-			"Speaker", "LOUT2",
-			"Speaker", "ROUT2",
-			"Headphone", "Headphone Power",
-			"Headphone", "Headphone Power",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
-			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
-			"RINPUT1", "Headset Mic",
-			"RINPUT2", "Headset Mic";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		play-pause-key {
-			label = "playpause";
-			linux,code = <KEY_PLAYPAUSE>;
-			press-threshold-microvolt = <2000>;
+	es8316_sound: es8316-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,es8316-codec";
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s0_8ch>;
+			};
+			codec {
+				sound-dai = <&es8316>;
+			};
 		};
 	};
 
@@ -453,17 +432,19 @@
 		status = "okay";
 	};
 
-	es8388: es8388@11 {
+	es8316: es8316@10 {
 		status = "okay";
 		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
-		reg = <0x11>;
+		compatible = "everest,es8316";
+		reg = <0x10>;
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
 		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_mclk>;
+		pinctrl-names = "default","hp_det","spk_con";
+		pinctrl-0 = <&i2s0_mclk>,<&hp_det>,<&spk_con>;
+		spk-con-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_LOW>;
 	};
 
 	es7202: es7202@32 {
@@ -657,9 +638,12 @@
 };
 
 &pinctrl {
-	headphone {
+	audio {
 		hp_det: hp-det {
-			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		spk_con: spk-con {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
