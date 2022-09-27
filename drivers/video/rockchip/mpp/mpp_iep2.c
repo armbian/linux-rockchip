@@ -637,7 +637,7 @@ static int iep2_isr(struct mpp_dev *mpp)
 		return IRQ_HANDLED;
 	}
 
-	mpp_time_diff(mpp_task);
+	mpp_time_diff(mpp_task, 0);
 	mpp->cur_task = NULL;
 	task->irq_status = mpp->irq_status;
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",

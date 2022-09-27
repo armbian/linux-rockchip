@@ -1184,7 +1184,7 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	}
 
 	mpp_task = mpp->cur_task;
-	mpp_time_diff(mpp_task);
+	mpp_time_diff(mpp_task, 0);
 	mpp->cur_task = NULL;
 
 	if (mpp_task->mpp && mpp_task->mpp != mpp)

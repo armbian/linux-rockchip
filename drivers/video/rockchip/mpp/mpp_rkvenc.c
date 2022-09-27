@@ -522,7 +522,7 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 		return IRQ_HANDLED;
 	}
 
-	mpp_time_diff(mpp_task);
+	mpp_time_diff(mpp_task, 0);
 	mpp->cur_task = NULL;
 	task = to_rkvenc_task(mpp_task);
 	task->irq_status = mpp->irq_status;

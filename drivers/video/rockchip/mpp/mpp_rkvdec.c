@@ -999,7 +999,7 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 		dev_err(mpp->dev, "no current task\n");
 		goto done;
 	}
-	mpp_time_diff(mpp_task);
+	mpp_time_diff(mpp_task, 0);
 	mpp->cur_task = NULL;
 	task = to_rkvdec_task(mpp_task);
 	task->irq_status = mpp->irq_status;
@@ -1039,7 +1039,7 @@ static int rkvdec_3328_isr(struct mpp_dev *mpp)
 		dev_err(mpp->dev, "no current task\n");
 		goto done;
 	}
-	mpp_time_diff(mpp_task);
+	mpp_time_diff(mpp_task, 0);
 	mpp->cur_task = NULL;
 	task = to_rkvdec_task(mpp_task);
 	task->irq_status = mpp->irq_status;
