@@ -938,12 +938,6 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
-	spidev@1 {
-		compatible = "rockchip,spidev";
-		reg = <1>;
-		spi-max-frequency = <100000000>;
-		status = "okay";
-	};
 };
 
 &tsadc {
