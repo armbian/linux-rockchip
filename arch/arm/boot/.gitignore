@@ -4,3 +4,5 @@ zImage
 xipImage
 bootpImage
 uImage
+*.dtb*
+*.scr
