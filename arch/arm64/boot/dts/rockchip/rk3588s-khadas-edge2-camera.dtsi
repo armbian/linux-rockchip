@@ -111,21 +111,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m3_xfer>;
 
-	aw8601b: aw8601b@c {
-		compatible = "awinic,aw8601";
+	dw9714b: dw9714b@c {
+		compatible = "dongwoon,dw9714";
 		status = "okay";
 		reg = <0x0c>;
-		rockchip,vcm-start-current = <56>;
-		rockchip,vcm-rated-current = <96>;
-		rockchip,vcm-step-mode = <4>;
+		pinctrl-names = "camd_gpios";
+		pinctrl-0 = <&camd_gpio>;
+		focus-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+		rockchip,vcm-start-current = <20>;
+		rockchip,vcm-rated-current = <76>;
+		rockchip,vcm-step-mode = <0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
 
-	imx415b: imx415b@37 {
+	imx415b: imx415b@1a {
 		compatible = "sony,imx415";
 		status = "okay";
-		reg = <0x37>;
+		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
@@ -133,12 +136,12 @@
 		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
 		rockchip,grf = <&sys_grf>;
 		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
-		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&aw8601b>;
+		lens-focus = <&dw9714b>;
 		port {
 			imx415b_out0: endpoint {
 				remote-endpoint = <&mipi_in_dcphy0>;
@@ -153,21 +156,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m0_xfer>;
 
-	aw8601f: aw8601f@c {
-		compatible = "awinic,aw8601";
+	dw9714f: dw9714f@c {
+		compatible = "dongwoon,dw9714";
 		status = "okay";
 		reg = <0x0c>;
-		rockchip,vcm-start-current = <56>;
-		rockchip,vcm-rated-current = <96>;
-		rockchip,vcm-step-mode = <4>;
+		pinctrl-names = "cama_gpios";
+		pinctrl-0 = <&cama_gpio>;
+		focus-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+		rockchip,vcm-start-current = <20>;
+		rockchip,vcm-rated-current = <76>;
+		rockchip,vcm-step-mode = <0>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
 
-	imx415f: imx415f@37 {
+	imx415f: imx415f@1a {
 		compatible = "sony,imx415";
 		status = "okay";
-		reg = <0x37>;
+		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
@@ -175,12 +181,12 @@
 		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
 		rockchip,grf = <&sys_grf>;
 		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
-		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&aw8601f>;
+		lens-focus = <&dw9714f>;
 		port {
 			imx415f_out1: endpoint {
 				remote-endpoint = <&mipi_in_dcphy1>;
@@ -195,32 +201,35 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c8m2_xfer>;
 
-	aw8601c: aw8601c@c {
-		compatible = "awinic,aw8601";
+	dw9714c: dw9714c@c {
+		compatible = "dongwoon,dw9714";
 		status = "okay";
 		reg = <0x0c>;
-		rockchip,vcm-start-current = <56>;
-		rockchip,vcm-rated-current = <96>;
-		rockchip,vcm-step-mode = <4>;
+		pinctrl-names = "camn_gpios";
+		pinctrl-0 = <&camn_gpio>;
+		focus-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		rockchip,vcm-start-current = <20>;
+		rockchip,vcm-rated-current = <76>;
+		rockchip,vcm-step-mode = <0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
 
-	imx415: imx415@37 {
+	imx415: imx415@1a {
 		compatible = "sony,imx415";
-		reg = <0x37>;
+		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
 		pinctrl-names = "default", "camc_gpios";
 		pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
 		power-domains = <&power RK3588_PD_VI>;
 		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;	
-		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&aw8601c>;
+		lens-focus = <&dw9714c>;
 		port {
 			imx415c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;
@@ -246,6 +255,18 @@
 			rockchip,pins =
 				<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
 				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		camd_gpio: camd-gpio {
+			rockchip,pins =
+				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		cama_gpio: cama-gpio {
+			rockchip,pins =
+				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		camn_gpio: camn-gpio {
+			rockchip,pins =
+				<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
