@@ -335,7 +335,7 @@
 };
 
 &mipi_dcphy1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi1_in_vp2 {
