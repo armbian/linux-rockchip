@@ -1110,21 +1110,23 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	if (hcd->i2s) {
 		daidrv[i] = hdmi_i2s_dai;
 		daidrv[i].playback.channels_max = hcd->max_i2s_channels;
-		/* Disable capture for HDMI-TX (output only) to prevent
-		 * PulseAudio from trying to open capture streams which
-		 * causes "Only one simultaneous stream supported!" errors
-		 * and results in mono audio output.
-		 */
-		daidrv[i].capture.channels_min = 0;
-		daidrv[i].capture.channels_max = 0;
+		if (hcd->no_i2s_playback)
+			memset(&daidrv[i].playback, 0,
+			       sizeof(daidrv[i].playback));
+		if (hcd->no_i2s_capture)
+			memset(&daidrv[i].capture, 0,
+			       sizeof(daidrv[i].capture));
 		i++;
 	}
 
 	if (hcd->spdif) {
 		daidrv[i] = hdmi_spdif_dai;
-		/* Disable capture for HDMI-TX SPDIF (output only) */
-		daidrv[i].capture.channels_min = 0;
-		daidrv[i].capture.channels_max = 0;
+		if (hcd->no_spdif_playback)
+			memset(&daidrv[i].playback, 0,
+			       sizeof(daidrv[i].playback));
+		if (hcd->no_spdif_capture)
+			memset(&daidrv[i].capture, 0,
+			       sizeof(daidrv[i].capture));
 	}
 
 	dev_set_drvdata(dev, hcp);
