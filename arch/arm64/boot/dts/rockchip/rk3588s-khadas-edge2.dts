@@ -803,37 +803,50 @@
 	ir_key2 {
 		rockchip,usercode = <0xff00>;
 		rockchip,key_table =
-			<0xf9   KEY_HOME>,
-			<0xbf   KEY_BACK>,
-			<0xfb   KEY_MENU>,
-			<0xaa   KEY_REPLY>,
-			<0xb9   KEY_UP>,
-			<0xe9   KEY_DOWN>,
-			<0xb8   KEY_LEFT>,
-			<0xea   KEY_RIGHT>,
-			<0xeb   KEY_VOLUMEDOWN>,
-			<0xef   KEY_VOLUMEUP>,
-			<0xf7   KEY_MUTE>,
-			<0xe7   KEY_POWER>,
-			<0xfc   KEY_POWER>,
-			<0xa9   KEY_VOLUMEDOWN>,
-			<0xa8   KEY_PLAYPAUSE>,
-			<0xe0   KEY_VOLUMEDOWN>,
-			<0xa5   KEY_VOLUMEDOWN>,
-			<0xab   183>,
-			<0xb7   388>,
-			<0xe8   388>,
-			<0xf8   184>,
-			<0xaf   185>,
-			<0xed   KEY_VOLUMEDOWN>,
-			<0xee   186>,
-			<0xb3   KEY_VOLUMEDOWN>,
-			<0xf1   KEY_VOLUMEDOWN>,
-			<0xf2   KEY_VOLUMEDOWN>,
-			<0xf3   KEY_SEARCH>,
-			<0xb4   KEY_VOLUMEDOWN>,
-			<0xa4   KEY_SETUP>,
-			<0xbe   KEY_SEARCH>;
+//			<0xf9   KEY_HOME>,
+//			<0xbf   KEY_BACK>,
+//			<0xfb   KEY_MENU>,
+//			<0xaa   KEY_REPLY>,
+//			<0xb9   KEY_UP>,
+//			<0xe9   KEY_DOWN>,
+//			<0xb8   KEY_LEFT>,
+//			<0xea   KEY_RIGHT>,
+//			<0xeb   KEY_VOLUMEDOWN>,
+//			<0xef   KEY_VOLUMEUP>,
+//			<0xf7   KEY_MUTE>,
+//			<0xe7   KEY_POWER>,
+//			<0xfc   KEY_POWER>,
+//			<0xa9   KEY_VOLUMEDOWN>,
+//			<0xa8   KEY_PLAYPAUSE>,
+//			<0xe0   KEY_VOLUMEDOWN>,
+//			<0xa5   KEY_VOLUMEDOWN>,
+//			<0xab   183>,
+//			<0xb7   388>,
+//			<0xe8   388>,
+//			<0xf8   184>,
+//			<0xaf   185>,
+//			<0xed   KEY_VOLUMEDOWN>,
+//			<0xee   186>,
+//			<0xb3   KEY_VOLUMEDOWN>,
+//			<0xf1   KEY_VOLUMEDOWN>,
+//			<0xf2   KEY_VOLUMEDOWN>,
+//			<0xf3   KEY_SEARCH>,
+//			<0xb4   KEY_VOLUMEDOWN>,
+//			<0xa4   KEY_SETUP>,
+//			<0xbe   KEY_SEARCH>;
+			<0xeb 116>,		//KEY_POWER
+			<0xec 139>,		//KEY_MENU
+			<0xfc 103>,		//KEY_UP
+			<0xfd 108>,		//KEY_DOWN
+			<0xf1 105>,		//KEY_LEFT
+			<0xe5 106>,		//KEY_RIGHT
+			<0xf8 28>, 		//KEY_Enter
+			<0xa7 114>,		//KEY_VOLUMEDOWN
+			<0xa3 388>,
+			<0xa4 388>,		//KEY_CURSOR
+			<0xf4 115>,		//KEY_VOLUMEUP
+			<0xfe 158>,		//KEY_BACK
+			<0xb7 172>;		//KEY_HOMEPAGE
 	};
 
 	ir_key3 {
