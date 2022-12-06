@@ -5184,6 +5184,7 @@ static const struct drm_plane_helper_funcs vop2_plane_helper_funcs = {
 	.atomic_check = vop2_plane_atomic_check,
 	.atomic_update = vop2_plane_atomic_update,
 	.atomic_disable = vop2_plane_atomic_disable,
+	.prepare_fb = drm_gem_fb_prepare_fb,
 };
 
 /**
