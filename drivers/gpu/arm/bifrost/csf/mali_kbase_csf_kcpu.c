@@ -1555,7 +1555,6 @@ file_create_fail:
 	dma_fence_put(fence_out);
 
 	current_command->info.fence.fence = NULL;
-	kfree(fence_out);
 
 	return ret;
 }
