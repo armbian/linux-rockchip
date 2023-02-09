@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-9tripod.dtsi"
+#include "rk3588-linux.dtsi"
+#include "rk3588s-9tripod-imx415-dphy0.dtsi"
+
+/ {
+	model = "9tripod rk3588s Board";
+	compatible = "9tripod,rk3588s", "rockchip,rk3588";
+};
