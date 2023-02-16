@@ -1031,6 +1031,9 @@ KBUILD_CFLAGS += $(call cc-disable-warning, restrict)
 # Enabled with W=2, disabled by default as noisy
 KBUILD_CFLAGS += $(call cc-disable-warning, maybe-uninitialized)
 
+# Added because of Rockchip wireless lan drivers
+KBUILD_CFLAGS   += $(call cc-disable-warning, implicit-fallthrough)
+
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= -fno-strict-overflow
 
