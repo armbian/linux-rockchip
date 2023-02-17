@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -140,6 +139,7 @@ int rtw_os_alloc_recvframe(_adapter *padapter, union recv_frame *precvframe, u8 
 
 		precvframe->u.hdr.pkt = rtw_skb_clone(pskb);
 		if (precvframe->u.hdr.pkt) {
+			RTW_INFO("%s: rtw_skb_clone success, RX throughput may be low!\n", __FUNCTION__);
 			precvframe->u.hdr.pkt->dev = padapter->pnetdev;
 			precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pdata;
 			precvframe->u.hdr.rx_end =  pdata + alloc_sz;
@@ -210,7 +210,7 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 }
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C)
+#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C) && !defined(CONFIG_RTL8723F)
 #ifdef CONFIG_SDIO_RX_COPY
 static int sdio_init_recvbuf_with_skb(struct recv_priv *recvpriv, struct recv_buf *rbuf, u32 size)
 {
@@ -250,7 +250,7 @@ static int sdio_init_recvbuf_with_skb(struct recv_priv *recvpriv, struct recv_bu
 	return _SUCCESS;
 }
 #endif /* CONFIG_SDIO_RX_COPY */
-#endif /* !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C) */
+#endif /* !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C) && !defined(CONFIG_RTL8723F) */
 #endif /* defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI) */
 
 /* alloc os related resource in struct recv_buf */
@@ -287,7 +287,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf,
 #endif /* CONFIG_USE_USB_BUFFER_ALLOC_RX */
 
 #elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-	#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C)
+	#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C) && !defined(CONFIG_RTL8723F)
 	#ifdef CONFIG_SDIO_RX_COPY
 	res = sdio_init_recvbuf_with_skb(&padapter->recvpriv, precvbuf, size);
 	#endif
@@ -518,6 +518,10 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
 		pkt->dev = padapter->pnetdev;
 		pkt->ip_summed = CHECKSUM_NONE; /* CONFIG_TCP_CSUM_OFFLOAD_RX */
+
+		if (padapter->recvpriv.ip_statistic.enabled)
+			rtw_rx_dbg_monitor_ip_statistic(padapter, pkt);
+
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 		if ((rframe->u.hdr.attrib.csum_valid == 1)
 		    && (rframe->u.hdr.attrib.csum_err == 0))

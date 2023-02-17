@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -41,6 +40,7 @@ void phydm_mp_set_single_tone_jgr3(void *dm_void, boolean is_single_tone,
 	struct phydm_mp *mp = &dm->dm_mp_table;
 	u8 start = RF_PATH_A, end = RF_PATH_A;
 	u8 i = 0;
+	u8 max_rf_path = RF_PATH_A;
 	u8 central_ch = 0;
 	boolean is_2g_ch = false;
 
@@ -103,43 +103,55 @@ void phydm_mp_set_single_tone_jgr3(void *dm_void, boolean is_single_tone,
 	central_ch = (u8)odm_get_rf_reg(dm, RF_PATH_A, RF_0x18, 0xff);
 	is_2g_ch = (central_ch <= 14) ? true : false;
 
+	if (dm->support_ic_type & ODM_RTL8723F)
+		max_rf_path = RF_PATH_C;
+	else
+		max_rf_path = RF_PATH_MEM_SIZE;
+
 	if (is_single_tone) {
 		/*Disable CCA*/
 		if (is_2g_ch) { /*CCK RxIQ weighting = [0,0]*/
-			if(dm->support_ic_type & ODM_RTL8723F) {
-				odm_set_bb_reg(dm, R_0x2a24, BIT(13), 0x1); /*CCK*/
-			} else {
+			if(!(dm->support_ic_type & ODM_RTL8723F)) {
 				odm_set_bb_reg(dm, R_0x1a9c, BIT(20), 0x0);
 				odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x3);
 			}
 		}
-		odm_set_bb_reg(dm, R_0x1d58, 0xff8, 0x1ff); /*OFDM*/
+		/*Disable CCK CCA*/
+		if(dm->support_ic_type & ODM_RTL8723F)
+			odm_set_bb_reg(dm, R_0x2a24, BIT(13), 0x1);
+		/*Disable OFDM CCA*/
+		odm_set_bb_reg(dm, R_0x1d58, 0xff8, 0x1ff);
+
 		if (dm->support_ic_type & ODM_RTL8723F) {
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x5, BIT(0), 0x0);
 			for (i = start; i <= end; i++) {
-				mp->rf0[i] = odm_get_rf_reg(dm, i, RF_0x0, RFREG_MASK);
-				/*Tx mode: RF0x00[19:16]=4'b0010 */
-				odm_set_rf_reg(dm, i, RF_0x0, 0xF0000, 0x2);
-				/*Lowest RF gain index: RF_0x1[5:0] TX power*/
-				mp->rf1[i] = odm_get_rf_reg(dm, i, RF_0x1, RFREG_MASK);
-				odm_set_rf_reg(dm, i, RF_0x1, 0x3f, 0x0);//TX power
-				/*RF LO enabled */
-				odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x1);
+				if (i < max_rf_path) {
+					odm_set_rf_reg(dm, i, RF_0x5, BIT(0), 0x0);
+					mp->rf0[i] = odm_get_rf_reg(dm, i, RF_0x0, RFREG_MASK);
+					/*Tx mode: RF0x00[19:16]=4'b0010 */
+					odm_set_rf_reg(dm, i, RF_0x0, 0xF0000, 0x2);
+					/*Lowest RF gain index: RF_0x1[5:0] TX power*/
+					mp->rf1[i] = odm_get_rf_reg(dm, i, RF_0x1, RFREG_MASK);
+					odm_set_rf_reg(dm, i, RF_0x1, 0x3f, 0x0);//TX power
+					/*RF LO enabled */
+					odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x1);
+				}
 			}
 		} else {
 			for (i = start; i <= end; i++) {
-				mp->rf0[i] = odm_get_rf_reg(dm, i, RF_0x0, RFREG_MASK);
-				/*Tx mode: RF0x00[19:16]=4'b0010 */
-				odm_set_rf_reg(dm, i, RF_0x0, 0xF0000, 0x2);
-				/*Lowest RF gain index: RF_0x0[4:0] = 0*/
-				odm_set_rf_reg(dm, i, RF_0x0, 0x1f, 0x0);
-				/*RF LO enabled */
-				odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x1);
+				if (i < max_rf_path) {
+					mp->rf0[i] = odm_get_rf_reg(dm, i, RF_0x0, RFREG_MASK);
+					/*Tx mode: RF0x00[19:16]=4'b0010 */
+					odm_set_rf_reg(dm, i, RF_0x0, 0xF0000, 0x2);
+					/*Lowest RF gain index: RF_0x0[4:0] = 0*/
+					odm_set_rf_reg(dm, i, RF_0x0, 0x1f, 0x0);
+					/*RF LO enabled */
+					odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x1);
+				}
 			}
 		}
 		
 		#if (RTL8814B_SUPPORT)
-		if (dm->support_ic_type & ODM_RTL8814B) {
+		if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 			mp->rf0_syn[RF_SYN0] = config_phydm_read_syn_reg_8814b(
 					       dm, RF_SYN0, RF_0x0, RFREG_MASK);
 			/*Lowest RF gain index: RF_0x0[4:0] = 0x0*/
@@ -165,32 +177,38 @@ void phydm_mp_set_single_tone_jgr3(void *dm_void, boolean is_single_tone,
 	} else {
 		/*Enable CCA*/
 		if (is_2g_ch) { /*CCK RxIQ weighting = [1,1]*/
-			if(dm->support_ic_type & ODM_RTL8723F) {
-				odm_set_bb_reg(dm, R_0x2a24, BIT(13), 0x0); /*CCK*/ 
-			} else {
+			if(!(dm->support_ic_type & ODM_RTL8723F)) {
 				odm_set_bb_reg(dm, R_0x1a9c, BIT(20), 0x1);
 				odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x0);
 			}
 		}
-		odm_set_bb_reg(dm, R_0x1d58, 0xff8, 0x0); /*OFDM*/
+		/*Enable CCK CCA*/
+		if(dm->support_ic_type & ODM_RTL8723F)
+			odm_set_bb_reg(dm, R_0x2a24, BIT(13), 0x0);
+		/*Enable OFDM CCA*/
+		odm_set_bb_reg(dm, R_0x1d58, 0xff8, 0x0);
 
 		if(dm->support_ic_type & ODM_RTL8723F) {
 			for (i = start; i <= end; i++) {
-				odm_set_rf_reg(dm, i, RF_0x0, RFREG_MASK, mp->rf0[i]);
-				odm_set_rf_reg(dm, i, RF_0x1, RFREG_MASK, mp->rf1[i]);
-				/*RF LO disabled */
-				odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x0);
+				if (i < max_rf_path) {
+					odm_set_rf_reg(dm, i, RF_0x0, RFREG_MASK, mp->rf0[i]);
+					odm_set_rf_reg(dm, i, RF_0x1, RFREG_MASK, mp->rf1[i]);
+					/*RF LO disabled */
+					odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x0);
+					odm_set_rf_reg(dm, i, RF_0x5, BIT(0), 0x1);
+				}
 			}
-			odm_set_rf_reg(dm, RF_PATH_A, RF_0x5, BIT(0), 0x1);
 		} else {
 			for (i = start; i <= end; i++) {
-				odm_set_rf_reg(dm, i, RF_0x0, RFREG_MASK, mp->rf0[i]);
-				/*RF LO disabled */
-				odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x0);
+				if (i < max_rf_path) {
+					odm_set_rf_reg(dm, i, RF_0x0, RFREG_MASK, mp->rf0[i]);
+					/*RF LO disabled */
+					odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x0);
+				}
 			}
 		}
 		#if (RTL8814B_SUPPORT)
-		if (dm->support_ic_type & ODM_RTL8814B) {
+		if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 			config_phydm_write_rf_syn_8814b(dm, RF_SYN0, RF_0x0,
 							RFREG_MASK,
 							mp->rf0_syn[RF_SYN0]);

@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
 
 _PHYDM_FILES :=\
 	phydm/phydm.o \
@@ -196,13 +195,24 @@ ifeq ($(CONFIG_WLAN_HAL_8814BE),y)
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_txgapk_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_rfk_init_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halhwimg8814b_rf.o
+		ifeq ($(CONFIG_WLAN_HAL_8814CR),y)
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halrf_8814c.o
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halrf_iqk_8814c.o
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halrf_dpk_8814c.o
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halrf_txgapk_8814c.o
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halrf_rfk_init_8814c.o
+		_PHYDM_FILES += phydm/halrf/rtl8814c/halhwimg8814c_rf.o
+		endif
 	ifeq ($(CONFIG_RTL_ODM_WLAN_DRIVER),y)
 		_PHYDM_FILES += \
 		phydm/rtl8814b/phydm_hal_api8814b.o\
 		phydm/rtl8814b/halhwimg8814b_bb.o\
+		phydm/rtl8814c/halhwimg8814c_bb.o\
 		phydm/rtl8814b/phydm_regconfig8814b.o \
 		phydm/rtl8814b/phydm_extraagc8814b.o \
-		phydm/halrf/rtl8814b/halrf_8814b.o
+		phydm/rtl8814c/phydm_extraagc8814c.o \
+		phydm/halrf/rtl8814b/halrf_8814b.o \
+		phydm/halrf/rtl8814c/halrf_8814c.o
 	endif
 endif
 

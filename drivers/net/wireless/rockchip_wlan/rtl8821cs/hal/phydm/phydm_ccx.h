@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,8 +26,8 @@
 #ifndef __PHYDMCCX_H__
 #define __PHYDMCCX_H__
 
-/* 2020.07.21 Fix 8723F compile warning and remove 8723f in dym_pw_th(this machanism is WA patch only for 8822C ASUS)*/
-#define CCX_VERSION "4.4"
+/* 2021.03.10 Add 8814C flag*/
+#define CCX_VERSION "4.9"
 
 /* @1 ============================================================
  * 1  Definition
@@ -40,25 +39,38 @@
 #define	MS_TO_US		1000
 #define	MS_TO_4US_RATIO		250
 #define	CCA_CAP			14
+/*CLM*/
 #define	CLM_MAX_REPORT_TIME	10
 #define	CLM_PERIOD_MAX		65535
-#define	IFS_CLM_PERIOD_MAX	65535
+/*NHM*/
 #define	NHM_PERIOD_MAX		65534
-#define	NHM_TH_NUM		11	/*threshold number of NHM/FAHM*/
+#define	NHM_TH_NUM		11	/*threshold number of NHM*/
 #define	NHM_RPT_NUM		12
 #define NHM_IC_NOISE_TH		60	/*60/2 - 10 = 20 = -80 dBm*/
-#define	IFS_CLM_NUM		4
+#define NHM_RPT_MAX		255
 #ifdef NHM_DYM_PW_TH_SUPPORT
 #define	DYM_PWTH_CCA_CAP	24
 #endif
-
 #define	IGI_2_NHM_TH(igi)	((igi) << 1)/*NHM/FAHM threshold = IGI * 2*/
 #define	NTH_TH_2_RSSI(th)	((th >> 1) - 10)
+/*FAHM*/
+#define	FAHM_INCLU_FA		BIT(0)
+#define	FAHM_INCLU_CRC_OK	BIT(1)
+#define	FAHM_INCLU_CRC_ERR	BIT(2)
+#define	FAHM_PERIOD_MAX		65534
+#define	FAHM_TH_NUM		11	/*threshold number of FAHM*/
+#define	FAHM_RPT_NUM		12
+/*IFS-CLM*/
+#define	IFS_CLM_PERIOD_MAX	65535
+#define	IFS_CLM_NUM		4
+/*EDCCA-CLM*/
+#define	EDCCA_CLM_PERIOD	65535
 
 #define NHM_SUCCESS		BIT(0)
 #define CLM_SUCCESS		BIT(1)
 #define FAHM_SUCCESS		BIT(2)
 #define IFS_CLM_SUCCESS		BIT(3)
+#define EDCCA_CLM_SUCCESS	BIT(4)
 #define	ENV_MNTR_FAIL		0xff
 
 /* @1 ============================================================
@@ -101,6 +113,15 @@ enum phydm_ifs_clm_level {
 	IFS_CLM_MAX_NUM		= 5
 };
 
+enum phydm_edcca_clm_level {
+	EDCCA_CLM_RELEASE	= 0,
+	EDCCA_CLM_LV_1	= 1,	/* @Low Priority function */
+	EDCCA_CLM_LV_2	= 2,	/* @Middle Priority function */
+	EDCCA_CLM_LV_3	= 3,	/* @High priority function (ex: Check hang function) */
+	EDCCA_CLM_LV_4	= 4,	/* @Debug function (the highest priority) */
+	EDCCA_CLM_MAX_NUM	= 5
+};
+
 enum nhm_divider_opt_all {
 	NHM_CNT_ALL		= 0,	/*nhm SUM report <= 255*/
 	NHM_VALID		= 1,	/*nhm SUM report = 255*/
@@ -139,24 +160,6 @@ enum clm_application {
 	CLM_ACS			= 1,
 };
 
-enum fahm_opt_fa {
-	FAHM_EXCLUDE_FA	= 	0,
-	FAHM_INCLUDE_FA	= 	1,
-	FAHM_FA_INIT
-};
-
-enum fahm_opt_crc32_ok {
-	FAHM_EXCLUDE_CRC32_OK	= 0,
-	FAHM_INCLUDE_CRC32_OK	= 1,
-	FAHM_CRC32_OK_INIT
-};
-
-enum fahm_opt_crc32_err {
-	FAHM_EXCLUDE_CRC32_ERR	= 0,
-	FAHM_INCLUDE_CRC32_ERR	= 1,
-	FAHM_CRC32_ERR_INIT
-};
-
 enum fahm_application {
 	FAHM_BACKGROUND		= 0,/*default*/
 	FAHM_ACS		= 1,
@@ -183,6 +186,12 @@ enum phydm_ifs_clm_unit {
 	IFS_CLM_INIT
 };
 
+enum edcca_clm_application {
+	EDCCA_CLM_BACKGROUND	= 0,/*@default*/
+	EDCCA_CLM_ACS		= 1,
+	EDCCA_CLM_DBG		= 2,
+};
+
 /* @1 ============================================================
  * 1  structure
  * 1 ============================================================
@@ -195,6 +204,8 @@ struct env_trig_rpt {
 struct env_mntr_rpt {
 	u8			nhm_ratio;
 	u8			nhm_env_ratio; /*exclude nhm_r[0] above -80dBm or first cluster under -80dBm*/
+	u8			nhm_idle_ratio;
+	u8			nhm_tx_ratio;
 	u8			nhm_result[NHM_RPT_NUM];
 	u8			clm_ratio;
 	u8			nhm_rpt_stamp;
@@ -213,6 +224,8 @@ struct enhance_mntr_trig_rpt {
 struct enhance_mntr_rpt {
 	u8			nhm_ratio;
 	u8			nhm_env_ratio; /*exclude nhm_r[0] above -80dBm or first cluster under -80dBm*/
+	u8			nhm_idle_ratio;
+	u8			nhm_tx_ratio;
 	u8			nhm_result[NHM_RPT_NUM];
 	u8			clm_ratio;
 	u8			nhm_rpt_stamp;
@@ -222,11 +235,16 @@ struct enhance_mntr_rpt {
 	u16			fahm_result[NHM_RPT_NUM];
 	u8			fahm_rpt_stamp;
 	u8			fahm_pwr;
+	u8			fahm_ratio;
+	u8			fahm_denom_ratio;
+	u8			fahm_inclu_cck;
 	u8			ifs_clm_rpt_stamp;
 	u8			ifs_clm_tx_ratio;
 	u8			ifs_clm_edcca_excl_cca_ratio;
-	u8			ifs_clm_fa_ratio;
-	u8			ifs_clm_cca_excl_fa_ratio;
+	u8			ifs_clm_cck_fa_ratio;
+	u8			ifs_clm_cck_cca_excl_fa_ratio;
+	u8			ifs_clm_ofdm_fa_ratio;
+	u8			ifs_clm_ofdm_cca_excl_fa_ratio;
 };
 
 struct nhm_para_info {
@@ -247,12 +265,11 @@ struct clm_para_info {
 };
 
 struct fahm_para_info {
-	enum fahm_opt_fa		incld_fa;
-	enum fahm_opt_crc32_ok		incld_crc32_ok;
-	enum fahm_opt_crc32_err		incld_crc32_err;
 	enum fahm_application		app;
 	enum phydm_fahm_level		lv;
 	u16				mntr_time;	/*0~262 unit ms*/
+	u8				numer_opt;
+	u8				denom_opt;
 	boolean				en_1db_mode;
 	u8				th0_manual;/* for 1-db mode*/
 };
@@ -268,12 +285,19 @@ struct ifs_clm_para_info {
 	s16				th_shift;
 };
 
+struct edcca_clm_para_info {
+	enum edcca_clm_application	edcca_clm_app;
+	enum phydm_edcca_clm_level	edcca_clm_lv;
+};
+
 struct ccx_info {
 	u32			nhm_trigger_time;
 	u32			clm_trigger_time;
 	u32			fahm_trigger_time;
 	u32			ifs_clm_trigger_time;
+	u32			edcca_clm_trigger_time;
 	u64			start_time;	/*@monitor for the test duration*/
+	u8			ccx_watchdog_result;
 #ifdef NHM_SUPPORT
 	enum nhm_application		nhm_app;
 	enum nhm_option_txon_all	nhm_include_txon;
@@ -288,7 +312,10 @@ struct ccx_info {
 	u8			nhm_manual_ctrl;
 	u8			nhm_ratio;	/*@1% per nuit, it means the interference igi can't overcome.*/
 	u8			nhm_env_ratio; /*exclude nhm_r[0] above -80dBm or first cluster under -80dBm*/
+	u8			nhm_idle_ratio;
+	u8			nhm_tx_ratio;
 	u8			nhm_rpt_sum;
+	u16			nhm_duration;	/*@Real time of NHM_VALID */
 	u8			nhm_set_lv;
 	boolean			nhm_ongoing;
 	u8			nhm_rpt_stamp;
@@ -321,21 +348,22 @@ struct ccx_info {
 #endif
 #ifdef FAHM_SUPPORT
 	enum fahm_application	fahm_app;
-	enum fahm_opt_fa	fahm_incld_fa;
-	enum fahm_opt_crc32_ok	fahm_incld_crc32_ok;
-	enum fahm_opt_crc32_err	fahm_incld_crc32_err;
 	boolean			fahm_ongoing;
-	u8			fahm_nume_sel;	/*@fahm_numerator_sel: select {FA, CRCOK, CRC_fail} */
-	u8			fahm_denom_sel;	/*@fahm_denominator_sel: select {FA, CRCOK, CRC_fail} */
+	u8			fahm_numer_opt;
+	u8			fahm_denom_opt;
+	boolean			fahm_inclu_cck;
 	u8			fahm_th[NHM_TH_NUM];
 	u16			fahm_result[NHM_RPT_NUM];
+	u16			fahm_result_sum;
+	u16			fahm_denom_result;
 	u16			fahm_period;	/*unit: 4us*/
 	u8			fahm_igi;
 	u8			fahm_manual_ctrl;
-	u16			fahm_rpt_sum;
 	u8			fahm_set_lv;
 	u8			fahm_rpt_stamp;
 	u8			fahm_pwr; /*including r[0]~r[11]*/
+	u8			fahm_ratio;
+	u8			fahm_denom_ratio;
 #endif
 #ifdef IFS_CLM_SUPPORT
 	enum ifs_clm_application	ifs_clm_app;
@@ -363,8 +391,19 @@ struct ccx_info {
 	u16			ifs_clm_avg_cca[IFS_CLM_NUM];	/*4,8,12,16us per unit*/
 	u8			ifs_clm_tx_ratio;
 	u8			ifs_clm_edcca_excl_cca_ratio;
-	u8			ifs_clm_fa_ratio;
-	u8			ifs_clm_cca_excl_fa_ratio;
+	u8			ifs_clm_cck_fa_ratio;
+	u8			ifs_clm_cck_cca_excl_fa_ratio;
+	u8			ifs_clm_ofdm_fa_ratio;
+	u8			ifs_clm_ofdm_cca_excl_fa_ratio;
+#endif
+#ifdef EDCCA_CLM_SUPPORT
+	enum edcca_clm_application	edcca_clm_app;
+	u8				edcca_clm_manual_ctrl;
+	u8				edcca_clm_set_lv;
+	boolean 			edcca_clm_ongoing;
+	u16				edcca_clm_result;
+	u8				edcca_clm_ratio;
+	u8				edcca_clm_rpt_stamp;
 #endif
 };
 
@@ -399,10 +438,6 @@ u8 phydm_env_mntr_trigger(void *dm_void, struct nhm_para_info *nhm_para,
 
 u8 phydm_env_mntr_result(void *dm_void, struct env_mntr_rpt *rpt);
 
-void phydm_env_mntr_watchdog(void *dm_void);
-
-void phydm_env_monitor_init(void *dm_void);
-
 void phydm_env_mntr_dbg(void *dm_void, char input[][16], u32 *_used,
 			char *output, u32 *_out_len);
 
@@ -420,10 +455,20 @@ u8 phydm_enhance_mntr_trigger(void *dm_void,
 
 u8 phydm_enhance_mntr_result(void *dm_void, struct enhance_mntr_rpt *rpt);
 
-void phydm_enhance_mntr_watchdog(void *dm_void);
-
-void phydm_enhance_monitor_init(void *dm_void);
-
 void phydm_enhance_mntr_dbg(void *dm_void, char input[][16], u32 *_used,
 			char *output, u32 *_out_len);
+
+#ifdef EDCCA_CLM_SUPPORT
+void phydm_edcca_clm_dbg(void *dm_void, char input[][16], u32 *_used,
+			 char *output, u32 *_out_len);
+#endif
+
+void phydm_env_mntr_result_watchdog(void *dm_void);
+
+void phydm_env_mntr_set_watchdog(void *dm_void);
+
+u8 phydm_env_mntr_get_802_11_k_rsni(void *dm_void, s8 rcpi, s8 anpi);
+
+void phydm_env_monitor_init(void *dm_void);
+
 #endif

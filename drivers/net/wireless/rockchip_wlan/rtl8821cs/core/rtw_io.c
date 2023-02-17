@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -546,6 +545,12 @@ const struct rtw_io_sniff_ent write_sniff[] = {
 	RTW_IO_SNIFF_EN_ENT(MAX_CHIP_TYPE, RTW_SDIO, 0x02, 0x1FC, 1, "SDIO 0x02[8:2] not all 0"),
 	RTW_IO_SNIFF_EN_ENT(MAX_CHIP_TYPE, RTW_USB, 0x02, 0x1E0, 1, "USB 0x02[8:5] not all 0"),
 	RTW_IO_SNIFF_EN_ENT(MAX_CHIP_TYPE, RTW_PCIE, 0x02, 0x01C, 1, "PCI 0x02[4:2] not all 0"),
+#endif
+#ifdef DBG_IO_SIFS_SETTING
+	RTW_IO_SNIFF_RANGE_ENT(MAX_CHIP_TYPE, 0, 0x428, 0x429, 0, "SIFS"),
+	RTW_IO_SNIFF_RANGE_ENT(MAX_CHIP_TYPE, 0, 0x514, 0x517, 0, "SIFS"),
+	RTW_IO_SNIFF_RANGE_ENT(MAX_CHIP_TYPE, 0, 0x63a, 0x63b, 0, "SIFS"),
+	RTW_IO_SNIFF_RANGE_ENT(MAX_CHIP_TYPE, 0, 0x63c, 0x63f, 0, "SIFS"),
 #endif
 #ifdef DBG_IO_8822C_1TX_PATH_EN
 	RTW_IO_SNIFF_VALUE_ENT(RTL8822C, 0, 0x1a04, 0xc0000000, 0x02, 1, 0, "write tx_path_en_cck A enabled"),

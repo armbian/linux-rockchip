@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -1004,12 +1003,13 @@ void phydm_dm_summary_cli_win(void *dm_void, char *buf, u8 macid)
 		return;
 	}
 
-	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "00.(%s) %-12s: IGI=0x%x, Dyn_Rng=0x%x~0x%x, FA_th={%d,%d,%d}\n",
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "00.(%s) %-12s: IGI=0x%x, Dyn_Rng=0x%x~0x%x, fa_src=%d, FA_th={%d,%d,%d}\n",
 		   ((comp & ODM_BB_DIG) ?
 		   ((pause_comp & ODM_BB_DIG) ? "P" : "V") : "."),
 		   "DIG",
 		   dig_t->cur_ig_value,
 		   dig_t->rx_gain_range_min, dig_t->rx_gain_range_max,
+		   dig_t->fa_source,
 		   dig_t->fa_th[0], dig_t->fa_th[1], dig_t->fa_th[2]);
         RT_PRINT(buf);
 
@@ -1088,13 +1088,39 @@ void phydm_dm_summary_cli_win(void *dm_void, char *buf, u8 macid)
 	RT_PRINT(buf);
 
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
-		   "15.(%s) %-12s: ratio{nhm, clm}={%d, %d}, level{valid, RSSI}={%d, %d}\n",
+		   "15.(%s) %-12s: ratio{nhm, nhm_env, clm, idle, tx}={%d, %d, %d, %d, %d}, nhm_pwr=%d\n",
 		   ((comp & ODM_BB_ENV_MONITOR) ?
 		   ((pause_comp & ODM_BB_ENV_MONITOR) ? "P" : "V") : "."),
 		   "EnvMntr",
-		   dm->dm_ccx_info.nhm_ratio, dm->dm_ccx_info.clm_ratio,
-		   dm->dm_ccx_info.nhm_level_valid, dm->dm_ccx_info.nhm_level);
+		   dm->dm_ccx_info.nhm_ratio, dm->dm_ccx_info.nhm_env_ratio,
+		   dm->dm_ccx_info.clm_ratio, dm->dm_ccx_info.nhm_idle_ratio,
+		    dm->dm_ccx_info.nhm_tx_ratio, dm->dm_ccx_info.nhm_pwr);
 	RT_PRINT(buf);
+
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "15.(%s) %-12s: NHM_Rpt(H->L)[%d %d %d %d %d %d %d %d %d %d %d %d]\n",
+		   ((comp & ODM_BB_ENV_MONITOR) ?
+		   ((pause_comp & ODM_BB_ENV_MONITOR) ? "P" : "V") : "."),
+		   "EnvMntr",
+		   dm->dm_ccx_info.nhm_result[11],
+		   dm->dm_ccx_info.nhm_result[10],
+		   dm->dm_ccx_info.nhm_result[9], dm->dm_ccx_info.nhm_result[8],
+		   dm->dm_ccx_info.nhm_result[7], dm->dm_ccx_info.nhm_result[6],
+		   dm->dm_ccx_info.nhm_result[5], dm->dm_ccx_info.nhm_result[4],
+		   dm->dm_ccx_info.nhm_result[3], dm->dm_ccx_info.nhm_result[2],
+		   dm->dm_ccx_info.nhm_result[1], dm->dm_ccx_info.nhm_result[0]);
+	RT_PRINT(buf);
+
+#ifdef EDCCA_CLM_SUPPORT
+	if (dm->support_ic_type & PHYDM_IC_SUPPORT_EDCCA_CLM) {
+		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "15.(%s) %-12s: edcca_clm_ratio=%d\n",
+			   ((comp & ODM_BB_ENV_MONITOR) ?
+			   ((pause_comp & ODM_BB_ENV_MONITOR) ? "P" : "V") : "."),
+			   "EnvMntr",
+			   dm->dm_ccx_info.edcca_clm_ratio);
+		RT_PRINT(buf);
+	}
+#endif
+
 #ifdef PHYDM_PRIMARY_CCA
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "16.(%s) %-12s: CCA @ (%s SB)\n",
 		   ((comp & ODM_BB_PRIMARY_CCA) ?
@@ -1481,12 +1507,24 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 		RT_PRINT(buf);
 	}
 
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, 
+		   "\r\n [Tx cnt] {CCK_TxEN, CCK_TxON, OFDM_TxEN, OFDM_TxON} = {%d, %d, %d, %d}",
+		   fa_t->cnt_cck_txen, fa_t->cnt_cck_txon, fa_t->cnt_ofdm_txen,
+		   fa_t->cnt_ofdm_txon);
+	RT_PRINT(buf);
+
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n [CCA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}",
 		   fa_t->cnt_cck_cca, fa_t->cnt_ofdm_cca, fa_t->cnt_cca_all);
 	RT_PRINT(buf);
 
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n [FA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}",
 		   fa_t->cnt_cck_fail, fa_t->cnt_ofdm_fail, fa_t->cnt_all);
+	RT_PRINT(buf);
+
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "\r\n [FA duration(us)] {exp, ifs_clm, fahm} = {%d, %d, %d}",
+		   fa_t->time_fa_exp, fa_t->time_fa_ifs_clm,
+		   fa_t->time_fa_fahm);
 	RT_PRINT(buf);
 
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
@@ -2612,10 +2650,18 @@ void phydm_basic_dbg_message(void *dm_void)
 	else
 		PHYDM_DBG(dm, DBG_CMN, "No Link !!!\n");
 
+	PHYDM_DBG(dm, DBG_CMN,
+		  "[Tx cnt] {CCK_TxEN, CCK_TxON, OFDM_TxEN, OFDM_TxON} = {%d, %d, %d, %d}\n",
+		  fa_t->cnt_cck_txen, fa_t->cnt_cck_txon, fa_t->cnt_ofdm_txen,
+		  fa_t->cnt_ofdm_txon);
 	PHYDM_DBG(dm, DBG_CMN, "[CCA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_cca, fa_t->cnt_ofdm_cca, fa_t->cnt_cca_all);
 	PHYDM_DBG(dm, DBG_CMN, "[FA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_fail, fa_t->cnt_ofdm_fail, fa_t->cnt_all);
+	PHYDM_DBG(dm, DBG_CMN,
+		  "[FA duration(us)] {exp, ifs_clm, fahm} = {%d, %d, %d}\n",
+		  fa_t->time_fa_exp, fa_t->time_fa_ifs_clm,
+		  fa_t->time_fa_fahm);
 	PHYDM_DBG(dm, DBG_CMN,
 		  "[OFDM FA] Parity=%d, Rate=%d, Fast_Fsync=%d, SBD=%d\n",
 		  fa_t->cnt_parity_fail, fa_t->cnt_rate_illegal,
@@ -2652,11 +2698,22 @@ void phydm_basic_dbg_message(void *dm_void)
 			  dm->is_linked, dm->number_linked_client, dm->rssi_min,
 			  dm->dm_dig_table.cur_ig_value);
 
-#ifdef NHM_SUPPORT
-	if (dm->support_ability & ODM_BB_ENV_MONITOR) {
-		PHYDM_DBG(dm, DBG_CMN,
-			  "[NHM] valid: %d percent, noise(RSSI) = %d\n",
-			  ccx->nhm_level_valid, ccx->nhm_level);
+	PHYDM_DBG(dm, DBG_CMN,
+		  "ratio{nhm, nhm_env, clm, idle, tx}={%d, %d, %d, %d, %d}, nhm_pwr=%d\n",
+		  ccx->nhm_ratio, ccx->nhm_env_ratio, ccx->clm_ratio,
+		  ccx->nhm_idle_ratio, ccx->nhm_tx_ratio, ccx->nhm_pwr);
+
+	PHYDM_DBG(dm, DBG_CMN,
+		  "NHM_Rpt(H->L)[%d %d %d %d %d %d %d %d %d %d %d %d]\n",
+		  ccx->nhm_result[11], ccx->nhm_result[10], ccx->nhm_result[9],
+		  ccx->nhm_result[8], ccx->nhm_result[7], ccx->nhm_result[6],
+		  ccx->nhm_result[5], ccx->nhm_result[4], ccx->nhm_result[3],
+		  ccx->nhm_result[2], ccx->nhm_result[1], ccx->nhm_result[0]);
+
+#ifdef EDCCA_CLM_SUPPORT
+	if (dm->support_ic_type & PHYDM_IC_SUPPORT_EDCCA_CLM) {
+		PHYDM_DBG(dm, DBG_CMN, "edcca_clm_ratio=%d\n",
+			  ccx->edcca_clm_ratio);
 	}
 #endif
 }
@@ -2860,6 +2917,14 @@ void phydm_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 		date = RELEASE_DATE_8814B;
 		commit_by = COMMIT_BY_8814B;
 		release_ver = RELEASE_VERSION_8814B;
+	}
+#endif
+#if (RTL8814C_SUPPORT)
+	else if (dm->support_ic_type ==  ODM_RTL8814C) {
+		ic_type = "RTL8814C";
+		date = RELEASE_DATE_8814C;
+		commit_by = COMMIT_BY_8814C;
+		release_ver = RELEASE_VERSION_8814C;
 	}
 #endif
 
@@ -3325,7 +3390,7 @@ void phydm_shift_txagc(void *dm_void, u32 *const val, u32 *_used, char *output,
 				rpt &= phydm_api_set_txagc(dm, pow, path, i, 1);
 			}
 		} else if (dm->support_ic_type &
-			   (ODM_RTL8822C | ODM_RTL8814B |
+			   (ODM_RTL8822C | ODM_RTL8814B | ODM_RTL8814C |
 			    ODM_RTL8812F | ODM_RTL8197G | ODM_RTL8723F)) {
 			rpt &= phydm_api_shift_txagc(dm, val[3], path, 1);
 		}
@@ -5264,7 +5329,8 @@ enum PHYDM_CMD_ID {
 	PHYDM_SHIFT_RXAGC,
 	PHYDM_IFS_CLM,
 	PHYDM_ENHANCE_MNTR,
-	PHYDM_CSI_DBG
+	PHYDM_CSI_DBG,
+	PHYDM_EDCCA_CLM
 };
 
 struct phydm_command phy_dm_ary[] = {
@@ -5339,7 +5405,8 @@ struct phydm_command phy_dm_ary[] = {
 	{"shift_rxagc", PHYDM_SHIFT_RXAGC},
 	{"ifs_clm", PHYDM_IFS_CLM},
 	{"enh_mntr", PHYDM_ENHANCE_MNTR},
-	{"csi_dbg", PHYDM_CSI_DBG}
+	{"csi_dbg", PHYDM_CSI_DBG},
+	{"edcca_clm", PHYDM_EDCCA_CLM}
 	};
 
 #endif /*@#ifdef CONFIG_PHYDM_DEBUG_FUNCTION*/
@@ -5740,6 +5807,11 @@ void phydm_cmd_parser(struct dm_struct *dm, char input[][MAX_ARGV],
 		break;
 	case PHYDM_CSI_DBG:
 		phydm_get_csi_table(dm, &used, output, &out_len);
+		break;
+	case PHYDM_EDCCA_CLM:
+	#ifdef EDCCA_CLM_SUPPORT
+		phydm_edcca_clm_dbg(dm, input, &used, output, &out_len);
+	#endif
 		break;
 	default:
 		PDM_SNPF(out_len, used, output + used, out_len - used,

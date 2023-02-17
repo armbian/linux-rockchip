@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -204,6 +203,8 @@ extern const u16	phy_rate_table[84];
 
 #define PHY_HIST_SIZE		12
 #define PHY_HIST_TH_SIZE	(PHY_HIST_SIZE - 1)
+
+#define	S_TO_US			1000000
 
 /*@============================================================*/
 /*structure and define*/
@@ -437,12 +438,15 @@ enum odm_cmninfo {
 	ODM_CMNINFO_X_CAP_SETTING,
 	ODM_CMNINFO_ADVANCE_OTA,
 	ODM_CMNINFO_HP_HWID,
+	ODM_CMNINFO_HUAWEI_HWID,
+	ODM_CMNINFO_ATHEROS_HWID,
 	ODM_CMNINFO_TSSI_ENABLE, /*also for cmn_info_update*/
 	ODM_CMNINFO_DIS_DPD,
 	ODM_CMNINFO_POWER_VOLTAGE,
 	ODM_CMNINFO_ANTDIV_GPIO,
 	ODM_CMNINFO_EN_AUTO_BW_TH,
 	ODM_CMNINFO_PEAK_DETECT_MODE,
+	ODM_CMNINFO_EN_NBI_DETECT,
 	/*@-----------HOOK BEFORE REG INIT-----------*/
 
 	/*@Dynamic value:*/
@@ -482,6 +486,7 @@ enum odm_cmninfo {
 	ODM_CMNINFO_BF_ANTDIV_DECISION,
 	ODM_CMNINFO_MANUAL_SUPPORTABILITY,
 	ODM_CMNINFO_EN_DYM_BW_INDICATION,
+	ODM_ANTI_INTERFERENCE_EN,
 	/*@--------- POINTER REFERENCE-----------*/
 
 	/*@------------CALL BY VALUE-------------*/
@@ -569,7 +574,10 @@ enum phydm_info_query {
 	PHYDM_INFO_NHM_NOISE_PWR,
 	PHYDM_INFO_NHM_PWR,
 	PHYDM_INFO_NHM_ENV_RATIO,
-
+	PHYDM_INFO_TXEN_CCK,
+	PHYDM_INFO_TXEN_OFDM,
+	PHYDM_INFO_NHM_IDLE_RATIO,
+	PHYDM_INFO_NHM_TX_RATIO,
 };
 
 enum phydm_api {
@@ -793,9 +801,19 @@ struct dm_struct {
 	u32			last_num_qry_phy_status_all;
 	u32			rx_pwdb_ave;
 	boolean		is_init_hw_info_by_rfe;
+	boolean         is_R2R_CCA_MASKT_TIME_SHORT;
+#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
+	u32			rts_drop_cnt;
+	u32			low_rate_tx_fail_cnt;
+	u32			low_rate_tx_ok_cnt;
+#endif
 
 	//TSSI
 	u8			en_tssi_mode;
+	#if (RTL8723F_SUPPORT)
+	//ZWDFS for 80M
+	u8			en_zwdfs_bw80;
+	#endif
 
 	/*@------ ODM HANDLE, DRIVER NEEDS NOT TO HOOK------*/
 	boolean			is_cck_high_power;
@@ -865,11 +883,16 @@ struct dm_struct {
 	boolean			en_dis_dpd;
 	u16			dis_dpd_rate;
 	u8			en_auto_bw_th;
-	#if (RTL8822C_SUPPORT || RTL8814B_SUPPORT || RTL8197G_SUPPORT || RTL8723F_SUPPORT)
+	boolean			is_pause_dig;
+	boolean			en_nbi_detect;
+	#if (RTL8822C_SUPPORT || RTL8814B_SUPPORT || RTL8197G_SUPPORT)
 	u8			txagc_buff[RF_PATH_MEM_SIZE][PHY_NUM_RATE_IDX];
 	u32			bp_0x9b0;
+	#elif (RTL8723F_SUPPORT)
+	u8			txagc_buff[2][PHY_NUM_RATE_IDX];
+	u32			bp_0x9b0;
 	#endif
-	#if (RTL8822C_SUPPORT)
+	#if (RTL8822C_SUPPORT || RTL8723F_SUPPORT)
 	u8			ofdm_rxagc_l_bnd[16];
 	boolean			l_bnd_detect[16];
 	u16			agc_rf_gain_ori[16][64];/*[table][mp_gain_idx]*/
@@ -918,6 +941,7 @@ struct dm_struct {
 	u8			*bb_op_mode;
 	u32			*manual_supportability;
 	u8			*dis_dym_bw_indication;
+	u8			*anti_interference_en;
 /*@===========================================================*/
 /*@====[ CALL BY VALUE ]===========================================*/
 /*@===========================================================*/
@@ -1006,6 +1030,7 @@ struct dm_struct {
 	boolean			MPDIG_2G;		/*off MPDIG*/
 	u8			times_2g;		/*@for MP DIG*/
 	u8			force_igi;		/*@for debug*/
+	boolean			is_dig_low_bond;
 
 	/*@[TDMA-DIG]*/
 	u8			tdma_dig_timer_ms;
@@ -1177,7 +1202,7 @@ struct dm_struct {
 	u32			radar_detect_reg_f74;
 	/*@---For zero-wait DFS---------------------------------------*/
 	boolean			seg1_dfs_flag;
-	/*@-----------------------------------------------------------*/
+	/*@---For ETSI 302 ---------------------------------------*/
 /*@-----------------------------------------------------------*/
 #endif
 

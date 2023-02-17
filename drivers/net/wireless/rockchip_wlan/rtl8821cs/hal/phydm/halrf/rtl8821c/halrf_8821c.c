@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -330,16 +329,25 @@ void _phy_aac_calibrate_8821c(struct dm_struct *dm)
 #endif
 }
 
+boolean phy_lck_done_8821c(struct dm_struct *dm)
+{
+	boolean lck_ok = false;
+
+	if (odm_get_rf_reg(dm, RF_PATH_A, 0xc6, BIT(19)) == 0x0)
+		lck_ok = true;
+	return lck_ok;
+}
+
 void _phy_lc_calibrate_8821c(struct dm_struct *dm)
 {
-#if 1
+#if 0
 	aac_check_8821c(dm);
 	RF_DBG(dm, DBG_RF_LCK, "[LCK]real-time LCK!!!!!!!\n");
 	odm_set_rf_reg(dm, RF_PATH_A, RF_0xcc, RFREGOFFSETMASK, 0x2018);
 	odm_set_rf_reg(dm, RF_PATH_A, RF_0xc4, RFREGOFFSETMASK, 0x8f602);
 	odm_set_rf_reg(dm, RF_PATH_A, RF_0xcc, RFREGOFFSETMASK, 0x201c);
 #endif
-#if 0
+#if 1
 	u32 lc_cal = 0, cnt = 0, tmp0xc00;
 	/*RF to standby mode*/
 	tmp0xc00 = odm_read_4byte(dm, 0xc00);
@@ -369,8 +377,8 @@ void _phy_lc_calibrate_8821c(struct dm_struct *dm)
 #endif
 }
 
-/*LCK:0x2*/
-/*1. add AACK check*/
+/*LCK:0x3*/
+/*1. full LCK*/
 void phy_lc_calibrate_8821c(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;

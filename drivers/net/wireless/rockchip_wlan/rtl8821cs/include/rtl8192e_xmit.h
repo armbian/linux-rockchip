@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2012 - 2017 Realtek Corporation.
@@ -365,7 +364,7 @@ void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 	s32	rtl8192eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8192eu_xmit_buf_handler(PADAPTER padapter);
 	#define hal_xmit_handler rtl8192eu_xmit_buf_handler
-	void rtl8192eu_xmit_tasklet(void *priv);
+	void rtl8192eu_xmit_tasklet(unsigned long priv);
 	s32 rtl8192eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 #endif
 
@@ -397,7 +396,7 @@ void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 	s32 rtl8192es_xmit_buf_handler(PADAPTER padapter);
 
 	#ifdef CONFIG_SDIO_TX_TASKLET
-		void rtl8192es_xmit_tasklet(void *priv);
+		void rtl8192es_xmit_tasklet(unsigned long priv);
 	#endif
 #endif
 

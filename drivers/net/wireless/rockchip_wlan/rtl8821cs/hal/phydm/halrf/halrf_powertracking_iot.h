@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -100,7 +99,7 @@ odm_txpowertracking_init(
 
 struct iqk_matrix_regs_setting {
 	boolean	is_iqk_done;
-	s32		value[3][iqk_matrix_reg_num];
+	s32		value[1][iqk_matrix_reg_num];
 	boolean	is_bw_iqk_result_saved[3];
 };
 
@@ -150,8 +149,10 @@ struct dm_rf_calibration_struct {
 	s8	xtal_offset;
 	s8	xtal_offset_last;
 
-#if (RTL8710B_SUPPORT == 1 || RTL8721D_SUPPORT == 1)
+#if (RTL8710B_SUPPORT == 1)
 	struct iqk_matrix_regs_setting iqk_matrix_reg_setting[IQK_MATRIX_SETTINGS_NUM];
+#elif  (RTL8721D_SUPPORT == 1)
+	struct iqk_matrix_regs_setting iqk_matrix_reg_setting[1];
 #endif
 	u8	delta_lck;
 	s8  bb_swing_diff_2g, bb_swing_diff_5g; /* Unit: dB */
@@ -176,7 +177,7 @@ struct dm_rf_calibration_struct {
 	u8  delta_swing_table_idx_2gd_n[DELTA_SWINGIDX_SIZE];
 #endif
 
-#if (RTL8195B_SUPPORT == 1)
+#if (RTL8195B_SUPPORT == 1 || RTL8721D_SUPPORT == 1)
 	u8  delta_swing_table_idx_5ga_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
 	u8  delta_swing_table_idx_5ga_n[BAND_NUM][DELTA_SWINGIDX_SIZE];
 	u8  delta_swing_table_idx_5gb_p[BAND_NUM][DELTA_SWINGIDX_SIZE];
