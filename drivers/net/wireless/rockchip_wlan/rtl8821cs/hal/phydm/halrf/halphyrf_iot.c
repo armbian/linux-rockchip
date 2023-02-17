@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -461,8 +460,7 @@ odm_txpowertracking_callback_thermal_meter(
 		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
 		       "**********Enter POWER Tracking MIX_MODE**********\n");
 		for (p = RF_PATH_A; p < c.rf_path_count; p++)
-			(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p,
-						      indexforchannel);
+			(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
 
 		/*Record last time Power Tracking result as base.*/
 		cali_info->bb_swing_idx_cck_base = cali_info->bb_swing_idx_cck;

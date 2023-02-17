@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -41,6 +40,10 @@
 #endif
 	#define NHM_SUPPORT
 	#define CLM_SUPPORT
+
+#if (RTL8197G_SUPPORT || RTL8812F_SUPPORT)
+	#define EDCCA_CLM_SUPPORT
+#endif
 
 #if (RTL8812F_SUPPORT)
 	/*#define PHYDM_PHYSTAUS_AUTO_SWITCH*/

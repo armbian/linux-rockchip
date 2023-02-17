@@ -1,7 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2019 Realtek Corporation.
+ * Copyright(c) 2019 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -18,7 +17,7 @@
 
 #include <osdep_service.h>		/* BIT(x) */
 #include <drv_types.h>			/* PADAPTER */
-#include "../hal/halmac/halmac_api.h"	/* MAC REG definition */
+#include "../hal/halmac-rs/halmac_api.h"	/* MAC REG definition */
 
 #define MAX_RECVBUF_SZ		16384	/* 16KB (RX_FIFO_SIZE_8723F), TX: 32KB */
 
@@ -49,7 +48,8 @@
 #define BIT_GET_NETYPE4				BIT_GET_P4_NETSTATE_8723F /* hal_halmac.c */
 
 #ifdef CONFIG_WOW_PATTERN_IN_TXFIFO
-/* todo: 8723F , need to check in the future */
+#define WKCAM_OFFSET_BIT_MASK 0xFFF
+#define WKCAM_OFFSET_BIT_MASK_OFFSET 12
 #define REG_TXBUF_WKCAM_OFFSET 0x1B4 //BIT_TXBUF_WKCAM_OFFSET [24:12]
 #define REG_PKT_BUFF_ACCESS_CTRL 	0x106 /* hal_com.c */
 #endif
@@ -222,24 +222,6 @@
 
 /* rtw_lps_state_chk() @hal_com.c */
 #define BIT_PWRBIT_OW_EN	BIT_WMAC_TCR_PWRMGT_CTL_8723F
-
-
-/* 
-* Structure 
-*/
-struct qinfo_8723f {
-	u32 head:8;
-	u32 pkt_num:7;
-	u32 tail:8;
-	u32 ac:2;
-	u32 macid:7;
-};
-
-struct bcn_qinfo_8723f {
-	u16 head:8;
-	u16 pkt_num:8;
-};
-
 
 /* 
 * General Functions 

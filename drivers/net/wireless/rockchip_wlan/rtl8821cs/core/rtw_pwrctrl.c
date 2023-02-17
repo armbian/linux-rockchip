@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -693,14 +692,101 @@ u8 PS_RDY_CHECK(_adapter *padapter)
 	return _TRUE;
 }
 
+#ifdef CONFIG_LPS_LCLK
+void rtw_set_lps_lclk(_adapter *padapter, u8 enable)
+{
+	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
+	u8 val8 = 0;
+	u8 polling_cnt = 0;
+	u8 cpwm_orig = 0;
+	u8 cpwm_now = 0;
+	u8 result = _FAIL;
+	systime start_time;
+
+	if (enable) {
+		/* set rpwm to enter 32k */
+		rtw_hal_get_hwreg(padapter, HW_VAR_RPWM_TOG, &val8);
+		RTW_INFO("%s: read rpwm=%02x\n", __func__, val8);
+		val8 += PS_TOGGLE;
+		val8 |= PS_LCLK;
+		rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&val8));
+		RTW_INFO("%s: write rpwm=%02x\n", __func__, val8);
+		pwrctl->tog = (val8 + PS_TOGGLE) & PS_TOGGLE;
+
+		/* When using PNO, the FW may scan first, so polling register 100
+		 * may not see 0xEA at this point.
+		 */
+		if (!pwrctl->wowlan_pno_enable) {
+			do {
+				val8 = rtw_read8(padapter, REG_CR);
+				polling_cnt++;
+				RTW_INFO("%s  polling 0x100=0x%x, cnt=%d\n",
+					 __func__, val8, polling_cnt);
+				RTW_INFO("%s 0x08:%02x, 0x03:%02x\n",
+					 __func__,
+					 rtw_read8(padapter, 0x08),
+					 rtw_read8(padapter, 0x03));
+				rtw_mdelay_os(10);
+			} while (polling_cnt < 20 && (val8 != 0xEA));
+		}
+	} else {
+		/* for polling cpwm */
+		rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_orig);
+
+		/* set rpwm to leave 32k */
+		rtw_hal_get_hwreg(padapter, HW_VAR_RPWM_TOG, &val8);
+		RTW_INFO("%s: read rpwm=%02x\n", __func__, val8);
+		val8 += PS_TOGGLE;
+		val8 |= PS_ACK;
+		rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&val8));
+		RTW_INFO("%s: write rpwm=%02x\n", __func__, val8);
+		pwrctl->tog = (val8 + PS_TOGGLE) & PS_TOGGLE;
+
+		/* do polling cpwm */
+		start_time = rtw_get_current_time();
+		do {
+			rtw_mdelay_os(1);
+
+			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
+			if ((cpwm_orig ^ cpwm_now) & PS_TOGGLE)
+				break;
+
+			if (rtw_get_passing_time_ms(start_time) > 100) {
+				RTW_INFO("%s: polling cpwm timeout\n",
+					__func__);
+				break;
+			}
+		} while (1);
+
+#ifdef CONFIG_PNO_SUPPORT
+		if (pwrctl->wowlan_pno_enable) {
+			do {
+				rtw_mdelay_os(1);
+
+				val8 = rtw_read8(padapter, REG_CR);
+				if (val8 != 0xEA) {
+					result = _SUCCESS;
+					break;
+				}
+
+				polling_cnt++;
+			} while (polling_cnt < 100);
+
+			if (result == _FAIL )
+				RTW_INFO("%s: It is not finished to leave 32K\n",
+					__func__);
+		}
+#endif
+	}
+}
+#endif
+
 #if defined(CONFIG_FWLPS_IN_IPS)
 void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	int cnt = 0;
-	systime start_time;
 	u8 val8 = 0;
-	u8 cpwm_orig = 0, cpwm_now = 0;
 	u8 parm[H2C_INACTIVE_PS_LEN] = {0};
 
 	if (padapter->netif_up == _FALSE) {
@@ -738,64 +824,15 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 
 #ifdef CONFIG_LPS_LCLK
 		/* H2C done, enter 32k */
-		if (val8 == 0) {
-			/* ser rpwm to enter 32k */
-			rtw_hal_get_hwreg(padapter, HW_VAR_RPWM_TOG, &val8);
-			RTW_INFO("%s: read rpwm=%02x\n", __FUNCTION__, val8);
-			val8 += 0x80;
-			val8 |= BIT(0);
-			rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&val8));
-			RTW_INFO("%s: write rpwm=%02x\n", __FUNCTION__, val8);
-			adapter_to_pwrctl(padapter)->tog = (val8 + 0x80) & 0x80;
-			cnt = val8 = 0;
-			if (parm[1] == 0 || parm[2] == 0) {
-				do {
-					val8 = rtw_read8(padapter, REG_CR);
-					cnt++;
-					RTW_INFO("%s  polling 0x100=0x%x, cnt=%d\n",
-						 __func__, val8, cnt);
-					RTW_INFO("%s 0x08:%02x, 0x03:%02x\n",
-						 __func__,
-						 rtw_read8(padapter, 0x08),
-						 rtw_read8(padapter, 0x03));
-					rtw_mdelay_os(10);
-				} while (cnt < 20 && (val8 != 0xEA));
-			}
-		}
+		if (val8 == 0)
+			rtw_set_lps_lclk(padapter, _TRUE);
 #endif
 	} else {
 		/* Leave IPS */
 		RTW_INFO("%s: Leaving IPS in FWLPS state\n", __func__);
 
 #ifdef CONFIG_LPS_LCLK
-		/* for polling cpwm */
-		cpwm_orig = 0;
-		rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_orig);
-
-		/* ser rpwm */
-		rtw_hal_get_hwreg(padapter, HW_VAR_RPWM_TOG, &val8);
-		val8 += 0x80;
-		val8 |= BIT(6);
-		rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&val8));
-		RTW_INFO("%s: write rpwm=%02x\n", __FUNCTION__, val8);
-		adapter_to_pwrctl(padapter)->tog = (val8 + 0x80) & 0x80;
-
-		/* do polling cpwm */
-		start_time = rtw_get_current_time();
-		do {
-
-			rtw_mdelay_os(1);
-
-			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
-			if ((cpwm_orig ^ cpwm_now) & 0x80)
-				break;
-
-			if (rtw_get_passing_time_ms(start_time) > 100) {
-				RTW_INFO("%s: polling cpwm timeout when leaving IPS in FWLPS state\n", __FUNCTION__);
-				break;
-			}
-		} while (1);
-
+		rtw_set_lps_lclk(padapter, _FALSE);
 #endif
 		parm[0] = 0x0;
 		parm[1] = 0x0;
@@ -807,7 +844,7 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 #endif
 	}
 }
-#endif /* CONFIG_PNO_SUPPORT */
+#endif /* CONFIG_FWLPS_IN_IPS */
 
 void rtw_exec_lps(_adapter *padapter, u8 ps_mode)
 {
@@ -1427,7 +1464,7 @@ void LeaveAllPowerSaveModeDirect(PADAPTER Adapter)
 	} else {
 		if (pwrpriv->rf_pwrstate == rf_off) {
 
-#if defined(CONFIG_FWLPS_IN_IPS) || defined(CONFIG_SWLPS_IN_IPS) || defined(CONFIG_RTL8188E)
+#if defined(CONFIG_FWLPS_IN_IPS) || defined(CONFIG_SWLPS_IN_IPS) || defined(CONFIG_RTL8188E) || defined(CONFIG_PNO_SUPPORT)
 #ifdef CONFIG_IPS
 			if (_FALSE == ips_leave(pri_padapter))
 				RTW_INFO("======> ips_leave fail.............\n");
@@ -2362,7 +2399,9 @@ void rtw_init_pwrctrl_priv(PADAPTER padapter)
 #ifdef CONFIG_PNO_SUPPORT
 	pwrctrlpriv->pno_inited = _FALSE;
 	pwrctrlpriv->pnlo_info = NULL;
+	#ifndef RTW_HALMAC
 	pwrctrlpriv->pscan_info = NULL;
+	#endif
 	pwrctrlpriv->pno_ssid_list = NULL;
 #endif /* CONFIG_PNO_SUPPORT */
 #ifdef CONFIG_WOW_PATTERN_HW_CAM
@@ -2437,8 +2476,10 @@ void rtw_free_pwrctrl_priv(PADAPTER adapter)
 	if (pwrctrlpriv->pnlo_info != NULL)
 		printk("****** pnlo_info memory leak********\n");
 
+	#ifndef RTW_HALMAC
 	if (pwrctrlpriv->pscan_info != NULL)
 		printk("****** pscan_info memory leak********\n");
+	#endif
 
 	if (pwrctrlpriv->pno_ssid_list != NULL)
 		printk("****** pno_ssid_list memory leak********\n");

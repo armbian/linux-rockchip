@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -331,6 +330,9 @@ enum btc_btinfo_src {
 	BTC_BTINFO_SRC_BT_IQK	= 0x3,
 	BTC_BTINFO_SRC_BT_SCBD	= 0x4,
 	BTC_BTINFO_SRC_H2C60	= 0x5,
+	BTC_BTINFO_SRC_BT_PSD	= 0x6,
+	BTC_BTINFO_SRC_BT_SLOT1	= 0x7,
+	BTC_BTINFO_SRC_BT_SLOT2	= 0x8,
 	BTC_BTINFO_SRC_MAX
 };
 
@@ -462,7 +464,8 @@ enum btc_wl2bt_scoreboard {
 	BTC_SCBD_TDMA		= BIT(9),
 	BTC_SCBD_FIX2M		= BIT(10),
 	BTC_SCBD_MAILBOX_DBG	= BIT(14),
-	BTC_SCBD_ALL		= 0xffffffff
+	BTC_SCBD_ALL		= 0xffff,
+	BTC_SCBD_ALL_32BIT	= 0xffffffff
 };
 
 enum btc_bt2wl_scoreboard {
@@ -545,7 +548,9 @@ static const char *const coex_mode_string[] = {
 	"5G",
 	"2G-P2P-GO",
 	"2G-P2P-GC",
-	"BT-MR"
+	"BT-MR",
+	"2G1RFREE",
+	"unknow"
 };
 
 enum btc_bt_state_cnt {
@@ -741,6 +746,8 @@ struct btc_coex_dm {
 	u8	bt_status;
 	u8	wl_chnl_info[3];
 	u8	cur_toggle_para[6];
+	u8	bt_slot_length1[10];
+	u8	bt_slot_length2[10];
 	u32	cur_ant_pos_type;
 	u32	cur_switch_status;
 	u32	setting_tdma;
@@ -872,6 +879,8 @@ struct btc_coex_sta {
 	u16	bt_reg_rf_9;
 	u16	wl_txlimit;
 
+	u32	score_board_BW_32bit;
+	u32	score_board_WB_32bit;
 	u32	hi_pri_tx;
 	u32	hi_pri_rx;
 	u32	lo_pri_tx;
@@ -1481,13 +1490,24 @@ typedef u4Byte
 	IN 	PVOID			pBtcContext,
 	IN	u2Byte			reg_addr
 	);
-typedef u4Byte
+typedef u2Byte
 (*BFP_BTC_R_SCBD)(
+	IN 	PVOID			pBtcContext,
+	IN	pu2Byte			score_board_val
+	);
+typedef u4Byte
+(*BFP_BTC_R_SCBD_32BIT)(
 	IN 	PVOID			pBtcContext,
 	IN	pu4Byte			score_board_val
 	);
 typedef VOID
 (*BFP_BTC_W_SCBD)(
+	IN 	PVOID			pBtcContext,
+	IN	u2Byte			bitpos,
+	IN	BOOLEAN			state
+	);
+typedef VOID
+(*BFP_BTC_W_SCBD_32BIT)(
 	IN 	PVOID			pBtcContext,
 	IN	u4Byte			bitpos,
 	IN	BOOLEAN			state
@@ -1805,7 +1825,10 @@ struct btc_coexist {
 	BFP_BTC_R_LINDIRECT		btc_read_linderct;
 	BFP_BTC_W_LINDIRECT		btc_write_linderct;
 	BFP_BTC_R_SCBD			btc_read_scbd;
+	BFP_BTC_R_SCBD_32BIT	btc_read_scbd_32bit;
 	BFP_BTC_W_SCBD			btc_write_scbd;
+	BFP_BTC_W_SCBD_32BIT	btc_write_scbd_32bit;
+
 	/* read/write bb related */
 	BFP_BTC_SET_BB_REG	btc_set_bb_reg;
 	BFP_BTC_GET_BB_REG	btc_get_bb_reg;
@@ -1911,6 +1934,7 @@ struct btc_chip_para {
 	u32				para_ver_date;
 	u32				para_ver;
 	u32				bt_desired_ver;
+	u32				wl_desired_ver;
 	boolean			scbd_support;
 	u32				scbd_reg;
 	u8				scbd_bit_num;

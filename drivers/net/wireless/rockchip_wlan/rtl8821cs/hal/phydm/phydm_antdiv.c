@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -75,7 +74,7 @@ void odm_trx_hw_ant_div_init_8710c(void *dm_void)
 	/*@BT Coexistence*/
 	/*@keep antsel_map when GNT_BT = 1*/
 	odm_set_bb_reg(dm, R_0x864, BIT(12), 1);
-	
+
 	/* @Disable hw antsw & fast_train.antsw when GNT_BT=1 */
 	odm_set_bb_reg(dm, R_0x874, BIT(23), 1);
 	odm_set_bb_reg(dm, R_0x930, 0xF00, 8); /* RFE CTRL_2 ANTSEL0 */
@@ -84,13 +83,13 @@ void odm_trx_hw_ant_div_init_8710c(void *dm_void)
 	odm_set_bb_reg(dm, R_0x804, BIT(8), 0); /* r_keep_rfpin */
 
 	/*@Mapping Table*/
-	//odm_set_bb_reg(dm, R_0x864, BIT2|BIT1|BIT0, 2); 
-	odm_set_bb_reg(dm, R_0x944, 0xFFFF, 0xffff); 
+	//odm_set_bb_reg(dm, R_0x864, BIT2|BIT1|BIT0, 2);
+	odm_set_bb_reg(dm, R_0x944, 0xFFFF, 0xffff);
 	odm_set_bb_reg(dm, R_0x914, MASKBYTE0, 0);
 	odm_set_bb_reg(dm, R_0x914, MASKBYTE1, 1);
 	/*@antenna training	*/
 	odm_set_bb_reg(dm, R_0xe08, BIT(16), 0);
-	
+
 	//need to check!!!!!!!!!!
 	/* Set WLBB_SEL_RF_ON 1 if RXFIR_PWDB > 0xCcc[3:0] */
 	odm_set_bb_reg(dm, R_0xccc, BIT(12), 0);
@@ -125,7 +124,7 @@ void odm_update_rx_idle_ant_8710c(void *dm_void, u8 ant, u32 default_ant,
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fat_struct *fat_tab = &dm->dm_fat_table;
 	void *adapter = dm->adapter;
-	
+
 	PHYDM_DBG(dm, DBG_ANT_DIV,
 		  "***odm_update_rx_idle_ant_8710c!!!\n");
 	if (dm->ant_div_type == S0S1_SW_ANTDIV) {
@@ -133,7 +132,7 @@ void odm_update_rx_idle_ant_8710c(void *dm_void, u8 ant, u32 default_ant,
 			HAL_WRITE32(SYSTEM_CTRL_BASE, R_0x1210,0x800000);
 		else
 			HAL_WRITE32(SYSTEM_CTRL_BASE, R_0x1214,0x800000);
-		
+
 		fat_tab->rx_idle_ant = ant;
 	}else if (dm->ant_div_type == CG_TRX_HW_ANTDIV) {
 		odm_set_bb_reg(dm, R_0x864, BIT(5) | BIT(4) | BIT(3), default_ant);
@@ -258,7 +257,7 @@ void odm_trx_hw_ant_div_init_8721d(void *dm_void)
 		odm_set_bb_reg(dm, R_0x930, 0xF00, 8);
 		odm_set_bb_reg(dm, R_0x930, 0xF000, 8);
 		odm_set_bb_reg(dm, R_0x92c, BIT(3) | BIT(2), 2);
-		odm_set_bb_reg(dm, R_0x944, 0x0000000C, 0x3); 	
+		odm_set_bb_reg(dm, R_0x944, 0x0000000C, 0x3);
 	}
 	else if(dm->antdiv_gpio == ANTDIV_GPIO_PB1PB2PB26){
               /* 3 antenna diversity for AmebaD only */
@@ -496,8 +495,16 @@ void phydm_jgr3_on_off(void *dm_void, u8 swch, u8 path)
 
 	odm_set_bb_reg(dm, R_0x8a0, BIT(17), swch);
 	/* OFDM AntDiv function block enable */
+	if (dm->support_ic_type & ODM_RTL8723F) {
+	odm_set_bb_reg(dm, R_0x1a48, BIT(16), swch);
+	/* @CCK AntDiv function block enable */
+	}
+	else{
 	odm_set_bb_reg(dm, R_0xa00, BIT(15), swch);
 	/* @CCK AntDiv function block enable */
+	}
+	PHYDM_DBG(dm, DBG_ANT_DIV,
+		  "[8723F] AntDiv_on\n");
 }
 
 void odm_ant_div_on_off(void *dm_void, u8 swch, u8 path)
@@ -606,6 +613,12 @@ void phydm_keep_rx_ack_ant_by_tx_ant_time(void *dm_void, u32 time)
 		odm_set_bb_reg(dm, R_0xe20, 0xf00000, time);
 	else if (dm->support_ic_type & ODM_AC_ANTDIV_SUPPORT)
 		odm_set_bb_reg(dm, R_0x818, 0xf00000, time);
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		odm_set_bb_reg(dm, R_0x1c8c, 0xf00, time);
+			/* keep antenna index after tx */
+	}
+
+
 }
 
 void phydm_update_rx_idle_ac(void *dm_void, u8 ant, u32 default_ant,
@@ -713,7 +726,13 @@ void odm_update_rx_idle_ant(void *dm_void, u8 ant)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fat_struct *fat_tab = &dm->dm_fat_table;
 	u32 default_ant, optional_ant, value32, default_tx_ant;
-
+	if (dm->support_ic_type & ODM_JGR3_ANTDIV_SUPPORT) {
+		PHYDM_DBG(dm, DBG_ANT_DIV,"JGR3 HW-AntDiv block\n");
+	}
+	else{
+		PHYDM_DBG(dm, DBG_ANT_DIV,"not suppoty JGR3 HW-AntDiv block\n");
+		PHYDM_DBG(dm, DBG_ANT_DIV,"dm->support_ic_type=%d\n",dm->support_ic_type);
+}
 	if (fat_tab->rx_idle_ant != ant) {
 		PHYDM_DBG(dm, DBG_ANT_DIV,
 			  "[ Update Rx-Idle-ant ] rx_idle_ant =%s\n",
@@ -790,7 +809,7 @@ void odm_update_rx_idle_ant_sp3t(void *dm_void, u8 ant) /* added by Jiao Qi on M
 		/*@Optional RX*/
 		odm_set_bb_reg(dm, R_0x860, BIT(14) | BIT(13) | BIT(12), default_ant);
 		/*@Default TX*/
-		
+
 		/*PathA Resp Tx*/
 		if (dm->support_ic_type & (ODM_RTL8821C | ODM_RTL8822B |
 		    ODM_RTL8814A))
@@ -884,7 +903,7 @@ void odm_update_tx_ant(void *dm_void, u8 ant, u32 mac_id)
 		else
 			tx_ant = ANT2_2G;
 		}
-	else		
+	else
 		tx_ant = fat_tab->ant_idx_vec[0]-1;
 #endif
 	fat_tab->antsel_a[mac_id] = tx_ant & BIT(0);
@@ -1892,6 +1911,53 @@ void phydm_rx_hw_ant_div_init_97g(void *dm_void)
 }
 #endif //#if (RTL8197F_SUPPORT == 1)
 
+#if (RTL8723F_SUPPORT == 1)
+void phydm_rx_hw_ant_div_init_23f(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_fat_struct *fat_tab = &dm->dm_fat_table;
+
+	PHYDM_DBG(dm, DBG_ANT_DIV, "[%s]=====>\n", __func__);
+		/* @3 --RFE pin setting--------- */
+	/* @[MAC] */
+		/* @gpioA_11,gpioA_12*/
+	odm_set_mac_reg(dm, R_0x10d8, 0xFF000000, 0x16);
+	odm_set_mac_reg(dm, R_0x10dc, 0xFF, 0x16);
+	/* @[BB] */
+	odm_set_bb_reg(dm, R_0x1c94, BIT(2) | BIT(3), 0x3); /* output enable */
+	odm_set_bb_reg(dm, R_0x1ca0, BIT(2) | BIT(3), 0x0);
+	odm_set_bb_reg(dm, R_0x1c98, BIT(4) | BIT(5), 0x0);
+		/* r_rfe_path_sel_   (RFE_CTRL_2) */
+	odm_set_bb_reg(dm, R_0x1c98, BIT(6) | BIT(7), 0x0);
+		/* r_rfe_path_sel_   (RFE_CTRL_3) */
+	odm_set_bb_reg(dm, R_0x1838, BIT(28), 0); /* RFE_buffer_en */
+	odm_set_bb_reg(dm, R_0x183c, BIT(2), 1); /* rfe_inv  (RFE_CTRL_2) */
+	odm_set_bb_reg(dm, R_0x183c, BIT(3), 0); /* rfe_inv  (RFE_CTRL_3) */
+	odm_set_bb_reg(dm, R_0x1840, 0xF00, 0x8); /* path-A, RFE_CTRL_2 */
+	odm_set_bb_reg(dm, R_0x1840, 0xF000, 0x8); /* path-A, RFE_CTRL_3 */
+	/* @3 ------------------------- */
+
+	/* Pin Settings */
+	odm_set_bb_reg(dm, R_0x1884, BIT(23), 0);
+	odm_set_bb_reg(dm, R_0x1884, BIT(25), 0);
+	/* reg1844[23]=1'b0 *//*"CG switching" is controlled by HWs*/
+	/* reg1844[25]=1'b0 *//*"CG switching" is controlled by HWs*/
+	odm_set_bb_reg(dm, R_0x1884, BIT(16), 1);
+	/* reg1844[16]=1'b1 *//*"antsel" is controlled by HWs*/
+
+	/* @Mapping table */
+	odm_set_bb_reg(dm, R_0x1870, 0xFFFF, 0x0100);
+	/* @antenna mapping table */
+
+	/* OFDM Settings */
+	odm_set_bb_reg(dm, R_0x1938, 0xFFE0, 0xA0); /* thershold */
+	odm_set_bb_reg(dm, R_0x1938, 0x7FF0000, 0x0); /* @bias */
+#ifdef ODM_EVM_ENHANCE_ANTDIV
+	phydm_evm_sw_antdiv_init(dm);
+#endif
+}
+#endif //#if (RTL8723F_SUPPORT == 1)
+
 #if (RTL8723D_SUPPORT == 1)
 void odm_trx_hw_ant_div_init_8723d(void *dm_void)
 {
@@ -2507,7 +2573,7 @@ void odm_trx_hw_ant_div_init_8195b(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
 	PHYDM_DBG(dm, DBG_ANT_DIV, "[%s]=====>\n", __func__);
-	
+
 	odm_set_bb_reg(dm, R_0xcb8, BIT(16), 0);
 	/*RFE control pin 0,1*/
 	odm_set_bb_reg(dm, R_0xcb0, 0xF, 8); /* @DPDT_P = ANTSEL[0] */
@@ -4739,10 +4805,10 @@ void odm_ant_div_init(void *dm_void)
 
 	fat_tab->is_become_linked = false;
 	fat_tab->ant_div_on_off = 0xff;
-	
-	for(i=0;i<3;i++) 
+
+	for(i=0;i<3;i++)
 		fat_tab->ant_idx_vec[i]=i+1; /* initialize ant_idx_vec for SP3T */
-	
+
 
 /* @3       -   AP   - */
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
@@ -4792,9 +4858,9 @@ void odm_ant_div_init(void *dm_void)
 			dm->support_ability &= ~(ODM_BB_ANT_DIV);
 			return;
 		}
-#endif 
+#endif
 	}
-	
+
 	/*to make RX-idle-antenna will be updated absolutly*/
 	odm_update_rx_idle_ant(dm, MAIN_ANT);
 	phydm_keep_rx_ack_ant_by_tx_ant_time(dm, 0);
@@ -4914,6 +4980,20 @@ void odm_ant_div_init(void *dm_void)
 			return;
 		}
 		phydm_rx_hw_ant_div_init_97g(dm);
+	}
+#endif
+
+#if (RTL8723F_SUPPORT == 1)
+	else if (dm->support_ic_type == ODM_RTL8723F) {
+		dm->ant_div_type = CG_TRX_HW_ANTDIV;
+
+		if (dm->ant_div_type != CG_TRX_HW_ANTDIV) {
+			PHYDM_DBG(dm, DBG_ANT_DIV,
+				  "[Return!!!]  8723F Not Supprrt This AntDiv type\n");
+			dm->support_ability &= ~(ODM_BB_ANT_DIV);
+			return;
+		}
+		phydm_rx_hw_ant_div_init_23f(dm);
 	}
 #endif
 /* @2 [--8723B---] */
@@ -5361,6 +5441,14 @@ void odm_ant_div(void *dm_void)
 #if (RTL8197G_SUPPORT == 1)
 	else if (dm->support_ic_type == ODM_RTL8197G) {
 		if (dm->ant_div_type == CGCS_RX_HW_ANTDIV)
+			odm_hw_ant_div(dm);
+	}
+#endif
+
+/*@ [--8723F--] */
+#if (RTL8723F_SUPPORT == 1)
+	else if (dm->support_ic_type == ODM_RTL8723F) {
+		if (dm->ant_div_type == CG_TRX_HW_ANTDIV)
 			odm_hw_ant_div(dm);
 	}
 #endif
@@ -6379,20 +6467,20 @@ void phydm_antdiv_debug(void *dm_void, char input[][16], u32 *_used,
 				 "AntDiv: Auto\n");
 		} else if (dm_value[1] == 1) {
 			dm->ant_type = ODM_FIX_MAIN_ANT;
-			
+
 		#if (RTL8710C_SUPPORT == 1)
 			dm->antdiv_select = 1;
 		#endif
-		
+
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "AntDiv: Fix Main\n");
 		} else if (dm_value[1] == 2) {
 			dm->ant_type = ODM_FIX_AUX_ANT;
-			
+
 		#if (RTL8710C_SUPPORT == 1)
 			dm->antdiv_select = 2;
 		#endif
-		
+
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "AntDiv: Fix Aux\n");
 		}
@@ -6550,4 +6638,3 @@ void odm_antenna_diversity(void *dm_void)
 	odm_ant_div(dm);
 }
 #endif /*@#ifdef CONFIG_PHYDM_ANTENNA_DIVERSITY*/
-

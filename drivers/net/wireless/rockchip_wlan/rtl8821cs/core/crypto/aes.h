@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * AES functions
  * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>

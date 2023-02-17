@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,14 +26,16 @@
 #ifndef __PHYDMADAPTIVITY_H__
 #define __PHYDMADAPTIVITY_H__
 
-#define ADAPTIVITY_VERSION "9.7.07" /*@20190321 changed by Kevin,
-				     *add 8721D threshold l2h init
+#define ADAPTIVITY_VERSION "9.7.08" /*@20210121 changed by Archer,
+				     *add dynamic th_l2h_ini
 				     */
 #define ADC_BACKOFF 12
 #define EDCCA_TH_L2H_LB 48
 #define TH_L2H_DIFF_IGI 8
 #define EDCCA_HL_DIFF_NORMAL 8
 #define IGI_2_DBM(igi) (igi - 110)
+#define L2H_INI_RECORD_NUM 4
+#define L2H_INI_LIMIT_PERIOD 60 /*60 sec*/
 /*@ [PHYDM-337][Old IC] EDCCA TH = IGI + REG setting*/
 #define ODM_IC_PWDB_EDCCA (ODM_RTL8188E | ODM_RTL8723B | ODM_RTL8192E |\
 			   ODM_RTL8881A | ODM_RTL8821 | ODM_RTL8812)
@@ -55,6 +56,15 @@ enum phydm_regulation_type {
 	MAX_REGULATION_NUM	= 4
 };
 #endif
+struct phydm_l2h_ini_recorder_strcut {
+	u8		l2h_ini_bitmap; /*@Don't add any new parameter before this*/
+	s8		l2h_ini_hist[L2H_INI_RECORD_NUM];
+	u32		low_rate_tx_fail_hist[L2H_INI_RECORD_NUM];
+	u8		damping_limit_en;
+	s8		damping_limit_val; /*@Limit l2h_ini_dyn_max*/
+	u32		limit_time;
+	u32		limit_low_rate_tx_fail;
+};
 
 enum phydm_edcca_mode {
 	PHYDM_EDCCA_NORMAL_MODE = 0,
@@ -80,9 +90,18 @@ enum phydm_adaptivity_debug_mode {
 	PHYDM_ADAPT_MSG			= 0,
 	PHYDM_ADAPT_DEBUG		= 1,
 	PHYDM_ADAPT_RESUME		= 2,
+	PHYDM_L2H_INI_DEBUG		= 3
 };
 
 struct phydm_adaptivity_struct {
+	struct phydm_l2h_ini_recorder_strcut l2h_ini_recorder_t;
+	u32			low_rate_tx_fail_th[3];
+	u32			rts_drop_limit_time;
+	s8			l2h_ini_range_max;	/*@l2h_ini_dynamic_max*/
+	s8			l2h_ini_range_min;	/*@l2h_ini_dynamic_min*/
+	boolean		rts_drop_en;
+	boolean		is_dbg_low_rate_tx_fail_th;
+	boolean		is_adapt_by_dig;
 	boolean			mode_cvrt_en;
 	s8			th_l2h_ini_backup;
 	s8			th_edcca_hl_diff_backup;

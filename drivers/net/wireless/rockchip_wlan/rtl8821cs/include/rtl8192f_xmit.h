@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -514,7 +513,7 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	s32	 rtl8192fu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8192fu_xmit_buf_handler(PADAPTER padapter);
 	#define hal_xmit_handler rtl8192fu_xmit_buf_handler
-	void rtl8192fu_xmit_tasklet(void *priv);
+	void rtl8192fu_xmit_tasklet(unsigned long priv);
 	s32 rtl8192fu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 	void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc);
 #endif

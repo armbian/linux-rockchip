@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -163,6 +162,26 @@
 #define PPG_5GM1_TXA_8721D 0x1EB
 #define PPG_5GM2_TXA_8721D 0x1EA
 #define PPG_5GH1_TXA_8721D 0x1E9
+
+/*8723F*/
+/*#define KFREE_BAND_NUM_8723F*/
+#define PPG_THERMAL_OFFSET_8723F 0x1EF
+#define PPG_S0_CH3_TSSIDE_8723F 0x1DD
+#define PPG_S1_CH3_TSSIDE_8723F 0x1DC
+#define PPG_S0_CH11_TSSIDE_8723F 0x1DB
+#define PPG_S1_CH11_TSSIDE_8723F 0x1DA
+#define PPG_S0_CH42_TSSIDE_8723F 0x1D9
+#define PPG_S0_CH58_TSSIDE_8723F 0x1D8
+#define PPG_S0_CH110_TSSIDE_8723F 0x1D7
+#define PPG_S0_CH134_TSSIDE_8723F 0x1D6
+#define PPG_S0_CH159_TSSIDE_8723F 0x1D5
+#define PPG_S0_CH171_TSSIDE_8723F 0x1D4
+#define PPG_PABIAS_5GA_8723F 0x1E8
+#define PPG_PABIAS_2GA_8723F 0x1E7
+#define PPG_PABIAS_2GB_8723F 0x1E6
+#define PPG_LNA_2GA_8723F 0x1E3
+#define PPG_LNA_2GB_8723F 0x1E2
+#define PPG_LNA_5GA_8723F 0x1E1
 
 /*8197G*/
 #define PPG_THERMAL_A_OFFSET_97G 0x50

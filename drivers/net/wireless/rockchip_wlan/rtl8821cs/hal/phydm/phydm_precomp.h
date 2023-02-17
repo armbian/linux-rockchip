@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -142,6 +141,9 @@
 #endif
 #ifndef RTL8814B_SUPPORT
 	#define	RTL8814B_SUPPORT	0
+#endif
+#ifndef RTL8814C_SUPPORT
+	#define	RTL8814C_SUPPORT	0
 #endif
 #ifndef RTL8198F_SUPPORT
 	#define	RTL8198F_SUPPORT	0
@@ -508,7 +510,7 @@ rtw_phydm_cfg_phy_para(
 #endif
 
 #if (RTL8721D_SUPPORT == 1)
-	#include "halrf/rtl8721d/halrf_btiqk_8721d.h"
+	//#include "halrf/rtl8721d/halrf_btiqk_8721d.h"
 	#include "halrf/rtl8721d/halrf_rfk_init_8721d.h"
 	#include "halrf/rtl8721d/halrf_dpk_8721d.h"
 	#include "halrf/rtl8721d/halrf_8721d.h"
@@ -602,6 +604,16 @@ rtw_phydm_cfg_phy_para(
 	#include "rtl8814b/phydm_hal_api8814b.h"
 	#include "rtl8814b/version_rtl8814b.h"
 	#include "rtl8814b/phydm_extraagc8814b.h"
+#if (RTL8814C_SUPPORT == 1)
+	#include "rtl8814c/halhwimg8814c_bb.h"
+	#include "rtl8814c/phydm_regconfig8814c.h"
+	#include "halrf/rtl8814c/halrf_8814c.h"
+	#include "halrf/rtl8814c/halhwimg8814c_rf.h"
+	#include "halrf/rtl8814c/version_rtl8814c_rf.h"
+	#include "rtl8814c/phydm_hal_api8814c.h"
+	#include "rtl8814c/version_rtl8814c.h"
+	#include "rtl8814c/phydm_extraagc8814c.h"
+#endif
 	#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 		#include <hal_data.h>		/* @struct HAL_DATA_TYPE */
 		#include <rtl8814b_hal.h>	/* @RX_SMOOTH_FACTOR, reg definition and etc.*/
@@ -637,6 +649,7 @@ rtw_phydm_cfg_phy_para(
 	#include "halrf/rtl8723f/version_rtl8723f_rf.h"
 	#include "halrf/rtl8723f/halrf_iqk_8723f.h"
 	#include "halrf/rtl8723f/halrf_dpk_8723f.h"
+	#include "halrf/rtl8723f/halrf_txgapk_8723f.h"
 	#include "halrf/rtl8723f/halrf_tssi_8723f.h"
 	#include "halrf/rtl8723f/halrf_rfk_init_8723f.h"
 	#include "rtl8723f/phydm_hal_api8723f.h"

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -80,6 +79,16 @@ BOOLEAN efuse_IsBT_Masked(PADAPTER pAdapter, u16 Offset)
 		return (IS_BT_MASKED(8822C, _MSDIO, Offset)) ? TRUE : FALSE;
 #endif
 #endif /*#ifdef CONFIG_RTL8822C*/
+#ifdef CONFIG_RTL8723F
+#ifdef CONFIG_USB_HCI
+		if (IS_HARDWARE_TYPE_8723F(pAdapter))
+			return (IS_BT_MASKED(8723F, _MUSB, Offset)) ? TRUE : FALSE;
+#endif
+#ifdef CONFIG_SDIO_HCI
+		if (IS_HARDWARE_TYPE_8723F(pAdapter))
+			return (IS_BT_MASKED(8723F, _MSDIO, Offset)) ? TRUE : FALSE;
+#endif
+#endif /*#ifdef CONFIG_RTL8723F*/
 #endif /* CONFIG_BT_EFUSE_MASK */
 	return FALSE;
 }
@@ -103,6 +112,16 @@ if (IS_HARDWARE_TYPE_8822CU(pAdapter))
 		GET_BT_MASK_ARRAY(8822C, _MSDIO, pArray);
 #endif
 #endif /*#ifdef CONFIG_RTL8822C*/
+#ifdef CONFIG_RTL8723F
+#ifdef CONFIG_USB_HCI
+	if (IS_HARDWARE_TYPE_8723FU(pAdapter))
+			GET_BT_MASK_ARRAY(8723F, _MUSB, pArray);
+#endif
+#ifdef CONFIG_SDIO_HCI
+		if (IS_HARDWARE_TYPE_8723FS(pAdapter))
+			GET_BT_MASK_ARRAY(8723F, _MSDIO, pArray);
+#endif
+#endif /*#ifdef CONFIG_RTL8723F*/
 #endif /* CONFIG_BT_EFUSE_MASK */
 
 }
@@ -126,6 +145,16 @@ u16 rtw_get_bt_efuse_mask_arraylen(PADAPTER pAdapter)
 		return GET_BT_MASK_ARRAY_LEN(8822C, _MSDIO);
 #endif
 #endif /*#ifdef CONFIG_RTL8822C*/
+#ifdef CONFIG_RTL8723F
+#ifdef CONFIG_USB_HCI
+		if (IS_HARDWARE_TYPE_8723FU(pAdapter))
+			return GET_BT_MASK_ARRAY_LEN(8723F, _MUSB);
+#endif
+#ifdef CONFIG_SDIO_HCI
+		if (IS_HARDWARE_TYPE_8723FS(pAdapter))
+			return GET_BT_MASK_ARRAY_LEN(8723F, _MSDIO);
+#endif
+#endif /*CONFIG_RTL8723F*/
 #endif /* CONFIG_BT_EFUSE_MASK */
 
 	return 0;
@@ -3237,7 +3266,14 @@ void EFUSE_ShadowMapUpdate(
 	/* PlatformMoveMemory((void *)&pHalData->EfuseMap[EFUSE_MODIFY_MAP][0], */
 	/* (void *)&pHalData->EfuseMap[EFUSE_INIT_MAP][0], mapLen); */
 #endif /* !RTW_HALMAC */
+#ifdef CONFIG_MP_INCLUDED
+	if (rtw_mp_mode_check(pAdapter)) {
+		PEFUSE_HAL pEfuseHal = &pHalData->EfuseHal;
 
+		if (GET_EFUSE_UPDATE_ON(pAdapter))
+			_rtw_memcpy(pHalData->efuse_eeprom_data, pEfuseHal->fakeEfuseModifiedMap, mapLen);
+	}
+#endif
 	rtw_mask_map_read(pAdapter, 0x00, mapLen, pHalData->efuse_eeprom_data);
 
 	rtw_dump_cur_efuse(pAdapter);
@@ -3384,7 +3420,7 @@ u8 rtw_efuse_file_read(PADAPTER padapter, u8 *filepath, u8 *buf, u32 len)
 	return _TRUE;
 }
 
-
+#if !defined(CONFIG_RTW_ANDROID_GKI)
 u8 rtw_efuse_file_store(PADAPTER padapter, u8 *filepath, u8 *buf, u32 len)
 {
 	int err = 0, i = 0, j = 0, mapLen = 0 ;
@@ -3420,6 +3456,7 @@ u8 rtw_efuse_file_store(PADAPTER padapter, u8 *filepath, u8 *buf, u32 len)
 
 	return err;
 }
+#endif /* !defined(CONFIG_RTW_ANDROID_GKI) */
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 u32 rtw_read_efuse_from_file(const char *path, u8 *buf, int map_size)
@@ -3432,10 +3469,10 @@ u32 rtw_read_efuse_from_file(const char *path, u8 *buf, int map_size)
 	u32 ret = _FAIL;
 
 	u8 *file_data = NULL;
-	u32 file_size, read_size, pos = 0;
+	u32 file_size = 16384, read_size, pos = 0;
 	u8 *map = NULL;
 
-	if (rtw_is_file_readable_with_size(path, &file_size) != _TRUE) {
+	if (rtw_readable_file_sz_chk(path, file_size) != _TRUE) {
 		RTW_PRINT("%s %s is not readable\n", __func__, path);
 		goto exit;
 	}

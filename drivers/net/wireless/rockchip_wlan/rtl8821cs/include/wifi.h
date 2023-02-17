@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -606,10 +605,8 @@ static inline int IsFrameTypeData(unsigned char *pframe)
 #define _DSSET_IE_				3
 #define _TIM_IE_					5
 #define _IBSS_PARA_IE_			6
-#define _COUNTRY_IE_			7
 #define _CHLGETXT_IE_			16
 #define _SUPPORTED_CH_IE_		36
-#define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
 #define	_MEAS_REQ_IE_		38
 #define	_MEAS_RSP_IE_		39
 #define _RSN_IE_2_				48
@@ -637,7 +634,6 @@ static inline int IsFrameTypeData(unsigned char *pframe)
 #define _LINK_ID_IE_					101
 #define _CH_SWITCH_TIMING_		104
 #define _PTI_BUFFER_STATUS_		106
-#define _EXT_CAP_IE_				127
 #define _VENDOR_SPECIFIC_IE_		221
 
 #define	_RESERVED47_				47
@@ -702,7 +698,6 @@ typedef	enum _ELEMENT_ID {
 	EID_PTIControl				= 105, /* Defined in 802.11z */
 	EID_PUBufferStatus			= 106, /* Defined in 802.11z */
 
-	EID_EXTCapability			= 127, /* Extended Capabilities */
 	/* From S19:Aironet IE and S21:AP IP address IE in CCX v1.13, p16 and p18. */
 	EID_Aironet					= 133, /* 0x85: Aironet Element for Cisco CCX */
 	EID_CiscoIP					= 149, /* 0x95: IP Address IE for Cisco CCX */
@@ -716,6 +711,7 @@ typedef	enum _ELEMENT_ID {
 	EID_WAPI					= 68,
 	EID_VHTCapability 			= 191, /* Based on 802.11ac D2.0 */
 	EID_VHTOperation 			= 192, /* Based on 802.11ac D2.0 */
+	EID_VHTTransmitPower 		= 195,
 	EID_AID						= 197, /* Based on 802.11ac D4.0 */
 	EID_OpModeNotification		= 199, /* Based on 802.11ac D3.0 */
 } ELEMENT_ID, *PELEMENT_ID;

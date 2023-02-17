@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -127,6 +126,12 @@ typedef struct _RT_8192F_FIRMWARE_HDR {
 	#define WOWLAN_PAGE_NUM_8192F	(0x09 + WOWLAN_KEEP_ALIVE_PAGE)
 #else
 	#define WOWLAN_PAGE_NUM_8192F	0x00
+#endif
+
+#ifdef CONFIG_WOW_PATTERN_IN_TXFIFO
+	/* REG_TXBUF_WKCAM_OFFSET 0x1B1[15:0] */
+	#define WKCAM_OFFSET_BIT_MASK 0xFFFF
+	#define WKCAM_OFFSET_BIT_MASK_OFFSET 0
 #endif
 
 #ifdef CONFIG_PNO_SUPPORT

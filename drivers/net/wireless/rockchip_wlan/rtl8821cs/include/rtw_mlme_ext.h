@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -341,6 +340,10 @@ struct mlme_ext_info {
 	NDIS_802_11_RATES_EX	SupportedRates_infra_ap;
 	u8 ht_vht_received;/*ht_vht_received used to show debug msg BIT(0):HT BIT(1):VHT */
 #endif /* ROKU_PRIVATE */
+
+#ifdef CONFIG_WRITE_BCN_LEN_TO_FW
+	u16 last_bcn_len;
+#endif
 };
 
 enum {
@@ -356,7 +359,8 @@ enum {
 
 /* The channel information about this channel including joining, scanning, and power constraints. */
 typedef struct _RT_CHANNEL_INFO {
-	u8				ChannelNum;		/* The channel number. */
+	u8 band; /* BAND_TYPE */
+	u8 ChannelNum; /* The channel number. */
 
 	/*
 	* Bitmap and its usage:
@@ -389,11 +393,17 @@ typedef struct _RT_CHANNEL_INFO {
 
 #if CONFIG_TXPWR_LIMIT
 void rtw_txpwr_init_regd(struct rf_ctl_t *rfctl);
+bool rtw_rfctl_is_current_txpwr_lmt(struct rf_ctl_t *rfctl, const char *name);
 #endif
 int rtw_rfctl_init(_adapter *adapter);
 void rtw_rfctl_deinit(_adapter *adapter);
+void rtw_rfctl_decide_init_chplan(struct rf_ctl_t *rfctl,
+	const char *hw_alpha2, u8 hw_chplan, u8 hw_chplan_6g, u8 hw_force_chplan);
 void rtw_rfctl_chplan_init(_adapter *adapter);
+bool rtw_rfctl_is_disable_sw_channel_plan(struct dvobj_priv *dvobj);
 void rtw_rfctl_update_op_mode(struct rf_ctl_t *rfctl, u8 ifbmp_mod, u8 if_op);
+
+bool rtw_rfctl_reg_allow_beacon_hint(struct rf_ctl_t *rfctl);
 
 u8 rtw_rfctl_get_dfs_domain(struct rf_ctl_t *rfctl);
 u8 rtw_rfctl_dfs_domain_unknown(struct rf_ctl_t *rfctl);
@@ -426,25 +436,38 @@ bool rtw_choose_shortest_waiting_ch(struct rf_ctl_t *rfctl, u8 sel_ch, u8 max_bw
 
 struct get_chplan_resp {
 	enum regd_src_t regd_src;
-	bool has_country;
-	struct country_chplan country_ent;
+	enum rtw_regd_inr regd_inr;
+	char alpha2[2];
 	u8 channel_plan;
+#if CONFIG_IEEE80211_BAND_6GHZ
+	u8 chplan_6g;
+#endif
+
 #if CONFIG_TXPWR_LIMIT
-	const char *regd_name;
+	const char *txpwr_lmt_name[BAND_MAX];
+#endif
+	u8 edcca_mode_2g;
+#if CONFIG_IEEE80211_BAND_5GHZ
+	u8 edcca_mode_5g;
+#endif
+#if CONFIG_IEEE80211_BAND_6GHZ
+	u8 edcca_mode_6g;
 #endif
 #ifdef CONFIG_DFS_MASTER
 	u8 dfs_domain;
 #endif
+	u8 proto_en;
 	u8 chset_num;
 	RT_CHANNEL_INFO chset[0];
 };
 
 #ifdef CONFIG_PROC_DEBUG
-void dump_chset(void *sel, RT_CHANNEL_INFO *ch_set, u8 chset_num);
+void dump_cur_country(void *sel, struct rf_ctl_t *rfctl);
 void dump_cur_chset(void *sel, struct rf_ctl_t *rfctl);
 #endif
 
 int rtw_chset_search_ch(RT_CHANNEL_INFO *ch_set, const u32 ch);
+int rtw_chset_search_ch_by_band(RT_CHANNEL_INFO *ch_set, BAND_TYPE band, const u32 ch);
 u8 rtw_chset_is_chbw_valid(RT_CHANNEL_INFO *ch_set, u8 ch, u8 bw, u8 offset
 	, bool allow_primary_passive, bool allow_passive);
 void rtw_chset_sync_chbw(RT_CHANNEL_INFO *ch_set, u8 *req_ch, u8 *req_bw, u8 *req_offset
@@ -518,6 +541,11 @@ struct mlme_ext_priv {
 #endif
 
 	struct ss_res		sitesurvey_res;
+#ifdef CONFIG_RTW_ROAM_QUICKSCAN
+	u8      quickscan_next;
+	u8      roam_ch_num;
+	struct  rtw_ieee80211_channel roam_ch[RTW_CHANNEL_SCAN_AMOUNT];
+#endif
 	struct mlme_ext_info	mlmext_info;/* for sta/adhoc mode, including current scanning/connecting/connected related info.
                                                       * for ap mode, network includes ap's cap_info */
 	_timer		survey_timer;
@@ -538,7 +566,9 @@ struct mlme_ext_priv {
 	systime last_scan_time;
 	u8	scan_abort;
 	u8 join_abort;
+
 	u8	tx_rate; /* TXRATE when USERATE is set. */
+	RATE_SECTION tx_rate_section; /* decided by tx_rate */
 
 	u32	retry; /* retry for issue probereq */
 
@@ -557,9 +587,6 @@ struct mlme_ext_priv {
 	unsigned char bstart_bss;
 #endif
 
-#ifdef CONFIG_80211D
-	u8 update_channel_plan_by_ap_done;
-#endif
 	/* recv_decache check for Action_public frame */
 	u8 action_public_dialog_token;
 	u16	 action_public_rxseq;
@@ -808,6 +835,10 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint len, struct sta_inf
 #if CONFIG_DFS
 void process_csa_ie(_adapter *padapter, u8 *ies, uint ies_len);
 #endif
+#ifdef CONFIG_80211D
+bool rtw_iface_accept_country_ie(_adapter *adapter);
+void process_country_ie(_adapter *adapter, u8 *ies, uint ies_len);
+#endif
 void update_capinfo(PADAPTER Adapter, u16 updateCap);
 void update_wireless_mode(_adapter *padapter);
 void update_tx_basic_rate(_adapter *padapter, u8 modulation);
@@ -974,6 +1005,10 @@ void start_clnt_assoc(_adapter *padapter);
 void start_clnt_auth(_adapter *padapter);
 void start_clnt_join(_adapter *padapter);
 void start_create_ibss(_adapter *padapter);
+
+#if defined(CONFIG_LAYER2_ROAMING) && defined(CONFIG_RTW_80211K)
+void rtw_roam_nb_discover(_adapter *padapter, u8 bfroce);
+#endif
 
 unsigned int OnAssocReq(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAssocRsp(_adapter *padapter, union recv_frame *precv_frame);
@@ -1146,8 +1181,11 @@ u8 rtw_set_chplan_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 rtw_get_chplan_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 set_csa_hdl(_adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
+u8 set_ap_csa_hdl(_adapter *adapter, unsigned char *pbuf);
 u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 run_in_thread_hdl(_adapter *padapter, u8 *pbuf);
+u8 rtw_write_bcnlen_hdl(_adapter *padapter, u8 *pbuf);
+u8 rtw_reqtxrpt_cmd_hdl(_adapter *adapter, u8 *pbuf);
 
 int rtw_sae_preprocess(_adapter *adapter, const u8 *buf, u32 len, u8 tx);
 
@@ -1197,6 +1235,9 @@ struct rtw_cmd wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(rtw_mesh_set_plink_state_cmd_hdl, NULL) /*CMD_SET_MESH_PLINK_STATE*/
 	GEN_MLME_EXT_HANDLER(rtw_iqk_hdl, NULL) /*CMD_DO_IQK*/
 	GEN_MLME_EXT_HANDLER(rtw_get_chplan_hdl, NULL) /* CMD_GET_CHANPLAN */
+	GEN_MLME_EXT_HANDLER(rtw_write_bcnlen_hdl, NULL) /* CMD_WRITE_BCN_LEN */
+	GEN_MLME_EXT_HANDLER(set_ap_csa_hdl, NULL) /* CMD_AP_CHANSWITCH */
+	GEN_MLME_EXT_HANDLER(rtw_reqtxrpt_cmd_hdl, NULL) /* CMD_REQ_TXRPT */
 };
 #endif
 

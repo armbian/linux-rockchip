@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -244,7 +243,7 @@ phydm_check_rates(void *dm_void, u8 rate_idx)
 	u32 check_rate_bitmap0 = 0x08080808; /* @check CCK11M, OFDM54M, MCS7, MCS15*/
 	u32 check_rate_bitmap1 = 0x80200808; /* @check MCS23, MCS31, VHT1SS M9, VHT2SS M9*/
 	u32 check_rate_bitmap2 = 0x00080200; /* @check VHT3SS M9, VHT4SS M9*/
-	u32 bitmap_result;
+	u32 bitmap_result = 0;
 
 #if (RTL8822B_SUPPORT)
 	if (dm->support_ic_type & ODM_RTL8822B) {
@@ -292,7 +291,7 @@ phydm_check_rates(void *dm_void, u8 rate_idx)
 		bitmap_result = BIT(rate_idx - 64) & check_rate_bitmap2;
 	else if (rate_idx >= 32)
 		bitmap_result = BIT(rate_idx - 32) & check_rate_bitmap1;
-	else if (rate_idx <= 31)
+	else // if (rate_idx <= 31)
 		bitmap_result = BIT(rate_idx) & check_rate_bitmap0;
 
 	if (bitmap_result != 0)

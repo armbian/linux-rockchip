@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -31,6 +30,16 @@ struct _halrf_psd_data {
 u32
 halrf_psd_init(
 	void *dm_void);
+
+void
+_halrf_iqk_psd_init_8723f(
+	void *dm_void,
+	boolean onoff);
+
+u64
+halrf_get_iqk_psd_data(
+	void *dm_void,
+	u32 point);
 
 u32
 halrf_psd_query(

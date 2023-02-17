@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -41,10 +40,11 @@
 #define TXWBIQK_EN 1
 #define RXWBIQK_EN 1
 #if (RTL8814A_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
-	RTL8814B_SUPPORT)
+	RTL8814B_SUPPORT ||RTL8814C_SUPPORT == 1)
 #define NUM 4
 #elif (RTL8822B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
-	RTL8812F_SUPPORT == 1 ||	RTL8197G_SUPPORT == 1)
+	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
+	RTL8723F_SUPPORT == 1)
 #define NUM 2
 #else
 #define NUM 1
@@ -86,19 +86,26 @@ struct dm_iqk_info {
 	RTL8195B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
 	RTL8814B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
 	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
-	RTL8710C_SUPPORT == 1 || RTL8723F_SUPPORT == 1)
+	RTL8710C_SUPPORT == 1 || RTL8723F_SUPPORT == 1 ||\
+	RTL8814C_SUPPORT == 1)
 	u32 iqk_channel[2];
 	boolean iqk_fail_report[2][NUM][2]; /*channel/path/TRX(TX:0, RX:1) */
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_real*/
 	/*channel index = 2 is just for debug*/
-#if (RTL8814B_SUPPORT == 1)
+#if (RTL8814B_SUPPORT == 1||RTL8814C_SUPPORT == 1)
 	u16 iqk_cfir_real[3][NUM][2][19];
 	u16 iqk_cfir_imag[3][NUM][2][19];
+	u32 rx_cfir_real[2][NUM][17];
+	u32 rx_cfir_imag[2][NUM][17];
+	u32 rx_cfir[2][NUM];
 #elif (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
 	u16 iqk_cfir_real[3][2][2][17];
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
 	/*channel index = 2 is just for debug*/
 	u16 iqk_cfir_imag[3][2][2][17];
+	u32 rx_cfir_real[2][2][17];
+	u32 rx_cfir_imag[2][2][17];
+	u32 rx_cfir[2][2];
 	/*times/path*/
 #elif (RTL8195B_SUPPORT == 1)
 	u32 iqk_cfir_real[3][NUM][2][9];
@@ -112,11 +119,6 @@ struct dm_iqk_info {
 	u32 iqk_cfir_imag[3][NUM][2][8];
 #endif
 
-#if (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
-	u32 rx_cfir_real[2][2][17];
-	u32 rx_cfir_imag[2][2][17];
-	u32 rx_cfir[2][2];
-#endif
 	u8 retry_count[2][NUM][3]; /* channel / path / (TXK:0, RXK1:1, RXK2:2) */
 	u8 gs_retry_count[2][NUM][2]; /* channel / path / (GSRXK1:0, GSRXK2:1) */
 	/* channel / path 0:SRXK1 fail, 1:RXK1 fail 2:RXK2 fail */
@@ -146,6 +148,11 @@ struct dm_iqk_info {
 	u32 txxy[2][2];
 	u32 rxxy[2][2];
 #endif
+#if (RTL8723F_SUPPORT == 1)
+	u32 txxy[2][2];
+	u32 rxxy[2][2][2];
+#endif
+
 #endif
 };
 

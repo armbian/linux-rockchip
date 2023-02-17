@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -311,6 +310,7 @@ enum {
 #endif
 	MP_SD_IREAD,
 	MP_SD_IWRITE,
+	GET_IC_TYPE,
 };
 
 struct mp_priv {
@@ -347,6 +347,7 @@ struct mp_priv {
 	u8 bandwidth;
 	u8 prime_channel_offset;
 	u8 txpoweridx;
+	s8 txpower_dbm_offset;
 	u8 rateidx;
 	u32 preamble;
 	/*	u8 modem; */
@@ -393,6 +394,7 @@ struct mp_priv {
 	BOOLEAN mplink_btx;
 
 	bool tssitrk_on;
+	bool efuse_update_on;
 	bool efuse_update_file;
 	char efuse_file_path[128];
 };
@@ -425,7 +427,8 @@ typedef struct _MP_FIRMWARE {
 } RT_MP_FIRMWARE, *PRT_MP_FIRMWARE;
 
 
-
+#define GET_MPPRIV(__padapter) (struct mp_priv*)(&(((struct _ADAPTER*)__padapter)->mppriv))
+#define GET_EFUSE_UPDATE_ON(_padapter)	(GET_MPPRIV(_padapter)->efuse_update_on)
 
 /* *********************************************************************** */
 
@@ -747,6 +750,9 @@ u32 mp_join(PADAPTER padapter, u8 mode);
 u32 hal_mpt_query_phytxok(PADAPTER	pAdapter);
 u32 mpt_get_tx_power_finalabs_val(PADAPTER	padapter, u8 rf_path);
 void mpt_trigger_tssi_tracking(PADAPTER pAdapter, u8 rf_path);
+u32 hal_mpt_tssi_turn_target_power(PADAPTER padapter, s16 power_offset, u8 path);
+void hal_mpt_tssi_set_power_offset(PADAPTER padapter, s16 power_offset, u8 path);
+
 
 
 void
@@ -909,9 +915,11 @@ int rtw_bt_efuse_mask_file(struct net_device *dev,
 int rtw_efuse_file_map(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
+#if !defined(CONFIG_RTW_ANDROID_GKI)
 int rtw_efuse_file_map_store(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
+#endif /* !defined(CONFIG_RTW_ANDROID_GKI) */
 int rtw_bt_efuse_file_map(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);

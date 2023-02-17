@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -33,7 +32,7 @@
 #include <linux/inetdevice.h>
 #include <linux/skbuff.h>
 #include <linux/circ_buf.h>
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -527,6 +526,15 @@ static inline int rtw_merge_string(char *dst, int dst_len, const char *src1, con
 /* Atomic integer operations */
 #define ATOMIC_T atomic_t
 
+
+#if defined(DBG_MEM_ERR_FREE)
+void rtw_dbg_mem_init(void);
+void rtw_dbg_mem_deinit(void);
+#else
+#define rtw_dbg_mem_init() do {} while (0)
+#define rtw_dbg_mem_deinit() do {} while (0)
+#endif /* DBG_MEM_ERR_FREE */
+
 #define rtw_netdev_priv(netdev) (((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)
 
 #define NDEV_FMT "%s"
@@ -561,5 +569,18 @@ extern struct net_device *rtw_alloc_etherdev(int sizeof_priv);
 
 #define STRUCT_PACKED __attribute__ ((packed))
 
+#ifndef fallthrough
+#if __GNUC__ >= 5 || defined(__clang__)
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+#if __has_attribute(__fallthrough__)
+#define fallthrough __attribute__((__fallthrough__))
+#endif
+#endif
+#ifndef fallthrough
+#define fallthrough do {} while (0) /* fallthrough */
+#endif
+#endif
 
 #endif /* __OSDEP_LINUX_SERVICE_H_ */

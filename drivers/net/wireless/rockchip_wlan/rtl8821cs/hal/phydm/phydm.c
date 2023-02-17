@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -130,7 +129,7 @@ void phydm_cck_new_agc_chk(struct dm_struct *dm)
 	    ODM_RTL8721D | ODM_RTL8710C)) {
 		new_agc_addr = R_0xa9c;
 	} else if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8822C |
-		   ODM_RTL8814B | ODM_RTL8197G)) {
+		   ODM_RTL8814B | ODM_RTL8197G | ODM_RTL8814C)) {
 		new_agc_addr = R_0x1a9c;
 	}
 
@@ -547,6 +546,10 @@ void phydm_phy_info_update(struct dm_struct *dm)
 
 void phydm_hw_setting(struct dm_struct *dm)
 {
+#if (RTL8188F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8188F)
+		odm_hw_setting_8188F(dm);
+#endif
 #if (RTL8821A_SUPPORT)
 	if (dm->support_ic_type & ODM_RTL8821)
 		odm_hw_setting_8821a(dm);
@@ -649,6 +652,12 @@ boolean phydm_chk_bb_rf_pkg_set_valid(struct dm_struct *dm)
 		valid = phydm_chk_pkg_set_valid_8814b(dm,
 						      RELEASE_VERSION_8814B,
 						      RF_RELEASE_VERSION_8814B);
+	#endif
+	#if (RTL8814C_SUPPORT)
+	} else if (dm->support_ic_type == ODM_RTL8814C) {
+		valid = phydm_chk_pkg_set_valid_8814b(dm,
+						      RELEASE_VERSION_8814C,
+						      RF_RELEASE_VERSION_8814C);
 	#endif
 	#if (RTL8723F_SUPPORT)
 	} else if (dm->support_ic_type == ODM_RTL8723F) {
@@ -1453,6 +1462,19 @@ u64 phydm_supportability_init_ap(
 			ODM_BB_CFO_TRACKING |
 			ODM_BB_ENV_MONITOR;
 		break;
+	case ODM_RTL8814C:
+		support_ability |=
+			ODM_BB_DIG |
+			ODM_BB_RA_MASK |
+			ODM_BB_FA_CNT |
+			ODM_BB_RSSI_MONITOR |
+			ODM_BB_CCK_PD |
+			/*ODM_BB_PWR_TRAIN |*/
+			/*ODM_BB_RATE_ADAPTIVE |*/
+			ODM_BB_ADAPTIVITY |
+			ODM_BB_CFO_TRACKING |
+			ODM_BB_ENV_MONITOR;
+		break;
 #endif
 
 #if (RTL8197G_SUPPORT)
@@ -1724,7 +1746,10 @@ void phydm_supportability_init(void *dm_void)
 		if(IS_FUNC_EN(&dm->en_tssi_mode) &&
 		    (dm->support_ic_type & ODM_RTL8822C))
 			support_ability &= ~ODM_BB_DYNAMIC_TXPWR;
-
+		/*@[DYNAMIC_TXPWR and TSSI cannot coexist]*/
+		if(IS_FUNC_EN(&dm->en_tssi_mode) &&
+		    (dm->support_ic_type & ODM_RTL8723F))
+			support_ability &= ~ODM_BB_DYNAMIC_TXPWR;
 	}
 	dm->support_ability = support_ability;
 	PHYDM_DBG(dm, ODM_COMP_INIT, "IC=0x%x, mp=%d, Supportability=0x%llx\n",
@@ -1810,7 +1835,6 @@ enum phydm_init_result odm_dm_init(struct dm_struct *dm)
 	phydm_cck_pd_init(dm);
 #endif
 	phydm_env_monitor_init(dm);
-	phydm_enhance_monitor_init(dm);
 	phydm_adaptivity_init(dm);
 	phydm_ra_info_init(dm);
 	phydm_rssi_monitor_init(dm);
@@ -2399,6 +2423,8 @@ void phydm_watchdog(struct dm_struct *dm)
 
 	phydm_hw_setting(dm);
 
+	phydm_env_mntr_result_watchdog(dm);
+
 #ifdef PHYDM_TDMA_DIG_SUPPORT
 	if (dm->original_dig_restore == 0) {
 		phydm_tdma_dig_timer_check(dm);
@@ -2459,8 +2485,7 @@ void phydm_watchdog(struct dm_struct *dm)
 	odm_dtc(dm);
 #endif
 
-	phydm_env_mntr_watchdog(dm);
-	phydm_enhance_mntr_watchdog(dm);
+	phydm_env_mntr_set_watchdog(dm);
 
 #ifdef PHYDM_LNA_SAT_CHK_SUPPORT
 	phydm_lna_sat_chk_watchdog(dm);
@@ -2719,6 +2744,9 @@ void odm_cmn_info_init(struct dm_struct *dm, enum odm_cmninfo cmn_info,
 	case ODM_CMNINFO_EN_AUTO_BW_TH:
 		dm->en_auto_bw_th = (u8)value;
 		break;
+	case ODM_CMNINFO_EN_NBI_DETECT:
+		dm->en_nbi_detect = (boolean)value;
+		break;
 #if (RTL8721D_SUPPORT)
 	case ODM_CMNINFO_POWER_VOLTAGE:
 		dm->power_voltage = (u8)value;
@@ -2882,6 +2910,12 @@ void odm_cmn_info_hook(struct dm_struct *dm, enum odm_cmninfo cmn_info,
 		break;
 	case ODM_CMNINFO_EN_DYM_BW_INDICATION:
 		dm->dis_dym_bw_indication = (u8 *)value;
+		break;
+#if (RTL8192F_SUPPORT || RTL8721D_SUPPORT || RTL8710C_SUPPORT)
+	case ODM_ANTI_INTERFERENCE_EN:
+		dm->anti_interference_en = (u8 *)value;
+		break;
+#endif
 	default:
 		/*do nothing*/
 		break;
@@ -2995,6 +3029,12 @@ void odm_cmn_info_update(struct dm_struct *dm, u32 cmn_info, u64 value)
 	case ODM_CMNINFO_TSSI_ENABLE:
 		dm->en_tssi_mode = (u8)value;
 		break;
+	case ODM_CMNINFO_HUAWEI_HWID:
+		dm->is_dig_low_bond = (boolean)value;
+		break;
+	case ODM_CMNINFO_ATHEROS_HWID:
+		dm->is_R2R_CCA_MASKT_TIME_SHORT = (boolean)value;
+		break;
 	default:
 		break;
 	}
@@ -3090,7 +3130,14 @@ u32 phydm_cmn_info_query(struct dm_struct *dm, enum phydm_info_query info_type)
 		return (u32)ccx_info->nhm_pwr;
 	case PHYDM_INFO_NHM_ENV_RATIO:
 		return (u32)ccx_info->nhm_env_ratio;
-
+	case PHYDM_INFO_TXEN_CCK:
+		return (u32)fa_t->cnt_cck_txen;
+	case PHYDM_INFO_TXEN_OFDM:
+		return (u32)fa_t->cnt_ofdm_txen;
+	case PHYDM_INFO_NHM_IDLE_RATIO:
+		return (u32)ccx_info->nhm_idle_ratio;
+	case PHYDM_INFO_NHM_TX_RATIO:
+		return (u32)ccx_info->nhm_tx_ratio;
 	default:
 		return 0xffffffff;
 	}

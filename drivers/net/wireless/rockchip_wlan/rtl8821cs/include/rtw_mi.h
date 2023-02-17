@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -184,8 +183,11 @@ void rtw_mi_buddy_set_scan_deny(_adapter *adapter, u32 ms);
 u8 rtw_mi_is_scan_deny(_adapter *adapter);
 u8 rtw_mi_buddy_is_scan_deny(_adapter *adapter);
 
+#ifdef CONFIG_AP_MODE
 void rtw_mi_beacon_update(_adapter *padapter);
 void rtw_mi_buddy_beacon_update(_adapter *padapter);
+void rtw_mi_update_csa(_adapter *adapter);
+#endif
 
 #ifndef CONFIG_MI_WITH_MBSSID_CAM
 void rtw_mi_hal_dump_macaddr(void *sel, _adapter *padapter);
@@ -303,4 +305,5 @@ u8 rtw_mi_get_ld_sta_ifbmp(_adapter *adapter);
 u8 rtw_mi_get_ap_mesh_ifbmp(_adapter *adapter);
 void rtw_mi_update_ap_bmc_camid(_adapter *padapter, u8 camid_a, u8 camid_b);
 
+_adapter *rtw_mi_get_linking_adapter(_adapter *adapter);
 #endif /*__RTW_MI_H_*/

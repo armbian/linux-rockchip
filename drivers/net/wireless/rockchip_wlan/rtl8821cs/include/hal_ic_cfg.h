@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -42,7 +41,9 @@
 #define RTL8812F_SUPPORT				0
 #define RTL8197G_SUPPORT				0
 #define RTL8710C_SUPPORT				0
-
+#define RTL8814C_SUPPORT				0
+#define RTL8735B_SUPPORT				0
+#define RTL8730A_SUPPORT				0
 
 /*#if (RTL8188E_SUPPORT==1)*/
 #define RATE_ADAPTIVE_SUPPORT			0
@@ -141,6 +142,7 @@
 	#define CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#endif
 	#define CONFIG_STOP_RESUME_BCN_BY_TXPAUSE /*to fixed no bcn issue*/
+	#define CONFIG_TSF_SYNC
 #endif
 
 #ifdef CONFIG_RTL8723B
@@ -443,6 +445,10 @@
 
 	#define CONFIG_RTL8822C_XCAP_NEW_POLICY
 
+	/*#define CONFIG_NARROWBAND_SUPPORTING*/
+	#ifdef CONFIG_NARROWBAND_SUPPORTING
+		#define CONFIG_NB_VALUE         RTW_NB_CONFIG_WIDTH_10      /* RTW_NB_CONFIG_NONE / RTW_NB_CONFIG_WIDTH_10 / RTW_NB_CONFIG_WIDTH_5       */
+	#endif
 	#define CONFIG_SUPPORT_DYNAMIC_TXPWR
 #endif /* CONFIG_RTL8822C */
 
@@ -513,6 +519,10 @@
 #ifdef CONFIG_RTL8814B
 	#undef RTL8814B_SUPPORT
 	#define RTL8814B_SUPPORT				1
+	#ifdef CONFIG_RTL8814C
+		#undef RTL8814C_SUPPORT
+		#define RTL8814C_SUPPORT			1
+	#endif
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
 	#endif /* CONFIG_FW_C2H_PKT */
@@ -627,18 +637,16 @@
 		#define CONFIG_WOW_PATTERN_IN_TXFIFO
 	#endif
 
-#if 0 /* todo: 8723F , need to check in the future */
 	#ifdef CONFIG_WOWLAN
 		#define CONFIG_GTK_OL
 		/*#define CONFIG_ARP_KEEP_ALIVE*/
 
 		#ifdef CONFIG_GPIO_WAKEUP
 			#ifndef WAKEUP_GPIO_IDX
-				#define WAKEUP_GPIO_IDX	6	/* WIFI Chip Side */
+				#define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
 			#endif /* !WAKEUP_GPIO_IDX */
 		#endif /* CONFIG_GPIO_WAKEUP */
 	#endif /* CONFIG_WOWLAN */
-#endif
 
 	#ifdef CONFIG_CONCURRENT_MODE
 		#define CONFIG_AP_PORT_SWAP
@@ -707,5 +715,9 @@
 	#ifndef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
 	#define CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
 	#endif
+
+	#define CONFIG_BT_EFUSE_MASK
+
+	#define CONFIG_WRITE_BCN_LEN_TO_FW
 #endif /* CONFIG_RTL8723F */
 #endif /*__HAL_IC_CFG_H__*/

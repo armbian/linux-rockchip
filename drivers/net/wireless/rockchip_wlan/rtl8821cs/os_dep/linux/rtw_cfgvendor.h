@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -592,14 +591,6 @@ typedef struct {
    u32 aggressive_statistics_gathering; // set for field debug mode. Driver should collect all statistics regardless of performance impact.
 } wifi_link_layer_params;
 
-#define RSSI_MONITOR_EVT_VERSION   1
-typedef struct {
-    u8 version;
-    s8 cur_rssi;
-    mac_addr BSSID;
-} rssi_monitor_evt;
-
-
 /* wifi statistics bitmap  */
 #define WIFI_STATS_RADIO              0x00000001      // all radio statistics
 #define WIFI_STATS_RADIO_CCA          0x00000002      // cca_busy_time (within radio statistics)
@@ -626,12 +617,16 @@ extern int rtw_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 
 #ifdef CONFIG_RTW_CFGVENDOR_RSSIMONITOR
 void rtw_cfgvendor_rssi_monitor_evt(_adapter *padapter);
+#define RSSI_MONITOR_EVT_VERSION   1
+typedef struct {
+    u8 version;
+    s8 cur_rssi;
+    mac_addr BSSID;
+} rssi_monitor_evt;
 #endif
 
 #ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 void rtw_hal_pno_random_gen_mac_addr(PADAPTER adapter);
-void rtw_hal_set_hw_mac_addr(PADAPTER adapter, u8 *mac_addr);
 #endif
-
 
 #endif /* _RTW_CFGVENDOR_H_ */

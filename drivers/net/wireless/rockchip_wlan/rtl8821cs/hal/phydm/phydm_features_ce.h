@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -50,6 +49,10 @@
 #endif
 	#define NHM_SUPPORT
 	#define CLM_SUPPORT
+
+#if (RTL8822C_SUPPORT || RTL8723F_SUPPORT)
+	#define EDCCA_CLM_SUPPORT
+#endif
 
 #if (RTL8822C_SUPPORT)
 	#define NHM_DYM_PW_TH_SUPPORT
@@ -162,7 +165,7 @@
 
 		#if (RTL8723B_SUPPORT || RTL8821A_SUPPORT ||\
 		     RTL8188F_SUPPORT || RTL8821C_SUPPORT ||\
-		     RTL8723D_SUPPORT)
+		     RTL8723D_SUPPORT||RTL8723F_SUPPORT)
 			#define	CONFIG_S0S1_SW_ANTENNA_DIVERSITY
 		#endif
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -91,6 +90,8 @@
 
 #ifdef CONFIG_SINGLE_XMIT_BUF
 	#define NR_XMIT_EXTBUFF	(1)
+#elif defined(CONFIG_RTW_MGMT_QUEUE)
+	#define NR_XMIT_EXTBUFF	(64)
 #else
 	#define NR_XMIT_EXTBUFF	(32)
 #endif
@@ -195,6 +196,12 @@
 #else
 #define HWXMIT_ENTRY 4
 #endif
+
+enum DEQUEUE_TYPE {
+	UNI_BMC_DATA,
+	UNI_MGMT,
+	ALL_FRAME
+};
 
 /* For Buffer Descriptor ring architecture */
 #if defined(BUF_DESC_ARCH) || defined(CONFIG_TRX_BD_ARCH)
@@ -865,6 +872,9 @@ struct	xmit_priv	{
 #ifdef CONFIG_PCI_TX_POLLING
 	_timer tx_poll_timer;
 #endif
+#ifdef CONFIG_LAYER2_ROAMING
+	_queue	rpkt_queue;
+#endif
 	_lock lock_sctx;
 
 };
@@ -986,7 +996,7 @@ u8 mgmt_xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame
 #endif
 sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);
 void stop_sta_xmit(_adapter *padapter, struct sta_info *psta);
-void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta);
+void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta, u8 dequeue_type);
 void xmit_delivery_enabled_frames(_adapter *padapter, struct sta_info *psta);
 #endif
 
@@ -1065,6 +1075,7 @@ void dump_xmit_block(void *sel, _adapter *padapter);
 void rtw_set_xmit_block(_adapter *padapter, enum XMIT_BLOCK_REASON reason);
 void rtw_clr_xmit_block(_adapter *padapter, enum XMIT_BLOCK_REASON reason);
 bool rtw_is_xmit_blocked(_adapter *padapter);
+void rtw_hci_flush(_adapter *padapter);
 
 /* include after declaring struct xmit_buf, in order to avoid warning */
 #include <xmit_osdep.h>

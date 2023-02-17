@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -500,6 +499,7 @@ void phydm_pmac_tx_dbg(void *dm_void, char input[][16], u32 *_used,
 			}
 		}
 
+		odm_memory_set(dm, &tx_info, 0, sizeof(struct phydm_pmac_info));
 		tx_info.en_pmac_tx = true;
 		tx_info.mode = PKTS_TX;
 		tx_info.ndp_sound = false;

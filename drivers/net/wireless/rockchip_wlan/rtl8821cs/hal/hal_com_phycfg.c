@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -411,7 +410,6 @@ static const struct map_t rtl8822c_pg_txpwr_def_info =
 	);
 #endif
 
-/* todo : 8723f don't know default power */
 #ifdef CONFIG_RTL8723F
 static const struct map_t rtl8723f_pg_txpwr_def_info =
 	MAP_ENT(0xB8, 1, 0xFF
@@ -470,6 +468,18 @@ static const struct map_t rtl8814b_pg_txpwr_def_info =
 			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF)
 	);
 #endif
+
+#ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
+	#ifdef CONFIG_RTL8723F
+		#define EEPROM_TX_PWR_CALIBRATE_RATE EEPROM_TX_PWR_CALIBRATE_RATE_8723F
+	#endif
+	#ifdef CONFIG_RTL8814B
+		#define EEPROM_TX_PWR_CALIBRATE_RATE EEPROM_TX_PWR_CALIBRATE_RATE_8814B
+	#endif
+	#ifdef CONFIG_RTL8822C
+		#define EEPROM_TX_PWR_CALIBRATE_RATE EEPROM_TX_PWR_CALIBRATE_RATE_8822C
+	#endif
+#endif /* CONFIG_TXPWR_PG_WITH_TSSI_OFFSET */
 
 const struct map_t *hal_pg_txpwr_def_info(_adapter *adapter)
 {
@@ -1105,6 +1115,11 @@ int check_phy_efuse_tx_power_info_valid(_adapter *adapter)
 #if CONFIG_IEEE80211_BAND_5GHZ
 	u8 valid_5g_path_bmp = 0;
 #endif
+
+#ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
+	u8 tpt_mode = (pg_data[EEPROM_TX_PWR_CALIBRATE_RATE] & 0xF0) >> 4;
+#endif
+
 #ifdef CONFIG_MP_INCLUDED
 	struct mp_priv *pmp_priv = &adapter->mppriv;
 
@@ -1114,6 +1129,14 @@ int check_phy_efuse_tx_power_info_valid(_adapter *adapter)
 		return _FALSE;
 	}
 #endif
+
+#ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
+	if (tpt_mode >= 4 && tpt_mode <= 7) { /* 4~7: TSSI */
+		RTW_INFO("%s: tpt_mode is TSSI, skip check\n", __func__);
+		return _TRUE;
+	}
+#endif
+
 	/* NOTE: TSSI offset use the same layout as TXPWR base */
 
 	for (path = 0; path < MAX_RF_PATH; path++) {
@@ -2852,7 +2875,7 @@ static s8 phy_txpwr_ww_lmt_value(_adapter *adapter)
 */
 s8 phy_get_txpwr_lmt(
 		PADAPTER			Adapter,
-		const char			*regd_name,
+		const char			*lmt_name,
 		BAND_TYPE			Band,
 		enum channel_width		bw,
 	u8 tlrs,
@@ -2891,18 +2914,25 @@ s8 phy_get_txpwr_lmt(
 	if (lock)
 		_enter_critical_mutex(&rfctl->txpwr_lmt_mutex, &irqL);
 
-	if (!regd_name) /* no regd_name specified, use currnet */
-		regd_name = rfctl->regd_name;
+	if (!lmt_name) { /* no name specified, use currnet */
+		if (Band < BAND_MAX)
+			lmt_name = rfctl->txpwr_lmt_name[Band];
+		else {
+			rtw_warn_on(1);
+			goto release_lock;
+		}
+	}
 
-	if (rfctl->txpwr_regd_num == 0
-		|| strcmp(regd_name, regd_str(TXPWR_LMT_NONE)) == 0)
+	if (rfctl->txpwr_lmt_num == 0
+		|| lmt_name == NULL
+		|| strcmp(lmt_name, txpwr_lmt_str(TXPWR_LMT_NONE)) == 0)
 		goto release_lock;
 
-	if (strcmp(regd_name, regd_str(TXPWR_LMT_WW)) == 0)
+	if (strcmp(lmt_name, txpwr_lmt_str(TXPWR_LMT_WW)) == 0)
 		is_ww_regd = 1;
 
 	if (!is_ww_regd) {
-		ent = _rtw_txpwr_lmt_get_by_name(rfctl, regd_name);
+		ent = _rtw_txpwr_lmt_get_by_name(rfctl, lmt_name);
 		if (!ent)
 			goto release_lock;
 	}
@@ -2949,6 +2979,11 @@ s8 phy_get_txpwr_lmt(
 		}
 	}
 	#endif
+	#if CONFIG_IEEE80211_BAND_6GHZ
+	else if (Band == BAND_ON_6G) {
+		rtw_warn_on(1);
+	}
+	#endif
 
 release_lock:
 	if (lock)
@@ -2963,14 +2998,14 @@ exit:
 * hal_spec->txgi_max is returned when NO limit
 */
 inline s8 phy_get_txpwr_lmt_diff(_adapter *adapter
-	, const char *regd_name
+	, const char *lmt_name
 	, BAND_TYPE band, enum channel_width bw
 	, u8 rfpath, u8 rs, u8 tlrs, u8 ntx_idx, u8 cch, u8 lock
 )
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
-	s8 lmt = phy_get_txpwr_lmt(adapter, regd_name, band, bw, tlrs, ntx_idx, cch, lock);
+	s8 lmt = phy_get_txpwr_lmt(adapter, lmt_name, band, bw, tlrs, ntx_idx, cch, lock);
 
 	if (lmt != hal_spec->txgi_max) {
 		/* return diff value */
@@ -2989,7 +3024,7 @@ inline s8 phy_get_txpwr_lmt_diff(_adapter *adapter
 * hsl_spec->txgi_max is returned when NO limit
 */
 s8 phy_get_txpwr_lmt_sub_chs(_adapter *adapter
-	, const char *regd_name
+	, const char *lmt_name
 	, BAND_TYPE band, enum channel_width bw
 	, u8 rfpath, u8 rate, u8 ntx_idx, u8 cch, u8 opch, bool reg_max)
 {
@@ -3104,7 +3139,7 @@ s8 phy_get_txpwr_lmt_sub_chs(_adapter *adapter
 			}
 		}
 
-		lmt = phy_get_txpwr_lmt(adapter, regd_name, band, tmp_bw, tlrs, ntx_idx, tmp_cch, 0);
+		lmt = phy_get_txpwr_lmt(adapter, lmt_name, band, tmp_bw, tlrs, ntx_idx, tmp_cch, 0);
 
 		if (final_lmt > lmt) {
 			if (reg_max)
@@ -3264,7 +3299,7 @@ static void phy_txpwr_lmt_cross_ref_ht_vht(_adapter *adapter)
 
 							if (0)
 								RTW_INFO("reg:%s, bw:%u, ch:%u, %s-%uT ref %s-%uT\n"
-									, ent->regd_name, bw, channel
+									, ent->name, bw, channel
 									, txpwr_lmt_rs_str(tlrs), ntx_idx + 1
 									, txpwr_lmt_rs_str(ref_tlrs), ntx_idx + 1);
 
@@ -3410,7 +3445,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 								cur = get_next(cur);
 
 								for (bw_pos = bw; bw_pos < CHANNEL_WIDTH_160; bw_pos--)
-									lmt[bw_pos] = phy_get_txpwr_lmt(adapter, ent->regd_name, band, bw_pos, tlrs, ntx_idx, cch_by_bw[bw_pos], 0);
+									lmt[bw_pos] = phy_get_txpwr_lmt(adapter, ent->name, band, bw_pos, tlrs, ntx_idx, cch_by_bw[bw_pos], 0);
 
 								for (bw_pos = bw; bw_pos > CHANNEL_WIDTH_20; bw_pos--)
 									if (lmt[bw_pos] > lmt[bw_pos - 1])
@@ -3423,7 +3458,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 									, ch_width_str(bw)
 									, txpwr_lmt_rs_str(tlrs)
 									, ntx_idx + 1
-									, ent->regd_name
+									, ent->name
 								);
 								for (bw_pos = bw; bw_pos < CHANNEL_WIDTH_160; bw_pos--)
 									_RTW_PRINT_SEL(RTW_DBGDUMP, "%03u ", cch_by_bw[bw_pos]);
@@ -3441,7 +3476,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 								_RTW_PRINT_SEL(RTW_DBGDUMP, "\n");
 							}
 							for (bw_pos = bw; bw_pos < CHANNEL_WIDTH_160; bw_pos--)
-								lmt[bw_pos] = phy_get_txpwr_lmt(adapter, regd_str(TXPWR_LMT_WW), band, bw_pos, tlrs, ntx_idx, cch_by_bw[bw_pos], 0);
+								lmt[bw_pos] = phy_get_txpwr_lmt(adapter, txpwr_lmt_str(TXPWR_LMT_WW), band, bw_pos, tlrs, ntx_idx, cch_by_bw[bw_pos], 0);
 
 							for (bw_pos = bw; bw_pos > CHANNEL_WIDTH_20; bw_pos--)
 								if (lmt[bw_pos] > lmt[bw_pos - 1])
@@ -3452,7 +3487,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 									, ch_width_str(bw)
 									, txpwr_lmt_rs_str(tlrs)
 									, ntx_idx + 1
-									, regd_str(TXPWR_LMT_WW)
+									, txpwr_lmt_str(TXPWR_LMT_WW)
 								);
 								for (bw_pos = bw; bw_pos < CHANNEL_WIDTH_160; bw_pos--)
 									_RTW_PRINT_SEL(RTW_DBGDUMP, "%03u ", cch_by_bw[bw_pos]);
@@ -3538,7 +3573,7 @@ GetS1ByteIntegerFromStringInDecimal(
 void
 phy_set_tx_power_limit(
 		struct dm_struct		*pDM_Odm,
-		u8				*Regulation,
+		u8				*lmt_name,
 		u8				*Band,
 		u8				*Bandwidth,
 		u8				*RateSection,
@@ -3557,8 +3592,8 @@ phy_set_tx_power_limit(
 	s8 ww_lmt_val = phy_txpwr_ww_lmt_value(Adapter);
 
 	if (0)
-		RTW_INFO("Index of power limit table [regulation %s][band %s][bw %s][rate section %s][ntx %s][chnl %s][val %s]\n"
-			, Regulation, Band, Bandwidth, RateSection, ntx, Channel, PowerLimit);
+		RTW_INFO("Index of power limit table [lmt_name %s][band %s][bw %s][rate section %s][ntx %s][chnl %s][val %s]\n"
+			, lmt_name, Band, Bandwidth, RateSection, ntx, Channel, PowerLimit);
 
 	if (GetU1ByteIntegerFromStringInDecimal((char *)Channel, &channel) == _FALSE
 		|| GetS1ByteIntegerFromStringInDecimal((char *)PowerLimit, &powerLimit) == _FALSE
@@ -3630,7 +3665,7 @@ phy_set_tx_power_limit(
 			return;
 		}
 
-		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), Regulation, band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
+		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), lmt_name, band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
 	}
 #if CONFIG_IEEE80211_BAND_5GHZ
 	else if (strncmp(Band, "5G", 2) == 0) {
@@ -3642,7 +3677,7 @@ phy_set_tx_power_limit(
 			return;
 		}
 
-		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), Regulation, band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
+		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), lmt_name, band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
 	}
 #endif
 	else {
@@ -3655,7 +3690,7 @@ phy_set_tx_power_limit(
 void
 phy_set_tx_power_limit_ex(
 		struct dm_struct		*pDM_Odm,
-		u8				Regulation,
+		u8				phydm_id,
 		u8				Band,
 		u8				Bandwidth,
 		u8				RateSection,
@@ -3668,15 +3703,15 @@ phy_set_tx_power_limit_ex(
 	PADAPTER Adapter = pDM_Odm->adapter;
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(Adapter);
-	u8 regd;
+	u8 lmt_id;
 	u8 band = 0, bandwidth = 0, tlrs = 0;
 	u8 ntx_idx;
 	s8 prevPowerLimit, channelIndex;
 	s8 ww_lmt_val = phy_txpwr_ww_lmt_value(Adapter);
 
 	if (0)
-		RTW_INFO("Index of power limit table [regulation %d][band %d][bw %d][rate section %d][ntx %d][chnl %d][val %d]\n"
-			, Regulation, Band, Bandwidth, RateSection, ntx, channel, powerLimit);
+		RTW_INFO("Index of power limit table [phydm_id %d][band %d][bw %d][rate section %d][ntx %d][chnl %d][val %d]\n"
+			, phydm_id, Band, Bandwidth, RateSection, ntx, channel, powerLimit);
 
 	if (powerLimit != ww_lmt_val) {
 		if (powerLimit < -hal_spec->txgi_max || powerLimit > hal_spec->txgi_max)
@@ -3688,40 +3723,40 @@ phy_set_tx_power_limit_ex(
 			powerLimit =  ww_lmt_val + 1;
 	}
 
-	switch (Regulation) {
+	switch (phydm_id) {
 	case PW_LMT_REGU_FCC:
-		regd = TXPWR_LMT_FCC;
+		lmt_id = TXPWR_LMT_FCC;
 		break;
 	case PW_LMT_REGU_ETSI:
-		regd = TXPWR_LMT_ETSI;
+		lmt_id = TXPWR_LMT_ETSI;
 		break;
 	case PW_LMT_REGU_MKK:
-		regd = TXPWR_LMT_MKK;
+		lmt_id = TXPWR_LMT_MKK;
 		break;
 	case PW_LMT_REGU_IC:
-		regd = TXPWR_LMT_IC;
+		lmt_id = TXPWR_LMT_IC;
 		break;
 	case PW_LMT_REGU_KCC:
-		regd = TXPWR_LMT_KCC;
+		lmt_id = TXPWR_LMT_KCC;
 		break;
 	case PW_LMT_REGU_ACMA:
-		regd = TXPWR_LMT_ACMA;
+		lmt_id = TXPWR_LMT_ACMA;
 		break;
 	case PW_LMT_REGU_CHILE:
-		regd = TXPWR_LMT_CHILE;
+		lmt_id = TXPWR_LMT_CHILE;
 		break;
 	case PW_LMT_REGU_UKRAINE:
-		regd = TXPWR_LMT_UKRAINE;
+		lmt_id = TXPWR_LMT_UKRAINE;
 		break;
 	case PW_LMT_REGU_MEXICO:
-		regd = TXPWR_LMT_MEXICO;
+		lmt_id = TXPWR_LMT_MEXICO;
 		break;
 	case PW_LMT_REGU_CN:
-		regd = TXPWR_LMT_CN;
+		lmt_id = TXPWR_LMT_CN;
 		break;
 	case PW_LMT_REGU_WW13:
 	default:	
-		RTW_PRINT("Wrong regulation:%d\n", Regulation);
+		RTW_PRINT("Wrong phydm_id:%d\n", phydm_id);
 		return;		
 	}
 
@@ -3793,7 +3828,7 @@ phy_set_tx_power_limit_ex(
 			return;
 		}
 
-		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), regd_str(regd), band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
+		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), txpwr_lmt_str(lmt_id), band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
 	}
 #if CONFIG_IEEE80211_BAND_5GHZ
 	else if (Band == PW_LMT_BAND_5G) {
@@ -3805,7 +3840,7 @@ phy_set_tx_power_limit_ex(
 			return;
 		}
 
-		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), regd_str(regd), band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
+		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), txpwr_lmt_str(lmt_id), band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
 	}
 #endif
 	else {
@@ -5406,7 +5441,7 @@ phy_ParsePowerLimitTableFile(
 	u32	i = 0, forCnt = 0;
 	char	*szLine, *ptmp;
 	char band[10], bandwidth[10], rateSection[10], ntx[10], colNumBuf[10];
-	char **regulation = NULL;
+	char **lmt_names = NULL;
 	u8	colNum = 0;
 
 	if (Adapter->registrypriv.RegDecryptCustomFile == 1)
@@ -5511,9 +5546,9 @@ phy_ParsePowerLimitTableFile(
 			if (DBG_TXPWR_LMT_FILE_PARSE)
 				RTW_PRINT("[%s][%s][%s][%s] column num:%d\n", band, bandwidth, rateSection, ntx, colNum);
 
-			regulation = (char **)rtw_zmalloc(sizeof(char *) * colNum);
-			if (!regulation) {
-				RTW_ERR("Regulation alloc fail\n");
+			lmt_names = (char **)rtw_zmalloc(sizeof(char *) * colNum);
+			if (!lmt_names) {
+				RTW_ERR("lmt_names alloc fail\n");
 				goto exit;
 			}
 
@@ -5528,20 +5563,20 @@ phy_ParsePowerLimitTableFile(
 				while (szLine[i] != ' ' && szLine[i] != '\t' && szLine[i] != '\0')
 					i++;
 
-				regulation[forCnt] = (char *)rtw_malloc(i - i_ns + 1);
-				if (!regulation[forCnt]) {
-					RTW_ERR("Regulation alloc fail\n");
+				lmt_names[forCnt] = (char *)rtw_malloc(i - i_ns + 1);
+				if (!lmt_names[forCnt]) {
+					RTW_ERR("lmt_name alloc fail\n");
 					goto exit;
 				}
 
-				_rtw_memcpy(regulation[forCnt], szLine + i_ns, i - i_ns);
-				regulation[forCnt][i - i_ns] = '\0';
+				_rtw_memcpy(lmt_names[forCnt], szLine + i_ns, i - i_ns);
+				lmt_names[forCnt][i - i_ns] = '\0';
 			}
 
 			if (DBG_TXPWR_LMT_FILE_PARSE) {
 				RTW_PRINT("column name:");
 				for (forCnt = 0; forCnt < colNum; ++forCnt)
-					_RTW_PRINT(" %s", regulation[forCnt]);
+					_RTW_PRINT(" %s", lmt_names[forCnt]);
 				_RTW_PRINT("\n");
 			}
 
@@ -5558,15 +5593,15 @@ phy_ParsePowerLimitTableFile(
 
 				if (strncmp((u8 *)(szLine + i), "END", 3) == 0) {
 					loadingStage = LD_STAGE_TAB_DEFINE;
-					if (regulation) {
+					if (lmt_names) {
 						for (forCnt = 0; forCnt < colNum; ++forCnt) {
-							if (regulation[forCnt]) {
-								rtw_mfree(regulation[forCnt], strlen(regulation[forCnt]) + 1);
-								regulation[forCnt] = NULL;
+							if (lmt_names[forCnt]) {
+								rtw_mfree(lmt_names[forCnt], strlen(lmt_names[forCnt]) + 1);
+								lmt_names[forCnt] = NULL;
 							}
 						}
-						rtw_mfree((u8 *)regulation, sizeof(char *) * colNum);
-						regulation = NULL;
+						rtw_mfree((u8 *)lmt_names, sizeof(char *) * colNum);
+						lmt_names = NULL;
 					}
 					colNum = 0;
 					continue;
@@ -5653,7 +5688,7 @@ phy_ParsePowerLimitTableFile(
 				}
 
 				/* store the power limit value */
-				phy_set_tx_power_limit(pDM_Odm, (u8 *)regulation[forCnt], (u8 *)band,
+				phy_set_tx_power_limit(pDM_Odm, (u8 *)lmt_names[forCnt], (u8 *)band,
 					(u8 *)bandwidth, (u8 *)rateSection, (u8 *)ntx, (u8 *)channel, (u8 *)powerLimit);
 
 			}
@@ -5663,15 +5698,15 @@ phy_ParsePowerLimitTableFile(
 	rtStatus = _SUCCESS;
 
 exit:
-	if (regulation) {
+	if (lmt_names) {
 		for (forCnt = 0; forCnt < colNum; ++forCnt) {
-			if (regulation[forCnt]) {
-				rtw_mfree(regulation[forCnt], strlen(regulation[forCnt]) + 1);
-				regulation[forCnt] = NULL;
+			if (lmt_names[forCnt]) {
+				rtw_mfree(lmt_names[forCnt], strlen(lmt_names[forCnt]) + 1);
+				lmt_names[forCnt] = NULL;
 			}
 		}
-		rtw_mfree((u8 *)regulation, sizeof(char *) * colNum);
-		regulation = NULL;
+		rtw_mfree((u8 *)lmt_names, sizeof(char *) * colNum);
+		lmt_names = NULL;
 	}
 
 	RTW_INFO("%s return %d\n", __func__, rtStatus);
@@ -6109,11 +6144,16 @@ u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
 		* 3. amends diff (per rate)
 		* base is selected that power index of MCS7 ==  halrf_get_tssi_codeword_for_txindex()
 		*/
+#if defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
 		s8 mcs7_idx;
 
 		mcs7_idx = phy_get_tssi_txpwr_by_rate_ref(adapter, rfpath, bw, cch, opch);
 		base = halrf_get_tssi_codeword_for_txindex(adapter_to_phydm(adapter)) - mcs7_idx;
 		power_idx = base + rate_target + rate_amends;
+#else
+		base = 0;
+		power_idx = rate_target + rate_amends;
+#endif
 	}
 		break;
 #endif
@@ -6229,7 +6269,7 @@ static s16 _phy_get_txpwr_max_mbm(_adapter *adapter, s8 rfpath
 				if (!(bmp_ht & BIT(hw_rate - DESC_RATEMCS0)))
 					continue;
 			} else if (IS_VHT_HRATE(hw_rate)) {
-				if (!(bmp_vht & BIT(hw_rate - DESC_RATEVHTSS1MCS0)))
+				if (!(bmp_vht & BIT_ULL(hw_rate - DESC_RATEVHTSS1MCS0)))
 					continue;
 			}
 
