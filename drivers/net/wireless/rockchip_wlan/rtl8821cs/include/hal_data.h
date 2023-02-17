@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -343,7 +342,7 @@ struct txpwr_lmt_ent {
 		[MAX_TX_COUNT];
 #endif
 
-	char regd_name[0];
+	char name[0];
 };
 #endif /* CONFIG_TXPWR_LIMIT */
 
@@ -380,7 +379,6 @@ typedef struct hal_com_data {
 	u8				nCur40MhzPrimeSC;	/* Control channel sub-carrier */
 	u8				nCur80MhzPrimeSC;   /* used for primary 40MHz of 80MHz mode */
 	BOOLEAN		bSwChnlAndSetBWInProgress;
-	u8				bDisableSWChannelPlan; /* flag of disable software change channel plan	 */
 	u16				BasicRateSet;
 	u32				ReceiveConfig;
 #ifdef CONFIG_WIFI_MONITOR
@@ -842,6 +840,12 @@ typedef struct hal_com_data {
 	u8 dma_ch_map[32];	/* TXDESC qsel maximum size */
 #endif
 
+#ifndef RTW_HALMAC /* for SIFS initial value */
+	u16 init_reg_0x428;
+	u32 init_reg_0x514;
+	u16 init_reg_0x63a;
+	u32 init_reg_0x63c;
+#endif
 } HAL_DATA_COMMON, *PHAL_DATA_COMMON;
 
 typedef struct hal_com_data HAL_DATA_TYPE, *PHAL_DATA_TYPE;

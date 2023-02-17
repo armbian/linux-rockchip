@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -49,6 +48,7 @@ void rtw_dyn_soml_config(_adapter *adapter);
 #endif
 void rtw_phydm_set_rrsr(_adapter *adapter, u32 rrsr_value, bool write_rrsr);
 void rtw_phydm_dyn_rrsr_en(_adapter *adapter, bool en_rrsr);
+void rtw_phydm_update_ap_vendor_ie(_adapter *adapter);
 void rtw_phydm_watchdog(_adapter *adapter, bool in_lps);
 
 void rtw_hal_update_iqk_fw_offload_cap(_adapter *adapter);

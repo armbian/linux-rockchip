@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2019 Realtek Corporation.
@@ -629,7 +628,7 @@ static inline u8 is_valid_id_status(enum halmac_feature_id id, enum halmac_cmd_p
 		if (status == HALMAC_CMD_PROCESS_RCVD)
 			return _FALSE;
 		if ((status != HALMAC_CMD_PROCESS_DONE)
-		    || (status != HALMAC_CMD_PROCESS_ERROR))
+		    && (status != HALMAC_CMD_PROCESS_ERROR))
 			RTW_WARN("%s: %s unexpected status(0x%x)!\n",
 				 __FUNCTION__, RTW_HALMAC_FEATURE_NAME[id],
 				 status);
@@ -1210,8 +1209,8 @@ void rtw_halmac_get_version(char *str, u32 len)
 	if (status != HALMAC_RET_SUCCESS)
 		return;
 
-	rtw_sprintf(str, len, "V%d_%02d_%02d",
-		    ver.major_ver, ver.prototype_ver, ver.minor_ver);
+	rtw_sprintf(str, len, "V%d_%02d_%02d_%02d",
+		    ver.major_ver, ver.prototype_ver, ver.minor_ver, HALMAC_PATCH_VER);
 }
 
 int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf_api)
@@ -2769,6 +2768,21 @@ int rtw_halmac_poweron(struct dvobj_priv *d)
 		 * Work around for warm reboot but device not power off,
 		 * but it would also fall into this case when auto power on is enabled.
 		 */
+#ifdef CONFIG_NARROWBAND_SUPPORTING
+		{
+			struct registry_priv *regsty = dvobj_to_regsty(d);
+			u32 bw_type;
+
+			if (regsty->rtw_nb_config == RTW_NB_CONFIG_WIDTH_10)
+				bw_type = HALMAC_BW_10;
+			else if (regsty->rtw_nb_config == RTW_NB_CONFIG_WIDTH_5)
+				bw_type = HALMAC_BW_5;
+			else
+				bw_type = HALMAC_BW_20;
+
+			api->halmac_set_hw_value(dvobj_to_halmac(d), HALMAC_HW_BANDWIDTH, &bw_type);
+		}
+#endif
 		_power_switch(halmac, api, HALMAC_MAC_POWER_OFF);
 		status = _power_switch(halmac, api, HALMAC_MAC_POWER_ON);
 		RTW_WARN("%s: Power state abnormal, try to recover...%s\n",
@@ -3109,7 +3123,7 @@ static int _send_general_info(struct dvobj_priv *d)
 	case HALMAC_RET_NO_DLFW:
 		RTW_WARN("%s: halmac_send_general_info() fail because fw not dl!\n",
 			 __FUNCTION__);
-		/* fall through */
+		fallthrough;
 	default:
 		return -1;
 	}
@@ -5319,7 +5333,7 @@ static int _halmac_scanoffload(struct dvobj_priv *d, u32 enable, u8 nlo,
 		if (ssid) {
 			if (ssid_len > sizeof(pnossid.SSID)) {
 				RTW_ERR("%s: SSID length(%d) is too long(>%d)!!\n",
-					__FUNCTION__, ssid_len, sizeof(pnossid.SSID));
+					__FUNCTION__, ssid_len, WLAN_SSID_MAXLEN);
 				return -1;
 			}
 

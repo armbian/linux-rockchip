@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -26,9 +25,9 @@ const char *const glbt_info_src_8821c_1ant[] = {
 	"BT Info[bt auto report]",
 };
 
-u32 glcoex_ver_date_8821c_1ant = 20200730;
-u32 glcoex_ver_8821c_1ant = 0x51;
-u32 glcoex_ver_btdesired_8821c_1ant = 0x50;
+u32 glcoex_ver_date_8821c_1ant = 20210319;
+u32 glcoex_ver_8821c_1ant = 0x55;
+u32 glcoex_ver_btdesired_8821c_1ant = 0x53;
 u32 glcoex_ver_wldesired_8821c_1ant = 0x170011;
 
 #if 0
@@ -1826,6 +1825,11 @@ void halbtc8821c1ant_table(struct btc_coexist *btc, boolean force_exec, u8 type)
 					  0x5a5a5aaa, break_table,
 					  select_table);
 		break;
+	case 26:
+		halbtc8821c1ant_set_table(btc, force_exec, 0x6a555a5a,
+					  0x5a5a5a5a, break_table,
+					  select_table);
+		break;
 	default:
 		break;
 	}
@@ -2135,10 +2139,9 @@ void halbtc8821c1ant_tdma(struct btc_coexist *btc, boolean force_exec,
 			return;
 		}
 	}
-	
+
 	if (!wifi_busy ||
-	    (coex_sta->a2dp_exist &&
-	    (coex_sta->bt_inq_page_remain || coex_sta->is_bt_multi_link)))
+	    (coex_sta->a2dp_exist && coex_sta->bt_inq_page_remain))
 		halbtc8821c1ant_write_scbd(btc, BT_8821C_1ANT_SCBD_TDMA,
 					   FALSE);
 	else
@@ -2562,8 +2565,8 @@ void halbtc8821c1ant_set_ant_path(struct btc_coexist *btc,
 	coex_dm->cur_ant_pos_type = (ant_pos_type << 8)  + phase;
 
 	if (btc->dbg_mode) {
-		u32tmp1 = btc->btc_read_4byte(btc, 0xcbc);
-		u32tmp2 = btc->btc_read_4byte(btc, 0xcb4);
+		u32tmp1 = btc->btc_read_4byte(btc, 0xcb4);
+		u32tmp2 = btc->btc_read_4byte(btc, 0xcbc);
 		u8tmp  = btc->btc_read_1byte(btc, 0x73);
 
 		BTC_SPRINTF(trace_buf, BT_TMP_BUF_SIZE,
@@ -3280,10 +3283,11 @@ void halbtc8821c1ant_action_wifi_native_lps(struct btc_coexist *btc)
 static
 void halbtc8821c1ant_action_wifi_linkscan(struct btc_coexist *btc)
 {
+	struct coex_sta_8821c_1ant *coex_sta = &btc->coex_sta_8821c_1ant;
 	struct  btc_bt_link_info *bt_link_info = &btc->bt_link_info;
 
 	if (bt_link_info->pan_exist) {
-		halbtc8821c1ant_table(btc, NM_EXCU, 4);
+		halbtc8821c1ant_table(btc, NM_EXCU, 26);
 		halbtc8821c1ant_tdma(btc, NM_EXCU, TRUE, 22);
 	} else if (bt_link_info->a2dp_exist) {
 		halbtc8821c1ant_table(btc, NM_EXCU, 4);
@@ -3475,13 +3479,26 @@ void halbtc8821c1ant_action_wifi_multiport2g(struct btc_coexist *btc)
 		case BTC_LINK_ONLY_GC:
 #ifdef PLATFORM_WINDOWS
 			if (btc->chip_interface == BTC_INTF_PCI &&
-			    coex_sta->a2dp_exist && !coex_sta->is_bt_multi_link)
-				halbtc8821c1ant_table(btc, NM_EXCU, 10);
-			else
+			    coex_sta->a2dp_exist && !coex_sta->is_bt_multi_link) {
+			    PADAPTER 		Adapter=(PADAPTER)btc->Adapter;
+			    PMULTI_LINK_INFO 	pMultiLinkInfo = MultiportGetMultiLinkInfo(Adapter);
+				if (pMultiLinkInfo->bHotspot) {
+					halbtc8821c1ant_table(btc, NM_EXCU, 16);
+					halbtc8821c1ant_tdma(btc, NM_EXCU,
+								TRUE, 17);	
+				} else {
+					halbtc8821c1ant_table(btc, NM_EXCU, 11);
+					halbtc8821c1ant_tdma(btc, NM_EXCU,
+								FALSE, 8);
+				}
+			} else
 #endif
+			{
 				halbtc8821c1ant_table(btc, NM_EXCU, 19);
-			halbtc8821c1ant_tdma(btc, NM_EXCU, FALSE, 8);
+				halbtc8821c1ant_tdma(btc, NM_EXCU, FALSE, 8);
+			}
 			break;
+
 		default:
 			halbtc8821c1ant_table(btc, NM_EXCU, 19);
 			halbtc8821c1ant_tdma(btc, NM_EXCU, FALSE, 8);
@@ -5446,7 +5463,7 @@ void ex_halbtc8821c1ant_periodical(struct btc_coexist *btc)
 
 	if (coex_sta->bt_inq_page_downcount != 0) {
 		coex_sta->bt_inq_page_downcount--;
-		if (coex_sta->bt_relink_downcount == 0) {
+		if (coex_sta->bt_inq_page_downcount == 0) {
 			coex_sta->bt_inq_page_remain = FALSE;
 			BTC_SPRINTF(trace_buf, BT_TMP_BUF_SIZE,
 				"[BTCoex], BT inquiry-page disappear!!\n");

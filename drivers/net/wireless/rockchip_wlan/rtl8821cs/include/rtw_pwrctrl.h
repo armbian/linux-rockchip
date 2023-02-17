@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -283,7 +282,7 @@ typedef struct pno_nlo_info {
 
 typedef struct pno_ssid {
 	u32		SSID_len;
-	u8		SSID[32];
+	u8		SSID[WLAN_SSID_MAXLEN];
 } pno_ssid_t;
 
 typedef struct pno_ssid_list {
@@ -297,6 +296,7 @@ typedef struct pno_scan_channel_info {
 	u8	active;				/* set 1 means active scan, or pasivite scan. */
 } pno_scan_channel_info_t;
 
+#ifndef RTW_HALMAC
 typedef struct pno_scan_info {
 	u8	enableRFE;			/* Enable RFE */
 	u8	period_scan_time;		/* exclusive with fast_scan_period and slow_scan_period */
@@ -309,6 +309,7 @@ typedef struct pno_scan_info {
 	u64	rfe_type;			/* rfe_type && 0x00000000000000ff */
 	pno_scan_channel_info_t ssid_channel_info[MAX_SCAN_LIST_COUNT];
 } pno_scan_info_t;
+#endif
 #endif /* CONFIG_PNO_SUPPORT */
 
 #ifdef CONFIG_LPS_POFF
@@ -513,10 +514,15 @@ struct pwrctrl_priv {
 	u8		wowlan_pattern_idx;
 	u64		wowlan_fw_iv;
 	struct rtl_priv_pattern	patterns[MAX_WKFM_CAM_NUM];
+#ifdef CONFIG_WOW_PATTERN_IN_TXFIFO
+	u8		pattern_rsvd_page_loc;
+#endif
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_inited;
 	pno_nlo_info_t	*pnlo_info;
+	#ifndef RTW_HALMAC
 	pno_scan_info_t	*pscan_info;
+	#endif
 	pno_ssid_list_t	*pno_ssid_list;
 #endif /* CONFIG_PNO_SUPPORT */
 #ifdef CONFIG_WOW_PATTERN_HW_CAM
@@ -666,6 +672,7 @@ extern s32 rtw_register_evt_alive(PADAPTER padapter);
 extern void rtw_unregister_evt_alive(PADAPTER padapter);
 extern void cpwm_int_hdl(PADAPTER padapter, struct reportpwrstate_parm *preportpwrstate);
 extern void LPS_Leave_check(PADAPTER padapter);
+void rtw_set_lps_lclk(_adapter *padapter, u8 enable);
 #endif
 
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);

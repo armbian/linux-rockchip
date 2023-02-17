@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -23,7 +22,7 @@
 /*
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -281,7 +280,7 @@ int rtw_dev_get_feature_set(struct net_device *dev)
 
 #ifdef CONFIG_RTW_WIFI_HAL
 	feature_set |= WIFI_FEATURE_CONFIG_NDO;
-#ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
+#if defined(CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI) || defined(CONFIG_RTW_SCAN_RAND)
 	feature_set |= WIFI_FEATURE_SCAN_RAND;
 #endif
 #endif
@@ -1566,6 +1565,7 @@ static int rtw_cfgvendor_logger_get_rx_pkt_fates(struct wiphy *wiphy,
 }
 
 #endif /* CONFIG_RTW_CFGVENDOR_WIFI_LOGGER */
+
 #ifdef CONFIG_RTW_WIFI_HAL
 #ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 
@@ -1600,21 +1600,6 @@ void rtw_hal_pno_random_gen_mac_addr(PADAPTER adapter)
 #endif
 }
 
-void rtw_hal_set_hw_mac_addr(PADAPTER adapter, u8 *mac_addr)
-{
-	rtw_ps_deny(adapter, PS_DENY_IOCTL);
-	LeaveAllPowerSaveModeDirect(adapter);
-
-#ifdef CONFIG_MI_WITH_MBSSID_CAM
-	rtw_hal_change_macaddr_mbid(adapter, mac_addr);
-#else
-	rtw_hal_set_hwreg(adapter, HW_VAR_MAC_ADDR, mac_addr);
-#endif
-#ifdef CONFIG_RTW_DEBUG
-	rtw_hal_dump_macaddr(RTW_DBGDUMP, adapter);
-#endif
-	rtw_ps_deny_cancel(adapter, PS_DENY_IOCTL);
-}
 
 static int rtw_cfgvendor_set_rand_mac_oui(struct wiphy *wiphy,
 		struct wireless_dev *wdev, const void  *data, int len)
@@ -1671,7 +1656,6 @@ static int rtw_cfgvendor_set_rand_mac_oui(struct wiphy *wiphy,
 
 	return err;
 }
-
 #endif
 
 #ifdef CONFIG_RTW_CFGVENDOR_WIFI_OFFLOAD
@@ -1745,7 +1729,7 @@ static int rtw_cfgvendor_set_country(struct wiphy *wiphy,
 
 	RTW_INFO("%s country_code:\"%c%c\" \n", __func__, country_code[0], country_code[1]);
 
-	rtw_set_country(padapter, country_code);
+	rtw_set_country(padapter, country_code, RTW_REGD_SET_BY_USER);
 
 	return err;
 }
