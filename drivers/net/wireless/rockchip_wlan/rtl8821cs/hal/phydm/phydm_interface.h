@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,7 +26,7 @@
 #ifndef __ODM_INTERFACE_H__
 #define __ODM_INTERFACE_H__
 
-#define INTERFACE_VERSION "1.2"
+#define INTERFACE_VERSION "1.3"
 
 #define pdm_set_reg odm_set_bb_reg
 
@@ -181,6 +180,10 @@ void odm_set_rf_reg(struct dm_struct *dm, u8 e_rf_path, u32 reg_addr,
 
 u32 odm_get_rf_reg(struct dm_struct *dm, u8 e_rf_path, u32 reg_addr,
 		   u32 bit_mask);
+
+u16 odm_convert_to_le16(u16 value);
+
+u32 odm_convert_to_le32(u32 value);
 
 /*@
  * Memory Relative Function.

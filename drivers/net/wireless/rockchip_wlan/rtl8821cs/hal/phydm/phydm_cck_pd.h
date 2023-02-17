@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -157,6 +156,7 @@ struct phydm_cckpd_struct {
 	u8		cck_cs_ratio_20m_2r;
 	u8		cck_cs_ratio_40m_1r;
 	u8		cck_cs_ratio_40m_2r;
+    u8		cck_din_shift_opt;
 	/*Current value*/
 	u8		cur_cck_pd_20m_1r;
 	u8		cur_cck_pd_20m_2r;

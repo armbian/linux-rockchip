@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef RTW_CRYTO_WRAP_H
 #define RTW_CRYTO_WRAP_H
 

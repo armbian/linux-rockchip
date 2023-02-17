@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -172,7 +171,7 @@ ex_hal8821c_wifi_only_hw_config(
 	halbtc8821c_wifi_only_set_rfe_type(pwifionlycfg);
 
 	/* set gnt_wl, gnt_bt control owner to WL*/
-	halwifionly_phy_set_bb_reg(pwifionlycfg, 0x70, 0x400000, 0x1);
+	halwifionly_phy_set_bb_reg(pwifionlycfg, 0x70, 0x4000000, 0x1);
 
 	/*gnt_wl=1 , gnt_bt=0*/
 	halwifionly_phy_set_bb_reg(pwifionlycfg, 0x1704, 0xffffffff, 0x7700);

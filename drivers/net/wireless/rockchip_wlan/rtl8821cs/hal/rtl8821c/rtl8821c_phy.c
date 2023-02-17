@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -432,6 +431,9 @@ void rtl8821c_set_tx_power_index(PADAPTER adapter, u32 powerindex, enum rf_path 
 		goto exit;
 	}
 
+	/* For phydm error handling we have to pass RF_PATH_A to the phydm API,
+	 * although some RFE types of 2.4G use RF_PATH_B.
+	 */
 	reg_path = RF_PATH_A;
 	rate = MRateToHwRate(rate);
 

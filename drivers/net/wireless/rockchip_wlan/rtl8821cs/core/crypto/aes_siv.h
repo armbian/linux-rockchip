@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * AES SIV (RFC 5297)
  * Copyright (c) 2013 Cozybit, Inc.

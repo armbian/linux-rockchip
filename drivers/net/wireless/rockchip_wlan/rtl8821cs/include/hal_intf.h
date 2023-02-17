@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -159,7 +158,6 @@ typedef enum _HW_VARIABLES {
 	HW_VAR_CHK_MGQ_CPU_EMPTY,
 	HW_VAR_DL_BCN_SEL,
 	HW_VAR_AMPDU_MAX_TIME,
-	HW_VAR_WIRELESS_MODE,
 	HW_VAR_USB_MODE,
 	HW_VAR_PORT_SWITCH,
 	HW_VAR_PORT_CFG,
@@ -221,6 +219,9 @@ typedef enum _HW_VARIABLES {
 #ifdef CONFIG_WOWLAN
 	HW_VAR_VENDOR_WOW_MODE,
 #endif /* CONFIG_WOWLAN */
+#ifdef CONFIG_WAKE_ON_BT
+	HW_VAR_WAKE_ON_BT_GPIO_SWITCH,
+#endif
 } HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE {
@@ -265,7 +266,6 @@ typedef enum _HAL_ODM_VARIABLE {
 	HAL_ODM_STA_INFO,
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
-	HAL_ODM_REGULATION,
 	HAL_ODM_INITIAL_GAIN,
 	HAL_ODM_RX_INFO_DUMP,
 	HAL_ODM_RX_Dframe_INFO,
@@ -308,6 +308,9 @@ struct hal_ops {
 	s32(*hal_mgmt_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
 #endif
 	s32(*hal_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
+	#if defined (CONFIG_CONCURRENT_MODE)  && defined (CONFIG_TSF_SYNC)
+	void(*tsf_sync)(_adapter *Adapter);
+	#endif
 #ifdef CONFIG_XMIT_THREAD_MODE
 	s32(*xmit_thread_handler)(_adapter *padapter);
 #endif
@@ -459,6 +462,7 @@ struct hal_ops {
 #ifdef CONFIG_PCI_TX_POLLING
 	void (*tx_poll_handler)(_adapter *adapter);
 #endif
+	void (*hci_flush)(_adapter *adapter, u32 queue);
 };
 
 typedef	enum _RT_EEPROM_TYPE {
@@ -853,8 +857,6 @@ s32 c2h_handler(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload);
 s32 rtw_hal_c2h_handler(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload);
 s32 rtw_hal_c2h_id_handle_directly(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload);
 #endif
-
-s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter);
 
 s32 rtw_hal_macid_sleep(_adapter *adapter, u8 macid);
 s32 rtw_hal_macid_wakeup(_adapter *adapter, u8 macid);

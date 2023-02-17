@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SHA256 hash implementation and interface functions
  * Copyright (c) 2003-2016, Jouni Malinen <j@w1.fi>

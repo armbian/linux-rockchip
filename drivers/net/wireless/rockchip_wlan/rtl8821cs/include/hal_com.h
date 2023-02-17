@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -191,6 +190,12 @@ typedef enum _WAKEUP_REASON{
 	WOW_KEEPALIVE_WAKE 			= 0x61,
 	#endif/*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
 	AP_OFFLOAD_WAKEUP				= 0x66,
+	NO_WAKE_RX_PAIRWISEKEY			= 0xB0,
+	NO_WAKE_RX_GTK				= 0xB1,
+	NO_WAKE_RX_DISASSOC			= 0xB2,
+	NO_WAKE_RX_DEAUTH			= 0xB3,
+	NO_WAKE_RX_EAPREQ_IDENTIFY		= 0xB4,
+	NO_WAKE_FW_DECISION_DISCONNECT		= 0xB5,
 	CLK_32K_UNLOCK					= 0xFD,
 	CLK_32K_LOCK					= 0xFE
 }WAKEUP_REASON;
@@ -281,7 +286,8 @@ void dump_chip_info(HAL_VERSION	ChipVersion);
 
 #define BAND_CAP_2G			BIT0
 #define BAND_CAP_5G			BIT1
-#define BAND_CAP_BIT_NUM	2
+#define BAND_CAP_6G			BIT2
+#define BAND_CAP_BIT_NUM	3
 
 #define BW_CAP_5M		BIT0
 #define BW_CAP_10M		BIT1
@@ -324,10 +330,9 @@ bool hal_chk_wl_func(_adapter *adapter, u8 func);
 
 void hal_com_config_channel_plan(
 		PADAPTER padapter,
-		char *hw_alpha2,
+		const char *hw_alpha2,
 		u8 hw_chplan,
-		char *sw_alpha2,
-		u8 sw_chplan,
+		u8 hw_chplan_6g,
 		BOOLEAN AutoLoadFail
 );
 
@@ -365,6 +370,7 @@ void rtw_dump_fw_info(void *sel, _adapter *adapter);
 void rtw_restore_hw_port_cfg(_adapter *adapter);
 void rtw_mi_set_mac_addr(_adapter *adapter);/*set mac addr when hal_init for all iface*/
 void rtw_hal_dump_macaddr(void *sel, _adapter *adapter);
+void rtw_hal_set_hw_macaddr(PADAPTER adapter, u8 *mac_addr);
 
 void rtw_init_hal_com_default_value(PADAPTER Adapter);
 
@@ -428,11 +434,15 @@ void rtw_hal_update_tx_aclt(_adapter *adapter);
 #endif
 
 void hw_var_port_switch(_adapter *adapter);
+#ifdef CONFIG_FW_MULTI_PORT_SUPPORT
+u8 rtw_hal_set_ap_bcn_imr_cmd(struct _ADAPTER *adapter, u8 enable);
+#endif
 void rtw_var_set_basic_rate(PADAPTER padapter, u8 *val);
 u8 SetHwReg(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg(PADAPTER padapter, u8 variable, u8 *val);
 void rtw_hal_check_rxfifo_full(_adapter *adapter);
 void rtw_hal_reqtxrpt(_adapter *padapter, u8 macid);
+int rtw_get_sta_tx_stat(_adapter *adapter, u8 mac_id, u8 *macaddr);
 
 u8 SetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value);
 u8 GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value);
@@ -624,6 +634,12 @@ void rtw_dump_wow_pattern(void *sel, struct rtl_wow_pattern *pwow_pattern, u8 id
 void rtw_wow_pattern_read_cam_ent(_adapter *adapter, u8 id, struct  rtl_wow_pattern *context);
 #endif
 
+#ifdef CONFIG_PNO_SUPPORT
+struct pno_ssid;
+void rtw_hal_construct_ProbeReq(_adapter *padapter, u8 *pframe,
+                                u32 *pLength, struct pno_ssid *ssid);
+#endif
+
 struct rtw_ndp_info {
 	u8 enable:1;
 	u8 check_remote_ip:1; /* Need to Check Sender IP or not */
@@ -734,4 +750,9 @@ static inline void rtw_enter_protsel_macsleep(_adapter *padapter, u8 port_sel) {
 static inline bool rtw_assert_protsel_macsleep(_adapter *padapter, u32 addr, u8 len) {return true; }
 static inline void rtw_leave_protsel_macsleep(_adapter *padapter) {}
 #endif
+
+#ifndef RTW_HALMAC
+void rtw_hal_init_sifs_backup(_adapter *adapter);
+#endif
+
 #endif /* __HAL_COMMON_H__ */

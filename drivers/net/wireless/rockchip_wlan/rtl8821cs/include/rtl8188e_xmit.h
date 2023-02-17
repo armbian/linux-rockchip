@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -254,7 +253,7 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, struct tx_desc *ptx
 	s32 rtl8188es_xmit_buf_handler(PADAPTER padapter);
 
 	#ifdef CONFIG_SDIO_TX_TASKLET
-		void rtl8188es_xmit_tasklet(void *priv);
+		void rtl8188es_xmit_tasklet(unsigned long priv);
 	#endif
 #endif
 
@@ -268,7 +267,7 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, struct tx_desc *ptx
 #endif
 	s32	rtl8188eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter);
-	void rtl8188eu_xmit_tasklet(void *priv);
+	void rtl8188eu_xmit_tasklet(unsigned long priv);
 	s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 #endif
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -181,8 +180,7 @@ static void Hal_EfuseParseChnlPlan(PADAPTER adapter, u8 *map, u8 autoloadfail)
 		adapter,
 		map ? &map[EEPROM_COUNTRY_CODE_8821C] : NULL,
 		map ? map[EEPROM_CHANNEL_PLAN_8821C] : 0xFF,
-		adapter->registrypriv.alpha2,
-		adapter->registrypriv.channel_plan,
+		RTW_CHPLAN_6G_NULL,
 		autoloadfail
 	);
 }
@@ -614,9 +612,10 @@ static void xmit_status_check(PADAPTER p)
 				if (diff_time > 4000) {
 
 					RTW_INFO("%s tx hang %s\n", __FUNCTION__,
-						(rtw_odm_adaptivity_needed(p)) ? "ODM_BB_ADAPTIVITY" : "");
+						!adapter_to_rfctl(p)->adaptivity_en ? "" :
+							rtw_edcca_mode_str(rtw_get_edcca_mode(adapter_to_dvobj(p), hal->current_band_type)));
 
-					if (!rtw_odm_adaptivity_needed(p)) {
+					if (!adapter_to_rfctl(p)->adaptivity_en) {
 						psrtpriv->self_dect_tx_cnt++;
 						psrtpriv->self_dect_case = 1;
 						rtw_hal_sreset_reset(p);
@@ -1793,11 +1792,11 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 
 	case HW_VAR_RESP_SIFS:
 		/* RESP_SIFS for CCK */
-		rtw_write8(adapter, REG_RESP_SIFS_CCK_8821C, val[0]);
-		rtw_write8(adapter, REG_RESP_SIFS_CCK_8821C + 1, val[1]);
+		rtw_write8(adapter, REG_RESP_SIFS_CCK_8821C, 0x08);
+		rtw_write8(adapter, REG_RESP_SIFS_CCK_8821C + 1, 0x08);
 		/* RESP_SIFS for OFDM */
-		rtw_write8(adapter, REG_RESP_SIFS_OFDM_8821C, val[2]);
-		rtw_write8(adapter, REG_RESP_SIFS_OFDM_8821C + 1, val[3]);
+		rtw_write8(adapter, REG_RESP_SIFS_OFDM_8821C, 0x0a);
+		rtw_write8(adapter, REG_RESP_SIFS_OFDM_8821C + 1, 0x0a);
 		break;
 
 	case HW_VAR_ACK_PREAMBLE:
@@ -1960,6 +1959,7 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 					break;
 
 				RTW_INFO("[HW_VAR_FIFO_CLEARN_UP] val=%x times:%d\n", val32, trycnt);
+				rtw_yield_os();
 			} while (--trycnt);
 			if (trycnt == 0)
 				RTW_INFO("[HW_VAR_FIFO_CLEARN_UP] Stop RX DMA failed!\n");
@@ -2132,7 +2132,6 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 
 	/*
 		case HW_VAR_AMPDU_MAX_TIME:
-		case HW_VAR_WIRELESS_MODE:
 		case HW_VAR_USB_MODE:
 		break;
 	*/
@@ -2490,7 +2489,6 @@ void rtl8821c_gethwreg(PADAPTER adapter, u8 variable, u8 *val)
 		break;
 	/*
 		case HW_VAR_AMPDU_MAX_TIME:
-		case HW_VAR_WIRELESS_MODE:
 		case HW_VAR_USB_MODE:
 		case HW_VAR_DO_IQK:
 		case HW_VAR_SOUNDING_ENTER:

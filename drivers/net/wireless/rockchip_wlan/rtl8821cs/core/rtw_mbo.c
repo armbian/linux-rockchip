@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -409,7 +408,7 @@ void rtw_mbo_build_exented_cap(
 	rtw_wnm_set_ext_cap_btm(content, 1);
 	rtw_mbo_set_ext_cap_internw(content, 1);
 	*pframe = rtw_set_ie(*pframe, 
-				EID_EXTCapability, 
+				WLAN_EID_EXT_CAP, 
 				8, 
 				content, 
 				&(pattrib->pktlen));

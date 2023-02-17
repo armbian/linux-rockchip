@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -379,7 +378,7 @@ void halrf_init_debug_setting(void *dm_void)
 
 	DBG_RF_RFK		|
 #if DBG
-#if 0
+#if 1
 	/*DBG_RF_TX_PWR_TRACK	| */
 	/*DBG_RF_IQK		| */
 	/*DBG_RF_LCK		| */

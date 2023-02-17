@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * AES (Rijndael) cipher
  * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>

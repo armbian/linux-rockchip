@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -27,9 +26,9 @@ const char *const glbt_info_src_8821c_2ant[] = {
 	"BT Info[bt auto report]",
 };
 
-u32 glcoex_ver_date_8821c_2ant = 20200730;
-u32 glcoex_ver_8821c_2ant = 0x51;
-u32 glcoex_ver_btdesired_8821c_2ant = 0x50;
+u32 glcoex_ver_date_8821c_2ant = 20210319;
+u32 glcoex_ver_8821c_2ant = 0x55;
+u32 glcoex_ver_btdesired_8821c_2ant = 0x53;
 u32 glcoex_ver_wldesired_8821c_2ant = 0x170011;
 
 static
@@ -2167,8 +2166,7 @@ void halbtc8821c2ant_tdma(struct btc_coexist *btc,
 	}
 	
 	if (!wifi_busy ||
-	    (coex_sta->a2dp_exist &&
-	    (coex_sta->bt_inq_page_remain || coex_sta->is_bt_multi_link)))
+	    (coex_sta->a2dp_exist && coex_sta->bt_inq_page_remain))
 		halbtc8821c2ant_write_scbd(btc, BT_8821C_2ANT_SCBD_TDMA,
 					   FALSE);
 	else
@@ -2607,8 +2605,8 @@ void halbtc8821c2ant_set_ant_path(struct btc_coexist *btc,
 	coex_dm->cur_ant_pos_type = (ant_pos_type << 8)  + phase;
 
 	if (btc->dbg_mode) {
-		u32tmp1 = btc->btc_read_4byte(btc, 0xcbc);
-		u32tmp2 = btc->btc_read_4byte(btc, 0xcb4);
+		u32tmp1 = btc->btc_read_4byte(btc, 0xcb4);
+		u32tmp2 = btc->btc_read_4byte(btc, 0xcbc);
 		u8tmp  = btc->btc_read_1byte(btc, 0x73);
 
 		BTC_SPRINTF(trace_buf, BT_TMP_BUF_SIZE,
@@ -5602,7 +5600,7 @@ void ex_halbtc8821c2ant_periodical(struct btc_coexist *btc)
 
 	if (coex_sta->bt_inq_page_downcount != 0) {
 		coex_sta->bt_inq_page_downcount--;
-		if (coex_sta->bt_relink_downcount == 0)
+		if (coex_sta->bt_inq_page_downcount == 0)
 			coex_sta->bt_inq_page_remain = FALSE;
 	}
 

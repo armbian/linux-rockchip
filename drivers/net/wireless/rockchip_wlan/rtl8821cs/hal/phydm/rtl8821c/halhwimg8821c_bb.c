@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -1756,7 +1755,7 @@ odm_read_and_config_mp_8821c_agc_tab(struct dm_struct *dm)
 u32
 odm_get_version_mp_8821c_agc_tab(void)
 {
-		return 62;
+		return 64;
 }
 
 /******************************************************************************
@@ -2607,7 +2606,7 @@ odm_read_and_config_mp_8821c_agc_tab_diff(struct dm_struct *dm,
 u32
 odm_get_version_mp_8821c_agc_tab_diff(void)
 {
-		return 62;
+		return 64;
 }
 
 /******************************************************************************
@@ -2669,7 +2668,7 @@ const u32 array_mp_8821c_phy_reg[] = {
 	0x82000400,	0x00000000,	0x40000000,	0x00000000,
 		0x8CC, 0x08190492,
 	0xA0000000,	0x00000000,
-		0x8CC, 0x08188492,
+		0x8CC, 0x081A0492,
 	0xB0000000,	0x00000000,
 		0x8D0, 0x0000B800,
 		0x8D4, 0x860308A0,
@@ -4357,7 +4356,7 @@ odm_read_and_config_mp_8821c_phy_reg(struct dm_struct *dm)
 u32
 odm_get_version_mp_8821c_phy_reg(void)
 {
-		return 62;
+		return 64;
 }
 
 /******************************************************************************
@@ -4433,7 +4432,7 @@ odm_read_and_config_mp_8821c_phy_reg_mp(struct dm_struct *dm)
 u32
 odm_get_version_mp_8821c_phy_reg_mp(void)
 {
-		return 62;
+		return 64;
 }
 
 /******************************************************************************

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -124,6 +123,7 @@ static void _init_mp_priv_(struct mp_priv *pmp_priv)
 	pmp_priv->prime_channel_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 	pmp_priv->rateidx = RATE_1M;
 	pmp_priv->txpoweridx = 0x2A;
+	pmp_priv->txpower_dbm_offset = 0;
 
 	pmp_priv->antenna_tx = ANTENNA_A;
 	pmp_priv->antenna_rx = ANTENNA_AB;
@@ -239,6 +239,7 @@ s32 init_mp_priv(PADAPTER padapter)
 	pmppriv->pktLength = 1000;
 	pmppriv->bprocess_mp_mode = _FALSE;
 	pmppriv->efuse_update_file= _FALSE;
+	pmppriv->efuse_update_on = _FALSE;
 
 	mp_init_xmit_attrib(&pmppriv->tx, padapter);
 
@@ -1017,6 +1018,8 @@ void mp_stop_test(PADAPTER padapter)
 	struct mp_priv *pmppriv = &padapter->mppriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
+	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info    *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sta_info *psta;
 #ifdef CONFIG_PCI_HCI
 	struct registry_priv  *registry_par = &padapter->registrypriv;
@@ -1048,6 +1051,8 @@ void mp_stop_test(PADAPTER padapter)
 		_rtw_memset(tgt_network, 0, sizeof(struct wlan_network));
 
 		_clr_fwstate_(pmlmepriv, WIFI_MP_STATE);
+
+		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
 end_of_mp_stop_test:
 
@@ -2461,9 +2466,9 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 	data[0] = '\0';
 	pdata = data;
 
-	if (psd_stop > 1792 || psd_stop < 1) {
+	if (psd_stop > 1920 || psd_stop < 1) {
 		rtw_warn_on(1);
-		psd_stop = 1792;
+		psd_stop = 1920;
 	}
 
 	if (IS_HARDWARE_TYPE_8822C(pAdapter) || IS_HARDWARE_TYPE_8723F(pAdapter)) {

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -316,6 +315,8 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	rtw_pre_link_sta_ctl_init(pstapriv);
 #endif
 
+	_rtw_spinlock_init(&pstapriv->tx_rpt_lock);
+
 #if defined(DBG_ROAMING_TEST) || defined(CONFIG_RTW_REPEATER_SON)
 	rtw_set_rx_chk_limit(adapter,1);
 #elif defined(CONFIG_ACTIVE_KEEP_ALIVE_CHECK) && !defined(CONFIG_LPS_LCLK_WD_TIMER)
@@ -483,6 +484,8 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 		rtw_pre_link_sta_ctl_deinit(pstapriv);
 #endif
 
+		_rtw_spinlock_free(&pstapriv->tx_rpt_lock);
+
 		if (pstapriv->pallocated_stainfo_buf)
 			rtw_vmfree(pstapriv->pallocated_stainfo_buf,
 				sizeof(struct sta_info) * NUM_STA + MEM_ALIGNMENT_OFFSET);
@@ -601,7 +604,7 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, const u8 *hwaddr)
 			rtw_clear_bit(RTW_RECV_ACK_OR_TIMEOUT, &preorder_ctrl->rec_abba_rsp_ack);
 
 		}
-
+		ATOMIC_SET(&psta->keytrack, 0);
 
 		/* init for DM */
 		psta->cmn.rssi_stat.rssi = (-1);
@@ -642,7 +645,7 @@ u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta)
 {
 	int i;
 	_irqL irqL0;
-	_queue *pfree_sta_queue;
+	_queue *pfree_sta_queue, *pdefrag_q = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	struct	sta_xmit_priv	*pstaxmitpriv;
 	struct	xmit_priv	*pxmitpriv = &padapter->xmitpriv;
@@ -652,6 +655,9 @@ u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	int pending_qcnt[4];
 	u8 is_pre_link_sta = _FALSE;
+	_list	*phead, *plist;
+	_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
+	union recv_frame *prframe;
 
 	if (psta == NULL)
 		goto exit;
@@ -769,14 +775,11 @@ u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta)
 	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
 	for (i = 0; i < 16 ; i++) {
 		_irqL irqL;
-		_list	*phead, *plist;
-		union recv_frame *prframe;
 		_queue *ppending_recvframe_queue;
-		_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 		rtw_clear_bit(RTW_RECV_ACK_OR_TIMEOUT, &preorder_ctrl->rec_abba_rsp_ack);
-		
+
 		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
 
 
@@ -800,6 +803,20 @@ u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta)
 		_exit_critical_bh(&ppending_recvframe_queue->lock, &irqL);
 
 	}
+
+	/* CVE-2020-24586, clear defrag queue */
+	pdefrag_q = &psta->sta_recvpriv.defrag_q;
+	enter_critical_bh(&pdefrag_q->lock);
+	phead = get_list_head(pdefrag_q);
+	plist = get_next(phead);
+	while (!rtw_is_list_empty(phead)) {
+		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		plist = get_next(plist);
+		rtw_list_delete(&(prframe->u.hdr.list));
+		rtw_free_recvframe(prframe, pfree_recv_queue);
+	}
+	exit_critical_bh(&pdefrag_q->lock);
+
 
 	if (!((psta->state & WIFI_AP_STATE) || MacAddr_isBcst(psta->cmn.mac_addr)) && is_pre_link_sta == _FALSE)
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, _FALSE);

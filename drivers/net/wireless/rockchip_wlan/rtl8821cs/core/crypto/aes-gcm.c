@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Galois/Counter Mode (GCM) and GMAC with AES
  *

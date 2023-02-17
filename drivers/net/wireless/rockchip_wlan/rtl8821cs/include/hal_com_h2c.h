@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -113,6 +112,9 @@ enum h2c_cmd {
 	H2C_GPIO_CUSTOM = 0x89,
 	H2C_P2P_OFFLOAD_RSVD_PAGE = 0x8A,
 	H2C_P2P_OFFLOAD = 0x8B,
+#ifdef CONFIG_PNO_SUPPORT
+	H2C_NLO_INFO = 0x8C, /* for ICs that have HAMMAC */
+#endif
 	H2C_WAR_OFFLOAD = 0x8D,
 	H2C_WAROFLD_RSVDPAGE1 = 0x8E,
 #ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
@@ -132,6 +134,7 @@ enum h2c_cmd {
 	H2C_CUSTOMER_STR_W2 = 0xC7,
 	H2C_CUSTOMER_STR_W3 = 0xC8,
 	H2C_BT_UNKNOWN_DEVICE_WA = 0xD1,
+	H2C_SET_AP_BCN_IMR = 0xD8,
 #ifdef DBG_FW_DEBUG_MSG_PKT
 	H2C_FW_DBG_MSG_PKT = 0xE1,
 #endif /*DBG_FW_DEBUG_MSG_PKT*/
@@ -156,6 +159,7 @@ enum h2c_cmd {
 #define H2C_AP_WOW_GPIO_CTRL_LEN	4
 #define H2C_AP_PS_LEN			2
 #define H2C_PWRMODE_LEN			7
+#define H2C_AP_BCN_MIR_LEN 1
 #define H2C_PSTUNEPARAM_LEN			4
 #define H2C_MACID_CFG_LEN		7
 #define H2C_BTMP_OPER_LEN			5
@@ -172,6 +176,9 @@ enum h2c_cmd {
 #define H2C_PROBERSP_RSVDPAGE_LEN	5
 #define H2C_P2PRSVDPAGE_LOC_LEN	5
 #define H2C_P2P_OFFLOAD_LEN	3
+#ifdef CONFIG_PNO_SUPPORT
+#define H2C_NLO_INFO_LEN	2
+#endif
 #ifdef CONFIG_MCC_MODE
 	#define H2C_MCC_CTRL_LEN			7
 #ifdef CONFIG_MCC_MODE_V2
@@ -649,6 +656,11 @@ s32 rtw_hal_customer_str_write(_adapter *adapter, const u8 *cs);
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_PROBE_PACKET(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 8, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SCAN_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SSID_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
+
+/* NLO SCAN offload for ICs that have HALMAC */
+#define SET_H2CCMD_NLO_FUN_EN(__pH2CCmd, __Value)                      SET_BITS_TO_LE_1BYTE((__pH2CCmd), 0, 1, __Value)
+#define SET_H2CCMD_NLO_PS_32K(__pH2CCmd, __Value)                      SET_BITS_TO_LE_1BYTE((__pH2CCmd), 1, 1, __Value)
+#define SET_H2CCMD_NLO_LOC_NLO_INFO(__pH2CCmd, __Value)        SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 8, __Value)
 #endif /* CONFIG_PNO_SUPPORT */
 
 /* _GPIO_CUSTOM_CMD_0x89 */

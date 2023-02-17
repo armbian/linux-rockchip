@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -162,9 +161,40 @@ static int proc_get_mstat(struct seq_file *m, void *v)
 }
 #endif /* DBG_MEM_ALLOC */
 
+static bool regd_info;
 static int proc_get_country_chplan_map(struct seq_file *m, void *v)
 {
-	dump_country_chplan_map(m);
+	dump_country_chplan_map(m, regd_info);
+	return 0;
+}
+
+static ssize_t proc_set_country_chplan_map(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	char tmp[32];
+	int regd_info_val;
+
+	if (count < 1)
+		return -EINVAL;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		int num = sscanf(tmp, "%d", &regd_info_val);
+
+		if (num >= 1)
+			regd_info = regd_info_val ? 1 : 0;
+	} else
+		return -EFAULT;
+
+	return count;
+}
+
+static int proc_get_country_list(struct seq_file *m, void *v)
+{
+	dump_country_list(m);
 	return 0;
 }
 
@@ -173,6 +203,26 @@ static int proc_get_chplan_id_list(struct seq_file *m, void *v)
 	dump_chplan_id_list(m);
 	return 0;
 }
+
+static int proc_get_chplan_country_list(struct seq_file *m, void *v)
+{
+	dump_chplan_country_list(m);
+	return 0;
+}
+
+#if CONFIG_IEEE80211_BAND_6GHZ
+static int proc_get_chplan_6g_id_list(struct seq_file *m, void *v)
+{
+	dump_chplan_6g_id_list(m);
+	return 0;
+}
+
+static int proc_get_chplan_6g_country_list(struct seq_file *m, void *v)
+{
+	dump_chplan_6g_country_list(m);
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_RTW_DEBUG
 static int proc_get_chplan_test(struct seq_file *m, void *v)
@@ -228,8 +278,14 @@ const struct rtw_proc_hdl drv_proc_hdls[] = {
 #ifdef DBG_MEM_ALLOC
 	RTW_PROC_HDL_SSEQ("mstat", proc_get_mstat, NULL),
 #endif /* DBG_MEM_ALLOC */
-	RTW_PROC_HDL_SSEQ("country_chplan_map", proc_get_country_chplan_map, NULL),
+	RTW_PROC_HDL_SSEQ("country_chplan_map", proc_get_country_chplan_map, proc_set_country_chplan_map),
+	RTW_PROC_HDL_SSEQ("country_list", proc_get_country_list, NULL),
 	RTW_PROC_HDL_SSEQ("chplan_id_list", proc_get_chplan_id_list, NULL),
+	RTW_PROC_HDL_SSEQ("chplan_country_list", proc_get_chplan_country_list, NULL),
+#if CONFIG_IEEE80211_BAND_6GHZ
+	RTW_PROC_HDL_SSEQ("chplan_6g_id_list", proc_get_chplan_6g_id_list, NULL),
+	RTW_PROC_HDL_SSEQ("chplan_6g_country_list", proc_get_chplan_6g_country_list, NULL),
+#endif
 #ifdef CONFIG_RTW_DEBUG
 	RTW_PROC_HDL_SSEQ("chplan_test", proc_get_chplan_test, NULL),
 #endif
@@ -1505,7 +1561,8 @@ static ssize_t proc_set_chan_plan(struct file *file, const char __user *buffer, 
 	struct net_device *dev = data;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
-	u8 chan_plan = RTW_CHPLAN_UNSPECIFIED;
+	u16 chplan = RTW_CHPLAN_UNSPECIFIED;
+	u16 chplan_6g = RTW_CHPLAN_6G_UNSPECIFIED;
 
 	if (!padapter)
 		return -EFAULT;
@@ -1521,12 +1578,14 @@ static ssize_t proc_set_chan_plan(struct file *file, const char __user *buffer, 
 	}
 
 	if (buffer && !copy_from_user(tmp, buffer, count)) {
-		int num = sscanf(tmp, "%hhx", &chan_plan);
-		if (num !=  1)
+		int num = sscanf(tmp, "%hx %hx", &chplan, &chplan_6g);
+		if (num < 1)
 			return count;
+
+		rtw_chplan_ioctl_input_mapping(&chplan, &chplan_6g);
 	}
 
-	rtw_set_channel_plan(padapter, chan_plan);
+	rtw_set_channel_plan(padapter, chplan, chplan_6g, RTW_REGD_SET_BY_USER);
 
 	return count;
 }
@@ -1537,10 +1596,7 @@ static int proc_get_country_code(struct seq_file *m, void *v)
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
 	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
 
-	if (rfctl->country_ent)
-		dump_country_chplan(m, rfctl->country_ent);
-	else
-		RTW_PRINT_SEL(m, "unspecified\n");
+	dump_cur_country(m, rfctl);
 
 	return 0;
 }
@@ -1568,7 +1624,7 @@ static ssize_t proc_set_country_code(struct file *file, const char __user *buffe
 	if (num !=	2)
 		return count;
 
-	rtw_set_country(padapter, alpha2);
+	rtw_set_country(padapter, alpha2, RTW_REGD_SET_BY_USER);
 
 exit:
 	return count;
@@ -1944,6 +2000,62 @@ static ssize_t proc_set_ch_sel_policy(struct file *file, const char __user *buff
 exit:
 	return count;
 }
+
+#ifdef CONFIG_80211D
+static int proc_get_country_ie_slave_en_conds(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
+
+	RTW_PRINT_SEL(m, "%-4s %-5s\n", "role", "ifbmp");
+	RTW_PRINT_SEL(m, "0x%02x  0x%02x\n"
+		, rfctl->country_ie_slave_en_role
+		, rfctl->country_ie_slave_en_ifbmp
+	);
+
+	return 0;
+}
+
+static ssize_t proc_set_country_ie_slave_en_conds(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
+	char tmp[32];
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		u8 role, ifbmp;
+		int num = sscanf(tmp, "%hhx %hhx", &role, &ifbmp);
+
+		if (num >= 1)
+			rfctl->country_ie_slave_en_role = role;
+		if (num >= 2)
+			rfctl->country_ie_slave_en_ifbmp = ifbmp;
+	}
+
+	return count;
+}
+
+static int proc_get_country_ie_slave_records(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
+
+	dump_country_ie_slave_records(m, rfctl, 0);
+
+	return 0;
+}
+#endif /* CONFIG_80211D */
 
 #ifdef CONFIG_DFS_MASTER
 static int proc_get_dfs_test_case(struct seq_file *m, void *v)
@@ -5168,6 +5280,104 @@ int proc_get_cur_beacon_keys(struct seq_file *m, void *v)
 	return 0;
 }
 
+static int proc_get_wpas_info(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+
+	RTW_PRINT_SEL(m, "WPAS_INFO: %s\n",
+		(RTW_WPAS_W1FI == adapter_to_dvobj(padapter)->wpas_type) ? "w1.fi (0)" : "android (1)");
+
+	return 0;
+}
+
+static ssize_t proc_set_wpas_info(struct file *file,
+	const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+	int val;
+
+	if (count < 1)
+		return -EINVAL;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		int num = sscanf(tmp, "%d ", &val);
+
+		if (RTW_WPAS_W1FI == val)
+			adapter_to_dvobj(padapter)->wpas_type = RTW_WPAS_W1FI;
+		else if (RTW_WPAS_ANDROID == val)
+			adapter_to_dvobj(padapter)->wpas_type = RTW_WPAS_ANDROID;
+		else
+			return -EFAULT;
+	} else
+		return -EFAULT;
+
+	return count;
+}
+
+static int proc_get_amsdu_mode(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+
+	if (pregpriv) {
+		if (pregpriv->amsdu_mode == RTW_AMSDU_MODE_NON_SPP)
+			RTW_PRINT_SEL(m, "amsdu mode: NON-SPP\n");
+		else if (pregpriv->amsdu_mode == RTW_AMSDU_MODE_SPP)
+			RTW_PRINT_SEL(m, "amsdu mode: SPP\n");
+		else if (pregpriv->amsdu_mode == RTW_AMSDU_MODE_ALL_DROP)
+			RTW_PRINT_SEL(m, "amsdu mode: ALL DROP\n");
+		else
+			RTW_PRINT_SEL(m, "unexpected amsdu mode\n");
+	}
+
+	return 0;
+}
+
+static ssize_t proc_set_amsdu_mode(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 mode;
+	u8 bw_2g;
+	u8 bw_5g;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+
+		int num = sscanf(tmp, "%d", &mode);
+
+		if (mode == RTW_AMSDU_MODE_NON_SPP
+			|| mode == RTW_AMSDU_MODE_SPP
+			|| mode == RTW_AMSDU_MODE_ALL_DROP) {
+			pregpriv->amsdu_mode = mode;
+			RTW_INFO("amsdu mode=%u\n", mode);
+		} else {
+			RTW_INFO("set unexpected mode = %d, won't apply\n", mode);
+		}
+	}
+
+	return count;
+
+}
+
 /*
 * rtw_adapter_proc:
 * init/deinit when register/unregister net_device
@@ -5412,6 +5622,10 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("pre_link_sta", proc_get_pre_link_sta, proc_set_pre_link_sta),
 #endif
 	RTW_PROC_HDL_SSEQ("ch_sel_policy", proc_get_ch_sel_policy, proc_set_ch_sel_policy),
+#ifdef CONFIG_80211D
+	RTW_PROC_HDL_SSEQ("country_ie_slave_en_conds", proc_get_country_ie_slave_en_conds, proc_set_country_ie_slave_en_conds),
+	RTW_PROC_HDL_SSEQ("country_ie_slave_records", proc_get_country_ie_slave_records, NULL),
+#endif
 #ifdef CONFIG_DFS_MASTER
 	RTW_PROC_HDL_SSEQ("dfs_test_case", proc_get_dfs_test_case, proc_set_dfs_test_case),
 	RTW_PROC_HDL_SSEQ("update_non_ocp", NULL, proc_set_update_non_ocp),
@@ -5504,6 +5718,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("rx_stat", proc_get_rx_stat, NULL),
 
 	RTW_PROC_HDL_SSEQ("tx_stat", proc_get_tx_stat, NULL),
+	RTW_PROC_HDL_SSEQ("sta_tx_stat", proc_get_sta_tx_stat, proc_set_sta_tx_stat),
 	/**** PHY Capability ****/
 	RTW_PROC_HDL_SSEQ("phy_cap", proc_get_phy_cap, NULL),
 #ifdef CONFIG_80211N_HT
@@ -5626,6 +5841,12 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #endif /* CONFIG_OFFLOAD_MDNS_V4 || CONFIG_OFFLOAD_MDNS_V6 */
 #endif /* CONFIG_WAR_OFFLOAD */
 
+	RTW_PROC_HDL_SSEQ("wpas_info", proc_get_wpas_info, proc_set_wpas_info),
+	RTW_PROC_HDL_SSEQ("rtw_amsdu_mode", proc_get_amsdu_mode, proc_set_amsdu_mode),
+
+#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_AP_MODE)
+	RTW_PROC_HDL_SSEQ("ap_csa_cnt", proc_get_ap_csa_cnt, proc_set_ap_csa_cnt),
+#endif
 };
 
 const int adapter_proc_hdls_num = sizeof(adapter_proc_hdls) / sizeof(struct rtw_proc_hdl);

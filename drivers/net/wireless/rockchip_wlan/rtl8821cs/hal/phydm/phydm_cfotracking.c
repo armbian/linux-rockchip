@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -212,7 +211,8 @@ phydm_set_crystal_cap_reg(void *dm_void, u8 crystal_cap)
 	u32 reg_val = 0;
 
 	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8814B |
-	    ODM_RTL8195B | ODM_RTL8812F | ODM_RTL8721D | ODM_RTL8710C|ODM_RTL8723F)) {
+	    ODM_RTL8195B | ODM_RTL8812F | ODM_RTL8721D |
+	    ODM_RTL8710C | ODM_RTL8723F | ODM_RTL8814C)) {
 		crystal_cap &= 0x7F;
 		reg_val = crystal_cap | (crystal_cap << 7);
 	} else {
@@ -298,7 +298,7 @@ phydm_set_crystal_cap_reg(void *dm_void, u8 crystal_cap)
 	#endif
 #if (RTL8822C_SUPPORT || RTL8814B_SUPPORT || RTL8812F_SUPPORT)
 	else if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8814B |
-		 ODM_RTL8812F)) {
+		 ODM_RTL8812F | ODM_RTL8814C)) {
 		/* write 0x1040[23:17] = 0x1040[16:10] = crystal_cap */
 		odm_set_mac_reg(dm, R_0x1040, 0x00FFFC00, reg_val);
 	} else {
@@ -331,7 +331,8 @@ void phydm_cfo_tracking_reset(void *dm_void)
 	PHYDM_DBG(dm, DBG_CFO_TRK, "%s ======>\n", __func__);
 
 	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8814B | ODM_RTL8195B |
-	    ODM_RTL8812F|ODM_RTL8723F))
+	    ODM_RTL8812F | ODM_RTL8710C | ODM_RTL8721D | ODM_RTL8723F |
+	    ODM_RTL8814C))
 		cfo_track->def_x_cap = cfo_track->crystal_cap_default & 0x7f;
 	else
 		cfo_track->def_x_cap = cfo_track->crystal_cap_default & 0x3f;
@@ -357,7 +358,7 @@ void phydm_cfo_tracking_reset(void *dm_void)
 #endif
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 #if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE | ODM_AP))
-	if (dm->support_ic_type & ODM_RTL8814B) {
+	if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 		/*Disable advance time for CFO residual*/
 		odm_set_bb_reg(dm, R_0xc2c, BIT29, 0x0);
 	}
@@ -372,7 +373,8 @@ void phydm_cfo_tracking_init(void *dm_void)
 
 	PHYDM_DBG(dm, DBG_CFO_TRK, "[%s]=========>\n", __func__);
 	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8814B | ODM_RTL8195B |
-	    ODM_RTL8812F|ODM_RTL8723F))
+	    ODM_RTL8812F | ODM_RTL8710C | ODM_RTL8721D | ODM_RTL8723F |
+	    ODM_RTL8814C))
 		cfo_track->crystal_cap = cfo_track->crystal_cap_default & 0x7f;
 	else
 		cfo_track->crystal_cap = cfo_track->crystal_cap_default & 0x3f;
@@ -487,7 +489,8 @@ void phydm_cfo_tracking(void *dm_void)
 				crystal_cap -= 1;
 
 			if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8814B |
-			    ODM_RTL8195B | ODM_RTL8812F|ODM_RTL8723F)) {
+			    ODM_RTL8195B | ODM_RTL8812F | ODM_RTL8710C |
+			    ODM_RTL8721D | ODM_RTL8723F | ODM_RTL8814C)) {
 				if (crystal_cap > 0x7F)
 					crystal_cap = 0x7F;
 			} else {
@@ -517,7 +520,7 @@ void phydm_cfo_tracking(void *dm_void)
 		#endif
 		#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 		#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE | ODM_AP))
-		if (dm->support_ic_type & ODM_RTL8814B) {
+		if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 			//Disable advance time for CFO residual
 			odm_set_bb_reg(dm, R_0xc2c, BIT29, 0x0);
 		}

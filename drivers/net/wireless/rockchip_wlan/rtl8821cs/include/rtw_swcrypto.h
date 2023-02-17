@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -19,11 +18,11 @@
 
 #define NEW_CRYPTO 1
 
-int _rtw_ccmp_encrypt(u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
-int _rtw_ccmp_decrypt(u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
+int _rtw_ccmp_encrypt(_adapter *padapter, u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
+int _rtw_ccmp_decrypt(_adapter *padapter, u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
 
-int _rtw_gcmp_encrypt(u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
-int _rtw_gcmp_decrypt(u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
+int _rtw_gcmp_encrypt(_adapter *padapter, u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
+int _rtw_gcmp_decrypt(_adapter *padapter, u8 *key, u32 key_len, uint hdrlen, u8 *frame, uint plen);
 
 #ifdef CONFIG_RTW_MESH_AEK
 int _aes_siv_encrypt(const u8 *key, size_t key_len,

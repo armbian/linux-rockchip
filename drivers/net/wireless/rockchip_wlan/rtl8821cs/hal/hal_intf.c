@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -37,7 +36,7 @@ const u32 _chip_type_to_odm_ic_type[] = {
 	ODM_RTL8192F,
 	ODM_RTL8822C,
 	ODM_RTL8814B,
-/*	ODM_RTL8723F,  */
+	ODM_RTL8723F,
 	0,
 };
 
@@ -88,13 +87,12 @@ static void rtw_init_wireless_mode(_adapter *padapter)
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	if(hal_spec->proto_cap & PROTO_CAP_11B)
 		proto_wireless_mode |= WIRELESS_11B;
-	
+
 	if(hal_spec->proto_cap & PROTO_CAP_11G)
 		proto_wireless_mode |= WIRELESS_11G;
-#ifdef CONFIG_80211AC_VHT
+
 	if(hal_spec->band_cap & BAND_CAP_5G)
 		proto_wireless_mode |= WIRELESS_11A;
-#endif
 
 #ifdef CONFIG_80211N_HT
 	if(hal_spec->proto_cap & PROTO_CAP_11N) {
@@ -897,6 +895,7 @@ s32	rtw_hal_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe)
 		rtw_mgmt_xmitframe_coalesce(padapter, pmgntframe->pkt, pmgntframe);
 #endif
 
+#if defined(CONFIG_AP_MODE) || defined(CONFIG_TDLS)
 #ifdef CONFIG_RTW_MGMT_QUEUE
 	if (MLME_IS_AP(padapter) || MLME_IS_MESH(padapter)) {
 		_enter_critical_bh(&pxmitpriv->lock, &irqL);
@@ -912,6 +911,7 @@ s32	rtw_hal_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe)
 		if (ret == RTW_QUEUE_MGMT)
 			return ret;
 	}
+#endif
 #endif
 
 	ret = padapter->hal_func.mgnt_xmit(padapter, pmgntframe);
@@ -1371,8 +1371,7 @@ s32 c2h_handler(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload)
 	case C2H_EXTEND:
 		sub_id = payload[0];
 		/* no handle, goto default */
-		/* fall through */
-
+		fallthrough;
 	default:
 		if (phydm_c2H_content_parsing(adapter_to_phydm(adapter), id, plen, payload) != TRUE)
 			ret = _FAIL;
@@ -1419,11 +1418,6 @@ s32 rtw_hal_c2h_id_handle_directly(_adapter *adapter, u8 id, u8 seq, u8 plen, u8
 	}
 }
 #endif /* !RTW_HALMAC */
-
-s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter)
-{
-	return GET_HAL_DATA(padapter)->bDisableSWChannelPlan;
-}
 
 #ifdef CONFIG_PROTSEL_MACSLEEP
 static s32 _rtw_hal_macid_sleep(_adapter *adapter, u8 macid, u8 sleep)
@@ -1964,9 +1958,31 @@ void rtw_hal_set_tx_power_level(_adapter *adapter, u8 channel)
 void rtw_hal_update_txpwr_level(_adapter *adapter)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+#ifdef CONFIG_ACTIVE_TPC_REPORT
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	int i;
+#endif
 
 	rtw_hal_set_tx_power_level(adapter, hal_data->current_channel);
 	rtw_rfctl_update_op_mode(adapter_to_rfctl(adapter), 0, 0);
+
+#ifdef CONFIG_ACTIVE_TPC_REPORT
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		struct mlme_priv *mlme;
+
+		if (!dvobj->padapters[i])
+			continue;
+		if (!CHK_MLME_STATE(dvobj->padapters[i], WIFI_AP_STATE | WIFI_MESH_STATE)
+			|| !MLME_IS_ASOC(dvobj->padapters[i]) || MLME_IS_OPCH_SW(dvobj->padapters[i]))
+			continue;
+		if (dvobj->padapters[i]->mlmeextpriv.bstart_bss != _TRUE)
+			continue;
+
+		mlme = &(dvobj->padapters[i]->mlmepriv);
+		if (MLME_ACTIVE_TPC_REPORT(mlme))
+			update_beacon(dvobj->padapters[i], WLAN_EID_TPC_REPORT, NULL, 1, 0);
+	}
+#endif
 }
 
 void rtw_hal_set_txpwr_done(_adapter *adapter)

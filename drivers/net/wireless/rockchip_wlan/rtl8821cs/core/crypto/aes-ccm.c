@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Counter with CBC-MAC (CCM) with AES
  *

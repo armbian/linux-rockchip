@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -49,7 +48,7 @@ boolean phydm_la_finish_addr_recover_8814B(void *dm_void, u32 *finish_addr)
 	struct rt_adcsmp *smp = &dm->adcsmp;
 	boolean recover_success;
 
-	if (dm->support_ic_type != ODM_RTL8814B)
+	if (!(dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)))
 		return false;
 
 	if (smp->la_buff_mode == ADCSMP_BUFF_HALF) {
@@ -147,6 +146,9 @@ phydm_la_mac_clk_en(void *dm_void, boolean enable)
 		return;
 
 	odm_set_mac_reg(dm, R_0x1008, BIT(1), val);
+	/*Set IRAM2/3*/
+	odm_set_mac_reg(dm, R_0x1000, 0xc0, 0x0);
+	odm_set_mac_reg(dm, R_0x1000, 0x3000, 0x3);
 }
 #endif
 
@@ -202,6 +204,70 @@ phydm_la_mv_data_2_tx_buffer(void *dm_void)
 						       OCPBASE_TXBUF
 						       + buf->start_pos,
 						       0x10000);
+}
+#endif
+
+
+#if(RTL8723F_SUPPORT)
+void
+phydm_la_mv_data_2_tx_buffer_rtl8723f(void *dm_void,  u32	source, u32	dest, u32 	length)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct rt_adcsmp *smp = &dm->adcsmp;
+	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
+	//u32	ch0ctrl = (BIT(29)|BIT(31));
+	u32	ch0ctrl = BIT(31);
+	u32	cnt=25000;
+
+	pr_debug("GetTxPktBuf from iMEM\n");
+	/*Disable LA mode HW block*/
+	odm_set_mac_reg(dm, R_0x7c0, BIT(0), 0x0);
+
+	/* @move LA mode content from IMEM to TxPktBuffer
+	 * Source : OCPBASE_IMEM 0x14040000
+	 * Destination : OCPBASE_TXBUF 0x18780000
+	 * Length : 32K
+	 */
+	/*
+	OCPBASE_IMEM = 0x18600000;
+	OCPBASE_TXBUF = 0x18780000;
+	GET_HAL_INTERFACE(dm->priv)->init_ddma_handler(dm->priv,
+						       OCPBASE_IMEM,
+						       OCPBASE_TXBUF
+						       + buf->start_pos,
+						       0x8000);
+	*/
+
+	// TODO: Replace all register define & bit define
+
+
+	//check if ddma ch0 is idle
+	while(odm_get_mac_reg(dm, R_0x1208 , BIT(31))){
+		ODM_delay_ms(10);
+		cnt--;
+		if(cnt==0){
+            pr_debug("1 InitDDMA88XX polling fail \n");
+			return;
+		}
+	}
+
+	ch0ctrl |= length & 0x3FFFF;
+
+	//check if chksum continuous
+	//ch0ctrl |= BIT(24);
+
+	odm_set_mac_reg(dm, R_0x1200, MASKDWORD, source); /*0x1200[31:0]:Source Address*/
+	odm_set_mac_reg(dm, R_0x1204, MASKDWORD, dest); /*0x1204[31:0]:Destination Address*/
+	odm_set_mac_reg(dm, R_0x1208, MASKDWORD, ch0ctrl); /*0x1208[17:0]:DMA Length*/
+//check if ddma ch0 is idle
+        while(odm_get_mac_reg(dm, R_0x1208 , BIT(31))){
+                ODM_delay_ms(10);
+                cnt--;
+                if(cnt==0){
+            pr_debug("2 InitDDMA88XX polling fail \n");
+                        return ;
+                }
+        }
 }
 #endif
 
@@ -837,6 +903,15 @@ void phydm_la_get_tx_pkt_buf(void *dm_void)
 	boolean is_round_up = false;
 	u32 addr_8byte = 0;
 	u32 round_up_point = 0;
+	u32 index = 0;
+	u32 imem_base;
+	u32 txbuf_base;
+	u32 dma_len;
+	u32 imem_start_addr;
+	u32 imem_start_addr_offset;
+	u32 txbuff_start_addr;
+	u32 tx_buff_addr;
+
 	#if (RTL8814B_SUPPORT)
 	boolean recover_success = true;
 	#endif
@@ -887,12 +962,76 @@ void phydm_la_get_tx_pkt_buf(void *dm_void)
 
 	/*@==== [Get LA Patterns in TXFF] ====================================*/
 	pr_debug("Dump_Start\n");
+#if(RTL8723F_SUPPORT)
+	imem_base = 0x14040000;
+	txbuf_base = 0x18780000;
+	dma_len = 0x8000;
+	txbuff_start_addr = txbuf_base;
+	imem_start_addr_offset = addr;
+	if (is_round_up) {
+		for(index = 0;index < 4;index++) {
+			dma_len = 0x8000;
+			imem_start_addr= imem_base + (imem_start_addr_offset&0x1FFFF);
+
+			if((imem_start_addr_offset + 0x8000) >= buf->end_pos) {
+				dma_len = buf->end_pos-imem_start_addr_offset;
+
+				phydm_la_mv_data_2_tx_buffer_rtl8723f(dm, imem_start_addr, txbuff_start_addr, dma_len);
+
+				tx_buff_addr = 0;
+				for (i = 0; i < (dma_len >> 3); i++) {
+					phydm_la_access_tx_pkt_buf(dm, tx_buff_addr, i << 1);
+					tx_buff_addr += 8;
+				}
+				imem_start_addr = imem_base;
+				dma_len = 0x8000-dma_len;
+				phydm_la_mv_data_2_tx_buffer_rtl8723f(dm, imem_start_addr, txbuff_start_addr, dma_len);
+
+				tx_buff_addr = 0;
+				for (i = 0; i < (dma_len >> 3); i++) {
+					phydm_la_access_tx_pkt_buf(dm, tx_buff_addr, i << 1);
+					tx_buff_addr += 8;
+				}
+				imem_start_addr_offset = dma_len;
+			}
+			else {
+				dma_len = 0x8000;
+				phydm_la_mv_data_2_tx_buffer_rtl8723f(dm, imem_start_addr, txbuff_start_addr, dma_len);
+
+				tx_buff_addr = 0;
+				for (i = 0; i <4096; i++) {
+					phydm_la_access_tx_pkt_buf(dm, tx_buff_addr, i << 1);
+					tx_buff_addr += 8;
+				}
+				imem_start_addr_offset += 0x8000;
+			}
+		}
+	} else {
+		for(index = 0; index < 4;index++) {
+			imem_start_addr = imem_base + (imem_start_addr_offset & 0x1FFFF);
+			if ((imem_start_addr_offset + 0x8000) > (finish_addr << 3))
+				dma_len = (finish_addr << 3) - imem_start_addr_offset; /*0x1208[17:0]:DMA Length*/
+			phydm_la_mv_data_2_tx_buffer_rtl8723f(dm,imem_start_addr, txbuff_start_addr, dma_len);
+			tx_buff_addr = 0;
+			for (i = 0; i < (dma_len >> 3); i++) {
+				phydm_la_access_tx_pkt_buf(dm, tx_buff_addr, i << 1);
+				tx_buff_addr += 8;
+			}
+			dma_len = 0x8000;
+			imem_start_addr_offset += 0x8000;
+			if (imem_start_addr_offset > (finish_addr << 3))
+				break;
+		}
+	}
+#else
+
 	#ifdef PHYDM_COMPILE_LA_STORE_IN_IMEM
 	phydm_la_mv_data_2_tx_buffer(dm);
 	#endif
 
 	#if (RTL8814B_SUPPORT)
-	if ((dm->support_ic_type & ODM_RTL8814B) && !recover_success) {
+	if ((dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) &&
+	    !recover_success) {
 		addr = buf->start_pos;
 		smp->smp_number = smp->smp_number_max;
 	}
@@ -909,6 +1048,7 @@ void phydm_la_get_tx_pkt_buf(void *dm_void)
 	#if (RTL8197F_SUPPORT)
 	phydm_la_stop_dma_8197f(dm, PHYDM_RESTORE);
 	#endif
+#endif
 	pr_debug("Dump_End\n");
 }
 
@@ -1168,7 +1308,7 @@ void phydm_la_set_mac_trigger_time(void *dm_void, u32 trigger_time_mu_sec)
 		odm_set_mac_reg(dm, R_0x7fc, BIT(2) | BIT(1) | BIT(0), unit);
 		odm_set_mac_reg(dm, R_0x7f0, 0x7f00, (time_unit_num & 0x7f));
 	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
-	} else if (dm->support_ic_type & ODM_RTL8814B) {
+	} else if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 		odm_set_mac_reg(dm, R_0x7cc, BIT(20) | BIT(19) | BIT(18), unit);
 		odm_set_mac_reg(dm, R_0x7c0, 0x7f00, (time_unit_num & 0x7f));
 	} else if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
@@ -1206,6 +1346,7 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 		end_pos_tmp = 0x40000;
 		break;
 	case ODM_RTL8814B:
+	case ODM_RTL8814C:
 		buff_size_base = 0x30000;
 		end_pos_tmp = 0x60000;
 		break;
@@ -1231,7 +1372,7 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 		break;
 	case ODM_RTL8723F:
 		buff_size_base = 0x20000;
-		end_pos_tmp = 0x60000;
+		end_pos_tmp = 0x20000;
 		break;
 	default:
 		pr_debug("[%s] Warning!", __func__);
@@ -1240,7 +1381,7 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 
 	buf->buffer_size = buff_size_base;
 
-	if (dm->support_ic_type & ODM_RTL8814B) {
+	if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 		if (mode == ADCSMP_BUFF_HALF) {
 			odm_set_mac_reg(dm, R_0x7cc, BIT(21), 0);
 		} else {

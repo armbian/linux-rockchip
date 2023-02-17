@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -35,6 +34,20 @@ u8 rm_post_event_hdl(_adapter *padapter, u8 *pbuf)
 	rm_handler(padapter, pev);
 #endif
 	return H2C_SUCCESS;
+}
+
+void rm_update_cap(u8 *frame_head, _adapter *pa, u32 pktlen, int offset)
+{
+#ifdef CONFIG_RTW_80211K
+	u8 *res;
+	sint len;
+
+	res = rtw_get_ie(frame_head + offset, _EID_RRM_EN_CAP_IE_, &len,
+			 pktlen - offset);
+	if (res != NULL)
+		_rtw_memcpy((void *)pa->rmpriv.rm_en_cap_def, (res + 2),
+			    MIN(len, sizeof(pa->rmpriv.rm_en_cap_def)));
+#endif
 }
 
 #ifdef CONFIG_RTW_80211K
@@ -529,13 +542,13 @@ static int rm_parse_bcn_req_s_elem(struct rm_obj *prm, u8 *pbody, int req_len)
 			RTW_INFO("DBG set ssid to %s\n",DBG_BCN_REQ_SSID_NAME);
 			i = strlen(DBG_BCN_REQ_SSID_NAME);
 			prm->q.opt.bcn.ssid.SsidLength = i;
-			_rtw_memcpy(&(prm->q.opt.bcn.ssid.Ssid),
-				DBG_BCN_REQ_SSID_NAME, i);
+			_rtw_memcpy(&(prm->q.opt.bcn.ssid.Ssid), DBG_BCN_REQ_SSID_NAME,
+				MIN(i, sizeof(prm->q.opt.bcn.ssid.Ssid)-1));
 
 #else /* original */
 			prm->q.opt.bcn.ssid.SsidLength = pbody[p+1];
-			_rtw_memcpy(&(prm->q.opt.bcn.ssid.Ssid),
-				&pbody[p+2], pbody[p+1]);
+			_rtw_memcpy(&(prm->q.opt.bcn.ssid.Ssid), &pbody[p+2],
+				MIN(pbody[p+1], sizeof(prm->q.opt.bcn.ssid.Ssid)-1));
 #endif
 #endif
 			RTW_INFO("RM: bcn_req_ssid=%s\n",
@@ -783,16 +796,36 @@ done:
 	return _SUCCESS;
 }
 
+static u8 cnt_rm_report_ies(struct rm_obj *prm, u8 eid, u8 *buf, u32 buf_len)
+{
+	u8 *pos = buf;
+	u8 id, len, cnt = 0;
+
+	while (pos - buf + 1 < buf_len) {
+		id = *pos;
+		len = *(pos + 1);
+
+		if (id == eid)
+			cnt++;
+			/*indicate_beacon_report(prm->psta->cmn.mac_addr,*/
+			/*1, 2 + len, pos);*/
+
+		pos += (2 + len);
+	}
+	return cnt;
+}
+
 /* receive measurement report */
 int rm_recv_radio_mens_rep(_adapter *padapter,
 	union recv_frame *precv_frame, struct sta_info *psta)
 {
-	int len, ret = _FALSE;
+	u32 len;
 	struct rm_obj *prm;
 	u32 rmid;
 	u8 *pdiag_body = (u8 *)(precv_frame->u.hdr.rx_data +
 		sizeof(struct rtw_ieee80211_hdr_3addr));
 	u8 *pmeas_body = &pdiag_body[3];
+	u8 bcn_rpt_cnt;
 
 
 	rmid = psta->cmn.aid << 16
@@ -834,11 +867,17 @@ int rm_recv_radio_mens_rep(_adapter *padapter,
 	/* report to upper via ioctl */
 	if ((prm->from_ioctl == true) &&
 		prm->q.m_type == bcn_req) {
-		len = pmeas_body[1] + 2; /* 2 : EID(1B)  length(1B) */
-		indicate_beacon_report(prm->psta->cmn.mac_addr,
-			1, len, pmeas_body);
+		len = precv_frame->u.hdr.len -
+				sizeof(struct rtw_ieee80211_hdr_3addr) -
+				3; /* Category + Action code + token */
+
+		bcn_rpt_cnt = cnt_rm_report_ies(prm, _MEAS_RSP_IE_,
+						pmeas_body, len);
+		if (bcn_rpt_cnt > 0)
+			indicate_beacon_report(prm->psta->cmn.mac_addr,
+					       bcn_rpt_cnt, len, pmeas_body);
 	}
-	return ret;
+	return _TRUE;
 }
 
 /* receive link measurement request */
@@ -2195,8 +2234,9 @@ void rtw_ap_parse_sta_rm_en_cap(_adapter *padapter,
 	if (elem->rm_en_cap) {
 		RTW_INFO("assoc.rm_en_cap="RM_CAP_FMT"\n",
 			RM_CAP_ARG(elem->rm_en_cap));
-		_rtw_memcpy(psta->rm_en_cap,
-			(elem->rm_en_cap), elem->rm_en_cap_len);
+
+		_rtw_memcpy(psta->rm_en_cap, (elem->rm_en_cap),
+			MIN(elem->rm_en_cap_len, sizeof(psta->rm_en_cap)));
 	}
 }
 
@@ -2204,7 +2244,8 @@ void RM_IE_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 {
 	int i;
 
-	_rtw_memcpy(&padapter->rmpriv.rm_en_cap_assoc, pIE->data, pIE->Length);
+	_rtw_memcpy(&padapter->rmpriv.rm_en_cap_assoc, pIE->data,
+		    MIN(pIE->Length, sizeof(padapter->rmpriv.rm_en_cap_assoc)));
 	RTW_INFO("assoc.rm_en_cap="RM_CAP_FMT"\n", RM_CAP_ARG(pIE->data));
 }
 

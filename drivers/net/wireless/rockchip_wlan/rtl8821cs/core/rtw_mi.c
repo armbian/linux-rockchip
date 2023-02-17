@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -833,6 +832,20 @@ void rtw_mi_buddy_beacon_update(_adapter *padapter)
 {
 	_rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_beacon_update);
 }
+
+static u8 _rtw_mi_update_csa(_adapter *adapter, void *data)
+{
+	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
+	
+	if (check_fwstate(&adapter->mlmepriv, WIFI_AP_STATE) == _TRUE)
+		_update_beacon(adapter, WLAN_EID_CHANNEL_SWITCH, NULL, _TRUE, 0, "update CSA count");
+	return _TRUE;
+}
+
+void rtw_mi_update_csa(_adapter *adapter)
+{
+	_rtw_mi_process(adapter, _FALSE, NULL, _rtw_mi_update_csa);
+}
 #endif /* CONFIG_AP_MODE */
 
 #ifndef CONFIG_MI_WITH_MBSSID_CAM
@@ -1544,4 +1557,23 @@ u8 rtw_mi_get_assoc_if_num(_adapter *adapter)
 	n_assoc_iface = DEV_STA_LD_NUM(dvobj) + DEV_AP_NUM(dvobj) + DEV_ADHOC_NUM(dvobj) + DEV_MESH_NUM(dvobj);
 #endif
 	return n_assoc_iface;
+}
+
+_adapter *rtw_mi_get_linking_adapter(_adapter *adapter)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	_adapter *iface = NULL;
+	u8 i;
+
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		iface = dvobj->padapters[i];
+		if (!iface)
+			continue;
+
+		if (check_fwstate(&iface->mlmepriv, WIFI_UNDER_LINKING) == _TRUE)
+			break;
+
+		iface = NULL;
+	}
+	return iface;
 }
