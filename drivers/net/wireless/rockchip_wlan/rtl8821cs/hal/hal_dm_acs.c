@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2014 - 2017 Realtek Corporation.
@@ -452,6 +451,36 @@ void rtw_acs_update_current_info(_adapter *adapter)
 	#ifdef CONFIG_RTW_ACS_DBG
 	rtw_acs_current_info_dump(RTW_DBGDUMP, adapter);
 	#endif
+}
+/*
+rsni
+para1:rcpi=>RSSI in dbm
+para2:anpi=>nhm in dbm
+range:0~255
+255: is not available (defined by 802.11k spec)
+
+*/
+u8 rtw_acs_get_rsni(_adapter *adapter, s8 rcpi, u8 ch)
+{
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u8 rsni = 255;
+	s8 anpi = 0;
+	int chan_idx = -1;
+
+	if(ch == 0)
+		goto exit;
+
+	chan_idx = rtw_chset_search_ch(adapter_to_chset(adapter), ch);
+	if(chan_idx == -1)
+		goto exit;
+
+	anpi = rtw_acs_get_nhm_noise_pwr_by_ch_idx(adapter, chan_idx);
+	if((rcpi != 0) && (anpi != 0))
+	 	rsni = phydm_env_mntr_get_802_11_k_rsni(phydm, rcpi, anpi);
+	RTW_DBG("[ACS][RSNI]ch=%d chan_idx=%d RSNI=%u RSSI=%d NHM=%d\n", ch, chan_idx, rsni,rcpi, anpi);
+exit:
+	return rsni;
 }
 #endif /*CONFIG_RTW_ACS*/
 

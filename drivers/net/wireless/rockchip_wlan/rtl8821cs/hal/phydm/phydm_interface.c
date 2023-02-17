@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -434,6 +433,44 @@ void odm_move_memory(struct dm_struct *dm, void *dest, void *src, u32 length)
 	PlatformMoveMemory(dest, src, length);
 #elif (DM_ODM_SUPPORT_TYPE & ODM_IOT)
 	rtw_memcpy(dest, src, length);
+#endif
+}
+
+u16 odm_convert_to_le16(u16 value)
+{
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	return cpu_to_le16(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && defined(DM_ODM_CE_MAC80211)
+	return cpu_to_le16(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && defined(DM_ODM_CE_MAC80211_V2)
+	return cpu_to_le16(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
+	return cpu_to_le16(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_WIN)
+	return value;
+#elif (DM_ODM_SUPPORT_TYPE & ODM_IOT)
+	return cpu_to_le16(value);
+#else
+	return value;
+#endif
+}
+
+u32 odm_convert_to_le32(u32 value)
+{
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	return cpu_to_le32(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && defined(DM_ODM_CE_MAC80211)
+	return cpu_to_le32(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && defined(DM_ODM_CE_MAC80211_V2)
+	return cpu_to_le32(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
+	return cpu_to_le32(value);
+#elif (DM_ODM_SUPPORT_TYPE & ODM_WIN)
+	return value;
+#elif (DM_ODM_SUPPORT_TYPE & ODM_IOT)
+	return cpu_to_le32(value);
+#else
+	return value;
 #endif
 }
 

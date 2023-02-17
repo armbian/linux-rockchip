@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -67,5 +66,7 @@ void dynamic_napi_th_chk (_adapter *adapter);
 #endif /* CONFIG_RTW_NAPI_DYNAMIC */
 #endif /* CONFIG_RTW_NAPI */
 #endif /* PLATFORM_LINUX */
+
+void rtw_rx_dbg_monitor_ip_statistic(_adapter *padapter, _pkt *pkt);
 
 #endif /*  */

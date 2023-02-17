@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -1060,7 +1059,7 @@ static int rtw_set_wpa_ie(_adapter *padapter, char *pie, unsigned short ielen)
 			_rtw_memcpy(padapter->securitypriv.supplicant_ie, &buf[0], ielen);
 		}
 
-		if (rtw_parse_wpa2_ie(buf, ielen, &group_cipher, &pairwise_cipher, NULL, NULL, &mfp_opt) == _SUCCESS) {
+		if (rtw_parse_wpa2_ie(buf, ielen, &group_cipher, &pairwise_cipher, NULL, NULL, &mfp_opt, NULL) == _SUCCESS) {
 			padapter->securitypriv.dot11AuthAlgrthm = dot11AuthAlgrthm_8021X;
 			padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeWPA2PSK;
 			_rtw_memcpy(padapter->securitypriv.supplicant_ie, &buf[0], ielen);
@@ -1487,7 +1486,6 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 
 				_rtw_memcpy(psecuritypriv->PMKIDList[j].PMKID, pPMK->pmkid, IW_PMKID_LEN);
 				psecuritypriv->PMKIDList[j].bUsed = _TRUE;
-				psecuritypriv->PMKIDIndex = j + 1;
 				blInserted = _TRUE;
 				break;
 			}
@@ -3436,9 +3434,11 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
 				   union iwreq_data *wrqu, char *extra)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	u8 channel_plan_req = (u8)(*((int *)wrqu));
+	u16 channel_plan_req = (u16)(*((int *)wrqu));
 
-	if (_SUCCESS != rtw_set_channel_plan(padapter, channel_plan_req))
+	rtw_chplan_ioctl_input_mapping(&channel_plan_req, NULL);
+
+	if (_SUCCESS != rtw_set_channel_plan(padapter, channel_plan_req, RTW_CHPLAN_6G_UNSPECIFIED, RTW_REGD_SET_BY_USER))
 		return -EPERM;
 
 	return 0;
@@ -3933,10 +3933,12 @@ static int rtw_p2p_set_go_nego_ssid(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 
-	if (wrqu->data.length > WLAN_SSID_MAXLEN - 1)
-		return -EINVAL;
-
 	RTW_INFO("[%s] ssid = %s, len = %zu\n", __FUNCTION__, extra, strlen(extra));
+	if( strlen(extra) > WPS_MAX_DEVICE_NAME_LEN){
+		RTW_ERR("Invalid strlen(extra): %zu\n", strlen(extra));
+		rtw_warn_on(1);
+		return -1;
+	}
 	_rtw_memcpy(pwdinfo->nego_ssid, extra, strlen(extra));
 	pwdinfo->nego_ssidlen = strlen(extra);
 
@@ -3953,9 +3955,6 @@ static int rtw_p2p_set_intent(struct net_device *dev,
 	_adapter						*padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info			*pwdinfo = &(padapter->wdinfo);
 	u8							intent = pwdinfo->intent;
-
-	if (wrqu->data.length >= 4096)
-		return -1;
 
 	extra[wrqu->data.length] = 0x00;
 
@@ -3981,9 +3980,6 @@ static int rtw_p2p_set_listen_ch(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 	u8	listen_ch = pwdinfo->listen_channel;	/*	Listen channel number */
-
-	if (wrqu->data.length >= 4096)
-		return -1;
 
 	extra[wrqu->data.length] = 0x00;
 	listen_ch = rtw_atoi(extra);
@@ -4011,9 +4007,6 @@ static int rtw_p2p_set_op_ch(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 	u8	op_ch = pwdinfo->operating_channel;	/*	Operating channel number */
-
-	if (wrqu->data.length >= 4096)
-		return -1;
 
 	extra[wrqu->data.length] = 0x00;
 
@@ -4089,11 +4082,14 @@ static int rtw_p2p_setDN(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 
-	if (wrqu->data.length > WPS_MAX_DEVICE_NAME_LEN - 1)
-		return -EINVAL;
 
 	RTW_INFO("[%s] %s %d\n", __FUNCTION__, extra, wrqu->data.length - 1);
 	_rtw_memset(pwdinfo->device_name, 0x00, WPS_MAX_DEVICE_NAME_LEN);
+	if( wrqu->data.length - 1 > WPS_MAX_DEVICE_NAME_LEN){
+		RTW_ERR("Invalid wrqu->data.length:%d\n", wrqu->data.length - 1);
+		rtw_warn_on(1);
+		return -1;
+	}	
 	_rtw_memcpy(pwdinfo->device_name, extra, wrqu->data.length - 1);
 	pwdinfo->device_name_len = wrqu->data.length - 1;
 
@@ -4320,6 +4316,7 @@ static int rtw_p2p_get_wps_configmethod(struct net_device *dev,
 
 			wpsie = rtw_get_wps_ie_from_scan_queue(&pnetwork->network.IEs[0], pnetwork->network.IELength, NULL, &wpsie_len, pnetwork->network.Reserved[0]);
 			if (wpsie) {
+				attr_contentlen = sizeof(attr_content);
 				rtw_get_wps_attr_content(wpsie, wpsie_len, WPS_ATTR_CONF_METHOD, (u8 *)&attr_content, &attr_contentlen);
 				if (attr_contentlen) {
 					attr_content = be16_to_cpu(attr_content);
@@ -4453,6 +4450,7 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 					/*	The P2P Device Info attribute is included in the probe response frame. */
 
 					_rtw_memset(attr_content, 0x00, 100);
+					attr_contentlen = sizeof(attr_content);
 					if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 						/*	Handle the P2P Device ID attribute of Beacon first */
 						blnMatch = 1;
@@ -4535,6 +4533,7 @@ static int rtw_p2p_get_device_type(struct net_device *dev,
 
 			wpsie = rtw_get_wps_ie_from_scan_queue(&pnetwork->network.IEs[0], pnetwork->network.IELength, NULL, &wpsie_len, pnetwork->network.Reserved[0]);
 			if (wpsie) {
+				dev_type_len = sizeof(dev_type);
 				rtw_get_wps_attr_content(wpsie, wpsie_len, WPS_ATTR_PRIMARY_DEV_TYPE, dev_type, &dev_type_len);
 				if (dev_type_len) {
 					u16	type = 0;
@@ -4609,6 +4608,7 @@ static int rtw_p2p_get_device_name(struct net_device *dev,
 
 			wpsie = rtw_get_wps_ie_from_scan_queue(&pnetwork->network.IEs[0], pnetwork->network.IELength, NULL, &wpsie_len, pnetwork->network.Reserved[0]);
 			if (wpsie) {
+				dev_len = sizeof(dev_name);
 				rtw_get_wps_attr_content(wpsie, wpsie_len, WPS_ATTR_DEVICE_NAME, dev_name, &dev_len);
 				if (dev_len) {
 					sprintf(dev_name_str, "\n\nN=%s", dev_name);
@@ -4649,7 +4649,7 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 	struct wlan_network *pnetwork = NULL;
 	u8 blnMatch = 0;
 	u8 *p2pie;
-	uint p2pielen = 0, attr_contentlen = 0;
+	uint p2pielen = 0, attr_contentlen = 2;
 	u8 attr_content[2] = { 0x00 };
 	u8 inv_proc_str[P2P_PRIVATE_IOCTL_SET_LEN] = { 0x00 };
 
@@ -4680,6 +4680,7 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 			if (p2pie) {
 				while (p2pie) {
 					/* _rtw_memset( attr_content, 0x00, 2); */
+					attr_contentlen = sizeof(attr_content);
 					if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_CAPABILITY, attr_content, &attr_contentlen)) {
 						/*	Handle the P2P capability attribute */
 						blnMatch = 1;
@@ -4852,7 +4853,7 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 	uint						uintPeerChannel = 0;
 	u8						attr_content[50] = { 0x00 };
 	u8						*p2pie;
-	uint						p2pielen = 0, attr_contentlen = 0;
+	uint						p2pielen = 0, attr_contentlen = 50;
 	_irqL					irqL;
 	struct tx_invite_req_info	*pinvite_req_info = &pwdinfo->invitereq_info;
 #ifdef CONFIG_CONCURRENT_MODE
@@ -4910,6 +4911,7 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 			/*	The P2P Device ID attribute is included in the Beacon frame. */
 			/*	The P2P Device Info attribute is included in the probe response frame. */
 
+			attr_contentlen = sizeof(attr_content);
 			if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 				/*	Handle the P2P Device ID attribute of Beacon first */
 				if (_rtw_memcmp(attr_content, pinvite_req_info->peer_macaddr, ETH_ALEN)) {
@@ -5125,7 +5127,7 @@ static int rtw_p2p_set_pc(struct net_device *dev,
 	struct	wlan_network	*pnetwork = NULL;
 	u8					attr_content[50] = { 0x00 };
 	u8 *p2pie;
-	uint					p2pielen = 0, attr_contentlen = 0;
+	uint					p2pielen = 0, attr_contentlen = 50;
 	_irqL				irqL;
 	uint					uintPeerChannel = 0;
 
@@ -5165,6 +5167,7 @@ static int rtw_p2p_set_pc(struct net_device *dev,
 			/*	The P2P Device ID attribute is included in the Beacon frame. */
 			/*	The P2P Device Info attribute is included in the probe response frame. */
 			printk("[%s] Got P2P IE\n", __FUNCTION__);
+			attr_contentlen = sizeof(attr_content);
 			if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 				/*	Handle the P2P Device ID attribute of Beacon first */
 				printk("[%s] P2P_ATTR_DEVICE_ID\n", __FUNCTION__);
@@ -5337,7 +5340,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 	uint					uintPeerChannel = 0;
 	u8					attr_content[100] = { 0x00 };
 	u8 *p2pie;
-	uint					p2pielen = 0, attr_contentlen = 0;
+	uint					p2pielen = 0, attr_contentlen = 100;
 	_irqL				irqL;
 #ifdef CONFIG_CONCURRENT_MODE
 	struct roch_info 		*prochinfo = &padapter->rochinfo;
@@ -5406,7 +5409,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 			while (p2pie) {
 				/*	The P2P Device ID attribute is included in the Beacon frame. */
 				/*	The P2P Device Info attribute is included in the probe response frame. */
-
+				attr_contentlen = sizeof(attr_content);
 				if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 					/*	Handle the P2P Device ID attribute of Beacon first */
 					if (_rtw_memcmp(attr_content, peerMAC, ETH_ALEN)) {
@@ -7877,7 +7880,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	case ANDROID_WIFI_CMD_COUNTRY: {
 		char country_code[10];
 		sscanf(ext, "%*s %s", country_code);
-		rtw_set_country(padapter, country_code);
+		rtw_set_country(padapter, country_code, RTW_REGD_SET_BY_USER);
 		sprintf(ext, "OK");
 	}
 		break;
@@ -8469,6 +8472,31 @@ _clear_path:
 	return -EFAULT;
 }
 #endif
+
+static int rtw_get_ic_type(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
+{
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
+	char *pstring = extra;
+	u8 regdata;
+
+#ifdef CONFIG_RTL8822C
+	_rtw_memset(pstring, 0, wrqu->data.length);
+
+	regdata = (rtw_read32(padapter, 0xF0) & 0xf000) >> 12;
+	RTW_INFO("%s: f0[15:12]= 0x%x\n", __FUNCTION__, regdata);
+
+	if (regdata == 0x04)
+		pstring += sprintf(pstring , ":%s\n" ,"rtl8822c-vbs");
+	else
+		pstring += sprintf(pstring , ":%s\n" ,"rtl8822c-vs");
+
+	wrqu->data.length = strlen(extra);
+#endif
+	return 0;
+}
 
 static int rtw_mp_efuse_get(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -9886,14 +9914,29 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		sprintf(extra, "write mac addr to fake map OK\n");
 	} else if(strcmp(tmp[0], "update") == 0) {
 		RTW_INFO("To Use new eFuse map ver3\n");
+
 		if (tmp[1] != 0x00) {
-			pmp_priv->efuse_update_file = _TRUE;
-			strcpy(pmp_priv->efuse_file_path , tmp[1]);
-			RTW_INFO("Got file path %s\n", pmp_priv->efuse_file_path);
+			if (strcmp(tmp[1], "fake") == 0) {
+				pmp_priv->efuse_update_on = _TRUE;
+				RTW_INFO("Set efuse update without file\n");
+			} else if (strcmp(tmp[1], "phy") == 0) {
+				pmp_priv->efuse_update_file = _FALSE;
+				pmp_priv->efuse_update_on = _FALSE;
+				RTW_INFO("Set efuse update with phy\n");
+			} else {
+				pmp_priv->efuse_update_file = _TRUE;
+				strcpy(pmp_priv->efuse_file_path , tmp[1]);
+				RTW_INFO("Got file path %s\n", pmp_priv->efuse_file_path);
+			}
 		}
 		/*step read efuse/eeprom data and get mac_addr*/
 		if (padapter->hal_func.read_adapter_info(padapter)) {
 			_rtw_memset(extra, '\0', strlen(extra));
+			#ifdef CONFIG_TXPWR_PG_WITH_PWR_IDX
+			if (pHalData->txpwr_pg_mode == TXPWR_PG_WITH_PWR_IDX)
+				hal_load_txpwr_info(padapter);
+			#endif
+			phy_load_tx_power_ext_info(padapter, 1);
 			sprintf(extra, "eFuse Update OK\n");
 			RTW_INFO("eFuse Update OK\n");
 		} else {
@@ -9901,8 +9944,8 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			sprintf(extra, "eFuse Update FAIL\n");
 			RTW_INFO("eFuse Update FAIL\n");
 		}
-		pmp_priv->efuse_update_file = _FALSE;
-		RTW_INFO("To Use new eFuse map done ver3\n");
+
+		RTW_INFO("To Use new eFuse map ver3 done\n");
 	} else if (strcmp(tmp[0], "analyze") == 0) {
 
 		rtw_efuse_analyze(padapter, EFUSE_WIFI, 0);
@@ -10235,8 +10278,12 @@ static int rtw_priv_mp_get(struct net_device *dev,
 		status = rtw_efuse_file_map(dev, info, wdata, extra);
 		break;
 	case EFUSE_FILE_STORE:
+#if !defined(CONFIG_RTW_ANDROID_GKI)
 		RTW_INFO("mp_get EFUSE_FILE_STORE\n");
 		status = rtw_efuse_file_map_store(dev, info, wdata, extra);
+#else
+		RTW_ERR("Android GKI doesn't support: mp_get EFUSE_FILE_STORE\n");
+#endif /* !defined(CONFIG_RTW_ANDROID_GKI) */
 		break;
 	case MP_TX:
 		RTW_INFO("mp_get MP_TX\n");
@@ -10574,6 +10621,10 @@ static int rtw_priv_get(struct net_device *dev,
 				rtw_vendor_ie_get(dev , info , wdata , extra);
 				break;
 #endif
+			case GET_IC_TYPE:
+				RTW_INFO("get IC Type\n");
+				rtw_get_ic_type(dev , info , wdata , extra);
+				break;
 			default:
 				return -EIO;
 			}
@@ -12396,6 +12447,7 @@ static const struct iw_priv_args rtw_private_args[] = {
 	{ MP_SD_IREAD, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "sd_iread" },
 	{ MP_SD_IWRITE, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "sd_iwrite" },
 #endif
+	{ GET_IC_TYPE, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "ic_type" },
 };
 
 
@@ -12887,11 +12939,6 @@ static int _rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq
 		extra = buffer;
 
 	handler = priv[priv_args[k].cmd - SIOCIWFIRSTPRIV];
-	if (handler == NULL) {
-		err = -EINVAL;
-		goto exit;
-	}
-
 	err = handler(dev, NULL, &wdata, extra);
 
 	/* If we have to get some data */

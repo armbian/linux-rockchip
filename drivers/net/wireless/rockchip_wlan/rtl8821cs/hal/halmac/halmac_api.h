@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -22,7 +21,7 @@
 #define HALMAC_MAJOR_VER        1
 #define HALMAC_PROTOTYPE_VER    6
 #define HALMAC_MINOR_VER        6
-#define HALMAC_PATCH_VER        22
+#define HALMAC_PATCH_VER        23
 
 #define HALMAC_88XX_SUPPORT	(HALMAC_8821C_SUPPORT || \
 				 HALMAC_8822B_SUPPORT || \
