@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -24,18 +23,30 @@
 #define SHORT_SLOT_TIME					9
 #define NON_SHORT_SLOT_TIME				20
 
-#define CENTER_CH_2G_40M_NUM	9
 #define CENTER_CH_2G_NUM		14
+#define CENTER_CH_2G_40M_NUM	9
+
 #define CENTER_CH_5G_20M_NUM	28	/* 20M center channels */
 #define CENTER_CH_5G_40M_NUM	14	/* 40M center channels */
 #define CENTER_CH_5G_80M_NUM	7	/* 80M center channels */
 #define CENTER_CH_5G_160M_NUM	3	/* 160M center channels */
 #define CENTER_CH_5G_ALL_NUM	(CENTER_CH_5G_20M_NUM + CENTER_CH_5G_40M_NUM + CENTER_CH_5G_80M_NUM)
 
-#define	MAX_CHANNEL_NUM_2G	CENTER_CH_2G_NUM
-#define	MAX_CHANNEL_NUM_5G	CENTER_CH_5G_20M_NUM
-#define	MAX_CHANNEL_NUM		(MAX_CHANNEL_NUM_2G + MAX_CHANNEL_NUM_5G)
-#define MAX_CHANNEL_NUM_OF_BAND rtw_max(MAX_CHANNEL_NUM_2G, MAX_CHANNEL_NUM_5G)
+#define CENTER_CH_6G_20M_NUM	64	/* 20M center channels */
+#define CENTER_CH_6G_40M_NUM	32	/* 40M center channels */
+#define CENTER_CH_6G_80M_NUM	16	/* 80M center channels */
+#define CENTER_CH_6G_160M_NUM	8	/* 160M center channels */
+
+#define	MAX_CHANNEL_NUM_2G		CENTER_CH_2G_NUM
+#define	MAX_CHANNEL_NUM_5G		CENTER_CH_5G_20M_NUM
+#define MAX_CHANNEL_NUM_6G		CENTER_CH_6G_20M_NUM
+#define MAX_CHANNEL_NUM_2G_5G	(MAX_CHANNEL_NUM_2G + MAX_CHANNEL_NUM_5G)
+
+#define	MAX_CHANNEL_NUM		( \
+	MAX_CHANNEL_NUM_2G \
+	+ (CONFIG_IEEE80211_BAND_5GHZ ? MAX_CHANNEL_NUM_5G : 0) \
+	+ (CONFIG_IEEE80211_BAND_6GHZ ? MAX_CHANNEL_NUM_6G : 0) \
+	)
 
 extern u8 center_ch_2g[CENTER_CH_2G_NUM];
 extern u8 center_ch_2g_40m[CENTER_CH_2G_40M_NUM];
@@ -97,6 +108,9 @@ enum	_REG_PREAMBLE_MODE {
 typedef enum _BAND_TYPE {
 	BAND_ON_2_4G = 0,
 	BAND_ON_5G = 1,
+#if CONFIG_IEEE80211_BAND_6GHZ
+	BAND_ON_6G = 2,
+#endif
 	BAND_MAX,
 } BAND_TYPE, *PBAND_TYPE;
 
@@ -158,7 +172,7 @@ struct op_class_pref_t {
 	u8 ch_num; /* number of chs */
 	u8 op_ch_num; /* channel number which is not static non operable */
 	u8 ir_ch_num; /* channel number which can init radiation */
-	struct op_ch_t chs[MAX_CHANNEL_NUM_OF_BAND]; /* zero(ch) terminated array */
+	struct op_ch_t chs[];
 };
 
 int op_class_pref_init(_adapter *adapter);
@@ -227,30 +241,18 @@ u8 rtw_restrict_trx_path_bmp_by_rftype(u8 trx_path_bmp, enum rf_type type, u8 *t
 void tx_path_nss_set_default(enum bb_path txpath_nss[], u8 txpath_num_nss[], u8 txpath);
 void tx_path_nss_set_full_tx(enum bb_path txpath_nss[], u8 txpath_num_nss[], u8 txpath);
 
+#if CONFIG_IEEE80211_BAND_6GHZ
+int rtw_6gch2freq(int chan);
+#endif
+
 int rtw_ch2freq(int chan);
+int rtw_ch2freq_by_band(BAND_TYPE band, int ch);
 int rtw_freq2ch(int freq);
+BAND_TYPE rtw_freq2band(int freq);
+bool rtw_freq_consecutive(int a, int b);
 bool rtw_chbw_to_freq_range(u8 ch, u8 bw, u8 offset, u32 *hi, u32 *lo);
 
 struct rf_ctl_t;
-
-typedef enum _REGULATION_TXPWR_LMT {
-	TXPWR_LMT_NONE = 0, /* no limit */
-	TXPWR_LMT_FCC = 1,
-	TXPWR_LMT_MKK = 2,
-	TXPWR_LMT_ETSI = 3,
-	TXPWR_LMT_IC = 4,
-	TXPWR_LMT_KCC = 5,
-	TXPWR_LMT_NCC = 6,
-	TXPWR_LMT_ACMA = 7,
-	TXPWR_LMT_CHILE = 8,
-	TXPWR_LMT_UKRAINE = 9,
-	TXPWR_LMT_MEXICO = 10,
-	TXPWR_LMT_CN = 11,
-	TXPWR_LMT_WW, /* smallest of all available limit, keep last */
-} REGULATION_TXPWR_LMT;
-
-extern const char *const _regd_str[];
-#define regd_str(regd) (((regd) > TXPWR_LMT_WW) ? _regd_str[TXPWR_LMT_WW] : _regd_str[(regd)])
 
 void txpwr_idx_get_dbm_str(s8 idx, u8 txgi_max, u8 txgi_pdbm, SIZE_T cwidth, char dbm_str[], u8 dbm_str_len);
 
@@ -265,23 +267,23 @@ struct regd_exc_ent {
 	_list list;
 	char country[2];
 	u8 domain;
-	char regd_name[0];
+	char lmt_name[0];
 };
 
 void dump_regd_exc_list(void *sel, struct rf_ctl_t *rfctl);
-void rtw_regd_exc_add_with_nlen(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *regd_name, u32 nlen);
-void rtw_regd_exc_add(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *regd_name);
+void rtw_regd_exc_add_with_nlen(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *lmt_name, u32 nlen);
+void rtw_regd_exc_add(struct rf_ctl_t *rfctl, const char *country, u8 domain, const char *lmt_name);
 struct regd_exc_ent *_rtw_regd_exc_search(struct rf_ctl_t *rfctl, const char *country, u8 domain);
 struct regd_exc_ent *rtw_regd_exc_search(struct rf_ctl_t *rfctl, const char *country, u8 domain);
 void rtw_regd_exc_list_free(struct rf_ctl_t *rfctl);
 
 void dump_txpwr_lmt(void *sel, _adapter *adapter);
-void rtw_txpwr_lmt_add_with_nlen(struct rf_ctl_t *rfctl, const char *regd_name, u32 nlen
+void rtw_txpwr_lmt_add_with_nlen(struct rf_ctl_t *rfctl, const char *lmt_name, u32 nlen
 	, u8 band, u8 bw, u8 tlrs, u8 ntx_idx, u8 ch_idx, s8 lmt);
-void rtw_txpwr_lmt_add(struct rf_ctl_t *rfctl, const char *regd_name
+void rtw_txpwr_lmt_add(struct rf_ctl_t *rfctl, const char *lmt_name
 	, u8 band, u8 bw, u8 tlrs, u8 ntx_idx, u8 ch_idx, s8 lmt);
-struct txpwr_lmt_ent *_rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *regd_name);
-struct txpwr_lmt_ent *rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *regd_name);
+struct txpwr_lmt_ent *_rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *lmt_name);
+struct txpwr_lmt_ent *rtw_txpwr_lmt_get_by_name(struct rf_ctl_t *rfctl, const char *lmt_name);
 void rtw_txpwr_lmt_list_free(struct rf_ctl_t *rfctl);
 #endif /* CONFIG_TXPWR_LIMIT */
 
@@ -320,6 +322,11 @@ void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch);
 	|| (rtw_is_5g_band2(a) && rtw_is_5g_band2(b)) \
 	|| (rtw_is_5g_band3(a) && rtw_is_5g_band3(b)) \
 	|| (rtw_is_5g_band4(a) && rtw_is_5g_band4(b)))
+
+#define rtw_is_6g_band1(ch) ((ch) >= 1 && (ch) <= 93)
+#define rtw_is_6g_band2(ch) ((ch) >= 97 && (ch) <= 117)
+#define rtw_is_6g_band3(ch) ((ch) >= 121 && (ch) <= 189)
+#define rtw_is_6g_band4(ch) ((ch) >= 193 && (ch) <= 237)
 
 bool rtw_is_long_cac_range(u32 hi, u32 lo, u8 dfs_region);
 bool rtw_is_long_cac_ch(u8 ch, u8 bw, u8 offset, u8 dfs_region);

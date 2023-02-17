@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -121,6 +120,12 @@ void configure_txpower_track(
 	if (dm->support_ic_type == ODM_RTL8197G)
 		configure_txpower_track_8197g(config);
 #endif
+
+#if RTL8814C_SUPPORT
+	if (dm->support_ic_type == ODM_RTL8814C)
+		configure_txpower_track_8814c(config);
+#endif
+
 
 }
 
@@ -356,7 +361,7 @@ odm_txpowertracking_callback_thermal_meter_92e(
 }
 #endif
 
-#if (RTL8814B_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8197G_SUPPORT == 1)
+#if (RTL8814B_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8197G_SUPPORT == 1 || RTL8814C_SUPPORT == 1)
 void
 odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 {
@@ -395,7 +400,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 		(u8 **)&pwrtrk_tab_up_a, (u8 **)&pwrtrk_tab_down_a,
 		(u8 **)&pwrtrk_tab_up_b, (u8 **)&pwrtrk_tab_down_b);
 
-	if (GET_CHIP_VER(priv) == VERSION_8814B) {
+	if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 		(*c.get_delta_swing_table8814only)(dm,
 			(u8 **)&pwrtrk_tab_up_c, (u8 **)&pwrtrk_tab_down_c,
 			(u8 **)&pwrtrk_tab_up_d, (u8 **)&pwrtrk_tab_down_d);
@@ -444,7 +449,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 		for (i = 0; i < c.rf_path_count; i++) {
 			thermal_value[i] = (u8)odm_get_rf_reg(dm, i, c.thermal_reg_addr, 0xfc00);	/* 0x42: RF Reg[15:10] 88E */
 
-			if (dm->support_ic_type == ODM_RTL8814B) {
+			if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C)) {
 				thermal_value_temp[i] = (s8)thermal_value[i] + phydm_get_multi_thermal_offset(dm, i);
 				RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
 					"thermal_value_temp[%d](%d) = thermal_value[%d](%d) + multi_thermal_trim(%d)\n", i, thermal_value_temp[i], i, thermal_value[i], phydm_get_multi_thermal_offset(dm, i));
@@ -593,8 +598,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 		}
 	}
 
-	if (dm->support_ic_type == ODM_RTL8822C || dm->support_ic_type == ODM_RTL8812F ||
-		dm->support_ic_type == ODM_RTL8814B || dm->support_ic_type == ODM_RTL8197G)
+	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F | ODM_RTL8814B | ODM_RTL8197G | ODM_RTL8814C))
 		for (p = RF_PATH_A; p < c.rf_path_count; p++)
 			(*c.odm_tx_pwr_track_set_pwr)(dm, tracking_method, p, 0);
 
@@ -610,9 +614,12 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 			/* 	(*c.do_iqk)(dm, delta_IQK, thermal_value[RF_PATH_A], 8);*/
 			/*RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "Do IQK\n");*/
 
-			/*if (!cali_info->is_iqk_in_progress)*/
-			/*	(*c.do_tssi_dck)(dm, true);*/
-			RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "Do TSSI DCK\n");
+			if (dm->support_ic_type == ODM_RTL8814C) {
+				if ( (!cali_info->is_iqk_in_progress) && (!cali_info->is_lck_in_progress) )
+				(*c.do_tssi_dck)(dm, true);
+				RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "Do TSSI DCK\n");
+			}
+			
 		}
 	}
 
@@ -1343,8 +1350,8 @@ odm_txpowertracking_callback_thermal_meter(
 	struct dm_iqk_info	*iqk_info = &dm->IQK_info;
 
 	
-#if (RTL8814B_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8197G_SUPPORT == 1)
-	if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8812F | ODM_RTL8822C | ODM_RTL8197G)) {
+#if (RTL8814B_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8197G_SUPPORT == 1 || RTL8814C_SUPPORT == 1)
+	if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8812F | ODM_RTL8822C | ODM_RTL8197G | ODM_RTL8814C)) {
 		odm_txpowertracking_callback_thermal_meter_jaguar_series4(dm);
 		return;
 	}

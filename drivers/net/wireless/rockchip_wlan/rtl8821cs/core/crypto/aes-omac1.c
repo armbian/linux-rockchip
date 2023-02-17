@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * One-key CBC MAC (OMAC1) hash with AES
  *

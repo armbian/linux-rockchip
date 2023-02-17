@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -461,7 +460,7 @@ static u8 recvbuf_handler(struct recv_buf *recvbuf)
 	return ret;
 }
 
-static void rtl8821c_recv_tasklet(void *priv)
+static void rtl8821c_recv_tasklet(unsigned long priv)
 {
 	PADAPTER adapter;
 	struct recv_priv *recvpriv;
@@ -656,7 +655,7 @@ s32 rtl8821cs_recv_hdl(_adapter *padapter)
 
 }
 
-static void rtl8821c_recv_tasklet(void *priv)
+static void rtl8821c_recv_tasklet(unsigned long priv)
 {
 	_adapter *adapter = (_adapter *)priv;
 	s32 ret;
@@ -674,7 +673,7 @@ static void rtl8821c_recv_tasklet(void *priv)
 
 #else
 
-static void rtl8821c_recv_tasklet(void *priv)
+static void rtl8821c_recv_tasklet(unsigned long priv)
 {
 	PADAPTER				padapter;
 	PHAL_DATA_TYPE			pHalData;
@@ -879,7 +878,7 @@ s32 rtl8821cs_init_recv_priv(PADAPTER adapter)
 	/* 2. init tasklet */
 #ifdef PLATFORM_LINUX
 	tasklet_init(&precvpriv->recv_tasklet,
-		     (void(*)(unsigned long))rtl8821c_recv_tasklet,
+		     rtl8821c_recv_tasklet,
 		     (unsigned long)adapter);
 #endif
 

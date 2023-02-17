@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -326,5 +325,7 @@ void rtl8814_stop_thread(PADAPTER padapter);
 #ifdef CONFIG_BT_COEXIST
 	void rtl8814a_combo_card_WifiOnlyHwInit(PADAPTER Adapter);
 #endif
+
+void rtl8814ae_hci_flush(PADAPTER Adapter, u32 queue);
 
 #endif /* __RTL8188E_HAL_H__ */

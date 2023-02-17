@@ -232,6 +232,16 @@ _PHYDM_FILES += hal/phydm/$(RTL871X)/halhwimg8814b_bb.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_dpk_8814b.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_rfk_init_8814b.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_txgapk_8814b.o
+	ifeq ($(CONFIG_RTL8814C), y)
+		_PHYDM_FILES += hal/phydm/halrf/rtl8814c/halrf_8814c.o\
+				hal/phydm/halrf/rtl8814c/halrf_iqk_8814c.o\
+				hal/phydm/halrf/rtl8814c/halrf_dpk_8814c.o\
+				hal/phydm/halrf/rtl8814c/halrf_rfk_init_8814c.o\
+				hal/phydm/halrf/rtl8814c/halhwimg8814c_rf.o\
+				hal/phydm/halrf/rtl8814c/halrf_8814c.o\
+				hal/phydm/rtl8814c/halhwimg8814c_bb.o\
+				hal/phydm/rtl8814c/phydm_extraagc8814c.o
+	endif
 endif
 ifeq ($(CONFIG_RTL8723F), y)
 RTL871X = rtl8723f
@@ -243,6 +253,7 @@ _PHYDM_FILES += hal/phydm/$(RTL871X)/halhwimg8723f_bb.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_iqk_8723f.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_tssi_8723f.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_dpk_8723f.o\
+								hal/phydm/halrf/$(RTL871X)/halrf_txgapk_8723f.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_rfk_init_8723f.o\
 								hal/phydm/halrf/$(RTL871X)/halhwimg8723f_rf.o
 endif

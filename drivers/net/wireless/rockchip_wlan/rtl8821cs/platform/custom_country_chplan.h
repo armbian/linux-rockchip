@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -18,6 +17,6 @@
 #error "Before removing these error notifications, please make sure regulatory certification requirements of your target markets"
 
 static const struct country_chplan CUSTOMIZED_country_chplan_map[] = {
-	COUNTRY_CHPLAN_ENT("TW", 0x76, 1), /* Taiwan */
+	COUNTRY_CHPLAN_ENT("TW", 0x76, 0x00, DEF    , 1, 1), /* Taiwan */
 };
 

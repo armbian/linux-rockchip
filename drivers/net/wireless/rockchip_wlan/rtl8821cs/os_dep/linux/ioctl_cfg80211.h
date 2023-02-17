@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -186,7 +185,7 @@ struct rtw_wdev_priv {
 	ATOMIC_T switch_ch_to;
 #endif
 
-#ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
+#if defined(CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI) || defined(CONFIG_RTW_SCAN_RAND)
 	u8 pno_mac_addr[ETH_ALEN];
 	u16 pno_scan_seq_num;
 #endif
@@ -245,6 +244,10 @@ struct rtw_wiphy_data {
 #if defined(RTW_DEDICATED_P2P_DEVICE)
 	struct wireless_dev *pd_wdev; /* P2P device wdev */
 #endif
+
+	_list async_regd_change_list;
+	_mutex async_regd_change_mutex;
+	_workitem async_regd_change_work;
 
 	s16 txpwr_total_lmt_mbm;	/* EIRP */
 	s16 txpwr_total_target_mbm;	/* EIRP */
@@ -439,9 +442,11 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset, u8 
 #define NUM_NL80211_BANDS IEEE80211_NUM_BANDS
 #endif
 
-#define rtw_band_to_nl80211_band(band) \
-	(band == BAND_ON_2_4G) ? NL80211_BAND_2GHZ : \
-	(band == BAND_ON_5G) ? NL80211_BAND_5GHZ : NUM_NL80211_BANDS
+extern enum nl80211_band _rtw_band_to_nl80211_band[];
+#define rtw_band_to_nl80211_band(band) (((band) < BAND_MAX) ? _rtw_band_to_nl80211_band[(band)] : NUM_NL80211_BANDS)
+
+extern BAND_TYPE _nl80211_band_to_rtw_band[];
+#define nl80211_band_to_rtw_band(band) (((band) < NUM_NL80211_BANDS) ? _nl80211_band_to_rtw_band[(band)] : BAND_MAX)
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36))
 #define NL80211_TX_POWER_AUTOMATIC	TX_POWER_AUTOMATIC

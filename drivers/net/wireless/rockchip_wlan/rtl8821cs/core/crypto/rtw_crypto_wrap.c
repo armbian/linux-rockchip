@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #include "rtw_crypto_wrap.h"
 
 #ifndef DEBUG_CRYPTO

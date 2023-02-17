@@ -1,7 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2015 - 2019 Realtek Corporation.
+ * Copyright(c) 2015 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -18,7 +17,11 @@
 
 #include <drv_types.h>		/* adapter_to_dvobj(), struct intf_hdl and etc. */
 #include <hal_data.h>		/* struct hal_spec_t */
+#ifdef CONFIG_HALMAC_RS
+#include "halmac-rs/halmac_api.h"	/* struct halmac_adapter* and etc. */
+#else /* !CONFIG_HALMAC_RS */
 #include "halmac/halmac_api.h"	/* struct halmac_adapter* and etc. */
+#endif /* !CONFIG_HALMAC_RS */
 
 /* HALMAC Definition for Driver */
 #define RTW_HALMAC_H2C_MAX_SIZE		8

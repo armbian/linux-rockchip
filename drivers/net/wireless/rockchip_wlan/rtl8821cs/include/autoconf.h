@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -187,6 +186,7 @@
 /*#define CONFIG_FILE_FWIMG*/
 #define CONFIG_LONG_DELAY_ISSUE
 /*#define CONFIG_PATCH_JOIN_WRONG_CHANNEL*/
+#define CONFIG_RX_PACKET_APPEND_FCS
 
 
 /*

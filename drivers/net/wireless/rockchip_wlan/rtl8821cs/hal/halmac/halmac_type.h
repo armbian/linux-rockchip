@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -567,6 +566,13 @@ enum halmac_chip_ver {
 	HALMAC_CHIP_VER_D_CUT = 0x03,
 	HALMAC_CHIP_VER_E_CUT = 0x04,
 	HALMAC_CHIP_VER_F_CUT = 0x05,
+	HALMAC_CHIP_VER_G_CUT = 0x06,
+	HALMAC_CHIP_VER_H_CUT = 0x07,
+	HALMAC_CHIP_VER_I_CUT = 0x08,
+	HALMAC_CHIP_VER_J_CUT = 0x09,
+	HALMAC_CHIP_VER_K_CUT = 0x0A,
+	HALMAC_CHIP_VER_L_CUT = 0x0B,
+	HALMAC_CHIP_VER_M_CUT = 0x0C,
 	HALMAC_CHIP_VER_TEST = 0xFF,
 	HALMAC_CHIP_VER_UNDEFINE = 0x7FFF,
 };

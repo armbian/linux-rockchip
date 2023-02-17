@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -523,7 +522,7 @@ u8 *rtw_tdls_set_ht_cap(_adapter *padapter, u8 *pframe, struct pkt_attrib *pattr
 		padapter->mlmepriv.htpriv.sgi_40m = _FALSE;
 	}
 
-	rtw_restructure_ht_ie(padapter, NULL, pframe, 0, &(pattrib->pktlen), padapter->mlmeextpriv.cur_channel);
+	rtw_restructure_ht_ie(padapter, NULL, pframe, 0, &(pattrib->pktlen), padapter->mlmeextpriv.cur_channel, NULL);
 
 	return pframe + pattrib->pktlen;
 }
@@ -561,7 +560,8 @@ void rtw_tdls_process_vht_cap(_adapter *padapter, struct sta_info *ptdls_sta, u8
 	if (ptdls_sta->flags & WLAN_STA_VHT) {
 		if (REGSTY_IS_11AC_ENABLE(&padapter->registrypriv)
 		    && is_supported_vht(padapter->registrypriv.wireless_mode)
-		    && (!rfctl->country_ent || COUNTRY_CHPLAN_EN_11AC(rfctl->country_ent))) {
+		    && RFCTL_REG_EN_11AC(rfctl)
+		) {
 			ptdls_sta->vhtpriv.vht_option = _TRUE;
 			ptdls_sta->cmn.ra_info.is_vht_enable = _TRUE;
 		}
@@ -740,7 +740,7 @@ u8 *rtw_tdls_set_rsnie(struct tdls_txmgmt *ptxmgmt, u8 *pframe, struct pkt_attri
 
 u8 *rtw_tdls_set_ext_cap(u8 *pframe, struct pkt_attrib *pattrib)
 {
-	return rtw_set_ie(pframe, _EXT_CAP_IE_ , sizeof(TDLS_EXT_CAPIE), TDLS_EXT_CAPIE, &(pattrib->pktlen));
+	return rtw_set_ie(pframe, WLAN_EID_EXT_CAP , sizeof(TDLS_EXT_CAPIE), TDLS_EXT_CAPIE, &(pattrib->pktlen));
 }
 
 u8 *rtw_tdls_set_qos_cap(u8 *pframe, struct pkt_attrib *pattrib)
@@ -1919,13 +1919,15 @@ sint On_TDLS_Setup_Req(_adapter *padapter, union recv_frame *precv_frame, struct
 
 			switch (pIE->ElementID) {
 			case _SUPPORTEDRATES_IE_:
-				_rtw_memcpy(supportRate, pIE->data, pIE->Length);
-				supportRateNum = pIE->Length;
+				if (pIE->Length <= sizeof(supportRate)) {
+					_rtw_memcpy(supportRate, pIE->data, pIE->Length);
+					supportRateNum = pIE->Length;
+				}
 				break;
-			case _COUNTRY_IE_:
+			case WLAN_EID_COUNTRY:
 				break;
 			case _EXT_SUPPORTEDRATES_IE_:
-				if (supportRateNum < sizeof(supportRate)) {
+				if ((supportRateNum + pIE->Length) <= sizeof(supportRate)) {
 					_rtw_memcpy(supportRate + supportRateNum, pIE->data, pIE->Length);
 					supportRateNum += pIE->Length;
 				}
@@ -1936,20 +1938,22 @@ sint On_TDLS_Setup_Req(_adapter *padapter, union recv_frame *precv_frame, struct
 				rsnie_included = 1;
 				if (prx_pkt_attrib->encrypt) {
 					prsnie = (u8 *)pIE;
-					/* Check CCMP pairwise_cipher presence. */
-					ppairwise_cipher = prsnie + 10;
-					_rtw_memcpy(ptdls_sta->TDLS_RSNIE, pIE->data, pIE->Length);
-					pairwise_count = *(u16 *)(ppairwise_cipher - 2);
-					for (k = 0; k < pairwise_count; k++) {
-						if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
-							ccmp_included = 1;
-					}
+					if (pIE->Length <= sizeof(ptdls_sta->TDLS_RSNIE)) {
+						/* Check CCMP pairwise_cipher presence. */
+						ppairwise_cipher = prsnie + 10;
+						_rtw_memcpy(ptdls_sta->TDLS_RSNIE, pIE->data, pIE->Length);
+						pairwise_count = *(u16 *)(ppairwise_cipher - 2);
+						for (k = 0; k < pairwise_count; k++) {
+							if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
+								ccmp_included = 1;
+						}
 
-					if (ccmp_included == 0)
-						txmgmt.status_code = _STATS_INVALID_RSNIE_;
+						if (ccmp_included == 0)
+							txmgmt.status_code = _STATS_INVALID_RSNIE_;
+					}
 				}
 				break;
-			case _EXT_CAP_IE_:
+			case WLAN_EID_EXT_CAP:
 				break;
 			case _VENDOR_SPECIFIC_IE_:
 				break;
@@ -2101,13 +2105,15 @@ int On_TDLS_Setup_Rsp(_adapter *padapter, union recv_frame *precv_frame, struct 
 
 		switch (pIE->ElementID) {
 		case _SUPPORTEDRATES_IE_:
-			_rtw_memcpy(supportRate, pIE->data, pIE->Length);
-			supportRateNum = pIE->Length;
+			if (pIE->Length <= sizeof(supportRate)) {
+				_rtw_memcpy(supportRate, pIE->data, pIE->Length);
+				supportRateNum = pIE->Length;
+			}
 			break;
-		case _COUNTRY_IE_:
+		case WLAN_EID_COUNTRY:
 			break;
 		case _EXT_SUPPORTEDRATES_IE_:
-			if (supportRateNum < sizeof(supportRate)) {
+			if ((supportRateNum + pIE->Length) <= sizeof(supportRate)) {
 				_rtw_memcpy(supportRate + supportRateNum, pIE->data, pIE->Length);
 				supportRateNum += pIE->Length;
 			}
@@ -2123,7 +2129,7 @@ int On_TDLS_Setup_Rsp(_adapter *padapter, union recv_frame *precv_frame, struct 
 				if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
 					verify_ccmp = 1;
 			}
-		case _EXT_CAP_IE_:
+		case WLAN_EID_EXT_CAP:
 			break;
 		case _VENDOR_SPECIFIC_IE_:
 			if (_rtw_memcmp((u8 *)pIE + 2, WMM_INFO_OUI, 6) == _TRUE) {
@@ -2866,8 +2872,8 @@ void rtw_build_tdls_setup_req_ies(_adapter *padapter, struct xmit_frame *pxmitfr
 	if ((padapter->mlmepriv.htpriv.ht_option == _TRUE) && (pmlmeext->cur_channel > 14)
 	    && REGSTY_IS_11AC_ENABLE(pregistrypriv)
 	    && is_supported_vht(pregistrypriv->wireless_mode)
-	    && (!rfctl->country_ent || COUNTRY_CHPLAN_EN_11AC(rfctl->country_ent))
-	   ) {
+	    && RFCTL_REG_EN_11AC(rfctl)
+	) {
 		pframe = rtw_tdls_set_aid(padapter, pframe, pattrib);
 		pframe = rtw_tdls_set_vht_cap(padapter, pframe, pattrib);
 	}
@@ -2961,8 +2967,8 @@ void rtw_build_tdls_setup_rsp_ies(_adapter *padapter, struct xmit_frame *pxmitfr
 	if ((padapter->mlmepriv.htpriv.ht_option == _TRUE) && (pmlmeext->cur_channel > 14)
 	    && REGSTY_IS_11AC_ENABLE(pregistrypriv)
 	    && is_supported_vht(pregistrypriv->wireless_mode)
-	    && (!rfctl->country_ent || COUNTRY_CHPLAN_EN_11AC(rfctl->country_ent))
-	   ) {
+	    && RFCTL_REG_EN_11AC(rfctl)
+	) {
 		pframe = rtw_tdls_set_aid(padapter, pframe, pattrib);
 		pframe = rtw_tdls_set_vht_cap(padapter, pframe, pattrib);
 		pframe = rtw_tdls_set_vht_op_mode_notify(padapter, pframe, pattrib, pmlmeext->cur_bwmode);
@@ -3038,8 +3044,8 @@ void rtw_build_tdls_setup_cfm_ies(_adapter *padapter, struct xmit_frame *pxmitfr
 	    && (ptdls_sta->vhtpriv.vht_option == _TRUE) && (pmlmeext->cur_channel > 14)
 	    && REGSTY_IS_11AC_ENABLE(pregistrypriv)
 	    && is_supported_vht(pregistrypriv->wireless_mode)
-	    && (!rfctl->country_ent || COUNTRY_CHPLAN_EN_11AC(rfctl->country_ent))
-	   ) {
+	    && RFCTL_REG_EN_11AC(rfctl)
+	) {
 		pframe = rtw_tdls_set_vht_operation(padapter, pframe, pattrib, pmlmeext->cur_channel);
 		pframe = rtw_tdls_set_vht_op_mode_notify(padapter, pframe, pattrib, pmlmeext->cur_bwmode);
 	}

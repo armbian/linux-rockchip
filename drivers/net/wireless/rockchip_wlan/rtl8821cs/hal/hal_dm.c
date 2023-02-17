@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2014 - 2017 Realtek Corporation.
@@ -357,6 +356,7 @@ void Init_ODM_ComInfo(_adapter *adapter)
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
 	struct dm_struct	*pDM_Odm = &(pHalData->odmpriv);
 	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(adapter);
+	struct rf_ctl_t *rfctl = dvobj_to_rfctl(dvobj);
 	int i;
 
 	/*phydm_op_mode could be change for different scenarios: ex: SoftAP - PHYDM_BALANCE_MODE*/
@@ -406,8 +406,6 @@ void Init_ODM_ComInfo(_adapter *adapter)
 		/* 1 ============== End of BoardType ============== */
 	}
 
-	rtw_hal_set_odm_var(adapter, HAL_ODM_REGULATION, NULL, _TRUE);
-
 #ifdef CONFIG_DFS_MASTER
 	rtw_odm_update_dfs_region(dvobj);
 	odm_cmn_info_hook(pDM_Odm, ODM_CMNINFO_DFS_MASTER_ENABLE, &(adapter_to_rfctl(adapter)->radar_detect_enabled));
@@ -437,11 +435,12 @@ void Init_ODM_ComInfo(_adapter *adapter)
 
 	/* waiting for PhyDMV034 support*/
 	odm_cmn_info_hook(pDM_Odm, ODM_CMNINFO_MANUAL_SUPPORTABILITY, &(adapter->registrypriv.phydm_ability)); 
+
 	/*Add by YuChen for adaptivity init*/
-	odm_cmn_info_hook(pDM_Odm, ODM_CMNINFO_ADAPTIVITY, &(adapter->registrypriv.adaptivity_en));
-	phydm_adaptivity_info_init(pDM_Odm, PHYDM_ADAPINFO_CARRIER_SENSE_ENABLE, (adapter->registrypriv.adaptivity_mode != 0) ? TRUE : FALSE);
+	odm_cmn_info_hook(pDM_Odm, ODM_CMNINFO_ADAPTIVITY, &rfctl->adaptivity_en);
 	phydm_adaptivity_info_init(pDM_Odm, PHYDM_ADAPINFO_TH_L2H_INI, adapter->registrypriv.adaptivity_th_l2h_ini);
 	phydm_adaptivity_info_init(pDM_Odm, PHYDM_ADAPINFO_TH_EDCCA_HL_DIFF, adapter->registrypriv.adaptivity_th_edcca_hl_diff);
+	rtw_odm_adaptivity_update(dvobj);
 
 	/*halrf info init*/
 	halrf_cmn_info_init(pDM_Odm, HALRF_CMNINFO_EEPROM_THERMAL_VALUE, pHalData->eeprom_thermal_meter);
@@ -640,7 +639,7 @@ void rtw_hal_turbo_edca(_adapter *adapter)
 		return;
 	}
 
-	if (pregpriv->wifi_spec == 1) { /* || (pmlmeinfo->HT_enable == 0)) */
+	if ((pregpriv->wifi_spec == 1)) { /* || (pmlmeinfo->HT_enable == 0)) */
 		precvpriv->is_any_non_be_pkts = _FALSE;
 		return;
 	}
@@ -970,11 +969,6 @@ void SetHalODMVar(
 		break;
 	case HAL_ODM_WIFI_DISPLAY_STATE:
 		odm_cmn_info_update(podmpriv, ODM_CMNINFO_WIFI_DISPLAY, bSet);
-		break;
-	case HAL_ODM_REGULATION:
-		/* used to auto enable/disable adaptivity by SD7 */
-		phydm_adaptivity_info_update(podmpriv, PHYDM_ADAPINFO_DOMAIN_CODE_2G, 0);
-		phydm_adaptivity_info_update(podmpriv, PHYDM_ADAPINFO_DOMAIN_CODE_5G, 0);
 		break;
 	case HAL_ODM_INITIAL_GAIN: {
 		u8 rx_gain = *((u8 *)(pValue1));
@@ -1856,6 +1850,36 @@ void rtw_phydm_pwr_tracking_directly(_adapter *adapter)
 	odm_txpowertracking_direct_ce(&hal_data->odmpriv);
 }
 #endif
+
+void rtw_phydm_update_ap_vendor_ie(_adapter *adapter)
+{
+	u8 i;
+	_adapter *iface;
+	struct mlme_ext_priv	*pmlmeext ;
+	struct mlme_ext_info	*pmlmeinfo ;
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	bool HUAWEI_HWID = FALSE;
+	bool ATHEROS_HWID = FALSE;
+
+	for (i = 0; i < dvobj->iface_nums; i++){
+		iface = dvobj->padapters[i];
+		if (iface!= NULL) {
+			pmlmeext = &(iface->mlmeextpriv);
+			pmlmeinfo = &(pmlmeext->mlmext_info);
+			if( pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_ATHEROS){
+				HUAWEI_HWID = TRUE;
+				ATHEROS_HWID = TRUE;
+				goto exit;
+			}
+		}
+	}
+
+exit:
+	RTW_INFO("%s ODM_CMNINFO_HUAWEI_HWID:%d ATHEROS_HWID:%d\n", __func__, HUAWEI_HWID, ATHEROS_HWID);
+	odm_cmn_info_update(phydm, ODM_CMNINFO_HUAWEI_HWID, HUAWEI_HWID);
+	odm_cmn_info_update(phydm, ODM_CMNINFO_ATHEROS_HWID, ATHEROS_HWID);
+}
 
 void rtw_phydm_watchdog(_adapter *adapter, bool in_lps)
 {

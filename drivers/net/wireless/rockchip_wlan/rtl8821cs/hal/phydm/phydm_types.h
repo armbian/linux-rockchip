@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -346,7 +345,15 @@ enum rt_spinlock_type {
 		PW_LMT_REGU_FCC = 1,
 		PW_LMT_REGU_ETSI = 2,
 		PW_LMT_REGU_MKK = 3,
-		PW_LMT_REGU_WW13 = 4
+		PW_LMT_REGU_WW13 = 4,
+		PW_LMT_REGU_IC = 5,
+		PW_LMT_REGU_KCC = 6,
+		PW_LMT_REGU_ACMA = 7,
+		PW_LMT_REGU_CHILE = 8,
+		PW_LMT_REGU_UKRAINE = 9,
+		PW_LMT_REGU_MEXICO = 10,
+		PW_LMT_REGU_CN = 11,
+		PW_LMT_REGU_MAX_NUM = 12
 	};
 
 	enum odm_pw_lmt_band_type {

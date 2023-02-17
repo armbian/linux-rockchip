@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -138,8 +137,17 @@ u8 rtw_do_join(_adapter *padapter)
 		_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 		select_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
 		if (select_ret == _SUCCESS) {
+			u32 join_timeout = MAX_JOIN_TIMEOUT;
+
+#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_AP_MODE)
+			struct rf_ctl_t *rfctl;
+			rfctl = adapter_to_rfctl(padapter);
+			if (rfctl->ap_csa_en == CSA_STA_JOINBSS)
+				join_timeout += (rfctl->ap_csa_switch_cnt * 100);
+#endif
+
 			pmlmepriv->to_join = _FALSE;
-			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
+			_set_timer(&pmlmepriv->assoc_timer, join_timeout);
 		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) {
 				#ifdef CONFIG_AP_MODE
@@ -881,12 +889,12 @@ int rtw_set_scan_mode(_adapter *adapter, RT_SCAN_TYPE scan_mode)
 *
 * Return _SUCCESS or _FAIL
 */
-int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
+int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan, u8 chplan_6g, enum rtw_regd_inr inr)
 {
 	struct registry_priv *regsty = adapter_to_regsty(adapter);
 
 	if (!REGSTY_REGD_SRC_FROM_OS(regsty))
-		return rtw_set_chplan_cmd(adapter, RTW_CMDF_WAIT_ACK, channel_plan, 1);
+		return rtw_set_chplan_cmd(adapter, RTW_CMDF_WAIT_ACK, channel_plan, chplan_6g, inr);
 	RTW_WARN("%s(): not applied\n", __func__);
 	return _SUCCESS;
 }
@@ -898,13 +906,13 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 *
 * Return _SUCCESS or _FAIL
 */
-int rtw_set_country(_adapter *adapter, const char *country_code)
+int rtw_set_country(_adapter *adapter, const char *country_code, enum rtw_regd_inr inr)
 {
 #ifdef CONFIG_RTW_IOCTL_SET_COUNTRY
 	struct registry_priv *regsty = adapter_to_regsty(adapter);
 
 	if (!REGSTY_REGD_SRC_FROM_OS(regsty))
-		return rtw_set_country_cmd(adapter, RTW_CMDF_WAIT_ACK, country_code, 1);
+		return rtw_set_country_cmd(adapter, RTW_CMDF_WAIT_ACK, country_code, inr);
 #endif
 	RTW_WARN("%s(): not applied\n", __func__);
 	return _SUCCESS;

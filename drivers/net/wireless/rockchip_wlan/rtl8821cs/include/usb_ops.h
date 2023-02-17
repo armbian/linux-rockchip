@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -97,8 +96,6 @@ void usb_set_intf_ops(_adapter *padapter, struct _io_ops *pops);
 #ifdef CONFIG_RTL8723D
 void rtl8723du_set_hw_type(struct dvobj_priv *pdvobj);
 void rtl8723du_set_intf_ops(struct _io_ops *pops);
-void rtl8723du_recv_tasklet(void *priv);
-void rtl8723du_xmit_tasklet(void *priv);
 #ifdef CONFIG_SUPPORT_USB_INT
 void interrupt_handler_8723du(_adapter *padapter, u16 pkt_len, u8 *pbuf);
 #endif /* CONFIG_SUPPORT_USB_INT */
@@ -116,7 +113,6 @@ void interrupt_handler_8710bu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
 
 #ifdef CONFIG_RTL8192F
 void rtl8192fu_set_hw_type(struct dvobj_priv *pdvobj);
-void rtl8192fu_xmit_tasklet(void *priv);
 #ifdef CONFIG_SUPPORT_USB_INT
 void rtl8192fu_interrupt_handler(_adapter *padapter, u16 pkt_len, u8 *pbuf);
 #endif /* CONFIG_SUPPORT_USB_INT */

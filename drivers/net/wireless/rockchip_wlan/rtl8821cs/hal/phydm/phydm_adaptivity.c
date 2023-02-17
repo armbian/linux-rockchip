@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -153,9 +152,9 @@ void phydm_set_l2h_th_ini_win(void *dm_void)
 
 	 /*@ [New Format: JGR3]IGI-idx:45 = RSSI:35 = -65dBm*/
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		if (dm->support_ic_type & ODM_RTL8822C)
+		if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8723F))
 			dm->th_l2h_ini = 45;
-		else if (dm->support_ic_type & ODM_RTL8814B)
+		else if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C))
 			dm->th_l2h_ini = 49;
 	} else if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
 	 /*@ [Old Format] -11+base(50) = IGI_idx:39 = RSSI:29 = -71dBm*/
@@ -171,6 +170,311 @@ void phydm_set_l2h_th_ini_win(void *dm_void)
 		dm->th_l2h_ini = -9;
 	}
 }
+
+void phydm_l2h_ini_recorder_reset(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	struct phydm_l2h_ini_recorder_strcut *adapt_rc = &adapt->l2h_ini_recorder_t;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ======>\n", __func__);
+
+	odm_memory_set(dm, &adapt_rc->l2h_ini_bitmap, 0,
+		       sizeof(struct phydm_l2h_ini_recorder_strcut));
+}
+
+
+void phydm_l2h_ini_recorder(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	struct phydm_l2h_ini_recorder_strcut *adapt_rc = &adapt->l2h_ini_recorder_t;
+	u32 low_rate_tx_fail_cnt = dm->low_rate_tx_fail_cnt;
+	s8 l2h_ini_curr = dm->th_l2h_ini;
+	s8 l2h_ini_pre = adapt_rc->l2h_ini_hist[0];
+	s8 l2h_ini_down = 0;
+
+	if (!dm->is_linked || adapt->is_adapt_by_dig || adapt->rts_drop_en)
+		return;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ======>\n", __func__);
+
+	if (dm->first_connect) {
+		phydm_l2h_ini_recorder_reset(dm);
+		adapt_rc->l2h_ini_hist[0] = l2h_ini_curr;
+		return;
+	}
+
+	l2h_ini_down = (l2h_ini_curr < l2h_ini_pre) ? 1 : 0;
+	adapt_rc->l2h_ini_bitmap = ((adapt_rc->l2h_ini_bitmap << 1) & 0xfe) | l2h_ini_down;
+
+	adapt_rc->l2h_ini_hist[3] = adapt_rc->l2h_ini_hist[2];
+	adapt_rc->l2h_ini_hist[2] = adapt_rc->l2h_ini_hist[1];
+	adapt_rc->l2h_ini_hist[1] = adapt_rc->l2h_ini_hist[0];
+	adapt_rc->l2h_ini_hist[0] = l2h_ini_curr;
+
+	adapt_rc->low_rate_tx_fail_hist[3] = adapt_rc->low_rate_tx_fail_hist[2];
+	adapt_rc->low_rate_tx_fail_hist[2] = adapt_rc->low_rate_tx_fail_hist[1];
+	adapt_rc->low_rate_tx_fail_hist[1] = adapt_rc->low_rate_tx_fail_hist[0];
+	adapt_rc->low_rate_tx_fail_hist[0] = low_rate_tx_fail_cnt;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "l2h_ini_hist[3:0] = {0x%x, 0x%x, 0x%x, 0x%x}\n",
+		  adapt_rc->l2h_ini_hist[3], adapt_rc->l2h_ini_hist[2],
+		  adapt_rc->l2h_ini_hist[1], adapt_rc->l2h_ini_hist[0]);
+	PHYDM_DBG(dm, DBG_ADPTVTY, "low_rate_tx_fail_hist[3:0] = {%d, %d, %d, %d}\n",
+		  adapt_rc->low_rate_tx_fail_hist[3], adapt_rc->low_rate_tx_fail_hist[2],
+		  adapt_rc->low_rate_tx_fail_hist[1], adapt_rc->low_rate_tx_fail_hist[0]);
+	PHYDM_DBG(dm, DBG_ADPTVTY, "l2h_ini_bitmap = {%d, %d, %d, %d} = 0x%x\n",
+		  (u8)((adapt_rc->l2h_ini_bitmap & BIT(3)) >> 3),
+		  (u8)((adapt_rc->l2h_ini_bitmap & BIT(2)) >> 2),
+		  (u8)((adapt_rc->l2h_ini_bitmap & BIT(1)) >> 1),
+		  (u8)(adapt_rc->l2h_ini_bitmap & BIT(0)),
+		  adapt_rc->l2h_ini_bitmap);
+}
+
+void phydm_rts_drop_chk(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	u32 time_tmp = 0;
+
+	if (!dm->is_linked || adapt->is_adapt_by_dig)
+		return;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ======>\n", __func__);
+
+	if (dm->rts_drop_cnt > 0) {
+		adapt->rts_drop_en = 1;
+		adapt->rts_drop_limit_time = dm->phydm_sys_up_time;
+	}
+
+	/*@== Fix l2h_ini to l2h_ini_range_min================================*/
+	if (adapt->rts_drop_en) {
+		PHYDM_DBG(dm, DBG_ADPTVTY,
+			  "[RTS DROP!] rts_drop_limit_time=%d, phydm_sys_up_time=%d\n",
+			  adapt->rts_drop_limit_time, dm->phydm_sys_up_time);
+
+		time_tmp = adapt->rts_drop_limit_time + L2H_INI_LIMIT_PERIOD;
+		dm->th_l2h_ini = adapt->l2h_ini_range_min;
+
+		if (time_tmp < dm->phydm_sys_up_time && dm->rts_drop_cnt == 0) {
+			adapt->rts_drop_en = 0;
+			PHYDM_DBG(dm, DBG_ADPTVTY, "rts_drop_cnt=%d\n",
+				  dm->rts_drop_cnt);
+		}
+	}
+	return;
+}
+
+
+void phydm_l2h_ini_damping_chk(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	struct phydm_l2h_ini_recorder_strcut *adapt_rc = &adapt->l2h_ini_recorder_t;
+	u8 l2h_ini_bitmap_4bit = adapt_rc->l2h_ini_bitmap & 0xf;
+	s8 diff1 = 0, diff2 = 0, min_l2h_ini = 0x7f;
+	u32 tx_fail_low_th = adapt->low_rate_tx_fail_th[0];
+	u32 tx_fail_high_th = adapt->low_rate_tx_fail_th[1];
+	u32 tx_fail_high_th2 = adapt->low_rate_tx_fail_th[2];
+	u8 tx_fail_pattern_match = 0;
+	u32 time_tmp = 0;
+	u8 i = 0;
+
+	if (!dm->is_linked || adapt->is_adapt_by_dig || adapt->rts_drop_en)
+		return;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ======>\n", __func__);
+
+	/*@== Release Damping ================================================*/
+	if (adapt_rc->damping_limit_en) {
+		PHYDM_DBG(dm, DBG_ADPTVTY,
+			  "[Damping Limit!] limit_time=%d, phydm_sys_up_time=%d\n",
+			  adapt_rc->limit_time, dm->phydm_sys_up_time);
+
+		time_tmp = adapt_rc->limit_time + L2H_INI_LIMIT_PERIOD;
+
+		if (DIFF_2(dm->low_rate_tx_fail_cnt, adapt_rc->limit_low_rate_tx_fail) > 3 ||
+		    time_tmp < dm->phydm_sys_up_time) {
+			adapt_rc->damping_limit_en = 0;
+			PHYDM_DBG(dm, DBG_ADPTVTY, "low_rate_tx_fail_cnt=%d, limit_low_rate_tx_fail=%d\n",
+				  dm->low_rate_tx_fail_cnt, adapt_rc->limit_low_rate_tx_fail);
+		}
+		return;
+	}
+
+	/*@== Damping Pattern Check===========================================*/
+	PHYDM_DBG(dm, DBG_ADPTVTY, "low_rate_tx_fail_th{H, L}= {%d,%d}\n", tx_fail_high_th, tx_fail_low_th);
+
+	switch (l2h_ini_bitmap_4bit) {
+	case 0x5:
+	/*@ 4b'0101 
+	* L2H_INI:     [3]up(40)  ->[2]down(38)->[1]up(40)  ->[0]down(38)->[new](Lock @ 38)
+	* low_rate_tx_fail_cnt: [3] >high1 ->[2] <low   ->[1] >high1 ->[0] <low   ->[new]   <low
+	*
+	* L2H_INI:     [3]up(45)  ->[2]down(40)->[1]up(42)  ->[0]down(37)->[new](Lock @ 37)
+	* low_rate_tx_fail_cnt: [3] >high2 ->[2] <low   ->[1] >high2 ->[0] <low   ->[new]   <low
+	*/
+		if (adapt_rc->l2h_ini_hist[0] < adapt_rc->l2h_ini_hist[1])
+			diff1 = adapt_rc->l2h_ini_hist[1] - adapt_rc->l2h_ini_hist[0];
+
+		if (adapt_rc->l2h_ini_hist[2] < adapt_rc->l2h_ini_hist[3])
+			diff2 = adapt_rc->l2h_ini_hist[3] - adapt_rc->l2h_ini_hist[2];
+
+		if (adapt_rc->low_rate_tx_fail_hist[0] < tx_fail_low_th &&
+		    adapt_rc->low_rate_tx_fail_hist[1] > tx_fail_high_th &&
+		    adapt_rc->low_rate_tx_fail_hist[2] < tx_fail_low_th &&
+		    adapt_rc->low_rate_tx_fail_hist[3] > tx_fail_high_th) {
+		    /*@Check each rts drop element*/
+			tx_fail_pattern_match = 1;
+		}
+		break;
+	case 0x9:
+	/*@ 4b'1001
+	* L2H_INI:     [3]down(40)->[2]up(42)->[1]up(44)  ->[0]down(39)->[new](Lock @ 39)
+	* low_rate_tx_fail_cnt: [3]  <low  ->[2] <low ->[1] >high2 ->[0] <low   ->[new]  <low
+	*/
+		if (adapt_rc->l2h_ini_hist[0] < adapt_rc->l2h_ini_hist[1])
+			diff1 = adapt_rc->l2h_ini_hist[1] - adapt_rc->l2h_ini_hist[0];
+
+		if (adapt_rc->l2h_ini_hist[2] > adapt_rc->l2h_ini_hist[3])
+			diff2 = adapt_rc->l2h_ini_hist[2] - adapt_rc->l2h_ini_hist[3];
+
+		if (adapt_rc->low_rate_tx_fail_hist[0] < tx_fail_low_th &&
+		    adapt_rc->low_rate_tx_fail_hist[1] > tx_fail_high_th2 &&
+		    adapt_rc->low_rate_tx_fail_hist[2] < tx_fail_low_th &&
+		    adapt_rc->low_rate_tx_fail_hist[3] < tx_fail_low_th) {
+		    /*@Check each fa element*/
+			tx_fail_pattern_match = 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (diff1 >= 2 && diff2 >= 2 && tx_fail_pattern_match) {
+		for (i = 0; i < L2H_INI_RECORD_NUM; i++) {
+			if (min_l2h_ini > adapt_rc->l2h_ini_hist[i])
+				min_l2h_ini = adapt_rc->l2h_ini_hist[i];
+		}
+
+		adapt_rc->damping_limit_en = 1;
+		adapt_rc->damping_limit_val = min_l2h_ini;
+		adapt_rc->limit_time = dm->phydm_sys_up_time;
+		adapt_rc->limit_low_rate_tx_fail = dm->low_rate_tx_fail_cnt;
+
+		PHYDM_DBG(dm, DBG_ADPTVTY,
+			  "[Start damping_limit!] l2h_ini_min=0x%x, limit_time=%d, limit_low_rate_tx_fail=%d\n",
+			  adapt_rc->damping_limit_val,
+			  adapt_rc->limit_time, adapt_rc->limit_low_rate_tx_fail);
+	}
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "damping_limit=%d\n", adapt_rc->damping_limit_en);
+}
+
+void phydm_low_rate_tx_fail_threshold_check(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+
+	if (adapt->is_dbg_low_rate_tx_fail_th) {
+		PHYDM_DBG(dm, DBG_ADPTVTY, "Manual Fix low_rate_tx_fail_th\n");
+	} else {
+		adapt->low_rate_tx_fail_th[0] = 2;
+		adapt->low_rate_tx_fail_th[1] = 2;
+		adapt->low_rate_tx_fail_th[2] = 5;
+	}
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "low_rate_tx_fail_th={%d,%d,%d}\n", adapt->low_rate_tx_fail_th[0],
+		  adapt->low_rate_tx_fail_th[1], adapt->low_rate_tx_fail_th[2]);
+}
+
+s8 phydm_new_l2h_ini_by_low_rate_tx_fail(void *dm_void, s8 l2h_ini,
+				  u8 *step_size)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	u32 low_rate_tx_fail_cnt = dm->low_rate_tx_fail_cnt;
+
+	if (low_rate_tx_fail_cnt > adapt->low_rate_tx_fail_th[2])
+		l2h_ini = l2h_ini - step_size[2];
+	else if (low_rate_tx_fail_cnt > adapt->low_rate_tx_fail_th[1])
+		l2h_ini = l2h_ini - step_size[1];
+	else if (low_rate_tx_fail_cnt < adapt->low_rate_tx_fail_th[0])
+		l2h_ini = l2h_ini + step_size[0];
+
+	return l2h_ini;
+}
+
+
+void phydm_get_new_l2h_ini(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+	struct phydm_l2h_ini_recorder_strcut *adapt_rc = &adapt->l2h_ini_recorder_t;
+	u8 step[3] = {1, 2, 5};
+	u32 low_rate_tx_fail_cnt = dm->low_rate_tx_fail_cnt;
+	u32 low_rate_tx_ok_cnt = dm->low_rate_tx_ok_cnt;
+	s8 l2h_ini = dm->th_l2h_ini;
+
+	if (!dm->is_linked || adapt->is_adapt_by_dig || adapt->rts_drop_en)
+		return;
+
+	if (adapt_rc->damping_limit_en) {
+		dm->th_l2h_ini = adapt_rc->damping_limit_val;
+		PHYDM_DBG(dm, DBG_ADPTVTY, "[Limit by Damping] l2h_ini: 0x%x -> 0x%x\n",
+			  l2h_ini, dm->th_l2h_ini);
+		return;
+	}
+
+	l2h_ini = phydm_new_l2h_ini_by_low_rate_tx_fail(dm, l2h_ini, step);
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "step = {-%d, -%d, +%d}\n", step[2], step[1],
+		  step[0]);
+
+	/*@Check th_l2h_ini by dyn-upper/lower bound */
+	if (l2h_ini < adapt->l2h_ini_range_min)
+		l2h_ini = adapt->l2h_ini_range_min;
+
+	if (l2h_ini > adapt->l2h_ini_range_max)
+		l2h_ini = adapt->l2h_ini_range_max;
+
+	PHYDM_DBG(dm, DBG_ADPTVTY, "low_rate_tx_fail_cnt = %d, low_rate_tx_ok_cnt = %d, l2h_ini: 0x%x -> 0x%x\n",
+		  low_rate_tx_fail_cnt, low_rate_tx_ok_cnt, dm->th_l2h_ini,
+		  l2h_ini);
+
+	dm->th_l2h_ini = l2h_ini;
+}
+
+void phydm_dyn_l2h_ini(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_adaptivity_struct *adapt = &dm->adaptivity;
+
+	if (dm->rssi_min <= 20 || !dm->is_linked) {
+		phydm_set_l2h_th_ini_win(dm);
+		PHYDM_DBG(dm, DBG_ADPTVTY, "th_l2h_ini = %d\n", dm->th_l2h_ini);
+		return;
+	}
+
+	/*Check rts drop*/
+	phydm_rts_drop_chk(dm);
+
+	/*Record l2h_ini History*/
+	phydm_l2h_ini_recorder(dm);
+
+	/*@l2h_ini Damping Check*/
+	phydm_l2h_ini_damping_chk(dm);
+
+	/*@low_rate_tx_fail threshold decision */
+	phydm_low_rate_tx_fail_threshold_check(dm);
+
+	/*Select new l2h_ini by tx_fail */
+	phydm_get_new_l2h_ini(dm);
+	PHYDM_DBG(dm, DBG_ADPTVTY, "Adjust l2h init @ linked, th_l2h_ini = %d\n",
+		  dm->th_l2h_ini);
+}
+
 #endif
 
 void phydm_dig_up_bound_lmt_en(void *dm_void)
@@ -330,9 +634,9 @@ void phydm_set_l2h_th_ini(void *dm_void)
 
 	 /*@ [New Format: JGR3]IGI-idx:45 = RSSI:35 = -65dBm*/
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		if (dm->support_ic_type & ODM_RTL8822C)
+		if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8723F))
 			dm->th_l2h_ini = 45;
-		else if (dm->support_ic_type & ODM_RTL8814B)
+		else if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C))
 			dm->th_l2h_ini = 49;
 	} else if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
 	 /*@ [Old Format] -11+base(50) = IGI_idx:39 = RSSI:29 = -71dBm*/
@@ -390,6 +694,7 @@ void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_adaptivity_struct *adaptivity = &dm->adaptivity;
+	struct phydm_l2h_ini_recorder_strcut *adapt_rc = &adaptivity->l2h_ini_recorder_t;
 	u32 used = *_used;
 	u32 out_len = *_out_len;
 	char help[] = "-h";
@@ -398,7 +703,7 @@ void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
 	u32 reg_value32 = 0;
 	s8 h2l_diff = 0;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 6; i++) {
 		PHYDM_SSCANF(input[i + 1], DCMD_HEX, &dm_value[i]);
 		input_idx++;
 	}
@@ -409,6 +714,8 @@ void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
 			 "Enter debug mode: {1} {th_l2h_ini} {th_edcca_hl_diff}\n");
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "Leave debug mode: {2}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "RTS drop debug mode: {3} {en} {low_rate_tx_fail_th[0]} {low_rate_tx_fail_th[1]} {low_rate_tx_fail_th[2]}\n");
 		goto out;
 	}
 
@@ -453,6 +760,21 @@ void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
 		else
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "adaptivity disable\n");
+	} else if (dm_value[0] == PHYDM_L2H_INI_DEBUG) {
+		if (dm_value[1] == 1) {
+			adaptivity->is_dbg_low_rate_tx_fail_th = true;
+			adaptivity->low_rate_tx_fail_th[0] = (u32)dm_value[2];
+			adaptivity->low_rate_tx_fail_th[1] = (u32)dm_value[3];
+			adaptivity->low_rate_tx_fail_th[2] = (u32)dm_value[4];
+
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "Set low_rate_tx_fail_th={%d,%d,%d}\n",
+				 adaptivity->low_rate_tx_fail_th[0],
+				 adaptivity->low_rate_tx_fail_th[1],
+				 adaptivity->low_rate_tx_fail_th[2]);
+		} else {
+			adaptivity->is_dbg_low_rate_tx_fail_th = false;
+		}
 	}
 
 out:
@@ -697,6 +1019,20 @@ void phydm_adaptivity_init(void *dm_void)
 		adaptivity->mode_cvrt_en = true;
 	else
 		adaptivity->mode_cvrt_en = false;
+
+	if (dm->support_ic_type & ODM_RTL8822C) {
+		adaptivity->l2h_ini_range_max = 45;
+		adaptivity->l2h_ini_range_min = 35;
+	} else {
+		adaptivity->l2h_ini_range_max = dm->th_l2h_ini;
+		adaptivity->l2h_ini_range_min = dm->th_l2h_ini;
+	}
+	adaptivity->low_rate_tx_fail_th[0] = 2;
+	adaptivity->low_rate_tx_fail_th[1] = 2;
+	adaptivity->low_rate_tx_fail_th[2] = 5;
+	adaptivity->is_dbg_low_rate_tx_fail_th = false;
+	adaptivity->rts_drop_en = false;
+	phydm_l2h_ini_recorder_reset(dm);
 #elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
 	if (!dm->carrier_sense_enable) {
 		if (dm->th_l2h_ini == 0)
@@ -809,8 +1145,19 @@ void phydm_adaptivity(void *dm_void)
 	    !adapt->debug_mode &&
 	    adapt->switch_th_l2h_ini_in_band)
 		phydm_set_l2h_th_ini_win(dm);
-#endif
 
+	if (dm->support_ic_type & ODM_RTL8822C)
+		phydm_dyn_l2h_ini(dm);
+#endif
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	if (!adapt->debug_mode) {
+		if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE &&
+		    dm->carrier_sense_enable)
+			phydm_set_l2h_th_ini_carrier_sense(dm);
+		else if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE)
+			phydm_set_l2h_th_ini(dm);
+	}
+#endif
 	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ====>\n", __func__);
 	PHYDM_DBG(dm, DBG_ADPTVTY, "mode = %s, debug_mode = %d\n",
 		  (*dm->edcca_mode ?

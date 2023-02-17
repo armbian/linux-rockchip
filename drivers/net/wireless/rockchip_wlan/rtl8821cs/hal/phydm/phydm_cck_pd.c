@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -86,29 +85,49 @@ void phydm_cckpd_type1(void *dm_void)
 
 	if (dm->is_linked) {
 	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
-		if (dm->rssi_min > 60) {
-			lv = CCK_PD_LV_3;
-		} else if (dm->rssi_min > 35) {
-			lv = CCK_PD_LV_2;
-		} else if (dm->rssi_min > 20) {
-			if (cckpd_t->cck_fa_ma > 500)
+		if (dm->support_ic_type & ODM_RTL8822B) {
+			if (dm->rssi_min > 35) {
 				lv = CCK_PD_LV_2;
-			else if (cckpd_t->cck_fa_ma < 250)
+			} else if (dm->rssi_min > 20) {
+				if (cckpd_t->cck_fa_ma > 500)
+					lv = CCK_PD_LV_2;
+				else if (cckpd_t->cck_fa_ma < 250)
+					lv = CCK_PD_LV_1;
+				else
+					is_update = false;
+			} else { /*RSSI < 20*/
 				lv = CCK_PD_LV_1;
-			else
-				is_update = false;
-		} else { /*RSSI < 20*/
-			lv = CCK_PD_LV_1;
+			}
+		} else {
+			if (dm->rssi_min > 60) {
+				lv = CCK_PD_LV_3;
+			} else if (dm->rssi_min > 35) {
+				lv = CCK_PD_LV_2;
+			} else if (dm->rssi_min > 20) {
+				if (cckpd_t->cck_fa_ma > 500)
+					lv = CCK_PD_LV_2;
+				else if (cckpd_t->cck_fa_ma < 250)
+					lv = CCK_PD_LV_1;
+				else
+					is_update = false;
+			} else { /*RSSI < 20*/
+				lv = CCK_PD_LV_1;
+			}
 		}
 	#else /*ODM_AP*/
-		if (dig_t->cur_ig_value > 0x32)
+		if (dig_t->cur_ig_value > 0x32) {
 			lv = CCK_PD_LV_4;
-		else if (dig_t->cur_ig_value > 0x2a)
+			// remove lv4 only for 8822b
+			if (dm->support_ic_type & ODM_RTL8822B) {
+				lv = CCK_PD_LV_3;
+			}
+		} else if (dig_t->cur_ig_value > 0x2a) {
 			lv = CCK_PD_LV_3;
-		else if (dig_t->cur_ig_value > 0x24)
+		} else if (dig_t->cur_ig_value > 0x24) {
 			lv = CCK_PD_LV_2;
-		else
+		} else {
 			lv = CCK_PD_LV_1;
+		}
 	#endif
 	} else {
 		if (cckpd_t->cck_fa_ma > 1000)
@@ -540,6 +559,19 @@ void phydm_cckpd_type3(void *dm_void)
 			else
 				is_update = false;
 		}
+		if ((dm->anti_interference_en != NULL) && (*dm->anti_interference_en == 1)) {
+        	if (igi >= 0x20 && dm->rssi_min >= 27 && (igi - dm->rssi_min < 10)) {
+				//printf(">>>>>TUYA CCK FA CNT = %d, RSSI = %d, IGI =%d \n", cckpd_t->cck_fa_ma, dm->rssi_min, igi);
+				is_update = false;
+				odm_set_bb_reg(dm, R_0xa08, BIT(21) | BIT(20), 0x2);
+				//odm_set_bb_reg(dm, R_0xac8, 0xff, 0x18);
+			}
+			else {
+				//printf("CCK FA CNT = %d, RSSI = %d, IGI =%d \n", cckpd_t->cck_fa_ma, dm->rssi_min, igi);
+				odm_set_bb_reg(dm, R_0xa08, BIT(21) | BIT(20), cckpd_t->cck_din_shift_opt);
+				//odm_set_bb_reg(dm, R_0xac8, 0xff, cckpd_t->cck_pd_20m_1r);
+			}
+		}
 	} else {
 		if (cckpd_t->cck_fa_ma > 1000)
 			lv = CCK_PD_LV_1;
@@ -586,6 +618,7 @@ void phydm_cck_pd_init_type3(void *dm_void)
 	cckpd_t->cck_pd_20m_2r = (u8)odm_get_bb_reg(dm, R_0xac8, 0xff00);
 	cckpd_t->cck_pd_40m_1r = (u8)odm_get_bb_reg(dm, R_0xacc, 0xff);
 	cckpd_t->cck_pd_40m_2r = (u8)odm_get_bb_reg(dm, R_0xacc, 0xff00);
+    cckpd_t->cck_din_shift_opt = (u8)odm_get_bb_reg(dm, R_0xa08, BIT(21) | BIT(20));
 
 	reg_tmp = odm_get_bb_reg(dm, R_0xad0, MASKDWORD);
 	cckpd_t->cck_cs_ratio_20m_1r = (u8)(reg_tmp & 0x1f);

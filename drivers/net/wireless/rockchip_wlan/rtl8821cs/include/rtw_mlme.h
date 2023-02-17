@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -585,6 +584,7 @@ struct mlme_priv {
 	u8 roam_rssi_threshold;
 	systime last_roaming;
 	bool need_to_roam;
+        _lock   clnt_auth_lock;        /* protect the join operation in rx_tasklet & cmd_thread */
 #endif
 
 	u32 defs_lmt_sta;
@@ -604,6 +604,9 @@ struct mlme_priv {
 
 	struct wlan_network	cur_network;
 	struct wlan_network *cur_network_scanned;
+#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_AP_MODE)
+	struct wlan_network candidate_network;
+#endif
 
 	/* bcn check info */
 	struct beacon_keys cur_beacon_keys; /* save current beacon keys */
@@ -611,6 +614,7 @@ struct mlme_priv {
 	struct beacon_keys new_beacon_keys; /* save new beacon keys */
 	u8 new_beacon_cnts; /* if new_beacon_cnts >= threshold, ap beacon is changed */
 #endif
+	u8 bcn_cnts_after_csa;
 
 #ifdef CONFIG_ARP_KEEP_ALIVE
 	/* for arp offload keep alive */
@@ -639,6 +643,15 @@ struct mlme_priv {
 	u8 wpa_phase;/*wpa_phase after wps finished*/
 
 	struct qos_priv qospriv;
+
+#ifdef CONFIG_80211D
+	u8 *recv_country_ie;
+	u32 recv_country_ie_len;
+#endif
+
+#ifdef CONFIG_ACTIVE_TPC_REPORT
+	bool active_tpc_report;
+#endif
 
 #ifdef CONFIG_80211N_HT
 
@@ -683,8 +696,8 @@ struct mlme_priv {
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
 
-	u8 ext_capab_ie_data[8];/*currently for ap mode only*/
-	u8 ext_capab_ie_len;
+	u8 ext_capab_ie_data[WLAN_EID_EXT_CAP_MAX_LEN];/*currently for ap mode only*/
+	u8 ext_capab_ie_len; /* content length */
 
 #if defined(CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
@@ -769,9 +782,6 @@ struct mlme_priv {
 	u8 ori_ch;
 	u8 ori_bw;
 	u8 ori_offset;
-	#ifdef CONFIG_80211AC_VHT
-	u8 ori_vht_en;
-	#endif
 
 	u8 ap_isolate;
 #endif /* #if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME) */
@@ -846,11 +856,18 @@ struct mlme_priv {
 		adapter->mlmepriv.auto_scan_int_ms = ms; \
 	} while (0)
 
+#ifdef CONFIG_ACTIVE_TPC_REPORT
+#define MLME_ACTIVE_TPC_REPORT(mlme) (mlme->active_tpc_report)
+#else
+#define MLME_ACTIVE_TPC_REPORT(mlme) 0
+#endif
+
 #define RTW_AUTO_SCAN_REASON_UNSPECIFIED		0
 #define RTW_AUTO_SCAN_REASON_2040_BSS			BIT0
 #define RTW_AUTO_SCAN_REASON_ACS				BIT1
 #define RTW_AUTO_SCAN_REASON_ROAM				BIT2
-#define RTW_AUTO_SCAN_REASON_MESH_OFFCH_CAND	BIT3
+#define RTW_AUTO_SCAN_REASON_ROAM_ACTIVE			BIT3
+#define RTW_AUTO_SCAN_REASON_MESH_OFFCH_CAND		BIT4
 
 void rtw_mlme_reset_auto_scan_int(_adapter *adapter, u8 *reason);
 
@@ -1102,11 +1119,12 @@ void rtw_joinbss_reset(_adapter *padapter);
 #ifdef CONFIG_80211N_HT
 void	rtw_ht_use_default_setting(_adapter *padapter);
 void rtw_build_wmm_ie_ht(_adapter *padapter, u8 *out_ie, uint *pout_len);
-unsigned int rtw_restructure_ht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_len, uint *pout_len, u8 channel);
+unsigned int rtw_restructure_ht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_len, uint *pout_len, u8 channel, struct country_chplan *req_chplan);
 void rtw_update_ht_cap(_adapter *padapter, u8 *pie, uint ie_len, u8 channel);
 void rtw_issue_addbareq_cmd(_adapter *padapter, struct xmit_frame *pxmitframe, u8 issue_when_busy);
-void rtw_append_exented_cap(_adapter *padapter, u8 *out_ie, uint *pout_len);
 #endif
+
+void rtw_append_extended_cap(_adapter *padapter, u8 *out_ie, uint *pout_len);
 
 int rtw_is_same_ibss(_adapter *adapter, struct wlan_network *pnetwork);
 int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst, u8 feature);

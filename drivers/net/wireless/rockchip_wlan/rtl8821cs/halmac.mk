@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
 # All needed files would be added to _HAL_INTFS_FILES, and it would include
 # hal/hal_halmac.c and all related files in directory hal/halmac/.
 # Before include this makefile, be sure interface (CONFIG_*_HCI) and IC
@@ -37,10 +36,6 @@ series := 88xx_v1
 ic := 8814b
 endif
 
-ifeq ($(CONFIG_RTL8723F), y)
-series := 87xx
-ic := 8723f
-endif
 ifeq ($(series), 88xx_v1)
 d2all :=
 else

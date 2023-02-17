@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -177,7 +176,7 @@ void phydm_fw_fix_rate(void *dm_void, u8 en, u8 macid, u8 bw, u8 rate)
 			reg_u32_tmp = BYTE_2_DWORD(0x60, macid, bw, rate);
 		else
 			reg_u32_tmp = 0x40000000;
-		if (dm->support_ic_type & ODM_RTL8814B)
+		if (dm->support_ic_type & (ODM_RTL8814B | ODM_RTL8814C))
 			odm_set_mac_reg(dm, R_0x448, MASKDWORD, reg_u32_tmp);
 		else
 			odm_set_mac_reg(dm, R_0x450, MASKDWORD, reg_u32_tmp);
@@ -1169,6 +1168,8 @@ u8 phydm_get_rate_id(void *dm_void, u8 sta_idx)
 			rate_id_idx = PHYDM_GN_N2SS;
 		else if (tx_stream_num == 3)
 			rate_id_idx = PHYDM_ARFR5_N_3SS;
+		else if (tx_stream_num == 4)
+			rate_id_idx = PHYDM_ARFR7_N_4SS;
 	} else if (wrls_mode == (WIRELESS_CCK | WIRELESS_OFDM | WIRELESS_HT)) {
 	 /*@BGN mode*/
 		if (bw == CHANNEL_WIDTH_40) {
@@ -1288,6 +1289,7 @@ void phydm_ra_h2c(void *dm_void, u8 sta_idx, u8 dis_ra, u8 dis_pt,
 	PHYDM_DBG(dm, DBG_RA, "%s ======>\n", __func__);
 	PHYDM_DBG(dm, DBG_RA, "MACID=%d\n", sta->mac_id);
 	
+
 #ifdef PHYDM_POWER_TRAINING_SUPPORT
 	if ((dm->support_ability & ODM_BB_PWR_TRAIN) && !dm->is_disable_power_training)
 		dis_pt = false;

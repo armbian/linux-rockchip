@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -365,6 +364,7 @@ struct sitesurvey_parm {
 	u8 bw;		/* 0: use default */
 
 	bool acs; /* aim to trigger channel selection when scan done */
+	u8 reason;
 };
 
 /*
@@ -541,12 +541,27 @@ struct set_ch_parm {
 
 struct SetChannelPlan_param {
 	enum regd_src_t regd_src;
-	const struct country_chplan *country_ent;
+	enum rtw_regd_inr inr;
+	struct country_chplan country_ent;
+	bool has_country;
 	u8 channel_plan;
+#if CONFIG_IEEE80211_BAND_6GHZ
+	u8 channel_plan_6g;
+#endif
+
+#ifdef CONFIG_80211D
+	/* used for regd_src == RTK_PRIV and inr == COUNTRY_IE */
+	struct country_ie_slave_record cisr;
+	bool has_cisr;
+#endif
+
+#ifdef PLATFORM_LINUX
+	bool rtnl_lock_needed;
+#endif
 };
 
 struct get_channel_plan_param {
-	struct get_chplan_resp **resp;
+	struct get_chplan_resp **chplan;
 };
 
 struct LedBlink_param {
@@ -563,6 +578,15 @@ struct RunInThread_param {
 	void *context;
 };
 
+#ifdef CONFIG_WRITE_BCN_LEN_TO_FW
+struct write_bcnlen_param {
+	u16 bcn_len;
+};
+#endif
+
+struct reqtxrpt_param {
+	u8 macid;
+};
 
 #define GEN_CMD_CODE(cmd)	cmd ## _CMD_
 
@@ -675,15 +699,20 @@ u8 rtw_periodic_tsf_update_end_cmd(_adapter *adapter);
 u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags);
 u8 rtw_iqk_cmd(_adapter *padapter, u8 flags);
 
-u8 rtw_set_chplan_cmd(_adapter *adapter, int flags, u8 chplan, u8 swconfig);
-u8 rtw_set_country_cmd(_adapter *adapter, int flags, const char *country_code, u8 swconfig);
+u8 rtw_set_chplan_cmd(_adapter *adapter, int flags, u8 chplan, u8 chplan_6g, enum rtw_regd_inr inr);
+u8 rtw_set_country_cmd(_adapter *adapter, int flags, const char *country_code, enum rtw_regd_inr inr);
 #ifdef CONFIG_REGD_SRC_FROM_OS
-u8 rtw_sync_os_regd_cmd(_adapter *adapter, int flags, const char *country_code, u8 dfs_region);
+u8 rtw_sync_os_regd_cmd(_adapter *adapter, int flags, const char *country_code, u8 dfs_region, enum rtw_regd_inr inr);
 #endif
-u8 rtw_get_chplan_cmd(_adapter *adapter, int flags, struct get_chplan_resp **resp);
+u8 rtw_get_chplan_cmd(_adapter *adapter, int flags, struct get_chplan_resp **chplan);
+
+#ifdef CONFIG_80211D
+u8 rtw_apply_recv_country_ie_cmd(_adapter *adapter, int flags, BAND_TYPE band,u8 opch, const u8 *country_ie);
+#endif
 
 extern u8 rtw_led_blink_cmd(_adapter *padapter, void *pLed);
 extern u8 rtw_set_csa_cmd(_adapter *adapter);
+extern u8 rtw_set_ap_csa_cmd(_adapter *adapter);
 extern u8 rtw_tdls_cmd(_adapter *padapter, u8 *addr, u8 option);
 
 u8 rtw_mp_cmd(_adapter *adapter, u8 mp_cmd_id, u8 flags);
@@ -728,6 +757,13 @@ u8 rtw_req_per_cmd(_adapter * adapter);
 u8 rtw_tbtx_chk_cmd(_adapter *adapter);
 u8 rtw_tbtx_token_dispatch_cmd(_adapter *adapter);
 #endif
+
+#ifdef CONFIG_WRITE_BCN_LEN_TO_FW
+u8 rtw_write_bcnlen_to_fw_cmd(_adapter *padapter, u16 bcn_len);
+#endif
+
+u8 rtw_reqtxrpt_cmd(_adapter *adapter, u8 macid);
+
 #ifdef CONFIG_CTRL_TXSS_BY_TP
 struct txss_cmd_parm {
 	struct sta_info *sta;
@@ -779,6 +815,9 @@ enum rtw_cmd_id {
 	CMD_SET_MESH_PLINK_STATE, /* 21 */
 	CMD_DO_IQK, /* 22 */
 	CMD_GET_CHANPLAN, /*23*/
+	CMD_WRITE_BCN_LEN, /*24 */
+	CMD_AP_CHANSWITCH, /* 25 AP switch channel */
+	CMD_REQ_TXRPT, /* 26 */
 	CMD_ID_MAX
 };
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -77,6 +76,7 @@ void rtw_odm_init_ic_type(_adapter *adapter);
 void rtw_odm_adaptivity_config_msg(void *sel, _adapter *adapter);
 
 bool rtw_odm_adaptivity_needed(_adapter *adapter);
+void rtw_odm_adaptivity_update(struct dvobj_priv *dvobj);
 void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter);
 void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff);
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter);
