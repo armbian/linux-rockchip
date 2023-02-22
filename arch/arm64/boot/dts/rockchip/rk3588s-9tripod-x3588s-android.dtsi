@@ -6,7 +6,7 @@
 
 / {
 	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfeb50000,115200n81 console=ttyFIQ0";
+		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0";
 	};
 
 	cspmu: cspmu@fd10c000 {
@@ -35,14 +35,14 @@
 
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
-		interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_LOW>;
-		/* If enable uart uses irq instead of fiq */
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2m0_xfer>;
-		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
-		rockchip,irq-mode-enable = <1>;
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
 		status = "okay";
 	};
 
@@ -50,17 +50,16 @@
 		optee: optee {
 			compatible = "linaro,optee-tz";
 			method = "smc";
-			//status = "disabled";
 		};
 	};
 
 	ramoops: ramoops@110000 {
 		compatible = "ramoops";
+		reg = <0x0 0x110000 0x0 0xf0000>;
+		record-size = <0x20000>;
 		console-size = <0x80000>;
 		ftrace-size = <0x00000>;
 		pmsg-size = <0x50000>;
-		record-size = <0x20000>;
-		reg = <0x0 0x110000 0x0 0xf0000>;
 	};
 
 	reserved-memory {
@@ -70,9 +69,9 @@
 
 		cma {
 			compatible = "shared-dma-pool";
-			linux,cma-default;
 			reusable;
 			size = <0x0 (8 * 0x100000)>;
+			linux,cma-default;
 		};
 
 		drm_logo: drm-logo@00000000 {
@@ -92,6 +91,19 @@
 	memory-region-names = "drm-logo";
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	status = "okay";
+	center-supply = <&vdd_ddr_s0>;
+};
+
 &rng {
 	status = "okay";
+};
+
+&vop {
+	support-multi-area;
 };
