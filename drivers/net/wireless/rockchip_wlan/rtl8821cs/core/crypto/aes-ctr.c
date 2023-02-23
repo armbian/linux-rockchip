@@ -36,7 +36,7 @@ int aes_ctr_encrypt(const u8 *key, size_t key_len, const u8 *nonce,
 	os_memcpy(counter, nonce, AES_BLOCK_SIZE);
 
 	while (left > 0) {
-		aes_encrypt(ctx, counter, buf);
+		rockchip_wlan_aes_encrypt(ctx, counter, buf);
 
 		len = (left < AES_BLOCK_SIZE) ? left : AES_BLOCK_SIZE;
 		for (j = 0; j < len; j++)

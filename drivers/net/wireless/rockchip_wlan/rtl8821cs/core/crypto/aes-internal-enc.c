@@ -18,7 +18,7 @@
 
 #include "aes_i.h"
 
-static void rijndaelEncrypt(const u32 rk[], int Nr, const u8 pt[16], u8 ct[16])
+static void rockchip_wlan_rijndaelEncrypt(const u32 rk[], int Nr, const u8 pt[16], u8 ct[16])
 {
 	u32 s0, s1, s2, s3, t0, t1, t2, t3;
 #ifndef FULL_UNROLL
@@ -121,6 +121,14 @@ int aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
 	return 0;
 }
 */
+
+int rockchip_wlan_aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
+{
+	u32 *rk = ctx;
+	rockchip_wlan_rijndaelEncrypt(ctx, rk[AES_PRIV_NR_POS], plain, crypt);
+	return 0;
+}
+
 
 void aes_encrypt_deinit(void *ctx)
 {
