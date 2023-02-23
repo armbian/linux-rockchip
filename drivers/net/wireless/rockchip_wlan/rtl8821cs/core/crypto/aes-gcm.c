@@ -154,7 +154,7 @@ static void aes_gctr(void *aes, const u8 *icb, const u8 *x, size_t xlen, u8 *y)
 	os_memcpy(cb, icb, AES_BLOCK_SIZE);
 	/* Full blocks */
 	for (i = 0; i < n; i++) {
-		aes_encrypt(aes, cb, ypos);
+		rockchip_wlan_aes_encrypt(aes, cb, ypos);
 		xor_block(ypos, xpos);
 		xpos += AES_BLOCK_SIZE;
 		ypos += AES_BLOCK_SIZE;
@@ -164,7 +164,7 @@ static void aes_gctr(void *aes, const u8 *icb, const u8 *x, size_t xlen, u8 *y)
 	last = x + xlen - xpos;
 	if (last) {
 		/* Last, partial block */
-		aes_encrypt(aes, cb, tmp);
+		rockchip_wlan_aes_encrypt(aes, cb, tmp);
 		for (i = 0; i < last; i++)
 			*ypos++ = *xpos++ ^ tmp[i];
 	}
@@ -181,7 +181,7 @@ static void * aes_gcm_init_hash_subkey(const u8 *key, size_t key_len, u8 *H)
 
 	/* Generate hash subkey H = AES_K(0^128) */
 	os_memset(H, 0, AES_BLOCK_SIZE);
-	aes_encrypt(aes, H, H);
+	rockchip_wlan_aes_encrypt(aes, H, H);
 	wpa_hexdump_key(_MSG_EXCESSIVE_, "Hash subkey H for GHASH",
 			H, AES_BLOCK_SIZE);
 	return aes;
