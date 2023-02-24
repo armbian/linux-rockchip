@@ -159,7 +159,7 @@ config ARM_RASPBERRYPI_CPUFREQ
 	  If in doubt, say N.
 
 config ARM_ROCKCHIP_CPUFREQ
-	tristate "Rockchip CPUfreq driver"
+	bool "Rockchip CPUfreq driver"
 	depends on ARCH_ROCKCHIP && CPUFREQ_DT
 	select PM_OPP
 	help
