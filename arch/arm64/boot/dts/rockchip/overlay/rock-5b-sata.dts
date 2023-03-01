@@ -1,0 +1,37 @@
+// ROCK 5B Pcie M.2 to sata
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&wifi_disable>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&bt_wake>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&pcie2x1l0>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@3 {
+		target = <&sata1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
