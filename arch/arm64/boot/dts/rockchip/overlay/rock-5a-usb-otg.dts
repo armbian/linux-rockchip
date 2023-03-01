@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title ="Set Type-A OTG port in OTG mode for ROCK 5A";
+		compatible = "radxa,rock-5a", "rockchip,rk3588";
+		category = "misc";
+		description = "Set Type-A OTG port in OTG mode for ROCK 5A";
+	};
+
+	fragment@0 {
+		target = <&usbdrd_dwc3_0>;
+
+		__overlay__ {
+			dr_mode = "otg";
+			extcon = <&u2phy0>;
+			status = "okay";
+		};
+	};
+};

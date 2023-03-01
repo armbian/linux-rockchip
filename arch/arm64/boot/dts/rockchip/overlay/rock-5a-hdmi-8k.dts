@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/clock/rk3588-cru.h>
+
+/ {
+	metadata {
+		title ="Enable 8K output on ROCK 5A";
+		compatible = "radxa,rock-5b", "rockchip,rk3588";
+		category = "display";
+		description = "Enable 8K output on ROCK 5A";
+	};
+
+	fragment@0 {
+		target = <&vop>;
+
+		__overlay__ {
+			assigned-clocks = <&cru ACLK_VOP>;
+			assigned-clock-rates = <800000000>;
+		};
+	};
+};

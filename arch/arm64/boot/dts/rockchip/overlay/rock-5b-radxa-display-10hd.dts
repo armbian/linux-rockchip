@@ -1,0 +1,101 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title ="Enable Radxa Display 10HD on ROCK 5B";
+		compatible = "radxa,rock-5b", "rockchip,rk3588";
+		category = "display";
+		description = "Enable Radxa Display 10HD on ROCK 5B";
+	};
+
+	fragment@0 {
+		target = <&vcc_lcd_mipi1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&dsi1_backlight>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&pwm2>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&dsi1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&dsi1_panel>;
+
+		__overlay__ {
+			status = "okay";
+			compatible ="chongzhou,cz101b4001";
+		};
+	};
+
+	fragment@5 {
+		target = <&mipi_dcphy1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&route_dsi1>;
+
+		__overlay__ {
+			status = "okay";
+			connect = <&vp3_out_dsi1>;
+		};
+	};
+
+	fragment@7 {
+		target = <&dsi1_in_vp2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@8 {
+		target = <&dsi1_in_vp3>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&i2c6>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&focaltech>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
