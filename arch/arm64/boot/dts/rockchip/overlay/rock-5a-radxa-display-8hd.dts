@@ -1,0 +1,230 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable Radxa Display 8HD on ROCK 5A";
+		compatible = "radxa,rock-5a", "rockchip,rk3588";
+		category = "display";
+		description = "Enable Radxa Display 8HD on ROCK 5A";
+	};
+
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			vcc_tp: vcc-tp {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "vcc_tp";
+				gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_LOW>;
+				enable-active-low;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vcc_lcd_mipi0: vcc-lcd-mipi0 {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "vcc_lcd_mipi0";
+				gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dsi0_backlight: dsi0-backlight {
+				status = "okay";
+				compatible = "pwm-backlight";
+				pwms = <&pwm10 0 25000 0>;
+				brightness-levels = <
+					255 254 253 252 251 250 249 248
+					247 246 245 244 243 242 241 240
+					239 238 237 236 235 234 233 232
+					231 230 229 228 227 226 225 224
+					223 222 221 220 219 218 217 216
+					215 214 213 212 211 210 209 208
+					207 206 205 204 203 202 201 200
+					199 198 197 196 195 194 193 192
+					191 190 189 188 187 186 185 184
+					183 182 181 180 179 178 177 176
+					175 174 173 172 171 170 169 168
+					167 166 165 164 163 162 161 160
+					159 158 157 156 155 154 153 152
+					151 150 149 148 147 146 145 144
+					143 142 141 140 139 138 137 136
+					135 134 133 132 131 130 129 128
+					127 126 125 124 123 122 121 120
+					119 118 117 116 115 114 113 112
+					111 110 109 108 107 106 105 104
+					103 102 101 100  99  98  97  96
+					 95  94  93  92  91  90  89  88
+					 87  86  85  84  83  82  81  80
+					 79  78  77  76  75  74  73  72
+					 71  70  69  68  67  66  65  64
+					 63  62  61  60  59  58  57  56
+					 55  54  53  52  51  50  49  48
+					 47  46  45  44  43  42  41  40
+					 39  38  38  37  37  36  36  35
+					 35  34  34  33  33  32  32  31
+					 31  30  30  29  29  28  28  27
+					 27  26  26  25  25  24  24  23
+					 23  22  22  21  21  20  20   0
+				>;
+				default-brightness-level = <200>;
+				enable-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dsi0_backlight_en>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&pwm10>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "active";
+			pinctrl-0 = <&pwm10m2_pins>;
+		};
+	};
+
+	fragment@2 {
+		target = <&dsi0>;
+
+		__overlay__ {
+			status = "okay";
+			rockchip,lane-rate = <480>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi0_panel: panel@0 {
+				status = "okay";
+				compatible ="radxa,display-8hd";
+				reg = <0>;
+				backlight = <&dsi0_backlight>;
+
+				vdd-supply = <&vcc_lcd_mipi0>;
+				vccio-supply = <&vcc_1v8_s0>;
+				reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dsi0_lcd_rst_gpio>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						panel_in_dsi0: endpoint {
+							remote-endpoint = <&dsi0_out_panel>;
+						};
+					};
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi0_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&mipi_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&route_dsi0>;
+
+		__overlay__ {
+			status = "okay";
+			connect = <&vp3_out_dsi0>;
+		};
+	};
+
+	fragment@5 {
+		target = <&dsi0_in_vp2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@6 {
+		target = <&dsi0_in_vp3>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&i2c5>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5m2_xfer>;
+			clock-frequency = <400000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gt9xx: gt9xx@14 {
+				status = "okay";
+				compatible = "goodix,gt9xx";
+				reg = <0x14>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gt9xx_gpio>;
+				touch-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_HIGH>;
+				reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+				max-x = <800>;
+				max-y = <1280>;
+				tp-size = <9112>;
+				tp-supply = <&vcc_tp>;
+			};
+		};
+	};
+
+	fragment@10 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			dsi0-lcd {
+				dsi0_lcd_rst_gpio: dsi0-lcd-rst-gpio {
+					rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+
+				dsi0_backlight_en: dsi0-backlight-en {
+					rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+
+			gt9xx {
+				gt9xx_gpio: gt9xx-gpio {
+					rockchip,pins =
+						<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,
+						<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};
+
