@@ -1,0 +1,145 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera V1.3 on ROCK 4";
+		compatible = "rockchip,rk3399";
+		category = "camera";
+		description = "Enable Raspberry Pi Camera V1.3 on ROCK 4";
+	};
+
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			camera_pwdn_gpio: camera-pwdn-gpio {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "camera_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&cam_pwdn_gpio>;
+			};
+
+			clk_cam_25m: external-camera-clock-25m {
+				status = "okay";
+				compatible = "fixed-clock";
+				clock-frequency = <25000000>;
+				clock-output-names = "clk_cam_25m";
+				#clock-cells = <0>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c4>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			camera_ov5647: camera-ov5647@36 {
+				status = "okay";
+				compatible = "ovti,ov5647";
+				reg = <0x36>;
+
+				clocks = <&clk_cam_25m>;
+				clock-names = "xclk";
+
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "rpi-camera-v1p3";
+				rockchip,camera-module-lens-name = "default";
+
+				port {
+					ucam_out0: endpoint {
+						remote-endpoint = <&mipi_in_ucam0>;
+						data-lanes = <1 2>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi_dphy_rx0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi_in_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&ucam_out0>;
+						data-lanes = <1 2>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					dphy_rx0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&isp0_mipi_in>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&isp0_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&rkisp1_0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_mipi_in: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dphy_rx0_out>;
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			camera {
+				cam_pwdn_gpio: cam-pwdn-gpio {
+					rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};
