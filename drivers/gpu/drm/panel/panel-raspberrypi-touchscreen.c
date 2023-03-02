@@ -201,15 +201,16 @@ static const struct drm_display_mode rpi_touchscreen_modes[] = {
 		/* Modeline comes from the Raspberry Pi firmware, with HFP=1
 		 * plugged in and clock re-computed from that.
 		 */
-		.clock = 25979400 / 1000,
+		.clock = 26000000 / 1000,
 		.hdisplay = 800,
 		.hsync_start = 800 + 1,
-		.hsync_end = 800 + 1 + 2,
-		.htotal = 800 + 1 + 2 + 46,
+		.hsync_end = 800 + 1 + 5,
+		.htotal = 800 + 1 + 5 + 48,
 		.vdisplay = 480,
 		.vsync_start = 480 + 7,
-		.vsync_end = 480 + 7 + 2,
-		.vtotal = 480 + 7 + 2 + 21,
+		.vsync_end = 480 + 7 + 1,
+		.vtotal = 480 + 7 + 1 + 21,
+		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 	},
 };
 
@@ -255,7 +256,7 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 
 	rpi_touchscreen_i2c_write(ts, REG_PWM, 0);
 
-	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
+	//rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 	udelay(1);
 
 	return 0;
@@ -278,17 +279,22 @@ static int rpi_touchscreen_prepare(struct drm_panel *panel)
 			break;
 	}
 
-	rpi_touchscreen_write(ts, DSI_LANEENABLE,
-			      DSI_LANEENABLE_CLOCK |
-			      DSI_LANEENABLE_D0);
-	rpi_touchscreen_write(ts, PPI_D0S_CLRSIPOCOUNT, 0x05);
-	rpi_touchscreen_write(ts, PPI_D1S_CLRSIPOCOUNT, 0x05);
+	rpi_touchscreen_write(ts, DSI_LANEENABLE, 0x03);
+	rpi_touchscreen_write(ts, PPI_D0S_CLRSIPOCOUNT, 0x0c);
+	rpi_touchscreen_write(ts, PPI_D1S_CLRSIPOCOUNT, 0x0c);
 	rpi_touchscreen_write(ts, PPI_D0S_ATMR, 0x00);
 	rpi_touchscreen_write(ts, PPI_D1S_ATMR, 0x00);
-	rpi_touchscreen_write(ts, PPI_LPTXTIMECNT, 0x03);
+	rpi_touchscreen_write(ts, PPI_LPTXTIMECNT, 0x15);
 
-	rpi_touchscreen_write(ts, SPICMR, 0x00);
-	rpi_touchscreen_write(ts, LCDCTRL, 0x00100150);
+	rpi_touchscreen_write(ts, SPICMR, 0x60);
+	rpi_touchscreen_write(ts, LCDCTRL, 0x00100152);
+
+	rpi_touchscreen_write(ts, HSR, 0x001a0014);
+	rpi_touchscreen_write(ts, HDISPR, 0x00690320);
+	rpi_touchscreen_write(ts, VSR, 0x00150002);
+	rpi_touchscreen_write(ts, VDISPR, 0x000701e0);
+	rpi_touchscreen_write(ts, VFUEN, 0x01);
+
 	rpi_touchscreen_write(ts, SYSCTRL, 0x040f);
 	msleep(100);
 
@@ -346,8 +352,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel,
 	}
 
 	connector->display_info.bpc = 8;
-	connector->display_info.width_mm = 154;
-	connector->display_info.height_mm = 86;
+	connector->display_info.width_mm = 217;
+	connector->display_info.height_mm = 136;
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &bus_format, 1);
 
@@ -462,8 +468,9 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	int ret;
 
 	dsi->mode_flags = (MIPI_DSI_MODE_VIDEO |
-			   MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			   MIPI_DSI_MODE_LPM);
+			   MIPI_DSI_MODE_VIDEO_BURST |
+			   MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO_NO_HBP);
+
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 1;
 
