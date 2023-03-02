@@ -4,3 +4,4 @@ obj-$(CONFIG_CYW_BCMDHD)	+= cywdhd/
 obj-$(CONFIG_INFINEON_DHD)	+= infineon/
 
 obj-$(CONFIG_RTL8852BE)		+= rtl8852be/
+obj-$(CONFIG_RTL8852BU)		+= rtl8852bu/
