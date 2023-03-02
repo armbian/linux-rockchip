@@ -33,6 +33,11 @@ static u8 gtp_dat_gt9111[] = {
 	#include "HLS-0102-1398V1-1060-GT911_Config_20201204_V66.cfg"
 };
 
+u8 gtp_dat_gt9112[] = {
+	/* <800, 1280> */
+	#include "CJ080258_GT911_Config_20221117_085548.cfg"
+};
+
 static u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */

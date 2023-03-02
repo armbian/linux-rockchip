@@ -2950,7 +2950,7 @@ s32 gtp_gup_clk_calibration(void)
 		GTP_GPIO_OUTPUT(ts->irq_pin, 0);
         
         //local_irq_save(flags);
-        do_gettimeofday(&start);
+        //do_gettimeofday(&start);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -2959,7 +2959,7 @@ s32 gtp_gup_clk_calibration(void)
         msleep(1);
         
         //local_irq_save(flags);
-        do_gettimeofday(&end);
+        //do_gettimeofday(&end);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -2967,18 +2967,17 @@ s32 gtp_gup_clk_calibration(void)
         msleep(20);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 0);
         
-        usec = end.tv_usec - start.tv_usec;
-        sec = end.tv_sec - start.tv_sec;
-        count_ref = 60 * (usec+ sec * MILLION);//60= 60Mhz * 1us
+        //usec = end.tv_usec - start.tv_usec;
+        //sec = end.tv_sec - start.tv_sec;
+        //count_ref = 60 * (usec+ sec * MILLION);//60= 60Mhz * 1us
         
-        GTP_DEBUG("== time %d, %d, %d", sec, usec, count_ref);
-        
-        if (count > count_ref)
-        {
-            GTP_DEBUG("== count_diff %d", count - count_ref);
-            break;
-        }
+        //GTP_DEBUG("== time %d, %d, %d", sec, usec, count_ref);
 
+        //if (count > count_ref)
+        //{
+        //    GTP_DEBUG("== count_diff %d", count - count_ref);
+        //    break;
+        //}
     #endif
     }
 
