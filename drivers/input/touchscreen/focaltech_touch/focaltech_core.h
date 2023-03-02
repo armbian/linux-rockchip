@@ -88,8 +88,8 @@
 #define FTS_COORDS_ARR_SIZE                 4
 #define FTS_X_MIN_DISPLAY_DEFAULT           0
 #define FTS_Y_MIN_DISPLAY_DEFAULT           0
-#define FTS_X_MAX_DISPLAY_DEFAULT           1600
-#define FTS_Y_MAX_DISPLAY_DEFAULT           2176
+#define FTS_X_MAX_DISPLAY_DEFAULT           799
+#define FTS_Y_MAX_DISPLAY_DEFAULT           1279
 
 #define FTS_TOUCH_DOWN                      0
 #define FTS_TOUCH_UP                        1
