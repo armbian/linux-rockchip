@@ -189,4 +189,14 @@ config EXTCON_USBC_TUSB320
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.
 
+config EXTCON_USBC_VIRTUAL_PD
+	tristate "Virtual Type-C PD EXTCON support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable Virtual Type-C PD extcon driver support, if
+	  hardware platform designed Type-C modes separately.
+
+	  Example, of designing Display Port separately from Type-C Altmode
+	  instead of accessing Altmode Display Port in Type-C connector.
+
 endif
