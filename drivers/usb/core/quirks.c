@@ -469,6 +469,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Lenovo Powered USB-C Travel Hub (4X90S92381, RTL8153 GigE) */
 	{ USB_DEVICE(0x17ef, 0x721e), .driver_info = USB_QUIRK_NO_LPM },
 
+	/* SPCA2100 PC Camera */
+	{ USB_DEVICE(0x15aa, 0x1555), .driver_info = USB_QUIRK_AUTO_SUSPEND },
+
 	/* Lenovo ThinkCenter A630Z TI024Gen3 usb-audio */
 	{ USB_DEVICE(0x17ef, 0xa012), .driver_info =
 			USB_QUIRK_DISCONNECT_SUSPEND },
