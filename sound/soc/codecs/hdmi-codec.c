@@ -459,9 +459,14 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	bool has_capture = !hcp->hcd.no_i2s_capture;
+	bool has_playback = !hcp->hcd.no_i2s_playback;
 	int ret = 0;
 
 	if (hcp->tx_dlp && substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
+	if (!((has_playback && tx) || (has_capture && !tx)))
 		return 0;
 
 	mutex_lock(&hcp->lock);
@@ -503,8 +508,14 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	bool has_capture = !hcp->hcd.no_i2s_capture;
+	bool has_playback = !hcp->hcd.no_i2s_playback;
 
 	if (hcp->tx_dlp && substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return;
+
+	if (!((has_playback && tx) || (has_capture && !tx)))
 		return;
 
 	hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
