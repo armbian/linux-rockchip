@@ -122,7 +122,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 	for (i = 0; i < 3; i++) {
 		level = gpio_get_value(pdata->headset_gpio);
 		if (level < 0) {
-			pr_err("%s:get pin level again,pin=%d,i=%d\n",
+			pr_debug("%s:get pin level again,pin=%d,i=%d\n",
 			       __func__, pdata->headset_gpio, i);
 			msleep(1);
 			continue;
@@ -133,7 +133,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 		pr_err("%s:get pin level  err!\n", __func__);
 		goto out;
 	} else {
-		pr_err("%s:get pin level again, pin=%d,i=%d\n",
+		pr_debug("%s:get pin level again, pin=%d,i=%d\n",
 		       __func__, pdata->headset_gpio, i);
 	}
 
