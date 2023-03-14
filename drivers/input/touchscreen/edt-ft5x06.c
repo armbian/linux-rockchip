@@ -69,17 +69,17 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
-enum edt_pmode {
+/*enum edt_pmode {
 	EDT_PMODE_NOT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
 	EDT_PMODE_POWEROFF,
-};
+};*/
 
 enum edt_ver {
 	EDT_M06,
 	EDT_M09,
 	EDT_M12,
-	EV_FT,
+//	EV_FT,
 	GENERIC_FT,
 };
 
@@ -88,8 +88,8 @@ struct edt_reg_addr {
 	int reg_report_rate;
 	int reg_gain;
 	int reg_offset;
-	int reg_offset_x;
-	int reg_offset_y;
+//	int reg_offset_x;
+//	int reg_offset_y;
 	int reg_num_x;
 	int reg_num_y;
 };
@@ -100,7 +100,7 @@ struct edt_ft5x06_ts_data {
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
-	struct regulator *vcc;
+//	struct regulator *vcc;
 
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *wake_gpio;
@@ -113,14 +113,17 @@ struct edt_ft5x06_ts_data {
 
 	struct mutex mutex;
 	bool factory_mode;
-	enum edt_pmode suspend_mode;
+//	enum edt_pmode suspend_mode;
 	int threshold;
 	int gain;
 	int offset;
-	int offset_x;
-	int offset_y;
+//	int offset_x;
+//	int offset_y;
 	int report_rate;
 	int max_support_points;
+
+	int x_resolution;
+	int y_resolution;
 
 	char name[EDT_NAME_LEN];
 
@@ -130,6 +133,8 @@ struct edt_ft5x06_ts_data {
 
 struct edt_i2c_chip_data {
 	int  max_support_points;
+	int x_resolution;
+	int y_resolution;
 };
 
 static int edt_ft5x06_ts_readwrite(struct i2c_client *client,
@@ -203,7 +208,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 	case EDT_M09:
 	case EDT_M12:
-	case EV_FT:
+//	case EV_FT:
 	case GENERIC_FT:
 		cmd = 0x0;
 		offset = 3;
@@ -243,6 +248,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 	for (i = 0; i < tsdata->max_support_points; i++) {
 		u8 *buf = &rdbuf[i * tplen + offset];
+		bool down;
 
 		type = buf[0] >> 6;
 		/* ignore Reserved events */
@@ -253,19 +259,26 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		if (tsdata->version == EDT_M06 && type == TOUCH_EVENT_DOWN)
 			continue;
 
-		x = get_unaligned_be16(buf) & 0x0fff;
-		y = get_unaligned_be16(buf + 2) & 0x0fff;
+	//	x = get_unaligned_be16(buf) & 0x0fff;
+	//	y = get_unaligned_be16(buf + 2) & 0x0fff;
 		/* The FT5x26 send the y coordinate first */
-		if (tsdata->version == EV_FT)
-			swap(x, y);
+	//	if (tsdata->version == EV_FT)
+	//		swap(x, y);
+		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
+		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
 
 		id = (buf[2] >> 4) & 0x0f;
+		down = type != TOUCH_EVENT_UP;
 
 		input_mt_slot(tsdata->input, id);
-		if (input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER,
-					       type != TOUCH_EVENT_UP))
-			touchscreen_report_pos(tsdata->input, &tsdata->prop,
-					       x, y, true);
+	//	if (input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER,
+	//				       type != TOUCH_EVENT_UP))
+	//		touchscreen_report_pos(tsdata->input, &tsdata->prop,
+	//				       x, y, true);
+		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
+		if (!down)
+			continue;
+		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,true);
 	}
 
 	input_mt_report_pointer_emulation(tsdata->input, true);
@@ -291,7 +304,7 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 
 	case EDT_M09:
 	case EDT_M12:
-	case EV_FT:
+//	case EV_FT:
 	case GENERIC_FT:
 		wrbuf[0] = addr;
 		wrbuf[1] = value;
@@ -332,7 +345,7 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 
 	case EDT_M09:
 	case EDT_M12:
-	case EV_FT:
+//	case EV_FT:
 	case GENERIC_FT:
 		wrbuf[0] = addr;
 		error = edt_ft5x06_ts_readwrite(tsdata->client, 1,
@@ -355,10 +368,10 @@ struct edt_ft5x06_attribute {
 	u8 limit_high;
 	u8 addr_m06;
 	u8 addr_m09;
-	u8 addr_ev;
+//	u8 addr_ev;
 };
 
-#define EDT_ATTR(_field, _mode, _addr_m06, _addr_m09, _addr_ev,		\
+#define EDT_ATTR(_field, _mode, _addr_m06, _addr_m09,		\
 		_limit_low, _limit_high)				\
 	struct edt_ft5x06_attribute edt_ft5x06_attr_##_field = {	\
 		.dattr = __ATTR(_field, _mode,				\
@@ -367,7 +380,6 @@ struct edt_ft5x06_attribute {
 		.field_offset = offsetof(struct edt_ft5x06_ts_data, _field), \
 		.addr_m06 = _addr_m06,					\
 		.addr_m09 = _addr_m09,					\
-		.addr_ev  = _addr_ev,					\
 		.limit_low = _limit_low,				\
 		.limit_high = _limit_high,				\
 	}
@@ -404,9 +416,9 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 		addr = attr->addr_m09;
 		break;
 
-	case EV_FT:
-		addr = attr->addr_ev;
-		break;
+//	case EV_FT:
+//		addr = attr->addr_ev;
+//		break;
 
 	default:
 		error = -ENODEV;
@@ -479,10 +491,6 @@ static ssize_t edt_ft5x06_setting_store(struct device *dev,
 		addr = attr->addr_m09;
 		break;
 
-	case EV_FT:
-		addr = attr->addr_ev;
-		break;
-
 	default:
 		error = -ENODEV;
 		goto out;
@@ -506,28 +514,22 @@ out:
 
 /* m06, m09: range 0-31, m12: range 0-5 */
 static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
-		M09_REGISTER_GAIN, EV_REGISTER_GAIN, 0, 31);
+		M09_REGISTER_GAIN, 0, 31);
 /* m06, m09: range 0-31, m12: range 0-16 */
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
-		M09_REGISTER_OFFSET, NO_REGISTER, 0, 31);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
-static EDT_ATTR(offset_x, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
-		EV_REGISTER_OFFSET_X, 0, 80);
-/* m06, m09, m12: no supported, ev_ft: range 0-80 */
-static EDT_ATTR(offset_y, S_IWUSR | S_IRUGO, NO_REGISTER, NO_REGISTER,
-		EV_REGISTER_OFFSET_Y, 0, 80);
+		M09_REGISTER_OFFSET, 0, 31);
 /* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
-		M09_REGISTER_THRESHOLD, EV_REGISTER_THRESHOLD, 0, 255);
+		M09_REGISTER_THRESHOLD, 20, 80);
 /* m06: range 3 to 14, m12: (0x64: 100Hz) */
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
-		NO_REGISTER, NO_REGISTER, 0, 255);
+		NO_REGISTER, 3, 14);
 
 static struct attribute *edt_ft5x06_attrs[] = {
 	&edt_ft5x06_attr_gain.dattr.attr,
 	&edt_ft5x06_attr_offset.dattr.attr,
-	&edt_ft5x06_attr_offset_x.dattr.attr,
-	&edt_ft5x06_attr_offset_y.dattr.attr,
+//	&edt_ft5x06_attr_offset_x.dattr.attr,
+//	&edt_ft5x06_attr_offset_y.dattr.attr,
 	&edt_ft5x06_attr_threshold.dattr.attr,
 	&edt_ft5x06_attr_report_rate.dattr.attr,
 	NULL
@@ -537,7 +539,7 @@ static const struct attribute_group edt_ft5x06_attr_group = {
 	.attrs = edt_ft5x06_attrs,
 };
 
-static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
+/*static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
@@ -558,7 +560,7 @@ static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
 		edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
 				  tsdata->report_rate);
 
-}
+}*/
 
 #ifdef CONFIG_DEBUG_FS
 static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
@@ -625,6 +627,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct i2c_client *client = tsdata->client;
 	int retries = EDT_SWITCH_MODE_RETRIES;
+	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 	int ret;
 	int error;
 
@@ -656,7 +659,17 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 	kfree(tsdata->raw_buffer);
 	tsdata->raw_buffer = NULL;
 
-	edt_ft5x06_restore_reg_parameters(tsdata);
+//	edt_ft5x06_restore_reg_parameters(tsdata);
+	edt_ft5x06_register_write(tsdata, reg_addr->reg_threshold,
+					tsdata->threshold);
+	edt_ft5x06_register_write(tsdata, reg_addr->reg_gain,
+					tsdata->gain);
+	edt_ft5x06_register_write(tsdata, reg_addr->reg_offset,
+					tsdata->offset);
+	if (reg_addr->reg_report_rate)
+			edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
+							tsdata->report_rate);
+
 	enable_irq(client->irq);
 
 	return 0;
@@ -781,6 +794,9 @@ static void edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 					  const char *debugfs_name)
 {
 	tsdata->debug_dir = debugfs_create_dir(debugfs_name, NULL);
+	if (!tsdata->debug_dir)
+			return;
+
 
 	debugfs_create_u16("num_x", S_IRUSR, tsdata->debug_dir, &tsdata->num_x);
 	debugfs_create_u16("num_y", S_IRUSR, tsdata->debug_dir, &tsdata->num_y);
@@ -799,10 +815,10 @@ static void edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 #else
 
-static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
+/*static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 {
 	return -ENOSYS;
-}
+}*/
 
 static void edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 					  const char *debugfs_name)
@@ -833,7 +849,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 					EDT_NAME_LEN - 1, rdbuf);
 	if (error)
 		return error;
-
+	dev_info(&client->dev, "tp version \"%s\"\n", rdbuf);
 	/* Probe content for something consistent.
 	 * M06 starts with a response byte, M12 gives the data directly.
 	 * M09/Generic does not provide model number information.
@@ -876,7 +892,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		 * touches and EDT M09 is that we know how to retrieve
 		 * the max coordinates for the latter.
 		 */
-		tsdata->version = GENERIC_FT;
+	//	tsdata->version = GENERIC_FT;
+		tsdata->version = EDT_M09;
 
 		error = edt_ft5x06_ts_readwrite(client, 1, "\xA6",
 						2, rdbuf);
@@ -889,45 +906,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 						1, rdbuf);
 		if (error)
 			return error;
-
-		/* This "model identification" is not exact. Unfortunately
-		 * not all firmwares for the ft5x06 put useful values in
-		 * the identification registers.
-		 */
-		switch (rdbuf[0]) {
-		case 0x35:   /* EDT EP0350M09 */
-		case 0x43:   /* EDT EP0430M09 */
-		case 0x50:   /* EDT EP0500M09 */
-		case 0x57:   /* EDT EP0570M09 */
-		case 0x70:   /* EDT EP0700M09 */
-			tsdata->version = EDT_M09;
-			snprintf(model_name, EDT_NAME_LEN, "EP0%i%i0M09",
-				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
-			break;
-		case 0xa1:   /* EDT EP1010ML00 */
-			tsdata->version = EDT_M09;
-			snprintf(model_name, EDT_NAME_LEN, "EP%i%i0ML00",
-				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
-			break;
-		case 0x5a:   /* Solomon Goldentek Display */
-			snprintf(model_name, EDT_NAME_LEN, "GKTW50SCED1R0");
-			break;
-		case 0x59:  /* Evervision Display with FT5xx6 TS */
-			tsdata->version = EV_FT;
-			error = edt_ft5x06_ts_readwrite(client, 1, "\x53",
-							1, rdbuf);
-			if (error)
-				return error;
-			strlcpy(fw_version, rdbuf, 1);
-			snprintf(model_name, EDT_NAME_LEN,
-				 "EVERVISION-FT5726NEi");
-			break;
-		default:
-			snprintf(model_name, EDT_NAME_LEN,
-				 "generic ft5x06 (%02x)",
-				 rdbuf[0]);
-			break;
-		}
+		snprintf(model_name, EDT_NAME_LEN, "EP0%i%i0M09",
+					rdbuf[0] >> 4, rdbuf[0] & 0x0F);
 	}
 
 	return 0;
@@ -954,13 +934,14 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 
 	error = device_property_read_u32(dev, "offset", &val);
 	if (!error) {
-		if (reg_addr->reg_offset != NO_REGISTER)
-			edt_ft5x06_register_write(tsdata,
-						  reg_addr->reg_offset, val);
+	//	if (reg_addr->reg_offset != NO_REGISTER)
+	//		edt_ft5x06_register_write(tsdata,
+	//					  reg_addr->reg_offset, val);
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset, val);
 		tsdata->offset = val;
 	}
 
-	error = device_property_read_u32(dev, "offset-x", &val);
+/*	error = device_property_read_u32(dev, "offset-x", &val);
 	if (!error) {
 		if (reg_addr->reg_offset_x != NO_REGISTER)
 			edt_ft5x06_register_write(tsdata,
@@ -974,7 +955,7 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 			edt_ft5x06_register_write(tsdata,
 						  reg_addr->reg_offset_y, val);
 		tsdata->offset_y = val;
-	}
+	}*/
 }
 
 static void
@@ -985,7 +966,7 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	tsdata->threshold = edt_ft5x06_register_read(tsdata,
 						     reg_addr->reg_threshold);
 	tsdata->gain = edt_ft5x06_register_read(tsdata, reg_addr->reg_gain);
-	if (reg_addr->reg_offset != NO_REGISTER)
+/*	if (reg_addr->reg_offset != NO_REGISTER)
 		tsdata->offset =
 			edt_ft5x06_register_read(tsdata, reg_addr->reg_offset);
 	if (reg_addr->reg_offset_x != NO_REGISTER)
@@ -993,11 +974,12 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 						reg_addr->reg_offset_x);
 	if (reg_addr->reg_offset_y != NO_REGISTER)
 		tsdata->offset_y = edt_ft5x06_register_read(tsdata,
-						reg_addr->reg_offset_y);
+						reg_addr->reg_offset_y);*/
+	tsdata->offset = edt_ft5x06_register_read(tsdata, reg_addr->reg_offset);
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		tsdata->report_rate = edt_ft5x06_register_read(tsdata,
 						reg_addr->reg_report_rate);
-	if (tsdata->version == EDT_M06 ||
+/*	if (tsdata->version == EDT_M06 ||
 	    tsdata->version == EDT_M09 ||
 	    tsdata->version == EDT_M12) {
 		tsdata->num_x = edt_ft5x06_register_read(tsdata,
@@ -1007,7 +989,7 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	} else {
 		tsdata->num_x = -1;
 		tsdata->num_y = -1;
-	}
+	}*/
 }
 
 static void
@@ -1021,8 +1003,8 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		reg_addr->reg_report_rate = WORK_REGISTER_REPORT_RATE;
 		reg_addr->reg_gain = WORK_REGISTER_GAIN;
 		reg_addr->reg_offset = WORK_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
+	//	reg_addr->reg_offset_x = NO_REGISTER;
+	//	reg_addr->reg_offset_y = NO_REGISTER;
 		reg_addr->reg_num_x = WORK_REGISTER_NUM_X;
 		reg_addr->reg_num_y = WORK_REGISTER_NUM_Y;
 		break;
@@ -1033,13 +1015,13 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
+	//	reg_addr->reg_offset_x = NO_REGISTER;
+	//	reg_addr->reg_offset_y = NO_REGISTER;
 		reg_addr->reg_num_x = M09_REGISTER_NUM_X;
 		reg_addr->reg_num_y = M09_REGISTER_NUM_Y;
 		break;
 
-	case EV_FT:
+/*	case EV_FT:
 		reg_addr->reg_threshold = EV_REGISTER_THRESHOLD;
 		reg_addr->reg_gain = EV_REGISTER_GAIN;
 		reg_addr->reg_offset = NO_REGISTER;
@@ -1049,24 +1031,25 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		reg_addr->reg_num_y = NO_REGISTER;
 		reg_addr->reg_report_rate = NO_REGISTER;
 		break;
+		*/
 
 	case GENERIC_FT:
 		/* this is a guesswork */
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_offset_x = NO_REGISTER;
-		reg_addr->reg_offset_y = NO_REGISTER;
+//		reg_addr->reg_offset_x = NO_REGISTER;
+//		reg_addr->reg_offset_y = NO_REGISTER;
 		break;
 	}
 }
 
-static void edt_ft5x06_disable_regulator(void *arg)
+/*static void edt_ft5x06_disable_regulator(void *arg)
 {
 	struct edt_ft5x06_ts_data *data = arg;
 
 	regulator_disable(data->vcc);
-}
+}*/
 
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
@@ -1079,7 +1062,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	int error;
 	char fw_version[EDT_NAME_LEN];
 
-	dev_dbg(&client->dev, "probing for EDT FT5x06 I2C\n");
+//	dev_dbg(&client->dev, "probing for EDT FT5x06 I2C\n");
+	dev_info(&client->dev, "probing for EDT FT5x06 I2C\n");
 
 	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata) {
@@ -1097,7 +1081,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 
 	tsdata->max_support_points = chip_data->max_support_points;
 
-	tsdata->vcc = devm_regulator_get(&client->dev, "vcc");
+/*	tsdata->vcc = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(tsdata->vcc)) {
 		error = PTR_ERR(tsdata->vcc);
 		if (error != -EPROBE_DEFER)
@@ -1117,7 +1101,9 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 tsdata);
 	if (error)
 		return error;
-
+		*/
+	tsdata->num_x = chip_data->x_resolution;
+	tsdata->num_y = chip_data->y_resolution;
 	tsdata->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						     "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tsdata->reset_gpio)) {
@@ -1142,12 +1128,12 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	 * the EDT_PMODE_POWEROFF test since this is the deepest possible sleep
 	 * mode.
 	 */
-	if (tsdata->reset_gpio)
+/*	if (tsdata->reset_gpio)
 		tsdata->suspend_mode = EDT_PMODE_POWEROFF;
 	else if (tsdata->wake_gpio)
 		tsdata->suspend_mode = EDT_PMODE_HIBERNATE;
 	else
-		tsdata->suspend_mode = EDT_PMODE_NOT_SUPPORTED;
+		tsdata->suspend_mode = EDT_PMODE_NOT_SUPPORTED;*/
 
 	if (tsdata->wake_gpio) {
 		usleep_range(5000, 6000);
@@ -1158,6 +1144,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(tsdata->reset_gpio, 0);
 		msleep(300);
+		gpiod_set_value_cansleep(tsdata->reset_gpio, 1);
 	}
 
 	input = devm_input_allocate_device(&client->dev);
@@ -1187,28 +1174,17 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
-	dev_dbg(&client->dev,
+	dev_info(&client->dev,
 		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
 
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
-
-	if (tsdata->version == EDT_M06 ||
-	    tsdata->version == EDT_M09 ||
-	    tsdata->version == EDT_M12) {
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, tsdata->num_x * 64 - 1, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, tsdata->num_y * 64 - 1, 0, 0);
-	} else {
-		/* Unknown maximum values. Specify via devicetree */
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, 65535, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, 65535, 0, 0);
-	}
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+					0, tsdata->num_x, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+					0, tsdata->num_y, 0, 0);
 
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
@@ -1218,7 +1194,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Unable to init MT slots.\n");
 		return error;
 	}
-
+	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
 	irq_flags = irq_get_trigger_type(client->irq);
@@ -1244,7 +1220,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 
 	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
 
-	dev_dbg(&client->dev,
+	device_init_wakeup(&client->dev, 1);
+	dev_info(&client->dev,
 		"EDT FT5x06 initialized: IRQ %d, WAKE pin %d, Reset pin %d.\n",
 		client->irq,
 		tsdata->wake_gpio ? desc_to_gpio(tsdata->wake_gpio) : -1,
@@ -1265,24 +1242,10 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
-	struct gpio_desc *reset_gpio = tsdata->reset_gpio;
-	int ret;
 
 	if (device_may_wakeup(dev))
-		return 0;
-
-	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
-		return 0;
-
-	/* Enter hibernate mode. */
-	ret = edt_ft5x06_register_write(tsdata, PMOD_REGISTER_OPMODE,
-					PMOD_REGISTER_HIBERNATE);
-	if (ret)
-		dev_warn(dev, "Failed to set hibernate mode\n");
-
-	if (tsdata->suspend_mode == EDT_PMODE_HIBERNATE)
-		return 0;
+//		return 0;
+		enable_irq_wake(client->irq);
 
 	/*
 	 * Power-off according the datasheet. Cut the power may leaf the irq
@@ -1290,14 +1253,6 @@ static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 	 * settings. Disable the irq to avoid adjusting each host till the
 	 * device is back in a full functional state.
 	 */
-	disable_irq(tsdata->client->irq);
-
-	gpiod_set_value_cansleep(reset_gpio, 1);
-	usleep_range(1000, 2000);
-
-	ret = regulator_disable(tsdata->vcc);
-	if (ret)
-		dev_warn(dev, "Failed to disable vcc\n");
 
 	return 0;
 }
@@ -1305,17 +1260,11 @@ static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
-	int ret = 0;
+//	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
+//	int ret = 0;
 
 	if (device_may_wakeup(dev))
-		return 0;
-
-	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
-		return 0;
-
-	if (tsdata->suspend_mode == EDT_PMODE_POWEROFF) {
-		struct gpio_desc *reset_gpio = tsdata->reset_gpio;
+	//	return 0;
 
 		/*
 		 * We can't check if the regulator is a dummy or a real
@@ -1325,34 +1274,10 @@ static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 		 * of. Toggle the reset pin is also a way to exit the hibernate
 		 * mode.
 		 */
-		gpiod_set_value_cansleep(reset_gpio, 1);
-		usleep_range(5000, 6000);
-
-		ret = regulator_enable(tsdata->vcc);
-		if (ret) {
-			dev_err(dev, "Failed to enable vcc\n");
-			return ret;
-		}
-
-		usleep_range(1000, 2000);
-		gpiod_set_value_cansleep(reset_gpio, 0);
-		msleep(300);
-
-		edt_ft5x06_restore_reg_parameters(tsdata);
-		enable_irq(tsdata->client->irq);
-
-		if (tsdata->factory_mode)
-			ret = edt_ft5x06_factory_mode(tsdata);
-	} else {
-		struct gpio_desc *wake_gpio = tsdata->wake_gpio;
-
-		gpiod_set_value_cansleep(wake_gpio, 0);
-		usleep_range(5000, 6000);
-		gpiod_set_value_cansleep(wake_gpio, 1);
-	}
+		disable_irq_wake(client->irq);
 
 
-	return ret;
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
@@ -1366,38 +1291,43 @@ static const struct edt_i2c_chip_data edt_ft5506_data = {
 	.max_support_points = 10,
 };
 
-static const struct edt_i2c_chip_data edt_ft6236_data = {
-	.max_support_points = 2,
+static const struct edt_i2c_chip_data edt_ft5336_data = {
+	.max_support_points = 5,
+	.x_resolution = 1080,
+	.y_resolution = 1920,
 };
 
 static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
-	{ .name = "ev-ft5726", .driver_data = (long)&edt_ft5506_data },
+//	{ .name = "ev-ft5726", .driver_data = (long)&edt_ft5506_data },
 	/* Note no edt- prefix for compatibility with the ft6236.c driver */
-	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
+//	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, edt_ft5x06_ts_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ .compatible = "edt,edt-ft5206", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5306", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
-	{ .compatible = "evervision,ev-ft5726", .data = &edt_ft5506_data },
+//	{ .compatible = "evervision,ev-ft5726", .data = &edt_ft5506_data },
 	/* Note focaltech vendor prefix for compatibility with ft6236.c */
-	{ .compatible = "focaltech,ft6236", .data = &edt_ft6236_data },
+//	{ .compatible = "focaltech,ft6236", .data = &edt_ft6236_data },
+	{ .compatible = "edt,edt-ft5336", .data = &edt_ft5336_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, edt_ft5x06_of_match);
+#endif
 
 static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
 		.name = "edt_ft5x06",
-		.of_match_table = edt_ft5x06_of_match,
+		.of_match_table = of_match_ptr(edt_ft5x06_of_match),
 		.pm = &edt_ft5x06_ts_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+//		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,
