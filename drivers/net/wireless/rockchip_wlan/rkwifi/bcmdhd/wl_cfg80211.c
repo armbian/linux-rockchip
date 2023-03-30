@@ -15176,7 +15176,7 @@ wl_cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	wdev = ndev_to_wdev(dev);
 	if (!wdev) {
-		WL_ERR(("wdev null. Do nothing\n"));
+		//WL_ERR(("wdev null. Do nothing\n"));
 		return NOTIFY_DONE;
 	}
 
