@@ -342,6 +342,8 @@ struct tsadc_table {
 	int temp;
 };
 
+static struct rockchip_thermal_sensor  *g_tsensor_data_ptr;
+
 static const struct tsadc_table rv1106_code_table[] = {
 	{0, MIN_TEMP},
 	{363, MIN_TEMP},
@@ -2120,6 +2122,20 @@ static int rockchip_thermal_get_temp(void *_sensor, int *out_temp)
 	return retval;
 }
 
+int rk_get_temperature(void)
+{
+	int temp;
+	int ret;
+
+	ret = rockchip_thermal_get_temp(g_tsensor_data_ptr, &temp);
+		if (ret) {
+			pr_debug("rk_get_temp failed!\n");
+			return ret;
+		}
+	     return temp / 1000;
+}
+EXPORT_SYMBOL(rk_get_temperature);
+
 static const struct thermal_zone_of_device_ops rockchip_of_thermal_ops = {
 	.get_temp = rockchip_thermal_get_temp,
 	.set_trips = rockchip_thermal_set_trips,
@@ -2516,6 +2532,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	thermal->panic_nb.notifier_call = rockchip_thermal_panic;
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &thermal->panic_nb);
+	g_tsensor_data_ptr = &thermal->sensors[0];
 
 	dev_info(&pdev->dev, "tsadc is probed successfully!\n");
 
