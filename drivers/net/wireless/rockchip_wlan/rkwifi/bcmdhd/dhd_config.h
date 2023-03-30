@@ -22,6 +22,7 @@
 #define FW_TYPE_AG      1
 
 #define FW_PATH_AUTO_SELECT 1
+#define CONFIG_PATH_AUTO_SELECT
 #ifdef BCMDHD_MDRIVER
 #define CONFIG_PATH_AUTO_SELECT
 #else
