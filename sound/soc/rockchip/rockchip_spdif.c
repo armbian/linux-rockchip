@@ -385,7 +385,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 
 	spdif->playback_dma_data.addr = res->start + SPDIF_SMPDR;
 	spdif->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	spdif->playback_dma_data.maxburst = 4;
+	spdif->playback_dma_data.maxburst = 8;
 
 	spdif->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, spdif);
