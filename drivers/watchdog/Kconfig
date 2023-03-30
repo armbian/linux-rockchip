@@ -832,6 +832,16 @@ config MEDIATEK_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtk_wdt.
 
+config KHADAS_WATCHDOG
+	tristate "KHADAS watchdog support"
+	default y
+	help
+	 Say Y here to include watchdog support embedded into KHADAS.
+	 If the watchdog timer expires, TPS3851 will shut down all its power
+	 supplies.
+	 To compile this driver as a module, choose M here: the
+	 module will be called KHADAS_wdt.
+
 config DIGICOLOR_WATCHDOG
 	tristate "Conexant Digicolor SoCs watchdog support"
 	depends on ARCH_DIGICOLOR || COMPILE_TEST
