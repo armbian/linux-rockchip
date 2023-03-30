@@ -482,5 +482,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6s.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-hinlink-h88k.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-khadas-edge2.dtb
 
 subdir-y := $(dts-dirs) overlay
