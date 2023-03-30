@@ -383,6 +383,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6s.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-khadas-edge2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v10-amp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v10-bt-sco.dtb
