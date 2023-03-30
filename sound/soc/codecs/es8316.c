@@ -21,8 +21,12 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <sound/jack.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/of_gpio.h>
 #include "es8316.h"
-
+#define INVALID_GPIO -1
 /* In slave mode at single speed, the codec is documented as accepting 5
  * MCLK/LRCK ratios, but we also add ratio 400, which is commonly used on
  * Intel Cherry Trail platforms (19.2MHz MCLK, 48kHz LRCK).
@@ -42,12 +46,37 @@ struct es8316_priv {
 	unsigned int sysclk;
 	unsigned int allowed_rates[NR_SUPPORTED_MCLK_LRCK_RATIOS];
 	struct snd_pcm_hw_constraint_list sysclk_constraints;
+	int hp_det_invert;
+	int spk_ctl_gpio;
+	int hp_det_gpio;
+	bool hp_inserted;
 	bool jd_inverted;
+	bool spk_active_level;
 };
 
 /*
  * ES8316 controls
  */
+static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
+{
+	bool level;
+	level = enable ? es8316->spk_active_level : !es8316->spk_active_level;
+//	printk("es8316 spk_ctl_gpio %d\n",level);
+	gpio_set_value(es8316->spk_ctl_gpio, level);
+}
+
+static void es8316_enable_headset_mic(struct es8316_priv *es8316, bool enable)
+{
+	if (enable) {
+		if (es8316 && es8316->component)
+			snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xd0);
+	}
+	else {
+		if (es8316 && es8316->component)
+			snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xc0);
+	}
+}
+
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_vol_tlv, -9600, 50, 1);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(alc_max_gain_tlv, -650, 150, 0);
@@ -574,13 +603,27 @@ static irqreturn_t es8316_irq(int irq, void *data)
 	struct es8316_priv *es8316 = data;
 	struct snd_soc_component *comp = es8316->component;
 	unsigned int flags;
+	int enable;
+//	es8316_enable_spk(es8316, false);
+	enable = gpio_get_value(es8316->hp_det_gpio);
+	if (es8316->hp_det_invert)
+        enable = !enable;
 
-	mutex_lock(&es8316->lock);
+	es8316->hp_inserted = enable ? true : false;
+	if (es8316->hp_inserted) {
+        es8316_enable_spk(es8316, false);
+		es8316_enable_headset_mic(es8316, true);
+	}
+	else {
+        es8316_enable_spk(es8316, true);
+		es8316_enable_headset_mic(es8316, false);
+	}
+        mutex_lock(&es8316->lock);
 
 	regmap_read(es8316->regmap, ES8316_GPIO_FLAG, &flags);
-	if (flags == 0x00)
+	if (flags == 0x00){
 		goto out; /* Powered-down / reset */
-
+	}
 	/* Catch spurious IRQ before set_jack is called */
 	if (!es8316->jack)
 		goto out;
@@ -791,7 +834,10 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 {
 	struct device *dev = &i2c_client->dev;
 	struct es8316_priv *es8316;
-	int ret;
+	int ret=-1;
+	enum of_gpio_flags flags;
+	struct device_node *np = i2c_client->dev.of_node;
+	unsigned int val;
 
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
@@ -799,21 +845,71 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c_client, es8316);
+	es8316->hp_det_invert = 0;
+	es8316->hp_inserted = false;
 
 	es8316->regmap = devm_regmap_init_i2c(i2c_client, &es8316_regmap);
 	if (IS_ERR(es8316->regmap))
 		return PTR_ERR(es8316->regmap);
 
-	es8316->irq = i2c_client->irq;
+	ret = regmap_read(es8316->regmap, ES8316_GPIO_FLAG, &val);
+	if (ret) {
+		dev_err(&i2c_client->dev, "ES8316 doesn't exist, exit of probe!\n");
+		return ret;
+	}
+
+	//es8316->irq = i2c_client->irq;
+     es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
+					"spk-con-gpio", 0, &flags);
+     if (es8316->spk_ctl_gpio < 0) {
+          dev_info(&i2c_client->dev, "Can not read property spk_ctl_gpio\n");
+          es8316->spk_ctl_gpio = INVALID_GPIO;
+     } else {
+          es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
+          ret = devm_gpio_request_one(&i2c_client->dev, es8316->spk_ctl_gpio,
+                                           GPIOF_DIR_OUT, NULL);
+          if (ret) {
+             dev_err(&i2c_client->dev, "Failed to request spk_ctl_gpio\n");
+             return ret;
+          }
+       }
+
+	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
+                                                   "hp-det-gpio",
+                                                    0,
+                                                    &flags);
+    if (es8316->hp_det_gpio < 0) {
+         dev_info(&i2c_client->dev, "Can not read property hp_det_gpio\n");
+         es8316->hp_det_gpio = INVALID_GPIO;
+     } else {
+         es8316->hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
+         ret = devm_gpio_request_one(&i2c_client->dev, es8316->hp_det_gpio,
+                                           GPIOF_IN, "hp det");
+         if (ret < 0)
+            return ret;
+         es8316->irq = gpio_to_irq(es8316->hp_det_gpio);
+     }
+
 	mutex_init(&es8316->lock);
 
+	if (!!gpio_get_value(es8316->hp_det_gpio))
+		if (es8316->hp_det_invert)
+			es8316_enable_spk(es8316, true);
+		else
+			es8316_enable_spk(es8316, false);
+	else
+		if (es8316->hp_det_invert)
+			es8316_enable_spk(es8316, false);
+		else
+			es8316_enable_spk(es8316, true);
+
 	ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					"es8316", es8316);
-	if (ret == 0) {
+	if (ret < 0) {
 		/* Gets re-enabled by es8316_set_jack() */
-		disable_irq(es8316->irq);
-	} else {
+//		disable_irq(es8316->irq);
+//	} else {
 		dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);
 		es8316->irq = -ENXIO;
 	}
