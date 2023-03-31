@@ -10,7 +10,7 @@
 #include "rk3588-linux.dtsi"
 
 / {
-	model = "RK3588 EDGE LP4x V1.0 BlueBerry Board";
+	model = "Mekotronics R58X (RK3588 EDGE LP4x V1.0 BlueBerry Board)";
 	compatible = "rockchip,rk3588-hugsun-edge-v10-linux", "rockchip,rk3588";
 };
 
