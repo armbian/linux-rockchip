@@ -1516,10 +1516,10 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	if (i == WAIT_SIGNAL_LOCK_TIME) {
-		v4l2_err(v4l2_dev, "%s signal not lock, tmds_clk_ratio:%d\n",
-				__func__, hdmirx_dev->tmds_clk_ratio);
-		v4l2_err(v4l2_dev, "%s mu_st:%#x, scdc_st:%#x, dma_st10:%#x\n",
-				__func__, mu_status, scdc_status, dma_st10);
+		// spammy // v4l2_err(v4l2_dev, "%s signal not lock, tmds_clk_ratio:%d\n",
+		// spammy // 		__func__, hdmirx_dev->tmds_clk_ratio);
+		// spammy // v4l2_err(v4l2_dev, "%s mu_st:%#x, scdc_st:%#x, dma_st10:%#x\n",
+		// spammy // 		__func__, mu_status, scdc_status, dma_st10);
 
 		return -1;
 	}
@@ -2619,7 +2619,7 @@ static irqreturn_t hdmirx_dma_irq_handler(int irq, void *dev_id)
 
 static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
-	dev_info(hdmirx_dev->dev, "%s: %d", __func__, en);
+	// spammy // dev_info(hdmirx_dev->dev, "%s: %d", __func__, en);
 	if (en) {
 		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
 				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
