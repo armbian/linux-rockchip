@@ -403,5 +403,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-iotest-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126bp-evb-v14.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126bp-evb-v14-dual-cam.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6c.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-r6s.dtb
 
 subdir-y := $(dts-dirs) overlay
