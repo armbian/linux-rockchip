@@ -1729,7 +1729,7 @@
 		clocks = <&scmi_clk 4>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
-		upthreshold = <40>;
+		upthreshold = <25>;
 		downdifferential = <20>;
 		system-status-level = <
 			/*system status         freq level*/
