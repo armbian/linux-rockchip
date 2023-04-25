@@ -16,7 +16,7 @@
 #include <dt-bindings/usb/pd.h>
 #include "rk3588s.dtsi"
 #include "rk3588-rk806-single.dtsi"
-#include "rk3588-s.dtsi"
+#include "rk3588-linux.dtsi"
 
 / {
 	aliases {
