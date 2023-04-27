@@ -1,56 +1,140 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
 / {
 	metadata {
-		title ="Enable Radxa Display 10HD on ROCK 5B";
-		compatible = "radxa,rock-5b", "rockchip,rk3588";
+		title ="Enable Radxa Display 10HD";
+		compatible = "radxa,rock-5b";
 		category = "display";
-		description = "Enable Radxa Display 10HD on ROCK 5B";
+		exclusive = "dsi1";
+		description = "Enable Radxa Display 10HD.";
 	};
 
 	fragment@0 {
-		target = <&vcc_lcd_mipi1>;
+		target-path = "/";
 
 		__overlay__ {
-			status = "okay";
+			vcc_lcd_mipi1: vcc-lcd-mipi1 {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "vcc_lcd_mipi1";
+				gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dsi1_backlight: dsi1-backlight {
+				status = "okay";
+				compatible = "pwm-backlight";
+				pwms = <&pwm2 0 25000 0>;
+				brightness-levels = <
+					255 254 253 252 251 250 249 248
+					247 246 245 244 243 242 241 240
+					239 238 237 236 235 234 233 232
+					231 230 229 228 227 226 225 224
+					223 222 221 220 219 218 217 216
+					215 214 213 212 211 210 209 208
+					207 206 205 204 203 202 201 200
+					199 198 197 196 195 194 193 192
+					191 190 189 188 187 186 185 184
+					183 182 181 180 179 178 177 176
+					175 174 173 172 171 170 169 168
+					167 166 165 164 163 162 161 160
+					159 158 157 156 155 154 153 152
+					151 150 149 148 147 146 145 144
+					143 142 141 140 139 138 137 136
+					135 134 133 132 131 130 129 128
+					127 126 125 124 123 122 121 120
+					119 118 117 116 115 114 113 112
+					111 110 109 108 107 106 105 104
+					103 102 101 100  99  98  97  96
+					 95  94  93  92  91  90  89  88
+					 87  86  85  84  83  82  81  80
+					 79  78  77  76  75  74  73  72
+					 71  70  69  68  67  66  65  64
+					 63  62  61  60  59  58  57  56
+					 55  54  53  52  51  50  49  48
+					 47  46  45  44  43  42  41  40
+					 39  38  38  37  37  36  36  35
+					 35  34  34  33  33  32  32  31
+					 31  30  30  29  29  28  28  27
+					 27  26  26  25  25  24  24  23
+					 23  22  22  21  21  20  20   0
+				>;
+				default-brightness-level = <200>;
+				enable-gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dsi1_backlight_en>;
+			};
 		};
 	};
 
 	fragment@1 {
-		target = <&dsi1_backlight>;
-
-		__overlay__ {
-			status = "okay";
-		};
-	};
-
-	fragment@2 {
 		target = <&pwm2>;
 
 		__overlay__ {
 			status = "okay";
+			pinctrl-names = "active";
+			pinctrl-0 = <&pwm2m2_pins>;
 		};
 	};
 
-	fragment@3 {
+	fragment@2 {
 		target = <&dsi1>;
 
 		__overlay__ {
 			status = "okay";
+			rockchip,lane-rate = <480>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi1_panel: panel@0 {
+				status = "okay";
+				compatible = "chongzhou,cz101b4001";
+				reg = <0>;
+				backlight = <&dsi1_backlight>;
+
+				vdd-supply = <&vcc_lcd_mipi1>;
+				vccio-supply = <&vcc_1v8_s0>;
+				reset-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dsi1_lcd_rst_gpio>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						panel_in_dsi1: endpoint {
+							remote-endpoint = <&dsi1_out_panel>;
+						};
+					};
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi1_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi1>;
+					};
+				};
+			};
 		};
 	};
 
-	fragment@4 {
-		target = <&dsi1_panel>;
-
-		__overlay__ {
-			status = "okay";
-			compatible ="chongzhou,cz101b4001";
-		};
-	};
-
-	fragment@5 {
+	fragment@3 {
 		target = <&mipi_dcphy1>;
 
 		__overlay__ {
@@ -58,7 +142,34 @@
 		};
 	};
 
-	fragment@6 {
+	fragment@4 {
+		target = <&i2c6>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c6m0_xfer>;
+			clock-frequency = <400000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			focaltech: focaltech@38 {
+				status = "okay";
+				compatible = "focaltech,fts";
+				reg = <0x38>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&focaltech_gpio>;
+				focaltech,irq-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+				focaltech,reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+				focaltech,display-coords = <0 0 799 1279>;
+			};
+		};
+	};
+
+
+
+
+	fragment@5 {
 		target = <&route_dsi1>;
 
 		__overlay__ {
@@ -67,7 +178,7 @@
 		};
 	};
 
-	fragment@7 {
+	fragment@6 {
 		target = <&dsi1_in_vp2>;
 
 		__overlay__ {
@@ -75,7 +186,7 @@
 		};
 	};
 
-	fragment@8 {
+	fragment@7 {
 		target = <&dsi1_in_vp3>;
 
 		__overlay__ {
@@ -83,19 +194,28 @@
 		};
 	};
 
-	fragment@9 {
-		target = <&i2c6>;
+
+	fragment@8 {
+		target = <&pinctrl>;
 
 		__overlay__ {
-			status = "okay";
-		};
-	};
+			dsi1-lcd {
+				dsi1_lcd_rst_gpio: dsi1-lcd-rst-gpio {
+					rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
 
-	fragment@10 {
-		target = <&focaltech>;
+				dsi1_backlight_en: dsi1-backlight-en {
+					rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
 
-		__overlay__ {
-			status = "okay";
+			focaltech {
+				focaltech_gpio: focaltech-gpio {
+					rockchip,pins =
+						<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+						<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
 		};
 	};
 };
