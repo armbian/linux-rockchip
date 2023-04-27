@@ -19,7 +19,6 @@
 #include "rk3588.dtsi"
 #include "rk3588-rk806-single.dtsi"
 #include "rk3588-linux.dtsi"
-#include "rk3588-rock-5b-display.dtsi"
 #include "rk3588-rock-5b-camera.dtsi"
 
 / {
