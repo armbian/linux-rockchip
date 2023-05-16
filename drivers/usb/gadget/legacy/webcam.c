@@ -12,6 +12,7 @@
 #include <linux/usb/video.h>
 
 #include "u_uvc.h"
+#include "../function/uvc.h"
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
