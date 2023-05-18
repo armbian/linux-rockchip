@@ -536,7 +536,7 @@ static void create_mcu_attrs(void) {
 		return;
 	}
 	for (i = 0; i < ARRAY_SIZE(mcu_class_attrs); i++) {
-		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i]));
+		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i]))
 			pr_err("create mcu attribute %s fail\n",
 							mcu_class_attrs[i].attr.name);
 	}
