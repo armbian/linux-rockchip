@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	status = "disabled";
+	reset-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_LOW>;
+	enable-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "disabled";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+};
+
+&i2c7 {
+	status = "okay";
+
+	gt9xx_0: touchscreen@14 {
+		compatible = "goodix,gt9271";
+		reg = <0x14>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpios = <&gpio2 RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		touchscreen-inverted-x;
+		//touchscreen-inverted-y;
+		touchscreen-swapped-x-y;
+		touchscreen-size-x = <1280>;
+		touchscreen-size-y = <800>;
+		status = "okay";
+	};
+};

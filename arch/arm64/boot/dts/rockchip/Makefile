@@ -273,6 +273,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nvr-demo3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nvr-demo3-v10-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-orangepi-5-plus.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5b.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-toybrick-x0-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-toybrick-x0-linux.dtb
