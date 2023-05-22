@@ -886,6 +886,7 @@
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";
+			faster-pd-negotiation;
 			power-role = "sink";
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
