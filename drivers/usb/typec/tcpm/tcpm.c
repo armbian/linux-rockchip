@@ -486,6 +486,7 @@ struct tcpm_port {
 	int logbuffer_tail;
 	u8 *logbuffer[LOG_BUFFER_ENTRIES];
 #endif
+	bool faster_pd_negotiation;
 };
 
 struct pd_rx_event {
@@ -4219,7 +4220,7 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_ATTACH_WAIT:
 		port->debouncing = true;
-		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		timer_val_msecs = port->faster_pd_negotiation ? 100 : PD_T_CC_DEBOUNCE;
 		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_ATTACH_WAIT],
 						      CC_DEBOUNCE, &timer_val_msecs);
 		if ((port->cc1 == TYPEC_CC_OPEN &&
@@ -4381,7 +4382,7 @@ static void run_state_machine(struct tcpm_port *port)
 		if (port->vbus_never_low) {
 			port->vbus_never_low = false;
 			tcpm_set_state(port, SNK_SOFT_RESET,
-				       timer_val_msecs);
+				       port->faster_pd_negotiation ? 100 : timer_val_msecs);
 		} else {
 			tcpm_set_state(port, hard_reset_state(port),
 				       timer_val_msecs);
@@ -4939,7 +4940,7 @@ static void run_state_machine(struct tcpm_port *port)
 			       PD_T_ERROR_RECOVERY);
 		break;
 	case PORT_RESET_WAIT_OFF:
-		timer_val_msecs = PD_T_PS_SOURCE_OFF;
+		timer_val_msecs = port->faster_pd_negotiation ? 100 : PD_T_PS_SOURCE_OFF;
 		trace_android_vh_typec_tcpm_get_timer(tcpm_states[PORT_RESET_WAIT_OFF],
 						      SOURCE_OFF, &timer_val_msecs);
 		tcpm_set_state(port,
@@ -6199,6 +6200,8 @@ sink:
 	port->operating_snk_mw = mw / 1000;
 
 	port->self_powered = fwnode_property_read_bool(fwnode, "self-powered");
+
+	port->faster_pd_negotiation = fwnode_property_read_bool(fwnode, "faster-pd-negotiation");
 
 	/* FRS can only be supported byb DRP ports */
 	if (port->port_type == TYPEC_PORT_DRP) {
