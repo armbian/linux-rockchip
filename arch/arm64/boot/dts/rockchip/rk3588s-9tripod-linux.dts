@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-9tripod-evb.dtsi"
+#include "rk3588-linux.dtsi"
+
+/ {
+	model = "Indiedroid Nova";
+	compatible = "9tripod,rk3588s", "rockchip,rk3588";
+
+	/delete-node/ chosen;
+};
+
+/* pin 40 pwm fan control */
+&pwm15 {
+        pinctrl-0 = <&pwm15m1_pins>;
+        status = "okay";
+};
