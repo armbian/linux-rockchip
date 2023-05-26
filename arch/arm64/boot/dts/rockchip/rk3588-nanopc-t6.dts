@@ -74,7 +74,7 @@
 	};
 
 	fan: pwm-fan {
-		status = "disabled";
+		status = "okay";
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		pwms = <&pwm1 0 50000 0>;
