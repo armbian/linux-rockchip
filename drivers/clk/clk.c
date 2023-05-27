@@ -3131,7 +3131,7 @@ static int clk_dump_show(struct seq_file *s, void *data)
 DEFINE_SHOW_ATTRIBUTE(clk_dump);
 
 #ifdef CONFIG_ANDROID_BINDER_IPC
-#define CLOCK_ALLOW_WRITE_DEBUGFS
+#undef CLOCK_ALLOW_WRITE_DEBUGFS
 #else
 #undef CLOCK_ALLOW_WRITE_DEBUGFS
 #endif
