@@ -2,14 +2,6 @@
 /plugin/;
 
 / {
-	metadata {
-		title = "Enable spidev on SPI0-M2 over CS0";
-		compatible = "radxa,rock-5a", "radxa,rock-5b";
-		category = "misc";
-		exclusive = "GPIO1_B3", "GPIO1_B2", "GPIO1_B1", "GPIO1_B4";
-		description = "Enable spidev on SPI0-M2 over CS0.";
-	};
-
 	fragment@0 {
 		target = <&spi0>;
 

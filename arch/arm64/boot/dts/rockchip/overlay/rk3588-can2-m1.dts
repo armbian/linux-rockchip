@@ -3,11 +3,12 @@
 
 / {
 	fragment@0 {
-		target = <&pwm13>;
+		target = <&can2>;
 
 		__overlay__ {
 			status = "okay";
-			pinctrl-0 = <&pwm13m2_pins>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&can2m1_pins>;
 		};
 	};
 };

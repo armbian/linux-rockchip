@@ -3,11 +3,11 @@
 
 / {
 	fragment@0 {
-		target = <&pwm13>;
+		target = <&pwm10>;
 
 		__overlay__ {
 			status = "okay";
-			pinctrl-0 = <&pwm13m2_pins>;
+			pinctrl-0 = <&pwm10m0_pins>;
 		};
 	};
 };
