@@ -1,0 +1,30 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART2-M2";
+		compatible = "radxa,rock-5b";
+		category = "misc";
+		exclusive = "GPIO3_B1", "GPIO3_B2";
+		description = "Enable UART2-M2.\nOn Radxa ROCK 5B this is TX pin 36 and this is RX pin 38.";
+	};
+
+	fragment@0 {
+		target = <&fiq_debugger>;
+
+		__overlay__ {
+			status = "okay";
+			rockchip,serial-id = <0xffffffff>;
+		};
+	};
+
+	fragment1 {
+		target = <&uart2>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&uart2m2_xfer>;
+		};
+	};
+};
