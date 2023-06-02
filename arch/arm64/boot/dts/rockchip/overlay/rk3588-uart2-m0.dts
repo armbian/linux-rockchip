@@ -1,0 +1,29 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART2-M0";
+		compatible = "radxa,rock-5a", "radxa,rock-5b";
+		category = "misc";
+		exclusive = "GPIO0_B5", "GPIO0_B6";
+		description = "Enable UART2-M0.\nOn Radxa ROCK 5A this is TX pin 8 and RX pin 10.\nOn Radxa ROCK 5B this is TX pin 8 and this is RX pin 10.";
+	};
+
+	fragment@0 {
+		target = <&uart2>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&uart2m0_xfer>;
+		};
+	};
+
+	fragment@1 {
+		target = <&fiq_debugger>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};

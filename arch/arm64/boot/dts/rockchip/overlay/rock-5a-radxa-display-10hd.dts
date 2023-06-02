@@ -7,10 +7,11 @@
 
 / {
 	metadata {
-		title ="Enable Radxa Display 8HD on ROCK 5A";
-		compatible = "radxa,rock-5a", "rockchip,rk3588";
+		title ="Enable Radxa Display 10HD";
+		compatible = "radxa,rock-5a";
 		category = "display";
-		description = "Enable Radxa Display 8HD on ROCK 5A";
+		exclusive = "dsi0";
+		description = "Enable Radxa Display 10HD.";
 	};
 
 	fragment@0 {
@@ -200,7 +201,7 @@
 		};
 	};
 
-	fragment@10 {
+	fragment@8 {
 		target = <&pinctrl>;
 
 		__overlay__ {

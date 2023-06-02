@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART6-M1 with Hardware Follow Control";
+		compatible = "unknown";
+		category = "misc";
+		exclusive = "GPIO1_A1", "GPIO1_A0", "GPIO1_A2", "GPIO1_A3";
+		description = "Enable UART6-M1 with hardware follow control.\nOn Radxa ROCK 5A this is CTSN pin 24, RTSN pin 23, TX pin 19, and RX pin 21.";
+	};
+
+	fragment@0 {
+		target = <&uart6>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&uart6m1_xfer &uart6m1_ctsn &uart6m1_rtsn>;
+		};
+	};
+};

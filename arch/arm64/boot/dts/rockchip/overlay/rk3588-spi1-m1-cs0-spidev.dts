@@ -1,0 +1,32 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable spidev on SPI1-M1 over CS0";
+		compatible = "radxa,rock-5b";
+		category = "misc";
+		exclusive = "GPIO3_C2", "GPIO3_C1", "GPIO3_B7", "GPIO3_C0";
+		description = "Enable spidev on SPI1-M1 over CS0.";
+	};
+
+	fragment@0 {
+		target = <&spi1>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
+			max-freq = <50000000>;
+
+			spidev@0 {
+				compatible = "rockchip,spidev";
+				status = "okay";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+			};
+		};
+	};
+};
