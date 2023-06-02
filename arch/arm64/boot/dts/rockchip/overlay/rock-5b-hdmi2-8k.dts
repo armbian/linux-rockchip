@@ -4,10 +4,10 @@
 
 / {
 	metadata {
-		title ="Enable 8K output on HDMI2";
-		compatible = "radxa,rock-5b", "rockchip,rk3588";
+		title = "Enable 8K output on HDMI2";
+		compatible = "radxa,rock-5b";
 		category = "display";
-		description = "Enable 8K output on HDMI2. Note: 8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
+		description = "Enable 8K output on HDMI2.\n8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
 	};
 
 	fragment@0 {
