@@ -2,14 +2,6 @@
 /plugin/;
 
 / {
-	metadata {
-		title = "Enable PWM0-M2";
-		compatible = "radxa,rock-5a";
-		category = "misc";
-		exclusive = "GPIO1_A2";
-		description = "Enable PWM0-M2.\nOn Radxa ROCK 5A this is pin 23.";
-	};
-
 	fragment@0 {
 		target = <&pwm0>;
 

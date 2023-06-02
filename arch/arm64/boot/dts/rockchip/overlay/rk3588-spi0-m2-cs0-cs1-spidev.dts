@@ -10,8 +10,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi0m2_cs1 &spi0m2_pins>;
+			pinctrl-0 = <&spi0m2_cs0 &spi0m2_cs1 &spi0m2_pins>;
 			max-freq = <50000000>;
+
+			spidev@0 {
+				compatible = "rockchip,spidev";
+				status = "okay";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+			};
 
 			spidev@1 {
 				compatible = "rockchip,spidev";
