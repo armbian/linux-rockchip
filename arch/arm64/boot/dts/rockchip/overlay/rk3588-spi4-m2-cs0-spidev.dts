@@ -2,14 +2,6 @@
 /plugin/;
 
 / {
-	metadata {
-		title = "Enable spidev on SPI4-M2 over CS0";
-		compatible = "radxa,rock-5a";
-		category = "misc";
-		exclusive = "GPIO1_A2", "GPIO1_A0", "GPIO1_A1", "GPIO1_A3";
-		description = "Enable spidev on SPI4-M2 over CS0.";
-	};
-
 	fragment@0 {
 		target = <&spi4>;
 
@@ -19,7 +11,6 @@
 			#size-cells = <0>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi4m2_cs0 &spi4m2_pins>;
-			max-freq = <50000000>;
 
 			spidev@0 {
 				compatible = "rockchip,spidev";
