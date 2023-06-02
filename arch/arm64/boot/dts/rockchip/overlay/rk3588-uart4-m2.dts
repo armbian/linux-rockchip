@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART4-M2";
+		compatible = "radxa,rock-5a", "radxa,rock-5b";
+		category = "misc";
+		exclusive= "GPIO1_B3", "GPIO1_B2";
+		description = "Enable UART4-M2.\nOn Radxa ROCK 5A this is TX pin 7 and RX pin 29.\nOn Radxa ROCK 5B this is TX pin 23 and this is RX pin 19.";
+	};
+
+	fragment@0 {
+		target = <&uart4>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&uart4m2_xfer>;
+		};
+	};
+};

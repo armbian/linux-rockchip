@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM13-M0";
+		compatible = "radxa,rock-5b";
+		category = "misc";
+		exclusive = "GPIO3_B6";
+		description = "Enable PWM13-M0.\nOn Radxa ROCK 5B this is pin 35.";
+	};
+
+	fragment@0 {
+		target = <&pwm13>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&pwm13m0_pins>;
+		};
+	};
+};
