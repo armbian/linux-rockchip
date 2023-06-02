@@ -2,19 +2,12 @@
 /plugin/;
 
 / {
-	metadata {
-		title = "Enable I2C2-M4";
-		compatible = "radxa,rock-5a";
-		category = "misc";
-		exclusive = "GPIO1_A0", "GPIO1_A1";
-		description = "Enable I2C2-M4.\nOn Radxa ROCK 5A this is SDA pin 21 and SCL pin 19.";
-	};
-
 	fragment@0 {
 		target = <&i2c2>;
 
 		__overlay__ {
 			status = "okay";
+			pinctrl-names = "default";
 			pinctrl-0 = <&i2c2m4_xfer>;
 		};
 	};
