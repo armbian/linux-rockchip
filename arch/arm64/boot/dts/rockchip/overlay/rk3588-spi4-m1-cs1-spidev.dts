@@ -3,15 +3,14 @@
 
 / {
 	fragment@0 {
-		target = <&spi0>;
+		target = <&spi4>;
 
 		__overlay__ {
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi0m2_cs1 &spi0m2_pins>;
-			max-freq = <50000000>;
+			pinctrl-0 = <&spi4m1_cs1 &spi4m1_pins>;
 
 			spidev@1 {
 				compatible = "rockchip,spidev";
