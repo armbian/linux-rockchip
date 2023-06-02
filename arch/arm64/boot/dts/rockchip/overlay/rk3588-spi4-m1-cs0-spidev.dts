@@ -3,20 +3,19 @@
 
 / {
 	fragment@0 {
-		target = <&spi0>;
+		target = <&spi4>;
 
 		__overlay__ {
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi0m2_cs1 &spi0m2_pins>;
-			max-freq = <50000000>;
+			pinctrl-0 = <&spi4m1_cs0 &spi4m1_pins>;
 
-			spidev@1 {
+			spidev@0 {
 				compatible = "rockchip,spidev";
 				status = "okay";
-				reg = <1>;
+				reg = <0>;
 				spi-max-frequency = <50000000>;
 			};
 		};
