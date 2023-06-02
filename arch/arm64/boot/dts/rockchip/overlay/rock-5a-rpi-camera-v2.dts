@@ -1,54 +1,72 @@
 /dts-v1/;
 /plugin/;
 
-#include <dt-bindings/clock/rk3588-cru.h>
-#include <dt-bindings/power/rk3588-power.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 / {
 	metadata {
-		title ="Enable Radxa Camera 4K";
+		title ="Enable Raspberry Pi Camera V2";
 		compatible = "radxa,rock-5a";
 		category = "camera";
 		exclusive = "csi2_dphy0";
-		description = "Enable Radxa Camera 4K.";
+		description = "Enable Raspberry Pi Camera V2.";
 	};
 
+
 	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			camera_pwdn_gpio: camera-pwdn-gpio {
+				compatible = "regulator-fixed";
+				regulator-name = "camera_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&cam_pwdn_gpio>;
+			};
+
+			clk_cam_24m: external-camera-clock-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "clk_cam_24m";
+				#clock-cells = <0>;
+			};
+		};
+	};
+
+	fragment@1 {
 		target = <&i2c3>;
 
 		__overlay__ {
 			status = "okay";
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			imx415: imx415@1a {
-				status = "okay";
-				compatible = "sony,imx415";
-				reg = <0x1a>;
-				clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+			camera_imx219: camera-imx219@10 {
+				compatible = "sony,imx219";
+				reg = <0x10>;
+
+				clocks = <&clk_cam_24m>;
 				clock-names = "xvclk";
-				pinctrl-names = "default";
-				pinctrl-0 = <&mipim0_camera2_clk>;
-				power-domains = <&power RK3588_PD_VI>;
-				pwdn-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+
 				rockchip,camera-module-index = <0>;
 				rockchip,camera-module-facing = "back";
-				rockchip,camera-module-name = "RADXA-CAMERA-4K";
-				rockchip,camera-module-lens-name = "DEFAULT";
+				rockchip,camera-module-name = "rpi-camera-v2";
+				rockchip,camera-module-lens-name = "default";
+
 				port {
-					imx415_out0: endpoint {
-						remote-endpoint = <&mipidphy0_in_ucam0>;
-						data-lanes = <1 2 3 4>;
+					imx219_out0: endpoint {
+						remote-endpoint = <&mipidphy0_in_ucam1>;
+						data-lanes = <1 2>;
 					};
 				};
 			};
 		};
 	};
 
-	fragment@1 {
+	fragment@2 {
 		target = <&csi2_dphy0_hw>;
 
 		__overlay__ {
@@ -56,7 +74,7 @@
 		};
 	};
 
-	fragment@2 {
+	fragment@3 {
 		target = <&csi2_dphy0>;
 
 		__overlay__ {
@@ -71,10 +89,10 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					mipidphy0_in_ucam0: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&imx415_out0>;
-						data-lanes = <1 2 3 4>;
+					mipidphy0_in_ucam1: endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&imx219_out0>;
+						data-lanes = <1 2>;
 					};
 				};
 
@@ -92,7 +110,7 @@
 		};
 	};
 
-	fragment@3 {
+	fragment@4 {
 		target = <&mipi2_csi2>;
 
 		__overlay__ {
@@ -127,7 +145,7 @@
 		};
 	};
 
-	fragment@4 {
+	fragment@5 {
 		target = <&rkcif>;
 
 		__overlay__ {
@@ -135,7 +153,7 @@
 		};
 	};
 
-	fragment@5 {
+	fragment@6 {
 		target = <&rkcif_mipi_lvds2>;
 
 		__overlay__ {
@@ -143,13 +161,13 @@
 
 			port {
 				cif_mipi2_in0: endpoint {
-					remote-endpoint = <&mipi2_csi2_output>;
+				remote-endpoint = <&mipi2_csi2_output>;
 				};
 			};
 		};
 	};
 
-	fragment@6 {
+	fragment@7 {
 		target = <&rkcif_mipi_lvds2_sditf>;
 
 		__overlay__ {
@@ -163,7 +181,7 @@
 		};
 	};
 
-	fragment@7 {
+	fragment@8 {
 		target = <&rkcif_mmu>;
 
 		__overlay__ {
@@ -171,7 +189,7 @@
 		};
 	};
 
-	fragment@8 {
+	fragment@9 {
 		target = <&isp0_mmu>;
 
 		__overlay__ {
@@ -179,7 +197,7 @@
 		};
 	};
 
-	fragment@9 {
+	fragment@10 {
 		target = <&rkisp0>;
 
 		__overlay__ {
@@ -187,7 +205,7 @@
 		};
 	};
 
-	fragment@10 {
+	fragment@11 {
 		target = <&rkisp0_vir0>;
 
 		__overlay__ {
@@ -204,5 +222,16 @@
 			};
 		};
 	};
-};
 
+	fragment@12 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			camera {
+				cam_pwdn_gpio: cam-pwdn-gpio {
+					rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};

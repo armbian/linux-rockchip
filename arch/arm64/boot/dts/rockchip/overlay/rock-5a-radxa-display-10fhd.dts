@@ -1,0 +1,85 @@
+// ROCK 5A Radxa Display 10FHD
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable Radxa Display 10FHD";
+		compatible = "unknown";
+		category = "display";
+		exclusive = "dsi0";
+		description = "Enable Radxa Display 10FHD.";
+	};
+
+	fragment@0 {
+		target = <&vcc_lcd_mipi0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&dsi0_backlight>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&pwm10>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&dsi0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&dsi0_panel>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@5 {
+		target = <&mipi_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&route_dsi0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&dsi0_in_vp2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@8 {
+		target = <&dsi0_in_vp3>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable I2C7-M3";
+		compatible = "unknown";
+		category = "misc";
+		exclusive = "GPIO4_B2", "GPIO4_B3";
+		description = "Enable I2C7-M3.";
+	};
+
+	fragment@0 {
+		target = <&i2c7>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c7m3_xfer>;
+		};
+	};
+};
