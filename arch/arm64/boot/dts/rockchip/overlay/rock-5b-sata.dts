@@ -3,6 +3,13 @@
 /plugin/;
 
 / {
+	metadata {
+		title = "Enable SATA1";
+		compatible = "radxa,rock-5b";
+		category = "misc";
+		description = "Enable SATA1.\nWhen SATA1 is enabled, PCIe cannot be enabled on the same port.";
+	};
+
 	fragment@0 {
 		target = <&wifi_disable>;
 
