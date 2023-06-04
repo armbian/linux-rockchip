@@ -3561,7 +3561,7 @@ static int __init clk_debug_init(void)
 {
 	struct clk_core *core;
 
-#ifdef CLOCK_ALLOW_WRITE_DEBUGFS
+#if 0
 	pr_warn("\n");
 	pr_warn("********************************************************************\n");
 	pr_warn("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE           **\n");
