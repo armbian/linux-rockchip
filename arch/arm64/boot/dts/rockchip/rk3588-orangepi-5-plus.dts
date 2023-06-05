@@ -17,12 +17,6 @@
 
 	/delete-node/ chosen;
 
-	aliases {
-		mmc0 = &sdmmc;
-		mmc1 = &sdhci;
-		mmc2 = &sdio;
-	};
-
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
