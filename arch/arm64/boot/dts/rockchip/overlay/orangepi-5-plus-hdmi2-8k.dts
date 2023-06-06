@@ -1,0 +1,37 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&hdmi0_in_vp0>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&hdmi0_in_vp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&hdmi1_in_vp0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&hdmi1_in_vp1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};
+
