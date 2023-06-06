@@ -13,6 +13,10 @@
 	compatible = "rockchip,rk3588s-orangepi-5", "rockchip,rk3588";
 };
 
+&sdhci {
+	status = "okay";
+}
+
 &sfc {
 	status = "disabled";
 };
