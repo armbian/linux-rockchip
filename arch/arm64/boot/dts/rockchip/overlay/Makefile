@@ -3,6 +3,13 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	orangepi-5-lcd1.dtbo \
 	orangepi-5-lcd2.dtbo \
 	orangepi-5-sata.dtbo \
+	orangepi-5-disable-led.dtbo \
+	orangepi-5-plus-disable-leds.dtbo \
+	orangepi-5-plus-hdmi2-8k.dtbo \
+	orangepi-5-plus-lcd.dtbo \
+	orangepi-5-plus-ov13850.dtbo \
+	orangepi-5-plus-ov13855.dtbo \
+	orangepi-5-plus-sata2.dtbo \
 	rock-5a-hdmi-8k.dtbo \
 	rock-5a-i2c5-rtc-hym8563.dtbo \
 	rock-5a-radxa-camera-4k.dtbo \
