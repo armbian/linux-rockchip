@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&leds>;
+
+		__overlay__ {
+			status = "okay";
+
+			led@1 {
+				linux,default-trigger = "none";
+			};
+		};
+	};
+};
+
