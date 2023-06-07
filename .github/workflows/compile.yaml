@@ -16,3 +16,17 @@ jobs:
         run: |
 
           echo "${{ github.event.pull_request.head.sha }}"
+
+      - name: Checkout build repo
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.repository_owner }}/build
+          ref:  AR-1778
+          fetch-depth: 1
+          clean: false
+
+      - name: Build Kernel ${{env.BOARD}}:${{env.BRANCH}}
+        id: kernel
+        run: |
+
+          bash ./compile.sh kernel SHARE_LOG=yes  ARTIFACT_IGNORE_CACHE='yes' BOARD=orangepi5 BRANCH=legacy KERNELBRANCH="commit:${{ github.event.pull_request.head.sha }}"
