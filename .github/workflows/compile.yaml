@@ -10,7 +10,7 @@ jobs:
   Build:
     name: Compile
     runs-on: rockchip
-    if: ${{ github.repository_owner == 'armbian' }}
+#    if: ${{ github.repository_owner == 'armbian' }}
     steps:
       - name: Build
         run: |
