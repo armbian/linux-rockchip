@@ -9,7 +9,8 @@ jobs:
 
   Build:
     name: Compile
-    runs-on: rockchip
+    runs-on: ubuntu-latest
+#    runs-on: rockchip
 #    if: ${{ github.repository_owner == 'armbian' }}
     steps:
       - name: Build
