@@ -9,8 +9,8 @@ jobs:
 
   Build:
     name: Compile
-    runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'igorpecovnik' }}
+    runs-on: rockchip
+    if: ${{ github.repository_owner == 'armbian' }}
     steps:
       - name: Build
         run: |
@@ -21,6 +21,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: armbian/build
+          #
+          # Switch to main after this is merged
+          #
           ref:  AR-1778
           fetch-depth: 0
           clean: false
