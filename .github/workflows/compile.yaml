@@ -1,22 +1,16 @@
 name: Build Kernels at PR
 
 on:
-  workflow_dispatch:
   pull_request:
     types: [opened, reopened, edited, synchronize]
 
 jobs:
 
   Build:
-    name: Compile
-    runs-on: ubuntu-latest
-#    runs-on: rockchip
-#    if: ${{ github.repository_owner == 'armbian' }}
+    name: Compile kernel
+    runs-on: rockchip
+    if: ${{ github.repository_owner == 'armbian' }}
     steps:
-      - name: Build
-        run: |
-
-          echo "${{ github.event.pull_request.head.sha }}"
 
       - name: Checkout build repo
         uses: actions/checkout@v3
