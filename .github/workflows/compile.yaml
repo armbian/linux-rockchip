@@ -20,12 +20,12 @@ jobs:
       - name: Checkout build repo
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.repository_owner }}/build
+          repository: armbian/build
           ref:  AR-1778
-          fetch-depth: 1
+          fetch-depth: 0
           clean: false
 
-      - name: Build Kernel ${{env.BOARD}}:${{env.BRANCH}}
+      - name: Build Kernel at ${{ github.event.pull_request.head.sha }}
         id: kernel
         run: |
 
