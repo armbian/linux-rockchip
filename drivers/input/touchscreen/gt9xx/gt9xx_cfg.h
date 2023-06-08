@@ -38,6 +38,11 @@ u8 gtp_dat_gt9112[] = {
 	#include "CJ080258_GT911_Config_20221117_085548.cfg"
 };
 
+u8 gtp_dat_gt9271[] = {
+	/* <1200, 1920> */
+	#include "CJ080258_GT9271_Config_20230608_112016.cfg"
+};
+
 static u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */
