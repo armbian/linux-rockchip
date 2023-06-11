@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&wireless_bluetooth>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&wireless_wlan>;
+		__overlay__ {
+			status = "okay";
+			wifi_chip_type = "ap6275p";
+		};
+	};
+};
