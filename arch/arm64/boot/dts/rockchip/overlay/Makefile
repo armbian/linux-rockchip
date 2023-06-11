@@ -3,6 +3,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	orangepi-5-lcd1.dtbo \
 	orangepi-5-lcd2.dtbo \
 	orangepi-5-sata.dtbo \
+	orangepi-5-ap6275p.dtbo \
 	orangepi-5-disable-led.dtbo \
 	orangepi-5-plus-disable-leds.dtbo \
 	orangepi-5-plus-hdmi2-8k.dtbo \
