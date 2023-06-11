@@ -20,3 +20,11 @@
 &sfc {
 	status = "disabled";
 };
+
+&wireless_bluetooth {
+	status = "okay";
+};
+
+&wireless_wlan {
+	status = "okay";
+};
