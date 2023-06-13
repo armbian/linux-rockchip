@@ -1,0 +1,37 @@
+name: Build Kernels at PR
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+jobs:
+
+  Build:
+    name: Compile kernel
+    runs-on: rockchip
+    if: ${{ github.repository_owner == 'armbian' }}
+    steps:
+
+      - name: Checkout build repo
+        uses: actions/checkout@v3
+        with:
+          repository: armbian/build
+          ref:  main
+          fetch-depth: 1
+          clean: false
+
+      - name: Build Kernel at ${{ github.event.pull_request.head.sha }}
+        id: kernel
+        run: |
+          mkdir -p userpatches/extensions/
+          cat <<- EOF > userpatches/extensions/pull-request.sh
+          function post_family_config__force_commit_for_rk3588() {
+              KERNELBRANCH="commit:${{ github.event.pull_request.head.sha }}"
+          }
+          EOF
+          bash ./compile.sh kernel \
+          SHARE_LOG=yes \
+          ARTIFACT_IGNORE_CACHE="yes" \
+          BOARD=orangepi5 \
+          BRANCH=legacy \
+          ENABLE_EXTENSIONS="pull-request"
