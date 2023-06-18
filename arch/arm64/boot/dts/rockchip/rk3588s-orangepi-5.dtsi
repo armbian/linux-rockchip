@@ -128,11 +128,11 @@
 };
 
 &dp0_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dp0_sound{
