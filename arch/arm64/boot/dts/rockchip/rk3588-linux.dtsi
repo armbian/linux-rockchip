@@ -10,9 +10,7 @@
 		mmc1 = &sdmmc;
 		mmc2 = &sdio;
 	};
-
-	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0 root=PARTUUID=614e0000-0000 rw rootwait";
+	
 	};
 
 	cspmu: cspmu@fd10c000 {
