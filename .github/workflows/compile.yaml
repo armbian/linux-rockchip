@@ -1,7 +1,6 @@
 name: Build Kernels at PR
 
 on:
-  workflow_dispatch:
   pull_request:
     types: [opened, reopened, edited, synchronize]
 
@@ -45,4 +44,4 @@ jobs:
           ARTIFACT_IGNORE_CACHE="yes" \
           BOARD=orangepi5 \
           BRANCH=legacy \
-          #ENABLE_EXTENSIONS="pull-request"
+          ENABLE_EXTENSIONS="pull-request"
