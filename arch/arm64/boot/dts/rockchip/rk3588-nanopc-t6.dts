@@ -24,11 +24,11 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* Reserve 128MB memory for hdmirx-controller@fdee0000 */
+		/* Reserve 256MB memory for hdmirx-controller@fdee0000 */
 		cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			reg = <0x0 (256 * 0x100000) 0x0 (128 * 0x100000)>;
+			reg = <0x0 (256 * 0x100000) 0x0 (256 * 0x100000)>;
 			linux,cma-default;
 		};
 	};
@@ -224,6 +224,7 @@
 &hdmi0 {
 	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+	cec-enable = "true";
 };
 
 &hdmi0_in_vp0 {
@@ -245,6 +246,7 @@
 &hdmi1 {
 	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+	cec-enable = "true";
 };
 
 &hdmi1_in_vp0 {
@@ -693,12 +695,9 @@
 	gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_LOW>;
 };
 
-&vp0 {
-	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 };
 
-&vp3 {
-	/delete-property/ rockchip,plane-mask;
-	/delete-property/ rockchip,primary-plane;
-	status = "disabled";
-};
