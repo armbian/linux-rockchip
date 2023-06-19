@@ -20,7 +20,7 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }} # GitHub username or org
+          username: ${{ github.actor }} # GitHub username or org
           password: ${{ secrets.GITHUB_TOKEN }}    # GitHub actions builtin token. repo has to have pkg access.
 
       - name: Checkout build repo
