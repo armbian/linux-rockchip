@@ -143,6 +143,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v12-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v12-linux-spi-nand.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-radxa-e25.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-rock-3a.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blade3-v101-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-linux.dtb
