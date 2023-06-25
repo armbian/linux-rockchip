@@ -9,6 +9,7 @@ jobs:
 
   Build:
     name: Compile kernel
+    permissions: write-all
     runs-on: rockchip
     if: ${{ github.repository_owner == 'armbian' }}
     env:
