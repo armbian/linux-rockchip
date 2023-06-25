@@ -3,7 +3,7 @@ VERSION = 5
 PATCHLEVEL = 10
 SUBLEVEL = 160
 EXTRAVERSION =
-NAME = Dare mighty things
+NAME = Dare mighty thingsss
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
