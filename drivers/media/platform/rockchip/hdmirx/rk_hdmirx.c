@@ -3432,8 +3432,8 @@ static int hdmirx_audio_startup(struct device *dev, void *data)
 
 	if (tx_5v_power_present(hdmirx_dev) && hdmirx_dev->audio_present)
 		return 0;
-	dev_err(dev, "%s: device is no connected or audio is off\n", __func__);
-	return -ENODEV;
+	dev_dbg(dev, "%s: device is no connected or audio is off\n", __func__);
+	return 0;
 }
 
 static void hdmirx_audio_shutdown(struct device *dev, void *data)
