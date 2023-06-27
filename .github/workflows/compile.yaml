@@ -34,6 +34,8 @@ jobs:
       - name: Build Kernel at ${{ github.event.pull_request.head.sha }}
         id: kernel
         run: |
+        
+          rm -rf output/debs/*
           mkdir -p userpatches/extensions/
           cat <<- EOF > userpatches/extensions/pull-request.sh
           function post_family_config__force_commit_for_rk3588() {
@@ -46,3 +48,10 @@ jobs:
           BOARD=orangepi5 \
           BRANCH=legacy \
           ENABLE_EXTENSIONS="pull-request"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-rockchip-legacy
+          path: output/debs/*.deb
+          retention-days: 5
