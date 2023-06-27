@@ -242,6 +242,14 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 
 	/* load from disk only if we haven't done it (or tried) before */
 	if (!trans->pnvm_loaded) {
+#if 1
+		/* Older iwlwifi ucode firmware used in 5.10 doesn't expect any pnvm file,
+		 * which contains FW configuration data for each different HW combination
+		 * that can be used with newer firmware and kernel. So load nothing here
+		 * to bypass the issue on AX210, where pnvm file was first introduced.
+		 */
+		trans->pnvm_loaded = true;
+#else
 		const struct firmware *pnvm;
 		char pnvm_name[64];
 
@@ -271,6 +279,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 
 			release_firmware(pnvm);
 		}
+#endif
 	} else {
 		/* if we already loaded, we need to set it again */
 		ret = iwl_trans_set_pnvm(trans, NULL, 0);
