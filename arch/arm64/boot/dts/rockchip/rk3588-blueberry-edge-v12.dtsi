@@ -70,8 +70,7 @@
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
-	};
-	
+	};	
 
 	leds: leds {
 		compatible = "gpio-leds";
