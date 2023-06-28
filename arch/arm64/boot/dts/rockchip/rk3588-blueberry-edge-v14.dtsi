@@ -25,42 +25,53 @@
 		};
 	};
 
-	i2s0_sound: i2s0-sound {
+	es8388_sound: es8388-sound {
 		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,es8311";
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s0_8ch>;
-			};
-			codec {
-				sound-dai = <&es8311>;
-			};
-		};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8388";
+		//hp-det-gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s0_8ch>;
+		rockchip,codec = <&es8388>;
+		rockchip,audio-routing =
+			"Headphone", "LOUT1",
+			"Headphone", "ROUT1",
+			"Speaker", "LOUT2",
+			"Speaker", "ROUT2",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"LINPUT1", "Main Mic",
+			"LINPUT2", "Main Mic",
+			"RINPUT1", "Headset Mic",
+			"RINPUT2", "Headset Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
 	};
-	
-	hdmiin_dc: hdmiin-dc {
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
+
+	rk_headset: rk-headset {
+		status = "disabled";
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 3>;
 	};
 
 	hdmiin-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,hdmiin";
-		simple-audio-card,bitclock-master = <&dailink0_master>;
-		simple-audio-card,frame-master = <&dailink0_master>;
-		status = "okay";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s7_8ch>;
-		};
-		dailink0_master: simple-audio-card,codec {
-			sound-dai = <&hdmiin_dc>;
-		};
-	};	
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,format = "i2s";
+		rockchip,bitclock-master = <&hdmirx_ctrler>;
+		rockchip,frame-master = <&hdmirx_ctrler>;
+		rockchip,card-name = "rockchip,hdmiin";
+		rockchip,cpu = <&i2s7_8ch>;
+		rockchip,codec = <&hdmirx_ctrler 0>;
+		rockchip,jack-det;
+	};
+	
 
 	leds: leds {
 		compatible = "gpio-leds";
@@ -78,7 +89,8 @@
 		};
 		work_led: work-led {
 			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
+			//linux,default-trigger = "heartbeat";
+			default-state = "on";
 		};
 	};
 
@@ -103,7 +115,7 @@
 		i2c_scl = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;  
 		i2c_sda = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>; 
 		
-		status = "disabled";
+		status = "disabled";//"okay";  //zxLog_2022.9.20 for maozhuo time-lcd show;
 	};
 
 	pcie30_avdd0v75: pcie30-avdd0v75 {
@@ -194,6 +206,20 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
+	modem {
+		compatible = "rockchip,modem";
+		status = "okay";
+		power-on_gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		reset_gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>; //GPIO_C4
+	};
+	
+	ext_cam_clk: external-camera-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "CLK_CAMERA_24MHZ";
+		#clock-cells = <0>;
+	};	
+
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
@@ -232,16 +258,12 @@
 };
 
 &dp0 {
-	status = "okay";
+	status = "disable";
 };
 
-&dp0_in_vp1 {
-	status = "okay";
-};
-
-&dp0_sound{
-	status = "okay";
-};
+//&dp0_in_vp2 {
+//	status = "okay";
+//};
 
 &dp1 {
 	pinctrl-0 = <&dp1m0_pins>;
@@ -323,14 +345,164 @@
 	status = "okay";
 };
 
+/* lt6911 hdmi in */
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi2_in0>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_lt6911: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lt6911_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&i2c7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m2_xfer>;
+	status = "okay";
+
+	lt6911:lt6911@2b {
+		compatible = "lontium,lt6911uxc";
+		status = "okay";
+		reg = <0x2b>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lt6911uxc_pin>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "lt6911";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			lt6911_out: endpoint {
+				remote-endpoint = <&mipi_in_lt6911>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi2_in0: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds2_sditf: endpoint {
+			remote-endpoint = <&isp0_vir0>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp0 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&rkisp0_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+/* lt6911 hdmi in end */
 
 /* Should work with at least 128MB cma reserved above. */
 &hdmirx_ctrler {
-	status = "okay";
+	status = "disabled";
 
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
-	hdmirx-det-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;   //gpio1_d5
+	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;   //gpio1_d5
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim1_rx &hdmirx_det>;
 };
 
 &i2c0 {
@@ -396,18 +568,14 @@
 
 &i2c3 {
 	status = "okay";
-	es8311: es8311@18 {
+	es8388: es8388@10 {
 		status = "okay";
-		compatible = "everest,es8311";
-		reg = <0x18>;
 		#sound-dai-cells = <0>;
-		adc-pga-gain = <6>;     /* 18dB */
-		adc-volume = <0xbf>;    /* 0dB */
-		dac-volume = <0xbf>;    /* 0dB */
-		aec-mode = "adc left, adc right";
-		clocks = <&cru I2S0_8CH_MCLKOUT>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x10>;
+		clocks = <&mclkout_i2s0>;
 		clock-names = "mclk";
-		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
+		assigned-clocks = <&mclkout_i2s0>;
 		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
@@ -651,6 +819,20 @@
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
+	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
+&sdmmc {
+	max-frequency = <150000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr104;
+	vqmmc-supply = <&vccio_sd_s0>;
 	status = "okay";
 };
 
@@ -688,6 +870,18 @@
 		};
 	};
 
+	hdmi {
+		hdmirx_det: hdmirx-det {
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -710,6 +904,14 @@
 			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+	
+	hdmiin {
+		lt6911uxc_pin: lt6911uxc-pin {
+			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
+					<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};		
 
 	pcie {
 		vcc3v3_pcie30_en: vcc3v3-pcie30-en {

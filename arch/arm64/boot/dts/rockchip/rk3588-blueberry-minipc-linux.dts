@@ -11,7 +11,7 @@
 
 / {
 	model = "Mekotronics R58 MiniPC (RK3588 MINIPC LP4x V1.0 BlueBerry Board)";
-	compatible = "rockchip,rk3588-hugsun-minipc-linux", "rockchip,rk3588";
+	compatible = "rockchip,rk3588-blueberry-minipc-linux", "rockchip,rk3588";
 	/delete-node/ chosen;
 };
 
