@@ -6,12 +6,12 @@
 
 /dts-v1/;
 
-#include "rk3588-blueberry-edge-v12.dtsi"
+#include "rk3588-blueberry-edge-v14.dtsi"
 #include "rk3588-linux.dtsi"
 
 / {
-	model = "Mekotronics R58X-4G (RK3588 EDGE LP4x V1.2 BlueBerry Board)";
-	compatible = "rockchip,rk3588-blueberry-edge-v12-linux", "rockchip,rk3588";
+	model = "RK3588 EDGE LP4x V1.4 BlueBerry Board";
+	compatible = "rockchip,rk3588-blueberry-edge-v14-linux", "rockchip,rk3588";
 	/delete-node/ chosen;
 };
 
