@@ -11,7 +11,7 @@
 
 / {
 	model = "Mekotronics R58X (RK3588 EDGE LP4x V1.0 BlueBerry Board)";
-	compatible = "rockchip,rk3588-hugsun-edge-v10-linux", "rockchip,rk3588";
+	compatible = "rockchip,rk3588-blueberry-edge-v10-linux", "rockchip,rk3588";
 	/delete-node/ chosen;
 };
 
