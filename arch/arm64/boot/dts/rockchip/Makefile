@@ -493,5 +493,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-9tripod-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-orangepi-5-plus.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-orangepi-5b.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-cm5-io.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-maizhuo-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v14-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-mizhuo-linux.dtb
 
 subdir-y := $(dts-dirs) overlay
