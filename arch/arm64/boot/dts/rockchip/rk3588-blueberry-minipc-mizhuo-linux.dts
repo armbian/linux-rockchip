@@ -6,13 +6,18 @@
 
 /dts-v1/;
 
-#include "rk3588-blueberry-edge-v12.dtsi"
+#include "rk3588-blueberry-minipc.dtsi"
 #include "rk3588-linux.dtsi"
 
 / {
-	model = "Mekotronics R58X-4G (RK3588 EDGE LP4x V1.2 BlueBerry Board)";
-	compatible = "rockchip,rk3588-blueberry-edge-v12-linux", "rockchip,rk3588";
+	model = "RK3588 MINIPC-MIZHUO LP4x V1.0 BlueBerry Board";
+	compatible = "rockchip,rk3588-blueberry-minipc-linux", "rockchip,rk3588";
 	/delete-node/ chosen;
+};
+
+&work_led {
+	linux,default-trigger = "default-on";  //"timer";  
+	default-state = "on";
 };
 
 &pwm3 {
@@ -24,22 +29,21 @@
 	remote_support_psci = <0>;
 	status = "okay";
 
-	ir_key1 {  //hugsun blue remote
+	ir_key1 {  //hugsun blue remote  ��mizhuo��
 		rockchip,usercode = <0x7f80>;
 		rockchip,key_table =
-			<0xec	KEY_REPLY>,
-			<0xd8	KEY_BACK>,
-			<0xc7	KEY_UP>,
-			<0xbf	KEY_DOWN>,
-			<0xc8	KEY_LEFT>,
-			<0xc6	KEY_RIGHT>,
-			<0x8c	KEY_HOME>,
-			<0x78	KEY_VOLUMEUP>,
-			<0x76	KEY_VOLUMEDOWN>,
-			<0x7e	KEY_POWER>,
-			<0xed	KEY_POWER>,  //20171123 
-			<0x7c	KEY_MENU>,
-			<0xb7	388>;
+			<0xec	KEY_F11>,
+			<0xd8	KEY_F2>, 
+			<0xc7	KEY_F7>, 
+			<0xbf	KEY_F8>, 
+			<0xc8	KEY_F9>, 
+			<0xc6	KEY_F10>,
+			<0x8c	KEY_F1>, 
+			<0x78	KEY_F6>, 
+			<0x76	KEY_F4>,  
+			<0x7e	KEY_F12>, 
+			<0x7c	KEY_F3>,  
+			<0xb7	KEY_F5>; 
 	};
 
 	ir_key2 {   //hugsun 
@@ -118,3 +122,4 @@
 		<0x4d KEY_POWER>;     //power (for 2.4g)
 	};
 };
+
