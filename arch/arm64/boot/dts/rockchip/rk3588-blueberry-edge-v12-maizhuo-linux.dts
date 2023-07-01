@@ -42,22 +42,3 @@
 		wakeup-source;
 	};		
 };
-
-&dp0 {
-	status = "okay";
-};
-
-&dp0_in_vp1 {
-	status = "okay";
-};
-
-&dp0_sound{
-	status = "okay";
-};
-
-&spdif_tx2 {
-	status = "okay";
-};
-
-
-
