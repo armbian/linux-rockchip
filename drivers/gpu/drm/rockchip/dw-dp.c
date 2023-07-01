@@ -2686,7 +2686,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	status = wait_for_completion_timeout(&dp->complete, timeout);
 	if (!status) {
-		dev_err(dp->dev, "timeout waiting for AUX reply\n");
+		//dev_err(dp->dev, "timeout waiting for AUX reply\n");
 		return -ETIMEDOUT;
 	}
 
