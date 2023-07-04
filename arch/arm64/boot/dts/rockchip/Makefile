@@ -496,5 +496,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-cm5-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-maizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v14-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-mizhuo-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blade3-v101-linux.dtb
 
 subdir-y := $(dts-dirs) overlay
