@@ -286,9 +286,9 @@
 	status = "okay";
 };
 
-&i2c7 {
+&i2c8 {
 	status = "okay";
-	pinctrl-0 = <&i2c7m0_xfer>;
+	pinctrl-0 = <&i2c8m2_xfer>;
 
 	es8316: es8316@11 {
 		compatible = "everest,es8316";
