@@ -271,6 +271,14 @@
 		     &i2s0_sdo0>;
 };
 
+&i2s7_8ch {
+	status = "okay";
+};
+
+&i2s5_8ch {
+	status = "okay";
+};
+
 &iep {
 	status = "okay";
 };
