@@ -44,7 +44,7 @@ jobs:
           EOF
           bash ./compile.sh kernel \
           SHARE_LOG=yes \
-          ARTIFACT_IGNORE_CACHE="yes" \
+          ARTIFACT_USE_CACHE="yes" \
           BOARD=orangepi5 \
           BRANCH=legacy \
           ENABLE_EXTENSIONS="pull-request"
