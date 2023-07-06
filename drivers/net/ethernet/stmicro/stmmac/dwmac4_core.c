@@ -453,12 +453,6 @@ static int dwmac4_add_hw_vlan_rx_fltr(struct net_device *dev,
 	if (vid > 4095)
 		return -EINVAL;
 
-	if (hw->promisc) {
-		netdev_err(dev,
-			   "Adding VLAN in promisc mode not supported\n");
-		return -EPERM;
-	}
-
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
 		/* For single VLAN filter, VID 0 means VLAN promiscuous */
@@ -507,12 +501,6 @@ static int dwmac4_del_hw_vlan_rx_fltr(struct net_device *dev,
 				      __be16 proto, u16 vid)
 {
 	int i, ret = 0;
-
-	if (hw->promisc) {
-		netdev_err(dev,
-			   "Deleting VLAN in promisc mode not supported\n");
-		return -EPERM;
-	}
 
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
