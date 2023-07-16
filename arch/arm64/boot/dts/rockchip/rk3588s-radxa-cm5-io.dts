@@ -143,6 +143,21 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-levels = <100 160 190 200 215 235 255>;
+		pwms = <&pwm11 0 10000 0>;
+		rockchip,temp-trips = <
+			55000	1
+			60000	2
+			65000	3
+			70000	4
+			75000	5
+			80000	6
+		>;
+	};
 };
 
 &i2c6 {
