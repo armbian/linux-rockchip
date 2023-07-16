@@ -62,7 +62,7 @@
 	};
 
 	dp0_sound: dp0-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,card-name= "rockchip,dp0";
 		rockchip,mclk-fs = <512>;
@@ -72,7 +72,7 @@
 	};
 
 	dp1_sound: dp1-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,card-name= "rockchip,dp1";
 		rockchip,mclk-fs = <512>;
@@ -653,12 +653,20 @@
 	status = "okay";
 };
 
+&spdif_tx2 {
+    status = "okay";
+};
+
 &dp1 {
 	status = "okay";
 };
 
 &dp1_in_vp2 {
 	status = "okay";
+};
+
+&spdif_tx5 {
+    status = "okay";
 };
 
 &hdmi0 {
