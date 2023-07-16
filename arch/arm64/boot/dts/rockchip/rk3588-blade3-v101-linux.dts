@@ -686,6 +686,9 @@
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+
+	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
+	pinctrl-names = "default";
 };
 
 &hdptxphy_hdmi0 {
@@ -975,6 +978,12 @@ status = "okay";
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hdmirx {
+		hdmirx_det: hdmirx-det {
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
