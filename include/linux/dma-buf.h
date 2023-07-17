@@ -686,4 +686,6 @@ static inline size_t dma_buf_get_peak_size(void) { return 0; }
 static inline size_t dma_buf_get_total_size(void) { return 0; }
 #endif
 
+int dma_buf_vmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map);
+void dma_buf_vunmap_unlocked(struct dma_buf *dmabuf, struct iosys_map *map);
 #endif /* __DMA_BUF_H__ */

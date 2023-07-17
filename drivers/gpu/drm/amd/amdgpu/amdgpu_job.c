@@ -111,6 +111,8 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm_pd_addr = AMDGPU_BO_INVALID_OFFSET;
 
 	return 0;
+
+	return drm_sched_job_init(&(*job)->base, entity, 1, owner);
 }
 
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
@@ -248,7 +250,8 @@ int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	return 0;
 }
 
-static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
+static struct dma_fence *
+amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 					       struct drm_sched_entity *s_entity)
 {
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->rq->sched);
@@ -326,8 +329,8 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 	int i;
 
 	/* Signal all jobs not yet scheduled */
-	for (i = DRM_SCHED_PRIORITY_COUNT - 1; i >= DRM_SCHED_PRIORITY_MIN; i--) {
-		struct drm_sched_rq *rq = &sched->sched_rq[i];
+	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
+		struct drm_sched_rq *rq = sched->sched_rq[i];
 		spin_lock(&rq->lock);
 		list_for_each_entry(s_entity, &rq->entities, list) {
 			while ((s_job = to_drm_sched_job(spsc_queue_pop(&s_entity->job_queue)))) {
@@ -351,7 +354,7 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 }
 
 const struct drm_sched_backend_ops amdgpu_sched_ops = {
-	.dependency = amdgpu_job_dependency,
+	.prepare_job = amdgpu_job_prepare_job,
 	.run_job = amdgpu_job_run,
 	.timedout_job = amdgpu_job_timedout,
 	.free_job = amdgpu_job_free_cb
