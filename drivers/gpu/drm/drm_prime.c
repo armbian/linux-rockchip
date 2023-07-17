@@ -51,15 +51,10 @@ MODULE_IMPORT_NS(DMA_BUF);
  * between applications, they can't be guessed like the globally unique GEM
  * names.
  *
- * Drivers that support the PRIME API implement the
- * &drm_driver.prime_handle_to_fd and &drm_driver.prime_fd_to_handle operations.
- * GEM based drivers must use drm_gem_prime_handle_to_fd() and
- * drm_gem_prime_fd_to_handle() to implement these. For GEM based drivers the
- * actual driver interfaces is provided through the &drm_gem_object_funcs.export
- * and &drm_driver.gem_prime_import hooks.
- *
- * &dma_buf_ops implementations for GEM drivers are all individually exported
- * for drivers which need to overwrite or reimplement some of them.
+ * Drivers that support the PRIME API implement the drm_gem_object_funcs.export
+ * and &drm_driver.gem_prime_import hooks. &dma_buf_ops implementations for
+ * drivers are all individually exported for drivers which need to overwrite
+ * or reimplement some of them.
  *
  * Reference Counting for GEM Drivers
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -372,11 +367,12 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_prime_handle *args = data;
 
-	if (!dev->driver->prime_fd_to_handle)
-		return -ENOSYS;
+	if (dev->driver->prime_fd_to_handle) {
+		return dev->driver->prime_fd_to_handle(dev, file_priv, args->fd,
+						       &args->handle);
+	}
 
-	return dev->driver->prime_fd_to_handle(dev, file_priv,
-			args->fd, &args->handle);
+	return drm_gem_prime_fd_to_handle(dev, file_priv, args->fd, &args->handle);
 }
 
 static struct dma_buf *export_and_register_object(struct drm_device *dev,
@@ -518,15 +514,17 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_prime_handle *args = data;
 
-	if (!dev->driver->prime_handle_to_fd)
-		return -ENOSYS;
-
 	/* check flags are valid */
 	if (args->flags & ~(DRM_CLOEXEC | DRM_RDWR))
 		return -EINVAL;
 
-	return dev->driver->prime_handle_to_fd(dev, file_priv,
-			args->handle, args->flags, &args->fd);
+	if (dev->driver->prime_handle_to_fd) {
+		return dev->driver->prime_handle_to_fd(dev, file_priv,
+						       args->handle, args->flags,
+						       &args->fd);
+	}
+	return drm_gem_prime_handle_to_fd(dev, file_priv, args->handle,
+					  args->flags, &args->fd);
 }
 
 /**
