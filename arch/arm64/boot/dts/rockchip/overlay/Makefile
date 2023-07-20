@@ -30,6 +30,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rock-5b-rpi-camera-v2.dtbo \
 	rock-5b-radxa-camera-4k.dtbo \
 	rock-5b-sata.dtbo \
+	mixtile-blade3-sata2.dtbo \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
 	rk3588-can0-m0.dtbo \
 	rk3588-can1-m0.dtbo \
