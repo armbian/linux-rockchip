@@ -316,6 +316,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v11-linux-ipc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-rk628-hdmi2csi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-fxblox-rk1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-hinlink-h88k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nvr-demo-v10.dtb
