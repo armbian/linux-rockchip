@@ -708,6 +708,11 @@
 	status = "okay";
 };
 
+&pcie2x1l2 {
+	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
 &pcie30phy {
 	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
 	status = "okay";
@@ -896,10 +901,6 @@
 &saradc {
 	status = "okay";
 	vref-supply = <&avcc_1v8_s0>;
-};
-
-&sata0 {
-	status = "okay";
 };
 
 &sdhci {
