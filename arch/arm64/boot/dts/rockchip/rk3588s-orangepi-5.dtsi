@@ -361,7 +361,7 @@
 
 &usbdrd_dwc3_0 {
 	status = "okay";
-	dr_mode = "otg";
+	dr_mode = "host";
 	usb-role-switch;
 	port {
 		#address-cells = <1>;
