@@ -1,0 +1,104 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable Raspberry Pi 7-inch Touchscreen on DSI0";
+		compatible = "radxa,cm5-io";
+		category = "display";
+		exclusive = "dsi0";
+		description = "Enable Raspberry Pi 7-inch Touchscreen on DSI0.";
+	};
+
+	fragment@0 {
+		target = <&dsi0>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			rockchip,lane-rate = <696>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi0_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c7>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c7m2_xfer>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			raspits_panel: raspits-panel@45 {
+				compatible = "raspberrypi,7inch-touchscreen-panel";
+				reg = <0x45>;
+
+				port {
+					panel_in_dsi0: endpoint {
+						remote-endpoint = <&dsi0_out_panel>;
+					};
+				};
+			};
+
+			raspits_touch_ft5426: raspits-touch-ft5426@38 {
+				compatible = "raspits_ft5426";
+				reg = <0x38>;
+			};
+
+			chipone_icn8952: chipone_icn8952@30 {
+				compatible = "chipone_icn8505";
+				reg = <0x30>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&route_dsi0>;
+
+		__overlay__ {
+			status = "okay";
+			connect = <&vp3_out_dsi0>;
+		};
+	};
+
+	fragment@4 {
+		target = <&dsi0_in_vp2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@5 {
+		target = <&dsi0_in_vp3>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
