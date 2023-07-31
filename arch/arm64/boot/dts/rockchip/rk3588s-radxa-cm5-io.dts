@@ -67,6 +67,16 @@
 		rockchip,jack-det;
 	};
 
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip-hdmi1";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
 	es8316_sound: es8316-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
@@ -338,6 +348,10 @@
 };
 
 &route_hdmi0 {
+	status = "okay";
+};
+
+&spdif_tx2 {
 	status = "okay";
 };
 
