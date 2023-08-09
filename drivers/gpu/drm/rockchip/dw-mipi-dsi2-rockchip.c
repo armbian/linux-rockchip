@@ -178,6 +178,8 @@
 
 #define GRF_REG_FIELD(reg, lsb, msb)	(((reg) << 16) | ((lsb) << 8) | (msb))
 
+#define MIPI_DSI_FMT_RGB101010		4
+
 enum vid_mode_type {
 	VID_MODE_TYPE_NON_BURST_SYNC_PULSES,
 	VID_MODE_TYPE_NON_BURST_SYNC_EVENTS,
@@ -306,6 +308,16 @@ static inline struct dw_mipi_dsi2 *con_to_dsi2(struct drm_connector *con)
 static inline struct dw_mipi_dsi2 *encoder_to_dsi2(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct dw_mipi_dsi2, encoder);
+}
+
+static int dw_mipi_dsi2_pixel_format_to_bpp(u32 fmt)
+{
+	switch (fmt) {
+	case MIPI_DSI_FMT_RGB101010:
+		return 30;
+	default:
+		return mipi_dsi_pixel_format_to_bpp(fmt);
+	}
 }
 
 static void grf_field_write(struct dw_mipi_dsi2 *dsi2, enum grf_reg_fields index,
@@ -571,7 +583,7 @@ static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
 			 dsi2->pdata->dphy_max_bit_rate_per_lane;
 
 	lanes = (dsi2->slave || dsi2->master) ? dsi2->lanes * 2 : dsi2->lanes;
-	bpp = mipi_dsi_pixel_format_to_bpp(dsi2->format);
+	bpp = dw_mipi_dsi2_pixel_format_to_bpp(dsi2->format);
 	if (bpp < 0)
 		bpp = 24;
 
@@ -766,26 +778,32 @@ static void dw_mipi_dsi2_tx_option_set(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_ipi_color_coding_cfg(struct dw_mipi_dsi2 *dsi2)
 {
-	u32 val, color_depth;
+	u32 val, ipi_depth;
 
 	switch (dsi2->format) {
 	case MIPI_DSI_FMT_RGB666:
 	case MIPI_DSI_FMT_RGB666_PACKED:
-		color_depth = IPI_DEPTH_6_BITS;
+		ipi_depth = IPI_DEPTH_6_BITS;
 		break;
 	case MIPI_DSI_FMT_RGB565:
-		color_depth = IPI_DEPTH_5_6_5_BITS;
+		ipi_depth = IPI_DEPTH_5_6_5_BITS;
+		break;
+	case MIPI_DSI_FMT_RGB101010:
+		ipi_depth = IPI_DEPTH_10_BITS;
 		break;
 	case MIPI_DSI_FMT_RGB888:
 	default:
-		color_depth = IPI_DEPTH_8_BITS;
+		ipi_depth = IPI_DEPTH_8_BITS;
 		break;
 	}
 
-	val = IPI_DEPTH(color_depth) |
+	if (dsi2->dsc_enable)
+		ipi_depth = IPI_DEPTH_8_BITS;
+
+	val = IPI_DEPTH(ipi_depth) |
 	      IPI_FORMAT(dsi2->dsc_enable ? IPI_FORMAT_DSC : IPI_FORMAT_RGB);
 	regmap_write(dsi2->regmap, DSI2_IPI_COLOR_MAN_CFG, val);
-	grf_field_write(dsi2, IPI_COLOR_DEPTH, color_depth);
+	grf_field_write(dsi2, IPI_COLOR_DEPTH, ipi_depth);
 
 	if (dsi2->dsc_enable)
 		grf_field_write(dsi2, IPI_FORMAT, IPI_FORMAT_DSC);
@@ -1093,26 +1111,29 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_display_info *info = &connector->display_info;
+	u16 dsc_bpp_x16;
 
 	switch (dsi2->format) {
+	case MIPI_DSI_FMT_RGB101010:
+		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		s->bus_format = MEDIA_BUS_FMT_RGB101010_1X30;
+		break;
 	case MIPI_DSI_FMT_RGB888:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		break;
 	case MIPI_DSI_FMT_RGB666:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
+		s->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	case MIPI_DSI_FMT_RGB565:
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
+		s->bus_format = MEDIA_BUS_FMT_RGB565_1X16;
 		break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
 	}
-
-	if (info->num_bus_formats)
-		s->bus_format = info->bus_formats[0];
-	else
-		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
 	s->output_if |= dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
@@ -1148,13 +1169,18 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	if (dsi2->dsc_enable) {
+		if (!dsi2->pps)
+			return -EINVAL;
+
+		dsc_bpp_x16 = ((dsi2->pps->pps_4 & 0x3) << 8) |
+			      dsi2->pps->bits_per_pixel_low;
+
 		s->dsc_enable = 1;
 		s->dsc_sink_cap.version_major = dsi2->version_major;
 		s->dsc_sink_cap.version_minor = dsi2->version_minor;
 		s->dsc_sink_cap.slice_width = dsi2->slice_width;
 		s->dsc_sink_cap.slice_height = dsi2->slice_height;
-		/* only can support rgb888 panel now */
-		s->dsc_sink_cap.target_bits_per_pixel_x16 = 8 << 4;
+		s->dsc_sink_cap.target_bits_per_pixel_x16 = dsc_bpp_x16;
 		s->dsc_sink_cap.native_420 = 0;
 
 		memcpy(&s->pps, dsi2->pps, sizeof(struct drm_dsc_picture_parameter_set));
@@ -1436,6 +1462,45 @@ static irqreturn_t dw_mipi_dsi2_te_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void dw_mipi_dsi2_pps_check(struct dw_mipi_dsi2 *dsi2,
+				   struct drm_dsc_picture_parameter_set *pps)
+{
+	u8 dsc_version_major, dsc_version_minor, dsc_bpc;
+	u16 dsc_slice_width, dsc_slice_height;
+
+	dsc_version_major = pps->dsc_version >> 4;
+	dsc_version_minor = pps->dsc_version & 0xf;
+	dsc_slice_width = be16_to_cpu(pps->slice_width);
+	dsc_slice_height = be16_to_cpu(pps->slice_height);
+	dsc_bpc = pps->pps_3 >> 4;
+
+	if (dsc_version_major != dsi2->version_major)
+		dev_warn(dsi2->dev, "%s[%d] in dts does not match %s[%d] in pps",
+			"version-major", dsi2->version_major,
+			"dsc_version_major", dsc_version_major);
+
+	if (dsc_version_minor != dsi2->version_minor)
+		dev_warn(dsi2->dev, "%s[%d] in dts does not match %s[%d] in pps",
+			"version-minor", dsi2->version_minor,
+			"dsc_version_minor", dsc_version_minor);
+
+	if (dsc_slice_width != dsi2->slice_width)
+		dev_warn(dsi2->dev, "%s[%d] in dts does not match %s[%d] in pps",
+			"slice-width", dsi2->slice_width,
+			"slice_width", dsc_slice_width);
+
+	if (dsc_slice_height != dsi2->slice_height)
+		dev_warn(dsi2->dev, "%s[%d] in dts does not match %s[%d] in pps",
+			"slice-height", dsi2->slice_height,
+			"slice_height", dsc_slice_height);
+
+	if ((dsc_bpc == 10 && dsi2->format != MIPI_DSI_FMT_RGB101010) ||
+	    (dsc_bpc == 8 && dsi2->format != MIPI_DSI_FMT_RGB888) ||
+	    dsc_bpc > 10)
+		dev_warn(dsi2->dev, "%s in dts does not match %s[%d] in pps",
+			"dsi,format", "bits_per_component", dsc_bpc);
+}
+
 static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 						 struct drm_panel *panel,
 						 struct drm_bridge *bridge)
@@ -1447,6 +1512,7 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 	char *d;
 	uint8_t *dsc_packed_pps;
 	int len;
+	u32 version_major, version_minor;
 
 	if (!panel && !bridge)
 		return -ENODEV;
@@ -1472,8 +1538,10 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 
 	of_property_read_u32(np, "slice-width", &dsi2->slice_width);
 	of_property_read_u32(np, "slice-height", &dsi2->slice_height);
-	of_property_read_u8(np, "version-major", &dsi2->version_major);
-	of_property_read_u8(np, "version-minor", &dsi2->version_minor);
+	of_property_read_u32(np, "version-major", &version_major);
+	of_property_read_u32(np, "version-minor", &version_minor);
+	dsi2->version_major = version_major;
+	dsi2->version_minor = version_minor;
 
 	data = of_get_property(np, "panel-init-sequence", &len);
 	if (!data)
@@ -1510,6 +1578,7 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 		return -EINVAL;
 	}
 
+	dw_mipi_dsi2_pps_check(dsi2, pps);
 	dsi2->pps = pps;
 
 	if (dsi2->slave && !dsi2->split_mode) {
