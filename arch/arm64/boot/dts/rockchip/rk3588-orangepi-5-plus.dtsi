@@ -28,7 +28,7 @@
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip,es8388";
+		rockchip,card-name = "rockchip-es8388";
 		hp-det-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
 		io-channels = <&saradc 3>;
 		io-channel-names = "adc-detect";
@@ -68,7 +68,7 @@
 		rockchip,format = "i2s";
 		rockchip,bitclock-master = <&hdmirx_ctrler>;
 		rockchip,frame-master = <&hdmirx_ctrler>;
-		rockchip,card-name = "rockchip,hdmiin";
+		rockchip,card-name = "rockchip-hdmiin";
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
