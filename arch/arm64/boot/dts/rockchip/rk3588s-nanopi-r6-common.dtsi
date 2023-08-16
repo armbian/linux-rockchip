@@ -34,7 +34,7 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,name = "rockchip,hdmi0";
+		simple-audio-card,name = "rockchip-hdmi0";
 
 		simple-audio-card,cpu {
 			sound-dai = <&i2s5_8ch>;
