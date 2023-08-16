@@ -31,7 +31,7 @@
 		rockchip,format = "i2s";
 		rockchip,bitclock-master = <&hdmirx_ctrler>;
 		rockchip,frame-master = <&hdmirx_ctrler>;
-		rockchip,card-name = "rockchip,hdmiin";
+		rockchip,card-name = "rockchip-hdmiin";
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
