@@ -191,10 +191,10 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		//gpio = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_usb>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&typec5v_pwren>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec5v_pwren>;
 	};
 
 	vcc5v0_usbdcin: vcc5v0-usbdcin {
@@ -829,10 +829,9 @@
 			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		// CAN I ENABLE THIS?
-		//typec5v_pwren: typec5v-pwren {
-		//	rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
-		//};
+		typec5v_pwren: typec5v-pwren {
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 
 	wireless-bluetooth {
@@ -1203,8 +1202,8 @@
 
 &vp3 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER2>;
-	cursor-win-id = <ROCKCHIP_VOP2_ESMART2>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
 };
 
 /* pin 40 pwm fan control */
