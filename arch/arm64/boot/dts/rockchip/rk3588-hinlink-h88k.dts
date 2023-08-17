@@ -22,6 +22,11 @@
 	model = "HINLINK H88K";
 	compatible = "hinlink,h88k", "rockchip,rk3588";
 
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:1500000n8";
 	};
