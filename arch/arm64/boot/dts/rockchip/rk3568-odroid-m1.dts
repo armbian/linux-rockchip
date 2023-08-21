@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Hardkernel Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568-odroid.dtsi"
+#include "rk3568-linux.dtsi"
+
+/ {
+	model = "Hardkernel ODROID-M1";
+	/delete-node/ chosen;
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart0;
+		i2c0 = &i2c3;
+		i2c3 = &i2c0;
+	};
+
+	pcie30_avdd0v9: pcie30-avdd0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "pcie30_avdd0v9";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	pcie30_avdd1v8: pcie30-avdd1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "pcie30_avdd1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_pcie: gpio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie";
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&dc_12v>;
+	};
+};
+
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0m0_pins>;
+	status = "disabled";
+};
+
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy1_usq {
+	status = "okay";
+};
+
+&combphy2_psq {
+	status = "okay";
+};
+
+&gpio0 {
+	gpio-line-names =
+		/* GPIO0_A */
+		"", "", "", "", "", "", "", "",
+		/* GPIO0_B */
+		"", "", "",
+		"PIN_28", /* GPIO0_B3 */
+		"PIN_27", /* GPIO0_B4 */
+		"PIN_33", /* GPIO0_B5 */
+		"PIN_7", /* GPIO0_B6 */
+		"",
+		/* GPIO0_C */
+		"PIN_11", /* GPIO0_C0 */
+		"PIN_13", /* GPIO0_C1 */
+		"", "", "", "", "", "",
+		/* GPIO0_D */
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio1 {
+	gpio-line-names =
+		/* GPIO1_A */
+		"", "", "", "", "", "", "", "",
+		/* GPIO1_B */
+		"", "", "", "", "", "", "", "",
+		/* GPIO1_C */
+		"", "", "", "", "", "", "", "",
+		/* GPIO1_D */
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio2 {
+	gpio-line-names =
+		/* GPIO2_A */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_B */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_C */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_D */
+		"PIN_21", /* GPIO2_D0 */
+		"PIN_19", /* GPIO2_D1 */
+		"PIN_24", /* GPIO2_D2 */
+		"PIN_23", /* GPIO2_D3 */
+		"", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names =
+		/* GPIO3_A */
+		"", "", "", "", "", "", "", "",
+		/* GPIO3_B */
+		"", "",
+		"PIN_15", /* GPIO3_B2 */
+		"", "",
+		"PIN_5",  /* GPIO3_B5 */
+		"PIN_3",  /* GPIO3_B6 */
+		"",
+		/* GPIO3_C */
+		"", "", "", "", "", "",
+		"PIN_16", /* GPIO3_C6 */
+		"PIN_18", /* GPIO3_C7 */
+		/* GPIO3_D */
+		"PIN_12", /* GPIO3_D0 */
+		"PIN_22", /* GPIO3_D1 */
+		"PIN_26", /* GPIO3_D2 */
+		"PIN_32", /* GPIO3_D3 */
+		"PIN_36", /* GPIO3_D4 */
+		"PIN_35", /* GPIO3_D5 */
+		"PIN_8",  /* GPIO3_D6 */
+		"PIN_10"; /* GPIO3_D7 */
+};
+
+&gpio4 {
+	gpio-line-names =
+		/* GPIO4_A */
+		"", "", "", "", "", "", "", "",
+		/* GPIO4_B */
+		"", "", "", "", "", "",
+		"PIN_31", /* GPIO4_B6 */
+		"",
+		/* GPIO4_C */
+		"",
+		"PIN_29", /* GPIO4_C1 */
+		"", "", "",
+		"", "", "",
+		/* GPIO4_D */
+		"", "", "", "", "", "", "", "";
+};
+
+&hdmi_sound {
+	simple-audio-card,name = "ODROID-M1-HDMI";
+	/delete-property/ rockchip,jack-det;
+};
+
+&i2c3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_xfer>;
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x2 {
+	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie>;
+	status = "okay";
+};
+
+&pwm1 {
+	status = "disabled";
+	pinctrl-0 = <&pwm1m1_pins>;
+};
+
+&pwm2 {
+	status = "disabled";
+	pinctrl-0 = <&pwm2m1_pins>;
+};
+
+&reserved_memory {
+	pcie3x2@80900000{
+		reg = <0x0 0x80900000 0x0 0x100000>;
+	};
+};
+
+&rk809_sound {
+	simple-audio-card,name = "ODROID-M1-FRONT";
+};
+
+&sata2 {
+	status = "okay";
+};
+
+&sfc {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi_pins>;
+};
+
+&spi0 {
+	status = "disabled";
+
+	pinctrl-0 = <&spi0m1_pins>;
+	pinctrl-1 = <&spi0m1_pins_hs>;
+	num_chipselect = <1>;
+
+	cs-gpios = <&gpio2 RK_PD2 GPIO_ACTIVE_LOW>;
+};
+
+&uart1 {
+	status = "disabled";
+	dma-names = "tx", "rx";
+	/* uart1 uart1-with-ctsrts */
+	pinctrl-0 = <&uart1m1_xfer>;
+	pinctrl-1 = <&uart1m1_xfer &uart1m1_ctsn &uart1m1_rtsn>;
+};
