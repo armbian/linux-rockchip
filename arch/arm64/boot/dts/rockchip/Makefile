@@ -499,5 +499,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-mizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blade3-v101-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-fxblox-rk1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-armsom-w3.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-odroid-m1.dtb
 
 subdir-y := $(dts-dirs) overlay
