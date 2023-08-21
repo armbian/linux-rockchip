@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Hardkernel Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568.dtsi"
+#include "rk3568-evb.dtsi"
+
+/ {
+	/delete-node/ adc-keys;
+	/delete-node/ nandc@fe330000;
+	/delete-node/ sdio-pwrseq;
+	/delete-node/ vcc3v3-lcd0-n;
+	/delete-node/ vcc3v3-lcd1-n;
+	/delete-node/ wireless-bluetooth;
+	/delete-node/ wireless-wlan;
+
+	leds: leds {
+		power_led: power {
+			gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+		work_led: work {
+			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	rk_headset: rk-headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+	};
+
+	rk3568-gpiomem {
+		compatible = "rockchip,rk3568-gpiomem";
+		reg = <0x0 0xfd660000 0x0 0x1000>;
+		status = "okay";
+	};
+
+	rk809_sound: rk809-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,hp-det-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,name = "rockchip,rk809-codec";
+		simple-audio-card,widgets = "Headphones", "Headphones Jack";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rk809_codec>;
+		};
+	};
+};
+
+&gmac0 {
+	phy-mode = "rgmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
+	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>, <&cru CLK_MAC0_2TOP>;
+	assigned-clock-rates = <0>, <125000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac0_miim
+		&gmac0_tx_bus2
+		&gmac0_rx_bus2
+		&gmac0_rgmii_clk
+		&gmac0_rgmii_bus>;
+
+	tx_delay = <0x4f>;
+	rx_delay = <0x2d>;
+
+	phy-handle = <&rgmii_phy0>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "disabled";
+
+	/delete-node/ gt1x@14;
+};
+
+&i2c2 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m1_xfer>;
+};
+
+&i2c5 {
+	status = "disabled";
+
+	/delete-node/ mxc6655xa@15;
+};
+
+&mdio0 {
+	rgmii_phy0: phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ethernet_irq>;
+	};
+};
+
+&pinctrl {
+	can_pins {
+		mcp2515_int_pins: mcp2515_int_pins {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	ethernet {
+		ethernet_irq: ethernet-irq {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pinctrl {
+	/delete-node/ mxc6655xa;
+	/delete-node/ touch;
+	/delete-node/ wifi-enable-h;
+	/delete-node/ wireless-bluetooth;
+
+	fspi {
+		fspi_pins: fspi-pins {
+			rockchip,pins =
+				/* fspi_clk */
+				<1 RK_PD0 1 &pcfg_pull_none>,
+				/* fspi_cs0n */
+				<1 RK_PD3 1 &pcfg_pull_none>,
+				/* fspi_d0 */
+				<1 RK_PD1 1 &pcfg_pull_none>;
+		};
+	};
+
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	vccio4-supply = <&vcc_1v8>;
+};
+
+&pwm3 {
+	status = "okay";
+
+	compatible = "rockchip,remotectl-pwm";
+	remote_pwm_id = <3>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_pins>;
+
+	ir_key1 {
+		rockchip,usercode = <0x4db2>;
+		rockchip,key_table =
+			<0x23	KEY_POWER>,
+			<0x77	KEY_MUTE>,
+			<0x7d	KEY_HOME>,
+			<0x31	KEY_ENTER>,
+			<0x35	KEY_UP>,
+			<0x66	KEY_LEFT>,
+			<0x3e	KEY_RIGHT>,
+			<0x2d	KEY_DOWN>,
+			<0x3a	KEY_MENU>,
+			<0x65	KEY_BACK>,
+			<0x7e	KEY_VOLUMEDOWN>,
+			<0x7f	KEY_VOLUMEUP>;
+	};
+};
+
+&pwm7 {
+	compatible = "rockchip,rk3568-pwm", "rockchip,rk3328-pwm";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm7_pins>;
+
+	status = "disabled";
+
+	/delete-property/ remote_pwm_id;
+	/delete-property/ handle_cpu_id;
+	/delete-property/ remote_support_psci;
+	/delete-node/ ir_key1;
+	/delete-node/ ir_key2;
+	/delete-node/ ir_key3;
+};
+
+&rknpu_mmu {
+	status = "disabled";
+};
+
+&rng {
+	status = "okay";
+};
+
+&sdhci {
+	pinctrl-0 = <&emmc_bus8
+		&emmc_clk
+		&emmc_cmd
+		&emmc_datastrobe
+		&emmc_rstnout>;
+	pinctrl-names = "default";
+
+	mmc-hs200-1_8v;
+	cap-mmc-hw-reset;
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&hdmi_sound {
+	compatible = "simple-audio-card";
+	simple-audio-card,format = "i2s";
+	simple-audio-card,mclk-fs = <128>;
+	simple-audio-card,name = "rockchip,hdmi";
+	status = "okay";
+	rockchip,jack-det;
+
+	simple-audio-card,cpu {
+		sound-dai = <&i2s0_8ch>;
+	};
+	simple-audio-card,codec {
+		sound-dai = <&hdmi>;
+	};
+};
+
+&rk809_sound {
+	status = "okay";
+	compatible = "simple-audio-card";
+	simple-audio-card,format = "i2s";
+	simple-audio-card,mclk-fs = <256>;
+	simple-audio-card,name = "rockchip,rk809-codec";
+	simple-audio-card,hp-det-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+	simple-audio-card,widgets = "Headphones", "Headphone Jack";
+
+	simple-audio-card,cpu {
+		sound-dai = <&i2s1_8ch>;
+	};
+	simple-audio-card,codec {
+		sound-dai = <&rk809_codec>;
+	};
+};
+
+&rk809_codec {
+	#sound-dai-cells = <0>;
+	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+	clocks = <&cru I2S1_MCLKOUT>;
+	clock-names = "mclk";
+	assigned-clocks = <&cru I2S1_MCLKOUT>, <&cru I2S1_MCLK_TX_IOE>;
+	assigned-clock-rates = <12288000>;
+	assigned-clock-parents = <&cru I2S1_MCLKOUT_TX>, <&cru I2S1_MCLKOUT_TX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s1m0_mclk &hp_det>;
+	hp-volume = <20>;
+	spk-volume = <3>;
+	status = "okay";
+};
+
+&rk_headset {
+	status = "disabled";
+};
+
+&spdif_8ch {
+	status = "disabled";
+};
+
+&spdif_out {
+	status = "disabled";
+};
