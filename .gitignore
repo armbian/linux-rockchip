@@ -47,6 +47,16 @@
 *.tar
 *.xz
 *.zst
+*.cmd
+*.d
+*.S
+*.config
+*.config.old
+*.tmp_System.map
+*.tmp_kallsyms
+*.tmp_vmlinux.kallsyms1
+*.tmp_vmlinux.kallsyms2
+*.version
 Module.symvers
 modules.builtin
 modules.order
