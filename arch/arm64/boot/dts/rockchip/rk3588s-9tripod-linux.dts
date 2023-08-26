@@ -136,6 +136,16 @@
 		};
 	};
 
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip-dp0";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
 	minipcie_power: minipcie-power {
 		compatible = "regulator-fixed";
 		regulator-name = "minipcie_power";
@@ -947,6 +957,10 @@
 &route_dp0 {
 	status = "okay";
 	connect = <&vp2_out_dp0>;
+};
+
+&spdif_tx2 {
+	status = "okay";
 };
 
 &route_dsi0 {
