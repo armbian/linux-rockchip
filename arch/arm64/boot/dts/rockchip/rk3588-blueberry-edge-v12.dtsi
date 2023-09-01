@@ -61,6 +61,7 @@
 	};
 
 	hdmiin-sound {
+		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
 		rockchip,format = "i2s";
