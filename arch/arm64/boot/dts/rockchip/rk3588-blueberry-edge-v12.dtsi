@@ -28,7 +28,7 @@
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
+		rockchip,card-name = "rockchip,es8388";
 		//hp-det-gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
