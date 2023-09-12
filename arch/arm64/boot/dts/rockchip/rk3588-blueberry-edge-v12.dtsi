@@ -61,7 +61,6 @@
 	};
 
 	hdmiin-sound {
-		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
 		rockchip,format = "i2s";
@@ -71,7 +70,7 @@
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
-	};	
+	};
 
 	leds: leds {
 		compatible = "gpio-leds";
@@ -108,13 +107,13 @@
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
-	};	
+	};
 
 	vk2c21_lcd {
 		compatible = "lcd_vk2c21";
-		i2c_scl = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;  
-		i2c_sda = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>; 
-		
+		i2c_scl = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		i2c_sda = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+
 		status = "disabled";//"okay";  //zxLog_2022.9.20 for maozhuo time-lcd show;
 	};
 
@@ -154,7 +153,7 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc3v3_pcie30_en>;		
+		pinctrl-0 = <&vcc3v3_pcie30_en>;
 		gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;    //hugsun gpio1_c4
 		startup-delay-us = <10000>;
 		vin-supply = <&vcc12v_dcin>;
@@ -343,6 +342,7 @@
 &hdmirx_ctrler {
 	status = "okay";
 
+	#sound-dai-cells = <1>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;   //gpio1_d5
@@ -897,4 +897,3 @@
 &vdd_vdenc_s0 {
 	regulator-init-microvolt = <750000>;
 };
-

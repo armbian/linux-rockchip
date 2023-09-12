@@ -70,7 +70,8 @@
 		};
 		work_led: work-led {
 			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
+			//linux,default-trigger = "heartbeat";
+			default-state = "on";
 		};
 	};
 

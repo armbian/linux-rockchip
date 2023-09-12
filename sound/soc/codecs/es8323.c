@@ -32,7 +32,7 @@ static const unsigned int supported_mclk_lrck_ratios[NR_SUPPORTED_MCLK_LRCK_RATI
 	256, 384, 512, 768, 1024
 };
 
-#define es8323_DEF_VOL	0x1b
+#define es8323_DEF_VOL	0x19  //0x1b
 
 static int es8323_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level);
@@ -205,9 +205,9 @@ static const struct snd_kcontrol_new es8323_snd_controls[] = {
 	SOC_SINGLE_TLV("Right Mixer Right Bypass Volume", ES8323_DACCONTROL20,
 		       3, 7, 1, bypass_tlv2),
 	SOC_DOUBLE_R_TLV("Output 1 Playback Volume", ES8323_DACCONTROL24,
-			 ES8323_DACCONTROL25, 0, 33, 0, out_tlv),
+			 ES8323_DACCONTROL25, 0, 25, 0, out_tlv),
 	SOC_DOUBLE_R_TLV("Output 2 Playback Volume", ES8323_DACCONTROL26,
-			 ES8323_DACCONTROL27, 0, 33, 0, out_tlv),
+			 ES8323_DACCONTROL27, 0, 25, 0, out_tlv),
 };
 
 static const struct snd_kcontrol_new es8323_left_line_controls =
@@ -382,8 +382,8 @@ static const struct _coeff_div coeff_div[] = {
 	{12000000, 22050, 544, 0x6, 0x1},
 
 	/* 32k */
-	{8192000, 16000, 256, 0x2, 0x0},
-	{16384000, 16000, 512, 0x4, 0x0},
+	{8192000, 32000, 256, 0x2, 0x0},
+	{16384000, 32000, 512, 0x4, 0x0},
 	{12288000, 32000, 384, 0x3, 0x0},
 	{18432000, 32000, 576, 0x5, 0x0},
 	{12000000, 32000, 375, 0x4, 0x1},
@@ -790,10 +790,10 @@ static int es8323_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x2A, 0xB8);
 	snd_soc_component_write(component, 0x35, 0xA0);
 	usleep_range(18000, 20000);
-	snd_soc_component_write(component, 0x2E, 0x1E);
-	snd_soc_component_write(component, 0x2F, 0x1E);
-	snd_soc_component_write(component, 0x30, 0x1E);
-	snd_soc_component_write(component, 0x31, 0x1E);
+	snd_soc_component_write(component, 0x2E, es8323_DEF_VOL);
+	snd_soc_component_write(component, 0x2F, es8323_DEF_VOL);
+	snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
+	snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
 	snd_soc_component_write(component, 0x03, 0x09);
 	snd_soc_component_write(component, 0x02, 0x00);
 	usleep_range(18000, 20000);

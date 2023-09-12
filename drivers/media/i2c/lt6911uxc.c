@@ -57,6 +57,11 @@ static const s64 link_freq_menu_items[] = {
 	LT6911UXC_LINK_FREQ_LOW,
 };
 
+//fox.luo@2022.04.25 add hdmirx plug det
+static int screen_width = 0, screen_height =0;
+static int hdmirx_check_flag=0;
+static int audio_sampling_rate=0;
+
 struct lt6911uxc {
 	struct clk *xvclk;
 	struct delayed_work delayed_work_enable_hotplug;
@@ -123,7 +128,25 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 4400,
 		.vts_def = 2250,
-	}, {
+	},{
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+	},{
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 240000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+	},{
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -132,14 +155,50 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 2200,
 		.vts_def = 1125,
-	}, {
+	},{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 500000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+	},{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+	},{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+	},{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 240000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+	},{
 		.width = 1920,
 		.height = 540,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 600000,
+			.denominator = 250000,
 		},
-	}, {
+	},{
 		.width = 1440,
 		.height = 240,
 		.max_fps = {
@@ -313,8 +372,12 @@ static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 		usleep_range(500, 600);
 	}
 
-	ret = (cnt >= 3) ? true : false;
+	ret = (cnt >= 3) ? false : true;
 	v4l2_dbg(1, debug, sd, "%s: %d\n", __func__, ret);
+
+	//lyh@2023.03.25 add hdmirx plug det
+	if(ret == false)
+		hdmirx_check_flag = 0;
 
 	return ret;
 }
@@ -455,6 +518,21 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 	hbp = ((val_h << 8) | val_l) * 2;
 	i2c_rd8(sd, VBP, &value);
 	vbp = value;
+
+	i2c_rd8(sd, AUDIO_IN_STATUS, &value);
+	lt6911uxc->is_audio_present = (value & BIT(5)) ? true : false;
+
+	if(lt6911uxc->is_audio_present == true){
+		i2c_rd8(sd, AUDIO_SAMPLE_RATAE_H, &val_h);
+		i2c_rd8(sd, AUDIO_SAMPLE_RATAE_L, &val_l);
+	    lt6911uxc->audio_sampling_rate = ((val_h << 8) | val_l) ;
+		audio_sampling_rate =lt6911uxc->audio_sampling_rate * 1000;
+		if(lt6911uxc->audio_sampling_rate == 44)
+			audio_sampling_rate = 44100;
+	}else{
+		audio_sampling_rate = 0; 
+	}
+
 	lt6911uxc_i2c_disable(sd);
 
 	if (!lt6911uxc_rcv_supported_res(sd, hact, vact)) {
@@ -464,11 +542,6 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 	}
 
 	lt6911uxc->nosignal = false;
-	i2c_rd8(sd, AUDIO_IN_STATUS, &value);
-	lt6911uxc->is_audio_present = (value & BIT(5)) ? true : false;
-	i2c_rd8(sd, AUDIO_SAMPLE_RATAE_H, &val_h);
-	i2c_rd8(sd, AUDIO_SAMPLE_RATAE_L, &val_l);
-	lt6911uxc->audio_sampling_rate = ((val_h << 8) | val_l) + 2;
 	v4l2_info(sd, "is_audio_present: %d, audio_sampling_rate: %dKhz\n",
 			lt6911uxc->is_audio_present,
 			lt6911uxc->audio_sampling_rate);
@@ -501,6 +574,11 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 			bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch,
 			bt->vsync, bt->vbackporch, bt->interlaced);
 
+	//lyh@2023.03.25 add hdmirx plug det
+	hdmirx_check_flag = 1;
+	screen_width = hact, 
+	screen_height = vact;
+
 	return 0;
 }
 
@@ -531,6 +609,56 @@ static void lt6911uxc_delayed_work_enable_hotplug(struct work_struct *work)
 
 	v4l2_ctrl_s_ctrl(lt6911uxc->detect_tx_5v_ctrl, tx_5v_power_present(sd));
 	lt6911uxc_config_hpd(sd);
+}
+
+static void LT6911UXC_HDMI_VideoCheck(struct lt6911uxc *lt6911uxc)
+{  
+	struct device *dev = &lt6911uxc->i2c_client->dev;
+	struct v4l2_subdev *sd = &lt6911uxc->sd;
+	u8 uVtotalH,uVtotalL;		//Vtotal[11:0]
+	u8 uVactiveH,uVactiveL;	//Vactive[11:0]
+	u8 uVsyncW,uVBP,uVFP;		//V blank timing 8bits
+	
+	u8 uHtotalH,uHtotalL;		//Htotal[15:0]	
+	u8 uHactiveH,uHactiveL;	//Hactive[15:0]
+	u8 uHsyncWH,uHsyncWL;		//HsyncW[11:0]
+	u8 uHBPH,uHBPL;			//HBP[11:0]
+	u8 uHFPH,uHFPL;			//HFP[11:0]
+	lt6911uxc_i2c_enable(sd);
+	i2c_rd8(sd,0x867A,&uVtotalH);//0x867A[7:0]=Vtotal[15:8]
+	i2c_rd8(sd,0x867B,&uVtotalL);//0x867B[7:0]=Vtotal[7:0]
+	i2c_rd8(sd,0x867E,&uVactiveH);//0x867E[7:0]=Vactive[15:8]
+	i2c_rd8(sd,0x867F,&uVactiveL);//0x867F[7:0]=Vactive[7:0]
+	i2c_rd8(sd,0x8671,&uVsyncW);//0x8671[7:0]=VsyncW[7:0]
+	i2c_rd8(sd,0x8674,&uVBP);//0x8674[7:0]=VBP[7:0]
+	i2c_rd8(sd,0x8675,&uVFP);//0x8675[7:0]=VFP[7:0]
+	
+	i2c_rd8(sd,0x867C,&uHtotalH);//0x867C[3:0]=Htotal[15:8]
+	i2c_rd8(sd,0x867D,&uHtotalL);//0x867D[7:0]=Htotal[7:0]
+	i2c_rd8(sd,0x8680,&uHactiveH);//0x8680[3:0]=Hactive[15:8]
+	i2c_rd8(sd,0x8681,&uHactiveL);//0x8681[7:0]=Hactive[7:0]
+	i2c_rd8(sd,0x8672,&uHsyncWH);//0x8672[3:0]=HsyncWH[11:8]
+	i2c_rd8(sd,0x8673,&uHsyncWL);//0x8673[7:0]=HsyncWL[7:0]
+	i2c_rd8(sd,0x8676,&uHBPH);//0x8676[3:0]=HBPH[11:8]
+	i2c_rd8(sd,0x8677,&uHBPL);//0x8677[7:0]=HBPL[7:0]
+	i2c_rd8(sd,0x8678,&uHFPH);//0x8678[3:0]=HFPH[11:8]
+	i2c_rd8(sd,0x8679,&uHFPL);//0x8679[7:0]=HFPL[7:0]
+  lt6911uxc_i2c_disable(sd);
+
+	dev_info(dev,"Vtotal = %d\n", uVtotalH<<8|uVtotalL);
+	dev_info(dev,"Vactive = %d\n", uVactiveH<<8|uVactiveL);
+
+	dev_info(dev,"Htotal = %d\n", uHtotalH<<8|uHtotalL);
+	dev_info(dev,"Hactive = %d\n", uHactiveH<<8|uHactiveL);
+	
+	dev_info(dev,"HsyncW = %d\n", uHsyncWH<<8|uHsyncWL);
+	dev_info(dev,"HBP = %d\n", uHBPH<<8|uHBPL);
+	dev_info(dev,"HFP = %d\n", uHFPH<<8|uHFPL);
+
+
+	dev_info(dev,"HtotalH = 0x%x\n", uHtotalH);
+	dev_info(dev,"HtotalL = 0x%x\n", uHtotalL);
+	
 }
 
 static void lt6911uxc_delayed_work_res_change(struct work_struct *work)
@@ -596,7 +724,8 @@ static void lt6911uxc_format_change(struct v4l2_subdev *sd)
 
 	if (lt6911uxc_get_detected_timings(sd, &timings)) {
 		enable_stream(sd, false);
-
+		//fox.luo@2022.04.25 add hdmirx plug det
+		hdmirx_check_flag = 0;
 		v4l2_dbg(1, debug, sd, "%s: No signal\n", __func__);
 	} else {
 		if (!v4l2_match_dv_timings(&lt6911uxc->timings, &timings, 0,
@@ -642,10 +771,44 @@ static irqreturn_t plugin_detect_irq_handler(int irq, void *dev_id)
 	/* control hpd output level after 25ms */
 	schedule_delayed_work(&lt6911uxc->delayed_work_enable_hotplug,
 			HZ / 40);
+
 	tx_5v_power_present(sd);
 
 	return IRQ_HANDLED;
 }
+
+//fox.luo@2022.04.25 add hdmirx plug det
+static ssize_t plug_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	if(hdmirx_check_flag == 1)
+		return sprintf(buf, "%d,%dx%d,%d\n", 1,screen_width,screen_height,audio_sampling_rate);
+	else
+		return sprintf(buf, "%d,%dx%d,%d\n",0,0,0,0);
+}
+
+static ssize_t plug_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int var;
+	int ret;
+
+	ret = sscanf(buf, "%du", &var);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+
+static struct kobj_attribute plug_attribute = __ATTR_RW(plug);
+
+static struct attribute *modem_sysfs[] = {
+	&plug_attribute.attr,
+	NULL,
+};
+
+static struct attribute_group modem_attr_group = {
+	.attrs = modem_sysfs,
+};
 
 static int lt6911uxc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				    struct v4l2_event_subscription *sub)
@@ -825,7 +988,8 @@ static int lt6911uxc_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = LT6911UXC_MEDIA_BUS_FMT;
+	if (fie->code != LT6911UXC_MEDIA_BUS_FMT)
+		return -EINVAL;
 
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
@@ -1263,7 +1427,7 @@ static int lt6911uxc_parse_of(struct lt6911uxc *lt6911uxc)
 	gpiod_set_value(lt6911uxc->hpd_ctl_gpio, 0);
 	gpiod_set_value(lt6911uxc->power_gpio, 1);
 	lt6911uxc_reset(lt6911uxc);
-
+	printk("lt6911uxc init fine! ----\n");
 	ret = 0;
 
 free_endpoint:
@@ -1282,6 +1446,8 @@ static inline int lt6911uxc_parse_of(struct lt6911uxc *lt6911uxc)
 static int lt6911uxc_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 	struct lt6911uxc *lt6911uxc;
 	struct v4l2_subdev *sd;
 	struct device *dev = &client->dev;
@@ -1299,6 +1465,7 @@ static int lt6911uxc_probe(struct i2c_client *client,
 
 	sd = &lt6911uxc->sd;
 	lt6911uxc->i2c_client = client;
+	lt6911uxc->timings = default_timing;
 	lt6911uxc->cur_mode = &supported_modes[0];
 	lt6911uxc->mbus_fmt_code = LT6911UXC_MEDIA_BUS_FMT;
 
@@ -1311,7 +1478,9 @@ static int lt6911uxc_probe(struct i2c_client *client,
 	err = lt6911uxc_check_chip_id(lt6911uxc);
 	if (err < 0)
 		return err;
-
+  
+  LT6911UXC_HDMI_VideoCheck(lt6911uxc);
+  
 	/* after the CPU actively accesses the lt6911uxc through I2C,
 	 * a reset operation is required.
 	 */
@@ -1390,6 +1559,9 @@ static int lt6911uxc_probe(struct i2c_client *client,
 		v4l2_err(sd, "v4l2 ctrl handler setup failed! err:%d\n", err);
 		goto err_work_queues;
 	}
+
+	//fox.luo@2022.04.25 add hdmi plug
+	err = sysfs_create_group(kobject_create_and_add("hdmi_lt6911", NULL), &modem_attr_group);
 
 	lt6911uxc_config_hpd(sd);
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
