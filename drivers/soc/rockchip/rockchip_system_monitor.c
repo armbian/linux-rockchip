@@ -1404,6 +1404,11 @@ rockchip_system_monitor_register(struct device *dev,
 	if (!devp)
 		return ERR_PTR(-EINVAL);
 
+	if (!devp->check_rate_volt) {
+		dev_warn(dev, "using default check_rate_volt\n");
+		devp->check_rate_volt = rockchip_monitor_check_rate_volt;
+	}
+
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
