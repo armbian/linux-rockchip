@@ -26,3 +26,13 @@
 &pcie2x1l2 {
 	/delete-node/ pcie@40;
 };
+
+&pwm0 {
+	pinctrl-0 = <&pwm0m2_pins>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-0 = <&pwm1m2_pins>;
+	status = "okay";
+};
