@@ -331,7 +331,7 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT(1)));
 
 	/* Only on raster mode, yuv 10bit can change to compact or set endian */
-	if (msg->win0.rd_mode == RGA_RASTER_MODE && yuv10 == 1) {
+	if (msg->win0.rd_mode == 0 && yuv10 == 1) {
 		reg =
 			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT)) |
 			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_YUV10B_COMPACT
@@ -703,7 +703,7 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		 (s_RGA3_WIN1_RD_CTRL_SW_WIN1_YUV10B_COMPACT(1)));
 
 	/* Only on roster mode, yuv 10bit can change to compact or set endian */
-	if (msg->win1.rd_mode == RGA_RASTER_MODE && yuv10 == 1) {
+	if (msg->win1.rd_mode == 0 && yuv10 == 1) {
 		reg =
 			((reg & (~m_RGA3_WIN1_RD_CTRL_SW_WIN1_YUV10B_COMPACT)) |
 			 (s_RGA3_WIN1_RD_CTRL_SW_WIN1_YUV10B_COMPACT
