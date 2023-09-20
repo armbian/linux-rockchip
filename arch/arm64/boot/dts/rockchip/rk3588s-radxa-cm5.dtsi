@@ -27,6 +27,17 @@
 		mmc1 = &sdmmc;
 		mmc2 = &sdio;
 	};
+
+	gpio_leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+
+		status-led-blue {
+			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+	};
 };
 
 &i2c0 {
