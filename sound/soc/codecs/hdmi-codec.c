@@ -496,7 +496,9 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 
 err:
 	mutex_unlock(&hcp->lock);
-	return ret;
+	//fox.luo@2023-09-18 fixme pause audio HDMI in issue
+	//return ret;
+	return 0;
 }
 
 static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
