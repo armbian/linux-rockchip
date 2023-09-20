@@ -154,17 +154,6 @@
 		regulator-always-on;
 	};
 
-    gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-
-		user-led1 {
-			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			default-state = "on";
-		};
-	};
-
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
@@ -546,5 +535,3 @@
 	pinctrl-0 = <&sdmmc_bus4 &sdmmc_clk &sdmmc_cmd &sdmmc_det>;
 	status = "okay";
 };
-
-
