@@ -478,6 +478,26 @@ static void rfkill_rk_pm_complete(struct device *dev)
 	}
 }
 
+static void rfkill_rk_shutdown(struct platform_device *pdev)
+{
+	struct rfkill_rk_data *rfkill = platform_get_drvdata(pdev);
+	struct rfkill_rk_irq *wake_host_irq;
+
+	LOG("Enter %s power:%d\n", __func__, bt_power_state);
+
+	if (!rfkill)
+		return;
+
+	wake_host_irq = &rfkill->pdata->wake_host_irq;
+
+	// enable bt wakeup host
+	DBG("enable irq for bt wakeup host\n");
+	if (gpio_is_valid(wake_host_irq->gpio.io) && bt_power_state) {
+		enable_irq(wake_host_irq->irq);
+		enable_irq_wake(wake_host_irq->irq);
+	}
+}
+
 static const struct rfkill_ops rfkill_rk_ops = {
 	.set_block = rfkill_rk_set_power,
 };
@@ -952,6 +972,7 @@ MODULE_DEVICE_TABLE(of, bt_platdata_of_match);
 static struct platform_driver rfkill_rk_driver = {
 	.probe = rfkill_rk_probe,
 	.remove = rfkill_rk_remove,
+	.shutdown = rfkill_rk_shutdown,
 	.driver = {
 		.name = "rfkill_bt",
 		.owner = THIS_MODULE,
