@@ -1,0 +1,183 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3568-cru.h>
+#include <dt-bindings/power/rk3568-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable YY3568 Camera";
+		compatible = "youyeetoo,yy3568";
+	};
+
+    fragment@0 {
+        target = <&csi2_dphy_hw>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@1 {
+        target = <&csi2_dphy0>;
+
+        __overlay__ {
+			status = "okay";
+
+            ports {
+		        #address-cells = <1>;
+		        #size-cells = <0>;
+		
+		        port@0 {
+			        reg = <0>;
+			        #address-cells = <1>;
+			        #size-cells = <0>;
+
+			        mipi_in_ucam0: endpoint@1 {
+			        	reg = <1>;
+			        	remote-endpoint = <&ucam_out0>;
+			        	data-lanes = <1 2 3 4>;
+			        };
+			
+			        mipi_in_ucam1: endpoint@2 {
+			        	reg = <2>;
+			        	remote-endpoint = <&gc8034_out>;
+			        	data-lanes = <1 2 3 4>;
+			        };
+			
+			        mipi_in_ucam2: endpoint@3 {
+			        	reg = <3>;
+			        	remote-endpoint = <&ov5695_out>;
+			        	data-lanes = <1 2>;
+			        };
+		        };
+		
+		        port@1 {
+		        	reg = <1>;
+		        	#address-cells = <1>;
+		        	#size-cells = <0>;
+
+		        	csidphy_out: endpoint@0 {
+		        		reg = <0>;
+		        		remote-endpoint = <&isp0_in>;
+		        	};
+		        };
+	        };
+		};
+    };
+
+    fragment@2 {
+        target = <&i2c4>;
+
+        __overlay__ {
+			status = "okay";
+
+            gc8034: gc8034@37 {
+		        compatible = "galaxycore,gc8034";
+		        reg = <0x37>;
+		        clocks = <&cru CLK_CIF_OUT>;
+		        clock-names = "xvclk";
+		        pinctrl-names = "default";
+		        pinctrl-0 = <&cif_clk>;
+		        reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_LOW>;
+		        pwdn-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_LOW>;
+		        rockchip,grf = <&grf>;
+		        rockchip,camera-module-index = <0>;
+		        rockchip,camera-module-facing = "back";
+		        rockchip,camera-module-name = "RK-CMK-8M-2-v1";
+		        rockchip,camera-module-lens-name = "CK8401";
+		        status = "okay";
+
+		        port {
+		        	gc8034_out: endpoint {
+		        		remote-endpoint = <&mipi_in_ucam1>;
+		        		data-lanes = <1 2 3 4>;
+		        	};
+		        };
+	        };
+	
+	        os04a10: os04a10@36 {
+	        	compatible = "ovti,os04a10";
+	        	reg = <0x36>;
+	        	clocks = <&cru CLK_CIF_OUT>;
+	        	clock-names = "xvclk";
+	        	power-domains = <&power RK3568_PD_VI>;
+	        	pinctrl-names = "default";
+	        	pinctrl-0 = <&cif_clk>;
+	        	reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_LOW>;
+	        	pwdn-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+	        	rockchip,camera-module-index = <0>;
+	        	rockchip,camera-module-facing = "back";
+	        	rockchip,camera-module-name = "CMK-OT1607-FV1";
+	        	rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
+
+	        	port {
+	        		ucam_out0: endpoint {
+	        			remote-endpoint = <&mipi_in_ucam0>;
+	        			data-lanes = <1 2 3 4>;
+	        		};
+	        	};
+	        };
+	
+	        ov5695: ov5695@36 {
+	        	compatible = "ovti,ov5695";
+	        	reg = <0x36>;
+	        	clocks = <&cru CLK_CIF_OUT>;
+	        	clock-names = "xvclk";
+	        	power-domains = <&power RK3568_PD_VI>;
+	        	pinctrl-names = "default";
+	        	pinctrl-0 = <&cif_clk>;
+	        	reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
+	        	pwdn-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+	        	rockchip,camera-module-index = <0>;
+	        	rockchip,camera-module-facing = "back";
+	        	rockchip,camera-module-name = "TongJu";
+	        	rockchip,camera-module-lens-name = "CHT842-MD";
+	        	status = "okay";
+
+	        	port {
+	        		ov5695_out: endpoint {
+	        			remote-endpoint = <&mipi_in_ucam2>;
+	        			data-lanes = <1 2>;
+	        		};
+	        	};
+	        };
+		};
+    };
+
+    fragment@3 {
+        target = <&rkisp>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@4 {
+        target = <&rkisp_mmu>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@5 {
+        target = <&rkisp_vir0>;
+
+        __overlay__ {
+			status = "okay";
+
+            port {
+		        #address-cells = <1>;
+		        #size-cells = <0>;
+
+		        isp0_in: endpoint@0 {
+		        	reg = <0>;
+		        	remote-endpoint = <&csidphy_out>;
+		        };
+	        };
+		};
+    };
+};
