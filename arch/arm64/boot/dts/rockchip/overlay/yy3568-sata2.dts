@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title ="Enable YY3568 SATA Port";
+		compatible = "youyeetoo,yy3568";
+	};
+
+    fragment@0 {
+        target = <&pcie2x1>;
+
+        __overlay__ {
+			status = "disabled";
+		};
+    };
+
+    fragment@1 {
+        target = <&sata2>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+};

@@ -1,0 +1,229 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	metadata {
+		title ="Enable YY3568 DSI1";
+		compatible = "youyeetoo,yy3568";
+	};
+
+    fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			backlight_1: backlight-1 {
+		        compatible = "pwm-backlight";
+		        pwms = <&pwm5 0 25000 0>;
+		        brightness-levels = <
+		        0  20  20  21  21  22  22  23
+		        23  24  24  25  25  26  26  27
+		        27  28  28  29  29  30  30  31
+		        31  32  32  33  33  34  34  35
+		        35  36  36  37  37  38  38  39
+		        40  41  42  43  44  45  46  47
+		        48  49  50  51  52  53  54  55
+		        56  57  58  59  60  61  62  63
+		        64  65  66  67  68  69  70  71
+		        72  73  74  75  76  77  78  79
+		        80  81  82  83  84  85  86  87
+		        88  89  90  91  92  93  94  95
+		        96  97  98  99 100 101 102 103
+		        104 105 106 107 108 109 110 111
+		        112 113 114 115 116 117 118 119
+		        120 121 122 123 124 125 126 127
+		        128 129 130 131 132 133 134 135
+		        136 137 138 139 140 141 142 143
+		        144 145 146 147 148 149 150 151
+		        152 153 154 155 156 157 158 159
+		        160 161 162 163 164 165 166 167
+		        168 169 170 171 172 173 174 175
+		        176 177 178 179 180 181 182 183
+		        184 185 186 187 188 189 190 191
+		        192 193 194 195 196 197 198 199
+		        200 201 202 203 204 205 206 207
+		        208 209 210 211 212 213 214 215
+		        216 217 218 219 220 221 222 223
+		        224 225 226 227 228 229 230 231
+		        232 233 234 235 236 237 238 239
+		        240 241 242 243 244 245 246 247
+		        248 249 250 251 252 253 254 255
+		        >;
+		        default-brightness-level = <200>;
+
+		        enable-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+	        };
+		};
+	};
+
+    fragment@1 {
+        target = <&pwm5>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@2 {
+        target = <&dsi1>;
+
+        __overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+            
+            dsi1_panel: panel@0 {
+		        status = "okay";
+		        compatible = "simple-panel-dsi";
+		        reg = <0>;
+		        backlight = <&backlight_1>;
+
+		        enable-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_LOW>;
+		        reset-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
+		        reset-delay-ms = <60>;
+		        enable-delay-ms = <60>;
+		        prepare-delay-ms = <60>;
+		        unprepare-delay-ms = <60>;
+		        disable-delay-ms = <60>;
+		        dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		        MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		        dsi,format = <MIPI_DSI_FMT_RGB888>;
+		        dsi,lanes  = <4>;
+		        panel-init-sequence = [
+		        15 00 02 80 ac
+		        15 00 02 81 b8
+		        15 00 02 82 09
+		        15 00 02 83 78
+		        15 00 02 84 7f
+		        15 00 02 85 bb
+		        15 00 02 86 70
+		        ];
+
+		        panel-exit-sequence = [
+		        05 00 01 28
+		        05 00 01 10
+		        ];
+
+
+		        ports {
+			        #address-cells = <1>;
+			        #size-cells = <0>;
+
+			        port@0 {
+				        reg = <0>;
+				        panel_in_dsi1: endpoint {
+					        remote-endpoint = <&dsi1_out_panel>;
+				        };
+			        };
+		        };
+	        };
+
+	        ports {
+		        #address-cells = <1>;
+		        #size-cells = <0>;
+
+		        port@1 {
+			        reg = <1>;
+			        dsi1_out_panel: endpoint {
+				        remote-endpoint = <&panel_in_dsi1>;
+			        };
+		        };
+	        };
+		};
+    };
+
+    fragment@3 {
+        target = <&dsi1_in_vp1>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@4 {
+        target = <&i2c5>;
+
+        __overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+	
+            gt9xxdsi: gt9xx@5d {
+		        compatible = "goodix,gt9xx";
+		        reg = <0x5d>;
+		        touch-gpio = <&gpio0 RK_PC1 IRQ_TYPE_EDGE_RISING>;
+		        reset-gpio = <&gpio3 RK_PA0 GPIO_ACTIVE_LOW>;
+		        max-x = <1024>;
+		        max-y = <600>;
+		        tp-size = <911>;
+		        pinctrl-names = "default";
+		        pinctrl-0 = <&touch_gpio>;
+		        tp-supply = <&vcc_3v3>;
+		        status = "okay";
+	        };
+		};
+    };
+
+    fragment@5 {
+        target = <&video_phy1>;
+
+        __overlay__ {
+			status = "okay";
+		};
+    };
+
+    fragment@6 {
+        target = <&route_dsi1>;
+
+        __overlay__ {
+			status = "okay";
+            connect = <&vp1_out_dsi1>;
+		};
+    };
+
+    fragment@7 {
+        target = <&dsi1_timing0>;
+
+        __overlay__ {
+			clock-frequency = <65000000>; //DCLK
+	        hactive = <1024>;             //hactive
+	        vactive = <600>;              //vactive
+	        hfront-porch = <160>;         //hfp
+	        hback-porch = <160>;          //hbp
+	        hsync-len = <10>;             //hsa
+	        vfront-porch = <12>;          //vfp
+	        vsync-len = <1>;              //vsa
+	        vback-porch = <23>;           //vbp
+	        hsync-active = <0>;           //hync 极性控制 置 1 反转极性
+	        vsync-active = <0>;           //vsync 极性控制 置 1 反转极性
+	        de-active = <1>;              //DEN 极性控制
+	        pixelclk-active = <0>;        //dclk 极性控制
+		};
+    };
+
+    fragment@8 {
+        target = <&disp_timings1>;
+
+        __overlay__ {
+			native-mode = <&dsi1_timing0>;
+		};
+    };
+
+    fragment@9 {
+        target = <&pinctrl>;
+
+        __overlay__ {
+			touch {
+		        touch_gpio: touch-gpio {
+			        rockchip,pins =
+			            <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>,
+			            <3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		        };
+	        };
+		};
+    };
+};
