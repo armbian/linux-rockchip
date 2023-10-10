@@ -41,7 +41,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vbus5v0_typec_en>;
 		enable-active-high;
-		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc5v0_sys>;
@@ -451,7 +450,6 @@
 };
 
 &u2phy0_otg {
-	rockchip,sel-pipe-phystatus;
 	rockchip,typec-vbus-det;
 	status = "okay";
 };
@@ -480,10 +478,6 @@
 	status = "okay";
 };
 
-&usbdp_phy0 {
-	status = "okay";
-};
-
 &usbdp_phy0_dp {
 	status = "okay";
 };
@@ -498,7 +492,6 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
-	extcon = <&u2phy0>;
 	status = "okay";
 
 	usb-role-switch;
