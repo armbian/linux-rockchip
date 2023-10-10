@@ -84,6 +84,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &CPU_SLEEP {
 	status = "disabled";
 };
