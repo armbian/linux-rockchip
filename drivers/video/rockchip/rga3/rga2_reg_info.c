@@ -2108,7 +2108,7 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 					req->alpha_config.bg_global_alpha_value = 0xff;
 				}
 			} else {
-				req->alpha_config.bg_global_alpha_value = 0xff;
+				req->alpha_config.fg_global_alpha_value = 0xff;
 				req->alpha_config.bg_global_alpha_value = 0xff;
 			}
 
