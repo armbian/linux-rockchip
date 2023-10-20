@@ -331,25 +331,25 @@
 
 		/* RK3568 && RK3568M gpu OPPs */
 		opp-200000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			//opp-supported-hw = <0xfb 0xffff>;
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-300000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			//opp-supported-hw = <0xfb 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-400000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			//opp-supported-hw = <0xfb 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-600000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			//opp-supported-hw = <0xfb 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <900000 900000 1000000>;
 			opp-microvolt-L0 = <900000 900000 1000000>;
@@ -359,7 +359,7 @@
 		};
 
 		opp-700000000 {
-			opp-supported-hw = <0xfb 0xffff>;
+			//opp-supported-hw = <0xfb 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <950000 950000 1000000>;
 			opp-microvolt-L0 = <950000 950000 1000000>;
@@ -369,7 +369,7 @@
 		};
 
 		opp-800000000 {
-			opp-supported-hw = <0xf9 0xffff>;
+			//opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1000000 1000000 1000000>;
 			opp-microvolt-L0 = <1000000 1000000 1000000>;
@@ -1258,13 +1258,13 @@
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "GPU", "MMU", "JOB";
+		interrupt-names = "gpu", "mmu", "job";
 
 		upthreshold = <40>;
 		downdifferential = <10>;
 
 		clocks = <&scmi_clk 1>, <&cru CLK_GPU>;
-		clock-names = "clk_mali", "clk_gpu";
+		clock-names = "gpu", "bus";
 		power-domains = <&power RK3568_PD_GPU>;
 		#cooling-cells = <2>;
 		operating-points-v2 = <&gpu_opp_table>;
