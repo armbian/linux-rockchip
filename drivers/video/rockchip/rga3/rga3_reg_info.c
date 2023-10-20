@@ -1662,7 +1662,7 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 					req->alpha_config.bg_global_alpha_value = 0xff;
 				}
 			} else {
-				req->alpha_config.bg_global_alpha_value = 0xff;
+				req->alpha_config.fg_global_alpha_value = 0xff;
 				req->alpha_config.bg_global_alpha_value = 0xff;
 			}
 
