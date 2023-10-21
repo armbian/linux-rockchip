@@ -49,6 +49,16 @@
 		>;
 	};
 
+	hdmi0_sound: hdmi0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-hdmi0";
+		rockchip,cpu = <&i2s5_8ch>;
+		rockchip,codec = <&hdmi0>;
+		rockchip,jack-det;
+	};
+
 	vcc5v0_sys: vcc5v0-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -457,6 +467,10 @@
 };
 
 &hdptxphy_hdmi0 {
+	status = "okay";
+};
+
+&i2s5_8ch {
 	status = "okay";
 };
 
