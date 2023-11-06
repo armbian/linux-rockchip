@@ -2312,6 +2312,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	    (req->rotate_mode == 0)) {
 		if (req->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
 		    req->src.format == RGA_FORMAT_YCrCb_420_SP_10B ||
+		    req->src.format == RGA_FORMAT_YCbCr_422_SP_10B ||
+		    req->src.format == RGA_FORMAT_YCrCb_422_SP_10B ||
 		    req->src.format == RGA_FORMAT_YCbCr_444_SP ||
 		    req->src.format == RGA_FORMAT_YCrCb_444_SP ||
 		    req->dst.format == RGA_FORMAT_YCbCr_444_SP ||
