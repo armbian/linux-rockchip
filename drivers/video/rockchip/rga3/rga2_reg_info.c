@@ -243,13 +243,15 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	bRGA_SRC_TR_COLOR0 = (u32 *) (base + RGA2_SRC_TR_COLOR0_OFFSET);
 	bRGA_SRC_TR_COLOR1 = (u32 *) (base + RGA2_SRC_TR_COLOR1_OFFSET);
 
-	if (msg->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
-		msg->src.format == RGA_FORMAT_YCrCb_420_SP_10B) {
-		if ((msg->src.act_w == msg->dst.act_w) &&
-			(msg->src.act_h == msg->dst.act_h) &&
-			(msg->rotate_mode == 0))
-			msg->rotate_mode = 1 << 6;
-	}
+        if (msg->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
+                msg->src.format == RGA_FORMAT_YCrCb_420_SP_10B ||
+                msg->src.format == RGA_FORMAT_YCbCr_422_SP_10B ||
+                msg->src.format == RGA_FORMAT_YCrCb_422_SP_10B) {
+                if ((msg->src.act_w == msg->dst.act_w) &&
+                        (msg->src.act_h == msg->dst.act_h) &&
+                        (msg->rotate_mode == 0))
+                        msg->rotate_mode = 1 << 6;
+        }
 
 	{
 		rotate_mode = msg->rotate_mode & 0x3;
