@@ -536,15 +536,20 @@
 };
 
 &u2phy0_otg {
+	rockchip,sel-pipe-phystatus;
 	status = "okay";
 };
 
 &usbdp_phy0 {
-	status = "okay";
+	status = "disabled";
+};
+
+&usbdp_phy0_dp {
+	status = "disabled";
 };
 
 &usbdp_phy0_u3 {
-	status = "okay";
+	status = "disabled";
 };
 
 &usbdrd3_0 {
@@ -552,6 +557,10 @@
 };
 
 &usbdrd_dwc3_0 {
+	dr_mode = "host";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
 	extcon = <&u2phy0>;
 	status = "okay";
 };
