@@ -538,6 +538,12 @@
 			rockchip,pins = <2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	emmc {
+		emmc_data_strobe: emmc-data-strobe {
+			rockchip,pins = <2 RK_PA2 1 &pcfg_pull_down>;
+		};
+	};
 };
 
 &pwm0 {
@@ -553,6 +559,8 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	full-pwr-cycle-in-suspend;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_data_strobe>;
 	status = "okay";
 };
 
