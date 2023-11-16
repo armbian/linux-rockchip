@@ -74,6 +74,16 @@
 		rockchip,jack-det;
 	};
 
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name = "rockchip-dp0";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -519,6 +529,12 @@
 		};
 	};
 
+	vga {
+		vga_hpdin_l: vga-hpdin-l {
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	pcie2 {
 		pcie2_reset: pcie2-reset {
 			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -564,6 +580,17 @@
 	status = "okay";
 };
 
+&dp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&vga_hpdin_l>;
+	hpd-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
 &hdmi0 {
 	status = "okay";
 };
@@ -588,6 +615,10 @@
 	status = "okay";
 };
 
+&spdif_tx2 {
+	status = "okay";
+};
+
 &vop_mmu {
 	status = "okay";
 };
@@ -605,8 +636,6 @@
 &route_hdmi0 {
 	status = "okay";
 	connect = <&vp0_out_hdmi0>;
-	/delete-property/ force-output;
-	/delete-node/ force_timing;
 };
 
 &vp0 {
@@ -656,16 +685,43 @@
 	status = "okay";
 };
 
+&u2phy1_otg {
+	phy-supply = <&vcc5v0_host>;
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host>;
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_host>;
+};
+
 &usbdp_phy0 {
-	status = "disabled";
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
 };
 
 &usbdp_phy0_dp {
-	status = "disabled";
+	status = "okay";
 };
 
 &usbdp_phy0_u3 {
-	status = "disabled";
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <3 2 1 0>;
+	status = "okay";
+};
+
+&usbdp_phy1_dp {
+	status = "okay";
+};
+
+&usbdp_phy1_u3 {
+	maximum-speed = "high-speed";
+	status = "okay";
 };
 
 &usbdrd3_0 {
