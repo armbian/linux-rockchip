@@ -158,6 +158,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb8-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb8-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-h66k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-h68k.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-hnas.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v10.dtb
