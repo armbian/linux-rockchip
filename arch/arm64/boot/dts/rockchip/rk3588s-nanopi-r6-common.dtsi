@@ -608,7 +608,7 @@
 };
 
 &sdmmc {
-	max-frequency = <150000000>;
+	max-frequency = <200000000>;
 	no-sdio;
 	no-mmc;
 	bus-width = <4>;
