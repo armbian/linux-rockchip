@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_VENDOR_MOTORCOMM
+	bool "Motorcomm devices"
+	default y
+	help
+	  If you have a network (Ethernet) device belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about motorcomm devices. If you say Y, you will be asked
+	  for your specific device in the following questions.
+
+if NET_VENDOR_MOTORCOMM
+
+config FUXI
+	tristate "motorcomm fuxi Ethernet support"
+
+endif #NET_VENDOR_MOTORCOMM
