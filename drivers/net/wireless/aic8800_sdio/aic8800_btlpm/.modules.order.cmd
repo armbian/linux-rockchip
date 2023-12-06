@@ -1,0 +1,1 @@
+cmd_drivers/net/wireless/aic8800/aic8800_btlpm/modules.order := {   echo drivers/net/wireless/aic8800/aic8800_btlpm/aic8800_btlpm.ko; :; } | awk '!x[$$0]++' - > drivers/net/wireless/aic8800/aic8800_btlpm/modules.order

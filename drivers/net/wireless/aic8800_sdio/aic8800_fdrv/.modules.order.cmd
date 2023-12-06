@@ -1,0 +1,1 @@
+cmd_drivers/net/wireless/aic8800/aic8800_fdrv/modules.order := {   echo drivers/net/wireless/aic8800/aic8800_fdrv/aic8800_fdrv.ko; :; } | awk '!x[$$0]++' - > drivers/net/wireless/aic8800/aic8800_fdrv/modules.order
