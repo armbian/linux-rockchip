@@ -508,5 +508,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-yy3568.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-hnas.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-roc-rk3588s-pc-v12.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-hinlink-ht2.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-nx5-io.dtb
 
 subdir-y := $(dts-dirs) overlay
