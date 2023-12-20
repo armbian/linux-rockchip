@@ -175,7 +175,7 @@
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
-		gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vbus5v0_typec_en>;
 		enable-active-high;
@@ -1152,7 +1152,7 @@
 		};
 
 		vbus5v0_typec_en: vbus5v0-typec-en {
-			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
