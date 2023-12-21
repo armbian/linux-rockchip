@@ -1085,6 +1085,7 @@ static const struct hdmi_quirk *get_hdmi_quirk(const u8 *vendor_id)
 static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 {
 	void *data = hdmi->plat_data->phy_data;
+	u32 ddc_i2c_rxfilter;
 	u64 scl_high_cnt, scl_low_cnt, val;
 	u8 sda_dlyn = 0, sda_div = 0;
 
@@ -1112,6 +1113,10 @@ static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 
 	/* Software reset */
 	hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+
+	/* Configure I2CM hold time and rxfilter */
+	if (device_property_read_u32(hdmi->dev, "ddc-i2c-rxfilter", &ddc_i2c_rxfilter) == 0)
+		hdmi_writel(hdmi, ddc_i2c_rxfilter, I2CM_CONFIG0);
 
 	hdmi_writel(hdmi, val, I2CM_SM_SCL_CONFIG0);
 	hdmi_modb(hdmi, 0, I2CM_FM_EN, I2CM_INTERFACE_CONTROL0);
