@@ -594,6 +594,7 @@
 
 &hdmi0 {
 	status = "okay";
+	ddc-i2c-rxfilter = <0x10>;
 };
 
 &hdmi0_in_vp0 {
