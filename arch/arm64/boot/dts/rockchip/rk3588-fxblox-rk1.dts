@@ -205,7 +205,18 @@
 		led_blue {
 			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-		};		
+		};
+		
+		user-led1 {
+			gpios = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+
+		user-led2 {
+			gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
 	};
 
 	fan0: pwm-fan {
@@ -215,6 +226,39 @@
 		cooling-levels = <90 110 130 150 170 190 210 230 255>;
 		pwms = <&pwm1 0 10000 0>;
 	};
+
+	panel-edp0 {
+		compatible = "simple-panel";
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		width-mm = <129>;
+		height-mm = <171>;
+
+		panel-timing {
+			clock-frequency = <148500000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <88>;
+			hsync-len = <44>;
+			hback-porch = <148>;
+			vfront-porch = <4>;
+			vsync-len = <5>;
+			vback-porch = <36>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp0: endpoint {
+				data-lanes = <2>;
+				remote-endpoint = <&edp0_out_panel>;
+			};
+		};
+	};	
 };
 
 &av1d {
@@ -597,8 +641,8 @@
 
 &display_subsystem {
 	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
-	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
-
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";	
+	
 	route {
 			route_dp0: route-dp0 {
 				status = "ok";
@@ -615,8 +659,17 @@
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vp2_out_dp1>;				
-			};			
+				connect = <&vp1_out_dp1>;				
+			};	
+
+			route_edp0: route-edp0 {
+				status = "ok";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp2_out_edp0>;
+			};		
 	};
 };
 
@@ -1030,7 +1083,7 @@
 	status = "okay";
 };
 
-&dp1_in_vp2 {
+&dp1_in_vp1 {
 	status = "okay";
 };
 
@@ -1041,7 +1094,7 @@
 
 &route_dp1 {
 	status = "okay";
-	connect = <&vp2_out_dp1>;
+	connect = <&vp1_out_dp1>;
 };
 
 &spdif_tx2 {
@@ -1255,3 +1308,34 @@
 	};
 };
 
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			edp0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp0>;
+			};
+		};
+	};
+};
+
+
+&edp0_in_vp2 {
+	status = "okay";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&spdif_tx3 {
+	status = "okay";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
