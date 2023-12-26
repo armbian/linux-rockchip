@@ -206,7 +206,7 @@
 			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		
+
 		user-led1 {
 			gpios = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
@@ -641,8 +641,7 @@
 
 &display_subsystem {
 	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
-	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";	
-	
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 	route {
 			route_dp0: route-dp0 {
 				status = "ok";
@@ -1307,7 +1306,6 @@
 		};
 	};
 };
-
 
 &edp0 {
 	force-hpd;
