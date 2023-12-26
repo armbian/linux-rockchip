@@ -970,7 +970,7 @@ static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 	hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 
 	/* Configure I2CM hold time and rxfilter */
-	if (device_property_read_u32(hdmi->dev, "ddc-i2c-rxfilter", &ddc_i2c_rxfilter))
+	if (device_property_read_u32(hdmi->dev, "ddc-i2c-rxfilter", &ddc_i2c_rxfilter) == 0)
 		hdmi_writel(hdmi, ddc_i2c_rxfilter, I2CM_CONFIG0);
 
 	hdmi_modb(hdmi, 0, I2CM_FM_EN, I2CM_INTERFACE_CONTROL0);
