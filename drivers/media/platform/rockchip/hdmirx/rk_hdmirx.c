@@ -1699,6 +1699,17 @@ static int hdmirx_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
+static int hdmirx_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int hdmirx_s_input(struct file *file, void *priv, unsigned int i)
+{
+	return i == 0 ? 0 : -EINVAL;
+}
+
 static int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 {
 	/* Note: cbcr plane bpp is 16 bit */
@@ -2514,6 +2525,8 @@ static const struct v4l2_ioctl_ops hdmirx_v4l2_ioctl_ops = {
 	.vidioc_query_dv_timings = hdmirx_query_dv_timings,
 	.vidioc_dv_timings_cap = hdmirx_dv_timings_cap,
 	.vidioc_enum_input = hdmirx_enum_input,
+	.vidioc_g_input = hdmirx_g_input,
+	.vidioc_s_input = hdmirx_s_input,
 	.vidioc_g_edid = hdmirx_get_edid,
 	.vidioc_s_edid = hdmirx_set_edid,
 
