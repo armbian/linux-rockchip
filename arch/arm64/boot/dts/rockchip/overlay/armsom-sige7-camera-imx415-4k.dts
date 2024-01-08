@@ -1,0 +1,379 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/power/rk3588-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	fragment@0 {
+		target = <&i2c3>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx415p0: imx415p0@1a {
+				status = "okay";
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+				clock-names = "xvclk";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim0_camera3_clk>;
+				power-domains = <&power RK3588_PD_VI>;
+				pwdn-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "CMK-OT2022-PX1";
+				rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+				port {
+					imx415_out0: endpoint {
+						remote-endpoint = <&mipidphy0_in_ucam0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c4>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4m1_xfer>;
+			
+			imx415p1: imx415p1@1a {
+				status = "okay";
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+				clock-names = "xvclk";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim0_camera2_clk>;
+				power-domains = <&power RK3588_PD_VI>;
+				pwdn-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_LOW>;
+				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "CMK-OT2022-PX1";
+				rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+				port {
+					imx415_out3: endpoint {
+						remote-endpoint = <&mipidphy3_in_ucam3>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&csi2_dphy0_hw>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&csi2_dphy1_hw>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+
+	fragment@4 {
+		target = <&csi2_dphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidphy0_in_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx415_out0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi2_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&csi2_dphy3>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidphy3_in_ucam3: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx415_out3>;
+						data-lanes = <1 2 3 4>;
+					};
+
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidphy3_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi4_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <&mipi2_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi2_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidphy0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi2_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi2_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&mipi4_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi4_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidphy3_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi4_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi_in4>;
+					};
+				};
+			};
+	    };
+	};
+
+	fragment@8 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&rkcif_mipi_lvds2>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi2_in0: endpoint {
+					remote-endpoint = <&mipi2_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@10 {
+		target = <&rkcif_mipi_lvds2_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds2_sditf: endpoint {
+					remote-endpoint = <&isp0_vir0>;
+				};
+			};
+		};
+	};
+
+	fragment@11 {
+		target = <&rkcif_mipi_lvds4>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi_in4: endpoint {
+					remote-endpoint = <&mipi4_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@12 {
+		target = <&rkcif_mipi_lvds4_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi4_lvds_sditf: endpoint {
+					remote-endpoint = <&isp1_vir1>;
+				};
+			};
+
+		};
+	};
+
+	fragment@13 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@14 {
+		target = <&isp0_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@15 {
+		target = <&rkisp0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@16 {
+		target = <&rkisp0_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds2_sditf>;
+				};
+			};
+		};
+	};
+
+	fragment@17 {
+		target = <&rkisp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@18 {
+		target = <&isp1_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@19 {
+		target = <&rkisp1_vir1>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp1_vir1: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi4_lvds_sditf>;
+				};
+			};
+		};
+	};
+	
+};
