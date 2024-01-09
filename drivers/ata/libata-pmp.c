@@ -845,6 +845,8 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		if (!(link->flags & ATA_LFLAG_DISABLED))
 			continue;
 
+		/* ignore BAD_PMP while resetting */
+		ap->pflags |= ATA_PFLAG_RESETTING;
 		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* Some PMPs require hardreset sequence to get
@@ -860,10 +862,14 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 			ata_link_err(link,
 				     "failed to clear SError.N (errno=%d)\n",
 				     rc);
+			spin_lock_irqsave(ap->lock, flags);
+			ap->pflags &= ~ATA_PFLAG_RESETTING;
+			spin_unlock_irqrestore(ap->lock, flags);
 			return rc;
 		}
 
 		spin_lock_irqsave(ap->lock, flags);
+		ap->pflags &= ~ATA_PFLAG_RESETTING;
 	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
