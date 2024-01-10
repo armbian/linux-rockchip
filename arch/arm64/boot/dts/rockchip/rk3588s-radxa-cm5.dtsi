@@ -361,3 +361,8 @@
 		regulator-suspend-microvolt = <850000>;
 	};
 };
+
+&vdd_0v75_s0 {
+	regulator-min-microvolt = <837500>;
+	regulator-max-microvolt = <837500>;
+};
