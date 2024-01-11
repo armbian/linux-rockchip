@@ -266,6 +266,11 @@
 	status = "okay";
 };
 
+&hdmi0 {
+	status = "okay";
+        cec-enable = "true";
+};
+
 &sdhci {
 	bus-width = <8>;
 	non-removable;
