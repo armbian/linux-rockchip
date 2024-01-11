@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2023 Radxa Limited.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3566-radxa-zero3.dtsi"
+
+/ {
+	model = "Radxa ZERO 3";
+	compatible ="radxa,zero3", "rockchip,rk3566";
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "ap6212";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake_irq = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+		reset-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+	};
+
+	board_antenna: board-antenna {
+		status = "okay";
+		compatible = "regulator-fixed";
+		enable-active-low;
+		gpio = <&gpio3 RK_PD3 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+		regulator-boot-on;
+		pinctrl-0 = <&ant_1>;
+		pinctrl-names = "default";
+		regulator-name = "board_antenna";
+	};
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn &uart1m0_rtsn>;
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		clocks = <&rk817 1>;
+		clock-names = "lpo";
+		device-wakeup-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake_l &bt_wake_l &bt_enable_h>;
+		vbat-supply = <&vcc3v3_sys>;
+		vddio-supply = <&vcc_1v8>;
+	};
+};
+
+&sdmmc1 {
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	rockchip,default-sample-phase = <180>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	no-sd;
+	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&pinctrl {
+	wifi {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	bt {
+		bt_enable_h: bt-enable-h {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_host_wake_l: bt-host-wake-l {
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_l: bt-wake-l {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdmmc1 {
+		/omit-if-no-ref/
+		sdmmc1_bus4: sdmmc1-bus4 {
+			rockchip,pins =
+				/* sdmmc1_d0 */
+				<2 RK_PA3 1 &pcfg_pull_up_drv_level_12>,
+				/* sdmmc1_d1 */
+				<2 RK_PA4 1 &pcfg_pull_up_drv_level_12>,
+				/* sdmmc1_d2 */
+				<2 RK_PA5 1 &pcfg_pull_up_drv_level_12>,
+				/* sdmmc1_d3 */
+				<2 RK_PA6 1 &pcfg_pull_up_drv_level_12>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1_clk: sdmmc1-clk {
+			rockchip,pins =
+				/* sdmmc1_clk */
+				<2 RK_PB0 1 &pcfg_pull_up_drv_level_12>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1_cmd: sdmmc1-cmd {
+			rockchip,pins =
+				/* sdmmc1_cmd */
+				<2 RK_PA7 1 &pcfg_pull_up_drv_level_12>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1_det: sdmmc1-det {
+			rockchip,pins =
+				/* sdmmc1_det */
+				<2 RK_PB2 1 &pcfg_pull_up>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1_pwren: sdmmc1-pwren {
+			rockchip,pins =
+				/* sdmmc1_pwren */
+				<2 RK_PB1 1 &pcfg_pull_none>;
+		};
+	};
+
+	antenna {
+		ant_1: ant-1 {
+			rockchip,pins = <3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
