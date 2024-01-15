@@ -273,9 +273,14 @@
 
 &sdhci {
 	bus-width = <8>;
+	no-sdio;
+	no-sd;
 	non-removable;
-	max-frequency = <150000000>;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	mmc-hs200-1_8v;
+	status = "okay";
 };
 
 &mdio1 {
