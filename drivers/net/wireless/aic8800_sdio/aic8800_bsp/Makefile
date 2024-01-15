@@ -1,8 +1,5 @@
 CONFIG_SDIO_SUPPORT := y
 CONFIG_SDIO_PWRCTRL := y
-CONFIG_AIC_FW_PATH = "/vendor/etc/firmware"
-#CONFIG_AIC_FW_PATH = "/lib/firmware/aic8800"
-export CONFIG_AIC_FW_PATH
 ccflags-y += -DCONFIG_AIC_FW_PATH=\"$(CONFIG_AIC_FW_PATH)\"
 
 MODULE_NAME := aic8800_bsp
