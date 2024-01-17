@@ -1120,6 +1120,13 @@
 	};
 };
 
+&vdd_0v75_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
+};
+
 &avcc_1v8_s0 {
 	regulator-state-mem {
 		regulator-on-in-suspend;
