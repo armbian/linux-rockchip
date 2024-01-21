@@ -25,7 +25,6 @@ struct virtual_buf {
 #define virtual_to_head(x) ((char *)x - sizeof(unsigned char))
 
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 
 static int mdbg_virtual_pop(int channel, struct mbuf_t *head,
 		     struct mbuf_t *tail, int num)

@@ -849,4 +849,3 @@ module_platform_driver(mtty_driver);
 
 MODULE_AUTHOR("Unisoc wcn bt");
 MODULE_DESCRIPTION("Unisoc marlin tty driver");
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);

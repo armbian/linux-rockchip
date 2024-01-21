@@ -186,7 +186,7 @@ int sb_set_blocksize(struct super_block *sb, int size)
 	return sb->s_blocksize;
 }
 
-EXPORT_SYMBOL_NS(sb_set_blocksize, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL(sb_set_blocksize);
 
 int sb_min_blocksize(struct super_block *sb, int size)
 {
@@ -196,7 +196,7 @@ int sb_min_blocksize(struct super_block *sb, int size)
 	return sb_set_blocksize(sb, size);
 }
 
-EXPORT_SYMBOL_NS(sb_min_blocksize, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL(sb_min_blocksize);
 
 static int
 blkdev_get_block(struct inode *inode, sector_t iblock,
