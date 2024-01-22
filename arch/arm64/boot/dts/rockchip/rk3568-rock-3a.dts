@@ -410,6 +410,10 @@
 			status = "okay";
 		};
 
+		rtc {
+			status = "disabled";
+		};
+
 		pinctrl_rk8xx: pinctrl_rk8xx {
 			gpio-controller;
 			#gpio-cells = <2>;
