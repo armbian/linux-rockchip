@@ -1625,6 +1625,23 @@ static int hdmirx_s_input(struct file *file, void *priv, unsigned int i)
 	return i == 0 ? 0 : -EINVAL;
 }
 
+static int hdmirx_g_parm(struct file *file, void *priv,
+		struct v4l2_streamparm *parm)
+{
+	struct hdmirx_stream *stream = video_drvdata(file);
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	struct v4l2_fract fps;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	fps = v4l2_calc_timeperframe(&hdmirx_dev->timings);
+	parm->parm.capture.timeperframe.numerator = fps.numerator;
+	parm->parm.capture.timeperframe.denominator = fps.denominator;
+
+	return 0;
+}
+
 static int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 {
 	/* Note: cbcr plane bpp is 16 bit */
@@ -2295,6 +2312,7 @@ static const struct v4l2_ioctl_ops hdmirx_v4l2_ioctl_ops = {
 	.vidioc_s_input = hdmirx_s_input,
 	.vidioc_g_edid = hdmirx_get_edid,
 	.vidioc_s_edid = hdmirx_set_edid,
+	.vidioc_g_parm = hdmirx_g_parm,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
