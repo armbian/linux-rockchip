@@ -272,9 +272,9 @@
 			linux,default-trigger = "default-on";
 		};
 
-		user-led2 {
+		hdd-led2 {
 			gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "disk-activity";
 		};
 	};
 };
