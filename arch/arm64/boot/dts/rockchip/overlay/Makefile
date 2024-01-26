@@ -47,6 +47,11 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	radxa-nx5-io-rpi-camera-v2-cam1.dtbo \
 	turing-rk1-sata2.dtbo \
 	mixtile-blade3-sata2.dtbo \
+	radxa-zero3-rpi-camera-v2.dtbo \
+	radxa-zero3-rpi-camera-v1.3.dtbo \
+	radxa-zero3-external-antenna.dtbo \
+	radxa-zero3-disabled-ethernet.dtbo \
+	radxa-zero3-disabled-wireless.dtbo \
 	yy3568-camera.dtbo \
 	yy3568-display-dsi0.dtbo \
 	yy3568-display-dsi1.dtbo \
