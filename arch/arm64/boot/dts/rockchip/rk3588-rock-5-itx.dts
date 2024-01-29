@@ -26,6 +26,13 @@
 
 	/delete-node/ chosen;
 
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-levels = <0 64 128 192 255>;
+		pwms = <&pwm14 0 10000 0>;
+	};
+
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -114,7 +121,7 @@
 	dp0_sound: dp0-sound {
 		status = "okay";
 		compatible = "rockchip,hdmi";
-		rockchip,card-name = "rockchip-dp0";
+		rockchip,card-name = "rockchip-hdmi0";
 		rockchip,mclk-fs = <512>;
 		rockchip,cpu = <&spdif_tx2>;
 		rockchip,codec = <&dp0 1>;
@@ -124,7 +131,7 @@
 	dp1_sound: dp1-sound {
 		status = "okay";
 		compatible = "rockchip,hdmi";
-		rockchip,card-name = "rockchip-dp1";
+		rockchip,card-name = "rockchip-hdmi2";
 		rockchip,mclk-fs = <512>;
 		rockchip,cpu = <&spdif_tx5>;
 		rockchip,codec = <&dp1 1>;
@@ -175,7 +182,7 @@
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
-		gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vbus5v0_typec_en>;
 		enable-active-high;
@@ -254,6 +261,21 @@
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+
+		power-led1 {
+			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		user-led2 {
+			gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 };
 
@@ -552,7 +574,7 @@
 		compatible = "brcm,bcm4345c5";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		host-wakeup-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
 		shutdown-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
 		max-speed = <1500000>;
 		pinctrl-names = "default";
@@ -566,9 +588,8 @@
 };
 
 &display_subsystem {
-	clocks =  <&hdptxphy_hdmi_clk1>;
-	clock-names = "hdmi1_phy_pll";
-
+	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 	route {
 		route_hdmi1: route-hdmi1 {
 			status = "okay";
@@ -576,9 +597,13 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vp1_out_hdmi1>;
+			connect = <&vp0_out_hdmi1>;
 		};
 	};
+};
+
+&hdptxphy_hdmi_clk0 {
+	status = "okay";
 };
 
 &hdptxphy_hdmi_clk1 {
@@ -619,6 +644,10 @@
 
 	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
 	pinctrl-names = "default";
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
 };
 
 &hdptxphy_hdmi1 {
@@ -703,14 +732,6 @@
 };
 
 &usb_host1_ohci {
-	status = "okay";
-};
-
-&usbhost3_0 {
-	status = "okay";
-};
-
-&usbhost_dwc3_0 {
 	status = "okay";
 };
 
@@ -986,6 +1007,20 @@
 
 &soc_thermal {
 	sustainable-power = <5000>; /* milliwatts */
+	cooling-maps {
+		map3 {
+			trip = <&target>;
+			cooling-device =
+				<&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			contribution = <8192>;
+		};
+		map4 {
+			trip = <&threshold>;
+			cooling-device =
+				<&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			contribution = <8192>;
+		};
+	};
 };
 
 &i2c6 {
@@ -1085,6 +1120,13 @@
 	};
 };
 
+&vdd_0v75_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
+};
+
 &avcc_1v8_s0 {
 	regulator-state-mem {
 		regulator-on-in-suspend;
@@ -1137,7 +1179,7 @@
 		};
 
 		vbus5v0_typec_en: vbus5v0-typec-en {
-			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -1149,7 +1191,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none_drv_level_8>;
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -1173,7 +1215,7 @@
 
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
@@ -1181,7 +1223,7 @@
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
