@@ -8,7 +8,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -72,11 +71,6 @@ module_param(bypass_soft_reset, int, 0644);
 MODULE_PARM_DESC(bypass_soft_reset,
 		 "bypass RKNPU soft reset if set it to 1, disabled by default");
 
-struct rknpu_irqs_data {
-	const char *name;
-	irqreturn_t (*irq_hdl)(int irq, void *ctx);
-};
-
 static const struct rknpu_irqs_data rknpu_irqs[] = {
 	{ "npu_irq", rknpu_core0_irq_handler }
 };
@@ -96,6 +90,27 @@ static const struct rknpu_reset_data rk3588_npu_resets[] = {
 	{ "srst_a2", "srst_h2" }
 };
 
+static const struct rknpu_amount_data rknpu_old_top_amount = {
+	.offset_clr_all = 0x8010,
+	.offset_dt_wr = 0x8034,
+	.offset_dt_rd = 0x8038,
+	.offset_wt_rd = 0x803c,
+};
+
+static const struct rknpu_amount_data rknpu_top_amount = {
+	.offset_clr_all = 0x2210,
+	.offset_dt_wr = 0x2234,
+	.offset_dt_rd = 0x2238,
+	.offset_wt_rd = 0x223c
+};
+
+static const struct rknpu_amount_data rknpu_core_amount = {
+	.offset_clr_all = 0x2410,
+	.offset_dt_wr = 0x2434,
+	.offset_dt_rd = 0x2438,
+	.offset_wt_rd = 0x243c,
+};
+
 static const struct rknpu_config rk356x_rknpu_config = {
 	.bw_priority_addr = 0xfe180008,
 	.bw_priority_length = 0x10,
@@ -105,7 +120,6 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.pc_task_number_mask = 0xfff,
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
-	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
@@ -114,6 +128,8 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
 	.core_mask = 0x1,
+	.amount_top = &rknpu_old_top_amount,
+	.amount_core = NULL,
 };
 
 static const struct rknpu_config rk3588_rknpu_config = {
@@ -125,7 +141,6 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.pc_task_number_mask = 0xfff,
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
-	.bw_enable = 0,
 	.irqs = rk3588_npu_irqs,
 	.resets = rk3588_npu_resets,
 	.num_irqs = ARRAY_SIZE(rk3588_npu_irqs),
@@ -134,6 +149,8 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
 	.core_mask = 0x7,
+	.amount_top = NULL,
+	.amount_core = NULL,
 };
 
 static const struct rknpu_config rk3583_rknpu_config = {
@@ -145,7 +162,6 @@ static const struct rknpu_config rk3583_rknpu_config = {
 	.pc_task_number_mask = 0xfff,
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
-	.bw_enable = 0,
 	.irqs = rk3588_npu_irqs,
 	.resets = rk3588_npu_resets,
 	.num_irqs = 2,
@@ -154,6 +170,8 @@ static const struct rknpu_config rk3583_rknpu_config = {
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
 	.core_mask = 0x3,
+	.amount_top = NULL,
+	.amount_core = NULL,
 };
 
 static const struct rknpu_config rv1106_rknpu_config = {
@@ -165,7 +183,6 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.pc_task_number_mask = 0xffff,
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
-	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
@@ -174,6 +191,8 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 16) - 1,
 	.core_mask = 0x1,
+	.amount_top = &rknpu_old_top_amount,
+	.amount_core = NULL,
 };
 
 static const struct rknpu_config rk3562_rknpu_config = {
@@ -185,7 +204,6 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.pc_task_number_mask = 0xffff,
 	.pc_task_status_offset = 0x48,
 	.pc_dma_ctrl = 1,
-	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
@@ -194,6 +212,8 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.nbuf_size = 256 * 1024,
 	.max_submit_number = (1 << 16) - 1,
 	.core_mask = 0x1,
+	.amount_top = &rknpu_old_top_amount,
+	.amount_core = NULL,
 };
 
 /* driver probe and init */
@@ -952,9 +972,12 @@ static int rknpu_register_irq(struct platform_device *pdev,
 {
 	const struct rknpu_config *config = rknpu_dev->config;
 	struct device *dev = &pdev->dev;
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	struct resource *res;
+#endif
 	int i, ret, irq;
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   config->irqs[0].name);
 	if (res) {
@@ -993,6 +1016,28 @@ static int rknpu_register_irq(struct platform_device *pdev,
 			return ret;
 		}
 	}
+#else
+	/* there are irq names in dts */
+	for (i = 0; i < config->num_irqs; i++) {
+		irq = platform_get_irq_byname(pdev, config->irqs[i].name);
+		if (irq < 0) {
+			irq = platform_get_irq(pdev, i);
+			if (irq < 0) {
+				LOG_DEV_ERROR(dev, "no npu %s in dts\n",
+					      config->irqs[i].name);
+				return irq;
+			}
+		}
+
+		ret = devm_request_irq(dev, irq, config->irqs[i].irq_hdl,
+				       IRQF_SHARED, dev_name(dev), rknpu_dev);
+		if (ret < 0) {
+			LOG_DEV_ERROR(dev, "request %s failed: %d\n",
+				      config->irqs[i].name, ret);
+			return ret;
+		}
+	}
+#endif
 
 	return 0;
 }

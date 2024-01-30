@@ -885,11 +885,6 @@ int rknpu_get_bw_priority(struct rknpu_device *rknpu_dev, uint32_t *priority,
 {
 	void __iomem *base = rknpu_dev->bw_priority_base;
 
-	if (!rknpu_dev->config->bw_enable) {
-		LOG_WARN("Get bw_priority is not supported on this device!\n");
-		return 0;
-	}
-
 	if (!base)
 		return -EINVAL;
 
@@ -914,11 +909,6 @@ int rknpu_set_bw_priority(struct rknpu_device *rknpu_dev, uint32_t priority,
 {
 	void __iomem *base = rknpu_dev->bw_priority_base;
 
-	if (!rknpu_dev->config->bw_enable) {
-		LOG_WARN("Set bw_priority is not supported on this device!\n");
-		return 0;
-	}
-
 	if (!base)
 		return -EINVAL;
 
@@ -941,28 +931,41 @@ int rknpu_set_bw_priority(struct rknpu_device *rknpu_dev, uint32_t priority,
 int rknpu_clear_rw_amount(struct rknpu_device *rknpu_dev)
 {
 	void __iomem *rknpu_core_base = rknpu_dev->base[0];
+	const struct rknpu_config *config = rknpu_dev->config;
 	unsigned long flags;
 
-	if (!rknpu_dev->config->bw_enable) {
+	if (config->amount_top == NULL) {
 		LOG_WARN("Clear rw_amount is not supported on this device!\n");
 		return 0;
 	}
 
-	if (rknpu_dev->config->pc_dma_ctrl) {
+	if (config->pc_dma_ctrl) {
 		uint32_t pc_data_addr = 0;
 
 		spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
 		pc_data_addr = REG_READ(RKNPU_OFFSET_PC_DATA_ADDR);
 
 		REG_WRITE(0x1, RKNPU_OFFSET_PC_DATA_ADDR);
-		REG_WRITE(0x80000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
-		REG_WRITE(0x00000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+		REG_WRITE(0x80000101, config->amount_top->offset_clr_all);
+		REG_WRITE(0x00000101, config->amount_top->offset_clr_all);
+		if (config->amount_core) {
+			REG_WRITE(0x80000101,
+				  config->amount_core->offset_clr_all);
+			REG_WRITE(0x00000101,
+				  config->amount_core->offset_clr_all);
+		}
 		REG_WRITE(pc_data_addr, RKNPU_OFFSET_PC_DATA_ADDR);
 		spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 	} else {
 		spin_lock(&rknpu_dev->lock);
-		REG_WRITE(0x80000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
-		REG_WRITE(0x00000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+		REG_WRITE(0x80000101, config->amount_top->offset_clr_all);
+		REG_WRITE(0x00000101, config->amount_top->offset_clr_all);
+		if (config->amount_core) {
+			REG_WRITE(0x80000101,
+				  config->amount_core->offset_clr_all);
+			REG_WRITE(0x00000101,
+				  config->amount_core->offset_clr_all);
+		}
 		spin_unlock(&rknpu_dev->lock);
 	}
 
@@ -973,23 +976,42 @@ int rknpu_get_rw_amount(struct rknpu_device *rknpu_dev, uint32_t *dt_wr,
 			uint32_t *dt_rd, uint32_t *wd_rd)
 {
 	void __iomem *rknpu_core_base = rknpu_dev->base[0];
-	int amount_scale = rknpu_dev->config->pc_data_amount_scale;
+	const struct rknpu_config *config = rknpu_dev->config;
+	int amount_scale = config->pc_data_amount_scale;
 
-	if (!rknpu_dev->config->bw_enable) {
+	if (config->amount_top == NULL) {
 		LOG_WARN("Get rw_amount is not supported on this device!\n");
 		return 0;
 	}
 
 	spin_lock(&rknpu_dev->lock);
 
-	if (dt_wr != NULL)
-		*dt_wr = REG_READ(RKNPU_OFFSET_DT_WR_AMOUNT) * amount_scale;
+	if (dt_wr != NULL) {
+		*dt_wr = REG_READ(config->amount_top->offset_dt_wr) *
+			 amount_scale;
+		if (config->amount_core) {
+			*dt_wr += REG_READ(config->amount_core->offset_dt_wr) *
+				  amount_scale;
+		}
+	}
 
-	if (dt_rd != NULL)
-		*dt_rd = REG_READ(RKNPU_OFFSET_DT_RD_AMOUNT) * amount_scale;
+	if (dt_rd != NULL) {
+		*dt_rd = REG_READ(config->amount_top->offset_dt_rd) *
+			 amount_scale;
+		if (config->amount_core) {
+			*dt_rd += REG_READ(config->amount_core->offset_dt_rd) *
+				  amount_scale;
+		}
+	}
 
-	if (wd_rd != NULL)
-		*wd_rd = REG_READ(RKNPU_OFFSET_WT_RD_AMOUNT) * amount_scale;
+	if (wd_rd != NULL) {
+		*wd_rd = REG_READ(config->amount_top->offset_wt_rd) *
+			 amount_scale;
+		if (config->amount_core) {
+			*wd_rd += REG_READ(config->amount_core->offset_wt_rd) *
+				  amount_scale;
+		}
+	}
 
 	spin_unlock(&rknpu_dev->lock);
 
@@ -998,12 +1020,13 @@ int rknpu_get_rw_amount(struct rknpu_device *rknpu_dev, uint32_t *dt_wr,
 
 int rknpu_get_total_rw_amount(struct rknpu_device *rknpu_dev, uint32_t *amount)
 {
+	const struct rknpu_config *config = rknpu_dev->config;
 	uint32_t dt_wr = 0;
 	uint32_t dt_rd = 0;
 	uint32_t wd_rd = 0;
 	int ret = -EINVAL;
 
-	if (!rknpu_dev->config->bw_enable) {
+	if (config->amount_top == NULL) {
 		LOG_WARN(
 			"Get total_rw_amount is not supported on this device!\n");
 		return 0;
