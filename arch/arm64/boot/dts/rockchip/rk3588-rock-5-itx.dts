@@ -597,7 +597,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vp0_out_hdmi1>;
+			connect = <&vp1_out_hdmi1>;
 		};
 	};
 };
@@ -618,11 +618,11 @@
 };
 
 &hdmi1_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi1_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &hdmi1_in_vp2 {
@@ -881,7 +881,7 @@
 	status = "okay";
 };
 
-&dp0_in_vp1 {
+&dp0_in_vp0 {
 	status = "okay";
 };
 
