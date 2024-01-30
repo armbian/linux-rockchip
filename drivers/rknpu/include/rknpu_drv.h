@@ -10,6 +10,7 @@
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/kref.h>
+#include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/regulator/consumer.h>
@@ -28,10 +29,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20231121"
+#define DRIVER_DATE "20240129"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 3
+#define DRIVER_PATCHLEVEL 4
 
 #define LOG_TAG "RKNPU"
 
@@ -52,9 +53,21 @@
 #define LOG_DEV_DEBUG(dev, fmt, args...) dev_dbg(dev, LOG_TAG ": " fmt, ##args)
 #define LOG_DEV_ERROR(dev, fmt, args...) dev_err(dev, LOG_TAG ": " fmt, ##args)
 
+struct rknpu_irqs_data {
+	const char *name;
+	irqreturn_t (*irq_hdl)(int irq, void *ctx);
+};
+
 struct rknpu_reset_data {
 	const char *srst_a_name;
 	const char *srst_h_name;
+};
+
+struct rknpu_amount_data {
+	uint16_t offset_clr_all;
+	uint16_t offset_dt_wr;
+	uint16_t offset_dt_rd;
+	uint16_t offset_wt_rd;
 };
 
 struct rknpu_config {
@@ -66,7 +79,6 @@ struct rknpu_config {
 	__u32 pc_task_number_mask;
 	__u32 pc_task_status_offset;
 	__u32 pc_dma_ctrl;
-	__u32 bw_enable;
 	const struct rknpu_irqs_data *irqs;
 	const struct rknpu_reset_data *resets;
 	int num_irqs;
@@ -75,6 +87,8 @@ struct rknpu_config {
 	__u64 nbuf_size;
 	__u64 max_submit_number;
 	__u32 core_mask;
+	const struct rknpu_amount_data *amount_top;
+	const struct rknpu_amount_data *amount_core;
 };
 
 struct rknpu_timer {
