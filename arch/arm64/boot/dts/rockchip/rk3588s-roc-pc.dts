@@ -83,6 +83,7 @@
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		fan-supply = <&vcc12v_dcin>;
+		cooling-levels = <60 100 140 160 185 220 255>;
 		pwms = <&pwm11 0 50000 1>;
 	};
 
@@ -577,6 +578,76 @@
 
 &i2s5_8ch {
 	status = "okay";
+};
+
+&soc_thermal {
+	sustainable-power = <5000>; /* milliwatts */
+	polling-delay = <1000>;
+	polling-delay-passive = <2000>;
+	trips {
+		trip0: trip-point@0 {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip1: trip-point@1 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip2: trip-point@2 {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip3: trip-point@3 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip4: trip-point@4 {
+			temperature = <75000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		pcritical: trip-point@5 {
+			temperature = <80000>;
+			hysteresis = <1000>;
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&trip0>;
+			cooling-device = <&fan 0 1>;
+			contribution = <1024>;
+		};
+		map1 {
+			trip = <&trip1>;
+			cooling-device = <&fan 1 2>;
+			contribution = <1024>;
+		};
+		map2 {
+			trip = <&trip2>;
+			cooling-device = <&fan 2 3>;
+			contribution = <1024>;
+		};
+		map3 {
+			trip = <&trip3>;
+			cooling-device = <&fan 3 4>;
+			contribution = <1024>;
+		};
+		map4 {
+			trip = <&trip4>;
+			cooling-device = <&fan 4 5>;
+			contribution = <1024>;
+		};
+		map5 {
+			trip = <&pcritical>;
+			cooling-device = <&fan 5 6>;
+			contribution = <1024>;
+		};
+	};
 };
 
 &iep {
