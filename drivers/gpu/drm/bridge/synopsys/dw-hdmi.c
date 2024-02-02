@@ -358,6 +358,15 @@ static void handle_plugged_change(struct dw_hdmi *hdmi, bool plugged)
 {
 	if (hdmi->plugged_cb && hdmi->codec_dev)
 		hdmi->plugged_cb(hdmi->codec_dev, plugged);
+	if (plugged && hdmi->ddc) {
+               struct edid *edid = drm_get_edid(&hdmi->connector, hdmi->ddc);
+               if (edid) {
+                       if (hdmi->cec_notifier)
+                               cec_notifier_set_phys_addr_from_edid(
+                                       hdmi->cec_notifier, edid);
+                       kfree(edid);
+               }
+       }
 }
 
 int dw_hdmi_set_plugged_cb(struct dw_hdmi *hdmi, hdmi_codec_plugged_cb fn,
