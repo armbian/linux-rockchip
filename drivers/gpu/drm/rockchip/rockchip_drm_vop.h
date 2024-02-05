@@ -70,21 +70,22 @@
 #define AFBDC_FMT_U8U8U8U8	0x5
 #define AFBDC_FMT_U8U8U8	0x4
 
-#define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
-#define VOP_FEATURE_INTERNAL_RGB	BIT(1)
-#define VOP_FEATURE_ALPHA_SCALE		BIT(2)
-#define VOP_FEATURE_HDR10		BIT(3)
-#define VOP_FEATURE_DOVI		BIT(4)
+#define VOP_FEATURE_OUTPUT_RGB10		BIT(0)
+#define VOP_FEATURE_INTERNAL_RGB		BIT(1)
+#define VOP_FEATURE_ALPHA_SCALE			BIT(2)
+#define VOP_FEATURE_HDR10			BIT(3)
+#define VOP_FEATURE_DOVI			BIT(4)
 /* a feature to splice two windows and two vps to support resolution > 4096 */
-#define VOP_FEATURE_SPLICE		BIT(5)
-#define VOP_FEATURE_OVERSCAN		BIT(6)
-#define VOP_FEATURE_VIVID_HDR		BIT(7)
-#define VOP_FEATURE_POST_ACM		BIT(8)
-#define VOP_FEATURE_POST_CSC		BIT(9)
-#define VOP_FEATURE_POST_FRC_V2		BIT(10)
-#define VOP_FEATURE_POST_SHARP		BIT(11)
-#define VOP_FEATURE_HW_CURSOR		BIT(12)
-#define VOP_FEATURE_CGC			BIT(13)
+#define VOP_FEATURE_SPLICE			BIT(5)
+#define VOP_FEATURE_OVERSCAN			BIT(6)
+#define VOP_FEATURE_VIVID_HDR			BIT(7)
+#define VOP_FEATURE_POST_ACM			BIT(8)
+#define VOP_FEATURE_POST_CSC			BIT(9)
+#define VOP_FEATURE_POST_FRC_V2			BIT(10)
+#define VOP_FEATURE_POST_SHARP			BIT(11)
+#define VOP_FEATURE_HW_CURSOR			BIT(12)
+#define VOP_FEATURE_CGC				BIT(13)
+#define VOP_FEATURE_DYNAMIC_METADATA_EMP	BIT(14)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -602,7 +603,7 @@ struct vop_hdr_table {
 #define RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH	6
 #define RK_SDR2HDR_SMGAIN_LENGTH		64
 #define RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH	264
-#define RK_VIVID_DYNAMIC_METADATA_LENGTH	24
+#define RK_HDRVIVID_DYNAMIC_METADATA_LENGTH	24
 
 struct hdrvivid_regs {
 	uint32_t sdr2hdr_ctrl;
@@ -632,10 +633,18 @@ struct hdrvivid_regs {
 	uint32_t sdr_smgain[RK_SDR2HDR_SMGAIN_LENGTH];
 	uint32_t hdr_mode;
 	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH];
+	uint32_t hdrvivid_dynamic_metadata[RK_HDRVIVID_DYNAMIC_METADATA_LENGTH];
 };
 
 #define RK_HDR_TYPE_MASK 0xff
 #define RK_HDR_CGC_S2H_MASK BIT(8)
+#define RK_HDR_ADAPT_MODE_MASK (0xf << 16)
+
+enum hdrvivid_adapt_mode {
+	HDRVIVID_DEFAULT = 0,
+	HDRVIVID_RX_MODE,
+	HDRVIVID_MONITOR_MODE,
+};
 
 /* byte unit */
 #define VOP2_DOVI_CORE1_LUT_SIZE		5120
@@ -752,7 +761,7 @@ struct hdr_data {
 	uint32_t hdrgamma_mdfvalue[RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH];
 	uint32_t hdr_mode;
 	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
-	uint32_t hdr_dynamic_metadata[RK_VIVID_DYNAMIC_METADATA_LENGTH];
+	uint32_t hdrvivid_dynamic_metadata[RK_HDRVIVID_DYNAMIC_METADATA_LENGTH];
 };
 
 enum rk_plane_extend_data_type {
@@ -1068,10 +1077,10 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr_lut_mode;
 	struct vop_reg hdr_lut_mst;
 	struct vop_reg hdr_lut_fetch_done;
-	struct vop_reg hdr_vivid_en;
-	struct vop_reg hdr_vivid_bypass_en;
-	struct vop_reg hdr_vivid_path_mode;
-	struct vop_reg hdr_vivid_dstgamut;
+	struct vop_reg hdrvivid_en;
+	struct vop_reg hdrvivid_bypass_en;
+	struct vop_reg hdrvivid_path_mode;
+	struct vop_reg hdrvivid_dstgamut;
 	struct vop_reg sdr2hdr_en;
 	struct vop_reg sdr2hdr_dstmode;
 	struct vop_reg sdr2hdr_eotf_en;
@@ -1465,6 +1474,7 @@ struct vop2_video_port_data {
 	uint8_t splice_vp_id;
 	uint16_t lut_dma_rid;
 	uint32_t dclk_switch_id;
+	uint16_t metadata_rid;
 	uint32_t feature;
 	uint64_t soc_id[VOP2_SOC_VARIANT];
 	uint16_t gamma_lut_len;
@@ -1548,6 +1558,8 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_mipi_mode;
 	struct vop_reg grf_mipi_pin_pol;
 	struct vop_reg grf_mipi_1to4_en;
+	struct vop_reg grf_emp_mem_len_en;
+	struct vop_reg grf_emp_mem_len_bypass;
 };
 
 struct vop_wb_regs {
@@ -1627,6 +1639,10 @@ struct vop2_ctrl {
 	struct vop_reg mmu0_qos_val;
 	struct vop_reg mmu1_qos_en;
 	struct vop_reg mmu1_qos_val;
+	struct vop_reg metadata_lut_en;
+	struct vop_reg metadata_rid;
+	struct vop_reg metadata_size;
+	struct vop_reg metadata_mst;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg auto_cs_en;
 	struct vop_reg auto_cs_mode;
