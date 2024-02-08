@@ -39,6 +39,9 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 
+#include <linux/iio/consumer.h>
+#include <linux/iio/types.h>
+
 static int dbg_enable;
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -434,7 +437,15 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[PLUG_IN_STS] = REG_FIELD(0xF0, 6, 6),
 };
 
+struct adc_info {
+	struct iio_channel *iio_chan;
+	uint32_t vol_ratio;
+	uint32_t ref_vol;
+	uint32_t vol_res;
+};
+
 struct battery_platform_data {
+	struct adc_info adc;
 	u32 *ocv_table;
 	u32 *zero_table;
 
@@ -625,6 +636,11 @@ struct rk817_battery_device {
 	int				chip_id;
 	int				is_register_chg_psy;
 	bool				change; /* Battery status change, report information */
+
+	struct {
+		struct gpiod_desc *charging;
+		struct gpiod_desc *done;
+	} status;
 };
 
 static void rk817_bat_resume_work(struct work_struct *work);
@@ -946,10 +962,27 @@ static int rk817_bat_get_pwron_voltage(struct rk817_battery_device *battery)
 	return vol;
 }
 
+static int rk817_adc_get_battery_voltage(struct rk817_battery_device *battery)
+{
+	int adc_value,real_value=0, ref_vol;
+	struct adc_info *info = &battery->pdata->adc;
+
+	iio_read_channel_raw(info->iio_chan, &adc_value);
+	ref_vol = (info->ref_vol * 1000) / info->vol_res * adc_value / 1000;
+	real_value = ref_vol * info->vol_ratio / 1000;
+
+	return real_value;
+}
+
+
 static int rk817_bat_get_battery_voltage(struct rk817_battery_device *battery)
 {
 	int vol, val = 0, vol_temp;
 	int vcalib0, vcalib1;
+
+	if(!IS_ERR(battery->pdata->adc.iio_chan)){
+		return rk817_adc_get_battery_voltage(battery);
+	}
 
 	vcalib0 = rk817_bat_get_vaclib0(battery);
 	vcalib1 =  rk817_bat_get_vaclib1(battery);
@@ -1769,6 +1802,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	u32 out_value;
 	int length, ret;
 	size_t size;
+	enum iio_chan_type type;
 	struct battery_platform_data *pdata;
 	struct device *dev = battery->dev;
 	struct device_node *np = battery->dev->of_node;
@@ -1916,6 +1950,36 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 			dev_err(dev, "not have to register chg psy!\n");
 	}
 
+	pdata->adc.iio_chan = devm_iio_channel_get(dev, "battery-voltage");
+	if (!IS_ERR(pdata->adc.iio_chan)) {
+		dev_info(dev, "Found iio chan use adc\n");
+		ret = iio_get_channel_type(pdata->adc.iio_chan, &type);
+		if (ret < 0 || type != IIO_VOLTAGE) {
+			dev_err(dev, "iio channel error\n");
+			return -EINVAL;
+		}
+
+		ret = of_property_read_u32(np, "adc_vol_ratio", &pdata->adc.vol_ratio);
+		if (ret) {
+			dev_err(dev, "adc_vol_ratio error\n");
+			return -EINVAL;
+		}
+
+		ret = of_property_read_u32(np, "adc_ref_vol", &pdata->adc.ref_vol);
+		if (ret) {
+			dev_err(dev, "adc_ref_vol error\n");
+			return -EINVAL;
+		}
+		
+		ret = of_property_read_u32(np, "adc_res", &pdata->adc.vol_res);
+		if (ret) {
+			dev_err(dev, "adc_res error\n");
+			return -EINVAL;
+		}
+	} else {
+		return PTR_ERR(pdata->adc.iio_chan);
+	}
+
 	DBG("the battery dts info dump:\n"
 	    "bat_res:%d\n"
 	    "res_sample:%d\n"
@@ -2035,7 +2099,15 @@ static int rk817_get_capacity_leve(struct rk817_battery_device *battery)
 	if (battery->pdata->bat_mode == MODE_VIRTUAL)
 		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
 
-	dsoc = (battery->dsoc + 500) / 1000;
+	if (!IS_ERR(battery->pdata->adc.iio_chan)) {
+		int ret = rk817_bat_vol_to_cap(battery, rk817_adc_get_battery_voltage(battery));
+		dsoc = ret / (battery->pdata->design_capacity / 100);
+	} else {
+		dsoc = (battery->dsoc + 500) / 1000;
+	}
+
+	dev_info(battery->dev, "dsoc:%d\n", dsoc);
+
 	if (dsoc < 1)
 		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 	else if (dsoc <= 20)
@@ -2085,7 +2157,13 @@ static int rk817_battery_get_property(struct power_supply *psy,
 			val->intval = VIRTUAL_VOLTAGE * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = (battery->dsoc  + 500) / 1000;
+		if (!IS_ERR(battery->pdata->adc.iio_chan)) {
+			int ret = rk817_bat_vol_to_cap(battery, rk817_adc_get_battery_voltage(battery));
+			val->intval = ret / (battery->pdata->design_capacity / 100);
+		} else {
+			val->intval = (battery->dsoc  + 500) / 1000;
+		}
+		
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_SOC;
 		break;
