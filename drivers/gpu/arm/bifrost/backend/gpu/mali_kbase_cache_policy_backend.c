@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,43 +22,71 @@
 #include "backend/gpu/mali_kbase_cache_policy_backend.h"
 #include <device/mali_kbase_device.h>
 
-void kbase_cache_set_coherency_mode(struct kbase_device *kbdev, u32 mode)
+/**
+ * kbasep_amba_register_present() - Check AMBA_<> register is present
+ *                                  in the GPU.
+ * @kbdev:    Device pointer
+ *
+ * Note: Only for arch version 12.x.1 onwards.
+ *
+ * Return: true if AMBA_FEATURES/ENABLE registers are present.
+ */
+static bool kbasep_amba_register_present(struct kbase_device *kbdev)
 {
-
-	kbdev->current_gpu_coherency_mode = mode;
-
-#if MALI_USE_CSF
-	if (kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(12, 0, 1)) {
-		/* AMBA_ENABLE present from 12.0.1 */
-		u32 val = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(AMBA_ENABLE));
-
-		val = AMBA_ENABLE_COHERENCY_PROTOCOL_SET(val, mode);
-		kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(AMBA_ENABLE), val);
-	} else {
-		/* Fallback to COHERENCY_ENABLE for older versions */
-		kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(COHERENCY_ENABLE), mode);
-	}
-#else /* MALI_USE_CSF */
-	kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(COHERENCY_ENABLE), mode);
-#endif /* MALI_USE_CSF */
+	return (ARCH_MAJOR_REV_REG(kbdev->gpu_props.props.raw_props.gpu_id) >=
+		GPU_ID2_ARCH_MAJOR_REV_MAKE(12, 1));
 }
 
-void kbase_amba_set_shareable_cache_support(struct kbase_device *kbdev)
+void kbase_cache_set_coherency_mode(struct kbase_device *kbdev,
+		u32 mode)
 {
-#if MALI_USE_CSF
+	kbdev->current_gpu_coherency_mode = mode;
 
-	/* AMBA registers only present from 12.0.1 */
-	if (kbdev->gpu_props.gpu_id.arch_id < GPU_ID_ARCH_MAKE(12, 0, 1))
-		return;
+	if (kbasep_amba_register_present(kbdev)) {
+		u32 val = kbase_reg_read(kbdev, AMBA_ENABLE);
 
-	if (kbdev->system_coherency != COHERENCY_NONE) {
-		u32 val = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(AMBA_FEATURES));
+		val = AMBA_ENABLE_COHERENCY_PROTOCOL_SET(val, mode);
+		kbase_reg_write(kbdev, AMBA_ENABLE, val);
+	} else
+		kbase_reg_write(kbdev, COHERENCY_ENABLE, mode);
+}
 
-		if (AMBA_FEATURES_SHAREABLE_CACHE_SUPPORT_GET(val)) {
-			val = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(AMBA_ENABLE));
-			val = AMBA_ENABLE_SHAREABLE_CACHE_SUPPORT_SET(val, 1);
-			kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(AMBA_ENABLE), val);
-		}
+u32 kbase_cache_get_coherency_features(struct kbase_device *kbdev)
+{
+	u32 coherency_features;
+
+	if (kbasep_amba_register_present(kbdev))
+		coherency_features =
+			kbase_reg_read(kbdev, GPU_CONTROL_REG(AMBA_FEATURES));
+	else
+		coherency_features = kbase_reg_read(
+			kbdev, GPU_CONTROL_REG(COHERENCY_FEATURES));
+
+	return coherency_features;
+}
+
+void kbase_amba_set_memory_cache_support(struct kbase_device *kbdev,
+					 bool enable)
+{
+	if (kbasep_amba_register_present(kbdev)) {
+		u32 val = kbase_reg_read(kbdev, AMBA_ENABLE);
+
+		val = AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SET(val, enable);
+		kbase_reg_write(kbdev, AMBA_ENABLE, val);
+
+	} else {
+		WARN(1, "memory_cache_support not supported");
 	}
-#endif /* MALI_USE_CSF */
+}
+
+void kbase_amba_set_invalidate_hint(struct kbase_device *kbdev, bool enable)
+{
+	if (kbasep_amba_register_present(kbdev)) {
+		u32 val = kbase_reg_read(kbdev, AMBA_ENABLE);
+
+		val = AMBA_ENABLE_INVALIDATE_HINT_SET(val, enable);
+		kbase_reg_write(kbdev, AMBA_ENABLE, val);
+	} else {
+		WARN(1, "invalidate_hint not supported");
+	}
 }

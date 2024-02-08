@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,9 +19,8 @@
  *
  */
 
-#include <linux/version_compat_defs.h>
-
 #include <mali_kbase.h>
+#include <mali_kbase_bits.h>
 #include <mali_kbase_config_defaults.h>
 #include <device/mali_kbase_device.h>
 #include "mali_kbase_l2_mmu_config.h"
@@ -62,30 +61,43 @@ struct l2_mmu_config_limit {
  */
 static const struct l2_mmu_config_limit limits[] = {
 	/* GPU, read, write */
-	{ GPU_ID_PRODUCT_LBEX, { 0, GENMASK(10, 5), 5 }, { 0, GENMASK(16, 12), 12 } },
-	{ GPU_ID_PRODUCT_TBEX, { 0, GENMASK(10, 5), 5 }, { 0, GENMASK(16, 12), 12 } },
-	{ GPU_ID_PRODUCT_TBAX, { 0, GENMASK(10, 5), 5 }, { 0, GENMASK(16, 12), 12 } },
-	{ GPU_ID_PRODUCT_TTRX, { 0, GENMASK(12, 7), 7 }, { 0, GENMASK(17, 13), 13 } },
-	{ GPU_ID_PRODUCT_TNAX, { 0, GENMASK(12, 7), 7 }, { 0, GENMASK(17, 13), 13 } },
-	{ GPU_ID_PRODUCT_TGOX,
-	  { KBASE_3BIT_AID_32, GENMASK(14, 12), 12 },
-	  { KBASE_3BIT_AID_32, GENMASK(17, 15), 15 } },
-	{ GPU_ID_PRODUCT_TNOX,
-	  { KBASE_3BIT_AID_32, GENMASK(14, 12), 12 },
-	  { KBASE_3BIT_AID_32, GENMASK(17, 15), 15 } },
+	{GPU_ID2_PRODUCT_LBEX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TBEX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TBAX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TTRX,
+		{0, GENMASK(12, 7), 7},
+		{0, GENMASK(17, 13), 13} },
+	{GPU_ID2_PRODUCT_TNAX,
+		{0, GENMASK(12, 7), 7},
+		{0, GENMASK(17, 13), 13} },
+	{GPU_ID2_PRODUCT_TGOX,
+		{KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
+		{KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
+	{GPU_ID2_PRODUCT_TNOX,
+		{KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
+		{KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
 };
 
 int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 {
 	/* All older GPUs had 2 bits for both fields, this is a default */
-	struct l2_mmu_config_limit limit = { 0, /* Any GPU not in the limits array defined above */
-					     { KBASE_AID_32, GENMASK(25, 24), 24 },
-					     { KBASE_AID_32, GENMASK(27, 26), 26 } };
-	u32 product_model;
-	u32 mmu_config = 0;
-	unsigned int i;
+	struct l2_mmu_config_limit limit = {
+		  0, /* Any GPU not in the limits array defined above */
+		 {KBASE_AID_32, GENMASK(25, 24), 24},
+		 {KBASE_AID_32, GENMASK(27, 26), 26}
+		};
+	u32 product_model, gpu_id;
+	u32 mmu_config;
+	int i;
 
-	product_model = kbdev->gpu_props.gpu_id.product_model;
+	gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+	product_model = gpu_id & GPU_ID2_PRODUCT_MODEL;
 
 	/* Limit the GPU bus bandwidth if the platform needs this. */
 	for (i = 0; i < ARRAY_SIZE(limits); i++) {
@@ -95,8 +107,7 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 		}
 	}
 
-	if (kbase_reg_is_valid(kbdev, GPU_CONTROL_ENUM(L2_MMU_CONFIG)))
-		mmu_config = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(L2_MMU_CONFIG));
+	mmu_config = kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_MMU_CONFIG));
 
 	if (kbase_is_gpu_removed(kbdev))
 		return -EIO;
@@ -104,7 +115,7 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 	mmu_config &= ~(limit.read.mask | limit.write.mask);
 	/* Can't use FIELD_PREP() macro here as the mask isn't constant */
 	mmu_config |= (limit.read.value << limit.read.shift) |
-		      (limit.write.value << limit.write.shift);
+			(limit.write.value << limit.write.shift);
 
 	kbdev->hw_quirks_mmu = mmu_config;
 

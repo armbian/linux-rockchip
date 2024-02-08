@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -41,8 +41,6 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 	struct list_head *entry;
 	const struct list_head *kbdev_list;
 
-	CSTD_UNUSED(data);
-
 	kbdev_list = kbase_device_get_list();
 	list_for_each(entry, kbdev_list) {
 		struct kbase_device *kbdev = NULL;
@@ -51,8 +49,9 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 		kbdev = list_entry(entry, struct kbase_device, entry);
 		/* output the total memory usage and cap for this device */
 		seq_printf(sfile, "<dev>                <pages>\n");
-		seq_printf(sfile, "%-16s  %10u\n", kbdev->devname,
-			   atomic_read(&(kbdev->memdev.used_pages)));
+		seq_printf(sfile, "%-16s  %10u\n",
+				kbdev->devname,
+				atomic_read(&(kbdev->memdev.used_pages)));
 		mutex_lock(&kbdev->kctx_list_lock);
 		seq_printf(sfile, "  <kctx>                  <comm>               <pid>         <pages>\n");
 		list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
@@ -85,8 +84,6 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
  */
 static int kbasep_gpu_memory_debugfs_open(struct inode *in, struct file *file)
 {
-	CSTD_UNUSED(in);
-
 	return single_open(file, kbasep_gpu_memory_seq_show, NULL);
 }
 
@@ -103,14 +100,13 @@ static const struct file_operations kbasep_gpu_memory_debugfs_fops = {
  */
 void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev)
 {
-	debugfs_create_file("gpu_memory", 0444, kbdev->mali_debugfs_directory, NULL,
-			    &kbasep_gpu_memory_debugfs_fops);
+	debugfs_create_file("gpu_memory", 0444,
+			kbdev->mali_debugfs_directory, NULL,
+			&kbasep_gpu_memory_debugfs_fops);
 }
 #else
 /*
  * Stub functions for when debugfs is disabled
  */
-void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev)
-{
-}
+void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev) {}
 #endif

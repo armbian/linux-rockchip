@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,9 +25,8 @@
 #include "mali_kbase.h"
 /**
  * kbase_csf_protected_memory_init - Initilaise protected memory allocator.
- * @kbdev:	Device pointer.
  *
- * This function must be called only when a kbase device is initialized.
+ * @kbdev:	Device pointer.
  *
  * Return: 0 if success, or an error code on failure.
  */
@@ -53,8 +52,11 @@ void kbase_csf_protected_memory_term(struct kbase_device *const kbdev);
  *		or NULL on failure.
  */
 struct protected_memory_allocation **
-kbase_csf_protected_memory_alloc(struct kbase_device *const kbdev, struct tagged_addr *phys,
-				 size_t num_pages, bool is_small_page);
+	kbase_csf_protected_memory_alloc(
+		struct kbase_device *const kbdev,
+		struct tagged_addr *phys,
+		size_t num_pages,
+		bool is_small_page);
 
 /**
  * kbase_csf_protected_memory_free - Free the allocated
@@ -65,7 +67,9 @@ kbase_csf_protected_memory_alloc(struct kbase_device *const kbdev, struct tagged
  * @num_pages:	Number of pages to be freed.
  * @is_small_page: Flag used to select the order of protected memory page.
  */
-void kbase_csf_protected_memory_free(struct kbase_device *const kbdev,
-				     struct protected_memory_allocation **pma, size_t num_pages,
-				     bool is_small_page);
+void kbase_csf_protected_memory_free(
+		struct kbase_device *const kbdev,
+		struct protected_memory_allocation **pma,
+		size_t num_pages,
+		bool is_small_page);
 #endif
