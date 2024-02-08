@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,9 +49,9 @@
  *              application
  */
 struct kutf_application {
-	const char *name;
-	struct dentry *dir;
-	struct list_head suite_list;
+	const char         *name;
+	struct dentry      *dir;
+	struct list_head   suite_list;
 };
 
 /**
@@ -68,14 +68,14 @@ struct kutf_application {
  * @dir:		debugfs directory for this test function
  */
 struct kutf_test_function {
-	struct kutf_suite *suite;
-	unsigned int filters;
-	unsigned int test_id;
+	struct kutf_suite  *suite;
+	unsigned int       filters;
+	unsigned int       test_id;
 	void (*execute)(struct kutf_context *context);
 	union kutf_callback_data test_data;
-	struct list_head node;
-	struct list_head variant_list;
-	struct dentry *dir;
+	struct list_head   node;
+	struct list_head   variant_list;
+	struct dentry      *dir;
 };
 
 /**
@@ -88,9 +88,9 @@ struct kutf_test_function {
  */
 struct kutf_test_fixture {
 	struct kutf_test_function *test_func;
-	unsigned int fixture_index;
-	struct list_head node;
-	struct dentry *dir;
+	unsigned int              fixture_index;
+	struct list_head          node;
+	struct dentry             *dir;
 };
 
 static struct dentry *base_dir;
@@ -102,14 +102,14 @@ static struct workqueue_struct *kutf_workq;
  * @result:		Status value for a single test
  */
 struct kutf_convert_table {
-	char result_name[50];
+	char                    result_name[50];
 	enum kutf_result_status result;
 };
 
 static const struct kutf_convert_table kutf_convert[] = {
-#define ADD_UTF_RESULT(_name)  \
-	{                      \
-#_name, _name, \
+#define ADD_UTF_RESULT(_name)                                                                      \
+	{                                                                                          \
+#_name, _name,                                                                     \
 	}
 	ADD_UTF_RESULT(KUTF_RESULT_BENCHMARK), ADD_UTF_RESULT(KUTF_RESULT_SKIP),
 	ADD_UTF_RESULT(KUTF_RESULT_UNKNOWN),   ADD_UTF_RESULT(KUTF_RESULT_PASS),
@@ -130,7 +130,8 @@ static const struct kutf_convert_table kutf_convert[] = {
  *
  * Return: Returns the created test context on success or NULL on failure
  */
-static struct kutf_context *kutf_create_context(struct kutf_test_fixture *test_fix);
+static struct kutf_context *kutf_create_context(
+		struct kutf_test_fixture *test_fix);
 
 /**
  * kutf_destroy_context() - Destroy a previously created test context, only
@@ -165,7 +166,8 @@ static void kutf_context_put(struct kutf_context *context);
  * @context:	Test context
  * @status:	Result status
  */
-static void kutf_set_result(struct kutf_context *context, enum kutf_result_status status);
+static void kutf_set_result(struct kutf_context *context,
+		enum kutf_result_status status);
 
 /**
  * kutf_set_expected_result() - Set the expected test result for the specified
@@ -174,7 +176,7 @@ static void kutf_set_result(struct kutf_context *context, enum kutf_result_statu
  * @expected_status:	Expected result status
  */
 static void kutf_set_expected_result(struct kutf_context *context,
-				     enum kutf_result_status expected_status);
+		enum kutf_result_status expected_status);
 
 /**
  * kutf_result_to_string() - Converts a KUTF result into a string
@@ -185,7 +187,7 @@ static void kutf_set_expected_result(struct kutf_context *context,
  */
 static int kutf_result_to_string(const char **result_str, enum kutf_result_status result)
 {
-	size_t i;
+	int i;
 	int ret = 0;
 
 	for (i = 0; i < UTF_CONVERT_SIZE; i++) {
@@ -208,8 +210,8 @@ static int kutf_result_to_string(const char **result_str, enum kutf_result_statu
  * Return: On success, the number of bytes read and offset @ppos advanced by
  *         this number; on error, negative value
  */
-static ssize_t kutf_debugfs_const_string_read(struct file *file, char __user *buf, size_t len,
-					      loff_t *ppos)
+static ssize_t kutf_debugfs_const_string_read(struct file *file,
+		char __user *buf, size_t len, loff_t *ppos)
 {
 	char *str = file->private_data;
 
@@ -220,7 +222,7 @@ static const struct file_operations kutf_debugfs_const_string_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = kutf_debugfs_const_string_read,
-	.llseek = default_llseek,
+	.llseek  = default_llseek,
 };
 
 /**
@@ -235,33 +237,41 @@ static void kutf_add_explicit_result(struct kutf_context *context)
 
 	case KUTF_RESULT_WARN:
 		if (context->status == KUTF_RESULT_WARN)
-			kutf_test_pass(context, "Pass (expected warn occurred)");
+			kutf_test_pass(context,
+					"Pass (expected warn occurred)");
 		else if (context->status != KUTF_RESULT_SKIP)
-			kutf_test_fail(context, "Fail (expected warn missing)");
+			kutf_test_fail(context,
+					"Fail (expected warn missing)");
 		break;
 
 	case KUTF_RESULT_FAIL:
 		if (context->status == KUTF_RESULT_FAIL)
-			kutf_test_pass(context, "Pass (expected fail occurred)");
+			kutf_test_pass(context,
+					"Pass (expected fail occurred)");
 		else if (context->status != KUTF_RESULT_SKIP) {
 			/* Force the expected status so the fail gets logged */
 			context->expected_status = KUTF_RESULT_PASS;
-			kutf_test_fail(context, "Fail (expected fail missing)");
+			kutf_test_fail(context,
+					"Fail (expected fail missing)");
 		}
 		break;
 
 	case KUTF_RESULT_FATAL:
 		if (context->status == KUTF_RESULT_FATAL)
-			kutf_test_pass(context, "Pass (expected fatal occurred)");
+			kutf_test_pass(context,
+					"Pass (expected fatal occurred)");
 		else if (context->status != KUTF_RESULT_SKIP)
-			kutf_test_fail(context, "Fail (expected fatal missing)");
+			kutf_test_fail(context,
+					"Fail (expected fatal missing)");
 		break;
 
 	case KUTF_RESULT_ABORT:
 		if (context->status == KUTF_RESULT_ABORT)
-			kutf_test_pass(context, "Pass (expected abort occurred)");
+			kutf_test_pass(context,
+					"Pass (expected abort occurred)");
 		else if (context->status != KUTF_RESULT_SKIP)
-			kutf_test_fail(context, "Fail (expected abort missing)");
+			kutf_test_fail(context,
+					"Fail (expected abort missing)");
 		break;
 	default:
 		break;
@@ -270,7 +280,8 @@ static void kutf_add_explicit_result(struct kutf_context *context)
 
 static void kutf_run_test(struct work_struct *data)
 {
-	struct kutf_context *test_context = container_of(data, struct kutf_context, work);
+	struct kutf_context *test_context = container_of(data,
+			struct kutf_context, work);
 	struct kutf_suite *suite = test_context->suite;
 	struct kutf_test_function *test_func;
 
@@ -284,13 +295,10 @@ static void kutf_run_test(struct work_struct *data)
 		test_context->fixture = suite->create_fixture(test_context);
 
 	/* Only run the test if the fixture was created (if required) */
-	if ((suite->create_fixture && test_context->fixture) || (!suite->create_fixture)) {
-		if (test_func->filters & KUTF_F_TEST_EXPECTED_FAILURE) {
-			kutf_test_fail(test_context,
-				       "KUTF: Test marked as 'Expected Failure' not run.");
-		} else {
-			test_func->execute(test_context);
-		}
+	if ((suite->create_fixture && test_context->fixture) ||
+			(!suite->create_fixture)) {
+		/* Run this fixture */
+		test_func->execute(test_context);
 
 		if (suite->remove_fixture)
 			suite->remove_fixture(test_context);
@@ -360,7 +368,8 @@ finish:
  *
  * Return: Number of bytes read.
  */
-static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
+static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf,
+		size_t len, loff_t *ppos)
 {
 	struct kutf_context *test_context = file->private_data;
 	struct kutf_result *res;
@@ -385,7 +394,8 @@ static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf, size_t
 	case KUTF_RESULT_TEST_FINISHED:
 		return 0;
 	case KUTF_RESULT_USERDATA_WAIT:
-		if (test_context->userdata.flags & KUTF_USERDATA_WARNING_OUTPUT) {
+		if (test_context->userdata.flags &
+				KUTF_USERDATA_WARNING_OUTPUT) {
 			/*
 			 * Warning message already output,
 			 * signal end-of-file
@@ -393,33 +403,37 @@ static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf, size_t
 			return 0;
 		}
 
-		message_len = sizeof(USERDATA_WARNING_MESSAGE) - 1;
+		message_len = sizeof(USERDATA_WARNING_MESSAGE)-1;
 		if (message_len > len)
 			message_len = len;
 
-		bytes_not_copied = copy_to_user(buf, USERDATA_WARNING_MESSAGE, message_len);
+		bytes_not_copied = copy_to_user(buf,
+				USERDATA_WARNING_MESSAGE,
+				message_len);
 		if (bytes_not_copied != 0)
 			return -EFAULT;
 		test_context->userdata.flags |= KUTF_USERDATA_WARNING_OUTPUT;
 		return message_len;
 	case KUTF_RESULT_USERDATA:
 		message_len = strlen(res->message);
-		if (message_len > len - 1) {
-			message_len = len - 1;
+		if (message_len > len-1) {
+			message_len = len-1;
 			pr_warn("User data truncated, read not long enough\n");
 		}
-		bytes_not_copied = copy_to_user(buf, res->message, message_len);
+		bytes_not_copied = copy_to_user(buf, res->message,
+				message_len);
 		if (bytes_not_copied != 0) {
 			pr_warn("Failed to copy data to user space buffer\n");
 			return -EFAULT;
 		}
 		/* Finally the terminator */
-		bytes_not_copied = copy_to_user(&buf[message_len], &terminator, 1);
+		bytes_not_copied = copy_to_user(&buf[message_len],
+				&terminator, 1);
 		if (bytes_not_copied != 0) {
 			pr_warn("Failed to copy data to user space buffer\n");
 			return -EFAULT;
 		}
-		return message_len + 1;
+		return message_len+1;
 	default:
 		/* Fall through - this is a test result */
 		break;
@@ -440,28 +454,32 @@ static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf, size_t
 
 	/* First copy the result string */
 	if (kutf_str_ptr) {
-		bytes_not_copied = copy_to_user(&buf[0], kutf_str_ptr, kutf_str_len);
+		bytes_not_copied = copy_to_user(&buf[0], kutf_str_ptr,
+						kutf_str_len);
 		bytes_copied += kutf_str_len - bytes_not_copied;
 		if (bytes_not_copied)
 			goto exit;
 	}
 
 	/* Then the separator */
-	bytes_not_copied = copy_to_user(&buf[bytes_copied], &separator, 1);
+	bytes_not_copied = copy_to_user(&buf[bytes_copied],
+					&separator, 1);
 	bytes_copied += 1 - bytes_not_copied;
 	if (bytes_not_copied)
 		goto exit;
 
 	/* Finally Next copy the result string */
 	if (res->message) {
-		bytes_not_copied = copy_to_user(&buf[bytes_copied], res->message, message_len);
+		bytes_not_copied = copy_to_user(&buf[bytes_copied],
+						res->message, message_len);
 		bytes_copied += message_len - bytes_not_copied;
 		if (bytes_not_copied)
 			goto exit;
 	}
 
 	/* Finally the terminator */
-	bytes_not_copied = copy_to_user(&buf[bytes_copied], &terminator, 1);
+	bytes_not_copied = copy_to_user(&buf[bytes_copied],
+					&terminator, 1);
 	bytes_copied += 1 - bytes_not_copied;
 
 exit:
@@ -482,8 +500,8 @@ exit:
  *
  * Return: Number of bytes written
  */
-static ssize_t kutf_debugfs_run_write(struct file *file, const char __user *buf, size_t len,
-				      loff_t *ppos)
+static ssize_t kutf_debugfs_run_write(struct file *file,
+		const char __user *buf, size_t len, loff_t *ppos)
 {
 	int ret = 0;
 	struct kutf_context *test_context = file->private_data;
@@ -526,7 +544,7 @@ static const struct file_operations kutf_debugfs_run_ops = {
 	.read = kutf_debugfs_run_read,
 	.write = kutf_debugfs_run_write,
 	.release = kutf_debugfs_run_release,
-	.llseek = default_llseek,
+	.llseek  = default_llseek,
 };
 
 /**
@@ -538,10 +556,11 @@ static const struct file_operations kutf_debugfs_run_ops = {
  *
  * Return: 0 on success, negative value corresponding to error code in failure
  */
-static int create_fixture_variant(struct kutf_test_function *test_func, unsigned int fixture_index)
+static int create_fixture_variant(struct kutf_test_function *test_func,
+		unsigned int fixture_index)
 {
 	struct kutf_test_fixture *test_fix;
-	char name[11]; /* Enough to print the MAX_UINT32 + the null terminator */
+	char name[11];	/* Enough to print the MAX_UINT32 + the null terminator */
 	struct dentry *tmp;
 	int err;
 
@@ -573,8 +592,10 @@ static int create_fixture_variant(struct kutf_test_function *test_func, unsigned
 		goto fail_file;
 	}
 
-	tmp = debugfs_create_file_unsafe("run", 0600, test_fix->dir, test_fix,
-					 &kutf_debugfs_run_ops);
+	tmp = debugfs_create_file_unsafe(
+			"run", 0600, test_fix->dir,
+			test_fix,
+			&kutf_debugfs_run_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"run\" when adding fixture\n");
 		/* Might not be the right error, we don't get it passed back to us */
@@ -614,10 +635,13 @@ static int ktufp_u32_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(kutfp_fops_x32_ro, ktufp_u32_get, NULL, "0x%08llx\n");
 #endif
 
-void kutf_add_test_with_filters_and_data(struct kutf_suite *suite, unsigned int id,
-					 const char *name,
-					 void (*execute)(struct kutf_context *context),
-					 unsigned int filters, union kutf_callback_data test_data)
+void kutf_add_test_with_filters_and_data(
+		struct kutf_suite *suite,
+		unsigned int id,
+		const char *name,
+		void (*execute)(struct kutf_context *context),
+		unsigned int filters,
+		union kutf_callback_data test_data)
 {
 	struct kutf_test_function *test_func;
 	struct dentry *tmp;
@@ -646,10 +670,11 @@ void kutf_add_test_with_filters_and_data(struct kutf_suite *suite, unsigned int 
 
 	test_func->filters = filters;
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
-	tmp = debugfs_create_file_unsafe("filters", 0004, test_func->dir, &test_func->filters,
-					 &kutfp_fops_x32_ro);
+	tmp = debugfs_create_file_unsafe("filters", 0004, test_func->dir,
+					 &test_func->filters, &kutfp_fops_x32_ro);
 #else
-	tmp = debugfs_create_x32("filters", 0004, test_func->dir, &test_func->filters);
+	tmp = debugfs_create_x32("filters", 0004, test_func->dir,
+				 &test_func->filters);
 #endif
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"filters\" when adding test %s\n", name);
@@ -658,9 +683,11 @@ void kutf_add_test_with_filters_and_data(struct kutf_suite *suite, unsigned int 
 
 	test_func->test_id = id;
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
-	debugfs_create_u32("test_id", 0004, test_func->dir, &test_func->test_id);
+	debugfs_create_u32("test_id", 0004, test_func->dir,
+		&test_func->test_id);
 #else
-	tmp = debugfs_create_u32("test_id", 0004, test_func->dir, &test_func->test_id);
+	tmp = debugfs_create_u32("test_id", 0004, test_func->dir,
+				 &test_func->test_id);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"test_id\" when adding test %s\n", name);
 		goto fail_file;
@@ -690,26 +717,40 @@ fail_alloc:
 }
 EXPORT_SYMBOL(kutf_add_test_with_filters_and_data);
 
-void kutf_add_test_with_filters(struct kutf_suite *suite, unsigned int id, const char *name,
-				void (*execute)(struct kutf_context *context), unsigned int filters)
+void kutf_add_test_with_filters(
+		struct kutf_suite *suite,
+		unsigned int id,
+		const char *name,
+		void (*execute)(struct kutf_context *context),
+		unsigned int filters)
 {
 	union kutf_callback_data data;
 
 	data.ptr_value = NULL;
 
-	kutf_add_test_with_filters_and_data(suite, id, name, execute,
-					    suite->suite_default_flags & filters, data);
+	kutf_add_test_with_filters_and_data(suite,
+					    id,
+					    name,
+					    execute,
+					    suite->suite_default_flags,
+					    data);
 }
 EXPORT_SYMBOL(kutf_add_test_with_filters);
 
-void kutf_add_test(struct kutf_suite *suite, unsigned int id, const char *name,
-		   void (*execute)(struct kutf_context *context))
+void kutf_add_test(struct kutf_suite *suite,
+		unsigned int id,
+		const char *name,
+		void (*execute)(struct kutf_context *context))
 {
 	union kutf_callback_data data;
 
 	data.ptr_value = NULL;
 
-	kutf_add_test_with_filters_and_data(suite, id, name, execute, suite->suite_default_flags,
+	kutf_add_test_with_filters_and_data(suite,
+					    id,
+					    name,
+					    execute,
+					    suite->suite_default_flags,
 					    data);
 }
 EXPORT_SYMBOL(kutf_add_test);
@@ -735,12 +776,14 @@ static void kutf_remove_test(struct kutf_test_function *test_func)
 	kfree(test_func);
 }
 
-struct kutf_suite *
-kutf_create_suite_with_filters_and_data(struct kutf_application *app, const char *name,
-					unsigned int fixture_count,
-					void *(*create_fixture)(struct kutf_context *context),
-					void (*remove_fixture)(struct kutf_context *context),
-					unsigned int filters, union kutf_callback_data suite_data)
+struct kutf_suite *kutf_create_suite_with_filters_and_data(
+		struct kutf_application *app,
+		const char *name,
+		unsigned int fixture_count,
+		void *(*create_fixture)(struct kutf_context *context),
+		void (*remove_fixture)(struct kutf_context *context),
+		unsigned int filters,
+		union kutf_callback_data suite_data)
 {
 	struct kutf_suite *suite;
 	struct dentry *tmp;
@@ -787,28 +830,43 @@ fail_kmalloc:
 EXPORT_SYMBOL(kutf_create_suite_with_filters_and_data);
 
 struct kutf_suite *kutf_create_suite_with_filters(
-	struct kutf_application *app, const char *name, unsigned int fixture_count,
-	void *(*create_fixture)(struct kutf_context *context),
-	void (*remove_fixture)(struct kutf_context *context), unsigned int filters)
+		struct kutf_application *app,
+		const char *name,
+		unsigned int fixture_count,
+		void *(*create_fixture)(struct kutf_context *context),
+		void (*remove_fixture)(struct kutf_context *context),
+		unsigned int filters)
 {
 	union kutf_callback_data data;
 
 	data.ptr_value = NULL;
-	return kutf_create_suite_with_filters_and_data(app, name, fixture_count, create_fixture,
-						       remove_fixture, filters, data);
+	return kutf_create_suite_with_filters_and_data(app,
+						       name,
+						       fixture_count,
+						       create_fixture,
+						       remove_fixture,
+						       filters,
+						       data);
 }
 EXPORT_SYMBOL(kutf_create_suite_with_filters);
 
-struct kutf_suite *kutf_create_suite(struct kutf_application *app, const char *name,
-				     unsigned int fixture_count,
-				     void *(*create_fixture)(struct kutf_context *context),
-				     void (*remove_fixture)(struct kutf_context *context))
+struct kutf_suite *kutf_create_suite(
+		struct kutf_application *app,
+		const char *name,
+		unsigned int fixture_count,
+		void *(*create_fixture)(struct kutf_context *context),
+		void (*remove_fixture)(struct kutf_context *context))
 {
 	union kutf_callback_data data;
 
 	data.ptr_value = NULL;
-	return kutf_create_suite_with_filters_and_data(app, name, fixture_count, create_fixture,
-						       remove_fixture, KUTF_F_TEST_GENERIC, data);
+	return kutf_create_suite_with_filters_and_data(app,
+						       name,
+						       fixture_count,
+						       create_fixture,
+						       remove_fixture,
+						       KUTF_F_TEST_GENERIC,
+						       data);
 }
 EXPORT_SYMBOL(kutf_create_suite);
 
@@ -853,8 +911,7 @@ struct kutf_application *kutf_create_application(const char *name)
 	tmp = debugfs_create_file("type", 0004, app->dir, "application\n",
 				  &kutf_debugfs_const_string_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
-		pr_err("Failed to create debugfs file \"type\" when creating application %s\n",
-		       name);
+		pr_err("Failed to create debugfs file \"type\" when creating application %s\n", name);
 		goto fail_file;
 	}
 
@@ -889,14 +946,15 @@ void kutf_destroy_application(struct kutf_application *app)
 }
 EXPORT_SYMBOL(kutf_destroy_application);
 
-static struct kutf_context *kutf_create_context(struct kutf_test_fixture *test_fix)
+static struct kutf_context *kutf_create_context(
+		struct kutf_test_fixture *test_fix)
 {
 	struct kutf_context *new_context;
 
 	new_context = kmalloc(sizeof(*new_context), GFP_KERNEL);
 	if (!new_context) {
 		pr_err("Failed to allocate test context");
-		goto fail_context_alloc;
+		goto fail_alloc;
 	}
 
 	new_context->result_set = kutf_create_result_set();
@@ -917,8 +975,6 @@ static struct kutf_context *kutf_create_context(struct kutf_test_fixture *test_f
 	new_context->fixture_name = NULL;
 	new_context->test_data = test_fix->test_func->test_data;
 
-	mutex_init(&new_context->output_sync);
-
 	new_context->userdata.flags = 0;
 	INIT_LIST_HEAD(&new_context->userdata.input_head);
 	init_waitqueue_head(&new_context->userdata.input_waitq);
@@ -931,7 +987,7 @@ static struct kutf_context *kutf_create_context(struct kutf_test_fixture *test_f
 
 fail_result_set:
 	kfree(new_context);
-fail_context_alloc:
+fail_alloc:
 	return NULL;
 }
 
@@ -955,13 +1011,15 @@ static void kutf_context_put(struct kutf_context *context)
 	kref_put(&context->kref, kutf_destroy_context);
 }
 
-static void kutf_set_result(struct kutf_context *context, enum kutf_result_status status)
+
+static void kutf_set_result(struct kutf_context *context,
+		enum kutf_result_status status)
 {
 	context->status = status;
 }
 
 static void kutf_set_expected_result(struct kutf_context *context,
-				     enum kutf_result_status expected_status)
+		enum kutf_result_status expected_status)
 {
 	context->expected_status = expected_status;
 }
@@ -972,8 +1030,10 @@ static void kutf_set_expected_result(struct kutf_context *context,
  * @message:	Result string
  * @new_status:	Result status
  */
-static void kutf_test_log_result(struct kutf_context *context, const char *message,
-				 enum kutf_result_status new_status)
+static void kutf_test_log_result(
+	struct kutf_context *context,
+	const char *message,
+	enum kutf_result_status new_status)
 {
 	if (context->status < new_status)
 		context->status = new_status;
@@ -982,8 +1042,10 @@ static void kutf_test_log_result(struct kutf_context *context, const char *messa
 		kutf_add_result(context, new_status, message);
 }
 
-void kutf_test_log_result_external(struct kutf_context *context, const char *message,
-				   enum kutf_result_status new_status)
+void kutf_test_log_result_external(
+	struct kutf_context *context,
+	const char *message,
+	enum kutf_result_status new_status)
 {
 	kutf_test_log_result(context, message, new_status);
 }
@@ -1033,9 +1095,8 @@ void kutf_test_skip_msg(struct kutf_context *context, const char *message)
 	kutf_set_result(context, KUTF_RESULT_SKIP);
 	kutf_set_expected_result(context, KUTF_RESULT_UNKNOWN);
 
-	kutf_test_log_result(context,
-			     kutf_dsprintf(&context->fixture_pool, "Test skipped: %s", message),
-			     KUTF_RESULT_SKIP);
+	kutf_test_log_result(context, kutf_dsprintf(&context->fixture_pool,
+			     "Test skipped: %s", message), KUTF_RESULT_SKIP);
 	kutf_test_log_result(context, "!!!Test skipped!!!", KUTF_RESULT_SKIP);
 }
 EXPORT_SYMBOL(kutf_test_skip_msg);
@@ -1063,20 +1124,6 @@ void kutf_test_info(struct kutf_context *context, char const *message)
 }
 EXPORT_SYMBOL(kutf_test_info);
 
-__printf(2, 3) void kutf_test_info_msg(struct kutf_context *context, char const *msg, ...)
-{
-	va_list args;
-
-	mutex_lock(&context->output_sync);
-
-	va_start(args, msg);
-	kutf_test_info(context, kutf_dsprintf(&context->fixture_pool, msg, args));
-	va_end(args);
-
-	mutex_unlock(&context->output_sync);
-}
-EXPORT_SYMBOL(kutf_test_info_msg);
-
 void kutf_test_warn(struct kutf_context *context, char const *message)
 {
 	kutf_test_log_result(context, message, KUTF_RESULT_WARN);
@@ -1088,20 +1135,6 @@ void kutf_test_fail(struct kutf_context *context, char const *message)
 	kutf_test_log_result(context, message, KUTF_RESULT_FAIL);
 }
 EXPORT_SYMBOL(kutf_test_fail);
-
-__printf(2, 3) void kutf_test_fail_msg(struct kutf_context *context, char const *msg, ...)
-{
-	va_list args;
-
-	mutex_lock(&context->output_sync);
-
-	va_start(args, msg);
-	kutf_test_fail(context, kutf_dsprintf(&context->fixture_pool, msg, args));
-	va_end(args);
-
-	mutex_unlock(&context->output_sync);
-}
-EXPORT_SYMBOL(kutf_test_fail_msg);
 
 void kutf_test_fatal(struct kutf_context *context, char const *message)
 {
@@ -1152,7 +1185,7 @@ static void __exit exit_kutf_core(void)
 		destroy_workqueue(kutf_workq);
 }
 
-#else /* CONFIG_DEBUG_FS */
+#else	/* CONFIG_DEBUG_FS */
 
 /**
  * init_kutf_core - Module entry point
@@ -1175,7 +1208,7 @@ static int __init init_kutf_core(void)
 static void __exit exit_kutf_core(void)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DEBUG_FS */
 
 MODULE_LICENSE("GPL");
 

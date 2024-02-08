@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,14 +25,25 @@
 
 #include <mali_kbase.h>
 
+#define GPU_FEATURES_CROSS_STREAM_SYNC_MASK (1ull << 3ull)
+
 void kbase_create_timeline_objects(struct kbase_device *kbdev)
 {
-	int as_nr;
+	unsigned int as_nr;
 	unsigned int slot_i;
 	struct kbase_context *kctx;
 	struct kbase_timeline *timeline = kbdev->timeline;
-	struct kbase_tlstream *summary = &kbdev->timeline->streams[TL_STREAM_TYPE_OBJ_SUMMARY];
-	u32 const num_sb_entries = kbdev->gpu_props.gpu_id.arch_major >= 11 ? 16 : 8;
+	struct kbase_tlstream *summary =
+		&kbdev->timeline->streams[TL_STREAM_TYPE_OBJ_SUMMARY];
+	u32 const kbdev_has_cross_stream_sync =
+		(kbdev->gpu_props.props.raw_props.gpu_features &
+		 GPU_FEATURES_CROSS_STREAM_SYNC_MASK) ?
+			1 :
+			0;
+	u32 const arch_maj = (kbdev->gpu_props.props.raw_props.gpu_id &
+			      GPU_ID2_ARCH_MAJOR) >>
+			     GPU_ID2_ARCH_MAJOR_SHIFT;
+	u32 const num_sb_entries = arch_maj >= 11 ? 16 : 8;
 	u32 const supports_gpu_sleep =
 #ifdef KBASE_PM_RUNTIME
 		kbdev->pm.backend.gpu_sleep_supported;
@@ -45,18 +56,23 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 		__kbase_tlstream_tl_new_as(summary, &kbdev->as[as_nr], as_nr);
 
 	/* Create Legacy GPU object to track in AOM for dumping */
-	__kbase_tlstream_tl_new_gpu(summary, kbdev, kbdev->id, kbdev->gpu_props.num_cores);
+	__kbase_tlstream_tl_new_gpu(summary,
+			kbdev,
+			kbdev->gpu_props.props.raw_props.gpu_id,
+			kbdev->gpu_props.num_cores);
+
 
 	for (as_nr = 0; as_nr < kbdev->nr_hw_address_spaces; as_nr++)
-		__kbase_tlstream_tl_lifelink_as_gpu(summary, &kbdev->as[as_nr], kbdev);
+		__kbase_tlstream_tl_lifelink_as_gpu(summary,
+				&kbdev->as[as_nr],
+				kbdev);
 
 	/* Trace the creation of a new kbase device and set its properties. */
-	__kbase_tlstream_tl_kbase_new_device(
-		summary, kbdev->id, kbdev->gpu_props.num_cores, kbdev->csf.global_iface.group_num,
-		kbdev->nr_hw_address_spaces, num_sb_entries,
-		kbdev->gpu_props.gpu_features.cross_stream_sync, supports_gpu_sleep,
-		0
-	);
+	__kbase_tlstream_tl_kbase_new_device(summary, kbdev->gpu_props.props.raw_props.gpu_id,
+					     kbdev->gpu_props.num_cores,
+					     kbdev->csf.global_iface.group_num,
+					     kbdev->nr_hw_address_spaces, num_sb_entries,
+					     kbdev_has_cross_stream_sync, supports_gpu_sleep);
 
 	/* Lock the context list, to ensure no changes to the list are made
 	 * while we're summarizing the contexts and their contents.
@@ -71,12 +87,15 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	mutex_lock(&kbdev->csf.scheduler.lock);
 
 	for (slot_i = 0; slot_i < kbdev->csf.global_iface.group_num; slot_i++) {
+
 		struct kbase_queue_group *group =
 			kbdev->csf.scheduler.csg_slots[slot_i].resident_group;
 
 		if (group)
 			__kbase_tlstream_tl_kbase_device_program_csg(
-				summary, kbdev->id, group->kctx->id, group->handle, slot_i, 0);
+				summary,
+				kbdev->gpu_props.props.raw_props.gpu_id,
+				group->kctx->id, group->handle, slot_i, 0);
 	}
 
 	/* Reset body stream buffers while holding the kctx lock.
@@ -91,7 +110,8 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	/* For each context in the device... */
 	list_for_each_entry(kctx, &timeline->tl_kctx_list, tl_kctx_list_node) {
 		size_t i;
-		struct kbase_tlstream *body = &timeline->streams[TL_STREAM_TYPE_OBJ];
+		struct kbase_tlstream *body =
+			&timeline->streams[TL_STREAM_TYPE_OBJ];
 
 		/* Lock the context's KCPU queues, to ensure no KCPU-queue
 		 * related actions can occur in this context from now on.
@@ -115,14 +135,20 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 		 * hasn't been traced yet. They may, however, cause benign
 		 * errors to be emitted.
 		 */
-		__kbase_tlstream_tl_kbase_new_ctx(body, kctx->id, kbdev->id);
+		__kbase_tlstream_tl_kbase_new_ctx(body, kctx->id,
+				kbdev->gpu_props.props.raw_props.gpu_id);
 
 		/* Also trace with the legacy AOM tracepoint for dumping */
-		__kbase_tlstream_tl_new_ctx(body, kctx, kctx->id, (u32)(kctx->tgid));
+		__kbase_tlstream_tl_new_ctx(body,
+				kctx,
+				kctx->id,
+				(u32)(kctx->tgid));
 
 		/* Trace the currently assigned address space */
 		if (kctx->as_nr != KBASEP_AS_NR_INVALID)
-			__kbase_tlstream_tl_kbase_ctx_assign_as(body, kctx->id, kctx->as_nr);
+			__kbase_tlstream_tl_kbase_ctx_assign_as(body, kctx->id,
+				kctx->as_nr);
+
 
 		/* Trace all KCPU queues in the context into the body stream.
 		 * As we acquired the KCPU lock after resetting the body stream,

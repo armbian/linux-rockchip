@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,12 +23,9 @@
 
 #include <device/mali_kbase_device.h>
 #include <mali_kbase.h>
-
-#if MALI_USE_CSF
 #define DTB_SET_SIZE 2
-#endif
 
-static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigned int read_setting)
+static bool read_setting_valid(unsigned int id, unsigned int read_setting)
 {
 	switch (id) {
 	/* Valid ID - fall through all */
@@ -43,26 +40,21 @@ static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigne
 	case SYSC_ALLOC_ID_R_ATTR:
 	case SYSC_ALLOC_ID_R_SCM:
 	case SYSC_ALLOC_ID_R_FSDC:
+	case SYSC_ALLOC_ID_R_VL:
 	case SYSC_ALLOC_ID_R_PLR:
 	case SYSC_ALLOC_ID_R_TEX:
 	case SYSC_ALLOC_ID_R_LSC:
-		break;
-	case SYSC_ALLOC_ID_R_VL:
-		if (prod_model == GPU_ID_PRODUCT_TTIX)
+		switch (read_setting) {
+		/* Valid setting value - fall through all */
+		case SYSC_ALLOC_L2_ALLOC:
+		case SYSC_ALLOC_NEVER_ALLOC:
+		case SYSC_ALLOC_ALWAYS_ALLOC:
+		case SYSC_ALLOC_PTL_ALLOC:
+		case SYSC_ALLOC_L2_PTL_ALLOC:
+			return true;
+		default:
 			return false;
-		break;
-	default:
-		return false;
-	}
-
-	switch (read_setting) {
-	/* Valid setting value - fall through all */
-	case SYSC_ALLOC_L2_ALLOC:
-	case SYSC_ALLOC_NEVER_ALLOC:
-	case SYSC_ALLOC_ALWAYS_ALLOC:
-	case SYSC_ALLOC_PTL_ALLOC:
-	case SYSC_ALLOC_L2_PTL_ALLOC:
-		return true;
+		}
 	default:
 		return false;
 	}
@@ -71,10 +63,8 @@ static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigne
 	return false;
 }
 
-static bool write_setting_valid(unsigned int prod_model, unsigned int id,
-				unsigned int write_setting)
+static bool write_setting_valid(unsigned int id, unsigned int write_setting)
 {
-	CSTD_UNUSED(prod_model);
 	switch (id) {
 	/* Valid ID - fall through all */
 	case SYSC_ALLOC_ID_W_OTHER:
@@ -93,19 +83,17 @@ static bool write_setting_valid(unsigned int prod_model, unsigned int id,
 	case SYSC_ALLOC_ID_W_TIB_DS_AFBCH:
 	case SYSC_ALLOC_ID_W_TIB_DS_AFBCB:
 	case SYSC_ALLOC_ID_W_LSC:
-		break;
-	default:
-		return false;
-	}
-
-	switch (write_setting) {
-	/* Valid setting value - fall through all */
-	case SYSC_ALLOC_L2_ALLOC:
-	case SYSC_ALLOC_NEVER_ALLOC:
-	case SYSC_ALLOC_ALWAYS_ALLOC:
-	case SYSC_ALLOC_PTL_ALLOC:
-	case SYSC_ALLOC_L2_PTL_ALLOC:
-		return true;
+		switch (write_setting) {
+		/* Valid setting value - fall through all */
+		case SYSC_ALLOC_L2_ALLOC:
+		case SYSC_ALLOC_NEVER_ALLOC:
+		case SYSC_ALLOC_ALWAYS_ALLOC:
+		case SYSC_ALLOC_PTL_ALLOC:
+		case SYSC_ALLOC_L2_PTL_ALLOC:
+			return true;
+		default:
+			return false;
+		}
 	default:
 		return false;
 	}
@@ -124,14 +112,14 @@ struct settings_status {
 	bool write;
 };
 
-static struct settings_status settings_valid(unsigned int prod_model, unsigned int id,
-					     unsigned int read_setting, unsigned int write_setting)
+static struct settings_status settings_valid(unsigned int id, unsigned int read_setting,
+					     unsigned int write_setting)
 {
-	struct settings_status valid = { .overall = (id < GPU_SYSC_ALLOC_COUNT * sizeof(u32)) };
+	struct settings_status valid = { .overall = (id < SYSC_ALLOC_COUNT * sizeof(u32)) };
 
 	if (valid.overall) {
-		valid.read = read_setting_valid(prod_model, id, read_setting);
-		valid.write = write_setting_valid(prod_model, id, write_setting);
+		valid.read = read_setting_valid(id, read_setting);
+		valid.write = write_setting_valid(id, write_setting);
 		valid.overall = valid.read || valid.write;
 	}
 
@@ -140,33 +128,32 @@ static struct settings_status settings_valid(unsigned int prod_model, unsigned i
 
 bool kbasep_pbha_supported(struct kbase_device *kbdev)
 {
-	return kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(11, 0, 3);
+	const u32 arch_maj_rev =
+		ARCH_MAJOR_REV_REG(kbdev->gpu_props.props.raw_props.gpu_id);
+
+	return (arch_maj_rev >= GPU_ID2_ARCH_MAJOR_REV_MAKE(11, 3));
 }
 
-int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigned int id,
-			       unsigned int read_setting, unsigned int write_setting)
+int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime,
+			       unsigned int id, unsigned int read_setting,
+			       unsigned int write_setting)
 {
-	struct settings_status const valid = settings_valid(kbdev->gpu_props.gpu_id.product_model,
-							    id, read_setting, write_setting);
+	struct settings_status const valid = settings_valid(id, read_setting, write_setting);
 
 	if (valid.overall) {
 		unsigned int const sysc_alloc_num = id / sizeof(u32);
 		u32 modified_reg;
 
-#if MALI_USE_CSF
 		if (runtime) {
 			int i;
 
 			kbase_pm_context_active(kbdev);
 			/* Ensure host copy of SYSC_ALLOC is up to date */
-			for (i = 0; i < GPU_SYSC_ALLOC_COUNT; i++)
-				kbdev->sysc_alloc[i] =
-					kbase_reg_read32(kbdev, GPU_SYSC_ALLOC_OFFSET(i));
+			for (i = 0; i < SYSC_ALLOC_COUNT; i++)
+				kbdev->sysc_alloc[i] = kbase_reg_read(
+					kbdev, GPU_CONTROL_REG(SYSC_ALLOC(i)));
 			kbase_pm_context_idle(kbdev);
 		}
-#else
-		CSTD_UNUSED(runtime);
-#endif /* MALI_USE_CSF */
 
 		modified_reg = kbdev->sysc_alloc[sysc_alloc_num];
 
@@ -174,34 +161,34 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigne
 		case 0:
 			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC0_SET(modified_reg,
 										 read_setting) :
-							  modified_reg;
+						    modified_reg;
 			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC0_SET(modified_reg,
 										  write_setting) :
-							   modified_reg;
+						     modified_reg;
 			break;
 		case 1:
 			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC1_SET(modified_reg,
 										 read_setting) :
-							  modified_reg;
+						    modified_reg;
 			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC1_SET(modified_reg,
 										  write_setting) :
-							   modified_reg;
+						     modified_reg;
 			break;
 		case 2:
 			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC2_SET(modified_reg,
 										 read_setting) :
-							  modified_reg;
+						    modified_reg;
 			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC2_SET(modified_reg,
 										  write_setting) :
-							   modified_reg;
+						     modified_reg;
 			break;
 		case 3:
 			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC3_SET(modified_reg,
 										 read_setting) :
-							  modified_reg;
+						    modified_reg;
 			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC3_SET(modified_reg,
 										  write_setting) :
-							   modified_reg;
+						     modified_reg;
 			break;
 		}
 
@@ -213,80 +200,67 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigne
 
 void kbase_pbha_write_settings(struct kbase_device *kbdev)
 {
-#if MALI_USE_CSF
 	if (kbasep_pbha_supported(kbdev)) {
 		int i;
 
-		for (i = 0; i < GPU_SYSC_ALLOC_COUNT; ++i)
-			kbase_reg_write32(kbdev, GPU_SYSC_ALLOC_OFFSET(i), kbdev->sysc_alloc[i]);
+		for (i = 0; i < SYSC_ALLOC_COUNT; ++i)
+			kbase_reg_write(kbdev, GPU_CONTROL_REG(SYSC_ALLOC(i)),
+					kbdev->sysc_alloc[i]);
 	}
-#else
-	CSTD_UNUSED(kbdev);
-#endif /* MALI_USE_CSF */
 }
 
-#if MALI_USE_CSF
 static int kbase_pbha_read_int_id_override_property(struct kbase_device *kbdev,
 						    const struct device_node *pbha_node)
 {
-	u32 dtb_data[GPU_SYSC_ALLOC_COUNT * sizeof(u32) * DTB_SET_SIZE];
+	u32 dtb_data[SYSC_ALLOC_COUNT * sizeof(u32) * DTB_SET_SIZE];
 	int sz, i;
 	bool valid = true;
 
-	sz = of_property_count_elems_of_size(pbha_node, "int-id-override", sizeof(u32));
-
-	if (sz == -EINVAL) {
-		/* There is no int-id-override field. Fallback to int_id_override instead */
-		sz = of_property_count_elems_of_size(pbha_node, "int_id_override", sizeof(u32));
-	}
-	if (sz == -EINVAL) {
-		/* There is no int_id_override field. This is valid - but there's nothing further
-		 * to do here.
-		 */
-		return 0;
-	}
+	sz = of_property_count_elems_of_size(pbha_node, "int_id_override",
+					     sizeof(u32));
 	if (sz <= 0 || (sz % DTB_SET_SIZE != 0)) {
 		dev_err(kbdev->dev, "Bad DTB format: pbha.int_id_override\n");
 		return -EINVAL;
 	}
-	if (of_property_read_u32_array(pbha_node, "int-id-override", dtb_data, sz) != 0) {
-		/* There may be no int-id-override field. Fallback to int_id_override instead */
-		if (of_property_read_u32_array(pbha_node, "int_id_override", dtb_data, sz) != 0) {
-			dev_err(kbdev->dev, "Failed to read DTB pbha.int_id_override\n");
-			return -EINVAL;
-		}
+	if (of_property_read_u32_array(pbha_node, "int_id_override", dtb_data,
+				       sz) != 0) {
+		dev_err(kbdev->dev,
+			"Failed to read DTB pbha.int_id_override\n");
+		return -EINVAL;
 	}
 
 	for (i = 0; valid && i < sz; i = i + DTB_SET_SIZE) {
-		unsigned int rdset = SYSC_ALLOC_R_SYSC_ALLOC0_GET(dtb_data[i + 1]);
-		unsigned int wrset = SYSC_ALLOC_W_SYSC_ALLOC0_GET(dtb_data[i + 1]);
+		unsigned int rdset =
+			SYSC_ALLOC_R_SYSC_ALLOC0_GET(dtb_data[i + 1]);
+		unsigned int wrset =
+			SYSC_ALLOC_W_SYSC_ALLOC0_GET(dtb_data[i + 1]);
 		valid = valid &&
-			(kbase_pbha_record_settings(kbdev, false, dtb_data[i], rdset, wrset) == 0);
+			(kbase_pbha_record_settings(kbdev, false, dtb_data[i],
+						    rdset, wrset) == 0);
 		if (valid)
-			dev_info(kbdev->dev, "pbha.int_id_override 0x%x r0x%x w0x%x\n", dtb_data[i],
-				 rdset, wrset);
+			dev_info(kbdev->dev,
+				 "pbha.int_id_override 0x%x r0x%x w0x%x\n",
+				 dtb_data[i], rdset, wrset);
 	}
 	if (i != sz || (!valid)) {
-		dev_err(kbdev->dev, "Failed recording DTB data (pbha.int_id_override)\n");
+		dev_err(kbdev->dev,
+			"Failed recording DTB data (pbha.int_id_override)\n");
 		return -EINVAL;
 	}
 	return 0;
 }
 
+#if MALI_USE_CSF
 static int kbase_pbha_read_propagate_bits_property(struct kbase_device *kbdev,
 						   const struct device_node *pbha_node)
 {
-	u32 bits = 0;
+	u32 bits;
 	int err;
 
 	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PBHA_HWU))
 		return 0;
 
-	err = of_property_read_u32(pbha_node, "propagate-bits", &bits);
-
-	if (err == -EINVAL) {
-		err = of_property_read_u32(pbha_node, "propagate_bits", &bits);
-	}
+	err = of_property_read_u32(pbha_node, "propagate_bits", &bits);
 
 	if (err < 0) {
 		if (err != -EINVAL) {
@@ -294,10 +268,6 @@ static int kbase_pbha_read_propagate_bits_property(struct kbase_device *kbdev,
 				"DTB value for propagate_bits is improperly formed (err=%d)\n",
 				err);
 			return err;
-		} else {
-			/* Property does not exist */
-			kbdev->pbha_propagate_bits = 0;
-			return 0;
 		}
 	}
 
@@ -309,11 +279,10 @@ static int kbase_pbha_read_propagate_bits_property(struct kbase_device *kbdev,
 	kbdev->pbha_propagate_bits = bits;
 	return 0;
 }
-#endif /* MALI_USE_CSF */
+#endif
 
 int kbase_pbha_read_dtb(struct kbase_device *kbdev)
 {
-#if MALI_USE_CSF
 	const struct device_node *pbha_node;
 	int err;
 
@@ -326,12 +295,12 @@ int kbase_pbha_read_dtb(struct kbase_device *kbdev)
 
 	err = kbase_pbha_read_int_id_override_property(kbdev, pbha_node);
 
+#if MALI_USE_CSF
 	if (err < 0)
 		return err;
 
 	err = kbase_pbha_read_propagate_bits_property(kbdev, pbha_node);
-	return err;
-#else
-	return 0;
 #endif
+
+	return err;
 }

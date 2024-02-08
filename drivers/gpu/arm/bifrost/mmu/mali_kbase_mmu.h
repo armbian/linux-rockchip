@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,6 +25,7 @@
 #include <uapi/gpu/arm/bifrost/mali_base_kernel.h>
 
 #define KBASE_MMU_PAGE_ENTRIES 512
+#define KBASE_MMU_INVALID_PGD_ADDRESS (~(phys_addr_t)0)
 
 struct kbase_context;
 struct kbase_mmu_table;
@@ -35,8 +36,8 @@ struct kbase_va_region;
  * A pointer to this type is passed down from the outer-most callers in the kbase
  * module - where the information resides as to the synchronous / asynchronous
  * nature of the call flow, with respect to MMU operations. ie - does the call flow relate to
- * existing GPU work or does it come from requests (like ioctl) from user-space, power
- * management, etc.
+ * existing GPU work does it come from requests (like ioctl) from user-space, power management,
+ * etc.
  *
  * @CALLER_MMU_UNSET_SYNCHRONICITY: default value must be invalid to avoid accidental choice
  *                                  of a 'valid' value
@@ -108,7 +109,7 @@ void kbase_mmu_as_term(struct kbase_device *kbdev, unsigned int i);
  * Return:    0 if successful, otherwise a negative error code.
  */
 int kbase_mmu_init(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
-		   struct kbase_context *kctx, int group_id);
+		struct kbase_context *kctx, int group_id);
 
 /**
  * kbase_mmu_interrupt - Process an MMU interrupt.
@@ -147,49 +148,31 @@ void kbase_mmu_term(struct kbase_device *kbdev, struct kbase_mmu_table *mmut);
  * Return: An address translation entry, either in LPAE or AArch64 format
  *         (depending on the driver's configuration).
  */
-u64 kbase_mmu_create_ate(struct kbase_device *kbdev, struct tagged_addr phy, unsigned long flags,
-			 int level, int group_id);
+u64 kbase_mmu_create_ate(struct kbase_device *kbdev,
+	struct tagged_addr phy, unsigned long flags, int level, int group_id);
 
 int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
 				    u64 vpfn, struct tagged_addr *phys, size_t nr,
 				    unsigned long flags, int group_id, u64 *dirty_pgds,
-				    struct kbase_va_region *reg);
+				    struct kbase_va_region *reg, bool ignore_page_migration);
 int kbase_mmu_insert_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr, unsigned long flags, int as_nr,
 			   int group_id, enum kbase_caller_mmu_sync_info mmu_sync_info,
-			   struct kbase_va_region *reg);
-
-/**
- * kbase_mmu_insert_pages_skip_status_update - Map 'nr' pages pointed to by 'phys'
- * at GPU PFN 'vpfn' for GPU address space number 'as_nr'.
- *
- * @kbdev:         Instance of GPU platform device, allocated from the probe method.
- * @mmut:          GPU page tables.
- * @vpfn:          Start page frame number of the GPU virtual pages to map.
- * @phys:          Physical address of the page to be mapped.
- * @nr:            The number of pages to map.
- * @flags:         Bitmask of attributes of the GPU memory region being mapped.
- * @as_nr:         The GPU address space number.
- * @group_id:      The physical memory group in which the page was allocated.
- * @mmu_sync_info: MMU-synchronous caller info.
- * @reg:           The region whose physical allocation is to be mapped.
- *
- * Similar to kbase_mmu_insert_pages() but skips updating each pages metadata
- * for page migration.
- *
- * Return: 0 if successful, otherwise a negative error code.
- */
-int kbase_mmu_insert_pages_skip_status_update(struct kbase_device *kbdev,
-					      struct kbase_mmu_table *mmut, u64 vpfn,
-					      struct tagged_addr *phys, size_t nr,
-					      unsigned long flags, int as_nr, int group_id,
-					      enum kbase_caller_mmu_sync_info mmu_sync_info,
-					      struct kbase_va_region *reg);
+			   struct kbase_va_region *reg, bool ignore_page_migration);
+int kbase_mmu_insert_imported_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
+				    u64 vpfn, struct tagged_addr *phys, size_t nr,
+				    unsigned long flags, int as_nr, int group_id,
+				    enum kbase_caller_mmu_sync_info mmu_sync_info,
+				    struct kbase_va_region *reg);
 int kbase_mmu_insert_aliased_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
 				   u64 vpfn, struct tagged_addr *phys, size_t nr,
 				   unsigned long flags, int as_nr, int group_id,
 				   enum kbase_caller_mmu_sync_info mmu_sync_info,
 				   struct kbase_va_region *reg);
+int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn, struct tagged_addr phys,
+				 size_t nr, unsigned long flags, int group_id,
+				 enum kbase_caller_mmu_sync_info mmu_sync_info,
+				 bool ignore_page_migration);
 int kbase_mmu_insert_single_imported_page(struct kbase_context *kctx, u64 vpfn,
 					  struct tagged_addr phys, size_t nr, unsigned long flags,
 					  int group_id,
@@ -199,19 +182,44 @@ int kbase_mmu_insert_single_aliased_page(struct kbase_context *kctx, u64 vpfn,
 					 int group_id,
 					 enum kbase_caller_mmu_sync_info mmu_sync_info);
 
+/**
+ * kbase_mmu_teardown_pages - Remove GPU virtual addresses from the MMU page table
+ *
+ * @kbdev:    Pointer to kbase device.
+ * @mmut:     Pointer to GPU MMU page table.
+ * @vpfn:     Start page frame number of the GPU virtual pages to unmap.
+ * @phys:     Array of physical pages currently mapped to the virtual
+ *            pages to unmap, or NULL. This is used for GPU cache maintenance
+ *            and page migration support.
+ * @nr_phys_pages: Number of physical pages to flush.
+ * @nr_virt_pages: Number of virtual pages whose PTEs should be destroyed.
+ * @as_nr:    Address space number, for GPU cache maintenance operations
+ *            that happen outside a specific kbase context.
+ * @ignore_page_migration: Whether page migration metadata should be ignored.
+ *
+ * We actually discard the ATE and free the page table pages if no valid entries
+ * exist in PGD.
+ *
+ * IMPORTANT: This uses kbasep_js_runpool_release_ctx() when the context is
+ * currently scheduled into the runpool, and so potentially uses a lot of locks.
+ * These locks must be taken in the correct order with respect to others
+ * already held by the caller. Refer to kbasep_js_runpool_release_ctx() for more
+ * information.
+ *
+ * The @p phys pointer to physical pages is not necessary for unmapping virtual memory,
+ * but it is used for fine-grained GPU cache maintenance. If @p phys is NULL,
+ * GPU cache maintenance will be done as usual, that is invalidating the whole GPU caches
+ * instead of specific physical address ranges.
+ *
+ * Return: 0 on success, otherwise an error code.
+ */
 int kbase_mmu_teardown_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
 			     struct tagged_addr *phys, size_t nr_phys_pages, size_t nr_virt_pages,
-			     int as_nr);
-int kbase_mmu_teardown_imported_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
-				      u64 vpfn, struct tagged_addr *phys, size_t nr_phys_pages,
-				      size_t nr_virt_pages, int as_nr);
-#define kbase_mmu_teardown_firmware_pages(kbdev, mmut, vpfn, phys, nr_phys_pages, nr_virt_pages, \
-					  as_nr)                                                 \
-	kbase_mmu_teardown_imported_pages(kbdev, mmut, vpfn, phys, nr_phys_pages, nr_virt_pages, \
-					  as_nr)
+			     int as_nr, bool ignore_page_migration);
 
-int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, struct tagged_addr *phys,
-			   size_t nr, unsigned long flags, int const group_id);
+int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
+			   struct tagged_addr *phys, size_t nr,
+			   unsigned long flags, int const group_id);
 #if MALI_USE_CSF
 /**
  * kbase_mmu_update_csf_mcu_pages - Update MCU mappings with changes of phys and flags
@@ -279,7 +287,8 @@ int kbase_mmu_migrate_page(struct tagged_addr old_phys, struct tagged_addr new_p
  * This function is basically a wrapper for kbase_gpu_cache_flush_pa_range_and_busy_wait().
  */
 void kbase_mmu_flush_pa_range(struct kbase_device *kbdev, struct kbase_context *kctx,
-			      phys_addr_t phys, size_t size, enum kbase_mmu_op_type flush_op);
+			      phys_addr_t phys, size_t size,
+			      enum kbase_mmu_op_type flush_op);
 
 /**
  * kbase_mmu_bus_fault_interrupt - Process a bus fault interrupt.
@@ -293,7 +302,8 @@ void kbase_mmu_flush_pa_range(struct kbase_device *kbdev, struct kbase_context *
  *
  * Return: zero if the operation was successful, non-zero otherwise.
  */
-int kbase_mmu_bus_fault_interrupt(struct kbase_device *kbdev, u32 status, u32 as_nr);
+int kbase_mmu_bus_fault_interrupt(struct kbase_device *kbdev, u32 status,
+		u32 as_nr);
 
 /**
  * kbase_mmu_gpu_fault_interrupt() - Report a GPU fault.
@@ -307,8 +317,8 @@ int kbase_mmu_bus_fault_interrupt(struct kbase_device *kbdev, u32 status, u32 as
  * This function builds GPU fault information to submit a work
  * for reporting the details of the fault.
  */
-void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status, u32 as_nr, u64 address,
-				   bool as_valid);
+void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status,
+		u32 as_nr, u64 address, bool as_valid);
 
 /**
  * kbase_context_mmu_group_id_get - Decode a memory group ID from
@@ -320,9 +330,11 @@ void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status, u32 a
  *
  * Return: Physical memory group ID. Valid range is 0..(BASE_MEM_GROUP_COUNT-1).
  */
-static inline int kbase_context_mmu_group_id_get(base_context_create_flags const flags)
+static inline int
+kbase_context_mmu_group_id_get(base_context_create_flags const flags)
 {
-	KBASE_DEBUG_ASSERT(flags == (flags & BASEP_CONTEXT_CREATE_ALLOWED_FLAGS));
+	KBASE_DEBUG_ASSERT(flags ==
+			   (flags & BASEP_CONTEXT_CREATE_ALLOWED_FLAGS));
 	return (int)BASE_CONTEXT_MMU_GROUP_ID_GET(flags);
 }
 

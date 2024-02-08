@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,58 +26,58 @@
 #include <linux/mali_kbase_debug_coresight_csf.h>
 
 /* Macros for CoreSight OP types. */
-#define WRITE_IMM_OP(_reg_addr, _val)                                        \
-	{                                                                    \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE_IMM,         \
-		.op.write_imm.reg_addr = _reg_addr, .op.write_imm.val = _val \
+#define WRITE_IMM_OP(_reg_addr, _val)                                                              \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE_IMM,                               \
+		.op.write_imm.reg_addr = _reg_addr, .op.write_imm.val = _val                       \
 	}
 
-#define WRITE_RANGE_OP(_reg_start, _reg_end, _val)                                     \
-	{                                                                              \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE_IMM_RANGE,             \
-		.op.write_imm_range.reg_start = _reg_start,                            \
-		.op.write_imm_range.reg_end = _reg_end, .op.write_imm_range.val = _val \
+#define WRITE_RANGE_OP(_reg_start, _reg_end, _val)                                                 \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE_IMM_RANGE,                         \
+		.op.write_imm_range.reg_start = _reg_start,                                        \
+		.op.write_imm_range.reg_end = _reg_end, .op.write_imm_range.val = _val             \
 	}
 
-#define WRITE_PTR_OP(_reg_addr, _ptr)                                                            \
-	{                                                                                        \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE, .op.write.reg_addr = _reg_addr, \
-		.op.write.ptr = _ptr                                                             \
+#define WRITE_PTR_OP(_reg_addr, _ptr)                                                              \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_WRITE, .op.write.reg_addr = _reg_addr,   \
+		.op.write.ptr = _ptr                                                               \
 	}
 
-#define READ_OP(_reg_addr, _ptr)                                                               \
-	{                                                                                      \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_READ, .op.read.reg_addr = _reg_addr, \
-		.op.read.ptr = _ptr                                                            \
+#define READ_OP(_reg_addr, _ptr)                                                                   \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_READ, .op.read.reg_addr = _reg_addr,     \
+		.op.read.ptr = _ptr                                                                \
 	}
 
-#define POLL_OP(_reg_addr, _mask, _val)                                                        \
-	{                                                                                      \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_POLL, .op.poll.reg_addr = _reg_addr, \
-		.op.poll.mask = _mask, .op.poll.val = _val                                     \
+#define POLL_OP(_reg_addr, _mask, _val)                                                            \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_POLL, .op.poll.reg_addr = _reg_addr,     \
+		.op.poll.mask = _mask, .op.poll.val = _val                                         \
 	}
 
-#define BIT_OR_OP(_ptr, _val)                                                          \
-	{                                                                              \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_OR, .op.bitw.ptr = _ptr, \
-		.op.bitw.val = _val                                                    \
+#define BIT_OR_OP(_ptr, _val)                                                                      \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_OR, .op.bitw.ptr = _ptr,             \
+		.op.bitw.val = _val                                                                \
 	}
 
-#define BIT_XOR_OP(_ptr, _val)                                                          \
-	{                                                                               \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_XOR, .op.bitw.ptr = _ptr, \
-		.op.bitw.val = _val                                                     \
+#define BIT_XOR_OP(_ptr, _val)                                                                     \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_XOR, .op.bitw.ptr = _ptr,            \
+		.op.bitw.val = _val                                                                \
 	}
 
-#define BIT_AND_OP(_ptr, _val)                                                          \
-	{                                                                               \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_AND, .op.bitw.ptr = _ptr, \
-		.op.bitw.val = _val                                                     \
+#define BIT_AND_OP(_ptr, _val)                                                                     \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_AND, .op.bitw.ptr = _ptr,            \
+		.op.bitw.val = _val                                                                \
 	}
 
-#define BIT_NOT_OP(_ptr)                                                                \
-	{                                                                               \
-		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_NOT, .op.bitw.ptr = _ptr, \
+#define BIT_NOT_OP(_ptr)                                                                           \
+	{                                                                                          \
+		.type = KBASE_DEBUG_CORESIGHT_CSF_OP_TYPE_BIT_NOT, .op.bitw.ptr = _ptr,            \
 	}
 
 #ifndef CS_MALI_UNLOCK_COMPONENT

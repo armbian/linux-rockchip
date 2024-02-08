@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,6 +24,8 @@
 
 /* Forward declaration */
 struct kbase_context;
+
+#define MALI_CSF_SYNC_DEBUGFS_VERSION 0
 
 /**
  * kbase_csf_sync_debugfs_init() - Create a debugfs entry for CSF queue sync info
