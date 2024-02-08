@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -35,177 +35,103 @@
 #define CS_ELA_BASE_ADDR 0xE0043000
 #define CS_GPU_COMMAND_ADDR 0x40003030
 #define CS_GPU_COMMAND_TRACE_CONTROL_EN 0x000001DC
+#define CS_ELA_MAX_SIGNAL_GROUPS 12U
+#define CS_SG_NAME_MAX_LEN 10U
+#define CS_ELA_NR_SIG_REGS 8U
 
 #define NELEMS(s) (sizeof(s) / sizeof((s)[0]))
 
-#define CS_ELA_DYN_REGS_ATTR_RW(_regname)                                                  \
-	static ssize_t _regname##_show(struct device *dev, struct device_attribute *attr,  \
-				       char *const buf)                                    \
-	{                                                                                  \
-		return sprintf_reg(buf, CS_ELA_##_regname);                                \
-	}                                                                                  \
-	static ssize_t _regname##_store(struct device *dev, struct device_attribute *attr, \
-					const char *buf, size_t count)                     \
-	{                                                                                  \
-		return verify_store_reg(dev, buf, count, CS_ELA_##_regname);               \
-	}                                                                                  \
-	static DEVICE_ATTR_RW(_regname)
-
-#define CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(_signo)     \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGSEL##_signo);       \
-	CS_ELA_DYN_REGS_ATTR_RW(TRIGCTRL##_signo);     \
-	CS_ELA_DYN_REGS_ATTR_RW(NEXTSTATE##_signo);    \
-	CS_ELA_DYN_REGS_ATTR_RW(ACTION##_signo);       \
-	CS_ELA_DYN_REGS_ATTR_RW(ALTNEXTSTATE##_signo); \
-	CS_ELA_DYN_REGS_ATTR_RW(ALTACTION##_signo);    \
-	CS_ELA_DYN_REGS_ATTR_RW(COMPCTRL##_signo);     \
-	CS_ELA_DYN_REGS_ATTR_RW(ALTCOMPCTRL##_signo);  \
-	CS_ELA_DYN_REGS_ATTR_RW(COUNTCOMP##_signo);    \
-	CS_ELA_DYN_REGS_ATTR_RW(TWBSEL##_signo);       \
-	CS_ELA_DYN_REGS_ATTR_RW(EXTMASK##_signo);      \
-	CS_ELA_DYN_REGS_ATTR_RW(EXTCOMP##_signo);      \
-	CS_ELA_DYN_REGS_ATTR_RW(QUALMASK##_signo);     \
-	CS_ELA_DYN_REGS_ATTR_RW(QUALCOMP##_signo);     \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_0);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_1);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_2);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_3);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_4);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_5);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_6);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGMASK##_signo##_7);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_0);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_1);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_2);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_3);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_4);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_5);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_6);  \
-	CS_ELA_DYN_REGS_ATTR_RW(SIGCOMP##_signo##_7)
-
-#define CS_ELA_DYN_REGS_ATTR(_regname) &dev_attr_##_regname.attr
-
-#define CS_ELA_DYN_REGS_ATTR_TRIG_STATE(_signo)                                                  \
-	CS_ELA_DYN_REGS_ATTR(SIGSEL##_signo), CS_ELA_DYN_REGS_ATTR(TRIGCTRL##_signo),            \
-		CS_ELA_DYN_REGS_ATTR(NEXTSTATE##_signo), CS_ELA_DYN_REGS_ATTR(ACTION##_signo),   \
-		CS_ELA_DYN_REGS_ATTR(ALTNEXTSTATE##_signo),                                      \
-		CS_ELA_DYN_REGS_ATTR(ALTACTION##_signo), CS_ELA_DYN_REGS_ATTR(COMPCTRL##_signo), \
-		CS_ELA_DYN_REGS_ATTR(ALTCOMPCTRL##_signo),                                       \
-		CS_ELA_DYN_REGS_ATTR(COUNTCOMP##_signo), CS_ELA_DYN_REGS_ATTR(TWBSEL##_signo),   \
-		CS_ELA_DYN_REGS_ATTR(EXTMASK##_signo), CS_ELA_DYN_REGS_ATTR(EXTCOMP##_signo),    \
-		CS_ELA_DYN_REGS_ATTR(QUALMASK##_signo), CS_ELA_DYN_REGS_ATTR(QUALCOMP##_signo),  \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_0),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_1),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_2),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_3),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_4),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_5),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_6),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGMASK##_signo##_7),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_0),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_1),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_2),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_3),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_4),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_5),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_6),                                       \
-		CS_ELA_DYN_REGS_ATTR(SIGCOMP##_signo##_7)
-
-#define WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(_signo)                     \
-	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(_signo),                 \
-		     &ela_state.regs[CS_ELA_SIGSEL##_signo]),               \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_TRIGCTRL(_signo),       \
-			     &ela_state.regs[CS_ELA_TRIGCTRL##_signo]),     \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_NEXTSTATE(_signo),      \
-			     &ela_state.regs[CS_ELA_NEXTSTATE##_signo]),    \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ACTION(_signo),         \
-			     &ela_state.regs[CS_ELA_ACTION##_signo]),       \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ALTNEXTSTATE(_signo),   \
-			     &ela_state.regs[CS_ELA_ALTNEXTSTATE##_signo]), \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ALTACTION(_signo),      \
-			     &ela_state.regs[CS_ELA_ALTACTION##_signo]),    \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(_signo),       \
-			     &ela_state.regs[CS_ELA_COMPCTRL##_signo]),     \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(_signo),    \
-			     &ela_state.regs[CS_ELA_ALTCOMPCTRL##_signo]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_COUNTCOMP(_signo),      \
-			     &ela_state.regs[CS_ELA_COUNTCOMP##_signo]),    \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_TWBSEL(_signo),         \
-			     &ela_state.regs[CS_ELA_TWBSEL##_signo]),       \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_EXTMASK(_signo),        \
-			     &ela_state.regs[CS_ELA_EXTMASK##_signo]),      \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_EXTCOMP(_signo),        \
-			     &ela_state.regs[CS_ELA_EXTCOMP##_signo]),      \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_QUALMASK(_signo),       \
-			     &ela_state.regs[CS_ELA_QUALMASK##_signo]),     \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_QUALCOMP(_signo),       \
-			     &ela_state.regs[CS_ELA_QUALCOMP##_signo]),     \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 0),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_0]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 1),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_1]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 2),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_2]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 3),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_3]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 4),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_4]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 5),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_5]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 6),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_6]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(_signo, 7),     \
-			     &ela_state.regs[CS_ELA_SIGMASK##_signo##_7]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 0),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_0]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 1),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_1]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 2),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_2]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 3),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_3]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 4),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_4]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 5),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_5]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 6),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_6]),  \
-		WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(_signo, 7),     \
-			     &ela_state.regs[CS_ELA_SIGCOMP##_signo##_7])
-
-#define CS_ELA_DYN_REG_ENUM_TRIG_STATE(_signo)                                                 \
-	CS_ELA_SIGSEL##_signo, CS_ELA_TRIGCTRL##_signo, CS_ELA_NEXTSTATE##_signo,              \
-		CS_ELA_ACTION##_signo, CS_ELA_ALTNEXTSTATE##_signo, CS_ELA_ALTACTION##_signo,  \
-		CS_ELA_COMPCTRL##_signo, CS_ELA_ALTCOMPCTRL##_signo, CS_ELA_COUNTCOMP##_signo, \
-		CS_ELA_TWBSEL##_signo, CS_ELA_EXTMASK##_signo, CS_ELA_EXTCOMP##_signo,         \
-		CS_ELA_QUALMASK##_signo, CS_ELA_QUALCOMP##_signo, CS_ELA_SIGMASK##_signo##_0,  \
-		CS_ELA_SIGMASK##_signo##_1, CS_ELA_SIGMASK##_signo##_2,                        \
-		CS_ELA_SIGMASK##_signo##_3, CS_ELA_SIGMASK##_signo##_4,                        \
-		CS_ELA_SIGMASK##_signo##_5, CS_ELA_SIGMASK##_signo##_6,                        \
-		CS_ELA_SIGMASK##_signo##_7, CS_ELA_SIGCOMP##_signo##_0,                        \
-		CS_ELA_SIGCOMP##_signo##_1, CS_ELA_SIGCOMP##_signo##_2,                        \
-		CS_ELA_SIGCOMP##_signo##_3, CS_ELA_SIGCOMP##_signo##_4,                        \
-		CS_ELA_SIGCOMP##_signo##_5, CS_ELA_SIGCOMP##_signo##_6, CS_ELA_SIGCOMP##_signo##_7
+#define CS_ELA_SIGREGS_ATTR_RW(_a, _b)                                                             \
+	static ssize_t _a##_show(struct device *dev, struct device_attribute *attr,                \
+				 char *const buf)                                                  \
+	{                                                                                          \
+		return sprintf_regs(buf, CS_ELA_##_b##_0, CS_ELA_##_b##_7);                        \
+	}                                                                                          \
+	static ssize_t _a##_store(struct device *dev, struct device_attribute *attr,               \
+				  const char *buf, size_t count)                                   \
+	{                                                                                          \
+		return verify_store_8_regs(dev, buf, count, CS_ELA_##_b##_0);                      \
+	}                                                                                          \
+	static DEVICE_ATTR_RW(_a)
 
 enum cs_ela_dynamic_regs {
 	CS_ELA_TIMECTRL,
 	CS_ELA_TSSR,
-	CS_ELA_ATBCTRL,
-	CS_ELA_PTACTION,
-	CS_ELA_AUXCTRL,
-	CS_ELA_CNTSEL,
 
-	CS_ELA_DYN_REG_ENUM_TRIG_STATE(0),
-	CS_ELA_DYN_REG_ENUM_TRIG_STATE(1),
-	CS_ELA_DYN_REG_ENUM_TRIG_STATE(2),
-	CS_ELA_DYN_REG_ENUM_TRIG_STATE(3),
-	CS_ELA_DYN_REG_ENUM_TRIG_STATE(4),
+	CS_ELA_SIGSEL0,
+	CS_ELA_COMPCTRL0,
+	CS_ELA_ALTCOMPCTRL0,
+	CS_ELA_TWBSEL0,
+	CS_ELA_QUALMASK0,
+	CS_ELA_QUALCOMP0,
+	CS_ELA_SIGMASK0_0,
+	CS_ELA_SIGMASK0_1,
+	CS_ELA_SIGMASK0_2,
+	CS_ELA_SIGMASK0_3,
+	CS_ELA_SIGMASK0_4,
+	CS_ELA_SIGMASK0_5,
+	CS_ELA_SIGMASK0_6,
+	CS_ELA_SIGMASK0_7,
+	CS_ELA_SIGCOMP0_0,
+	CS_ELA_SIGCOMP0_1,
+	CS_ELA_SIGCOMP0_2,
+	CS_ELA_SIGCOMP0_3,
+	CS_ELA_SIGCOMP0_4,
+	CS_ELA_SIGCOMP0_5,
+	CS_ELA_SIGCOMP0_6,
+	CS_ELA_SIGCOMP0_7,
+
+	CS_ELA_SIGSEL4,
+	CS_ELA_NEXTSTATE4,
+	CS_ELA_ACTION4,
+	CS_ELA_ALTNEXTSTATE4,
+	CS_ELA_COMPCTRL4,
+	CS_ELA_TWBSEL4,
+	CS_ELA_SIGMASK4_0,
+	CS_ELA_SIGMASK4_1,
+	CS_ELA_SIGMASK4_2,
+	CS_ELA_SIGMASK4_3,
+	CS_ELA_SIGMASK4_4,
+	CS_ELA_SIGMASK4_5,
+	CS_ELA_SIGMASK4_6,
+	CS_ELA_SIGMASK4_7,
+	CS_ELA_SIGCOMP4_0,
+	CS_ELA_SIGCOMP4_1,
+	CS_ELA_SIGCOMP4_2,
+	CS_ELA_SIGCOMP4_3,
+	CS_ELA_SIGCOMP4_4,
+	CS_ELA_SIGCOMP4_5,
+	CS_ELA_SIGCOMP4_6,
+	CS_ELA_SIGCOMP4_7,
 
 	CS_ELA_NR_DYN_REGS
 };
 
+enum cs_ela_tracemodes {
+	CS_ELA_TRACEMODE_NONE,
+	CS_ELA_TRACEMODE_JCN,
+	CS_ELA_TRACEMODE_CEU_EXEC,
+	CS_ELA_TRACEMODE_CEU_CMDS,
+	CS_ELA_TRACEMODE_MCU_AHBP,
+	CS_ELA_TRACEMODE_HOST_AXI,
+	CS_ELA_NR_TRACEMODE
+};
+
+enum cs_ela_signal_types {
+	CS_ELA_SIGTYPE_JCN_REQ,
+	CS_ELA_SIGTYPE_JCN_RES,
+	CS_ELA_SIGTYPE_CEU_EXEC,
+	CS_ELA_SIGTYPE_CEU_CMDS,
+	CS_ELA_SIGTYPE_MCU_AHBP,
+	CS_ELA_SIGTYPE_HOST_AXI,
+	CS_ELA_NR_SIGTYPE,
+};
+
 struct cs_ela_state {
+	enum cs_ela_tracemodes tracemode;
+	u32 supported_tracemodes;
 	int enabled;
+	u32 signal_types[CS_ELA_NR_SIGTYPE];
 	u32 regs[CS_ELA_NR_DYN_REGS];
 };
 
@@ -215,91 +141,258 @@ static char *type_name = "mali-source-ela";
 
 static struct cs_ela_state ela_state = { 0 };
 
-static void reset_dynamic_registers(void)
+/* Setup ELA sysfs attributes */
+static char *tracemode_names[] = {
+	[CS_ELA_TRACEMODE_NONE] = "NONE",	  [CS_ELA_TRACEMODE_JCN] = "JCN",
+	[CS_ELA_TRACEMODE_CEU_EXEC] = "CEU_EXEC", [CS_ELA_TRACEMODE_CEU_CMDS] = "CEU_CMDS",
+	[CS_ELA_TRACEMODE_MCU_AHBP] = "MCU_AHBP", [CS_ELA_TRACEMODE_HOST_AXI] = "HOST_AXI",
+};
+
+static char *signal_type_names[] = {
+	[CS_ELA_SIGTYPE_JCN_REQ] = "jcn-request",    [CS_ELA_SIGTYPE_JCN_RES] = "jcn-response",
+	[CS_ELA_SIGTYPE_CEU_EXEC] = "ceu-execution", [CS_ELA_SIGTYPE_CEU_CMDS] = "ceu-commands",
+	[CS_ELA_SIGTYPE_MCU_AHBP] = "mcu-ahbp",	     [CS_ELA_SIGTYPE_HOST_AXI] = "host-axi",
+};
+
+static int signal_type_tracemode_map[] = {
+	[CS_ELA_SIGTYPE_JCN_REQ] = CS_ELA_TRACEMODE_JCN,
+	[CS_ELA_SIGTYPE_JCN_RES] = CS_ELA_TRACEMODE_JCN,
+	[CS_ELA_SIGTYPE_CEU_EXEC] = CS_ELA_TRACEMODE_CEU_EXEC,
+	[CS_ELA_SIGTYPE_CEU_CMDS] = CS_ELA_TRACEMODE_CEU_CMDS,
+	[CS_ELA_SIGTYPE_MCU_AHBP] = CS_ELA_TRACEMODE_MCU_AHBP,
+	[CS_ELA_SIGTYPE_HOST_AXI] = CS_ELA_TRACEMODE_HOST_AXI,
+};
+
+static void setup_tracemode_registers(int tracemode)
 {
-	memset(ela_state.regs, 0x00000000, sizeof(u32) * CS_ELA_NR_DYN_REGS);
+	switch (tracemode) {
+	case CS_ELA_TRACEMODE_NONE:
+		/* Perform full reset of all dynamic registers */
+		memset(ela_state.regs, 0x00000000, sizeof(u32) * CS_ELA_NR_DYN_REGS);
+
+		ela_state.tracemode = CS_ELA_TRACEMODE_NONE;
+		break;
+	case CS_ELA_TRACEMODE_JCN:
+
+		if (ela_state.signal_types[CS_ELA_SIGTYPE_JCN_REQ] ==
+		    ela_state.signal_types[CS_ELA_SIGTYPE_JCN_RES]) {
+			ela_state.regs[CS_ELA_TSSR] = 0x00000000;
+
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_JCN_REQ];
+
+			ela_state.regs[CS_ELA_COMPCTRL0] = 0x00000010;
+			ela_state.regs[CS_ELA_ALTCOMPCTRL0] = 0x00001000;
+			ela_state.regs[CS_ELA_TWBSEL0] = 0x0000FFFF;
+			ela_state.regs[CS_ELA_QUALMASK0] = 0x00000000;
+			ela_state.regs[CS_ELA_QUALCOMP0] = 0x00000000;
+
+			memset(&ela_state.regs[CS_ELA_SIGMASK0_0], 0x00000000,
+			       sizeof(u32) * (CS_ELA_SIGCOMP0_7 - CS_ELA_SIGMASK0_0 + 1));
+			ela_state.regs[CS_ELA_SIGMASK0_1] = 0x80000000;
+			ela_state.regs[CS_ELA_SIGMASK0_3] = 0x80000000;
+			ela_state.regs[CS_ELA_SIGCOMP0_1] = 0x80000000;
+			ela_state.regs[CS_ELA_SIGCOMP0_3] = 0x80000000;
+
+			memset(&ela_state.regs[CS_ELA_SIGSEL4], 0x00000000,
+			       sizeof(u32) * (CS_ELA_SIGCOMP4_7 - CS_ELA_SIGSEL4 + 1));
+
+			ela_state.regs[CS_ELA_COMPCTRL4] = 0x11111111;
+
+		} else {
+			ela_state.regs[CS_ELA_TSSR] = 0x00000010;
+
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_JCN_REQ];
+
+			ela_state.regs[CS_ELA_COMPCTRL0] = 0x00000100;
+			ela_state.regs[CS_ELA_ALTCOMPCTRL0] = 0x11111111;
+			ela_state.regs[CS_ELA_TWBSEL0] = 0x00000FFF;
+			ela_state.regs[CS_ELA_QUALMASK0] = 0x00000000;
+			ela_state.regs[CS_ELA_QUALCOMP0] = 0x00000000;
+
+			memset(&ela_state.regs[CS_ELA_SIGMASK0_0], 0x00000000,
+			       sizeof(u32) * (CS_ELA_SIGCOMP0_7 - CS_ELA_SIGMASK0_0 + 1));
+			ela_state.regs[CS_ELA_SIGMASK0_2] |= 0x80000000;
+			ela_state.regs[CS_ELA_SIGCOMP0_2] |= 0x80000000;
+
+			ela_state.regs[CS_ELA_SIGSEL4] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_JCN_RES];
+			ela_state.regs[CS_ELA_NEXTSTATE4] = 0x00000010;
+			ela_state.regs[CS_ELA_ACTION4] = 0x00000008;
+			ela_state.regs[CS_ELA_ALTNEXTSTATE4] = 0x00000001;
+			ela_state.regs[CS_ELA_COMPCTRL4] = 0x00000100;
+			ela_state.regs[CS_ELA_TWBSEL4] = 0x00000FFF;
+
+			memset(&ela_state.regs[CS_ELA_SIGMASK4_0], 0x00000000,
+			       sizeof(u32) * (CS_ELA_SIGCOMP4_7 - CS_ELA_SIGMASK4_0 + 1));
+			ela_state.regs[CS_ELA_SIGMASK4_2] |= 0x80000000;
+			ela_state.regs[CS_ELA_SIGCOMP4_2] |= 0x80000000;
+		}
+
+		break;
+	case CS_ELA_TRACEMODE_CEU_EXEC:
+	case CS_ELA_TRACEMODE_CEU_CMDS:
+		ela_state.regs[CS_ELA_TSSR] = 0x00000000;
+
+		if (tracemode == CS_ELA_TRACEMODE_CEU_EXEC) {
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_CEU_EXEC];
+			ela_state.regs[CS_ELA_ALTCOMPCTRL0] = 0x00001000;
+		} else if (tracemode == CS_ELA_TRACEMODE_CEU_CMDS) {
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_CEU_CMDS];
+			ela_state.regs[CS_ELA_ALTCOMPCTRL0] = 0x11111111;
+		}
+
+		ela_state.regs[CS_ELA_COMPCTRL0] = 0x00000001;
+		ela_state.regs[CS_ELA_TWBSEL0] = 0x0000FFFF;
+		ela_state.regs[CS_ELA_QUALMASK0] = 0x0000000F;
+		ela_state.regs[CS_ELA_QUALCOMP0] = 0x0000000F;
+
+		memset(&ela_state.regs[CS_ELA_SIGMASK0_0], 0x00000000,
+		       sizeof(u32) * (CS_ELA_SIGCOMP0_7 - CS_ELA_SIGMASK0_0 + 1));
+
+		memset(&ela_state.regs[CS_ELA_SIGSEL4], 0x00000000,
+		       sizeof(u32) * (CS_ELA_SIGCOMP4_7 - CS_ELA_SIGSEL4 + 1));
+
+		ela_state.regs[CS_ELA_COMPCTRL4] = 0x11111111;
+
+		break;
+	case CS_ELA_TRACEMODE_MCU_AHBP:
+	case CS_ELA_TRACEMODE_HOST_AXI:
+		ela_state.regs[CS_ELA_TSSR] = 0x00000000;
+
+		if (tracemode == CS_ELA_TRACEMODE_MCU_AHBP)
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_MCU_AHBP];
+		else if (tracemode == CS_ELA_TRACEMODE_HOST_AXI)
+			ela_state.regs[CS_ELA_SIGSEL0] =
+				ela_state.signal_types[CS_ELA_SIGTYPE_HOST_AXI];
+
+		ela_state.regs[CS_ELA_COMPCTRL0] = 0x00000001;
+		ela_state.regs[CS_ELA_ALTCOMPCTRL0] = 0x11111111;
+		ela_state.regs[CS_ELA_TWBSEL0] = 0x000000FF;
+		ela_state.regs[CS_ELA_QUALMASK0] = 0x00000003;
+		ela_state.regs[CS_ELA_QUALCOMP0] = 0x00000003;
+
+		memset(&ela_state.regs[CS_ELA_SIGMASK0_0], 0x00000000,
+		       sizeof(u32) * (CS_ELA_SIGCOMP0_7 - CS_ELA_SIGMASK0_0 + 1));
+
+		memset(&ela_state.regs[CS_ELA_SIGSEL4], 0x00000000,
+		       sizeof(u32) * (CS_ELA_SIGCOMP4_7 - CS_ELA_SIGSEL4 + 1));
+
+		ela_state.regs[CS_ELA_COMPCTRL4] = 0x11111111;
+
+		break;
+	}
+	ela_state.tracemode = tracemode;
 }
+
+static ssize_t select_show(struct device *dev, struct device_attribute *attr, char *const buf)
+{
+	ssize_t ret = 0;
+	unsigned int mode;
+
+	for (mode = CS_ELA_TRACEMODE_NONE; mode < CS_ELA_NR_TRACEMODE; mode++) {
+		if (ela_state.supported_tracemodes & (1U << mode)) {
+			if (ela_state.tracemode == mode)
+				ret += sprintf(buf + ret, "[%s]\n", tracemode_names[mode]);
+			else
+				ret += sprintf(buf + ret, "%s\n", tracemode_names[mode]);
+		}
+	}
+	return ret;
+}
+
+static ssize_t select_store(struct device *dev, struct device_attribute *attr, const char *buf,
+			    size_t count)
+{
+	struct coresight_mali_source_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned int mode = 0;
+
+	/* Check if enabled and return error */
+	if (ela_state.enabled == 1) {
+		dev_err(drvdata->base.dev,
+			"Config needs to be disabled before modifying registers");
+		return -EINVAL;
+	}
+
+	for (mode = CS_ELA_TRACEMODE_NONE; mode < CS_ELA_NR_TRACEMODE; mode++) {
+		if (sysfs_streq(tracemode_names[mode], buf) &&
+		    (ela_state.supported_tracemodes & (1U << mode))) {
+			setup_tracemode_registers(mode);
+			return count;
+		}
+	}
+
+	dev_err(drvdata->base.dev, "Invalid tracemode: %s", buf);
+	return -EINVAL;
+}
+
+static DEVICE_ATTR_RW(select);
 
 static ssize_t is_enabled_show(struct device *dev, struct device_attribute *attr, char *const buf)
 {
 	return sprintf(buf, "%d\n", ela_state.enabled);
 }
+
 static DEVICE_ATTR_RO(is_enabled);
 
-static ssize_t reset_regs_store(struct device *dev, struct device_attribute *attr, const char *buf,
-				size_t count)
-{
-	struct coresight_mali_source_drvdata *drvdata = dev_get_drvdata(dev->parent);
-	if (ela_state.enabled == 1) {
-		dev_err(drvdata->base.dev,
-			"Config needs to be disabled before modifying registers");
-		return -EINVAL;
-	}
-	reset_dynamic_registers();
-	return count;
-}
-static DEVICE_ATTR_WO(reset_regs);
-
-/* show and store functions for dynamic registers */
-static ssize_t sprintf_reg(char *const buf, int reg)
+static ssize_t sprintf_regs(char *const buf, int from_reg, int to_reg)
 {
 	ssize_t ret = 0;
+	unsigned int i = 0;
 
-	ret += sprintf(buf + ret, "0x%08X\n", ela_state.regs[reg]);
+	for (i = from_reg; i <= to_reg; i++)
+		ret += sprintf(buf + ret, "0x%08X ", ela_state.regs[i]);
+
+	ret += sprintf(buf + ret, "\n");
 	return ret;
 }
 
-static ssize_t verify_store_reg(struct device *dev, const char *buf, size_t count, int reg)
+static ssize_t verify_store_8_regs(struct device *dev, const char *buf, size_t count, int from_reg)
 {
 	struct coresight_mali_source_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	u32 regs[CS_ELA_NR_SIG_REGS] = { 0 };
 	int items;
-	u64 value;
+	unsigned int i;
+
 	if (ela_state.enabled == 1) {
 		dev_err(drvdata->base.dev,
 			"Config needs to be disabled before modifying registers");
 		return -EINVAL;
 	}
 
-	items = sscanf(buf, "%llx", &value);
-	if (items <= 0 || value > U32_MAX) {
+	items = sscanf(buf, "%x %x %x %x %x %x %x %x", &regs[0], &regs[1], &regs[2], &regs[3],
+		       &regs[4], &regs[5], &regs[6], &regs[7]);
+	if (items <= 0) {
 		dev_err(drvdata->base.dev, "Invalid register value");
 		return -EINVAL;
 	}
-	ela_state.regs[reg] = (u32)value;
+	if (items != CS_ELA_NR_SIG_REGS) {
+		dev_err(drvdata->base.dev, "Incorrect number of registers set (%d != %d)", items,
+			CS_ELA_NR_SIG_REGS);
+		return -EINVAL;
+	}
+	for (i = 0; i < CS_ELA_NR_SIG_REGS; i++)
+		ela_state.regs[from_reg + i] = regs[i];
 
 	return count;
 }
 
-CS_ELA_DYN_REGS_ATTR_RW(TIMECTRL);
-CS_ELA_DYN_REGS_ATTR_RW(TSSR);
-CS_ELA_DYN_REGS_ATTR_RW(ATBCTRL);
-CS_ELA_DYN_REGS_ATTR_RW(PTACTION);
-CS_ELA_DYN_REGS_ATTR_RW(AUXCTRL);
-CS_ELA_DYN_REGS_ATTR_RW(CNTSEL);
-
-CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(0);
-CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(1);
-CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(2);
-CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(3);
-CS_ELA_DYN_REGS_ATTR_RW_TRIG_STATE(4);
-
-static struct attribute *coresight_ela_reg_attrs[] = {
-	CS_ELA_DYN_REGS_ATTR(TIMECTRL),	    CS_ELA_DYN_REGS_ATTR(TSSR),
-	CS_ELA_DYN_REGS_ATTR(ATBCTRL),	    CS_ELA_DYN_REGS_ATTR(PTACTION),
-	CS_ELA_DYN_REGS_ATTR(AUXCTRL),	    CS_ELA_DYN_REGS_ATTR(CNTSEL),
-	CS_ELA_DYN_REGS_ATTR_TRIG_STATE(0), CS_ELA_DYN_REGS_ATTR_TRIG_STATE(1),
-	CS_ELA_DYN_REGS_ATTR_TRIG_STATE(2), CS_ELA_DYN_REGS_ATTR_TRIG_STATE(3),
-	CS_ELA_DYN_REGS_ATTR_TRIG_STATE(4), NULL,
-};
-
-static struct attribute_group coresight_ela_reg_group = {
-	.name = "regs",
-	.attrs = coresight_ela_reg_attrs,
-};
+CS_ELA_SIGREGS_ATTR_RW(sigmask0, SIGMASK0);
+CS_ELA_SIGREGS_ATTR_RW(sigcomp0, SIGCOMP0);
+CS_ELA_SIGREGS_ATTR_RW(sigmask4, SIGMASK4);
+CS_ELA_SIGREGS_ATTR_RW(sigcomp4, SIGCOMP4);
 
 static struct attribute *coresight_ela_attrs[] = {
+	&dev_attr_select.attr,
 	&dev_attr_is_enabled.attr,
-	&dev_attr_reset_regs.attr,
+	&dev_attr_sigmask0.attr,
+	&dev_attr_sigcomp0.attr,
+	&dev_attr_sigmask4.attr,
+	&dev_attr_sigcomp4.attr,
 	NULL,
 };
 
@@ -309,7 +402,6 @@ static struct attribute_group coresight_ela_group = {
 
 static const struct attribute_group *coresight_ela_groups[] = {
 	&coresight_ela_group,
-	&coresight_ela_reg_group,
 	NULL,
 };
 
@@ -336,17 +428,101 @@ static struct kbase_debug_coresight_csf_op ela_enable_ops[] = {
 	/* ATID[6:0] = 4; valid range 0x1-0x6F, value must be unique and needs to be
 	 * known for trace extraction
 	 */
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ATBCTRL, 0x00000400),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_PTACTION, ELA_ACTION_TRACE),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_AUXCTRL, 0x00000000),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_CNTSEL, 0x00000000),
 
-	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ATBCTRL, &ela_state.regs[CS_ELA_ATBCTRL]),
-	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_PTACTION, &ela_state.regs[CS_ELA_PTACTION]),
-	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_AUXCTRL, &ela_state.regs[CS_ELA_AUXCTRL]),
-	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_CNTSEL, &ela_state.regs[CS_ELA_CNTSEL]),
+	/* Trigger State 0 */
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(0), &ela_state.regs[CS_ELA_SIGSEL0]),
+	/* May need to be configurable in future. */
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_TRIGCTRL(0), 0x00000000),
 
-	WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(0),
-	WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(1),
-	WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(2),
-	WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(3),
-	WRITE_PTR_OP_CS_ELA_DYN_REGS_TRIG_STATE(4),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_NEXTSTATE(0), 0x00000001),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ACTION(0), ELA_ACTION_TRACE),
+
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTNEXTSTATE(0), 0x00000001),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTACTION(0), ELA_ACTION_TRACE),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(0), &ela_state.regs[CS_ELA_COMPCTRL0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(0), &ela_state.regs[CS_ELA_ALTCOMPCTRL0]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_COUNTCOMP(0), 0x00000000),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_TWBSEL(0), &ela_state.regs[CS_ELA_TWBSEL0]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_EXTMASK(0), 0x00000000),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_EXTCOMP(0), 0x00000000),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_QUALMASK(0), &ela_state.regs[CS_ELA_QUALMASK0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_QUALCOMP(0), &ela_state.regs[CS_ELA_QUALCOMP0]),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 0), &ela_state.regs[CS_ELA_SIGMASK0_0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 1), &ela_state.regs[CS_ELA_SIGMASK0_1]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 2), &ela_state.regs[CS_ELA_SIGMASK0_2]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 3), &ela_state.regs[CS_ELA_SIGMASK0_3]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 4), &ela_state.regs[CS_ELA_SIGMASK0_4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 5), &ela_state.regs[CS_ELA_SIGMASK0_5]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 6), &ela_state.regs[CS_ELA_SIGMASK0_6]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(0, 7), &ela_state.regs[CS_ELA_SIGMASK0_7]),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 0), &ela_state.regs[CS_ELA_SIGCOMP0_0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 1), &ela_state.regs[CS_ELA_SIGCOMP0_1]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 2), &ela_state.regs[CS_ELA_SIGCOMP0_2]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 3), &ela_state.regs[CS_ELA_SIGCOMP0_3]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 4), &ela_state.regs[CS_ELA_SIGCOMP0_4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 5), &ela_state.regs[CS_ELA_SIGCOMP0_5]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 6), &ela_state.regs[CS_ELA_SIGCOMP0_6]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(0, 7), &ela_state.regs[CS_ELA_SIGCOMP0_7]),
+
+	WRITE_RANGE_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(1), CS_ELA_BASE_ADDR + ELA_SIGCOMP(1, 7),
+		       0x00000000),
+	WRITE_RANGE_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(2), CS_ELA_BASE_ADDR + ELA_SIGCOMP(2, 7),
+		       0x00000000),
+	WRITE_RANGE_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(3), CS_ELA_BASE_ADDR + ELA_SIGCOMP(3, 7),
+		       0x00000000),
+
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(1), 0x11111111),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(2), 0x11111111),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(3), 0x11111111),
+
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(1), 0x11111111),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(2), 0x11111111),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(3), 0x11111111),
+
+	/* Trigger State 4 */
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGSEL(4), &ela_state.regs[CS_ELA_SIGSEL4]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_TRIGCTRL(4), 0x00000000),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_NEXTSTATE(4), &ela_state.regs[CS_ELA_NEXTSTATE4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ACTION(4), &ela_state.regs[CS_ELA_ACTION4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_ALTNEXTSTATE(4), &ela_state.regs[CS_ELA_ALTNEXTSTATE4]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTACTION(4), ELA_ACTION_TRACE),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_COMPCTRL(4), &ela_state.regs[CS_ELA_COMPCTRL4]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_ALTCOMPCTRL(4), 0x11111111),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_COUNTCOMP(4), 0x00000000),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_TWBSEL(4), &ela_state.regs[CS_ELA_TWBSEL4]),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_EXTMASK(4), 0x00000000),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_EXTCOMP(4), 0x00000000),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_QUALMASK(4), 0x00000000),
+	WRITE_IMM_OP(CS_ELA_BASE_ADDR + ELA_QUALCOMP(4), 0x00000000),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 0), &ela_state.regs[CS_ELA_SIGMASK4_0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 1), &ela_state.regs[CS_ELA_SIGMASK4_1]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 2), &ela_state.regs[CS_ELA_SIGMASK4_2]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 3), &ela_state.regs[CS_ELA_SIGMASK4_3]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 4), &ela_state.regs[CS_ELA_SIGMASK4_4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 5), &ela_state.regs[CS_ELA_SIGMASK4_5]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 6), &ela_state.regs[CS_ELA_SIGMASK4_6]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGMASK(4, 7), &ela_state.regs[CS_ELA_SIGMASK4_7]),
+
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 0), &ela_state.regs[CS_ELA_SIGCOMP4_0]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 1), &ela_state.regs[CS_ELA_SIGCOMP4_1]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 2), &ela_state.regs[CS_ELA_SIGCOMP4_2]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 3), &ela_state.regs[CS_ELA_SIGCOMP4_3]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 4), &ela_state.regs[CS_ELA_SIGCOMP4_4]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 5), &ela_state.regs[CS_ELA_SIGCOMP4_5]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 6), &ela_state.regs[CS_ELA_SIGCOMP4_6]),
+	WRITE_PTR_OP(CS_ELA_BASE_ADDR + ELA_SIGCOMP(4, 7), &ela_state.regs[CS_ELA_SIGCOMP4_7]),
 
 	WRITE_IMM_OP(CS_GPU_COMMAND_ADDR, CS_GPU_COMMAND_TRACE_CONTROL_EN),
 
@@ -363,8 +539,56 @@ static struct kbase_debug_coresight_csf_op ela_disable_ops[] = {
 	BIT_AND_OP(&ela_state.enabled, 0x0),
 };
 
+static int parse_signal_groups(struct coresight_mali_source_drvdata *drvdata)
+{
+	struct device_node *signal_groups = NULL;
+	unsigned int siggrp_idx;
+
+	if (drvdata->base.dev->of_node)
+		signal_groups = of_get_child_by_name(drvdata->base.dev->of_node, "signal-groups");
+
+	if (!signal_groups) {
+		dev_err(drvdata->base.dev, "Failed to find signal groups OF node");
+		return -EINVAL;
+	}
+
+	for (siggrp_idx = 0; siggrp_idx < CS_ELA_MAX_SIGNAL_GROUPS; siggrp_idx++) {
+		char buf[CS_SG_NAME_MAX_LEN];
+		ssize_t res;
+		const char *name;
+		struct property *prop;
+
+		res = snprintf(buf, CS_SG_NAME_MAX_LEN, "sg%d", siggrp_idx);
+		if (res <= 0) {
+			dev_err(drvdata->base.dev,
+				"Signal group name %d snprintf failed unexpectedly", siggrp_idx);
+			return -EINVAL;
+		}
+
+		of_property_for_each_string(signal_groups, buf, prop, name) {
+			int sig_type;
+
+			for (sig_type = 0; sig_type < CS_ELA_NR_SIGTYPE; sig_type++) {
+				if (!strncmp(signal_type_names[sig_type], name,
+					     strlen(signal_type_names[sig_type]))) {
+					ela_state.signal_types[sig_type] = (1U << siggrp_idx);
+					ela_state.supported_tracemodes |=
+						(1U << signal_type_tracemode_map[sig_type]);
+				}
+			}
+		}
+	}
+
+	/* Add TRACEMODE_NONE as supported to allow printing */
+	ela_state.supported_tracemodes |= (1U << CS_ELA_TRACEMODE_NONE);
+
+	return 0;
+}
+
 int coresight_mali_sources_init_drvdata(struct coresight_mali_source_drvdata *drvdata)
 {
+	int res = 0;
+
 #if KERNEL_VERSION(5, 3, 0) <= LINUX_VERSION_CODE
 	drvdata->type_name = type_name;
 #endif
@@ -391,7 +615,11 @@ int coresight_mali_sources_init_drvdata(struct coresight_mali_source_drvdata *dr
 		return -EINVAL;
 	}
 
-	reset_dynamic_registers();
+	res = parse_signal_groups(drvdata);
+	if (res) {
+		dev_err(drvdata->base.dev, "Failed to parse signal groups");
+		return res;
+	}
 
 	return 0;
 }

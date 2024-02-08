@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,8 +22,10 @@
 #include "mali_kbase_gwt.h"
 #include <linux/list_sort.h>
 
-static inline void kbase_gpu_gwt_setup_page_permission(struct kbase_context *kctx,
-						       unsigned long flag, struct rb_node *node)
+static inline void kbase_gpu_gwt_setup_page_permission(
+				struct kbase_context *kctx,
+				unsigned long flag,
+				struct rb_node *node)
 {
 	struct rb_node *rbnode = node;
 
@@ -33,11 +35,12 @@ static inline void kbase_gpu_gwt_setup_page_permission(struct kbase_context *kct
 
 		reg = rb_entry(rbnode, struct kbase_va_region, rblink);
 		if (reg->nr_pages && !kbase_is_region_invalid_or_free(reg) &&
-		    (reg->flags & KBASE_REG_GPU_WR)) {
+					(reg->flags & KBASE_REG_GPU_WR)) {
 			err = kbase_mmu_update_pages(kctx, reg->start_pfn,
-						     kbase_get_gpu_phy_pages(reg),
-						     reg->gpu_alloc->nents, reg->flags & flag,
-						     reg->gpu_alloc->group_id);
+					kbase_get_gpu_phy_pages(reg),
+					reg->gpu_alloc->nents,
+					reg->flags & flag,
+					reg->gpu_alloc->group_id);
 			if (err)
 				dev_warn(kctx->kbdev->dev, "kbase_mmu_update_pages failure\n");
 		}
@@ -46,13 +49,15 @@ static inline void kbase_gpu_gwt_setup_page_permission(struct kbase_context *kct
 	}
 }
 
-static void kbase_gpu_gwt_setup_pages(struct kbase_context *kctx, unsigned long flag)
+static void kbase_gpu_gwt_setup_pages(struct kbase_context *kctx,
+					unsigned long flag)
 {
 	kbase_gpu_gwt_setup_page_permission(kctx, flag,
-					    rb_first(&kctx->reg_zone[SAME_VA_ZONE].reg_rbtree));
+				rb_first(&(kctx->reg_rbtree_same)));
 	kbase_gpu_gwt_setup_page_permission(kctx, flag,
-					    rb_first(&kctx->reg_zone[CUSTOM_VA_ZONE].reg_rbtree));
+				rb_first(&(kctx->reg_rbtree_custom)));
 }
+
 
 int kbase_gpu_gwt_start(struct kbase_context *kctx)
 {
@@ -72,7 +77,8 @@ int kbase_gpu_gwt_start(struct kbase_context *kctx)
 	 * Status will be restored on end of dumping in gwt_stop.
 	 */
 	kctx->kbdev->backup_serialize_jobs = kctx->kbdev->serialize_jobs;
-	kctx->kbdev->serialize_jobs = KBASE_SERIALIZE_INTRA_SLOT | KBASE_SERIALIZE_INTER_SLOT;
+	kctx->kbdev->serialize_jobs = KBASE_SERIALIZE_INTRA_SLOT |
+						KBASE_SERIALIZE_INTER_SLOT;
 
 #endif
 	/* Mark gwt enabled before making pages read only in case a
@@ -122,7 +128,8 @@ int kbase_gpu_gwt_stop(struct kbase_context *kctx)
 #if (KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE)
 static int list_cmp_function(void *priv, const struct list_head *a, const struct list_head *b)
 #else
-static int list_cmp_function(void *priv, struct list_head *a, struct list_head *b)
+static int list_cmp_function(void *priv, struct list_head *a,
+				struct list_head *b)
 #endif
 {
 	const struct kbasep_gwt_list_element *elementA =
@@ -137,20 +144,22 @@ static int list_cmp_function(void *priv, struct list_head *a, struct list_head *
 	return -1;
 }
 
-static void kbase_gpu_gwt_collate(struct kbase_context *kctx, struct list_head *snapshot_list)
+static void kbase_gpu_gwt_collate(struct kbase_context *kctx,
+		struct list_head *snapshot_list)
 {
 	struct kbasep_gwt_list_element *pos, *n;
 	struct kbasep_gwt_list_element *collated = NULL;
-
-	CSTD_UNUSED(kctx);
 
 	/* Sort the list */
 	list_sort(NULL, snapshot_list, list_cmp_function);
 
 	/* Combine contiguous areas. */
 	list_for_each_entry_safe(pos, n, snapshot_list, link) {
-		if (collated == NULL || collated->region != pos->region ||
-		    (collated->page_addr + (collated->num_pages * PAGE_SIZE)) != pos->page_addr) {
+		if (collated == NULL ||	collated->region !=
+					pos->region ||
+					(collated->page_addr +
+					(collated->num_pages * PAGE_SIZE)) !=
+					pos->page_addr) {
 			/* This is the first time through, a new region or
 			 * is not contiguous - start collating to this element
 			 */
@@ -165,12 +174,15 @@ static void kbase_gpu_gwt_collate(struct kbase_context *kctx, struct list_head *
 	}
 }
 
-int kbase_gpu_gwt_dump(struct kbase_context *kctx, union kbase_ioctl_cinstr_gwt_dump *gwt_dump)
+int kbase_gpu_gwt_dump(struct kbase_context *kctx,
+			union kbase_ioctl_cinstr_gwt_dump *gwt_dump)
 {
 	const u32 ubuf_size = gwt_dump->in.len;
 	u32 ubuf_count = 0;
-	__user void *user_addr = (__user void *)(uintptr_t)gwt_dump->in.addr_buffer;
-	__user void *user_sizes = (__user void *)(uintptr_t)gwt_dump->in.size_buffer;
+	__user void *user_addr = (__user void *)
+			(uintptr_t)gwt_dump->in.addr_buffer;
+	__user void *user_sizes = (__user void *)
+			(uintptr_t)gwt_dump->in.size_buffer;
 
 	kbase_gpu_vm_lock(kctx);
 
@@ -180,7 +192,8 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx, union kbase_ioctl_cinstr_gwt_
 		return -EPERM;
 	}
 
-	if (!gwt_dump->in.len || !gwt_dump->in.addr_buffer || !gwt_dump->in.size_buffer) {
+	if (!gwt_dump->in.len || !gwt_dump->in.addr_buffer
+			|| !gwt_dump->in.size_buffer) {
 		kbase_gpu_vm_unlock(kctx);
 		/* We don't have any valid user space buffer to copy the
 		 * write modified addresses.
@@ -188,8 +201,11 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx, union kbase_ioctl_cinstr_gwt_
 		return -EINVAL;
 	}
 
-	if (list_empty(&kctx->gwt_snapshot_list) && !list_empty(&kctx->gwt_current_list)) {
-		list_replace_init(&kctx->gwt_current_list, &kctx->gwt_snapshot_list);
+	if (list_empty(&kctx->gwt_snapshot_list) &&
+			!list_empty(&kctx->gwt_current_list)) {
+
+		list_replace_init(&kctx->gwt_current_list,
+					&kctx->gwt_snapshot_list);
 
 		/* We have collected all write faults so far
 		 * and they will be passed on to user space.
@@ -209,26 +225,32 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx, union kbase_ioctl_cinstr_gwt_
 		int err;
 		struct kbasep_gwt_list_element *dump_info, *n;
 
-		list_for_each_entry_safe(dump_info, n, &kctx->gwt_snapshot_list, link) {
+		list_for_each_entry_safe(dump_info, n,
+				&kctx->gwt_snapshot_list, link) {
 			addr_buffer[count] = dump_info->page_addr;
 			num_page_buffer[count] = dump_info->num_pages;
 			count++;
 			list_del(&dump_info->link);
 			kfree(dump_info);
-			if (ARRAY_SIZE(addr_buffer) == count || ubuf_size == (ubuf_count + count))
+			if (ARRAY_SIZE(addr_buffer) == count ||
+					ubuf_size == (ubuf_count + count))
 				break;
 		}
 
 		if (count) {
-			err = copy_to_user((user_addr + (ubuf_count * sizeof(u64))),
-					   (void *)addr_buffer, count * sizeof(u64));
+			err = copy_to_user((user_addr +
+					(ubuf_count * sizeof(u64))),
+					(void *)addr_buffer,
+					count * sizeof(u64));
 			if (err) {
 				dev_err(kctx->kbdev->dev, "Copy to user failure\n");
 				kbase_gpu_vm_unlock(kctx);
 				return err;
 			}
-			err = copy_to_user((user_sizes + (ubuf_count * sizeof(u64))),
-					   (void *)num_page_buffer, count * sizeof(u64));
+			err = copy_to_user((user_sizes +
+					(ubuf_count * sizeof(u64))),
+					(void *)num_page_buffer,
+					count * sizeof(u64));
 			if (err) {
 				dev_err(kctx->kbdev->dev, "Copy to user failure\n");
 				kbase_gpu_vm_unlock(kctx);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -206,17 +206,17 @@ static int verify_store_reg(struct device *dev, const char *buf, size_t count, i
 	return count;
 }
 
-#define CS_ETM_REG_ATTR_RW(_a, _b)                                                   \
-	static ssize_t _a##_show(struct device *dev, struct device_attribute *attr,  \
-				 char *const buf)                                    \
-	{                                                                            \
-		return sprintf(buf, "%#x\n", etm_state.regs[CS_ETM_##_b]);           \
-	}                                                                            \
-	static ssize_t _a##_store(struct device *dev, struct device_attribute *attr, \
-				  const char *buf, size_t count)                     \
-	{                                                                            \
-		return verify_store_reg(dev, buf, count, CS_ETM_##_b);               \
-	}                                                                            \
+#define CS_ETM_REG_ATTR_RW(_a, _b)                                                                 \
+	static ssize_t _a##_show(struct device *dev, struct device_attribute *attr,                \
+				 char *const buf)                                                  \
+	{                                                                                          \
+		return sprintf(buf, "%#x\n", etm_state.regs[CS_ETM_##_b]);                         \
+	}                                                                                          \
+	static ssize_t _a##_store(struct device *dev, struct device_attribute *attr,               \
+				  const char *buf, size_t count)                                   \
+	{                                                                                          \
+		return verify_store_reg(dev, buf, count, CS_ETM_##_b);                             \
+	}                                                                                          \
 	static DEVICE_ATTR_RW(_a)
 
 CS_ETM_REG_ATTR_RW(trcconfigr, TRCCONFIGR);

@@ -35,6 +35,9 @@ bob_defaults {
             "CONFIG_GPU_HWVER={{.hwver}}",
         ],
     },
+    mali_platform_dt_pin_rst: {
+        kbuild_options: ["CONFIG_MALI_PLATFORM_DT_PIN_RST=y"],
+    },
     gpu_has_csf: {
         kbuild_options: ["CONFIG_MALI_CSF_SUPPORT=y"],
     },
@@ -59,11 +62,11 @@ bob_defaults {
     mali_dma_buf_legacy_compat: {
         kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
     },
-    page_migration_support: {
-        kbuild_options: ["CONFIG_PAGE_MIGRATION_SUPPORT=y"],
+    large_page_alloc_override: {
+        kbuild_options: ["CONFIG_LARGE_PAGE_ALLOC_OVERRIDE=y"],
     },
-    large_page_support: {
-        kbuild_options: ["CONFIG_LARGE_PAGE_SUPPORT=y"],
+    large_page_alloc: {
+        kbuild_options: ["CONFIG_LARGE_PAGE_ALLOC=y"],
     },
     mali_memory_fully_backed: {
         kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
@@ -97,6 +100,9 @@ bob_defaults {
     },
     mali_system_trace: {
         kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
+    },
+    buslog: {
+        kbuild_options: ["CONFIG_MALI_BUSLOG=y"],
     },
     cinstr_vector_dump: {
         kbuild_options: ["CONFIG_MALI_VECTOR_DUMP=y"],
@@ -133,15 +139,6 @@ bob_defaults {
     },
     mali_coresight: {
         kbuild_options: ["CONFIG_MALI_CORESIGHT=y"],
-    },
-    mali_fw_trace_mode_manual: {
-        kbuild_options: ["CONFIG_MALI_FW_TRACE_MODE_MANUAL=y"],
-    },
-    mali_fw_trace_mode_auto_print: {
-        kbuild_options: ["CONFIG_MALI_FW_TRACE_MODE_AUTO_PRINT=y"],
-    },
-    mali_fw_trace_mode_auto_discard: {
-        kbuild_options: ["CONFIG_MALI_FW_TRACE_MODE_AUTO_DISCARD=y"],
     },
     kbuild_options: [
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
@@ -204,7 +201,6 @@ bob_kernel_module {
         "platform/*/*/*/*.h",
         "platform/*/*/*/Kbuild",
         "thirdparty/*.c",
-        "thirdparty/*.h",
         "thirdparty/Kbuild",
         "debug/*.c",
         "debug/*.h",
@@ -215,11 +211,6 @@ bob_kernel_module {
         "gpu/*.c",
         "gpu/*.h",
         "gpu/Kbuild",
-        "hw_access/*.c",
-        "hw_access/*.h",
-        "hw_access/*/*.c",
-        "hw_access/*/*.h",
-        "hw_access/Kbuild",
         "tl/*.c",
         "tl/*.h",
         "tl/Kbuild",
@@ -281,4 +272,9 @@ bob_kernel_module {
         "CONFIG_MALI_BIFROST=m",
         "CONFIG_MALI_KUTF=n",
     ],
+    buslog: {
+        extra_symbols: [
+            "bus_logger",
+        ],
+    },
 }

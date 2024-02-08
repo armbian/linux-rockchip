@@ -43,9 +43,6 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <mali_kbase_dummy_job_wa.h>
 #include <backend/gpu/mali_kbase_clk_rate_trace_mgr.h>
-#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-#include <mali_kbase_gpu_metrics.h>
-#endif
 
 /**
  * kbase_backend_late_init - Perform any backend-specific initialization.
@@ -100,6 +97,10 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	/* Update gpuprops with L2_FEATURES if applicable */
 	err = kbase_gpuprops_update_l2_features(kbdev);
+	if (err)
+		goto fail_update_l2_features;
+
+	err = kbase_backend_time_init(kbdev);
 	if (err)
 		goto fail_update_l2_features;
 
@@ -221,14 +222,12 @@ static const struct kbase_device_init dev_init[] = {
 #if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 	{ registers_map, registers_unmap, "Register map failed" },
 #endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
-#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-	{ kbase_gpu_metrics_init, kbase_gpu_metrics_term, "GPU metrics initialization failed" },
-#endif /* IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) */
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
 	  "Register access history initialization failed" },
 	{ kbase_device_pm_init, kbase_device_pm_term, "Power management initialization failed" },
 	{ kbase_device_early_init, kbase_device_early_term, "Early device initialization failed" },
-	{ kbase_backend_time_init, NULL, "Time backend initialization failed" },
+	{ kbase_device_populate_max_freq, NULL, "Populating max frequency failed" },
+	{ kbase_pm_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
 	{ kbase_device_misc_init, kbase_device_misc_term,
 	  "Miscellaneous device initialization failed" },
 	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
@@ -256,6 +255,8 @@ static const struct kbase_device_init dev_init[] = {
 	  "GPU hwcnt context initialization failed" },
 	{ kbase_device_hwcnt_virtualizer_init, kbase_device_hwcnt_virtualizer_term,
 	  "GPU hwcnt virtualizer initialization failed" },
+	{ kbase_device_vinstr_init, kbase_device_vinstr_term,
+	  "Virtual instrumentation initialization failed" },
 	{ kbase_device_kinstr_prfcnt_init, kbase_device_kinstr_prfcnt_term,
 	  "Performance counter instrumentation initialization failed" },
 	{ kbase_backend_late_init, kbase_backend_late_term, "Late backend initialization failed" },
@@ -283,7 +284,8 @@ static const struct kbase_device_init dev_init[] = {
 	{ kbase_device_late_init, kbase_device_late_term, "Late device initialization failed" },
 };
 
-static void kbase_device_term_partial(struct kbase_device *kbdev, unsigned int i)
+static void kbase_device_term_partial(struct kbase_device *kbdev,
+		unsigned int i)
 {
 	while (i-- > 0) {
 		if (dev_init[i].term)
@@ -313,8 +315,8 @@ int kbase_device_init(struct kbase_device *kbdev)
 			err = dev_init[i].init(kbdev);
 			if (err) {
 				if (err != -EPROBE_DEFER)
-					dev_err(kbdev->dev, "%s error = %d\n", dev_init[i].err_mes,
-						err);
+					dev_err(kbdev->dev, "%s error = %d\n",
+						dev_init[i].err_mes, err);
 				kbase_device_term_partial(kbdev, i);
 				break;
 			}

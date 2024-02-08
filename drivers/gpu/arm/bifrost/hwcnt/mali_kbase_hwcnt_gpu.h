@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,8 +22,6 @@
 #ifndef _KBASE_HWCNT_GPU_H_
 #define _KBASE_HWCNT_GPU_H_
 
-#include "hwcnt/mali_kbase_hwcnt_types.h"
-
 #include <linux/bug.h>
 #include <linux/types.h>
 
@@ -33,10 +31,10 @@ struct kbase_hwcnt_enable_map;
 struct kbase_hwcnt_dump_buffer;
 
 /* Hardware counter version 5 definitions, V5 is the only supported version. */
-#define KBASE_HWCNT_V5_BLOCK_TYPE_COUNT 7
+#define KBASE_HWCNT_V5_BLOCK_TYPE_COUNT 4
 #define KBASE_HWCNT_V5_HEADERS_PER_BLOCK 4
 #define KBASE_HWCNT_V5_DEFAULT_COUNTERS_PER_BLOCK 60
-#define KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK \
+#define KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK                                                    \
 	(KBASE_HWCNT_V5_HEADERS_PER_BLOCK + KBASE_HWCNT_V5_DEFAULT_COUNTERS_PER_BLOCK)
 
 /* FrontEnd block count in V5 GPU hardware counter. */
@@ -49,6 +47,15 @@ struct kbase_hwcnt_dump_buffer;
 
 /* Number of bytes for each counter value in hardware. */
 #define KBASE_HWCNT_VALUE_HW_BYTES (sizeof(u32))
+
+/**
+ * enum kbase_hwcnt_gpu_group_type - GPU hardware counter group types, used to
+ *                                   identify metadata groups.
+ * @KBASE_HWCNT_GPU_GROUP_TYPE_V5: GPU V5 group type.
+ */
+enum kbase_hwcnt_gpu_group_type {
+	KBASE_HWCNT_GPU_GROUP_TYPE_V5,
+};
 
 /**
  * enum kbase_hwcnt_gpu_v5_block_type - GPU V5 hardware counter block types,
@@ -72,14 +79,6 @@ struct kbase_hwcnt_dump_buffer;
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:    Memsys block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:   Secondary Memsys block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED: Undefined Memsys block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW:    FW block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW2:   Secondary FW block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW3:   Tertiary FW block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW_UNDEFINED: Undefined FW block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG:    CSG block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG2:   Secondary CSG block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG3:   Tertiary CSG block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG_UNDEFINED: Undefined CSG block.
  */
 enum kbase_hwcnt_gpu_v5_block_type {
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE,
@@ -95,14 +94,6 @@ enum kbase_hwcnt_gpu_v5_block_type {
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW2,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW3,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FW_UNDEFINED,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG2,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG3,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG_UNDEFINED,
 };
 
 /**
@@ -126,16 +117,12 @@ enum kbase_hwcnt_set {
  * @shader_bm: Shader counters selection bitmask.
  * @tiler_bm:  Tiler counters selection bitmask.
  * @mmu_l2_bm: MMU_L2 counters selection bitmask.
- * @fw_bm: CSF firmware counters selection bitmask.
- * @csg_bm: CSF CSG counters selection bitmask.
  */
 struct kbase_hwcnt_physical_enable_map {
 	u32 fe_bm;
 	u32 shader_bm;
 	u32 tiler_bm;
 	u32 mmu_l2_bm;
-	u32 fw_bm;
-	u32 csg_bm;
 };
 
 /*
@@ -153,18 +140,14 @@ enum kbase_hwcnt_physical_set {
  * @l2_count:                L2 cache count.
  * @core_mask:               Shader core mask. May be sparse.
  * @clk_cnt:                 Number of clock domains available.
- * @csg_cnt:                 Number of CSGs available.
  * @prfcnt_values_per_block: Total entries (header + counters) of performance
  *                           counter per block.
- * @has_fw_counters:         Whether the GPU has FW counters available.
  */
 struct kbase_hwcnt_gpu_info {
 	size_t l2_count;
 	u64 core_mask;
 	u8 clk_cnt;
-	u8 csg_cnt;
 	size_t prfcnt_values_per_block;
-	bool has_fw_counters;
 };
 
 /**
@@ -214,12 +197,18 @@ struct kbase_hwcnt_curr_config {
 /**
  * kbase_hwcnt_is_block_type_undefined() - Check if a block type is undefined.
  *
+ * @grp_type: Hardware counter group type.
  * @blk_type: Hardware counter block type.
  *
  * Return: true if the block type is undefined, else false.
  */
-static inline bool kbase_hwcnt_is_block_type_undefined(const uint64_t blk_type)
+static inline bool kbase_hwcnt_is_block_type_undefined(const uint64_t grp_type,
+						       const uint64_t blk_type)
 {
+	/* Warn on unknown group type */
+	if (WARN_ON(grp_type != KBASE_HWCNT_GPU_GROUP_TYPE_V5))
+		return false;
+
 	return (blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED ||
 		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED ||
 		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED ||
@@ -301,15 +290,12 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
  * kbase_hwcnt_csf_dump_get() - Copy or accumulate enabled counters from the raw
  *                              dump buffer in src into the dump buffer
  *                              abstraction in dst.
- * @dst:                   Non-NULL pointer to destination dump buffer.
- * @src:                   Non-NULL pointer to source raw dump buffer, of same length
- *                         as dump_buf_bytes in the metadata of dst dump buffer.
- * @src_block_stt:         Non-NULL pointer to source block state buffer.
- * @dst_enable_map:        Non-NULL pointer to enable map specifying enabled values.
- * @num_l2_slices:         Current number of L2 slices allocated to the GPU.
- * @shader_present_bitmap: Current shader-present bitmap that is allocated to the GPU.
- * @accumulate:            True if counters in src should be accumulated into
- *                         destination, rather than copied.
+ * @dst:            Non-NULL pointer to destination dump buffer.
+ * @src:            Non-NULL pointer to source raw dump buffer, of same length
+ *                  as dump_buf_bytes in the metadata of dst dump buffer.
+ * @dst_enable_map: Non-NULL pointer to enable map specifying enabled values.
+ * @accumulate:     True if counters in src should be accumulated into
+ *                  destination, rather than copied.
  *
  * The dst and dst_enable_map MUST have been created from the same metadata as
  * returned from the call to kbase_hwcnt_csf_metadata_create as was used to get
@@ -318,9 +304,7 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
  * Return: 0 on success, else error code.
  */
 int kbase_hwcnt_csf_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
-			     blk_stt_t *src_block_stt,
-			     const struct kbase_hwcnt_enable_map *dst_enable_map,
-			     size_t num_l2_slices, u64 shader_present_bitmap, bool accumulate);
+			     const struct kbase_hwcnt_enable_map *dst_enable_map, bool accumulate);
 
 /**
  * kbase_hwcnt_backend_gpu_block_map_to_physical() - Convert from a block

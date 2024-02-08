@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,7 +26,7 @@
 #ifndef _KBASE_HWACCESS_PM_H_
 #define _KBASE_HWACCESS_PM_H_
 
-#include <hw_access/mali_kbase_hw_access_regmap.h>
+#include <gpu/mali_kbase_gpu_regmap.h>
 #include <linux/atomic.h>
 
 #include <backend/gpu/mali_kbase_pm_defs.h>
@@ -41,8 +41,7 @@ struct kbase_device;
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * This function must be called only when a kbase device is initialized and
- * must be called before any other power management function.
+ * Must be called before any other power management function
  *
  * Return: 0 if the power management framework was successfully initialized.
  */
@@ -67,7 +66,8 @@ void kbase_hwaccess_pm_term(struct kbase_device *kbdev);
  *
  * Return: 0 if powerup was successful.
  */
-int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev, unsigned int flags);
+int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
+		unsigned int flags);
 
 /**
  * kbase_hwaccess_pm_halt - Halt the power management framework.
@@ -123,7 +123,8 @@ void kbase_hwaccess_pm_gpu_idle(struct kbase_device *kbdev);
  *
  * This determines which cores the power manager is allowed to use.
  */
-void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask);
+void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
+				  u64 new_core_mask);
 #else
 /**
  * kbase_pm_set_debug_core_mask - Set the debug core mask.
@@ -135,8 +136,9 @@ void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask)
  *
  * This determines which cores the power manager is allowed to use.
  */
-void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask_js0,
-				  u64 new_core_mask_js1, u64 new_core_mask_js2);
+void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
+		u64 new_core_mask_js0, u64 new_core_mask_js1,
+		u64 new_core_mask_js2);
 #endif /* MALI_USE_CSF */
 
 /**
@@ -148,7 +150,8 @@ void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask_
  *
  * Return: The current policy
  */
-const struct kbase_pm_ca_policy *kbase_pm_ca_get_policy(struct kbase_device *kbdev);
+const struct kbase_pm_ca_policy
+*kbase_pm_ca_get_policy(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_ca_set_policy - Change the policy to the one specified.
@@ -157,7 +160,8 @@ const struct kbase_pm_ca_policy *kbase_pm_ca_get_policy(struct kbase_device *kbd
  * @policy: The policy to change to (valid pointer returned from
  *          @ref kbase_pm_ca_list_policies)
  */
-void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const struct kbase_pm_ca_policy *policy);
+void kbase_pm_ca_set_policy(struct kbase_device *kbdev,
+				const struct kbase_pm_ca_policy *policy);
 
 /**
  * kbase_pm_ca_list_policies - Retrieve a static list of the available policies.
@@ -167,7 +171,8 @@ void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const struct kbase_pm_ca
  *
  * Return: The number of policies
  */
-int kbase_pm_ca_list_policies(const struct kbase_pm_ca_policy *const **policies);
+int
+kbase_pm_ca_list_policies(const struct kbase_pm_ca_policy * const **policies);
 
 /**
  * kbase_pm_get_policy - Get the current policy.
@@ -188,7 +193,8 @@ const struct kbase_pm_policy *kbase_pm_get_policy(struct kbase_device *kbdev);
  * @policy: The policy to change to (valid pointer returned from
  *               @ref kbase_pm_list_policies)
  */
-void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_policy *policy);
+void kbase_pm_set_policy(struct kbase_device *kbdev,
+					const struct kbase_pm_policy *policy);
 
 /**
  * kbase_pm_list_policies - Retrieve a static list of the available policies.
@@ -199,7 +205,8 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_polic
  *
  * Return: The number of policies
  */
-int kbase_pm_list_policies(struct kbase_device *kbdev, const struct kbase_pm_policy *const **list);
+int kbase_pm_list_policies(struct kbase_device *kbdev,
+	const struct kbase_pm_policy * const **list);
 
 /**
  * kbase_pm_protected_mode_enable() - Enable protected mode

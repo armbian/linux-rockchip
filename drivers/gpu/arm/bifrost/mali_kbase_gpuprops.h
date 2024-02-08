@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015, 2017, 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -46,47 +46,24 @@ struct kbase_device;
 	(((u32)(value) >> (u32)(offset)) & (u32)((1ULL << (u32)(size)) - 1))
 
 /**
- * KBASE_UBFX64 - Extracts bits from a 64-bit bitfield.
- * @value:  The value from which to extract bits.
- * @offset: The first bit to extract (0 being the LSB).
- * @size:   The number of bits to extract.
- *
- * Context: @offset + @size <= 64.
- *
- * Return: Bits [@offset, @offset + @size) from @value.
- */
-/* from mali_cdsb.h */
-#define KBASE_UBFX64(value, offset, size) \
-	(((u64)(value) >> (u32)(offset)) & (u64)((1ULL << (u32)(size)) - 1))
-
-/**
- * kbase_gpuprops_update_composite_ids - update composite ids with new gpu id
- * @props: pointer to GPU_ID property structure
- */
-void kbase_gpuprops_update_composite_ids(struct kbase_gpu_id_props *props);
-
-/**
- * kbase_gpuprops_parse_gpu_id - parse fields of GPU_ID
- * @props: pointer to GPU_ID property structure
- * @gpu_id: gpu id register value
- */
-void kbase_gpuprops_parse_gpu_id(struct kbase_gpu_id_props *props, u64 gpu_id);
-
-/**
- * kbase_gpuprops_init - Set up Kbase GPU properties.
+ * kbase_gpuprops_set - Set up Kbase GPU properties.
  * @kbdev: The struct kbase_device structure for the device
  *
  * Set up Kbase GPU properties with information from the GPU registers
- *
- * Return: Zero on success, Linux error code on failuren
  */
-int kbase_gpuprops_init(struct kbase_device *kbdev);
+void kbase_gpuprops_set(struct kbase_device *kbdev);
 
 /**
- * kbase_gpuprops_term - Terminate Kbase GPU properties.
- * @kbdev: The struct kbase_device structure for the device
+ * kbase_gpuprops_set_features - Set up Kbase GPU properties
+ * @kbdev:   Device pointer
+ *
+ * This function sets up GPU properties that are dependent on the hardware
+ * features bitmask. This function must be preceeded by a call to
+ * kbase_hw_set_features_mask().
+ *
+ * Return: Zero on success, Linux error code on failure
  */
-void kbase_gpuprops_term(struct kbase_device *kbdev);
+int kbase_gpuprops_set_features(struct kbase_device *kbdev);
 
 /**
  * kbase_gpuprops_update_l2_features - Update GPU property of L2_FEATURES
@@ -130,6 +107,17 @@ void kbase_gpuprops_free_user_buffer(struct kbase_device *kbdev);
 int kbase_device_populate_max_freq(struct kbase_device *kbdev);
 
 /**
+ * kbase_gpuprops_update_core_props_gpu_id - break down gpu id value
+ * @gpu_props: the &base_gpu_props structure
+ *
+ * Break down gpu_id value stored in base_gpu_props::raw_props.gpu_id into
+ * separate fields (version_status, minor_revision, major_revision, product_id)
+ * stored in base_gpu_props::core_props.
+ */
+void kbase_gpuprops_update_core_props_gpu_id(
+	struct base_gpu_props * const gpu_props);
+
+/**
  * kbase_gpuprops_set_max_config - Set the max config information
  * @kbdev:       Device pointer
  * @max_config:  Maximum configuration data to be updated
@@ -137,7 +125,7 @@ int kbase_device_populate_max_freq(struct kbase_device *kbdev);
  * This function sets max_config in the kbase_gpu_props.
  */
 void kbase_gpuprops_set_max_config(struct kbase_device *kbdev,
-				   const struct max_config_props *max_config);
+	const struct max_config_props *max_config);
 
 /**
  * kbase_gpuprops_get_curr_config_props - Get the current allocated resources
@@ -150,7 +138,7 @@ void kbase_gpuprops_set_max_config(struct kbase_device *kbdev,
  * Return: Zero on success, Linux error code on failure
  */
 int kbase_gpuprops_get_curr_config_props(struct kbase_device *kbdev,
-					 struct curr_config_props *const curr_config);
+	struct curr_config_props * const curr_config);
 
 /**
  * kbase_gpuprops_req_curr_config_update - Request Current Config Update
@@ -163,4 +151,4 @@ int kbase_gpuprops_get_curr_config_props(struct kbase_device *kbdev,
  */
 int kbase_gpuprops_req_curr_config_update(struct kbase_device *kbdev);
 
-#endif /* _KBASE_GPUPROPS_H_ */
+#endif				/* _KBASE_GPUPROPS_H_ */

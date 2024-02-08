@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -58,7 +58,7 @@ enum kbase_mmu_fault_type {
  * struct kbase_mmu_hw_op_param  - parameters for kbase_mmu_hw_do_* functions
  * @vpfn:           MMU Virtual Page Frame Number to start the operation on.
  * @nr:             Number of pages to work on.
- * @op:             Operation type (written to AS_COMMAND).
+ * @op:             Operation type (written to ASn_COMMAND).
  * @kctx_id:        Kernel context ID for MMU command tracepoint.
  * @mmu_sync_info:  Indicates whether this call is synchronous wrt MMU ops.
  * @flush_skip_levels: Page table levels to skip flushing. (Only
@@ -81,7 +81,8 @@ struct kbase_mmu_hw_op_param {
  * Configure the MMU using the address space details setup in the
  * kbase_context structure.
  */
-void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as);
+void kbase_mmu_hw_configure(struct kbase_device *kbdev,
+		struct kbase_as *as);
 
 /**
  * kbase_mmu_hw_do_lock - Issue LOCK command to the MMU and program
@@ -194,7 +195,7 @@ int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_a
  * Clear a bus error or page fault that has been reported by the MMU.
  */
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
-			      enum kbase_mmu_fault_type type);
+		enum kbase_mmu_fault_type type);
 
 /**
  * kbase_mmu_hw_enable_fault - Enable fault that has been previously reported by
@@ -208,6 +209,6 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
  * called to enable the page fault or bus error fault again.
  */
 void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
-			       enum kbase_mmu_fault_type type);
+		enum kbase_mmu_fault_type type);
 
-#endif /* _KBASE_MMU_HW_H_ */
+#endif	/* _KBASE_MMU_HW_H_ */
