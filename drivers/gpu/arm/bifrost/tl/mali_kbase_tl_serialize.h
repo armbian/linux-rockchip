@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,7 +27,7 @@
 #include <linux/timer.h>
 
 /* The number of nanoseconds in a second. */
-#define NSECS_IN_SEC 1000000000ull /* ns */
+#define NSECS_IN_SEC       1000000000ull /* ns */
 
 /**
  * kbasep_serialize_bytes - serialize bytes to the message buffer
@@ -41,7 +41,11 @@
  *
  * Return: updated position in the buffer
  */
-static inline size_t kbasep_serialize_bytes(char *buffer, size_t pos, const void *bytes, size_t len)
+static inline size_t kbasep_serialize_bytes(
+		char       *buffer,
+		size_t     pos,
+		const void *bytes,
+		size_t     len)
 {
 	KBASE_DEBUG_ASSERT(buffer);
 	KBASE_DEBUG_ASSERT(bytes);
@@ -64,8 +68,11 @@ static inline size_t kbasep_serialize_bytes(char *buffer, size_t pos, const void
  *
  * Return: updated position in the buffer
  */
-static inline size_t kbasep_serialize_string(char *buffer, size_t pos, const char *string,
-					     size_t max_write_size)
+static inline size_t kbasep_serialize_string(
+		char       *buffer,
+		size_t     pos,
+		const char *string,
+		size_t     max_write_size)
 {
 	u32 string_len;
 
@@ -77,7 +84,10 @@ static inline size_t kbasep_serialize_string(char *buffer, size_t pos, const cha
 	KBASE_DEBUG_ASSERT(max_write_size >= sizeof(string_len) + sizeof(char));
 	max_write_size -= sizeof(string_len);
 
-	string_len = strscpy(&buffer[pos + sizeof(string_len)], string, max_write_size);
+	string_len = strscpy(
+			&buffer[pos + sizeof(string_len)],
+			string,
+			max_write_size);
 	string_len += sizeof(char);
 
 	/* Make sure that the source string fit into the buffer. */
@@ -102,10 +112,12 @@ static inline size_t kbasep_serialize_string(char *buffer, size_t pos, const cha
  */
 static inline size_t kbasep_serialize_timestamp(void *buffer, size_t pos)
 {
-	u64 timestamp;
+	u64             timestamp;
 
 	timestamp = ktime_get_raw_ns();
 
-	return kbasep_serialize_bytes(buffer, pos, &timestamp, sizeof(timestamp));
+	return kbasep_serialize_bytes(
+			buffer, pos,
+			&timestamp, sizeof(timestamp));
 }
 #endif /* _KBASE_TL_SERIALIZE_H */

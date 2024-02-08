@@ -38,6 +38,8 @@
 #include <linux/debugfs.h>
 #endif
 
+/* Name of the CSFFW timeline tracebuffer. */
+#define KBASE_CSFFW_TRACEBUFFER_NAME "timeline"
 /* Name of the timeline header metatadata */
 #define KBASE_CSFFW_TIMELINE_HEADER_NAME "timeline_header"
 
@@ -80,13 +82,15 @@ static int kbase_csf_tl_debugfs_poll_interval_write(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_tl_poll_interval_fops, kbase_csf_tl_debugfs_poll_interval_read,
-			 kbase_csf_tl_debugfs_poll_interval_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_tl_poll_interval_fops,
+		kbase_csf_tl_debugfs_poll_interval_read,
+		kbase_csf_tl_debugfs_poll_interval_write, "%llu\n");
 
 void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev)
 {
-	debugfs_create_file("csf_tl_poll_interval_in_ms", 0644, kbdev->debugfs_instr_directory,
-			    kbdev, &kbase_csf_tl_poll_interval_fops);
+	debugfs_create_file("csf_tl_poll_interval_in_ms", 0644,
+		kbdev->debugfs_instr_directory, kbdev,
+		&kbase_csf_tl_poll_interval_fops);
 }
 #endif
 
@@ -97,18 +101,20 @@ void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev)
  * @msg_buf_start:	Start of the message.
  * @msg_buf_end:	End of the message buffer.
  */
-static void tl_reader_overflow_notify(const struct kbase_csf_tl_reader *self,
-				      u8 *const msg_buf_start, u8 *const msg_buf_end)
+static void tl_reader_overflow_notify(
+	const struct kbase_csf_tl_reader *self,
+	u8 *const msg_buf_start,
+	u8 *const msg_buf_end)
 {
 	struct kbase_device *kbdev = self->kbdev;
-	struct kbase_csffw_tl_message message = { 0 };
+	struct kbase_csffw_tl_message message = {0};
 
 	/* Reuse the timestamp and cycle count from current event if possible */
 	if (msg_buf_start + sizeof(message) <= msg_buf_end)
 		memcpy(&message, msg_buf_start, sizeof(message));
 
-	KBASE_TLSTREAM_TL_KBASE_CSFFW_TLSTREAM_OVERFLOW(kbdev, message.timestamp,
-							message.cycle_counter);
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_TLSTREAM_OVERFLOW(
+		kbdev, message.timestamp, message.cycle_counter);
 }
 
 /**
@@ -119,7 +125,9 @@ static void tl_reader_overflow_notify(const struct kbase_csf_tl_reader *self,
  *
  * Return: True, if an overflow has happened, False otherwise.
  */
-static bool tl_reader_overflow_check(struct kbase_csf_tl_reader *self, u16 event_id)
+static bool tl_reader_overflow_check(
+	struct kbase_csf_tl_reader *self,
+	u16 event_id)
 {
 	struct kbase_device *kbdev = self->kbdev;
 	bool has_overflow = false;
@@ -128,11 +136,13 @@ static bool tl_reader_overflow_check(struct kbase_csf_tl_reader *self, u16 event
 	 * after reset, we should skip overflow check when reset happened.
 	 */
 	if (event_id != 0) {
-		has_overflow = self->got_first_event && self->expected_event_id != event_id;
+		has_overflow = self->got_first_event
+			&& self->expected_event_id != event_id;
 
 		if (has_overflow)
-			dev_warn(kbdev->dev, "CSFFW overflow, event_id: %u, expected: %u.",
-				 event_id, self->expected_event_id);
+			dev_warn(kbdev->dev,
+				"CSFFW overflow, event_id: %u, expected: %u.",
+				event_id, self->expected_event_id);
 	}
 
 	self->got_first_event = true;
@@ -166,7 +176,7 @@ int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self)
 	struct kbase_device *kbdev = self->kbdev;
 	struct kbase_tlstream *stream = self->stream;
 
-	u8 *read_buffer = self->read_buffer;
+	u8  *read_buffer = self->read_buffer;
 	const size_t read_buffer_size = sizeof(self->read_buffer);
 
 	u32 bytes_read;
@@ -187,12 +197,13 @@ int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self)
 	/* Copying the whole buffer in a single shot. We assume
 	 * that the buffer will not contain partially written messages.
 	 */
-	bytes_read = kbase_csf_firmware_trace_buffer_read_data(self->trace_buffer, read_buffer,
-							       read_buffer_size);
+	bytes_read = kbase_csf_firmware_trace_buffer_read_data(
+		self->trace_buffer, read_buffer, read_buffer_size);
 	csffw_data_begin = read_buffer;
-	csffw_data_end = read_buffer + bytes_read;
+	csffw_data_end   = read_buffer + bytes_read;
 
-	for (csffw_data_it = csffw_data_begin; csffw_data_it < csffw_data_end;) {
+	for (csffw_data_it = csffw_data_begin;
+	     csffw_data_it < csffw_data_end;) {
 		u32 event_header;
 		u16 event_id;
 		u16 event_size;
@@ -201,25 +212,30 @@ int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self)
 
 		/* Can we safely read event_id? */
 		if (csffw_data_it + sizeof(event_header) > csffw_data_end) {
-			dev_warn(kbdev->dev, "Unable to parse CSFFW tracebuffer event header.");
+			dev_warn(
+				kbdev->dev,
+				"Unable to parse CSFFW tracebuffer event header.");
 			ret = -EBUSY;
 			break;
 		}
 
 		/* Read and parse the event header. */
 		memcpy(&event_header, csffw_data_it, sizeof(event_header));
-		event_id = (event_header >> 0) & 0xFFFF;
+		event_id   = (event_header >> 0)  & 0xFFFF;
 		event_size = (event_header >> 16) & 0xFFFF;
 		csffw_data_it += sizeof(event_header);
 
 		/* Detect if an overflow has happened. */
 		if (tl_reader_overflow_check(self, event_id))
-			tl_reader_overflow_notify(self, csffw_data_it, csffw_data_end);
+			tl_reader_overflow_notify(self,
+				csffw_data_it,
+				csffw_data_end);
 
 		/* Can we safely read the message body? */
 		if (csffw_data_it + event_size > csffw_data_end) {
-			dev_warn(kbdev->dev, "event_id: %u, can't read with event_size: %u.",
-				 event_id, event_size);
+			dev_warn(kbdev->dev,
+				"event_id: %u, can't read with event_size: %u.",
+				event_id, event_size);
 			ret = -EBUSY;
 			break;
 		}
@@ -227,13 +243,14 @@ int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self)
 		/* Convert GPU timestamp to CPU timestamp. */
 		{
 			struct kbase_csffw_tl_message *msg =
-				(struct kbase_csffw_tl_message *)csffw_data_it;
+				(struct kbase_csffw_tl_message *) csffw_data_it;
 			msg->timestamp =
 				kbase_backend_time_convert_gpu_to_cpu(kbdev, msg->timestamp);
 		}
 
 		/* Copy the message out to the tl_stream. */
-		buffer = kbase_tlstream_msgbuf_acquire(stream, event_size, &acq_flags);
+		buffer = kbase_tlstream_msgbuf_acquire(
+			stream, event_size, &acq_flags);
 		kbasep_serialize_bytes(buffer, 0, csffw_data_it, event_size);
 		kbase_tlstream_msgbuf_release(stream, acq_flags);
 		csffw_data_it += event_size;
@@ -252,7 +269,8 @@ static void kbasep_csf_tl_reader_read_callback(struct timer_list *timer)
 
 	kbase_csf_tl_reader_flush_buffer(self);
 
-	rcode = mod_timer(&self->read_timer, jiffies + msecs_to_jiffies(self->timer_interval));
+	rcode = mod_timer(&self->read_timer,
+		jiffies + msecs_to_jiffies(self->timer_interval));
 
 	CSTD_UNUSED(rcode);
 }
@@ -269,7 +287,9 @@ static void kbasep_csf_tl_reader_read_callback(struct timer_list *timer)
  *
  * Return: Zero on success, -1 otherwise.
  */
-static int tl_reader_init_late(struct kbase_csf_tl_reader *self, struct kbase_device *kbdev)
+static int tl_reader_init_late(
+	struct kbase_csf_tl_reader *self,
+	struct kbase_device *kbdev)
 {
 	struct firmware_trace_buffer *tb;
 	size_t hdr_size = 0;
@@ -278,19 +298,24 @@ static int tl_reader_init_late(struct kbase_csf_tl_reader *self, struct kbase_de
 	if (self->kbdev)
 		return 0;
 
-	tb = kbase_csf_firmware_get_trace_buffer(kbdev, KBASE_CSFFW_TIMELINE_BUF_NAME);
-	hdr = kbase_csf_firmware_get_timeline_metadata(kbdev, KBASE_CSFFW_TIMELINE_HEADER_NAME,
-						       &hdr_size);
+	tb = kbase_csf_firmware_get_trace_buffer(
+		kbdev, KBASE_CSFFW_TRACEBUFFER_NAME);
+	hdr = kbase_csf_firmware_get_timeline_metadata(
+		kbdev, KBASE_CSFFW_TIMELINE_HEADER_NAME, &hdr_size);
 
 	if (!tb) {
-		dev_warn(kbdev->dev, "'%s' tracebuffer is not present in the firmware image.",
-			 KBASE_CSFFW_TIMELINE_BUF_NAME);
+		dev_warn(
+			kbdev->dev,
+			"'%s' tracebuffer is not present in the firmware image.",
+			KBASE_CSFFW_TRACEBUFFER_NAME);
 		return -1;
 	}
 
 	if (!hdr) {
-		dev_warn(kbdev->dev, "'%s' timeline metadata is not present in the firmware image.",
-			 KBASE_CSFFW_TIMELINE_HEADER_NAME);
+		dev_warn(
+			kbdev->dev,
+			"'%s' timeline metadata is not present in the firmware image.",
+			KBASE_CSFFW_TIMELINE_HEADER_NAME);
 		return -1;
 	}
 
@@ -313,20 +338,25 @@ static int tl_reader_init_late(struct kbase_csf_tl_reader *self, struct kbase_de
  *
  * Return: 0 on success, or negative error code for failure.
  */
-static int tl_reader_update_enable_bit(struct kbase_csf_tl_reader *self, bool value)
+static int tl_reader_update_enable_bit(
+	struct kbase_csf_tl_reader *self,
+	bool value)
 {
 	int err = 0;
 
-	err = kbase_csf_firmware_trace_buffer_update_trace_enable_bit(self->trace_buffer, 0, value);
+	err = kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
+		self->trace_buffer, 0, value);
 
 	return err;
 }
 
-void kbase_csf_tl_reader_init(struct kbase_csf_tl_reader *self, struct kbase_tlstream *stream)
+void kbase_csf_tl_reader_init(struct kbase_csf_tl_reader *self,
+	struct kbase_tlstream *stream)
 {
 	self->timer_interval = KBASE_CSF_TL_READ_INTERVAL_DEFAULT;
 
-	kbase_timer_setup(&self->read_timer, kbasep_csf_tl_reader_read_callback);
+	kbase_timer_setup(&self->read_timer,
+		kbasep_csf_tl_reader_read_callback);
 
 	self->stream = stream;
 
@@ -346,7 +376,8 @@ void kbase_csf_tl_reader_term(struct kbase_csf_tl_reader *self)
 	del_timer_sync(&self->read_timer);
 }
 
-int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self, struct kbase_device *kbdev)
+int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self,
+	struct kbase_device *kbdev)
 {
 	int rcode;
 
@@ -356,7 +387,9 @@ int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self, struct kbase_dev
 
 	if (tl_reader_init_late(self, kbdev)) {
 #if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-		dev_warn(kbdev->dev, "CSFFW timeline is not available for MALI_BIFROST_NO_MALI builds!");
+		dev_warn(
+			kbdev->dev,
+			"CSFFW timeline is not available for MALI_BIFROST_NO_MALI builds!");
 		return 0;
 #else
 		return -EINVAL;
@@ -376,7 +409,8 @@ int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self, struct kbase_dev
 	if (rcode != 0)
 		return rcode;
 
-	rcode = mod_timer(&self->read_timer, jiffies + msecs_to_jiffies(self->timer_interval));
+	rcode = mod_timer(&self->read_timer,
+		jiffies + msecs_to_jiffies(self->timer_interval));
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,112 +25,175 @@
 
 #include <mali_kbase.h>
 #include <device/mali_kbase_device.h>
+#include <backend/gpu/mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_cache_policy_backend.h>
 #include <mali_kbase_hwaccess_gpuprops.h>
-#include <mali_kbase_gpuprops_private_types.h>
 
-int kbase_backend_gpuprops_get(struct kbase_device *kbdev, struct kbasep_gpuprops_regdump *regdump)
+int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
+					struct kbase_gpuprops_regdump *regdump)
 {
 	int i;
+	struct kbase_gpuprops_regdump registers = { 0 };
 
-	/* regdump is zero intiialized, individual entries do not need to be explicitly set */
-	regdump->gpu_id = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(GPU_ID));
+	/* Fill regdump with the content of the relevant registers */
+	registers.gpu_id = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_ID));
 
-	regdump->shader_present = kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(SHADER_PRESENT));
-	regdump->tiler_present = kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(TILER_PRESENT));
-	regdump->l2_present = kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(L2_PRESENT));
-	if (kbase_reg_is_valid(kbdev, GPU_CONTROL_ENUM(AS_PRESENT)))
-		regdump->as_present = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(AS_PRESENT));
-	if (kbase_reg_is_valid(kbdev, GPU_CONTROL_ENUM(STACK_PRESENT)))
-		regdump->stack_present = kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(STACK_PRESENT));
+	registers.l2_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(L2_FEATURES));
 
+	registers.tiler_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(TILER_FEATURES));
+	registers.mem_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(MEM_FEATURES));
+	registers.mmu_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(MMU_FEATURES));
+	registers.as_present = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(AS_PRESENT));
 #if !MALI_USE_CSF
-	regdump->js_present = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(JS_PRESENT));
-	/* Not a valid register on TMIX */
-
-	/* TGOx specific register */
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_THREAD_TLS_ALLOC))
-		regdump->thread_tls_alloc =
-			kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(THREAD_TLS_ALLOC));
+	registers.js_present = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(JS_PRESENT));
+#else /* !MALI_USE_CSF */
+	registers.js_present = 0;
 #endif /* !MALI_USE_CSF */
 
-	regdump->thread_max_threads = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(THREAD_MAX_THREADS));
-	regdump->thread_max_workgroup_size =
-		kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(THREAD_MAX_WORKGROUP_SIZE));
-	regdump->thread_max_barrier_size =
-		kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(THREAD_MAX_BARRIER_SIZE));
-	regdump->thread_features = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(THREAD_FEATURES));
-
-	/* Feature Registers */
-	/* AMBA_FEATURES enum is mapped to COHERENCY_FEATURES enum */
-	regdump->coherency_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(COHERENCY_FEATURES));
-
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_CORE_FEATURES))
-		regdump->core_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(CORE_FEATURES));
-
-#if MALI_USE_CSF
-	if (kbase_reg_is_valid(kbdev, GPU_CONTROL_ENUM(GPU_FEATURES)))
-		regdump->gpu_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(GPU_FEATURES));
-#endif /* MALI_USE_CSF */
-
-	regdump->tiler_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(TILER_FEATURES));
-	regdump->l2_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(L2_FEATURES));
-	regdump->mem_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(MEM_FEATURES));
-	regdump->mmu_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(MMU_FEATURES));
-
-#if !MALI_USE_CSF
 	for (i = 0; i < GPU_MAX_JOB_SLOTS; i++)
-		regdump->js_features[i] = kbase_reg_read32(kbdev, GPU_JS_FEATURES_OFFSET(i));
+#if !MALI_USE_CSF
+		registers.js_features[i] = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(JS_FEATURES_REG(i)));
+#else /* !MALI_USE_CSF */
+		registers.js_features[i] = 0;
 #endif /* !MALI_USE_CSF */
 
-#if MALI_USE_CSF
-#endif /* MALI_USE_CSF */
-	{
-		for (i = 0; i < BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS; i++)
-			regdump->texture_features[i] =
-				kbase_reg_read32(kbdev, GPU_TEXTURE_FEATURES_OFFSET(i));
+	for (i = 0; i < BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS; i++)
+		registers.texture_features[i] = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(TEXTURE_FEATURES_REG(i)));
+
+	registers.thread_max_threads = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_MAX_THREADS));
+	registers.thread_max_workgroup_size = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_MAX_WORKGROUP_SIZE));
+	registers.thread_max_barrier_size = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_MAX_BARRIER_SIZE));
+	registers.thread_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_FEATURES));
+	registers.thread_tls_alloc = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_TLS_ALLOC));
+
+	registers.shader_present_lo = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(SHADER_PRESENT_LO));
+	registers.shader_present_hi = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(SHADER_PRESENT_HI));
+
+	registers.tiler_present_lo = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(TILER_PRESENT_LO));
+	registers.tiler_present_hi = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(TILER_PRESENT_HI));
+
+	registers.l2_present_lo = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(L2_PRESENT_LO));
+	registers.l2_present_hi = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(L2_PRESENT_HI));
+
+	registers.stack_present_lo = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(STACK_PRESENT_LO));
+	registers.stack_present_hi = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(STACK_PRESENT_HI));
+
+	if (registers.gpu_id >= GPU_ID2_PRODUCT_MAKE(11, 8, 5, 2)) {
+		registers.gpu_features_lo = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(GPU_FEATURES_LO));
+		registers.gpu_features_hi = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(GPU_FEATURES_HI));
+	} else {
+		registers.gpu_features_lo = 0;
+		registers.gpu_features_hi = 0;
 	}
 
-	if (kbase_is_gpu_removed(kbdev))
+	if (!kbase_is_gpu_removed(kbdev)) {
+		*regdump = registers;
+		return 0;
+	} else
 		return -EIO;
-	return 0;
 }
 
 int kbase_backend_gpuprops_get_curr_config(struct kbase_device *kbdev,
-					   struct kbase_current_config_regdump *curr_config_regdump)
+		struct kbase_current_config_regdump *curr_config_regdump)
 {
 	if (WARN_ON(!kbdev) || WARN_ON(!curr_config_regdump))
 		return -EINVAL;
 
-	curr_config_regdump->mem_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(MEM_FEATURES));
-	curr_config_regdump->l2_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(L2_FEATURES));
-	curr_config_regdump->shader_present =
-		kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(SHADER_PRESENT));
-	curr_config_regdump->l2_present = kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(L2_PRESENT));
+	curr_config_regdump->mem_features = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(MEM_FEATURES));
+
+	curr_config_regdump->shader_present_lo = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(SHADER_PRESENT_LO));
+	curr_config_regdump->shader_present_hi = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(SHADER_PRESENT_HI));
+
+	curr_config_regdump->l2_present_lo = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(L2_PRESENT_LO));
+	curr_config_regdump->l2_present_hi = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(L2_PRESENT_HI));
 
 	if (kbase_is_gpu_removed(kbdev))
 		return -EIO;
 
 	return 0;
+
+}
+
+int kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
+					struct kbase_gpuprops_regdump *regdump)
+{
+	u32 coherency_features;
+	int error = 0;
+
+	/* Ensure we can access the GPU registers */
+	kbase_pm_register_access_enable(kbdev);
+
+	coherency_features = kbase_cache_get_coherency_features(kbdev);
+
+	if (kbase_is_gpu_removed(kbdev))
+		error = -EIO;
+
+	regdump->coherency_features = coherency_features;
+
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_CORE_FEATURES))
+		regdump->core_features = kbase_reg_read(kbdev, GPU_CONTROL_REG(CORE_FEATURES));
+	else
+		regdump->core_features = 0;
+
+	kbase_pm_register_access_disable(kbdev);
+
+	return error;
 }
 
 int kbase_backend_gpuprops_get_l2_features(struct kbase_device *kbdev,
-					   struct kbasep_gpuprops_regdump *regdump)
+					struct kbase_gpuprops_regdump *regdump)
 {
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_L2_CONFIG)) {
-		regdump->l2_features = KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(L2_FEATURES));
-		regdump->l2_config = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(L2_CONFIG));
+		u32 l2_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(L2_FEATURES));
+		u32 l2_config =
+			kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_CONFIG));
+		u32 asn_hash[ASN_HASH_COUNT] = {
+			0,
+		};
+		int i;
 
-#if MALI_USE_CSF
-		if (kbase_hw_has_l2_slice_hash_feature(kbdev)) {
-			int i;
-			for (i = 0; i < GPU_L2_SLICE_HASH_COUNT; i++)
-				regdump->l2_slice_hash[i] =
-					kbase_reg_read32(kbdev, GPU_L2_SLICE_HASH_OFFSET(i));
+		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_ASN_HASH)) {
+			for (i = 0; i < ASN_HASH_COUNT; i++)
+				asn_hash[i] = kbase_reg_read(
+					kbdev, GPU_CONTROL_REG(ASN_HASH(i)));
 		}
-#endif /* MALI_USE_CSF */
 
 		if (kbase_is_gpu_removed(kbdev))
 			return -EIO;
+
+		regdump->l2_features = l2_features;
+		regdump->l2_config = l2_config;
+		for (i = 0; i < ASN_HASH_COUNT; i++)
+			regdump->l2_asn_hash[i] = asn_hash[i];
 	}
 
 	return 0;

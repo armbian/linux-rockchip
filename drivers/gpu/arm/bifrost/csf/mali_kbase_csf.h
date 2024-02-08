@@ -48,7 +48,7 @@
  */
 #define KBASEP_TICK_PROTM_PEND_SCAN_SEQ_NR_INVALID (U32_MAX)
 
-#define FIRMWARE_IDLE_HYSTERESIS_TIME_NS (10 * 1000 * 1000) /* Default 10 milliseconds */
+#define FIRMWARE_IDLE_HYSTERESIS_TIME_USEC (10000) /* Default 10 milliseconds */
 
 /* Idle hysteresis time can be scaled down when GPU sleep feature is used */
 #define FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER (5)
@@ -72,19 +72,8 @@ int kbase_csf_ctx_init(struct kbase_context *kctx);
  * This function terminates all GPU command queue groups in the context and
  * notifies the event notification thread of the fault.
  */
-void kbase_csf_ctx_handle_fault(struct kbase_context *kctx, struct kbase_fault *fault);
-
-/**
- * kbase_csf_ctx_report_page_fault_for_active_groups - Notify Userspace about GPU page fault
- *                                                   for active groups of the faulty context.
- *
- * @kctx:       Pointer to faulty kbase context.
- * @fault:      Pointer to the fault.
- *
- * This function notifies the event notification thread of the GPU page fault.
- */
-void kbase_csf_ctx_report_page_fault_for_active_groups(struct kbase_context *kctx,
-						       struct kbase_fault *fault);
+void kbase_csf_ctx_handle_fault(struct kbase_context *kctx,
+		struct kbase_fault *fault);
 
 /**
  * kbase_csf_ctx_term - Terminate the CSF interface for a GPU address space.
@@ -107,7 +96,8 @@ void kbase_csf_ctx_term(struct kbase_context *kctx);
  *
  * Return:	0 on success, or negative on failure.
  */
-int kbase_csf_queue_register(struct kbase_context *kctx, struct kbase_ioctl_cs_queue_register *reg);
+int kbase_csf_queue_register(struct kbase_context *kctx,
+			     struct kbase_ioctl_cs_queue_register *reg);
 
 /**
  * kbase_csf_queue_register_ex - Register a GPU command queue with
@@ -123,7 +113,7 @@ int kbase_csf_queue_register(struct kbase_context *kctx, struct kbase_ioctl_cs_q
  * Return:	0 on success, or negative on failure.
  */
 int kbase_csf_queue_register_ex(struct kbase_context *kctx,
-				struct kbase_ioctl_cs_queue_register_ex *reg);
+			     struct kbase_ioctl_cs_queue_register_ex *reg);
 
 /**
  * kbase_csf_queue_terminate - Terminate a GPU command queue.
@@ -134,7 +124,7 @@ int kbase_csf_queue_register_ex(struct kbase_context *kctx,
  *		queue is to be terminated.
  */
 void kbase_csf_queue_terminate(struct kbase_context *kctx,
-			       struct kbase_ioctl_cs_queue_terminate *term);
+			      struct kbase_ioctl_cs_queue_terminate *term);
 
 /**
  * kbase_csf_free_command_stream_user_pages() - Free the resources allocated
@@ -170,7 +160,7 @@ void kbase_csf_free_command_stream_user_pages(struct kbase_context *kctx,
  * Return:	0 on success, or negative on failure.
  */
 int kbase_csf_alloc_command_stream_user_pages(struct kbase_context *kctx,
-					      struct kbase_queue *queue);
+			struct kbase_queue *queue);
 
 /**
  * kbase_csf_queue_bind - Bind a GPU command queue to a queue group.
@@ -181,7 +171,8 @@ int kbase_csf_alloc_command_stream_user_pages(struct kbase_context *kctx,
  *
  * Return:	0 on success, or negative on failure.
  */
-int kbase_csf_queue_bind(struct kbase_context *kctx, union kbase_ioctl_cs_queue_bind *bind);
+int kbase_csf_queue_bind(struct kbase_context *kctx,
+			 union kbase_ioctl_cs_queue_bind *bind);
 
 /**
  * kbase_csf_queue_unbind - Unbind a GPU command queue from a queue group
@@ -213,10 +204,11 @@ void kbase_csf_queue_unbind_stopped(struct kbase_queue *queue);
  *
  * Return:	0 on success, or negative on failure.
  */
-int kbase_csf_queue_kick(struct kbase_context *kctx, struct kbase_ioctl_cs_queue_kick *kick);
+int kbase_csf_queue_kick(struct kbase_context *kctx,
+			 struct kbase_ioctl_cs_queue_kick *kick);
 
 /**
- * kbase_csf_find_queue_group - Find the queue group corresponding
+ * kbase_csf_queue_group_handle_is_valid - Find the queue group corresponding
  *                                         to the indicated handle.
  *
  * @kctx:          The kbase context under which the queue group exists.
@@ -241,7 +233,8 @@ struct kbase_queue_group *kbase_csf_find_queue_group(struct kbase_context *kctx,
  *
  * Return:		0 on success, or negative on failure.
  */
-int kbase_csf_queue_group_handle_is_valid(struct kbase_context *kctx, u8 group_handle);
+int kbase_csf_queue_group_handle_is_valid(struct kbase_context *kctx,
+	u8 group_handle);
 
 /**
  * kbase_csf_queue_group_create - Create a GPU command queue group.
@@ -255,7 +248,7 @@ int kbase_csf_queue_group_handle_is_valid(struct kbase_context *kctx, u8 group_h
  * Return:	0 on success, or negative on failure.
  */
 int kbase_csf_queue_group_create(struct kbase_context *kctx,
-				 union kbase_ioctl_cs_queue_group_create *create);
+	union kbase_ioctl_cs_queue_group_create *create);
 
 /**
  * kbase_csf_queue_group_terminate - Terminate a GPU command queue group.
@@ -265,7 +258,8 @@ int kbase_csf_queue_group_create(struct kbase_context *kctx,
  * @group_handle:	Pointer to the structure which identifies the queue
  *			group which is to be terminated.
  */
-void kbase_csf_queue_group_terminate(struct kbase_context *kctx, u8 group_handle);
+void kbase_csf_queue_group_terminate(struct kbase_context *kctx,
+	u8 group_handle);
 
 /**
  * kbase_csf_term_descheduled_queue_group - Terminate a GPU command queue
@@ -297,7 +291,7 @@ void kbase_csf_term_descheduled_queue_group(struct kbase_queue_group *group);
  *			queue group and copy suspend buffer contents.
  */
 int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
-				  struct kbase_suspend_copy_buffer *sus_buf, u8 group_handle);
+	struct kbase_suspend_copy_buffer *sus_buf, u8 group_handle);
 #endif
 
 /**
@@ -306,8 +300,9 @@ int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
  * @group:       GPU command queue group.
  * @err_payload: Error payload to report.
  */
-void kbase_csf_add_group_fatal_error(struct kbase_queue_group *const group,
-				     struct base_gpu_queue_group_error const *const err_payload);
+void kbase_csf_add_group_fatal_error(
+	struct kbase_queue_group *const group,
+	struct base_gpu_queue_group_error const *const err_payload);
 
 /**
  * kbase_csf_interrupt - Handle interrupts issued by CSF firmware.
@@ -316,19 +311,6 @@ void kbase_csf_add_group_fatal_error(struct kbase_queue_group *const group,
  * @val:   The value of JOB IRQ status register which triggered the interrupt
  */
 void kbase_csf_interrupt(struct kbase_device *kbdev, u32 val);
-
-/**
- * kbase_csf_handle_csg_sync_update - Handle SYNC_UPDATE notification for the group.
- *
- * @kbdev: The kbase device to handle the SYNC_UPDATE interrupt.
- * @ginfo: Pointer to the CSG interface used by the @group
- * @group: Pointer to the GPU command queue group.
- * @req:   CSG_REQ register value corresponding to @group.
- * @ack:   CSG_ACK register value corresponding to @group.
- */
-void kbase_csf_handle_csg_sync_update(struct kbase_device *const kbdev,
-				      struct kbase_csf_cmd_stream_group_info *ginfo,
-				      struct kbase_queue_group *group, u32 req, u32 ack);
 
 /**
  * kbase_csf_doorbell_mapping_init - Initialize the fields that facilitates
@@ -379,22 +361,6 @@ int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev);
 void kbase_csf_free_dummy_user_reg_page(struct kbase_device *kbdev);
 
 /**
- * kbase_csf_pending_gpuq_kicks_init - Initialize the data used for handling
- *                                     GPU queue kicks.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- */
-void kbase_csf_pending_gpuq_kicks_init(struct kbase_device *kbdev);
-
-/**
- * kbase_csf_pending_gpuq_kicks_term - De-initialize the data used for handling
- *                                     GPU queue kicks.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- */
-void kbase_csf_pending_gpuq_kicks_term(struct kbase_device *kbdev);
-
-/**
  * kbase_csf_ring_csg_doorbell - ring the doorbell for a CSG interface.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
@@ -413,7 +379,8 @@ void kbase_csf_ring_csg_doorbell(struct kbase_device *kbdev, int slot);
  *
  * The function kicks a notification on a set of CSG interfaces to firmware.
  */
-void kbase_csf_ring_csg_slots_doorbell(struct kbase_device *kbdev, u32 slot_bitmap);
+void kbase_csf_ring_csg_slots_doorbell(struct kbase_device *kbdev,
+				       u32 slot_bitmap);
 
 /**
  * kbase_csf_ring_cs_kernel_doorbell - ring the kernel doorbell for a CSI
@@ -433,7 +400,8 @@ void kbase_csf_ring_csg_slots_doorbell(struct kbase_device *kbdev, u32 slot_bitm
  * The function sends a doorbell interrupt notification to the firmware for
  * a CSI assigned to a GPU queue.
  */
-void kbase_csf_ring_cs_kernel_doorbell(struct kbase_device *kbdev, int csi_index, int csg_nr,
+void kbase_csf_ring_cs_kernel_doorbell(struct kbase_device *kbdev,
+				       int csi_index, int csg_nr,
 				       bool ring_csg_doorbell);
 
 /**
@@ -446,7 +414,8 @@ void kbase_csf_ring_cs_kernel_doorbell(struct kbase_device *kbdev, int csi_index
  * The function kicks a notification to the firmware on the doorbell assigned
  * to the queue.
  */
-void kbase_csf_ring_cs_user_doorbell(struct kbase_device *kbdev, struct kbase_queue *queue);
+void kbase_csf_ring_cs_user_doorbell(struct kbase_device *kbdev,
+			struct kbase_queue *queue);
 
 /**
  * kbase_csf_active_queue_groups_reset - Reset the state of all active GPU
@@ -462,7 +431,8 @@ void kbase_csf_ring_cs_user_doorbell(struct kbase_device *kbdev, struct kbase_qu
  *
  * This is similar to the action taken in response to an unexpected OoM event.
  */
-void kbase_csf_active_queue_groups_reset(struct kbase_device *kbdev, struct kbase_context *kctx);
+void kbase_csf_active_queue_groups_reset(struct kbase_device *kbdev,
+			struct kbase_context *kctx);
 
 /**
  * kbase_csf_priority_check - Check the priority requested
@@ -514,12 +484,12 @@ static inline u8 kbase_csf_priority_queue_group_priority_to_relative(u8 priority
 }
 
 /**
- * kbase_csf_ktrace_gpu_cycle_cnt - Wrapper to retrieve the GPU cycle counter
+ * kbase_csf_ktrace_gpu_cycle_cnt - Wrapper to retreive the GPU cycle counter
  *                                  value for Ktrace purpose.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
- * This function is just a wrapper to retrieve the GPU cycle counter value, to
+ * This function is just a wrapper to retreive the GPU cycle counter value, to
  * avoid any overhead on Release builds where Ktrace is disabled by default.
  *
  * Return: Snapshot of the GPU cycle count register.
@@ -529,21 +499,8 @@ static inline u64 kbase_csf_ktrace_gpu_cycle_cnt(struct kbase_device *kbdev)
 #if KBASE_KTRACE_ENABLE
 	return kbase_backend_get_cycle_cnt(kbdev);
 #else
-	CSTD_UNUSED(kbdev);
 	return 0;
 #endif
 }
-
-/**
- * kbase_csf_process_queue_kick() - Process a pending kicked GPU command queue.
- *
- * @queue: Pointer to the queue to process.
- *
- * This function starts the pending queue, for which the work
- * was previously submitted via ioctl call from application thread.
- * If the queue is already scheduled and resident, it will be started
- * right away, otherwise once the group is made resident.
- */
-void kbase_csf_process_queue_kick(struct kbase_queue *queue);
 
 #endif /* _KBASE_CSF_H_ */

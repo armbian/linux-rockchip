@@ -37,20 +37,10 @@ bob_defaults {
     unit_test_kernel_modules: {
         kbuild_options: ["CONFIG_UNIT_TEST_KERNEL_MODULES=y"],
     },
-    cflags: [
-        "-Wno-sign-compare",
-        "-Wno-unused-but-set-variable",
-        "-Wno-unused-parameter",
-    ],
 }
 
 bob_defaults {
     name: "kernel_unit_tests",
     add_to_alias: ["unit_tests"],
     srcs: [".*_unit_test/"],
-    cflags: [
-        "-Wno-sign-compare",
-        "-Wno-unused-but-set-variable",
-        "-Wno-unused-parameter",
-    ],
 }
