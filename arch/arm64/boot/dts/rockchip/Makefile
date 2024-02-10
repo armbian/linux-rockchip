@@ -515,5 +515,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-armsom-sige7.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-mangopi-m28k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-radxa-zero3.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-radxa-zero3-ap6212.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-cm3588-nas.dtb
 
 subdir-y := $(dts-dirs) overlay
