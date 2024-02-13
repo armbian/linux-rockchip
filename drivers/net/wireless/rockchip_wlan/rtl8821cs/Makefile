@@ -7,6 +7,13 @@ EXTRA_CFLAGS += -O1
 #EXTRA_CFLAGS += -pedantic
 #EXTRA_CFLAGS += -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes
 
+
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8821cs/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8821cs/hal/phydm/halrf
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8821cs/hal/phydm
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8821cs/core/crypto
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8821cs/platform
+
 EXTRA_CFLAGS += -Wno-unused-variable
 #EXTRA_CFLAGS += -Wno-unused-value
 #EXTRA_CFLAGS += -Wno-unused-label

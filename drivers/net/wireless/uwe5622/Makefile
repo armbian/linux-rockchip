@@ -8,3 +8,7 @@ export UNISOC_BSP_INCLUDE
 
 UNISOC_FW_PATH_CONFIG := "/lib/firmware/uwe5622/"
 export UNISOC_FW_PATH_CONFIG
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8812au/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8812au/hal/phydm/halrf
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8812au/hal/phydm/
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8812au/platform

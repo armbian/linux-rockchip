@@ -20,7 +20,7 @@ ifeq ($(GCC_VER_49),1)
 EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
 endif
 
-EXTRA_CFLAGS += -I$(src)/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be/include
 
 EXTRA_LDFLAGS += --strip-debug
 
@@ -193,9 +193,9 @@ else
 endif
 
 ifeq ($(CONFIG_PLATFORM_RTL8198D), y)
-DRV_PATH = $(src)
+DRV_PATH = $(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be
 else ifeq ($(CONFIG_PLATFORM_ARM_RK3188), y)
-DRV_PATH = $(src)
+DRV_PATH = $(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be
 else
 DRV_PATH = $(TopDIR)
 endif
@@ -584,7 +584,7 @@ endif
 include $(wildcard $(DRV_PATH)/platform/*.mk)
 
 # Import platform specific compile options
-EXTRA_CFLAGS += -I$(src)/platform
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be/platform
 #_PLATFORM_FILES := platform/platform_ops.o
 OBJS += $(_PLATFORM_FILES)
 
@@ -596,7 +596,7 @@ endif
 
 ifneq ($(KERNELRELEASE),)
 ########### COMMON #################################
-include $(src)/common.mk
+include $(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be/common.mk
 
 EXTRA_CFLAGS += -DPHL_PLATFORM_LINUX
 EXTRA_CFLAGS += -DCONFIG_PHL_ARCH
@@ -617,7 +617,7 @@ ifeq ($(DIRTY_FOR_WORK), y)
 EXTRA_CFLAGS += -DDIRTY_FOR_WORK
 endif
 
-include $(src)/phl/phl.mk
+include $(srctree)/drivers/net/wireless/rockchip_wlan/rtl8852be/phl/phl.mk
 
 
 obj-$(CONFIG_RTL8852BE) := $(MODULE_NAME).o

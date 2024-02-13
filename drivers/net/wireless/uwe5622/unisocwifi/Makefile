@@ -1,6 +1,7 @@
 PWD := $(shell pwd)
 all_dependencies := driver
 
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/uwe5622/unisocwcn/include
 
 ifneq ($(UNISOC_BSP_INCLUDE),)
 ccflags-y += -I$(UNISOC_BSP_INCLUDE)

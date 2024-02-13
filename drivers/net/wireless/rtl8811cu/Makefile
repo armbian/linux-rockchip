@@ -37,6 +37,12 @@ ifeq ($(GCC_VER_49),1)
 EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
 endif
 
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8811cu/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8811cu/hal/phydm/halrf
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8811cu/hal/phydm
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8811cu/core/crypto
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl8811cu/platform
+
 EXTRA_CFLAGS += -I$(src)/include
 
 EXTRA_LDFLAGS += --strip-debug

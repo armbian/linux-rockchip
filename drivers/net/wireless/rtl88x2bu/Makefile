@@ -30,6 +30,12 @@ endif
 
 EXTRA_CFLAGS += -I$(src)/include
 
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl88x2bu/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl88x2bu/hal/phydm/halrf
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl88x2bu/hal/phydm
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl88x2bu/platform
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rtl88x2bu/core/crypto
+
 EXTRA_LDFLAGS += --strip-debug
 
 CONFIG_AUTOCFG_CP = n

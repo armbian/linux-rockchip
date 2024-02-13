@@ -10,6 +10,9 @@ BIN2HEX_TOOL := $(PWD)/fw/bin2hex
 firmware_file := $(PWD)/fw/wcnmodem.bin
 firmware_target := $(PWD)/fw/wcnmodem.bin.hex
 
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/uwe5622/unisocwcn/include
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/uwe5622/unisocwcn/platform
+
 #### Global configs for each item ######
 ifeq ($(CFG_HI_WIFI_DEVICE_UWE5621),y)
 export CONFIG_WCN_SDIO = y
