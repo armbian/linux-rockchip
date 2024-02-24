@@ -68,9 +68,21 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_work_en>;
+		pinctrl-0 = <&led_net_en>, <&led_sata_en>, <&led_work_en>;
+
+		led_net: net {
+			gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+			label = "blue:net";
+		};
+
+		led_sata: sata {
+			gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+			label = "amber:sata";
+		};
+
 		led_work: work {
 			gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+			label = "green:work";
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -588,6 +600,16 @@
 	};
 
 	leds {
+		led_net_en: led-net-en {
+			rockchip,pins =
+				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		led_sata_en: led-sata-en {
+			rockchip,pins =
+				<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
 		led_work_en: led-work-en {
 			rockchip,pins =
 				<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
