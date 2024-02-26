@@ -28,27 +28,34 @@ static inline struct reset_control *rknpu_reset_control_get(struct device *dev,
 int rknpu_reset_get(struct rknpu_device *rknpu_dev)
 {
 #ifndef FPGA_PLATFORM
-	struct reset_control *srst_a = NULL;
-	struct reset_control *srst_h = NULL;
 	int i = 0;
+	int num_srsts = 0;
 
-	for (i = 0; i < rknpu_dev->config->num_resets; i++) {
-		srst_a = rknpu_reset_control_get(
-			rknpu_dev->dev,
-			rknpu_dev->config->resets[i].srst_a_name);
-		if (IS_ERR(srst_a))
-			return PTR_ERR(srst_a);
-
-		rknpu_dev->srst_a[i] = srst_a;
-
-		srst_h = rknpu_reset_control_get(
-			rknpu_dev->dev,
-			rknpu_dev->config->resets[i].srst_h_name);
-		if (IS_ERR(srst_h))
-			return PTR_ERR(srst_h);
-
-		rknpu_dev->srst_h[i] = srst_h;
+	num_srsts = of_count_phandle_with_args(rknpu_dev->dev->of_node,
+					       "resets", "#reset-cells");
+	if (num_srsts <= 0) {
+		LOG_DEV_ERROR(rknpu_dev->dev,
+			      "failed to get rknpu resets from dtb\n");
+		return num_srsts;
 	}
+
+	rknpu_dev->srsts = devm_kcalloc(rknpu_dev->dev, num_srsts,
+					sizeof(*rknpu_dev->srsts), GFP_KERNEL);
+	if (!rknpu_dev->srsts)
+		return -ENOMEM;
+
+	for (i = 0; i < num_srsts; ++i) {
+		rknpu_dev->srsts[i] = devm_reset_control_get_exclusive_by_index(
+			rknpu_dev->dev, i);
+		if (IS_ERR(rknpu_dev->srsts[i])) {
+			rknpu_dev->num_srsts = i;
+			return PTR_ERR(rknpu_dev->srsts[i]);
+		}
+	}
+
+	rknpu_dev->num_srsts = num_srsts;
+
+	return num_srsts;
 #endif
 
 	return 0;
@@ -93,7 +100,7 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 #ifndef FPGA_PLATFORM
 	struct iommu_domain *domain = NULL;
 	struct rknpu_subcore_data *subcore_data = NULL;
-	int ret = -EINVAL, i = 0;
+	int ret = 0, i = 0;
 
 	if (rknpu_dev->bypass_soft_reset) {
 		LOG_WARN("bypass soft reset\n");
@@ -112,17 +119,17 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 		wake_up(&subcore_data->job_done_wq);
 	}
 
-	LOG_INFO("soft reset\n");
+	LOG_INFO("soft reset, num: %d\n", rknpu_dev->num_srsts);
 
-	for (i = 0; i < rknpu_dev->config->num_resets; i++) {
-		ret = rknpu_reset_assert(rknpu_dev->srst_a[i]);
-		ret |= rknpu_reset_assert(rknpu_dev->srst_h[i]);
+	for (i = 0; i < rknpu_dev->num_srsts; ++i)
+		ret |= rknpu_reset_assert(rknpu_dev->srsts[i]);
 
-		udelay(10);
+	udelay(10);
 
-		ret |= rknpu_reset_deassert(rknpu_dev->srst_a[i]);
-		ret |= rknpu_reset_deassert(rknpu_dev->srst_h[i]);
-	}
+	for (i = 0; i < rknpu_dev->num_srsts; ++i)
+		ret |= rknpu_reset_deassert(rknpu_dev->srsts[i]);
+
+	udelay(10);
 
 	if (ret) {
 		LOG_DEV_ERROR(rknpu_dev->dev,
