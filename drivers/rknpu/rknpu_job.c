@@ -128,6 +128,7 @@ static inline struct rknpu_job *rknpu_job_alloc(struct rknpu_device *rknpu_dev,
 						struct rknpu_submit *args)
 {
 	struct rknpu_job *job = NULL;
+	int i = 0;
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
 	struct rknpu_gem_object *task_obj = NULL;
 #endif
@@ -143,6 +144,8 @@ static inline struct rknpu_job *rknpu_job_alloc(struct rknpu_device *rknpu_dev,
 			    ((args->core_mask & RKNPU_CORE2_MASK) >> 2);
 	atomic_set(&job->run_count, job->use_core_num);
 	atomic_set(&job->interrupt_count, job->use_core_num);
+	for (i = 0; i < rknpu_dev->config->num_irqs; i++)
+		atomic_set(&job->submit_count[i], 0);
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
 	task_obj = (struct rknpu_gem_object *)(uintptr_t)args->task_obj_addr;
 	if (task_obj)

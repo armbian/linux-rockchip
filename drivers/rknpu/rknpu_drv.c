@@ -81,15 +81,6 @@ static const struct rknpu_irqs_data rk3588_npu_irqs[] = {
 	{ "npu2_irq", rknpu_core2_irq_handler }
 };
 
-static const struct rknpu_reset_data rknpu_resets[] = { { "srst_a",
-							  "srst_h" } };
-
-static const struct rknpu_reset_data rk3588_npu_resets[] = {
-	{ "srst_a0", "srst_h0" },
-	{ "srst_a1", "srst_h1" },
-	{ "srst_a2", "srst_h2" }
-};
-
 static const struct rknpu_amount_data rknpu_old_top_amount = {
 	.offset_clr_all = 0x8010,
 	.offset_dt_wr = 0x8034,
@@ -121,9 +112,7 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
 	.irqs = rknpu_irqs,
-	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
@@ -142,9 +131,7 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
 	.irqs = rk3588_npu_irqs,
-	.resets = rk3588_npu_resets,
 	.num_irqs = ARRAY_SIZE(rk3588_npu_irqs),
-	.num_resets = ARRAY_SIZE(rk3588_npu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
@@ -163,9 +150,7 @@ static const struct rknpu_config rk3583_rknpu_config = {
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
 	.irqs = rk3588_npu_irqs,
-	.resets = rk3588_npu_resets,
 	.num_irqs = 2,
-	.num_resets = 2,
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 12) - 1,
@@ -184,9 +169,7 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.pc_task_status_offset = 0x3c,
 	.pc_dma_ctrl = 0,
 	.irqs = rknpu_irqs,
-	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
 	.max_submit_number = (1 << 16) - 1,
@@ -205,9 +188,7 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.pc_task_status_offset = 0x48,
 	.pc_dma_ctrl = 1,
 	.irqs = rknpu_irqs,
-	.resets = rknpu_resets,
 	.num_irqs = ARRAY_SIZE(rknpu_irqs),
-	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0xfe400000,
 	.nbuf_size = 256 * 1024,
 	.max_submit_number = (1 << 16) - 1,

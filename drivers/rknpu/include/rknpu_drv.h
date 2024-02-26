@@ -29,10 +29,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20240129"
+#define DRIVER_DATE "20240226"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 4
+#define DRIVER_PATCHLEVEL 5
 
 #define LOG_TAG "RKNPU"
 
@@ -58,11 +58,6 @@ struct rknpu_irqs_data {
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
 };
 
-struct rknpu_reset_data {
-	const char *srst_a_name;
-	const char *srst_h_name;
-};
-
 struct rknpu_amount_data {
 	uint16_t offset_clr_all;
 	uint16_t offset_dt_wr;
@@ -80,9 +75,7 @@ struct rknpu_config {
 	__u32 pc_task_status_offset;
 	__u32 pc_dma_ctrl;
 	const struct rknpu_irqs_data *irqs;
-	const struct rknpu_reset_data *resets;
 	int num_irqs;
-	int num_resets;
 	__u64 nbuf_phyaddr;
 	__u64 nbuf_size;
 	__u64 max_submit_number;
@@ -132,8 +125,8 @@ struct rknpu_device {
 	void __iomem *bw_priority_base;
 	struct rknpu_fence_context *fence_ctx;
 	bool iommu_en;
-	struct reset_control *srst_a[RKNPU_MAX_CORES];
-	struct reset_control *srst_h[RKNPU_MAX_CORES];
+	struct reset_control **srsts;
+	int num_srsts;
 	struct clk_bulk_data *clks;
 	int num_clks;
 	struct regulator *vdd;
