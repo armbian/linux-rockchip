@@ -211,8 +211,8 @@ int panthor_gpu_init(struct panthor_device *ptdev)
 		return ret;
 
 	irq = platform_get_irq_byname(to_platform_device(ptdev->base.dev), "gpu");
-	if (irq <= 0)
-		return ret;
+	if (irq < 0)
+		return irq;
 
 	ret = panthor_request_gpu_irq(ptdev, &ptdev->gpu->irq, irq, GPU_INTERRUPTS_MASK);
 	if (ret)
@@ -333,7 +333,7 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 						 val, (mask32 & val) == mask32,
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx readyness",
+			drm_err(&ptdev->base, "timeout waiting on %s:%llx readiness",
 				blk_name, mask);
 			return ret;
 		}
