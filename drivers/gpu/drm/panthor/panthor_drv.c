@@ -1089,8 +1089,8 @@ static int panthor_ioctl_tiler_heap_destroy(struct drm_device *ddev, void *data,
 		return -EINVAL;
 
 	pool = panthor_vm_get_heap_pool(vm, false);
-	if (!pool) {
-		ret = -EINVAL;
+	if (IS_ERR(pool)) {
+		ret = PTR_ERR(pool);
 		goto out_put_vm;
 	}
 
@@ -1389,7 +1389,7 @@ static int panthor_probe(struct platform_device *pdev)
 
 	ptdev = devm_drm_dev_alloc(&pdev->dev, &panthor_drm_driver,
 				   struct panthor_device, base);
-	if (!ptdev)
+	if (IS_ERR(ptdev))
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ptdev);
@@ -1421,7 +1421,7 @@ static struct platform_driver panthor_driver = {
 	.remove_new = panthor_remove,
 	.driver = {
 		.name = "panthor",
-		.pm = &panthor_pm_ops,
+		.pm = pm_ptr(&panthor_pm_ops),
 		.of_match_table = dt_match,
 	},
 };
