@@ -4,6 +4,7 @@
 /* Copyright 2023 Collabora ltd. */
 
 #include <linux/clk.h>
+#include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -86,6 +87,10 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	pm_runtime_dont_use_autosuspend(ptdev->base.dev);
 	pm_runtime_put_sync_suspend(ptdev->base.dev);
 
+	/* If PM is disabled, we need to call the suspend handler manually. */
+	if (!IS_ENABLED(CONFIG_PM))
+		panthor_device_suspend(ptdev->base.dev);
+
 	/* Report the unplug operation as done to unblock concurrent
 	 * panthor_device_unplug() callers.
 	 */
@@ -146,11 +151,12 @@ static bool panthor_device_is_initialized(struct panthor_device *ptdev)
 
 static void panthor_device_free_page(struct drm_device *ddev, void *data)
 {
-	free_page((unsigned long)data);
+	__free_page(data);
 }
 
 int panthor_device_init(struct panthor_device *ptdev)
 {
+	u32 *dummy_page_virt;
 	struct resource *res;
 	struct page *p;
 	int ret;
@@ -171,7 +177,8 @@ int panthor_device_init(struct panthor_device *ptdev)
 	if (!p)
 		return -ENOMEM;
 
-	ptdev->pm.dummy_latest_flush = page_address(p);
+	ptdev->pm.dummy_latest_flush = p;
+	dummy_page_virt = page_address(p);
 	ret = drmm_add_action_or_reset(&ptdev->base, panthor_device_free_page,
 				       ptdev->pm.dummy_latest_flush);
 	if (ret)
@@ -183,7 +190,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 	 * happens while the dummy page is mapped. Zero cannot be used because
 	 * that means 'always flush'.
 	 */
-	*ptdev->pm.dummy_latest_flush = 1;
+	*dummy_page_virt = 1;
 
 	INIT_WORK(&ptdev->reset.work, panthor_device_reset_work);
 	ptdev->reset.wq = alloc_ordered_workqueue("panthor-reset-wq", 0);
@@ -216,6 +223,13 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = pm_runtime_resume_and_get(ptdev->base.dev);
 	if (ret)
 		return ret;
+
+	/* If PM is disabled, we need to call panthor_device_resume() manually. */
+	if (!IS_ENABLED(CONFIG_PM)) {
+		ret = panthor_device_resume(ptdev->base.dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = panthor_gpu_init(ptdev);
 	if (ret)
@@ -352,7 +366,7 @@ static vm_fault_t panthor_mmio_vm_fault(struct vm_fault *vmf)
 		if (active)
 			pfn = __phys_to_pfn(ptdev->phys_addr + CSF_GPU_LATEST_FLUSH_ID);
 		else
-			pfn = virt_to_pfn(ptdev->pm.dummy_latest_flush);
+			pfn = page_to_pfn(ptdev->pm.dummy_latest_flush);
 		break;
 
 	default:
@@ -400,7 +414,6 @@ int panthor_device_mmap_io(struct panthor_device *ptdev, struct vm_area_struct *
 	return 0;
 }
 
-#ifdef CONFIG_PM
 int panthor_device_resume(struct device *dev)
 {
 	struct panthor_device *ptdev = dev_get_drvdata(dev);
@@ -545,4 +558,3 @@ err_set_active:
 	mutex_unlock(&ptdev->pm.mmio_lock);
 	return ret;
 }
-#endif
