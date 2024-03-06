@@ -691,12 +691,44 @@
 	phy-supply = <&vcc5v0_host>;
 };
 
+&u2phy2 {
+	status = "okay";
+};
+
 &u2phy2_host {
 	phy-supply = <&vcc5v0_host>;
 };
 
+&u2phy3 {
+	status = "okay";
+};
+
 &u2phy3_host {
 	phy-supply = <&vcc5v0_host>;
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usbhost3_0 {
+	status = "okay";
+};
+
+&usbhost_dwc3_0 {
+	status = "okay";
 };
 
 &usbdp_phy0 {
