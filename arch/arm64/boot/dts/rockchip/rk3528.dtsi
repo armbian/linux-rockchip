@@ -1019,16 +1019,15 @@
 			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "Mali_GP_IRQ",
-				  "Mali_GP_MMU_IRQ",
-				  "IRQPP",
-				  "Mali_PP0_IRQ",
-				  "Mali_PP0_MMU_IRQ",
-				  "Mali_PP1_IRQ",
-				  "Mali_PP1_MMU_IRQ";
-		clocks = <&scmi_clk SCMI_CLK_GPU>, <&cru ACLK_GPU_MALI>,
-			 <&cru PCLK_GPU_ROOT>;
-		clock-names = "clk_mali", "aclk_gpu_mali", "pclk_gpu";
+		interrupt-names = "gp",
+				  "gpmmu",
+				  "pp",
+				  "pp0",
+				  "ppmmu0",
+				  "pp1",
+				  "ppmmu1";
+		clocks = <&cru ACLK_GPU_MALI>, <&cru ACLK_GPU_MALI>;
+		clock-names = "bus", "core";
 		assigned-clocks = <&scmi_clk SCMI_CLK_GPU>;
 		assigned-clock-rates = <300000000>;
 		power-domains = <&power RK3528_PD_GPU>;
