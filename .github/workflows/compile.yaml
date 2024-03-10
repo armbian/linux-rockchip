@@ -45,12 +45,12 @@ jobs:
           bash ./compile.sh kernel \
           SHARE_LOG=yes \
           BOARD=orangepi5 \
-          BRANCH=legacy \
+          BRANCH=vendor \
           ENABLE_EXTENSIONS="pull-request"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: linux-rockchip-legacy
+          name: linux-rockchip-vendor
           path: output/debs/*.deb
           retention-days: 5
