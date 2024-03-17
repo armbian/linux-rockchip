@@ -1,0 +1,232 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/power/rk3588-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	fragment@0 {
+		target = <&csi2_dphy0_hw>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&csi2_dphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+						
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+				
+					mipidphy0_in_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx415c_out0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+						
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+			
+					csidphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi2_csi2_input>;
+					};
+				};
+			};			
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi2_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+		
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+		
+					mipi2_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidphy0_out>;
+					};
+				};
+		
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+		
+					mipi2_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi2_in0>;
+					};
+				};
+			};					
+		};
+	};
+
+	fragment@3 {
+		target = <&rkcif_mipi_lvds2>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi2_in0: endpoint {
+					remote-endpoint = <&mipi2_csi2_output>;
+				};
+			};				
+		};
+	};
+
+	fragment@4 {
+		target = <&rkcif_mipi_lvds2_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds2_sditf: endpoint {
+					remote-endpoint = <&isp1_vir0>;
+				};
+			};		
+		};
+	};
+
+	fragment@5 {
+		target = <&rkisp1_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+		
+				isp1_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds2_sditf>;
+				};
+			};					
+		};
+	};
+
+	fragment@6 {
+		target = <&i2c8>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8m2_xfer>;
+		
+			dw9714c: dw9714c@c {
+				compatible = "dongwoon,dw9714";
+				status = "okay";
+				reg = <0x0c>;
+				pinctrl-names = "focusc_gpios";
+				pinctrl-0 = <&focusc_gpio>;
+				focus-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+				rockchip,vcm-start-current = <20>;
+				rockchip,vcm-rated-current = <76>;
+				rockchip,vcm-step-mode = <0>;
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+			};
+		
+			imx415: imx415@1a {
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+				clock-names = "xvclk";
+				pinctrl-names = "default", "camc_gpios";
+				pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
+				power-domains = <&power RK3588_PD_VI>;
+				reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;	
+				pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "CMK-OT2022-PX1";
+				rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+				lens-focus = <&dw9714c>;
+				port {
+					imx415c_out0: endpoint {
+						remote-endpoint = <&mipidphy0_in_ucam0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};			
+		};
+	};
+
+	fragment@7 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			cam3 {
+				camc_gpio: camc-gpio {
+					rockchip,pins =
+						<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
+						<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+
+				focusc_gpio: focusc-gpio {
+					rockchip,pins =
+						<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&rkisp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&isp1_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
