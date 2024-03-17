@@ -568,56 +568,6 @@
 	status = "okay";
 };
 
-&i2c5 {
-	status = "disabled";
-
-	ls_stk3332: light@47 {
-		compatible = "ls_stk3332";
-		status = "disabled";
-		reg = <0x47>;
-		type = <SENSOR_TYPE_LIGHT>;
-		irq_enable = <0>;
-		als_threshold_high = <100>;
-		als_threshold_low = <10>;
-		als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
-		poll_delay_ms = <100>;
-	};
-
-	ps_stk3332: proximity@47 {
-		compatible = "ps_stk3332";
-		status = "disabled";
-		reg = <0x47>;
-		type = <SENSOR_TYPE_PROXIMITY>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&gpio3_c6>;
-		//irq-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
-		//irq_enable = <1>;
-		ps_threshold_high = <0x200>;
-		ps_threshold_low = <0x100>;
-		ps_ctrl_gain = <3>; /* 0:x1 1:x2 2:x5 3:x8 */
-		ps_led_current = <4>; /* 0:3.125mA 1:6.25mA 2:12.5mA 3:25mA 4:50mA 5:100mA*/
-		poll_delay_ms = <100>;
-	};
-
-	mpu6500_acc: mpu_acc@68 {
-		compatible = "mpu6500_acc";
-		reg = <0x68>;
-		irq-gpio = <&gpio3 RK_PB4 IRQ_TYPE_EDGE_RISING>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_ACCEL>;
-		layout = <5>;
-	};
-
-	mpu6500_gyro: mpu_gyro@68 {
-		compatible = "mpu6500_gyro";
-		reg = <0x68>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <5>;
-	};
-};
-
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -643,17 +593,9 @@
 			   max-y = <1200>;
 			   tp-size = <89>;
 	};
-
-};
-
-&pcie2x1l1 {
-//	reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie20>;
-	status = "disabled";
 };
 
 &pcie2x1l2 {
-//	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
 	rockchip,skip-scan-in-resume;
@@ -801,7 +743,6 @@
 
 
 &rockchip_suspend {
-
     rockchip,sleep-mode-config = <
 		(0
 		| RKPM_SLP_ARMOFF_DDRPD
@@ -859,22 +800,53 @@
 	status = "okay";
 };
 
-&u2phy0_otg {
-	rockchip,typec-vbus-det;
-};
-
-&u2phy2_host {
-	phy-supply = <&vcc5v0_host>;
-};
-
-&u2phy3_host {
-	phy-supply = <&vcc5v0_host>;
-};
-
 &uart9 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn>;
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+	status = "okay";
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
 };
 
 &usbdp_phy0 {
@@ -882,6 +854,7 @@
 	svid = <0xff01>;
 	sbu1-dc-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 
 	port {
 		#address-cells = <1>;
@@ -898,7 +871,22 @@
 	};
 };
 
+&usbdp_phy0_dp {
+	status = "okay";
+};
+
+&usbdp_phy0_u3 {
+	status = "okay";
+};
+
+&usbdrd3_0 {
+	status = "okay";
+};
+
 &usbdrd_dwc3_0 {
+	dr_mode = "otg";
+	status = "okay";
+
 	usb-role-switch;
 	port {
 		#address-cells = <1>;
