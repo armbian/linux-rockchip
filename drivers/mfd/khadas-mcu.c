@@ -26,6 +26,10 @@ static bool khadas_mcu_reg_volatile(struct device *dev, unsigned int reg)
 	case KHADAS_MCU_CHECK_USER_PASSWD_REG:
 	case KHADAS_MCU_WOL_INIT_START_REG:
 	case KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG:
+	case KHADAS_MCU_LED_ON_RAM_REG:
+	case KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG_V2:
+	case KHADAS_MCU_WDT_EN_REG:
+	case KHADAS_MCU_SYS_RST_REG:
 		return true;
 	default:
 		return false;
@@ -69,23 +73,18 @@ static const struct regmap_config khadas_mcu_regmap_config = {
 	.reg_bits	= 8,
 	.reg_stride	= 1,
 	.val_bits	= 8,
-	.max_register	= KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG,
+	.max_register	= KHADAS_MCU_SYS_RST_REG,
 	.volatile_reg	= khadas_mcu_reg_volatile,
 	.writeable_reg	= khadas_mcu_reg_writeable,
 	.cache_type	= REGCACHE_RBTREE,
 };
 
 static struct mfd_cell khadas_mcu_fan_cells[] = {
-	/* VIM1/2 Rev13+ and VIM3 only */
+	/* VIM1/2 Rev13+, VIM3 and Edge2 only */
 	{ .name = "khadas-mcu-fan-ctrl", },
 };
 
-static struct mfd_cell khadas_mcu_cells[] = {
-	{ .name = "khadas-mcu-user-mem", },
-};
-
-static int khadas_mcu_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int khadas_mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct khadas_mcu *ddata;
@@ -105,13 +104,6 @@ static int khadas_mcu_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
-
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
-				   khadas_mcu_cells,
-				   ARRAY_SIZE(khadas_mcu_cells),
-				   NULL, 0, NULL);
-	if (ret)
-		return ret;
 
 	if (of_find_property(dev->of_node, "#cooling-cells", NULL))
 		return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,

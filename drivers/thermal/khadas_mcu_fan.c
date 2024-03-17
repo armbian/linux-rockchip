@@ -15,10 +15,16 @@
 #include <linux/thermal.h>
 
 #define MAX_LEVEL 3
+#define MAX_SPEED 0x64
 
 struct khadas_mcu_fan_ctx {
 	struct khadas_mcu *mcu;
 	unsigned int level;
+
+	unsigned int fan_max_level;
+	unsigned int fan_register;
+	unsigned int *fan_cooling_levels;
+
 	struct thermal_cooling_device *cdev;
 };
 
@@ -26,9 +32,21 @@ static int khadas_mcu_fan_set_level(struct khadas_mcu_fan_ctx *ctx,
 				    unsigned int level)
 {
 	int ret;
+	unsigned int write_level = level;
 
-	ret = regmap_write(ctx->mcu->regmap, KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG,
-			   level);
+	if (level > ctx->fan_max_level)
+		return -EINVAL;
+
+	if (ctx->fan_cooling_levels != NULL) {
+		write_level = ctx->fan_cooling_levels[level];
+
+		if (write_level > MAX_SPEED)
+			return -EINVAL;
+	}
+
+	ret = regmap_write(ctx->mcu->regmap, ctx->fan_register,
+			   write_level);
+
 	if (ret)
 		return ret;
 
@@ -40,7 +58,9 @@ static int khadas_mcu_fan_set_level(struct khadas_mcu_fan_ctx *ctx,
 static int khadas_mcu_fan_get_max_state(struct thermal_cooling_device *cdev,
 					unsigned long *state)
 {
-	*state = MAX_LEVEL;
+	struct khadas_mcu_fan_ctx *ctx = cdev->devdata;
+
+	*state = ctx->fan_max_level;
 
 	return 0;
 }
@@ -61,7 +81,7 @@ khadas_mcu_fan_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct khadas_mcu_fan_ctx *ctx = cdev->devdata;
 
-	if (state > MAX_LEVEL)
+	if (state > ctx->fan_max_level)
 		return -EINVAL;
 
 	if (state == ctx->level)
@@ -76,6 +96,48 @@ static const struct thermal_cooling_device_ops khadas_mcu_fan_cooling_ops = {
 	.set_cur_state = khadas_mcu_fan_set_cur_state,
 };
 
+// Khadas Edge 2 sets fan level by passing fan speed(0-100). So we need different logic here like pwm-fan cooling-levels.
+// This is optional and just necessary for Edge 2.
+static int khadas_mcu_fan_get_cooling_data_edge2(struct khadas_mcu_fan_ctx *ctx, struct device *dev) {
+	struct device_node *np = ctx->mcu->dev->of_node;
+	int num, i, ret;
+
+	if (!of_find_property(np, "cooling-levels", NULL))
+		return 0;
+
+	ret = of_property_count_u32_elems(np, "cooling-levels");
+	if (ret <= 0) {
+		dev_err(dev, "Wrong data!\n");
+		return ret ? : -EINVAL;
+	}
+
+	num = ret;
+	ctx->fan_cooling_levels = devm_kcalloc(dev, num, sizeof(u32),
+						   GFP_KERNEL);
+	if (!ctx->fan_cooling_levels)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, "cooling-levels",
+					 ctx->fan_cooling_levels, num);
+	if (ret) {
+		dev_err(dev, "Property 'cooling-levels' cannot be read!\n");
+		return ret;
+	}
+
+	for (i = 0; i < num; i++) {
+		if (ctx->fan_cooling_levels[i] > MAX_SPEED) {
+			dev_err(dev, "PWM fan state[%d]:%d > %d\n", i,
+				ctx->fan_cooling_levels[i], MAX_SPEED);
+			return -EINVAL;
+		}
+	}
+
+	ctx->fan_max_level = num - 1;
+	ctx->fan_register = KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG_V2;
+
+	return 0;
+}
+
 static int khadas_mcu_fan_probe(struct platform_device *pdev)
 {
 	struct khadas_mcu *mcu = dev_get_drvdata(pdev->dev.parent);
@@ -89,6 +151,13 @@ static int khadas_mcu_fan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	ctx->mcu = mcu;
 	platform_set_drvdata(pdev, ctx);
+
+	ctx->fan_max_level = MAX_LEVEL;
+	ctx->fan_register = KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG;
+
+	ret = khadas_mcu_fan_get_cooling_data_edge2(ctx, dev);
+	if (ret)
+		return ret;
 
 	cdev = devm_thermal_of_cooling_device_register(dev->parent,
 			dev->parent->of_node, "khadas-mcu-fan", ctx,
