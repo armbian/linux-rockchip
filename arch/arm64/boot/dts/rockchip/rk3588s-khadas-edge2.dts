@@ -11,7 +11,6 @@
 #include "rk3588s-khadas-edge2.dtsi"
 #include "rk3588-rk806-single-khadas.dtsi"
 #include "rk3588-linux.dtsi"
-#include "rk3588s-khadas-edge2-camera.dtsi"
 
 / {
 	model = "Khadas Edge2";
@@ -208,49 +207,7 @@
 	//	WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
-
-	vcc3v3_lcd1_en: vcc3v3-lcd1-en {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd1_en";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
-
-	};
-
-	vcc3v3_lcd2_en: vcc3v3-lcd2-en {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd2_en";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
-
-	};
-
 };
-
-&backlight_mipi0 {
-	pwms = <&pwm12 0 25000 0>;
-	power-supply = <&vcc3v3_lcd1_en>;
-	status = "okay";
-};
-
-&backlight_mipi1 {
-	pwms = <&pwm13 0 25000 0>;
-	power-supply = <&vcc3v3_lcd2_en>;
-	status = "disabled";
-};
-
 
 &combphy0_ps {
 	status = "okay";
@@ -266,71 +223,6 @@
 
 &dp0_sound{
 	status = "okay";
-};
-
-&dsi0 {
-	status = "disabled";
-	reset-delay-ms = <20>;
-	reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd1_rst_gpio>;
-
-};
-
-&dsi0_panel {
-	status = "okay";
-	power-supply = <&vcc3v3_lcd1_en>;
-};
-
-&dsi0_in_vp2 {
-	status = "disabled";
-};
-
-&dsi0_in_vp3 {
-	status = "okay";
-};
-
-&hdmi0_sound {
-	status = "okay";
-};
-
-&route_dsi0 {
-	status = "okay";
-	connect = <&vp3_out_dsi0>;
-};
-
-&mipi_dcphy0 {
-	status = "okay";
-};
-
-&dsi1 {
-	reset-delay-ms = <20>;
-	reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd2_rst_gpio1>;
-	status = "disabled";
-};
-
-&dsi1_panel {
-	status = "disabled";
-	power-supply = <&vcc3v3_lcd2_en>;
-};
-
-&mipi_dcphy1 {
-	status = "okay";
-};
-
-&dsi1_in_vp2 {
-	status = "disabled";
-};
-
-&dsi1_in_vp3 {
-	status = "disabled";
-};
-
-&route_dsi1 {
-	status = "disabled";
-	connect = <&vp3_out_dsi1>;
 };
 
 //&hdptxphy0 {
@@ -568,33 +460,6 @@
 	status = "okay";
 };
 
-&i2c6 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6m0_xfer>;
-
-	ft5336@38 {
-		compatible = "edt,edt-ft5336", "ft5x06";
-		reg = <0x38>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PC6 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tp_rst_gpio>;
-		status = "okay";
-	};
-
-	gt9xx: gt9xx@14 {
-			   compatible = "goodix,gt9xx";
-			   reg = <0x14>;
-			   touch-gpio = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
-			   reset-gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
-			   max-x = <1920>;
-			   max-y = <1200>;
-			   tp-size = <89>;
-	};
-};
-
 &pcie2x1l2 {
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
@@ -620,15 +485,6 @@
 		};
 		spk_con: spk-con {
 			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	lcd {
-		lcd1_rst_gpio: lcd1-rst-gpio {
-			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-		lcd2_rst_gpio1: lcd2-rst-gpio1 {
-			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -667,12 +523,6 @@
 			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-
-	ft5336 {
-		tp_rst_gpio: tp-rst-gpio {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
-       };
-   };
 
 	wireless-bluetooth {
 		uart9_gpios: uart9-gpios {
@@ -725,22 +575,6 @@
 			<0xb7 KEY_HOMEPAGE>;
 	};
 };
-
-&pwm7 {
-	pinctrl-0 = <&pwm7m0_pins>;
-	status = "disabled";
-};
-
-&pwm12 {
-	pinctrl-0 = <&pwm12m1_pins>;
-	status = "okay";
-};
-
-&pwm13 {
-	pinctrl-0 = <&pwm13m1_pins>;
-	status = "okay";
-};
-
 
 &rockchip_suspend {
     rockchip,sleep-mode-config = <
