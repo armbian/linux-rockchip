@@ -508,17 +508,12 @@
         wakeup-source;
     };
 
-    mcu: khadas-mcu@18 {
-        compatible = "khadas-mcu";
-        status = "okay";
-        reg = <0x18>;
-        fan,trig_temp_level0 = <50>;
-        fan,trig_temp_level1 = <60>;
-        fan,trig_temp_level2 = <70>;
-        fan,trig_temp_level3 = <80>;
-        hwver = "EDGE2.V11";
-
-    };
+	khadas_mcu: system-controller@18 {
+		compatible = "khadas,mcu";
+		reg = <0x18>;
+		cooling-levels = <0 50 72 100>;
+		#cooling-cells = <2>;
+	};
 };
 
 &reboot_mode {
@@ -757,6 +752,63 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
+};
+
+&soc_thermal {
+	polling-delay = <1000>;
+	polling-delay-passive = <2000>;
+	
+	trips {
+		trip0: trip-point@0 {
+			temperature = <45000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		
+		trip1: trip-point@1 {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		
+		trip2: trip-point@2 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		
+		trip3: trip-point@3 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+	
+	cooling-maps {
+		map0 {
+			trip = <&trip0>;
+			cooling-device = <&khadas_mcu 0 1>;
+			contribution = <1024>;
+		};
+		
+		map1 {
+			trip = <&trip1>;
+			cooling-device = <&khadas_mcu 1 2>;
+			contribution = <1024>;
+		};
+		
+		map2 {
+			trip = <&trip2>;
+			cooling-device = <&khadas_mcu 2 3>;
+			contribution = <1024>;
+		};
+		
+		map3 {
+			trip = <&trip3>;
+			cooling-device = <&khadas_mcu 3 THERMAL_NO_LIMIT>;
+			contribution = <1024>;
+		};
+	};
 };
 
 &iep {
