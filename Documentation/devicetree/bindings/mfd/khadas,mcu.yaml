@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Khadas embeds a microcontroller on their VIM and Edge boards adding some
-  system feature as PWM Fan control (for VIM2 rev14 or VIM3), User memory
+  system feature as PWM Fan control (for VIM2 rev14, VIM3, Edge2), User memory
   storage, IR/Key resume control, system power LED control and more.
 
 properties:
@@ -21,6 +21,11 @@ properties:
 
   "#cooling-cells": # Only needed for boards having FAN control feature
     const: 2
+
+  cooling-levels:
+    description: Max speed of PWM fan. This property is necessary for Khadas Edge 2.
+    items:
+      maximum: 100
 
   reg:
     maxItems: 1
