@@ -31,8 +31,6 @@
 		_VOP_REG(off, _mask, s, true)
 
 static const uint32_t formats_for_cluster[] = {
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_XBGR2101010,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XBGR8888,
