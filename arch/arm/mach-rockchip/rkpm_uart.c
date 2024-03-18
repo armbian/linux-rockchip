@@ -65,7 +65,7 @@ void rkpm_uart_debug_restore(void __iomem *base,
 			     struct uart_debug_ctx *ctx)
 {
 	u32 uart_lcr;
-	u32 wait_cnt = 50000;
+	u32 wait_cnt = 560;
 
 	while ((readl_relaxed(base + UARTUSR) & UARTUSR_BUSY) &&
 	       --wait_cnt)
