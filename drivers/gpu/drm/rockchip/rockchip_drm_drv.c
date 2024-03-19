@@ -1157,6 +1157,27 @@ static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
 		cea_db_payload_len(db) >= 7;
 }
 
+#define HDRVIVID_VSVDB_OUI		0x047503
+
+static bool cea_db_is_hdmi_hdrvivid_block(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
+		return false;
+
+	if (cea_db_payload_len(db) < 14)
+		return false;
+
+	/* check ext tag flag */
+	if (db[1] != 0x01)
+		return false;
+
+	oui = db[4] << 16 | db[3] << 8 | db[2];
+
+	return oui == HDRVIVID_VSVDB_OUI;
+}
+
 static int
 cea_db_offsets(const u8 *cea, int *start, int *end)
 {
@@ -1331,6 +1352,36 @@ int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_get_yuv422_format);
+
+int rockchip_drm_parse_hdrvivid(void *sink_data, const struct edid *edid)
+{
+	const u8 *edid_ext;
+	int i, start, end;
+
+	if (!sink_data || !edid)
+		return -EINVAL;
+
+	memset(sink_data, 0, HDRVIVID_VSVDB_LEN);
+
+	edid_ext = find_cea_extension(edid);
+	if (!edid_ext)
+		return -EINVAL;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return -EINVAL;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		const u8 *db = &edid_ext[i];
+
+		if (cea_db_is_hdmi_hdrvivid_block(db)) {
+			memcpy(sink_data, db, HDRVIVID_VSVDB_LEN);
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_parse_hdrvivid);
 
 static
 void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)

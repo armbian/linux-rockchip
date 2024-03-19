@@ -360,6 +360,7 @@ struct rockchip_hdmi {
 	enum dw_hdmi_qp_version dw_hdmi_qp_version;
 	bool force_disable_dsc;
 	bool cec_wakeup_supported;
+	bool dynamic_hdr_en;
 
 	unsigned long bus_format;
 	unsigned long output_bus_format;
@@ -388,6 +389,8 @@ struct rockchip_hdmi {
 	struct drm_property *fva_factor_m1;
 	struct drm_property *hdmi_vrr_cap;
 	struct drm_property *hdmi_colorspace_caps;
+	struct drm_property *hdrvivid_vsdb;
+	struct drm_property *dynamic_hdr_enable;
 
 	struct drm_property_blob *mode_color_caps_ptr;
 	struct drm_property_blob *hdr_panel_blob_ptr;
@@ -395,6 +398,7 @@ struct rockchip_hdmi {
 	struct drm_property_blob *vsif_data_ptr;
 	struct drm_property_blob *hdr10_plus_vsdb_ptr;
 	struct drm_property_blob *hdmi_vrr_cap_ptr;
+	struct drm_property_blob *hdrvivid_vsdb_ptr;
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
@@ -432,6 +436,8 @@ struct rockchip_hdmi {
 	struct rockchip_drm_hdmi21_data hdmi21_data;
 	u32 force_bus_format;
 	u32 sda_falling_delay_ns;
+
+	u8 hdrvivid_vsvdb[HDRVIVID_VSVDB_LEN];
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -4121,6 +4127,74 @@ static void dw_hdmi_rockchip_set_cec_wakeup(void *data, bool enable)
 	}
 }
 
+static int drm_property_replace_hdmi_blob(struct drm_device *dev,
+					  struct drm_property_blob **replace,
+					  size_t length,
+					  const void *data,
+					  struct drm_mode_object *obj_holds_id,
+					  struct drm_property *prop_holds_id)
+{
+	struct drm_property_blob *new_blob = NULL;
+	struct drm_property_blob *old_blob = NULL;
+	int ret;
+
+	WARN_ON(replace == NULL);
+
+	old_blob = *replace;
+
+	if (length && data) {
+		new_blob = drm_property_create_blob(dev, length, data);
+		if (IS_ERR(new_blob))
+			return PTR_ERR(new_blob);
+	}
+
+	if (obj_holds_id) {
+		ret = drm_object_property_set_value(obj_holds_id,
+						    prop_holds_id,
+						    new_blob ?
+						    new_blob->base.id : 0);
+		if (ret != 0)
+			goto err_created;
+	}
+
+	drm_property_blob_put(old_blob);
+	*replace = new_blob;
+
+	return 0;
+
+err_created:
+	drm_property_blob_put(new_blob);
+	return ret;
+}
+
+static int
+dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
+				   struct drm_connector *connector)
+{
+	int ret;
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u8 *sink_data = hdmi->hdrvivid_vsvdb;
+	struct drm_property *property = hdmi->hdrvivid_vsdb;
+	struct drm_property_blob *blob = hdmi->hdrvivid_vsdb_ptr;
+
+	if (!edid || !connector)
+		return -ENOMEM;
+
+	rockchip_drm_parse_hdrvivid(sink_data, edid);
+
+	ret = drm_property_replace_hdmi_blob(connector->dev, &blob, 28, sink_data,
+					     &connector->base, property);
+
+	return ret;
+};
+
+static bool dw_hdmi_rockchip_get_emp_status(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->dynamic_hdr_en;
+};
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -4184,6 +4258,11 @@ static const struct drm_prop_enum_list hdmi_colorspace_caps_list[] = {
 	/* Added as part of Additional Colorimetry Extension in 861.G */
 	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
 	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
+};
+
+static const struct drm_prop_enum_list dynamic_hdr_enable_list[] = {
+	{ 0, "disable" },
+	{ 1, "enable" },
 };
 
 static int
@@ -4389,6 +4468,24 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 			hdmi->hdmi_vrr_cap = prop;
 			drm_object_attach_property(&connector->base, prop, 0);
 		}
+
+		prop = drm_property_create(connector->dev,
+					   DRM_MODE_PROP_BLOB |
+					   DRM_MODE_PROP_IMMUTABLE,
+					   "HDR_VIVID_VSDB", 0);
+		if (prop) {
+			hdmi->hdrvivid_vsdb = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
+
+		prop = drm_property_create_enum(connector->dev, 0,
+						"dynamic_hdr_enable",
+						dynamic_hdr_enable_list,
+						ARRAY_SIZE(dynamic_hdr_enable_list));
+		if (prop) {
+			hdmi->dynamic_hdr_enable = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
 	}
 
 	prop = drm_property_create_enum(connector->dev, 0,
@@ -4582,6 +4679,16 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev, hdmi->hdmi_colorspace_caps);
 		hdmi->hdmi_colorspace_caps = NULL;
 	}
+
+	if (hdmi->hdrvivid_vsdb) {
+		drm_property_destroy(connector->dev, hdmi->hdrvivid_vsdb);
+		hdmi->hdrvivid_vsdb = NULL;
+	}
+
+	if (hdmi->dynamic_hdr_enable) {
+		drm_property_destroy(connector->dev, hdmi->dynamic_hdr_enable);
+		hdmi->dynamic_hdr_enable = NULL;
+	}
 }
 
 static int
@@ -4654,6 +4761,11 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 								val, -1, -1, &replaced);
 		return ret;
 	} else if (property == hdmi->hdr10_plus_vsdb) {
+		return 0;
+	} else if (property == hdmi->hdrvivid_vsdb) {
+		return 0;
+	} else if (property == hdmi->dynamic_hdr_enable) {
+		hdmi->dynamic_hdr_en = val;
 		return 0;
 	} else if (property == hdmi->gaming_vrr_enable) {
 		if (hdmi->next_tfr_val) {
@@ -4784,6 +4896,12 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == hdmi->hdmi_colorspace_caps) {
 		*val = hdmi->edid_colorimetry;
+		return 0;
+	} else if (property == hdmi->hdrvivid_vsdb) {
+		*val = (hdmi->hdrvivid_vsdb_ptr) ? hdmi->hdrvivid_vsdb_ptr->base.id : 0;
+		return 0;
+	} else if (property == hdmi->dynamic_hdr_enable) {
+		*val = hdmi->dynamic_hdr_en;
 		return 0;
 	}
 
@@ -5718,6 +5836,9 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_crtc_post_enable;
 	plat_data->set_cec_wakeup =
 		dw_hdmi_rockchip_set_cec_wakeup;
+	plat_data->get_hdrvivid_vsdb =
+		dw_hdmi_rockchip_get_hdrvivid_vsdb;
+	plat_data->get_emp_status = dw_hdmi_rockchip_get_emp_status;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);

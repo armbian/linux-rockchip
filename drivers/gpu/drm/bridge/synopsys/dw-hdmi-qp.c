@@ -365,6 +365,7 @@ struct dw_hdmi_qp {
 
 	bool initialized;		/* hdmi is enabled before bind */
 	bool logo_plug_out;             /* hdmi is plug out when kernel logo */
+	bool emp_enabled;
 	struct completion flt_cmp;
 	struct completion earc_cmp;
 
@@ -3006,6 +3007,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		if (hdmi->plat_data->get_hdr10_plus_vsdb)
 			hdmi->plat_data->get_hdr10_plus_vsdb(data, edid, connector);
 		dw_hdmi_update_hdr_property(connector);
+		if (hdmi->plat_data->get_hdrvivid_vsdb)
+			hdmi->plat_data->get_hdrvivid_vsdb(data, edid, connector);
 		if (ret > 0 && hdmi->plat_data->split_mode) {
 			struct dw_hdmi_qp *secondary = NULL;
 			void *secondary_data;
@@ -3595,6 +3598,9 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (hdmi->plat_data->get_vp_id)
 		hdmi->vp_id = hdmi->plat_data->get_vp_id(crtc_state);
 
+	if (hdmi->plat_data->get_emp_status)
+		hdmi->emp_enabled = hdmi->plat_data->get_emp_status(data);
+
 	drm_mode_copy(&mode, &crtc_state->mode);
 	/*
 	 * If HDMI is enabled in uboot, it's need to record
@@ -3705,6 +3711,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 {
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
+	u32 val;
 
 	if (hdmi->update) {
 		if (hdmi->hdmi_changed_status & HDMI_COLOR_FMT_CHANGED) {
@@ -3724,6 +3731,30 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		set_dw_hdmi_hdcp_enable(hdmi, connector, state);
 		if (hdmi->hdmi_changed_status & HDMI_VSIF_CHANGED)
 			hdmi_config_vendor_specific_infoframe(hdmi, connector);
+
+		if (hdmi->emp_enabled) {
+			if (hdmi_readl(hdmi, RK_PLUS_GRF_CON0) & HDMTX_EMP_MEM_LEN_BYPASS)
+				return;
+
+			hdmi_writel(hdmi, 0, PKT_EMP_CONTROL0);
+			hdmi_writel(hdmi, 0, PKT_EMP_CONTROL1);
+			if (hdmi->plat_data->dw_hdmi_qp_version >= DW_HDMI_QP_V2) {
+				val = HIWORD_UPDATE(HDMTX_EMP_MEM_LEN_BYPASS |
+						    HDMTX_EMP_MEM_LEN_LEN,
+						    HDMTX_EMP_MEM_LEN_BYPASS |
+						    HDMTX_EMP_MEM_LEN_LEN);
+				hdmi_writel(hdmi, val, RK_PLUS_GRF_CON0);
+			hdmi_modb(hdmi, PKTSCHED_EMP_EXTMEM_TX_EN,
+				  PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
+			}
+		} else {
+			if (hdmi->plat_data->dw_hdmi_qp_version >= DW_HDMI_QP_V2) {
+				val = HIWORD_UPDATE(0, HDMTX_EMP_MEM_LEN_BYPASS |
+						    HDMTX_EMP_MEM_LEN_LEN);
+				hdmi_writel(hdmi, val, RK_PLUS_GRF_CON0);
+			}
+			hdmi_modb(hdmi, 0, PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
+		}
 	}
 }
 

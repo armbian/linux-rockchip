@@ -313,6 +313,9 @@ struct dw_hdmi_plat_data {
 				   struct drm_connector *connector);
 	void (*sda_delay_cal)(void *data, u8 *sda_dlyn, u8 *sda_div);
 	void (*set_cec_wakeup)(void *data, bool enable);
+	bool (*get_emp_status)(void *data);
+	int (*get_hdrvivid_vsdb)(void *data, const struct edid *edid,
+				 struct drm_connector *connector);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

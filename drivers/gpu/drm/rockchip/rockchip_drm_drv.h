@@ -88,6 +88,8 @@ struct iommu_domain;
  */
 #define DRM_COLOR_DCI_P3	0x10
 
+#define HDRVIVID_VSVDB_LEN		28
+
 enum rockchip_drm_debug_category {
 	VOP_DEBUG_PLANE		= BIT(0),
 	VOP_DEBUG_OVERLAY	= BIT(1),
@@ -825,6 +827,7 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_hdmi21_data *hdmi21_data,
 int rockchip_drm_parse_dovi(u8 *sink_data, const struct edid *edid);
 int rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *edid);
 u8 rockchip_drm_parse_hdr10_plus_vsdb(const struct edid *edid);
+int rockchip_drm_parse_hdrvivid(void *sink_data, const struct edid *edid);
 struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj, int flags);
 long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long rate);
 int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
