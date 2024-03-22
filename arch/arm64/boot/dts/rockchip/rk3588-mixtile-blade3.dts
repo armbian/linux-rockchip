@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Mixtile Limited
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-blade3-v101-linux.dts"
+
+/ {
+	model = "Mixtile Blade 3";
+	compatible = "rockchip,rk3588-blade3-v101-linux", "rockchip,rk3588";
+};

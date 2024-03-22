@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-9tripod-linux.dts"
+
+/ {
+	model = "Indiedroid Nova";
+	compatible = "9tripod,rk3588s", "rockchip,rk3588";
+};
