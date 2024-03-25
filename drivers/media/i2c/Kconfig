@@ -3447,6 +3447,12 @@ config VIDEO_THS7303
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths7303.
 
+config VIDEO_LIGHT_CTL
+	tristate "video light ctrl support"
+	depends on PWM || GPIOLIB
+	help
+	  This driver supports video light ctrl.
+
 endmenu
 
 #

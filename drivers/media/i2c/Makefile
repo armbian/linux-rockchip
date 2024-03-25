@@ -31,6 +31,7 @@ obj-$(CONFIG_VIDEO_BT819) += bt819.o
 obj-$(CONFIG_VIDEO_BT856) += bt856.o
 obj-$(CONFIG_VIDEO_BT866) += bt866.o
 obj-$(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)	+= cam-sleep-wakeup.o
+obj-$(CONFIG_VIDEO_LIGHT_CTL)	+= light_ctl.o
 obj-$(CONFIG_VIDEO_CCS) += ccs/
 obj-$(CONFIG_VIDEO_CCS_PLL) += ccs-pll.o
 obj-$(CONFIG_VIDEO_CES6301) += ces6301.o
