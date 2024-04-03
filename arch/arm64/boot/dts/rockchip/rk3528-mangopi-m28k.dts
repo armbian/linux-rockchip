@@ -220,12 +220,17 @@
 	};
 	
 	hdmi_sound: hdmi-sound {
-		compatible = "rockchip,hdmi";
-		rockchip,mclk-fs = <128>;
-		rockchip,card-name = "rockchip,hdmi";
-		rockchip,cpu = <&sai3>;
-		rockchip,codec = <&hdmi>;
-		rockchip,jack-det;
+	        status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip-hdmi0";
+		simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
