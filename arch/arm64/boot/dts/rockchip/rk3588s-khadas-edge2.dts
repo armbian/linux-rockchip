@@ -36,29 +36,6 @@
 		};
 	};
 
-	sound_micarray: sound-micarray {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,sound-micarray";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,dai-link@0 {
-			format = "pdm";
-			cpu {
-				sound-dai = <&pdm0>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-	};
-
-	dummy_codec: dummy-codec {
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-		status = "okay";
-	};
-
 	es8316_sound: es8316-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -567,17 +544,6 @@
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
 	rockchip,skip-scan-in-resume;
 	status = "okay";
-};
-
-&pdm0 {
-	pinctrl-names = "default";
-    pinctrl-0 = <&pdm0m0_clk
-    	&pdm0m0_clk1
-    	&pdm0m0_sdi0
-    	&pdm0m0_sdi1
-    	&pdm0m0_sdi2>;
-    rockchip,path-map = <0 1 2 3>;
-    status = "okay";
 };
 
 &pinctrl {
