@@ -447,10 +447,13 @@ rockchip_rk3588_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 }
 
 static const struct rockchip_pll_rate_table *rockchip_get_pll_settings(
-			    struct rockchip_clk_pll *pll, unsigned long rate)
+			    struct rockchip_clk_pll *pll, unsigned long rate, unsigned long prate)
 {
 	const struct rockchip_pll_rate_table  *rate_table = pll->rate_table;
 	int i;
+
+	if (!prate)
+		prate = 24 * MHZ;
 
 	for (i = 0; i < pll->rate_count; i++) {
 		if (rate == rate_table[i].rate) {
@@ -465,11 +468,11 @@ static const struct rockchip_pll_rate_table *rockchip_get_pll_settings(
 	pll->scaling = 0;
 
 	if (pll->type == pll_rk3066)
-		return rockchip_rk3066_pll_clk_set_by_auto(pll, 24 * MHZ, rate);
+		return rockchip_rk3066_pll_clk_set_by_auto(pll, prate, rate);
 	else if (pll->type == pll_rk3588 || pll->type == pll_rk3588_core)
-		return rockchip_rk3588_pll_clk_set_by_auto(pll, 24 * MHZ, rate);
+		return rockchip_rk3588_pll_clk_set_by_auto(pll, prate, rate);
 	else
-		return rockchip_pll_clk_set_by_auto(pll, 24 * MHZ, rate);
+		return rockchip_pll_clk_set_by_auto(pll, prate, rate);
 }
 
 static long rockchip_pll_round_rate(struct clk_hw *hw,
@@ -688,7 +691,7 @@ static int rockchip_rk3036_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		 __func__, __clk_get_name(hw->clk), drate, prate);
 
 	/* Get required rate settings from table */
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, prate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
 			drate, __clk_get_name(hw->clk));
@@ -745,7 +748,7 @@ static int rockchip_rk3036_pll_init(struct clk_hw *hw)
 		return 0;
 
 	drate = clk_hw_get_rate(hw);
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, 0);
 
 	/* when no rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
@@ -943,7 +946,7 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		 __func__, clk_hw_get_name(hw), old_rate, drate, prate);
 
 	/* Get required rate settings from table */
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, prate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
 			drate, clk_hw_get_name(hw));
@@ -996,7 +999,7 @@ static int rockchip_rk3066_pll_init(struct clk_hw *hw)
 		return 0;
 
 	drate = clk_hw_get_rate(hw);
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, 0);
 
 	/* when no rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
@@ -1211,7 +1214,7 @@ static int rockchip_rk3399_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		 __func__, __clk_get_name(hw->clk), old_rate, drate, prate);
 
 	/* Get required rate settings from table */
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, prate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
 			drate, __clk_get_name(hw->clk));
@@ -1264,7 +1267,7 @@ static int rockchip_rk3399_pll_init(struct clk_hw *hw)
 		return 0;
 
 	drate = clk_hw_get_rate(hw);
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, 0);
 
 	/* when no rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
@@ -1501,7 +1504,7 @@ static int rockchip_rk3588_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		 __func__, __clk_get_name(hw->clk), old_rate, drate, prate);
 
 	/* Get required rate settings from table */
-	rate = rockchip_get_pll_settings(pll, drate);
+	rate = rockchip_get_pll_settings(pll, drate, prate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
 			drate, __clk_get_name(hw->clk));
