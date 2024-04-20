@@ -14,8 +14,9 @@
 #include "rknpu_reset.h"
 #include "rknpu_gem.h"
 #include "rknpu_fence.h"
-#include "rknpu_job.h"
 #include "rknpu_mem.h"
+#include "rknpu_iommu.h"
+#include "rknpu_job.h"
 
 #define _REG_READ(base, offset) readl(base + (offset))
 #define _REG_WRITE(base, value, offset) writel(value, base + (offset))
@@ -144,6 +145,7 @@ static inline struct rknpu_job *rknpu_job_alloc(struct rknpu_device *rknpu_dev,
 			    ((args->core_mask & RKNPU_CORE2_MASK) >> 2);
 	atomic_set(&job->run_count, job->use_core_num);
 	atomic_set(&job->interrupt_count, job->use_core_num);
+	job->iommu_domain_id = args->iommu_domain_id;
 	for (i = 0; i < rknpu_dev->config->num_irqs; i++)
 		atomic_set(&job->submit_count[i], 0);
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
@@ -208,8 +210,9 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 					(elapse_time_us < args->timeout * 1000);
 			spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 			LOG_ERROR(
-				"job: %p, wait_count: %d, continue wait: %d, commit elapse time: %lldus, wait time: %lldus, timeout: %uus\n",
-				job, wait_count, continue_wait,
+				"job: %p, iommu domain id: %d, wait_count: %d, continue wait: %d, commit elapse time: %lldus, wait time: %lldus, timeout: %uus\n",
+				job, job->iommu_domain_id, wait_count,
+				continue_wait,
 				(job->hw_commit_time == 0 ? 0 : elapse_time_us),
 				ktime_us_delta(ktime_get(), job->timestamp),
 				args->timeout * 1000);
@@ -839,6 +842,8 @@ int rknpu_submit_ioctl(struct drm_device *dev, void *data,
 {
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev->dev);
 	struct rknpu_submit *args = data;
+
+	rknpu_iommu_switch_domain(rknpu_dev, args->iommu_domain_id);
 
 	return rknpu_submit(rknpu_dev, args);
 }

@@ -616,7 +616,8 @@ static void rknpu_gem_free_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 						 unsigned int flags,
 						 unsigned long size,
-						 unsigned long sram_size)
+						 unsigned long sram_size,
+						 int iommu_domain_id)
 {
 	struct rknpu_device *rknpu_dev = drm->dev_private;
 	struct rknpu_gem_object *rknpu_obj = NULL;
@@ -629,6 +630,13 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 	}
 
 	remain_ddr_size = round_up(size, PAGE_SIZE);
+
+	rknpu_obj = rknpu_gem_init(drm, remain_ddr_size);
+	if (IS_ERR(rknpu_obj))
+		return rknpu_obj;
+
+	if (!rknpu_iommu_switch_domain(rknpu_dev, iommu_domain_id))
+		rknpu_obj->iommu_domain_id = iommu_domain_id;
 
 	if (!rknpu_dev->iommu_en && (flags & RKNPU_MEM_NON_CONTIGUOUS)) {
 		/*
@@ -647,10 +655,6 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 
 		if (sram_size != 0)
 			sram_size = round_up(sram_size, PAGE_SIZE);
-
-		rknpu_obj = rknpu_gem_init(drm, remain_ddr_size);
-		if (IS_ERR(rknpu_obj))
-			return rknpu_obj;
 
 		/* set memory type and cache attribute from user side. */
 		rknpu_obj->flags = flags;
@@ -688,15 +692,9 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 	} else if (IS_ENABLED(CONFIG_NO_GKI) &&
 		   (flags & RKNPU_MEM_TRY_ALLOC_NBUF) &&
 		   rknpu_dev->nbuf_size > 0) {
-		size_t nbuf_size = 0;
-
-		rknpu_obj = rknpu_gem_init(drm, remain_ddr_size);
-		if (IS_ERR(rknpu_obj))
-			return rknpu_obj;
-
-		nbuf_size = remain_ddr_size <= rknpu_dev->nbuf_size ?
-				    remain_ddr_size :
-				    rknpu_dev->nbuf_size;
+		size_t nbuf_size = remain_ddr_size <= rknpu_dev->nbuf_size ?
+					   remain_ddr_size :
+					   rknpu_dev->nbuf_size;
 
 		/* set memory type and cache attribute from user side. */
 		rknpu_obj->flags = flags;
@@ -713,10 +711,6 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 	}
 
 	if (remain_ddr_size > 0) {
-		rknpu_obj = rknpu_gem_init(drm, remain_ddr_size);
-		if (IS_ERR(rknpu_obj))
-			return rknpu_obj;
-
 		/* set memory type and cache attribute from user side. */
 		rknpu_obj->flags = flags;
 
@@ -725,13 +719,12 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 			goto gem_release;
 	}
 
-	if (rknpu_obj)
-		LOG_DEBUG(
-			"created dma addr: %pad, cookie: %p, ddr size: %lu, sram size: %lu, nbuf size: %lu, attrs: %#lx, flags: %#x\n",
-			&rknpu_obj->dma_addr, rknpu_obj->cookie,
-			rknpu_obj->size, rknpu_obj->sram_size,
-			rknpu_obj->nbuf_size, rknpu_obj->dma_attrs,
-			rknpu_obj->flags);
+	LOG_DEBUG(
+		"created dma addr: %pad, cookie: %p, ddr size: %lu, sram size: %lu, nbuf size: %lu, attrs: %#lx, flags: %#x, iommu domain id: %d\n",
+		&rknpu_obj->dma_addr, rknpu_obj->cookie, rknpu_obj->size,
+		rknpu_obj->sram_size, rknpu_obj->nbuf_size,
+		rknpu_obj->dma_attrs, rknpu_obj->flags,
+		rknpu_obj->iommu_domain_id);
 
 	return rknpu_obj;
 
@@ -749,11 +742,14 @@ gem_release:
 void rknpu_gem_object_destroy(struct rknpu_gem_object *rknpu_obj)
 {
 	struct drm_gem_object *obj = &rknpu_obj->base;
+	struct rknpu_device *rknpu_dev = obj->dev->dev_private;
 
 	LOG_DEBUG(
 		"destroy dma addr: %pad, cookie: %p, size: %lu, attrs: %#lx, flags: %#x, handle count: %d\n",
 		&rknpu_obj->dma_addr, rknpu_obj->cookie, rknpu_obj->size,
 		rknpu_obj->dma_attrs, rknpu_obj->flags, obj->handle_count);
+
+	rknpu_iommu_switch_domain(rknpu_dev, rknpu_obj->iommu_domain_id);
 
 	/*
 	 * do not release memory region from exporter.
@@ -767,8 +763,6 @@ void rknpu_gem_object_destroy(struct rknpu_gem_object *rknpu_obj)
 	} else {
 		if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) &&
 		    rknpu_obj->sram_size > 0) {
-			struct rknpu_device *rknpu_dev = obj->dev->dev_private;
-
 			if (rknpu_obj->sram_obj != NULL)
 				rknpu_mm_free(rknpu_dev->sram_mm,
 					      rknpu_obj->sram_obj);
@@ -786,7 +780,7 @@ void rknpu_gem_object_destroy(struct rknpu_gem_object *rknpu_obj)
 	rknpu_gem_release(rknpu_obj);
 }
 
-int rknpu_gem_create_ioctl(struct drm_device *dev, void *data,
+int rknpu_gem_create_ioctl(struct drm_device *drm, void *data,
 			   struct drm_file *file_priv)
 {
 	struct rknpu_mem_create *args = data;
@@ -795,8 +789,9 @@ int rknpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	rknpu_obj = rknpu_gem_object_find(file_priv, args->handle);
 	if (!rknpu_obj) {
-		rknpu_obj = rknpu_gem_object_create(
-			dev, args->flags, args->size, args->sram_size);
+		rknpu_obj = rknpu_gem_object_create(drm, args->flags,
+						    args->size, args->sram_size,
+						    args->iommu_domain_id);
 		if (IS_ERR(rknpu_obj))
 			return PTR_ERR(rknpu_obj);
 
@@ -832,15 +827,18 @@ int rknpu_gem_map_ioctl(struct drm_device *dev, void *data,
 #endif
 }
 
-int rknpu_gem_destroy_ioctl(struct drm_device *dev, void *data,
+int rknpu_gem_destroy_ioctl(struct drm_device *drm, void *data,
 			    struct drm_file *file_priv)
 {
+	struct rknpu_device *rknpu_dev = drm->dev_private;
 	struct rknpu_gem_object *rknpu_obj = NULL;
 	struct rknpu_mem_destroy *args = data;
 
 	rknpu_obj = rknpu_gem_object_find(file_priv, args->handle);
 	if (!rknpu_obj)
 		return -EINVAL;
+
+	rknpu_iommu_switch_domain(rknpu_dev, rknpu_obj->iommu_domain_id);
 
 	// rknpu_gem_object_put(&rknpu_obj->base);
 
@@ -1045,7 +1043,7 @@ int rknpu_gem_dumb_create(struct drm_file *file_priv, struct drm_device *drm,
 	else
 		flags = RKNPU_MEM_CONTIGUOUS | RKNPU_MEM_WRITE_COMBINE;
 
-	rknpu_obj = rknpu_gem_object_create(drm, flags, args->size, 0);
+	rknpu_obj = rknpu_gem_object_create(drm, flags, args->size, 0, 0);
 	if (IS_ERR(rknpu_obj)) {
 		LOG_DEV_ERROR(drm->dev, "gem object allocate failed.\n");
 		return PTR_ERR(rknpu_obj);

@@ -17,8 +17,8 @@
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
 
-int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
-			   struct file *file)
+int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
+			   unsigned int cmd, unsigned long data)
 {
 	struct rknpu_mem_create args;
 	int ret = -EINVAL;
@@ -33,13 +33,19 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 	struct rknpu_session *session = NULL;
 	int i, fd;
 	unsigned int length, page_count;
+	unsigned int in_size = _IOC_SIZE(cmd);
+	unsigned int k_size = sizeof(struct rknpu_mem_create);
+	char *k_data = (char *)&args;
 
 	if (unlikely(copy_from_user(&args, (struct rknpu_mem_create *)data,
-				    sizeof(struct rknpu_mem_create)))) {
+				    in_size))) {
 		LOG_ERROR("%s: copy_from_user failed\n", __func__);
 		ret = -EFAULT;
 		return ret;
 	}
+
+	if (k_size > in_size)
+		memset(k_data + in_size, 0, k_size - in_size);
 
 	if (args.flags & RKNPU_MEM_NON_CONTIGUOUS) {
 		LOG_ERROR("%s: malloc iommu memory unsupported in current!\n",
@@ -147,7 +153,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 		(__u64)rknpu_obj->dma_addr);
 
 	if (unlikely(copy_to_user((struct rknpu_mem_create *)data, &args,
-				  sizeof(struct rknpu_mem_create)))) {
+				  in_size))) {
 		LOG_ERROR("%s: copy_to_user failed\n", __func__);
 		ret = -EFAULT;
 		goto err_unmap_kv_addr;
@@ -194,8 +200,8 @@ err_free_obj:
 	return ret;
 }
 
-int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
-			    struct file *file)
+int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
+			    unsigned long data)
 {
 	struct rknpu_mem_object *rknpu_obj, *entry, *q;
 	struct rknpu_session *session = NULL;
