@@ -37,10 +37,10 @@ struct rknpu_mem_object {
 	unsigned int owner;
 };
 
-int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
-			   struct file *file);
-int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
-			    struct file *file);
+int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
+			   unsigned int cmd, unsigned long data);
+int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
+			    unsigned long data);
 int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data);
 
 #endif
