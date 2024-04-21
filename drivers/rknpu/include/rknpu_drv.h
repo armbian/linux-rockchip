@@ -29,10 +29,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20240226"
+#define DRIVER_DATE "20240322"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 5
+#define DRIVER_PATCHLEVEL 6
 
 #define LOG_TAG "RKNPU"
 
@@ -52,6 +52,8 @@
 #define LOG_DEV_WARN(dev, fmt, args...) dev_warn(dev, LOG_TAG ": " fmt, ##args)
 #define LOG_DEV_DEBUG(dev, fmt, args...) dev_dbg(dev, LOG_TAG ": " fmt, ##args)
 #define LOG_DEV_ERROR(dev, fmt, args...) dev_err(dev, LOG_TAG ": " fmt, ##args)
+
+#define RKNPU_MAX_IOMMU_DOMAIN_NUM 16
 
 struct rknpu_irqs_data {
 	const char *name;
@@ -120,6 +122,7 @@ struct rknpu_device {
 	spinlock_t irq_lock;
 	struct mutex power_lock;
 	struct mutex reset_lock;
+	struct mutex domain_lock;
 	struct rknpu_subcore_data subcore_datas[RKNPU_MAX_CORES];
 	const struct rknpu_config *config;
 	void __iomem *bw_priority_base;
@@ -163,6 +166,10 @@ struct rknpu_device {
 	void __iomem *nbuf_base_io;
 	struct rknpu_mm *sram_mm;
 	unsigned long power_put_delay;
+	struct iommu_group *iommu_group;
+	int iommu_domain_num;
+	int iommu_domain_id;
+	struct iommu_domain *iommu_domains[RKNPU_MAX_IOMMU_DOMAIN_NUM];
 };
 
 struct rknpu_session {

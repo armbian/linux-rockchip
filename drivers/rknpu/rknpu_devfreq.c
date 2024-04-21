@@ -75,6 +75,25 @@ static struct devfreq_governor devfreq_rknpu_ondemand = {
 	.event_handler = devfreq_rknpu_ondemand_handler,
 };
 
+static int rk3576_npu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      u32 rm)
+{
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+
+	if (rm == opp_info->current_rm || rm == UINT_MAX)
+		return 0;
+
+	LOG_DEV_DEBUG(dev, "set rm to %d\n", rm);
+
+	regmap_write(opp_info->grf, 0x08, 0x001c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x0c, 0x003c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x10, 0x001c0000 | (rm << 2));
+
+	return 0;
+}
+
 static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 				   int *bin, int *process)
 {
@@ -213,6 +232,14 @@ static int npu_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 }
 #endif
 
+static const struct rockchip_opp_data rk3576_npu_opp_data = {
+	.set_read_margin = rk3576_npu_set_read_margin,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	.config_regulators = npu_opp_config_regulators,
+	.config_clks = npu_opp_config_clks,
+#endif
+};
+
 static const struct rockchip_opp_data rk3588_npu_opp_data = {
 	.get_soc_info = rk3588_npu_get_soc_info,
 	.set_soc_info = rk3588_npu_set_soc_info,
@@ -224,6 +251,10 @@ static const struct rockchip_opp_data rk3588_npu_opp_data = {
 };
 
 static const struct of_device_id rockchip_npu_of_match[] = {
+	{
+		.compatible = "rockchip,rk3576",
+		.data = (void *)&rk3576_npu_opp_data,
+	},
 	{
 		.compatible = "rockchip,rk3588",
 		.data = (void *)&rk3588_npu_opp_data,

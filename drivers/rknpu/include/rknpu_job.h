@@ -48,6 +48,7 @@ struct rknpu_job {
 	ktime_t hw_recoder_time;
 	ktime_t hw_elapse_time;
 	atomic_t submit_count[RKNPU_MAX_CORES];
+	int iommu_domain_id;
 };
 
 irqreturn_t rknpu_core0_irq_handler(int irq, void *data);
