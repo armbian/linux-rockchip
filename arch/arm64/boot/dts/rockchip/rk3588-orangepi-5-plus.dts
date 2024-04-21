@@ -320,8 +320,3 @@
 	assigned-clock-rates = <200000000>;
 	num-cs = <2>;
 };
-/*** 40 pins ***/
-
-&hdmirx_ctrler {
-	status = "okay";
-};
