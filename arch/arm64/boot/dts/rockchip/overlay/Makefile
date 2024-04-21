@@ -63,6 +63,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	khadas-edge2-cam2.dtbo \
 	khadas-edge2-cam3.dtbo \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
+	rockchip-rk3588-panthor-gpu.dtbo \
 	rk3588-can0-m0.dtbo \
 	rk3588-can1-m0.dtbo \
 	rk3588-can1-m1.dtbo \
