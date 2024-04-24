@@ -459,6 +459,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l1>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l2: cpu@200 {
@@ -477,6 +478,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l2>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l3: cpu@300 {
@@ -495,6 +497,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l3>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_b0: cpu@400 {
@@ -533,6 +536,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b1>;
+			dynamic-power-coefficient = <300>;
 		};
 
 		cpu_b2: cpu@600 {
@@ -571,6 +575,7 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b3>;
+			dynamic-power-coefficient = <300>;
 		};
 
 		idle-states {
