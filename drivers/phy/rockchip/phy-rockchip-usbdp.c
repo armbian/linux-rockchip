@@ -1014,14 +1014,9 @@ static int rk_udphy_power_on(struct rk_udphy *udphy, u8 mode)
 		ret = rk_udphy_setup(udphy);
 		if (ret)
 			return ret;
-
-		if (udphy->mode & UDPHY_MODE_USB)
-			rk_udphy_u3_port_disable(udphy, false);
 	} else if (udphy->mode_change) {
 		udphy->mode_change = false;
 		udphy->status = UDPHY_MODE_NONE;
-		if (udphy->mode == UDPHY_MODE_DP)
-			rk_udphy_u3_port_disable(udphy, true);
 
 		rk_udphy_disable(udphy);
 		ret = rk_udphy_setup(udphy);
