@@ -44,6 +44,10 @@ void rkpm_uart_debug_save(void __iomem *base,
 {
 	u32 wait_cnt = 50000;
 
+	/* Saved the uart registers before and don't need to save again */
+	if (ctx->uart_dll || ctx->uart_dlh)
+		return;
+
 	while ((readl_relaxed(base + UARTUSR) & UARTUSR_BUSY) &&
 	       --wait_cnt)
 		rkpm_raw_udelay(10);
