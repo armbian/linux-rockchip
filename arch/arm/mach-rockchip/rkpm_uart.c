@@ -29,7 +29,7 @@ void rkpm_uart_debug_init(void __iomem *base,
 		       base + UARTSRR);
 	rkpm_raw_udelay(10);
 
-	writel_relaxed(DIAGNOSTIC_MODE, base + UARTMCR);
+	writel_relaxed(UART_MCR_LOOP, base + UARTMCR);
 	writel_relaxed(0x83, base + UARTLCR);
 	writel_relaxed(uart_dll, base + UARTDLL);
 	writel_relaxed(uart_dlh, base + UARTDLLM);
@@ -43,18 +43,28 @@ void rkpm_uart_debug_save(void __iomem *base,
 			  struct uart_debug_ctx *ctx)
 {
 	u32 wait_cnt = 50000;
+	u32 uart_mcr;
 
 	/* Saved the uart registers before and don't need to save again */
 	if (ctx->uart_dll || ctx->uart_dlh)
 		return;
 
+	uart_mcr = readl_relaxed(base + UARTMCR);
+	writel_relaxed(uart_mcr | UART_MCR_LOOP, base + UARTMCR);
+
 	while ((readl_relaxed(base + UARTUSR) & UARTUSR_BUSY) &&
 	       --wait_cnt)
 		rkpm_raw_udelay(10);
 
+	writel_relaxed(uart_mcr, base + UARTMCR);
+
 	/* Uart error! Unlikely to reach here */
-	if (wait_cnt == 0)
+	if (wait_cnt == 0) {
+		rkpm_printstr("uart always busy, recover to default baudrate:");
+		rkpm_printdec(UART_DEFAULT_BAUDRATE);
+		rkpm_printstr("!!!\n");
 		rkpm_uart_debug_init(base, 24000000, UART_DEFAULT_BAUDRATE);
+	}
 
 	ctx->uart_lcr = readl_relaxed(base + UARTLCR);
 	ctx->uart_ier = readl_relaxed(base + UARTIER);
@@ -68,18 +78,23 @@ void rkpm_uart_debug_save(void __iomem *base,
 void rkpm_uart_debug_restore(void __iomem *base,
 			     struct uart_debug_ctx *ctx)
 {
-	u32 uart_lcr;
+	u32 uart_lcr, uart_mcr;
 	u32 wait_cnt = 560;
+
+	uart_mcr = readl_relaxed(base + UARTMCR);
+	writel_relaxed(uart_mcr | UART_MCR_LOOP, base + UARTMCR);
 
 	while ((readl_relaxed(base + UARTUSR) & UARTUSR_BUSY) &&
 	       --wait_cnt)
 		rkpm_raw_udelay(10);
 
+	writel_relaxed(uart_mcr, base + UARTMCR);
+
 	writel_relaxed(XMIT_FIFO_RESET | RCVR_FIFO_RESET | UART_RESET,
 		       base + UARTSRR);
 	rkpm_raw_udelay(10);
 	uart_lcr = readl_relaxed(base + UARTLCR);
-	writel_relaxed(DIAGNOSTIC_MODE, base + UARTMCR);
+	writel_relaxed(UART_MCR_LOOP, base + UARTMCR);
 	writel_relaxed(uart_lcr | UARTLCR_DLAB, base + UARTLCR);
 	writel_relaxed(ctx->uart_dll, base + UARTDLL);
 	writel_relaxed(ctx->uart_dlh, base + UARTDLLM);

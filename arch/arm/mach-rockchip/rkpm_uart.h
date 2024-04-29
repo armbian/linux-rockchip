@@ -25,7 +25,7 @@
 
 #define UARTUSR				0x7c
 #define UARTSRR				0x88
-#define DIAGNOSTIC_MODE			BIT(4)
+#define UART_MCR_LOOP			BIT(4)
 #define UART_RESET			BIT(0)
 #define RCVR_FIFO_RESET			BIT(1)
 #define XMIT_FIFO_RESET			BIT(2)
