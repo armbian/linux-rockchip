@@ -590,16 +590,6 @@
 &display_subsystem {
 	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
 	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
-	route {
-		route_hdmi1: route-hdmi1 {
-			status = "okay";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vp0_out_hdmi1>;
-		};
-	};
 };
 
 &hdptxphy_hdmi_clk0 {
@@ -618,11 +608,11 @@
 };
 
 &hdmi1_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi1_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &hdmi1_in_vp2 {
@@ -681,26 +671,22 @@
 /* vp0 & vp1 splice for 8K output */
 &vp0 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER0>;
-	cursor-win-id = <ROCKCHIP_VOP2_ESMART0>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
 };
 
 &vp1 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER1>;
-	cursor-win-id = <ROCKCHIP_VOP2_ESMART1>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
 };
 
 &vp2 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER2>;
-	cursor-win-id = <ROCKCHIP_VOP2_ESMART2>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART2>;
 };
 
 &vp3 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
-	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART3>;
 };
 
 &u2phy2 {
@@ -881,13 +867,8 @@
 	status = "okay";
 };
 
-&dp0_in_vp1 {
+&dp0_in_vp0 {
 	status = "okay";
-};
-
-&route_dp0 {
-	status = "okay";
-	connect = <&vp1_out_dp0>;
 };
 
 &dp1 {
@@ -899,11 +880,6 @@
 
 &dp1_in_vp2 {
 	status = "okay";
-};
-
-&route_dp1 {
-	status = "okay";
-	connect = <&vp2_out_dp1>;
 };
 
 &u2phy1 {
@@ -1045,7 +1021,7 @@
 	es8316: es8316@11 {
 		compatible = "everest,es8316";
 		reg = <0x11>;
-		clocks = <&cru I2S0_8CH_MCLKOUT>;
+		clocks = <&mclkout_i2s0>;
 		clock-names = "mclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
