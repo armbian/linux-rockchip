@@ -1018,6 +1018,15 @@ static int rk_udphy_power_on(struct rk_udphy *udphy, u8 mode)
 		udphy->mode_change = false;
 		udphy->status = UDPHY_MODE_NONE;
 
+		/*
+		 * For DP 4xlanes + USB2 only scenario, it needs to
+		 * select utmi clock from the USB2 PHY for the USB
+		 * controller source clock, then it can safely disable
+		 * the USBDP PHY later to reconfigure lanes for DP.
+		 */
+		if (udphy->mode == UDPHY_MODE_DP)
+			rk_udphy_u3_port_disable(udphy, true);
+
 		rk_udphy_disable(udphy);
 		ret = rk_udphy_setup(udphy);
 		if (ret)
