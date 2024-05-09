@@ -1,22 +1,126 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+
 / {
 	fragment@0 {
-		target = <&dsi1>;
+		target-path = "/";
+
 		__overlay__ {
-			status = "okay";
+			backlight: backlight {
+				compatible = "pwm-backlight";
+				brightness-levels = <
+					0  20  20  21  21  22  22  23
+					23  24  24  25  25  26  26  27
+					27  28  28  29  29  30  30  31
+					31  32  32  33  33  34  34  35
+					35  36  36  37  37  38  38  39
+					40  41  42  43  44  45  46  47
+					48  49  50  51  52  53  54  55
+					56  57  58  59  60  61  62  63
+					64  65  66  67  68  69  70  71
+					72  73  74  75  76  77  78  79
+					80  81  82  83  84  85  86  87
+					88  89  90  91  92  93  94  95
+					96  97  98  99 100 101 102 103
+					104 105 106 107 108 109 110 111
+					112 113 114 115 116 117 118 119
+					120 121 122 123 124 125 126 127
+					128 129 130 131 132 133 134 135
+					136 137 138 139 140 141 142 143
+					144 145 146 147 148 149 150 151
+					152 153 154 155 156 157 158 159
+					160 161 162 163 164 165 166 167
+					168 169 170 171 172 173 174 175
+					176 177 178 179 180 181 182 183
+					184 185 186 187 188 189 190 191
+					192 193 194 195 196 197 198 199
+					200 201 202 203 204 205 206 207
+					208 209 210 211 212 213 214 215
+					216 217 218 219 220 221 222 223
+					224 225 226 227 228 229 230 231
+					232 233 234 235 236 237 238 239
+					240 241 242 243 244 245 246 247
+					248 249 250 251 252 253 254 255
+				>;
+				default-brightness-level = <200>;
+				pwms = <&pwm6 0 25000 0>;
+				status = "okay";
+			};
 		};
 	};
 
 	fragment@1 {
-		target = <&dsi1_panel>;
+		target = <&dsi1>;
 		__overlay__ {
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mipi_te1>;
+
+			dsi1_panel: panel@0 {
+				status = "okay";
+				compatible = "innolux,afj101-ba2131";
+				reg = <0>;
+				backlight = <&backlight>;
+				reset-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
+				enable-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcd_rst_gpio>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						panel_in_dsi1: endpoint {
+							remote-endpoint = <&dsi1_out_panel>;
+						};
+					};
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi1_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi1>;
+					};
+				};
+			};
 		};
 	};
 
 	fragment@2 {
+		target = <&i2c7>;
+		__overlay__ {
+			status = "okay";
+
+			gt9xx_0: touchscreen@14 {
+				compatible = "goodix,gt9271";
+				reg = <0x14>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+				irq-gpios = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+				reset-gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+				touchscreen-inverted-x;
+				//touchscreen-inverted-y;
+				touchscreen-swapped-x-y;
+				touchscreen-size-x = <1280>;
+				touchscreen-size-y = <800>;
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@3 {
 		target = <&dsi1_in_vp3>;
 		__overlay__ {
 			status = "okay";
