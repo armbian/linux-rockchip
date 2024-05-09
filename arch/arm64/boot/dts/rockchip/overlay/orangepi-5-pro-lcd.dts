@@ -120,7 +120,7 @@
 		};
 	};
 
-	fragment@2 {
+	fragment@3 {
 		target = <&dsi1_in_vp3>;
 		__overlay__ {
 			status = "okay";
