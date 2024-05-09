@@ -1628,6 +1628,19 @@ static void rk628_csi_reset_rkcif(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s, get remote rkcif failed\n", __func__);
 	}
 }
+
+static void rk628_csi_signal_rkcif_fence(struct v4l2_subdev *sd)
+{
+	struct video_device *vdev = NULL;
+
+	rk628_get_remote_dev(&sd->entity, &vdev);
+	if (vdev != NULL) {
+		rkcif_external_fence_signal(vdev);
+		v4l2_dbg(1, debug, sd, "%s, signal fence\n", __func__);
+	} else {
+		v4l2_dbg(1, debug, sd, "%s, signal fence failed\n", __func__);
+	}
+}
 #endif
 
 static void rk628_csi_enable_csi_interrupts(struct v4l2_subdev *sd, bool en)
@@ -1883,6 +1896,9 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 			enable_stream(sd, false);
 		csi->nosignal = true;
 		v4l2_event_queue(sd->devnode, &evt_signal_lost);
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+		rk628_csi_signal_rkcif_fence(sd);
+#endif
 		schedule_delayed_work(&csi->delayed_work_res_change, msecs_to_jiffies(100));
 
 		v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
@@ -3162,6 +3178,11 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 	/* control hpd after 50ms */
 	schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	v4l2_event_queue(sd->devnode, &evt_signal_lost);
+
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+	if (!tx_5v_power_present(sd))
+		rk628_csi_signal_rkcif_fence(sd);
+#endif
 
 	return IRQ_HANDLED;
 }
