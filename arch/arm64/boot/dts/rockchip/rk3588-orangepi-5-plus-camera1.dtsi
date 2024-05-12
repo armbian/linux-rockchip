@@ -4,6 +4,10 @@
  *
  */
 
+&mipi_dcphy0 {
+    status = "okay";
+};
+
 &csi2_dphy0_hw {
 	status = "disabled";
 };
@@ -139,6 +143,14 @@
 	};
 };
 
+&rkcif {
+    status = "okay";
+};
+
+&rkcif_mmu {
+    status = "okay";
+};
+
 &rkcif_mipi_lvds2 {
 	status = "disabled";
 	port {
@@ -155,6 +167,14 @@
 			remote-endpoint = <&isp0_vir1>;
 		};
 	};
+};
+
+&rkisp0 {
+    status = "okay";
+};
+
+&isp0_mmu {
+    status = "okay";
 };
 
 &rkisp0_vir1 {
