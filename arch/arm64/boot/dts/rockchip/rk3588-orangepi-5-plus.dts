@@ -462,7 +462,7 @@
 
 /* Should work with at least 128MB cma reserved above. */
 &hdmirx_ctrler {
-    status = "okay";
+    status = "disabled";
 
     #sound-dai-cells = <1>;
     /* Effective level used to trigger HPD: 0-low, 1-high */
