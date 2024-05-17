@@ -330,6 +330,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-rk628-hdmi2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-armsom-sige7.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-armsom-w3.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-firefly-itx-3588j.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-fxblox-rk1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-hinlink-h88k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-cm3588-nas.dtb
