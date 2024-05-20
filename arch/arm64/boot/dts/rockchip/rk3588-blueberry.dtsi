@@ -80,6 +80,10 @@
 	};
 };
 
+&av1d {
+	status = "okay";
+};
+
 &av1d_mmu {
 	status = "okay";
 };
