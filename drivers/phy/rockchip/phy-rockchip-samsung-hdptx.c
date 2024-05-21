@@ -335,6 +335,13 @@ enum dp_link_rate {
 	DP_BW_HBR2,
 };
 
+enum dp_extra_link_rate {
+	EDP_BW_2_16,
+	EDP_BW_2_43,
+	EDP_BW_3_24,
+	EDP_BW_4_32,
+};
+
 struct lcpll_config {
 	unsigned long long rate;
 	u8 lcvco_mode_en;
@@ -827,6 +834,19 @@ static const struct reg_sequence rk_hdptx_tmds_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(061e), 0x0a),
 };
 
+struct tx_pll_ctrl {
+	u8 mdiv;
+	u8 sdiv;
+	u8 sdm_denominator;
+	u8 sdm_numerator_sign;
+	u8 sdm_numerator;
+	u8 sdc_clock_div;
+	u8 sdc_numerator;
+	u8 sdc_denominator;
+	u8 ssc_deviation;
+	u8 ssc_freq;
+} __packed;
+
 static struct tx_drv_ctrl tx_drv_ctrl_rbr[4][4] = {
 	/* voltage swing 0, pre-emphasis 0->3 */
 	{
@@ -909,6 +929,98 @@ static struct tx_drv_ctrl tx_drv_ctrl_hbr2[4][4] = {
 	{
 		{ 0xb, 0x0, 0x7, 0x7, 0x1, 0x4, 0x1, 0x1, 0x7, 0x7 },
 	}
+};
+
+static struct tx_drv_ctrl tx_drv_ctrl_r216_r243[4][4] = {
+	/* voltage swing 0, pre-emphasis 0->3 */
+	{
+		{ 0x0, 0x1, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x1, 0x2, 0x4, 0x4, 0x0, 0x4, 0x1, 0x1, 0x7, 0x7 },
+		{ 0x1, 0x3, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x3, 0x5, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 1, pre-emphasis 0->2 */
+	{
+		{ 0x1, 0x1, 0x4, 0x4, 0x0, 0x4, 0x1, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x3, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x3, 0x4, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 2, pre-emphasis 0->1 */
+	{
+		{ 0x1, 0x1, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x1, 0x2, 0x7, 0x7, 0x1, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 3, pre-emphasis 0 */
+	{
+		{ 0x3, 0x2, 0x2, 0x2, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+	}
+};
+
+static struct tx_drv_ctrl tx_drv_ctrl_r324[4][4] = {
+	/* voltage swing 0, pre-emphasis 0->3 */
+	{
+		{ 0x1, 0x2, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x3, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x4, 0x5, 0x5, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x4, 0x6, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 1, pre-emphasis 0->2 */
+	{
+		{ 0x2, 0x2, 0x4, 0x4, 0x0, 0x4, 0x1, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x3, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x4, 0x5, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 2, pre-emphasis 0->1 */
+	{
+		{ 0x2, 0x2, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x4, 0x4, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 3, pre-emphasis 0 */
+	{
+		{ 0x3, 0x2, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+	}
+};
+
+static struct tx_drv_ctrl tx_drv_ctrl_r432[4][4] = {
+	/* voltage swing 0, pre-emphasis 0->3 */
+	{
+		{ 0x1, 0x2, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x3, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x2, 0x4, 0x6, 0x6, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x4, 0x6, 0x6, 0x6, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 1, pre-emphasis 0->2 */
+	{
+		{ 0x2, 0x2, 0x4, 0x4, 0x0, 0x4, 0x1, 0x1, 0x7, 0x7 },
+		{ 0x3, 0x4, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x5, 0x6, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 2, pre-emphasis 0->1 */
+	{
+		{ 0x2, 0x2, 0x4, 0x4, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+		{ 0x4, 0x4, 0x4, 0x4, 0x0, 0x7, 0x0, 0x1, 0x7, 0x7 },
+	},
+
+	/* voltage swing 3, pre-emphasis 0 */
+	{
+		{ 0x5, 0x3, 0x1, 0x1, 0x0, 0x4, 0x0, 0x1, 0x7, 0x7 },
+	}
+};
+
+/* pll configurations for link rate R216/R243/R324/R432 */
+static const struct tx_pll_ctrl tx_pll_ctrl_extra[4] = {
+	{ 0x5a, 0x01, 0x32, 0x00, 0x00, 0x00, 0x01, 0x04, 0x0d, 0x1d }, /* R216 */
+	{ 0x65, 0x01, 0x60, 0x00, 0x10, 0x01, 0x13, 0x18, 0x1c, 0x0d }, /* R243 */
+	{ 0x87, 0x01, 0x21, 0x00, 0x00, 0x02, 0x03, 0x08, 0x0d, 0x1c }, /* R324 */
+	{ 0x5a, 0x00, 0x32, 0x00, 0x00, 0x01, 0x01, 0x01, 0x0e, 0x1a }, /* R432 */
 };
 
 static bool rk_hdptx_phy_is_rw_reg(struct device *dev, unsigned int reg)
@@ -1814,7 +1926,11 @@ static int rk_hdptx_phy_verify_dp_config(struct rk_hdptx_phy *hdptx,
 	if (dp->set_rate) {
 		switch (dp->link_rate) {
 		case 1620:
+		case 2160:
+		case 2430:
 		case 2700:
+		case 3240:
+		case 4320:
 		case 5400:
 			break;
 		default:
@@ -1847,10 +1963,24 @@ static int rk_hdptx_phy_verify_dp_config(struct rk_hdptx_phy *hdptx,
 	return 0;
 }
 
+static bool is_extra_recommended_link_rate(u32 link_rate)
+{
+	switch (link_rate) {
+	case 2160:
+	case 2430:
+	case 3240:
+	case 4320:
+		return true;
+	}
+
+	return false;
+}
+
 static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 				 struct phy_configure_opts_dp *dp)
 {
 	u32 bw, status;
+	u32 bw_extra = 0;
 	int ret;
 
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
@@ -1860,8 +1990,24 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 	case 1620:
 		bw = DP_BW_RBR;
 		break;
+	case 2160:
+		bw_extra = EDP_BW_2_16;
+		bw = DP_BW_HBR;
+		break;
+	case 2430:
+		bw_extra = EDP_BW_2_43;
+		bw = DP_BW_HBR;
+		break;
 	case 2700:
 		bw = DP_BW_HBR;
+		break;
+	case 3240:
+		bw_extra = EDP_BW_3_24;
+		bw = DP_BW_HBR2;
+		break;
+	case 4320:
+		bw_extra = EDP_BW_4_32;
+		bw = DP_BW_HBR2;
 		break;
 	case 5400:
 		bw = DP_BW_HBR2;
@@ -1870,6 +2016,59 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 		return -EINVAL;
 	}
 	hdptx->link_rate = dp->link_rate;
+
+	if (is_extra_recommended_link_rate(dp->link_rate)) {
+		const struct tx_pll_ctrl *pll_ctrl = &tx_pll_ctrl_extra[bw_extra];
+
+		regmap_write(hdptx->regmap, CMN_REG(0051) + bw * 0x4,
+			     FIELD_PREP(ROPLL_PMS_MDIV_MASK, pll_ctrl->mdiv));
+		regmap_write(hdptx->regmap, CMN_REG(0060) + bw * 0x4,
+			     FIELD_PREP(ROPLL_SDM_DENOMINATOR_MASK, pll_ctrl->sdm_denominator));
+		regmap_write(hdptx->regmap, CMN_REG(0065) + bw * 0x4,
+			     FIELD_PREP(ROPLL_SDM_NUM_MASK, pll_ctrl->sdm_numerator));
+		regmap_write(hdptx->regmap, CMN_REG(006c) + bw * 0x4,
+			     FIELD_PREP(ROPLL_SDC_NUM_MASK, pll_ctrl->sdc_numerator));
+		regmap_write(hdptx->regmap, CMN_REG(0070) + bw * 0x4,
+			     FIELD_PREP(ROPLL_SDC_DENO_MASK, pll_ctrl->sdc_denominator));
+
+		if (bw == DP_BW_RBR) {
+			regmap_update_bits(hdptx->regmap, CMN_REG(005a),
+					   ROPLL_PMS_SDIV_RBR_MASK,
+					   FIELD_PREP(ROPLL_PMS_SDIV_RBR_MASK, pll_ctrl->sdiv));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0064),
+					   ROPLL_SDM_NUM_SIGN_RBR_MASK,
+					   FIELD_PREP(ROPLL_SDM_NUM_SIGN_RBR_MASK,
+						      pll_ctrl->sdm_numerator_sign));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0069),
+					   ROPLL_SDC_N_RBR_MASK,
+					   FIELD_PREP(ROPLL_SDC_N_RBR_MASK,
+						      pll_ctrl->sdc_clock_div));
+		} else if (bw == DP_BW_HBR) {
+			regmap_update_bits(hdptx->regmap, CMN_REG(005a),
+					   ROPLL_PMS_SDIV_HBR_MASK,
+					   FIELD_PREP(ROPLL_PMS_SDIV_HBR_MASK, pll_ctrl->sdiv));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0064),
+					   ROPLL_SDM_NUM_SIGN_HBR_MASK,
+					   FIELD_PREP(ROPLL_SDM_NUM_SIGN_HBR_MASK,
+						      pll_ctrl->sdm_numerator_sign));
+			regmap_update_bits(hdptx->regmap, CMN_REG(006a),
+					   ROPLL_SDC_N_HBR_MASK,
+					   FIELD_PREP(ROPLL_SDC_N_HBR_MASK,
+						      pll_ctrl->sdc_clock_div));
+		} else {
+			regmap_update_bits(hdptx->regmap, CMN_REG(005b),
+					   ROPLL_PMS_SDIV_HBR2_MASK,
+					   FIELD_PREP(ROPLL_PMS_SDIV_HBR2_MASK, pll_ctrl->sdiv));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0064),
+					   ROPLL_SDM_NUM_SIGN_HBR2_MASK,
+					   FIELD_PREP(ROPLL_SDM_NUM_SIGN_HBR2_MASK,
+						      pll_ctrl->sdm_numerator_sign));
+			regmap_update_bits(hdptx->regmap, CMN_REG(006a),
+					   ROPLL_SDC_N_HBR2_MASK,
+					   FIELD_PREP(ROPLL_SDC_N_HBR2_MASK,
+						      pll_ctrl->sdc_clock_div));
+		}
+	}
 
 	regmap_update_bits(hdptx->regmap, CMN_REG(0008), OVRD_LCPLL_EN_MASK | LCPLL_EN_MASK,
 			   FIELD_PREP(OVRD_LCPLL_EN_MASK, 0x1) |
@@ -1884,12 +2083,23 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 				   OVRD_ROPLL_SSC_EN_MASK | ROPLL_SSC_EN_MASK,
 				   FIELD_PREP(OVRD_ROPLL_SSC_EN_MASK, 0x1) |
 				   FIELD_PREP(ROPLL_SSC_EN_MASK, 0x1));
-		regmap_write(hdptx->regmap, CMN_REG(0075),
-			     FIELD_PREP(ANA_ROPLL_SSC_FM_DEVIATION_MASK, 0xc));
-		regmap_update_bits(hdptx->regmap, CMN_REG(0076),
-				   ANA_ROPLL_SSC_FM_FREQ_MASK,
-				   FIELD_PREP(ANA_ROPLL_SSC_FM_FREQ_MASK, 0x1f));
+		if (is_extra_recommended_link_rate(dp->link_rate)) {
+			const struct tx_pll_ctrl *pll_ctrl = &tx_pll_ctrl_extra[bw_extra];
 
+			regmap_write(hdptx->regmap, CMN_REG(0075),
+				     FIELD_PREP(ANA_ROPLL_SSC_FM_DEVIATION_MASK,
+						pll_ctrl->ssc_deviation));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0076),
+					   ANA_ROPLL_SSC_FM_FREQ_MASK,
+					   FIELD_PREP(ANA_ROPLL_SSC_FM_FREQ_MASK,
+						      pll_ctrl->ssc_freq));
+		} else {
+			regmap_write(hdptx->regmap, CMN_REG(0075),
+				     FIELD_PREP(ANA_ROPLL_SSC_FM_DEVIATION_MASK, 0xc));
+			regmap_update_bits(hdptx->regmap, CMN_REG(0076),
+					   ANA_ROPLL_SSC_FM_FREQ_MASK,
+					   FIELD_PREP(ANA_ROPLL_SSC_FM_FREQ_MASK, 0x1f));
+		}
 		regmap_update_bits(hdptx->regmap, CMN_REG(0099), SSC_EN_MASK,
 				   FIELD_PREP(SSC_EN_MASK, 0x2));
 	} else {
@@ -1980,6 +2190,22 @@ static void rk_hdptx_phy_set_voltage(struct rk_hdptx_phy *hdptx,
 				   LN_TX_SER_40BIT_EN_RBR_MASK,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_RBR_MASK, 0x1));
 		break;
+	case 2160:
+	case 2430:
+		ctrl = &tx_drv_ctrl_r216_r243[dp->voltage[lane]][dp->pre[lane]];
+		regmap_update_bits(hdptx->regmap, LANE_REG(030b) + offset,
+				   LN_TX_JEQ_EVEN_CTRL_HBR_MASK,
+				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR_MASK,
+					      ctrl->tx_jeq_even_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(030d) + offset,
+				   LN_TX_JEQ_ODD_CTRL_HBR_MASK,
+				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_HBR_MASK,
+					      ctrl->tx_jeq_odd_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(0311) + offset,
+				   LN_TX_SER_40BIT_EN_HBR_MASK,
+				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR_MASK, 0x1));
+
+		break;
 	case 2700:
 		ctrl = &tx_drv_ctrl_hbr[dp->voltage[lane]][dp->pre[lane]];
 		regmap_update_bits(hdptx->regmap, LANE_REG(030b) + offset,
@@ -1993,6 +2219,34 @@ static void rk_hdptx_phy_set_voltage(struct rk_hdptx_phy *hdptx,
 		regmap_update_bits(hdptx->regmap, LANE_REG(0311) + offset,
 				   LN_TX_SER_40BIT_EN_HBR_MASK,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR_MASK, 0x1));
+		break;
+	case 3240:
+		ctrl = &tx_drv_ctrl_r324[dp->voltage[lane]][dp->pre[lane]];
+		regmap_update_bits(hdptx->regmap, LANE_REG(030b) + offset,
+				   LN_TX_JEQ_EVEN_CTRL_HBR2_MASK,
+				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR2_MASK,
+					      ctrl->tx_jeq_even_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(030d) + offset,
+				   LN_TX_JEQ_ODD_CTRL_HBR2_MASK,
+				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_HBR2_MASK,
+					      ctrl->tx_jeq_odd_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(0311) + offset,
+				   LN_TX_SER_40BIT_EN_HBR2_MASK,
+				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR2_MASK, 0x1));
+		break;
+	case 4320:
+		ctrl = &tx_drv_ctrl_r432[dp->voltage[lane]][dp->pre[lane]];
+		regmap_update_bits(hdptx->regmap, LANE_REG(030b) + offset,
+				   LN_TX_JEQ_EVEN_CTRL_HBR2_MASK,
+				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR2_MASK,
+					      ctrl->tx_jeq_even_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(030d) + offset,
+				   LN_TX_JEQ_ODD_CTRL_HBR2_MASK,
+				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_HBR2_MASK,
+					      ctrl->tx_jeq_odd_ctrl));
+		regmap_update_bits(hdptx->regmap, LANE_REG(0311) + offset,
+				   LN_TX_SER_40BIT_EN_HBR2_MASK,
+				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR2_MASK, 0x1));
 		break;
 	case 5400:
 	default:
