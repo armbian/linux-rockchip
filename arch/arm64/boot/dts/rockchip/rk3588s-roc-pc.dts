@@ -19,8 +19,6 @@
 #include "rk3588-rk806-single.dtsi"
 #include "rk3588-linux.dtsi"
 
-#define M2_SATA_OR_PCIE 1
-
 / {
 	model = "ROC-RK3588S-PC V12(Linux)";
 	compatible = "firefly,roc-rk3588s-pc", "firefly,station-m3", "rockchip,rk3588";
@@ -1008,19 +1006,11 @@
 	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART3>;
 };
 
-#if M2_SATA_OR_PCIE
-&sata0 {
-	status = "okay";
-    pinctrl-names = "default";
-    pinctrl-0 = <&sata_reset>;
-};
-#else
 &pcie2x1l2 {
 	status = "okay";
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
 };
-#endif
 
 &pinctrl {
 	leds {
@@ -1062,13 +1052,6 @@
 			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-#if M2_SATA_OR_PCIE
-	sata {
-		sata_reset:sata-reset{
-			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-#endif
 };
 
 // for fan when deep sleep
