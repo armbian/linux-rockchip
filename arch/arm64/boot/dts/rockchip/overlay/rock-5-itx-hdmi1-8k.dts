@@ -5,15 +5,20 @@
 / {
 	metadata {
 		title = "Enable 8K output on HDMI1";
-		compatible = "radxa,rock-5b";
+		compatible = "radxa,rock-5-itx";
 		category = "display";
+		exclusive = "dp0", "vp0", "hdmi1";
 		description = "Enable 8K output on HDMI1.
-8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
+This will disable DP0.";
 	};
 };
 
 &route_hdmi1 {
-	connect = <&vp2_out_hdmi1>;
+	connect = <&vp1_out_hdmi1>;
+	status = "okay";
+};
+
+&hdmi1_in_vp0 {
 	status = "okay";
 };
 
@@ -21,17 +26,16 @@
 	status = "disabled";
 };
 
-&hdmi1_in_vp2 {
-	status = "okay";
+&route_dp0 {
+	status = "disabled";
 };
 
-&route_hdmi0 {
-	connect = <&vp0_out_hdmi0>;
-	status = "okay";
+&dp0 {
+	status = "disabled";
 };
 
-&hdmi0_in_vp0 {
-	status = "okay";
+&dp0_in_vp0 {
+	status = "disabled";
 };
 
 &vop {

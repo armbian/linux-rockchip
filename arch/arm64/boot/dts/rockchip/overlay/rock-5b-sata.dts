@@ -7,38 +7,23 @@
 		title = "Enable SATA1";
 		compatible = "radxa,rock-5b";
 		category = "misc";
-		description = "Enable SATA1.\nWhen SATA1 is enabled, PCIe cannot be enabled on the same port.";
+		description = "Enable SATA1.
+When SATA1 is enabled, PCIe cannot be enabled on the same port.";
 	};
+};
 
-	fragment@0 {
-		target = <&wifi_disable>;
+&wifi_disable {
+	status = "disabled";
+};
 
-		__overlay__ {
-			status = "disabled";
-		};
-	};
+&bt_wake {
+	status = "disabled";
+};
 
-	fragment@1 {
-		target = <&bt_wake>;
+&pcie2x1l0 {
+	status = "disabled";
+};
 
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
-	fragment@2 {
-		target = <&pcie2x1l0>;
-
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
-	fragment@3 {
-		target = <&sata1>;
-
-		__overlay__ {
-			status = "okay";
-		};
-	};
+&sata1 {
+	status = "okay";
 };

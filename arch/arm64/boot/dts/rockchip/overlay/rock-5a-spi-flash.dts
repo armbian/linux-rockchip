@@ -1,0 +1,49 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+
+	metadata {
+		title = "Enable SPI flash";
+		compatible = "radxa,rock-5a","radxa,rock-5c";
+		category = "misc";
+		exclusive = "sdhci", "sfc";
+		description = "Enable SPI flash.
+When SPI flash is enabled, eMMC cannot be enabled on the same port.";
+	};
+};
+
+&sfc {
+	status = "okay";
+	max-freq = <50000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspim0_pins>;
+
+	spi_flash: spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		status = "okay";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			loader@0 {
+				label = "loader";
+				reg = <0x0 0x1000000>;
+			};
+		};
+	};
+};
+
+&sdhci {
+	status = "disabled";
+};

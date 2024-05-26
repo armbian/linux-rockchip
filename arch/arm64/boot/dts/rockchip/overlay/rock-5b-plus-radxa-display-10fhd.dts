@@ -5,11 +5,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	metadata {
 		title ="Enable Radxa Display 10FHD";
-		compatible = "radxa,rock-5b";
+		compatible = "radxa,rock-5b-plus";
 		category = "display";
 		exclusive = "dsi1";
 		description = "Enable Radxa Display 10FHD.";
@@ -33,7 +34,7 @@
 	dsi1_backlight: dsi1-backlight {
 		status = "okay";
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 25000 0>;
+		pwms = <&pwm2 0 25000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <
 			0  20  20  21  21  22  22  23
 			23  24  24  25  25  26  26  27
@@ -81,7 +82,7 @@
 	pinctrl-0 = <&pwm2m2_pins>;
 };
 
-&dsi1 {
+&dsi1{
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;

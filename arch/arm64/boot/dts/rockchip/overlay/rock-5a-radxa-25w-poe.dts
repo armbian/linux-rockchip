@@ -1,0 +1,54 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	metadata {
+		title = "Enable Radxa 25W PoE+ HAT";
+		category = "misc";
+		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		description = "Enable Radxa 25W PoE+ HAT.";
+		exclusive = "GPIO1_B3", "GPIO1_B4";
+		package = "rsetup-config-thermal-governor-step-wise";
+	};
+};
+
+&{/} {
+	radxa_pow_w1: radxa-poe-w1 {
+		compatible = "w1-gpio";
+		gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	radxa_poe_pwm: radxa-poe-pwm {
+		compatible = "pwm-gpio";
+		#pwm-cells = <3>;
+		pwm-gpio = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+	};
+
+	radxa_poe_fan: radxa-poe-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-min-state = <0>;
+		cooling-max-state = <4>;
+		cooling-levels = <0 64 128 192 255>;
+		pwms = <&radxa_poe_pwm 0 40000 PWM_POLARITY_INVERTED>;
+	};
+};
+
+&soc_thermal {
+	cooling-maps {
+		map3 {
+			cooling-device = <&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								<&radxa_poe_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+		map4 {
+			cooling-device = <&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								<&radxa_poe_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};

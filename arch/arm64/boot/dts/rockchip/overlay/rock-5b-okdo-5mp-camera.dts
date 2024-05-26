@@ -1,18 +1,26 @@
 /dts-v1/;
 /plugin/;
 
-#include <dt-bindings/clock/rk3588-cru.h>
-#include <dt-bindings/power/rk3588-power.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 / {
 	metadata {
-		title ="Enable Radxa Camera 4K";
-		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		title ="Enable OKDO 5MP Camera";
+		compatible = "radxa,rock-5b";
 		category = "camera";
 		exclusive = "csi2_dphy0";
-		description = "Enable Radxa Camera 4K.";
+		description = "Enable OKDO 5MP Camera.";
+	};
+};
+
+&{/} {
+	clk_cam_25m: external-camera-clock-25m {
+		status = "okay";
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		clock-output-names = "clk_cam_25m";
+		#clock-cells = <0>;
 	};
 };
 
@@ -21,25 +29,22 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	imx415: imx415@1a {
+	ov5647: ov5647@36 {
 		status = "okay";
-		compatible = "sony,imx415";
-		reg = <0x1a>;
-		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipim0_camera2_clk>;
-		power-domains = <&power RK3588_PD_VI>;
-		pwdn-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&clk_cam_25m>;
+		pwdn-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_LOW>;
+		clock-names = "ext_cam_clk";
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "RADXA-CAMERA-4K";
-		rockchip,camera-module-lens-name = "DEFAULT";
+		rockchip,camera-module-name = "OKDO-5MP";
+		rockchip,camera-module-lens-name = "default";
+
 		port {
-			imx415_out0: endpoint {
-				remote-endpoint = <&mipidphy0_in_ucam0>;
-				data-lanes = <1 2 3 4>;
+			ov5647_out0: endpoint {
+				remote-endpoint = <&mipidphy0_in_ucam1>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -61,10 +66,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipidphy0_in_ucam0: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&imx415_out0>;
-				data-lanes = <1 2 3 4>;
+			mipidphy0_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5647_out0>;
+				data-lanes = <1 2>;
 			};
 		};
 
@@ -121,7 +126,7 @@
 
 	port {
 		cif_mipi2_in0: endpoint {
-			remote-endpoint = <&mipi2_csi2_output>;
+		remote-endpoint = <&mipi2_csi2_output>;
 		};
 	};
 };
@@ -158,6 +163,14 @@
 		isp0_vir0: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+&pinctrl {
+	camera {
+		cam_pwdn_gpio: cam-pwdn-gpio {
+			rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

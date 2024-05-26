@@ -4,11 +4,12 @@
 
 / {
 	metadata {
-		title = "Enable 8K output on HDMI1";
-		compatible = "radxa,rock-5b";
+		title = "Enable 8K output on HDMI0";
+		compatible = "radxa,rock-5b-plus";
 		category = "display";
-		description = "Enable 8K output on HDMI1.
-8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
+		exclusive = "vp0", "hdmi0";
+		description = "Enable 8K output on HDMI0.
+8K cannot be enabled on HDMI0 and HDMI1 at the same time.";
 	};
 };
 

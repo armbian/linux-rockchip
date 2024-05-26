@@ -6,63 +6,66 @@
 
 / {
 	metadata {
-		title ="Enable Raspberry Pi Camera V2";
-		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		title ="Enable Radxa Camera 8M 219 on CAM1";
+		compatible = "radxa,rock-5-itx";
 		category = "camera";
-		exclusive = "csi2_dphy0";
-		description = "Enable Raspberry Pi Camera V2.";
+		exclusive = "csi2_dphy3";
+		description = "Enable Radxa Camera 8M 219 on CAM1.";
 	};
 };
 
 &{/} {
-	camera_pwdn_gpio: camera-pwdn-gpio {
+	camera_pwdn_gpio_1: camera-pwdn-gpio-1 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_pwdn_gpio";
+		regulator-name = "camera_pwdn_gpio_1";
 		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
-		gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cam_pwdn_gpio>;
+		pinctrl-0 = <&cam_pwdn_gpio_1>;
 	};
 
-	clk_cam_24m: external-camera-clock-24m {
+	clk_cam_24m_1: external-camera-clock-24m-1 {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
-		clock-output-names = "clk_cam_24m";
+		clock-output-names = "clk_cam_24m_1";
 		#clock-cells = <0>;
 	};
 };
 
-&i2c3 {
+&i2c7 {
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 
-	camera_imx219: camera-imx219@10 {
+	imx219_1: imx219-1@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		clocks = <&clk_cam_24m>;
+		clocks = <&clk_cam_24m_1>;
 		clock-names = "xvclk";
 
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "rpi-camera-v2";
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "RADXA-CAMERA-8M";
 		rockchip,camera-module-lens-name = "default";
 
+
 		port {
-			imx219_out0: endpoint {
-				remote-endpoint = <&mipidphy0_in_ucam1>;
+			imx219_out1: endpoint {
+				remote-endpoint = <&mipidphy1_in_ucam1>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 };
 
-&csi2_dphy0_hw {
+&csi2_dphy1_hw {
 	status = "okay";
 };
 
-&csi2_dphy0 {
+&csi2_dphy3 {
 	status = "okay";
 
 	ports {
@@ -74,41 +77,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipidphy0_in_ucam1: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&imx219_out0>;
-				data-lanes = <1 2>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			csidphy0_out: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&mipi2_csi2_input>;
-			};
-		};
-	};
-};
-
-&mipi2_csi2 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi2_csi2_input: endpoint@1 {
+			mipidphy1_in_ucam1: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&csidphy0_out>;
+				remote-endpoint = <&imx219_out1>;
+				data-lanes = <1 2>;
 			};
 		};
 
@@ -117,9 +89,40 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi2_csi2_output: endpoint@0 {
+			csidphy4_out: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&cif_mipi2_in0>;
+				remote-endpoint = <&mipi4_csi2_input_1>;
+			};
+		};
+	};
+};
+
+&mipi4_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input_1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy4_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output_1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in1>;
 			};
 		};
 	};
@@ -129,22 +132,22 @@
 	status = "okay";
 };
 
-&rkcif_mipi_lvds2 {
+&rkcif_mipi_lvds4 {
 	status = "okay";
 
 	port {
-		cif_mipi2_in0: endpoint {
-		remote-endpoint = <&mipi2_csi2_output>;
+		cif_mipi4_in1: endpoint {
+			remote-endpoint = <&mipi4_csi2_output_1>;
 		};
 	};
 };
 
-&rkcif_mipi_lvds2_sditf {
+&rkcif_mipi_lvds4_sditf {
 	status = "okay";
 
 	port {
-		mipi_lvds2_sditf: endpoint {
-			remote-endpoint = <&isp0_vir0>;
+		mipi4_lvds2_sditf_1: endpoint {
+			remote-endpoint = <&isp1_vir1>;
 		};
 	};
 };
@@ -153,32 +156,32 @@
 	status = "okay";
 };
 
-&isp0_mmu {
+&isp1_mmu {
 	status = "okay";
 };
 
-&rkisp0 {
+&rkisp1 {
 	status = "okay";
 };
 
-&rkisp0_vir0 {
+&rkisp1_vir1 {
 	status = "okay";
 
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		isp0_vir0: endpoint@0 {
+		isp1_vir1: endpoint@0 {
 			reg = <0>;
-			remote-endpoint = <&mipi_lvds2_sditf>;
+			remote-endpoint = <&mipi4_lvds2_sditf_1>;
 		};
 	};
 };
 
 &pinctrl {
 	camera {
-		cam_pwdn_gpio: cam-pwdn-gpio {
-			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		cam_pwdn_gpio_1: cam-pwdn-gpio-1 {
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

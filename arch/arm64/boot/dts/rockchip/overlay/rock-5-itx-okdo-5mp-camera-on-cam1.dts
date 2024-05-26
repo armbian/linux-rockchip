@@ -1,18 +1,26 @@
 /dts-v1/;
 /plugin/;
 
-#include <dt-bindings/clock/rk3588-cru.h>
-#include <dt-bindings/power/rk3588-power.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 / {
 	metadata {
-		title ="Enable Radxa Camera 4K on CAM1";
+		title ="Enable OKDO 5MP Camera on CAM1";
 		compatible = "radxa,rock-5-itx";
 		category = "camera";
 		exclusive = "csi2_dphy3";
-		description = "Enable Radxa Camera 4K on CAM1.";
+		description = "Enable OKDO 5MP Camera on CAM1.";
+	};
+};
+
+&{/} {
+	clk_cam_25m_1: external-camera-clock-25m-1 {
+		status = "okay";
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		clock-output-names = "clk_cam_25m_1";
+		#clock-cells = <0>;
 	};
 };
 
@@ -21,25 +29,22 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	imx415_1: imx415-1@1a {
+	ov5647_1: ov5647-1@36 {
 		status = "okay";
-		compatible = "sony,imx415";
-		reg = <0x1a>;
-		clocks = <&cru CLK_MIPI_CAMARAOUT_M4>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipim0_camera4_clk>;
-		power-domains = <&power RK3588_PD_VI>;
-		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_LOW>;
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&clk_cam_25m_1>;
+		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
+		clock-names = "ext_cam_clk";
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "RADXA-CAMERA-4K";
-		rockchip,camera-module-lens-name = "DEFAULT";
+		rockchip,camera-module-name = "OKDO-5MP";
+		rockchip,camera-module-lens-name = "default";
+
 		port {
-			imx415_out1: endpoint {
+			ov5647_out1: endpoint {
 				remote-endpoint = <&mipidphy1_in_ucam1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -63,8 +68,8 @@
 
 			mipidphy1_in_ucam1: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&imx415_out1>;
-				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&ov5647_out1>;
+				data-lanes = <1 2>;
 			};
 		};
 
@@ -131,7 +136,7 @@
 
 	port {
 		mipi4_lvds2_sditf_1: endpoint {
-			remote-endpoint = <&isp1_vir1>;
+			remote-endpoint = <&isp1_vir2>;
 		};
 	};
 };
@@ -148,14 +153,14 @@
 	status = "okay";
 };
 
-&rkisp1_vir1 {
+&rkisp1_vir2 {
 	status = "okay";
 
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		isp1_vir1: endpoint@0 {
+		isp1_vir2: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&mipi4_lvds2_sditf_1>;
 		};

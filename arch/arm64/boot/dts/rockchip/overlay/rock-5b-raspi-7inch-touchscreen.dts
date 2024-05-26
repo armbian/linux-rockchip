@@ -1,0 +1,106 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable Raspberry Pi 7-inch Touchscreen";
+		compatible = "radxa,rock-5b";
+		category = "display";
+		exclusive = "dsi1";
+		description = "Enable Raspberry Pi 7-inch Touchscreen";
+	};
+};
+
+&{/} {
+	vcc_lcd_mipi1: vcc-lcd-mipi1 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd_mipi1";
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+};
+
+&dsi1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	rockchip,lane-rate = <605>;
+
+	dsi1_panel: dsi-panel@0 {
+		compatible = "raspits,tc358762";
+		reg = <0x0>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi1: endpoint {
+					remote-endpoint = <&dsi1_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi1>;
+			};
+		};
+	};
+};
+
+&i2c6 {
+	status = "okay";
+	pinctrl-0 = <&i2c6m0_xfer>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	raspits_ft5426: raspits_ft5426@38 {
+		compatible = "raspits_ft5426";
+		reg = <0x38>;
+	};
+
+	chipone_icn8952: chipone_icn8952@30 {
+		compatible = "chipone_icn8505";
+		reg = <0x30>;
+	};
+
+	rockpi_mcu: rockpi-mcu@45 {
+		compatible = "rockpi_mcu";
+		reg = <0x45>;
+	};
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+&route_dsi1 {
+	status = "okay";
+	connect = <&vp3_out_dsi1>;
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};

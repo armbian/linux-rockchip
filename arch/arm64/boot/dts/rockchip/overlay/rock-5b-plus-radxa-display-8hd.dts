@@ -8,30 +8,20 @@
 
 / {
 	metadata {
-		title ="Enable Radxa Display 10HD";
-		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		title ="Enable Radxa Display 8HD";
+		compatible = "radxa,rock-5b-plus";
 		category = "display";
-		exclusive = "dsi0";
-		description = "Enable Radxa Display 10HD.";
+		exclusive = "dsi1";
+		description = "Enable Radxa Display 8HD.";
 	};
 };
 
 &{/} {
-	vcc_tp: vcc-tp {
+	vcc_lcd_mipi1: vcc-lcd-mipi1 {
 		status = "okay";
 		compatible = "regulator-fixed";
-		regulator-name = "vcc_tp";
-		gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_LOW>;
-		enable-active-low;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vcc_lcd_mipi0: vcc-lcd-mipi0 {
-		status = "okay";
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_lcd_mipi0";
-		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_lcd_mipi1";
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-state-mem {
@@ -39,10 +29,10 @@
 		};
 	};
 
-	dsi0_backlight: dsi0-backlight {
+	dsi1_backlight: dsi1-backlight {
 		status = "okay";
 		compatible = "pwm-backlight";
-		pwms = <&pwm10 0 25000 PWM_POLARITY_INVERTED>;
+		pwms = <&pwm2 0 25000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <
 			0  20  20  21  21  22  22  23
 			23  24  24  25  25  26  26  27
@@ -78,35 +68,35 @@
 			248 249 250 251 252 253 254 255
 		>;
 		default-brightness-level = <200>;
-		enable-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&dsi0_backlight_en>;
+		pinctrl-0 = <&dsi1_backlight_en>;
 	};
 };
 
-&pwm10 {
+&pwm2 {
 	status = "okay";
 	pinctrl-names = "active";
-	pinctrl-0 = <&pwm10m2_pins>;
+	pinctrl-0 = <&pwm2m2_pins>;
 };
 
-&dsi0 {
+&dsi1 {
 	status = "okay";
 	rockchip,lane-rate = <480>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	dsi0_panel: panel@0 {
+	dsi1_panel: panel@0 {
 		status = "okay";
-		compatible = "radxa,display-10hd-ad001";
+		compatible = "radxa,display-8hd";
 		reg = <0>;
-		backlight = <&dsi0_backlight>;
+		backlight = <&dsi1_backlight>;
 
-		vdd-supply = <&vcc_lcd_mipi0>;
+		vdd-supply = <&vcc_lcd_mipi1>;
 		vccio-supply = <&vcc_1v8_s0>;
-		reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&dsi0_lcd_rst_gpio>;
+		pinctrl-0 = <&dsi1_lcd_rst_gpio>;
 
 		ports {
 			#address-cells = <1>;
@@ -114,8 +104,8 @@
 
 			port@0 {
 				reg = <0>;
-				panel_in_dsi0: endpoint {
-					remote-endpoint = <&dsi0_out_panel>;
+				panel_in_dsi1: endpoint {
+					remote-endpoint = <&dsi1_out_panel>;
 				};
 			};
 		};
@@ -127,66 +117,68 @@
 
 		port@1 {
 			reg = <1>;
-			dsi0_out_panel: endpoint {
-				remote-endpoint = <&panel_in_dsi0>;
+			dsi1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi1>;
 			};
 		};
 	};
 };
 
-&mipi_dcphy0 {
+&mipi_dcphy1 {
 	status = "okay";
 };
 
-&route_dsi0 {
+&route_dsi1 {
 	status = "okay";
-	connect = <&vp3_out_dsi0>;
+	connect = <&vp3_out_dsi1>;
 };
 
-&dsi0_in_vp2 {
+&dsi1_in_vp2 {
 	status = "disabled";
 };
 
-&dsi0_in_vp3 {
+&dsi1_in_vp3 {
 	status = "okay";
 };
 
-&i2c5 {
+&i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5m2_xfer>;
+	pinctrl-0 = <&i2c6m0_xfer>;
 	clock-frequency = <400000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	focaltech: focaltech@38 {
-		status = "okay";
-		compatible = "focaltech,fts";
-		reg = <0x38>;
+	gt9xx: gt9xx@14 {
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&focaltech_gpio>;
-		focaltech,irq-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
-		focaltech,reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		focaltech,display-coords = <0 0 799 1279>;
+		pinctrl-0 = <&gt9xx_gpio>;
+		touch-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		max-x = <800>;
+		max-y = <1280>;
+		tp-size = <9112>;
+		tp-supply = <&vcc_lcd_mipi1>;
 	};
 };
 
 &pinctrl {
-	dsi0-lcd {
-		dsi0_lcd_rst_gpio: dsi0-lcd-rst-gpio {
-			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+	dsi1-lcd {
+		dsi1_lcd_rst_gpio: dsi1-lcd-rst-gpio {
+			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		dsi0_backlight_en: dsi0-backlight-en {
-			rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		dsi1_backlight_en: dsi1-backlight-en {
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
-	focaltech {
-		focaltech_gpio: focaltech-gpio {
+	gt9xx {
+		gt9xx_gpio: gt9xx-gpio {
 			rockchip,pins =
-				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

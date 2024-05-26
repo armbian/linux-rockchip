@@ -28,6 +28,12 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rock-5a-usb-otg.dtbo \
 	rock-5a-rpi-camera-v2.dtbo \
 	rock-5a-sata.dtbo \
+	rock-5a-allnet-5inch-display.dtbo \
+	rock-5a-okdo-5mp-camera.dtbo \
+	rock-5a-radxa-25w-poe.dtbo \
+	rock-5a-raspi-7inch-touchscreen.dtbo \
+	rock-5a-rpi-camera-v1_3.dtbo \
+	rock-5a-spi-flash.dtbo \
 	rock-5b-hdmi1-8k.dtbo \
 	rock-5b-hdmi2-8k.dtbo \
 	rock-5b-pd-max-voltage-12v.dtbo \
@@ -37,11 +43,39 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rock-5b-rpi-camera-v2.dtbo \
 	rock-5b-radxa-camera-4k.dtbo \
 	rock-5b-sata.dtbo \
+	rock-5b-radxa-25w-poe.dtbo \
+	rock-5b-raspi-7inch-touchscreen.dtbo \
+	rock-5b-rpi-camera-v1_3.dtbo \
+	rock-5b-allnet-5inch-display.dtbo \
+	rock-5b-okdo-5mp-camera.dtbo \
+	rock-5b-plus-cam0-radxa-camera-4k.dtbo \
+	rock-5b-plus-cam0-rpi-camera-v2.dtbo \
+	rock-5b-plus-cam1-radxa-camera-4k.dtbo \
+	rock-5b-plus-cam1-rpi-camera-v2.dtbo \
+	rock-5b-plus-hdmi0-8k.dtbo \
+	rock-5b-plus-hdmi1-8k.dtbo \
+	rock-5b-plus-radxa-display-10fhd.dtbo \
+	rock-5b-plus-radxa-display-10hd.dtbo \
+	rock-5b-plus-radxa-display-8hd.dtbo \
 	rock-5-itx-radxa-camera-4k-on-cam0.dtbo \
 	rock-5-itx-radxa-camera-4k-on-cam1.dtbo \
 	rock-5-itx-radxa-display-8hd-on-lcd0.dtbo \
 	rock-5-itx-radxa-display-8hd-on-lcd1.dtbo \
 	rock-5-itx-enable-sharp-lq133t1jw01-edp-lcd-disable-dp1.dtbo \
+	rock-5-itx-enable-sharp-lq133t1jw01-edp-lcd-disable-dp0.dtbo \
+	rock-5-itx-hdmi1-8k.dtbo \
+	rock-5-itx-okdo-5mp-camera-on-cam0.dtbo \
+	rock-5-itx-okdo-5mp-camera-on-cam1.dtbo \
+	rock-5-itx-radxa-camera-8m-219-on-cam0.dtbo \
+	rock-5-itx-radxa-camera-8m-219-on-cam1.dtbo \
+	rock-5-itx-radxa-display-10fhd-on-lcd0.dtbo \
+	rock-5-itx-radxa-display-10fhd-on-lcd1.dtbo \
+	rock-5-itx-radxa-display-10hd-on-lcd0.dtbo \
+	rock-5-itx-radxa-display-10hd-on-lcd1.dtbo \
+	rock-5-itx-rpi-camera-v1_3-on-cam0.dtbo \
+	rock-5-itx-rpi-camera-v1_3-on-cam1.dtbo \
+	rock-5-itx-rpi-camera-v2-on-cam0.dtbo \
+	rock-5-itx-rpi-camera-v2-on-cam1.dtbo \
 	radxa-cm5-io-radxa-camera-4k.dtbo \
 	radxa-cm5-io-raspi-7inch-touchscreen.dtbo \
 	radxa-cm5-io-radxa-display-10hd.dtbo \

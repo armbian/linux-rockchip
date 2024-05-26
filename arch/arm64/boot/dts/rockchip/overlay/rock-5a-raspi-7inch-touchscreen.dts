@@ -1,0 +1,132 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable Raspberry Pi 7-inch Touchscreen";
+		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		category = "display";
+		exclusive = "dsi0";
+		description = "Enable Raspberry Pi 7-inch Touchscreen";
+	};
+};
+
+&{/} {
+	vcc_lcd_mipi1: vcc-lcd-mipi1 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd_mipi1";
+		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+};
+
+&dsi0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	rockchip,lane-rate = <600>;
+
+	dsi0_panel: dsi-panel@0 {
+		compatible = "raspits,tc358762";
+		reg = <0x0>;
+		status = "okay";
+		rockchip,lane-rate = <600>;
+
+		display_timings0: display-timings {
+			native-mode = <&dsi0_timing>;
+
+			dsi0_timing: timing0 {
+				clock-frequency = <26000000>;
+				hactive = <800>;
+				vactive = <480>;
+
+				hsync-len = <85>;
+				hback-porch = <55>;
+				hfront-porch = <43>;
+
+				vsync-len = <12>;
+				vback-porch = <7>;
+				vfront-porch = <10>;
+
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi0: endpoint {
+					remote-endpoint = <&dsi0_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi0>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5m2_xfer>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	rockpi_mcu: rockpi-mcu@45 {
+		compatible = "rockpi_mcu";
+		reg = <0x45>;
+		platform = <3588>;
+	};
+
+	raspits_touch_ft5426: raspits-touch-ft5426@38 {
+		compatible = "raspits_ft5426";
+		reg = <0x38>;
+	};
+
+	chipone_icn8952: chipone_icn8952@30 {
+		compatible = "chipone_icn8505";
+		reg = <0x30>;
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp3_out_dsi0>;
+};
+
+&dsi0_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "okay";
+};

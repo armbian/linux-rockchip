@@ -8,11 +8,11 @@
 
 / {
 	metadata {
-		title ="Enable Radxa Camera 4K";
-		compatible = "radxa,rock-5a", "radxa,rock-5c";
+		title ="Enable Radxa Camera 4K on CAM0";
+		compatible = "radxa,rock-5b-plus";
 		category = "camera";
 		exclusive = "csi2_dphy0";
-		description = "Enable Radxa Camera 4K.";
+		description = "Enable Radxa Camera 4K on CAM0.";
 	};
 };
 
@@ -25,15 +25,15 @@
 		status = "okay";
 		compatible = "sony,imx415";
 		reg = <0x1a>;
-		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
 		pinctrl-names = "default";
-		pinctrl-0 = <&mipim0_camera2_clk>;
+		pinctrl-0 = <&mipim0_camera3_clk>;
 		power-domains = <&power RK3588_PD_VI>;
-		pwdn-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "RADXA-CAMERA-4K";
 		rockchip,camera-module-lens-name = "DEFAULT";
 		port {

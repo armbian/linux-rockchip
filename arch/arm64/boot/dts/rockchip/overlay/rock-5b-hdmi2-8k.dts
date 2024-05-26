@@ -7,73 +7,42 @@
 		title = "Enable 8K output on HDMI2";
 		compatible = "radxa,rock-5b";
 		category = "display";
-		description = "Enable 8K output on HDMI2.\n8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
+		description = "Enable 8K output on HDMI2.
+8K cannot be enabled on HDMI1 and HDMI2 at the same time.";
 	};
+};
 
-	fragment@0 {
-		target = <&route_hdmi1>;
+&route_hdmi1 {
+	connect = <&vp0_out_hdmi1>;
+	status = "okay";
+};
 
-		__overlay__ {
-			connect = <&vp0_out_hdmi1>;
-			status = "okay";
-		};
-	};
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
 
-	fragment@1 {
-		target = <&hdmi1_in_vp1>;
+&hdmi1_in_vp0 {
+	status = "okay";
+};
 
-		__overlay__ {
-			status = "disabled";
-		};
-	};
+&route_hdmi0 {
+	connect = <&vp2_out_hdmi0>;
+	status = "okay";
+};
 
-	fragment@2 {
-		target = <&hdmi1_in_vp0>;
+&hdmi0_in_vp2 {
+	status = "okay";
+};
 
-		__overlay__ {
-			status = "okay";
-		};
-	};
+&hdmi0_in_vp1 {
+	status = "disabled";
+};
 
-	fragment@3 {
-		target = <&route_hdmi0>;
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
 
-		__overlay__ {
-			connect = <&vp2_out_hdmi0>;
-			status = "okay";
-		};
-	};
-
-	fragment@4 {
-		target = <&hdmi0_in_vp2>;
-
-		__overlay__ {
-			status = "okay";
-		};
-	};
-
-	fragment@5 {
-		target = <&hdmi0_in_vp1>;
-
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
-	fragment@6 {
-		target = <&hdmi0_in_vp0>;
-
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
-	fragment@7 {
-		target = <&vop>;
-
-		__overlay__ {
-			assigned-clocks = <&cru ACLK_VOP>;
-			assigned-clock-rates = <800000000>;
-		};
-	};
+&vop {
+	assigned-clocks = <&cru ACLK_VOP>;
+	assigned-clock-rates = <800000000>;
 };
