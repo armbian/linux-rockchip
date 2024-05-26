@@ -1,0 +1,36 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	fragment@0 {
+		target = <&sata0>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sata_reset>;
+		};
+	};
+  
+	fragment@1 {
+		target = <&pcie2x1l2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			sata {
+		    		sata_reset:sata-reset{
+		   		rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
+	    			};
+    			};
+		};
+	};
+};
