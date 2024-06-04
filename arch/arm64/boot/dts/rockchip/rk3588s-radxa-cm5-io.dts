@@ -312,6 +312,10 @@
 			 &i2s0_sdo0>;
 };
 
+&saradc {
+	status = "okay";
+	vref-supply = <&avcc_1v8_s0>;
+};
 
 &pwm4 {
 	status = "okay";
@@ -329,6 +333,7 @@
 
 &hdmi0 {
 	status = "okay";
+	enable-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 };
 
 &hdmi0_in_vp0 {
