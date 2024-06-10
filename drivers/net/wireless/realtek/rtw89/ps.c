@@ -59,7 +59,7 @@ static void rtw89_ps_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 		rtw89_mac_power_mode_change(rtwdev, enter);
 }
 
-static void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	if (rtwvif->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
 		return;
@@ -243,30 +243,4 @@ void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
 	rtw89_p2p_disable_all_noa(rtwdev, vif);
 	rtw89_p2p_update_noa(rtwdev, vif);
-}
-
-void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
-{
-	struct ieee80211_vif *vif, *found_vif = NULL;
-	struct rtw89_vif *rtwvif;
-	int count = 0;
-
-	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		vif = rtwvif_to_vif(rtwvif);
-
-		if (vif->type != NL80211_IFTYPE_STATION) {
-			count = 0;
-			break;
-		}
-
-		count++;
-		found_vif = vif;
-	}
-
-	if (count == 1 && found_vif->cfg.ps) {
-		rtwdev->lps_enabled = true;
-	} else {
-		rtw89_leave_lps(rtwdev);
-		rtwdev->lps_enabled = false;
-	}
 }
