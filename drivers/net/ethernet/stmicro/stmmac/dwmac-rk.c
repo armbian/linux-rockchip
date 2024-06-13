@@ -2643,6 +2643,75 @@ static const struct rk_gmac_ops rk3588_ops = {
 	},
 };
 
+#define RV1103B_SYSGRF_GMAC_CLK_CON		0X500A4
+
+#define RV1103B_SYSGRF_GMAC_RMII_NOGATE		GRF_CLR_BIT(1)
+#define RV1103B_SYSGRF_GMAC_RMII_GATE		GRF_BIT(1)
+
+#define RV1103B_SYSGRF_GMAC_CLK_RMII_50M	GRF_BIT(2)
+#define RV1103B_SYSGRF_GMAC_CLK_RMII_2_5M	GRF_CLR_BIT(2)
+
+#define RV1103B_SYSGRF_MACPHY_CON0		0X500B0
+#define RV1103B_SYSGRF_MACPHY_CON1		0X500B4
+
+static void rv1103b_set_to_rmii(struct rk_priv_data *bsp_priv)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RV1103B_SYSGRF_GMAC_CLK_CON,
+		     RV1103B_SYSGRF_GMAC_CLK_RMII_50M);
+}
+
+static void rv1103b_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int val = 0;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	if (speed == 10) {
+		val = RV1103B_SYSGRF_GMAC_CLK_RMII_2_5M;
+	} else if (speed == 100) {
+		val = RV1103B_SYSGRF_GMAC_CLK_RMII_50M;
+	} else {
+		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RV1103B_SYSGRF_GMAC_CLK_CON, val);
+}
+
+static void rv1103b_integrated_sphy_power(struct rk_priv_data *priv, bool up)
+{
+	rk_gmac_integrated_fephy_power(priv, RV1103B_SYSGRF_MACPHY_CON0,
+				       RV1103B_SYSGRF_MACPHY_CON1, up);
+}
+
+static void rv1103b_set_clock_selection(struct rk_priv_data *bsp_priv, bool input,
+					bool enable)
+{
+	/* only input mode */
+	unsigned int val = enable ? RV1103B_SYSGRF_GMAC_RMII_NOGATE :
+			   RV1103B_SYSGRF_GMAC_RMII_GATE;
+
+	regmap_write(bsp_priv->grf, RV1103B_SYSGRF_GMAC_CLK_CON, val);
+}
+
+static const struct rk_gmac_ops rv1103b_ops = {
+	.set_to_rmii = rv1103b_set_to_rmii,
+	.set_rmii_speed = rv1103b_set_rmii_speed,
+	.integrated_phy_power = rv1103b_integrated_sphy_power,
+	.set_clock_selection = rv1103b_set_clock_selection,
+};
+
 #define RV1106_VOGRF_GMAC_CLK_CON		0X60004
 
 #define RV1106_VOGRF_MACPHY_RMII_MODE		GRF_BIT(0)
@@ -3833,6 +3902,9 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-gmac", .data = &rk3588_ops },
+#endif
+#ifdef CONFIG_CPU_RV1103B
+	{ .compatible = "rockchip,rv1103b-gmac", .data = &rv1103b_ops },
 #endif
 #ifdef CONFIG_CPU_RV1106
 	{ .compatible = "rockchip,rv1106-gmac", .data = &rv1106_ops },
