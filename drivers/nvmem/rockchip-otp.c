@@ -1113,6 +1113,12 @@ static const struct of_device_id rockchip_otp_match[] = {
 		.data = &rk3588_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RV1103B
+	{
+		.compatible = "rockchip,rv1103b-otp",
+		.data = (void *)&rv1106_data,
+	},
+#endif
 #ifdef CONFIG_CPU_RV1106
 	{
 		.compatible = "rockchip,rv1106-otp",
