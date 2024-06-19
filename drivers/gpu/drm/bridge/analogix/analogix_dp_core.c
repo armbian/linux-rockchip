@@ -394,6 +394,11 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 
 	/* Set link rate and count as you want to establish */
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	/*
+	 * MACRO_RST must be applied after the PLL_LOCK to avoid
+	 * the DP inter pair skew issue for at least 10 us
+	 */
+	analogix_dp_reset_macro(dp);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 
 	if (dp->nr_link_rate_table) {
@@ -903,12 +908,6 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	bool training_finished = false;
 	u8 dpcd;
 
-	/*
-	 * MACRO_RST must be applied after the PLL_LOCK to avoid
-	 * the DP inter pair skew issue for at least 10 us
-	 */
-	analogix_dp_reset_macro(dp);
-
 	/* Setup TX lane count */
 	dp->link_train.lane_count = min_t(u32, dp->link_train.max_lane_count, max_lanes);
 
@@ -969,9 +968,12 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 	int ret;
 	u8 link_align, link_status[2];
 
-	analogix_dp_reset_macro(dp);
-
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	/*
+	 * MACRO_RST must be applied after the PLL_LOCK to avoid
+	 * the DP inter pair skew issue for at least 10 us
+	 */
+	analogix_dp_reset_macro(dp);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 	analogix_dp_set_lane_link_training(dp);
 	analogix_dp_enable_assr_mode(dp, dp->link_train.assr);
