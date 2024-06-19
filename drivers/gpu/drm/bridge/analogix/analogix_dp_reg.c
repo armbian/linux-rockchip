@@ -1122,7 +1122,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg)
 {
 	u32 reg;
-	u32 status_reg;
 	u8 *buffer = msg->buffer;
 	unsigned int i;
 	int ret;
@@ -1209,12 +1208,14 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 
 	/* Clear interrupt source for AUX CH access error */
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA);
-	status_reg = analogix_dp_read(dp, ANALOGIX_DP_AUX_CH_STA);
-	if ((reg & AUX_ERR) || (status_reg & AUX_STATUS_MASK)) {
+	if ((reg & AUX_ERR)) {
+		u32 aux_status = readl(dp->reg_base + ANALOGIX_DP_AUX_CH_STA) &
+				 AUX_STATUS_MASK;
+
 		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, AUX_ERR);
 
 		dev_warn(dp->dev, "AUX CH error happened: %#x (%d)\n",
-			 status_reg & AUX_STATUS_MASK, !!(reg & AUX_ERR));
+			 aux_status, !!(reg & AUX_ERR));
 		goto aux_error;
 	}
 
