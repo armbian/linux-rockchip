@@ -394,6 +394,11 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 
 	/* Set link rate and count as you want to establish */
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	retval = analogix_dp_wait_pll_locked(dp);
+	if (retval) {
+		DRM_DEV_ERROR(dp->dev, "Wait for pll lock failed %d\n", retval);
+		return retval;
+	}
 	/*
 	 * MACRO_RST must be applied after the PLL_LOCK to avoid
 	 * the DP inter pair skew issue for at least 10 us
@@ -969,6 +974,12 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 	u8 link_align, link_status[2];
 
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	ret = analogix_dp_wait_pll_locked(dp);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev, "Wait for pll lock failed %d\n", ret);
+		return ret;
+	}
+
 	/*
 	 * MACRO_RST must be applied after the PLL_LOCK to avoid
 	 * the DP inter pair skew issue for at least 10 us

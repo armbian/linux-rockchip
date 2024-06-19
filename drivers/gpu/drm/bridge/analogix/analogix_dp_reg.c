@@ -220,15 +220,13 @@ void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
 }
 
-enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp)
+int analogix_dp_wait_pll_locked(struct analogix_dp_device *dp)
 {
-	u32 reg;
+	u32 val;
 
-	reg = analogix_dp_read(dp, ANALOGIX_DP_DEBUG_CTL);
-	if (reg & PLL_LOCK)
-		return PLL_LOCKED;
-	else
-		return PLL_UNLOCKED;
+	return readl_poll_timeout(dp->reg_base + ANALOGIX_DP_DEBUG_CTL, val,
+				  val & PLL_LOCK, 120,
+				  120 * DP_TIMEOUT_LOOP_COUNT);
 }
 
 void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable)
@@ -561,7 +559,6 @@ bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)
 
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 {
-	u32 status;
 	int ret;
 
 	analogix_dp_write(dp, ANALOGIX_DP_LINK_BW_SET, bwtype);
@@ -587,14 +584,6 @@ void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 			analogix_dp_ssc_enable(dp);
 		else
 			analogix_dp_ssc_disable(dp);
-	}
-
-	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
-				 status != PLL_UNLOCKED, 120,
-				 120 * DP_TIMEOUT_LOOP_COUNT);
-	if (ret) {
-		dev_err(dp->dev, "Wait for pll lock failed %d\n", ret);
-		return;
 	}
 }
 
