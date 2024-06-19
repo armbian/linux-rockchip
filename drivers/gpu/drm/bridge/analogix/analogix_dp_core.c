@@ -1954,8 +1954,8 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 {
 	int ret;
 
-	if (dp->plat_data->power_on_start)
-		dp->plat_data->power_on_start(dp->plat_data);
+	if (dp->plat_data->power_on)
+		dp->plat_data->power_on(dp->plat_data);
 
 	ret = analogix_dp_phy_power_on(dp);
 	if (ret)
@@ -1984,9 +1984,6 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 
 	if (dp->plat_data->panel)
 		drm_panel_enable(dp->plat_data->panel);
-
-	if (dp->plat_data->power_on_end)
-		dp->plat_data->power_on_end(dp->plat_data);
 
 	return 0;
 
