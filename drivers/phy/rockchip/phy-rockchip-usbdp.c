@@ -945,7 +945,6 @@ static int udphy_parse_lane_mux_data(struct rockchip_udphy *udphy, struct device
 	udphy->mode = UDPHY_MODE_DP;
 	udphy->dp_lanes = num_lanes;
 	if (num_lanes == 1 || num_lanes == 2) {
-		udphy->mode |= UDPHY_MODE_USB;
 		udphy->flip = udphy->lane_mux_sel[0] == PHY_LANE_MUX_DP ? true : false;
 	}
 
@@ -1570,6 +1569,7 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 	}
 
 	if (device_property_present(dev, "svid")) {
+		udphy->mode |= UDPHY_MODE_DP;
 		ret = udphy_setup_typec_mux(udphy);
 		if (ret)
 			return ret;
@@ -1592,6 +1592,7 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 			phy_set_bus_width(phy, udphy->dp_lanes);
 			phy->attrs.max_link_rate = udphy_dp_get_max_link_rate(udphy, child_np);
 		} else if (of_node_name_eq(child_np, "u3-port")) {
+			udphy->mode |= UDPHY_MODE_USB;
 			phy = devm_phy_create(dev, child_np, &rockchip_u3phy_ops);
 			if (IS_ERR(phy)) {
 				dev_err(dev, "failed to create usb phy: %pOFn\n", child_np);
