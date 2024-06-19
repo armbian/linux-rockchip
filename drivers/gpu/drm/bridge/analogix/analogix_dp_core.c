@@ -2728,6 +2728,37 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 }
 EXPORT_SYMBOL_GPL(analogix_dp_probe);
 
+int analogix_dp_suspend(struct analogix_dp_device *dp)
+{
+	pm_runtime_force_suspend(dp->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_suspend);
+
+int analogix_dp_resume(struct analogix_dp_device *dp)
+{
+	pm_runtime_force_resume(dp->dev);
+	analogix_dp_init(dp);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_resume);
+
+int analogix_dp_runtime_suspend(struct analogix_dp_device *dp)
+{
+	clk_bulk_disable_unprepare(dp->nr_clks, dp->clks);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_runtime_suspend);
+
+int analogix_dp_runtime_resume(struct analogix_dp_device *dp)
+{
+	return clk_bulk_prepare_enable(dp->nr_clks, dp->clks);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_runtime_resume);
+
 int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 {
 	int ret;
@@ -2788,37 +2819,6 @@ void analogix_dp_remove(struct analogix_dp_device *dp)
 	cancel_work_sync(&dp->modeset_retry_work);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_remove);
-
-int analogix_dp_suspend(struct analogix_dp_device *dp)
-{
-	pm_runtime_force_suspend(dp->dev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(analogix_dp_suspend);
-
-int analogix_dp_resume(struct analogix_dp_device *dp)
-{
-	pm_runtime_force_resume(dp->dev);
-	analogix_dp_init(dp);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(analogix_dp_resume);
-
-int analogix_dp_runtime_suspend(struct analogix_dp_device *dp)
-{
-	clk_bulk_disable_unprepare(dp->nr_clks, dp->clks);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(analogix_dp_runtime_suspend);
-
-int analogix_dp_runtime_resume(struct analogix_dp_device *dp)
-{
-	return clk_bulk_prepare_enable(dp->nr_clks, dp->clks);
-}
-EXPORT_SYMBOL_GPL(analogix_dp_runtime_resume);
 
 int analogix_dp_start_crc(struct drm_connector *connector)
 {
