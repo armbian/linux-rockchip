@@ -1214,6 +1214,9 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 
 		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, AUX_ERR);
 
+		if (aux_status == AUX_STATUS_TIMEOUT_ERROR)
+			return -ETIMEDOUT;
+
 		dev_warn(dp->dev, "AUX CH error happened: %#x (%d)\n",
 			 aux_status, !!(reg & AUX_ERR));
 		goto aux_error;
