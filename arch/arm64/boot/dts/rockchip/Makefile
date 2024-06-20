@@ -160,6 +160,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet-k108.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet-rkg11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-taishanpi-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3567-evb2-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3567-evb2-lp4x-v10-dual-channel-lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3567-evb2-lp4x-v10-one-vp-two-single-channel-lvds.dtb
