@@ -522,5 +522,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-armsom-sige1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-orangepi-5-pro.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-firefly-roc-pc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-firefly-itx-3588j.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-taishanpi-v10.dtb
 
 subdir-y := $(dts-dirs) overlay
