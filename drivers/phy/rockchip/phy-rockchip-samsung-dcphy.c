@@ -1781,25 +1781,8 @@ static int samsung_mipi_dcphy_power_on(struct phy *phy)
 {
 	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
 	enum phy_mode mode = phy_get_mode(phy);
-	int on = 0;
-	struct v4l2_subdev *sensor_sd = NULL;
 
 	pm_runtime_get_sync(samsung->dev);
-	reset_control_assert(samsung->apb_rst);
-	udelay(1);
-	reset_control_deassert(samsung->apb_rst);
-	if (atomic_read(&samsung->stream_cnt) && samsung->dphy_dev[0]) {
-		sensor_sd = get_remote_sensor(&samsung->dphy_dev[0]->sd);
-		samsung->stream_off(samsung->dphy_dev[0], &samsung->dphy_dev[0]->sd);
-		if (sensor_sd)
-			v4l2_subdev_call(sensor_sd, core, ioctl,
-					 RKMODULE_SET_QUICK_STREAM, &on);
-		samsung->stream_on(samsung->dphy_dev[0], &samsung->dphy_dev[0]->sd);
-		on = 1;
-		if (sensor_sd)
-			v4l2_subdev_call(sensor_sd, core, ioctl,
-					 RKMODULE_SET_QUICK_STREAM, &on);
-	}
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
@@ -2492,6 +2475,22 @@ static int samsung_mipi_dcphy_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static __maybe_unused int samsung_mipi_dcphy_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static __maybe_unused int samsung_mipi_dcphy_resume(struct device *dev)
+{
+	struct samsung_mipi_dcphy *samsung = dev_get_drvdata(dev);
+
+	reset_control_assert(samsung->apb_rst);
+	udelay(1);
+	reset_control_deassert(samsung->apb_rst);
+
+	return 0;
+}
+
 static __maybe_unused int samsung_mipi_dcphy_runtime_suspend(struct device *dev)
 {
 	struct samsung_mipi_dcphy *samsung = dev_get_drvdata(dev);
@@ -2513,6 +2512,8 @@ static __maybe_unused int samsung_mipi_dcphy_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops samsung_mipi_dcphy_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(samsung_mipi_dcphy_suspend,
+				samsung_mipi_dcphy_resume)
 	SET_RUNTIME_PM_OPS(samsung_mipi_dcphy_runtime_suspend,
 			   samsung_mipi_dcphy_runtime_resume, NULL)
 };
