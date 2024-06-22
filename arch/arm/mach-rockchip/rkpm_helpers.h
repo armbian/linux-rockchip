@@ -47,6 +47,13 @@
 #define WITH_16BITS_WMSK(bits)		(0xffff0000 | (bits))
 #endif
 
+#define rkpm_power_down_wfi()				\
+	do {						\
+		dsb();					\
+		while (1)				\
+			wfi();				\
+	} while (0)
+
 #define REG_REGION(_start, _end, _stride, _base, _wmsk) \
 	.start = (_start),				\
 	.end = (_end),					\
