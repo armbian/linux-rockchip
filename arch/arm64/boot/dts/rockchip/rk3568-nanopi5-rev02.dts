@@ -130,7 +130,7 @@
 	reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pcie@10 {
+	pcie@0,0 {
 		reg = <0x00100000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -148,7 +148,7 @@
 	reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pcie@20 {
+	pcie@0,0 {
 		reg = <0x00200000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -213,4 +213,9 @@
 
 &sfc {
 	status = "disabled";
+};
+
+&simple_bat {
+	voltage-max-design-microvolt = <5400000>;
+	voltage-min-design-microvolt = <4200000>;
 };
