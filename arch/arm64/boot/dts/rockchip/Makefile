@@ -525,5 +525,11 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-firefly-itx-3588j.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-taishanpi-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-cm5-rpi-cm4-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-e52c.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev01.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev02.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev03.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev04.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev05.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev07.dtb
 
 subdir-y := $(dts-dirs) overlay
