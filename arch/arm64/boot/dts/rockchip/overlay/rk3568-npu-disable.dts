@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Disable NPU";
+		compatible = "unknown";
+		category = "misc";
+		description = "Disable NPU.";
+	};
+};
+
+&bus_npu {
+	status = "disabled";
+};
+
+&rknpu {
+	status = "disabled";
+};
+
+&rknpu_mmu {
+	status = "disabled";
+};

@@ -1,0 +1,22 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM15-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,e25";
+		category = "misc";
+		exclusive = "GPIO3_C5";
+		description = "Enable PWM15-M0.
+On Radxa ROCK 3A <= v1.2 this is pin 13.
+On Radxa ROCK 3A >= v1.3 this is pin 13.
+On Radxa ROCK 3B this is pin 13.
+On Radxa E25 this is pin 13.";
+	};
+};
+
+&pwm15 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm15m0_pins>;
+};

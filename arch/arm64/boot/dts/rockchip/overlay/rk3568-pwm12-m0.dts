@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM12-M0";
+		compatible = "unknown";
+		category = "misc";
+		exclusive = "GPIO3_B7";
+		description = "Enable PWM12-M0.
+On Radxa ROCK 3A <= v1.2 this is pin 7.";
+	};
+};
+
+&pwm12 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm12m0_pins>;
+};

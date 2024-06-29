@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART3-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,zero3", "radxa,e25";
+		category = "misc";
+		exclusive = "GPIO1_A0", "GPIO1_A1", "UART3";
+		description = "Enable UART3-M0.
+On Radxa ROCK 3A <= v1.2 this RX pin 3 & TX pin 5.
+On Radxa ROCK 3A >= v1.3 this RX pin 3 & TX pin 5.
+On Radxa ROCK 3B this RX pin 3 & TX pin 5.
+On Radxa ROCK 3C this is RX pin 3 & TX pin 5.
+Radxa ZERO 3 this is RX pin 3 & TX pin 5.
+Radxa E25 this is RX pin 3 & TX pin 5.";
+	};
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m0_xfer>;
+};

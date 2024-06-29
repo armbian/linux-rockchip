@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b";
+		category = "misc";
+		exclusive = "GPIO0_C0", "GPIO0_C1";
+		description = "Enable UART0.
+On Radxa ROCK 3A <= v1.2 this is RX pin 15 & TX pin 17.
+On Radxa ROCK 3A >= v1.3 this is RX pin 15 & TX pin 22.
+On Radxa ROCK 3B this is RX pin 15 & TX pin 22.";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM13-M0";
+		compatible = "radxa,e25";
+		category = "misc";
+		exclusive = "GPIO3_C0";
+		description = "Enable PWM13-M0.
+On Radxa ROCK 3A <= v1.2 this is pin 37.
+On Radxa E25 this is pin 26";
+	};
+};
+
+&pwm13 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm13m0_pins>;
+};

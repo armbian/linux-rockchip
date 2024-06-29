@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM5";
+		compatible = "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io", "radxa,e23";
+		category = "misc";
+		exclusive = "GPIO0_C4";
+		description = "Enable PWM5.
+On Radxa CM3S IO this is on pin 16.
+On Radxa E23 this is on pin 13.";
+	};
+};
+
+&pwm5 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm5_pins>;
+};

@@ -1,0 +1,44 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/{
+	metadata {
+		title = "Enable NXP PCA9555 I2C GPIO multiplexer on I2C2-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,cm3-io", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io", "radxa,e23";
+		category = "misc";
+		exclusive = "GPIO0_B5", "GPIO0_B6";
+		description = "Enable NXP PCA9555 I2C GPIO multiplexer on I2C2-M0.";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m0_xfer>;
+
+	pca: pca@20 {
+		compatible = "nxp,pca9555";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pca_int>;
+		status = "okay";
+	};
+};
+
+&pinctrl {
+	pca {
+		pca_int: pca-int {
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
