@@ -1,0 +1,12 @@
+#include "rock-5a-rpi-camera-v1_3.dts"
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera v1.3 on the Camera connector";
+		compatible = "radxa,rock-5d";
+		description = "Enable Raspberry Pi Camera v1.3 on the Camera connector.
+The Camera connector is located on the bottom of the board.
+This is not the top MIPI-RX* connectors.		
+";
+	};
+};
