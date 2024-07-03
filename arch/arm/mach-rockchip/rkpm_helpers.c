@@ -231,7 +231,7 @@ void rkpm_regs_dump(void __iomem *base,
 void rkpm_raw_udelay(int us)
 {
 	u64 cur_cnt = __arch_counter_get_cntpct();
-	u64 del = us * 24;
+	u64 del = us * (arch_timer_get_cntfrq() / 1000000);
 
 	while (__arch_counter_get_cntpct() - cur_cnt < del)
 		;
