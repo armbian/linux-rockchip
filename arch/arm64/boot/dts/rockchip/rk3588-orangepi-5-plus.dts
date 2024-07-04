@@ -1280,14 +1280,6 @@
     status = "okay";
 };
 
-&usbhost3_0 {
-    status = "okay";
-};
-
-&usbhost_dwc3_0 {
-    status = "okay";
-};
-
 &usbdrd3_1 {
     status = "okay";
 };
