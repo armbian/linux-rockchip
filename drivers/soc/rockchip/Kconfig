@@ -163,6 +163,15 @@ config ROCKCHIP_OPP
 	help
 	  Say y here to enable rockchip OPP support.
 
+config ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+	bool "Optimize HRTimer Latency"
+	depends on PREEMPT_RT && ARCH_ROCKCHIP
+	default y if PREEMPT_RT
+	help
+	  Advance the hrtimer expiration point of nanosleep, pre-process
+	  scheduling and interrupt handlers in advance, and thereby reduce
+	  nanosleep latency.
+
 config ROCKCHIP_OPTIMIZE_RT_PRIO
 	bool "Rockchip optimize prio for kernel RT thread and kworker"
 	depends on NO_GKI
