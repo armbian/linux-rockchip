@@ -1110,6 +1110,9 @@ struct task_struct {
 	struct posix_cputimers_work	posix_cputimers_work;
 #endif
 
+#ifdef CONFIG_ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+	ktime_t				hrtimer_softexpires;
+#endif
 	/* Process credentials: */
 
 	/* Tracer's credentials at attach: */

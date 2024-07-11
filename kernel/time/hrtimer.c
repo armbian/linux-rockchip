@@ -2006,7 +2006,11 @@ void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl,
 	 * fiddling with this decision is avoided at the call sites.
 	 */
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && sl->timer.is_hard)
+#ifdef CONFIG_ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+		mode |= (HRTIMER_MODE_HARD | HRTIMER_MODE_PINNED);
+#else
 		mode |= HRTIMER_MODE_HARD;
+#endif
 
 	hrtimer_start_expires(&sl->timer, mode);
 }
@@ -2078,9 +2082,79 @@ int nanosleep_copyout(struct restart_block *restart, struct timespec64 *ts)
 	return -ERESTART_RESTARTBLOCK;
 }
 
+#ifdef CONFIG_ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+static unsigned int hrtimer_latency_ns;
+static unsigned int hrtimer_latency_en_prio = 5;
+static unsigned int bad_latency_ns;
+static unsigned int max_latency_ns;
+module_param(hrtimer_latency_ns, uint, 0644);
+module_param(hrtimer_latency_en_prio, uint, 0644);
+module_param(bad_latency_ns, uint, 0644);
+module_param(max_latency_ns, uint, 0644);
+
+struct hrtimer_latency_data {
+	char compatible[128];
+	unsigned int latency_ns;
+};
+
+static const struct hrtimer_latency_data hrtimer_latency_list[] __initconst = {
+	{ .compatible = "rockchip,rk3506",	.latency_ns = 50000 },
+	{ .compatible = "rockchip,rk3562",	.latency_ns = 50000 },
+	{ .compatible = "rockchip,rk3566",	.latency_ns = 50000 },
+	{ .compatible = "rockchip,rk3568",	.latency_ns = 50000 },
+	{ .compatible = "rockchip,rk3572",	.latency_ns = 0 },
+	{ .compatible = "rockchip,rk3572s",	.latency_ns = 0 },
+	{ .compatible = "rockchip,rk3576",	.latency_ns = 0 },
+	{ .compatible = "rockchip,rk3576s",	.latency_ns = 0 },
+	{ .compatible = "rockchip,rk3588",	.latency_ns = 0 },
+	{ .compatible = "rockchip,rv1126b",	.latency_ns = 50000 },
+	{ }
+};
+
+static int __init hrtimer_latency_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hrtimer_latency_list); i++) {
+		if (of_machine_is_compatible(hrtimer_latency_list[i].compatible)) {
+			hrtimer_latency_ns = hrtimer_latency_list[i].latency_ns;
+			break;
+		}
+	}
+
+	return 0;
+}
+late_initcall_sync(hrtimer_latency_init);
+#endif
+
 static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
 {
 	struct restart_block *restart;
+#ifdef CONFIG_ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+	ktime_t softexpires, delta;
+
+	if (hrtimer_latency_ns && (current->prio <= hrtimer_latency_en_prio) &&
+	   (current->hrtimer_softexpires == 0)) {
+		softexpires = hrtimer_get_softexpires(&t->timer);
+		if (mode & HRTIMER_MODE_REL)
+			current->hrtimer_softexpires = ktime_add_safe(softexpires,
+								      t->timer.base->get_time());
+		else
+			current->hrtimer_softexpires = softexpires;
+
+		delta = current->hrtimer_softexpires - t->timer.base->get_time();
+		if (delta <= hrtimer_latency_ns) {
+			while (t->timer.base->get_time() < current->hrtimer_softexpires)
+				cpu_relax();
+			current->hrtimer_softexpires = 0;
+
+			return 0;
+		}
+
+		softexpires -= hrtimer_latency_ns;
+		hrtimer_set_expires_range_ns(&t->timer, softexpires, 0);
+	}
+#endif
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
@@ -2096,8 +2170,30 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 
 	__set_current_state(TASK_RUNNING);
 
+#ifdef CONFIG_ROCKCHIP_OPTIMIZE_HRTIMER_LATENCY
+	if (!t->task) {
+		if (current->hrtimer_softexpires) {
+			if (current->hrtimer_softexpires < t->timer.base->get_time()) {
+				delta = t->timer.base->get_time() - current->hrtimer_softexpires;
+				if (delta > max_latency_ns)
+					max_latency_ns = delta;
+			} else {
+				delta = current->hrtimer_softexpires - t->timer.base->get_time();
+				if (delta > hrtimer_latency_ns)
+					bad_latency_ns = delta;
+			}
+
+			while (t->timer.base->get_time() < current->hrtimer_softexpires)
+				cpu_relax();
+			current->hrtimer_softexpires = 0;
+		}
+
+		return 0;
+	}
+#else
 	if (!t->task)
 		return 0;
+#endif
 
 	restart = &current->restart_block;
 	if (restart->nanosleep.type != TT_NONE) {
