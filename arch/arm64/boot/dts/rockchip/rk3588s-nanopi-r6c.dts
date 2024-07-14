@@ -24,5 +24,17 @@
 };
 
 &pcie2x1l2 {
+	rockchip,skip-hw-retry;
 	/delete-node/ pcie@40;
+};
+
+/* GPIO Connector */
+&pwm0 {
+	pinctrl-0 = <&pwm0m2_pins>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-0 = <&pwm1m2_pins>;
+	status = "okay";
 };
