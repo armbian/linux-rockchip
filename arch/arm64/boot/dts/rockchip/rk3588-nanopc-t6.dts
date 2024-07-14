@@ -77,8 +77,10 @@
 		status = "okay";
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
+		fan-supply = <&vcc5v0_sys>;
 		pwms = <&pwm1 0 50000 0>;
-		cooling-levels = <0 50 100 150 200 255>;
+		cooling-levels = <0 35 64 100 150 255>;
+		rockchip,hold-time-ms = <2000>;
 		rockchip,temp-trips = <
 			50000	1
 			55000	2
@@ -208,9 +210,9 @@
 };
 
 &hdmi0 {
+	cec-enable = "true";
 	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-	cec-enable = "true";
 };
 
 &hdmi0_in_vp0 {
@@ -230,9 +232,9 @@
 };
 
 &hdmi1 {
+	cec-enable = "true";
 	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-	cec-enable = "true";
 };
 
 &hdmi1_in_vp0 {
@@ -260,6 +262,7 @@
 	status = "okay";
 
 	#sound-dai-cells = <1>;
+	edid-version = <3>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
@@ -406,6 +409,7 @@
 		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
+	rockchip,trcm-sync-tx-only;
 };
 
 &i2s6_8ch {
@@ -571,6 +575,11 @@
 	usb {
 		vcc5v0_host30_en: vcc5v0-host30-en {
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		vcc5v0_host20_en: vcc5v0-host20-en {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
