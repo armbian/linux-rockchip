@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,15 +25,7 @@
 #include <linux/types.h>
 
 #define CSF_FIRMWARE_TRACE_ENABLE_INIT_MASK_MAX (4)
-#if MALI_UNIT_TEST
-#define KBASE_CSFFW_UTF_BUF_NAME "fwutf"
-#endif
-#define KBASE_CSFFW_LOG_BUF_NAME "fwlog"
-#define KBASE_CSFFW_BENCHMARK_BUF_NAME "benchmark"
-#define KBASE_CSFFW_TIMELINE_BUF_NAME "timeline"
-#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-#define KBASE_CSFFW_GPU_METRICS_BUF_NAME "gpu_metrics"
-#endif /* CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD */
+#define FIRMWARE_LOG_BUF_NAME "fwlog"
 
 /* Forward declarations */
 struct firmware_trace_buffer;
@@ -88,8 +80,10 @@ void kbase_csf_firmware_trace_buffers_term(struct kbase_device *kbdev);
  *
  * Return: 0 if successful, negative error code on failure.
  */
-int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev, const u32 *entry,
-						unsigned int size, bool updatable);
+int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev,
+						const u32 *entry,
+						unsigned int size,
+						bool updatable);
 
 /**
  * kbase_csf_firmware_reload_trace_buffers_data - Reload trace buffers data for firmware reboot
@@ -118,12 +112,11 @@ void kbase_csf_firmware_reload_trace_buffers_data(struct kbase_device *kbdev);
  * Return: handle to a trace buffer, given the name, or NULL if a trace buffer
  *         with that name couldn't be found.
  */
-struct firmware_trace_buffer *kbase_csf_firmware_get_trace_buffer(struct kbase_device *kbdev,
-								  const char *name);
+struct firmware_trace_buffer *kbase_csf_firmware_get_trace_buffer(
+	struct kbase_device *kbdev, const char *name);
 
 /**
- * kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count - Get number of trace enable bits
- *                                                               for a trace buffer
+ * kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count - Get number of trace enable bits for a trace buffer
  *
  * @trace_buffer: Trace buffer handle
  *
@@ -144,7 +137,8 @@ unsigned int kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count(
  * Return: 0 if successful, negative error code on failure.
  */
 int kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
-	struct firmware_trace_buffer *trace_buffer, unsigned int bit, bool value);
+	struct firmware_trace_buffer *trace_buffer, unsigned int bit,
+	bool value);
 
 /**
  * kbase_csf_firmware_trace_buffer_is_empty - Empty trace buffer predicate
@@ -153,7 +147,8 @@ int kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
  *
  * Return: True if the trace buffer is empty, or false otherwise.
  */
-bool kbase_csf_firmware_trace_buffer_is_empty(const struct firmware_trace_buffer *trace_buffer);
+bool kbase_csf_firmware_trace_buffer_is_empty(
+	const struct firmware_trace_buffer *trace_buffer);
 
 /**
  * kbase_csf_firmware_trace_buffer_read_data - Read data from a trace buffer
@@ -167,17 +162,8 @@ bool kbase_csf_firmware_trace_buffer_is_empty(const struct firmware_trace_buffer
  *
  * Return: Number of bytes read from the trace buffer.
  */
-unsigned int kbase_csf_firmware_trace_buffer_read_data(struct firmware_trace_buffer *trace_buffer,
-						       u8 *data, unsigned int num_bytes);
-
-/**
- * kbase_csf_firmware_trace_buffer_discard - Discard data from a trace buffer
- *
- * @trace_buffer: Trace buffer handle
- *
- * Discard part of the data in the trace buffer to reduce its utilization to half of its size.
- */
-void kbase_csf_firmware_trace_buffer_discard(struct firmware_trace_buffer *trace_buffer);
+unsigned int kbase_csf_firmware_trace_buffer_read_data(
+	struct firmware_trace_buffer *trace_buffer, u8 *data, unsigned int num_bytes);
 
 /**
  * kbase_csf_firmware_trace_buffer_get_active_mask64 - Get trace buffer active mask

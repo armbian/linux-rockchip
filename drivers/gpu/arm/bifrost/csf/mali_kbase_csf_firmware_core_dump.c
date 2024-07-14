@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,6 @@
 #include <linux/file.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
-#include <linux/version_compat_defs.h>
 
 #include "mali_kbase.h"
 #include "mali_kbase_csf_firmware_core_dump.h"
@@ -42,7 +41,7 @@
 #define FW_CORE_DUMP_DATA_VERSION_MINOR 1
 
 /* Full version of the image header core dump data format */
-#define FW_CORE_DUMP_DATA_VERSION \
+#define FW_CORE_DUMP_DATA_VERSION                                                                  \
 	((FW_CORE_DUMP_DATA_VERSION_MAJOR << 8) | FW_CORE_DUMP_DATA_VERSION_MINOR)
 
 /* Validity flag to indicate if the MCU registers in the buffer are valid */
@@ -91,20 +90,20 @@ struct prstatus32_timeval {
  *   use u32[18] instead of elf_gregset32_t to prevent introducing new typedefs.
  */
 struct elf_prstatus32 {
-	struct elf_siginfo pr_info; /* Info associated with signal. */
-	short int pr_cursig; /* Current signal. */
-	unsigned int pr_sigpend; /* Set of pending signals. */
-	unsigned int pr_sighold; /* Set of held signals. */
+	struct elf_siginfo pr_info;		/* Info associated with signal. */
+	short int pr_cursig;			/* Current signal. */
+	unsigned int pr_sigpend;		/* Set of pending signals. */
+	unsigned int pr_sighold;		/* Set of held signals. */
 	pid_t pr_pid;
 	pid_t pr_ppid;
 	pid_t pr_pgrp;
 	pid_t pr_sid;
-	struct prstatus32_timeval pr_utime; /* User time. */
-	struct prstatus32_timeval pr_stime; /* System time. */
-	struct prstatus32_timeval pr_cutime; /* Cumulative user time. */
-	struct prstatus32_timeval pr_cstime; /* Cumulative system time. */
-	u32 pr_reg[18]; /* GP registers. */
-	int pr_fpvalid; /* True if math copro being used. */
+	struct prstatus32_timeval pr_utime;	/* User time. */
+	struct prstatus32_timeval pr_stime;	/* System time. */
+	struct prstatus32_timeval pr_cutime;	/* Cumulative user time. */
+	struct prstatus32_timeval pr_cstime;	/* Cumulative system time. */
+	u32 pr_reg[18];				/* GP registers. */
+	int pr_fpvalid;				/* True if math copro being used. */
 };
 
 /**
@@ -506,7 +505,7 @@ static int fw_core_dump_create(struct kbase_device *kbdev)
 
 	/* Ensure MCU is active before requesting the core dump. */
 	kbase_csf_scheduler_pm_active(kbdev);
-	err = kbase_csf_scheduler_killable_wait_mcu_active(kbdev);
+	err = kbase_csf_scheduler_wait_mcu_active(kbdev);
 	if (!err)
 		err = kbase_csf_firmware_req_core_dump(kbdev);
 
@@ -577,7 +576,6 @@ static void *fw_core_dump_seq_start(struct seq_file *m, loff_t *_pos)
  */
 static void fw_core_dump_seq_stop(struct seq_file *m, void *v)
 {
-	CSTD_UNUSED(m);
 	kfree(v);
 }
 
@@ -666,9 +664,9 @@ static int fw_core_dump_seq_show(struct seq_file *m, void *v)
 
 	/* Write the current page. */
 	page = as_page(data->interface->phys[data->page_num]);
-	p = kbase_kmap_atomic(page);
+	p = kmap_atomic(page);
 	seq_write(m, p, FW_PAGE_SIZE);
-	kbase_kunmap_atomic(p);
+	kunmap_atomic(p);
 
 	return 0;
 }
@@ -748,16 +746,15 @@ open_fail:
 static ssize_t fw_core_dump_debugfs_write(struct file *file, const char __user *ubuf, size_t count,
 					  loff_t *ppos)
 {
-	ssize_t err;
+	int err;
 	struct fw_core_dump_data *dump_data = ((struct seq_file *)file->private_data)->private;
 	struct kbase_device *const kbdev = dump_data->kbdev;
 
-	CSTD_UNUSED(ubuf);
 	CSTD_UNUSED(ppos);
 
 	err = fw_core_dump_create(kbdev);
 
-	return err ? err : (ssize_t)count;
+	return err ? err : count;
 }
 
 /**

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,33 +20,28 @@
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 KDIR ?= $(KERNEL_SRC)
-M ?= $(shell pwd)
 
 ifeq ($(KDIR),)
     $(error Must specify KDIR to point to the kernel to target))
 endif
 
-CONFIGS :=
+CONFIG_MALI_CORESIGHT ?= n
+ifeq ($(CONFIG_MALI_CORESIGHT),y)
 
-ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
-    CONFIG_MALI_CORESIGHT ?= n
-    ifeq ($(CONFIG_MALI_CORESIGHT),y)
-
-        ifeq ($(CONFIG_ARM64), y)
-            CONFIG_CORESIGHT_MALI_SOURCES_ETM ?= y
-        endif
-
-        CONFIG_CORESIGHT_MALI_SOURCES_ITM ?= y
-        CONFIG_CORESIGHT_MALI_SOURCES_ELA ?= y
+    ifeq ($(CONFIG_ARM64), y)
+        CONFIG_CORESIGHT_MALI_SOURCES_ETM ?= y
     endif
 
-    CONFIGS += \
-        CONFIG_MALI_CORESIGHT \
-        CONFIG_CORESIGHT_MALI_SOURCES_ETM \
-        CONFIG_CORESIGHT_MALI_SOURCES_ITM \
-        CONFIG_CORESIGHT_MALI_SOURCES_ELA
-
+    CONFIG_CORESIGHT_MALI_SOURCES_ITM ?= y
+    CONFIG_CORESIGHT_MALI_SOURCES_ELA ?= y
 endif
+
+CONFIGS := \
+    CONFIG_MALI_CORESIGHT \
+    CONFIG_CORESIGHT_MALI_SOURCES_ETM \
+    CONFIG_CORESIGHT_MALI_SOURCES_ITM \
+    CONFIG_CORESIGHT_MALI_SOURCES_ELA
+
 
 #
 # MAKE_ARGS to pass the custom CONFIGs on out-of-tree build
@@ -73,40 +68,34 @@ EXTRA_CFLAGS := $(foreach config,$(CONFIGS), \
 #
 # KBUILD_EXTRA_SYMBOLS to prevent warnings about unknown functions
 #
-GPU_SYMBOLS = $(M)/../../../gpu/arm/Module.symvers
-ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
-    GPU_SYMBOLS = $(M)/../../../gpu/arm/midgard/Module.symvers
-endif
-
-EXTRA_SYMBOLS += \
-    $(M)/../../../base/arm/Module.symvers \
-    $(GPU_SYMBOLS)
+EXTRA_SYMBOLS += $(CURDIR)/../../../../../drivers/gpu/arm/midgard/Module.symvers
+EXTRA_SYMBOLS += $(CURDIR)/../../../../../drivers/hwtracing/coresight/mali/Module.symvers
 
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree
-CFLAGS_MODULE += -Wall -Werror
-CFLAGS_MODULE += -Wextra -Wunused -Wno-unused-parameter
-CFLAGS_MODULE += -Wmissing-declarations
-CFLAGS_MODULE += -Wmissing-format-attribute
-CFLAGS_MODULE += -Wmissing-prototypes
-CFLAGS_MODULE += -Wold-style-definition
-CFLAGS_MODULE += -Wmissing-include-dirs
-CFLAGS_MODULE += $(call cc-option, -Wunused-but-set-variable)
-CFLAGS_MODULE += $(call cc-option, -Wunused-const-variable)
-CFLAGS_MODULE += $(call cc-option, -Wpacked-not-aligned)
-CFLAGS_MODULE += $(call cc-option, -Wstringop-truncation)
+KBUILD_CFLAGS += -Wall -Werror
+KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
+KBUILD_CFLAGS += -Wmissing-declarations
+KBUILD_CFLAGS += -Wmissing-format-attribute
+KBUILD_CFLAGS += -Wmissing-prototypes
+KBUILD_CFLAGS += -Wold-style-definition
+KBUILD_CFLAGS += -Wmissing-include-dirs
+KBUILD_CFLAGS += $(call cc-option, -Wunused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wunused-const-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wpacked-not-aligned)
+KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 # The following turn off the warnings enabled by -Wextra
-CFLAGS_MODULE += -Wno-missing-field-initializers
-CFLAGS_MODULE += -Wno-sign-compare
-CFLAGS_MODULE += -Wno-type-limits
+KBUILD_CFLAGS += -Wno-missing-field-initializers
+KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += -Wno-type-limits
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 
 all:
-	$(MAKE) -C $(KDIR) M=$(M) $(MAKE_ARGS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" modules
+	$(MAKE) -C $(KDIR) M=$(CURDIR) $(MAKE_ARGS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" modules
 
 modules_install:
-	$(MAKE) -C $(KDIR) M=$(M) $(MAKE_ARGS) modules_install
+	$(MAKE) -C $(KDIR) M=$(CURDIR) $(MAKE_ARGS) modules_install
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(M) $(MAKE_ARGS) clean
+	$(MAKE) -C $(KDIR) M=$(CURDIR) $(MAKE_ARGS) clean

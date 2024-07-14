@@ -22,6 +22,7 @@ bifrost_kbase-y += \
     backend/gpu/mali_kbase_cache_policy_backend.o \
     backend/gpu/mali_kbase_gpuprops_backend.o \
     backend/gpu/mali_kbase_irq_linux.o \
+    backend/gpu/mali_kbase_js_backend.o \
     backend/gpu/mali_kbase_pm_backend.o \
     backend/gpu/mali_kbase_pm_driver.o \
     backend/gpu/mali_kbase_pm_metrics.o \
@@ -39,8 +40,7 @@ ifeq ($(MALI_USE_CSF),0)
         backend/gpu/mali_kbase_jm_as.o \
         backend/gpu/mali_kbase_debug_job_fault_backend.o \
         backend/gpu/mali_kbase_jm_hw.o \
-        backend/gpu/mali_kbase_jm_rb.o \
-        backend/gpu/mali_kbase_js_backend.o
+        backend/gpu/mali_kbase_jm_rb.o
 endif
 
 

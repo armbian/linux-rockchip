@@ -63,18 +63,11 @@ config MALI_BIFROST_NO_MALI
 	  All calls to the simulated hardware will complete immediately as if the hardware
 	  completed the task.
 
-config MALI_NO_MALI_DEFAULT_GPU
-	string "Default GPU for No Mali"
-	depends on MALI_BIFROST_NO_MALI
-	default "tMIx"
-	help
-	  This option sets the default GPU to identify as for No Mali builds.
-
 
 endchoice
 
 menu "Platform specific options"
-source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/bifrost/platform/Kconfig"
+source "drivers/gpu/arm/bifrost/platform/Kconfig"
 endmenu
 
 config MALI_CSF_SUPPORT
@@ -170,36 +163,32 @@ menuconfig MALI_BIFROST_EXPERT
 
 if MALI_BIFROST_EXPERT
 
-config LARGE_PAGE_SUPPORT
-	bool "Support for 2MB page allocations"
+config LARGE_PAGE_ALLOC_OVERRIDE
+	bool "Override default setting of 2MB pages"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default y
+	default n
 	help
-	 Rather than allocating all GPU memory page-by-page, allow the system
-	 to decide whether to attempt to allocate 2MB pages from the kernel.
-	 This reduces TLB pressure.
+	  An override config for LARGE_PAGE_ALLOC config.
+	  When LARGE_PAGE_ALLOC_OVERRIDE is Y, 2MB page allocation will be
+	  enabled by LARGE_PAGE_ALLOC. When this is N, the feature will be
+	  enabled when GPU HW satisfies requirements.
 
-	 Note that this option only enables the support for the module parameter
-	 and does not necessarily mean that 2MB pages will be used automatically.
-	 This depends on GPU support.
+	  If in doubt, say N
 
-	 If in doubt, say Y.
-
-config PAGE_MIGRATION_SUPPORT
-	bool "Enable support for page migration"
+config LARGE_PAGE_ALLOC
+	bool "Attempt to allocate 2MB pages"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default y
-	default n if ANDROID
+	default n
 	help
-	  Compile in support for page migration.
-	  If set to disabled ('n') then page migration cannot
-	  be enabled at all, and related symbols are not compiled in.
-	  If not set, page migration is compiled in by default, and
-	  if not explicitly enabled or disabled with the insmod parameter,
-	  page migration becomes automatically enabled with large pages.
+	  Rather than allocating all GPU memory page-by-page, attempt to
+	  allocate 2MB pages from the kernel. This reduces TLB pressure and
+	  helps to prevent memory fragmentation.
 
-	  If in doubt, say Y. To strip out page migration symbols and support,
-	  say N.
+	  Note this config applies only when LARGE_PAGE_ALLOC_OVERRIDE config
+	  is enabled and enabling this on a GPU HW that does not satisfy
+	  requirements can cause serious problem.
+
+	  If in doubt, say N
 
 config MALI_MEMORY_FULLY_BACKED
 	bool "Enable memory fully physically-backed"
@@ -394,16 +383,7 @@ config MALI_ARBITRATION
 	  virtualization setup for Mali
 	  If unsure, say N.
 
-config MALI_TRACE_POWER_GPU_WORK_PERIOD
-	bool "Enable per-application GPU metrics tracepoints"
-	depends on MALI_BIFROST
-	default y
-	help
-	  This option enables per-application GPU metrics tracepoints.
 
-	  If unsure, say N.
-
-
-# source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/bifrost/tests/Kconfig"
+# source "drivers/gpu/arm/bifrost/tests/Kconfig"
 
 endif
