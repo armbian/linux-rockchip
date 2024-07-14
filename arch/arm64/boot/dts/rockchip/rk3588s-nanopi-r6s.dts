@@ -176,3 +176,13 @@
 	status = "okay";
 };
 
+
+&uart4 {
+	pinctrl-0 = <&uart4m2_xfer>;
+	status = "disabled";
+};
+
+&uart5 {
+	pinctrl-0 = <&uart5m1_xfer>;
+	status = "okay";
+};

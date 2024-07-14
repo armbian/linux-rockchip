@@ -116,6 +116,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };
@@ -184,9 +188,9 @@
 };
 
 &hdmi0 {
+	cec-enable;
 	enable-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-	cec-enable = "true";
 };
 
 &hdmi0_in_vp0 {
@@ -526,6 +530,10 @@
 	status = "okay";
 };
 
+&rkvtunnel {
+	status = "okay";
+};
+
 &avcc_1v8_s0 {
 	regulator-state-mem {
 		regulator-on-in-suspend;
@@ -667,6 +675,8 @@
 &vop {
 	assigned-clocks = <&cru ACLK_VOP>;
 	assigned-clock-rates = <800000000>;
+	vop-supply = <&vdd_log_s0>;
+	support-multi-area;
 	status = "okay";
 	disable-win-move;
 };
@@ -700,6 +710,29 @@
 	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
 };
 
+/* TODO: FE has those vps different: 
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp1 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART2>;
+};
+
+&vp3 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART3>;
+};
+*/
+
+
 &wdt {
 	status = "okay";
 };
@@ -708,3 +741,10 @@
 	clocks = <&hdptxphy_hdmi_clk0>;
 	clock-names = "hdmi0_phy_pll";
 };
+
+/* @TODO: FE has display_subsystem different:
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi0>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
+};
+*/
