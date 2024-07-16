@@ -587,19 +587,6 @@
 	status = "okay";
 };
 
-&display_subsystem {
-	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
-	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
-};
-
-&hdptxphy_hdmi_clk0 {
-	status = "okay";
-};
-
-&hdptxphy_hdmi_clk1 {
-	status = "okay";
-};
-
 &hdmi1 {
 	status = "okay";
 	pinctrl-names = "default";
