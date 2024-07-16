@@ -703,8 +703,3 @@
 &wdt {
 	status = "okay";
 };
-
-&display_subsystem {
-	clocks = <&hdptxphy_hdmi_clk0>;
-	clock-names = "hdmi0_phy_pll";
-};
