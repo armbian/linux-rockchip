@@ -533,5 +533,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev05.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev07.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6-lts.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-retro-lite-cm5.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-sige5.dtb
 
 subdir-y := $(dts-dirs) overlay
