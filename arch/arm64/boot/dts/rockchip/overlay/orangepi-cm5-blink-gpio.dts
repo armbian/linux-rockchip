@@ -1,0 +1,70 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "rockchip,rk3588s-orangepi-cm5", "rockchip,rk3588";
+
+	fragment@0 {
+		target = <&leds>;
+
+		__overlay__ {
+			status = "okay";
+
+			gpio1_b3@0 {
+				gpios = <&gpio1 11 0>;
+				label = "gpio1_b3";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio1_b1@1 {
+				gpios = <&gpio1 9 0>;
+				label = "gpio1_b1";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio1_b4@2 {
+				gpios = <&gpio1 12 0>;
+				label = "gpio1_b4";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio1_b2@3 {
+				gpios = <&gpio1 10 0>;
+				label = "gpio1_b2";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio1_b7@4 {
+				gpios = <&gpio1 15 0>;
+				label = "gpio1_b7";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio1_b6@5 {
+				gpios = <&gpio1 14 0>;
+				label = "gpio1_b6";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio4_b2@6 {
+				gpios = <&gpio4 10 0>;
+				label = "gpio4_b2";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+
+			gpio4_b3@7 {
+				gpios = <&gpio4 11 0>;
+				label = "gpio4_b3";
+				linux,default-trigger = "heartbeat";
+				linux,default-trigger-delay-ms = <0>;
+			};
+		};
+	};
+};

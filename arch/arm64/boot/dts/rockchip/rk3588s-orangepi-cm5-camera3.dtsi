@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&csi2_dcphy1 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidcphy1_in_ucam0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&ov5647_3_out1>;
+				data-lanes = <1 2>;
+			};
+
+			mipidcphy1_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx219_3_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m2_xfer>;
+
+	ov5647_3: ov5647-3@36 {
+		status = "disabled";
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&ext_cam_ov5647_clk>;
+		clock-names = "ext_cam_ov5647_clk";
+		pwdn-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "rpi-camera-v1";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			ov5647_3_out1: endpoint {
+			        remote-endpoint = <&mipidcphy1_in_ucam0>;
+			        data-lanes = <1 2>;
+			};
+		};
+	};
+
+	imx219_3: imx219-3@10 {
+		status = "disabled";
+		compatible = "sony,imx219";
+		reg = <0x10>;
+		clocks = <&ext_cam_ov5647_clk>;
+		clock-names = "ext_cam_ov5647_clk";
+		pwdn-gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "rpi-camera-v2";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			imx219_3_out1: endpoint {
+			        remote-endpoint = <&mipidcphy1_in_ucam1>;
+			        data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "disabled";
+
+	port {
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "disabled";
+
+        port {
+                mipi1_lvds_sditf: endpoint {
+                        remote-endpoint = <&isp1_in0>;
+                };
+        };
+};
+
+&rkisp1_vir1 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_in0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi1_lvds_sditf>;
+		};
+	};
+};
