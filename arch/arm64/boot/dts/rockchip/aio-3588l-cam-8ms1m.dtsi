@@ -1,0 +1,356 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	cam_ircut0: cam_ircut {
+		status = "disabled";
+		compatible = "rockchip,ircut";
+		ircut-open-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	vcc_mipidphy0: vcc-mipidcphy0-regulator {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipidphy0_pwr>;
+		regulator-name = "vcc_mipidphy0";
+		enable-active-high;
+	};
+	vcc_mipidphy1: vcc-mipidcphy0-regulator {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipidphy1_pwr>;
+		regulator-name = "vcc_mipidphy1";
+		enable-active-high;
+	};
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&csi2_dphy3 {
+	status = "okay";
+#ifdef FF_COMPATIBLE
+		firefly-compatible;
+#endif
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidphy3_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&xc7160_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi4_csi2 {
+	status = "okay";
+
+#ifdef FF_COMPATIBLE
+		firefly-compatible;
+#endif
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in0>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4 {
+        status = "okay";
+
+        port {
+                cif_mipi4_in0: endpoint {
+                        remote-endpoint = <&mipi4_csi2_output>;
+                };
+        };
+};
+
+&rkcif_mipi_lvds4_sditf {
+	status = "disabled";
+
+	port {
+		mipi_lvds4_sditf: endpoint {
+			remote-endpoint = <&isp1_vir1>;
+		};
+	};
+};
+
+&rkisp1 {
+	status = "disabled";
+};
+
+&isp1_mmu {
+	status = "disabled";
+};
+
+&rkisp1_vir1 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf>;
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+}; 
+
+&csi2_dphy0 {
+	status = "okay";
+
+#ifdef FF_COMPATIBLE
+		firefly-compatible;
+#endif
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidphy0_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&xc7160_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi2_csi2 {
+        status = "okay";
+
+#ifdef FF_COMPATIBLE
+		firefly-compatible;
+#endif
+        ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                        reg = <0>;
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        mipi2_csi2_input: endpoint@1 {
+                                reg = <1>;
+                                remote-endpoint = <&csidphy0_out>;
+                        };
+                };
+
+                port@1 {
+                        reg = <1>;
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        mipi2_csi2_output: endpoint@0 {
+                                reg = <0>;
+                                remote-endpoint = <&cif_mipi2_in0>;
+                        };
+                };
+        };
+};
+
+&rkcif_mipi_lvds2 {
+        status = "okay";
+
+        port {
+                cif_mipi2_in0: endpoint {
+                        remote-endpoint = <&mipi2_csi2_output>;
+                };
+        };
+};
+
+&rkcif_mipi_lvds2_sditf {
+	status = "disabled";
+
+	port {
+		mipi_lvds2_sditf: endpoint {
+			remote-endpoint = <&isp0_vir2>;
+		};
+	};
+};
+
+&rkisp0 {
+	status = "disabled";
+};
+
+&isp0_mmu {
+	status = "disabled";
+};
+
+&rkisp0_vir2 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir2: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+&i2c3 {
+        status = "okay";
+        pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m0_xfer>;
+
+ 	XC7160: XC7160b@1b{
+               compatible = "firefly,xc7160";
+               status = "okay";
+               reg = <0x1b>;
+	        clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+               clock-names = "xvclk";
+               pinctrl-names = "default";
+	        pinctrl-0 = <&mipim0_camera1_clk>;
+               power-domains = <&power RK3588_PD_VI>;
+
+               power-gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_LOW>;
+               reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+               pwdn-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+
+			#define FF_COMPATIBLE
+               //avdd-supply = <&vcc_mipidphy0>;
+               firefly,clkout-enabled-index = <0>;
+               rockchip,camera-module-index = <0>;
+               rockchip,camera-module-facing = "back";
+               rockchip,camera-module-name = "NC";
+               rockchip,camera-module-lens-name = "NC";
+               port {
+                        xc7160_out0: endpoint {
+                               remote-endpoint = <&mipidphy0_in_ucam0>;
+                               data-lanes = <1 2 3 4>;
+                       };
+               };
+       };
+};
+
+&i2c8 {
+        status = "okay";
+        pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m4_xfer>;
+ 
+       xc7160_1: xc7160-1@1b {
+               compatible = "firefly,xc7160";
+               reg = <0x1b>;
+               clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+               clock-names = "xvclk";
+               pinctrl-names = "default";
+               pinctrl-0 = <&mipim0_camera3_clk>;
+               power-domains = <&power RK3588_PD_VI>;
+
+               power-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+               reset-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+               pwdn-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+
+			#define FF_COMPATIBLE
+               //avdd-supply = <&vcc_mipidphy1>;
+               firefly,clkout-enabled-index = <0>;
+               rockchip,camera-module-index = <2>;
+               rockchip,camera-module-facing = "back";
+               rockchip,camera-module-name = "NC";
+               rockchip,camera-module-lens-name = "NC";
+               port {
+                       xc7160_out1: endpoint {
+                               remote-endpoint = <&mipidphy3_in_ucam0>;
+                               data-lanes = <1 2 3 4>;
+                       };
+               };
+       };
+};
+
+
+&pinctrl {
+	cam {
+		mipidphy0_pwr: mipidphy0-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<2 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	cam {
+		mipidphy1_pwr: mipidphy1-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+//	memory-region = <&cif_reserved>;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
