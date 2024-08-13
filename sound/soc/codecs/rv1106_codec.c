@@ -52,12 +52,18 @@
 #define AUDIO_CON0_DAC_SEL_SDO_GND		(0x0 << 9)
 #define AUDIO_CON0_DAC_SEL_SDO_SAI		(0x3 << 9)
 #define AUDIO_CON0_DAC_SEL_SCLKLRCLK_GND	(0x0 << 7)
+#define AUDIO_CON0_DAC_SEL_SCLKLRCLK_IO		(0x2 << 7)
 #define AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI	(0x3 << 7)
 #define AUDIO_CON0_ADC_SEL_SCLKLRCLK_GND	(0x0 << 5)
+#define AUDIO_CON0_ADC_SEL_SCLKLRCLK_IO		(0x2 << 5)
 #define AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI	(0x3 << 5)
 #define AUDIO_CON0_SAI_SEL_SDI_GND		(0x0 << 3)
 #define AUDIO_CON0_SAI_SEL_SDI_IO		(0x2 << 3)
 #define AUDIO_CON0_SAI_SEL_SDI_ACODEC		(0x3 << 3)
+#define AUDIO_CON0_SAI_SEL_SCLKLRCLK_GND	((0x7 << 16) | (0x0 << 0))
+#define AUDIO_CON0_SAI_SEL_SCLKLRCLK_IO		((0x7 << 16) | (0x4 << 0))
+#define AUDIO_CON0_SAI_SEL_SCLKLRCLK_DAC	((0x7 << 16) | (0x6 << 0))
+#define AUDIO_CON0_SAI_SEL_SCLKLRCLK_ADC	((0x7 << 16) | (0x7 << 0))
 
 #define RV1103B_SYS_GRF_AUDIO_CON1		0x50024
 #define AUDIO_CON1_MUX_MSK			((0x7 << 16) | (0x3 << 21))
@@ -251,13 +257,14 @@ static const char *mute_text[2] = {
 	[1] = "Mute",
 };
 
-static const char *audio_mux_text[6] = {
-	[0] = "Path0",  /* Playback: To Acodec Lineout, Capture: From Acodec Mic Only */
-	[1] = "Path1",  /* Playback: To Acodec Lineout, Capture: From SAI SDI Only */
-	[2] = "Path2",  /* Playback: To Acodec Lineout + SAI SDO, Capture: From Acodec Mic Only */
-	[3] = "Path3",  /* Playback: To Acodec Lineout + SAI SDO, Capture: From SAI SDI Only */
-	[4] = "Path4",  /* Playback: To SAI SDO Only, Capture: From Acodec Mic Only */
-	[5] = "Path5",  /* Playback: To SAI SDO Only, Capture: From SAI SDI Only */
+static const char *audio_mux_text[] = {
+	[0] = "Path0",  /* MST: Playback: To Acodec Lineout, Capture: From Acodec Mic Only */
+	[1] = "Path1",  /* MST: Playback: To Acodec Lineout, Capture: From SAI SDI Only */
+	[2] = "Path2",  /* MST: Playback: To Acodec Lineout + SAI SDO, Capture: From Acodec Mic Only */
+	[3] = "Path3",  /* MST: Playback: To Acodec Lineout + SAI SDO, Capture: From SAI SDI Only */
+	[4] = "Path4",  /* MST: Playback: To SAI SDO Only, Capture: From Acodec Mic Only */
+	[5] = "Path5",  /* MST: Playback: To SAI SDO Only, Capture: From SAI SDI Only */
+	[6] = "Path6",  /* SLV: Playback: To Acodec Lineout + SAI SDO, Capture: From SAI SDI Only */
 };
 
 /* ADC MICBIAS Volt */
@@ -1753,6 +1760,23 @@ static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
 			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI |
 			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI |
 			      AUDIO_CON0_SAI_SEL_SDI_IO));
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK |
+			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
+		break;
+	case 6:
+		/*
+		 * IO SCLK/LRCK ---> SAI / ACODEC
+		 * SAI SDO --------> ACODEC / IO
+		 * SAI SDI <-------- IO
+		 */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK |
+			     (AUDIO_CON0_DAC_SEL_SDO_SAI |
+			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_IO |
+			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_IO |
+			      AUDIO_CON0_SAI_SEL_SDI_IO|
+			      AUDIO_CON0_SAI_SEL_SCLKLRCLK_IO));
 		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
 			     AUDIO_CON1_MUX_MSK |
 			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
