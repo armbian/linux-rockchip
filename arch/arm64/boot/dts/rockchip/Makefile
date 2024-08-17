@@ -380,6 +380,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb3-lp4x-v10-sii9022-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb4-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb4-lp4x-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb8-lp4x-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-youyeetoo-r1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-9tripod-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-khadas-edge2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-lubancat-4.dtb
