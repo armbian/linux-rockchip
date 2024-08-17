@@ -1,0 +1,269 @@
+/*
+* Youyeetoo R1 V3 - RK3588S
+* LCD DSI0 & LCD DSI1
+* For some reason, pin cannot be reuse, so you've to compile it with DSI1_LCD/DSI0_LCD defined
+* Currently Enabled: DSI0_LCD
+*/
+
+#define DSI0_LCD  1
+#define DSI1_LCD  0
+
+#if DSI0_LCD
+&dsi0 {
+    status = "okay";
+    rockchip,lane-rate = <1000>;
+    dsi0_panel: panel@0 {
+            status = "disabled";
+            compatible = "simple-panel-dsi";
+            reg = <0>;
+            backlight = <&backlight>;
+            reset-delay-ms = <60>;
+            enable-delay-ms = <60>;
+            prepare-delay-ms = <60>;
+            unprepare-delay-ms = <60>;
+            disable-delay-ms = <60>;
+            dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+                    MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+            dsi,format = <MIPI_DSI_FMT_RGB888>;
+            dsi,lanes  = <4>;
+
+            panel-init-sequence = [
+                        15 00 02 80 ac
+                        15 00 02 81 b8
+                        15 00 02 82 09
+                        15 00 02 83 78
+                        15 00 02 84 7f
+                        15 00 02 85 bb
+                        15 00 02 86 70
+                    ];
+
+                    panel-exit-sequence = [
+                        05 00 01 28
+                        05 00 01 10
+                    ];
+
+                    disp_timings0:display-timings {
+                        native-mode = <&dsi0_timing0>;
+                        dsi0_timing0: timing0 {
+                            clock-frequency = <51668640>;
+                            hactive = <1024>;
+                            vactive = <600>;
+                            hfront-porch = <160>;
+                            hback-porch = <160>;
+                            hsync-len = <10>;
+                            vfront-porch = <12>;
+                            vsync-len = <10>;
+                            vback-porch = <23>;
+                            hsync-active = <0>;
+                            vsync-active = <0>;
+                            de-active = <1>;
+                            pixelclk-active = <0>;
+                        };
+                    };
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                            reg = <0>;
+                            panel_in_dsi: endpoint {
+                                    remote-endpoint = <&dsi_out_panel>;
+                            };
+                    };
+            };
+    };
+
+    ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@1 {
+                    reg = <1>;
+                    dsi_out_panel: endpoint {
+                            remote-endpoint = <&panel_in_dsi>;
+                    };
+            };
+    };
+};
+
+&route_dsi0 {
+    status = "okay";
+    connect = <&vp2_out_dsi0>;
+};
+
+&dsi0 {
+    status = "okay";
+};
+
+&dsi0_in_vp2 {
+    status = "okay";
+};
+
+&dsi0_in_vp3 {
+    status = "disabled";
+};
+
+&dsi0_panel {
+    power-supply = <&vcc3v3_lcd_n>;
+    reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_LOW>;
+    enable-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_LOW>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&lcd_rst_gpio>;
+    status = "okay";
+};
+
+&i2c3 {
+    status = "okay";
+    pinctrl-names = "default";
+    pinctrl-0 = <&i2c3m2_xfer>;
+
+    gt9xx: gt9xx@5d {
+            compatible = "goodix,gt9xx";
+            reg = <0x5d>;
+            touch-gpio = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+            reset-gpio = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+            max-x = <1024>;
+            max-y = <600>;
+            tp-size = <911>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&touch_gpio>;
+
+            status = "okay";
+    };
+};
+
+&mipi_dcphy0 {
+    status = "okay";
+};
+
+#endif
+
+#if DSI1_LCD
+
+&dsi1 {
+    status = "okay";
+    dsi1_panel: panel@0 {
+            status = "okay";
+            compatible = "simple-panel-dsi";
+            reg = <0>;
+            backlight = <&backlight1>;
+            reset-delay-ms = <60>;
+            enable-delay-ms = <60>;
+            prepare-delay-ms = <60>;
+            unprepare-delay-ms = <60>;
+            disable-delay-ms = <60>;
+            dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+                    MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+            dsi,format = <MIPI_DSI_FMT_RGB888>;
+            dsi,lanes  = <4>;
+            panel-init-sequence = [
+                        15 00 02 80 ac
+                        15 00 02 81 b8
+                        15 00 02 82 09
+                        15 00 02 83 78
+                        15 00 02 84 7f
+                        15 00 02 85 bb
+                        15 00 02 86 70
+                    ];
+
+                    panel-exit-sequence = [
+                        05 00 01 28
+                        05 00 01 10
+                    ];
+
+                    disp_timings1:display-timings {
+                        native-mode = <&dsi1_timing0>;
+                        dsi1_timing0: timing0 {
+                            clock-frequency = <51668640>;
+                            hactive = <1024>;
+                            vactive = <600>;
+                            hfront-porch = <160>; 
+                            hback-porch = <160>;
+                            hsync-len = <10>;
+                            vfront-porch = <12>;
+                            vsync-len = <10>;
+                            vback-porch = <23>;
+                            hsync-active = <0>;
+                            vsync-active = <0>;
+                            de-active = <1>;
+                            pixelclk-active = <0>;
+                        };
+                    };
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                            reg = <0>;
+                            panel_in_dsi1: endpoint {
+                                    remote-endpoint = <&dsi1_out_panel>;
+                            };
+                    };
+            };
+    };
+
+    ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@1 {
+                    reg = <1>;
+                    dsi1_out_panel: endpoint {
+                            remote-endpoint = <&panel_in_dsi1>;
+                    };
+            };
+    };
+};
+
+&dsi1 {
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+&dsi1_in_vp2 {
+    status = "disabled";
+};
+
+&dsi1_in_vp3 {
+    status = "okay";
+};
+
+&dsi1_panel {
+    power-supply = <&vcc3v3_lcd_n>;
+    reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_LOW>;
+    enable-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_LOW>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&lcd_rst_gpio>;
+};
+
+&route_dsi1 {
+    status = "okay";
+    connect = <&vp3_out_dsi1>;
+};
+
+&i2c5 {
+    status = "okay";
+    pinctrl-0 = <&i2c5m3_xfer>;
+
+    gt9xx: gt9xx@5d {
+            compatible = "goodix,gt9xx";
+            reg = <0x5d>;
+            touch-gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+            reset-gpio = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+            max-x = <1024>;
+            max-y = <600>;
+            tp-size = <911>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&touch_gpio>;
+
+            status = "okay";
+    };
+};
+
+&mipi_dcphy1 {
+        status = "okay";
+};
+
+#endif
