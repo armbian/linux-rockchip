@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3588-friendlyelec-cm3588-nas.dts"
+
+// DO NOT ADD ANYTHING TO THIS DTS!
+// This file only exists for backwards compatibility for existing installations installed before 2024-08-22.
