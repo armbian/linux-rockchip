@@ -15,14 +15,14 @@ jobs:
     steps:
       # Login to ghcr.io, for later uploading rootfs to ghcr.io
       - name: Docker Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }} # GitHub username or org
           password: ${{ secrets.GITHUB_TOKEN }} # GitHub actions builtin token. repo has to have pkg access.
 
       - name: Checkout build repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: armbian/build
           ref: main
@@ -47,7 +47,7 @@ jobs:
           ENABLE_EXTENSIONS="pull-request"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-rockchip-vendor
           path: output/debs/*.deb
