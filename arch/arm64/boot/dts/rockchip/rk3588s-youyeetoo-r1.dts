@@ -130,6 +130,24 @@
         default-brightness-level = <200>;
 	};
 
+    /* BLUETOOTH */
+    wireless_bluetooth: wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+        clocks = <&hym8563>;
+        clock-names = "ext_clock";
+        status = "okay";
+    };
+
+    /* WIFI */
+    wireless_wlan: wireless-wlan {
+        compatible = "wlan-platdata";
+        wifi_chip_type = "rtl8852be";
+        pinctrl-names = "default";
+        pinctrl-0 = <&wifi_host_wake_irq>;
+        WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+    };
+
     /* FAN */
     fan: gpio-fan {
         compatible = "gpio-fan";
@@ -151,20 +169,6 @@
             65000    4
             70000    5
         >;
-        status = "okay";
-    };
-
-    usb30_power_ver1 {
-        compatible = "lylx,xgpio";
-        gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
-        def_val = <1>;
-        status = "okay";
-    };
-
-    usb30_power {
-        compatible = "lylx,xgpio";
-        gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-        def_val = <1>;
         status = "okay";
     };
 };
