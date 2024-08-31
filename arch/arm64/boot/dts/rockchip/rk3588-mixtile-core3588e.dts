@@ -561,6 +561,19 @@
 	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
 };
 
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi_clk0>;
+	clock-names = "hdmi0_phy_pll";
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi_clk0 {
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };
