@@ -389,11 +389,11 @@
 };
 
 &display_subsystem {
-	clocks = <&hdptxphy_hdmi_clk0>;
+	clocks = <&hdptxphy0>;
 	clock-names = "hdmi0_phy_pll";
 };
 
-&hdptxphy_hdmi_clk0 {
+&hdptxphy0 {
 	status = "okay";
 };
 
