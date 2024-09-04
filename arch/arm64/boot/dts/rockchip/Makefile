@@ -113,6 +113,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-hinlink-ht2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-mangopi-m28k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e20c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-rock-2a.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-rock-2f.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-dictpen-test3-v20.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb1-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb1-lp4x-v10-linux.dtb
