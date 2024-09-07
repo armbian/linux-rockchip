@@ -306,6 +306,10 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&crypto {
+        status = "okay";
+};
+
 &dfi {
 	status = "okay";
 };
