@@ -160,7 +160,7 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 =<&leds_gpio>;
+		pinctrl-0 = <&leds_gpio>;
 		status = "okay";
 
 		led@1 {
@@ -505,10 +505,86 @@
 };
 
 /* VARIOUS */
+/* FAN CONTROL */
 
+&threshold {
+	temperature = <60000>;
+};
+
+&soc_thermal {
+	sustainable-power = <5000>; /* milliwatts */
+	polling-delay = <1000>;
+	polling-delay-passive = <2000>;
+	trips {
+		trip0: trip-point@0 {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip1: trip-point@1 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip2: trip-point@2 {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip3: trip-point@3 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		trip4: trip-point@4 {
+			temperature = <75000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		pcritical: trip-point@5 {
+			temperature = <80000>;
+			hysteresis = <1000>;
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&trip0>;
+			cooling-device = <&fan0 0 1>;
+			contribution = <1024>;
+		};
+		map1 {
+			trip = <&trip1>;
+			cooling-device = <&fan0 1 2>;
+			contribution = <1024>;
+		};
+		map2 {
+			trip = <&trip2>;
+			cooling-device = <&fan0 2 3>;
+			contribution = <1024>;
+		};
+		map3 {
+			trip = <&trip3>;
+			cooling-device = <&fan0 3 4>;
+			contribution = <1024>;
+		};
+		map4 {
+			trip = <&trip4>;
+			cooling-device = <&fan0 4 5>;
+			contribution = <1024>;
+		};
+		map5 {
+			trip = <&pcritical>;
+			cooling-device = <&fan0 5 6>;
+			contribution = <1024>;
+		};
+	};
+};
+
+/* CAN */
 &can2 {
     pinctrl-names = "default";
-    pinctrl-0 = <&can2m1_pins>;
+    pinctrl-0 = <&can2m0_pins>;
     status = "okay";
 };
 
@@ -728,6 +804,7 @@
 	tx_delay = <0x43>;
 
 	phy-handle = <&rgmii_phy1>;
+	phy-supply = <&vcc_3v3_s3>;
 };
 
 
@@ -814,7 +891,7 @@
 &uart5 {
         status = "okay";
         pinctrl-names = "default";
-        pinctrl-0 = <&uart5m1_xfer >;
+        pinctrl-0 = <&uart5m1_xfer>;
 };
 
 &pinctrl {
@@ -867,29 +944,10 @@
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
-    /* GPIO KEYS */
-	gpio-key {
-        key1_pin: key1-pin {
-            rockchip,pins = <1 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
-        };
+    /* GPIO */
+	gpio {
 		leds_gpio: leds-gpio {
 			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
-    };
-
-    xgpio {
-        gpio_4g:gpio-4g{
-                rockchip,pins =
-					<0 23  RK_FUNC_GPIO &pcfg_pull_up>;
-					//<3 26 RK_FUNC_GPIO &pcfg_pull_up>,
-					//<3 27 RK_FUNC_GPIO &pcfg_pull_up>,
-					//<0 21 RK_FUNC_GPIO &pcfg_pull_up>,
-					//<0 29 RK_FUNC_GPIO &pcfg_pull_up>,
-					//<4 6  RK_FUNC_GPIO &pcfg_pull_up>,
-					//<4 7  RK_FUNC_GPIO &pcfg_pull_up>,
-					//<0 8  RK_FUNC_GPIO &pcfg_pull_up>;
-					//<4 10  RK_FUNC_GPIO &pcfg_pull_none>,
-					//<4 13 RK_FUNC_GPIO &pcfg_pull_up>;
-        };
     };
 };
