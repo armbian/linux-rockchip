@@ -52,7 +52,6 @@
 
     backlight: backlight {
         compatible = "pwm-backlight";
-        pwms = <&pwm12 0 25000 0>;
         brightness-levels = <
             0  20  20  21  21  22  22  23
             23  24  24  25  25  26  26  27
@@ -86,13 +85,12 @@
             232 233 234 235 236 237 238 239
             240 241 242 243 244 245 246 247
             248 249 250 251 252 253 254 255
-		>;
+        >;
         default-brightness-level = <200>;
-	};
+    };
 
-	backlight1: backlight1 {
+    backlight1: backlight1 {
         compatible = "pwm-backlight";
-        pwms = <&pwm11 0 25000 0>;
         brightness-levels = <
                 0  20  20  21  21  22  22  23
                 23  24  24  25  25  26  26  27
@@ -128,7 +126,7 @@
                 248 249 250 251 252 253 254 255
         >;
         default-brightness-level = <200>;
-	};
+    };
 
     /* BLUETOOTH */
     wireless_bluetooth: wireless-bluetooth {
@@ -149,28 +147,13 @@
     };
 
     /* FAN */
-    fan: gpio-fan {
-        compatible = "gpio-fan";
-        gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;  /* Using GPIO0_C7 */
-        #cooling-cells = <2>;
-        cooling-levels = <0 50 100 150 200 255>;
-        gpio-fan,speed-map = <
-            0 0
-            1 50
-            2 100
-            3 150
-            4 200
-            5 255
-        >;
-        rockchip,temp-trips = <
-            50000    1
-            55000    2
-            60000    3
-            65000    4
-            70000    5
-        >;
-        status = "okay";
-    };
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-levels = <100 160 190 200 215 235 255>;
+		pwms = <&pwm6 0 40000 0>;
+        fan-supply = <&vcc12v_dcin>;
+	};
 };
 
 /* AUDIO */
@@ -182,8 +165,16 @@
 		     &i2s0_sdo0>;
 };
 
+/* PWM */
+&pwm6{
+     pinctrl-0 = <&pwm6m0_pins>;
+     pinctrl-names = "active";
+     status = "okay";
+};
+
 &pwm7{
      pinctrl-0 = <&pwm7m0_pins>;
+     pinctrl-names = "active";
      status = "okay";
 };
 
@@ -197,4 +188,18 @@
     status = "okay";
     pinctrl-names = "active";
     pinctrl-0 = <&pwm12m1_pins>;
+};
+
+/* LCD BACKLIGHT */
+
+&backlight {
+    pwms = <&pwm12 0 25000 0>;
+    status = "okay";
+    power-supply = <&vcc5v0_sys>;
+};
+
+&backlight1 {
+    pwms = <&pwm11 0 25000 0>;
+    status = "disabled";
+    power-supply = <&vcc5v0_sys>;
 };
