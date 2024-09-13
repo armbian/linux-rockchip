@@ -253,7 +253,7 @@
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h &clkm0_32k_out>;
+		pinctrl-0 = <&wifi_enable_h &clkm1_32k_out>;
 		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
 	};
 
