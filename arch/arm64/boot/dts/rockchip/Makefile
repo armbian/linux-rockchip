@@ -208,6 +208,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-h68k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-hinlink-hnas.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-mixtile-edge2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev01.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev02.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nanopi5-rev03.dtb
