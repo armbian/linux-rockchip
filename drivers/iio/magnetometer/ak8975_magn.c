@@ -1105,7 +1105,7 @@ MODULE_DEVICE_TABLE(of, ak8975_of_match);
 
 static struct i2c_driver ak8975_driver = {
 	.driver = {
-		.name	= "ak8975",
+		.name	= "ak8975_magn",
 		.pm = pm_ptr(&ak8975_dev_pm_ops),
 		.of_match_table = ak8975_of_match,
 		.acpi_match_table = ak_acpi_match,
