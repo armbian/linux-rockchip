@@ -244,7 +244,7 @@ static int sensor_report_value(struct i2c_client *client)
 		return -3;
 	}
 
-	/* »¥³âµØ»º´æÊý¾Ý. */
+	/* ï¿½ï¿½ï¿½ï¿½Ø»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½. */
 	mutex_lock(&sensor->data_mutex);
 	memcpy(sensor->sensor_data, buffer, sensor->ops->read_len);
 	mutex_unlock(&sensor->data_mutex);
@@ -593,7 +593,7 @@ static struct miscdevice compass_dev_device =
 };
 
 static struct sensor_operate compass_akm8975_ops = {
-	.name				= "akm8975",
+	.name				= "akm8975_comp",
 	.type				= SENSOR_TYPE_COMPASS,	//it is important
 	.id_i2c				= COMPASS_ID_AK8975,
 	.read_reg			= AK8975_REG_ST1,	//read data
@@ -624,7 +624,7 @@ static void compass_akm8975_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id compass_akm8975_id[] = {
-	{"ak8975", COMPASS_ID_AK8975},
+	{"ak8975_comp", COMPASS_ID_AK8975},
 	{}
 };
 
