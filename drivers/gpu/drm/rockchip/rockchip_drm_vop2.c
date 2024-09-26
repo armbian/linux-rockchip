@@ -3945,6 +3945,9 @@ static void vop2_wb_irqs_enable(struct vop2 *vop2)
 	const struct vop_intr *intr = &vop2_data->axi_intr[0];
 	uint32_t irqs = WB_UV_FIFO_FULL_INTR | WB_YRGB_FIFO_FULL_INTR;
 
+	if (is_vop3(vop2))
+		irqs |= WB_COMPLETE_INTR;
+
 	VOP_INTR_SET_TYPE(vop2, intr, clear, irqs, 1);
 	VOP_INTR_SET_TYPE(vop2, intr, enable, irqs, 1);
 }
@@ -3953,7 +3956,7 @@ static uint32_t vop2_read_and_clear_wb_irqs(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop_intr *intr = &vop2_data->axi_intr[0];
-	uint32_t irqs = WB_UV_FIFO_FULL_INTR | WB_YRGB_FIFO_FULL_INTR;
+	uint32_t irqs = WB_UV_FIFO_FULL_INTR | WB_YRGB_FIFO_FULL_INTR | WB_COMPLETE_INTR;
 	uint32_t val;
 
 	val = VOP_INTR_GET_TYPE(vop2, intr, status, irqs);
@@ -3994,13 +3997,14 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 
 		drm_writeback_queue_job(wb_conn, conn_state);
 		conn_state->writeback_job = NULL;
-
-		spin_lock_irqsave(&wb->job_lock, flags);
-		wb->jobs[wb->job_index].pending = true;
-		wb->job_index++;
-		if (wb->job_index >= VOP2_WB_JOB_MAX)
-			wb->job_index = 0;
-		spin_unlock_irqrestore(&wb->job_lock, flags);
+		if (vop2->version < VOP_VERSION_RK3576) {
+			spin_lock_irqsave(&wb->job_lock, flags);
+			wb->jobs[wb->job_index].pending = true;
+			wb->job_index++;
+			if (wb->job_index >= VOP2_WB_JOB_MAX)
+				wb->job_index = 0;
+			spin_unlock_irqrestore(&wb->job_lock, flags);
+		}
 
 		fifo_throd = fb->pitches[0] >> 4;
 		if (fifo_throd >= vop2->data->wb->fifo_depth)
@@ -14371,6 +14375,28 @@ out:
 	return ret;
 }
 
+static void vop3_writeback_complete(struct vop2 *vop2)
+{
+	struct vop2_wb *wb = &vop2->wb;
+	struct vop2_video_port *vp;
+	uint8_t wb_vp_id;
+	bool wb_oneframe_mode;
+	bool wb_en;
+
+	wb_en = VOP_MODULE_GET(vop2, wb, enable);
+	wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
+	/*
+	 * The write back should work in one shot mode,
+	 * stop when write back complete in next vsync.
+	 */
+	if (wb_en && !wb_oneframe_mode) {
+		wb_vp_id = VOP_MODULE_GET(vop2, wb, vp_id);
+		vp = &vop2->vps[wb_vp_id];
+		vop2_wb_disable(vp);
+	}
+	drm_writeback_signal_completion(&vop2->wb.conn, 0);
+}
+
 static irqreturn_t vop3_sys_isr(int irq, void *data)
 {
 	struct vop2 *vop2 = data;
@@ -14423,7 +14449,13 @@ static irqreturn_t vop3_sys_isr(int irq, void *data)
 		active_irqs = wb_irqs;
 		SYS_ERROR_HANDLER(WB_UV_FIFO_FULL);
 		SYS_ERROR_HANDLER(WB_YRGB_FIFO_FULL);
-		SYS_ERROR_HANDLER(WB_COMPLETE);
+		if (active_irqs & WB_COMPLETE_INTR) {
+			active_irqs &= ~WB_COMPLETE_INTR;
+			vop3_writeback_complete(vop2);
+		}
+		/* Unhandled irqs are spurious. */
+		if (active_irqs)
+			DRM_ERROR("Unknown writeback IRQs: %02x\n", active_irqs);
 	}
 
 	for (i = 0; i < axi_max; i++) {
@@ -14496,7 +14528,6 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 
 	if (active_irqs & FS_FIELD_INTR) {
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
-		vop2_wb_handler(vp);
 		drm_crtc_handle_vblank(crtc);
 		vop2_handle_vblank(vop2, crtc);
 		active_irqs &= ~FS_FIELD_INTR;

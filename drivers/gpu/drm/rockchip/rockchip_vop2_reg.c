@@ -611,7 +611,6 @@ static const int rk3568_vop_axi_intrs[] = {
 	0,
 	WB_UV_FIFO_FULL_INTR,
 	WB_YRGB_FIFO_FULL_INTR,
-	WB_COMPLETE_INTR,
 
 };
 
