@@ -368,7 +368,7 @@ static int radxa_display_8hd_probe(struct mipi_dsi_device *dsi)
 
 	desc = of_device_get_match_data(dev);
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_EOT_PACKET;
+			  MIPI_DSI_MODE_NO_EOT_PACKET;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
@@ -410,14 +410,13 @@ static int radxa_display_8hd_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int radxa_display_8hd_remove(struct mipi_dsi_device *dsi)
+static void radxa_display_8hd_remove(struct mipi_dsi_device *dsi)
 {
 	struct jadard_jd9365da *jadard_jd9365da = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&jadard_jd9365da->panel);
 
-	return 0;
 }
 
 static const struct of_device_id radxa_display_8hd_of_match[] = {
