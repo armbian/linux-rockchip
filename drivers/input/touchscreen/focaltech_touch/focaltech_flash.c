@@ -1073,7 +1073,6 @@ static int fts_read_file(char *file_name, u8 **file_buf)
     char file_path[FILE_NAME_LENGTH] = { 0 };
     struct file *filp = NULL;
     struct inode *inode;
-    mm_segment_t old_fs;
     loff_t pos;
     loff_t file_len = 0;
 
@@ -1103,15 +1102,12 @@ static int fts_read_file(char *file_name, u8 **file_buf)
         filp_close(filp, NULL);
         return -ENOMEM;
     }
-    old_fs = get_fs();
-    set_fs(KERNEL_DS);
     pos = 0;
     ret = vfs_read(filp, *file_buf, file_len , &pos);
     if (ret < 0)
         FTS_ERROR("read file fail");
     FTS_INFO("file len:%d read len:%d pos:%d", (u32)file_len, ret, (u32)pos);
     filp_close(filp, NULL);
-    set_fs(old_fs);
 
     return ret;
 }
