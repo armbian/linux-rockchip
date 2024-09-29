@@ -1032,3 +1032,16 @@ status = "okay";
 &sata0 {
 	status = "okay";
 };
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&display_subsystem {
+	clocks = <&hdptxphy0>, <&hdptxphy1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
+};
