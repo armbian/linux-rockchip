@@ -1891,7 +1891,9 @@
 			/* These power domains are grouped by VD_GPU */
 			power-domain@RK3576_PD_GPU {
 				reg = <RK3576_PD_GPU>;
+				clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_ROOT>;
 				pm_qos = <&qos_gpu>;
+				#power-domain-cells = <0>;
 			};
 			/* These power domains are grouped by VD_LOGIC */
 			power-domain@RK3576_PD_NVM {
@@ -2135,13 +2137,13 @@
 		interrupts = <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "GPU", "MMU", "JOB";
+		interrupt-names = "gpu", "mmu", "job";
 
 		upthreshold = <40>;
 		downdifferential = <10>;
 
-		clocks = <&scmi_clk CLK_GPU>, <&cru CLK_GPU>;
-		clock-names = "clk_mali", "clk_gpu";
+		clocks = <&cru CLK_GPU>;
+		clock-names = "core";
 		assigned-clocks = <&cru CLK_GPU>;
 		assigned-clock-rates = <198000000>;
 		power-domains = <&power RK3576_PD_GPU>;
