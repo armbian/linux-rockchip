@@ -222,7 +222,15 @@
 		pulses-per-revolution = <2>;
 
 		#cooling-cells = <2>;
-		pwms = <&pwm8 0 50000 0>;
+		pwms = <&pwm8 0 250000 0>;
+		cooling-levels = <0 35 70 100 125 150>;
+		rockchip,temp-trips = <
+			30000   1
+			45000   2
+			50000   3
+			55000   4
+			60000   5
+		>;
     };
 };
 
