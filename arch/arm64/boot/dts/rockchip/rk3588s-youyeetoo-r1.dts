@@ -34,12 +34,10 @@
             "Speaker", "LOUT1",
             "Speaker", "ROUT1",
             "Headphone", "Headphone Power",
-            "Headphone", "Headphone Power",
             "Speaker", "Speaker Power",
-            "Speaker", "Speaker Power",
-            "LINPUT1", "Main Mic",
+            "LINPUT1", "Headset Mic",
+            "RINPUT1", "Headset Mic",
             "LINPUT2", "Main Mic",
-            "RINPUT1", "Main Mic",
             "RINPUT2", "Main Mic";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
