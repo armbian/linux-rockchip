@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 luckfox technology Limited.
+ */
+
+/ {
+	vcc_camera_imx219: vcc-camera-imx219 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_camera_imx219";
+		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	ext_cam_imx219_clk: external-camera-imx219-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		clock-output-names = "ext_cam_imx219_clk";
+		#clock-cells = <0>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	imx219_1: imx219-1@10 {
+		status = "okay";
+		compatible = "sony,imx219";
+		reg = <0x10>;
+
+		clocks = <&ext_cam_imx219_clk>;
+		clock-names = "ext_cam_imx219_clk";
+		pwdn-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-name = "Waveshare";
+		rockchip,camera-module-lens-name = "Picamera";
+		rockchip,camera-module-facing = "front";
+
+		port {
+			imx219_1_out: endpoint {
+				remote-endpoint = <&csi2dphy1_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi2dphy1_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx219_1_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi2dphy1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
+};
+
+&rkisp_vir0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi2dphy1_out>;
+		};
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+};

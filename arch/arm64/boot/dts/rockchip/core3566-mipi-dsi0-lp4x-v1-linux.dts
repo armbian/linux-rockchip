@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 luckfox technology Limited.
+ */
+
+/dts-v1/;
+
+#include "core3566-base.dtsi"
+#include "core3566-mipi-dsi0-touchscreen-800-480.dtsi"
+#include "core3566-mipi-camera-imx219-cam0.dtsi"
+#include "core3566-mipi-camera-imx219-cam1.dtsi"
