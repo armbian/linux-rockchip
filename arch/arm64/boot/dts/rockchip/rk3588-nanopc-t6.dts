@@ -57,11 +57,11 @@
 		simple-audio-card,hp-pin-name = "Headphone Jack";
 
 		simple-audio-card,widgets =
-			"Headphone", "Headphone Jack",
+			"Headphone", "Headphones",
 			"Microphone", "Microphone Jack";
 		simple-audio-card,routing =
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR",
+			"Headphones", "HPOL",
+			"Headphones", "HPOR",
 			"MIC1", "Microphone Jack",
 			"Microphone Jack", "micbias1";
 
