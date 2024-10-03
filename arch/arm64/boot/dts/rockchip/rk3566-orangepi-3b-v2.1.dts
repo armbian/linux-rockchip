@@ -288,44 +288,6 @@
 			};
 		};
 	};
-
-	usb_host0_xhci: usb@fcc00000 {
-		compatible = "rockchip,rk3568-dwc3", "snps,dwc3";
-		reg = <0x0 0xfcc00000 0x0 0x400000>;
-		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_USB3OTG0_REF>, <&cru CLK_USB3OTG0_SUSPEND>,
-			 <&cru ACLK_USB3OTG0>;
-		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk";
-		dr_mode = "host";
-		phy_type = "utmi_wide";
-		power-domains = <&power RK3568_PD_PIPE>;
-		resets = <&cru SRST_USB3OTG0>;
-		snps,dis_u2_susphy_quirk;
-		phys = <&u2phy0_otg>;
-		phy-names = "usb2-phy";
-		extcon = <&usb2phy0>;
-		maximum-speed = "high-speed";
-		status = "okay";
-	};
-
-	usb_host1_xhci: usb@fd000000 {
-		compatible = "rockchip,rk3568-dwc3", "snps,dwc3";
-		reg = <0x0 0xfd000000 0x0 0x400000>;
-		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_USB3OTG1_REF>, <&cru CLK_USB3OTG1_SUSPEND>,
-			 <&cru ACLK_USB3OTG1>;
-		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk";
-		dr_mode = "host";
-		phys = <&u2phy0_host>, <&combphy1_usq PHY_TYPE_USB3>;
-		phy-names = "usb2-phy", "usb3-phy";
-		phy_type = "utmi_wide";
-		power-domains = <&power RK3568_PD_PIPE>;
-		resets = <&cru SRST_USB3OTG1>;
-		snps,dis_u2_susphy_quirk;
-		status = "okay";
-	};
 };
 
 &bus_npu {
@@ -984,6 +946,24 @@
 	status = "okay";
 };
 
+&usbdrd_dwc3 {
+	dr_mode = "host";
+	extcon = <&usb2phy0>;
+	status = "okay";
+};
+
+&usbdrd30 {
+	status = "okay";
+};
+
+&usbhost_dwc3 {
+	status = "okay";
+};
+
+&usbhost30 {
+	status = "okay";
+};
+
 &vdpu {
 	status = "okay";
 };
@@ -1233,6 +1213,3 @@
 		};
 	};
 };
-
-/delete-node/ &usbdrd30;
-/delete-node/ &usbhost30;
