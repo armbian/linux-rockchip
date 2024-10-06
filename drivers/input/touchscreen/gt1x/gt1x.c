@@ -364,6 +364,12 @@ static int gt1x_parse_dt(struct device *dev)
 	}
 #endif
 
+#if GTP_DRIVER_SEND_CFG
+	gt1x_keep_otp_config = of_property_read_bool(dev->of_node, "keep-otp-config");
+#else
+	gt1x_keep_otp_config = true;
+#endif
+
 	return 0;
 }
 
