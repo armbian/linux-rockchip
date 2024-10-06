@@ -73,6 +73,7 @@ u32 gt1x_abs_x_max;
 u32 gt1x_abs_y_max;
 int gt1x_halt;
 bool gt1x_ics_slot_report;
+bool gt1x_keep_otp_config;
 
 #if GTP_DEBUG_NODE
 static ssize_t gt1x_debug_read_proc(struct file *, char __user *, size_t, loff_t *);
@@ -629,14 +630,26 @@ s32 gt1x_init_panel(void)
 	}
 	set_reg_bit(gt1x_config[MODULE_SWITCH3_LOC], 5, !gt1x_wakeup_level);
 #endif /* END GTP_CUSTOM_CFG */
-
-#else /* DRIVER NOT SEND CONFIG */
-	cfg_len = GTP_CONFIG_MAX_LENGTH;
-	ret = gt1x_i2c_read(GTP_REG_CONFIG_DATA, gt1x_config, cfg_len);
-	if (ret < 0) {
-		return ret;
-	}
 #endif /* END GTP_DRIVER_SEND_CFG */
+
+	if (gt1x_keep_otp_config) {
+		cfg_len = GTP_CONFIG_MAX_LENGTH;
+		ret = gt1x_i2c_read(GTP_REG_CONFIG_DATA, gt1x_config, cfg_len);
+		if (ret < 0) {
+			GTP_ERROR("Failed to read CONFIG data, sensor_id %d", gt1x_version.sensor_id);
+			return ret;
+		} else {
+			int i;
+			u16 checksum = 0;
+			for (i = 0; i < cfg_len - 4; i += 2) {
+				checksum += (gt1x_config[i] << 8) + gt1x_config[i + 1];
+			}
+			checksum = 0 - checksum;
+			if (!checksum || checksum != ((gt1x_config[i] << 8) + gt1x_config[i + 1])) {
+				GTP_ERROR("Invalid config data, checksum %04x", checksum);
+			}
+		}
+	}
 
 	GTP_DEBUG_FUNC();
 	/* match resolution when gt1x_abs_x_max & gt1x_abs_y_max have been set already */
@@ -657,7 +670,9 @@ s32 gt1x_init_panel(void)
 	GTP_INFO("X_MAX=%d,Y_MAX=%d,TRIGGER=0x%02x,WAKEUP_LEVEL=%d", gt1x_abs_x_max, gt1x_abs_y_max, gt1x_int_type, gt1x_wakeup_level);
 
 	gt1x_cfg_length = cfg_len;
-	ret = gt1x_send_cfg(gt1x_config, gt1x_cfg_length);
+	if (!gt1x_keep_otp_config) {
+		ret = gt1x_send_cfg(gt1x_config, gt1x_cfg_length);
+	}
 	return ret;
 }
 
