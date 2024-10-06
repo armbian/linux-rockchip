@@ -133,6 +133,11 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc5v0_usb>;
 	};
+
+	pwm_backlight: pwm-backlight {
+		status = "disabled";
+		compatible = "pwm-backlight";
+	};
 };
 
 
@@ -220,18 +225,6 @@
 	};
 };
 
-// DSI0 I2C
-&i2c4 {
-	clock-frequency = <200000>;
-	pinctrl-0 = <&i2c4m3_xfer>;
-};
-
-// DSI1 I2C
-&i2c5 {
-	clock-frequency = <200000>;
-	pinctrl-0 = <&i2c5m2_xfer>;
-};
-
 // EEPROM is not mounted by default.
 &i2c6 {
 	clock-frequency = <200000>;
@@ -283,16 +276,6 @@
 &pwm5 {
 	pinctrl-0 = <&pwm5m1_pins>;
 	status = "okay";
-};
-
-// DSI0 PWM
-&pwm10 {
-	pinctrl-0 = <&pwm10m2_pins>;
-};
-
-// DSI1 PWM
-&pwm11 {
-	pinctrl-0 = <&pwm11m3_pins>;
 };
 
 &u2phy0_otg {
