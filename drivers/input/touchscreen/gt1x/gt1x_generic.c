@@ -74,6 +74,7 @@ u32 gt1x_abs_y_max;
 int gt1x_halt;
 bool gt1x_ics_slot_report;
 bool gt1x_keep_otp_config;
+static bool gtp_is_gt911;
 
 #if GTP_DEBUG_NODE
 static ssize_t gt1x_debug_read_proc(struct file *, char __user *, size_t, loff_t *);
@@ -633,12 +634,14 @@ s32 gt1x_init_panel(void)
 #endif /* END GTP_DRIVER_SEND_CFG */
 
 	if (gt1x_keep_otp_config) {
+		u16 cfg_reg = gtp_is_gt911 ? 0x8047 : GTP_REG_CONFIG_DATA;
+
 		cfg_len = GTP_CONFIG_MAX_LENGTH;
-		ret = gt1x_i2c_read(GTP_REG_CONFIG_DATA, gt1x_config, cfg_len);
+		ret = gt1x_i2c_read(cfg_reg, gt1x_config, cfg_len);
 		if (ret < 0) {
 			GTP_ERROR("Failed to read CONFIG data, sensor_id %d", gt1x_version.sensor_id);
 			return ret;
-		} else {
+		} else if (!gtp_is_gt911) {
 			int i;
 			u16 checksum = 0;
 			for (i = 0; i < cfg_len - 4; i += 2) {
@@ -874,7 +877,8 @@ s32 gt1x_read_version(struct gt1x_version_info *ver_info)
 	memcpy(product_id, buf, 4);
 	sensor_id = buf[10] & 0x0F;
 	match_opt = (buf[10] >> 4) & 0x0F;
-
+	
+	gtp_is_gt911 = !strncmp(product_id, "911", 3);
 	GTP_INFO("IC VERSION:GT%s_%06X(Patch)_%04X(Mask)_%02X(SensorID)", product_id, patch_id, mask_id >> 8, sensor_id);
 
 	if (ver_info != NULL) {
@@ -1185,6 +1189,9 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 			return ret;
 		}
 
+		if (gtp_is_gt911)
+			goto skip_checksum;
+
 		for (i = 0, check_sum = 0; i < 3 + 8 * touch_num; i++) {
 			check_sum += touch_data[i];
 		}
@@ -1193,6 +1200,8 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 			return ERROR_VALUE;
 		}
 	}
+
+skip_checksum:
 	/*
 	 * cur_event , pre_event bit defination
 	 * bits:     bit4	bit3		    bit2	 bit1	   bit0
