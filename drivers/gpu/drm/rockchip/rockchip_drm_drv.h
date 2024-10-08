@@ -298,6 +298,8 @@ struct rockchip_crtc_state {
 	 */
 	bool sharp_en;
 
+	bool dimming_changed;
+
 	struct drm_tv_connector_state *tv_state;
 	int left_margin;
 	int right_margin;
@@ -347,6 +349,7 @@ struct rockchip_crtc_state {
 	struct drm_property_blob *post_csc_data;
 	struct drm_property_blob *post_sharp_data;
 	struct drm_property_blob *cubic_lut_data;
+	struct drm_property_blob *dimming_data;
 
 	int request_refresh_rate;
 	int max_refresh_rate;
@@ -578,6 +581,9 @@ struct rockchip_drm_private {
 	/* private connector prop */
 	struct drm_property *connector_id_prop;
 	struct drm_property *split_area_prop;
+
+	/* private local dimming prop */
+	struct drm_property *dimming_data_prop;
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 

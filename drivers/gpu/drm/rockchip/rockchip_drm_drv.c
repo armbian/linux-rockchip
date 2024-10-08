@@ -1516,6 +1516,9 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	private->cubic_lut_size_prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
 								 "CUBIC_LUT_SIZE", 0, UINT_MAX);
 
+	private->dimming_data_prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+							 "DIMMING_DATA", 0);
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 
