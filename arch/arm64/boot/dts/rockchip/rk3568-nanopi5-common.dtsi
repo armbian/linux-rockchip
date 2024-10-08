@@ -235,8 +235,8 @@
 		voltage-min-design-microvolt = <4500000>;
 	};
 
-	simple_vin: simple-vin {
-		compatible = "simple-adc-power-v1";
+	nanopi_adc_vin: nanopi-adc-vin {
+		compatible = "nanopi-adc-power-v1";
 		io-channels = <&saradc 2>;
 		io-channel-names = "voltage";
 		monitored-battery = <&simple_bat>;
