@@ -222,7 +222,15 @@
 		pulses-per-revolution = <2>;
 
 		#cooling-cells = <2>;
-		pwms = <&pwm8 0 50000 0>;
+		pwms = <&pwm8 0 250000 0>;
+		cooling-levels = <0 35 70 100 125 150>;
+		rockchip,temp-trips = <
+			30000   1
+			45000   2
+			50000   3
+			55000   4
+			60000   5
+		>;
     };
 };
 
@@ -609,6 +617,8 @@
 };
 
 &vop {
+	assigned-clocks = <&cru ACLK_VOP>;
+	assigned-clock-rates = <800000000>;
 	status = "okay";
 };
 
@@ -680,6 +690,7 @@
 &hdmi0 {
 	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+	cec-enable = "true";
 };
 
 &hdmi0_in_vp0 {
@@ -793,6 +804,7 @@
 			data-role = "dual";
 			power-role = "dual";
 			try-power-role = "sink";
+			faster-pd-negotiation;
 			op-sink-microwatt = <15000000>;
 			sink-pdos =
 				// <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
@@ -1020,4 +1032,17 @@ status = "okay";
 
 &sata0 {
 	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi1 {
+	status = "okay";
+};
+
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 };

@@ -5373,9 +5373,10 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 
 	if (drm_rect_width(src) >> 16 < 4 || drm_rect_height(src) >> 16 < 4 ||
 	    drm_rect_width(dest) < 4 || drm_rect_width(dest) < 4) {
-		DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
-			  drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
-			  drm_rect_width(dest), drm_rect_height(dest));
+		if (plane->type != DRM_PLANE_TYPE_CURSOR)
+			DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
+				  drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
+				  drm_rect_width(dest), drm_rect_height(dest));
 		pstate->visible = false;
 		return 0;
 	}
