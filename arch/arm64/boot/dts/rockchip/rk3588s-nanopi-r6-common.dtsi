@@ -103,6 +103,19 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
+	simple_bat: battery {
+		compatible = "simple-battery";
+		voltage-max-design-microvolt = <21000000>;
+		voltage-min-design-microvolt = <4500000>;
+	};
+
+	nanopi_adc_vin: nanopi-adc-vin {
+		compatible = "nanopi-adc-power-v2";
+		io-channels = <&saradc 2>;
+		io-channel-names = "voltage";
+		monitored-battery = <&simple_bat>;
+	};
+
 	test-power {
 		status = "okay";
 	};
