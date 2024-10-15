@@ -485,8 +485,11 @@ static int rknpu_action(struct rknpu_device *rknpu_dev,
 		ret = 0;
 		break;
 	case RKNPU_SET_IOMMU_DOMAIN_ID: {
-		ret = rknpu_iommu_switch_domain(rknpu_dev,
-						*(int32_t *)&args->value);
+		ret = rknpu_iommu_domain_get_and_switch(
+			rknpu_dev, *(int32_t *)&args->value);
+		if (ret)
+			break;
+		rknpu_iommu_domain_put(rknpu_dev);
 		break;
 	}
 	default:
@@ -1497,6 +1500,7 @@ static int rknpu_probe(struct platform_device *pdev)
 	rknpu_power_off(rknpu_dev);
 	atomic_set(&rknpu_dev->power_refcount, 0);
 	atomic_set(&rknpu_dev->cmdline_power_refcount, 0);
+	atomic_set(&rknpu_dev->iommu_domain_refcount, 0);
 
 	rknpu_debugger_init(rknpu_dev);
 	rknpu_init_timer(rknpu_dev);

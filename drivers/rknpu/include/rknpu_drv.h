@@ -29,10 +29,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20240424"
+#define DRIVER_DATE "20240828"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 7
+#define DRIVER_PATCHLEVEL 8
 
 #define LOG_TAG "RKNPU"
 
@@ -174,6 +174,7 @@ struct rknpu_device {
 	int iommu_domain_id;
 	struct iommu_domain *iommu_domains[RKNPU_MAX_IOMMU_DOMAIN_NUM];
 	struct sg_table *cache_sgt[RKNPU_CACHE_SG_TABLE_NUM];
+	atomic_t iommu_domain_refcount;
 };
 
 struct rknpu_session {

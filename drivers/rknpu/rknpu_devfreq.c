@@ -234,6 +234,7 @@ static int npu_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 
 static const struct rockchip_opp_data rk3576_npu_opp_data = {
 	.set_read_margin = rk3576_npu_set_read_margin,
+	.set_soc_info = rockchip_opp_set_low_length,
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	.config_regulators = npu_opp_config_regulators,
 	.config_clks = npu_opp_config_clks,
