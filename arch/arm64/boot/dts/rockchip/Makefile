@@ -308,6 +308,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576s-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-dsi-dsc-MV2100UZ1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-8lanes-M280DCA.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-8lanes-TPM270WR1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-NE160QAM-NX1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-NV140QUM-N61.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-hdmi2dp.dtb
