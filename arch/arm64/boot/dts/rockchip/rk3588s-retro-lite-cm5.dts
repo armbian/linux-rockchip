@@ -110,8 +110,8 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		cooling-levels = <15 55 95 135 175 215 255>;
-		pwms = <&pwm11 0 10000 0>;
+		cooling-levels = <15 35 55 75 100 140 160>;
+		pwms = <&pwm11 0 40000 0>;
 	};
 
 	wm8960_mclk: wm8960-mclk {
@@ -144,6 +144,7 @@
 		pinctrl-0 = <&hp_det>;
 		pinctrl-names = "default";
 		simple-audio-card,hp-det-gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		simple-audio-card,hp-pin-name = "Headphone Jack";
 		sac_cpu: simple-audio-card,cpu {
 			sound-dai = <&i2s1_8ch>;
 		};
