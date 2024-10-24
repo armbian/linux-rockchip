@@ -547,5 +547,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-mixtile-edge2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-nanopi-m6.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-luckfox-core3566.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-blueberry-edge-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-cyber-aib.dtb
 
 subdir-y := $(dts-dirs) overlay
