@@ -232,157 +232,142 @@ static const struct snd_kcontrol_new es8316_dacsrc_mux_controls =
 	SOC_DAPM_ENUM("Route", es8316_dacsrc_mux_enum);
 
 static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("Bias", ES8316_SYS_PDN, 3, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Analog power", ES8316_SYS_PDN, 4, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Mic Bias", ES8316_SYS_PDN, 5, 1, NULL, 0),
-
+	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC"),
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
 
-	/* Input Mux */
+	SND_SOC_DAPM_MICBIAS("micbias", SND_SOC_NOPM, 0, 0),
+	/* Input MUX */
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_analog_in_mux_controls),
+		&es8316_analog_in_mux_controls),
 
-	SND_SOC_DAPM_SUPPLY("ADC Vref", ES8316_SYS_PDN, 1, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC bias", ES8316_SYS_PDN, 2, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC Clock", ES8316_CLKMGR_CLKSW, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line input PGA", ES8316_ADC_PDN_LINSEL,
-			 7, 1, NULL, 0),
+		7, 1, NULL, 0),
+
+	/* ADCs */
 	SND_SOC_DAPM_ADC("Mono ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
+
+	/* Dmic MUX */
 	SND_SOC_DAPM_MUX("Digital Mic Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_dmic_src_controls),
+		&es8316_dmic_src_controls),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture",  1,
-			     ES8316_SERDATA_ADC, 6, 1),
+		ES8316_SERDATA_ADC, 6, 0),
+
 	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+		SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("DAC Source Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_dacsrc_mux_controls),
-
-	SND_SOC_DAPM_SUPPLY("DAC Vref", ES8316_SYS_PDN, 0, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC Clock", ES8316_CLKMGR_CLKSW, 2, 0, NULL, 0),
+	/*  DACs DATA SRC MUX */
+	SND_SOC_DAPM_MUX("DAC SRC Mux", SND_SOC_NOPM, 0, 0,
+		&es8316_dacsrc_mux_controls),
+	/*  DACs  */
 	SND_SOC_DAPM_DAC("Right DAC", NULL, ES8316_DAC_PDN, 0, 1),
 	SND_SOC_DAPM_DAC("Left DAC", NULL, ES8316_DAC_PDN, 4, 1),
 
 	/* Headphone Output Side */
-	SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_left_hpmux_controls),
-	SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_right_hpmux_controls),
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", ES8316_HPMIX_PDN,
-			   5, 1, &es8316_out_left_mix[0],
-			   ARRAY_SIZE(es8316_out_left_mix)),
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", ES8316_HPMIX_PDN,
-			   1, 1, &es8316_out_right_mix[0],
-			   ARRAY_SIZE(es8316_out_right_mix)),
-	SND_SOC_DAPM_PGA("Left Headphone Mixer Out", ES8316_HPMIX_PDN,
-			 4, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Headphone Mixer Out", ES8316_HPMIX_PDN,
-			 0, 1, NULL, 0),
+	/* hpmux for hp mixer */
+	SND_SOC_DAPM_MUX("Left Hp mux", SND_SOC_NOPM, 0, 0,
+		&es8316_left_hpmux_controls),
+	SND_SOC_DAPM_MUX("Right Hp mux", SND_SOC_NOPM, 0, 0,
+		&es8316_right_hpmux_controls),
+	/* Output mixer  */
+	SND_SOC_DAPM_MIXER("Left Hp mixer", ES8316_HPMIX_PDN,
+		4, 1, &es8316_out_left_mix[0],
+		ARRAY_SIZE(es8316_out_left_mix)),
+	SND_SOC_DAPM_MIXER("Right Hp mixer", ES8316_HPMIX_PDN,
+		0, 1, &es8316_out_right_mix[0],
+		ARRAY_SIZE(es8316_out_right_mix)),
+	SND_SOC_DAPM_MIXER("Left Hp mixer", SND_SOC_NOPM,
+		4, 1, &es8316_out_left_mix[0],
+		ARRAY_SIZE(es8316_out_left_mix)),
+	SND_SOC_DAPM_MIXER("Right Hp mixer", SND_SOC_NOPM,
+		0, 1, &es8316_out_right_mix[0],
+		ARRAY_SIZE(es8316_out_right_mix)),
 
-	SND_SOC_DAPM_OUT_DRV("Left Headphone Charge Pump", ES8316_CPHP_OUTEN,
-			     6, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("Right Headphone Charge Pump", ES8316_CPHP_OUTEN,
-			     2, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Charge Pump", ES8316_CPHP_PDN2,
-			    5, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Charge Pump Clock", ES8316_CLKMGR_CLKSW,
-			    4, 0, NULL, 0),
+	/* Output charge pump */
 
-	SND_SOC_DAPM_OUT_DRV("Left Headphone Driver", ES8316_CPHP_OUTEN,
-			     5, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("Right Headphone Driver", ES8316_CPHP_OUTEN,
-			     1, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Out", ES8316_CPHP_PDN1, 2, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP L", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP R", SND_SOC_NOPM,
+		0, 0, NULL, 0),
 
-	/* pdn_Lical and pdn_Rical bits are documented as Reserved, but must
-	 * be explicitly unset in order to enable HP output
-	 */
-	SND_SOC_DAPM_SUPPLY("Left Headphone ical", ES8316_CPHP_ICAL_VOL,
-			    7, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Right Headphone ical", ES8316_CPHP_ICAL_VOL,
-			    3, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP L", ES8316_CPHP_OUTEN,
+		6, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP R", ES8316_CPHP_OUTEN,
+		2, 0, NULL, 0),
 
+	/* Output Driver */
+	SND_SOC_DAPM_PGA("HPVOL L", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPVOL R", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+
+	/* Output Driver */
+	SND_SOC_DAPM_PGA("HPVOL L", ES8316_CPHP_OUTEN,
+		5, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPVOL R", ES8316_CPHP_OUTEN,
+		1, 0, NULL, 0),
+	/* Output Lines */
 	SND_SOC_DAPM_OUTPUT("HPOL"),
 	SND_SOC_DAPM_OUTPUT("HPOR"),
 };
 
 static const struct snd_soc_dapm_route es8316_dapm_routes[] = {
-	/* Recording */
-	{"MIC1", NULL, "Mic Bias"},
-	{"MIC2", NULL, "Mic Bias"},
-	{"MIC1", NULL, "Bias"},
-	{"MIC2", NULL, "Bias"},
-	{"MIC1", NULL, "Analog power"},
-	{"MIC2", NULL, "Analog power"},
+	/*
+	* record route map
+	*/
+	{"MIC1", NULL, "micbias"},
+	{"MIC2", NULL, "micbias"},
+	{"DMIC", NULL, "micbias"},
 
 	{"Differential Mux", "lin1-rin1", "MIC1"},
 	{"Differential Mux", "lin2-rin2", "MIC2"},
 	{"Line input PGA", NULL, "Differential Mux"},
 
-	{"Mono ADC", NULL, "ADC Clock"},
-	{"Mono ADC", NULL, "ADC Vref"},
-	{"Mono ADC", NULL, "ADC bias"},
 	{"Mono ADC", NULL, "Line input PGA"},
 
-	/* It's not clear why, but to avoid recording only silence,
-	 * the DAC clock must be running for the ADC to work.
-	 */
-	{"Mono ADC", NULL, "DAC Clock"},
-
 	{"Digital Mic Mux", "dmic disable", "Mono ADC"},
+	{"Digital Mic Mux", "dmic data at high level", "DMIC"},
+	{"Digital Mic Mux", "dmic data at low level", "DMIC"},
 
 	{"I2S OUT", NULL, "Digital Mic Mux"},
+	/*
+	* playback route map
+	*/
+	{"DAC SRC Mux", "LDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "LDATA TO LDAC, LDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "RDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "RDATA TO LDAC, LDATA TO RDAC", "I2S IN"},
 
-	/* Playback */
-	{"DAC Source Mux", "LDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"Left DAC", NULL, "DAC SRC Mux"},
+	{"Right DAC", NULL, "DAC SRC Mux"},
 
-	{"Left DAC", NULL, "DAC Clock"},
-	{"Right DAC", NULL, "DAC Clock"},
+	{"Left Hp mux", "lin1-rin1", "MIC1"},
+	{"Left Hp mux", "lin2-rin2", "MIC2"},
+	{"Left Hp mux", "lin-rin with Boost", "Differential Mux"},
+	{"Left Hp mux", "lin-rin with Boost and PGA", "Line input PGA"},
 
-	{"Left DAC", NULL, "DAC Vref"},
-	{"Right DAC", NULL, "DAC Vref"},
+	{"Right Hp mux", "lin1-rin1", "MIC1"},
+	{"Right Hp mux", "lin2-rin2", "MIC2"},
+	{"Right Hp mux", "lin-rin with Boost", "Differential Mux"},
+	{"Right Hp mux", "lin-rin with Boost and PGA", "Line input PGA"},
 
-	{"Left DAC", NULL, "DAC Source Mux"},
-	{"Right DAC", NULL, "DAC Source Mux"},
+	{"Left Hp mixer", "LLIN Switch", "Left Hp mux"},
+	{"Left Hp mixer", "Left DAC Switch", "Left DAC"},
 
-	{"Left Headphone Mux", "lin-rin with Boost and PGA", "Line input PGA"},
-	{"Right Headphone Mux", "lin-rin with Boost and PGA", "Line input PGA"},
+	{"Right Hp mixer", "RLIN Switch", "Right Hp mux"},
+	{"Right Hp mixer", "Right DAC Switch", "Right DAC"},
 
-	{"Left Headphone Mixer", "LLIN Switch", "Left Headphone Mux"},
-	{"Left Headphone Mixer", "Left DAC Switch", "Left DAC"},
+	{"HPCP L", NULL, "Left Hp mixer"},
+	{"HPCP R", NULL, "Right Hp mixer"},
 
-	{"Right Headphone Mixer", "RLIN Switch", "Right Headphone Mux"},
-	{"Right Headphone Mixer", "Right DAC Switch", "Right DAC"},
+	{"HPVOL L", NULL, "HPCP L"},
+	{"HPVOL R", NULL, "HPCP R"},
 
-	{"Left Headphone Mixer Out", NULL, "Left Headphone Mixer"},
-	{"Right Headphone Mixer Out", NULL, "Right Headphone Mixer"},
-
-	{"Left Headphone Charge Pump", NULL, "Left Headphone Mixer Out"},
-	{"Right Headphone Charge Pump", NULL, "Right Headphone Mixer Out"},
-
-	{"Left Headphone Charge Pump", NULL, "Headphone Charge Pump"},
-	{"Right Headphone Charge Pump", NULL, "Headphone Charge Pump"},
-
-	{"Left Headphone Charge Pump", NULL, "Headphone Charge Pump Clock"},
-	{"Right Headphone Charge Pump", NULL, "Headphone Charge Pump Clock"},
-
-	{"Left Headphone Driver", NULL, "Left Headphone Charge Pump"},
-	{"Right Headphone Driver", NULL, "Right Headphone Charge Pump"},
-
-	{"HPOL", NULL, "Left Headphone Driver"},
-	{"HPOR", NULL, "Right Headphone Driver"},
-
-	{"HPOL", NULL, "Left Headphone ical"},
-	{"HPOR", NULL, "Right Headphone ical"},
-
-	{"Headphone Out", NULL, "Bias"},
-	{"Headphone Out", NULL, "Analog power"},
-	{"HPOL", NULL, "Headphone Out"},
-	{"HPOR", NULL, "Headphone Out"},
+	{"HPOL", NULL, "HPVOL L"},
+	{"HPOR", NULL, "HPVOL R"},
 };
 
 static int es8316_reset(struct snd_soc_component *component)
