@@ -330,18 +330,6 @@
 		gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
 	};
 
-	wireless_bluetooth: wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart4m1_rtsn>;
-		pinctrl-1 = <&uart4m1_rts_gpio>;
-		BT,power_gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		//BT,reset_gpio    = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
-		//BT,wake_host_irq = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
-	};
-
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "rtl8852bs";
@@ -841,6 +829,20 @@
 };
 
 &pinctrl {
+	bt {
+		bt_enable: bt-enable {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_host_wake: bt-host-wake {
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		bt_wake: bt-wake {
+			rockchip,pins = <1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	cam {
 		mipicsi0_pwr: mipicsi0-pwr {
 			rockchip,pins =
@@ -897,12 +899,6 @@
 
 		usbc1_int: usbc1-int {
 			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart4m1_rts_gpio: uart4m1-rts-gpio {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -1108,7 +1104,18 @@
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn>;
+	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn &uart4m1_rtsn>;
+	uart-has-rtscts;
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		device-wakeup-gpios = <&gpio1 RK_PD4 0>;
+		host-wakeup-gpios = <&gpio0 RK_PB1 0>;
+		shutdown-gpios = <&gpio1 RK_PC7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake &bt_wake &bt_enable>;
+		vbat-supply = <&vcc_3v3_s3>;
+		vddio-supply = <&vcc_1v8_s3>;
+	};
 };
 
 &ufs {
