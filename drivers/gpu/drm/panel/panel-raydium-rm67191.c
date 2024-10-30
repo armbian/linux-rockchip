@@ -14,7 +14,9 @@
 #include <linux/of_platform.h>
 #include <linux/regulator/consumer.h>
 
+#include <video/display_timing.h>
 #include <video/mipi_display.h>
+#include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
@@ -123,6 +125,23 @@ static const u32 rad_bus_formats[] = {
 static const u32 rad_bus_flags = DRM_BUS_FLAG_DE_LOW |
 				 DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE;
 
+struct panel_desc {
+	/** @modes: Pointer to array of fixed modes appropriate for this panel. */
+	const struct drm_display_mode *modes;
+
+	/** @num_modes: Number of elements in modes array. */
+	unsigned int num_modes;
+
+	/** @size: Structure containing the physical size of this panel. */
+	struct {
+		/** @size.width: Width (in mm) of the active display area. */
+		unsigned int width;
+
+		/** @size.height: Height (in mm) of the active display area. */
+		unsigned int height;
+	} size;
+};
+
 struct rad_panel {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -137,6 +156,9 @@ struct rad_panel {
 	bool enabled;
 
 	const struct rad_platform_data *pdata;
+
+	const struct panel_desc *desc;
+	enum drm_panel_orientation orientation;
 };
 
 struct rad_platform_data {
@@ -476,10 +498,63 @@ static int rad_panel_disable(struct drm_panel *panel)
 	return 0;
 }
 
+static int rad_panel_get_desc_modes(struct drm_panel *panel,
+					   struct drm_connector *connector)
+{
+	struct drm_display_mode *mode;
+	struct rad_panel *p = to_rad_panel(panel);
+	unsigned int i, num = 0;
+
+	if (!p->desc)
+		return 0;
+
+	for (i = 0; i < p->desc->num_modes; i++) {
+		const struct drm_display_mode *m = &p->desc->modes[i];
+
+		mode = drm_mode_duplicate(connector->dev, m);
+		if (!mode) {
+			dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+				m->hdisplay, m->vdisplay,
+				drm_mode_vrefresh(m));
+			continue;
+		}
+
+		mode->type |= DRM_MODE_TYPE_DRIVER;
+
+		if (p->desc->num_modes == 1)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_set_name(mode);
+
+		drm_mode_probed_add(connector, mode);
+		num++;
+	}
+
+	if (num > 0) {
+		if (p->desc->size.width)
+			connector->display_info.width_mm = p->desc->size.width;
+		if (p->desc->size.height)
+			connector->display_info.height_mm = p->desc->size.height;
+		connector->display_info.bus_flags = rad_bus_flags;
+
+		drm_display_info_set_bus_formats(&connector->display_info,
+						 rad_bus_formats,
+						 ARRAY_SIZE(rad_bus_formats));
+
+		drm_connector_set_panel_orientation(connector, p->orientation);
+	}
+
+	return num;
+}
+
 static int rad_panel_get_modes(struct drm_panel *panel,
 			       struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
+	int num = rad_panel_get_desc_modes(panel, connector);
+
+	if (num > 0)
+		return num;
 
 	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
@@ -521,6 +596,13 @@ static int rad_bl_update_status(struct backlight_device *bl)
 	return 0;
 }
 
+static enum drm_panel_orientation rad_panel_get_orientation(struct drm_panel *panel)
+{
+	struct rad_panel *p = to_rad_panel(panel);
+
+	return p->orientation;
+}
+
 static const struct backlight_ops rad_bl_ops = {
 	.update_status = rad_bl_update_status,
 };
@@ -531,6 +613,7 @@ static const struct drm_panel_funcs rad_panel_funcs = {
 	.enable = rad_panel_enable,
 	.disable = rad_panel_disable,
 	.get_modes = rad_panel_get_modes,
+	.get_orientation = rad_panel_get_orientation,
 };
 
 static const char * const rad_supply_names[] = {
@@ -569,6 +652,17 @@ static const struct of_device_id rad_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rad_of_match);
+
+static bool of_child_node_is_present(const struct device_node *node,
+				     const char *name)
+{
+	struct device_node *child;
+
+	child = of_get_child_by_name(node, name);
+	of_node_put(child);
+
+	return !!child;
+}
 
 static int rad_panel_probe(struct mipi_dsi_device *dsi)
 {
@@ -637,6 +731,37 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 		dev_err(dev, "Failed to get reset gpio (%d)\n", ret);
 		return ret;
 	}
+
+	ret = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
+	if (ret) {
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
+		return ret;
+	}
+
+	if (of_child_node_is_present(np, "display-timings")) {
+		struct drm_display_mode *mode;
+		struct panel_desc *desc;
+		u32 bus_flags;
+
+		mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+		if (!mode)
+			return -ENOMEM;
+
+		desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+		if (!desc)
+			return -ENOMEM;
+
+		if (!of_get_drm_display_mode(np, mode, &bus_flags,
+					     OF_USE_NATIVE_MODE)) {
+			desc->modes = mode;
+			desc->num_modes = 1;
+			of_property_read_u32(np, "width-mm", &desc->size.width);
+			of_property_read_u32(np, "height-mm", &desc->size.height);
+		}
+
+		panel->desc = desc;
+	}
+
 	gpiod_set_value_cansleep(panel->reset, 1);
 
 	memset(&bl_props, 0, sizeof(bl_props));

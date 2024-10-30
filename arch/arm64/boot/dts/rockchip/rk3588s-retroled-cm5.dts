@@ -484,8 +484,8 @@
 					 * 1: non-burst mode with sync event
 					 * 2: non-burst mode with sync pulse
 					 */
-		panel-width-mm = <68>;
-		panel-height-mm = <121>;
+		width-mm = <68>;
+		height-mm = <121>;
 
 		disp_timings0: display-timings {
 			native-mode = <&dsi1_timing0>;
