@@ -111,7 +111,7 @@
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		cooling-levels = <15 55 95 135 175 215 255>;
-		pwms = <&pwm11 0 10000 0>;
+		pwms = <&pwm11 0 40000 0>;
 	};
 
 	wm8960_mclk: wm8960-mclk {
