@@ -613,6 +613,8 @@
 };
 
 &display_subsystem {
+        clocks = <&hdptxphy_hdmi0>;
+	clock-names = "hdmi0_phy_pll";
 	route {
 		route_hdmi0: route-hdmi0 {
 			status = "okay";
@@ -623,6 +625,10 @@
 			connect = <&vp0_out_hdmi0>;
 		};
 	};
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
 };
 
 &hdmi0 {
