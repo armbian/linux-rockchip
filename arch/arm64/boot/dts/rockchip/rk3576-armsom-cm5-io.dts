@@ -145,16 +145,6 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	vcc_ufs_s0: vcc-ufs-s0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_ufs_s0";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_sys>;
-	};
-
 	vcc3v3_rtc_s5: vcc3v3-rtc-s5 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_rtc_s5";
@@ -163,35 +153,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_sys>;
-	};
-
-	vcc1v8_ufs_vccq2_s0: vcc1v8-ufs-vccq2-s0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc1v8_ufs_vccq2_s0";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc_1v8_s3>;
-	};
-
-	vcc1v2_ufs_vccq_s0: vcc1v2-ufs-vccq-s0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc1v2_ufs_vccq_s0";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-		vin-supply = <&vcc_sys>;
-	};
-
-	vcc3v3_lcd_n: vcc3v3-lcd0-n {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd0_n";
-		regulator-boot-on;
-		enable-active-high;
-		gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc_3v3_s0>;
 	};
 
 	vcc5v0_host: vcc5v0-host {
@@ -471,11 +432,6 @@
 &u2phy1_otg {
 	status = "okay";
 	phy-supply = <&vcc5v0_host>;
-};
-
-&ufs {
-	status = "okay";
-	reset-gpios = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
 };
 
 &usbdp_phy {
