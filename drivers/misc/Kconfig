@@ -13,6 +13,12 @@ config RK803
 	help
 	  Driver for RK803 which is used for driving porjector and IR flood LED.
 
+config CONFIG_ROCKPI_MCU
+	tristate "ROCKPI_MCU"
+	depends on I2C
+	help
+	  Driver for ROCKPI_MCU which is used for 7 Touchscreen.
+
 source "drivers/misc/rockchip/Kconfig"
 source "drivers/misc/vehicle/Kconfig"
 
