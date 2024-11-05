@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&pwm2_8ch_6>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&pwm2m2_ch6>;
+		};
+	};
+};
