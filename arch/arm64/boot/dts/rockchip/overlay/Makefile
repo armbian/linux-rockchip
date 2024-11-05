@@ -77,6 +77,24 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
 	rockchip-rk3588-panthor-gpu.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
+	rk3576-can1-m1.dtbo \
+	rk3576-i2c0-m1.dtbo \
+	rk3576-i2c1-m0.dtbo \
+	rk3576-i2c2-m0.dtbo \
+	rk3576-i2c3-m0.dtbo \
+	rk3576-i2c4-m3.dtbo \
+	rk3576-i2c5-m3.dtbo \
+	rk3576-i2c6-m0.dtbo \
+	rk3576-i2c7-m1.dtbo \
+	rk3576-i2c8-m2.dtbo \
+	rk3576-pwm1-ch0-m3.dtbo \
+	rk3576-pwm2-ch6-m2.dtbo \
+	rk3576-pwm2-ch7-m2.dtbo \
+	rk3576-spi4-m0-cs1-spidev.dtbo \
+	rk3576-uart2-m2.dtbo \
+	rk3576-uart6-m3.dtbo \
+	rk3576-uart7-m0.dtbo \
+	rk3576-uart10-m2.dtbo \
 	rk3588-can0-m0.dtbo \
 	rk3588-can1-m0.dtbo \
 	rk3588-can1-m1.dtbo \
