@@ -551,5 +551,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-cyber-aib.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-ok3568c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-radxa-rock-5b+.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-cm5-rpi-cm4-io.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-retroled-cm5.dtb
 
 subdir-y := $(dts-dirs) overlay
