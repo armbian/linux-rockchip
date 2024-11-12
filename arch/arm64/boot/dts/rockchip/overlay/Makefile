@@ -7,6 +7,9 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	armsom-sige7-camera-ov13850-csi0.dtbo \
 	armsom-sige7-camera-ov13850-csi1.dtbo \
 	armsom-sige7-display-10hd.dtbo \
+	armsom-w3-camera-imx419-csi.dtbo \
+	armsom-w3-camera-ov13850-csi.dtbo \
+	armsom-w3-display-10hd.dtbo \
 	orangepi-5-lcd1.dtbo \
 	orangepi-5-lcd2.dtbo \
 	orangepi-5-sata.dtbo \
