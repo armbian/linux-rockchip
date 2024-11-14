@@ -248,33 +248,9 @@ struct vop_win {
 	struct drm_property *name_prop;
 };
 
-/*
- * max two jobs a time, one is running(writing back),
- * another one will run in next frame.
- */
-#define VOP_WB_JOB_MAX 2
-
-struct vop_wb_job {
-	bool pending;
-	/**
-	 * @fs_vsync_cnt: frame start vysnc counter,
-	 * used to get the write back complete event;
-	 */
-	uint32_t fs_vsync_cnt;
-};
-
 struct vop_wb {
 	struct drm_writeback_connector conn;
 	const struct vop_wb_regs *regs;
-	struct vop_wb_job jobs[VOP_WB_JOB_MAX];
-	uint8_t job_index;
-
-	/**
-	 * @job_lock:
-	 *
-	 * spinlock to protect the job between vop_wb_commit and vop_wb_handler in isr.
-	 */
-	spinlock_t job_lock;
 };
 
 enum vop_wb_format {
@@ -1791,7 +1767,6 @@ static int vop_wb_connector_init(struct vop *vop)
 
 	vop->wb.regs = vop_data->wb->regs;
 	vop->wb.conn.encoder.possible_crtcs = drm_crtc_mask(crtc);
-	spin_lock_init(&vop->wb.job_lock);
 	drm_connector_helper_add(&vop->wb.conn.base, &vop_wb_connector_helper_funcs);
 
 	ret = drm_writeback_connector_init(vop->drm_dev, &vop->wb.conn,
@@ -1821,7 +1796,8 @@ static void vop_wb_irqs_enable(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
 	const struct vop_intr *intr = vop_data->wb_intr;
-	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR;
+	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR |
+			VOPL_WB_COMPLETE_INTR;
 
 	VOP_INTR_SET_TYPE2(vop, intr, clear, irqs, 1);
 	VOP_INTR_SET_TYPE2(vop, intr, enable, irqs, 1);
@@ -1831,7 +1807,8 @@ static uint32_t vop_read_and_clear_wb_irqs(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
 	const struct vop_intr *intr = vop_data->wb_intr;
-	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR;
+	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR |
+			VOPL_WB_COMPLETE_INTR;
 	uint32_t val, ret;
 
 	if (!intr)
@@ -1860,7 +1837,6 @@ static void vop_wb_commit(struct drm_crtc *crtc)
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	struct vop_wb_connector_state *wb_state;
-	unsigned long flags;
 	uint32_t fifo_throd;
 	uint8_t r2y;
 
@@ -1877,13 +1853,6 @@ static void vop_wb_commit(struct drm_crtc *crtc)
 				 fb->pitches[0], &wb_state->yrgb_addr);
 
 		drm_writeback_queue_job(wb_conn, conn_state);
-
-		spin_lock_irqsave(&wb->job_lock, flags);
-		wb->jobs[wb->job_index].pending = true;
-		wb->job_index++;
-		if (wb->job_index >= VOP_WB_JOB_MAX)
-			wb->job_index = 0;
-		spin_unlock_irqrestore(&wb->job_lock, flags);
 
 		fifo_throd = fb->pitches[0] >> 4;
 		if (fifo_throd > vop->data->wb->fifo_depth)
@@ -1921,33 +1890,6 @@ static void __maybe_unused vop_wb_disable(struct vop *vop)
 
 	VOP_CTRL_SET2(vop, wb, enable, 0);
 	vop_wb_cfg_done(vop);
-}
-
-static void vop_wb_handler(struct vop *vop)
-{
-	struct vop_wb *wb = &vop->wb;
-	struct vop_wb_job *job;
-	unsigned long flags;
-	uint8_t i;
-
-	if (!wb->regs)
-		return;
-
-	/* In one shot mode, wb_en is auto disable */
-	spin_lock_irqsave(&wb->job_lock, flags);
-	for (i = 0; i < VOP_WB_JOB_MAX; i++) {
-		job = &wb->jobs[i];
-		if (job->pending) {
-			job->fs_vsync_cnt++;
-
-			if (job->fs_vsync_cnt == 2) {
-				job->pending = false;
-				job->fs_vsync_cnt = 0;
-				drm_writeback_signal_completion(&vop->wb.conn, 0);
-			}
-		}
-	}
-	spin_unlock_irqrestore(&wb->job_lock, flags);
 }
 
 static void vop_crtc_load_lut(struct drm_crtc *crtc)
@@ -5334,6 +5276,24 @@ static void vop_handle_vblank(struct vop *vop)
 		drm_flip_work_commit(&vop->fb_unref_work, system_unbound_wq);
 }
 
+static void vop_wb_complete(struct vop *vop)
+{
+	struct vop_wb *wb = &vop->wb;
+	bool wb_oneframe_mode;
+	bool wb_en;
+
+	wb_en = VOP_CTRL_GET2(vop, wb, enable);
+	wb_oneframe_mode = VOP_CTRL_GET2(vop, wb, one_frame_mode);
+	/*
+	 * The write back should work in one shot mode,
+	 * stop when write back complete in next vsync.
+	 */
+	if (wb_en && !wb_oneframe_mode)
+		vop_wb_disable(vop);
+
+	drm_writeback_signal_completion(&vop->wb.conn, 0);
+}
+
 static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
@@ -5395,7 +5355,6 @@ static irqreturn_t vop_isr(int irq, void *data)
 		VOP_CTRL_SET(vop, level2_overlay_en, vop->pre_overlay);
 		VOP_CTRL_SET(vop, alpha_hard_calc, vop->pre_overlay);
 		spin_unlock_irqrestore(&vop->irq_lock, flags);
-		vop_wb_handler(vop);
 		drm_crtc_handle_vblank(crtc);
 		vop_handle_vblank(vop);
 		active_irqs &= ~(FS_INTR | FS_FIELD_INTR);
@@ -5427,6 +5386,12 @@ static irqreturn_t vop_isr(int irq, void *data)
 		active_irqs = wb_irqs;
 		ERROR_HANDLER(VOPL_WB_UV_FIFO_FULL);
 		ERROR_HANDLER(VOPL_WB_YRGB_FIFO_FULL);
+		if (active_irqs & VOPL_WB_COMPLETE_INTR) {
+			active_irqs &= ~VOPL_WB_COMPLETE_INTR;
+			vop_wb_complete(vop);
+		}
+		if (active_irqs)
+			DRM_ERROR("Unknown writeback IRQs: %02x\n", active_irqs);
 	}
 
 out_disable:
