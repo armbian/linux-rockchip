@@ -100,11 +100,13 @@ struct rk_cam_set_focus {
 
 struct rk_cam_zoom_pos {
 	__s32 zoom_pos;
+	__s32 zoom1_pos;
 	__s32 focus_pos;
 };
 
 struct rk_cam_set_zoom {
 	_Bool is_need_zoom_reback;
+	_Bool is_need_zoom1_reback;
 	_Bool is_need_focus_reback;
 	__u32 setzoom_cnt;
 	struct rk_cam_zoom_pos zoom_pos[VCMDRV_SETZOOM_MAXCNT];
