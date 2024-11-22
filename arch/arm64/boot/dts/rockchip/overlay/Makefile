@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
+	armsom-sige5-display-10hd.dtbo \
+	armsom-cm5-io-display-10hd.dtbo \
 	armsom-cm5-rpi-cm4-io-camera0.dtbo \
 	armsom-cm5-rpi-cm4-io-camera1.dtbo \
 	armsom-cm5-rpi-cm4-io-display.dtbo \
