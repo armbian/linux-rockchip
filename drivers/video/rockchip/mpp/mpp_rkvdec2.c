@@ -1387,7 +1387,7 @@ int rkvdec2_reset(struct mpp_dev *mpp)
 
 	/* cru reset */
 	if (dec->rst_a && dec->rst_h) {
-		mpp_err("cru reset\n");
+		mpp_debug(DEBUG_RESET, "cru reset\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_niu_a);
 		mpp_safe_reset(dec->rst_niu_h);
