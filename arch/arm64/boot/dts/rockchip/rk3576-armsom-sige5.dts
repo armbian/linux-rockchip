@@ -281,33 +281,6 @@
 		pinctrl-0 = <&usb_otg0_pwren>;
 	};
 
-	vcc_mipicsi0: vcc-mipicsi0-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipicsi0_pwr>;
-		regulator-name = "vcc_mipicsi0";
-		enable-active-high;
-	};
-
-	vcc_mipicsi1: vcc-mipicsi1-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipicsi1_pwr>;
-		regulator-name = "vcc_mipicsi1";
-		enable-active-high;
-	};
-
-	vcc_mipidcphy0: vcc-mipidcphy0-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipidcphy0_pwr>;
-		regulator-name = "vcc_mipidcphy0";
-		enable-active-high;
-	};
-
 	vcc_lcd_mipi1: vcc-lcd-mipi1 { 
 		status = "okay";
 		compatible = "regulator-fixed";
@@ -840,26 +813,6 @@
 
 		bt_wake: bt-wake {
 			rockchip,pins = <1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	cam {
-		mipicsi0_pwr: mipicsi0-pwr {
-			rockchip,pins =
-				/* camera power en */
-				<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		mipicsi1_pwr: mipicsi1-pwr {
-			rockchip,pins =
-				/* camera power en */
-				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		mipidcphy0_pwr: mipidcphy0-pwr {
-			rockchip,pins =
-				/* camera power en */
-				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
