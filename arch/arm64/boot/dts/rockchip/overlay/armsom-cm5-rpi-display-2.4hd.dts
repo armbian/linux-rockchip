@@ -1,0 +1,117 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+
+/ {
+	compatible = "rockchip,rk3588";
+
+	fragment@0 {
+		target = <&dsi>;
+		__overlay__ {
+			status = "okay";
+			dsi_panel: panel@0 {
+				status = "okay";
+				compatible = "simple-panel-dsi";
+				reg = <0>;
+
+				enable-delay-ms = <120>;
+				prepare-delay-ms = <120>;
+				reset-delay-ms = <120>;
+				init-delay-ms = <120>;
+				unprepare-delay-ms = <120>;
+				disable-delay-ms = <120>;
+
+				size,width = <43>;
+				size,height = <57>;
+
+				dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+					MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+				dsi,format = <MIPI_DSI_FMT_RGB888>;
+				dsi,lanes = <1>;
+
+				panel-init-sequence = [
+				];
+
+				panel-exit-sequence = [
+					05 00 01 28
+					05 00 01 10
+				];
+
+				disp_timings0: display-timings {
+					native-mode = <&dsi1_timing0>;
+					dsi1_timing0: timing0 {
+						clock-frequency = <25000000>;
+						hactive = <480>;
+						vactive = <640>;
+						hsync-len = <4>;
+						hback-porch = <20>;
+						hfront-porch = <10>;
+						vsync-len = <4>;
+						vback-porch = <14>;
+						vfront-porch = <8>;
+						hsync-active = <0>;
+						vsync-active = <0>;
+						de-active = <0>;
+						pixelclk-active = <1>;
+					};
+				};
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						panel_in_dsi: endpoint {
+							remote-endpoint = <&dsi_out_panel>;
+						};
+					};
+				};
+			};
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&mipidcphy0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&route_dsi>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@3 {
+		target = <&dsi_in_vp1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&vp1>;
+		__overlay__ {
+			assigned-clocks = <&cru DCLK_VP1_SRC>;
+			assigned-clock-parents = <&cru PLL_VPLL>;
+		};
+	};
+};
