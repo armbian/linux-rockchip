@@ -1059,7 +1059,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn &uart4m1_rtsn>;
 	uart-has-rtscts;
-	bluetooth {
+	bluetooth:bluetooth-serial {
 		compatible = "brcm,bcm43438-bt";
 		device-wakeup-gpios = <&gpio1 RK_PD4 0>;
 		host-wakeup-gpios = <&gpio0 RK_PB1 0>;
