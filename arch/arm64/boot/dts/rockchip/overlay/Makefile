@@ -10,6 +10,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	armsom-sige5-camera-ov13850-cs0.dtbo \
 	armsom-sige5-camera-ov13850-cs1.dtbo \
 	armsom-sige5-display-10hd.dtbo \
+	armsom-sige5-rtl8852bs-bluetooth.dtbo \
 	armsom-sige7-camera-imx415-4k.dtbo \
 	armsom-sige7-camera-ov13850-csi0.dtbo \
 	armsom-sige7-camera-ov13850-csi1.dtbo \
