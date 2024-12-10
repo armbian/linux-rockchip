@@ -2847,27 +2847,22 @@
 		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
-			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-400000000 {
-			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-500000000 {
-			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-700000000 {
-			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <712500 712500 875000>;
 			opp-microvolt-L0 = <750000 750000 875000>;
@@ -2876,24 +2871,7 @@
 			opp-microvolt-L3 = <725000 725000 875000>;
 			opp-microvolt-L4 = <725000 725000 875000>;
 		};
-		/* The Max frequency of RK3576S GPU is 800MHz */
-		opp-s-800000000 {
-			opp-supported-hw = <0x08 0xffff>;
-			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <837500 837500 875000>;
-			opp-microvolt-L1 = <825000 825000 875000>;
-			opp-microvolt-L2 = <812500 812500 875000>;
-			opp-microvolt-L3 = <800000 800000 875000>;
-			opp-microvolt-L4 = <787500 787500 875000>;
-			opp-microvolt-L5 = <775000 775000 875000>;
-			opp-microvolt-L6 = <762500 762500 875000>;
-			opp-microvolt-L7 = <750000 750000 875000>;
-			opp-microvolt-L8 = <737500 737500 875000>;
-			opp-microvolt-L9 = <725000 725000 875000>;
-			opp-microvolt-L10 = <725000 725000 875000>;
-		};
 		opp-800000000 {
-			opp-supported-hw = <0xf1 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <812500 812500 875000>;
 			opp-microvolt-L1 = <812500 812500 875000>;
@@ -2908,7 +2886,6 @@
 			opp-microvolt-L10 = <725000 725000 875000>;
 		};
 		opp-900000000 {
-			opp-supported-hw = <0xf1 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <875000 875000 875000>;
 			opp-microvolt-L1 = <875000 875000 875000>;
