@@ -740,3 +740,8 @@
 &vop_mmu {
 	status = "okay";
 };
+
+/* watchdog */
+&wdt {
+	status = "okay";
+};

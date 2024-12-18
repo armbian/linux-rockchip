@@ -247,3 +247,8 @@
 &vdpp {
 	status = "okay";
 };
+
+/* watchdog */
+&wdt {
+	status = "okay";
+};
