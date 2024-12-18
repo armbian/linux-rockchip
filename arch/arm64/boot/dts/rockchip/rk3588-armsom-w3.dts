@@ -1184,3 +1184,8 @@
 		};
 	};
 };
+
+/* watchdog */
+&wdt {
+	status = "okay";
+};

@@ -273,3 +273,8 @@
 &vepu {
 	status = "okay";
 };
+
+/* watchdog */
+&wdt {
+	status = "okay";
+};

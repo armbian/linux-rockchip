@@ -855,3 +855,8 @@
 	assigned-clocks = <&cru DCLK_VP2_SRC>;
 	assigned-clock-parents = <&cru PLL_VPLL>;
 };
+
+/* watchdog */
+&wdt {
+	status = "okay";
+};
