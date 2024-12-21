@@ -18,6 +18,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	armsom-w3-camera-imx419-csi.dtbo \
 	armsom-w3-camera-ov13850-csi.dtbo \
 	armsom-w3-display-10hd.dtbo \
+	hinlink-h88k-240x135-lcd.dtbo \
 	orangepi-5-lcd1.dtbo \
 	orangepi-5-lcd2.dtbo \
 	orangepi-5-sata.dtbo \
