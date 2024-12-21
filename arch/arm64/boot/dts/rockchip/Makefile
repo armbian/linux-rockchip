@@ -232,6 +232,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-toybrick-sd0-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-toybrick-x0-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-toybrick-x0-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-yy3568.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-dshapi-r1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-bananapi-m7.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blade3-v101-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v10-linux.dtb
