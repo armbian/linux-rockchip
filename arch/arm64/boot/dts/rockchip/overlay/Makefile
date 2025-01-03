@@ -88,6 +88,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	khadas-edge2-cam3.dtbo \
 	nanopi-m6-display-dsi0-yx35.dtbo \
 	nanopi-m6-display-dsi1-yx35.dtbo \
+	nanopi-m6-spi-nor-flash.dtbo \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
 	rockchip-rk3588-panthor-gpu.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
