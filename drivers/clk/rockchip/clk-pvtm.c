@@ -285,15 +285,13 @@ out_probe:
 	return error;
 }
 
-static int rockchip_clock_pvtm_remove(struct platform_device *pdev)
+static void rockchip_clock_pvtm_remove(struct platform_device *pdev)
 {
 	struct rockchip_clock_pvtm *pvtm = platform_get_drvdata(pdev);
 	struct device_node *np = pdev->dev.of_node;
 
 	of_clk_del_provider(np);
 	clk_disable_unprepare(pvtm->pvtm_clk);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_clock_pvtm_driver = {
