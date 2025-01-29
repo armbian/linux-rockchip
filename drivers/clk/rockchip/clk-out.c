@@ -67,14 +67,12 @@ err_disable_pm_runtime:
 	return ret;
 }
 
-static int rockchip_clk_out_remove(struct platform_device *pdev)
+static void rockchip_clk_out_remove(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 
 	of_clk_del_provider(node);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_clk_out_match[] = {
