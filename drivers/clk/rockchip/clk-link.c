@@ -205,12 +205,10 @@ disable_pm_runtime:
 	return ret;
 }
 
-static int rockchip_clk_link_remove(struct platform_device *pdev)
+static void rockchip_clk_link_remove(struct platform_device *pdev)
 {
 	pm_clk_destroy(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_clk_link_pm_ops = {
