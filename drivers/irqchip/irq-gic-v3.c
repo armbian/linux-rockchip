@@ -481,7 +481,7 @@ static void gic_poke_irq(struct irq_data *d, u32 offset)
 static void gic_mask_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	gic_poke_irq(d, GICD_ICENABLER);
@@ -509,7 +509,7 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 static void gic_unmask_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	gic_poke_irq(d, GICD_ISENABLER);
@@ -722,7 +722,7 @@ static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
 static void gic_eoi_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	write_gicreg(irqd_to_hwirq(d), ICC_EOIR1_EL1);
@@ -1501,7 +1501,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	u64 val;
 
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return -EINVAL;
 #endif
 	if (force)

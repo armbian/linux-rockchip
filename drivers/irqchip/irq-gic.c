@@ -197,7 +197,7 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 static void gic_mask_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	gic_poke_irq(d, GIC_DIST_ENABLE_CLEAR);
@@ -206,7 +206,7 @@ static void gic_mask_irq(struct irq_data *d)
 static void gic_eoimode1_mask_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	gic_mask_irq(d);
@@ -225,7 +225,7 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 static void gic_unmask_irq(struct irq_data *d)
 {
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	gic_poke_irq(d, GIC_DIST_ENABLE_SET);
@@ -250,7 +250,7 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return;
 #endif
 	/* Do not deactivate an IRQ forwarded to a vcpu. */
@@ -270,7 +270,7 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 
 #ifdef CONFIG_ROCKCHIP_AMP
 	if (which != IRQCHIP_STATE_PENDING &&
-	    rockchip_amp_check_amp_irq(gic_irq(d)))
+	    rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return -EINVAL;
 #endif
 	switch (which) {
@@ -324,7 +324,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	int ret;
 
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return -EINVAL;
 #endif
 
@@ -854,15 +854,15 @@ void gic_set_irq_secure(struct irq_data *d)
 	u32 mask = 0;
 	void __iomem *base = gic_dist_base(d);
 
-	base += GIC_DIST_IGROUP + ((gic_irq(d) / 32) * 4);
+	base += GIC_DIST_IGROUP + ((irqd_to_hwirq(d) / 32) * 4);
 	mask = readl_relaxed(base);
-	mask &= ~(1 << (gic_irq(d) % 32));
+	mask &= ~(1 << (irqd_to_hwirq(d) % 32));
 	writel_relaxed(mask, base);
 }
 
 void gic_set_irq_priority(struct irq_data *d, u8 pri)
 {
-	writeb_relaxed(pri, gic_dist_base(d) + GIC_DIST_PRI + gic_irq(d));
+	writeb_relaxed(pri, gic_dist_base(d) + GIC_DIST_PRI + irqd_to_hwirq(d));
 }
 #endif
 
@@ -894,7 +894,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	unsigned int cpu;
 
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (rockchip_amp_check_amp_irq(irqd_to_hwirq(d)))
 		return -EINVAL;
 #endif
 
