@@ -430,7 +430,7 @@
 	vpcie3v3-supply = <&vcc_3v3_pcie20>;
 	status = "okay";
 
-	pcie@20 {
+	pcie@0,0 {
 		reg = <0x00200000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -454,7 +454,7 @@
 	vpcie3v3-supply = <&vcc_3v3_pcie20>;
 	status = "okay";
 
-	pcie@40 {
+	pcie@0,0 {
 		reg = <0x00400000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
