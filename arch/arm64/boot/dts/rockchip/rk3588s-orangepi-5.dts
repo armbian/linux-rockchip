@@ -281,6 +281,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &can1 {
 	status = "disabled";
 	pinctrl-names = "default";

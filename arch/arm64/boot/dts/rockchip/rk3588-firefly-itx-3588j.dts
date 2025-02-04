@@ -410,6 +410,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &can1 {
 	status = "okay";
 	assigned-clocks = <&cru CLK_CAN1>;
@@ -1366,6 +1370,10 @@
 };
 
 &vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
 	status = "okay";
 };
 
