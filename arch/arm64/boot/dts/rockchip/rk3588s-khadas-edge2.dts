@@ -308,6 +308,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };

@@ -141,6 +141,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
 	mem-supply = <&vdd_cpu_lit_mem_s0>;
@@ -415,6 +419,18 @@
 		regulator-on-in-suspend;
 		regulator-suspend-microvolt = <850000>;
 	};
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
 };
 
 &pinctrl {

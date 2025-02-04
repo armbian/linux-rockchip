@@ -377,6 +377,10 @@
 &av1d_mmu {
 	status = "okay";
 };
+
+&avsd {
+	status = "okay";
+};
  
 &can0 {
 	status = "disabled";
