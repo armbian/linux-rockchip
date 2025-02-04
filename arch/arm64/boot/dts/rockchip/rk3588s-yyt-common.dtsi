@@ -466,6 +466,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&avcc_1v8_s0>;
