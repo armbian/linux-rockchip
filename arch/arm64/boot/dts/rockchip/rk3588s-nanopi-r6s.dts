@@ -79,7 +79,7 @@
 };
 
 &pcie2x1l1 {
-	pcie@30 {
+	pcie@0,0 {
 		reg = <0x00300000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -92,7 +92,7 @@
 };
 
 &pcie2x1l2 {
-	pcie@40 {
+	pcie@0,0 {
 		reg = <0x00400000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
