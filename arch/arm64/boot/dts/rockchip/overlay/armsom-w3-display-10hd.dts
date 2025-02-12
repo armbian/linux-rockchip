@@ -313,7 +313,7 @@
 				reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
 				max-x = <1200>;
 				max-y = <1920>;
-				tp-size = <89>;
+				tp-size = <9271>;
 				tp-supply = <&vcc_lcd_mipi1>;
 
 				configfile-num = <1>;  
