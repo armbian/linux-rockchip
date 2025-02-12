@@ -131,6 +131,36 @@
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
+	// sdio wifi occasionally fails to recognize, increase the drive current strength to level 5
+	sdmmc1 {
+		/omit-if-no-ref/
+		sdmmc1m0_bus4: sdmmc1m0-bus4 {
+			rockchip,pins =
+				/* sdmmc1_d0_m0 */
+				<1 RK_PB4 2 &pcfg_pull_up_drv_level_5>,
+				/* sdmmc1_d1_m0 */
+				<1 RK_PB5 2 &pcfg_pull_up_drv_level_5>,
+				/* sdmmc1_d2_m0 */
+				<1 RK_PB6 2 &pcfg_pull_up_drv_level_5>,
+				/* sdmmc1_d3_m0 */
+				<1 RK_PB7 2 &pcfg_pull_up_drv_level_5>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1m0_clk: sdmmc1m0-clk {
+			rockchip,pins =
+				/* sdmmc1_clk_m0 */
+				<1 RK_PC1 2 &pcfg_pull_up_drv_level_5>;
+		};
+
+		/omit-if-no-ref/
+		sdmmc1m0_cmd: sdmmc1m0-cmd {
+			rockchip,pins =
+				/* sdmmc1_cmd_m0 */
+				<1 RK_PC0 2 &pcfg_pull_up_drv_level_5>;
+		};
+	};
 };
 
 &rga2_core0 {
