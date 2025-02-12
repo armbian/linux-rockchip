@@ -293,6 +293,9 @@ struct dw_mipi_dsi2 {
 
 	bool support_psr;
 	bool enabled;
+
+	unsigned int min_refresh_rate;
+	unsigned int max_refresh_rate;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -1142,6 +1145,18 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->color_encoding = DRM_COLOR_YCBCR_BT709;
 	s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+
+	if (dsi2->auto_calc_mode && dsi2->max_refresh_rate && dsi2->min_refresh_rate) {
+		int refresh_rate;
+
+		refresh_rate = drm_mode_vrefresh(&crtc_state->adjusted_mode);
+		if (refresh_rate > dsi2->max_refresh_rate || refresh_rate < dsi2->min_refresh_rate)
+			return -EINVAL;
+
+		s->max_refresh_rate = dsi2->max_refresh_rate;
+		s->min_refresh_rate = dsi2->min_refresh_rate;
+		s->vrr_type = ROCKCHIP_VRR_DCLK_MODE;
+	}
 
 	if (dw_mipi_dsi2_is_cmd_mode(dsi2)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
@@ -1997,8 +2012,17 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
 
-	if (device_property_read_bool(dev, "auto-calculation-mode"))
+	if (device_property_read_bool(dev, "auto-calculation-mode")) {
 		dsi2->auto_calc_mode = true;
+
+		device_property_read_u32(dev, "min-refresh-rate", &dsi2->min_refresh_rate);
+		device_property_read_u32(dev, "max-refresh-rate", &dsi2->max_refresh_rate);
+
+		if (dsi2->max_refresh_rate <= dsi2->min_refresh_rate) {
+			dsi2->min_refresh_rate = 0;
+			dsi2->max_refresh_rate = 0;
+		}
+	}
 
 	if (device_property_read_bool(dev, "disable-hold-mode"))
 		dsi2->disable_hold_mode = true;
