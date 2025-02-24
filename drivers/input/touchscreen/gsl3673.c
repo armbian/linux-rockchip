@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/async.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -199,8 +199,8 @@ struct gsl_ts {
 	struct gsl_ts_data *dd;
 	u8 *touch_data;
 	u8 device_id;
-	int irq;
-	int rst;
+	struct gpio_desc *irq;
+	struct gpio_desc *rst;
 	int flag_irq_is_disable;
 
 	/* whether the device is registered, true: registered */
@@ -233,44 +233,31 @@ static u16 y_new;
 
 static int gsl3673_init(void)
 {
-	struct device_node *np = gsl_client->dev.of_node;
-	enum of_gpio_flags rst_flags;
-	unsigned long irq_flags;
+	struct device *dev = &this_ts->client->dev;
 
-	this_ts->irq = of_get_named_gpio_flags(np, "irq_gpio_number", 0,
-				(enum of_gpio_flags *)&irq_flags);
-	if (!gpio_is_valid(this_ts->irq)) {
-		dev_err(&this_ts->client->dev, "irq pin invalid\n");
-		return -EINVAL;
-	}
+	this_ts->irq = devm_gpiod_get(dev, "irq", GPIOD_IN);
+	if (IS_ERR(this_ts->irq))
+		return dev_err_probe(dev, PTR_ERR(this_ts->irq), "Failed to get irq GPIO\n");
 
-	this_ts->rst = of_get_named_gpio_flags(np, "rst_gpio_number", 0,
-				&rst_flags);
-	if (!gpio_is_valid(this_ts->rst)) {
-		dev_err(&this_ts->client->dev, "rst pin invalid\n");
-		return -EINVAL;
-	}
+	this_ts->rst = devm_gpiod_get(dev, "rst", GPIOD_OUT_LOW);
+	if (IS_ERR(this_ts->rst))
+		return dev_err_probe(dev, PTR_ERR(this_ts->rst), "Failed to get rst GPIO\n");
 
-	if (devm_gpio_request(&this_ts->client->dev, this_ts->rst, NULL) != 0) {
-		dev_err(&this_ts->client->dev, "gpio_request this_ts->rst error\n");
-		return -EIO;
-	}
-	gpio_direction_output(this_ts->rst, 0);
-	gpio_set_value(this_ts->rst, 1);
+	gpiod_set_value(this_ts->rst, 1);
 	return 0;
 }
 
 static int gsl3673_shutdown_low(void)
 {
-	if (this_ts->rst > 1)
-		gpio_set_value(this_ts->rst, 0);
+	if (!IS_ERR(this_ts->rst))
+		gpiod_set_value(this_ts->rst, 0);
 	return 0;
 }
 
 static int gsl3673_shutdown_high(void)
 {
-	if (this_ts->rst > 1)
-		gpio_set_value(this_ts->rst, 1);
+	if (!IS_ERR(this_ts->rst))
+		gpiod_set_value(this_ts->rst, 1);
 	return 0;
 }
 
@@ -1201,7 +1188,9 @@ static int gsl_ts_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ts);
 	this_ts = ts;
 	gsl_client = client;
-	gsl3673_init();
+	rc = gsl3673_init();
+	if (rc < 0)
+		goto error_mutex_destroy;
 	rc = gsl3673_ts_init(client, ts);
 	if (rc < 0) {
 		dev_err(&client->dev, "gsl GSL3673 init failed\n");
@@ -1217,7 +1206,7 @@ static int gsl_ts_probe(struct i2c_client *client)
 		goto error_init_chip_fail;
 	}
 	spin_lock_init(&ts->irq_lock);
-	client->irq = gpio_to_irq(ts->irq);
+	client->irq = gpiod_to_irq(ts->irq);
 	rc = devm_request_irq(&client->dev, client->irq, gsl_ts_irq,
 				IRQF_TRIGGER_RISING, client->name, ts);
 	if (rc < 0) {
