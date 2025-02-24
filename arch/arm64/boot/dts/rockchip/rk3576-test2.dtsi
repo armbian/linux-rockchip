@@ -783,8 +783,8 @@
 		screen_max_y = <2048>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		irq_gpio_number = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
 	};
 };
 

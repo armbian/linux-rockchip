@@ -96,8 +96,8 @@
 		reg = <0x40>;
 		screen_max_x = <1536>;
 		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio4 RK_PB1 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio4 RK_PB1 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 	};
 };
 

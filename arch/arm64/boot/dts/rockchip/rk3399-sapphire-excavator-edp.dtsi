@@ -165,8 +165,8 @@
 		reg = <0x40>;
 		screen_max_x = <1536>;
 		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	};
 
 	sgm3784: sgm3784@30 {

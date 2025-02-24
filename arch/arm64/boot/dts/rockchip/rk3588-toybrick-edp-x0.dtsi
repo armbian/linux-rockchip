@@ -515,8 +515,8 @@
 		reg = <0x40>;
 		screen_max_x = <1536>;
 		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio1 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
 	};
 };
 
