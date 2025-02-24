@@ -5955,6 +5955,9 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vcstate->splice_mode = false;
 	vcstate->output_flags = 0;
 	vcstate->output_type = 0;
+	vcstate->hdmi_vrr.m_const = 0;
+	vcstate->hdmi_vrr.next_tfr_val = 0;
+	vcstate->hdmi_vrr.refresh_rate_ready_to_change = false;
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	vp->enabled_win_mask = 0;
@@ -10682,10 +10685,15 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	VOP_MODULE_SET(vop2, vp, dsp_vtotal, vtotal);
 	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
-	/**
-	 * when display interface support vrr, config vtotal valid immediately
+	/*
+	 * when display interface support vrr, config vtotal
+	 * valid immediately except HDMI QMS-VRR. HDMI QMS-VRR
+	 * requires cfg done to accurately handle the vrr process.
+	 * Fixme: HDMI GAMING-VRR needs to config vtotal valid immediately,
+	 * the next version will be implemented.
 	 */
-	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate)
+	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate &&
+	    !output_if_is_hdmi(vcstate->output_if))
 		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
 
 	snprintf(clk_name, sizeof(clk_name), "dclk_out%d", vp->id);
@@ -12502,22 +12510,13 @@ static void vop2_crtc_hfp_seamless_switch(struct drm_crtc *crtc)
 	VOP_MODULE_SET(vop2, vp, htotal_pw, (new_htotal << 16) | hsync_len);
 }
 
-static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
+static void
+vop2_crtc_update_vrr_timing(struct drm_crtc *crtc, unsigned int new_vtotal, unsigned int new_vfp)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_display_mode *adjust_mode = &crtc->state->adjusted_mode;
-	unsigned int vrefresh;
-	unsigned int new_vtotal, vfp, new_vfp;
-
-	DRM_DEV_INFO(vop2->dev, "change refresh rate by changing vfp\n");
-	vrefresh = drm_mode_vrefresh(adjust_mode);
-
-	/* calculate new vfp for new refresh rate */
-	new_vtotal = adjust_mode->vtotal * vrefresh / vcstate->request_refresh_rate;
-	vfp = adjust_mode->vsync_start -  adjust_mode->vdisplay;
-	new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
 
 	/* config vop2 vtotal register */
 	VOP_MODULE_SET(vop2, vp, dsp_vtotal, new_vtotal);
@@ -12539,13 +12538,81 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 	rockchip_connector_update_vfp_for_vrr(crtc, adjust_mode, new_vfp);
 }
 
+static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *adjust_mode = &crtc->state->adjusted_mode;
+	struct rockchip_hdmi_vrr_state *hdmi_vrr = &vcstate->hdmi_vrr;
+	unsigned int vrefresh, vrefresh_khz;
+	unsigned int new_vtotal, vfp, new_vfp;
+	u8 brr_vic;
+
+	DRM_DEV_DEBUG(vop2->dev, "change refresh rate by changing vfp\n");
+	/*
+	 * If next_tfr_val is no zero, current mode is hdmi qms-vrr.
+	 * If next_tfr_val is 0, it indicates that current mode is hdmi
+	 * gaming-vrr/fva, or eDP/DSI vrr.
+	 */
+	if (hdmi_vrr->next_tfr_val) {
+		brr_vic = drm_match_cea_mode(adjust_mode);
+		if (!brr_vic) {
+			DRM_ERROR("qms vrr can't support resolution:\n");
+			DRM_ERROR(DRM_MODE_FMT "\n", DRM_MODE_ARG(adjust_mode));
+			return;
+		}
+
+		vrefresh_khz = rockchip_hdmi_vrr_tfr_match_to_vrefresh(hdmi_vrr->next_tfr_val);
+		if (!vrefresh_khz) {
+			DRM_ERROR("qms vrr unsupported tfr:%d\n", hdmi_vrr->next_tfr_val);
+			return;
+		}
+
+		hdmi_vrr->mconst_val = rockchip_hdmi_vrr_get_vrrconf_mconst(brr_vic, vrefresh_khz);
+		if (!hdmi_vrr->mconst_val) {
+			DRM_ERROR("qms vrr can't find mconst_val\n");
+			return;
+		}
+
+		hdmi_vrr->vrr_frame_cnt = 0;
+		new_vtotal = rockchip_hdmi_vrr_calc_new_vtotal(hdmi_vrr->mconst_val,
+							       hdmi_vrr->vrr_frame_cnt);
+		if (!new_vtotal) {
+			DRM_ERROR("qms vrr invalid vtotal\n");
+			return;
+		}
+		hdmi_vrr->vrr_frame_cnt++;
+		vfp = adjust_mode->vsync_start - adjust_mode->vdisplay;
+		new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
+		hdmi_vrr->refresh_rate_ready_to_change = false;
+	} else {
+		vrefresh = drm_mode_vrefresh(adjust_mode);
+
+		/* calculate new vfp for new refresh rate */
+		new_vtotal = adjust_mode->vtotal * vrefresh / vcstate->request_refresh_rate;
+		vfp = adjust_mode->vsync_start - adjust_mode->vdisplay;
+		new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
+	}
+	vop2_crtc_update_vrr_timing(crtc, new_vtotal, new_vfp);
+}
+
 static void vop2_crtc_update_vrr(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 
-	if (!vp->refresh_rate_change)
-		return;
+	/*
+	 * In hdmi qms vrr scenarios, it is possible to switch
+	 * timing several frames after refresh rate is configured
+	 */
+	if (output_if_is_hdmi(vcstate->output_if)) {
+		if (!vcstate->hdmi_vrr.refresh_rate_ready_to_change)
+			return;
+	} else {
+		if (!vp->refresh_rate_change)
+			return;
+	}
 
 	if (!vcstate->min_refresh_rate || !vcstate->max_refresh_rate)
 		return;
@@ -12722,7 +12789,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 			vop2_wait_for_scan_timing_max_to_assigned_line(vp, current_line, assigned_line);
 	}
 
-	if (vop2->version == VOP_VERSION_RK3588)
+	if (vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576)
 		vop2_crtc_update_vrr(crtc);
 
 	/* Process cluster sub windows overlay. */
@@ -14249,6 +14316,34 @@ static void vop2_dsc_isr(struct vop2 *vop2)
 	}
 }
 
+static void vop2_frac_mvrr_update(struct drm_crtc *crtc, struct vop2_video_port *vp)
+{
+	struct rockchip_crtc_state *vcstate;
+	struct drm_display_mode *adjust_mode;
+	unsigned int new_vtotal, vfp, new_vfp;
+
+	vcstate = to_rockchip_crtc_state(crtc->state);
+	/*
+	 * When hdmi qms-vrr is enabled and M_VRR(The difference between
+	 * current refresh rate vfp and the vfp of the base fresh rate)
+	 * is fractional. Sources should alternate between two sequential
+	 * values of M_VRR to better approximate the fractional M_VRR.
+	 */
+	if (vcstate->hdmi_vrr.next_tfr_val && vcstate->hdmi_vrr.m_const) {
+		adjust_mode = &crtc->state->adjusted_mode;
+		new_vtotal = rockchip_hdmi_vrr_calc_new_vtotal(vcstate->hdmi_vrr.mconst_val,
+							       vcstate->hdmi_vrr.vrr_frame_cnt);
+		if (!new_vtotal) {
+			DRM_ERROR("qms vrr invalid vtotal\n");
+		} else {
+			vfp = adjust_mode->vsync_start - adjust_mode->vdisplay;
+			new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
+			vop2_crtc_update_vrr_timing(crtc, new_vtotal, new_vfp);
+			vcstate->hdmi_vrr.vrr_frame_cnt++;
+		}
+	}
+}
+
 static irqreturn_t vop2_isr(int irq, void *data)
 {
 	struct vop2 *vop2 = data;
@@ -14340,6 +14435,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 				drm_crtc_handle_vblank(crtc);
 				vop2_handle_vblank(vop2, crtc);
 			}
+			vop2_frac_mvrr_update(crtc, vp);
 			active_irqs &= ~FS_FIELD_INTR;
 			ret = IRQ_HANDLED;
 		}
@@ -14544,6 +14640,7 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
 		drm_crtc_handle_vblank(crtc);
 		vop2_handle_vblank(vop2, crtc);
+		vop2_frac_mvrr_update(crtc, vp);
 		active_irqs &= ~FS_FIELD_INTR;
 		ret = IRQ_HANDLED;
 	}

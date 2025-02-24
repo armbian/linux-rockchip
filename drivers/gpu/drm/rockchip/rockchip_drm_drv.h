@@ -266,6 +266,14 @@ struct post_sharp {
 	u32 regs[SHARP_REG_LENGTH / 4];
 };
 
+struct rockchip_hdmi_vrr_state {
+	bool refresh_rate_ready_to_change;
+	bool m_const;
+	u8 next_tfr_val;
+	unsigned int vrr_frame_cnt;
+	const struct mvrr_const_val *mconst_val;
+};
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	int vp_id;
@@ -344,6 +352,7 @@ struct rockchip_crtc_state {
 	struct drm_dsc_picture_parameter_set pps;
 	struct rockchip_dsc_sink_cap dsc_sink_cap;
 	struct rockchip_hdr_state hdr;
+	struct rockchip_hdmi_vrr_state hdmi_vrr;
 	struct drm_property_blob *hdr_ext_data;
 	struct drm_property_blob *acm_lut_data;
 	struct drm_property_blob *post_csc_data;
@@ -493,6 +502,47 @@ struct next_hdr_sink_data {
 	struct ver_12_v1 ver_12_v1;
 	struct ver_12_v2 ver_12_v2;
 } __packed;
+
+/* refer to HDMI2.1B P453 */
+enum TARGET_FRAME_RATE {
+	TFR_QMSVRR_INACTIVE = 0,
+	TFR_23P97,
+	TFR_24,
+	TFR_25,
+	TFR_29P97,
+	TFR_30,
+	TFR_47P95,
+	TFR_48,
+	TFR_50,
+	TFR_59P94,
+	TFR_60,
+	TFR_100,
+	TFR_119P88,
+	TFR_120,
+	TFR_MAX,
+};
+
+enum hdmi_brr_vic {
+	HDMI_16_1920x1080P60_16x9 = 16,
+	HDMI_63_1920x1080P120_16x9 = 63,
+	HDMI_4_1280x720P60_16x9 = 4,
+	HDMI_47_1280x720P120_16x9 = 47,
+	HDMI_97_3840x2160P60_16x9 = 97,
+	HDMI_102_4096x2160P60_256x135 = 102,
+};
+
+struct mvrr_const_val {
+	/* unit: 100  6000, 5994, 5000, 3000, 2997, 2500, 2400, 2397 */
+	u16 vrefresh_khz;
+	u16 vtotal_fixed; /* vtotal_fixed is mutex with bit_len */
+	u8 bit_len; /* current max value is 16 * 8, 128 */
+	u8 frac_array[16];
+};
+
+struct mvrr_const_st {
+	enum hdmi_brr_vic brr_vic; /* the vic of brr */
+	const struct mvrr_const_val *val[];
+};
 
 /*
  * Rockchip drm private crtc funcs.
@@ -721,6 +771,10 @@ __printf(3, 4)
 void rockchip_drm_dbg_thread_info(const struct device *dev,
 				  enum rockchip_drm_debug_category category,
 				  const char *format, ...);
+u16 rockchip_hdmi_vrr_tfr_match_to_vrefresh(u8 tfr);
+const struct
+mvrr_const_val *rockchip_hdmi_vrr_get_vrrconf_mconst(enum hdmi_brr_vic brr_vic, u16 vrefresh_khz);
+u16 rockchip_hdmi_vrr_calc_new_vtotal(const struct mvrr_const_val *mvrr, u32 frame_cnt);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
