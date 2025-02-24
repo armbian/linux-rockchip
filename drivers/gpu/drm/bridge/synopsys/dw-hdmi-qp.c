@@ -327,6 +327,8 @@ struct dw_hdmi_qp {
 	bool hdr2sdr;
 	bool flt_no_timeout;
 
+	u8 next_tfr;
+	bool m_const;
 	u32 scdc_intr;
 	u32 flt_intr;
 	u32 earc_intr;
@@ -1768,6 +1770,67 @@ static void hdmi_config_CVTEM(struct dw_hdmi_qp *hdmi)
 		  PKTSCHED_PKT_EN);
 }
 
+static void dw_hdmi_qp_config_vtem_class1(struct dw_hdmi_qp *hdmi, bool m_const, u8 next_tfr)
+{
+	struct drm_display_mode *mode = &hdmi->previous_mode;
+	u8 ds_type = 0;
+	u8 sync = 1;
+	u8 vfr = 1;
+	u8 afr = 0;
+	u8 new = 1;
+	u8 end = 1;
+	u8 data_set_length = 4;
+	u8 base_vfp;
+	u16 base_refresh_l, base_refresh_h;
+	u32 val, i;
+
+	if (!next_tfr) {
+		hdmi_modb(hdmi, 0, PKTSCHED_EMP_VTEM_TX_EN, PKTSCHED_PKT_EN);
+		return;
+	}
+
+	val = 0xc0 << 8;
+	hdmi_writel(hdmi, val, PKT_EMP_VTEM_CONTENTS0);
+
+	val = new << 7 | end << 6 | ds_type << 4 | afr << 3 |
+	      vfr << 2 | sync << 1;
+	hdmi_writel(hdmi, val, PKT_EMP_VTEM_CONTENTS1);
+
+	if (m_const)
+		val = 0x6 << 24;
+	else
+		val = 0x4 << 24;
+
+	val |= data_set_length << 16;
+	hdmi_writel(hdmi, val, PKT_EMP_VTEM_CONTENTS2);
+
+	base_vfp = mode->vsync_start - mode->vdisplay;
+	base_refresh_l = drm_mode_vrefresh(mode);
+	base_refresh_h = (base_refresh_l >> 8) & 0x3;
+	base_refresh_l &= 0xff;
+
+	val = base_refresh_l << 16 | next_tfr << 11 | base_refresh_h << 8 | base_vfp;
+	hdmi_writel(hdmi, val, PKT_EMP_VTEM_CONTENTS3);
+
+	for (i = PKT_EMP_VTEM_CONTENTS4; i <= PKT_EMP_VTEM_CONTENTS7; i += 4)
+		hdmi_writel(hdmi, 0, i);
+
+	hdmi_modb(hdmi, PKTSCHED_EMP_VTEM_TX_EN, PKTSCHED_EMP_VTEM_TX_EN, PKTSCHED_PKT_EN);
+}
+
+static void dw_hdmi_qp_config_vtem(struct dw_hdmi_qp *hdmi)
+{
+	if (hdmi->disabled || !hdmi->dclk_en)
+		return;
+
+	if (!hdmi->next_tfr) {
+		hdmi_modb(hdmi, 0, PKTSCHED_EMP_VTEM_TX_EN, PKTSCHED_PKT_EN);
+		return;
+	}
+
+	dw_hdmi_qp_config_vtem_class1(hdmi, hdmi->m_const, hdmi->next_tfr);
+}
+
 static void hdmi_config_drm_infoframe(struct dw_hdmi_qp *hdmi,
 				      const struct drm_connector *connector)
 {
@@ -2588,6 +2651,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_config_AVI(hdmi, connector, mode);
 		hdmi_config_vendor_specific_infoframe(hdmi, connector, mode);
 		hdmi_config_CVTEM(hdmi);
+		dw_hdmi_qp_config_vtem_class1(hdmi, hdmi->m_const, hdmi->next_tfr);
 		hdmi_config_drm_infoframe(hdmi, connector);
 		ret = hdmi_set_op_mode(hdmi, link_cfg, connector);
 		if (ret) {
@@ -2962,6 +3026,24 @@ out:
 	mutex_unlock(&hdmi->mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_handle_hpd);
+
+void dw_hdmi_qp_set_qms(struct dw_hdmi_qp *hdmi, u8 next_tfr, u8 m_const)
+{
+	if (!hdmi)
+		return;
+
+	hdmi->next_tfr = next_tfr;
+	hdmi->m_const = m_const;
+
+	dw_hdmi_qp_config_vtem(hdmi);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_qms);
+
+u8 dw_hdmi_qp_get_next_tfr(struct dw_hdmi_qp *hdmi)
+{
+	return hdmi->next_tfr;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_get_next_tfr);
 
 static int
 dw_hdmi_atomic_connector_set_property(struct drm_connector *connector,
@@ -3468,6 +3550,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		if (hdmi->hdmi_changed_status & HDMI_VSIF_CHANGED)
 			hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn,
 							      &hdmi->previous_mode);
+		dw_hdmi_qp_config_vtem_class1(hdmi, hdmi->m_const, hdmi->next_tfr);
 	}
 }
 

@@ -25,6 +25,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_vblank.h>
 
 #include <video/display_timing.h>
 #include <video/videomode.h>
@@ -202,6 +203,9 @@
 #define HDMI20_MAX_RATE			600000
 #define HDMI_8K60_RATE			2376000
 
+#define HDMI_MAX_VRR_REFRESH_RATE	120
+#define HDMI_MIN_VRR_REFRESH_RATE	24
+
 struct rockchip_hdmi;
 
 struct rockchip_hdmi_chip_ops {
@@ -230,6 +234,15 @@ struct rockchip_hdmi_chip_data {
 	u32	lcdsel_lit;
 	bool	split_mode;
 	const struct rockchip_hdmi_chip_ops *ops;
+};
+
+enum hdmi_vrr_state {
+	VRR_IS_DISABLED = 0,
+	VRR_GOTO_ENABLE,
+	VRR_GOTO_DISABLE,
+	VRR_RATE_CHANGED,
+	VRR_IS_STABLE,
+	VRR_WAIT_REFRESH_CHANGE,
 };
 
 enum hdmi_frl_rate_per_lane {
@@ -317,6 +330,7 @@ struct rockchip_hdmi {
 	struct drm_property *hdr_panel_dovi_vsdb;
 	struct drm_property *vsif_data;
 	struct drm_property *hdr10_plus_vsdb;
+	struct drm_property *next_tfr;
 
 	struct drm_property_blob *mode_color_caps_ptr;
 	struct drm_property_blob *hdr_panel_blob_ptr;
@@ -329,6 +343,10 @@ struct rockchip_hdmi {
 	unsigned int hdmi_quant_range;
 	unsigned int phy_bus_width;
 	unsigned int enable_allm;
+	u8 next_tfr_val;
+	enum hdmi_vrr_state vrr_state;
+	enum hdmi_vrr_state old_vrr_state;
+	enum TARGET_FRAME_RATE brr_tfr;
 	enum rk_if_color_format hdmi_output;
 	struct rockchip_drm_sub_dev sub_dev;
 
@@ -340,7 +358,8 @@ struct rockchip_hdmi {
 	struct dw_hdmi_link_config link_cfg;
 	struct gpio_desc *enable_gpio;
 
-	struct delayed_work work;
+	struct delayed_work hpd_work;
+	struct work_struct qms_vrr_work;
 	struct workqueue_struct *workqueue;
 	struct gpio_desc *hpd_gpiod;
 	struct pinctrl *p;
@@ -1466,7 +1485,7 @@ static int rockchip_hdmi_update_phy_table(struct rockchip_hdmi *hdmi,
 
 static void repo_hpd_event(struct work_struct *p_work)
 {
-	struct rockchip_hdmi *hdmi = container_of(p_work, struct rockchip_hdmi, work.work);
+	struct rockchip_hdmi *hdmi = container_of(p_work, struct rockchip_hdmi, hpd_work.work);
 	bool change;
 
 	change = drm_helper_hpd_irq_event(hdmi->drm_dev);
@@ -1550,7 +1569,7 @@ static irqreturn_t rk3576_hdmi_thread(int irq, void *dev_id)
 		hdmi->hpd_stat = false;
 		msecs = 20;
 	}
-	mod_delayed_work(hdmi->workqueue, &hdmi->work, msecs_to_jiffies(msecs));
+	mod_delayed_work(hdmi->workqueue, &hdmi->hpd_work, msecs_to_jiffies(msecs));
 
 	val = HIWORD_UPDATE(RK3576_HDMITX_HPD_INT_CLR,
 			    RK3576_HDMITX_HPD_INT_CLR) |
@@ -1595,7 +1614,7 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 		hdmi->hpd_stat = false;
 		msecs = 20;
 	}
-	mod_delayed_work(hdmi->workqueue, &hdmi->work, msecs_to_jiffies(msecs));
+	mod_delayed_work(hdmi->workqueue, &hdmi->hpd_work, msecs_to_jiffies(msecs));
 
 	if (!hdmi->id) {
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
@@ -1612,10 +1631,217 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void init_hpd_work(struct rockchip_hdmi *hdmi)
+static int rockchip_hdmi_set_qms_next_tfr(struct rockchip_hdmi *hdmi, u64 val)
 {
-	hdmi->workqueue = create_workqueue("hpd_queue");
-	INIT_DELAYED_WORK(&hdmi->work, repo_hpd_event);
+	if (!hdmi->next_tfr_val && val) {
+		hdmi->vrr_state = VRR_GOTO_ENABLE;
+	} else if (hdmi->next_tfr_val && !val) {
+		if (hdmi->vrr_state != VRR_IS_STABLE) {
+			DRM_ERROR("qms-vrr is switching, can't disable qms-vrr\n");
+			return -EPERM;
+		}
+		hdmi->vrr_state = VRR_GOTO_DISABLE;
+	} else if (hdmi->next_tfr_val && val && hdmi->next_tfr_val != val) {
+		if (hdmi->vrr_state != VRR_IS_STABLE) {
+			DRM_ERROR("qms-vrr is switching, can't set new next_tfr\n");
+			return -EPERM;
+		}
+		hdmi->vrr_state = VRR_RATE_CHANGED;
+	} else {
+		/* new next_tfr value is the same as the old one */
+		return 0;
+	}
+
+	hdmi->next_tfr_val = (u8)val;
+
+	return 0;
+}
+
+static int rockchip_hdmi_get_next_tfr_val(struct drm_display_mode *mode)
+{
+	u64 val = 0;
+	int i;
+
+	val = (u64)mode->clock * 100000;
+	val = DIV_ROUND_CLOSEST_ULL(val, (mode->htotal * mode->vtotal));
+
+	for (i = 0; i < TFR_MAX; i++) {
+		if (rockchip_hdmi_vrr_tfr_match_to_vrefresh(i) == val)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static u32 rockchip_hdmi_get_next_tfr_refresh_val(u8 next_tfr)
+{
+	int i;
+
+	for (i = 1; i < TFR_MAX; i++) {
+		if (rockchip_hdmi_vrr_tfr_match_to_vrefresh(i) == next_tfr)
+			break;
+	}
+
+	if (i == TFR_MAX)
+		return -EINVAL;
+
+	return rockchip_hdmi_vrr_tfr_match_to_vrefresh(i);
+}
+
+static int rockchip_hdmi_wait_vsync(struct rockchip_hdmi *hdmi, struct drm_crtc *crtc,
+				    struct drm_vblank_crtc *vblank, u8 vsync_num, u32 timeout)
+{
+	int ret, i;
+	u64 last;
+
+	ret = drm_crtc_vblank_get(crtc);
+	if (ret) {
+		DRM_DEV_ERROR(hdmi->dev, "failed to get vblank\n");
+		return ret;
+	}
+
+	for (i = 0; i < vsync_num; i++) {
+		last = drm_crtc_vblank_count(crtc);
+		ret = wait_event_timeout(vblank->queue, last != drm_crtc_vblank_count(crtc),
+					 msecs_to_jiffies(timeout));
+		if (!ret) {
+			DRM_DEV_ERROR(hdmi->dev, "vblank wait timed out\n");
+			drm_crtc_vblank_put(crtc);
+			return ret;
+		}
+	}
+
+	drm_crtc_vblank_put(crtc);
+
+	return 0;
+}
+
+static int rockchip_hdmi_qms_vrr_enable(struct rockchip_hdmi *hdmi, struct drm_crtc *crtc,
+					struct drm_vblank_crtc *vblank)
+{
+	u32 timeout = DIV_ROUND_CLOSEST_ULL(1000, drm_mode_vrefresh(&crtc->state->adjusted_mode));
+	int ret;
+	enum TARGET_FRAME_RATE brr_tfr;
+
+	/* init brr */
+	brr_tfr = rockchip_hdmi_get_next_tfr_val(&crtc->state->adjusted_mode);
+	hdmi->brr_tfr = brr_tfr;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, brr_tfr, 1);
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 2, timeout);
+	if (ret)
+		return ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, brr_tfr, 0);
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 1, timeout);
+	if (ret)
+		return ret;
+
+	hdmi->vrr_state = VRR_WAIT_REFRESH_CHANGE;
+
+	return 0;
+}
+
+static void rockchip_hdmi_qms_vrr_set_refresh(struct rockchip_hdmi *hdmi,
+					      struct rockchip_crtc_state *vcstate)
+{
+	if (!vcstate) {
+		DRM_DEV_ERROR(hdmi->dev, "failed to get vcstate\n");
+		return;
+	}
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, hdmi->next_tfr_val, 0);
+	vcstate->hdmi_vrr.refresh_rate_ready_to_change = true;
+	vcstate->hdmi_vrr.next_tfr_val = hdmi->next_tfr_val;
+
+	hdmi->vrr_state = VRR_IS_STABLE;
+}
+
+static int rockchip_hdmi_qms_vrr_rate_change(struct rockchip_hdmi *hdmi, struct drm_crtc *crtc,
+					     struct drm_vblank_crtc *vblank)
+{
+	u8 current_tfr = dw_hdmi_qp_get_next_tfr(hdmi->hdmi_qp);
+	u32 next_tfr_refresh_val = rockchip_hdmi_get_next_tfr_refresh_val(current_tfr);
+	u32 timeout = DIV_ROUND_CLOSEST_ULL(100000, next_tfr_refresh_val);
+	int ret;
+
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 1, timeout);
+	if (ret)
+		return ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, current_tfr, 0);
+
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 1, timeout);
+	if (ret)
+		return ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, hdmi->next_tfr_val, 0);
+	hdmi->vrr_state = VRR_WAIT_REFRESH_CHANGE;
+
+	return 0;
+}
+
+static int rockchip_hdmi_qms_vrr_disable(struct rockchip_hdmi *hdmi, struct drm_crtc *crtc,
+					 struct drm_vblank_crtc *vblank)
+{
+	u8 current_tfr = dw_hdmi_qp_get_next_tfr(hdmi->hdmi_qp);
+	u32 next_tfr_refresh_val = rockchip_hdmi_get_next_tfr_refresh_val(current_tfr);
+	u32 timeout = DIV_ROUND_CLOSEST_ULL(100000, next_tfr_refresh_val);
+	int ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, hdmi->brr_tfr, 0);
+	hdmi->next_tfr_val = hdmi->brr_tfr;
+
+	hdmi->vrr_state = VRR_WAIT_REFRESH_CHANGE;
+
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 3, timeout);
+	if (ret)
+		return ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, hdmi->brr_tfr, 1);
+
+	ret = rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 1, timeout);
+	if (ret)
+		return ret;
+
+	dw_hdmi_qp_set_qms(hdmi->hdmi_qp, 0, 0);
+
+	hdmi->vrr_state = VRR_IS_DISABLED;
+	hdmi->next_tfr_val = 0;
+
+	return 0;
+}
+
+static void dw_hdmi_qms_vrr_work(struct work_struct *p_work)
+{
+	struct rockchip_hdmi *hdmi = container_of(p_work, struct rockchip_hdmi, qms_vrr_work);
+	struct drm_encoder *encoder = &hdmi->encoder;
+	struct drm_crtc *crtc;
+	struct drm_vblank_crtc *vblank;
+	int pipe = 0;
+
+	if (!encoder || !encoder->crtc) {
+		DRM_DEV_ERROR(hdmi->dev, "can't get crtc\n");
+		return;
+	}
+
+	crtc = encoder->crtc;
+	pipe = drm_crtc_index(crtc);
+	vblank = &crtc->dev->vblank[pipe];
+
+	if (hdmi->vrr_state == VRR_GOTO_ENABLE)
+		rockchip_hdmi_qms_vrr_enable(hdmi, crtc, vblank);
+	else if (hdmi->vrr_state == VRR_GOTO_DISABLE)
+		rockchip_hdmi_qms_vrr_disable(hdmi, crtc, vblank);
+	else
+		rockchip_hdmi_qms_vrr_rate_change(hdmi, crtc, vblank);
+}
+
+static void init_hdmi_work(struct rockchip_hdmi *hdmi)
+{
+	hdmi->workqueue = create_workqueue("hdmi_queue");
+	INIT_DELAYED_WORK(&hdmi->hpd_work, repo_hpd_event);
+	INIT_WORK(&hdmi->qms_vrr_work, dw_hdmi_qms_vrr_work);
 }
 
 static irqreturn_t rockchip_hdmi_hpd_irq_handler(int irq, void *arg)
@@ -2072,6 +2298,10 @@ static void dw_hdmi_rockchip_encoder_atomic_disable(struct drm_encoder *encoder,
 		}
 		s->output_if_left_panel &= ~(hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0);
 	}
+
+	hdmi->next_tfr_val = 0;
+	hdmi->vrr_state = VRR_IS_DISABLED;
+
 	/*
 	 * when plug out hdmi it will be switch cvbs and then phy bus width
 	 * must be set as 8
@@ -2718,6 +2948,40 @@ dw_hdmi_get_lane_cfg_by_frl_rate(struct rockchip_hdmi *hdmi, u64 rate,
 	return 0;
 }
 
+static void rockchip_hdmi_qms_vrr_state(struct rockchip_hdmi *hdmi,
+					struct rockchip_crtc_state *vcstate)
+{
+	switch (hdmi->vrr_state) {
+	case VRR_GOTO_ENABLE:
+	case VRR_RATE_CHANGED:
+		vcstate->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
+		vcstate->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
+		vcstate->hdmi_vrr.m_const = 0;
+		vcstate->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		queue_work(hdmi->workqueue, &hdmi->qms_vrr_work);
+		break;
+	case VRR_GOTO_DISABLE:
+		vcstate->max_refresh_rate = 0;
+		vcstate->min_refresh_rate = 0;
+		vcstate->hdmi_vrr.m_const = 0;
+		vcstate->vrr_type = 0;
+		vcstate->hdmi_vrr.next_tfr_val = hdmi->brr_tfr;
+		vcstate->hdmi_vrr.refresh_rate_ready_to_change = true;
+		queue_work(hdmi->workqueue, &hdmi->qms_vrr_work);
+		break;
+	case VRR_WAIT_REFRESH_CHANGE:
+		vcstate->hdmi_vrr.m_const = 0;
+		rockchip_hdmi_qms_vrr_set_refresh(hdmi, vcstate);
+		break;
+	case VRR_IS_STABLE:
+		vcstate->hdmi_vrr.m_const = 1;
+		dw_hdmi_qp_set_qms(hdmi->hdmi_qp, hdmi->next_tfr_val, 1);
+		break;
+	default:
+		break;
+	}
+}
+
 static int
 dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
@@ -2749,6 +3013,13 @@ secondary:
 
 	s->bus_format = bus_format;
 	if (hdmi->is_hdmi_qp) {
+		s->hdmi_vrr.next_tfr_val = hdmi->next_tfr_val;
+
+		if (hdmi->vrr_state != hdmi->old_vrr_state) {
+			hdmi->old_vrr_state = hdmi->vrr_state;
+			rockchip_hdmi_qms_vrr_state(hdmi, s);
+		}
+
 		color_depth = hdmi_bus_fmt_color_depth(bus_format);
 		tmdsclk = hdmi_get_tmdsclock(hdmi, crtc_state->mode.clock);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->output_bus_format))
@@ -3410,6 +3681,23 @@ out:
 	return 0;
 }
 
+static const struct drm_prop_enum_list next_tfr_list[] = {
+	{ 0, "disable" },
+	{ 1, "23.97Hz" },
+	{ 2, "24Hz" },
+	{ 3, "25Hz" },
+	{ 4, "29.97Hz" },
+	{ 5, "30Hz" },
+	{ 6, "47.95Hz" },
+	{ 7, "48Hz" },
+	{ 8, "50Hz" },
+	{ 9, "59.94Hz" },
+	{ 10, "60Hz" },
+	{ 11, "100Hz" },
+	{ 12, "119.88Hz" },
+	{ 13, "120Hz" },
+};
+
 static void
 dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 				   unsigned int color, int version,
@@ -3523,6 +3811,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 					"HDR10_PLUS_VSDB", 0);
 		if (prop) {
 			hdmi->hdr10_plus_vsdb = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
+
+		prop = drm_property_create_enum(connector->dev, 0,
+						"next_tfr",
+						next_tfr_list,
+						ARRAY_SIZE(next_tfr_list));
+		if (prop) {
+			hdmi->next_tfr = prop;
 			drm_object_attach_property(&connector->base, prop, 0);
 		}
 	}
@@ -3684,6 +3981,11 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev, hdmi->hdr10_plus_vsdb);
 		hdmi->hdr10_plus_vsdb = NULL;
 	}
+
+	if (hdmi->next_tfr) {
+		drm_property_destroy(connector->dev, hdmi->next_tfr);
+		hdmi->next_tfr = NULL;
+	}
 }
 
 static int
@@ -3757,6 +4059,8 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		return ret;
 	} else if (property == hdmi->hdr10_plus_vsdb) {
 		return 0;
+	} else if (property == hdmi->next_tfr) {
+		return rockchip_hdmi_set_qms_next_tfr(hdmi, val);
 	}
 
 	DRM_ERROR("Unknown property [PROP:%d:%s]\n",
@@ -3851,6 +4155,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == hdmi->hdr10_plus_vsdb) {
 		*val = (hdmi->hdr10_plus_vsdb_ptr) ? hdmi->hdr10_plus_vsdb_ptr->base.id : 0;
+		return 0;
+	} else if (property == hdmi->next_tfr) {
+		*val = hdmi->next_tfr_val;
 		return 0;
 	}
 
@@ -4712,7 +5019,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	if (hdmi->is_hdmi_qp) {
 		hdmi->chip_data->ops->io_path_init(hdmi);
-		init_hpd_work(hdmi);
+		init_hdmi_work(hdmi);
 	}
 
 	ret = clk_prepare_enable(hdmi->phyref_clk);
@@ -4851,7 +5158,8 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
 	if (hdmi->is_hdmi_qp) {
-		cancel_delayed_work(&hdmi->work);
+		cancel_delayed_work(&hdmi->hpd_work);
+		cancel_work_sync(&hdmi->qms_vrr_work);
 		flush_workqueue(hdmi->workqueue);
 		destroy_workqueue(hdmi->workqueue);
 	}
@@ -4930,7 +5238,8 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 	if (hdmi->is_hdmi_qp) {
 		if (hdmi->hpd_irq)
 			disable_irq(hdmi->hpd_irq);
-		cancel_delayed_work(&hdmi->work);
+		cancel_delayed_work(&hdmi->hpd_work);
+		cancel_work_sync(&hdmi->qms_vrr_work);
 		flush_workqueue(hdmi->workqueue);
 		dw_hdmi_qp_suspend(hdmi->dev, hdmi->hdmi_qp);
 	} else {
