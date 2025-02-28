@@ -626,11 +626,24 @@ struct rockchip_encoder {
 	struct drm_encoder encoder;
 };
 
+struct rockchip_drm_vrr_cap {
+	bool qms;
+	bool m_delta;
+	bool cinema_vrr;
+	bool negm_vrr;
+	bool fva;
+	bool qms_tfr_max;
+	bool qms_tfr_min;
+	u8 vrr_min;
+	u16 vrr_max;
+};
+
 struct rockchip_drm_hdmi21_data {
 	u8 max_frl_rate_per_lane;
 	u8 max_lanes;
 	bool allm_supported;
 	struct rockchip_drm_dsc_cap dsc_cap;
+	struct rockchip_drm_vrr_cap vrr_cap;
 };
 
 void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_display_mode *mode,

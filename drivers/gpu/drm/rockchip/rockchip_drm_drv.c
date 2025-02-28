@@ -885,7 +885,16 @@ void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
 #define EDID_DSC_TOTAL_CHUNK_KBYTES	0x3f
 #define EDID_MAX_FRL_RATE_MASK		0xf0
 
-/* Sink Capability Data Structure, for compatibility with linux version < linux kernel 6.1 */
+#define DRM_EDID_FAPA_START		(1 << 0)
+#define DRM_EDID_ALLM			(1 << 1)
+#define DRM_EDID_FVA			(1 << 2)
+#define DRM_EDID_QMS			(1 << 6)
+#define DRM_EDID_VRR_MIN_MASK		0x3f
+#define DRM_EDID_VRR_MAX_UPPER_MASK	0xc0
+#define DRM_EDID_QMS_TFR_MIN		(1 << 4)
+#define DRM_EDID_QMS_TFR_MAX		(1 << 5)
+
+/* Sink Capability Data Structure */
 static void parse_hdmi_forum_scds(struct rockchip_drm_hdmi21_data *hdmi21_data, const u8 *hf_scds)
 {
 	if (hf_scds[7]) {
@@ -893,9 +902,9 @@ static void parse_hdmi_forum_scds(struct rockchip_drm_hdmi21_data *hdmi21_data, 
 		u8 dsc_max_frl_rate;
 		u8 dsc_max_slices;
 
-		DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
 		max_frl_rate = (hf_scds[7] & DRM_EDID_MAX_FRL_RATE_MASK) >> 4;
-		hdmi21_data->allm_supported = hf_scds[8] & DRM_EDID_ALLM;
+		if (max_frl_rate)
+			DRM_DEBUG_KMS("hdmi21 FRL detected. parsing edid....\n");
 		get_max_frl_rate(max_frl_rate, &hdmi21_data->max_lanes,
 				 &hdmi21_data->max_frl_rate_per_lane);
 		hdmi21_data->dsc_cap.v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
@@ -956,6 +965,27 @@ static void parse_hdmi_forum_scds(struct rockchip_drm_hdmi21_data *hdmi21_data, 
 				hdmi21_data->dsc_cap.clk_per_slice = 0;
 			}
 		}
+	}
+
+	/* parse additional bytes */
+	if (cea_db_payload_len(hf_scds) >= 9) {
+		hdmi21_data->allm_supported = hf_scds[8] & DRM_EDID_ALLM;
+		hdmi21_data->vrr_cap.qms = hf_scds[8] & DRM_EDID_QMS;
+		hdmi21_data->vrr_cap.fva = hf_scds[8] & DRM_EDID_FVA;
+		hdmi21_data->vrr_cap.m_delta = hf_scds[8] & DRM_EDID_MDELTA;
+		hdmi21_data->vrr_cap.negm_vrr = hf_scds[8] & DRM_EDID_CNMVRR;
+		hdmi21_data->vrr_cap.cinema_vrr = hf_scds[8] & DRM_EDID_CINEMA_VRR;
+	}
+
+	if (cea_db_payload_len(hf_scds) >= 11) {
+		hdmi21_data->vrr_cap.vrr_min = hf_scds[9] & DRM_EDID_VRR_MIN_MASK;
+		hdmi21_data->vrr_cap.vrr_max =
+			(hf_scds[9] & DRM_EDID_VRR_MAX_UPPER_MASK) << 2 | hf_scds[10];
+	}
+
+	if (cea_db_payload_len(hf_scds) >= 12) {
+		hdmi21_data->vrr_cap.qms_tfr_min = hf_scds[11] & DRM_EDID_QMS_TFR_MIN;
+		hdmi21_data->vrr_cap.qms_tfr_max = hf_scds[11] & DRM_EDID_QMS_TFR_MAX;
 	}
 }
 
