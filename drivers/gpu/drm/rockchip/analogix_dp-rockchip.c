@@ -12,6 +12,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
@@ -136,38 +137,67 @@ static int rockchip_dp_audio_hw_params(struct device *dev, void *data,
 				       struct hdmi_codec_params *params)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+	int ret;
+
+	pm_runtime_get_sync(dp->dev);
 
 	rockchip_grf_field_write(dp->grf, &dp->data->spdif_sel,
 				 daifmt->fmt == HDMI_SPDIF);
 	rockchip_grf_field_write(dp->grf, &dp->data->i2s_sel,
 				 daifmt->fmt == HDMI_I2S);
 
-	return analogix_dp_audio_hw_params(dp->adp, daifmt, params);
+	ret = analogix_dp_audio_hw_params(dp->adp, daifmt, params);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
+
+	return ret;
 }
 
 static void rockchip_dp_audio_shutdown(struct device *dev, void *data)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
+	pm_runtime_get_sync(dp->dev);
+
 	analogix_dp_audio_shutdown(dp->adp);
 
 	rockchip_grf_field_write(dp->grf, &dp->data->spdif_sel, 0);
 	rockchip_grf_field_write(dp->grf, &dp->data->i2s_sel, 0);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 }
 
 static int rockchip_dp_audio_startup(struct device *dev, void *data)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+	int ret;
 
-	return analogix_dp_audio_startup(dp->adp);
+	pm_runtime_get_sync(dp->dev);
+
+	ret = analogix_dp_audio_startup(dp->adp);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
+
+	return ret;
 }
 
 static int rockchip_dp_audio_get_eld(struct device *dev, void *data,
 				     u8 *buf, size_t len)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+	int ret;
 
-	return analogix_dp_audio_get_eld(dp->adp, buf, len);
+	pm_runtime_get_sync(dp->dev);
+
+	ret = analogix_dp_audio_get_eld(dp->adp, buf, len);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
+
+	return ret;
 }
 
 static const struct hdmi_codec_ops rockchip_dp_audio_codec_ops = {
@@ -381,6 +411,8 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
 
+	pm_runtime_get_sync(dp->dev);
+
 	ret = rockchip_grf_field_write(dp->grf, &dp->data->mem_clk_auto_gating, 1);
 	if (ret != 0)
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg mem_clk_auto_gating: %d\n", ret);
@@ -404,6 +436,9 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 	ret = rockchip_grf_field_write(dp->grf, &dp->data->lcdc_sel, endpoint.id);
 	if (ret != 0)
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg lcdc_sel: %d\n", ret);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 }
 
 static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,

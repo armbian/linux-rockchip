@@ -209,6 +209,8 @@ struct analogix_dp_device {
 	const struct analogix_dp_output_format *output_fmt;
 
 	bool dp_mode;
+
+	bool dynamic_pm_ctrl;
 };
 
 /* analogix_dp_reg.c */
