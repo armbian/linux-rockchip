@@ -91,6 +91,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	nanopi-m6-spi-nor-flash.dtbo \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
 	rockchip-rk3588-panthor-gpu.dtbo \
+	rk3528-rock-2-enable-pcie.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
 	rk3576-can1-m1.dtbo \
 	rk3576-i2c0-m1.dtbo \
