@@ -615,6 +615,7 @@
 			 <&cru SRST_PRESETN_CRU_PCIE>;
 		reset-names = "pcie", "periph", "preset_cru";
 		status = "disabled";
+		rockchip,skip-reset-in-config;
 
 		pcie2x1_intc: legacy-interrupt-controller {
 			interrupt-controller;
