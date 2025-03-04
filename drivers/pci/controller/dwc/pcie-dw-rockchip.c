@@ -1475,7 +1475,10 @@ static int rk_pcie_hardware_io_config(struct rk_pcie *rk_pcie)
 			return ret;
 	}
 
-	reset_control_assert(rk_pcie->rsts);
+	if (device_property_read_bool(dev, "rockchip,skip-reset-in-config")) {
+		dev_info(dev, "skip reset controller\n");
+	} else
+		reset_control_assert(rk_pcie->rsts);
 	udelay(10);
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
