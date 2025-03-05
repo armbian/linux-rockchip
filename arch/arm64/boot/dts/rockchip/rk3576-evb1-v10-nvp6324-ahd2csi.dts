@@ -1,0 +1,352 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-evb1.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 EVB1 V10 Board + Rockchip NVP6324 AHD to MIPI Extboard";
+	compatible = "rockchip,rk3576-evb1-v10", "rockchip,rk3576";
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dcphy0_in_n4: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&n4_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy0_in_n4: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&n4_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy3_in_n4: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&n4_out2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi3_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	jaguar0: jaguar0@30 {
+		compatible = "jaguar1-v4l2";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		power-domains = <&power RK3576_PD_VI>;
+		pd-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>; //rk3576 evb1 NC as default
+		//avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,default_rect= <1920 1080>; // default resolution
+		port {
+			n4_out0: endpoint {
+				remote-endpoint = <&mipi_dcphy0_in_n4>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m3_xfer>;
+
+	jaguar1: jaguar1@30 {
+		compatible = "jaguar1-v4l2";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1m0_clk1>;
+		pd-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		//avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,default_rect= <1920 1080>; // default resolution
+		port {
+			n4_out1: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_n4>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m2_xfer>;
+
+	jaguar2: jaguar2@30 {
+		compatible = "jaguar1-v4l2";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2m0_clk2>;
+		pd-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		//avdd-supply = <&vcc_mipicsi1>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,default_rect= <1920 1080>; // default resolution
+
+		port {
+			n4_out2: endpoint {
+				remote-endpoint = <&mipi_dphy3_in_n4>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
+};
+
+&mipi3_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in3>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds3 {
+	status = "okay";
+
+	port {
+		cif_mipi_in3: endpoint {
+			remote-endpoint = <&mipi3_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+
+&vcc_mipidcphy0 {
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&vcc_mipicsi0 {
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&vcc_mipicsi1 {
+	regulator-boot-on;
+	regulator-always-on;
+};

@@ -293,6 +293,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
 
 /* drm_edid.c */
+#ifdef CONFIG_DRM_EDID
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
 int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m);
 int drm_edid_override_set(struct drm_connector *connector, const void *edid, size_t size);
@@ -303,6 +304,46 @@ void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
 void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);
 ssize_t drm_edid_connector_property_show(struct drm_connector *connector,
 					 char *buf, loff_t off, size_t count);
+#else
+static inline void drm_mode_fixup_1366x768(struct drm_display_mode *mode)
+{
+}
+
+static inline int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m)
+{
+	return 0;
+}
+
+static inline int drm_edid_override_set(struct drm_connector *connector, const void *edid, size_t size)
+{
+	return 0;
+}
+
+static inline int drm_edid_override_reset(struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline u8 *drm_edid_find_extension(const struct drm_edid *drm_edid,
+					  int ext_id, int *ext_index)
+{
+	return NULL;
+}
+
+static inline void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad)
+{
+}
+
+static inline void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad)
+{
+}
+
+static inline ssize_t drm_edid_connector_property_show(struct drm_connector *connector,
+						       char *buf, loff_t off, size_t count)
+{
+	return 0;
+}
+#endif
 
 /* drm_edid_load.c */
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE

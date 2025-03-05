@@ -209,6 +209,14 @@ config SND_PCM_XRUN_DEBUG
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 
+config SND_PCM_PATTERN_DEBUG
+	bool "Playback the pattern data instead of user buf"
+	depends on SND_DEBUG
+	help
+	  Say Y to enable the PCM Pattern Data Playback.
+	  It is usually to analyse the interface timing by playback the
+	  pattern data for easy debugging.
+
 config SND_CTL_INPUT_VALIDATION
 	bool "Validate input data to control API"
 	help

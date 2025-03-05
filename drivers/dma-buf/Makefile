@@ -3,10 +3,13 @@ obj-y := dma-buf.o dma-fence.o dma-fence-array.o dma-fence-chain.o \
 	 dma-fence-unwrap.o dma-resv.o
 obj-$(CONFIG_DMABUF_HEAPS)	+= dma-heap.o
 obj-$(CONFIG_DMABUF_HEAPS)	+= heaps/
+obj-$(CONFIG_DMABUF_CACHE)	+= dma-buf-cache.o
 obj-$(CONFIG_SYNC_FILE)		+= sync_file.o
-obj-$(CONFIG_SW_SYNC)		+= sw_sync.o sync_debug.o
+obj-$(CONFIG_SW_SYNC)		+= sw_sync.o
+obj-$(CONFIG_SW_SYNC_DEBUG)	+= sync_debug.o
 obj-$(CONFIG_UDMABUF)		+= udmabuf.o
 obj-$(CONFIG_DMABUF_SYSFS_STATS) += dma-buf-sysfs-stats.o
+obj-$(CONFIG_DMABUF_HEAPS_ROCKCHIP) += rk_heaps/
 
 dmabuf_selftests-y := \
 	selftest.o \

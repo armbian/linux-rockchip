@@ -1148,6 +1148,14 @@ config RN5T618_ADC
 	  This driver can also be built as a module. If so, the module
 	  will be called rn5t618-adc.
 
+config ROCKCHIP_FLEXBUS_ADC
+	tristate "Rockchip Flexbus ADC opmode driver"
+	select MFD_ROCKCHIP_FLEXBUS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Select this to get support for Rockchip Flexbus ADC opmode.
+
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
@@ -1160,6 +1168,13 @@ config ROCKCHIP_SARADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
+
+config ROCKCHIP_SARADC_TEST_CHN
+	bool "Rockchip SARADC test channel"
+	default n
+	depends on ROCKCHIP_SARADC
+	help
+	  Say yes here to enable test channel function.
 
 config RICHTEK_RTQ6056
 	tristate "Richtek RTQ6056 Current and Power Monitor ADC"

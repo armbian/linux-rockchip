@@ -1120,6 +1120,9 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 
 	cqhci_set_irqs(cq_host, CQHCI_IS_MASK);
 
+	/* Add emmc hardware reset after cqe recovery. */
+	mmc_hw_reset(mmc->card);
+
 	pr_debug("%s: cqhci: recovery done\n", mmc_hostname(mmc));
 }
 

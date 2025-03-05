@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3576.dtsi"
+#include "rk3576-test1.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 TEST1 V10 Board + RK EVB EXT HDMItoMIPI BT1120toHDMI RK628F V10";
+	compatible = "rockchip,rk3576-test1-v10-rk628-bt1120-2-hdmi", "rockchip,rk3576";
+
+	rk628_sound: rk628-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi-rk628";
+		status = "okay";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&i2c3_rk628>;
+		};
+	};
+};
+
+&mipidcphy0 {
+	status = "disabled";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&sai1 {
+	status = "disabled";
+};
+
+&pcie1 {
+	status = "disabled";
+};
+
+/*
+ * rk628
+ */
+
+&i2c3 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c3m0_xfer>;
+	status = "okay";
+
+	i2c3_rk628: rk628@50 {
+		compatible = "rockchip,rk628";
+		reg = <0x50>;
+
+		interrupt-parent = <&gpio4>;
+		interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+
+		#sound-dai-cells = <0>;
+
+		rk628-bt1120-in;
+		bt1120-yc-swap;
+		// bt1120-uv-swap;
+
+		rk628-hdmi-out;
+		mode-sync-pol = <0>;
+
+		port {
+			rk628_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_rk628>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	/*
+	 * <&bt1120_pins> for bt1120
+	 * <&bt656_pins>  for bt656
+	 */
+	pinctrl-0 = <&bt1120_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_rk628: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rk628_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "okay";
+	connect = <&vp2_out_rgb>;
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-0 = <&sai1m0_lrck &sai1m0_sclk &sai1m0_sdo1>;
+	rockchip,sai-tx-route = <1 0 2 3>;
+};

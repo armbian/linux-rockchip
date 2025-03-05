@@ -867,6 +867,7 @@ struct dwc2_hregs_backup {
  * @hcd_enabled:	Host mode sub-driver initialization indicator.
  * @gadget_enabled:	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled:	Status of low-level hardware resources.
+ * @ll_phy_enabled	Status of low-level PHY resources.
  * @hibernated:		True if core is hibernated
  * @in_ppd:		True if core is partial power down mode.
  * @bus_suspended:	True if bus is suspended
@@ -1065,6 +1066,7 @@ struct dwc2_hsotg {
 	unsigned int hcd_enabled:1;
 	unsigned int gadget_enabled:1;
 	unsigned int ll_hw_enabled:1;
+	unsigned int ll_phy_enabled:1;
 	unsigned int hibernated:1;
 	unsigned int in_ppd:1;
 	bool bus_suspended;
@@ -1356,6 +1358,9 @@ extern const struct pci_device_id dwc2_pci_ids[];
 
 int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
+
+int dwc2_lowlevel_phy_enable(struct dwc2_hsotg *hsotg);
+int dwc2_lowlevel_phy_disable(struct dwc2_hsotg *hsotg);
 
 /* Common polling functions */
 int dwc2_hsotg_wait_bit_set(struct dwc2_hsotg *hs_otg, u32 reg, u32 bit,

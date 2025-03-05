@@ -2,7 +2,7 @@
 /*
  * Rockchip machine ASoC driver for boards using MAX98357A/RT5514/DA7219
  *
- * Copyright (c) 2016, ROCKCHIP CORPORATION.  All rights reserved.
+ * Copyright (c) 2016, Rockchip Electronics Co., Ltd. All rights reserved.
  */
 
 #include <linux/module.h>

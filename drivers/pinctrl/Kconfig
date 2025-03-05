@@ -334,6 +334,26 @@ config PINCTRL_MAX77620
 	  function in alternate mode. This driver also configure push-pull,
 	  open drain, FPS slots etc.
 
+config PINCTRL_MAX96745
+	tristate "MAX96745 Pincontrol support"
+	depends on MFD_MAX96745 && OF
+	select PINMUX
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim MAX96745.
+
+config PINCTRL_MAX96755F
+	tristate "MAX96755F Pincontrol support"
+	depends on MFD_MAX96755F && OF
+	select PINMUX
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim MAX96755F.
+
 config PINCTRL_MCP23S08_I2C
 	tristate
 	select REGMAP_I2C
@@ -451,12 +471,21 @@ config PINCTRL_PISTACHIO
 
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
-	depends on MFD_RK8XX
+	depends on MFD_RK808
 	select GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
 	help
 	  This selects the pinctrl driver for RK805.
+
+config PINCTRL_RK806
+	tristate "Pinctrl and GPIO driver for RK806 PMIC"
+	depends on MFD_RK806
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for RK806
 
 config PINCTRL_ROCKCHIP
 	tristate "Rockchip gpio and pinctrl driver"

@@ -1,0 +1,11 @@
+Binding for Rockchip's CPUFreq driver
+===============================
+
+Rockchip's CPUFreq driver attempts to read leakage value from eFuse
+and get frequency count from pvtm, then supplies the OPP framework
+with 'prop' information which is used to determine opp-microvolt-<name>
+property of OPPS when it is parsed by the OPP framework. This is based
+on operating-points-v2, but the driver can also create the "cpufreq-dt"
+platform_device to compatibility with operating-points.
+
+For more information about the expected DT format [See: ../opp/rockchip-opp.txt].

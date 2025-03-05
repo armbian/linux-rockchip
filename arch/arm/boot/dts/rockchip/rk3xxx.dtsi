@@ -174,8 +174,8 @@
 		clock-names = "otg";
 		dr_mode = "otg";
 		g-np-tx-fifo-size = <16>;
-		g-rx-fifo-size = <275>;
-		g-tx-fifo-size = <256 128 128 64 64 32>;
+		g-rx-fifo-size = <280>;
+		g-tx-fifo-size = <256 128 128 64 32 16>;
 		phys = <&usbphy0>;
 		phy-names = "usb2-phy";
 		status = "disabled";
@@ -256,6 +256,16 @@
 		status = "disabled";
 	};
 
+	nandc: nandc@10500000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x10500000 0x4000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru HCLK_NANDC0>;
+		clock-names = "hclk_nandc";
+		status = "disabled";
+	};
+
 	pmu: pmu@20004000 {
 		compatible = "rockchip,rk3066-pmu", "syscon", "simple-mfd";
 		reg = <0x20004000 0x100>;
@@ -267,6 +277,7 @@
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
+			mode-ums = <BOOT_UMS>;
 		};
 	};
 

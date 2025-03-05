@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3506.dtsi"
+#include "rk3506-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3506G(QFN128) EVB1 V10 Board + RK EVB EXT DisplayBoard SII9022A BT1120toHDMI V10";
+	compatible = "rockchip,rk3506g-evb1-v10-sii9022-bt1120-to-hdmi", "rockchip,rk3506";
+};
+
+&cma {
+	size = <0x1600000>;
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io4_i2c2_scl &rm_io5_i2c2_sda>;
+	status = "okay";
+
+	sii9022: sii9022@39 {
+		compatible = "sil,sii9022";
+		reg = <0x39>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sii902x_hdmi>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
+		enable-gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		/*
+		 * MEDIA_BUS_FMT_YUYV8_1X16 for bt1120
+		 * MEDIA_BUS_FMT_UYVY8_2X8  for bt656
+		 */
+		bus-format = <MEDIA_BUS_FMT_YUYV8_1X16>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				sii9022_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_sii9022>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	sii902x {
+		sii902x_hdmi: sii902x-hdmi {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	/*
+	 * bt1120_pins for bt1120
+	 * bt656_m0_pins/bt656_m1_pins for bt656
+	 */
+	pinctrl-0 = <&bt1120_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_sii9022: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&sii9022_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vop {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	rockchip,vbus-always-on;
+};

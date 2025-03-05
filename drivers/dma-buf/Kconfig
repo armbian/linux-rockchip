@@ -1,6 +1,39 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "DMABUF options"
 
+config DMABUF_CACHE
+	bool "DMABUF cache attachment"
+	default ARCH_ROCKCHIP
+	depends on NO_GKI
+	help
+	  This option support to store attachments in a list and destroy them by
+	  set to a callback list in the dtor of dma-buf.
+
+config RK_DMABUF_DEBUG
+	bool "Rockchip DMABUF debug option"
+	depends on NO_GKI
+	select RK_DMABUF_PROCFS
+	help
+	  This option support to debug all the dmabuf on db_list, allows to set
+	  a name for dmabuf. If not sure, say N
+
+config RK_DMABUF_DEBUG_ADVANCED
+	bool "Rockchip DMABUF debug advanced option"
+	depends on RK_DMABUF_DEBUG
+	help
+	  This option support to debug all the dmabuf on db_list, allows to attach
+	  and map a dmabuf who has no attachment. If not sure, say N
+
+config DMABUF_PARTIAL
+	bool "Support for partial cache maintenance"
+	help
+	  In order to improve performance, allow dma-buf clients to
+	  apply cache maintenance to only a subset of a dma-buf.
+
+	  Kernel clients will be able to use the dma_buf_begin_cpu_access_partial
+	  and dma_buf_end_cpu_access_partial functions to only apply cache
+	  maintenance to a range within the dma-buf.
+
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
@@ -18,10 +51,9 @@ config SYNC_FILE
 	  Documentation/driver-api/sync_file.rst.
 
 config SW_SYNC
-	bool "Sync File Validation Framework"
+	tristate "Sync File Validation Framework"
 	default n
 	depends on SYNC_FILE
-	depends on DEBUG_FS
 	help
 	  A sync object driver that uses a 32bit counter to coordinate
 	  synchronization.  Useful when there is no hardware primitive backing
@@ -29,6 +61,13 @@ config SW_SYNC
 
 	  WARNING: improper use of this can result in deadlocking kernel
 	  drivers from userspace. Intended for test and debug only.
+
+config SW_SYNC_DEBUG
+	bool "SW Sync Debug"
+	depends on DEBUG_FS && SW_SYNC && NO_GKI
+	default SW_SYNC
+	help
+	  To get current fence point and timeline status.
 
 config UDMABUF
 	bool "userspace dmabuf misc driver"
@@ -92,5 +131,6 @@ menuconfig DMABUF_SYSFS_STATS
 	   in quite some performance problems.
 
 source "drivers/dma-buf/heaps/Kconfig"
+source "drivers/dma-buf/rk_heaps/Kconfig"
 
 endmenu

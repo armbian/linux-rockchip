@@ -228,6 +228,8 @@ void fscrypt_destroy_inline_crypt_key(struct super_block *sb,
 
 bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 {
+	if (!inode->i_crypt_info)
+		return false;
 	return inode->i_crypt_info->ci_inlinecrypt;
 }
 EXPORT_SYMBOL_GPL(__fscrypt_inode_uses_inline_crypto);

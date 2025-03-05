@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-evb1.dtsi"
+#include "rk3576-evb1-cam-dcphy0.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 EVB1 V10 Board + RK HDMI to DP Ext Board";
+	compatible = "rockchip,rk3576-evb1-v10-hdmi2dp", "rockchip,rk3576";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&edp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp_txm0_pins>;
+
+	/*
+	 * The GPIO HPD function is for the cases that HPD pin of
+	 * RX device is incorrectly linked to pins without eDP HPD
+	 * function.
+	 *
+	 * So you can also config like this:
+	 *
+	 * &epd {
+	 *    status = "okay";
+	 *    pinctrl-0 = <&edp_hpd>;
+	 *    hpd-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	 * }
+	 *
+	 * &pinctrl {
+	 *     edp {
+	 *         edp_hpd: edp-hpd {
+	 *             rockchip,pins = <4 RK_PC1 0 &pcfg_pull_none>;
+	 *         };
+	 *     };
+	 * };
+	 *
+	 */
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&route_edp {
+	status = "okay";
+	connect = <&vp0_out_edp>;
+};
+
+&route_hdmi {
+	status = "disabled";
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&vp2 {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};

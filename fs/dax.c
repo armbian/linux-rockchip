@@ -842,6 +842,11 @@ static int copy_cow_page_dax(struct vm_fault *vmf, const struct iomap_iter *iter
 		return rc;
 	}
 	vto = kmap_atomic(vmf->cow_page);
+#ifdef CONFIG_ARM
+#ifndef copy_user_page
+#define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+#endif
+#endif
 	copy_user_page(vto, kaddr, vmf->address, vmf->cow_page);
 	kunmap_atomic(vto);
 	dax_read_unlock(id);

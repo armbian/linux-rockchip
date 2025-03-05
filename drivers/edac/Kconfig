@@ -564,5 +564,11 @@ config EDAC_VERSAL
 	  Support injecting both correctable and uncorrectable errors
 	  for debugging purposes.
 
+config EDAC_ROCKCHIP
+	tristate "Rockchip DDR ECC"
+	depends on ARCH_ROCKCHIP && HAVE_ARM_SMCCC
+	help
+	  Support for error detection and correction on the
+	  rockchip family of SOCs.
 
 endif # EDAC

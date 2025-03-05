@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  * Author: Lin Huang <hl@rock-chips.com>
  */
 
@@ -8,8 +8,14 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/rockchip/rockchip_sip.h>
 #include <linux/slab.h>
 #include <soc/rockchip/rockchip_sip.h>
+#ifdef CONFIG_ARM
+#include <asm/psci.h>
+#endif
+
 #include "clk.h"
 
 struct rockchip_ddrclk {
@@ -21,25 +27,47 @@ struct rockchip_ddrclk {
 	int		div_shift;
 	int		div_width;
 	int		ddr_flag;
-	spinlock_t	*lock;
 };
 
 #define to_rockchip_ddrclk_hw(hw) container_of(hw, struct rockchip_ddrclk, hw)
 
+struct share_params_ddrclk {
+	u32 hz;
+	u32 lcdc_type;
+};
+
+struct rockchip_ddrclk_data {
+	void __iomem *params;
+	int (*dmcfreq_wait_complete)(void);
+};
+
+static struct rockchip_ddrclk_data ddr_data = {NULL, NULL};
+
+void rockchip_set_ddrclk_params(void __iomem *params)
+{
+	ddr_data.params = params;
+}
+EXPORT_SYMBOL(rockchip_set_ddrclk_params);
+
+void rockchip_set_ddrclk_dmcfreq_wait_complete(int (*func)(void))
+{
+	ddr_data.dmcfreq_wait_complete = func;
+}
+EXPORT_SYMBOL(rockchip_set_ddrclk_dmcfreq_wait_complete);
+
 static int rockchip_ddrclk_sip_set_rate(struct clk_hw *hw, unsigned long drate,
 					unsigned long prate)
 {
-	struct rockchip_ddrclk *ddrclk = to_rockchip_ddrclk_hw(hw);
-	unsigned long flags;
 	struct arm_smccc_res res;
 
-	spin_lock_irqsave(ddrclk->lock, flags);
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, drate, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE,
 		      0, 0, 0, 0, &res);
-	spin_unlock_irqrestore(ddrclk->lock, flags);
 
-	return res.a0;
+	if (res.a0)
+		return 0;
+	else
+		return -EPERM;
 }
 
 static unsigned long
@@ -87,17 +115,82 @@ static const struct clk_ops rockchip_ddrclk_sip_ops = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
+static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
+					   unsigned long drate,
+					   unsigned long prate)
+{
+	struct share_params_ddrclk *p;
+	struct arm_smccc_res res;
+
+	p = (struct share_params_ddrclk *)ddr_data.params;
+	if (p)
+		p->hz = drate;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE);
+
+	if ((int)res.a1 == SIP_RET_SET_RATE_TIMEOUT) {
+		if (ddr_data.dmcfreq_wait_complete)
+			ddr_data.dmcfreq_wait_complete();
+	}
+
+	return res.a0;
+}
+
+static unsigned long rockchip_ddrclk_sip_recalc_rate_v2
+			(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct arm_smccc_res res;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_GET_RATE);
+	if (!res.a0)
+		return res.a1;
+	else
+		return 0;
+}
+
+static long rockchip_ddrclk_sip_round_rate_v2(struct clk_hw *hw,
+					      unsigned long rate,
+					      unsigned long *prate)
+{
+	struct share_params_ddrclk *p;
+	struct arm_smccc_res res;
+
+	p = (struct share_params_ddrclk *)ddr_data.params;
+	if (p)
+		p->hz = rate;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_ROUND_RATE);
+	if (!res.a0)
+		return res.a1;
+	else
+		return 0;
+}
+
+static const struct clk_ops rockchip_ddrclk_sip_ops_v2 = {
+	.recalc_rate = rockchip_ddrclk_sip_recalc_rate_v2,
+	.set_rate = rockchip_ddrclk_sip_set_rate_v2,
+	.round_rate = rockchip_ddrclk_sip_round_rate_v2,
+	.get_parent = rockchip_ddrclk_get_parent,
+};
+
 struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 const char *const *parent_names,
 					 u8 num_parents, int mux_offset,
 					 int mux_shift, int mux_width,
 					 int div_shift, int div_width,
-					 int ddr_flag, void __iomem *reg_base,
-					 spinlock_t *lock)
+					 int ddr_flag, void __iomem *reg_base)
 {
 	struct rockchip_ddrclk *ddrclk;
 	struct clk_init_data init;
 	struct clk *clk;
+
+#ifdef CONFIG_ARM
+	if (!psci_smp_available())
+		return NULL;
+#endif
 
 	ddrclk = kzalloc(sizeof(*ddrclk), GFP_KERNEL);
 	if (!ddrclk)
@@ -111,9 +204,16 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	init.flags |= CLK_SET_RATE_NO_REPARENT;
 
 	switch (ddr_flag) {
+#ifdef CONFIG_ROCKCHIP_DDRCLK_SIP
 	case ROCKCHIP_DDRCLK_SIP:
 		init.ops = &rockchip_ddrclk_sip_ops;
 		break;
+#endif
+#ifdef CONFIG_ROCKCHIP_DDRCLK_SIP_V2
+	case ROCKCHIP_DDRCLK_SIP_V2:
+		init.ops = &rockchip_ddrclk_sip_ops_v2;
+		break;
+#endif
 	default:
 		pr_err("%s: unsupported ddrclk type %d\n", __func__, ddr_flag);
 		kfree(ddrclk);
@@ -121,7 +221,6 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	}
 
 	ddrclk->reg_base = reg_base;
-	ddrclk->lock = lock;
 	ddrclk->hw.init = &init;
 	ddrclk->mux_offset = mux_offset;
 	ddrclk->mux_shift = mux_shift;

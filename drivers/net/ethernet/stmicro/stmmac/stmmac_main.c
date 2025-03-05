@@ -302,7 +302,7 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 {
 	u32 clk_rate;
 
-	clk_rate = clk_get_rate(priv->plat->stmmac_clk);
+	clk_rate = clk_get_rate(priv->plat->pclk);
 
 	/* Platform provided default clk_csr would be assumed valid
 	 * for all other cases except for the below mentioned ones.
@@ -925,8 +925,8 @@ static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 
-	stmmac_flow_ctrl(priv, priv->hw, duplex, priv->flow_ctrl,
-			priv->pause, tx_cnt);
+	stmmac_flow_ctrl(priv, priv->hw, duplex, priv->flow_ctrl & priv->plat->flow_ctrl,
+			 priv->pause, tx_cnt);
 }
 
 static unsigned long stmmac_mac_get_caps(struct phylink_config *config,
@@ -1177,6 +1177,9 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	if (!phylink_expects_phy(priv->phylink))
 		return 0;
+
+	if (priv->plat->integrated_phy_power)
+		ret = priv->plat->integrated_phy_power(priv->plat->bsp_priv, true);
 
 	fwnode = priv->plat->port_node;
 	if (!fwnode)
@@ -2998,6 +3001,11 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 		stmmac_get_umac_addr(priv, priv->hw, addr, 0);
 		if (is_valid_ether_addr(addr))
 			eth_hw_addr_set(priv->dev, addr);
+		else if (likely(priv->plat->get_eth_addr))
+			priv->plat->get_eth_addr(priv->plat->bsp_priv,
+						 addr);
+		if (is_valid_ether_addr(addr))
+			eth_hw_addr_set(priv->dev, addr);
 		else
 			eth_hw_addr_random(priv->dev);
 		dev_info(priv->device, "device MAC address %pM\n",
@@ -3882,9 +3890,12 @@ stmmac_setup_dma_desc(struct stmmac_priv *priv, unsigned int mtu)
 	dma_conf->dma_rx_size = priv->dma_conf.dma_rx_size;
 
 	if (!dma_conf->dma_tx_size)
-		dma_conf->dma_tx_size = DMA_DEFAULT_TX_SIZE;
+		dma_conf->dma_tx_size = dma_conf->dma_tx_size ? priv->plat->dma_tx_size :
+					DMA_DEFAULT_TX_SIZE;
+
 	if (!dma_conf->dma_rx_size)
-		dma_conf->dma_rx_size = DMA_DEFAULT_RX_SIZE;
+		dma_conf->dma_rx_size = dma_conf->dma_rx_size ? priv->plat->dma_rx_size :
+					DMA_DEFAULT_RX_SIZE;
 
 	/* Earlier check for TBS */
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++) {
@@ -4041,6 +4052,9 @@ static int stmmac_release(struct net_device *dev)
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
 	phylink_disconnect_phy(priv->phylink);
+
+	if (priv->plat->integrated_phy_power)
+		priv->plat->integrated_phy_power(priv->plat->bsp_priv, false);
 
 	stmmac_disable_all_queues(priv);
 
@@ -5267,7 +5281,7 @@ static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 			len = 0;
 		}
 
-		if (count >= limit)
+		if ((count >= limit - 1) && limit > 1)
 			break;
 
 read_again:
@@ -5468,7 +5482,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 		}
 
 read_again:
-		if (count >= limit)
+		if ((count >= limit - 1) && limit > 1)
 			break;
 
 		buf1_len = 0;
@@ -7301,22 +7315,30 @@ static void stmmac_napi_add(struct net_device *dev)
 
 	for (queue = 0; queue < maxq; queue++) {
 		struct stmmac_channel *ch = &priv->channel[queue];
+		int rx_budget = ((priv->plat->dma_rx_size < NAPI_POLL_WEIGHT) &&
+				 (priv->plat->dma_rx_size > 0)) ?
+				 priv->plat->dma_rx_size : NAPI_POLL_WEIGHT;
+		int tx_budget = ((priv->plat->dma_tx_size < NAPI_POLL_WEIGHT) &&
+				 (priv->plat->dma_tx_size > 0)) ?
+				 priv->plat->dma_tx_size : NAPI_POLL_WEIGHT;
+		int budget = min(rx_budget, tx_budget);
 
 		ch->priv_data = priv;
 		ch->index = queue;
 		spin_lock_init(&ch->lock);
 
 		if (queue < priv->plat->rx_queues_to_use) {
-			netif_napi_add(dev, &ch->rx_napi, stmmac_napi_poll_rx);
+			netif_napi_add_weight(dev, &ch->rx_napi,
+					      stmmac_napi_poll_rx, rx_budget);
 		}
 		if (queue < priv->plat->tx_queues_to_use) {
-			netif_napi_add_tx(dev, &ch->tx_napi,
-					  stmmac_napi_poll_tx);
+			netif_napi_add_tx_weight(dev, &ch->tx_napi,
+						 stmmac_napi_poll_tx, tx_budget);
 		}
 		if (queue < priv->plat->rx_queues_to_use &&
 		    queue < priv->plat->tx_queues_to_use) {
-			netif_napi_add(dev, &ch->rxtx_napi,
-				       stmmac_napi_poll_rxtx);
+			netif_napi_add_weight(dev, &ch->rxtx_napi,
+					      stmmac_napi_poll_rxtx, budget);
 		}
 	}
 }
@@ -7909,8 +7931,14 @@ int stmmac_suspend(struct device *dev)
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
 		priv->irq_wake = 1;
 	} else {
+		if (priv->plat->integrated_phy_power)
+			priv->plat->integrated_phy_power(priv->plat->bsp_priv,
+							 false);
 		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
+		/* Make the phy into suspend state */
+		if (priv->mii)
+			stmmac_mdio_idle(priv->mii);
 	}
 
 	mutex_unlock(&priv->lock);
@@ -8000,6 +8028,9 @@ int stmmac_resume(struct device *dev)
 		/* reset the phy so that it's ready */
 		if (priv->mii)
 			stmmac_mdio_reset(priv->mii);
+		if (priv->plat->integrated_phy_power)
+			priv->plat->integrated_phy_power(priv->plat->bsp_priv,
+							 true);
 	}
 
 	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP) &&

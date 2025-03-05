@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb-rk628-ddr4-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&backlight {
+	enable-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&i2c2_rk628 {
+		assigned-clocks = <&pmucru CLK_WIFI>;
+		assigned-clock-rates = <24000000>;
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "soc_24M";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628_reset &refclk_pins>;
+
+		rk628-rgb-in;
+		rk628-hdmi-out;
+		status = "okay";
+
+		port {
+			rgb_in_hdmi: endpoint {
+				remote-endpoint = <&rgb_out_hdmi>;
+			};
+		};
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "disabled";
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_hdmi: endpoint {
+				remote-endpoint = <&rgb_in_hdmi>;
+			};
+		};
+	};
+};
+
+&rk628_sound {
+	status = "okay";
+};

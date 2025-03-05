@@ -198,6 +198,8 @@ config TOUCHSCREEN_CHIPONE_ICN8505
 	  To compile this driver as a module, choose M here: the
 	  module will be called chipone_icn8505.
 
+source "drivers/input/touchscreen/chipone_tddi/Kconfig"
+
 config TOUCHSCREEN_CY8CTMA140
 	tristate "cy8ctma140 touchscreen"
 	depends on I2C
@@ -269,6 +271,8 @@ config TOUCHSCREEN_CYTTSP5
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp5.
+
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
@@ -358,6 +362,22 @@ config TOUCHSCREEN_EXC3000
 	  To compile this driver as a module, choose M here: the
 	  module will be called exc3000.
 
+config TOUCHSCREEN_FTS
+	tristate "Focaltech Touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
+config TOUCHSCREEN_FT5726
+	tristate "Focaltech Touchscreen FT5726"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -416,6 +436,33 @@ config TOUCHSCREEN_GOODIX_BERLIN_SPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called goodix_berlin_spi.
+
+config TOUCHSCREEN_GSL3673
+	tristate "gsl3673 touchpad driver"
+	help
+	  gsl3673 touchpad driver
+
+config TOUCHSCREEN_GSL3673_800X1280
+	tristate "gsl3673 800x1280 touchpad driver"
+	help
+	  gsl3673 touchpad driver
+
+config TOUCHSCREEN_GSLX680_PAD
+	tristate "gslX680 touchpad driver for pad"
+	help
+	  gslX680 touchpad driver for pad
+
+config TOUCHSCREEN_GT1X
+	tristate "GT1X touchscreens support"
+
+config TOUCHSCREEN_GT9XX
+	tristate "Goodix gt9xx support for rockchip platform"
+	depends on I2C && ARCH_ROCKCHIP
+	help
+	  Say Y here if you have a touchscreen interface using the gt9xx
+	  on Rockchip platform, and your board-specific initialization
+	  code includes that in its table of IIC devices.
+	  If unsure, say N.
 
 config TOUCHSCREEN_HIDEEP
 	tristate "HiDeep Touch IC"
@@ -538,6 +585,10 @@ config TOUCHSCREEN_ELAN
 	  To compile this driver as a module, choose M here: the
 	  module will be called elants_i2c.
 
+config TOUCHSCREEN_ELAN5515
+	tristate "Elan5515 touchscreen"
+	depends on I2C
+
 config TOUCHSCREEN_ELO
 	tristate "Elo serial touchscreens"
 	select SERIO
@@ -561,6 +612,18 @@ config TOUCHSCREEN_WACOM_W8001
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
+
+config TOUCHSCREEN_WACOM_W9013
+	tristate "Wacom W9013 penabled serial touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have an Wacom W9013 penabled serial touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom_w9013.
 
 config TOUCHSCREEN_WACOM_I2C
 	tristate "Wacom Tablet support (I2C)"
@@ -742,6 +805,8 @@ config TOUCHSCREEN_HTCPEN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called htcpen.
+
+source "drivers/input/touchscreen/parade/Kconfig"
 
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
@@ -1387,5 +1452,7 @@ config TOUCHSCREEN_HIMAX_HX83112B
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called himax_hx83112b.
+
+source "drivers/input/touchscreen/hxchipset/Kconfig"
 
 endif

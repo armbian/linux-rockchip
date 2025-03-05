@@ -399,10 +399,18 @@ enum stmmac_state {
 
 int stmmac_mdio_unregister(struct net_device *ndev);
 int stmmac_mdio_register(struct net_device *ndev);
+int stmmac_mdio_idle(struct mii_bus *mii);
 int stmmac_mdio_reset(struct mii_bus *mii);
 int stmmac_pcs_setup(struct net_device *ndev);
 void stmmac_pcs_clean(struct net_device *ndev);
+
+#ifdef CONFIG_STMMAC_ETHTOOL
 void stmmac_set_ethtool_ops(struct net_device *netdev);
+#else
+static inline void stmmac_set_ethtool_ops(struct net_device *netdev)
+{
+}
+#endif
 
 int stmmac_init_tstamp_counter(struct stmmac_priv *priv, u32 systime_flags);
 void stmmac_ptp_register(struct stmmac_priv *priv);

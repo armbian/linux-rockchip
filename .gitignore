@@ -28,6 +28,7 @@
 *.gz
 *.i
 *.ko
+*.lds
 *.lex.c
 *.ll
 *.lst
@@ -58,6 +59,8 @@ modules.order
 #
 # Top-level generic files
 #
+/*.img
+/out/
 /linux
 /modules-only.symvers
 /vmlinux

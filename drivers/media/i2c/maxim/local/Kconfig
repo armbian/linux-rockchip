@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Maxim GMSL deserializer devices
+#
+menu "Maxim Deserializer devices support"
+	visible if VIDEO_MAXIM_SERDES
+
+source "drivers/media/i2c/maxim/local/maxim2c/Kconfig"
+source "drivers/media/i2c/maxim/local/maxim4c/Kconfig"
+
+endmenu

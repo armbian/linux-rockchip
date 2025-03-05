@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-android.dtsi"
+#include "rk3576-iotest.dtsi"
+
+/ {
+	model = "Rockchip RK3576 IOTEST V10 Board";
+	compatible = "rockchip,rk3576-iotest-v10-edp2dp", "rockchip,rk3576";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&edp {
+	status = "okay";
+	pinctrl-names = "default";
+	/*
+	 * Please check the switch of GPIO4_C1, it may not be switched to
+	 * eDP HPD function by default.
+	 */
+	pinctrl-0 = <&edp_txm0_pins>;
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_sound {
+	status = "okay";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&route_edp {
+	status = "okay";
+	connect = <&vp0_out_edp>;
+};
+
+&route_hdmi {
+	status = "disabled";
+};
+
+&sai6 {
+	status = "okay";
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&vp2 {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};

@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
-	depends on DRM && ROCKCHIP_IOMMU
+	depends on DRM
 	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select VIDEOMODE_HELPERS
 	select DRM_ANALOGIX_DP if ROCKCHIP_ANALOGIX_DP
 	select DRM_DW_HDMI if ROCKCHIP_DW_HDMI
-	select DRM_DW_MIPI_DSI if ROCKCHIP_DW_MIPI_DSI
-	select GENERIC_PHY if ROCKCHIP_DW_MIPI_DSI
-	select GENERIC_PHY_MIPI_DPHY if ROCKCHIP_DW_MIPI_DSI
+	select DRM_DW_MIPI_DSI if ROCKCHIP_DW_MIPI_DSI || ROCKCHIP_DW_MIPI_DSI2
+	select GENERIC_PHY if ROCKCHIP_DW_MIPI_DSI || ROCKCHIP_DW_MIPI_DSI2
+	select GENERIC_PHY_MIPI_DPHY if ROCKCHIP_DW_MIPI_DSI || ROCKCHIP_DW_MIPI_DSI2
 	select SND_SOC_HDMI_CODEC if ROCKCHIP_CDN_DP && SND_SOC
 	help
 	  Choose this option if you have a Rockchip soc chipset.
@@ -21,22 +21,50 @@ config DRM_ROCKCHIP
 
 if DRM_ROCKCHIP
 
+config ROCKCHIP_DRM_DEBUG
+	bool "Rockchip DRM debug"
+	default y if !ROCKCHIP_MINI_KERNEL
+	depends on DEBUG_FS
+	help
+	  This option add a debug node to dump buf from userspace
+	  dump buffer store at: /data
+	  debug node: /d/dri/0/ff900000.vop/vop_dump/dump
+	  cat /d/dri/0/ff900000.vop/vop_dump/dump get more help
+	  the upper ff900000.vop is different at different SOC platform.
+
+config ROCKCHIP_DRM_DIRECT_SHOW
+	bool "Rockchip DRM direct show"
+	help
+	  This is a quick display scheme api in kernel space.
+
+config ROCKCHIP_DRM_SELF_TEST
+	bool "Rockchip DRM self test case"
+	depends on ROCKCHIP_DRM_DIRECT_SHOW
+	help
+	  This offer setf test demo to display image at kernel space.
+
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
-	default y
+	depends on CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
+		   CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
+		   CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
+		   CPU_RK3399 || CPU_RK322X || CPU_RK3328 || \
+		   CPU_RK3576 || CPU_RK3506
+	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects support for the VOP driver. You should enable it
 	  on older SoCs.
 
 config ROCKCHIP_VOP2
 	bool "Rockchip VOP2 driver"
+	depends on CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588 || CPU_RK3576
+	default y
 	help
 	  This selects support for the VOP2 driver. The VOP2 hardware is
 	  first found on the RK3568.
 
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
-	depends on ROCKCHIP_VOP
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
 	help
@@ -46,7 +74,6 @@ config ROCKCHIP_ANALOGIX_DP
 
 config ROCKCHIP_CDN_DP
 	bool "Rockchip cdn DP"
-	depends on EXTCON=y || (EXTCON=m && DRM_ROCKCHIP=m)
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
 	help
@@ -55,8 +82,16 @@ config ROCKCHIP_CDN_DP
 	  RK3399 based SoC, you should select this
 	  option.
 
+config ROCKCHIP_DRM_TVE
+	bool "Rockchip TVE support"
+	depends on DRM_ROCKCHIP
+	help
+	  Choose this option to enable support for Rockchip TVE controllers.
+	  say Y to enable its driver.
+
 config ROCKCHIP_DW_HDMI
 	bool "Rockchip specific extensions for Synopsys DW HDMI"
+	select DRM_DISPLAY_HDCP_HELPER
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Synopsys DesignWare HDMI driver. If you want to
@@ -72,6 +107,24 @@ config ROCKCHIP_DW_MIPI_DSI
 	  enable MIPI DSI on RK3288 or RK3399 based SoC, you should
 	  select this option.
 
+config ROCKCHIP_DW_MIPI_DSI2
+	bool "Rockchip specific extensions for Synopsys DW MIPI DSI2"
+	default ROCKCHIP_DW_MIPI_DSI
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Synopsys DesignWare dsi2 driver. If you want to
+	  enable MIPI DSI2 on RK3576 or RK3588  based SoC, you should
+	  select this option.
+
+config ROCKCHIP_DW_DP
+	bool "Rockchip specific extensions for Synopsys DW DPTX"
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	help
+	  Choose this option for Synopsys DesignWare Cores DisplayPort
+	  transmit controller support on Rockchip SoC.
+
 config ROCKCHIP_INNO_HDMI
 	bool "Rockchip specific extensions for Innosilicon HDMI"
 	select DRM_DISPLAY_HDMI_HELPER
@@ -84,7 +137,6 @@ config ROCKCHIP_INNO_HDMI
 
 config ROCKCHIP_LVDS
 	bool "Rockchip LVDS support"
-	depends on DRM_ROCKCHIP
 	depends on PINCTRL && OF
 	select DRM_DISPLAY_HELPER
 	select DRM_BRIDGE_CONNECTOR
@@ -94,9 +146,16 @@ config ROCKCHIP_LVDS
 	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
 	  driver.
 
+config ROCKCHIP_PANEL_NOTIFIER
+	tristate "Rockchip panel notifier"
+	depends on OF
+	help
+	  Say Y here if you want to enable support for the panel notifier. The
+	  notifier is used to notify other devices (such as TP) to perform the
+	  corresponding action when the panel is in different actions.
+
 config ROCKCHIP_RGB
 	bool "Rockchip RGB support"
-	depends on DRM_ROCKCHIP
 	depends on PINCTRL
 	select DRM_DISPLAY_HELPER
 	select DRM_BRIDGE_CONNECTOR
@@ -108,9 +167,36 @@ config ROCKCHIP_RGB
 
 config ROCKCHIP_RK3066_HDMI
 	bool "Rockchip specific extensions for RK3066 HDMI"
-	depends on DRM_ROCKCHIP
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the RK3066 HDMI driver. If you want to enable
 	  HDMI on RK3066 based SoC, you should select this option.
+
+config ROCKCHIP_VCONN
+	bool "Rockchip Virtual connector driver for HDMI/DP/DSI"
+	help
+	  This selects support virtual HDMI/DP/DSI drived by
+	  rockchip vop, This is used for some test.
+
+config DRM_ROCKCHIP_VKMS
+	bool "Rockchip virtual Kernel Mode-Setting driver"
+	help
+	  Say y here if you want use some module of rockchip drm, but
+	  don't need a real vop driver(et: you just want rockchip drm
+	  gem driver to allocate memory).
+
+config ROCKCHIP_DW_HDCP2
+	tristate "Synopsis Designware HDCP2 interface"
+	help
+	  Choose this option to enable support for the Synopsys
+	  Designware HDCP2 Controller.
+
+config ROCKCHIP_DP_MST_AUX_CLIENT
+	tristate "dp mst aux client"
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  This selects support dp mst device that not support aux client.
+
+source "drivers/gpu/drm/rockchip/rk618/Kconfig"
+
 endif

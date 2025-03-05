@@ -832,6 +832,9 @@ int usb_gadget_deactivate(struct usb_gadget *gadget)
 {
 	int ret = 0;
 
+	if (!gadget)
+		return 0;
+
 	mutex_lock(&gadget->udc->connect_lock);
 	if (gadget->deactivated)
 		goto unlock;

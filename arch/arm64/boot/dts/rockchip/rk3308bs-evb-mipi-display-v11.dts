@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3308bs-evb-dmic-pdm-v11.dts"
+#include "rk3308b-mipi-display-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308B-S evb mipi display v11 board";
+	compatible = "rockchip,rk3308bs-evb-mipi-display-v11", "rockchip,rk3308";
+};
+
+&is31fl3236 {
+	status = "disabled";
+};
+
+&lcdc_rgb888_m1 {
+	rockchip,pins =
+		/* d18 */
+		<3 RK_PA6 3 &pcfg_pull_none_2ma>,
+		/* d19 */
+		<3 RK_PA7 3 &pcfg_pull_none_2ma>,
+		/* d20 */
+		<3 RK_PB0 3 &pcfg_pull_none_2ma>,
+		/* d21 */
+		<3 RK_PB1 3 &pcfg_pull_none_2ma>,
+		/* d22 */
+		<3 RK_PB2 4 &pcfg_pull_none_2ma>,
+		/* d23 */
+		<3 RK_PB3 4 &pcfg_pull_none_2ma>;
+};
+
+&pdm_8ch {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm_m2_clk
+		     &pdm_m2_sdi0
+		     &pdm_m2_sdi1>;
+};

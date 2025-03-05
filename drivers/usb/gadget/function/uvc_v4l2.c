@@ -193,6 +193,7 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 	req->length = min_t(unsigned int, uvc->event_length, data->length);
 	req->zero = data->length < uvc->event_length;
 
+	uvc_trace(UVC_TRACE_CONTROL, "%s: req len %d\n", __func__, req->length);
 	memcpy(req->buf, data->data, req->length);
 
 	return usb_ep_queue(cdev->gadget->ep0, req, GFP_KERNEL);
@@ -466,16 +467,28 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (type != video->queue.queue.type)
 		return -EINVAL;
 
+	if (uvc->state == UVC_STATE_DISCONNECTED)
+		return -ENODEV;
+
 	/* Enable UVC video. */
 	ret = uvcg_video_enable(video);
 	if (ret < 0)
 		return ret;
 
 	/*
-	 * Complete the alternate setting selection setup phase now that
-	 * userspace is ready to provide video frames.
+	 * Alt settings in an interface are supported only
+	 * for ISOC endpoints as there are different alt-
+	 * settings for zero-bandwidth and full-bandwidth
+	 * cases, but the same is not true for BULK endpoints,
+	 * as they have a single alt-setting.
+	 *
+	 * For ISOC endpoints, Complete the alternate setting
+	 * selection setup phase now that userspace is ready
+	 * to provide video frames.
 	 */
-	uvc_function_setup_continue(uvc, 0);
+	if (!usb_endpoint_xfer_bulk(video->ep->desc))
+		uvc_function_setup_continue(uvc, 0);
+
 	uvc->state = UVC_STATE_STREAMING;
 
 	return 0;
@@ -672,6 +685,9 @@ const struct v4l2_file_operations uvc_v4l2_fops = {
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
 	.unlocked_ioctl	= video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32	= video_ioctl2,
+#endif
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
 #ifndef CONFIG_MMU

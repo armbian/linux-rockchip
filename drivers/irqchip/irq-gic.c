@@ -49,6 +49,10 @@
 
 #include "irq-gic-common.h"
 
+#ifdef CONFIG_ROCKCHIP_AMP
+#include <soc/rockchip/rockchip_amp.h>
+#endif
+
 #ifdef CONFIG_ARM64
 #include <asm/cpufeature.h>
 
@@ -192,11 +196,19 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 
 static void gic_mask_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	gic_poke_irq(d, GIC_DIST_ENABLE_CLEAR);
 }
 
 static void gic_eoimode1_mask_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	gic_mask_irq(d);
 	/*
 	 * When masking a forwarded interrupt, make sure it is
@@ -212,6 +224,10 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 
 static void gic_unmask_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	gic_poke_irq(d, GIC_DIST_ENABLE_SET);
 }
 
@@ -219,6 +235,10 @@ static void gic_eoi_irq(struct irq_data *d)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(hwirq))
+		return;
+#endif
 	if (hwirq < 16)
 		hwirq = this_cpu_read(sgi_intid);
 
@@ -229,6 +249,10 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	/* Do not deactivate an IRQ forwarded to a vcpu. */
 	if (irqd_is_forwarded_to_vcpu(d))
 		return;
@@ -244,6 +268,11 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 {
 	u32 reg;
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (which != IRQCHIP_STATE_PENDING &&
+	    rockchip_amp_check_amp_irq(gic_irq(d)))
+		return -EINVAL;
+#endif
 	switch (which) {
 	case IRQCHIP_STATE_PENDING:
 		reg = val ? GIC_DIST_PENDING_SET : GIC_DIST_PENDING_CLEAR;
@@ -294,6 +323,11 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	void __iomem *base = gic_dist_base(d);
 	int ret;
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return -EINVAL;
+#endif
+
 	/* Interrupt configuration for SGIs can't be changed */
 	if (gicirq < 16)
 		return type != IRQ_TYPE_EDGE_RISING ? -EINVAL : 0;
@@ -338,7 +372,11 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 	void __iomem *cpu_base = gic_data_cpu_base(gic);
 
 	do {
+#ifdef CONFIG_FIQ_GLUE
+		irqstat = readl_relaxed(cpu_base + GIC_CPU_ALIAS_INTACK);
+#else
 		irqstat = readl_relaxed(cpu_base + GIC_CPU_INTACK);
+#endif
 		irqnr = irqstat & GICC_IAR_INT_ID_MASK;
 
 		if (unlikely(irqnr >= 1020))
@@ -380,9 +418,11 @@ static void gic_handle_cascade_irq(struct irq_desc *desc)
 	int ret;
 
 	chained_irq_enter(chip, desc);
-
+#ifdef CONFIG_FIQ_GLUE
+	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_ALIAS_INTACK);
+#else
 	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_INTACK);
-
+#endif
 	gic_irq = (status & GICC_IAR_INT_ID_MASK);
 	if (gic_irq == GICC_INT_SPURIOUS)
 		goto out;
@@ -457,7 +497,11 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
 	bypass = readl(cpu_base + GIC_CPU_CTRL);
 	bypass &= GICC_DIS_BYPASS_MASK;
 
+#ifdef CONFIG_FIQ_GLUE
+	writel_relaxed(0x0f, cpu_base + GIC_CPU_CTRL);
+#else
 	writel_relaxed(bypass | mode | GICC_ENABLE, cpu_base + GIC_CPU_CTRL);
+#endif
 }
 
 
@@ -474,14 +518,41 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	 * Set all global interrupts to this CPU only.
 	 */
 	cpumask = gic_get_cpumask(gic);
+
+#ifdef CONFIG_ROCKCHIP_AMP
+	for (i = 32; i < gic_irqs; i += 4) {
+		u32 maskval;
+		unsigned int j;
+
+		maskval = 0;
+		for (j = 0; j < 4; j++) {
+			if (rockchip_amp_need_init_amp_irq(i + j)) {
+				maskval |= rockchip_amp_get_irq_cpumask(i + j) <<
+					   (j * 8);
+			} else {
+				maskval |= cpumask << (j * 8);
+			}
+		}
+		writel_relaxed(maskval, base + GIC_DIST_TARGET + i * 4 / 4);
+	}
+#else
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
+#endif
 
 	gic_dist_config(base, gic_irqs, GICD_INT_DEF_PRI);
 
+#ifdef CONFIG_FIQ_GLUE
+	/* set all the interrupt to non-secure state */
+	for (i = 0; i < gic_irqs; i += 32)
+		writel_relaxed(0xffffffff, base + GIC_DIST_IGROUP + i * 4 / 32);
+	dsb(sy);
+	writel_relaxed(3, base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+#endif
 }
 
 static int gic_cpu_init(struct gic_chip_data *gic)
@@ -629,7 +700,11 @@ void gic_dist_restore(struct gic_chip_data *gic)
 			dist_base + GIC_DIST_ACTIVE_SET + i * 4);
 	}
 
+#ifdef CONFIG_FIQ_GLUE
+	writel_relaxed(3, dist_base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(GICD_ENABLE, dist_base + GIC_DIST_CTRL);
+#endif
 }
 
 void gic_cpu_save(struct gic_chip_data *gic)
@@ -770,6 +845,27 @@ static int gic_pm_init(struct gic_chip_data *gic)
 }
 #endif
 
+#ifdef CONFIG_FIQ_GLUE
+/*
+ *	ICDISR each bit   0 -- Secure   1--Non-Secure
+ */
+void gic_set_irq_secure(struct irq_data *d)
+{
+	u32 mask = 0;
+	void __iomem *base = gic_dist_base(d);
+
+	base += GIC_DIST_IGROUP + ((gic_irq(d) / 32) * 4);
+	mask = readl_relaxed(base);
+	mask &= ~(1 << (gic_irq(d) % 32));
+	writel_relaxed(mask, base);
+}
+
+void gic_set_irq_priority(struct irq_data *d, u8 pri)
+{
+	writeb_relaxed(pri, gic_dist_base(d) + GIC_DIST_PRI + gic_irq(d));
+}
+#endif
+
 #ifdef CONFIG_SMP
 static void rmw_writeb(u8 bval, void __iomem *addr)
 {
@@ -796,6 +892,11 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + irqd_to_hwirq(d);
 	struct gic_chip_data *gic = irq_data_get_irq_chip_data(d);
 	unsigned int cpu;
+
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return -EINVAL;
+#endif
 
 	if (unlikely(gic != &gic_data[0]))
 		return -EINVAL;
@@ -842,14 +943,24 @@ static void gic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 	dmb(ishst);
 
 	/* this always happens on GIC0 */
+#ifdef CONFIG_FIQ_GLUE
+	/* enable non-secure SGI for GIC with security extensions */
+	writel_relaxed(map << 16 | d->hwirq | 0x8000,
+			gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+#else
 	writel_relaxed(map << 16 | d->hwirq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
-
+#endif
 	gic_unlock_irqrestore(flags);
 }
 
 static int gic_starting_cpu(unsigned int cpu)
 {
 	gic_cpu_init(&gic_data[0]);
+	if (IS_ENABLED(CONFIG_FIQ_GLUE)) {
+		/* set SGI to none secure state */
+		writel_relaxed(0xffffffff, gic_data_dist_base(&gic_data[0]) + GIC_DIST_IGROUP);
+		writel_relaxed(0xf, gic_data_cpu_base(&gic_data[0]) + GIC_CPU_CTRL);
+	}
 	return 0;
 }
 
@@ -1215,6 +1326,9 @@ static int gic_init_bases(struct gic_chip_data *gic,
 		goto error;
 	}
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	rockchip_amp_get_gic_info(gic->gic_irqs, GIC_V2);
+#endif
 	gic_dist_init(gic);
 	ret = gic_cpu_init(gic);
 	if (ret)

@@ -2,7 +2,7 @@
 # common clock support for ROCKCHIP SoC family.
 
 config COMMON_CLK_ROCKCHIP
-	bool "Rockchip clock controller common support"
+	tristate "Rockchip clock controller common support"
 	depends on ARCH_ROCKCHIP
 	default ARCH_ROCKCHIP
 	help
@@ -10,108 +10,230 @@ config COMMON_CLK_ROCKCHIP
 
 if COMMON_CLK_ROCKCHIP
 config CLK_PX30
-	bool "Rockchip PX30 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip PX30 clock controller support"
+	depends on CPU_PX30 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for PX30 Clock Driver.
 
-config CLK_RV110X
-	bool "Rockchip RV110x clock controller support"
-	depends on ARM || COMPILE_TEST
+config CLK_RV1106
+	tristate "Rockchip RV1106 clock controller support"
+	depends on CPU_RV1106 || COMPILE_TEST
 	default y
 	help
-	  Build the driver for RV110x Clock Driver.
+	  Build the driver for RV1106 Clock Driver.
+
+config CLK_RV1108
+	tristate "Rockchip RV1108 clock controller support"
+	depends on CPU_RV1108 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RV1108 Clock Driver.
 
 config CLK_RV1126
-	bool "Rockchip RV1126 clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RV1126 clock controller support"
+	depends on CPU_RV1126 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RV1126 Clock Driver.
 
+config CLK_RK1808
+	tristate "Rockchip RK1808 clock controller support"
+	depends on CPU_RK1808 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK1808 Clock Driver.
+
 config CLK_RK3036
-	bool "Rockchip RK3036 clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RK3036 clock controller support"
+	depends on CPU_RK3036 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3036 Clock Driver.
 
 config CLK_RK312X
-	bool "Rockchip RK312x clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RK312x clock controller support"
+	depends on CPU_RK312X || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK312x Clock Driver.
 
 config CLK_RK3188
-	bool "Rockchip RK3188 clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RK3188 clock controller support"
+	depends on CPU_RK3188 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3188 Clock Driver.
 
 config CLK_RK322X
-	bool "Rockchip RK322x clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RK322x clock controller support"
+	depends on CPU_RK322X || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK322x Clock Driver.
 
 config CLK_RK3288
-	bool "Rockchip RK3288 clock controller support"
-	depends on ARM || COMPILE_TEST
+	tristate "Rockchip RK3288 clock controller support"
+	depends on CPU_RK3288 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3288 Clock Driver.
 
 config CLK_RK3308
-	bool "Rockchip RK3308 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3308 clock controller support"
+	depends on CPU_RK3308 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3308 Clock Driver.
 
 config CLK_RK3328
-	bool "Rockchip RK3328 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3328 clock controller support"
+	depends on CPU_RK3328 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3328 Clock Driver.
 
 config CLK_RK3368
-	bool "Rockchip RK3368 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3368 clock controller support"
+	depends on CPU_RK3368 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3368 Clock Driver.
 
 config CLK_RK3399
-	bool "Rockchip RK3399 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3399 clock controller support"
+	depends on CPU_RK3399 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
 
+config CLK_RK3506
+	tristate "Rockchip RK3506 clock controller support"
+	depends on CPU_RK3506 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3506 Clock Driver.
+
+config CLK_RK3528
+	tristate "Rockchip RK3528 clock controller support"
+	depends on CPU_RK3528 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3528 Clock Driver.
+
+config CLK_RK3562
+	tristate "Rockchip RK3562 clock controller support"
+	depends on CPU_RK3562 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3562 Clock Driver.
+
 config CLK_RK3568
-	bool "Rockchip RK3568 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3568 clock controller support"
+	depends on CPU_RK3568 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3568 Clock Driver.
 
 config CLK_RK3576
-	bool "Rockchip RK3576 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3576 clock controller support"
+	depends on CPU_RK3576 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3576 Clock Driver.
 
 config CLK_RK3588
-	bool "Rockchip RK3588 clock controller support"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Rockchip RK3588 clock controller support"
+	depends on CPU_RK3588 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3588 Clock Driver.
+
+config ROCKCHIP_CLK_COMPENSATION
+	bool "Rockchip Clk Compensation"
+	help
+	  Say y here to enable clk compensation(+/- 1000 ppm).
+
+config ROCKCHIP_CLK_LINK
+	tristate "Rockchip clock link support"
+	default CLK_RK3562 || CLK_RK3588
+	help
+	  Say y here to enable clock link for Rockchip.
+
+config ROCKCHIP_CLK_BOOST
+	bool "Rockchip Clk Boost"
+	depends on CPU_PX30
+	default y
+	help
+	  Say y here to enable clk boost.
+
+config ROCKCHIP_CLK_INV
+	bool "Rockchip Clk Inverter"
+	depends on !CPU_RV1126 && !CPU_RV1106 && !CPU_RV1103B
+	default y
+	help
+	  Say y here to enable clk Inverter.
+
+config ROCKCHIP_CLK_OUT
+	tristate "Rockchip Clk Out / Input Switch"
+	default y if !ROCKCHIP_MINI_KERNEL
+	help
+	  Say y here to enable clk out / input switch.
+
+config ROCKCHIP_CLK_PVTM
+	bool "Rockchip Clk Pvtm"
+	depends on !CPU_RV1126 && !CPU_RV1106 && !CPU_RV1103B
+	default y
+	help
+	  Say y here to enable clk pvtm.
+
+config ROCKCHIP_CLK_PVTPLL
+	tristate "Rockchip Clk Pvtpll"
+	default y if CPU_RV1103B || CPU_RK3506
+	help
+	  Say y here to enable clk pvtpll.
+
+config ROCKCHIP_DDRCLK
+	bool
+
+config ROCKCHIP_DDRCLK_SIP
+	bool "Rockchip DDR Clk SIP"
+	depends on CPU_RK3399
+	default y
+	select ROCKCHIP_DDRCLK
+	help
+	  Say y here to enable ddr clk sip.
+
+config ROCKCHIP_DDRCLK_SIP_V2
+	bool "Rockchip DDR Clk SIP V2"
+	depends on CPU_PX30   || CPU_RK1808 || CPU_RK312X || CPU_RK322X || \
+		   CPU_RK3288 || CPU_RK3308 || CPU_RK3328 || CPU_RV1126
+	default y
+	select ROCKCHIP_DDRCLK
+	help
+	  Say y here to enable ddr clk sip v2.
+
+config ROCKCHIP_PLL_RK3066
+	bool "Rockchip PLL Type RK3066"
+	depends on CPU_RK30XX || CPU_RK3188 || CPU_RK3288 || CPU_RK3368
+	default y
+	help
+	  Say y here to enable pll type is rk3066.
+
+config ROCKCHIP_PLL_RK3399
+	bool "Rockchip PLL Type RK3399"
+	depends on CPU_RK3399 || CPU_RV1108
+	default y
+	help
+	  Say y here to enable pll type is rk3399.
+
+config ROCKCHIP_PLL_RK3588
+	bool "Rockchip PLL Type RK3588"
+	depends on CPU_RK3588 || CPU_RK3576
+	default y
+	help
+	  Say y here to enable pll type is rk3588.
+
+source "drivers/clk/rockchip/regmap/Kconfig"
 
 endif

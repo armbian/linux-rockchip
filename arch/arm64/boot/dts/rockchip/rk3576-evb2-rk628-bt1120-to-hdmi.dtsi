@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+/ {
+	rk628d_sound: rk628d-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi-rk628";
+		status = "okay";
+
+		simple-audio-card,cpu {
+				sound-dai = <&sai4>;
+		};
+		simple-audio-card,codec {
+				sound-dai = <&rk628d>;
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-0 = <&i2c8m3_xfer>;
+	clock-frequency = <400000>;
+
+	rk628d: rk628d@50 {
+		compatible = "rockchip,rk628";
+		reg = <0x50>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+		assigned-clocks = <&cru REF_CLK0_OUT_PLL>;
+		assigned-clock-rates = <24000000>;
+		clocks = <&cru REF_CLK0_OUT_PLL>;
+		clock-names = "soc_24M";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628d_reset &ref_clk0_out>;
+		rk628-bt1120-in;
+		rk628-hdmi-out;
+		bt1120-yc-swap;
+		mode-sync-pol = <0>;
+		status = "okay";
+
+
+		port {
+			rk628_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_rk628>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	/*
+	 * <&bt1120_pins> for bt1120
+	 * <&bt656_pins>  for bt656
+	 */
+	pinctrl-0 = <&bt1120_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_rk628: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rk628_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "disabled";
+	connect = <&vp2_out_rgb>;
+};
+
+&sai4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai4m0_lrck
+		     &sai4m0_sclk
+		     &sai4m0_sdo>;
+};
+
+&pinctrl {
+	ref_clk {
+		ref_clk0_out:ref-clk0-out {
+			rockchip,pins =
+				/* ref_clk0_out */
+				<0 RK_PA0 1 &pcfg_pull_none>;
+		};
+	};
+
+	rk628d {
+		rk628d_reset: rk628d-reset {
+			rockchip,pins =
+				/* ref_clk0_out */
+				<3 RK_PC3 0 &pcfg_pull_none>;
+		};
+
+	};
+};
+

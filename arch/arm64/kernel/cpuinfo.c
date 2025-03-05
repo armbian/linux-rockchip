@@ -25,6 +25,12 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 
+unsigned int system_serial_low;
+EXPORT_SYMBOL(system_serial_low);
+
+unsigned int system_serial_high;
+EXPORT_SYMBOL(system_serial_high);
+
 /*
  * In case the boot CPU is hotpluggable, we record its initial state and
  * current state separately. Certain system registers may contain different
@@ -194,7 +200,8 @@ static const char *const compat_hwcap2_str[] = {
 static int c_show(struct seq_file *m, void *v)
 {
 	int i, j;
-	bool compat = personality(current->personality) == PER_LINUX32;
+	bool compat = personality(current->personality) == PER_LINUX32 ||
+		      is_compat_task();
 
 	for_each_online_cpu(i) {
 		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
@@ -254,6 +261,9 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
 		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
 	}
+
+	seq_printf(m, "Serial\t\t: %08x%08x\n",
+		   system_serial_high, system_serial_low);
 
 	return 0;
 }

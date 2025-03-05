@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506g-iotest-v10.dts"
+
+&pdm_mic_array {
+	status = "okay";
+};
+
+&pdm {
+	status = "okay";
+	pinctrl-0 = <&rm_io24_pdm_clk0
+		     &rm_io25_pdm_clk1
+		     &rm_io26_pdm_sdi0
+		     &rm_io27_pdm_sdi1
+		     &rm_io28_pdm_sdi2
+		     &rm_io29_pdm_sdi3>;
+};

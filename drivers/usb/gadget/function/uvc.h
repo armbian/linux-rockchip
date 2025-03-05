@@ -11,6 +11,7 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/usb/composite.h>
 #include <linux/videodev2.h>
@@ -143,6 +144,8 @@ struct uvc_device {
 	struct uvc_video video;
 	bool func_connected;
 	wait_queue_head_t func_connected_queue;
+	/* for creating and issuing QoS requests */
+	struct pm_qos_request pm_qos;
 
 	struct uvcg_streaming_header *header;
 
@@ -167,6 +170,7 @@ struct uvc_device {
 	/* Events */
 	unsigned int event_length;
 	unsigned int event_setup_out : 1;
+	unsigned int event_suspend : 1;
 };
 
 static inline struct uvc_device *to_uvc(struct usb_function *f)

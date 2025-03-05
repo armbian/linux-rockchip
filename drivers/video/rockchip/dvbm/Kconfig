@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+menuconfig ROCKCHIP_DVBM
+	tristate "RK Direct Video Buffer Manager driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  rockchip dvbm module.

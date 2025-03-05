@@ -352,6 +352,16 @@ config ROCKCHIP_THERMAL
 	  trip point. Cpufreq is used as the cooling device and will throttle
 	  CPUs when the Temperature crosses the passive trip point.
 
+config RK_VIRTUAL_THERMAL
+	tristate "rk_virtual thermal driver"
+	depends on ROCKCHIP_THERMAL
+	depends on POWER_SUPPLY
+	help
+	  Rk virtual thermal driver provides virtual temperature support for
+	  SOCs without tsadc module. It supports one critical trip point.
+	  Cpufreq is used as the cooling device and will throttle CPUs when
+	  the Temperature crosses the passive trip point.
+
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
 	depends on MACH_KIRKWOOD || COMPILE_TEST

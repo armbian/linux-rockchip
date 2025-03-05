@@ -39,6 +39,15 @@
 #define DW_UART_TCR_XFER_MODE_SW_DE_OR_RE	FIELD_PREP(DW_UART_TCR_XFER_MODE, 1)
 #define DW_UART_TCR_XFER_MODE_DE_OR_RE		FIELD_PREP(DW_UART_TCR_XFER_MODE, 2)
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#define RK_RS485_TCR_RS485EN		BIT(0)
+#define RK_RS485_TCR_RE_EN		BIT(1)
+#define RK_RS485_TCR_XFER_MODE		BIT(2)
+#define RK_RS485_TCR_DE_POL		BIT(3)
+#define RK_RS485_TCR_RE_POL		BIT(4)
+#define RK_RS485_TCR_AUTO_DE		BIT(5)
+#endif
+
 /* Line Extended Control Register bits */
 #define DW_UART_LCR_EXT_DLS_E		BIT(0)
 #define DW_UART_LCR_EXT_ADDR_MATCH	BIT(1)
@@ -107,6 +116,7 @@ void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios,
 }
 EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 /*
  * Wait until re is de-asserted for sure. An ongoing receive will keep
  * re asserted until end of frame. Without BUSY indication available,
@@ -176,12 +186,13 @@ static void dw8250_rs485_set_addr(struct uart_port *p, struct serial_rs485 *rs48
 	}
 	dw8250_writel_ext(p, DW_UART_LCR_EXT, lcr);
 }
+#endif
 
 static int dw8250_rs485_config(struct uart_port *p, struct ktermios *termios,
 			       struct serial_rs485 *rs485)
 {
 	u32 tcr;
-
+#ifndef CONFIG_ARCH_ROCKCHIP
 	tcr = dw8250_readl_ext(p, DW_UART_TCR);
 	tcr &= ~DW_UART_TCR_XFER_MODE;
 
@@ -215,7 +226,23 @@ static int dw8250_rs485_config(struct uart_port *p, struct ktermios *termios,
 	/* Addressing mode can only be set up after TCR */
 	if (rs485->flags & SER_RS485_ENABLED)
 		dw8250_rs485_set_addr(p, rs485, termios);
+#else
+#ifdef CONFIG_NO_GKI
+	struct uart_8250_port *up = up_to_u8250p(p);
+#endif
+	tcr = 0;
 
+	if (rs485->flags & SER_RS485_ENABLED)
+		tcr |= RK_RS485_TCR_RS485EN | RK_RS485_TCR_AUTO_DE;
+
+	if (!(rs485->flags & SER_RS485_RTS_ON_SEND))
+		tcr |= RK_RS485_TCR_DE_POL;
+
+	dw8250_writel_ext(p, DW_UART_TCR, tcr);
+#ifdef CONFIG_NO_GKI
+	up->tcr = tcr;
+#endif
+#endif
 	return 0;
 }
 
@@ -227,17 +254,30 @@ static bool dw8250_detect_rs485_hw(struct uart_port *p)
 {
 	u32 reg;
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	dw8250_writel_ext(p, DW_UART_TCR, 1);
+#endif
 	dw8250_writel_ext(p, DW_UART_RE_EN, 1);
 	reg = dw8250_readl_ext(p, DW_UART_RE_EN);
 	dw8250_writel_ext(p, DW_UART_RE_EN, 0);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	dw8250_writel_ext(p, DW_UART_TCR, 0);
+#endif
 	return reg;
 }
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 static const struct serial_rs485 dw8250_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RX_DURING_TX | SER_RS485_RTS_ON_SEND |
 		 SER_RS485_RTS_AFTER_SEND | SER_RS485_ADDRB | SER_RS485_ADDR_RECV |
 		 SER_RS485_ADDR_DEST,
 };
+#else
+static const struct serial_rs485 dw8250_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RX_DURING_TX | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RTS_AFTER_SEND,
+};
+#endif
 
 void dw8250_setup_port(struct uart_port *p)
 {
@@ -289,6 +329,9 @@ void dw8250_setup_port(struct uart_port *p)
 		p->flags |= UPF_FIXED_TYPE;
 		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
 		up->capabilities = UART_CAP_FIFO | UART_CAP_NOTEMT;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		up->tx_loadsz = p->fifosize * 3 / 4;
+#endif
 	}
 
 	if (reg & DW_UART_CPR_AFCE_MODE)
@@ -297,4 +340,6 @@ void dw8250_setup_port(struct uart_port *p)
 	if (reg & DW_UART_CPR_SIR_MODE)
 		up->capabilities |= UART_CAP_IRDA;
 }
+#ifndef MODULE
 EXPORT_SYMBOL_GPL(dw8250_setup_port);
+#endif

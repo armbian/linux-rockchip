@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+#include "rk3506-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3506G(QFN128) EVB1 V10 Board + RK EVB Ext RK3506 DSMC to DSMCSLV Convert V10 board + Rockchip RK3506G(QFN128) EVB1 V10 Board";
+	compatible = "rockchip,rk3506g-evb1-v10-dsmc-master", "rockchip,rk3506";
+};
+
+&dsmc {
+	clock-frequency = <100000000>;
+	status = "okay";
+	slave {
+		rockchip,dqs-dll = <0x20 0x20
+				    0x20 0x20
+				    0x20 0x20
+				    0x20 0x20>;
+		rockchip,ranges = <0x0 0xc0000000 0x0 0x2000000>;
+	};
+};
+
+&dsmc_slave {
+	status = "okay";
+	lb-slave {
+		dsmc_lb_slave0: lb-slave0 {
+			rockchip,int-en = <0x2>;
+			status = "okay";
+			dsmc_p0_region: region {
+				dsmc_p0_region0: region0 {
+					status = "okay";
+				};
+				dsmc_p0_region3: region3 {
+					status = "okay";
+				};
+			};
+		};
+	};
+};

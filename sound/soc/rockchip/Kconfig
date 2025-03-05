@@ -7,6 +7,30 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_SOC_ROCKCHIP_ASRC
+	tristate "Rockchip Asynchronous Sampling Rate Converter Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for ASRC driver for
+	  Rockchip.
+
+config SND_SOC_ROCKCHIP_DLP
+	tristate
+
+config SND_SOC_ROCKCHIP_DLP_PCM
+	tristate "Rockchip Digital Loopback PCM Driver"
+	depends on SND_SOC_ROCKCHIP
+	select SND_SOC_ROCKCHIP_DLP
+	help
+	  Say Y or M if you want to add support for DLP driver for
+	  Rockchip DMA-Based Digital Loopback.
+
+config SND_SOC_ROCKCHIP_DUMMY_DAI
+	tristate "Rockchip Dummy DAI Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for DUMMY DAI driver.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
@@ -20,12 +44,27 @@ config SND_SOC_ROCKCHIP_I2S_TDM
 	tristate "Rockchip I2S/TDM Device Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
 	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_ROCKCHIP_TRCM
 	help
 	  Say Y or M if you want to add support for the I2S/TDM driver for
 	  Rockchip I2S/TDM devices, found in Rockchip SoCs. These devices
 	  interface between the AHB bus and the I2S bus, and support up to a
 	  maximum of 8 channels each for playback and recording.
 
+config SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	bool "Rockchip TDM Multi Lanes"
+	depends on SND_SOC_ROCKCHIP_I2S_TDM
+	help
+	  Say Y or M if you want to add support for TDM Multi Lanes
+	  based on I2S_TDM controller.
+
+config SND_SOC_ROCKCHIP_MULTI_DAIS
+	tristate "Rockchip Multi-DAIS Device Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_ROCKCHIP_DLP
+	help
+	  Say Y or M if you want to add support for Multi-dais driver for
+	  Rockchip.
 
 config SND_SOC_ROCKCHIP_PDM
 	tristate "Rockchip PDM Controller Driver"
@@ -37,13 +76,61 @@ config SND_SOC_ROCKCHIP_PDM
 	  Rockchip PDM Controller. The Controller supports up to maximum of
 	  8 channels record.
 
+config SND_SOC_ROCKCHIP_PDM_V2
+	tristate "Rockchip PDM Version 2 Controller Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select RATIONAL
+	help
+	  Say Y or M if you want to add support for PDM driver for
+	  Rockchip PDM Controller Version 2. The Controller supports up
+	  to maximum of 8 channels record. The version 2 pdm support gain
+	  control and more pdm clk, like 2.4MHz.
+
+config SND_SOC_ROCKCHIP_SAI
+	tristate "Rockchip SAI Controller Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SAI driver for
+	  Rockchip SAI Controller. The Controller supports up to maximum of
+	  128 channels each for play and record.
+
+config SND_SOC_ROCKCHIP_SAI_VERBOSE
+	bool "Rockchip SAI Verbose Controls"
+	depends on SND_SOC_ROCKCHIP_SAI
+	help
+	  Say Y if you want to export much more controls and info for SAI.
+
 config SND_SOC_ROCKCHIP_SPDIF
 	tristate "Rockchip SPDIF Device Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_PCM_IEC958
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for SPDIF driver for
 	  Rockchip SPDIF transceiver device.
+
+config SND_SOC_ROCKCHIP_SPDIFRX
+	tristate "Rockchip SPDIFRX Device Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIFRX driver for
+	  Rockchip SPDIF receiver device.
+
+config SND_SOC_ROCKCHIP_TRCM
+	tristate "Rockchip TRCM Pcm Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for TRCM driver.
+
+config SND_SOC_ROCKCHIP_VAD
+	tristate "Rockchip Voice Activity Detection Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for VAD driver for
+	  Rockchip VAD device.
 
 config SND_SOC_ROCKCHIP_MAX98090
 	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
@@ -56,6 +143,13 @@ config SND_SOC_ROCKCHIP_MAX98090
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the MAX98090 codec and HDMI codec, such as Veyron.
 
+config SND_SOC_ROCKCHIP_MULTICODECS
+	tristate "ASoC support for Rockchip multicodecs"
+	depends on SND_SOC_ROCKCHIP && HAVE_CLK && INPUT && EXTCON
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using multicodecs, such as RK3308 boards.
+
 config SND_SOC_ROCKCHIP_RT5645
 	tristate "ASoC support for Rockchip boards using a RT5645/RT5650 codec"
 	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && HAVE_CLK
@@ -64,6 +158,14 @@ config SND_SOC_ROCKCHIP_RT5645
 	help
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the RT5645/RT5650 codec, such as Veyron.
+
+config SND_SOC_ROCKCHIP_HDMI
+	tristate "ASoC support for Rockchip HDMI audio"
+	depends on SND_SOC_ROCKCHIP && HAVE_CLK
+	select SND_SOC_HDMI_CODEC
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using built-in HDMI or external HDMI.
 
 config SND_SOC_RK3288_HDMI_ANALOG
 	tristate "ASoC support multiple codecs for Rockchip RK3288 boards"

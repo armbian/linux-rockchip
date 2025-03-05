@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Maxim GMSL serializer devices
+#
+
+menu "Maxim GMSL Remote Serializer devices support"
+	visible if VIDEO_MAXIM_SERDES
+
+config VIDEO_MAXIM_SER_MAX9295
+	tristate "Maxim GMSL2 serializer max9295 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim GMSL2 max9295 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max9295.
+
+config VIDEO_MAXIM_SER_MAX96715
+	tristate "Maxim GMSL1 Serializer max96715 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim GMSL1 max96715 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96715.
+
+config VIDEO_MAXIM_SER_MAX96717
+	tristate "Maxim GMSL2 Serializer max96717 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim GMSL2 max96717 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96717.
+
+endmenu
+
+menu "Maxim GMSL Remote Sensor devices support"
+	visible if VIDEO_MAXIM_SERDES
+
+config VIDEO_MAXIM_CAM_DUMMY
+	tristate "Maxim Remote Sensor dummy support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote Sensor dummy.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dummy.
+
+config VIDEO_MAXIM_CAM_SC320AT
+	tristate "Maxim Remote Sensor sc320at support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote Sensor sc320at.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc320at.
+
+config VIDEO_MAXIM_CAM_OX01F10
+	tristate "Maxim Remote Sensor ox01f10 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote sensor ox01f10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ox01f10.
+
+config VIDEO_MAXIM_CAM_OV231X
+	tristate "Maxim Remote Sensor ov2311/ov2312 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote sensor ov231x.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov231x.
+
+config VIDEO_MAXIM_CAM_OX03J10
+	tristate "Maxim Remote Sensor ox03j10 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote sensor ox03j10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ox03j10.
+
+config VIDEO_MAXIM_CAM_OS04A10
+	tristate "Maxim Remote Sensor os04a10 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote sensor os04a10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called os04a10.
+
+endmenu

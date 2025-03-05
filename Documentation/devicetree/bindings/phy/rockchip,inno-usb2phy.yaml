@@ -13,14 +13,17 @@ properties:
   compatible:
     enum:
       - rockchip,px30-usb2phy
+      - rockchip,rk1808-usb2phy
       - rockchip,rk3128-usb2phy
       - rockchip,rk3228-usb2phy
       - rockchip,rk3308-usb2phy
       - rockchip,rk3328-usb2phy
       - rockchip,rk3366-usb2phy
+      - rockchip,rk3368-usb2phy
       - rockchip,rk3399-usb2phy
       - rockchip,rk3568-usb2phy
       - rockchip,rk3588-usb2phy
+      - rockchip,rv1106-usb2phy
       - rockchip,rv1108-usb2phy
 
   reg:
@@ -65,12 +68,28 @@ properties:
       - const: phy
       - const: apb
 
+  wakeup-source:
+    description:
+      Enable USB irq wakeup when suspend.
+      Only work when suspend wakeup-config is not work.
+
   rockchip,usbgrf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the syscon managing the 'usb general register files'.
       When set the driver will request its phandle as one companion-grf
       for some special SoCs (e.g rv1108).
+
+  rockchip,usbctrl-grf:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon managing the 'usb ctrl general register files'.
+      When set the driver will request its phandle as the
+      usb controller grf for some SoCs (e.g rk3588).
+
+  rockchip,u2phy-tuning:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: when set, tuning u2phy to improve usb2 SI.
 
   host-port:
     type: object
@@ -120,6 +139,54 @@ properties:
         description:
           Phandle to a regulator that provides power to VBUS.
           See ./phy-bindings.txt for details.
+
+      vbus-supply:
+        description:
+          Phandle to a fixed-regulator that provides power to VBUS.
+
+      rockchip,utmi-bypass-uart:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, indicates that support usb to bypass uart
+          feature. This property can only be added in debug stage.
+
+      rockchip,utmi-avalid:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, the usb2 phy will use avalid status bit to
+          get vbus status. If not, it will use bvalid status bit to get vbus
+          status by default.
+
+     rockchip,vbus-always-on:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg vbus is always powered on.
+
+     rockchip,low-power-mode:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, the port will enter low power state when suspend.
+
+     rockchip,typec-vbus-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, check the vbus status from grf con for Type-C
+         interface. It's used when the vbusdet pin is always pulled up.
+
+     rockchip,gpio-vbus-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg port will use a gpio
+         for USB vbus detection.
+
+     rockchip,gpio-id-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg port will use a gpio
+         for USB id detection.
+
+     rockchip,sel-pipe-phystatus:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, select the pipe phy status from grf for usb
+         controller. It's used when the usb3 phy is disabled, and it needs
+         to combine with the usbctrl-grf.
+
+     rockchip,dis-u2-susphy:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, disable the usb2 phy enter suspend automatically.
 
     required:
       - "#phy-cells"

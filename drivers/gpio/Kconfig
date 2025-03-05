@@ -1106,6 +1106,21 @@ config GPIO_DS4520
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio-ds4520.
 
+config GPIO_AW9110
+	tristate "AW9110 I2C GPIO expanders"
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN
+	help
+	  Say yes here to provide access to I2C
+	  GPIO expanders used for additional digital outputs or inputs.
+	  Your board setup code will need to declare the expanders in
+	  use, and assign numbers to the GPIOs they expose.  Those GPIOs
+	  can then be used from drivers and other kernel code, just like
+	  other GPIOs, but only accessible from task contexts.
+
+	  This driver provides an in-kernel interface to those GPIOs using
+	  platform-neutral GPIO calls.
+
 config GPIO_GW_PLD
 	tristate "Gateworks PLD GPIO Expander"
 	depends on OF_GPIO
@@ -1144,6 +1159,14 @@ config GPIO_MAX732X_IRQ
 	help
 	  Say yes here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
+
+config GPIO_NCA9539
+	tristate "NCA9539 I2C GPIO expander"
+	depends on I2C || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say yes here to support the NCA9539 series of I2C Expanders.
+	  GPIO expanders used for additional digital outputs or inputs.
 
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"

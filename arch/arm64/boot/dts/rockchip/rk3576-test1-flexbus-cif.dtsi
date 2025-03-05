@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&flexbus {
+	rockchip,flexbus0-opmode = <ROCKCHIP_FLEXBUS0_OPMODE_DAC>;
+	rockchip,flexbus1-opmode = <ROCKCHIP_FLEXBUS1_OPMODE_CIF>;
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+	gc2145@3c {
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+
+		clocks = <&cru REF_CLK1_OUT_PLL>;
+		clock-names = "xvclk";
+		power-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ref_clk1_clk1>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&cif_in_cam>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+				pclk-sample = <1>;
+				bus-width = <8>;
+			};
+		};
+	};
+};
+
+&flexbus_cif {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&flexbus1_d1 &flexbus1_d2 &flexbus1_d3 &flexbus1_d4
+		     &flexbus1_d5 &flexbus1_d6 &flexbus1_d7 &flexbus1_d8
+		     &flexbus1m1_d12 &flexbus1m1_d13 &flexbus1_clk>;
+	ports {
+		port@0 {
+			cif_in_cam: endpoint@0 {
+				remote-endpoint = <&gc2145_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+		};
+	};
+};

@@ -46,6 +46,18 @@ properties:
     items:
       - const: apb
 
+  inno,lanes:
+    description: Number of MIPI DSI lanes used
+    enum: [1, 2, 3, 4]
+
+  inno,lvds-vcom:
+    description: LVDS output common-mode voltage in millivolts
+    enum: [850, 900, 950, 1000]
+
+  inno,lvds-vod:
+    description: LVDS output differential voltage in millivolts
+    enum: [250, 300, 350, 400]
+
 required:
   - "#phy-cells"
   - compatible

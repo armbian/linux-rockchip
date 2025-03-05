@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Maxim GMSL Serdes devices
+#
+config VIDEO_MAXIM_SERDES
+	tristate "Maxim GMSL Serdes Support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This driver supports the Maxim GMSL Serdes.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maxim.
+
+source "drivers/media/i2c/maxim/local/Kconfig"
+source "drivers/media/i2c/maxim/remote/Kconfig"

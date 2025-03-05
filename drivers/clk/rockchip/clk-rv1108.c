@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  *         Andy Yan <andy.yan@rock-chips.com>
  */
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rv1108-cru.h>
 #include "clk.h"
@@ -118,7 +120,6 @@ static const struct rockchip_cpuclk_reg_data rv1108_cpuclk_data = {
 
 PNAME(mux_pll_p)		= { "xin24m", "xin24m"};
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr", "apll_ddr" };
-PNAME(mux_armclk_p)		= { "apll_core", "gpll_core", "dpll_core" };
 PNAME(mux_usb480m_pre_p)	= { "usbphy", "xin24m" };
 PNAME(mux_hdmiphy_phy_p)	= { "hdmiphy", "xin24m" };
 PNAME(mux_dclk_hdmiphy_pre_p)	= { "dclk_hdmiphy_src_gpll", "dclk_hdmiphy_src_dpll" };
@@ -210,7 +211,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(ACLK_ENMCORE, "aclkenm_core", "armclk", CLK_IGNORE_UNUSED,
 			RV1108_CLKSEL_CON(1), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RV1108_CLKGATE_CON(0), 4, GFLAGS),
-	GATE(ACLK_CORE, "aclk_core", "aclkenm_core", CLK_IGNORE_UNUSED,
+	GATE(ACLK_CORE, "aclk_core", "aclkenm_core", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(11), 0, GFLAGS),
 	GATE(0, "pclk_dbg", "pclken_dbg", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(11), 1, GFLAGS),
@@ -265,10 +266,10 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKGATE_CON(19), 6, GFLAGS),
 
 	/* PD_PMU_wrapper */
-	COMPOSITE_NOMUX(0, "pmu_24m_ena", "gpll", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(0, "pmu_24m_ena", "gpll", CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(38), 0, 5, DFLAGS,
 			RV1108_CLKGATE_CON(8), 12, GFLAGS),
-	GATE(0, "pclk_pmu", "pmu_24m_ena", CLK_IGNORE_UNUSED,
+	GATE(0, "pclk_pmu", "pmu_24m_ena", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(10), 0, GFLAGS),
 	GATE(0, "pclk_intmem1", "pmu_24m_ena", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(10), 1, GFLAGS),
@@ -306,7 +307,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKSEL_CON(41), 0, 5, DFLAGS,
 			RV1108_CLKGATE_CON(9), 12, GFLAGS),
 
-	GATE(0, "pclk_acodecphy", "pclk_top_pre", CLK_IGNORE_UNUSED,
+	GATE(0, "pclk_acodecphy", "pclk_top_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(14), 6, GFLAGS),
 	GATE(0, "pclk_usbgrf", "pclk_top_pre", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(14), 14, GFLAGS),
@@ -532,23 +533,23 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKGATE_CON(2), 10, GFLAGS),
 
 	/* PD_BUS */
-	GATE(0, "aclk_bus_src_gpll", "gpll", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_bus_src_gpll", "gpll", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(1), 0, GFLAGS),
-	GATE(0, "aclk_bus_src_apll", "apll", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_bus_src_apll", "apll", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(1), 1, GFLAGS),
-	GATE(0, "aclk_bus_src_dpll", "dpll", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_bus_src_dpll", "dpll", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(1), 2, GFLAGS),
-	COMPOSITE_NOGATE(ACLK_PRE, "aclk_bus_pre", mux_aclk_bus_src_p, 0,
+	COMPOSITE_NOGATE(ACLK_PRE, "aclk_bus_pre", mux_aclk_bus_src_p, CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(2), 8, 2, MFLAGS, 0, 5, DFLAGS),
-	COMPOSITE_NOMUX(HCLK_BUS, "hclk_bus_pre", "aclk_bus_pre", 0,
+	COMPOSITE_NOMUX(HCLK_BUS, "hclk_bus_pre", "aclk_bus_pre", CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(3), 0, 5, DFLAGS,
 			RV1108_CLKGATE_CON(1), 4, GFLAGS),
-	COMPOSITE_NOMUX(0, "pclk_bus_pre", "aclk_bus_pre", 0,
+	COMPOSITE_NOMUX(0, "pclk_bus_pre", "aclk_bus_pre", CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(3), 8, 5, DFLAGS,
 			RV1108_CLKGATE_CON(1), 5, GFLAGS),
-	GATE(PCLK_BUS, "pclk_bus", "pclk_bus_pre", 0,
+	GATE(PCLK_BUS, "pclk_bus", "pclk_bus_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(1), 6, GFLAGS),
-	GATE(0, "pclk_top_pre", "pclk_bus_pre", CLK_IGNORE_UNUSED,
+	GATE(0, "pclk_top_pre", "pclk_bus_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(1), 7, GFLAGS),
 	GATE(0, "pclk_ddr_pre", "pclk_bus_pre", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(1), 8, GFLAGS),
@@ -669,7 +670,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKGATE_CON(0), 9, GFLAGS),
 	GATE(0, "gpll_ddr", "gpll", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(0), 10, GFLAGS),
-	COMPOSITE_NOGATE(0, "clk_ddrphy_src", mux_ddrphy_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NOGATE(0, "clk_ddrphy_src", mux_ddrphy_p, CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(4), 8, 2, MFLAGS, 0, 3,
 			DFLAGS | CLK_DIVIDER_POWER_OF_TWO),
 	FACTOR(0, "clk_ddr", "clk_ddrphy_src", 0, 1, 2),
@@ -677,9 +678,9 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKGATE_CON(10), 9, GFLAGS),
 	GATE(0, "pclk_ddrupctl", "pclk_ddr_pre", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(12), 4, GFLAGS),
-	GATE(0, "nclk_ddrupctl", "clk_ddr", CLK_IGNORE_UNUSED,
+	GATE(0, "nclk_ddrupctl", "clk_ddr", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(12), 5, GFLAGS),
-	GATE(0, "pclk_ddrmon", "pclk_ddr_pre", CLK_IGNORE_UNUSED,
+	GATE(0, "pclk_ddrmon", "pclk_ddr_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(12), 6, GFLAGS),
 	GATE(0, "timer_clk", "xin24m", CLK_IGNORE_UNUSED,
 			RV1108_CLKGATE_CON(0), 11, GFLAGS),
@@ -693,22 +694,22 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	 */
 
 	/* PD_PERI */
-	COMPOSITE_NOMUX(0, "pclk_periph_pre", "gpll", 0,
+	COMPOSITE_NOMUX(0, "pclk_periph_pre", "gpll", CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(23), 10, 5, DFLAGS,
 			RV1108_CLKGATE_CON(4), 5, GFLAGS),
-	GATE(PCLK_PERI, "pclk_periph", "pclk_periph_pre", CLK_IGNORE_UNUSED,
+	GATE(PCLK_PERI, "pclk_periph", "pclk_periph_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(15), 13, GFLAGS),
-	COMPOSITE_NOMUX(0, "hclk_periph_pre", "gpll", 0,
+	COMPOSITE_NOMUX(0, "hclk_periph_pre", "gpll", CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(23), 5, 5, DFLAGS,
 			RV1108_CLKGATE_CON(4), 4, GFLAGS),
-	GATE(HCLK_PERI, "hclk_periph", "hclk_periph_pre", CLK_IGNORE_UNUSED,
+	GATE(HCLK_PERI, "hclk_periph", "hclk_periph_pre", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(15), 12, GFLAGS),
 
-	GATE(0, "aclk_peri_src_dpll", "dpll", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_peri_src_dpll", "dpll", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(4), 1, GFLAGS),
-	GATE(0, "aclk_peri_src_gpll", "gpll", CLK_IGNORE_UNUSED,
+	GATE(0, "aclk_peri_src_gpll", "gpll", CLK_IS_CRITICAL,
 			RV1108_CLKGATE_CON(4), 2, GFLAGS),
-	COMPOSITE(ACLK_PERI, "aclk_periph", mux_aclk_peri_src_p, 0,
+	COMPOSITE(ACLK_PERI, "aclk_periph", mux_aclk_peri_src_p, CLK_IS_CRITICAL,
 			RV1108_CLKSEL_CON(23), 15, 1, MFLAGS, 0, 5, DFLAGS,
 			RV1108_CLKGATE_CON(15), 11, GFLAGS),
 
@@ -768,24 +769,23 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	MMC(SCLK_EMMC_SAMPLE,  "emmc_sample",  "sclk_emmc",  RV1108_EMMC_CON1,  1),
 };
 
-static const char *const rv1108_critical_clocks[] __initconst = {
-	"aclk_core",
-	"aclk_bus",
-	"hclk_bus",
-	"pclk_bus",
-	"aclk_periph",
-	"hclk_periph",
-	"pclk_periph",
-	"nclk_ddrupctl",
-	"pclk_ddrmon",
-	"pclk_acodecphy",
-	"pclk_pmu",
-};
+static void __iomem *rv1108_cru_base;
+
+static void rv1108_dump_cru(void)
+{
+	if (rv1108_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rv1108_cru_base,
+			       0x1f8, false);
+	}
+}
 
 static void __init rv1108_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk **clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -799,17 +799,16 @@ static void __init rv1108_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rv1108_pll_clks,
 				   ARRAY_SIZE(rv1108_pll_clks),
 				   RV1108_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rv1108_clk_branches,
 				  ARRAY_SIZE(rv1108_clk_branches));
-	rockchip_clk_protect_critical(rv1108_critical_clocks,
-				      ARRAY_SIZE(rv1108_critical_clocks));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+			3, clks[PLL_APLL], clks[PLL_GPLL],
 			&rv1108_cpuclk_data, rv1108_cpuclk_rates,
 			ARRAY_SIZE(rv1108_cpuclk_rates));
 
@@ -819,5 +818,38 @@ static void __init rv1108_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RV1108_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rv1108_cru_base = reg_base;
+		rk_dump_cru = rv1108_dump_cru;
+	}
 }
 CLK_OF_DECLARE(rv1108_cru, "rockchip,rv1108-cru", rv1108_clk_init);
+
+static int __init clk_rv1108_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	rv1108_clk_init(np);
+
+	return 0;
+}
+
+static const struct of_device_id clk_rv1108_match_table[] = {
+	{
+		.compatible = "rockchip,rv1108-cru",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rv1108_match_table);
+
+static struct platform_driver clk_rv1108_driver = {
+	.driver		= {
+		.name	= "clk-rv1108",
+		.of_match_table = clk_rv1108_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rv1108_driver, clk_rv1108_probe);
+
+MODULE_DESCRIPTION("Rockchip RV1108 Clock Driver");
+MODULE_LICENSE("GPL");

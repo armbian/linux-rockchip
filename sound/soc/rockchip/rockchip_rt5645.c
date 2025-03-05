@@ -2,7 +2,7 @@
 /*
  * Rockchip machine ASoC driver for boards using a RT5645/RT5650 CODEC.
  *
- * Copyright (c) 2015, ROCKCHIP CORPORATION.  All rights reserved.
+ * Copyright (c) 2015, Rockchip Electronics Co., Ltd. All rights reserved.
  */
 
 #include <linux/module.h>

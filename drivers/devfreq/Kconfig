@@ -129,15 +129,20 @@ config ARM_MEDIATEK_CCI_DEVFREQ
 	  buck voltages and update a proper CCI frequency. Use the notification
 	  to get the regulator status.
 
-config ARM_RK3399_DMC_DEVFREQ
-	tristate "ARM RK3399 DMC DEVFREQ Driver"
+config ARM_ROCKCHIP_BUS_DEVFREQ
+	tristate "ARM ROCKCHIP BUS DEVFREQ Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the DEVFREQ driver for the ROCKCHIP BUS.
+
+config ARM_ROCKCHIP_DMC_DEVFREQ
+	tristate "ARM ROCKCHIP DMC DEVFREQ Driver"
 	depends on (ARCH_ROCKCHIP && HAVE_ARM_SMCCC) || \
 		(COMPILE_TEST && HAVE_ARM_SMCCC)
 	select DEVFREQ_EVENT_ROCKCHIP_DFI
-	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_DEVFREQ_EVENT
 	help
-	  This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
+	  This adds the DEVFREQ driver for the ROCKCHIP DMC(Dynamic Memory Controller).
 	  It sets the frequency for the memory controller and reads the usage counts
 	  from hardware.
 

@@ -1,0 +1,777 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Rockchip AMP support.
+ *
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ * Author: Tony Xie <tony.xie@rock-chips.com>
+ */
+
+#include <asm/cputype.h>
+#include <linux/clk.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
+#include <linux/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip_amp.h>
+#include <linux/irqchip/arm-gic-common.h>
+
+#define RK_CPU_STATUS_OFF		0
+#define RK_CPU_STATUS_ON		1
+#define RK_CPU_STATUS_BUSY		-1
+#define AMP_AFF_MAX_CLUSTER		4
+#define AMP_AFF_MAX_CPU			8
+#define GPIO_BANK_NUM			16
+#define GPIO_GROUP_PRIO_MAX		3
+
+#define MAX_GIC_SPI_NUM (1020)
+#define AMP_GIC_INFO_DUMP 0
+#define AMP_GIC_DBG(fmt, arg...)	do { if (0) { pr_warn(fmt, ##arg); } } while (0)
+
+enum amp_cpu_ctrl_status {
+	AMP_CPU_STATUS_AMP_DIS = 0,
+	AMP_CPU_STATUS_EN,
+	AMP_CPU_STATUS_ON,
+	AMP_CPU_STATUS_OFF,
+};
+
+#define AMP_FLAG_CPU_ARM64		BIT(1)
+#define AMP_FLAG_CPU_EL2_HYP		BIT(2)
+#define AMP_FLAG_CPU_ARM32_T		BIT(3)
+
+enum {
+	GPIO_IRQ_GROUP_DISABLE       = 0x0,
+	GPIO_IRQ_GROUP_EN_BANK_TYPE  = 0x1,
+	GPIO_IRQ_GROUP_EN_GROUP_TYPE = 0x2,
+};
+
+struct rkamp_device {
+	struct device *dev;
+	struct clk_bulk_data *clks;
+	int num_clks;
+	struct device **pd_dev;
+	int num_pds;
+};
+
+static struct {
+	u32 en;
+	u32 mode;
+	u64 entry;
+	u64 cpu_id;
+} cpu_boot_info[CONFIG_NR_CPUS];
+
+struct amp_gpio_group_prio_group_info {
+	u32 prio;
+	u64 irq_aff[AMP_AFF_MAX_CPU];
+	u32 irq_id[AMP_AFF_MAX_CPU];
+	u32 en[AMP_AFF_MAX_CPU];
+};
+
+struct amp_gpio_group_bank_type_info {
+	u32 hw_irq;
+	u32 prio;
+	u64 aff;
+};
+
+struct amp_gpio_group_info_t {
+	u32 group_en;
+	u32 bank_id;
+	struct amp_gpio_group_bank_type_info bank_type_info;
+	struct amp_gpio_group_prio_group_info prio_group[GPIO_GROUP_PRIO_MAX];
+
+};
+
+struct amp_irq_cfg_s {
+	u64 aff;
+	u32 prio;
+	u32 cpumask;
+	int amp_flag;
+} irqs_cfg[MAX_GIC_SPI_NUM];
+
+static struct amp_gic_ctrl_s {
+	enum gic_type gic_version;
+	u32 spis_num;
+	struct {
+		u32 aff;
+		u32 cpumask;
+		u32 flag;
+	} aff_to_cpumask[AMP_AFF_MAX_CLUSTER][AMP_AFF_MAX_CPU];
+	struct amp_irq_cfg_s irqs_cfg[MAX_GIC_SPI_NUM];
+	struct amp_gpio_group_info_t gpio_grp[GPIO_BANK_NUM];
+	u32 gpio_banks;
+} amp_ctrl;
+
+static int get_cpu_boot_info_idx(unsigned long cpu_id)
+{
+	int i;
+
+	for (i = 0; i < CONFIG_NR_CPUS; i++) {
+		if (cpu_boot_info[i].cpu_id == cpu_id)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t boot_cpu_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	char *str = buf;
+
+	str += sprintf(str, "cpu on/off:\n");
+	str += sprintf(str,
+		"         echo on/off [cpu id] > /sys/rk_amp/boot_cpu\n");
+	str += sprintf(str, "get cpu on/off status:\n");
+	str += sprintf(str,
+		"         echo status [cpu id] > /sys/rk_amp/boot_cpu\n");
+	if (str != buf)
+		*(str - 1) = '\n';
+
+	return (str - buf);
+}
+
+static void cpu_status_print(unsigned long cpu_id, struct arm_smccc_res *res)
+{
+	if (res->a0) {
+		pr_info("failed to get cpu[%lx] status, ret=%lx!\n", cpu_id, res->a0);
+		return;
+	}
+
+	if (res->a1 == AMP_CPU_STATUS_AMP_DIS)
+		pr_info("cpu[%lx] amp is disabled (%ld)\n", cpu_id, res->a1);
+	else if (res->a1 == AMP_CPU_STATUS_EN)
+		pr_info("cpu[%lx] amp is enabled (%ld)\n", cpu_id, res->a1);
+	else if (res->a1 == AMP_CPU_STATUS_ON)
+		pr_info("cpu[%lx] amp: cpu is on (%ld)\n", cpu_id, res->a1);
+	else if (res->a1 == AMP_CPU_STATUS_OFF)
+		pr_info("cpu[%lx] amp: cpu is off(%ld)\n", cpu_id, res->a1);
+	else
+		pr_info("cpu[%lx] amp status(%ld) is error\n", cpu_id, res->a1);
+
+	if (res->a2 == RK_CPU_STATUS_OFF)
+		pr_info("cpu[%lx] status(%ld) is off\n", cpu_id, res->a2);
+	else if (res->a2 == RK_CPU_STATUS_ON)
+		pr_info("cpu[%lx] status(%ld) is on\n", cpu_id, res->a2);
+	else if (res->a2 == RK_CPU_STATUS_BUSY)
+		pr_info("cpu[%lx] status(%ld) is busy\n", cpu_id, res->a2);
+	else
+		pr_info("cpu[%lx] status(%ld) is error\n", cpu_id, res->a2);
+}
+
+static ssize_t boot_cpu_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf,
+			      size_t count)
+{
+	struct arm_smccc_res res = {0};
+	unsigned long cpu_id;
+	char cmd[10];
+	int ret, idx;
+
+	ret = sscanf(buf, "%s", cmd);
+	if (ret != 1) {
+		pr_info("Use on/off [cpu id] or status [cpu id]\n");
+		return -EINVAL;
+	}
+
+	if (!strncmp(cmd, "status", strlen("status"))) {
+		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
+		if (ret != 2)
+			return -EINVAL;
+
+		res = sip_smc_get_amp_info(RK_AMP_SUB_FUNC_GET_CPU_STATUS, cpu_id);
+		cpu_status_print(cpu_id, &res);
+	} else if (!strncmp(cmd, "off", strlen("off"))) {
+		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
+		if (ret != 2)
+			return -EINVAL;
+
+		idx = get_cpu_boot_info_idx(cpu_id);
+		if (idx >= 0 && cpu_boot_info[idx].en) {
+			ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_REQ_CPU_OFF,
+						 cpu_id, 0, 0);
+			if (ret)
+				dev_warn(dev, "failed to request cpu[%lx] off, ret=%d!\n", cpu_id, ret);
+		}
+	} else if (!strncmp(cmd, "on", strlen("on"))) {
+		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
+		if (ret != 2)
+			return -EINVAL;
+
+		idx = get_cpu_boot_info_idx(cpu_id);
+		if (idx >= 0 && cpu_boot_info[idx].en) {
+			ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CPU_ON,
+						 cpu_id,
+						 cpu_boot_info[idx].entry,
+						 0);
+			if (ret)
+				dev_warn(dev, "Brought up cpu[%lx] failed, ret=%d\n", cpu_id, ret);
+			else
+				pr_info("Brought up cpu[%lx] ok.\n", cpu_id);
+		} else {
+			dev_warn(dev, "cpu[%lx] is unavailable\n", cpu_id);
+		}
+	} else {
+		dev_warn(dev, "unsupported cmd(%s)\n", cmd);
+	}
+
+	return count;
+}
+
+static struct kobject *rk_amp_kobj;
+static struct device_attribute rk_amp_attrs[] = {
+	__ATTR(boot_cpu, 0664, boot_cpu_show, boot_cpu_store),
+};
+
+static int rockchip_amp_boot_cpus(struct device *dev,
+				  struct device_node *cpu_node, int idx)
+{
+	u64 cpu_entry, cpu_id;
+	u32 cpu_mode, boot_on;
+	int ret;
+
+	if (idx >= CONFIG_NR_CPUS)
+		return -1;
+
+	if (of_property_read_u64_array(cpu_node, "id", &cpu_id, 1)) {
+		dev_warn(dev, "failed to get 'id'\n");
+		return -1;
+	}
+
+	if (of_property_read_u64_array(cpu_node, "entry", &cpu_entry, 1)) {
+		dev_warn(dev, "failed to get cpu[%llx] 'entry'\n", cpu_id);
+		return -1;
+	}
+
+	if (!cpu_entry) {
+		dev_warn(dev, "invalid cpu[%llx] 'entry': 0\n", cpu_id);
+		return -1;
+	}
+
+	if (of_property_read_u32_array(cpu_node, "mode", &cpu_mode, 1)) {
+		dev_warn(dev, "failed to get cpu[%llx] 'mode'\n", cpu_id);
+		return -1;
+	}
+
+	if (of_property_read_u32_array(cpu_node, "boot-on", &boot_on, 1))
+		boot_on = 1; /* compatible old action */
+
+	cpu_boot_info[idx].entry = cpu_entry;
+	cpu_boot_info[idx].mode = cpu_mode;
+	cpu_boot_info[idx].cpu_id = cpu_id;
+
+	ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CFG_MODE, cpu_id, cpu_mode, 0);
+	if (ret) {
+		dev_warn(dev, "failed to set cpu mode, ret=%d\n", ret);
+		return ret;
+	}
+
+	if (boot_on) {
+		ret = sip_smc_amp_config(RK_AMP_SUB_FUNC_CPU_ON, cpu_id, cpu_entry, 0);
+		if (ret) {
+			dev_warn(dev, "Brought up cpu[%llx] failed, ret=%d\n", cpu_id, ret);
+			return ret;
+		} else {
+			pr_info("Brought up cpu[%llx] ok.\n", cpu_id);
+		}
+	}
+
+	cpu_boot_info[idx].en = 1;
+
+	return 0;
+}
+
+int rockchip_amp_check_amp_irq(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].amp_flag;
+}
+
+u32 rockchip_amp_get_irq_prio(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].prio;
+}
+
+u32 rockchip_amp_get_irq_cpumask(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].cpumask;
+}
+
+int rockchip_amp_need_init_amp_irq(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].amp_flag;
+}
+
+static u32 amp_get_cpumask_bit(u64 aff)
+{
+	u32 aff_cluster, aff_cpu;
+
+	aff_cluster = MPIDR_AFFINITY_LEVEL(aff, 1);
+	aff_cpu = MPIDR_AFFINITY_LEVEL(aff, 0);
+
+	if (aff_cpu >= AMP_AFF_MAX_CPU || aff_cluster >= AMP_AFF_MAX_CLUSTER)
+		return 0;
+
+	AMP_GIC_DBG("  %s: aff:%d-%d: %x\n", __func__, aff_cluster, aff_cpu,
+		    amp_ctrl.aff_to_cpumask[aff_cluster][aff_cpu].cpumask);
+
+	return amp_ctrl.aff_to_cpumask[aff_cluster][aff_cpu].cpumask;
+}
+
+u64 rockchip_amp_get_irq_aff(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].aff;
+}
+
+static int amp_gic_get_gpio_group_bank_type_config(struct device_node *np,
+						   struct amp_gic_ctrl_s *amp_ctrl,
+						   struct amp_gpio_group_info_t *gpio_grp)
+{
+	u32 prio, irq;
+	u64 irq_aff;
+	struct amp_gpio_group_bank_type_info *bank_type_info;
+	struct amp_irq_cfg_s *irqs_cfg;
+
+	bank_type_info = &gpio_grp->bank_type_info;
+	if (of_property_read_u32_array(np, "hw-irq", &irq, 1))
+		return -EINVAL;
+
+	if (of_property_read_u64_array(np, "hw-irq-cpu-aff", &irq_aff, 1))
+		return -EINVAL;
+
+	if (of_property_read_u32_array(np, "prio", &prio, 1))
+		return -EINVAL;
+
+	bank_type_info->aff = irq_aff;
+	bank_type_info->hw_irq = irq;
+	bank_type_info->prio = prio;
+
+	irqs_cfg = &amp_ctrl->irqs_cfg[irq];
+
+	irqs_cfg->prio = prio;
+	irqs_cfg->aff = irq_aff;
+
+	if (amp_ctrl->gic_version == GIC_V2) {
+		irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
+		if (!irqs_cfg->cpumask) {
+			pr_err(" %s: get cpumask error\n", __func__);
+			return -EINVAL;
+		}
+	}
+	irqs_cfg->amp_flag = 1;
+
+	AMP_GIC_DBG(" %s bank-%d: hw-irq-%d  aff-%llx(%x) prio-%x flag-%d\n",
+		    __func__, gpio_grp->bank_id, irq, irqs_cfg->aff,
+		    irqs_cfg->cpumask, irqs_cfg->prio, irqs_cfg->amp_flag);
+
+	return 0;
+}
+
+static int gic_amp_get_gpio_prio_group_config(struct device_node *np,
+					      struct amp_gic_ctrl_s *amp_ctrl,
+					      struct amp_gpio_group_info_t *gpio_grp,
+					      int prio_id)
+{
+	u32 prio, irq_id;
+	u64 irq_aff;
+	int i, count0, count1, count2;
+	struct amp_irq_cfg_s *irqs_cfg;
+	struct amp_gpio_group_prio_group_info *prio_grp;
+
+	if (prio_id >= GPIO_GROUP_PRIO_MAX)
+		return -EINVAL;
+
+	if (of_property_read_u32_array(np, "group-prio", &prio, 1))
+		return -EINVAL;
+
+	prio_grp = &gpio_grp->prio_group[prio_id];
+	prio_grp->prio = prio;
+
+	count0 = of_property_count_u32_elems(np, "group-irq-id");
+	count1 = of_property_count_u64_elems(np, "group-irq-aff");
+	count2 = of_property_count_u32_elems(np, "group-irq-en");
+
+	AMP_GIC_DBG(" %s: bank-%d, group prio [%d]=0x%x\n",
+		    __func__, gpio_grp->bank_id, prio_id, prio);
+
+	if (!(count0 == count1 && count0 == count2 && count0)) {
+		pr_err("%s: group-irq count is error(%d %d %d)\n",
+		       __func__, count0, count1, count2);
+		return -EINVAL;
+	}
+
+	if (count0 >= AMP_AFF_MAX_CPU)
+		pr_err("%s: prio group is overflow\n", __func__);
+
+	for (i = 0; i < count0; i++) {
+		of_property_read_u32_index(np, "group-irq-id", i, &irq_id);
+		prio_grp->irq_id[i] = irq_id;
+
+		of_property_read_u64_index(np, "group-irq-aff", i, &irq_aff);
+		prio_grp->irq_aff[i] = irq_aff;
+
+		of_property_read_u32_index(np, "group-irq-en", i, &prio_grp->en[i]);
+
+		irqs_cfg = &amp_ctrl->irqs_cfg[irq_id];
+
+		AMP_GIC_DBG("   %s: cpu_idx-%d irq-%d: prio-%x aff-%llx grp_en-%d\n",
+			    __func__, i, prio_grp->irq_id[i], prio_grp->prio,
+			    prio_grp->irq_aff[i], prio_grp->en[i]);
+
+		if (prio_grp->en[i]) {
+			irqs_cfg->prio = prio_grp->prio;
+			irqs_cfg->aff = irq_aff;
+			if (amp_ctrl->gic_version == GIC_V2) {
+				irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
+				if (!irqs_cfg->cpumask) {
+					pr_err(" %s: get cpumask error\n", __func__);
+					return -EINVAL;
+				}
+			}
+			irqs_cfg->amp_flag = 1;
+		}
+
+		AMP_GIC_DBG("     %s irq-%d: prio-%x aff-%llx(%x) flag-%d\n",
+			    __func__, prio_grp->irq_id[i], irqs_cfg->prio,
+			    irqs_cfg->aff, irqs_cfg->cpumask, irqs_cfg->amp_flag);
+	}
+
+	return 0;
+}
+
+static int amp_gic_get_gpio_group_type_config(struct device_node *group_node,
+					      struct amp_gic_ctrl_s *amp_ctrl,
+					      struct amp_gpio_group_info_t *gpio_grp)
+{
+	int i = 0;
+	struct device_node *node;
+
+	if (group_node) {
+		for_each_available_child_of_node(group_node, node) {
+			if (i >= GPIO_GROUP_PRIO_MAX)
+				break;
+			if (!gic_amp_get_gpio_prio_group_config(node, amp_ctrl,
+								gpio_grp, i)) {
+				i++;
+			}
+		}
+	}
+	return 0;
+}
+
+static void amp_gic_get_gpio_group_config(struct device_node *node,
+					  struct amp_gic_ctrl_s *amp_ctrl)
+{
+	struct device_node *bank_node;
+	struct amp_gpio_group_info_t *gpio_grp;
+	u32 gpio_bank, group_en;
+
+	if (of_property_read_u32_array(node, "gpio-bank-id", &gpio_bank, 1))
+		return;
+
+	if (gpio_bank >= amp_ctrl->gpio_banks)
+		return;
+
+	if (of_property_read_u32_array(node, "group-irq-en", &group_en, 1))
+		return;
+
+	gpio_grp = &amp_ctrl->gpio_grp[gpio_bank];
+	gpio_grp->bank_id = gpio_bank;
+
+	gpio_grp->group_en = group_en;
+
+	AMP_GIC_DBG("%s: bank-%d group-en-%d\n", __func__, gpio_bank, group_en);
+
+	if (group_en == GPIO_IRQ_GROUP_EN_BANK_TYPE) {
+		bank_node = of_get_child_by_name(node, "bank-type-cfg");
+		if (!bank_node) {
+			pr_err("%s: group_irq_en from dtsi is error\n", __func__);
+			return;
+		}
+		amp_gic_get_gpio_group_bank_type_config(bank_node, amp_ctrl, gpio_grp);
+		of_node_put(bank_node);
+	} else if (group_en == GPIO_IRQ_GROUP_EN_GROUP_TYPE) {
+		amp_gic_get_gpio_group_type_config(node, amp_ctrl, gpio_grp);
+	}
+}
+
+static void amp_gic_get_gpios_group_config(struct device_node *np,
+					   struct amp_gic_ctrl_s *amp_ctrl)
+{
+	struct device_node *gpio_group_node, *node;
+
+	if (of_property_read_u32_array(np, "gpio-group-banks",
+				       &amp_ctrl->gpio_banks, 1))
+		return;
+
+	if (amp_ctrl->gpio_banks >= GPIO_BANK_NUM) {
+		pr_err("%s: gpio_banks is overflow\n", __func__);
+		return;
+	}
+
+	gpio_group_node = of_get_child_by_name(np, "gpio-group");
+	if (gpio_group_node) {
+		for_each_available_child_of_node(gpio_group_node, node) {
+			amp_gic_get_gpio_group_config(node, amp_ctrl);
+		}
+		of_node_put(gpio_group_node);
+	}
+
+}
+
+static int amp_gic_get_cpumask(struct device_node *np, struct amp_gic_ctrl_s *amp_ctrl)
+{
+	const struct property *prop;
+	int count, i;
+	u32 cluster, aff_cpu;
+	u64 aff, cpumask;
+
+	if (amp_ctrl->gic_version != GIC_V2)
+		return 0;
+	prop = of_find_property(np, "amp-cpu-aff-maskbits", NULL);
+
+	if (!prop)
+		return -1;
+
+	if (!prop->value)
+		return -1;
+
+	count = of_property_count_u64_elems(np, "amp-cpu-aff-maskbits");
+	if (count % 2)
+		return -1;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u64_index(np, "amp-cpu-aff-maskbits",
+					   2 * i, &aff);
+		cluster = MPIDR_AFFINITY_LEVEL(aff, 1);
+		aff_cpu = MPIDR_AFFINITY_LEVEL(aff, 0);
+		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].aff = aff;
+
+		of_property_read_u64_index(np, "amp-cpu-aff-maskbits",
+					   2 * i + 1, &cpumask);
+
+		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].cpumask = (u32)cpumask;
+
+		AMP_GIC_DBG("cpumask: %d-%d: aff-%llx cpumask-%d\n",
+			    cluster, aff_cpu, aff, (u32)cpumask);
+
+		if (!cpumask)
+			return -1;
+	}
+
+	return 0;
+}
+
+static void amp_gic_get_irqs_config(struct device_node *np,
+				    struct amp_gic_ctrl_s *amp_ctrl)
+{
+	const struct property *prop;
+	u32 irq, i;
+	int count;
+	u64 aff, val, prio;
+
+	prop = of_find_property(np, "amp-irqs", NULL);
+	if (!prop)
+		return;
+
+	if (!prop->value)
+		return;
+
+	count = of_property_count_u64_elems(np, "amp-irqs");
+
+	if (count % 3)
+		return;
+
+	for (i = 0; i < count / 3; i++) {
+		of_property_read_u64_index(np, "amp-irqs", 3 * i, &val);
+		irq = (u32)val;
+		if (irq > amp_ctrl->spis_num)
+			break;
+
+		of_property_read_u64_index(np, "amp-irqs", 3 * i + 1, &prio);
+		of_property_read_u64_index(np, "amp-irqs", 3 * i + 2, &aff);
+
+		AMP_GIC_DBG("%s: irq-%d aff-%llx prio-%llx\n",
+			    __func__, irq, aff, prio);
+
+		amp_ctrl->irqs_cfg[irq].prio = (u32)prio;
+		amp_ctrl->irqs_cfg[irq].aff = aff;
+		if (amp_ctrl->gic_version == GIC_V2) {
+			amp_ctrl->irqs_cfg[irq].cpumask = amp_get_cpumask_bit(aff);
+			if (!amp_ctrl->irqs_cfg[irq].cpumask) {
+				pr_err("%s: get cpumask error\n", __func__);
+				break;
+			}
+		}
+
+		if (!amp_ctrl->irqs_cfg[irq].aff &&
+		    !amp_ctrl->irqs_cfg[irq].prio)
+			break;
+
+		amp_ctrl->irqs_cfg[irq].amp_flag = 1;
+
+		AMP_GIC_DBG(" %s: irq-%d aff-%llx cpumask-%x pri-%x\n",
+			    __func__, irq, amp_ctrl->irqs_cfg[irq].aff,
+			    amp_ctrl->irqs_cfg[irq].cpumask,
+			    amp_ctrl->irqs_cfg[irq].prio);
+	}
+}
+
+static void amp_gic_irqs_config_dump(struct amp_gic_ctrl_s *amp_ctrl)
+{
+	int irq;
+	struct amp_irq_cfg_s *irqs_cfg;
+
+#if !AMP_GIC_INFO_DUMP
+	return;
+#endif
+	irqs_cfg = amp_ctrl->irqs_cfg;
+	for (irq = 32; irq < MAX_GIC_SPI_NUM; irq++) {
+		AMP_GIC_DBG(" %s: irq-%d aff-%llx(%x) prio-%x flag-%d\n",
+			    __func__, irq, irqs_cfg[irq].aff, irqs_cfg[irq].cpumask,
+			    irqs_cfg[irq].prio, irqs_cfg[irq].amp_flag);
+	}
+}
+
+void rockchip_amp_get_gic_info(u32 spis_num, enum gic_type gic_version)
+{
+	struct device_node *np;
+
+	amp_ctrl.spis_num = spis_num;
+	amp_ctrl.gic_version = gic_version;
+
+	np = of_find_node_by_name(NULL, "rockchip-amp");
+	if (!np)
+		return;
+
+	if (amp_gic_get_cpumask(np, &amp_ctrl)) {
+		pr_err("%s: get amp gic cpu mask error\n", __func__);
+		goto exit;
+	}
+
+	amp_gic_get_gpios_group_config(np, &amp_ctrl);
+	amp_gic_get_irqs_config(np, &amp_ctrl);
+	amp_gic_irqs_config_dump(&amp_ctrl);
+
+exit:
+	of_node_put(np);
+}
+
+static int rockchip_amp_probe(struct platform_device *pdev)
+{
+	struct device_node *cpus_node, *cpu_node;
+	struct rkamp_device *rkamp_dev;
+	int ret, i, idx = 0;
+
+	rkamp_dev = devm_kzalloc(&pdev->dev, sizeof(*rkamp_dev), GFP_KERNEL);
+	if (!rkamp_dev)
+		return -ENOMEM;
+
+	rkamp_dev->num_clks = devm_clk_bulk_get_all(&pdev->dev, &rkamp_dev->clks);
+	if (rkamp_dev->num_clks < 0)
+		return -ENODEV;
+
+	ret = clk_bulk_prepare_enable(rkamp_dev->num_clks, rkamp_dev->clks);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to prepare enable clks: %d\n", ret);
+
+	pm_runtime_enable(&pdev->dev);
+
+	rkamp_dev->num_pds =
+		of_count_phandle_with_args(pdev->dev.of_node, "power-domains",
+					   "#power-domain-cells");
+	if (rkamp_dev->num_pds > 0) {
+		rkamp_dev->pd_dev =
+			devm_kmalloc_array(&pdev->dev, rkamp_dev->num_pds,
+					   sizeof(*rkamp_dev->pd_dev), GFP_KERNEL);
+		if (!rkamp_dev->pd_dev)
+			return -ENOMEM;
+
+		if (rkamp_dev->num_pds == 1) {
+			ret = pm_runtime_resume_and_get(&pdev->dev);
+			if (ret < 0)
+				return dev_err_probe(&pdev->dev, ret,
+						     "failed to get power-domain\n");
+		} else {
+			for (i = 0; i < rkamp_dev->num_pds; i++) {
+				rkamp_dev->pd_dev[i] = dev_pm_domain_attach_by_id(&pdev->dev, i);
+				ret = pm_runtime_resume_and_get(rkamp_dev->pd_dev[i]);
+				if (ret < 0)
+					return dev_err_probe(&pdev->dev, ret,
+							     "failed to get pd_dev[%d]\n", i);
+			}
+		}
+	}
+
+	cpus_node = of_get_child_by_name(pdev->dev.of_node, "amp-cpus");
+	if (cpus_node) {
+		for_each_available_child_of_node(cpus_node, cpu_node) {
+			if (!rockchip_amp_boot_cpus(&pdev->dev, cpu_node, idx))
+				idx++;
+		}
+		of_node_put(cpus_node);
+	}
+
+	rk_amp_kobj = kobject_create_and_add("rk_amp", NULL);
+	if (!rk_amp_kobj)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(rk_amp_attrs); i++) {
+		ret = sysfs_create_file(rk_amp_kobj, &rk_amp_attrs[i].attr);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret, "create file index %d error\n", i);
+	}
+
+	return 0;
+}
+
+static int rockchip_amp_remove(struct platform_device *pdev)
+{
+	struct rkamp_device *rkamp_dev = platform_get_drvdata(pdev);
+	int i;
+
+	clk_bulk_disable_unprepare(rkamp_dev->num_clks, rkamp_dev->clks);
+
+	if (rkamp_dev->num_pds == 1) {
+		pm_runtime_put_sync(&pdev->dev);
+	} else if (rkamp_dev->num_pds > 1) {
+		for (i = 0; i < rkamp_dev->num_pds; i++) {
+			pm_runtime_put_sync(rkamp_dev->pd_dev[i]);
+			dev_pm_domain_detach(rkamp_dev->pd_dev[i], true);
+			rkamp_dev->pd_dev[i] = NULL;
+		}
+	}
+
+	pm_runtime_disable(&pdev->dev);
+
+	for (i = 0; i < ARRAY_SIZE(rk_amp_attrs); i++)
+		sysfs_remove_file(rk_amp_kobj, &rk_amp_attrs[i].attr);
+
+	kobject_put(rk_amp_kobj);
+
+	return 0;
+}
+
+static const struct of_device_id rockchip_amp_match[] = {
+	{ .compatible = "rockchip,amp" },
+	{ .compatible = "rockchip,mcu-amp" },
+	{ .compatible = "rockchip,rk3568-amp" },
+	{ /* sentinel */ },
+};
+
+MODULE_DEVICE_TABLE(of, rockchip_amp_match);
+
+static struct platform_driver rockchip_amp_driver = {
+	.probe = rockchip_amp_probe,
+	.remove = rockchip_amp_remove,
+	.driver = {
+		.name  = "rockchip-amp",
+		.of_match_table = rockchip_amp_match,
+	},
+};
+module_platform_driver(rockchip_amp_driver);
+
+MODULE_DESCRIPTION("Rockchip AMP driver");
+MODULE_AUTHOR("Tony xie<tony.xie@rock-chips.com>");
+MODULE_LICENSE("GPL");

@@ -519,6 +519,11 @@ properties:
       Enables the TSO feature otherwise it will be managed by MAC HW capability
       register.
 
+  snps,flow-ctrl:
+    $ref: /schemas/types.yaml#definitions/uint32
+    description:
+      Disable or enable flow control for controller.
+
   mdio:
     $ref: mdio.yaml#
     unevaluatedProperties: false

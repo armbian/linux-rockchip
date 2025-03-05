@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3308-partybox-coreboard-demo.dtsi"
+
+/ {
+	model = "Rockchip RK3308B PARTYBOX CORE BOARD DEMO V10";
+	compatible = "rockchip,rk3308-partybox-coreboard-demo-v10", "rockchip,rk3308";
+};

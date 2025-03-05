@@ -2,5 +2,12 @@
 
 comment "Rockchip media platform drivers"
 
+source "drivers/media/platform/rockchip/cif/Kconfig"
+source "drivers/media/platform/rockchip/flexbus_cif/Kconfig"
+source "drivers/media/platform/rockchip/isp1/Kconfig"
+source "drivers/media/platform/rockchip/isp/Kconfig"
+source "drivers/media/platform/rockchip/ispp/Kconfig"
+source "drivers/media/platform/rockchip/hdmirx/Kconfig"
 source "drivers/media/platform/rockchip/rga/Kconfig"
 source "drivers/media/platform/rockchip/rkisp1/Kconfig"
+source "drivers/media/platform/rockchip/vpss/Kconfig"

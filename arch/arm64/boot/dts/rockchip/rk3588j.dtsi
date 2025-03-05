@@ -4,145 +4,63 @@
  *
  */
 
-#include "rk3588-extra.dtsi"
+#include "rk3588.dtsi"
 
-/ {
-	cluster0_opp_table: opp-table-cluster0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp-1416000000 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <750000 750000 950000>;
-			clock-latency-ns = <40000>;
-			opp-suspend;
-		};
-		opp-1608000000 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <887500 887500 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1704000000 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <937500 937500 950000>;
-			clock-latency-ns = <40000>;
-		};
-	};
-
-	cluster1_opp_table: opp-table-cluster1 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp-1416000000 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <750000 750000 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1608000000 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <787500 787500 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1800000000 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <875000 875000 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-2016000000 {
-			opp-hz = /bits/ 64 <2016000000>;
-			opp-microvolt = <950000 950000 950000>;
-			clock-latency-ns = <40000>;
-		};
-	};
-
-	cluster2_opp_table: opp-table-cluster2 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp-1416000000 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <750000 750000 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1608000000 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <787500 787500 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-1800000000 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <875000 875000 950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-2016000000 {
-			opp-hz = /bits/ 64 <2016000000>;
-			opp-microvolt = <950000 950000 950000>;
-			clock-latency-ns = <40000>;
-		};
-	};
-
-	gpu_opp_table: opp-table {
-		compatible = "operating-points-v2";
-
-		opp-300000000 {
-			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <750000 750000 850000>;
-		};
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <750000 750000 850000>;
-		};
-		opp-500000000 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <750000 750000 850000>;
-		};
-		opp-600000000 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <750000 750000 850000>;
-		};
-		opp-700000000 {
-			opp-hz = /bits/ 64 <700000000>;
-			opp-microvolt = <750000 750000 850000>;
-		};
-		opp-850000000 {
-			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <787500 787500 850000>;
-		};
-	};
+&cluster0_opp_table {
+	/*
+	 * The Max frequency is 1296MHz in default normal mode.
+	 * The Max frequency is 1704MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime,
+	 * especially in high temperature condition.
+	 */
+	/delete-node/ opp-j-m-1416000000;
+	/delete-node/ opp-j-m-1608000000;
+	/delete-node/ opp-j-m-1704000000;
 };
 
-&cpu_b0 {
-	operating-points-v2 = <&cluster1_opp_table>;
+&cluster1_opp_table {
+	/*
+	 * The Max frequency is 1608MHz in default normal mode.
+	 * The Max frequency is 2016MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime,
+	 * especially in high temperature condition.
+	 */
+	/delete-node/ opp-j-m-1800000000;
+	/delete-node/ opp-j-m-2016000000;
 };
 
-&cpu_b1 {
-	operating-points-v2 = <&cluster1_opp_table>;
+&cluster2_opp_table {
+	/*
+	 * The Max frequency is 1608MHz in default normal mode.
+	 * The Max frequency is 2016MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime,
+	 * especially in high temperature condition.
+	 */
+	/delete-node/ opp-j-m-1800000000;
+	/delete-node/ opp-j-m-2016000000;
 };
 
-&cpu_b2 {
-	operating-points-v2 = <&cluster2_opp_table>;
+&gpu_opp_table {
+	/*
+	 * The Max frequency is 700MHz in default normal mode.
+	 * The Max frequency is 850MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime,
+	 * especially in high temperature condition.
+	 */
+	/delete-node/ opp-j-850000000;
 };
 
-&cpu_b3 {
-	operating-points-v2 = <&cluster2_opp_table>;
-};
-
-&cpu_l0 {
-	operating-points-v2 = <&cluster0_opp_table>;
-};
-
-&cpu_l1 {
-	operating-points-v2 = <&cluster0_opp_table>;
-};
-
-&cpu_l2 {
-	operating-points-v2 = <&cluster0_opp_table>;
-};
-
-&cpu_l3 {
-	operating-points-v2 = <&cluster0_opp_table>;
-};
-
-&gpu {
-	operating-points-v2 = <&gpu_opp_table>;
+&npu_opp_table {
+	/*
+	 * The Max frequency is 800MHz in default normal mode.
+	 * The Max frequency is 950MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime,
+	 * especially in high temperature condition.
+	 */
+	/delete-node/ opp-j-m-950000000;
 };

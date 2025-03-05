@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3576-evb1-v10.dts"
+
+&pdm_mic_array {
+	status = "okay";
+};
+
+&pdmics {
+	status = "okay";
+};
+
+&pdm1 {
+	status = "okay";
+};
+
+&sai1 {
+	status = "disabled";
+};

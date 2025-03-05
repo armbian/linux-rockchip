@@ -1,0 +1,292 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ * Version  Sensor  I2C_ADDR   Lanes
+ * v1.0.0   imx415   0x1a    lane0~1(dphy1)
+ *          imx415   0x1a    lane2~3(dphy2)
+ */
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_input1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_input2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx415_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_output1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi3_csi2_input>;
+			};
+		};
+	};
+};
+
+
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	imx415_0: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		port {
+			imx415_out0: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5m3_xfer>;
+
+	imx415_1: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1m0_clk1>;
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipicsi0>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		port {
+			imx415_out1: endpoint {
+				remote-endpoint = <&csi_dphy_input2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi_dphy_output>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi_dphy_output1>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi3_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+
+	port {
+		mipi1_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir1>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+&rkisp_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi1_lvds_sditf>;
+		};
+	};
+};
+
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
+&rkvpss_vir1 {
+	status = "okay";
+};

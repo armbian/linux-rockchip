@@ -3,7 +3,7 @@
  * Rockchip emmc PHY driver
  *
  * Copyright (C) 2016 Shawn Lin <shawn.lin@rock-chips.com>
- * Copyright (C) 2016 ROCKCHIP, Inc.
+ * Copyright (C) 2016 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk.h>

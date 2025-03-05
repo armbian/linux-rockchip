@@ -156,12 +156,23 @@ static int dmaengine_pcm_open(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
+	if (IS_ENABLED(CONFIG_SND_SOC_DYNAMIC_DMA_CHAN)) {
+		chan = dma_request_chan(component->dev, substream->stream ? "rx" : "tx");
+		if (IS_ERR(chan)) {
+			dev_err(component->dev, "No DMA channel available\n");
+			return -ENXIO;
+		}
+	}
+
 	return snd_dmaengine_pcm_open(substream, chan);
 }
 
 static int dmaengine_pcm_close(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream)
 {
+	if (IS_ENABLED(CONFIG_SND_SOC_DYNAMIC_DMA_CHAN))
+		return snd_dmaengine_pcm_close_release_chan(substream);
+
 	return snd_dmaengine_pcm_close(substream);
 }
 
@@ -468,6 +479,9 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	ret = snd_soc_add_component(&pcm->component, NULL, 0);
 	if (ret)
 		goto err_free_dma;
+
+	if (IS_ENABLED(CONFIG_SND_SOC_DYNAMIC_DMA_CHAN))
+		dmaengine_pcm_release_chan(pcm);
 
 	return 0;
 

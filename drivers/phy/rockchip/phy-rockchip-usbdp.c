@@ -2,7 +2,7 @@
 /*
  * Rockchip USBDP Combo PHY with Samsung IP block driver
  *
- * Copyright (C) 2021-2024 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2021-2024 Rockchip Electronics Co., Ltd.
  * Copyright (C) 2024 Collabora Ltd
  */
 
@@ -123,6 +123,7 @@ struct rk_udphy_grf_cfg {
 	/* usbdpphy-grf */
 	struct rk_udphy_grf_reg	low_pwrn;
 	struct rk_udphy_grf_reg	rx_lfps;
+	struct rk_udphy_grf_reg	clamp_phy;
 };
 
 struct rk_udphy_vogrf_cfg {
@@ -190,7 +191,9 @@ struct rk_udphy {
 	u8 bw;
 	int id;
 
+	bool dp_hpd_disabled;
 	bool dp_in_use;
+	int dp_lanes;
 
 	/* PHY const config */
 	const struct rk_udphy_cfg *cfgs;
@@ -348,7 +351,8 @@ static const struct reg_sequence rk_udphy_24m_refclk_cfg[] = {
 	{0x0a64, 0xa8}, {0x1a3c, 0xd0},
 	{0x1a44, 0xd0}, {0x1a48, 0x01},
 	{0x1a4c, 0x0d}, {0x1a54, 0xe0},
-	{0x1a5c, 0xe0}, {0x1a64, 0xa8}
+	{0x1a5c, 0xe0}, {0x1a64, 0xa8},
+	{0x00d4, 0x30}
 };
 
 static const struct reg_sequence rk_udphy_26m_refclk_cfg[] = {
@@ -375,7 +379,7 @@ static const struct reg_sequence rk_udphy_26m_refclk_cfg[] = {
 	{0x0c30, 0x0e}, {0x0c48, 0x06},
 	{0x1c30, 0x0e}, {0x1c48, 0x06},
 	{0x028c, 0x18}, {0x0af0, 0x00},
-	{0x1af0, 0x00}
+	{0x1af0, 0x00}, {0x00d4, 0x33}
 };
 
 static const struct reg_sequence rk_udphy_init_sequence[] = {
@@ -410,8 +414,8 @@ static const struct reg_sequence rk_udphy_init_sequence[] = {
 	{0x0070, 0x7d}, {0x0074, 0x68},
 	{0x0af4, 0x1a}, {0x1af4, 0x1a},
 	{0x0440, 0x3f}, {0x10d4, 0x08},
-	{0x20d4, 0x08}, {0x00d4, 0x30},
-	{0x0024, 0x6e},
+	{0x20d4, 0x08}, {0x0024, 0x6e},
+	{0x09c0, 0x0a}, {0x19c0, 0x0a}
 };
 
 static inline int rk_udphy_grfreg_write(struct regmap *base,
@@ -534,6 +538,13 @@ static void rk_udphy_usb_bvalid_enable(struct rk_udphy *udphy, u8 enable)
  * <0 1>                  dpln0         dpln1       usbrx         usbtx
  * <2 3>                  usbrx         usbtx       dpln0         dpln1
  * ---------------------------------------------------------------------------
+ * if 1 lane for dp function, 2 lane for usb function, define rockchip,dp-lane-mux = <x>;
+ * sample as follow:
+ * ---------------------------------------------------------------------------
+ *                        B11-B10       A2-A3       A11-A10       B2-B3
+ * rockchip,dp-lane-mux   ln0(tx/rx)    ln1(tx)     ln2(tx/rx)    ln3(tx)
+ * <0>                    dpln0         \           usbrx         usbtx
+ * ---------------------------------------------------------------------------
  */
 
 static void rk_udphy_dplane_select(struct rk_udphy *udphy)
@@ -541,18 +552,18 @@ static void rk_udphy_dplane_select(struct rk_udphy *udphy)
 	const struct rk_udphy_cfg *cfg = udphy->cfgs;
 	u32 value = 0;
 
-	switch (udphy->mode) {
-	case UDPHY_MODE_DP:
+	switch (udphy->dp_lanes) {
+	case 4:
 		value |= 2 << udphy->dp_lane_sel[2] * 2;
 		value |= 3 << udphy->dp_lane_sel[3] * 2;
 		fallthrough;
 
-	case UDPHY_MODE_DP_USB:
-		value |= 0 << udphy->dp_lane_sel[0] * 2;
+	case 2:
 		value |= 1 << udphy->dp_lane_sel[1] * 2;
-		break;
+		fallthrough;
 
-	case UDPHY_MODE_USB:
+	case 1:
+		value |= 0 << udphy->dp_lane_sel[0] * 2;
 		break;
 
 	default:
@@ -560,31 +571,17 @@ static void rk_udphy_dplane_select(struct rk_udphy *udphy)
 	}
 
 	regmap_write(udphy->vogrf, cfg->vogrfcfg[udphy->id].dp_lane_reg,
-		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
-		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
-		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
+		     (DP_LANE_SEL_ALL << 16) | value);
 }
 
-static int rk_udphy_dplane_get(struct rk_udphy *udphy)
+static void rk_udphy_dpaux_select(struct rk_udphy *udphy)
 {
-	int dp_lanes;
+	const struct rk_udphy_cfg *cfg = udphy->cfgs;
 
-	switch (udphy->mode) {
-	case UDPHY_MODE_DP:
-		dp_lanes = 4;
-		break;
-
-	case UDPHY_MODE_DP_USB:
-		dp_lanes = 2;
-		break;
-
-	case UDPHY_MODE_USB:
-	default:
-		dp_lanes = 0;
-		break;
-	}
-
-	return dp_lanes;
+	regmap_write(udphy->vogrf, cfg->vogrfcfg[udphy->id].dp_lane_reg,
+		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL) << 16) |
+		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
+		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel));
 }
 
 static void rk_udphy_dplane_enable(struct rk_udphy *udphy, int dp_lanes)
@@ -611,6 +608,9 @@ static void rk_udphy_dp_hpd_event_trigger(struct rk_udphy *udphy, bool hpd)
 	udphy->dp_sink_hpd_cfg = hpd;
 
 	if (!udphy->dp_in_use)
+		return;
+
+	if (udphy->dp_hpd_disabled)
 		return;
 
 	rk_udphy_grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
@@ -647,6 +647,7 @@ static void rk_udphy_set_typec_default_mapping(struct rk_udphy *udphy)
 	}
 
 	udphy->mode = UDPHY_MODE_DP_USB;
+	udphy->dp_lanes = 2;
 }
 
 static int rk_udphy_orien_sw_set(struct typec_switch_dev *sw,
@@ -763,14 +764,19 @@ static int rk_udphy_status_check(struct rk_udphy *udphy)
 						       val & TRSV_LN0_MON_RX_CDR_LOCK_DONE,
 						       200, 100000);
 			if (ret)
-				dev_err(udphy->dev, "trsv ln0 mon rx cdr lock timeout\n");
+				dev_notice(udphy->dev, "trsv ln0 mon rx cdr lock timeout\n");
 		} else {
 			ret = regmap_read_poll_timeout(udphy->pma_regmap,
 						       TRSV_LN2_MON_RX_CDR_DONE_OFFSET, val,
 						       val & TRSV_LN2_MON_RX_CDR_LOCK_DONE,
 						       200, 100000);
 			if (ret)
-				dev_err(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
+				dev_notice(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
+		}
+
+		if (ret) {
+			rk_udphy_u3_port_disable(udphy, true);
+			dev_warn(udphy->dev, "disable u3 port because udphy not ready\n");
 		}
 	}
 
@@ -781,9 +787,6 @@ static int rk_udphy_init(struct rk_udphy *udphy)
 {
 	const struct rk_udphy_cfg *cfg = udphy->cfgs;
 	int ret;
-
-	rk_udphy_reset_assert_all(udphy);
-	usleep_range(10000, 11000);
 
 	/* enable rx lfps for usb */
 	if (udphy->mode & UDPHY_MODE_USB)
@@ -885,7 +888,7 @@ static int rk_udphy_parse_lane_mux_data(struct rk_udphy *udphy)
 		return 0;
 	}
 
-	if (num_lanes != 2 && num_lanes != 4)
+	if (num_lanes != 1 && num_lanes != 2 && num_lanes != 4)
 		return dev_err_probe(udphy->dev, -EINVAL,
 				     "invalid number of lane mux\n");
 
@@ -911,7 +914,8 @@ static int rk_udphy_parse_lane_mux_data(struct rk_udphy *udphy)
 	}
 
 	udphy->mode = UDPHY_MODE_DP;
-	if (num_lanes == 2) {
+	udphy->dp_lanes = num_lanes;
+	if (num_lanes == 1 || num_lanes == 2) {
 		udphy->mode |= UDPHY_MODE_USB;
 		udphy->flip = (udphy->lane_mux_sel[0] == PHY_LANE_MUX_DP);
 	}
@@ -955,6 +959,12 @@ static int rk_udphy_parse_dt(struct rk_udphy *udphy)
 	udphy->udphygrf = syscon_regmap_lookup_by_phandle(np, "rockchip,usbdpphy-grf");
 	if (IS_ERR(udphy->udphygrf))
 		return dev_err_probe(dev, PTR_ERR(udphy->udphygrf), "failed to get usbdpphy-grf\n");
+
+	if (device_property_present(dev, "rockchip,usbdpphy-clamp")) {
+		rk_udphy_grfreg_write(udphy->udphygrf, &udphy->cfgs->grfcfg.clamp_phy, true);
+		dev_warn(dev, "Failed to enable usbdpphy because clamp is set\n");
+		return -EOPNOTSUPP;
+	}
 
 	udphy->usbgrf = syscon_regmap_lookup_by_phandle(np, "rockchip,usb-grf");
 	if (IS_ERR(udphy->usbgrf))
@@ -1045,7 +1055,6 @@ static int rk_udphy_dp_phy_init(struct phy *phy)
 	mutex_lock(&udphy->mutex);
 
 	udphy->dp_in_use = true;
-	rk_udphy_dp_hpd_event_trigger(udphy, udphy->dp_sink_hpd_cfg);
 
 	mutex_unlock(&udphy->mutex);
 
@@ -1065,20 +1074,17 @@ static int rk_udphy_dp_phy_exit(struct phy *phy)
 static int rk_udphy_dp_phy_power_on(struct phy *phy)
 {
 	struct rk_udphy *udphy = phy_get_drvdata(phy);
-	int ret, dp_lanes;
+	int ret;
 
 	mutex_lock(&udphy->mutex);
 
-	dp_lanes = rk_udphy_dplane_get(udphy);
-	phy_set_bus_width(phy, dp_lanes);
+	phy_set_bus_width(phy, udphy->dp_lanes);
 
 	ret = rk_udphy_power_on(udphy, UDPHY_MODE_DP);
 	if (ret)
 		goto unlock;
 
-	rk_udphy_dplane_enable(udphy, dp_lanes);
-
-	rk_udphy_dplane_select(udphy);
+	rk_udphy_dplane_enable(udphy, udphy->dp_lanes);
 
 unlock:
 	mutex_unlock(&udphy->mutex);
@@ -1117,6 +1123,24 @@ static int rk_udphy_dp_phy_verify_link_rate(unsigned int link_rate)
 	}
 
 	return 0;
+}
+
+static u32 rk_udphy_dp_get_max_link_rate(struct rk_udphy *udphy, struct device_node *np)
+{
+	u32 max_link_rate;
+	int ret;
+
+	ret = of_property_read_u32(np, "max-link-rate", &max_link_rate);
+	if (ret)
+		return 8100;
+
+	ret = rk_udphy_dp_phy_verify_link_rate(max_link_rate);
+	if (ret) {
+		dev_warn(udphy->dev, "invalid max-link-rate value:%d\n", max_link_rate);
+		max_link_rate = 8100;
+	}
+
+	return max_link_rate;
 }
 
 static int rk_udphy_dp_phy_verify_config(struct rk_udphy *udphy,
@@ -1201,6 +1225,8 @@ static int rk_udphy_dp_phy_configure(struct phy *phy,
 	if (ret)
 		return ret;
 
+	rk_udphy_dplane_select(udphy);
+
 	if (dp->set_rate) {
 		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
 				   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
@@ -1273,12 +1299,32 @@ static int rk_udphy_dp_phy_configure(struct phy *phy,
 	return 0;
 }
 
+static int rk_udphy_dp_phy_set_mode(struct phy *phy,
+				    enum phy_mode mode, int submode)
+{
+	struct rk_udphy *udphy = phy_get_drvdata(phy);
+
+	switch (submode) {
+	case 0:
+		rk_udphy_dpaux_select(udphy);
+		break;
+	case 1:
+		udphy->dp_hpd_disabled = true;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static const struct phy_ops rk_udphy_dp_phy_ops = {
 	.init		= rk_udphy_dp_phy_init,
 	.exit		= rk_udphy_dp_phy_exit,
 	.power_on	= rk_udphy_dp_phy_power_on,
 	.power_off	= rk_udphy_dp_phy_power_off,
 	.configure	= rk_udphy_dp_phy_configure,
+	.set_mode	= rk_udphy_dp_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -1292,6 +1338,8 @@ static int rk_udphy_usb3_phy_init(struct phy *phy)
 	if (!(udphy->mode & UDPHY_MODE_USB) || udphy->hs) {
 		rk_udphy_u3_port_disable(udphy, true);
 		goto unlock;
+	} else {
+		rk_udphy_u3_port_disable(udphy, false);
 	}
 
 	ret = rk_udphy_power_on(udphy, UDPHY_MODE_USB);
@@ -1339,6 +1387,7 @@ static int rk_udphy_typec_mux_set(struct typec_mux_dev *mux,
 		udphy->lane_mux_sel[2] = PHY_LANE_MUX_DP;
 		udphy->lane_mux_sel[3] = PHY_LANE_MUX_DP;
 		mode = UDPHY_MODE_DP;
+		udphy->dp_lanes = 4;
 		break;
 
 	case TYPEC_DP_STATE_D:
@@ -1355,6 +1404,7 @@ static int rk_udphy_typec_mux_set(struct typec_mux_dev *mux,
 			udphy->lane_mux_sel[3] = PHY_LANE_MUX_DP;
 		}
 		mode = UDPHY_MODE_DP_USB;
+		udphy->dp_lanes = 2;
 		break;
 	}
 
@@ -1507,8 +1557,8 @@ static int rk_udphy_probe(struct platform_device *pdev)
 		ret = PTR_ERR(udphy->phy_dp);
 		return dev_err_probe(dev, ret, "failed to create DP phy\n");
 	}
-	phy_set_bus_width(udphy->phy_dp, rk_udphy_dplane_get(udphy));
-	udphy->phy_dp->attrs.max_link_rate = 8100;
+	phy_set_bus_width(udphy->phy_dp, udphy->dp_lanes);
+	udphy->phy_dp->attrs.max_link_rate = rk_udphy_dp_get_max_link_rate(udphy, dev->of_node);
 	phy_set_drvdata(udphy->phy_dp, udphy);
 
 	phy_provider = devm_of_phy_provider_register(dev, rk_udphy_phy_xlate);
@@ -1536,6 +1586,44 @@ static const struct dev_pm_ops rk_udphy_pm_ops = {
 
 static const char * const rk_udphy_rst_list[] = {
 	"init", "cmn", "lane", "pcs_apb", "pma_apb"
+};
+
+static const struct rk_udphy_cfg rk3576_udphy_cfgs = {
+	.num_phys = 1,
+	.phy_ids = { 0x2b010000 },
+	.num_rsts = ARRAY_SIZE(rk_udphy_rst_list),
+	.rst_list = rk_udphy_rst_list,
+	.grfcfg	= {
+		/* u2phy-grf */
+		.bvalid_phy_con		= RK_UDPHY_GEN_GRF_REG(0x0010, 1, 0, 0x2, 0x3),
+		.bvalid_grf_con		= RK_UDPHY_GEN_GRF_REG(0x0000, 15, 14, 0x1, 0x3),
+
+		/* usb-grf */
+		.usb3otg0_cfg		= RK_UDPHY_GEN_GRF_REG(0x0030, 15, 0, 0x1100, 0x0188),
+
+		/* usbdpphy-grf */
+		.low_pwrn		= RK_UDPHY_GEN_GRF_REG(0x0004, 13, 13, 0, 1),
+		.rx_lfps		= RK_UDPHY_GEN_GRF_REG(0x0004, 14, 14, 0, 1),
+		.clamp_phy		= RK_UDPHY_GEN_GRF_REG(0x0008, 15, 15, 0, 1),
+	},
+	.vogrfcfg = {
+		{
+			.hpd_trigger	= RK_UDPHY_GEN_GRF_REG(0x0000, 11, 10, 1, 3),
+			.dp_lane_reg    = 0x0000,
+		},
+	},
+	.dp_tx_ctrl_cfg = {
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_hbr2,
+		rk3588_dp_tx_drv_ctrl_hbr3,
+	},
+	.dp_tx_ctrl_cfg_typec = {
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_hbr2,
+		rk3588_dp_tx_drv_ctrl_hbr3,
+	},
 };
 
 static const struct rk_udphy_cfg rk3588_udphy_cfgs = {
@@ -1584,6 +1672,10 @@ static const struct rk_udphy_cfg rk3588_udphy_cfgs = {
 };
 
 static const struct of_device_id rk_udphy_dt_match[] = {
+	{
+		.compatible = "rockchip,rk3576-usbdp-phy",
+		.data = &rk3576_udphy_cfgs
+	},
 	{
 		.compatible = "rockchip,rk3588-usbdp-phy",
 		.data = &rk3588_udphy_cfgs

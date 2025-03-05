@@ -1,0 +1,222 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/rockchip/mcu-panel.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip MCU Panel
+
+maintainers:
+  - Damon Ding <damon.ding@rock-chips.com>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  bus-format:
+    description: pixel data format on the wire
+
+  backlight: true
+
+  enable-gpios:
+    description: GPIO pin to enable the panel
+  reset-gpios:
+    description: GPIO pin to reset the panel
+  te-gpios:
+    description: GPIO pin for the soft TE mode
+
+  prepare-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel to
+      become ready and start receiving video data
+  enable-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel to
+      display the first valid frame after starting to receive
+      video data
+  disable-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel to
+      turn the display off (no content is visible)
+  unprepare-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel
+      to power itself down completely
+  reset-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel to
+      reset itself completely
+  init-delay-ms:
+    description: |
+      the time (in milliseconds) that it takes for the panel to
+      send init command sequence after reset deassert
+
+  width-mm:
+    description: width (in millimeters) of the panel's active display area
+  height-mm:
+    description: height (in millimeters) of the panel's active display area
+
+  panel-init-sequence:
+    description: |
+      A byte stream formed by init commands.
+        byte 0 - mcu data type
+        byte 1 - wait number of specified ms after mcu command transmitted
+        byte 2 - packet payload length
+        byte 3 - and beyond: number byte of payload
+  panel-exit-sequence:
+    description: A byte stream formed by deinit commands.
+  panel-frame-sequence:
+    description: |
+      A byte stream formed by interframe commands.
+
+  display-timings:
+    description:
+      Some display panels support several resolutions with different timings.
+      The display-timings bindings supports specifying several timings and
+      optionally specifying which is the native mode.
+    $ref: display-timings.yaml#
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+
+additionalProperties: false
+
+required:
+  - bus-format
+  - backlight
+  - enable-gpios
+  - reset-gpios
+  - panel-init-sequence
+  - panel-exit-sequence
+  - display-timings
+  - port
+
+examples:
+  - |
+    #include <dt-bindings/display/media-bus-format.h>
+    &rgb {
+      mcu_panel: mcu-panel {
+        bus-format = <MEDIA_BUS_FMT_RGB565_1X16>;
+        backlight = <&backlight>;
+        enable-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
+
+        panel-init-sequence = [
+          00   00  01  e0
+          01   00  01  00
+          01   00  01  07
+          01   00  01  0f
+          01   00  01  0d
+          01   00  01  1b
+          01   00  01  0a
+          01   00  01  3c
+          01   00  01  78
+          01   00  01  4a
+          01   00  01  07
+          01   00  01  0e
+          01   00  01  09
+          01   00  01  1b
+          01   00  01  1e
+          01   00  01  0f
+          00   00  01  e1
+          01   00  01  00
+          01   00  01  22
+          01   00  01  24
+          01   00  01  06
+          01   00  01  12
+          01   00  01  07
+          01   00  01  36
+          01   00  01  47
+          01   00  01  47
+          01   00  01  06
+          01   00  01  0a
+          01   00  01  07
+          01   00  01  30
+          01   00  01  37
+          01   00  01  0f
+
+          00   00  01  c0
+          01   00  01  10
+          01   00  01  10
+
+          00   00  01  c1
+          01   00  01  41
+
+          00   00  01  c5
+          01   00  01  00
+          01   00  01  22
+          01   00  01  80
+
+          00   00  01  36
+          01   00  01  48
+
+          00   00  01  3a
+          01   00  01  55
+
+          00   00  01  b0
+          01   00  01  00
+
+          00   00  01  b1
+          01   00  01  a0
+
+          01   00  01  11
+          00   00  01  b4
+          01   00  01  02
+          00   00  01  B6
+          01   00  01  02
+
+          01   00  01  02
+
+          00   00  01  b7
+          01   00  01  c6
+
+          00   00  01  be
+          01   00  01  00
+          01   00  01  04
+
+          00   00  01  e9
+          01   00  01  00
+
+          00   00  01  f7
+          01   00  01  a9
+          01   00  01  51
+          01   00  01  2c
+          01   00  01  82
+
+          00   78  01  11
+          00   32  01  29
+          00   00  01  2c
+        ];
+
+        panel-exit-sequence = [
+          00   0a  01  28
+          00   78  01  10
+        ];
+
+        display-timings {
+          native-mode = <&kd050fwfba002_timing>;
+
+          kd050fwfba002_timing: timing0 {
+            clock-frequency = <10453500>;
+            hactive = <320>;
+            vactive = <480>;
+            hback-porch = <10>;
+            hfront-porch = <5>;
+            vback-porch = <10>;
+            vfront-porch = <5>;
+            hsync-len = <10>;
+            vsync-len = <10>;
+            hsync-active = <0>;
+            vsync-active = <0>;
+            de-active = <0>;
+            pixelclk-active = <1>;
+          };
+        };
+
+        port {
+          panel_in_rgb: endpoint {
+            remote-endpoint = <&rgb_out_panel>;
+          };
+        };
+      };
+    };

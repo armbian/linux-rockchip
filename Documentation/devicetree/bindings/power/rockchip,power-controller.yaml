@@ -40,6 +40,7 @@ properties:
       - rockchip,rk3366-power-controller
       - rockchip,rk3368-power-controller
       - rockchip,rk3399-power-controller
+      - rockchip,rk3562-power-controller
       - rockchip,rk3568-power-controller
       - rockchip,rk3576-power-controller
       - rockchip,rk3588-power-controller
@@ -121,6 +122,7 @@ $defs:
           "include/dt-bindings/power/rk3366-power.h"
           "include/dt-bindings/power/rk3368-power.h"
           "include/dt-bindings/power/rk3399-power.h"
+          "include/dt-bindings/power/rk3562-power.h"
           "include/dt-bindings/power/rk3568-power.h"
           "include/dt-bindings/power/rk3588-power.h"
           "include/dt-bindings/power/rockchip,rv1126-power.h"
@@ -139,6 +141,19 @@ $defs:
         description: |
           A number of phandles to qos blocks which need to be saved and restored
           while power domain switches state.
+
+      pm_shaping:
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
+        description: |
+          A number of phandles to shaping blocks which need to be saved and
+          restored while power domain switches state.
+
+      rockchip,always-on:
+        description:
+          Forces this power domain to always be powered up.
+        type: boolean
 
       "#power-domain-cells":
         enum: [0, 1]
@@ -249,6 +264,73 @@ examples:
                         pm_qos = <&qos_hdcp>;
                         #power-domain-cells = <0>;
                     };
+                };
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/clock/rk3562-cru.h>
+    #include <dt-bindings/power/rk3562-power.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        qos_gpu: qos@fee30000 {
+                compatible = "syscon";
+                reg = <0x0 0xfee30000 0x0 0x20>;
+                priority-init = <0x202>;
+        };
+
+        shaping_gpu: shaping@fee30088 {
+                compatible = "syscon";
+                reg = <0x0 0xfee30088 0x0 0x4>;
+        };
+
+        qos_pcie: qos@feea0000 {
+                compatible = "syscon";
+                reg = <0x0 0xfeea0000 0x0 0x20>;
+        };
+
+        shaping_pcie: shaping@feea0088 {
+                compatible = "syscon";
+                reg = <0x0 0xfeea0088 0x0 0x4>;
+                shaping-init = <0x5>;
+        };
+
+        qos_usb3: qos@feea0100 {
+                compatible = "syscon";
+                reg = <0x0 0xfeea0100 0x0 0x20>;
+        };
+
+        shaping_usb3: shaping@feea0188 {
+                compatible = "syscon";
+                reg = <0x0 0xfeea0188 0x0 0x4>;
+        };
+
+        power-management@ff258000 {
+            compatible = "rockchip,rk3562-pmu", "syscon", "simple-mfd";
+            reg = <0x0 0xff258000 0x0 0x1000>;
+
+            power: power-controller {
+                compatible = "rockchip,rk3562-power-controller";
+                #power-domain-cells = <1>;
+                ##address-cells = <1>;
+                ##size-cells = <0>;
+
+                /* These power domains are grouped by VD_GPU */
+                pd_gpu@RK3562_PD_GPU {
+                    reg = <RK3562_PD_GPU>;
+                    pm_qos = <&qos_gpu>;
+                    pm_shaping = <&shaping_gpu>;
+                };
+
+                /* These power domains are grouped by VD_LOGIC */
+                pd_php@RK3562_PD_PHP {
+                    reg = <RK3562_PD_PHP>;
+                    pm_qos = <&qos_pcie>, <&qos_usb3>;
+                    pm_shaping = <&shaping_pcie>, <&shaping_usb3>;
                 };
             };
         };

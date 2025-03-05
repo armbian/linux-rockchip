@@ -389,7 +389,6 @@
 };
 
 &usbdrd3 {
-	dr_mode = "host";
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;

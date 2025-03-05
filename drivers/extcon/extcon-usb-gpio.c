@@ -37,6 +37,11 @@ struct usb_extcon_info {
 static const unsigned int usb_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_USB_VBUS_EN,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_CDP,
+	EXTCON_CHG_USB_DCP,
+	EXTCON_CHG_USB_SLOW,
 	EXTCON_NONE,
 };
 

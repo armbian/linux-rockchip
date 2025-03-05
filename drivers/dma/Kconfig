@@ -564,6 +564,14 @@ config PLX_DMA
 	  These are exposed via extra functions on the switch's
 	  upstream port. Each function exposes one DMA channel.
 
+config ROCKCHIP_DMA
+	tristate "Rockchip DMA support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for Rockchip family platform devices.
+
 config STE_DMA40
 	bool "ST-Ericsson DMA40 support"
 	depends on ARCH_U8500

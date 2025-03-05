@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+#define CPU_GET_AFFINITY(cluster, cpu)		(cpu)
+
+/ {
+	cpus {
+		/delete-node/ cpu@f02;
+	};
+
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru HCLK_M0>, <&cru STCLK_M0>,
+			<&cru SCLK_UART4>, <&cru PCLK_UART4>,
+			<&cru PCLK_TIMER>, <&cru CLK_TIMER0_CH5>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io27_uart4_tx>, <&rm_io28_uart4_rx>;
+
+		amp-cpu-aff-maskbits = /bits/ 64 <0x0 0x1 0x1 0x2 0x2 0x4>;
+		amp-irqs = /bits/ 64 <
+			/* GPIO EXT */
+			GIC_AMP_IRQ_CFG_ROUTE(35, 0xd0, CPU_GET_AFFINITY(0, 2))
+			GIC_AMP_IRQ_CFG_ROUTE(39, 0xd0, CPU_GET_AFFINITY(0, 2))
+			GIC_AMP_IRQ_CFG_ROUTE(43, 0xd0, CPU_GET_AFFINITY(0, 2))
+			GIC_AMP_IRQ_CFG_ROUTE(47, 0xd0, CPU_GET_AFFINITY(0, 2))
+			GIC_AMP_IRQ_CFG_ROUTE(51, 0xd0, CPU_GET_AFFINITY(0, 2))
+			/* UART4 */
+			GIC_AMP_IRQ_CFG_ROUTE(70, 0xd0, CPU_GET_AFFINITY(0, 2))
+			/* MAILBOX */
+			GIC_AMP_IRQ_CFG_ROUTE(176, 0xd0, CPU_GET_AFFINITY(0, 2))>;
+
+		status = "okay";
+	};
+
+	rpmsg: rpmsg@3c00000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox0 0 &mailbox2 0>;
+		rockchip,vdev-nums = <1>;
+		/* CPU2: link-id 0x02; */
+		rockchip,link-id = <0x02>;
+		reg = <0x3c00000 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
+	};
+};
+
+&arm_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>;
+};
+
+&mailbox0 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&mailbox2 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&reserved_memory {
+	/* remote amp core address */
+	amp_shmem_reserved: amp-shmem@3b00000 {
+		reg = <0x03b00000 0x100000>;
+		no-map;
+	};
+
+	rpmsg_reserved: rpmsg@3c00000 {
+		reg = <0x03c00000 0x100000>;
+		no-map;
+	};
+
+	rpmsg_dma_reserved: rpmsg-dma@3d00000 {
+		compatible = "shared-dma-pool";
+		reg = <0x03d00000 0x100000>;
+		no-map;
+	};
+
+	/* mcu address */
+	mcu_reserved: mcu@fff80000 {
+		reg = <0xfff80000 0xc000>;
+		no-map;
+	};
+};

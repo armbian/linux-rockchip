@@ -1,0 +1,471 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ * Author: Lin Jinhan <troy.lin@rock-chips.com>
+ *
+ */
+
+#include <linux/iopoll.h>
+
+#include "rk_crypto_core.h"
+#include "rk_crypto_v2.h"
+#include "rk_crypto_v2_reg.h"
+#include "rk_crypto_ecc.h"
+
+static void __iomem *ecc_base;
+
+#define WORDS2BYTES(words)		((words) * 4)
+
+#define RK_ECP_POLL_PERIOD_US		10000
+#define RK_ECP_POLL_TIMEOUT_US		500000
+
+#define RK_LOAD_GROUP_A(G)  do { \
+				grp->curve_name = #G; \
+				grp->wide   = G ## _wide;\
+				grp->p      = G ## _p; \
+				grp->p_len  = sizeof(G ## _p); \
+				grp->a      = G ## _a; \
+				grp->a_len  = sizeof(G ## _a); \
+				grp->n      = G ## _n; \
+				grp->n_len  = sizeof(G ## _n); \
+				grp->gx     = G ## _gx; \
+				grp->gx_len = sizeof(G ## _gx); \
+				grp->gy     = G ## _gy; \
+				grp->gy_len = sizeof(G ## _gy); \
+			} while (0)
+
+/*
+ * Domain parameters for secp192r1
+ */
+static const uint32_t secp192r1_wide = RK_ECC_CURVE_WIDE_192;
+
+static const uint8_t secp192r1_p[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t secp192r1_a[] = {
+	0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t secp192r1_gx[] = {
+	0x12, 0x10, 0xFF, 0x82, 0xFD, 0x0A, 0xFF, 0xF4,
+	0x00, 0x88, 0xA1, 0x43, 0xEB, 0x20, 0xBF, 0x7C,
+	0xF6, 0x90, 0x30, 0xB0, 0x0E, 0xA8, 0x8D, 0x18,
+};
+
+static const uint8_t secp192r1_gy[] = {
+	0x11, 0x48, 0x79, 0x1E, 0xA1, 0x77, 0xF9, 0x73,
+	0xD5, 0xCD, 0x24, 0x6B, 0xED, 0x11, 0x10, 0x63,
+	0x78, 0xDA, 0xC8, 0xFF, 0x95, 0x2B, 0x19, 0x07,
+};
+
+static const uint8_t secp192r1_n[] = {
+	0x31, 0x28, 0xD2, 0xB4, 0xB1, 0xC9, 0x6B, 0x14,
+	0x36, 0xF8, 0xDE, 0x99, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+/*
+ * Domain parameters for secp224r1
+ */
+static const uint32_t secp224r1_wide = RK_ECC_CURVE_WIDE_224;
+
+static const uint8_t secp224r1_p[] = {
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t secp224r1_a[] = {
+	0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t secp224r1_gx[] = {
+	0x21, 0x1D, 0x5C, 0x11, 0xD6, 0x80, 0x32, 0x34,
+	0x22, 0x11, 0xC2, 0x56, 0xD3, 0xC1, 0x03, 0x4A,
+	0xB9, 0x90, 0x13, 0x32, 0x7F, 0xBF, 0xB4, 0x6B,
+	0xBD, 0x0C, 0x0E, 0xB7,
+};
+
+static const uint8_t secp224r1_gy[] = {
+	0x34, 0x7E, 0x00, 0x85, 0x99, 0x81, 0xD5, 0x44,
+	0x64, 0x47, 0x07, 0x5A, 0xA0, 0x75, 0x43, 0xCD,
+	0xE6, 0xDF, 0x22, 0x4C, 0xFB, 0x23, 0xF7, 0xB5,
+	0x88, 0x63, 0x37, 0xBD,
+};
+
+static const uint8_t secp224r1_n[] = {
+	0x3D, 0x2A, 0x5C, 0x5C, 0x45, 0x29, 0xDD, 0x13,
+	0x3E, 0xF0, 0xB8, 0xE0, 0xA2, 0x16, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+/*
+ * Domain parameters for secp256r1
+ */
+static const uint32_t secp256r1_wide = RK_ECC_CURVE_WIDE_256;
+
+static const uint8_t secp256r1_p[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t secp256r1_a[] = {
+	0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t secp256r1_gx[] = {
+	0x96, 0xC2, 0x98, 0xD8, 0x45, 0x39, 0xA1, 0xF4,
+	0xA0, 0x33, 0xEB, 0x2D, 0x81, 0x7D, 0x03, 0x77,
+	0xF2, 0x40, 0xA4, 0x63, 0xE5, 0xE6, 0xBC, 0xF8,
+	0x47, 0x42, 0x2C, 0xE1, 0xF2, 0xD1, 0x17, 0x6B,
+};
+
+static const uint8_t secp256r1_gy[] = {
+	0xF5, 0x51, 0xBF, 0x37, 0x68, 0x40, 0xB6, 0xCB,
+	0xCE, 0x5E, 0x31, 0x6B, 0x57, 0x33, 0xCE, 0x2B,
+	0x16, 0x9E, 0x0F, 0x7C, 0x4A, 0xEB, 0xE7, 0x8E,
+	0x9B, 0x7F, 0x1A, 0xFE, 0xE2, 0x42, 0xE3, 0x4F,
+};
+
+static const uint8_t secp256r1_n[] = {
+	0x51, 0x25, 0x63, 0xFC, 0xC2, 0xCA, 0xB9, 0xF3,
+	0x84, 0x9E, 0x17, 0xA7, 0xAD, 0xFA, 0xE6, 0xBC,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+/*
+ * Domain parameters for sm2p256v1_p
+ */
+static const uint32_t sm2p256v1_wide = RK_ECC_CURVE_WIDE_256;
+
+static const uint8_t sm2p256v1_p[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t sm2p256v1_a[] = {
+	0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+};
+
+static const uint8_t sm2p256v1_gx[] = {
+	0xC7, 0x74, 0x4C, 0x33, 0x89, 0x45, 0x5A, 0x71,
+	0xE1, 0x0B, 0x66, 0xF2, 0xBF, 0x0B, 0xE3, 0x8F,
+	0x94, 0xC9, 0x39, 0x6A, 0x46, 0x04, 0x99, 0x5F,
+	0x19, 0x81, 0x19, 0x1F, 0x2C, 0xAE, 0xC4, 0x32,
+};
+
+static const uint8_t sm2p256v1_gy[] = {
+	0xA0, 0xF0, 0x39, 0x21, 0xE5, 0x32, 0xDF, 0x02,
+	0x40, 0x47, 0x2A, 0xC6, 0x7C, 0x87, 0xA9, 0xD0,
+	0x53, 0x21, 0x69, 0x6B, 0xE3, 0xCE, 0xBD, 0x59,
+	0x9C, 0x77, 0xF6, 0xF4, 0xA2, 0x36, 0x37, 0xBC,
+};
+
+static const uint8_t sm2p256v1_n[] = {
+	0x23, 0x41, 0xD5, 0x39, 0x09, 0xF4, 0xBB, 0x53,
+	0x2B, 0x05, 0xC6, 0x21, 0x6B, 0xDF, 0x03, 0x72,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+};
+
+static void dump_ecc_sram(void)
+{
+#ifdef DEBUG
+	int i;
+	uint32_t len = 0x300;
+	uint32_t *buffer;
+
+	buffer = kzalloc(len, GFP_KERNEL);
+
+	for (i = 0; i < len / 4; i++)
+		buffer[i] = ((uint32_t *)SM2_RAM_BASE)[i];
+
+	CRYPTO_DUMPHEX("ECC SRAM ", buffer, len);
+
+	kfree(buffer);
+#endif
+}
+
+static void ecc_word_memcpy(uint32_t *dst, uint32_t *src, uint32_t size)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++, dst++)
+		writel_relaxed(src[i], (void *)dst);
+}
+
+static void ecc_word_memset(uint32_t *buff, uint32_t val, uint32_t size)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++, buff++)
+		writel_relaxed(val, (void *)buff);
+}
+
+static void rk_reverse_buf(uint8_t *buff, uint32_t size)
+{
+	uint8_t *buf_h_swap, *buf_l_swap;
+	uint32_t i;
+	uint32_t temp;
+
+	buf_h_swap = buff + size - 1;
+	buf_l_swap = buff;
+
+	for (i = 0 ; i < (size / 2) ; i++) {
+		temp		= *buf_h_swap;
+		*(buf_h_swap--)	= *buf_l_swap;
+		*(buf_l_swap++)	= temp;
+	}
+}
+
+static int rk_word_cmp_zero(uint32_t *buf1, uint32_t n_words)
+{
+	int ret = 0;
+	uint32_t i;
+
+	for (i = 0 ; i < n_words; i++) {
+		if (buf1[i] != 0)
+			ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int rk_load_hash_bn(struct rk_ecp_group *grp, struct rk_bignum *bn,
+			   uint8_t *hash, uint32_t hash_len)
+{
+	if (grp == NULL || RK_ECP_IS_BIGNUM_INVALID(bn))
+		return -EINVAL;
+
+	hash_len = hash_len > grp->p_len ? grp->p_len : hash_len;
+
+	memset(bn->data, 0x00, WORDS2BYTES(bn->n_words));
+	memcpy(bn->data, hash, hash_len);
+
+	rk_reverse_buf((void *)bn->data, hash_len);
+
+	return 0;
+}
+
+/*
+ * Set a group using well-known domain parameters
+ */
+static int rk_ecp_group_load(struct rk_ecp_group *grp, enum rk_ecp_group_id id)
+{
+	memset(grp, 0x00, sizeof(*grp));
+
+	grp->id = id;
+	grp->endian = RK_BG_LITTILE_ENDIAN;
+
+	switch (id) {
+	case RK_ECP_DP_SECP192R1:
+		RK_LOAD_GROUP_A(secp192r1);
+		return 0;
+
+	case RK_ECP_DP_SECP224R1:
+		RK_LOAD_GROUP_A(secp224r1);
+		return 0;
+
+	case RK_ECP_DP_SECP256R1:
+		RK_LOAD_GROUP_A(secp256r1);
+		return 0;
+
+	case RK_ECP_DP_SM2P256V1:
+		RK_LOAD_GROUP_A(sm2p256v1);
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int rockchip_ecc_request_set(uint32_t ecc_ctl, uint32_t wide)
+{
+	RK_ECP_WRITE_REG(RK_ECC_CURVE_WIDE, wide);
+
+	RK_ECP_WRITE_REG(RK_ECC_INT_EN, 0);
+	RK_ECP_WRITE_REG(RK_ECC_INT_ST, RK_ECP_READ_REG(RK_ECC_INT_ST));
+	RK_ECP_WRITE_REG(RK_ECC_CTL, ecc_ctl);
+
+	return 0;
+}
+
+static int rockchip_ecc_request_wait_done(void)
+{
+	int ret;
+	u32 reg_val = 0;
+
+	ret = readx_poll_timeout(RK_ECP_READ_REG, RK_ECC_INT_ST, reg_val,
+				 reg_val != 0, RK_ECP_POLL_PERIOD_US, RK_ECP_POLL_TIMEOUT_US);
+	if (ret) {
+		CRYPTO_TRACE("rk ecp poll RK_ECC_INT_ST timeout.\ns");
+		goto exit;
+	}
+
+	if (RK_ECP_READ_REG(RK_ECC_ABN_ST)) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+exit:
+	if (ret) {
+		CRYPTO_TRACE("RK_ECC_CTL        = %08x\n", RK_ECP_READ_REG(RK_ECC_CTL));
+		CRYPTO_TRACE("RK_ECC_INT_EN     = %08x\n", RK_ECP_READ_REG(RK_ECC_INT_EN));
+		CRYPTO_TRACE("RK_ECC_CURVE_WIDE = %08x\n", RK_ECP_READ_REG(RK_ECC_CURVE_WIDE));
+		CRYPTO_TRACE("RK_ECC_RAM_CTL    = %08x\n", RK_ECP_READ_REG(RK_ECC_RAM_CTL));
+		CRYPTO_TRACE("RK_ECC_INT_ST     = %08x\n", RK_ECP_READ_REG(RK_ECC_INT_ST));
+		CRYPTO_TRACE("RK_ECC_ABN_ST     = %08x\n", RK_ECP_READ_REG(RK_ECC_ABN_ST));
+	}
+
+	RK_ECP_WRITE_REG(RK_ECC_CTL, 0);
+	RK_ECP_RAM_FOR_CPU();
+
+	return ret;
+}
+
+static int rockchip_ecc_request_trigger(void)
+{
+	uint32_t ecc_ctl = RK_ECP_READ_REG(RK_ECC_CTL);
+
+	RK_ECP_RAM_FOR_ECC();
+
+	RK_ECP_WRITE_REG(RK_ECC_CTL, ecc_ctl | RK_ECC_CTL_REQ_ECC);
+
+	return rockchip_ecc_request_wait_done();
+}
+
+int rockchip_ecc_verify(int group_id, uint8_t *hash, uint32_t hash_len,
+			struct rk_ecp_point *point_P, struct rk_ecp_point *point_sign)
+{
+	int ret;
+	uint32_t curve_sel = 0;
+	struct rk_bignum *bn_hash = NULL;
+	struct rk_ecp_group grp;
+	struct rk_ecc_verify *ecc_st = (struct rk_ecc_verify *)SM2_RAM_BASE;
+
+	CRYPTO_TRACE("ecc_st = %p, ecc_base = %p\n", ecc_st, ecc_base);
+
+	if (!hash ||
+	    RK_ECP_IS_POINT_INVALID(point_P) ||
+	    RK_ECP_IS_POINT_INVALID(point_sign)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = rk_ecp_group_load(&grp, group_id);
+	if (ret)
+		goto exit;
+
+	bn_hash = rk_bn_alloc(RK_ECP_MAX_BYTES);
+	if (!bn_hash) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	curve_sel = group_id == RK_ECP_DP_SM2P256V1 ?
+		    RK_ECC_CTL_FUNC_SM2_CURVER : RK_ECC_CTL_FUNC_ECC_CURVER;
+
+	rk_load_hash_bn(&grp, bn_hash, hash, hash_len);
+
+	RK_ECP_LOAD_DATA(ecc_st->e, bn_hash);
+	RK_ECP_LOAD_DATA(ecc_st->r_, point_sign->x);
+	RK_ECP_LOAD_DATA(ecc_st->s_, point_sign->y);
+	RK_ECP_LOAD_DATA(ecc_st->p_x, point_P->x);
+	RK_ECP_LOAD_DATA(ecc_st->p_y, point_P->y);
+
+	RK_ECP_LOAD_DATA_EXT(ecc_st->A, grp.a, grp.a_len);
+	RK_ECP_LOAD_DATA_EXT(ecc_st->P, grp.p, grp.p_len);
+	RK_ECP_LOAD_DATA_EXT(ecc_st->N, grp.n, grp.n_len);
+
+	RK_ECP_LOAD_DATA_EXT(ecc_st->G_x, grp.gx, grp.gx_len);
+	RK_ECP_LOAD_DATA_EXT(ecc_st->G_y, grp.gy, grp.gy_len);
+
+	rockchip_ecc_request_set(curve_sel | RK_ECC_CTL_FUNC_SEL_VERIFY, grp.wide);
+
+	ret = rockchip_ecc_request_trigger();
+exit:
+	if (ret ||
+	    rk_word_cmp_zero(ecc_st->v, RK_ECP_MAX_WORDS) ||
+	    rk_word_cmp_zero(ecc_st->r_, RK_ECP_MAX_WORDS) == 0) {
+		ret = -EKEYREJECTED;
+		dump_ecc_sram();
+	}
+
+	rk_bn_free(bn_hash);
+
+	return ret;
+}
+
+void rockchip_ecc_init(void __iomem *base)
+{
+	ecc_base = base - RK_ECC_BASE_OFFSET;
+
+	RK_ECP_WRITE_REG(RK_ECC_DATA_ENDIAN, RK_ECC_DATA_ENDIAN_LITTLE);
+}
+
+void rockchip_ecc_deinit(void)
+{
+
+}
+
+uint32_t rockchip_ecc_get_max_size(void)
+{
+	return RK_ECP_MAX_BYTES;
+}
+
+uint32_t rockchip_ecc_get_curve_nbits(uint32_t group_id)
+{
+	switch (group_id) {
+	case RK_ECP_DP_SECP192R1:
+		return 192;
+
+	case RK_ECP_DP_SECP224R1:
+		return 224;
+
+	case RK_ECP_DP_SECP256R1:
+	case RK_ECP_DP_SM2P256V1:
+		return 256;
+
+	default:
+		return 0;
+	}
+}
+
+uint32_t rockchip_ecc_get_group_id(uint32_t asym_algo)
+{
+
+	switch (asym_algo) {
+	case ASYM_ALGO_ECC_P192:
+		return RK_ECP_DP_SECP192R1;
+	case ASYM_ALGO_ECC_P224:
+		return RK_ECP_DP_SECP224R1;
+	case ASYM_ALGO_ECC_P256:
+		return RK_ECP_DP_SECP256R1;
+	case ASYM_ALGO_SM2:
+		return RK_ECP_DP_SM2P256V1;
+	default:
+		return RK_ECP_DP_NONE;
+	}
+}

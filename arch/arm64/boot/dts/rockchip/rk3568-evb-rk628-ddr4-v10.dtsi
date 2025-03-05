@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include "rk3568.dtsi"
+#include "rk3568-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3568 EVB RK628 DDR4 V10 Board";
+	compatible = "rockchip,rk3568-evb-rk628-ddr4-v10", "rockchip,rk3568";
+
+	rk628_sound: rk628-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi-rk628";
+		status = "disabled";
+
+		simple-audio-card,cpu {
+				sound-dai = <&i2s2_2ch>;
+		};
+		simple-audio-card,codec {
+				sound-dai = <&i2c2_rk628>;
+		};
+	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	i2c2_rk628: rk628@50 {
+		compatible = "rockchip,rk628";
+		reg = <0x50>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628_reset>;
+		status = "okay";
+	};
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	i2c3_rk628: rk628@51 {
+		compatible = "rockchip,rk628";
+		reg = <0x51>;
+
+		/* external test board
+		 * rk628_int1: gpio1_a5
+		 * rk628_reset1: gpio1_a6
+		 * rk628_int2: gpio1_a7
+		 * rk628_reset2: gpio1_b0
+		 */
+		interrupt-parent = <&gpio1>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
+		status = "disabled";
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	i2c4_rk628: rk628@50 {
+		compatible = "rockchip,rk628";
+		reg = <0x50>;
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+		status = "disabled";
+	};
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&i2s1_8ch {
+	status = "disabled";
+};
+
+&pinctrl {
+	rk628 {
+		rk628_reset: rk628-reset {
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm5 {
+	status = "disabled";
+};
+
+&pwm7 {
+	status = "disabled";
+};
+
+&pmu_io_domains {
+	status = "okay";
+	pmuio1-supply = <&vcc3v3_pmu>;
+	pmuio2-supply = <&vcc3v3_pmu>;
+	vccio1-supply = <&vcc_3v3>;
+	vccio3-supply = <&vcc_3v3>;
+	vccio4-supply = <&vcc_3v3>;
+	vccio5-supply = <&vcc_3v3>;
+	vccio6-supply = <&vcc_3v3>;
+	vccio7-supply = <&vcc_3v3>;
+};
+
+&sdmmc0 {
+	status = "disabled";
+};
+
+&spdif_8ch {
+	status = "disabled";
+};
+
+&spdif_out {
+	status = "disabled";
+};
+
+&u2phy0_otg {
+	 /delete-property/ vbus-supply;
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	status = "okay";
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&vcc3v3_lcd1_n {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};

@@ -134,6 +134,13 @@ static int dp_altmode_configure(struct dp_altmode *dp, u8 con)
 				pin_assign = BIT(DP_PIN_ASSIGN_C);
 		}
 
+		/*
+		 * DFP_U never selects Pin Assignment E when Pin Assignment C
+		 * and possibly Pin Assignment D are offered by the UFP_U.
+		 */
+		if (pin_assign & (BIT(DP_PIN_ASSIGN_C) | BIT(DP_PIN_ASSIGN_D)))
+			pin_assign &= ~BIT(DP_PIN_ASSIGN_E);
+
 		if (!pin_assign)
 			return -EINVAL;
 

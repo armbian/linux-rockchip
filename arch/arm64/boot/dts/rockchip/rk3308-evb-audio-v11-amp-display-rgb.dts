@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-audio-v10-amp-display-rgb.dts"
+#include "rk3308-evb-audio-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308B EVB AUDIO DDR3 V11 Board + Rockchip RK3308 RGB ExtBoard V10";
+	compatible = "rockchip,rk3308-evb-audio-rgb-display-v11", "rockchip,rk3308";
+};

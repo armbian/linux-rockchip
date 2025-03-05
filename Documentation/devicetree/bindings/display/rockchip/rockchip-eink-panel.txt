@@ -1,0 +1,95 @@
+Rockchip EINK panel
+================================
+
+EINK panel timing:
+
+       │                            │FBL+FSL
+       │                            │
+       │                            │
+LBL+LSL│            LDL             │   LEL
+  ─────┼────────────────────────────┼───────
+       │                            │
+       │                            │
+       │         Active Area        │FDL
+       │                            │
+       │                            │
+  ─────┼────────────────────────────┼───────
+       │                            │
+       │                            │FEL
+       │                            │
+       │                            │
+
+┌─────────────────────────────────────────────┐
+│                 Active Area                 │
+│       ┌────────────────────────────┐        │
+│       │                            │        │
+│       │                            │        │
+│       │         Visible Area       │height  │vir_height
+│       │                            │        │
+│       │                            │        │
+│       └────────────────────────────┘        │
+│                    vidth                    │
+└─────────────────────────────────────────────┘
+                   vir_width
+
+----
+
+Required properties:
+- panel,width: visible width of panel in pixels
+- panel,height: visible height of panel in pixels
+- panel,vir_width: virtual width of panel pixels
+- panel,vir_height: virtual height of panel pixels
+- panel,sdck: frequency of sdclk in Hz
+- panel,lsl: line start length
+- panel,lbl: line back porch length
+- panel,ldl: line data length
+- panel,lel: line end porch length
+- panel,gdck-sta: gdck-sta length
+- panel,lgonl: lgonl length
+- panel,fsl: frame start length
+- panel,fbl: frame back porch length
+- panel,fdl: frame data length
+- panel,fel: frame end porch length
+- panel,panel_16bit: 1 for 16bit panel, 0 for 8bit panel
+- panel,panel_color: 1 for color panel, 0 for normal panel
+- panel,mirror: line scan direction. 0 for from left to right,
+		1 for from right to left.
+- panel,rearrange: image data need special arrangement.
+		   1 for special arrangement, 0 for no arrangement.
+- panel,width-mm: physical width of panel in millimeters
+- panel,height-mm: physical height of panel in millimeters
+
+Optional properties:
+- panel,sdoe_mode: SDOE signal mode setting.
+		   Set to 1, SDOE is active during total horizon.
+		   Set to 0, SDOE is active during total vertical.
+		   If not set, the default value is 0.
+- panel,sdce_width: width of SDCE signal.
+		    If not set, the default value is same as "panel,ldl".
+- panel,disable_logo: disable show logo. 1 for disable logo, 0 for enable logo.
+		      If not set, the default value is 0.
+
+Example:
+&ebc_dev {
+	/* ED103TC2 panel */
+	panel,width = <1872>;
+	panel,height = <1404>;
+	panel,vir_width = <1872>;
+	panel,vir_height = <1404>;
+	panel,sdck = <34000000>;
+	panel,lsl = <18>;
+	panel,lbl = <17>;
+	panel,ldl = <234>;
+	panel,lel = <7>;
+	panel,gdck-sta = <34>;
+	panel,lgonl = <192>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1404>;
+	panel,fel = <12>;
+	panel,mirror = <1>;
+	panel,panel_16bit = <1>;
+	panel,panel_color = <0>;
+	panel,width-mm = <157>;
+	panel,height-mm = <210>;
+};

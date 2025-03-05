@@ -2274,8 +2274,17 @@ int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 int drm_connector_set_path_property(struct drm_connector *connector,
 				    const char *path);
 int drm_connector_set_tile_property(struct drm_connector *connector);
+#ifdef CONFIG_DRM_EDID
 int drm_connector_update_edid_property(struct drm_connector *connector,
 				       const struct edid *edid);
+#else
+static inline
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid)
+{
+	return -ENODEV;
+}
+#endif
 void drm_connector_set_link_status_property(struct drm_connector *connector,
 					    uint64_t link_status);
 void drm_connector_set_vrr_capable_property(

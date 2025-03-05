@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <generated/utsrelease.h>
+#include <linux/of.h>
 
 enum test_power_id {
 	TEST_AC,
@@ -32,7 +33,7 @@ static int battery_health		= POWER_SUPPLY_HEALTH_GOOD;
 static int battery_present		= 1; /* true */
 static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
-static int battery_voltage		= 3300;
+static int battery_voltage		= 3300000;
 static int battery_charge_counter	= -1000;
 static int battery_current		= -1600;
 static enum power_supply_charge_behaviour battery_charge_behaviour =
@@ -242,6 +243,19 @@ static int __init test_power_init(void)
 {
 	int i;
 	int ret;
+	struct device_node *dev_node;
+
+	dev_node = of_find_node_by_name(NULL, "test-power");
+
+	if (!dev_node) {
+		pr_info("%s: could not find dev node\n", __func__);
+		return 0;
+	}
+	if (!of_device_is_available(dev_node)) {
+		pr_info("%s: test power disabled\n", __func__);
+		return 0;
+	}
+	of_node_put(dev_node);
 
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));

@@ -1,4 +1,28 @@
 # SPDX-License-Identifier: GPL-2.0
-spinand-objs := core.o alliancememory.o ato.o esmt.o foresee.o gigadevice.o macronix.o
-spinand-objs += micron.o paragon.o toshiba.o winbond.o xtx.o
+spinand-objs := core.o
 obj-$(CONFIG_MTD_SPI_NAND) += spinand.o
+
+spinand-$(CONFIG_MTD_SPI_NAND_ALLIANCEMEMORY)	+= alliancememory.o
+spinand-$(CONFIG_MTD_SPI_NAND_ATO)		+= ato.o
+spinand-$(CONFIG_MTD_SPI_NAND_BIWIN)		+= biwin.o
+spinand-$(CONFIG_MTD_SPI_NAND_DOSILICON)	+= dosilicon.o
+spinand-$(CONFIG_MTD_SPI_NAND_ESMT)		+= esmt.o
+spinand-$(CONFIG_MTD_SPI_NAND_ETRON)		+= etron.o
+spinand-$(CONFIG_MTD_SPI_NAND_FMSH)		+= fmsh.o
+spinand-$(CONFIG_MTD_SPI_NAND_FORESEE)		+= foresee.o
+spinand-$(CONFIG_MTD_SPI_NAND_GIGADEVICE)	+= gigadevice.o
+spinand-$(CONFIG_MTD_SPI_NAND_GSTO)		+= gsto.o
+spinand-$(CONFIG_MTD_SPI_NAND_HIKSEMI)		+= hiksemi.o
+spinand-$(CONFIG_MTD_SPI_NAND_HYF)		+= hyf.o
+spinand-$(CONFIG_MTD_SPI_NAND_JSC)		+= jsc.o
+spinand-$(CONFIG_MTD_SPI_NAND_MACRONIX)		+= macronix.o
+spinand-$(CONFIG_MTD_SPI_NAND_MICRON)		+= micron.o
+spinand-$(CONFIG_MTD_SPI_NAND_PARAGON)		+= paragon.o
+spinand-$(CONFIG_MTD_SPI_NAND_SILICONGO)	+= silicongo.o
+spinand-$(CONFIG_MTD_SPI_NAND_SKYHIGH)		+= skyhigh.o
+spinand-$(CONFIG_MTD_SPI_NAND_TOSHIBA)		+= toshiba.o
+spinand-$(CONFIG_MTD_SPI_NAND_UNIM)		+= unim.o
+spinand-$(CONFIG_MTD_SPI_NAND_WINBOND)		+= winbond.o
+spinand-$(CONFIG_MTD_SPI_NAND_XINCUN)		+= xincun.o
+spinand-$(CONFIG_MTD_SPI_NAND_XTX)		+= xtx.o
+spinand-$(CONFIG_MTD_SPI_NAND_ZBIT)		+= zbit.o

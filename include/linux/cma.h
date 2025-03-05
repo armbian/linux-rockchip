@@ -48,6 +48,9 @@ extern struct page *cma_alloc(struct cma *cma, unsigned long count, unsigned int
 			      bool no_warn);
 extern bool cma_pages_valid(struct cma *cma, const struct page *pages, unsigned long count);
 extern bool cma_release(struct cma *cma, const struct page *pages, unsigned long count);
+#ifdef CONFIG_NO_GKI
+extern unsigned long cma_used_pages(void);
+#endif
 
 extern int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data);
 

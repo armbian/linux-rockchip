@@ -43,6 +43,10 @@ static const char * const mem_sleep_labels[] = {
 	[PM_SUSPEND_TO_IDLE] = "s2idle",
 	[PM_SUSPEND_STANDBY] = "shallow",
 	[PM_SUSPEND_MEM] = "deep",
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	[PM_SUSPEND_MEM_LITE] = "lite",
+	[PM_SUSPEND_MEM_ULTRA] = "ultra",
+#endif
 };
 const char *mem_sleep_states[PM_SUSPEND_MAX];
 
@@ -226,6 +230,10 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	}
 	if (valid_state(PM_SUSPEND_MEM)) {
 		mem_sleep_states[PM_SUSPEND_MEM] = mem_sleep_labels[PM_SUSPEND_MEM];
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+		mem_sleep_states[PM_SUSPEND_MEM_LITE] = mem_sleep_labels[PM_SUSPEND_MEM_LITE];
+		mem_sleep_states[PM_SUSPEND_MEM_ULTRA] = mem_sleep_labels[PM_SUSPEND_MEM_ULTRA];
+#endif
 		if (mem_sleep_default >= PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_MEM;
 	}
@@ -622,6 +630,10 @@ int pm_suspend(suspend_state_t state)
 		return -EINVAL;
 
 	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (state == PM_SUSPEND_MEM_LITE || state == PM_SUSPEND_MEM_ULTRA)
+		state = PM_SUSPEND_MEM;
+#endif
 	error = enter_state(state);
 	dpm_save_errno(error);
 	pr_info("suspend exit\n");

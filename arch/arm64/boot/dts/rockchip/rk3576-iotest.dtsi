@@ -1,0 +1,150 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/usb/pd.h>
+#include "rk3576-evb.dtsi"
+#include "rk3576-rk806.dtsi"
+
+/ {
+	vcc_1v8_s0: vcc-1v8-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_1v8_s3>;
+	};
+
+	vcc_3v3_s0: vcc-3v3-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	vcc_ufs_s0: vcc-ufs-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ufs_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc1v8_ufs_vccq2_s0: vcc1v8-ufs-vccq2-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v8_ufs_vccq2_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_1v8_s3>;
+	};
+
+	vcc1v2_ufs_vccq_s0: vcc1v2-ufs-vccq-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v2_ufs_vccq_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd0_n";
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_3v3_s0>;
+	};
+
+	vcc3v3_pcie0: vcc3v3-pcie0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc3v3_pcie1: vcc3v3-pcie1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+/*
+ * mipidcphy0 needs to be enabled
+ * when dsi is enabled
+ */
+&dsi {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
+&gt1x {
+	status = "okay";
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "disabled";
+	connect = <&vp0_out_hdmi>;
+};
+
+&usb_drd0_dwc3 {
+	dr_mode = "peripheral";
+};
+
+&vp0 {
+	status = "okay";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&work_led {
+	status = "disabled";
+};

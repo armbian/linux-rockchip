@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Rockchip NAND Flash controller driver.
- * Copyright (C) 2020 Rockchip Inc.
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Author: Yifeng Zhao <yifeng.zhao@rock-chips.com>
  */
 
@@ -794,8 +794,10 @@ static int rk_nfc_read_page_hwecc(struct nand_chip *chip, u8 *buf, int oob_on,
 			  dma_oob);
 	ret = wait_for_completion_timeout(&nfc->done,
 					  msecs_to_jiffies(100));
-	if (!ret)
+	if (!ret) {
+		print_hex_dump(KERN_WARNING, "reg:", DUMP_PREFIX_OFFSET, 4, 4, nfc->regs, 0x84, 0);
 		dev_warn(nfc->dev, "read: wait dma done timeout.\n");
+	}
 	/*
 	 * Whether the DMA transfer is completed or not. The driver
 	 * needs to check the NFC`s status register to see if the data
@@ -1460,6 +1462,9 @@ static int __maybe_unused rk_nfc_resume(struct device *dev)
 	ret = rk_nfc_enable_clks(dev, nfc);
 	if (ret)
 		return ret;
+
+	rk_nfc_hw_init(nfc);
+	nfc->cur_ecc = 0;
 
 	/* Reset NAND chip if VCC was powered off. */
 	list_for_each_entry(rknand, &nfc->chips, node) {

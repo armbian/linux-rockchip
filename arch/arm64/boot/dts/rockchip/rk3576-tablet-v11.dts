@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576-tablet.dtsi"
+#include "rk3576-android.dtsi"
+#include "rk3576-rk806-tablet-camera-v11.dtsi"
+
+
+/ {
+	model = "Rockchip RK3576 TABLET V11 Board";
+	compatible = "rockchip,rk3576-tablet-v11", "rockchip,rk3576";
+};
+
+&vcc_1v8_cam {
+	regulator-always-on;
+};
+

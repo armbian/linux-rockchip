@@ -126,6 +126,7 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->g_dma_desc = false;
 	p->lpm = false;
 	p->lpm_clock_gating = false;
 	p->besl = false;

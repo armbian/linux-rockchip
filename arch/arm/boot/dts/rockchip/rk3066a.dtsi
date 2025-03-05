@@ -14,6 +14,10 @@
 	compatible = "rockchip,rk3066a";
 
 	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
 		gpio4 = &gpio4;
 		gpio6 = &gpio6;
 	};
@@ -28,16 +32,7 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x0>;
-			operating-points =
-				/* kHz    uV */
-				<1416000 1300000>,
-				<1200000 1175000>,
-				<1008000 1125000>,
-				<816000  1125000>,
-				<600000  1100000>,
-				<504000  1100000>,
-				<312000  1075000>;
-			clock-latency = <40000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 			clocks = <&cru ARMCLK>;
 		};
 		cpu1: cpu@1 {
@@ -45,6 +40,37 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x1>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-312000000 {
+			opp-hz = /bits/ 64 <312000000>;
+			opp-microvolt = <1075000 1075000 1125000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		opp-504000000 {
+			opp-hz = /bits/ 64 <504000000>;
+			opp-microvolt = <1100000 1100000 1125000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <1125000 1125000 1125000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <1125000 1125000 1125000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
 		};
 	};
 
@@ -79,6 +105,83 @@
 		smp-sram@0 {
 			compatible = "rockchip,rk3066-smp-sram";
 			reg = <0x0 0x50>;
+		};
+	};
+
+	gpu: gpu@10090000 {
+		compatible = "arm,mali400";
+
+		reg = <0x10091000 0x200>,
+		      <0x10090000 0x100>,
+		      <0x10093000 0x100>,
+		      <0x10098000 0x1100>,
+		      <0x10094000 0x100>,
+		      <0x1009A000 0x1100>,
+		      <0x10095000 0x100>,
+		      <0x1009C000 0x1100>,
+		      <0x10096000 0x100>,
+		      <0x1009E000 0x1100>,
+		      <0x10097000 0x100>;
+		reg-names = "Mali_L2",
+			    "Mali_GP",
+			    "Mali_GP_MMU",
+			    "Mali_PP0",
+			    "Mali_PP0_MMU",
+			    "Mali_PP1",
+			    "Mali_PP1_MMU",
+			    "Mali_PP2",
+			    "Mali_PP2_MMU",
+			    "Mali_PP3",
+			    "Mali_PP3_MMU";
+
+		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ",
+				  "Mali_PP1_IRQ",
+				  "Mali_PP1_MMU_IRQ",
+				  "Mali_PP2_IRQ",
+				  "Mali_PP2_MMU_IRQ",
+				  "Mali_PP3_IRQ",
+				  "Mali_PP3_MMU_IRQ";
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
+
+		operating-points-v2 = <&gpu_opp_table>;
+		status = "disabled";
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <950>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu-thermal";
+		};
+	};
+
+	gpu_opp_table: opp-table2 {
+		compatible = "operating-points-v2";
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1050000>;
+			status = "disabled";
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1275000>;
+			status = "disabled";
 		};
 	};
 
@@ -179,10 +282,12 @@
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_bus>;
-		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S0>;
-		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1_s 4>, <&dmac1_s 5>;
 		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S_8CH>, <&cru SCLK_I2S0>;
+		resets = <&cru SRST_I2S0>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <8>;
 		rockchip,capture-channels = <2>;
 		#sound-dai-cells = <0>;
@@ -195,10 +300,12 @@
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_bus>;
-		clocks = <&cru SCLK_I2S1>, <&cru HCLK_I2S1>;
-		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
 		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S0_2CH>, <&cru SCLK_I2S1>;
+		resets = <&cru SRST_I2S1>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
 		#sound-dai-cells = <0>;
@@ -211,10 +318,12 @@
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2_bus>;
-		clocks = <&cru SCLK_I2S2>, <&cru HCLK_I2S2>;
-		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1_s 9>, <&dmac1_s 10>;
 		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S1_2CH>, <&cru SCLK_I2S2>;
+		resets = <&cru SRST_I2S2>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
 		#sound-dai-cells = <0>;
@@ -229,14 +338,19 @@
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-		assigned-clocks = <&cru PLL_CPLL>, <&cru PLL_GPLL>,
-				  <&cru ACLK_CPU>, <&cru HCLK_CPU>,
-				  <&cru PCLK_CPU>, <&cru ACLK_PERI>,
-				  <&cru HCLK_PERI>, <&cru PCLK_PERI>;
-		assigned-clock-rates = <400000000>, <594000000>,
-				       <300000000>, <150000000>,
-				       <75000000>, <300000000>,
-				       <150000000>, <75000000>;
+
+		assigned-clocks =
+			<&cru PLL_GPLL>, <&cru ARMCLK>,
+			<&cru PLL_CPLL>, <&cru ACLK_PERI>,
+			<&cru HCLK_PERI>, <&cru PCLK_PERI>,
+			<&cru ACLK_CPU>, <&cru HCLK_CPU>,
+			<&cru PCLK_CPU>;
+		assigned-clock-rates =
+			<594000000>, <816000000>,
+			<400000000>, <150000000>,
+			<75000000>, <75000000>,
+			<150000000>, <75000000>,
+			<75000000>;
 	};
 
 	timer2: timer@2000e000 {
@@ -299,6 +413,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20034000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO0>;
 
 			gpio-controller;
@@ -312,6 +427,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO1>;
 
 			gpio-controller;
@@ -325,6 +441,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003e000 0x100>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO2>;
 
 			gpio-controller;
@@ -338,6 +455,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20080000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO3>;
 
 			gpio-controller;
@@ -351,6 +469,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20084000 0x100>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO4>;
 
 			gpio-controller;
@@ -364,6 +483,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO6>;
 
 			gpio-controller;
@@ -828,22 +948,22 @@
 };
 
 &pwm0 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm0_out>;
 };
 
 &pwm1 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm1_out>;
 };
 
 &pwm2 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm2_out>;
 };
 
 &pwm3 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm3_out>;
 };
 

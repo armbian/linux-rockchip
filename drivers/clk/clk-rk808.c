@@ -179,6 +179,10 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 		return ret;
 
 	init.name = "rk808-clkout2";
+
+	if (of_property_read_bool(node, "rockchip,clk-32k-always-on"))
+		init.flags |= CLK_IS_CRITICAL;
+
 	init.ops = rkpmic_get_ops(rk808->variant);
 	rk808_clkout->clkout2_hw.init = &init;
 

@@ -1538,6 +1538,11 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (!sysfs_initialized)
 		return -EACCES;
 
+#ifdef CONFIG_NO_GKI
+	if (atomic_cmpxchg(&pdev->sysfs_init_cnt, 0, 1) == 1)
+		return 0; /* already added */
+#endif
+
 	return pci_create_resource_files(pdev);
 }
 
@@ -1551,6 +1556,11 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
 	if (!sysfs_initialized)
 		return;
+
+#ifdef CONFIG_NO_GKI
+	if (atomic_cmpxchg(&pdev->sysfs_init_cnt, 1, 0) == 0)
+		return;	/* already removed */
+#endif
 
 	pci_remove_resource_files(pdev);
 }

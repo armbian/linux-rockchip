@@ -16,13 +16,16 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
 
 #include "sdhci-pltfm.h"
 #include "cqhci.h"
+#include "sdhci-cqhci.h"
 
 #define SDHCI_DWCMSHC_ARG2_STUFF	GENMASK(31, 16)
 
@@ -75,13 +78,19 @@
 #define CV18XX_TUNE_STEP			1
 #define CV18XX_RETRY_TUNING_MAX			50
 
+/* DWC IP vendor area 2 pointer */
+#define DWCMSHC_P_VENDOR_AREA2		0xea
+
 /* Rockchip specific Registers */
 #define DWCMSHC_EMMC_DLL_CTRL		0x800
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
 #define DWCMSHC_EMMC_DLL_TXCLK		0x808
 #define DWCMSHC_EMMC_DLL_STRBIN		0x80c
 #define DECMSHC_EMMC_DLL_CMDOUT		0x810
+#define DECMSHC_EMMC_MISC_CON		0x81C
+#define MISC_INTCLK_EN			BIT(1)
 #define DWCMSHC_EMMC_DLL_STATUS0	0x840
+#define DWCMSHC_EMMC_DLL_STATUS1	0x844
 #define DWCMSHC_EMMC_DLL_START		BIT(0)
 #define DWCMSHC_EMMC_DLL_LOCKED		BIT(8)
 #define DWCMSHC_EMMC_DLL_TIMEOUT	BIT(9)
@@ -90,6 +99,8 @@
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_BYPASS		BIT(24)
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
+#define DLL_TAP_VALUE_SEL		BIT(25)
+#define DLL_TAP_VALUE_OFFSET		8
 #define DLL_TXCLK_TAPNUM_DEFAULT	0x10
 #define DLL_TXCLK_TAPNUM_90_DEGREES	0xA
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
@@ -102,9 +113,11 @@
 #define DLL_RXCLK_INVERTER		0
 #define DLL_CMDOUT_TAPNUM_90_DEGREES	0x8
 #define DLL_RXCLK_ORI_GATE		BIT(31)
+#define DLL_RXCLK_MAX_TAP		32
 #define DLL_CMDOUT_TAPNUM_FROM_SW	BIT(24)
 #define DLL_CMDOUT_SRC_CLK_NEG		BIT(28)
 #define DLL_CMDOUT_EN_SRC_CLK_NEG	BIT(29)
+#define DLL_CMDOUT_BOTH_CLK_EDGE	BIT(30)
 
 #define DLL_LOCK_WO_TMOUT(x) \
 	((((x) & DWCMSHC_EMMC_DLL_LOCKED) == DWCMSHC_EMMC_DLL_LOCKED) && \
@@ -210,10 +223,29 @@ enum dwcmshc_rk_type {
 	DWCMSHC_RK3588,
 };
 
+struct dwcmshc_driver_data {
+	const struct sdhci_pltfm_data *pdata;
+	u32 flags;
+#define RK_PLATFROM		BIT(0)
+#define RK_DLL_CMD_OUT		BIT(1)
+#define RK_RXCLK_NO_INVERTER	BIT(2)
+#define RK_TAP_VALUE_SEL	BIT(3)
+
+	u8 hs200_tx_tap;
+	u8 hs400_tx_tap;
+	u8 hs400_cmd_tap;
+	u8 ddr50_strbin_delay_num;
+	u8 hs400_strbin_tap;
+};
+
 struct rk35xx_priv {
 	struct reset_control *reset;
 	enum dwcmshc_rk_type devtype;
 	u8 txclk_tapnum;
+	u32 cclk_rate;
+	unsigned int actual_clk;
+	const struct dwcmshc_driver_data *drv_data;
+	u32 acpi_en;
 };
 
 #define DWCMSHC_MAX_OTHER_CLKS 3
@@ -577,6 +609,61 @@ static void dwcmshc_sdhci_cqe_enable(struct mmc_host *mmc)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static void rk35xx_sdhci_cqe_enable(struct mmc_host *mmc)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
+	u32 reg;
+
+	reg = sdhci_readl(host, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
+	reg |= CQHCI_ENABLE;
+	sdhci_writel(host, reg, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
+
+	reg = sdhci_readl(host, SDHCI_PRESENT_STATE);
+	while (reg & SDHCI_DATA_AVAILABLE) {
+		sdhci_readl(host, SDHCI_BUFFER);
+		reg = sdhci_readl(host, SDHCI_PRESENT_STATE);
+	}
+
+	sdhci_writew(host, DWCMSHC_SDHCI_CQE_TRNS_MODE, SDHCI_TRANSFER_MODE);
+
+	sdhci_cqe_enable(mmc);
+
+	sdhci_writew(host, DWCMSHC_SDHCI_CQE_TRNS_MODE, SDHCI_TRANSFER_MODE);
+}
+
+static void rk35xx_sdhci_cqe_disabled(struct mmc_host *mmc, bool recovery)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
+	unsigned long flags;
+	u32 ctrl;
+
+	mmc->cqe_ops->cqe_wait_for_idle(mmc);
+	spin_lock_irqsave(&host->lock, flags);
+
+	/*
+	 * During CQE command transfers, command complete bit gets latched.
+	 * So s/w should clear command complete interrupt status when CQE is
+	 * either halted or disabled. Otherwise unexpected SDCHI legacy
+	 * interrupt gets triggered when CQE is halted/disabled.
+	 */
+	ctrl = sdhci_readl(host, SDHCI_INT_ENABLE);
+	ctrl |= SDHCI_INT_RESPONSE;
+	sdhci_writel(host,  ctrl, SDHCI_INT_ENABLE);
+	sdhci_writel(host, SDHCI_INT_RESPONSE, SDHCI_INT_STATUS);
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	sdhci_cqe_disable(mmc, recovery);
+
+	ctrl = sdhci_readl(host, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
+	ctrl &= ~CQHCI_ENABLE;
+	sdhci_writel(host, ctrl, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
+}
+
 static void dwcmshc_set_tran_desc(struct cqhci_host *cq_host, u8 **desc,
 				  dma_addr_t addr, int len, bool end, bool dma64)
 {
@@ -607,8 +694,9 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	struct rk35xx_priv *priv = dwc_priv->priv;
+	const struct dwcmshc_driver_data *drv_data = priv->drv_data;
 	u8 txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
-	u32 extra, reg;
+	u32 extra, reg, dll_lock_value;
 	int err;
 
 	host->mmc->actual_clock = 0;
@@ -623,9 +711,20 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	if (clock <= 400000)
 		clock = 375000;
 
-	err = clk_set_rate(pltfm_host->clk, clock);
-	if (err)
-		dev_err(mmc_dev(host->mmc), "fail to set clock %d", clock);
+	if (priv->acpi_en) {
+		union acpi_object params[1];
+		struct acpi_object_list param_objects;
+
+		params[0].type = ACPI_TYPE_INTEGER;
+		params[0].integer.value  = clock;
+		param_objects.count = 1;
+		param_objects.pointer = params;
+		acpi_evaluate_object(ACPI_HANDLE(mmc_dev(host->mmc)), "SCLK", &param_objects, NULL);
+	} else {
+		err = clk_set_rate(pltfm_host->clk, clock);
+		if (err)
+			dev_err(mmc_dev(host->mmc), "fail to set clock %d", clock);
+	}
 
 	sdhci_set_clock(host, clock);
 
@@ -635,10 +734,18 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	extra &= ~BIT(0);
 	sdhci_writel(host, extra, reg);
 
+	/* Disable output clock while config DLL */
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
 	if (clock <= 52000000) {
 		/*
 		 * Disable DLL and reset both of sample and drive clock.
 		 * The bypass bit and start bit need to be set if DLL is not locked.
+		 */
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
+		/*
+		 * Config DLL BYPASS and Reset both of sample and drive clock.
+		 * The bypass bit and start bit need to set if DLL is not locked.
 		 */
 		sdhci_writel(host, DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START, DWCMSHC_EMMC_DLL_CTRL);
 		sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK);
@@ -651,9 +758,9 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 		 */
 		extra = DWCMSHC_EMMC_DLL_DLYENA |
 			DLL_STRBIN_DELAY_NUM_SEL |
-			DLL_STRBIN_DELAY_NUM_DEFAULT << DLL_STRBIN_DELAY_NUM_OFFSET;
+			drv_data->ddr50_strbin_delay_num << DLL_STRBIN_DELAY_NUM_OFFSET;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
-		return;
+		goto exit;
 	}
 
 	/* Reset DLL */
@@ -661,15 +768,8 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	udelay(1);
 	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
 
-	/*
-	 * We shouldn't set DLL_RXCLK_NO_INVERTER for identify mode but
-	 * we must set it in higher speed mode.
-	 */
-	extra = DWCMSHC_EMMC_DLL_DLYENA;
-	if (priv->devtype == DWCMSHC_RK3568)
-		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
-
+	/* Init DLL settings, clean start bit before resetting */
+	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 	/* Init DLL settings */
 	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
 		0x2 << DWCMSHC_EMMC_DLL_INC |
@@ -680,39 +780,56 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 				 500 * USEC_PER_MSEC);
 	if (err) {
 		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
-		return;
+		goto exit;
 	}
+
+	dll_lock_value = ((sdhci_readl(host, DWCMSHC_EMMC_DLL_STATUS0) & 0xFF) * 2) & 0xFF;
 
 	extra = 0x1 << 16 | /* tune clock stop en */
 		0x3 << 17 | /* pre-change delay */
 		0x3 << 19;  /* post-change delay */
 	sdhci_writel(host, extra, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
 
-	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
-	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400)
-		txclk_tapnum = priv->txclk_tapnum;
+	extra = DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_ORI_GATE;
+	if (drv_data->flags & RK_RXCLK_NO_INVERTER)
+		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
-	if ((priv->devtype == DWCMSHC_RK3588) && host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
-		txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES;
+	txclk_tapnum = drv_data->hs200_tx_tap;
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		txclk_tapnum = drv_data->hs400_tx_tap;
 
-		extra = DLL_CMDOUT_SRC_CLK_NEG |
-			DLL_CMDOUT_EN_SRC_CLK_NEG |
-			DWCMSHC_EMMC_DLL_DLYENA |
-			DLL_CMDOUT_TAPNUM_90_DEGREES |
-			DLL_CMDOUT_TAPNUM_FROM_SW;
-		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+		if (drv_data->flags & RK_DLL_CMD_OUT) {
+			extra = DLL_CMDOUT_SRC_CLK_NEG |
+				DLL_CMDOUT_BOTH_CLK_EDGE |
+				DWCMSHC_EMMC_DLL_DLYENA |
+				drv_data->hs400_cmd_tap |
+				DLL_CMDOUT_TAPNUM_FROM_SW;
+			if (drv_data->flags & RK_TAP_VALUE_SEL)
+				extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
+			sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+		}
 	}
-
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
 		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL |
 		txclk_tapnum;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_STRBIN_TAPNUM_DEFAULT |
+		drv_data->hs400_strbin_tap |
 		DLL_STRBIN_TAPNUM_FROM_SW;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
+
+exit:
+	/* enable output clock */
+	sdhci_enable_clk(host, 0);
 }
 
 static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
@@ -720,6 +837,10 @@ static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	struct rk35xx_priv *priv = dwc_priv->priv;
+	u32 extra = sdhci_readl(host, DECMSHC_EMMC_MISC_CON);
+
+	if ((host->mmc->caps2 & MMC_CAP2_CQE) && (mask & SDHCI_RESET_ALL))
+		cqhci_deactivate(host->mmc);
 
 	if (mask & SDHCI_RESET_ALL && priv->reset) {
 		reset_control_assert(priv->reset);
@@ -728,6 +849,140 @@ static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	}
 
 	sdhci_reset(host, mask);
+
+	/* Enable INTERNAL CLOCK */
+	sdhci_writel(host, MISC_INTCLK_EN | extra, DECMSHC_EMMC_MISC_CON);
+}
+
+static void sdhci_dwcmshc_request_done(struct sdhci_host *host, struct mmc_request *mrq)
+{
+	if (!(host->mmc->caps2 & MMC_CAP2_CQE)) {
+		if (mmc_hsq_finalize_request(host->mmc, mrq))
+			return;
+	}
+
+	mmc_request_done(host->mmc, mrq);
+}
+
+static const struct sdhci_ops sdhci_dwcmshc_ops = {
+	.set_clock		= sdhci_set_clock,
+	.set_bus_width		= sdhci_set_bus_width,
+	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
+	.get_max_clock		= dwcmshc_get_max_clock,
+	.reset			= sdhci_reset,
+	.adma_write_desc	= dwcmshc_adma_write_desc,
+	.irq			= dwcmshc_cqe_irq_handler,
+};
+
+static const struct sdhci_ops sdhci_dwcmshc_rk35xx_ops = {
+	.set_clock		= dwcmshc_rk3568_set_clock,
+	.set_bus_width		= sdhci_set_bus_width,
+	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
+	.get_max_clock		= sdhci_pltfm_clk_get_max_clock,
+	.reset			= rk35xx_sdhci_reset,
+	.adma_write_desc	= dwcmshc_adma_write_desc,
+	.irq			= dwcmshc_cqe_irq_handler,
+	.request_done		= sdhci_dwcmshc_request_done,
+};
+
+static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
+	.ops = &sdhci_dwcmshc_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+};
+
+#ifdef CONFIG_ACPI
+static const struct sdhci_pltfm_data sdhci_dwcmshc_bf3_pdata = {
+	.ops = &sdhci_dwcmshc_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   SDHCI_QUIRK2_ACMD23_BROKEN,
+};
+#endif
+
+static const struct sdhci_pltfm_data sdhci_dwcmshc_rk35xx_pdata = {
+	.ops = &sdhci_dwcmshc_rk35xx_ops,
+	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+};
+
+static const struct cqhci_host_ops dwcmshc_cqhci_ops = {
+	.enable		= dwcmshc_sdhci_cqe_enable,
+	.disable	= sdhci_cqe_disable,
+	.dumpregs	= dwcmshc_cqhci_dumpregs,
+	.set_tran_desc	= dwcmshc_set_tran_desc,
+};
+
+static const struct cqhci_host_ops rk35xx_cqhci_ops = {
+	.enable		= rk35xx_sdhci_cqe_enable,
+	.disable	= rk35xx_sdhci_cqe_disabled,
+	.dumpregs	= dwcmshc_cqhci_dumpregs,
+	.set_tran_desc	= dwcmshc_set_tran_desc,
+};
+
+static void dwcmshc_cqhci_init(struct sdhci_host *host, struct platform_device *pdev)
+{
+	struct cqhci_host *cq_host;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct rk35xx_priv *rk_priv = priv->priv;
+	bool dma64 = false;
+	u16 clk;
+	int err;
+
+	host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
+	cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
+	if (!cq_host) {
+		dev_err(mmc_dev(host->mmc), "Unable to setup CQE: not enough memory\n");
+		goto dsbl_cqe_caps;
+	}
+
+	/*
+	 * For dwcmshc host controller we have to enable internal clock
+	 * before access to some registers from Vendor Specific Area 2.
+	 */
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk |= SDHCI_CLOCK_INT_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	if (!(clk & SDHCI_CLOCK_INT_EN)) {
+		dev_err(mmc_dev(host->mmc), "Unable to setup CQE: internal clock enable error\n");
+		goto free_cq_host;
+	}
+
+	cq_host->mmio = host->ioaddr + priv->vendor_specific_area2;
+	if (rk_priv)
+		cq_host->ops = &rk35xx_cqhci_ops;
+	else
+		cq_host->ops = &dwcmshc_cqhci_ops;
+
+	/* Enable using of 128-bit task descriptors */
+	dma64 = host->flags & SDHCI_USE_64_BIT_DMA;
+	if (dma64) {
+		dev_dbg(mmc_dev(host->mmc), "128-bit task descriptors\n");
+		cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
+	}
+	err = cqhci_init(cq_host, host->mmc, dma64);
+	if (err) {
+		dev_err(mmc_dev(host->mmc), "Unable to setup CQE: error %d\n", err);
+		goto int_clock_disable;
+	}
+
+	dev_dbg(mmc_dev(host->mmc), "CQE init done\n");
+
+	return;
+
+int_clock_disable:
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= ~SDHCI_CLOCK_INT_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+free_cq_host:
+	devm_kfree(&pdev->dev, cq_host);
+
+dsbl_cqe_caps:
+	host->mmc->caps2 &= ~(MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD);
 }
 
 static int dwcmshc_rk35xx_init(struct device *dev, struct sdhci_host *host,
@@ -1311,18 +1566,85 @@ dsbl_cqe_caps:
 	host->mmc->caps2 &= ~(MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD);
 }
 
+static const struct dwcmshc_driver_data dwcmshc_drvdata = {
+	.pdata = &sdhci_dwcmshc_pdata,
+	.flags = 0,
+};
+
+static const struct dwcmshc_driver_data rk3568_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_RXCLK_NO_INVERTER | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 8,
+	.hs400_cmd_tap = 8,
+	.hs400_strbin_tap = 4,
+	.ddr50_strbin_delay_num = 16,
+};
+
+static const struct dwcmshc_driver_data rk3588_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 9,
+	.hs400_cmd_tap = 8,
+	.hs400_strbin_tap = 4,
+	.ddr50_strbin_delay_num = 16,
+};
+
+static const struct dwcmshc_driver_data rk3528_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 12,
+	.hs400_tx_tap = 6,
+	.hs400_cmd_tap = 6,
+	.hs400_strbin_tap = 3,
+	.ddr50_strbin_delay_num = 10,
+};
+
+static const struct dwcmshc_driver_data rk3562_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 12,
+	.hs400_tx_tap = 6,
+	.hs400_cmd_tap = 6,
+	.hs400_strbin_tap = 3,
+	.ddr50_strbin_delay_num = 10,
+};
+
+static const struct dwcmshc_driver_data rk3576_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 7,
+	.hs400_cmd_tap = 7,
+	.hs400_strbin_tap = 5,
+	.ddr50_strbin_delay_num = 10,
+};
+
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &rk3588_drvdata,
+	},
+	{
+		.compatible = "rockchip,rk3576-dwcmshc",
+		.data = &rk3576_drvdata,
 	},
 	{
 		.compatible = "rockchip,rk3568-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &rk3568_drvdata,
+	},
+	{
+		.compatible = "rockchip,rk3528-dwcmshc",
+		.data = &rk3528_drvdata,
+	},
+	{
+		.compatible = "rockchip,rk3562-dwcmshc",
+		.data = &rk3562_drvdata,
 	},
 	{
 		.compatible = "snps,dwcmshc-sdhci",
-		.data = &sdhci_dwcmshc_pdata,
+		.data = &dwcmshc_drvdata,
 	},
 	{
 		.compatible = "sophgo,cv1800b-dwcmshc",
@@ -1362,14 +1684,17 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	struct sdhci_host *host;
 	struct dwcmshc_priv *priv;
 	const struct dwcmshc_pltfm_data *pltfm_data;
+	struct rk35xx_priv *rk_priv = NULL;
+	const struct dwcmshc_driver_data *drv_data;
 	int err;
 	u32 extra, caps;
 
-	pltfm_data = device_get_match_data(&pdev->dev);
-	if (!pltfm_data) {
+	drv_data = device_get_match_data(&pdev->dev);
+	if (!drv_data) {
 		dev_err(&pdev->dev, "Error: No device match data found\n");
 		return -ENODEV;
 	}
+	pltfm_data = drv_data->pdata;
 
 	host = sdhci_pltfm_init(pdev, &pltfm_data->pdata,
 				sizeof(struct dwcmshc_priv));
@@ -1416,6 +1741,25 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe = dwcmshc_hs400_enhanced_strobe;
 	host->mmc_host_ops.execute_tuning = dwcmshc_execute_tuning;
 
+	if (drv_data->flags & RK_PLATFROM) {
+		rk_priv = devm_kzalloc(&pdev->dev, sizeof(struct rk35xx_priv), GFP_KERNEL);
+		if (!rk_priv) {
+			err = -ENOMEM;
+			goto err_clk;
+		}
+
+		rk_priv->drv_data = drv_data;
+		rk_priv->acpi_en = has_acpi_companion(&pdev->dev);
+
+		if (of_device_is_compatible(pdev->dev.of_node, "rockchip,rk3588-dwcmshc"))
+			rk_priv->devtype = DWCMSHC_RK3588;
+		else
+			rk_priv->devtype = DWCMSHC_RK3568;
+
+		priv->priv = rk_priv;
+
+	}
+
 	if (pltfm_data->init) {
 		err = pltfm_data->init(&pdev->dev, host, priv);
 		if (err)
@@ -1457,6 +1801,20 @@ static int dwcmshc_probe(struct platform_device *pdev)
 		goto err_setup_host;
 
 	pm_runtime_put(dev);
+	if (rk_priv && !rk_priv->acpi_en) {
+		if (dev->pm_domain) {
+			struct generic_pm_domain *genpd;
+
+			genpd = pd_to_genpd(dev->pm_domain);
+			genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
+		}
+		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	}
 
 	return 0;
 
@@ -1494,6 +1852,13 @@ static void dwcmshc_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
+
+	if (rk_priv && !rk_priv->acpi_en) {
+		pm_runtime_get_sync(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+	}
 
 	sdhci_remove_host(host, 0);
 

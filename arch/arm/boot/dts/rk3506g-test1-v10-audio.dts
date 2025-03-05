@@ -1,0 +1,624 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+
+/ {
+	model = "Rockchip RK3506G TEST1 V10 Audio Board";
+	compatible = "rockchip,rk3506g-test1-v10", "rockchip,rk3506";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=5 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
+	};
+
+	acodec_sound: acodec-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "sai4-1r-adc";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <1024>;
+		simple-audio-card,bitclock-master = <&codec_master>;
+		simple-audio-card,frame-master = <&codec_master>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai4>;
+		};
+		codec_master: simple-audio-card,codec {
+			sound-dai = <&audio_codec>;
+		};
+	};
+
+	dsm_sound: dsm-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip-dsm-sound";
+		simple-audio-card,bitclock-master = <&dsm_master>;
+		simple-audio-card,frame-master = <&dsm_master>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+		dsm_master: simple-audio-card,codec {
+			sound-dai = <&acdcdig_dsm>;
+		};
+	};
+
+	extcon_usb: extcon-usb {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_LOW>;
+		id-gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_extcon_vbus &usb_extcon_id>;
+		status = "okay";
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <0>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	gpio_i2c0: i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>, /* sda */
+			<&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>; /* scl */
+		i2c-gpio,delay-us = <2>;		  /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_i2c0_pins>;
+
+		es8388_6: es8388@11 {
+			#sound-dai-cells = <0>;
+			compatible = "everest,es8388", "everest,es8323";
+			reg = <0x11>;
+			clocks = <&mclkout_sai1>;
+			clock-names = "mclk";
+			assigned-clocks = <&mclkout_sai1>;
+			assigned-clock-rates = <12288000>;
+			sound-name-prefix = "ES8388-6";
+		};
+
+		es8388_7: es8388@10 {
+			#sound-dai-cells = <0>;
+			compatible = "everest,es8388", "everest,es8323";
+			reg = <0x10>;
+			clocks = <&mclkout_sai1>;
+			clock-names = "mclk";
+			assigned-clocks = <&mclkout_sai1>;
+			assigned-clock-rates = <12288000>;
+			sound-name-prefix = "ES8388-7";
+		};
+	};
+
+	gpio_i2c1: i2c@1 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_HIGH>, /* sda */
+			<&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>; /* scl */
+		i2c-gpio,delay-us = <2>;		  /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_i2c1_pins>;
+
+		es8388_8: es8388@11 {
+			#sound-dai-cells = <0>;
+			compatible = "everest,es8388", "everest,es8323";
+			reg = <0x11>;
+			clocks = <&mclkout_sai2>;
+			clock-names = "mclk";
+			assigned-clocks = <&mclkout_sai2>;
+			assigned-clock-rates = <12288000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai2m0_mclk_pins>;
+			sound-name-prefix = "ES8388-8";
+		};
+
+		es8388_9: es8388@10 {
+			#sound-dai-cells = <0>;
+			compatible = "everest,es8388", "everest,es8323";
+			reg = <0x10>;
+			clocks = <&mclkout_sai3>;
+			clock-names = "mclk";
+			assigned-clocks = <&mclkout_sai3>;
+			assigned-clock-rates = <12288000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai3_mclk_pins>;
+			sound-name-prefix = "ES8388-9";
+		};
+	};
+
+	pdm_mic_array: pdm-mic-array {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,pdm-mic-array";
+		rockchip,cpu = <&pdm>;
+		rockchip,codec = <&es7202_0>, <&es7202_1>,
+				 <&es7202_2>, <&es7202_3>;
+	};
+
+	/* SAI0 1TX + 4RX */
+	sai0_es8388x4_sound: sai0-es8388x4-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "sai0-1t4r-es8388x4";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai0>;
+		rockchip,codec = <&es8388_0>, <&es8388_1>,
+				 <&es8388_2>, <&es8388_3>;
+		rockchip,audio-routing =
+			"Speaker", "ES8388-0 LOUT1",
+			"Speaker", "ES8388-0 ROUT1",
+			"ES8388-0 LINPUT1", "Main Mic", /* From ES8388-4 */
+			"ES8388-0 LINPUT2", "Main Mic", /* From ES8388-4 */
+			"ES8388-1 LINPUT1", "Main Mic", /* From ES8388-5 */
+			"ES8388-1 LINPUT2", "Main Mic", /* From ES8388-5 */
+			"ES8388-2 LINPUT1", "Main Mic", /* From ES8388-6 */
+			"ES8388-2 LINPUT2", "Main Mic", /* From ES8388-6 */
+			"ES8388-3 LINPUT1", "Main Mic", /* From ES8388-7 */
+			"ES8388-3 LINPUT2", "Main Mic"; /* From ES8388-7 */
+	};
+
+	/* SAI1 4TX + 1RX */
+	sai1_es8388x4_sound: sai1-es8388x4-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "sai1-4t1r-es8388x4";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai1>;
+		rockchip,codec = <&es8388_4>, <&es8388_5>,
+				 <&es8388_6>, <&es8388_7>;
+		rockchip,audio-routing =
+			"Speaker", "ES8388-4 LOUT1",
+			"Speaker", "ES8388-4 ROUT1",
+			"Speaker", "ES8388-5 LOUT1",
+			"Speaker", "ES8388-5 ROUT1",
+			"Speaker", "ES8388-6 LOUT1",
+			"Speaker", "ES8388-6 ROUT1",
+			"Speaker", "ES8388-7 LOUT1",
+			"Speaker", "ES8388-7 ROUT1",
+			"ES8388-4 LINPUT1", "Main Mic", /* From ES8388-0 */
+			"ES8388-4 LINPUT2", "Main Mic"; /* From ES8388-0 */
+	};
+
+	/* SAI2 1TX + 1RX */
+	sai2_es8388x1_sound: sai2-es8388x1-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "sai2-1t1r-es8388x1";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai2>;
+		rockchip,codec = <&es8388_8>;
+		rockchip,audio-routing =
+			"Speaker", "ES8388-8 LOUT1",
+			"Speaker", "ES8388-8 ROUT1",
+			"ES8388-8 LINPUT1", "Main Mic", /* From ES8388-8 */
+			"ES8388-8 LINPUT2", "Main Mic"; /* From ES8388-8 */
+	};
+
+	/* SAI3 1TX + 1RX */
+	sai3_es8388x1_sound: sai3-es8388x1-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "sai3-1t1r-es8388x1";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai3>;
+		rockchip,codec = <&es8388_9>;
+		rockchip,audio-routing =
+			"Speaker", "ES8388-9 LOUT1",
+			"Speaker", "ES8388-9 ROUT1",
+			"ES8388-9 LINPUT1", "Main Mic", /* From ES8388-9 */
+			"ES8388-9 LINPUT2", "Main Mic"; /* From ES8388-9 */
+	};
+
+	spdif_rx_dc: spdif-rx-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_rx_sound: spdif-rx-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "spdif-rx-sound";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_rx>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_rx_dc>;
+		};
+	};
+
+	spdif_tx_dc: spdif-tx-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx_sound: spdif-tx-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "spdif-tx-sound";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx_dc>;
+		};
+	};
+
+	vcc12v_dc: vcc12v-dc {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dc";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dc>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <710000>;
+		regulator-max-microvolt = <1207000>;
+		regulator-init-microvolt = <1011000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc_sys>;
+	};
+
+	vcc5v0_otg0: vcc5v0-otg0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg0_en>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc5v0_otg1: vcc5v0-otg1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg1_en>;
+		vin-supply = <&vcc_sys>;
+	};
+};
+
+&acdcdig_dsm {
+	status = "disabled";
+	pa-ctl-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&dsm_audm1_ln_pins
+		     &dsm_audm1_lp_pins
+		     &dsm_spk_ctrl>;
+};
+
+&audio_codec {
+	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&fspi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io18_i2c0_scl
+		     &rm_io19_i2c0_sda>;
+
+	es7202_0: es7202@30 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x30>;
+		sound-name-prefix = "ES7202-0";
+	};
+
+	es7202_1: es7202@31 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x31>;
+		sound-name-prefix = "ES7202-1";
+	};
+
+	es7202_2: es7202@32 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x32>;
+		sound-name-prefix = "ES7202-2";
+	};
+
+	es7202_3: es7202@34 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x34>;
+		sound-name-prefix = "ES7202-3";
+	};
+
+	es8388_0: es8388@11 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
+		clocks = <&mclkout_sai0>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai0>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io2_sai0_mclk>;
+		sound-name-prefix = "ES8388-0";
+	};
+
+	es8388_1: es8388@10 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x10>;
+		clocks = <&mclkout_sai0>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai0>;
+		assigned-clock-rates = <12288000>;
+		sound-name-prefix = "ES8388-1";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io25_i2c1_scl
+		     &rm_io26_i2c1_sda>;
+
+	es8388_2: es8388@11 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
+		clocks = <&mclkout_sai0>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai0>;
+		assigned-clock-rates = <12288000>;
+		sound-name-prefix = "ES8388-2";
+	};
+
+	es8388_3: es8388@10 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x10>;
+		clocks = <&mclkout_sai0>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai0>;
+		assigned-clock-rates = <12288000>;
+		sound-name-prefix = "ES8388-3";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io30_i2c2_scl
+		     &rm_io31_i2c2_sda>;
+
+	es8388_4: es8388@11 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		sound-name-prefix = "ES8388-4";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io8_sai1_mclk>;
+	};
+
+	es8388_5: es8388@10 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x10>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		sound-name-prefix = "ES8388-5";
+	};
+};
+
+&pdm {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io11_pdm_clk0
+		     &rm_io12_pdm_sdi0
+		     &rm_io13_pdm_sdi1
+		     &rm_io14_pdm_sdi2
+		     &rm_io15_pdm_sdi3>;
+};
+
+&pinctrl {
+	acodec-dsm {
+		/omit-if-no-ref/
+		dsm_spk_ctrl: dsm-spk-ctrl {
+			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	gpio-i2c {
+		/omit-if-no-ref/
+		gpio_i2c0_pins: gpio-i2c0-pins {
+			rockchip,pins =
+				<2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>, /* sda */
+				<2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>; /* scl */
+		};
+
+		/omit-if-no-ref/
+		gpio_i2c1_pins: gpio-i2c1-pins {
+			rockchip,pins =
+				<2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>, /* sda */
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>; /* scl */
+		};
+	};
+
+	usb {
+		usb_extcon_id: usb-extcon-id {
+			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		usb_extcon_vbus: usb-extcon-vbus {
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg0_en: vcc5v0-otg0-en {
+			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg1_en: vcc5v0-otg1-en {
+			rockchip,pins = <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm0_4ch_0 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io21_pwm0_ch0>;
+	status = "okay";
+};
+
+&sai0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io0_sai0_lrck
+		     &rm_io1_sai0_sclk
+		     &rm_io3_sai0_sdo
+		     &rm_io4_sai0_sdi0
+		     &rm_io5_sai0_sdi1
+		     &rm_io6_sai0_sdi2
+		     &rm_io7_sai0_sdi3>;
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io9_sai1_sclk
+		     &rm_io10_sai1_lrck
+		     &rm_io11_sai1_sdi
+		     &rm_io12_sai1_sdo0
+		     &rm_io13_sai1_sdo1
+		     &rm_io14_sai1_sdo2
+		     &rm_io15_sai1_sdo3>;
+};
+
+&sai2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai2m0_lrck_pins
+		     &sai2m0_sclk_pins
+		     &sai2m0_sdi_pins
+		     &sai2m0_sdo_pins>;
+};
+
+&sai3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai3_lrck_pins
+		     &sai3_sclk_pins
+		     &sai3_sdi_pins
+		     &sai3_sdo_pins>;
+};
+
+&sai4 {
+	status = "okay";
+};
+
+&spdif_rx {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io17_spdif_rx>;
+};
+
+&spdif_tx {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io16_spdif_tx>;
+};
+
+&u2phy_otg0 {
+	vbus-supply = <&vcc5v0_otg0>;
+	rockchip,gpio-vbus-det;
+	rockchip,gpio-id-det;
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	phy-supply = <&vcc5v0_otg1>;
+	status = "okay";
+};
+
+&usb20_otg0 {
+	status = "okay";
+};
+
+&usb20_otg1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb2phy {
+	extcon = <&extcon_usb>;
+	status = "okay";
+};

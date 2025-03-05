@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3576.dtsi"
+#include "rk3576-test1.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 TEST1 V10 Board + RK EVB VOP3 RGB24BIT DISPLAY Ext Board";
+	compatible = "rockchip,rk3576-test1-v10-rgb-Q7050ITH2641AA1T", "rockchip,rk3576";
+
+	panel: panel {
+		compatible = "simple-panel";
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
+		enable-delay-ms = <20>;
+		reset-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_LOW>;
+		reset-value = <0>;
+		reset-delay-ms = <10>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&q7050ith2641aa1t_timing>;
+
+			q7050ith2641aa1t_timing: timing0 {
+				clock-frequency = <51200000>;
+				hactive = <1024>;
+				vactive = <600>;
+				hback-porch = <160>;
+				hfront-porch = <160>;
+				vback-porch = <23>;
+				vfront-porch = <12>;
+				hsync-len = <24>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+};
+
+&backlight {
+	pwms = <&pwm0_2ch_1 0 25000 0>;
+	status = "okay";
+};
+
+/*
+ * The pins of gmac0 and rgb are multiplexed
+ */
+&gmac0 {
+	status = "disabled";
+};
+
+/*
+ * The pins of pcie1 and panel are multiplexed
+ */
+&pcie1 {
+	status = "disabled";
+};
+
+&pwm0_2ch_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm0m0_ch1>;
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&vo_lcdc_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_panel: endpoint {
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "okay";
+	connect = <&vp2_out_rgb>;
+};
+
+/*
+ * The pins of sai1 and panel are multiplexed
+ */
+&sai1 {
+	status = "disabled";
+};

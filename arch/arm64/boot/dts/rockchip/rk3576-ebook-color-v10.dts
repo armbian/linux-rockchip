@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576-ebook-v10.dts"
+
+&ebc_dev {
+	pmic = <&sy7636a>;
+	status = "okay";
+
+	/* EC103KH3 panel */
+	panel,width = <2480>;
+	panel,height = <1860>;
+	panel,vir_width = <2496>;
+	panel,vir_height = <1944>;
+	panel,sdck = <60000000>;
+	panel,lsl = <64>;
+	panel,lbl = <20>;
+	panel,ldl = <312>;
+	panel,lel = <22>;
+	panel,gdck-sta = <1>;
+	panel,lgonl = <252>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1944>;
+	panel,fel = <16>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <1>;
+
+	//panel_color defined for user space
+	//grayscale screen
+	//RKCFA_PLAT_COMMON   = 0,
+	//corlor screen
+	//RKCFA_PLAT_EC060KC1 = 1,
+	//RKCFA_PLAT_EC060KH3 = 2,
+	//RKCFA_PLAT_EC060KH4 = 3,
+	//RKCFA_PLAT_EC070KC1 = 4,
+	//RKCFA_PLAT_EC078KH3 = 5,
+	//RKCFA_PLAT_EC078KH6 = 6,
+	//RKCFA_PLAT_EC103KH3 = 7,
+	panel,panel_color = <7>;
+
+	panel,sdoe_mode = <1>;
+	panel,sdce_width = <1>;
+	panel,width-mm = <166>;
+	panel,height-mm = <210>;
+	panel,disable_logo = <1>;
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m2_xfer>;
+
+	wacom: wacom@9 {
+		compatible = "wacom,w9013";
+		reg = <0x09>;
+		pwr-supply = <&vcc_emr>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wacom_gpio>;
+		gpio_detect = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		gpio_intr = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		gpio_rst = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		revert_x = <0>;
+		revert_y = <1>;
+		xy_exchange = <1>;
+	};
+};
+
+&i2c9 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c9m2_xfer>;
+
+	focaltech: focaltech@38 {
+		status = "disabled";
+		compatible = "rockchip,fts_ts";
+		reg = <0x38>;
+		power-supply = <&vcc_emr>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_gpio>;
+		t_irq_gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		t_rst_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		focaltech,display-coords =  <0 0 1404 1872>;
+		focaltech,have-key;
+		focaltech,key-number = <1>;
+		focaltech,keys = <158>;
+		focaltech,key-x-coords = <2000>;
+		focaltech,key-y-coords = <2000>;
+	};
+
+	tsc@24 {
+		status = "okay";
+		compatible = "parade,pt_i2c_adapter";
+		reg = <0x24>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		parade,adapter_id = "pt_i2c_adapter";
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_gpio>;
+
+		parade,core {
+			parade,name = "pt_core";
+
+			parade,irq_gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+			parade,rst_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+			/*parade,runfw_gpio = <64>;*/
+			parade,hid_desc_register = <1>;
+			/*
+			 * PT_CORE_FLAG_NONE = 0x00
+			 * PT_CORE_FLAG_POWEROFF_ON_SLEEP = 0x02
+			 * PT_CORE_FLAG_RESTORE_PARAMETERS = 0x04
+			 * PT_CORE_FLAG_DEEP_STANDBY = 0x08
+			 * PT_CORE_FLAG_SKIP_SYS_SLEEP = 0x10
+			 * PT_CORE_FLAG_SKIP_RUNTIME = 0x20
+			 * PT_CORE_FLAG_SKIP_RESUME = 0x40
+			 */
+			parade,flags = <4>;
+			/* PT_CORE_EWG_NONE */
+			parade,easy_wakeup_gesture = <0>;
+			/* 0:AUTO 1:PIP1_ONLY 2:PIP2_CAPABLE*/
+			parade,config_dut_generation = <2>;
+			/* 0:False 1:True*/
+			parade,watchdog_force_stop = <0>;
+			/*
+			 * PT_PANEL_ID_DISABLE = 0x00
+			 * PT_PANEL_ID_BY_BL = 0x01
+			 * PT_PANEL_ID_BY_SYS_INFO = 0x02
+			 * PT_PANEL_ID_BY_MFG_DATA  = 0x04
+			 */
+			parade,panel_id_support = <0>;
+			parade,btn_keys = <172 /* KEY_HOMEPAGE */
+				/* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
+				139 /* KEY_MENU */
+				158 /* KEY_BACK */
+				217 /* KEY_SEARCH */
+				114 /* KEY_VOLUMEDOWN */
+				115 /* KEY_VOLUMEUP */
+				212 /* KEY_CAMERA */
+				116>; /* KEY_POWER */
+			parade,btn_keys-tag = <0>;
+
+			parade,mt {
+				parade,name = "pt_mt";
+
+				parade,inp_dev_name = "pt_mt";
+				/*
+				 * PT_MT_FLAG_NONE = 0x00
+				 * PT_MT_FLAG_FLIP = 0x08
+				 * PT_MT_FLAG_INV_X = 0x10
+				 * PT_MT_FLAG_INV_Y = 0x20
+				 * PT_MT_FLAG_VKEYS = 0x40
+				 */
+				parade,flags = <0x20>;
+				parade,abs =
+					/* ABS_MT_POSITION_X, PT_ABS_MIN_X, PT_ABS_MAX_X, 0, 0 */
+					<0x35 0 880 0 0
+					/* ABS_MT_POSITION_Y, PT_ABS_MIN_Y, PT_ABS_MAX_Y, 0, 0 */
+					0x36 0 1280 0 0
+					/* ABS_MT_PRESSURE, PT_ABS_MIN_P, PT_ABS_MAX_P, 0, 0 */
+					0x3a 0 255 0 0
+					/* PT_IGNORE_VALUE, PT_ABS_MIN_W, PT_ABS_MAX_W, 0, 0 */
+					0xffff 0 255 0 0
+					/* ABS_MT_TRACKING_ID, PT_ABS_MIN_T, PT_ABS_MAX_T, 0, 0 */
+					0x39 0 15 0 0
+					/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+					0x30 0 255 0 0
+					/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+					0x31 0 255 0 0
+					/* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
+					0x34 0xffffff81 127 0 0
+					/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+					0x37 0 1 0 0
+					/* ABS_DISTANCE, 0, 255, 0, 0 */
+					0x19 0 255 0 0>;
+
+				parade,vkeys_x = <720>;
+				parade,vkeys_y = <1280>;
+
+				parade,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+					/* KEY_BACK */
+					<158 90 1360 160 180
+					/* KEY_MENU */
+					139 270 1360 160 180
+					/* KEY_HOMEPAGE */
+					172 450 1360 160 180
+					/* KEY SEARCH */
+					217 630 1360 160 180>;
+			};
+		};
+	};
+};

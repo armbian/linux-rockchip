@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
@@ -480,6 +480,12 @@
 #define CPLL_25M		416
 #define CPLL_100M		417
 #define SCLK_DDRCLK		418
+#define I2S1_MCLKOUT		419
+#define I2S3_MCLKOUT		420
+#define I2S1_MCLK_RX_IOE	421
+#define I2S1_MCLK_TX_IOE	422
+#define I2S2_MCLK_IOE		423
+#define I2S3_MCLK_IOE		424
 
 #define PCLK_CORE_PVTM		450
 

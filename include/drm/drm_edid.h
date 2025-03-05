@@ -348,6 +348,7 @@ int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
 
+#ifdef CONFIG_DRM_EDID
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 					 const struct drm_connector *connector,
@@ -362,6 +363,31 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range);
+#else
+static inline int
+drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
+					 const struct drm_connector *connector,
+					 const struct drm_display_mode *mode)
+{
+	return 0;
+}
+
+static inline int
+drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
+					    const struct drm_connector *connector,
+					    const struct drm_display_mode *mode)
+{
+	return 0;
+}
+
+static inline void
+drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   const struct drm_connector *connector,
+				   const struct drm_display_mode *mode,
+				   enum hdmi_quantization_range rgb_quant_range)
+{
+}
+#endif
 
 /**
  * drm_edid_decode_mfg_id - Decode the manufacturer ID
@@ -422,6 +448,7 @@ static inline void drm_edid_decode_panel_id(u32 panel_id, char vend[4], u16 *pro
 	drm_edid_decode_mfg_id(panel_id >> 16, vend);
 }
 
+#ifdef CONFIG_DRM_EDID
 bool drm_probe_ddc(struct i2c_adapter *adapter);
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter);
@@ -476,5 +503,152 @@ void drm_edid_print_product_id(struct drm_printer *p,
 u32 drm_edid_get_panel_id(const struct drm_edid *drm_edid);
 bool drm_edid_match(const struct drm_edid *drm_edid,
 		    const struct drm_edid_ident *ident);
+#else
+static inline bool drm_probe_ddc(struct i2c_adapter *adapter)
+{
+	return 0;
+}
+
+static inline struct edid *drm_get_edid(struct drm_connector *connector,
+					struct i2c_adapter *adapter)
+{
+	return NULL;
+}
+
+static inline u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
+{
+	return 0;
+}
+
+static inline struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+						   struct i2c_adapter *adapter)
+{
+	return NULL;
+}
+
+static inline struct edid *drm_edid_duplicate(const struct edid *edid)
+{
+	return NULL;
+}
+
+static inline int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
+{
+	return 0;
+}
+
+static inline int drm_add_override_edid_modes(struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
+{
+	return 0;
+}
+
+static inline bool drm_detect_hdmi_monitor(const struct edid *edid)
+{
+	return 0;
+}
+
+static inline bool drm_detect_monitor_audio(const struct edid *edid)
+{
+	return 0;
+}
+
+static inline enum hdmi_quantization_range
+drm_default_rgb_quant_range(const struct drm_display_mode *mode)
+{
+	return 0;
+}
+
+static inline int drm_add_modes_noedid(struct drm_connector *connector,
+				       int hdisplay, int vdisplay)
+{
+	return 0;
+}
+
+static inline int drm_edid_header_is_valid(const void *edid)
+{
+	return 0;
+}
+
+static inline bool drm_edid_is_valid(struct edid *edid)
+{
+	return 0;
+}
+
+static inline void drm_edid_get_monitor_name(const struct edid *edid, char *name,
+					     int buflen)
+{
+	return;
+}
+
+static inline struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+							 int hsize, int vsize, int fresh,
+							 bool rb)
+{
+	return NULL;
+}
+
+static inline struct drm_display_mode *
+drm_display_mode_from_cea_vic(struct drm_device *dev,
+			      u8 video_code)
+{
+	return NULL;
+}
+
+static inline
+const struct drm_edid *drm_edid_alloc(const void *edid, size_t size)
+{
+	return NULL;
+}
+
+static inline
+const struct drm_edid *drm_edid_dup(const struct drm_edid *drm_edid)
+{
+	return NULL;
+}
+
+static inline
+void drm_edid_free(const struct drm_edid *drm_edid)
+{
+}
+
+static inline
+const struct edid *drm_edid_raw(const struct drm_edid *drm_edid)
+{
+	return NULL;
+}
+
+static inline
+const struct drm_edid *drm_edid_read(struct drm_connector *connector)
+{
+	return NULL;
+}
+
+
+static inline
+const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
+					 struct i2c_adapter *adapter)
+{
+	return NULL;
+}
+
+static inline
+const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
+					    int (*read_block)(void *context, u8 *buf, unsigned int block, size_t len),
+					    void *context)
+{
+	return NULL;
+}
+
+static inline
+int drm_edid_connector_update(struct drm_connector *connector,
+			      const struct drm_edid *edid)
+{
+	return -ENODEV;
+}
+#endif
 
 #endif /* __DRM_EDID_H__ */

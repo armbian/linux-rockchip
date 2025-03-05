@@ -179,6 +179,13 @@ config MTK_ADSP_IPC
 	  ADSP exists on some mtk processors.
 	  Client might use shared memory to exchange information with ADSP.
 
+config ROCKCHIP_SIP
+	tristate "Rockchip SIP interface"
+	depends on HAVE_ARM_SMCCC && ARCH_ROCKCHIP
+	help
+	  Say Y here if you want to enable SIP callbacks for Rockchip platforms
+	  This option enables support for communicating with the ATF.
+
 config SYSFB
 	bool
 	select BOOT_VESA_SUPPORT

@@ -126,6 +126,27 @@ config BATTERY_CW2015
 	  This driver can also be built as a module. If so, the module will be
 	  called cw2015_battery.
 
+config BATTERY_CW2017
+	tristate "CW2017 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise cw2017
+	  battery fuel gauge (used in the Pinebook Pro & others)
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cw2017_battery.
+
+config BATTERY_CW221X
+	tristate "CW221x Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y hereto enable support for the cellwise cw221x
+	  battery fuel gauge (used in the Pinebook Pro & others)
+	  This driver can also be built as a module. If so, the module will be
+	  called cw221x_battery.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1
@@ -471,6 +492,14 @@ config CHARGER_CPCAP
 	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
 	  mobile devices such as Droid 4.
 
+config CHARGER_CPS5601X
+	tristate "CPS5601X charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the CPS5601X battery charger.
+
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
@@ -528,6 +557,21 @@ config CHARGER_MANAGER
 	  runtime and in suspend-to-RAM by waking up the system periodically
 	  with help of suspend_again support.
 
+config ROCKCHIP_CHARGER_MANAGER
+	tristate "rockchip battery charger manager"
+	select EXTCON
+	help
+	  Say Y to enable charger manager support, which allows multiple
+	  chargers attached to a battery.
+
+config ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP
+	bool "rockchip charger manager for charge pump"
+	depends on ROCKCHIP_CHARGER_MANAGER
+	depends on NO_GKI
+	default y
+	help
+	  Say Y to enable charge pump support.
+
 config CHARGER_LT3651
 	tristate "Analog Devices LT3651 charger"
 	depends on GPIOLIB
@@ -542,6 +586,29 @@ config CHARGER_LTC4162L
 	help
 	  Say Y to include support for the Analog Devices (Linear Technology)
 	  LTC4162-L battery charger connected to I2C.
+
+config CHARGER_SC8551
+	tristate "SC8551 battery charger pump driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC8551 battery pump charger.
+
+config CHARGER_SC89601
+	tristate "SC89601 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC89601 battery charger.
+
+config CHARGER_SC89890
+	tristate "SC89890 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC89890 battery charger.
 
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"
@@ -720,6 +787,12 @@ config CHARGER_BQ2515X
 	  rail, ADC for battery and system monitoring, and push-button
 	  controller.
 
+config CHARGER_BQ25700
+	tristate "TI BQ25700 battery charger driver"
+	depends on REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ25700 battery charger.
+
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
 	depends on I2C
@@ -748,11 +821,49 @@ config CHARGER_BQ256XX
 	  charge management and system power path management devices for single
 	  cell Li-ion and Li-polymer batteries.
 
+config BATTERY_RK816
+	tristate "RK816 Battery driver"
+	depends on MFD_RK808
+	help
+	  If you say yes here you will get support for the battery of RK816 PMIC.
+	  This driver can give support for Rk816 Battery Charge Interface.
+
+config BATTERY_RK817
+	tristate "RK817 Battery driver"
+	depends on MFD_RK808
+	help
+	  If you say yes here you will get support for the battery of RK817 PMIC.
+	  This driver can give support for Rk817 Battery Interface.
+
 config CHARGER_RK817
 	tristate "Rockchip RK817 PMIC Battery Charger"
-	depends on MFD_RK8XX
+	depends on MFD_RK808
 	help
 	  Say Y to include support for Rockchip RK817 Battery Charger.
+
+config BATTERY_RK818
+	tristate "RK818 Battery driver"
+	depends on MFD_RK808
+	default n
+	help
+	  If you say yes here you will get support for the battery of RK818 PMIC.
+	  This driver can give support for Rk818 Battery Charge Interface.
+
+config CHARGER_RK818
+	tristate "RK818 Charger driver"
+	depends on MFD_RK808
+	default n
+	help
+	  If you say yes here you will get support for the charger of RK818 PMIC.
+	  This driver can give support for Rk818 Charger Interface.
+
+config CHARGER_SGM41542
+	tristate "SGM41542 charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SGM41542 battery charger.
 
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB3XX Battery Charger"

@@ -52,3 +52,8 @@ void arch_setup_dma_ops(struct device *dev, bool coherent)
 
 	xen_setup_dma_ops(dev);
 }
+
+#ifdef CONFIG_NO_GKI
+EXPORT_SYMBOL(dcache_clean_poc);
+EXPORT_SYMBOL(dcache_inval_poc);
+#endif

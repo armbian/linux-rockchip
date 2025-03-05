@@ -111,12 +111,17 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_DA732X
 	imply SND_SOC_DA9055
 	imply SND_SOC_DMIC
+	imply SND_SOC_DUMMY_CODEC
 	imply SND_SOC_ES8316
+	imply SND_SOC_ES8323
 	imply SND_SOC_ES8326
 	imply SND_SOC_ES8328_SPI
 	imply SND_SOC_ES8328_I2C
+	imply SND_SOC_ES8396
 	imply SND_SOC_ES7134
+	imply SND_SOC_ES7202
 	imply SND_SOC_ES7241
+	imply SND_SOC_ES7243E
 	imply SND_SOC_FRAMER
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
@@ -185,9 +190,16 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM512x_SPI
 	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_RK1000
+	imply SND_SOC_RK312X
+	imply SND_SOC_RK3228
 	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
+	imply SND_SOC_RK3506
+	imply SND_SOC_RK3528
+	imply SND_SOC_RK730
 	imply SND_SOC_RK817
+	imply SND_SOC_ROCKCHIP_SPI_CODEC
 	imply SND_SOC_RT274
 	imply SND_SOC_RT286
 	imply SND_SOC_RT298
@@ -230,6 +242,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
 	imply SND_SOC_RTQ9128
+	imply SND_SOC_RV1106
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -261,6 +274,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS5720
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
+	imply SND_SOC_TDA7803
 	imply SND_SOC_TFA9879
 	imply SND_SOC_TFA989X
 	imply SND_SOC_TLV320ADC3XXX
@@ -1119,6 +1133,9 @@ config SND_SOC_DMIC
 	  Enable support for the Generic Digital Microphone CODEC.
 	  Select this if your sound card has DMICs.
 
+config SND_SOC_DUMMY_CODEC
+	tristate "Dummy CODEC"
+
 config SND_SOC_HDMI_CODEC
 	tristate
 	select SND_PCM_ELD
@@ -1128,8 +1145,33 @@ config SND_SOC_HDMI_CODEC
 config SND_SOC_ES7134
 	tristate "Everest Semi ES7134 CODEC"
 
+config SND_SOC_ES7202
+	tristate "Everest Semi ES7202 PDM 2CH ADC"
+
+config SND_SOC_ES7202_MIC_MAX_CHANNELS
+	int "the maximum channels of es7202's microphone"
+	depends on SND_SOC_ES7202
+	default 2
+	range 2 16
+	help
+	  Should be one of MIC_CHN_* of sound/soc/codecs/es7202.h.
+
+config SND_SOC_ES7202_I2C_BUS
+	int "i2c bus number"
+	depends on SND_SOC_ES7202
+	default 1
+	help
+	  Used to hard code an i2c bus number.
+
+config SND_SOC_ES7210
+	tristate "Everest Semi ES7210 CODEC"
+	depends on I2C
+
 config SND_SOC_ES7241
 	tristate "Everest Semi ES7241 CODEC"
+
+config SND_SOC_ES7243E
+	tristate "Everest Semi ES724E 2CH ADC"
 
 config SND_SOC_ES83XX_DSM_COMMON
 	depends on ACPI
@@ -1141,6 +1183,10 @@ config SND_SOC_ES8311
 
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
+	depends on I2C
+
+config SND_SOC_ES8323
+	tristate "Everest Semi ES8323 CODEC"
 	depends on I2C
 
 config SND_SOC_ES8326
@@ -1160,6 +1206,10 @@ config SND_SOC_ES8328_SPI
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
 
+config SND_SOC_ES8396
+	tristate "Everest Semi ES8396 CODEC"
+	depends on I2C
+
 config SND_SOC_FRAMER
 	tristate "Framer codec"
 	depends on GENERIC_FRAMER
@@ -1172,7 +1222,6 @@ config SND_SOC_FRAMER
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-framer.
-
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
@@ -1483,9 +1532,20 @@ config SND_SOC_PEB2466
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
 
+config SND_SOC_RK1000
+	tristate "Rockchip RK1000 CODEC"
+	depends on MFD_RK1000
+
+config SND_SOC_RK312X
+	select REGMAP_MMIO
+	tristate "Rockchip RK312X CODEC"
+
+config SND_SOC_RK3228
+	select REGMAP_MMIO
+	tristate "Rockchip RK3228 CODEC"
+
 config SND_SOC_RK3308
 	tristate "Rockchip RK3308 audio CODEC"
-	depends on ARM64 || COMPILE_TEST
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 	help
@@ -1500,9 +1560,27 @@ config SND_SOC_RK3328
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
+config SND_SOC_RK3506
+	tristate "Rockchip RK3506 audio CODEC"
+	select REGMAP_MMIO
+
+config SND_SOC_RK3528
+	tristate "Rockchip RK3528 audio CODEC"
+	select REGMAP_MMIO
+
+config SND_SOC_RK730
+	tristate "Rockchip RK730 CODEC"
+	select REGMAP_I2C
+
 config SND_SOC_RK817
 	tristate "Rockchip RK817 audio CODEC"
-	depends on MFD_RK8XX || COMPILE_TEST
+	depends on MFD_RK808 || COMPILE_TEST
+
+config SND_SOC_RK_CODEC_DIGITAL
+	tristate "Rockchip Codec Digital Interface"
+
+config SND_SOC_RK_DSM
+	tristate "Rockchip Delta-sigma Digital Converter Interface"
 
 config SND_SOC_RL6231
 	tristate
@@ -1553,6 +1631,15 @@ config SND_SOC_RL6347A
 	default m if SND_SOC_RT274=m
 	default m if SND_SOC_RT286=m
 	default m if SND_SOC_RT298=m
+
+config SND_SOC_ROCKCHIP_SPI_CODEC
+	tristate "Rockchip SPI CODEC"
+	depends on ARCH_ROCKCHIP
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Enable support for a remote audio dsp which act as a codec.
+	  Control the adsp by spi.
 
 config SND_SOC_RT274
 	tristate
@@ -1652,7 +1739,7 @@ config SND_SOC_RT5645
 	depends on I2C
 
 config SND_SOC_RT5651
-	tristate
+	tristate "Realtek ALC5651 CODEC"
 	depends on I2C
 
 config SND_SOC_RT5659
@@ -1785,6 +1872,10 @@ config SND_SOC_RTQ9128
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-rtq9128.
+
+config SND_SOC_RV1106
+	tristate "Rockchip RV1106 CODEC"
+	select REGMAP_MMIO
 
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"
@@ -1989,6 +2080,11 @@ config SND_SOC_TAS6424
 
 config SND_SOC_TDA7419
 	tristate "ST TDA7419 audio processor"
+	depends on I2C
+	select REGMAP_I2C
+
+config SND_SOC_TDA7803
+	tristate "ST TDA7803 audio processor"
 	depends on I2C
 	select REGMAP_I2C
 
@@ -2597,4 +2693,8 @@ config SND_SOC_LPASS_TX_MACRO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"
 
+source "sound/soc/codecs/aw87xxx/Kconfig"
+source "sound/soc/codecs/aw882xx/Kconfig"
+source "sound/soc/codecs/aw883xx/Kconfig"
+source "sound/soc/codecs/it6621/Kconfig"
 endmenu

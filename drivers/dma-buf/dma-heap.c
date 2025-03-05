@@ -40,6 +40,7 @@ struct dma_heap {
 	dev_t heap_devt;
 	struct list_head list;
 	struct cdev heap_cdev;
+	struct device *heap_dev;
 };
 
 static LIST_HEAD(heap_list);
@@ -48,9 +49,46 @@ static dev_t dma_heap_devt;
 static struct class *dma_heap_class;
 static DEFINE_XARRAY_ALLOC(dma_heap_minors);
 
-static int dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
-				 u32 fd_flags,
-				 u64 heap_flags)
+struct dma_heap *dma_heap_find(const char *name)
+{
+	struct dma_heap *h;
+
+	mutex_lock(&heap_list_lock);
+	list_for_each_entry(h, &heap_list, list) {
+		if (!strcmp(h->name, name)) {
+			mutex_unlock(&heap_list_lock);
+			return h;
+		}
+	}
+	mutex_unlock(&heap_list_lock);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(dma_heap_find);
+
+struct dma_buf *dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
+				      u32 fd_flags,
+				      u64 heap_flags)
+{
+	if (fd_flags & ~DMA_HEAP_VALID_FD_FLAGS)
+		return ERR_PTR(-EINVAL);
+
+	if (heap_flags & ~DMA_HEAP_VALID_HEAP_FLAGS)
+		return ERR_PTR(-EINVAL);
+	/*
+	 * Allocations from all heaps have to begin
+	 * and end on page boundaries.
+	 */
+	len = PAGE_ALIGN(len);
+	if (!len)
+		return ERR_PTR(-EINVAL);
+
+	return heap->ops->allocate(heap, len, fd_flags, heap_flags);
+}
+EXPORT_SYMBOL_GPL(dma_heap_buffer_alloc);
+
+static int dma_heap_bufferfd_alloc(struct dma_heap *heap, size_t len,
+				 unsigned int fd_flags,
+				 unsigned int heap_flags)
 {
 	struct dma_buf *dmabuf;
 	int fd;
@@ -107,7 +145,7 @@ static long dma_heap_ioctl_allocate(struct file *file, void *data)
 	if (heap_allocation->heap_flags & ~DMA_HEAP_VALID_HEAP_FLAGS)
 		return -EINVAL;
 
-	fd = dma_heap_buffer_alloc(heap, heap_allocation->len,
+	fd = dma_heap_bufferfd_alloc(heap, heap_allocation->len,
 				   heap_allocation->fd_flags,
 				   heap_allocation->heap_flags);
 	if (fd < 0)
@@ -118,8 +156,22 @@ static long dma_heap_ioctl_allocate(struct file *file, void *data)
 	return 0;
 }
 
+static int dma_heap_ioctl_get_phys(struct file *file, void *data)
+{
+#if IS_ENABLED(CONFIG_NO_GKI)
+	struct dma_heap *heap = file->private_data;
+	struct dma_heap_phys_data *phys = data;
+
+	if (heap->ops->get_phys)
+		return heap->ops->get_phys(heap, phys);
+#endif
+
+	return -EINVAL;
+}
+
 static unsigned int dma_heap_ioctl_cmds[] = {
 	DMA_HEAP_IOCTL_ALLOC,
+	DMA_HEAP_IOCTL_GET_PHYS,
 };
 
 static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
@@ -169,6 +221,9 @@ static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
 	case DMA_HEAP_IOCTL_ALLOC:
 		ret = dma_heap_ioctl_allocate(file, kdata);
 		break;
+	case DMA_HEAP_IOCTL_GET_PHYS:
+		ret = dma_heap_ioctl_get_phys(file, kdata);
+		break;
 	default:
 		ret = -ENOTTY;
 		goto err;
@@ -202,6 +257,19 @@ void *dma_heap_get_drvdata(struct dma_heap *heap)
 {
 	return heap->priv;
 }
+
+/**
+ * dma_heap_get_dev() - get device struct for the heap
+ * @heap: DMA-Heap to retrieve device struct from
+ *
+ * Returns:
+ * The device struct for the heap.
+ */
+struct device *dma_heap_get_dev(struct dma_heap *heap)
+{
+	return heap->heap_dev;
+}
+EXPORT_SYMBOL_GPL(dma_heap_get_dev);
 
 /**
  * dma_heap_get_name - get heap name
@@ -275,6 +343,9 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 		goto err2;
 	}
 
+	heap->heap_dev = dev_ret;
+	heap->heap_dev = get_device(heap->heap_dev);
+
 	mutex_lock(&heap_list_lock);
 	/* check the name is unique */
 	list_for_each_entry(h, &heap_list, list) {
@@ -283,6 +354,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 			pr_err("dma_heap: Already registered heap named %s\n",
 			       exp_info->name);
 			err_ret = ERR_PTR(-EINVAL);
+			put_device(heap->heap_dev);
 			goto err3;
 		}
 	}

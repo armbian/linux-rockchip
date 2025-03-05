@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576s.dtsi"
+#include "rk3576s-evb1.dtsi"
+#include "rk3576-evb1-cam-dcphy0.dtsi"
+#include "rk3576-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3576S EVB1 V10 Board";
+	compatible = "rockchip,rk3576s-evb1-v10", "rockchip,rk3576s";
+};

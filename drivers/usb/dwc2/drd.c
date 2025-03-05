@@ -110,12 +110,20 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 	 * the clock to read/write GOTGCTL and GUSBCFG registers to override
 	 * mode and sessions. It is the case if cable is plugged at boot.
 	 */
-	if (!hsotg->ll_hw_enabled && hsotg->clk) {
-		int ret = clk_prepare_enable(hsotg->clk);
+	if (!hsotg->ll_hw_enabled) {
+		int ret = clk_bulk_prepare_enable(hsotg->num_clks, hsotg->clks);
 
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * Notify the usb role to usb phy when we received role_switch set
+	 * from the TCPM (Type-C Port Manager) to escape BC1.2 charge detection
+	 * at host mode in usb phy driver.
+	 */
+	if (IS_ENABLED(CONFIG_ARCH_ROCKCHIP))
+		phy_set_mode_ext(hsotg->phy, PHY_MODE_USB_OTG, role);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
@@ -160,8 +168,8 @@ static int dwc2_drd_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 		/* This will raise a Connector ID Status Change Interrupt */
 		dwc2_force_mode(hsotg, role == USB_ROLE_HOST);
 
-	if (!hsotg->ll_hw_enabled && hsotg->clk)
-		clk_disable_unprepare(hsotg->clk);
+	if (!hsotg->ll_hw_enabled)
+		clk_bulk_disable_unprepare(hsotg->num_clks, hsotg->clks);
 
 	dev_dbg(hsotg->dev, "%s-session valid\n",
 		role == USB_ROLE_NONE ? "No" :

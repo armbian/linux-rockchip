@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#ifndef IR_TRANSMIT_TEST
+/ {
+	pwm_rockchip_test: pwm-rockchip-test {
+		compatible = "pwm-rockchip-test";
+		pwms = <&pwm0_4ch_0 0 25000 0>,
+		       <&pwm0_4ch_1 0 25000 0>,
+		       <&pwm0_4ch_2 0 25000 0>,
+		       <&pwm0_4ch_3 0 25000 0>,
+		       <&pwm1_8ch_0 0 25000 0>,
+		       <&pwm1_8ch_1 0 25000 0>,
+		       <&pwm1_8ch_2 0 25000 0>,
+		       <&pwm1_8ch_3 0 25000 0>,
+		       <&pwm1_8ch_4 0 25000 0>,
+		       <&pwm1_8ch_5 0 25000 0>,
+		       <&pwm1_8ch_6 0 25000 0>,
+		       <&pwm1_8ch_7 0 25000 0>;
+		pwm-names = "pwm0_0",
+			    "pwm0_1",
+			    "pwm0_2",
+			    "pwm0_3",
+			    "pwm1_0",
+			    "pwm1_1",
+			    "pwm1_2",
+			    "pwm1_3",
+			    "pwm1_4",
+			    "pwm1_5",
+			    "pwm1_6",
+			    "pwm1_7";
+	};
+};
+#endif
+
+/* use GPIO0_B0 ~ GPIO0_C3(rm_io8 ~ rm_io19) by default */
+&pwm0_4ch_0 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io8_pwm0_ch0>;
+#ifdef WAVE_CLK_PWM_RC_TEST
+	clocks = <&cru CLK_RC_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_OSC_PWM0>;
+	clock-names = "pwm", "pclk", "osc";
+#else
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+#endif
+};
+
+&pwm0_4ch_1 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io9_pwm0_ch1>;
+#ifdef WAVE_CLK_PWM_RC_TEST
+	clocks = <&cru CLK_RC_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_OSC_PWM0>;
+	clock-names = "pwm", "pclk", "osc";
+#else
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+#endif
+};
+
+&pwm0_4ch_2 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io10_pwm0_ch2>;
+#ifdef WAVE_CLK_PWM_RC_TEST
+	clocks = <&cru CLK_RC_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_OSC_PWM0>;
+	clock-names = "pwm", "pclk", "osc";
+#else
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+#endif
+};
+
+&pwm0_4ch_3 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io11_pwm0_ch3>;
+#ifdef WAVE_CLK_PWM_RC_TEST
+	clocks = <&cru CLK_RC_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_OSC_PWM0>;
+	clock-names = "pwm", "pclk", "osc";
+#else
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+#endif
+};
+
+&pwm1_8ch_0 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io12_pwm1_ch0>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_1 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io13_pwm1_ch1>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_2 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io14_pwm1_ch2>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_3 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io15_pwm1_ch3>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_4 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io16_pwm1_ch4>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_5 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io17_pwm1_ch5>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_8ch_6 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io18_pwm1_ch6>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+#ifdef BIPHASIC_COUNTER_TEST
+&pwm1_8ch_0 {
+	pinctrl-0 = <&rm_io12_pwm1_bip_cntr_a0 &rm_io0_pwm1_bip_cntr_b0>;
+};
+
+&pwm1_8ch_1 {
+	pinctrl-0 = <&rm_io13_pwm1_bip_cntr_a1 &rm_io1_pwm1_bip_cntr_b1>;
+};
+
+&pwm1_8ch_2 {
+	pinctrl-0 = <&rm_io14_pwm1_bip_cntr_a2 &rm_io2_pwm1_bip_cntr_b2>;
+};
+
+&pwm1_8ch_3 {
+	pinctrl-0 = <&rm_io15_pwm1_bip_cntr_a3 &rm_io3_pwm1_bip_cntr_b3>;
+};
+
+&pwm1_8ch_4 {
+	pinctrl-0 = <&rm_io16_pwm1_bip_cntr_a4 &rm_io4_pwm1_bip_cntr_b4>;
+};
+
+&pwm1_8ch_5 {
+	pinctrl-0 = <&rm_io17_pwm1_bip_cntr_a5 &rm_io5_pwm1_bip_cntr_b5>;
+};
+
+&pwm1_8ch_6 {
+	pinctrl-0 = <&rm_io18_pwm1_ch6 &rm_io6_pwm1_ch7>;
+};
+#else
+&pwm1_8ch_7 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io19_pwm1_ch7>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+#endif
+
+#ifdef IR_TRANSMIT_TEST
+&pwm1_8ch_0 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_1 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_2 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_3 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_4 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_5 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_6 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_7 {
+	rockchip,pwm-ir-transmit;
+};
+#endif

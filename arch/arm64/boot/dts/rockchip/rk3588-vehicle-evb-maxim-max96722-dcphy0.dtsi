@@ -1,0 +1,510 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	max96722_dcphy0_osc: max96722-dcphy0-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <25000000>;
+		clock-output-names = "max96722-dcphy0-osc";
+	};
+
+	max96722_dcphy0_vcc1v2: max96722-dcphy0-vcc1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dcphy0_vcc1v2";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		startup-delay-us = <850>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	max96722_dcphy0_vcc1v8: max96722-dcphy0-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dcphy0_vcc1v8";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		startup-delay-us = <200>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	max96722_dcphy0_pwdn_regulator: max96722-dcphy0-pwdn-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dcphy0_pwdn";
+		gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_dcphy0_pwdn>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
+		vin-supply = <&max96722_dcphy0_vcc1v8>;
+	};
+
+	max96722_dcphy0_poc_regulator: max96722-dcphy0-poc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dcphy0_poc";
+		gpio = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dcphy0_in_max96722: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96722_dcphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m2_xfer>;
+
+	max96722_dcphy0: max96722@29 {
+		compatible = "maxim4c,max96722";
+		status = "okay";
+		reg = <0x29>;
+		clock-names = "xvclk";
+		clocks = <&max96722_dcphy0_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_dcphy0_errb>, <&max96722_dcphy0_lock>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		vcc1v2-supply = <&max96722_dcphy0_vcc1v2>;
+		vcc1v8-supply = <&max96722_dcphy0_vcc1v8>;
+		pwdn-supply = <&max96722_dcphy0_pwdn_regulator>;
+		lock-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "max96722";
+		rockchip,camera-module-lens-name = "max96722";
+
+		port {
+			max96722_dcphy0_out: endpoint {
+				remote-endpoint = <&mipi_dcphy0_in_max96722>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
+			sensor-width = <1920>;
+			sensor-height = <1080>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <300000>;
+			bpp = <16>;
+			link-freq-idx = <24>;
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			/* GMSL LINK config start */
+			gmsl-links {
+				status = "okay";
+
+				link-vdd-ldo1-en = <1>;
+				link-vdd-ldo2-en = <1>;
+
+				// Link A: link-id = 0
+				gmsl-link-config-0 {
+					status = "okay";
+					link-id = <0>; // Link ID: 0/1/2/3
+
+					link-type = <1>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					link-remote-cam = <&max96722_dcphy0_cam0>; // remote camera
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							14 D1 03 00 00 // VGAHiGain
+							14 45 00 00 00 // Disable SSC
+						];
+					};
+				};
+
+				// Link B: link-id = 1
+				gmsl-link-config-1 {
+					status = "okay";
+					link-id = <1>; // Link ID: 0/1/2/3
+
+					link-type = <1>;
+					link-rx-rate = <0>;
+					link-tx-rate = <0>;
+
+					link-remote-cam = <&max96722_dcphy0_cam1>; // remote camera
+
+					link-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							15 D1 03 00 00 // VGAHiGain
+							15 45 00 00 00 // Disable SSC
+						];
+					};
+				};
+			};
+			/* GMSL LINK config end */
+
+			/* VIDEO PIPE config start */
+			video-pipes {
+				status = "okay";
+
+				// Video Pipe 0
+				video-pipe-config-0 {
+					status = "okay";
+					pipe-id = <0>; // Video Pipe ID: 0/1/2/3/4/5/6/7
+
+					pipe-idx = <2>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <0>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 0 to Controller 0
+							09 0B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 2D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 0D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 0E 1e 00 00 // DST0 VC = 0, DT = YUV422 8bit
+							09 0F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 10 00 00 00 // DST1 VC = 0, DT = Frame Start
+							09 11 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 12 01 00 00 // DST2 VC = 0, DT = Frame End
+						];
+					};
+				};
+
+				// Video Pipe 1
+				video-pipe-config-1 {
+					status = "okay";
+					pipe-id = <1>; // Video Pipe 1: pipe-id = 1
+
+					pipe-idx = <2>; // Video Pipe X/Y/Z/U: 0/1/2/3
+					link-idx = <1>; // Link A/B/C/D: 0/1/2/3
+
+					pipe-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							// Send YUV422, FS, and FE from Video Pipe 1 to Controller 0
+							09 4B 07 00 00 // Enable 0/1/2 SRC/DST Mappings
+							09 6D 00 00 00 // SRC/DST 0/1/2 -> CSI2 Controller 0;
+							// For the following MSB 2 bits = VC, LSB 6 bits = DT
+							09 4D 1e 00 00 // SRC0 VC = 0, DT = YUV422 8bit
+							09 4E 5e 00 00 // DST0 VC = 1, DT = YUV422 8bit
+							09 4F 00 00 00 // SRC1 VC = 0, DT = Frame Start
+							09 50 40 00 00 // DST1 VC = 1, DT = Frame Start
+							09 51 01 00 00 // SRC2 VC = 0, DT = Frame End
+							09 52 41 00 00 // DST2 VC = 1, DT = Frame End
+						];
+					};
+				};
+			};
+			/* VIDEO PIPE config end */
+
+			/* MIPI TXPHY config start */
+			mipi-txphys {
+				status = "okay";
+
+				phy-mode = <1>;
+				phy-force-clock-out = <1>;
+				phy-force-clk0-en = <0>;
+				phy-force-clk3-en = <0>;
+
+				// MIPI TXPHY A: phy-id = 0
+				mipi-txphy-config-0 {
+					status = "okay";
+					phy-id = <0>; // MIPI TXPHY ID: 0/1/2/3
+
+					phy-type = <0>;
+					auto-deskew = <0x00>;
+					data-lane-num = <2>;
+					data-lane-map = <0x4>;
+					vc-ext-en = <0>;
+				};
+			};
+			/* MIPI TXPHY config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+				// reg_addr reg_val val_mask delay
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				// Note: Serializer node defined before camera node
+				max96722_dcphy0_ser0: max96717@41 {
+					compatible = "maxim,ser,max96717";
+					reg = <0x41>;
+
+					ser-i2c-addr-def = <0x40>;
+
+					ser-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							02 BE 00 00 01 // MFP0 GPIO_OUT = 0: MFP0 output is driven to 0
+							03 02 10 00 00 // Improve CMU voltage performance to improve link robustness
+							14 17 00 00 00 // RLMS17 = 0x00: disable AGC/DFE adaptation
+							14 32 7f 00 00 // RLMS32 = 0x7F: change OSN loop mode
+							03 F0 59 00 00 // REFGEN_PREDEF_FREQ_ALT = 1: Alternative table, REFGEN_PREDEF_FREQ = 0x1
+							00 03 03 00 00 // RCLKSEL = 0x3: Reference PLL output
+							00 06 B1 00 01 // RCLKEN = 1: RCLK output is enabled
+							02 BE 10 00 00 // MFP0 GPIO_OUT = 1: MFP0 output is driven to 1
+							02 BF 40 00 00 // MFP0 PULL_UPDN_SEL = 1: Pullup
+						];
+					};
+				};
+
+				max96722_dcphy0_cam0: ox03j10@31 {
+					compatible = "maxim,ovti,ox03j10";
+					reg = <0x31>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dcphy0_ser0>; // remote serializer
+
+					poc-supply = <&max96722_dcphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "ox03j10";
+					rockchip,camera-module-lens-name = "ox03j10";
+
+					/* port config start */
+					port {
+						max96722_dcphy0_cam0_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf */
+							//remote-endpoint = <&mipi_lvds_sditf_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
+				};
+			};
+
+			i2c@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <1>;
+
+				// Note: Serializer node defined before camera node
+				max96722_dcphy0_ser1: max96717@41 {
+					compatible = "maxim,ser,max96717";
+					reg = <0x41>;
+
+					ser-i2c-addr-def = <0x40>;
+
+					ser-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							02 BE 00 00 01 // MFP0 GPIO_OUT = 0: MFP0 output is driven to 0
+							03 02 10 00 00 // Improve CMU voltage performance to improve link robustness
+							14 17 00 00 00 // RLMS17 = 0x00: disable AGC/DFE adaptation
+							14 32 7f 00 00 // RLMS32 = 0x7F: change OSN loop mode
+							03 F0 59 00 00 // REFGEN_PREDEF_FREQ_ALT = 1: Alternative table, REFGEN_PREDEF_FREQ = 0x1
+							00 03 03 00 00 // RCLKSEL = 0x3: Reference PLL output
+							00 06 B1 00 01 // RCLKEN = 1: RCLK output is enabled
+							02 BE 10 00 00 // MFP0 GPIO_OUT = 1: MFP0 output is driven to 1
+							02 BF 40 00 00 // MFP0 PULL_UPDN_SEL = 1: Pullup
+						];
+					};
+				};
+
+				max96722_dcphy0_cam1: ox03j10@32 {
+					compatible = "maxim,ovti,ox03j10";
+					reg = <0x32>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dcphy0_ser1>; // remote serializer
+
+					poc-supply = <&max96722_dcphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "ox03j10";
+					rockchip,camera-module-lens-name = "ox03j10";
+
+					/* port config start */
+					port {
+						max96722_dcphy0_cam1_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf_vir1 */
+							//remote-endpoint = <&mipi_lvds_sditf_vir1_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
+				};
+			};
+		};
+		/* i2c-mux end */
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi0_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi0_in: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	max96722-dcphy0 {
+		max96722_dcphy0_pwdn: max96722-dcphy0-pwdn {
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		max96722_dcphy0_errb: max96722-dcphy0-errb {
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none_smt>;
+		};
+
+		max96722_dcphy0_lock: max96722-dcphy0-lock {
+			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none_smt>;
+		};
+	};
+};

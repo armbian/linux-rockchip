@@ -26,6 +26,7 @@
 #define BQ25890_ID			3
 #define BQ25895_ID			7
 #define BQ25896_ID			0
+#define SY6970_ID			1
 
 #define PUMP_EXPRESS_START_DELAY	(5 * HZ)
 #define PUMP_EXPRESS_MAX_TRIES		6
@@ -36,6 +37,7 @@ enum bq25890_chip_version {
 	BQ25892,
 	BQ25895,
 	BQ25896,
+	SY6970,
 };
 
 static const char *const bq25890_chip_name[] = {
@@ -43,6 +45,7 @@ static const char *const bq25890_chip_name[] = {
 	"BQ25892",
 	"BQ25895",
 	"BQ25896",
+	"SY6970",
 };
 
 enum bq25890_fields {
@@ -130,6 +133,13 @@ struct bq25890_device {
 	enum bq25890_chip_version chip_version;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
+
+	struct workqueue_struct	*charger_wq;
+	struct delayed_work pd_work;
+	struct notifier_block nb;
+	struct device_node *notify_node;
+	int pd_vol;
+	int pd_cur;
 
 	struct mutex lock; /* protect state data */
 };
@@ -284,6 +294,7 @@ enum bq25890_table_ids {
 	TBL_VBUSV,
 	TBL_VBATCOMP,
 	TBL_RBATCOMP,
+	TBL_VINDPM,
 
 	/* lookup tables */
 	TBL_TREG,
@@ -351,6 +362,7 @@ static const union {
 	[TBL_VBUSV] =	 { .rt = {2600000, 15300000, 100000} },	 /* uV */
 	[TBL_VBATCOMP] = { .rt = {0,         224000, 32000} },	 /* uV */
 	[TBL_RBATCOMP] = { .rt = {0,         140000, 20000} },	 /* uOhm */
+	[TBL_VINDPM] =	 { .rt = {100000,   3100000, 100000} },	 /* uV */
 
 	/* lookup tables */
 	[TBL_TREG] =	{ .lt = {bq25890_treg_tbl, BQ25890_TREG_TBL_SIZE} },
@@ -1036,6 +1048,7 @@ static int bq25890_power_supply_init(struct bq25890_device *bq)
 
 	psy_cfg.supplied_to = bq25890_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25890_charger_supplied_to);
+	psy_cfg.of_node = bq->dev->of_node;
 
 	bq->charger = devm_power_supply_register(bq->dev, &bq->desc, &psy_cfg);
 
@@ -1318,6 +1331,10 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 		bq->chip_version = BQ25895;
 		break;
 
+	case SY6970_ID:
+		bq->chip_version = SY6970;
+		break;
+
 	default:
 		dev_err(bq->dev, "Unknown chip ID %d\n", id);
 		return -ENODEV;
@@ -1430,6 +1447,153 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 
 	init->ilim_en = device_property_read_bool(bq->dev, "ti,use-ilim-pin");
 	init->boostf = device_property_read_bool(bq->dev, "ti,boost-low-freq");
+	bq->notify_node = of_parse_phandle(bq->dev->of_node,
+					   "ti,usb-charger-detection", 0);
+
+	return 0;
+}
+
+static void bq25890_set_pd_param(struct bq25890_device *bq, int vol, int cur)
+{
+	int vindpm, iilim, ichg, vol_limit;
+	int i = 0;
+
+	iilim = bq25890_find_idx(cur, TBL_IINLIM);
+	ichg = bq25890_find_idx(cur, TBL_ICHG);
+
+	vol_limit = vol;
+	if (vol < 5000000)
+		vol_limit = 5000000;
+	vol_limit = vol_limit - 1280000 - 3200000;
+
+	if (vol > 6000000)
+		vol_limit /= 2;
+	vindpm = bq25890_find_idx(vol_limit, TBL_VINDPM);
+
+	while (!bq25890_field_read(bq, F_PG_STAT) && i < 5) {
+		msleep(500);
+		i++;
+	}
+
+	bq25890_field_write(bq, F_IINLIM, iilim);
+	bq25890_field_write(bq, F_VINDPM_OFS, vindpm);
+	bq25890_field_write(bq, F_ICHG, ichg);
+	dev_info(bq->dev, "vol=%d cur=%d  INPUT_CURRENT:%x, INPUT_VOLTAGE:%x, CHARGE_CURRENT:%x\n",
+		 vol, cur, iilim, vindpm, ichg);
+
+	bq25890_get_chip_state(bq, &bq->state);
+	power_supply_changed(bq->charger);
+}
+
+static int bq25890_pd_notifier_call(struct notifier_block *nb,
+				    unsigned long val, void *v)
+{
+	struct bq25890_device *bq =
+		container_of(nb, struct bq25890_device, nb);
+	struct power_supply *psy = v;
+	union power_supply_propval prop;
+	int ret;
+
+	if (val != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	/* Ignore event if it was not send by notify_node/notify_device */
+	if (bq->notify_node) {
+		if (!psy->dev.parent ||
+		    psy->dev.parent->of_node != bq->notify_node)
+			return NOTIFY_OK;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+	/* online=0: USB out */
+	if (prop.intval == 0) {
+		bq->pd_cur = 450000;
+		bq->pd_vol = 5000000;
+		queue_delayed_work(bq->charger_wq, &bq->pd_work,
+				   msecs_to_jiffies(10));
+		return NOTIFY_OK;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+	bq->pd_cur = prop.intval;
+	if (bq->pd_cur > 0) {
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						&prop);
+		if (ret != 0)
+			return NOTIFY_OK;
+		bq->pd_vol = prop.intval;
+
+		queue_delayed_work(bq->charger_wq, &bq->pd_work,
+				   msecs_to_jiffies(100));
+	}
+
+	return NOTIFY_OK;
+}
+
+static void bq25890_pd_evt_worker(struct work_struct *work)
+{
+	struct bq25890_device *bq = container_of(work,
+						 struct bq25890_device,
+						 pd_work.work);
+
+	bq25890_set_pd_param(bq, bq->pd_vol, bq->pd_cur);
+}
+
+static int bq25890_register_pd_psy(struct bq25890_device *bq)
+{
+	struct power_supply *notify_psy = NULL;
+	union power_supply_propval prop;
+	int ret;
+
+	if (!bq->notify_node)
+		return -EINVAL;
+
+	bq->charger_wq = alloc_ordered_workqueue("%s",
+						 WQ_MEM_RECLAIM |
+						 WQ_FREEZABLE,
+						 "bq25890-charge-wq");
+	INIT_DELAYED_WORK(&bq->pd_work,
+			  bq25890_pd_evt_worker);
+
+	bq->nb.notifier_call = bq25890_pd_notifier_call;
+	ret = power_supply_reg_notifier(&bq->nb);
+	if (ret) {
+		dev_err(bq->dev, "failed to reg notifier: %d\n", ret);
+		return ret;
+	}
+
+	bq25890_field_write(bq, F_AUTO_DPDM_EN, 0);
+	if (bq->nb.notifier_call) {
+		notify_psy = power_supply_get_by_phandle(bq->dev->of_node,
+						"ti,usb-charger-detection");
+		if (IS_ERR_OR_NULL(notify_psy)) {
+			dev_info(bq->dev, "bq25700 notify_psy is error\n");
+			notify_psy = NULL;
+		}
+	}
+
+	if (notify_psy) {
+		ret = power_supply_get_property(notify_psy,
+						POWER_SUPPLY_PROP_CURRENT_MAX,
+						&prop);
+		if (ret != 0)
+			return ret;
+		bq->pd_cur = prop.intval;
+
+		ret = power_supply_get_property(notify_psy,
+						POWER_SUPPLY_PROP_VOLTAGE_MAX,
+						&prop);
+		if (ret != 0)
+			return ret;
+		bq->pd_vol = prop.intval;
+
+		queue_delayed_work(bq->charger_wq, &bq->pd_work,
+				   msecs_to_jiffies(10));
+	}
 
 	return 0;
 }
@@ -1532,6 +1696,8 @@ static int bq25890_probe(struct i2c_client *client)
 		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
 	}
 
+	bq25890_register_pd_psy(bq);
+
 	return 0;
 }
 
@@ -1621,6 +1787,7 @@ static const struct i2c_device_id bq25890_i2c_ids[] = {
 	{ "bq25892" },
 	{ "bq25895" },
 	{ "bq25896" },
+	{ "sy6970" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
@@ -1630,6 +1797,7 @@ static const struct of_device_id bq25890_of_match[] __maybe_unused = {
 	{ .compatible = "ti,bq25892", },
 	{ .compatible = "ti,bq25895", },
 	{ .compatible = "ti,bq25896", },
+	{ .compatible = "sy,sy6970", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);

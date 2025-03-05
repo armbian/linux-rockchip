@@ -2115,7 +2115,9 @@ int iommu_attach_device(struct iommu_domain *domain, struct device *dev)
 	 */
 	mutex_lock(&group->mutex);
 	ret = -EINVAL;
-	if (list_count_nodes(&group->devices) != 1)
+
+	/* don't break attach if iommu shared by more than one master */
+	if (list_count_nodes(&group->devices) < 1)
 		goto out_unlock;
 
 	ret = __iommu_attach_group(domain, group);
@@ -2143,8 +2145,10 @@ void iommu_detach_device(struct iommu_domain *domain, struct device *dev)
 		return;
 
 	mutex_lock(&group->mutex);
+
+	/* Don't break detach if iommu shared by more than one master */
 	if (WARN_ON(domain != group->domain) ||
-	    WARN_ON(list_count_nodes(&group->devices) != 1))
+	    WARN_ON(list_count_nodes(&group->devices) < 1))
 		goto out_unlock;
 	__iommu_group_set_core_domain(group);
 

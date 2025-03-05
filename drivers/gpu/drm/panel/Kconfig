@@ -408,6 +408,22 @@ config DRM_PANEL_MANTIX_MLAF057WE51
 	  has a resolution of 720x1440 pixels, a built in backlight and touch
 	  controller.
 
+config DRM_PANEL_MAXIM_MAX96752F
+	tristate "Maxim MAX96752F-based panels"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Maxim MAX96752F.
+
+config DRM_PANEL_MAXIM_MAX96772
+	tristate "Maxim MAX96772-based panels"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Maxim MAX96772.
+
 config DRM_PANEL_NEC_NL8048HL11
 	tristate "NEC NL8048HL11 RGB panel"
 	depends on GPIOLIB && OF && SPI
@@ -888,6 +904,13 @@ config DRM_PANEL_SIMPLE
 	  and a GPIO to be powered up. Optionally a backlight can be attached so
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
+
+config DRM_PANEL_SIMPLE_OF_ONLY
+	bool "compatible is simple-panel or panel-dpi or simple-panel-dsi only"
+	depends on DRM_PANEL_SIMPLE
+	depends on ROCKCHIP_MINI_KERNEL
+	help
+	  Only support panels which all parameters from device tree.
 
 config DRM_PANEL_SYNAPTICS_R63353
 	tristate "Synaptics R63353-based panels"

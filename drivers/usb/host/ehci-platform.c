@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
 #include <linux/timer.h>
@@ -49,9 +50,41 @@ struct ehci_platform_priv {
 	struct reset_control *rsts;
 	bool reset_on_resume;
 	bool quirk_poll;
+	bool device_link;
 	struct timer_list poll_timer;
 	struct delayed_work poll_work;
 };
+
+static void ehci_rockchip_relinquish_port(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 __iomem *status_reg = &ehci->regs->port_status[--portnum];
+	u32 portsc;
+
+	portsc = ehci_readl(ehci, status_reg);
+	portsc &= ~(PORT_OWNER | PORT_RWC_BITS);
+
+	ehci_writel(ehci, portsc, status_reg);
+}
+
+#define USIC_MICROFRAME_OFFSET	0x90
+#define USIC_SCALE_DOWN_OFFSET	0xa0
+#define USIC_ENABLE_OFFSET	0xb0
+#define USIC_ENABLE		BIT(0)
+#define USIC_SCALE_DOWN		BIT(2)
+#define USIC_MICROFRAME_COUNT	0x1d4d
+
+static void ehci_usic_init(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+	ehci_writel(ehci, USIC_ENABLE,
+		    hcd->regs + USIC_ENABLE_OFFSET);
+	ehci_writel(ehci, USIC_MICROFRAME_COUNT,
+		    hcd->regs + USIC_MICROFRAME_OFFSET);
+	ehci_writel(ehci, USIC_SCALE_DOWN,
+		    hcd->regs + USIC_SCALE_DOWN_OFFSET);
+}
 
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
@@ -241,6 +274,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct ehci_platform_priv *priv;
 	struct ehci_hcd *ehci;
 	int err, irq, clk = 0;
+	struct device *companion_dev;
+	struct device_link *link;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -303,6 +338,16 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (soc_device_match(quirk_poll_match))
 			priv->quirk_poll = true;
 
+		if (of_machine_is_compatible("rockchip,rk3288") &&
+		    of_property_read_bool(dev->dev.of_node,
+					  "rockchip-relinquish-port"))
+			ehci_platform_hc_driver.relinquish_port =
+					  ehci_rockchip_relinquish_port;
+
+		if (of_device_is_compatible(dev->dev.of_node,
+					    "rockchip,rk3588-ehci"))
+			priv->device_link = true;
+
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
 			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
 			if (IS_ERR(priv->clks[clk])) {
@@ -353,6 +398,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
+	pm_runtime_get_sync(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -373,6 +421,24 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (err)
 		goto err_power;
 
+	if (of_usb_get_phy_mode(dev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC)
+		ehci_usic_init(hcd);
+
+	if (priv->device_link) {
+		companion_dev = usb_of_get_companion_dev(hcd->self.controller);
+		if (companion_dev) {
+			link = device_link_add(companion_dev, hcd->self.controller,
+					       DL_FLAG_STATELESS);
+			put_device(companion_dev);
+			if (!link) {
+				dev_err(&dev->dev, "Unable to link %s\n",
+					dev_name(companion_dev));
+				err = -EINVAL;
+				goto err_power;
+			}
+		}
+	}
+
 	device_wakeup_enable(hcd->self.controller);
 	device_enable_async_suspend(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
@@ -386,6 +452,8 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 	reset_control_assert(priv->rsts);
 err_put_clks:
 	while (--clk >= 0)
@@ -404,10 +472,19 @@ static void ehci_platform_remove(struct platform_device *dev)
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
+	struct device *companion_dev;
 	int clk;
 
 	if (priv->quirk_poll)
 		quirk_poll_end(priv);
+
+	if (priv->device_link) {
+		companion_dev = usb_of_get_companion_dev(hcd->self.controller);
+		if (companion_dev) {
+			device_link_remove(companion_dev, hcd->self.controller);
+			put_device(companion_dev);
+		}
+	}
 
 	usb_remove_hcd(hcd);
 
@@ -420,6 +497,9 @@ static void ehci_platform_remove(struct platform_device *dev)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
+
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ehci_platform_defaults)
 		dev->dev.platform_data = NULL;
@@ -463,7 +543,8 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 
 	companion_dev = usb_of_get_companion_dev(hcd->self.controller);
 	if (companion_dev) {
-		device_pm_wait_for_dev(hcd->self.controller, companion_dev);
+		if (!priv->device_link)
+			device_pm_wait_for_dev(hcd->self.controller, companion_dev);
 		put_device(companion_dev);
 	}
 

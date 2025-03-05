@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-test1.dtsi"
+#include "rk3576-test1-cam-dcphy0.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 TEST1 V10 Board";
+	compatible = "rockchip,rk3576-test1-v10", "rockchip,rk3576";
+};

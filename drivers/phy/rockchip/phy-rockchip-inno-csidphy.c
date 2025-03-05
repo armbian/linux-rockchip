@@ -2,7 +2,7 @@
 /*
  * Rockchip MIPI RX Innosilicon DPHY driver
  *
- * Copyright (C) 2021 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/bitfield.h>

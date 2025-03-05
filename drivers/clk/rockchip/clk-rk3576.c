@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <dt-bindings/clock/rockchip,rk3576-cru.h>
 #include "clk.h"
 
@@ -73,7 +74,11 @@ static struct rockchip_pll_rate_table rk3576_pll_rates[] = {
 	RK3588_PLL_RATE(1320000000, 2, 220, 1, 0),
 	RK3588_PLL_RATE(1200000000, 2, 200, 1, 0),
 	RK3588_PLL_RATE(1188000000, 2, 198, 1, 0),
+	RK3588_PLL_RATE(1186814000, 2, 198, 1, 52581),
+	RK3588_PLL_RATE(1186812000, 2, 198, 1, 52559),
+	RK3588_PLL_RATE(1109000000, 3, 554, 2, 32767),
 	RK3588_PLL_RATE(1100000000, 3, 550, 2, 0),
+	RK3588_PLL_RATE(1051000000, 3, 525, 2, 32767),
 	RK3588_PLL_RATE(1008000000, 2, 336, 2, 0),
 	RK3588_PLL_RATE(1000000000, 3, 500, 2, 0),
 	RK3588_PLL_RATE(983040000, 4, 655, 2, 23592),
@@ -84,11 +89,15 @@ static struct rockchip_pll_rate_table rk3576_pll_rates[] = {
 	RK3588_PLL_RATE(786432000, 2, 262, 2, 9437),
 	RK3588_PLL_RATE(786000000, 1, 131, 2, 0),
 	RK3588_PLL_RATE(785560000, 3, 392, 2, 51117),
+	RK3588_PLL_RATE(773000000, 2, 258, 2, 43690),
 	RK3588_PLL_RATE(722534400, 8, 963, 2, 24850),
+	RK3588_PLL_RATE(697000000, 2, 232, 2, 21845),
+	RK3588_PLL_RATE(604800000, 1, 101, 2, 52428),
 	RK3588_PLL_RATE(600000000, 2, 200, 2, 0),
 	RK3588_PLL_RATE(594000000, 2, 198, 2, 0),
 	RK3588_PLL_RATE(408000000, 2, 272, 3, 0),
 	RK3588_PLL_RATE(312000000, 2, 208, 3, 0),
+	RK3588_PLL_RATE(266580000, 1, 178, 4, 47185),
 	RK3588_PLL_RATE(216000000, 2, 288, 4, 0),
 	RK3588_PLL_RATE(96000000, 2, 256, 5, 0),
 	{ /* sentinel */ },
@@ -277,8 +286,6 @@ static const struct rockchip_cpuclk_reg_data rk3576_cpulclk_data = {
 
 PNAME(mux_pll_p)			= { "xin24m", "xin32k" };
 PNAME(mux_24m_32k_p)			= { "xin24m", "xin_osc0_div" };
-PNAME(mux_armclkl_p)			= { "xin24m", "pll_lpll", "lpll" };
-PNAME(mux_armclkb_p)			= { "xin24m", "pll_bpll", "bpll" };
 PNAME(gpll_24m_p)			= { "gpll", "xin24m" };
 PNAME(cpll_24m_p)			= { "cpll", "xin24m" };
 PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
@@ -330,6 +337,8 @@ PNAME(mclk_sai7_8ch_p)			= { "mclk_sai7_8ch_src", "sai1_mclkin" };
 PNAME(mclk_sai8_8ch_p)			= { "mclk_sai8_8ch_src", "sai1_mclkin" };
 PNAME(mclk_sai9_8ch_p)			= { "mclk_sai9_8ch_src", "sai1_mclkin" };
 PNAME(uart1_p)				= { "clk_uart1_src_top", "xin24m" };
+PNAME(pdm0_p)				= { "clk_pdm0_src_top", "xin24m" };
+PNAME(mclk_pdm0_p)			= { "mclk_pdm0_src_top", "xin24m" };
 PNAME(clk_gmac1_ptp_ref_src_p)		= { "gpll", "cpll", "gmac1_ptp_refclk_in" };
 PNAME(clk_gmac0_ptp_ref_src_p)		= { "gpll", "cpll", "gmac0_ptp_refclk_in" };
 PNAME(dclk_ebc_p)			= { "gpll", "cpll", "vpll", "aupll", "lpll_dummy",
@@ -458,37 +467,37 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	MUX(CLK_AUDIO_FRAC_0_SRC, "clk_audio_frac_0_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(13), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
-			RK3576_CLKSEL_CON(12), 0,
+			RK3576_CLKSEL_CON(12), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(1), 10, GFLAGS),
 	MUX(CLK_AUDIO_FRAC_1_SRC, "clk_audio_frac_1_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(15), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
-			RK3576_CLKSEL_CON(14), 0,
+			RK3576_CLKSEL_CON(14), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(1), 11, GFLAGS),
 	MUX(CLK_AUDIO_FRAC_2_SRC, "clk_audio_frac_2_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(17), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_2, "clk_audio_frac_2", "clk_audio_frac_2_src", 0,
-			RK3576_CLKSEL_CON(16), 0,
+			RK3576_CLKSEL_CON(16), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(1), 12, GFLAGS),
 	MUX(CLK_AUDIO_FRAC_3_SRC, "clk_audio_frac_3_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(19), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_3, "clk_audio_frac_3", "clk_audio_frac_3_src", 0,
-			RK3576_CLKSEL_CON(18), 0,
+			RK3576_CLKSEL_CON(18), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(1), 13, GFLAGS),
 	MUX(0, "clk_uart_frac_0_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(22), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_UART_FRAC_0, "clk_uart_frac_0", "clk_uart_frac_0_src", 0,
-			RK3576_CLKSEL_CON(21), 0,
+			RK3576_CLKSEL_CON(21), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(2), 5, GFLAGS),
 	MUX(0, "clk_uart_frac_1_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(24), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_UART_FRAC_1, "clk_uart_frac_1", "clk_uart_frac_1_src", 0,
-			RK3576_CLKSEL_CON(23), 0,
+			RK3576_CLKSEL_CON(23), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(2), 6, GFLAGS),
 	MUX(0, "clk_uart_frac_2_src", gpll_cpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(26), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_UART_FRAC_2, "clk_uart_frac_2", "clk_uart_frac_2_src", 0,
-			RK3576_CLKSEL_CON(25), 0,
+			RK3576_CLKSEL_CON(25), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(2), 7, GFLAGS),
 	COMPOSITE(CLK_UART1_SRC_TOP, "clk_uart1_src_top", clk_uart_p, 0,
 			RK3576_CLKSEL_CON(27), 13, 3, MFLAGS, 5, 8, DFLAGS,
@@ -878,8 +887,10 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(PCLK_DDR_ROOT, "pclk_ddr_root", gpll_cpll_24m_p, CLK_IS_CRITICAL,
 			RK3576_CLKSEL_CON(76), 5, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3576_CLKGATE_CON(21), 0, GFLAGS),
-	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", CLK_IGNORE_UNUSED,
+	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", 0,
 			RK3576_CLKGATE_CON(21), 1, GFLAGS),
+	GATE(PCLK_DDR_MON_CH1, "pclk_ddr_mon_ch1", "pclk_ddr_root", 0,
+			RK3576_CLKGATE_CON(21), 14, GFLAGS),
 	COMPOSITE(HCLK_DDR_ROOT, "hclk_ddr_root", gpll_cpll_p, CLK_IGNORE_UNUSED,
 			RK3576_CLKSEL_CON(77), 5, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3576_CLKGATE_CON(22), 11, GFLAGS),
@@ -1290,7 +1301,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	MUX(0, "dclk_ebc_frac_src_p", gpll_cpll_vpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(123), 0, 3, MFLAGS),
 	COMPOSITE_FRAC(DCLK_EBC_FRAC_SRC, "dclk_ebc_frac_src", "dclk_ebc_frac_src_p", 0,
-			RK3576_CLKSEL_CON(122), 0,
+			RK3576_CLKSEL_CON(122), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(50), 9, GFLAGS),
 	GATE(ACLK_EBC, "aclk_ebc", "aclk_vpu_low_root", 0,
 			RK3576_CLKGATE_CON(50), 11, GFLAGS),
@@ -1607,7 +1618,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_PMU_CLKGATE_CON(0), 13, GFLAGS),
 	GATE(CLK_USBDP_COMBO_PHY_IMMORTAL, "clk_usbdp_combo_phy_immortal", "xin24m", 0,
 			RK3576_PMU_CLKGATE_CON(0), 15, GFLAGS),
-	GATE(CLK_HDMITXHDP, "clk_hdmitxhdp", "xin24m", 0,
+	GATE(CLK_HDMITXHPD, "clk_hdmitxhpd", "xin24m", 0,
 			RK3576_PMU_CLKGATE_CON(1), 13, GFLAGS),
 	GATE(PCLK_MPHY, "pclk_mphy", "pclk_pmuphy_root", 0,
 			RK3576_PMU_CLKGATE_CON(2), 0, GFLAGS),
@@ -1646,7 +1657,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(CLK_I2C0, "clk_i2c0", mux_pmu200m_pmu100m_pmu50m_24m_p, 0,
 			RK3576_PMU_CLKSEL_CON(6), 7, 2, MFLAGS,
 			RK3576_PMU_CLKGATE_CON(5), 2, GFLAGS),
-	COMPOSITE_NODIV(SCLK_UART1, "sclk_uart1", uart1_p, 0,
+	COMPOSITE_NODIV(SCLK_UART1, "sclk_uart1", uart1_p, CLK_SET_RATE_PARENT,
 			RK3576_PMU_CLKSEL_CON(8), 0, 1, MFLAGS,
 			RK3576_PMU_CLKGATE_CON(5), 5, GFLAGS),
 	GATE(PCLK_UART1, "pclk_uart1", "pclk_pmu1_root", 0,
@@ -1720,27 +1731,56 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(59), 5, GFLAGS),
 };
 
+static void __iomem *rk3576_cru_base;
+
+static void rk3576_dump_cru(void)
+{
+	if (rk3576_cru_base) {
+		pr_warn("CRU SEL:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3576_cru_base + 0x300,
+			       0x300, false);
+		pr_warn("CRU GATE:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3576_cru_base + 0x800,
+			       0x300, false);
+	}
+}
+
+static int protect_clocks[] = {
+	CLK_PMU1PWM,
+	PCLK_PMU1PWM,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
+	ACLK_EBC,
+	HCLK_EBC,
+	DCLK_EBC,
+	ACLK_VOP,
+	HCLK_VOP,
+	DCLK_VP0,
+	DCLK_VP1,
+	DCLK_VP2,
+};
+
 static void __init rk3576_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	unsigned long clk_nr_clks;
 	void __iomem *reg_base;
-	struct regmap *grf;
+	struct clk **clks;
 
 	clk_nr_clks = rockchip_clk_find_max_clk_id(rk3576_clk_branches,
 					ARRAY_SIZE(rk3576_clk_branches)) + 1;
-
-	grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-pmu0-grf");
-	if (IS_ERR(grf)) {
-		pr_err("%s: could not get PMU0 GRF syscon\n", __func__);
-		return;
-	}
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
 		pr_err("%s: could not map cru region\n", __func__);
 		return;
 	}
+
+	rk3576_cru_base = reg_base;
 
 	ctx = rockchip_clk_init(np, reg_base, clk_nr_clks);
 	if (IS_ERR(ctx)) {
@@ -1749,33 +1789,40 @@ static void __init rk3576_clk_init(struct device_node *np)
 		return;
 	}
 
-	ctx->grf = grf;
+	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3576_pll_clks,
 				   ARRAY_SIZE(rk3576_pll_clks),
 				   RK3576_GRF_SOC_STATUS0);
 
 	rockchip_clk_register_armclk(ctx, ARMCLK_L, "armclk_l",
-			mux_armclkl_p, ARRAY_SIZE(mux_armclkl_p),
+			3, clks[PLL_LPLL], clks[PLL_GPLL],
 			&rk3576_cpulclk_data, rk3576_cpulclk_rates,
 			ARRAY_SIZE(rk3576_cpulclk_rates));
 	rockchip_clk_register_armclk(ctx, ARMCLK_B, "armclk_b",
-			mux_armclkb_p, ARRAY_SIZE(mux_armclkb_p),
+			3, clks[PLL_BPLL], clks[PLL_GPLL],
 			&rk3576_cpubclk_data, rk3576_cpubclk_rates,
 			ARRAY_SIZE(rk3576_cpubclk_rates));
 
 	rockchip_clk_register_branches(ctx, rk3576_clk_branches,
 				       ARRAY_SIZE(rk3576_clk_branches));
 
-	rk3576_rst_init(np, reg_base);
+	rockchip_register_softrst(np, SRST_NR_RSTS, reg_base + RK3576_SOFTRST_CON(0),
+				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
 	rockchip_register_restart_notifier(ctx, RK3576_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru)
+		rk_dump_cru = rk3576_dump_cru;
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3576_cru, "rockchip,rk3576-cru", rk3576_clk_init);
 
+#ifdef MODULE
 struct clk_rk3576_inits {
 	void (*inits)(struct device_node *np);
 };
@@ -1791,6 +1838,7 @@ static const struct of_device_id clk_rk3576_match_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, clk_rk3576_match_table);
 
 static int clk_rk3576_probe(struct platform_device *pdev)
 {
@@ -1815,4 +1863,8 @@ static struct platform_driver clk_rk3576_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver_probe(clk_rk3576_driver, clk_rk3576_probe);
+module_platform_driver(clk_rk3576_driver);
+
+MODULE_DESCRIPTION("Rockchip RK3576 Clock Driver");
+MODULE_LICENSE("GPL");
+#endif /* MODULE */

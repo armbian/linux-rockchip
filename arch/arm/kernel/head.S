@@ -65,7 +65,8 @@ kernel_sec_end:
 	.popsection
 
 	.macro	pgtbl, rd, phys
-	add	\rd, \phys, #TEXT_OFFSET
+	add	\rd, \phys, #(TEXT_OFFSET & 0xffff0000)
+	add	\rd, \rd,   #(TEXT_OFFSET & 0x0000ffff)
 	sub	\rd, \rd, #PG_DIR_SIZE
 	.endm
 

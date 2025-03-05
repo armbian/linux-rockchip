@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config SND_SOC_IT6621
+	tristate "IT6621 driver for HDMI2.1 enhanced audio return channel (eARC)"
+	depends on (I2C)
+	help
+	  Say yes here to build support for ITE IT6621 eARC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called it6621.

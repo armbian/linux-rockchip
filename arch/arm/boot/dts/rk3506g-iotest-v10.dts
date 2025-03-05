@@ -1,0 +1,216 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+
+/ {
+	model = "Rockchip RK3506 EVB1 V10 Board";
+	compatible = "rockchip,rk3506-evb1-v10", "rockchip,rk3506";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=5 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <0>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	pdmics: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	pdm_mic_array: pdm-mic-array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&pdmics>;
+		};
+	};
+
+	vcc12v_dc: vcc12v-dc {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dc";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dc>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc3v3_sd: vcc3v3-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwren>;
+	};
+
+	vccio_sd: vccio-sd {
+		compatible = "regulator-gpio";
+		regulator-name = "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		states = <3300000 1
+			  1800000 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_volt>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_ddr: vcc-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <710000>;
+		regulator-max-microvolt = <1207000>;
+		regulator-init-microvolt = <1011000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc_sys>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&fspi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&mmc {
+	/* For SDMMC */
+	no-sdio;
+	no-mmc;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cd-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	sd-uhs-sdr104;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins &sdmmc_det>;
+	vqmmc-supply = <&vccio_sd>;
+	vmmc-supply = <&vcc3v3_sd>;
+
+	/* For eMMC
+	 * no-sdio;
+	 * no-sd;
+	 * cap-mmc-highspeed;
+	 * cap-sd-highspeed;
+	 * non-removable;
+	 * mmc-hs200-1_8v;
+	 * pinctrl-names = "default";
+	 * pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins>;
+	 * vqmmc-supply = <&vccio_sd>;
+	 * vmmc-supply = <&vcc3v3_sd>;
+	 */
+	status = "okay";
+};
+
+&pdm {
+	status = "okay";
+};
+
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		sdmmc_volt: sdmmc-volt {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		sdmmc_det: sdmmc-det {
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pwm0_4ch_0 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io21_pwm0_ch0>;
+	status = "okay";
+};
+
+&pwm0_4ch_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io20_pwm0_ch1>;
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	rockchip,vbus-always-on;
+	status = "okay";
+};
+
+&usb2phy {
+	status = "okay";
+};
+
+&usb20_otg0 {
+	status = "okay";
+};

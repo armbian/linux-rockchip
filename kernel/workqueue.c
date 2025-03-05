@@ -55,6 +55,7 @@
 #include <linux/kvm_para.h>
 #include <linux/delay.h>
 #include <linux/irq_work.h>
+#include <uapi/linux/sched/types.h>
 
 #include "workqueue_internal.h"
 
@@ -2804,6 +2805,15 @@ static struct worker *create_worker(struct worker_pool *pool)
 		}
 
 		set_user_nice(worker->task, pool->attrs->nice);
+		if (IS_ENABLED(CONFIG_ROCKCHIP_OPTIMIZE_RT_PRIO)) {
+			struct sched_param param;
+
+			if (pool->attrs->nice == 0)
+				param.sched_priority = MAX_RT_PRIO / 2 - 4;
+			else
+				param.sched_priority = MAX_RT_PRIO / 2 - 2;
+			sched_setscheduler_nocheck(worker->task, SCHED_RR, &param);
+		}
 		kthread_bind_mask(worker->task, pool_allowed_cpus(pool));
 	}
 

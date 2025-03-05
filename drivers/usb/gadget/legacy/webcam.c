@@ -542,6 +542,7 @@ webcam_bind(struct usb_composite_dev *cdev)
 	uvc_opts->fs_streaming = uvc_fs_streaming_cls;
 	uvc_opts->hs_streaming = uvc_hs_streaming_cls;
 	uvc_opts->ss_streaming = uvc_ss_streaming_cls;
+	uvc_opts->pm_qos_latency = 0;
 
 	INIT_LIST_HEAD(&uvcg_format_yuv.fmt.frames);
 	list_add_tail(&uvcg_frame_ptr_yuv_360p.entry, &uvcg_format_yuv.fmt.frames);

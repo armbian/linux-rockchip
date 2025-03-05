@@ -4360,7 +4360,9 @@ static void ext4_set_def_opts(struct super_block *sb,
 		set_opt(sb, ERRORS_RO);
 	/* block_validity enabled by default; disable with noblock_validity */
 	set_opt(sb, BLOCK_VALIDITY);
-	if (def_mount_opts & EXT4_DEFM_DISCARD)
+	/* discard enabled by default for Rockchip; disable with nodiscard */
+	if (IS_ENABLED(CONFIG_ARCH_ROCKCHIP) ||
+	    (def_mount_opts & EXT4_DEFM_DISCARD))
 		set_opt(sb, DISCARD);
 
 	if ((def_mount_opts & EXT4_DEFM_NOBARRIER) == 0)

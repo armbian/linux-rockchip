@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb1-ddr4-v10-linux.dts"
+#include "rk3568-amp.dtsi"
+
+/ {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		amp_reserved: amp@1800000 {
+			reg = <0x0 0x01800000 0x0 0x01800000>;
+			no-map;
+		};
+	};
+};
+
+&arm_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>;
+};
+
+/delete-node/ &cpu3;

@@ -134,6 +134,11 @@
 			*(.vectors.bhb.bpiall)				\
 		}							\
 	}								\
+	.vectors.text : {						\
+		KEEP(*(.vectors))					\
+		KEEP(*(.vectors.bhb.loop8))				\
+		KEEP(*(.vectors.bhb.bpiall))				\
+	}								\
 	ARM_LMA(__vectors, .vectors);					\
 	ARM_LMA(__vectors_bhb_loop8, .vectors.bhb.loop8);		\
 	ARM_LMA(__vectors_bhb_bpiall, .vectors.bhb.bpiall);		\

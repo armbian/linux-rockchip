@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3503.dtsi"
+#include "rk3506-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3503G(QFN88) EVB1 V10 Board";
+	compatible = "rockchip,rk3503g-evb1-v10", "rockchip,rk3506";
+};
+
+&acdcdig_dsm {
+	status = "okay";
+};
+
+&dsm_sound {
+	status = "okay";
+};
+
+&sai3 {
+	status = "okay";
+};

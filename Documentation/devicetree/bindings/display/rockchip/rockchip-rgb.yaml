@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/rockchip/rockchip-rgb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip RGB interface
+
+maintainers:
+  - Sandy Huang <hjc@rock-chips.com>
+  - Damon Ding <damon.ding@rock-chips.com>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,px30-rgb
+      - rockchip,rk1808-rgb
+      - rockchip,rk3066-rgb
+      - rockchip,rk3128-rgb
+      - rockchip,rk3288-rgb
+      - rockchip,rk3308-rgb
+      - rockchip,rk3368-rgb
+      - rockchip,rk3506-rgb
+      - rockchip,rk3562-rgb
+      - rockchip,rk3568-rgb
+      - rockchip,rk3588-rgb
+      - rockchip,rv1106-rgb
+      - rockchip,rv1108-rgb
+      - rockchip,rv1126-rgb
+
+  phys:
+    description: phandle for the PHY device
+  phy-names:
+    description: should be "phy"
+  pinctrl-names:
+    description: the pin control state names; should contain "default"
+  pinctrl-0:
+    description: the default pinctrl state (active)
+  pinctrl-1:
+    description: the "sleep" pinctrl state
+  rockchip,data-sync-bypass:
+    description: bypass the vop data-sync logic from io
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          port for the VOP input
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          port for either a panel or bridge
+
+  mcu-panel:
+    $ref: mcu-panel.yaml#
+    description:
+      mcu panel configurations
+
+required:
+  - compatible
+  - pinctrl-names
+  - pinctrl-0
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    rgb: rgb {
+      compatible = "rockchip,rk3308-rgb";
+      pinctrl-names = "default";
+      pinctrl-0 = <&lcdc_ctl>;
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+          reg = <0>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          rgb_in_vop: endpoint@0 {
+            reg = <0>;
+            remote-endpoint = <&vop_out_rgb>;
+          };
+        };
+      };
+    };

@@ -49,7 +49,6 @@ drm-y := \
 	drm_displayid.o \
 	drm_drv.o \
 	drm_dumb_buffers.o \
-	drm_edid.o \
 	drm_eld.o \
 	drm_encoder.o \
 	drm_file.o \
@@ -75,6 +74,7 @@ drm-y := \
 	drm_vblank_work.o \
 	drm_vma_manager.o \
 	drm_writeback.o
+drm-$(CONFIG_DRM_EDID) += drm_edid.o
 drm-$(CONFIG_DRM_LIB_RANDOM) += lib/drm_random.o
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o

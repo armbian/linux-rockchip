@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Maxim Quad GMSL deserializer devices
+#
+config VIDEO_MAXIM_DES_MAXIM4C
+	tristate "Maxim Quad GMSL deserializer support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim Quad GMSL2/GMSL1 deserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maxim4c.

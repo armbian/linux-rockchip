@@ -1187,6 +1187,8 @@ struct clk_hw *clk_hw_register_fixed_factor_parent_hw(struct device *dev,
  *	to shift left by a few bits in case, when the asked one is quite small
  *	to satisfy the desired range of denominator. It assumes that on the
  *	caller's side the power-of-two capable prescaler exists.
+ * CLK_FRAC_DIVIDER_NO_LIMIT - not need to follow the 20 times limit on
+ *	fractional divider
  */
 struct clk_fractional_divider {
 	struct clk_hw	hw;
@@ -1207,6 +1209,7 @@ struct clk_fractional_divider {
 #define CLK_FRAC_DIVIDER_ZERO_BASED		BIT(0)
 #define CLK_FRAC_DIVIDER_BIG_ENDIAN		BIT(1)
 #define CLK_FRAC_DIVIDER_POWER_OF_TWO_PS	BIT(2)
+#define CLK_FRAC_DIVIDER_NO_LIMIT		BIT(3)
 
 struct clk *clk_register_fractional_divider(struct device *dev,
 		const char *name, const char *parent_name, unsigned long flags,

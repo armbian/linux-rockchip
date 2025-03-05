@@ -2,7 +2,7 @@
 /*
  * Fuel gauge driver for CellWise 2013 / 2015
  *
- * Copyright (C) 2012, RockChip
+ * Copyright (C) 2012, Rockchip Electronics Co., Ltd.
  * Copyright (C) 2020, Tobias Schramm
  *
  * Authors: xuhuicong <xhc@rock-chips.com>
@@ -76,6 +76,8 @@ struct cw_battery {
 
 	u32 poll_interval_ms;
 	u8 alert_level;
+
+	bool dual_cell;
 
 	unsigned int read_errors;
 	unsigned int charge_stuck_cnt;
@@ -324,6 +326,8 @@ static int cw_get_voltage(struct cw_battery *cw_bat)
 	 * Negligible error of 0.1%
 	 */
 	voltage_mv = avg * 312 / 1024;
+	if (cw_bat->dual_cell)
+		voltage_mv *= 2;
 
 	dev_dbg(cw_bat->dev, "Read voltage: %d mV, raw=0x%04x\n",
 		voltage_mv, reg_val);
@@ -408,13 +412,12 @@ static void cw_update_time_to_empty(struct cw_battery *cw_bat)
 	int time_to_empty;
 
 	time_to_empty = cw_get_time_to_empty(cw_bat);
-	if (time_to_empty < 0)
+	if (time_to_empty < 0) {
 		dev_err(cw_bat->dev, "Failed to get time to empty from gauge: %d\n",
 			time_to_empty);
-	else if (cw_bat->time_to_empty != time_to_empty) {
-		cw_bat->time_to_empty = time_to_empty;
-		cw_bat->battery_changed = true;
+		return;
 	}
+	cw_bat->time_to_empty = time_to_empty;
 }
 
 static void cw_bat_work(struct work_struct *work)
@@ -465,6 +468,20 @@ static bool cw_battery_valid_time_to_empty(struct cw_battery *cw_bat)
 		cw_bat->status == POWER_SUPPLY_STATUS_DISCHARGING;
 }
 
+static int cw_get_capacity_leve(struct cw_battery *cw_bat)
+{
+	if (cw_bat->soc < 1)
+		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+	else if (cw_bat->soc <= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	else if (cw_bat->soc <= 70)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	else if (cw_bat->soc <= 90)
+		return POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
+	else
+		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+}
+
 static int cw_battery_get_property(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
@@ -475,6 +492,10 @@ static int cw_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = cw_bat->soc;
+		break;
+
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = cw_get_capacity_leve(cw_bat);
 		break;
 
 	case POWER_SUPPLY_PROP_STATUS:
@@ -540,6 +561,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -586,6 +608,8 @@ static int cw2015_parse_properties(struct cw_battery *cw_bat)
 		if (ret)
 			return ret;
 	}
+
+	cw_bat->dual_cell = device_property_read_bool(dev, "cellwise,dual-cell");
 
 	ret = device_property_read_u32(dev, "cellwise,monitor-interval-ms",
 				       &cw_bat->poll_interval_ms);

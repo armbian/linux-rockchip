@@ -634,6 +634,59 @@ int v4l2_async_nf_register(struct v4l2_async_notifier *notifier)
 }
 EXPORT_SYMBOL(v4l2_async_nf_register);
 
+#if IS_ENABLED(CONFIG_NO_GKI)
+static int __v4l2_async_notifier_clr_unready_dev(
+	struct v4l2_async_notifier *notifier)
+{
+	struct v4l2_async_connection *asc, *asc_tmp;
+	int clr_num = 0;
+
+	list_for_each_entry_safe(asc, asc_tmp, &notifier->done_list, asc_entry) {
+		struct v4l2_async_notifier *subdev_notifier =
+			v4l2_async_find_subdev_notifier(asc->sd);
+
+		if (subdev_notifier)
+			clr_num += __v4l2_async_notifier_clr_unready_dev(
+					subdev_notifier);
+	}
+
+	list_for_each_entry_safe(asc, asc_tmp, &notifier->waiting_list, asc_entry) {
+		list_del(&asc->asc_entry);
+		kfree(asc);
+		clr_num++;
+	}
+
+	return clr_num;
+}
+
+int v4l2_async_notifier_clr_unready_dev(struct v4l2_async_notifier *notifier)
+{
+	int ret = 0;
+	int clr_num = 0;
+
+	mutex_lock(&list_lock);
+
+	while (notifier->parent)
+		notifier = notifier->parent;
+
+	if (!notifier->v4l2_dev)
+		goto out;
+
+	clr_num = __v4l2_async_notifier_clr_unready_dev(notifier);
+	dev_info(notifier->v4l2_dev->dev,
+		 "clear unready subdev num: %d\n", clr_num);
+
+	if (clr_num > 0)
+		ret = v4l2_async_nf_try_complete(notifier);
+
+out:
+	mutex_unlock(&list_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(v4l2_async_notifier_clr_unready_dev);
+#endif
+
 static void
 __v4l2_async_nf_unregister(struct v4l2_async_notifier *notifier)
 {

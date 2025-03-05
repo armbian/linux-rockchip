@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board + RK Ext HDMImale to eDP V10";
+	compatible = "rockchip,rk3588-evb1-lp4-v10-edp-NV140QUM-N61", "rockchip,rk3588";
+
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		enable-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+
+		display-timings {
+			native-mode = <&timing_4kp60>;
+			timing_4kp60: timing1 {
+				clock-frequency = <594000000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <240>;
+				hsync-len = <80>;
+				hback-porch = <240>;
+				vfront-porch = <40>;
+				vsync-len = <10>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_edp0: endpoint {
+				remote-endpoint = <&edp0_out_panel>;
+			};
+		};
+	};
+};
+
+&bt_sco {
+	status = "okay";
+};
+
+&bt_sound {
+	status = "okay";
+};
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp0>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp0 {
+	status = "okay";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&route_edp0 {
+	status = "okay";
+	connect = <&vp0_out_edp0>;
+};
+
+&route_hdmi0 {
+	status = "disabled";
+};

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/rockchip-flexbus-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip Flexbus controller under SPI transmission protocol
+
+maintainers:
+  - Jon Lin <jon.lin@rock-chips.com>
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  compatible:
+    const: rockchip,flexbus-spi
+    description:
+      The rockchip flexbus controller is a standalone IP with version register,
+      and the driver can handle all the feature difference inside the IP
+      depending on the version register.
+
+  rockchip,dll-cells:
+    description:
+      Setting dll cells.
+
+  rockchip,dfs:
+    description:
+      Setting data width.
+
+  rockchip,poll-only:
+    description: Add this property to set the wait idle method as CPU polling.
+    type: boolean
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    flexbus_spi: spi@ff3a0000 {
+        compatible = "rockchip,flexbus-spi";
+        rockchip,dfs = <16>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        spidev@0 {
+            compatible = "rockchip,spidev";
+            reg = <0>;
+            spi-max-frequency = <50000000>;
+        };
+    };
+
+...

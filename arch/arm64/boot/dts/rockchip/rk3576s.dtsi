@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3576.dtsi"
+
+/ {
+	compatible = "rockchip,rk3576s";
+
+	aliases {
+		/delete-property/ ethernet0;
+		/delete-property/ ethernet1;
+	};
+};
+
+&display_subsystem {
+	ports = <&vop_out>;
+};
+
+&power {
+	power-domain@RK3576_PD_NVM {
+		reg = <RK3576_PD_NVM>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pm_qos = <&qos_emmc>,
+			 <&qos_fspi0>;
+
+		power-domain@RK3576_PD_SDGMAC {
+			reg = <RK3576_PD_SDGMAC>;
+			pm_qos = <&qos_fspi1>,
+				 <&qos_sdio>,
+				 <&qos_sdmmc>,
+				 <&qos_flexbus>;
+		};
+	};
+	power-domain@RK3576_PD_VPU {
+		reg = <RK3576_PD_VPU>;
+		pm_qos = <&qos_rga0>,
+			 <&qos_rga1>,
+			 <&qos_jpeg>,
+			 <&qos_vdpp>;
+	};
+};
+
+/delete-node/ &can0;
+/delete-node/ &can1;
+/delete-node/ &combphy1_psu;
+/delete-node/ &dsi_in_vopl;
+/delete-node/ &dsmc;
+/delete-node/ &dsmc_slave;
+/delete-node/ &ebc;
+/delete-node/ &edp_in_vopl;
+/delete-node/ &gmac0;
+/delete-node/ &gmac1;
+/delete-node/ &hdmi_in_vopl;
+/delete-node/ &pcie1;
+/delete-node/ &qos_ebc;
+/delete-node/ &qos_gmac0;
+/delete-node/ &qos_gmac1;
+/delete-node/ &rgb_in_vopl;
+/delete-node/ &sata0;
+/delete-node/ &sata1;
+/delete-node/ &usb_drd1_dwc3;
+/delete-node/ &u2phy1_otg;
+/delete-node/ &u2phy1;
+/delete-node/ &vopl;

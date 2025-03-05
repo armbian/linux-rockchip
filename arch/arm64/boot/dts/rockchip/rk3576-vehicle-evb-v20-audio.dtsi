@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+
+	dummy_codec0: dummy-codec@0 {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	dummy_codec1: dummy-codec@1 {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	bt_codec: bt-codec {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	sound0 {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,tdm";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+			dai-tdm-slot-num = <8>;
+			dai-tdm-slot-width = <32>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec0>;
+		};
+	};
+
+	sound1 {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,low-latency";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,bitclock-master = <&dummy_clk1>;
+		simple-audio-card,frame-master = <&dummy_clk1>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai4>;
+			dai-tdm-slot-num = <8>;
+			dai-tdm-slot-width = <32>;
+		};
+		dummy_clk1: simple-audio-card,codec {
+			sound-dai = <&dummy_codec1>;
+		};
+	};
+
+	sound2 {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_codec 1>;
+		};
+	};
+};
+
+&sai1 {
+	status = "okay";
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai1m0_lrck
+			&sai1m0_sclk
+			&sai1m0_sdi0
+			&sai1m0_sdi1
+			&sai1m0_sdo0
+			&sai1m0_sdo1
+			&sai1m0_sdo2>;
+};
+
+&sai2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai2m0_lrck
+			&sai2m0_sclk
+			&sai2m0_sdi
+			&sai2m0_sdo>;
+};
+
+&sai4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai4m2_lrck
+			&sai4m2_sclk
+			&sai4m2_sdi
+			&sai4m2_sdo>;
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m0_csn0 &spi0m0_pins>;
+	spi-dev@0 {
+		compatible = "rockchip,spidev";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-lsb-first;
+	};
+};

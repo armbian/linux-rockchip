@@ -173,4 +173,15 @@ config HOTPLUG_PCI_S390
 
 	  When in doubt, say Y.
 
+config HOTPLUG_PCI_GPIO
+	bool "GPIO based PCI Hotplug Support"
+	depends on OF_GPIO
+	help
+	  Say Y here if you want to have GPIO based PCIe hot-plug framework.
+	  This framework helps to register a GPIO based Hot-Plug controller
+	  with the system where a GPIO can be used to represent device
+	  connect and disconnect states.
+
+	  When in doubt, say N.
+
 endif # HOTPLUG_PCI

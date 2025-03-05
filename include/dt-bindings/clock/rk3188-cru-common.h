@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
@@ -67,6 +67,7 @@
 #define ACLK_PERI		204
 #define ACLK_VEPU		205
 #define ACLK_VDPU		206
+#define ACLK_CPU_PRE		207
 
 /* pclk gates */
 #define PCLK_GRF		320
@@ -111,9 +112,9 @@
 #define HCLK_OTG0		451
 #define HCLK_EMAC		452
 #define HCLK_SPDIF		453
-#define HCLK_I2S0		454
-#define HCLK_I2S1		455
-#define HCLK_I2S2		456
+#define HCLK_I2S0_2CH		454
+#define HCLK_I2S1_2CH		455
+#define HCLK_I2S_8CH		456
 #define HCLK_OTG1		457
 #define HCLK_HSIC		458
 #define HCLK_HSADC		459

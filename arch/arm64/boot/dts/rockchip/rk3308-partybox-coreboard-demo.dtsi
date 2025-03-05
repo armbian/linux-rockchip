@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/input/input.h>
+#include "rk3308-partybox.dtsi"
+
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0c0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait isolcpus=2,3 nohz_full=2,3 snd_soc_core.prealloc_buffer_size_kbytes=16";
+	};
+
+	pwm-leds {
+		compatible = "pwm-leds";
+
+		mic1-green-led {
+			label = "mic1_green";
+			pwms = <&pwm1 0 50000 0>;
+			default-state = "off";
+		};
+		mic1-red-led {
+			label = "mic1_red";
+			pwms = <&pwm2 0 50000 0>;
+			default-state = "off";
+		};
+		mic2-green-led {
+			label = "mic2_green";
+			pwms = <&pwm3 0 50000 0>;
+			default-state = "off";
+		};
+		mic2-red-led {
+			label = "mic2_red";
+			pwms = <&pwm4 0 50000 0>;
+			default-state = "off";
+		};
+		aux-green-led {
+			label = "aux_green";
+			pwms = <&pwm5 0 50000 0>;
+			default-state = "off";
+		};
+		aux-red-led {
+			label = "aux_red";
+			pwms = <&pwm6 0 50000 0>;
+			default-state = "off";
+		};
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart4_rts>;
+		pinctrl-1 = <&uart4_rts_pin>;
+		BT,power_gpio    = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+};
+
+&acodec {
+	status = "disabled";
+};
+
+&bluetooth_sound {
+	status = "okay";
+	rockchip,frame-master = <&bt_codec>;
+	rockchip,bitclock-master = <&bt_codec>;
+	rockchip,format = "i2s";
+};
+
+&i2s_2ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&dac_sound {
+	status = "okay";
+};
+
+&dmac0 {
+	iram = <&vad_sram>;
+};
+
+&dmac1 {
+	iram = <&vad_sram>;
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	no-sdio;
+	no-sd;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	status = "disabled";
+};
+
+ /*
+  *	VCCIO[0:5] domains require that their hardware power supply voltages
+  *	must be consistent with the software configuration correspondingly
+  *	a/ When the hardware IO level is connected to 1.8V, the software voltage configuration
+  *	   should also be configured to 1.8V accordingly;
+  *	b/ When the hardware IO level is connected to 3.3V, the software voltage configuration
+  *	   should also be configured to 3.3V accordingly;
+  */
+&io_domains {
+	status = "okay";
+
+	vccio0-supply = <&vcc_3v3>;
+	vccio1-supply = <&vcc_3v3>;
+	vccio2-supply = <&vcc_3v3>;
+	vccio3-supply = <&vcc_3v3>;
+	vccio4-supply = <&vcc_3v3>;
+	vccio5-supply = <&vcc_3v3>;
+};
+
+&i2s_8ch_0 {
+	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&pwm5 {
+	status = "okay";
+};
+
+&pwm6 {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_xfer &uart4_cts>;
+	status = "okay";
+};
+
+&usb20_otg {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "disabled";
+};
+
+&usb_host0_ohci{
+	status = "disabled";
+};
+
+&u2phy {
+	status = "okay";
+
+	u2phy_host: host-port {
+		status = "disabled";
+	};
+
+	u2phy_otg: otg-port {
+		status = "okay";
+	};
+};
+
+&vad_sram {
+	pool;
+};
+
+&pinctrl {
+	wireless-bluetooth {
+		uart4_gpios: uart4-gpios {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

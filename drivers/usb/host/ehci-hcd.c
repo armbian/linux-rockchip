@@ -738,6 +738,8 @@ restart:
 
 	/* Shared IRQ? */
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
+		if (masked_status)
+			ehci_writel(ehci, masked_status, &ehci->regs->status);
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}

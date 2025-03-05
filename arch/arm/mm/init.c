@@ -23,6 +23,7 @@
 #include <linux/stop_machine.h>
 #include <linux/swiotlb.h>
 #include <linux/execmem.h>
+#include <linux/rk-dma-heap.h>
 
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
@@ -198,6 +199,7 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 
 	/* reserve memory for DMA contiguous allocations */
 	dma_contiguous_reserve(arm_dma_limit);
+	rk_dma_heap_cma_setup();
 
 	arm_memblock_steal_permitted = false;
 	memblock_dump_all();

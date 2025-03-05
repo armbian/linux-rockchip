@@ -90,6 +90,18 @@ config DRM_FSL_LDB
 	help
 	  Support for i.MX8MP DPI-to-LVDS on-SoC encoder.
 
+config DRM_ITE_IT6161
+	tristate "ITE IT6161 DSI/HDMI bridge"
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	  Driver for ITE IT6161 DSI to HDMI bridge
+	  Please say Y if you have such hardware
+
 config DRM_ITE_IT6505
 	tristate "ITE IT6505 DisplayPort bridge"
 	depends on OF
@@ -178,6 +190,26 @@ config DRM_LVDS_CODEC
 	  Support for transparent LVDS encoders and decoders that don't
 	  require any configuration.
 
+config DRM_MAXIM_MAX96745
+	tristate "Maxim max96745 GMSL2 Serializer"
+	depends on OF
+	select MFD_MAX96745
+	select PINCTRL_MAX96745
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Driver for Maxim MAX96745 GMSL2 Serializer with eDP1.4a/DP1.4 Input.
+
+config DRM_MAXIM_MAX96755F
+	tristate "Maxim max96755 GMSL2 Serializer"
+	depends on OF
+	select MFD_MAX96755F
+	select PINCTRL_MAX96755F
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Driver for Maxim MAX96755F GMSL2 Serializer with MIPI-DSI Input.
+
 config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
 	depends on OF
@@ -244,6 +276,32 @@ config DRM_PARADE_PS8640
 	  The PS8640 is a high-performance and low-power
 	  MIPI DSI to eDP converter
 
+config DRM_RK630_TVE
+	tristate "ROCKCHIP RK630 TVE bridge"
+	depends on OF
+	depends on MFD_RK630
+	select DRM_KMS_HELPER
+	help
+	  ROCKCHIP TVE bridge chip RK630 driver.
+
+config DRM_RK1000_TVE
+	tristate "Rockchip RK1000 TVE bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select MFD_RK1000
+	help
+	  Rockchip TVE bridge chip driver.
+
+config DRM_ROHM_BU18XL82
+	tristate "Rohm BU18TL82/BU18RL82 Clockless Link-BD Serializer/Deserializer bridge"
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	    Rohm BU18TL82/BU18RL82 Clockless Link-BD Serializer/Deserializer bridge chip driver.
+
 config DRM_SAMSUNG_DSIM
 	tristate "Samsung MIPI DSIM bridge driver"
 	depends on COMMON_CLK
@@ -273,7 +331,9 @@ config DRM_SII902X
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select I2C_MUX
-	select SND_SOC_HDMI_CODEC if SND_SOC
+	select SND_SOC_HDMI_CODEC if (SND_SOC && !ROCKCHIP_MINI_KERNEL)
+	select VIDEOMODE_HELPERS
+	select HDMI if ROCKCHIP_MINI_KERNEL
 	help
 	  Silicon Image sii902x bridge chip driver.
 

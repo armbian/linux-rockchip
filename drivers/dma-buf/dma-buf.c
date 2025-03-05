@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
+#include <linux/sched/task.h>
 
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
@@ -65,6 +66,76 @@ static void __dma_buf_debugfs_list_del(struct dma_buf *dmabuf)
 }
 #endif
 
+/**
+ * dma_buf_get_each - Helps in traversing the db_list and calls the
+ * callback function which can extract required info out of each
+ * dmabuf.
+ * The db_list needs to be locked to prevent the db_list from being
+ * dynamically updated during the traversal process.
+ *
+ * @callback: [in]   Handle for each dmabuf buffer in db_list.
+ * @private:  [in]   User-defined, used to pass in when callback is
+ *                   called.
+ *
+ * Returns 0 on success, otherwise returns a non-zero value for
+ * mutex_lock_interruptible or callback.
+ */
+int dma_buf_get_each(int (*callback)(const struct dma_buf *dmabuf,
+		     void *private), void *private)
+{
+	struct dma_buf *buf;
+	int ret = mutex_lock_interruptible(&db_list.lock);
+
+	if (ret)
+		return ret;
+
+	list_for_each_entry(buf, &db_list.head, list_node) {
+		ret = callback(buf, private);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&db_list.lock);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(dma_buf_get_each, MINIDUMP);
+
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
+static size_t db_total_size;
+static size_t db_peak_size;
+
+void dma_buf_reset_peak_size(void)
+{
+	mutex_lock(&db_list.lock);
+	db_peak_size = 0;
+	mutex_unlock(&db_list.lock);
+}
+EXPORT_SYMBOL_GPL(dma_buf_reset_peak_size);
+
+size_t dma_buf_get_peak_size(void)
+{
+	size_t sz;
+
+	mutex_lock(&db_list.lock);
+	sz = db_peak_size;
+	mutex_unlock(&db_list.lock);
+
+	return sz;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_peak_size);
+
+size_t dma_buf_get_total_size(void)
+{
+	size_t sz;
+
+	mutex_lock(&db_list.lock);
+	sz = db_total_size;
+	mutex_unlock(&db_list.lock);
+
+	return sz;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_total_size);
+#endif
+
 static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct dma_buf *dmabuf;
@@ -84,6 +155,9 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 static void dma_buf_release(struct dentry *dentry)
 {
 	struct dma_buf *dmabuf;
+#ifdef CONFIG_DMABUF_CACHE
+	int dtor_ret = 0;
+#endif
 
 	dmabuf = dentry->d_fsdata;
 	if (unlikely(!dmabuf))
@@ -99,7 +173,13 @@ static void dma_buf_release(struct dentry *dentry)
 	BUG_ON(dmabuf->cb_in.active || dmabuf->cb_out.active);
 
 	dma_buf_stats_teardown(dmabuf);
-	dmabuf->ops->release(dmabuf);
+#ifdef CONFIG_DMABUF_CACHE
+	if (dmabuf->dtor)
+		dtor_ret = dmabuf->dtor(dmabuf, dmabuf->dtor_data);
+
+	if (!dtor_ret)
+#endif
+		dmabuf->ops->release(dmabuf);
 
 	if (dmabuf->resv == (struct dma_resv *)&dmabuf[1])
 		dma_resv_fini(dmabuf->resv);
@@ -116,6 +196,9 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 		return -EINVAL;
 
 	__dma_buf_debugfs_list_del(file->private_data);
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
+	db_total_size -= dmabuf->size;
+#endif
 
 	return 0;
 }
@@ -320,6 +403,16 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 	return events;
 }
 
+static long _dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
+{
+	spin_lock(&dmabuf->name_lock);
+	kfree(dmabuf->name);
+	dmabuf->name = name;
+	spin_unlock(&dmabuf->name_lock);
+
+	return 0;
+}
+
 /**
  * dma_buf_set_name - Set a name to a specific dma_buf to track the usage.
  * It could support changing the name of the dma-buf if the same
@@ -333,19 +426,35 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
  * devices, return -EBUSY.
  *
  */
-static long dma_buf_set_name(struct dma_buf *dmabuf, const char __user *buf)
+long dma_buf_set_name(struct dma_buf *dmabuf, const char *name)
+{
+	long ret = 0;
+	char *buf = kstrndup(name, DMA_BUF_NAME_LEN, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	ret = _dma_buf_set_name(dmabuf, buf);
+	if (ret)
+		kfree(buf);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_set_name);
+
+static long dma_buf_set_name_user(struct dma_buf *dmabuf, const char __user *buf)
 {
 	char *name = strndup_user(buf, DMA_BUF_NAME_LEN);
+	long ret;
 
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	spin_lock(&dmabuf->name_lock);
-	kfree(dmabuf->name);
-	dmabuf->name = name;
-	spin_unlock(&dmabuf->name_lock);
+	ret = _dma_buf_set_name(dmabuf, name);
+	if (ret)
+		kfree(name);
 
-	return 0;
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
@@ -494,7 +603,7 @@ static long dma_buf_ioctl(struct file *file,
 
 	case DMA_BUF_SET_NAME_A:
 	case DMA_BUF_SET_NAME_B:
-		return dma_buf_set_name(dmabuf, (const char __user *)arg);
+		return dma_buf_set_name_user(dmabuf, (const char __user *)arg);
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 	case DMA_BUF_IOCTL_EXPORT_SYNC_FILE:
@@ -502,6 +611,49 @@ static long dma_buf_ioctl(struct file *file,
 	case DMA_BUF_IOCTL_IMPORT_SYNC_FILE:
 		return dma_buf_import_sync_file(dmabuf, (const void __user *)arg);
 #endif
+
+#ifdef CONFIG_DMABUF_PARTIAL
+	case DMA_BUF_IOCTL_SYNC_PARTIAL: {
+		struct dma_buf_sync_partial sync_p;
+
+		if (copy_from_user(&sync_p, (void __user *) arg, sizeof(sync_p)))
+			return -EFAULT;
+
+		if (sync_p.len == 0)
+			return 0;
+
+		if (sync_p.len > dmabuf->size || sync_p.offset > dmabuf->size - sync_p.len)
+			return -EINVAL;
+
+		if (sync_p.flags & ~DMA_BUF_SYNC_VALID_FLAGS_MASK)
+			return -EINVAL;
+
+		switch (sync_p.flags & DMA_BUF_SYNC_RW) {
+		case DMA_BUF_SYNC_READ:
+			direction = DMA_FROM_DEVICE;
+			break;
+		case DMA_BUF_SYNC_WRITE:
+			direction = DMA_TO_DEVICE;
+			break;
+		case DMA_BUF_SYNC_RW:
+			direction = DMA_BIDIRECTIONAL;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (sync_p.flags & DMA_BUF_SYNC_END)
+			ret = dma_buf_end_cpu_access_partial(dmabuf, direction,
+							     sync_p.offset,
+							     sync_p.len);
+		else
+			ret = dma_buf_begin_cpu_access_partial(dmabuf, direction,
+							       sync_p.offset,
+							       sync_p.len);
+
+		return ret;
+	}
+#endif /* CONFIG_DMABUF_PARTIAL */
 
 	default:
 		return -ENOTTY;
@@ -570,6 +722,17 @@ static struct file *dma_buf_getfile(size_t size, int flags)
 err_alloc_file:
 	iput(inode);
 	return file;
+}
+
+static void dma_buf_set_default_name(struct dma_buf *dmabuf)
+{
+	char task_comm[TASK_COMM_LEN];
+	char *name;
+
+	get_task_comm(task_comm, current->group_leader);
+	name = kasprintf(GFP_KERNEL, "%d-%s", current->tgid, task_comm);
+	dma_buf_set_name(dmabuf, name);
+	kfree(name);
 }
 
 /**
@@ -668,6 +831,9 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	dmabuf->exp_name = exp_info->exp_name;
 	dmabuf->owner = exp_info->owner;
 	spin_lock_init(&dmabuf->name_lock);
+#ifdef CONFIG_DMABUF_CACHE
+	mutex_init(&dmabuf->cache_lock);
+#endif
 	init_waitqueue_head(&dmabuf->poll);
 	dmabuf->cb_in.poll = dmabuf->cb_out.poll = &dmabuf->poll;
 	dmabuf->cb_in.active = dmabuf->cb_out.active = 0;
@@ -689,6 +855,13 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	dmabuf->file = file;
 
 	__dma_buf_debugfs_list_add(dmabuf);
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
+	db_total_size += dmabuf->size;
+	db_peak_size = max(db_total_size, db_peak_size);
+#endif
+
+	if (IS_ENABLED(CONFIG_RK_DMABUF_DEBUG))
+		dma_buf_set_default_name(dmabuf);
 
 	return dmabuf;
 
@@ -1426,6 +1599,30 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_NS_GPL(dma_buf_begin_cpu_access, DMA_BUF);
 
+int dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+				     enum dma_data_direction direction,
+				     unsigned int offset, unsigned int len)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf))
+		return -EINVAL;
+
+	if (dmabuf->ops->begin_cpu_access_partial)
+		ret = dmabuf->ops->begin_cpu_access_partial(dmabuf, direction,
+							    offset, len);
+
+	/* Ensure that all fences are waited upon - but we first allow
+	 * the native handler the chance to do so more efficiently if it
+	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 */
+	if (ret == 0)
+		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access_partial);
+
 /**
  * dma_buf_end_cpu_access - Must be called after accessing a dma_buf from the
  * cpu in the kernel context. Calls end_cpu_access to allow exporter-specific
@@ -1454,6 +1651,21 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_NS_GPL(dma_buf_end_cpu_access, DMA_BUF);
 
+int dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+				   enum dma_data_direction direction,
+				   unsigned int offset, unsigned int len)
+{
+	int ret = 0;
+
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->end_cpu_access_partial)
+		ret = dmabuf->ops->end_cpu_access_partial(dmabuf, direction,
+							  offset, len);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access_partial);
 
 /**
  * dma_buf_mmap - Setup up a userspace mmap with the given vma

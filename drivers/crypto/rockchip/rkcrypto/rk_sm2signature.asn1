@@ -1,0 +1,8 @@
+-- SPDX-License-Identifier: BSD-3-Clause
+--
+-- Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+
+Sm2Signature ::= SEQUENCE {
+	x	INTEGER ({ rk_ecc_get_signature_r }),
+	y	INTEGER ({ rk_ecc_get_signature_s })
+}

@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	dac_codec: dac-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+		clocks = <&cru SCLK_I2S0_8CH_TX_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&akm4385_reset>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mic_mute &light_mode &howling_gpio>;
+
+		play {
+			gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_PLAY>;
+			label = "GPIO Play Pause";
+			debounce-interval = <100>;
+		};
+		light {
+			gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LIGHTS_TOGGLE>;
+			label = "GPIO Light Mode";
+			debounce-interval = <100>;
+		};
+		howling {
+			gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_BASSBOOST>;
+			label = "GPIO Howling";
+			debounce-interval = <100>;
+		};
+	};
+
+	rotary {
+		compatible = "rotary-encoder";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rotary_gpio>;
+		gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_LOW>,
+			<&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+		linux,axis = <0>; /* REL_X */
+		rotary-encoder,relative-axis;
+		status = "okay";
+	};
+
+	i2s_dac_sound: i2s-dac-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,i2s-dac-sound";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s_8ch_0>;
+		rockchip,codec = <&dac_codec>;
+		rockchip,format = "left_j";
+		rockchip,wait-card-locked = <1>;
+	};
+};
+
+&pinctrl {
+	buttons {
+		mic_mute: mic-mute {
+			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		light_mode: light-mode {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		howling_gpio: howling-gpio {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	dac {
+		akm4385_reset: akm4385-reset {
+			rockchip,pins = <2 RK_PA6 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+	rotary {
+		rotary_gpio: rotary-gpio {
+			rockchip,pins =
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&io_domains {
+	status = "okay";
+
+	vccio0-supply = <&vcc_io>;
+	vccio1-supply = <&vcc_io>;
+	vccio2-supply = <&vcc_io>;
+	vccio3-supply = <&vccio_flash>;
+	vccio4-supply = <&vccio_sdio>;
+	vccio5-supply = <&vccio_sd>;
+};
+
+&i2s_8ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_8ch_0_sclktx
+		     &i2s_8ch_0_lrcktx
+		     &i2s_8ch_0_sdo0
+		     &i2s_8ch_0_mclk>;
+};

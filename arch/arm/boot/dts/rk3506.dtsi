@@ -1,0 +1,507 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3502.dtsi"
+
+/ {
+	compatible = "rockchip,rk3506";
+
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+	};
+
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		status = "disabled";
+
+		route {
+			route_dsi: route-dsi {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vop_out_dsi>;
+			};
+
+			route_rgb: route-rgb {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vop_out_rgb>;
+			};
+		};
+	};
+
+	can0: can@ff320000 {
+		compatible = "rockchip,rk3506-canfd", "rockchip,rk3576-canfd";
+		reg = <0xff320000 0x1000>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN0>, <&cru HCLK_CAN0>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN0>, <&cru SRST_H_CAN0>;
+		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN0>;
+		assigned-clock-rates = <300000000>;
+		status = "disabled";
+	};
+
+	can1: can@ff330000 {
+		compatible = "rockchip,rk3506-canfd", "rockchip,rk3576-canfd";
+		reg = <0xff330000 0x1000>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN1>, <&cru HCLK_CAN1>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN1>, <&cru SRST_H_CAN1>;
+		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN1>;
+		assigned-clock-rates = <300000000>;
+		status = "disabled";
+	};
+
+	gmac0: ethernet@ff4c8000 {
+		compatible = "rockchip,rk3506-gmac", "snps,dwmac-4.20a";
+		reg = <0xff4c8000 0x2000>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&grf>;
+		clocks = <&cru CLK_MAC0>, <&cru CLK_MAC0_PTP>,
+			 <&cru PCLK_MAC0>, <&cru ACLK_MAC0>;
+		clock-names = "stmmaceth", "ptp_ref",
+			      "pclk_mac", "aclk_mac";
+		resets = <&cru SRST_A_MAC0>;
+		reset-names = "stmmaceth";
+
+		assigned-clocks = <&cru CLK_MAC0_PTP>;
+		assigned-clock-rates = <62500000>;
+
+		snps,mixed-burst;
+		snps,tso;
+
+		snps,axi-config = <&gmac0_stmmac_axi_setup>;
+		snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+
+		phy-mode = "rmii";
+		status = "disabled";
+
+		mdio0: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac0_stmmac_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+			snps,blen = <0 0 0 0 16 8 4>;
+		};
+
+		gmac0_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <1>;
+			queue0 {
+				status = "okay";
+			};
+		};
+
+		gmac0_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <1>;
+			queue0 {
+				status = "okay";
+			};
+		};
+	};
+
+	gmac1: ethernet@ff4d0000 {
+		compatible = "rockchip,rk3506-gmac", "snps,dwmac-4.20a";
+		reg = <0xff4d0000 0x2000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&grf>;
+		clocks = <&cru CLK_MAC1>, <&cru CLK_MAC1_PTP>,
+			 <&cru PCLK_MAC1>, <&cru ACLK_MAC1>;
+		clock-names = "stmmaceth", "ptp_ref",
+			      "pclk_mac", "aclk_mac";
+		resets = <&cru SRST_A_MAC1>;
+		reset-names = "stmmaceth";
+
+		assigned-clocks = <&cru CLK_MAC1_PTP>;
+		assigned-clock-rates = <62500000>;
+
+		snps,mixed-burst;
+		snps,tso;
+
+		snps,axi-config = <&gmac1_stmmac_axi_setup>;
+		snps,mtl-rx-config = <&gmac1_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac1_mtl_tx_setup>;
+
+		phy-mode = "rmii";
+		status = "disabled";
+
+		mdio1: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac1_stmmac_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+			snps,blen = <0 0 0 0 16 8 4>;
+		};
+
+		gmac1_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <1>;
+			queue0 {
+				status = "okay";
+			};
+		};
+
+		gmac1_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <1>;
+			queue0 {
+				status = "okay";
+			};
+		};
+	};
+
+	vop: vop@ff600000 {
+		compatible = "rockchip,rk3506-vop";
+		reg = <0xff600000 0x200>, <0xff600a00 0x400>;
+		reg-names = "regs", "gamma_lut";
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
+
+			vop_out_dsi: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dsi_in_vop>;
+			};
+		};
+	};
+
+	dsi: dsi@ff640000 {
+		compatible = "rockchip,rk3506-mipi-dsi";
+		reg = <0xff640000 0x10000>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DSI_HOST>;
+		clock-names = "pclk";
+		resets = <&cru SRST_P_DSI_HOST>;
+		reset-names = "apb";
+		phys = <&dsi_dphy>;
+		phy-names = "dphy";
+		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				dsi_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_dsi>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	dsi_dphy: phy@ff670000 {
+		compatible = "rockchip,rk3506-dsi-dphy";
+		reg = <0xff670000 0x10000>,
+		      <0xff640000 0x10000>;
+		reg-names = "phy", "host";
+		clocks = <&cru CLK_REF_DPHY_TOP>,
+			 <&cru PCLK_DPHY>, <&cru PCLK_DSI_HOST>;
+		clock-names = "ref", "pclk", "pclk_host";
+		#clock-cells = <0>;
+		resets = <&cru SRST_P_DPHY>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	dsmc_lb_slave: dsmc-lb-slave@ff880000 {
+		compatible = "rockchip,rk3506-dsmc-lb-slave";
+		reg = <0xff880000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cru SRST_DSMC_SLV>, <&cru SRST_A_DSMC_SLV>,
+			 <&cru SRST_H_DSMC_SLV>;
+		reset-names = "dsmc_slv", "a_dsmc_slv", "h_dsmc_slv";
+		clocks = <&cru ACLK_DSMC_SLV>,
+			 <&cru HCLK_DSMC_SLV>;
+		clock-names = "aclk_dsmc_slv", "hclk_dsmc_slv";
+		pinctrl-names = "default", "active";
+		pinctrl-0 = <&dsmc_slv_csn0_pull_pins
+			     &dsmc_slv_bus8_pins>;
+		pinctrl-1 = <&dsmc_slv_csn0_pins>;
+		status = "disabled";
+	};
+
+	dsmc: dsmc@ff8b0000 {
+		compatible = "rockchip,rk3506-dsmc";
+		reg = <0xff8b0000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cru SRST_A_DSMC>, <&cru SRST_P_DSMC>;
+		reset-names = "dsmc", "apb";
+		clocks = <&cru CLK_DSMC>,
+			 <&cru ACLK_DSMC>,
+			 <&cru PCLK_DSMC>,
+			 <&cru CLK_DSMC>;
+		clock-names = "clk_sys", "aclk_dsmc", "pclk", "aclk_root";
+		clock-frequency = <100000000>;
+		dmas = <&dmac0 2  0xff288078 0x80000000 0xff2880a8 0x00300000>,
+		       <&dmac0 3  0xff288078 0x40000000 0xff2880a8 0x00c00000>;
+	//	dmas = <&dmac0 8  0xff288078 0x80008000 0xff2880ac 0x00030000>,
+	//	       <&dmac0 10 0xff288078 0x40004000 0xff2880ac 0x00300000>;
+		dma-names = "req0", "req1";
+		pinctrl-names = "default", "active", "lb-slave";
+		pinctrl-0 = <&dsmc_csn_pull_pins
+			     &dsmc_bus16_pins
+			     &dsmc_clk_pins>;
+		pinctrl-1 = <&dsmc_csn_pins>;
+		pinctrl-2 = <&dsmc_int_pins>;
+		status = "disabled";
+		slave {
+			rockchip,dqs-dll = <0x20 0x20
+					    0x20 0x20
+					    0x20 0x20
+					    0x20 0x20>;
+			rockchip,ranges = <0x0 0xc0000000 0x0 0x2000000>;
+			rockchip,slave-dev = <&dsmc_slave>;
+		};
+	};
+
+	dsmc_slave: dsmc-slave {
+		compatible = "rockchip,dsmc-slave";
+		rockchip,clk-mode = <0>;
+		status = "disabled";
+		psram {
+			dsmc_psram0: psram0 {
+				status = "disabled";
+			};
+			dsmc_psram1: psram1 {
+				status = "disabled";
+			};
+			dsmc_psram2: psram2 {
+				status = "disabled";
+			};
+			dsmc_psram3: psram3 {
+				status = "disabled";
+			};
+		};
+
+		lb-slave {
+			dsmc_lb_slave0: lb-slave0 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+				rockchip,int-en = <0x0>;
+				status = "disabled";
+				dsmc_p0_region: region {
+					dsmc_p0_region0: region0 {
+						rockchip,attribute = "Merged FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p0_region1: region1 {
+						rockchip,attribute = "No-Merge FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p0_region2: region2 {
+						rockchip,attribute = "DPRA";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p0_region3: region3 {
+						rockchip,attribute = "Register";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+				};
+			};
+			dsmc_lb_slave1: lb-slave1 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+				rockchip,int-en = <0x1>;
+				status = "disabled";
+				dsmc_p1_region: region {
+					dsmc_p1_region0: region0 {
+						rockchip,attribute = "Merged FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p1_region1: region1 {
+						rockchip,attribute = "No-Merge FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p1_region2: region2 {
+						rockchip,attribute = "DPRA";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p1_region3: region3 {
+						rockchip,attribute = "Register";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+				};
+			};
+			dsmc_lb_slave2: lb-slave2 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+				rockchip,int-en = <0x2>;
+				status = "disabled";
+				dsmc_p2_region: region {
+					dsmc_p2_region0: region0 {
+						rockchip,attribute = "Merged FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p2_region1: region1 {
+						rockchip,attribute = "No-Merge FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p2_region2: region2 {
+						rockchip,attribute = "DPRA";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p2_region3: region3 {
+						rockchip,attribute = "Register";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+				};
+			};
+			dsmc_lb_slave3: lb-slave3 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+				rockchip,int-en = <0x3>;
+				status = "disabled";
+				dsmc_p3_region: region {
+					dsmc_p3_region0: region0 {
+						rockchip,attribute = "Merged FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p3_region1: region1 {
+						rockchip,attribute = "No-Merge FIFO";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p3_region2: region2 {
+						rockchip,attribute = "DPRA";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+					dsmc_p3_region3: region3 {
+						rockchip,attribute = "Register";
+						rockchip,ca-addr-width = <0>;
+						rockchip,dummy-clk-num = <1>;
+						rockchip,cs0-be-ctrled = <0>;
+						rockchip,cs0-ctrl = <0>;
+						status = "disabled";
+					};
+				};
+			};
+		};
+	};
+};
+
+&grf {
+	rgb: rgb {
+		compatible = "rockchip,rk3506-rgb";
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rgb_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_rgb>;
+				};
+			};
+		};
+	};
+};

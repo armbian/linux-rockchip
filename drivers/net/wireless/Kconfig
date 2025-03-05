@@ -36,6 +36,7 @@ source "drivers/net/wireless/st/Kconfig"
 source "drivers/net/wireless/ti/Kconfig"
 source "drivers/net/wireless/zydas/Kconfig"
 source "drivers/net/wireless/quantenna/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/Kconfig"
 
 source "drivers/net/wireless/virtual/Kconfig"
 

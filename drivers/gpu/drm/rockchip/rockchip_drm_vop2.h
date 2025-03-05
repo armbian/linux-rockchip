@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:Mark Yao <mark.yao@rock-chips.com>
  */
 
@@ -231,6 +231,7 @@ enum dst_factor_mode {
 #define RK3568_SYS_AUTO_GATING_CTRL		0x008
 #define RK3568_SYS_AXI_LUT_CTRL			0x024
 #define RK3568_DSP_IF_EN			0x028
+#define RK3576_SYS_PORT_CTRL_IMD		0x028
 #define RK3568_DSP_IF_CTRL			0x02c
 #define RK3568_DSP_IF_POL			0x030
 #define RK3588_SYS_PD_CTRL			0x034

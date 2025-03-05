@@ -84,6 +84,10 @@ properties:
       Phandle to the syscon managing the 'video output general register files'.
       When select the DP lane mapping will request its phandle.
 
+  rockchip,usbdpphy-clamp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: When set, clamp phy output. Only work when usbdpphy power off.
+
   sbu1-dc-gpios:
     description:
       GPIO connected to the SBU1 line of the USB-C connector via a big resistor

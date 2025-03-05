@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-test5.dtsi"
+#include "rk3576-evb1-cam-dcphy0.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 TEST5 V10 Board";
+	compatible = "rockchip,rk3576-test5-v10", "rockchip,rk3576";
+};
+
+&imx464_0 {
+	pwdn-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+};
+
+&imx464_1 {
+	pwdn-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+};
+
+&os04a10 {
+	pwdn-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc4336 {
+	pwdn-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+};

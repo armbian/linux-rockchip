@@ -95,7 +95,9 @@ config KMX61
 	  be called kmx61.
 
 source "drivers/iio/imu/inv_icm42600/Kconfig"
+source "drivers/iio/imu/inv_icm42670/Kconfig"
 source "drivers/iio/imu/inv_mpu6050/Kconfig"
+source "drivers/iio/imu/st_lsm6dsr/Kconfig"
 source "drivers/iio/imu/st_lsm6dsx/Kconfig"
 source "drivers/iio/imu/st_lsm9ds0/Kconfig"
 

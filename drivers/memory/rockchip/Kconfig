@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Rockchip DSMC(Double Data Rate Serial Memory Controller) support
+#
+
+config ROCKCHIP_DSMC
+	tristate "Rockchip DSMC(Double Data Rate Serial Memory Controller) driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  For enable the Rockchip DSMC driver.
+
+config ROCKCHIP_DSMC_SLAVE
+	tristate "Rockchip Double Data Rate Serial Memory Controller(DSMC) slave driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  For enable the Rockchip DSMC SLAVE driver.

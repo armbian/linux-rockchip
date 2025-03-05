@@ -178,6 +178,11 @@ enum nvme_quirks {
 	 * Align dma pool segment size to 512 bytes
 	 */
 	NVME_QUIRK_DMAPOOL_ALIGN_512		= (1 << 22),
+
+	/*
+	 * Limit io queue depth to 32
+	 */
+	NVME_QUIRK_LIMIT_IOQD32			= (1 << 31),
 };
 
 /*

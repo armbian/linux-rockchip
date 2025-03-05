@@ -51,8 +51,6 @@
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
 #define SD_DISCARD_TIMEOUT_MS	(250)
 
-static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
-
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
  * performance cost, and for other reasons may not always be desired.
@@ -2001,6 +1999,7 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
@@ -2009,6 +2008,7 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 		return;
 	host->ops->card_hw_reset(host);
 }
+#endif
 
 /**
  * mmc_hw_reset - reset the card in hardware
@@ -2064,7 +2064,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 	mmc_hw_reset_for_init(host);
+#endif
 
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know

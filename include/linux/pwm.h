@@ -64,6 +64,11 @@ struct pwm_state {
 	u64 period;
 	u64 duty_cycle;
 	enum pwm_polarity polarity;
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+	u64 oneshot_count;
+	u32 oneshot_repeat;
+	u64 duty_offset;
+#endif /* CONFIG_PWM_ROCKCHIP_ONESHOT */
 	bool enabled;
 	bool usage_power;
 };

@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+#include "rk3506-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3506B(BGA) EVB1 V10 Board";
+	compatible = "rockchip,rk3506b-evb1-v10", "rockchip,rk3506";
+
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc3v3_lcd_n";
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	vcc5v0_otg0: vcc5v0-otg0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg0_en>;
+	};
+
+	vcc5v0_otg1: vcc5v0-otg1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg1";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg1_en>;
+	};
+};
+
+&cma {
+	size = <0x1600000>;
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
+&es8388 {
+	status = "okay";
+};
+
+&es8388_sound {
+	status = "okay";
+};
+
+&gt1x {
+	power-supply = <&vcc3v3_lcd_n>;
+	status = "okay";
+};
+
+&pinctrl {
+	usb {
+		vcc5v0_otg0_en: vcc5v0-otg0-en {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg1_en: vcc5v0-otg1-en {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	vbus-supply = <&vcc5v0_otg0>;
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	phy-supply = <&vcc5v0_otg1>;
+	status = "okay";
+};

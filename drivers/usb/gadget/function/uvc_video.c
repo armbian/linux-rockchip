@@ -13,12 +13,32 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/video.h>
 #include <linux/unaligned.h>
+#include <linux/pm_qos.h>
 
 #include <media/v4l2-dev.h>
 
 #include "uvc.h"
 #include "uvc_queue.h"
 #include "uvc_video.h"
+#include "u_uvc.h"
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+static bool uvc_using_zero_copy(struct uvc_video *video)
+{
+	struct uvc_device *uvc = container_of(video, struct uvc_device, video);
+	struct f_uvc_opts *opts = fi_to_f_uvc_opts(uvc->func.fi);
+
+	if (opts && opts->uvc_zero_copy && video->fcc != V4L2_PIX_FMT_YUYV)
+		return true;
+	else
+		return false;
+}
+#else
+static inline bool uvc_using_zero_copy(struct uvc_video *video)
+{
+	return false;
+}
+#endif
 
 /* --------------------------------------------------------------------------
  * Video codecs
@@ -32,6 +52,20 @@ uvc_video_encode_header(struct uvc_video *video, struct uvc_buffer *buf,
 	struct usb_composite_dev *cdev = uvc->func.config->cdev;
 	struct timespec64 ts = ns_to_timespec64(buf->buf.vb2_buf.timestamp);
 	int pos = 2;
+
+	if (uvc_using_zero_copy(video)) {
+		u8 *mem;
+
+		mem = buf->mem + video->queue.buf_used +
+		      (video->queue.buf_used / (video->req_size - 2)) * 2;
+
+		mem[0] = 2;
+		mem[1] = UVC_STREAM_EOH | video->fid;
+		if (buf->bytesused - video->queue.buf_used <= len - 2)
+			mem[1] |= UVC_STREAM_EOF;
+
+		return 2;
+	}
 
 	data[1] = UVC_STREAM_EOH | video->fid;
 
@@ -80,7 +114,8 @@ uvc_video_encode_data(struct uvc_video *video, struct uvc_buffer *buf,
 	mem = buf->mem + queue->buf_used;
 	nbytes = min((unsigned int)len, buf->bytesused - queue->buf_used);
 
-	memcpy(data, mem, nbytes);
+	if (!uvc_using_zero_copy(video))
+		memcpy(data, mem, nbytes);
 	queue->buf_used += nbytes;
 
 	return nbytes;
@@ -121,6 +156,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 		ureq->last_buf = buf;
 
 		video->payload_size = 0;
+		req->zero = 1;
 	}
 
 	if (video->payload_size == video->max_payload_size ||
@@ -204,6 +240,10 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
 	struct uvc_request *ureq = req->context;
 	int len = video->req_size;
 	int ret;
+
+	if (uvc_using_zero_copy(video))
+		req->buf = buf->mem + video->queue.buf_used +
+			   (video->queue.buf_used / (video->req_size - 2)) * 2;
 
 	/* Add the header. */
 	ret = uvc_video_encode_header(video, buf, mem, len);
@@ -486,6 +526,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		queue_work(video->async_wq, &video->pump);
 	}
 
+	list_add_tail(&req->list, &video->req_free);
 	spin_unlock_irqrestore(&video->req_lock, flags);
 }
 
@@ -514,9 +555,14 @@ uvc_video_alloc_requests(struct uvc_video *video)
 
 	BUG_ON(video->req_size);
 
-	req_size = video->ep->maxpacket
-		 * max_t(unsigned int, video->ep->maxburst, 1)
-		 * (video->ep->mult);
+	if (!usb_endpoint_xfer_bulk(video->ep->desc)) {
+		req_size = video->ep->maxpacket
+			 * max_t(unsigned int, video->ep->maxburst, 1)
+			 * (video->ep->mult);
+	} else {
+		req_size = video->ep->maxpacket
+			 * max_t(unsigned int, video->ep->maxburst, 1);
+	}
 
 	for (i = 0; i < video->uvc_num_requests; i++) {
 		ureq = kzalloc(sizeof(struct uvc_request), GFP_KERNEL);
@@ -651,12 +697,19 @@ uvcg_video_disable(struct uvc_video *video)
 	struct usb_request *req, *temp;
 	struct uvc_buffer *buf, *btemp;
 	struct uvc_request *ureq, *utemp;
+	struct uvc_device *uvc;
+	struct f_uvc_opts *opts;
 
 	if (video->ep == NULL) {
 		uvcg_info(&video->uvc->func,
 			  "Video disable failed, device is uninitialized.\n");
 		return -ENODEV;
 	}
+
+	uvc = container_of(video, struct uvc_device, video);
+	opts = fi_to_f_uvc_opts(uvc->func.fi);
+	if (cpu_latency_qos_request_active(&uvc->pm_qos))
+		cpu_latency_qos_remove_request(&uvc->pm_qos);
 
 	INIT_LIST_HEAD(&inflight_bufs);
 	spin_lock_irqsave(&video->req_lock, flags);
@@ -726,6 +779,8 @@ uvcg_video_disable(struct uvc_video *video)
 int uvcg_video_enable(struct uvc_video *video)
 {
 	int ret;
+	struct uvc_device *uvc;
+	struct f_uvc_opts *opts;
 
 	if (video->ep == NULL) {
 		uvcg_info(&video->uvc->func,
@@ -741,6 +796,9 @@ int uvcg_video_enable(struct uvc_video *video)
 	 */
 	video->is_enabled = true;
 
+	uvc = container_of(video, struct uvc_device, video);
+	opts = fi_to_f_uvc_opts(uvc->func.fi);
+	cpu_latency_qos_add_request(&uvc->pm_qos, opts->pm_qos_latency);
 	if ((ret = uvcg_queue_enable(&video->queue, 1)) < 0)
 		return ret;
 

@@ -34,6 +34,10 @@ struct ramoops_platform_data {
 	unsigned long	console_size;
 	unsigned long	ftrace_size;
 	unsigned long	pmsg_size;
+#ifdef CONFIG_PSTORE_BOOT_LOG
+	unsigned long	boot_log_size;
+	unsigned long	max_boot_log_cnt;
+#endif
 	int		max_reason;
 	u32		flags;
 	struct persistent_ram_ecc_info ecc_info;

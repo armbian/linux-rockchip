@@ -1,0 +1,97 @@
+ROCKCHIP multi dais driver
+
+Required properties:
+- compatible: "rockchip,multi-dais"
+  - "rockchip,rk3308-multi-dais"
+- dais: The phandle of sub dais, such i2s, pdm etc.
+- capture,channel-mapping: map channels, one for each in dais,
+  capture,channel-mapping = <2 6> means:
+  i2s 2ch + pdm 6ch --> total 8ch capture.
+- playback,channel-mapping: map channels, one for each in dais.
+  playback,channel-mapping = <4 4> means:
+  i2s 4ch + pdm 4ch --> total 8ch playback.
+
+Required properties for i2s 16ch:
+- rockchip,grf: the phandle of the syscon node for GRF register.
+
+Optional properties:
+- frame-master: bool properties, frame master, one for each in dais.
+- bitclock-master: bool properties, bit clock master, one for each in dais.
+- bitclock-inversion: bool properties, bit clock inversion, one for each in dais.
+- frame-inversion: bool properties, frame clock inversion, one for each in dais.
+- mclk-fs-mapping: u32 properties, multiplication factor between stream
+		   rate and codec mclk, one for each in dais.
+		   mclk-fs-mapping = <256 1024> means:
+		   (mclk of first dai) = 256 * fs,
+		   (mclk of second dai) = 1024 * fs.
+
+Example:
+
+multi_dais: multi-dais {
+	status = "okay";
+	compatible = "rockchip,multi-dais";
+	dais = <&i2s_8ch_2>, <&pdm_8ch>;
+	capture,channel-mapping = <2 6>;
+	playback,channel-mapping = <4 4>;
+	bitclock-master = <1 0>;
+	frame-master = <1 0>;
+	bitclock-inversion = <0 0>;
+	frame-inversion = <0 0>;
+	rockchip,grf = <&grf>;
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
+};
+
+&pdm_8ch {
+	status = "okay";
+	rockchip,no-dmaengine;
+};
+
+vad-sound {
+	status = "okay";
+	compatible = "rockchip,multicodecs-card";
+	rockchip,card-name = "rockchip,rk3308-vad";
+	rockchip,cpu = <&multi_dais>;
+	rockchip,codec = <&acodec>, <&vad>;
+};
+
+Example 2 for mclk-fs-mapping:
+
+sai_dais: sai-dais {
+	status = "okay";
+	compatible = "rockchip,multi-dais";
+	dais = <&sai1>, <&sai4>;
+	capture,channel-mapping = <2 2>;
+	playback,channel-mapping = <2 0>;
+	bitclock-inversion = <0 0>;
+	mclk-fs-mapping = <256 1024>;
+};
+
+es8388_sound: es8388-sound {
+	status = "okay";
+	compatible = "rockchip,multicodecs-card";
+	rockchip,card-name = "rockchip-es8388";
+	spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+	rockchip,pre-power-on-delay-ms = <30>;
+	rockchip,post-power-down-delay-ms = <40>;
+	rockchip,format = "i2s";
+	rockchip,cpu = <&sai_dais>;
+	rockchip,codec = <&es8388>, <&audio_codec>;
+	rockchip,mclk-fs = <256>;
+	rockchip,mclk-fs-mapping = <256 1024>;
+	rockchip,audio-routing =
+		"Speaker", "LOUT1",
+		"Speaker", "ROUT1",
+		"Speaker", "Speaker Power",
+		"Speaker", "Speaker Power",
+		"LINPUT1", "Main Mic",
+		"LINPUT2", "Main Mic",
+		"RINPUT1", "Main Mic",
+		"RINPUT2", "Main Mic";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spk_ctrl>;
+};
+

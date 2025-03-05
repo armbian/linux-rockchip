@@ -1905,7 +1905,8 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * bus_resume methods.
 	 */
 	if (hdev->parent) {		/* normal device */
-		usb_enable_autosuspend(hdev);
+		if (!(hdev->parent->quirks & USB_QUIRK_AUTO_SUSPEND))
+			usb_enable_autosuspend(hdev);
 	} else {			/* root hub */
 		const struct hc_driver *drv = bus_to_hcd(hdev->bus)->driver;
 
@@ -5587,7 +5588,8 @@ loop:
 done:
 	hub_port_disable(hub, port1, 1);
 	if (hcd->driver->relinquish_port && !hub->hdev->parent) {
-		if (status != -ENOTCONN && status != -ENODEV)
+		if ((status != -ENOTCONN && status != -ENODEV) ||
+		    (status == -ENOTCONN && of_machine_is_compatible("rockchip,rk3288")))
 			hcd->driver->relinquish_port(hcd, port1);
 	}
 }

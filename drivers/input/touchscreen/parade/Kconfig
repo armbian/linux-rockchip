@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+#  Touchscreen driver configuration
+#
+config TOUCHSCREEN_PARADE
+	tristate "Parade TrueTouch Gen5 Touchscreen Driver"
+	help
+	  Core driver for Parade TrueTouch(tm) Standard Product
+	  Geneartion5 touchscreen controllers.
+
+	  Say Y here if you have a Parade Gen5 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt.
+
+config TOUCHSCREEN_PARADE_DEVICETREE_SUPPORT
+	bool "Enable Device Tree support"
+	depends on TOUCHSCREEN_PARADE && OF
+	help
+	  Say Y here to enable support for device tree.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_DEBUG
+	bool "Enable debug output"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable debug output for Parade TrueTouch(tm)
+	  Standard Product Generation5 drivers set.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_VDEBUG
+	bool "Enable verbose debug output"
+	depends on TOUCHSCREEN_PARADE_DEBUG
+	help
+	  Say Y here to enable verbose debug output for Parade TrueTouch(tm)
+	  Standard Product Generation5 drivers set.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_I2C
+	tristate "Parade TrueTouch Gen5 I2C"
+	depends on TOUCHSCREEN_PARADE
+	select I2C
+	help
+	  Say Y here to enable I2C bus interface to Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_i2c.
+
+config TOUCHSCREEN_PARADE_SPI
+	tristate "Parade TrueTouch Gen5 SPI"
+	depends on TOUCHSCREEN_PARADE
+	select SPI
+	help
+	  Say Y here to enable SPI bus interface to Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_spi.
+
+choice
+	prompt "Parade TrueTouch Gen5 MultiTouch Protocol"
+	depends on TOUCHSCREEN_PARADE
+	default TOUCHSCREEN_PARADE_MT_B
+	help
+	  This option controls which MultiTouch protocol will be used to
+	  report the touch events.
+
+config TOUCHSCREEN_PARADE_MT_A
+	bool "Protocol A"
+	help
+	  Select to enable MultiTouch touch reporting using protocol A
+	  on Parade TrueTouch(tm) Standard Product Generation4 touchscreen
+	  controller.
+
+config TOUCHSCREEN_PARADE_MT_B
+	bool "Protocol B"
+	help
+	  Select to enable MultiTouch touch reporting using protocol B
+	  on Parade TrueTouch(tm) Standard Product Generation4 touchscreen
+	  controller.
+
+endchoice
+
+config TOUCHSCREEN_PARADE_BUTTON
+	bool "Parade TrueTouch Gen5 MultiTouch CapSense Button"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable CapSense reporting on Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_PROXIMITY
+	bool "Parade TrueTouch Gen5 Proximity"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable proximity reporting on Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_DEVICE_ACCESS
+	tristate "Parade TrueTouch Gen5 MultiTouch Device Access"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 touchscreen controller device access module.
+
+	  This modules adds an interface to access touchscreen
+	  controller using driver sysfs nodes.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_device_access.
+
+config TOUCHSCREEN_PARADE_LOADER
+	tristate "Parade TrueTouch Gen5 MultiTouch Loader"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 touchscreen controller FW Loader module.
+
+	  This module enables support for Firmware upgrade.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_loader.
+
+config TOUCHSCREEN_PARADE_PLATFORM_FW_UPGRADE
+	bool "FW upgrade from header file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into driver.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_BINARY_FW_UPGRADE
+	bool "FW upgrade from binary file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into kernel as binary blob.
+
+	  This should be enabled for manual FW upgrade support.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_PARADE_PLATFORM_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade from header file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device TrueTouch Configuration into kernel itself.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_MANUAL_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade via SysFs"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to provide a SysFs interface to upgrade TrueTouch
+	  Configuration with a binary configuration file.
+
+	  Need proper binary version of config file for this
+	  feature.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_PARADE_DEBUG_MDL
+	tristate "Parade TrueTouch Gen5 MultiTouch Debug Module"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 Debug module.
+
+	  This module adds support for verbose printing touch
+	  information.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_debug.

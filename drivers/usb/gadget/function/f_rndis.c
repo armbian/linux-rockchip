@@ -102,9 +102,9 @@ static struct usb_interface_descriptor rndis_control_intf = {
 	/* .bInterfaceNumber = DYNAMIC */
 	/* status endpoint is optional; this could be patched later */
 	.bNumEndpoints =	1,
-	.bInterfaceClass =	USB_CLASS_COMM,
-	.bInterfaceSubClass =   USB_CDC_SUBCLASS_ACM,
-	.bInterfaceProtocol =   USB_CDC_ACM_PROTO_VENDOR,
+	.bInterfaceClass =	USB_CLASS_WIRELESS_CONTROLLER,
+	.bInterfaceSubClass =	1,
+	.bInterfaceProtocol =   3,
 	/* .iInterface = DYNAMIC */
 };
 
@@ -163,9 +163,9 @@ rndis_iad_descriptor = {
 
 	.bFirstInterface =	0, /* XXX, hardcoded */
 	.bInterfaceCount = 	2,	// control + data
-	.bFunctionClass =	USB_CLASS_COMM,
-	.bFunctionSubClass =	USB_CDC_SUBCLASS_ETHERNET,
-	.bFunctionProtocol =	USB_CDC_PROTO_NONE,
+	.bFunctionClass =	USB_CLASS_WIRELESS_CONTROLLER,
+	.bFunctionSubClass =	1,
+	.bFunctionProtocol =	3,
 	/* .iFunction = DYNAMIC */
 };
 
@@ -497,6 +497,20 @@ rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 			}
 			/* else stalls ... spec says to avoid that */
 		}
+		break;
+
+	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
+			| USB_CDC_SET_ETHERNET_PACKET_FILTER:
+		/*
+		 * see 6.2.30: no data, wIndex = interface, wValue = packet
+		 * filter bitmap. However, we don't really set cdc_filter to
+		 * wValue for rndis, because cdc_filter is not RNDIS-specific.
+		 * Return value 0 to avoid usb controllers stall ep0.
+		 */
+		if (w_length != 0 || w_index != rndis->ctrl_id)
+			goto invalid;
+		DBG(cdev, "packet filter %02x\n", w_value);
+		value = 0;
 		break;
 
 	default:

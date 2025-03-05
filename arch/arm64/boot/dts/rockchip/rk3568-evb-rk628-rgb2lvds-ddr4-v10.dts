@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb-rk628-ddr4-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	panel@0 {
+		compatible = "simple-panel";
+
+		disp_timings3: display-timings {
+			native-mode = <&rgb2lvds_timing>;
+			rgb2lvds_timing: timing0 {
+				clock-frequency = <66000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <30>;
+				hfront-porch = <30>;
+				vback-porch = <3>;
+				vfront-porch = <3>;
+				hsync-len = <4>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+
+};
+
+&backlight {
+	pwms = <&pwm4 0 25000 PWM_POLARITY_INVERTED>;
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&i2c2_rk628 {
+		panel-backlight = <&backlight>;
+		panel-power-supply = <&vcc3v3_lcd0_n>;
+		panel-reset-delay-ms = <10>;
+		panel-enable-delay-ms = <10>;
+		panel-prepare-delay-ms = <60>;
+		panel-unprepare-delay-ms = <10>;
+		panel-disable-delay-ms = <60>;
+
+		rk628-rgb-in;
+		rk628-lvds-out {
+			/* "jeida_18","vesa_24","vesa_18" */
+			bus-format = "jeida_24";
+
+			/* "dual_link_odd_even_pixels"
+			 * "dual_link_even_odd_pixels"
+			 * "dual_link_left_right_pixels"
+			 * "dual_link_right_left_pixels"
+			 */
+			link-type = "single_link";
+			status = "okay";
+		};
+
+		display-timings {
+			src-timing {
+				clock-frequency = <66000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <30>;
+				hfront-porch = <30>;
+				vback-porch = <3>;
+				vfront-porch = <3>;
+				hsync-len = <4>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			dst-timing {
+				clock-frequency = <66000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <30>;
+				hfront-porch = <30>;
+				vback-porch = <3>;
+				vfront-porch = <3>;
+				hsync-len = <4>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+	    };
+};
+
+&route_rgb {
+	status = "okay";
+
+	bridge = <&i2c2_rk628>;
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_panel: endpoint {
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};

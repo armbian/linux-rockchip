@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  */
 

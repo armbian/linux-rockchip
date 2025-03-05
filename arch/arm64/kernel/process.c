@@ -51,6 +51,7 @@
 #include <asm/fpsimd.h>
 #include <asm/mmu_context.h>
 #include <asm/mte.h>
+#include <asm/patching.h>
 #include <asm/processor.h>
 #include <asm/pointer_auth.h>
 #include <asm/stacktrace.h>
@@ -198,6 +199,71 @@ static void print_pstate(struct pt_regs *regs)
 	}
 }
 
+/*
+ * dump a block of kernel memory from around the given address
+ */
+static void show_data(unsigned long addr, int nbytes, const char *name)
+{
+	int	i, j;
+	int	nlines;
+	u32	*p;
+
+	/*
+	 * don't attempt to dump non-kernel addresses or
+	 * values that are probably just small negative numbers
+	 */
+	if (addr < PAGE_OFFSET || addr > -4096UL)
+		return;
+
+	printk("\n%s: %#lx:\n", name, addr + nbytes / 2);
+
+	/*
+	 * round address down to a 32 bit boundary
+	 * and always dump a multiple of 32 bytes
+	 */
+	p = (u32 *)(addr & ~(sizeof(u32) - 1));
+	nbytes += (addr & (sizeof(u32) - 1));
+	nlines = (nbytes + 31) / 32;
+
+
+	for (i = 0; i < nlines; i++) {
+		/*
+		 * just display low 16 bits of address to keep
+		 * each line of the dump < 80 characters
+		 */
+		if (i == (nlines / 2))
+			printk("%04lx*", (unsigned long)p & 0xffff);
+		else
+			printk("%04lx ", (unsigned long)p & 0xffff);
+
+		for (j = 0; j < 8; j++) {
+			u32	data;
+
+			if (aarch64_insn_read((void *)p, &data)) {
+				pr_cont(" ********");
+			} else {
+				pr_cont(" %08x", data);
+			}
+			++p;
+		}
+		pr_cont("\n");
+	}
+}
+
+static void show_extra_register_data(struct pt_regs *regs, int nbytes)
+{
+	unsigned int i;
+
+	show_data(regs->pc - nbytes, nbytes * 2, "PC");
+	show_data(regs->regs[30] - nbytes, nbytes * 2, "LR");
+	show_data(regs->sp - nbytes, nbytes * 2, "SP");
+	for (i = 0; i < 30; i++) {
+		char name[4];
+		snprintf(name, sizeof(name), "X%u", i);
+		show_data(regs->regs[i] - nbytes, nbytes * 2, name);
+	}
+}
+
 void __show_regs(struct pt_regs *regs)
 {
 	int i, top_reg;
@@ -245,6 +311,9 @@ void show_regs(struct pt_regs *regs)
 {
 	__show_regs(regs);
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
+
+	if (!user_mode(regs))
+		show_extra_register_data(regs, 512);
 }
 
 static void tls_thread_flush(void)

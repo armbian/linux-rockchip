@@ -28,6 +28,7 @@
 #define trace_xrun(substream)
 #define trace_hw_ptr_error(substream, reason)
 #define trace_applptr(substream, prev, curr)
+#define trace_applptr_start(substream, frame)
 #endif
 
 static int fill_silence_frames(struct snd_pcm_substream *substream,
@@ -2051,11 +2052,69 @@ static void *get_dma_ptr(struct snd_pcm_runtime *runtime,
 		channel * (runtime->dma_bytes / runtime->channels);
 }
 
+/*
+ * MSB check
+ * channel id
+ * as much as more 0/1 stress
+ */
+#define PATTERN8(x)	(0xa0 | (x))
+#define PATTERN16(x)	(0xab00 | (x))
+#define PATTERN32(x)	(0xabcabc00 | (x))
+
+static void snd_fill_pattern_frame(char *buf, int bits, int ch)
+{
+	unsigned char *ptr8 = (unsigned char *)buf;
+	unsigned short *ptr16 = (unsigned short *)buf;
+	unsigned int *ptr32 = (unsigned int *)buf;
+	int i = 0;
+
+	switch (bits) {
+	case 8:
+		for (i = 0; i < ch; i++)
+			ptr8[i] = PATTERN8(i + 1);
+		break;
+	case 16:
+		for (i = 0; i < ch; i++)
+			ptr16[i] = PATTERN16(i + 1);
+		break;
+	case 32:
+		for (i = 0; i < ch; i++)
+			ptr32[i] = PATTERN32(i + 1);
+		break;
+	default:
+		pr_err("invalid bits: %d\n", bits);
+		break;
+	}
+}
+
+static int snd_fill_pattern(struct snd_pcm_substream *substream,
+			    int channels, unsigned long hwoff,
+			    unsigned long bytes)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_uframes_t frames;
+	void *buf;
+	int i = 0;
+
+	buf = get_dma_ptr(substream->runtime, channels, hwoff);
+	frames = bytes_to_frames(runtime, bytes);
+
+	for (i = 0; i < frames; i++) {
+		snd_fill_pattern_frame(buf, runtime->sample_bits, runtime->channels);
+		buf += frames_to_bytes(runtime, 1);
+	}
+
+	return 0;
+}
+
 /* default copy ops for write; used for both interleaved and non- modes */
 static int default_write_copy(struct snd_pcm_substream *substream,
 			      int channel, unsigned long hwoff,
 			      struct iov_iter *iter, unsigned long bytes)
 {
+	if (IS_ENABLED(CONFIG_SND_PCM_PATTERN_DEBUG))
+		return snd_fill_pattern(substream, channel, hwoff, bytes);
+
 	if (copy_from_iter(get_dma_ptr(substream->runtime, channel, hwoff),
 			   bytes, iter) != bytes)
 		return -EFAULT;
@@ -2285,6 +2344,8 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	err = pcm_sanity_check(substream);
 	if (err < 0)
 		return err;
+
+	trace_applptr_start(substream, size);
 
 	is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	if (interleaved) {

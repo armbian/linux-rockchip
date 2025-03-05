@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+#include "rk3506-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3506G(QFN128) EVB1 V10 Board";
+	compatible = "rockchip,rk3506g-evb1-v10", "rockchip,rk3506";
+
+	extcon_usb: extcon-usb {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpio = <&gpio1 RK_PC5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_extcon_vbus>;
+		status = "okay";
+	};
+
+	sai_dais: sai-dais {
+		status = "okay";
+		compatible = "rockchip,multi-dais";
+		dais = <&sai1>, <&sai4>;
+		capture,channel-mapping = <2 2>;
+		playback,channel-mapping = <2 0>;
+		mclk-fs-mapping = <256 1024>;
+	};
+
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc3v3_lcd_n";
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	vcc5v0_otg0: vcc5v0-otg0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg0_en>;
+	};
+
+	vcc5v0_otg1: vcc5v0-otg1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg1";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg1_en>;
+	};
+};
+
+&acodec_sound {
+	status = "disabled";
+};
+
+&cma {
+	size = <0x1600000>;
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
+&es8388 {
+	status = "okay";
+};
+
+&es8388_sound {
+	status = "okay";
+	rockchip,cpu = <&sai_dais>;
+	rockchip,codec = <&es8388>, <&audio_codec>;
+	rockchip,mclk-fs-mapping = <256 1024>;
+};
+
+&gt1x {
+	power-supply = <&vcc3v3_lcd_n>;
+	status = "okay";
+};
+
+&pinctrl {
+	usb {
+		usb_extcon_vbus: usb-extcon-vbus {
+			rockchip,pins = <1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg0_en: vcc5v0-otg0-en {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg1_en: vcc5v0-otg1-en {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io26_uart3_tx &rm_io25_uart3_rx &rm_io24_uart3_rtsn &rm_io29_uart3_ctsn>;
+	linux,rs485-enabled-at-boot-time;	/* enable rs485 */
+	status = "okay";
+};
+
+&uart4 {
+	dma-names = "!tx", "!rx";	/* remove ! to enable dma */
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io27_uart4_tx &rm_io28_uart4_rx>;   /* vccio1 */
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	vbus-supply = <&vcc5v0_otg0>;
+	rockchip,gpio-vbus-det;
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	phy-supply = <&vcc5v0_otg1>;
+	status = "okay";
+};
+
+&usb2phy {
+	extcon = <&extcon_usb>;
+	status = "okay";
+};

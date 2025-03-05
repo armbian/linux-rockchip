@@ -1,0 +1,66 @@
+#SPDX-License-Identifier: GPL-2.0
+#
+# Himax Touchscreen driver configuration
+#
+config TOUCHSCREEN_HIMAX_CHIPSET
+        tristate "HIAMX touchscreens support"
+
+if TOUCHSCREEN_HIMAX_CHIPSET
+
+config TOUCHSCREEN_HIMAX_COMMON
+        tristate "HIMAX chipset i2c touchscreen"
+		depends on TOUCHSCREEN_HIMAX_CHIPSET
+		help
+		This enables support for HIMAX CHIPSET over I2C based touchscreens.
+
+choice
+	prompt "HIMAX touch IC types"
+	depends on TOUCHSCREEN_HIMAX_COMMON
+	default TOUCHSCREEN_HIMAX_INCELL
+
+config TOUCHSCREEN_HIMAX_INCELL
+        bool "HIMAX chipset in-cell function"
+		depends on TOUCHSCREEN_HIMAX_COMMON
+		help
+		This enables support for HIMAX CHIPSET of in-cell function.
+
+endchoice
+# ***************** In-cell Start *****************
+config TOUCHSCREEN_HIMAX_IC_HX83193
+        tristate "HIMAX chipset HX83193 function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX CHIPSET of HX83193.
+
+config TOUCHSCREEN_HIMAX_IC_HX83192
+        tristate "HIMAX chipset HX83192 function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX CHIPSET of HX83192.
+
+config TOUCHSCREEN_HIMAX_IC_HX83191
+        tristate "HIMAX chipset HX83191 function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX CHIPSET of HX83191.
+
+# ***************** In-cell End *******************
+
+config TOUCHSCREEN_HIMAX_DEBUG
+        bool "HIMAX debug function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX debug function.
+config TOUCHSCREEN_HIMAX_INSPECT
+        bool "HIMAX inspect function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX debug function.
+
+config TOUCHSCREEN_HIMAX_EMBEDDED_FIRMWARE
+	bool "HIMAX embedded firmware function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables built-in FW inside kernel as binary array
+
+endif

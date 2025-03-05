@@ -1,0 +1,789 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/suspend/rockchip-rk3506.h>
+#include <dt-bindings/sensor-dev.h>
+
+/ {
+	model = "Rockchip RK3506 EVB2 V10 Board";
+	compatible = "rockchip,rk3506-evb2-v10", "rockchip,rk3506";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=5 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1 storagemedia=mtd androidboot.storagemedia=mtd androidboot.mode=normal";
+	};
+
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <16000>;
+		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm0_4ch_2 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+		status = "okay";
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <0>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	leds: leds {
+		compatible = "gpio-leds";
+
+		work_led: work-led {
+			gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	matrix-keypad {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <30>;
+		col-scan-delay-us = <100>;
+		wakeup-source;
+		pinctrl-names = "default";
+		pinctrl-0 = <&keypad_pins>;
+
+		linux,no-autorepeat;
+		drive-inactive-cols;
+
+		col-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PC1 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PC2 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PC3 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+
+		row-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PB4 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PB5 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PB6 GPIO_ACTIVE_HIGH
+			     &gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+
+		linux,keymap = <
+				MATRIX_KEY(0, 0, KEY_NUMERIC_1)
+				MATRIX_KEY(0, 1, KEY_NUMERIC_2)
+				MATRIX_KEY(0, 2, KEY_NUMERIC_3)
+				MATRIX_KEY(0, 3, KEY_UP)
+				MATRIX_KEY(0, 4, KEY_DOWN)
+				MATRIX_KEY(1, 0, KEY_NUMERIC_4)
+				MATRIX_KEY(1, 1, KEY_NUMERIC_5)
+				MATRIX_KEY(1, 2, KEY_NUMERIC_6)
+				MATRIX_KEY(1, 3, KEY_LEFT)
+				MATRIX_KEY(1, 4, KEY_RIGHT)
+				MATRIX_KEY(2, 0, KEY_NUMERIC_7)
+				MATRIX_KEY(2, 1, KEY_NUMERIC_8)
+				MATRIX_KEY(2, 2, KEY_NUMERIC_9)
+				MATRIX_KEY(2, 3, KEY_OK)
+				MATRIX_KEY(2, 4, KEY_MUTE)
+				MATRIX_KEY(3, 0, KEY_NUMERIC_STAR)
+				MATRIX_KEY(3, 1, KEY_NUMERIC_0)
+				MATRIX_KEY(3, 2, KEY_NUMERIC_POUND)
+				MATRIX_KEY(3, 3, KEY_SOUND)
+				MATRIX_KEY(3, 4, KEY_VOLUMEDOWN)
+				MATRIX_KEY(4, 0, KEY_F1)
+				MATRIX_KEY(4, 1, KEY_F2)
+				MATRIX_KEY(4, 2, KEY_F3)
+				MATRIX_KEY(4, 3, KEY_F4)
+				MATRIX_KEY(4, 4, KEY_VOLUMEUP)
+		>;
+
+		status = "okay";
+	};
+
+	/* Only lineout, no hpout */
+	rk730_sound: rk730-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk730";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det_l>;
+		hp-con-gpio = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+		spk-con-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,mclk-fs-mapping = <256 1024>;
+		rockchip,cpu = <&sai_dais>;
+		rockchip,codec = <&rk730>, <&audio_codec>;
+		rockchip,audio-routing =
+			"Headphone", "LOUT2",
+			"Headphone", "ROUT2",
+			"Speaker", "LOUT1",
+			"Speaker", "ROUT1",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"MIC2", "Main Mic",
+			"MIC1", "Headset Mic";
+	};
+
+	sai_dais: sai-dais {
+		status = "okay";
+		compatible = "rockchip,multi-dais";
+		dais = <&sai3>, <&sai4>;
+		capture,channel-mapping = <2 2>;
+		playback,channel-mapping = <2 0>;
+		mclk-fs-mapping = <256 1024>;
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc3v3_lcd_n";
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart5m0_rtsn_pins>;
+		pinctrl-1 = <&uart5_gpios>;
+		BT,power_gpio    = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		clocks = <&rk816 1>;
+		clock-names = "clk_wifi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>;
+		wifi_chip_type = "ap6256";
+		WIFI,host_wake_irq = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&audio_codec {
+	status = "okay";
+};
+
+&cma {
+	size = <0x1600000>;
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&display_subsystem {
+	logo-memory-region = <&drm_logo>;
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+	rockchip,lane-rate = <850>;
+	dsi_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd_n>;
+		reset-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <5>;
+		reset-delay-ms = <1>;
+		init-delay-ms = <80>;
+		disable-delay-ms = <10>;
+		unprepare-delay-ms = <5>;
+
+		width-mm = <68>;
+		height-mm = <121>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <2>;
+		panel-init-sequence = [
+			39 00 04 ff 98 81 03
+			15 00 02 01 00
+			15 00 02 02 00
+			15 00 02 03 53
+			15 00 02 04 53
+			15 00 02 05 13
+			15 00 02 06 04
+			15 00 02 07 02
+			15 00 02 08 02
+			15 00 02 09 00
+			15 00 02 0a 00
+			15 00 02 0b 00
+			15 00 02 0c 00
+			15 00 02 0d 00
+			15 00 02 0e 00
+			15 00 02 0f 00
+			15 00 02 10 00
+			15 00 02 11 00
+			15 00 02 12 00
+			15 00 02 13 00
+			15 00 02 14 00
+			15 00 02 15 08
+			15 00 02 16 10
+			15 00 02 17 00
+			15 00 02 18 08
+			15 00 02 19 00
+			15 00 02 1a 00
+			15 00 02 1b 00
+			15 00 02 1c 00
+			15 00 02 1d 00
+			15 00 02 1e c0
+			15 00 02 1f 80
+			15 00 02 20 02
+			15 00 02 21 09
+			15 00 02 22 00
+			15 00 02 23 00
+			15 00 02 24 00
+			15 00 02 25 00
+			15 00 02 26 00
+			15 00 02 27 00
+			15 00 02 28 55
+			15 00 02 29 03
+			15 00 02 2a 00
+			15 00 02 2b 00
+			15 00 02 2c 00
+			15 00 02 2d 00
+			15 00 02 2e 00
+			15 00 02 2f 00
+			15 00 02 30 00
+			15 00 02 31 00
+			15 00 02 32 00
+			15 00 02 33 00
+			15 00 02 34 04
+			15 00 02 35 05
+			15 00 02 36 05
+			15 00 02 37 00
+			15 00 02 38 3c
+			15 00 02 39 35
+			15 00 02 3a 00
+			15 00 02 3b 40
+			15 00 02 3c 00
+			15 00 02 3d 00
+			15 00 02 3e 00
+			15 00 02 3f 00
+			15 00 02 40 00
+			15 00 02 41 88
+			15 00 02 42 00
+			15 00 02 43 00
+			15 00 02 44 1f
+			15 00 02 50 01
+			15 00 02 51 23
+			15 00 02 52 45
+			15 00 02 53 67
+			15 00 02 54 89
+			15 00 02 55 ab
+			15 00 02 56 01
+			15 00 02 57 23
+			15 00 02 58 45
+			15 00 02 59 67
+			15 00 02 5a 89
+			15 00 02 5b ab
+			15 00 02 5c cd
+			15 00 02 5d ef
+			15 00 02 5e 03
+			15 00 02 5f 14
+			15 00 02 60 15
+			15 00 02 61 0c
+			15 00 02 62 0d
+			15 00 02 63 0e
+			15 00 02 64 0f
+			15 00 02 65 10
+			15 00 02 66 11
+			15 00 02 67 08
+			15 00 02 68 02
+			15 00 02 69 0a
+			15 00 02 6a 02
+			15 00 02 6b 02
+			15 00 02 6c 02
+			15 00 02 6d 02
+			15 00 02 6e 02
+			15 00 02 6f 02
+			15 00 02 70 02
+			15 00 02 71 02
+			15 00 02 72 06
+			15 00 02 73 02
+			15 00 02 74 02
+			15 00 02 75 14
+			15 00 02 76 15
+			15 00 02 77 0f
+			15 00 02 78 0e
+			15 00 02 79 0d
+			15 00 02 7a 0c
+			15 00 02 7b 11
+			15 00 02 7c 10
+			15 00 02 7d 06
+			15 00 02 7e 02
+			15 00 02 7f 0a
+			15 00 02 80 02
+			15 00 02 81 02
+			15 00 02 82 02
+			15 00 02 83 02
+			15 00 02 84 02
+			15 00 02 85 02
+			15 00 02 86 02
+			15 00 02 87 02
+			15 00 02 88 08
+			15 00 02 89 02
+			15 00 02 8a 02
+			39 00 04 ff 98 81 04
+			15 00 02 00 80
+			15 00 02 70 00
+			15 00 02 71 00
+			15 00 02 66 fe
+			15 00 02 82 15
+			15 00 02 84 15
+			15 00 02 85 15
+			15 00 02 3a 24
+			15 00 02 32 ac
+			15 00 02 8c 80
+			15 00 02 3c f5
+			15 00 02 88 33
+			39 00 04 ff 98 81 01
+			15 00 02 22 0a
+			15 00 02 31 00
+			15 00 02 53 78
+			15 00 02 55 7b
+			15 00 02 60 20
+			15 00 02 61 00
+			15 00 02 62 0d
+			15 00 02 63 00
+			15 00 02 a0 00
+			15 00 02 a1 10
+			15 00 02 a2 1c
+			15 00 02 a3 13
+			15 00 02 a4 15
+			15 00 02 a5 26
+			15 00 02 a6 1a
+			15 00 02 a7 1d
+			15 00 02 a8 67
+			15 00 02 a9 1c
+			15 00 02 aa 29
+			15 00 02 ab 5b
+			15 00 02 ac 26
+			15 00 02 ad 28
+			15 00 02 ae 5c
+			15 00 02 af 30
+			15 00 02 b0 31
+			15 00 02 b1 32
+			15 00 02 b2 00
+			15 00 02 b1 2e
+			15 00 02 b2 32
+			15 00 02 b3 00
+			15 00 02 b6 02
+			15 00 02 b7 03
+			15 00 02 c0 00
+			15 00 02 c1 10
+			15 00 02 c2 1c
+			15 00 02 c3 13
+			15 00 02 c4 15
+			15 00 02 c5 26
+			15 00 02 c6 1a
+			15 00 02 c7 1d
+			15 00 02 c8 67
+			15 00 02 c9 1c
+			15 00 02 ca 29
+			15 00 02 cb 5b
+			15 00 02 cc 26
+			15 00 02 cd 28
+			15 00 02 ce 5c
+			15 00 02 cf 30
+			15 00 02 d0 31
+			15 00 02 d1 2e
+			15 00 02 d2 32
+			15 00 02 d3 00
+			39 00 04 ff 98 81 00
+			05 96 01 11
+			05 14 01 29
+		];
+
+		disp_timings0: display-timings {
+			native-mode = <&dsi_timing0>;
+			dsi_timing0: timing0 {
+				clock-frequency = <65000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				hfront-porch = <48>;
+				hsync-len = <8>;
+				hback-porch = <52>;
+				vfront-porch = <16>;
+				vsync-len = <6>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&fspi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io25_i2c1_scl
+		     &rm_io26_i2c1_sda>;
+
+	rk730: rk730@17 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rk730";
+		reg = <0x17>;
+		clocks = <&mclkout_sai3>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai3>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai3_mclk_pins>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io29_i2c2_scl &rm_io30_i2c2_sda>;
+
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		gtp_ics_slot_report;
+		power-supply = <&vcc3v3_lcd_n>;
+		goodix,rst-gpio = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	ls_stk3332: light@47 {
+		compatible = "ls_stk3332";
+		reg = <0x47>;
+		type = <SENSOR_TYPE_LIGHT>;
+		irq_enable = <0>;
+		als_threshold_high = <100>;
+		als_threshold_low = <10>;
+		als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
+		poll_delay_ms = <100>;
+		status = "okay";
+	};
+
+	ps_stk3332: proximity@47 {
+		compatible = "ps_stk3332";
+		reg = <0x47>;
+		type = <SENSOR_TYPE_PROXIMITY>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&stk_int_l>;
+		//irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_LEVEL_LOW>;
+		//irq_enable = <1>;
+		ps_threshold_high = <0x64>;
+		ps_threshold_low = <0x50>;
+		ps_ctrl_gain = <3>; /* 0:x1 1:x2 2:x5 3:x8 */
+		ps_led_current = <5>; /* 0:3.125mA 1:6.25mA 2:12.5mA 3:25mA 4:50mA 5:100mA*/
+		poll_delay_ms = <100>;
+		status = "okay";
+	};
+};
+
+&mmc {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	no-sd;
+	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&pinctrl {
+	sound {
+		hp_det_l: hp-det-l {
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	keyboard {
+		keypad_pins: keypad-pins {
+			rockchip,pins =
+				/* keyboard rows(0~4) */
+				<0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_down>,
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>,
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>,
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>,
+				<0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* keyboard cols(0~4) */
+				<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pmic {
+		pmic_int_l: pmic-int-l {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sensor {
+		stk_int_l: stk-int-l {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	speaker {
+		spk_ctrl: spk-ctrl {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart5_gpios: uart5-gpios {
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_wake_host: wifi-wake-host {
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pwm0_4ch_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io20_pwm0_ch1>;
+	status = "okay";
+};
+
+&pwm0_4ch_2 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io31_pwm0_ch2>;
+	status = "okay";
+};
+
+&rga2 {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&rockchip_suspend {
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_ARMOFF_DDRPD
+		| RKPM_24M_OSC_DIS
+		| RKPM_32K_CLK
+		| RKPM_32K_SRC_RC
+		)
+	>;
+
+	rockchip,apios-suspend = <
+		(0
+		| RKPM_PWREN_SLEEP_GPIO0A3 | RKPM_PWREN_SLEEP_ACT_HIGH
+		)
+	>;
+
+#define GPIO0_IOC_GPIO1D_PULL_REG	0xff66021c
+#define GPIO0_IOC_GPIO2C_PULL_REG	0xff4d8228
+#define GPIO1D3_PULL_DOWN		0x00c00080
+#define GPIO2C0_PULL_DOWN		0x00030002
+
+	/* Note: support max 16 pairs */
+	rockchip,sleep-io-config = <
+		GPIO0_IOC_GPIO1D_PULL_REG GPIO1D3_PULL_DOWN /* PWM0_CH2_LCD_BL */
+		GPIO0_IOC_GPIO2C_PULL_REG GPIO2C0_PULL_DOWN /* SAI3_MCLK */
+	>;
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&sai3 {
+	status = "okay";
+	rockchip,mclk-no-set;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sai3_sclk_pins
+		     &sai3_lrck_pins
+		     &sai3_sdi_pins
+		     &sai3_sdo_pins>;
+	pinctrl-1 = <&sai3_sclk_idle_pins
+		     &sai3_lrck_idle_pins
+		     &sai3_sdi_idle_pins
+		     &sai3_sdo_idle_pins>;
+};
+
+&sai4 {
+	status = "okay";
+	rockchip,mclk-no-set;
+};
+
+&saradc {
+	vref-supply = <&vcc_1v8>;
+	status = "okay";
+};
+
+&tsadc {
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-0 = <&uart5m0_xfer_pins &uart5m0_ctsn_pins>;
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	status = "okay";
+};
+
+&usb2phy {
+	status = "okay";
+};
+
+&usb20_otg0 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};

@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3576.dtsi"
+
+/*
+ * The Max frequency of cluster0 is 1416MHz in default normal mode.
+ * The Max frequency of cluster0 is 1920MHz in overdrive mode,
+ * but under the overdrive mode for a long time,
+ * the chipset may shorten the lifetime,
+ * especially in high temperature condition.
+ */
+&cluster0_opp_j_m_1608000000 {
+	status = "disabled";
+};
+
+&cluster0_opp_j_m_1800000000 {
+	status = "disabled";
+};
+
+&cluster0_opp_j_m_1920000000 {
+	status = "disabled";
+};
+
+/*
+ * The Max frequency of cluster1 is 1608MHz in default normal mode.
+ * The Max frequency of cluster1 is 2112MHz in overdrive mode,
+ * but under the overdrive mode for a long time,
+ * the chipset may shorten the lifetime,
+ * especially in high temperature condition.
+ */
+&cluster1_opp_j_m_1800000000 {
+	status = "disabled";
+};
+
+&cluster1_opp_j_m_2016000000 {
+	status = "disabled";
+};
+
+&cluster1_opp_j_m_2112000000 {
+	status = "disabled";
+};
+
+/*
+ * The Max frequency of GPU is 700MHz in default normal mode.
+ * The Max frequency of GPU is 800MHz in overdrive mode,
+ * but under the overdrive mode for a long time,
+ * the chipset may shorten the lifetime,
+ * especially in high temperature condition.
+ */
+&gpu_opp_j_m_800000000 {
+	status = "disabled";
+};
+
+/*
+ * The Max frequency of NPU is 700MHz in default normal mode.
+ * The Max frequency of NPU is 850MHz in overdrive mode,
+ * but under the overdrive mode for a long time,
+ * the chipset may shorten the lifetime,
+ * especially in high temperature condition.
+ */
+&npu_opp_j_m_800000000 {
+	status = "disabled";
+};
+
+&npu_opp_j_m_850000000 {
+	status = "disabled";
+};

@@ -15,11 +15,16 @@ allOf:
 
 properties:
   compatible:
-    const: rockchip,sfc
+    enum:
+      - rockchip,fspi
+      - rockchip,rk3506-fspi
+      - rockchip,sfc
+
     description:
       The rockchip sfc controller is a standalone IP with version register,
       and the driver can handle all the feature difference inside the IP
       depending on the version register.
+      The rockchip flexible spi controller is the next generation IP of sfc.
 
   reg:
     maxItems: 1
@@ -44,6 +49,16 @@ properties:
     description: Disable DMA and utilize FIFO mode only
     type: boolean
 
+  rockchip,sclk-x2-bypass:
+    description:
+      Turn off the internal 2 frequency division logic of the controller clock,
+      and the interface clock is 1:1 with the controller working clock.
+    type: boolean
+
+  rockchip,max-dll:
+    description:
+      Setting maximum dll cell.
+
 patternProperties:
   "^flash@[0-3]$":
     type: object
@@ -60,6 +75,12 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+Optional properties:
+  - sfc-cs-gpios: specifies the gpio pins to be used for chipselects.
+    The gpios will be referred to as reg = <index> in the SPI child nodes.
+    If unspecified, a single SPI device without a chip select can be used.
+  - reset-gpios: specifies the reset gpio pin to be used for reseting the devices.
 
 unevaluatedProperties: false
 
@@ -78,6 +99,8 @@ examples:
         pinctrl-0 = <&sfc_clk &sfc_cs &sfc_bus2>;
         pinctrl-names = "default";
         power-domains = <&power PX30_PD_MMC_NAND>;
+        sfc-cs-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>, <&gpio4 RK_PA5 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_LOW>;
         #address-cells = <1>;
         #size-cells = <0>;
 

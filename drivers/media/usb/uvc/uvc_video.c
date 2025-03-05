@@ -24,6 +24,7 @@
 #include <media/v4l2-common.h>
 
 #include "uvcvideo.h"
+#include <soc/rockchip/rockchip-system-status.h>
 
 /* ------------------------------------------------------------------------
  * UVC Controls
@@ -2338,6 +2339,8 @@ int uvc_video_start_streaming(struct uvc_streaming *stream)
 	if (ret < 0)
 		goto error_commit;
 
+	rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
+
 	ret = uvc_video_start_transfer(stream, GFP_KERNEL);
 	if (ret < 0)
 		goto error_video;
@@ -2345,6 +2348,7 @@ int uvc_video_start_streaming(struct uvc_streaming *stream)
 	return 0;
 
 error_video:
+	rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 error_commit:
 	uvc_video_clock_cleanup(&stream->clock);
@@ -2376,4 +2380,5 @@ void uvc_video_stop_streaming(struct uvc_streaming *stream)
 	}
 
 	uvc_video_clock_cleanup(&stream->clock);
+	rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2020-2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020-2021 Rockchip Electronics Co., Ltd.
  *
  * Copyright (c) 2013 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
@@ -183,10 +183,15 @@
 #define RK_GPIO4_D6	158
 #define RK_GPIO4_D7	159
 
+#define RK_GPIO_IRQ_MAX_NUM		4
+#define RK_GPIO_EXP_IRQ_MAX_PIN_NUM	2
+
 enum rockchip_pinctrl_type {
 	PX30,
+	RV1106,
 	RV1108,
 	RV1126,
+	RK1808,
 	RK2928,
 	RK3066B,
 	RK3128,
@@ -196,6 +201,9 @@ enum rockchip_pinctrl_type {
 	RK3328,
 	RK3368,
 	RK3399,
+	RK3506,
+	RK3528,
+	RK3562,
 	RK3568,
 	RK3576,
 	RK3588,
@@ -258,6 +266,9 @@ enum rockchip_pin_drv_type {
 	DRV_TYPE_IO_1V8_ONLY,
 	DRV_TYPE_IO_1V8_3V0_AUTO,
 	DRV_TYPE_IO_3V3_ONLY,
+	DRV_TYPE_IO_SMIC,
+	DRV_TYPE_IO_LEVEL_2_BIT,
+	DRV_TYPE_IO_LEVEL_8_BIT,
 	DRV_TYPE_MAX
 };
 
@@ -267,6 +278,7 @@ enum rockchip_pin_drv_type {
 enum rockchip_pin_pull_type {
 	PULL_TYPE_IO_DEFAULT = 0,
 	PULL_TYPE_IO_1V8_ONLY,
+	PULL_TYPE_IO_1 = 1,
 	PULL_TYPE_MAX
 };
 
@@ -292,6 +304,8 @@ struct rockchip_drv {
  * @clk: clock of the gpio bank
  * @db_clk: clock of the gpio debounce
  * @irq: interrupt of the gpio bank
+ * @irq_pins: masks of the irq pins
+ * @irq_pin_id: pin number of the irq pin
  * @saved_masks: Saved content of GPIO_INTEN at suspend time.
  * @pin_base: first pin number
  * @nr_pins: number of pins in this bank
@@ -319,7 +333,9 @@ struct rockchip_pin_bank {
 	struct regmap			*regmap_pull;
 	struct clk			*clk;
 	struct clk			*db_clk;
-	int				irq;
+	int				irq[RK_GPIO_IRQ_MAX_NUM];
+	u32				irq_pins[RK_GPIO_IRQ_MAX_NUM];
+	int				irq_pin_id[RK_GPIO_IRQ_MAX_NUM][RK_GPIO_EXP_IRQ_MAX_PIN_NUM];
 	u32				saved_masks;
 	u32				pin_base;
 	u8				nr_pins;
@@ -400,14 +416,17 @@ struct rockchip_pin_ctrl {
 	u32				niomux_routes;
 
 	int	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
+				 int pin_num, struct regmap **regmap,
+				 int *reg, u8 *bit);
 	int	(*drv_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
+				int pin_num, struct regmap **regmap,
+				int *reg, u8 *bit);
 	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
 				    int pin_num, struct regmap **regmap,
 				    int *reg, u8 *bit);
+	int	(*slew_rate_calc_reg)(struct rockchip_pin_bank *bank,
+				      int pin_num, struct regmap **regmap,
+				      int *reg, u8 *bit);
 };
 
 struct rockchip_pin_config {
@@ -456,6 +475,9 @@ struct rockchip_pinctrl {
 	int				reg_size;
 	struct regmap			*regmap_pull;
 	struct regmap			*regmap_pmu;
+	struct regmap			*regmap_sys_grf;
+	struct regmap			*regmap_ioc1;
+	struct regmap			*regmap_rmio;
 	struct device			*dev;
 	struct rockchip_pin_ctrl	*ctrl;
 	struct pinctrl_desc		pctl;
@@ -465,5 +487,20 @@ struct rockchip_pinctrl {
 	struct rockchip_pmx_func	*functions;
 	unsigned int			nfunctions;
 };
+
+#if IS_ENABLED(CONFIG_PINCTRL_ROCKCHIP)
+int rk_iomux_set(int bank, int pin, int mux);
+int rk_iomux_get(int bank, int pin, int *mux);
+#else
+static inline int rk_iomux_set(int bank, int pin, int mux)
+{
+	return -EINVAL;
+}
+
+static inline int rk_iomux_get(int bank, int pin, int *mux)
+{
+	return -EINVAL;
+}
+#endif
 
 #endif

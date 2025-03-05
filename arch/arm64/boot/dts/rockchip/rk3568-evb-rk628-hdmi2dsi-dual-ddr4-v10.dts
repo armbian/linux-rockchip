@@ -1,0 +1,241 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb-rk628-ddr4-v10.dtsi"
+#include "rk3568-android.dtsi"
+#include <dt-bindings/display/media-bus-format.h>
+
+&gt1x {
+	status = "disabled";
+};
+
+&i2c2_rk628 {
+	panel-backlight = <&backlight>;
+	panel-power-supply = <&vcc3v3_lcd0_n>;
+	panel-reset-delay-ms = <240>;
+	panel-enable-delay-ms = <240>;
+	panel-prepare-delay-ms = <240>;
+	panel-unprepare-delay-ms = <240>;
+	panel-disable-delay-ms = <240>;
+	panel-init-delay-ms = <240>;
+
+	rk628-hdmi-in;
+	rk628-dsi-out {
+		rockchip,lane-mbps = <1100>;
+		rockchip,dual-channel;
+		dsi,eotp;
+		dsi,video-mode;
+		dsi,format = "rgb888";
+		dsi,lanes  = <4>;
+		status = "okay";
+
+		rk628-panel {
+			panel-init-sequence = [
+				29 00 05 ff aa 55 a5 80
+				23 00 02 6f 31
+				23 00 02 fa 00
+				23 00 02 6f 13
+				23 00 02 f4 00
+				23 00 02 fa 00
+				29 00 05 ff aa 55 a5 00
+				29 00 06 f0 55 aa 52 08 00
+				23 00 02 b1 21
+				29 00 03 b2 10 82
+				29 00 03 b2 87 22
+				29 00 04 b4 25 02 8c
+				29 00 03 b5 0a 00
+				29 00 04 b8 00 04 02
+				29 00 0a b9 03 00 18 11 31 44 03 51 00
+				29 00 03 ba 00 32
+				29 00 03 bc 4f 00
+				29 00 05 bd 00 b6 10 10
+				29 00 03 c6 11 10
+				29 00 06 f0 55 aa 52 08 01
+				29 00 03 b1 11 11
+				29 00 07 b2 08 08 08 08 08 08
+				29 00 07 b3 0f 19 0f 19 0f 19
+				29 00 07 b6 15 14 15 14 15 14
+				29 00 03 bc 5f 00
+				29 00 03 bd 5f 00
+				29 00 03 be 00 db
+				23 00 02 ca 0f
+				29 00 06 f0 55 aa 52 08 02
+				29 00 0f b0 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 0f b1 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 cc ff
+				29 00 0f b2 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 10 b3 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 ca cc ff
+				29 00 0f b4 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 10 b5 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 ca cc ff
+				29 00 0f b6 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 10 b7 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 ca cc ff
+				29 00 0f b8 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 10 b9 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 ca cc ff
+				29 00 0f ba 00 0e 29 36 3f 48 51 3b 37
+					3c 3c 51 61 60
+				29 00 10 bb 59 6a 81 81 94 9b a8 a8 af
+					b6 bd c4 ca cc ff
+				29 00 06 f0 55 aa 52 08 03
+				29 00 05 b0 00 00 00 00
+				29 00 05 b1 03 00 00 03
+				29 00 08 b2 00 00 64 00 64 05 02
+				29 00 03 b4 00 08
+				29 00 05 b5 12 28 06 06
+				29 00 06 ba 31 00 01 00 09
+				29 00 06 bb 31 00 01 00 09
+				29 00 06 f0 55 aa 52 08 05
+				29 00 04 b0 03 11 3f
+				29 00 03 b2 06 60
+				29 00 03 b3 10 33
+				23 00 02 b4 26
+				29 00 04 b5 06 20 00
+				29 00 04 b6 86 e0 00
+				29 00 06 ba 8e 00 00 a4 00
+				29 00 06 bb 06 00 00 20 00
+				29 00 06 bc 8e 00 00 a4 00
+				29 00 06 bd 2e 00 00 a4 00
+				29 00 06 be 8e 00 00 a0 00
+				29 00 06 bf 06 00 00 24 00
+				23 00 02 c1 00
+				29 00 03 c8 05 10
+				29 00 03 c9 03 10
+				29 00 04 d0 00 0a 02
+				29 00 04 d1 00 0a 04
+				23 00 02 ec 12
+				23 00 02 ed 00
+				29 00 03 ee 03 00
+				29 00 06 f0 55 aa 52 08 06
+				29 00 06 b0 00 04 08 11 12
+				29 00 06 b1 1f 15 16 1f 1f
+				29 00 06 b2 1f 13 1f 1f 1f
+				29 00 06 b3 1f 19 19 19 19
+				29 00 06 b4 1b 1b 1b 1b 1d
+				29 00 04 b5 1d 1d 1d
+				29 00 06 b6 00 05 09 11 12
+				29 00 06 b7 1f 15 16 1f 1f
+				29 00 06 b8 1f 13 1f 1f 1f
+				29 00 06 b9 1f 19 19 19 19
+				29 00 06 ba 1b 1b 1b 1b 1d
+				29 00 04 bb 1d 1d 1d
+				29 00 06 c0 00 09 05 12 11
+				29 00 06 c1 1f 15 16 1f 1f
+				29 00 06 c2 1f 13 1f 1f 1f
+				29 00 06 c3 1f 19 19 19 19
+				29 00 06 c4 1b 1b 1b 1b 1d
+				29 00 04 c5 1d 1d 1d
+				29 00 06 c6 00 08 04 12 11
+				29 00 06 c7 1f 15 16 1f 1f
+				29 00 06 c8 1f 13 1f 1f 1f
+				29 00 06 c9 1f 19 19 19 19
+				29 00 06 ca 1b 1b 1b 1b 1d
+				29 00 04 cb 1d 1d 1d
+				29 78 04 d0 00 aa 0a
+				05 78 01 11
+				05 78 01 29
+			];
+
+			panel-exit-sequence = [
+				05 00 01 28
+				05 00 01 10
+			];
+		};
+	};
+
+	display-timings {
+		src-timing {
+			clock-frequency = <264000000>;
+			hactive = <1440>;
+			vactive = <2560>;
+			hfront-porch = <150>;
+			hsync-len = <30>;
+			hback-porch = <60>;
+			vfront-porch = <20>;
+			vsync-len = <20>;
+			vback-porch = <20>;
+			hsync-active = <1>;
+			vsync-active = <1>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		dst-timing {
+			clock-frequency = <264000000>;
+			hactive = <1440>;
+			vactive = <2560>;
+			hfront-porch = <150>;
+			hsync-len = <30>;
+			hback-porch = <60>;
+			vfront-porch = <20>;
+			vsync-len = <20>;
+			vback-porch = <20>;
+			hsync-active = <1>;
+			vsync-active = <1>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
+&hdmi {
+	status = "okay";
+	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	force-output;
+	force_timing{
+		clock-frequency = <264000000>;
+		hactive = <1440>;
+		vactive = <2560>;
+		hfront-porch = <150>;
+		hsync-len = <30>;
+		hback-porch = <60>;
+		vfront-porch = <20>;
+		vsync-len = <20>;
+		vback-porch = <20>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdmi_in_vp1 {
+	status = "disabled";
+};
+
+&route_hdmi {
+	status = "okay";
+
+	bridge = <&i2c2_rk628>;
+	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	force-output;
+	force_timing {
+		clock-frequency = <264000000>;
+		hactive = <1440>;
+		vactive = <2560>;
+		hfront-porch = <150>;
+		hsync-len = <30>;
+		hback-porch = <60>;
+		vfront-porch = <20>;
+		vsync-len = <20>;
+		vback-porch = <20>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+};

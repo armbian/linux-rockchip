@@ -30,6 +30,10 @@ config SND_SOC_GENERIC_DMAENGINE_PCM
 	bool
 	select SND_DMAENGINE_PCM
 
+config SND_SOC_DYNAMIC_DMA_CHAN
+	bool "Request dma chan dynamically"
+	depends on SND_SOC_GENERIC_DMAENGINE_PCM
+
 config SND_SOC_COMPRESS
 	bool
 	select SND_COMPRESS_OFFLOAD

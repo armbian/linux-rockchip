@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board + RK HDMI to DP Ext Board";
+	compatible = "rockchip,rk3588-evb1-lp4-v10-hdmi2dp", "rockchip,rk3588";
+};
+
+&bt_sco {
+	status = "okay";
+};
+
+&bt_sound {
+	status = "okay";
+};
+
+&edp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim0_tx1_hpd>;
+	status = "okay";
+};
+
+&edp1_in_vp1 {
+	status = "okay";
+};
+
+&edp1_sound {
+	status = "okay";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&i2s6_8ch {
+	status = "okay";
+};
+
+&route_edp1 {
+	status = "okay";
+	connect = <&vp1_out_edp1>;
+};
+
+&route_hdmi1 {
+	status = "disabled";
+};
+
+&vp1 {
+	assigned-clocks = <&cru DCLK_VOP1_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp2 {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};

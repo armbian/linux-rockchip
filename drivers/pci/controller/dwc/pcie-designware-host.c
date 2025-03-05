@@ -63,7 +63,7 @@ irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp)
 	irqreturn_t ret = IRQ_NONE;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
-	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+	num_ctrls = DIV_ROUND_UP(pp->num_vectors, MAX_MSI_IRQS_PER_CTRL);
 
 	for (i = 0; i < num_ctrls; i++) {
 		status = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
@@ -337,7 +337,7 @@ static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 
 	if (!pp->num_vectors)
 		pp->num_vectors = MSI_DEF_NUM_VECTORS;
-	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+	num_ctrls = DIV_ROUND_UP(pp->num_vectors, MAX_MSI_IRQS_PER_CTRL);
 
 	if (!pp->msi_irq[0]) {
 		pp->msi_irq[0] = platform_get_irq_byname_optional(pdev, "msi");
@@ -814,7 +814,7 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 	dw_pcie_setup(pci);
 
 	if (pp->has_msi_ctrl) {
-		num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+		num_ctrls = DIV_ROUND_UP(pp->num_vectors, MAX_MSI_IRQS_PER_CTRL);
 
 		/* Initialize IRQ Status array */
 		for (ctrl = 0; ctrl < num_ctrls; ctrl++) {

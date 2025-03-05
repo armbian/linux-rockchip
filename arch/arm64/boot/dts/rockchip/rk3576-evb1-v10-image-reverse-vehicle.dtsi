@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/{
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_vehicle: drm-vehicle@0{
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			reg = <0x0 0x60000000 0x0 0x10000000>; //1.5G ~ 1.5G+256MB
+			linux,cma-default;
+		};
+	};
+
+	gpio_det: gpio-det {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vehicle_gpios>;
+
+		/*if use the reverse, please config this*/
+		car-reverse {
+			car-reverse-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+			linux,debounce-ms = <5>;
+			label = "car-reverse";
+			gpio,wakeup;
+		};
+	};
+
+	vehicle: vehicle {
+		compatible = "rockchip,vehicle";
+		status = "okay";
+
+		// pinctrl-names = "default";
+		// pinctrl-0 = <&camm0_clk0_out>;
+
+		clocks = <&cru ACLK_VICAP>,
+			<&cru HCLK_VICAP>,
+			<&cru DCLK_VICAP>,
+			<&cru CLK_VICAP_I0CLK>,
+			<&cru CLK_VICAP_I1CLK>,
+			<&cru CLK_VICAP_I2CLK>,
+			<&cru CLK_VICAP_I3CLK>,
+			<&cru CLK_VICAP_I4CLK>;
+		clock-names = "aclk_cif",
+			      "hclk_cif",
+			      "dclk_cif",
+			      "i0clk_cif",
+			      "i1clk_cif",
+			      "i2clk_cif",
+			      "i3clk_cif",
+			      "i4clk_cif";
+		resets = <&cru SRST_A_VICAP>,
+			<&cru SRST_H_VICAP>,
+			<&cru SRST_D_VICAP>,
+			<&cru SRST_VICAP_I0CLK>,
+			<&cru SRST_VICAP_I1CLK>,
+			<&cru SRST_VICAP_I2CLK>,
+			<&cru SRST_VICAP_I3CLK>,
+			<&cru SRST_VICAP_I4CLK>;
+		reset-names = "rst_cif_a",
+			      "rst_cif_h",
+			      "rst_cif_d",
+			      "rst_cif_iclk0",
+			      "rst_cif_iclk1",
+			      "rst_cif_iclk2",
+			      "rst_cif_iclk3",
+			      "rst_cif_iclk4";
+		power-domains = <&power RK3576_PD_VI>;
+		cif,drop-frames = <4>; //frames to drop
+		cif,chip-id = <3>; /*0:rk3568 1:rk3588 2:rk3562 3:rk3576*/
+		rockchip,grf = <&ioc_grf>;
+		rockchip,cru = <&cru>;
+		rockchip,cif = <&rkcif>;
+		rockchip,gpio-det = <&gpio_det>;
+		rockchip,cif-sensor = <&cif_sensor>;
+		rockchip,cif-phy = <&cif_phy>;
+		ad,fix-format = <0>;//0:auto detect,1:pal;2:ntsc;3:720p50;4:720p30;5:720p25
+		/*0:no, 1:90; 2:180; 4:270; 0x10:mirror-y; 0x20:mirror-x*/
+		vehicle,rotate-mirror = <0x00>;
+		vehicle,crtc_name = "video_port1";
+		vehicle,plane_name = "Esmart1-win0";
+	};
+
+	cif_phy: cif_phy {
+		status = "okay";
+
+		csi2_dcphy0 {
+			status = "disabled";
+			clocks = <&cru PCLK_MIPI_DCPHY>,
+				<&cru PCLK_CSI_HOST_0>,
+				<&cru ICLK_CSIHOST0>;
+			clock-names = "pclk",
+				      "pclk_csi2host",
+				      "iclk_csi2host";
+			resets = <&cru SRST_P_CSI_HOST_0>;
+			reset-names = "srst_csihost_p";
+			csihost-idx = <0>;
+			rockchip,csi2 = <&mipi0_csi2_hw>;
+			phys = <&mipidcphy0>;
+			phy-names = "dcphy";
+		};
+		csi2_dphy0 {
+			status = "disabled";
+			clocks = <&cru PCLK_CSIDPHY>,
+				 <&cru PCLK_CSI_HOST_1>;
+			clock-names = "pclk",
+				      "pclk_csi2host";
+			resets = <&cru SRST_P_CSIPHY>,
+				<&cru SRST_P_CSI_HOST_1>;
+			reset-names = "srst_p_csiphy",
+					"srst_csihost_p";
+			csihost-idx = <1>;
+			rockchip,sys-grf = <&sys_grf>;
+			rockchip,dphy-grf = <&mipidphy0_grf>;
+			rockchip,csi2-dphy = <&csi2_dphy0_hw>;
+			rockchip,csi2 = <&mipi1_csi2_hw>;
+		};
+		csi2_dphy3 {
+			status = "okay";
+			clocks = <&cru PCLK_CSIDPHY1>,
+				 <&cru PCLK_CSI_HOST_3>;
+			clock-names = "pclk",
+				      "pclk_csi2host";
+			resets = <&cru SRST_P_CSIDPHY1>,
+				 <&cru SRST_P_CSI_HOST_3>;
+			reset-names = "srst_p_csiphy",
+					"srst_csihost_p";
+			csihost-idx = <3>;
+			rockchip,sys-grf = <&sys_grf>;
+			rockchip,dphy-grf = <&mipidphy1_grf>;
+			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
+			rockchip,csi2 = <&mipi3_csi2_hw>;
+		};
+	};
+
+	cif_sensor: cif_sensor {
+		compatible = "rockchip,sensor";
+		status = "okay";
+
+		nvp6324 {
+			status = "okay";
+			clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+			clock-names = "xvclk";
+			//dphy3
+			powerdown-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+			pwdn_active = <1>;
+			// reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+			// rst_active = <1>;
+			//dphy0
+			// powerdown-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+			// pwdn_active = <1>;
+			//dcphy0
+			// powerdown-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+			// pwdn_active = <1>;
+			orientation = <90>;
+			i2c_add = <0x60>;
+			i2c_chl = <8>;
+			cif_chl = <0>;
+			ad_chl = <0>;
+			mclk_rate = <24>;
+			rockchip,camera-module-defrect0 = <1920 1080 0 0 1920 1080>;
+		};
+	};
+};
+
+&display_subsystem {
+	memory-region = <&drm_logo>, <&drm_vehicle>;
+	memory-region-names = "drm-logo", "drm-vehicle";
+};
+
+&pinctrl {
+	vehicle {
+		vehicle_gpios: vehicle-pins {
+			/* gpios */
+			rockchip,pins =
+				/* car-reverse */
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

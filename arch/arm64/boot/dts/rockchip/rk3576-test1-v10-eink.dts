@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-test1.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 TEST1 V10 EINK Board";
+	compatible = "rockchip,rk3576-test1-v10", "rockchip,rk3576";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		 * 256 MB DDR offset CMA start
+		 * 256 + 8 MB DDR offset waveform start
+		 */
+		waveform_reserved: waveform@50800000 {
+			reg = <0x0 0x50800000 0x0 0x100000>;
+		};
+
+		display_reserved: framebuffer@50900000 {
+			reg = <0x0 0x50900000 0x0 0x3800000>;
+		};
+	};
+
+	ebc_dev: ebc-dev {
+		compatible = "rockchip,ebc-dev";
+		ebc_tcon = <&ebc>;
+		memory-region = <&display_reserved>;
+		waveform-region = <&waveform_reserved>;
+		pmic = <&sy7636a_pmic>;
+		status = "okay";
+
+		/* ED103TC2 panel */
+		panel,width = <1872>;
+		panel,height = <1404>;
+		panel,vir_width = <1872>;
+		panel,vir_height = <1404>;
+		panel,sdck = <34000000>;
+		panel,lsl = <18>;
+		panel,lbl = <17>;
+		panel,ldl = <234>;
+		panel,lel = <7>;
+		panel,gdck-sta = <34>;
+		panel,lgonl = <192>;
+		panel,fsl = <1>;
+		panel,fbl = <4>;
+		panel,fdl = <1404>;
+		panel,fel = <12>;
+		panel,mirror = <1>;
+		panel,panel_16bit = <1>;
+		panel,panel_color = <0>;
+		panel,width-mm = <157>;
+		panel,height-mm = <210>;
+
+#if 0
+		/* EC103KH3 panel */
+		panel,width = <2480>;
+		panel,height = <1860>;
+		panel,vir_width = <2496>;
+		panel,vir_height = <1944>;
+		panel,sdck = <60000000>;
+		panel,lsl = <12>;
+		panel,lbl = <13>;
+		panel,ldl = <312>;
+		panel,lel = <22>;
+		panel,gdck-sta = <1>;
+		panel,lgonl = <252>;
+		panel,fsl = <1>;
+		panel,fbl = <4>;
+		panel,fdl = <1944>;
+		panel,fel = <16>;
+		panel,mirror = <0>;
+		panel,panel_16bit = <1>;
+
+		//panel_color defined for user space
+		//grayscale screen
+		//RKCFA_PLAT_COMMON   = 0,
+		//corlor screen
+		//RKCFA_PLAT_EC060KC1 = 1,
+		//RKCFA_PLAT_EC060KH3 = 2,
+		//RKCFA_PLAT_EC060KH4 = 3,
+		//RKCFA_PLAT_EC070KC1 = 4,
+		//RKCFA_PLAT_EC078KH3 = 5,
+		//RKCFA_PLAT_EC078KH6 = 6,
+		//RKCFA_PLAT_EC103KH3 = 7,
+		panel,panel_color = <7>;
+
+		panel,sdoe_mode = <1>;
+		panel,sdce_width = <1>;
+		panel,width-mm = <166>;
+		panel,height-mm = <210>;
+		panel,disable_logo = <1>;
+#endif
+	};
+};
+
+&dmc {
+	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
+};
+
+&ebc {
+	status = "okay";
+};
+
+/*
+ * The pins of gmac0 and ebc are multiplexed
+ */
+&gmac0 {
+	status = "disabled";
+};
+
+/*
+ * The pins of pcie1 reset-gpio and sy7636a enable-gpio are conflict
+ */
+&pcie1 {
+	status = "disabled";
+};
+
+&sy7636a_pmic {
+	status = "okay";
+};
+
+&thermal_zones {
+	ebcpmic_thermal: ebcpmic-thermal {
+		polling-delay = <0>;
+		polling-delay-passive = <0>;
+		thermal-sensors = <&sy7636a_pmic>;
+
+		trips {
+			sy7636a_dummy_trip: sy7636a-dummy-trip {
+				temperature = <100000>;
+				hysteresis = <0>;
+				type = "hot";
+			};
+		};
+	};
+};

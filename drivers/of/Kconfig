@@ -12,6 +12,27 @@ menuconfig OF
 
 if OF
 
+config DTC_SYMBOLS
+	bool "Enable dtc generation of symbols for overlays support"
+	depends on DTC && ARCH_ROCKCHIP
+	help
+	  Set DTC_FLAGS += -@
+	  Android OS must enable this option.
+
+config DTC_OMIT_DISABLED
+	bool "Fixup dtb by removing nodes with disabled status"
+	depends on DTC && ROCKCHIP_MINI_KERNEL
+	default ROCKCHIP_MINI_KERNEL
+	help
+	  This option used for dtc to delete nodes with disabled status.
+
+config DTC_OMIT_EMPTY
+	bool "Fixup dtb by removing empty nodes"
+	depends on DTC && ROCKCHIP_MINI_KERNEL
+	default ROCKCHIP_MINI_KERNEL
+	help
+	  This option used for dtc to delete empty nodes.
+
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
 	depends on OF_EARLY_FLATTREE

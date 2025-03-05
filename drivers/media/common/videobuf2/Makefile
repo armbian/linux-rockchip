@@ -9,6 +9,7 @@ endif
 # Please keep it alphabetically sorted by Kconfig name
 # (e. g. LC_ALL=C sort Makefile)
 obj-$(CONFIG_VIDEOBUF2_CORE) += videobuf2-common.o
+obj-$(CONFIG_VIDEOBUF2_CMA_SG) += videobuf2-cma-sg.o
 obj-$(CONFIG_VIDEOBUF2_DMA_CONTIG) += videobuf2-dma-contig.o
 obj-$(CONFIG_VIDEOBUF2_DMA_SG) += videobuf2-dma-sg.o
 obj-$(CONFIG_VIDEOBUF2_DVB) += videobuf2-dvb.o

@@ -10,12 +10,25 @@ Required properties:
 
  - compatible: should be one of the following.
    - "rockchip,rk3368-mbox" for rk3368
+   - "rockchip,rk3576-mbox" for rk3576
  - reg: physical base address of the controller and length of memory mapped
 	region.
  - interrupts: The interrupt number to the cpu. The interrupt specifier format
 	depends on the interrupt controller.
  - #mbox-cells: Common mailbox binding property to identify the number
 	of cells required for the mailbox specifier. Should be 1
+
+Optional properties :
+
+ - wakeup-source: Mailbox irq can be used as a wakeup source.
+ - rockchip,txpoll-period-us: TX Done polling interval in microseconds,
+	only support when CONFIG_MAILBOX_POLL_PERIOD_US is selected.
+ - rockchip,txpoll-period-ms: TX Done polling interval in milliseconds.
+ - rockchip,enable-cmd-trigger: Enable write cmd register to trigger interrupt.
+	This is only support from rockchip,rk3576-mbox.
+ - rockchip,txdone-ack: Enable if the mailbox client use ACK to check TX_DONE.
+ - rockchip,txdone-irq: Enable if the controller can trigger TX_DONE interrupt.
+ - rockchip,tx-direction-b2a: To specify the TX direction as B2A for local.
 
 Example:
 --------

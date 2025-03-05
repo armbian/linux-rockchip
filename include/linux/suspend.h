@@ -38,7 +38,13 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 2)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
 #define PM_SUSPEND_MIN		PM_SUSPEND_TO_IDLE
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+#define PM_SUSPEND_MEM_LITE	((__force suspend_state_t) 4)
+#define PM_SUSPEND_MEM_ULTRA	((__force suspend_state_t) 5)
+#define PM_SUSPEND_MAX		((__force suspend_state_t) 6)
+#else
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
+#endif
 
 /**
  * struct platform_suspend_ops - Callbacks for managing platform dependent

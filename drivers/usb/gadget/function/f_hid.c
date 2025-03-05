@@ -520,7 +520,7 @@ try_again:
 	}
 
 	req->status   = 0;
-	req->zero     = 0;
+	req->zero     = ((count % hidg->in_ep->maxpacket) == 0);
 	req->length   = count;
 	req->complete = f_hidg_req_complete;
 	req->context  = hidg;
@@ -976,7 +976,7 @@ stall:
 	return -EOPNOTSUPP;
 
 respond:
-	req->zero = 0;
+	req->zero = ((length % cdev->gadget->ep0->maxpacket) == 0);
 	req->length = length;
 	status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
 	if (status < 0)

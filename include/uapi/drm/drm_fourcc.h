@@ -421,6 +421,7 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_ARM     0x08
 #define DRM_FORMAT_MOD_VENDOR_ALLWINNER 0x09
 #define DRM_FORMAT_MOD_VENDOR_AMLOGIC 0x0a
+#define DRM_FORMAT_MOD_VENDOR_ROCKCHIP 0x0b
 
 /* add more to the end as needed */
 
@@ -1606,6 +1607,44 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 	(((value) >> AMD_FMT_MOD_##field##_SHIFT) & AMD_FMT_MOD_##field##_MASK)
 #define AMD_FMT_MOD_CLEAR(field) \
 	(~((__u64)AMD_FMT_MOD_##field##_MASK << AMD_FMT_MOD_##field##_SHIFT))
+
+/*
+ * Rockchip modifier format
+ * tiled modifier format, block size: 8x8,4x4_m0 and 4x4_m1,
+ * rfbc modifier format, block size: 64x4
+ *
+ * bit[55,52] for Rockchip drm modifier type
+ */
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT	52
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK	0xf
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED	0x0
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC	0x1
+
+/* bit[3,0] for Rockchip drm modifier block size */
+#define ROCKCHIP_TILED_BLOCK_SIZE_MASK		0xf
+#define ROCKCHIP_TILED_BLOCK_SIZE_8x8		(1ULL)
+#define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0	(2ULL)
+#define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1	(3ULL)
+
+#define ROCKCHIP_RFBC_BLOCK_SIZE_64x4		(1ULL)
+
+#define DRM_FORMAT_MOD_ROCKCHIP_CODE(__type, __val) \
+	fourcc_mod_code(ROCKCHIP, ((__u64)(__type) << DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) | \
+			((__val) & 0x000fffffffffffffULL))
+
+/* Rockchip tiled modifier format */
+#define DRM_FORMAT_MOD_ROCKCHIP_TILED(mode) \
+	DRM_FORMAT_MOD_ROCKCHIP_CODE(DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED, mode)
+#define IS_ROCKCHIP_TILED_MOD(val) \
+	(fourcc_mod_is_vendor((val), ROCKCHIP) && \
+	 (((val) >> DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) & DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK) == DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED)
+
+/* Rockchip rfbc modifier format */
+#define DRM_FORMAT_MOD_ROCKCHIP_RFBC(mode) \
+	DRM_FORMAT_MOD_ROCKCHIP_CODE(DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC, mode)
+#define IS_ROCKCHIP_RFBC_MOD(val) \
+	(fourcc_mod_is_vendor((val), ROCKCHIP) && \
+	 (((val) >> DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) & DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK) == DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC)
 
 #if defined(__cplusplus)
 }

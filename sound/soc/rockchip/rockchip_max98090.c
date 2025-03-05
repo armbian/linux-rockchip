@@ -2,7 +2,7 @@
 /*
  * Rockchip machine ASoC driver for boards using a MAX90809 CODEC.
  *
- * Copyright (c) 2014, ROCKCHIP CORPORATION.  All rights reserved.
+ * Copyright (c) 2014, Rockchip Electronics Co., Ltd. All rights reserved.
  */
 
 #include <linux/module.h>

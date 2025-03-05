@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	/delete-node/ car-rk3308-sound;
+
+	dummy_codec: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&adsp_reset_h>;
+		status = "okay";
+	};
+
+	sound0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,tdm";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,bitclock-master = <&codec_master>;
+		simple-audio-card,frame-master = <&codec_master>;
+		status = "okay";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_8ch>;
+		};
+		codec_master: simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
+	bt_codec: bt-codec {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	sound1 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_codec 1>;
+		};
+	};
+};
+
+&i2s0_8ch {
+	status = "disabled";
+};
+
+&i2s1_8ch {
+	pinctrl-0 = <&i2s1m0_lrck_rx
+			&i2s1m0_lrck_tx
+			&i2s1m0_sclk_rx
+			&i2s1m0_sclk_tx
+			&i2s1m0_sdi0
+			&i2s1m0_sdi1
+			&i2s1m0_sdo0
+			&i2s1m0_sdo1
+			&i2s1m0_sdo2
+			&gpio_fsxn_pins>;
+	fsxn-rx-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+	fsxn-tx-gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+	rockchip,tdm-multi-lanes;
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
+	/delete-property/ rockchip,trcm-sync-tx-only;
+	status = "okay";
+};
+
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m1_lrck
+			&i2s2m1_sclk
+			&i2s2m1_sdi
+			&i2s2m1_sdo>;
+	status = "okay";
+};
+
+&pinctrl {
+	i2s1_rx_tx {
+		i2s1m0_lrck_rx: i2s1m0-lrck-rx {
+			rockchip,pins =
+			/* i2s1m0_lrck_rx */
+			<4 RK_PA4 3 &pcfg_pull_none>;
+		};
+
+		i2s1m0_lrck_tx: i2s1m0-lrck-tx {
+			rockchip,pins =
+			/* i2s1m0_lrck_tx */
+			<4 RK_PA2 3 &pcfg_pull_none>;
+		};
+
+		i2s1m0_sclk_rx: i2s1m0-sclk-rx {
+			rockchip,pins =
+			/* i2s1m0_sclk_rx */
+			<4 RK_PA3 3 &pcfg_pull_none>;
+		};
+
+		i2s1m0_sclk_tx: i2s1m0-sclk-tx {
+			rockchip,pins =
+			/* i2s1m0_sclk_tx */
+			<4 RK_PA1 3 &pcfg_pull_none>;
+		};
+	};
+
+	fsxn {
+		/omit-if-no-ref/
+		gpio_fsxn_pins: gpio-fsxn-pins {
+			rockchip,pins =
+			<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
+			<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	adsp {
+		adsp_reset_h: adsp-reset-h {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_output_high_pull_up>;
+		};
+	};
+
+};

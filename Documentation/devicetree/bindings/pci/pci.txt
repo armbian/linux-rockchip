@@ -32,6 +32,10 @@ driver implementation may support the following properties:
    root port to downstream device and host bridge drivers can do programming
    which depends on CLKREQ signal existence. For example, programming root port
    not to advertise ASPM L1 Sub-States support if there is no CLKREQ signal.
+- hotplug-gpios:
+   If present this property specifies the GPIO to be used for Hot-Plug/Unplug
+   functionality. It is used by the PCIe GPIO Hot-Plug core driver for
+   PCIe device Hot-Plug/Unplug events.
 
 PCI-PCI Bridge properties
 -------------------------

@@ -1,9 +1,22 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
 
 #include "rk356x.dtsi"
 
 / {
 	compatible = "rockchip,rk3566";
+};
+
+&lpddr4_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <1056>;
+};
+
+&lpddr4x_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <1056>;
 };
 
 &pipegrf {
@@ -23,13 +36,15 @@
 	};
 };
 
-&usb_host0_xhci {
-	phys = <&usb2phy0_otg>;
+&rkisp {
+	rockchip,iq-feature = /bits/ 64 <0x1BFBF7FE67FF>;
+};
+
+&usbdrd_dwc3 {
+	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
-};
-
-&vop {
-	compatible = "rockchip,rk3566-vop";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 };

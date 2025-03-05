@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3358m-automotive-ddr3-v11.dtsi"
+#include "rk3358-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3358M AUTOMOTIVE DDR3 V11 board";
+	compatible = "rockchip,rk3358m-automotive-ddr3-v11-linux", "rockchip,px30", "rockchip,rk3358";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff160000 console=ttyFIQ0 skip_initramfs root=/dev/rd0 rootfstype=squashfs init=/sbin/init";
+	};
+
+	/*
+	 * This memory mapping range represents a 512MB memory space
+	 * starting from the physical address 0x00000000
+	 * where:
+	 * 0x00000000 - base address
+	 * 0x0 - address cells
+	 * 0x0 - size cells
+	 * 0x20000000 - memory size (512MB)
+	 * Note: The actual available memory size depends on the hardware design
+	 * and may differ from the 512MB defined here.
+	 * Adjustment is needed based on the specific hardware memory configuration.
+	 */
+	memory: memory {
+		device_type = "memory";
+		reg = <0x00000000 0x0 0x0 0x20000000>;
+	};
+
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		atf: atf@0 {
+			reg = <0x0 0x00000 0x0 0x200000>;
+			no-map;
+		};
+
+		mmc_dma_buf@200000 {
+			reg = <0x0 0x200000 0x0 0x200000>;
+		};
+
+		ramdisk_r: ramdisk_r@4000000 {
+			/* Do not exceed 132MB which used by TEE */
+			reg = <0x0 0x4000000 0x0 0x2000000>;
+		};
+	};
+};

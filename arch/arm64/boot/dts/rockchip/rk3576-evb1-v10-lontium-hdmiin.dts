@@ -1,0 +1,358 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-evb1.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 EVB1 V10 Board + Rockchip Lontium HDMI/DP to MIPI Extboard";
+	compatible = "rockchip,rk3576-evb1-v10", "rockchip,rk3576";
+
+	ext_cam_clk: external-camera-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "CLK_CAMERA_24MHZ";
+		#clock-cells = <0>;
+	};
+
+	rkvtunnel: rkvtunnel {
+		compatible = "rockchip,video-tunnel";
+		status = "okay";
+	};
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dp_mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lt7911uxc_out>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			hdmi_mipi0_in: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&lt8668sx_out0>;
+				data-lanes = <1 2 3>;
+			};
+
+			hdmi1_mipi0_in: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&lt6911uxe_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi_mipi1_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lt6911uxc_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	lt6911uxe: lt6911uxe@2b {
+		compatible = "lontium,lt6911uxe";
+		status = "okay";
+		reg = <0x2b>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_port0>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		// power-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		plugin-det-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI0";
+		rockchip,camera-module-lens-name = "LT6911UXE";
+
+		port {
+			lt6911uxe_out0: endpoint {
+				remote-endpoint = <&hdmi1_mipi0_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	lt7911uxc: lt7911uxc@41 {
+		compatible = "lontium,lt7911uxc";
+		status = "okay";
+		reg = <0x41>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_port0>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PD5 IRQ_TYPE_EDGE_RISING>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		// power-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		// plugin-det-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI0";
+		rockchip,camera-module-lens-name = "LT7911UXC";
+
+		port {
+			lt7911uxc_out: endpoint {
+				remote-endpoint = <&dp_mipi_in>;
+				// bus-type = <1>;//CPHY: 1, DPHY: 4 or default
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	lt8668sx: lt8668sx@43 {
+		compatible = "lontium,lt8668sx";
+		status = "okay";
+		reg = <0x43>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_port0>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PC7 IRQ_TYPE_EDGE_RISING>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		// power-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		plugin-det-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI0";
+		rockchip,camera-module-lens-name = "LT8668SX";
+		// output-rgb = <1>;
+
+		port {
+			lt8668sx_out0: endpoint {
+				remote-endpoint = <&hdmi_mipi0_in>;
+				bus-type = <1>;//CPHY: 1, DPHY: 4 or default
+				data-lanes = <1 2 3>;//CPHY: 3trios DPHY: 4lanes
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5m3_xfer>;
+
+	lt6911uxc: lt6911uxc@2b {
+		compatible = "lontium,lt6911uxc";
+		status = "okay";
+		reg = <0x2b>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_port1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PD0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+		// power-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		plugin-det-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI1";
+		rockchip,camera-module-lens-name = "LT6911UXC";
+
+		multi-dev-info {
+			dev-idx-l = <1>;
+			dev-idx-r = <3>;
+			combine-idx = <3>;
+			pixel-offset = <0>;
+			dev-num = <2>;
+		};
+
+		port {
+			lt6911uxc_out0: endpoint {
+				remote-endpoint = <&hdmi_mipi1_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&vcc_mipicsi0 {
+	/delete-property/ gpio;
+	/delete-property/ pinctrl-0;
+};
+
+&vcc_mipicsi1 {
+	/delete-property/ gpio;
+	/delete-property/ pinctrl-0;
+};
+
+&vcc_mipidcphy0 {
+	/delete-property/ gpio;
+	/delete-property/ pinctrl-0;
+};
+
+&pinctrl {
+	hdmiin {
+		hdmiin_port0: hdmiin-port0 {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		hdmiin_port1: hdmiin-port1 {
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

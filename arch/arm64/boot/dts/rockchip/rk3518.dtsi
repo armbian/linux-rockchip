@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3528.dtsi"
+
+/ {
+	compatible = "rockchip,rk3518";
+
+	aliases {
+		/delete-property/ ethernet1;
+	};
+
+	/delete-node/ cpuinfo;
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>,
+			      <&cpu_code>, <&cpu_code1>;
+		nvmem-cell-names = "id", "cpu-version",
+				   "cpu-code", "cpu-code1";
+	};
+};
+
+&cpu0_opp_table {
+	rockchip,video-1080p-freq = <1200000>;
+	rockchip,pvtm-voltage-sel = <
+		0	1420	0
+		1410	1444	1
+		1445	1474	2
+		1475	1509	3
+		1510	1544	4
+		1545	1579	5
+		1580	1619	6
+		1620	1689	7
+		1690	1744	8
+		1745	1799	9
+		1800	9999	10
+	>;
+	rockchip,pvtm-pvtpll;
+	rockchip,pvtm-offset = <0x18>;
+	rockchip,pvtm-sample-time = <1100>;
+	rockchip,pvtm-freq = <1416000>;
+	rockchip,pvtm-volt = <950000>;
+	rockchip,pvtm-ref-temp = <40>;
+	rockchip,pvtm-temp-prop = <0 0>;
+	rockchip,pvtm-thermal-zone = "soc-thermal";
+	rockchip,grf = <&grf>;
+	rockchip,temp-hysteresis = <5000>;
+	rockchip,low-temp = <10000>;
+	rockchip,low-temp-min-volt = <900000>;
+
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
+	/delete-node/ opp-1200000000;
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1608000000;
+	/delete-node/ opp-1800000000;
+	/delete-node/ opp-2016000000;
+
+	opp-1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <900000 900000 1000000>;
+		clock-latency-ns = <40000>;
+	};
+	opp-1416000000 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <900000 900000 1000000>;
+		opp-microvolt-L0 = <962500 962500 1000000>;
+		opp-microvolt-L1 = <950000 950000 1000000>;
+		opp-microvolt-L2 = <937500 937500 1000000>;
+		opp-microvolt-L3 = <925000 925000 1000000>;
+		opp-microvolt-L4 = <912500 912500 1000000>;
+		clock-latency-ns = <40000>;
+	};
+};
+
+&dmc_opp_table {
+	/delete-node/ opp-324000000;
+	/delete-node/ opp-666000000;
+	/delete-node/ opp-920000000;
+	/delete-node/ opp-1056000000;
+
+	opp-324000000 {
+		opp-hz = /bits/ 64 <324000000>;
+		opp-microvolt = <900000 900000 1000000>;
+	};
+	opp-666000000 {
+		opp-hz = /bits/ 64 <666000000>;
+		opp-microvolt = <900000 900000 1000000>;
+	};
+	opp-780000000 {
+		opp-hz = /bits/ 64 <780000000>;
+		opp-microvolt = <900000 900000 1000000>;
+	};
+	opp-1056000000 {
+		opp-hz = /bits/ 64 <1056000000>;
+		opp-microvolt = <900000 900000 1000000>;
+	};
+};
+
+&gpu_opp_table{
+	rockchip,pvtm-voltage-sel = <
+		0	809	0
+		810	830	1
+		831	850	2
+		851	880	3
+		881	890	4
+		891	910	5
+		911	930	6
+		931	950	7
+		951	970	8
+		971	995	9
+		1000	9999	10
+	>;
+	rockchip,pvtm-pvtpll;
+	rockchip,pvtm-offset = <0x10018>;
+	rockchip,pvtm-sample-time = <1100>;
+	rockchip,pvtm-freq = <800000>;
+	rockchip,pvtm-volt = <950000>;
+	rockchip,pvtm-ref-temp = <40>;
+	rockchip,pvtm-temp-prop = <0 0>;
+	rockchip,pvtm-thermal-zone = "soc-thermal";
+	rockchip,grf = <&grf>;
+	rockchip,temp-hysteresis = <5000>;
+	rockchip,low-temp = <10000>;
+	rockchip,low-temp-min-volt = <900000>;
+
+	/delete-node/ opp-300000000;
+	/delete-node/ opp-400000000;
+	/delete-node/ opp-500000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-700000000;
+	/delete-node/ opp-800000000;
+
+	opp-700000000 {
+		opp-hz = /bits/ 64 <700000000>;
+		opp-microvolt = <900000 900000 1000000>;
+	};
+	opp-800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <900000 900000 1000000>;
+		opp-microvolt-L0 = <962500 962500 1000000>;
+		opp-microvolt-L1 = <950000 950000 1000000>;
+		opp-microvolt-L2 = <937500 937500 1000000>;
+		opp-microvolt-L3 = <925000 925000 1000000>;
+		opp-microvolt-L4 = <912500 912500 1000000>;
+		opp-microvolt-L5 = <900000 900000 1000000>;
+	};
+};
+
+&otp {
+	cpu_code1: cpu-code1@52 {
+		reg = <0x52 0x2>;
+	};
+};
+
+/delete-node/ &gmac1;
+/delete-node/ &pcie2x1;

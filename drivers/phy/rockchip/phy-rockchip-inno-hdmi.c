@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2017 Rockchip Electronics Co., Ltd.
  *
  * Author: Zheng Yang <zhengyang@rock-chips.com>
  *         Heiko Stuebner <heiko@sntech.de>

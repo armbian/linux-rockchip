@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-evb1.dtsi"
+#include "rk3576-evb1-cam-dcphy0.dtsi"
+#include "rk3576-android.dtsi"
+
+/ {
+	model = "Rockchip RK3576 EVB1 V10 Board + RK Ext HDMImale to eDP V10";
+	compatible = "rockchip,rk3576-evb1-v10-edp-NV140QUM-N61", "rockchip,rk3576";
+
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+
+		display-timings {
+			native-mode = <&timing_4kp60>;
+			timing_4kp60: timing1 {
+				clock-frequency = <594000000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <240>;
+				hsync-len = <80>;
+				hback-porch = <240>;
+				vfront-porch = <40>;
+				vsync-len = <10>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+};
+
+&edp {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "disabled";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "disabled";
+};
+
+&route_edp {
+	status = "disabled";
+	connect = <&vp0_out_edp>;
+};
+
+&route_hdmi {
+	status = "disabled";
+};

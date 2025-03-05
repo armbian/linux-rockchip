@@ -25,6 +25,26 @@ config STMMAC_SELFTESTS
 	  feature if you are facing problems with your HW and submit the test
 	  results to the netdev Mailing List.
 
+config STMMAC_UIO
+	tristate "STMMAC_UIO ethernet controller"
+	default n
+	select UIO
+	help
+	  Say M here if you want to use the stmmac_uio.ko for DPDK.
+
+config STMMAC_ETHTOOL
+	bool "Ethtool feature for STMMAC"
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
+	help
+	  This selects the ethtool function, default is Y.
+
+config STMMAC_FULL
+	bool "Support full driver for STMMAC"
+	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
+	help
+	  This selects the full function, default is Y, full-featured version
+	  includes 4.10 and other versions, if it is N, only 4.10 core working.
+
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
@@ -141,6 +161,16 @@ config DWMAC_ROCKCHIP
 
 	  This selects the Rockchip RK3288 SoC glue layer support for
 	  the stmmac device driver.
+
+config DWMAC_ROCKCHIP_TOOL
+	bool "Rockchip dwmac tool support"
+	depends on DWMAC_ROCKCHIP
+	default DWMAC_ROCKCHIP if !ROCKCHIP_MINI_KERNEL
+	help
+	  Support for Ethernet functions on Rockchip SoCs.
+
+	  This selects the features for Rockchip's Ethernet, include PHY loopback,
+	  MAC loopback, and delayline scanning of RGMII mode.
 
 config DWMAC_RZN1
 	tristate "Renesas RZ/N1 dwmac support"

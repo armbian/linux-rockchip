@@ -384,6 +384,9 @@ struct tcpm_port {
 	unsigned long delay_ms;
 
 	spinlock_t pd_event_lock;
+#ifdef CONFIG_NO_GKI
+	struct mutex pd_handler_lock;
+#endif
 	u32 pd_events;
 
 	struct kthread_work event_work;
@@ -1569,9 +1572,18 @@ static void tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 	    port->state != SRC_VDM_IDENTITY_REQUEST)
 		return;
 
+#ifdef CONFIG_NO_GKI
+	mutex_lock(&port->pd_handler_lock);
+	if (tcpm_port_is_disconnected(port))
+		goto unlock;
+#endif
 	mutex_lock(&port->lock);
 	tcpm_queue_vdm(port, header, data, cnt, tx_sop_type);
 	mutex_unlock(&port->lock);
+#ifdef CONFIG_NO_GKI
+unlock:
+	mutex_unlock(&port->pd_handler_lock);
+#endif
 }
 
 static void svdm_consume_identity(struct tcpm_port *port, const u32 *p, int cnt)
@@ -2144,7 +2156,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 							  typec_get_cable_svdm_version(typec),
 							  CMD_DISCOVER_SVID);
 					rlen = 1;
-				} else {
+				} else if (port->data_role == TYPEC_HOST) {
 					tcpm_register_partner_altmodes(port);
 				}
 			} else if (rx_sop_type == TCPC_TX_SOP_PRIME) {
@@ -2205,7 +2217,27 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 		switch (cmd) {
 		case CMD_DISCOVER_IDENT:
 		case CMD_DISCOVER_SVID:
+			break;
 		case CMD_DISCOVER_MODES:
+			/*
+			 * 6.4.4.3.3
+			 * A Responder that does not support any Modes Shall return a NAK.
+			 *
+			 * When Initiator meets this case, it should skip
+			 * consuming modes and continue to request Discover
+			 * Modes for the rest of SVIDs or register altmodes
+			 * that have been consumed in previous ACK.
+			 */
+			modep->svid_index++;
+			if (modep->svid_index < modep->nsvids) {
+				u16 svid = modep->svids[modep->svid_index];
+
+				response[0] = VDO(svid, 1, svdm_version, CMD_DISCOVER_MODES);
+				rlen = 1;
+			} else if (port->data_role == TYPEC_HOST) {
+				tcpm_register_partner_altmodes(port);
+			}
+			break;
 		case VDO_CMD_VENDOR(0) ... VDO_CMD_VENDOR(15):
 			break;
 		case CMD_ENTER_MODE:
@@ -3098,7 +3130,7 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 		}
 
 		if (rev < PD_MAX_REV) {
-			port->negotiated_rev = rev;
+			port->negotiated_rev = min_t(u16, rev, port->negotiated_rev);
 			if (port->negotiated_rev_prime > port->negotiated_rev)
 				port->negotiated_rev_prime = port->negotiated_rev;
 		}
@@ -3154,7 +3186,7 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 		}
 
 		if (rev < PD_MAX_REV) {
-			port->negotiated_rev = rev;
+			port->negotiated_rev = min_t(u16, rev, port->negotiated_rev);
 			if (port->negotiated_rev_prime > port->negotiated_rev)
 				port->negotiated_rev_prime = port->negotiated_rev;
 		}
@@ -4717,7 +4749,7 @@ static void run_state_machine(struct tcpm_port *port)
 		typec_set_pwr_opmode(port->typec_port, opmode);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->caps_count = 0;
-		port->negotiated_rev = PD_MAX_REV;
+		port->negotiated_rev = (((port->typec_caps.pd_revision >> 8) & 0xff) - 1);
 		port->negotiated_rev_prime = PD_MAX_REV;
 		port->message_id = 0;
 		port->message_id_prime = 0;
@@ -4908,6 +4940,8 @@ static void run_state_machine(struct tcpm_port *port)
 		else if (tcpm_port_is_disconnected(port))
 			tcpm_set_state(port, SNK_UNATTACHED,
 				       PD_T_PD_DEBOUNCE);
+		else if (tcpm_port_is_sink(port))
+			tcpm_set_state(port, SNK_DEBOUNCED, 0);
 		break;
 	case SNK_DEBOUNCED:
 		if (tcpm_port_is_disconnected(port))
@@ -4974,7 +5008,7 @@ static void run_state_machine(struct tcpm_port *port)
 					      port->cc2 : port->cc1);
 		typec_set_pwr_opmode(port->typec_port, opmode);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
-		port->negotiated_rev = PD_MAX_REV;
+		port->negotiated_rev = (((port->typec_caps.pd_revision >> 8) & 0xff) - 1);
 		port->negotiated_rev_prime = PD_MAX_REV;
 		port->message_id = 0;
 		port->message_id_prime = 0;
@@ -5030,10 +5064,12 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state(port, unattached_state(port), 0);
 		break;
 	case SNK_WAIT_CAPABILITIES:
-		ret = port->tcpc->set_pd_rx(port->tcpc, true);
-		if (ret < 0) {
-			tcpm_set_state(port, SNK_READY, 0);
-			break;
+		if (port->prev_state != SOFT_RESET_SEND) {
+			ret = port->tcpc->set_pd_rx(port->tcpc, true);
+			if (ret < 0) {
+				tcpm_set_state(port, SNK_READY, 0);
+				break;
+			}
 		}
 		/*
 		 * If VBUS has never been low, and we time out waiting
@@ -5370,6 +5406,7 @@ static void run_state_machine(struct tcpm_port *port)
 			/* remove existing capabilities */
 			usb_power_delivery_unregister_capabilities(port->partner_source_caps);
 			port->partner_source_caps = NULL;
+			port->tcpc->set_pd_rx(port->tcpc, true);
 			if (tcpm_pd_send_control(port, PD_CTRL_SOFT_RESET, TCPC_TX_SOP))
 				tcpm_set_state_cond(port, hard_reset_state(port), 0);
 			else
@@ -6233,6 +6270,9 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 					      event_work);
 	u32 events;
 
+#ifdef CONFIG_NO_GKI
+	mutex_lock(&port->pd_handler_lock);
+#endif
 	mutex_lock(&port->lock);
 
 	spin_lock(&port->pd_event_lock);
@@ -6308,6 +6348,9 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 	}
 	spin_unlock(&port->pd_event_lock);
 	mutex_unlock(&port->lock);
+#ifdef CONFIG_NO_GKI
+	mutex_unlock(&port->pd_handler_lock);
+#endif
 }
 
 void tcpm_cc_change(struct tcpm_port *port)
@@ -7068,6 +7111,7 @@ static int tcpm_fw_get_caps(struct tcpm_port *port, struct fwnode_handle *fwnode
 	u32 uw, frs_current;
 	int ret = 0, i;
 	int mode;
+	u32 pd_revision;
 
 	if (!fwnode)
 		return -EINVAL;
@@ -7095,6 +7139,12 @@ static int tcpm_fw_get_caps(struct tcpm_port *port, struct fwnode_handle *fwnode
 
 	port->port_type = port->typec_caps.type;
 	port->pd_supported = !fwnode_property_read_bool(fwnode, "pd-disable");
+
+	if (port->pd_supported) {
+		ret = fwnode_property_read_u32(fwnode, "pd-revision", &pd_revision);
+		port->typec_caps.pd_revision = !ret ? pd_revision & 0xffff : 0x0300;
+	}
+
 	port->slow_charger_loop = fwnode_property_read_bool(fwnode, "slow-charger-loop");
 	port->self_powered = fwnode_property_read_bool(fwnode, "self-powered");
 
@@ -7582,6 +7632,9 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 
 	mutex_init(&port->lock);
 	mutex_init(&port->swap_lock);
+#ifdef CONFIG_NO_GKI
+	mutex_init(&port->pd_handler_lock);
+#endif
 
 	port->wq = kthread_create_worker(0, dev_name(dev));
 	if (IS_ERR(port->wq))
@@ -7619,7 +7672,6 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	port->try_role = port->typec_caps.prefer_role;
 
 	port->typec_caps.revision = 0x0120;	/* Type-C spec release 1.2 */
-	port->typec_caps.pd_revision = 0x0300;	/* USB-PD spec release 3.0 */
 	port->typec_caps.svdm_version = SVDM_VER_2_0;
 	port->typec_caps.driver_data = port;
 	port->typec_caps.ops = &tcpm_ops;

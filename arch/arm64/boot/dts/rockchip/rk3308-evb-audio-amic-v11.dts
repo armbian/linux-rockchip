@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-audio-amic-v10.dts"
+#include "rk3308-evb-audio-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308 evb audio analog mic v11 board";
+	compatible = "rockchip,rk3308-evb-audio-amic-v11", "rockchip,rk3308";
+};

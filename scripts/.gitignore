@@ -5,6 +5,7 @@
 /kallsyms
 /module.lds
 /recordmcount
+/resource_tool
 /rustdoc_test_builder
 /rustdoc_test_gen
 /sign-file

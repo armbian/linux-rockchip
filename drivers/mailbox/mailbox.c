@@ -137,8 +137,12 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 
 	if (resched) {
 		spin_lock_irqsave(&mbox->poll_hrt_lock, flags);
-		if (!hrtimer_is_queued(hrtimer))
-			hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
+		if (!hrtimer_is_queued(hrtimer)) {
+			if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US))
+				hrtimer_forward_now(hrtimer, ns_to_ktime(mbox->txpoll_period * NSEC_PER_USEC));
+			else
+				hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
+		}
 		spin_unlock_irqrestore(&mbox->poll_hrt_lock, flags);
 
 		return HRTIMER_RESTART;

@@ -309,7 +309,8 @@ not_angel:
 1:
 #endif /* CONFIG_USE_OF */
 		/* Determine final kernel image address. */
-		add	r4, r0, #TEXT_OFFSET
+		add	r4, r0, #(TEXT_OFFSET & 0xffff0000)
+		add	r4, r4, #(TEXT_OFFSET & 0x0000ffff)
 #else
 		ldr	r4, =zreladdr
 #endif
@@ -407,7 +408,8 @@ restart:	adr	r0, LC1
 		 * of RAM and hope for the best.
 		 */
 		cmp	r0, #1
-		sub	r0, r4, #TEXT_OFFSET
+		sub	r0, r4, #(TEXT_OFFSET & 0xffff0000)
+		sub	r0, r0, #(TEXT_OFFSET & 0x0000ffff)
 		bic	r0, r0, #1
 		add	r0, r0, #0x100
 		mov	r1, r6
@@ -798,8 +800,8 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  * bits for the RAM area only.
  */
 		mov	r0, r3
-		mov	r9, r0, lsr #18
-		mov	r9, r9, lsl #18		@ start of RAM
+		mov	r9, r0, lsr #20
+		mov	r9, r9, lsl #20		@ start of RAM
 		add	r10, r9, #0x10000000	@ a reasonable RAM size
 		mov	r1, #0x12		@ XN|U + section mapping
 		orr	r1, r1, #3 << 10	@ AP=11

@@ -3,6 +3,7 @@
  * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  */
 
+#include "dt-bindings/usb/pd.h"
 #include "dt-bindings/pwm/pwm.h"
 #include "dt-bindings/input/input.h"
 #include "rk3399.dtsi"
@@ -20,6 +21,50 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1750>;
+		};
+
+		vol-down-key {
+			label = "volume down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <297500>;
+		};
+
+		menu-key {
+			label = "menu";
+			linux,code = <KEY_MENU>;
+			press-threshold-microvolt = <1305500>;
+		};
+
+		home-key {
+			label = "home";
+			linux,code = <KEY_HOME>;
+			press-threshold-microvolt = <621250>;
+		};
+
+		back-key {
+			label = "back";
+			linux,code = <KEY_BACK>;
+			press-threshold-microvolt = <980000>;
+		};
+
+		camera-key {
+			label = "camera";
+			linux,code = <KEY_CAMERA>;
+			press-threshold-microvolt = <787500>;
+		};
+	};
+
 	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -34,6 +79,26 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&dc_12v>;
+	};
+
+	vcc3v3_sys: vcc3v3-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
 	};
 
 	/*
@@ -89,16 +154,6 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_sys>;
-	};
-
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -120,16 +175,6 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_sys: vcc-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&dc_12v>;
-	};
-
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
@@ -140,6 +185,11 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
 	};
+};
+
+&cdn_dp {
+	status = "okay";
+	phys = <&tcphy0_dp>;
 };
 
 &cpu_l0 {
@@ -210,7 +260,6 @@
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
 };
 
@@ -442,10 +491,77 @@
 	};
 };
 
-&i2c3 {
-	i2c-scl-rising-time-ns = <450>;
-	i2c-scl-falling-time-ns = <15>;
+&i2c4 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <475>;
+	i2c-scl-falling-time-ns = <26>;
+
+	usbc0: fusb302@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vcc5v0_typec0>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				usbc0_role_sw: endpoint@0 {
+					remote-endpoint = <&dwc3_0_role_switch>;
+				};
+			};
+		};
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			sink-pdos =
+				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+			source-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+
+			displayport = <&cdn_dp>;
+
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&tcphy0_orientation_switch>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					dp_mode_sw: endpoint {
+						remote-endpoint = <&tcphy_dp_altmode_switch>;
+					};
+				};
+			};
+		};
+	};
 };
 
 &i2s2 {
@@ -507,6 +623,13 @@
 			rockchip,pins =
 				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
+
+	usb-typec {
+		usbc0_int: usbc0-int {
+			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
 		vcc5v0_typec0_en: vcc5v0-typec0-en {
 			rockchip,pins =
 				<2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -520,6 +643,8 @@
 
 &pwm2 {
 	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm2_pin_pull_down>;
 };
 
 &saradc {
@@ -552,6 +677,21 @@
 
 &tcphy0 {
 	status = "okay";
+	svid = <0xff01>;
+	orientation-switch;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		tcphy0_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+		tcphy_dp_altmode_switch: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_mode_sw>;
+		};
+	};
 };
 
 &tcphy1 {
@@ -574,7 +714,7 @@
 	};
 
 	u2phy0_host: host-port {
-		phy-supply = <&vcc5v0_typec0>;
+		phy-supply = <&vcc5v0_host>;
 		status = "okay";
 	};
 };
@@ -624,7 +764,16 @@
 
 &usbdrd_dwc3_0 {
 	status = "okay";
-	dr_mode = "host";
+	dr_mode = "otg";
+	usb-role-switch;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dwc3_0_role_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
 };
 
 &usbdrd3_1 {

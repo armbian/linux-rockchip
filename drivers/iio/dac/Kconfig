@@ -475,6 +475,14 @@ config MCP4922
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4922.
 
+config ROCKCHIP_FLEXBUS_DAC
+	tristate "Rockchip Flexbus DAC opmode driver"
+	select MFD_ROCKCHIP_FLEXBUS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Select this to get support for Rockchip Flexbus DAC opmode.
+
 config STM32_DAC
 	tristate "STMicroelectronics STM32 DAC"
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST

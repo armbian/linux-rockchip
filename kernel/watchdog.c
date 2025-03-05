@@ -32,6 +32,10 @@
 
 #include <asm/irq_regs.h>
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+#include <soc/rockchip/rk_minidump.h>
+#endif
+
 static DEFINE_MUTEX(watchdog_mutex);
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HARDLOCKUP_DETECTOR_SPARC64)
@@ -57,6 +61,8 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 # ifdef CONFIG_SMP
 int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
 # endif /* CONFIG_SMP */
+
+ATOMIC_NOTIFIER_HEAD(hardlock_notifier_list);
 
 /*
  * Should we panic when a soft-lockup or hard-lockup occurs:
@@ -768,6 +774,9 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		}
 
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+		rk_minidump_update_cpu_regs(regs);
+#endif
 		if (softlockup_panic)
 			panic("softlockup: hung tasks");
 	}

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-audio-v10-partybox.dts"
+#include "rk3308-partybox-ext-rolling-board.dtsi"
+
+/ {
+	model = "Rockchip RK3308 EVB AUDIO V10 PARTYBOX EXT ROLLING Board";
+	compatible = "rockchip,rk3308-partybox-ext-rolling-v10", "rockchip,rk3308";
+};

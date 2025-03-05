@@ -278,6 +278,17 @@ config NVMEM_ROCKCHIP_OTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_otp.
 
+config NVMEM_ROCKCHIP_SEC_OTP
+	tristate "Rockchip Secure OTP controller support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on TEE && OPTEE
+	help
+	  This is a simple drive to read and write non-protected
+	  oem zone in secure otp.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-rockchip-secure-otp.
+
 config NVMEM_SC27XX_EFUSE
 	tristate "Spreadtrum SC27XX eFuse Support"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST

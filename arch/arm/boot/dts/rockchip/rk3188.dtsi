@@ -13,6 +13,13 @@
 / {
 	compatible = "rockchip,rk3188";
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -168,10 +175,10 @@
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_bus>;
-		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S0>;
-		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
 		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S0_2CH>, <&cru SCLK_I2S0>;
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
 		#sound-dai-cells = <0>;
@@ -228,6 +235,7 @@
 			compatible = "rockchip,rk3188-gpio-bank0";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO0>;
 
 			gpio-controller;
@@ -241,6 +249,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO1>;
 
 			gpio-controller;
@@ -254,6 +263,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003e000 0x100>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO2>;
 
 			gpio-controller;
@@ -267,6 +277,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20080000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "bus";
 			clocks = <&cru PCLK_GPIO3>;
 
 			gpio-controller;
@@ -470,7 +481,7 @@
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_up>,
-						<1 RK_PA1 1 &pcfg_pull_none>;
+						<1 RK_PA1 1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -485,7 +496,7 @@
 		uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins = <1 RK_PA4 1 &pcfg_pull_up>,
-						<1 RK_PA5 1 &pcfg_pull_none>;
+						<1 RK_PA5 1 &pcfg_pull_up>;
 			};
 
 			uart1_cts: uart1-cts {
@@ -500,7 +511,7 @@
 		uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <1 RK_PB0 1 &pcfg_pull_up>,
-						<1 RK_PB1 1 &pcfg_pull_none>;
+						<1 RK_PB1 1 &pcfg_pull_up>;
 			};
 			/* no rts / cts for uart2 */
 		};
@@ -508,7 +519,7 @@
 		uart3 {
 			uart3_xfer: uart3-xfer {
 				rockchip,pins = <1 RK_PB2 1 &pcfg_pull_up>,
-						<1 RK_PB3 1 &pcfg_pull_none>;
+						<1 RK_PB3 1 &pcfg_pull_up>;
 			};
 
 			uart3_cts: uart3-cts {
@@ -750,22 +761,22 @@
 };
 
 &pwm0 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm0_out>;
 };
 
 &pwm1 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm1_out>;
 };
 
 &pwm2 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm2_out>;
 };
 
 &pwm3 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm3_out>;
 };
 

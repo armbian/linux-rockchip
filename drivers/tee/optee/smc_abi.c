@@ -8,6 +8,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/cpuhotplug.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
@@ -1465,6 +1466,11 @@ static void optee_smc_remove(struct platform_device *pdev)
 static void optee_shutdown(struct platform_device *pdev)
 {
 	struct optee *optee = platform_get_drvdata(pdev);
+
+	/* Tell requesting thread to interrupt an RPC */
+	smp_store_mb(optee->supp.shutdown, true);
+	/* Wait requesting thread to release resources */
+	mdelay(200);
 
 	if (!optee->rpc_param_count)
 		optee_disable_shm_cache(optee);

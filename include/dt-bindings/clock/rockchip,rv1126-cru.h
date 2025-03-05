@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2019 Rockchip Electronics Co., Ltd.
  * Author: Finley Xiao <finley.xiao@rock-chips.com>
  */
 
@@ -38,6 +38,7 @@
 #define CLK_USBPHY_HOST_REF	24
 #define CLK_REF24M		25
 #define CLK_MIPIDSIPHY_REF	26
+#define CLK_32K_IOE		27
 
 /* pclk */
 #define PCLK_PDPMU		30

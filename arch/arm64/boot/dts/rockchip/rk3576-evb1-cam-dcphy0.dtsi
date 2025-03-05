@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			mipi_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&imx464_out0>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx464_out1>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam3: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&sc4336_out>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam4: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&os04a10_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	imx415: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		port {
+			imx415_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	imx464_0: imx464-0@1a {
+		compatible = "sony,imx464";
+		status = "okay";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT1980-PX1";
+		rockchip,camera-module-lens-name = "SHG102";
+		port {
+			imx464_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc4336: sc4336@30 {
+		compatible = "smartsens,sc4336";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		//reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "OT01";
+		rockchip,camera-module-lens-name = "40IRC_F16";
+		port {
+			sc4336_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	imx464_1: imx464-1@36 {
+		compatible = "sony,imx464";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT1980-PX1";
+		rockchip,camera-module-lens-name = "SHG102";
+		port {
+			imx464_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	os04a10: os04a10@36 {
+		compatible = "ovti,os04a10";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		pinctrl-names = "default";
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT1607-FV1";
+		rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
+		port {
+			os04a10_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam4>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+&rkisp_vir0_sditf {
+	status = "okay";
+};
+
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};

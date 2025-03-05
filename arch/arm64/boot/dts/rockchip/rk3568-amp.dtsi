@@ -1,0 +1,186 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+#define CPU_GET_AFFINITY(cpu, cluster)		((cpu) << 8)
+#define RSVD0_IRQn				283
+#define RSVD_IRQn(_N)				(RSVD0_IRQn + (_N))
+#define AMP_CPUOFF_REQ_IRQ(cpu)			RSVD_IRQn(11 + (cpu)) /* gic irq: 294 */
+#define GIC_TOUCH_REQ_IRQ(cpu)			(AMP_CPUOFF_REQ_IRQ(4) + cpu) /* gic irq: 298 */
+#define GPIO_IRQ_GROUP_DISABLE			0x0
+#define GPIO_IRQ_GROUP_EN_BANK_TYPE		0x1
+#define GPIO_IRQ_GROUP_EN_GROUP_TYPE		0x2
+#define GPIO4_IRQn				69
+#define GPIO3_IRQn				68
+#define GPIO2_IRQn				67
+#define GPIO1_IRQn				66
+#define GPIO0_IRQn				65
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,rk3568-amp";
+		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>,
+			 <&cru PCLK_TIMER>, <&cru CLK_TIMER4>, <&cru CLK_TIMER5>,
+			 <&cru ACLK_MCU>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4m1_xfer>;
+		status = "okay";
+
+		amp-irqs = /bits/ 64 <
+			GIC_AMP_IRQ_CFG_ROUTE(152, 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(AMP_CPUOFF_REQ_IRQ(3), 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(GIC_TOUCH_REQ_IRQ(3), 0xd0, CPU_GET_AFFINITY(3, 0))>;
+
+		gpio-group-banks = <5>;
+		gpio-group {
+			status = "disabled";
+			amp-gpio0 {
+				gpio-bank-id = <0>;
+				group-irq-en = <GPIO_IRQ_GROUP_EN_BANK_TYPE>;
+				bank-type-cfg {
+					hw-irq = <GPIO0_IRQn>;
+					hw-irq-cpu-aff = /bits/ 64 <CPU_GET_AFFINITY(3, 0)>;
+					prio = <0xd0>;
+					status = "disabled";
+				};
+			};
+			amp-gpio1 {
+				gpio-bank-id = <1>;
+				group-irq-en = <GPIO_IRQ_GROUP_EN_BANK_TYPE>;
+				bank-type-cfg {
+					hw-irq = <GPIO1_IRQn>;
+					hw-irq-cpu-aff = /bits/ 64 <CPU_GET_AFFINITY(3, 0)>;
+					prio = <0xd0>;
+					status = "disabled";
+				};
+			};
+			amp-gpio2 {
+				gpio-bank-id = <2>;
+				group-irq-en = <GPIO_IRQ_GROUP_EN_BANK_TYPE>;
+				bank-type-cfg {
+					hw-irq = <GPIO2_IRQn>;
+					hw-irq-cpu-aff = /bits/ 64 <CPU_GET_AFFINITY(3, 0)>;
+					prio = <0xd0>;
+					status = "disabled";
+				};
+			};
+
+			amp-gpio3 {
+				gpio-bank-id = <3>;
+				group-irq-en = <GPIO_IRQ_GROUP_EN_BANK_TYPE>;
+				bank-type-cfg {
+					hw-irq = <GPIO3_IRQn>;
+					hw-irq-cpu-aff = /bits/ 64 <CPU_GET_AFFINITY(3, 0)>;
+					prio = <0xd0>;
+					status = "disabled";
+				};
+			};
+
+			amp-gpio4 {
+				gpio-bank-id = <4>;
+				group-irq-en = <GPIO_IRQ_GROUP_EN_GROUP_TYPE>;
+				bank-type-cfg {
+					hw-irq = <GPIO4_IRQn>;
+					hw-irq-cpu-aff = /bits/ 64 <CPU_GET_AFFINITY(3, 0)>;
+					prio = <0xd0>;
+					status = "disabled";
+				};
+
+				prio-group0 {
+					group-prio = <0x80>;
+					group-irq-id = <RSVD_IRQn(39) RSVD_IRQn(40)
+							RSVD_IRQn(41) GPIO4_IRQn>;
+					group-irq-aff = /bits/ 64 <CPU_GET_AFFINITY(0, 0)
+						CPU_GET_AFFINITY(1, 0)
+						CPU_GET_AFFINITY(2, 0)
+						CPU_GET_AFFINITY(3, 0)>;
+					group-irq-en = <0x1 0x1 0x1 0x1>;
+					status = "disabled";
+				};
+				prio-group1 {
+					group-prio = <0x90>;
+					group-irq-id = <RSVD_IRQn(42) RSVD_IRQn(43)
+							RSVD_IRQn(44) RSVD_IRQn(45)>;
+					group-irq-aff = /bits/ 64 <CPU_GET_AFFINITY(0, 0)
+						CPU_GET_AFFINITY(1, 0)
+						CPU_GET_AFFINITY(2, 0)
+						CPU_GET_AFFINITY(3, 0)>;
+					group-irq-en = <0x0 0x1 0x1 0x1>;
+					status = "disabled";
+				};
+
+				prio-group2 {
+					group-prio = <0xA0>;
+					group-irq-id = <RSVD_IRQn(46) RSVD_IRQn(47)
+							RSVD_IRQn(48) RSVD_IRQn(49)>;
+					group-irq-aff = /bits/ 64 <CPU_GET_AFFINITY(0, 0)
+						CPU_GET_AFFINITY(1, 0)
+						CPU_GET_AFFINITY(2, 0)
+						CPU_GET_AFFINITY(3, 0)>;
+					group-irq-en = <0x1 0x1 0x1 0x1>;
+					status = "disabled";
+				};
+			};
+		};
+
+		amp_cpus: amp-cpus {
+			amp-cpu3 {
+				id = <0x0 0x300>;
+				entry = <0x0 0x2800000>;
+				boot-on = <1>;
+				mode = <0>;
+			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* remote amp core address */
+		amp_shmem_reserved: amp-shmem@7800000 {
+			reg = <0x0 0x7800000 0x0 0x400000>;
+			no-map;
+		};
+
+		rpmsg_reserved: rpmsg@7c00000 {
+			reg = <0x0 0x7c00000 0x0 0x400000>;
+			no-map;
+		};
+
+		rpmsg_dma_reserved: rpmsg-dma@8000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x8000000 0x0 0x100000>;
+			no-map;
+		};
+
+		/* mcu address */
+		mcu_reserved: mcu@8200000 {
+			reg = <0x0 0x8200000 0x0 0x100000>;
+			no-map;
+		};
+	};
+
+	rpmsg: rpmsg@7c00000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox 0 &mailbox 3>;
+		rockchip,vdev-nums = <1>;
+		rockchip,link-id = <0x03>;
+		reg = <0x0 0x7c00000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
+	};
+};
+
+&mailbox {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+

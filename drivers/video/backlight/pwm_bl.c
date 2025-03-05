@@ -18,6 +18,11 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
+static bool bl_quiescent;
+module_param_named(quiescent, bl_quiescent, bool, 0600);
+MODULE_PARM_DESC(quiescent,
+		 "pwm bl quiescent when reboot quiescent [default=false]");
+
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	struct device		*dev;
@@ -579,6 +584,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		pb->scale = data->max_brightness;
 	}
 
+	pwm_adjust_config(pb->pwm);
+
 	pb->lth_brightness = data->lth_brightness * (div_u64(state.period,
 				pb->scale));
 
@@ -599,7 +606,12 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		data->dft_brightness = data->max_brightness;
 	}
 
-	bl->props.brightness = data->dft_brightness;
+	/* set brightness 0, when boot quiescent */
+	if (bl_quiescent)
+		bl->props.brightness = 0;
+	else
+		bl->props.brightness = data->dft_brightness;
+
 	bl->props.power = pwm_backlight_initial_power_state(pb);
 	backlight_update_status(bl);
 
@@ -649,6 +661,10 @@ static int pwm_backlight_suspend(struct device *dev)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	struct pwm_state state;
 
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (mem_sleep_current == PM_SUSPEND_MEM_LITE)
+		return 0;
+#endif
 	if (pb->notify)
 		pb->notify(pb->dev, 0);
 
@@ -675,6 +691,10 @@ static int pwm_backlight_resume(struct device *dev)
 {
 	struct backlight_device *bl = dev_get_drvdata(dev);
 
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (mem_sleep_current == PM_SUSPEND_MEM_LITE)
+		return 0;
+#endif
 	backlight_update_status(bl);
 
 	return 0;

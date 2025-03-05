@@ -316,30 +316,37 @@ config PCIE_RCAR_GEN4_EP
 	  SoCs. To compile this driver as a module, choose M here: the module
 	  will be called pcie-rcar-gen4.ko. This uses the DesignWare core.
 
-config PCIE_ROCKCHIP_DW
-	bool
-
-config PCIE_ROCKCHIP_DW_HOST
-	bool "Rockchip DesignWare PCIe controller (host mode)"
-	depends on PCI_MSI
-	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	depends on OF
+config PCIE_DW_ROCKCHIP
+	tristate "Rockchip DesignWare PCIe controller"
+	select PCIE_DW
 	select PCIE_DW_HOST
-	select PCIE_ROCKCHIP_DW
-	help
-	  Enables support for the DesignWare PCIe controller in the
-	  Rockchip SoC (except RK3399) to work in host mode.
-
-config PCIE_ROCKCHIP_DW_EP
-	bool "Rockchip DesignWare PCIe controller (endpoint mode)"
-	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on ARCH_ROCKCHIP
 	depends on OF
-	depends on PCI_ENDPOINT
-	select PCIE_DW_EP
-	select PCIE_ROCKCHIP_DW
 	help
-	  Enables support for the DesignWare PCIe controller in the
-	  Rockchip SoC (except RK3399) to work in endpoint mode.
+	  Enables support for the DW PCIe controller in the Rockchip SoC.
+
+config PCIE_RK_THREADED_INIT
+	bool "Threaded initialize Rockchip DW based PCIe controller"
+	depends on PCIE_DW_ROCKCHIP
+	depends on !DWC_PCIE_PMU
+	default y
+	help
+	  Enables threaded initialize Rockchip DW based PCIe controller.
+
+config PCIE_DW_DMATEST
+	bool "DesignWare PCIe DMA test"
+	depends on PCIE_DW_ROCKCHIP
+	depends on !ROCKCHIP_PCIE_DMA_OBJ
+	help
+	  Enables support for the DW PCIe controller DMA test.
+
+config PCIE_DW_ROCKCHIP_EP
+	bool "Rockchip DesignWare PCIe EP controller"
+	select PCIE_DW
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	help
+	  Enables support for the DW PCIe controller in the Rockchip SoC.
 
 config PCI_EXYNOS
 	tristate "Samsung Exynos PCIe controller"

@@ -14,6 +14,10 @@
 #include <linux/err.h>
 #include <linux/string.h>
 
+static bool clk_always_on;
+module_param_named(always_on, clk_always_on, bool, 0644);
+MODULE_PARM_DESC(always_on, "Always keep clks on except for system suspend.");
+
 /**
  * DOC: basic gatable clock which can gate and ungate its output
  *
@@ -59,6 +63,9 @@ static void clk_gate_endisable(struct clk_hw *hw, int enable)
 	int set = gate->flags & CLK_GATE_SET_TO_DISABLE ? 1 : 0;
 	unsigned long flags;
 	u32 reg;
+
+	if (clk_always_on && !enable)
+		return;
 
 	set ^= enable;
 
