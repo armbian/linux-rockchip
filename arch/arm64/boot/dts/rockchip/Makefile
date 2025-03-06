@@ -110,6 +110,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-evb4-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-iotest-lp3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-hinlink-h28k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-hinlink-ht2.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-h96max-v56.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-mangopi-m28k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e20c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-rock-2a.dtb
