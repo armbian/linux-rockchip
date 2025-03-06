@@ -559,21 +559,17 @@ static int sensor_irq_init(struct i2c_client *client)
 	int result = 0;
 	int irq;
 
-	if ((sensor->pdata->irq_enable) && (sensor->pdata->irq_flags != SENSOR_UNKNOW_DATA)) {
+	if ((sensor->pdata->irq_enable) && (!IS_ERR_OR_NULL(sensor->pdata->irq_pin))) {
 		if (sensor->pdata->poll_delay_ms <= 0)
 			sensor->pdata->poll_delay_ms = 30;
-		result = gpio_request(client->irq, sensor->i2c_id->name);
-		if (result)
-			dev_err(&client->dev, "%s:fail to request gpio :%d\n", __func__, client->irq);
 
-		irq = gpio_to_irq(client->irq);
+		irq = client->irq;
 		result = devm_request_threaded_irq(&client->dev, irq, NULL, sensor_interrupt, sensor->pdata->irq_flags | IRQF_ONESHOT, sensor->ops->name, sensor);
 		if (result) {
 			dev_err(&client->dev, "%s:fail to request irq = %d, ret = 0x%x\n", __func__, irq, result);
 			goto error;
 		}
 
-		client->irq = irq;
 		disable_irq_nosync(client->irq);
 
 		dev_info(&client->dev, "%s:use irq=%d\n", __func__, irq);
@@ -1577,8 +1573,6 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 	struct sensor_private_data *sensor;
 	struct sensor_platform_data *pdata;
 	struct device_node *np = client->dev.of_node;
-	enum of_gpio_flags rst_flags, pwr_flags;
-	unsigned long irq_flags;
 	int result = 0;
 	int type = 0;
 	int reprobe_en = 0;
@@ -1606,9 +1600,9 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 
 	of_property_read_u32(np, "type", &(pdata->type));
 
-	pdata->irq_pin = of_get_named_gpio_flags(np, "irq-gpio", 0, (enum of_gpio_flags *)&irq_flags);
-	pdata->reset_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
-	pdata->power_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
+	pdata->irq_pin = devm_gpiod_get_optional(&client->dev, "irq", GPIOD_IN);
+	pdata->reset_pin = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	pdata->power_pin = devm_gpiod_get_optional(&client->dev, "power", GPIOD_OUT_HIGH);
 
 	of_property_read_u32(np, "irq_enable", &(pdata->irq_enable));
 	of_property_read_u32(np, "poll_delay_ms", &(pdata->poll_delay_ms));
@@ -1768,9 +1762,9 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 		break;
 	}
 
-	client->irq = pdata->irq_pin;
+	client->irq = gpiod_to_irq(pdata->irq_pin);
 	type = pdata->type;
-	pdata->irq_flags = irq_flags;
+	pdata->irq_flags = IRQ_TYPE_LEVEL_LOW;
 	pdata->poll_delay_ms = 30;
 
 	if ((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL)) {

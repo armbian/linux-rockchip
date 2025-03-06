@@ -247,7 +247,7 @@ static int ewtsa_disable(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
 
-	gpio_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
+	gpiod_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
 
 	DBG("%s: end \n",__func__);
 
@@ -260,7 +260,7 @@ static int ewtsa_enable(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
 
-	gpio_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
+	gpiod_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
 	err = i2c_write_byte(client, ( unsigned char)REG_PWR_MGM, ( unsigned char)SLEEP_CTRL_ACTIVATE);////0x44
 	if (err < 0){
 		//return err;
@@ -285,9 +285,9 @@ static void gyro_dev_reset(struct i2c_client *client)
 
 
     DBG("%s\n",__func__);
-	gpio_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
+	gpiod_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
 	msleep(100);
-	gpio_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
+	gpiod_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
 	msleep(100);
 }
 

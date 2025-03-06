@@ -358,10 +358,10 @@ static int compass_akm_reset(struct i2c_client *client)
 		(struct sensor_private_data *) i2c_get_clientdata(this_client);
 	int result = 0;
 
-	if (sensor->pdata->reset_pin > 0) {
-		gpio_direction_output(sensor->pdata->reset_pin, GPIO_LOW);
+	if (!IS_ERR_OR_NULL(sensor->pdata->reset_pin)) {
+		gpiod_direction_output(sensor->pdata->reset_pin, GPIO_LOW);
 		udelay(10);
-		gpio_direction_output(sensor->pdata->reset_pin, GPIO_HIGH);
+		gpiod_direction_output(sensor->pdata->reset_pin, GPIO_HIGH);
 	} else {
 		/* Set measure mode */
 		result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09918_MODE_SNG_MEASURE);

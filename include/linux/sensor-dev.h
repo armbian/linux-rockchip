@@ -211,10 +211,10 @@ struct sensor_private_data {
 struct sensor_platform_data {
 	int type;
 	int irq;
-	int irq_pin;
-	int power_pin;
-	int reset_pin;
-	int standby_pin;
+	struct gpio_desc *irq_pin;
+	struct gpio_desc *power_pin;
+	struct gpio_desc *reset_pin;
+	struct gpio_desc *standby_pin;
 	int irq_enable;
 	int poll_delay_ms;
 	int x_min;
