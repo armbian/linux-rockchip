@@ -94,6 +94,9 @@ properties:
       |            | ---> | eDP1 |      |              |               |
                               ---------------------------------^
 
+  aux-bus:
+    $ref: /schemas/display/dp-aux-bus.yaml#
+
 required:
   - compatible
   - clocks
