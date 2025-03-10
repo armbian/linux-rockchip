@@ -2778,7 +2778,10 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 
 	pm_runtime_use_autosuspend(dp->dev);
 	pm_runtime_set_autosuspend_delay(dp->dev, 100);
-	pm_runtime_enable(dp->dev);
+	ret = devm_pm_runtime_enable(dp->dev);
+	if (ret)
+		return ret;
+
 	pm_runtime_get_sync(dp->dev);
 	analogix_dp_init(dp);
 
@@ -2789,7 +2792,7 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 
 	ret = drm_dp_aux_register(&dp->aux);
 	if (ret)
-		goto err_disable_pm_runtime;
+		goto err_put_pm_runtime;
 
 	ret = analogix_dp_bridge_init(dp);
 	if (ret) {
@@ -2803,10 +2806,8 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 
 err_unregister_aux:
 	drm_dp_aux_unregister(&dp->aux);
-err_disable_pm_runtime:
+err_put_pm_runtime:
 	pm_runtime_put(dp->dev);
-	pm_runtime_dont_use_autosuspend(dp->dev);
-	pm_runtime_disable(dp->dev);
 
 	return ret;
 }
@@ -2819,8 +2820,6 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 		dp->connector.funcs->destroy(&dp->connector);
 	drm_dp_aux_unregister(&dp->aux);
 	pm_runtime_put(dp->dev);
-	pm_runtime_dont_use_autosuspend(dp->dev);
-	pm_runtime_disable(dp->dev);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
 
