@@ -16,8 +16,10 @@
  * V0.0X01.0X08
  *	1. add support wakeup & sleep for aov function
  *	2. using 60fps output default
+ * V0.0X01.0X09 fix poweroff issue.
  */
 
+// #define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -40,7 +42,7 @@
 #include "cam-tb-setup.h"
 #include "cam-sleep-wakeup.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x09)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1568,7 +1570,7 @@ static void __sc200ai_power_off(struct sc200ai *sc200ai)
 	}
 	if (!IS_ERR(sc200ai->pwdn_gpio))
 		gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
-	clk_disable_unprepare(sc200ai->xvclk);
+
 	if (!IS_ERR(sc200ai->reset_gpio))
 		gpiod_set_value_cansleep(sc200ai->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(sc200ai->pins_sleep)) {
@@ -1921,7 +1923,7 @@ static int sc200ai_check_sensor_id(struct sc200ai *sc200ai,
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
+	dev_info(dev, "Detected SC200AI(chip id:0x%04x) sensor\n", CHIP_ID);
 
 	return 0;
 }
