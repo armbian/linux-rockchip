@@ -8,9 +8,12 @@
 #include "core.h"
 
 static const struct flash_info normem_parts[] = {
-	{ "NM25Q128EVB", INFO(0x522118, 0, 64 * 1024, 256)
-		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
-			      SPI_NOR_QUAD_READ) },
+	{
+		.id = SNOR_ID(0x52, 0x21, 0x18),
+		.name = "NM25Q128EVB",
+		.size = SZ_16M,
+		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+	},
 };
 
 static void normem_default_init(struct spi_nor *nor)
