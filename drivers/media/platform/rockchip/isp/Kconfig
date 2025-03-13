@@ -8,7 +8,6 @@ config VIDEO_ROCKCHIP_ISP
 	select VIDEOBUF2_CMA_SG
 	select VIDEOBUF2_VMALLOC
 	select V4L2_FWNODE
-	select PHY_ROCKCHIP_MIPI_RX
 	default n
 	help
 	  Support for ISP on the rockchip SoC.

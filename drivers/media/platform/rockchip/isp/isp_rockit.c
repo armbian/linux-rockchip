@@ -722,84 +722,6 @@ int rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream)
 	return 0;
 }
 
-static bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
-{
-	struct rkisp_device *dev = stream->ispdev;
-	struct rkisp_sensor_info *sensor = NULL;
-	int dev_id = stream->ispdev->dev_id, id = stream->id;
-	struct rkisp_stream_cfg *stream_cfg;
-	int ret, dst_fps, *fps_cnt;
-	static int fps_in, cur_fps[ROCKIT_STREAM_NUM_MAX];
-	u32 denominator = 0, numerator = 0;
-	bool *is_discard;
-	u64 cur_time, *old_time;
-
-	if (!rockit_cfg || stream->id >= ROCKIT_STREAM_NUM_MAX)
-		return false;
-	stream_cfg = &rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id];
-	fps_cnt = &stream_cfg->fps_cnt;
-	is_discard = &stream_cfg->is_discard;
-	old_time = &stream_cfg->old_time;
-	dst_fps = stream_cfg->dst_fps;
-	if (dst_fps == 0 || !stream->streaming) {
-		*is_discard  = false;
-		return false;
-	}
-
-	if (dev->active_sensor == NULL) {
-		*is_discard  = false;
-		pr_err("the sensor is not found\n");
-		return false;
-	}
-
-	sensor = dev->active_sensor;
-
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &sensor->fi);
-	if (!ret) {
-		denominator = sensor->fi.interval.denominator;
-		numerator = sensor->fi.interval.numerator;
-		if (numerator)
-			fps_in = denominator / numerator;
-		else {
-			*is_discard  = false;
-			pr_err("the numerator is 0\n");
-			return false;
-		}
-	}
-
-	if (dst_fps >= fps_in) {
-		/* avoid from small frame rate to big frame rate lead to all buf is discard issue */
-		*is_discard = false;
-		stream_cfg->dst_fps = fps_in;
-		return false;
-	}
-
-	if ((fps_in > 0) && (dst_fps > 0)) {
-		if (*fps_cnt < 0)
-			*fps_cnt = fps_in - dst_fps;
-		*fps_cnt += dst_fps;
-
-		if (*fps_cnt < fps_in) {
-			*is_discard = true;
-			if (stream->next_buf || !list_empty(&stream->buf_queue))
-				stream->skip_frame = 1;
-		} else {
-			*fps_cnt -= fps_in;
-			*is_discard = false;
-			++cur_fps[stream->id];
-			cur_time = ktime_get_ns();
-			if (cur_time - *old_time >= 1000000000) {
-				*old_time = cur_time;
-				stream_cfg->cur_fps = cur_fps[stream->id];
-				cur_fps[stream->id] = 0;
-			}
-		}
-	} else {
-		*is_discard  = false;
-	}
-	return true;
-}
-
 void rkisp_rockit_frame_start(struct rkisp_device *dev)
 {
 	struct rkisp_stream *stream;
@@ -815,7 +737,6 @@ void rkisp_rockit_frame_start(struct rkisp_device *dev)
 		if (!stream->streaming)
 			continue;
 		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START, stream->curr_buf);
-		rkisp_rockit_ctrl_fps(stream);
 	}
 }
 

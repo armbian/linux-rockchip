@@ -435,7 +435,7 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 		}
 	}
 
-	v4l2_subdev_call(sensor->sd, video, g_frame_interval, &sensor->fi);
+	v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &sensor->fi);
 	dev->active_sensor = sensor;
 	i = dev->dev_id;
 	if (sensor->fi.interval.numerator)

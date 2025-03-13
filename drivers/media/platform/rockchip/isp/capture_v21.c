@@ -1127,7 +1127,7 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 	u32 denominator = sensor->fi.interval.denominator;
 	u32 numerator = sensor->fi.interval.numerator;
 	u64 l_ts, s_ts;
-	int ret, fps = -1, time = 30000000;
+	int fps = -1, time = 30000000;
 
 	if (stream->id != RKISP_STREAM_DMATX2)
 		return;
@@ -1146,22 +1146,10 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 		s_ts = cap->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
 
 		if ((s_ts - l_ts) > time) {
-			ret = v4l2_subdev_call(sensor->sd,
-				video, g_frame_interval, &sensor->fi);
-			if (!ret) {
-				denominator = sensor->fi.interval.denominator;
-				numerator = sensor->fi.interval.numerator;
-				if (denominator)
-					time = numerator * 1000 / denominator * 1000 * 1000;
-				if (numerator)
-					fps = denominator / numerator;
-			}
-			if ((s_ts - l_ts) > time) {
-				v4l2_err(&isp_dev->v4l2_dev,
-					 "timestamp no match, s:%lld l:%lld, fps:%d\n",
-					 s_ts, l_ts, fps);
-				goto RDBK_FRM_UNMATCH;
-			}
+			v4l2_err(&isp_dev->v4l2_dev,
+				 "timestamp no match, s:%lld l:%lld, fps:%d\n",
+				 s_ts, l_ts, fps);
+			goto RDBK_FRM_UNMATCH;
 		}
 
 		if (s_ts < l_ts) {
