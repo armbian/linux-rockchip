@@ -2482,14 +2482,12 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int samsung_mipi_dcphy_remove(struct platform_device *pdev)
+static void samsung_mipi_dcphy_remove(struct platform_device *pdev)
 {
 	struct samsung_mipi_dcphy *samsung = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(samsung->dev);
 	mutex_destroy(&samsung->mutex);
-
-	return 0;
 }
 
 static __maybe_unused int samsung_mipi_dcphy_runtime_suspend(struct device *dev)
