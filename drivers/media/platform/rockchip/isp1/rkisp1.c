@@ -772,15 +772,6 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 	}
 
 	rkisp1_config_clk(dev, true);
-	if (!in_interrupt()) {
-		struct iommu_domain *domain;
-
-		domain = iommu_get_domain_for_dev(dev->dev);
-		if (domain) {
-			domain->ops->detach_dev(domain, dev->dev);
-			domain->ops->attach_dev(domain, dev->dev);
-		}
-	}
 	dev->isp_state = ISP_STOP;
 
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {

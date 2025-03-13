@@ -509,26 +509,6 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int rkisp1_fwnode_parse(struct device *dev,
-			       struct v4l2_fwnode_endpoint *vep,
-			       struct v4l2_async_subdev *asd)
-{
-	struct rkisp1_async_subdev *rk_asd =
-			container_of(asd, struct rkisp1_async_subdev, asd);
-
-	/*
-	 * MIPI sensor is linked with a mipi dphy and its media bus config can
-	 * not be get in here
-	 */
-	if (vep->bus_type != V4L2_MBUS_BT656 &&
-	    vep->bus_type != V4L2_MBUS_PARALLEL)
-		return 0;
-
-	rk_asd->mbus.type = vep->bus_type;
-
-	return 0;
-}
-
 static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
 	.bound = subdev_notifier_bound,
 	.complete = subdev_notifier_complete,
@@ -537,20 +517,66 @@ static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
 static int isp_subdev_notifier(struct rkisp1_device *isp_dev)
 {
 	struct v4l2_async_notifier *ntf = &isp_dev->notifier;
-	struct device *dev = isp_dev->dev;
-	int ret;
+	struct fwnode_handle *fwnode = dev_fwnode(isp_dev->dev);
+	struct fwnode_handle *ep;
+	int ret = 0;
 
-	v4l2_async_nf_init(ntf);
-
-	ret = v4l2_async_nf_parse_fwnode_endpoints(
-		dev, ntf, sizeof(struct rkisp1_async_subdev),
-		rkisp1_fwnode_parse);
-	if (ret < 0)
-		return ret;
+	v4l2_async_nf_init(ntf, &isp_dev->v4l2_dev);
 
 	ntf->ops = &subdev_notifier_ops;
 
-	return v4l2_async_nf_register(&isp_dev->v4l2_dev, ntf);
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
+		struct fwnode_handle *port;
+		struct v4l2_fwnode_endpoint vep = { };
+		struct rkisp1_async_subdev *rk_asd;
+		struct fwnode_handle *source;
+
+		/* Select the bus type based on the port. */
+		port = fwnode_get_parent(ep);
+		fwnode_handle_put(port);
+
+		/* Parse the endpoint and validate the bus type. */
+		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		if (ret) {
+			dev_err(isp_dev->dev, "failed to parse endpoint %pfw\n",
+				ep);
+			break;
+		}
+
+		/* Add the async subdev to the notifier. */
+		source = fwnode_graph_get_remote_endpoint(ep);
+		if (!source) {
+			dev_err(isp_dev->dev,
+				"endpoint %pfw has no remote endpoint\n",
+				ep);
+			ret = -ENODEV;
+			break;
+		}
+
+		rk_asd = v4l2_async_nf_add_fwnode(ntf, source,
+						  struct rkisp1_async_subdev);
+		if (IS_ERR(rk_asd)) {
+			fwnode_handle_put(source);
+			ret = PTR_ERR(rk_asd);
+			break;
+		}
+
+		rk_asd->mbus.type = vep.bus_type;
+	}
+
+	if (ret) {
+		fwnode_handle_put(ep);
+		v4l2_async_nf_cleanup(ntf);
+		return ret;
+	}
+
+	ret = v4l2_async_nf_register(ntf);
+	if (ret) {
+		v4l2_async_nf_cleanup(ntf);
+		return ret;
+	}
+
+	return 0;
 }
 
 /***************************** platform deive *******************************/
