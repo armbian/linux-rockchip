@@ -136,7 +136,7 @@ static int inno_video_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int inno_video_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int inno_video_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	return 0;
 }
