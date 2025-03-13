@@ -217,11 +217,9 @@ static int inno_video_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int inno_video_phy_remove(struct platform_device *pdev)
+static void inno_video_phy_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id inno_video_phy_of_match[] = {
