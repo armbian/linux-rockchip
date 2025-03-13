@@ -662,13 +662,13 @@ err:
 }
 
 struct rkisp_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct rkisp_device *isp_dev = container_of(notifier,
 					struct rkisp_device, notifier);
@@ -689,7 +689,7 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 static int rkisp_fwnode_parse(struct device *dev,
 			       struct v4l2_fwnode_endpoint *vep,
-			       struct v4l2_async_subdev *asd)
+			       struct v4l2_async_connection *asd)
 {
 	struct rkisp_async_subdev *rk_asd =
 			container_of(asd, struct rkisp_async_subdev, asd);
@@ -709,7 +709,7 @@ static int rkisp_fwnode_parse(struct device *dev,
 
 static void subdev_notifier_unbind(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct rkisp_device *isp_dev = container_of(notifier, struct rkisp_device, notifier);
 	struct rkisp_isp_subdev *isp_sdev = &isp_dev->isp_sdev;
