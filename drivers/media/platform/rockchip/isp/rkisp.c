@@ -2889,7 +2889,7 @@ static int rkisp_isp_sd_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (!sd_state)
 			goto err;
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
@@ -2929,7 +2929,7 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (!sd_state)
 			goto err;
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
@@ -3058,7 +3058,7 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (!sd_state)
 			goto err;
-		crop = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
+		crop = v4l2_subdev_state_get_crop(sd_state, sel->pad);
 	}
 
 	*crop = isp_sd->in_crop;
@@ -3192,7 +3192,7 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (!sd_state)
 			goto err;
-		crop = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
+		crop = v4l2_subdev_state_get_crop(sd_state, sel->pad);
 	}
 
 	rkisp_isp_sd_try_crop(sd, crop, sel->pad);
