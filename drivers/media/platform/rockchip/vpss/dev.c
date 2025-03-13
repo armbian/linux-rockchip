@@ -231,15 +231,34 @@ v4l2_async_notifier_operations rkvpss_subdev_notifier_ops = {
 static int rkvpss_subdev_notifier(struct rkvpss_device *dev)
 {
 	struct v4l2_async_notifier *ntf = &dev->notifier;
+	struct v4l2_async_connection *asd;
+	struct device_node *ep;
 	int ret;
 
-	v4l2_async_nf_init(ntf);
-	ret = v4l2_async_nf_parse_fwnode_endpoints(dev->dev,
-		ntf, sizeof(struct v4l2_async_subdev), NULL);
-	if (ret < 0)
-		return ret;
+	ep = of_graph_get_endpoint_by_regs(dev->dev->of_node, 0, -1);
+	if (!ep)
+		return -EINVAL;
+
+	v4l2_async_nf_init(ntf, &dev->v4l2_dev);
+
+	asd = v4l2_async_nf_add_fwnode_remote(ntf,
+					      of_fwnode_handle(ep),
+					      struct v4l2_async_connection);
+	of_node_put(ep);
+
+	if (IS_ERR(asd))
+		return PTR_ERR(asd);
+
 	ntf->ops = &rkvpss_subdev_notifier_ops;
-	return v4l2_async_nf_register(&dev->v4l2_dev, ntf);
+
+	ret = v4l2_async_nf_register(ntf);
+	if (ret < 0) {
+		dev_err(dev->dev, "Notifier registration failed\n");
+		v4l2_async_nf_cleanup(ntf);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int rkvpss_register_platform_subdevs(struct rkvpss_device *dev)
