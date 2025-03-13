@@ -12,6 +12,7 @@
 #include <linux/rk-isp33-config.h>
 #include <linux/rk-isp35-config.h>
 #include <linux/rk-preisp.h>
+#include <linux/vmalloc.h>
 #include "common.h"
 
 #define ISP_PACK_4BYTE(a, b, c, d)	\

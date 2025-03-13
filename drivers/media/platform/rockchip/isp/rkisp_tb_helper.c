@@ -18,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/dma-buf.h>
 #include <linux/highmem.h>
+#include <linux/vmalloc.h>
 #include <linux/soc/rockchip/rockchip_thunderboot_service.h>
 
 #include "rkisp_tb_helper.h"
