@@ -484,13 +484,13 @@ unlock:
 }
 
 struct rkisp1_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct rkisp1_device *isp_dev = container_of(notifier,
 					struct rkisp1_device, notifier);
