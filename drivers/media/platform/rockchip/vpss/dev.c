@@ -198,7 +198,7 @@ err:
 
 static int rkvpss_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 					struct v4l2_subdev *subdev,
-					struct v4l2_async_subdev *asd)
+					struct v4l2_async_connection *asd)
 {
 	struct rkvpss_device *dev;
 
@@ -210,7 +210,7 @@ static int rkvpss_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 static void rkvpss_subdev_notifier_unbind(struct v4l2_async_notifier *notifier,
 					  struct v4l2_subdev *subdev,
-					  struct v4l2_async_subdev *asd)
+					  struct v4l2_async_connection *asd)
 {
 	struct rkvpss_device *dev;
 
