@@ -451,7 +451,8 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 
 static irqreturn_t rockchip_pwm_irq_v1(int irq, void *data)
 {
-	struct rockchip_pwm_chip *pc = data;
+	struct pwm_chip *chip = data;
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	struct pwm_state state;
 	u32 int_ctrl;
 	unsigned int id = pc->channel_id;
@@ -470,11 +471,11 @@ static irqreturn_t rockchip_pwm_irq_v1(int irq, void *data)
 		/*
 		 * Set pwm state to disabled when the oneshot mode finished.
 		 */
-		pwm_get_state(&pc->chip.pwms[0], &state);
+		pwm_get_state(&chip->pwms[0], &state);
 		state.enabled = false;
-		pwm_apply_state(&pc->chip.pwms[0], &state);
+		pwm_apply_atomic(&chip->pwms[0], &state);
 
-		rockchip_pwm_oneshot_callback(&pc->chip.pwms[0], &state);
+		rockchip_pwm_oneshot_callback(&chip->pwms[0], &state);
 	} else if (pc->capture_en) {
 		/*
 		 * Capture input waveform:
@@ -576,7 +577,7 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 		ctrl |= PWM_SEL_NO_SCALED_CLOCK;
 
 		if (state->oneshot_count)
-			dev_err(chip->dev, "Oneshot_count must be between 1 and %d.\n",
+			dev_err(pwmchip_parent(chip), "Oneshot_count must be between 1 and %d.\n",
 				pc->data->oneshot_cnt_max);
 
 		pc->oneshot_en = false;
@@ -679,7 +680,8 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 {
-	struct rockchip_pwm_chip *pc = data;
+	struct pwm_chip *chip = data;
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	int val;
 	irqreturn_t ret = IRQ_NONE;
 
@@ -693,13 +695,13 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 		/*
 		 * Set pwm state to disabled when the oneshot mode finished.
 		 */
-		pwm_get_state(&pc->chip.pwms[0], &state);
+		pwm_get_state(&chip->pwms[0], &state);
 		state.enabled = false;
 		state.oneshot_count = 0;
 		state.oneshot_repeat = 0;
-		pwm_apply_state(&pc->chip.pwms[0], &state);
+		pwm_apply_atomic(&chip->pwms[0], &state);
 
-		rockchip_pwm_oneshot_callback(&pc->chip.pwms[0], &state);
+		rockchip_pwm_oneshot_callback(&chip->pwms[0], &state);
 
 		ret = IRQ_HANDLED;
 	}
@@ -749,7 +751,7 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	if (val & WAVE_MIDDLE_INT) {
 		writel_relaxed(WAVE_MIDDLE_INT, pc->base + INTSTS);
 
-		rockchip_pwm_wave_middle_callback(&pc->chip.pwms[0]);
+		rockchip_pwm_wave_middle_callback(&chip->pwms[0]);
 
 		ret = IRQ_HANDLED;
 	}
@@ -757,7 +759,7 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	if (val & WAVE_MAX_INT) {
 		writel_relaxed(WAVE_MAX_INT, pc->base + INTSTS);
 
-		rockchip_pwm_wave_max_callback(&pc->chip.pwms[0]);
+		rockchip_pwm_wave_max_callback(&chip->pwms[0]);
 
 		ret = IRQ_HANDLED;
 	}
@@ -820,14 +822,15 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 			div = (u64)clk_rate_kHz * state->duty_offset;
 			offset = DIV_ROUND_CLOSEST_ULL(div, tmp);
 		} else if (state->duty_offset > (state->period - state->duty_cycle)) {
-			dev_err(chip->dev, "Duty_offset must be between %lld and %lld.\n",
+			dev_err(pwmchip_parent(chip),
+				"Duty_offset must be between %lld and %lld.\n",
 				state->duty_cycle, state->period);
 		}
 
 		pc->oneshot_en = true;
 	} else {
 		if (state->oneshot_count)
-			dev_err(chip->dev, "Oneshot_count must be between 1 and %d.\n",
+			dev_err(pwmchip_parent(chip), "Oneshot_count must be between 1 and %d.\n",
 				pc->data->oneshot_cnt_max);
 
 		pc->oneshot_en = false;
@@ -1026,13 +1029,14 @@ static int rockchip_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret = 0;
 
 	if (!pc->data->funcs.set_capture || !pc->data->funcs.get_capture_result) {
-		dev_err(chip->dev, "Unsupported capture mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported capture mode\n");
 		return -EINVAL;
 	}
 
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to enable capture mode because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to enable capture mode because PWM%d is busy\n",
 			pc->channel_id);
 		return -EBUSY;
 	}
@@ -1043,14 +1047,14 @@ static int rockchip_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		goto err_disable_pclk;
 	}
 
 	pc->data->funcs.set_capture(chip, pwm, true);
 	ret = pc->data->funcs.enable(chip, pwm, true);
 	if (ret) {
-		dev_err(chip->dev, "Failed to enable capture mode\n");
+		dev_err(pwmchip_parent(chip), "Failed to enable capture mode\n");
 		goto err_disable_pclk;
 	}
 
@@ -1059,9 +1063,9 @@ static int rockchip_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (pc->capture_cnt > 3) {
 		ret = pc->data->funcs.get_capture_result(chip, pwm, capture_res);
 		if (ret)
-			dev_err(chip->dev, "Failed to get capture result\n");
+			dev_err(pwmchip_parent(chip), "Failed to get capture result\n");
 	} else {
-		dev_err(chip->dev, "Failed to wait for LPR/HPR interrupt\n");
+		dev_err(pwmchip_parent(chip), "Failed to wait for LPR/HPR interrupt\n");
 		ret = -ETIMEDOUT;
 	}
 
@@ -1130,13 +1134,14 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 
 	if (!pc->counter_support ||
 	    !pc->data->funcs.set_counter || !pc->data->funcs.get_counter_result) {
-		dev_err(chip->dev, "Unsupported counter mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported counter mode\n");
 		return -EINVAL;
 	}
 
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to enable counter mode because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to enable counter mode because PWM%d is busy\n",
 			pc->channel_id);
 		return -EBUSY;
 	}
@@ -1149,13 +1154,13 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		goto err_disable_pclk;
 	}
 
 	ret = pc->data->funcs.set_counter(chip, pwm, input_sel, enable);
 	if (ret) {
-		dev_err(chip->dev, "Failed to abtain counter arbitration for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Failed to abtain counter arbitration for PWM%d\n",
 			pc->channel_id);
 		goto err_disable_pclk;
 	}
@@ -1207,13 +1212,13 @@ int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
 
 	if (!pc->counter_support ||
 	    !pc->data->funcs.set_counter || !pc->data->funcs.get_counter_result) {
-		dev_err(chip->dev, "Unsupported counter mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported counter mode\n");
 		return -EINVAL;
 	}
 
 	ret = pc->data->funcs.get_counter_result(chip, pwm, counter_res, is_clear);
 	if (ret) {
-		dev_err(chip->dev, "Failed to get counter result for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Failed to get counter result for PWM%d\n",
 			pc->channel_id);
 		return ret;
 	}
@@ -1288,7 +1293,7 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 
 		pc->freq_res_valid = false;
 	} else {
-		dev_err(chip->dev, "failed to wait for freq_meter interrupt\n");
+		dev_err(pwmchip_parent(chip), "failed to wait for freq_meter interrupt\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1312,13 +1317,14 @@ int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
 
 	if (!pc->freq_meter_support ||
 	    !pc->data->funcs.set_freq_meter || !pc->data->funcs.get_freq_meter_result) {
-		dev_err(chip->dev, "Unsupported frequency meter mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported frequency meter mode\n");
 		return -EINVAL;
 	}
 
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to enable frequency meter mode because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to enable frequency meter mode because PWM%d is busy\n",
 			pc->channel_id);
 		return -EBUSY;
 	}
@@ -1329,18 +1335,20 @@ int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		goto err_disable_pclk;
 	}
 
 	ret = pc->data->funcs.set_freq_meter(chip, pwm, delay_ms, input_sel, true);
 	if (ret) {
-		dev_err(chip->dev, "Failed to abtain frequency meter arbitration for PWM%d\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to abtain frequency meter arbitration for PWM%d\n",
 			pc->channel_id);
 	} else {
 		ret = pc->data->funcs.get_freq_meter_result(chip, pwm, delay_ms, freq_hz);
 		if (ret) {
-			dev_err(chip->dev, "Failed to get frequency meter result for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"Failed to get frequency meter result for PWM%d\n",
 				pc->channel_id);
 		}
 	}
@@ -1377,7 +1385,8 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 		writel_relaxed(arbiter, pc->base + GLOBAL_ARBITER);
 		val = readl_relaxed(pc->base + GLOBAL_ARBITER);
 		if (!(val & arbiter)) {
-			dev_err(chip->dev, "Failed to abtain global ctrl arbitration for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"Failed to abtain global ctrl arbitration for PWM%d\n",
 				pc->channel_id);
 			return -EINVAL;
 		}
@@ -1391,7 +1400,8 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 		break;
 	case PWM_GLOBAL_CTRL_UPDATE:
 		if (!pc->global_ctrl_grant) {
-			dev_err(chip->dev, "CMD %d: get global ctrl arbitration first for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"CMD %d: get global ctrl arbitration first for PWM%d\n",
 				cmd, pc->channel_id);
 			return -EINVAL;
 		}
@@ -1400,7 +1410,8 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 		break;
 	case PWM_GLOBAL_CTRL_ENABLE:
 		if (!pc->global_ctrl_grant) {
-			dev_err(chip->dev, "CMD %d: get global ctrl arbitration first for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"CMD %d: get global ctrl arbitration first for PWM%d\n",
 				cmd, pc->channel_id);
 			return -EINVAL;
 		}
@@ -1416,7 +1427,8 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 		break;
 	case PWM_GLOBAL_CTRL_DISABLE:
 		if (!pc->global_ctrl_grant) {
-			dev_err(chip->dev, "CMD %d: get global ctrl arbitration first for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"CMD %d: get global ctrl arbitration first for PWM%d\n",
 				cmd, pc->channel_id);
 			return -EINVAL;
 		}
@@ -1429,7 +1441,7 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 
 		break;
 	default:
-		dev_err(chip->dev, "Unsupported global ctrl cmd %d\n", cmd);
+		dev_err(pwmchip_parent(chip), "Unsupported global ctrl cmd %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -1450,13 +1462,14 @@ int rockchip_pwm_global_ctrl(struct pwm_device *pwm, enum rockchip_pwm_global_ct
 	pc = to_rockchip_pwm_chip(chip);
 
 	if (!pc->data->funcs.global_ctrl) {
-		dev_err(chip->dev, "Unsupported global control\n");
+		dev_err(pwmchip_parent(chip), "Unsupported global control\n");
 		return -EINVAL;
 	}
 
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to execute global ctrl cmd %d because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to execute global ctrl cmd %d because PWM%d is busy\n",
 			cmd, pc->channel_id);
 		return -EBUSY;
 	}
@@ -1467,13 +1480,13 @@ int rockchip_pwm_global_ctrl(struct pwm_device *pwm, enum rockchip_pwm_global_ct
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		goto err_disable_pclk;
 	}
 
 	ret = pc->data->funcs.global_ctrl(chip, pwm, cmd);
 	if (ret) {
-		dev_err(chip->dev, "Failed to execute global ctrl cmd %d for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Failed to execute global ctrl cmd %d for PWM%d\n",
 			cmd, pc->channel_id);
 		goto err_disable_pclk;
 	}
@@ -1507,7 +1520,7 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 
 	if (!table_config->table ||
 	    table_config->offset > table_max || table_config->len > table_max) {
-		dev_err(chip->dev, "The wave table to set is out of range for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "The wave table to set is out of range for PWM%d\n",
 			pc->channel_id);
 		return -EINVAL;
 	}
@@ -1518,7 +1531,8 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 
 	val = readl_relaxed(pc->base + WAVE_MEM_ARBITER);
 	if (!(val & arbiter)) {
-		dev_err(chip->dev, "Failed to abtain wave memory arbitration for PWM%d\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to abtain wave memory arbitration for PWM%d\n",
 			pc->channel_id);
 		return -EINVAL;
 	}
@@ -1533,7 +1547,7 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 			if (readl_poll_timeout(pc->base + WAVE_MEM_STATUS,
 					       val, (val & BIT(WAVE_MEM_STATUS_SHIFT)),
 					       1000, 10 * 1000)) {
-				dev_err(chip->dev,
+				dev_err(pwmchip_parent(chip),
 					"Wait for wave mem(offset 0x%08x) to update failed\n",
 					(table_config->offset + i) * 2 * 4);
 				return -ETIMEDOUT;
@@ -1545,7 +1559,7 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 			if (readl_poll_timeout(pc->base + WAVE_MEM_STATUS,
 					       val, (val & BIT(WAVE_MEM_STATUS_SHIFT)),
 					       1000, 10 * 1000)) {
-				dev_err(chip->dev,
+				dev_err(pwmchip_parent(chip),
 					"Wait for wave mem(offset 0x%08x) to update failed\n",
 					((table_config->offset + i) * 2 + 1) * 4);
 				return -ETIMEDOUT;
@@ -1561,7 +1575,7 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 			if (readl_poll_timeout(pc->base + WAVE_MEM_STATUS,
 					       val, (val & BIT(WAVE_MEM_STATUS_SHIFT)),
 					       1000, 10 * 1000)) {
-				dev_err(chip->dev,
+				dev_err(pwmchip_parent(chip),
 					"Wait for wave mem(offset 0x%08x) to update failed\n",
 					(table_config->offset + i) * 4);
 				return -ETIMEDOUT;
@@ -1642,18 +1656,18 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 
 	if (!pc->wave_support ||
 	    !pc->data->funcs.set_wave_table || !pc->data->funcs.set_wave) {
-		dev_err(chip->dev, "Unsupported wave generator mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported wave generator mode\n");
 		return -EINVAL;
 	}
 
 	if (!config->clk_rate) {
-		dev_err(chip->dev, "clk rate can not be 0\n");
+		dev_err(pwmchip_parent(chip), "clk rate can not be 0\n");
 		return -EINVAL;
 	}
 
 	pc->scaler = DIV_ROUND_CLOSEST_ULL(pc->clk_rate, config->clk_rate) / 2;
 	if (pc->scaler > 256) {
-		dev_err(chip->dev, "Unsupported scale factor %d(max: 512) for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Unsupported scale factor %d(max: 512) for PWM%d\n",
 			pc->scaler * 2, pc->channel_id);
 		return -EINVAL;
 	}
@@ -1665,7 +1679,8 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 	if (config->enable) {
 		ret = clk_enable(pc->clk_osc);
 		if (ret) {
-			dev_err(chip->dev, "Failed to enable OSC clk for PWM%d\n", pc->channel_id);
+			dev_err(pwmchip_parent(chip),
+				"Failed to enable OSC clk for PWM%d\n", pc->channel_id);
 			goto err_disable_pclk;
 		}
 	}
@@ -1674,7 +1689,7 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 		ret = pc->data->funcs.set_wave_table(chip, pwm, config->duty_table,
 						     config->width_mode);
 		if (ret) {
-			dev_err(chip->dev, "Failed to set wave duty table for PWM%d\n",
+			dev_err(pwmchip_parent(chip), "Failed to set wave duty table for PWM%d\n",
 				pc->channel_id);
 			goto err_disable_clk_osc;
 		}
@@ -1684,15 +1699,16 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 		ret = pc->data->funcs.set_wave_table(chip, pwm, config->period_table,
 						     config->width_mode);
 		if (ret) {
-			dev_err(chip->dev, "Failed to set wave period table for PWM%d\n",
-				pc->channel_id);
+			dev_err(pwmchip_parent(chip),
+				"Failed to set wave period table for PWM%d\n", pc->channel_id);
 			goto err_disable_clk_osc;
 		}
 	}
 
 	ret = pc->data->funcs.set_wave(chip, pwm, config);
 	if (ret) {
-		dev_err(chip->dev, "Failed to set wave generator for PWM%d\n", pc->channel_id);
+		dev_err(pwmchip_parent(chip),
+			"Failed to set wave generator for PWM%d\n", pc->channel_id);
 		goto err_disable_clk_osc;
 	}
 
@@ -1724,7 +1740,8 @@ static int rockchip_pwm_set_biphasic_v4(struct pwm_chip *chip, struct pwm_device
 
 	if (config->enable) {
 		if (!config->is_continuous && !config->delay_ms) {
-			dev_err(chip->dev, "The delay_ms can not be 0 in normal mode for PWM%d\n",
+			dev_err(pwmchip_parent(chip),
+				"The delay_ms can not be 0 in normal mode for PWM%d\n",
 				pc->channel_id);
 			return -EINVAL;
 		}
@@ -1776,13 +1793,14 @@ int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphas
 
 	if (!pc->biphasic_support ||
 	    !pc->data->funcs.set_biphasic || !pc->data->funcs.get_biphasic_result) {
-		dev_err(chip->dev, "Unsupported biphasic counter mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported biphasic counter mode\n");
 		return -EINVAL;
 	}
 
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to enable biphasic counter mode because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to enable biphasic counter mode because PWM%d is busy\n",
 			pc->channel_id);
 		return -EBUSY;
 	}
@@ -1793,19 +1811,19 @@ int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphas
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		goto err_disable_pclk;
 	}
 
 	ret = pc->data->funcs.set_biphasic(chip, pwm, config);
 	if (ret) {
-		dev_err(chip->dev, "Failed to setup biphasic counter mode for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Failed to setup biphasic counter mode for PWM%d\n",
 			pc->channel_id);
 	} else {
 		if (pc->biphasic_config->enable && !config->is_continuous) {
 			ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
 			if (ret) {
-				dev_err(chip->dev,
+				dev_err(pwmchip_parent(chip),
 					"Failed to get biphasic counter result for PWM%d\n",
 					pc->channel_id);
 			}
@@ -1846,7 +1864,8 @@ static int rockchip_pwm_get_biphasic_result_v4(struct pwm_chip *chip, struct pwm
 
 			pc->biphasic_res_valid = false;
 		} else {
-			dev_err(chip->dev, "failed to wait for biphasic counter interrupt\n");
+			dev_err(pwmchip_parent(chip),
+				"failed to wait for biphasic counter interrupt\n");
 			return -ETIMEDOUT;
 		}
 	} else {
@@ -1870,17 +1889,18 @@ int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biph
 
 	if (!pc->biphasic_support ||
 	    !pc->data->funcs.set_biphasic || !pc->data->funcs.get_biphasic_result) {
-		dev_err(chip->dev, "Unsupported biphasic counter mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported biphasic counter mode\n");
 		return -EINVAL;
 	}
 
 	if (!pc->biphasic_config) {
-		dev_err(chip->dev, "Failed to parse biphasic counter config\n");
+		dev_err(pwmchip_parent(chip), "Failed to parse biphasic counter config\n");
 		return -EINVAL;
 	}
 
 	if (!pc->biphasic_config->is_continuous || !pc->biphasic_config->enable) {
-		dev_err(chip->dev, "Unsupported to get result in real time in normal mode\n");
+		dev_err(pwmchip_parent(chip),
+			"Unsupported to get result in real time in normal mode\n");
 		return -EINVAL;
 	}
 
@@ -1890,7 +1910,7 @@ int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biph
 
 	ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
 	if (ret)
-		dev_err(chip->dev, "Failed to get biphasic counter result for PWM%d\n",
+		dev_err(pwmchip_parent(chip), "Failed to get biphasic counter result for PWM%d\n",
 			pc->channel_id);
 
 	clk_disable(pc->pclk);
@@ -1913,7 +1933,7 @@ static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbu
 	int ret = 0;
 
 	if (count != PWM_IR_TRANSMIT_BUFFER_SIZE) {
-		dev_err(chip->dev, "Unsupported ir transmit buf size: %d\n", count);
+		dev_err(pwmchip_parent(chip), "Unsupported ir transmit buf size: %d\n", count);
 		return -EINVAL;
 	}
 
@@ -1926,7 +1946,8 @@ static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbu
 	writel_relaxed(arbiter, pc->base + IR_TRANS_ARBITER);
 	val = readl_relaxed(pc->base + IR_TRANS_ARBITER);
 	if (!(val & arbiter)) {
-		dev_err(chip->dev, "Failed to abtain ir transmit arbitration for PWM%d\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to abtain ir transmit arbitration for PWM%d\n",
 			pc->channel_id);
 		ret = -EINVAL;
 		goto err_clk;
@@ -1980,7 +2001,8 @@ static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbu
 	ret = wait_for_completion_timeout(&pc->ir_trans_completion,
 					  msecs_to_jiffies(timeout_ms * 3 / 2));
 	if (!ret) {
-		dev_err(chip->dev, "Failed to wait for PWM%d ir transmit to complete\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to wait for PWM%d ir transmit to complete\n",
 			pc->channel_id);
 		ret = -ETIMEDOUT;
 	}
@@ -1998,26 +2020,27 @@ err_clk:
 
 static int rockchip_pwm_ir_transmit(struct rc_dev *dev, unsigned int *txbuf, unsigned int count)
 {
-	struct rockchip_pwm_chip *pc = dev->priv;
-	struct pwm_chip *chip = &pc->chip;
+	struct pwm_chip *chip = dev->priv;
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	struct pwm_state curstate;
 	int ret;
 
 	if (!pc->data->funcs.ir_transmit) {
-		dev_err(chip->dev, "Unsupported ir transmit mode\n");
+		dev_err(pwmchip_parent(chip), "Unsupported ir transmit mode\n");
 		return -EINVAL;
 	}
 
-	pwm_get_state(&pc->chip.pwms[0], &curstate);
+	pwm_get_state(&chip->pwms[0], &curstate);
 	if (curstate.enabled) {
-		dev_err(chip->dev, "Failed to enable ir transmit mode because PWM%d is busy\n",
+		dev_err(pwmchip_parent(chip),
+			"Failed to enable ir transmit mode because PWM%d is busy\n",
 			pc->channel_id);
 		return -EBUSY;
 	}
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
-		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		dev_err(pwmchip_parent(chip), "Failed to select pinctrl state\n");
 		return ret;
 	}
 
@@ -2027,7 +2050,7 @@ static int rockchip_pwm_ir_transmit(struct rc_dev *dev, unsigned int *txbuf, uns
 
 	ret = pc->data->funcs.ir_transmit(chip, txbuf, count);
 	if (ret < 0)
-		dev_err(chip->dev, "Failed to transmit ir buf\n");
+		dev_err(pwmchip_parent(chip), "Failed to transmit ir buf\n");
 
 	clk_disable(pc->pclk);
 
@@ -2082,23 +2105,27 @@ static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(rockchip_pwm_debugfs);
 
-static inline void rockchip_pwm_debugfs_init(struct rockchip_pwm_chip *pc)
+static inline void rockchip_pwm_debugfs_init(struct pwm_chip *chip)
 {
-	pc->debugfs = debugfs_create_file(dev_name(pc->chip.dev),
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+
+	pc->debugfs = debugfs_create_file(dev_name(pwmchip_parent(chip)),
 					  S_IFREG | 0444, NULL, pc,
 					  &rockchip_pwm_debugfs_fops);
 }
 
-static inline void rockchip_pwm_debugfs_deinit(struct rockchip_pwm_chip *pc)
+static inline void rockchip_pwm_debugfs_deinit(struct pwm_chip *chip)
 {
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+
 	debugfs_remove(pc->debugfs);
 }
 #else
-static inline void rockchip_pwm_debugfs_init(struct rockchip_pwm_chip *pc)
+static inline void rockchip_pwm_debugfs_init(struct pwm_chip *chip)
 {
 }
 
-static inline void rockchip_pwm_debugfs_deinit(struct rockchip_pwm_chip *pc)
+static inline void rockchip_pwm_debugfs_deinit(struct pwm_chip *chip)
 {
 }
 #endif
@@ -2107,7 +2134,6 @@ static const struct pwm_ops rockchip_pwm_ops = {
 	.capture = rockchip_pwm_capture,
 	.apply = rockchip_pwm_apply,
 	.get_state = rockchip_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct rockchip_pwm_data pwm_data_v1 = {
@@ -2324,13 +2350,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		goto err_pclk;
 	}
 
-	platform_set_drvdata(pdev, pc);
-
-	pc->data = id->data;
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &rockchip_pwm_ops;
-	pc->chip.base = of_alias_get_id(pdev->dev.of_node, "pwm");
-	pc->chip.npwm = 1;
+	pc->data = device_get_match_data(&pdev->dev);
 	pc->clk_rate = clk_get_rate(pc->clk);
 	pc->main_version = pc->data->main_version;
 	if (pc->main_version >= 4) {
@@ -2365,7 +2385,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 							    IRQF_NO_SUSPEND | IRQF_SHARED;
 
 			ret = devm_request_irq(&pdev->dev, pc->irq, pc->data->funcs.irq_handler,
-					       irq_flags, "rk_pwm_irq", pc);
+					       irq_flags, "rk_pwm_irq", chip);
 			if (ret) {
 				dev_err(&pdev->dev, "Claim IRQ failed\n");
 				goto err_pclk;
@@ -2383,11 +2403,16 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->center_aligned =
 		device_property_read_bool(&pdev->dev, "center-aligned");
 
-	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
+	chip->ops = &rockchip_pwm_ops;
+	chip->atomic = true;
+
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret < 0) {
 		dev_err_probe(&pdev->dev, ret, "pwmchip_add() failed\n");
 		goto err_pclk;
 	}
+
+	platform_set_drvdata(pdev, chip);
 
 	if (pc->wave_support) {
 		if (!pc->clk_osc) {
@@ -2414,7 +2439,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		if (!rcdev)
 			goto err_pclk;
 
-		rcdev->priv = pc;
+		rcdev->priv = chip;
 		rcdev->driver_name = "rockchip-pwm-ir-tx";
 		rcdev->device_name = "Rockchip IR TX";
 		rcdev->tx_ir = rockchip_pwm_ir_transmit;
@@ -2424,7 +2449,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	}
 #endif
 
-	rockchip_pwm_debugfs_init(pc);
+	rockchip_pwm_debugfs_init(chip);
 
 	/* Keep the PWM clk enabled if the PWM appears to be up and running. */
 	if (!enabled)
@@ -2444,17 +2469,18 @@ err_clk:
 
 static void rockchip_pwm_remove(struct platform_device *pdev)
 {
-	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	struct pwm_state state;
 	u32 val;
 
-	rockchip_pwm_debugfs_deinit(pc);
+	rockchip_pwm_debugfs_deinit(chip);
 
 	/*
 	 * For oneshot mode, it is needed to wait for bit PWM_ENABLE
 	 * to 0, which is automatic if all periods have been sent.
 	 */
-	pwm_get_state(&pc->chip.pwms[0], &state);
+	pwm_get_state(&chip->pwms[0], &state);
 	if (state.enabled) {
 		if (pc->oneshot_en) {
 			if (readl_poll_timeout(pc->base + pc->data->regs.ctrl,
@@ -2462,7 +2488,7 @@ static void rockchip_pwm_remove(struct platform_device *pdev)
 				dev_err(&pdev->dev, "Wait for oneshot to complete failed\n");
 		} else {
 			state.enabled = false;
-			pwm_apply_state(&pc->chip.pwms[0], &state);
+			pwm_apply_atomic(&chip->pwms[0], &state);
 		}
 	}
 
