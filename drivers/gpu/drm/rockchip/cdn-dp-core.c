@@ -232,7 +232,8 @@ static void cdn_dp_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static void cdn_dp_oob_hotplug_event(struct drm_connector *connector)
+static void cdn_dp_oob_hotplug_event(struct drm_connector *connector,
+				     enum drm_connector_status status)
 {
 	struct cdn_dp_device *dp = connector_to_dp(connector);
 
