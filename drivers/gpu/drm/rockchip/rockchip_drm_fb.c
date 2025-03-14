@@ -384,6 +384,20 @@ static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+struct drm_framebuffer *
+rockchip_drm_framebuffer_init(struct drm_device *dev,
+			      const struct drm_mode_fb_cmd2 *mode_cmd,
+			      struct drm_gem_object *obj)
+{
+	struct drm_framebuffer *fb;
+
+	fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
+	if (IS_ERR(fb))
+		return ERR_CAST(fb);
+
+	return fb;
+}
+
 void rockchip_drm_mode_config_init(struct drm_device *dev)
 {
 	dev->mode_config.min_width = 0;
