@@ -617,18 +617,6 @@ static bool has_uv_swapped(uint32_t format)
 	}
 }
 
-static bool is_fmt_10(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV15:
-	case DRM_FORMAT_NV20:
-	case DRM_FORMAT_NV30:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static enum vop_data_format vop_convert_format(uint32_t format)
 {
 	switch (format) {
@@ -646,17 +634,14 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV15:
 	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV15:
 		return VOP_FMT_YUV420SP;
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV20:
 	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV20:
 		return VOP_FMT_YUV422SP;
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV30:
 	case DRM_FORMAT_NV42:
-	case DRM_FORMAT_NV30:
 		return VOP_FMT_YUV444SP;
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
