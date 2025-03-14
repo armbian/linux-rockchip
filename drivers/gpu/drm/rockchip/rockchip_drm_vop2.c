@@ -58,6 +58,7 @@
 #include "../drm_crtc_internal.h"
 #include "../drm_internal.h"
 
+#include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
@@ -1075,6 +1076,7 @@ static inline void rk3588_vop2_dsc_cfg_done(struct drm_crtc *crtc);
 static inline void vop2_cfg_done(struct drm_crtc *crtc);
 static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp);
 static int vop2_clk_reset(struct reset_control *rstc);
+static inline bool vop2_cluster_window(struct vop2_win *win);
 
 static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
 {
@@ -2555,7 +2557,7 @@ static bool vop2_output_rg_swap(struct rockchip_crtc_state *vcstate)
 	return false;
 }
 
-static bool vop3_output_rb_swap(struct rockchip_crtc_state *vcstate)
+static bool vop2_output_rb_swap(struct rockchip_crtc_state *vcstate)
 {
 	u32 bus_format = vcstate->bus_format;
 
@@ -2650,13 +2652,16 @@ static inline bool rockchip_rfbc(struct drm_plane *plane, u64 modifier)
 
 static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64 modifier)
 {
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+
 	if (modifier == DRM_FORMAT_MOD_INVALID)
 		return false;
 
-	if (vop2->data->soc_id == 3568 || vop2->data->soc_id == 3566) {
+	if (vop2->version == VOP_VERSION_RK3568) {
 		if (vop2_cluster_window(win)) {
 			if (modifier == DRM_FORMAT_MOD_LINEAR) {
-				drm_dbg_kms(vop2->drm,
+				drm_dbg_kms(vop2,
 					    "Cluster window only supports format with afbc\n");
 				return false;
 			}
@@ -2664,9 +2669,9 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 	}
 
 	if (format == DRM_FORMAT_XRGB2101010 || format == DRM_FORMAT_XBGR2101010) {
-		if (vop2->data->soc_id == 3588) {
+		if (vop2->version == VOP_VERSION_RK3588) {
 			if (!rockchip_afbc(plane, modifier)) {
-				drm_dbg_kms(vop2->drm, "Only support 32 bpp format with afbc\n");
+				drm_dbg_kms(vop2, "Only support 32 bpp format with afbc\n");
 				return false;
 			}
 		}
@@ -8890,15 +8895,6 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	u16 vsize = vdisplay * (vcstate->top_margin + vcstate->bottom_margin) / 200;
 	u16 hact_end, vact_end;
 	u32 val;
-	u32 bg_dly;
-	u32 pre_scan_dly;
-
-	bg_dly = vp->data->pre_scan_max_dly[3];
-	vop2_writel(vp->vop2, RK3568_VP_BG_MIX_CTRL(vp->id),
-		    FIELD_PREP(RK3568_VP_BG_MIX_CTRL__BG_DLY, bg_dly));
-
-	pre_scan_dly = ((bg_dly + (hdisplay >> 1) - 1) << 16) | hsync_len;
-	vop2_vp_write(vp, RK3568_VP_PRE_SCAN_HTIMING, pre_scan_dly);
 
 	vsize = rounddown(vsize, 2);
 	hsize = rounddown(hsize, 2);
@@ -9713,13 +9709,12 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 	u32 output_if = vcstate->output_if;
 	u32 data_swap = 0;
 
-	if (vop2_output_uv_swap(vcstate) || vop3_output_rb_swap(vcstate))
+	if (vop2_output_uv_swap(vcstate) || vop2_output_rb_swap(vcstate))
 		data_swap = DSP_RB_SWAP;
 
 	if ((vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576) &&
 	    (output_if_is_hdmi(output_if) || output_if_is_dp(output_if)) &&
-	    (vcstate->bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
-	     vcstate->bus_format == MEDIA_BUS_FMT_YUV10_1X30))
+	    vop2_output_rg_swap(vcstate))
 		data_swap |= DSP_RG_SWAP;
 
 	VOP_MODULE_SET(vop2, vp, dsp_data_swap, data_swap);
@@ -11119,7 +11114,6 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	u16 src_glb_alpha_val = 0xff, dst_glb_alpha_val = 0xff;
 	bool premulti_en = false;
 	bool swap = false;
-	u32 offset = 0;
 
 	if (!sub_win) {
 		/* At one win mode, win0 is dst/bottom win, and win1 is a all zero src/top win */
@@ -14741,7 +14735,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 	return registered_num_crtcs;
 }
 
-static void vop2_destroy_crtcs(struct vop2 *vop2)
+static void vop2_destroy_crtc(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 
@@ -15382,7 +15376,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	/* Allocate vop2 struct and its vop2_win array */
-	alloc_size = struct_size(vop2, win, vop2_data->win_size);
+	alloc_size = struct_size(vop2, win, num_wins);
 	vop2 = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!vop2)
 		return -ENOMEM;
@@ -15483,11 +15477,6 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			return PTR_ERR(vop2->sharp_res.regs);
 
 		vop2->sharp_res.res = res;
-	}
-	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_GRF) {
-		vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
-		if (IS_ERR(vop2->sys_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->sys_grf), "cannot get sys_grf");
 	}
 
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
@@ -15687,11 +15676,6 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	return 0;
-
-err_crtcs:
-	vop2_destroy_crtcs(vop2);
-
-	return ret;
 }
 
 static void vop2_unbind(struct device *dev, struct device *master, void *data)
@@ -15706,8 +15690,8 @@ static void vop2_unbind(struct device *dev, struct device *master, void *data)
 	rockchip_vop2_devfreq_uninit(vop2);
 	pm_runtime_disable(dev);
 
-	if (vop2->rgb)
-		rockchip_rgb_fini(vop2->rgb);
+	list_for_each_entry_safe(plane, tmpp, plane_list, head)
+		drm_plane_cleanup(plane);
 
 	list_for_each_entry_safe(crtc, tmpc, crtc_list, head)
 		vop2_destroy_crtc(crtc);
