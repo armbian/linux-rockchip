@@ -2477,11 +2477,6 @@ fail:
 	return ret;
 }
 
-static void vop_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-}
-
 static void vop_atomic_plane_reset(struct drm_plane *plane)
 {
 	struct vop_plane_state *vop_plane_state;
@@ -2608,7 +2603,7 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 static const struct drm_plane_funcs vop_plane_funcs = {
 	.update_plane	= rockchip_atomic_helper_update_plane,
 	.disable_plane	= rockchip_atomic_helper_disable_plane,
-	.destroy = vop_plane_destroy,
+	.destroy = drm_plane_cleanup,
 	.reset = vop_atomic_plane_reset,
 	.atomic_duplicate_state = vop_atomic_plane_duplicate_state,
 	.atomic_destroy_state = vop_atomic_plane_destroy_state,
@@ -5164,7 +5159,7 @@ static void vop_destroy_crtc(struct vop *vop)
 		drm_plane_cleanup(plane);
 
 	/*
-	 * Destroy CRTC after vop_plane_destroy() since vop_disable_plane()
+	 * Destroy CRTC after drm_plane_cleanup() since vop_disable_plane()
 	 * references the CRTC.
 	 */
 	drm_crtc_cleanup(crtc);
