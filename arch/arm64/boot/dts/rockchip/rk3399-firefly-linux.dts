@@ -855,7 +855,7 @@
 };
 
 &rockchip_suspend {
-	rockchip,power-ctrl =
+	rockchip,power-ctrl-gpios =
 		<&gpio1 18 GPIO_ACTIVE_LOW>,
 		<&gpio1 14 GPIO_ACTIVE_HIGH>;
 };

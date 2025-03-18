@@ -52,7 +52,7 @@
 			| PWM2_REGULATOR_EN
 			)
 		>;
-		rockchip,power-ctrl =
+		rockchip,power-ctrl-gpios =
 			<&gpio1 17 GPIO_ACTIVE_HIGH>;
 	};
 };

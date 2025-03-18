@@ -1015,7 +1015,7 @@
 	>;
 	rockchip,wakeup-config = <RKPM_GPIO_WKUP_EN>;
 	rockchip,pwm-regulator-config = <PWM2_REGULATOR_EN>;
-	rockchip,power-ctrl =
+	rockchip,power-ctrl-gpios =
 		<&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>,
 		<&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 };
