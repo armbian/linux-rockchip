@@ -243,27 +243,34 @@ static int parse_sleep_config(struct device_node *node, enum rk_pm_state state)
 	return 0;
 }
 
-static int parse_regulator_dev_list(struct device_node *node,
+static int parse_regulator_dev_list(struct platform_device *pdev,
+				    struct device_node *node,
 				    char *prop_name,
 				    struct regulator_dev **out_list)
 {
 	struct device_node *dn;
-	struct regulator_dev *reg;
+	struct regulator *reg;
+	const char *reg_name;
 	int i, j;
 
 	if (of_find_property(node, prop_name, NULL)) {
 		for (i = 0, j = 0;
 		     (dn = of_parse_phandle(node, prop_name, i)) && j < MAX_ON_OFF_REG_NUM;
 		     i++) {
-			reg = of_find_regulator_by_node(dn);
-			if (reg == NULL) {
-				pr_warn("failed to find regulator %s for %s\n",
-					dn->name, prop_name);
+			if (of_property_read_string(dn, "regulator-name", &reg_name)) {
+				of_node_put(dn);
+				continue;
+			}
+
+			reg = devm_regulator_get(&pdev->dev, reg_name);
+			if (reg == NULL || reg->rdev == NULL) {
+				dev_warn(&pdev->dev, "failed to find regulator %s for %s\n",
+					 dn->name, prop_name);
 			} else {
-				pr_debug("%s %s regulator=%s\n", __func__,
-					 prop_name,
-					 reg->desc->name);
-				out_list[j++] = reg;
+				dev_dbg(&pdev->dev, "%s regulator=%s\n",
+				        prop_name, reg->rdev->desc->name);
+				out_list[j++] = reg->rdev;
+				devm_regulator_put(reg);
 			}
 			of_node_put(dn);
 		}
@@ -272,7 +279,9 @@ static int parse_regulator_dev_list(struct device_node *node,
 	return 0;
 }
 
-static int parse_on_off_regulator_dev(struct device_node *node, enum rk_pm_state state)
+static int parse_on_off_regulator_dev(struct platform_device *pdev,
+				      struct device_node *node,
+				      enum rk_pm_state state)
 {
 	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
 	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
@@ -285,8 +294,8 @@ static int parse_on_off_regulator_dev(struct device_node *node, enum rk_pm_state
 	snprintf(off_prop_name, sizeof(off_prop_name),
 		 "rockchip,regulator-off-in-%s", pm_state_str[state]);
 
-	parse_regulator_dev_list(node, on_prop_name, on_off_regs_dev_list[state].on_reg_list);
-	parse_regulator_dev_list(node, off_prop_name, on_off_regs_dev_list[state].off_reg_list);
+	parse_regulator_dev_list(pdev, node, on_prop_name, on_off_regs_dev_list[state].on_reg_list);
+	parse_regulator_dev_list(pdev, node, off_prop_name, on_off_regs_dev_list[state].off_reg_list);
 
 	return 0;
 }
@@ -543,8 +552,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	const struct of_device_id *match_id;
 	struct device_node *node;
 	struct rk_sleep_config *config;
-
-	enum of_gpio_flags flags;
+	struct gpio_desc *desc;
 	int i = 0;
 	int length;
 	int ret;
@@ -592,7 +600,7 @@ static int pm_config_probe(struct platform_device *pdev)
 					 config->pwm_regulator_config,
 					 0);
 
-	length = of_gpio_named_count(node, "rockchip,power-ctrl");
+	length = gpiod_count(&pdev->dev, "rockchip,power-ctrl");
 
 	if (length > 0 && length < 10) {
 		config->power_ctrl_config_cnt = length;
@@ -603,13 +611,15 @@ static int pm_config_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		for (i = 0; i < length; i++) {
-			config->power_ctrl_config[i] =
-				of_get_named_gpio_flags(node,
-							"rockchip,power-ctrl",
-							i,
-							&flags);
-			if (!gpio_is_valid(config->power_ctrl_config[i]))
+			desc = fwnode_gpiod_get_index(of_fwnode_handle(node),
+						      "rockchip,power-ctrl",
+						      i, 0, NULL);
+			if (!desc || IS_ERR(desc))
 				break;
+
+			config->power_ctrl_config[i] = desc_to_gpio(desc);
+			gpiod_put(desc);
+
 			sip_smc_set_suspend_mode(GPIO_POWER_CONFIG,
 						 i,
 						 config->power_ctrl_config[i]);
@@ -672,7 +682,7 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);
-		parse_on_off_regulator_dev(node, i);
+		parse_on_off_regulator_dev(pdev, node, i);
 	}
 
 	return 0;
