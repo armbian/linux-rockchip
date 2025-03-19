@@ -1,0 +1,41 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable NPU";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,cm3-io", "radxa,cm3-rpi-cm4-io", "radxa,e23", "radxa,e25", "radxa,cm3i-io", "radxa,zero3";
+		category = "misc";
+		exclusive = "rknpu";
+		description = "Enable NPU.";
+	};
+};
+
+&bus_npu {
+	bus-supply = <&vdd_logic>;
+	pvtm-supply = <&vdd_cpu>;
+	status = "okay";
+};
+
+&rknpu {
+	memory-region = <&rknpu_reserved>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
+&reserved_memory {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges;
+
+	rknpu_reserved: rknpu {
+		compatible = "shared-dma-pool";
+		inactive;
+		reusable;
+		size = <0x0 0x8000000>;
+		alignment = <0x0 0x1000>;
+	};
+};

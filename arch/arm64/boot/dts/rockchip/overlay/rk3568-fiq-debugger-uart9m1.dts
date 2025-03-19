@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable FIQ Debugger on UART9-M1";
+		compatible = "radxa,rock-3b", "radxa,rock-3c";
+		category = "misc";
+		exclusive = "GPIO4_C5", "GPIO4_C6";
+		description = "Enable FIQ Debugger on UART9-M1.
+On Radxa ROCK 3B this TX pin 21 & RX pin 24.
+On Radxa ROCK 3C this is TX pin 21 and RX pin 24.";
+	};
+};
+
+&fiq_debugger {
+	status = "okay";
+	rockchip,serial-id = <9>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart9m1_xfer>;
+};
+
+&uart9 {
+	status = "disabled";
+};

@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM0-M1";
+		compatible = "radxa,cm3-io", "radxa,cm3-rpi-cm4-io";
+		category = "misc";
+		exclusive = "GPIO0_C7", "pwm0";
+		description = "Enable PWM0-M1.
+On Radxa CM3 IO this is pin 11, and FAN0 need to be disabled first.
+On Radxa CM3 RPI CM4 this is on pin 11.";
+	};
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm0m1_pins>;
+};

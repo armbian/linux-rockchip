@@ -1,0 +1,18 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Disable I2C2";
+		compatible = "radxa,cm3-io";
+		category = "misc";
+		exclusive = "i2c2";
+		description = "Disable I2C2.";
+	};
+};
+
+&i2c2 {
+		status = "disabled";
+};

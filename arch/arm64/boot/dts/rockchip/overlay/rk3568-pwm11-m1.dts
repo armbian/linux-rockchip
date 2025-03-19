@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM11-M1";
+		compatible = "radxa,cm3-io", "radxa,cm3-rpi-cm4-io", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io";
+		category = "misc";
+		exclusive = "GPIO4_c0";
+		description = "Enable PWM11-M1.
+On Radxa CM3 IO this is pin 32
+On Radxa CM3 RPI CM4 IO this is pin 32.
+On Radxa CM3S IO this is pin 33.";
+	};
+};
+
+&pwm11 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm11m1_pins>;
+};

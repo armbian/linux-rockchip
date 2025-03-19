@@ -1,0 +1,18 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART7-M2";
+		compatible = "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io";
+		category = "misc";
+		exclusive = "GPIO4_A2", "GPIO4_A3";
+		description = "Enable UART7-M2.
+On Radxa CM3S IO this TX pin 36 and RX pin 11.";
+	};
+};
+
+&uart7 {
+	status = "okay";
+	pinctrl-0 = <&uart7m2_xfer>;
+};
