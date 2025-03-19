@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART8-M1";
+		compatible = "radxa,rock-3a";
+		category = "misc";
+		exclusive = "GPIO2_D7", "GPIO3_A0";
+		description = "Enable UART8-M1.
+On Radxa ROCK 3A <= v1.2 this is TX pin 29 and RX pin 31.
+On Radxa ROCK 3A >= v1.3 this is TX pin 29 and RX pin 31.";
+	};
+};
+
+&uart8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart8m1_xfer>;
+};

@@ -200,8 +200,83 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3588-uart8-m1.dtbo \
 	rk3588-w1-gpio3-b3.dtbo \
 	rk3588-w1-gpio4-b1.dtbo \
-	rk3588-hdmirx.dtbo
-
+	rk3588-hdmirx.dtbo \
+	rk3568-can0-m0.dtbo \
+	rk3568-can1-m0.dtbo \
+	rk3568-can1-m1.dtbo \
+	rk3568-disable-fiq-debugger.dtbo \
+	rk3568-dwc3-host.dtbo \
+	rk3568-dwc3-otg.dtbo \
+	rk3568-dwc3-peripheral.dtbo \
+	rk3568-fiq-debugger-uart0.dtbo \
+	rk3568-fiq-debugger-uart2m0.dtbo \
+	rk3568-fiq-debugger-uart3m0.dtbo \
+	rk3568-fiq-debugger-uart4m1.dtbo \
+	rk3568-fiq-debugger-uart5m1.dtbo \
+	rk3568-fiq-debugger-uart7m1.dtbo \
+	rk3568-fiq-debugger-uart7m2.dtbo \
+	rk3568-fiq-debugger-uart8m1.dtbo \
+	rk3568-fiq-debugger-uart9m1.dtbo \
+	rk3568-gmac1-disable.dtbo \
+	rk3568-gmac1-enable.dtbo \
+	rk3568-i2c1.dtbo \
+	rk3568-i2c2-disable.dtbo \
+	rk3568-i2c2-m0.dtbo \
+	rk3568-i2c2-m0-pca9555.dtbo \
+	rk3568-i2c2-m1.dtbo \
+	rk3568-i2c3-m0.dtbo \
+	rk3568-i2c4-m0.dtbo \
+	rk3568-npu-disable.dtbo \
+	rk3568-pwm0-disable.dtbo \
+	rk3568-pwm0-m0.dtbo \
+	rk3568-pwm0-m1.dtbo \
+	rk3568-pwm11-m1.dtbo \
+	rk3568-pwm12-m0.dtbo \
+	rk3568-pwm12-m1.dtbo \
+	rk3568-pwm13-m0.dtbo \
+	rk3568-pwm13-m1.dtbo \
+	rk3568-pwm14-m0.dtbo \
+	rk3568-pwm14-m1.dtbo \
+	rk3568-pwm15-m0.dtbo \
+	rk3568-pwm15-m1.dtbo \
+	rk3568-pwm1-m0.dtbo \
+	rk3568-pwm1-m1.dtbo \
+	rk3568-pwm2-m0.dtbo \
+	rk3568-pwm2-m1.dtbo \
+	rk3568-pwm3.dtbo \
+	rk3568-pwm4.dtbo \
+	rk3568-pwm5.dtbo \
+	rk3568-pwm6.dtbo \
+	rk3568-pwm7.dtbo \
+	rk3568-pwm8-m0.dtbo \
+	rk3568-pwm9-m0.dtbo \
+	rk3568-serdes2-pcie.dtbo \
+	rk3568-serdes2-sata.dtbo \
+	rk3568-spi0-m0-cs0-spidev.dtbo \
+	rk3568-spi0-m1-cs0-spidev.dtbo \
+	rk3568-spi1-m1-cs0-spidev.dtbo \
+	rk3568-spi3-m0-cs0-mcp2515.dtbo \
+	rk3568-spi3-m0-cs0-spidev.dtbo \
+	rk3568-spi3-m0-cs1-spidev.dtbo \
+	rk3568-spi3-m1-cs0-enc28j60.dtbo \
+	rk3568-spi3-m1-cs0-mcp2515.dtbo \
+	rk3568-spi3-m1-cs0-mcp2515-gpio4_d1.dtbo \
+	rk3568-spi3-m1-cs0-spidev.dtbo \
+	rk3568-spi3-m1-cs1-spidev.dtbo \
+	rk3568-uart0.dtbo \
+	rk3568-uart1-m1-full.dtbo \
+	rk3568-uart2-m0.dtbo \
+	rk3568-uart3-m0.dtbo \
+	rk3568-uart3-m1.dtbo \
+	rk3568-uart4-m1.dtbo \
+	rk3568-uart5-m0-full.dtbo \
+	rk3568-uart5-m1.dtbo \
+	rk3568-uart7-m1.dtbo \
+	rk3568-uart7-m2.dtbo \
+	rk3568-uart8-m1.dtbo \
+	rk3568-uart9-m1.dtbo \
+	rk3568-w1-gpio3-a5.dtbo \
+	rk3568-w1-gpio3-d1.dtbo
 
 dtbotxt-$(CONFIG_ARCH_ROCKCHIP) += \
 	README.rockchip-overlays

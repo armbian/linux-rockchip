@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable FIQ Debugger on UART0";
+		compatible = "radxa,rock-3b";
+		category = "misc";
+		description = "Enable FIQ Debugger on UART0.
+On Radxa ROCK 3B this is TX pin 22 & RX pin 15.";
+	};
+};
+
+
+&fiq_debugger {
+	status = "okay";
+	rockchip,serial-id = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer>;
+};
+
+&uart0 {
+	status = "disabled";
+};
