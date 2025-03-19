@@ -67,13 +67,13 @@ static void __dma_buf_debugfs_list_del(struct dma_buf *dmabuf)
 #endif
 
 /**
- * dma_buf_get_each - Helps in traversing the db_list and calls the
+ * dma_buf_get_each - Helps in traversing the debugfs_list and calls the
  * callback function which can extract required info out of each
  * dmabuf.
- * The db_list needs to be locked to prevent the db_list from being
+ * The debugfs_list needs to be locked to prevent the debugfs_list from being
  * dynamically updated during the traversal process.
  *
- * @callback: [in]   Handle for each dmabuf buffer in db_list.
+ * @callback: [in]   Handle for each dmabuf buffer in debugfs_list.
  * @private:  [in]   User-defined, used to pass in when callback is
  *                   called.
  *
@@ -83,19 +83,23 @@ static void __dma_buf_debugfs_list_del(struct dma_buf *dmabuf)
 int dma_buf_get_each(int (*callback)(const struct dma_buf *dmabuf,
 		     void *private), void *private)
 {
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dma_buf *buf;
-	int ret = mutex_lock_interruptible(&db_list.lock);
+	int ret = mutex_lock_interruptible(&debugfs_list_mutex);
 
 	if (ret)
 		return ret;
 
-	list_for_each_entry(buf, &db_list.head, list_node) {
+	list_for_each_entry(buf, &debugfs_list, list_node) {
 		ret = callback(buf, private);
 		if (ret)
 			break;
 	}
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 	return ret;
+#else
+	return -EINVAL;
+#endif
 }
 EXPORT_SYMBOL_NS_GPL(dma_buf_get_each, MINIDUMP);
 
@@ -105,9 +109,9 @@ static size_t db_peak_size;
 
 void dma_buf_reset_peak_size(void)
 {
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	db_peak_size = 0;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_buf_reset_peak_size);
 
@@ -115,9 +119,9 @@ size_t dma_buf_get_peak_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	sz = db_peak_size;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 
 	return sz;
 }
@@ -127,9 +131,9 @@ size_t dma_buf_get_total_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	sz = db_total_size;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 
 	return sz;
 }
