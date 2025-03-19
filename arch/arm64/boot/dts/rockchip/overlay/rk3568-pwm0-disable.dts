@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Disable FAN0";
+		compatible = "radxa,cm3-io";
+		category = "misc";
+		exclusive = "fan0";
+		description = "Disable FAN0.
+This will also disable PWM0, so the pin can be used for other functions.";
+	};
+};
+
+&fan0 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};

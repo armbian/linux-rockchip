@@ -1,0 +1,22 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART2-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,cm3-io", "radxa,cm3-rpi-cm4-io", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io", "radxa,e23", "radxa,zero3", "radxa,cm3i-io";
+		category = "misc";
+		exclusive = "GPIO0_D1", "GPIO0_D0";
+		description = "Enable UART2-M0.";
+	};
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer>;
+};
+
+&fiq_debugger {
+	status = "disabled";
+};

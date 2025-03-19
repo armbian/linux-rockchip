@@ -1,0 +1,47 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	metadata {
+		title = "Enable ENC28J60 on SPI3-M1 CS0";
+		compatible = "radxa,rock-3c", "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO4_C2", "GPIO4_C3", "GPIO4_C5", "GPIO4_C6", "GPIO3_C1";
+		description = "Enable Microchip ENC28J60 SPI Ethernet controller on SPI3-M1 CS0.
+INT=22";
+	};
+};
+
+&spi3 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi3m1_cs0 &spi3m1_pins>;
+	pinctrl-1 = <&spi3m1_cs0 &spi3m1_pins_hs>;
+	max-freq = <50000000>;
+
+	ethernet: enc28j60@0 {
+		compatible = "microchip,enc28j60";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&enc28j60_int_pins>;
+
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PC1 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&pinctrl {
+	enc28j60 {
+		enc28j60_int_pins: enc28j60-int-pins {
+			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

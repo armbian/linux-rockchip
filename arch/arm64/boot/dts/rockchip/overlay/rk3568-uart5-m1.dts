@@ -1,0 +1,26 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART5-M1";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io", "radxa,e25", "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO3_C2", "GPIO3_C3";
+		description = "Enable UART5-M1.
+On Radxa ROCK 3A <= v1.2 this is TX pin 32 and RX pin 33.
+On Radxa ROCK 3A >= v1.3 this is TX pin 32 and RX pin 33.
+On Radxa ROCK 3B this is TX pin 32 and RX pin 33.
+On Radxa ROCK 3C this is TX pin 32 and RX pin 33.
+On Radxa CM3S IO this is TX pin 35 and RX pin 40.
+On Radxa E25 hardware V1.3 this is TX pin 2 and RX pin 3.
+On Radxa E25 hardware V1.4 this is TX pin 8 and RX pin 10.
+On Radxa ZERO 3 this is TX pin 32 and RX pin 33.";
+	};
+};
+
+&uart5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5m1_xfer>;
+};
