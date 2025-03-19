@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM13-M1";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,zero3", "radxa,e25";
+		category = "misc";
+		exclusive = "GPIO4_C6";
+		description = "Enable PWM13-M1.
+On Radxa ROCK 3A <= v1.2 this is pin 24.
+On Radxa ROCK 3A >= v1.3 this is pin 24.
+On Radxa ROCK 3B this is pin 24.
+On Radxa ROCK 3C this is pin 24.
+On Radxa ZERO 3 this is pin 24.
+On Radxa E25 this is pin 24.";
+	};
+};
+
+&pwm13 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm13m1_pins>;
+};

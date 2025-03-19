@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable onboard Ethernet";
+		compatible = "unknown";
+		category = "misc";
+		exclusive = "gmac1";
+		description = "Enable onboard Ethernet.
+Has no affect on external Ethernet (for example USB adapter).";
+	};
+};
+
+&gmac1 {
+	status = "okay";
+};
+
+&mdio1 {
+	status = "okay";
+};
+
+&rgmii_phy1 {
+	status = "okay";
+};

@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable I2C4-M0";
+		compatible = "radxa,rock-3c", "radxa,cm3-io", "radxa,cm3-rpi-cm4-io", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io", "radxa,e23", "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO4_B2", "GPIO4_B3";
+		description = "Enable I2C4-M0.
+On Radxa ROCK 3C this is SDA pin 27 and SCL pin 28.
+On Radxa CM3 IO this is SDA pin 19 and SCL pin 23.
+On Radxa CM3 RPI CM4 IO this SDA pin 19 and SCL pin 23.
+On Radxa CM3S IO this is SDA pin 19 and SCL pin 23.
+On Radxa E23 this is SDA pin 19 and SCL pin 23..
+On Radxa ZERO 3 this is SDA pin 27 and SCL pin 28";
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m0_xfer>;
+};

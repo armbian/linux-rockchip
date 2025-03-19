@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable 1-Wire on GPIO3_D1";
+		compatible = "radxa,cm3-io", "radxa,cm3-rpi-cm4-io";
+		category = "misc";
+		exclusive = "GPIO3_D1";
+		description = "Enable 1-Wire on GPIO3_D1.
+On Radxa CM3 IO this is pin 40.
+On Radxa CM3 RPI CM4 IO this is pin 40.";
+	};
+};
+
+&{/} {
+	w1: onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};

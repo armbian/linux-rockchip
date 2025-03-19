@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable I2C1";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,e23", "radxa,e25", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io";
+		category = "misc";
+		exclusive = "GPIO0_B4", "GPIO0_B3";
+		description = "Enable I2C1.
+On Radxa ROCK 3A this is SDA pin 27 and SCL pin 28.
+On Radxa ROCK 3B this is SDA pin 27 and SCL pin 28.
+On Radxa E23 this is SDA pin 36 and SCL pin 40.
+On Radxa E25 this is SDA pin 1 and SCL pin 10.
+On Radxa CM3S IO this is SDA pin3 and SCL pin 5";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_xfer>;
+};
