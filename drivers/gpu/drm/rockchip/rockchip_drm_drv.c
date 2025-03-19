@@ -291,10 +291,6 @@ EXPORT_SYMBOL(drm_mode_convert_to_origin_mode);
 
 uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info)
 {
-	/* use whatever a driver has set */
-	if (info->cpp[0])
-		return info->cpp[0] * 8;
-
 	switch (info->format) {
 	case DRM_FORMAT_YUV420_8BIT:
 		return 12;
@@ -303,11 +299,8 @@ uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info)
 	case DRM_FORMAT_VUY101010:
 		return 30;
 	default:
-		break;
+		return drm_format_info_bpp(info, 0);
 	}
-
-	/* all attempts failed */
-	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_get_bpp);
 
