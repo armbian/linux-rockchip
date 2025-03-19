@@ -76,6 +76,6 @@ struct dma_heap *dma_heap_find(const char *name);
  * This is for internal dma-buf allocations only.
  */
 struct dma_buf *dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
-				      unsigned int fd_flags,
-				      unsigned int heap_flags);
+				      u32 fd_flags,
+				      u64 heap_flags);
 #endif /* _DMA_HEAPS_H */
