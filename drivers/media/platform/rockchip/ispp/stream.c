@@ -1015,9 +1015,11 @@ static void destroy_buf_queue(struct rkispp_stream *stream,
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
-	for (i = 0; i < queue->num_buffers; ++i) {
-		if (queue->bufs[i]->state == VB2_BUF_STATE_ACTIVE)
-			vb2_buffer_done(queue->bufs[i], VB2_BUF_STATE_ERROR);
+	for (i = 0; i < queue->max_num_buffers; ++i) {
+		struct vb2_buffer *vb = vb2_get_buffer(queue, i);
+
+		if (vb && vb->state == VB2_BUF_STATE_ACTIVE)
+			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 	}
 }
 
