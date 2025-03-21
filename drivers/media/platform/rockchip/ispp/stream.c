@@ -1181,10 +1181,10 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = stream->isppdev->hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		q->min_buffers_needed = STREAM_IN_REQ_BUFS_MIN;
+		q->min_queued_buffers = STREAM_IN_REQ_BUFS_MIN;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	} else {
-		q->min_buffers_needed = STREAM_OUT_REQ_BUFS_MIN;
+		q->min_queued_buffers = STREAM_OUT_REQ_BUFS_MIN;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	}
 	q->lock = &stream->isppdev->apilock;
