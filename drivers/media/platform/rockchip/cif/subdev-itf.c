@@ -208,6 +208,27 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 			priv->cap_info.offset_x = 0;
 			priv->cap_info .offset_y = 0;
 		}
+		if (cif_dev->chip_id < CHIP_RV1126B_CIF) {
+			switch (fmt->format.code) {
+			case MEDIA_BUS_FMT_Y14_1X14:
+				fmt->format.code = MEDIA_BUS_FMT_Y12_1X12;
+				break;
+			case MEDIA_BUS_FMT_SBGGR14_1X14:
+				fmt->format.code = MEDIA_BUS_FMT_SBGGR12_1X12;
+				break;
+			case MEDIA_BUS_FMT_SGBRG14_1X14:
+				fmt->format.code = MEDIA_BUS_FMT_SGBRG12_1X12;
+				break;
+			case MEDIA_BUS_FMT_SGRBG14_1X14:
+				fmt->format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
+				break;
+			case MEDIA_BUS_FMT_SRGGB14_1X14:
+				fmt->format.code = MEDIA_BUS_FMT_SRGGB12_1X12;
+				break;
+			default:
+				break;
+			}
+		}
 		priv->cap_info.width = fmt->format.width;
 		priv->cap_info.height = fmt->format.height;
 		pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt->format.code);

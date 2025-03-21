@@ -874,6 +874,7 @@ enum cif_reg_index {
 #define RAW_DATA_WIDTH_8		(0x00 << 11)
 #define RAW_DATA_WIDTH_10		(0x01 << 11)
 #define RAW_DATA_WIDTH_12		(0x02 << 11)
+#define RAW_DATA_WIDTH_14		(0x03 << 11)
 #define MIPI_MODE_32BITS_BYPASS		(0x00 << 13)
 #define MIPI_MODE_RGB			(0x01 << 13)
 #define MIPI_MODE_YUV			(0x02 << 13)
