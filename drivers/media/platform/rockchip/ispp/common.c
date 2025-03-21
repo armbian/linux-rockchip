@@ -6,6 +6,7 @@
 #include <linux/iosys-map.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include "dev.h"
 #include "regs.h"
 
