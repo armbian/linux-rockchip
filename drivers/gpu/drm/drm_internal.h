@@ -175,8 +175,8 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 
 int drm_gem_pin(struct drm_gem_object *obj);
 void drm_gem_unpin(struct drm_gem_object *obj);
-int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map);
-void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
+int drm_gem_vmap_locked(struct drm_gem_object *obj, struct iosys_map *map);
+void drm_gem_vunmap_locked(struct drm_gem_object *obj, struct iosys_map *map);
 
 int drm_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
 			 u32 handle);
