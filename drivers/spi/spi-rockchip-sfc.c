@@ -148,7 +148,7 @@
 #define SFC_DMA_TRIGGER			0x80
 #define SFC_DMA_TRIGGER_START		1
 
-/* Src or Dst addr for master */
+/* Src or Dst addr for host */
 #define SFC_DMA_ADDR			0x84
 
 /* Length control register extension 32GB */
@@ -229,7 +229,7 @@ struct rockchip_sfc {
 	u16 version;
 	struct gpio_desc *rst_gpio;
 	struct gpio_desc **cs_gpiods;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct regmap *grf;
 	struct rockchip_sfc_data *data;
 };
@@ -961,7 +961,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc = spi_controller_get_devdata(host);
 	sfc->dev = dev;
-	sfc->master = master;
+	sfc->host = host;
 
 	sfc->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sfc->regbase))
@@ -1000,7 +1000,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (sfc->max_dll_cells > SFC_DLL_CTRL0_DLL_MAX_VER5)
 		sfc->max_dll_cells = SFC_DLL_CTRL0_DLL_MAX_VER5;
 
-	ret = rockchip_sfc_get_gpio_descs(master, sfc);
+	ret = rockchip_sfc_get_gpio_descs(host, sfc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get gpio_descs\n");
 		return ret;
@@ -1063,7 +1063,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 
 	if (sfc->version >= SFC_VER_8)
-		master->mode_bits |= SPI_TX_OCTAL | SPI_RX_OCTAL;
+		host->mode_bits |= SPI_TX_OCTAL | SPI_RX_OCTAL;
 
 	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
@@ -1119,10 +1119,10 @@ err_hclk:
 static void rockchip_sfc_remove(struct platform_device *pdev)
 {
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
-	struct spi_master *master = sfc->master;
+	struct spi_controller *host = sfc->host;
 
 	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
-	spi_unregister_master(master);
+	spi_unregister_controller(host);
 
 	clk_disable_unprepare(sfc->clk);
 	clk_disable_unprepare(sfc->hclk);
