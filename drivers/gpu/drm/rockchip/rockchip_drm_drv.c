@@ -474,44 +474,6 @@ void rockchip_drm_te_handle(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(rockchip_drm_te_handle);
 
-struct drm_crtc *
-drm_atomic_get_old_crtc_for_encoder(struct drm_atomic_state *state,
-				    struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	connector = drm_atomic_get_old_connector_for_encoder(state, encoder);
-	if (!connector)
-		return NULL;
-
-	conn_state = drm_atomic_get_old_connector_state(state, connector);
-	if (!conn_state)
-		return NULL;
-
-	return conn_state->crtc;
-}
-EXPORT_SYMBOL(drm_atomic_get_old_crtc_for_encoder);
-
-struct drm_crtc *
-drm_atomic_get_new_crtc_for_encoder(struct drm_atomic_state *state,
-				    struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
-	if (!connector)
-		return NULL;
-
-	conn_state = drm_atomic_get_new_connector_state(state, connector);
-	if (!conn_state)
-		return NULL;
-
-	return conn_state->crtc;
-}
-EXPORT_SYMBOL(drm_atomic_get_new_crtc_for_encoder);
-
 static const struct drm_display_mode rockchip_drm_default_modes[] = {
 	/* 4 - 1280x720@60Hz 16:9 */
 	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1390,
