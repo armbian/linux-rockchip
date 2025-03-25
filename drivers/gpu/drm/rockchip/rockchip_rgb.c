@@ -1049,11 +1049,9 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	return component_add(dev, &rockchip_rgb_component_ops);
 }
 
-static int rockchip_rgb_remove(struct platform_device *pdev)
+static void rockchip_rgb_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_rgb_component_ops);
-
-	return 0;
 }
 
 static void px30_rgb_enable(struct rockchip_rgb *rgb)
