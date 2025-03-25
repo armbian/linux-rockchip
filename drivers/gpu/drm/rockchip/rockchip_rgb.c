@@ -5,6 +5,7 @@
  *      Sandy Huang <hjc@rock-chips.com>
  */
 
+#include <linux/backlight.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
@@ -12,6 +13,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 
 #include <video/of_display_timing.h>
