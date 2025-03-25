@@ -1229,6 +1229,11 @@ static void analogix_dp_process_phy_request(struct analogix_dp_device *dp)
 	}
 
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	ret = analogix_dp_wait_pll_locked(dp);
+	if (ret) {
+		dev_err(dp->dev, "Wait for pll lock failed %d\n", ret);
+		return;
+	}
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
