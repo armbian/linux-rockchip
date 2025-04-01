@@ -9028,6 +9028,7 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(new_crtc_state);
 
 	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
+
 	/*
 	 * For RK3568 and RK3588, the hactive of video timing must
 	 * be 4-pixel aligned.
@@ -12590,9 +12591,9 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 		vrefresh = drm_mode_vrefresh(adjust_mode);
 
 		/* calculate new vfp for new refresh rate */
-		new_vtotal = adjust_mode->vtotal * vrefresh / vcstate->request_refresh_rate;
-		vfp = adjust_mode->vsync_start - adjust_mode->vdisplay;
-		new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
+		new_vtotal = adjust_mode->crtc_vtotal * vrefresh / vcstate->request_refresh_rate;
+		vfp = adjust_mode->crtc_vsync_start - adjust_mode->crtc_vdisplay;
+		new_vfp = vfp + new_vtotal - adjust_mode->crtc_vtotal;
 	}
 	vop2_crtc_update_vrr_timing(crtc, new_vtotal, new_vfp);
 }

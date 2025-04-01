@@ -270,6 +270,7 @@ struct rockchip_hdmi_vrr_state {
 	bool refresh_rate_ready_to_change;
 	bool m_const;
 	u8 next_tfr_val;
+	u8 fva_factor_m1_val;
 	unsigned int vrr_frame_cnt;
 	const struct mvrr_const_val *mconst_val;
 };
