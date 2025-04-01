@@ -2901,7 +2901,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		if (hdmi->cec_notifier)
 			cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		if (hdmi->plat_data->get_edid_hdmi21_info)
-			hdmi->plat_data->get_edid_hdmi21_info(data, edid);
+			hdmi->plat_data->get_edid_hdmi21_info(data, edid, connector);
 		memcpy(hdmi->vendor_info, &raw_edid[8], VENDOR_INFO_LEN);
 		ret = drm_edid_connector_update(connector, drm_edid);
 		if (hdmi->plat_data->get_dovi_data)
@@ -2935,7 +2935,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 				cec_notifier_set_phys_addr_from_edid(secondary->cec_notifier,
 								     edid);
 			if (secondary->plat_data->get_edid_hdmi21_info)
-				secondary->plat_data->get_edid_hdmi21_info(secondary_data, edid);
+				secondary->plat_data->get_edid_hdmi21_info(secondary_data, edid,
+									   connector);
 		}
 		kfree(edid);
 		kfree(drm_edid);

@@ -245,6 +245,20 @@ enum hdmi_vrr_state {
 	VRR_WAIT_REFRESH_CHANGE,
 };
 
+enum {
+	GAMING_VRR_SUPPORTED = 0,
+	QMS_VRR_SUPPORTED,
+	FVA_SUPPORTED,
+};
+
+struct hdmi_vrr_capacity {
+	u32 vrr_mode;
+	u16 qms_vrr_rate_max;
+	u16 qms_vrr_rate_min;
+	u16 gaming_vrr_rate_min;
+	u16 gaming_vrr_rate_max;
+};
+
 enum hdmi_frl_rate_per_lane {
 	FRL_12G_PER_LANE = 12,
 	FRL_10G_PER_LANE = 10,
@@ -333,12 +347,14 @@ struct rockchip_hdmi {
 	struct drm_property *gaming_vrr_enable;
 	struct drm_property *next_tfr;
 	struct drm_property *fva_factor_m1;
+	struct drm_property *hdmi_vrr_cap;
 
 	struct drm_property_blob *mode_color_caps_ptr;
 	struct drm_property_blob *hdr_panel_blob_ptr;
 	struct drm_property_blob *hdr_panel_dovi_vsdb_ptr;
 	struct drm_property_blob *vsif_data_ptr;
 	struct drm_property_blob *hdr10_plus_vsdb_ptr;
+	struct drm_property_blob *hdmi_vrr_cap_ptr;
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
@@ -351,6 +367,7 @@ struct rockchip_hdmi {
 	enum hdmi_vrr_state vrr_state;
 	enum hdmi_vrr_state old_vrr_state;
 	enum TARGET_FRAME_RATE brr_tfr;
+	struct hdmi_vrr_capacity vrr_cap;
 	enum rk_if_color_format hdmi_output;
 	struct rockchip_drm_sub_dev sub_dev;
 
@@ -3018,8 +3035,13 @@ secondary:
 
 	s->bus_format = bus_format;
 	if (hdmi->is_hdmi_qp) {
-		s->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
-		s->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
+		if (hdmi->vrr_cap.vrr_mode) {
+			s->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
+			s->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
+		} else {
+			s->max_refresh_rate = 0;
+			s->min_refresh_rate = 0;
+		}
 
 		s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
 
@@ -3215,17 +3237,111 @@ dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
 	return rockchip_drm_get_yuv422_format(connector, edid);
 }
 
+static void dw_hdmi_rockchip_get_vrr_range(struct rockchip_hdmi *hdmi)
+{
+	u8 vrr_min, vrr_max;
+	bool qms, qms_tfr_min, qms_tfr_max;
+
+	if (hdmi->hdmi21_data.vrr_cap.qms)
+		hdmi->vrr_cap.vrr_mode = BIT(QMS_VRR_SUPPORTED);
+	if (hdmi->hdmi21_data.vrr_cap.vrr_min || hdmi->hdmi21_data.vrr_cap.vrr_max)
+		hdmi->vrr_cap.vrr_mode |= BIT(GAMING_VRR_SUPPORTED);
+	if (hdmi->hdmi21_data.vrr_cap.fva)
+		hdmi->vrr_cap.vrr_mode |= BIT(FVA_SUPPORTED);
+
+	vrr_min = hdmi->hdmi21_data.vrr_cap.vrr_min;
+	vrr_max = hdmi->hdmi21_data.vrr_cap.vrr_max;
+	qms = hdmi->hdmi21_data.vrr_cap.qms;
+	qms_tfr_min = hdmi->hdmi21_data.vrr_cap.qms_tfr_min;
+	qms_tfr_max = hdmi->hdmi21_data.vrr_cap.qms_tfr_max;
+
+	if (qms) {
+		if (!vrr_min && !vrr_max) {
+			if (!qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = 48;
+			} else if (!qms_tfr_min && qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 120;
+				hdmi->vrr_cap.qms_vrr_rate_min = 48;
+			} else if (qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = 24;
+			} else {
+				hdmi->vrr_cap.qms_vrr_rate_max = 120;
+				hdmi->vrr_cap.qms_vrr_rate_min = 60;
+			}
+		} else if (vrr_min && !vrr_max) {
+			if (!qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = vrr_min;
+			} else if (!qms_tfr_min && qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 120;
+				hdmi->vrr_cap.qms_vrr_rate_min = vrr_min;
+			} else if (qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = vrr_min;
+			} else {
+				hdmi->vrr_cap.qms_vrr_rate_max = 120;
+				hdmi->vrr_cap.qms_vrr_rate_min = 60;
+			}
+		} else {
+			if (!qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = vrr_min;
+			} else if (!qms_tfr_min && qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = vrr_max;
+				hdmi->vrr_cap.qms_vrr_rate_min = vrr_min;
+			} else if (qms_tfr_min && !qms_tfr_max) {
+				hdmi->vrr_cap.qms_vrr_rate_max = 60;
+				hdmi->vrr_cap.qms_vrr_rate_min = 24;
+			} else {
+				hdmi->vrr_cap.qms_vrr_rate_max = vrr_max;
+				hdmi->vrr_cap.qms_vrr_rate_min = 24;
+			}
+		}
+	} else {
+		hdmi->vrr_cap.qms_vrr_rate_max = 0;
+		hdmi->vrr_cap.qms_vrr_rate_min = 0;
+	}
+
+	if (!vrr_max && vrr_min) {
+		hdmi->vrr_cap.gaming_vrr_rate_max = 120;
+		hdmi->vrr_cap.gaming_vrr_rate_min = vrr_min;
+	} else if (vrr_max && vrr_min) {
+		hdmi->vrr_cap.gaming_vrr_rate_max = vrr_max;
+		hdmi->vrr_cap.gaming_vrr_rate_min = vrr_min;
+	} else {
+		hdmi->vrr_cap.gaming_vrr_rate_max = 0;
+		hdmi->vrr_cap.gaming_vrr_rate_min = 0;
+	}
+}
+
 static int
-dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid)
+dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
+				      struct drm_connector *connector)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	struct drm_property *property = hdmi->hdmi_vrr_cap;
+	struct drm_property_blob *blob = hdmi->hdmi_vrr_cap_ptr;
+	size_t size = sizeof(struct hdmi_vrr_capacity);
+	int ret;
 
 	if (!edid)
 		return -EINVAL;
 
 	memset(&hdmi->hdmi21_data, 0, sizeof(hdmi->hdmi21_data));
+	memset(&hdmi->vrr_cap, 0, size);
 
-	return rockchip_drm_parse_cea_ext(&hdmi->hdmi21_data, edid);
+	ret = rockchip_drm_parse_cea_ext(&hdmi->hdmi21_data, edid);
+	if (ret)
+		return ret;
+
+	dw_hdmi_rockchip_get_vrr_range(hdmi);
+
+	ret = drm_property_replace_global_blob(connector->dev, &blob, size, &hdmi->vrr_cap,
+					       &connector->base, property);
+
+	return ret;
 }
 
 static int
@@ -3849,6 +3965,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 			hdmi->fva_factor_m1 = prop;
 			drm_object_attach_property(&connector->base, prop, 0);
 		}
+
+		prop = drm_property_create(connector->dev,
+					   DRM_MODE_PROP_BLOB |
+					   DRM_MODE_PROP_IMMUTABLE,
+					   "hdmi_vrr_cap", 0);
+		if (prop) {
+			hdmi->hdmi_vrr_cap = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
 	}
 
 	prop = drm_property_create_enum(connector->dev, 0,
@@ -4023,6 +4148,11 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev, hdmi->fva_factor_m1);
 		hdmi->fva_factor_m1 = NULL;
 	}
+
+	if (hdmi->hdmi_vrr_cap) {
+		drm_property_destroy(connector->dev, hdmi->hdmi_vrr_cap);
+		hdmi->hdmi_vrr_cap = NULL;
+	}
 }
 
 static int
@@ -4110,6 +4240,8 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 	} else if (property == hdmi->fva_factor_m1) {
 		hdmi->fva_factor_m1_val = (u8)val;
 		dw_hdmi_qp_set_fva_factor_m1(hdmi->hdmi_qp, hdmi->fva_factor_m1_val);
+		return 0;
+	} else if (property == hdmi->hdmi_vrr_cap) {
 		return 0;
 	}
 
@@ -4214,6 +4346,10 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == hdmi->fva_factor_m1) {
 		*val = hdmi->fva_factor_m1_val;
+		return 0;
+	} else if (property == hdmi->hdmi_vrr_cap) {
+		*val = hdmi->hdmi_vrr_cap_ptr ?
+			hdmi->hdmi_vrr_cap_ptr->base.id : 0;
 		return 0;
 	}
 

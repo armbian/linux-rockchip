@@ -268,7 +268,8 @@ struct dw_hdmi_plat_data {
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
 				 const struct edid *edid);
-	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid);
+	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid,
+				    struct drm_connector *connector);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
 	int (*get_dovi_data)(void *data, const struct edid *edid,
