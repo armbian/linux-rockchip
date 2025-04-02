@@ -105,6 +105,35 @@ static const struct mtd_ooblayout_ops em73e044vce_ooblayout = {
 	.free = em73e044vce_ooblayout_free,
 };
 
+static int em73e044vce_oh_ooblayout_ecc(struct mtd_info *mtd, int section,
+					struct mtd_oob_region *region)
+{
+	if (section > 3)
+		return -ERANGE;
+
+	region->offset = (32 * section) + 18;
+	region->length = 14;
+
+	return 0;
+}
+
+static int em73e044vce_oh_ooblayout_free(struct mtd_info *mtd, int section,
+					 struct mtd_oob_region *region)
+{
+	if (section > 3)
+		return -ERANGE;
+
+	region->offset = (32 * section) + 2;
+	region->length = 16;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops em73e044vce_oh_ooblayout = {
+	.ecc = em73e044vce_oh_ooblayout_ecc,
+	.free = em73e044vce_oh_ooblayout_free,
+};
+
 static const struct spinand_info etron_spinand_table[] = {
 	SPINAND_INFO("EM73C044VCF-0H",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x36),
@@ -125,6 +154,15 @@ static const struct spinand_info etron_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&em73e044vce_ooblayout, em73c044vcf_oh_ecc_get_status)),
+	SPINAND_INFO("EM73E044VCE-OH",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x40),
+		     NAND_MEMORG(1, 2048, 128, 64, 4096, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&em73e044vce_oh_ooblayout, em73c044vcf_oh_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops etron_spinand_manuf_ops = {
