@@ -558,5 +558,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-som3588-cat.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5t.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-smart-am60.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-h96max-v56.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-nanopi-r3-rev01.dtb
 
 subdir-y := $(dts-dirs) overlay
