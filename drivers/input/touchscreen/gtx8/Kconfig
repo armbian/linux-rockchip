@@ -2,9 +2,9 @@
 # Goodix touchscreen driver configuration
 #
 menuconfig TOUCHSCREEN_GOODIX_GTX8
-	bool "Goodix GTx8 touchscreen"
+	tristate "Goodix GTx8 touchscreen"
 	depends on I2C
-	default y
+	default m
 	help
 	  Say Y here if you have a Goodix GTx8 touch controller
 	  to your system.
@@ -15,7 +15,7 @@ if TOUCHSCREEN_GOODIX_GTX8
 
 config TOUCHSCREEN_GOODIX_GTX8_UPDATE
 	tristate "Goodix GTx8 firmware update module"
-	default y
+	default n
 	help
 	  Say Y here to enable support for doing firmware update.
 
