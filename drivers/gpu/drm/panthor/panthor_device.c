@@ -234,7 +234,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 
 	ret = pm_runtime_resume_and_get(ptdev->base.dev);
 	if (ret)
-		return ret;
+		goto err_unplug_gpu;
 
 	/* If PM is disabled, we need to call panthor_device_resume() manually. */
 	if (!IS_ENABLED(CONFIG_PM)) {
