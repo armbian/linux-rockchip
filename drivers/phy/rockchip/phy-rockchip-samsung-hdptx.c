@@ -1511,7 +1511,7 @@ static int rk_hdptx_phy_verify_hdmi_config(struct rk_hdptx_phy *hdptx,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
