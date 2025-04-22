@@ -96,6 +96,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define DEFAULT_MONITOR_SEC		5
 #define DEFAULT_SAMPLE_RES		20
 
+#define CONTACT_RES_MAX			50
+
 /* sleep */
 #define SLP_CURR_MAX			40
 #define SLP_CURR_MIN			6
@@ -220,11 +222,7 @@ enum rk817_battery_fields {
 	RELAX_VOL2_H, RELAX_VOL2_L,
 	RELAX_CUR1_H, RELAX_CUR1_L,
 	RELAX_CUR2_H, RELAX_CUR2_L,
-	OCV_THRE_VOL,
-	OCV_VOL_H, OCV_VOL_L,
-	OCV_VOL0_H, OCV_VOL0_L,
-	OCV_CUR_H, OCV_CUR_L,
-	OCV_CUR0_H, OCV_CUR0_L,
+	CHRG_BAT_TAB2, CHRG_INCC_ZERO, CHRG_BATHIAUTO_EN,
 	PWRON_VOL_H, PWRON_VOL_L,
 	PWRON_CUR_H, PWRON_CUR_L,
 	OFF_CNT,
@@ -244,16 +242,16 @@ enum rk817_battery_fields {
 	VCALIB0_H, VCALIB0_L,
 	VCALIB1_H, VCALIB1_L,
 	IOFFSET_H, IOFFSET_L,
-	BAT_R0, SOC_REG0, SOC_REG1, SOC_REG2,
+	POWER_SAVE0, SOC_REG0, SOC_REG1, SOC_REG2,
 	REMAIN_CAP_REG2, REMAIN_CAP_REG1, REMAIN_CAP_REG0,
 	NEW_FCC_REG2, NEW_FCC_REG1, NEW_FCC_REG0,
-	RESET_MODE,
+	RESET_MODE, POWER_SAVE1, CONTACT_RES,
 	FG_INIT, HALT_CNT_REG, CALC_REST_REGL, UPDATE_LEVE_REG,
 	VOL_ADC_B3, VOL_ADC_B2, VOL_ADC_B1, VOL_ADC_B0,
 	VOL_ADC_K3, VOL_ADC_K2, VOL_ADC_K1, VOL_ADC_K0,
 	BAT_EXS, CHG_STS, BAT_OVP_STS, CHRG_IN_CLAMP,
 	CHIP_NAME_H, CHIP_NAME_L, CHRG_CUR_SEL, CHRG_VOL_SEL,
-	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN,
+	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN, TS_GPIO_FUN,
 	F_MAX_FIELDS
 };
 
@@ -324,16 +322,10 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[RELAX_CUR2_H] = REG_FIELD(0x60, 0, 7),
 	[RELAX_CUR2_L] = REG_FIELD(0x61, 0, 7),
 
-	[OCV_THRE_VOL] = REG_FIELD(0x62, 0, 7),
+	[CHRG_BAT_TAB2] = REG_FIELD(0x62, 7, 7),
+	[CHRG_INCC_ZERO] = REG_FIELD(0x62, 6, 6),
+	[CHRG_BATHIAUTO_EN] = REG_FIELD(0x62, 5, 5),
 
-	[OCV_VOL_H] = REG_FIELD(0x63, 0, 7),
-	[OCV_VOL_L] = REG_FIELD(0x64, 0, 7),
-	[OCV_VOL0_H] = REG_FIELD(0x65, 0, 7),
-	[OCV_VOL0_L] = REG_FIELD(0x66, 0, 7),
-	[OCV_CUR_H] = REG_FIELD(0x67, 0, 7),
-	[OCV_CUR_L] = REG_FIELD(0x68, 0, 7),
-	[OCV_CUR0_H] = REG_FIELD(0x69, 0, 7),
-	[OCV_CUR0_L] = REG_FIELD(0x6A, 0, 7),
 	[PWRON_VOL_H] = REG_FIELD(0x6B, 0, 7),
 	[PWRON_VOL_L] = REG_FIELD(0x6C, 0, 7),
 	[PWRON_CUR_H] = REG_FIELD(0x6D, 0, 7),
@@ -388,7 +380,7 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[IOFFSET_H] = REG_FIELD(0x97, 0, 7),
 	[IOFFSET_L] = REG_FIELD(0x98, 0, 7),
 
-	[BAT_R0] = REG_FIELD(0x99, 0, 7),
+	[POWER_SAVE0] = REG_FIELD(0x99, 0, 7),
 	[SOC_REG0] = REG_FIELD(0x9A, 0, 7),
 	[SOC_REG1] = REG_FIELD(0x9B, 0, 7),
 	[SOC_REG2] = REG_FIELD(0x9C, 0, 7),
@@ -400,6 +392,8 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[NEW_FCC_REG1] = REG_FIELD(0xA1, 0, 7),
 	[NEW_FCC_REG2] = REG_FIELD(0xA2, 0, 7),
 	[RESET_MODE] = REG_FIELD(0xA3, 0, 3),
+	[POWER_SAVE1] = REG_FIELD(0xA4, 0, 7),
+	[CONTACT_RES] = REG_FIELD(0xA5, 0, 6),
 	[FG_INIT] = REG_FIELD(0xA5, 7, 7),
 
 	[HALT_CNT_REG] = REG_FIELD(0xA6, 0, 7),
@@ -426,6 +420,7 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[CHIP_NAME_H] = REG_FIELD(0xED, 0, 7),
 	[CHIP_NAME_L] = REG_FIELD(0xEE, 0, 7),
 	[PLUG_IN_STS] = REG_FIELD(0xF0, 6, 6),
+	[TS_GPIO_FUN] = REG_FIELD(0xFE, 2, 2),
 };
 
 struct temp_chrg_table {
@@ -435,6 +430,16 @@ struct temp_chrg_table {
 	int chrg_voltage;
 	int chrg_current_index;
 	int chrg_voltage_index;
+};
+
+struct contact_res_info {
+	int ts40uA_adc2vol;
+	int ts40uA_current_avg;
+	int ts40uA_update;
+
+	int ts10uA_adc2vol;
+	int ts10uA_current_avg;
+	int ts10uA_update;
 };
 
 struct battery_platform_data {
@@ -462,6 +467,8 @@ struct battery_platform_data {
 	u32 design_max_voltage;
 	int fake_full_soc;
 	int charge_stay_awake;
+	int contact_res;
+	int get_contact_res_by_soft;
 };
 
 struct rk817_battery_device {
@@ -477,6 +484,7 @@ struct rk817_battery_device {
 	struct delayed_work		bat_delay_work;
 	struct delayed_work		calib_delay_work;
 	struct timer_list		caltimer;
+	struct contact_res_info		ts_info;
 
 	int				sample_res;
 	int				bat_res;
@@ -489,7 +497,6 @@ struct rk817_battery_device {
 	int				voltage_usb;
 	int				voltage_sys;
 	int				voltage_avg;
-	int				voltage_ocv;
 	int				voltage_relax;
 	int				voltage_k;/* VCALIB0 VCALIB1 */
 	int				voltage_b;
@@ -531,7 +538,6 @@ struct rk817_battery_device {
 	u32				pwroff_min;
 	u8				halt_cnt;
 	bool				is_halt;
-	bool				is_max_soc_offset;
 	bool				is_sw_reset;
 	bool				is_ocv_calib;
 	bool				is_first_on;
@@ -832,39 +838,6 @@ static void rk817_bat_set_relax_sample(struct rk817_battery_device *battery)
 	    __func__, pdata->sleep_enter_current, pdata->sleep_exit_current);
 }
 
-static int rk817_bat_get_ocv_voltage(struct rk817_battery_device *battery)
-{
-	int vol, val = 0, vol_temp;
-
-	val = rk817_bat_field_read(battery, OCV_VOL_H) << 8;
-	val |= rk817_bat_field_read(battery, OCV_VOL_L);
-	vol = battery->voltage_k * val / 1000 + battery->voltage_b;
-
-	if (battery->chip_id == RK809_ID) {
-		vol_temp = vol * battery->pdata->bat_res_up /
-			   battery->pdata->bat_res_down + vol;
-		vol = vol_temp;
-	}
-
-	return vol;
-}
-
-static int rk817_bat_get_ocv0_voltage0(struct rk817_battery_device *battery)
-{
-	int vol, val = 0, vol_temp;
-
-	val = rk817_bat_field_read(battery, OCV_VOL0_H) << 8;
-	val |= rk817_bat_field_read(battery, OCV_VOL0_L);
-	vol = battery->voltage_k * val / 1000 + battery->voltage_b;
-	if (battery->chip_id == RK809_ID) {
-		vol_temp = vol * battery->pdata->bat_res_up /
-			   battery->pdata->bat_res_down + vol;
-		vol = vol_temp;
-	}
-
-	return vol;
-}
-
 /* power on battery voltage */
 static int rk817_bat_get_pwron_voltage(struct rk817_battery_device *battery)
 {
@@ -994,36 +967,6 @@ static int rk817_bat_get_relax_current(struct rk817_battery_device *battery)
 	relax_cur2 = rk817_bat_get_relax_cur2(battery);
 
 	return (relax_cur1 < relax_cur2) ? relax_cur1 : relax_cur2;
-}
-
-static int rk817_bat_get_ocv_current(struct rk817_battery_device *battery)
-{
-	int cur, val = 0;
-
-	val = rk817_bat_field_read(battery, OCV_CUR_H) << 8;
-	val |= rk817_bat_field_read(battery, OCV_CUR_L);
-
-	if (val & 0x8000)
-		val -= 0x10000;
-
-	cur = ADC_TO_CURRENT(val, battery->sample_res);
-
-	return cur;
-}
-
-static int rk817_bat_get_ocv_current0(struct rk817_battery_device *battery)
-{
-	int cur, val = 0;
-
-	val = rk817_bat_field_read(battery, OCV_CUR0_H) << 8;
-	val |= rk817_bat_field_read(battery, OCV_CUR0_L);
-
-	if (val & 0x8000)
-		val -= 0x10000;
-
-	cur = ADC_TO_CURRENT(val, battery->sample_res);
-
-	return cur;
 }
 
 static int rk817_bat_get_pwron_current(struct rk817_battery_device *battery)
@@ -1435,18 +1378,20 @@ static void rk817_bat_disable_usb2vsys(struct rk817_battery_device *battery)
 
 static void rk817_bat_enable_charge(struct rk817_battery_device *battery)
 {
-	DBG("enable charge by BAT_LTS_TS: 0xFA\n");
-	rk817_bat_field_write(battery, BAT_LTS_TS, 0xFA);
+	DBG("enable charge by BAT_LTS_TS\n");
+	rk817_bat_field_write(battery, BAT_LTS_TS, 0xFF);
 }
 
 static void rk817_bat_disable_charge(struct rk817_battery_device *battery)
 {
-	DBG("disable charge by BAT_LTS_TS: 0x05\n");
-	rk817_bat_field_write(battery, BAT_LTS_TS, 0x05);
+	DBG("disable charge by BAT_LTS_TS\n");
+	rk817_bat_field_write(battery, BAT_LTS_TS, 0x00);
 }
 
 static void rk817_bat_init_ts_detect(struct rk817_battery_device *battery)
 {
+	int contact_res;
+
 	if (!battery->pdata->ntc_size)
 		return;
 
@@ -1454,10 +1399,20 @@ static void rk817_bat_init_ts_detect(struct rk817_battery_device *battery)
 	rk817_bat_field_write(battery, TS_ADC_EN, ENABLE);
 	/* source current to TS pin */
 	rk817_bat_field_write(battery, TS_FUN, TS_FUN_SOURCE_CURRENT);
+	/* TS pin function: TS pin function */
+	rk817_bat_field_write(battery, TS_GPIO_FUN, 0);
+
 	/* ts pin flow out current in active state */
 	rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
-
 	battery->pdata->ntc_factor = (FLOW_OUT_20uA + 1) * 10;
+
+	if (battery->pdata->contact_res != 0) {
+		contact_res = battery->pdata->contact_res;
+		rk817_bat_field_write(battery, CONTACT_RES, contact_res);
+	} else {
+		contact_res = rk817_bat_field_read(battery, CONTACT_RES);
+		battery->pdata->contact_res = contact_res;
+	}
 	rk817_bat_enable_charge(battery);
 }
 
@@ -1514,20 +1469,116 @@ static int rk817_bat_get_bat_ts(struct rk817_battery_device *battery)
 	return temp_value;
 }
 
-static int rk817_bat_get_nts_res(struct rk817_battery_device *battery)
+static int rk817_bat_get_ntc_res(struct rk817_battery_device *battery)
 {
 	int temp_value, res;
 	int adc_to_vol;
+	int bat_current;
 
 	temp_value = rk817_bat_get_bat_ts(battery);
 	adc_to_vol = temp_value * 1200 / 65536;
+	bat_current = rk817_bat_get_avg_current(battery);
 
-	res = adc_to_vol * 1000 / battery->pdata->ntc_factor;
+	res = (adc_to_vol * 1000 - bat_current * battery->pdata->contact_res) /
+		battery->pdata->ntc_factor;
 
-	DBG("NTC: ADC: value: 0x%x, adc2vol:%d, res: %d\n",
-	    temp_value, adc_to_vol, res);
+	DBG("NTC: ADC: value: 0x%x, adc2vol:%d, res: %d, contact_res: %d\n",
+	    temp_value, adc_to_vol, res,  battery->pdata->contact_res);
 
 	return res;
+}
+
+static void rk817_bat_get_ts_40uA_res(struct rk817_battery_device *battery)
+{
+	int temp_value;
+
+	temp_value = rk817_bat_get_bat_ts(battery);
+	battery->ts_info.ts40uA_adc2vol = temp_value * 1200 / 65536;
+
+	battery->ts_info.ts40uA_current_avg = rk817_bat_get_avg_current(battery);
+	DBG("NTC: ADC: value: 0x%x, adc2vol:%d\n",
+	    temp_value, battery->ts_info.ts40uA_adc2vol);
+}
+
+static void rk817_bat_get_ts_10uA_res(struct rk817_battery_device *battery)
+{
+	int temp_value;
+
+	temp_value = rk817_bat_get_bat_ts(battery);
+	battery->ts_info.ts10uA_adc2vol = temp_value * 1200 / 65536;
+
+	battery->ts_info.ts10uA_current_avg = rk817_bat_get_avg_current(battery);
+	DBG("NTC: ADC: value: 0x%x, adc2vol:%d\n",
+	    temp_value, battery->ts_info.ts10uA_adc2vol);
+}
+
+/*
+ * get negative terminal contact resistance
+ * res = (ts40uA_adc2vol * 1000 - ts40uA_current_avg * contact_res) / 40uA =
+ * (ts10uA_adc2vol * 1000 - ts10uA_current_avg * contact_res) / 20uA =
+ * contact_res = (ts40uA_adc2vol * 1000 - 2 * ts10uA_adc2vol * 1000) /
+ * (ts40uA_current_avgi - 2 *  ts10uA_current_avg)
+ */
+static void rk817_bat_get_contact_res(struct rk817_battery_device *battery)
+{
+	int contact_res;
+
+	DBG("ts40uA_adc2vol: %d, ts40uA_current_avg: %d\n",
+	    battery->ts_info.ts40uA_adc2vol, battery->ts_info.ts40uA_current_avg);
+	DBG("ts10uA_adc2vol: %d, ts10uA_current_avg: %d\n",
+	    battery->ts_info.ts10uA_adc2vol, battery->ts_info.ts10uA_current_avg);
+
+	contact_res =
+		(battery->ts_info.ts40uA_adc2vol * 1000 - 4 * battery->ts_info.ts10uA_adc2vol * 1000) /
+		(battery->ts_info.ts40uA_current_avg - 4 * battery->ts_info.ts10uA_current_avg);
+	DBG("contact_res: %d\n", battery->pdata->contact_res);
+	if ((contact_res > 0) && (contact_res < CONTACT_RES_MAX)) {
+		battery->pdata->contact_res = contact_res;
+		rk817_bat_field_write(battery, CONTACT_RES, contact_res);
+		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
+		battery->pdata->ntc_factor = (FLOW_OUT_20uA + 1) * 10;
+	}
+}
+
+/*
+ * Calculate the contact resistance between the battery and its holder,
+ * as it affects the system's ability to measure battery temperature
+ */
+static void rk817_bat_calculate_contact_res(struct rk817_battery_device *battery)
+{
+	if (!battery->pdata->ntc_size)
+		return;
+	if (!battery->pdata->get_contact_res_by_soft)
+		return;
+	if (battery->pdata->contact_res)
+		return;
+	if ((battery->temperature < 150) || (battery->temperature > 450))
+		return;
+
+	if ((battery->ts_info.ts40uA_update == 1) && (battery->ts_info.ts10uA_update == 0))
+		rk817_bat_get_ts_40uA_res(battery);
+	else if ((battery->ts_info.ts40uA_update == 1) && (battery->ts_info.ts10uA_update == 1)) {
+		rk817_bat_get_ts_10uA_res(battery);
+		if (abs(battery->ts_info.ts40uA_current_avg -  battery->ts_info.ts10uA_current_avg) < 10) {
+			rk817_bat_get_contact_res(battery);
+		} else {
+			DBG("contact_res: %d\n", battery->pdata->contact_res);
+			battery->ts_info.ts40uA_update = 0;
+			battery->ts_info.ts10uA_update = 0;
+		}
+	}
+
+	if ((battery->ts_info.ts40uA_update == 0) && (battery->pdata->contact_res == 0)) {
+		/* ts pin flow out current(40uA) in active state */
+		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_40uA);
+		battery->pdata->ntc_factor = (FLOW_OUT_40uA + 1) * 10;
+		battery->ts_info.ts40uA_update = 1;
+	} else if ((battery->ts_info.ts10uA_update == 0) && (battery->pdata->contact_res == 0)) {
+		/* ts pin flow out current(10uA) in active state */
+		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_10uA);
+		battery->pdata->ntc_factor = (FLOW_OUT_10uA + 1) * 10;
+		battery->ts_info.ts10uA_update = 1;
+	}
 }
 
 static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
@@ -1539,7 +1590,7 @@ static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
 	ntc_size = battery->pdata->ntc_size;
 
 	if (ntc_size) {
-		res = rk817_bat_get_nts_res(battery);
+		res = rk817_bat_get_ntc_res(battery);
 		if (res == 0)
 			return;
 
@@ -1677,7 +1728,7 @@ static u8 is_rk817_bat_initialized(struct rk817_battery_device *battery)
 
 static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 {
-	long expected_voltage, expected_res2voltage;
+	long expected_voltage = 0, expected_res2voltage;
 	int expected_rsoc;
 	int current_avg;
 	int soc2vol;
@@ -1686,8 +1737,9 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 
 	current_avg = rk817_bat_get_avg_current(battery);
 	soc2vol = rk817_bat_soc2vol(battery, battery->rsoc);
-	expected_voltage = battery->pdata->pwroff_vol +
-		soc2vol * (soc2vol - battery->voltage_avg) / battery->pdata->pwroff_vol;
+	if (soc2vol > battery->voltage_avg)
+		expected_voltage = battery->pdata->pwroff_vol +
+			soc2vol * (soc2vol - battery->voltage_avg) / battery->pdata->pwroff_vol;
 
 	expected_res2voltage = battery->pdata->pwroff_vol +
 		(soc2vol * abs(current_avg) * battery->bat_res) / battery->pdata->pwroff_vol / 1000;
@@ -1815,10 +1867,8 @@ static void rk817_bat_not_first_pwron(struct rk817_battery_device *battery)
 	if (battery->nac < 0)
 		battery->nac = 0;
 
-	DBG("dsoc=%d cap=%d v=%d ov=%d rv=%d min=%d psoc=%d pcap=%d\n",
+	DBG("dsoc=%d cap=%d v=%d min=%d psoc=%d pcap=%d\n",
 	    battery->dsoc, battery->nac, rk817_bat_get_battery_voltage(battery),
-	    rk817_bat_get_ocv_voltage(battery),
-	    rk817_bat_get_relax_voltage(battery),
 	    battery->pwroff_min, rk817_bat_get_prev_dsoc(battery),
 	    rk817_bat_get_prev_cap(battery));
 }
@@ -1893,7 +1943,6 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->voltage_avg = rk817_bat_get_battery_voltage(battery);
 	battery->voltage_sys = rk817_bat_get_sys_voltage(battery);
 
-	battery->voltage_ocv = rk817_bat_get_ocv_voltage(battery);
 	battery->voltage_relax = rk817_bat_get_relax_voltage(battery);
 	battery->current_avg = rk817_bat_get_avg_current(battery);
 	battery->dbg_pwr_dsoc = battery->dsoc;
@@ -2157,6 +2206,18 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 		pdata->ntc_size = 0;
 		battery->temperature = VIRTUAL_TEMPERATURE;
 	} else {
+		ret = of_property_read_u32(np,
+					   "ntc_contact_res",
+					   &pdata->contact_res);
+		if (ret) {
+			pdata->contact_res = 0;
+			ret = of_property_read_u32(np,
+						   "get_contact_res_by_soft",
+						   &pdata->get_contact_res_by_soft);
+			if (ret)
+				pdata->get_contact_res_by_soft = 0;
+			DBG("get_contact_res_by_soft: %d\n", pdata->get_contact_res_by_soft);
+		}
 		/* get ntc degree base value */
 		ret = of_property_read_u32_index(np, "ntc_degree_from", 1,
 				&pdata->ntc_degree_from);
@@ -2238,7 +2299,7 @@ static int rk817_get_capacity_leve(struct rk817_battery_device *battery)
 		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
 
 	dsoc = (battery->dsoc + 500) / 1000;
-	if (dsoc < 1)
+	if (dsoc < 1 && battery->current_avg < 0)
 		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 	else if (dsoc <= 20)
 		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
@@ -2324,12 +2385,6 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
 		val->intval = rk817_battery_time_to_full(battery);
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		val->intval = 4500 * 1000;
-		break;
-	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		val->intval = 5000 * 1000;
 		break;
 	default:
 		return -EINVAL;
@@ -2436,9 +2491,9 @@ static void rk817_bat_power_supply_changed(struct rk817_battery_device *battery)
 	status = battery->chrg_status;
 	old_soc = battery->dsoc;
 	power_supply_changed(battery->bat);
-	DBG("changed: dsoc=%d, rsoc=%d, v=%d, ov=%d c=%d, cap=%d, f=%d\n",
+	DBG("changed: dsoc=%d, rsoc=%d, v=%d, c=%d, cap=%d, f=%d\n",
 	    battery->dsoc, battery->rsoc, battery->voltage_avg,
-	    battery->voltage_ocv, battery->current_avg,
+	    battery->current_avg,
 	    battery->remain_cap, battery->fcc);
 }
 
@@ -2448,16 +2503,12 @@ static void rk817_battery_debug_info(struct rk817_battery_device *battery)
 	rk817_bat_get_sys_voltage(battery);
 	rk817_bat_get_USB_voltage(battery);
 	rk817_bat_get_pwron_voltage(battery);
-	rk817_bat_get_ocv_voltage(battery);
-	rk817_bat_get_ocv0_voltage0(battery);
 
 	rk817_bat_current_calibration(battery);
 	rk817_bat_get_avg_current(battery);
 	rk817_bat_get_relax_cur1(battery);
 	rk817_bat_get_relax_cur2(battery);
 	rk817_bat_get_relax_current(battery);
-	rk817_bat_get_ocv_current(battery);
-	rk817_bat_get_ocv_current0(battery);
 	rk817_bat_get_pwron_current(battery);
 	rk817_bat_get_ocv_count(battery);
 	rk817_bat_save_dsoc(battery, battery->dsoc);
@@ -2869,12 +2920,13 @@ static void rk817_bat_output_info(struct rk817_battery_device *battery)
 	rk817_bat_print_time(battery);
 	if (battery->pdata->ntc_size) {
 		index = battery->charge_index;
-		DBG("Temperature: %d charger current: %dmA, index: %d, charger voltage: %dmV, index: %d\n",
+		DBG("Temperature: %d charger current: %dmA, index: %d, charger voltage: %dmV, index: %d, contact_res: %d\n",
 		    battery->temperature,
 		    battery->pdata->tc_table[index].chrg_current,
 		    battery->pdata->tc_table[index].chrg_current_index,
 		    battery->pdata->tc_table[index].chrg_voltage,
-		    battery->pdata->tc_table[index].chrg_voltage_index);
+		    battery->pdata->tc_table[index].chrg_voltage_index,
+		    battery->pdata->contact_res);
 	}
 	DBG("info END.\n");
 }
@@ -2895,6 +2947,7 @@ static void rk817_battery_work(struct work_struct *work)
 	rk817_bat_save_data(battery);
 	rk817_bat_stay_awake(battery);
 	rk817_bat_update_temperature(battery);
+	rk817_bat_calculate_contact_res(battery);
 	rk817_bat_output_info(battery);
 
 	if (rk817_bat_field_read(battery, CUR_CALIB_UPD)) {
