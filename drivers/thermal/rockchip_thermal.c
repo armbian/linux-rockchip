@@ -22,6 +22,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/nvmem-consumer.h>
 
+#include "thermal_core.h"
+
 /*
  * If the temperature over a period of time High,
  * the resulting TSHUT gave CRU module,let it reset the entire chip,
@@ -53,11 +55,6 @@ enum adc_sort_mode {
 };
 
 #include "thermal_hwmon.h"
-
-/**
- * The max sensors is seven in rockchip SoCs.
- */
-#define SOC_MAX_SENSORS	7
 
 /**
  * struct chip_tsadc_table - hold information about chip-specific differences
@@ -790,15 +787,6 @@ static const struct tsadc_table rk3588_code_table[] = {
 	{395, 125000},
 	{455, MAX_TEMP},
 	{TSADCV4_DATA_MASK, MAX_TEMP},
-};
-
-static const struct tsadc_table rk3588_code_table[] = {
-	{0, -40000},
-	{215, -40000},
-	{285, 25000},
-	{350, 85000},
-	{395, 125000},
-	{TSADCV4_DATA_MASK, 125000},
 };
 
 static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
@@ -1595,8 +1583,6 @@ static const struct rockchip_tsadc_chip px30_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip px30s_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
 	.chn_num = 2, /* 1 channels for tsadc */
 	.conversion_time = 2100, /* us */
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
@@ -1619,7 +1605,6 @@ static const struct rockchip_tsadc_chip px30s_tsadc_data = {
 
 static const struct rockchip_tsadc_chip rv1106_tsadc_data = {
 	/* top, big_core0, big_core1, little_core, center, gpu, npu */
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* seven channels for tsadc */
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
@@ -1665,7 +1650,6 @@ static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
 
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
@@ -1691,7 +1675,6 @@ static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk1808_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
 
 	.tshut_mode = TSHUT_MODE_OTP, /* default TSHUT via GPIO give PMIC */
@@ -1765,8 +1748,6 @@ static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3308_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
 	.chn_num = 2, /* 2 channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
@@ -1789,7 +1770,6 @@ static const struct rockchip_tsadc_chip rk3308_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3308bs_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* 1 channels for tsadc */
 
 	.conversion_time = 2100, /* us */
@@ -1914,7 +1894,6 @@ static const struct rockchip_tsadc_chip rk3399_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3506_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* seven channels for tsadc */
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
@@ -1938,7 +1917,6 @@ static const struct rockchip_tsadc_chip rk3506_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3528_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_OTP, /* default TSHUT via GPIO give PMIC */
@@ -1964,7 +1942,6 @@ static const struct rockchip_tsadc_chip rk3528_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3562_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_OTP, /* default TSHUT via GPIO give PMIC */
@@ -2328,7 +2305,7 @@ static int rockchip_get_trim_configure(struct device *dev,
 				dev_info(dev, "Missing tsadc id property\n");
 				continue;
 			}
-			if (id >= SOC_MAX_SENSORS)
+			if (id >= tsadc->chn_num)
 				continue;
 			if (rockchip_get_efuse_value(node, "trim_l", &trim_l)) {
 				dev_info(dev, "ch%d Missing trim_l property\n",
