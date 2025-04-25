@@ -515,7 +515,7 @@ void md_dump_pageowner(char *addr, size_t dump_size)
 		if (PageBuddy(page)) {
 			unsigned long freepage_order = buddy_order_unsafe(page);
 
-			if (freepage_order < MAX_ORDER)
+			if (freepage_order <= MAX_PAGE_ORDER)
 				pfn += (1UL << freepage_order) - 1;
 			continue;
 		}
