@@ -168,9 +168,9 @@ struct rga_mmu_base *rga_mmu_base_init(size_t size)
 	 * size * channel_num * address_size
 	 */
 	order = get_order(size * 3 * sizeof(*mmu_base->buf_virtual));
-	if (order >= MAX_ORDER) {
+	if (order > MAX_PAGE_ORDER) {
 		pr_err("Can not alloc pages with order[%d] for mmu_page_table, max_order = %d\n",
-		       order, MAX_ORDER);
+		       order, MAX_PAGE_ORDER);
 		goto err_free_mmu_base;
 	}
 
@@ -182,9 +182,9 @@ struct rga_mmu_base *rga_mmu_base_init(size_t size)
 	mmu_base->buf_order = order;
 
 	order = get_order(size * sizeof(*mmu_base->pages));
-	if (order >= MAX_ORDER) {
+	if (order > MAX_PAGE_ORDER) {
 		pr_err("Can not alloc pages with order[%d] for mmu_base->pages, max_order = %d\n",
-		       order, MAX_ORDER);
+		       order, MAX_PAGE_ORDER);
 		goto err_free_buf_virtual;
 	}
 

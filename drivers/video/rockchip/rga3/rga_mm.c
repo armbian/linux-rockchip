@@ -256,9 +256,9 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 
 	/* alloc pages and page_table */
 	order = get_order(count * sizeof(struct page *));
-	if (order >= MAX_ORDER) {
+	if (order > MAX_PAGE_ORDER) {
 		rga_err("Can not alloc pages with order[%d] for viraddr pages, max_order = %d\n",
-			order, MAX_ORDER);
+			order, MAX_PAGE_ORDER);
 		return -ENOMEM;
 	}
 
@@ -1213,9 +1213,9 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 		if (job->flags & RGA_JOB_USE_HANDLE) {
 			order = get_order(page_count * sizeof(uint32_t *));
-			if (order >= MAX_ORDER) {
+			if (order > MAX_PAGE_ORDER) {
 				rga_job_err(job, "Can not alloc pages with order[%d] for page_table, max_order = %d\n",
-					order, MAX_ORDER);
+					order, MAX_PAGE_ORDER);
 				return -ENOMEM;
 			}
 
@@ -1278,9 +1278,9 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 		if (job->flags & RGA_JOB_USE_HANDLE) {
 			order = get_order(page_count * sizeof(uint32_t *));
-			if (order >= MAX_ORDER) {
+			if (order > MAX_PAGE_ORDER) {
 				rga_job_err(job, "Can not alloc pages with order[%d] for page_table, max_order = %d\n",
-					order, MAX_ORDER);
+					order, MAX_PAGE_ORDER);
 				return -ENOMEM;
 			}
 
