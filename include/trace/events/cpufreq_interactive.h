@@ -89,7 +89,7 @@ TRACE_EVENT(cpufreq_interactive_boost,
 		__string(s, s)
 	),
 	TP_fast_assign(
-		__assign_str(s, s);
+		__assign_str(s);
 	),
 	TP_printk("%s", __get_str(s))
 );
@@ -101,7 +101,7 @@ TRACE_EVENT(cpufreq_interactive_unboost,
 		__string(s, s)
 	),
 	TP_fast_assign(
-		__assign_str(s, s);
+		__assign_str(s);
 	),
 	TP_printk("%s", __get_str(s))
 );
