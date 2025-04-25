@@ -53,7 +53,7 @@ static int rk_zoneinfo_show(struct seq_file *m, void *v)
 		spin_lock_irqsave(&zone->lock, flags);
 
 		/* For each order in this zone, we examine the free lists */
-		for (order = 0; order < MAX_ORDER; order++) {
+		for (order = 0; order < NR_PAGE_ORDERS; order++) {
 			seq_printf(m, "\tOrder: %d | nr_free: %lu\n",
 				   order, zone->free_area[order].nr_free);
 
