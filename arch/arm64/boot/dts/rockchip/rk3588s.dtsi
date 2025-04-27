@@ -2391,11 +2391,11 @@
 		compatible = "rockchip,rk3588-mali", "arm,mali-valhall-csf";
 		reg = <0x0 0xfb000000 0x0 0x200000>;
 		#cooling-cells = <2>;
-		assigned-clocks = <&scmi_clk SCMI_CLK_GPU>;
-		assigned-clock-rates = <200000000>;
-		clocks = <&cru CLK_GPU>, <&cru CLK_GPU_COREGROUP>,
-			 <&cru CLK_GPU_STACKS>;
-		clock-names = "core", "coregroup", "stacks";
+		assigned-clocks = <&cru CLK_GPU>, <&scmi_clk SCMI_CLK_GPU>;
+		assigned-clock-rates = <198000000>, <200000000>;
+		clocks = <&scmi_clk SCMI_CLK_GPU>, <&cru CLK_GPU_COREGROUP>,
+			 <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
+		clock-names = "core", "coregroup", "stacks", "bus";
 		dynamic-power-coefficient = <2982>;
 		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
@@ -2408,6 +2408,11 @@
 		gpu_opp_table_panthor: opp-table {
 			compatible = "operating-points-v2";
 
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				opp-microvolt = <675000 675000 850000>;
+				opp-suspend;
+			};
 			opp-300000000 {
 				opp-hz = /bits/ 64 <300000000>;
 				opp-microvolt = <675000 675000 850000>;
