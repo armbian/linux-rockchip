@@ -101,6 +101,9 @@ struct panthor_device {
 
 	/** @clks: GPU clocks. */
 	struct {
+		/** @bus: Bus clock. This clock is optional. */
+		struct clk *bus;
+
 		/** @core: Core clock. */
 		struct clk *core;
 

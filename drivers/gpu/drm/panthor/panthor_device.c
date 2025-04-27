@@ -60,6 +60,12 @@ static int panthor_clk_init(struct panthor_device *ptdev)
 				     PTR_ERR(ptdev->clks.coregroup),
 				     "get 'coregroup' clock failed");
 
+	ptdev->clks.bus = devm_clk_get_optional(ptdev->base.dev, "bus");
+	if (IS_ERR(ptdev->clks.bus))
+		return dev_err_probe(ptdev->base.dev,
+				     PTR_ERR(ptdev->clks.bus),
+				     "get 'bus' clock failed");
+
 	drm_info(&ptdev->base, "clock rate = %lu\n", clk_get_rate(ptdev->clks.core));
 	return 0;
 }
@@ -462,9 +468,13 @@ int panthor_device_resume(struct device *dev)
 
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_RESUMING);
 
-	ret = clk_prepare_enable(ptdev->clks.core);
+	ret = clk_prepare_enable(ptdev->clks.bus);
 	if (ret)
 		goto err_set_suspended;
+
+	ret = clk_prepare_enable(ptdev->clks.core);
+	if (ret)
+		goto err_disable_bus_clk;
 
 	ret = clk_prepare_enable(ptdev->clks.stacks);
 	if (ret)
@@ -524,6 +534,9 @@ err_disable_stacks_clk:
 err_disable_core_clk:
 	clk_disable_unprepare(ptdev->clks.core);
 
+err_disable_bus_clk:
+	clk_disable_unprepare(ptdev->clks.bus);
+
 err_set_suspended:
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
 	atomic_set(&ptdev->pm.recovery_needed, 1);
@@ -570,6 +583,7 @@ int panthor_device_suspend(struct device *dev)
 	clk_disable_unprepare(ptdev->clks.coregroup);
 	clk_disable_unprepare(ptdev->clks.stacks);
 	clk_disable_unprepare(ptdev->clks.core);
+	clk_disable_unprepare(ptdev->clks.bus);
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
 	return 0;
 }
