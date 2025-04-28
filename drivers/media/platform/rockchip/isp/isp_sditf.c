@@ -159,7 +159,7 @@ void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 	if (!sditf || !sditf->is_on || !sditf->remote_sd)
 		return;
 	info.irq = irq;
-	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, true);
+	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, !dev->is_aiisp_en);
 	info.unite_index = dev->unite_index;
 	if (dev->isp_ver == ISP_V35)
 		info.grey = !!(rkisp_read(dev, ISP3X_CNR_CTRL, false) & ISP35_CNR_UV_DIS);

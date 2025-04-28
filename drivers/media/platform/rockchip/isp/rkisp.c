@@ -2134,7 +2134,7 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		rkisp_update_regs(dev, CIF_ISP_OUT_H_SIZE, CIF_ISP_OUT_V_SIZE);
 	}
 
-	dev->is_aiisp_upd = dev->is_aiisp_en;
+	dev->is_aiisp_upd = (dev->is_aiisp_en || dev->aiisp_cfg.wr_linecnt);
 	rkisp_config_cmsk(dev);
 	rkisp_config_aiisp(dev);
 	if (dev->hw_dev->is_single)
@@ -3952,21 +3952,20 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 {
 	unsigned long lock_flags = 0;
 	u32 h = dev->isp_sdev.out_crop.height;
-	u32 wr_line, rd_line, irq, irq_mask, en, en_mask;
+	u32 wr_line, rd_line, irq_mask, en_mask;
+	u32 irq = 0, en = 0;
 
 	spin_lock_irqsave(&dev->aiisp_lock, lock_flags);
 	if (!dev->is_aiisp_upd)
 		goto unlock;
 	dev->is_aiisp_upd = false;
-	if (dev->is_aiisp_en) {
-		en = (dev->isp_ver == ISP_V39) ? ISP39_AIISP_EN : ISP35_AIISP_EN;
+	if (dev->aiisp_cfg.wr_linecnt)
 		irq = ISP39_AIISP_LINECNT_DONE;
-		if (dev->aiisp_cfg.rd_linecnt)
-			irq |= ISP3X_OUT_FRM_QUARTER;
-	} else {
-		irq = 0;
-		en = 0;
-	}
+	if (dev->aiisp_cfg.rd_linecnt)
+		irq |= ISP3X_OUT_FRM_QUARTER;
+	if (dev->is_aiisp_en)
+		en = (dev->isp_ver == ISP_V39) ? ISP39_AIISP_EN : ISP35_AIISP_EN;
+
 	irq_mask = ISP39_AIISP_LINECNT_DONE | ISP3X_OUT_FRM_QUARTER;
 	en_mask = (dev->isp_ver == ISP_V39) ? ISP39_AIISP_EN : ISP35_AIISP_EN;
 
@@ -4086,6 +4085,18 @@ static int rkisp_rdbk_aiisp_event(struct rkisp_device *dev, u32 cmd, void *arg)
 	struct kfifo *fifo = &dev->rdbk_be_kfifo;
 	unsigned long lock_flags = 0;
 	int val, ret = 0;
+
+	if (dev->is_aiisp_yuv && cmd == T_CMD_QUEUE) {
+		struct rkisp_stream *stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
+		struct rkisp_aiisp_st *st = arg;
+
+		v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
+			 "aiisp yuv input seq:%d idx(vpsl:%d aipre:%d ysrc:%d ydst:%d)\n",
+			 st->sequence, st->vpsl_index, st->aipre_gain_index,
+			 st->y_src_index, st->y_dest_index);
+		if (stream->ops->push_buf)
+			stream->ops->push_buf(stream);
+	}
 
 	if (!dev->is_aiisp_en)
 		return -EINVAL;

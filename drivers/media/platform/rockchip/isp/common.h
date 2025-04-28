@@ -123,6 +123,7 @@ struct rkisp_buffer {
 	void *vaddr[VIDEO_MAX_PLANES];
 	u32 buff_addr[VIDEO_MAX_PLANES];
 	int dev_id;
+	int index;
 	void *other;
 };
 

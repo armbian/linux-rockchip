@@ -312,6 +312,7 @@ struct rkisp_device {
 	bool is_aiisp_en;
 	bool is_aiisp_upd;
 	bool is_aiisp_sync;
+	bool is_aiisp_yuv;
 	bool is_frm_rd;
 	bool is_multi_one_sync;
 	bool is_wait_aiq;
