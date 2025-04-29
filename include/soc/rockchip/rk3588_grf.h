@@ -14,5 +14,6 @@
 
 #define RK3588_PMUGRF_OS_REG4           0x210
 #define RK3588_PMUGRF_OS_REG5           0x214
+#define RK3588_PMUGRF_OS_REG6		0x218
 
 #endif /* __SOC_RK3588_GRF_H */

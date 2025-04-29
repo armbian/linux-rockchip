@@ -34,15 +34,30 @@
 
 /* DDRMON_CTRL */
 #define DDRMON_CTRL	0x04
+#define DDRMON_CTRL_CLR			(0xffff)
+#define DDRMON_CTRL_DDR23		BIT(15)
+#define DDRMON_CTRL_LPDDR5_BANK_MODE(m)	(((m) & 0x3) << 7)
+#define DDRMON_CTRL_LPDDR5		BIT(6)
 #define DDRMON_CTRL_DDR4		BIT(5)
 #define DDRMON_CTRL_LPDDR4		BIT(4)
 #define DDRMON_CTRL_HARDWARE_EN		BIT(3)
 #define DDRMON_CTRL_LPDDR23		BIT(2)
 #define DDRMON_CTRL_SOFTWARE_EN		BIT(1)
 #define DDRMON_CTRL_TIMER_CNT_EN	BIT(0)
-#define DDRMON_CTRL_DDR_TYPE_MASK	(DDRMON_CTRL_DDR4 | \
+#define DDRMON_CTRL_DDR_TYPE_MASK	(DDRMON_CTRL_DDR23 | \
+					 DDRMON_CTRL_DDR4 | \
 					 DDRMON_CTRL_LPDDR4 | \
 					 DDRMON_CTRL_LPDDR23)
+#define DDRMON_CTRL_LPDDR5_BANK_MODE_MASK	(0x3 << 7)
+
+/* DDRMON_CTRL1 */
+#define DDRMON_CTRL1_LPDDR5_BANK_MODE(m)	(((m) & 0x3) << 1)
+#define DDRMON_CTRL1_LPDDR5			BIT(0)
+#define DDRMON_CTRL1_LPDDR5_BANK_MODE_MASK	(0x3 << 1)
+#define DDRMON_CTRL1_DDR_TYPE_MASK		DDRMON_CTRL1_LPDDR5
+
+#define READ_LP5_BANK_MODE(m)		(((m) >> 1) & 0x3)
+#define READ_LP5_CKR(m)			(((m) >> 0) & 0x1)
 
 #define DDRMON_CH0_WR_NUM		0x20
 #define DDRMON_CH0_RD_NUM		0x24
@@ -100,10 +115,25 @@ struct rockchip_dfi {
 	struct device *dev;
 	void __iomem *regs;
 	struct regmap *regmap_pmu;
-	struct clk *clk;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	int usecount;
 	struct mutex mutex;
 	u32 ddr_type;
+	u32 mon_version;
+	u32 mon_ctrl0;
+	u32 mon_ctrl1;
+	u32 mon_read_num;
+	u32 mon_write_num;
+	u32 mon_access_num;
+	u32 mon_count_num;
+	u32 lp5_ctrl_val;
+	u32 count_rate;
+	u32 dram_dynamic_info_reg;
+	/* 0: BG mode, 1: 16 Bank mode, 2: 8 bank mode */
+	u32 lp5_bank_mode;
+	/* 0: clk:dqs = 1:2, 1: 1:4 */
+	u32 lp5_ckr;
 	unsigned int channel_mask;
 	unsigned int max_channels;
 	enum cpuhp_state cpuhp_state;
@@ -118,9 +148,64 @@ struct rockchip_dfi {
 	bool ddrmon_ctrl_single;
 };
 
+static void rockchip_dfi_get_mon_version(struct rockchip_dfi *dfi)
+{
+	void __iomem *dfi_regs = dfi->regs;
+
+	dfi->mon_version = readl_relaxed(dfi_regs);
+
+	if (dfi->mon_version < 0x40) {
+		if (dfi->mon_version < 0x30) {
+			dfi->mon_read_num = 0x24;
+			dfi->mon_write_num = 0x20;
+		} else {
+			dfi->mon_read_num = 0x144;
+			dfi->mon_write_num = 0x148;
+		}
+		dfi->mon_ctrl0 = 0x4;
+		dfi->mon_ctrl1 = 0x4;
+		dfi->mon_access_num = 0x2c;
+		dfi->mon_count_num = 0x28;
+	} else {
+		dfi->mon_ctrl0 = 0x4;
+		dfi->mon_ctrl1 = 0x8;
+		dfi->mon_access_num = 0x34;
+		dfi->mon_count_num = 0x30;
+		dfi->mon_read_num = 0x144;
+		dfi->mon_write_num = 0x148;
+	}
+}
+
+static int rockchip_dfi_clk_enable(struct rockchip_dfi *dfi)
+{
+	int ret;
+
+	if (!dfi->clks || dfi->num_clks == 0)
+		return 0;
+
+	ret = clk_bulk_prepare_enable(dfi->num_clks, dfi->clks);
+	if (ret) {
+		dev_err(dfi->dev, "failed to enable dfi clocks: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rockchip_dfi_clk_disable(struct rockchip_dfi *dfi)
+{
+	if (!dfi->clks || dfi->num_clks == 0)
+		return 0;
+
+	clk_bulk_disable_unprepare(dfi->num_clks, dfi->clks);
+	return 0;
+}
+
 static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 {
 	void __iomem *dfi_regs = dfi->regs;
+	u32 ctrl0, ctrl1;
+	u32 val_6 = 0;
 	int i, ret = 0;
 
 	mutex_lock(&dfi->mutex);
@@ -129,47 +214,92 @@ static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 	if (dfi->usecount > 1)
 		goto out;
 
-	ret = clk_prepare_enable(dfi->clk);
-	if (ret) {
-		dev_err(&dfi->edev->dev, "failed to enable dfi clk: %d\n", ret);
+	ret = rockchip_dfi_clk_enable(dfi);
+	if (ret)
 		goto out;
-	}
+
+	rockchip_dfi_get_mon_version(dfi);
+
+	ctrl0 = dfi->mon_ctrl0;
+	ctrl1 = dfi->mon_ctrl1;
 
 	for (i = 0; i < dfi->max_channels; i++) {
-		u32 ctrl = 0;
-
 		if (!(dfi->channel_mask & BIT(i)))
 			continue;
 
 		/* clear DDRMON_CTRL setting */
-		writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_TIMER_CNT_EN |
-			       DDRMON_CTRL_SOFTWARE_EN | DDRMON_CTRL_HARDWARE_EN),
-			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
+		if (dfi->mon_version < 0x40) {
+			writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_DDR_TYPE_MASK |
+				       DDRMON_CTRL_LPDDR5 | DDRMON_CTRL_LPDDR5_BANK_MODE_MASK |
+				       DDRMON_CTRL_TIMER_CNT_EN | DDRMON_CTRL_SOFTWARE_EN |
+				       DDRMON_CTRL_HARDWARE_EN),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+		} else {
+			writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_DDR_TYPE_MASK |
+				       DDRMON_CTRL_TIMER_CNT_EN | DDRMON_CTRL_SOFTWARE_EN |
+				       DDRMON_CTRL_HARDWARE_EN),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+			writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_LPDDR5 |
+				       DDRMON_CTRL_LPDDR5_BANK_MODE_MASK),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl1);
+		}
+
+
 
 		/* set ddr type to dfi */
 		switch (dfi->ddr_type) {
+		case ROCKCHIP_DDRTYPE_DDR2:
+		case ROCKCHIP_DDRTYPE_DDR3:
+			writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_DDR23, DDRMON_CTRL_DDR_TYPE_MASK),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+			break;
+		case ROCKCHIP_DDRTYPE_DDR4:
+			writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_DDR4, DDRMON_CTRL_DDR_TYPE_MASK),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+			break;
 		case ROCKCHIP_DDRTYPE_LPDDR2:
 		case ROCKCHIP_DDRTYPE_LPDDR3:
-			ctrl = DDRMON_CTRL_LPDDR23;
+			writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_LPDDR23,
+				       DDRMON_CTRL_DDR_TYPE_MASK),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
 			break;
 		case ROCKCHIP_DDRTYPE_LPDDR4:
 		case ROCKCHIP_DDRTYPE_LPDDR4X:
-			ctrl = DDRMON_CTRL_LPDDR4;
+			writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_LPDDR4,
+				       DDRMON_CTRL_DDR_TYPE_MASK),
+				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+			break;
+		case ROCKCHIP_DDRTYPE_LPDDR5:
+			if (dfi->dram_dynamic_info_reg)
+				regmap_read(dfi->regmap_pmu, dfi->dram_dynamic_info_reg, &val_6);
+			dfi->lp5_bank_mode = READ_LP5_BANK_MODE(val_6);
+			dfi->lp5_ckr = READ_LP5_CKR(val_6);
+			if (dfi->mon_version < 0x40)
+				writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_LPDDR5 |
+					       DDRMON_CTRL_LPDDR5_BANK_MODE(dfi->lp5_bank_mode),
+					       DDRMON_CTRL_DDR_TYPE_MASK |
+					       DDRMON_CTRL_LPDDR5_BANK_MODE_MASK),
+					       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
+			else
+				writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL1_LPDDR5 |
+					       DDRMON_CTRL1_LPDDR5_BANK_MODE(dfi->lp5_bank_mode),
+					       DDRMON_CTRL1_DDR_TYPE_MASK |
+					       DDRMON_CTRL1_LPDDR5_BANK_MODE_MASK),
+					       dfi_regs + i * dfi->ddrmon_stride + ctrl1);
 			break;
 		default:
 			break;
 		}
 
-		writel_relaxed(HIWORD_UPDATE(ctrl, DDRMON_CTRL_DDR_TYPE_MASK),
-			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
-
 		/* enable count, use software mode */
 		writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_SOFTWARE_EN, DDRMON_CTRL_SOFTWARE_EN),
-			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
+			       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
 
 		if (dfi->ddrmon_ctrl_single)
 			break;
 	}
+	rockchip_dfi_clk_disable(dfi);
+
 out:
 	mutex_unlock(&dfi->mutex);
 
@@ -179,7 +309,7 @@ out:
 static void rockchip_dfi_disable(struct rockchip_dfi *dfi)
 {
 	void __iomem *dfi_regs = dfi->regs;
-	int i;
+	int i, ret;
 
 	mutex_lock(&dfi->mutex);
 
@@ -188,6 +318,10 @@ static void rockchip_dfi_disable(struct rockchip_dfi *dfi)
 	WARN_ON_ONCE(dfi->usecount < 0);
 
 	if (dfi->usecount > 0)
+		goto out;
+
+	ret = rockchip_dfi_clk_enable(dfi);
+	if (ret)
 		goto out;
 
 	for (i = 0; i < dfi->max_channels; i++) {
@@ -201,28 +335,38 @@ static void rockchip_dfi_disable(struct rockchip_dfi *dfi)
 			break;
 	}
 
-	clk_disable_unprepare(dfi->clk);
+	rockchip_dfi_clk_disable(dfi);
 out:
 	mutex_unlock(&dfi->mutex);
 }
 
 static void rockchip_dfi_read_counters(struct rockchip_dfi *dfi, struct dmc_count *res)
 {
+	int ret;
 	u32 i;
+	unsigned long flags;
 	void __iomem *dfi_regs = dfi->regs;
 
+	ret = rockchip_dfi_clk_enable(dfi);
+	if (ret)
+		return;
+
+	local_irq_save(flags);
 	for (i = 0; i < dfi->max_channels; i++) {
 		if (!(dfi->channel_mask & BIT(i)))
 			continue;
 		res->c[i].read_access = readl_relaxed(dfi_regs +
-				DDRMON_CH0_RD_NUM + i * dfi->ddrmon_stride);
+				dfi->mon_read_num + i * dfi->ddrmon_stride);
 		res->c[i].write_access = readl_relaxed(dfi_regs +
-				DDRMON_CH0_WR_NUM + i * dfi->ddrmon_stride);
+				dfi->mon_write_num + i * dfi->ddrmon_stride);
 		res->c[i].access = readl_relaxed(dfi_regs +
-				DDRMON_CH0_DFI_ACCESS_NUM + i * dfi->ddrmon_stride);
+				dfi->mon_access_num + i * dfi->ddrmon_stride);
 		res->c[i].clock_cycles = readl_relaxed(dfi_regs +
-				DDRMON_CH0_COUNT_NUM + i * dfi->ddrmon_stride);
+				dfi->mon_count_num + i * dfi->ddrmon_stride) * dfi->count_rate;
 	}
+	local_irq_restore(flags);
+
+	rockchip_dfi_clk_disable(dfi);
 }
 
 static int rockchip_dfi_event_disable(struct devfreq_event_dev *edev)
@@ -273,7 +417,15 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 		}
 	}
 
-	edata->load_count = access * 4;
+	if ((dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR4) ||
+	    (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR4X))
+		access *= 8;
+	else if (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5)
+		access *= 16 / (4 << dfi->lp5_ckr);
+	else
+		access *= 4;
+
+	edata->load_count = access;
 	edata->total_count = clock_cycles;
 
 	dfi->last_event_count = count;
@@ -298,14 +450,17 @@ static void rockchip_ddr_perf_counters_add(struct rockchip_dfi *dfi,
 	int i;
 
 	for (i = 0; i < dfi->max_channels; i++) {
+		if (!(dfi->channel_mask & BIT(i)))
+			continue;
+
 		res->c[i].read_access = dfi->total_count.c[i].read_access +
-			(u32)(now->c[i].read_access - last->c[i].read_access);
+			(now->c[i].read_access - last->c[i].read_access);
 		res->c[i].write_access = dfi->total_count.c[i].write_access +
-			(u32)(now->c[i].write_access - last->c[i].write_access);
+			(now->c[i].write_access - last->c[i].write_access);
 		res->c[i].access = dfi->total_count.c[i].access +
-			(u32)(now->c[i].access - last->c[i].access);
+			(now->c[i].access - last->c[i].access);
 		res->c[i].clock_cycles = dfi->total_count.c[i].clock_cycles +
-			(u32)(now->c[i].clock_cycles - last->c[i].clock_cycles);
+			(now->c[i].clock_cycles - last->c[i].clock_cycles);
 	}
 }
 
@@ -536,7 +691,7 @@ static void rockchip_ddr_perf_event_del(struct perf_event *event, int flags)
 static enum hrtimer_restart rockchip_dfi_timer(struct hrtimer *timer)
 {
 	struct rockchip_dfi *dfi = container_of(timer, struct rockchip_dfi, timer);
-	struct dmc_count now, total;
+	struct dmc_count now = {0}, total = {0};
 
 	rockchip_dfi_read_counters(dfi, &now);
 
@@ -646,12 +801,16 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	dfi->timer.function = rockchip_dfi_timer;
 
 	switch (dfi->ddr_type) {
+	case ROCKCHIP_DDRTYPE_DDR2:
+	case ROCKCHIP_DDRTYPE_DDR3:
+	case ROCKCHIP_DDRTYPE_DDR4:
 	case ROCKCHIP_DDRTYPE_LPDDR2:
 	case ROCKCHIP_DDRTYPE_LPDDR3:
 		dfi->burst_len = 8;
 		break;
 	case ROCKCHIP_DDRTYPE_LPDDR4:
 	case ROCKCHIP_DDRTYPE_LPDDR4X:
+	case ROCKCHIP_DDRTYPE_LPDDR5:
 		dfi->burst_len = 16;
 		break;
 	}
@@ -669,30 +828,63 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 }
 #endif
 
+static int rockchip_dfi_init_clocks(struct rockchip_dfi *dfi)
+{
+	int i, clk_idx = 0;
+	int ret;
+
+	if (!dfi->max_channels)
+		return -EINVAL;
+
+	dfi->clks = devm_kcalloc(dfi->dev, dfi->num_clks, sizeof(*dfi->clks), GFP_KERNEL);
+	if (!dfi->clks)
+		return -ENOMEM;
+
+	if (dfi->num_clks == 1) {
+		dfi->clks[0].id = devm_kasprintf(dfi->dev, GFP_KERNEL, "pclk_ddr_mon");
+	} else {
+		for (i = 0; i < dfi->max_channels; i++) {
+			if (!(dfi->channel_mask & BIT(i)))
+				continue;
+
+			dfi->clks[clk_idx].id = devm_kasprintf(dfi->dev, GFP_KERNEL,
+								"pclk_ddr_mon_ch%d", i);
+			if (!dfi->clks[clk_idx].id)
+				return -ENOMEM;
+			clk_idx++;
+		}
+	}
+
+	ret = devm_clk_bulk_get(dfi->dev, dfi->num_clks, dfi->clks);
+	if (ret)
+		dev_err(dfi->dev, "failed to get clocks: %d\n", ret);
+
+	return ret;
+}
+
 static int rk3399_dfi_init(struct rockchip_dfi *dfi)
 {
 	struct regmap *regmap_pmu = dfi->regmap_pmu;
 	u32 val;
 
-	dfi->clk = devm_clk_get(dfi->dev, "pclk_ddr_mon");
-	if (IS_ERR(dfi->clk))
-		return dev_err_probe(dfi->dev, PTR_ERR(dfi->clk),
-				     "Cannot get the clk pclk_ddr_mon\n");
-
 	/* get ddr type */
 	regmap_read(regmap_pmu, RK3399_PMUGRF_OS_REG2, &val);
-	dfi->ddr_type = FIELD_GET(RK3399_PMUGRF_OS_REG2_DDRTYPE, val);
+	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, val);
 
 	dfi->channel_mask = GENMASK(1, 0);
 	dfi->max_channels = 2;
 
-	dfi->buswidth[0] = FIELD_GET(RK3399_PMUGRF_OS_REG2_BW_CH0, val) == 0 ? 4 : 2;
-	dfi->buswidth[1] = FIELD_GET(RK3399_PMUGRF_OS_REG2_BW_CH1, val) == 0 ? 4 : 2;
+	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, val);
+	dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, val);
 
 	dfi->ddrmon_stride = 0x14;
 	dfi->ddrmon_ctrl_single = true;
 
-	return 0;
+	dfi->count_rate = 1;
+
+	dfi->num_clks = 1;
+
+	return rockchip_dfi_init_clocks(dfi);
 };
 
 static int rk3568_dfi_init(struct rockchip_dfi *dfi)
@@ -704,22 +896,27 @@ static int rk3568_dfi_init(struct rockchip_dfi *dfi)
 	regmap_read(regmap_pmu, RK3568_PMUGRF_OS_REG3, &reg3);
 
 	/* lower 3 bits of the DDR type */
-	dfi->ddr_type = FIELD_GET(RK3568_PMUGRF_OS_REG2_DRAMTYPE_INFO, reg2);
+	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
 
 	/*
 	 * For version three and higher the upper two bits of the DDR type are
 	 * in RK3568_PMUGRF_OS_REG3
 	 */
-	if (FIELD_GET(RK3568_PMUGRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
-		dfi->ddr_type |= FIELD_GET(RK3568_PMUGRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
+	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
+		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
 
 	dfi->channel_mask = BIT(0);
 	dfi->max_channels = 1;
 
-	dfi->buswidth[0] = FIELD_GET(RK3568_PMUGRF_OS_REG2_BW_CH0, reg2) == 0 ? 4 : 2;
+	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
 
 	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
 	dfi->ddrmon_ctrl_single = true;
+
+	dfi->count_rate = 1;
+
+	/* no clk management */
+	dfi->num_clks = 0;
 
 	return 0;
 };
@@ -729,31 +926,40 @@ static int rk3588_dfi_init(struct rockchip_dfi *dfi)
 	struct regmap *regmap_pmu = dfi->regmap_pmu;
 	u32 reg2, reg3, reg4;
 
+	dfi->dram_dynamic_info_reg = RK3588_PMUGRF_OS_REG6;
+
 	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG2, &reg2);
 	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG3, &reg3);
 	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG4, &reg4);
 
 	/* lower 3 bits of the DDR type */
-	dfi->ddr_type = FIELD_GET(RK3588_PMUGRF_OS_REG2_DRAMTYPE_INFO, reg2);
+	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
 
 	/*
 	 * For version three and higher the upper two bits of the DDR type are
 	 * in RK3588_PMUGRF_OS_REG3
 	 */
-	if (FIELD_GET(RK3588_PMUGRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
-		dfi->ddr_type |= FIELD_GET(RK3588_PMUGRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
+	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
+		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
 
-	dfi->buswidth[0] = FIELD_GET(RK3588_PMUGRF_OS_REG2_BW_CH0, reg2) == 0 ? 4 : 2;
-	dfi->buswidth[1] = FIELD_GET(RK3588_PMUGRF_OS_REG2_BW_CH1, reg2) == 0 ? 4 : 2;
-	dfi->buswidth[2] = FIELD_GET(RK3568_PMUGRF_OS_REG2_BW_CH0, reg4) == 0 ? 4 : 2;
-	dfi->buswidth[3] = FIELD_GET(RK3588_PMUGRF_OS_REG2_BW_CH1, reg4) == 0 ? 4 : 2;
-	dfi->channel_mask = FIELD_GET(RK3588_PMUGRF_OS_REG2_CH_INFO, reg2) |
-			    FIELD_GET(RK3588_PMUGRF_OS_REG2_CH_INFO, reg4) << 2;
+	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+	dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg2);
+	dfi->buswidth[2] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg4);
+	dfi->buswidth[3] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg4);
+	dfi->channel_mask = FIELD_GET(GRF_OS_REG2_CH_INFO, reg2) |
+			    FIELD_GET(GRF_OS_REG2_CH_INFO, reg4) << 2;
 	dfi->max_channels = 4;
 
 	dfi->ddrmon_stride = 0x4000;
 
-	return 0;
+	if (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5)
+		dfi->count_rate = 1;
+	else
+		dfi->count_rate = 2;
+
+	dfi->num_clks = hweight32(dfi->channel_mask);
+
+	return rockchip_dfi_init_clocks(dfi);
 };
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
