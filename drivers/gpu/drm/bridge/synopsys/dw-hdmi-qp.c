@@ -3408,7 +3408,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &val);
 		/* if plug out before hdmi bind, reset hdmi */
 		if (vmode->mtmdsclock >= 340000000 && vmode->mpixelclock <= 600000000 &&
-		    !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40) && !hdmi->force_kernel_output)
+		    !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40) && !hdmi->force_kernel_output &&
+		    hdmi->initialized)
 			hdmi->logo_plug_out = true;
 	}
 
