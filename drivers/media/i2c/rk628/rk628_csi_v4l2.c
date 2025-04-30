@@ -449,6 +449,14 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
+	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, interlace:%d\n",
+		 bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch, bt->vsync,
+		 bt->vbackporch, bt->interlaced);
+
+	csi->src_timings = *timings;
+	if (csi->scaler_en)
+		*timings = csi->timings;
+
 	if ((bt->pixelclock > 300000000 && csi->rk628->version >= RK628F_VERSION) ||
 		(bt->width > 2048 && csi->plat_data->tx_mode == DSI_MODE)) {
 		v4l2_info(sd, "rk628f detect pixclk more than 300M, use dual mipi mode\n");
@@ -457,14 +465,6 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 		v4l2_info(sd, "pixclk less than 300M, use single mipi mode\n");
 		csi->rk628->dual_mipi = false;
 	}
-
-	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, interlace:%d\n",
-		 bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch, bt->vsync,
-		 bt->vbackporch, bt->interlaced);
-
-	csi->src_timings = *timings;
-	if (csi->scaler_en)
-		*timings = csi->timings;
 
 	return ret;
 
@@ -1000,6 +1000,16 @@ static void rk628_post_process_setup(struct v4l2_subdev *sd)
 	dst.vsync_len = dst_bt->vsync;
 	dst.vback_porch = dst_bt->vbackporch;
 	dst.pixelclock = dst_bt->pixelclock;
+
+	if (csi->scaler_en) {
+		dst.vfront_porch = DIV_ROUND_UP(src.vfront_porch * dst_bt->height, src.vactive);
+		dst.vsync_len = DIV_ROUND_UP(src.vsync_len * dst_bt->height, src.vactive);
+		dst.vback_porch = DIV_ROUND_UP(src.vback_porch * dst_bt->height, src.vactive);
+		v4l2_info(sd, "%s: src timing: vfp: %d, vs: %d, vbp: %d\n",
+			__func__, src.vfront_porch, src.vsync_len, src.vback_porch);
+		v4l2_info(sd, "%s: dst timing: vfp: %d, vs: %d, vbp: %d\n",
+			__func__, dst.vfront_porch, dst.vsync_len, dst.vback_porch);
+	}
 
 	rk628_post_process_en(csi->rk628, &src, &dst, &dst_pclk);
 	dst_bt->pixelclock = dst_pclk;
