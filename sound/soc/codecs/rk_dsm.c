@@ -936,7 +936,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rk_dsm_platform_remove(struct platform_device *pdev)
+static void rk_dsm_platform_remove(struct platform_device *pdev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(&pdev->dev);
 
@@ -946,8 +946,6 @@ static int rk_dsm_platform_remove(struct platform_device *pdev)
 
 	if (rd->data && rd->data->deinit)
 		rd->data->deinit(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rd_pm = {
