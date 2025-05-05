@@ -1141,7 +1141,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rk_codec_digital_platform_remove(struct platform_device *pdev)
+static void rk_codec_digital_platform_remove(struct platform_device *pdev)
 {
 	struct rk_codec_digital_priv *rcd = dev_get_drvdata(&pdev->dev);
 
@@ -1151,8 +1151,6 @@ static int rk_codec_digital_platform_remove(struct platform_device *pdev)
 
 	if (rcd->data && rcd->data->deinit)
 		rcd->data->deinit(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rcd_pm = {
