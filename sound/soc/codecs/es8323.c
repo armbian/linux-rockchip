@@ -855,8 +855,7 @@ static const struct regmap_config es8323_regmap_config = {
 	.use_single_write = true,
 };
 
-static int es8323_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int es8323_i2c_probe(struct i2c_client *i2c)
 {
 	struct es8323_priv *es8323;
 	int ret = -1;
