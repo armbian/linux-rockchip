@@ -745,15 +745,13 @@ failed_1:
 	return ret;
 }
 
-static int rk3528_platform_remove(struct platform_device *pdev)
+static void rk3528_platform_remove(struct platform_device *pdev)
 {
 	struct rk3528_codec_priv *rk3528 =
 		(struct rk3528_codec_priv *)platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(rk3528->mclk);
 	clk_disable_unprepare(rk3528->pclk);
-
-	return 0;
 }
 
 static struct platform_driver rk3528_codec_driver = {
