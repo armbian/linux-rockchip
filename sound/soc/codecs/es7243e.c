@@ -2343,8 +2343,9 @@ static struct attribute_group es7243e_debug_attr_group = {
  * around
  */
 static int
-es7243e_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i2c_id)
+es7243e_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(i2c);
 	struct es7243e_priv *es7243e;
 	int ret;
 
