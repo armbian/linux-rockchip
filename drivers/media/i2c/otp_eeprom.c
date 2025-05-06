@@ -1025,8 +1025,7 @@ static void eeprom_subdev_cleanup(struct eeprom_device *dev)
 	media_entity_cleanup(&dev->sd.entity);
 }
 
-static int eeprom_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int eeprom_probe(struct i2c_client *client)
 {
 	struct eeprom_device *eeprom_dev;
 
