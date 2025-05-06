@@ -402,7 +402,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 	atomic_set(&srv->shutdown_request, 0);
 	platform_set_drvdata(pdev, srv);
 
-	srv->cls = class_create(THIS_MODULE, MPP_CLASS_NAME);
+	srv->cls = class_create(MPP_CLASS_NAME);
 	if (PTR_ERR_OR_ZERO(srv->cls))
 		return PTR_ERR(srv->cls);
 
