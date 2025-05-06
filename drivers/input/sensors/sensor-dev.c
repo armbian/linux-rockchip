@@ -373,7 +373,7 @@ static int sensor_class_init(void)
 {
 	int ret ;
 
-	sensor_class = class_create(THIS_MODULE, "sensor_class");
+	sensor_class = class_create("sensor_class");
 	ret = class_create_file(sensor_class, &class_attr_accel_calibration);
 	if (ret) {
 		printk(KERN_ERR "%s:Fail to creat accel class file\n", __func__);
