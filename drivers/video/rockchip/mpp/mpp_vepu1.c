@@ -771,7 +771,7 @@ static int vepu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vepu_remove(struct platform_device *pdev)
+static void vepu_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = dev_get_drvdata(dev);
@@ -779,8 +779,6 @@ static int vepu_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(mpp);
 	vepu_procfs_remove(mpp);
-
-	return 0;
 }
 
 struct platform_driver rockchip_vepu1_driver = {

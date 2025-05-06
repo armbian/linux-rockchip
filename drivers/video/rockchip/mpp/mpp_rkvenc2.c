@@ -2924,7 +2924,7 @@ static int rkvenc2_free_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *
 	return 0;
 }
 
-static int rkvenc_remove(struct platform_device *pdev)
+static void rkvenc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -2954,8 +2954,6 @@ static int rkvenc_remove(struct platform_device *pdev)
 		mpp_dev_remove(mpp);
 		rkvenc_procfs_remove(mpp);
 	}
-
-	return 0;
 }
 
 static void rkvenc_shutdown(struct platform_device *pdev)

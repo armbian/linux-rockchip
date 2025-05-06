@@ -628,7 +628,7 @@ static int jpgenc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int jpgenc_remove(struct platform_device *pdev)
+static void jpgenc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = dev_get_drvdata(dev);
@@ -636,7 +636,6 @@ static int jpgenc_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(mpp);
 	jpgenc_procfs_remove(mpp);
-	return 0;
 }
 
 struct platform_driver rockchip_jpgenc_driver = {

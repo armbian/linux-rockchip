@@ -1039,7 +1039,7 @@ failed_get_irq:
 	return ret;
 }
 
-static int av1dec_remove(struct platform_device *pdev)
+static void av1dec_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = platform_get_drvdata(pdev);
@@ -1047,8 +1047,6 @@ static int av1dec_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(mpp);
 	av1dec_procfs_remove(mpp);
-
-	return 0;
 }
 
 struct platform_driver rockchip_av1dec_driver = {

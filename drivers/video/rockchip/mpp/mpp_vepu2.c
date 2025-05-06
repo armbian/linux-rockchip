@@ -1224,7 +1224,7 @@ static int vepu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int vepu_remove(struct platform_device *pdev)
+static void vepu_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -1256,8 +1256,6 @@ static int vepu_remove(struct platform_device *pdev)
 		mpp_dev_remove(mpp);
 		vepu_procfs_remove(mpp);
 	}
-
-	return 0;
 }
 
 static void vepu_shutdown(struct platform_device *pdev)
