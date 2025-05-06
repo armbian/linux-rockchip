@@ -20,7 +20,7 @@ EXPORT_SYMBOL(rk_hdmirx_class);
 
 static int __init rk_hdmirx_class_init(void)
 {
-	hdmirx_class = class_create(THIS_MODULE, "hdmirx");
+	hdmirx_class = class_create("hdmirx");
 	if (IS_ERR(hdmirx_class))
 		return PTR_ERR(hdmirx_class);
 	return 0;
