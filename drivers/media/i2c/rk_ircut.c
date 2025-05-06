@@ -432,7 +432,7 @@ err_free:
 	return ret;
 }
 
-static int ircut_drv_remove(struct platform_device *pdev)
+static void ircut_drv_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct ircut_dev *ircut = NULL;
@@ -445,7 +445,6 @@ static int ircut_drv_remove(struct platform_device *pdev)
 		v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&ircut->ctrl_handler);
 	media_entity_cleanup(&ircut->sd.entity);
-	return 0;
 }
 
 static struct platform_driver ircut_driver = {
