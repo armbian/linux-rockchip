@@ -5029,7 +5029,7 @@ err_work_queues:
 	return ret;
 }
 
-static int hdmirx_remove(struct platform_device *pdev)
+static void hdmirx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
@@ -5062,8 +5062,6 @@ static int hdmirx_remove(struct platform_device *pdev)
 		pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id hdmirx_id[] = {
