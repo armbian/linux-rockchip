@@ -712,7 +712,7 @@ static int rk_dma_heap_init(void)
 	if (ret)
 		goto err_chrdev;
 
-	rk_dma_heap_class = class_create(THIS_MODULE, DEVNAME);
+	rk_dma_heap_class = class_create(DEVNAME);
 	if (IS_ERR(rk_dma_heap_class)) {
 		ret = PTR_ERR(rk_dma_heap_class);
 		goto err_class;
