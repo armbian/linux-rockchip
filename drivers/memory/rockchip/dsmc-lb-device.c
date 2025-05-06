@@ -97,7 +97,7 @@ int rockchip_dsmc_lb_class_create(const char *name)
 {
 	int ret;
 
-	dsmc_class = class_create(THIS_MODULE, name);
+	dsmc_class = class_create(name);
 	if (IS_ERR(dsmc_class)) {
 		ret = PTR_ERR(dsmc_class);
 		return ret;
