@@ -680,14 +680,12 @@ err_pm_disable:
 	return ret;
 }
 
-static int rockchip_mdais_remove(struct platform_device *pdev)
+static void rockchip_mdais_remove(struct platform_device *pdev)
 {
 	snd_dmaengine_mpcm_unregister(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		mdais_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_mdais_pm_ops = {
