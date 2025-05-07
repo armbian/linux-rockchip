@@ -726,7 +726,7 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_amp_remove(struct platform_device *pdev)
+static void rockchip_amp_remove(struct platform_device *pdev)
 {
 	struct rkamp_device *rkamp_dev = platform_get_drvdata(pdev);
 	int i;
@@ -749,8 +749,6 @@ static int rockchip_amp_remove(struct platform_device *pdev)
 		sysfs_remove_file(rk_amp_kobj, &rk_amp_attrs[i].attr);
 
 	kobject_put(rk_amp_kobj);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_amp_match[] = {
