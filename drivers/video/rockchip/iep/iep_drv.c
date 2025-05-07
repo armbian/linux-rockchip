@@ -1071,7 +1071,7 @@ err_clock:
 	return ret;
 }
 
-static int iep_drv_remove(struct platform_device *pdev)
+static void iep_drv_remove(struct platform_device *pdev)
 {
 	struct iep_drvdata *data = platform_get_drvdata(pdev);
 
@@ -1086,8 +1086,6 @@ static int iep_drv_remove(struct platform_device *pdev)
 #ifdef IEP_CLK_ENABLE
 	pm_runtime_disable(data->dev);
 #endif
-
-	return 0;
 }
 
 #if defined(CONFIG_OF)
