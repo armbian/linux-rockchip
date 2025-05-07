@@ -123,6 +123,7 @@ static int rockchip_audio_pwm_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rockchip_audio_pwm_dai_ops = {
+	.probe = rockchip_audio_pwm_dai_probe,
 	.trigger = rockchip_audio_pwm_trigger,
 	.hw_params = rockchip_audio_pwm_hw_params,
 };
@@ -133,7 +134,6 @@ static const struct snd_soc_dai_ops rockchip_audio_pwm_dai_ops = {
 				    SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_audio_pwm_dai = {
-	.probe = rockchip_audio_pwm_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
