@@ -341,13 +341,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int rockchip_audio_pwm_remove(struct platform_device *pdev)
+static void rockchip_audio_pwm_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_audio_pwm_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_audio_pwm_pm_ops = {
