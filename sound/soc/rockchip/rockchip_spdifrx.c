@@ -139,12 +139,12 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rk_spdifrx_dai_ops = {
+	.probe = rk_spdifrx_dai_probe,
 	.hw_params = rk_spdifrx_hw_params,
 	.trigger = rk_spdifrx_trigger,
 };
 
 static struct snd_soc_dai_driver rk_spdifrx_dai = {
-	.probe = rk_spdifrx_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
