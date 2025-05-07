@@ -389,14 +389,12 @@ static int vendor_storage_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int vendor_storage_remove(struct platform_device *pdev)
+static void vendor_storage_remove(struct platform_device *pdev)
 {
 	if (g_vendor) {
 		misc_deregister(&vendor_storage_dev);
 		g_vendor = NULL;
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id vendor_storage_ids[] = {
