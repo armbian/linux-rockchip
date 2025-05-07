@@ -426,14 +426,12 @@ free_edac_mc:
 	return -ENODEV;
 }
 
-static int rockchip_edac_remove(struct platform_device *pdev)
+static void rockchip_edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = dev_get_drvdata(&pdev->dev);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 static const struct of_device_id rk_ddr_mc_err_of_match[] = {
