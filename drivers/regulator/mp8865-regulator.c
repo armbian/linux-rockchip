@@ -144,8 +144,7 @@ static struct mp8865_platform_data *
 	return pdata;
 }
 
-static int mp8865_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int mp8865_probe(struct i2c_client *client)
 {
 	struct mp8865_chip *mp8865;
 	struct mp8865_platform_data *pdata;
