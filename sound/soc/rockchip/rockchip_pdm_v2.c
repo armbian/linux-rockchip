@@ -891,13 +891,11 @@ err_hclk:
 	return ret;
 }
 
-static int rockchip_pdm_v2_remove(struct platform_device *pdev)
+static void rockchip_pdm_v2_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_pdm_v2_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_pdm_v2_pm_ops = {
