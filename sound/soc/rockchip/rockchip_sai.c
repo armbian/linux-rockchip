@@ -1042,6 +1042,7 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
+	.probe = rockchip_sai_dai_probe,
 	.startup = rockchip_sai_startup,
 	.shutdown = rockchip_sai_shutdown,
 	.hw_params = rockchip_sai_hw_params,
@@ -1054,7 +1055,6 @@ static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
 };
 
 static struct snd_soc_dai_driver rockchip_sai_dai = {
-	.probe = rockchip_sai_dai_probe,
 	.ops = &rockchip_sai_dai_ops,
 	.symmetric_rate = 1,
 };
