@@ -1796,7 +1796,7 @@ err_runtime_disable:
 	return ret;
 }
 
-static int rockchip_asrc_remove(struct platform_device *pdev)
+static void rockchip_asrc_remove(struct platform_device *pdev)
 {
 	struct rockchip_asrc *asrc = dev_get_drvdata(&pdev->dev);
 
@@ -1805,8 +1805,6 @@ static int rockchip_asrc_remove(struct platform_device *pdev)
 		rockchip_asrc_runtime_suspend(&pdev->dev);
 
 	clk_disable_unprepare(asrc->hclk);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_asrc_pm_ops = {
