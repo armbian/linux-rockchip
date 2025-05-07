@@ -341,7 +341,7 @@ static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_pdm_v2_dev *pdm = to_info(dai);
 
-	dai->capture_dma_data = &pdm->capture_dma_data;
+	snd_soc_dai_dma_data_set_capture(dai, &pdm->capture_dma_data);
 
 	if (pdm->version == RK3506_PDM)
 		snd_soc_add_component_controls(dai->component, rk3506_controls, 1);
