@@ -292,8 +292,7 @@ static struct xz3216_board *xz3216_parse_dt(struct i2c_client *i2c)
 }
 #endif
 
-static int xz3216_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int xz3216_i2c_probe(struct i2c_client *i2c)
 {
 	struct xz3216 *xz3216;
 	struct xz3216_board *pdev;
