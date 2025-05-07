@@ -954,7 +954,7 @@ err_put_ctlr:
 	return ret;
 }
 
-static int rockchip_spi_slave_remove(struct platform_device *pdev)
+static void rockchip_spi_slave_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = spi_controller_get(platform_get_drvdata(pdev));
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
@@ -973,8 +973,6 @@ static int rockchip_spi_slave_remove(struct platform_device *pdev)
 		dma_release_channel(ctlr->dma_rx);
 
 	spi_controller_put(ctlr);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
