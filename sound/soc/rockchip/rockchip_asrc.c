@@ -467,15 +467,6 @@ static int rockchip_asrc_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops rockchip_asrc_dai_ops = {
-	.startup = rockchip_asrc_startup,
-	.shutdown = rockchip_asrc_shutdown,
-	.hw_params = rockchip_asrc_hw_params,
-	.trigger = rockchip_asrc_trigger,
-	.set_fmt = rockchip_asrc_set_fmt,
-	.set_sysclk = rockchip_asrc_set_sysclk,
-};
-
 static int rockchip_asrc_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rockchip_asrc *asrc = snd_soc_dai_get_drvdata(dai);
@@ -485,6 +476,16 @@ static int rockchip_asrc_dai_probe(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops rockchip_asrc_dai_ops = {
+	.probe = rockchip_asrc_dai_probe,
+	.startup = rockchip_asrc_startup,
+	.shutdown = rockchip_asrc_shutdown,
+	.hw_params = rockchip_asrc_hw_params,
+	.trigger = rockchip_asrc_trigger,
+	.set_fmt = rockchip_asrc_set_fmt,
+	.set_sysclk = rockchip_asrc_set_sysclk,
+};
 
 static struct snd_soc_dai_driver rockchip_asrc_dai = {
 	.playback = {
@@ -505,7 +506,6 @@ static struct snd_soc_dai_driver rockchip_asrc_dai = {
 			   SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	},
-	.probe = rockchip_asrc_dai_probe,
 	.ops = &rockchip_asrc_dai_ops,
 	.symmetric_rate = 1,
 };
