@@ -2314,7 +2314,7 @@ err_hclk:
 	return ret;
 }
 
-static int rockchip_i3c_remove(struct platform_device *pdev)
+static void rockchip_i3c_remove(struct platform_device *pdev)
 {
 	struct rockchip_i3c_master *i3c = dev_get_drvdata(&pdev->dev);
 
@@ -2327,8 +2327,6 @@ static int rockchip_i3c_remove(struct platform_device *pdev)
 	i3c_master_unregister(&i3c->base);
 	clk_disable_unprepare(i3c->clk);
 	clk_disable_unprepare(i3c->hclk);
-
-	return 0;
 }
 
 static __maybe_unused int rockchip_i3c_suspend_noirq(struct device *dev)
