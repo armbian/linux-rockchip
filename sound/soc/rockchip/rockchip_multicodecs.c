@@ -965,13 +965,11 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rk_multicodec_remove(struct platform_device *pdev)
+static void rk_multicodec_remove(struct platform_device *pdev)
 {
 	struct multicodecs_data *mc_data = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&mc_data->handler);
-
-	return 0;
 }
 
 static void rk_multicodec_shutdown(struct platform_device *pdev)
