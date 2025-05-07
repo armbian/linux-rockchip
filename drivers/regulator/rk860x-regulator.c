@@ -466,9 +466,9 @@ static const struct of_device_id rk860x_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rk860x_dt_ids);
 
-static int rk860x_regulator_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int rk860x_regulator_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device_node *np = client->dev.of_node;
 	struct rk860x_device_info *di;
 	struct rk860x_platform_data *pdata;
