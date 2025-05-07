@@ -130,6 +130,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 /* OCV Table Percentage Accuracy: 5.000% */
 #define OCV_TABLE_STEP			5000
 
+#define TS_MAX_VOL			1100
+#define TS_MIN_VOL			500
+
 enum ts_fun {
 	TS_FUN_SOURCE_CURRENT,
 	TS_FUN_VOLTAGE_INPUT,
@@ -223,7 +226,7 @@ enum rk817_battery_fields {
 	RELAX_CUR1_H, RELAX_CUR1_L,
 	RELAX_CUR2_H, RELAX_CUR2_L,
 	CHRG_BAT_TAB2, CHRG_INCC_ZERO, CHRG_BATHIAUTO_EN,
-	PWRON_VOL_H, PWRON_VOL_L,
+	VOL_ADC_TSCUR_SEL_SWITCH, PWRON_VOL_H, PWRON_VOL_L,
 	PWRON_CUR_H, PWRON_CUR_L,
 	OFF_CNT,
 	Q_INIT_H3, Q_INIT_H2, Q_INIT_L1, Q_INIT_L0,
@@ -326,6 +329,7 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[CHRG_INCC_ZERO] = REG_FIELD(0x62, 6, 6),
 	[CHRG_BATHIAUTO_EN] = REG_FIELD(0x62, 5, 5),
 
+	[VOL_ADC_TSCUR_SEL_SWITCH] = REG_FIELD(0x66, 7, 7),
 	[PWRON_VOL_H] = REG_FIELD(0x6B, 0, 7),
 	[PWRON_VOL_L] = REG_FIELD(0x6C, 0, 7),
 	[PWRON_CUR_H] = REG_FIELD(0x6D, 0, 7),
@@ -1416,10 +1420,21 @@ static void rk817_bat_init_ts_detect(struct rk817_battery_device *battery)
 	rk817_bat_enable_charge(battery);
 }
 
-static void rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int temp)
+static void rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int now_temp)
 {
 	int i, up_temp, down_temp;
-	int now_temp = temp;
+	int num;
+
+	if (!battery->pdata->tc_count)
+		return;
+
+	num = battery->pdata->tc_count;
+	if ((now_temp < battery->pdata->tc_table[0].temp_down) ||
+		(now_temp > battery->pdata->tc_table[num - 1].temp_up))
+		rk817_bat_disable_charge(battery);
+	else if ((now_temp > battery->pdata->tc_table[0].temp_down + 2) &&
+		(now_temp < battery->pdata->tc_table[num - 1].temp_up - 2))
+		rk817_bat_enable_charge(battery);
 
 	for (i = 0; i < battery->pdata->tc_count; i++) {
 		up_temp = battery->pdata->tc_table[i].temp_up;
@@ -1452,7 +1467,7 @@ static void rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int
 				    battery->pdata->tc_table[i].chrg_voltage,
 				    battery->pdata->tc_table[i].chrg_voltage_index);
 			} else
-				rk817_bat_enable_charge(battery);
+				rk817_bat_disable_charge(battery);
 
 			battery->charge_index = i;
 		}
@@ -1469,21 +1484,81 @@ static int rk817_bat_get_bat_ts(struct rk817_battery_device *battery)
 	return temp_value;
 }
 
+static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int tsvol)
+{
+	int current_gear = battery->pdata->ntc_factor;
+	int new_gear = current_gear;
+	int i, index = -1;
+	/* Define gear sequence and corresponding parameters */
+	const struct {
+		int gear;
+		int sel_switch;
+		int flow_out;
+	} gear_table[] = {
+		{40, 0, FLOW_OUT_30uA},
+		{30, 0, FLOW_OUT_20uA},
+		{20, 0, FLOW_OUT_10uA},
+		{10, 0, FLOW_OUT_10uA} /* Last gear */
+	};
+
+	/* find current gear index */
+	for (i = 0; i < ARRAY_SIZE(gear_table); i++) {
+		if (gear_table[i].gear == current_gear) {
+			index = i;
+			break;
+		}
+	}
+
+	/* invalid current gear */
+	if (index < 0)
+		return -EINVAL;
+
+	/* gear switching logic */
+	if (tsvol > TS_MAX_VOL) {
+		/* Move to lower gear */
+		if (index < ARRAY_SIZE(gear_table) - 1) {
+			new_gear = gear_table[index + 1].gear;
+			rk817_bat_field_write(battery,
+					      VOL_ADC_TSCUR_SEL,
+					      gear_table[index + 1].flow_out);
+		}
+	} else if (tsvol < TS_MIN_VOL) {
+		/* Move to higher gear */
+		if (index > 0) {
+			new_gear = gear_table[index - 1].gear;
+			rk817_bat_field_write(battery,
+					      VOL_ADC_TSCUR_SEL,
+					      gear_table[index - 1].flow_out);
+		}
+	}
+
+	/* Update gear only if changed */
+	if (new_gear != current_gear) {
+		battery->pdata->ntc_factor = new_gear;
+		DBG("%s: Gear changed from %d to %d\n", __func__, current_gear, new_gear);
+	}
+
+	return 0;
+}
+
 static int rk817_bat_get_ntc_res(struct rk817_battery_device *battery)
 {
 	int temp_value, res;
-	int adc_to_vol;
 	int bat_current;
+	int tsvol;
 
 	temp_value = rk817_bat_get_bat_ts(battery);
-	adc_to_vol = temp_value * 1200 / 65536;
+	tsvol = temp_value * 1200 / 65536;
 	bat_current = rk817_bat_get_avg_current(battery);
 
-	res = (adc_to_vol * 1000 - bat_current * battery->pdata->contact_res) /
+	res = (tsvol * 1000 - bat_current * battery->pdata->contact_res) /
 		battery->pdata->ntc_factor;
 
-	DBG("NTC: ADC: value: 0x%x, adc2vol:%d, res: %d, contact_res: %d\n",
-	    temp_value, adc_to_vol, res,  battery->pdata->contact_res);
+	DBG("NTC: ADC: value: 0x%x, adc2vol:%d, res: %d, contact_res: %d, current: %d, ntc_factor: %duA\n",
+	    temp_value, tsvol, res,  battery->pdata->contact_res,
+	    bat_current, battery->pdata->ntc_factor);
+
+	rk817_bat_tscure_sel_switch(battery, tsvol);
 
 	return res;
 }
@@ -1552,7 +1627,7 @@ static void rk817_bat_calculate_contact_res(struct rk817_battery_device *battery
 		return;
 	if (battery->pdata->contact_res)
 		return;
-	if ((battery->temperature < 150) || (battery->temperature > 450))
+	if ((battery->temperature < 150) || (battery->temperature > 350))
 		return;
 
 	if ((battery->ts_info.ts40uA_update == 1) && (battery->ts_info.ts10uA_update == 0))
