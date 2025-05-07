@@ -97,7 +97,7 @@ static int
 dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct dmaengine_dlp *ddlp = soc_component_to_ddlp(component);
 	struct device *dma_dev = dmaengine_dma_dev(ddlp, substream);
 	struct dma_chan *chan = ddlp->chan[substream->stream];
@@ -110,7 +110,7 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
+	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 
 	memset(&hw, 0, sizeof(hw));
 	hw.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
