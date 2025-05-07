@@ -1115,7 +1115,7 @@ static void release_dsmc_mem(struct device *dev, struct rockchip_dsmc *dsmc)
 	}
 }
 
-static int rk_dsmc_remove(struct platform_device *pdev)
+static void rk_dsmc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_dsmc *dsmc;
@@ -1147,8 +1147,6 @@ static int rk_dsmc_remove(struct platform_device *pdev)
 		dma_release_channel(dsmc->dma_req[0]);
 	if (dsmc->dma_req[1])
 		dma_release_channel(dsmc->dma_req[1]);
-
-	return 0;
 }
 
 static struct platform_driver rk_dsmc_driver = {
