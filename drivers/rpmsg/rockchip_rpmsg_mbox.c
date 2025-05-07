@@ -441,7 +441,7 @@ free_channel:
 	return ret;
 }
 
-static int rockchip_rpmsg_remove(struct platform_device *pdev)
+static void rockchip_rpmsg_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_rpmsg_dev *rpdev = platform_get_drvdata(pdev);
@@ -455,8 +455,6 @@ static int rockchip_rpmsg_remove(struct platform_device *pdev)
 
 	mbox_free_channel(rpdev->mbox_rx_chan);
 	mbox_free_channel(rpdev->mbox_tx_chan);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_rpmsg_match[] = {
