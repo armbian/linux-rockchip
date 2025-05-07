@@ -1295,7 +1295,7 @@ err_phandle:
 	return ret;
 }
 
-static int rockchip_vad_remove(struct platform_device *pdev)
+static void rockchip_vad_remove(struct platform_device *pdev)
 {
 	struct rockchip_vad *vad = dev_get_drvdata(&pdev->dev);
 
@@ -1303,7 +1303,6 @@ static int rockchip_vad_remove(struct platform_device *pdev)
 		clk_disable_unprepare(vad->hclk);
 	of_node_put(vad->audio_node);
 	snd_soc_unregister_component(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver rockchip_vad_driver = {
