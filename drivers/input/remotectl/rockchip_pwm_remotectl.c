@@ -1010,9 +1010,8 @@ error_clk:
 	return ret;
 }
 
-static int rk_pwm_remove(struct platform_device *pdev)
+static void rk_pwm_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static int remotectl_suspend(struct device *dev)
