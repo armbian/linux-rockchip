@@ -117,7 +117,7 @@ static int rockchip_audio_pwm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_audio_pwm_dev *apwm = to_info(dai);
 
-	dai->playback_dma_data = &apwm->playback_dma_data;
+	snd_soc_dai_dma_data_set_playback(dai, &apwm->playback_dma_data);
 
 	return 0;
 }
