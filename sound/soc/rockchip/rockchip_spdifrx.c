@@ -133,7 +133,7 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &spdifrx->capture_dma_data;
+	snd_soc_dai_dma_data_set_capture(dai, &spdifrx->capture_dma_data);
 
 	return 0;
 }
