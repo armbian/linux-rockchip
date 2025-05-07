@@ -67,6 +67,15 @@ static const struct spinand_info hiksemi_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&hsesyhdswxg_ooblayout, NULL)),
+	SPINAND_INFO("HSESDFDSW4G",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xD4),
+		     NAND_MEMORG(1, 2048, 128, 64, 4096, 40, 1, 1, 1),
+		     NAND_ECCREQ(4, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&hsesyhdswxg_ooblayout, NULL)),
 };
 
 static const struct spinand_manufacturer_ops hiksemi_spinand_manuf_ops = {
