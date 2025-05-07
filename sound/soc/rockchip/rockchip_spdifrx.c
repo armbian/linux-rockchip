@@ -353,13 +353,11 @@ err_pm_runtime:
 	return ret;
 }
 
-static int rk_spdifrx_remove(struct platform_device *pdev)
+static void rk_spdifrx_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rk_spdifrx_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
