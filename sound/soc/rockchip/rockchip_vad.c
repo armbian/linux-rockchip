@@ -753,7 +753,7 @@ static void rockchip_vad_params_fixup(struct snd_pcm_substream *substream,
 	unsigned int *channel_maps;
 	int i;
 
-	cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	vad->cpu_dai = cpu_dai;
 	vad->substream = substream;
 	np = cpu_dai->dev->of_node;
