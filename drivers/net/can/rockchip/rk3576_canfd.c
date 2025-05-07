@@ -1320,7 +1320,7 @@ err_free:
 	return err;
 }
 
-static int rk3576_canfd_remove(struct platform_device *pdev)
+static void rk3576_canfd_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct rk3576_canfd *rcan = netdev_priv(ndev);
@@ -1338,8 +1338,6 @@ static int rk3576_canfd_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	netif_napi_del(&rcan->napi);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver rk3576_canfd_driver = {
