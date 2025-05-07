@@ -3095,6 +3095,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	uint32_t pixel_format = fb->format->format;
 	const struct drm_format_info *info = drm_format_info(pixel_format);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	uint8_t hsub = info->hsub;
 	uint8_t vsub = info->vsub;
 	uint16_t cbcr_src_w = src_w / hsub;
@@ -3144,12 +3145,22 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		}
 	} else {
 		if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
-			if (src_h >= (8 * dst_h)) {
-				ygt4 = 1;
-				src_h >>= 2;
-			} else if (src_h >= (4 * dst_h)) {
-				ygt2 = 1;
-				src_h >>= 1;
+			if (dst_h < mode->hdisplay >> 1) {
+				if (src_h >= (6 * dst_h)) {
+					ygt4 = 1;
+					src_h >>= 2;
+				} else if (src_h >= (3 * dst_h)) {
+					ygt2 = 1;
+					src_h >>= 1;
+				}
+			} else {
+				if (src_h >= (8 * dst_h)) {
+					ygt4 = 1;
+					src_h >>= 2;
+				} else if (src_h >= (4 * dst_h)) {
+					ygt2 = 1;
+					src_h >>= 1;
+				}
 			}
 		} else {
 			if (src_h >= (4 * dst_h)) {
@@ -3254,18 +3265,22 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 					ygt4 = 1;
 				else if ((cbcr_src_h >= 100 * dst_h / 65) && (cbcr_src_h < 100 * dst_h / 35))
 					ygt2 = 1;
+			} else if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME &&
+				   dst_h < mode->hdisplay >> 1) {
+				if (cbcr_src_h >= (6 * dst_h))
+					ygt4 = 1;
+				else if (cbcr_src_h >= (3 * dst_h))
+					ygt2 = 1;
+			} else if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
+				if (cbcr_src_h >= (8 * dst_h))
+					ygt4 = 1;
+				else if (cbcr_src_h >= (4 * dst_h))
+					ygt2 = 1;
 			} else {
-				if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
-					if (cbcr_src_h >= (8 * dst_h))
-						ygt4 = 1;
-					else if (cbcr_src_h >= (4 * dst_h))
-						ygt2 = 1;
-				} else {
-					if (cbcr_src_h >= (4 * dst_h))
-						ygt4 = 1;
-					else if (cbcr_src_h >= (2 * dst_h))
-						ygt2 = 1;
-				}
+				if (cbcr_src_h >= (4 * dst_h))
+					ygt4 = 1;
+				else if (cbcr_src_h >= (2 * dst_h))
+					ygt2 = 1;
 			}
 
 			if (ygt4)
