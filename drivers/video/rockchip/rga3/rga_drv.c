@@ -1458,7 +1458,7 @@ pm_disable:
 	return ret;
 }
 
-static int rga_drv_remove(struct platform_device *pdev)
+static void rga_drv_remove(struct platform_device *pdev)
 {
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -1475,8 +1475,6 @@ static int rga_drv_remove(struct platform_device *pdev)
 #endif /* #ifndef RGA_DISABLE_PM */
 
 	up_write(&rga_drvdata->rwsem);
-
-	return 0;
 }
 
 static void rga_drv_shutdown(struct platform_device *pdev)
