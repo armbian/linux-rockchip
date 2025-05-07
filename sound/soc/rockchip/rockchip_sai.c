@@ -2052,13 +2052,11 @@ err_disable_hclk:
 	return ret;
 }
 
-static int rockchip_sai_remove(struct platform_device *pdev)
+static void rockchip_sai_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_sai_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_sai_pm_ops = {
