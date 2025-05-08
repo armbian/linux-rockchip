@@ -194,6 +194,10 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 		m--;
 		n--;
 	}
+
+	mmask = GENMASK(fd->mwidth - 1, 0) << fd->mshift;
+	nmask = GENMASK(fd->nwidth - 1, 0) << fd->nshift;
+
 	/*
 	 * When compensation the fractional divider,
 	 * the [1:0] bits of the numerator register are omitted,
@@ -214,15 +218,12 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		n *= val;
 		m *= val;
-		if (n > fd->nmask) {
+		if (n > nmask) {
 			pr_debug("%s n(%ld) is overflow, use mask value\n",
 				 __func__, n);
-			n = fd->nmask;
+			n = nmask;
 		}
 	}
-
-	mmask = GENMASK(fd->mwidth - 1, 0) << fd->mshift;
-	nmask = GENMASK(fd->nwidth - 1, 0) << fd->nshift;
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
