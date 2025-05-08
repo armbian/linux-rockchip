@@ -1010,16 +1010,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		goto err_put_ctlr;
 	}
 
-	rs->sclk_in = devm_clk_get_optional(&pdev->dev, "sclk_in");
+	if (!has_acpi_companion(&pdev->dev))
+		rs->sclk_in = devm_clk_get_optional_enabled(&pdev->dev, "sclk_in");
 	if (IS_ERR(rs->sclk_in)) {
 		dev_err(&pdev->dev, "Failed to get sclk_in\n");
 		ret = PTR_ERR(rs->sclk_in);
-		goto err_put_ctlr;
-	}
-
-	ret = clk_prepare_enable(rs->sclk_in);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to enable sclk_in\n");
 		goto err_put_ctlr;
 	}
 
@@ -1040,7 +1035,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &rs->freq);
 		if (ret) {
 			dev_warn(rs->dev, "Failed to get clock or clock-frequency property\n");
-			goto err_disable_sclk_in;
+			goto err_put_ctlr;
 		}
 	}
 
@@ -1204,8 +1199,6 @@ err_free_dma_tx:
 		dma_release_channel(ctlr->dma_tx);
 err_disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
-err_disable_sclk_in:
-	clk_disable_unprepare(rs->sclk_in);
 err_put_ctlr:
 	spi_controller_put(ctlr);
 
@@ -1221,8 +1214,6 @@ static void rockchip_spi_remove(struct platform_device *pdev)
 		misc_deregister(&rs->miscdev);
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	clk_disable_unprepare(rs->sclk_in);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
