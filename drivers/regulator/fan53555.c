@@ -642,12 +642,14 @@ static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 	}, {
 		.compatible = "fcs,fan53555",
 		.data = (void *)FAN53555_VENDOR_FAIRCHILD
+#if !IS_ENABLED(CONFIG_REGULATOR_RK860X)
 	}, {
 		.compatible = "rockchip,rk8600",
 		.data = (void *)FAN53555_VENDOR_ROCKCHIP
 	}, {
 		.compatible = "rockchip,rk8602",
 		.data = (void *)RK8602_VENDOR_ROCKCHIP
+#endif
 	}, {
 		.compatible = "silergy,syr827",
 		.data = (void *)FAN53555_VENDOR_SILERGY,
@@ -791,12 +793,14 @@ static const struct i2c_device_id fan53555_id[] = {
 	}, {
 		.name = "fan53555",
 		.driver_data = FAN53555_VENDOR_FAIRCHILD
+#if !IS_ENABLED(CONFIG_REGULATOR_RK860X)
 	}, {
 		.name = "rk8600",
 		.driver_data = FAN53555_VENDOR_ROCKCHIP
 	}, {
 		.name = "rk8602",
 		.driver_data = RK8602_VENDOR_ROCKCHIP
+#endif
 	}, {
 		.name = "syr827",
 		.driver_data = FAN53555_VENDOR_SILERGY
