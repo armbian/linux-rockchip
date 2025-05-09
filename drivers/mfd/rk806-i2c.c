@@ -11,8 +11,7 @@
 #include <linux/mfd/rk806.h>
 #include <linux/regmap.h>
 
-static int rk806_i2c_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int rk806_i2c_probe(struct i2c_client *client)
 {
 	struct rk806 *rk806;
 
