@@ -1306,8 +1306,7 @@ static const struct of_device_id rk808_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk808_of_match);
 
-static int rk808_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int rk808_probe(struct i2c_client *client)
 {
 	struct device_node *np = client->dev.of_node;
 	struct rk808 *rk808;
