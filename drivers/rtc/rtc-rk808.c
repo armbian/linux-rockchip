@@ -249,7 +249,7 @@ static int rk808_rtc_stop_alarm(struct rk808_rtc *rk808_rtc)
 	 * The rtc alarm status(BIT(6)) must be cleared after alarm 1s or
 	 * after the alarm is disabled.
 	 */
-	ret = regmap_write(rk808->regmap, rk808_rtc->creg->status_reg,
+	ret = regmap_write(rk808_rtc->regmap, rk808_rtc->creg->status_reg,
 			   RTC_ALARM_STATUS);
 	return ret;
 }
