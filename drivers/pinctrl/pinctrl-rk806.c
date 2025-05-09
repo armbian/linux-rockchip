@@ -522,11 +522,6 @@ static int rk806_pinctrl_probe(struct platform_device *pdev)
 
 	pci->gpio_chip.parent = &pdev->dev;
 
-	if (np)
-		pci->gpio_chip.of_node = np;
-	else
-		pci->gpio_chip.of_node = pdev->dev.parent->of_node;
-
 	/* Add gpiochip */
 	ret = devm_gpiochip_add_data(&pdev->dev, &pci->gpio_chip, pci);
 	if (ret < 0) {
