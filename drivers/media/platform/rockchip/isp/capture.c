@@ -1332,6 +1332,10 @@ static int rkisp_set_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_in
 		v4l2_err(&dev->v4l2_dev, "no support wrap\n");
 		return -EINVAL;
 	}
+	if (dev->unite_div > ISP_UNITE_DIV1) {
+		v4l2_err(&dev->v4l2_dev, "unite no support wrap\n");
+		return -EINVAL;
+	}
 	dev->cap_dev.wrap_width = arg->width;
 	return stream->ops->set_wrap(stream, arg->height);
 }
