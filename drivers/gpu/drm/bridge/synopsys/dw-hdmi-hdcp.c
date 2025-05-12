@@ -720,7 +720,7 @@ error0:
 	return ret;
 }
 
-static int dw_hdmi_hdcp_remove(struct platform_device *pdev)
+static void dw_hdmi_hdcp_remove(struct platform_device *pdev)
 {
 	struct dw_hdcp *hdcp = pdev->dev.platform_data;
 
@@ -731,8 +731,6 @@ static int dw_hdmi_hdcp_remove(struct platform_device *pdev)
 
 	kfree(hdcp->keys);
 	kfree(hdcp->seeds);
-
-	return 0;
 }
 
 static struct platform_driver dw_hdmi_hdcp_driver = {
