@@ -231,12 +231,6 @@ static void rk806_gpio_set(struct gpio_chip *chip,
 			offset, value);
 }
 
-static int rk806_gpio_direction_input(struct gpio_chip *chip,
-				      unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(chip, offset);
-}
-
 static int rk806_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned int offset,
 				       int value)
@@ -274,7 +268,7 @@ static struct gpio_chip rk806_gpio_chip = {
 	.get_direction		= rk806_gpio_get_direction,
 	.get			= rk806_gpio_get,
 	.set			= rk806_gpio_set,
-	.direction_input	= rk806_gpio_direction_input,
+	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= rk806_gpio_direction_output,
 	.can_sleep		= true,
 	.base			= -1,
