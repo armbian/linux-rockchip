@@ -1339,7 +1339,7 @@ config MFD_RK8XX
 	select MFD_CORE
 
 config MFD_RK8XX_I2C
-	tristate "Rockchip RK805/RK808/RK809/RK816/RK817/RK818 Power Management Chip"
+	tristate # "Rockchip RK805/RK808/RK809/RK816/RK817/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
@@ -1353,7 +1353,7 @@ config MFD_RK8XX_I2C
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
 
 config MFD_RK8XX_SPI
-	tristate "Rockchip RK806 Power Management Chip"
+	tristate # "Rockchip RK806 Power Management Chip"
 	depends on SPI && OF
 	select MFD_CORE
 	select REGMAP_SPI
