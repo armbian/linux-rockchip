@@ -1207,12 +1207,12 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA, RPLY_RECEIV);
 
 	/* Clear interrupt source for AUX CH access error */
-	reg = readl(dp->reg_base + ANALOGIX_DP_INT_STA);
+	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA);
 	if ((reg & AUX_ERR)) {
-		u32 aux_status = readl(dp->reg_base + ANALOGIX_DP_AUX_CH_STA) &
+		u32 aux_status = analogix_dp_read(dp, ANALOGIX_DP_AUX_CH_STA) &
 				 AUX_STATUS_MASK;
 
-		writel(AUX_ERR, dp->reg_base + ANALOGIX_DP_INT_STA);
+		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, AUX_ERR);
 
 		if (aux_status == AUX_STATUS_TIMEOUT_ERROR)
 			return -ETIMEDOUT;
