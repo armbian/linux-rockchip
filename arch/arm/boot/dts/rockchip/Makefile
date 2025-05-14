@@ -1,16 +1,72 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+	rv1103g-38x38-ipc-v10.dtb \
+	rv1103g-battery-ipc-v10.dtb \
+	rv1103g-battery-ipc-v11.dtb \
+	rv1103g-evb-mcu-display-v11.dtb \
+	rv1103g-evb-v10.dtb \
+	rv1103g-evb-v11.dtb \
+	rv1103g-evb-v11-sii902x-bt6562hdmi.dtb \
+	rv1103g-evb2-v10.dtb \
+	rv1103g-rmsl311-dloc-sl-v10.dtb \
+	rv1103g-scaner-v10.dtb \
+	rv1106g-38x38-ipc-v10.dtb \
+	rv1106g-38x38-ipc-v10-spi-nand.dtb \
+	rv1106g-evb1-mcu-display-v11.dtb \
+	rv1106g-evb1-mcu-display-v20.dtb \
+	rv1106g-evb1-rgb-display-v11.dtb \
+	rv1106g-evb1-v10.dtb \
+	rv1106g-evb1-v10-dual-cam.dtb \
+	rv1106g-evb1-v10-facial-gate.dtb \
+	rv1106g-evb1-v10-spi-nand.dtb \
+	rv1106g-evb1-v10-spi-nor.dtb \
+	rv1106g-evb1-v11.dtb \
+	rv1106g-evb1-v11-4k.dtb \
+	rv1106g-evb1-v11-cvr.dtb \
+	rv1106g-evb1-v11-cvr-dual-cam.dtb \
+	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
+	rv1106g-evb1-v11-dual-cam.dtb \
+	rv1106g-evb1-v11-facial-gate.dtb \
+	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
+	rv1106g-evb1-v11-sii902x-bt11202hdmi.dtb \
+	rv1106g-evb1-v11-sii902x-rgb2hdmi.dtb \
+	rv1106g-evb1-v11-spi-nand-cvr.dtb \
+	rv1106g-evb2-v10.dtb \
+	rv1106g-evb2-v10-dual-camera.dtb \
+	rv1106g-evb2-v11-emmc.dtb \
+	rv1106g-evb2-v11-trailcam-emmc.dtb \
+	rv1106g-evb2-v12-aov-spi-nor.dtb \
+	rv1106g-evb2-v12-dual-camera-avs.dtb \
+	rv1106g-evb2-v12-nofastae-emmc.dtb \
+	rv1106g-evb2-v12-nofastae-spi-nand.dtb \
+	rv1106g-evb2-v12-nofastae-spi-nor.dtb \
+	rv1106g-evb2-v12-spi-nand-tb.dtb \
+	rv1106g-evb2-v12-wakeup.dtb \
+	rv1106g-smart-door-lock-rmsl-v10.dtb \
+	rv1106g-smart-door-lock-rmsl-v12.dtb \
+	rv1106g-uvc-demo-v10.dtb \
+	rv1106g-uvc-demo-v10-spi-nor.dtb \
 	rv1108-elgin-r1.dtb \
 	rv1108-evb.dtb \
 	rv1109-sonoff-ihost.dtb \
 	rv1126-edgeble-neu2-io.dtb \
+	rv1126-evb-ddr3-v10.dtb \
+	rv1126-evb-ddr3-v12.dtb \
+	rv1126-evb-ddr3-v12-spi-nand.dtb \
+	rv1126-evb-ddr3-v12-spi-nor.dtb \
+	rv1126-evb-ddr3-v13.dtb \
 	rv1126-sonoff-ihost.dtb \
 	rk3036-evb.dtb \
+	rk3036-evb1-ddr3-v10.dtb \
 	rk3036-kylin.dtb \
 	rk3066a-bqcurie2.dtb \
 	rk3066a-marsboard.dtb \
 	rk3066a-mk808.dtb \
 	rk3066a-rayeager.dtb \
+	rk3126c-evb-ddr3-v10-linux.dtb \
+	rk3126c-evb-ddr3-v10-linux-slc.dtb \
+	rk3128-evb-ddr3-v10-linux.dtb \
+	rk3128-evb-ddr3-v10-linux-spi-nand.dtb \
 	rk3128-evb.dtb \
 	rk3128-xpi-3128.dtb \
 	rk3188-bqedison2qc.dtb \
@@ -42,4 +98,36 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-veyron-pinky.dtb \
 	rk3288-veyron-speedy.dtb \
 	rk3288-veyron-tiger.dtb \
-	rk3288-vyasa.dtb
+	rk3288-vyasa.dtb \
+	rk3308-evb-audio-v10-amp-display-rgb-aarch32.dtb \
+	rk3308-evb-audio-v10-display-rgb-aarch32.dtb \
+	rk3308-evb-audio-v11-display-rgb-aarch32.dtb \
+	rk3308bs-evb-amic-v11-aarch32.dtb \
+	rk3308bs-evb-dmic-pdm-v11-aarch32.dtb \
+	rk3308bs-evb-mipi-display-v11-aarch32.dtb \
+	rk3308hs-voice-module-board-v10-aarch32.dtb \
+	rk3502g-evb1-v10.dtb \
+	rk3503g-evb1-v10.dtb \
+	rk3506b-evb1-v10.dtb \
+	rk3506b-test2-v10.dtb \
+	rk3506g-demo-display-control.dtb \
+	rk3506g-evb1-v10.dtb \
+	rk3506g-evb1-v10-amp.dtb \
+	rk3506g-evb1-v10-dsmc-lb-slave.dtb \
+	rk3506g-evb1-v10-dsmc-master.dtb \
+	rk3506g-evb1-v10-flexbus-adc-dac.dtb \
+	rk3506g-evb1-v10-mcu-k350c4516t.dtb \
+	rk3506g-evb1-v10-rgb-Q7050ITH2641AA1T.dtb \
+	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
+	rk3506g-evb1-v10-sii9022-rgb2hdmi.dtb \
+	rk3506g-evb2-v10.dtb \
+	rk3506g-iotest-v10.dtb \
+	rk3506g-iotest-v10-pdm.dtb \
+	rk3506g-test1-v10-audio.dtb \
+	rk3518-evb1-ddr4-v10.dtb \
+	rk3528-demo4-ddr4-v10.dtb \
+	rk3528-evb1-ddr4-v10.dtb \
+	rk3528-evb2-ddr3-v10.dtb \
+	rk3528-evb3-lp4x-v10.dtb \
+	rk3528-evb4-ddr4-v10.dtb \
+	rk3562-evb2-ddr4-v10.dtb
