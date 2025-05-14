@@ -1209,7 +1209,7 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	/* Clear interrupt source for AUX CH access error */
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA);
 	if ((reg & AUX_ERR)) {
-		u32 aux_status = readl(dp->reg_base + ANALOGIX_DP_AUX_CH_STA) &
+		u32 aux_status = analogix_dp_read(dp, ANALOGIX_DP_AUX_CH_STA) &
 				 AUX_STATUS_MASK;
 
 		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, AUX_ERR);
