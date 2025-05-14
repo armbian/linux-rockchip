@@ -94,6 +94,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define DEFAULT_SLP_FILTER_CUR		100
 #define DEFAULT_PWROFF_VOL_THRESD	3400
 #define DEFAULT_MONITOR_SEC		5
+
 #define DEFAULT_SAMPLE_RES		20
 
 #define CONTACT_RES_MAX			50
@@ -2715,11 +2716,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	long cap_change;
 	long ydsoc = 0;
 
-	/* charge and discharge switch */
-	if ((battery->sm_linek * battery->current_avg <= 0)) {
-		DBG("<%s>. linek mode, retinit sm linek..\n", __func__);
-		rk817_bat_calc_sm_linek(battery);
-	}
+	rk817_bat_calc_sm_linek(battery);
 
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 	old_cap = battery->sm_remain_cap;
@@ -2767,8 +2764,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	rk817_bat_update_soc(battery, ydsoc);
 
 	battery->sm_remain_cap = battery->remain_cap;
-
-	rk817_bat_calc_sm_linek(battery);
+	/* rk817_bat_calc_sm_linek(battery); */
 
 	DBG("smooth: smooth_soc = %d, dsoc = %d\n",
 	    battery->smooth_soc, battery->dsoc);
@@ -3346,7 +3342,7 @@ static void rk817_bat_relax_vol_calib(struct rk817_battery_device *battery)
 static void rk817_bat_resume_profile_smoothing(struct rk817_battery_device *battery)
 {
 	int delta_cap = 0, old_cap = 0;
-	unsigned long charge_soc;
+	uint64_t charge_soc;
 	int interval_sec = 0;
 	long cap_change;
 	long ydsoc = 0;
@@ -3387,7 +3383,7 @@ static void rk817_bat_resume_profile_smoothing(struct rk817_battery_device *batt
 
 	DBG("<%s>. k=%d, ydsoc=%ld; cap:old=%d, new:%d; delta_cap=%d\n",
 	    __func__, battery->sm_linek, ydsoc, old_cap,
-	    battery->sm_remain_cap, delta_cap);
+	    battery->remain_cap, delta_cap);
 
 	/* finish:
 	 * 1, suspend online: battery->sleep_chrg_online = 1
@@ -3405,7 +3401,14 @@ static void rk817_bat_resume_profile_smoothing(struct rk817_battery_device *batt
 			battery->smooth_soc = battery->dsoc;
 			battery->delta_cap_remainder = 0;
 			battery->sm_remain_cap = battery->remain_cap;
+		} else {
+			battery->smooth_soc += ydsoc;
+			battery->dsoc += ydsoc;
+			battery->delta_cap_remainder = cap_change % (10 * DIV(battery->fcc));
+			battery->sm_remain_cap = battery->remain_cap;
 		}
+		DBG("resume: interval_sec: %d,ydsoc: %ld, charge_soc: %lld, dsoc: %d\n",
+		    interval_sec, ydsoc, charge_soc, battery->dsoc);
 	} else {
 		/* discharge mode, but ydsoc > 0, from charge status to dischrage
 		 */
@@ -3415,6 +3418,9 @@ static void rk817_bat_resume_profile_smoothing(struct rk817_battery_device *batt
 			battery->delta_cap_remainder = cap_change % (10 * DIV(battery->fcc));
 			battery->sm_remain_cap = battery->remain_cap;
 		}
+		DBG("resume: sm_remain_cap: %d, remain_cap: %d, delta_cap: %d delta_cap_remainder: %d,ydsoc: %d, dsoc: %d\n",
+		    battery->sm_remain_cap, battery->remain_cap, delta_cap,
+		    battery->delta_cap_remainder, interval_sec, battery->dsoc);
 	}
 
 	if (rk817_bat_field_read(battery, CHG_STS) == CHARGE_FINISH) {
