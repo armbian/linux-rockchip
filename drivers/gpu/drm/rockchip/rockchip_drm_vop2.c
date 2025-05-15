@@ -3996,6 +3996,12 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 				 fb->pitches[0], &wb_state->yrgb_addr);
 
 		drm_writeback_queue_job(wb_conn, conn_state);
+		if (!vp->enabled_win_mask) {
+			drm_warn(vop2->drm_dev, "Writeback can not work when all plane are disabled!");
+			drm_writeback_signal_completion(&vop2->wb.conn, 0);
+			return;
+		}
+
 		if (vop2->version < VOP_VERSION_RK3576) {
 			spin_lock_irqsave(&wb->job_lock, flags);
 			wb->jobs[wb->job_index].pending = true;
