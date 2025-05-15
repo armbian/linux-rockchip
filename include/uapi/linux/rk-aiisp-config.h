@@ -10,10 +10,12 @@
 #include <linux/rk-isp2-config.h>
 
 #define RKAIISP_PYRAMID_LAYER_NUM		4
+#define RKAIISP_AIYNR_LAYER_NUM			5
 #define RKAIISP_MAX_RUNCNT			8
 #define RKAIISP_MAX_ISPBUF			8
 #define RKAIISP_MODEL_UPDATE			0x01
 #define RKAIISP_OTHER_UPDATE			0x02
+#define RKAIISP_AIYNR_YBUF_NUM_MAX		8
 
 #define RKAIISP_CMD_SET_PARAM_INFO		\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkaiisp_param_info)
@@ -29,6 +31,9 @@
 
 #define RKAIISP_CMD_INIT_AIRMS_BUFPOOL		\
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct rkaiisp_rmsbuf_info)
+
+#define RKAIISP_CMD_GET_YNRBUF_INFO		\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 5, struct rkaiisp_ynrbuf_info)
 
 /**********************EVENT_PRIVATE***************************/
 #define RKAIISP_V4L2_EVENT_AIISP_DONE		(V4L2_EVENT_PRIVATE_START + 1)
@@ -50,7 +55,8 @@ enum rkaiisp_chn_src {
 	AIISP_LAST_OUT,
 	VICAP_BAYER_RAW,
 	ALLZERO_SIGMA,
-	ALLZERO_NARMAP
+	ALLZERO_NARMAP,
+	ISP_FINAL_Y
 };
 
 enum rkaiisp_exealgo {
@@ -63,7 +69,8 @@ enum rkaiisp_model_mode {
 	SINGLE_MODE,
 	COMBO_MODE,
 	SINGLEX2_MODE,
-	REMOSAIC_MODE
+	REMOSAIC_MODE,
+	AIYNR_MODE
 };
 
 enum rkaiisp_exemode {
@@ -113,6 +120,13 @@ struct rkaiisp_rmsbuf_info {
 	__u32 outbuf_num;
 	int inbuf_fd[6];
 	int outbuf_fd[6];
+} __attribute__ ((packed));
+
+struct rkaiisp_ynrbuf_info {
+	int width;
+	int height;
+	__u32 buf_cnt;
+	int dma_fd[RKAIISP_AIYNR_YBUF_NUM_MAX];
 } __attribute__ ((packed));
 
 struct rkaiisp_other_cfg {

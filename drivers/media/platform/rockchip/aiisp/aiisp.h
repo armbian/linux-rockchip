@@ -22,6 +22,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/v4l2-event.h>
+#include <soc/rockchip/rockchip_aiisp.h>
 #include "hw.h"
 
 #define DRIVER_NAME "rkaiisp"
@@ -115,6 +116,7 @@ struct rkaiisp_device {
 	struct rkaiisp_dummy_buffer aiprebuf[RKISP_BUFFER_MAX];
 	struct rkaiisp_dummy_buffer vpslbuf[RKISP_BUFFER_MAX];
 	struct rkaiisp_dummy_buffer aiispbuf[RKISP_BUFFER_MAX];
+	struct rkaiisp_dummy_buffer ynrinbuf[RKISP_BUFFER_MAX];
 	struct rkaiisp_dummy_buffer temp_buf[RKAIISP_TMP_BUF_CNT];
 	u32 outbuf_idx;
 
@@ -123,6 +125,9 @@ struct rkaiisp_device {
 	struct rkaiisp_dummy_buffer rms_outbuf[RKAIISP_AIRMS_BUF_MAXCNT];
 	struct rkaiisp_dummy_buffer sigma_buf;
 	struct rkaiisp_dummy_buffer narmap_buf;
+
+	struct aiisp_aiynr_ybuf_cfg ynr_ybuf_cfg;
+	struct rkaiisp_dummy_buffer ynroutbuf[RKAIISP_AIYNR_YBUF_NUM_MAX];
 
 	struct kfifo idxbuf_kfifo;
 	union rkaiisp_queue_buf curr_idxbuf;
@@ -192,8 +197,7 @@ static inline u32 rkaiisp_read(struct rkaiisp_device *aidev, u32 reg, bool is_di
 }
 
 extern struct platform_driver rkaiisp_plat_drv;
-int rkaiisp_queue_ispbuf(struct rkaiisp_device *aidev, union rkaiisp_queue_buf *idxbuf);
-void rkaiisp_update_list_reg(struct rkaiisp_device *aidev);
+int rkaiisp_set_aiynr_ybuf(struct rkaiisp_device *aidev, struct aiisp_aiynr_ybuf_cfg *buf_cfg);
 void rkaiisp_trigger(struct rkaiisp_device *aidev);
 int rkaiisp_get_idxbuf_len(struct rkaiisp_device *aidev);
 enum rkaiisp_irqhdl_ret rkaiisp_irq_hdl(struct rkaiisp_device *aidev, u32 mi_mis);
