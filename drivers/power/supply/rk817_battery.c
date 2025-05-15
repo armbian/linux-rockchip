@@ -44,7 +44,6 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define BAT_INFO(fmt, args...) pr_info(fmt, ##args)
 
 #define DRIVER_VERSION	"1.10"
-#define SFT_SET_KB	1
 
 #define DIV(x)	((x) ? (x) : 1)
 #define ENABLE	0x01
@@ -74,7 +73,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 	(adc_value / 1000 * 1720 / 3600 / samp_res)
 
 /* Adjust full capacity to a reduced value */
-#define UPDATE_REDUCE_FCC(fcc)		((fcc) * 995 / 1000)
+#define UPDATE_REDUCE_FCC(fcc)		((fcc) * 990 / 1000)
 /* Raise the maximum capacity value */
 #define UPDATE_RAISE_FCC(fcc)		((fcc) * 1005 / 1000)
 /* Effective full capacity */
@@ -474,6 +473,7 @@ struct battery_platform_data {
 	int charge_stay_awake;
 	int contact_res;
 	int get_contact_res_by_soft;
+	int nominal_voltage;
 };
 
 struct rk817_battery_device {
@@ -530,6 +530,10 @@ struct rk817_battery_device {
 	int				sm_remain_cap;
 	int				delta_cap_remainder;
 	int				sm_linek;
+	int				charger_ramainder1;
+	int				charger_ramainder2;
+	int				discharger_ramainder1;
+	int				discharger_ramainder2;
 	int				smooth_soc;
 	unsigned long			sleep_dischrg_sec;
 	unsigned long			sleep_sum_sec;
@@ -1805,14 +1809,20 @@ static u8 is_rk817_bat_initialized(struct rk817_battery_device *battery)
 static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 {
 	long expected_voltage = 0, expected_res2voltage;
+	int linek, linek_step1, linek_step2;
+	bool is_discharging;
+	int nominal_voltage;
 	int expected_rsoc;
 	int current_avg;
 	int soc2vol;
 	int status;
-	int linek;
 
+	status = rk817_bat_get_charge_status(battery);
 	current_avg = rk817_bat_get_avg_current(battery);
 	soc2vol = rk817_bat_soc2vol(battery, battery->rsoc);
+	is_discharging = (status == CHRG_OFF) || ((status == CC_OR_CV_CHRG) && (current_avg < 0)) ||
+		    ((status == CHARGE_FINISH) && (current_avg < FINISH_CURR_THRESD));
+
 	if (soc2vol > battery->voltage_avg)
 		expected_voltage = battery->pdata->pwroff_vol +
 			soc2vol * (soc2vol - battery->voltage_avg) / battery->pdata->pwroff_vol;
@@ -1832,18 +1842,50 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 
 	DBG("expected_voltage: %ld, RSOC: %d expected_rsoc: %d delta_rsoc: %d\n",
 	    expected_voltage, battery->rsoc, expected_rsoc, battery->delta_rsoc);
+	if (battery->pdata->nominal_voltage != 0)
+		nominal_voltage = battery->pdata->nominal_voltage;
+	else
+		nominal_voltage = soc2vol;
 
-	status = rk817_bat_get_charge_status(battery);
-	if ((status == CHRG_OFF) || ((status == CC_OR_CV_CHRG) && (current_avg < 0)) ||
-	    ((status == CHARGE_FINISH) && (current_avg < FINISH_CURR_THRESD))) {
+	DBG("nominal_voltage: %d, pdata->nominal_voltage: %d soc2vol: %d\n",
+	    nominal_voltage, battery->pdata->nominal_voltage, soc2vol);
+
+	if (is_discharging) {
 		/* When the discharge current is less than 30A and the charging IC reports a
 		 * full charge status, the system will determine that the current operation is
 		 *in discharge mode.
 		 */
-		linek = -(MAX_PERCENTAGE - battery->rsoc + battery->dsoc) * 1000;
-		linek /= (MAX_PERCENTAGE - battery->delta_rsoc);
+		linek_step1 = -(MAX_PERCENTAGE - battery->rsoc + battery->dsoc) * 1000;
+		linek_step2 = (linek_step1 + battery->discharger_ramainder1) / (MAX_PERCENTAGE - battery->delta_rsoc);
+		battery->discharger_ramainder1 = (linek_step1 + battery->discharger_ramainder1) % (MAX_PERCENTAGE - battery->delta_rsoc);
+		DBG("discharge: ocv_voltage %d linek_step1: %d linek_step2: %d: discharger_ramainder1: %d\n",
+		    soc2vol, linek_step1, linek_step2, battery->discharger_ramainder1);
+
+		linek_step2 *= soc2vol;
+		linek = (linek_step2 + battery->discharger_ramainder2) / DIV(nominal_voltage);
+		DBG("discharge: (linek_step2 + battery->discharger_ramainder2): %d, linek_step1: %d, linek_step2: %d, linek: %d\n",
+			(linek_step2 + battery->discharger_ramainder2), linek_step1, linek_step2, linek);
+		battery->discharger_ramainder2 = (linek_step2 + battery->discharger_ramainder2) % DIV(nominal_voltage);
+		DBG("discharge: ocv_voltage %d linek_step2: %d linek: %d: discharger_ramainder2: %d\n",
+		    soc2vol, linek_step2, linek, battery->discharger_ramainder2);
+
+		battery->charger_ramainder1 = 0;
+		battery->charger_ramainder2 = 0;
 	} else {
-		linek = MAX_PERCENTAGE * 1000 / (MAX_PERCENTAGE - battery->rsoc + battery->dsoc);
+		linek_step1 = (battery->charger_ramainder1 + MAX_PERCENTAGE * 1000) / (battery->fake_full_soc + battery->dsoc - battery->rsoc);
+		battery->charger_ramainder1 = (battery->charger_ramainder1 + MAX_PERCENTAGE * 1000) % (battery->fake_full_soc + battery->dsoc - battery->rsoc);
+		DBG("charge: ocv_voltage %d linek: %d: charger_ramainder1: %d: fake_full_soc: %d\n",
+		    soc2vol, linek_step1, battery->charger_ramainder1, battery->fake_full_soc);
+
+		linek_step1 *= soc2vol;
+		linek = (linek_step1 +  battery->charger_ramainder2) / DIV(nominal_voltage);
+		battery->charger_ramainder2 = (linek_step1 +  battery->charger_ramainder2) % DIV(nominal_voltage);
+		DBG("charge: ocv_voltage %d linek_step1: %d linek: %d: charger_ramainder2: %d: fake_full_soc: %d\n",
+		    soc2vol, linek_step1, linek, battery->charger_ramainder2, battery->fake_full_soc);
+		DBG("charge: ocv_voltage %d linek: %d\n", soc2vol, linek);
+
+		battery->discharger_ramainder1 = 0;
+		battery->discharger_ramainder2 = 0;
 	}
 	DBG("expected_voltage %ld expected_rsoc: %d\n", expected_voltage, expected_rsoc);
 	DBG("ocv_voltage %d sd_ocv_voltage: %ld, linek: %d\n", soc2vol, expected_voltage, linek);
@@ -2251,8 +2293,16 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	if (ret < 0)
 		dev_info(dev, "fake_full_soc missing!\n");
 	else {
-		if ((pdata->fake_full_soc > 100) || (pdata->fake_full_soc < 0))
+		if ((pdata->fake_full_soc > 100) || (pdata->fake_full_soc < 89))
 			pdata->fake_full_soc = 100;
+	}
+
+	ret = of_property_read_u32(np, "nominal_voltage", &pdata->nominal_voltage);
+	if (ret < 0) {
+		dev_info(dev, "nominal_voltage missing!\n");
+	} else {
+		if ((pdata->nominal_voltage > 4500) || (pdata->nominal_voltage < 3600))
+			pdata->nominal_voltage = 0;
 	}
 
 	if (battery->chip_id == RK809_ID) {
