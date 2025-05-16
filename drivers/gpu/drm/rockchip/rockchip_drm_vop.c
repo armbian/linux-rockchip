@@ -1859,6 +1859,11 @@ static void vop_wb_commit(struct drm_crtc *crtc)
 				 fb->pitches[0], &wb_state->yrgb_addr);
 
 		drm_writeback_queue_job(wb_conn, conn_state);
+		if (!vop->enabled_win_mask) {
+			drm_warn(vop->drm_dev, "Writeback can not work when all plane are disabled!");
+			drm_writeback_signal_completion(&vop->wb.conn, 0);
+			return;
+		}
 
 		fifo_throd = fb->pitches[0] >> 4;
 		if (fifo_throd > vop->data->wb->fifo_depth)
