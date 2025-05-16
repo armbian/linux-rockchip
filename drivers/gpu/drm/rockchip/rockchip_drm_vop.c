@@ -1877,7 +1877,6 @@ static void vop_wb_commit(struct drm_crtc *crtc)
 				 fb->pitches[0], &wb_state->yrgb_addr);
 
 		drm_writeback_queue_job(wb_conn, conn_state);
-		conn_state->writeback_job = NULL;
 
 		spin_lock_irqsave(&wb->job_lock, flags);
 		wb->jobs[wb->job_index].pending = true;
