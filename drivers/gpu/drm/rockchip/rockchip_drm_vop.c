@@ -291,6 +291,11 @@ struct vop {
 	bool aclk_rate_reset;
 	unsigned long aclk_rate;
 
+	/**
+	 * @enabled_win_mask: Bitmask of enabled wins attached to the VOP
+	 */
+	uint32_t enabled_win_mask;
+
 	u32 version;
 	u32 background;
 	u32 line_flag;
@@ -621,6 +626,7 @@ static bool vop_is_allwin_disabled(struct vop *vop)
 
 static void vop_win_disable(struct vop *vop, struct vop_win *win)
 {
+	vop->enabled_win_mask &= ~BIT(win->win_id);
 	/*
 	 * FIXUP: some of the vop scale would be abnormal after windows power
 	 * on/off so deinit scale to scale_none mode.
@@ -2707,6 +2713,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, gate, 1);
 	spin_unlock(&vop->reg_lock);
 
+	vop->enabled_win_mask |= BIT(win->win_id);
+
 	if (rockchip_afbc(plane, fb->modifier))
 		afbc_en = true;
 	rockchip_drm_dbg_thread_info(vop->dev, VOP_DEBUG_PLANE,
@@ -3130,6 +3138,7 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 	struct vop *vop = to_vop(crtc);
 	int sys_status = drm_crtc_index(crtc) ?
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
+	struct vop_win *win;
 
 	if (on == vop->loader_protect)
 		return 0;
@@ -3151,6 +3160,11 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 
 		rockchip_set_system_status(sys_status);
 		vop_initial(crtc);
+		if (crtc->primary) {
+			win = to_vop_win(crtc->primary);
+			if (VOP_WIN_GET(vop, win, enable))
+				vop->enabled_win_mask |= BIT(win->win_id);
+		}
 		drm_crtc_vblank_on(crtc);
 		vop->loader_protect = true;
 	} else {
