@@ -2039,8 +2039,10 @@ static const struct vop_wb_regs rv1126b_vop_wb_regs = {
 };
 
 static const int rv1126_wb_intrs[] = {
-	VOPL_WB_UV_FIFO_FULL_INTR,
 	VOPL_WB_YRGB_FIFO_FULL_INTR,
+	VOPL_WB_UV_FIFO_FULL_INTR,
+	0,
+	0,
 	VOPL_WB_COMPLETE_INTR,
 };
 

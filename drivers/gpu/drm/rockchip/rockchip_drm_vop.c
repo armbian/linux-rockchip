@@ -1832,16 +1832,24 @@ static uint32_t vop_read_and_clear_wb_irqs(struct vop *vop)
 	const struct vop_data *vop_data = vop->data;
 	const struct vop_intr *intr = vop_data->wb_intr;
 	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR;
-	uint32_t val;
+	uint32_t val, ret;
 
 	if (!intr)
 		return 0;
 
 	val = VOP_INTR_GET_TYPE2(vop, intr, status, irqs);
+	ret = val;
+
+	/* For RV1126B, it should use VOPL_WB_YRGB_FIFO_FULL_INTR to
+	 * clear all wb interrupt.
+	 */
+	if (vop->version == VOP_VERSION_RV1126B)
+		val |= VOPL_WB_YRGB_FIFO_FULL_INTR;
+
 	if (val)
 		VOP_INTR_SET_TYPE2(vop, intr, clear, val, 1);
 
-	return val;
+	return ret;
 }
 
 static void vop_wb_commit(struct drm_crtc *crtc)
@@ -5363,7 +5371,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
 	/* This is expected for vop iommu irqs, since the irq is shared */
-	if (!active_irqs)
+	if (!active_irqs && !wb_irqs)
 		goto out_disable;
 
 	if (active_irqs & DSP_HOLD_VALID_INTR) {
