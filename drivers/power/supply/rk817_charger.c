@@ -198,6 +198,7 @@ enum charger_state {
 };
 
 enum rk817_charge_fields {
+	CHRG_BAT_TAB2,
 	BOOST_EN, OTG_EN, OTG_SLP_EN, CHRG_CLK_SEL,
 	CHRG_EN, CHRG_VOL_SEL, CHRG_CT_EN, CHRG_CUR_SEL,
 	USB_VLIM_EN, USB_VLIM_SEL, USB_ILIM_EN, USB_ILIM_SEL,
@@ -211,11 +212,12 @@ enum rk817_charge_fields {
 	USB_EXS, USB_EFF,
 	BAT_DIS_ILIM_STS, BAT_SYS_CMP_DLY, BAT_DIS_ILIM_EN,
 	BAT_DISCHRG_ILIM,
-	PLUG_IN_STS, SOC_REG0, SOC_REG1, SOC_REG2,
+	PLUG_IN_STS, SOC_REG0, SOC_REG1, SOC_REG2,  RK817B_FLAG,
 	F_MAX_FIELDS
 };
 
 static const struct reg_field rk817_charge_reg_fields[] = {
+	[CHRG_BAT_TAB2] = REG_FIELD(0x62, 7, 7),
 	[SOC_REG0] = REG_FIELD(0x9A, 0, 7),
 	[SOC_REG1] = REG_FIELD(0x9B, 0, 7),
 	[SOC_REG2] = REG_FIELD(0x9C, 0, 7),
@@ -262,6 +264,7 @@ static const struct reg_field rk817_charge_reg_fields[] = {
 	[BAT_DISCHRG_ILIM] = REG_FIELD(0xEC, 0, 2),
 	[PLUG_IN_STS] = REG_FIELD(0xf0, 6, 6),
 	[CHRG_CLK_SEL] = REG_FIELD(0xF3, 6, 6),
+	[RK817B_FLAG] = REG_FIELD(0xFF, 0, 0),
 };
 
 struct charger_platform_data {
@@ -333,6 +336,7 @@ struct rk817_charger {
 	u8 plugout_trigger;
 	int plugin_irq;
 	int plugout_irq;
+	bool is_rk817b;
 };
 
 static enum power_supply_property rk817_ac_props[] = {
@@ -483,6 +487,13 @@ static int rk817_charge_field_write(struct rk817_charger *charge,
 	return regmap_field_write(charge->rmap_fields[field_id], val);
 }
 
+static int rk817_charge_field_force_write(struct rk817_charger *charge,
+					  enum rk817_charge_fields field_id,
+					  unsigned int val)
+{
+	return regmap_field_force_write(charge->rmap_fields[field_id], val);
+}
+
 static int rk817_charge_get_otg_state(struct rk817_charger *charge)
 {
 	return regulator_is_enabled(charge->otg5v_rdev);
@@ -503,13 +514,8 @@ static void rk817_charge_otg_disable(struct rk817_charger *charge)
 	int ret;
 
 	ret = regulator_disable(charge->otg5v_rdev);
-
-	if (ret) {
+	if (ret)
 		DBG("disable otg5v failed:%d\n", ret);
-		return;
-	}
-
-	return;
 }
 
 static void rk817_charge_otg_enable(struct rk817_charger *charge)
@@ -517,13 +523,8 @@ static void rk817_charge_otg_enable(struct rk817_charger *charge)
 	int ret;
 
 	ret = regulator_enable(charge->otg5v_rdev);
-
-	if (ret) {
+	if (ret)
 		DBG("enable otg5v failed:%d\n", ret);
-		return;
-	}
-
-	return;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -626,9 +627,12 @@ static void rk817_charge_set_chrg_voltage(struct rk817_charger *charge,
 		dev_err(charge->dev, "the charge voltage is error!\n");
 	} else {
 		voltage = (chrg_vol - 4100) / 50;
-		rk817_charge_field_write(charge,
-					 CHRG_VOL_SEL,
-					 CHRG_VOL_4100MV + voltage);
+		if (charge->is_rk817b)
+			rk817_charge_field_force_write(charge, CHRG_BAT_TAB2, 0);
+		rk817_charge_field_force_write(charge,
+					       CHRG_VOL_SEL,
+					       CHRG_VOL_4100MV + voltage);
+
 	}
 }
 
@@ -1295,6 +1299,7 @@ static void rk817_charge_pre_init(struct rk817_charger *charge)
 	charge->min_input_voltage = charge->pdata->min_input_voltage;
 	charge->chrg_finish_cur = charge->pdata->chrg_finish_cur;
 	charge->chrg_term_mode = charge->pdata->chrg_term_mode;
+	charge->is_rk817b = rk817_charge_field_read(charge, RK817B_FLAG);
 
 	rk817_charge_set_input_voltage(charge, charge->min_input_voltage);
 

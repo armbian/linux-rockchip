@@ -146,11 +146,18 @@ enum ts_fun {
 	TS_FUN_VOLTAGE_INPUT,
 };
 
-enum tscur_sel {
+enum tscur_sel1 {
 	FLOW_OUT_10uA,
 	FLOW_OUT_20uA,
 	FLOW_OUT_30uA,
 	FLOW_OUT_40uA,
+};
+
+enum tscur_sel2 {
+	FLOW_OUT_80uA,
+	FLOW_OUT_100uA,
+	FLOW_OUT_120uA,
+	FLOW_OUT_160uA,
 };
 
 enum charge_current {
@@ -262,7 +269,7 @@ enum rk817_battery_fields {
 	VOL_ADC_K3, VOL_ADC_K2, VOL_ADC_K1, VOL_ADC_K0,
 	BAT_EXS, CHG_STS, BAT_OVP_STS, CHRG_IN_CLAMP,
 	CHIP_NAME_H, CHIP_NAME_L, CHRG_CUR_SEL, CHRG_VOL_SEL,
-	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN, TS_GPIO_FUN,
+	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN, TS_GPIO_FUN, RK817B_FLAG,
 	F_MAX_FIELDS
 };
 
@@ -433,6 +440,7 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[CHIP_NAME_L] = REG_FIELD(0xEE, 0, 7),
 	[PLUG_IN_STS] = REG_FIELD(0xF0, 6, 6),
 	[TS_GPIO_FUN] = REG_FIELD(0xFE, 2, 2),
+	[RK817B_FLAG] = REG_FIELD(0xFF, 0, 0),
 };
 
 struct temp_chrg_table {
@@ -590,6 +598,7 @@ struct rk817_battery_device {
 	u8				plugout_trigger;
 	int				chip_id;
 	int				is_register_chg_psy;
+	bool				is_rk817b;
 };
 
 static u64 get_boot_sec(void)
@@ -681,6 +690,13 @@ static int rk817_bat_field_write(struct rk817_battery_device *battery,
 				 unsigned int val)
 {
 	return regmap_field_write(battery->rmap_fields[field_id], val);
+}
+
+static int rk817_bat_field_force_write(struct rk817_battery_device *battery,
+				       enum rk817_battery_fields field_id,
+				       unsigned int val)
+{
+	return regmap_field_force_write(battery->rmap_fields[field_id], val);
 }
 
 /*cal_offset: current offset value*/
@@ -1432,7 +1448,9 @@ static void rk817_bat_init_ts_detect(struct rk817_battery_device *battery)
 	rk817_bat_field_write(battery, TS_GPIO_FUN, 0);
 
 	/* ts pin flow out current in active state */
-	rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
+	if (battery->is_rk817b)
+		rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL_SWITCH, 0);
+	rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
 	battery->pdata->ntc_factor = (FLOW_OUT_20uA + 1) * 10;
 
 	if (battery->pdata->contact_res != 0) {
@@ -1484,9 +1502,11 @@ static void rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int
 			if ((battery->pdata->tc_table[i].chrg_voltage != 0) &&
 				(battery->pdata->tc_table[i].chrg_voltage_index != 0xff)) {
 				rk817_bat_disable_usb2vsys(battery);
-				rk817_bat_field_write(battery,
-						      CHRG_VOL_SEL,
-						      battery->pdata->tc_table[i].chrg_voltage_index);
+				if (battery->is_rk817b)
+					rk817_bat_field_force_write(battery, CHRG_BAT_TAB2, 0);
+				rk817_bat_field_force_write(battery,
+							    CHRG_VOL_SEL,
+							    battery->pdata->tc_table[i].chrg_voltage_index);
 				rk817_bat_enable_usb2vsys(battery);
 				DBG("T change: charger voltage: %d, index: %d\n",
 				    battery->pdata->tc_table[i].chrg_voltage,
@@ -1513,17 +1533,23 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 {
 	int current_gear = battery->pdata->ntc_factor;
 	int new_gear = current_gear;
+	int prev_index, next_index;
 	int i, index = -1;
 	/* Define gear sequence and corresponding parameters */
 	const struct {
 		int gear;
 		int sel_switch;
 		int flow_out;
+		bool is_high_current;
 	} gear_table[] = {
-		{40, 0, FLOW_OUT_30uA},
-		{30, 0, FLOW_OUT_20uA},
-		{20, 0, FLOW_OUT_10uA},
-		{10, 0, FLOW_OUT_10uA} /* Last gear */
+		{160, 1, FLOW_OUT_120uA, true},
+		{120, 1, FLOW_OUT_100uA, true},
+		{100, 1, FLOW_OUT_80uA, true},
+		{80, 0, FLOW_OUT_40uA, false},
+		{40, 0, FLOW_OUT_30uA, false},
+		{30, 0, FLOW_OUT_20uA, false},
+		{20, 0, FLOW_OUT_10uA, false},
+		{10, 0, FLOW_OUT_10uA, false}
 	};
 
 	/* find current gear index */
@@ -1539,21 +1565,29 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 		return -EINVAL;
 
 	/* gear switching logic */
-	if (tsvol > TS_MAX_VOL) {
-		/* Move to lower gear */
-		if (index < ARRAY_SIZE(gear_table) - 1) {
-			new_gear = gear_table[index + 1].gear;
-			rk817_bat_field_write(battery,
-					      VOL_ADC_TSCUR_SEL,
-					      gear_table[index + 1].flow_out);
+	if (tsvol > TS_MAX_VOL && index < ARRAY_SIZE(gear_table) - 1) {
+		next_index = index + 1;
+		if (!gear_table[next_index].is_high_current || battery->is_rk817b) {
+			new_gear = gear_table[next_index].gear;
+		if (battery->is_rk817b && gear_table[next_index].sel_switch)
+			rk817_bat_field_force_write(battery,
+						    VOL_ADC_TSCUR_SEL_SWITCH,
+						    gear_table[next_index].sel_switch);
+		rk817_bat_field_force_write(battery,
+					    VOL_ADC_TSCUR_SEL,
+					    gear_table[next_index].flow_out);
 		}
-	} else if (tsvol < TS_MIN_VOL) {
-		/* Move to higher gear */
-		if (index > 0) {
-			new_gear = gear_table[index - 1].gear;
-			rk817_bat_field_write(battery,
-					      VOL_ADC_TSCUR_SEL,
-					      gear_table[index - 1].flow_out);
+	} else if (tsvol < TS_MIN_VOL && index > 0) {
+		prev_index = index - 1;
+		if (!gear_table[prev_index].is_high_current || battery->is_rk817b) {
+			new_gear = gear_table[prev_index].gear;
+			if (battery->is_rk817b && gear_table[prev_index].sel_switch)
+				rk817_bat_field_force_write(battery,
+							    VOL_ADC_TSCUR_SEL_SWITCH,
+							    gear_table[prev_index].sel_switch);
+			rk817_bat_field_force_write(battery,
+						    VOL_ADC_TSCUR_SEL,
+						    gear_table[prev_index].flow_out);
 		}
 	}
 
@@ -1635,7 +1669,9 @@ static void rk817_bat_get_contact_res(struct rk817_battery_device *battery)
 	if ((contact_res > 0) && (contact_res < CONTACT_RES_MAX)) {
 		battery->pdata->contact_res = contact_res;
 		rk817_bat_field_write(battery, CONTACT_RES, contact_res);
-		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
+		if (battery->is_rk817b)
+			rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL_SWITCH, 0);
+		rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_20uA);
 		battery->pdata->ntc_factor = (FLOW_OUT_20uA + 1) * 10;
 	}
 }
@@ -1670,12 +1706,16 @@ static void rk817_bat_calculate_contact_res(struct rk817_battery_device *battery
 
 	if ((battery->ts_info.ts40uA_update == 0) && (battery->pdata->contact_res == 0)) {
 		/* ts pin flow out current(40uA) in active state */
-		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_40uA);
+		if (battery->is_rk817b)
+			rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL_SWITCH, 0);
+		rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_40uA);
 		battery->pdata->ntc_factor = (FLOW_OUT_40uA + 1) * 10;
 		battery->ts_info.ts40uA_update = 1;
 	} else if ((battery->ts_info.ts10uA_update == 0) && (battery->pdata->contact_res == 0)) {
 		/* ts pin flow out current(10uA) in active state */
-		rk817_bat_field_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_10uA);
+		if (battery->is_rk817b)
+			rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL_SWITCH, 0);
+		rk817_bat_field_force_write(battery, VOL_ADC_TSCUR_SEL, FLOW_OUT_10uA);
 		battery->pdata->ntc_factor = (FLOW_OUT_10uA + 1) * 10;
 		battery->ts_info.ts10uA_update = 1;
 	}
@@ -1831,6 +1871,7 @@ static void rk817_bat_init_info(struct rk817_battery_device *battery)
 	battery->monitor_ms = battery->pdata->monitor_sec * TIMER_MS_COUNTS;
 	battery->sample_res = battery->pdata->sample_res;
 	battery->fake_full_soc = battery->pdata->fake_full_soc * 1000;
+	battery->is_rk817b = rk817_bat_field_read(battery, RK817B_FLAG);
 	DBG("battery->qmax :%d\n", battery->qmax);
 }
 
