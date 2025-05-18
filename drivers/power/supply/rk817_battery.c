@@ -132,6 +132,14 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define TS_MAX_VOL			1100
 #define TS_MIN_VOL			500
+/* Number of samples in moving window */
+#define SAMPLE_SIZE			10
+/* 2.0 threshold (scaled by 10) */
+#define TEMP_DIFF_THRESH		20
+/* 5.0 jump threshold (scaled by 10) */
+#define JUMP_DETECT_THRESH		50
+/* Resistance value scaling factor */
+#define RES_SCALE			1000
 
 enum ts_fun {
 	TS_FUN_SOURCE_CURRENT,
@@ -446,6 +454,17 @@ struct contact_res_info {
 	int ts10uA_update;
 };
 
+struct ntc_filter {
+	/* Sample buffer (scaled by RES_SCALE) */
+	u32 samples[SAMPLE_SIZE];
+	/* Current write index */
+	u32 idx;
+	/* Valid sample count */
+	u32 count;
+	/* Consecutive discard counter */
+	u32 discard_cnt;
+};
+
 struct battery_platform_data {
 	u32 *ocv_table;
 	u32 ocv_size;
@@ -491,6 +510,7 @@ struct rk817_battery_device {
 	struct timer_list		caltimer;
 	struct contact_res_info		ts_info;
 
+	struct ntc_filter		*f;
 	int				sample_res;
 	int				bat_res;
 	bool				is_first_power_on;
@@ -1661,24 +1681,22 @@ static void rk817_bat_calculate_contact_res(struct rk817_battery_device *battery
 	}
 }
 
-static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
+/* Convert resistance to temperature (0.1) */
+static int rk817_bat_res_to_temp(struct rk817_battery_device *battery, u32 res)
 {
+	int temperature = VIRTUAL_TEMPERATURE;
 	u32 ntc_size, *ntc_table;
-	int i, res;
+	int i;
 
 	ntc_table = battery->pdata->ntc_table;
 	ntc_size = battery->pdata->ntc_size;
 
 	if (ntc_size) {
-		res = rk817_bat_get_ntc_res(battery);
-		if (res == 0)
-			return;
-
 		if (res < ntc_table[ntc_size - 1]) {
-			battery->temperature = (ntc_size + battery->pdata->ntc_degree_from) * 10;
+			temperature = (ntc_size + battery->pdata->ntc_degree_from) * 10;
 			DBG("bat ntc upper max degree: R=%d\n", res);
 		} else if (res > ntc_table[0]) {
-			battery->temperature = battery->pdata->ntc_degree_from * 10;
+			temperature = battery->pdata->ntc_degree_from * 10;
 			DBG("bat ntc lower min degree: R=%d\n", res);
 		} else {
 			for (i = 0; i < ntc_size; i++) {
@@ -1687,12 +1705,72 @@ static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
 			}
 
 			if (i <= 0)
-				battery->temperature =
-					(battery->pdata->ntc_degree_from) * 10;
+				temperature = battery->pdata->ntc_degree_from * 10;
 			else
-				battery->temperature =
-					(i + battery->pdata->ntc_degree_from) * 10;
+				temperature = (i + battery->pdata->ntc_degree_from) * 10;
 		}
+		DBG("Temperature: %d\n", temperature);
+	}
+	return temperature;
+}
+
+/*
+ * Process new sample and return filtered value
+ */
+static int32_t rk817_bat_ntc_filter(struct rk817_battery_device *battery, u32 new_res)
+{
+	struct ntc_filter *f = battery->f;
+	int avg_temp, new_temp, temp_diff;
+	u32 avg_res, sum = 0;
+	int i;
+
+	/* Calculate current average */
+	for (i = 0; i < f->count; i++)
+		sum += f->samples[i];
+
+	/* Temperature validation logic */
+	if (f->count > 0) {
+		avg_res = (int32_t)(sum / f->count);
+		avg_temp = rk817_bat_res_to_temp(battery, avg_res);
+		new_temp = rk817_bat_res_to_temp(battery, new_res);
+		temp_diff = abs(new_temp - avg_temp);
+
+		/* Check if sample should be discarded */
+		if (temp_diff > TEMP_DIFF_THRESH) {
+			/* Detect temperature jump condition */
+			if (temp_diff < JUMP_DETECT_THRESH && ++f->discard_cnt >= SAMPLE_SIZE) {
+				f->discard_cnt = 0;
+				goto accept_sample; /* Valid jump detected */
+			}
+			/* Return average, discard new sample */
+			return avg_res;
+		}
+		/* Reset counter on valid sample */
+		f->discard_cnt = 0;
+	}
+
+accept_sample:
+	/* Store valid sample */
+	f->samples[f->idx] = new_res;
+	f->idx = (f->idx + 1) % SAMPLE_SIZE;
+	if (f->count < SAMPLE_SIZE)
+		f->count++;
+
+	/* Recalculate average */
+	sum = 0;
+	for (i = 0; i < f->count; i++)
+		sum += f->samples[i];
+	return (int32_t)(sum / f->count);
+}
+
+static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
+{
+	int res;
+
+	if (battery->pdata->ntc_size) {
+		res = rk817_bat_get_ntc_res(battery);
+		res = rk817_bat_ntc_filter(battery, res);
+		battery->temperature = rk817_bat_res_to_temp(battery, res);
 		DBG("Temperature: %d\n", battery->temperature);
 		rk817_bat_temperature_chrg(battery, battery->temperature / 10);
 	}
