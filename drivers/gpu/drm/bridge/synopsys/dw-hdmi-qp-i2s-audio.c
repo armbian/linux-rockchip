@@ -164,13 +164,11 @@ static int snd_dw_hdmi_qp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snd_dw_hdmi_qp_remove(struct platform_device *pdev)
+static void snd_dw_hdmi_qp_remove(struct platform_device *pdev)
 {
 	struct platform_device *platform = dev_get_drvdata(&pdev->dev);
 
 	platform_device_unregister(platform);
-
-	return 0;
 }
 
 static struct platform_driver snd_dw_hdmi_qp_driver = {
