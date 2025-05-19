@@ -1608,13 +1608,12 @@ err_regsmap:
 	return ret;
 }
 
-static int inno_hdmi_phy_remove(struct platform_device *pdev)
+static void inno_hdmi_phy_remove(struct platform_device *pdev)
 {
 	struct inno_hdmi_phy *inno = platform_get_drvdata(pdev);
 
 	of_clk_del_provider(pdev->dev.of_node);
 	clk_disable_unprepare(inno->sysclk);
-	return 0;
 }
 
 static struct platform_driver inno_hdmi_phy_driver = {
