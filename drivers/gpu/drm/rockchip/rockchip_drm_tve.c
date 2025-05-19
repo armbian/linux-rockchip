@@ -1145,11 +1145,9 @@ static void rockchip_tve_shutdown(struct platform_device *pdev)
 	mutex_unlock(&tve->suspend_lock);
 }
 
-static int rockchip_tve_remove(struct platform_device *pdev)
+static void rockchip_tve_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_tve_component_ops);
-
-	return 0;
 }
 
 struct platform_driver rockchip_tve_driver = {
