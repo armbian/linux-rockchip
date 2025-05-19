@@ -90,6 +90,12 @@ config MTD_SPI_NAND_JSC
 	help
 	  Add support for various JSC SPI Nand flash chips
 
+config MTD_SPI_NAND_KINGSTON
+	bool "KINGSTON SPI flash support"
+	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
+	help
+	  Add support for various KINGSTON SPI Nand flash chips
+
 config MTD_SPI_NAND_MACRONIX
 	bool "MACRONIX SPI flash support"
 	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
