@@ -12,6 +12,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 
+#include <linux/debugfs.h>
 #include <linux/file.h>
 
 #include "rockchip_drm_drv.h"
