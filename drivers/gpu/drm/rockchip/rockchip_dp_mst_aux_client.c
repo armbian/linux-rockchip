@@ -280,18 +280,16 @@ fail:
 	return ret;
 }
 
-static int rockchip_dp_aux_client_remove(struct platform_device *pdev)
+static void rockchip_dp_aux_client_remove(struct platform_device *pdev)
 {
 	struct rockchip_dp_aux_client *aux_client;
 
 	aux_client = platform_get_drvdata(pdev);
 	if (!aux_client)
-		return 0;
+		return;
 
 	rockchip_unregister_dp_aux_client(aux_client);
 	rockchip_dp_mst_sim_destroy(aux_client->mst_ctx);
-
-	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
