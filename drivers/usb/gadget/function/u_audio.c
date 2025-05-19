@@ -1736,7 +1736,7 @@ static int __init u_audio_init(void)
 {
 	int err = 0;
 
-	audio_class = class_create(THIS_MODULE, "u_audio");
+	audio_class = class_create("u_audio");
 	if (IS_ERR(audio_class)) {
 		err = PTR_ERR(audio_class);
 		audio_class = NULL;
