@@ -622,7 +622,7 @@ static int dw_hdcp_qp_hdcp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_hdcp_qp_hdcp_remove(struct platform_device *pdev)
+static void dw_hdcp_qp_hdcp_remove(struct platform_device *pdev)
 {
 	struct dw_qp_hdcp *hdcp = pdev->dev.platform_data;
 
@@ -633,8 +633,6 @@ static int dw_hdcp_qp_hdcp_remove(struct platform_device *pdev)
 	device_remove_groups(hdcp->dev, dw_hdmi_qp_hdcp_groups);
 	kfree(hdcp->keys);
 	kfree(hdcp->seeds);
-
-	return 0;
 }
 
 static struct platform_driver dw_hdcp_qp_hdcp_driver = {
