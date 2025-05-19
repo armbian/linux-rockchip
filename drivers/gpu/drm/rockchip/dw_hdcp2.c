@@ -592,15 +592,13 @@ static int dw_hdcp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_hdcp_remove(struct platform_device *pdev)
+static void dw_hdcp_remove(struct platform_device *pdev)
 {
 	struct dw_hdcp *hdcp = platform_get_drvdata(pdev);
 
 	dw_hdcp_hld_exit(hdcp);
 
 	pm_runtime_disable(hdcp->dev);
-
-	return 0;
 }
 
 static int dw_hdcp_runtime_suspend(struct device *dev)
