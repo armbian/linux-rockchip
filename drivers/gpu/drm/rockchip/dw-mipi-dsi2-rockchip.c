@@ -2016,9 +2016,8 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_mipi_dsi2_remove(struct platform_device *pdev)
+static void dw_mipi_dsi2_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static __maybe_unused int dw_mipi_dsi2_runtime_suspend(struct device *dev)
