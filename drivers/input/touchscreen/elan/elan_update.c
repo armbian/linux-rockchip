@@ -8,7 +8,7 @@
  */
 
 #include "elan_ts.h"
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 //define private data
 //#define IAP_PORTION
