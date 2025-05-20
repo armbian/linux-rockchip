@@ -1419,14 +1419,14 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 		 * cliped to 0, so we split into two mapping
 		 */
 		ret = iommu_map(private->domain, 0, 0, (size_t)SZ_2G,
-				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
+				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 0-2G pre mapping\n");
 			return 0;
 		}
 
 		ret = iommu_map(private->domain, SZ_2G, SZ_2G, (size_t)SZ_2G,
-				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
+				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 2G-4G pre mapping\n");
 			return 0;
