@@ -5,7 +5,7 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include "rkx120_reg.h"

@@ -5,7 +5,7 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <dt-bindings/mfd/rockchip-serdes.h>
 #include "rkx110_reg.h"
 #include "rkx110_x120.h"
