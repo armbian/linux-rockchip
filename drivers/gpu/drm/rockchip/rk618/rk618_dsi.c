@@ -23,7 +23,7 @@
 #include <video/of_display_timing.h>
 #include <video/mipi_display.h>
 #include <video/videomode.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "../rockchip_drm_drv.h"
 
