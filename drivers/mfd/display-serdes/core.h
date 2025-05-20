@@ -68,7 +68,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "gpio.h"
 
 #include "../../../../drivers/pinctrl/core.h"
