@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/math64.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "inv_icm42670.h"
 
