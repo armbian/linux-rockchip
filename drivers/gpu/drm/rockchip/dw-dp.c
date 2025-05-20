@@ -8,7 +8,7 @@
  *	   Zhang Yubing <yubing.zhang@rock-chips.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
