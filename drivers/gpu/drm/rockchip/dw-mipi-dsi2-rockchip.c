@@ -28,7 +28,7 @@
 #include <drm/drm_panel.h>
 #include <video/mipi_display.h>
 #include <video/videomode.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <uapi/linux/videodev2.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_connector.h>
