@@ -62,7 +62,7 @@
 #endif /* ENABLE_ADAPTIVE_SCHED */
 #include <linux/rtc.h>
 #include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <dhd_linux_priv.h>
 #ifdef BCMPCIE
 #ifdef CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION

@@ -69,7 +69,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <dbus.h>
 #include <bcmutils.h>
 #include <bcmdevs_legacy.h>
