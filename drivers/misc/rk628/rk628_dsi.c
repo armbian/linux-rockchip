@@ -5,7 +5,7 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/debugfs.h>
 #include "rk628.h"
 #include "rk628_cru.h"
