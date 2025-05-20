@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "st_lsm6dsr.h"
 
