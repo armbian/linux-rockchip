@@ -49,7 +49,7 @@
 #include <linux/fb.h>
 #endif
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
