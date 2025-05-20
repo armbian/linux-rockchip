@@ -282,7 +282,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 		if (ret)
 			dev_err(drm_dev->dev, "failed to reserve vm for logo memory\n");
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
-				IOMMU_WRITE | IOMMU_READ);
+				IOMMU_WRITE | IOMMU_READ, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 1v1 mapping\n");
 			goto err_free_logo;
@@ -325,7 +325,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 			dev_err(drm_dev->dev, "failed to reserve vm for clut memory\n");
 
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
-				IOMMU_WRITE | IOMMU_READ);
+				IOMMU_WRITE | IOMMU_READ, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 1v1 mapping for cubic lut\n");
 			goto err_free_clut;
