@@ -1103,7 +1103,7 @@ static void rkvenc_iommu_handle_work(struct work_struct *work_s)
 	page_iova = round_down(enc->fault_iova, SZ_4K);
 	ret = iommu_map(mpp->iommu_info->domain, page_iova,
 			page_to_phys(enc->aux_page), IOMMU_PAGE_SIZE,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret)
 		mpp_err("iommu_map iova %lx error.\n", page_iova);
 	else

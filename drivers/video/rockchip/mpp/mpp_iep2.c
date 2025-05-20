@@ -860,7 +860,7 @@ static void iep2_iommu_handle_work(struct work_struct *work_s)
 	page_iova = round_down(iep->fault_iova, AUX_PAGE_SIZE);
 	ret = iommu_map(mpp->iommu_info->domain, page_iova,
 			page_to_phys(iep->aux_page), AUX_PAGE_SIZE,
-			IOMMU_READ);
+			IOMMU_READ, GFP_KERNEL);
 	if (ret)
 		mpp_err("iommu_map iova %lx error.\n", page_iova);
 	else

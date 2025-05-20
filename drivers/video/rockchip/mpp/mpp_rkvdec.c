@@ -1214,7 +1214,7 @@ static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 		page_iova = round_down(iova, IOMMU_PAGE_SIZE);
 		ret = iommu_map(mpp->iommu_info->domain, page_iova,
 				page_to_phys(dec->aux_page), IOMMU_PAGE_SIZE,
-				IOMMU_READ | IOMMU_WRITE);
+				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (!ret)
 			dec->aux_iova = page_iova;
 	}

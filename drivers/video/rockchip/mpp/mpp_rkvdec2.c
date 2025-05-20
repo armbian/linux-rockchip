@@ -1768,7 +1768,7 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	sram_size = rcb_size < sram_size ? rcb_size : sram_size;
 	/* iova map to sram */
 	domain = dec->mpp.iommu_info->domain;
-	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE);
+	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "sram iommu_map error.\n");
 		return ret;
@@ -1786,7 +1786,7 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 		}
 		/* iova map to dma */
 		ret = iommu_map(domain, iova + sram_size, page_to_phys(page),
-				page_size, IOMMU_READ | IOMMU_WRITE);
+				page_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (ret) {
 			dev_err(dev, "page iommu_map error.\n");
 			__free_pages(page, get_order(page_size));
