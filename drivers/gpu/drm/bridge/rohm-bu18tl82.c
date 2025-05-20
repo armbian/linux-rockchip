@@ -5,7 +5,7 @@
  *      Guochun Huang <hero.huang@rock-chips.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_mipi_dsi.h>
