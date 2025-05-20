@@ -8,7 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/ctype.h>
 //#include <linux/unaligned/access_ok.h>
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
