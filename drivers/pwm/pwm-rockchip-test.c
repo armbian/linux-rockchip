@@ -827,11 +827,9 @@ static int pwm_rockchip_test_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pwm_rockchip_test_remove(struct platform_device *pdev)
+static void pwm_rockchip_test_remove(struct platform_device *pdev)
 {
 	misc_deregister(&pwm_rockchip_test_misc);
-
-	return 0;
 }
 
 static const struct of_device_id pwm_rockchip_test_of_match[] = {
