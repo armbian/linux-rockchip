@@ -906,7 +906,7 @@ err_crypto:
 	return err;
 }
 
-static int rk_crypto_remove(struct platform_device *pdev)
+static void rk_crypto_remove(struct platform_device *pdev)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
 
@@ -927,8 +927,6 @@ static int rk_crypto_remove(struct platform_device *pdev)
 		free_page((unsigned long)rk_dev->addr_aad);
 
 	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
-
-	return 0;
 }
 
 static struct platform_driver crypto_driver = {
