@@ -3158,7 +3158,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rkcif_plat_remove(struct platform_device *pdev)
+static void rkcif_plat_remove(struct platform_device *pdev)
 {
 	struct rkcif_device *cif_dev = platform_get_drvdata(pdev);
 
@@ -3167,8 +3167,6 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	rkcif_proc_cleanup(cif_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &dev_attr_grp);
 	del_timer_sync(&cif_dev->reset_watchdog_timer.timer);
-
-	return 0;
 }
 
 static int __maybe_unused rkcif_sleep_suspend(struct device *dev)

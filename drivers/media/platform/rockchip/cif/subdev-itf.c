@@ -1793,7 +1793,7 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rkcif_subdev_remove(struct platform_device *pdev)
+static void rkcif_subdev_remove(struct platform_device *pdev)
 {
 	struct media_entity *me = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
@@ -1801,7 +1801,6 @@ static int rkcif_subdev_remove(struct platform_device *pdev)
 	media_entity_cleanup(&sd->entity);
 
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id rkcif_subdev_match_id[] = {
