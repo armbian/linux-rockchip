@@ -1739,7 +1739,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	return rk_pcie_really_probe(pdev);
 }
 
-static int rk_pcie_remove(struct platform_device *pdev)
+static void rk_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
@@ -1766,7 +1766,7 @@ static int rk_pcie_remove(struct platform_device *pdev)
 		 */
 		if (!rk_pcie || !rk_pcie->finish_probe || !rk_pcie->pci->pp.bridge->bus) {
 			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
-			return 0;
+			return;
 		}
 	}
 
@@ -1794,8 +1794,6 @@ static int rk_pcie_remove(struct platform_device *pdev)
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 	rk_pcie_hardware_io_unconfig(rk_pcie);
-
-	return 0;
 }
 
 static void rk_pcie_shutdown(struct platform_device *pdev)
