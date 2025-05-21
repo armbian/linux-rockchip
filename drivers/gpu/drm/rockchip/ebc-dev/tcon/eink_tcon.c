@@ -273,11 +273,9 @@ static int eink_tcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int eink_tcon_remove(struct platform_device *pdev)
+static void eink_tcon_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id eink_tcon_of_match[] = {
