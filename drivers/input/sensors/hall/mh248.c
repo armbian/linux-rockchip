@@ -252,11 +252,9 @@ static int hall_mh248_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
-static int hall_mh248_remove(struct platform_device *pdev)
+static void hall_mh248_remove(struct platform_device *pdev)
 {
 	unregister_syscore_ops(&mh248_syscore_ops);
-
-	return 0;
 }
 
 static int mh248_suspend(struct device *dev)
