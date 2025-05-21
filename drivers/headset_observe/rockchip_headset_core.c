@@ -154,9 +154,8 @@ err:
 	return ret;
 }
 
-static int rockchip_headset_remove(struct platform_device *pdev)
+static void rockchip_headset_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static int rockchip_headset_suspend(struct platform_device *pdev,
