@@ -296,7 +296,6 @@ const struct file_operations it6621_uapi_fops = {
 	.compat_ioctl = it6621_uapi_ioctl,
 	.release = it6621_uapi_release,
 	.poll = it6621_uapi_poll,
-	.llseek = no_llseek,
 };
 
 int it6621_uapi_init(struct it6621_priv *priv)
