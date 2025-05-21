@@ -1180,7 +1180,7 @@ err_pmdisable:
 	return err;
 }
 
-static int rockchip_canfd_remove(struct platform_device *pdev)
+static void rockchip_canfd_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct rockchip_canfd *rcan = netdev_priv(ndev);
@@ -1190,8 +1190,6 @@ static int rockchip_canfd_remove(struct platform_device *pdev)
 	if (rcan->mode == ROCKCHIP_RK3568_CAN_MODE_V2)
 		netif_napi_del(&rcan->napi);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_canfd_driver = {
