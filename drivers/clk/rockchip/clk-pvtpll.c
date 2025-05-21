@@ -655,13 +655,11 @@ static int rockchip_clock_pvtpll_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_clock_pvtpll_remove(struct platform_device *pdev)
+static void rockchip_clock_pvtpll_remove(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 
 	of_clk_del_provider(np);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_clock_pvtpll_driver = {
