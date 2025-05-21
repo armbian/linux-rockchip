@@ -2285,7 +2285,7 @@ failed_2:
 	return ret;
 }
 
-static int rv1106_platform_remove(struct platform_device *pdev)
+static void rv1106_platform_remove(struct platform_device *pdev)
 {
 	struct rv1106_codec_priv *rv1106 =
 		(struct rv1106_codec_priv *)platform_get_drvdata(pdev);
@@ -2296,8 +2296,6 @@ static int rv1106_platform_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(rv1106->dbg_codec);
 #endif
 	rv1106_codec_sysfs_exit(rv1106);
-
-	return 0;
 }
 
 static struct platform_driver rv1106_codec_driver = {
