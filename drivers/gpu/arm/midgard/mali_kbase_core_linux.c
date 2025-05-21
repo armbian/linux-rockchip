@@ -4303,13 +4303,13 @@ static const struct attribute_group kbase_attr_group = {
 	.attrs = kbase_attrs,
 };
 
-static int kbase_platform_device_remove(struct platform_device *pdev)
+static void kbase_platform_device_remove(struct platform_device *pdev)
 {
 	struct kbase_device *kbdev = to_kbase_device(&pdev->dev);
 	const struct list_head *dev_list;
 
 	if (!kbdev)
-		return -ENODEV;
+		return;
 
 	kfree(kbdev->gpu_props.prop_buffer);
 
@@ -4443,8 +4443,6 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 		dev_err(kbdev->dev, "Missing sub system termination\n");
 
 	kbase_device_free(kbdev);
-
-	return 0;
 }
 
 extern void kbase_platform_rk_shutdown(struct kbase_device *kbdev);
