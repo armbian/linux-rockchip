@@ -998,14 +998,14 @@ static int rockchip_gmac_uio_probe(struct platform_device *pdev)
  * rockchip_gmac_uio_remove() - ROCKCHIP ETH UIO platform driver release
  * routine - unregister uio devices
  */
-static int rockchip_gmac_uio_remove(struct platform_device *pdev)
+static void rockchip_gmac_uio_remove(struct platform_device *pdev)
 {
 	struct rockchip_gmac_uio_pdev_info *pdev_info =
 					platform_get_drvdata(pdev);
 	struct net_device *netdev;
 
 	if (!pdev_info)
-		return -EINVAL;
+		return;
 
 	netdev = pdev_info->ndev;
 
@@ -1024,8 +1024,6 @@ static int rockchip_gmac_uio_remove(struct platform_device *pdev)
 		dev_open(netdev, NULL);
 		rtnl_unlock();
 	}
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_gmac_uio_of_match[] = {
