@@ -107,14 +107,12 @@ static int mbox_demo_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mbox_demo_remove(struct platform_device *pdev)
+static void mbox_demo_remove(struct platform_device *pdev)
 {
 	struct rk_mbox_dev *test_dev = platform_get_drvdata(pdev);
 
 	mbox_free_channel(test_dev->mbox_rx_chan);
 	mbox_free_channel(test_dev->mbox_tx_chan);
-
-	return 0;
 }
 
 static const struct of_device_id mbox_demo_match[] = {
