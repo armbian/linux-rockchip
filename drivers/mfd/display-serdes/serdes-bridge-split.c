@@ -311,7 +311,7 @@ static int serdes_bridge_split_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int serdes_bridge_split_remove(struct platform_device *pdev)
+static void serdes_bridge_split_remove(struct platform_device *pdev)
 {
 	struct serdes_bridge_split *serdes_bridge_split = platform_get_drvdata(pdev);
 
@@ -319,8 +319,6 @@ static int serdes_bridge_split_remove(struct platform_device *pdev)
 		serdes_detach_dsi(serdes_bridge_split);
 
 	drm_bridge_remove(&serdes_bridge_split->base_bridge);
-
-	return 0;
 }
 
 static const struct of_device_id serdes_bridge_split_of_match[] = {
