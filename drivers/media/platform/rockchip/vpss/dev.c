@@ -337,7 +337,7 @@ err_unreg_v4l2_dev:
 	return ret;
 }
 
-static int rkvpss_plat_remove(struct platform_device *pdev)
+static void rkvpss_plat_remove(struct platform_device *pdev)
 {
 	struct rkvpss_device *vpss_dev = platform_get_drvdata(pdev);
 
@@ -353,7 +353,6 @@ static int rkvpss_plat_remove(struct platform_device *pdev)
 	media_device_unregister(&vpss_dev->media_dev);
 	v4l2_device_unregister(&vpss_dev->v4l2_dev);
 	mutex_destroy(&vpss_dev->apilock);
-	return 0;
 }
 
 static int __maybe_unused rkvpss_dev_runtime_suspend(struct device *dev)
