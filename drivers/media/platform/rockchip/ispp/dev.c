@@ -329,7 +329,7 @@ err_unreg_v4l2_dev:
 	return ret;
 }
 
-static int rkispp_plat_remove(struct platform_device *pdev)
+static void rkispp_plat_remove(struct platform_device *pdev)
 {
 	struct rkispp_device *ispp_dev = platform_get_drvdata(pdev);
 
@@ -345,7 +345,6 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&ispp_dev->v4l2_dev);
 	mutex_destroy(&ispp_dev->apilock);
 	mutex_destroy(&ispp_dev->iqlock);
-	return 0;
 }
 
 static int __maybe_unused rkispp_runtime_suspend(struct device *dev)
