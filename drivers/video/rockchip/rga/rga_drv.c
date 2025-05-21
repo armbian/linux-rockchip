@@ -1917,7 +1917,7 @@ err_ioremap:
 	return ret;
 }
 
-static int rga_drv_remove(struct platform_device *pdev)
+static void rga_drv_remove(struct platform_device *pdev)
 {
 	struct rga_drvdata *data = platform_get_drvdata(pdev);
 	DBG("%s [%d]\n",__FUNCTION__,__LINE__);
@@ -1940,7 +1940,6 @@ static int rga_drv_remove(struct platform_device *pdev)
 	//clk_put(data->pd_rga);
 
 	//kfree(data);
-	return 0;
 }
 
 static struct platform_driver rga_driver = {
