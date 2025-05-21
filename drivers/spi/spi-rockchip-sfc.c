@@ -405,7 +405,7 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 				   u32 len)
 {
 	u32 ctrl = 0, cmd = 0, cmd_ext = 0, dummy_ext = 0;
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 	u32 voltage;
 
 	/* set CMD */
@@ -672,7 +672,7 @@ static int rockchip_sfc_exec_op_bypass(struct rockchip_sfc *sfc,
 				       const struct spi_mem_op *op)
 {
 	u32 len = min_t(u32, op->data.nbytes, sfc->max_iosize);
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 	u32 ret;
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
@@ -702,7 +702,7 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 	u16 right, left = 0;
 	u16 step = SFC_DLL_TRANING_STEP;
 	bool dll_valid = false;
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 
 	rockchip_sfc_clk_set_rate(sfc, SFC_DLL_THRESHOLD_RATE);
 	op.data.buf.in = &id;
@@ -776,7 +776,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 	struct rockchip_sfc *sfc = spi_controller_get_devdata(mem->spi->controller);
 	u32 len = op->data.nbytes;
 	int ret;
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 
 	ret = pm_runtime_get_sync(sfc->dev);
 	if (ret < 0) {
