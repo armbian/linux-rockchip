@@ -296,7 +296,7 @@ err_dis_aclk:
 	return ret;
 }
 
-static int rk_dsmc_lb_slave_remove(struct platform_device *pdev)
+static void rk_dsmc_lb_slave_remove(struct platform_device *pdev)
 {
 	struct rockchip_dsmc_lb_slave *priv;
 
@@ -310,8 +310,6 @@ static int rk_dsmc_lb_slave_remove(struct platform_device *pdev)
 		clk_disable_unprepare(priv->hclk);
 		priv->hclk = NULL;
 	}
-
-	return 0;
 }
 
 struct platform_driver rk_dsmc_lb_slave_driver = {
