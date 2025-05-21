@@ -270,13 +270,11 @@ static int rk618_rgb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk618_rgb_remove(struct platform_device *pdev)
+static void rk618_rgb_remove(struct platform_device *pdev)
 {
 	struct rk618_rgb *rgb = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&rgb->base);
-
-	return 0;
 }
 
 static const struct of_device_id rk618_rgb_of_match[] = {

@@ -396,13 +396,11 @@ static int rk618_scaler_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk618_scaler_remove(struct platform_device *pdev)
+static void rk618_scaler_remove(struct platform_device *pdev)
 {
 	struct rk618_scaler *scl = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&scl->base);
-
-	return 0;
 }
 
 static const struct of_device_id rk618_scaler_of_match[] = {

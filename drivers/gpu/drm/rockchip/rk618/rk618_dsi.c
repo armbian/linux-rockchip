@@ -1164,14 +1164,12 @@ static int rk618_dsi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk618_dsi_remove(struct platform_device *pdev)
+static void rk618_dsi_remove(struct platform_device *pdev)
 {
 	struct rk618_dsi *dsi = platform_get_drvdata(pdev);
 
 	mipi_dsi_host_unregister(&dsi->host);
 	drm_bridge_remove(&dsi->base);
-
-	return 0;
 }
 
 static const struct of_device_id rk618_dsi_of_match[] = {

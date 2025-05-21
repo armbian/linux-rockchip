@@ -1632,7 +1632,7 @@ static int rk618_hdmi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk618_hdmi_remove(struct platform_device *pdev)
+static void rk618_hdmi_remove(struct platform_device *pdev)
 {
 	struct rk618_hdmi *hdmi = platform_get_drvdata(pdev);
 
@@ -1641,8 +1641,6 @@ static int rk618_hdmi_remove(struct platform_device *pdev)
 #ifdef CONFIG_SWITCH
 	switch_dev_unregister(&hdmi->switchdev);
 #endif
-
-	return 0;
 }
 
 static const struct of_device_id rk618_hdmi_dt_ids[] = {
