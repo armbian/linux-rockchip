@@ -558,7 +558,7 @@ err_remove_bridge:
 	return ret;
 }
 
-static int max96755f_bridge_remove(struct platform_device *pdev)
+static void max96755f_bridge_remove(struct platform_device *pdev)
 {
 	struct max96755f_bridge *ser = platform_get_drvdata(pdev);
 
@@ -566,8 +566,6 @@ static int max96755f_bridge_remove(struct platform_device *pdev)
 		max96755f_detach_dsi(ser);
 
 	drm_bridge_remove(&ser->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id max96755f_bridge_of_match[] = {
