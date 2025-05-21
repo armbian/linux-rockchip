@@ -493,13 +493,11 @@ static int rk630_tve_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk630_tve_remove(struct platform_device *pdev)
+static void rk630_tve_remove(struct platform_device *pdev)
 {
 	struct rk630_tve *tve = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&tve->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id rk630_tve_dt_ids[] = {
