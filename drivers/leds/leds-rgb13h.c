@@ -594,7 +594,7 @@ err_flash_register:
 	return ret;
 }
 
-static int rgb13h_led_remove(struct platform_device *pdev)
+static void rgb13h_led_remove(struct platform_device *pdev)
 {
 	struct rgb13h_led *led = platform_get_drvdata(pdev);
 
@@ -604,8 +604,6 @@ static int rgb13h_led_remove(struct platform_device *pdev)
 	led_classdev_flash_unregister(&led->fled_cdev);
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct of_device_id rgb13h_led_dt_match[] = {
