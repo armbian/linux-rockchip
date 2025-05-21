@@ -778,15 +778,13 @@ err_pmdisable:
 	return err;
 }
 
-static int rockchip_can_remove(struct platform_device *pdev)
+static void rockchip_can_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_can_driver = {
