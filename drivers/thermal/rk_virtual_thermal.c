@@ -888,7 +888,7 @@ err_unreg_cpufreq_notifier:
 	return ret;
 }
 
-static int virtual_thermal_remove(struct platform_device *pdev)
+static void virtual_thermal_remove(struct platform_device *pdev)
 {
 	struct virtual_thermal_data *ctx = platform_get_drvdata(pdev);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
@@ -899,8 +899,6 @@ static int virtual_thermal_remove(struct platform_device *pdev)
 		clk_put(ctx->gpu_clk);
 	if (ctx->vpu_clk)
 		clk_put(ctx->vpu_clk);
-
-	return 0;
 }
 
 static struct platform_driver virtual_thermal_driver = {
