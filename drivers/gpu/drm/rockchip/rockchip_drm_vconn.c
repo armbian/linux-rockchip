@@ -562,11 +562,9 @@ static void rockchip_virtual_connector_shutdown(struct platform_device *pdev)
 {
 }
 
-static int rockchip_virtual_connector_remove(struct platform_device *pdev)
+static void rockchip_virtual_connector_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_virtual_connector_ops);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_virtual_connector_dt_ids[] = {
