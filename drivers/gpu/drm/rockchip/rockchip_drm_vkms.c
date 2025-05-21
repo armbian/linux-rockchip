@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/component.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_atomic_helper.h>
