@@ -1268,7 +1268,7 @@ err_disable_clk:
 	return ret;
 }
 
-static int rk_dma_remove(struct platform_device *pdev)
+static void rk_dma_remove(struct platform_device *pdev)
 {
 	struct rk_dma_chan *c, *cn;
 	struct rk_dma_dev *d = platform_get_drvdata(pdev);
@@ -1279,8 +1279,6 @@ static int rk_dma_remove(struct platform_device *pdev)
 		list_del(&c->vc.chan.device_node);
 	}
 	clk_disable_unprepare(d->clk);
-
-	return 0;
 }
 
 static int rk_dma_suspend_dev(struct device *dev)
