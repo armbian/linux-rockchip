@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <uapi/linux/rk-dma-heap.h>
+#include <linux/vmalloc.h>
 
 #include "rk-dma-heap.h"
 
