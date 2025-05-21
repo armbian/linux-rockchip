@@ -185,15 +185,13 @@ un_reserved:
 	return ret;
 }
 
-static int ram_vendor_storage_remove(struct platform_device *pdev)
+static void ram_vendor_storage_remove(struct platform_device *pdev)
 {
 	if (g_vendor) {
 		misc_deregister(&vender_storage_dev);
 		vunmap(g_vendor);
 		g_vendor = NULL;
 	}
-
-	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
