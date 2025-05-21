@@ -2402,11 +2402,10 @@ err__:
 	return ret;
 }
 
-static int rk312x_platform_remove(struct platform_device *pdev)
+static void rk312x_platform_remove(struct platform_device *pdev)
 {
 	DBG("%s\n", __func__);
 	rk312x_priv = NULL;
-	return 0;
 }
 
 static void rk312x_platform_shutdown(struct platform_device *pdev)
