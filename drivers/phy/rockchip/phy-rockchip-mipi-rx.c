@@ -1879,7 +1879,7 @@ destroy_mutex:
 	return 0;
 }
 
-static int rockchip_mipidphy_remove(struct platform_device *pdev)
+static void rockchip_mipidphy_remove(struct platform_device *pdev)
 {
 	struct media_entity *me = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
@@ -1889,7 +1889,6 @@ static int rockchip_mipidphy_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&priv->mutex);
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_mipidphy_pm_ops = {
