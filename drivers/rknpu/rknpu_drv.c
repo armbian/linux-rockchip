@@ -1526,7 +1526,7 @@ err_remove_drv:
 	return ret;
 }
 
-static int rknpu_remove(struct platform_device *pdev)
+static void rknpu_remove(struct platform_device *pdev)
 {
 	struct rknpu_device *rknpu_dev = platform_get_drvdata(pdev);
 	int i = 0;
@@ -1586,8 +1586,6 @@ static int rknpu_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifndef FPGA_PLATFORM
