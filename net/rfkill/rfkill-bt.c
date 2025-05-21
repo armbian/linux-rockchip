@@ -851,7 +851,7 @@ fail_gpio:
 	return ret;
 }
 
-static int rfkill_rk_remove(struct platform_device *pdev)
+static void rfkill_rk_remove(struct platform_device *pdev)
 {
 	struct rfkill_rk_data *rfkill = platform_get_drvdata(pdev);
 
@@ -887,8 +887,6 @@ static int rfkill_rk_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rfkill->pdata->ext_clk);
 	wake_lock_destroy(&rfkill->bt_irq_wl);
 	g_rfkill = NULL;
-
-	return 0;
 }
 
 static const struct dev_pm_ops rfkill_rk_pm_ops = {
