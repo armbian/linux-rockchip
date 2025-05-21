@@ -412,7 +412,7 @@ err_mutex_destroy:
 	return ret;
 }
 
-static int rockchip_flexbus_adc_remove(struct platform_device *pdev)
+static void rockchip_flexbus_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
@@ -422,8 +422,6 @@ static int rockchip_flexbus_adc_remove(struct platform_device *pdev)
 	mutex_destroy(&rkfb_adc->lock);
 	if (rkfb_adc->ref_clk)
 		clk_disable_unprepare(rkfb_adc->ref_clk);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_flexbus_adc_driver = {
