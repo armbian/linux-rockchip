@@ -506,7 +506,7 @@ static int ufs_rockchip_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int ufs_rockchip_remove(struct platform_device *pdev)
+static void ufs_rockchip_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba = platform_get_drvdata(pdev);
 	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
@@ -516,8 +516,6 @@ static int ufs_rockchip_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	ufshcd_dealloc_host(hba);
 	clk_disable_unprepare(host->ref_out_clk);
-
-	return 0;
 }
 
 static int ufs_rockchip_restore_link(struct ufs_hba *hba, bool is_store)
