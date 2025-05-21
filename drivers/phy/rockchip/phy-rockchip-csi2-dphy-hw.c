@@ -1262,14 +1262,12 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_csi2_dphy_hw_remove(struct platform_device *pdev)
+static void rockchip_csi2_dphy_hw_remove(struct platform_device *pdev)
 {
 	struct csi2_dphy_hw *hw = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&hw->mutex);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_csi2_dphy_hw_driver = {

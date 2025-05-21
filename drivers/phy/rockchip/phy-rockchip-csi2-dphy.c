@@ -1227,7 +1227,7 @@ detach_hw:
 	return -EINVAL;
 }
 
-static int rockchip_csi2_dphy_remove(struct platform_device *pdev)
+static void rockchip_csi2_dphy_remove(struct platform_device *pdev)
 {
 	struct media_entity *me = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
@@ -1240,7 +1240,6 @@ static int rockchip_csi2_dphy_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&dphy->mutex);
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_csi2_dphy_pm_ops = {
