@@ -1041,7 +1041,7 @@ err_free_candev:
 	return err;
 }
 
-static int rk3562_can_remove(struct platform_device *pdev)
+static void rk3562_can_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct rk3562_can *rcan = netdev_priv(ndev);
@@ -1050,8 +1050,6 @@ static int rk3562_can_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	netif_napi_del(&rcan->napi);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver rk3562_can_driver = {
