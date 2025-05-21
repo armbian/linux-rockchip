@@ -512,7 +512,7 @@ err_pclk:
 	return ret;
 }
 
-static int rk3228_platform_remove(struct platform_device *pdev)
+static void rk3228_platform_remove(struct platform_device *pdev)
 {
 	struct rk3228_codec_priv *rk3228 = platform_get_drvdata(pdev);
 
@@ -524,8 +524,6 @@ static int rk3228_platform_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(rk3228->sclk))
 		clk_disable_unprepare(rk3228->sclk);
-
-	return 0;
 }
 
 static struct platform_driver rk3228_codec_driver = {
