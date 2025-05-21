@@ -346,13 +346,11 @@ static int rk_dvbm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk_dvbm_remove(struct platform_device *pdev)
+static void rk_dvbm_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	dev_info(dev, "remove device\n");
-
-	return 0;
 }
 
 static const struct of_device_id rk_dvbm_dt_ids[] = {
