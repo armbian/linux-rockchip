@@ -27,7 +27,7 @@ struct drm_device *rockchip_drm_get_dev(void)
 	for (i = 0; i < 64; i++) {
 		struct drm_minor *minor;
 
-		minor = drm_minor_acquire(i + DRM_MINOR_PRIMARY);
+		minor = drm_minor_acquire(&drm_minors_xa, i + DRM_MINOR_PRIMARY);
 		if (IS_ERR(minor))
 			continue;
 		if (!minor->dev || !minor->dev->driver ||
