@@ -277,13 +277,11 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int max96745_bridge_remove(struct platform_device *pdev)
+static void max96745_bridge_remove(struct platform_device *pdev)
 {
 	struct max96745_bridge *ser = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&ser->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id max96745_bridge_of_match[] = {
