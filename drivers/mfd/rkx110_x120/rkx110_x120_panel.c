@@ -893,15 +893,13 @@ static int serdes_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int serdes_panel_remove(struct platform_device *pdev)
+static void serdes_panel_remove(struct platform_device *pdev)
 {
 	struct rk_serdes_panel *sd_panel = dev_get_drvdata(&pdev->dev);
 
 	rk_serdes_panel_bridge_remove(sd_panel);
 
 	drm_panel_disable(&sd_panel->panel);
-
-	return 0;
 }
 
 static const struct of_device_id serdes_panel_of_table[] = {
