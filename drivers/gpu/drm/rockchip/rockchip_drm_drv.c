@@ -1481,7 +1481,7 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	private->cubic_lut_size_prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
 								 "CUBIC_LUT_SIZE", 0, UINT_MAX);
 
-	return drm_mode_create_tv_properties(dev, 0, NULL);
+	return drm_mode_create_tv_properties_legacy(dev, 0, NULL);
 }
 
 static void rockchip_attach_connector_property(struct drm_device *drm)
@@ -1935,14 +1935,6 @@ static void rockchip_drm_postclose(struct drm_device *dev,
 		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
 }
 
-static void rockchip_drm_lastclose(struct drm_device *dev)
-{
-	struct rockchip_drm_private *priv = dev->dev_private;
-
-	if (!priv->logo)
-		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
-}
-
 static struct drm_pending_vblank_event *
 rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, union drm_wait_vblank *vblwait,
 			    struct drm_file *file_priv)
@@ -1996,14 +1988,14 @@ static int rockchip_drm_get_vcnt_event_ioctl(struct drm_device *dev, void *data,
 
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CREATE, rockchip_gem_create_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_MAP_OFFSET,
 			  rockchip_gem_map_offset_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_GET_PHYS, rockchip_gem_get_phys_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GET_VCNT_EVENT, rockchip_drm_get_vcnt_event_ioctl,
-			  DRM_UNLOCKED),
+			  0),
 };
 
 static int rockchip_drm_gem_dmabuf_begin_cpu_access(struct dma_buf *dma_buf,
@@ -2120,7 +2112,6 @@ DEFINE_DRM_GEM_FOPS(rockchip_drm_driver_fops);
 static const struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC | DRIVER_RENDER,
 	.postclose		= rockchip_drm_postclose,
-	.lastclose		= rockchip_drm_lastclose,
 	.open			= rockchip_drm_open,
 	.dumb_create		= rockchip_gem_dumb_create,
 	.gem_prime_import	= rockchip_drm_gem_prime_import,
