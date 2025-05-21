@@ -1500,7 +1500,7 @@ static int rkvt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rkvt_remove(struct platform_device *pdev)
+static void rkvt_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rkvt_dev *vdev = platform_get_drvdata(pdev);
@@ -1510,8 +1510,6 @@ static int rkvt_remove(struct platform_device *pdev)
 	idr_destroy(&vdev->inst_idr);
 	debugfs_remove_recursive(vdev->debug_root);
 	misc_deregister(&vdev->mdev);
-
-	return 0;
 }
 
 static const struct of_device_id rk_vt_match[] = {
