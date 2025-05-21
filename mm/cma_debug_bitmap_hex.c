@@ -81,7 +81,6 @@ static const struct file_operations u32_array_hex_fops = {
 	.open	 = u32_array_open_hex,
 	.release = u32_array_release,
 	.read	 = u32_array_read,
-	.llseek  = no_llseek,
 };
 
 static void debugfs_create_u32_array_hex(const char *name, umode_t mode,
