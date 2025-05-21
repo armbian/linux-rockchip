@@ -5642,18 +5642,16 @@ void kbase_sysfs_term(struct kbase_device *kbdev)
 	put_device(kbdev->dev);
 }
 
-static int kbase_platform_device_remove(struct platform_device *pdev)
+static void kbase_platform_device_remove(struct platform_device *pdev)
 {
 	struct kbase_device *kbdev = to_kbase_device(&pdev->dev);
 
 	if (!kbdev)
-		return -ENODEV;
+		return;
 
 	kbase_device_term(kbdev);
 	dev_set_drvdata(kbdev->dev, NULL);
 	kbase_device_free(kbdev);
-
-	return 0;
 }
 
 void kbase_backend_devfreq_term(struct kbase_device *kbdev)
