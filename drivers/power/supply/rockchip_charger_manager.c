@@ -3031,7 +3031,7 @@ static const struct dev_pm_ops charger_manager_pm = {
 	.resume_noirq = charger_manager_resume_noirq,
 };
 
-static int charger_manager_remove(struct platform_device *pdev)
+static void charger_manager_remove(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 
@@ -3041,8 +3041,6 @@ static int charger_manager_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	if (cm->desc->support_dc_charger)
 		cancel_delayed_work_sync(&cm->dc_work);
-
-	return 0;
 }
 
 static void charger_manager_shutdown(struct platform_device *pdev)
