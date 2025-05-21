@@ -1615,7 +1615,7 @@ disable_clks:
 	return ret;
 }
 
-static int rockchip_usb2phy_remove(struct platform_device *pdev)
+static void rockchip_usb2phy_remove(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct rockchip_usb2phy *rphy = platform_get_drvdata(pdev);
@@ -1623,8 +1623,6 @@ static int rockchip_usb2phy_remove(struct platform_device *pdev)
 	if (rphy->vup_gpio &&
 	    of_device_is_compatible(np, "rockchip,rv1126-usb2phy"))
 		hrtimer_cancel(&rphy->wait_timer);
-
-	return 0;
 }
 
 static int rv1126_usb2phy_tuning(struct rockchip_usb2phy *rphy)
