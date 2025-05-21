@@ -600,13 +600,12 @@ static int rk_minidump_add_header(void)
 	return 0;
 }
 
-static int rk_minidump_driver_remove(struct platform_device *pdev)
+static void rk_minidump_driver_remove(struct platform_device *pdev)
 {
 	/* TO-DO.
 	 *Free the required resources and set the global
 	 * variables as minidump is not initialized.
 	 */
-	return 0;
 }
 
 static ssize_t rk_minidump_read_elf(struct file *file, char __user *buffer,
