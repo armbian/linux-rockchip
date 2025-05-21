@@ -578,14 +578,12 @@ static int flexbus_cif_plat_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int flexbus_cif_plat_remove(struct platform_device *pdev)
+static void flexbus_cif_plat_remove(struct platform_device *pdev)
 {
 	struct flexbus_cif_device *cif_dev = platform_get_drvdata(pdev);
 
 	flexbus_cif_plat_uninit(cif_dev);
 	flexbus_cif_proc_cleanup(cif_dev);
-
-	return 0;
 }
 
 static int __maybe_unused flexbus_cif_runtime_suspend(struct device *dev)
