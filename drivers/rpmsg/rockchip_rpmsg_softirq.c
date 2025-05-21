@@ -370,7 +370,7 @@ free_reserved_mem:
 	return ret;
 }
 
-static int rockchip_rpmsg_remove(struct platform_device *pdev)
+static void rockchip_rpmsg_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_rpmsg_dev *rpdev = platform_get_drvdata(pdev);
@@ -381,8 +381,6 @@ static int rockchip_rpmsg_remove(struct platform_device *pdev)
 		unregister_virtio_device(&rpdev->rpvdev[i]->vdev);
 
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_rpmsg_match[] = {
