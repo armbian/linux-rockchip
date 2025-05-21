@@ -274,7 +274,7 @@ static int rkisp_sditf_probe(struct platform_device *pdev)
 	return rkisp_sditf_notifier(sditf);
 }
 
-static int rkisp_sditf_remove(struct platform_device *pdev)
+static void rkisp_sditf_remove(struct platform_device *pdev)
 {
 	struct rkisp_sditf_device *sditf = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = &sditf->sd;
@@ -284,7 +284,6 @@ static int rkisp_sditf_remove(struct platform_device *pdev)
 
 	media_entity_cleanup(&sd->entity);
 	v4l2_async_unregister_subdev(sd);
-	return 0;
 }
 
 static const struct of_device_id rkisp_sditf_of_match[] = {

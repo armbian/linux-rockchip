@@ -1019,7 +1019,7 @@ err_unreg_v4l2_dev:
 	return ret;
 }
 
-static int rkisp_plat_remove(struct platform_device *pdev)
+static void rkisp_plat_remove(struct platform_device *pdev)
 {
 	struct rkisp_device *isp_dev = platform_get_drvdata(pdev);
 
@@ -1044,7 +1044,6 @@ static int rkisp_plat_remove(struct platform_device *pdev)
 	rkisp_unregister_csi_subdev(isp_dev);
 	rkisp_unregister_isp_subdev(isp_dev);
 	media_device_cleanup(&isp_dev->media_dev);
-	return 0;
 }
 
 static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
