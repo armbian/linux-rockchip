@@ -67,8 +67,6 @@ void *rk_vmap_contig_pfn(unsigned long pfn, unsigned int count, pgprot_t prot)
 
 int rk_dma_heap_set_dev(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -81,12 +79,7 @@ int rk_dma_heap_set_dev(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;

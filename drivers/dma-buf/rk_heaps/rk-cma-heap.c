@@ -618,8 +618,6 @@ static int cma_procfs_show(struct seq_file *s, void *private);
 
 static int set_heap_dev_dma(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -632,12 +630,7 @@ static int set_heap_dev_dma(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;
