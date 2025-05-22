@@ -428,7 +428,6 @@ static int rockchip_show_interrupts(char *p, int irq)
 {
 	static int prec;
 	char *buf = p;
-	unsigned long any_count = 0;
 	int i = irq, j;
 	struct irqaction *action;
 	struct irq_desc *desc;
@@ -451,17 +450,12 @@ static int rockchip_show_interrupts(char *p, int irq)
 	if (!desc || (desc->status_use_accessors & IRQ_HIDDEN))
 		goto outsparse;
 
-	if (desc->kstat_irqs)
-		for_each_possible_cpu(j)
-			any_count |= *per_cpu_ptr(desc->kstat_irqs, j);
-
-	if ((!desc->action) && !any_count)
+	if (!desc->action || !desc->kstat_irqs)
 		goto outsparse;
 
 	buf += sprintf(buf, "%*d: ", prec, i);
 	for_each_possible_cpu(j)
-		buf += sprintf(buf, "%10u ", desc->kstat_irqs ?
-					*per_cpu_ptr(desc->kstat_irqs, j) : 0);
+		buf += sprintf(buf, "%10u ", desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, j) : 0);
 
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->name)
