@@ -340,7 +340,7 @@ static void fiq_debugger_do_ps(struct fiq_debugger_state *state)
 
 	fiq_debugger_printf(&state->output, "pid   ppid  prio task            pc\n");
 	read_lock(&tasklist_lock);
-	do_each_thread(g, p) {
+	for_each_process_thread(g, p) {
 		task_state = p->__state ? __ffs(p->__state) + 1 : 0;
 		fiq_debugger_printf(&state->output,
 			     "%5d %5d %4d ", p->pid, p->parent->pid, p->prio);
@@ -351,7 +351,7 @@ static void fiq_debugger_do_ps(struct fiq_debugger_state *state)
 		else
 			fiq_debugger_printf(&state->output, " %08lx\n",
 					thread_saved_pc(p));
-	} while_each_thread(g, p);
+	}
 	read_unlock(&tasklist_lock);
 }
 #endif
@@ -1208,7 +1208,7 @@ void fiq_tty_wake_up(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(fiq_tty_wake_up);
 
-static int fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static ssize_t fiq_tty_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	int i;
 	int line = tty->index;
