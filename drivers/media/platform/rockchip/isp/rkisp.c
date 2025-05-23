@@ -2589,6 +2589,9 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		/* isp20 and isp21 csi2rx need isp force */
 		if (dev->isp_ver < ISP_V30)
 			is_direct = true;
+		if (dev->isp_ver == ISP_V33)
+			rkisp_unite_set_bits(dev, ISP_ACQ_H_OFFS, ISP21_SENSOR_INDEX(7),
+					     ISP21_SENSOR_INDEX(dev->dev_id), false);
 	}
 	rkisp_unite_write(dev, CIF_ISP_CTRL, val, is_direct);
 	rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, upd);

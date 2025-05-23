@@ -3947,12 +3947,12 @@ rkisp_params_check_bigmode_v33(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 
-	dev->multi_index = 0;
+	dev->multi_index = dev->dev_id;
+	if (dev->unite_div > ISP_UNITE_DIV1)
+		dev->multi_index = 0;
 	dev->multi_mode = 0;
-	if (!hw->is_single) {
+	if (!hw->is_single)
 		dev->is_frm_rd = true;
-		dev->multi_index = dev->dev_id;
-	}
 
 	return dev->is_bigmode = false;
 }
