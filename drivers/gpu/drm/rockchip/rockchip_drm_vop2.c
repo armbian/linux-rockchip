@@ -11538,7 +11538,7 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	struct vop2_plane_state *bottom_win_vpstate;
 	bool src_pixel_alpha_en = false, dst_pixel_alpha_en = false;
 	u16 src_glb_alpha_val = 0xff, dst_glb_alpha_val = 0xff;
-	bool premulti_en = false;
+	bool src_win_premulti_en = true, dst_win_premulti_en = true;
 	bool swap = false;
 
 	if (!sub_win) {
@@ -11580,22 +11580,36 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 			return;
 		if (top_win_vpstate->base.pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
 		    top_win_vpstate->base.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
-			premulti_en = true;
+			src_win_premulti_en = true;
 		else
-			premulti_en = false;
+			src_win_premulti_en = false;
 		src_pixel_alpha_en = is_alpha_support(fb->format->format);
 	}
 	fb = bottom_win_vpstate->base.fb;
 	if (!fb)
 		return;
 	dst_pixel_alpha_en = is_alpha_support(fb->format->format);
-	alpha_config.src_premulti_en = premulti_en;
-	alpha_config.dst_premulti_en = false;
+
+	if (bottom_win_vpstate->base.pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
+	    bottom_win_vpstate->base.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
+		dst_win_premulti_en = true;
+	else
+		dst_win_premulti_en = false;
+
+	alpha_config.src_premulti_en = src_win_premulti_en;
+	/* Cluster dst color need todo Cd * Ad0 and become premulti alpha data to next mix */
+	alpha_config.dst_premulti_en = false;/* always transfer to premulti alpha */
 	alpha_config.src_pixel_alpha_en = src_pixel_alpha_en;
 	alpha_config.dst_pixel_alpha_en = dst_pixel_alpha_en; /* alpha value need transfer to next mix */
 	alpha_config.src_glb_alpha_value = src_glb_alpha_val;
 	alpha_config.dst_glb_alpha_value = dst_glb_alpha_val;
 	vop2_parse_alpha(&alpha_config, &alpha);
+
+	/* non premulti pixel alpha and global need to do Cd * Ad0, Ad0 = pixel * global >> 8 */
+	if (!dst_win_premulti_en && dst_pixel_alpha_en)
+		alpha.dst_color_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
+	else/* global need to do Cd * Ad0, Ad0 = global */
+		alpha.dst_color_ctrl.bits.blend_mode = ALPHA_GLOBAL;
 
 	alpha.src_color_ctrl.bits.src_dst_swap = swap;
 	vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
@@ -11904,49 +11918,43 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 	uint32_t dst_color_ctrl_offset = ovl_regs->layer_mix_regs->dst_color_ctrl.offset;
 	uint32_t src_alpha_ctrl_offset = ovl_regs->layer_mix_regs->src_alpha_ctrl.offset;
 	uint32_t dst_alpha_ctrl_offset = ovl_regs->layer_mix_regs->dst_alpha_ctrl.offset;
-	unsigned long win_mask = vp->win_mask;
 	const struct vop2_zpos *zpos;
 	struct vop2_plane_state *vpstate;
 	struct vop2_alpha_config alpha_config;
 	union vop2_bg_alpha_ctrl bg_alpha_ctrl;
 	struct vop2_alpha alpha;
-	struct vop2_win *win;
+	struct vop2_win *win, *bottom_win;
 	struct drm_plane_state *pstate;
 	struct drm_framebuffer *fb;
 	int pixel_alpha_en;
-	int premulti_en = 1;
-	int phys_id;
+	int premulti_en = 1, bottom_layer_premulti_en = 1;
 	uint32_t offset;
 	int i;
 	bool bottom_layer_alpha_en = false;
-	u32 dst_global_alpha = 0xff;
+	bool bottom_layer_pixel_alpha_en = false;
+	bool bottom_layer_global_alpha_en = false;
+	u32 bottom_layer_global_alpha = 0xff;
 
-	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
-		win = vop2_find_win_by_phys_id(vop2, phys_id);
-		pstate = win->base.state;
-		vpstate = to_vop2_plane_state(pstate);
+	zpos = &vop2_zpos[0];
+	win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+	pstate = win->base.state;
+	vpstate = to_vop2_plane_state(pstate);
+	fb = pstate->fb;
+	bottom_layer_pixel_alpha_en = fb->format->has_alpha || vop2_cluster_window(win);
+	bottom_layer_global_alpha_en = vpstate->global_alpha != 0xff;
+	bottom_layer_alpha_en = bottom_layer_pixel_alpha_en || bottom_layer_global_alpha_en;
 
-		if (!vop2_plane_active(pstate))
-			continue;
-
-		if (vpstate->zpos == 0 && vpstate->global_alpha != 0xff &&
-		    !vop2_cluster_window(win)) {
-			/*
-			 * If bottom layer have global alpha effect [except cluster layer,
-			 * because cluster have deal with bottom layer global alpha value
-			 * at cluster mix], bottom layer mix need deal with global alpha.
-			 */
-			bottom_layer_alpha_en = true;
-			dst_global_alpha = vpstate->global_alpha;
-			if (pstate->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
-			    pstate->pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
-				premulti_en = 1;
-			else
-				premulti_en = 0;
-
-			break;
-		}
+	if (bottom_layer_alpha_en) {
+		/* bottom layer alpha need to be dealt at hdr mix or bg mix */
+		if (!vop2_cluster_window(win))
+			bottom_layer_global_alpha = vpstate->global_alpha;
+		if (pstate->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
+		    pstate->pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
+			bottom_layer_premulti_en = 1;
+		else
+			bottom_layer_premulti_en = 0;
 	}
+	bottom_win = win;
 
 	alpha_config.dst_pixel_alpha_en = true; /* alpha value need transfer to next mix */
 	for (i = 1; i < vp->nr_layers; i++) {
@@ -11963,22 +11971,38 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		pixel_alpha_en = is_alpha_support(fb->format->format);
 
 		alpha_config.src_premulti_en = premulti_en;
-		if (bottom_layer_alpha_en && i == 1) {
-			/**
-			 * The data from cluster mix is always premultiplied alpha;
-			 * cluster layer or esmart layer[premulti_en = 1]
-			 *	Cd = Cs + (1 - As) * Cd * Agd
-			 * esmart layer[premulti_en = 0]
-			 *	Cd = As * Cs + (1 - As) * Cd * Agd
-			 **/
-			if (vop2_cluster_window(win))
+		if (i == 1) {
+			/* The src data from cluster mix is always premulti pixel-alpha,
+			 * cluster global alpha is dealt by cluter mix and change to pixel alpha,
+			 * transfer to layer0 mix. so layer0 src global alpha is 0xff;
+			 * The src data from esmart may be [pixel alpha] * [global * alpha].
+			 *
+			 * The dst data from cluster mix is always premulti pixel-alpha,
+			 * The dst data from esmart, non premulti pixel alpha and global need to do
+			 * Cd * Ad0, and transfer premulti pixel alpha data to next mix.
+			 */
+			if (vop2_cluster_window(win)) {
 				alpha_config.src_premulti_en = true;
-			alpha_config.dst_premulti_en = false;
+				alpha_config.src_glb_alpha_value = 0xff;
+			} else {
+				alpha_config.src_premulti_en = premulti_en;
+				alpha_config.src_glb_alpha_value = vpstate->global_alpha;
+			}
 			alpha_config.src_pixel_alpha_en = pixel_alpha_en;
-			alpha_config.src_glb_alpha_value =  vpstate->global_alpha;
-			alpha_config.dst_glb_alpha_value = dst_global_alpha;
-		} else if (vop2_cluster_window(win)) {/* Mix output data only have pixel alpha */
-			/* The data from cluster mix is always premultiplied alpha */
+
+			if (vop2_cluster_window(bottom_win)) {
+				alpha_config.dst_premulti_en = true;
+				alpha_config.dst_glb_alpha_value = 0xff;
+			} else {
+				/*
+				 * layer0 dst color need todo Cd * Ad0 and become
+				 * premulti alpha data to next mix
+				 */
+				alpha_config.dst_premulti_en = false;
+				alpha_config.dst_glb_alpha_value = bottom_layer_global_alpha;
+			}
+		} else if (vop2_cluster_window(win)) {
+			/* The data from cluster mix is always premultiplied pixel alpha data */
 			alpha_config.src_premulti_en = true;
 			alpha_config.dst_premulti_en = true;
 			alpha_config.src_pixel_alpha_en = true;
@@ -11991,6 +12015,17 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 			alpha_config.dst_glb_alpha_value = 0xff;
 		}
 		vop2_parse_alpha(&alpha_config, &alpha);
+
+		if (i == 1) {
+			/*
+			 * non premulti pixel alpha and global need to do Cd * Ad0,
+			 * Ad0 = pixel * global >> 8
+			 */
+			if (bottom_layer_pixel_alpha_en == true && bottom_layer_premulti_en == false)
+				alpha.dst_color_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
+			else/* global need to do Cd * Ad0, Ad0 = global */
+				alpha.dst_color_ctrl.bits.blend_mode = ALPHA_GLOBAL;
+		}
 
 		offset = (i - 1) * 0x10;
 		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
@@ -12043,11 +12078,21 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		}
 	}
 
-	bg_alpha_ctrl.bits.alpha_en = 0;
-	VOP_MODULE_SET(vop2, vp, bg_mix_ctrl, bg_alpha_ctrl.val);
-
 	if (vop2->version == VOP_VERSION_RK3576 && vp->id == 0)
 		rk3576_extra_alpha(vp, vop2_zpos);
+
+	if (bottom_layer_alpha_en) {
+		bool premulti_en = bottom_layer_premulti_en ?
+					ALPHA_SRC_PRE_MUL : ALPHA_SRC_NO_PRE_MUL;
+
+		bg_alpha_ctrl.bits.alpha_en = 1;
+		bg_alpha_ctrl.bits.alpha_mode = 1;
+		bg_alpha_ctrl.bits.alpha_pre_mul = premulti_en;
+	} else {
+		bg_alpha_ctrl.bits.alpha_en = 0;
+	}
+
+	VOP_MODULE_SET(vop2, vp, bg_mix_ctrl, bg_alpha_ctrl.val);
 }
 
 static u32 vop2_layer_cfg_update(struct vop2_layer *layer, u32 old_layer_cfg, u8 win_layer_id)
