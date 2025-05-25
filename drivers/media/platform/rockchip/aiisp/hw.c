@@ -368,14 +368,13 @@ err:
 	return ret;
 }
 
-static int rkaiisp_hw_remove(struct platform_device *pdev)
+static void rkaiisp_hw_remove(struct platform_device *pdev)
 {
 	struct rkaiisp_hw_dev *hw_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&hw_dev->dev_mutex);
 	rkaiisp_hwdev = NULL;
-	return 0;
 }
 
 static void rkaiisp_hw_shutdown(struct platform_device *pdev)
