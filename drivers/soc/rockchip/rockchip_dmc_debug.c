@@ -1096,14 +1096,12 @@ static int rockchip_dmcdbg_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rockchip_dmcdbg_remove(struct platform_device *pdev)
+static void rockchip_dmcdbg_remove(struct platform_device *pdev)
 {
 	remove_proc_subtree(PROC_DMCDBG_DIR_NAME, NULL);
 
 	dmcdbg_data.inited_flag = 0;
 	dmcdbg_data.share_memory = NULL;
-
-	return 0;
 }
 
 static struct platform_driver rockchip_dmcdbg_driver = {
