@@ -21,3 +21,10 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 };
+
+&npu_opp_table {
+	/delete-node/ opp-700000000;
+	/delete-node/ opp-800000000;
+	/delete-node/ opp-934000000;
+};
+
