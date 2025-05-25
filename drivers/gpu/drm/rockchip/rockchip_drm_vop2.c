@@ -365,6 +365,7 @@ struct vop2_plane_state {
 	int global_alpha;
 	int blend_mode;
 	uint32_t background;
+	uint32_t alpha_map;
 	uint64_t color_key;
 	unsigned long offset;
 	int pdaf_data_type;
@@ -486,6 +487,7 @@ struct vop2_win {
 	struct drm_property *color_key_prop;
 	struct drm_property *scale_prop;
 	struct drm_property *name_prop;
+	struct drm_property *alpha_map_prop;
 	/**
 	 * @dci_data_prop: dci data interaction with userspace
 	 */
@@ -2762,6 +2764,20 @@ static inline bool vop2_cluster_sub_window(struct vop2_win *win)
 static inline bool vop2_has_feature(struct vop2 *vop2, uint64_t feature)
 {
 	return (vop2->data->feature & feature);
+}
+
+static bool vop2_supported_argb1555(struct vop2 *vop2, struct vop2_win *win)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
+	const u32 *format = win_data->formats;
+	int i;
+
+	for (i = 0; i < win_data->nformats; i++) {
+		if ((format[i] == DRM_FORMAT_ARGB1555) || (format[i] == DRM_FORMAT_ABGR1555))
+			return true;
+	}
+	return false;
 }
 
 /*
@@ -7095,8 +7111,11 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	/* rk3588 should set half_blocK_en to 1 in line and tile mode */
 	VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 
-	if (!win->parent && win->feature & WIN_FEATURE_MULTI_AREA)
-		VOP_CTRL_SET(vop2, win_alpha_map[win->phys_id], 0x8000ff00);
+	if (win->alpha_map_prop) {
+		u32 alpha_map = vpstate->alpha_map ? vpstate->alpha_map : 0x8000ff00;
+
+		VOP_CTRL_SET(vop2, win_alpha_map[win->phys_id], alpha_map);
+	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
 
@@ -7413,6 +7432,7 @@ static void vop2_atomic_plane_reset(struct drm_plane *plane)
 
 	__drm_atomic_helper_plane_reset(plane, &vpstate->base);
 	vpstate->base.zpos = win->zpos;
+	vpstate->alpha_map = 0x8000ff00;
 }
 
 static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plane *plane)
@@ -7515,6 +7535,11 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == win->alpha_map_prop) {
+		vpstate->alpha_map = val;
+		return 0;
+	}
+
 	if (property == win->dci_data_prop) {
 		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
 								&vpstate->dci_data,
@@ -7573,6 +7598,11 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->color_key_prop) {
 		*val = vpstate->color_key;
+		return 0;
+	}
+
+	if (property == win->alpha_map_prop) {
+		*val = vpstate->alpha_map;
 		return 0;
 	}
 
@@ -14927,6 +14957,23 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_object_attach_property(&win->base.base, win->scale_prop, 0);
 	if (win->regs->color_key.mask)
 		drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
+
+	/*
+	 * argb1555 support alpha map config from userspace:
+	 * bit[7, 0]: alpha 0 mapping value;
+	 * bit[15,8]: alpha 1 mapping value;
+	 * bit[31]  : alpha map enable.
+	 */
+	if (vop2_supported_argb1555(vop2, win) && !win->parent) {
+		win->alpha_map_prop = drm_property_create_range(vop2->drm_dev, 0, "alpha_map", 0,
+								0x8fffffff);
+		if (!win->alpha_map_prop) {
+			DRM_ERROR("failed to create alpha_map property\n");
+			return -ENOMEM;
+		}
+
+		drm_object_attach_property(&win->base.base, win->alpha_map_prop, 0x8000ff00);
+	}
 
 	return 0;
 }
