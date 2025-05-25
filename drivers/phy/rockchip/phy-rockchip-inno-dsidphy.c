@@ -1159,7 +1159,21 @@ static struct platform_driver inno_dsidphy_driver = {
 	.probe = inno_dsidphy_probe,
 	.remove_new = inno_dsidphy_remove,
 };
+#ifdef CONFIG_INITCALL_ASYNC
+static int __init inno_dsidphy_driver_init(void)
+{
+	return platform_driver_register(&inno_dsidphy_driver);
+}
+fs_initcall(inno_dsidphy_driver_init);
+
+static void __exit inno_dsidphy_driver_exit(void)
+{
+	platform_driver_unregister(&inno_dsidphy_driver);
+}
+module_exit(inno_dsidphy_driver_exit);
+#else
 module_platform_driver(inno_dsidphy_driver);
+#endif
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
 MODULE_DESCRIPTION("Innosilicon MIPI/LVDS/TTL Video Combo PHY driver");

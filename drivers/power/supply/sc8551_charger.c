@@ -1191,7 +1191,7 @@ static int sc8551_set_adc_scanrate(struct sc8551 *sc, bool oneshot)
 static int sc8551_get_adc_data(struct sc8551 *sc, int channel,  int *result)
 {
 	u8 val_l = 0, val_h = 0;
-	u16 val = 0;
+	u32 val = 0;
 	int ret = 0;
 
 	if (channel >= ADC_MAX_NUM)

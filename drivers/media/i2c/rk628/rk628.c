@@ -276,7 +276,13 @@ int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 		return -EINVAL;
 	}
 
-	ret = regmap_write(rk628->regmap[region], reg, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_write(rk628->regmap[region], reg, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_write(rk628->regmap[region], reg, val);
+	}
 	if (ret < 0)
 		dev_err(rk628->dev,
 			"%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
@@ -296,7 +302,13 @@ int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
 		return -EINVAL;
 	}
 
-	ret = regmap_read(rk628->regmap[region], reg, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_read(rk628->regmap[region], reg, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_read(rk628->regmap[region], reg, val);
+	}
 	if (ret < 0)
 		dev_err(rk628->dev,
 			"%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
@@ -309,6 +321,7 @@ int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 					u32 val)
 {
 	int region = (reg >> 16) & 0xff;
+	int ret;
 
 	if (region >= RK628_DEV_MAX) {
 		dev_err(rk628->dev,
@@ -316,7 +329,15 @@ int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_update_bits(rk628->regmap[region], reg, mask, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(rk628_media_i2c_update_bits);
 

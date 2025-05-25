@@ -40,8 +40,10 @@
 
 	sound1 {
 		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,bt";
-		simple-audio-card,format = "i2s";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s2_2ch>;
 		};

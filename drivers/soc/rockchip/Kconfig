@@ -58,6 +58,12 @@ config ROCKCHIP_CSU
 	help
 	  This adds the clock subunit driver for Rockchip SoCs.
 
+config ROCKCHIP_DMC_DEBUG
+	tristate "ROCKCHIP DMC DEBUG Driver"
+	depends on ARCH_ROCKCHIP && HAVE_ARM_SMCCC
+	help
+	  This adds the dmc debug driver for the ROCKCHIP DMC.
+
 config ROCKCHIP_GRF
 	tristate "Rockchip General Register Files support"
 	help

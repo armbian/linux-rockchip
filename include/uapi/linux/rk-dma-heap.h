@@ -20,8 +20,9 @@
 /* Valid FD_FLAGS are O_CLOEXEC, O_RDONLY, O_WRONLY, O_RDWR */
 #define RK_DMA_HEAP_VALID_FD_FLAGS (O_CLOEXEC | O_ACCMODE)
 
-/* Currently no heap flags */
-#define RK_DMA_HEAP_VALID_HEAP_FLAGS (0)
+/* Currently heap flags */
+#define RK_DMA_HEAP_UNCACHED (1UL << 0)
+#define RK_DMA_HEAP_VALID_HEAP_FLAGS (RK_DMA_HEAP_UNCACHED)
 
 /**
  * struct rk_dma_heap_allocation_data - metadata passed from userspace for

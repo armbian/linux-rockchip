@@ -214,11 +214,6 @@
 	};
 };
 
-&dmc {
-	center-supply = <&vdd_log>;
-	status = "okay";
-};
-
 &fiq_debugger {
 	status = "okay";
 };

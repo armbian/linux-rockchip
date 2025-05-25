@@ -211,28 +211,29 @@ struct dram_addrmap_info *sip_smc_get_dram_map(void)
 {
 	struct arm_smccc_res res;
 	static struct dram_addrmap_info *map;
+	struct dram_addrmap_info *m;
 
 	if (map)
-		return map;
+		return map->bank_bit_first ? map : NULL;
 
 	/* Request share memory size 4KB */
 	res = sip_smc_request_share_mem(1, SHARE_PAGE_TYPE_DDR_ADDRMAP);
 	if (res.a0 != 0) {
-		pr_err("no ATF memory for init\n");
+		pr_err("%s: request share memory error!\n", __func__);
 		return NULL;
 	}
-
-	map = (struct dram_addrmap_info *)res.a1;
+	m = (struct dram_addrmap_info *)res.a1;
+	memset_io(m, 0x0, sizeof(*m));
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR_ADDRMAP, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_ADDRMAP_GET);
 	if (res.a0) {
-		pr_err("rockchip_sip_config_dram_init error:%lx\n", res.a0);
-		map = NULL;
+		pr_err("rockchip_sip_config_dram_addrmap_get error:%lx\n", res.a0);
 		return NULL;
 	}
+	map = m;
 
-	return map;
+	return map->bank_bit_first ? map : NULL;
 }
 EXPORT_SYMBOL_GPL(sip_smc_get_dram_map);
 
@@ -370,6 +371,15 @@ struct arm_smccc_res sip_smc_gpio_config(u32 sub_func_id, u32 arg1, u32 arg2,
 	return res;
 }
 EXPORT_SYMBOL_GPL(sip_smc_gpio_config);
+
+int sip_smc_cpu_pm_config(u32 func, u32 id, u32 cfg)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_CPU_PM_CFG, func, id, cfg);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_cpu_pm_config);
 
 /************************** fiq debugger **************************************/
 /*

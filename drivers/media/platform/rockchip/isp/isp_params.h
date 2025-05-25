@@ -10,6 +10,7 @@
 #include <linux/rk-isp32-config.h>
 #include <linux/rk-isp39-config.h>
 #include <linux/rk-isp33-config.h>
+#include <linux/rk-isp35-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
@@ -56,6 +57,8 @@ struct rkisp_isp_params_ops {
 			    struct rkisp_bnr_buf_info *bnrbuf);
 	void (*aiisp_event)(struct rkisp_isp_params_vdev *params_vdev, u32 irq);
 	int (*aiisp_start)(struct rkisp_isp_params_vdev *params_vdev, struct rkisp_aiisp_st *st);
+	int (*get_aiawb_buffd)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
+	void (*vpsl_update_regs)(struct rkisp_isp_params_vdev *params_vdev);
 };
 
 /*
@@ -79,6 +82,7 @@ struct rkisp_isp_params_vdev {
 		struct isp32_isp_params_cfg *isp32_params;
 		struct isp39_isp_params_cfg *isp39_params;
 		struct isp33_isp_params_cfg *isp33_params;
+		struct isp35_isp_params_cfg *isp35_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;
@@ -108,6 +112,7 @@ struct rkisp_isp_params_vdev {
 
 	bool is_subs_evt;
 	bool is_first_cfg;
+	bool is_hdr;
 };
 
 static inline void
@@ -173,4 +178,5 @@ int rkisp_params_init_bnr_buf(struct rkisp_isp_params_vdev *params_vdev,
 			      struct rkisp_bnr_buf_info *bnrbuf);
 void rkisp_params_aiisp_event(struct rkisp_isp_params_vdev *params_vdev, u32 irq);
 int rkisp_params_aiisp_start(struct rkisp_isp_params_vdev *params_vdev, struct rkisp_aiisp_st *st);
+int rkisp_params_get_aiawb_buffd(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 #endif /* _RKISP_ISP_PARAM_H */

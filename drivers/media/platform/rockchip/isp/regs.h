@@ -37,6 +37,7 @@
 #include "dev.h"
 #include "regs_v2x.h"
 #include "regs_v3x.h"
+#include "vpsl_reg.h"
 
 #define CIF_ISP_PACK_4BYTE(a, b, c, d)	\
 	(((a) & 0xFF) << 0 | ((b) & 0xFF) << 8 | \

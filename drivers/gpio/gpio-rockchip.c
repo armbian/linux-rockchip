@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/rockchip/rockchip_sip.h>
 
 #include "../pinctrl/core.h"
 #include "../pinctrl/pinctrl-rockchip.h"
@@ -32,8 +33,21 @@
 #define GPIO_TYPE_V2		(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
 #define GPIO_TYPE_V2_1		(0x0101157C)  /* GPIO Version ID 0x0101157C */
 #define GPIO_TYPE_V2_2		(0x010219C8)  /* GPIO Version ID 0x010219C8 */
+#define GPIO_TYPE_V2_6		(0x01063F6E)  /* GPIO Version ID 0x01063F6E */
 
 #define GPIO_MAX_PINS	(32)
+
+struct rockchip_gpio_irq_affinity {
+	int			irq;
+	int			cpu;
+	int			bank_num;
+	struct list_head	list;
+};
+
+static DEFINE_MUTEX(irq_affinity_mutex);
+static LIST_HEAD(irq_affinity_list);
+static bool cpuhp_state_initialized;
+static enum cpuhp_state gpio_hp_state = CPUHP_INVALID;
 
 #define ROCKCHIP_PIN_EXP_IRQ_DEMUX(_N) \
 static void rockchip_single_pin_exp_irq_demux##_N(struct irq_desc *desc) \
@@ -46,7 +60,7 @@ static void rockchip_single_pin_exp_irq_demux##_N(struct irq_desc *desc) \
 	chained_irq_exit(chip, desc); \
 } \
 \
-static void rockchip_multi_pin_exp_irq_demux##_N(struct irq_desc *desc) \
+static void rockchip_dual_pin_exp_irq_demux##_N(struct irq_desc *desc) \
 { \
 	struct irq_chip *chip = irq_desc_get_chip(desc); \
 	struct rockchip_pin_bank *bank = irq_desc_get_handler_data(desc); \
@@ -312,12 +326,30 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 
 	/* Enable or disable dbclk at last */
 	if (div_debounce_support) {
-		if (debounce)
-			clk_prepare_enable(bank->db_clk);
-		else
-			clk_disable_unprepare(bank->db_clk);
+		raw_spin_lock_irqsave(&bank->slock, flags);
+
+		if (debounce) {
+			if (bitmap_empty(bank->db_clk_bitmap, RK_GPIO_BANK_MAX_PIN)) {
+				int ret = clk_enable(bank->db_clk);
+
+				if (ret)
+					dev_warn(bank->dev, "Failed to enable db_clk: %d\n", ret);
+				else
+					set_bit(offset, bank->db_clk_bitmap);
+			} else {
+				set_bit(offset, bank->db_clk_bitmap);
+			}
+		} else {
+			if (!bitmap_empty(bank->db_clk_bitmap, RK_GPIO_BANK_MAX_PIN)) {
+				clear_bit(offset, bank->db_clk_bitmap);
+				if (bitmap_empty(bank->db_clk_bitmap, RK_GPIO_BANK_MAX_PIN))
+					clk_disable(bank->db_clk);
+			}
+		}
+
+		raw_spin_unlock_irqrestore(&bank->slock, flags);
 	} else {
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -368,11 +400,29 @@ static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
 	struct rockchip_pin_bank *bank = gpiochip_get_data(gc);
 	unsigned int virq;
+	int i;
+	struct rockchip_gpio_irq_affinity *irq_affinity;
 
 	if (!bank->domain)
 		return -ENXIO;
 
 	virq = irq_create_mapping(bank->domain, offset);
+
+	for (i = 0; i < RK_GPIO_IRQ_MAX_NUM; i++) {
+		if (bank->irq_pins[i] & (1 << offset)) {
+			irq_affinity = kzalloc(sizeof(*irq_affinity), GFP_KERNEL);
+			if (!irq_affinity)
+				return -ENOMEM;
+			irq_affinity->irq = virq;
+			irq_affinity->cpu = bank->cpu_affinity[i];
+			irq_affinity->bank_num = bank->bank_num;
+			mutex_lock(&irq_affinity_mutex);
+			list_add(&irq_affinity->list, &irq_affinity_list);
+			mutex_unlock(&irq_affinity_mutex);
+			irq_force_affinity(virq, cpumask_of(irq_affinity->cpu));
+			break;
+		}
+	}
 
 	return (virq) ? : -ENXIO;
 }
@@ -452,10 +502,10 @@ static irq_flow_handler_t rockchip_irq_s[RK_GPIO_IRQ_MAX_NUM - 1] = {
 	rockchip_single_pin_exp_irq_demux3
 };
 
-static irq_flow_handler_t rockchip_irq_m[RK_GPIO_IRQ_MAX_NUM - 1] = {
-	rockchip_multi_pin_exp_irq_demux1,
-	rockchip_multi_pin_exp_irq_demux2,
-	rockchip_multi_pin_exp_irq_demux3
+static irq_flow_handler_t rockchip_irq_d[RK_GPIO_IRQ_MAX_NUM - 1] = {
+	rockchip_dual_pin_exp_irq_demux1,
+	rockchip_dual_pin_exp_irq_demux2,
+	rockchip_dual_pin_exp_irq_demux3
 };
 
 static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
@@ -588,6 +638,24 @@ static void rockchip_irq_disable(struct irq_data *d)
 	irq_gc_mask_set_bit(d);
 }
 
+static int rockchip_irq_set_affinity(struct irq_data *data,
+				     const struct cpumask *mask_val, bool force)
+{
+	unsigned int cpu;
+
+	if (!force)
+		cpu = cpumask_any_and(mask_val, cpu_online_mask);
+	else
+		cpu = cpumask_first(mask_val);
+
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+
+	irq_data_update_effective_affinity(data, cpumask_of(cpu));
+
+	return IRQ_SET_MASK_OK;
+}
+
 static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
@@ -636,6 +704,7 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	gc->chip_types[0].chip.irq_release_resources = rockchip_irq_relres;
 	gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 
+	gc->chip_types[0].chip.irq_set_affinity = rockchip_irq_set_affinity;
 	/*
 	 * Linux assumes that all interrupts start out disabled/masked.
 	 * Our driver only uses the concept of masked and always keeps
@@ -650,15 +719,21 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 					 rockchip_irq_demux, bank);
 
 	for (int i = 1; i < RK_GPIO_IRQ_MAX_NUM; i++) {
+		int pin_num = hweight32(bank->irq_pins[i]);
+
 		if (!bank->irq_pins[i])
 			continue;
-		if (hweight32(bank->irq_pins[i]) == 1)
+		if (pin_num == 1)
 			irq_set_chained_handler_and_data(bank->irq[i],
 							 rockchip_irq_s[i - 1],
 							 bank);
+		else if (pin_num == 2)
+			irq_set_chained_handler_and_data(bank->irq[i],
+							 rockchip_irq_d[i - 1],
+							 bank);
 		else
 			irq_set_chained_handler_and_data(bank->irq[i],
-							 rockchip_irq_m[i - 1],
+							 rockchip_irq_demux,
 							 bank);
 	}
 	return 0;
@@ -721,6 +796,10 @@ static void rockchip_gpio_get_ver(struct rockchip_pin_bank *bank)
 	case GPIO_TYPE_V2_2:
 		bank->gpio_regs = &gpio_regs_v2;
 		bank->gpio_type = GPIO_TYPE_V2_2;
+		break;
+	case GPIO_TYPE_V2_6:
+		bank->gpio_regs = &gpio_regs_v2;
+		bank->gpio_type = GPIO_TYPE_V2_6;
 		break;
 	default:
 		bank->gpio_regs = &gpio_regs_v1;
@@ -799,11 +878,33 @@ static bool rockchip_gpio_has_irq_affinity(struct device_node *node)
 	return !!of_find_property(node, "interrupt-affinity", NULL);
 }
 
-static int rockchip_gpio_set_irq_affinity(const struct device *dev, int index,
-					  struct rockchip_pin_bank *bank)
+static bool rockchip_gpio_has_irq_pins(struct device_node *node)
+{
+	return !!of_find_property(node, "interrupt-pins", NULL);
+}
+
+static int rockchip_gpio_set_irq_affinity(int irq, int cpu)
+{
+	int ret;
+
+	ret = irq_force_affinity(irq, cpumask_of(cpu));
+	if (ret) {
+		pr_err("unable to set irq affinity (irq=%d, cpu=%u)\n", irq, cpu);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rockchip_gpio_init_irq_affinity(const struct device *dev, int index,
+					   struct rockchip_pin_bank *bank)
 {
 	int cpu, ret;
 	struct device_node *node = dev->of_node, *dn;
+	struct rockchip_gpio_irq_affinity *irq_affinity;
+
+	if (!bank->irq_pins[index])
+		return 0;
 
 	dn = of_parse_phandle(node, "interrupt-affinity", index);
 	if (!dn) {
@@ -816,46 +917,83 @@ static int rockchip_gpio_set_irq_affinity(const struct device *dev, int index,
 	if (cpu < 0)
 		return cpu;
 
-	ret = irq_force_affinity(bank->irq[index], cpumask_of(cpu));
-	if (ret) {
-		dev_err(dev, "unable to set irq affinity (irq=%d, cpu=%u)\n",
-			bank->irq[index], cpu);
+	if (cpu == 0)
+		return 0;
+
+	ret = rockchip_gpio_set_irq_affinity(bank->irq[index], cpu);
+	if (ret)
 		return ret;
-	}
+
+	bank->cpu_affinity[index] = cpu;
+
+	irq_affinity = kzalloc(sizeof(*irq_affinity), GFP_KERNEL);
+	if (!irq_affinity)
+		return -ENOMEM;
+	irq_affinity->irq = bank->irq[index];
+	irq_affinity->cpu = cpu;
+	irq_affinity->bank_num = bank->bank_num;
+	mutex_lock(&irq_affinity_mutex);
+	list_add(&irq_affinity->list, &irq_affinity_list);
+	mutex_unlock(&irq_affinity_mutex);
 
 	return 0;
 }
 
-static bool rockchip_gpio_has_irq_pins(struct device_node *node)
-{
-	return !!of_find_property(node, "interrupt-pins", NULL);
-}
-
-static int rockchip_gpio_get_irq_pins(const struct device *dev, int index,
+static int rockchip_gpio_set_irq_pins(const struct device *dev, int index,
 				      struct rockchip_pin_bank *bank)
 {
-	int ret, i;
+	struct arm_smccc_res res;
+	int ret = 0;
+
+	if (rockchip_gpio_has_irq_pins(dev->of_node)) {
+		ret = of_property_read_u32_index(dev->of_node, "interrupt-pins",
+						 index, &bank->irq_pins[index]);
+		if (ret) {
+			dev_err(dev, "Failed to read interrupt-pin at index %d\n", index);
+			return ret;
+		}
+
+		if (!bank->irq_pins[index])
+			return 0;
+		res = sip_smc_gpio_config(GPIO_SET_GROUP_INFO, bank->bank_num,
+					  index, bank->irq_pins[index]);
+
+		switch (res.a0) {
+		case SIP_RET_SUCCESS:
+			return 0;
+		case SIP_RET_NOT_SUPPORTED:
+			dev_err(dev, "Failed to set interrupt pins, no support\n");
+			return -EOPNOTSUPP;
+		case SIP_RET_INVALID_PARAMS:
+			dev_err(dev, "gpio id or group id invalid\n");
+			return -EINVAL;
+		case SIP_RET_DENIED:
+			dev_warn(dev, "Failed to set interrupt pins, please modify syscfg.dts\n");
+			break;
+		default:
+			break;
+		}
+	}
+	res = sip_smc_gpio_config(GPIO_GET_GROUP_INFO, bank->bank_num, index, 0);
+	if (res.a0 == 0)
+		bank->irq_pins[index] = res.a1;
+
+	return 0;
+}
+
+static int rockchip_gpio_init_irq_pins(const struct device *dev, int index,
+				       struct rockchip_pin_bank *bank)
+{
+	int i;
 	unsigned int pin;
 	unsigned long pending;
-	struct device_node *node = dev->of_node;
 
 	if (index == 0)
 		return 0;
 
 	for (i = 0; i < RK_GPIO_EXP_IRQ_MAX_PIN_NUM; i++)
 		bank->irq_pin_id[index][i] = -1;
-	ret = of_property_read_u32_index(node, "interrupt-pins", index,
-					 &bank->irq_pins[index]);
-	if (ret) {
-		dev_err(dev, "Failed to read interrupt-pin at index %d\n", index);
-		return ret;
-	}
-
-	if (hweight32(bank->irq_pins[index]) > RK_GPIO_EXP_IRQ_MAX_PIN_NUM) {
-		dev_err(dev, "Interrupt-pin at index %d must not more then %d\n",
-			index, RK_GPIO_EXP_IRQ_MAX_PIN_NUM);
-		return -EINVAL;
-	}
+	rockchip_gpio_set_irq_pins(dev, index, bank);
 
 	if (bank->irq_pins[index]) {
 		i = 0;
@@ -873,7 +1011,6 @@ static int rockchip_gpio_parse_irqs(struct platform_device *pdev,
 {
 	int num_irqs, i, ret;
 	struct device *dev = &pdev->dev;
-	bool has_irq_pins = rockchip_gpio_has_irq_pins(dev->of_node);
 	bool has_affinity = rockchip_gpio_has_irq_affinity(dev->of_node);
 
 	num_irqs = platform_irq_count(pdev);
@@ -890,20 +1027,70 @@ static int rockchip_gpio_parse_irqs(struct platform_device *pdev,
 		if (bank->irq[i] < 0)
 			return dev_err_probe(dev, -EINVAL, "failed to get gpio irq %d\n", i);
 
-		if (!has_irq_pins)
-			continue;
-		ret = rockchip_gpio_get_irq_pins(dev, i, bank);
-		if (ret)
-			return ret;
-
 		if (!has_affinity)
 			continue;
-		ret = rockchip_gpio_set_irq_affinity(dev, i, bank);
+
+		ret = rockchip_gpio_init_irq_pins(dev, i, bank);
+		if (ret)
+			return ret;
+		ret = rockchip_gpio_init_irq_affinity(dev, i, bank);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
+}
+
+static int gpio_cpu_on(unsigned int cpu)
+{
+	struct rockchip_gpio_irq_affinity *entry;
+
+	mutex_lock(&irq_affinity_mutex);
+	list_for_each_entry(entry, &irq_affinity_list, list) {
+		if (entry->cpu == cpu)
+			rockchip_gpio_set_irq_affinity(entry->irq, cpu);
+	}
+	mutex_unlock(&irq_affinity_mutex);
+
+	return 0;
+}
+
+static int gpio_cpu_off(unsigned int cpu)
+{
+	return 0;
+}
+
+static void rockchip_gpio_init_cpuhp(void)
+{
+	int ret;
+
+	mutex_lock(&irq_affinity_mutex);
+	if (!cpuhp_state_initialized && !list_empty(&irq_affinity_list)) {
+		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "gpio",
+						gpio_cpu_on, gpio_cpu_off);
+		if (ret < 0) {
+			pr_err("ERROR: gpio failed to register hotplug callbacks\n");
+			mutex_unlock(&irq_affinity_mutex);
+			return;
+		}
+		cpuhp_state_initialized = true;
+		gpio_hp_state = ret;
+	}
+
+	mutex_unlock(&irq_affinity_mutex);
+}
+
+static void rockchip_gpio_remove_cpuhp(void)
+{
+	mutex_lock(&irq_affinity_mutex);
+	if (cpuhp_state_initialized && list_empty(&irq_affinity_list)) {
+		if (gpio_hp_state != CPUHP_INVALID) {
+			cpuhp_remove_state_nocalls(gpio_hp_state);
+			gpio_hp_state = CPUHP_INVALID;
+			cpuhp_state_initialized = false;
+		}
+	}
+	mutex_unlock(&irq_affinity_mutex);
 }
 
 static int rockchip_gpio_probe(struct platform_device *pdev)
@@ -913,6 +1100,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	struct rockchip_pin_bank *bank = NULL;
 	int bank_id = 0;
 	int ret;
+	struct rockchip_gpio_irq_affinity *entry, *tmp;
 
 	bank_id = rockchip_gpio_acpi_get_bank_id(dev);
 	if (bank_id < 0) {
@@ -949,10 +1137,6 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 
 	rockchip_gpio_get_ver(bank);
 
-	ret = rockchip_gpio_parse_irqs(pdev, bank);
-	if (ret < 0)
-		return ret;
-
 	raw_spin_lock_init(&bank->slock);
 
 	if (!ACPI_COMPANION(dev)) {
@@ -973,8 +1157,21 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk_prepare_enable(bank->clk);
-	clk_prepare_enable(bank->db_clk);
+	ret = clk_prepare_enable(bank->clk);
+	if (ret) {
+		dev_err(bank->dev, "Failed to enable GPIO clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare(bank->db_clk);
+	if (ret) {
+		dev_warn(bank->dev, "Failed to prepare db_clk: %d\n", ret);
+		bank->db_clk = NULL;
+	}
+
+	ret = rockchip_gpio_parse_irqs(pdev, bank);
+	if (ret < 0)
+		goto err_clk;
+	rockchip_gpio_init_cpuhp();
 
 	/*
 	 * Prevent clashes with a deferred output setting
@@ -1035,9 +1232,20 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 
 	return 0;
 err_unlock:
+	mutex_lock(&irq_affinity_mutex);
+	list_for_each_entry_safe(entry, tmp, &irq_affinity_list, list) {
+		if (entry->bank_num == bank->bank_num) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+	mutex_unlock(&irq_affinity_mutex);
+	rockchip_gpio_remove_cpuhp();
+
 	mutex_unlock(&bank->deferred_lock);
+err_clk:
 	clk_disable_unprepare(bank->clk);
-	clk_disable_unprepare(bank->db_clk);
+	clk_unprepare(bank->db_clk);
 
 	return ret;
 }
@@ -1045,9 +1253,23 @@ err_unlock:
 static void rockchip_gpio_remove(struct platform_device *pdev)
 {
 	struct rockchip_pin_bank *bank = platform_get_drvdata(pdev);
+	struct rockchip_gpio_irq_affinity *entry, *tmp;
+
+	mutex_lock(&irq_affinity_mutex);
+	list_for_each_entry_safe(entry, tmp, &irq_affinity_list, list) {
+		if (entry->bank_num == bank->bank_num) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+	mutex_unlock(&irq_affinity_mutex);
+	rockchip_gpio_remove_cpuhp();
 
 	clk_disable_unprepare(bank->clk);
-	clk_disable_unprepare(bank->db_clk);
+	if (bitmap_empty(bank->db_clk_bitmap, RK_GPIO_BANK_MAX_PIN))
+		clk_unprepare(bank->db_clk);
+	else
+		clk_disable_unprepare(bank->db_clk);
 	gpiochip_remove(&bank->gpio_chip);
 }
 

@@ -229,7 +229,11 @@ static int __init iommu_subsys_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+postcore_initcall_sync(iommu_subsys_init);
+#else
 subsys_initcall(iommu_subsys_init);
+#endif
 
 static int remove_iommu_group(struct device *dev, void *data)
 {
@@ -1641,6 +1645,9 @@ struct iommu_domain *iommu_group_default_domain(struct iommu_group *group)
 {
 	return group->default_domain;
 }
+#ifdef CONFIG_NO_GKI
+EXPORT_SYMBOL_GPL(iommu_group_default_domain);
+#endif
 
 static int probe_iommu_group(struct device *dev, void *data)
 {

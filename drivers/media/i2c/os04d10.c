@@ -125,6 +125,8 @@ struct os04d10_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct os04d10 {
@@ -146,6 +148,8 @@ struct os04d10 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	struct v4l2_fract	cur_fps;
 	bool			streaming;
@@ -618,11 +622,13 @@ static const struct os04d10_mode supported_modes[] = {
 		},
 		.exp_def = 0x0080,
 		.hts_def = 0x032e,
-		.vts_def = 0x05c1,
+		.vts_def = 0x05a1,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = os04d10_linear_10_2560x1440_regs,
 		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD0] = 0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 	{
 		.width = 2568,
@@ -637,7 +643,9 @@ static const struct os04d10_mode supported_modes[] = {
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = os04d10_linear_10_2568x1448_regs,
 		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD0] = 0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 	{
 		.width = 640,
@@ -652,8 +660,14 @@ static const struct os04d10_mode supported_modes[] = {
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = os04d10_linear_10_640x360_regs,
 		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD0] = 0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	}
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -796,6 +810,10 @@ os04d10_find_best_fit(struct v4l2_subdev_format *fmt)
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
+		} else if (dist == cur_best_fit_dist &&
+			   framefmt->code == supported_modes[i].bus_fmt) {
+			cur_best_fit = i;
+			break;
 		}
 	}
 
@@ -803,7 +821,7 @@ os04d10_find_best_fit(struct v4l2_subdev_format *fmt)
 }
 
 static int os04d10_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct os04d10 *os04d10 = to_os04d10(sd);
@@ -819,7 +837,7 @@ static int os04d10_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&os04d10->mutex);
 		return -ENOTTY;
@@ -842,7 +860,7 @@ static int os04d10_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int os04d10_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct os04d10 *os04d10 = to_os04d10(sd);
@@ -851,7 +869,7 @@ static int os04d10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&os04d10->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 #else
 		mutex_unlock(&os04d10->mutex);
 		return -ENOTTY;
@@ -873,26 +891,24 @@ static int os04d10_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int os04d10_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct os04d10 *os04d10 = to_os04d10(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = os04d10->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
 
 static int os04d10_enum_frame_sizes(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != supported_modes[0].bus_fmt)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -935,24 +951,82 @@ static int os04d10_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const struct os04d10_mode *os04d10_find_mode(struct os04d10 *os04d10, int fps)
+{
+	const struct os04d10_mode *mode = NULL;
+	const struct os04d10_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == os04d10->cur_mode->width &&
+		    mode->height == os04d10->cur_mode->height &&
+		    mode->hdr_mode == os04d10->cur_mode->hdr_mode &&
+		    mode->bus_fmt == os04d10->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int os04d10_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct os04d10 *os04d10 = to_os04d10(sd);
+	const struct os04d10_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OS04D10_LANES;
+	int fps;
+
+	if (os04d10->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = os04d10_find_mode(os04d10, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	os04d10->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(os04d10->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os04d10->vblank, vblank_def,
+				 OS04D10_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(os04d10->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(os04d10->link_freq,
+			   mode->link_freq_idx);
+	os04d10->cur_fps = mode->max_fps;
+	return 0;
+}
+
 static int os04d10_g_mbus_config(struct v4l2_subdev *sd,
 				unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
-	struct os04d10 *os04d10 = to_os04d10(sd);
-	const struct os04d10_mode *mode = os04d10->cur_mode;
-
-	u32 val = 1 << (OS04D10_LANES - 1) |
-		V4L2_MBUS_CSI2_CHANNEL_0 |
-		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-
-	if (mode->hdr_mode != NO_HDR)
-		val |= V4L2_MBUS_CSI2_CHANNEL_1;
-	if (mode->hdr_mode == HDR_X3)
-		val |= V4L2_MBUS_CSI2_CHANNEL_2;
-
 	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
+	config->bus.mipi_csi2.num_data_lanes = OS04D10_LANES;
 
 	return 0;
 }
@@ -1305,7 +1379,7 @@ static int os04d10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct os04d10 *os04d10 = to_os04d10(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 	const struct os04d10_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&os04d10->mutex);
@@ -1335,7 +1409,7 @@ static int os04d10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
  * to the alignment rules.
  */
 static int os04d10_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_selection *sel)
 {
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
@@ -1349,7 +1423,7 @@ static int os04d10_get_selection(struct v4l2_subdev *sd,
 }
 
 static int os04d10_enum_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_state *sd_state,
 				       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	if (fie->index >= ARRAY_SIZE(supported_modes))
@@ -1385,6 +1459,7 @@ static const struct v4l2_subdev_core_ops os04d10_core_ops = {
 static const struct v4l2_subdev_video_ops os04d10_video_ops = {
 	.s_stream = os04d10_s_stream,
 	.g_frame_interval = os04d10_g_frame_interval,
+	.s_frame_interval = os04d10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os04d10_pad_ops = {
@@ -1467,10 +1542,10 @@ static int os04d10_set_ctrl(struct v4l2_ctrl *ctrl)
 					OS04D10_REG_PAGE_CIS_TIMING);
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_H,
-					 ((ctrl->val + os04d10->cur_mode->height) >> 8) & 0xff);
+					 ((ctrl->val >> 8) & 0xff));
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_L,
-					 (ctrl->val + os04d10->cur_mode->height) & 0xff);
+					 ctrl->val & 0xff);
 		ret |= os04d10_write_reg(os04d10->client, OS04D10_REG_EXP_UPDATE, 0x01);
 		os04d10->cur_vts = ctrl->val + os04d10->cur_mode->height;
 		os04d10_modify_fps_info(os04d10);
@@ -1523,7 +1598,6 @@ static int os04d10_initialize_controls(struct os04d10 *os04d10)
 {
 	const struct os04d10_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1535,12 +1609,12 @@ static int os04d10_initialize_controls(struct os04d10 *os04d10)
 		return ret;
 	handler->lock = &os04d10->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	os04d10->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+						    0, 0, link_freq_menu_items);
+	if (os04d10->link_freq)
+		os04d10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+	os04d10->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
 			  0, PIXEL_RATE_WITH_360M_10BIT, 1, PIXEL_RATE_WITH_360M_10BIT);
 
 	h_blank = mode->hts_def - mode->width;
@@ -1749,7 +1823,7 @@ static int os04d10_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 os04d10->module_index, facing,
 		 OS04D10_NAME, dev_name(sd->dev));
-	ret = v4l2_async_register_subdev_sensor_common(sd);
+	ret = v4l2_async_register_subdev_sensor(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1778,7 +1852,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int os04d10_remove(struct i2c_client *client)
+static void os04d10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct os04d10 *os04d10 = to_os04d10(sd);
@@ -1794,8 +1868,6 @@ static int os04d10_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__os04d10_power_off(os04d10);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)

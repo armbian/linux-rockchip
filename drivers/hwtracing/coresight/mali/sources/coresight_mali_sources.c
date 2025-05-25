@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,6 +30,31 @@
 #include <linux/mali_kbase_debug_coresight_csf.h>
 #include <coresight-priv.h>
 #include "sources/coresight_mali_sources.h"
+
+#define CS_SCS_BASE_ADDR 0xE000E000
+#define SCS_DEMCR 0xDFC
+
+static struct kbase_debug_coresight_csf_address_range dwt_common_scs_range[] = {
+	{ CS_SCS_BASE_ADDR, CS_SCS_BASE_ADDR + CORESIGHT_DEVTYPE }
+};
+
+/* For sources, pre enable and post disable sequences are
+ * defined to manipulate DEMCR.TRECNA. Clearing of this register has
+ * to be done as the last step of coresight disabling procedure and
+ * only if there are no more configurations to disable. Otherwise,
+ * if cleared earlier, TMC state machine gets stuck during Flush
+ * procedure as clearing DEMCR.TRCENA stops ITM/ETM/ELA clocks.
+ * Flush procedure never ends and TMC will stay in STOPPING state.
+ */
+static struct kbase_debug_coresight_csf_op dwt_common_pre_enable_ops[] = {
+	// enable DWT functionality via DEMCR register
+	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x01000000),
+};
+
+static struct kbase_debug_coresight_csf_op dwt_common_post_disable_ops[] = {
+	// disable DWT functionality via DEMCR register
+	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x00000000),
+};
 
 static int coresight_mali_source_trace_id(struct coresight_device *csdev)
 {
@@ -88,7 +113,7 @@ int coresight_mali_sources_probe(struct platform_device *pdev)
 		pdata = of_get_coresight_platform_data(dev, np);
 #endif
 	if (IS_ERR(pdata)) {
-		dev_err(drvdata->base.dev, "Failed to get platform data\n");
+		dev_err(drvdata->base.dev, "Failed to get platform data");
 		ret = PTR_ERR(pdata);
 		goto devm_kfree_drvdata;
 	}
@@ -97,25 +122,51 @@ int coresight_mali_sources_probe(struct platform_device *pdev)
 
 	gpu_node = of_parse_phandle(np, "gpu", 0);
 	if (!gpu_node) {
-		dev_err(drvdata->base.dev, "GPU node not available\n");
+		dev_err(drvdata->base.dev, "GPU node not available");
+		ret = -EINVAL;
 		goto devm_kfree_drvdata;
 	}
 	gpu_pdev = of_find_device_by_node(gpu_node);
-	if (gpu_pdev == NULL) {
-		dev_err(drvdata->base.dev, "Couldn't find GPU device from node\n");
+	if (!gpu_pdev) {
+		dev_err(drvdata->base.dev, "Couldn't find GPU device from node");
+		ret = -ENODEV;
 		goto devm_kfree_drvdata;
 	}
 
 	drvdata->base.gpu_dev = platform_get_drvdata(gpu_pdev);
 	if (!drvdata->base.gpu_dev) {
-		dev_err(drvdata->base.dev, "GPU dev not available\n");
+		dev_err(drvdata->base.dev, "GPU dev not available");
+		ret = -ENODEV;
 		goto devm_kfree_drvdata;
+	}
+
+	drvdata->base.kbase_pre_post_all_client = kbase_debug_coresight_csf_register(
+		drvdata->base.gpu_dev, dwt_common_scs_range, ARRAY_SIZE(dwt_common_scs_range));
+	if (!drvdata->base.kbase_pre_post_all_client) {
+		dev_err(drvdata->base.dev, "Registration with access to SCS failed unexpectedly");
+		ret = -EINVAL;
+		goto devm_kfree_drvdata;
+	}
+
+	drvdata->base.pre_enable_seq.ops = dwt_common_pre_enable_ops;
+	drvdata->base.pre_enable_seq.nr_ops = ARRAY_SIZE(dwt_common_pre_enable_ops);
+
+	drvdata->base.post_disable_seq.ops = dwt_common_post_disable_ops;
+	drvdata->base.post_disable_seq.nr_ops = ARRAY_SIZE(dwt_common_post_disable_ops);
+
+	drvdata->base.pre_post_all_config = kbase_debug_coresight_csf_config_create(
+		drvdata->base.kbase_pre_post_all_client, &drvdata->base.pre_enable_seq,
+		&drvdata->base.post_disable_seq, true);
+	if (!drvdata->base.pre_post_all_config) {
+		dev_err(drvdata->base.dev, "pre_post_all_config create failed unexpectedly");
+		ret = -EINVAL;
+		goto kbase_pre_post_all_client_unregister;
 	}
 
 	ret = coresight_mali_sources_init_drvdata(drvdata);
 	if (ret) {
-		dev_err(drvdata->base.dev, "Failed to init source driver data\n");
-		goto kbase_client_unregister;
+		dev_err(drvdata->base.dev, "Failed to init source driver data");
+		goto kbase_pre_post_all_config_unregister;
 	}
 
 	desc.type = CORESIGHT_DEV_TYPE_SOURCE;
@@ -129,23 +180,27 @@ int coresight_mali_sources_probe(struct platform_device *pdev)
 	desc.name = devm_kasprintf(dev, GFP_KERNEL, "%s", drvdata->type_name);
 	if (!desc.name) {
 		ret = -ENOMEM;
-		goto devm_kfree_drvdata;
+		goto source_deinit_drvdata;
 	}
 #endif
+
 	drvdata->base.csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->base.csdev)) {
 		dev_err(drvdata->base.dev, "Failed to register coresight device\n");
 		ret = PTR_ERR(drvdata->base.csdev);
-		goto devm_kfree_drvdata;
+		goto source_deinit_drvdata;
 	}
 
 	return ret;
 
-kbase_client_unregister:
-	if (drvdata->base.csdev != NULL)
-		coresight_unregister(drvdata->base.csdev);
-
+source_deinit_drvdata:
 	coresight_mali_sources_deinit_drvdata(drvdata);
+
+kbase_pre_post_all_config_unregister:
+	kbase_debug_coresight_csf_config_free(drvdata->base.pre_post_all_config);
+
+kbase_pre_post_all_client_unregister:
+	kbase_debug_coresight_csf_unregister(drvdata->base.kbase_pre_post_all_client);
 
 devm_kfree_drvdata:
 	devm_kfree(dev, drvdata);
@@ -153,7 +208,11 @@ devm_kfree_drvdata:
 	return ret;
 }
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 int coresight_mali_sources_remove(struct platform_device *pdev)
+#else
+void coresight_mali_sources_remove(struct platform_device *pdev)
+#endif
 {
 	struct coresight_mali_source_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
@@ -162,9 +221,17 @@ int coresight_mali_sources_remove(struct platform_device *pdev)
 
 	coresight_mali_sources_deinit_drvdata(drvdata);
 
+	if (drvdata->base.pre_post_all_config != NULL)
+		kbase_debug_coresight_csf_config_free(drvdata->base.pre_post_all_config);
+
+	if (drvdata->base.kbase_pre_post_all_client != NULL)
+		kbase_debug_coresight_csf_unregister(drvdata->base.kbase_pre_post_all_client);
+
 	devm_kfree(&pdev->dev, drvdata);
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 	return 0;
+#endif
 }
 
 MODULE_AUTHOR("ARM Ltd.");

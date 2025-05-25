@@ -324,6 +324,11 @@
 		};
 	};
 
+	dmcdbg: dmcdbg {
+		compatible = "rockchip,rk3568-dmcdbg";
+		status = "disabled";
+	};
+
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";

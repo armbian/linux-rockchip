@@ -109,6 +109,8 @@ static const struct pdm_of_quirks {
 	},
 };
 
+static int rockchip_pdm_pinctrl_select_clk_state(struct device *dev);
+
 static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
 				unsigned int *clk_src, unsigned int *clk_out,
 				unsigned int signoff)
@@ -488,6 +490,9 @@ static int rockchip_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!(pdm->quirks & QUIRK_ALWAYS_ON))
+			rockchip_pdm_pinctrl_select_clk_state(pdm->dev);
+
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			rockchip_pdm_rxctrl(pdm, 1);
 		break;
@@ -496,6 +501,9 @@ static int rockchip_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			rockchip_pdm_rxctrl(pdm, 0);
+
+		if (!(pdm->quirks & QUIRK_ALWAYS_ON))
+			pinctrl_pm_select_idle_state(pdm->dev);
 		break;
 	default:
 		ret = -EINVAL;
@@ -826,7 +834,8 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 
 	rockchip_pdm_rxctrl(pdm, 0);
 
-	rockchip_pdm_pinctrl_select_clk_state(dev);
+	if (pdm->quirks & QUIRK_ALWAYS_ON)
+		rockchip_pdm_pinctrl_select_clk_state(dev);
 
 	return 0;
 

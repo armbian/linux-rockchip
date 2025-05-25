@@ -297,6 +297,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(1)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE)) |
+	       (s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE(0))); /* 128k */
+
 	if (msg->src.rd_mode == RGA_RKFBC_MODE || msg->src.rd_mode == RGA_AFBC32x8_MODE)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_FBC_IN_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_FBC_IN_EN(1)));
@@ -1668,11 +1671,19 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	if (rot_90_flag == 1) {
 		if (y_mirr == 1) {
-			msg->iommu_prefetch.y_threshold = y_lt_addr;
-			msg->iommu_prefetch.uv_threshold = u_lt_addr;
+			msg->iommu_prefetch.y_threshold = y_lt_addr >> 16 ?
+				RGA2_IOMMU_PREFETCH_ALIGN_DOWN(y_lt_addr) :
+				RGA2_IOMMU_PREFETCH_THRESHOLD_MIN;
+			msg->iommu_prefetch.uv_threshold = u_lt_addr >> 16 ?
+				RGA2_IOMMU_PREFETCH_ALIGN_DOWN(u_lt_addr) :
+				RGA2_IOMMU_PREFETCH_THRESHOLD_MIN;
 		} else {
-			msg->iommu_prefetch.y_threshold = y_rd_addr;
-			msg->iommu_prefetch.uv_threshold = u_rd_addr;
+			msg->iommu_prefetch.y_threshold = (y_rd_addr >> 16) == 0xffff ?
+				RGA2_IOMMU_PREFETCH_THRESHOLD_MAX :
+				RGA2_IOMMU_PREFETCH_ALIGN(y_rd_addr);
+			msg->iommu_prefetch.uv_threshold = (u_rd_addr >> 16) == 0xffff ?
+				RGA2_IOMMU_PREFETCH_THRESHOLD_MAX :
+				RGA2_IOMMU_PREFETCH_ALIGN(u_rd_addr);
 		}
 	}
 }
@@ -2326,8 +2337,9 @@ static void RGA2_set_mmu_reg_info(struct rga_scheduler_t *scheduler, u8 *base, s
 	case RGA_IOMMU:
 		RGA_PREFETCH_ADDR_TH = (u32 *)(base + RGA2_PREFETCH_ADDR_TH_OFFSET);
 
-		*RGA_PREFETCH_ADDR_TH = (msg->iommu_prefetch.y_threshold >> 16) |
-					((msg->iommu_prefetch.uv_threshold >> 16) << 16);
+		*RGA_PREFETCH_ADDR_TH =
+			(msg->iommu_prefetch.y_threshold >> RGA2_IOMMU_PREFETCH_SHIFT) |
+			((msg->iommu_prefetch.uv_threshold >> RGA2_IOMMU_PREFETCH_SHIFT) << 16);
 		break;
 	default:
 		break;
@@ -2866,6 +2878,10 @@ static int rga2_init_reg(struct rga_job *job)
 	memcpy(&job->pre_intr_info, &job->rga_command_base.pre_intr_info,
 	       sizeof(job->pre_intr_info));
 
+	/* for debug */
+	if (DEBUGGER_EN(MSG))
+		print_debug_info(job, &req);
+
 	/* check value if legal */
 	ret = rga2_check_param(job, scheduler->data, &req);
 	if (ret == -EINVAL) {
@@ -2874,10 +2890,6 @@ static int rga2_init_reg(struct rga_job *job)
 	}
 
 	rga2_align_check(job, &req);
-
-	/* for debug */
-	if (DEBUGGER_EN(MSG))
-		print_debug_info(job, &req);
 
 	/* RGA2 mmu set */
 	if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1) ||
@@ -2958,6 +2970,27 @@ static void rga2_dump_read_back_csc_reg(struct rga_job *job, struct rga_schedule
 			csc_reg[2 + i * 4], csc_reg[3 + i * 4]);
 }
 
+static void rga2_dump_read_back_other_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t other_reg[4] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 4; i++)
+		other_reg[i] = rga_read(RGA2_OTHER_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	rga_job_log(job, "OTHER_READ_BACK_REG\n");
+	for (i = 0; i < 1; i++)
+		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_OTHER_REG_BASE + i * 0x10,
+			other_reg[0 + i * 4], other_reg[1 + i * 4],
+			other_reg[2 + i * 4], other_reg[3 + i * 4]);
+}
+
 static void rga2_dump_read_back_cmd_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
@@ -2983,6 +3016,8 @@ static void rga2_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t 
 {
 	rga2_dump_read_back_sys_reg(job, scheduler);
 	rga2_dump_read_back_csc_reg(job, scheduler);
+	if (scheduler->data->version > 0)
+		rga2_dump_read_back_other_reg(job, scheduler);
 	rga2_dump_read_back_cmd_reg(job, scheduler);
 }
 
@@ -3065,6 +3100,8 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(REG)) {
 		rga2_dump_read_back_sys_reg(job, scheduler);
 		rga2_dump_read_back_csc_reg(job, scheduler);
+		if (scheduler->data->version > 0)
+			rga2_dump_read_back_other_reg(job, scheduler);
 
 		rga_job_log(job, "CMD_REG\n");
 		for (i = 0; i < 8; i++)
@@ -3077,9 +3114,11 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	/* sys_reg init */
-	sys_ctrl = m_RGA2_SYS_CTRL_AUTO_CKG |
-		   m_RGA2_SYS_CTRL_DST_WR_OPT_DIS |
-		   m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS;
+	sys_ctrl = m_RGA2_SYS_CTRL_AUTO_CKG;
+
+	/* RV1106 need disables these optimizations */
+	if (scheduler->data == &rga2e_1106_data)
+		sys_ctrl |= m_RGA2_SYS_CTRL_DST_WR_OPT_DIS | m_RGA2_SRC0_YUV420SP_RD_OPT_DIS;
 
 	if (rga_hw_has_issue(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST)) {
 		/*
@@ -3174,10 +3213,17 @@ static int rga2_get_version(struct rga_scheduler_t *scheduler)
 static int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	if (job->rga_command_base.osd_info.enable) {
-		job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0,
-								     scheduler);
-		job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1,
-								     scheduler);
+		if (scheduler->data->version == 0) {
+			job->rga_command_base.osd_info.cur_flags0 =
+				rga_read(RGA2_OSD_CUR_FLAGS0, scheduler);
+			job->rga_command_base.osd_info.cur_flags1 =
+				rga_read(RGA2_OSD_CUR_FLAGS1, scheduler);
+		} else {
+			job->rga_command_base.osd_info.cur_flags0 =
+				rga_read(RGA2_FIXED_OSD_CUR_FLAGS0, scheduler);
+			job->rga_command_base.osd_info.cur_flags1 =
+				rga_read(RGA2_FIXED_OSD_CUR_FLAGS1, scheduler);
+		}
 	}
 
 	return 0;
@@ -3230,10 +3276,7 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 			job->intr_status, job->hw_status, job->cmd_status,
 			job->work_cycle, job->work_cycle);
 
-	if (job->intr_status &
-	    (m_RGA2_INT_CUR_CMD_DONE_INT_FLAG | m_RGA2_INT_ALL_CMD_DONE_INT_FLAG)) {
-		set_bit(RGA_JOB_STATE_FINISH, &job->state);
-	} else if (job->intr_status & m_RGA2_INT_ERROR_FLAG_MASK) {
+	if (job->intr_status & m_RGA2_INT_ERROR_FLAG_MASK) {
 		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
 
 		rga_job_err(job, "irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
@@ -3241,6 +3284,9 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 			job->work_cycle, job->work_cycle);
 
 		scheduler->ops->soft_reset(scheduler);
+	} else if (job->intr_status &
+		   (m_RGA2_INT_CUR_CMD_DONE_INT_FLAG | m_RGA2_INT_ALL_CMD_DONE_INT_FLAG)) {
+		set_bit(RGA_JOB_STATE_FINISH, &job->state);
 	}
 
 	rga2_clear_intr(scheduler);

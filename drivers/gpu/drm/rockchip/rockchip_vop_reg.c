@@ -35,6 +35,7 @@
 		VOP_REG_VER_MASK(off, _mask, s, false, \
 				 _major, _begin_minor, _end_minor)
 
+static const struct vop_mcu_bypass_cfg rk3576_lit_mcu_bypass_cfg;
 
 static const uint32_t formats_win_full[] = {
 	DRM_FORMAT_XRGB8888,
@@ -157,6 +158,13 @@ static const uint64_t format_modifiers_afbc[] = {
 
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID,
+};
+
+static const u32 formats_wb[] = {
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_NV12,
 };
 
 static const struct vop_scl_extension rk3288_win_full_scl_ext = {
@@ -1631,6 +1639,7 @@ static const struct vop_win_phy px30_win23_data = {
 	.csc_mode = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 2),
 	.format = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 5),
 	.rb_swap = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 20),
+	.interlace_read = VOP_REG_VER(RK3368_WIN2_CTRL0, 0x1, 1, 2, 0xf, -1),
 	.dsp_info = VOP_REG(RK3368_WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3368_WIN2_DSP_ST0, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(RK3368_WIN2_MST0, 0xffffffff, 0),
@@ -1807,7 +1816,7 @@ static const struct vop_ctrl rv1126_ctrl_data = {
 	.dsp_interlace = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 0),
 	.global_regdone_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 13),
 	.auto_gate_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 0),
-	.dsp_layer_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xff, 22),
+	.dsp_layer_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 22),
 	.overlay_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 4),
 	.core_dclk_div = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 13),
 	.dclk_ddr = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 14),
@@ -1896,6 +1905,159 @@ static const struct vop_data rv1126_vop = {
 	.grf = &rv1126_grf_ctrl,
 	.win = rv1126_vop_win_data,
 	.win_size = ARRAY_SIZE(rv1126_vop_win_data),
+};
+
+static const struct vop_ctrl rv1126b_ctrl_data = {
+	.cfg_done = VOP_REG(RK3366_LIT_REG_CFG_DONE, 0x1, 0),
+	.dsp_background = VOP_REG(RK3366_LIT_DSP_BG, 0x00ffffff, 0),
+
+	.mcu_pix_total = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 0),
+	.mcu_cs_pst = VOP_REG(RK3366_LIT_MCU_CTRL, 0xf, 6),
+	.mcu_cs_pend = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 10),
+	.mcu_rw_pst = VOP_REG(RK3366_LIT_MCU_CTRL, 0xf, 16),
+	.mcu_rw_pend = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 20),
+	.mcu_clk_sel = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 26),
+	.mcu_hold_mode = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 27),
+	.mcu_frame_st = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 28),
+	.mcu_rs = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 29),
+	.mcu_bypass = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 30),
+	.mcu_type = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 31),
+	.mcu_rw_bypass_port = VOP_REG(RK3366_LIT_MCU_RW_BYPASS_PORT,
+				      0xffffffff, 0),
+
+	.axi_max_outstanding_en = VOP_REG(RK3366_LIT_SYS_CTRL1, 0x1, 12),
+	.axi_outstanding_max_num = VOP_REG(RK3366_LIT_SYS_CTRL1, 0x1f, 16),
+
+	.auto_gate_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 0),
+	.standby = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 1),
+	.dsp_outzero = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 3),
+	.yuv_clip = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 4),
+	.global_regdone_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 13),
+
+	.rgb_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 0),
+	.rgb_dclk_pol = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 1),
+	.rgb_pin_pol = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x7, 2),
+	.core_dclk_div = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 13),
+	.mipi_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 24),
+	.mipi_dclk_pol = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 25),
+	.mipi_pin_pol = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x7, 26),
+	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
+	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
+	.bt656_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 6),
+
+	.mcu_force_rdn = VOP_REG(RV1126B_DSP_CTRL1, 0x1, 21),
+
+	.dsp_interlace = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 0),
+	.dither_up_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 2),
+	.overlay_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 4),
+	.dsp_lut_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 5),
+	.dither_down_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 6),
+	.dither_down_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 7),
+	.dither_down_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 8),
+	.dsp_bg_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 9),
+	.dsp_data_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1f, 9),
+	.dsp_rb_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 11),
+	.dsp_rg_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 12),
+	.dsp_blank = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 14),
+	.dsp_black = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 15),
+	.out_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 16),
+	.dsp_layer_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 22),
+	.color_bar_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xff, 28),
+	.color_bar_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xff, 31),
+
+	.calc_dclk_cnt = VOP_REG(RV1126B_CLK_CNT, 0x7fff, 0),
+	.calc_clk_en = VOP_REG(RV1126B_CLK_CNT, 0x1, 15),
+
+	.htotal_pw = VOP_REG(RK3366_LIT_DSP_HTOTAL_HS_END, 0x0fff0fff, 0),
+	.hact_st_end = VOP_REG(RK3366_LIT_DSP_HACT_ST_END, 0x0fff0fff, 0),
+	.vtotal_pw = VOP_REG(RK3366_LIT_DSP_VTOTAL_VS_END, 0x0fff0fff, 0),
+	.vact_st_end = VOP_REG(RK3366_LIT_DSP_VACT_ST_END, 0x0fff0fff, 0),
+	.vact_st_end_f1 = VOP_REG(RK3366_LIT_DSP_VACT_ST_END_F1, 0x0fff0fff, 0),
+	.vs_st_end_f1 = VOP_REG(RK3366_LIT_DSP_VS_ST_END_F1, 0x0fff0fff, 0),
+
+	.bcsh_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 0),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 1),
+	.bcsh_out_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 4),
+	.bcsh_y2r_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 6),
+	.bcsh_r2y_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 7),
+
+	.bcsh_color_bar = VOP_REG(RK3366_LIT_BCSH_COL_BAR, 0xffffff, 0),
+	.bcsh_brightness = VOP_REG(RK3366_LIT_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3366_LIT_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3366_LIT_BCSH_BCS, 0x3ff, 20),
+	.bcsh_sin_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 16),
+};
+
+static const struct vop_grf_ctrl rv1126b_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RV1126B_GRF_VOP_LCDC_CON, 0x1, 0),
+};
+
+static const struct vop_wb_regs rv1126b_vop_wb_regs = {
+	.cfg_done = VOP_REG_MASK(0, 0x1, 5),
+
+	.enable = VOP_REG(RV1126B_WB_CTRL, 0x1, 0),
+	.format = VOP_REG(RV1126B_WB_CTRL, 0x7, 1),
+	.dither_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 4),
+	.r2y_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 5),
+	.scale_x_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 7),
+	.scale_y_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 8),
+	.post_empty_stop_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 11),
+	.one_frame_mode = VOP_REG(RV1126B_WB_CTRL, 0x1, 12),
+	.xgt2_en = VOP_REG(RV1126B_WB_CTRL, 0x1, 18),
+	.axi_yrgb_id = VOP_REG(RV1126B_WB_CTRL, 0xf, 20),
+	.axi_uv_id = VOP_REG(RV1126B_WB_CTRL, 0xf, 24),
+
+	.fifo_throd = VOP_REG(RV1126B_WB_XSCAL_FACTOR, 0x3ff, 0),
+	.scale_x_factor = VOP_REG(RV1126B_WB_XSCAL_FACTOR, 0x3fff, 16),
+
+	.yrgb_mst = VOP_REG(RV1126B_WB_YRGB_MST, 0xffffffff, 0),
+	.uv_mst = VOP_REG(RV1126B_WB_CBR_MST, 0xffffffff, 0),
+
+	.vir_stride = VOP_REG(RV1126B_WB_VIR_STRIDE, 0x1fff, 0),
+	.vir_stride_en = VOP_REG(RV1126B_WB_VIR_STRIDE, 0x1, 15),
+	.act_width = VOP_REG(RV1126B_WB_VIR_STRIDE, 0x1fff, 16),
+};
+
+static const int rv1126_wb_intrs[] = {
+	VOPL_WB_UV_FIFO_FULL_INTR,
+	VOPL_WB_YRGB_FIFO_FULL_INTR,
+	VOPL_WB_COMPLETE_INTR,
+};
+
+static const struct vop_intr rv1126b_wb_intr = {
+	.intrs = rv1126_wb_intrs,
+	.nintrs = ARRAY_SIZE(rv1126_wb_intrs),
+	.status = VOP_REG_MASK(RV1126B_WB_INTR_STATUS, 0xffff, 0),
+	.enable = VOP_REG_MASK(RV1126B_WB_INTR_EN, 0xffff, 0),
+	.clear = VOP_REG_MASK(RV1126B_WB_INTR_CLEAR, 0xffff, 0),
+};
+
+static const struct vop_wb_data rv1126b_vop_wb_data = {
+	.formats = formats_wb,
+	.nformats = ARRAY_SIZE(formats_wb),
+	.max_output = { 1920, 1080 },
+	.fifo_depth =  1920 * 4 / 16,
+	.regs = &rv1126b_vop_wb_regs,
+	.axi_yrgb_id = 0xd,
+	.axi_uv_id = 0xe,
+};
+
+static const struct vop_data rv1126b_vop = {
+	.soc_id = 0x1126b,
+	.vop_id = 0,
+	.version = VOP_VERSION(2, 0xf),
+	.max_input = {1920, 1920},
+	.max_output = {1920, 1080},
+	.ctrl = &rv1126b_ctrl_data,
+	.intr = &rk3366_lit_intr,
+	.wb = &rv1126b_vop_wb_data,
+	.wb_intr = &rv1126b_wb_intr,
+	.grf = &rv1126b_grf_ctrl,
+	.win = rv1126_vop_win_data,
+	.win_size = ARRAY_SIZE(rv1126_vop_win_data),
+	.mcu_bypass_cfg = &rk3576_lit_mcu_bypass_cfg,
 };
 
 static const struct vop_ctrl rv1106_ctrl_data = {
@@ -2293,6 +2455,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RV1126)
 	{ .compatible = "rockchip,rv1126-vop",
 	  .data = &rv1126_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126B)
+	{ .compatible = "rockchip,rv1126b-vop",
+	  .data = &rv1126b_vop },
 #endif
 #if IS_ENABLED(CONFIG_CPU_RK3288)
 	{ .compatible = "rockchip,rk3288-vop-big",

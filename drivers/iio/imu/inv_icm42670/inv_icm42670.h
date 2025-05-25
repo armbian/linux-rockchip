@@ -520,7 +520,7 @@ struct icm42670_data {
 	struct regmap *regmap;
 	struct iio_trigger  *trig;
 	struct device_node	*node;
-	int int1_gpio;
+	struct gpio_desc *int1_gpiod;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
 	u16  accel_frequency;

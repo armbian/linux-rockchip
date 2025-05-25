@@ -201,6 +201,8 @@
 	snps,reset-gpio = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 50000 50000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins_fixed &mac_refclk_12ma>;
 	status = "okay";
 };
 
@@ -422,6 +424,7 @@
 			};
 
 			vcc1v8_ser: LDO_REG8 {
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -434,6 +437,7 @@
 			};
 
 			vdd1v2_ser: LDO_REG9 {
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
@@ -553,6 +557,21 @@
 };
 
 &pinctrl {
+	gmac {
+		rmii_pins_fixed: rmii-pins-fixed {
+			rockchip,pins =
+				<2 RK_PA0 2 &pcfg_pull_none_12ma>, /* mac_txen */
+				<2 RK_PA1 2 &pcfg_pull_none_12ma>, /* mac_txd1 */
+				<2 RK_PA2 2 &pcfg_pull_none_12ma>, /* mac_txd0 */
+				<2 RK_PA3 2 &pcfg_pull_none>, /* mac_rxd0 */
+				<2 RK_PA4 2 &pcfg_pull_none>, /* mac_rxd1 */
+				//<2 RK_PA5 2 &pcfg_pull_none>, /* mac_rxer */
+				<2 RK_PA6 2 &pcfg_pull_none>, /* mac_rxdv */
+				<2 RK_PA7 2 &pcfg_pull_none>, /* mac_mdio */
+				<2 RK_PB1 2 &pcfg_pull_none>; /* mac_mdc */
+		};
+	};
+
 	lcd {
 		lcd0_pwren: lcd0-pwren {
 			rockchip,pins = <1 RK_PD6 RK_FUNC_GPIO &pcfg_output_high>;

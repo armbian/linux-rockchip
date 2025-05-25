@@ -75,6 +75,9 @@ struct rkvpss_offline_dev {
 	struct rkvpss_unite_scl_params unite_params[RKVPSS_OUTPUT_MAX];
 	struct completion pm_cmpl;
 	u32 unite_right_enlarge;
+	struct idr file_idr;
+	struct mutex idr_lock;
+	struct mutex handle_lock;
 	bool mode_sel_en;
 	bool pm_need_wait;
 };

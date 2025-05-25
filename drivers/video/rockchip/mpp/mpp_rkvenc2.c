@@ -90,6 +90,7 @@ enum RKVENC_VEPU_TYPE {
 	RKVENC_VEPU_580		= 0,
 	RKVENC_VEPU_540C	= 1,
 	RKVENC_VEPU_510		= 2,
+	RKVENC_VEPU_511		= 3,
 	RKVENC_VEPU_BUTT,
 };
 
@@ -489,6 +490,80 @@ static struct rkvenc_hw_info rkvenc_510_hw_info = {
 	.vepu_type =  RKVENC_VEPU_510,
 };
 
+static struct rkvenc_hw_info rkvenc_511_hw_info = {
+	.hw = {
+		.reg_num = 254,
+		.reg_id = 0,
+		.reg_en = 4,
+		.reg_start = 160,
+		.reg_end = 253,
+	},
+	.reg_class = RKVENC_CLASS_BUTT,
+	.reg_msg[RKVENC_CLASS_BASE] = {
+		.base_s = 0x0000,
+		.base_e = 0x0120,
+	},
+	.reg_msg[RKVENC_CLASS_PIC] = {
+		.base_s = 0x0270,
+		.base_e = 0x0538,
+	},
+	.reg_msg[RKVENC_CLASS_RC] = {
+		.base_s = 0x1000,
+		.base_e = 0x1160,
+	},
+	.reg_msg[RKVENC_CLASS_PAR] = {
+		.base_s = 0x1700,
+		.base_e = 0x19cc,
+	},
+	.reg_msg[RKVENC_CLASS_SQI] = {
+		.base_s = 0x2000,
+		.base_e = 0x216c,
+	},
+	.reg_msg[RKVENC_CLASS_SCL] = {
+		.base_s = 0x2200,
+		.base_e = 0x2e40,
+	},
+	.reg_msg[RKVENC_CLASS_OSD] = {
+		.base_s = 0x3000,
+		.base_e = 0x3264,
+	},
+	.reg_msg[RKVENC_CLASS_ST] = {
+		.base_s = 0x4000,
+		.base_e = 0x424c,
+	},
+	.reg_msg[RKVENC_CLASS_DEBUG] = {
+		.base_s = 0x5000,
+		.base_e = 0x523c,
+	},
+	.fd_class = RKVENC_CLASS_FD_BUTT,
+	.fd_reg[RKVENC_CLASS_FD_BASE] = {
+		.class = RKVENC_CLASS_PIC,
+		.base_fmt = RKVENC_FMT_BASE,
+	},
+	.fd_reg[RKVENC_CLASS_FD_OSD] = {
+		.class = RKVENC_CLASS_OSD,
+		.base_fmt = RKVENC_FMT_OSD_BASE,
+	},
+	.fmt_reg = {
+		.class = RKVENC_CLASS_PIC,
+		.base = 0x0300,
+		.bitpos = 0,
+		.bitlen = 2,
+	},
+	.enc_start_base = 0x0010,
+	.enc_clr_base = 0x0014,
+	.int_en_base = 0x0020,
+	.int_mask_base = 0x0024,
+	.int_clr_base = 0x0028,
+	.int_sta_base = 0x002c,
+	.enc_wdg_base = 0x0038,
+
+	.err_mask = 0x27d0,
+	.enc_rsl = 0x0310,
+	.dcsh_class_ofst = 0,
+	.vepu_type =  RKVENC_VEPU_511,
+};
+
 static struct rkvenc_hw_info rkvenc_540c_hw_info = {
 	.hw = {
 		.reg_num = 254,
@@ -649,6 +724,33 @@ static struct mpp_trans_info trans_rkvenc_v2[] = {
 };
 
 static struct mpp_trans_info trans_rkvenc_540c[] = {
+	[RKVENC_FMT_H264E] = {
+		.count = ARRAY_SIZE(trans_tbl_h264e_540c),
+		.table = trans_tbl_h264e_540c,
+	},
+	[RKVENC_FMT_H264E_OSD] = {
+		.count = ARRAY_SIZE(trans_tbl_h264e_540c_osd),
+		.table = trans_tbl_h264e_540c_osd,
+	},
+	[RKVENC_FMT_H265E] = {
+		.count = ARRAY_SIZE(trans_tbl_h265e_540c),
+		.table = trans_tbl_h265e_540c,
+	},
+	[RKVENC_FMT_H265E_OSD] = {
+		.count = ARRAY_SIZE(trans_tbl_h265e_540c_osd),
+		.table = trans_tbl_h265e_540c_osd,
+	},
+	[RKVENC_FMT_JPEGE] = {
+		.count = ARRAY_SIZE(trans_tbl_jpege),
+		.table = trans_tbl_jpege,
+	},
+	[RKVENC_FMT_JPEGE_OSD] = {
+		.count = ARRAY_SIZE(trans_tbl_jpege_osd),
+		.table = trans_tbl_jpege_osd,
+	},
+};
+
+static struct mpp_trans_info trans_rkvenc_511[] = {
 	[RKVENC_FMT_H264E] = {
 		.count = ARRAY_SIZE(trans_tbl_h264e_540c),
 		.table = trans_tbl_h264e_540c,
@@ -1572,7 +1674,7 @@ static void rkvenc2_bs_overflow_handle(struct mpp_dev *mpp)
 		if (bs_wr >= bs_top)
 			bs_wr = bs_bot;
 		/* update write addr for enc continue */
-		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
+		mpp_write(mpp, RKVENC580_REG_ADR_BSBS, bs_wr);
 	} else {
 		bs_rd = mpp_read(mpp, RKVENC2_REG_ADR_BSBR);
 		bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
@@ -2508,6 +2610,14 @@ static const struct mpp_dev_var rkvenc_510_data = {
 	.dev_ops = &rkvenc_dev_ops_v2,
 };
 
+static const struct mpp_dev_var rkvenc_511_data = {
+	.device_type = MPP_DEVICE_RKVENC,
+	.hw_info = &rkvenc_511_hw_info.hw,
+	.trans_info = trans_rkvenc_511,
+	.hw_ops = &rkvenc_hw_ops,
+	.dev_ops = &vepu540c_dev_ops_v2,
+};
+
 static const struct mpp_dev_var rkvenc_ccu_data = {
 	.device_type = MPP_DEVICE_RKVENC,
 	.hw_info = &rkvenc_v2_hw_info.hw,
@@ -2540,6 +2650,12 @@ static const struct of_device_id mpp_rkvenc_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-encoder-rk3576",
 		.data = &rkvenc_510_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{
+		.compatible = "rockchip,rkv-encoder-rv1126b",
+		.data = &rkvenc_511_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3528

@@ -446,7 +446,11 @@ static int memory_group_manager_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 static int memory_group_manager_remove(struct platform_device *pdev)
+#else
+static void memory_group_manager_remove(struct platform_device *pdev)
+#endif
 {
 	struct memory_group_manager_device *mgm_dev = platform_get_drvdata(pdev);
 	struct mgm_groups *mgm_data = mgm_dev->data;
@@ -458,7 +462,9 @@ static int memory_group_manager_remove(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Memory group manager removed successfully\n");
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 	return 0;
+#endif
 }
 
 static const struct of_device_id memory_group_manager_dt_ids[] = {

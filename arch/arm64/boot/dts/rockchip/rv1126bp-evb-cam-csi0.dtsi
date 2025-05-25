@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include "rv1126b-evb-cam-csi0.dtsi"
+
+&i2c1 {
+	status = "okay";
+	pinctrl-0 = <&i2c1m2_pins>;
+
+	imx415: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			imx415_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	sc450ai: sc450ai@30 {
+		compatible = "smartsens,sc450ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc450ai_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc850sl: sc850sl@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc850sl_out: endpoint {
+				remote-endpoint = <&csi_dphy_input2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "disabled";
+	/delete-node/ imx415@1a;
+	/delete-node/ sc450ai@30;
+	/delete-node/ sc850sl@30;
+};

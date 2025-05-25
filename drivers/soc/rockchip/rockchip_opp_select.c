@@ -1353,6 +1353,16 @@ static int rockchip_get_soc_info(struct device *dev, struct device_node *np,
 	else if (value == 0x13)
 		*bin = 3;
 
+	if (of_property_match_string(np, "nvmem-cell-names", "customer_demand") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np, "customer_demand", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get customer_demand\n");
+			return ret;
+		}
+		if (value == 0x3)
+			*bin = 4;
+	}
+
 	if (*bin < 0)
 		*bin = 0;
 	dev_info(dev, "bin=%d\n", *bin);
@@ -1531,6 +1541,7 @@ static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info 
 	struct clk *clk = NULL;
 	const char *reg_names[] = {NULL, NULL, NULL};
 	const char *clk_names[] = {NULL, NULL, NULL};
+	int ret = 0;
 
 	if (clk_name) {
 		clk = clk_get(dev, clk_name);
@@ -1582,7 +1593,8 @@ static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info 
 	info->opp_token = dev_pm_opp_set_config(dev, &config);
 	if (info->opp_token < 0) {
 		dev_err(dev, "failed to set opp config\n");
-		return info->opp_token;
+		ret = info->opp_token;
+		goto err;
 	}
 
 	/*
@@ -1592,10 +1604,15 @@ static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info 
 	 */
 	if (rockchip_opp_set_regulator_helper(dev, info)) {
 		dev_err(dev, "failed to set opp regulator helper\n");
-		return -EINVAL;
+		dev_pm_opp_clear_config(info->opp_token);
+		info->opp_token = 0;
+		ret = -EINVAL;
 	}
 
-	return 0;
+err:
+	kfree(config.supported_hw);
+
+	return ret;
 }
 
 void rockchip_opp_dvfs_lock(struct rockchip_opp_info *info)
@@ -1768,6 +1785,7 @@ EXPORT_SYMBOL(rockchip_init_opp_info);
 void rockchip_uninit_opp_info(struct device *dev, struct rockchip_opp_info *info)
 {
 	dev_pm_opp_clear_config(info->opp_token);
+	info->opp_token = 0;
 }
 EXPORT_SYMBOL(rockchip_uninit_opp_info);
 
@@ -2389,7 +2407,7 @@ int rockchip_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 	unsigned long *target = data;
 	int ret;
 
-	if (info->is_scmi_clk && !info->is_runtime_active)
+	if (rockchip_opp_is_use_pvtpll(info) && !info->is_runtime_active)
 		return 0;
 
 	ret = clk_bulk_prepare_enable(info->nclocks, info->clocks);
@@ -2470,7 +2488,7 @@ int rockchip_opp_check_rate_volt(struct device *dev, struct rockchip_opp_info *i
 		return ret;
 	}
 
-	if (info->is_scmi_clk && !info->is_runtime_active)
+	if (rockchip_opp_is_use_pvtpll(info) && !info->is_runtime_active)
 		is_set_clk = false;
 	if (info->data && info->data->set_read_margin && info->is_runtime_active)
 		is_set_rm = true;

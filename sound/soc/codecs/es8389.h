@@ -1,0 +1,133 @@
+/*
+* ES8389.h  --  ES8389 ALSA SoC Audio Codec
+*
+* Authors:
+*
+* Based on ES8374.h by David Yang
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License version 2 as
+* published by the Free Software Foundation.
+*/
+
+#ifndef _ES8389_H
+#define _ES8389_H
+
+/*
+*	ES8389_REGISTER NAME_REG_REGISTER ADDRESS
+*/
+#define ES8389_RESET_REG00			0x00  /*reset digital,csm,clock manager etc.*/
+
+/*
+* Clock Scheme Register definition
+*/
+#define ES8389_MASTER_MODE_REG01		0x01
+#define ES8389_MASTER_CLK_REG02			0x02
+#define ES8389_CLK_OFF1_REG03			0x03
+#define ES8389_CLK_DIV1_REG04			0x04
+#define ES8389_CLK_MUL_REG05			0x05
+#define ES8389_CLK_MUX1_REG06			0x06
+#define ES8389_CLK_MUX2_REG07			0x07
+#define ES8389_CLK_CTL1_REG08			0x08
+#define ES8389_CLK_CTL2_REG09			0x09
+#define ES8389_CLK_CTL3_REG0A			0x0A
+#define ES8389_SCLK_DIV_REG0B			0x0B
+#define ES8389_LRCK_DIV1_REG0C			0x0C
+#define ES8389_LRCK_DIV2_REG0D			0x0D
+#define ES8389_CLK_OFF2_REG0E			0x0E
+#define ES8389_OSC_CLK_REG0F			0x0F
+#define ES8389_CSM_JUMP_REG10			0x10
+#define ES8389_CLK_DIV2_REG11			0x11
+#define ES8389_SYSTEM_REG12			0x12
+#define ES8389_SYSTEM_REG13			0x13
+#define ES8389_SYSTEM_REG14			0x14
+#define ES8389_SYSTEM_REG15			0x15
+#define ES8389_SYSTEM_REG16			0x16
+#define ES8389_SYSTEM_REG17			0x17
+#define ES8389_SYSTEM_REG18			0x18
+#define ES8389_SYSTEM_REG19			0x19
+#define ES8389_SYSTEM_REG1A			0x1A
+#define ES8389_SYSTEM_REG1B			0x1B
+#define ES8389_SYSTEM_REG1C			0x1C
+#define ES8389_ADC_REG20			0x20
+#define ES8389_ADC_REG21			0x21
+#define ES8389_ADC_REG22			0x22
+#define ES8389_ADC_MODE_REG23			0x23
+#define ES8389_ADC_HPF1_REG24			0x24
+#define ES8389_ADC_HPF2_REG25			0x25
+#define ES8389_OSR_VOL_REG26			0x26
+#define ES8389_ADCL_VOL_REG27			0x27
+#define ES8389_ADCR_VOL_REG28			0x28
+#define ES8389_ALC_CTL_REG29			0x29
+#define ES8389_PTDM_SLOT_REG2A			0x2A
+#define ES8389_ALC_ON_REG2B			0x2B
+#define ES8389_ALC_TARGET_REG2C			0x2C
+#define ES8389_ALC_GAIN_REG2D			0x2D
+#define ES8389_SYSTEM_REG2E			0x2E
+#define ES8389_ADC_MUTE_REG2F			0x2F
+#define ES8389_SYSTEM_REG30			0x30
+#define ES8389_ADC_RESET_REG31			0x31
+#define ES8389_DAC_REG40			0x40
+#define ES8389_DAC_REG41			0x41
+#define ES8389_DAC_REG42			0x42
+#define ES8389_DAC_REG43			0x43
+#define ES8389_DAC_MIX_REG44			0x44
+#define ES8389_DAC_INV_REG45			0x45
+#define ES8389_DACL_VOL_REG46			0x46
+#define ES8389_DACR_VOL_REG47			0x47
+#define ES8389_MIX_VOL_REG48			0x48
+#define ES8389_DAC_RAMP_REG49			0x49
+#define ES8389_DAC_RESET_REG4D			0x4D
+#define ES8389_VMID_REG60			0x60
+#define ES8389_ANA_CTL1_REG61			0x61
+#define ES8389_ANA_VSEL_REG62			0x62
+#define ES8389_ANA_CTL2_REG63			0x63
+#define ES8389_ADC_EN_REG64			0x64
+#define ES8389_HPSW_REG69			0x69
+#define ES8389_LOW_POWER1_REG6B			0x6B
+#define ES8389_LOW_POWER2_REG6C			0x6C
+#define ES8389_DMIC_EN_REG6D			0x6D
+#define ES8389_PGA_SW_REG6E			0x6E
+#define ES8389_MOD_SW1_REG6F			0x6F
+#define ES8389_MOD_SW2_REG70			0x70
+#define ES8389_MOD_SW3_REG71			0x71
+#define ES8389_MIC1_GAIN_REG72			0x72
+#define ES8389_MIC2_GAIN_REG73			0x73
+
+#define ES8389_CHIP_MISC_REGF0			0xF0
+#define ES8389_CSM_STATE1_REGF1			0xF1
+#define ES8389_PULL_DOWN_REGF2			0xF2
+#define ES8389_ISO_CTL_REGF3			0xF3
+#define ES8389_CSM_STATE2_REGF4			0xF4
+
+#define ES8389_CHIP_ID0_REGFD			0xFD
+#define ES8389_CHIP_ID1_REGFE			0xFE
+
+#define ES8389_MAX_REGISTER			0xFF
+
+#define ES8389_MASTER_MODE_EN	(1 << 0)
+
+
+#define ENABLE          1
+#define DISABLE         0
+
+#define ES8389_DMIC     DISABLE
+
+/* ES8389_FMT */
+#define ES8389_S24_LE	(0 << 5)
+#define ES8389_S20_3_LE	(1 << 5)
+#define ES8389_S18_LE	(2 << 5)
+#define ES8389_S16_LE	(3 << 5)
+#define ES8389_S32_LE	(4 << 5)
+#define ES8389_DATA_LEN_MASK	(7 << 5)
+
+#define ES8389_DAIFMT_MASK	(7 << 2)
+#define ES8389_DAIFMT_I2S	0
+#define ES8389_DAIFMT_LEFT_J	(1 << 2)
+#define ES8389_DAIFMT_DSP_A	(1 << 3)
+#define ES8389_DAIFMT_DSP_B	(3 << 3)
+
+#define ES8389_STATE_ON         (13 << 0)
+#define ES8389_STATE_STANDBY    (7 << 0)
+
+#endif

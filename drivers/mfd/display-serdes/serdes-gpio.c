@@ -42,10 +42,9 @@ static void serdes_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 {
 	struct serdes_gpio *serdes_gpio = gpiochip_get_data(chip);
 	struct serdes *serdes = serdes_gpio->parent->parent;
-	int ret = 0;
 
 	if (serdes->chip_data->gpio_ops->set_level)
-		ret = serdes->chip_data->gpio_ops->set_level(serdes, offset, value);
+		serdes->chip_data->gpio_ops->set_level(serdes, offset, value);
 
 	SERDES_DBG_MFD("%s: %s %s gpio=%d,val=%d\n", __func__, dev_name(serdes->dev),
 		       serdes->chip_data->name, offset, value);
@@ -185,7 +184,8 @@ static int serdes_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF_GPIO
 	serdes_gpio->gpio_chip.of_node = serdes_gpio->dev->of_node;
 #endif
-	serdes_gpio->gpio_chip.label = kasprintf(GFP_KERNEL, "%s-gpio", chip_data->name);
+	serdes_gpio->gpio_chip.label = devm_kasprintf(serdes_gpio->dev, GFP_KERNEL,
+						      "%s-gpio", chip_data->name);
 
 	/* Add gpiochip */
 	ret = devm_gpiochip_add_data(&pdev->dev, &serdes_gpio->gpio_chip,

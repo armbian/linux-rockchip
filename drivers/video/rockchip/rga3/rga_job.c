@@ -860,7 +860,8 @@ void rga_request_session_destroy_abort(struct rga_session *session)
 
 	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
 		if (session == request->session) {
-			rga_req_err(request, "destroy when the user exits");
+			rga_req_err(request, "destroy when the user exits, current refcount = %d\n",
+				kref_read(&request->refcount));
 			rga_request_put(request);
 		}
 	}
@@ -1404,6 +1405,8 @@ int rga_request_free(struct rga_request *request)
 	if (task_list != NULL)
 		kfree(task_list);
 
+	rga_session_put(request->session);
+
 	kfree(request);
 
 	return 0;
@@ -1475,7 +1478,10 @@ int rga_request_alloc(uint32_t flags, struct rga_session *session)
 
 	request->pid = current->pid;
 	request->flags = flags;
+
+	rga_session_get(session);
 	request->session = session;
+
 	kref_init(&request->refcount);
 
 	/*
@@ -1491,6 +1497,7 @@ int rga_request_alloc(uint32_t flags, struct rga_session *session)
 		rga_err("request alloc id failed!\n");
 
 		mutex_unlock(&request_manager->lock);
+		rga_session_put(session);
 		kfree(request);
 		return new_id;
 	}

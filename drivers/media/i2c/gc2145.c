@@ -2468,7 +2468,9 @@ static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 		config->bus.mipi_csi2 = gc2145->bus_cfg.bus.mipi_csi2;
 	} else {
 		config->type = V4L2_MBUS_PARALLEL;
-		config->bus.parallel = gc2145->bus_cfg.bus.parallel;
+		config->bus.parallel.flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+					     V4L2_MBUS_VSYNC_ACTIVE_LOW |
+					     V4L2_MBUS_PCLK_SAMPLE_RISING;
 	}
 
 	return 0;

@@ -1,0 +1,544 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB3 V10 Board";
+	compatible = "rockchip,rv1126b-evb3-v10", "rockchip,rv1126b";
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+	};
+
+	vcc5v0_dcin: vcc5v0-dcin {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_dcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc5v0_host: vcc5v0-host {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio7 RK_PA6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_dcin>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_host_en>;
+	};
+
+	vccsys_stb: vccsys-stb {
+		compatible = "regulator-fixed";
+		regulator-name = "vccsys_stb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_dcin>;
+	};
+
+	vcc3v3_stb: vcc3v3-stb {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_stb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vccsys_stb>;
+	};
+
+	vcc1v8_pmu: vdd1_1v8_ddr: vcc1v8_pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_stb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vccsys_stb>;
+	};
+
+	vcc_ddr: vcc_ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vccsys_stb>;
+	};
+
+	vcc3v3_pmu: vcc3v3-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pmu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vccsys_stb>;
+	};
+
+	vcc0v9_pmu: vcc0v9-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc0v9_pmu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc1v8_pmu>;
+	};
+
+	vcc_mipi: vcc-mipi {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipi";
+		gpio = <&gpio7 RK_PA7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_stb>;
+	};
+
+	vcc_3v3: vcc3v3_dev: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vccsys_stb>;
+	};
+
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio7 RK_PA2 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-low;
+		vin-supply = <&vcc_3v3>;
+	};
+
+	vccio_sd: vccio-sd {
+		compatible = "regulator-gpio";
+		regulator-boot-on;
+		regulator-name = "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio7 RK_PA3 GPIO_ACTIVE_LOW>;
+		vin-supply = <&vccsys_stb>;
+		states = <1800000 0x0
+			  3300000 0x1>;
+	};
+
+	vdd_log: vdd-log {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1_4ch_2 0 25000 1>;
+		regulator-name = "vdd_log";
+		regulator-init-microvolt = <905000>;
+		regulator-min-microvolt = <810000>;
+		regulator-max-microvolt = <1006000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vccsys_stb>;
+		status = "okay";
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1_4ch_0 0 25000 1>;
+		regulator-name = "vdd_cpu";
+		regulator-init-microvolt = <950000>;
+		regulator-min-microvolt = <750000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vccsys_stb>;
+		status = "okay";
+	};
+
+	vdd_npu: vdd-npu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1_4ch_1 0 25000 1>;
+		regulator-name = "vdd_npu";
+		regulator-init-microvolt = <950000>;
+		regulator-min-microvolt = <750000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vccsys_stb>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart2m0_rtsn_pins>;
+		pinctrl-1 = <&uart2_gpios>;
+		BT,power_gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>;
+		wifi_chip_type = "rk96x";
+		WIFI,host_wake_irq = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&backlight {
+	pwms = <&pwm2_8ch_7 0 25000 0>;
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy3_input0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ps5458_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc_mipi>;
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2m0_pins>;
+
+	ps5458: ps5458@4c {
+		compatible = "prime,ps5458";
+		reg = <0x4c>;
+		clocks = <&cru CLK_MIPI2_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			ps5458_out: endpoint {
+				remote-endpoint = <&csi_dphy3_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m3_pins>;
+
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_gpio>;
+		power-supply = <&vcc_mipi>;
+		goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio3 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in2>;
+			};
+		};
+	};
+};
+
+&mipi_dphy {
+	status = "okay";
+};
+
+&rkaiisp {
+	status = "okay";
+};
+
+&rkaiisp_mmu {
+	status = "okay";
+};
+
+&rkaiisp_vir0 {
+	status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi_in2: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds2_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+&rkisp_vir0_sditf {
+	status = "okay";
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu>;
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&rkvpss {
+	status = "okay";
+	dvbm = <&rkdvbm>;
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
+&pinctrl {
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touch {
+		touch_gpio: touch-gpio {
+			rockchip,pins =
+				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>,
+				<5 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb {
+		vcc5v0_host_en: vcc5v0-host-en {
+			rockchip,pins = <7 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart2_gpios: uart2-gpios {
+			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_wake_host: wifi-wake-host {
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pwm1_4ch_0 {
+	pinctrl-0 = <&pwm1m2_ch0_pins>;
+	status = "okay";
+};
+
+&pwm1_4ch_1 {
+	pinctrl-0 = <&pwm1m2_ch1_pins>;
+	status = "okay";
+};
+
+&pwm1_4ch_2 {
+	pinctrl-0 = <&pwm1m2_ch2_pins>;
+	status = "okay";
+};
+
+&pwm2_8ch_7 {
+	status = "okay";
+};
+
+&saradc0 {
+	vref-supply = <&vcc_1v8>;
+};
+
+&sdmmc0 {
+	max-frequency = <200000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer_pins &uart2m0_ctsn_pins>;
+};
+
+&usb2phy_host {
+	phy-supply = <&vcc5v0_host>;
+};
+
+&usb3phy {
+	status = "disabled";
+};
+
+&usb_drd_dwc3 {
+	dr_mode = "otg";
+	extcon = <&usb2phy>;
+	maximum-speed = "high-speed";
+	phys = <&usb2phy_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+};

@@ -4,17 +4,25 @@ config VIDEO_ROCKCHIP_VPSS
 	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	depends on CPU_RK3576
+	depends on CPU_RK3576 || CPU_RV1126B
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_CMA_SG
 	default n
 	help
 	  Support for VPSS on the rockchip SoC.
 
-config VIDEO_ROCKCHIP_VPSS_V1
+config VIDEO_ROCKCHIP_VPSS_V10
 	bool "vpss1 for rk3576"
 	depends on CPU_RK3576
 	depends on VIDEO_ROCKCHIP_VPSS
 	default y
 	help
 	 Support for rk3576
+
+config VIDEO_ROCKCHIP_VPSS_V20
+	bool "vpss2 for rv1126b"
+	depends on CPU_RV1126B
+	depends on VIDEO_ROCKCHIP_VPSS
+	default y
+	help
+	 Support for rv1126b

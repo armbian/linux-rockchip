@@ -8,7 +8,7 @@
 #include "vpss_offline.h"
 #include "hw.h"
 #include "procfs.h"
-#include "regs_v1.h"
+#include "regs.h"
 
 
 void rkvpss_idx_write(struct rkvpss_device *dev, u32 reg, u32 val, int idx)
@@ -76,6 +76,7 @@ void rkvpss_unite_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask)
 		rkvpss_idx_clear_bits(dev, reg, mask, VPSS_UNITE_RIGHT);
 }
 
+// 1126b unite or multi sensor todo
 void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 {
 	struct rkvpss_hw_dev *hw = dev->hw_dev;
@@ -163,4 +164,14 @@ int rkvpss_attach_hw(struct rkvpss_device *vpss)
 	vpss->vpss_ver = hw->vpss_ver;
 
 	return 0;
+}
+
+void rkvpss_detach_hw(struct rkvpss_device *vpss)
+{
+	struct rkvpss_hw_dev *hw = vpss->hw_dev;
+
+	if (hw) {
+		hw->vpss[vpss->dev_id] = NULL;
+		vpss->hw_dev = NULL;
+	}
 }

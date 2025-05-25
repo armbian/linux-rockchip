@@ -1111,7 +1111,9 @@ error:
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_REVERSE_IMAGE
+#ifdef CONFIG_INITCALL_ASYNC
+subsys_initcall(drm_core_init);
+#elif defined CONFIG_VIDEO_REVERSE_IMAGE
 fs_initcall(drm_core_init);
 #else
 module_init(drm_core_init);

@@ -1,0 +1,224 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/*
+ * csi2_dphy0 -> csi0(rx0) clk0 + 4 lane
+ * csi2_dphy1 -> csi0(rx0) clk0 + 2 lane 0/1
+ * csi2_dphy2 -> csi0(rx0) clk1 + 2 lane 2/3
+ * csi2_dphy3 -> csi1(rx1) clk0 + 4 lane
+ * csi2_dphy4 -> csi1(rx1) clk0 + 2 lane 0/1
+ * csi2_dphy5 -> csi1(rx1) clk1 + 2 lane 2/3
+ */
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy3_input0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&sc450ai_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy3_input1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&imx415_out>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			csi_dphy3_input2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&sc850sl_out>;
+				data-lanes = <1 2 3 4>;
+			};
+
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-0 = <&i2c3m1_pins>;
+
+	imx415: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI2_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		port {
+			imx415_out: endpoint {
+				remote-endpoint = <&csi_dphy3_input1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	sc450ai: sc450ai@30 {
+		compatible = "smartsens,sc450ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI2_OUT2IO>;
+		clock-names = "xvclk";
+		/* pwdn need connect to reset */
+		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc450ai_out: endpoint {
+				remote-endpoint = <&csi_dphy3_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc850sl: sc850sl@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI2_OUT2IO>;
+		clock-names = "xvclk";
+		/* pwdn need connect to reset */
+		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc850sl_out: endpoint {
+				remote-endpoint = <&csi_dphy3_input2>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in2>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi_in2: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds2_sditf: endpoint {
+			remote-endpoint = <&isp_vir1>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+&rkisp_vir1_sditf {
+	status = "okay";
+};
+
+&rkvpss {
+	status = "okay";
+	dvbm = <&rkdvbm>;
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir1 {
+	status = "okay";
+};

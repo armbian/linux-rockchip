@@ -398,3 +398,61 @@ int rockchip_drm_debugfs_add_dclk_rate(struct drm_crtc *crtc, struct dentry *roo
 	return 0;
 }
 
+static int rockchip_drm_debugfs_dovi_mode_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Mode0: normal mode\n");
+	seq_puts(s, "      echo 0 > /sys/kernel/debug/dri/0/video_port0/dovi_mode\n");
+	seq_puts(s, "  Mode1: disable aclk reset when enter dovi\n");
+	seq_puts(s, "      echo 1 > /sys/kernel/debug/dri/0/video_port0/dovi_mode\n");
+
+	return 0;
+}
+
+static int rockchip_drm_debugfs_dovi_mode_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, rockchip_drm_debugfs_dovi_mode_show, crtc);
+}
+
+static ssize_t rockchip_drm_debugfs_dovi_mode_write(struct file *file, const char __user *ubuf,
+						    size_t len, loff_t *offp)
+{
+	struct seq_file *s = file->private_data;
+	struct drm_crtc *crtc = s->private;
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
+	u8 mode;
+
+	if (len != 2) {
+		DRM_INFO("Unsupported dovi mode\n");
+		return -EINVAL;
+	}
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	private->dovi_mode = mode;
+
+	return len;
+}
+
+static const struct file_operations rockchip_drm_debugfs_dovi_mode_fops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_drm_debugfs_dovi_mode_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = rockchip_drm_debugfs_dovi_mode_write,
+};
+
+int rockchip_drm_debugfs_add_dovi_mode(struct drm_crtc *crtc, struct dentry *root)
+{
+	struct dentry *ent;
+
+	ent = debugfs_create_file("dovi_mode", 0644, root, crtc,
+				  &rockchip_drm_debugfs_dovi_mode_fops);
+	if (!ent)
+		DRM_ERROR("Failed to add dovi_mode for debugfs\n");
+
+	return 0;
+}

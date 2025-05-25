@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-vehicle-evb-v23.dts"
+#include "rk3588-linux.dtsi"
+
+/ {
+
+	model = "Rockchip RK3588 VEHICLE EVB V23 Board";
+	compatible = "rockchip,rk3588-vehicle-evb-v23-linux", "rockchip,rk3588";
+
+	reserved-memory {
+		/delete-node/vendor_storage_rm;
+	};
+
+	/delete-node/vendor_storage;
+};
+
+&vop {
+	/delete-property/ support-multi-area;
+};
+
+/*dsi*/
+&i2c2 {
+	himax@45 {
+		status = "disabled";
+	};
+
+	himax_split@46 {
+		status = "disabled";
+	};
+};
+
+/*dp0*/
+&i2c4 {
+	himax@45 {
+		status = "disabled";
+	};
+};

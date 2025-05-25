@@ -32,6 +32,12 @@
 #define DW9800W_CHIP_ID			0xF2
 #define DW9800W_REG_CHIP_ID		0x00
 
+static const char * const dw9800w_supply_names[] = {
+	"avdd",		/* Analog power */
+};
+
+#define DW9800W_NUM_SUPPLIES ARRAY_SIZE(dw9800w_supply_names)
+
 enum mode_e {
 	SAC2_MODE,
 	SAC3_MODE,
@@ -43,6 +49,7 @@ enum mode_e {
 
 /* dw9800w device structure */
 struct dw9800w_device {
+	struct regulator_bulk_data supplies[DW9800W_NUM_SUPPLIES];
 	struct v4l2_ctrl_handler ctrls_vcm;
 	struct v4l2_ctrl *focus;
 	struct i2c_client *client;
@@ -564,9 +571,19 @@ static int dw9800w_init_controls(struct dw9800w_device *dev_vcm)
 
 static int __dw9800w_set_power(struct dw9800w_device *dw9800w_dev, bool on)
 {
+	int ret = 0;
+
 	if (dw9800w_dev->power_gpio)
 		gpiod_direction_output(dw9800w_dev->power_gpio, on);
 
+	if (on) {
+		ret = regulator_bulk_enable(DW9800W_NUM_SUPPLIES, dw9800w_dev->supplies);
+		if (ret < 0)
+			dev_err(&dw9800w_dev->client->dev, "Failed to enable regulators\n");
+		usleep_range(5000, 6000);
+	} else {
+		regulator_bulk_disable(DW9800W_NUM_SUPPLIES, dw9800w_dev->supplies);
+	}
 	return 0;
 }
 
@@ -602,6 +619,18 @@ static int dw9800w_probe_init(struct i2c_client *client)
 err:
 	dev_err(&client->dev, "probe init failed with error %d\n", ret);
 	return -1;
+}
+
+static int dw9800w_configure_regulators(struct dw9800w_device *dw9800w_dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < DW9800W_NUM_SUPPLIES; i++)
+		dw9800w_dev->supplies[i].supply = dw9800w_supply_names[i];
+
+	return devm_regulator_bulk_get(&dw9800w_dev->client->dev,
+		DW9800W_NUM_SUPPLIES,
+		dw9800w_dev->supplies);
 }
 
 static int dw9800w_probe(struct i2c_client *client,
@@ -691,6 +720,12 @@ static int dw9800w_probe(struct i2c_client *client,
 		dw9800w_dev->power_gpio = NULL;
 		dev_warn(&client->dev,
 			"Failed to get power-gpios, maybe no use\n");
+	}
+
+	ret = dw9800w_configure_regulators(dw9800w_dev);
+	if (ret) {
+		dev_err(&client->dev, "Failed to get power regulators\n");
+		return ret;
 	}
 
 	ret = dw9800w_check_id(dw9800w_dev);

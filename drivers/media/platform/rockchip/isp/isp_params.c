@@ -16,6 +16,7 @@
 #include "isp_params_v32.h"
 #include "isp_params_v39.h"
 #include "isp_params_v33.h"
+#include "isp_params_v35.h"
 #include "regs.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
@@ -102,6 +103,8 @@ static int rkisp_get_params(struct rkisp_isp_params_vdev *params_vdev, void *arg
 		ret = rkisp_get_params_v39(params_vdev, arg);
 	else if (params_vdev->dev->isp_ver == ISP_V33)
 		ret = rkisp_get_params_v33(params_vdev, arg);
+	else if (params_vdev->dev->isp_ver == ISP_V35)
+		ret = rkisp_get_params_v35(params_vdev, arg);
 	return ret;
 }
 
@@ -117,6 +120,7 @@ static long rkisp_params_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_GET_PARAMS_V39:
 	case RKISP_CMD_GET_PARAMS_V33:
+	case RKISP_CMD_GET_PARAMS_V35:
 		ret = rkisp_get_params(params, arg);
 		break;
 	default:
@@ -248,7 +252,7 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 		dev_info(dev->dev, "params seq:%d for rtt\n", params->frame_id);
 		dev->is_first_double = false;
-		if (dev->isp_ver == ISP_V33) {
+		if (dev->isp_ver >= ISP_V33) {
 			dev->skip_frame = 1;
 			dev->is_wait_aiq = true;
 		}
@@ -439,6 +443,8 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_init_params_vdev_v39(params_vdev);
 	else if (dev->isp_ver == ISP_V33)
 		ret = rkisp_init_params_vdev_v33(params_vdev);
+	else if (dev->isp_ver == ISP_V35)
+		ret = rkisp_init_params_vdev_v35(params_vdev);
 
 	params_vdev->vdev_fmt.fmt.meta.dataformat = V4L2_META_FMT_RK_ISP1_PARAMS;
 	return ret;
@@ -462,6 +468,8 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v39(params_vdev);
 	else if (dev->isp_ver == ISP_V33)
 		rkisp_uninit_params_vdev_v33(params_vdev);
+	else if (dev->isp_ver == ISP_V35)
+		rkisp_uninit_params_vdev_v35(params_vdev);
 }
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
@@ -498,7 +506,9 @@ void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
 			    enum v4l2_quantization quantization)
 {
 	struct rkisp_device *dev = params_vdev->dev;
+	u32 val = rkisp_read(dev, ISP_HDRMGE_CTRL, false);
 
+	params_vdev->is_hdr = !!(val & SW_HDRMGE_EN);
 	if (!params_vdev->is_first_cfg)
 		return;
 	params_vdev->is_first_cfg = false;
@@ -611,6 +621,15 @@ int rkisp_params_aiisp_start(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (params_vdev->ops->aiisp_start)
 		ret = params_vdev->ops->aiisp_start(params_vdev, st);
+	return ret;
+}
+
+int rkisp_params_get_aiawb_buffd(struct rkisp_isp_params_vdev *params_vdev, void *arg)
+{
+	int ret = -EINVAL;
+
+	if (params_vdev->ops->get_aiawb_buffd)
+		ret = params_vdev->ops->get_aiawb_buffd(params_vdev, arg);
 	return ret;
 }
 

@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rv1126b-evb2-v10.dts"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V10 Board + RK EVB VOP3 RGB24BIT DISPLAY Ext Board";
+	compatible = "rockchip,rv1126b-evb2-v10-rgb-Q7050ITH2641AA1T", "rockchip,rv1126b";
+
+	panel: panel {
+		compatible = "simple-panel";
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio7 RK_PA7 GPIO_ACTIVE_LOW>;
+		enable-delay-ms = <20>;
+		reset-gpios = <&gpio5 RK_PD6 GPIO_ACTIVE_LOW>;
+		reset-delay-ms = <10>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&q7050ith2641aa1t_timing>;
+
+			q7050ith2641aa1t_timing: timing0 {
+				clock-frequency = <51200000>;
+				hactive = <1024>;
+				vactive = <600>;
+				hback-porch = <160>;
+				hfront-porch = <160>;
+				vback-porch = <23>;
+				vfront-porch = <12>;
+				hsync-len = <24>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgb888_pins>;
+
+	ports {
+		rgb_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vop {
+	status = "okay";
+};
+
+&route_rgb {
+	status = "okay";
+};

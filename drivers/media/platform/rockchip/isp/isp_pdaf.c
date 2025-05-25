@@ -243,6 +243,8 @@ static int rkisp_pdaf_start_streaming(struct vb2_queue *vq, unsigned int count)
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s cnt:%d\n", __func__, count);
 	val = pdaf_vdev->fmt.plane_fmt[0].bytesperline;
+	if (dev->isp_ver == ISP_V35)
+		val = 512;
 	rkisp_write(dev, ISP39_W3A_CTRL1, val, false);
 	pdaf_vdev->streaming = true;
 	tasklet_enable(&pdaf_vdev->buf_done_tasklet);
@@ -303,10 +305,13 @@ static void rkisp_pdaf_buf_done_task(unsigned long arg)
 
 void rkisp_pdaf_update_buf(struct rkisp_device *dev)
 {
-	struct rkisp_pdaf_vdev *pdaf_vdev = &dev->pdaf_vdev;
+	struct rkisp_pdaf_vdev *pdaf_vdev = dev->pdaf_vdev;
 	struct rkisp_buffer *buf = NULL;
 	unsigned long flags = 0;
 	u32 val;
+
+	if (!pdaf_vdev)
+		return;
 
 	spin_lock_irqsave(&pdaf_vdev->vbq_lock, flags);
 	if (!pdaf_vdev->next_buf && !list_empty(&pdaf_vdev->buf_queue)) {
@@ -333,11 +338,15 @@ void rkisp_pdaf_update_buf(struct rkisp_device *dev)
 
 void rkisp_pdaf_isr(struct rkisp_device *dev)
 {
-	struct rkisp_pdaf_vdev *pdaf_vdev = &dev->pdaf_vdev;
+	struct rkisp_pdaf_vdev *pdaf_vdev = dev->pdaf_vdev;
 	struct rkisp_buffer *buf = NULL;
 	unsigned long flags = 0;
-	u32 w3a_ris = rkisp_read(dev, ISP39_W3A_INT_STAT, true);
+	u32 w3a_ris;
 
+	if (!pdaf_vdev)
+		return;
+
+	w3a_ris = rkisp_read(dev, ISP39_W3A_INT_STAT, true);
 	if (w3a_ris & ISP39_W3A_INT_PDAF_OVF) {
 		v4l2_err(&dev->v4l2_dev, "pdaf overflow 0x%x\n", w3a_ris);
 		rkisp_write(dev, ISP39_W3A_INT_STAT, ISP39_W3A_INT_PDAF_OVF, true);
@@ -387,16 +396,22 @@ void rkisp_pdaf_isr(struct rkisp_device *dev)
 
 int rkisp_register_pdaf_vdev(struct rkisp_device *dev)
 {
-	struct rkisp_pdaf_vdev *pdaf_vdev = &dev->pdaf_vdev;
-	struct rkisp_vdev_node *node = &pdaf_vdev->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp_pdaf_vdev *pdaf_vdev;
+	struct rkisp_vdev_node *node;
+	struct video_device *vdev;
 	struct media_entity *source, *sink;
 	int ret;
 
-	if (dev->isp_ver != ISP_V39)
+	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35)
 		return 0;
-
+	pdaf_vdev = kzalloc(sizeof(struct rkisp_pdaf_vdev), GFP_KERNEL);
+	if (!pdaf_vdev)
+		return -ENOMEM;
 	pdaf_vdev->dev = dev;
+	dev->pdaf_vdev = pdaf_vdev;
+
+	node = &pdaf_vdev->vnode;
+	vdev = &node->vdev;
 	INIT_LIST_HEAD(&pdaf_vdev->buf_queue);
 	spin_lock_init(&pdaf_vdev->vbq_lock);
 	mutex_init(&pdaf_vdev->api_lock);
@@ -419,6 +434,8 @@ int rkisp_register_pdaf_vdev(struct rkisp_device *dev)
 	if (ret < 0) {
 		v4l2_err(vdev->v4l2_dev,
 			"could not register Video for Linux device\n");
+		kfree(pdaf_vdev);
+		dev->pdaf_vdev = NULL;
 		return ret;
 	}
 
@@ -440,18 +457,25 @@ int rkisp_register_pdaf_vdev(struct rkisp_device *dev)
 	return 0;
 unreg:
 	video_unregister_device(vdev);
+	kfree(pdaf_vdev);
+	dev->pdaf_vdev = NULL;
 	return ret;
 }
 
 void rkisp_unregister_pdaf_vdev(struct rkisp_device *dev)
 {
-	struct rkisp_pdaf_vdev *pdaf_vdev = &dev->pdaf_vdev;
-	struct rkisp_vdev_node *node = &pdaf_vdev->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp_pdaf_vdev *pdaf_vdev;
+	struct rkisp_vdev_node *node;
+	struct video_device *vdev;
 
-	if (dev->isp_ver != ISP_V39)
+	if (!dev->pdaf_vdev)
 		return;
+	pdaf_vdev = dev->pdaf_vdev;
+	node = &pdaf_vdev->vnode;
+	vdev = &node->vdev;
 	tasklet_kill(&pdaf_vdev->buf_done_tasklet);
 	media_entity_cleanup(&vdev->entity);
 	video_unregister_device(vdev);
+	kfree(pdaf_vdev);
+	dev->pdaf_vdev = NULL;
 }

@@ -275,4 +275,8 @@ static int __init blackhole_netdev_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+fs_initcall(blackhole_netdev_init);
+#else
 device_initcall(blackhole_netdev_init);
+#endif

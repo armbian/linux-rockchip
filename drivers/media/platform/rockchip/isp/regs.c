@@ -482,7 +482,7 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct rkisp_device *dev = stream->ispdev;
 	int i = 0;
 
-	if (dev->isp_ver == ISP_V39 || dev->isp_ver == ISP_V33 ||
+	if (dev->isp_ver >= ISP_V33 ||
 	    (dev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP)) {
 		set_bilinear_scale(stream, in_y, in_c, out_y, out_c, async);
 		return;
@@ -508,8 +508,7 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 {
 	rkisp_unite_write(stream->ispdev, stream->config->rsz.ctrl, 0, false);
-	if (stream->ispdev->isp_ver == ISP_V39 ||
-	    stream->ispdev->isp_ver == ISP_V33 ||
+	if (stream->ispdev->isp_ver >= ISP_V33 ||
 	    (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP))
 		return;
 	update_rsz_shadow(stream, async);

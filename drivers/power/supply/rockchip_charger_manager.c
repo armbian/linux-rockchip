@@ -328,6 +328,7 @@ struct charger_manager {
 	struct delayed_work cm_monitor_work; /* init at driver add */
 	struct delayed_work cm_jeita_work; /* init at driver add */
 	struct delayed_work dc_work;
+	struct work_struct pd_work;
 
 	/* The state of charger cable */
 	bool attached;
@@ -340,6 +341,7 @@ struct charger_manager {
 	/* The rockchip-charger-manager use Extcon framework */
 	struct work_struct wq;
 	struct notifier_block nb;
+	struct notifier_block pd_nb;
 
 	struct chargepump_info cp;
 	struct fuel_gauge_info fg_info;
@@ -350,6 +352,9 @@ struct charger_manager {
 
 	int is_fast_charge;
 	int is_charge;
+	bool is_normal_charge;
+	bool is_pd_charge;
+	bool is_pps_charge;
 
 	unsigned long next_polling;
 	u64 charging_start_time;
@@ -695,6 +700,7 @@ static int set_sw_charger_input_limit_current(struct charger_manager *cm,
 		return ret;
 	}
 
+	cm->fc_config->sw_input_current = input_current_ua;
 	cm->fc_config->ibus_dcdc_lmt = input_current_ua;
 	return 0;
 }
@@ -2302,6 +2308,7 @@ static int cm_pd_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	cm->is_fast_charge = 1;
+	cm->is_pd_charge = true;
 	CM_DBG("POWER_SUPPLY_USB_TYPE_PD\n");
 	fc_config->charge_type = CHARGE_TYPE_PD;
 	ret = power_supply_get_property(desc->tcpm_psy,
@@ -2335,12 +2342,15 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	cm->is_fast_charge = 1;
+	cm->is_pps_charge = true;
 	CM_DBG("POWER_SUPPLY_USB_TYPE_PD_PPS\n");
 	if (desc->psy_charger_pump_stat != NULL) {
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 		fc_config->charge_type = CHARGE_TYPE_PPS;
 		CM_DBG("charge_type: %d, %d\n", cm->fc_config->charge_type, __LINE__);
 		cm_charge_pump_move_state(cm, PPS_PM_STATE_ENTRY);
+		if (cm->fc_config->jeita_charge_support)
+			cancel_delayed_work(&cm->cm_jeita_work);
 		/*
 		 * Setup work for controlling charger
 		 * according to charger cable.
@@ -2399,6 +2409,10 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	fc_config->adaper_power_init_flag = 0;
+	cm->is_normal_charge = false;
+	cm->is_fast_charge = false;
+	cm->is_pps_charge = false;
+
 	ret = power_supply_get_property(desc->tcpm_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX,
 					&val);
@@ -2548,21 +2562,27 @@ static int charger_extcon_notifier(struct notifier_block *self,
 		}
 		switch (val.intval) {
 		case POWER_SUPPLY_USB_TYPE_PD:
-			ret = cm_pd_adapter_det(cm);
-			CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
-			if (ret)
-				return NOTIFY_BAD;
+			if (!cm->is_pps_charge && !cm->is_pd_charge) {
+				ret = cm_pd_adapter_det(cm);
+				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
+				if (ret)
+					return NOTIFY_BAD;
+			}
 		break;
 		case POWER_SUPPLY_USB_TYPE_PD_PPS:
-			ret = cm_pps_adapter_det(cm);
-			if (ret)
-				return NOTIFY_BAD;
-			CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
+			if (!cm->is_pps_charge) {
+				ret = cm_pps_adapter_det(cm);
+				if (ret)
+					return NOTIFY_BAD;
+				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
+			}
 		break;
 		default:
-			ret = cm_normal_adapter_det(cm);
-			if (ret)
-				return NOTIFY_BAD;
+			if (!cm->is_pps_charge && !cm->is_pd_charge && !cm->is_normal_charge) {
+				ret = cm_normal_adapter_det(cm);
+				if (ret)
+					return NOTIFY_BAD;
+			}
 		break;
 		}
 
@@ -2577,6 +2597,94 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	}
 
 	return NOTIFY_DONE;
+}
+
+static void cm_pd_work(struct work_struct *work)
+{
+	struct charger_manager *cm = container_of(work,
+						  struct charger_manager,
+						  pd_work);
+	struct fastcharge_config *fc_config = cm->fc_config;
+	struct charger_desc *desc = cm->desc;
+	union power_supply_propval prop;
+	int usb_type, online;
+	int ret;
+
+	ret = power_supply_get_property(cm->desc->tcpm_psy,
+					POWER_SUPPLY_PROP_USB_TYPE, &prop);
+	if (ret != 0) {
+		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_ONLINE\n", __LINE__);
+		return;
+	}
+	usb_type = prop.intval;
+
+	ret = power_supply_get_property(cm->desc->tcpm_psy,
+					POWER_SUPPLY_PROP_ONLINE, &prop);
+	if (ret != 0) {
+		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_ONLINE\n", __LINE__);
+		return;
+	}
+	online = prop.intval;
+
+	if (online) {
+		cm->attached = 1;
+		switch (usb_type) {
+		case POWER_SUPPLY_USB_TYPE_PD_PPS:
+			CM_DBG("POWER_SUPPLY_USB_TYPE_PD_PPS\n");
+			if (!cm->is_pps_charge)
+				cm_pps_adapter_det(cm);
+			break;
+		case POWER_SUPPLY_USB_TYPE_PD:
+			CM_DBG("POWER_SUPPLY_USB_TYPE_PD\n");
+			power_supply_get_property(desc->tcpm_psy,
+						  POWER_SUPPLY_PROP_CURRENT_MAX,
+						  &prop);
+			if ((!cm->is_pps_charge && !cm->is_pd_charge) ||
+			    (prop.intval != fc_config->sw_input_current))
+				cm_pd_adapter_det(cm);
+			break;
+		case POWER_SUPPLY_USB_TYPE_C:
+			CM_DBG("POWER_SUPPLY_USB_TYPE_C\n");
+			if (!cm->is_pps_charge && !cm->is_pd_charge && !cm->is_normal_charge)
+				cm_normal_adapter_det(cm);
+			break;
+		default:
+			cm_normal_adapter_det(cm);
+		}
+	}
+}
+
+static int cm_pd_notifier_call(struct notifier_block *self,
+			       unsigned long event,
+			       void *ptr)
+{
+	struct charger_manager *cm =
+		container_of(self, struct charger_manager, pd_nb);
+	struct power_supply *psy = ptr;
+
+	if (event != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	if (psy->of_node != cm->desc->tcpm_psy->of_node)
+		return NOTIFY_OK;
+
+	queue_work(cm->cm_wq, &cm->pd_work);
+
+	return NOTIFY_OK;
+}
+
+static int cm_pd_init(struct charger_manager *cm)
+{
+	int ret;
+
+	cm->pd_nb.notifier_call = cm_pd_notifier_call;
+	ret = power_supply_reg_notifier(&cm->pd_nb);
+	if (ret) {
+		dev_err(cm->dev, "failed to power supply reg notifier\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static void cm_disable_charge(struct charger_manager *cm)
@@ -2988,11 +3096,17 @@ static int charger_manager_probe(struct platform_device *pdev)
 	if (cm->desc->support_dc_charger)
 		INIT_DELAYED_WORK(&cm->dc_work,
 				  cm_dc_det_work);
+	INIT_WORK(&cm->pd_work, cm_pd_work);
 
 	/* Register extcon device for charger cable */
 	ret = charger_extcon_init(cm);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Cannot initialize extcon device\n");
+		goto err_reg_extcon;
+	}
+	ret = cm_pd_init(cm);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Cannot initialize pd device\n");
 		goto err_reg_extcon;
 	}
 
@@ -3002,6 +3116,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	CM_DBG("charger manager ok!!!");
 	return 0;
 err_reg_extcon:
+	destroy_workqueue(cm->cm_wq);
 
 	return ret;
 }
@@ -3035,12 +3150,14 @@ static void charger_manager_remove(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 
+	power_supply_unreg_notifier(&cm->pd_nb);
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cancel_delayed_work_sync(&cm->cm_monitor_work);
 #endif
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	if (cm->desc->support_dc_charger)
 		cancel_delayed_work_sync(&cm->dc_work);
+	destroy_workqueue(cm->cm_wq);
 }
 
 static void charger_manager_shutdown(struct platform_device *pdev)
@@ -3050,11 +3167,13 @@ static void charger_manager_shutdown(struct platform_device *pdev)
 	union power_supply_propval val;
 	int ret;
 
+	power_supply_unreg_notifier(&cm->pd_nb);
 	cancel_delayed_work_sync(&cm->cm_monitor_work);
 #endif
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	if (cm->desc->support_dc_charger)
 		cancel_delayed_work_sync(&cm->dc_work);
+	destroy_workqueue(cm->cm_wq);
 
 	CM_DBG("charger manager shutdown\n");
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)

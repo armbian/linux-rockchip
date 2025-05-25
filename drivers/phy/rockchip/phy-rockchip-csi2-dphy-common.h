@@ -26,6 +26,7 @@ enum csi2_dphy_chip_id {
 	CHIP_ID_RV1106 = 0x3,
 	CHIP_ID_RK3562 = 0x4,
 	CHIP_ID_RK3576 = 0x5,
+	CHIP_ID_RV1126B = 0x6,
 };
 
 enum csi2_dphy_rx_pads {

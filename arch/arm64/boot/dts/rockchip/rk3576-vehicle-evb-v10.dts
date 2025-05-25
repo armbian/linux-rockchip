@@ -293,6 +293,14 @@
 	};
 };
 
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
 &gmac1 {
 	status = "disabled";
 };

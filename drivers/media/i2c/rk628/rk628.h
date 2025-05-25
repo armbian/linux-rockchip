@@ -306,6 +306,8 @@ struct rk628 {
 	bool dual_mipi;
 	struct mipi_timing mipi_timing[2];
 	struct mutex rst_lock;
+	int dvi_mode;
+	int vic;
 	int tx_mode;
 	int dbg_en;
 	struct dentry *debug_dir;

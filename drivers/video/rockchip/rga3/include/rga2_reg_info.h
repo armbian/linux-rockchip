@@ -6,6 +6,7 @@
 
 #define RGA2_SYS_REG_BASE			0x000
 #define RGA2_CSC_REG_BASE			0x060
+#define RGA2_OTHER_REG_BASE			0x090
 #define RGA2_CMD_REG_BASE			0x100
 
 /* sys reg */
@@ -38,9 +39,14 @@
 #define RGA2_DST_CSC_22				0x088
 #define RGA2_DST_CSC_OFF2			0x08c
 
+/* back door0 */
+#define RGA2_BACKDOOR0				0x090
+
 /* osd read-back reg */
 #define RGA2_OSD_CUR_FLAGS0			0x090
 #define RGA2_OSD_CUR_FLAGS1			0x09c
+#define RGA2_FIXED_OSD_CUR_FLAGS0		0x440
+#define RGA2_FIXED_OSD_CUR_FLAGS1		0x444
 
 /* mode ctrl */
 #define RGA2_MODE_CTRL_OFFSET			0x000
@@ -94,6 +100,7 @@
 #define RGA2_OSD_INVERTSION_CAL1_OFFSET		0x064 // repeat
 #define RGA2_MASK_BASE_OFFSET			0x068
 #define RGA2_MMU_CTRL1_OFFSET			0x06c
+#define RGA2_UV_VIR_INFO			0x06c // repeat
 #define RGA2_MMU_SRC_BASE_OFFSET		0x070
 #define RGA2_PREFETCH_ADDR_TH_OFFSET		0x070 // repeat
 #define RGA2_MMU_SRC1_BASE_OFFSET		0x074
@@ -101,8 +108,9 @@
 #define RGA2_MMU_ELS_BASE_OFFSET		0x07c
 
 /*RGA_SYS*/
-#define m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS		(0x1 << 12)
-#define m_RGA2_SYS_CTRL_DST_WR_OPT_DIS			(0x1 << 11)
+#define m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS		(0x1 << 12) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_SYS_CTRL_DST_WR_OPT_DIS			(0x1 << 11) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MASTER_CMD_BYPASS_EN			(0x1 << 11) /* after RV1126B */
 #define m_RGA2_SYS_CTRL_CMD_CONTINUE_P			(0x1 << 10)
 #define m_RGA2_SYS_CTRL_HOLD_MODE_EN			(0x1 << 9)
 #define m_RGA2_SYS_CTRL_RST_HANDSAVE_P			(0x1 << 7)
@@ -211,6 +219,17 @@
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START(x)	((x & 0x1fff) << 0)
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP(x)	((x & 0x1fff) << 16)
 
+/* RGA BACKDOOR0 */
+#define m_RGA2_HSDBIL_VSP_FIX_DIS			(0x1 << 0)
+#define m_RGA2_HSP_LEFT_COPY_DIS			(0x1 << 1)
+#define m_RGA2_AXI_WR128_DIS				(0x1 << 2)
+#define m_RGA2_TABLE_PRE_FETCH_DIS			(0X1 << 3)
+#define m_RGA2_FBCIN_BSP_DIS				(0X1 << 4)
+#define m_RGA2_SRC1_RGB888_FIX_DIS			(0X1 << 5)
+#define m_RGA2_SRC0_YUV420SP_RD_OPT_DIS			(0X1 << 6)
+#define m_RGA2_DST_WR_OPT_DIS				(0X1 << 7)
+#define m_RGA2_OUTSTANDING_CFG_DIS			(0X1 << 8)
+
 /* RGA_MODE_CTRL */
 #define m_RGA2_MODE_CTRL_SW_RENDER_MODE			(0x7 << 0)
 #define m_RGA2_MODE_CTRL_SW_BITBLT_MODE			(0x1 << 3)
@@ -223,12 +242,13 @@
 #define m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN			(0x1<<10)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN		(0x1 << 12)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN		(0x1 << 13)
+#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE	(0x3 << 14)
 #define m_RGA2_MODE_CTRL_SW_FBC_IN_EN			(0x1 << 16)
 #define m_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN		(0x1 << 17)
-#define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18)
-#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19)
-#define m_RGA2_MODE_CTRL_SW_AXI_WR128_DIS		(0x1 << 20)
-#define m_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS		(0x1 << 21)
+#define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MODE_CTRL_SW_AXI_WR128_DIS		(0x1 << 20) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS		(0x1 << 21) /* moved to RGA_BACKDOOR0 since RV1126B */
 
 #define s_RGA2_MODE_CTRL_SW_RENDER_MODE(x)		((x & 0x7) << 0)
 #define s_RGA2_MODE_CTRL_SW_BITBLT_MODE(x)		((x & 0x1) << 3)
@@ -241,6 +261,7 @@
 #define s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(x)		((x & 0x1) << 10)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(x)		((x & 0x1) << 12)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(x)		((x & 0x1) << 13)
+#define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE(x)	((x & 0x3) << 14)
 #define s_RGA2_MODE_CTRL_SW_FBC_IN_EN(x)		((x & 0x1) << 16)
 #define s_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN(x)		((x & 0x1) << 17)
 #define s_RGA2_MODE_CTRL_SW_FBC_BSP_DIS(x)		((x & 0x1) << 18)
@@ -499,6 +520,14 @@
 
 #define RGA2_VSP_BICUBIC_LIMIT				1996
 #define RGA2_BILINEAR_PREC				12
+
+#define RGA2_IOMMU_PREFETCH_SHIFT			16
+#define RGA2_IOMMU_PREFETCH_MASK			0xffff
+#define RGA2_IOMMU_PREFETCH_ALIGN(x) \
+	(((x) + RGA2_IOMMU_PREFETCH_MASK) & ~RGA2_IOMMU_PREFETCH_MASK)
+#define RGA2_IOMMU_PREFETCH_ALIGN_DOWN(x)		((x) & ~RGA2_IOMMU_PREFETCH_MASK)
+#define RGA2_IOMMU_PREFETCH_THRESHOLD_MIN		(0x1U << RGA2_IOMMU_PREFETCH_SHIFT)
+#define RGA2_IOMMU_PREFETCH_THRESHOLD_MAX		(0xffffU << RGA2_IOMMU_PREFETCH_SHIFT)
 
 union rga2_color_ctrl {
 	uint32_t value;

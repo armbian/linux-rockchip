@@ -139,7 +139,7 @@ struct dw_hdmi_link_config {
 	int frl_lanes;
 	int rate_per_lane;
 	int hcactive;
-	u8 add_func;
+	bool allm_supported;
 	u8 pps_payload[128];
 };
 
@@ -263,7 +263,7 @@ struct dw_hdmi_plat_data {
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
 				 const struct edid *edid);
-	int (*get_edid_dsc_info)(void *data, const struct edid *edid);
+	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
 	int (*get_dovi_data)(void *data, const struct edid *edid,
@@ -273,7 +273,6 @@ struct dw_hdmi_plat_data {
 	void (*set_hdcp_status)(void *data, u8 status);
 	void (*set_hdcp2_enable)(void *data, bool enable);
 	void (*set_grf_cfg)(void *data);
-	u64 (*get_grf_color_fmt)(void *data);
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 	int (*dclk_set)(void *data, bool enable, int vp_id);
@@ -353,6 +352,7 @@ bool dw_hdmi_get_output_whether_hdmi(struct dw_hdmi *hdmi);
 int dw_hdmi_get_output_type_cap(struct dw_hdmi *hdmi);
 void dw_hdmi_set_cec_adap(struct dw_hdmi *hdmi, struct cec_adapter *adap);
 void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
+void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable);
 
 void dw_hdmi_qp_unbind(struct dw_hdmi_qp *hdmi);
 struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,

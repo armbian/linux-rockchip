@@ -504,13 +504,29 @@ rkisp_get_stat_size_v33(struct rkisp_isp_stats_vdev *stats_vdev,
 	stats_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
-static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
-	.isr_hdl = rkisp_stats_isr_v33,
-	.send_meas = rkisp_stats_send_meas_v33,
-	.get_stat_size = rkisp_get_stat_size_v33,
-};
+static int
+rkisp_stats_tb_v33(struct rkisp_isp_stats_vdev *stats_vdev,
+		   struct rkisp_buffer *stats_buf)
+{
+	struct rkisp_device *dev = stats_vdev->dev;
+	struct rkisp33_stat_buffer *buf = stats_vdev->stats_buf[0].vaddr;
+	u32 size = stats_vdev->vdev_fmt.fmt.meta.buffersize;
+	int ret = -EINVAL;
 
-void rkisp_stats_first_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
+	if (dev->isp_state & ISP_START && stats_buf->vaddr[0] &&
+	    buf && !buf->frame_id && buf->meas_type) {
+		dev_info(dev->dev, "tb stat seq:%d meas_type:0x%x\n",
+			 buf->frame_id, buf->meas_type);
+		memcpy(stats_buf->vaddr[0], buf, size);
+		stats_buf->vb.sequence = buf->frame_id;
+		buf->meas_type = 0;
+		ret = 0;
+	}
+	return ret;
+}
+
+static void
+rkisp_stats_first_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	struct rkisp_device *dev = stats_vdev->dev;
 	u32 val, size = 0, div = dev->unite_div;
@@ -539,7 +555,8 @@ void rkisp_stats_first_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 	}
 }
 
-void rkisp_stats_next_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
+static void
+rkisp_stats_next_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	struct rkisp_device *dev = stats_vdev->dev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
@@ -550,6 +567,15 @@ void rkisp_stats_next_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (hw->is_single)
 		rkisp_stats_update_buf(stats_vdev);
 }
+
+static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
+	.isr_hdl = rkisp_stats_isr_v33,
+	.send_meas = rkisp_stats_send_meas_v33,
+	.get_stat_size = rkisp_get_stat_size_v33,
+	.stats_tb = rkisp_stats_tb_v33,
+	.first_ddr_cfg = rkisp_stats_first_ddr_config_v33,
+	.next_ddr_cfg = rkisp_stats_next_ddr_config_v33,
+};
 
 void rkisp_init_stats_vdev_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 {

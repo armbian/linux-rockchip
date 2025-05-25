@@ -932,9 +932,18 @@ static const struct rockchip_sfc_data rk3506_fspi_data = {
 	},
 };
 
+static const struct rockchip_sfc_data rv1126b_fspi_data = {
+	.powergood = {
+		.valid = true,
+		.grf_offset = 0x30170,
+		.bits_mask = BIT(0),
+	},
+};
+
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
 	{ .compatible = "rockchip,fspi",},
 	{ .compatible = "rockchip,rk3506-fspi", .data = &rk3506_fspi_data},
+	{ .compatible = "rockchip,rv1126b-fspi", .data = &rv1126b_fspi_data},
 	{ .compatible = "rockchip,sfc"},
 	{ /* sentinel */ }
 };

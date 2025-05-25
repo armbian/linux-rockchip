@@ -76,6 +76,7 @@
 		power-domains = <&power RK3576_PD_VI>;
 		cif,drop-frames = <4>; //frames to drop
 		cif,chip-id = <3>; /*0:rk3568 1:rk3588 2:rk3562 3:rk3576*/
+		cif,virtual-channel = <0>; /* select virtual-channel: 0/1/2/3*/
 		rockchip,grf = <&ioc_grf>;
 		rockchip,cru = <&cru>;
 		rockchip,cif = <&rkcif>;

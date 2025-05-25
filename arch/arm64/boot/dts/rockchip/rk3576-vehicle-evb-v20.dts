@@ -416,6 +416,14 @@
 	};
 };
 
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
 &gmac1 {
 	status = "disabled";
 };
@@ -449,6 +457,10 @@
 &i2c5_max96752 {
 	use-reg-check-work;
 	vpower-supply = <&lcd2_vcc12v_buck>;
+};
+
+&i2c8_max96789 {
+	route-enable;
 };
 
 /*dsi*/

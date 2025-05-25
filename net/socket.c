@@ -3331,7 +3331,11 @@ out_mount:
 	goto out;
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+pure_initcall(sock_init);	/* early initcall */
+#else
 core_initcall(sock_init);	/* early initcall */
+#endif
 
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)

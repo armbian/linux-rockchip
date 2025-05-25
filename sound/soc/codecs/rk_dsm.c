@@ -61,6 +61,11 @@
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
 #define RK3576_SYS_GRF_SOC_CON2		(0x0008)
 #define RK3576_DSM_SEL			(0x0)
+#define RV1126B_AUDIO_CON0		(0x40)
+#define RV1126B_DSM_SEL			(15)
+#define RV1126B_DSM_IOC_CON		(0x40ca0)
+#define RV1126B_DSM_FUNC		(0xffff0000)
+#define RV1126B_DSM_GPIO		(0xfffff993)
 
 #define RKDSM_VOL_VAL_MAX		(0xff)
 
@@ -94,6 +99,7 @@ struct rk_dsm_iomux {
 
 struct rk_dsm_priv {
 	struct regmap *grf;
+	struct regmap *ioc_grf;
 	struct regmap *regmap;
 	struct clk *clk_dac;
 	struct clk *pclk;
@@ -325,13 +331,9 @@ static int rk_dsm_set_dai_fmt(struct snd_soc_dai *dai,
 		snd_soc_component_get_drvdata(dai->component);
 	unsigned int mask = 0, val = 0;
 
-	/* master mode only */
-	regmap_update_bits(rd->regmap, I2S_CKR1,
-			   DSM_I2S_CKR1_MSS_MASK,
-			   DSM_I2S_CKR1_MSS_MASTER);
-
 	mask = DSM_I2S_CKR1_CKP_MASK |
-	       DSM_I2S_CKR1_RLP_MASK;
+	       DSM_I2S_CKR1_RLP_MASK |
+	       DSM_I2S_CKR1_MSS_MASK;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
@@ -354,6 +356,17 @@ static int rk_dsm_set_dai_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+		val |= DSM_I2S_CKR1_MSS_SLAVE;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFM:
+		val |= DSM_I2S_CKR1_MSS_MASTER;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	regmap_update_bits(rd->regmap, I2S_CKR1, mask, val);
 
 	return 0;
@@ -367,9 +380,9 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(dai->component);
 	unsigned int srt = 0, val = 0;
 
-	rk_dsm_set_clk(rd, substream, params_rate(params));
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		rk_dsm_set_clk(rd, substream, params_rate(params));
+
 		switch (params_rate(params)) {
 		case 8000:
 		case 11025:
@@ -447,6 +460,9 @@ static int rk_dsm_pcm_startup(struct snd_pcm_substream *substream,
 	struct rk_dsm_priv *rd =
 		snd_soc_component_get_drvdata(dai->component);
 
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
 	/* Recover DAC Volumes */
 	regmap_write(rd->regmap, DACVOLL0, rd->vols.vol_l);
 	regmap_write(rd->regmap, DACVOLR0, rd->vols.vol_r);
@@ -475,6 +491,9 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 {
 	struct rk_dsm_priv *rd =
 		snd_soc_component_get_drvdata(dai->component);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return;
 
 	gpiod_set_value(rd->pa_ctl, 0);
 
@@ -506,7 +525,23 @@ static int rk_dsm_pcm_trigger(struct snd_pcm_substream *substream,
 	struct rk_dsm_priv *rd =
 		snd_soc_component_get_drvdata(dai->component);
 
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/**
+		 * NOTE: Recover DAC volumes and switch RKDSM_ON_FUNC after hw_param()
+		 * again, avoid to incorrect silence during recover from XRUN.
+		 */
+		regmap_write(rd->regmap, DACVOLL0, rd->vols.vol_l);
+		regmap_write(rd->regmap, DACVOLR0, rd->vols.vol_r);
+		regmap_write(rd->regmap, DACVOGP, rd->vols.polarity);
+		if (rd->data && rd->data->iomux_switch)
+			rd->data->iomux_switch(rd->dev, RKDSM_ON_FUNC);
+		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -794,11 +829,50 @@ static const struct rk_dsm_soc_data rk3576_data = {
 	.deinit = rk3576_soc_deinit,
 };
 
+static int rv1126b_soc_init(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+	struct device_node *node = dev->of_node;
+
+	rd->ioc_grf = syscon_regmap_lookup_by_phandle(node, "rockchip,ioc-grf");
+	if (IS_ERR(rd->ioc_grf))
+		return PTR_ERR(rd->ioc_grf);
+	/* enable internal codec to sai2 */
+	return regmap_write(rd->grf, RV1126B_AUDIO_CON0,
+			    BIT(RV1126B_DSM_SEL) << 16 | BIT(RV1126B_DSM_SEL));
+}
+
+static void rv1126b_soc_deinit(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	regmap_write(rd->grf, RV1126B_AUDIO_CON0, BIT(RV1126B_DSM_SEL) << 16);
+}
+
+static int rv1126b_soc_iomux_switch(struct device *dev, int type)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	if (type == RKDSM_ON_GPIO)
+		regmap_write(rd->ioc_grf, RV1126B_DSM_IOC_CON, RV1126B_DSM_GPIO);
+	else if (type == RKDSM_ON_FUNC)
+		regmap_write(rd->ioc_grf, RV1126B_DSM_IOC_CON, RV1126B_DSM_FUNC);
+
+	return 0;
+}
+
+static const struct rk_dsm_soc_data rv1126b_data = {
+	.init = rv1126b_soc_init,
+	.deinit = rv1126b_soc_deinit,
+	.iomux_switch = rv1126b_soc_iomux_switch,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id rd_of_match[] = {
 	{ .compatible = "rockchip,rk3506-dsm", .data = &rk3506_data },
 	{ .compatible = "rockchip,rk3562-dsm", .data = &rk3562_data },
 	{ .compatible = "rockchip,rk3576-dsm", .data = &rk3576_data },
+	{ .compatible = "rockchip,rv1126b-dsm", .data = &rv1126b_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rd_of_match);

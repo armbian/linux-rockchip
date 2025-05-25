@@ -141,7 +141,8 @@
 
 #define ROCKCHIP_SPI_VER2_TYPE1			0x05EC0002
 #define ROCKCHIP_SPI_VER2_TYPE2			0x00110002
-#define ROCKCHIP_SPI_VER3			0x03110003
+#define ROCKCHIP_SPI_VER3_TYPE1			0x03110003
+#define ROCKCHIP_SPI_VER3_TYPE2			0x03120003
 
 /*
  * The callback function may not be timely, and even cs has been released, so
@@ -889,7 +890,8 @@ static int rockchip_spi_slave_probe(struct platform_device *pdev)
 
 	init_completion(&rs->xfer_done);
 	switch (rs->version) {
-	case ROCKCHIP_SPI_VER3:
+	case ROCKCHIP_SPI_VER3_TYPE2:
+	case ROCKCHIP_SPI_VER3_TYPE1:
 		rs->ext_spi_clk = true;
 		rs->dma_timeout = 16;
 		rs->fixed_burst_size = 16;

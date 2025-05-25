@@ -90,7 +90,7 @@
 };
 
 &route_edp {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp0_out_edp>;
 };
 

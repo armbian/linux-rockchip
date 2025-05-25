@@ -89,6 +89,7 @@
 #define WAVE_SUPPORT			BIT(12)
 #define FILTER_SUPPORT			BIT(13)
 #define BIPHASIC_SUPPORT		BIT(14)
+#define LEDC_SUPPORT			BIT(15)
 #define MINOR_VERSION_SHIFT		16
 #define MINOR_VERSION_MASK		(0xff << MINOR_VERSION_SHIFT)
 #define MAIN_VERSION_SHIFT		24
@@ -184,6 +185,8 @@
 #define WAVE_MAX_INT_EN(v)		HIWORD_UPDATE(v, 7, 7)
 #define WAVE_MIDDLE_INT_EN(v)		HIWORD_UPDATE(v, 8, 8)
 #define BIPHASIC_INT_EN(v)		HIWORD_UPDATE(v, 9, 9)
+/* FEATURE */
+#define FEATURE				0x7c
 /* WAVE_MEM_ARBITER */
 #define WAVE_MEM_ARBITER		0x80
 #define WAVE_MEM_GRANT_SHIFT		0
@@ -311,6 +314,8 @@ struct rockchip_pwm_chip {
 	struct resource *res;
 	struct dentry *debugfs;
 	struct completion ir_trans_completion;
+	struct completion freq_meter_completion;
+	struct completion biphasic_completion;
 	void __iomem *base;
 	unsigned long clk_rate;
 	unsigned long is_clk_enabled;
@@ -325,12 +330,12 @@ struct rockchip_pwm_chip {
 	bool counter_support;
 	bool wave_support;
 	bool biphasic_support;
-	bool freq_res_valid;
-	bool biphasic_res_valid;
+	bool ledc_support;
 	int channel_id;
 	int irq;
 	u32 scaler;
 	u8 main_version;
+	u8 minor_version;
 	u8 capture_cnt;
 };
 
@@ -737,14 +742,15 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 
 	if (val & FREQ_INT) {
 		writel_relaxed(FREQ_INT, pc->base + INTSTS);
-		pc->freq_res_valid = true;
+		complete(&pc->freq_meter_completion);
 
 		ret = IRQ_HANDLED;
 	}
 
 	if (val & BIPHASIC_INT) {
 		writel_relaxed(BIPHASIC_INT, pc->base + INTSTS);
-		pc->biphasic_res_valid = true;
+		complete(&pc->biphasic_completion);
+
 		ret = IRQ_HANDLED;
 	}
 
@@ -1241,7 +1247,7 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 	int ret;
 
 	if (enable) {
-		pc->freq_res_valid = false;
+		reinit_completion(&pc->freq_meter_completion);
 
 		arbiter = BIT(pc->channel_id) << FREQ_READ_LOCK_SHIFT |
 			  BIT(pc->channel_id) << FREQ_GRANT_SHIFT;
@@ -1281,21 +1287,21 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 freq_res;
 	u32 freq_timer;
+	int ret = 0;
 
-	usleep_range(delay_ms * USEC_PER_MSEC, delay_ms * USEC_PER_MSEC);
-
-	if (pc->freq_res_valid) {
-		freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
-		freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
-		*freq_hz = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * freq_res, freq_timer);
-		if (!*freq_hz)
-			return -EINVAL;
-
-		pc->freq_res_valid = false;
-	} else {
-		dev_err(pwmchip_parent(chip), "failed to wait for freq_meter interrupt\n");
+	ret = wait_for_completion_timeout(&pc->freq_meter_completion,
+					  msecs_to_jiffies(delay_ms * 3 / 2));
+	if (!ret) {
+		dev_err(pwmchip_parent(chip), "Failed to wait for PWM%d frequency meter result to be valid\n",
+			pc->channel_id);
 		return -ETIMEDOUT;
 	}
+
+	freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
+	freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
+	*freq_hz = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * freq_res, freq_timer);
+	if (!*freq_hz)
+		return -EINVAL;
 
 	return 0;
 }
@@ -1685,18 +1691,8 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 		}
 	}
 
-	if (config->duty_table) {
-		ret = pc->data->funcs.set_wave_table(chip, pwm, config->duty_table,
-						     config->width_mode);
-		if (ret) {
-			dev_err(pwmchip_parent(chip), "Failed to set wave duty table for PWM%d\n",
-				pc->channel_id);
-			goto err_disable_clk_osc;
-		}
-	}
-
-	if (config->period_table) {
-		ret = pc->data->funcs.set_wave_table(chip, pwm, config->period_table,
+	if (config->wave_table) {
+		ret = pc->data->funcs.set_wave_table(chip, pwm, config->wave_table,
 						     config->width_mode);
 		if (ret) {
 			dev_err(pwmchip_parent(chip),
@@ -1749,7 +1745,9 @@ static int rockchip_pwm_set_biphasic_v4(struct pwm_chip *chip, struct pwm_device
 		ret = clk_enable(pc->clk);
 		if (ret)
 			return ret;
-		pc->biphasic_res_valid = false;
+
+		if (!config->is_continuous)
+			reinit_completion(&pc->biphasic_completion);
 
 		ctrl = BIPHASIC_EN(true) |
 		       BIPHASIC_CONTINOUS_MODE_EN(config->is_continuous) |
@@ -1820,7 +1818,7 @@ int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphas
 		dev_err(pwmchip_parent(chip), "Failed to setup biphasic counter mode for PWM%d\n",
 			pc->channel_id);
 	} else {
-		if (pc->biphasic_config->enable && !config->is_continuous) {
+		if (pc->biphasic_config && pc->biphasic_config->enable && !config->is_continuous) {
 			ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
 			if (ret) {
 				dev_err(pwmchip_parent(chip),
@@ -1846,27 +1844,27 @@ static int rockchip_pwm_get_biphasic_result_v4(struct pwm_chip *chip, struct pwm
 	const struct rockchip_pwm_biphasic_config *config = pc->biphasic_config;
 	u32 val;
 	u32 biphasic_timer;
+	int ret = 0;
 
 	if (!config->is_continuous) {
-		usleep_range(config->delay_ms * USEC_PER_MSEC, config->delay_ms * USEC_PER_MSEC);
-
-		if (pc->biphasic_res_valid) {
-			*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE);
-			if (!*biphasic_res)
-				return -EINVAL;
-
-			if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
-				val = *biphasic_res;
-				biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
-				*biphasic_res = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * val,
-								      biphasic_timer);
-			}
-
-			pc->biphasic_res_valid = false;
-		} else {
+		ret = wait_for_completion_timeout(&pc->biphasic_completion,
+						  msecs_to_jiffies(config->delay_ms * 3 / 2));
+		if (!ret) {
 			dev_err(pwmchip_parent(chip),
-				"failed to wait for biphasic counter interrupt\n");
+				"Failed to wait for PWM%d biphasic counter result to be valid\n",
+				pc->channel_id);
 			return -ETIMEDOUT;
+		}
+
+		*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE);
+		if (!*biphasic_res)
+			return -EINVAL;
+
+		if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
+			val = *biphasic_res;
+			biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
+			*biphasic_res = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * val,
+							      biphasic_timer);
 		}
 	} else {
 		*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE_SYNC);
@@ -2279,13 +2277,19 @@ static int rockchip_pwm_get_channel_id(const char *name)
 	return name[len - 2] - '0';
 }
 
+static u32 rockchip_pwm_get_minor_version(struct rockchip_pwm_chip *pc)
+{
+	return (readl_relaxed(pc->base + pc->data->regs.version) & MINOR_VERSION_MASK) >>
+	       MINOR_VERSION_SHIFT;
+}
+
 static int rockchip_pwm_probe(struct platform_device *pdev)
 {
 	struct pwm_chip *chip;
 	struct rockchip_pwm_chip *pc;
 	struct resource *r;
 	unsigned long irq_flags;
-	u32 enable_conf, ctrl, version;
+	u32 enable_conf, ctrl, feature;
 	bool enabled;
 	int ret, count;
 
@@ -2353,22 +2357,37 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->data = device_get_match_data(&pdev->dev);
 	pc->clk_rate = clk_get_rate(pc->clk);
 	pc->main_version = pc->data->main_version;
-	if (pc->main_version >= 4) {
-		version = readl_relaxed(pc->base + pc->data->regs.version);
-		pc->channel_id = (version & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
-		pc->ir_trans_support = !!(version & IR_TRANS_SUPPORT);
-		pc->freq_meter_support = !!(version & FREQ_METER_SUPPORT);
-		pc->counter_support = !!(version & COUNTER_SUPPORT);
-		pc->wave_support = !!(version & WAVE_SUPPORT);
-		pc->biphasic_support = !!(version & BIPHASIC_SUPPORT);
-	} else {
+	if (pc->main_version < 4) {
 		pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
+	} else if (pc->main_version == 4 && rockchip_pwm_get_minor_version(pc) < 1) {
+		feature = readl_relaxed(pc->base + pc->data->regs.version);
+		pc->channel_id = (feature & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+		pc->ir_trans_support = !!(feature & IR_TRANS_SUPPORT);
+		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
+		pc->counter_support = !!(feature & COUNTER_SUPPORT);
+		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
+	} else {
+		feature = readl_relaxed(pc->base + FEATURE);
+		pc->channel_id = (feature & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+		pc->ir_trans_support = !!(feature & IR_TRANS_SUPPORT);
+		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
+		pc->counter_support = !!(feature & COUNTER_SUPPORT);
+		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
+		pc->ledc_support = !!(feature & LEDC_SUPPORT);
 	}
 	if (pc->channel_id < 0 || pc->channel_id >= PWM_MAX_CHANNEL_NUM) {
 		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
 		ret = -EINVAL;
 		goto err_pclk;
 	}
+
+	if (pc->freq_meter_support)
+		init_completion(&pc->freq_meter_completion);
+
+	if (pc->biphasic_support)
+		init_completion(&pc->biphasic_completion);
 
 	if (pc->data->funcs.irq_handler) {
 		/*

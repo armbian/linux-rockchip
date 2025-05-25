@@ -530,25 +530,25 @@ static void analogix_dp_ssc_enable(struct analogix_dp_device *dp)
 	u32 reg;
 
 	/* 4500ppm */
-	writel(0x19, dp->reg_base + ANALOIGX_DP_SSC_REG);
+	analogix_dp_write(dp, ANALOIGX_DP_SSC_REG, 0x19);
 	/*
 	 * To apply updated SSC parameters into SSC operation,
 	 * firmware must disable and enable this bit.
 	 */
-	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
 	reg |= SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 	reg &= ~SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 }
 
 static void analogix_dp_ssc_disable(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
 	reg |= SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 }
 
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)

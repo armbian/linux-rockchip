@@ -39,6 +39,13 @@ enum {
 };
 
 enum {
+	CIF_INPUT_MODE_BT601_YUV = 0,
+	CIF_INPUT_MODE_BT601_RAW = 1,
+	CIF_INPUT_MODE_BT656_YUV = 2,
+	CIF_INPUT_MODE_BT1120_YUV = 3,
+};
+
+enum {
 	CIF_OUTPUT_FORMAT_422 = 0,
 	CIF_OUTPUT_FORMAT_420 = 1,
 };
@@ -163,6 +170,7 @@ struct vehicle_cfg {
 	int rotate_mirror;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	int drop_frames;
+	int input_mode;
 };
 
 #endif

@@ -88,7 +88,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		3
-#define DRIVER_REVISION_VERSION		8
+#define DRIVER_REVISION_VERSION		9
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -182,8 +182,11 @@ struct rga_dma_buffer {
 	 */
 	size_t offset;
 
-	/* The scheduler of the mapping */
-	struct rga_scheduler_t *scheduler;
+	/*
+	 * The device used by dma-buf mapping, which usually corresponds to the
+	 * default domain or the current device.
+	 */
+	struct device *map_dev;
 };
 
 struct rga_virt_addr {
@@ -192,6 +195,7 @@ struct rga_virt_addr {
 	struct page **pages;
 	int pages_order;
 	int page_count;
+	/* Actual effective size */
 	unsigned long size;
 
 	/* The offset of the first page of the virtual address */
@@ -227,6 +231,9 @@ struct rga_internal_buffer {
 
 	struct kref refcount;
 	struct rga_session *session;
+
+	/* The scheduler of the mapping */
+	struct rga_scheduler_t *scheduler;
 };
 
 struct rga_scheduler_t;
@@ -239,6 +246,10 @@ struct rga_session {
 	char *pname;
 
 	ktime_t last_active;
+
+	bool release;
+	struct rw_semaphore release_rwsem;
+	struct kref refcount;
 };
 
 struct rga_job_buffer {
@@ -479,6 +490,9 @@ static inline void rga_write(int value, int offset, struct rga_scheduler_t *sche
 
 int rga_power_enable(struct rga_scheduler_t *scheduler);
 int rga_power_disable(struct rga_scheduler_t *scheduler);
+
+int rga_session_put(struct rga_session *session);
+void rga_session_get(struct rga_session *session);
 
 int rga_kernel_commit(struct rga_req *cmd);
 

@@ -45,7 +45,6 @@
 
 /delete-node/ &can0;
 /delete-node/ &can1;
-/delete-node/ &combphy1_psu;
 /delete-node/ &dsi_in_vopl;
 /delete-node/ &dsmc;
 /delete-node/ &dsmc_slave;
@@ -61,7 +60,4 @@
 /delete-node/ &rgb_in_vopl;
 /delete-node/ &sata0;
 /delete-node/ &sata1;
-/delete-node/ &usb_drd1_dwc3;
-/delete-node/ &u2phy1_otg;
-/delete-node/ &u2phy1;
 /delete-node/ &vopl;

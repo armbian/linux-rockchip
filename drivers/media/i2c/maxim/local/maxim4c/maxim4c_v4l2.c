@@ -1182,7 +1182,7 @@ static int maxim4c_initialize_controls(maxim4c_t *maxim4c)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_items) - 1, 0,
 				link_freq_items);
-	__v4l2_ctrl_s_ctrl(maxim4c->link_freq, mode->link_freq_idx);
+	v4l2_ctrl_s_ctrl(maxim4c->link_freq, mode->link_freq_idx);
 
 	link_freq = link_freq_items[mode->link_freq_idx];
 	dev_info(dev, "mipi_freq_idx = %d, mipi_link_freq = %lld\n",

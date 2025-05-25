@@ -260,6 +260,72 @@ int serdes_set_bits(struct serdes *serdes, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(serdes_set_bits);
 
+/**
+ * serdes_mfd_add: Manage serdes device resources
+ *
+ * Returns 0 on success.
+ *
+ * @dev: Pointer to parent device.
+ * @serdes_dev: Array of describing serdes child devices.
+ * @mfd_num: Number of serdes child devices to register.
+ */
+static int serdes_mfd_add(struct device *dev,
+			  const struct mfd_cell *serdes_dev, int mfd_num)
+{
+	int i, ret, num = 0;
+	const char *compatible;
+	struct mfd_cell *obj, *mfd_dev;
+	struct device_node *child = NULL;
+	int size = sizeof(struct mfd_cell);
+	struct device_node *parent_node = dev->of_node;
+
+	obj = kcalloc(mfd_num, size, GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+
+	for (i = 0; i < mfd_num; i++, serdes_dev++) {
+		compatible = serdes_dev->of_compatible;
+
+		for_each_available_child_of_node(parent_node, child) {
+			if (!of_device_is_compatible(child, compatible))
+				continue;
+
+			memcpy(&obj[num], serdes_dev, size);
+			num++;
+			of_node_put(child);
+			SERDES_DBG_MFD("%s: serdes child %s match\n", __func__, serdes_dev->name);
+
+			break;
+		}
+	}
+
+	if (num == 0) {
+		kfree(obj);
+		return 0;
+	}
+
+	mfd_dev = devm_kmemdup(dev, obj, num * size, GFP_KERNEL);
+	kfree(obj);
+
+	if (!mfd_dev)
+		return -ENOMEM;
+
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, mfd_dev,
+				   num, NULL, 0, NULL);
+
+	if (ret != 0) {
+		dev_err(dev, "Failed to add serdes child device\n");
+		goto err;
+	}
+
+	return 0;
+
+err:
+	devm_kfree(dev, mfd_dev);
+
+	return ret;
+}
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -316,12 +382,9 @@ int serdes_device_init(struct serdes *serdes)
 		break;
 	}
 
-	ret = devm_mfd_add_devices(serdes->dev, PLATFORM_DEVID_AUTO, serdes_devs,
-				   mfd_num, NULL, 0, NULL);
-	if (ret != 0) {
-		dev_err(serdes->dev, "Failed to add serdes children\n");
+	ret = serdes_mfd_add(serdes->dev, serdes_devs, mfd_num);
+	if (!ret)
 		return ret;
-	}
 
 	return 0;
 }
@@ -331,7 +394,7 @@ int serdes_set_pinctrl_default(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_init))) {
+	if ((!IS_ERR_OR_NULL(serdes->pinctrl_node)) && (!IS_ERR_OR_NULL(serdes->pins_init))) {
 		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_init);
 		if (ret)
 			dev_err(serdes->dev, "could not set init pins\n");
@@ -346,7 +409,7 @@ int serdes_set_pinctrl_sleep(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_sleep))) {
+	if ((!IS_ERR_OR_NULL(serdes->pinctrl_node)) && (!IS_ERR_OR_NULL(serdes->pins_sleep))) {
 		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_sleep);
 		if (ret)
 			dev_err(serdes->dev, "could not set sleep pins\n");
@@ -393,7 +456,7 @@ void serdes_device_poweroff(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_sleep))) {
+	if ((!IS_ERR_OR_NULL(serdes->pinctrl_node)) && (!IS_ERR_OR_NULL(serdes->pins_sleep))) {
 		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_sleep);
 		if (ret)
 			dev_err(serdes->dev, "could not set sleep pins\n");

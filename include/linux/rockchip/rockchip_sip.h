@@ -60,6 +60,7 @@
 #define SIP_MCU_CFG			0x82000028
 #define SIP_PVTPLL_CFG			0x82000029
 #define SIP_GPIO_CFG			0x8200002c
+#define SIP_CPU_PM_CFG			0x8200002d
 
 #define TRUSTED_OS_HDCPKEY_INIT		0xB7000003
 
@@ -257,6 +258,11 @@ enum {
 	GPIO_GET_VIRT_EN = 2,
 };
 
+/* SIP_CPU_PM_CFG child configs */
+enum {
+	CPU_PM_CLUST_AUTO_PD_EN = 0,
+};
+
 struct pt_regs;
 typedef void (*sip_fiq_debugger_uart_irq_tf_cb_t)(struct pt_regs *_pt_regs, unsigned long cpu);
 
@@ -296,6 +302,7 @@ void __iomem *sip_hdcp_request_share_memory(int id);
 struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2);
 struct arm_smccc_res sip_smc_gpio_config(u32 sub_func_id, u32 arg1, u32 arg2,
 					 u32 arg3);
+int sip_smc_cpu_pm_config(u32 func, u32 id, u32 cfg);
 ulong sip_cpu_logical_map_mpidr(u32 cpu);
 /***************************fiq debugger **************************************/
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
@@ -445,6 +452,11 @@ static inline struct arm_smccc_res sip_smc_gpio_config(u32 sub_func_id, u32 arg1
 	struct arm_smccc_res tmp = { .a0 = SIP_RET_NOT_SUPPORTED, };
 
 	return tmp;
+}
+
+static inline int sip_smc_cpu_pm_config(u32 func, u32 id, u32 cfg)
+{
+	return SIP_RET_NOT_SUPPORTED;
 }
 
 static inline ulong sip_cpu_logical_map_mpidr(u32 cpu) { return 0; }

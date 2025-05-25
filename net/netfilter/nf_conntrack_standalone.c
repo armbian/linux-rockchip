@@ -1229,5 +1229,9 @@ static void __exit nf_conntrack_standalone_fini(void)
 	nf_conntrack_cleanup_end();
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+rootfs_initcall(nf_conntrack_standalone_init);
+#else
 module_init(nf_conntrack_standalone_init);
+#endif
 module_exit(nf_conntrack_standalone_fini);

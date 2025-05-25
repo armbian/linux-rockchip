@@ -1131,6 +1131,44 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 }
 EXPORT_SYMBOL(rockchip_monitor_suspend_low_temp_adjust);
 
+void rockchip_monitor_remove_cpu_limit(int cpu)
+{
+	struct monitor_dev_info *info;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		if (cpumask_test_cpu(cpu, &info->devp->allowed_cpus)) {
+			if (info->status_max_limit)
+				freq_qos_update_request(&info->max_sta_freq_req,
+							FREQ_QOS_MAX_DEFAULT_VALUE);
+			break;
+		}
+	}
+	up_read(&mdev_list_sem);
+}
+EXPORT_SYMBOL(rockchip_monitor_remove_cpu_limit);
+
+void rockchip_monitor_restore_cpu_limit(int cpu)
+{
+	struct monitor_dev_info *info;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		if (cpumask_test_cpu(cpu, &info->devp->allowed_cpus)) {
+			if (info->status_max_limit)
+				freq_qos_update_request(&info->max_sta_freq_req,
+							info->status_max_limit);
+			break;
+		}
+	}
+	up_read(&mdev_list_sem);
+}
+EXPORT_SYMBOL(rockchip_monitor_restore_cpu_limit);
+
 static int
 rockchip_system_monitor_wide_temp_adjust(struct monitor_dev_info *info,
 					 int temp)

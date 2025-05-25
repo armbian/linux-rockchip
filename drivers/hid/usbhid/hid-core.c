@@ -1186,7 +1186,10 @@ static int usbhid_start(struct hid_device *hid)
 	if (interface->desc.bInterfaceSubClass == USB_INTERFACE_SUBCLASS_BOOT &&
 			interface->desc.bInterfaceProtocol ==
 				USB_INTERFACE_PROTOCOL_KEYBOARD) {
-		usbhid_set_leds(hid);
+		if (dev->product && !strncasecmp(dev->product, "USB Reader", 10))
+			dev_info(&hid->dev, "Ignore set Led for USB Reader\n");
+		else
+			usbhid_set_leds(hid);
 		device_set_wakeup_enable(&dev->dev, 1);
 	}
 

@@ -4145,7 +4145,8 @@ static int dw_dp_mst_find_ext_bridges(struct dw_dp *dp)
 			return ret;
 
 		if (mst_enc->next_bridge) {
-			ret = drm_bridge_attach(&mst_enc->encoder, mst_enc->next_bridge, NULL, 0);
+			ret = drm_bridge_attach(&mst_enc->encoder, mst_enc->next_bridge, NULL,
+						DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 			if (ret) {
 				DRM_DEV_ERROR(dp->dev, "failed to attach next bridge: %d\n", ret);
 				return ret;

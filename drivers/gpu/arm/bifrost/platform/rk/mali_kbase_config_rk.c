@@ -508,6 +508,58 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
+static int rk3576_gpu_get_soc_info(struct device *dev, struct device_node *np,
+				   int *bin, int *process)
+{
+	int ret = 0;
+	u8 spec = 0, test_version = 0;
+
+	if (!bin)
+		return 0;
+
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "specification_serial_number") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np,
+						  "specification_serial_number",
+						  &spec);
+		if (ret) {
+			dev_err(dev,
+				"Failed to get specification_serial_number\n");
+			return ret;
+		}
+
+	}
+	if (of_property_match_string(np, "nvmem-cell-names", "test_version") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np, "test_version", &test_version);
+		if (ret) {
+			dev_err(dev, "Failed to get test_version\n");
+			return ret;
+		}
+	}
+	/* RK3576M */
+	if (spec == 0xd) {
+		*bin = 1;
+	/* RK3576J */
+	} else if (spec == 0xa) {
+		*bin = 2;
+	/* RK3576S */
+	} else if (spec == 0x13) {
+		if (test_version == 0) {
+			*bin = 3;
+		} else {
+			*bin = 0;
+			dev_info(dev, "bin=%d (3)\n", *bin);
+			return 0;
+		}
+	}
+
+	if (*bin < 0)
+		*bin = 0;
+	dev_info(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
+
 static int rk3576_gpu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
 				      u32 rm)
@@ -552,6 +604,15 @@ static int rk3588_gpu_get_soc_info(struct device *dev, struct device_node *np,
 		/* RK3588J */
 		else if (value == 0xa)
 			*bin = 2;
+	}
+	if (of_property_match_string(np, "nvmem-cell-names", "customer_demand") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np, "customer_demand", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get customer_demand\n");
+			return ret;
+		}
+		if (value == 0x3)
+			*bin = 4;
 	}
 	if (*bin < 0)
 		*bin = 0;
@@ -639,6 +700,7 @@ static int gpu_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 }
 
 static const struct rockchip_opp_data rk3576_gpu_opp_data = {
+	.get_soc_info = rk3576_gpu_get_soc_info,
 	.set_read_margin = rk3576_gpu_set_read_margin,
 	.set_soc_info = rockchip_opp_set_low_length,
 	.config_regulators = gpu_opp_config_regulators,
@@ -660,6 +722,10 @@ static const struct rockchip_opp_data rockchip_gpu_opp_data = {
 static const struct of_device_id rockchip_mali_of_match[] = {
 	{
 		.compatible = "rockchip,rk3576",
+		.data = (void *)&rk3576_gpu_opp_data,
+	},
+	{
+		.compatible = "rockchip,rk3576s",
 		.data = (void *)&rk3576_gpu_opp_data,
 	},
 	{

@@ -1579,7 +1579,11 @@ static void __exit inet_diag_exit(void)
 	kfree(inet_diag_table);
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+rootfs_initcall(inet_diag_init);
+#else
 module_init(inet_diag_init);
+#endif
 module_exit(inet_diag_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("INET/INET6: socket monitoring via SOCK_DIAG");

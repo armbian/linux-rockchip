@@ -22,6 +22,8 @@
 
 #include "rockchip_asrc.h"
 
+#define RV1126B_ASRC	0x04000000
+
 /*
  * structure:
  * tx: memory->asrc->sai->codec
@@ -42,6 +44,7 @@
 #define MAXBURST_PER_FIFO		8
 #define DEFAULT_SAMPLE_RATE		48000
 #define ASRC_DEFAULT_CLK		200000000
+#define ASRC_LRCK_SOURCE_FREQ_DEFAULT	98304000
 
 /* Platform Definition */
 /* rk3576 */
@@ -182,7 +185,6 @@ struct rk_asrc_soc_data {
 	int (*lrck_clk_set)(struct device *dev);
 	int (*lrck_clk_en)(struct device *dev);
 	int (*lrck_clk_dis)(struct device *dev);
-	int lrck_source_freq;
 };
 
 struct rockchip_asrc_pair {
@@ -223,6 +225,9 @@ struct rockchip_asrc {
 	int resample_rate;
 	int dst_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
 	int src_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
+	int lrck_src_freq;
+	int lrck_dst_freq;
+	int version;
 };
 
 static int rockchip_asrc_calculate_ratio(struct rockchip_asrc *asrc,
@@ -405,9 +410,15 @@ static int rockchip_asrc_hw_params(struct snd_pcm_substream *substream,
 		asrc->sample_bits = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+		val = ASRC_IWL_24BIT | ASRC_OWL_24BIT |
+		      ASRC_OFMT_32 | ASRC_IFMT_32 |
+		      ASRC_ISJM(0) | ASRC_OSJM(0);
+		asrc->sample_bits = 32;
+		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		val = ASRC_IWL_24BIT | ASRC_OWL_24BIT |
-		ASRC_OFMT_32 | ASRC_IFMT_32;
+		      ASRC_OFMT_32 | ASRC_IFMT_32 |
+		      ASRC_ISJM(8) | ASRC_OSJM(8);
 		asrc->sample_bits = 32;
 		break;
 	default:
@@ -528,6 +539,7 @@ static bool rockchip_asrc_readable_reg(struct device *dev, unsigned int reg)
 	case ASRC_LRCK_MARGIN:
 	case ASRC_FETCH_LEN:
 	case ASRC_DMA_THRESH:
+	case ASRC_LRCK_FILT:
 	case ASRC_INT_CON:
 	case ASRC_INT_ST:
 	case ASRC_ST:
@@ -564,6 +576,7 @@ static bool rockchip_asrc_writeable_reg(struct device *dev, unsigned int reg)
 	case ASRC_LRCK_MARGIN:
 	case ASRC_FETCH_LEN:
 	case ASRC_DMA_THRESH:
+	case ASRC_LRCK_FILT:
 	case ASRC_INT_CON:
 	case ASRC_INT_ST:
 	case ASRC_FIFO_IN_WRCNT:
@@ -1141,6 +1154,11 @@ static int rockchip_asrc_init(struct rockchip_asrc *asrc)
 			   ASRC_RATIO_TRACK_DIV_MSK | ASRC_RATIO_TRACK_PERIOD_MSK,
 			   ASRC_RATIO_TRACK_DIV(3) | ASRC_RATIO_TRACK_PERIOD(1023));
 
+	if (asrc->version == RV1126B_ASRC) {
+		regmap_update_bits(asrc->regmap, ASRC_LRCK_FILT,
+				   ASRC_LRCK_FILT_MSK, ASRC_LRCK_FILT_DIS);
+	}
+
 	return 0;
 }
 
@@ -1290,7 +1308,7 @@ static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 
 	switch (asrc->src_link_dai_id) {
 	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
-		src_lrck_div = asrc->soc_data->lrck_source_freq / asrc->sample_rate;
+		src_lrck_div = asrc->lrck_src_freq / asrc->sample_rate;
 		break;
 	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
 		src_lrck_div = 128;
@@ -1301,7 +1319,7 @@ static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 
 	switch (asrc->dst_link_dai_id) {
 	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
-		dst_lrck_div = asrc->soc_data->lrck_source_freq / asrc->resample_rate;
+		dst_lrck_div = asrc->lrck_dst_freq / asrc->resample_rate;
 		break;
 	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
 		dst_lrck_div = 128;
@@ -1381,19 +1399,24 @@ static int rk3506_asrc_lrck_clk_set(struct device *dev)
 	clk_set_parent(asrc->src_lrck, asrc->src_lrck_parent);
 	clk_set_parent(asrc->dst_lrck, asrc->dst_lrck_parent);
 	if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id)) {
-		if (clk_set_rate(asrc->src_lrck_parent, asrc->soc_data->lrck_source_freq)) {
+		if (clk_set_rate(asrc->src_lrck_parent, asrc->lrck_src_freq)) {
 			dev_err(asrc->dev, "Failed to set src_lrck_parent, freq is %d\n",
-				asrc->soc_data->lrck_source_freq);
+				asrc->lrck_src_freq);
 			return -EINVAL;
 		}
+
+		asrc->lrck_src_freq = clk_get_rate(asrc->src_lrck_parent);
 	}
 
 	if (rockchip_asrc_is_link_mem(asrc->dst_link_dai_id)) {
-		if (clk_set_rate(asrc->dst_lrck_parent, asrc->soc_data->lrck_source_freq)) {
+		if (clk_set_rate(asrc->dst_lrck_parent, asrc->lrck_dst_freq)) {
 			dev_err(asrc->dev, "Failed to set dst_lrck_parent, freq is %d\n",
-				asrc->soc_data->lrck_source_freq);
+				asrc->lrck_dst_freq);
 			return -EINVAL;
 		}
+
+		/* get the real freq */
+		asrc->lrck_dst_freq = clk_get_rate(asrc->dst_lrck_parent);
 	}
 
 	rockchip_asrc_lrck_div_set(asrc);
@@ -1612,19 +1635,23 @@ static int rk3576_asrc_lrck_clk_set(struct device *dev)
 	}
 
 	if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id)) {
-		if (clk_set_rate(asrc->cru_src0, asrc->soc_data->lrck_source_freq)) {
+		if (clk_set_rate(asrc->cru_src0, asrc->lrck_src_freq)) {
 			dev_err(asrc->dev, "Failed to set cru_src0, freq is %d\n",
-				asrc->soc_data->lrck_source_freq);
+				asrc->lrck_src_freq);
 			return -EINVAL;
 		}
+
+		asrc->lrck_src_freq = clk_get_rate(asrc->cru_src0);
 	}
 
 	if (rockchip_asrc_is_link_mem(asrc->dst_link_dai_id)) {
-		if (clk_set_rate(asrc->cru_src1, asrc->soc_data->lrck_source_freq)) {
+		if (clk_set_rate(asrc->cru_src1, asrc->lrck_dst_freq)) {
 			dev_err(asrc->dev, "Failed to set cru_src1, freq is %d\n",
-				asrc->soc_data->lrck_source_freq);
+				asrc->lrck_dst_freq);
 			return -EINVAL;
 		}
+
+		asrc->lrck_dst_freq = clk_get_rate(asrc->cru_src1);
 	}
 
 	rockchip_asrc_lrck_div_set(asrc);
@@ -1664,7 +1691,6 @@ static const struct rk_asrc_soc_data rk3506_data = {
 	.lrck_clk_set = rk3506_asrc_lrck_clk_set,
 	.lrck_clk_en = rk3506_asrc_lrck_clk_en,
 	.lrck_clk_dis = rk3506_asrc_lrck_clk_dis,
-	.lrck_source_freq = 98304000,
 };
 
 static const struct rk_asrc_soc_data rk3576_data = {
@@ -1672,7 +1698,6 @@ static const struct rk_asrc_soc_data rk3576_data = {
 	.lrck_clk_set = rk3576_asrc_lrck_clk_set,
 	.lrck_clk_en = rk3576_asrc_lrck_clk_en,
 	.lrck_clk_dis = rk3576_asrc_lrck_clk_dis,
-	.lrck_source_freq = 49152000,
 };
 
 static const struct of_device_id rockchip_asrc_match[] = {
@@ -1694,6 +1719,8 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 	if (!asrc)
 		return -ENOMEM;
 
+	asrc->lrck_src_freq = ASRC_LRCK_SOURCE_FREQ_DEFAULT;
+	asrc->lrck_dst_freq = ASRC_LRCK_SOURCE_FREQ_DEFAULT;
 	asrc->dev = &pdev->dev;
 	asrc->pdev = pdev;
 	dev_set_drvdata(&pdev->dev, asrc);
@@ -1770,6 +1797,7 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_suspend;
 
+	regmap_read(asrc->regmap, ASRC_VERSION, &asrc->version);
 	ret = rockchip_asrc_init(asrc);
 	if (ret) {
 		dev_err(&pdev->dev, "Asrc init error.\n");

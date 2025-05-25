@@ -329,4 +329,8 @@ static int __init opp_debug_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+core_initcall_sync(opp_debug_init);
+#else
 core_initcall(opp_debug_init);
+#endif

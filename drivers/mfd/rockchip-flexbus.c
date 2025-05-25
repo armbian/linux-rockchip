@@ -138,6 +138,20 @@ static void rockchip_flexbus_clk_bulk_disable(void *data)
 	clk_bulk_disable_unprepare(rkfb->num_clks, rkfb->clks);
 }
 
+static void rockchip_flexbus_init(struct rockchip_flexbus *rkfb)
+{
+	if (rkfb->config->init_config)
+		rkfb->config->init_config(rkfb);
+
+	if (rkfb->opmode0 != ROCKCHIP_FLEXBUS0_OPMODE_NULL &&
+	    rkfb->opmode1 != ROCKCHIP_FLEXBUS1_OPMODE_NULL)
+		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_TX_AND_RX);
+	else if (rkfb->opmode0 != ROCKCHIP_FLEXBUS0_OPMODE_NULL)
+		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_TX_ONLY);
+	else
+		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_RX_ONLY);
+}
+
 static int rockchip_flexbus_probe(struct platform_device *pdev)
 {
 	struct rockchip_flexbus *rkfb;
@@ -205,16 +219,7 @@ static int rockchip_flexbus_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (rkfb->config->init_config)
-		rkfb->config->init_config(rkfb);
-
-	if (rkfb->opmode0 != ROCKCHIP_FLEXBUS0_OPMODE_NULL &&
-	    rkfb->opmode1 != ROCKCHIP_FLEXBUS1_OPMODE_NULL)
-		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_TX_AND_RX);
-	else if (rkfb->opmode0 != ROCKCHIP_FLEXBUS0_OPMODE_NULL)
-		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_TX_ONLY);
-	else
-		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_RX_ONLY);
+	rockchip_flexbus_init(rkfb);
 
 	switch (rockchip_flexbus_readl(rkfb, FLEXBUS_REVISION) >> 24 & 0xff) {
 	case 0x0:
@@ -250,11 +255,23 @@ static const struct of_device_id rockchip_flexbus_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_flexbus_of_match);
 
+static int rockchip_flexbus_resume(struct device *dev)
+{
+	struct rockchip_flexbus *rkfb = dev_get_drvdata(dev);
+
+	rockchip_flexbus_init(rkfb);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_flexbus_pm_ops, NULL, rockchip_flexbus_resume);
+
 static struct platform_driver rockchip_flexbus_driver = {
 	.probe	= rockchip_flexbus_probe,
 	.driver	= {
 		.name		= "rockchip_flexbus",
 		.of_match_table	= rockchip_flexbus_of_match,
+		.pm		= pm_sleep_ptr(&rockchip_flexbus_pm_ops),
 	},
 };
 

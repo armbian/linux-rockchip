@@ -1192,7 +1192,7 @@
 	};
 
 	mipi_dphy: mipi-dphy@ff4d0000 {
-		compatible = "rockchip,rv1126-mipi-dphy", "rockchip,rk3568-video-phy";
+		compatible = "rockchip,rv1126-dsi-dphy";
 		reg = <0xff4d0000 0x500>, <0xffb30000 0x500>;
 		reg-names = "phy", "host";
 		assigned-clocks = <&pmucru CLK_MIPIDSIPHY_REF>;

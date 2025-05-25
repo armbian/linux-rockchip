@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	pwm_rockchip_test: pwm-rockchip-test {
+		compatible = "pwm-rockchip-test";
+		pwms = <&pwm0_8ch_0 0 25000 0>,
+		       <&pwm0_8ch_1 0 25000 0>,
+		       <&pwm0_8ch_2 0 25000 0>,
+		       <&pwm0_8ch_3 0 25000 0>,
+		       <&pwm0_8ch_4 0 25000 0>,
+		       <&pwm0_8ch_5 0 25000 0>,
+		       <&pwm0_8ch_6 0 25000 0>,
+		       <&pwm0_8ch_7 0 25000 0>,
+		       <&pwm1_4ch_0 0 25000 0>,
+		       <&pwm1_4ch_1 0 25000 0>,
+		       <&pwm1_4ch_2 0 25000 0>,
+		       <&pwm1_4ch_3 0 25000 0>,
+		       <&pwm2_8ch_0 0 25000 0>,
+		       <&pwm2_8ch_1 0 25000 0>,
+		       <&pwm2_8ch_2 0 25000 0>,
+		       <&pwm2_8ch_3 0 25000 0>,
+		       <&pwm2_8ch_4 0 25000 0>,
+		       <&pwm2_8ch_5 0 25000 0>,
+		       <&pwm2_8ch_6 0 25000 0>,
+		       <&pwm2_8ch_7 0 25000 0>,
+		       <&pwm3_8ch_0 0 25000 0>,
+		       <&pwm3_8ch_1 0 25000 0>,
+		       <&pwm3_8ch_2 0 25000 0>,
+		       <&pwm3_8ch_3 0 25000 0>,
+		       <&pwm3_8ch_4 0 25000 0>,
+		       <&pwm3_8ch_5 0 25000 0>,
+		       <&pwm3_8ch_6 0 25000 0>,
+		       <&pwm3_8ch_7 0 25000 0>;
+		pwm-names = "pwm0_0",
+			    "pwm0_1",
+			    "pwm0_2",
+			    "pwm0_3",
+			    "pwm0_4",
+			    "pwm0_5",
+			    "pwm0_6",
+			    "pwm0_7",
+			    "pwm1_0",
+			    "pwm1_1",
+			    "pwm1_2",
+			    "pwm1_3",
+			    "pwm2_0",
+			    "pwm2_1",
+			    "pwm2_2",
+			    "pwm2_3",
+			    "pwm2_4",
+			    "pwm2_5",
+			    "pwm2_6",
+			    "pwm2_7",
+			    "pwm3_0",
+			    "pwm3_1",
+			    "pwm3_2",
+			    "pwm3_3",
+			    "pwm3_4",
+			    "pwm3_5",
+			    "pwm3_6",
+			    "pwm3_7";
+	};
+};
+
+&pwm0_8ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_4 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch4_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_5 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch5_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_6 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch6_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_8ch_7 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch7_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_4ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_4ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_4ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_4ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_4 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch4_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_5 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch5_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_6 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch6_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_7 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch7_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_4 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch4_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_5 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch5_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_6 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch6_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm3_8ch_7 {
+	status = "okay";
+	pinctrl-0 = <&pwm3m0_ch7_pins>;
+	assigned-clocks = <&cru CLK_PWM3>;
+	assigned-clock-rates = <100000000>;
+};

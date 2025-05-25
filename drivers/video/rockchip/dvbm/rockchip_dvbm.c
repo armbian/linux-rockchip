@@ -44,18 +44,17 @@ static struct dvbm_ctx *g_ctx;
 
 struct dvbm_ctx {
 	struct device *dev;
+	struct dvbm_port ports[DVBM_PORT_BUTT];
 
 	u32 isp_connet;
 	u32 vepu_connet;
 
 	/* vepu infos */
-	struct dvbm_port port_vepu;
 	atomic_t vepu_link;
 	struct dvbm_cb vepu_cb;
 	struct dvbm_addr_cfg vepu_cfg;
 
 	/* isp infos */
-	struct dvbm_port port_isp;
 	struct dvbm_cb isp_cb;
 	struct dvbm_isp_cfg_t isp_cfg[DVBM_CHANNEL_NUM];
 	struct dvbm_addr_cfg dvbm_addr[DVBM_CHANNEL_NUM];
@@ -71,16 +70,21 @@ struct dvbm_ctx {
 
 static struct dvbm_ctx *port_to_ctx(struct dvbm_port *port)
 {
-	struct dvbm_ctx *ctx = NULL;
+	return g_ctx;
+}
 
-	if (IS_ERR_OR_NULL(port))
-		return g_ctx;
-	if (port->dir == DVBM_ISP_PORT)
-		ctx = container_of(port, struct dvbm_ctx, port_isp);
-	else if (port->dir == DVBM_VEPU_PORT)
-		ctx = container_of(port, struct dvbm_ctx, port_vepu);
+static const char *dvbm_port_name(enum dvbm_port_dir dir)
+{
+	static const char *const name[] = {
+		[DVBM_ISP_PORT] = "isp",
+		[DVBM_VEPU_PORT] = "vepu",
+		[DVBM_VPSS_PORT] = "vpss",
+	};
 
-	return ctx;
+	if (dir >= DVBM_PORT_BUTT)
+		return "unknown";
+
+	return name[dir];
 }
 
 static void dvbm2enc_callback(struct dvbm_ctx *ctx, enum dvbm_cb_event event, void *arg)
@@ -137,10 +141,13 @@ struct dvbm_port *rk_dvbm_get_port(struct platform_device *pdev,
 	ctx = (struct dvbm_ctx *)platform_get_drvdata(pdev);
 	WARN_ON(!ctx);
 	dvbm_debug("%s dir %d\n", __func__, dir);
-	if (dir == DVBM_ISP_PORT)
-		port = &ctx->port_isp;
-	else if (dir == DVBM_VEPU_PORT)
-		port = &ctx->port_vepu;
+
+	if (dir >= DVBM_PORT_BUTT) {
+		dvbm_err("%s dir %d error\n", __func__, dir);
+		return NULL;
+	}
+
+	port = &ctx->ports[dir];
 
 	return port;
 }
@@ -173,17 +180,25 @@ int rk_dvbm_link(struct dvbm_port *port, int id)
 	ctx = port_to_ctx(port);
 	dir = port->dir;
 
-	if (dir == DVBM_ISP_PORT) {
+	switch (dir) {
+	case DVBM_ISP_PORT: {
 		if (id >= DVBM_CHANNEL_NUM)
-			dvbm_err("id %d is invalid\n", id);
+			dvbm_err("isp id %d is invalid\n", id);
 
 		dvbm2enc_callback(ctx, DVBM_ISP_REQ_CONNECT, &id);
-	} else if (dir == DVBM_VEPU_PORT) {
+	} break;
+	case DVBM_VPSS_PORT: {
+		if (id >= DVBM_CHANNEL_NUM)
+			dvbm_err("vpss id %d is invalid\n", id);
+
+		dvbm2enc_callback(ctx, DVBM_VPSS_REQ_CONNECT, &id);
+	} break;
+	default: {
+	} break;
 	}
 
 	dvbm_debug("%s %d connect frm_cnt[%d : %d]\n",
-		   dir == DVBM_ISP_PORT ? "isp" : "vepu", id,
-		   ctx->isp_frm_start, ctx->isp_frm_end);
+		   dvbm_port_name(dir), id, ctx->isp_frm_start, ctx->isp_frm_end);
 
 	return ret;
 }
@@ -200,14 +215,24 @@ int rk_dvbm_unlink(struct dvbm_port *port, int id)
 	ctx = port_to_ctx(port);
 	dir = port->dir;
 
-	if (dir == DVBM_ISP_PORT) {
+	switch (dir) {
+	case DVBM_ISP_PORT: {
 		if (id >= DVBM_CHANNEL_NUM)
-			dvbm_err("id %d is invalid\n", id);
+			dvbm_err("isp id %d is invalid\n", id);
 
 		dvbm2enc_callback(ctx, DVBM_ISP_REQ_DISCONNECT, &id);
-	} else if (dir == DVBM_VEPU_PORT) {
+	} break;
+	case DVBM_VPSS_PORT: {
+		if (id >= DVBM_CHANNEL_NUM)
+			dvbm_err("vpss id %d is invalid\n", id);
+
+		dvbm2enc_callback(ctx, DVBM_VPSS_REQ_DISCONNECT, &id);
+	} break;
+	default: {
+	} break;
 	}
-	dvbm_debug("%s disconnect\n", dir == DVBM_ISP_PORT ? "isp" : "vepu");
+
+	dvbm_debug("%s %d disconnect\n", dvbm_port_name(dir), id);
 
 	return 0;
 }
@@ -239,7 +264,7 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 {
 	struct dvbm_ctx *ctx;
 
-	if ((cmd < DVBM_ISP_CMD_BASE) || (cmd > DVBM_VEPU_CMD_BUTT)) {
+	if ((cmd < DVBM_ISP_CMD_BASE) || (cmd > DVBM_VPSS_CMD_BUTT)) {
 		dvbm_err("%s input cmd invalid\n", __func__);
 		return -EINVAL;
 	}
@@ -247,7 +272,8 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 	ctx = port_to_ctx(port);
 
 	switch (cmd) {
-	case DVBM_ISP_SET_CFG: {
+	case DVBM_ISP_SET_CFG:
+	case DVBM_VPSS_SET_CFG: {
 		struct dvbm_isp_cfg_t *cfg = (struct dvbm_isp_cfg_t *)arg;
 		struct dvbm_addr_cfg *dvbm_adr;
 		u32 chan_id = cfg->chan_id;
@@ -270,12 +296,14 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 		dvbm_adr->cbuf_sadr = cfg->dma_addr + cfg->cbuf_bot;
 		dvbm2enc_callback(ctx, DVBM_ISP_SET_DVBM_CFG, cfg);
 	} break;
-	case DVBM_ISP_FRM_START: {
+	case DVBM_ISP_FRM_START:
+	case DVBM_VPSS_FRM_START: {
 		dvbm2enc_callback(ctx, DVBM_VEPU_NOTIFY_FRM_STR, arg);
 		rk_dvbm_update_isp_frm_info(ctx, 0);
 		rk_dvbm_show_time(ctx);
 	} break;
-	case DVBM_ISP_FRM_END: {
+	case DVBM_ISP_FRM_END:
+	case DVBM_VPSS_FRM_END: {
 		u32 line_cnt = ctx->isp_max_lcnt;
 
 		dvbm2enc_callback(ctx, DVBM_VEPU_NOTIFY_FRM_END, arg);
@@ -327,6 +355,7 @@ static int rk_dvbm_probe(struct platform_device *pdev)
 {
 	struct dvbm_ctx *ctx = NULL;
 	struct device *dev = &pdev->dev;
+	u32 i;
 
 	dev_info(dev, "probe start\n");
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -334,8 +363,8 @@ static int rk_dvbm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = dev;
-	ctx->port_isp.dir = DVBM_ISP_PORT;
-	ctx->port_vepu.dir = DVBM_VEPU_PORT;
+	for (i = 0; i < DVBM_PORT_BUTT; i++)
+		ctx->ports[i].dir = (enum dvbm_port_dir)i;
 
 	platform_set_drvdata(pdev, ctx);
 

@@ -14,6 +14,8 @@
 const uint32_t rga3_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
+	RGA_FORMAT_RGBX_8888,
+	RGA_FORMAT_BGRX_8888,
 	RGA_FORMAT_RGB_888,
 	RGA_FORMAT_BGR_888,
 	RGA_FORMAT_RGB_565,
@@ -37,6 +39,8 @@ const uint32_t rga3_input_raster_format[] = {
 const uint32_t rga3_output_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
+	RGA_FORMAT_RGBX_8888,
+	RGA_FORMAT_BGRX_8888,
 	RGA_FORMAT_RGB_888,
 	RGA_FORMAT_BGR_888,
 	RGA_FORMAT_RGB_565,
@@ -58,6 +62,8 @@ const uint32_t rga3_output_raster_format[] = {
 const uint32_t rga3_fbcd_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
+	RGA_FORMAT_RGBX_8888,
+	RGA_FORMAT_BGRX_8888,
 	RGA_FORMAT_RGB_888,
 	RGA_FORMAT_BGR_888,
 	RGA_FORMAT_RGB_565,
@@ -477,6 +483,43 @@ const struct rga_win_data rga2p_win_data[] = {
 	},
 };
 
+const struct rga_win_data rga2p_non_fbc_win_data[] = {
+	{
+		.name = "rga2p-src0",
+		.formats[RGA_RASTER_INDEX] = rga2p_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2p_input_raster_format),
+		.formats[RGA_TILE4x4_INDEX] = rga2p_tile4x4_format,
+		.formats_count[RGA_TILE4x4_INDEX] = ARRAY_SIZE(rga2p_tile4x4_format),
+		.supported_rotations = RGA_MODE_ROTATE_MASK,
+		.scale_up_mode = RGA_SCALE_UP_BIC,
+		.scale_down_mode = RGA_SCALE_DOWN_AVG,
+		.rd_mode = RGA_RASTER_MODE | RGA_TILE4x4_MODE,
+
+	},
+
+	{
+		.name = "rga2p-src1",
+		.formats[RGA_RASTER_INDEX] = rga2p_input1_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2p_input1_raster_format),
+		.supported_rotations = RGA_MODE_ROTATE_MASK,
+		.scale_up_mode = RGA_SCALE_UP_BIC,
+		.scale_down_mode = RGA_SCALE_DOWN_AVG,
+		.rd_mode = RGA_RASTER_MODE,
+
+	},
+
+	{
+		.name = "rga2p-dst",
+		.formats[RGA_RASTER_INDEX] = rga2p_output_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2p_output_raster_format),
+		.supported_rotations = 0,
+		.scale_up_mode = RGA_SCALE_UP_NONE,
+		.scale_down_mode = RGA_SCALE_DOWN_NONE,
+		.rd_mode = RGA_RASTER_MODE,
+
+	},
+};
+
 const struct rga_win_data rga2p_lite_win_data[] = {
 	{
 		.name = "rga2e-src0",
@@ -540,7 +583,8 @@ const struct rga_hw_data rga2e_data = {
 	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
 		   RGA_COLOR_KEY | RGA_ROP_CALCULATE |
 		   RGA_NN_QUANTIZE | RGA_DITHER | RGA_FULL_CSC,
-	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F,
+	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_MMU,
@@ -574,8 +618,8 @@ const struct rga_hw_data rga2e_1106_data = {
 
 const struct rga_hw_data rga2e_3506_data = {
 	.version = 0,
-	.input_range = {{2, 2}, {1280, 1280}},
-	.output_range = {{2, 2}, {1280, 1280}},
+	.input_range = {{2, 2}, {1280, 8192}},
+	.output_range = {{2, 2}, {1280, 4096}},
 
 	.win = rga2e_3506_win_data,
 	.win_size = ARRAY_SIZE(rga2e_3506_win_data),
@@ -650,8 +694,8 @@ const struct rga_hw_data rga2p_iommu_data = {
 
 const struct rga_hw_data rga2p_lite_1103b_data = {
 	.version = 0,
-	.input_range = {{2, 2}, {2880, 1620}},
-	.output_range = {{2, 2}, {2880, 1620}},
+	.input_range = {{2, 2}, {2880, 8192}},
+	.output_range = {{2, 2}, {2880, 8192}},
 
 	.win = rga2p_lite_win_data,
 	.win_size = ARRAY_SIZE(rga2p_lite_win_data),
@@ -670,4 +714,30 @@ const struct rga_hw_data rga2p_lite_1103b_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_NONE_MMU,
+};
+
+const struct rga_hw_data rga2p_iommu_non_fbc_data = {
+	/* Register have changed, so the version is increased. */
+	.version = 1,
+	.input_range = {{2, 2}, {8192, 8192}},
+	.output_range = {{2, 2}, {8192, 8192}},
+
+	.win = rga2p_non_fbc_win_data,
+	.win_size = ARRAY_SIZE(rga2p_non_fbc_win_data),
+	/* 1 << factor mean real factor */
+	.max_upscale_factor = 4,
+	.max_downscale_factor = 4,
+
+	.byte_stride_align = 4,
+	.max_byte_stride = WORD_TO_BYTE(8192),
+
+	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
+		   RGA_COLOR_KEY | RGA_DITHER |
+		   RGA_YIN_YOUT | RGA_YUV_HDS | RGA_YUV_VDS |
+		   RGA_OSD | RGA_PRE_INTR | RGA_FULL_CSC,
+	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.mmu = RGA_IOMMU,
 };

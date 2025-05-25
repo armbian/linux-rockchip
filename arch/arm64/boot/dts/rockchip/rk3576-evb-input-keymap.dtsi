@@ -4,6 +4,8 @@
  *
  */
 
+#include <dt-bindings/input/rk-ir.h>
+
 &pwm0_2ch_0 {
 	compatible = "rockchip,remotectl-pwm-v4";
 	pinctrl-names = "default";
@@ -14,33 +16,6 @@
 	status = "okay";
 
 	ir_key1 {
-		rockchip,usercode = <0x4040>;
-		rockchip,key_table =
-			<0xf2	KEY_REPLY>,
-			<0xba	KEY_BACK>,
-			<0xf4	KEY_UP>,
-			<0xf1	KEY_DOWN>,
-			<0xef	KEY_LEFT>,
-			<0xee	KEY_RIGHT>,
-			<0xbd	KEY_HOME>,
-			<0xea	KEY_VOLUMEUP>,
-			<0xe3	KEY_VOLUMEDOWN>,
-			<0xe2	KEY_SEARCH>,
-			<0xb2	KEY_POWER>,
-			<0xbc	KEY_MUTE>,
-			<0xec	KEY_MENU>,
-			<0xbf	0x190>,
-			<0xe0	0x191>,
-			<0xe1	0x192>,
-			<0xe9	183>,
-			<0xe6	248>,
-			<0xe8	185>,
-			<0xe7	186>,
-			<0xf0	388>,
-			<0xbe	0x175>;
-	};
-
-	ir_key2 {
 		rockchip,usercode = <0xff00>;
 		rockchip,key_table =
 			<0xb1	KEY_HOME>,
@@ -65,15 +40,77 @@
 			<0xe8	388>,
 			<0xf8	184>,
 			<0xaf	185>,
-			<0xed	KEY_VOLUMEDOWN>,
-			<0xee	186>,
-			<0xb3	KEY_VOLUMEDOWN>,
 			<0xf1	KEY_VOLUMEDOWN>,
 			<0xf2	KEY_VOLUMEDOWN>,
 			<0xf3	KEY_SEARCH>,
 			<0xb4	KEY_VOLUMEDOWN>,
 			<0xa4	KEY_SETUP>,
-			<0xbe	KEY_SEARCH>;
+			<0xb0	KEY_SETUP>,
+			<0xbe	KEY_SEARCH>,
+			<0xf0   KEY_1>,
+			<0xee   KEY_2>,
+			<0xed   KEY_3>,
+			<0xb3   KEY_4>,
+			<0xa7   KEY_5>,
+			<0xe4   KEY_6>,
+			<0xe8   KEY_6>,
+			<0xb2   KEY_8>,
+			<0xf5   KEY_9>,
+			<0xe2   KEY_0>;
+	};
+
+	/*for IPTV ltjc*/
+	ir_key2 {
+		rockchip,usercode = <0xc43b>;
+		rockchip,key_table =
+			<0x7e	KEY_REPLY>,
+			<0x7f	KEY_BACK>,
+			<0x7a	KEY_UP>,
+			<0x78	KEY_DOWN>,
+			<0x7b	KEY_LEFT>,
+			<0x79	KEY_RIGHT>,
+			<0x66	KEY_VOLUMEUP>,
+			<0x65	KEY_VOLUMEDOWN>,
+			<0x69	KEY_POWER>,
+			<0x64	KEY_MUTE>,
+			<0x76	KEY_1>,
+			<0x75	KEY_2>,
+			<0x74	KEY_3>,
+			<0x73	KEY_4>,
+			<0x72	KEY_5>,
+			<0x71	KEY_6>,
+			<0x70	KEY_7>,
+			<0x6f	KEY_8>,
+			<0x6e	KEY_9>,
+			<0x77	KEY_0>,
+			<0x7c	KEY_PAGEDOWN>,
+			<0x7d	KEY_PAGEUP>,
+			<0x6a	KEY_SETUP>,
+			<0x68	KEY_CHANNEL_UP>,
+			<0x67	KEY_CHANNEL_DN>,
+			<0x39	KEY_PORTAL>,
+			<0x29	KEY_HOME_PAGE>,
+			<0x33	KEY_CH_CUT_BACK>,
+			<0x34   KEY_LOCAL>,
+			<0x2d	KEY_REVIEW>,
+			<0x2c	KEY_ON_DEMAND>,
+			<0x2b	KEY_INFO1>,
+			<0x2e	KEY_DIRECT_SEEDING>,
+			<0x2d	KEY_REVIEW>,
+			<0x2c	KEY_ON_DEMAND>,
+			<0x2b	KEY_INFO1>,
+			<0x63	KEY_SOUND1>,
+			<0x6c	KEY_X1>,
+			<0x6d	KEY_X2>,
+			<0x62	KEY_PLAYPAUSE>,
+			<0x6b	KEY_EQUAL>,
+			<0x61	KEY_FASTFORWARD>,
+			<0x60	KEY_REWIND>,
+			<0x3b	KEY_STOP>,
+			<0x35  KEY_BLUE>,
+			<0x36  KEY_YELLOW>,
+			<0x37  KEY_GREEN>,
+			<0x38  KEY_RED>;
 	};
 
 	ir_key3 {
@@ -106,6 +143,271 @@
 			<0xb0	KEY_9>,
 			<0xb6	KEY_0>,
 			<0xb5	KEY_BACKSPACE>;
+	};
+
+	/* for IPTV */
+	ir_key4 {
+		rockchip,usercode = <0x4db2>;
+		rockchip,key_table =
+			<0x31   KEY_REPLY>,
+			<0x3a   KEY_BACK>,
+			<0x35   KEY_UP>,
+			<0x2d   KEY_DOWN>,
+			<0x66   KEY_LEFT>,
+			<0x3e   KEY_RIGHT>,
+			<0x7f   KEY_VOLUMEUP>,
+			<0xfe   KEY_VOLUMEDOWN>,
+			<0x23   KEY_POWER>,
+			<0x63   KEY_MUTE>,
+			<0x6d   KEY_1>,
+			<0x6c   KEY_2>,
+			<0x33   KEY_3>,
+			<0x71   KEY_4>,
+			<0x70   KEY_5>,
+			<0x37   KEY_6>,
+			<0x75   KEY_7>,
+			<0x74   KEY_8>,
+			<0x3b   KEY_9>,
+			<0x78   KEY_0>,
+			<0x73   KEY_PAGEDOWN>,
+			<0x22   KEY_PAGEUP>,
+			<0x72   KEY_SETUP>,
+			<0x7a   KEY_CHANNEL_UP>,
+			<0x79   KEY_CHANNEL_DN>,
+			<0x77   KEY_HOME_PAGE>,
+			<0x29   KEY_CH_CUT_BACK>,
+			<0x32   KEY_DIRECT_SEEDING>,
+			<0x6e   KEY_REVIEW>,
+			<0x7c   KEY_ON_DEMAND>,
+			<0x3c   KEY_INFO1>,
+			<0x67   KEY_SOUND1>,
+			<0x25   KEY_X1>,
+			<0x2f   KEY_X2>,
+			<0x7d   KEY_LOCAL>,
+			<0x6a   KEY_PLAYPAUSE>,
+			<0x0b   KEY_EQUAL>;
+	};
+
+	/* for CMCC */
+	ir_key5 {
+		rockchip,usercode = <0x1608>;
+		rockchip,key_table =
+			<0x4c   KEY_REPLY>,
+			<0x4d   KEY_BACK>,
+			<0x4b   KEY_UP>,
+			<0x4a   KEY_DOWN>,
+			<0x49   KEY_LEFT>,
+			<0x48   KEY_RIGHT>,
+			<0x4e   KEY_HOME>,
+			<0x0b   KEY_VOLUMEUP>,
+			<0x0c   KEY_VOLUMEDOWN>,
+			<0x23   KEY_POWER>,
+			<0x45   KEY_MUTE>,
+			<0x44   KEY_MENU>,
+			<0x78   KEY_1>,
+			<0x77   KEY_2>,
+			<0x76   KEY_3>,
+			<0x75   KEY_4>,
+			<0x74   KEY_5>,
+			<0x73   KEY_6>,
+			<0x72   KEY_7>,
+			<0x71   KEY_8>,
+			<0x70   KEY_9>,
+			<0x79   KEY_0>,
+			<0x43   KEY_EQUAL>,
+			<0x72   KEY_X1>,
+			<0x5f   KEY_SETUP>,
+			<0x25   KEY_DIRECT_SEEDING>,
+			<0x24   KEY_REVIEW>,
+			<0x21   KEY_ON_DEMAND>,
+			<0x20   KEY_INFO1>;
+	};
+
+	/* rk new remote */
+	ir_key6 {
+		rockchip,usercode = <0xfe01>;
+		rockchip,key_table =
+			<0xec   KEY_REPLY>,
+			<0xe6   KEY_BACK>,
+			<0xe9   KEY_UP>,
+			<0xe5   KEY_DOWN>,
+			<0xae   KEY_LEFT>,
+			<0xaf   KEY_RIGHT>,
+			<0xee   KEY_HOME>,
+			<0xe7   KEY_VOLUMEUP>,
+			<0xef   KEY_VOLUMEDOWN>,
+			<0xbf   KEY_POWER>,
+			<0xbe   KEY_MUTE>,
+			<0xb3   KEY_MENU>,
+			<0xff   388>,
+			<0xb1   KEY_1>,
+			<0xf2   KEY_2>,
+			<0xf3   KEY_3>,
+			<0xb5   KEY_4>,
+			<0xf6   KEY_5>,
+			<0xf7   KEY_6>,
+			<0xb9   KEY_7>,
+			<0xfa   KEY_8>,
+			<0xfb   KEY_9>,
+			<0xfe   KEY_0>,
+			<0xbd   KEY_EQUAL>,
+			<0xbc   KEY_SETUP>,
+			<0xf0   KEY_LOCAL>,
+			<0x0d   KEY_DIRECT_SEEDING>,
+			<0x0c   KEY_REVIEW>,
+			<0x0b   KEY_ON_DEMAND>,
+			<0x0a   KEY_INFO1>,
+			<0x0e   KEY_CH_CUT_BACK>;
+	};
+
+	/* for IPTV gd */
+	ir_key7 {
+		rockchip,usercode = <0x4cb3>;
+		rockchip,key_table =
+			<0x31   KEY_REPLY>,
+			<0x3a   KEY_BACK>,
+			<0x35   KEY_UP>,
+			<0x2d   KEY_DOWN>,
+			<0x66   KEY_LEFT>,
+			<0x3e   KEY_RIGHT>,
+			<0x7f   KEY_VOLUMEUP>,
+			<0x7e   KEY_VOLUMEDOWN>,
+			<0x23   KEY_POWER>,
+			<0x63   KEY_MUTE>,
+			<0x6d   KEY_1>,
+			<0x6c   KEY_2>,
+			<0x33   KEY_3>,
+			<0x71   KEY_4>,
+			<0x70   KEY_5>,
+			<0x37   KEY_6>,
+			<0x75   KEY_7>,
+			<0x74   KEY_8>,
+			<0x3b   KEY_9>,
+			<0x78   KEY_0>,
+			<0x73   KEY_PAGEDOWN>,
+			<0x22   KEY_PAGEUP>,
+			<0x72   KEY_SETUP>,
+			<0x7a   KEY_CHANNEL_UP>,
+			<0x79   KEY_CHANNEL_DN>,
+			<0x77   KEY_HOME_PAGE>,
+			<0x29   KEY_CH_CUT_BACK>,
+			<0x32   KEY_DIRECT_SEEDING>,
+			<0x6e   KEY_REVIEW>,
+			<0x7c   KEY_ON_DEMAND>,
+			<0x3c   KEY_INFO1>,
+			<0x67   KEY_SOUND1>,
+			<0x25   KEY_X1>,
+			<0x2f   KEY_X2>,
+			<0x7d   KEY_LOCAL>,
+			<0x6a   KEY_PLAYPAUSE>,
+			<0x0b   KEY_EQUAL>;
+	};
+
+	/* for CMCC */
+	ir_key8 {
+		rockchip,usercode = <0xdd22>;
+		rockchip,key_table =
+			<0x31   KEY_REPLY>,
+			<0x6a   KEY_BACK>,
+			<0x35   KEY_UP>,
+			<0x2d   KEY_DOWN>,
+			<0x66   KEY_LEFT>,
+			<0x3e   KEY_RIGHT>,
+			<0x7f   KEY_VOLUMEUP>,
+			<0x7e   KEY_VOLUMEDOWN>,
+			<0x23   KEY_POWER>,
+			<0x63   KEY_MUTE>,
+			<0x6d   KEY_1>,
+			<0x6c   KEY_2>,
+			<0x33   KEY_3>,
+			<0x71   KEY_4>,
+			<0x70   KEY_5>,
+			<0x37   KEY_6>,
+			<0x75   KEY_7>,
+			<0x74   KEY_8>,
+			<0x3b   KEY_9>,
+			<0x78   KEY_0>,
+			<0x73   KEY_PAGEDOWN>,
+			<0x22   KEY_PAGEUP>,
+			<0x72   KEY_SETUP>,
+			<0x7a   KEY_CHANNEL_UP>,
+			<0x79   KEY_CHANNEL_DN>,
+			<0x77   KEY_HOME_PAGE>,
+			<0x2f   KEY_CH_CUT_BACK>,
+			<0x32   KEY_DIRECT_SEEDING>,
+			<0x6e   KEY_REVIEW>,
+			<0x7c   KEY_ON_DEMAND>,
+			<0x3c   KEY_INFO1>,
+			<0x3a   KEY_HELP>,
+			<0x67   KEY_SOUND1>,
+			<0x25   KEY_X2>,
+			<0x7d   KEY_MENU>,
+			<0x3f   KEY_EQUAL>,
+			<0x29   388>,
+			<0x26   KEY_PLAYPAUSE>,
+			<0x76   401>,
+			<0x7b   400>,
+			<0x69   66>;
+	};
+
+	/* for BJLT IPTV */
+	ir_key9 {
+		rockchip,usercode = <0x3bc4>;
+		rockchip,key_table =
+			<0x81   KEY_REPLY>,
+			<0x80   KEY_BACK>,
+			<0x85   KEY_UP>,
+			<0x87   KEY_DOWN>,
+			<0x84   KEY_LEFT>,
+			<0x86   KEY_RIGHT>,
+			<0x99   KEY_VOLUMEUP>,
+			<0x9a   KEY_VOLUMEDOWN>,
+			<0x96   KEY_POWER>,
+			<0x9b   KEY_MUTE>,
+			<0x89   KEY_1>,
+			<0x8a   KEY_2>,
+			<0x8b   KEY_3>,
+			<0x8c   KEY_4>,
+			<0x8d   KEY_5>,
+			<0x8e   KEY_6>,
+			<0x8f   KEY_7>,
+			<0x90   KEY_8>,
+			<0x91   KEY_9>,
+			<0x88   KEY_0>,
+			<0x83   KEY_PAGEDOWN>,
+			<0x82   KEY_PAGEUP>,
+			<0x95   KEY_SETUP>,
+			<0x97   KEY_CHANNEL_UP>,
+			<0x98   KEY_CHANNEL_DN>,
+			<0xc6   KEY_LOCAL>,
+			<0xd6   KEY_HOME_PAGE>,
+			<0xd7   KEY_TRACK>,
+			<0xcc   KEY_CH_CUT_BACK>,
+			<0xc3   KEY_INTERX>,
+			<0xd1   KEY_DIRECT_SEEDING>,
+			<0xd2   KEY_REVIEW>,
+			<0xd3   KEY_ON_DEMAND>,
+			<0xd4   KEY_INFO1>,
+			<0xc7   KEY_DIRECT_SEEDING>,
+			<0xc8   KEY_REVIEW>,
+			<0xc9   KEY_ON_DEMAND>,
+			<0xca   KEY_INFO1>,
+			<0xcd   KEY_FAVORITE>,
+			<0xce   KEY_CHANNEL_POS>,
+			<0xcf   KEY_HELP>,
+			<0xd0   KEY_EVENT>,
+			<0x9c   KEY_SOUND1>,
+			<0x93   KEY_X1>,
+			<0x92   KEY_X2>,
+			<0xc0   KEY_END>,
+			<0xc1   KEY_GO_BEGINNING>,
+			<0x9d   KEY_PLAYPAUSE>,
+			<0xc4   KEY_STOP>,
+			<0x94   KEY_EQUAL>,
+			<0x9e   KEY_YELLOW>,
+			<0x9f   KEY_BLUE>,
+			<0xcb   KEY_APPLICATION>,
+			<0xc5   KEY_POS>;
 	};
 };
 

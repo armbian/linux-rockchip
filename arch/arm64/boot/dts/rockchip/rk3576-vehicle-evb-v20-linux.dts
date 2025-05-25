@@ -447,6 +447,10 @@
 };
 
 /*dsi*/
+&i2c8_max96789 {
+	route-enable;
+};
+
 &i2c8_max96752 {
 	use-reg-check-work;
 	vpower-supply = <&lcd3_vcc12v_buck>;

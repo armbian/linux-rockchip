@@ -9,6 +9,14 @@
 #define _ROCKCHIP_SAI_H
 
 /* XCR Transmit / Receive Control Register */
+#define SAI_XCR_FLE_MASK		BIT(26)
+#define SAI_XCR_FLE(x)			((x) << 26)
+#define SAI_XCR_FPC_MASK		BIT(25)
+#define SAI_XCR_FPC_EN			BIT(25)
+#define SAI_XCR_FPC_DIS			0
+#define SAI_XCR_SFC_MASK		BIT(24)
+#define SAI_XCR_SFC_ONE			BIT(24)
+#define SAI_XCR_SFC_ALL			0
 #define SAI_XCR_START_SEL_MASK		BIT(23)
 #define SAI_XCR_START_SEL_CHAINED	BIT(23)
 #define SAI_XCR_START_SEL_STANDALONE	0
@@ -128,11 +136,21 @@
 #define SAI_INTCR_RXOIC			BIT(18)
 #define SAI_INTCR_RXOIE_MASK		BIT(17)
 #define SAI_INTCR_RXOIE(x)		((x) << 17)
+#define SAI_INTCR_RXFLC			BIT(12)
+#define SAI_INTCR_RXFLE_MASK		BIT(11)
+#define SAI_INTCR_RXFLE(x)		((x) << 11)
+#define SAI_INTCR_TXFLC			BIT(10)
+#define SAI_INTCR_TXFLE_MASK		BIT(9)
+#define SAI_INTCR_TXFLE(x)		((x) << 9)
 #define SAI_INTCR_TXUIC			BIT(2)
 #define SAI_INTCR_TXUIE_MASK		BIT(1)
 #define SAI_INTCR_TXUIE(x)		((x) << 1)
 
 /* INTSR Interrupt Status Register */
+#define SAI_INTSR_RXFLI_INA		0
+#define SAI_INTSR_RXFLI_ACT		BIT(21)
+#define SAI_INTSR_TXFLI_INA		0
+#define SAI_INTSR_TXFLI_ACT		BIT(20)
 #define SAI_INTSR_FSLOSTI_INA		0
 #define SAI_INTSR_FSLOSTI_ACT		BIT(19)
 #define SAI_INTSR_FSERRI_INA		0
@@ -203,17 +221,28 @@
  *
  * Support Loopback LR Select (e.g. L:MIC R:LP)
  *
+ * VERSION >= SAI_VER_2411
+ *
+ * Enhance Frame Integrity Robustness
+ * Support FIFO Interleaved Cfg
+ * Support Data Debug
  */
 #define SAI_VER_2307			0x23073576
 #define SAI_VER_2311			0x23112118
 #define SAI_VER_2401			0x24013506
 #define SAI_VER_2403			0x24031103
+#define SAI_VER_2411			0x24111126
 
 /* FS_TIMEOUT: Frame Sync Timeout Register */
 #define SAI_FS_TIMEOUT_VAL_MASK		GENMASK(31, 1)
 #define SAI_FS_TIMEOUT_VAL(x)		((x) << 1)
 #define SAI_FS_TIMEOUT_EN_MASK		BIT(0)
 #define SAI_FS_TIMEOUT_EN(x)		((x) << 0)
+
+/* FIFO_CFG: FIFO Config Register */
+#define SAI_FIFO_CHG_MASK		BIT(0)
+#define SAI_FIFO_CHG_EN			BIT(0)
+#define SAI_FIFO_CHG_DIS		0
 
 /* SAI Registers */
 #define SAI_TXCR			(0x0000)
@@ -248,5 +277,19 @@
 #define SAI_FSXN			(0x0074)
 #define SAI_FS_TIMEOUT			(0x0078)
 #define SAI_LOOPBACK_LR			(0x007c)
+#define SAI_FIFO_CFG			(0x0080)
+#define SAI_TXFL_TIMEOUT		(0x0084)
+#define SAI_RXFL_TIMEOUT		(0x0088)
+#define SAI_DEBUG			(0x008c)
+#define SAI_TXDATA0			(0x0090)
+#define SAI_TXDATA1			(0x0094)
+#define SAI_TXDATA2			(0x0098)
+#define SAI_TXDATA3			(0x009c)
+#define SAI_RXDATA0			(0x00a0)
+#define SAI_RXDATA1			(0x00a4)
+#define SAI_RXDATA2			(0x00a8)
+#define SAI_RXDATA3			(0x00ac)
+#define SAI_TXDR2			(0x0100)
+#define SAI_RXDR2			(0x0104)
 
 #endif /* _ROCKCHIP_SAI_H */

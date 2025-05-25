@@ -1522,14 +1522,26 @@ disable_vpcie3v3:
 
 static int rk_pcie_hardware_io_unconfig(struct rk_pcie *rk_pcie)
 {
+	/*
+	 * PCI Express Card Electromechanical Specification Revision 3.0
+	 * 2.2.3. Power Down
+	 * 3.3V/12V    _________________________________
+	 *                                              \__________
+	 * PERST#      ______________
+	 *                           \_____________________________
+	 * REFCLK      _________________________
+	 *                                      \__________________
+	 * LINK        ______
+	 *                   \_____________________________________
+	 */
+	if (rk_pcie_check_keep_power_in_suspend(rk_pcie))
+		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
 	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 	reset_control_assert(rk_pcie->rsts);
-	if (rk_pcie_check_keep_power_in_suspend(rk_pcie)) {
+	if (rk_pcie_check_keep_power_in_suspend(rk_pcie))
 		rk_pcie_disable_power(rk_pcie);
-		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
-	}
 
 	return 0;
 }
@@ -1570,6 +1582,8 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 
 	/* Enable L0s capability */
 	if (rk_pcie->linkcap_off) {
+		pci->n_fts[0] = 255; /* Gen1 */
+		pci->n_fts[1] = 255; /* Gen2+ */
 		val = dw_pcie_readl_dbi(rk_pcie->pci, rk_pcie->linkcap_off);
 		val |= PCI_EXP_LNKCAP_ASPM_L0S;
 		dw_pcie_writel_dbi(rk_pcie->pci, rk_pcie->linkcap_off, val);

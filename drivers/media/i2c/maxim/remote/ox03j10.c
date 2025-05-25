@@ -24,7 +24,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -907,7 +907,7 @@ static int ox03j10_initialize_controls(struct ox03j10 *ox03j10)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_menu_items) - 1, 0,
 				link_freq_menu_items);
-	__v4l2_ctrl_s_ctrl(ox03j10->link_freq, mode->link_freq_idx);
+	v4l2_ctrl_s_ctrl(ox03j10->link_freq, mode->link_freq_idx);
 	link_freq = link_freq_menu_items[mode->link_freq_idx];
 	dev_info(dev, "mipi_freq_idx = %d, mipi_link_freq = %lld\n",
 				mode->link_freq_idx, link_freq);

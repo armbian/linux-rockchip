@@ -23,3 +23,5 @@ obj-$(CONFIG_MALI_MIDGARD) += midgard/
 obj-$(CONFIG_MALI400)      += mali400/
 
 obj-$(CONFIG_MALI_BIFROST) += bifrost/
+
+obj-$(CONFIG_MALI_VALHALL) += valhall/

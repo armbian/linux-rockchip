@@ -27,7 +27,8 @@
  * ioctl RKVPSS_CMD_MODULE_SEL to select function using
  */
 
-#define RKVPSS_OUT_V1_MAX 4
+#define RKVPSS_OUT_V10_MAX 4
+#define RKVPSS_OUT_V20_MAX 6
 
 /******vpss(online mode) v4l2 ioctl***************************/
 /* set before VIDIOC_S_FMT if dynamically changing output resolution */
@@ -50,6 +51,20 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 5, struct rkvpss_cmsc_cfg)
 #define RKVPSS_CMD_SET_CMSC \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 6, struct rkvpss_cmsc_cfg)
+#define RKVPSS_CMD_GET_WRAP_LINE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 7, int *)
+#define RKVPSS_CMD_SET_WRAP_LINE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 8, int *)
+
+#define RKVPSS_CMD_GET_ALPHA \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, int *)
+#define RKVPSS_CMD_SET_ALPHA \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 10, int *)
+
+#define RKVPSS_CMD_GET_AVG_SCL_DOWN \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 11, int *)
+#define RKVPSS_CMD_SET_AVG_SCL_DOWN \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 12, int *)
 
 /******vpss(offline mode) independent video ioctl****************/
 #define RKVPSS_CMD_MODULE_SEL \
@@ -72,6 +87,23 @@
 
 #define RKVPSS_CMD_STREAM_ATTACH_INFO \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 56, int)
+
+/****** vpss(offline mode rockit) independent ioctl*************/
+#define RKVPSS_CMD_OPEN \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 101, int *)
+
+#define RKVPSS_CMD_RELEASE \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 102, int *)
+
+#define RKVPSS_CMD_WRAP_DVBM_INIT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 103, struct rkvpss_frame_cfg)
+
+#define RKVPSS_CMD_WRAP_DVBM_DEINIT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 104, int *)
+
+#define RKVPSS_CMD_GET_WRAP_SEQ \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 105, int *)
+
 /********************************************************************/
 
 /* struct rkvpss_mirror_flip
@@ -128,15 +160,19 @@ struct rkvpss_cmsc_win {
 /* struct rkvpss_cmsc_cfg
  * cover and mosaic configure
  * win: priacy mask window
- * mosaic_block: Mosaic block size, 0:8x8 1:16x16 2:32x32 3:64x64, share for all windows
+ * mosaic_block: Mosaic block size, 0:8x8 1:16x16 2:32x32 3:64x64,
+ *               4: 128x128 (only for rv1126b) share for all windows
  * width_ro: vpss full resolution.
  * height_ro: vpss full resolution.
+ * reuse_ch : (only for rv1126b) ch4 and ch5 use ch0 or ch1 or ch2 or ch3 params,
+ *            -1:disable、 0:ch0、 1:ch1、 2:ch2、3:ch3
  */
 struct rkvpss_cmsc_cfg {
 	struct rkvpss_cmsc_win win[RKVPSS_CMSC_WIN_MAX];
 	unsigned int mosaic_block;
 	unsigned int width_ro;
 	unsigned int height_ro;
+	int reuse_ch;
 } __attribute__ ((packed));
 
 /* struct rkisp_aspt_cfg                                           _____background____
@@ -164,13 +200,30 @@ struct rkvpss_aspt_cfg {
 	unsigned char enable;
 } __attribute__ ((packed));
 
+/* struct rkvpss_wrap_cfg
+ * vpss to encoder wrap
+ * only channel0 or channel1 support wrap
+ * vpss online wrap_line need to bo greater than or equal to 1/4 out height
+ */
+struct rkvpss_wrap_cfg {
+	int enable;
+	int wrap_line;
+	int buffer_size;
+} __attribute__ ((packed));
+
 /********************************************************************/
 
+/*
+ * V1: ch0 - ch3
+ * V2: ch0 - ch5
+ */
 enum {
 	RKVPSS_OUTPUT_CH0 = 0,
 	RKVPSS_OUTPUT_CH1,
 	RKVPSS_OUTPUT_CH2,
 	RKVPSS_OUTPUT_CH3,
+	RKVPSS_OUTPUT_CH4,
+	RKVPSS_OUTPUT_CH5,
 	RKVPSS_OUTPUT_MAX,
 };
 
@@ -187,24 +240,32 @@ struct rkvpss_module_sel {
 /* struct rkvpss_input_cfg
  * input configuration of image
  *
- * width: width of input image, range: 32~4672
- * height: height of input image, range: 32~3504
- * stride: virtual width of input image, 16 align. auto calculate according to width and format if 0.
- * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32/
- *         V4L2_PIX_FMT_NV61/V4L2_PIX_FMT_NV21/V4L2_PIX_FMT_RGB565X/V4L2_PIX_FMT_BGR24/V4L2_PIX_FMT_XRGB32/
- *         V4L2_PIX_FMT_RGBX32/V4L2_PIX_FMT_BGRX32
+ * width: width of input image, range: 32~4672(rk3576) 32~4096(rv1126b)
+ * height: height of input image, range: 32~3504(rk3576) 32~3072(rv1126b)
+ * stride: virtual width of input image, 16 align. auto calculate according to width and
+ *         format if 0.
+ * ver_stride: virtual height of input image.
+ * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/
+ *         V4L2_PIX_FMT_XBGR32/
+ *         V4L2_PIX_FMT_NV61/V4L2_PIX_FMT_NV21/V4L2_PIX_FMT_RGB565X/V4L2_PIX_FMT_BGR24/
+ *         V4L2_PIX_FMT_XRGB32/ V4L2_PIX_FMT_RGBX32/V4L2_PIX_FMT_BGRX32
  *         V4L2_PIX_FMT_FBC0/V4L2_PIX_FMT_FBC2/V4L2_PIX_FMT_FBC4 for rkfbcd
  *         V4L2_PIX_FMT_TILE420/V4L2_PIX_FMT_TILE422 for tile
  * buf_fd: dmabuf fd of input image buf
  * rotate: 0:rotate0 1:rotate90 2:rotate180; 3:rotate270, note:only tile input support rotate
+ * rotate_90: (only for rv1126b) 1:raster rotate90;
+ *            onte: only support input fmt: NV12/NV21/NV16/NV61/UYVY/YUYV
  */
 struct rkvpss_input_cfg {
 	int width;
 	int height;
 	int stride;
+	int ver_stride;
 	int format;
 	int buf_fd;
 	int rotate;
+	int rotate_90;
+	struct dma_buf *dmabuf;
 } __attribute__ ((packed));
 
 /* struct rkvpss_output_cfg                                     __________________
@@ -215,19 +276,24 @@ struct rkvpss_input_cfg {
  * crop_v_offs: vertical offset of crop, 2align                |    | |scl___| |  |
  * crop_width: crop output width, 2align                       |    |crop______|  |
  * crop_height: crop output height, 2align                     |input_____________|
- * scl_width: scale width. CH0 1~8 scale range. CH1/CH2/CH3 1~32 scale range. CH2/CH3 max 1080p with scale.
- * scl_height: scale height. CH0 1~6 scale range. CH1/CH2/CH3 1~32 scale range. CH2/CH3 max 1080p with scale.
- * stride: virtual width of output image, 16 align. auto calculate according to width and format if 0.
+ * scl_width: scale width. CH0 1~8 scale range. CH1/CH2/CH3 1~32 scale range.
+ *            CH2/CH3 max 1080p with scale.
+ * scl_height: scale height. CH0 1~6 scale range. CH1/CH2/CH3 1~32 scale range.
+ *             CH2/CH3 max 1080p with scale.
+ * stride: virtual width of output image, 16 align.
+ *         auto calculate according to width and format if 0.
  * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_GREY/V4L2_PIX_FMT_UYVY/
  *         V4L2_PIX_FMT_VYUY/V4L2_PIX_FMT_NV21/V4L2_PIX_FMT_NV61 for all channel.
  *         NOTE:V,LSB is for all channel
- *         V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32/V4L2_PIX_FMT_RGB565X/V4L2_PIX_FMT_BGR24/
- *         V4L2_PIX_FMT_XRGB32 only for RKVPSS_OUTPUT_CH1.
+ *         V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32/V4L2_PIX_FMT_RGB565X/
+ *         V4L2_PIX_FMT_BGR24/V4L2_PIX_FMT_XRGB32 only for RKVPSS_OUTPUT_CH1.
  *         V4L2_PIX_FMT_TILE420/V4L2_PIX_FMT_TILE422 for tile, ch0 or ch1 support tile
  * flip: flip enable
  * buf_fd: dmabuf fd of output image buf
  * cmsc: cover and mosaic configure
  * aspt: aspective ratio for image background color filling
+ * avg_scl_down: (only for rv1126b) CH0 and CH2 can use average scale down, 1-16 scale range
+ * alpha: (only for rv1126b) only use for V4L2_PIX_FMT_XBGR32 and V4L2_PIX_FMT_XRGB32 (0-0xff)
  */
 struct rkvpss_output_cfg {
 	int enable;
@@ -243,9 +309,13 @@ struct rkvpss_output_cfg {
 	int format;
 	int flip;
 	int buf_fd;
+	int avg_scl_down;
+	unsigned int alpha;
 
 	struct rkvpss_cmsc_cfg cmsc;
 	struct rkvpss_aspt_cfg aspt;
+	struct dma_buf *dmabuf;
+	struct rkvpss_wrap_cfg wrap;
 } __attribute__ ((packed));
 
 #define RKVPSS_DEV_ID_MAX 128
@@ -284,6 +354,7 @@ struct rkvpss_buf_info {
 	int buf_cnt;
 	int buf_size[RKVPSS_BUF_MAX];
 	int buf_fd[RKVPSS_BUF_MAX];
+	struct dma_buf *dmabufs[RKVPSS_BUF_MAX];
 } __attribute__ ((packed));
 
 struct rkvpss_frame_info {
@@ -308,5 +379,7 @@ struct rkvpss_frame_info {
 	__u32 isp_digital_gain_l;
 	__u32 isp_reg[6144];
 } __attribute__ ((packed));
+
+long vpss_rockit_action(int *file_id, unsigned int cmd, void *arg);
 
 #endif

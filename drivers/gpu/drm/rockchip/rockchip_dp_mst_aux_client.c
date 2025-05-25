@@ -183,6 +183,7 @@ static int rockchip_dp_aux_client_parse(struct rockchip_dp_aux_client *aux_clien
 	struct drm_display_mode mode_buf, *mode = &mode_buf;
 	int rc, port_num, i;
 	struct edid *edid;
+	char name[10];
 
 	const u8 edid_buf[EDID_LENGTH] = {
 		0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x44, 0x6D,
@@ -205,13 +206,18 @@ static int rockchip_dp_aux_client_parse(struct rockchip_dp_aux_client *aux_clien
 	if (!ports)
 		return -ENOMEM;
 
-	i = 0;
-	for_each_child_of_node(of_node, node) {
+	for (i = 0; i < port_num; i++) {
 		struct display_timing dt;
 		struct videomode vm;
 
+		snprintf(name, sizeof(name), "mst-dp%d", i);
+		node = of_get_child_by_name(of_node, name);
+		if (!node)
+			return -EINVAL;
+
 		edid = kzalloc(sizeof(*edid), GFP_KERNEL);
 		if (!edid) {
+			of_node_put(node);
 			rc = -ENOMEM;
 			goto fail;
 		}
@@ -222,13 +228,13 @@ static int rockchip_dp_aux_client_parse(struct rockchip_dp_aux_client *aux_clien
 			drm_display_mode_from_videomode(&vm, mode);
 			rockchip_dp_sim_update_dtd(edid, mode);
 		}
+		of_node_put(node);
 
 		rockchip_dp_sim_update_checksum(edid);
 		memcpy(&ports[i], &output_port, sizeof(*ports));
 		ports[i].peer_guid[0] = i;
 		ports[i].edid = (u8 *)edid;
 		ports[i].edid_size = sizeof(*edid);
-		i++;
 	}
 
 	rc = rockchip_dp_mst_sim_update(aux_client->mst_ctx, port_num, ports);

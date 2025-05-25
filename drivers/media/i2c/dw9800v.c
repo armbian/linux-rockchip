@@ -64,7 +64,6 @@ struct dw9800v_device {
 	unsigned short current_lens_pos;
 	unsigned int start_current;
 	unsigned int rated_current;
-	unsigned int step;
 	unsigned int step_mode;
 	unsigned int vcm_movefull_t;
 	unsigned int t_src;
@@ -277,20 +276,22 @@ static int dw9800v_get_pos(struct dw9800v_device *dev_vcm,
 {
 	struct i2c_client *client = dev_vcm->client;
 	int ret;
-	unsigned int dac, abs_step;
+	unsigned int dac, abs_step, range;
 
-
+	range = dev_vcm->rated_current - dev_vcm->start_current;
 	ret = dw9800v_read_reg(client, 0x03, 2, &dac);
 	if (ret != 0)
 		goto err;
 
-	if (dac <= dev_vcm->start_current)
+	if (dac <= dev_vcm->start_current) {
 		abs_step = dev_vcm->max_logicalpos;
-	else if ((dac > dev_vcm->start_current) &&
-		 (dac <= dev_vcm->rated_current))
-		abs_step = (dev_vcm->rated_current - dac) / dev_vcm->step;
-	else
+	} else if ((dac > dev_vcm->start_current) &&
+		   (dac <= dev_vcm->rated_current)) {
+		abs_step = (dac - dev_vcm->start_current) * dev_vcm->max_logicalpos / range;
+		abs_step = dev_vcm->max_logicalpos - abs_step;
+	} else {
 		abs_step = 0;
+	}
 
 	*cur_pos = abs_step;
 	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: get position %d, dac %d\n",
@@ -308,14 +309,16 @@ static int dw9800v_set_pos(struct dw9800v_device *dev_vcm,
 {
 	int ret;
 	unsigned int position = 0;
+	unsigned int range;
 	struct i2c_client *client = dev_vcm->client;
 	u32 is_busy, i;
 
+	range = dev_vcm->rated_current - dev_vcm->start_current;
 	if (dest_pos >= dev_vcm->max_logicalpos)
 		position = dev_vcm->start_current;
 	else
 		position = dev_vcm->start_current +
-			   (dev_vcm->step * (dev_vcm->max_logicalpos - dest_pos));
+			   (range * (dev_vcm->max_logicalpos - dest_pos) / dev_vcm->max_logicalpos);
 
 	if (position > DW9800V_MAX_REG)
 		position = DW9800V_MAX_REG;
@@ -507,16 +510,12 @@ static const struct v4l2_subdev_internal_ops dw9800v_int_ops = {
 static void dw9800v_update_vcm_cfg(struct dw9800v_device *dev_vcm)
 {
 	struct i2c_client *client = dev_vcm->client;
-	int cur_dist;
 
 	if (dev_vcm->max_ma == 0) {
 		dev_err(&client->dev, "max current is zero");
 		return;
 	}
 
-	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * DW9800V_MAX_REG / dev_vcm->max_ma;
-	dev_vcm->step = (cur_dist + (dev_vcm->max_logicalpos - 1)) / dev_vcm->max_logicalpos;
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
 				 DW9800V_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->rated_current = dev_vcm->vcm_cfg.rated_ma *
@@ -713,6 +712,7 @@ static int __dw9800v_set_power(struct dw9800v_device *dw9800v, bool on)
 			goto unlock_and_return;
 		}
 		dw9800v->power_on = true;
+		usleep_range(5000, 6000);
 	} else {
 		ret = regulator_disable(dw9800v->supply);
 		if (ret < 0) {

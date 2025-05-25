@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -30,7 +30,7 @@ CONFIGS :=
 
 ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
     ifeq ($(CONFIG_XEN), y)
-        ifeq ($(CONFIG_MALI_ARBITER_SUPPORT),y)
+        ifeq ($(CONFIG_MALI_HAS_PV),y)
             CONFIG_MALI_XEN ?= y
         endif
     endif
@@ -60,6 +60,13 @@ MAKE_ARGS := $(foreach config,$(CONFIGS), \
 EXTRA_CFLAGS := $(foreach config,$(CONFIGS), \
                     $(if $(filter y m,$(value $(value config))), \
                         -D$(value config)=1))
+#
+# KBUILD_EXTRA_SYMBOLS to prevent warnings about unknown functions
+#
+GPU_SYMBOLS = $(M)/../../gpu/arm/Module.symvers
+
+EXTRA_SYMBOLS += \
+    $(GPU_SYMBOLS)
 
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree
@@ -80,6 +87,8 @@ CFLAGS_MODULE += -Wno-sign-compare
 CFLAGS_MODULE += -Wno-type-limits
 # The following ensures the stack frame does not get larger than a page
 CFLAGS_MODULE += -Wframe-larger-than=4096
+# This flag was added on v6.6 kernel
+CFLAGS_MODULE += $(call cc-option,-Werror=designated-init)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 

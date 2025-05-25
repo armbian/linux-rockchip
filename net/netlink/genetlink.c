@@ -1923,7 +1923,11 @@ problem:
 	panic("GENL: Cannot register controller: %d\n", err);
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+core_initcall_sync(genl_init);
+#else
 core_initcall(genl_init);
+#endif
 
 static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group)
 {

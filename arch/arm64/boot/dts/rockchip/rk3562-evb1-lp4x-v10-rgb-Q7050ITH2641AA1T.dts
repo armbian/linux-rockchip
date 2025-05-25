@@ -20,7 +20,6 @@
 		enable-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
 		enable-delay-ms = <20>;
 		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
-		reset-value = <0>;
 		reset-delay-ms = <10>;
 		status = "okay";
 

@@ -24,6 +24,8 @@
 #define S1_VDEV_NAME DRIVER_NAME	"_scale1"
 #define S2_VDEV_NAME DRIVER_NAME	"_scale2"
 #define S3_VDEV_NAME DRIVER_NAME	"_scale3"
+#define S4_VDEV_NAME DRIVER_NAME	"_scale4"
+#define S5_VDEV_NAME DRIVER_NAME	"_scale5"
 
 #define RKVPSS_REGFILE_LEN 50
 
@@ -50,6 +52,11 @@ struct rkvpss_rdbk_info {
 	u64 seq;
 };
 
+struct rkvpss_wrap_buf {
+	struct dma_buf *dbuf;
+	dma_addr_t dma_addr;
+};
+
 struct rkvpss_device {
 	char name[128];
 	struct device *dev;
@@ -64,6 +71,7 @@ struct rkvpss_device {
 	struct rkvpss_subdev vpss_sdev;
 	struct rkvpss_stream_vdev stream_vdev;
 	struct proc_dir_entry *procfs;
+	struct rkvpss_wrap_buf wrap_buf;
 
 	atomic_t pipe_power_cnt;
 	atomic_t pipe_stream_cnt;

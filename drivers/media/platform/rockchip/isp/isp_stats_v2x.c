@@ -1467,14 +1467,8 @@ rkisp_get_stat_size_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	stats_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
-static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
-	.isr_hdl = rkisp_stats_isr_v2x,
-	.send_meas = rkisp_stats_send_meas_v2x,
-	.rdbk_enable = rkisp_stats_rdbk_enable_v2x,
-	.get_stat_size = rkisp_get_stat_size_v2x,
-};
-
-void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
+static void
+rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	bool reg_withstream = false;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&stats_vdev->dev->br_dev.sd);
@@ -1498,6 +1492,14 @@ void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->tmp_statsbuf);
 	}
 }
+
+static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
+	.isr_hdl = rkisp_stats_isr_v2x,
+	.send_meas = rkisp_stats_send_meas_v2x,
+	.rdbk_enable = rkisp_stats_rdbk_enable_v2x,
+	.get_stat_size = rkisp_get_stat_size_v2x,
+	.first_ddr_cfg = rkisp_stats_first_ddr_config_v2x,
+};
 
 void rkisp_init_stats_vdev_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 {

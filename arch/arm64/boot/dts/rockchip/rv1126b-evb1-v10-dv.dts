@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+#include "rv1126b-evb-cam-csi0.dtsi"
+#include "rv1126b-evb1-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB1 V10 DV Board";
+	compatible = "rockchip,rv1126b-evb1-v10-dv", "rockchip,rv1126b";
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K isolcpus=3 nohz_full=3";
+	};
+};
+
+&pinctrl {
+	inv {
+		inv_int1: inv-int1 {
+			rockchip,pins =
+				<4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&gpio4 {
+	interrupt-affinity = <&cpu0>, <&cpu0>, <&cpu0>, <&cpu3>;
+	interrupt-pins = <0>,
+			 <0>,
+			 <0>,
+			 <RK_PIN_TO_BIT(RK_PA3)>;
+};
+
+&spi0 {
+	status = "okay";
+	max-freq = <20000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m2_clk_pins &spi0m2_csn0_pins &inv_int1>;
+	icm42670: icm42670@0 {
+		compatible = "invensense,icm42670";
+		reg = <0x0>;
+		spi-max-frequency = <20000000>;
+		spi-cpha;
+		spi-cpol;
+		//vdd-supply = <&vcc_3v3_s0>;
+		int1-gpio = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		status = "okay";
+	};
+};

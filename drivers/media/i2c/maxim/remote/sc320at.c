@@ -24,7 +24,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -907,7 +907,7 @@ static int sc320at_initialize_controls(struct sc320at *sc320at)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_menu_items) - 1, 0,
 				link_freq_menu_items);
-	__v4l2_ctrl_s_ctrl(sc320at->link_freq, mode->link_freq_idx);
+	v4l2_ctrl_s_ctrl(sc320at->link_freq, mode->link_freq_idx);
 	link_freq = link_freq_menu_items[mode->link_freq_idx];
 	dev_info(dev, "mipi_freq_idx = %d, mipi_link_freq = %lld\n",
 				mode->link_freq_idx, link_freq);

@@ -47,9 +47,11 @@ enum rkvpss_state {
 	VPSS_FRAME_SCL1 = BIT(4),
 	VPSS_FRAME_SCL2 = BIT(5),
 	VPSS_FRAME_SCL3 = BIT(6),
+	VPSS_FRAME_SCL4 = BIT(7),
+	VPSS_FRAME_SCL5 = BIT(8),
 
-	VPSS_START = BIT(8),
-	VPSS_RX_START = BIT(9),
+	VPSS_START = BIT(9),
+	VPSS_RX_START = BIT(10),
 };
 
 struct vpsssd_fmt {

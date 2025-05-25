@@ -21,6 +21,7 @@ properties:
   compatible:
     oneOf:
       - const: rockchip,rv1108-i2c
+      - const: rockchip,rv1126b-i2c
       - const: rockchip,rk3066-i2c
       - const: rockchip,rk3188-i2c
       - const: rockchip,rk3228-i2c

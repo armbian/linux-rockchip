@@ -99,8 +99,7 @@ enum rockchip_pwm_wave_update_mode {
 
 /**
  * struct rockchip_pwm_wave_config - wave generator config object
- * @duty_table: the wave table config of duty
- * @period_table: the wave table config of period
+ * @wave_table: the wave table config
  * @clk_src: the clk src selection in wave generator mode
  * @mem_clk_src: the memory clk src selection in wave generator mode
  * @width_mode: the width mode of wave table
@@ -121,8 +120,7 @@ enum rockchip_pwm_wave_update_mode {
  * @middle_hold: the time to stop at middle address
  */
 struct rockchip_pwm_wave_config {
-	struct rockchip_pwm_wave_table *duty_table;
-	struct rockchip_pwm_wave_table *period_table;
+	struct rockchip_pwm_wave_table *wave_table;
 	enum rockchip_pwm_clk_src_sel clk_src;
 	enum rockchip_pwm_clk_src_sel mem_clk_src;
 	enum rockchip_pwm_wave_table_width_mode width_mode;

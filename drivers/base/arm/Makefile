@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -127,6 +127,8 @@ CFLAGS_MODULE += -Wno-shift-negative-value
 CFLAGS_MODULE += $(call cc-option, -Wno-cast-function-type)
 # The following ensures the stack frame does not get larger than a page
 CFLAGS_MODULE += -Wframe-larger-than=4096
+# This flag was added on v6.6 kernel
+CFLAGS_MODULE += $(call cc-option,-Werror=designated-init)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 

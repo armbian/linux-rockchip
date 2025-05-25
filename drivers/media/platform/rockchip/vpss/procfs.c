@@ -8,7 +8,7 @@
 #include "vpss_offline.h"
 #include "hw.h"
 #include "procfs.h"
-#include "regs_v1.h"
+#include "regs.h"
 
 #include "version.h"
 
@@ -25,14 +25,17 @@ static void show_hw(struct seq_file *p, struct rkvpss_hw_dev *hw)
 	}
 
 	seq_printf(p, "\n%s\n", "HW INFO");
+
 	val = rkvpss_hw_read(hw, RKVPSS_VPSS_CTRL);
-	seq_printf(p, "\tmirror:%s(0x%x)\n", (val & 0x10) ? "ON" : "OFF", val);
+	seq_printf(p, "\tmirror:%s(0x%x)\n", (val & RKVPSS_MIR_EN) ? "ON" : "OFF", val);
+	val = rkvpss_hw_read(hw, RKVPSS_VPSS_ONLINE);
+	seq_printf(p, "\tcmsc:%s(0x%x)\n", (val & RKVPSS_ISP2VPSS_ONLINE2_CMSC_EN) ? "ON" : "OFF", val);
 
 	for (i = 0; i < vpss_outchn_max(hw->vpss_ver); i++) {
 		seq_printf(p, "\toutput[%d]", i);
-		val = rkvpss_hw_read(hw, RKVPSS_CMSC_CTRL);
-		mask = RKVPSS_CMSC_CHN_EN(i);
-		seq_printf(p, "\tcmsc:%s(0x%x)", (val & mask & 1) ? "ON" : "OFF", val);
+		val = rkvpss_hw_read(hw, RKVPSS_VPSS_ONLINE);
+		mask = (RKVPSS_ISP2VPSS_CHN0_SEL(3) << i * 2);
+		seq_printf(p, "\tchn_sel:%s(0x%x)", (val & mask) ? "ON" : "OFF", val);
 		if (hw->is_ofl_ch[i]) {
 			val = rkvpss_hw_read(hw, RKVPSS_CROP0_CTRL);
 			mask = RKVPSS_CROP_CHN_EN(i);

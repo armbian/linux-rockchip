@@ -210,7 +210,7 @@ int vehicle_generic_sensor_read(struct vehicle_ad_dev *ad, char reg)
 //	msgs[1].scl_rate = ad->i2c_rate;
 
 	ret = i2c_transfer(ad->adapter, msgs, 2);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	return pval;

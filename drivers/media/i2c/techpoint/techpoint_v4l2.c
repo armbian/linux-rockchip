@@ -1356,6 +1356,17 @@ static int techpoint_sysfs_init(struct i2c_client *client,
 	return 0;
 }
 
+static void techpoint_sysfs_cleanup(struct techpoint *techpoint)
+{
+	struct device *dev = &techpoint->dev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(techpoint_attrs); i++)
+		device_remove_file(dev, &techpoint_attrs[i]);
+
+	device_unregister(dev);
+}
+
 static int techpoint_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
@@ -1376,12 +1387,7 @@ static int techpoint_probe(struct i2c_client *client,
 	techpoint->client = client;
 	techpoint->supplies = NULL;
 
-	techpoint_sysfs_init(client, techpoint);
-
 	mutex_init(&techpoint->mutex);
-
-	sd = &techpoint->subdev;
-	v4l2_i2c_subdev_init(sd, client, &techpoint_subdev_ops);
 
 	techpoint_analyze_dts(techpoint);
 
@@ -1397,6 +1403,8 @@ static int techpoint_probe(struct i2c_client *client,
 		goto err_power_off;
 	}
 
+	sd = &techpoint->subdev;
+	v4l2_i2c_subdev_init(sd, client, &techpoint_subdev_ops);
 	ret = techpoint_initialize_controls(techpoint);
 	if (ret) {
 		dev_err(dev, "Failed to initialize controls techpoint\n");
@@ -1441,6 +1449,7 @@ static int techpoint_probe(struct i2c_client *client,
 		goto err_clean_entity;
 	}
 
+	techpoint_sysfs_init(client, techpoint);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
@@ -1466,6 +1475,7 @@ static void techpoint_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct techpoint *techpoint = to_techpoint(sd);
 
+	techpoint_sysfs_cleanup(techpoint);
 	v4l2_async_unregister_subdev(sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);

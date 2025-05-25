@@ -364,7 +364,7 @@ void rknpu_iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	}
 }
 
-#if defined(CONFIG_IOMMU_API) && defined(CONFIG_NO_GKI)
+#if defined(CONFIG_IOMMU_API) && defined(CONFIG_NO_GKI) && !defined(CONFIG_ARM)
 
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 struct iommu_group {

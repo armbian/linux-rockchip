@@ -23,6 +23,7 @@
 #define ASRC_LRCK_MARGIN		0x0034
 #define ASRC_FETCH_LEN			0x0040
 #define ASRC_DMA_THRESH			0x0050
+#define ASRC_LRCK_FILT			0x0058
 #define ASRC_INT_CON			0x0060
 #define ASRC_INT_ST			0x0064
 #define ASRC_ST				0x0070
@@ -123,6 +124,15 @@
 #define ASRC_DMA_RX_THRESH(x)			(x << 4)
 #define ASRC_DMA_TX_THRESH_MSK			(0xf << 0)
 #define ASRC_DMA_TX_THRESH(x)			(x << 0)
+
+/**********************ASRC_LRCK_FILT************************/
+#define ASRC_LRCK_DRIFT_MARGIN_MSK		(0x7ff << 0)
+#define ASRC_LRCK_DRIFT_MARGIN(x)		(x << 0)
+#define ASRC_LRCK_SUPER_MARGIN_MSK		(0x7ff << 16)
+#define ASRC_LRCK_SUPER_MARGIN(x)		(x << 16)
+#define ASRC_LRCK_FILT_MSK			(0x1 << 31)
+#define ASRC_LRCK_FILT_EN			(0x1 << 31)
+#define ASRC_LRCK_FILT_DIS			(0x0 << 31)
 
 /**********************ASRC_INT_CON************************/
 #define ASRC_DST_LRCK_UNLOCK_MSK		(0x1 << 12)

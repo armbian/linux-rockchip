@@ -517,6 +517,14 @@
 	};
 };
 
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";

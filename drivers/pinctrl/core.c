@@ -2369,4 +2369,8 @@ static int __init pinctrl_init(void)
 }
 
 /* init early since many drivers really need to initialized pinmux early */
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_INITCALL_ASYNC)
+core_initcall_sync(pinctrl_init);
+#else
 core_initcall(pinctrl_init);
+#endif

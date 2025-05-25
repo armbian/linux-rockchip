@@ -390,14 +390,14 @@ static void rkcif_show_reg_csi2(struct rkcif_device *dev, struct seq_file *f)
 	struct csi2_hw *csi2_hw = NULL;
 	int i, j;
 	int csi_idx = 0;
-	u32 buf[20];
+	u32 buf[24];
 
 	for (j = 0; j < csi2->csi_info.csi_num; j++) {
 		csi_idx = csi2->csi_info.csi_idx[j];
 		csi2_hw = csi2->csi2_hw[csi_idx];
 		seq_printf(f, "\nmipi%d csi2 reg:\n", csi_idx);
-		memcpy_fromio(buf, csi2_hw->base, 0x50);
-		for (i = 0; i < 0x50 / 16; i++)
+		memcpy_fromio(buf, csi2_hw->base, 0x60);
+		for (i = 0; i < 0x60 / 16; i++)
 			seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
 				   (u32)(csi2_hw->res->start + i * 16),
 				   *(buf + i * 4), *(buf + i * 4 + 1),
@@ -491,6 +491,16 @@ static void rkcif_show_reg_dphys(struct rkcif_device *dev, struct seq_file *f)
 				if (dphy_hw)
 					rkcif_show_reg_dphy(dphy_hw, (csi_idx - 2) / 2, f);
 			}
+		} else if (dphy->drv_data->chip_id == CHIP_ID_RK3576) {
+			if (csi_idx < 1) {
+				dcphy_hw = dphy->samsung_phy_group[csi_idx];
+				if (dcphy_hw)
+					rkcif_show_reg_dcphy(dcphy_hw, csi_idx, f);
+			} else {
+				dphy_hw = dphy->dphy_hw_group[(csi_idx - 1) / 2];
+				if (dphy_hw)
+					rkcif_show_reg_dphy(dphy_hw, (csi_idx - 1) / 2, f);
+			}
 		} else {
 			dphy_hw = dphy->dphy_hw_group[csi_idx / 2];
 			if (dphy_hw)
@@ -507,7 +517,7 @@ static void rkcif_show_reg_dbg(struct rkcif_device *dev, struct seq_file *f)
 	if (dev->inf_id == RKCIF_MIPI_LVDS) {
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
 		    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
-			for (i = 0; i < 5; i++) {
+			for (i = 0; i < 10; i++) {
 				rkcif_show_reg_csi2(dev, f);
 				usleep_range(2000, 4000);
 			}
@@ -528,6 +538,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 	u64 fps, timestamp0, timestamp1;
 	unsigned long flags;
 	u32 time_val = 0;
+	u32 remainder = 0;
 
 	if (atomic_read(&pipe->stream_cnt) < 1)
 		return;
@@ -576,7 +587,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		else
 			fps = timestamp0 > timestamp1 ?
 			      timestamp0 - timestamp1 : timestamp1 - timestamp0;
-		fps = div_u64(fps, 1000000);
+		fps = div_u64(fps, 1000);
 
 		seq_puts(f, "Output Info:\n");
 		seq_printf(f, "\tformat:%s/%ux%u(%u,%u)\n",
@@ -586,28 +597,27 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
 		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx - 1);
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
-			time_val = div_u64(stream->readout.early_time, 1000000);
-			seq_printf(f, "\tearly:%u ms\n", time_val);
+			time_val = div_u64(stream->readout.early_time, 1000);
+			time_val = div_u64_rem(time_val, 1000, &remainder);
+			seq_printf(f, "\tearly:%u.%u ms\n", time_val, remainder);
 			if (dev->hdr.hdr_mode == NO_HDR ||
 			    dev->hdr.hdr_mode == HDR_COMPR) {
-				time_val = div_u64(stream->readout.readout_time, 1000000);
-				if (dev->sditf[0] && dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
-					seq_puts(f, "\tsingle readout:N/A\n");
-				else
-					seq_printf(f, "\tsingle readout:%u ms\n", time_val);
+				time_val = div_u64(stream->readout.readout_time, 1000);
+				time_val = div_u64_rem(time_val, 1000, &remainder);
+				seq_printf(f, "\tsingle readout:%u.%u ms\n", time_val, remainder);
 			} else {
-				time_val = div_u64(stream->readout.readout_time, 1000000);
-				if (dev->sditf[0] && dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
-					seq_puts(f, "\tsingle readout:N/A\n");
-				else
-					seq_printf(f, "\tsingle readout:%u ms\n", time_val);
-				time_val = div_u64(stream->readout.total_time, 1000000);
-				seq_printf(f, "\ttotal readout:%u ms\n", time_val);
+				time_val = div_u64(stream->readout.readout_time, 1000);
+				time_val = div_u64_rem(time_val, 1000, &remainder);
+				seq_printf(f, "\tsingle readout:%u.%u ms\n", time_val, remainder);
+				time_val = div_u64(stream->readout.total_time, 1000);
+				time_val = div_u64_rem(time_val, 1000, &remainder);
+				seq_printf(f, "\ttotal readout:%u.%u ms\n", time_val, remainder);
 
 			}
 		}
-		seq_printf(f, "\trate:%llu ms\n", fps);
-		fps = div_u64(1000, fps);
+		time_val = div_u64_rem(fps, 1000, &remainder);
+		seq_printf(f, "\trate:%u.%u ms\n", time_val, remainder);
+		fps = div_u64(1000000, fps);
 		seq_printf(f, "\tfps:%llu\n", fps);
 		seq_puts(f, "\tirq statistics:\n");
 		seq_printf(f, "\t\t\ttotal:%llu\n",

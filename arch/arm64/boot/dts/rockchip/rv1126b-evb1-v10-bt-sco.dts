@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b-evb1-v10.dts"
+
+/ {
+	model = "Rockchip RV1126B EVB1 V10 Board + BT SCO";
+	compatible = "rockchip,rv1126b-evb1-v10-bt-sco", "rockchip,rv1126b";
+
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+	};
+
+	bt_sound: bt-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco 1>;
+		};
+	};
+};
+
+&acdcdig_dsm {
+	status = "disabled";
+};
+
+&acodec_sound {
+	status = "disabled";
+};
+
+&audio_codec {
+	status = "disabled";
+};
+
+&sai2 {
+	status = "okay";
+	rockchip,slot-width = <16>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai2m0_lrck_pins
+		     &sai2m0_sclk_pins
+		     &sai2m0_sdi0_pins
+		     &sai2m0_sdo_pins>;
+};

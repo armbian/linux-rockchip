@@ -68,12 +68,21 @@
 #define RV1103B_RTC_CNT_2		RTC_REG(0x88)
 #define RV1103B_RTC_CNT_3		RTC_REG(0x8c)
 
+#define RV1126B_RTC_TEST_ST		RTC_REG(0x78)
+#define RV1126B_RTC_TEST_LEN		RTC_REG(0x7c)
+#define RV1126B_RTC_CNT_0		RTC_REG(0x80)
+#define RV1126B_RTC_CNT_1		RTC_REG(0x84)
+#define RV1126B_RTC_CNT_2		RTC_REG(0x88)
+#define RV1126B_RTC_CNT_3		RTC_REG(0x8c)
+
 #define RTC_MAX_REGISTER		RV1106_RTC_CNT_3
 
 #define RV1106_VI_GRF_VI_MISC_CON0	0x50000
 #define RV1106_RTC_CLAMP_EN		BIT(6)
 #define RV1103B_GRF_PMU_SOC_CON0	0x60000
 #define RV1103B_RTC_CLAMP_EN		BIT(15)
+#define RV1126B_GRF_PMU_SOC_CON0	0x30000
+#define RV1126B_RTC_CLAMP_EN		BIT(15)
 
 /* RTC_CTRL_REG bitfields */
 #define RTC_CTRL_REG_START_RTC		BIT(0)
@@ -152,6 +161,14 @@
 #define RV1103B_CLK32K_TEST_START	BIT(0)
 #define RV1103B_CLK32K_TEST_STATUS	BIT(1)
 #define RV1103B_CLK32K_TEST_DONE	BIT(2)
+
+/* RV1126B_RTC_CTRL bitfields */
+#define RV1126B_COMP_MODE		BIT(4)
+
+/* RV1126B_RTC_TEST bitfields */
+#define RV1126B_CLK32K_TEST_START	BIT(0)
+#define RV1126B_CLK32K_TEST_STATUS	BIT(1)
+#define RV1126B_CLK32K_TEST_DONE	BIT(2)
 
 enum {
 	ROCKCHIP_RV1106_RTC = 1,
@@ -569,6 +586,19 @@ static void rv1106_rtc_clamp(struct regmap *grf, bool en)
 			     (RV1106_RTC_CLAMP_EN << 16) | RV1106_RTC_CLAMP_EN);
 }
 
+static void rv1126b_rtc_clamp(struct regmap *grf, bool en)
+{
+	if (!grf)
+		return;
+
+	if (en)
+		regmap_write(grf, RV1126B_GRF_PMU_SOC_CON0,
+			     (RV1126B_RTC_CLAMP_EN << 16));
+	else
+		regmap_write(grf, RV1126B_GRF_PMU_SOC_CON0,
+			     (RV1126B_RTC_CLAMP_EN << 16) | RV1126B_RTC_CLAMP_EN);
+}
+
 static int rv1106_rtc_test_start(struct regmap *regmap)
 {
 	u64 camp;
@@ -806,6 +836,11 @@ static const struct rockchip_rtc_chip rv1103b_rtc_data = {
 	.clamp_en = rv1103b_rtc_clamp,
 };
 
+static const struct rockchip_rtc_chip rv1126b_rtc_data = {
+	.initialize = rv1103b_rtc_init,
+	.clamp_en = rv1126b_rtc_clamp,
+};
+
 static const struct of_device_id rockchip_rtc_of_match[] = {
 #ifdef CONFIG_CPU_RV1106
 	{
@@ -817,6 +852,12 @@ static const struct of_device_id rockchip_rtc_of_match[] = {
 	{
 		.compatible = "rockchip,rv1103b-rtc",
 		.data = (void *)&rv1103b_rtc_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{
+		.compatible = "rockchip,rv1126b-rtc",
+		.data = (void *)&rv1126b_rtc_data,
 	},
 #endif
 	{},

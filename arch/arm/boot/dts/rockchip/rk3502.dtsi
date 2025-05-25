@@ -1453,14 +1453,10 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
-			<&cru CLK_32K_FRAC_MUX>,
 			<&cru CLK_32K_FRAC>,
 			<&cru CLK_FRAC_UART_MATRIX0>,
 			<&cru CLK_FRAC_UART_MATRIX1>;
-		assigned-clock-parents =
-			<&cru PLL_V0PLL>;
 		assigned-clock-rates =
-			<0>,
 			<32768>,
 			<96000000>,
 			<128000000>;

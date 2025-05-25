@@ -6665,7 +6665,7 @@ static int __init regulator_init(void)
 }
 
 /* init early to allow our consumers to complete system booting */
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_INITCALL_ASYNC)
 core_initcall_sync(regulator_init);
 #else
 core_initcall(regulator_init);

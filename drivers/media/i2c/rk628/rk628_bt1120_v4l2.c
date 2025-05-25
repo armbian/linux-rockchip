@@ -347,6 +347,7 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_bt1120_enable_interrupts(sd, false);
 	cancel_delayed_work(&bt1120->delayed_work_res_change);
 	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+	rk628_bt1120_hdmirx_reset(sd);
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
 	rk628_hdmirx_verisyno_phy_power_off(bt1120->rk628);
@@ -431,7 +432,7 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 	if (plugin) {
 		rk628_set_io_func_to_vop(bt1120->rk628);
 		rk628_bt1120_enable_interrupts(sd, false);
-		cancel_delayed_work_sync(&bt1120->delayed_work_res_change);
+		cancel_delayed_work(&bt1120->delayed_work_res_change);
 		rk628_hdmirx_audio_setup(bt1120->audio_info);
 		rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, bt1120->hdcp.enable);
 		rk628_hdmirx_controller_setup(bt1120->rk628);
@@ -498,6 +499,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 			if (bt1120->rk628->version >= RK628F_VERSION) {
 				rk628_bt1120_enable_interrupts(sd, false);
 				rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+				rk628_bt1120_hdmirx_reset(sd);
 				rk628_hdmirx_verisyno_phy_power_off(bt1120->rk628);
 				schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
 						      msecs_to_jiffies(100));
@@ -516,6 +518,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 			}
 		} else {
 			rk628_bt1120_format_change(sd);
+			bt1120->nosignal = false;
 			rk628_bt1120_enable_interrupts(sd, true);
 		}
 	}
@@ -1120,11 +1123,9 @@ static int rk628_hdmirx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	mutex_lock(&bt1120->rk628->rst_lock);
 	rk628_hdmirx_general_isr(sd, status, handled);
 	if (bt1120->cec_enable && bt1120->cec)
 		rk628_hdmirx_cec_irq(bt1120->rk628, bt1120->cec);
-	mutex_unlock(&bt1120->rk628->rst_lock);
 
 	rk628_bt1120_clear_hdmirx_interrupts(sd);
 

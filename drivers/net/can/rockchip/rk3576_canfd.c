@@ -59,6 +59,24 @@ enum rk3576_canfd_reg {
 	CANFD_TXDAT13 = 0x23c,
 	CANFD_TXDAT14 = 0x240,
 	CANFD_TXDAT15 = 0x244,
+	CANFD_BUF1_TXFIC = 0x280,
+	CANFD_BUF1_TXID = 0x284,
+	CANFD_BUF1_TXDAT0 = 0x288,
+	CANFD_BUF1_TXDAT1 = 0x28c,
+	CANFD_BUF1_TXDAT2 = 0x290,
+	CANFD_BUF1_TXDAT3 = 0x294,
+	CANFD_BUF1_TXDAT4 = 0x298,
+	CANFD_BUF1_TXDAT5 = 0x29c,
+	CANFD_BUF1_TXDAT6 = 0x2a0,
+	CANFD_BUF1_TXDAT7 = 0x2a4,
+	CANFD_BUF1_TXDAT8 = 0x2a8,
+	CANFD_BUF1_TXDAT9 = 0x2ac,
+	CANFD_BUF1_TXDAT10 = 0x2b0,
+	CANFD_BUF1_TXDAT11 = 0x2b4,
+	CANFD_BUF1_TXDAT12 = 0x2b8,
+	CANFD_BUF1_TXDAT13 = 0x2bc,
+	CANFD_BUF1_TXDAT14 = 0x2c0,
+	CANFD_BUF1_TXDAT15 = 0x2c4,
 	CANFD_RXFIC = 0x300,
 	CANFD_RXID = 0x304,
 	CANFD_RXTS = 0x308,
@@ -122,6 +140,11 @@ enum rk3576_canfd_reg {
 	CANFD_RTL_VERSION = 0xf0c,
 };
 
+enum {
+	ROCKCHIP_RK3576_CANFD = 0,
+	ROCKCHIP_RV1126B_CANFD,
+};
+
 #define DATE_LENGTH_12_BYTE	(0x9)
 #define DATE_LENGTH_16_BYTE	(0xa)
 #define DATE_LENGTH_20_BYTE	(0xb)
@@ -147,7 +170,7 @@ enum rk3576_canfd_reg {
 #define RESET_MODE		0
 #define WORK_MODE		BIT(0)
 
-#define RETX_TIME_LIMIT_CNT	0x12c /* 300 */
+#define RETX_TIME_LIMIT_CNT_MAX	0xffff
 #define RETX_TIME_LIMIT_SHIFT	3
 #define RETX_LIMIT_EN		BIT(1)
 #define AUTO_RETX_EN		BIT(0)
@@ -361,8 +384,10 @@ struct rk3576_canfd {
 	u32 rx_fifo_mask;
 	int rx_fifo_depth;
 	int rx_max_data;
+	unsigned int auto_retx_cnt;
 	bool use_dma;
 	u32 dma_size;
+	u32 dma_thr;
 	int quota;
 	struct dma_chan *rxchan;
 	u32 *rxbuf;
@@ -614,13 +639,16 @@ static int rk3576_canfd_start(struct net_device *ndev)
 		rk3576_canfd_write(rcan, CANFD_ERROR_MASK, 0);
 	}
 
-	rk3576_canfd_write(rcan, CANFD_AUTO_RETX_CFG,
-			   AUTO_RETX_EN | RETX_LIMIT_EN |
-			   (RETX_TIME_LIMIT_CNT << RETX_TIME_LIMIT_SHIFT));
+	if (rcan->auto_retx_cnt)
+		rk3576_canfd_write(rcan, CANFD_AUTO_RETX_CFG,
+				   AUTO_RETX_EN | RETX_LIMIT_EN |
+				   (rcan->auto_retx_cnt << RETX_TIME_LIMIT_SHIFT));
+	else
+		rk3576_canfd_write(rcan, CANFD_AUTO_RETX_CFG, AUTO_RETX_EN);
 
 	rk3576_canfd_write(rcan, CANFD_MODE, val);
 	if (rcan->use_dma)
-		rk3576_canfd_write(rcan, CANFD_DMA_CTRL, RX_DMA_ENABLE);
+		rk3576_canfd_write(rcan, CANFD_DMA_CTRL, RX_DMA_ENABLE | rcan->dma_thr);
 
 	rk3576_canfd_write(rcan, CANFD_BRS_CFG, 0x7);
 
@@ -692,6 +720,7 @@ static netdev_tx_t rk3576_canfd_start_xmit(struct sk_buff *skb,
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
 	u32 id, dlc;
 	u32 cmd = CANFD_TX0_REQ;
+	u32 tx_fifo = CANFD_TXFIC, tx_id = CANFD_TXID, tx_data = CANFD_TXDAT0;
 	int i;
 
 	if (can_dropped_invalid_skb(ndev, skb))
@@ -699,8 +728,14 @@ static netdev_tx_t rk3576_canfd_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(ndev);
 
-	if (rk3576_canfd_read(rcan, CANFD_CMD) & CANFD_TX0_REQ)
+	if (rk3576_canfd_read(rcan, CANFD_CMD) & CANFD_TX0_REQ) {
 		cmd = CANFD_TX1_REQ;
+		if (rcan->mode == ROCKCHIP_RV1126B_CANFD) {
+			tx_fifo = CANFD_BUF1_TXFIC;
+			tx_id = CANFD_BUF1_TXID;
+			tx_data = CANFD_BUF1_TXDAT0;
+		}
+	}
 
 	/* Watch carefully on the bit sequence */
 	if (cf->can_id & CAN_EFF_FLAG) {
@@ -728,11 +763,11 @@ static netdev_tx_t rk3576_canfd_start_xmit(struct sk_buff *skb,
 			dlc |= TX_FD_BRS_ENABLE;
 	}
 
-	rk3576_canfd_write(rcan, CANFD_TXID, id);
-	rk3576_canfd_write(rcan, CANFD_TXFIC, dlc);
+	rk3576_canfd_write(rcan, tx_id, id);
+	rk3576_canfd_write(rcan, tx_fifo, dlc);
 
 	for (i = 0; i < cf->len; i += 4)
-		rk3576_canfd_write(rcan, CANFD_TXDAT0 + i,
+		rk3576_canfd_write(rcan, tx_data + i,
 				   *(u32 *)(cf->data + i));
 
 	can_put_echo_skb(skb, ndev, 0, 0);
@@ -864,20 +899,15 @@ static void rk3576_canfd_rx_dma_callback(void *data)
 static int rk3576_canfd_rx_dma(struct rk3576_canfd *rcan)
 {
 	struct dma_async_tx_descriptor *rxdesc = NULL;
-	int quota = 0, cnt = 0;
+	int quota = 0;
 
 	quota = (rk3576_canfd_read(rcan, CANFD_STR_STATE) & rcan->rx_fifo_mask) >>
 		rcan->rx_fifo_shift;
-	quota = quota / rcan->rx_max_data;
-	cnt = (rk3576_canfd_read(rcan, CANFD_STR_STATE) & INTM_CNT_MASK) >> INTM_CNT_SHIFT;
-
-	if (quota != cnt)
-		quota = ((rk3576_canfd_read(rcan, CANFD_STR_STATE) & rcan->rx_fifo_mask) >>
-			rcan->rx_fifo_shift) / rcan->rx_max_data;
-
-	rcan->quota = quota;
-	if (rcan->quota == 0)
+	rcan->quota = DIV_ROUND_UP(quota, rcan->rx_max_data);
+	if (rcan->quota == 0) {
+		rk3576_canfd_write(rcan, CANFD_INT_MASK, INT_ENABLE);
 		return 1;
+	}
 
 	rxdesc = dmaengine_prep_slave_single(rcan->rxchan, rcan->rx_dma_dst_addr,
 					     rcan->dma_size * rcan->quota, DMA_DEV_TO_MEM, 0);
@@ -1156,6 +1186,11 @@ static const struct dev_pm_ops rk3576_canfd_dev_pm_ops = {
 static const struct of_device_id rk3576_canfd_of_match[] = {
 	{
 		.compatible = "rockchip,rk3576-canfd",
+		.data = (void *)ROCKCHIP_RK3576_CANFD
+	},
+	{
+		.compatible = "rockchip,rv1126b-canfd",
+		.data = (void *)ROCKCHIP_RV1126B_CANFD
 	},
 	{},
 };
@@ -1171,6 +1206,12 @@ static void rk3576_canfd_dma_init(struct rk3576_canfd *rcan)
 		.src_maxburst = 16,
 	};
 
+	if (rcan->rx_max_data == 18)
+		rxconf.src_maxburst = 9;
+	else
+		rxconf.src_maxburst = 4;
+
+	rcan->dma_thr = rxconf.src_maxburst - 1;
 	rcan->rxbuf = dma_alloc_coherent(rcan->dev, rcan->dma_size * rcan->rx_fifo_depth,
 					 &rcan->rx_dma_dst_addr, GFP_KERNEL);
 	if (!rcan->rxbuf) {
@@ -1241,6 +1282,13 @@ static int rk3576_canfd_probe(struct platform_device *pdev)
 
 	rcan->rx_fifo_shift = INTM_LEFT_CNT_SHIFT;
 	rcan->rx_fifo_mask = INTM_LEFT_CNT_MASK;
+
+	if (device_property_read_u32(&pdev->dev, "rockchip,auto-retx-cnt", &val))
+		rcan->auto_retx_cnt = 0;
+	else
+		rcan->auto_retx_cnt = val;
+	if (rcan->auto_retx_cnt > RETX_TIME_LIMIT_CNT_MAX)
+		rcan->auto_retx_cnt = RETX_TIME_LIMIT_CNT_MAX;
 
 	/* rx-max-data only 4 Words or 18 words are supported */
 	if (device_property_read_u32_array(&pdev->dev, "rockchip,rx-max-data", &val, 1))

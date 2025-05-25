@@ -1688,7 +1688,7 @@ long rga_ioctl_kernel(struct rga_req *req)
 }
 
 
-long rga_ioctl_kernel_imp(struct rga_req *req)
+static long rga_ioctl_kernel_imp(struct rga_req *req)
 {
 	int ret = 0;
     rga_session *session;

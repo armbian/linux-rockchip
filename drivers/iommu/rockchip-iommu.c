@@ -1824,7 +1824,7 @@ static struct platform_driver rk_iommu_driver = {
 	},
 };
 
-#ifdef CONFIG_VIDEO_REVERSE_IMAGE
+#if defined(CONFIG_VIDEO_REVERSE_IMAGE) || defined(CONFIG_ROCKCHIP_THUNDER_BOOT)
 static int __init rk_iommu_init(void)
 {
 	return platform_driver_register(&rk_iommu_driver);

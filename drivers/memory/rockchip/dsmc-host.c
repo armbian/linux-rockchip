@@ -119,6 +119,11 @@ static const struct of_device_id dsmc_of_match[] = {
 		.compatible = "rockchip,rk3506-dsmc", .data = rk3506_dsmc_platform_init
 	},
 #endif
+#if IS_ENABLED(CONFIG_CPU_RV1126B)
+	{
+		.compatible = "rockchip,rv1126b-dsmc", .data = rk3506_dsmc_platform_init
+	},
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, dsmc_of_match);

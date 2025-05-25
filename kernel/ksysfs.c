@@ -323,4 +323,8 @@ exit:
 	return error;
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+pure_initcall(ksysfs_init);
+#else
 core_initcall(ksysfs_init);
+#endif

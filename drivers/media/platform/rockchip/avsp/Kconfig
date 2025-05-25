@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_ROCKCHIP_AVSP
+	tristate "Rockchip Any View Stitching Processor driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	default n
+	help
+	  Support for AVSP on the rockchip SoC.
+
+	  If you are using a Rockchip SoC with an integrated AVSP module
+	  and require AVSP, say Y or M here.

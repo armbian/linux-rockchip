@@ -80,6 +80,7 @@ struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
 	.err_mask = 0xf0,
+	.en_sw_iommu_zap = 1,
 };
 
 /* vdpu34x link hw info for rk356x */
@@ -142,6 +143,7 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
 	.err_mask = 0xf0,
+	.en_sw_iommu_zap = 1,
 };
 
 /* vdpu382 link hw info */
@@ -204,6 +206,7 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
 	.err_mask = 0xf0,
+	.en_sw_iommu_zap = 1,
 };
 
 /* vdpu383 link hw info */
@@ -242,6 +245,67 @@ struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
 	.part_r[1] = {
 		.tb_reg_off = 20,
 		.reg_start = 320,
+		.reg_num = 40,
+	},
+	.tb_reg_int = 16,
+	.tb_reg_cycle = 27,
+	.reg_status = {
+		.dec_num_mask = 0x3fffffff,
+		.err_flag_base = 0x04c,
+		.err_flag_bit = 0x3fe,
+	},
+	.next_addr_base = 0x20,
+	.ip_reset_base = 0x44,
+	.ip_reset_en = BIT(0),
+	.irq_base = 0x48,
+	.irq_mask = 0x30000,
+	.status_base = 0x4c,
+	.status_mask = 0x3ff0000,
+	.err_mask = 0x3fe,
+	.ip_reset_mask = 0x8000000,
+	.ip_time_base = 0x54,
+	.en_base = 0x40,
+	.ip_en_base = 0x58,
+	.ip_en_val = 0x01000000,
+	.en_sw_iommu_zap = 1,
+};
+
+/* vdpu384a link hw info */
+struct rkvdec_link_info rkvdec_link_vdpu384a_hw_info = {
+	.tb_reg_num = 256,
+	.tb_reg_next = 0,
+	.tb_reg_r = 1,
+	.tb_reg_second_en = -1,
+	.tb_reg_debug = 2,
+	.tb_reg_seg0 = 3,
+	.tb_reg_seg1 = 4,
+	.tb_reg_seg2 = 5,
+
+	.part_w_num = 3,
+	.part_r_num = 2,
+	.part_w[0] = {
+		.tb_reg_off = 80,
+		.reg_start = 8,
+		.reg_num = 24,
+	},
+	.part_w[1] = {
+		.tb_reg_off = 104,
+		.reg_start = 64,
+		.reg_num = 44,
+	},
+	.part_w[2] = {
+		.tb_reg_off = 148,
+		.reg_start = 128,
+		.reg_num = 108,
+	},
+	.part_r[0] = {
+		.tb_reg_off = 16,
+		.reg_start = 15,
+		.reg_num = 1,
+	},
+	.part_r[1] = {
+		.tb_reg_off = 20,
+		.reg_start = 256,
 		.reg_num = 40,
 	},
 	.tb_reg_int = 16,
@@ -449,7 +513,9 @@ static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
 	/* start config before all registers are set */
 	wmb();
 
-	mpp_iommu_flush_tlb(link_dec->mpp->iommu_info);
+	/* After rv1126b, hw can execute zap. */
+	if (link_info->en_sw_iommu_zap)
+		mpp_iommu_flush_tlb(link_dec->mpp->iommu_info);
 	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
 	link_dec->task_running++;

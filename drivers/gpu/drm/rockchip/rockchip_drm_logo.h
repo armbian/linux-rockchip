@@ -42,5 +42,13 @@ struct rockchip_drm_mode_set {
 
 void rockchip_drm_show_logo(struct drm_device *drm_dev);
 void rockchip_free_loader_memory(struct drm_device *drm);
+#ifndef MODULE
+int rockchip_clocks_loader_unprotect(void);
+#else
+static inline int rockchip_clocks_loader_unprotect(void)
+{
+	return 0;
+}
+#endif
 
 #endif

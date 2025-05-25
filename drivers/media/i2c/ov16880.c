@@ -5,6 +5,7 @@
  * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 support rk otp spec.
  *
  */
 //#define DEBUG
@@ -26,8 +27,9 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 #define OV16880_MAJOR_I2C_ADDR		0x36
 #define OV16880_MINOR_I2C_ADDR		0x10
 
@@ -112,6 +114,7 @@
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
+#define RK_OTP
 
 #define OV16880_NAME			"ov16880"
 #define OV16880_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
@@ -177,6 +180,9 @@ struct ov16880 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+#ifdef RK_OTP
+	struct otp_info		*otp;
+#endif
 };
 
 #define to_ov16880(sd) container_of(sd, struct ov16880, subdev)
@@ -1926,14 +1932,103 @@ static int ov16880_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#ifdef RK_OTP
+static void ov16880_get_otp(struct otp_info *otp,
+				   struct rkmodule_inf *inf)
+{
+	u32 i, j;
+	u32 w, h;
+
+	/* awb */
+	if (otp->awb_data.flag) {
+		inf->awb.flag = 1;
+		inf->awb.r_value = otp->awb_data.r_ratio;
+		inf->awb.b_value = otp->awb_data.b_ratio;
+		inf->awb.gr_value = otp->awb_data.g_ratio;
+		inf->awb.gb_value = 0x0;
+
+		inf->awb.golden_r_value = otp->awb_data.r_golden;
+		inf->awb.golden_b_value = otp->awb_data.b_golden;
+		inf->awb.golden_gr_value = otp->awb_data.g_golden;
+		inf->awb.golden_gb_value = 0x0;
+	}
+
+	/* lsc */
+	if (otp->lsc_data.flag) {
+		inf->lsc.flag = 1;
+		inf->lsc.width = otp->basic_data.size.width;
+		inf->lsc.height = otp->basic_data.size.height;
+		inf->lsc.table_size = otp->lsc_data.table_size;
+
+		for (i = 0; i < 289; i++) {
+			inf->lsc.lsc_r[i] = (otp->lsc_data.data[i * 2] << 8) |
+						 otp->lsc_data.data[i * 2 + 1];
+			inf->lsc.lsc_gr[i] = (otp->lsc_data.data[i * 2 + 578] << 8) |
+						  otp->lsc_data.data[i * 2 + 579];
+			inf->lsc.lsc_gb[i] = (otp->lsc_data.data[i * 2 + 1156] << 8) |
+						  otp->lsc_data.data[i * 2 + 1157];
+			inf->lsc.lsc_b[i] = (otp->lsc_data.data[i * 2 + 1734] << 8) |
+						 otp->lsc_data.data[i * 2 + 1735];
+		}
+	}
+
+	/* pdaf */
+	if (otp->pdaf_data.flag) {
+		inf->pdaf.flag = 1;
+		inf->pdaf.gainmap_width = otp->pdaf_data.gainmap_width;
+		inf->pdaf.gainmap_height = otp->pdaf_data.gainmap_height;
+		inf->pdaf.dcc_mode = otp->pdaf_data.dcc_mode;
+		inf->pdaf.dcc_dir = otp->pdaf_data.dcc_dir;
+		inf->pdaf.dccmap_width = otp->pdaf_data.dccmap_width;
+		inf->pdaf.dccmap_height = otp->pdaf_data.dccmap_height;
+		w = otp->pdaf_data.gainmap_width;
+		h = otp->pdaf_data.gainmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.gainmap[i * w + j] =
+					(otp->pdaf_data.gainmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.gainmap[(i * w + j) * 2 + 1];
+			}
+		}
+		w = otp->pdaf_data.dccmap_width;
+		h = otp->pdaf_data.dccmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.dccmap[i * w + j] =
+					(otp->pdaf_data.dccmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.dccmap[(i * w + j) * 2 + 1];
+			}
+		}
+	}
+
+	/* af */
+	if (otp->af_data.flag) {
+		inf->af.flag = 1;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp->af_data.af_inf;
+		inf->af.af_otp[0].vcm_end = otp->af_data.af_macro;
+		inf->af.af_otp[0].vcm_dir = 0;
+	}
+
+}
+#endif
+
 static void ov16880_get_module_inf(struct ov16880 *ov16880,
 				   struct rkmodule_inf *inf)
 {
+#ifdef RK_OTP
+	struct otp_info *otp = ov16880->otp;
+#endif
+
 	memset(inf, 0, sizeof(*inf));
 	strscpy(inf->base.sensor, OV16880_NAME, sizeof(inf->base.sensor));
 	strscpy(inf->base.module, ov16880->module_name,
 		sizeof(inf->base.module));
 	strscpy(inf->base.lens, ov16880->len_name, sizeof(inf->base.lens));
+#ifdef RK_OTP
+	if (otp)
+		ov16880_get_otp(otp, inf);
+#endif
 }
 
 static long ov16880_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -2428,34 +2523,6 @@ static const struct v4l2_subdev_ops ov16880_subdev_ops = {
 	.pad	= &ov16880_pad_ops,
 };
 
-static int ov16880_set_gain_reg(struct ov16880 *ov16880, u32 a_gain)
-{
-	int ret = 0;
-
-	ret = ov16880_write_reg(ov16880->client,
-				OV16880_GROUP_UPDATE_ADDRESS,
-				OV16880_REG_VALUE_08BIT,
-				OV16880_GROUP_UPDATE_START_DATA);
-
-	ret |= ov16880_write_reg(ov16880->client,
-				OV16880_SF_AGAIN_REG_H,
-				OV16880_REG_VALUE_16BIT,
-				a_gain & 0x7ff);
-	ret |= ov16880_write_reg(ov16880->client,
-				OV16880_AGAIN_REG_H,
-				OV16880_REG_VALUE_16BIT,
-				a_gain & 0x7ff);
-	ret |= ov16880_write_reg(ov16880->client,
-				OV16880_GROUP_UPDATE_ADDRESS,
-				OV16880_REG_VALUE_08BIT,
-				OV16880_GROUP_UPDATE_END_DATA);
-	ret |= ov16880_write_reg(ov16880->client,
-				OV16880_GROUP_UPDATE_ADDRESS,
-				OV16880_REG_VALUE_08BIT,
-				OV16880_GROUP_UPDATE_LAUNCH);
-	return ret;
-};
-
 static int ov16880_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov16880 *ov16880 = container_of(ctrl->handler,
@@ -2491,7 +2558,10 @@ static int ov16880_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = ov16880_set_gain_reg(ov16880, ctrl->val);
+		ret = ov16880_write_reg(ov16880->client,
+					OV16880_AGAIN_REG_H,
+					OV16880_REG_VALUE_16BIT,
+					ctrl->val & 0x7ff);
 		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
@@ -2697,6 +2767,12 @@ static int ov16880_probe(struct i2c_client *client,
 	char facing[2];
 	int ret;
 	u32 i, hdr_mode = 0;
+#ifdef RK_OTP
+	struct device_node *eeprom_ctrl_node;
+	struct i2c_client *eeprom_ctrl_client;
+	struct v4l2_subdev *eeprom_ctrl;
+	struct otp_info *otp_ptr;
+#endif
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -2790,6 +2866,36 @@ static int ov16880_probe(struct i2c_client *client,
 	ret = ov16880_check_sensor_id(ov16880, client);
 	if (ret)
 		goto err_power_off;
+#ifdef RK_OTP
+	eeprom_ctrl_node = of_parse_phandle(node, "eeprom-ctrl", 0);
+	if (eeprom_ctrl_node) {
+		eeprom_ctrl_client =
+			of_find_i2c_device_by_node(eeprom_ctrl_node);
+		of_node_put(eeprom_ctrl_node);
+		if (IS_ERR_OR_NULL(eeprom_ctrl_client)) {
+			dev_err(dev, "can not get node\n");
+			goto continue_probe;
+		}
+		eeprom_ctrl = i2c_get_clientdata(eeprom_ctrl_client);
+		if (IS_ERR_OR_NULL(eeprom_ctrl)) {
+			dev_err(dev, "can not get eeprom i2c client\n");
+		} else {
+			otp_ptr = devm_kzalloc(dev, sizeof(*otp_ptr), GFP_KERNEL);
+			if (!otp_ptr)
+				return -ENOMEM;
+			ret = v4l2_subdev_call(eeprom_ctrl,
+				core, ioctl, 0, otp_ptr);
+			if (!ret) {
+				ov16880->otp = otp_ptr;
+			} else {
+				ov16880->otp = NULL;
+				devm_kfree(dev, otp_ptr);
+				dev_warn(dev, "can not get otp info, skip!\n");
+			}
+		}
+	}
+continue_probe:
+#endif
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov16880_internal_ops;

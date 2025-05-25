@@ -849,6 +849,7 @@ static void gc2145_reinit_parameter(struct vehicle_ad_dev *ad, unsigned char cvs
 		ad->cfg.mbus_flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 					V4L2_MBUS_VSYNC_ACTIVE_LOW |
 					V4L2_MBUS_PCLK_SAMPLE_RISING;
+		ad->cfg.input_mode = CIF_INPUT_MODE_BT601_YUV;
 		break;
 	}
 

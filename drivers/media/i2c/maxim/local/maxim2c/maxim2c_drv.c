@@ -64,6 +64,11 @@
  *     1. if remote camera not connected, hot plug state check timer working,
  *        fix the issue of mutex deadlock when stream off.
  *
+ * V3.09.01
+ *     1. initialize controls using v4l2_ctrl_s_ctrl instead of __v4l2_ctrl_s_ctrl,
+ *        fix lockdep debug warning.
+ *     2. fix compile warning when MAXIM2C_LOCAL_DES_ON_OFF_EN enable.
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -91,7 +96,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x09, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x09, 0x01)
 
 #define MAXIM2C_NAME			"maxim2c"
 
@@ -446,6 +451,7 @@ static int maxim2c_runtime_suspend(struct device *dev)
 
 static int __maybe_unused maxim2c_resume(struct device *dev)
 {
+#if (MAXIM2C_LOCAL_DES_ON_OFF_EN == 0)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
@@ -453,7 +459,6 @@ static int __maybe_unused maxim2c_resume(struct device *dev)
 
 	dev_info(dev, "maxim2c resume\n");
 
-#if (MAXIM2C_LOCAL_DES_ON_OFF_EN == 0)
 #if MAXIM2C_TEST_PATTERN
 	ret = maxim2c_pattern_hw_init(maxim2c);
 	if (ret) {

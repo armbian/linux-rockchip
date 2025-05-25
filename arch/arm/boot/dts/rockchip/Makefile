@@ -56,6 +56,20 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126-evb-ddr3-v12-spi-nor.dtb \
 	rv1126-evb-ddr3-v13.dtb \
 	rv1126-sonoff-ihost.dtb \
+	rv1126b-evb1-v10.dtb \
+	rv1126b-evb1-v10-bt-sco.dtb \
+	rv1126b-evb1-v10-dual-4k.dtb \
+	rv1126b-evb1-v10-dv.dtb \
+	rv1126b-evb1-v10-spi-nor.dtb \
+	rv1126b-evb2-v10.dtb \
+	rv1126b-evb2-v10-mcu-k350c4516t.dtb \
+	rv1126b-evb2-v10-rgb-Q7050ITH2641AA1T.dtb \
+	rv1126b-evb2-v10-sii9022-bt1120-to-hdmi.dtb \
+	rv1126b-evb3-v10.dtb \
+	rv1126b-evb4-v10.dtb \
+	rv1126b-iotest-v10.dtb \
+	rv1126bp-evb-v14.dtb \
+	rv1126bp-evb-v14-dual-cam.dtb \
 	rk3036-evb.dtb \
 	rk3036-evb1-ddr3-v10.dtb \
 	rk3036-kylin.dtb \

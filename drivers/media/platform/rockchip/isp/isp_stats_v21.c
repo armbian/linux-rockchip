@@ -1133,14 +1133,8 @@ rkisp_get_stat_size_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 	stats_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
-static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
-	.isr_hdl = rkisp_stats_isr_v21,
-	.send_meas = rkisp_stats_send_meas_v21,
-	.rdbk_enable = rkisp_stats_rdbk_enable_v21,
-	.get_stat_size = rkisp_get_stat_size_v21,
-};
-
-void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
+static void
+rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	stats_vdev->rd_stats_from_ddr = false;
 	stats_vdev->priv_ops = &rkisp_stats_reg_ops_v21;
@@ -1160,6 +1154,14 @@ void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 			       SW_3A_DDR_WRITE_EN, false);
 	}
 }
+
+static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
+	.isr_hdl = rkisp_stats_isr_v21,
+	.send_meas = rkisp_stats_send_meas_v21,
+	.rdbk_enable = rkisp_stats_rdbk_enable_v21,
+	.get_stat_size = rkisp_get_stat_size_v21,
+	.first_ddr_cfg = rkisp_stats_first_ddr_config_v21,
+};
 
 void rkisp_init_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {

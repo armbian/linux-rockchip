@@ -23,6 +23,7 @@
 };
 
 &cpu0_opp_table {
+	mbist-vmin = <825000 925000 925000>;
 	rockchip,video-1080p-freq = <1200000>;
 	rockchip,pvtm-voltage-sel = <
 		0	1420	0

@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562-project-demo.dtsi"
+#include "rk3562-project-rk628-hdmi2csi.dtsi"
+#include "rk3562-android.dtsi"

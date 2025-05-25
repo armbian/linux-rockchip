@@ -132,7 +132,7 @@ static unsigned int rk801_get_mode(struct regulator_dev *rdev)
 	if (err)
 		return err;
 
-	if ((val & pmw_mode_msk) == RK801_FPWM_MODE)
+	if (val & pmw_mode_msk)
 		return REGULATOR_MODE_FAST;
 	else
 		return REGULATOR_MODE_NORMAL;

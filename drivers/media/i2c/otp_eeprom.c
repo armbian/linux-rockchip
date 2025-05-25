@@ -731,6 +731,58 @@ static void rkotp_read_af(struct eeprom_device *eeprom_dev,
 
 }
 
+static void rkotp_read_qsc(struct eeprom_device *eeprom_dev,
+			   struct otp_info *otp_ptr,
+			   u32 base_addr)
+{
+	struct i2c_client *client = eeprom_dev->client;
+	struct device *dev = &eeprom_dev->client->dev;
+	u8 *qsc_calib = &otp_ptr->qsc_data.qsc_calib[0];
+	u32 checksum = 0;
+	u32 temp = 0;
+	int i = 0;
+	int ret = 0;
+
+	ret = read_reg_otp(client, base_addr,
+		4, &otp_ptr->qsc_data.size);
+	checksum += otp_ptr->qsc_data.size;
+	base_addr += 4;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->qsc_data.version);
+	checksum += otp_ptr->qsc_data.version;
+	base_addr += 2;
+	ret |= read_reg_otp(client, base_addr,
+		2, &otp_ptr->qsc_data.qsc_size);
+	checksum += otp_ptr->qsc_data.qsc_size;
+	base_addr += 2;
+
+	ret |= read_reg_otp_buf(client, base_addr, RK_QSC_SIZE, qsc_calib);
+	base_addr += RK_QSC_SIZE;
+
+	for (i = 0; i < RK_QSC_SIZE; i++)
+		checksum += qsc_calib[i];
+
+	for (i = 0; i < RK_QSC_RESERVED_SIZE; i++) {
+		ret |= read_reg_otp(client, base_addr, 1, &temp);
+		checksum += temp;
+		base_addr += 1;
+	}
+
+	ret |= read_reg_otp(client, base_addr,
+		1, &otp_ptr->qsc_data.checksum);
+	if ((checksum % 255 + 1) == otp_ptr->qsc_data.checksum && (!ret)) {
+		otp_ptr->qsc_data.flag = 0x01;
+		dev_info(dev, "qsc info:(data[0] 0x%x, checksum 0x%x)\n",
+			 otp_ptr->qsc_data.qsc_calib[0],
+			 (int)otp_ptr->qsc_data.checksum);
+	} else {
+		otp_ptr->qsc_data.flag = 0x00;
+		dev_info(dev, "qsc info: checksum err, checksum %d, reg_checksum %d\n",
+			 (int)(checksum % 255 + 1),
+			 (int)otp_ptr->qsc_data.checksum);
+	}
+}
+
 static int rkotp_read_data(struct eeprom_device *eeprom_dev)
 {
 	struct i2c_client *client = eeprom_dev->client;
@@ -779,6 +831,12 @@ static int rkotp_read_data(struct eeprom_device *eeprom_dev)
 				otp_ptr,
 				base_addr + 1);
 			base_addr += 0x20;
+			break;
+		case RKOTP_QSC_ID:
+			rkotp_read_qsc(eeprom_dev,
+				otp_ptr,
+				base_addr + 1);
+			base_addr += 0x1010;
 			break;
 		default:
 			id = -1;

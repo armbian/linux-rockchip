@@ -1294,6 +1294,11 @@ static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
 	case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
 		ktime_get_raw_ts64(tv);
 		break;
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	case SNDRV_PCM_TSTAMP_TYPE_BOOTTIME:
+		ktime_get_boottime_ts64(tv);
+		break;
+#endif
 	default:
 		ktime_get_real_ts64(tv);
 		break;

@@ -96,6 +96,10 @@ struct stream_config {
 		u32 v_offs_shd;
 		u32 h_size_shd;
 		u32 v_size_shd;
+		u32 ch_4_5_offs;
+		u32 ch_4_5_size;
+		u32 ch_4_5_offs_shd;
+		u32 ch_4_5_size_shd;
 	} crop;
 	struct {
 		u32 ctrl;
@@ -162,6 +166,8 @@ struct rkvpss_online_unite_params {
  * streaming: stream start flag
  * stopping: stream stop flag
  * linked: link enable flag
+ * alpha: argb a value
+ * avg_scl_down : CH0 and CH2 can use average scale down, 1-16 scale range
  */
 struct rkvpss_stream {
 	struct rkvpss_device *dev;
@@ -186,6 +192,8 @@ struct rkvpss_stream {
 	struct rkvpss_online_unite_params unite_params;
 
 	int id;
+	u32 alpha;
+	u32 fbc_head_size;
 	bool streaming;
 	bool stopping;
 	bool linked;
@@ -194,12 +202,15 @@ struct rkvpss_stream {
 	bool is_mf_upd;
 	bool is_pause;
 	bool is_attach_info;
+	bool rockit_on;
+	bool avg_scl_down;
 };
 
 /* rkvpss stream device */
 struct rkvpss_stream_vdev {
 	struct rkvpss_stream stream[RKVPSS_OUTPUT_MAX];
 	atomic_t refcnt;
+	u32 wrap_line;
 };
 
 void rkvpss_cmsc_config(struct rkvpss_device *dev, bool sync);

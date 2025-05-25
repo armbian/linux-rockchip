@@ -40,16 +40,6 @@ config VIDEO_ROCKCHIP_ISP_VERSION_V32
 	depends on CPU_RV1106 || CPU_RK3562
 	default y
 
-config VIDEO_ROCKCHIP_ISP_VERSION_V39
-	bool "isp39 for rk3576"
-	depends on CPU_RK3576
-	default y
-
-config VIDEO_ROCKCHIP_ISP_VERSION_V39_DBG
-	bool "isp39 params debug for rk3576"
-	depends on VIDEO_ROCKCHIP_ISP_VERSION_V39
-	default n
-
 config VIDEO_ROCKCHIP_ISP_VERSION_V33
 	bool "isp33 for rv1103b"
 	depends on CPU_RV1103B
@@ -58,6 +48,26 @@ config VIDEO_ROCKCHIP_ISP_VERSION_V33
 config VIDEO_ROCKCHIP_ISP_VERSION_V33_DBG
 	bool "isp33 params debug for rv1103b"
 	depends on VIDEO_ROCKCHIP_ISP_VERSION_V33
+	default n
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V35
+	bool "isp35 for rv1126b"
+	depends on CPU_RV1126B
+	default y
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V35_DBG
+	bool "isp35 params debug for rv1126b"
+	depends on VIDEO_ROCKCHIP_ISP_VERSION_V35
+	default n
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V39
+	bool "isp39 for rk3576"
+	depends on CPU_RK3576
+	default y
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V39_DBG
+	bool "isp39 params debug for rk3576"
+	depends on VIDEO_ROCKCHIP_ISP_VERSION_V39
 	default n
 
 config VIDEO_ROCKCHIP_THUNDER_BOOT_ISP

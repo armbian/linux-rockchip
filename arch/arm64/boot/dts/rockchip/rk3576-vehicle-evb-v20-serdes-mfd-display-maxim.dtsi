@@ -1690,11 +1690,6 @@
 	status = "okay";
 };
 
-&vop {
-	assigned-clocks = <&cru PLL_VPLL>;
-	assigned-clock-rates = <1150000000>;
-};
-
 //edp
 &vp0 {
 	assigned-clocks = <&cru DCLK_VP0_SRC>;

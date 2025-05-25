@@ -425,12 +425,23 @@ static void rockchip_flexbus_dac_remove(struct platform_device *pdev)
 	mutex_destroy(&rkfb_dac->lock);
 }
 
+static int rockchip_flexbus_dac_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rockchip_flexbus_dac *rkfb_dac = iio_priv(indio_dev);
+
+	return rockchip_flexbus_dac_init(rkfb_dac);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_flexbus_dac_pm_ops, NULL, rockchip_flexbus_dac_resume);
+
 static struct platform_driver rockchip_flexbus_dac_driver = {
 	.probe	= rockchip_flexbus_dac_probe,
 	.remove	= rockchip_flexbus_dac_remove,
 	.driver	= {
 		.name		= "rockchip_flexbus_dac",
 		.of_match_table = rockchip_flexbus_dac_of_match,
+		.pm		= pm_sleep_ptr(&rockchip_flexbus_dac_pm_ops),
 	},
 };
 

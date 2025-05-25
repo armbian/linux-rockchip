@@ -528,7 +528,7 @@
 			};
 		};
 
-		fp9931_thermal: fp9931-thermal {
+		fp9931_thermal: fp9931_thermal {
 			compatible = "fp9931-thermal";
 		};
 	};

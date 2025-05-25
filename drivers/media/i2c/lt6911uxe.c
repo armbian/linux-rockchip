@@ -14,6 +14,7 @@
  *  1.fix some errors.
  *  2.add dphy timing reg.
  * V0.0X01.0X05 add dual mipi mode support
+ * V0.0X01.0X06 add yuv420 8bit
  *
  */
 // #define DEBUG
@@ -41,7 +42,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -51,14 +52,19 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define POLL_INTERVAL_MS	1000
 
 #define LT6911UXE_LINK_FREQ_1250M	1250000000
+#define LT6911UXE_LINK_FREQ_1100M	1100000000
+#define LT6911UXE_LINK_FREQ_1000M	1000000000
 #define LT6911UXE_LINK_FREQ_900M	900000000
+#define LT6911UXE_LINK_FREQ_800M	800000000
+#define LT6911UXE_LINK_FREQ_700M	700000000
 #define LT6911UXE_LINK_FREQ_600M	600000000
-#define LT6911UXE_LINK_FREQ_450M	450000000
+#define LT6911UXE_LINK_FREQ_500M	500000000
 #define LT6911UXE_LINK_FREQ_400M	400000000
 #define LT6911UXE_LINK_FREQ_300M	300000000
 #define LT6911UXE_LINK_FREQ_200M	200000000
 #define LT6911UXE_LINK_FREQ_150M	150000000
 #define LT6911UXE_LINK_FREQ_100M	100000000
+#define LT6911UXE_LINK_FREQ_50M		50000000
 #define LT6911UXE_PIXEL_RATE		800000000
 
 #define LT6911UXE_CHIPID	0x0221
@@ -131,34 +137,57 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define MIPI_TX_PT0_LPTX	0xe234
 #define MIPI_TX_PT1_LPTX	0xe244
 
-// #define LT6911UXE_OUT_RGB
-#ifdef LT6911UXE_OUT_RGB
-#define LT6911UXE_MEDIA_BUS_FMT		MEDIA_BUS_FMT_BGR888_1X24
-#else
-#define LT6911UXE_MEDIA_BUS_FMT		MEDIA_BUS_FMT_UYVY8_2X8
-#endif
+enum lt6911uxe_bus_fmt {
+	RGB_6Bit = 0,
+	RGB_8Bit,
+	RGB_10Bit,
+	RGB_12Bit,
+	YUV444_8Bit,
+	YUV444_10Bit,
+	YUV444_12Bit,
+	YUV422_8Bit,
+	YUV422_10Bit,
+	YUV422_12Bit,
+	YUV420_8Bit,
+	YUV420_10Bit,
+	YUV420_12Bit,
+};
+
+static const char * const bus_format_str[] = {
+	"RGB_6Bit",
+	"RGB_8Bit",
+	"RGB_10Bit",
+	"RGB_12Bit",
+	"YUV444_8Bit",
+	"YUV444_10Bit",
+	"YUV444_12Bit",
+	"YUV422_8Bit",
+	"YUV422_10Bit",
+	"YUV422_12Bit",
+	"YUV420_8Bit",
+	"YUV420_10Bit",
+	"YUV420_12Bit",
+	"UNKNOWN",
+};
 
 #define LT6911UXE_NAME			"LT6911UXE"
 
-#ifdef LT6911UXE_OUT_RGB
 static const s64 link_freq_menu_items[] = {
 	LT6911UXE_LINK_FREQ_1250M,
+	LT6911UXE_LINK_FREQ_1100M,
+	LT6911UXE_LINK_FREQ_1000M,
 	LT6911UXE_LINK_FREQ_900M,
+	LT6911UXE_LINK_FREQ_800M,
+	LT6911UXE_LINK_FREQ_700M,
 	LT6911UXE_LINK_FREQ_600M,
-	LT6911UXE_LINK_FREQ_450M,
-	LT6911UXE_LINK_FREQ_300M,
-	LT6911UXE_LINK_FREQ_150M,
-};
-#else
-static const s64 link_freq_menu_items[] = {
-	LT6911UXE_LINK_FREQ_1250M,
-	LT6911UXE_LINK_FREQ_600M,
+	LT6911UXE_LINK_FREQ_500M,
 	LT6911UXE_LINK_FREQ_400M,
 	LT6911UXE_LINK_FREQ_300M,
 	LT6911UXE_LINK_FREQ_200M,
+	LT6911UXE_LINK_FREQ_150M,
 	LT6911UXE_LINK_FREQ_100M,
+	LT6911UXE_LINK_FREQ_50M,
 };
-#endif
 
 struct lt6911uxe {
 	struct v4l2_mbus_config_mipi_csi2 bus;
@@ -200,6 +229,9 @@ struct lt6911uxe {
 	u32 audio_sampling_rate;
 	int lane_in_use;
 	bool dual_mipi_port;
+	u8 bus_fmt;
+	bool rgb_out;
+	u32 cur_fps;
 };
 
 static const struct v4l2_dv_timings_cap lt6911uxe_timings_cap = {
@@ -788,7 +820,7 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
 	u32 hact, vact, htotal, vtotal, hs, vs, hbp, vbp, hfp, vfp;
-	u32 pixel_clock, fps, halt_pix_clk;
+	u32 pixel_clock, halt_pix_clk;
 	u8 clk_h, clk_m, clk_l;
 	u8 val_h, val_l;
 	u32 byte_clk, mipi_clk, mipi_data_rate;
@@ -839,6 +871,15 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 
 	vbp = vtotal - vact - vs - vfp;
 
+	lt6911uxe->bus_fmt = i2c_rd8(sd, BUS_FMT);
+	if (lt6911uxe->bus_fmt == YUV420_8Bit) {
+		hact *= 2;
+		hs *= 2;
+		hfp *= 2;
+		hbp *= 2;
+		htotal *= 2;
+		pixel_clock *= 2;
+	}
 	lt6911uxe->nosignal = false;
 	lt6911uxe->is_audio_present = true;
 	timings->type = V4L2_DV_BT_656_1120;
@@ -852,7 +893,7 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	bt->hbackporch = hbp;
 	bt->vbackporch = vbp;
 	bt->pixelclock = pixel_clock;
-	fps = pixel_clock / (htotal * vtotal);
+	lt6911uxe->cur_fps = pixel_clock / (htotal * vtotal);
 
 	/* for interlaced res 1080i 576i 480i*/
 	if ((hact == 1920 && vact == 540) || (hact == 1440 && vact == 288)
@@ -864,14 +905,23 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 		bt->interlaced = V4L2_DV_PROGRESSIVE;
 	}
 
-	if (!lt6911uxe_rcv_supported_res(sd, hact, bt->height)) {
-		lt6911uxe->nosignal = true;
-		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
-		return -EINVAL;
+	if (lt6911uxe->bus_fmt == YUV420_8Bit) {
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UV8_1X8;
+	} else {
+		if (lt6911uxe->rgb_out)
+			lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_BGR888_1X24;
+		else
+			lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
-	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
-			hact, vact, htotal, vtotal, pixel_clock, fps);
+	if (!lt6911uxe_rcv_supported_res(sd, bt->width, bt->height)) {
+		lt6911uxe->nosignal = true;
+		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
+	}
+
+	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%u, fps:%d, bus fmt:%s\n",
+			hact, vact, htotal, vtotal, pixel_clock,
+			lt6911uxe->cur_fps, bus_format_str[lt6911uxe->bus_fmt]);
 	v4l2_info(sd, "byte_clk:%u, mipi_clk:%u, mipi_data_rate:%u\n",
 			byte_clk, mipi_clk, mipi_data_rate);
 	v4l2_info(sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, inerlaced:%d\n",
@@ -936,42 +986,14 @@ static int lt6911uxe_update_controls(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static void lt6911uxe_config_dphy_timing(struct v4l2_subdev *sd)
-{
-	u8 val;
-
-	val = i2c_rd8(sd, CLK_ZERO_REG);
-	i2c_wr8(sd, CLK_ZERO_REG, val);
-
-	val = i2c_rd8(sd, HS_PREPARE_REG);
-	i2c_wr8(sd, HS_PREPARE_REG, val);
-
-	val = i2c_rd8(sd, HS_TRAIL);
-	i2c_wr8(sd, HS_TRAIL, val);
-	v4l2_info(sd, "%s: dphy timing: hs trail = %x\n", __func__, val);
-
-	val = i2c_rd8(sd, MIPI_TX_PT0_TX0_DLY);
-	i2c_wr8_and_or(sd, MIPI_TX_PT0_TX0_DLY, ~MIPI_TIMING_MASK, val);
-	v4l2_info(sd, "%s: dphy timing: port0 tx0 delay = %x\n", __func__, val);
-
-	val = i2c_rd8(sd, MIPI_TX_PT0_LPTX);
-	i2c_wr8(sd, MIPI_TX_PT0_LPTX, val);
-	v4l2_info(sd, "%s: dphy timing: port0 lptx = %x\n", __func__, val);
-
-	v4l2_info(sd, "%s: dphy timing config done.\n", __func__);
-}
-
 static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
-	if (enable) {
-		lt6911uxe_config_dphy_timing(sd);
-		usleep_range(5000, 6000);
+	if (enable)
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, ENABLE_STREAM);
-	} else {
+	else
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, DISABLE_STREAM);
-	}
 	msleep(20);
 
 	v4l2_dbg(2, debug, sd, "%s: %sable\n",
@@ -1170,11 +1192,8 @@ static int lt6911uxe_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = lt6911uxe->i2c_client;
 
 	dev_info(&client->dev, "%s: on: %d, %dx%d%s%d\n", __func__, on,
-				lt6911uxe->cur_mode->width,
-				lt6911uxe->cur_mode->height,
-				lt6911uxe->cur_mode->interlace ? "I" : "P",
-		DIV_ROUND_CLOSEST(lt6911uxe->cur_mode->max_fps.denominator,
-				  lt6911uxe->cur_mode->max_fps.numerator));
+		lt6911uxe->timings.bt.width, lt6911uxe->timings.bt.height,
+		lt6911uxe->timings.bt.interlaced ? "I" : "P", lt6911uxe->cur_fps);
 	enable_stream(sd, on);
 
 	return 0;
@@ -1184,9 +1203,11 @@ static int lt6911uxe_enum_mbus_code(struct v4l2_subdev *sd,
 			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+
 	switch (code->index) {
 	case 0:
-		code->code = LT6911UXE_MEDIA_BUS_FMT;
+		code->code = lt6911uxe->mbus_fmt_code;
 		break;
 
 	default:
@@ -1205,7 +1226,7 @@ static int lt6911uxe_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= lt6911uxe->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != LT6911UXE_MEDIA_BUS_FMT)
+	if (fse->code != lt6911uxe->mbus_fmt_code)
 		return -EINVAL;
 
 	fse->min_width  = lt6911uxe->support_modes[fse->index].width;
@@ -1225,7 +1246,7 @@ static int lt6911uxe_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= lt6911uxe->cfg_num)
 		return -EINVAL;
 
-	fie->code = LT6911UXE_MEDIA_BUS_FMT;
+	fie->code = lt6911uxe->mbus_fmt_code;
 
 	fie->width = lt6911uxe->support_modes[fie->index].width;
 	fie->height = lt6911uxe->support_modes[fie->index].height;
@@ -1276,12 +1297,69 @@ lt6911uxe_find_best_fit(struct lt6911uxe *lt6911uxe)
 	return &lt6911uxe->support_modes[cur_best_fit];
 }
 
+static int lt6911uxe_get_format_bpp(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	u32 code = lt6911uxe->mbus_fmt_code;
+
+	switch (code) {
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		return 16;
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		return 24;
+	case MEDIA_BUS_FMT_UV8_1X8:
+		return 12;
+	default:
+		return 16;
+	}
+}
+
+static u64 lt6911uxe_get_lane_rate_bps(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	u64 lane_rate;
+	u64 max_lane_rate = 2500000000U;
+	u8 bpp;
+	u64 pixelclock = lt6911uxe->timings.bt.pixelclock;
+	u32 lanes = lt6911uxe->bus_cfg.bus.mipi_csi2.num_data_lanes;
+
+	bpp = lt6911uxe_get_format_bpp(sd);
+	lane_rate = pixelclock * bpp;
+	lane_rate = div_u64(lane_rate, lanes);
+	lane_rate = DIV_ROUND_UP(lane_rate * 10, 9);
+
+	if (lane_rate > max_lane_rate)
+		lane_rate = max_lane_rate;
+
+	return lane_rate;
+}
+
+static int lt6911uxe_get_mipi_freq_idx(struct v4l2_subdev *sd)
+{
+	u64 mipi_freq;
+	u64 dist;
+	u64 cur_best_idx = 0;
+	u64 cur_dist;
+	unsigned int i;
+
+	mipi_freq = lt6911uxe_get_lane_rate_bps(sd) / 2;
+	dist = abs(mipi_freq - link_freq_menu_items[0]);
+	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
+		cur_dist = abs(mipi_freq - link_freq_menu_items[i]);
+		if (cur_dist < dist) {
+			dist = cur_dist;
+			cur_best_idx = i;
+		}
+	}
+	return cur_best_idx;
+}
+
 static int lt6911uxe_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *format)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
-	const struct lt6911uxe_mode *mode;
+	int mipi_freq_idx;
 
 	mutex_lock(&lt6911uxe->confctl_mutex);
 	format->format.code = lt6911uxe->mbus_fmt_code;
@@ -1293,15 +1371,14 @@ static int lt6911uxe_get_fmt(struct v4l2_subdev *sd,
 	format->format.colorspace = V4L2_COLORSPACE_SRGB;
 	mutex_unlock(&lt6911uxe->confctl_mutex);
 
-	mode = lt6911uxe_find_best_fit(lt6911uxe);
-	lt6911uxe->cur_mode = mode;
+	mipi_freq_idx = lt6911uxe_get_mipi_freq_idx(sd);
 
 	__v4l2_ctrl_s_ctrl_int64(lt6911uxe->pixel_rate,
 				LT6911UXE_PIXEL_RATE);
 	__v4l2_ctrl_s_ctrl(lt6911uxe->link_freq,
-				mode->mipi_freq_idx);
+				mipi_freq_idx);
 
-	v4l2_dbg(1, debug, sd, "%s: mode->mipi_freq_idx(%d)", __func__, mode->mipi_freq_idx);
+	v4l2_dbg(1, debug, sd, "%s: mipi_freq_idx(%d)", __func__, mipi_freq_idx);
 
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
 			__func__, format->format.code, format->format.width,
@@ -1327,9 +1404,18 @@ static int lt6911uxe_set_fmt(struct v4l2_subdev *sd,
 		return ret;
 
 	switch (code) {
-	case LT6911UXE_MEDIA_BUS_FMT:
-		break;
-
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		if (lt6911uxe->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_2X8)
+			break;
+		return -EINVAL;
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		if (lt6911uxe->mbus_fmt_code == MEDIA_BUS_FMT_BGR888_1X24)
+			break;
+		return -EINVAL;
+	case MEDIA_BUS_FMT_UV8_1X8:
+		if (lt6911uxe->mbus_fmt_code == MEDIA_BUS_FMT_UV8_1X8)
+			break;
+		return -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -1542,7 +1628,7 @@ static int lt6911uxe_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = LT6911UXE_MEDIA_BUS_FMT;
+	try_fmt->code = lt6911uxe->mbus_fmt_code;
 	try_fmt->field = V4L2_FIELD_NONE;
 	mutex_unlock(&lt6911uxe->confctl_mutex);
 
@@ -1719,6 +1805,9 @@ static int lt6911uxe_probe_of(struct lt6911uxe *lt6911uxe)
 		return ret;
 	}
 
+	if (of_property_read_bool(dev->of_node, "output-rgb"))
+		lt6911uxe->rgb_out = true;
+
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
@@ -1844,7 +1933,6 @@ static int lt6911uxe_probe(struct i2c_client *client,
 
 	sd = &lt6911uxe->sd;
 	lt6911uxe->i2c_client = client;
-	lt6911uxe->mbus_fmt_code = LT6911UXE_MEDIA_BUS_FMT;
 
 	err = lt6911uxe_probe_of(lt6911uxe);
 	if (err) {
@@ -1854,6 +1942,10 @@ static int lt6911uxe_probe(struct i2c_client *client,
 
 	lt6911uxe->timings = default_timing;
 	lt6911uxe->cur_mode = &lt6911uxe->support_modes[0];
+	if (lt6911uxe->rgb_out)
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_BGR888_1X24;
+	else
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	err = lt6911uxe_get_multi_dev_info(lt6911uxe);
 	if (err)
@@ -1940,7 +2032,8 @@ static int lt6911uxe_probe(struct i2c_client *client,
 		v4l2_err(sd, "v4l2 ctrl handler setup failed! err:%d\n", err);
 		goto err_work_queues;
 	}
-	enable_stream(sd, false);
+
+	schedule_delayed_work(&lt6911uxe->delayed_work_res_change, msecs_to_jiffies(50));
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 

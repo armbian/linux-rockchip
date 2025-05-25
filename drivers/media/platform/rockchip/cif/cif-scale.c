@@ -313,15 +313,32 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 	}
 	if (scale_vdev->scl_mode == RKCIF_SCL_MODE_SCALE) {
 		scale_ratio = width / pixm->width;
-		if (scale_ratio <= 8) {
-			scale_vdev->scale_mode = SCALE_8TIMES;
-			scale_times = 8;
-		} else if (scale_ratio <= 16) {
-			scale_vdev->scale_mode = SCALE_16TIMES;
-			scale_times = 16;
+		if (cif_dev->chip_id < CHIP_RV1126B_CIF) {
+			if (scale_ratio <= 8) {
+				scale_vdev->scale_mode = SCALE_8TIMES;
+				scale_times = 8;
+			} else if (scale_ratio <= 16) {
+				scale_vdev->scale_mode = SCALE_16TIMES;
+				scale_times = 16;
+			} else {
+				scale_vdev->scale_mode = SCALE_32TIMES;
+				scale_times = 32;
+			}
+			scale_vdev->scale_mode -= 1;
 		} else {
-			scale_vdev->scale_mode = SCALE_32TIMES;
-			scale_times = 32;
+			if (scale_ratio <= 4) {
+				scale_vdev->scale_mode = SCALE_4TIMES;
+				scale_times = 4;
+			} else if (scale_ratio <= 8) {
+				scale_vdev->scale_mode = SCALE_8TIMES;
+				scale_times = 8;
+			} else if (scale_ratio <= 16) {
+				scale_vdev->scale_mode = SCALE_16TIMES;
+				scale_times = 16;
+			} else {
+				scale_vdev->scale_mode = SCALE_32TIMES;
+				scale_times = 32;
+			}
 		}
 		//source resolution align (scale_times * 2)
 		width = ALIGN(width, scale_times * 2);
@@ -340,9 +357,14 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 	pixm->field = V4L2_FIELD_NONE;
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
 
-	bpp = rkcif_scale_align_bits_per_pixel(cif_dev, fmt, 0);
-	bpl = pixm->width * bpp / CIF_RAW_STORED_BIT_WIDTH_RV1126;
-	bpl = ALIGN(bpl, 8);
+	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE &&
+	    stream->is_compact) {
+		bpl = ALIGN(pixm->width * fmt->raw_bpp / 8, 256);
+	} else {
+		bpp = rkcif_scale_align_bits_per_pixel(cif_dev, fmt, 0);
+		bpl = pixm->width * bpp / CIF_RAW_STORED_BIT_WIDTH_RV1126;
+		bpl = ALIGN(bpl, 8);
+	}
 	size = bpl * pixm->height;
 	imagesize += size;
 
@@ -688,7 +710,10 @@ static int rkcif_scale_stop(struct rkcif_scale_vdev *scale_vdev)
 	struct rkcif_device *dev = scale_vdev->cifdev;
 	int ch = scale_vdev->ch;
 
-	if (dev->chip_id == CHIP_RK3576_CIF)
+	if (dev->chip_id >= CHIP_RV1126B_CIF)
+		rkcif_write_register_and(dev, CIF_REG_SCL_CTRL,
+					 ~(CIF_SCALE_EN(ch) | CIF_SCALE_DMA_EN_RV1126B));
+	else if (dev->chip_id == CHIP_RK3576_CIF)
 		rkcif_write_register_and(dev, CIF_REG_SCL_CH_CTRL,
 					 ~(CIF_SCALE_EN(ch) | CIF_SCALE_DMA_EN_RK3576));
 	else
@@ -752,7 +777,12 @@ static int rkcif_scale_channel_init(struct rkcif_scale_vdev *scale_vdev)
 		scale_vdev->ch_src = 4 * cif_dev->csi_host_idx + scale_vdev->ch;
 	ch_info->width = pixm.width;
 	ch_info->height = pixm.height;
-	ch_info->vir_width = ALIGN(ch_info->width  * fmt->bpp[0] / 8, 8);
+	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE &&
+	    scale_vdev->stream->is_compact) {
+		ch_info->vir_width = ALIGN(ch_info->width * fmt->raw_bpp / 8, 256);
+	} else {
+		ch_info->vir_width = ALIGN(ch_info->width  * fmt->bpp[0] / 8, 8);
+	}
 	return 0;
 }
 
@@ -1029,6 +1059,54 @@ static int rkcif_scale_channel_set_rk3576(struct rkcif_scale_vdev *scale_vdev)
 	return 0;
 }
 
+static int rkcif_scale_channel_set_rv1126b(struct rkcif_scale_vdev *scale_vdev)
+{
+	struct rkcif_device *dev = scale_vdev->cifdev;
+	u32 val = 0;
+	u32 ch  = scale_vdev->ch;
+
+	val = rkcif_read_register(dev, CIF_REG_SCL_CTRL);
+	if (val & CIF_SCALE_EN_RV1126B) {
+		v4l2_err(&dev->v4l2_dev, "scale_vdev[%d] has been used by other device\n", ch);
+		return -EINVAL;
+	}
+
+	rkcif_assign_scale_buffer_pingpong(scale_vdev,
+					   RKCIF_YUV_ADDR_STATE_INIT,
+					   ch);
+	rkcif_write_register_or(dev, CIF_REG_SCL_CTRL, SCALE_SOFT_RESET_RV1126B);
+	rkcif_write_register_and(dev, CIF_REG_SCL_CTRL, ~SCALE_SOFT_RESET_RV1126B);
+
+	rkcif_write_register_and(dev, CIF_REG_GLB_INTST,
+				 ~(SCALE_END_INTSTAT_RK3576 |
+				 SCALE_FIFO_OVERFLOW_RK3576));
+	rkcif_write_register_or(dev, CIF_REG_GLB_INTEN,
+				(SCALE_END_INTSTAT_RK3576 |
+				SCALE_FIFO_OVERFLOW_RK3576 |
+				SCALE_TOISP_AXI0_ERR));
+	val = CIF_SCALE_SW_WATER_LINE_RV1126B(1) | CIF_SCALE_DMA_EN_RV1126B |
+		CIF_SCALE_SW_SRC_RV1126B(scale_vdev->ch_src) |
+		(scale_vdev->scl_mode << 2) | CIF_SCALE_EN(ch);
+
+	if (scale_vdev->scl_mode == RKCIF_SCL_MODE_SCALE)
+		val |= CIF_SCALE_SW_MODE_RV1126B(scale_vdev->scale_mode);
+	else if (scale_vdev->scl_mode == RKCIF_SCL_MODE_EXTRACTION)
+		val |= (scale_vdev->extrac_pattern << 6);
+	if (!scale_vdev->stream->is_compact)
+		val |= (1 << 8);
+
+	rkcif_write_register(dev, CIF_REG_SCL_CTRL, val);
+	val = scale_vdev->blc.pattern00 |
+	      (scale_vdev->blc.pattern01 << 8) |
+	      (scale_vdev->blc.pattern02 << 16) |
+	      (scale_vdev->blc.pattern03 << 24);
+	rkcif_write_register(dev, CIF_REG_SCL_BLC_CH0,
+			     val);
+	rkcif_write_register(dev, get_reg_index_of_scale_vlw(ch),
+			     scale_vdev->ch_info.vir_width);
+	return 0;
+}
+
 int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
 {
 	int ret = 0;
@@ -1043,10 +1121,12 @@ int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
 	}
 
 	rkcif_scale_channel_init(scale_vdev);
-	if (dev->chip_id < CHIP_RK3576_CIF)
-		ret = rkcif_scale_channel_set(scale_vdev);
-	else
+	if (dev->chip_id >= CHIP_RV1126B_CIF)
+		ret = rkcif_scale_channel_set_rv1126b(scale_vdev);
+	else if (dev->chip_id == CHIP_RK3576_CIF)
 		ret = rkcif_scale_channel_set_rk3576(scale_vdev);
+	else
+		ret = rkcif_scale_channel_set(scale_vdev);
 	if (ret)
 		goto destroy_buf;
 	scale_vdev->frame_idx = 0;
@@ -1127,7 +1207,7 @@ static int rkcif_scale_init_vb2_queue(struct vb2_queue *q,
 static int rkcif_scale_g_ch(struct rkcif_device *dev,
 			    unsigned int intstat)
 {
-	if (dev->chip_id == CHIP_RK3576_CIF) {
+	if (dev->chip_id >= CHIP_RK3576_CIF) {
 		if (intstat & SCALE_END_INTSTAT_RK3576)
 			return 0;
 		else

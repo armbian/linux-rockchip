@@ -79,6 +79,8 @@
 #define PMPCSR_LO			0x200
 #define PMPCSR_HI			0x204
 
+#define EDOSLAR				0x300
+
 #define NUM_CPU_SAMPLES			100
 #define NUM_SAMPLES_TO_PRINT		32
 
@@ -138,6 +140,9 @@ static int rockchip_debug_dump_edpcsr(struct fiq_debugger_output *output)
 		}
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
+
+		/* Disabled os lock */
+		writel(0, base + EDOSLAR);
 
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
@@ -298,6 +303,9 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
+
+		/* Disabled os lock */
+		writel(0, base + EDOSLAR);
 
 		pr_err("CPU%d online:%d\n", i, cpu_online(i));
 
@@ -533,6 +541,8 @@ static int rockchip_hardlock_notify(struct notifier_block *nb,
 		base = rockchip_cpu_debug[cpu];
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
+		/* Disabled os lock */
+		writel(0, base + EDOSLAR);
 		if (sizeof(edpcsr) == 8)
 			edpcsr = ((u64)readl(base + EDPCSR_LO)) |
 				 ((u64)readl(base + EDPCSR_HI) << 32);

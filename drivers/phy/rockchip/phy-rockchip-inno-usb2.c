@@ -3258,6 +3258,40 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rv1126b_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	int ret = 0;
+
+	/* Turn off differential receiver by default to save power */
+	phy_clear_bits(rphy->phy_base + 0x0030, BIT(2));
+	phy_clear_bits(rphy->phy_base + 0x0430, BIT(2));
+
+	/* Enable pre-emphasis during non-chirp phase */
+	phy_update_bits(rphy->phy_base, GENMASK(2, 0), 0x04);
+	phy_update_bits(rphy->phy_base + 0x0400, GENMASK(2, 0), 0x04);
+
+	/* Set HS eye height to 425mv(default is 400mv) */
+	phy_update_bits(rphy->phy_base + 0x0030, GENMASK(6, 4), (0x05 << 4));
+	phy_update_bits(rphy->phy_base + 0x0430, GENMASK(6, 4), (0x05 << 4));
+
+	/* Set Rx squelch trigger point configure to 112.5mv */
+	phy_update_bits(rphy->phy_base + 0x0004, GENMASK(7, 5), (0x00 << 5));
+	phy_update_bits(rphy->phy_base + 0x0008, GENMASK(0, 0), (0x00 << 0));
+	phy_update_bits(rphy->phy_base + 0x0404, GENMASK(7, 5), (0x00 << 5));
+	phy_update_bits(rphy->phy_base + 0x0408, GENMASK(0, 0), (0x00 << 0));
+
+	/* Set the bvalid filter time to 10ms based on the u2phy grf pclk 100MHz */
+	ret |= regmap_write(rphy->grf, 0x10088, FILTER_COUNTER);
+
+	/* Set the id filter time to 10ms based on the u2phy grf pclk 100MHz */
+	ret |= regmap_write(rphy->grf, 0x1008c, FILTER_COUNTER);
+
+	/* Enable host port wakeup irq */
+	ret |= regmap_write(rphy->grf, 0x000c, 0x80008000);
+
+	return ret;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int rockchip_usb2phy_pm_suspend(struct device *dev)
 {
@@ -4645,6 +4679,67 @@ static const struct rockchip_usb2phy_cfg rv1108_phy_cfgs[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_usb2phy_cfg rv1126b_phy_cfgs[] = {
+	{
+		.reg = 0x21400000,
+		.num_ports	= 2,
+		.phy_tuning	= rv1126b_usb2phy_tuning,
+		.vbus_detect	= rockchip_usb2phy_vbus_det_control,
+		.clkout_ctl	= { 0x10028, 3, 3, 1, 0 },
+		.port_cfgs	= {
+			[USB2PHY_PORT_OTG] = {
+				.phy_sus	= { 0x10020, 8, 0, 0, 0x1d1 },
+				.pipe_phystatus = { 0x1003c, 15, 0, 0x1100, 0x0189 },
+				.bvalid_det_en	= { 0x10074, 2, 2, 0, 1 },
+				.bvalid_det_st	= { 0x10078, 2, 2, 0, 1 },
+				.bvalid_det_clr = { 0x1007c, 2, 2, 0, 1 },
+				.bvalid_grf_sel	= { 0x10020, 15, 14, 0, 3 },
+				.bypass_dm_en	= { 0x10028, 1, 1, 0, 1},
+				.bypass_sel	= { 0x10028, 2, 2, 0, 1},
+				.iddig_output	= { 0x10020, 10, 10, 0, 1 },
+				.iddig_en	= { 0x10020, 9, 9, 0, 1 },
+				.idfall_det_en	= { 0x10074, 5, 5, 0, 1 },
+				.idfall_det_st	= { 0x10078, 5, 5, 0, 1 },
+				.idfall_det_clr = { 0x1007c, 5, 5, 0, 1 },
+				.idrise_det_en	= { 0x10074, 4, 4, 0, 1 },
+				.idrise_det_st	= { 0x10078, 4, 4, 0, 1 },
+				.idrise_det_clr = { 0x1007c, 4, 4, 0, 1 },
+				.ls_det_en	= { 0x10074, 0, 0, 0, 1 },
+				.ls_det_st	= { 0x10078, 0, 0, 0, 1 },
+				.ls_det_clr	= { 0x1007c, 0, 0, 0, 1 },
+				.utmi_avalid	= { 0x10110, 1, 1, 0, 1 },
+				.utmi_bvalid	= { 0x10110, 0, 0, 0, 1 },
+				.utmi_id	= { 0x10110, 6, 6, 0, 1 },
+				.utmi_ls	= { 0x10110, 5, 4, 0, 1 },
+				.vbus_det_en	= { 0x003c, 7, 7, 0, 1 },
+				.port_ls_filter_con = { 0x10080, 19, 0, 0x30100, 0x20 },
+			},
+			[USB2PHY_PORT_HOST] = {
+				.phy_sus	= { 0x1001c, 8, 0, 0x1d2, 0x1d1 },
+				.ls_det_en	= { 0x10090, 0, 0, 0, 1 },
+				.ls_det_st	= { 0x10094, 0, 0, 0, 1 },
+				.ls_det_clr	= { 0x10098, 0, 0, 0, 1 },
+				.utmi_ls	= { 0x10110, 13, 12, 0, 1 },
+				.utmi_hstdet	= { 0x10110, 15, 15, 0, 1 },
+				.port_ls_filter_con = { 0x1009c, 19, 0, 0x30100, 0x20 },
+			}
+		},
+		.chg_det = {
+			.chg_mode	= { 0x10020, 8, 0, 0, 0x1d7 },
+			.cp_det		= { 0x10110, 19, 19, 0, 1 },
+			.dcp_det	= { 0x10110, 18, 18, 0, 1 },
+			.dp_det		= { 0x10110, 20, 20, 0, 1 },
+			.idm_sink_en	= { 0x1002c, 1, 1, 0, 1 },
+			.idp_sink_en	= { 0x1002c, 0, 0, 0, 1 },
+			.idp_src_en	= { 0x1002c, 2, 2, 0, 1 },
+			.rdm_pdwn_en	= { 0x1002c, 3, 3, 0, 1 },
+			.vdm_src_en	= { 0x1002c, 5, 5, 0, 1 },
+			.vdp_src_en	= { 0x1002c, 4, 4, 0, 1 },
+		},
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id rockchip_usb2phy_dt_match[] = {
 #ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-usb2phy", .data = &px30_phy_cfgs },
@@ -4697,6 +4792,9 @@ static const struct of_device_id rockchip_usb2phy_dt_match[] = {
 #ifdef CONFIG_CPU_RV1108
 	{ .compatible = "rockchip,rv1108-usb2phy", .data = &rv1108_phy_cfgs },
 #endif
+#ifdef CONFIG_CPU_RV1126B
+	{ .compatible = "rockchip,rv1126b-usb2phy", .data = &rv1126b_phy_cfgs },
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_usb2phy_dt_match);
@@ -4709,7 +4807,21 @@ static struct platform_driver rockchip_usb2phy_driver = {
 		.of_match_table = rockchip_usb2phy_dt_match,
 	},
 };
+#ifdef CONFIG_INITCALL_ASYNC
+static int __init rockchip_usb2phy_driver_init(void)
+{
+	return platform_driver_register(&rockchip_usb2phy_driver);
+}
+fs_initcall(rockchip_usb2phy_driver_init);
+
+static void __exit rockchip_usb2phy_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_usb2phy_driver);
+}
+module_exit(rockchip_usb2phy_driver_exit);
+#else
 module_platform_driver(rockchip_usb2phy_driver);
+#endif
 
 MODULE_AUTHOR("Frank Wang <frank.wang@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip USB2.0 PHY driver");

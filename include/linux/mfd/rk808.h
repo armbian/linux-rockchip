@@ -124,6 +124,10 @@ enum rk801_reg {
 #define RK801_SLEEP_POL_MSK                      BIT(1)
 #define RK801_SLEEP_ACT_H                        BIT(1)
 #define RK801_SLEEP_ACT_L                        0
+#define RK801_RST_MSK                            (0x3 << 4)
+#define RK801_RST_RESTART_PMU                    (0x0 << 4)
+#define RK801_RST_RESTART_REG                    (0x1 << 4)
+#define RK801_RST_RESTART_REG_RESETB             (0x2 << 4)
 
 /* RK801_INT_CONFIG_REG */
 #define RK801_INT_POL_MSK                        BIT(1)

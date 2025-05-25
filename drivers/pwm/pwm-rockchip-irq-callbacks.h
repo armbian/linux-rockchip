@@ -32,11 +32,11 @@ static void rockchip_pwm_wave_middle_callback(struct pwm_device *pwm)
 	 * struct rockchip_pwm_wave_table and call rockchip_pwm_set_wave().
 	 *
 	 * struct rockchip_pwm_wave_config wave_config;
-	 * struct rockchip_pwm_wave_table duty_table;
+	 * struct rockchip_pwm_wave_table wave_table;
 	 *
-	 * //fill the duty table
+	 * //fill the wave table
 	 * ......
-	 * wave_config.duty_table = &duty_table;
+	 * wave_config.wave_table = &wave_table;
 	 * wave_config.enable = true;
 	 * rockchip_pwm_set_wave(pwm, &wave_config);
 	 *
@@ -50,11 +50,11 @@ static void rockchip_pwm_wave_max_callback(struct pwm_device *pwm)
 	 * struct rockchip_pwm_wave_table and call rockchip_pwm_set_wave().
 	 *
 	 * struct rockchip_pwm_wave_config wave_config;
-	 * struct rockchip_pwm_wave_table duty_table;
+	 * struct rockchip_pwm_wave_table wave_table;
 	 *
-	 * //fill the duty table
+	 * //fill the wave table
 	 * ......
-	 * wave_config.duty_table = &duty_table;
+	 * wave_config.wave_table = &wave_table;
 	 * wave_config.enable = true;
 	 * rockchip_pwm_set_wave(pwm, &wave_config);
 	 *

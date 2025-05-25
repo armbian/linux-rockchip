@@ -620,7 +620,12 @@ enum {
 	SNDRV_PCM_TSTAMP_TYPE_GETTIMEOFDAY = 0,	/* gettimeofday equivalent */
 	SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,	/* posix_clock_monotonic equivalent */
 	SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW,    /* monotonic_raw (no NTP) */
+#if defined(__KERNEL__) && defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	SNDRV_PCM_TSTAMP_TYPE_BOOTTIME,         /* boot time during suspend */
+	SNDRV_PCM_TSTAMP_TYPE_LAST = SNDRV_PCM_TSTAMP_TYPE_BOOTTIME,
+#else
 	SNDRV_PCM_TSTAMP_TYPE_LAST = SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW,
+#endif
 };
 
 /* channel positions */

@@ -18,6 +18,10 @@
 #include "stream.h"
 #include "common.h"
 
+static int rkfec_user_debug;
+module_param_named(user_debug, rkfec_user_debug, int, 0644);
+MODULE_PARM_DESC(user_debug, "Debug level (0-6)");
+
 struct rkispp_fec_buf {
 	struct list_head list;
 	struct file *file;

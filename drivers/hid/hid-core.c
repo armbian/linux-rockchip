@@ -3094,7 +3094,11 @@ static void __exit hid_exit(void)
 	hid_quirks_exit(HID_BUS_ANY);
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+rootfs_initcall(hid_init);
+#else
 module_init(hid_init);
+#endif
 module_exit(hid_exit);
 
 MODULE_AUTHOR("Andreas Gal");

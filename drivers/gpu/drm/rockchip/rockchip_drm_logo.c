@@ -772,7 +772,8 @@ static void rockchip_drm_mode_fixup(struct drm_crtc_state *crtc_state,
 
 static int setup_initial_state(struct drm_device *drm_dev,
 			       struct drm_atomic_state *state,
-			       struct rockchip_drm_mode_set *set)
+			       struct rockchip_drm_mode_set *set,
+			       struct device_node *route)
 {
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_connector *connector = set->sub_dev->connector;
@@ -785,8 +786,11 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	const struct drm_connector_helper_funcs *funcs;
 	int pipe = drm_crtc_index(crtc);
 	bool is_crtc_enabled = true;
+	u32 overscan_by_win_scale = 0;
 	int hdisplay, vdisplay;
 	int fb_width, fb_height;
+	int overscan_w, overscan_h;
+	int crtc_x, crtc_y, crtc_w, crtc_h;
 	int found = 0, match = 0;
 	int num_modes;
 	int ret = 0;
@@ -938,6 +942,33 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		primary_state->crtc_w = hdisplay;
 		primary_state->crtc_h = vdisplay;
 	}
+
+	/*
+	 * For some platforms, such as RK3576, use the win scale instead
+	 * of the post scale to configure overscan parameters, because the
+	 * sharp/post scale/split functions are mutually exclusice.
+	 */
+	of_property_read_u32(route, "overscan,win_scale", &overscan_by_win_scale);
+	if (overscan_by_win_scale) {
+		overscan_w = primary_state->crtc_w * (200 - set->left_margin * 2) / 200;
+		overscan_h = primary_state->crtc_h * (200 - set->top_margin * 2) / 200;
+
+		crtc_x = primary_state->crtc_x + overscan_w / 2;
+		crtc_y = primary_state->crtc_y + overscan_h / 2;
+		crtc_w = primary_state->crtc_w - overscan_w;
+		crtc_h = primary_state->crtc_h - overscan_h;
+
+		primary_state->crtc_x = crtc_x;
+		primary_state->crtc_y = crtc_y;
+		primary_state->crtc_w = crtc_w;
+		primary_state->crtc_h = crtc_h;
+
+		set->left_margin = 100;
+		set->right_margin = 100;
+		set->top_margin = 100;
+		set->bottom_margin = 100;
+	}
+
 	s = to_rockchip_crtc_state(crtc->state);
 	s->output_type = connector->connector_type;
 
@@ -1100,7 +1131,7 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 		if (!set)
 			continue;
 
-		if (setup_initial_state(drm_dev, state, set)) {
+		if (setup_initial_state(drm_dev, state, set, route)) {
 			drm_framebuffer_put(set->fb);
 			INIT_LIST_HEAD(&set->head);
 			list_add_tail(&set->head, &mode_unset_list);
@@ -1285,7 +1316,7 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"dclk_vp3",
 };
 
-static struct clk **loader_clocks __initdata;
+static struct clk **loader_clocks;
 static int __init rockchip_clocks_loader_protect(void)
 {
 	int nclocks = ARRAY_SIZE(loader_protect_clocks);
@@ -1309,7 +1340,7 @@ static int __init rockchip_clocks_loader_protect(void)
 }
 arch_initcall_sync(rockchip_clocks_loader_protect);
 
-static int __init rockchip_clocks_loader_unprotect(void)
+int rockchip_clocks_loader_unprotect(void)
 {
 	int i;
 
@@ -1323,8 +1354,8 @@ static int __init rockchip_clocks_loader_unprotect(void)
 			clk_disable_unprepare(clk);
 	}
 	kfree(loader_clocks);
+	loader_clocks = NULL;
 
 	return 0;
 }
-late_initcall_sync(rockchip_clocks_loader_unprotect);
 #endif

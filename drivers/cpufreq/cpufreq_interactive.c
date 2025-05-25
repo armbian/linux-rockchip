@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/sched/clock.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
@@ -100,6 +101,7 @@ struct interactive_tunables {
 	int touchboostpulse_duration_val;
 	/* End time of touchboost pulse in ktime converted to usecs */
 	u64 touchboostpulse_endtime;
+	bool touchboost, is_touchboosted;
 #endif
 	bool boosted;
 
@@ -599,7 +601,44 @@ again:
 	for_each_cpu(cpu, &tmp_mask) {
 		struct interactive_cpu *icpu = &per_cpu(interactive_cpu, cpu);
 		struct cpufreq_policy *policy;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		struct interactive_tunables *tunables;
+		bool update_policy = false;
+		u64 now;
 
+		now = ktime_to_us(ktime_get());
+		if (!down_read_trylock(&icpu->enable_sem))
+			continue;
+
+		if (!icpu->ipolicy) {
+			up_read(&icpu->enable_sem);
+			continue;
+		}
+
+		tunables = icpu->ipolicy->tunables;
+		if (!tunables) {
+			up_read(&icpu->enable_sem);
+			continue;
+		}
+
+		if (tunables->touchboost &&
+		    now > tunables->touchboostpulse_endtime) {
+			tunables->touchboost = false;
+			rockchip_monitor_restore_cpu_limit(cpu);
+			update_policy = true;
+		}
+
+		if (!tunables->is_touchboosted && tunables->touchboost) {
+			rockchip_monitor_remove_cpu_limit(cpu);
+			update_policy = true;
+		}
+
+		tunables->is_touchboosted = tunables->touchboost;
+
+		up_read(&icpu->enable_sem);
+		if (update_policy)
+			cpufreq_update_policy(cpu);
+#endif
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
@@ -1011,6 +1050,44 @@ static ssize_t store_io_is_busy(struct gov_attr_set *attr_set, const char *buf,
 	return count;
 }
 
+static ssize_t store_touchboost_freq(struct gov_attr_set *attr_set,
+				     const char *buf, size_t count)
+{
+	struct interactive_tunables *tunables = to_tunables(attr_set);
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	tunables->touchboost_freq = val;
+
+	return count;
+}
+
+static ssize_t show_touchboost_duration(struct gov_attr_set *attr_set, char *buf)
+{
+	struct interactive_tunables *tunables = to_tunables(attr_set);
+
+	return sprintf(buf, "%d\n", tunables->touchboostpulse_duration_val);
+}
+
+static ssize_t store_touchboost_duration(struct gov_attr_set *attr_set,
+					 const char *buf, size_t count)
+{
+	struct interactive_tunables *tunables = to_tunables(attr_set);
+	int val, ret;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	tunables->touchboostpulse_duration_val = val;
+
+	return count;
+}
+
 show_one(hispeed_freq, "%u");
 show_one(go_hispeed_load, "%lu");
 show_one(min_sample_time, "%lu");
@@ -1018,6 +1095,7 @@ show_one(timer_slack, "%lu");
 show_one(boost, "%u");
 show_one(boostpulse_duration, "%u");
 show_one(io_is_busy, "%u");
+show_one(touchboost_freq, "%lu");
 
 gov_attr_rw(target_loads);
 gov_attr_rw(above_hispeed_delay);
@@ -1030,6 +1108,8 @@ gov_attr_rw(boost);
 gov_attr_wo(boostpulse);
 gov_attr_rw(boostpulse_duration);
 gov_attr_rw(io_is_busy);
+gov_attr_rw(touchboost_freq);
+gov_attr_rw(touchboost_duration);
 
 static struct attribute *interactive_attrs[] = {
 	&target_loads.attr,
@@ -1043,6 +1123,8 @@ static struct attribute *interactive_attrs[] = {
 	&boostpulse.attr,
 	&boostpulse_duration.attr,
 	&io_is_busy.attr,
+	&touchboost_freq.attr,
+	&touchboost_duration.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(interactive);
@@ -1242,6 +1324,7 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 			cpumask_set_cpu(i, &speedchange_cpumask);
 			pcpu->loc_hispeed_val_time =
 					ktime_to_us(ktime_get());
+			tunables->touchboost = true;
 			anyboost = 1;
 		}
 
@@ -1475,6 +1558,10 @@ static void cpufreq_interactive_exit(struct cpufreq_policy *policy)
 		idle_notifier_unregister(&cpufreq_interactive_idle_nb);
 #ifdef CONFIG_ARCH_ROCKCHIP
 		input_unregister_handler(&cpufreq_interactive_input_handler);
+		if (tunables->touchboost) {
+			tunables->touchboost = false;
+			rockchip_monitor_restore_cpu_limit(policy->cpu);
+		}
 #endif
 	}
 

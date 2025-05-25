@@ -74,7 +74,7 @@ static bool is_support_iommu = true;
 #endif
 static bool iommu_reserve_map;
 
-static struct drm_driver rockchip_drm_driver;
+static const struct drm_driver rockchip_drm_driver;
 
 static unsigned int drm_debug;
 module_param_named(debug, drm_debug, int, 0600);
@@ -854,91 +854,8 @@ void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
 #define EDID_DSC_TOTAL_CHUNK_KBYTES	0x3f
 #define EDID_MAX_FRL_RATE_MASK		0xf0
 
-static
-void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
-			   u8 *max_frl_rate_per_lane, u8 *max_lanes, u8 *add_func,
-			   const u8 *hf_vsdb)
-{
-	u8 max_frl_rate;
-	u8 dsc_max_frl_rate;
-	u8 dsc_max_slices;
-
-	if (!hf_vsdb[7])
-		return;
-
-	DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
-	max_frl_rate = (hf_vsdb[7] & EDID_MAX_FRL_RATE_MASK) >> 4;
-	get_max_frl_rate(max_frl_rate, max_lanes,
-			 max_frl_rate_per_lane);
-
-	*add_func = hf_vsdb[8];
-
-	if (cea_db_payload_len(hf_vsdb) < 13)
-		return;
-
-	dsc_cap->v_1p2 = hf_vsdb[11] & EDID_DSC_1P2;
-
-	if (!dsc_cap->v_1p2)
-		return;
-
-	dsc_cap->native_420 = hf_vsdb[11] & EDID_DSC_NATIVE_420;
-	dsc_cap->all_bpp = hf_vsdb[11] & EDID_DSC_ALL_BPP;
-
-	if (hf_vsdb[11] & EDID_DSC_16BPC)
-		dsc_cap->bpc_supported = 16;
-	else if (hf_vsdb[11] & EDID_DSC_12BPC)
-		dsc_cap->bpc_supported = 12;
-	else if (hf_vsdb[11] & EDID_DSC_10BPC)
-		dsc_cap->bpc_supported = 10;
-	else
-		dsc_cap->bpc_supported = 0;
-
-	dsc_max_frl_rate = (hf_vsdb[12] & EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
-	get_max_frl_rate(dsc_max_frl_rate, &dsc_cap->max_lanes,
-			 &dsc_cap->max_frl_rate_per_lane);
-	dsc_cap->total_chunk_kbytes = hf_vsdb[13] & EDID_DSC_TOTAL_CHUNK_KBYTES;
-
-	dsc_max_slices = hf_vsdb[12] & EDID_DSC_MAX_SLICES;
-	switch (dsc_max_slices) {
-	case 1:
-		dsc_cap->max_slices = 1;
-		dsc_cap->clk_per_slice = 340;
-		break;
-	case 2:
-		dsc_cap->max_slices = 2;
-		dsc_cap->clk_per_slice = 340;
-		break;
-	case 3:
-		dsc_cap->max_slices = 4;
-		dsc_cap->clk_per_slice = 340;
-		break;
-	case 4:
-		dsc_cap->max_slices = 8;
-		dsc_cap->clk_per_slice = 340;
-		break;
-	case 5:
-		dsc_cap->max_slices = 8;
-		dsc_cap->clk_per_slice = 400;
-		break;
-	case 6:
-		dsc_cap->max_slices = 12;
-		dsc_cap->clk_per_slice = 400;
-		break;
-	case 7:
-		dsc_cap->max_slices = 16;
-		dsc_cap->clk_per_slice = 400;
-		break;
-	case 0:
-	default:
-		dsc_cap->max_slices = 0;
-		dsc_cap->clk_per_slice = 0;
-	}
-}
-
 /* Sink Capability Data Structure, for compatibility with linux version < linux kernel 6.1 */
-static void parse_hdmi_forum_scds(struct rockchip_drm_dsc_cap *dsc_cap,
-				  u8 *max_frl_rate_per_lane, u8 *max_lanes,
-				  const u8 *hf_scds)
+static void parse_hdmi_forum_scds(struct rockchip_drm_hdmi21_data *hdmi21_data, const u8 *hf_scds)
 {
 	if (hf_scds[7]) {
 		u8 max_frl_rate;
@@ -947,63 +864,65 @@ static void parse_hdmi_forum_scds(struct rockchip_drm_dsc_cap *dsc_cap,
 
 		DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
 		max_frl_rate = (hf_scds[7] & DRM_EDID_MAX_FRL_RATE_MASK) >> 4;
-		get_max_frl_rate(max_frl_rate, max_lanes,
-				 max_frl_rate_per_lane);
-		dsc_cap->v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
+		hdmi21_data->allm_supported = hf_scds[8] & DRM_EDID_ALLM;
+		get_max_frl_rate(max_frl_rate, &hdmi21_data->max_lanes,
+				 &hdmi21_data->max_frl_rate_per_lane);
+		hdmi21_data->dsc_cap.v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
 
-		if (dsc_cap->v_1p2) {
-			dsc_cap->native_420 = hf_scds[11] & DRM_EDID_DSC_NATIVE_420;
-			dsc_cap->all_bpp = hf_scds[11] & DRM_EDID_DSC_ALL_BPP;
+		if (hdmi21_data->dsc_cap.v_1p2) {
+			hdmi21_data->dsc_cap.native_420 = hf_scds[11] & DRM_EDID_DSC_NATIVE_420;
+			hdmi21_data->dsc_cap.all_bpp = hf_scds[11] & DRM_EDID_DSC_ALL_BPP;
 
 			if (hf_scds[11] & DRM_EDID_DSC_16BPC)
-				dsc_cap->bpc_supported = 16;
+				hdmi21_data->dsc_cap.bpc_supported = 16;
 			else if (hf_scds[11] & DRM_EDID_DSC_12BPC)
-				dsc_cap->bpc_supported = 12;
+				hdmi21_data->dsc_cap.bpc_supported = 12;
 			else if (hf_scds[11] & DRM_EDID_DSC_10BPC)
-				dsc_cap->bpc_supported = 10;
+				hdmi21_data->dsc_cap.bpc_supported = 10;
 			else
 				/* Supports min 8 BPC if DSC 1.2 is supported*/
-				dsc_cap->bpc_supported = 8;
+				hdmi21_data->dsc_cap.bpc_supported = 8;
 
 			dsc_max_frl_rate = (hf_scds[12] & DRM_EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
-			get_max_frl_rate(dsc_max_frl_rate, &dsc_cap->max_lanes,
-					 &dsc_cap->max_frl_rate_per_lane);
-			dsc_cap->total_chunk_kbytes = hf_scds[13] & DRM_EDID_DSC_TOTAL_CHUNK_KBYTES;
+			get_max_frl_rate(dsc_max_frl_rate, &hdmi21_data->dsc_cap.max_lanes,
+					 &hdmi21_data->dsc_cap.max_frl_rate_per_lane);
+			hdmi21_data->dsc_cap.total_chunk_kbytes =
+				hf_scds[13] & DRM_EDID_DSC_TOTAL_CHUNK_KBYTES;
 
 			dsc_max_slices = hf_scds[12] & DRM_EDID_DSC_MAX_SLICES;
 			switch (dsc_max_slices) {
 			case 1:
-				dsc_cap->max_slices = 1;
-				dsc_cap->clk_per_slice = 340;
+				hdmi21_data->dsc_cap.max_slices = 1;
+				hdmi21_data->dsc_cap.clk_per_slice = 340;
 				break;
 			case 2:
-				dsc_cap->max_slices = 2;
-				dsc_cap->clk_per_slice = 340;
+				hdmi21_data->dsc_cap.max_slices = 2;
+				hdmi21_data->dsc_cap.clk_per_slice = 340;
 				break;
 			case 3:
-				dsc_cap->max_slices = 4;
-				dsc_cap->clk_per_slice = 340;
+				hdmi21_data->dsc_cap.max_slices = 4;
+				hdmi21_data->dsc_cap.clk_per_slice = 340;
 				break;
 			case 4:
-				dsc_cap->max_slices = 8;
-				dsc_cap->clk_per_slice = 340;
+				hdmi21_data->dsc_cap.max_slices = 8;
+				hdmi21_data->dsc_cap.clk_per_slice = 340;
 				break;
 			case 5:
-				dsc_cap->max_slices = 8;
-				dsc_cap->clk_per_slice = 400;
+				hdmi21_data->dsc_cap.max_slices = 8;
+				hdmi21_data->dsc_cap.clk_per_slice = 400;
 				break;
 			case 6:
-				dsc_cap->max_slices = 12;
-				dsc_cap->clk_per_slice = 400;
+				hdmi21_data->dsc_cap.max_slices = 12;
+				hdmi21_data->dsc_cap.clk_per_slice = 400;
 				break;
 			case 7:
-				dsc_cap->max_slices = 16;
-				dsc_cap->clk_per_slice = 400;
+				hdmi21_data->dsc_cap.max_slices = 16;
+				hdmi21_data->dsc_cap.clk_per_slice = 400;
 				break;
 			case 0:
 			default:
-				dsc_cap->max_slices = 0;
-				dsc_cap->clk_per_slice = 0;
+				hdmi21_data->dsc_cap.max_slices = 0;
+				hdmi21_data->dsc_cap.clk_per_slice = 0;
 			}
 		}
 	}
@@ -1021,14 +940,13 @@ int parse_dovi_block(u8 *sink_data, const u8 *dovi_db)
 	return 0;
 }
 
-int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
-			       u8 *max_frl_rate_per_lane, u8 *max_lanes, u8 *add_func,
+int rockchip_drm_parse_cea_ext(struct rockchip_drm_hdmi21_data *hdmi21_data,
 			       const struct edid *edid)
 {
 	const u8 *edid_ext;
 	int i, start, end;
 
-	if (!dsc_cap || !max_frl_rate_per_lane || !max_lanes || !edid || !add_func)
+	if (!hdmi21_data || !edid)
 		return -EINVAL;
 
 	edid_ext = find_cea_extension(edid);
@@ -1041,12 +959,8 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 	for_each_cea_db(edid_ext, i, start, end) {
 		const u8 *db = &edid_ext[i];
 
-		if (cea_db_is_hdmi_forum_vsdb(db))
-			parse_edid_forum_vsdb(dsc_cap, max_frl_rate_per_lane,
-					      max_lanes, add_func, db);
-		else if (cea_db_is_hdmi_forum_scdb(db))
-			parse_hdmi_forum_scds(dsc_cap, max_frl_rate_per_lane,
-					      max_lanes, db);
+		if (cea_db_is_hdmi_forum_vsdb(db) || cea_db_is_hdmi_forum_scdb(db))
+			parse_hdmi_forum_scds(hdmi21_data, db);
 	}
 
 	return 0;
@@ -1498,21 +1412,9 @@ static struct drm_info_list rockchip_debugfs_files[] = {
 
 static void rockchip_drm_debugfs_init(struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-	struct rockchip_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc;
-
 	drm_debugfs_create_files(rockchip_debugfs_files,
 				 ARRAY_SIZE(rockchip_debugfs_files),
 				 minor->debugfs_root, minor);
-
-	drm_for_each_crtc(crtc, dev) {
-		int pipe = drm_crtc_index(crtc);
-
-		if (priv->crtc_funcs[pipe] &&
-		    priv->crtc_funcs[pipe]->debugfs_init)
-			priv->crtc_funcs[pipe]->debugfs_init(minor, crtc);
-	}
 }
 #endif
 
@@ -1824,7 +1726,6 @@ static DEVICE_ATTR(error_event, 0444, rockchip_drm_error_event_show, NULL);
 static void rockchip_drm_error_event_init(struct drm_device *drm_dev)
 {
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
-	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
 
 	ret = device_create_file(drm_dev->dev, &dev_attr_error_event);
@@ -1841,7 +1742,7 @@ static void rockchip_drm_error_event_init(struct drm_device *drm_dev)
 		priv->error_event.thread = NULL;
 		drm_err(drm_dev, "failed to run display error_event thread\n");
 	} else {
-		sched_setscheduler(priv->error_event.thread, SCHED_FIFO, &sched_param);
+		sched_set_fifo_low(priv->error_event.thread);
 		drm_info(drm_dev, "run display error_event monitor\n");
 	}
 }
@@ -1885,8 +1786,6 @@ static int rockchip_drm_bind(struct device *dev)
 	mutex_init(&private->ovl_lock);
 
 	drm_dev->dev_private = private;
-
-	mutex_init(&private->commit_lock);
 
 	private->hdmi_pll.pll = devm_clk_get_optional(dev, "hdmi-tmds-pll");
 	if (PTR_ERR(private->hdmi_pll.pll) == -EPROBE_DEFER) {
@@ -1961,6 +1860,7 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_drm_fbdev_fini;
 
 	rockchip_drm_error_event_init(drm_dev);
+	rockchip_clocks_loader_unprotect();
 
 	return 0;
 err_drm_fbdev_fini:
@@ -2217,7 +2117,7 @@ struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj,
 
 DEFINE_DRM_GEM_FOPS(rockchip_drm_driver_fops);
 
-static struct drm_driver rockchip_drm_driver = {
+static const struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC | DRIVER_RENDER,
 	.postclose		= rockchip_drm_postclose,
 	.lastclose		= rockchip_drm_lastclose,

@@ -151,6 +151,8 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 int rockchip_monitor_suspend_low_temp_adjust(int cpu);
+void rockchip_monitor_remove_cpu_limit(int cpu);
+void rockchip_monitor_restore_cpu_limit(int cpu);
 int rockchip_system_monitor_register_notifier(struct notifier_block *nb);
 void rockchip_system_monitor_unregister_notifier(struct notifier_block *nb);
 #else
@@ -201,6 +203,14 @@ rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 static inline int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 {
 	return 0;
+};
+
+static inline void rockchip_monitor_remove_cpu_limit(int cpu)
+{
+};
+
+static inline void rockchip_monitor_restore_cpu_limit(int cpu)
+{
 };
 
 static inline int

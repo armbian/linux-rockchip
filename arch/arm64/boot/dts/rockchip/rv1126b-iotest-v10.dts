@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+
+/ {
+	model = "Rockchip RV1126B IOTEST V10 Board";
+	compatible = "rockchip,rv1126b-iotest-v10", "rockchip,rv1126b";
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3960000>;
+		regulator-max-microvolt = <3960000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vdd_logic: vdd-logic {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_logic";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_ddr: vcc_ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_0v9: vcc-0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_0v9";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	avdd_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "avdd_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_cpu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_3v3: vcc3v3_dev: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_npu: vdd-npu {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_npu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_sys>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	no-sdio;
+	no-sd;
+	status = "okay";
+};
+
+&gmac {
+	phy-mode = "rmii";
+	clock_in_out = "input";
+	phy-handle = <&rmii_phy>;
+	status = "okay";
+};
+
+&mdio {
+	rmii_phy: ethernet-phy@2 {
+		compatible = "ethernet-phy-id0680.8101", "ethernet-phy-ieee802.3-c22";
+		reg = <2>;
+		clocks = <&cru CLK_MACPHY>;
+		clock-frequency = <24000000>;
+		resets = <&cru SRST_RESETN_MACPHY>;
+		phy-is-integrated;
+	};
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu>;
+};
+
+&usb_drd_dwc3 {
+	dr_mode = "otg";
+	extcon = <&usb2phy>;
+};

@@ -24,6 +24,9 @@
 #define PDM_V2_DATA3L			0x0034
 #define PDM_V2_VERSION			0x0038
 #define PDM_V2_GAIN_CTRL		0x003c
+#define PDM_V2_DATA_SHIFT0		0x0040
+#define PDM_V2_DATA_SHIFT1		0x0044
+#define PDM_V2_FILTER_CTRL1		0x0048
 #define PDM_V2_INCR_RXDR		0x0400
 
 /* PDM_V2_SYSCONFIG */
@@ -151,5 +154,28 @@
 #define PDM_V2_GAIN_CTRL_MIN		0
 #define PDM_V2_GAIN_CTRL_MAX		0x7f
 #define PDM_V2_GAIN_CTRL_0DB		(175 << 0)
+
+/* PDM_V2_FILTER_CTRL1 */
+#define PDM_V2_FILT1_HPF_V2_R_MSK	(0x1 << 0)
+#define PDM_V2_FILT1_HPF_V2_R_EN	(0x1 << 0)
+#define PDM_V2_FILT1_HPF_V2_R_DIS	(0x0 << 0)
+#define PDM_V2_FILT1_HPF_V2_L_MSK	(0x1 << 1)
+#define PDM_V2_FILT1_HPF_V2_L_EN	(0x1 << 1)
+#define PDM_V2_FILT1_HPF_V2_L_DIS	(0x0 << 1)
+#define PDM_V2_FILT1_HPF_V2_FREQ_MSK	(0xf << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_0_234	(0x0 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_0_468	(0x1 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_0_937	(0x2 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_1_875	(0x3 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_3_75	(0x4 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_7_5	(0x5 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_15	(0x6 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_30	(0x7 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_60	(0x8 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_122	(0x9 << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_251	(0xa << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_528	(0xb << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_1183	(0xc << 2)
+#define PDM_V2_FILT1_HPF_V2_FREQ_3152	(0xd << 2)
 
 #endif

@@ -78,6 +78,30 @@
 		shutdown_temperture_threshold = <160>;
 		hotdie_temperture_threshold = <115>;
 
+		/* The entered value specifies the delay time (in milliseconds)
+		 * that the PMIC waits after receiving the shutdown signal
+		 * before executing the power-off action.
+		 */
+		shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
+				     2 2 2 2 2
+				     1 0 0 0 0 2>;
+
+		/* low power forced shutdown sequence */
+		vb-shutdown-sequence = <2 2 2 0 2 0 2 0 0 2
+					2 2 2 2 2
+					0 0 0 0 0 2>;
+		/* DVS control:
+		 * This configuration is tightly bound to the hardware
+		 * and requires ATF (Arm Trusted Firmware) support
+		 * 0: no effect
+		 * 1: controlled by PWRCTRL1
+		 * 2: controlled by PWRCTRL2
+		 * 3: controlled by PWRCTRL3
+		 */
+		dvs-suspend-control-by = <0 0 0 0 0 2 0 0 0 2
+					  0 0 2 0 0
+					  2 2 0 0 0 0>;
+
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,
 		 *    forcing the state to switch to ACTIVE mode;

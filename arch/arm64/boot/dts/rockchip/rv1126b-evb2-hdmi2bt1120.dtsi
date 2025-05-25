@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m1_pins>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rk628_bt1120: rk628_bt1120@50 {
+		compatible = "rockchip,rk628-bt1120-v4l2";
+		reg = <0x50>;
+		status = "okay";
+		interrupt-parent = <&gpio3>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio7 RK_PA7 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio5 RK_PD6 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio5 RK_PD7 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "RK628-BT1120";
+		rockchip,camera-module-lens-name = "NC";
+		dual-edge = <1>;
+
+		port {
+			rk628_out: endpoint {
+				remote-endpoint = <&cif_para_in>;
+				bus-width = <16>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	/* configure according to pinctrl */
+	cif-pins-group = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&vi_cifm1_pins>;
+	port {
+		/* Parallel bus endpoint */
+		cif_para_in: endpoint {
+			remote-endpoint = <&rk628_out>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+

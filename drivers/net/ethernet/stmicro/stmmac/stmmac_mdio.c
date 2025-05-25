@@ -462,8 +462,8 @@ int stmmac_mdio_idle(struct mii_bus *bus)
 		reset_gpio = devm_gpiod_get_optional(priv->device,
 						     "snps,reset",
 						     GPIOD_OUT_HIGH);
-		if (IS_ERR(reset_gpio))
-			return PTR_ERR(reset_gpio);
+		if (IS_ERR_OR_NULL(reset_gpio))
+			return PTR_ERR_OR_ZERO(reset_gpio);
 
 		devm_gpiod_put(priv->device, reset_gpio);
 	}
@@ -492,8 +492,8 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 		reset_gpio = devm_gpiod_get_optional(priv->device,
 						     "snps,reset",
 						     GPIOD_OUT_LOW);
-		if (IS_ERR(reset_gpio))
-			return PTR_ERR(reset_gpio);
+		if (IS_ERR_OR_NULL(reset_gpio))
+			return PTR_ERR_OR_ZERO(reset_gpio);
 
 		device_property_read_u32_array(priv->device,
 					       "snps,reset-delays-us",

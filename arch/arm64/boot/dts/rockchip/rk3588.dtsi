@@ -21,72 +21,8 @@
 		hdmi0 = &hdmi0;
 		hdmi1 = &hdmi1;
 		hdmirx0 = &hdmirx_ctrler;
-		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
-		rkcif_mipi_lvds5= &rkcif_mipi_lvds5;
 		usbdp0 = &usbdp_phy0;
 		usbdp1 = &usbdp_phy1;
-	};
-
-	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
-		compatible = "rockchip,rkcif-mipi-lvds";
-		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds4_sditf: rkcif-mipi-lvds4-sditf {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds4>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds4_sditf_vir1: rkcif-mipi-lvds4-sditf-vir1 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds4>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds4_sditf_vir2: rkcif-mipi-lvds4-sditf-vir2 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds4>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds4_sditf_vir3: rkcif-mipi-lvds4-sditf-vir3 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds4>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds5: rkcif-mipi-lvds5 {
-		compatible = "rockchip,rkcif-mipi-lvds";
-		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds5_sditf: rkcif-mipi-lvds5-sditf {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds5>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds5_sditf_vir1: rkcif-mipi-lvds5-sditf-vir1 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds5>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds5_sditf_vir2: rkcif-mipi-lvds5-sditf-vir2 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds5>;
-		status = "disabled";
-	};
-
-	rkcif_mipi_lvds5_sditf_vir3: rkcif-mipi-lvds5-sditf-vir3 {
-		compatible = "rockchip,rkcif-sditf";
-		rockchip,cif = <&rkcif_mipi_lvds5>;
-		status = "disabled";
 	};
 
 	usbdrd3_1: usbdrd3_1 {
@@ -837,8 +773,8 @@
 		compatible = "rockchip,rk3588-pcie3-phy";
 		reg = <0x0 0xfee80000 0x0 0x20000>;
 		#phy-cells = <0>;
-		clocks = <&cru PCLK_PCIE_COMBO_PIPE_PHY>;
-		clock-names = "pclk";
+		clocks = <&cru PCLK_PCIE_COMBO_PIPE_PHY>, <&cru PCLK_PHP_ROOT>;
+		clock-names = "pclk", "phpclk";
 		resets = <&cru SRST_PCIE30_PHY>;
 		reset-names = "phy";
 		rockchip,pipe-grf = <&php_grf>;

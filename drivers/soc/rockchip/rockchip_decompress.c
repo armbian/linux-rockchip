@@ -17,6 +17,7 @@
 #include <linux/reset.h>
 #include <linux/soc/rockchip/rockchip_decompress.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
 
 #define DECOM_CTRL		0x0
 #define DECOM_ENR		0x4
@@ -387,6 +388,11 @@ static int decompress_and_compare(struct rk_decom *rk_decom, int mode)
 	filp_close(file2, NULL);
 	file2 = NULL;
 
+	/* decompress of RV1126B integrate with new designed iommu which need to
+	 * disable bypass iommu by setting the following grf register:
+	 * io -4 0x20180014 0xffff0000
+	 */
+
 	ret = rk_decom_start(mode, comp_phys, decomp_phys, 0x80000000);
 	if (ret) {
 		pr_err("rk_decom_start failed[%d].", ret);
@@ -540,6 +546,10 @@ static int __init rockchip_decom_probe(struct platform_device *pdev)
 	g_decom = rk_dec;
 	wake_up(&decom_init_done);
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+#endif
 	return 0;
 
 disable_clk:
@@ -547,6 +557,20 @@ disable_clk:
 
 	return ret;
 }
+
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+static void rockchip_decom_shutdown(struct platform_device *pdev)
+{
+	struct rk_decom *rk_dec = platform_get_drvdata(pdev);
+
+#ifdef CONFIG_ROCKCHIP_HW_DECOMPRESS_TEST
+	sysfs_remove_group(&pdev->dev.kobj, &decom_attr_group);
+#endif
+	devm_free_irq(rk_dec->dev, rk_dec->irq, rk_dec);
+	pm_runtime_put_sync(rk_dec->dev);
+	pm_runtime_disable(rk_dec->dev);
+}
+#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_decom_dt_match[] = {
@@ -556,6 +580,10 @@ static const struct of_device_id rockchip_decom_dt_match[] = {
 #endif
 
 static struct platform_driver rk_decom_driver = {
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+	.probe		= rockchip_decom_probe,
+	.shutdown	= rockchip_decom_shutdown,
+#endif
 	.driver		= {
 		.name	= "rockchip_hw_decompress",
 		.of_match_table = rockchip_decom_dt_match,
@@ -566,6 +594,9 @@ static int __init rockchip_hw_decompress_init(void)
 {
 	struct device_node *node;
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+	return platform_driver_register(&rk_decom_driver);
+#endif
 	node = of_find_matching_node(NULL, rockchip_decom_dt_match);
 	if (node) {
 		of_platform_device_create(node, NULL, NULL);

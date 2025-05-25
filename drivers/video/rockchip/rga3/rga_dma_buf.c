@@ -11,20 +11,6 @@
 #include "rga_job.h"
 #include "rga_debugger.h"
 
-static int rga_dma_info_to_prot(enum dma_data_direction dir)
-{
-	switch (dir) {
-	case DMA_BIDIRECTIONAL:
-		return IOMMU_READ | IOMMU_WRITE;
-	case DMA_TO_DEVICE:
-		return IOMMU_READ;
-	case DMA_FROM_DEVICE:
-		return IOMMU_WRITE;
-	default:
-		return 0;
-	}
-}
-
 int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		      unsigned long v_addr, int format, uint32_t w,
 		      uint32_t h, unsigned long *StartAddr, unsigned long *size)
@@ -198,165 +184,6 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 	return pageCount;
 }
 
-static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
-					    size_t size, u64 dma_limit,
-					    struct device *dev)
-{
-	struct rga_iommu_dma_cookie *cookie = (void *)domain->iova_cookie;
-	struct iova_domain *iovad = &cookie->iovad;
-	unsigned long shift, iova_len, iova = 0;
-
-	shift = iova_shift(iovad);
-	iova_len = size >> shift;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
-	/*
-	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
-	 * will come back to bite us badly, so we have to waste a bit of space
-	 * rounding up anything cacheable to make sure that can't happen. The
-	 * order of the unadjusted size will still match upon freeing.
-	 */
-	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
-		iova_len = roundup_pow_of_two(iova_len);
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-	dma_limit = min_not_zero(dma_limit, dev->bus_dma_limit);
-#else
-	if (dev->bus_dma_mask)
-		dma_limit &= dev->bus_dma_mask;
-#endif
-
-	if (domain->geometry.force_aperture)
-		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 19, 111) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	iova = alloc_iova_fast(iovad, iova_len,
-			       min_t(dma_addr_t, dma_limit >> shift, iovad->end_pfn),
-			       true);
-#else
-	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
-#endif
-
-	return (dma_addr_t)iova << shift;
-}
-
-static void rga_iommu_dma_free_iova(struct iommu_domain *domain,
-				    dma_addr_t iova, size_t size)
-{
-	struct rga_iommu_dma_cookie *cookie = (void *)domain->iova_cookie;
-	struct iova_domain *iovad = &cookie->iovad;
-
-	free_iova_fast(iovad, iova_pfn(iovad, iova), size >> iova_shift(iovad));
-}
-
-static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
-{
-	return iommu_get_domain_for_dev(dev);
-}
-
-void rga_iommu_unmap(struct rga_dma_buffer *buffer)
-{
-	if (buffer == NULL)
-		return;
-	if (buffer->iova == 0)
-		return;
-
-	iommu_unmap(buffer->domain, buffer->iova, buffer->size);
-	rga_iommu_dma_free_iova(buffer->domain, buffer->iova, buffer->size);
-}
-
-int rga_iommu_map_sgt(struct sg_table *sgt, size_t size,
-		      struct rga_dma_buffer *buffer,
-		      struct device *rga_dev)
-{
-	struct iommu_domain *domain = NULL;
-	struct rga_iommu_dma_cookie *cookie;
-	struct iova_domain *iovad;
-	dma_addr_t iova;
-	size_t map_size;
-	unsigned long align_size;
-
-	if (sgt == NULL) {
-		rga_err("can not map iommu, because sgt is null!\n");
-		return -EINVAL;
-	}
-
-	domain = rga_iommu_get_dma_domain(rga_dev);
-	cookie = (void *)domain->iova_cookie;
-	iovad = &cookie->iovad;
-	align_size = iova_align(iovad, size);
-
-	if (DEBUGGER_EN(MSG))
-		rga_log("iova_align size = %ld", align_size);
-
-	iova = rga_iommu_dma_alloc_iova(domain, align_size, rga_dev->coherent_dma_mask, rga_dev);
-	if (!iova) {
-		rga_err("rga_iommu_dma_alloc_iova failed");
-		return -ENOMEM;
-	}
-
-	map_size = iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents,
-				rga_dma_info_to_prot(DMA_BIDIRECTIONAL));
-	if (map_size < align_size) {
-		rga_err("iommu can not map sgt to iova");
-		rga_iommu_dma_free_iova(domain, iova, align_size);
-		return -EINVAL;
-	}
-
-	buffer->domain = domain;
-	buffer->iova = iova;
-	buffer->size = align_size;
-
-	return 0;
-}
-
-int rga_iommu_map(phys_addr_t paddr, size_t size,
-		  struct rga_dma_buffer *buffer,
-		  struct device *rga_dev)
-{
-	int ret;
-	struct iommu_domain *domain = NULL;
-	struct rga_iommu_dma_cookie *cookie;
-	struct iova_domain *iovad;
-	dma_addr_t iova;
-	unsigned long align_size;
-
-	if (paddr == 0) {
-		rga_err("can not map iommu, because phys_addr is 0!\n");
-		return -EINVAL;
-	}
-
-	domain = rga_iommu_get_dma_domain(rga_dev);
-	cookie = (void *)domain->iova_cookie;
-	iovad = &cookie->iovad;
-	align_size = iova_align(iovad, size);
-
-	if (DEBUGGER_EN(MSG))
-		rga_log("iova_align size = %ld", align_size);
-
-	iova = rga_iommu_dma_alloc_iova(domain, align_size, rga_dev->coherent_dma_mask, rga_dev);
-	if (!iova) {
-		rga_err("rga_iommu_dma_alloc_iova failed");
-		return -ENOMEM;
-	}
-
-	ret = iommu_map(domain, iova, paddr, align_size,
-			rga_dma_info_to_prot(DMA_BIDIRECTIONAL));
-	if (ret) {
-		rga_err("iommu can not map phys_addr to iova");
-		rga_iommu_dma_free_iova(domain, iova, align_size);
-		return ret;
-	}
-
-	buffer->domain = domain;
-	buffer->iova = iova;
-	buffer->size = align_size;
-
-	return 0;
-}
-
 int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 {
 	int bits = 32;
@@ -424,8 +251,67 @@ int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_i
 	return ret;
 }
 
+int rga_dma_map_phys_addr(phys_addr_t phys_addr, size_t size, struct rga_dma_buffer *buffer,
+			 enum dma_data_direction dir, struct device *map_dev)
+{
+	dma_addr_t addr;
+
+	addr = dma_map_resource(map_dev, phys_addr, size, dir, 0);
+	if (addr == DMA_MAPPING_ERROR) {
+		rga_err("dma_map_resouce failed!\n");
+		return -EINVAL;
+	}
+
+	buffer->dma_addr = addr;
+	buffer->dir = dir;
+	buffer->size = size;
+	buffer->map_dev = map_dev;
+
+	return 0;
+}
+
+void rga_dma_unmap_phys_addr(struct rga_dma_buffer *buffer)
+{
+	dma_unmap_resource(buffer->map_dev, buffer->dma_addr, buffer->size, buffer->dir, 0);
+}
+
+int rga_dma_map_sgt(struct sg_table *sgt, struct rga_dma_buffer *buffer,
+		    enum dma_data_direction dir, struct device *map_dev)
+{
+	int i, ret = 0;
+	struct scatterlist *sg = NULL;
+
+	ret = dma_map_sg(map_dev, sgt->sgl, sgt->orig_nents, dir);
+	if (ret <= 0) {
+		rga_err("dma_map_sg failed! ret = %d\n", ret);
+		return ret < 0 ? ret : -EINVAL;
+	}
+	sgt->nents = ret;
+
+	buffer->sgt = sgt;
+	buffer->dma_addr = sg_dma_address(sgt->sgl);
+	buffer->dir = dir;
+	buffer->size = 0;
+	for_each_sgtable_sg(sgt, sg, i)
+		buffer->size += sg_dma_len(sg);
+	buffer->map_dev = map_dev;
+
+	return 0;
+}
+
+void rga_dma_unmap_sgt(struct rga_dma_buffer *buffer)
+{
+	if (!buffer->sgt)
+		return;
+
+	dma_unmap_sg(buffer->map_dev,
+		     buffer->sgt->sgl,
+		     buffer->sgt->orig_nents,
+		     buffer->dir);
+}
+
 int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buffer,
-		    enum dma_data_direction dir, struct device *rga_dev)
+		    enum dma_data_direction dir, struct device *map_dev)
 {
 	struct dma_buf_attachment *attach = NULL;
 	struct sg_table *sgt = NULL;
@@ -439,7 +325,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 		return -EINVAL;
 	}
 
-	attach = dma_buf_attach(dma_buf, rga_dev);
+	attach = dma_buf_attach(dma_buf, map_dev);
 	if (IS_ERR(attach)) {
 		ret = PTR_ERR(attach);
 		rga_err("Failed to attach dma_buf, ret[%d]\n", ret);
@@ -461,6 +347,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 	rga_dma_buffer->size = 0;
 	for_each_sgtable_sg(sgt, sg, i)
 		rga_dma_buffer->size += sg_dma_len(sg);
+	rga_dma_buffer->map_dev = map_dev;
 
 	return ret;
 
@@ -475,7 +362,7 @@ err_get_attach:
 }
 
 int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
-		   enum dma_data_direction dir, struct device *rga_dev)
+		   enum dma_data_direction dir, struct device *map_dev)
 {
 	struct dma_buf *dma_buf = NULL;
 	struct dma_buf_attachment *attach = NULL;
@@ -490,7 +377,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 		return ret;
 	}
 
-	attach = dma_buf_attach(dma_buf, rga_dev);
+	attach = dma_buf_attach(dma_buf, map_dev);
 	if (IS_ERR(attach)) {
 		ret = PTR_ERR(attach);
 		rga_err("Failed to attach dma_buf, ret[%d]\n", ret);
@@ -512,6 +399,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 	rga_dma_buffer->size = 0;
 	for_each_sgtable_sg(sgt, sg, i)
 		rga_dma_buffer->size += sg_dma_len(sg);
+	rga_dma_buffer->map_dev = map_dev;
 
 	return ret;
 
@@ -551,12 +439,12 @@ int rga_dma_free(struct rga_dma_buffer *buffer)
 		return -EINVAL;
 	}
 
-	dma_free_coherent(buffer->scheduler->dev, buffer->size, buffer->vaddr, buffer->dma_addr);
+	dma_free_coherent(buffer->map_dev, buffer->size, buffer->vaddr, buffer->dma_addr);
 	buffer->vaddr = NULL;
 	buffer->dma_addr = 0;
 	buffer->iova = 0;
 	buffer->size = 0;
-	buffer->scheduler = NULL;
+	buffer->map_dev = NULL;
 
 	kfree(buffer);
 
@@ -581,7 +469,7 @@ struct rga_dma_buffer *rga_dma_alloc_coherent(struct rga_scheduler_t *scheduler,
 
 	buffer->size = align_size;
 	buffer->dma_addr = dma_addr;
-	buffer->scheduler = scheduler;
+	buffer->map_dev = scheduler->dev;
 	if (scheduler->data->mmu == RGA_IOMMU)
 		buffer->iova = buffer->dma_addr;
 

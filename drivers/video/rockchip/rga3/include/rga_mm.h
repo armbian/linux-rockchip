@@ -42,7 +42,7 @@ static inline bool rga_mm_is_invalid_dma_buffer(struct rga_dma_buffer *buffer)
 	if (buffer == NULL)
 		return true;
 
-	return buffer->scheduler == NULL ? true : false;
+	return buffer->map_dev == NULL ? true : false;
 }
 
 struct rga_internal_buffer *rga_mm_lookup_handle(struct rga_mm *mm_session, uint32_t handle);

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include "rk3576-vehicle-evb-v20.dts"
+#include "rk3576-vehicle-amp.dtsi"
+
+&uart8 {
+	status = "disabled";
+};
+

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -161,8 +161,10 @@ int coresight_mali_sources_init_drvdata(struct coresight_mali_source_drvdata *dr
 	drvdata->base.disable_seq.ops = etm_disable_ops;
 	drvdata->base.disable_seq.nr_ops = NELEMS(etm_disable_ops);
 
-	drvdata->base.config = kbase_debug_coresight_csf_config_create(
-		drvdata->base.kbase_client, &drvdata->base.enable_seq, &drvdata->base.disable_seq);
+	drvdata->base.config = kbase_debug_coresight_csf_config_create(drvdata->base.kbase_client,
+								       &drvdata->base.enable_seq,
+								       &drvdata->base.disable_seq,
+								       false);
 	if (!drvdata->base.config) {
 		dev_err(drvdata->base.dev, "Config create failed unexpectedly\n");
 		kbase_debug_coresight_csf_unregister(drvdata->base.kbase_client);

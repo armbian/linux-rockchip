@@ -25,7 +25,6 @@ static struct hrtimer timer;
 static ktime_t kt;
 
 static struct rga_session *rga_session_init(void);
-static int rga_session_deinit(struct rga_session *session);
 
 static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf,
 				      struct rga_img_info_t *channel_info,
@@ -127,6 +126,13 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
+
+	down_read(&request->session->release_rwsem);
+	if (request->session->release) {
+		rga_req_err(request, "current session has been release\n");
+		ret = -EFAULT;
+		goto err_release_rwsem;
+	}
 
 	spin_lock_irqsave(&request->lock, flags);
 
@@ -231,6 +237,9 @@ err_put_request:
 	if ((mpi_job->dma_buf_dst != NULL) && (mpi_cmd.dst.yrgb_addr > 0))
 		rga_mm_release_buffer(mpi_cmd.dst.yrgb_addr);
 
+err_release_rwsem:
+	up_read(&request->session->release_rwsem);
+
 	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
 	mutex_unlock(&request_manager->lock);
@@ -252,11 +261,13 @@ int rga_kernel_commit(struct rga_req *cmd)
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
+	down_read(&session->release_rwsem);
+
 	request_id = rga_request_alloc(0, session);
 	if (request_id < 0) {
 		rga_err("request alloc error!\n");
 		ret = request_id;
-		return ret;
+		goto err_put_session;
 	}
 
 	memset(&kernel_request, 0, sizeof(kernel_request));
@@ -268,14 +279,14 @@ int rga_kernel_commit(struct rga_req *cmd)
 	ret = rga_request_check(&kernel_request);
 	if (ret < 0) {
 		rga_err("ID[%d]: user request check error!\n", kernel_request.id);
-		goto err_free_request_by_id;
+		goto err_put_request;
 	}
 
 	request = rga_request_kernel_config(&kernel_request);
 	if (IS_ERR(request)) {
 		rga_err("ID[%d]: config failed!\n", kernel_request.id);
 		ret = -EFAULT;
-		goto err_free_request_by_id;
+		goto err_put_request;
 	}
 
 	if (DEBUGGER_EN(MSG)) {
@@ -284,33 +295,30 @@ int rga_kernel_commit(struct rga_req *cmd)
 	}
 
 	ret = rga_request_submit(request);
-	if (ret < 0) {
+	if (ret < 0)
 		rga_req_err(request, "submit failed!\n");
-		goto err_put_request;
-	}
 
 err_put_request:
 	mutex_lock(&request_manager->lock);
-	rga_request_put(request);
-	mutex_unlock(&request_manager->lock);
 
-	rga_session_deinit(session);
+	if (request == NULL) {
+		request = rga_request_lookup(request_manager, request_id);
+		if (IS_ERR_OR_NULL(request)) {
+			rga_err("can not find request from id[%d]", request_id);
 
-	return ret;
-
-err_free_request_by_id:
-	mutex_lock(&request_manager->lock);
-
-	request = rga_request_lookup(request_manager, request_id);
-	if (IS_ERR_OR_NULL(request)) {
-		rga_err("can not find request from id[%d]", request_id);
-		mutex_unlock(&request_manager->lock);
-		return -EINVAL;
+			mutex_unlock(&request_manager->lock);
+			ret = -EINVAL;
+			goto err_put_session;
+		}
 	}
 
-	rga_request_free(request);
+	rga_request_put(request);
 
 	mutex_unlock(&request_manager->lock);
+
+err_put_session:
+	up_read(&session->release_rwsem);
+	rga_session_put(session);
 
 	return ret;
 }
@@ -387,8 +395,6 @@ int rga_power_enable(struct rga_scheduler_t *scheduler)
 	return 0;
 
 err_enable_clk:
-	clk_bulk_disable_unprepare(scheduler->num_clks, scheduler->clks);
-
 	pm_relax(scheduler->dev);
 	pm_runtime_put_sync_suspend(scheduler->dev);
 
@@ -569,21 +575,33 @@ static struct rga_session *rga_session_init(void)
 	session->pname = kstrdup_quotable_cmdline(current, GFP_KERNEL);
 
 	session->last_active = ktime_get();
+	session->release = false;
+	init_rwsem(&session->release_rwsem);
+	kref_init(&session->refcount);
 
 	return session;
 }
 
-static int rga_session_deinit(struct rga_session *session)
+static void rga_session_kref_release(struct kref *ref)
 {
-	rga_request_session_destroy_abort(session);
-	rga_mm_session_release_buffer(session);
+	struct rga_session *session;
+
+	session = container_of(ref, struct rga_session, refcount);
 
 	rga_session_free_remove_idr(session);
 
 	kfree(session->pname);
 	kfree(session);
+}
 
-	return 0;
+int rga_session_put(struct rga_session *session)
+{
+	return kref_put(&session->refcount, rga_session_kref_release);
+}
+
+void rga_session_get(struct rga_session *session)
+{
+	kref_get(&session->refcount);
 }
 
 static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *session)
@@ -927,20 +945,25 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	if (DEBUGGER_EN(NONUSE))
 		return 0;
 
-	down_read(&rga_drvdata->rwsem);
-
-	if (rga_drvdata->shutdown) {
-		rga_log("driver has been shutdown\n");
-		up_read(&rga_drvdata->rwsem);
-
-		return -EBUSY;
-	}
-
 	if (cmd == RGA_BLIT_ASYNC && !IS_ENABLED(CONFIG_ROCKCHIP_RGA_ASYNC)) {
 		rga_log("The current driver does not support asynchronous mode, please enable CONFIG_ROCKCHIP_RGA_ASYNC.\n");
-		up_read(&rga_drvdata->rwsem);
 
 		return -EINVAL;
+	}
+
+	down_read(&session->release_rwsem);
+	down_read(&rga_drvdata->rwsem);
+
+	if (rga_drvdata->shutdown || session->release) {
+		up_read(&rga_drvdata->rwsem);
+		up_read(&session->release_rwsem);
+
+		if (rga_drvdata->shutdown)
+			rga_log("driver has been shutdown\n");
+		else if (session->release)
+			rga_log("current session has been release\n");
+
+		return -EBUSY;
 	}
 
 	switch (cmd) {
@@ -1070,6 +1093,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	}
 
 	up_read(&rga_drvdata->rwsem);
+	up_read(&session->release_rwsem);
 
 	return ret;
 }
@@ -1132,7 +1156,18 @@ static int rga_release(struct inode *inode, struct file *file)
 {
 	struct rga_session *session = file->private_data;
 
-	rga_session_deinit(session);
+	down_write(&session->release_rwsem);
+
+	session->release = true;
+
+	rga_request_session_destroy_abort(session);
+	rga_mm_session_release_buffer(session);
+
+	up_write(&session->release_rwsem);
+
+	rga_session_put(session);
+
+	file->private_data = NULL;
 
 	return 0;
 }
@@ -1413,6 +1448,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 			rga_hw_set_issue_mask(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST);
 		} else if (!strcmp(scheduler->version.str, "3.f.23690")) {
 			scheduler->data = &rga2p_lite_1103b_data;
+		} else if (scheduler->version.major == 0x4 &&
+			   scheduler->version.minor == 0x1 &&
+			   scheduler->version.revision == 0x34669) {
+			scheduler->data = &rga2p_iommu_non_fbc_data;
 		} else {
 			scheduler->data = &rga2e_data;
 		}

@@ -18,6 +18,7 @@ properties:
     enum:
       - rockchip,fspi
       - rockchip,rk3506-fspi
+      - rockchip,rv1126b-fspi
       - rockchip,sfc
 
     description:

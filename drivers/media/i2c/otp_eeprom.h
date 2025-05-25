@@ -58,6 +58,8 @@
 #define RK_DCCMAP_SIZE		0x0200
 #define RK_PDAF_RESERVED_SIZE	0x001e
 #define RK_AF_RESERVED_SIZE	0x0014
+#define RK_QSC_SIZE		0x0C00
+#define RK_QSC_RESERVED_SIZE	0x0006
 #define RKOTP_MAX_MODULE	0x0008
 
 #define RKOTP_REG_START		0x0008//v1 0, v2 0x0008
@@ -66,6 +68,7 @@
 #define RKOTP_LSC_ID		2
 #define RKOTP_PDAF_ID		3
 #define RKOTP_AF_ID		4
+#define RKOTP_QSC_ID		5
 
 struct id_defination {
 	u32 supplier_id;
@@ -165,6 +168,15 @@ struct af_otp_info {
 	u32 size;
 };
 
+struct qsc_otp_info {
+	u32 flag;
+	u32 version;
+	u32 qsc_size;
+	u8 qsc_calib[RK_QSC_SIZE];
+	u32 checksum;
+	u32 size;
+};
+
 struct otp_info {
 	u32 flag;
 	u32 total_checksum;
@@ -174,6 +186,7 @@ struct otp_info {
 	struct sfr_otp_info sfr_otp_data;
 	struct pdaf_otp_info pdaf_data;
 	struct af_otp_info af_data;
+	struct qsc_otp_info qsc_data;
 };
 
 /* eeprom device structure */

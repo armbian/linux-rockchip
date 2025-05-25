@@ -1171,14 +1171,8 @@ rkisp_get_stat_size_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 	stats_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
-static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
-	.isr_hdl = rkisp_stats_isr_v3x,
-	.send_meas = rkisp_stats_send_meas_v3x,
-	.rdbk_enable = rkisp_stats_rdbk_enable_v3x,
-	.get_stat_size = rkisp_get_stat_size_v3x,
-};
-
-void rkisp_stats_first_ddr_config_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
+static void
+rkisp_stats_first_ddr_config_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
 	struct rkisp_device *dev = stats_vdev->dev;
 	int i, mult = dev->unite_div;
@@ -1216,6 +1210,14 @@ err:
 		rkisp_free_buffer(dev, &stats_vdev->stats_buf[i]);
 	dev_err(dev->dev, "alloc stats ddr buf fail\n");
 }
+
+static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
+	.isr_hdl = rkisp_stats_isr_v3x,
+	.send_meas = rkisp_stats_send_meas_v3x,
+	.rdbk_enable = rkisp_stats_rdbk_enable_v3x,
+	.get_stat_size = rkisp_get_stat_size_v3x,
+	.first_ddr_cfg = rkisp_stats_first_ddr_config_v3x,
+};
 
 void rkisp_init_stats_vdev_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 {

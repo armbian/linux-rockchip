@@ -101,31 +101,6 @@ struct pglist_data __refdata contig_page_data;
 EXPORT_SYMBOL(contig_page_data);
 #endif
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
-static int db_count __initdata;
-#define DB_COUNT_MAX 4
-
-static struct deferred_block {
-	unsigned long defer_start;
-	unsigned long defer_end;
-} db[DB_COUNT_MAX] __initdata;
-
-#define DEFAULT_DEFER_FREE_BLOCK_SIZE SZ_256M
-static unsigned long defer_free_block_size __initdata =
-	DEFAULT_DEFER_FREE_BLOCK_SIZE;
-
-static int __init early_defer_free_block_size(char *p)
-{
-	defer_free_block_size = memparse(p, &p);
-
-	pr_debug("defer_free_block_size = 0x%lx\n", defer_free_block_size);
-
-	return 0;
-}
-
-early_param("defer_free_block_size", early_defer_free_block_size);
-#endif
-
 unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
@@ -2165,30 +2140,6 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	}
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
-int __init defer_free_memblock(void *unused)
-{
-	int i;
-
-	for (i = 0; i < db_count; i++) {
-		pr_debug("%s: start = %ld, end = %ld\n",
-			 __func__, db[i].defer_start, db[i].defer_end);
-
-		__free_pages_memory(db[i].defer_start, db[i].defer_end);
-
-		totalram_pages_add(db[i].defer_end - db[i].defer_start);
-
-		pr_info("%s: size %luM free %luM [%luM - %luM] total %luM\n",
-			__func__, defer_free_block_size >> 20,
-			(db[i].defer_end - db[i].defer_start) >> (20 - PAGE_SHIFT),
-			db[i].defer_start >> (20 - PAGE_SHIFT),
-			db[i].defer_end >> (20 - PAGE_SHIFT),
-			totalram_pages() >> (20 - PAGE_SHIFT));
-	}
-	return 0;
-}
-#endif
-
 static unsigned long __init __free_memory_core(phys_addr_t start,
 				 phys_addr_t end)
 {
@@ -2198,16 +2149,6 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 
 	if (start_pfn >= end_pfn)
 		return 0;
-
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
-	pr_debug("%s, start = %pa, end = %pa\n", __func__, &start, &end);
-	if ((end - start) > defer_free_block_size && (db_count < ARRAY_SIZE(db))) {
-		db[db_count].defer_start = start_pfn;
-		db[db_count].defer_end = end_pfn;
-		db_count++;
-		return 0;
-	}
-#endif
 
 	__free_pages_memory(start_pfn, end_pfn);
 

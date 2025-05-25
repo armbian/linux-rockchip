@@ -95,7 +95,7 @@ static __maybe_unused const struct regval common_setting_594M_4ch_2lane_720p_25f
 	{0x23, 0x00},
 };
 
-static struct techpoint_video_modes supported_modes[] = {
+static struct techpoint_video_modes supported_modes_2lane[] = {
 	{// 4CH 2lane 720p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 1280,
@@ -129,6 +129,9 @@ static struct techpoint_video_modes supported_modes[] = {
 		.lane = 2,
 		.vc[PAD0] = 0,
 	},
+};
+
+static struct techpoint_video_modes supported_modes[] = {
 	{//4 chn 4 lane 1080p
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.width = 1920,
@@ -191,12 +194,19 @@ int tp2855_initialize(struct techpoint *techpoint)
 	struct i2c_client *client = techpoint->client;
 	struct device *dev = &client->dev;
 
-	techpoint->video_modes_num = ARRAY_SIZE(supported_modes);
-	array_size =
-		sizeof(struct techpoint_video_modes) * techpoint->video_modes_num;
-	techpoint->video_modes = devm_kzalloc(dev, array_size, GFP_KERNEL);
-	memcpy(techpoint->video_modes, supported_modes, array_size);
-
+	if (techpoint->data_lanes == 4) {
+		techpoint->video_modes_num = ARRAY_SIZE(supported_modes);
+		array_size =
+			sizeof(struct techpoint_video_modes) * techpoint->video_modes_num;
+		techpoint->video_modes = devm_kzalloc(dev, array_size, GFP_KERNEL);
+		memcpy(techpoint->video_modes, supported_modes, array_size);
+	} else {
+		techpoint->video_modes_num = ARRAY_SIZE(supported_modes_2lane);
+		array_size =
+			sizeof(struct techpoint_video_modes) * techpoint->video_modes_num;
+		techpoint->video_modes = devm_kzalloc(dev, array_size, GFP_KERNEL);
+		memcpy(techpoint->video_modes, supported_modes_2lane, array_size);
+	}
 	techpoint->cur_video_mode = &techpoint->video_modes[0];
 
 	return 0;

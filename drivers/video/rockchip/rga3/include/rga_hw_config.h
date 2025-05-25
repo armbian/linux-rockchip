@@ -80,6 +80,7 @@ extern const struct rga_hw_data rga2e_3506_data;
 extern const struct rga_hw_data rga2e_iommu_data;
 extern const struct rga_hw_data rga2p_iommu_data;
 extern const struct rga_hw_data rga2p_lite_1103b_data;
+extern const struct rga_hw_data rga2p_iommu_non_fbc_data;
 
 #define rga_hw_has_issue(scheduler, issue) test_bit(issue, &((scheduler)->hw_issues_mask))
 #define rga_hw_set_issue_mask(scheduler, issue) set_bit(issue, &((scheduler)->hw_issues_mask))

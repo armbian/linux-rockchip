@@ -57,7 +57,7 @@ static bool check_scatter_list(unsigned int max_size, struct sg_table *sg_tbl)
 		return false;
 
 	for_each_sgtable_sg(sg_tbl, sgl, i) {
-		if  (sg_phys(sgl) > SZ_4G || sg_phys(sgl) + sg_dma_len(sgl) > SZ_4G)
+		if  (sg_phys(sgl) >= SZ_4G || sg_phys(sgl) + sg_dma_len(sgl) > SZ_4G)
 			return false;
 
 		if (i && next_addr != sg_dma_address(sgl))

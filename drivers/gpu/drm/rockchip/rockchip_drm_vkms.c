@@ -370,7 +370,7 @@ static int rockchip_vkms_conn_get_modes(struct drm_connector *connector)
 	int i;
 
 	count += drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
-	for (i = 0; rockchip_vkms_modes_builtin[i].type != 0; i++) {
+	for (i = 0; i < ARRAY_SIZE(rockchip_vkms_modes_builtin); i++) {
 		bmode = &rockchip_vkms_modes_builtin[i];
 
 		mode = drm_mode_duplicate(connector->dev, bmode);

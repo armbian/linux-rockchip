@@ -143,7 +143,7 @@ static int spidev_mst_read(struct spidev_rkmst_data *spidev, void *rxbuf, size_t
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 
-	ret = spidev_mst_wait_for_slave_ready(spidev, SPI_OBJ_MAX_XFER_SIZE);
+	ret = spidev_mst_wait_for_slave_ready(spidev, SPI_OBJ_DEFAULT_TIMEOUT_US);
 	if (ret < 0)
 		return ret;
 
@@ -169,7 +169,7 @@ static int spidev_slv_write_and_read(struct spidev_rkmst_data *spidev,
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 
-	ret = spidev_mst_wait_for_slave_ready(spidev, SPI_OBJ_MAX_XFER_SIZE);
+	ret = spidev_mst_wait_for_slave_ready(spidev, SPI_OBJ_DEFAULT_TIMEOUT_US);
 	if (ret < 0)
 		return ret;
 

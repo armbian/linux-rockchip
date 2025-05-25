@@ -330,6 +330,14 @@
 	};
 };
 
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
 &max96712_dphy3_vcc1v2 {
 	vin-supply = <&vcc5v0_buck>;
 };

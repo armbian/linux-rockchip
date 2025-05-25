@@ -27,6 +27,8 @@
 #define V4L2_PIX_FMT_TILE420    v4l2_fourcc('T', 'I', 'L', '0')
 /* yuv422 tile */
 #define V4L2_PIX_FMT_TILE422    v4l2_fourcc('T', 'I', 'L', '2')
+/* yuv420 quad */
+#define V4L2_PIX_FMT_QUAD       v4l2_fourcc('Q', 'U', 'A', 'D')
 
 /* Vendor specific - used for Rockchip ISP1 camera sub-system */
 #define V4L2_META_FMT_RK_ISP1_PARAMS	v4l2_fourcc('R', 'K', '1', 'P') /* Rockchip ISP1 params */

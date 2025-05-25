@@ -648,6 +648,15 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
 		dw_mipi_dsi_video_mode_config(dsi);
 	} else {
+		u32 val = 0;
+
+		/* DSI work in command mode, using long packet DCS commands
+		 * WMC and WMS to send video signals at high speed.
+		 */
+		val = dsi_read(dsi, DSI_CMD_MODE_CFG);
+		val &= ~DCS_LW_TX_LP;
+		dsi_write(dsi, DSI_CMD_MODE_CFG, val);
+
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
 	}
 

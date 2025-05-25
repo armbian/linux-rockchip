@@ -368,6 +368,11 @@ config RENESAS_PHY
 	help
 	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
+config ROCKCHIP_FEPHY
+	tristate "Driver for Rockchip Fast Ethernet PHYs"
+	help
+	  Currently supports the Rockchip Fast Ethernet PHYs.
+
 config ROCKCHIP_PHY
 	tristate "Rockchip Ethernet PHYs"
 	help

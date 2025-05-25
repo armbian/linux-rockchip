@@ -327,4 +327,8 @@ fail_remove:
 		remove_proc_entry("misc", NULL);
 	return err;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+arch_initcall_sync(misc_init);
+#else
 subsys_initcall(misc_init);
+#endif

@@ -79,6 +79,7 @@ enum rkisp_isp_ver {
 	ISP_V32_L = 0x80,
 	ISP_V33 = 0x90,
 	ISP_V39 = 0xa0,
+	ISP_V35 = 0xb0,
 };
 
 enum rkisp_sd_type {
@@ -105,6 +106,7 @@ enum rkisp_fmt_pix_type {
 	FMT_EBD,
 	FMT_SPD,
 	FMT_FBC,
+	FMT_TILE,
 	FMT_MAX
 };
 

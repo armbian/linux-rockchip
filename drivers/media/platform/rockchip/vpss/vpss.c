@@ -8,7 +8,7 @@
 #include "vpss_offline.h"
 #include "hw.h"
 #include "procfs.h"
-#include "regs_v1.h"
+#include "regs.h"
 
 static const struct vpsssd_fmt rkvpss_formats[] = {
 	{
@@ -28,6 +28,10 @@ static inline const char *s_dev_name(int i)
 		return S2_VDEV_NAME;
 	case 3:
 		return S3_VDEV_NAME;
+	case 4:
+		return S4_VDEV_NAME;
+	case 5:
+		return S5_VDEV_NAME;
 	default:
 		return S0_VDEV_NAME;
 	}
@@ -185,6 +189,8 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 	rkvpss_unite_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
 
 	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD;
+	if (dev->hw_dev->vpss_ver == VPSS_V20)
+		val |= RKVPSS_MIR_FORCE_UPD;
 	if (!dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_MIR_FORCE_UPD;
 
@@ -278,6 +284,7 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 	}
 
 	if (!info->irq && (!hw->is_single || dev->unite_mode)) {
+		// 1126b unite or multi sensor todo
 		hw->cur_dev_id = dev->dev_id;
 		rkvpss_update_regs(dev, RKVPSS_VPSS_CTRL, RKVPSS_VPSS_ONLINE2_SIZE);
 		rkvpss_update_regs(dev, RKVPSS_VPSS_IRQ_CFG, RKVPSS_VPSS_IMSC);

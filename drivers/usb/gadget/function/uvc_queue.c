@@ -23,6 +23,10 @@
 #include "uvc.h"
 #include "u_uvc.h"
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+MODULE_IMPORT_NS(DMA_BUF);
+#endif
+
 /* ------------------------------------------------------------------------
  * Video buffers queue management.
  *

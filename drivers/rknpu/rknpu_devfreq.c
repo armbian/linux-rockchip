@@ -120,6 +120,15 @@ static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 		else if (value == 0xa)
 			*bin = 2;
 	}
+	if (of_property_match_string(np, "nvmem-cell-names", "customer_demand") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np, "customer_demand", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get customer_demand\n");
+			return ret;
+		}
+		if (value == 0x3)
+			*bin = 4;
+	}
 	if (*bin < 0)
 		*bin = 0;
 	LOG_DEV_INFO(dev, "bin=%d\n", *bin);
@@ -251,14 +260,30 @@ static const struct rockchip_opp_data rk3588_npu_opp_data = {
 #endif
 };
 
+static const struct rockchip_opp_data rv1126b_npu_opp_data = {
+	.is_use_pvtpll = true,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	.config_regulators = npu_opp_config_regulators,
+	.config_clks = npu_opp_config_clks,
+#endif
+};
+
 static const struct of_device_id rockchip_npu_of_match[] = {
 	{
 		.compatible = "rockchip,rk3576",
 		.data = (void *)&rk3576_npu_opp_data,
 	},
 	{
+		.compatible = "rockchip,rk3576s",
+		.data = (void *)&rk3576_npu_opp_data,
+	},
+	{
 		.compatible = "rockchip,rk3588",
 		.data = (void *)&rk3588_npu_opp_data,
+	},
+	{
+		.compatible = "rockchip,rv1126b",
+		.data = (void *)&rv1126b_npu_opp_data,
 	},
 	{},
 };
@@ -411,7 +436,7 @@ int rknpu_devfreq_runtime_suspend(struct device *dev)
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
 	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 
-	if (opp_info->is_scmi_clk) {
+	if (rockchip_opp_is_use_pvtpll(opp_info)) {
 		if (clk_set_rate(opp_info->clk, POWER_DOWN_FREQ))
 			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
 	}
@@ -439,7 +464,7 @@ int rknpu_devfreq_runtime_resume(struct device *dev)
 	if (opp_info->data && opp_info->data->set_read_margin)
 		opp_info->data->set_read_margin(dev, opp_info,
 						opp_info->target_rm);
-	if (opp_info->is_scmi_clk) {
+	if (rockchip_opp_is_use_pvtpll(opp_info)) {
 		if (clk_set_rate(opp_info->clk, rknpu_dev->current_freq))
 			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
 	}

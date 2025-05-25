@@ -14,6 +14,7 @@ properties:
     enum:
       - rockchip,rk3568-naneng-combphy
       - rockchip,rk3588-naneng-combphy
+      - rockchip,rv1126b-usb3-phy
 
   reg:
     maxItems: 1

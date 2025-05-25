@@ -143,6 +143,14 @@ static const struct snd_kcontrol_new rk730_out2_switch =
 static SOC_ENUM_SINGLE_DECL(ana_ldo_volt_enum, RK730_LDO,
 			    4, ana_ldo_volt_text);
 
+static const char * const adc_sdo_sel_tx_text[] = {
+	"ADCL ADCR", "ADCL ADCR DACL DACR", "ADCL DACL", "ADCL DACR",
+	"ADCR DACL", "ADCR DACR",           "DACL DACR",
+};
+
+static SOC_ENUM_SINGLE_DECL(adc_sdo_sel_tx_enum, RK730_DI2S_TXCR2,
+			    5, adc_sdo_sel_tx_text);
+
 static int rk730_pll_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
@@ -477,6 +485,7 @@ static const struct snd_kcontrol_new rk730_snd_controls[] = {
 	SOC_ENUM("Mic Bias Volt", micbias_volt_enum),
 	SOC_ENUM("DAC HPF Center Freq", dac_hfp_center_freq_enum),
 	SOC_ENUM("ADC CAPACITY TRIM", adc_capacity_trim_enum),
+	SOC_ENUM("ADC SDO SEL TX", adc_sdo_sel_tx_enum),
 	SOC_SINGLE("ADC Volume Bypass Switch", RK730_DTOP_VUCTL, 7, 1, 0),
 	SOC_SINGLE("DAC Volume Bypass Switch", RK730_DTOP_VUCTL, 6, 1, 0),
 	SOC_SINGLE("ADC Fade Switch", RK730_DTOP_VUCTL, 5, 1, 0),
@@ -792,26 +801,46 @@ static int rk730_dai_hw_params(struct snd_pcm_substream *substream,
 	dev_info(component->dev, "%s:index %d  mclk=%d rate=%d\n",
 		 __func__, coeff, coeff_div[coeff].mclk, coeff_div[coeff].rate);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
-					      RK730_DI2S_RXCR2_VDW_MASK,
-					      RK730_DI2S_RXCR2_VDW(16));
-		snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
-					      RK730_DI2S_TXCR2_VDW_MASK,
-					      RK730_DI2S_TXCR2_VDW(16));
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
-		snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
-					      RK730_DI2S_RXCR2_VDW_MASK,
-					      RK730_DI2S_RXCR2_VDW(24));
-		snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
-					      RK730_DI2S_TXCR2_VDW_MASK,
-					      RK730_DI2S_TXCR2_VDW(24));
-		break;
-	default:
-		return -EINVAL;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(16));
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(24));
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(32));
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(16));
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(24));
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(32));
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	rate = samplerate_to_bit(params_rate(params));

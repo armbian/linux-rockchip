@@ -83,9 +83,9 @@
 		precharge-current-microamp = <180000>;
 		precharge-upper-limit-microvolt = <3600000>;
 		charge-term-current-microamp = <300000>;
-		constant-charge-current-max-microamp = <10000000>;
+		constant-charge-current-max-microamp = <1600000>;
 		constant-charge-voltage-max-microvolt = <4350000>;
-		factory-internal-resistance-micro-ohms = <80>;
+		factory-internal-resistance-micro-ohms = <180>;
 		voltage-max-design-microvolt = <4350000>;
 		voltage-min-design-microvolt = <3000000>;
 	};
@@ -113,7 +113,7 @@
 		cm-fuel-gauge = "cw221X-bat";
 		monitored-battery = <&bat>;
 		extcon = <&u2phy0>;
-		cm-jeita-temp-charge-table = <0 15 2400000 4400000>, <15 45 10000000 4400000>, <45 60 6000000 4200000>;
+		cm-jeita-temp-charge-table = <10 45 1600000 4350000>;
 	};
 
 	dp0_sound: dp0-sound {

@@ -153,6 +153,8 @@ struct link_train {
 	u8 link_rate;
 	u8 lane_count;
 	u8 training_lane[4];
+	u8 max_link_rate;
+	u8 max_lane_count;
 	bool ssc;
 	bool enhanced_framing;
 	bool assr;

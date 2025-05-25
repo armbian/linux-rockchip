@@ -424,12 +424,23 @@ static void rockchip_flexbus_adc_remove(struct platform_device *pdev)
 		clk_disable_unprepare(rkfb_adc->ref_clk);
 }
 
+static int rockchip_flexbus_adc_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
+
+	return rockchip_flexbus_adc_init(rkfb_adc);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_flexbus_adc_pm_ops, NULL, rockchip_flexbus_adc_resume);
+
 static struct platform_driver rockchip_flexbus_adc_driver = {
 	.probe	= rockchip_flexbus_adc_probe,
 	.remove	= rockchip_flexbus_adc_remove,
 	.driver	= {
 		.name		= "rockchip_flexbus_adc",
 		.of_match_table = rockchip_flexbus_adc_of_match,
+		.pm		= pm_sleep_ptr(&rockchip_flexbus_adc_pm_ops),
 	},
 };
 

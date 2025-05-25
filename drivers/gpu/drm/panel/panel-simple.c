@@ -6051,7 +6051,11 @@ err_did_platform_register:
 
 	return err;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(panel_simple_init);
+#else
 module_init(panel_simple_init);
+#endif
 
 static void __exit panel_simple_exit(void)
 {

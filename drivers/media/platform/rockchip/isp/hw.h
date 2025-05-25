@@ -55,6 +55,7 @@ struct rkisp_hw_dev {
 	void *sw_reg;
 	void __iomem *base_addr;
 	void __iomem *base_next_addr;
+	void __iomem *vpsl_base_addr;
 	struct clk *clks[RKISP_MAX_BUS_CLK];
 	int num_clks;
 	const struct isp_clk_info *clk_rate_tbl;
@@ -77,7 +78,8 @@ struct rkisp_hw_dev {
 	atomic_t refcnt;
 
 	struct rkisp_sram sram;
-
+	/* lock for reg */
+	spinlock_t reg_lock;
 	/* share buf for multi dev */
 	spinlock_t buf_lock;
 	struct rkisp_bridge_buf bufs[BRIDGE_BUF_MAX];

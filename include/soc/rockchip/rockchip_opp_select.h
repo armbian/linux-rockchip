@@ -44,6 +44,7 @@ struct volt_rm_table {
 struct rockchip_opp_data {
 	config_clks_t config_clks;
 	config_regulators_t config_regulators;
+	bool is_use_pvtpll;
 
 	int (*get_soc_info)(struct device *dev, struct device_node *np,
 			    int *bin, int *process);
@@ -142,6 +143,11 @@ struct rockchip_opp_info {
 	bool pvtpll_smc;
 	bool pvtpll_low_temp;
 };
+
+static inline bool rockchip_opp_is_use_pvtpll(struct rockchip_opp_info *info)
+{
+	return (info->is_scmi_clk || (info->data && info->data->is_use_pvtpll));
+}
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_OPP)
 int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage);

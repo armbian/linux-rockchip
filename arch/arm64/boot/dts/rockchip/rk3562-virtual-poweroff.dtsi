@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_DEEP1_MODE
+		| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		//| RKPM_SLP_OSC_DIS
+		| RKPM_SLP_32K_PVTM
+		)
+	>;
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_GPIO0_WKUP_EN
+		| RKPM_CPU0_WKUP_EN
+		| RKPM_PWM0_WKUP_EN
+		| RKPM_PWM0_PWR_WKUP_EN
+		)
+	>;
+};

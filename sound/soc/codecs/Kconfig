@@ -1206,6 +1206,10 @@ config SND_SOC_ES8328_SPI
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
 
+config SND_SOC_ES8389
+	tristate "Everest Semi ES8389 CODEC"
+	depends on I2C
+
 config SND_SOC_ES8396
 	tristate "Everest Semi ES8396 CODEC"
 	depends on I2C

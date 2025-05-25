@@ -285,6 +285,10 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	priv->num_clks = devm_clk_bulk_get_all(dev, &priv->clks);
+	if (priv->num_clks < 1)
+		return -ENODEV;
+
 	priv->phy_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,phy-grf");
 	if (IS_ERR(priv->phy_grf)) {
 		dev_err(dev, "failed to find rockchip,phy_grf regmap\n");
@@ -295,6 +299,13 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 							 "rockchip,pipe-grf");
 	if (IS_ERR(priv->pipe_grf))
 		dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
+
+	/* Configuring grf with clk enabled. */
+	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
+	if (ret) {
+		pr_err("failed to enable PCIe bulk clks %d\n", ret);
+		return ret;
+	}
 
 	ret = device_property_read_u32(dev, "rockchip,pcie30-phymode", &val);
 	if (!ret) {
@@ -314,6 +325,8 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 			regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
 				     (reg << 16) | reg);
 	};
+
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 
 	ret = of_property_read_variable_u32_array(dev->of_node,
 						  "rockchip,rx-common-refclk-mode",
@@ -343,10 +356,6 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		dev_warn(dev, "no phy reset control specified\n");
 		priv->p30phy = NULL;
 	}
-
-	priv->num_clks = devm_clk_bulk_get_all(dev, &priv->clks);
-	if (priv->num_clks < 1)
-		return -ENODEV;
 
 	dev_set_drvdata(dev, priv);
 	phy_set_drvdata(priv->phy, priv);

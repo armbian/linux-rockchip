@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/rk-pcie-ep.h>
 
+#include "../../pci.h"
 #include "../rockchip-pcie-dma.h"
 #include "pcie-designware.h"
 #include "pcie-dw-dmatest.h"
@@ -34,6 +35,17 @@
 #define HIWORD_UPDATE_BIT(val)	HIWORD_UPDATE(val, val)
 
 #define to_rockchip_pcie(x) dev_get_drvdata((x)->dev)
+
+#define RK_PCIE_DBG			0
+
+#define PCIE_CLIENT_DBG_FIFO_MODE_CON	0x310
+#define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0 0x320
+#define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1 0x324
+#define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0 0x328
+#define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1 0x32c
+#define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
+#define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
+#define PCIE_CLIENT_DBF_EN		0xffff0007
 
 #define PCIE_DMA_OFFSET			0x380000
 
@@ -114,6 +126,8 @@
 #define PCIE_BAR_MAX_NUM		6
 #define PCIE_HOTRESET_TMOUT_US		10000
 
+#define PCIE_WAKE_DELAY_US		2000 /* 2 ms */
+
 struct rockchip_pcie {
 	struct dw_pcie			pci;
 	void __iomem			*apb_base;
@@ -121,7 +135,11 @@ struct rockchip_pcie {
 	struct clk_bulk_data		*clks;
 	int				clk_cnt;
 	struct reset_control		*rst;
-	struct gpio_desc		*rst_gpio;
+	struct gpio_desc		*perst_gpio;
+	struct gpio_desc		*wake_gpio;
+	int				perst_irq;
+	bool				ep_power_independent;
+	struct completion		ep_perst_deassert_complete;
 	unsigned long			*ib_window_map;
 	unsigned long			*ob_window_map;
 	u32				num_ib_windows;
@@ -159,6 +177,8 @@ static const struct of_device_id rockchip_pcie_ep_of_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, rockchip_pcie_ep_of_match);
+
+static irqreturn_t rockchip_pcie_perst_irq_handler(int irq, void *arg);
 
 static void rockchip_pcie_devmode_update(struct rockchip_pcie *rockchip, int mode, int submode)
 {
@@ -215,10 +235,24 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	char name[8];
 	int i, idx;
 
-	rockchip->rst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_IN);
-	if (IS_ERR(rockchip->rst_gpio)) {
+	rockchip->perst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_IN);
+	if (IS_ERR(rockchip->perst_gpio)) {
 		dev_err(dev, "Failed to get reset gpio\n");
-		return PTR_ERR(rockchip->rst_gpio);
+		return PTR_ERR(rockchip->perst_gpio);
+	}
+
+	if (device_property_read_bool(dev, "rockchip,ep-power-independent")) {
+		rockchip->ep_power_independent = true;
+		if (!rockchip->perst_gpio) {
+			dev_err(dev, "When the EP power supply is independent of the RC, the perst_gpio is necessary\n");
+			return -EINVAL;
+		}
+	}
+
+	rockchip->wake_gpio = devm_gpiod_get_optional(dev, "wake", GPIOD_OUT_LOW);
+	if (IS_ERR(rockchip->wake_gpio)) {
+		dev_err(dev, "Failed to get wake gpio\n");
+		return PTR_ERR(rockchip->wake_gpio);
 	}
 
 	apb_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcie-apb");
@@ -311,6 +345,8 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+	rockchip->pci.link_gen = of_pci_get_max_link_speed(np);
+
 	return 0;
 }
 
@@ -350,7 +386,17 @@ static int rockchip_pcie_get_resource(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	return 0;
+	if (rockchip->perst_gpio) {
+		rockchip->perst_irq = gpiod_to_irq(rockchip->perst_gpio);
+		ret = devm_request_threaded_irq(&pdev->dev, rockchip->perst_irq, NULL,
+						rockchip_pcie_perst_irq_handler,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_NO_AUTOEN,
+						"perst_irq", rockchip);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to request PERST IRQ\n");
+	}
+
+	return ret;
 }
 
 static int rockchip_pci_find_ext_capability(struct rockchip_pcie *rockchip, int cap)
@@ -423,6 +469,11 @@ static void rockchip_pcie_resize_bar_nsticky(struct rockchip_pcie *rockchip)
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0x2c0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
 
+	bar = BAR_1;
+	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x10);
+	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0xc0);
+	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
+
 	bar = BAR_2;
 	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x400);
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0x6c0);
@@ -434,11 +485,18 @@ static void rockchip_pcie_resize_bar_nsticky(struct rockchip_pcie *rockchip)
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0xc0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
 
+	bar = BAR_5;
+	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x10);
+	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0xc0);
+	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
+
 	/* Disable BAR1 BAR5*/
 	bar = BAR_1;
-	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + bar * 4, 0);
+	if (!rockchip->ib_target_size[bar])
+		dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + bar * 4, 0);
 	bar = BAR_5;
-	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + bar * 4, 0);
+	if (!rockchip->ib_target_size[bar])
+		dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + bar * 4, 0);
 	dw_pcie_dbi_ro_wr_dis(&rockchip->pci);
 }
 
@@ -529,6 +587,38 @@ static int rockchip_pcie_poll_irq_user(struct rockchip_pcie *rockchip, struct pc
 	dev_dbg(rockchip->pci.dev, "poll virtual id %d, ret=%d\n", index, cfg->poll_status);
 
 	return 0;
+}
+
+static int rockchip_pcie_perst_deassert(struct rockchip_pcie *rockchip)
+{
+	gpiod_set_value_cansleep(rockchip->wake_gpio, 0);
+	usleep_range(PCIE_WAKE_DELAY_US, PCIE_WAKE_DELAY_US + 500);
+	gpiod_set_value_cansleep(rockchip->wake_gpio, 1);
+
+	if (rockchip->ep_power_independent)
+		complete(&rockchip->ep_perst_deassert_complete);
+
+	return 0;
+}
+
+static irqreturn_t rockchip_pcie_perst_irq_handler(int irq, void *arg)
+{
+	struct rockchip_pcie *rockchip = arg;
+	struct device *dev = rockchip->pci.dev;
+	u32 perst;
+
+	perst = gpiod_get_value(rockchip->perst_gpio);
+	if (perst) {
+		dev_dbg(dev, "PERST asserted by host. Shutting down the PCIe link!\n");
+	} else {
+		dev_dbg(dev, "PERST de-asserted by host. Starting link training!\n");
+		rockchip_pcie_perst_deassert(rockchip);
+	}
+
+	irq_set_irq_type(gpiod_to_irq(rockchip->perst_gpio),
+			 (perst ? IRQF_TRIGGER_HIGH : IRQF_TRIGGER_LOW));
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
@@ -654,6 +744,18 @@ static int rockchip_pcie_init_host(struct rockchip_pcie *rockchip)
 	struct device *dev = rockchip->pci.dev;
 	int ret;
 
+	if (rockchip->ep_power_independent && gpiod_get_value(rockchip->perst_gpio)) {
+		init_completion(&rockchip->ep_perst_deassert_complete);
+		dev_info(dev, "Waiting for perst# de-assert\n");
+		enable_irq(rockchip->perst_irq);
+		ret = wait_for_completion_timeout(&rockchip->ep_perst_deassert_complete, 30 * HZ);
+		if (!ret) {
+			dev_err(dev, "Not waiting for a valid PERST signal\n");
+			return ret;
+		}
+		dev_info(dev, "perst# de-assert\n");
+	}
+
 	ret = clk_bulk_prepare_enable(rockchip->clk_cnt, rockchip->clks);
 	if (ret)
 		return 0;
@@ -739,12 +841,39 @@ static void rockchip_pcie_hide_broken_ats_cap(struct dw_pcie *pci)
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 
+static void rockchip_pcie_enable_debug(struct rockchip_pcie *rockchip)
+{
+	rockchip_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_TRANSITION_DATA,
+				 PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0);
+	rockchip_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_TRANSITION_DATA,
+				 PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1);
+	rockchip_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_TRANSITION_DATA,
+				 PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0);
+	rockchip_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_TRANSITION_DATA,
+				 PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1);
+	rockchip_pcie_writel_apb(rockchip, PCIE_CLIENT_DBF_EN,
+				 PCIE_CLIENT_DBG_FIFO_MODE_CON);
+}
+
+static void rockchip_pcie_debug_dump(struct rockchip_pcie *rockchip)
+{
+#if RK_PCIE_DBG
+	u32 loop;
+
+	dev_info(rockchip->pci.dev, "ltssm = 0x%x\n",
+		 rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_LTSSM_STATUS));
+	for (loop = 0; loop < 64; loop++)
+		dev_info(rockchip->pci.dev, "fifo_status = 0x%x\n",
+			 rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_DBG_FIFO_STATUS));
+#endif
+}
+
 static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 {
 	struct device *dev = rockchip->pci.dev;
 	struct dw_pcie *pci = &rockchip->pci;
 	u32 reg, val;
-	int ret, retry, i;
+	int ret, retries, i;
 
 	/* Detecting ATU features to achieve DWC ATU interface development */
 	dw_pcie_iatu_detect(&rockchip->pci);
@@ -810,8 +939,10 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 		dev_info(dev, "hot reset ever\n");
 	}
 	rockchip_pcie_writel_apb(rockchip, reg, PCIE_CLIENT_INTR_STATUS_MISC);
+	rockchip_pcie_enable_debug(rockchip);
 
-	for (retry = 0; retry < 1000; retry++) {
+	retries = 1000;
+	for (i = 0; i < retries; i++) {
 		if (dw_pcie_link_up(&rockchip->pci)) {
 			/*
 			 * We may be here in case of L0 in Gen1. But if EP is capable
@@ -820,18 +951,23 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 			 * that LTSSM max timeout is 24ms per period, we can wait a bit
 			 * more for Gen switch.
 			 */
-			msleep(2000);
-			dev_info(dev, "PCIe Link up, LTSSM is 0x%x\n",
-				 rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_LTSSM_STATUS));
-			break;
+			msleep(50);
+			/* In case link drop after linkup, double check it */
+			if (dw_pcie_link_up(pci)) {
+				dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
+					 rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_LTSSM_STATUS));
+				rockchip_pcie_debug_dump(rockchip);
+				break;
+			}
 		}
 
 		dev_info_ratelimited(dev, "PCIe Linking... LTSSM is 0x%x\n",
 				     rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_LTSSM_STATUS));
+		rockchip_pcie_debug_dump(rockchip);
 		msleep(20);
 	}
 
-	if (retry >= 10000) {
+	if (i >= retries) {
 		ret = -ENODEV;
 		return ret;
 	}
@@ -839,13 +975,6 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 already_linkup:
 	/* Enable client reset or link down interrupt */
 	rockchip_pcie_writel_apb(rockchip, 0x40000, PCIE_CLIENT_INTR_MASK);
-	rockchip->hot_rst_wq = create_singlethread_workqueue("rkep_hot_rst_wq");
-	if (!rockchip->hot_rst_wq) {
-		dev_err(dev, "Failed to create hot_rst workqueue\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&rockchip->hot_rst_work, rockchip_pcie_hot_rst_work);
-	init_waitqueue_head(&rockchip->wq_head);
 
 	/* Enable client elbi interrupt */
 	rockchip_pcie_writel_apb(rockchip, 0x80000000, PCIE_CLIENT_INTR_MASK);
@@ -859,6 +988,31 @@ already_linkup:
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
 
+	/* Setting device */
+	if (dw_pcie_readl_dbi(&rockchip->pci, PCIE_ATU_VIEWPORT) == 0xffffffff)
+		rockchip->pci.iatu_unroll_enabled = 1;
+	memset(rockchip->ib_window_map, 0, BITS_TO_LONGS(rockchip->num_ib_windows) * sizeof(long));
+	memset(rockchip->ob_window_map, 0, BITS_TO_LONGS(rockchip->num_ob_windows) * sizeof(long));
+	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
+		if (rockchip->ib_target_size[i])
+			rockchip_pcie_ep_set_bar(rockchip, i, rockchip->ib_target_address[i]);
+
+	return 0;
+}
+
+static int rockchip_pcie_config_irq_and_works(struct rockchip_pcie *rockchip)
+{
+	struct device *dev = rockchip->pci.dev;
+	int ret;
+
+	rockchip->hot_rst_wq = create_singlethread_workqueue("rkep_hot_rst_wq");
+	if (!rockchip->hot_rst_wq) {
+		dev_err(dev, "Failed to create hot_rst workqueue\n");
+		return -ENOMEM;
+	}
+	INIT_WORK(&rockchip->hot_rst_work, rockchip_pcie_hot_rst_work);
+	init_waitqueue_head(&rockchip->wq_head);
+
 	ret = devm_request_irq(dev, rockchip->irq, rockchip_pcie_sys_irq_handler,
 			       IRQF_SHARED, "pcie-sys", rockchip);
 	if (ret) {
@@ -866,12 +1020,6 @@ already_linkup:
 		return ret;
 	}
 
-	/* Setting device */
-	if (dw_pcie_readl_dbi(&rockchip->pci, PCIE_ATU_VIEWPORT) == 0xffffffff)
-		rockchip->pci.iatu_unroll_enabled = 1;
-	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
-		if (rockchip->ib_target_size[i])
-			rockchip_pcie_ep_set_bar(rockchip, i, rockchip->ib_target_address[i]);
 	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKUP);
 
 	return 0;
@@ -1153,6 +1301,13 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		addr = rockchip->ib_target_address[0];
 		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR1:
+		if (size > rockchip->ib_target_size[1]) {
+			dev_warn(rockchip->pci.dev, "bar1 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = rockchip->ib_target_address[1];
+		break;
 	case PCIE_EP_MMAP_RESOURCE_BAR2:
 		if (size > rockchip->ib_target_size[2]) {
 			dev_warn(rockchip->pci.dev, "bar2 mmap size is out of limitation\n");
@@ -1160,13 +1315,17 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		addr = rockchip->ib_target_address[2];
 		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR5:
+		if (size > rockchip->ib_target_size[5]) {
+			dev_warn(rockchip->pci.dev, "bar5 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = rockchip->ib_target_address[5];
+		break;
 	default:
 		dev_err(rockchip->pci.dev, "cur mmap_res %d is unsurreport\n", rockchip->cur_mmap_res);
 		return -EINVAL;
 	}
-
-	vma->vm_flags |= VM_IO;
-	vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
 
 	if (rockchip->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -1250,6 +1409,12 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 		goto deinit_host;
 	}
 
+	ret = rockchip_pcie_config_irq_and_works(rockchip);
+	if (ret) {
+		dev_err(dev, "Failed to config irq and works\n");
+		goto deinit_host;
+	}
+
 	ret = rockchip_pcie_init_dma_trx(rockchip);
 	if (ret) {
 		dev_err(dev, "Failed to initial dma trx!\n");
@@ -1265,11 +1430,54 @@ deinit_host:
 	return ret;
 }
 
+static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
+{
+	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+
+	rockchip_pcie_deinit_host(rockchip);
+
+	return 0;
+}
+
+static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
+{
+	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+	int ret;
+
+	ret = rockchip_pcie_init_host(rockchip);
+	if (ret) {
+		dev_err(dev, "Failed to init host!\n");
+		return ret;
+	}
+
+	ret = rockchip_pcie_config_host(rockchip);
+	if (ret) {
+		dev_err(dev, "Failed to config host!\n");
+		goto deinit_host;
+	}
+
+	gpiod_set_value_cansleep(rockchip->wake_gpio, 0);
+	usleep_range(PCIE_WAKE_DELAY_US, PCIE_WAKE_DELAY_US + 500);
+	gpiod_set_value_cansleep(rockchip->wake_gpio, 1);
+
+	return ret;
+deinit_host:
+	rockchip_pcie_deinit_host(rockchip);
+
+	return ret;
+}
+
+static const struct dev_pm_ops rockchip_dw_pcie_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dw_pcie_suspend,
+				      rockchip_dw_pcie_resume)
+};
+
 static struct platform_driver rk_plat_pcie_driver = {
 	.driver = {
 		.name	= "rk-pcie-ep",
 		.of_match_table = rockchip_pcie_ep_of_match,
 		.suppress_bind_attrs = true,
+		.pm = &rockchip_dw_pcie_pm_ops,
 	},
 	.probe = rockchip_pcie_ep_probe,
 };

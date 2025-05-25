@@ -606,7 +606,7 @@ static ssize_t rkcif_show_scl_mode(struct device *dev,
 	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
 	int ret;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d (0 scale, 1 binning, 2 extract)\n",
 		       cif_dev->scale_vdev[0].scl_mode,
 		       cif_dev->scale_vdev[1].scl_mode,
 		       cif_dev->scale_vdev[2].scl_mode,
@@ -671,7 +671,7 @@ static ssize_t rkcif_show_extraction_pattern(struct device *dev,
 	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
 	int ret;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d (0 top left, 1 top right, 2 bottom left, 3 bottom right)\n",
 		       cif_dev->scale_vdev[0].extrac_pattern,
 		       cif_dev->scale_vdev[1].extrac_pattern,
 		       cif_dev->scale_vdev[2].extrac_pattern,
@@ -1095,6 +1095,8 @@ void rkcif_write_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 	if (index < CIF_REG_INDEX_MAX) {
@@ -1137,6 +1139,8 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1182,6 +1186,8 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1228,6 +1234,8 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1251,8 +1259,12 @@ void rkcif_write_grf_reg(struct rkcif_device *dev,
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index > CIF_REG_DVP_CTRL) {
-			if (!IS_ERR(cif_hw->grf))
+			if (!IS_ERR(cif_hw->grf)) {
 				regmap_write(cif_hw->grf, reg->offset, val);
+				v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
+					 "write grf reg[0x%x]:0x%x!!!\n",
+					 reg->offset, val);
+			}
 		} else {
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
@@ -1318,6 +1330,15 @@ void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on)
 			else
 				val = RK3568_CIF_PCLK_SINGLE_EDGE;
 			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			if (on)
+				val = RK3568_CIF_PCLK_DUAL_EDGE;
+			else
+				val = RK3568_CIF_PCLK_SINGLE_EDGE;
+			if (dev->dvp_pin_group == 0)
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+			else
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
 		}
 	}
 
@@ -1366,6 +1387,16 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 				val = RK3576_CIF_PCLK_SAMPLING_EDGE_RISING;
 			else
 				val = RK3576_CIF_PCLK_SAMPLING_EDGE_FALLING;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = RV1126B_CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = RV1126B_CIF_PCLK_SAMPLING_EDGE_FALLING;
+			if (dev->dvp_pin_group == 0)
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+			else
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
+			return;
 		}
 		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 	}
@@ -1866,7 +1897,8 @@ static int rkcif_create_link(struct rkcif_device *dev,
 
 	linked_sensor.lanes = sensor->lanes;
 
-	if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+	if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+	    dev->chip_id < CHIP_RV1106_CIF) {
 		linked_sensor.sd = &dev->lvds_subdev.sd;
 		dev->lvds_subdev.sensor_self.sd = &dev->lvds_subdev.sd;
 		dev->lvds_subdev.sensor_self.lanes = sensor->lanes;
@@ -1996,7 +2028,8 @@ static int rkcif_create_link(struct rkcif_device *dev,
 		}
 	}
 
-	if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+	if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+	    dev->chip_id < CHIP_RV1106_CIF) {
 		source_entity = &sensor->sd->entity;
 		sink_entity = &linked_sensor.sd->entity;
 		ret = media_create_pad_link(source_entity,
@@ -2112,7 +2145,8 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 			sensor->lanes = sensor->mbus.bus.mipi_csi1.data_lane;
 		}
 
-		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+		if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+		    dev->chip_id < CHIP_RV1106_CIF) {
 			ret = rkcif_register_lvds_subdev(dev);
 			if (ret < 0) {
 				v4l2_err(&dev->v4l2_dev,
@@ -2842,6 +2876,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	atomic_set(&cif_dev->power_cnt, 0);
 	atomic_set(&cif_dev->streamoff_cnt, 0);
 	atomic_set(&cif_dev->sensor_off, 1);
+	atomic_set(&cif_dev->sd_power_cnt, 0);
 	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
@@ -3037,6 +3072,24 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{},
 };
 
+static void rkcif_parse_pins_group(struct rkcif_device *cif_dev)
+{
+	struct device_node *np = cif_dev->dev->of_node;
+	int ret = 0;
+
+	ret = of_property_read_u32(np,
+			     OF_CIF_PINS_GROUP,
+			     &cif_dev->dvp_pin_group);
+	if (ret != 0)
+		cif_dev->dvp_pin_group = 0;
+	if (cif_dev->chip_id == CHIP_RV1126B_CIF &&
+	    cif_dev->dvp_pin_group > 1) {
+		dev_err(cif_dev->dev, "rkcif get pins group failed %d\n", cif_dev->dvp_pin_group);
+		return;
+	}
+	dev_info(cif_dev->dev, "rkcif pins used group %d\n", cif_dev->dvp_pin_group);
+}
+
 static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 {
 	int ret = 0;
@@ -3058,6 +3111,7 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 		cif_dev->is_camera_over_bridge = true;
 	else
 		cif_dev->is_camera_over_bridge = false;
+	rkcif_parse_pins_group(cif_dev);
 }
 
 static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)

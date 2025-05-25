@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_pins>;
+	status = "okay";
+
+	ar0230: ar0230@10 {
+		compatible = "aptina,ar0230";
+		reg = <0x10>;
+		status = "okay";
+		clocks = <&cru CLK_CIF_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT0836-PT2";
+		rockchip,camera-module-lens-name = "YT-2929";
+		port {
+			ar0230_out: endpoint {
+				remote-endpoint = <&cif_para_in>;
+			};
+		};
+	};
+
+	gc2145: gc2145@3c {
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru CLK_CIF_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&cif_para_in1>;
+			};
+		};
+	};
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	/* configure according to pinctrl */
+	cif-pins-group = <0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&vi_cifm0_pins>;
+	port {
+		/* Parallel bus endpoint */
+		cif_para_in: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&ar0230_out>;
+		};
+
+		cif_para_in1: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&gc2145_out>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkcif_dvp_sditf {
+	status = "okay";
+
+	port {
+		dvp_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dvp_sditf>;
+		};
+	};
+};

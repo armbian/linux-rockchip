@@ -997,7 +997,21 @@ static struct platform_driver rockchip_multicodecs_driver = {
 	},
 };
 
+#ifdef CONFIG_INITCALL_ASYNC
+static int __init rockchip_multicodecs_driver_init(void)
+{
+	return platform_driver_register(&rockchip_multicodecs_driver);
+}
+late_initcall(rockchip_multicodecs_driver_init);
+
+static void __exit rockchip_multicodecs_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_multicodecs_driver);
+}
+module_exit(rockchip_multicodecs_driver_exit);
+#else
 module_platform_driver(rockchip_multicodecs_driver);
+#endif
 
 MODULE_AUTHOR("Sugar Zhang <sugar.zhang@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip General Multicodecs ASoC driver");

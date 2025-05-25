@@ -47,10 +47,6 @@ void __printf(1, 2) sftl_printk(char *fmt, ...)
 static const struct flash_boot_ops *g_boot_ops;
 
 static int g_flash_type = -1;
-static struct flash_part disk_array[MAX_PART_COUNT];
-static int g_max_part_num = 4;
-#define FW_HRADER_PT_NAME		("fw_header_p")
-static struct flash_part fw_header_p;
 
 #define PART_READONLY 0x85
 #define PART_WRITEONLY 0x86
@@ -77,48 +73,6 @@ static struct task_struct *nand_gc_thread __read_mostly;
 /* For rkflash dev private data, including mtd dev and block dev */
 static int rkflash_dev_initialised;
 static DEFINE_MUTEX(g_flash_ops_mutex);
-
-static unsigned int rk_partition_init(struct flash_part *part)
-{
-	int i, part_num = 0;
-	u32 desity;
-	struct STRUCT_PART_INFO *g_part;  /* size 2KB */
-
-	g_part = kmalloc(sizeof(*g_part), GFP_KERNEL | GFP_DMA);
-	if (!g_part)
-		return 0;
-	mutex_lock(&g_flash_ops_mutex);
-	if (g_boot_ops->read(0, 4, g_part) == 0) {
-		if (g_part->hdr.ui_fw_tag == RK_PARTITION_TAG) {
-			part_num = g_part->hdr.ui_part_entry_count;
-			desity = g_boot_ops->get_capacity();
-			for (i = 0; i < part_num; i++) {
-				memcpy(part[i].name,
-				       g_part->part[i].sz_name,
-				       32);
-				part[i].offset = g_part->part[i].ui_pt_off;
-				part[i].size = g_part->part[i].ui_pt_sz;
-				part[i].type = 0;
-				if (part[i].size == UINT_MAX)
-					part[i].size = desity - part[i].offset;
-				if (part[i].offset + part[i].size > desity) {
-					part[i].size = desity - part[i].offset;
-					break;
-				}
-			}
-		}
-	}
-	mutex_unlock(&g_flash_ops_mutex);
-	kfree(g_part);
-
-	memset(&fw_header_p, 0x0, sizeof(fw_header_p));
-	memcpy(fw_header_p.name, FW_HRADER_PT_NAME, strlen(FW_HRADER_PT_NAME));
-	fw_header_p.offset = 0x0;
-	fw_header_p.size = 0x4;
-	fw_header_p.type = 0;
-
-	return part_num;
-}
 
 static int rkflash_blk_proc_show(struct seq_file *m, void *v)
 {
@@ -264,7 +218,7 @@ static blk_status_t do_blktrans_all_request(struct flash_blk_ops *tr,
 	totle_nsect = (req->__data_len) >> 9;
 
 	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
-	    get_capacity(req->rq_disk))
+	    get_capacity(dev->blkcore_priv))
 		return BLK_STS_IOERR;
 
 	switch (req_op(req)) {
@@ -519,15 +473,14 @@ static int rkflash_blk_add_dev(struct flash_blk_dev *dev,
 			       struct flash_part *part)
 {
 	struct gendisk *gd;
+	int ret;
 
 	if (part->size == 0)
 		return -1;
 
-	gd = alloc_disk(1 << blk_ops->minorbits);
-	if (!gd) {
-		kfree(dev);
+	gd = blk_mq_alloc_disk(blk_ops->tag_set, dev);
+	if (IS_ERR(gd))
 		return -ENOMEM;
-	}
 
 	dev->blk_ops = blk_ops;
 	dev->size = part->size;
@@ -546,7 +499,6 @@ static int rkflash_blk_add_dev(struct flash_blk_dev *dev,
 			 "%s",
 			 part->name);
 	} else {
-		gd->flags = GENHD_FL_EXT_DEVT;
 		gd->minors = 255;
 		snprintf(gd->disk_name,
 			 sizeof(gd->disk_name),
@@ -573,9 +525,11 @@ static int rkflash_blk_add_dev(struct flash_blk_dev *dev,
 	if (dev->readonly)
 		set_disk_ro(gd, 1);
 
-	add_disk(gd);
+	ret = add_disk(gd);
+	if (ret)
+		list_del(&dev->list);
 
-	return 0;
+	return ret;
 }
 
 static int rkflash_blk_remove_dev(struct flash_blk_dev *dev)
@@ -586,16 +540,16 @@ static int rkflash_blk_remove_dev(struct flash_blk_dev *dev)
 	list_del(&dev->list);
 	gd->queue = NULL;
 	del_gendisk(gd);
-	put_disk(gd);
+	put_disk(dev->blkcore_priv);
 	kfree(dev);
 	return 0;
 }
 
 static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 {
-	int i, ret;
-	u64 offset;
+	int ret;
 	struct flash_blk_dev *dev;
+	struct flash_part part;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -616,11 +570,16 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 	INIT_LIST_HEAD(&blk_ops->rq_list);
 
 	blk_ops->tag_set = kzalloc(sizeof(*blk_ops->tag_set), GFP_KERNEL);
-	if (!blk_ops->tag_set)
+	if (!blk_ops->tag_set) {
+		ret = -ENOMEM;
 		goto error1;
+	}
 
-	blk_ops->rq = blk_mq_init_sq_queue(blk_ops->tag_set, &rkflash_mq_ops, 1,
-					   BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+	ret = blk_mq_alloc_sq_tag_set(blk_ops->tag_set, &rkflash_mq_ops, 1,
+				      BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+	if (ret)
+		goto error2;
+	blk_ops->rq = blk_mq_init_queue(blk_ops->tag_set);
 	if (IS_ERR(blk_ops->rq)) {
 		ret = PTR_ERR(blk_ops->rq);
 		blk_ops->rq = NULL;
@@ -632,7 +591,6 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 	blk_queue_max_hw_sectors(blk_ops->rq, MTD_RW_SECTORS);
 	blk_queue_max_segments(blk_ops->rq, MTD_RW_SECTORS);
 
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, blk_ops->rq);
 	blk_queue_max_discard_sectors(blk_ops->rq, UINT_MAX >> 9);
 	blk_ops->rq->limits.discard_granularity = 64 << 9;
 
@@ -640,29 +598,15 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 		nand_gc_thread = kthread_run(nand_gc_mythread, (void *)blk_ops, "rkflash_gc");
 
 	INIT_LIST_HEAD(&blk_ops->devs);
-	g_max_part_num = rk_partition_init(disk_array);
-	if (g_max_part_num) {
-		/* partition 0 is save vendor data, need hidden */
-		blk_ops->last_dev_index = 0;
-		for (i = 1; i < g_max_part_num; i++) {
-			offset = (u64)disk_array[i].offset;
-			pr_info("%10s: 0x%09llx -- 0x%09llx (%llu MB)\n",
-				disk_array[i].name,
-				offset * 512,
-				(u64)(offset + disk_array[i].size) * 512,
-				(u64)disk_array[i].size / 2048);
-			rkflash_blk_add_dev(dev, blk_ops, &disk_array[i]);
-		}
-		rkflash_blk_add_dev(dev, blk_ops, &fw_header_p);
-	} else {
-		struct flash_part part;
 
-		part.offset = 0;
-		part.size = g_boot_ops->get_capacity();
-		part.type = 0;
-		part.name[0] = 0;
-		rkflash_blk_add_dev(dev, blk_ops, &part);
-	}
+	part.offset = 0;
+	part.size = g_boot_ops->get_capacity();
+	part.type = 0;
+	part.name[0] = 0;
+	ret = rkflash_blk_add_dev(dev, blk_ops, &part);
+	if (ret)
+		goto error2;
+
 	rkflash_blk_create_procfs();
 
 	return 0;
@@ -686,7 +630,6 @@ static void rkflash_blk_unregister(struct flash_blk_ops *blk_ops)
 
 		rkflash_blk_remove_dev(dev);
 	}
-	blk_cleanup_queue(blk_ops->rq);
 	unregister_blkdev(blk_ops->major, blk_ops->name);
 }
 
@@ -728,7 +671,6 @@ int rkflash_dev_init(void __iomem *reg_addr,
 {
 	int ret = -1;
 
-	pr_err("%s enter\n", __func__);
 	if (rkflash_dev_initialised) {
 		pr_err("rkflash has already inited as id[%d]\n", g_flash_type);
 		return -1;

@@ -1180,7 +1180,7 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
 	struct rk806_platform_data *pdata = rk806->pdata;
-	int value;
+	int value, chip_ver;
 	int i;
 
 	rk806_field_write(rk806, RST_FUN, 0x00);
@@ -1216,7 +1216,11 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL3)
 				rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_DVS_FUN);
 		}
-		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
+		chip_ver = rk806_field_read(rk806, CHIP_VER);
+		if (chip_ver & 0x08)
+			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
+		else
+			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
 	}
 
 	return 0;
