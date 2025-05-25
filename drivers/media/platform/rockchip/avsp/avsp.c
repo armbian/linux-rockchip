@@ -626,7 +626,7 @@ err:
 	return ret;
 }
 
-static int avsp_remove(struct platform_device *pdev)
+static void avsp_remove(struct platform_device *pdev)
 {
 	/* misc device remove */
 	struct rkavsp_dev *avsp = platform_get_drvdata(pdev);
@@ -636,8 +636,6 @@ static int avsp_remove(struct platform_device *pdev)
 	mutex_destroy(&avsp->rcs_lock);
 	mutex_destroy(&avsp->dcp_lock);
 	mutex_destroy(&avsp->dev_lock);
-
-	return 0;
 }
 
 static const struct avsp_clk_info rv1126b_avsp_clk_rate[] = {
