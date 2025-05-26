@@ -1204,8 +1204,7 @@ static const struct regmap_config rk730_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int rk730_i2c_probe(struct i2c_client *i2c,
-			   const struct i2c_device_id *id)
+static int rk730_i2c_probe(struct i2c_client *i2c)
 {
 	struct rk730_priv *rk730;
 	int ret;
