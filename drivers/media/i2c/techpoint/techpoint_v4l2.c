@@ -1367,8 +1367,7 @@ static void techpoint_sysfs_cleanup(struct techpoint *techpoint)
 	device_unregister(dev);
 }
 
-static int techpoint_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int techpoint_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct techpoint *techpoint;
