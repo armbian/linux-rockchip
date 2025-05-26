@@ -1166,8 +1166,7 @@ static void gsl_resume_work(struct work_struct *work)
 	gsl_ts_resume(&gsl_client->dev);
 }
 
-static int  gsl_ts_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gsl_ts_probe(struct i2c_client *client)
 {
 	struct gsl_ts *ts;
 	int rc;
