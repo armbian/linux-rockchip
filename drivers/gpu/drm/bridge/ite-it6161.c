@@ -6702,8 +6702,7 @@ static int it6161_gpio_init(struct it6161 *it6161)
 	return 0;
 }
 
-static int it6161_i2c_probe(struct i2c_client *i2c_mipi_rx,
-			    const struct i2c_device_id *id)
+static int it6161_i2c_probe(struct i2c_client *i2c_mipi_rx)
 {
 	//struct it6161 *it6161;
 	struct device *dev = &i2c_mipi_rx->dev;
