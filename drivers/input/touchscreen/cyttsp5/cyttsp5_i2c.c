@@ -129,8 +129,7 @@ static const struct of_device_id cyttsp5_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, cyttsp5_i2c_of_match);
 #endif
 
-static int cyttsp5_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *i2c_id)
+static int cyttsp5_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
