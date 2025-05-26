@@ -1283,8 +1283,7 @@ static const struct snd_soc_component_driver aw87xxx_component_driver = {
 	.probe = aw87xxx_probe,
 };
 
-static int aw87xxx_i2c_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int aw87xxx_i2c_probe(struct i2c_client *client)
 {
 	struct device_node *dev_node = client->dev.of_node;
 	struct aw87xxx *aw87xxx = NULL;
