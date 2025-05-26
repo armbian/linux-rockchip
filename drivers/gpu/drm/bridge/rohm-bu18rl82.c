@@ -175,8 +175,7 @@ static const struct drm_bridge_funcs bu18rl82_bridge_funcs = {
 	.get_modes = bu18rl82_bridge_get_modes,
 };
 
-static int bu18rl82_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int bu18rl82_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct bu18rl82 *bu18rl82;
