@@ -82,6 +82,10 @@ struct dw8250_data {
 
 	unsigned int		skip_autocfg:1;
 	unsigned int		uart_16550_compatible:1;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	unsigned int		irq_wake:1;
+	unsigned int		enable_wakeup:1;
+#endif
 };
 
 static inline struct dw8250_data *to_dw8250_data(struct dw8250_port_data *data)
@@ -513,9 +517,8 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 	if (quirks & DW_UART_QUIRK_CPR_VALUE)
 		data->data.cpr_value = cpr_value;
 
-
-		if (IS_ENABLED(CONFIG_ROCKCHIP_MINI_KERNEL))
-			return;
+	if (IS_ENABLED(CONFIG_ROCKCHIP_MINI_KERNEL))
+		return;
 
 #ifdef CONFIG_64BIT
 	if (quirks & DW_UART_QUIRK_OCTEON) {
@@ -543,9 +546,6 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		p->serial_in = dw8250_serial_in32;
 		data->uart_16550_compatible = true;
 	}
-
-	if (IS_ENABLED(CONFIG_ROCKCHIP_MINI_KERNEL))
-		return;
 
 	/* Platforms with iDMA 64-bit */
 	if (platform_get_resource_byname(to_platform_device(p->dev),
@@ -590,9 +590,6 @@ static int dw8250_probe(struct platform_device *pdev)
 	data->data.dma.fn = dw8250_fallback_dma_filter;
 	data->pdata = device_get_match_data(p->dev);
 	p->private_data = &data->data;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	data->irq	= irq;
-#endif
 
 	data->uart_16550_compatible = device_property_read_bool(dev,
 						"snps,uart-16550-compatible");
@@ -763,7 +760,9 @@ static int dw8250_suspend(struct device *dev)
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (device_may_wakeup(dev)) {
-		if (!enable_irq_wake(data->irq))
+		struct uart_8250_port *up = serial8250_get_port(data->data.line);
+
+		if (!enable_irq_wake(up->port.irq))
 			data->irq_wake = 1;
 		return 0;
 	}
@@ -779,8 +778,10 @@ static int dw8250_resume(struct device *dev)
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (device_may_wakeup(dev)) {
+		struct uart_8250_port *up = serial8250_get_port(data->data.line);
+
 		if (data->irq_wake) {
-			disable_irq_wake(data->irq);
+			disable_irq_wake(up->port.irq);
 			data->irq_wake = 0;
 		}
 		return 0;
@@ -821,7 +822,7 @@ static const struct dev_pm_ops dw8250_pm_ops = {
 static const struct dw8250_platform_data dw8250_dw_apb = {
 	.usr_reg = DW_UART_USR,
 #ifdef CONFIG_ARCH_ROCKCHIP
-	.cpr_val = 0x00023ff2,
+	.cpr_value = 0x00023ff2,
 #endif
 };
 
