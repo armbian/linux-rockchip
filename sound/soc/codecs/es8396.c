@@ -3121,8 +3121,7 @@ static int init_es8396_prv(struct es8396_private *es8396)
 	return 0;
 }
 
-static int es8396_i2c_probe(struct i2c_client *i2c_client,
-			    const struct i2c_device_id *id)
+static int es8396_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct es8396_private *es8396;
 	int ret;
