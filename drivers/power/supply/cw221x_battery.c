@@ -837,7 +837,7 @@ static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static int cw221X_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int cw221X_probe(struct i2c_client *client)
 {
 	struct power_supply_config psy_cfg = {0};
 	struct power_supply_desc *psy_desc;
