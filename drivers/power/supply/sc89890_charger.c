@@ -1074,8 +1074,7 @@ static int sc89890_fw_probe(struct sc89890_device *sc89890)
 	return 0;
 }
 
-static int sc89890_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc89890_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sc89890_device *sc89890;
