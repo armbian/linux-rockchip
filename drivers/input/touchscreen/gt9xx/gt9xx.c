@@ -2608,7 +2608,7 @@ Output:
     Executive outcomes. 
         0: succeed.
 *******************************************************/
-static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int goodix_ts_probe(struct i2c_client *client)
 {
     s32 ret = -1;
     struct goodix_ts_data *ts;
