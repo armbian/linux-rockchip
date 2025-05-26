@@ -495,8 +495,7 @@ static const struct regmap_config rk1000_ctl_regmap = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static int rk1000_codec_i2c_probe(struct i2c_client *i2c,
-				  const struct i2c_device_id *id)
+static int rk1000_codec_i2c_probe(struct i2c_client *i2c)
 {
 	struct rk1000_codec_priv *rk1000;
 	struct device_node *np = i2c->dev.of_node;
