@@ -2017,7 +2017,7 @@ static const struct dev_pm_ops fts_dev_pm_ops = {
 * TP Driver
 *****************************************************************************/
 
-static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int fts_ts_probe(struct i2c_client *client)
 {
     int ret = 0;
     struct fts_ts_data *ts_data = NULL;
