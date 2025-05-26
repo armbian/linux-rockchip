@@ -59,8 +59,7 @@ static const struct st_lsm6dsr_transfer_function st_lsm6dsr_transfer_fn = {
 	.write = st_lsm6dsr_i2c_write,
 };
 
-static int st_lsm6dsr_i2c_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int st_lsm6dsr_i2c_probe(struct i2c_client *client)
 {
 	return st_lsm6dsr_probe(&client->dev, client->irq,
 				&st_lsm6dsr_transfer_fn);
