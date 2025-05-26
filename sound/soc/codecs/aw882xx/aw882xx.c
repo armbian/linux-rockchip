@@ -2562,8 +2562,7 @@ static struct attribute_group aw882xx_attribute_group = {
 	.attrs = aw882xx_attributes,
 };
 
-static int aw882xx_i2c_probe(struct i2c_client *i2c,
-				const struct i2c_device_id *id)
+static int aw882xx_i2c_probe(struct i2c_client *i2c)
 {
 	int ret;
 	struct aw882xx *aw882xx = NULL;
