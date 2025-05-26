@@ -340,8 +340,7 @@ static struct drm_bridge_funcs rk1000_bridge_funcs = {
 	.detach = rk1000_bridge_detach,
 };
 
-static int rk1000_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rk1000_probe(struct i2c_client *client)
 {
 	int ret;
 	struct device_node *np;
