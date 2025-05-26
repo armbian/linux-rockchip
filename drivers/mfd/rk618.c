@@ -98,7 +98,7 @@ static const struct regmap_config rk618_regmap_config = {
 };
 
 static int
-rk618_probe(struct i2c_client *client, const struct i2c_device_id *id)
+rk618_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct rk618 *rk618;
