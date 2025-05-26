@@ -10,6 +10,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
+#include <soc/rockchip/rockchip_aiisp.h>
 #include "dev.h"
 #include "regs.h"
 #include "isp_params_v35.h"
@@ -1545,6 +1546,57 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 }
 
 static int
+rkisp_mainpath_buf_to_aiisp(struct rkisp_stream *stream)
+{
+#if !IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_AIISP)
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (stream->id != RKISP_STREAM_MP || !dev->is_aiisp_yuv)
+		return 0;
+
+	v4l2_err(&dev->v4l2_dev,
+		"aiisp is compiled as module, cannot call rkaiisp_cfg_aiynr_yuvbuf\n");
+	return -EINVAL;
+#else
+	struct rkisp_device *dev = stream->ispdev;
+	struct v4l2_rect *isp_out = &dev->isp_sdev.out_crop;
+	struct v4l2_pix_format_mplane *mp_out = &stream->out_fmt;
+	struct aiisp_aiynr_ybuf_cfg cfg = { 0 };
+	int cnt = 0, ret = -EINVAL;
+
+	if (stream->id != RKISP_STREAM_MP || !dev->is_aiisp_yuv)
+		return 0;
+	if (dev->cap_dev.wrap_line) {
+		v4l2_err(&dev->v4l2_dev, "aiynr no support for wrap\n");
+		goto err;
+	}
+	if (isp_out->width != mp_out->width ||
+	    isp_out->height != mp_out->height) {
+		v4l2_err(&dev->v4l2_dev, "aiynr no support for mainpath scale\n");
+		goto err;
+	}
+	cfg.dev_id = dev->dev_id;
+	cfg.width = mp_out->width;
+	cfg.height = mp_out->height;
+	for (cnt = 0; cnt < VIDEO_MAX_FRAME; cnt++) {
+		if (!stream->dbuf_pool[cnt] || cnt >= RKAIISP_AIYNR_YBUF_NUM_MAX)
+			break;
+		cfg.buf[cnt] = stream->dbuf_pool[cnt];
+	}
+	if (cnt) {
+		cfg.buf_cnt = cnt;
+		ret = rkaiisp_cfg_aiynr_yuvbuf(&cfg);
+		if (ret)
+			v4l2_err(&dev->v4l2_dev, "aiynr yuv buf config error:%d\n", ret);
+	} else {
+		v4l2_err(&dev->v4l2_dev, "mainpath no dma buf for aiisp\n");
+	}
+err:
+	return ret;
+#endif
+}
+
+static int
 rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
@@ -1615,6 +1667,9 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		ret = -EINVAL;
 		goto buffer_done;
 	}
+
+	if (rkisp_mainpath_buf_to_aiisp(stream))
+		goto destroy_dummy_buf;
 
 	/* enable clocks/power-domains */
 	ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
