@@ -1017,8 +1017,7 @@ static void sc89601_charger_phandle_work(struct work_struct *data)
 	}
 }
 
-static int sc89601_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc89601_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sc89601_device *sc89601;
