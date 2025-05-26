@@ -1128,8 +1128,7 @@ static void cps5601x_create_device_node(struct device *dev)
 	device_create_file(dev, &dev_attr_status);
 }
 
-static int cps5601x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int cps5601x_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct cps5601x *cps;
