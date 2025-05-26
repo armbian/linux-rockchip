@@ -197,7 +197,7 @@ static int rk803_configure_regulators(struct rk803_data *rk803)
 }
 
 static int
-rk803_probe(struct i2c_client *client, const struct i2c_device_id *id)
+rk803_probe(struct i2c_client *client)
 {
 	//struct device_node *np = client->dev.of_node;
 	struct device *dev = &client->dev;
