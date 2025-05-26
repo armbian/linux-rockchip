@@ -1658,9 +1658,9 @@ static struct attribute_group es7210_debug_attr_group = {
  * If the i2c layer weren't so broken, we could pass this kind of data
  * around
  */
-static int es7210_i2c_probe(struct i2c_client *i2c_client,
-                            const struct i2c_device_id *i2c_id)
+static int es7210_i2c_probe(struct i2c_client *i2c_client)
 {
+	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(i2c_client);
         struct es7210_priv *es7210;
         int ret;
 
