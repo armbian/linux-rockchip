@@ -23,9 +23,9 @@ static int icm42670_i2c_bus_setup(struct icm42670_data *st)
 				   BIT_FIFO_COUNT_REC_UI_SIFS_CFG_SPI_DIS);
 }
 
-static int icm42670_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int icm42670_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	const char *name = NULL;
 	int chip_type = 0;
