@@ -324,8 +324,7 @@ static struct miscdevice it66353_miscdev = {
 	.fops = &it66353_fops,
 };
 
-static int it66353_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int it66353_probe(struct i2c_client *client)
 {
 	struct it66353_dev *it66353;
 	struct device *dev = &client->dev;
