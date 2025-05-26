@@ -2101,8 +2101,7 @@ static const struct of_device_id sc8551_charger_match[] = {
 	{},
 };
 
-static int sc8551_charger_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int sc8551_charger_probe(struct i2c_client *client)
 {
 	struct sc8551 *sc;
 	const struct of_device_id *match;
