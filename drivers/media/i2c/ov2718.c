@@ -8887,8 +8887,7 @@ static int ov2718_analyze_dts(struct ov2718 *ov2718)
 	return ov2718_get_regulators(ov2718);
 }
 
-static int ov2718_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2718_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

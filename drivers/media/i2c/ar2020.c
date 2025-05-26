@@ -5189,8 +5189,7 @@ static int ar2020_configure_regulators(struct ar2020 *ar2020)
 				       ar2020->supplies);
 }
 
-static int ar2020_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ar2020_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

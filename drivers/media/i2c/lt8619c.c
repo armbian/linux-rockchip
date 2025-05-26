@@ -1723,8 +1723,7 @@ static const struct regmap_config lt8619c_hdmirx_regmap_cfg = {
 	.rd_table = &lt8619c_readable_table,
 };
 
-static int lt8619c_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt8619c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct v4l2_dv_timings default_timing =

@@ -1186,8 +1186,7 @@ static int lt7911d_check_chip_id(struct lt7911d_state *lt7911d)
 	return ret;
 }
 
-static int lt7911d_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lt7911d_probe(struct i2c_client *client)
 {
 	struct lt7911d_state *lt7911d;
 	struct v4l2_subdev *sd;

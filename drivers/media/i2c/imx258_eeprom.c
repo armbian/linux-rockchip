@@ -295,8 +295,7 @@ static void imx258_eeprom_subdev_cleanup(struct imx258_eeprom_device *dev)
 	media_entity_cleanup(&dev->sd.entity);
 }
 
-static int imx258_eeprom_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int imx258_eeprom_probe(struct i2c_client *client)
 {
 	struct imx258_eeprom_device *imx258_eeprom_dev;
 

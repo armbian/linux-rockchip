@@ -1375,8 +1375,7 @@ static const struct dev_pm_ops gc2053_pm_ops = {
 					   gc2053_runtime_resume, NULL)
 };
 
-static int gc2053_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int gc2053_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

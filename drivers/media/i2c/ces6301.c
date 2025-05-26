@@ -997,8 +997,7 @@ static int ces6301_parse_dt_property(struct i2c_client *client,
 	return 0;
 }
 
-static int ces6301_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ces6301_probe(struct i2c_client *client)
 {
 	struct ces6301_device *ces6301_dev;
 	struct v4l2_subdev *sd;

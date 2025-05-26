@@ -446,8 +446,7 @@ static int vm149c_init_controls(struct vm149c_device *dev_vcm)
 	return hdl->error;
 }
 
-static int vm149c_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int vm149c_probe(struct i2c_client *client)
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct vm149c_device *vm149c_dev;

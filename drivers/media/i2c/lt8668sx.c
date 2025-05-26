@@ -1584,8 +1584,7 @@ static int lt8668sx_check_chip_id(struct lt8668sx *lt8668sx)
 	return ret;
 }
 
-static int lt8668sx_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lt8668sx_probe(struct i2c_client *client)
 {
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;

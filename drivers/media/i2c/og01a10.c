@@ -1245,8 +1245,7 @@ static int og01a10_configure_regulators(struct og01a10 *og01a10)
 				       og01a10->supplies);
 }
 
-static int og01a10_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int og01a10_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

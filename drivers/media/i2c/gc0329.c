@@ -1053,8 +1053,7 @@ static int gc0329_parse_of(struct gc0329 *gc0329)
 	return __gc0329_power_on(gc0329);
 }
 
-static int gc0329_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc0329_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

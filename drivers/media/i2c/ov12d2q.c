@@ -3003,8 +3003,7 @@ static int ov12d2q_configure_regulators(struct ov12d2q *ov12d2q)
 				       ov12d2q->supplies);
 }
 
-static int ov12d2q_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov12d2q_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

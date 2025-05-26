@@ -815,8 +815,7 @@ static int __maybe_unused dw9763_check_id(struct dw9763_device *dw9763_dev)
 	return 0;
 }
 
-static int dw9763_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dw9763_probe(struct i2c_client *client)
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct dw9763_device *dw9763_dev;

@@ -1372,8 +1372,7 @@ static int sc4336p_configure_regulators(struct sc4336p *sc4336p)
 				       sc4336p->supplies);
 }
 
-static int sc4336p_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc4336p_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

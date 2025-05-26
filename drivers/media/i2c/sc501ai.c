@@ -1219,8 +1219,7 @@ static int sc501ai_configure_regulators(struct sc501ai *sc501ai)
 				       sc501ai->supplies);
 }
 
-static int sc501ai_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc501ai_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

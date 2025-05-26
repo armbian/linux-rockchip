@@ -1911,8 +1911,7 @@ static int lt6911uxe_get_multi_dev_info(struct lt6911uxe *lt6911uxe)
 	return 0;
 }
 
-static int lt6911uxe_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lt6911uxe_probe(struct i2c_client *client)
 {
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;

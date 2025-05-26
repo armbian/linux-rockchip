@@ -2646,8 +2646,7 @@ static int os04a10_get_dcg_ratio(struct os04a10 *os04a10)
 	return ret;
 }
 
-static int os04a10_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int os04a10_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

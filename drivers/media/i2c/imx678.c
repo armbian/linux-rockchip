@@ -3071,8 +3071,7 @@ static int imx678_configure_regulators(struct imx678 *imx678)
 				       imx678->supplies);
 }
 
-static int imx678_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int imx678_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

@@ -4228,8 +4228,7 @@ static void it6616_remove_class_attr(struct it6616 *it6616)
 	device_remove_file(it6616->classdev, &dev_attr_audio_present);
 }
 
-static int it6616_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int it6616_probe(struct i2c_client *client)
 {
 	struct it6616 *it6616;
 	struct v4l2_subdev *sd;

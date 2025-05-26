@@ -1589,8 +1589,7 @@ static int lt7911uxc_check_chip_id(struct lt7911uxc *lt7911uxc)
 	return ret;
 }
 
-static int lt7911uxc_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lt7911uxc_probe(struct i2c_client *client)
 {
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;

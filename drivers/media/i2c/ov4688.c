@@ -1693,8 +1693,7 @@ static int ov4688_configure_regulators(struct ov4688 *ov4688)
 				       ov4688->supplies);
 }
 
-static int ov4688_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov4688_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

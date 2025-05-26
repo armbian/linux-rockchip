@@ -1850,8 +1850,7 @@ static int imx327_configure_regulators(struct imx327 *imx327)
 				       imx327->supplies);
 }
 
-static int imx327_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int imx327_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

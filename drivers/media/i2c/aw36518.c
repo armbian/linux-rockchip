@@ -821,8 +821,7 @@ static int aw36518_init_device(struct aw36518_flash *flash)
 	return ret;
 }
 
-static int aw36518_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int aw36518_probe(struct i2c_client *client)
 {
 	struct aw36518_flash *flash;
 	struct v4l2_subdev *sd;

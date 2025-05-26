@@ -1272,8 +1272,7 @@ static int cn3927v_parse_dt_property(struct i2c_client *client,
 	return 0;
 }
 
-static int cn3927v_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cn3927v_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct cn3927v_device *cn3927v_dev;

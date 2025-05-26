@@ -1512,8 +1512,7 @@ static int s5k3l8xx_configure_regulators(struct s5k3l8xx *s5k3l8xx)
 				       s5k3l8xx->supplies);
 }
 
-static int s5k3l8xx_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int s5k3l8xx_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

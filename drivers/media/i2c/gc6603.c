@@ -2036,8 +2036,7 @@ static int gc6603_configure_regulators(struct gc6603 *gc6603)
 				       gc6603->supplies);
 }
 
-static int gc6603_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc6603_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

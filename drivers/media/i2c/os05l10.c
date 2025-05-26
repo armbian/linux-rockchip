@@ -1508,8 +1508,7 @@ static int os05l10_parse_of(struct os05l10 *os05l10)
 	return 0;
 }
 
-static int os05l10_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int os05l10_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

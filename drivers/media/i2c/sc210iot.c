@@ -1004,8 +1004,7 @@ static const struct dev_pm_ops sc210iot_pm_ops = {
 			   sc210iot_runtime_resume, NULL)
 };
 
-static int sc210iot_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc210iot_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

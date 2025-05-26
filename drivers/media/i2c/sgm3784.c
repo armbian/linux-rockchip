@@ -688,8 +688,7 @@ err:
 	return -EINVAL;
 }
 
-static int sgm3784_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int sgm3784_probe(struct i2c_client *client)
 {
 	struct sgm3784_flash *flash;
 	struct v4l2_subdev *sd;

@@ -1162,8 +1162,7 @@ static int sc031gs_configure_regulators(struct sc031gs *sc031gs)
 				       sc031gs->supplies);
 }
 
-static int sc031gs_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sc031gs_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

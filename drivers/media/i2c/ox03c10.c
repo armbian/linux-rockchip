@@ -5392,8 +5392,7 @@ static int ox03c10_configure_regulators(struct ox03c10 *ox03c10)
 					ox03c10->supplies);
 }
 
-static int ox03c10_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ox03c10_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

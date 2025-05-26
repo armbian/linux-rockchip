@@ -1164,8 +1164,7 @@ static int gc0403_configure_regulators(struct gc0403 *gc0403)
 				       gc0403->supplies);
 }
 
-static int gc0403_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc0403_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	/* add a dev_node */

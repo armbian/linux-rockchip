@@ -1126,8 +1126,7 @@ static int jx_h65_configure_regulators(struct jx_h65 *jx_h65)
 				       jx_h65->supplies);
 }
 
-static int jx_h65_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int jx_h65_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

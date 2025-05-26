@@ -1675,8 +1675,7 @@ static int gc16b3c_parse_of(struct gc16b3c *gc16b3c)
 	return 0;
 }
 
-static int gc16b3c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int gc16b3c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

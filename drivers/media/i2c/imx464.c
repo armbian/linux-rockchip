@@ -3125,8 +3125,7 @@ static int IMX464_configure_regulators(struct IMX464 *IMX464)
 				       IMX464->supplies);
 }
 
-static int IMX464_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int IMX464_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

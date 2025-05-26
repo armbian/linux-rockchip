@@ -1843,8 +1843,7 @@ static int sc850sl_configure_regulators(struct sc850sl *sc850sl)
 				       sc850sl->supplies);
 }
 
-static int sc850sl_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sc850sl_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

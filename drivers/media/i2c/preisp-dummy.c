@@ -473,8 +473,7 @@ static int pisp_dmy_analyze_dts(struct pisp_dmy *pisp_dmy)
 	return 0;
 }
 
-static int pisp_dmy_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int pisp_dmy_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

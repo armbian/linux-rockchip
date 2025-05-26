@@ -1097,8 +1097,7 @@ static int gc2355_configure_regulators(struct gc2355 *gc2355)
 				       gc2355->supplies);
 }
 
-static int gc2355_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc2355_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

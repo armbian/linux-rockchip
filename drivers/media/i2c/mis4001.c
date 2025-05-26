@@ -1446,8 +1446,7 @@ static int mis4001_configure_regulators(struct mis4001 *mis4001)
 				       mis4001->supplies);
 }
 
-static int mis4001_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mis4001_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

@@ -2787,8 +2787,7 @@ static int sc635hai_setup_clocks_and_gpios(struct sc635hai *sc635hai)
 	return 0;
 }
 
-static int sc635hai_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc635hai_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sc635hai *sc635hai;

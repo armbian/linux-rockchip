@@ -866,8 +866,7 @@ static int dw9800v_parse_dt_property(struct i2c_client *client,
 	return 0;
 }
 
-static int dw9800v_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dw9800v_probe(struct i2c_client *client)
 {
 	struct dw9800v_device *dw9800v_dev;
 	struct v4l2_subdev *sd;

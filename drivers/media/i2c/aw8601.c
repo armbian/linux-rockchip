@@ -543,8 +543,7 @@ static int aw8601_init_controls(struct aw8601_device *dev_vcm)
 	return hdl->error;
 }
 
-static int aw8601_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int aw8601_probe(struct i2c_client *client)
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct aw8601_device *aw8601_dev;

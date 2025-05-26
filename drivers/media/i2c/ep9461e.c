@@ -325,8 +325,7 @@ struct miscdevice ep9461e_miscdev = {
 	.fops = &ep9461e_fops,
 };
 
-static int ep9461e_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ep9461e_probe(struct i2c_client *client)
 {
 	struct ep9461e_dev *ep9461e;
 	struct device *dev = &client->dev;

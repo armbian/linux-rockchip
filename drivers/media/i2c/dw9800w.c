@@ -633,8 +633,7 @@ static int dw9800w_configure_regulators(struct dw9800w_device *dw9800w_dev)
 		dw9800w_dev->supplies);
 }
 
-static int dw9800w_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dw9800w_probe(struct i2c_client *client)
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct dw9800w_device *dw9800w_dev;

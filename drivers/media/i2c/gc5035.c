@@ -1348,8 +1348,7 @@ static int gc5035_parse_of(struct gc5035 *gc5035)
 	return 0;
 }
 
-static int gc5035_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int gc5035_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

@@ -1445,8 +1445,7 @@ static int gc2035_parse_of(struct gc2035 *gc2035)
 	return __gc2035_power_on(gc2035);
 }
 
-static int gc2035_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc2035_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

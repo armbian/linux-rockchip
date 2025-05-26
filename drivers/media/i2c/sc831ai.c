@@ -1636,8 +1636,7 @@ static int sc831ai_configure_regulators(struct sc831ai *sc831ai)
 				       SC831AI_NUM_SUPPLIES, sc831ai->supplies);
 }
 
-static int sc831ai_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc831ai_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
