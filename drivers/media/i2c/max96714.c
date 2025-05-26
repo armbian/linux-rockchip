@@ -914,8 +914,7 @@ static int max96714_configure_regulators(struct max96714 *max96714)
 					max96714->supplies);
 }
 
-static int max96714_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max96714_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
