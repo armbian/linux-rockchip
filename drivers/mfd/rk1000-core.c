@@ -58,8 +58,7 @@ struct regmap_config rk1000_regmap_config = {
 	.volatile_table = &rk1000_ctl_reg_table,
 };
 
-static int rk1000_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rk1000_probe(struct i2c_client *client)
 {
 	bool uboot_logo;
 	int ret, val = 0;
