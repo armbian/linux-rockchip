@@ -1326,7 +1326,7 @@ extern int fts_test_init(struct i2c_client *client);
 *  Output:
 *  Return:
 *****************************************************************************/
-static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int fts_ts_probe(struct i2c_client *client)
 {
     int ret = 0;
     struct fts_ts_platform_data *pdata;
