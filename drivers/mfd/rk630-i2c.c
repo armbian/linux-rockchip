@@ -13,7 +13,7 @@
 #include <linux/mfd/rk630.h>
 
 static int
-rk630_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+rk630_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct rk630 *rk630;
