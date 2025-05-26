@@ -1000,8 +1000,7 @@ static void  gsl_resume_work(struct work_struct *work)
    enable_irq(ts->irq);
 }
 
-static int  gsl_ts_probe(struct i2c_client *client,
-        const struct i2c_device_id *id)
+static int gsl_ts_probe(struct i2c_client *client)
 {
     struct device_node *np = client->dev.of_node;
     enum of_gpio_flags wake_flags, irq_flags;
