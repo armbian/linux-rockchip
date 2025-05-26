@@ -2875,8 +2875,7 @@ static int gc2145_parse_of(struct gc2145 *gc2145)
 	return ret;
 }
 
-static int gc2145_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc2145_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
