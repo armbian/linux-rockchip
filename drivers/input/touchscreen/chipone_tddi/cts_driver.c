@@ -365,8 +365,7 @@ static int rockchip_panel_notifier_call(struct notifier_block *self,
 }
 
 #ifdef CONFIG_CTS_I2C_HOST
-static int cts_driver_probe(struct i2c_client *client,
-        const struct i2c_device_id *id)
+static int cts_driver_probe(struct i2c_client *client)
 #else
 static int cts_driver_probe(struct spi_device *client)
 #endif
