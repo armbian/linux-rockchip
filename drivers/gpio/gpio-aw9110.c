@@ -344,9 +344,9 @@ static int aw9110_check_dev_id(struct i2c_client *client)
 
 /*-------------------------------------------------------------------------*/
 
-static int aw9110_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int aw9110_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct aw9110			*gpio;
 	int				status;
 
