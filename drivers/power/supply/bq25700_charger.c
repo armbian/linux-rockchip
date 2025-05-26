@@ -1948,8 +1948,7 @@ static int bq25700_parse_dt(struct bq25700_device *charger)
 	return 0;
 }
 
-static int bq25700_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bq25700_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
