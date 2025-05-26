@@ -228,8 +228,7 @@ static int et7303_check_revision(struct i2c_client *i2c)
 	return 0;
 }
 
-static int et7303_probe(struct i2c_client *client,
-			const struct i2c_device_id *i2c_id)
+static int et7303_probe(struct i2c_client *client)
 {
 	int ret;
 	struct et7303_chip *chip;
