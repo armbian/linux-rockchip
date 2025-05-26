@@ -1600,8 +1600,7 @@ static int ov7251_configure_regulators(struct ov7251 *ov7251)
 				       ov7251->supplies);
 }
 
-static int ov7251_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ov7251_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
