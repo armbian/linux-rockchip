@@ -612,9 +612,9 @@ static struct sensor_operate compass_akm8975_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-static int compass_akm8975_probe(struct i2c_client *client,
-				 const struct i2c_device_id *devid)
+static int compass_akm8975_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	return sensor_register_device(client, NULL, devid, &compass_akm8975_ops);
 }
 

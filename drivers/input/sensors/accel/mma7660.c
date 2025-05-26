@@ -222,9 +222,9 @@ static struct sensor_operate gsensor_mma7660_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-static int gsensor_mma7660_probe(struct i2c_client *client,
-				const struct i2c_device_id *devid)
+static int gsensor_mma7660_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	return sensor_register_device(client, NULL, devid, &gsensor_mma7660_ops);
 }
 

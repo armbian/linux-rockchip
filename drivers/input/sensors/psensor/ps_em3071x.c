@@ -244,9 +244,9 @@ static struct sensor_operate psensor_em3071x_ops = {
 	.report		= sensor_report_value,
 };
 
-static int proximity_em3071x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *devid)
+static int proximity_em3071x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	return sensor_register_device(client, NULL, devid, &psensor_em3071x_ops);
 }
 

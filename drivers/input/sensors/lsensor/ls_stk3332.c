@@ -336,9 +336,9 @@ static struct sensor_operate light_stk3332_ops = {
 	.report			= sensor_report_value,
 };
 
-static int light_stk3332_probe(struct i2c_client *client,
-			       const struct i2c_device_id *devid)
+static int light_stk3332_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	return sensor_register_device(client, NULL, devid, &light_stk3332_ops);
 }
 

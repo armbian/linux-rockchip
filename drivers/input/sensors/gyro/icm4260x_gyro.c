@@ -163,9 +163,9 @@ static struct sensor_operate gyro_icm4260x_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-static int gyro_icm4260x_probe(struct i2c_client *client,
-				 const struct i2c_device_id *devid)
+static int gyro_icm4260x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	client->addr = ICM42607_ADDR;
 	return sensor_register_device(client, NULL, devid, &gyro_icm4260x_ops);
 }

@@ -859,9 +859,9 @@ static struct sensor_operate gsensor_ops = {
 };
 
 /******************************************************************************/
-static int gsensor_mir3da_probe(struct i2c_client *client,
-				const struct i2c_device_id *devid)
+static int gsensor_mir3da_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	MI_FUN;
 
 	return sensor_register_device(client, NULL, devid, &gsensor_ops);

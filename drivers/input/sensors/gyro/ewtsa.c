@@ -425,9 +425,9 @@ static struct sensor_operate gyro_ewtsa_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-static int gyro_ewtsa_probe(struct i2c_client *client,
-			    const struct i2c_device_id *devid)
+static int gyro_ewtsa_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *devid = i2c_client_get_device_id(client);
 	return sensor_register_device(client, NULL, devid, &gyro_ewtsa_ops);
 }
 
