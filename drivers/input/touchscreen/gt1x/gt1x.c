@@ -530,7 +530,7 @@ static s8 gt1x_request_input_dev(void)
  * @id: device id.
  * Return  0: succeed, -1: failed.
  */
-static int gt1x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int gt1x_ts_probe(struct i2c_client *client)
 {
 	s32 ret = -1;
 #if GTP_AUTO_UPDATE
