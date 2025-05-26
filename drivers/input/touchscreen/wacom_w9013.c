@@ -290,8 +290,7 @@ static int __maybe_unused wacom_i2c_resume(struct tp_device *tp_d)
 	return 0;
 }
 
-static int wacom_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int wacom_i2c_probe(struct i2c_client *client)
 {
 	struct wacom_i2c *wac_i2c;
 	struct input_dev *input;
