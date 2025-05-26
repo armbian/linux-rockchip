@@ -3323,7 +3323,7 @@ static void dw_mci_xfer_timer(struct timer_list *t)
 		host->data_status = SDMMC_INT_DRTO;
 		set_bit(EVENT_DATA_ERROR, &host->pending_events);
 		set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
-		tasklet_schedule(&host->tasklet);
+		queue_work(system_bh_wq, &host->bh_work);
 		break;
 	default:
 		dev_warn(host->dev, "Unexpected xfer timeout, state %d\n",
