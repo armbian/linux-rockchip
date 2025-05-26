@@ -927,8 +927,7 @@ static int es8389_read(struct i2c_client *client, u8 reg, u8 *value, int count)
         return 0;
 }
 
-static int es8389_i2c_probe(struct i2c_client *i2c_client,
-			    const struct i2c_device_id *id)
+static int es8389_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct es8389_private *es8389;
 	int ret = -1;
