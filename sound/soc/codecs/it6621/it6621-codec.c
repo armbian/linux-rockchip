@@ -739,8 +739,7 @@ static void it6621_hpdio_work(struct work_struct *work)
 	it6621_toggle_hpdio(priv);
 }
 
-static int it6621_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int it6621_i2c_probe(struct i2c_client *client)
 {
 	struct it6621_priv *priv;
 	const char *source;
