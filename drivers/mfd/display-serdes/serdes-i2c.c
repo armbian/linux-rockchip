@@ -321,8 +321,7 @@ static int serdes_get_init_seq(struct serdes *serdes)
 	return ret;
 }
 
-static int serdes_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int serdes_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct serdes *serdes;
