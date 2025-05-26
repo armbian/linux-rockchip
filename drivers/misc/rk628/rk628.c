@@ -1457,7 +1457,7 @@ static void rk628_loader_protect(struct rk628 *rk628)
 }
 
 static int
-rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+rk628_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct rk628 *rk628;
