@@ -1710,8 +1710,7 @@ static int imx334_configure_regulators(struct imx334 *imx334)
 				       imx334->supplies);
 }
 
-static int imx334_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int imx334_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
