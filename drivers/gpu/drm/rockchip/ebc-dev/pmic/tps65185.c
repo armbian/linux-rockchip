@@ -610,7 +610,7 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 	return 0;
 }
 
-static int tps65185_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int tps65185_probe(struct i2c_client *client)
 {
 	struct ebc_pmic *pmic;
 
