@@ -1272,9 +1272,9 @@ static void sgm_charger_work(struct work_struct *work)
 				   msecs_to_jiffies(1000 * 5));
 }
 
-static int sgm4154x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int sgm4154x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct sgm4154x_device *sgm;
 	int ret;
