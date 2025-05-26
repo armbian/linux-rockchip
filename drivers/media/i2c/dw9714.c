@@ -1290,8 +1290,7 @@ static int dw9714_parse_dt_property(struct i2c_client *client,
 	return 0;
 }
 
-static int dw9714_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dw9714_probe(struct i2c_client *client)
 {
 	struct dw9714_device *dw9714_dev;
 	struct v4l2_subdev *sd;
