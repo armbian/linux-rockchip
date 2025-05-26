@@ -1048,7 +1048,7 @@ int tp_diag_himax(void)
 EXPORT_SYMBOL(tp_diag_himax);
 */
 
-static int himax_chip_common_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int himax_chip_common_probe(struct i2c_client *client)
 {
 	//struct device_node *node = client->dev.of_node;
 	int ret = 0;
