@@ -195,7 +195,7 @@ static void wl2868c_reset(struct wl2868c *wl2868c)
 	usleep_range(10000, 11000);
 }
 
-static int wl2868c_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int wl2868c_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator_config config = {};
