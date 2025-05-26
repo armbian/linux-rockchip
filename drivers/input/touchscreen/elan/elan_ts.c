@@ -1891,8 +1891,7 @@ Output:
     Executive outcomes.
     0: succeed.
 *******************************************************/
-static int elan_ts_probe(struct i2c_client *client,
-               const struct i2c_device_id *id) 
+static int elan_ts_probe(struct i2c_client *client)
 {
 //#define SM_BUS
 	int err;
