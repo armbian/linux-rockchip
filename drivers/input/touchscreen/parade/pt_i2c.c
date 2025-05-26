@@ -184,8 +184,7 @@ MODULE_DEVICE_TABLE(of, pt_i2c_of_match);
  *      *client - pointer to i2c client structure
  *      *i2c_id - pointer to i2c device structure
  ******************************************************************************/
-static int pt_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *i2c_id)
+static int pt_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 #ifdef CONFIG_TOUCHSCREEN_PARADE_DEVICETREE_SUPPORT
