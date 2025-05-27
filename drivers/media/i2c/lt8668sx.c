@@ -1267,7 +1267,7 @@ static int lt8668sx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct lt8668sx_mode *def_mode = &lt8668sx->support_modes[0];
 
 	mutex_lock(&lt8668sx->confctl_mutex);

@@ -1430,7 +1430,7 @@ static int lt8619c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct lt8619c *lt8619c = to_lt8619c(sd);
 	struct v4l2_bt_timings *bt = &(lt8619c->timings.bt);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct lt8619c_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&lt8619c->confctl_mutex);

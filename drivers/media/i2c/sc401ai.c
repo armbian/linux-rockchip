@@ -699,7 +699,7 @@ static int sc401ai_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&sc401ai->mutex);
 		return -ENOTTY;
@@ -732,7 +732,7 @@ static int sc401ai_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sc401ai->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&sc401ai->mutex);
 		return -ENOTTY;
@@ -1217,7 +1217,7 @@ static int sc401ai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sc401ai *sc401ai = to_sc401ai(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct sc401ai_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&sc401ai->mutex);

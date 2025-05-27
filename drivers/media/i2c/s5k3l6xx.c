@@ -610,7 +610,7 @@ static int s5k3l6xx_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&s5k3l6xx->mutex);
 		return -ENOTTY;
@@ -647,7 +647,7 @@ static int s5k3l6xx_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&s5k3l6xx->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&s5k3l6xx->mutex);
 		return -ENOTTY;
@@ -1040,7 +1040,7 @@ static int s5k3l6xx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct s5k3l6xx *s5k3l6xx = to_s5k3l6xx(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct s5k3l6xx_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&s5k3l6xx->mutex);

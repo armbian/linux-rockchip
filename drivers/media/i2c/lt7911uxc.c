@@ -1288,7 +1288,7 @@ static int lt7911uxc_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct lt7911uxc_mode *def_mode = &lt7911uxc->support_modes[0];
 
 	mutex_lock(&lt7911uxc->confctl_mutex);

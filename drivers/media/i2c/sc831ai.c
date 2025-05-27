@@ -515,7 +515,7 @@ static int sc831ai_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&sc831ai->mutex);
 		return -ENOTTY;
@@ -552,7 +552,7 @@ static int sc831ai_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sc831ai->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
 #else
 		mutex_unlock(&sc831ai->mutex);
 		return -ENOTTY;
@@ -1282,7 +1282,7 @@ static int sc831ai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->pad, 0);
 	const struct sc831ai_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&sc831ai->mutex);

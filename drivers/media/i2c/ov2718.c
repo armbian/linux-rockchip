@@ -7804,7 +7804,7 @@ static int ov2718_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&ov2718->mutex);
 		return -ENOTTY;
@@ -7841,7 +7841,7 @@ static int ov2718_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov2718->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&ov2718->mutex);
 		return -ENOTTY;
@@ -8499,7 +8499,7 @@ static int ov2718_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov2718 *ov2718 = to_ov2718(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(sd, fh->state, 0);
+			v4l2_subdev_state_get_format(fh->state, 0);
 	const struct ov2718_mode *def_mode = &ov2718->support_modes[0];
 
 	mutex_lock(&ov2718->mutex);

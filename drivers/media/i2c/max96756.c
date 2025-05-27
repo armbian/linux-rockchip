@@ -388,7 +388,7 @@ static int max96756_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&max96756->mutex);
 		return -ENOTTY;
@@ -415,7 +415,7 @@ static int max96756_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&max96756->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
 #else
 		mutex_unlock(&max96756->mutex);
 		return -ENOTTY;
@@ -997,7 +997,7 @@ static int max96756_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct max96756 *max96756 = to_max96756(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->pad, 0);
 	const struct max96756_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&max96756->mutex);

@@ -632,7 +632,7 @@ static int mis2031_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&mis2031->mutex);
 		return -ENOTTY;
@@ -664,7 +664,7 @@ static int mis2031_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&mis2031->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
 #else
 		mutex_unlock(&mis2031->mutex);
 		return -ENOTTY;
@@ -1151,7 +1151,7 @@ static int mis2031_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct mis2031 *mis2031 = to_mis2031(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_state_get_format(fh->pad, 0);
 	const struct mis2031_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&mis2031->mutex);

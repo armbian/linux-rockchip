@@ -1435,7 +1435,7 @@ static int imx678_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -1476,7 +1476,7 @@ static int imx678_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx678->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -2694,7 +2694,7 @@ static int imx678_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct imx678_mode *def_mode = &imx678->supported_modes[0];
 
 	mutex_lock(&imx678->mutex);

@@ -1083,7 +1083,7 @@ static int gc6603_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&gc6603->mutex);
 		return -ENOTTY;
@@ -1123,7 +1123,7 @@ static int gc6603_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&gc6603->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&gc6603->mutex);
 		return -ENOTTY;
@@ -1784,7 +1784,7 @@ static int gc6603_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct gc6603 *gc6603 = to_gc6603(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct gc6603_mode *def_mode = &gc6603->supported_modes[0];
 
 	mutex_lock(&gc6603->mutex);

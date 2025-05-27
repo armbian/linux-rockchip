@@ -3954,7 +3954,7 @@ static int it6616_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct it6616 *it6616 = to_it6616(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct it6616_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&it6616->confctl_mutex);

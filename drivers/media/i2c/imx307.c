@@ -1057,7 +1057,7 @@ static int imx307_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&imx307->mutex);
 		return -ENOTTY;
@@ -1095,7 +1095,7 @@ static int imx307_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx307->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&imx307->mutex);
 		return -ENOTTY;
@@ -1819,7 +1819,7 @@ static int imx307_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx307 *imx307 = to_imx307(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct imx307_mode *def_mode = &imx307->support_modes[0];
 
 	mutex_lock(&imx307->mutex);

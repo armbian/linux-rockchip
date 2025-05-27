@@ -604,7 +604,7 @@ static int og02b10_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&og02b10->mutex);
 		return -ENOTTY;
@@ -646,7 +646,7 @@ static int og02b10_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		v4l2_info(sd, "get format try.\n");
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
 #else
 		mutex_unlock(&og02b10->mutex);
 		return -ENOTTY;
@@ -1084,7 +1084,7 @@ static int og02b10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->pad, 0);
 	const struct og02b10_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&og02b10->mutex);

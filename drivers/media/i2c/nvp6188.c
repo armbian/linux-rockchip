@@ -1016,7 +1016,7 @@ static int nvp6188_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&nvp6188->mutex);
 		return -ENOTTY;
@@ -1045,7 +1045,7 @@ static int nvp6188_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&nvp6188->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&nvp6188->mutex);
 		return -ENOTTY;
@@ -2394,7 +2394,7 @@ static int nvp6188_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct nvp6188_mode *def_mode = &supported_modes[0];
 
 	dev_dbg(&nvp6188->client->dev, "%s\n", __func__);
