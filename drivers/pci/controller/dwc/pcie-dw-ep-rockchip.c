@@ -20,6 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 #include <uapi/linux/rk-pcie-ep.h>
 
 #include "../../pci.h"
@@ -345,7 +346,7 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	rockchip->pci.link_gen = of_pci_get_max_link_speed(np);
+	rockchip->pci.max_link_speed = of_pci_get_max_link_speed(np);
 
 	return 0;
 }
