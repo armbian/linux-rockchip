@@ -708,7 +708,7 @@
 };
 
 &sdio {
-	max-frequency = <150000000>;
+	max-frequency = <100000000>;
 	no-sd;
 	no-mmc;
 	bus-width = <4>;
