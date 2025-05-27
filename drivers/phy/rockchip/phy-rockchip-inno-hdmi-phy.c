@@ -476,6 +476,243 @@ static irqreturn_t inno_hdmi_phy_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define FREF 24000000
+#define FFBD_FRAC_MAX 16777216
+
+static int inno_hdmi_phy_pll_cal(struct inno_hdmi_phy *inno, struct pre_pll_config *cfg,
+				 u64 pixelclk, u64 tmdsclock)
+{
+	u32 j, k, i, nf = 0, nr = 1, tmds_no, tmds_a, tmds_b, tmds_c;
+	u32 pclk_no = 0, prepclk_no = 0, div_5 = 0;
+	u8 tmdsa[4] = {1, 2, 3, 5};
+	u8 tmdsbc[4] = {1, 2, 4, 8};
+	u8 pclkb[4] = {2, 3, 4, 5};
+	u8 pclkc[4] = {1, 2, 4, 8};
+	u32 pclka, pclkd;
+	u32 rem = 0;
+	u64 frac_div = 0;
+	u64 fvco;
+	u64 frefdiv;
+	bool frac_supported = true;
+	bool frac_cal = false;
+
+	dev_dbg(inno->dev, "pixelclk:%llu,tmdsclock:%llu\n", pixelclk, tmdsclock);
+
+	if (pixelclk > tmdsclock && pixelclk < 340000000) {
+		dev_dbg(inno->dev, "hdmi1.4 resolution can't support yuv420 mode\n");
+		return 0;
+	}
+
+	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228)
+		frac_supported = false;
+
+	/* VCO frequency shall not be higher than 3.2Ghz */
+	i = DIV_ROUND_UP_ULL(3200000000ULL, tmdsclock * 4);
+
+continue_cal:
+	/*
+	 * If the current parameters can not get the correct clock,
+	 * return here and continue to calculate with next set of
+	 * parameters until the allowed range is exceeded or get
+	 * the correct clock.
+	 */
+	for (; nr < 31; nr++) {
+		frefdiv = FREF / nr;
+		nf = 0;
+		/* VCO frequency shall not be lower than 1.4Ghz */
+		while (((tmdsclock * 4 * --i) > 1400000000ULL) && i > 0) {
+			fvco = tmdsclock * 4 * i;
+			div_5 = 0;
+
+			div_u64_rem(fvco, frefdiv, &rem);
+			dev_dbg(inno->dev, "i:%u rem:%u frefdiv:%llu fvco:%llu\n",
+				i, rem, frefdiv, fvco);
+			/* fvco = (fref / nr) * nf */
+			if (!frac_cal && !rem && (div_u64(fvco, frefdiv) <= 4096)) {
+				nf = div_u64(fvco, frefdiv);
+				tmds_no = i;
+				break;
+			/* fvco = (fref / nr) * (nf + frac_div / 2^24) */
+			} else if (frac_cal && (div_u64(fvco, frefdiv) <= 4096)) {
+				nf = div_u64(fvco, frefdiv);
+				tmds_no = i;
+
+				frac_div = (u64)rem * FFBD_FRAC_MAX;
+				frac_div = div_u64(frac_div, frefdiv);
+				dev_dbg(inno->dev, "frac_div:%llu\n", frac_div);
+				break;
+			}
+		}
+
+		if (nf)
+			break;
+
+		i = DIV_ROUND_UP_ULL(3200000000ULL, tmdsclock * 4);
+	}
+
+	if (nr == 31) {
+		if (frac_supported) {
+			/*
+			 * RK3528/RK3328 support fraction calculation. If this clk can't
+			 * be calculated with integers, using fraction to
+			 * calculate.
+			 */
+			if (!frac_cal) {
+				frac_cal = 1;
+				nr = 1;
+				goto continue_cal;
+			}
+		}
+
+		dev_dbg(inno->dev, "can't support tmdsclock:%llu\n", tmdsclock);
+		return 0;
+	}
+
+	if (tmdsclock > 340000000) {
+		for (k = 0; k < 4; k++) {
+			/*
+			 * HDMI2.0 is 1/40 mode, tmds lane clk is 1/4 pixel clk.
+			 * so f_linkclk must be four times that of f_tmdsclk,
+			 * tmds_divb must be four times that of tmds_divc.
+			 * The cycle starts from tmdsbc[2].
+			 */
+			for (j = 2; j < 4; j++) {
+				if (tmdsa[k] * tmdsbc[j] == (4 * tmds_no))
+					break;
+			}
+			if (j < 4)
+				break;
+		}
+	} else {
+		for (k = 0; k < 4; k++) {
+			for (j = 0; j < 4; j++) {
+				if (tmdsa[k] * tmdsbc[j] == tmds_no)
+					break;
+			}
+			if (j < 4)
+				break;
+		}
+	}
+
+	if (k == 4) {
+		nf = 0;
+		goto continue_cal;
+	}
+
+	tmds_a = k;
+	tmds_b = j;
+	if (tmdsclock > 340000000)
+		tmds_c = j - 2;
+	else
+		tmds_c = j;
+
+	dev_dbg(inno->dev, "tmds_a %d (%d) tmds_b %d (%d) tmds_c %d (%d)\n",
+		tmds_a, tmdsa[tmds_a], tmds_b, tmdsbc[tmds_b], tmds_c,
+		tmdsbc[tmds_c]);
+
+	/* In yuv420 mode f_pclk is twice of f_prepclk */
+	if (pixelclk > tmdsclock) {
+		div_u64_rem(fvco * 2, pixelclk, &rem);
+		if (rem)
+			goto continue_cal;
+
+		prepclk_no = div_u64(fvco * 2, pixelclk);
+
+		if (div_u64(fvco, pixelclk) == 5) {
+			div_5 = 1;
+		} else {
+			if (prepclk_no % 4)
+				goto continue_cal;
+
+			pclk_no = prepclk_no / 4;
+		}
+	} else {
+		div_u64_rem(fvco, pixelclk, &rem);
+		if (rem)
+			goto continue_cal;
+
+		prepclk_no = div_u64(fvco, pixelclk);
+
+		if (div_u64(fvco, pixelclk) == 5) {
+			div_5 = 1;
+		} else {
+			if (prepclk_no % 2)
+				goto continue_cal;
+
+			pclk_no = prepclk_no / 2;
+		}
+	}
+
+	dev_dbg(inno->dev, "prepclk_no:%d,pclk_no:%d,div_5:%d\n",
+		prepclk_no, pclk_no, div_5);
+
+	for (k = 0; k < 4; k++) {
+		for (j = 0; j < 4; j++) {
+			if (pclkb[k] * pclkc[j] == prepclk_no)
+				break;
+		}
+
+		if (j < 4) {
+			pclka = 1;
+			break;
+		}
+	}
+
+	if (k == 4) {
+		for (j = 0; j < 4; j++) {
+			if ((prepclk_no % pclkc[j]) == 0 &&
+			    (prepclk_no / pclkc[j]) < 32) {
+				pclka = prepclk_no / pclkc[j];
+				break;
+			}
+		}
+	} else {
+		pclka = 1;
+	}
+
+	if (j == 4)
+		goto continue_cal;
+
+	/* pixel clk directly divided by 5 from fvco */
+	if (div_5) {
+		pclkd = 1;
+	} else {
+		if (k == 4) {
+			if (pclk_no % pclka)
+				goto continue_cal;
+			else
+				pclkd = pclk_no / pclka;
+		} else {
+			if (pclk_no % pclkb[k])
+				goto continue_cal;
+			else
+				pclkd = pclk_no / pclkb[k];
+		}
+	}
+
+	if (cfg) {
+		cfg->pixclock = pixelclk;
+		cfg->tmdsclock = tmdsclock;
+		cfg->prediv = nr;
+		cfg->fbdiv = nf;
+		cfg->tmds_div_a = tmds_a;
+		cfg->tmds_div_b = tmds_b;
+		cfg->tmds_div_c = tmds_c;
+		cfg->pclk_div_a = pclka;
+		cfg->pclk_div_b = k;
+		cfg->pclk_div_c = j;
+		cfg->pclk_div_d = pclkd;
+		cfg->vco_div_5_en = div_5;
+		cfg->fracdiv = frac_div;
+	}
+
+	dev_dbg(inno->dev, "%llu, %llu, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %llu\n",
+		pixelclk, tmdsclock, nr, nf, tmds_a, tmds_b, tmds_c, pclka, k, j, pclkd,
+		div_5, frac_div);
+
+	return pixelclk;
+}
+
 static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				      unsigned long parent_rate);
 
@@ -595,35 +832,24 @@ static unsigned long inno_hdmi_phy_clk_recalc_rate(struct clk_hw *hw,
 static long inno_hdmi_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 					 unsigned long *parent_rate)
 {
-	int i;
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
 	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
 	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, rate);
+
+	/* Limit pixel clock under 600MHz */
+	if (rate > 600000000)
+		return -EINVAL;
 
 	for (; cfg->pixclock != ~0UL; cfg++)
 		if (cfg->pixclock == rate)
 			break;
 
-	/* XXX: Limit pixel clock under 600MHz */
-	if (cfg->pixclock > 600000000)
-		return -EINVAL;
+	if (cfg->pixclock == ~0UL) {
+		if (!inno_hdmi_phy_pll_cal(inno, NULL, rate, tmdsclock))
+			return -EINVAL;
 
-	/*
-	 * If there is no dts phy cfg table, use default phy cfg table.
-	 * The tmds clock maximum is 594MHz. So there is no need to check
-	 * whether tmds clock is out of range.
-	 */
-	if (!inno->phy_cfg)
-		return cfg->pixclock;
-
-	/* Check if tmds clock is out of dts phy config's range. */
-	for (i = 0; inno->phy_cfg[i].tmdsclock != ~0UL; i++) {
-		if (inno->phy_cfg[i].tmdsclock >= tmdsclock)
-			break;
+		return rate;
 	}
-
-	if (inno->phy_cfg[i].tmdsclock == ~0UL)
-		return -EINVAL;
 
 	return cfg->pixclock;
 }
@@ -633,6 +859,7 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
+	struct pre_pll_config rc = {0};
 	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, rate);
 
 	dev_dbg(inno->dev, "%s rate %lu tmdsclk %u\n",
@@ -645,13 +872,17 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (cfg->pixclock == rate && cfg->tmdsclock == tmdsclock)
 			break;
 
+	rc = *cfg;
+
 	if (cfg->pixclock == ~0UL) {
-		dev_err(inno->dev, "unsupported rate %lu\n", rate);
-		return -EINVAL;
+		if (!inno_hdmi_phy_pll_cal(inno, &rc, rate, tmdsclock)) {
+			dev_err(inno->dev, "unsupported rate %lu\n", rate);
+			return -EINVAL;
+		}
 	}
 
 	if (inno->plat_data->ops->pre_pll_update)
-		inno->plat_data->ops->pre_pll_update(inno, cfg);
+		inno->plat_data->ops->pre_pll_update(inno, &rc);
 
 	inno->pixclock = rate;
 	inno->tmdsclock = tmdsclock;
