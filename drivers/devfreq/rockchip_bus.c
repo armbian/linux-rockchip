@@ -650,8 +650,6 @@ static int parse_relate_clks(struct rockchip_bus *bus)
 {
 	struct device_node *node = bus->dev->of_node;
 	struct of_phandle_args clkspec;
-	struct property	*prop;
-	const __be32 *cur;
 	int rc, count, index = 0;
 	struct clk *clk;
 	u32 rate;
@@ -669,7 +667,7 @@ static int parse_relate_clks(struct rockchip_bus *bus)
 	if (!bus->relate_clks)
 		return -ENOMEM;
 
-	of_property_for_each_u32(node, "rockchip,relate-clock-rates", prop, cur, rate) {
+	of_property_for_each_u32(node, "rockchip,relate-clock-rates", rate) {
 		rc = of_parse_phandle_with_args(node, "rockchip,relate-clocks",
 						"#clock-cells",	index, &clkspec);
 		if (rc < 0)
