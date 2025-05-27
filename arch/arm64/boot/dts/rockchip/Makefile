@@ -561,5 +561,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-h96max-v56.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-nanopi-r3-rev01.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-swan1-w28.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-coolpi-cm5-genbook.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-yx-imb3588.dtb
 
 subdir-y := $(dts-dirs) overlay
