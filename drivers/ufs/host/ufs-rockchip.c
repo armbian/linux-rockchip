@@ -19,11 +19,6 @@
 #include "ufshcd-dwc.h"
 #include "ufs-rockchip.h"
 
-static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
-{
-	return ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE;
-}
-
 static inline bool ufshcd_is_device_present(struct ufs_hba *hba)
 {
 	return ufshcd_readl(hba, REG_CONTROLLER_STATUS) & DEVICE_PRESENT;
@@ -167,10 +162,11 @@ static int ufs_rockchip_send_uic_cmd(struct ufs_hba *hba, struct uic_command *ui
 
 static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		. command = UIC_CMD_DME_LINK_STARTUP
+	};
 	int ret;
 
-	uic_cmd.command = UIC_CMD_DME_LINK_STARTUP;
 #ifdef MODULE
 	ret = ufs_rockchip_send_uic_cmd(hba, &uic_cmd);
 #else
@@ -514,7 +510,6 @@ static void ufs_rockchip_remove(struct platform_device *pdev)
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 	ufshcd_remove(hba);
-	ufshcd_dealloc_host(hba);
 	clk_disable_unprepare(host->ref_out_clk);
 }
 
@@ -626,7 +621,6 @@ static void ufs_rockchip_shutdown(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "shutting down...\n");
 
-	ufshcd_pltfrm_shutdown(pdev);
 	ufs_rockchip_device_reset(hba);
 }
 
