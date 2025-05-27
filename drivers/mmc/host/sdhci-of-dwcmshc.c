@@ -220,8 +220,67 @@ enum dwcmshc_rk_type {
 	DWCMSHC_RK3588,
 };
 
+struct rk_timing_priv {
+	u32 flags;
+#define RK_DLL_CMD_OUT          BIT(1)
+#define RK_RXCLK_NO_INVERTER    BIT(2)
+#define RK_TAP_VALUE_SEL        BIT(3)
+
+	u8 hs200_tx_tap;
+	u8 hs400_tx_tap;
+	u8 hs400_cmd_tap;
+	u8 ddr50_strbin_delay_num;
+	u8 hs400_strbin_tap;
+};
+
+static const struct rk_timing_priv rk3568_timing = {
+	.flags = RK_RXCLK_NO_INVERTER | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 8,
+	.hs400_cmd_tap = 8,
+	.hs400_strbin_tap = 4,
+	.ddr50_strbin_delay_num = 16,
+};
+
+static const struct rk_timing_priv rk3588_timing = {
+	.flags = RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 9,
+	.hs400_cmd_tap = 8,
+	.hs400_strbin_tap = 4,
+	.ddr50_strbin_delay_num = 16,
+};
+
+static const struct rk_timing_priv rk3528_timing = {
+	.flags = RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 12,
+	.hs400_tx_tap = 6,
+	.hs400_cmd_tap = 6,
+	.hs400_strbin_tap = 3,
+	.ddr50_strbin_delay_num = 10,
+};
+
+static const struct rk_timing_priv rk3562_timing = {
+	.flags = RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 12,
+	.hs400_tx_tap = 6,
+	.hs400_cmd_tap = 6,
+	.hs400_strbin_tap = 3,
+	.ddr50_strbin_delay_num = 10,
+};
+
+static const struct rk_timing_priv rk3576_timing = {
+	.flags = RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 7,
+	.hs400_cmd_tap = 7,
+	.hs400_strbin_tap = 5,
+	.ddr50_strbin_delay_num = 10,
+};
+
 struct rk35xx_priv {
 	struct reset_control *reset;
+	const struct rk_timing_priv *timing;
 	enum dwcmshc_rk_type devtype;
 	u8 txclk_tapnum;
 	u32 acpi_en;
@@ -674,7 +733,7 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	struct rk35xx_priv *priv = dwc_priv->priv;
 	u8 txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
-	u32 extra, reg;
+	u32 extra, reg, dll_lock_value;
 	int err;
 
 	host->mmc->actual_clock = 0;
@@ -712,10 +771,15 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	extra &= ~BIT(0);
 	sdhci_writel(host, extra, reg);
 
+	/* Disable output clock while config DLL */
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
 	if (clock <= 52000000) {
+		/* Disable DLL */
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 		/*
-		 * Disable DLL and reset both of sample and drive clock.
-		 * The bypass bit and start bit need to be set if DLL is not locked.
+		 * Config DLL BYPASS and Reset both of sample and drive clock.
+		 * The bypass bit and start bit need to set if DLL is not locked.
 		 */
 		sdhci_writel(host, DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START, DWCMSHC_EMMC_DLL_CTRL);
 		sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK);
@@ -728,9 +792,9 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 		 */
 		extra = DWCMSHC_EMMC_DLL_DLYENA |
 			DLL_STRBIN_DELAY_NUM_SEL |
-			DLL_STRBIN_DELAY_NUM_DEFAULT << DLL_STRBIN_DELAY_NUM_OFFSET;
+			priv->timing->ddr50_strbin_delay_num << DLL_STRBIN_DELAY_NUM_OFFSET;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
-		return;
+		goto exit;
 	}
 
 	/* Reset DLL */
@@ -738,15 +802,8 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	udelay(1);
 	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
 
-	/*
-	 * We shouldn't set DLL_RXCLK_NO_INVERTER for identify mode but
-	 * we must set it in higher speed mode.
-	 */
-	extra = DWCMSHC_EMMC_DLL_DLYENA;
-	if (priv->devtype == DWCMSHC_RK3568)
-		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
-
+	/* Init DLL settings, clean start bit before resetting */
+	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 	/* Init DLL settings */
 	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
 		0x2 << DWCMSHC_EMMC_DLL_INC |
@@ -757,39 +814,56 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 				 500 * USEC_PER_MSEC);
 	if (err) {
 		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
-		return;
+		goto exit;
 	}
+
+	dll_lock_value = ((sdhci_readl(host, DWCMSHC_EMMC_DLL_STATUS0) & 0xFF) * 2) & 0xFF;
 
 	extra = 0x1 << 16 | /* tune clock stop en */
 		0x3 << 17 | /* pre-change delay */
 		0x3 << 19;  /* post-change delay */
 	sdhci_writel(host, extra, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
 
-	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
-	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400)
-		txclk_tapnum = priv->txclk_tapnum;
+	extra = DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_ORI_GATE;
+	if (priv->timing->flags & RK_RXCLK_NO_INVERTER)
+		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+	if (priv->timing->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
-	if ((priv->devtype == DWCMSHC_RK3588) && host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
-		txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES;
+	txclk_tapnum = priv->timing->hs200_tx_tap;
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		txclk_tapnum = priv->timing->hs400_tx_tap;
 
-		extra = DLL_CMDOUT_SRC_CLK_NEG |
-			DLL_CMDOUT_EN_SRC_CLK_NEG |
-			DWCMSHC_EMMC_DLL_DLYENA |
-			DLL_CMDOUT_TAPNUM_90_DEGREES |
-			DLL_CMDOUT_TAPNUM_FROM_SW;
-		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+		if (priv->timing->flags & RK_DLL_CMD_OUT) {
+			extra = DLL_CMDOUT_SRC_CLK_NEG |
+				DLL_CMDOUT_BOTH_CLK_EDGE |
+				DWCMSHC_EMMC_DLL_DLYENA |
+				priv->timing->hs400_cmd_tap |
+				DLL_CMDOUT_TAPNUM_FROM_SW;
+			if (priv->timing->flags & RK_TAP_VALUE_SEL)
+				extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
+			sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+		}
 	}
-
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
 		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL |
 		txclk_tapnum;
+	if (priv->timing->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_STRBIN_TAPNUM_DEFAULT |
+		priv->timing->hs400_strbin_tap |
 		DLL_STRBIN_TAPNUM_FROM_SW;
+	if (priv->timing->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
+
+exit:
+	/* enable output clock */
+	sdhci_enable_clk(host, 0);
 }
 
 static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
@@ -869,6 +943,46 @@ static void dwcmshc_rk35xx_postinit(struct sdhci_host *host, struct dwcmshc_priv
 		host->mmc->caps2 &= ~(MMC_CAP2_HS200 | MMC_CAP2_HS400);
 		host->mmc->caps &= ~(MMC_CAP_3_3V_DDR | MMC_CAP_1_8V_DDR);
 	}
+}
+
+static void dwcmshc_rk3588_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct rk35xx_priv *rk_priv = dwc_priv->priv;
+
+	rk_priv->timing = &rk3588_timing;
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
+}
+
+static void dwcmshc_rk3576_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct rk35xx_priv *rk_priv = dwc_priv->priv;
+
+	rk_priv->timing = &rk3576_timing;
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
+}
+
+static void dwcmshc_rk3568_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct rk35xx_priv *rk_priv = dwc_priv->priv;
+
+	rk_priv->timing = &rk3568_timing;
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
+}
+
+static void dwcmshc_rk3528_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct rk35xx_priv *rk_priv = dwc_priv->priv;
+
+	rk_priv->timing = &rk3528_timing;
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
+}
+
+static void dwcmshc_rk3562_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct rk35xx_priv *rk_priv = dwc_priv->priv;
+
+	rk_priv->timing = &rk3562_timing;
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
 }
 
 static int th1520_execute_tuning(struct sdhci_host *host, u32 opcode)
@@ -1290,7 +1404,7 @@ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_bf3_pdata = {
 };
 #endif
 
-static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk35xx_pdata = {
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3588_pdata = {
 	.pdata = {
 		.ops = &sdhci_dwcmshc_rk35xx_ops,
 		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
@@ -1299,7 +1413,55 @@ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk35xx_pdata = {
 			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 	},
 	.init = dwcmshc_rk35xx_init,
-	.postinit = dwcmshc_rk35xx_postinit,
+	.postinit = dwcmshc_rk3588_postinit,
+};
+
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3576_pdata = {
+	.pdata = {
+		.ops = &sdhci_dwcmshc_rk35xx_ops,
+		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	},
+	.init = dwcmshc_rk35xx_init,
+	.postinit = dwcmshc_rk3576_postinit,
+};
+
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3568_pdata = {
+	.pdata = {
+		.ops = &sdhci_dwcmshc_rk35xx_ops,
+		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	},
+	.init = dwcmshc_rk35xx_init,
+	.postinit = dwcmshc_rk3568_postinit,
+};
+
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3528_pdata = {
+	.pdata = {
+		.ops = &sdhci_dwcmshc_rk35xx_ops,
+		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	},
+	.init = dwcmshc_rk35xx_init,
+	.postinit = dwcmshc_rk3528_postinit,
+};
+
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3562_pdata = {
+	.pdata = {
+		.ops = &sdhci_dwcmshc_rk35xx_ops,
+		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	},
+	.init = dwcmshc_rk35xx_init,
+	.postinit = dwcmshc_rk3562_postinit,
 };
 
 static const struct dwcmshc_pltfm_data sdhci_dwcmshc_th1520_pdata = {
@@ -1409,23 +1571,23 @@ dsbl_cqe_caps:
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &sdhci_dwcmshc_rk3588_pdata,
 	},
 	{
 		.compatible = "rockchip,rk3576-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &sdhci_dwcmshc_rk3576_pdata,
 	},
 	{
 		.compatible = "rockchip,rk3568-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &sdhci_dwcmshc_rk3568_pdata,
 	},
 	{
 		.compatible = "rockchip,rk3528-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &sdhci_dwcmshc_rk3528_pdata,
 	},
 	{
 		.compatible = "rockchip,rk3562-dwcmshc",
-		.data = &sdhci_dwcmshc_rk35xx_pdata,
+		.data = &sdhci_dwcmshc_rk3562_pdata,
 	},
 	{
 		.compatible = "snps,dwcmshc-sdhci",
