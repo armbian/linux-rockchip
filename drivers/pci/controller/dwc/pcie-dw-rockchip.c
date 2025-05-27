@@ -330,7 +330,7 @@ static void rk_pcie_retrain(struct dw_pcie *pci)
 	 * Set retrain bit if current speed is 2.5 GB/s,
 	 * but the PCIe root port support is > 2.5 GB/s.
 	 */
-	if (pci->link_gen < 2)
+	if (pci->max_link_speed < 2)
 		return;
 
 	dev_info(pci->dev, "Retrain link..\n");
