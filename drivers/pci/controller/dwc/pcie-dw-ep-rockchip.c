@@ -275,7 +275,6 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	rockchip->pci.dbi_base = devm_ioremap_resource(dev, dbi_res);
 	if (IS_ERR(rockchip->pci.dbi_base))
 		return PTR_ERR(rockchip->pci.dbi_base);
-	rockchip->pci.atu_base = rockchip->pci.dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	rockchip->dbi_base_physical = dbi_res->start;
 
 	ret = device_property_read_u32(dev, "num-ib-windows", &rockchip->num_ib_windows);
@@ -308,6 +307,8 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		return -ENOMEM;
 
 	rockchip->outbound_addr = addr;
+	rockchip->pci.atu_base = rockchip->pci.dbi_base + DEFAULT_DBI_ATU_OFFSET;
+	rockchip->pci.atu_size = rockchip->num_ib_windows * 256;
 
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++) {
 		snprintf(name, sizeof(name), "bar%d", i);
@@ -515,7 +516,7 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip, enum pci_bar
 		return -EINVAL;
 	}
 
-	ret = dw_pcie_prog_inbound_atu(pci, 0, free_win, PCIE_ATU_TYPE_MEM, cpu_addr, bar);
+	ret = dw_pcie_prog_ep_inbound_atu(pci, 0, free_win, PCIE_ATU_TYPE_MEM, cpu_addr, bar);
 	if (ret < 0) {
 		dev_err(pci->dev, "Failed to program IB window\n");
 		return ret;
@@ -989,9 +990,6 @@ already_linkup:
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
 
-	/* Setting device */
-	if (dw_pcie_readl_dbi(&rockchip->pci, PCIE_ATU_VIEWPORT) == 0xffffffff)
-		rockchip->pci.iatu_unroll_enabled = 1;
 	memset(rockchip->ib_window_map, 0, BITS_TO_LONGS(rockchip->num_ib_windows) * sizeof(long));
 	memset(rockchip->ob_window_map, 0, BITS_TO_LONGS(rockchip->num_ob_windows) * sizeof(long));
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
