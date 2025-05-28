@@ -299,7 +299,7 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 	for (i = 0; i < mdais->num_dais; i++) {
 		child = mdais->dais[i].dai;
 		comp = child->component;
-		if (!child->probed && child->driver->probe) {
+		if (!child->probed && child->driver->ops && child->driver->ops->probe) {
 			if (!comp->name_prefix) {
 				ret = device_property_read_string(child->dev,
 								  SOUND_NAME_PREFIX, &str);
@@ -308,7 +308,7 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 			}
 
 			comp->card = dai->component->card;
-			ret = child->driver->probe(child);
+			ret = child->driver->ops->probe(child);
 			if (ret < 0) {
 				dev_err(child->dev,
 					"Failed to probe DAI %s: %d\n",
@@ -331,6 +331,7 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
+	.probe = rockchip_mdais_dai_probe,
 	.hw_params = rockchip_mdais_hw_params,
 	.hw_free = rockchip_mdais_hw_free,
 	.set_sysclk = rockchip_mdais_set_sysclk,
@@ -471,7 +472,6 @@ static int rockchip_mdais_dai_prepare(struct platform_device *pdev,
 				      struct snd_soc_dai_driver **soc_dai)
 {
 	struct snd_soc_dai_driver rockchip_mdais_dai = {
-		.probe = rockchip_mdais_dai_probe,
 		.playback = {
 			.stream_name = "Playback",
 			.channels_min = 1,
