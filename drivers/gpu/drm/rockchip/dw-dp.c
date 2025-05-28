@@ -4965,14 +4965,19 @@ out:
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
 			phy_power_off(dp->phy);
 		}
-	} else {
-		if (dp->link.sink_support_mst && dp->mst_mgr.cbs) {
+	} else if (dp->mst_mgr.cbs) {
+		if (dp->link.sink_support_mst) {
 			dev_info(dp->dev, "MST device appeared\n");
 			if (!dp->is_mst)
 				phy_power_on(dp->phy);
 			dp->is_mst = true;
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
 			status = connector_status_disconnected;
+		} else if (dp->is_mst) {
+			dev_info(dp->dev, "SST device appeared\n");
+			dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
+			phy_power_off(dp->phy);
 		}
 	}
 
