@@ -1399,7 +1399,8 @@ static void dw_dp_connector_early_unregister(struct drm_connector *connector)
 	struct dw_dp *dp = connector_to_dp(connector);
 	struct drm_minor *minor = connector->dev->primary;
 
-	drm_debugfs_remove_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files), minor);
+	drm_debugfs_remove_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files),
+				 connector->debugfs_entry, minor);
 	kfree(dp->debugfs_files);
 }
 #endif
@@ -1439,7 +1440,7 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
 	struct drm_display_info *di = &connector->display_info;
-	struct edid *edid;
+	const struct drm_edid *edid;
 	int num_modes = 0;
 
 	if (dp->right && dp->right->next_bridge) {
@@ -1458,12 +1459,12 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 		num_modes = drm_panel_get_modes(dp->panel, connector);
 
 	if (!num_modes) {
-		edid = drm_bridge_get_edid(&dp->bridge, connector);
+		edid = drm_bridge_edid_read(&dp->bridge, connector);
 		if (edid) {
-			drm_connector_update_edid_property(connector, edid);
-			num_modes = drm_add_edid_modes(connector, edid);
+			drm_edid_connector_update(connector, edid);
+			num_modes = drm_edid_connector_add_modes(connector);
 			dw_dp_update_hdr_property(connector);
-			kfree(edid);
+			drm_edid_free(edid);
 		}
 	}
 
@@ -3562,7 +3563,7 @@ dw_dp_mst_connector_mode_valid(struct drm_connector *connector, struct drm_displ
 	if (!dw_dp_bandwidth_ok(dp, mode, min_bpp, dp->link.lanes, dp->link.max_rate))
 		return MODE_CLOCK_HIGH;
 
-	if (drm_dp_calc_pbn_mode(mode->clock, min_bpp, false) > port->full_pbn)
+	if (drm_dp_calc_pbn_mode(mode->clock, min_bpp) > port->full_pbn)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -3827,7 +3828,7 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 
 	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, true);
-	drm_dp_add_payload_part2(&dp->mst_mgr, state, payload);
+	drm_dp_add_payload_part2(&dp->mst_mgr, payload);
 }
 
 static void dw_dp_link_disable(struct dw_dp *dp)
@@ -3884,7 +3885,7 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 		}
 	}
 
-	drm_dp_remove_payload(&dp->mst_mgr, new_mst_state, old_payload, new_payload);
+	drm_dp_remove_payload_part1(&dp->mst_mgr, new_mst_state, new_payload);
 
 	dw_dp_set_vcpid_tables(dp, new_mst_state);
 
@@ -3893,6 +3894,8 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 		dev_err(dp->dev, "failed to initial mst act:%d\n", ret);
 
 	drm_dp_check_act_status(&dp->mst_mgr);
+
+	drm_dp_remove_payload_part2(&dp->mst_mgr, new_mst_state, old_payload, new_payload);
 
 	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
 
@@ -3968,11 +3971,11 @@ static int dw_dp_mst_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->color_encoding = DRM_COLOR_YCBCR_BT709;
 
-	if (!mst_state->pbn_div) {
+	if (!mst_state->pbn_div.full) {
 		mst_state->pbn_div = drm_dp_get_vc_payload_bw(&dp->mst_mgr, dp->link.rate,
 							      dp->link.lanes);
 	}
-	pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.crtc_clock, video->bpp, false);
+	pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.crtc_clock, video->bpp);
 	slot = drm_dp_atomic_find_time_slots(state, &dp->mst_mgr, mst_conn->port, pbn);
 	if (slot < 0) {
 		dev_err(dp->dev, "invalid slot:%d\n", slot);
@@ -4567,18 +4570,18 @@ out:
 	return status;
 }
 
-static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
-					  struct drm_connector *connector)
+static const struct drm_edid *dw_dp_bridge_edid_read(struct drm_bridge *bridge,
+						     struct drm_connector *connector)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
-	struct edid *edid;
+	const struct drm_edid *edid;
 	int ret;
 
 	ret = phy_power_on(dp->phy);
 	if (ret)
 		return NULL;
 
-	edid = drm_get_edid(connector, &dp->aux.ddc);
+	edid = drm_edid_read_ddc(connector, &dp->aux.ddc);
 
 	phy_power_off(dp->phy);
 
@@ -4735,7 +4738,7 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 	.atomic_enable = dw_dp_bridge_atomic_enable,
 	.atomic_disable = dw_dp_bridge_atomic_disable,
 	.detect = dw_dp_bridge_detect,
-	.get_edid = dw_dp_bridge_get_edid,
+	.edid_read = dw_dp_bridge_edid_read,
 };
 
 static int dw_dp_link_retrain(struct dw_dp *dp)
