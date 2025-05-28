@@ -419,7 +419,7 @@ static const struct vop_grf_ctrl rk3288_vop_lit_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 15),
 };
 
-static const struct vop_data rk3288_vop_big = {
+static const struct vop_data __maybe_unused rk3288_vop_big = {
 	.soc_id = 0x3288,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 0),
@@ -433,7 +433,7 @@ static const struct vop_data rk3288_vop_big = {
 	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
 };
 
-static const struct vop_data rk3288_vop_lit = {
+static const struct vop_data __maybe_unused rk3288_vop_lit = {
 	.soc_id = 0x3288,
 	.vop_id = 1,
 	.version = VOP_VERSION(3, 0),
@@ -544,7 +544,7 @@ static const struct vop_win_data rk3368_vop_win_data[] = {
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
 };
 
-static const struct vop_data rk3368_vop = {
+static const struct vop_data __maybe_unused rk3368_vop = {
 	.soc_id = 0x3368,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 2),
@@ -571,7 +571,7 @@ static const struct vop_grf_ctrl rk3368_vop_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3368_GRF_SOC_CON6, 0x1, 5),
 };
 
-static const struct vop_data rk3366_vop = {
+static const struct vop_data __maybe_unused rk3366_vop = {
 	.soc_id = 0x3366,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 4),
@@ -733,7 +733,7 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
 };
 
-static const struct vop_data rk3399_vop_big = {
+static const struct vop_data __maybe_unused rk3399_vop_big = {
 	.soc_id = 0x3399,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 5),
@@ -761,7 +761,7 @@ static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 };
 
 
-static const struct vop_data rk3399_vop_lit = {
+static const struct vop_data __maybe_unused rk3399_vop_lit = {
 	.soc_id = 0x3399,
 	.vop_id = 1,
 	.version = VOP_VERSION(3, 6),
@@ -782,7 +782,7 @@ static const struct vop_win_data rk322x_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_CURSOR },
 };
 
-static const struct vop_data rk3228_vop = {
+static const struct vop_data __maybe_unused rk3228_vop = {
 	.soc_id = 0x3228,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 7),
@@ -1180,7 +1180,7 @@ static const struct vop_win_data rk3328_vop_win_data[] = {
 	  .feature = WIN_FEATURE_SDR2HDR | WIN_FEATURE_PRE_OVERLAY },
 };
 
-static const struct vop_data rk3328_vop = {
+static const struct vop_data __maybe_unused rk3328_vop = {
 	.soc_id = 0x3328,
 	.vop_id = 0,
 	.version = VOP_VERSION(3, 8),
@@ -1302,7 +1302,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.cfg_done = VOP_REG(RK3036_REG_CFG_DONE, 0x1, 0),
 };
 
-static const struct vop_data rk3036_vop = {
+static const struct vop_data __maybe_unused rk3036_vop = {
 	.soc_id = 0x3036,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 2),
@@ -1410,7 +1410,7 @@ static const struct vop_ctrl rk3066_ctrl_data = {
 	.cfg_done = VOP_REG(RK3066_REG_CFG_DONE, 0x1, 0),
 };
 
-static const struct vop_data rk3066_vop = {
+static const struct vop_data __maybe_unused rk3066_vop = {
 	.soc_id = 0x3066,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 1),
@@ -1532,7 +1532,7 @@ static const struct vop_win_data rk3126_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_PRIMARY },
 };
 
-static const struct vop_data rk3126_vop = {
+static const struct vop_data __maybe_unused rk3126_vop = {
 	.soc_id = 0x3126,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 4),
@@ -1677,7 +1677,7 @@ static const struct vop_grf_ctrl px30_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(PX30_GRF_PD_VO_CON1, 0x1, 4),
 };
 
-static const struct vop_data px30_vop_lit = {
+static const struct vop_data __maybe_unused px30_vop_lit = {
 	.soc_id = 0x3326,
 	.vop_id = 1,
 	.version = VOP_VERSION(2, 5),
@@ -1690,7 +1690,7 @@ static const struct vop_data px30_vop_lit = {
 	.win_size = ARRAY_SIZE(px30_vop_lit_win_data),
 };
 
-static const struct vop_data px30_vop_big = {
+static const struct vop_data __maybe_unused px30_vop_big = {
 	.soc_id = 0x3326,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 6),
@@ -1791,7 +1791,7 @@ static const struct vop_intr rk3308_vop_intr = {
 	.clear = VOP_REG_MASK(RK3366_LIT_INTR_CLEAR, 0xffff, 0),
 };
 
-static const struct vop_data rk3308_vop = {
+static const struct vop_data __maybe_unused rk3308_vop = {
 	.soc_id = 0x3308,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 7),
@@ -1894,7 +1894,7 @@ static const struct vop_grf_ctrl rv1126_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RV1126_GRF_IOFUNC_CON3, 0x1, 2),
 };
 
-static const struct vop_data rv1126_vop = {
+static const struct vop_data __maybe_unused rv1126_vop = {
 	.soc_id = 0x1126,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xb),
@@ -2044,7 +2044,7 @@ static const struct vop_wb_data rv1126b_vop_wb_data = {
 	.axi_uv_id = 0xe,
 };
 
-static const struct vop_data rv1126b_vop = {
+static const struct vop_data __maybe_unused rv1126b_vop = {
 	.soc_id = 0x1126b,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xf),
@@ -2131,7 +2131,7 @@ static const struct vop_grf_ctrl rv1106_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RV1106_VENC_GRF_VOP_IO_WRAPPER, 0x1, 2),
 };
 
-static const struct vop_data rv1106_vop = {
+static const struct vop_data __maybe_unused rv1106_vop = {
 	.soc_id = 0x1106,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xc),
@@ -2269,7 +2269,7 @@ static const struct vop_mcu_bypass_cfg rk3506_mcu_bypass_cfg = {
 	.dclk_rate = 120000000,
 };
 
-static const struct vop_data rk3506_vop = {
+static const struct vop_data __maybe_unused rk3506_vop = {
 	.soc_id = 0x3506,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xe),
@@ -2410,7 +2410,7 @@ static const struct vop_mcu_bypass_cfg rk3576_lit_mcu_bypass_cfg = {
 	.dclk_rate = 150000000,
 };
 
-static const struct vop_data rk3576_vop_lit = {
+static const struct vop_data __maybe_unused rk3576_vop_lit = {
 	.soc_id = 0x3576,
 	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xd),
