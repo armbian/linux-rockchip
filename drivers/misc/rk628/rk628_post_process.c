@@ -44,8 +44,6 @@
 /* r,g,b color temp div coef, range [-128,128] for 10bit data */
 #define PQ_CSC_TEMP_OFFSET_DIV_COEF		2
 
-#define	MAX(a, b)				((a) > (b) ? (a) : (b))
-#define	MIN(a, b)				((a) < (b) ? (a) : (b))
 #define	CLIP(x, min_v, max_v)			MIN(MAX(x, min_v), max_v)
 
 #define V4L2_COLORSPACE_BT709F	0xfe
