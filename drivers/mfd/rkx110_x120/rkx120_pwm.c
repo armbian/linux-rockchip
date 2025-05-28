@@ -60,7 +60,6 @@
 #define PWM_DCLK_RATE		24000000
 
 struct rkx120_pwm_chip {
-	struct pwm_chip chip;
 	struct rk_serdes *serdes;
 	const struct rkx120_pwm_data *data;
 	unsigned long clk_rate;
@@ -104,7 +103,7 @@ static inline int rkx120_pwm_read(struct rk_serdes *serdes, u8 remote_id, u32 re
 
 static inline struct rkx120_pwm_chip *to_rkx120_pwm_chip(struct pwm_chip *c)
 {
-	return container_of(c, struct rkx120_pwm_chip, chip);
+	return pwmchip_get_drvdata(c);
 }
 
 static int rkx120_pwm_get_state(struct pwm_chip *chip,
@@ -200,7 +199,7 @@ static void rkx120_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		ctrl |= PWM_SEL_NO_SCALED_CLOCK;
 
 		if (state->oneshot_count)
-			dev_err(chip->dev, "Oneshot_count must be between 1 and %d.\n",
+			dev_err(pwmchip_parent(chip), "Oneshot_count must be between 1 and %d.\n",
 				pc->data->oneshot_cnt_max);
 
 		pc->oneshot_en = false;
@@ -303,7 +302,6 @@ static int rkx120_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops rkx120_pwm_ops = {
 	.get_state = rkx120_pwm_get_state,
 	.apply = rkx120_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct rkx120_pwm_data rkx120_pwm_data = {
@@ -325,31 +323,21 @@ MODULE_DEVICE_TABLE(of, rkx120_pwm_dt_ids);
 static int rkx120_pwm_probe(struct platform_device *pdev)
 {
 	struct rk_serdes *serdes = dev_get_drvdata(pdev->dev.parent);
-	const struct of_device_id *id;
+	struct pwm_chip *chip;
 	struct rkx120_pwm_chip *pc;
 	u32 remote_id, channel_id;
 	int ret;
 
-	id = of_match_device(rkx120_pwm_dt_ids, &pdev->dev);
-	if (!id)
-		return -EINVAL;
+	chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*pc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pc = to_rkx120_pwm_chip(chip);
 
-	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc)
-		return -ENOMEM;
+	platform_set_drvdata(pdev, chip);
 
-	platform_set_drvdata(pdev, pc);
+	chip->ops = &rkx120_pwm_ops;
 
-	pc->data = id->data;
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &rkx120_pwm_ops;
-	pc->chip.base = -1;
-	pc->chip.npwm = 1;
-	if (pc->data->supports_polarity) {
-		pc->chip.of_xlate = of_pwm_xlate_with_flags;
-		pc->chip.of_pwm_n_cells = 3;
-	}
-
+	pc->data = device_get_match_data(&pdev->dev);
 	pc->clk_rate = PWM_DCLK_RATE;
 	pc->serdes = serdes;
 	pc->center_aligned = device_property_read_bool(&pdev->dev, "center-aligned");
@@ -368,7 +356,7 @@ static int rkx120_pwm_probe(struct platform_device *pdev)
 	}
 	pc->remote_id = remote_id;
 
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;
@@ -379,9 +367,6 @@ static int rkx120_pwm_probe(struct platform_device *pdev)
 
 static void rkx120_pwm_remove(struct platform_device *pdev)
 {
-	struct rkx120_pwm_chip *pc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&pc->chip);
 }
 
 static struct platform_driver rkx120_pwm_driver = {
