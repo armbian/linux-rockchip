@@ -2795,6 +2795,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			hdmi->plat_data->get_edid_hdmi21_info(data, edid);
 		memcpy(hdmi->vendor_info, &raw_edid[8], VENDOR_INFO_LEN);
 		ret = drm_edid_connector_update(connector, drm_edid);
+		if (!ret)
+			ret = drm_edid_connector_add_modes(connector);
 		if (hdmi->plat_data->get_dovi_data)
 			hdmi->plat_data->get_dovi_data(data, edid, connector);
 		if (hdmi->plat_data->get_colorimetry)
