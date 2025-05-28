@@ -2565,7 +2565,7 @@ static int hdmirx_init_vb2_queue(struct vb2_queue *q,
 	q->ops = &hdmirx_vb2_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct hdmirx_buffer);
-	q->min_buffers_needed = HDMIRX_REQ_BUFS_MIN;
+	q->min_queued_buffers = HDMIRX_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->vlock;
 	q->dev = hdmirx_dev->dev;
