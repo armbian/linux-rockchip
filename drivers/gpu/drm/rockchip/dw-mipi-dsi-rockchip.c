@@ -1584,7 +1584,7 @@ static const struct dev_pm_ops dw_mipi_dsi_rockchip_pm_ops = {
 			   dw_mipi_dsi_runtime_resume, NULL)
 };
 
-static const struct rockchip_dw_dsi_chip_data px30_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused px30_chip_data[] = {
 	{
 		.reg = 0xff450000,
 		.lcdsel_grf_reg = PX30_GRF_PD_VO_CON1,
@@ -1604,7 +1604,7 @@ static const struct rockchip_dw_dsi_chip_data px30_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rk3128_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3128_chip_data[] = {
 	{
 		.reg = 0x10110000,
 		.lanecfg1_grf_reg = RK3128_GRF_LVDS_CON0,
@@ -1619,7 +1619,7 @@ static const struct rockchip_dw_dsi_chip_data rk3128_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rk3288_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3288_chip_data[] = {
 	{
 		.reg = 0xff960000,
 		.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
@@ -1712,7 +1712,7 @@ static int rk3399_dphy_tx1rx1_power_off(struct phy *phy)
 	return 0;
 }
 
-static const struct rockchip_dw_dsi_chip_data rk3399_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3399_chip_data[] = {
 	{
 		.reg = 0xff960000,
 		.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
@@ -1767,7 +1767,7 @@ static const struct rockchip_dw_dsi_chip_data rk3399_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rk3506_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3506_chip_data[] = {
 	{
 		.reg = 0xff640000,
 		.lanecfg1_grf_reg = RK3506_SYS_GRF_SOC_CON6,
@@ -1786,7 +1786,7 @@ static const struct rockchip_dw_dsi_chip_data rk3506_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rk3562_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3562_chip_data[] = {
 	{
 		.reg = 0xffb10000,
 
@@ -1802,7 +1802,7 @@ static const struct rockchip_dw_dsi_chip_data rk3562_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rk3568_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3568_chip_data[] = {
 	{
 		.reg = 0xfe060000,
 		.lanecfg1_grf_reg = RK3568_GRF_VO_CON2,
@@ -1830,7 +1830,7 @@ static const struct rockchip_dw_dsi_chip_data rk3568_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rv1126_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126_chip_data[] = {
 	{
 		.reg = 0xffb30000,
 
@@ -1846,7 +1846,7 @@ static const struct rockchip_dw_dsi_chip_data rv1126_chip_data[] = {
 	{ /* sentinel */ }
 };
 
-static const struct rockchip_dw_dsi_chip_data rv1126b_chip_data[] = {
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126b_chip_data[] = {
 	{
 		.reg = 0x22120000,
 
