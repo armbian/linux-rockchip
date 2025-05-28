@@ -991,12 +991,12 @@ static int dmaengine_mpcm_close(struct snd_soc_component *component,
 	return 0;
 }
 
-static int dmaengine_mpcm_copy_user(struct snd_soc_component *component,
-				    struct snd_pcm_substream *substream,
-				    int channel, unsigned long hwoff,
-				    void __user *buf, unsigned long bytes)
+static int dmaengine_mpcm_copy(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
+			       int channel, unsigned long hwoff,
+			       struct iov_iter *iter, unsigned long bytes)
 {
-	return dlp_copy_user(component, substream, channel, hwoff, buf, bytes);
+	return dlp_copy(component, substream, channel, hwoff, iter, bytes);
 }
 
 
@@ -1024,7 +1024,7 @@ static const struct snd_soc_component_driver dmaengine_mpcm_platform = {
 	.prepare	= dmaengine_mpcm_prepare,
 	.trigger	= dmaengine_mpcm_trigger,
 	.pointer	= dmaengine_mpcm_pointer,
-	.copy_user	= dmaengine_mpcm_copy_user,
+	.copy		= dmaengine_mpcm_copy,
 };
 
 static void dmaengine_mpcm_release_chan(struct dmaengine_mpcm *pcm)

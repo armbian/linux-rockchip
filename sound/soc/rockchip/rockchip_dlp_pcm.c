@@ -345,12 +345,12 @@ static int dmaengine_dlp_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int dmaengine_dlp_copy_user(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream,
-				   int channel, unsigned long hwoff,
-				   void __user *buf, unsigned long bytes)
+static int dmaengine_dlp_copy(struct snd_soc_component *component,
+			      struct snd_pcm_substream *substream,
+			      int channel, unsigned long hwoff,
+			      struct iov_iter *iter, unsigned long bytes)
 {
-	return dlp_copy_user(component, substream, channel, hwoff, buf, bytes);
+	return dlp_copy(component, substream, channel, hwoff, iter, bytes);
 }
 
 static int dmaengine_dlp_prepare(struct snd_soc_component *component,
@@ -374,7 +374,7 @@ static const struct snd_soc_component_driver dmaengine_dlp_component = {
 	.prepare	= dmaengine_dlp_prepare,
 	.trigger	= dmaengine_dlp_trigger,
 	.pointer	= dmaengine_dlp_pointer,
-	.copy_user	= dmaengine_dlp_copy_user,
+	.copy		= dmaengine_dlp_copy,
 	.pcm_construct	= dmaengine_dlp_new,
 };
 

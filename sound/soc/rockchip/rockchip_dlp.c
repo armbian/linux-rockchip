@@ -671,8 +671,8 @@ EXPORT_SYMBOL_GPL(dlp_stop);
 
 static int process_capture(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream,
-			   unsigned long hwoff,
-			   void __user *buf, unsigned long bytes)
+			   int channel, unsigned long hwoff,
+			   unsigned long bytes)
 {
 	struct dlp *dlp = soc_component_to_dlp(component);
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -688,7 +688,7 @@ static int process_capture(struct snd_soc_component *component,
 	char *cbuf = NULL, *pbuf = NULL;
 	void *dma_ptr;
 
-	if (unlikely(!drd || !runtime || !buf))
+	if (unlikely(!drd || !runtime))
 		return -EINVAL;
 
 	frames = dlp_bytes_to_frames(drd, bytes);
@@ -812,13 +812,18 @@ _drd_put:
 
 static int process_playback(struct snd_soc_component *component,
 			    struct snd_pcm_substream *substream,
-			    unsigned long hwoff,
-			    void __user *buf, unsigned long bytes)
+			    int channel, unsigned long hwoff,
+			    unsigned long bytes)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dlp *dlp = soc_component_to_dlp(component);
 	struct dlp_runtime_data *drd;
+	void *dma_ptr;
 	char *pbuf;
 	int ret = 0;
+
+	dma_ptr = runtime->dma_area + hwoff +
+		  channel * (runtime->dma_bytes / runtime->channels);
 
 	drd = drd_get(dlp->drd_pb_shadow);
 	if (!drd)
@@ -826,15 +831,11 @@ static int process_playback(struct snd_soc_component *component,
 
 	pbuf = drd->buf + drd->buf_ofs;
 
-	if (copy_from_user(pbuf, buf, bytes)) {
-		ret = -EFAULT;
-		goto err_put;
-	}
+	memcpy(pbuf, dma_ptr, bytes);
 
 	drd->buf_ofs += bytes;
 	drd->buf_ofs %= dlp_frames_to_bytes(drd, drd->buf_sz);
 
-err_put:
 	drd_put(drd);
 
 	return ret;
@@ -842,8 +843,8 @@ err_put:
 
 static int dlp_process(struct snd_soc_component *component,
 		       struct snd_pcm_substream *substream,
-		       unsigned long hwoff,
-		       void __user *buf, unsigned long bytes)
+		       int channel, unsigned long hwoff,
+		       unsigned long bytes)
 {
 	struct dlp *dlp = soc_component_to_dlp(component);
 	int ret = 0;
@@ -852,9 +853,9 @@ static int dlp_process(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = process_playback(component, substream, hwoff, buf, bytes);
+		ret = process_playback(component, substream, channel, hwoff, bytes);
 	else
-		ret = process_capture(component, substream, hwoff, buf, bytes);
+		ret = process_capture(component, substream, channel, hwoff, bytes);
 
 	return ret;
 }
@@ -915,10 +916,10 @@ static int snd_fill_pattern(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int dlp_copy_user(struct snd_soc_component *component,
-		  struct snd_pcm_substream *substream,
-		  int channel, unsigned long hwoff,
-		  void __user *buf, unsigned long bytes)
+int dlp_copy(struct snd_soc_component *component,
+	     struct snd_pcm_substream *substream,
+	     int channel, unsigned long hwoff,
+	     struct iov_iter *iter, unsigned long bytes)
 {
 	struct dlp_runtime_data *drd = substream_to_drd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -926,7 +927,7 @@ int dlp_copy_user(struct snd_soc_component *component,
 	void *dma_ptr;
 	int ret;
 
-	if (unlikely(!drd || !runtime || !buf))
+	if (unlikely(!drd || !runtime || !iter))
 		return -EINVAL;
 
 	dma_ptr = runtime->dma_area + hwoff +
@@ -935,21 +936,21 @@ int dlp_copy_user(struct snd_soc_component *component,
 	if (is_playback) {
 		if (IS_ENABLED(CONFIG_SND_PCM_PATTERN_DEBUG))
 			snd_fill_pattern(substream, channel, hwoff, bytes);
-		else if (copy_from_user(dma_ptr, buf, bytes))
+		else if (copy_from_iter(dma_ptr, bytes, iter) != bytes)
 			return -EFAULT;
 	}
 
-	ret = dlp_process(component, substream, hwoff, buf, bytes);
+	ret = dlp_process(component, substream, channel, hwoff, bytes);
 	if (!ret)
 		dma_ptr = drd->buf;
 
 	if (!is_playback)
-		if (copy_to_user(buf, dma_ptr, bytes))
+		if (copy_to_iter(dma_ptr, bytes, iter) != bytes)
 			return -EFAULT;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dlp_copy_user);
+EXPORT_SYMBOL_GPL(dlp_copy);
 
 static SOC_ENUM_SINGLE_EXT_DECL(dlp_mode, dlp_text);
 

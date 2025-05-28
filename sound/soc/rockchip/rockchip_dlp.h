@@ -120,10 +120,10 @@ int dlp_start(struct snd_soc_component *component,
 void dlp_stop(struct snd_soc_component *component,
 	      struct snd_pcm_substream *substream,
 	      dma_pointer_f dma_pointer);
-int dlp_copy_user(struct snd_soc_component *component,
-		  struct snd_pcm_substream *substream,
-		  int channel, unsigned long hwoff,
-		  void __user *buf, unsigned long bytes);
+int dlp_copy(struct snd_soc_component *component,
+	     struct snd_pcm_substream *substream,
+	     int channel, unsigned long hwoff,
+	     struct iov_iter *iter, unsigned long bytes);
 int dlp_prepare(struct snd_soc_component *component,
 		struct snd_pcm_substream *substream);
 int dlp_probe(struct snd_soc_component *component);
