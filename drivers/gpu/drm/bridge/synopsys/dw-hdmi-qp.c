@@ -1313,7 +1313,6 @@ static struct i2c_adapter *dw_hdmi_i2c_adapter(struct dw_hdmi_qp *hdmi)
 	init_completion(&i2c->cmp);
 
 	adap = &i2c->adap;
-	adap->class = I2C_CLASS_DDC;
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = hdmi->dev;
 	adap->algo = &dw_hdmi_algorithm;
@@ -2581,14 +2580,14 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 				drm_scdc_readb(hdmi->ddc, SCDC_SINK_VERSION, &bytes);
 				drm_scdc_writeb(hdmi->ddc, SCDC_SOURCE_VERSION,
 						min_t(u8, bytes, SCDC_MIN_SOURCE_VERSION));
-				drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 1);
-				drm_scdc_set_scrambling(hdmi->ddc, 1);
+				drm_scdc_set_high_tmds_clock_ratio(hdmi->curr_conn, 1);
+				drm_scdc_set_scrambling(hdmi->curr_conn, 1);
 				hdmi_writel(hdmi, 1, SCRAMB_CONFIG0);
 				/* Wait for resuming transmission of TMDS clock and data */
 				msleep(100);
 			} else {
-				drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
-				drm_scdc_set_scrambling(hdmi->ddc, 0);
+				drm_scdc_set_high_tmds_clock_ratio(hdmi->curr_conn, 0);
+				drm_scdc_set_scrambling(hdmi->curr_conn, 0);
 				hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 			}
 		}
@@ -2943,14 +2942,14 @@ void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable)
 
 	if (enable && hdmi->disabled) {
 		if (!is_hdmi14) {
-			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 1);
-			drm_scdc_set_scrambling(hdmi->ddc, 1);
+			drm_scdc_set_high_tmds_clock_ratio(hdmi->curr_conn, 1);
+			drm_scdc_set_scrambling(hdmi->curr_conn, 1);
 			hdmi_writel(hdmi, 1, SCRAMB_CONFIG0);
 			/* Wait for resuming transmission of TMDS clock and data */
 			msleep(100);
 		} else {
-			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
-			drm_scdc_set_scrambling(hdmi->ddc, 0);
+			drm_scdc_set_high_tmds_clock_ratio(hdmi->curr_conn, 0);
+			drm_scdc_set_scrambling(hdmi->curr_conn, 0);
 			hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 		}
 
@@ -3598,8 +3597,8 @@ static int dw_hdmi_qp_bridge_attach(struct drm_bridge *bridge,
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
 
-	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(bridge->dev, connector, &dw_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA, hdmi->ddc);
 
 	drm_connector_attach_encoder(connector, encoder);
 	dw_hdmi_attach_properties(hdmi);
