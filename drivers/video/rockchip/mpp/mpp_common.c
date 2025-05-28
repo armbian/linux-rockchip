@@ -1555,7 +1555,7 @@ next:
 			goto session_switch_done;
 
 		f = fdget(bat_msg.fd);
-		if (!f.file) {
+		if (!fd_file(f)) {
 			int ret = -EBADF;
 
 			mpp_err("fd %d get session failed\n", bat_msg.fd);
@@ -1576,12 +1576,9 @@ next:
 		}
 
 		/* switch session */
-		session = f.file->private_data;
+		session = fd_file(f)->private_data;
 		msgs = get_task_msgs(session);
-
-		if (f.file->private_data == session)
-			msgs->ext_fd = bat_msg.fd;
-
+		msgs->ext_fd = bat_msg.fd;
 		msgs->f = f;
 
 		mpp_debug(DEBUG_IOCTL, "fd %d, session %d msg_cnt %d\n",
