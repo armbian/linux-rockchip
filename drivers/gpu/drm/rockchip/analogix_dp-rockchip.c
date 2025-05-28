@@ -32,6 +32,7 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_vop.h"
 
 #define PSR_WAIT_LINE_FLAG_TIMEOUT_MS	100
 
