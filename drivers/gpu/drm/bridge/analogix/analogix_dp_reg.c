@@ -559,7 +559,6 @@ bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)
 
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 {
-	u32 status;
 	int ret;
 
 	analogix_dp_write(dp, ANALOGIX_DP_LINK_BW_SET, bwtype);
@@ -585,14 +584,6 @@ void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 			analogix_dp_ssc_enable(dp);
 		else
 			analogix_dp_ssc_disable(dp);
-	}
-
-	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
-				 status != PLL_UNLOCKED, 120,
-				 120 * DP_TIMEOUT_LOOP_COUNT);
-	if (ret) {
-		dev_err(dp->dev, "Wait for pll lock failed %d\n", ret);
-		return;
 	}
 }
 
@@ -1126,18 +1117,6 @@ void analogix_dp_phy_power_off(struct analogix_dp_device *dp)
 {
 	phy_power_off(dp->phy);
 }
-
-enum {
-	AUX_STATUS_OK,
-	AUX_STATUS_NACK_ERROR,
-	AUX_STATUS_TIMEOUT_ERROR,
-	AUX_STATUS_UNKNOWN_ERROR,
-	AUX_STATUS_MUCH_DEFER_ERROR,
-	AUX_STATUS_TX_SHORT_ERROR,
-	AUX_STATUS_RX_SHORT_ERROR,
-	AUX_STATUS_NACK_WITHOUT_M_ERROR,
-	AUX_STATUS_I2C_NACK_ERROR
-};
 
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg)

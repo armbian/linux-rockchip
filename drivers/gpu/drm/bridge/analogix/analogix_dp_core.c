@@ -2628,7 +2628,7 @@ int analogix_dp_suspend(struct analogix_dp_device *dp)
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
 
-	clk_disable_unprepare(dp->clock);
+	clk_bulk_disable_unprepare(dp->nr_clks, dp->clks);
 
 	return 0;
 }
@@ -2638,7 +2638,7 @@ int analogix_dp_resume(struct analogix_dp_device *dp)
 {
 	int ret;
 
-	ret = clk_prepare_enable(dp->clock);
+	ret = clk_bulk_prepare_enable(dp->nr_clks, dp->clks);
 	if (ret < 0) {
 		DRM_ERROR("Failed to prepare_enable the clock clk [%d]\n", ret);
 		return ret;
@@ -2722,12 +2722,6 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 	}
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
-
-void analogix_dp_remove(struct analogix_dp_device *dp)
-{
-	cancel_work_sync(&dp->modeset_retry_work);
-}
-EXPORT_SYMBOL_GPL(analogix_dp_remove);
 
 int analogix_dp_start_crc(struct drm_connector *connector)
 {
