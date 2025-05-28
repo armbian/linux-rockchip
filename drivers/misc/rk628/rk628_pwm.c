@@ -57,12 +57,12 @@
 
 static inline struct rk628 *to_rk628(struct rk628_pwm *p)
 {
-	return container_of(p, struct rk628, pwm);
+	return platform_get_drvdata(p->pdev);
 }
 
 static inline struct rk628_pwm *to_rk628_pwm(struct pwm_chip *pc)
 {
-	return container_of(pc, struct rk628_pwm, chip);
+	return pwmchip_get_drvdata(pc);
 }
 
 static void rk628_pwm_dclk_enable(struct rk628 *rk628)
@@ -181,7 +181,7 @@ static void rk628_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		ctrl |= PWM_SEL_NO_SCALED_CLOCK;
 
 		if (state->oneshot_count)
-			dev_err(chip->dev, "Oneshot_count must be between 1 and 256.\n");
+			dev_err(pwmchip_parent(chip), "Oneshot_count must be between 1 and 256.\n");
 
 		p->oneshot_en = false;
 		ctrl &= ~PWM_MODE_MASK;
@@ -291,12 +291,12 @@ out:
 static const struct pwm_ops rk628_pwm_ops = {
 	.get_state = rk628_pwm_get_state,
 	.apply = rk628_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 {
-	struct pwm_chip *chip = &rk628->pwm.chip;
+	struct rk628_pwm *pwm;
+	struct pwm_chip *chip;
 	struct platform_device *pd;
 	int ret;
 
@@ -305,6 +305,15 @@ int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 		dev_err(rk628->dev, "failed to alloc pwm platform device\n");
 		return -EINVAL;
 	}
+	pd->dev.of_node = pwm_np;
+
+	platform_set_drvdata(pd, rk628);
+
+	chip = devm_pwmchip_alloc(&pd->dev, 1, sizeof(*pwm));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pwm = to_rk628_pwm(chip);
+	rk628->pwm = pwm;
 
 	ret = platform_device_add(pd);
 	if (ret) {
@@ -312,21 +321,16 @@ int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 		return -EINVAL;
 	}
 
-	chip->dev = &pd->dev;
-	chip->dev->of_node = pwm_np;
 	chip->ops = &rk628_pwm_ops;
-	chip->base = -1;
-	chip->npwm = 1;
-	chip->of_xlate = of_pwm_xlate_with_flags;
-	chip->of_pwm_n_cells = 3;
 
-	rk628->pwm.clk_rate = PWM_DCLK_RATE;
+	pwm->pdev = pd;
+	pwm->clk_rate = PWM_DCLK_RATE;
 
-	rk628->pwm.center_aligned = of_property_read_bool(pwm_np, "pwm,center-aligned");
-	rk628->pwm.is_output_m1 = of_property_read_bool(pwm_np, "pwm,output-m1");
+	pwm->center_aligned = of_property_read_bool(pwm_np, "pwm,center-aligned");
+	pwm->is_output_m1 = of_property_read_bool(pwm_np, "pwm,output-m1");
 	rk628->pwm_bl_en = of_property_read_bool(pwm_np, "pwm,backlight");
 
-	ret = pwmchip_add(chip);
+	ret = devm_pwmchip_add(&pd->dev, chip);
 	if (ret < 0) {
 		dev_err(rk628->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;

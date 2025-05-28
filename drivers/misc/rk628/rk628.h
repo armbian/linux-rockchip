@@ -554,7 +554,7 @@ struct rk628_rgb {
 };
 
 struct rk628_pwm {
-	struct pwm_chip chip;
+	struct platform_device *pdev;
 	unsigned long clk_rate;
 	bool center_aligned;
 	bool oneshot_en;
@@ -593,7 +593,7 @@ struct rk628 {
 	struct rk628_lvds lvds;
 	struct rk628_gvi gvi;
 	struct rk628_combtxphy combtxphy;
-	struct rk628_pwm pwm;
+	struct rk628_pwm *pwm;
 	int sync_pol;
 	void *csi;
 	struct notifier_block fb_nb;
