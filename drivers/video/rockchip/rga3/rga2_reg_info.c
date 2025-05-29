@@ -3035,6 +3035,27 @@ static void rga2_dump_read_back_cmd_reg(struct rga_job *job, struct rga_schedule
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
+static void rga2_dump_read_back_iommu_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		cmd_reg[i] = rga_read(RGA2_IOMMU_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	rga_job_log(job, "IOMMU_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_IOMMU_REG_BASE + i * 0x10,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+}
+
 static void rga2_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	rga2_dump_read_back_sys_reg(job, scheduler);
@@ -3042,6 +3063,7 @@ static void rga2_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t 
 	if (scheduler->data->version > 0)
 		rga2_dump_read_back_other_reg(job, scheduler);
 	rga2_dump_read_back_cmd_reg(job, scheduler);
+	rga2_dump_read_back_iommu_reg(job, scheduler);
 }
 
 static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
@@ -3132,6 +3154,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				RGA2_CMD_REG_BASE + i * 0x10,
 				cmd[0 + i * 4], cmd[1 + i * 4],
 				cmd[2 + i * 4], cmd[3 + i * 4]);
+		rga2_dump_read_back_iommu_reg(scheduler->running_job, scheduler);
 	}
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);

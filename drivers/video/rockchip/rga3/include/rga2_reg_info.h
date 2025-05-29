@@ -8,6 +8,7 @@
 #define RGA2_CSC_REG_BASE			0x060
 #define RGA2_OTHER_REG_BASE			0x090
 #define RGA2_CMD_REG_BASE			0x100
+#define RGA2_IOMMU_REG_BASE			0xf00
 
 /* sys reg */
 #define RGA2_SYS_CTRL				0x000
