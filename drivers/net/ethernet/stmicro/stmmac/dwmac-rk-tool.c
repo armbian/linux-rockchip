@@ -9,7 +9,7 @@
 #include <linux/if_ether.h>
 #include <linux/if.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/regmap.h>
@@ -91,11 +91,9 @@ struct dwmac_rk_lb_priv {
 
 #define DMA_CONTROL_OSP		BIT(4)
 #define DMA_CHAN_BASE_ADDR	0x00001100
-#define DMA_CHAN_BASE_OFFSET	0x80
 #define DMA_CHANX_BASE_ADDR(x)	(DMA_CHAN_BASE_ADDR + \
 				((x) * DMA_CHAN_BASE_OFFSET))
 #define DMA_CHAN_TX_CONTROL(x)	(DMA_CHANX_BASE_ADDR(x) + 0x4)
-#define DMA_CHAN_STATUS(x)	(DMA_CHANX_BASE_ADDR(x) + 0x60)
 #define DMA_CHAN_STATUS_ERI	BIT(11)
 #define DMA_CHAN_STATUS_ETI	BIT(10)
 
@@ -174,7 +172,7 @@ static int dwmac_rk_enable_mac_loopback(struct stmmac_priv *priv, int speed,
 	}
 
 	if (likely(priv->plat->fix_mac_speed))
-		priv->plat->fix_mac_speed(priv->plat->bsp_priv, speed);
+		priv->plat->fix_mac_speed(priv->plat->bsp_priv, speed, PHY_INTERFACE_MODE_RGMII);
 
 	return 0;
 }
@@ -258,7 +256,7 @@ static int dwmac_rk_enable_phy_loopback(struct stmmac_priv *priv, int speed,
 	}
 
 	if (likely(priv->plat->fix_mac_speed))
-		priv->plat->fix_mac_speed(priv->plat->bsp_priv, speed);
+		priv->plat->fix_mac_speed(priv->plat->bsp_priv, speed, PHY_INTERFACE_MODE_RGMII);
 
 	return 0;
 }
@@ -628,17 +626,14 @@ static int dwmac_rk_get_desc_status(struct stmmac_priv *priv,
 	int tx_status, rx_status;
 
 	txp = lb_priv->dma_tx;
-	tx_status = priv->hw->desc->tx_status(&priv->dev->stats,
-					      &priv->xstats, txp,
-					      priv->ioaddr);
+	tx_status = stmmac_tx_status(priv, &priv->xstats, txp, priv->ioaddr);
 	/* Check if the descriptor is owned by the DMA */
 	if (unlikely(tx_status & tx_dma_own))
 		return -EBUSY;
 
 	rxp = lb_priv->dma_rx;
 	/* read the status of the incoming frame */
-	rx_status = priv->hw->desc->rx_status(&priv->dev->stats,
-					      &priv->xstats, rxp);
+	rx_status = stmmac_rx_status(priv, &priv->xstats, rxp);
 	if (unlikely(rx_status & dma_own))
 		return -EBUSY;
 
@@ -700,7 +695,7 @@ static int dwmac_rk_xmit(struct sk_buff *skb, struct net_device *dev,
 	stmmac_prepare_tx_desc(priv, desc, 1, nopaged_len,
 			       csum_insertion, priv->mode, 1, 1,
 			       skb->len);
-	stmmac_enable_dma_transmission(priv, priv->ioaddr);
+	stmmac_enable_dma_transmission(priv, priv->ioaddr, 0);
 
 	lb_priv->tx_tail_addr = lb_priv->dma_tx_phy + sizeof(*desc);
 	stmmac_set_tx_tail_ptr(priv, priv->ioaddr, lb_priv->tx_tail_addr, 0);
@@ -1083,7 +1078,7 @@ static int dwmac_rk_init_dma_engine(struct stmmac_priv *priv,
 	}
 
 	/* DMA Configuration */
-	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg, 0);
+	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg);
 
 	if (priv->plat->axi)
 		stmmac_axi(priv, priv->ioaddr, priv->plat->axi);
