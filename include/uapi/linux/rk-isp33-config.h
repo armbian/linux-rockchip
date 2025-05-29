@@ -1362,6 +1362,7 @@ struct isp33_isp_params_cfg {
 	__u32 frame_id;
 	struct isp33_isp_meas_cfg meas;
 	struct isp33_isp_other_cfg others;
+	struct sensor_exposure_cfg exposure;
 } __attribute__ ((packed));
 
 struct rkisp33_thunderboot_resmem_head {

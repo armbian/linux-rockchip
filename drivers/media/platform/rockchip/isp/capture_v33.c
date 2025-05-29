@@ -1198,7 +1198,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	unsigned long lock_flags = 0;
 	struct rkisp_buffer *buf = NULL;
-	u32 i;
+	u32 i, seq;
 
 	/* STREAM_VIR or STREAM_MP wrap buf from rockit */
 	if (stream->id == RKISP_STREAM_VIR ||
@@ -1242,22 +1242,50 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 			goto end;
 		}
 
+		rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
+		if (!ns)
+			ns = rkisp_time_get_ns(dev);
+
 		for (i = 0; i < isp_fmt->mplanes; i++) {
 			u32 payload_size = stream->out_fmt.plane_fmt[i].sizeimage;
 
 			vb2_set_plane_payload(vb2_buf, i, payload_size);
+			if (stream->is_attach_info &&
+			    vb2_buf->memory && i == isp_fmt->mplanes - 1) {
+				struct rkisp_frame_info *info = buf->vaddr[i] + payload_size;
+				struct sensor_exposure_cfg *exp = &dev->params_vdev.exposure;
+
+				info->seq = seq;
+				info->hdr = dev->params_vdev.is_hdr;
+				info->timestamp = IS_HDR_RDBK(dev->rd_mode) ? ns : dev->vicap_sof.timestamp;
+				info->rolling_shutter_skew = exp->linear_exp.rolling_shutter_skew;
+				info->sensor_exposure_time = exp->linear_exp.coarse_integration_time;
+				info->sensor_analog_gain = exp->linear_exp.analog_gain_code_global;
+				info->sensor_digital_gain = exp->linear_exp.digital_gain_global;
+				info->isp_digital_gain = exp->linear_exp.isp_digital_gain;
+				if (info->hdr) {
+					info->rolling_shutter_skew = exp->hdr_exp[0].rolling_shutter_skew;
+
+					info->sensor_exposure_time = exp->hdr_exp[0].coarse_integration_time;
+					info->sensor_analog_gain = exp->hdr_exp[0].analog_gain_code_global;
+					info->sensor_digital_gain = exp->hdr_exp[0].digital_gain_global;
+					info->isp_digital_gain = exp->hdr_exp[0].isp_digital_gain;
+
+					info->sensor_exposure_time_l = exp->hdr_exp[1].coarse_integration_time;
+					info->sensor_analog_gain_l = exp->hdr_exp[1].analog_gain_code_global;
+					info->sensor_digital_gain_l = exp->hdr_exp[1].digital_gain_global;
+					info->isp_digital_gain_l = exp->hdr_exp[1].isp_digital_gain;
+				}
+			}
 		}
 
-		rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
-		if (!ns)
-			ns = rkisp_time_get_ns(dev);
-		buf->vb.sequence = i;
+		buf->vb.sequence = seq;
 		vb2_buf->timestamp = ns;
 		ns = rkisp_time_get_ns(dev);
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.delay = ns - vb2_buf->timestamp;
 		stream->dbg.timestamp = ns;
-		stream->dbg.id = i;
+		stream->dbg.id = seq;
 
 		if (vir->streaming && vir->conn_id == stream->id) {
 			spin_lock_irqsave(&vir->vbq_lock, lock_flags);
@@ -1410,6 +1438,9 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 			plane_fmt->sizeimage / height *
 			ALIGN(height, 16) :
 			plane_fmt->sizeimage;
+		/* attach information size */
+		if (stream->is_attach_info && i == isp_fmt->mplanes - 1)
+			sizes[i] += sizeof(struct rkisp_frame_info);
 	}
 
 	rkisp_chk_tb_over(dev);

@@ -3710,10 +3710,11 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_isp_params_ops_v33 *ops = params_vdev->priv_ops;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
-	params_vdev->cur_frame_id = new_params->frame_id;
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
+	params_vdev->cur_frame_id = new_params->frame_id;
+	params_vdev->exposure = new_params->exposure;
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_cfg_update:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_cfg_update);
