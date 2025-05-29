@@ -2723,9 +2723,13 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	if (i == RGA_RESET_TIMEOUT)
 		rga_err("%s[%#x] soft reset timeout.\n",
 			rga_get_core_name(scheduler->core), scheduler->core);
-	else
-		rga_log("%s[%#x] soft reset complete.\n",
-			rga_get_core_name(scheduler->core), scheduler->core);
+}
+
+static void rga2_soft_reset_print(struct rga_scheduler_t *scheduler)
+{
+	rga2_soft_reset(scheduler);
+	rga_log("%s[%#x] soft reset complete.\n",
+		rga_get_core_name(scheduler->core), scheduler->core);
 }
 
 static int rga2_check_param(struct rga_job *job,
@@ -3132,12 +3136,11 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		sys_ctrl |= m_RGA2_SYS_CTRL_DST_WR_OPT_DIS | m_RGA2_SRC0_YUV420SP_RD_OPT_DIS;
 
 	if (rga_hw_has_issue(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST)) {
-		/*
-		 *   when RGA is running continuously, disabling auto_rst
-		 * requires resetting core_clk.
-		 */
-		rga_write(m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_CCLK_SRESET_P,
-			  RGA2_SYS_CTRL, scheduler);
+		/* disable all_finish & cur_finish intr_en */
+		rga_write(0, RGA2_INT, scheduler);
+		rga_write(0, RGA2_CMD_REG_BASE + RGA2_MODE_CTRL_OFFSET, scheduler);
+		/* replace auto_rst */
+		rga2_soft_reset(scheduler);
 	} else {
 		sys_ctrl |= m_RGA2_SYS_CTRL_AUTO_RST;
 	}
@@ -3346,7 +3349,7 @@ const struct rga_backend_ops rga2_ops = {
 	.get_version = rga2_get_version,
 	.set_reg = rga2_set_reg,
 	.init_reg = rga2_init_reg,
-	.soft_reset = rga2_soft_reset,
+	.soft_reset = rga2_soft_reset_print,
 	.read_back_reg = rga2_read_back_reg,
 	.read_status = rga2_read_status,
 	.irq = rga2_irq,
