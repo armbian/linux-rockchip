@@ -33,9 +33,8 @@
 //};
 
 struct rfkill_rk_gpio {
-    int     io;
+    struct  gpio_desc        *io;
     char    name[RFKILL_RK_GPIO_NAME_SIZE];
-    int     enable; // disable = !enable
     struct  pinctrl_state    *gpio_state;
     struct  pinctrl_state    *default_state;
 };

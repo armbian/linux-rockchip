@@ -14,7 +14,7 @@ struct rksdmmc_iomux {
 };
 
 struct rksdmmc_gpio {
-    int     io;                             //set the address of gpio
+    struct gpio_desc      *io;
     char    name[64];   //
     int     enable;  // disable = !enable   //set the default value,i.e,GPIO_HIGH or GPIO_LOW
     struct rksdmmc_iomux  iomux;

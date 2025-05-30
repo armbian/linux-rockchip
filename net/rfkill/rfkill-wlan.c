@@ -47,6 +47,9 @@
 #include <linux/device.h>
 
 #include "../../drivers/mmc/core/pwrseq.h"
+#include <linux/gpio/consumer.h>
+#include "../../drivers/gpio/gpiolib.h"
+#include "rfkill.h"
 
 #if 0
 #define DBG(x...) pr_info("[WLAN_RFKILL]: " x)
@@ -65,8 +68,6 @@ static struct rfkill_wlan_data *g_rfkill = NULL;
 static int power_set_time = 0;
 static int wifi_bt_vbat_state;
 static int wifi_power_state;
-
-static const char wlan_name[] = "rkwifi";
 
 static char wifi_chip_type_string[64];
 /***********************************************************
@@ -187,11 +188,11 @@ int rfkill_set_wifi_bt_power(int on)
 
 	vbat = &mrfkill->pdata->vbat_n;
 	if (on) {
-		if (gpio_is_valid(vbat->io))
-			gpio_direction_output(vbat->io, vbat->enable);
+		if (vbat->io)
+			gpiod_direction_output(vbat->io, vbat->enable);
 	} else {
-		if (gpio_is_valid(vbat->io))
-			gpio_direction_output(vbat->io, !(vbat->enable));
+		if (vbat->io)
+			gpiod_direction_output(vbat->io, !(vbat->enable));
 	}
 	wifi_bt_vbat_state = on;
 	return 0;
@@ -295,27 +296,27 @@ int rockchip_wifi_power(int on)
 				msleep(100);
 			}
 
-			if (gpio_is_valid(poweron->io)) {
-				gpio_direction_output(poweron->io, poweron->enable);
+			if (poweron->io) {
+				gpiod_direction_output(poweron->io, poweron->enable);
 				msleep(100);
 			}
 
-			if (gpio_is_valid(reset->io)) {
-				gpio_direction_output(reset->io, reset->enable);
+			if (reset->io) {
+				gpiod_direction_output(reset->io, reset->enable);
 				msleep(100);
 			}
 
 			wifi_power_state = 1;
-			LOG("wifi turn on power [GPIO%d-%d]\n", poweron->io, poweron->enable);
+			LOG("wifi turn on power [%d]\n", poweron->enable);
 		} else {
-			if (gpio_is_valid(poweron->io)) {
+			if (poweron->io) {
 				printk("wifi power off\n");
-				gpio_direction_output(poweron->io, !(poweron->enable));
+				gpiod_direction_output(poweron->io, !(poweron->enable));
 				msleep(100);
 			}
 
-			if (gpio_is_valid(reset->io)) {
-				gpio_direction_output(reset->io, !(reset->enable));
+			if (reset->io) {
+				gpiod_direction_output(reset->io, !reset->enable);
 			}
 
 			wifi_power_state = 0;
@@ -332,7 +333,7 @@ int rockchip_wifi_power(int on)
 					LOG("%s: wifi shouldn't control the vbat\n", __func__);
 				}
 			}
-			LOG("wifi shut off power [GPIO%d-%d]\n", poweron->io, !poweron->enable);
+			LOG("wifi shut off power [%d]\n", !poweron->enable);
 		}
 	}
 
@@ -370,9 +371,8 @@ int rockchip_wifi_get_oob_irq(void)
 	}
 
 	wifi_int_irq = &mrfkill->pdata->wifi_int_b;
-	if (gpio_is_valid(wifi_int_irq->io)) {
-		return gpio_to_irq(wifi_int_irq->io);
-		//return wifi_int_irq->io;
+	if (wifi_int_irq->io) {
+		return gpiod_to_irq(wifi_int_irq->io);
 	} else {
 		LOG("%s: wifi OOB pin isn't defined.\n", __func__);
 	}
@@ -389,7 +389,7 @@ int rockchip_wifi_get_oob_irq_flag(void)
 
 	if (mrfkill) {
 		wifi_int_irq = &mrfkill->pdata->wifi_int_b;
-		if (gpio_is_valid(wifi_int_irq->io))
+		if (wifi_int_irq->io)
 			gpio_flags = wifi_int_irq->enable;
 	}
 
@@ -517,32 +517,36 @@ void *rockchip_wifi_country_code(char *ccode)
 EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
 
-static int rfkill_rk_setup_gpio(struct rksdmmc_gpio *gpio, const char *prefix,
-				const char *name)
+#ifdef CONFIG_OF
+static int rkwlangpiod_request(struct device *dev,
+			       const char *con_id,
+			       enum gpiod_flags flags,
+			       struct rksdmmc_gpio   *rk_gpio)
 {
-	if (gpio_is_valid(gpio->io)) {
-		int ret = 0;
+	struct  gpio_desc	*gpio;
+	int error;
 
-		sprintf(gpio->name, "%s_%s", prefix, name);
-		ret = gpio_request(gpio->io, gpio->name);
-		if (ret) {
-			LOG("Failed to get %s gpio.\n", gpio->name);
-			return -1;
-		}
+	gpio = devm_gpiod_get(dev, con_id, flags);
+	error = PTR_ERR_OR_ZERO(gpio);
+	if (error) {
+		LOG("%s failed to request %s gpio, err %d\n", __func__, con_id, error);
+		rk_gpio->io = NULL;
+	} else {
+		rk_gpio->io = gpio;
+		rk_gpio->enable = test_bit(FLAG_ACTIVE_LOW, &gpio->flags) ? 0 : 1;
+		LOG("%s get property: %s enable %d\n", __func__, con_id, rk_gpio->enable);
 	}
 
-	return 0;
+	return error;
 }
 
-#ifdef CONFIG_OF
 static int wlan_platdata_parse_dt(struct device *dev,
 				  struct rksdmmc_gpio_wifi_moudle *data)
 {
 	struct device_node *node = dev->of_node;
 	const char *strings;
 	u32 value;
-	int gpio, ret;
-	enum of_gpio_flags flags;
+	int ret;
 	u32 ext_clk_value = 0;
 
 	if (!node)
@@ -604,48 +608,12 @@ static int wlan_platdata_parse_dt(struct device *dev,
 	} else {
 		data->mregulator.power_ctrl_by_pmu = false;
 		LOG("%s: wifi power controled by gpio.\n", __func__);
-		gpio = of_get_named_gpio_flags(node, "WIFI,poweren_gpio", 0,
-					       &flags);
-		if (gpio_is_valid(gpio)) {
-			data->power_n.io = gpio;
-			data->power_n.enable =
-				(flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
-			LOG("%s: WIFI,poweren_gpio = %d flags = %d.\n",
-			    __func__, gpio, flags);
-		} else {
-			data->power_n.io = -1;
-		}
-		gpio = of_get_named_gpio_flags(node, "WIFI,vbat_gpio", 0,
-					       &flags);
-		if (gpio_is_valid(gpio)) {
-			data->vbat_n.io = gpio;
-			data->vbat_n.enable =
-				(flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
-			LOG("%s: WIFI,vbat_gpio = %d, flags = %d.\n",
-			    __func__, gpio, flags);
-		} else {
-			data->vbat_n.io = -1;
-		}
-		gpio = of_get_named_gpio_flags(node, "WIFI,reset_gpio", 0,
-					       &flags);
-		if (gpio_is_valid(gpio)) {
-			data->reset_n.io = gpio;
-			data->reset_n.enable =
-				(flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
-			LOG("%s: WIFI,reset_gpio = %d, flags = %d.\n",
-			    __func__, gpio, flags);
-		} else {
-			data->reset_n.io = -1;
-		}
-		gpio = of_get_named_gpio_flags(node, "WIFI,host_wake_irq", 0,
-					       &flags);
-		if (gpio_is_valid(gpio)) {
-			data->wifi_int_b.io = gpio;
-			data->wifi_int_b.enable = !flags;
-			LOG("%s: WIFI,host_wake_irq = %d, flags = %d.\n",
-			    __func__, gpio, flags);
-		} else {
-			data->wifi_int_b.io = -1;
+
+		ret = rkwlangpiod_request(dev, "WIFI,poweren", GPIOD_OUT_HIGH, &data->power_n);
+		if (!ret) {
+			rkwlangpiod_request(dev, "WIFI,vbat", GPIOD_OUT_HIGH, &data->vbat_n);
+			rkwlangpiod_request(dev, "WIFI,reset", GPIOD_OUT_HIGH, &data->reset_n);
+			rkwlangpiod_request(dev, "WIFI,host_wake", GPIOD_ASIS, &data->wifi_int_b);
 		}
 	}
 
@@ -741,12 +709,12 @@ static struct notifier_block rfkill_wlan_fb_notifier = {
 	.notifier_call = rfkill_wlan_fb_event_notify,
 };
 
-static ssize_t wifi_power_show(struct class *cls, struct class_attribute *attr, char *_buf)
+static ssize_t wifi_power_show(const struct class *cls, const struct class_attribute *attr, char *_buf)
 {
 	return sprintf(_buf, "%d\n", wifi_power_state);
 }
 
-static ssize_t wifi_power_store(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+static ssize_t wifi_power_store(const struct class *cls, const struct class_attribute *attr, const char *_buf, size_t _count)
 {
 	long poweren = 0;
 
@@ -765,12 +733,12 @@ static ssize_t wifi_power_store(struct class *cls, struct class_attribute *attr,
 
 static CLASS_ATTR_RW(wifi_power);
 
-static ssize_t wifi_bt_vbat_show(struct class *cls, struct class_attribute *attr, char *_buf)
+static ssize_t wifi_bt_vbat_show(const struct class *cls, const struct class_attribute *attr, char *_buf)
 {
 	return sprintf(_buf, "%d\n", wifi_bt_vbat_state);
 }
 
-static ssize_t wifi_bt_vbat_store(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+static ssize_t wifi_bt_vbat_store(const struct class *cls, const struct class_attribute *attr, const char *_buf, size_t _count)
 {
 	long vbat = 0;
 
@@ -789,7 +757,7 @@ static ssize_t wifi_bt_vbat_store(struct class *cls, struct class_attribute *att
 
 static CLASS_ATTR_RW(wifi_bt_vbat);
 
-static ssize_t wifi_set_carddetect_store(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+static ssize_t wifi_set_carddetect_store(const struct class *cls, const struct class_attribute *attr, const char *_buf, size_t _count)
 {
 	long val = 0;
 
@@ -830,7 +798,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 
 	LOG("Enter %s\n", __func__);
 
-	class_register(&rkwifi_power);
+	ret = class_register(&rkwifi_power);
+	if (ret < 0)
+		return ret;
 
 	if (!pdata) {
 #ifdef CONFIG_OF
@@ -858,15 +828,6 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	LOG("%s: init gpio\n", __func__);
 
 	if (!pdata->mregulator.power_ctrl_by_pmu) {
-		ret = rfkill_rk_setup_gpio(&pdata->vbat_n, wlan_name,
-					   "wlan_vbat");
-		if (ret)
-			goto fail_alloc;
-
-		ret = rfkill_rk_setup_gpio(&pdata->reset_n, wlan_name,
-					   "wlan_reset");
-		if (ret)
-			goto fail_alloc;
 	}
 
 	wake_lock_init(&rfkill->wlan_irq_wl, WAKE_LOCK_SUSPEND,
@@ -875,8 +836,8 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	rfkill_set_wifi_bt_power(1);
 
 #ifdef CONFIG_SDIO_KEEPALIVE
-	if (gpio_is_valid(pdata->power_n.io) &&
-		gpio_direction_output(pdata->power_n.io, pdata->power_n.enable);
+	if (pdata->power_n.io)
+		gpiod_direction_output(pdata->power_n.io, pdata->power_n.enable);
 #endif
 
 
@@ -896,8 +857,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	LOG("Exit %s\n", __func__);
 
 	return 0;
-
+#ifdef COMPATIBILE_WITH_GPIO_FOR_LOWERVERSION
 fail_alloc:
+#endif
 	kfree(rfkill);
 rfkill_alloc_fail:
 	kfree(pdata);
@@ -920,13 +882,6 @@ static void rfkill_wlan_remove(struct platform_device *pdev)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&wlan_early_suspend_handler);
 #endif
-
-	if (gpio_is_valid(rfkill->pdata->power_n.io))
-		gpio_free(rfkill->pdata->power_n.io);
-
-	if (gpio_is_valid(rfkill->pdata->reset_n.io))
-		gpio_free(rfkill->pdata->reset_n.io);
-
 	kfree(rfkill);
 	g_rfkill = NULL;
 }
