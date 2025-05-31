@@ -812,7 +812,9 @@ rkisp_stats_first_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	rkisp_get_stat_size_v35(stats_vdev, &size);
 	stats_vdev->stats_buf[0].is_need_vaddr = true;
 	stats_vdev->stats_buf[0].size = size;
-	if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]))
+	if (!stats_vdev->stats_buf[0].mem_priv)
+		rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]);
+	if (!stats_vdev->stats_buf[0].vaddr)
 		v4l2_warn(&dev->v4l2_dev, "stats alloc buf fail\n");
 	else
 		memset(stats_vdev->stats_buf[0].vaddr, 0, size);
@@ -823,12 +825,14 @@ rkisp_stats_first_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (dev->hw_dev->is_single)
 		rkisp_unite_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);
 	val = rkisp_read(dev, ISP39_W3A_CTRL0, false);
+	val &= ~(ISP39_W3A_AUTO_CLR_EN | ISP35_W3A_FORCE_UPD_F);
 	val |= ISP39_W3A_EN | ISP39_W3A_FORCE_UPD;
 	if (!dev->is_aiisp_en)
 		val |= ISP39_W3A_AUTO_CLR_EN;
 	else
 		val |= ISP35_W3A_FORCE_UPD_F;
-	if (pdaf_vdev && pdaf_vdev->streaming) {
+	if (pdaf_vdev && pdaf_vdev->streaming &&
+	    !(dev->isp_state & ISP_START)) {
 		val |= ISP39_W3A_PDAF_EN;
 		rkisp_pdaf_update_buf(dev);
 		if (pdaf_vdev->next_buf) {
@@ -857,7 +861,8 @@ rkisp_stats_next_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (hw->is_single) {
 		if (!dev->is_aiisp_en)
 			rkisp_stats_update_buf(stats_vdev);
-		if (pdaf_vdev && pdaf_vdev->streaming)
+		if (pdaf_vdev && pdaf_vdev->streaming &&
+		    !(dev->isp_state & ISP_START))
 			rkisp_pdaf_update_buf(dev);
 	}
 }

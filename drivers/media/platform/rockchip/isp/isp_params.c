@@ -312,6 +312,10 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		params_vdev->is_first_cfg = false;
 	}
 	dev->is_aiisp_yuv = false;
+	dev->is_aiisp_en = false;
+	dev->is_aiisp_stop = false;
+	dev->is_aiisp_stopping = false;
+	memset(&dev->aiisp_cfg, 0, sizeof(dev->aiisp_cfg));
 	dev->fpn_cfg.en = 0;
 	if (dev->fpn_cfg.buf) {
 		vfree(dev->fpn_cfg.buf);

@@ -64,7 +64,8 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			goto pipe_close;
 		sditf->is_on = true;
-		dev->irq_ends_mask |= ISP_FRAME_VPSS;
+		if (!dev->is_aiisp_sync)
+			dev->irq_ends_mask |= ISP_FRAME_VPSS;
 		goto unlock;
 	}
 	sditf->is_on = false;

@@ -4459,13 +4459,14 @@ isp_ai_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 i, val;
 
 	val = isp3_param_read(params_vdev, ISP35_AI_CTRL, id);
-	val &= (ISP35_AIISP_EN | ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN);
+	val &= (ISP35_AIISP_EN | ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN |
+		ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN);
 	val |= //!!arg->aiisp_raw12_msb << 2 |
 	       (arg->aiisp_gain_mode & 0x3) << 4 |
 	       !!arg->aiisp_curve_en << 6 |
-	       !!arg->aipre_iir_en << 8 |
+	       //!!arg->aipre_iir_en << 8 |
 	       //!!arg->aipre_iir2ddr_en << 9 |
-	       !!arg->aipre_gain_en << 10 |
+	       //!!arg->aipre_gain_en << 10 |
 	       //!!arg->aipre_gain2ddr_en << 11 |
 	       !!arg->aipre_yraw_sel << 12 |
 	       !!arg->aipre_nl_ddr_mode << 13 |
@@ -4525,7 +4526,8 @@ isp_ai_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 
 	if (en == !!(ctrl & ISP35_MODULE_EN))
 		return;
-	ctrl &= ~(ISP35_AIISP_ST | ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN);
+	ctrl &= ~(ISP35_AIISP_ST | ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN |
+		  ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN);
 	if (en) {
 		if (priv->buf_aipre_gain[0].mem_priv) {
 			priv->aipre_gain_idx = 0;
@@ -4534,15 +4536,21 @@ isp_ai_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			isp3_param_write(params_vdev, val, ISP35_AI_PRE_GAIN_WR_BASE, id);
 			val = priv->aipre_gain_stride;
 			isp3_param_write(params_vdev, val, ISP35_AI_PRE_GAIN_WR_STRIDE, id);
-			ctrl |= ISP35_AIPRE_GIAN2DDR_EN;
+			ctrl |= ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIPRE_GAIN_EN;
 		}
 		if (priv->buf_vpsl[0].mem_priv) {
+			if (priv->yraw_sel)
+				ctrl |= ISP35_AIPRE_IIR_EN;
 			vpsl_update_buf(params_vdev, priv->pbuf_vpsl, true);
 			priv->vpsl_cur_idx = priv->vpsl_idx;
+			if (params_vdev->dev->is_aiisp_sync)
+				params_vdev->dev->irq_ends_mask |= ISP_FRAME_VPSL;
 		}
 		ctrl |= ISP35_AIPRE_ITS_FORCE_UPD;
 		if (params_vdev->dev->is_aiisp_en)
 			ctrl |= ISP35_AIISP_EN;
+		else if (params_vdev->dev->is_aiisp_stop)
+			ctrl &= ~(ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIPRE_GAIN_EN | ISP35_AIPRE_IIR_EN);
 	} else {
 		ctrl &= ~ISP35_AIISP_EN;
 		params_vdev->dev->irq_ends_mask &= ~ISP_FRAME_VPSL;
@@ -5991,6 +5999,7 @@ rkisp_params_aiisp_update_buf(struct rkisp_isp_params_vdev *params_vdev)
 
 		val = priv->pbuf_aipre_gain->dma_addr;
 		isp3_param_write(params_vdev, val, ISP35_AI_PRE_GAIN_WR_BASE, 0);
+		priv->aipre_gain_cur_idx = priv->pbuf_aipre_gain->index;
 
 		if (params_vdev->dev->hw_dev->is_single) {
 			val = isp3_param_read(params_vdev, ISP35_AI_CTRL, 0);
@@ -6274,6 +6283,100 @@ rkisp_vpsl_update_regs_v35(struct rkisp_isp_params_vdev *params_vdev)
 }
 
 static void
+rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_stats_vdev *stats_vdev = &dev->stats_vdev;
+	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
+	struct isp35_isp_params_cfg *params;
+	struct rkisp_buffer *params_buf;
+	unsigned long flags = 0;
+	u32 val;
+
+	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
+		 "%s on:%d\n", __func__, on);
+	if (!on) {
+		spin_lock_irqsave(&params_vdev->config_lock, flags);
+		while (!list_empty(&params_vdev->params_be)) {
+			params_buf = list_first_entry(&params_vdev->params_be, struct rkisp_buffer, queue);
+			list_del(&params_buf->queue);
+			params = params_buf->vaddr[0];
+			__isp_isr_meas_config(params_vdev, params, RKISP_PARAMS_LAT, 0);
+			__isp_isr_other_config(params_vdev, params, RKISP_PARAMS_LAT, 0);
+			__isp_isr_other_en(params_vdev, params, RKISP_PARAMS_LAT, 0);
+			__isp_isr_meas_en(params_vdev, params, RKISP_PARAMS_LAT, 0);
+			params->module_cfg_update = 0;
+			vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		}
+		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+
+		val = rkisp_read(dev, ISP35_AI_CTRL, false);
+		val &= ~(ISP35_AIISP_ST | ISP35_AIISP_EN |
+			 ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN |
+			 ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN);
+		val |= ISP35_AIPRE_ITS_FORCE_UPD;
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+
+		val = rkisp_read(dev, ISP3X_MI_BAY3D_IIR_RD_BASE_SHD, true);
+		rkisp_write(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, val, false);
+		if (dev->hw_dev->is_single) {
+			val = ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_RDSELF_UPD |
+			      ISP3X_GAINSELF_UPD;
+			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, false);
+		}
+
+		rkisp_stats_first_ddr_config(stats_vdev);
+		rkisp_stats_next_ddr_config(stats_vdev);
+
+		val = rkisp_read(dev, ISP3X_ISP_CTRL1, false);
+		val &= ~ISP35_BAYER_UPD_FE_EN;
+		rkisp_write(dev, ISP3X_ISP_CTRL1, val, false);
+
+		val = ISP39_AIISP_LINECNT_DONE | ISP3X_OUT_FRM_QUARTER | ISP3X_BAY3D_FRM_END;
+		rkisp_clear_bits(dev, CIF_ISP_IMSC, val, false);
+	} else {
+		val = rkisp_read(dev, ISP3X_ISP_CTRL1, false);
+		val |= ISP35_BAYER_PAT_FE(params_vdev->raw_type) | ISP35_BAYER_UPD_FE_EN;
+		rkisp_write(dev, ISP3X_ISP_CTRL1, val, false);
+
+		if (priv->pbuf_bay3d_iir) {
+			val = priv->pbuf_bay3d_iir->dma_addr;
+			rkisp_write(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, val, false);
+			if (dev->hw_dev->is_single) {
+				val = ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_RDSELF_UPD |
+				      ISP3X_GAINSELF_UPD;
+				rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, false);
+			}
+		}
+
+		spin_lock_irqsave(&stats_vdev->rd_lock, flags);
+		if (stats_vdev->cur_buf) {
+			list_add_tail(&stats_vdev->cur_buf->queue, &stats_vdev->stat);
+			stats_vdev->cur_buf = NULL;
+		}
+		if (stats_vdev->nxt_buf) {
+			list_add_tail(&stats_vdev->nxt_buf->queue, &stats_vdev->stat);
+			stats_vdev->nxt_buf = NULL;
+		}
+		spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
+		rkisp_stats_first_ddr_config(stats_vdev);
+
+		val = rkisp_read(dev, ISP35_AI_CTRL, false);
+		val &= ~ISP35_AIISP_ST;
+		val |= ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIISP_EN |
+		       ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN |
+		       ISP35_AIISP_RAW12_MSB | ISP35_AIPRE_ITS_FORCE_UPD;
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+
+		params_vdev->cur_fe_frame_id = params_vdev->cur_frame_id;
+	}
+}
+
+static void
 rkisp_params_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
 {
 	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
@@ -6286,7 +6389,7 @@ rkisp_params_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
 			params_vdev->rdbk_times--;
 
 		if (!params_vdev->rdbk_times) {
-			if (!dev->is_aiisp_en && priv->bay3d_iir_cnt > 1) {
+			if (!dev->is_aiisp_en && !dev->is_aiisp_stop && priv->bay3d_iir_cnt > 1) {
 				priv->pbuf_bay3d_iir = &priv->buf_bay3d_iir[priv->bay3d_iir_idx];
 				priv->bay3d_iir_cur_idx = priv->bay3d_iir_idx;
 				i = (priv->bay3d_iir_idx + 1) % priv->bay3d_iir_cnt;
@@ -6334,7 +6437,7 @@ rkisp_params_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
 					isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_BASE, i);
 				}
 			}
-			if (!dev->is_aiisp_en && priv->aipre_gain_cnt > 1) {
+			if (!dev->is_aiisp_en && !dev->is_aiisp_stop && priv->aipre_gain_cnt > 1) {
 				priv->pbuf_aipre_gain = &priv->buf_aipre_gain[priv->aipre_gain_idx];
 				priv->aipre_gain_cur_idx = priv->aipre_gain_idx;
 				i = (priv->aipre_gain_idx + 1) % priv->aipre_gain_cnt;
@@ -6343,7 +6446,7 @@ rkisp_params_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
 				val = priv->buf_aipre_gain[i].dma_addr;
 				isp3_param_write(params_vdev, val, ISP35_AI_PRE_GAIN_WR_BASE, 0);
 			}
-			if (!dev->is_aiisp_en && priv->vpsl_cnt > 1) {
+			if (!dev->is_aiisp_en && !dev->is_aiisp_stop && priv->vpsl_cnt > 1) {
 				priv->pbuf_vpsl = &priv->buf_vpsl[priv->vpsl_idx];
 				priv->vpsl_cur_idx = priv->vpsl_idx;
 				i = (priv->vpsl_idx + 1) % priv->vpsl_cnt;
@@ -6425,6 +6528,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.aiisp_event = rkisp_params_aiisp_event_v35,
 	.aiisp_start = rkisp_params_aiisp_start_v35,
 	.vpsl_update_regs = rkisp_vpsl_update_regs_v35,
+	.aiisp_switch = rkisp_params_aiisp_switch_v35,
 };
 
 int rkisp_init_params_vdev_v35(struct rkisp_isp_params_vdev *params_vdev)
