@@ -234,10 +234,39 @@ static void csi2_enable(struct csi2_hw *csi2_hw,
 	write_csihost_reg(base, CSIHOST_RESETN, 1);
 }
 
+static int csi2_hw_start(struct csi2_hw *csi2_hw, enum host_type_t host_type)
+{
+	int ret = 0;
+
+	if (atomic_inc_return(&csi2_hw->stream_count) > 1)
+		return ret;
+	csi2_hw_do_reset(csi2_hw);
+	ret = csi2_enable_clks(csi2_hw);
+	if (ret) {
+		dev_err(csi2_hw->dev, "%s: enable clks failed, %s\n",
+			 __func__, csi2_hw->dev_name);
+		return ret;
+	}
+	enable_irq(csi2_hw->irq1);
+	enable_irq(csi2_hw->irq2);
+	csi2_enable(csi2_hw, host_type);
+	return ret;
+}
+
+static void csi2_hw_stop(struct csi2_hw *csi2_hw)
+{
+	if (atomic_dec_return(&csi2_hw->stream_count) > 0)
+		return;
+	disable_irq(csi2_hw->irq1);
+	disable_irq(csi2_hw->irq2);
+	csi2_disable(csi2_hw);
+	csi2_disable_clks(csi2_hw);
+}
+
 static int csi2_start(struct csi2_dev *csi2)
 {
 	enum host_type_t host_type;
-	int ret, i;
+	int ret = 0, i;
 	int csi_idx = 0;
 
 	atomic_set(&csi2->frm_sync_seq, 0);
@@ -255,16 +284,7 @@ static int csi2_start(struct csi2_dev *csi2)
 
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
-		csi2_hw_do_reset(csi2->csi2_hw[csi_idx]);
-		ret = csi2_enable_clks(csi2->csi2_hw[csi_idx]);
-		if (ret) {
-			v4l2_err(&csi2->sd, "%s: enable clks failed, index %d\n",
-				 __func__, csi_idx);
-			return ret;
-		}
-		enable_irq(csi2->csi2_hw[csi_idx]->irq1);
-		enable_irq(csi2->csi2_hw[csi_idx]->irq2);
-		csi2_enable(csi2->csi2_hw[csi_idx], host_type);
+		ret |= csi2_hw_start(csi2->csi2_hw[csi_idx], host_type);
 	}
 
 	pr_debug("stream sd: %s\n", csi2->src_sd->name);
@@ -281,10 +301,7 @@ static int csi2_start(struct csi2_dev *csi2)
 err_assert_reset:
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
-		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
-		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
-		csi2_disable(csi2->csi2_hw[csi_idx]);
-		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
+		csi2_hw_stop(csi2->csi2_hw[csi_idx]);
 	}
 
 	return ret;
@@ -304,11 +321,7 @@ static void csi2_stop(struct csi2_dev *csi2)
 
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
-		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
-		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
-		csi2_disable(csi2->csi2_hw[csi_idx]);
-		csi2_hw_do_reset(csi2->csi2_hw[csi_idx]);
-		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
+		csi2_hw_stop(csi2->csi2_hw[csi_idx]);
 	}
 }
 
@@ -1484,6 +1497,7 @@ static int csi2_hw_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No found irq csi-intr2\n");
 	}
 	platform_set_drvdata(pdev, csi2_hw);
+	atomic_set(&csi2_hw->stream_count, 0);
 	dev_info(&pdev->dev, "probe success, v4l2_dev:%s!\n", csi2_hw->dev_name);
 
 	return 0;

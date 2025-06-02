@@ -133,9 +133,12 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 	result = get_user_pages_remote(current, current_mm,
 				       Memory << PAGE_SHIFT,
 				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
 	result = get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
 				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
+#else
+	result = get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
+				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL);
 #endif
 
 	if (result > 0 && result >= pageCount) {
@@ -252,14 +255,8 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	}
 
 	/* alloc pages and page_table */
-	order = get_order(count * sizeof(struct page *));
-	if (order > MAX_PAGE_ORDER) {
-		rga_err("Can not alloc pages with order[%d] for viraddr pages, max_order = %d\n",
-			order, MAX_PAGE_ORDER);
-		return -ENOMEM;
-	}
-
-	pages = (struct page **)__get_free_pages(GFP_KERNEL, order);
+	pages = (struct page **)rga_get_free_pages(GFP_KERNEL,
+		&order, count * sizeof(struct page *));
 	if (pages == NULL) {
 		rga_err("%s can not alloc pages for viraddr pages\n", __func__);
 		return -ENOMEM;
@@ -1196,14 +1193,8 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 		}
 
 		if (job->flags & RGA_JOB_USE_HANDLE) {
-			order = get_order(page_count * sizeof(uint32_t *));
-			if (order > MAX_PAGE_ORDER) {
-				rga_job_err(job, "Can not alloc pages with order[%d] for page_table, max_order = %d\n",
-					order, MAX_PAGE_ORDER);
-				return -ENOMEM;
-			}
-
-			page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+			page_table = (uint32_t *)rga_get_free_pages(GFP_KERNEL | GFP_DMA32,
+				&order, page_count * sizeof(uint32_t *));
 			if (page_table == NULL) {
 				rga_job_err(job, "%s can not alloc pages for page_table, order = %d\n",
 					__func__, order);
@@ -1261,14 +1252,8 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 		}
 
 		if (job->flags & RGA_JOB_USE_HANDLE) {
-			order = get_order(page_count * sizeof(uint32_t *));
-			if (order > MAX_PAGE_ORDER) {
-				rga_job_err(job, "Can not alloc pages with order[%d] for page_table, max_order = %d\n",
-					order, MAX_PAGE_ORDER);
-				return -ENOMEM;
-			}
-
-			page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+			page_table = (uint32_t *)rga_get_free_pages(GFP_KERNEL | GFP_DMA32,
+				&order, page_count * sizeof(uint32_t *));
 			if (page_table == NULL) {
 				rga_job_err(job, "%s can not alloc pages for page_table, order = %d\n",
 					__func__, order);

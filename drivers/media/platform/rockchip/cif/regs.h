@@ -1171,6 +1171,7 @@ enum cif_reg_index {
 
 #define CSI_START_INTEN(id)		(0x3 << ((id) * 2))
 #define CSI_START_INTEN_RK3576(id)	(0x1 << id)
+#define CSI_INF_END_INTEN_RK3576(id)	(0x10 << id)
 #define CSI_DMA_END_INTEN(id)		(0x3 << ((id) * 2 + 8))
 #define CSI_LINE_INTEN(id)		(0x1 << ((id) + 21))
 #define CSI_LINE_INTEN_RK3588(id)	(0x1 << ((id) + 20))
@@ -1213,6 +1214,11 @@ enum cif_reg_index {
 #define CSI_SIZE_ERR_ID1		(0x1 << 25)
 #define CSI_SIZE_ERR_ID2		(0x1 << 26)
 #define CSI_SIZE_ERR_ID3		(0x1 << 27)
+
+#define CSI_INF_FRAME_END_ID0		(0x1 << 4)
+#define CSI_INF_FRAME_END_ID1		(0x1 << 5)
+#define CSI_INF_FRAME_END_ID2		(0x1 << 6)
+#define CSI_INF_FRAME_END_ID3		(0x1 << 7)
 
 #define CSI_FRAME_START_ID0		(CSI_FRAME0_START_ID0 |\
 					 CSI_FRAME1_START_ID0)

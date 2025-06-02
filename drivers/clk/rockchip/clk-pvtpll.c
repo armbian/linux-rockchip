@@ -193,6 +193,8 @@ static struct pvtpll_table rv1126b_npu_pvtpll_table[] = {
 	ROCKCHIP_PVTPLL_VOLT_SEL(900000000, 0, 14, 1),
 	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 18, 1),
 	ROCKCHIP_PVTPLL_VOLT_SEL(700000000, 0, 36, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(600000000, 0, 60, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(510000000, 0, 108, 3),
 };
 
 static struct pvtpll_table rk3506_core_pvtpll_table[] = {

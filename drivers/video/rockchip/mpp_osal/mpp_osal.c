@@ -41,3 +41,13 @@ void mpp_device_add_driver(void *dev, void *drv)
 #endif
 }
 EXPORT_SYMBOL(mpp_device_add_driver);
+
+struct dma_iommu_mapping *mpp_arm_iommu_get_mapping(struct device *dev)
+{
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	return dev->archdata.mapping;
+#else
+	return  NULL;
+#endif
+}
+EXPORT_SYMBOL(mpp_arm_iommu_get_mapping);

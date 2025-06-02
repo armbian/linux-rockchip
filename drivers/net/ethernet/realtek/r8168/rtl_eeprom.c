@@ -5,7 +5,7 @@
 # r8168 is the Linux device driver released for Realtek Gigabit Ethernet
 # controllers with PCI-Express interface.
 #
-# Copyright(c) 2022 Realtek Semiconductor Corp. All rights reserved.
+# Copyright(c) 2024 Realtek Semiconductor Corp. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -93,7 +93,7 @@ void rtl8168_eeprom_cleanup(struct rtl8168_private *tp)
         rtl8168_lower_clock(tp, &x);
 }
 
-int rtl8168_eeprom_cmd_done(struct rtl8168_private *tp)
+static int rtl8168_eeprom_cmd_done(struct rtl8168_private *tp)
 {
         u8 x;
         int i;
@@ -104,10 +104,10 @@ int rtl8168_eeprom_cmd_done(struct rtl8168_private *tp)
                 x = RTL_R8(tp, Cfg9346);
 
                 if (x & Cfg9346_EEDO) {
-                        udelay(RTL_CLOCK_RATE * 2 * 3);
+                        fsleep(RTL_CLOCK_RATE * 2 * 3);
                         return 0;
                 }
-                udelay(1);
+                fsleep(1);
         }
 
         return -1;
@@ -157,9 +157,8 @@ void rtl8168_eeprom_write_sc(struct rtl8168_private *tp, u16 reg, u16 data)
         int addr_sz = 6;
         int w_dummy_addr = 4;
 
-        if(tp->eeprom_type == EEPROM_TYPE_NONE) {
-                return ;
-        }
+        if(tp->eeprom_type == EEPROM_TYPE_NONE)
+                return;
 
         if (tp->eeprom_type==EEPROM_TYPE_93C46) {
                 addr_sz = 6;
@@ -178,17 +177,15 @@ void rtl8168_eeprom_write_sc(struct rtl8168_private *tp, u16 reg, u16 data)
 
         rtl8168_shift_out_bits(tp, RTL_EEPROM_ERASE_OPCODE, 3);
         rtl8168_shift_out_bits(tp, reg, addr_sz);
-        if (rtl8168_eeprom_cmd_done(tp) < 0) {
+        if (rtl8168_eeprom_cmd_done(tp) < 0)
                 return;
-        }
         rtl8168_stand_by(tp);
 
         rtl8168_shift_out_bits(tp, RTL_EEPROM_WRITE_OPCODE, 3);
         rtl8168_shift_out_bits(tp, reg, addr_sz);
         rtl8168_shift_out_bits(tp, data, 16);
-        if (rtl8168_eeprom_cmd_done(tp) < 0) {
+        if (rtl8168_eeprom_cmd_done(tp) < 0)
                 return;
-        }
         rtl8168_stand_by(tp);
 
         rtl8168_shift_out_bits(tp, RTL_EEPROM_EWDS_OPCODE, 5);
@@ -202,7 +199,7 @@ void rtl8168_raise_clock(struct rtl8168_private *tp, u8 *x)
 {
         *x = *x | Cfg9346_EESK;
         RTL_W8(tp, Cfg9346, *x);
-        udelay(RTL_CLOCK_RATE);
+        fsleep(RTL_CLOCK_RATE);
 }
 
 void rtl8168_lower_clock(struct rtl8168_private *tp, u8 *x)
@@ -210,7 +207,7 @@ void rtl8168_lower_clock(struct rtl8168_private *tp, u8 *x)
 
         *x = *x & ~Cfg9346_EESK;
         RTL_W8(tp, Cfg9346, *x);
-        udelay(RTL_CLOCK_RATE);
+        fsleep(RTL_CLOCK_RATE);
 }
 
 void rtl8168_shift_out_bits(struct rtl8168_private *tp, int data, int count)
@@ -229,7 +226,7 @@ void rtl8168_shift_out_bits(struct rtl8168_private *tp, int data, int count)
                         x &= ~Cfg9346_EEDI;
 
                 RTL_W8(tp, Cfg9346, x);
-                udelay(RTL_CLOCK_RATE);
+                fsleep(RTL_CLOCK_RATE);
                 rtl8168_raise_clock(tp, &x);
                 rtl8168_lower_clock(tp, &x);
                 mask = mask >> 1;
@@ -272,7 +269,7 @@ void rtl8168_stand_by(struct rtl8168_private *tp)
         x = RTL_R8(tp, Cfg9346);
         x &= ~(Cfg9346_EECS | Cfg9346_EESK);
         RTL_W8(tp, Cfg9346, x);
-        udelay(RTL_CLOCK_RATE);
+        fsleep(RTL_CLOCK_RATE);
 
         x |= Cfg9346_EECS;
         RTL_W8(tp, Cfg9346, x);
@@ -283,7 +280,7 @@ void rtl8168_set_eeprom_sel_low(struct rtl8168_private *tp)
         RTL_W8(tp, Cfg9346, Cfg9346_EEM1);
         RTL_W8(tp, Cfg9346, Cfg9346_EEM1 | Cfg9346_EESK);
 
-        udelay(20);
+        fsleep(20);
 
         RTL_W8(tp, Cfg9346, Cfg9346_EEM1);
 }

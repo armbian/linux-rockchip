@@ -937,11 +937,11 @@
 };
 
 &usbhost3_0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &usbhost_dwc3_0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &work_led {

@@ -26,6 +26,7 @@
 #define RKCIF_MAX_RESET		15
 
 #define RKCIF_MAX_GROUP		4
+#define RKCIF_MAX_SWITCH_GROUP	2
 
 #define write_cif_reg(base, addr, val) \
 	writel(val, (addr) + (base))
@@ -121,6 +122,7 @@ struct rkcif_hw_match_data {
 	int clks_num;
 	int rsts_num;
 	const struct cif_reg *cif_regs;
+	int max_hw;
 };
 
 /*
@@ -145,11 +147,14 @@ struct rkcif_hw {
 	struct rkcif_device		*cif_dev[RKCIF_DEV_MAX];
 	int				dev_num;
 	atomic_t			power_cnt;
+	atomic_t			switch_stream_cnt[RKCIF_MAX_SWITCH_GROUP];
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
+	struct mutex			switch_mutex_lock[RKCIF_MAX_SWITCH_GROUP];
 	struct rkcif_multi_sync_config	sync_config[RKCIF_MAX_GROUP];
 	spinlock_t			group_lock;
 	spinlock_t			reset_lock;
+	spinlock_t			switch_lock;
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_dummy_buffer	dummy_buf;
 	bool				iommu_en;

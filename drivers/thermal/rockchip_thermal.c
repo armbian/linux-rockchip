@@ -331,16 +331,13 @@ struct rockchip_thermal_data {
 #define RV1126B_GRF_TSADC_CON1			0x54
 #define RV1126B_GRF_TSADC_CON6			0x68
 #define RV1126B_GRF_TSADC_ST1			0x114
-#define RV1126B_CH_EN				0x300
-#define RV1126B_CH_EN_MASK			(0x300 << 16)
 #define RV1126B_UNLOCK_VALUE			0xa5
 #define RV1126B_UNLOCK_VALUE_MASK		(0xff << 16)
 #define RV1126B_UNLOCK_TRIGGER			BIT(8)
 #define RV1126B_UNLOCK_TRIGGER_MASK		(BIT(8) << 16)
 #define RV1126B_MAX_BIAS			0x7f
 #define RV1126B_BIAS_MASK			(0x7f << 16)
-#define RV1126B_SW_CTRL				0x8028
-#define RV1126B_SW_CTRL_MASK			(0x8078 << 16)
+#define RV1126B_CTRL_MASK			(0x8078 << 16)
 
 #define GRF_SARADC_TESTBIT_ON			(0x10001 << 2)
 #define GRF_TSADC_TESTBIT_H_ON			(0x10001 << 2)
@@ -1403,13 +1400,7 @@ static int rk_tsadcv5_get_temp(const struct chip_tsadc_table *table,
 {
 	u32 val;
 
-	if (chn == 0)
-		val = readl_relaxed(regs + TSADCV3_DATA(1));
-	else if (chn == 1)
-		val = readl_relaxed(regs + TSADCV3_DATA(0));
-	else
-		return -EINVAL;
-
+	val = readl_relaxed(regs + TSADCV3_DATA(chn));
 	*temp = val & TSADCV6_DATA_MASK;
 	if (val & TSADC_DATA_SIGN_BIT)
 		*temp |= TSADC_DATA_NEGATIVE;
@@ -1692,10 +1683,7 @@ static void rv1126b_tsadc_phy_init(struct device *dev, struct regmap *grf,
 	}
 	regmap_read(grf, RV1126B_GRF_TSADC_ST1, &val);
 	dev_info(dev, "width=0x%x, bias=0x%x\n", val, phy_cfg->bias);
-	regmap_write(grf, RV1126B_GRF_TSADC_CON6,
-		     RV1126B_CH_EN | RV1126B_CH_EN_MASK);
-	regmap_write(grf, RV1126B_GRF_TSADC_CON0,
-		     RV1126B_SW_CTRL | RV1126B_SW_CTRL_MASK);
+	regmap_write(grf, RV1126B_GRF_TSADC_CON0, RV1126B_CTRL_MASK);
 	regmap_write(grf, RV1126B_GRF_TSADC_CON1,
 		     RV1126B_UNLOCK_VALUE | RV1126B_UNLOCK_VALUE_MASK);
 	regmap_write(grf, RV1126B_GRF_TSADC_CON1,
@@ -1820,9 +1808,7 @@ static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rv1126b_tsadc_data = {
-	/* cpu, npu */
-	.chn_offset = 0,
-	.chn_num = 2, /* two channels for tsadc */
+	.chn_num = 1, /* one channel for tsadc */
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.tshut_temp = 95000,

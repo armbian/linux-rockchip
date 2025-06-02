@@ -5,7 +5,7 @@
 # r8168 is the Linux device driver released for Realtek Gigabit Ethernet
 # controllers with PCI-Express interface.
 #
-# Copyright(c) 2022 Realtek Semiconductor Corp. All rights reserved.
+# Copyright(c) 2024 Realtek Semiconductor Corp. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -60,15 +60,12 @@ int rtl8168_asf_ioctl(struct net_device *dev,
         struct rtl8168_private *tp = netdev_priv(dev);
         void *user_data = ifr->ifr_data;
         struct asf_ioctl_struct asf_usrdata;
-        unsigned long flags;
 
         if (tp->mcfg != CFG_METHOD_7 && tp->mcfg != CFG_METHOD_8)
                 return -EOPNOTSUPP;
 
         if (copy_from_user(&asf_usrdata, user_data, sizeof(struct asf_ioctl_struct)))
                 return -EFAULT;
-
-        spin_lock_irqsave(&tp->lock, flags);
 
         switch (asf_usrdata.offset) {
         case HBPeriod:
@@ -192,11 +189,8 @@ int rtl8168_asf_ioctl(struct net_device *dev,
                 rtl8168_asf_key_access(tp, asf_usrdata.arg, KR, asf_usrdata.u.data);
                 break;
         default:
-                spin_unlock_irqrestore(&tp->lock, flags);
                 return -EOPNOTSUPP;
         }
-
-        spin_unlock_irqrestore(&tp->lock, flags);
 
         if (copy_to_user(user_data, &asf_usrdata, sizeof(struct asf_ioctl_struct)))
                 return -EFAULT;
@@ -390,10 +384,10 @@ void rtl8168_asf_rw_systemid(struct rtl8168_private *tp, int arg, unsigned int *
         int i;
 
         if (arg == ASF_GET)
-                for (i = 0; i < SYSID_LEN ; i++)
+                for (i = 0; i < SYSID_LEN; i++)
                         data[i] = rtl8168_eri_read(tp, SysID + i, RW_ONE_BYTE, ERIAR_ASF);
         else /* arg == ASF_SET */
-                for (i = 0; i < SYSID_LEN ; i++)
+                for (i = 0; i < SYSID_LEN; i++)
                         rtl8168_eri_write(tp, SysID + i, RW_ONE_BYTE, data[i], ERIAR_ASF);
 }
 
@@ -414,9 +408,9 @@ void rtl8168_asf_rw_uuid(struct rtl8168_private *tp, int arg, unsigned int *data
         int i, j;
 
         if (arg == ASF_GET)
-                for (i = UUID_LEN - 1, j = 0; i >= 0 ; i--, j++)
+                for (i = UUID_LEN - 1, j = 0; i >= 0; i--, j++)
                         data[j] = rtl8168_eri_read(tp, UUID + i, RW_ONE_BYTE, ERIAR_ASF);
         else /* arg == ASF_SET */
-                for (i = UUID_LEN - 1, j = 0; i >= 0 ; i--, j++)
+                for (i = UUID_LEN - 1, j = 0; i >= 0; i--, j++)
                         rtl8168_eri_write(tp, UUID + i, RW_ONE_BYTE, data[j], ERIAR_ASF);
 }

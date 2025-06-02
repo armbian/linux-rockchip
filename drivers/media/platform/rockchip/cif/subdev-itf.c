@@ -282,6 +282,16 @@ static int sditf_init_buf(struct sditf_priv *priv)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	int ret = 0;
 
+	mutex_lock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+	if (cif_dev->switch_info.is_use_switch) {
+		if (cif_dev->switch_info.is_init_buf ||
+		    cif_dev->switch_info.switch_dev->switch_info.is_init_buf) {
+			mutex_unlock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+			return 0;
+		}
+		cif_dev->switch_info.is_init_buf = true;
+	}
+
 	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 			if (cif_dev->is_thunderboot)
@@ -320,6 +330,7 @@ static int sditf_init_buf(struct sditf_priv *priv)
 			ret = -EINVAL;
 	}
 	priv->is_buf_init = true;
+	mutex_unlock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
 	return ret;
 }
 
@@ -344,6 +355,8 @@ static void sditf_free_buf(struct sditf_priv *priv)
 		cif_dev->is_thunderboot = false;
 	}
 	priv->is_buf_init = false;
+	if (cif_dev->switch_info.is_use_switch)
+		cif_dev->switch_info.is_init_buf = false;
 }
 
 static int sditf_get_selection(struct v4l2_subdev *sd,
@@ -446,6 +459,47 @@ static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
 }
 #endif
 
+static struct rkcif_device *rkcif_get_switch_dev(struct rkcif_device *cif_dev)
+{
+	int i = 0;
+
+	for (i = 0; i < cif_dev->hw_dev->dev_num; i++) {
+		if (cif_dev->switch_info.host_idx == cif_dev->hw_dev->cif_dev[i]->switch_info.host_idx &&
+		    cif_dev != cif_dev->hw_dev->cif_dev[i])
+			return cif_dev->hw_dev->cif_dev[i];
+	}
+	return NULL;
+}
+
+static int rkcif_init_switch_info(struct rkcif_device *cif_dev)
+{
+	cif_dev->csi_host_idx = cif_dev->switch_info.host_idx;
+	cif_dev->switch_info.is_init = true;
+	cif_dev->switch_info.switch_dev = rkcif_get_switch_dev(cif_dev);
+	if (!cif_dev->switch_info.switch_dev)
+		return -EINVAL;
+	if (IS_ERR(cif_dev->switch_info.gpio_pin))
+		cif_dev->switch_info.gpio_pin = cif_dev->switch_info.switch_dev->switch_info.gpio_pin;
+	return 0;
+}
+
+static int rkcif_init_switch_infos(struct rkcif_device *cif_dev)
+{
+	int ret = 0;
+
+	mutex_lock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+	if (!cif_dev->switch_info.is_init) {
+		cif_dev->switch_info.is_active = true;
+		ret = rkcif_init_switch_info(cif_dev);
+		if (!ret)
+			ret = rkcif_init_switch_info(cif_dev->switch_info.switch_dev);
+		if (cif_dev->sditf[0]->mode_src.rdbk_mode > RKISP_VICAP_RDBK_AIQ)
+			rkcif_switch_change(cif_dev, !!cif_dev->switch_info.gpio_val);
+	}
+	mutex_unlock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+	return ret;
+}
+
 static void sditf_enable_immediately(struct sditf_priv *priv);
 static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
@@ -481,6 +535,10 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			mode->input.multi_sync = 1;
 		memcpy(&priv->mode_src, mode, sizeof(*mode));
+
+		if (cif_dev->switch_info.is_use_switch)
+			ret = rkcif_init_switch_infos(cif_dev);
+
 		if (cif_dev->is_thunderboot &&
 		    cif_dev->is_thunderboot_start) {
 			if (mode->rdbk_mode < RKISP_VICAP_RDBK_AIQ)
@@ -1114,6 +1172,8 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 		}
 	}
 	priv->is_toisp_off = true;
+	if (priv->cif_dev->switch_info.is_use_switch)
+		priv->cif_dev->switch_info.is_active = false;
 }
 
 static void sditf_enable_immediately(struct sditf_priv *priv)
@@ -1136,6 +1196,10 @@ static void sditf_enable_immediately(struct sditf_priv *priv)
 			if (priv->cif_dev->chip_id == CHIP_RK3588_CIF)
 				sditf_channel_enable(priv, 1);
 		}
+	}
+	if (priv->cif_dev->switch_info.is_use_switch) {
+		rkcif_switch_change(priv->cif_dev, !!priv->cif_dev->switch_info.gpio_val);
+		priv->cif_dev->switch_info.is_active = true;
 	}
 	priv->is_toisp_off = false;
 }
@@ -1284,6 +1348,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct rkcif_stream *stream = NULL;
+	struct rkcif_stream *buf_stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
 	unsigned long flags, buffree_flags;
@@ -1322,6 +1387,10 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 
 	if (!stream)
 		return -EINVAL;
+	buf_stream = stream;
+	if (cif_dev->switch_info.is_use_switch &&
+	    cif_dev->switch_info.switch_dev->switch_info.is_init_buf)
+		buf_stream = &cif_dev->switch_info.switch_dev->stream[stream->id];
 
 	if (dbufs->sequence == 0 &&
 	    stream->thunderboot_skip_interval) {
@@ -1351,7 +1420,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	}
 
 	if (!is_free && (!dbufs->is_switch) && stream->state == RKCIF_STATE_STREAMING) {
-		list_add_tail(&rx_buf->list, &stream->rx_buf_head);
+		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&
 		    (!stream->is_pause_stream)) {

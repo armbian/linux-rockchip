@@ -33,6 +33,10 @@
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip_iommu.h>
 
+#ifdef CONFIG_PM_DEVFREQ
+#include "../../../devfreq/governor.h"
+#endif
+
 #include "mpp_debug.h"
 #include "mpp_iommu.h"
 #include "mpp_common.h"
@@ -53,6 +57,10 @@
 #define to_rkvenc_dev(dev)		\
 		container_of(dev, struct rkvenc_dev, mpp)
 
+#ifdef CONFIG_PM_DEVFREQ
+static DEFINE_MUTEX(venc_governor_mutex);
+static int venc_governor_count;
+#endif
 
 enum RKVENC_FORMAT_TYPE {
 	RKVENC_FMT_BASE		= 0x0000,
@@ -328,6 +336,9 @@ struct rkvenc_dev {
 	u32 bs_overflow;
 
 #ifdef CONFIG_PM_DEVFREQ
+	struct devfreq *devfreq;
+	unsigned long core_rate_hz;
+	unsigned long core_current_rate_hz;
 	struct rockchip_opp_info opp_info;
 	struct monitor_dev_info *mdev_info;
 #endif
@@ -2127,6 +2138,90 @@ static inline int rkvenc_procfs_ccu_init(struct mpp_dev *mpp)
 #endif
 
 #ifdef CONFIG_PM_DEVFREQ
+static int rkvenc_devfreq_target(struct device *dev,
+				 unsigned long *freq, u32 flags)
+{
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct devfreq *devfreq = enc->devfreq;
+	struct rockchip_opp_info *opp_info = &enc->opp_info;
+	struct dev_pm_opp *opp;
+	int ret = 0;
+
+	if (!opp_info->is_rate_volt_checked)
+		return -EINVAL;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+	dev_pm_opp_put(opp);
+
+	if (*freq == enc->core_current_rate_hz)
+		return 0;
+
+	rockchip_opp_dvfs_lock(opp_info);
+	if (pm_runtime_active(dev))
+		opp_info->is_runtime_active = true;
+	else
+		opp_info->is_runtime_active = false;
+	ret = dev_pm_opp_set_rate(dev, *freq);
+	if (!ret) {
+		enc->core_current_rate_hz = *freq;
+		devfreq->last_status.current_frequency = *freq;
+	}
+	rockchip_opp_dvfs_unlock(opp_info);
+
+	return ret;
+}
+
+static int rkvenc_devfreq_get_dev_status(struct device *dev,
+					 struct devfreq_dev_status *stat)
+{
+	return 0;
+}
+
+static int rkvenc_devfreq_get_cur_freq(struct device *dev,
+				       unsigned long *freq)
+{
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
+	*freq = enc->core_current_rate_hz;
+
+	return 0;
+}
+
+static struct devfreq_dev_profile rkvenc_devfreq_profile = {
+	.target	= rkvenc_devfreq_target,
+	.get_dev_status	= rkvenc_devfreq_get_dev_status,
+	.get_cur_freq = rkvenc_devfreq_get_cur_freq,
+	.is_cooling_device = true,
+};
+
+static int devfreq_venc_ondemand_func(struct devfreq *df, unsigned long *freq)
+{
+	struct rkvenc_dev *enc = df->data;
+
+	if (enc)
+		*freq = enc->core_rate_hz;
+	else
+		*freq = df->previous_freq;
+
+	return 0;
+}
+
+static int devfreq_venc_ondemand_handler(struct devfreq *devfreq,
+					 unsigned int event, void *data)
+{
+	return 0;
+}
+
+static struct devfreq_governor devfreq_venc_ondemand = {
+	.name = "venc_ondemand",
+	.get_target_freq = devfreq_venc_ondemand_func,
+	.event_handler = devfreq_venc_ondemand_handler,
+};
+
 static int rk3588_venc_set_read_margin(struct device *dev,
 				       struct rockchip_opp_info *opp_info,
 				       u32 rm)
@@ -2164,6 +2259,8 @@ static const struct of_device_id rockchip_rkvenc_of_match[] = {
 static struct monitor_dev_profile venc_mdevp = {
 	.type = MONITOR_TYPE_DEV,
 	.check_rate_volt = rockchip_monitor_check_rate_volt,
+	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };
 
 static int rkvenc_devfreq_init(struct mpp_dev *mpp)
@@ -2183,12 +2280,57 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 		dev_err(dev, "failed to init_opp_table\n");
 		return ret;
 	}
+
+	mutex_lock(&venc_governor_mutex);
+	if (!venc_governor_count) {
+		ret = devfreq_add_governor(&devfreq_venc_ondemand);
+		if (ret) {
+			dev_err(dev, "failed to add venc_ondemand governor\n");
+			mutex_unlock(&venc_governor_mutex);
+			goto governor_err;
+		}
+	}
+	venc_governor_count++;
+	mutex_unlock(&venc_governor_mutex);
+
+	rkvenc_devfreq_profile.initial_freq = clk_get_rate(clk_core);
+	enc->core_rate_hz = rkvenc_devfreq_profile.initial_freq;
+	enc->devfreq = devm_devfreq_add_device(dev,
+					       &rkvenc_devfreq_profile,
+					       "venc_ondemand", (void *)enc);
+	if (IS_ERR(enc->devfreq)) {
+		ret = PTR_ERR(enc->devfreq);
+		enc->devfreq = NULL;
+		goto devfreq_err;
+	}
+
+	devfreq_register_opp_notifier(dev, enc->devfreq);
+
+	venc_mdevp.data = enc->devfreq;
 	venc_mdevp.opp_info = opp_info;
 	enc->mdev_info = rockchip_system_monitor_register(dev, &venc_mdevp);
 	if (IS_ERR(enc->mdev_info)) {
 		dev_dbg(dev, "without system monitor\n");
 		enc->mdev_info = NULL;
 	}
+
+	enc->core_current_rate_hz = clk_get_rate(clk_core);
+	enc->core_rate_hz = enc->core_current_rate_hz;
+	if (enc->devfreq->suspend_freq)
+		enc->devfreq->resume_freq = enc->core_current_rate_hz;
+	enc->devfreq->last_status.current_frequency = enc->core_current_rate_hz;
+	enc->devfreq->last_status.total_time = 1;
+	enc->devfreq->last_status.busy_time = 1;
+
+	return 0;
+
+devfreq_err:
+	mutex_lock(&venc_governor_mutex);
+	if (--venc_governor_count == 0)
+		devfreq_remove_governor(&devfreq_venc_ondemand);
+	mutex_unlock(&venc_governor_mutex);
+governor_err:
+	dev_pm_opp_of_remove_table(dev);
 
 	return ret;
 }
@@ -2201,6 +2343,12 @@ static int rkvenc_devfreq_remove(struct mpp_dev *mpp)
 		rockchip_system_monitor_unregister(enc->mdev_info);
 		enc->mdev_info = NULL;
 	}
+	if (enc->devfreq)
+		devfreq_unregister_opp_notifier(mpp->dev, enc->devfreq);
+	mutex_lock(&venc_governor_mutex);
+	if (--venc_governor_count == 0)
+		devfreq_remove_governor(&devfreq_venc_ondemand);
+	mutex_unlock(&venc_governor_mutex);
 	rockchip_uninit_opp_table(mpp->dev, &enc->opp_info);
 
 	return 0;
@@ -2297,6 +2445,10 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 
 	mpp_debug_enter();
 
+#ifdef CONFIG_PM_DEVFREQ
+	if (enc->devfreq)
+		mutex_lock(&enc->devfreq->lock);
+#endif
 	/* safe reset first*/
 	ret = rkvenc_soft_reset(mpp);
 
@@ -2324,6 +2476,11 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 	}
 
 	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, queue->core_idle);
+
+#ifdef CONFIG_PM_DEVFREQ
+	if (enc->devfreq)
+		mutex_unlock(&enc->devfreq->lock);
+#endif
 
 	mpp_debug_leave();
 
@@ -2358,6 +2515,27 @@ static int rkvenc_set_freq(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 
 	mpp_clk_set_rate(&enc->aclk_info, task->clk_mode);
+
+#ifdef CONFIG_PM_DEVFREQ
+	if (enc->devfreq) {
+		unsigned long core_rate_hz;
+
+		mutex_lock(&enc->devfreq->lock);
+		core_rate_hz = mpp_get_clk_info_rate_hz(&enc->core_clk_info, task->clk_mode);
+		if (enc->core_rate_hz != core_rate_hz) {
+			enc->core_rate_hz = core_rate_hz;
+			update_devfreq(enc->devfreq);
+		} else {
+			/*
+			 * Restore frequency when frequency is changed by
+			 * rkvenc_reduce_freq()
+			 */
+			clk_set_rate(enc->core_clk_info.clk, enc->core_current_rate_hz);
+		}
+		mutex_unlock(&enc->devfreq->lock);
+		return 0;
+	}
+#endif
 	mpp_clk_set_rate(&enc->core_clk_info, task->clk_mode);
 
 	return 0;

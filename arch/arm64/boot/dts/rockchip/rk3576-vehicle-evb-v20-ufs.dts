@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576-vehicle-evb-v20.dts"
+#include "rk3576-vehicle-evb-v20-storage.dtsi"
+
+&sdhci {
+	status = "disabled";
+};
+
+&ufs {
+	status = "okay";
+};

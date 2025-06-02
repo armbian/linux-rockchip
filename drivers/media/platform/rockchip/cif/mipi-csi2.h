@@ -195,6 +195,7 @@ struct csi2_hw {
 	int			irq1;
 	int			irq2;
 	const char		*dev_name;
+	atomic_t		stream_count;
 };
 
 u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);

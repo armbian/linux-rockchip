@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 
 #include "rga.h"
 #include "rga_debugger.h"

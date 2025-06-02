@@ -925,3 +925,27 @@ void rga_dump_req(struct rga_request *request, struct rga_req *req)
 	rga_req_log(request, "core_mask = %#x, priority = %d, in_fence = %d(%#x)\n",
 		req->core, req->priority, req->in_fence_fd, req->in_fence_fd);
 }
+
+unsigned long rga_get_free_pages(gfp_t gfp_mask, unsigned int *order, unsigned long size)
+{
+	int cur_order, max_order;
+	unsigned long pages;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	max_order = MAX_ORDER;
+#else
+	max_order = MAX_PAGE_ORDER;
+#endif
+
+	cur_order = get_order(size);
+	if (cur_order > max_order) {
+		rga_err("Can not alloc pages with order[%d] for viraddr pages, max_order = %d\n",
+			cur_order, max_order);
+		return 0;
+	}
+
+	pages = __get_free_pages(gfp_mask, cur_order);
+	*order = cur_order;
+
+	return pages;
+}

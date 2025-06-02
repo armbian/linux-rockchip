@@ -315,19 +315,12 @@
 #define RK3588_PIN_BANK_FLAGS(ID, PIN, LABEL, M, P)			\
 	PIN_BANK_IOMUX_FLAGS_PULL_FLAGS(ID, PIN, LABEL, M, M, M, M, P, P, P, P)
 
-#define PIN_BANK_IOMUX_4_OFFSET_DRV_8(id, pins, label, offset0,		\
-				      offset1, offset2, offset3)	\
-	PIN_BANK_IOMUX_FLAGS_OFFSET_DRV_FLAGS(id, pins, label,		\
-					      IOMUX_WIDTH_4BIT,		\
-					      IOMUX_WIDTH_4BIT,		\
-					      IOMUX_WIDTH_4BIT,		\
-					      IOMUX_WIDTH_4BIT,		\
-					      offset0, offset1,		\
-					      offset2, offset3,		\
-					      DRV_TYPE_IO_LEVEL_8_BIT,	\
-					      DRV_TYPE_IO_LEVEL_8_BIT,	\
-					      DRV_TYPE_IO_LEVEL_8_BIT,	\
-					      DRV_TYPE_IO_LEVEL_8_BIT)
+#define PIN_BANK_IOMUX_4_OFFSET(id, pins, label, offset0,		\
+				offset1, offset2, offset3)		\
+	PIN_BANK_IOMUX_FLAGS_OFFSET(id, pins, label,			\
+				    IOMUX_WIDTH_4BIT, IOMUX_WIDTH_4BIT,	\
+				    IOMUX_WIDTH_4BIT, IOMUX_WIDTH_4BIT,	\
+				    offset0, offset1, offset2, offset3)
 static struct pinctrl_dev *g_pctldev;
 static DEFINE_MUTEX(iomux_lock);
 
@@ -3623,6 +3616,17 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 	if (ret)
 		return ret;
 
+	if (ctrl->type == RV1126B) {
+		rmask_bits = RV1126B_DRV_BITS_PER_PIN;
+		ret = regmap_read(regmap, reg, &data);
+		if (ret)
+			return ret;
+		data >>= bit;
+		data &= (1 << rmask_bits) - 1;
+
+		return data;
+	}
+
 	switch (drv_type) {
 	case DRV_TYPE_IO_1V8_3V0_AUTO:
 	case DRV_TYPE_IO_3V3_ONLY:
@@ -3744,7 +3748,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		ret = strength;
 		goto config;
 	} else if (ctrl->type == RV1106	||
-		   ctrl->type == RV1126B ||
 		   ctrl->type == RK3506	||
 		   ctrl->type == RK3528	||
 		   ctrl->type == RK3562 ||
@@ -3755,6 +3758,10 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 	} else if (ctrl->type == RK3576) {
 		rmask_bits = RK3576_DRV_BITS_PER_PIN;
 		ret = ((strength & BIT(2)) >> 2) | ((strength & BIT(0)) << 2) | (strength & BIT(1));
+		goto config;
+	} else if (ctrl->type == RV1126B) {
+		rmask_bits = RV1126B_DRV_BITS_PER_PIN;
+		ret = strength;
 		goto config;
 	}
 
@@ -5304,21 +5311,21 @@ static struct rockchip_pin_ctrl rv1126_pin_ctrl __maybe_unused = {
 };
 
 static struct rockchip_pin_bank rv1126b_pin_banks[] = {
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(0, 32, "gpio0",
+	PIN_BANK_IOMUX_4_OFFSET(0, 32, "gpio0",
 				      0x0, 0x8, 0x8010, 0x8018),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(1, 32, "gpio1",
+	PIN_BANK_IOMUX_4_OFFSET(1, 32, "gpio1",
 				      0x10020, 0x10028, 0x10030, 0x10038),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(2, 32, "gpio2",
+	PIN_BANK_IOMUX_4_OFFSET(2, 32, "gpio2",
 				      0x18040, 0x18048, 0x18050, 0x18058),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(3, 32, "gpio3",
+	PIN_BANK_IOMUX_4_OFFSET(3, 32, "gpio3",
 				      0x20060, 0x20068, 0x20070, 0x20078),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(4, 32, "gpio4",
+	PIN_BANK_IOMUX_4_OFFSET(4, 32, "gpio4",
 				      0x28080, 0x28088, 0x28090, 0x28098),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(5, 32, "gpio5",
+	PIN_BANK_IOMUX_4_OFFSET(5, 32, "gpio5",
 				      0x300a0, 0x300a8, 0x300b0, 0x300b8),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(6, 32, "gpio6",
+	PIN_BANK_IOMUX_4_OFFSET(6, 32, "gpio6",
 				      0x380c0, 0x380c8, 0x380d0, 0x380d8),
-	PIN_BANK_IOMUX_4_OFFSET_DRV_8(7, 32, "gpio7",
+	PIN_BANK_IOMUX_4_OFFSET(7, 32, "gpio7",
 				      0x400e0, 0x400e8, 0x400f0, 0x400f8),
 };
 

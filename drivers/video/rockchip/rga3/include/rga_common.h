@@ -83,4 +83,6 @@ void rga_dump_memory_parm(struct rga_memory_parm *parm);
 void rga_dump_external_buffer(struct rga_external_buffer *buffer);
 void rga_dump_req(struct rga_request *request, struct rga_req *req);
 
+unsigned long rga_get_free_pages(gfp_t gfp_mask, unsigned int *order, unsigned long size);
+
 #endif

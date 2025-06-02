@@ -709,7 +709,6 @@
 	rkcif_mipi_lvds: rkcif-mipi-lvds {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -740,7 +739,6 @@
 	rkcif_mipi_lvds1: rkcif-mipi-lvds1 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -771,7 +769,6 @@
 	rkcif_mipi_lvds2: rkcif-mipi-lvds2 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -802,7 +799,6 @@
 	rkcif_mipi_lvds3: rkcif-mipi-lvds3 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 

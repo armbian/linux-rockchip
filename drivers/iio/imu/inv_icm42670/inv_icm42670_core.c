@@ -1342,16 +1342,7 @@ static int __maybe_unused sleep_icm42670_resume(struct device *dev)
 	struct icm42670_data *st = iio_priv(dev_get_drvdata(dev));
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	mutex_lock(&st->lock);
-
-	if (!pm_runtime_suspended(dev))
-		goto out_unlock;
-
 	usleep_range(3000, 4000);
-
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
 
 	icm42670_set_odr(st, ICM42670_GYRO, st->gyro_frequency_buff);
 	icm42670_set_odr(st, ICM42670_ACCEL, st->accel_frequency_buff);
@@ -1360,8 +1351,6 @@ static int __maybe_unused sleep_icm42670_resume(struct device *dev)
 
 	ret = icm42670_set_enable(indio_dev, 1);
 
-out_unlock:
-	mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -1375,11 +1364,6 @@ static int __maybe_unused sleep_icm42670_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret = 0;
 
-	mutex_lock(&st->lock);
-
-	if (pm_runtime_suspended(dev))
-		goto out_unlock;
-
 	st->gyro_frequency_buff = st->gyro_frequency;
 	st->accel_frequency_buff = st->accel_frequency;
 	st->accel_lpf_bw_buff = st->accel_lpf_bw;
@@ -1387,8 +1371,6 @@ static int __maybe_unused sleep_icm42670_suspend(struct device *dev)
 
 	ret = icm42670_set_enable(indio_dev, 0);
 
-out_unlock:
-	mutex_unlock(&st->lock);
 	return ret;
 }
 

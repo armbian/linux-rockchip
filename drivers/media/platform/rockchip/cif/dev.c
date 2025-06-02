@@ -2882,7 +2882,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->pipe.close = rkcif_pipeline_close;
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 	cif_dev->isr_hdl = rkcif_irq_handler;
-	cif_dev->id_use_cnt = 0;
+	atomic_set(&cif_dev->id_use_cnt, 0);
 	memset(&cif_dev->sync_cfg, 0, sizeof(cif_dev->sync_cfg));
 	cif_dev->sditf_cnt = 0;
 	cif_dev->is_notifier_isp = false;
@@ -3090,6 +3090,27 @@ static void rkcif_parse_pins_group(struct rkcif_device *cif_dev)
 	dev_info(cif_dev->dev, "rkcif pins used group %d\n", cif_dev->dvp_pin_group);
 }
 
+static void rkcif_parse_switch_info(struct rkcif_device *cif_dev)
+{
+	int ret = 0;
+	struct device_node *node = cif_dev->dev->of_node;
+
+	memset(&cif_dev->switch_info, 0, sizeof(cif_dev->switch_info));
+	ret = of_property_read_u32(node,
+				   OF_CIF_SWITCH_HOST_IDX,
+				   &cif_dev->switch_info.host_idx);
+	if (ret == 0) {
+		cif_dev->switch_info.is_use_switch = true;
+		cif_dev->switch_info.gpio_pin = devm_gpiod_get(cif_dev->dev, "switch", GPIOD_OUT_LOW);
+		if (IS_ERR(cif_dev->switch_info.gpio_pin))
+			dev_err(cif_dev->dev, "get switch gpio failed\n");
+		ret = of_property_read_u32(node,
+					   OF_CIF_SWITCH_GPIO_VAL,
+					   &cif_dev->switch_info.gpio_val);
+		dev_info(cif_dev->dev, "switch gpio val %d\n", cif_dev->switch_info.gpio_val);
+	}
+}
+
 static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 {
 	int ret = 0;
@@ -3112,6 +3133,12 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 	else
 		cif_dev->is_camera_over_bridge = false;
 	rkcif_parse_pins_group(cif_dev);
+	rkcif_parse_switch_info(cif_dev);
+	if (device_property_read_bool(cif_dev->dev, "no-detect-group-sync"))
+		cif_dev->is_detect_group_sync = false;
+	else
+		cif_dev->is_detect_group_sync = true;
+	dev_err(cif_dev->dev, "rkcif is_detect_group_sync %d\n", cif_dev->is_detect_group_sync);
 }
 
 static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)

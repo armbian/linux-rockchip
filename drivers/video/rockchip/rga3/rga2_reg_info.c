@@ -439,11 +439,20 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		case RGA_INTERP_LINEAR:
 			vsp_scale_mode = 1;
 			break;
+		case RGA_INTERP_DEFAULT:
+			if (((scale_w_flag == RGA2_SCALE_DOWN) && (dw < RGA2_VSP_BICUBIC_LIMIT)) ||
+			    (sw < RGA2_VSP_BICUBIC_LIMIT)) {
+				vsp_scale_mode = 0x0;
+			} else {
+				vsp_scale_mode = 0x1;
+			}
+			break;
 		}
 
 	} else if (scale_h_flag == RGA2_SCALE_DOWN) {
 		switch (msg->interp.verti) {
 		case RGA_INTERP_AVERAGE:
+		case RGA_INTERP_DEFAULT:
 			vsd_scale_mode = 0;
 			break;
 		case RGA_INTERP_LINEAR:
@@ -456,6 +465,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	if (scale_w_flag == RGA2_SCALE_UP) {
 		switch (msg->interp.horiz) {
 		case RGA_INTERP_BICUBIC:
+		case RGA_INTERP_DEFAULT:
 			hsp_scale_mode = 0;
 			break;
 		case RGA_INTERP_LINEAR:
@@ -465,6 +475,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	} else if (scale_w_flag == RGA2_SCALE_DOWN) {
 		switch (msg->interp.horiz) {
 		case RGA_INTERP_AVERAGE:
+		case RGA_INTERP_DEFAULT:
 			hsd_scale_mode = 0;
 			break;
 		case RGA_INTERP_LINEAR:
