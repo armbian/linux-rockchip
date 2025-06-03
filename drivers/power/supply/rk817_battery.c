@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rk817 battery  driver
+ * rk817 battery driver
  *
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  *
@@ -138,8 +138,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define TEMP_DIFF_THRESH		20
 /* 5.0 jump threshold (scaled by 10) */
 #define JUMP_DETECT_THRESH		50
-/* Resistance value scaling factor */
-#define RES_SCALE			1000
+/* Required consecutive samples for trend confirmation */
+#define TREND_SAMPLES			5
 
 enum ts_fun {
 	TS_FUN_SOURCE_CURRENT,
@@ -268,8 +268,8 @@ enum rk817_battery_fields {
 	VOL_ADC_B3, VOL_ADC_B2, VOL_ADC_B1, VOL_ADC_B0,
 	VOL_ADC_K3, VOL_ADC_K2, VOL_ADC_K1, VOL_ADC_K0,
 	BAT_EXS, CHG_STS, BAT_OVP_STS, CHRG_IN_CLAMP,
-	CHIP_NAME_H, CHIP_NAME_L, CHRG_CUR_SEL, CHRG_VOL_SEL,
-	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN, TS_GPIO_FUN, RK817B_FLAG,
+	CHIP_NAME_H, CHIP_NAME_L, CHIP_VER, CHRG_CUR_SEL, CHRG_VOL_SEL,
+	PLUG_IN_STS, BAT_LTS_TS, USB_SYS_EN, TS_GPIO_FUN,
 	F_MAX_FIELDS
 };
 
@@ -437,10 +437,10 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[BAT_OVP_STS] = REG_FIELD(0xEB, 3, 3),
 	[CHRG_IN_CLAMP] = REG_FIELD(0xEB, 2, 2),
 	[CHIP_NAME_H] = REG_FIELD(0xED, 0, 7),
-	[CHIP_NAME_L] = REG_FIELD(0xEE, 0, 7),
+	[CHIP_NAME_L] = REG_FIELD(0xEE, 4, 7),
+	[CHIP_VER] = REG_FIELD(0xEE, 0, 3),
 	[PLUG_IN_STS] = REG_FIELD(0xF0, 6, 6),
 	[TS_GPIO_FUN] = REG_FIELD(0xFE, 2, 2),
-	[RK817B_FLAG] = REG_FIELD(0xFF, 0, 0),
 };
 
 struct temp_chrg_table {
@@ -471,6 +471,10 @@ struct ntc_filter {
 	u32 count;
 	/* Consecutive discard counter */
 	u32 discard_cnt;
+	/* 1=rising, -1=falling, 0=undefined */
+	int last_trend;
+	/* Buffer for trend samples */
+	u32 trend_samples[TREND_SAMPLES];
 };
 
 struct battery_platform_data {
@@ -518,7 +522,7 @@ struct rk817_battery_device {
 	struct timer_list		caltimer;
 	struct contact_res_info		ts_info;
 
-	struct ntc_filter		*f;
+	struct ntc_filter		f;
 	int				sample_res;
 	int				bat_res;
 	bool				is_first_power_on;
@@ -1542,14 +1546,14 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 		int flow_out;
 		bool is_high_current;
 	} gear_table[] = {
-		{160, 1, FLOW_OUT_120uA, true},
-		{120, 1, FLOW_OUT_100uA, true},
-		{100, 1, FLOW_OUT_80uA, true},
-		{80, 0, FLOW_OUT_40uA, false},
-		{40, 0, FLOW_OUT_30uA, false},
-		{30, 0, FLOW_OUT_20uA, false},
-		{20, 0, FLOW_OUT_10uA, false},
-		{10, 0, FLOW_OUT_10uA, false}
+		{160, 1, FLOW_OUT_160uA, true},
+		{120, 1, FLOW_OUT_120uA, true},
+		{100, 1, FLOW_OUT_100uA, true},
+		{80, 1, FLOW_OUT_80uA, true},
+		{40, 0, FLOW_OUT_40uA, false},
+		{30, 0, FLOW_OUT_30uA, false},
+		{20, 0, FLOW_OUT_20uA, false},
+		{10, 0, FLOW_OUT_10uA, false},
 	};
 
 	/* find current gear index */
@@ -1569,13 +1573,14 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 		next_index = index + 1;
 		if (!gear_table[next_index].is_high_current || battery->is_rk817b) {
 			new_gear = gear_table[next_index].gear;
-		if (battery->is_rk817b && gear_table[next_index].sel_switch)
+
+			if (battery->is_rk817b && gear_table[next_index].sel_switch)
+				rk817_bat_field_force_write(battery,
+							    VOL_ADC_TSCUR_SEL_SWITCH,
+							    gear_table[next_index].sel_switch);
 			rk817_bat_field_force_write(battery,
-						    VOL_ADC_TSCUR_SEL_SWITCH,
-						    gear_table[next_index].sel_switch);
-		rk817_bat_field_force_write(battery,
-					    VOL_ADC_TSCUR_SEL,
-					    gear_table[next_index].flow_out);
+						    VOL_ADC_TSCUR_SEL,
+						    gear_table[next_index].flow_out);
 		}
 	} else if (tsvol < TS_MIN_VOL && index > 0) {
 		prev_index = index - 1;
@@ -1756,51 +1761,74 @@ static int rk817_bat_res_to_temp(struct rk817_battery_device *battery, u32 res)
 
 /*
  * Process new sample and return filtered value
+ * 1. Added last_trend to track consistent direction of temperature changes
+ * 2. Defined TREND_SAMPLES macro for clear threshold of required consecutive samples
+ * 3. Improved jump detection: replaces last 5 samples when 5 consecutive consistent trends detected
+ * 4. Reduced redundant temperature conversion calculations
+ * 5. Modified FIFO behavior: replaces newest 5 samples instead of oldest when trend confirmed
  */
 static int32_t rk817_bat_ntc_filter(struct rk817_battery_device *battery, u32 new_res)
 {
-	struct ntc_filter *f = battery->f;
-	int avg_temp, new_temp, temp_diff;
-	u32 avg_res, sum = 0;
+	struct ntc_filter *f = &battery->f;
+	int avg_temp, new_temp, temp_diff, current_trend, replace_idx;
+	u32 avg_res = 0, sum = 0, new_sum = 0;
 	int i;
 
-	/* Calculate current average */
-	for (i = 0; i < f->count; i++)
-		sum += f->samples[i];
-
-	/* Temperature validation logic */
+	/* Calculate current window average */
 	if (f->count > 0) {
-		avg_res = (int32_t)(sum / f->count);
-		avg_temp = rk817_bat_res_to_temp(battery, avg_res);
-		new_temp = rk817_bat_res_to_temp(battery, new_res);
-		temp_diff = abs(new_temp - avg_temp);
+		for (i = 0; i < f->count; i++)
+			sum += f->samples[i];
 
-		/* Check if sample should be discarded */
-		if (temp_diff > TEMP_DIFF_THRESH) {
-			/* Detect temperature jump condition */
-			if (temp_diff < JUMP_DETECT_THRESH && ++f->discard_cnt >= SAMPLE_SIZE) {
+		avg_res = sum / f->count;
+		avg_temp = rk817_bat_res_to_temp(battery, avg_res);
+		DBG("avg_res2temperature: %d\n", avg_temp);
+		new_temp = rk817_bat_res_to_temp(battery, new_res);
+		DBG("new_res2temperature: %d\n", avg_temp);
+		temp_diff = abs(new_temp - avg_temp);
+		DBG("temperature:avg_res2temp: %d, new_res2temp: %d, temp_diff: %d\n",
+		avg_temp, new_temp, temp_diff);
+
+		/* Jump detection logic */
+		if (temp_diff > TEMP_DIFF_THRESH && temp_diff < JUMP_DETECT_THRESH) {
+			current_trend = (new_temp > avg_temp) ? 1 : -1;
+
+			/* Store trend sample */
+			f->trend_samples[f->discard_cnt % TREND_SAMPLES] = new_res;
+
+			/* Check trend consistency */
+			if (current_trend == f->last_trend || f->discard_cnt == 0) {
+				f->last_trend = current_trend;
+				if (++f->discard_cnt >= TREND_SAMPLES) {
+					/* Valid trend confirmed: replace last 5 samples */
+					for (i = 0; i < TREND_SAMPLES; i++) {
+						replace_idx = (f->idx - TREND_SAMPLES + i) % SAMPLE_SIZE;
+						if (replace_idx < 0)
+							replace_idx += SAMPLE_SIZE;
+						f->samples[replace_idx] = f->trend_samples[i];
+					}
+					f->discard_cnt = 0;
+					goto recalc_avg;
+				}
+			} else {
 				f->discard_cnt = 0;
-				goto accept_sample; /* Valid jump detected */
 			}
-			/* Return average, discard new sample */
 			return avg_res;
 		}
-		/* Reset counter on valid sample */
 		f->discard_cnt = 0;
 	}
 
-accept_sample:
 	/* Store valid sample */
 	f->samples[f->idx] = new_res;
 	f->idx = (f->idx + 1) % SAMPLE_SIZE;
 	if (f->count < SAMPLE_SIZE)
 		f->count++;
 
-	/* Recalculate average */
-	sum = 0;
+recalc_avg:
+	/* Recalculate window average */
 	for (i = 0; i < f->count; i++)
-		sum += f->samples[i];
-	return (int32_t)(sum / f->count);
+		new_sum += f->samples[i];
+
+	return (int32_t)(new_sum / f->count);
 }
 
 static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
@@ -1811,7 +1839,7 @@ static void rk817_bat_update_temperature(struct rk817_battery_device *battery)
 		res = rk817_bat_get_ntc_res(battery);
 		res = rk817_bat_ntc_filter(battery, res);
 		battery->temperature = rk817_bat_res_to_temp(battery, res);
-		DBG("Temperature: %d\n", battery->temperature);
+		DBG("Temperature Update: %d\n", battery->temperature);
 		rk817_bat_temperature_chrg(battery, battery->temperature / 10);
 	}
 }
@@ -1871,7 +1899,7 @@ static void rk817_bat_init_info(struct rk817_battery_device *battery)
 	battery->monitor_ms = battery->pdata->monitor_sec * TIMER_MS_COUNTS;
 	battery->sample_res = battery->pdata->sample_res;
 	battery->fake_full_soc = battery->pdata->fake_full_soc * 1000;
-	battery->is_rk817b = rk817_bat_field_read(battery, RK817B_FLAG);
+	battery->is_rk817b = rk817_bat_field_read(battery, CHIP_VER);
 	DBG("battery->qmax :%d\n", battery->qmax);
 }
 
@@ -2797,7 +2825,8 @@ static void rk817_bat_update_fg_info(struct rk817_battery_device *battery)
 	}
 
 	/* (battery->chrg_status != CHARGE_FINISH) */
-	if (battery->chrg_status == CC_OR_CV_CHRG)
+	if ((rk817_bat_get_charge_status(battery) != CHARGE_FINISH) &&
+	    !rk817_bat_fake_finish_mode(battery))
 		battery->finish_base = get_boot_sec();
 }
 
@@ -2823,8 +2852,10 @@ static void rk817_bat_lowpwr_check(struct rk817_battery_device *battery)
 		if ((base2sec(time) > MINUTE(1)) ||
 		    (battery->voltage_avg <= pwr_off_thresd - 50)) {
 			battery->fake_offline = 1;
-			if (battery->voltage_avg <= pwr_off_thresd - 50)
+			if (battery->voltage_avg <= pwr_off_thresd - 50) {
 				battery->dsoc -= 1000;
+				battery->smooth_soc = battery->dsoc;
+			}
 			DBG("low power, soc=%d, current=%d\n",
 			    battery->dsoc, battery->current_avg);
 		}
@@ -3142,6 +3173,7 @@ static void rk817_bat_output_info(struct rk817_battery_device *battery)
 	int index;
 
 	DBG("info start:\n");
+	DBG("info, is_rk817b: %d\n", battery->is_rk817b);
 	DBG("info: voltage_k %d\n", battery->voltage_k);
 	DBG("info: voltage_b %d\n", battery->voltage_b);
 	DBG("info: voltage %d\n", battery->voltage_avg);
