@@ -2499,6 +2499,13 @@ err_disable:
 }
 EXPORT_SYMBOL_GPL(analogix_dp_loader_protect);
 
+static void analogix_dp_cancel_modeset_retry_work(void *data)
+{
+	struct analogix_dp_device *dp = (struct analogix_dp_device *)data;
+
+	cancel_work_sync(&dp->modeset_retry_work);
+}
+
 struct analogix_dp_device *
 analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 {
@@ -2519,6 +2526,10 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 	INIT_WORK(&dp->modeset_retry_work, analogix_dp_modeset_retry_work_fn);
+
+	ret = devm_add_action(dev, analogix_dp_cancel_modeset_retry_work, dp);
+	if (ret)
+		return ERR_PTR(ret);
 
 	mutex_init(&dp->panel_lock);
 	dp->panel_is_prepared = false;
