@@ -62,7 +62,6 @@ struct rockchip_fephy_priv {
 	unsigned int clk_rate;
 	int old_link;
 	int wol_irq;
-	int current_group;
 };
 
 static int rockchip_fephy_group_read(struct phy_device *phydev, u8 group, u32 reg)
@@ -221,7 +220,7 @@ static irqreturn_t rockchip_fephy_wol_irq_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rockchip_fephy_dump_cfg1_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_cfg1_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -231,14 +230,11 @@ static void rockchip_fephy_dump_cfg1_group_regs(struct phy_device *phydev, int g
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
-static void rockchip_fephy_dump_afe_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_afe_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -248,14 +244,11 @@ static void rockchip_fephy_dump_afe_group_regs(struct phy_device *phydev, int gr
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
-static void rockchip_fephy_dump_bist_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_bist_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -265,14 +258,11 @@ static void rockchip_fephy_dump_bist_group_regs(struct phy_device *phydev, int g
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
-static void rockchip_fephy_dump_cfg_read_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_cfg_read_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -282,14 +272,11 @@ static void rockchip_fephy_dump_cfg_read_group_regs(struct phy_device *phydev, i
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
-static void rockchip_fephy_dump_wol_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_wol_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -299,14 +286,11 @@ static void rockchip_fephy_dump_wol_group_regs(struct phy_device *phydev, int gr
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
-static void rockchip_fephy_dump_cfg_group_regs(struct phy_device *phydev, int group, char *buf)
+static void rockchip_fephy_dump_cfg_group_regs(struct phy_device *phydev, int group)
 {
 	int reg = 0, val = 0;
 
@@ -316,10 +300,7 @@ static void rockchip_fephy_dump_cfg_group_regs(struct phy_device *phydev, int gr
 			pr_err("group%d %2d read error: %d\n", group, reg, val);
 			return;
 		}
-		if (buf)
-			sprintf(buf, "%sgroup%d %2d: 0x%x\n", buf, group, reg, val);
-		else
-			pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("group%d reg_%02d: 0x%x\n", group, reg, val);
 	}
 }
 
@@ -442,44 +423,10 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 	}
 }
 
-static ssize_t
-phy_param_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct phy_device *phydev = to_phy_device(dev);
-	struct rockchip_fephy_priv *priv = phydev->priv;
-
-	switch (priv->current_group) {
-	case GROUP_CFG0:
-		rockchip_fephy_dump_cfg_group_regs(phydev, GROUP_CFG0, buf);
-		break;
-	case GROUP_WOL:
-		rockchip_fephy_dump_wol_group_regs(phydev, GROUP_WOL, buf);
-		break;
-	case GROUP_CFG0_READ:
-		 rockchip_fephy_dump_cfg_read_group_regs(phydev, GROUP_CFG0_READ, buf);
-		break;
-	case GROUP_BIST:
-		rockchip_fephy_dump_bist_group_regs(phydev, GROUP_BIST, buf);
-		break;
-	case GROUP_AFE:
-		rockchip_fephy_dump_afe_group_regs(phydev, GROUP_AFE, buf);
-		break;
-	case GROUP_CFG1:
-		rockchip_fephy_dump_cfg1_group_regs(phydev, GROUP_CFG1, buf);
-		break;
-	default:
-		pr_err("error group num: %d\n", priv->current_group);
-		break;
-	}
-
-	return strlen(buf);
-}
-
 static ssize_t phy_param_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
 	struct phy_device *phydev = to_phy_device(dev);
-	struct rockchip_fephy_priv *priv = phydev->priv;
 	int arg1 = 0, arg2 = 0, arg3 = 0, ret;
 	char *buff, *p, *para;
 	char *argv[4];
@@ -522,38 +469,29 @@ static ssize_t phy_param_store(struct device *dev, struct device_attribute *attr
 	switch (cmd) {
 	case 'R':
 		rockchip_fephy_phy_read_priv_reg(phydev, arg1, arg2);
-		priv->current_group = arg1;
 		break;
 	case 'W':
 		rockchip_fephy_phy_write_priv_reg(phydev, arg1, arg2, arg3);
-		priv->current_group = arg1;
 		break;
 	case 'd':
-		priv->current_group = GROUP_CFG0;
-		rockchip_fephy_dump_cfg_group_regs(phydev, GROUP_CFG0, NULL);
+		rockchip_fephy_dump_cfg_group_regs(phydev, GROUP_CFG0);
 		break;
 	case 'w':
-		priv->current_group = GROUP_WOL;
-		rockchip_fephy_dump_wol_group_regs(phydev, GROUP_WOL, NULL);
+		rockchip_fephy_dump_wol_group_regs(phydev, GROUP_WOL);
 		break;
 	case 'p':
-		priv->current_group = GROUP_CFG0_READ;
-		rockchip_fephy_dump_cfg_read_group_regs(phydev, GROUP_CFG0_READ, NULL);
+		rockchip_fephy_dump_cfg_read_group_regs(phydev, GROUP_CFG0_READ);
 		break;
 	case 'b':
-		priv->current_group = GROUP_BIST;
-		rockchip_fephy_dump_bist_group_regs(phydev, GROUP_BIST, NULL);
+		rockchip_fephy_dump_bist_group_regs(phydev, GROUP_BIST);
 		break;
 	case 'a':
-		priv->current_group = GROUP_AFE;
-		rockchip_fephy_dump_afe_group_regs(phydev, GROUP_AFE, NULL);
+		rockchip_fephy_dump_afe_group_regs(phydev, GROUP_AFE);
 		break;
 	case 's':
-		priv->current_group = GROUP_CFG1;
-		rockchip_fephy_dump_cfg1_group_regs(phydev, GROUP_CFG1, NULL);
+		rockchip_fephy_dump_cfg1_group_regs(phydev, GROUP_CFG1);
 		break;
 	case 'r':
-		priv->current_group = GROUP_CFG0;
 		if (phydev && phydev->drv->soft_reset)
 			phydev->drv->soft_reset(phydev);
 		break;
@@ -568,7 +506,7 @@ end:
 	return 0;
 }
 
-static DEVICE_ATTR_RW(phy_param);
+static DEVICE_ATTR_WO(phy_param);
 
 static int rockchip_fephy_probe(struct phy_device *phydev)
 {
