@@ -818,10 +818,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	     device_property_read_bool(dev, "rockchip,dual-channel"))) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
-		if (!secondary) {
-			ret = -EPROBE_DEFER;
-			goto err_dp_remove;
-		}
+		if (!secondary)
+			return -EPROBE_DEFER;
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
@@ -846,21 +844,14 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 	ret = component_add(dev, &rockchip_dp_component_ops);
 	if (ret)
-		goto err_dp_remove;
+		return ret;
 
 	return 0;
-
-err_dp_remove:
-	analogix_dp_remove(dp->adp);
-	return ret;
 }
 
 static int rockchip_dp_remove(struct platform_device *pdev)
 {
-	struct rockchip_dp_device *dp = platform_get_drvdata(pdev);
-
 	component_del(&pdev->dev, &rockchip_dp_component_ops);
-	analogix_dp_remove(dp->adp);
 
 	return 0;
 }
