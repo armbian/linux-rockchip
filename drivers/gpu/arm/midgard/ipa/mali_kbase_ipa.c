@@ -82,7 +82,7 @@ void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev)
 	atomic_set(&kbdev->ipa_use_configured_model, true);
 }
 
-const char *kbase_ipa_model_name_from_id(u32 gpu_id)
+static const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 {
 	const u32 prod_id = (gpu_id & GPU_ID_VERSION_PRODUCT_ID) >>
 			GPU_ID_VERSION_PRODUCT_ID_SHIFT;
@@ -402,7 +402,7 @@ static u32 kbase_scale_dynamic_power(const u32 c, const u32 freq,
  *
  * Return: Power consumption, in mW. Range: 0 < p < 2^13 (0W to ~8W)
  */
-u32 kbase_scale_static_power(const u32 c, const u32 voltage)
+static u32 kbase_scale_static_power(const u32 c, const u32 voltage)
 {
 	/* Range: 2^8 < v2 < 2^16 m(V^2) */
 	const u32 v2 = (voltage * voltage) / 1000;
@@ -529,7 +529,7 @@ static unsigned long kbase_get_dynamic_power(unsigned long freq,
 	return power;
 }
 
-int kbase_get_real_power(struct devfreq *df, u32 *power,
+static int kbase_get_real_power(struct devfreq *df, u32 *power,
 				unsigned long freq,
 				unsigned long voltage)
 {

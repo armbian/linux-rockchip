@@ -27,6 +27,7 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "mali_kbase_rk.h"
+#include <platform/mali_kbase_platform_common.h>
 
 /**
  * @file mali_kbase_config_rk.c
@@ -236,12 +237,12 @@ static void rk_pm_callback_power_off(struct kbase_device *kbdev)
 			   msecs_to_jiffies(platform->delay_ms));
 }
 
-int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
+static int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	return 0;
 }
 
-void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
+static void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
 }
 

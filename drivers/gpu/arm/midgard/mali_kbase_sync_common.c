@@ -23,6 +23,7 @@
 
 #include <linux/workqueue.h>
 #include "mali_kbase.h"
+#include <mali_kbase_sync.h>
 
 void kbase_sync_fence_wait_worker(struct work_struct *data)
 {

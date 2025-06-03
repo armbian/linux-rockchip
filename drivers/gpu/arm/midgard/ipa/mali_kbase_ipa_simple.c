@@ -104,7 +104,7 @@ static int model_static_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	if (gpu_tz) {
 		int ret;
 
-		ret = gpu_tz->ops->get_temp(gpu_tz, &temp);
+		ret = thermal_zone_get_temp(gpu_tz, &temp);
 		if (ret) {
 			pr_warn_ratelimited("Error reading temperature for gpu thermal zone: %d\n",
 					ret);

@@ -37,6 +37,7 @@
 #endif
 
 #include "mali_kbase.h"
+#include <mali_kbase_sync.h>
 
 /**
  * struct kbase_sync_fence_info - Information about a fence

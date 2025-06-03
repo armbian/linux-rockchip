@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>

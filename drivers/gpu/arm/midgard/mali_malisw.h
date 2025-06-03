@@ -42,26 +42,6 @@
 #endif /* LINUX_VERSION_CODE */
 
 /**
- * MIN - Return the lesser of two values.
- *
- * As a macro it may evaluate its arguments more than once.
- * Refer to MAX macro for more details
- */
-#define MIN(x, y)	((x) < (y) ? (x) : (y))
-
-/**
- * MAX -  Return the greater of two values.
- *
- * As a macro it may evaluate its arguments more than once.
- * If called on the same two arguments as MIN it is guaranteed to return
- * the one that MIN didn't return. This is significant for types where not
- * all values are comparable e.g. NaNs in floating-point types. But if you want
- * to retrieve the min and max of two values, consider using a conditional swap
- * instead.
- */
-#define MAX(x, y)	((x) < (y) ? (y) : (x))
-
-/**
  * @hideinitializer
  * Function-like macro for suppressing unused variable warnings. Where possible
  * such variables should be removed; this macro is present for cases where we

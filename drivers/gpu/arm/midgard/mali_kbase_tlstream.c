@@ -13,8 +13,6 @@
  *
  */
 
-
-
 #include <linux/anon_inodes.h>
 #include <linux/atomic.h>
 #include <linux/file.h>
@@ -642,7 +640,7 @@ static size_t kbasep_tlstream_write_string(
 	KBASE_DEBUG_ASSERT(max_write_size >= sizeof(string_len) + sizeof(char));
 	max_write_size -= sizeof(string_len);
 
-	string_len = strlcpy(
+	string_len = strscpy(
 			&buffer[pos + sizeof(string_len)],
 			string,
 			max_write_size);

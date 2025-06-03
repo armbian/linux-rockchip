@@ -36,6 +36,7 @@
 #include <mali_kbase_instr_defs.h>
 #include <mali_kbase_pm.h>
 #include <protected_mode_switcher.h>
+#include <linux/version_compat_defs_for_valhall.h>
 
 #include <linux/atomic.h>
 #include <linux/mempool.h>
@@ -922,7 +923,7 @@ struct kbase_mem_pool {
 	size_t              max_size;
 	spinlock_t          pool_lock;
 	struct list_head    page_list;
-	struct shrinker     reclaim;
+	DEFINE_KBASE_SHRINKER reclaim;
 
 	struct kbase_mem_pool *next_pool;
 };
@@ -1378,7 +1379,7 @@ struct kbase_context {
 
 	struct kbase_mem_pool mem_pool;
 
-	struct shrinker         reclaim;
+	DEFINE_KBASE_SHRINKER reclaim;
 	struct list_head        evict_list;
 
 	struct list_head waiting_soft_jobs;

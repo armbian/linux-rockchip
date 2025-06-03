@@ -341,7 +341,7 @@ unsigned long kbase_mem_evictable_reclaim_count_objects(struct shrinker *s,
 	struct kbase_mem_phy_alloc *alloc;
 	unsigned long pages = 0;
 
-	kctx = container_of(s, struct kbase_context, reclaim);
+	kctx = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_context, reclaim);
 
 	mutex_lock(&kctx->jit_evict_lock);
 
@@ -380,7 +380,8 @@ unsigned long kbase_mem_evictable_reclaim_scan_objects(struct shrinker *s,
 	struct kbase_mem_phy_alloc *tmp;
 	unsigned long freed = 0;
 
-	kctx = container_of(s, struct kbase_context, reclaim);
+	kctx = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_context, reclaim);
+
 	mutex_lock(&kctx->jit_evict_lock);
 
 	list_for_each_entry_safe(alloc, tmp, &kctx->evict_list, evict_node) {
@@ -438,29 +439,30 @@ static int kbase_mem_evictable_reclaim_shrink(struct shrinker *s,
 
 int kbase_mem_evictable_init(struct kbase_context *kctx)
 {
+	struct shrinker *reclaim;
+
 	INIT_LIST_HEAD(&kctx->evict_list);
 	mutex_init(&kctx->jit_evict_lock);
 
 	/* Register shrinker */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-	kctx->reclaim.shrink = kbase_mem_evictable_reclaim_shrink;
-#else
-	kctx->reclaim.count_objects = kbase_mem_evictable_reclaim_count_objects;
-	kctx->reclaim.scan_objects = kbase_mem_evictable_reclaim_scan_objects;
-#endif
-	kctx->reclaim.seeks = DEFAULT_SEEKS;
-	/* Kernel versions prior to 3.1 :
-	 * struct shrinker does not define batch */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
-	kctx->reclaim.batch = 0;
-#endif
-	register_shrinker(&kctx->reclaim, "mali-mem");
+
+	reclaim = KBASE_INIT_RECLAIM(kctx, reclaim, "mali-mem");
+	if (!reclaim)
+		return -ENOMEM;
+	KBASE_SET_RECLAIM(kctx, reclaim, reclaim);
+
+	reclaim->count_objects = kbase_mem_evictable_reclaim_count_objects;
+	reclaim->scan_objects = kbase_mem_evictable_reclaim_scan_objects;
+	reclaim->seeks = DEFAULT_SEEKS;
+
+	KBASE_REGISTER_SHRINKER(reclaim, "mali-mem", kctx);
+
 	return 0;
 }
 
 void kbase_mem_evictable_deinit(struct kbase_context *kctx)
 {
-	unregister_shrinker(&kctx->reclaim);
+	KBASE_UNREGISTER_SHRINKER(kctx->reclaim);
 }
 
 /**
@@ -1030,7 +1032,7 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 #else
 	faulted_pages = get_user_pages(address, *va_pages,
 			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
-			pages, NULL);
+			pages);
 #endif
 
 	up_read(&current->mm->mmap_lock);
@@ -1740,7 +1742,7 @@ static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vm
 	 */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTDUMP | VM_DONTEXPAND | VM_IO;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTDUMP | VM_DONTEXPAND | VM_IO);
 #else
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED | VM_IO;
 #endif
@@ -1765,7 +1767,7 @@ static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vm
 		u64 start_off = vma->vm_pgoff - reg->start_pfn +
 			(aligned_offset>>PAGE_SHIFT);
 
-		vma->vm_flags |= VM_PFNMAP;
+		vm_flags_set(vma, VM_PFNMAP);
 		for (i = 0; i < nr_pages; i++) {
 			unsigned long pfn = PFN_DOWN(page_array[i + start_off]);
 			vm_fault_t ret;
@@ -1784,7 +1786,7 @@ static int kbase_cpu_mmap(struct kbase_va_region *reg, struct vm_area_struct *vm
 	} else {
 		WARN_ON(aligned_offset);
 		/* MIXEDMAP so we can vfree the kaddr early and not track it after map time */
-		vma->vm_flags |= VM_MIXEDMAP;
+		vm_flags_set(vma, VM_MIXEDMAP);
 		/* vmalloc remaping is easy... */
 		err = remap_vmalloc_range(vma, kaddr, 0);
 		WARN_ON(err);
@@ -1877,7 +1879,7 @@ static int kbase_trace_buffer_mmap(struct kbase_context *kctx, struct vm_area_st
 	*reg = new_reg;
 
 	/* map read only, noexec */
-	vma->vm_flags &= ~(VM_WRITE | VM_MAYWRITE | VM_EXEC | VM_MAYEXEC);
+	vm_flags_clear(vma, VM_WRITE | VM_MAYWRITE | VM_EXEC | VM_MAYEXEC);
 	/* the rest of the flags is added by the cpu_mmap handler */
 
 	dev_dbg(kctx->kbdev->dev, "%s done\n", __func__);
@@ -2048,8 +2050,10 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 
 	dev_dbg(dev, "kbase_mmap\n");
 
-	/* strip away corresponding VM_MAY% flags to the VM_% flags requested */
-	vma->vm_flags &= ~((vma->vm_flags & (VM_READ | VM_WRITE)) << 4);
+	if (!(vma->vm_flags & VM_READ))
+		vm_flags_clear(vma, VM_MAYREAD);
+	if (!(vma->vm_flags & VM_WRITE))
+		vm_flags_clear(vma, VM_MAYWRITE);
 
 	if (0 == nr_pages) {
 		err = -EINVAL;
@@ -2452,9 +2456,9 @@ static int kbase_tracking_page_setup(struct kbase_context *kctx, struct vm_area_
 	spin_unlock(&kctx->mm_update_lock);
 
 	/* no real access */
-	vma->vm_flags &= ~(VM_READ | VM_MAYREAD | VM_WRITE | VM_MAYWRITE | VM_EXEC | VM_MAYEXEC);
+	vm_flags_clear(vma, VM_READ | VM_MAYREAD | VM_WRITE | VM_MAYWRITE | VM_EXEC | VM_MAYEXEC);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTDUMP | VM_DONTEXPAND | VM_IO);
 #else
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED | VM_IO;
 #endif

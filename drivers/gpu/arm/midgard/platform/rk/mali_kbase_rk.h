@@ -58,5 +58,7 @@ static inline struct rk_context *get_rk_context(
 	return (struct rk_context *)(kbdev->platform_context);
 }
 
+void kbase_platform_rk_shutdown(struct kbase_device *kbdev);
+
 #endif				/* _MALI_KBASE_RK_H_ */
 

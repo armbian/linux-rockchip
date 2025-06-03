@@ -98,6 +98,8 @@
 
 #include <mali_kbase_as_fault_debugfs.h>
 
+#include <platform/rk/mali_kbase_rk.h>
+
 /* GPU IRQ Tags */
 #define	JOB_IRQ_TAG	0
 #define MMU_IRQ_TAG	1
@@ -1173,7 +1175,9 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	}
 
 	init_waitqueue_head(&kctx->event_queue);
+#if (KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE)
 	filp->f_mode |= FMODE_UNSIGNED_OFFSET;
+#endif
 	filp->private_data = kctx;
 	kctx->filp = filp;
 
@@ -2288,6 +2292,9 @@ static const struct file_operations kbase_fops = {
 	.mmap = kbase_mmap,
 	.check_flags = kbase_check_flags,
 	.get_unmapped_area = kbase_get_unmapped_area,
+#if (KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE)
+	.fop_flags = FOP_UNSIGNED_OFFSET,
+#endif
 };
 
 #ifndef CONFIG_MALI_NO_MALI
@@ -4445,7 +4452,6 @@ static void kbase_platform_device_remove(struct platform_device *pdev)
 	kbase_device_free(kbdev);
 }
 
-extern void kbase_platform_rk_shutdown(struct kbase_device *kbdev);
 static void kbase_platform_device_shutdown(struct platform_device *pdev)
 {
 	struct kbase_device *kbdev = to_kbase_device(&pdev->dev);

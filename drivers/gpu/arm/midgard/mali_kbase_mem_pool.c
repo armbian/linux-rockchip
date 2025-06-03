@@ -287,7 +287,7 @@ static unsigned long kbase_mem_pool_reclaim_count_objects(struct shrinker *s,
 {
 	struct kbase_mem_pool *pool;
 
-	pool = container_of(s, struct kbase_mem_pool, reclaim);
+	pool = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_mem_pool, reclaim);
 	pool_dbg(pool, "reclaim count: %zu\n", kbase_mem_pool_size(pool));
 	return kbase_mem_pool_size(pool);
 }
@@ -298,7 +298,7 @@ static unsigned long kbase_mem_pool_reclaim_scan_objects(struct shrinker *s,
 	struct kbase_mem_pool *pool;
 	unsigned long freed;
 
-	pool = container_of(s, struct kbase_mem_pool, reclaim);
+	pool = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_mem_pool, reclaim);
 
 	pool_dbg(pool, "reclaim scan %ld:\n", sc->nr_to_scan);
 
@@ -325,6 +325,8 @@ int kbase_mem_pool_init(struct kbase_mem_pool *pool,
 		struct kbase_device *kbdev,
 		struct kbase_mem_pool *next_pool)
 {
+	struct shrinker *reclaim;
+
 	pool->cur_size = 0;
 	pool->max_size = max_size;
 	pool->kbdev = kbdev;
@@ -333,20 +335,17 @@ int kbase_mem_pool_init(struct kbase_mem_pool *pool,
 	spin_lock_init(&pool->pool_lock);
 	INIT_LIST_HEAD(&pool->page_list);
 
-	/* Register shrinker */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-	pool->reclaim.shrink = kbase_mem_pool_reclaim_shrink;
-#else
-	pool->reclaim.count_objects = kbase_mem_pool_reclaim_count_objects;
-	pool->reclaim.scan_objects = kbase_mem_pool_reclaim_scan_objects;
-#endif
-	pool->reclaim.seeks = DEFAULT_SEEKS;
-	/* Kernel versions prior to 3.1 :
-	 * struct shrinker does not define batch */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
-	pool->reclaim.batch = 0;
-#endif
-	register_shrinker(&pool->reclaim, "mali-mem-pool");
+	reclaim = KBASE_INIT_RECLAIM(pool, reclaim, "mali-mem-pool");
+	if (!reclaim)
+		return -ENOMEM;
+	KBASE_SET_RECLAIM(pool, reclaim, reclaim);
+
+	reclaim->count_objects = kbase_mem_pool_reclaim_count_objects;
+	reclaim->scan_objects = kbase_mem_pool_reclaim_scan_objects;
+	reclaim->seeks = DEFAULT_SEEKS;
+	reclaim->batch = 0;
+
+	KBASE_REGISTER_SHRINKER(reclaim, "mali-mem-pool", pool);
 
 	pool_dbg(pool, "initialized\n");
 
@@ -363,7 +362,7 @@ void kbase_mem_pool_term(struct kbase_mem_pool *pool)
 
 	pool_dbg(pool, "terminate()\n");
 
-	unregister_shrinker(&pool->reclaim);
+	KBASE_UNREGISTER_SHRINKER(pool->reclaim);
 
 	kbase_mem_pool_lock(pool);
 	pool->max_size = 0;
