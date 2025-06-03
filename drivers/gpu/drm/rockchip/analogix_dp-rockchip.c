@@ -753,10 +753,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	     device_property_read_bool(dev, "rockchip,dual-channel"))) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
-		if (!secondary) {
-			ret = -EPROBE_DEFER;
-			goto err_dp_remove;
-		}
+		if (!secondary)
+			return -EPROBE_DEFER;
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
