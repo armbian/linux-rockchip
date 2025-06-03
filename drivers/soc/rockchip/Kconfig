@@ -135,27 +135,6 @@ config ROCKCHIP_OPTIMIZE_RT_PRIO
 	  kernel and priority 50~99 for userspace, so that kernel RT threads is always
 	  higher priority than userspace. This config also set RT policy for kworkers.
 
-config ROCKCHIP_PERFORMANCE
-	bool "Rockchip performance configuration support"
-	depends on NO_GKI
-	help
-	  This config aims to support different requests between power consumption
-	  and performance.
-
-config ROCKCHIP_PERFORMANCE_LEVEL
-	int "Rockchip performance default level"
-	depends on ROCKCHIP_PERFORMANCE
-	range 0 2
-	default 1
-	help
-	  Select default performance level:
-
-	  0 for low-performance (powersave),
-	  1 for normal performance,
-	  2 for high-performance.
-
-	  This can also be changed at runtime (via the level module parameter).
-
 config ROCKCHIP_DTPM
 	tristate "Rockchip DTPM hierarchy"
 	depends on DTPM && m
