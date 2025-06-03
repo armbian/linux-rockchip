@@ -998,9 +998,13 @@ static int rk_iommu_map(struct iommu_domain *domain, unsigned long _iova,
 	u32 dte, pte_index;
 	int ret;
 
-	if (rk_domain->opt_ops && rk_domain->opt_ops->map)
-		return rk_domain->opt_ops->map(domain, _iova, paddr, size, prot,
-					       gfp, rk_domain->iommu_dev);
+	if (rk_domain->opt_ops && rk_domain->opt_ops->map) {
+		ret = rk_domain->opt_ops->map(domain, _iova, paddr, size, prot,
+					      gfp, rk_domain->iommu_dev);
+		if (!ret)
+			*mapped = size;
+		return ret;
+	}
 
 	spin_lock_irqsave(&rk_domain->dt_lock, flags);
 
