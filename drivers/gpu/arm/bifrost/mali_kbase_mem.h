@@ -43,6 +43,7 @@
 #include <linux/version_compat_defs.h>
 #include <linux/sched/mm.h>
 #include <linux/kref.h>
+#include <linux/vmalloc.h>
 
 static inline void kbase_process_page_usage_inc(struct kbase_context *kctx, int pages);
 

@@ -323,9 +323,13 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 
 	/* There is no limit for Mali, so set to max. */
 	if (kbdev->dev->dma_parms)
+#if (KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE)
 		err = dma_set_max_seg_size(kbdev->dev, UINT_MAX);
 	if (err)
 		goto dma_set_mask_failed;
+#else
+		dma_set_max_seg_size(kbdev->dev, UINT_MAX);
+#endif
 
 	kbdev->nr_hw_address_spaces = (s8)kbdev->gpu_props.num_address_spaces;
 
