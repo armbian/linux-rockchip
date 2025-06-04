@@ -18,6 +18,9 @@
 #ifndef __RK_EXT_H__
 #define __RK_EXT_H__
 
+#include <linux/platform_device.h>
+#include "../../common/mali_osk_mali.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +31,11 @@ extern "C" {
 #define RK_KO_VER   (5)
 
 /*---------------------------------------------------------------------------*/
+
+int mali_platform_device_init(struct platform_device *pdev);
+
+int rk_platform_init_opp_table(struct mali_device *mdev);
+void rk_platform_uninit_opp_table(struct mali_device *mdev);
 
 #ifdef __cplusplus
 }

@@ -14,6 +14,7 @@
 #include "mali_memory.h"
 #include "mali_mem_validation.h"
 #include "mali_uk_types.h"
+#include "mali_memory_external.h"
 
 void mali_mem_unbind_ext_buf(mali_mem_backend *mem_backend)
 {

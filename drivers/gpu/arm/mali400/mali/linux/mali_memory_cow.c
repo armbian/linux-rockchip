@@ -180,7 +180,7 @@ error:
 	return _MALI_OSK_ERR_FAULT;
 }
 
-_mali_osk_errcode_t mali_memory_cow_swap_memory(mali_mem_backend *target_bk,
+static _mali_osk_errcode_t mali_memory_cow_swap_memory(mali_mem_backend *target_bk,
 		u32 target_offset,
 		u32 target_size,
 		mali_mem_backend *backend,
@@ -265,7 +265,7 @@ error:
 }
 
 
-_mali_osk_errcode_t _mali_mem_put_page_node(mali_page_node *node)
+static _mali_osk_errcode_t _mali_mem_put_page_node(mali_page_node *node)
 {
 	if (node->type == MALI_PAGE_NODE_OS) {
 		return mali_mem_os_put_page(node->page);
@@ -391,13 +391,12 @@ _mali_osk_errcode_t mali_memory_cow_modify_range(mali_mem_backend *backend,
 			}
 		} else {
 			/* used to trigger page fault for swappable cowed memory. */
-			alloc->cpu_mapping.vma->vm_flags |= VM_PFNMAP;
-			alloc->cpu_mapping.vma->vm_flags |= VM_MIXEDMAP;
+			vm_flags_set(alloc->cpu_mapping.vma, VM_PFNMAP | VM_MIXEDMAP);
 
 			zap_vma_ptes(alloc->cpu_mapping.vma, alloc->cpu_mapping.vma->vm_start + range_start, range_size);
 			/* delete this flag to let swappble is ummapped regard to stauct page not page frame. */
-			alloc->cpu_mapping.vma->vm_flags &= ~VM_PFNMAP;
-			alloc->cpu_mapping.vma->vm_flags &= ~VM_MIXEDMAP;
+			vm_flags_clear(alloc->cpu_mapping.vma, VM_PFNMAP);
+			vm_flags_clear(alloc->cpu_mapping.vma, VM_MIXEDMAP);
 		}
 	}
 

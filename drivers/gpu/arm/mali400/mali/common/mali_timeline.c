@@ -622,7 +622,7 @@ mali_scheduler_mask mali_timeline_tracker_release(struct mali_timeline_tracker *
 	return schedule_mask;
 }
 
-void mali_timeline_system_release_waiter_list(struct mali_timeline_system *system,
+static void mali_timeline_system_release_waiter_list(struct mali_timeline_system *system,
 		struct mali_timeline_waiter *tail,
 		struct mali_timeline_waiter *head)
 {

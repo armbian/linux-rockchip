@@ -167,7 +167,7 @@ struct mali_internal_sync_timeline *mali_internal_sync_timeline_create(const str
 #else
 	sync_timeline->fence_context = fence_context_alloc(1);
 #endif
-	strlcpy(sync_timeline->name, name, sizeof(sync_timeline->name));
+	strscpy(sync_timeline->name, name, sizeof(sync_timeline->name));
 
 	INIT_LIST_HEAD(&sync_timeline->sync_pt_list_head);
 	spin_lock_init(&sync_timeline->sync_pt_list_lock);

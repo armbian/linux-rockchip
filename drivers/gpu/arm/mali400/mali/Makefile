@@ -195,7 +195,6 @@ endif
 
 all: $(UMP_SYMVERS_FILE)
 	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) modules
-	@rm $(FILES_PREFIX)__malidrv_build_info.c $(FILES_PREFIX)__malidrv_build_info.o
 
 clean:
 	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean

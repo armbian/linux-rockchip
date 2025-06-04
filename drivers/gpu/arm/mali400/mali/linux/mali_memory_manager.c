@@ -124,7 +124,7 @@ void  mali_mem_allocation_struct_destory(mali_mem_allocation *alloc)
 	kfree(alloc);
 }
 
-int mali_mem_backend_struct_create(mali_mem_backend **backend, u32 psize)
+static int mali_mem_backend_struct_create(mali_mem_backend **backend, u32 psize)
 {
 	mali_mem_backend *mem_backend = NULL;
 	s32 ret = -ENOSPC;

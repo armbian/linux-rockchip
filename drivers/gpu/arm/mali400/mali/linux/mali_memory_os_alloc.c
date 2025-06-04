@@ -52,20 +52,7 @@ struct mali_mem_os_allocator mali_mem_os_allocator = {
 	.allocated_pages = ATOMIC_INIT(0),
 	.allocation_limit = 0,
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
-	.shrinker.shrink = mali_mem_os_shrink,
-#else
-	.shrinker.count_objects = mali_mem_os_shrink_count,
-	.shrinker.scan_objects = mali_mem_os_shrink,
-#endif
-	.shrinker.seeks = DEFAULT_SEEKS,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
 	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool, TIMER_DEFERRABLE),
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
-	.timed_shrinker = __DEFERRED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
-#else
-	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
-#endif
 };
 
 u32 mali_mem_os_free(struct list_head *os_pages, u32 pages_count, mali_bool cow_flag)
@@ -754,12 +741,28 @@ static void mali_mem_os_trim_pool(struct work_struct *data)
 
 _mali_osk_errcode_t mali_mem_os_init(void)
 {
+	struct shrinker *reclaim;
+
 	mali_mem_os_allocator.wq = alloc_workqueue("mali-mem", WQ_UNBOUND, 1);
 	if (NULL == mali_mem_os_allocator.wq) {
 		return _MALI_OSK_ERR_NOMEM;
 	}
 
-	register_shrinker(&mali_mem_os_allocator.shrinker, "mali-mem");
+	reclaim = KBASE_INIT_RECLAIM(&mali_mem_os_allocator, shrinker, "mali-mem-os-allocator");
+	if (!reclaim) {
+		destroy_workqueue(mali_mem_os_allocator.wq);
+		mali_mem_os_allocator.wq = NULL;
+
+		return -ENOMEM;
+	}
+	KBASE_SET_RECLAIM(&mali_mem_os_allocator, shrinker, reclaim);
+
+	reclaim->count_objects = mali_mem_os_shrink_count;
+	reclaim->scan_objects = mali_mem_os_shrink;
+	reclaim->seeks = DEFAULT_SEEKS;
+	reclaim->batch = 0;
+
+	KBASE_REGISTER_SHRINKER(reclaim, "mali-mem-os-allocator", &mali_mem_os_allocator);
 
 	return _MALI_OSK_ERR_OK;
 }
@@ -767,7 +770,7 @@ _mali_osk_errcode_t mali_mem_os_init(void)
 void mali_mem_os_term(void)
 {
 	struct mali_page_node *m_page, *m_tmp;
-	unregister_shrinker(&mali_mem_os_allocator.shrinker);
+	KBASE_UNREGISTER_SHRINKER(mali_mem_os_allocator.shrinker);
 	cancel_delayed_work_sync(&mali_mem_os_allocator.timed_shrinker);
 
 	if (NULL != mali_mem_os_allocator.wq) {

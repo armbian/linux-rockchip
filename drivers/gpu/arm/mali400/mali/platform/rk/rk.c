@@ -41,6 +41,9 @@
 #include <linux/mali/mali_utgard.h>
 #include "mali_kernel_common.h"
 #include "../../common/mali_osk_mali.h"
+#include "mali_memory_util.h"
+
+#include "./rk_ext.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -718,6 +721,7 @@ int mali_platform_device_init(struct platform_device *pdev)
 	return 0;
 }
 
+void mali_platform_device_deinit(struct platform_device *pdev);
 void mali_platform_device_deinit(struct platform_device *pdev)
 {
 	MALI_DEBUG_PRINT(4, ("mali_platform_device_unregister() called\n"));

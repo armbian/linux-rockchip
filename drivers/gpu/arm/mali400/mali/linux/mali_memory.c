@@ -210,14 +210,11 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 		 * that it's present and can never be paged out (see also previous
 		 * entry)
 		 */
-		vma->vm_flags |= VM_IO;
-		vma->vm_flags |= VM_DONTCOPY;
-		vma->vm_flags |= VM_PFNMAP;
+		vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_PFNMAP);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 		vma->vm_flags |= VM_RESERVED;
 #else
-		vma->vm_flags |= VM_DONTDUMP;
-		vma->vm_flags |= VM_DONTEXPAND;
+		vm_flags_set(vma, VM_DONTDUMP | VM_DONTEXPAND);
 #endif
 	} else if (MALI_MEM_SWAP == mali_alloc->type) {
 		vma->vm_pgoff = mem_bkend->start_idx;
@@ -232,7 +229,7 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_WRITE)) {
 		MALI_DEBUG_PRINT(4, ("mmap allocation with read only !\n"));
 		/* add VM_WRITE for do_page_fault will check this when a write fault */
-		vma->vm_flags |= VM_WRITE | VM_READ;
+		vm_flags_set(vma, VM_WRITE | VM_READ);
 		vma->vm_page_prot = PAGE_READONLY;
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		mem_bkend->flags |= MALI_MEM_BACKEND_FLAG_COW_CPU_NO_WRITE;

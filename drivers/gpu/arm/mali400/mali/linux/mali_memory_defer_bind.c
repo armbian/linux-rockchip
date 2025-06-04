@@ -62,7 +62,9 @@ void mali_mem_defer_bind_manager_destory(void)
 
 
 /*allocate pages from OS memory*/
-_mali_osk_errcode_t mali_mem_defer_alloc_mem(u32 require, struct mali_session_data *session, mali_defer_mem_block *dblock)
+static _mali_osk_errcode_t mali_mem_defer_alloc_mem(u32 require,
+						    struct mali_session_data *session,
+						    mali_defer_mem_block *dblock)
 {
 	int retval = 0;
 	u32 num_pages = require;

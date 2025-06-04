@@ -53,23 +53,6 @@ void mali_pm_metrics_term(struct mali_device *mdev)
 	_mali_osk_spinlock_irq_term(mdev->mali_metrics.lock);
 }
 
-/*caller needs to hold mdev->mali_metrics.lock before calling this function*/
-void mali_pm_record_job_status(struct mali_device *mdev)
-{
-	ktime_t now;
-	ktime_t diff;
-	u64 ns_time;
-
-	MALI_DEBUG_ASSERT(mdev != NULL);
-
-	now = ktime_get();
-	diff = ktime_sub(now, mdev->mali_metrics.time_period_start);
-
-	ns_time = (u64)(ktime_to_ns(diff) >> MALI_PM_TIME_SHIFT);
-	mdev->mali_metrics.time_busy += ns_time;
-	mdev->mali_metrics.time_period_start = now;
-}
-
 void mali_pm_record_gpu_idle(mali_bool is_gp)
 {
 	ktime_t now;

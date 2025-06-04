@@ -36,6 +36,7 @@
 #endif /* Linux >= 3.13 */
 
 #include "mali_pm_metrics.h"
+#include "mali_devfreq.h"
 
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
@@ -165,13 +166,13 @@ mali_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 }
 
 /* setup platform specific opp in platform.c*/
-int __weak setup_opps(void)
+static int setup_opps(void)
 {
 	return 0;
 }
 
 /* term platform specific opp in platform.c*/
-int __weak term_opps(struct device *dev)
+static int term_opps(struct device *dev)
 {
 	return 0;
 }
@@ -278,8 +279,9 @@ int mali_devfreq_init(struct mali_device *mdev)
 	mdev->devfreq = devfreq_add_device(mdev->dev, dp,
 					   "simple_ondemand", &ondemand_data);
 	if (IS_ERR(mdev->devfreq)) {
+		err = PTR_ERR(mdev->devfreq);
 		mali_devfreq_term_freq_table(mdev);
-		return PTR_ERR(mdev->devfreq);
+		return err;
 	}
 
 	err = devfreq_register_opp_notifier(mdev->dev, mdev->devfreq);
@@ -320,7 +322,7 @@ int mali_devfreq_init(struct mali_device *mdev)
 		mdev->devfreq_cooling = devfreq_cooling_em_register(
 						mdev->devfreq,
 						callbacks);
-		if (IS_ERR_OR_NULL(mdev->devfreq_cooling)) {
+		if (IS_ERR(mdev->devfreq_cooling)) {
 			err = PTR_ERR(mdev->devfreq_cooling);
 			MALI_PRINT_ERROR(("Failed to register cooling device (%d)\n", err));
 			goto cooling_failed;

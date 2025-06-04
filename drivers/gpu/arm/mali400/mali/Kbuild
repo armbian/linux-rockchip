@@ -129,8 +129,7 @@ mali-y += \
 	common/mali_spinlock_reentrant.o \
 	common/mali_pm_domain.o \
 	linux/mali_osk_pm.o \
-	linux/mali_pmu_power_up_down.o \
-	__malidrv_build_info.o
+	linux/mali_pmu_power_up_down.o
 
 ifneq ($(wildcard $(src)/linux/mali_slp_global_lock.c),)
 	mali-y += linux/mali_slp_global_lock.o
@@ -192,6 +191,7 @@ ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling
 ccflags-y += -I$(src) -I$(src)/include -I$(src)/common -I$(src)/linux -I$(src)/platform -Wno-date-time
+ccflags-y += -Wno-old-style-declaration
 
 # Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
 MALI_RELEASE_NAME=$(shell cat $(src)/.version 2> /dev/null)
@@ -248,7 +248,3 @@ VERSION_STRINGS += USING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
 VERSION_STRINGS += USING_DVFS=$(CONFIG_MALI_DVFS)
 VERSION_STRINGS += USING_DMA_BUF_FENCE = $(CONFIG_MALI_DMA_BUF_FENCE)
 VERSION_STRINGS += MALI_UPPER_HALF_SCHEDULING=$(MALI_UPPER_HALF_SCHEDULING)
-
-# Create file with Mali driver configuration
-$(src)/__malidrv_build_info.c:
-	@echo 'const char *__malidrv_build_info(void) { return "malidrv: $(VERSION_STRINGS)";}' > $(src)/__malidrv_build_info.c

@@ -36,6 +36,7 @@
 #include "mali_memory_cow.h"
 #include "mali_memory_block_alloc.h"
 #include "mali_memory_swap_alloc.h"
+#include "mali_memory_util.h"
 
 
 

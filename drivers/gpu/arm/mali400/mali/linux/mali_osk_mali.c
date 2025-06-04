@@ -228,8 +228,6 @@ uintptr_t _mali_osk_resource_base_address(void)
 void _mali_osk_device_data_pmu_config_get(u16 *domain_config_array, int array_size)
 {
 	struct device_node *node = mali_platform_device->dev.of_node;
-	struct property *prop;
-	const __be32 *p;
 	int length = 0, i = 0;
 	u32 u;
 
@@ -246,7 +244,7 @@ void _mali_osk_device_data_pmu_config_get(u16 *domain_config_array, int array_si
 		return;
 	}
 
-	of_property_for_each_u32(node, "pmu_domain_config", prop, p, u) {
+	of_property_for_each_u32(node, "pmu_domain_config", u) {
 		domain_config_array[i] = (u16)u;
 		i++;
 	}

@@ -17,6 +17,8 @@
 #include "ump_kernel_interface.h"
 #endif
 
+#include <linux/version_compat_defs_for_valhall.h>
+
 typedef u32 mali_address_t;
 
 typedef enum mali_mem_type {
@@ -153,7 +155,7 @@ struct mali_mem_os_allocator {
 	atomic_t allocated_pages;
 	size_t allocation_limit;
 
-	struct shrinker shrinker;
+	DEFINE_KBASE_SHRINKER shrinker;
 	struct delayed_work timed_shrinker;
 	struct workqueue_struct *wq;
 };
