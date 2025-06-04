@@ -474,6 +474,7 @@ static void rkcif_tools_vb2_stop_streaming(struct vb2_queue *vq)
 	struct rkcif_device *dev = tools_vdev->cifdev;
 	struct rkcif_buffer *buf = NULL;
 	struct rkcif_tools_buffer *tools_buf;
+	struct rkcif_rx_buffer *rx_buf = NULL;
 	int ret = 0;
 
 	mutex_lock(&dev->tools_lock);
@@ -485,6 +486,12 @@ static void rkcif_tools_vb2_stop_streaming(struct vb2_queue *vq)
 	if (!ret) {
 		rkcif_tools_stop(tools_vdev);
 		tools_vdev->stopping = false;
+		while (!list_empty(&tools_vdev->buf_done_head)) {
+			rx_buf = list_first_entry(&tools_vdev->buf_done_head,
+					       struct rkcif_rx_buffer, list_tool);
+			list_del(&rx_buf->list_tool);
+			v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &rx_buf->dbufs, NULL);
+		}
 	}
 	/* release buffers */
 	if (tools_vdev->curr_buf)
@@ -710,9 +717,9 @@ retry_done_rdbk_buf:
 	spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
 	if (!list_empty(&tools_vdev->buf_done_head)) {
 		buf = list_first_entry(&tools_vdev->buf_done_head,
-				       struct rkcif_rx_buffer, list);
+				       struct rkcif_rx_buffer, list_tool);
 		if (buf)
-			list_del(&buf->list);
+			list_del(&buf->list_tool);
 	}
 	spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 	if (!buf) {
@@ -724,12 +731,14 @@ retry_done_rdbk_buf:
 	if (tools_vdev->stopping) {
 		rkcif_tools_stop(tools_vdev);
 		tools_vdev->stopping = false;
+		if (buf)
+			v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 		spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
 		while (!list_empty(&tools_vdev->buf_done_head)) {
 			buf = list_first_entry(&tools_vdev->buf_done_head,
-					       struct rkcif_rx_buffer, list);
-			if (buf)
-				list_del(&buf->list);
+					       struct rkcif_rx_buffer, list_tool);
+			list_del(&buf->list_tool);
+			v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 		}
 		spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 		wake_up(&tools_vdev->wq_stopped);
@@ -742,9 +751,13 @@ retry_done_rdbk_buf:
 		if (!tools_vdev->curr_buf || tools_vdev->state != RKCIF_STATE_STREAMING) {
 			spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
 			if (!list_empty(&tools_vdev->buf_done_head)) {
+				if (buf)
+					v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 				spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
 				goto retry_done_rdbk_buf;
 			}
+			if (buf)
+				v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 			spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 			return;
 		}
@@ -765,10 +778,14 @@ retry_done_rdbk_buf:
 					      payload_size);
 			memcpy(dst, src, payload_size);
 		}
+		v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 		tools_vdev->curr_buf->vb.sequence = buf->dbufs.sequence;
 		tools_vdev->curr_buf->vb.vb2_buf.timestamp = buf->dbufs.timestamp;
 		vb2_buffer_done(&tools_vdev->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		tools_vdev->curr_buf = NULL;
+	} else {
+		if (buf)
+			v4l2_subdev_call(&dev->sditf[0]->sd, video, s_rx_buffer, &buf->dbufs, NULL);
 	}
 
 	spin_lock_irqsave(&tools_vdev->vbq_lock, flags);

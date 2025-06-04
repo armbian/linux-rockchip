@@ -1345,6 +1345,26 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static int sditf_check_toolbuf_return(struct rkcif_stream *stream, struct rkcif_rx_buffer *rx_buf)
+{
+	struct rkcif_tools_vdev *tools_vdev = stream->tools_vdev;
+	unsigned long flags;
+
+	if (tools_vdev) {
+		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+
+		if (rx_buf->use_cnt)
+			rx_buf->use_cnt--;
+		if (rx_buf->use_cnt) {
+			spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+			return false;
+		}
+		spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+	}
+
+	return true;
+}
+
 static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			     void *buf, unsigned int *size)
 {
@@ -1422,7 +1442,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		is_free = true;
 	}
 
-	if (!is_free && (!dbufs->is_switch) && stream->state == RKCIF_STATE_STREAMING) {
+	if (!is_free && (!dbufs->is_switch) && stream->state == RKCIF_STATE_STREAMING &&
+	    sditf_check_toolbuf_return(stream, rx_buf)) {
 		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&

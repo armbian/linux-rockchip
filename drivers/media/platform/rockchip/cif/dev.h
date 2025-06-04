@@ -479,12 +479,14 @@ enum rkcif_capture_mode {
 struct rkcif_rx_buffer {
 	int buf_idx;
 	struct list_head list;
+	struct list_head list_tool;
 	struct list_head list_free;
 	struct rkisp_rx_buf dbufs;
 	struct rkcif_dummy_buffer dummy;
 	struct rkisp_thunderboot_shmem shmem;
 	u64 fe_timestamp;
 	bool is_init[RKCIF_MAX_DEV];
+	int use_cnt;
 };
 
 enum rkcif_dma_en_mode {

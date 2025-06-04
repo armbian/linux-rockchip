@@ -1968,8 +1968,9 @@ static void rkcif_rdbk_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
-		list_add_tail(&active_buf->list, &stream->tools_vdev->buf_done_head);
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && active_buf) {
+		list_add_tail(&active_buf->list_tool, &stream->tools_vdev->buf_done_head);
+		active_buf->use_cnt = 2;
 		if (!work_busy(&stream->tools_vdev->work))
 			schedule_work(&stream->tools_vdev->work);
 	}
