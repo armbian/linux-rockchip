@@ -331,8 +331,6 @@ static int rockchip_parse_pvtm_config(struct device_node *np,
 	pvtm->tz = thermal_zone_get_zone_by_name(pvtm->tz_name);
 	if (IS_ERR(pvtm->tz))
 		return -EINVAL;
-	if (!pvtm->tz->ops->get_temp)
-		return -EINVAL;
 	if (of_property_read_bool(np, "rockchip,pvtm-pvtpll")) {
 		if (of_property_read_u32(np, "rockchip,pvtm-offset",
 					 &pvtm->offset))
@@ -360,8 +358,8 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 	struct pvtm_config *pvtm;
 	unsigned long old_freq;
 	unsigned int old_volt;
-	int cur_temp, diff_temp;
-	int cur_value, total_value, avg_value, diff_value;
+	int cur_temp = THERMAL_TEMP_INVALID, diff_temp = 0;
+	int cur_value, total_value, avg_value, diff_value = 0;
 	int min_value, max_value;
 	int ret = 0, i = 0, retry = 2;
 
@@ -425,12 +423,16 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 	 * As pvtm is influenced by temperature, compute difference between
 	 * current temperature and reference temperature
 	 */
-	pvtm->tz->ops->get_temp(pvtm->tz, &cur_temp);
-	diff_temp = (cur_temp / 1000 - pvtm->ref_temp);
-	diff_value = diff_temp *
-		(diff_temp < 0 ? pvtm->temp_prop[0] : pvtm->temp_prop[1]);
-	*target_value = avg_value + diff_value;
-
+	ret = thermal_zone_get_temp(pvtm->tz, &cur_temp);
+	if (ret || cur_temp == THERMAL_TEMP_INVALID) {
+		dev_err(dev, "failed to get temp (%d)\n", ret);
+		*target_value = avg_value;
+	} else {
+		diff_temp = (cur_temp / 1000 - pvtm->ref_temp);
+		diff_value = diff_temp *
+			(diff_temp < 0 ? pvtm->temp_prop[0] : pvtm->temp_prop[1]);
+		*target_value = avg_value + diff_value;
+	}
 	pvtm_value[pvtm->ch[0]][pvtm->ch[1]] = *target_value;
 
 	dev_info(dev, "temp=%d, pvtm=%d (%d + %d)\n",
@@ -1055,7 +1057,7 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 	struct pvtm_config *pvtm;
 	unsigned long old_freq;
 	unsigned int old_volt;
-	int cur_temp, diff_temp, prop_temp, diff_value;
+	int cur_temp = THERMAL_TEMP_INVALID, diff_temp, prop_temp, diff_value = 0;
 	int pvtm_value = 0;
 	int ret = 0;
 
@@ -1107,13 +1109,17 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 		dev_err(dev, "failed to get pvtm from 0x%x\n", pvtm->offset);
 		goto resetore_volt;
 	}
-	pvtm->tz->ops->get_temp(pvtm->tz, &cur_temp);
-	diff_temp = (cur_temp / 1000 - pvtm->ref_temp);
-	if (diff_temp < 0)
-		prop_temp = pvtm->temp_prop[0];
-	else
-		prop_temp = pvtm->temp_prop[1];
-	diff_value = diff_temp * prop_temp / 1000;
+	ret = thermal_zone_get_temp(pvtm->tz, &cur_temp);
+	if (ret || cur_temp == THERMAL_TEMP_INVALID) {
+		dev_err(dev, "failed to get temp (%d)\n", ret);
+	} else {
+		diff_temp = (cur_temp / 1000 - pvtm->ref_temp);
+		if (diff_temp < 0)
+			prop_temp = pvtm->temp_prop[0];
+		else
+			prop_temp = pvtm->temp_prop[1];
+		diff_value = diff_temp * prop_temp / 1000;
+	}
 	pvtm_value += diff_value;
 
 	dev_info(dev, "pvtm=%d\n", pvtm_value);
