@@ -293,6 +293,14 @@ static const struct pwm_ops rk628_pwm_ops = {
 	.apply = rk628_pwm_apply,
 };
 
+static void rk628_pwm_unregister_pdev(void *data)
+{
+	struct rk628 *rk628 = (struct rk628 *)data;
+
+	if (rk628->pwm)
+		platform_device_unregister(rk628->pwm->pdev);
+}
+
 int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 {
 	struct rk628_pwm *pwm;
@@ -310,15 +318,17 @@ int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 	platform_set_drvdata(pd, rk628);
 
 	chip = devm_pwmchip_alloc(&pd->dev, 1, sizeof(*pwm));
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
+	if (IS_ERR(chip)) {
+		ret = PTR_ERR(chip);
+		goto err_pdev_put;
+	}
 	pwm = to_rk628_pwm(chip);
 	rk628->pwm = pwm;
 
 	ret = platform_device_add(pd);
 	if (ret) {
 		dev_err(rk628->dev, "failed to add pwm platform device\n");
-		return -EINVAL;
+		goto err_pdev_put;
 	}
 
 	chip->ops = &rk628_pwm_ops;
@@ -333,7 +343,7 @@ int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 	ret = devm_pwmchip_add(&pd->dev, chip);
 	if (ret < 0) {
 		dev_err(rk628->dev, "pwmchip_add() failed: %d\n", ret);
-		return ret;
+		goto err_pdev_del;
 	}
 
 	/*
@@ -341,7 +351,13 @@ int rk628_pwm_probe(struct rk628 *rk628, struct device_node *pwm_np)
 	 */
 	pd->dev.links.status = DL_DEV_PROBING;
 
-	return 0;
+	return devm_add_action_or_reset(rk628->dev, rk628_pwm_unregister_pdev, rk628);
+
+err_pdev_del:
+	platform_device_del(pd);
+err_pdev_put:
+	platform_device_put(pd);
+	return ret;
 }
 
 void rk628_pwm_init(struct rk628 *rk628)
