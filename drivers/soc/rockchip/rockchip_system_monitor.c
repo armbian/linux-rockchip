@@ -1492,14 +1492,8 @@ static int rockchip_system_monitor_temp_notify(int temp)
 	return notifier_to_errno(ret);
 }
 
-static int notify_dummy(struct thermal_zone_device *tz, int trip)
-{
-	return 0;
-}
-
 static struct thermal_governor thermal_gov_dummy = {
 	.name		= "dummy",
-	.throttle	= notify_dummy,
 };
 
 static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
