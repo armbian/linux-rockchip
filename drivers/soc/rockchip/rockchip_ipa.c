@@ -9,7 +9,6 @@
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
-#include <trace/events/thermal.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_ipa_power.h>
@@ -203,10 +202,10 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 	if (!data)
 		return 0;
 
-	ret = data->tz->ops->get_temp(data->tz, &temp);
+	ret = thermal_zone_get_temp(data->tz, &temp);
 	if (ret) {
 		pr_err("%s:failed to read %s temp\n",
-		       __func__, data->tz->type);
+		       __func__, thermal_zone_device_type(data->tz));
 		temp = FALLBACK_STATIC_TEMPERATURE;
 	}
 
