@@ -97,9 +97,9 @@ static int pvtm_value_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	if (pvtm->tz && pvtm->tz->ops && pvtm->tz->ops->get_temp) {
-		ret = pvtm->tz->ops->get_temp(pvtm->tz, &cur_temp);
-		if (ret)
+	if (pvtm->tz) {
+		ret = thermal_zone_get_temp(pvtm->tz, &cur_temp);
+		if (ret || cur_temp == THERMAL_TEMP_INVALID)
 			dev_err(pvtm->dev, "debug failed to get temp\n");
 		else
 			seq_printf(s, "temp: %d ", cur_temp);
