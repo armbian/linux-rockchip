@@ -2416,12 +2416,12 @@ int rockchip_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 		return ret;
 	}
 
-	dev_dbg(dev, "%lu -> %lu (Hz)\n", opp_table->rate_clk_single, *target);
+	dev_dbg(dev, "%lu -> %lu (Hz)\n", opp_table->current_rate_single_clk, *target);
 	ret = clk_set_rate(opp_table->clk, *target);
 	if (ret)
 		dev_err(dev, "failed to set clock rate: %lu\n", *target);
 	else
-		opp_table->rate_clk_single = *target;
+		opp_table->current_rate_single_clk = *target;
 
 	clk_bulk_disable_unprepare(info->nclocks, info->clocks);
 
