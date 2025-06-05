@@ -534,6 +534,94 @@ static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
 	return NULL;
 }
 
+static void rockchip_cpufreq_release_cluster(void)
+{
+	struct cluster_info *cluster, *pos;
+
+	list_for_each_entry_safe(cluster, pos, &cluster_info_list, list_head) {
+		list_del(&cluster->list_head);
+		kfree(cluster);
+	}
+}
+
+static int rockchip_cpufreq_early_init(void)
+{
+	struct cluster_info *cluster;
+	struct device_node *np;
+	struct device *dev;
+	struct clk *clk;
+	struct regulator *reg;
+	char *reg_name;
+	int cpu, ret = 0;
+
+	for_each_possible_cpu(cpu) {
+		cluster = rockchip_cluster_info_lookup(cpu);
+		if (cluster)
+			continue;
+
+		cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
+		if (!cluster) {
+			ret = -ENOMEM;
+			goto error;
+		}
+		list_add_tail(&cluster->list_head, &cluster_info_list);
+
+		dev = get_cpu_device(cpu);
+		if (!dev) {
+			ret = -ENODEV;
+			goto error;
+		}
+		clk = clk_get(dev, NULL);
+		if (IS_ERR(clk)) {
+			dev_err(dev, "failed to get cpu%d clk\n", cpu);
+			ret = PTR_ERR(clk);
+			if (ret == -EPROBE_DEFER)
+				dev_err(dev, "cpu%d clk is not ready\n", cpu);
+			goto error;
+		}
+		clk_put(clk);
+
+		if (of_find_property(dev->of_node, "cpu-supply", NULL)) {
+			reg_name = "cpu";
+		} else if (of_find_property(dev->of_node, "cpu0-supply", NULL)) {
+			reg_name = "cpu0";
+		} else {
+			dev_err(dev, "failed to get cpu%d supply\n", cpu);
+			ret = -ENOENT;
+			goto error;
+		}
+		reg = regulator_get_optional(dev, reg_name);
+		if (IS_ERR(reg)) {
+			dev_err(dev, "failed to get cpu%d reg\n", cpu);
+			ret = PTR_ERR(reg);
+			if (ret == -EPROBE_DEFER)
+				dev_err(dev, "cpu%d reg is not ready\n", cpu);
+			goto error;
+		}
+		regulator_put(reg);
+
+		np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
+		if (!np) {
+			dev_warn(dev, "OPP-v2 not supported\n");
+			ret = -ENOENT;
+			goto error;
+		}
+		of_node_put(np);
+		ret = dev_pm_opp_of_get_sharing_cpus(dev, &cluster->cpus);
+		if (ret) {
+			dev_err(dev, "failed to get sharing cpus\n");
+			goto error;
+		}
+	}
+
+	return 0;
+
+error:
+	rockchip_cpufreq_release_cluster();
+
+	return ret;
+}
+
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
 	struct rockchip_opp_info *opp_info = &cluster->opp_info;
@@ -551,12 +639,6 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	if (!np) {
 		dev_warn(dev, "OPP-v2 not supported\n");
 		return -ENOENT;
-	}
-	ret = dev_pm_opp_of_get_sharing_cpus(dev, &cluster->cpus);
-	if (ret) {
-		dev_err(dev, "Failed to get sharing cpus\n");
-		of_node_put(np);
-		return ret;
 	}
 	if (of_property_read_bool(np, "rockchip,opp-shared-dsu") ||
 	    of_property_read_bool(np, "rockchip,opp-shared-cci"))
@@ -927,30 +1009,26 @@ static struct notifier_block rockchip_cpufreq_panic_notifier_block = {
 	.notifier_call = rockchip_cpufreq_panic_notifier,
 };
 
-static int __init rockchip_cpufreq_driver_init(void)
+static int rockchip_cpufreq_probe(struct platform_device *pdev)
 {
-	struct cluster_info *cluster, *pos;
+	struct cluster_info *cluster;
 	struct cpufreq_dt_platform_data pdata = {0};
 	int cpu, ret;
 	bool is_opp_shared_cpu_bus = false;
 
-	for_each_possible_cpu(cpu) {
-		cluster = rockchip_cluster_info_lookup(cpu);
-		if (cluster)
-			continue;
+	ret = rockchip_cpufreq_early_init();
+	if (ret) {
+		pr_err("failed to init cpufreq\n");
+		return ret;
+	}
 
-		cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
-		if (!cluster) {
-			ret = -ENOMEM;
-			goto release_cluster_info;
-		}
-
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		cpu = cpumask_first(&cluster->cpus);
 		ret = rockchip_cpufreq_cluster_init(cpu, cluster);
 		if (ret) {
-			pr_err("Failed to initialize dvfs info cpu%d\n", cpu);
+			pr_err("failed to initialize dvfs info cpu%d\n", cpu);
 			goto release_cluster_info;
 		}
-		list_add(&cluster->list_head, &cluster_info_list);
 		if (cluster->is_opp_shared_cpu_bus)
 			is_opp_shared_cpu_bus = true;
 	}
@@ -989,13 +1067,38 @@ static int __init rockchip_cpufreq_driver_init(void)
 			       sizeof(struct cpufreq_dt_platform_data)));
 
 release_cluster_info:
-	list_for_each_entry_safe(cluster, pos, &cluster_info_list, list_head) {
-		list_del(&cluster->list_head);
-		kfree(cluster);
-	}
+	rockchip_cpufreq_release_cluster();
+
 	return ret;
 }
-module_init(rockchip_cpufreq_driver_init);
+
+static struct platform_driver rockchip_cpufreq_platdrv = {
+	.driver = {
+		.name = "rockchip-cpufreq",
+	},
+	.probe = rockchip_cpufreq_probe,
+};
+
+static int __init rockchip_cpufreq_driver_init(void)
+{
+	struct platform_device *cpufreq_pdev;
+	int err;
+
+	err = platform_driver_register(&rockchip_cpufreq_platdrv);
+	if (err)
+		return err;
+
+	cpufreq_pdev = platform_device_register_data(NULL, "rockchip-cpufreq", -1,
+						     NULL, 0);
+	if (IS_ERR(cpufreq_pdev)) {
+		pr_err("failed to register rockchip-cpufreq platform device\n");
+		platform_driver_unregister(&rockchip_cpufreq_platdrv);
+		return PTR_ERR(cpufreq_pdev);
+	}
+
+	return 0;
+}
+module_init(rockchip_cpufreq_driver_init)
 
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip cpufreq driver");
