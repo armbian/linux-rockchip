@@ -1191,7 +1191,7 @@ static int rkcif_scale_init_vb2_queue(struct vb2_queue *q,
 	q->ops = &rkcif_scale_vb2_ops;
 	q->mem_ops = hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
-	q->min_buffers_needed = CIF_SCALE_REQ_BUFS_MIN;
+	q->min_queued_buffers = CIF_SCALE_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &scale_vdev->vnode.vlock;
 	q->dev = hw_dev->dev;

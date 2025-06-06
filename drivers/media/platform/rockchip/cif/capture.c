@@ -8754,9 +8754,9 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
 	if (stream->cifdev->is_use_dummybuf)
-		q->min_buffers_needed = 1;
+		q->min_queued_buffers = 1;
 	else
-		q->min_buffers_needed = CIF_REQ_BUFS_MIN;
+		q->min_queued_buffers = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->vnode.vlock;
 	q->dev = hw_dev->dev;
