@@ -351,8 +351,7 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 		rkisp_csi_config_patch(dev, false);
 	dev->is_aiisp_sync = false;
 	if (dev->is_aiisp_en &&
-	    ((dev->isp_ver == ISP_V35 && !hw->is_single) ||
-	     (dev->isp_ver == ISP_V39 && (dev->isp_inp & INP_RAWRD2 || dev->is_rdbk_auto))))
+	    (!hw->is_single || IS_HDR_RDBK(dev->rd_mode)))
 		dev->is_aiisp_sync = true;
 	return 0;
 err:
