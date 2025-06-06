@@ -560,7 +560,7 @@ struct dphy_drv_data {
 };
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
@@ -1617,7 +1617,7 @@ MODULE_DEVICE_TABLE(of, rockchip_mipidphy_match_id);
 static int
 rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct mipidphy_priv *priv = container_of(notifier,
 						  struct mipidphy_priv,
@@ -1666,7 +1666,7 @@ rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 static void
 rockchip_mipidphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct mipidphy_priv *priv = container_of(notifier,
 						  struct mipidphy_priv,
