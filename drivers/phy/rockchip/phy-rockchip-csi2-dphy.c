@@ -38,7 +38,7 @@ static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 };
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
@@ -857,7 +857,7 @@ static const struct v4l2_subdev_ops csi2_dphy_subdev_ops = {
 static int
 rockchip_csi2_dphy_notifier_bound(struct v4l2_async_notifier *notifier,
 					   struct v4l2_subdev *sd,
-					   struct v4l2_async_subdev *asd)
+					   struct v4l2_async_connection *asd)
 {
 	struct csi2_dphy *dphy = container_of(notifier,
 					      struct csi2_dphy,
@@ -908,7 +908,7 @@ rockchip_csi2_dphy_notifier_bound(struct v4l2_async_notifier *notifier,
 static void
 rockchip_csi2_dphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct csi2_dphy *dphy = container_of(notifier,
 						  struct csi2_dphy,
