@@ -1018,7 +1018,7 @@ static int rockchip_csi2dphy_media_init(struct csi2_dphy *dphy)
 	if (ret < 0)
 		return ret;
 
-	v4l2_async_nf_init(&dphy->notifier);
+	v4l2_async_subdev_nf_init(&dphy->notifier, &dphy->sd);
 
 	ret = rockchip_csi2_dphy_fwnode_parse(dphy);
 	if (ret)
@@ -1026,7 +1026,7 @@ static int rockchip_csi2dphy_media_init(struct csi2_dphy *dphy)
 
 	dphy->sd.subdev_notifier = &dphy->notifier;
 	dphy->notifier.ops = &rockchip_csi2_dphy_async_ops;
-	ret = v4l2_async_subdev_nf_register(&dphy->sd, &dphy->notifier);
+	ret = v4l2_async_nf_register(&dphy->notifier);
 	if (ret) {
 		dev_err(dphy->dev,
 			"failed to register async notifier : %d\n", ret);
