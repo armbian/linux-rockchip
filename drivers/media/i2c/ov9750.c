@@ -618,6 +618,7 @@ static int ov9750_enable_test_pattern(struct ov9750 *ov9750, u32 pattern)
 }
 
 static int ov9750_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov9750 *ov9750 = to_ov9750(sd);
@@ -962,7 +963,6 @@ static const struct v4l2_subdev_core_ops ov9750_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov9750_video_ops = {
 	.s_stream = ov9750_s_stream,
-	.g_frame_interval = ov9750_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov9750_pad_ops = {
@@ -972,6 +972,7 @@ static const struct v4l2_subdev_pad_ops ov9750_pad_ops = {
 	.get_fmt = ov9750_get_fmt,
 	.set_fmt = ov9750_set_fmt,
 	.get_mbus_config = ov9750_g_mbus_config,
+	.get_frame_interval = ov9750_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov9750_subdev_ops = {

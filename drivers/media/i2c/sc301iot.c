@@ -1270,6 +1270,7 @@ static int sc301iot_enable_test_pattern(struct sc301iot *sc301iot, u32 pattern)
 }
 
 static int sc301iot_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc301iot *sc301iot = to_sc301iot(sd);
@@ -1512,7 +1513,8 @@ static long sc301iot_compat_ioctl32(struct v4l2_subdev *sd,
 #endif
 
 static int sc301iot_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc301iot *sc301iot = to_sc301iot(sd);
 	struct device *dev = sd->dev;
@@ -1855,8 +1857,6 @@ static const struct v4l2_subdev_core_ops sc301iot_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc301iot_video_ops = {
 	.s_stream = sc301iot_s_stream,
-	.g_frame_interval = sc301iot_g_frame_interval,
-	.s_frame_interval = sc301iot_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc301iot_pad_ops = {
@@ -1866,6 +1866,8 @@ static const struct v4l2_subdev_pad_ops sc301iot_pad_ops = {
 	.get_fmt = sc301iot_get_fmt,
 	.set_fmt = sc301iot_set_fmt,
 	.get_mbus_config = sc301iot_g_mbus_config,
+	.get_frame_interval = sc301iot_g_frame_interval,
+	.set_frame_interval = sc301iot_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc301iot_subdev_ops = {

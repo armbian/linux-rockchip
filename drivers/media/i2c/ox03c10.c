@@ -4207,7 +4207,8 @@ static int ox03c10_enable_test_pattern(struct ox03c10 *ox03c10, u32 pattern)
 }
 
 static int ox03c10_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
 	const struct ox03c10_mode *mode = ox03c10->cur_mode;
@@ -5137,7 +5138,6 @@ static const struct v4l2_subdev_core_ops ox03c10_core_ops = {
 
 static const struct v4l2_subdev_video_ops ox03c10_video_ops = {
 	.s_stream = ox03c10_s_stream,
-	.g_frame_interval = ox03c10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ox03c10_pad_ops = {
@@ -5147,6 +5147,7 @@ static const struct v4l2_subdev_pad_ops ox03c10_pad_ops = {
 	.get_fmt = ox03c10_get_fmt,
 	.set_fmt = ox03c10_set_fmt,
 	.get_mbus_config = ox03c10_g_mbus_config,
+	.get_frame_interval = ox03c10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ox03c10_subdev_ops = {

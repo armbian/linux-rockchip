@@ -603,7 +603,8 @@ static int os05l10_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int os05l10_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os05l10 *os05l10 = to_os05l10(sd);
 	const struct os05l10_mode *mode = os05l10->cur_mode;
@@ -1175,7 +1176,6 @@ static const struct v4l2_subdev_core_ops os05l10_core_ops = {
 
 static const struct v4l2_subdev_video_ops os05l10_video_ops = {
 	.s_stream = os05l10_s_stream,
-	.g_frame_interval = os05l10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os05l10_pad_ops = {
@@ -1185,6 +1185,7 @@ static const struct v4l2_subdev_pad_ops os05l10_pad_ops = {
 	.get_fmt = os05l10_get_fmt,
 	.set_fmt = os05l10_set_fmt,
 	.get_mbus_config = os05l10_g_mbus_config,
+	.get_frame_interval = os05l10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops os05l10_subdev_ops = {

@@ -4301,6 +4301,7 @@ static int ar2020_enable_test_pattern(struct ar2020 *ar2020, u32 pattern)
 }
 
 static int ar2020_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ar2020 *ar2020 = to_ar2020(sd);
@@ -4951,7 +4952,6 @@ static const struct v4l2_subdev_core_ops ar2020_core_ops = {
 
 static const struct v4l2_subdev_video_ops ar2020_video_ops = {
 	.s_stream = ar2020_s_stream,
-	.g_frame_interval = ar2020_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ar2020_pad_ops = {
@@ -4961,6 +4961,7 @@ static const struct v4l2_subdev_pad_ops ar2020_pad_ops = {
 	.get_fmt = ar2020_get_fmt,
 	.set_fmt = ar2020_set_fmt,
 	.get_mbus_config = ar2020_g_mbus_config,
+	.get_frame_interval = ar2020_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ar2020_subdev_ops = {

@@ -854,7 +854,8 @@ static int gc05a2_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc05a2_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc05a2 *gc05a2 = to_gc05a2(sd);
 	const struct gc05a2_mode *mode = gc05a2->cur_mode;
@@ -1303,7 +1304,6 @@ static const struct v4l2_subdev_core_ops gc05a2_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc05a2_video_ops = {
 	.s_stream = gc05a2_s_stream,
-	.g_frame_interval = gc05a2_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc05a2_pad_ops = {
@@ -1313,6 +1313,7 @@ static const struct v4l2_subdev_pad_ops gc05a2_pad_ops = {
 	.get_fmt = gc05a2_get_fmt,
 	.set_fmt = gc05a2_set_fmt,
 	.get_mbus_config = gc05a2_g_mbus_config,
+	.get_frame_interval = gc05a2_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc05a2_subdev_ops = {

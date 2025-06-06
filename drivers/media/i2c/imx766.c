@@ -1308,7 +1308,8 @@ static int imx766_enable_test_pattern(struct imx766 *imx766, u32 pattern)
 }
 
 static int imx766_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx766 *imx766 = to_imx766(sd);
 	const struct imx766_mode *mode = imx766->cur_mode;
@@ -1909,7 +1910,6 @@ static const struct v4l2_subdev_core_ops imx766_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx766_video_ops = {
 	.s_stream = imx766_s_stream,
-	.g_frame_interval = imx766_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx766_pad_ops = {
@@ -1919,6 +1919,7 @@ static const struct v4l2_subdev_pad_ops imx766_pad_ops = {
 	.get_fmt = imx766_get_fmt,
 	.set_fmt = imx766_set_fmt,
 	.get_mbus_config = imx766_g_mbus_config,
+	.get_frame_interval = imx766_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx766_subdev_ops = {

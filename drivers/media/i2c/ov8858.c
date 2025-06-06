@@ -2126,6 +2126,7 @@ static int ov8858_enable_test_pattern(struct ov8858 *ov8858, u32 pattern)
 }
 
 static int ov8858_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov8858 *ov8858 = to_ov8858(sd);
@@ -2898,7 +2899,6 @@ static const struct v4l2_subdev_core_ops ov8858_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov8858_video_ops = {
 	.s_stream = ov8858_s_stream,
-	.g_frame_interval = ov8858_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
@@ -2908,6 +2908,7 @@ static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
 	.get_fmt = ov8858_get_fmt,
 	.set_fmt = ov8858_set_fmt,
 	.get_mbus_config = ov8858_g_mbus_config,
+	.get_frame_interval = ov8858_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov8858_subdev_ops = {

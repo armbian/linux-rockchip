@@ -938,6 +938,7 @@ static int os04d10_enable_test_pattern(struct os04d10 *os04d10, u32 pattern)
 }
 
 static int os04d10_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os04d10 *os04d10 = to_os04d10(sd);
@@ -975,7 +976,8 @@ static const struct os04d10_mode *os04d10_find_mode(struct os04d10 *os04d10, int
 }
 
 static int os04d10_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os04d10 *os04d10 = to_os04d10(sd);
 	const struct os04d10_mode *mode = NULL;
@@ -1458,8 +1460,6 @@ static const struct v4l2_subdev_core_ops os04d10_core_ops = {
 
 static const struct v4l2_subdev_video_ops os04d10_video_ops = {
 	.s_stream = os04d10_s_stream,
-	.g_frame_interval = os04d10_g_frame_interval,
-	.s_frame_interval = os04d10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os04d10_pad_ops = {
@@ -1470,6 +1470,8 @@ static const struct v4l2_subdev_pad_ops os04d10_pad_ops = {
 	.set_fmt = os04d10_set_fmt,
 	.get_selection = os04d10_get_selection,
 	.get_mbus_config = os04d10_g_mbus_config,
+	.get_frame_interval = os04d10_g_frame_interval,
+	.set_frame_interval = os04d10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops os04d10_subdev_ops = {

@@ -1182,6 +1182,7 @@ static int imx307_enable_test_pattern(struct imx307 *imx307, u32 pattern)
 #endif
 
 static int imx307_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx307 *imx307 = to_imx307(sd);
@@ -1911,7 +1912,6 @@ static const struct v4l2_subdev_core_ops imx307_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx307_video_ops = {
 	.s_stream = imx307_s_stream,
-	.g_frame_interval = imx307_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
@@ -1922,6 +1922,7 @@ static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
 	.set_fmt = imx307_set_fmt,
 	.get_selection = imx307_get_selection,
 	.get_mbus_config = imx307_g_mbus_config,
+	.get_frame_interval = imx307_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx307_subdev_ops = {

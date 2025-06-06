@@ -1599,6 +1599,7 @@ static int imx415_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int imx415_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx415 *imx415 = to_imx415(sd);
@@ -2861,7 +2862,6 @@ static const struct v4l2_subdev_core_ops imx415_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx415_video_ops = {
 	.s_stream = imx415_s_stream,
-	.g_frame_interval = imx415_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx415_pad_ops = {
@@ -2872,6 +2872,7 @@ static const struct v4l2_subdev_pad_ops imx415_pad_ops = {
 	.set_fmt = imx415_set_fmt,
 	.get_selection = imx415_get_selection,
 	.get_mbus_config = imx415_g_mbus_config,
+	.get_frame_interval = imx415_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx415_subdev_ops = {

@@ -879,6 +879,7 @@ static int s5k3l8xx_enable_test_pattern(struct s5k3l8xx *s5k3l8xx, u32 pattern)
 }
 
 static int s5k3l8xx_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k3l8xx *s5k3l8xx = to_s5k3l8xx(sd);
@@ -1310,7 +1311,6 @@ static const struct v4l2_subdev_core_ops s5k3l8xx_core_ops = {
 
 static const struct v4l2_subdev_video_ops s5k3l8xx_video_ops = {
 	.s_stream = s5k3l8xx_s_stream,
-	.g_frame_interval = s5k3l8xx_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops s5k3l8xx_pad_ops = {
@@ -1321,6 +1321,7 @@ static const struct v4l2_subdev_pad_ops s5k3l8xx_pad_ops = {
 	.set_fmt = s5k3l8xx_set_fmt,
 	.get_selection = s5k3l8xx_get_selection,
 	.get_mbus_config = s5k3l8xx_g_mbus_config,
+	.get_frame_interval = s5k3l8xx_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops s5k3l8xx_subdev_ops = {

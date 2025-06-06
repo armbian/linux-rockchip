@@ -990,6 +990,7 @@ static int gc16b3c_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc16b3c_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc16b3c *gc16b3c = to_gc16b3c(sd);
@@ -1387,7 +1388,6 @@ static const struct v4l2_subdev_core_ops gc16b3c_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc16b3c_video_ops = {
 	.s_stream = gc16b3c_s_stream,
-	.g_frame_interval = gc16b3c_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc16b3c_pad_ops = {
@@ -1397,6 +1397,7 @@ static const struct v4l2_subdev_pad_ops gc16b3c_pad_ops = {
 	.get_fmt = gc16b3c_get_fmt,
 	.set_fmt = gc16b3c_set_fmt,
 	.get_mbus_config = sensor_g_mbus_config,
+	.get_frame_interval = gc16b3c_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc16b3c_subdev_ops = {

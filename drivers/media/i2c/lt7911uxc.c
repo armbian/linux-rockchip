@@ -1128,7 +1128,8 @@ static int lt7911uxc_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt7911uxc_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 	const struct lt7911uxc_mode *mode = lt7911uxc->cur_mode;
@@ -1326,7 +1327,6 @@ static const struct v4l2_subdev_video_ops lt7911uxc_video_ops = {
 	.g_dv_timings = lt7911uxc_g_dv_timings,
 	.query_dv_timings = lt7911uxc_query_dv_timings,
 	.s_stream = lt7911uxc_s_stream,
-	.g_frame_interval = lt7911uxc_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops lt7911uxc_pad_ops = {
@@ -1338,6 +1338,7 @@ static const struct v4l2_subdev_pad_ops lt7911uxc_pad_ops = {
 	.enum_dv_timings = lt7911uxc_enum_dv_timings,
 	.dv_timings_cap = lt7911uxc_dv_timings_cap,
 	.get_mbus_config = lt7911uxc_g_mbus_config,
+	.get_frame_interval = lt7911uxc_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops lt7911uxc_ops = {

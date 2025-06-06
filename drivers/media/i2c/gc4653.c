@@ -663,6 +663,7 @@ static int gc4653_set_gain_reg(struct gc4653 *gc4653, u32 gain)
 }
 
 static int gc4653_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc4653 *gc4653 = to_gc4653(sd);
@@ -1174,7 +1175,6 @@ static const struct v4l2_subdev_core_ops gc4653_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc4653_video_ops = {
 	.s_stream = gc4653_s_stream,
-	.g_frame_interval = gc4653_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc4653_pad_ops = {
@@ -1184,6 +1184,7 @@ static const struct v4l2_subdev_pad_ops gc4653_pad_ops = {
 	.get_fmt = gc4653_get_fmt,
 	.set_fmt = gc4653_set_fmt,
 	.get_mbus_config = gc4653_g_mbus_config,
+	.get_frame_interval = gc4653_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc4653_subdev_ops = {

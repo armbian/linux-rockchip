@@ -1018,11 +1018,12 @@ static int ov8856_enable_test_pattern(struct ov8856 *ov8856, u32 pattern)
 }
 
 static int ov8856_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov8856 *ov8856 = to_ov8856(sd);
 	const struct ov8856_mode *mode = ov8856->cur_mode;
-//	printk("%s  yyk\n", __func__);
+
 	mutex_lock(&ov8856->mutex);
 	fi->interval = mode->max_fps;
 	mutex_unlock(&ov8856->mutex);
@@ -1565,7 +1566,6 @@ static const struct v4l2_subdev_core_ops ov8856_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov8856_video_ops = {
 	.s_stream = ov8856_s_stream,
-	.g_frame_interval = ov8856_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov8856_pad_ops = {
@@ -1576,6 +1576,7 @@ static const struct v4l2_subdev_pad_ops ov8856_pad_ops = {
 	.set_fmt = ov8856_set_fmt,
 	.get_selection = ov8856_get_selection,
 	.get_mbus_config = ov8856_g_mbus_config,
+	.get_frame_interval = ov8856_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov8856_subdev_ops = {

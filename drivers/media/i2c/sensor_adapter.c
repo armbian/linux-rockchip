@@ -253,6 +253,7 @@ static int sensor_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int sensor_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct sensor *sensor = to_sensor(sd);
@@ -266,6 +267,7 @@ static int sensor_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int sensor_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct sensor *sensor = to_sensor(sd);
@@ -1204,8 +1206,6 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
 	.s_stream = sensor_s_stream,
-	.g_frame_interval = sensor_g_frame_interval,
-	.s_frame_interval = sensor_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sensor_pad_ops = {
@@ -1217,6 +1217,8 @@ static const struct v4l2_subdev_pad_ops sensor_pad_ops = {
 	.get_selection = sensor_get_selection,
 	.set_selection = sensor_set_selection,
 	.get_mbus_config = sensor_g_mbus_config,
+	.get_frame_interval = sensor_g_frame_interval,
+	.set_frame_interval = sensor_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sensor_subdev_ops = {

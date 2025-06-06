@@ -677,6 +677,7 @@ static long jx_h65_compat_ioctl32(struct v4l2_subdev *sd,
 #endif
 
 static int jx_h65_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct jx_h65 *jx_h65 = to_jx_h65(sd);
@@ -933,7 +934,6 @@ static const struct v4l2_subdev_core_ops jx_h65_core_ops = {
 
 static const struct v4l2_subdev_video_ops jx_h65_video_ops = {
 	.s_stream = jx_h65_s_stream,
-	.g_frame_interval = jx_h65_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_h65_pad_ops = {
@@ -943,6 +943,7 @@ static const struct v4l2_subdev_pad_ops jx_h65_pad_ops = {
 	.get_fmt = jx_h65_get_fmt,
 	.set_fmt = jx_h65_set_fmt,
 	.get_mbus_config = jx_h65_g_mbus_config,
+	.get_frame_interval = jx_h65_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops jx_h65_subdev_ops = {

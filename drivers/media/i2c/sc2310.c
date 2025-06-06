@@ -858,6 +858,7 @@ static int sc2310_enable_test_pattern(struct sc2310 *sc2310, u32 pattern)
 }
 
 static int sc2310_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc2310 *sc2310 = to_sc2310(sd);
@@ -1538,7 +1539,6 @@ static const struct v4l2_subdev_core_ops sc2310_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc2310_video_ops = {
 	.s_stream = sc2310_s_stream,
-	.g_frame_interval = sc2310_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc2310_pad_ops = {
@@ -1548,6 +1548,7 @@ static const struct v4l2_subdev_pad_ops sc2310_pad_ops = {
 	.get_fmt = sc2310_get_fmt,
 	.set_fmt = sc2310_set_fmt,
 	.get_mbus_config = sc2310_g_mbus_config,
+	.get_frame_interval = sc2310_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc2310_subdev_ops = {

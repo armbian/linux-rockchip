@@ -920,6 +920,7 @@ static long jx_f37_compat_ioctl32(struct v4l2_subdev *sd,
 #endif
 
 static int jx_f37_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct jx_f37 *jx_f37 = to_jx_f37(sd);
@@ -1198,7 +1199,6 @@ static const struct v4l2_subdev_core_ops jx_f37_core_ops = {
 
 static const struct v4l2_subdev_video_ops jx_f37_video_ops = {
 	.s_stream = jx_f37_s_stream,
-	.g_frame_interval = jx_f37_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_f37_pad_ops = {
@@ -1208,6 +1208,7 @@ static const struct v4l2_subdev_pad_ops jx_f37_pad_ops = {
 	.get_fmt = jx_f37_get_fmt,
 	.set_fmt = jx_f37_set_fmt,
 	.get_mbus_config = jx_f37_g_mbus_config,
+	.get_frame_interval = jx_f37_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops jx_f37_subdev_ops = {

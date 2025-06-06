@@ -915,7 +915,8 @@ static int os05a20_enable_test_pattern(struct os05a20 *os05a20, u32 pattern)
 }
 
 static int os05a20_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os05a20 *os05a20 = to_os05a20(sd);
 	const struct os05a20_mode *mode = os05a20->cur_mode;
@@ -1501,7 +1502,6 @@ static const struct v4l2_subdev_core_ops os05a20_core_ops = {
 
 static const struct v4l2_subdev_video_ops os05a20_video_ops = {
 	.s_stream = os05a20_s_stream,
-	.g_frame_interval = os05a20_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os05a20_pad_ops = {
@@ -1511,6 +1511,7 @@ static const struct v4l2_subdev_pad_ops os05a20_pad_ops = {
 	.get_fmt = os05a20_get_fmt,
 	.set_fmt = os05a20_set_fmt,
 	.get_mbus_config = os05a20_g_mbus_config,
+	.get_frame_interval = os05a20_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops os05a20_subdev_ops = {

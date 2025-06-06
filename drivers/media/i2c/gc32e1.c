@@ -1575,6 +1575,7 @@ static int gc32e1_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc32e1_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc32e1 *gc32e1 = to_gc32e1(sd);
@@ -1972,7 +1973,6 @@ static const struct v4l2_subdev_core_ops gc32e1_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc32e1_video_ops = {
 	.s_stream = gc32e1_s_stream,
-	.g_frame_interval = gc32e1_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc32e1_pad_ops = {
@@ -1982,6 +1982,7 @@ static const struct v4l2_subdev_pad_ops gc32e1_pad_ops = {
 	.get_fmt = gc32e1_get_fmt,
 	.set_fmt = gc32e1_set_fmt,
 	.get_mbus_config = sensor_g_mbus_config,
+	.get_frame_interval = gc32e1_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc32e1_subdev_ops = {

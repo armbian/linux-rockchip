@@ -549,7 +549,8 @@ static int ov08d10_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int ov08d10_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov08d10 *ov08d10 = to_ov08d10(sd);
 	const struct ov08d10_mode *mode = ov08d10->cur_mode;
@@ -1143,7 +1144,6 @@ static const struct v4l2_subdev_core_ops ov08d10_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov08d10_video_ops = {
 	.s_stream = ov08d10_s_stream,
-	.g_frame_interval = ov08d10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov08d10_pad_ops = {
@@ -1154,6 +1154,7 @@ static const struct v4l2_subdev_pad_ops ov08d10_pad_ops = {
 	.set_fmt = ov08d10_set_fmt,
 	.get_selection = ov08d10_get_selection,
 	.get_mbus_config = ov08d10_g_mbus_config,
+	.get_frame_interval = ov08d10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov08d10_subdev_ops = {

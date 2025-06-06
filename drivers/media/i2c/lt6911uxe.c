@@ -1433,7 +1433,8 @@ static int lt6911uxe_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	const struct lt6911uxe_mode *mode = lt6911uxe->cur_mode;
@@ -1659,7 +1660,6 @@ static const struct v4l2_subdev_video_ops lt6911uxe_video_ops = {
 	.g_dv_timings = lt6911uxe_g_dv_timings,
 	.query_dv_timings = lt6911uxe_query_dv_timings,
 	.s_stream = lt6911uxe_s_stream,
-	.g_frame_interval = lt6911uxe_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops lt6911uxe_pad_ops = {
@@ -1671,6 +1671,7 @@ static const struct v4l2_subdev_pad_ops lt6911uxe_pad_ops = {
 	.enum_dv_timings = lt6911uxe_enum_dv_timings,
 	.dv_timings_cap = lt6911uxe_dv_timings_cap,
 	.get_mbus_config = lt6911uxe_g_mbus_config,
+	.get_frame_interval = lt6911uxe_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops lt6911uxe_ops = {

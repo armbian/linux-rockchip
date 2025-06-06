@@ -1298,7 +1298,8 @@ static int gc08a3_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc08a3_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc08a3 *gc08a3 = to_gc08a3(sd);
 	const struct gc08a3_mode *mode = gc08a3->cur_mode;
@@ -1744,7 +1745,6 @@ static const struct v4l2_subdev_core_ops gc08a3_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc08a3_video_ops = {
 	.s_stream = gc08a3_s_stream,
-	.g_frame_interval = gc08a3_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc08a3_pad_ops = {
@@ -1754,6 +1754,7 @@ static const struct v4l2_subdev_pad_ops gc08a3_pad_ops = {
 	.get_fmt = gc08a3_get_fmt,
 	.set_fmt = gc08a3_set_fmt,
 	.get_mbus_config = gc08a3_g_mbus_config,
+	.get_frame_interval = gc08a3_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc08a3_subdev_ops = {

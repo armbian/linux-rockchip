@@ -818,7 +818,8 @@ static int sc830ai_enable_test_pattern(struct sc830ai *sc830ai, u32 pattern)
 }
 
 static int sc830ai_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc830ai *sc830ai = to_sc830ai(sd);
 	const struct sc830ai_mode *mode = sc830ai->cur_mode;
@@ -1467,7 +1468,6 @@ static const struct v4l2_subdev_core_ops sc830ai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc830ai_video_ops = {
 	.s_stream = sc830ai_s_stream,
-	.g_frame_interval = sc830ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc830ai_pad_ops = {
@@ -1478,6 +1478,7 @@ static const struct v4l2_subdev_pad_ops sc830ai_pad_ops = {
 	.set_fmt = sc830ai_set_fmt,
 	.get_selection = sc830ai_get_selection,
 	.get_mbus_config = sc830ai_g_mbus_config,
+	.get_frame_interval = sc830ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc830ai_subdev_ops = {

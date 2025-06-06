@@ -1640,6 +1640,7 @@ static int sc4210_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int sc4210_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc4210 *sc4210 = to_sc4210(sd);
@@ -2293,7 +2294,6 @@ static const struct v4l2_subdev_core_ops sc4210_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc4210_video_ops = {
 	.s_stream = sc4210_s_stream,
-	.g_frame_interval = sc4210_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc4210_pad_ops = {
@@ -2303,6 +2303,7 @@ static const struct v4l2_subdev_pad_ops sc4210_pad_ops = {
 	.get_fmt = sc4210_get_fmt,
 	.set_fmt = sc4210_set_fmt,
 	.get_mbus_config = sc4210_g_mbus_config,
+	.get_frame_interval = sc4210_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc4210_subdev_ops = {

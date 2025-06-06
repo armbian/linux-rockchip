@@ -824,6 +824,7 @@ static int ov02k10_enable_test_pattern(struct ov02k10 *ov02k10, u32 pattern)
 }
 
 static int ov02k10_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov02k10 *ov02k10 = to_ov02k10(sd);
@@ -1548,7 +1549,6 @@ static const struct v4l2_subdev_core_ops ov02k10_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov02k10_video_ops = {
 	.s_stream = ov02k10_s_stream,
-	.g_frame_interval = ov02k10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov02k10_pad_ops = {
@@ -1559,6 +1559,7 @@ static const struct v4l2_subdev_pad_ops ov02k10_pad_ops = {
 	.set_fmt = ov02k10_set_fmt,
 	.get_selection = ov02k10_get_selection,
 	.get_mbus_config = ov02k10_g_mbus_config,
+	.get_frame_interval = ov02k10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov02k10_subdev_ops = {

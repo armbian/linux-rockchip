@@ -493,6 +493,7 @@ static int sc501ai_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int sc501ai_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc501ai *sc501ai = to_sc501ai(sd);
@@ -934,7 +935,6 @@ static const struct v4l2_subdev_core_ops sc501ai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc501ai_video_ops = {
 	.s_stream = sc501ai_s_stream,
-	.g_frame_interval = sc501ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc501ai_pad_ops = {
@@ -944,6 +944,7 @@ static const struct v4l2_subdev_pad_ops sc501ai_pad_ops = {
 	.get_fmt = sc501ai_get_fmt,
 	.set_fmt = sc501ai_set_fmt,
 	.get_mbus_config = sc501ai_g_mbus_config,
+	.get_frame_interval = sc501ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc501ai_subdev_ops = {

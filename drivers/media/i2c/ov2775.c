@@ -4098,6 +4098,7 @@ static int ov2775_enable_test_pattern(struct ov2775 *ov2775, u32 pattern)
 }
 
 static int ov2775_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov2775 *ov2775 = to_ov2775(sd);
@@ -4758,7 +4759,6 @@ static const struct v4l2_subdev_internal_ops ov2775_internal_ops = {
 
 static const struct v4l2_subdev_video_ops ov2775_video_ops = {
 	.s_stream = ov2775_s_stream,
-	.g_frame_interval = ov2775_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov2775_pad_ops = {
@@ -4768,6 +4768,7 @@ static const struct v4l2_subdev_pad_ops ov2775_pad_ops = {
 	.get_fmt = ov2775_get_fmt,
 	.set_fmt = ov2775_set_fmt,
 	.get_mbus_config = ov2775_g_mbus_config,
+	.get_frame_interval = ov2775_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops ov2775_core_ops = {

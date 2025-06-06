@@ -704,6 +704,7 @@ unlock_and_return:
 }
 
 static int sc2239_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc2239 *sc2239 = to_sc2239(sd);
@@ -900,7 +901,6 @@ static const struct v4l2_subdev_core_ops sc2239_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc2239_video_ops = {
 	.s_stream = sc2239_s_stream,
-	.g_frame_interval = sc2239_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc2239_pad_ops = {
@@ -910,6 +910,7 @@ static const struct v4l2_subdev_pad_ops sc2239_pad_ops = {
 	.get_fmt = sc2239_get_fmt,
 	.set_fmt = sc2239_set_fmt,
 	.get_mbus_config = sc2239_g_mbus_config,
+	.get_frame_interval = sc2239_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc2239_subdev_ops = {

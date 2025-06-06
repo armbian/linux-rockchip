@@ -979,6 +979,7 @@ static int bf3925_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 }
 
 static int bf3925_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct bf3925 *bf3925 = to_bf3925(sd);
@@ -991,6 +992,7 @@ static int bf3925_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int bf3925_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1180,8 +1182,6 @@ static const struct v4l2_subdev_core_ops bf3925_subdev_core_ops = {
 
 static const struct v4l2_subdev_video_ops bf3925_subdev_video_ops = {
 	.s_stream = bf3925_s_stream,
-	.g_frame_interval = bf3925_g_frame_interval,
-	.s_frame_interval = bf3925_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops bf3925_subdev_pad_ops = {
@@ -1191,6 +1191,8 @@ static const struct v4l2_subdev_pad_ops bf3925_subdev_pad_ops = {
 	.get_fmt = bf3925_get_fmt,
 	.set_fmt = bf3925_set_fmt,
 	.get_mbus_config = bf3925_g_mbus_config,
+	.get_frame_interval = bf3925_g_frame_interval,
+	.set_frame_interval = bf3925_s_frame_interval,
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API

@@ -1577,6 +1577,7 @@ static int sc635hai_enable_test_pattern(struct sc635hai *sc635hai, u32 pattern)
 }
 
 static int sc635hai_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
@@ -1614,6 +1615,7 @@ static const struct sc635hai_mode *sc635hai_find_mode(struct sc635hai *sc635hai,
 }
 
 static int sc635hai_s_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
@@ -2410,8 +2412,6 @@ static const struct v4l2_subdev_core_ops sc635hai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc635hai_video_ops = {
 	.s_stream = sc635hai_s_stream,
-	.g_frame_interval = sc635hai_g_frame_interval,
-	.s_frame_interval = sc635hai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc635hai_pad_ops = {
@@ -2421,6 +2421,8 @@ static const struct v4l2_subdev_pad_ops sc635hai_pad_ops = {
 	.get_fmt = sc635hai_get_fmt,
 	.set_fmt = sc635hai_set_fmt,
 	.get_mbus_config = sc635hai_g_mbus_config,
+	.get_frame_interval = sc635hai_g_frame_interval,
+	.set_frame_interval = sc635hai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc635hai_subdev_ops = {

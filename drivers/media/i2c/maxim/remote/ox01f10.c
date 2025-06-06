@@ -573,7 +573,8 @@ unlock_and_return:
 }
 
 static int ox01f10_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ox01f10 *ox01f10 = v4l2_get_subdevdata(sd);
 	const struct ox01f10_mode *mode = ox01f10->cur_mode;
@@ -860,7 +861,6 @@ static const struct v4l2_subdev_core_ops ox01f10_core_ops = {
 
 static const struct v4l2_subdev_video_ops ox01f10_video_ops = {
 	.s_stream = ox01f10_s_stream,
-	.g_frame_interval = ox01f10_g_frame_interval,
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = ox01f10_g_mbus_config,
 #endif
@@ -876,6 +876,7 @@ static const struct v4l2_subdev_pad_ops ox01f10_pad_ops = {
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = ox01f10_g_mbus_config,
 #endif
+	.get_frame_interval = ox01f10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ox01f10_subdev_ops = {

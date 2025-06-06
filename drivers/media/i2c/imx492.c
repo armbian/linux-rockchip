@@ -928,6 +928,7 @@ static int imx492_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int imx492_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx492 *imx492 = to_IMX492(sd);
@@ -1487,7 +1488,6 @@ static const struct v4l2_subdev_core_ops imx492_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx492_video_ops = {
 	.s_stream = imx492_s_stream,
-	.g_frame_interval = imx492_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx492_pad_ops = {
@@ -1498,6 +1498,7 @@ static const struct v4l2_subdev_pad_ops imx492_pad_ops = {
 	.set_fmt = imx492_set_fmt,
 	.get_selection = imx492_get_selection,
 	.get_mbus_config = imx492_g_mbus_config,
+	.get_frame_interval = imx492_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx492_subdev_ops = {

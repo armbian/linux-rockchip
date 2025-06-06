@@ -1505,6 +1505,7 @@ static int gc4c33_set_dpcc_cfg(struct gc4c33 *gc4c33,
 }
 
 static int gc4c33_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc4c33 *gc4c33 = to_gc4c33(sd);
@@ -2151,7 +2152,6 @@ static const struct v4l2_subdev_core_ops gc4c33_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc4c33_video_ops = {
 	.s_stream = gc4c33_s_stream,
-	.g_frame_interval = gc4c33_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc4c33_pad_ops = {
@@ -2161,6 +2161,7 @@ static const struct v4l2_subdev_pad_ops gc4c33_pad_ops = {
 	.get_fmt = gc4c33_get_fmt,
 	.set_fmt = gc4c33_set_fmt,
 	.get_mbus_config = gc4c33_g_mbus_config,
+	.get_frame_interval = gc4c33_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc4c33_subdev_ops = {

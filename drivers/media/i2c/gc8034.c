@@ -1413,7 +1413,8 @@ static int gc8034_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc8034_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc8034 *gc8034 = to_gc8034(sd);
 	const struct gc8034_mode *mode = gc8034->cur_mode;
@@ -2709,7 +2710,6 @@ static const struct v4l2_subdev_core_ops gc8034_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc8034_video_ops = {
 	.s_stream = gc8034_s_stream,
-	.g_frame_interval = gc8034_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc8034_pad_ops = {
@@ -2719,6 +2719,7 @@ static const struct v4l2_subdev_pad_ops gc8034_pad_ops = {
 	.get_fmt = gc8034_get_fmt,
 	.set_fmt = gc8034_set_fmt,
 	.get_mbus_config = gc8034_g_mbus_config,
+	.get_frame_interval = gc8034_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc8034_subdev_ops = {

@@ -1128,6 +1128,7 @@ static int imx586_enable_test_pattern(struct imx586 *imx586, u32 pattern)
 }
 
 static int imx586_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx586 *imx586 = to_imx586(sd);
@@ -1747,7 +1748,6 @@ static const struct v4l2_subdev_core_ops imx586_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx586_video_ops = {
 	.s_stream = imx586_s_stream,
-	.g_frame_interval = imx586_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx586_pad_ops = {
@@ -1757,6 +1757,7 @@ static const struct v4l2_subdev_pad_ops imx586_pad_ops = {
 	.get_fmt = imx586_get_fmt,
 	.set_fmt = imx586_set_fmt,
 	.get_mbus_config = imx586_g_mbus_config,
+	.get_frame_interval = imx586_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx586_subdev_ops = {

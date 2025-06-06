@@ -900,6 +900,7 @@ unlock_and_return:
 }
 
 static int gc1084_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc1084 *gc1084 = to_gc1084(sd);
@@ -1105,7 +1106,6 @@ static const struct v4l2_subdev_core_ops gc1084_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc1084_video_ops = {
 	.s_stream = gc1084_s_stream,
-	.g_frame_interval = gc1084_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc1084_pad_ops = {
@@ -1115,6 +1115,7 @@ static const struct v4l2_subdev_pad_ops gc1084_pad_ops = {
 	.get_fmt = gc1084_get_fmt,
 	.set_fmt = gc1084_set_fmt,
 	.get_mbus_config = gc1084_g_mbus_config,
+	.get_frame_interval = gc1084_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc1084_subdev_ops = {

@@ -876,6 +876,7 @@ unlock_and_return:
 }
 
 static int og01a10_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct og01a10 *og01a10 = to_og01a10(sd);
@@ -1061,7 +1062,6 @@ static const struct v4l2_subdev_core_ops og01a10_core_ops = {
 
 static const struct v4l2_subdev_video_ops og01a10_video_ops = {
 	.s_stream = og01a10_s_stream,
-	.g_frame_interval = og01a10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops og01a10_pad_ops = {
@@ -1071,6 +1071,7 @@ static const struct v4l2_subdev_pad_ops og01a10_pad_ops = {
 	.get_fmt = og01a10_get_fmt,
 	.set_fmt = og01a10_set_fmt,
 	.get_mbus_config = og01a10_g_mbus_config,
+	.get_frame_interval = og01a10_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops og01a10_subdev_ops = {

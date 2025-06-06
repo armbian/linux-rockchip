@@ -750,6 +750,7 @@ static int ov4689_enable_test_pattern(struct ov4689 *ov4689, u32 pattern)
 }
 
 static int ov4689_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov4689 *ov4689 = to_ov4689(sd);
@@ -1271,7 +1272,6 @@ static const struct v4l2_subdev_core_ops ov4689_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov4689_video_ops = {
 	.s_stream = ov4689_s_stream,
-	.g_frame_interval = ov4689_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov4689_pad_ops = {
@@ -1281,6 +1281,7 @@ static const struct v4l2_subdev_pad_ops ov4689_pad_ops = {
 	.get_fmt = ov4689_get_fmt,
 	.set_fmt = ov4689_set_fmt,
 	.get_mbus_config = ov4689_g_mbus_config,
+	.get_frame_interval = ov4689_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov4689_subdev_ops = {

@@ -1251,6 +1251,7 @@ static int ps5458_enable_test_pattern(struct ps5458 *ps5458, u32 pattern)
 }
 
 static int ps5458_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ps5458 *ps5458 = to_ps5458(sd);
@@ -1711,7 +1712,6 @@ static const struct v4l2_subdev_core_ops ps5458_core_ops = {
 
 static const struct v4l2_subdev_video_ops ps5458_video_ops = {
 	.s_stream = ps5458_s_stream,
-	.g_frame_interval = ps5458_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ps5458_pad_ops = {
@@ -1722,6 +1722,7 @@ static const struct v4l2_subdev_pad_ops ps5458_pad_ops = {
 	.set_fmt = ps5458_set_fmt,
 	.get_mbus_config = ps5458_g_mbus_config,
 	.get_selection = ps5458_get_selection,
+	.get_frame_interval = ps5458_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ps5458_subdev_ops = {

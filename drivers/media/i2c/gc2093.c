@@ -1357,6 +1357,7 @@ unlock_and_return:
 }
 
 static int gc2093_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc2093 *gc2093 = to_gc2093(sd);
@@ -1563,7 +1564,6 @@ static const struct v4l2_subdev_core_ops gc2093_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc2093_video_ops = {
 	.s_stream = gc2093_s_stream,
-	.g_frame_interval = gc2093_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2093_pad_ops = {
@@ -1573,6 +1573,7 @@ static const struct v4l2_subdev_pad_ops gc2093_pad_ops = {
 	.get_fmt = gc2093_get_fmt,
 	.set_fmt = gc2093_set_fmt,
 	.get_mbus_config = gc2093_g_mbus_config,
+	.get_frame_interval = gc2093_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc2093_subdev_ops = {

@@ -1623,7 +1623,8 @@ static int os04a10_enable_test_pattern(struct os04a10 *os04a10, u32 pattern)
 }
 
 static int os04a10_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os04a10 *os04a10 = to_os04a10(sd);
 	const struct os04a10_mode *mode = os04a10->cur_mode;
@@ -1660,7 +1661,8 @@ static const struct os04a10_mode *os04a10_find_mode(struct os04a10 *os04a10, int
 }
 
 static int os04a10_s_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os04a10 *os04a10 = to_os04a10(sd);
 	const struct os04a10_mode *mode = NULL;
@@ -2544,8 +2546,6 @@ static const struct v4l2_subdev_core_ops os04a10_core_ops = {
 
 static const struct v4l2_subdev_video_ops os04a10_video_ops = {
 	.s_stream = os04a10_s_stream,
-	.g_frame_interval = os04a10_g_frame_interval,
-	.s_frame_interval = os04a10_s_frame_interval,
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = os04a10_g_mbus_config,
 #endif
@@ -2560,6 +2560,8 @@ static const struct v4l2_subdev_pad_ops os04a10_pad_ops = {
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = os04a10_g_mbus_config,
 #endif
+	.get_frame_interval = os04a10_g_frame_interval,
+	.set_frame_interval = os04a10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops os04a10_subdev_ops = {

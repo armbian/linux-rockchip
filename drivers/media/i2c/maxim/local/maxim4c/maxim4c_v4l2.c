@@ -842,7 +842,8 @@ unlock_and_return:
 }
 
 static int maxim4c_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
@@ -1137,7 +1138,6 @@ static const struct v4l2_subdev_core_ops maxim4c_core_ops = {
 
 static const struct v4l2_subdev_video_ops maxim4c_video_ops = {
 	.s_stream = maxim4c_s_stream,
-	.g_frame_interval = maxim4c_g_frame_interval,
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = maxim4c_g_mbus_config,
 #endif
@@ -1152,6 +1152,7 @@ static const struct v4l2_subdev_pad_ops maxim4c_pad_ops = {
 	.get_selection = maxim4c_get_selection,
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = maxim4c_g_mbus_config,
+	.get_frame_interval = maxim4c_g_frame_interval,
 #endif
 };
 

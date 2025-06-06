@@ -573,7 +573,8 @@ unlock_and_return:
 }
 
 static int ov231x_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 	const struct ov231x_mode *mode = ov231x->cur_mode;
@@ -860,7 +861,6 @@ static const struct v4l2_subdev_core_ops ov231x_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov231x_video_ops = {
 	.s_stream = ov231x_s_stream,
-	.g_frame_interval = ov231x_g_frame_interval,
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = ov231x_g_mbus_config,
 #endif
@@ -876,6 +876,7 @@ static const struct v4l2_subdev_pad_ops ov231x_pad_ops = {
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = ov231x_g_mbus_config,
 #endif
+	.get_frame_interval = ov231x_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov231x_subdev_ops = {

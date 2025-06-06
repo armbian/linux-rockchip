@@ -1129,6 +1129,7 @@ static int nvp6188_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 }
 
 static int nvp6188_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
@@ -2421,7 +2422,6 @@ static const struct v4l2_subdev_internal_ops nvp6188_internal_ops = {
 
 static const struct v4l2_subdev_video_ops nvp6188_video_ops = {
 	.s_stream = nvp6188_stream,
-	.g_frame_interval = nvp6188_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops nvp6188_subdev_pad_ops = {
@@ -2431,6 +2431,7 @@ static const struct v4l2_subdev_pad_ops nvp6188_subdev_pad_ops = {
 	.get_fmt = nvp6188_get_fmt,
 	.set_fmt = nvp6188_set_fmt,
 	.get_mbus_config = nvp6188_g_mbus_config,
+	.get_frame_interval = nvp6188_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops nvp6188_core_ops = {

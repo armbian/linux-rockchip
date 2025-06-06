@@ -938,6 +938,7 @@ unlock_and_return:
 }
 
 static int SC2355_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct SC2355 *SC2355 = to_SC2355(sd);
@@ -1121,7 +1122,6 @@ static const struct v4l2_subdev_core_ops SC2355_core_ops = {
 
 static const struct v4l2_subdev_video_ops SC2355_video_ops = {
 	.s_stream = SC2355_s_stream,
-	.g_frame_interval = SC2355_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops SC2355_pad_ops = {
@@ -1131,6 +1131,7 @@ static const struct v4l2_subdev_pad_ops SC2355_pad_ops = {
 	.get_fmt = SC2355_get_fmt,
 	.set_fmt = SC2355_set_fmt,
 	.get_mbus_config = SC2355_g_mbus_config,
+	.get_frame_interval = SC2355_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops SC2355_subdev_ops = {

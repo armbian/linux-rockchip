@@ -745,7 +745,8 @@ static int hi556_enable_test_pattern(struct hi556 *hi556, u32 pattern)
 }
 
 static int hi556_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct hi556 *hi556 = to_hi556(sd);
 	const struct hi556_mode *mode = hi556->cur_mode;
@@ -1162,7 +1163,6 @@ static const struct v4l2_subdev_core_ops hi556_core_ops = {
 
 static const struct v4l2_subdev_video_ops hi556_video_ops = {
 	.s_stream = hi556_s_stream,
-	.g_frame_interval = hi556_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops hi556_pad_ops = {
@@ -1172,6 +1172,7 @@ static const struct v4l2_subdev_pad_ops hi556_pad_ops = {
 	.get_fmt = hi556_get_fmt,
 	.set_fmt = hi556_set_fmt,
 	.get_mbus_config = hi556_g_mbus_config,
+	.get_frame_interval = hi556_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops hi556_subdev_ops = {

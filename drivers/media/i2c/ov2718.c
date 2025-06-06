@@ -7908,6 +7908,7 @@ static int ov2718_enable_test_pattern(struct ov2718 *ov2718, u32 pattern)
 }
 
 static int ov2718_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov2718 *ov2718 = to_ov2718(sd);
@@ -8547,7 +8548,6 @@ static const struct v4l2_subdev_internal_ops ov2718_internal_ops = {
 
 static const struct v4l2_subdev_video_ops ov2718_video_ops = {
 	.s_stream = ov2718_s_stream,
-	.g_frame_interval = ov2718_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov2718_pad_ops = {
@@ -8557,6 +8557,7 @@ static const struct v4l2_subdev_pad_ops ov2718_pad_ops = {
 	.get_fmt = ov2718_get_fmt,
 	.set_fmt = ov2718_set_fmt,
 	.get_mbus_config = ov2718_g_mbus_config,
+	.get_frame_interval = ov2718_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops ov2718_core_ops = {

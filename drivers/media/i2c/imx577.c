@@ -1263,6 +1263,7 @@ static int imx577_enable_test_pattern(struct imx577 *imx577, u32 pattern)
 }
 
 static int imx577_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx577 *imx577 = to_imx577(sd);
@@ -1988,7 +1989,6 @@ static const struct v4l2_subdev_core_ops imx577_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx577_video_ops = {
 	.s_stream = imx577_s_stream,
-	.g_frame_interval = imx577_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx577_pad_ops = {
@@ -1999,6 +1999,7 @@ static const struct v4l2_subdev_pad_ops imx577_pad_ops = {
 	.set_fmt = imx577_set_fmt,
 	.get_selection = imx577_get_selection,
 	.get_mbus_config = imx577_g_mbus_config,
+	.get_frame_interval = imx577_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx577_subdev_ops = {

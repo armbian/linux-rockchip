@@ -684,6 +684,7 @@ static int sc850sl_enable_test_pattern(struct sc850sl *sc850sl, u32 pattern)
 }
 
 static int sc850sl_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc850sl *sc850sl = to_sc850sl(sd);
@@ -721,6 +722,7 @@ static const struct sc850sl_mode *sc850sl_find_mode(struct sc850sl *sc850sl, int
 }
 
 static int sc850sl_s_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc850sl *sc850sl = to_sc850sl(sd);
@@ -1603,8 +1605,6 @@ static const struct v4l2_subdev_core_ops sc850sl_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc850sl_video_ops = {
 	.s_stream = sc850sl_s_stream,
-	.g_frame_interval = sc850sl_g_frame_interval,
-	.s_frame_interval = sc850sl_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc850sl_pad_ops = {
@@ -1615,6 +1615,8 @@ static const struct v4l2_subdev_pad_ops sc850sl_pad_ops = {
 	.set_fmt = sc850sl_set_fmt,
 	.get_selection = sc850sl_get_selection,
 	.get_mbus_config = sc850sl_g_mbus_config,
+	.get_frame_interval = sc850sl_g_frame_interval,
+	.set_frame_interval = sc850sl_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc850sl_subdev_ops = {

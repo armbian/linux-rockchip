@@ -2078,6 +2078,7 @@ static int imx378_enable_test_pattern(struct imx378 *imx378, u32 pattern)
 }
 
 static int imx378_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx378 *imx378 = to_imx378(sd);
@@ -2544,7 +2545,6 @@ static const struct v4l2_subdev_core_ops imx378_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx378_video_ops = {
 	.s_stream = imx378_s_stream,
-	.g_frame_interval = imx378_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx378_pad_ops = {
@@ -2554,6 +2554,7 @@ static const struct v4l2_subdev_pad_ops imx378_pad_ops = {
 	.get_fmt = imx378_get_fmt,
 	.set_fmt = imx378_set_fmt,
 	.get_mbus_config = imx378_g_mbus_config,
+	.get_frame_interval = imx378_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx378_subdev_ops = {

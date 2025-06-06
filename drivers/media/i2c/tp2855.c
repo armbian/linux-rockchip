@@ -529,6 +529,7 @@ static int tp2855_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 }
 
 static int tp2855_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct tp2855 *tp2855 = to_tp2855(sd);
@@ -1084,7 +1085,6 @@ static const struct v4l2_subdev_internal_ops tp2855_internal_ops = {
 
 static const struct v4l2_subdev_video_ops tp2855_video_ops = {
 	.s_stream = tp2855_stream,
-	.g_frame_interval = tp2855_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops tp2855_subdev_pad_ops = {
@@ -1093,6 +1093,7 @@ static const struct v4l2_subdev_pad_ops tp2855_subdev_pad_ops = {
 	.get_fmt = tp2855_get_fmt,
 	.set_fmt = tp2855_set_fmt,
 	.get_mbus_config = tp2855_g_mbus_config,
+	.get_frame_interval = tp2855_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops tp2855_core_ops = {

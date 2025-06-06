@@ -1420,7 +1420,8 @@ static int os12d40_enable_test_pattern(struct os12d40 *os12d40, u32 pattern)
 }
 
 static int os12d40_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct os12d40 *os12d40 = to_os12d40(sd);
 	const struct os12d40_mode *mode = os12d40->cur_mode;
@@ -1922,7 +1923,6 @@ static const struct v4l2_subdev_core_ops os12d40_core_ops = {
 
 static const struct v4l2_subdev_video_ops os12d40_video_ops = {
 	.s_stream = os12d40_s_stream,
-	.g_frame_interval = os12d40_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os12d40_pad_ops = {
@@ -1933,6 +1933,7 @@ static const struct v4l2_subdev_pad_ops os12d40_pad_ops = {
 	.set_fmt = os12d40_set_fmt,
 	.get_mbus_config = os12d40_g_mbus_config,
 	.get_selection = os12d40_get_selection,
+	.get_frame_interval = os12d40_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops os12d40_subdev_ops = {

@@ -715,6 +715,7 @@ static int gc4023_set_mirror_flip(struct gc4023 *gc4023, u8 val, u8 otp_val)
 }
 
 static int gc4023_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc4023 *gc4023 = to_gc4023(sd);
@@ -1224,7 +1225,6 @@ static const struct v4l2_subdev_core_ops gc4023_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc4023_video_ops = {
 	.s_stream = gc4023_s_stream,
-	.g_frame_interval = gc4023_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc4023_pad_ops = {
@@ -1235,6 +1235,7 @@ static const struct v4l2_subdev_pad_ops gc4023_pad_ops = {
 	.set_fmt = gc4023_set_fmt,
 	.get_selection = gc4023_get_selection,
 	.get_mbus_config = gc4023_g_mbus_config,
+	.get_frame_interval = gc4023_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc4023_subdev_ops = {

@@ -787,7 +787,8 @@ unlock_and_return:
 }
 
 static int sc031gs_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc031gs *sc031gs = to_sc031gs(sd);
 	const struct sc031gs_mode *mode = sc031gs->cur_mode;
@@ -927,7 +928,7 @@ static int sc031gs_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 #ifdef DVP_INTERFACE
-static int sc031gs_g_mbus_config(struct v4l2_subdev *sd,
+static int sc031gs_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	struct v4l2_mbus_config *config)
 {
 	config->type = V4L2_MBUS_PARALLEL;
@@ -974,10 +975,6 @@ static const struct v4l2_subdev_core_ops sc031gs_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc031gs_video_ops = {
 	.s_stream = sc031gs_s_stream,
-	.g_frame_interval = sc031gs_g_frame_interval,
-	#ifdef DVP_INTERFACE
-	.g_mbus_config = sc031gs_g_mbus_config,
-	#endif
 };
 
 static const struct v4l2_subdev_pad_ops sc031gs_pad_ops = {
@@ -986,6 +983,10 @@ static const struct v4l2_subdev_pad_ops sc031gs_pad_ops = {
 	.enum_frame_interval = sc031gs_enum_frame_interval,
 	.get_fmt = sc031gs_get_fmt,
 	.set_fmt = sc031gs_set_fmt,
+	.get_frame_interval = sc031gs_g_frame_interval,
+#ifdef DVP_INTERFACE
+	.get_mbus_config = sc031gs_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_ops sc031gs_subdev_ops = {

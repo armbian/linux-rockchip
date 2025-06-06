@@ -662,6 +662,7 @@ static int ov9281_enable_test_pattern(struct ov9281 *ov9281, u32 pattern)
 }
 
 static int ov9281_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov9281 *ov9281 = to_ov9281(sd);
@@ -1040,7 +1041,6 @@ static const struct v4l2_subdev_core_ops ov9281_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov9281_video_ops = {
 	.s_stream = ov9281_s_stream,
-	.g_frame_interval = ov9281_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov9281_pad_ops = {
@@ -1050,6 +1050,7 @@ static const struct v4l2_subdev_pad_ops ov9281_pad_ops = {
 	.get_fmt = ov9281_get_fmt,
 	.set_fmt = ov9281_set_fmt,
 	.get_mbus_config = ov9281_g_mbus_config,
+	.get_frame_interval = ov9281_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov9281_subdev_ops = {

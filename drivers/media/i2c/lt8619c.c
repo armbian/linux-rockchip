@@ -1390,6 +1390,7 @@ static int lt8619c_s_edid(struct v4l2_subdev *sd,
 }
 
 static int lt8619c_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct lt8619c *lt8619c = to_lt8619c(sd);
@@ -1523,7 +1524,6 @@ static const struct v4l2_subdev_video_ops lt8619c_video_ops = {
 	.g_dv_timings = lt8619c_g_dv_timings,
 	.query_dv_timings = lt8619c_query_dv_timings,
 	.s_stream = lt8619c_s_stream,
-	.g_frame_interval = lt8619c_g_frame_interval,
 	.querystd = lt8619c_querystd,
 };
 
@@ -1538,6 +1538,7 @@ static const struct v4l2_subdev_pad_ops lt8619c_pad_ops = {
 	.enum_dv_timings = lt8619c_enum_dv_timings,
 	.dv_timings_cap = lt8619c_dv_timings_cap,
 	.get_mbus_config = lt8619c_g_mbus_config,
+	.get_frame_interval = lt8619c_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops lt8619c_ops = {

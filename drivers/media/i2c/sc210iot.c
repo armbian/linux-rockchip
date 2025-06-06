@@ -766,7 +766,8 @@ unlock_and_return:
 }
 
 static int sc210iot_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc210iot *sc210iot = to_sc210iot(sd);
 	const struct sc210iot_mode *mode = sc210iot->cur_mode;
@@ -961,7 +962,6 @@ static const struct v4l2_subdev_core_ops sc210iot_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc210iot_video_ops = {
 	.s_stream = sc210iot_s_stream,
-	.g_frame_interval = sc210iot_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc210iot_pad_ops = {
@@ -971,6 +971,7 @@ static const struct v4l2_subdev_pad_ops sc210iot_pad_ops = {
 	.get_fmt = sc210iot_get_fmt,
 	.set_fmt = sc210iot_set_fmt,
 	.get_mbus_config = sc210iot_g_mbus_config,
+	.get_frame_interval = sc210iot_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc210iot_subdev_ops = {

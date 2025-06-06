@@ -1049,7 +1049,9 @@ static int gc3003_set_gain_reg(struct gc3003 *gc3003, u32 gain)
 
 	return 0;
 }
+
 static int gc3003_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc3003 *gc3003 = to_gc3003(sd);
@@ -1619,7 +1621,6 @@ static const struct v4l2_subdev_core_ops gc3003_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc3003_video_ops = {
 	.s_stream = gc3003_s_stream,
-	.g_frame_interval = gc3003_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc3003_pad_ops = {
@@ -1630,6 +1631,7 @@ static const struct v4l2_subdev_pad_ops gc3003_pad_ops = {
 	.set_fmt = gc3003_set_fmt,
 	.get_selection = gc3003_get_selection,
 	.get_mbus_config = gc3003_g_mbus_config,
+	.get_frame_interval = gc3003_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc3003_subdev_ops = {

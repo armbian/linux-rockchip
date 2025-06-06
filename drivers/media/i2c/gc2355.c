@@ -514,6 +514,7 @@ static int gc2355_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc2355_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc2355 *gc2355 = to_gc2355(sd);
@@ -852,7 +853,6 @@ static const struct v4l2_subdev_core_ops gc2355_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc2355_video_ops = {
 	.s_stream = gc2355_s_stream,
-	.g_frame_interval = gc2355_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2355_pad_ops = {
@@ -862,6 +862,7 @@ static const struct v4l2_subdev_pad_ops gc2355_pad_ops = {
 	.get_fmt = gc2355_get_fmt,
 	.set_fmt = gc2355_set_fmt,
 	.get_mbus_config = gc2355_g_mbus_config,
+	.get_frame_interval = gc2355_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc2355_subdev_ops = {

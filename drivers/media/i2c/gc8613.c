@@ -2369,6 +2369,7 @@ static int gc8613_set_hdrae(struct gc8613 *gc8613,
 }
 
 static int gc8613_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc8613 *gc8613 = to_gc8613(sd);
@@ -2407,6 +2408,7 @@ static const struct gc8613_mode *gc8613_find_mode(struct gc8613 *gc8613, int fps
 }
 
 static int gc8613_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc8613 *gc8613 = to_gc8613(sd);
@@ -3078,8 +3080,6 @@ static const struct v4l2_subdev_core_ops gc8613_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc8613_video_ops = {
 	.s_stream = gc8613_s_stream,
-	.g_frame_interval = gc8613_g_frame_interval,
-	.s_frame_interval = gc8613_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc8613_pad_ops = {
@@ -3089,6 +3089,8 @@ static const struct v4l2_subdev_pad_ops gc8613_pad_ops = {
 	.get_fmt = gc8613_get_fmt,
 	.set_fmt = gc8613_set_fmt,
 	.get_mbus_config = gc8613_g_mbus_config,
+	.get_frame_interval = gc8613_g_frame_interval,
+	.set_frame_interval = gc8613_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc8613_subdev_ops = {

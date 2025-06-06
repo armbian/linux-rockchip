@@ -1210,6 +1210,7 @@ static int ov13855_enable_test_pattern(struct ov13855 *ov13855, u32 pattern)
 }
 
 static int ov13855_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov13855 *ov13855 = to_ov13855(sd);
@@ -1701,7 +1702,6 @@ static const struct v4l2_subdev_core_ops ov13855_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov13855_video_ops = {
 	.s_stream = ov13855_s_stream,
-	.g_frame_interval = ov13855_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov13855_pad_ops = {
@@ -1712,6 +1712,7 @@ static const struct v4l2_subdev_pad_ops ov13855_pad_ops = {
 	.set_fmt = ov13855_set_fmt,
 	.get_selection = ov13855_get_selection,
 	.get_mbus_config = ov13855_g_mbus_config,
+	.get_frame_interval = ov13855_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov13855_subdev_ops = {

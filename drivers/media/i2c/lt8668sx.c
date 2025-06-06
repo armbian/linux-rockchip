@@ -1107,7 +1107,8 @@ static int lt8668sx_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt8668sx_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
 	const struct lt8668sx_mode *mode = lt8668sx->cur_mode;
@@ -1305,7 +1306,6 @@ static const struct v4l2_subdev_video_ops lt8668sx_video_ops = {
 	.g_dv_timings = lt8668sx_g_dv_timings,
 	.query_dv_timings = lt8668sx_query_dv_timings,
 	.s_stream = lt8668sx_s_stream,
-	.g_frame_interval = lt8668sx_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops lt8668sx_pad_ops = {
@@ -1317,6 +1317,7 @@ static const struct v4l2_subdev_pad_ops lt8668sx_pad_ops = {
 	.enum_dv_timings = lt8668sx_enum_dv_timings,
 	.dv_timings_cap = lt8668sx_dv_timings_cap,
 	.get_mbus_config = lt8668sx_g_mbus_config,
+	.get_frame_interval = lt8668sx_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops lt8668sx_ops = {

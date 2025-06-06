@@ -4334,6 +4334,7 @@ static int ar0822_enable_test_pattern(struct ar0822 *ar0822, u32 pattern)
 }
 
 static int ar0822_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ar0822 *ar0822 = to_ar0822(sd);
@@ -5008,7 +5009,6 @@ static const struct v4l2_subdev_core_ops ar0822_core_ops = {
 
 static const struct v4l2_subdev_video_ops ar0822_video_ops = {
 	.s_stream = ar0822_s_stream,
-	.g_frame_interval = ar0822_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ar0822_pad_ops = {
@@ -5018,6 +5018,7 @@ static const struct v4l2_subdev_pad_ops ar0822_pad_ops = {
 	.get_fmt = ar0822_get_fmt,
 	.set_fmt = ar0822_set_fmt,
 	.get_mbus_config = ar0822_g_mbus_config,
+	.get_frame_interval = ar0822_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ar0822_subdev_ops = {

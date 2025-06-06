@@ -955,7 +955,8 @@ static int imx258_enable_test_pattern(struct imx258 *imx258, u32 pattern)
 }
 
 static int imx258_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx258 *imx258 = to_imx258(sd);
 	const struct imx258_mode *mode = imx258->cur_mode;
@@ -1620,7 +1621,6 @@ static const struct v4l2_subdev_core_ops imx258_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx258_video_ops = {
 	.s_stream = imx258_s_stream,
-	.g_frame_interval = imx258_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx258_pad_ops = {
@@ -1630,6 +1630,7 @@ static const struct v4l2_subdev_pad_ops imx258_pad_ops = {
 	.get_fmt = imx258_get_fmt,
 	.set_fmt = imx258_set_fmt,
 	.get_mbus_config = imx258_g_mbus_config,
+	.get_frame_interval = imx258_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx258_subdev_ops = {

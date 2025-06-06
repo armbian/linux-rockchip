@@ -778,6 +778,7 @@ unlock_and_return:
 }
 
 static int sc035gs_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc035gs *sc035gs = to_sc035gs(sd);
@@ -957,7 +958,6 @@ static const struct v4l2_subdev_core_ops sc035gs_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc035gs_video_ops = {
 	.s_stream = sc035gs_s_stream,
-	.g_frame_interval = sc035gs_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc035gs_pad_ops = {
@@ -967,6 +967,7 @@ static const struct v4l2_subdev_pad_ops sc035gs_pad_ops = {
 	.get_fmt = sc035gs_get_fmt,
 	.set_fmt = sc035gs_set_fmt,
 	.get_mbus_config = sc035gs_g_mbus_config,
+	.get_frame_interval = sc035gs_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc035gs_subdev_ops = {

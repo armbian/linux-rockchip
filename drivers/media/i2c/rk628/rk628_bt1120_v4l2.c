@@ -1576,6 +1576,7 @@ static int rk628_bt1120_s_edid(struct v4l2_subdev *sd,
 }
 
 static int rk628_bt1120_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
@@ -1716,7 +1717,6 @@ static const struct v4l2_subdev_video_ops rk628_bt1120_video_ops = {
 	.g_dv_timings = rk628_bt1120_g_dv_timings,
 	.query_dv_timings = rk628_bt1120_query_dv_timings,
 	.s_stream = rk628_bt1120_s_stream,
-	.g_frame_interval = rk628_bt1120_g_frame_interval,
 	.querystd = rk628_bt1120_querystd,
 };
 
@@ -1731,6 +1731,7 @@ static const struct v4l2_subdev_pad_ops rk628_bt1120_pad_ops = {
 	.enum_dv_timings = rk628_bt1120_enum_dv_timings,
 	.dv_timings_cap = rk628_bt1120_dv_timings_cap,
 	.get_mbus_config = rk628_bt1120_g_mbus_config,
+	.get_frame_interval = rk628_bt1120_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops rk628_bt1120_ops = {

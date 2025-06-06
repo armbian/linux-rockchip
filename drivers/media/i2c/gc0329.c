@@ -854,6 +854,7 @@ static int gc0329_g_mbus_config(struct v4l2_subdev *sd,  unsigned int pad,
 }
 
 static int gc0329_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc0329 *gc0329 = to_gc0329(sd);
@@ -864,6 +865,7 @@ static int gc0329_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int gc0329_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -920,8 +922,6 @@ static const struct v4l2_subdev_core_ops gc0329_subdev_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc0329_subdev_video_ops = {
 	.s_stream = gc0329_s_stream,
-	.g_frame_interval = gc0329_g_frame_interval,
-	.s_frame_interval = gc0329_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc0329_subdev_pad_ops = {
@@ -931,6 +931,8 @@ static const struct v4l2_subdev_pad_ops gc0329_subdev_pad_ops = {
 	.get_fmt = gc0329_get_fmt,
 	.set_fmt = gc0329_set_fmt,
 	.get_mbus_config = gc0329_g_mbus_config,
+	.get_frame_interval = gc0329_g_frame_interval,
+	.set_frame_interval = gc0329_s_frame_interval,
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API

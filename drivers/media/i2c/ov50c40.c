@@ -6132,7 +6132,8 @@ static int ov50c40_enable_test_pattern(struct ov50c40 *ov50c40, u32 pattern)
 }
 
 static int ov50c40_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov50c40 *ov50c40 = to_ov50c40(sd);
 	const struct ov50c40_mode *mode = ov50c40->cur_mode;
@@ -6765,7 +6766,6 @@ static const struct v4l2_subdev_core_ops ov50c40_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov50c40_video_ops = {
 	.s_stream = ov50c40_s_stream,
-	.g_frame_interval = ov50c40_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov50c40_pad_ops = {
@@ -6778,6 +6778,7 @@ static const struct v4l2_subdev_pad_ops ov50c40_pad_ops = {
 	.get_selection = ov50c40_get_selection,
 #endif
 	.get_mbus_config = ov50c40_g_mbus_config,
+	.get_frame_interval = ov50c40_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov50c40_subdev_ops = {

@@ -539,7 +539,8 @@ static int gc5025_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc5025_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc5025 *gc5025 = to_gc5025(sd);
 	const struct gc5025_mode *mode = gc5025->cur_mode;
@@ -1552,7 +1553,6 @@ static const struct v4l2_subdev_core_ops gc5025_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc5025_video_ops = {
 	.s_stream = gc5025_s_stream,
-	.g_frame_interval = gc5025_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
@@ -1563,6 +1563,7 @@ static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
 	.set_fmt = gc5025_set_fmt,
 	.get_selection = gc5025_get_selection,
 	.get_mbus_config = gc5025_g_mbus_config,
+	.get_frame_interval = gc5025_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc5025_subdev_ops = {

@@ -2211,6 +2211,7 @@ static int ov12d2q_enable_test_pattern(struct ov12d2q *ov12d2q, u32 pattern)
 }
 
 static int ov12d2q_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov12d2q *ov12d2q = to_ov12d2q(sd);
@@ -2699,7 +2700,6 @@ static const struct v4l2_subdev_core_ops ov12d2q_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov12d2q_video_ops = {
 	.s_stream = ov12d2q_s_stream,
-	.g_frame_interval = ov12d2q_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov12d2q_pad_ops = {
@@ -2709,6 +2709,7 @@ static const struct v4l2_subdev_pad_ops ov12d2q_pad_ops = {
 	.get_fmt = ov12d2q_get_fmt,
 	.set_fmt = ov12d2q_set_fmt,
 	.get_mbus_config = ov12d2q_g_mbus_config,
+	.get_frame_interval = ov12d2q_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov12d2q_subdev_ops = {

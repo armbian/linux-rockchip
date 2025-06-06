@@ -1664,6 +1664,7 @@ static int sc4238_enable_test_pattern(struct sc4238 *sc4238, u32 pattern)
 }
 
 static int sc4238_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc4238 *sc4238 = to_sc4238(sd);
@@ -2374,7 +2375,6 @@ static const struct v4l2_subdev_core_ops sc4238_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc4238_video_ops = {
 	.s_stream = sc4238_s_stream,
-	.g_frame_interval = sc4238_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc4238_pad_ops = {
@@ -2384,6 +2384,7 @@ static const struct v4l2_subdev_pad_ops sc4238_pad_ops = {
 	.get_fmt = sc4238_get_fmt,
 	.set_fmt = sc4238_set_fmt,
 	.get_mbus_config = sc4238_g_mbus_config,
+	.get_frame_interval = sc4238_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc4238_subdev_ops = {

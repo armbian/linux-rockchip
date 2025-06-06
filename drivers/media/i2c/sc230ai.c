@@ -903,6 +903,7 @@ static int sc230ai_enable_test_pattern(struct sc230ai *sc230ai, u32 pattern)
 }
 
 static int sc230ai_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc230ai *sc230ai = to_sc230ai(sd);
@@ -1415,7 +1416,6 @@ static const struct v4l2_subdev_core_ops sc230ai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc230ai_video_ops = {
 	.s_stream = sc230ai_s_stream,
-	.g_frame_interval = sc230ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc230ai_pad_ops = {
@@ -1425,6 +1425,7 @@ static const struct v4l2_subdev_pad_ops sc230ai_pad_ops = {
 	.get_fmt = sc230ai_get_fmt,
 	.set_fmt = sc230ai_set_fmt,
 	.get_mbus_config = sc230ai_g_mbus_config,
+	.get_frame_interval = sc230ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc230ai_subdev_ops = {

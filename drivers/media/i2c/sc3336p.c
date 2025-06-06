@@ -935,6 +935,7 @@ static int sc3336p_enable_test_pattern(struct sc3336p *sc3336p, u32 pattern)
 }
 
 static int sc3336p_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc3336p *sc3336p = to_sc3336p(sd);
@@ -1454,7 +1455,6 @@ static const struct v4l2_subdev_core_ops sc3336p_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc3336p_video_ops = {
 	.s_stream = sc3336p_s_stream,
-	.g_frame_interval = sc3336p_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc3336p_pad_ops = {
@@ -1464,6 +1464,7 @@ static const struct v4l2_subdev_pad_ops sc3336p_pad_ops = {
 	.get_fmt = sc3336p_get_fmt,
 	.set_fmt = sc3336p_set_fmt,
 	.get_mbus_config = sc3336p_g_mbus_config,
+	.get_frame_interval = sc3336p_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc3336p_subdev_ops = {

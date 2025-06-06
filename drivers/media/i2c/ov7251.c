@@ -968,6 +968,7 @@ static int ov7251_enable_test_pattern(struct ov7251 *ov7251, u32 pattern)
 }
 
 static int ov7251_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov7251 *ov7251 = to_ov7251(sd);
@@ -1407,7 +1408,6 @@ static const struct v4l2_subdev_core_ops ov7251_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov7251_video_ops = {
 	.s_stream = ov7251_s_stream,
-	.g_frame_interval = ov7251_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov7251_pad_ops = {
@@ -1417,6 +1417,7 @@ static const struct v4l2_subdev_pad_ops ov7251_pad_ops = {
 	.get_fmt = ov7251_get_fmt,
 	.set_fmt = ov7251_set_fmt,
 	.get_mbus_config = ov7251_g_mbus_config,
+	.get_frame_interval = ov7251_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov7251_subdev_ops = {

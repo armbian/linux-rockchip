@@ -859,6 +859,7 @@ static int ov8865_enable_test_pattern(struct ov8865 *ov8865, u32 pattern)
 }
 
 static int ov8865_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov8865 *ov8865 = to_ov8865(sd);
@@ -1234,7 +1235,6 @@ static const struct v4l2_subdev_core_ops ov8865_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov8865_video_ops = {
 	.s_stream = ov8865_s_stream,
-	.g_frame_interval = ov8865_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov8865_pad_ops = {
@@ -1244,6 +1244,7 @@ static const struct v4l2_subdev_pad_ops ov8865_pad_ops = {
 	.get_fmt = ov8865_get_fmt,
 	.set_fmt = ov8865_set_fmt,
 	.get_mbus_config = ov8865_g_mbus_config,
+	.get_frame_interval = ov8865_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov8865_subdev_ops = {

@@ -485,6 +485,7 @@ static int techpoint_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int techpoint_g_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct techpoint *techpoint = to_techpoint(sd);
@@ -817,7 +818,6 @@ static const struct v4l2_subdev_internal_ops techpoint_internal_ops = {
 
 static const struct v4l2_subdev_video_ops techpoint_video_ops = {
 	.s_stream = techpoint_stream,
-	.g_frame_interval = techpoint_g_frame_interval,
 	.querystd = techpoint_querystd,
 };
 
@@ -827,6 +827,7 @@ static const struct v4l2_subdev_pad_ops techpoint_subdev_pad_ops = {
 	.get_fmt = techpoint_get_fmt,
 	.set_fmt = techpoint_set_fmt,
 	.get_mbus_config = techpoint_g_mbus_config,
+	.get_frame_interval = techpoint_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops techpoint_core_ops = {

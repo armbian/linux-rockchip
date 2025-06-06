@@ -635,6 +635,7 @@ static int sc3338_enable_test_pattern(struct sc3338 *sc3338, u32 pattern)
 }
 
 static int sc3338_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc3338 *sc3338 = to_sc3338(sd);
@@ -1152,7 +1153,6 @@ static const struct v4l2_subdev_core_ops sc3338_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc3338_video_ops = {
 	.s_stream = sc3338_s_stream,
-	.g_frame_interval = sc3338_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc3338_pad_ops = {
@@ -1162,6 +1162,7 @@ static const struct v4l2_subdev_pad_ops sc3338_pad_ops = {
 	.get_fmt = sc3338_get_fmt,
 	.set_fmt = sc3338_set_fmt,
 	.get_mbus_config = sc3338_g_mbus_config,
+	.get_frame_interval = sc3338_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc3338_subdev_ops = {

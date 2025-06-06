@@ -923,6 +923,7 @@ static int sc223a_enable_test_pattern(struct sc223a *sc223a, u32 pattern)
 }
 
 static int sc223a_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc223a *sc223a = to_sc223a(sd);
@@ -1416,7 +1417,6 @@ static const struct v4l2_subdev_core_ops sc223a_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc223a_video_ops = {
 	.s_stream = sc223a_s_stream,
-	.g_frame_interval = sc223a_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc223a_pad_ops = {
@@ -1426,6 +1426,7 @@ static const struct v4l2_subdev_pad_ops sc223a_pad_ops = {
 	.get_fmt = sc223a_get_fmt,
 	.set_fmt = sc223a_set_fmt,
 	.get_mbus_config = sc223a_g_mbus_config,
+	.get_frame_interval = sc223a_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc223a_subdev_ops = {

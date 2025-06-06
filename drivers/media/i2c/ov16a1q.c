@@ -1228,6 +1228,7 @@ static int ov16a1q_enable_test_pattern(struct ov16a1q *ov16a1q, u32 pattern)
 }
 
 static int ov16a1q_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov16a1q *ov16a1q = to_ov16a1q(sd);
@@ -1722,7 +1723,6 @@ static const struct v4l2_subdev_core_ops ov16a1q_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov16a1q_video_ops = {
 	.s_stream = ov16a1q_s_stream,
-	.g_frame_interval = ov16a1q_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov16a1q_pad_ops = {
@@ -1733,6 +1733,7 @@ static const struct v4l2_subdev_pad_ops ov16a1q_pad_ops = {
 	.set_fmt = ov16a1q_set_fmt,
 	.get_selection = ov16a1q_get_selection,
 	.get_mbus_config = ov16a1q_g_mbus_config,
+	.get_frame_interval = ov16a1q_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov16a1q_subdev_ops = {

@@ -803,6 +803,7 @@ static int imx335_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int imx335_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx335 *imx335 = to_imx335(sd);
@@ -1672,7 +1673,6 @@ static const struct v4l2_subdev_core_ops imx335_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx335_video_ops = {
 	.s_stream = imx335_s_stream,
-	.g_frame_interval = imx335_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
@@ -1683,6 +1683,7 @@ static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
 	.set_fmt = imx335_set_fmt,
 	.get_selection = imx335_get_selection,
 	.get_mbus_config = imx335_g_mbus_config,
+	.get_frame_interval = imx335_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx335_subdev_ops = {

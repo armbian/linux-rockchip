@@ -604,7 +604,8 @@ static int gc5035_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc5035_g_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc5035 *gc5035 = to_gc5035(sd);
 	const struct gc5035_mode *mode = gc5035->cur_mode;
@@ -1018,7 +1019,6 @@ static const struct v4l2_subdev_core_ops gc5035_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc5035_video_ops = {
 	.s_stream = gc5035_s_stream,
-	.g_frame_interval = gc5035_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc5035_pad_ops = {
@@ -1028,6 +1028,7 @@ static const struct v4l2_subdev_pad_ops gc5035_pad_ops = {
 	.get_fmt = gc5035_get_fmt,
 	.set_fmt = gc5035_set_fmt,
 	.get_mbus_config = sensor_g_mbus_config,
+	.get_frame_interval = gc5035_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc5035_subdev_ops = {

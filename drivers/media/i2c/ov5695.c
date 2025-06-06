@@ -836,6 +836,7 @@ static int ov5695_enable_test_pattern(struct ov5695 *ov5695, u32 pattern)
 }
 
 static int ov5695_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov5695 *ov5695 = to_ov5695(sd);
@@ -1189,7 +1190,6 @@ static const struct v4l2_subdev_core_ops ov5695_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov5695_video_ops = {
 	.s_stream = ov5695_s_stream,
-	.g_frame_interval = ov5695_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov5695_pad_ops = {
@@ -1199,6 +1199,7 @@ static const struct v4l2_subdev_pad_ops ov5695_pad_ops = {
 	.get_fmt = ov5695_get_fmt,
 	.set_fmt = ov5695_set_fmt,
 	.get_mbus_config = ov5695_g_mbus_config,
+	.get_frame_interval = ov5695_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov5695_subdev_ops = {

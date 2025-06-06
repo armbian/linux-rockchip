@@ -536,6 +536,7 @@ static int gc5024_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gc5024_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc5024 *gc5024 = to_gc5024(sd);
@@ -925,7 +926,6 @@ static const struct v4l2_subdev_core_ops gc5024_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc5024_video_ops = {
 	.s_stream = gc5024_s_stream,
-	.g_frame_interval = gc5024_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc5024_pad_ops = {
@@ -935,6 +935,7 @@ static const struct v4l2_subdev_pad_ops gc5024_pad_ops = {
 	.get_fmt = gc5024_get_fmt,
 	.set_fmt = gc5024_set_fmt,
 	.get_mbus_config = sensor_g_mbus_config,
+	.get_frame_interval = gc5024_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc5024_subdev_ops = {

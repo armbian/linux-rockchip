@@ -2429,6 +2429,7 @@ static void rk628_reset_edid(struct v4l2_subdev *sd, u8 *edid_data, u8 edid_vers
 }
 
 static int rk628_csi_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct rk628_csi *csi = to_csi(sd);
@@ -3009,7 +3010,6 @@ static const struct v4l2_subdev_video_ops rk628_csi_video_ops = {
 	.g_dv_timings = rk628_csi_g_dv_timings,
 	.query_dv_timings = rk628_csi_query_dv_timings,
 	.s_stream = rk628_csi_s_stream,
-	.g_frame_interval = rk628_csi_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops rk628_csi_pad_ops = {
@@ -3023,6 +3023,7 @@ static const struct v4l2_subdev_pad_ops rk628_csi_pad_ops = {
 	.enum_dv_timings = rk628_csi_enum_dv_timings,
 	.dv_timings_cap = rk628_csi_dv_timings_cap,
 	.get_mbus_config = rk628_csi_g_mbus_config,
+	.get_frame_interval = rk628_csi_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops rk628_csi_ops = {

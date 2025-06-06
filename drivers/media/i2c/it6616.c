@@ -3838,7 +3838,8 @@ static int it6616_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int it6616_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct it6616 *it6616 = to_it6616(sd);
 	const struct it6616_mode *mode = it6616->cur_mode;
@@ -3992,7 +3993,6 @@ static const struct v4l2_subdev_video_ops it6616_video_ops = {
 	.g_dv_timings = it6616_g_dv_timings,
 	.query_dv_timings = it6616_query_dv_timings,
 	.s_stream = it6616_s_stream,
-	.g_frame_interval = it6616_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops it6616_pad_ops = {
@@ -4004,6 +4004,7 @@ static const struct v4l2_subdev_pad_ops it6616_pad_ops = {
 	.enum_dv_timings = it6616_enum_dv_timings,
 	.dv_timings_cap = it6616_dv_timings_cap,
 	.get_mbus_config = it6616_g_mbus_config,
+	.get_frame_interval = it6616_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops it6616_ops = {

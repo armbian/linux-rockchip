@@ -1681,6 +1681,7 @@ static int IMX464_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int IMX464_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct IMX464 *IMX464 = to_IMX464(sd);
@@ -2843,7 +2844,6 @@ static const struct v4l2_subdev_core_ops IMX464_core_ops = {
 
 static const struct v4l2_subdev_video_ops IMX464_video_ops = {
 	.s_stream = IMX464_s_stream,
-	.g_frame_interval = IMX464_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops IMX464_pad_ops = {
@@ -2854,6 +2854,7 @@ static const struct v4l2_subdev_pad_ops IMX464_pad_ops = {
 	.set_fmt = IMX464_set_fmt,
 	.get_selection = IMX464_get_selection,
 	.get_mbus_config = IMX464_g_mbus_config,
+	.get_frame_interval = IMX464_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops IMX464_subdev_ops = {

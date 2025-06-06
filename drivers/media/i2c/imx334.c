@@ -838,6 +838,7 @@ static int imx334_enable_test_pattern(struct imx334 *imx334, u32 pattern)
 }
 
 static int imx334_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx334 *imx334 = to_imx334(sd);
@@ -1455,7 +1456,6 @@ static const struct v4l2_subdev_core_ops imx334_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx334_video_ops = {
 	.s_stream = imx334_s_stream,
-	.g_frame_interval = imx334_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
@@ -1466,6 +1466,7 @@ static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
 	.set_fmt = imx334_set_fmt,
 	.get_selection = imx334_get_selection,
 	.get_mbus_config = imx334_g_mbus_config,
+	.get_frame_interval = imx334_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx334_subdev_ops = {

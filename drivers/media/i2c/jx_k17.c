@@ -524,6 +524,7 @@ static int jx_k17_enable_test_pattern(struct jx_k17 *jx_k17, u32 pattern)
 }
 
 static int jx_k17_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct jx_k17 *jx_k17 = to_jx_k17(sd);
@@ -970,7 +971,6 @@ static const struct v4l2_subdev_core_ops jx_k17_core_ops = {
 
 static const struct v4l2_subdev_video_ops jx_k17_video_ops = {
 	.s_stream = jx_k17_s_stream,
-	.g_frame_interval = jx_k17_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_k17_pad_ops = {
@@ -980,6 +980,7 @@ static const struct v4l2_subdev_pad_ops jx_k17_pad_ops = {
 	.get_fmt = jx_k17_get_fmt,
 	.set_fmt = jx_k17_set_fmt,
 	.get_mbus_config = jx_k17_g_mbus_config,
+	.get_frame_interval = jx_k17_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops jx_k17_subdev_ops = {

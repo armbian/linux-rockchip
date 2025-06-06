@@ -2477,6 +2477,7 @@ static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 }
 
 static int gc2145_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
@@ -2487,6 +2488,7 @@ static int gc2145_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int gc2145_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -2688,8 +2690,6 @@ static const struct v4l2_subdev_core_ops gc2145_subdev_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc2145_subdev_video_ops = {
 	.s_stream = gc2145_s_stream,
-	.g_frame_interval = gc2145_g_frame_interval,
-	.s_frame_interval = gc2145_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2145_subdev_pad_ops = {
@@ -2699,6 +2699,8 @@ static const struct v4l2_subdev_pad_ops gc2145_subdev_pad_ops = {
 	.get_fmt = gc2145_get_fmt,
 	.set_fmt = gc2145_set_fmt,
 	.get_mbus_config = gc2145_g_mbus_config,
+	.get_frame_interval = gc2145_g_frame_interval,
+	.set_frame_interval = gc2145_s_frame_interval,
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API

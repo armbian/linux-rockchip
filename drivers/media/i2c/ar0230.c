@@ -1139,6 +1139,7 @@ unlock_and_return:
 }
 
 static int ar0230_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ar0230 *ar0230 = to_ar0230(sd);
@@ -1335,7 +1336,6 @@ static const struct v4l2_subdev_core_ops ar0230_core_ops = {
 
 static const struct v4l2_subdev_video_ops ar0230_video_ops = {
 	.s_stream = ar0230_s_stream,
-	.g_frame_interval = ar0230_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ar0230_pad_ops = {
@@ -1345,6 +1345,7 @@ static const struct v4l2_subdev_pad_ops ar0230_pad_ops = {
 	.get_fmt = ar0230_get_fmt,
 	.set_fmt = ar0230_set_fmt,
 	.get_mbus_config = ar0230_g_mbus_config,
+	.get_frame_interval = ar0230_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ar0230_subdev_ops = {

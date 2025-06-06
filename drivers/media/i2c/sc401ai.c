@@ -801,6 +801,7 @@ static int sc401ai_enable_test_pattern(struct sc401ai *sc401ai, u32 pattern)
 }
 
 static int sc401ai_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc401ai *sc401ai = to_sc401ai(sd);
@@ -1270,7 +1271,6 @@ static const struct v4l2_subdev_core_ops sc401ai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc401ai_video_ops = {
 	.s_stream = sc401ai_s_stream,
-	.g_frame_interval = sc401ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc401ai_pad_ops = {
@@ -1280,6 +1280,7 @@ static const struct v4l2_subdev_pad_ops sc401ai_pad_ops = {
 	.get_fmt = sc401ai_get_fmt,
 	.set_fmt = sc401ai_set_fmt,
 	.get_mbus_config = sc401ai_g_mbus_config,
+	.get_frame_interval = sc401ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc401ai_subdev_ops = {

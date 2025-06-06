@@ -1643,6 +1643,7 @@ static int sc450ai_enable_test_pattern(struct sc450ai *sc450ai, u32 pattern)
 }
 
 static int sc450ai_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc450ai *sc450ai = to_sc450ai(sd);
@@ -2242,7 +2243,6 @@ static const struct v4l2_subdev_core_ops sc450ai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc450ai_video_ops = {
 	.s_stream = sc450ai_s_stream,
-	.g_frame_interval = sc450ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc450ai_pad_ops = {
@@ -2252,6 +2252,7 @@ static const struct v4l2_subdev_pad_ops sc450ai_pad_ops = {
 	.get_fmt = sc450ai_get_fmt,
 	.set_fmt = sc450ai_set_fmt,
 	.get_mbus_config = sc450ai_g_mbus_config,
+	.get_frame_interval = sc450ai_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc450ai_subdev_ops = {

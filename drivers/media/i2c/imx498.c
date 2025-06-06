@@ -715,6 +715,7 @@ static int imx498_enable_test_pattern(struct imx498 *imx498, u32 pattern)
 }
 
 static int imx498_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx498 *imx498 = to_imx498(sd);
@@ -1361,7 +1362,6 @@ static const struct v4l2_subdev_core_ops imx498_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx498_video_ops = {
 	.s_stream = imx498_s_stream,
-	.g_frame_interval = imx498_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx498_pad_ops = {
@@ -1372,6 +1372,7 @@ static const struct v4l2_subdev_pad_ops imx498_pad_ops = {
 	.set_fmt = imx498_set_fmt,
 	.get_selection = imx498_get_selection,
 	.get_mbus_config = imx498_g_mbus_config,
+	.get_frame_interval = imx498_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx498_subdev_ops = {

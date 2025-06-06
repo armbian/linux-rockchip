@@ -573,7 +573,8 @@ unlock_and_return:
 }
 
 static int sc320at_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc320at *sc320at = v4l2_get_subdevdata(sd);
 	const struct sc320at_mode *mode = sc320at->cur_mode;
@@ -860,7 +861,6 @@ static const struct v4l2_subdev_core_ops sc320at_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc320at_video_ops = {
 	.s_stream = sc320at_s_stream,
-	.g_frame_interval = sc320at_g_frame_interval,
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = sc320at_g_mbus_config,
 #endif
@@ -876,6 +876,7 @@ static const struct v4l2_subdev_pad_ops sc320at_pad_ops = {
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = sc320at_g_mbus_config,
 #endif
+	.get_frame_interval = sc320at_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc320at_subdev_ops = {

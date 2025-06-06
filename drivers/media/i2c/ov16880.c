@@ -1922,6 +1922,7 @@ static int ov16880_enable_test_pattern(struct ov16880 *ov16880, u32 pattern)
 }
 
 static int ov16880_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov16880 *ov16880 = to_ov16880(sd);
@@ -2504,7 +2505,6 @@ static const struct v4l2_subdev_core_ops ov16880_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov16880_video_ops = {
 	.s_stream = ov16880_s_stream,
-	.g_frame_interval = ov16880_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov16880_pad_ops = {
@@ -2515,6 +2515,7 @@ static const struct v4l2_subdev_pad_ops ov16880_pad_ops = {
 	.set_fmt = ov16880_set_fmt,
 	.get_selection = ov16880_get_selection,
 	.get_mbus_config = ov16880_g_mbus_config,
+	.get_frame_interval = ov16880_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov16880_subdev_ops = {
