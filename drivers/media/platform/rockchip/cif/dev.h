@@ -1091,7 +1091,7 @@ void rkcif_vb_done_tasklet(struct rkcif_stream *stream, struct rkcif_buffer *buf
 int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev);
 
 const struct
-cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev,
+cif_input_fmt *rkcif_get_input_fmt(struct rkcif_stream *stream,
 				 struct v4l2_rect *rect,
 				 u32 pad_id, struct csi_channel_info *csi_info);
 

@@ -2225,25 +2225,6 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int rkcif_fwnode_parse(struct device *dev,
-			      struct v4l2_fwnode_endpoint *vep,
-			      struct v4l2_async_connection *asc)
-{
-	struct rkcif_async_subdev *rk_asd =
-			container_of(asc, struct rkcif_async_subdev, asc);
-
-	if (vep->bus_type != V4L2_MBUS_BT656 &&
-	    vep->bus_type != V4L2_MBUS_PARALLEL &&
-	    vep->bus_type != V4L2_MBUS_CSI2_DPHY &&
-	    vep->bus_type != V4L2_MBUS_CSI2_CPHY &&
-	    vep->bus_type != V4L2_MBUS_CCP2)
-		return 0;
-
-	rk_asd->mbus.type = vep->bus_type;
-
-	return 0;
-}
-
 static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
 	.bound = subdev_notifier_bound,
 	.complete = subdev_notifier_complete,
@@ -2252,25 +2233,66 @@ static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
 static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 {
 	struct v4l2_async_notifier *ntf = &cif_dev->notifier;
-	struct device *dev = cif_dev->dev;
-	int ret;
+	struct fwnode_handle *fwnode = dev_fwnode(cif_dev->dev);
+	struct fwnode_handle *ep;
+	int ret = 0;
 
-	v4l2_async_nf_init(ntf);
-
-	ret = v4l2_async_nf_parse_fwnode_endpoints(
-		dev, ntf, sizeof(struct rkcif_async_subdev), rkcif_fwnode_parse);
-
-	if (ret < 0) {
-		v4l2_err(&cif_dev->v4l2_dev,
-			 "%s: parse fwnode failed\n", __func__);
-		return ret;
-	}
+	v4l2_async_nf_init(ntf, &cif_dev->v4l2_dev);
 
 	ntf->ops = &subdev_notifier_ops;
 
-	ret = v4l2_async_nf_register(&cif_dev->v4l2_dev, ntf);
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
+		struct fwnode_handle *port;
+		struct v4l2_fwnode_endpoint vep = { };
+		struct rkcif_async_subdev *rk_asd;
+		struct fwnode_handle *source;
 
-	return ret;
+		/* Select the bus type based on the port. */
+		port = fwnode_get_parent(ep);
+		fwnode_handle_put(port);
+
+		/* Parse the endpoint and validate the bus type. */
+		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		if (ret) {
+			dev_err(cif_dev->dev, "failed to parse endpoint %pfw\n",
+				ep);
+			break;
+		}
+
+		/* Add the async subdev to the notifier. */
+		source = fwnode_graph_get_remote_endpoint(ep);
+		if (!source) {
+			dev_err(cif_dev->dev,
+				"endpoint %pfw has no remote endpoint\n",
+				ep);
+			ret = -ENODEV;
+			break;
+		}
+
+		rk_asd = v4l2_async_nf_add_fwnode(ntf, source,
+						  struct rkcif_async_subdev);
+		if (IS_ERR(rk_asd)) {
+			fwnode_handle_put(source);
+			ret = PTR_ERR(rk_asd);
+			break;
+		}
+
+		rk_asd->mbus.type = vep.bus_type;
+	}
+
+	if (ret) {
+		fwnode_handle_put(ep);
+		v4l2_async_nf_cleanup(ntf);
+		return ret;
+	}
+
+	ret = v4l2_async_nf_register(ntf);
+	if (ret) {
+		v4l2_async_nf_cleanup(ntf);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int notifier_isp_thread(void *data)

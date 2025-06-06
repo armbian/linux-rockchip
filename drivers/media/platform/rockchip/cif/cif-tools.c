@@ -260,7 +260,12 @@ static int rkcif_tools_enum_frameintervals(struct file *file, void *fh,
 		return -ENODEV;
 	}
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	if (sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+		fi.stream = tools_vdev->stream->id;
+	else
+		fi.stream = 0;
+	ret = v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &fi);
 	if (ret && ret != -ENOIOCTLCMD) {
 		return ret;
 	} else if (ret == -ENOIOCTLCMD) {
@@ -300,7 +305,7 @@ static int rkcif_tools_enum_framesizes(struct file *file, void *prov,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (terminal_sensor && terminal_sensor->sd)
-		rkcif_get_input_fmt(dev,
+		rkcif_get_input_fmt(tools_vdev->stream,
 				    &input_rect, 0, &csi_info);
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;

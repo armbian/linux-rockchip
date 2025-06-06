@@ -637,6 +637,8 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 	struct csi_channel_info *channel = &stream->cifdev->channels[stream->id];
 	int ret = -EINVAL;
 
+	if (!input_fmt)
+		return ret;
 	stream->rounding_bit = 0;
 	switch (input_fmt->mbus_code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -979,9 +981,10 @@ static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 }
 
 const struct
-cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *rect,
+cif_input_fmt *rkcif_get_input_fmt(struct rkcif_stream *stream, struct v4l2_rect *rect,
 			     u32 pad_id, struct csi_channel_info *csi_info)
 {
+	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev *sd = dev->terminal_sensor.sd;
 	struct rkmodule_channel_info ch_info = {0};
@@ -993,7 +996,11 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.reserved[0] = 0;
 	fmt.format.field = V4L2_FIELD_NONE;
-	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
+	if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+		fmt.stream = stream->id;
+	else
+		fmt.stream = 0;
+	ret = v4l2_subdev_call_state_active(sd, pad, get_fmt, &fmt);
 	if (ret < 0) {
 		v4l2_warn(sd->v4l2_dev,
 			  "sensor fmt invalid, set to default size\n");
@@ -2015,9 +2022,9 @@ static void rkcif_rdbk_frame_end_toisp(struct rkcif_stream *stream,
 		}
 
 		if ((m_ts - l_ts) > time || (s_ts - m_ts) > time) {
-			ret = v4l2_subdev_call(sensor->sd,
-					       video,
-					       g_frame_interval,
+			ret = v4l2_subdev_call_state_active(sensor->sd,
+					       pad,
+					       get_frame_interval,
 					       &sensor->fi);
 			if (!ret) {
 				denominator = sensor->fi.interval.denominator;
@@ -2062,9 +2069,9 @@ static void rkcif_rdbk_frame_end_toisp(struct rkcif_stream *stream,
 		}
 
 		if ((s_ts - l_ts) > time) {
-			ret = v4l2_subdev_call(sensor->sd,
-					       video,
-					       g_frame_interval,
+			ret = v4l2_subdev_call_state_active(sensor->sd,
+					       pad,
+					       get_frame_interval,
 					       &sensor->fi);
 			if (!ret) {
 				denominator = sensor->fi.interval.denominator;
@@ -3981,7 +3988,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->cmd_mode_en = dev->terminal_sensor.dsi_mode;; /* default use DSI Video Mode */
 	channel->dsi_input = dev->terminal_sensor.dsi_input_en;
 
-	if (stream->crop_enable) {
+	if (stream->crop_enable &&
+	    stream->crop[CROP_SRC_ACT].width < stream->pixm.width &&
+	    stream->crop[CROP_SRC_ACT].height < stream->pixm.height) {
 		channel->crop_en = 1;
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF)
@@ -6460,8 +6469,12 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 
 	if (max_size == 0 && dev->terminal_sensor.sd) {
 		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
-				       pad, get_fmt, NULL, &fmt);
+		if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			fmt.stream = stream->id;
+		else
+			fmt.stream = 0;
+		ret = v4l2_subdev_call_state_active(dev->terminal_sensor.sd,
+				       pad, get_fmt, &fmt);
 		if (!ret) {
 			if (fmt.format.code == MEDIA_BUS_FMT_RGB888_1X24 ||
 			    fmt.format.code == MEDIA_BUS_FMT_BGR888_1X24 ||
@@ -7338,6 +7351,11 @@ static void rkcif_sync_crop_info(struct rkcif_stream *stream)
 		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
 		input_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		input_sel.pad = 0;
+		input_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			input_sel.stream = stream->id;
+		else
+			input_sel.stream = 0;
 		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
 				       pad, get_selection, NULL,
 				       &input_sel);
@@ -7387,7 +7405,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	struct v4l2_rect input, *crop;
 
 	if (dev->terminal_sensor.sd) {
-		stream->cif_fmt_in = rkcif_get_input_fmt(dev,
+		stream->cif_fmt_in = rkcif_get_input_fmt(stream,
 							 &input, stream->id,
 							 &dev->channels[stream->id]);
 		if (!stream->cif_fmt_in) {
@@ -7436,9 +7454,15 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 			return -EINVAL;
 		}
 	}
-	if (atomic_read(&dev->pipe.stream_cnt) == 0)
-		v4l2_subdev_call(dev->terminal_sensor.sd, video,
-				 g_frame_interval, &dev->terminal_sensor.src_fi);
+	if (atomic_read(&dev->pipe.stream_cnt) == 0) {
+		dev->terminal_sensor.src_fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			dev->terminal_sensor.src_fi.stream = stream->id;
+		else
+			dev->terminal_sensor.src_fi.stream = 0;
+		v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad,
+				 get_frame_interval, &dev->terminal_sensor.src_fi);
+	}
 
 	return 0;
 }
@@ -7485,11 +7509,16 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
-		ret = v4l2_subdev_call(terminal_sensor->sd, video,
-				       g_frame_interval, &terminal_sensor->fi);
+		terminal_sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		if (terminal_sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			terminal_sensor->fi.stream = stream->id;
+		else
+			terminal_sensor->fi.stream = 0;
+		ret = v4l2_subdev_call_state_active(terminal_sensor->sd, pad,
+				       get_frame_interval, &terminal_sensor->fi);
 		if (ret) {
 			v4l2_err(&stream->cifdev->v4l2_dev,
-				 "%s: get terminal %s g_frame_interval failed!\n",
+				 "%s: get terminal %s get_frame_interval failed!\n",
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
@@ -7920,7 +7949,9 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 	}
 
-	if (stream->crop_enable) {
+	if (stream->crop_enable &&
+	    stream->crop[CROP_SRC_ACT].width < stream->pixm.width &&
+	    stream->crop[CROP_SRC_ACT].height < stream->pixm.height) {
 		dev->channels[stream->id].crop_en = 1;
 		dev->channels[stream->id].crop_st_x = stream->crop[CROP_SRC_ACT].left;
 		dev->channels[stream->id].crop_st_y = stream->crop[CROP_SRC_ACT].top;
@@ -8489,8 +8520,13 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		else
 			dev->hdr.hdr_mode = NO_HDR;
 
-		ret = v4l2_subdev_call(terminal_sensor->sd,
-				       video, g_frame_interval, &terminal_sensor->fi);
+		terminal_sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		if (terminal_sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			terminal_sensor->fi.stream = stream->id;
+		else
+			terminal_sensor->fi.stream = 0;
+		ret = v4l2_subdev_call_state_active(terminal_sensor->sd,
+				       pad, get_frame_interval, &terminal_sensor->fi);
 		if (ret)
 			terminal_sensor->fi.interval = (struct v4l2_fract) {1, 30};
 
@@ -8795,7 +8831,7 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd) {
-		cif_fmt_in = rkcif_get_input_fmt(dev,
+		cif_fmt_in = rkcif_get_input_fmt(stream,
 						 &input_rect, stream->id,
 						 channel_info);
 		stream->cif_fmt_in = cif_fmt_in;
@@ -8821,11 +8857,16 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 
 		dev->terminal_sensor.raw_rect = input_rect;
 		if (atomic_read(&dev->pipe.stream_cnt) == 0) {
-			ret = v4l2_subdev_call(dev->terminal_sensor.sd, video,
-					       g_frame_interval, &dev->terminal_sensor.src_fi);
+			dev->terminal_sensor.src_fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+			if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+				dev->terminal_sensor.src_fi.stream = stream->id;
+			else
+				dev->terminal_sensor.src_fi.stream = 0;
+			ret = v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad,
+					       get_frame_interval, &dev->terminal_sensor.src_fi);
 			if (ret) {
 				v4l2_err(&stream->cifdev->v4l2_dev,
-					 "%s: get terminal %s g_frame_interval failed!\n",
+					 "%s: get terminal %s get_frame_interval failed!\n",
 					 __func__, dev->terminal_sensor.sd->name);
 				return ret;
 			}
@@ -8859,7 +8900,9 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 		int width, height, bpl, size, bpp, ex_size;
 
 		if (i == 0) {
-			if (stream->crop_enable) {
+			if (stream->crop_enable &&
+			    stream->crop[CROP_SRC_ACT].width < pixm->width &&
+			    stream->crop[CROP_SRC_ACT].height < pixm->height) {
 				width = stream->crop[CROP_SRC_ACT].width;
 				height = stream->crop[CROP_SRC_ACT].height;
 			} else {
@@ -8867,7 +8910,9 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 				height = pixm->height;
 			}
 		} else {
-			if (stream->crop_enable) {
+			if (stream->crop_enable &&
+			    stream->crop[CROP_SRC_ACT].width < pixm->width &&
+			    stream->crop[CROP_SRC_ACT].height < pixm->height) {
 				width = stream->crop[CROP_SRC_ACT].width / xsubs;
 				height = stream->crop[CROP_SRC_ACT].height / ysubs;
 			} else {
@@ -9218,7 +9263,7 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd)
-		rkcif_get_input_fmt(dev,
+		rkcif_get_input_fmt(stream,
 				    &input_rect, stream->id,
 				    &csi_info);
 
@@ -9257,7 +9302,12 @@ static int rkcif_enum_frameintervals(struct file *file, void *fh,
 		return -ENODEV;
 	}
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	if (sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+		fi.stream = stream->id;
+	else
+		fi.stream = 0;
+	ret = v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &fi);
 	if (ret && ret != -ENOIOCTLCMD) {
 		return ret;
 	} else if (ret == -ENOIOCTLCMD) {
@@ -9299,7 +9349,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (dev->terminal_sensor.sd) {
-		cif_fmt_in = rkcif_get_input_fmt(dev,
+		cif_fmt_in = rkcif_get_input_fmt(stream,
 					   &input_rect, stream->id,
 					   &dev->channels[stream->id]);
 		stream->cif_fmt_in = cif_fmt_in;
@@ -9523,7 +9573,12 @@ static int rkcif_g_selection(struct file *file, void *fh,
 		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s(line:%d): sd:%s pad:%d, which:%d, target:%d\n",
 			 __func__, __LINE__, sensor_sd->name, pad, sd_sel.which, sd_sel.target);
 
-		ret = v4l2_subdev_call(sensor_sd, pad, get_selection, NULL, &sd_sel);
+		sd_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+			sd_sel.stream = stream->id;
+		else
+			sd_sel.stream = 0;
+		ret = v4l2_subdev_call_state_active(sensor_sd, pad, get_selection, &sd_sel);
 		if (!ret) {
 			s->r = sd_sel.r;
 		} else {
@@ -9926,7 +9981,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKCIF_CMD_SET_CSI_MEMORY_MODE:
 		if (dev->terminal_sensor.sd) {
-			in_fmt = rkcif_get_input_fmt(dev,
+			in_fmt = rkcif_get_input_fmt(stream,
 						     &rect, 0, &csi_info);
 			if (in_fmt == NULL) {
 				v4l2_err(&dev->v4l2_dev, "can't get sensor input format\n");
@@ -10518,7 +10573,7 @@ static int rkcif_lvds_sd_set_fmt(struct v4l2_subdev *sd,
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
-	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	return v4l2_subdev_call_state_active(sensor, pad, get_fmt, fmt);
 }
 
 static int rkcif_lvds_sd_get_fmt(struct v4l2_subdev *sd,
@@ -10533,7 +10588,7 @@ static int rkcif_lvds_sd_get_fmt(struct v4l2_subdev *sd,
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
-	ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	ret = v4l2_subdev_call_state_active(sensor, pad, get_fmt, fmt);
 	if (!ret)
 		subdev->in_fmt = fmt->format;
 
@@ -10542,9 +10597,9 @@ static int rkcif_lvds_sd_get_fmt(struct v4l2_subdev *sd,
 
 static struct v4l2_rect *rkcif_lvds_sd_get_crop(struct rkcif_lvds_subdev *subdev,
 						struct v4l2_subdev_state *sd_state,
-						enum v4l2_subdev_format_whence which)
+						struct v4l2_subdev_selection *sel)
 {
-	if (which == V4L2_SUBDEV_FORMAT_TRY)
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_state_get_crop(sd_state, RKCIF_LVDS_PAD_SINK);
 	else
 		return &subdev->crop;
@@ -10588,11 +10643,14 @@ static int rkcif_lvds_sd_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-			ret = v4l2_subdev_call(sensor, pad, get_selection,
-					       sd_state, sel);
+			ret = v4l2_subdev_call_state_active(sensor, pad, get_selection, sel);
 			if (ret) {
 				fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-				ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt);
+				if (sensor->flags & V4L2_SUBDEV_FL_STREAMS)
+					fmt.stream = sel->stream;
+				else
+					fmt.stream = 0;
+				ret = v4l2_subdev_call_state_active(sensor, pad, get_fmt, &fmt);
 				if (!ret) {
 					subdev->in_fmt = fmt.format;
 					sel->r.top = 0;
@@ -10612,7 +10670,7 @@ static int rkcif_lvds_sd_get_selection(struct v4l2_subdev *sd,
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *rkcif_lvds_sd_get_crop(subdev, sd_state, sel->which);
+		sel->r = *rkcif_lvds_sd_get_crop(subdev, sd_state, sel);
 		break;
 
 	default:
@@ -11402,9 +11460,14 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			}
 
 			if ((m_ts - l_ts) > time || (s_ts - m_ts) > time) {
-				ret = v4l2_subdev_call(sensor->sd,
-						       video,
-						       g_frame_interval,
+				sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				if (sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+					sensor->fi.stream = stream->id;
+				else
+					sensor->fi.stream = 0;
+				ret = v4l2_subdev_call_state_active(sensor->sd,
+						       pad,
+						       get_frame_interval,
 						       &sensor->fi);
 				if (!ret) {
 					denominator = sensor->fi.interval.denominator;
@@ -11463,9 +11526,14 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			}
 
 			if ((s_ts - l_ts) > time) {
-				ret = v4l2_subdev_call(sensor->sd,
-						       video,
-						       g_frame_interval,
+				sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				if (sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+					sensor->fi.stream = stream->id;
+				else
+					sensor->fi.stream = 0;
+				ret = v4l2_subdev_call_state_active(sensor->sd,
+						       pad,
+						       get_frame_interval,
 						       &sensor->fi);
 				if (!ret) {
 					denominator = sensor->fi.interval.denominator;
@@ -13006,7 +13074,11 @@ void rkcif_set_default_fmt(struct rkcif_device *cif_dev)
 			memset(&fmt, 0, sizeof(fmt));
 			fmt.pad = i;
 			fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, &fmt);
+			if (cif_dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+				fmt.stream = i;
+			else
+				fmt.stream = 0;
+			v4l2_subdev_call_state_active(cif_dev->terminal_sensor.sd, pad, get_fmt, &fmt);
 
 			memset(&pixm, 0, sizeof(pixm));
 			pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt.format.code);
@@ -13017,8 +13089,12 @@ void rkcif_set_default_fmt(struct rkcif_device *cif_dev)
 			input_sel.pad = i;
 			input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
 			input_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
-					       pad, get_selection, NULL,
+			if (cif_dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+				input_sel.stream = i;
+			else
+				input_sel.stream = 0;
+			ret = v4l2_subdev_call_state_active(cif_dev->terminal_sensor.sd,
+					       pad, get_selection,
 					       &input_sel);
 			if (!ret) {
 				pixm.width = input_sel.r.width;
