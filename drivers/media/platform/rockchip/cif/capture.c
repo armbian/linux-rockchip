@@ -10545,7 +10545,7 @@ static struct v4l2_rect *rkcif_lvds_sd_get_crop(struct rkcif_lvds_subdev *subdev
 						enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&subdev->sd, sd_state, RKCIF_LVDS_PAD_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, RKCIF_LVDS_PAD_SINK);
 	else
 		return &subdev->crop;
 }
@@ -10607,7 +10607,7 @@ static int rkcif_lvds_sd_get_selection(struct v4l2_subdev *sd,
 				subdev->crop = sel->r;
 			}
 		} else {
-			sel->r = *v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
+			sel->r = *v4l2_subdev_state_get_crop(sd_state, sel->pad);
 		}
 		break;
 

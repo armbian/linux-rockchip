@@ -462,7 +462,7 @@ static struct v4l2_rect *mipi_csi2_get_crop(struct csi2_dev *csi2,
 						 enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&csi2->sd, sd_state, RK_CSI2_PAD_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, RK_CSI2_PAD_SINK);
 	else
 		return &csi2->crop;
 }
@@ -510,7 +510,7 @@ static int csi2_get_selection(struct v4l2_subdev *sd,
 				csi2->crop = sel->r;
 			}
 		} else {
-			sel->r = *v4l2_subdev_get_try_crop(&csi2->sd, sd_state, sel->pad);
+			sel->r = *v4l2_subdev_state_get_crop(sd_state, sel->pad);
 		}
 		break;
 
