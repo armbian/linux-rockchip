@@ -887,12 +887,13 @@ static int mipidphy_s_stream(struct v4l2_subdev *sd, int on)
 }
 
 static int mipidphy_g_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct v4l2_subdev *sensor = get_remote_sensor(sd);
 
 	if (sensor)
-		return v4l2_subdev_call(sensor, video, g_frame_interval, fi);
+		return v4l2_subdev_call_state_active(sensor, pad, get_frame_interval, fi);
 
 	return -EINVAL;
 }
@@ -1001,6 +1002,7 @@ static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 	.get_fmt = mipidphy_get_set_fmt,
 	.get_selection = mipidphy_get_selection,
 	.get_mbus_config = mipidphy_g_mbus_config,
+	.get_frame_interval = mipidphy_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
@@ -1008,7 +1010,6 @@ static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mipidphy_video_ops = {
-	.g_frame_interval = mipidphy_g_frame_interval,
 	.s_stream = mipidphy_s_stream,
 };
 
