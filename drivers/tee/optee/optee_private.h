@@ -92,7 +92,6 @@ struct optee_supp {
 	struct list_head reqs;
 	struct idr idr;
 	struct completion reqs_c;
-	bool shutdown;
 };
 
 struct optee_smc {
