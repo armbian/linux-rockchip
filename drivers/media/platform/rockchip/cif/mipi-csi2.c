@@ -736,7 +736,7 @@ static const struct v4l2_subdev_ops csi2_subdev_ops = {
 static int
 csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 		    struct v4l2_subdev *sd,
-		    struct v4l2_async_subdev *asd)
+		    struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *csi2 = container_of(notifier,
 			struct csi2_dev,
@@ -792,7 +792,7 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 /* The .unbind callback */
 static void csi2_notifier_unbind(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *csi2 = container_of(notifier,
 						  struct csi2_dev,
@@ -997,7 +997,7 @@ static int csi2_fwnode_parse(struct csi2_dev *csi2)
 {
 	struct device *dev = csi2->dev;
 	struct fwnode_handle *ep = NULL;
-	struct v4l2_async_subdev *s_asd = NULL;
+	struct v4l2_async_connection *s_asc = NULL;
 	struct fwnode_handle *remote_ep = NULL;
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
@@ -1020,12 +1020,12 @@ static int csi2_fwnode_parse(struct csi2_dev *csi2)
 			continue;
 		}
 
-		s_asd = v4l2_async_nf_add_fwnode(&csi2->notifier, remote_ep,
+		s_asc = v4l2_async_nf_add_fwnode(&csi2->notifier, remote_ep,
 						 struct
-						 v4l2_async_subdev);
+						 v4l2_async_connection);
 		fwnode_handle_put(remote_ep);
-		if (IS_ERR(s_asd)) {
-			ret = PTR_ERR(s_asd);
+		if (IS_ERR(s_asc)) {
+			ret = PTR_ERR(s_asc);
 			goto err_parse;
 		}
 	}

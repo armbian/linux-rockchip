@@ -2194,19 +2194,19 @@ notifier_end:
 }
 
 struct rkcif_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asc;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asc)
 {
 	struct rkcif_device *cif_dev = container_of(notifier,
 					struct rkcif_device, notifier);
-	struct rkcif_async_subdev *s_asd = container_of(asd,
-					struct rkcif_async_subdev, asd);
+	struct rkcif_async_subdev *s_asd = container_of(asc,
+					struct rkcif_async_subdev, asc);
 
 	if (cif_dev->num_sensors == ARRAY_SIZE(cif_dev->sensors)) {
 		v4l2_err(&cif_dev->v4l2_dev,
@@ -2227,10 +2227,10 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 static int rkcif_fwnode_parse(struct device *dev,
 			      struct v4l2_fwnode_endpoint *vep,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asc)
 {
 	struct rkcif_async_subdev *rk_asd =
-			container_of(asd, struct rkcif_async_subdev, asd);
+			container_of(asc, struct rkcif_async_subdev, asc);
 
 	if (vep->bus_type != V4L2_MBUS_BT656 &&
 	    vep->bus_type != V4L2_MBUS_PARALLEL &&

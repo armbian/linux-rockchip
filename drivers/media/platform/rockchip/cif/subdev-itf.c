@@ -1594,17 +1594,17 @@ static int rkcif_sditf_attach_cifdev(struct sditf_priv *sditf)
 }
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asc;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
 
 static int sditf_fwnode_parse(struct device *dev,
 					  struct v4l2_fwnode_endpoint *vep,
-					  struct v4l2_async_subdev *asd)
+					  struct v4l2_async_connection *asc)
 {
 	struct sensor_async_subdev *s_asd =
-			container_of(asd, struct sensor_async_subdev, asd);
+			container_of(asc, struct sensor_async_subdev, asc);
 	struct v4l2_mbus_config *config = &s_asd->mbus;
 
 	if (vep->base.port != 0) {
@@ -1688,7 +1688,7 @@ void sditf_get_default_exp(struct sditf_priv *sditf)
 
 static int sditf_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asc)
 {
 	struct sditf_priv *sditf = container_of(notifier,
 					struct sditf_priv, notifier);
@@ -1727,7 +1727,7 @@ static int sditf_notifier_bound(struct v4l2_async_notifier *notifier,
 
 static void sditf_notifier_unbind(struct v4l2_async_notifier *notifier,
 				       struct v4l2_subdev *sd,
-				       struct v4l2_async_subdev *asd)
+				       struct v4l2_async_connection *asc)
 {
 	struct sditf_priv *sditf = container_of(notifier,
 						struct sditf_priv,
