@@ -1776,7 +1776,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
 
 	ret = rockchip_mipidphy_fwnode_parse(priv);
 	if (ret < 0)
@@ -1784,7 +1784,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 
 	priv->sd.subdev_notifier = &priv->notifier;
 	priv->notifier.ops = &rockchip_mipidphy_async_ops;
-	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(priv->dev,
 			"failed to register async notifier : %d\n", ret);
