@@ -6,6 +6,7 @@
 #include <linux/of_platform.h>
 #include "dev.h"
 #include "common.h"
+#include <linux/vmalloc.h>
 
 static void rkcif_init_dummy_vb2(struct rkcif_device *dev,
 				struct rkcif_dummy_buffer *buf)
