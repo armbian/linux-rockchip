@@ -22,7 +22,7 @@ DECLARE_EVENT_CLASS(lima_task,
 	TP_fast_assign(
 		__entry->context = task->base.s_fence->finished.context;
 		__entry->seqno = task->base.s_fence->finished.seqno;
-		__assign_str(pipe);
+		__assign_str(pipe, task->base.sched->name);
 		),
 
 	TP_printk("context=%u seqno=%u pipe=%s",
