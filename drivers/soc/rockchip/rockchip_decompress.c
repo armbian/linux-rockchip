@@ -484,24 +484,27 @@ static int __init rockchip_decom_probe(struct platform_device *pdev)
 	}
 
 	mem = of_parse_phandle(np, "memory-region", 0);
-	if (!mem) {
-		dev_err(dev, "missing \"memory-region\" property\n");
-#ifndef CONFIG_ROCKCHIP_HW_DECOMPRESS_TEST
+	if (mem) {
+		ret = of_address_to_resource(mem, 0, &reg);
+		of_node_put(mem);
+		if (ret) {
+			dev_err(dev, "invalid \"memory-region\" property\n");
+			return -ENODEV;
+		}
+
+		rk_dec->mem_start = reg.start;
+		rk_dec->mem_size = resource_size(&reg);
+		dev_info(dev, "Using reserved memory region: start=0x%pa, size=0x%zx\n",
+			 &rk_dec->mem_start, rk_dec->mem_size);
+	} else {
+#ifdef CONFIG_ROCKCHIP_HW_DECOMPRESS_TEST
 		return -ENODEV;
 #endif
+		/* For user-space usage, memory-region is optional */
+		rk_dec->mem_start = 0;
+		rk_dec->mem_size = 0;
+		dev_info(dev, "No memory-region specified, user-space memory management\n");
 	}
-
-	ret = of_address_to_resource(mem, 0, &reg);
-	of_node_put(mem);
-	if (ret) {
-		dev_err(dev, "missing \"reg\" property\n");
-#ifndef CONFIG_ROCKCHIP_HW_DECOMPRESS_TEST
-		return -ENODEV;
-#endif
-	}
-
-	rk_dec->mem_start = reg.start;
-	rk_dec->mem_size = resource_size(&reg);
 
 	rk_dec->num_clocks = devm_clk_bulk_get_all(dev, &rk_dec->clocks);
 	if (rk_dec->num_clocks < 0) {
