@@ -2695,10 +2695,13 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
-	u32 iommu_dte_addr = 0;
+	u32 iommu_dte_addr = 0, iommu_int_mask = 0, iommu_auto_gate = 0;
 
-	if (scheduler->data->mmu == RGA_IOMMU)
+	if (scheduler->data->mmu == RGA_IOMMU) {
 		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
+		iommu_int_mask = rga_read(RGA_IOMMU_INT_MASK, scheduler);
+		iommu_auto_gate = rga_read(RGA_IOMMU_AUTO_GATING, scheduler);
+	}
 
 	rga_write(m_RGA2_SYS_CTRL_ACLK_SRESET_P | m_RGA2_SYS_CTRL_CCLK_SRESET_P |
 		  m_RGA2_SYS_CTRL_RST_PROTECT_P,
@@ -2716,6 +2719,11 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
 		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
+		rga_write(RGA_IOMMU_CMD_ZAP_CACHE, RGA_IOMMU_COMMAND, scheduler);
+
+		rga_write(iommu_int_mask, RGA_IOMMU_INT_MASK, scheduler);
+		rga_write(iommu_auto_gate, RGA_IOMMU_AUTO_GATING, scheduler);
+
 		/* enable iommu */
 		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
 	}
