@@ -124,7 +124,6 @@ struct rkaiisp_device {
 	struct rkaiisp_rmsbuf_info rmsbuf;
 	struct rkaiisp_dummy_buffer rms_inbuf[RKAIISP_AIRMS_BUF_MAXCNT];
 	struct rkaiisp_dummy_buffer rms_outbuf[RKAIISP_AIRMS_BUF_MAXCNT];
-	struct rkaiisp_dummy_buffer sigma_buf;
 	struct rkaiisp_dummy_buffer narmap_buf;
 
 	struct aiisp_aiynr_ybuf_cfg ynr_ybuf_cfg;

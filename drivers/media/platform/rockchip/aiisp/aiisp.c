@@ -350,6 +350,24 @@ static void rkaiisp_free_buffer(struct rkaiisp_device *aidev,
 	}
 }
 
+static void __maybe_unused rkaiisp_prepare_buffer(struct rkaiisp_device *aidev,
+			struct rkaiisp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = aidev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->prepare(buf->mem_priv);
+}
+
+static void __maybe_unused rkaiisp_finish_buffer(struct rkaiisp_device *aidev,
+			struct rkaiisp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = aidev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->finish(buf->mem_priv);
+}
+
 static void rkaiisp_detach_dmabuf(struct rkaiisp_device *aidev,
 				  struct rkaiisp_dummy_buffer *buffer)
 {
@@ -670,7 +688,6 @@ static int rkaiisp_free_airms_pool(struct rkaiisp_device *aidev)
 	for (i = 0; i < aidev->rmsbuf.outbuf_num; i++)
 		rkaiisp_free_buffer(aidev, &aidev->rms_outbuf[i]);
 
-	rkaiisp_free_buffer(aidev, &aidev->sigma_buf);
 	rkaiisp_free_buffer(aidev, &aidev->narmap_buf);
 
 	aidev->init_buf = false;
@@ -682,9 +699,12 @@ static int rkaiisp_free_airms_pool(struct rkaiisp_device *aidev)
 static int rkaiisp_init_airms_pool(struct rkaiisp_device *aidev, struct rkaiisp_rmsbuf_info *rmsbuf)
 {
 	int i, ret = 0;
+	u32 bin_width, bin_height;
 	u32 size;
 
-	size = rmsbuf->image_width * rmsbuf->image_height * 2;
+	bin_width  = CEIL_BY(CEIL_DOWN(rmsbuf->image_width, 2), 2);
+	bin_height = CEIL_BY(CEIL_DOWN(rmsbuf->image_height, 2), 2);
+	size = rmsbuf->image_width * rmsbuf->image_height * 2 + bin_width * bin_height;
 	rmsbuf->inbuf_num = RKAIISP_MIN(rmsbuf->inbuf_num, RKAIISP_AIRMS_BUF_MAXCNT);
 	for (i = 0; i < rmsbuf->inbuf_num; i++) {
 		aidev->rms_inbuf[i].size = size;
@@ -700,6 +720,7 @@ static int rkaiisp_init_airms_pool(struct rkaiisp_device *aidev, struct rkaiisp_
 		rmsbuf->inbuf_fd[i] = aidev->rms_inbuf[i].dma_fd;
 	}
 
+	size = rmsbuf->image_width * rmsbuf->image_height * 2;
 	rmsbuf->outbuf_num = RKAIISP_MIN(rmsbuf->outbuf_num, RKAIISP_AIRMS_BUF_MAXCNT);
 	for (i = 0; i < rmsbuf->outbuf_num; i++) {
 		aidev->rms_outbuf[i].size = size;
@@ -715,11 +736,6 @@ static int rkaiisp_init_airms_pool(struct rkaiisp_device *aidev, struct rkaiisp_
 		rmsbuf->outbuf_fd[i] = aidev->rms_outbuf[i].dma_fd;
 	}
 
-	aidev->sigma_buf.size = rmsbuf->sigma_width * rmsbuf->sigma_height;
-	aidev->sigma_buf.is_need_vaddr = false;
-	aidev->sigma_buf.is_need_dbuf = false;
-	aidev->sigma_buf.is_need_dmafd = false;
-	rkaiisp_allow_buffer(aidev, &aidev->sigma_buf);
 	aidev->narmap_buf.size = rmsbuf->narmap_width * rmsbuf->narmap_height;
 	aidev->narmap_buf.is_need_vaddr = false;
 	aidev->narmap_buf.is_need_dbuf = false;
@@ -1244,12 +1260,6 @@ static u32 rkaiisp_config_rdchannel(struct rkaiisp_device *aidev,
 			buffer_index = aidev->curr_idxbuf.airms_st.inbuf_idx;
 			dma_addr = aidev->rms_inbuf[buffer_index].dma_addr;
 			break;
-		case ALLZERO_SIGMA:
-			width  = rmsbuf->sigma_width;
-			height = rmsbuf->sigma_height;
-			dma_addr = aidev->sigma_buf.dma_addr;
-			sig_width = width;
-			break;
 		case ALLZERO_NARMAP:
 			width  = rmsbuf->narmap_width;
 			height = rmsbuf->narmap_height;
@@ -1260,6 +1270,15 @@ static u32 rkaiisp_config_rdchannel(struct rkaiisp_device *aidev,
 			height = ispbuf->iir_height;
 			buffer_index = aidev->curr_idxbuf.aibnr_st.y_src_index;
 			dma_addr = aidev->ynrinbuf[buffer_index].dma_addr;
+			break;
+		case VICAP_BAYER_RAW_DOWN:
+			width  = rmsbuf->image_width;
+			height = rmsbuf->image_height;
+			buffer_index = aidev->curr_idxbuf.airms_st.inbuf_idx;
+			dma_addr = aidev->rms_inbuf[buffer_index].dma_addr + width * height * 2;
+			width  = CEIL_BY(CEIL_DOWN(rmsbuf->image_width, 2), 2);
+			height = CEIL_BY(CEIL_DOWN(rmsbuf->image_height, 2), 2);
+			sig_width = width;
 			break;
 		default:
 			width  = 0;
@@ -1462,7 +1481,8 @@ static void rkaiisp_run_cfg(struct rkaiisp_device *aidev, u32 run_idx)
 		rkaiisp_write(aidev, AIISP_CORE_LEVEL_CTRL0 + i * 4, val, false);
 	}
 
-	if ((out_chns == 4 && model_cfg->sw_out_d2s_en == 0))
+	if (out_chns == 4 &&
+		model_cfg->sw_out_d2s_en == (model_cfg->sw_out_mode == AIISP_OUT_MODE_BYPASS))
 		sw_lastlv_bypass = 1;
 	if (model_cfg->sw_aiisp_mode == 0 && model_cfg->sw_out_mode == AIISP_OUT_MODE_DIFF_MERGE)
 		sw_m0_diff_merge = 1;

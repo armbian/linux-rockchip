@@ -56,7 +56,8 @@ enum rkaiisp_chn_src {
 	VICAP_BAYER_RAW,
 	ALLZERO_SIGMA,
 	ALLZERO_NARMAP,
-	ISP_FINAL_Y
+	ISP_FINAL_Y,
+	VICAP_BAYER_RAW_DOWN
 };
 
 enum rkaiisp_exealgo {
