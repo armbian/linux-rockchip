@@ -6331,7 +6331,7 @@
 	dfi: dfi@fe060000 {
 		compatible = "rockchip,rk3588-dfi";
 		reg = <0x00 0xfe060000 0x00 0x10000>;
-		rockchip,pmu_grf = <&pmu1_grf>;
+		rockchip,pmu = <&pmu1_grf>;
 		clocks = <&cru PCLK_DDR_MON_CH0>, <&cru PCLK_DDR_MON_CH1>,
 			 <&cru PCLK_DDR_MON_CH2>, <&cru PCLK_DDR_MON_CH3>;
 		clock-names = "pclk_ddr_mon_ch0", "pclk_ddr_mon_ch1",
