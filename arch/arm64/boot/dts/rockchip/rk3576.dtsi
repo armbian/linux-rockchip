@@ -4369,7 +4369,7 @@
 	dfi: dfi@2a000000 {
 		compatible = "rockchip,rk3576-dfi";
 		reg = <0x00 0x2a000000 0x00 0x20000>;
-		rockchip,pmu_grf = <&pmu1_grf>;
+		rockchip,pmu = <&pmu1_grf>;
 		clocks = <&cru PCLK_DDR_MON_CH0>, <&cru PCLK_DDR_MON_CH1>;
 		clock-names = "pclk_ddr_mon_ch0", "pclk_ddr_mon_ch1";
 		status = "disabled";
