@@ -164,7 +164,6 @@ int dwc2_lowlevel_phy_disable(struct dwc2_hsotg *hsotg)
 
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
-	struct platform_device *pdev = to_platform_device(hsotg->dev);
 	int ret;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
