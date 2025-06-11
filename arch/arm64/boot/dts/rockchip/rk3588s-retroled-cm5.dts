@@ -490,7 +490,7 @@
 		disp_timings0: display-timings {
 			native-mode = <&dsi1_timing0>;
 			dsi1_timing0: timing0 {
-				clock-frequency = <133710720>;
+				clock-frequency = <133812000>;
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <26>;
@@ -749,5 +749,10 @@
 
 &rknpu_mmu {
 	status = "disabled";
+};
+
+&vp3 {
+	assigned-clocks = <&cru DCLK_VOP3>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
 };
 
