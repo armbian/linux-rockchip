@@ -2286,7 +2286,7 @@
 	dfi: dfi@fe230000 {
 		reg = <0x00 0xfe230000 0x00 0x400>;
 		compatible = "rockchip,rk3568-dfi";
-		rockchip,pmugrf = <&pmugrf>;
+		rockchip,pmu = <&pmugrf>;
 		status = "disabled";
 	};
 
