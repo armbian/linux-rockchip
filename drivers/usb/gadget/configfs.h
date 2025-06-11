@@ -18,4 +18,9 @@ static inline struct usb_os_desc *to_usb_os_desc(struct config_item *item)
 	return container_of(to_config_group(item), struct usb_os_desc, group);
 }
 
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+struct device;
+struct device *create_function_device(char *name);
+#endif
+
 #endif /*  USB__GADGET__CONFIGFS__H */
