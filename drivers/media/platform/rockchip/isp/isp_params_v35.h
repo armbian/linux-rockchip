@@ -57,7 +57,8 @@ struct rkisp_isp_params_val_v35 {
 	struct rkisp_dummy_buffer *pbuf_y_src;
 
 	u32 bay3d_iir_rw_fmt;
-	u32 bay3d_iir_offs;
+	u32 bay3d_iir_pk_offs;
+	u32 bay3d_iir_pk_stride;
 	u32 bay3d_iir_stride;
 	u32 bay3d_iir_size;
 	int bay3d_iir_cnt;

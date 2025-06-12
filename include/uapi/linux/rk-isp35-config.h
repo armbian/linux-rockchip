@@ -604,6 +604,8 @@ struct isp35_bay3d_cfg {
 	/* B3DLDC_EXTBOUND1 */
 	__u8 btnr_ldcltp_mode;
 	__u16 btnr_ldc_wrap_ext_bound_offset;
+	/* B3DLDC_FFFF_OFF */
+	__u16 b3dldc_last;
 	/* lut_ldch:offset data_oft; lut_ldcv:offset data1_oft */
 	__s32 lut_buf_fd;
 } __attribute__ ((packed));

@@ -331,7 +331,7 @@
 
 #define ISP2X_FBCBUF_FD_NUM		64
 
-#define ISP2X_MESH_BUF_NUM		2
+#define ISP2X_MESH_BUF_NUM		3
 
 #define RKISP_BUFFER_MAX		8
 struct rkisp_buf_info {

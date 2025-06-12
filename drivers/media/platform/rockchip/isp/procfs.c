@@ -1189,11 +1189,14 @@ static void isp35_show(struct rkisp_device *dev, struct seq_file *p)
 		   val, dev->hdr_wrap_line);
 	val = rkisp_read(dev, ISP33_BAY3D_CTRL0, false);
 	tmp = rkisp_read(dev, ISP33_BAY3D_CTRL2, false);
-	seq_printf(p, "%-10s %s(0x%x) bypass:%d iir_rw_fmt:%d b3dldch:0x%x b3dldcv:0x%x\n"
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d iir_rw_fmt:%d\n"
+		   "\t   b3dldch:0x%x map_err:%d b3dldcv:0x%x map_err:%d\n"
 		   "\t   lp_en(me_off:%d gic:%d bf:%d avg:%d) size(iir:%d ds:%d wgt:%d)\n",
 		   "BAY3D", (val & 1) ? "ON" : "OFF", val, !!(val & BIT(1)), (val >> 13) & 0x7,
 		   rkisp_read(dev, ISP35_B3DLDC_ADR_STS, false),
+		   !!(rkisp_read(dev, ISP35_B3DLDC_ADR_STS, true) & BIT(29)),
 		   rkisp_read(dev, ISP35_B3DLDC_CTRL, false),
+		   !!(rkisp_read(dev, ISP35_B3DLDC_CTRL, true) & BIT(12)),
 		   !(val & BIT(8)), !!(tmp & BIT(20)), !!(tmp & BIT(21)), !!(tmp & BIT(22)),
 		   priv->buf_bay3d_iir[0].size, priv->buf_bay3d_ds[0].size, priv->buf_bay3d_wgt[0].size);
 	val = rkisp_read(dev, ISP35_AI_CTRL, false);
