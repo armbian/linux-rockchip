@@ -98,8 +98,8 @@ static int sensor_calibration_data_read(struct sensor_calibration_data *calibrat
 	return 0;
 }
 
-static ssize_t accel_calibration_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t accel_calibration_show(const struct class *class,
+		const struct class_attribute *attr, char *buf)
 {
 	int ret;
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
@@ -179,8 +179,8 @@ static int accel_do_calibration(struct sensor_private_data *sensor)
 	return 0;
 }
 
-static ssize_t accel_calibration_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t accel_calibration_store(const struct class *class,
+		const struct class_attribute *attr, const char *buf, size_t count)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
 	int val, ret;
@@ -243,8 +243,8 @@ OUT:
 
 static CLASS_ATTR_RW(accel_calibration);
 
-static ssize_t gyro_calibration_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t gyro_calibration_show(const struct class *class,
+		const struct class_attribute *attr, char *buf)
 {
 	int ret;
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
@@ -304,8 +304,8 @@ static int gyro_do_calibration(struct sensor_private_data *sensor)
 	return 0;
 }
 
-static ssize_t gyro_calibration_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t gyro_calibration_store(const struct class *class,
+		const struct class_attribute *attr, const char *buf, size_t count)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_GYROSCOPE];
 	int val, ret;
