@@ -1495,7 +1495,6 @@ static struct i2c_adapter *rk618_hdmi_i2c_adapter(struct rk618_hdmi *hdmi)
 	mutex_init(&i2c->lock);
 
 	adap = &i2c->adap;
-	adap->class = I2C_CLASS_DDC;
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = hdmi->dev;
 	adap->dev.of_node = hdmi->dev->of_node;
