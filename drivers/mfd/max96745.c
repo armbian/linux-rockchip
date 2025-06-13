@@ -290,7 +290,7 @@ static int max96745_i2c_probe(struct i2c_client *client)
 		if (of_property_read_u32(child, "reg", &nr))
 			continue;
 
-		ret = i2c_mux_add_adapter(max96745->muxc, 0, nr, 0);
+		ret = i2c_mux_add_adapter(max96745->muxc, 0, nr);
 		if (ret) {
 			i2c_mux_del_adapters(max96745->muxc);
 			return ret;
