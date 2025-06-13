@@ -1903,7 +1903,6 @@ static struct class_attribute class_att_re_range = \
 
 static struct class aw_cali_class = {
 	.name = "smartpa",
-	.owner = THIS_MODULE,
 };
 
 static void aw_cali_class_attr_init(struct aw_device *aw_dev)
