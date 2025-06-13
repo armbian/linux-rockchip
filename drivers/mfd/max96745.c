@@ -352,7 +352,7 @@ static struct i2c_driver max96745_i2c_driver = {
 		.of_match_table = max96745_of_match,
 		.pm = &max96745_pm_ops,
 	},
-	.probe_new = max96745_i2c_probe,
+	.probe = max96745_i2c_probe,
 	.remove = max96745_i2c_remove,
 	.shutdown = max96745_i2c_shutdown,
 };
