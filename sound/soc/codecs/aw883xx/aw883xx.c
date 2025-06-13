@@ -1577,7 +1577,7 @@ static int aw883xx_gpio_request(struct aw883xx *aw883xx)
 
 	if (gpio_is_valid(aw883xx->irq_gpio)) {
 		ret = devm_gpio_request_one(aw883xx->dev, aw883xx->irq_gpio,
-			GPIOF_DIR_IN, "aw883xx_int");
+			GPIOF_IN, "aw883xx_int");
 		if (ret) {
 			aw_dev_err(aw883xx->dev, "int request failed");
 			return ret;
