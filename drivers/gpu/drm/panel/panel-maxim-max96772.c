@@ -530,7 +530,7 @@ static struct i2c_driver max96772_panel_driver = {
 		.name = "max96772-panel",
 		.of_match_table = max96772_panel_of_match,
 	},
-	.probe_new = max96772_panel_probe,
+	.probe = max96772_panel_probe,
 	.remove = max96772_panel_remove,
 };
 
