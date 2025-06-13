@@ -403,7 +403,7 @@ static struct i2c_driver max96755f_i2c_driver = {
 		.of_match_table = max96755f_of_match,
 		.pm = &max96755f_pm_ops,
 	},
-	.probe_new = max96755f_i2c_probe,
+	.probe = max96755f_i2c_probe,
 	.remove = max96755f_i2c_remove,
 	.shutdown = max96755f_i2c_shutdown,
 };
