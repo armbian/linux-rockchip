@@ -228,7 +228,7 @@ struct tc35874x_state {
 static void tc35874x_enable_interrupts(struct v4l2_subdev *sd,
 		bool cable_connected);
 static int tc35874x_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
-static int tc35874x_s_dv_timings(struct v4l2_subdev *sd,
+static int tc35874x_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings);
 
 static inline struct tc35874x_state *to_state(struct v4l2_subdev *sd)
@@ -1045,7 +1045,7 @@ static void tc35874x_format_change(struct v4l2_subdev *sd)
 		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false)) {
 			enable_stream(sd, false);
 			/* automaticly set timing rather than set by userspace */
-			tc35874x_s_dv_timings(sd, &timings);
+			tc35874x_s_dv_timings(sd, 0, &timings);
 		}
 
 		v4l2_print_dv_timings(sd->name,
@@ -1564,7 +1564,7 @@ static int tc35874x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-static int tc35874x_s_dv_timings(struct v4l2_subdev *sd,
+static int tc35874x_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tc35874x_state *state = to_state(sd);
@@ -1597,6 +1597,7 @@ static int tc35874x_s_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int tc35874x_g_dv_timings(struct v4l2_subdev *sd,
+				 unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tc35874x_state *state = to_state(sd);
@@ -1617,6 +1618,7 @@ static int tc35874x_enum_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int tc35874x_query_dv_timings(struct v4l2_subdev *sd,
+		unsigned int pad,
 		struct v4l2_dv_timings *timings)
 {
 	int ret;
@@ -2036,9 +2038,6 @@ static const struct v4l2_subdev_core_ops tc35874x_core_ops = {
 
 static const struct v4l2_subdev_video_ops tc35874x_video_ops = {
 	.g_input_status = tc35874x_g_input_status,
-	.s_dv_timings = tc35874x_s_dv_timings,
-	.g_dv_timings = tc35874x_g_dv_timings,
-	.query_dv_timings = tc35874x_query_dv_timings,
 	.s_stream = tc35874x_s_stream,
 };
 
@@ -2054,6 +2053,9 @@ static const struct v4l2_subdev_pad_ops tc35874x_pad_ops = {
 	.dv_timings_cap = tc35874x_dv_timings_cap,
 	.get_mbus_config = tc35874x_g_mbus_config,
 	.get_frame_interval = tc35874x_g_frame_interval,
+	.s_dv_timings = tc35874x_s_dv_timings,
+	.g_dv_timings = tc35874x_g_dv_timings,
+	.query_dv_timings = tc35874x_query_dv_timings,
 };
 
 static const struct v4l2_subdev_ops tc35874x_ops = {
@@ -2381,7 +2383,7 @@ static int tc35874x_probe(struct i2c_client *client)
 
 	tc35874x_initial_setup(sd);
 
-	tc35874x_s_dv_timings(sd, &default_timing);
+	tc35874x_s_dv_timings(sd, 0, &default_timing);
 
 	tc35874x_set_csi_color_space(sd);
 
