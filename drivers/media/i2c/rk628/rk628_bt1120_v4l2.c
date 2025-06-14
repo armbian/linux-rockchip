@@ -1962,8 +1962,7 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	return ret;
 }
 
-static int rk628_bt1120_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int rk628_bt1120_probe(struct i2c_client *client)
 {
 	struct rk628_bt1120 *bt1120;
 	struct v4l2_subdev *sd;

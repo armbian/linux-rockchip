@@ -3475,8 +3475,7 @@ static int rk628_csi_get_multi_dev_info(struct rk628_csi *csi)
 	return 0;
 }
 
-static int rk628_csi_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int rk628_csi_probe(struct i2c_client *client)
 {
 	struct rk628_csi *csi;
 	struct v4l2_subdev *sd;
