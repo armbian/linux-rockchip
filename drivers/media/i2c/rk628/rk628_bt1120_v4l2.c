@@ -228,7 +228,7 @@ static struct v4l2_dv_timings dst_timing = {
 static void rk628_post_process_setup(struct v4l2_subdev *sd);
 static void rk628_bt1120_enable_interrupts(struct v4l2_subdev *sd, bool en);
 static int rk628_bt1120_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
-static int rk628_bt1120_s_dv_timings(struct v4l2_subdev *sd,
+static int rk628_bt1120_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings);
 static int rk628_bt1120_s_edid(struct v4l2_subdev *sd,
 				struct v4l2_subdev_edid *edid);
@@ -963,7 +963,7 @@ static int rk628_bt1120_format_change(struct v4l2_subdev *sd)
 	}
 	if (!v4l2_match_dv_timings(&bt1120->timings, &timings, 0, false)) {
 		/* automatically set timing rather than set by userspace */
-		rk628_bt1120_s_dv_timings(sd, &timings);
+		rk628_bt1120_s_dv_timings(sd, 0, &timings);
 		v4l2_print_dv_timings(sd->name,
 				"rk628_bt1120_format_change: New format: ",
 				&timings, false);
@@ -1197,6 +1197,7 @@ static int rk628_bt1120_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 static int rk628_bt1120_s_dv_timings(struct v4l2_subdev *sd,
+		unsigned int pad,
 		struct v4l2_dv_timings *timings)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
@@ -1226,6 +1227,7 @@ static int rk628_bt1120_s_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int rk628_bt1120_g_dv_timings(struct v4l2_subdev *sd,
+		unsigned int pad,
 		struct v4l2_dv_timings *timings)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
@@ -1246,6 +1248,7 @@ static int rk628_bt1120_enum_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int rk628_bt1120_query_dv_timings(struct v4l2_subdev *sd,
+		unsigned int pad,
 		struct v4l2_dv_timings *timings)
 {
 	int ret;
@@ -1713,9 +1716,6 @@ static const struct v4l2_subdev_core_ops rk628_bt1120_core_ops = {
 
 static const struct v4l2_subdev_video_ops rk628_bt1120_video_ops = {
 	.g_input_status = rk628_bt1120_g_input_status,
-	.s_dv_timings = rk628_bt1120_s_dv_timings,
-	.g_dv_timings = rk628_bt1120_g_dv_timings,
-	.query_dv_timings = rk628_bt1120_query_dv_timings,
 	.s_stream = rk628_bt1120_s_stream,
 	.querystd = rk628_bt1120_querystd,
 };
@@ -1732,6 +1732,9 @@ static const struct v4l2_subdev_pad_ops rk628_bt1120_pad_ops = {
 	.dv_timings_cap = rk628_bt1120_dv_timings_cap,
 	.get_mbus_config = rk628_bt1120_g_mbus_config,
 	.get_frame_interval = rk628_bt1120_g_frame_interval,
+	.s_dv_timings = rk628_bt1120_s_dv_timings,
+	.g_dv_timings = rk628_bt1120_g_dv_timings,
+	.query_dv_timings = rk628_bt1120_query_dv_timings,
 };
 
 static const struct v4l2_subdev_ops rk628_bt1120_ops = {
