@@ -2286,7 +2286,7 @@ static int rk628_csi_set_fmt(struct v4l2_subdev *sd,
 		if (csi->plat_data->bus_fmt == MEDIA_BUS_FMT_UYVY8_2X8)
 			return 0;
 
-		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = format->format;
+		*v4l2_subdev_state_get_format(sd_state, format->pad) = format->format;
 	}
 
 	csi->mbus_fmt_code = format->format.code;

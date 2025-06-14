@@ -1679,7 +1679,7 @@ static int bt1120_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	struct v4l2_bt_timings *bt = &(bt1120->timings.bt);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct rk628_bt1120_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&bt1120->confctl_mutex);
