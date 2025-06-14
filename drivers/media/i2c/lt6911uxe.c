@@ -579,7 +579,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 
 static void lt6911uxe_format_change(struct v4l2_subdev *sd);
 static int lt6911uxe_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
-static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd,
+static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings);
 
 static inline struct lt6911uxe *to_lt6911uxe(struct v4l2_subdev *sd)
@@ -1017,7 +1017,7 @@ static void lt6911uxe_format_change(struct v4l2_subdev *sd)
 	if (!v4l2_match_dv_timings(&lt6911uxe->timings, &timings, 0, false)) {
 		enable_stream(sd, false);
 		/* automatically set timing rather than set by user */
-		lt6911uxe_s_dv_timings(sd, &timings);
+		lt6911uxe_s_dv_timings(sd, 0, &timings);
 		v4l2_print_dv_timings(sd->name,
 				"Format_change: New format: ",
 				&timings, false);
@@ -1099,7 +1099,7 @@ static int lt6911uxe_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd,
+static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
@@ -1123,7 +1123,7 @@ static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int lt6911uxe_g_dv_timings(struct v4l2_subdev *sd,
+static int lt6911uxe_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
@@ -1144,6 +1144,7 @@ static int lt6911uxe_enum_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_query_dv_timings(struct v4l2_subdev *sd,
+				unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
@@ -1656,9 +1657,6 @@ static const struct v4l2_subdev_core_ops lt6911uxe_core_ops = {
 
 static const struct v4l2_subdev_video_ops lt6911uxe_video_ops = {
 	.g_input_status = lt6911uxe_g_input_status,
-	.s_dv_timings = lt6911uxe_s_dv_timings,
-	.g_dv_timings = lt6911uxe_g_dv_timings,
-	.query_dv_timings = lt6911uxe_query_dv_timings,
 	.s_stream = lt6911uxe_s_stream,
 };
 
@@ -1672,6 +1670,9 @@ static const struct v4l2_subdev_pad_ops lt6911uxe_pad_ops = {
 	.dv_timings_cap = lt6911uxe_dv_timings_cap,
 	.get_mbus_config = lt6911uxe_g_mbus_config,
 	.get_frame_interval = lt6911uxe_g_frame_interval,
+	.s_dv_timings = lt6911uxe_s_dv_timings,
+	.g_dv_timings = lt6911uxe_g_dv_timings,
+	.query_dv_timings = lt6911uxe_query_dv_timings,
 };
 
 static const struct v4l2_subdev_ops lt6911uxe_ops = {
