@@ -1912,6 +1912,7 @@ static int tc35874x_s_edid(struct v4l2_subdev *sd,
 }
 
 static int tc35874x_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct tc35874x_state *state = to_state(sd);
@@ -2039,7 +2040,6 @@ static const struct v4l2_subdev_video_ops tc35874x_video_ops = {
 	.g_dv_timings = tc35874x_g_dv_timings,
 	.query_dv_timings = tc35874x_query_dv_timings,
 	.s_stream = tc35874x_s_stream,
-	.g_frame_interval = tc35874x_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops tc35874x_pad_ops = {
@@ -2053,6 +2053,7 @@ static const struct v4l2_subdev_pad_ops tc35874x_pad_ops = {
 	.enum_dv_timings = tc35874x_enum_dv_timings,
 	.dv_timings_cap = tc35874x_dv_timings_cap,
 	.get_mbus_config = tc35874x_g_mbus_config,
+	.get_frame_interval = tc35874x_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops tc35874x_ops = {
