@@ -759,7 +759,8 @@ static struct drm_driver rknpu_drm_driver = {
 	.gem_prime_import = drm_gem_prime_import,
 #endif
 	.gem_prime_import_sg_table = rknpu_gem_prime_import_sg_table,
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE
+#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	.gem_prime_mmap = drm_gem_prime_mmap,
 #else
 	.gem_prime_mmap = rknpu_gem_prime_mmap,

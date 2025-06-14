@@ -7,10 +7,15 @@
 #include <linux/dma-map-ops.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/scatterlist.h>
 
 #include "rknpu_iommu.h"
 
 #define RKNPU_SWITCH_DOMAIN_WAIT_TIME_MS 6000
+
+#if KERNEL_VERSION(6, 5, 0) <= LINUX_VERSION_CODE
+#define sg_is_dma_bus_address(sg) sg_dma_is_bus_address(sg)
+#endif
 
 dma_addr_t rknpu_iommu_dma_alloc_iova(struct iommu_domain *domain, size_t size,
 				      u64 dma_limit, struct device *dev,
@@ -274,7 +279,11 @@ int rknpu_iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		goto out_restore_sg;
 	}
 
+#if KERNEL_VERSION(6, 3, 0) <= LINUX_VERSION_CODE
+	ret = iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
+#else
 	ret = iommu_map_sg(domain, iova, sg, nents, prot);
+#endif
 	if (ret < 0 || ret < iova_len) {
 		LOG_ERROR("failed to map SG: %zd\n", ret);
 		goto out_free_iova;
@@ -419,7 +428,7 @@ int rknpu_iommu_switch_domain(struct rknpu_device *rknpu_dev, int domain_id)
 {
 	struct iommu_domain *src_domain = NULL;
 	struct iommu_domain *dst_domain = NULL;
-	struct bus_type *bus = NULL;
+	const struct bus_type *bus = NULL;
 	int src_domain_id = 0;
 	int ret = -EINVAL;
 
@@ -470,8 +479,6 @@ int rknpu_iommu_switch_domain(struct rknpu_device *rknpu_dev, int domain_id)
 		}
 		rknpu_dev->iommu_domain_id = domain_id;
 	} else {
-		uint64_t dma_limit = 1ULL << 32;
-
 		dst_domain = iommu_domain_alloc(bus);
 		if (!dst_domain) {
 			LOG_DEV_ERROR(rknpu_dev->dev,
@@ -495,7 +502,9 @@ int rknpu_iommu_switch_domain(struct rknpu_device *rknpu_dev, int domain_id)
 		// set domain type to dma domain
 		dst_domain->type |= __IOMMU_DOMAIN_DMA_API;
 		// iommu dma init domain
-		iommu_setup_dma_ops(rknpu_dev->dev, 0, dma_limit);
+#if KERNEL_VERSION(6, 10, 0) > LINUX_VERSION_CODE
+		iommu_setup_dma_ops(rknpu_dev->dev, 0, 1ULL << 32);
+#endif
 
 		rknpu_dev->iommu_domain_id = domain_id;
 		rknpu_dev->iommu_domains[domain_id] = dst_domain;
