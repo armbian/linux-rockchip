@@ -320,12 +320,12 @@
 	};
 
 	wireless_bluetooth: wireless-bluetooth {
-		BT,reset_gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
 	wireless_wlan: wireless-wlan {
-		WIFI,poweren_gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

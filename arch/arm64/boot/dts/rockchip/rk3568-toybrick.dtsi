@@ -370,13 +370,13 @@
 		clocks = <&rk809 1>;
 		clock-names = "ext_clock";
 		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart8m0_rtsn>;
 		pinctrl-1 = <&uart8_pin>;
-		BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

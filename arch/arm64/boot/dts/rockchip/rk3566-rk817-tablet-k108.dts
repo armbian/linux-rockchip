@@ -211,9 +211,9 @@
 		wifi_chip_type = "rtl8723cs";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
-		WIFI,vbat_gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
-		WIFI,poweren_gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+		WIFI,poweren-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -222,13 +222,13 @@
 		clocks = <&rk817 1>;
 		clock-names = "ext_clock";
 		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
-		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

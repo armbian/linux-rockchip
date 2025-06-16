@@ -449,13 +449,13 @@
 };
 
 &wireless_bluetooth {
-	uart_rts_gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
+	uart_rts-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
 	pinctrl-0 = <&uart1m1_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;
-	BT,reset_gpio    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-	BT,wake_gpio     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
-	BT,wake_host_irq = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+	BT,reset-gpios    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	BT,wake-gpios     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+	BT,wake_host-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "disabled";
 };
 
@@ -463,7 +463,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_host_wake_irq>;
-	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+	WIFI,host_wake-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
 };
 
 &pinctrl {

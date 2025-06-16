@@ -77,14 +77,14 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		BT,reset_gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6398s";
-		WIFI,poweren_gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

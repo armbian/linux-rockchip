@@ -158,7 +158,7 @@
 		rockchip,grf = <&grf>;
 		wifi_chip_type = "ap6354";
 		sdio_vref = <1800>;
-		WIFI,host_wake_irq = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -167,14 +167,14 @@
 		clocks = <&rk808 1>;
 		clock-names = "ext_clock";
 		/* wifi-bt-power-toggle; */
-		uart_rts_gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart0_rts>;
 		pinctrl-1 = <&uart0_gpios>;
-		/* BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; */
-		BT,reset_gpio    = <&gpio0 9 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio2 27 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		/* BT,power-gpios  = <&gpio3 19 GPIO_ACTIVE_HIGH>; */
+		BT,reset-gpios    = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio2 27 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 

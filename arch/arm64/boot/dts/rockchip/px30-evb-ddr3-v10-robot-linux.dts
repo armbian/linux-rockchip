@@ -99,7 +99,7 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "AP6210";
-		WIFI,host_wake_irq = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

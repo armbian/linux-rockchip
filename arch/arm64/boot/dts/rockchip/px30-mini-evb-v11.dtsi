@@ -25,7 +25,7 @@
 };
 
 &wireless_bluetooth {
-	BT,reset_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
-	BT,wake_gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+	BT,reset-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	BT,wake-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 };
 

@@ -145,22 +145,22 @@
 		* esp8089
 		*/
 		wifi_chip_type = "ap6255";
-		WIFI,vbat_gpio = <&gpio0 2 GPIO_ACTIVE_HIGH>;
-		WIFI,host_wake_irq = <&gpio3 6 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		uart_rts_gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart0_rts>;
 		pinctrl-1 = <&uart0_rts_gpio>;
 
-		//BT,power_gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
-		BT,reset_gpio = <&gpio3 5 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+		//BT,power-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 
 		status = "okay";
 	};

@@ -197,8 +197,8 @@
 
 		wifi_chip_type = "rtl8723ds";
 		sdio_vref = <1800>; /*1800mv or 3300mv*/
-		WIFI,host_wake_irq = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
-		WIFI,vbat_gpio  = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat-gpios  = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -206,10 +206,10 @@
 		compatible = "bluetooth-platdata";
 
 		keep_bt_power_on;
-		BT,power_gpio = <&gpio3 4 GPIO_ACTIVE_HIGH>; /* GPIO3_A4 */
-		BT,reset_gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>; /* GPIO3_A2 */
-		BT,wake_gpio = <&gpio3 7 GPIO_ACTIVE_HIGH>; /* GPIO3_A7 */
-		BT,wake_host_irq = <&gpio3 3 GPIO_ACTIVE_HIGH>; /* GPIO3_A3 */
+		BT,power-gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>; /* GPIO3_A4 */
+		BT,reset-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>; /* GPIO3_A2 */
+		BT,wake-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>; /* GPIO3_A7 */
+		BT,wake_host-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>; /* GPIO3_A3 */
 
 		status = "okay";
 	};

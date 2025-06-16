@@ -218,13 +218,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart8m1_rtsn>, <&bt_gpio>;
 		pinctrl-1 = <&uart8_gpios>;
-		BT,reset_gpio    = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -233,8 +233,8 @@
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
-		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

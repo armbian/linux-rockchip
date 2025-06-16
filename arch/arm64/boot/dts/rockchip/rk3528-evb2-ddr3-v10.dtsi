@@ -54,13 +54,13 @@
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart2m1_rtsn>;
 		pinctrl-1 = <&uart2m1_gpios>;
-		BT,reset_gpio    = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -70,7 +70,7 @@
 		wifi_chip_type = "ap6275s";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
