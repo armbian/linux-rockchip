@@ -53,7 +53,7 @@
 
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
-		WIFI,host_wake_irq = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 

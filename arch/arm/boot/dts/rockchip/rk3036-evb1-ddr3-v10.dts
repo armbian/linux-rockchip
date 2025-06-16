@@ -114,8 +114,8 @@
 		compatible = "wlan-platdata";
 
 		wifi_chip_type = "rk915";
-		WIFI,poweren_gpio = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
-		WIFI,host_wake_irq = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

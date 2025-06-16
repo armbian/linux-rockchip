@@ -96,7 +96,7 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "rtl8723bs";
-		WIFI,host_wake_irq = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -104,13 +104,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&rk818 1>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart0_rts>;
 		pinctrl-1 = <&uart0_gpios>;
-		BT,reset_gpio    = <&gpio4 29 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio4 26 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio4 31 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 

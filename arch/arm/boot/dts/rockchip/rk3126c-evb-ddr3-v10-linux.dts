@@ -141,7 +141,7 @@
 		power_pmu_regulator = "ldo5";
 		power_pmu_enable_level = <1>;
 		wifi_chip_type = "rk915";
-		WIFI,host_wake_irq = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

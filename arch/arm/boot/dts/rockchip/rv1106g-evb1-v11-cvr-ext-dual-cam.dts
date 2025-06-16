@@ -75,7 +75,7 @@
 		wifi_chip_type = "rtl8189fs";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

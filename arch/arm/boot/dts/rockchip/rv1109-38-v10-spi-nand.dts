@@ -114,7 +114,7 @@
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
 		wifi_chip_type = "rtl8188fu";
-		WIFI,poweren_gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+		WIFI,poweren-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 

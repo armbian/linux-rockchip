@@ -241,9 +241,9 @@
 
 		keep_bt_power_on;
 
-		BT,power_gpio = <&gpio3 21 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		BT,power-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		/* TODO: disabled because it doesn't work */
 		status = "disabled";
 	};
@@ -256,7 +256,7 @@
 
 		wifi_chip_type = "rtl8723ds";
 		sdio_vref = <1800>; /*1800mv or 3300mv*/
-		WIFI,host_wake_irq = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 		/* WIFI power controller by sdio pwrseq */
 
 		status = "okay";

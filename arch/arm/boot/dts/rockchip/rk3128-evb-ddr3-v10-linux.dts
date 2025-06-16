@@ -135,7 +135,7 @@
 		wifi_chip_type = "ap6212";
 		sdio_vref = <3300>;
 		rockchip,grf = <&grf>;
-		WIFI,host_wake_irq = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -143,13 +143,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&rk805 1>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart0_rts>;
 		pinctrl-1 = <&uart0_rts_gpio>;
-		BT,power_gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		BT,power-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 

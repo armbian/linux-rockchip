@@ -149,8 +149,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_wake_host>;
 		wifi_chip_type = "ap6203";
-		WIFI,poweren_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
-		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

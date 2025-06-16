@@ -65,8 +65,8 @@
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "Hi3861L";
-		WIFI,host_wake_irq = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

@@ -129,13 +129,13 @@
 		/* wifi-bt-power-toggle; */
 
 		keep_wifi_power_on = <1>;
-		uart_rts_gpios = <&gpio1 11 GPIO_ACTIVE_LOW>; /* GPIO1_B3 */
+		uart_rts-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>; /* GPIO1_B3 */
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart1_rts>;
 		pinctrl-1 = <&uart1_rts_gpio>;
-		BT,reset_gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>; /* GPIO2_B1 */
-		BT,wake_gpio = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* GPIO0_D3 */
-		BT,wake_host_irq = <&gpio2 21 GPIO_ACTIVE_LOW>; /* GPIO2_C5 */
+		BT,reset-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>; /* GPIO2_B1 */
+		BT,wake-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* GPIO0_D3 */
+		BT,wake_host-gpios = <&gpio2 21 GPIO_ACTIVE_LOW>; /* GPIO2_C5 */
 		status = "okay";
 	};
 
@@ -143,7 +143,7 @@
 		compatible = "wlan-platdata";
 
 		wifi_chip_type = "rtl8723cs";
-		WIFI,host_wake_irq = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
