@@ -165,6 +165,10 @@ extern void register_page_corrupt_cb(page_corrupt_cb_t cb, void* handle);
 #include <net/sch_generic.h>
 #endif /* ENABLE_DHD_GRO */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0))
+#include <net/rps.h>
+#endif
+
 #ifndef EVENT_LOG_RATE_HC_THRESHOLD
 /* FW checking period is 1 second, and once log quantity exceeds this
  * threshold, FW will directly trap to indicate, so enlarge this
@@ -22233,7 +22237,11 @@ dhd_print_kirqstats(dhd_pub_t *dhd, unsigned int irq_num)
 	bcm_bprintf(&strbuf, "dhd irq %u:", irq_num);
 	for_each_online_cpu(i)
 		bcm_bprintf(&strbuf, "%10u ",
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0))
+			desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, i) : 0);
+#else
 			desc->kstat_irqs ? *per_cpu_ptr(desc->kstat_irqs, i) : 0);
+#endif
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->name)
 			bcm_bprintf(&strbuf, " %8s", desc->irq_data.chip->name);
