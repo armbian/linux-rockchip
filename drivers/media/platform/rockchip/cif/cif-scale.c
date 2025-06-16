@@ -1186,7 +1186,7 @@ static int rkcif_scale_init_vb2_queue(struct vb2_queue *q,
 	struct rkcif_hw *hw_dev = scale_vdev->cifdev->hw_dev;
 
 	q->type = buf_type;
-	q->io_modes = VB2_MMAP | VB2_DMABUF;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR;
 	q->drv_priv = scale_vdev;
 	q->ops = &rkcif_scale_vb2_ops;
 	q->mem_ops = hw_dev->mem_ops;
