@@ -113,15 +113,15 @@ void Modem_Mic_release(void)
 }
 #endif
 
-static int read_gpio(int gpio)
+static int read_gpio(struct gpio_desc *gpio)
 {
 	int i, level;
 
 	for (i = 0; i < 3; i++) {
-		level = gpio_get_value(gpio);
+		level = gpiod_get_value(gpio);
 		if (level < 0) {
 			pr_warn("%s:get pin level again,pin=%d,i=%d\n",
-				__func__, gpio, i);
+				__func__, desc_to_gpio(gpio), i);
 			msleep(1);
 			continue;
 		} else
@@ -412,7 +412,7 @@ int rk_headset_probe(struct platform_device *pdev,
 	register_early_suspend(&hs_early_suspend);
 #endif
 	if (pdata->headset_gpio) {
-		headset->irq[HEADSET] = gpio_to_irq(pdata->headset_gpio);
+		headset->irq[HEADSET] = gpiod_to_irq(pdata->headset_gpio);
 		if (pdata->headset_insert_type == HEADSET_IN_HIGH)
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
 		else
@@ -431,7 +431,7 @@ int rk_headset_probe(struct platform_device *pdev,
 		goto failed;
 	}
 	if (pdata->hook_gpio) {
-		headset->irq[HOOK] = gpio_to_irq(pdata->hook_gpio);
+		headset->irq[HOOK] = gpiod_to_irq(pdata->hook_gpio);
 		headset->irq_type[HOOK] =
 			pdata->hook_down_type == HOOK_DOWN_HIGH ?
 				IRQF_TRIGGER_RISING :

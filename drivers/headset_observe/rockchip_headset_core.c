@@ -41,7 +41,6 @@ static int rockchip_headset_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct rk_headset_pdata *pdata;
 	int ret;
-	enum of_gpio_flags flags;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -51,33 +50,24 @@ static int rockchip_headset_probe(struct platform_device *pdev)
 	pdata_info = pdata;
 
 	/* headset */
-	ret = of_get_named_gpio_flags(node, "headset_gpio", 0, &flags);
-	if (ret < 0) {
+	pdata->headset_gpio = devm_gpiod_get(&pdev->dev, "headset", GPIOD_IN);
+	if (IS_ERR(pdata->headset_gpio)) {
 		dev_err(&pdev->dev, "Can not read property headset_gpio\n");
+		ret = PTR_ERR(pdata->headset_gpio);
 		goto err;
 	} else {
-		pdata->headset_gpio = ret;
-		ret = devm_gpio_request(&pdev->dev, pdata->headset_gpio,
-					"headset_gpio");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "headset_gpio request fail\n");
-			goto err;
-		}
-		ret = gpio_direction_input(pdata->headset_gpio);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"headset_gpio set direction fail\n");
-			goto err;
-		}
-		pdata->headset_insert_type = (flags & OF_GPIO_ACTIVE_LOW) ?
-						     HEADSET_IN_LOW :
-						     HEADSET_IN_HIGH;
+		pdata->headset_insert_type = gpiod_is_active_low(pdata->headset_gpio) ?
+								 HEADSET_IN_LOW :
+								 HEADSET_IN_HIGH;
 	}
 	/* hook */
-	ret = of_get_named_gpio_flags(node, "hook_gpio", 0, &pdata->hook_gpio);
-	if (ret < 0) {
+	pdata->hook_gpio = devm_gpiod_get_optional(&pdev->dev, "hook", GPIOD_IN);
+	if (IS_ERR(pdata->hook_gpio)) {
+		ret = PTR_ERR(pdata->hook_gpio);
+		goto err;
+	}
+	if (!pdata->hook_gpio) {
 		dev_warn(&pdev->dev, "Can not read property hook_gpio\n");
-		pdata->hook_gpio = 0;
 		/* adc mode */
 		pdata->chan = iio_channel_get(&pdev->dev, NULL);
 		if (IS_ERR(pdata->chan)) {
@@ -91,19 +81,6 @@ static int rockchip_headset_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev,
 				 "have not set hook_down_type,set >hook< insert type low level default\n");
 			pdata->hook_down_type = 0;
-		}
-		ret = devm_gpio_request(&pdev->dev, pdata->hook_gpio,
-					"hook_gpio");
-		if (ret < 0) {
-			dev_warn(&pdev->dev,
-				 "devm_gpio_request hook_gpio request ERROR\n");
-			goto err;
-		}
-		ret = gpio_direction_input(pdata->hook_gpio);
-		if (ret < 0) {
-			dev_warn(&pdev->dev,
-				 "gpio_direction_input hook_gpio set ERROR\n");
-			goto err;
 		}
 	}
 

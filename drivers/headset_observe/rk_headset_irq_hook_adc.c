@@ -120,10 +120,10 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 	headset_info->heatset_irq_working = BUSY;
 	msleep(150);
 	for (i = 0; i < 3; i++) {
-		level = gpio_get_value(pdata->headset_gpio);
+		level = gpiod_get_value(pdata->headset_gpio);
 		if (level < 0) {
 			pr_err("%s:get pin level again,pin=%d,i=%d\n",
-			       __func__, pdata->headset_gpio, i);
+			       __func__, desc_to_gpio(pdata->headset_gpio), i);
 			msleep(1);
 			continue;
 		}
@@ -134,7 +134,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 		goto out;
 	} else {
 		pr_err("%s:get pin level again, pin=%d,i=%d\n",
-		       __func__, pdata->headset_gpio, i);
+		       __func__, desc_to_gpio(pdata->headset_gpio), i);
 	}
 
 	old_status = headset_info->headset_status;
@@ -328,8 +328,8 @@ static void hook_work_callback(struct work_struct *work)
 	    headset->heatset_irq_working == BUSY ||
 	    headset->heatset_irq_working == WAIT ||
 	    (pdata->headset_insert_type ?
-		    gpio_get_value(pdata->headset_gpio) == 0 :
-		    gpio_get_value(pdata->headset_gpio) > 0)) {
+		    gpiod_get_value(pdata->headset_gpio) == 0 :
+		    gpiod_get_value(pdata->headset_gpio) > 0)) {
 		DBG("Headset is out or waiting for headset is in or out, after same time check HOOK key\n");
 		goto out;
 	}
@@ -349,8 +349,8 @@ static void hook_work_callback(struct work_struct *work)
 	    headset->heatset_irq_working == BUSY ||
 	    headset->heatset_irq_working == WAIT ||
 	    (pdata->headset_insert_type ?
-		     gpio_get_value(pdata->headset_gpio) == 0 :
-		     gpio_get_value(pdata->headset_gpio) > 0)) {
+		     gpiod_get_value(pdata->headset_gpio) == 0 :
+		     gpiod_get_value(pdata->headset_gpio) > 0)) {
 		printk("headset is out, HOOK status must discard\n");
 		goto out;
 	} else {
@@ -436,7 +436,7 @@ int rk_headset_adc_probe(struct platform_device *pdev,
 	if (pdata->headset_gpio) {
 		unsigned long irq_type;
 
-		headset->irq[HEADSET] = gpio_to_irq(pdata->headset_gpio);
+		headset->irq[HEADSET] = gpiod_to_irq(pdata->headset_gpio);
 		if (pdata->headset_insert_type == HEADSET_IN_HIGH)
 			irq_type = IRQF_TRIGGER_HIGH;
 		else

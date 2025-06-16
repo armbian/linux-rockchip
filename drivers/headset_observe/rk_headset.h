@@ -10,11 +10,11 @@
 
 struct rk_headset_pdata {
 	/* heaset about */
-	unsigned int headset_gpio;
+	struct gpio_desc *headset_gpio;
 	/* Headphones into the state level */
 	unsigned int headset_insert_type;
 	/* hook about */
-	unsigned int hook_gpio;
+	struct gpio_desc *hook_gpio;
 	/* Hook key down status */
 	unsigned int hook_down_type;
 #ifdef CONFIG_MODEM_MIC_SWITCH
