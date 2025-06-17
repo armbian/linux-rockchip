@@ -335,6 +335,8 @@ static void rk628_bt1120_hdmirx_reset(struct v4l2_subdev *sd)
 	bt1120->hdcp.hdcp_start = false;
 	enable_irq(bt1120->plugin_irq);
 	enable_irq(bt1120->hdmirx_irq);
+	if (bt1120->cec && bt1120->cec->adap)
+		rk628_hdmirx_cec_state_reconfiguration(bt1120->rk628, bt1120->cec);
 }
 
 static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
@@ -438,8 +440,6 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_hdmirx_controller_setup(bt1120->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
-		if (bt1120->cec && bt1120->cec->adap)
-			rk628_hdmirx_cec_state_reconfiguration(bt1120->rk628, bt1120->cec);
 		rk628_bt1120_enable_interrupts(sd, true);
 	} else {
 		bt1120->nosignal = true;

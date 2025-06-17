@@ -498,6 +498,8 @@ static void rk628_csi_hdmirx_reset(struct v4l2_subdev *sd)
 	csi->hdcp.hdcp_start = false;
 	enable_irq(csi->plugin_irq);
 	enable_irq(csi->hdmirx_irq);
+	if (csi->cec && csi->cec->adap)
+		rk628_hdmirx_cec_state_reconfiguration(csi->rk628, csi->cec);
 }
 
 static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
@@ -574,8 +576,6 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_hdmirx_controller_setup(csi->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
-		if (csi->cec && csi->cec->adap)
-			rk628_hdmirx_cec_state_reconfiguration(csi->rk628, csi->cec);
 		rk628_csi_enable_interrupts(sd, true);
 	} else {
 		extcon_set_state_sync(csi->extcon, EXTCON_JACK_VIDEO_IN, false);
