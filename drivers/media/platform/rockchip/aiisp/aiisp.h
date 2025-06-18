@@ -31,7 +31,7 @@
 #define RKAIISP_V4L2_EVENT_ELEMS	4
 
 #define RKAIISP_MAX_CHANNEL		7
-#define RKAIISP_TMP_BUF_CNT		2
+#define RKAIISP_LASTOUT_BUF_CNT		2
 #define RKAIISP_DEFAULT_MAXRUNCNT	8
 #define RKAIISP_DEFAULT_PARASIZE	(16 * 1024)
 #define RKAIISP_SW_REG_SIZE		0x3000
@@ -117,7 +117,8 @@ struct rkaiisp_device {
 	struct rkaiisp_dummy_buffer vpslbuf[RKISP_BUFFER_MAX];
 	struct rkaiisp_dummy_buffer aiispbuf[RKISP_BUFFER_MAX];
 	struct rkaiisp_dummy_buffer ynrinbuf[RKISP_BUFFER_MAX];
-	struct rkaiisp_dummy_buffer temp_buf[RKAIISP_TMP_BUF_CNT];
+	struct rkaiisp_dummy_buffer temp_buf;
+	struct rkaiisp_dummy_buffer *lastout_buf[RKAIISP_LASTOUT_BUF_CNT];
 	u32 outbuf_idx;
 
 	struct rkaiisp_rmsbuf_info rmsbuf;
