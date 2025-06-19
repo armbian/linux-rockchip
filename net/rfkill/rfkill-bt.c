@@ -173,7 +173,7 @@ static int rfkill_rk_setup_wake_irq(struct rfkill_rk_data *rfkill)
 		sprintf(irq->name, "%s_irq", irq->gpio.name);
 		ret = request_threaded_irq(irq->irq, rfkill_rk_wake_host_irq,
 					   rfkill_rk_wake_host_irq_thread,
-					   IRQF_ONESHOT | (test_bit(FLAG_ACTIVE_LOW, &irq->gpio.io->flags) ?
+					   IRQF_ONESHOT | (gpiod_is_active_low(irq->gpio.io) ?
 					   IRQF_TRIGGER_FALLING :
 					   IRQF_TRIGGER_RISING),
 					   irq->name, rfkill);

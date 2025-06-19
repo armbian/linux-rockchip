@@ -533,7 +533,7 @@ static int rkwlangpiod_request(struct device *dev,
 		rk_gpio->io = NULL;
 	} else {
 		rk_gpio->io = gpio;
-		rk_gpio->enable = test_bit(FLAG_ACTIVE_LOW, &gpio->flags) ? 0 : 1;
+		rk_gpio->enable = gpiod_is_active_low(gpio) ? 0 : 1;
 		LOG("%s get property: %s enable %d\n", __func__, con_id, rk_gpio->enable);
 	}
 
