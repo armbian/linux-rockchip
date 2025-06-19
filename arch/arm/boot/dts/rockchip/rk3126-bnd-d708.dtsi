@@ -84,7 +84,7 @@
 
 	rockchip_headset {
 		compatible = "rockchip_headset";
-		headset_gpio = <&gpio2 18 GPIO_ACTIVE_LOW>;
+		headset-gpios = <&gpio2 18 GPIO_ACTIVE_LOW>;
 	};
 
 	sound {

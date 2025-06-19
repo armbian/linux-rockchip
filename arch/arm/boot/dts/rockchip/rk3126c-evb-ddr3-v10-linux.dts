@@ -78,7 +78,7 @@
 
 	rk_headset {
 		compatible = "rockchip_headset";
-		headset_gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		headset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 0>;
 	};
 
