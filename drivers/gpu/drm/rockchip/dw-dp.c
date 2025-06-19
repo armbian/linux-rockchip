@@ -5571,6 +5571,10 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 	else
 		phy_set_mode_ext(dp->phy, PHY_MODE_DP, 1);
 
+	ret = phy_init(dp->phy);
+	if (ret)
+		goto error_unregister_aux;
+
 	enable_irq(dp->irq);
 	if (dp->hpd_gpio)
 		enable_irq(dp->hpd_irq);
@@ -5591,6 +5595,8 @@ static void dw_dp_unbind(struct device *dev, struct device *master, void *data)
 	if (dp->hpd_gpio)
 		disable_irq(dp->hpd_irq);
 	disable_irq(dp->irq);
+
+	phy_exit(dp->phy);
 
 	if (!dp->dynamic_pd_ctrl)
 		pm_runtime_put(dp->dev);
