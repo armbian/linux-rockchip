@@ -34,7 +34,7 @@
 #include <linux/uaccess.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev.h"
+#include "cryptodev_int.h"
 #include "zc.h"
 #include "version.h"
 
@@ -46,7 +46,7 @@
 #define PAGEOFFSET(buf) ((unsigned long)buf & ~PAGE_MASK)
 
 /* fetch the pages addr resides in into pg and initialise sg with them */
-int __cryptodev_get_userbuf(uint8_t __user *addr, uint32_t len, int write,
+int __get_userbuf(uint8_t __user *addr, uint32_t len, int write,
 		unsigned int pgcount, struct page **pg, struct scatterlist *sg,
 		struct task_struct *task, struct mm_struct *mm)
 {
@@ -80,10 +80,14 @@ int __cryptodev_get_userbuf(uint8_t __user *addr, uint32_t len, int write,
 	ret = get_user_pages_remote(task, mm,
 			(unsigned long)addr, pgcount, write ? FOLL_WRITE : 0,
 			pg, NULL, NULL);
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0))
 	ret = get_user_pages_remote(mm,
 			(unsigned long)addr, pgcount, write ? FOLL_WRITE : 0,
 			pg, NULL, NULL);
+#else
+	ret = get_user_pages_remote(mm,
+			(unsigned long)addr, pgcount, write ? FOLL_WRITE : 0,
+			pg, NULL);
 #endif
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 	up_read(&mm->mmap_sem);
@@ -108,7 +112,7 @@ int __cryptodev_get_userbuf(uint8_t __user *addr, uint32_t len, int write,
 	return 0;
 }
 
-int cryptodev_adjust_sg_array(struct csession *ses, int pagecount)
+int adjust_sg_array(struct csession *ses, int pagecount)
 {
 	struct scatterlist *sg;
 	struct page **pages;
@@ -134,7 +138,7 @@ int cryptodev_adjust_sg_array(struct csession *ses, int pagecount)
 	return 0;
 }
 
-void cryptodev_release_user_pages(struct csession *ses)
+void release_user_pages(struct csession *ses)
 {
 	unsigned int i;
 
@@ -155,7 +159,7 @@ void cryptodev_release_user_pages(struct csession *ses)
 /* make src and dst available in scatterlists.
  * dst might be the same as src.
  */
-int cryptodev_get_userbuf(struct csession *ses,
+int get_userbuf(struct csession *ses,
                 void *__user src, unsigned int src_len,
                 void *__user dst, unsigned int dst_len,
                 struct task_struct *task, struct mm_struct *mm,
@@ -184,7 +188,7 @@ int cryptodev_get_userbuf(struct csession *ses,
 	ses->readonly_pages = (src == dst) ? 0 : src_pagecount;
 
 	if (ses->used_pages > ses->array_size) {
-		rc = cryptodev_adjust_sg_array(ses, ses->used_pages);
+		rc = adjust_sg_array(ses, ses->used_pages);
 		if (rc)
 			return rc;
 	}
@@ -194,7 +198,7 @@ int cryptodev_get_userbuf(struct csession *ses,
 		 * more data than the ones we read. */
 		if (src_len < dst_len)
 			src_len = dst_len;
-		rc = __cryptodev_get_userbuf(src, src_len, 1, ses->used_pages,
+		rc = __get_userbuf(src, src_len, 1, ses->used_pages,
 			               ses->pages, ses->sg, task, mm);
 		if (unlikely(rc)) {
 			derr(1, "failed to get user pages for data IO");
@@ -208,7 +212,7 @@ int cryptodev_get_userbuf(struct csession *ses,
 	*dst_sg = NULL; /* default to ignore output */
 
 	if (likely(src)) {
-		rc = __cryptodev_get_userbuf(src, src_len, 0, ses->readonly_pages,
+		rc = __get_userbuf(src, src_len, 0, ses->readonly_pages,
 					   ses->pages, ses->sg, task, mm);
 		if (unlikely(rc)) {
 			derr(1, "failed to get user pages for data input");
@@ -223,11 +227,11 @@ int cryptodev_get_userbuf(struct csession *ses,
 		struct page **dst_pages = ses->pages + ses->readonly_pages;
 		*dst_sg = ses->sg + ses->readonly_pages;
 
-		rc = __cryptodev_get_userbuf(dst, dst_len, 1, writable_pages,
+		rc = __get_userbuf(dst, dst_len, 1, writable_pages,
 					   dst_pages, *dst_sg, task, mm);
 		if (unlikely(rc)) {
 			derr(1, "failed to get user pages for data output");
-			cryptodev_release_user_pages(ses);  /* FIXME: use __release_userbuf(src, ...) */
+			release_user_pages(ses);  /* FIXME: use __release_userbuf(src, ...) */
 			return rc;
 		}
 	}

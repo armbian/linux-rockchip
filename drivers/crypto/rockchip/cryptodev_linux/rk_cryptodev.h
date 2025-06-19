@@ -7,7 +7,7 @@
 
 #include <linux/device.h>
 #include <uapi/linux/rk_cryptodev.h>
-#include "cryptodev.h"
+#include "cryptodev_int.h"
 
 /* compatibility stuff */
 #ifdef CONFIG_COMPAT

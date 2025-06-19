@@ -40,7 +40,7 @@
 #include <linux/uaccess.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev.h"
+#include "cryptodev_int.h"
 #include "zc.h"
 #include "util.h"
 #include "cryptlib.h"
@@ -76,11 +76,11 @@ static int get_userbuf_tls(struct csession *ses, struct kernel_crypt_auth_op *kc
 	ses->used_pages = pagecount;
 	ses->readonly_pages = 0;
 
-	rc = cryptodev_adjust_sg_array(ses, pagecount);
+	rc = adjust_sg_array(ses, pagecount);
 	if (rc)
 		return rc;
 
-	rc = __cryptodev_get_userbuf(caop->dst, kcaop->dst_len, 1, pagecount,
+	rc = __get_userbuf(caop->dst, kcaop->dst_len, 1, pagecount,
 	                   ses->pages, ses->sg, kcaop->task, kcaop->mm);
 	if (unlikely(rc)) {
 		derr(1, "failed to get user pages for data input");
@@ -140,13 +140,13 @@ static int get_userbuf_srtp(struct csession *ses, struct kernel_crypt_auth_op *k
 
 	pagecount = auth_pagecount;
 
-	rc = cryptodev_adjust_sg_array(ses, pagecount*2); /* double pages to have pages for dst(=auth_src) */
+	rc = adjust_sg_array(ses, pagecount*2); /* double pages to have pages for dst(=auth_src) */
 	if (rc) {
 		derr(1, "cannot adjust sg array");
 		return rc;
 	}
 
-	rc = __cryptodev_get_userbuf(caop->auth_src, caop->auth_len, 1, auth_pagecount,
+	rc = __get_userbuf(caop->auth_src, caop->auth_len, 1, auth_pagecount,
 			   ses->pages, ses->sg, kcaop->task, kcaop->mm);
 	if (unlikely(rc)) {
 		derr(1, "failed to get user pages for data input");
@@ -160,10 +160,10 @@ static int get_userbuf_srtp(struct csession *ses, struct kernel_crypt_auth_op *k
 
 	(*dst_sg) = ses->sg + auth_pagecount;
 	sg_init_table(*dst_sg, auth_pagecount);
-	cryptodev_sg_copy(ses->sg, (*dst_sg), caop->auth_len);
-	(*dst_sg) = cryptodev_sg_advance(*dst_sg, diff);
+	sg_copy(ses->sg, (*dst_sg), caop->auth_len);
+	(*dst_sg) = sg_advance(*dst_sg, diff);
 	if (*dst_sg == NULL) {
-		cryptodev_release_user_pages(ses);
+		release_user_pages(ses);
 		derr(1, "failed to get enough pages for auth data");
 		return -EINVAL;
 	}
@@ -275,7 +275,7 @@ static int fill_caop_from_kcaop(struct kernel_crypt_auth_op *kcaop, struct fcryp
 }
 
 
-int cryptodev_kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
+int kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
 			struct fcrypt *fcr, void __user *arg)
 {
 	if (unlikely(copy_from_user(&kcaop->caop, arg, sizeof(kcaop->caop)))) {
@@ -286,7 +286,7 @@ int cryptodev_kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
 	return fill_kcaop_from_caop(kcaop, fcr);
 }
 
-int cryptodev_kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
+int kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
 		struct fcrypt *fcr, void __user *arg)
 {
 	int ret;
@@ -751,7 +751,7 @@ static int crypto_auth_zc_srtp(struct csession *ses_ptr, struct kernel_crypt_aut
 	ret = srtp_auth_n_crypt(ses_ptr, kcaop, auth_sg, caop->auth_len,
 			dst_sg, caop->len);
 
-	cryptodev_release_user_pages(ses_ptr);
+	release_user_pages(ses_ptr);
 
 	return ret;
 }
@@ -796,7 +796,7 @@ static int crypto_auth_zc_tls(struct csession *ses_ptr, struct kernel_crypt_auth
 
 	ret = tls_auth_n_crypt(ses_ptr, kcaop, auth_sg, caop->auth_len,
 			dst_sg, caop->len);
-	cryptodev_release_user_pages(ses_ptr);
+	release_user_pages(ses_ptr);
 
 free_auth_buf:
 	free_page((unsigned long)auth_buf);
@@ -836,7 +836,7 @@ static int crypto_auth_zc_aead(struct csession *ses_ptr, struct kernel_crypt_aut
 		return -ENOMEM;
 	}
 
-	ret = cryptodev_get_userbuf(ses_ptr, caop->src, caop->len, caop->dst, kcaop->dst_len,
+	ret = get_userbuf(ses_ptr, caop->src, caop->len, caop->dst, kcaop->dst_len,
 			kcaop->task, kcaop->mm, &src_sg, &dst_sg);
 	if (unlikely(ret)) {
 		derr(1, "get_userbuf(): Error getting user pages.");
@@ -888,7 +888,7 @@ static int crypto_auth_zc_aead(struct csession *ses_ptr, struct kernel_crypt_aut
 #endif
 
 free_pages:
-	cryptodev_release_user_pages(ses_ptr);
+	release_user_pages(ses_ptr);
 
 free_auth_buf:
 	free_page((unsigned long)auth_buf);
@@ -937,7 +937,7 @@ static int crypto_auth_zc_rk(struct csession *ses_ptr, struct kernel_crypt_auth_
 		return -EINVAL;
 	}
 
-	ret = cryptodev_get_userbuf(ses_ptr, caop->src, caop->len,
+	ret = get_userbuf(ses_ptr, caop->src, caop->len,
 				    caop->dst, kcaop->dst_len,
 				    kcaop->task, kcaop->mm, &src_sg, &dst_sg);
 	if (unlikely(ret)) {
@@ -1018,7 +1018,7 @@ static int crypto_auth_zc_rk(struct csession *ses_ptr, struct kernel_crypt_auth_
 	}
 
 free_pages:
-	cryptodev_release_user_pages(ses_ptr);
+	release_user_pages(ses_ptr);
 
 exit:
 	if (auth_buf)

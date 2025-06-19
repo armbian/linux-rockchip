@@ -43,7 +43,7 @@
 #include <linux/uaccess.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev.h"
+#include "cryptodev_int.h"
 #include "zc.h"
 #include "cryptlib.h"
 #include "version.h"
@@ -167,7 +167,7 @@ __crypto_run_zc(struct csession *ses_ptr, struct kernel_crypt_op *kcop)
 	struct crypt_op *cop = &kcop->cop;
 	int ret = 0;
 
-	ret = cryptodev_get_userbuf(ses_ptr, cop->src, cop->len, cop->dst, cop->len,
+	ret = get_userbuf(ses_ptr, cop->src, cop->len, cop->dst, cop->len,
 	                  kcop->task, kcop->mm, &src_sg, &dst_sg);
 	if (unlikely(ret)) {
 		derr(1, "Error getting user pages. Falling back to non zero copy.");
@@ -176,7 +176,7 @@ __crypto_run_zc(struct csession *ses_ptr, struct kernel_crypt_op *kcop)
 
 	ret = hash_n_crypt(ses_ptr, cop, src_sg, dst_sg, cop->len);
 
-	cryptodev_release_user_pages(ses_ptr);
+	release_user_pages(ses_ptr);
 	return ret;
 }
 
