@@ -1968,7 +1968,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (device_property_present(dev, "svid")) {
+	if (device_property_present(dev, "mode-switch")) {
 		ret = tcphy_setup_typec_mux(tcphy);
 		if (ret)
 			return ret;
