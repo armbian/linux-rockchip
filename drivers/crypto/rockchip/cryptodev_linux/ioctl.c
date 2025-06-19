@@ -48,7 +48,7 @@
 
 #include <linux/sysctl.h>
 
-#include "cryptodev.h"
+#include "cryptodev_int.h"
 #include "zc.h"
 #include "version.h"
 #include "cipherapi.h"
@@ -524,7 +524,8 @@ out:
 static int
 crypto_copy_hash_state(struct fcrypt *fcr, uint32_t dst_sid, uint32_t src_sid)
 {
-	struct csession *src_ses, *dst_ses;
+	struct csession *src_ses = NULL;
+	struct csession *dst_ses = NULL;
 	int ret;
 
 	ret = crypto_get_sessions_by_sid(fcr, src_sid, &src_ses,
@@ -665,6 +666,20 @@ cryptodev_release(struct inode *inode, struct file *filp)
 	ddebug(2, "Cryptodev handle deinitialised, %d elements freed",
 			items_freed);
 	return 0;
+}
+
+static int
+clonefd(struct file *filp)
+{
+	int ret;
+
+	ret = get_unused_fd_flags(0);
+	if (ret >= 0) {
+		get_file(filp);
+		fd_install(ret, filp);
+	}
+
+	return ret;
 }
 
 #ifdef ENABLE_ASYNC
@@ -933,19 +948,18 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMFEAT:
 		return put_user(0, p);
 	case CRIOGET:
-		fd = get_unused_fd_flags(0);
-		if (unlikely(fd < 0))
-			return fd;
-
+		fd = clonefd(filp);
 		ret = put_user(fd, p);
 		if (unlikely(ret)) {
-			put_unused_fd(fd);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0))
+			sys_close(fd);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 220))
+			ksys_close(fd);
+#else
+			close_fd(fd);
+#endif
 			return ret;
 		}
-
-		get_file(filp);
-		fd_install(fd, filp);
-
 		return ret;
 	case CIOCGSESSION:
 		if (unlikely(copy_from_user(&sop, arg, sizeof(sop))))
@@ -1252,6 +1266,7 @@ cryptodev_deregister(void)
 }
 
 /* ====== Module init/exit ====== */
+static const char verbosity_ctl_path[] = "ioctl";
 static struct ctl_table verbosity_ctl_dir[] = {
 	{
 		.procname       = "cryptodev_verbosity",
@@ -1260,17 +1275,21 @@ static struct ctl_table verbosity_ctl_dir[] = {
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
 	},
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	{},
+#endif
 };
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0))
 static struct ctl_table verbosity_ctl_root[] = {
 	{
-		.procname       = "ioctl",
+		.procname       = verbosity_ctl_path,
 		.mode           = 0555,
 		.child          = verbosity_ctl_dir,
 	},
 	{},
 };
+#endif
 static struct ctl_table_header *verbosity_sysctl_header;
 static int __init init_cryptodev(void)
 {
@@ -1288,7 +1307,11 @@ static int __init init_cryptodev(void)
 		return rc;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0))
 	verbosity_sysctl_header = register_sysctl_table(verbosity_ctl_root);
+#else
+	verbosity_sysctl_header = register_sysctl(verbosity_ctl_path, verbosity_ctl_dir);
+#endif
 
 	pr_info(PFX "driver %s loaded.\n", VERSION);
 

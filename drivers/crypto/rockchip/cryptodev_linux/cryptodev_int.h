@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 
 /* cipher stuff */
-#ifndef CRYPTODEV_H
-# define CRYPTODEV_H
+#ifndef CRYPTODEV_INT_H
+# define CRYPTODEV_INT_H
 
 #include <linux/version.h>
 
