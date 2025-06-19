@@ -149,7 +149,7 @@
 	rk_headset: rk-headset {
 		status = "disabled";
 		compatible = "rockchip_headset";
-		headset_gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		headset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 		io-channels = <&saradc 3>;
