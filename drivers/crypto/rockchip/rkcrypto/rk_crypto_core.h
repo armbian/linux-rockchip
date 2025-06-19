@@ -474,7 +474,6 @@ enum rk_cipher_mode {
 		.max_size = rk_ecc_max_size, \
 		.init = rk_ecc_init_tfm, \
 		.exit = rk_ecc_exit_tfm, \
-		.reqsize = 64, \
 		.base = { \
 			.cra_name = "ecdsa-nist-p" #key_bits, \
 			.cra_driver_name = "ecdsa-nist-p" #key_bits "-rk", \

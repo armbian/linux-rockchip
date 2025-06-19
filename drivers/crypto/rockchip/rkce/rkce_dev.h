@@ -141,10 +141,6 @@ struct rkce_ecc_ctx {
 	uint8_t				is_sign;
 };
 
-struct rkce_asym_request_ctx {
-	uint32_t			reserved;
-};
-
 struct rkce_algt {
 	struct rkce_dev			*rk_dev;
 	union {
@@ -327,7 +323,6 @@ struct rkce_algt {
 		.max_size    = rkce_ec_max_size, \
 		.init        = rkce_ec_init_tfm, \
 		.exit        = rkce_ec_exit_tfm, \
-		.reqsize     = sizeof(struct rkce_asym_request_ctx), \
 		.base = { \
 			.cra_name        = "ecdsa-nist-p" #key_bits, \
 			.cra_driver_name = "ecdsa-nist-p" #key_bits "-rk", \

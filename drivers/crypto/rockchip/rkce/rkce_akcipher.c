@@ -248,7 +248,6 @@ static int rkce_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->algt = algt;
 
-
 	rkce_pka_set_crypto_base(algt->rk_dev->reg);
 
 	rkce_enable_clk(algt->rk_dev);
@@ -285,7 +284,6 @@ struct rkce_algt rkce_asym_rsa = {
 		.max_size     = rkce_rsa_max_size,
 		.init         = rkce_rsa_init_tfm,
 		.exit         = rkce_rsa_exit_tfm,
-		.reqsize      = sizeof(struct rkce_asym_request_ctx),
 		.base = {
 			.cra_name = "rsa",
 			.cra_driver_name = "rsa-rk",
@@ -505,7 +503,6 @@ struct rkce_algt rkce_asym_sm2 = {
 		.max_size    = rkce_ec_max_size,
 		.init        = rkce_ec_init_tfm,
 		.exit        = rkce_ec_exit_tfm,
-		.reqsize     = sizeof(struct rkce_asym_request_ctx),
 		.base = {
 			.cra_name        = "sm2",
 			.cra_driver_name = "sm2-rk",
