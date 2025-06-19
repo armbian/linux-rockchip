@@ -183,9 +183,10 @@ int rkce_hash_request_callback(int result, uint32_t td_id, void *td_addr)
 		rkce_soft_reset(ctx->algt->rk_dev->hardware, RKCE_RESET_HASH);
 	} else {
 		if (ctx->is_final && ctx->req->result) {
-			memcpy(ctx->req->result, td_buf->hash, ctx->algt->alg.hash.halg.digestsize);
+			memcpy(ctx->req->result, td_buf->hash,
+			       GET_AHASH_ALG(ctx->algt)->halg.digestsize);
 			rkce_dumphex("req->result",
-				     ctx->req->result, ctx->algt->alg.hash.halg.digestsize);
+				     ctx->req->result, GET_AHASH_ALG(ctx->algt)->halg.digestsize);
 		}
 	}
 
@@ -476,10 +477,11 @@ static int rkce_cra_hash_init(struct crypto_tfm *tfm)
 	struct rkce_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct rkce_algt *algt;
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
-	algt = container_of(alg, struct rkce_algt, alg.hash);
+	algt = GET_AHASH_ALGT(alg);
 
 	rk_debug("alloc %s\n", algt->name);
 
@@ -487,7 +489,13 @@ static int rkce_cra_hash_init(struct crypto_tfm *tfm)
 
 	ctx->algt = algt;
 
-	ctx->enginectx.op.do_one_request = rkce_hash_run;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request    = rkce_hash_run;
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {

@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/timer.h>
+#include <linux/version.h>
 
 #include "rk_crypto_bignum.h"
 
@@ -483,6 +484,12 @@ enum rk_cipher_mode {
 		},\
 	} \
 }
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0))
+#define COMPLETE_PARAM(req)	(req)
+#else
+#define COMPLETE_PARAM(req)	(req->data)
+#endif
 
 #define CRYPTO_MAJOR_VER(ver)	((ver) & 0x0f000000)
 

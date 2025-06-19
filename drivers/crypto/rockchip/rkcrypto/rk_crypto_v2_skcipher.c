@@ -227,7 +227,7 @@ static void rk_crypto_complete(struct crypto_async_request *base, int err)
 	}
 
 	if (base->complete)
-		base->complete(base, err);
+		base->complete(COMPLETE_PARAM(base), err);
 }
 
 static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)

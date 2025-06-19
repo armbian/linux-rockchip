@@ -255,7 +255,7 @@ static int rk_rsa_crypto_rx(struct rk_crypto_dev *rk_dev)
 static void rk_rsa_complete(struct crypto_async_request *base, int err)
 {
 	if (base->complete)
-		base->complete(base, err);
+		base->complete(COMPLETE_PARAM(base), err);
 }
 
 static int rk_rsa_init_tfm(struct crypto_akcipher *tfm)

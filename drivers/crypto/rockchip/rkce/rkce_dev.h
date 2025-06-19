@@ -62,7 +62,9 @@ struct rkce_dev {
 };
 
 struct rkce_cipher_ctx {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
 	struct crypto_engine_ctx	enginectx;
+#endif
 	struct rkce_algt		*algt;
 	struct rkce_symm_td_buf		*td_buf;
 	void				*req;
@@ -99,7 +101,9 @@ struct rkce_cipher_request_ctx {
 
 /* the private variable of hash */
 struct rkce_ahash_ctx {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
 	struct crypto_engine_ctx	enginectx;
+#endif
 	struct rkce_algt		*algt;
 	struct rkce_hash_td		*key_td;
 	struct rkce_hash_td_buf		*td_buf;
@@ -119,7 +123,6 @@ struct rkce_ahash_request_ctx {
 };
 
 struct rkce_rsa_ctx {
-	struct crypto_engine_ctx	enginectx;
 	struct rkce_algt		*algt;
 
 	struct rkce_bignum		*n;
@@ -130,7 +133,6 @@ struct rkce_rsa_ctx {
 };
 
 struct rkce_ecc_ctx {
-	struct crypto_engine_ctx	enginectx;
 	struct rkce_algt		*algt;
 
 	uint32_t			group_id;
@@ -144,10 +146,16 @@ struct rkce_ecc_ctx {
 struct rkce_algt {
 	struct rkce_dev			*rk_dev;
 	union {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
 		struct skcipher_alg	cipher;
 		struct ahash_alg	hash;
-		struct akcipher_alg	asym;
 		struct aead_alg		aead;
+#else
+		struct skcipher_engine_alg	cipher;
+		struct ahash_engine_alg		hash;
+		struct aead_engine_alg		aead;
+#endif
+		struct akcipher_alg	asym;
 	} alg;
 	enum rkce_algo_type		type;
 	uint32_t			algo;
@@ -156,12 +164,7 @@ struct rkce_algt {
 	bool				valid_flag;
 };
 
-#define  RK_AEAD_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
-	.name = #algo_name,\
-	.type = RKCE_ALGO_TYPE_AEAD,\
-	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
-	.mode = RKCE_SYMM_MODE_##cipher_mode,\
-	.alg.aead = {\
+#define RK_AEAD_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name) {\
 		.base.cra_name		= #algo_name,\
 		.base.cra_driver_name	= #driver_name,\
 		.base.cra_priority	= RKCE_PRIORITY,\
@@ -183,15 +186,9 @@ struct rkce_algt {
 		.setauthsize	= rkce_aead_setauthsize,\
 		.encrypt	= rkce_aead_encrypt,\
 		.decrypt	= rkce_aead_decrypt,\
-	} \
-}
+	}
 
-#define  RK_CIPHER_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
-	.name = #algo_name,\
-	.type = RKCE_ALGO_TYPE_CIPHER,\
-	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
-	.mode = RKCE_SYMM_MODE_##cipher_mode,\
-	.alg.cipher = {\
+#define RK_CIPHER_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name) {\
 		.base.cra_name		= #algo_name,\
 		.base.cra_driver_name	= #driver_name,\
 		.base.cra_priority	= RKCE_PRIORITY,\
@@ -212,15 +209,9 @@ struct rkce_algt {
 		.setkey		= rkce_cipher_setkey,\
 		.encrypt	= rkce_cipher_encrypt,\
 		.decrypt	= rkce_cipher_decrypt,\
-	} \
-}
+	}
 
-#define  RK_CIPHER_ALGO_XTS_INIT(cipher_algo, algo_name, driver_name) {\
-	.name = #algo_name,\
-	.type = RKCE_ALGO_TYPE_CIPHER,\
-	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
-	.mode = RKCE_SYMM_MODE_XTS,\
-	.alg.cipher = {\
+#define  RK_CIPHER_ALGO_XTS_BASE_INIT(cipher_algo, algo_name, driver_name) {\
 		.base.cra_name		= #algo_name,\
 		.base.cra_driver_name	= #driver_name,\
 		.base.cra_priority	= RKCE_PRIORITY,\
@@ -241,14 +232,9 @@ struct rkce_algt {
 		.setkey		= rkce_cipher_setkey,\
 		.encrypt	= rkce_cipher_encrypt,\
 		.decrypt	= rkce_cipher_decrypt,\
-	} \
-}
+	}
 
-#define RK_HASH_ALGO_INIT(hash_algo, algo_name) {\
-	.name = #algo_name,\
-	.type = RKCE_ALGO_TYPE_HASH,\
-	.algo = RKCE_HASH_ALGO_##hash_algo,\
-	.alg.hash = {\
+#define RK_HASH_ALGO_BASE_INIT(hash_algo, algo_name) {\
 		.init   = rkce_ahash_init,\
 		.update = rkce_ahash_update,\
 		.final  = rkce_ahash_final,\
@@ -275,14 +261,9 @@ struct rkce_algt {
 				.cra_module    = THIS_MODULE,\
 			} \
 		} \
-	} \
-}
+	}
 
-#define RK_HMAC_ALGO_INIT(hash_algo, algo_name) {\
-	.name = "hmac(" #algo_name ")",\
-	.type = RKCE_ALGO_TYPE_HMAC,\
-	.algo = RKCE_HASH_ALGO_##hash_algo,\
-	.alg.hash = {\
+#define RK_HMAC_ALGO_BASE_INIT(hash_algo, algo_name) {\
 		.init   = rkce_ahash_init,\
 		.update = rkce_ahash_update,\
 		.final  = rkce_ahash_final,\
@@ -310,8 +291,153 @@ struct rkce_algt {
 				.cra_module    = THIS_MODULE,\
 			} \
 		} \
-	} \
+	}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+#define  RK_AEAD_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_AEAD,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_##cipher_mode,\
+	.alg.aead = RK_AEAD_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
 }
+
+#define  RK_CIPHER_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_CIPHER,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_##cipher_mode,\
+	.alg.cipher = RK_CIPHER_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
+}
+
+#define  RK_CIPHER_ALGO_XTS_INIT(cipher_algo, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_CIPHER,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_XTS,\
+	.alg.cipher = RK_CIPHER_ALGO_XTS_BASE_INIT(cipher_algo, algo_name, driver_name), \
+}
+
+#define RK_HASH_ALGO_INIT(hash_algo, algo_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_HASH,\
+	.algo = RKCE_HASH_ALGO_##hash_algo,\
+	.alg.hash = RK_HASH_ALGO_BASE_INIT(hash_algo, algo_name), \
+}
+
+#define RK_HMAC_ALGO_INIT(hash_algo, algo_name) {\
+	.name = "hmac(" #algo_name ")",\
+	.type = RKCE_ALGO_TYPE_HMAC,\
+	.algo = RKCE_HASH_ALGO_##hash_algo,\
+	.alg.hash = RK_HMAC_ALGO_BASE_INIT(hash_algo, algo_name), \
+}
+
+static inline struct skcipher_alg *GET_SKCIPHER_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.cipher;
+}
+
+static inline struct ahash_alg *GET_AHASH_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.hash;
+}
+
+static inline struct aead_alg *GET_AEAD_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.aead;
+}
+
+static inline struct rkce_algt *GET_SKCIPHER_ALGT(struct skcipher_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.cipher);
+}
+
+static inline struct rkce_algt *GET_AHASH_ALGT(struct ahash_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.hash);
+}
+
+static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.aead);
+}
+
+#else
+#define  RK_AEAD_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_AEAD,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_##cipher_mode,\
+	.alg.aead.base = RK_AEAD_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
+}
+
+#define  RK_CIPHER_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_CIPHER,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_##cipher_mode,\
+	.alg.cipher.base = RK_CIPHER_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
+}
+
+#define  RK_CIPHER_ALGO_XTS_INIT(cipher_algo, algo_name, driver_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_CIPHER,\
+	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
+	.mode = RKCE_SYMM_MODE_XTS,\
+	.alg.cipher.base = RK_CIPHER_ALGO_XTS_BASE_INIT(cipher_algo, algo_name, driver_name), \
+}
+
+#define RK_HASH_ALGO_INIT(hash_algo, algo_name) {\
+	.name = #algo_name,\
+	.type = RKCE_ALGO_TYPE_HASH,\
+	.algo = RKCE_HASH_ALGO_##hash_algo,\
+	.alg.hash.base = RK_HASH_ALGO_BASE_INIT(hash_algo, algo_name), \
+}
+
+#define RK_HMAC_ALGO_INIT(hash_algo, algo_name) {\
+	.name = "hmac(" #algo_name ")",\
+	.type = RKCE_ALGO_TYPE_HMAC,\
+	.algo = RKCE_HASH_ALGO_##hash_algo,\
+	.alg.hash.base = RK_HMAC_ALGO_BASE_INIT(hash_algo, algo_name), \
+}
+
+static inline struct skcipher_alg *GET_SKCIPHER_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.cipher.base;
+}
+
+static inline struct ahash_alg *GET_AHASH_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.hash.base;
+}
+
+static inline struct aead_alg *GET_AEAD_ALG(struct rkce_algt *algt)
+{
+	return &algt->alg.aead.base;
+}
+
+static inline struct rkce_algt *GET_SKCIPHER_ALGT(struct skcipher_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.cipher.base);
+}
+
+static inline struct rkce_algt *GET_AHASH_ALGT(struct ahash_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.hash.base);
+}
+
+static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
+{
+	return container_of(alg, struct rkce_algt, alg.aead.base);
+}
+
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0))
+#define COMPLETE_PARAM(req)	(req)
+#else
+#define COMPLETE_PARAM(req)	(req->data)
+#endif
 
 #define RK_ASYM_ECC_INIT(key_bits) {\
 	.name = "ecc-" #key_bits, \

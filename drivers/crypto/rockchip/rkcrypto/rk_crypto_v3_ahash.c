@@ -206,7 +206,7 @@ static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 		rk_hash_mid_data_store(ctx->rk_dev, (struct rk_hash_mid_data *)ctx->priv);
 
 	if (base->complete)
-		base->complete(base, err);
+		base->complete(COMPLETE_PARAM(base), err);
 }
 
 static inline void clear_hash_out_reg(struct rk_crypto_dev *rk_dev)

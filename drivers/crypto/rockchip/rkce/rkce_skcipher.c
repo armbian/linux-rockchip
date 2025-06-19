@@ -720,7 +720,8 @@ static int rkce_ablk_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct rkce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rkce_algt *algt = container_of(alg, struct rkce_algt, alg.cipher);
+	struct rkce_algt *algt = GET_SKCIPHER_ALGT(alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
@@ -731,7 +732,14 @@ static int rkce_ablk_init_tfm(struct crypto_skcipher *tfm)
 	ctx->algt = algt;
 	ctx->ivlen = algt->mode == RKCE_SYMM_MODE_ECB ? 0 : crypto_skcipher_ivsize(tfm);
 
-	ctx->enginectx.op.do_one_request = rkce_cipher_run_req;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request    = rkce_cipher_run_req;
+
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {
@@ -961,7 +969,8 @@ static int rkce_aead_init_tfm(struct crypto_aead *tfm)
 {
 	struct rkce_cipher_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_alg *alg = crypto_aead_alg(tfm);
-	struct rkce_algt *algt = container_of(alg, struct rkce_algt, alg.aead);
+	struct rkce_algt *algt = GET_AEAD_ALGT(alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
@@ -972,7 +981,13 @@ static int rkce_aead_init_tfm(struct crypto_aead *tfm)
 	ctx->algt  = algt;
 	ctx->ivlen = crypto_aead_ivsize(tfm);
 
-	ctx->enginectx.op.do_one_request = rkce_aead_run_req;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request = rkce_aead_run_req;
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {
