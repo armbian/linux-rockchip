@@ -19,6 +19,9 @@
 #include "rkce_monitor.h"
 #include "rkce_hash.h"
 
+static int rkce_hash_prepare(struct crypto_engine *engine, struct ahash_request *req);
+static int rkce_hash_unprepare(struct crypto_engine *engine, struct ahash_request *req);
+
 static inline struct rkce_ahash_ctx *hash_req2ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -186,6 +189,8 @@ int rkce_hash_request_callback(int result, uint32_t td_id, void *td_addr)
 		}
 	}
 
+	rkce_hash_unprepare(ctx->algt->rk_dev->hash_engine, ctx->req);
+
 	crypto_finalize_hash_request(ctx->algt->rk_dev->hash_engine, ctx->req, result);
 
 	rk_trace("exit.\n");
@@ -193,9 +198,8 @@ int rkce_hash_request_callback(int result, uint32_t td_id, void *td_addr)
 	return 0;
 }
 
-static int rkce_hash_prepare(struct crypto_engine *engine, void *breq)
+static int rkce_hash_prepare(struct crypto_engine *engine, struct ahash_request *req)
 {
-	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
 	struct device *dev = ctx->algt->rk_dev->dev;
@@ -254,9 +258,8 @@ exit:
 	return ret;
 }
 
-static int rkce_hash_unprepare(struct crypto_engine *engine, void *breq)
+static int rkce_hash_unprepare(struct crypto_engine *engine, struct ahash_request *req)
 {
-	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
 	struct device *dev = ctx->algt->rk_dev->dev;
@@ -294,12 +297,30 @@ static int rkce_hash_run(struct crypto_engine *engine, void *breq)
 	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
+	int ret = 0;
 
 	rk_trace("enter.\n");
 
+	ret = rkce_hash_prepare(engine, req);
+	if (ret) {
+		rk_err("rkce_hash_prepare failed ret = %d\n", ret);
+		goto error;
+	}
+
+	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	if (ret) {
+		rkce_hash_unprepare(engine, req);
+		rk_err("rkce_push_td failed ret = %d\n", ret);
+		goto error;
+	}
+
 	rkce_monitor_add(rctx->td_head, rkce_hash_request_callback);
 
-	return rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	return 0;
+error:
+	crypto_finalize_hash_request(ctx->algt->rk_dev->hash_engine, req, ret);
+
+	return ret;
 }
 
 static int rkce_ahash_hmac_setkey(struct crypto_ahash *tfm, const uint8_t *key, unsigned int keylen)
@@ -466,9 +487,7 @@ static int rkce_cra_hash_init(struct crypto_tfm *tfm)
 
 	ctx->algt = algt;
 
-	ctx->enginectx.op.do_one_request    = rkce_hash_run;
-	ctx->enginectx.op.prepare_request   = rkce_hash_prepare;
-	ctx->enginectx.op.unprepare_request = rkce_hash_unprepare;
+	ctx->enginectx.op.do_one_request = rkce_hash_run;
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {
