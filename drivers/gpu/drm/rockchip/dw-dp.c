@@ -5905,7 +5905,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (device_property_present(dev, "svid")) {
+	if (device_property_present(dev, "mode-switch")) {
 		ret = dw_dp_setup_typec_mux(dp);
 		if (ret)
 			return ret;
