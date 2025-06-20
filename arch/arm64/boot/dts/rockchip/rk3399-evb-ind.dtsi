@@ -1235,7 +1235,7 @@
 &tcphy0 {
 	status = "okay";
 
-	svid = <0xff01>;
+	mode-switch;
 	orientation-switch;
 	port {
 		#address-cells = <1>;

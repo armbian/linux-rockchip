@@ -201,7 +201,7 @@
 
 &dp {
 	status = "okay";
-	svid = <0xff01>;
+	mode-switch;
 };
 
 &dp0 {
@@ -490,7 +490,7 @@
 
 &usbdp_phy {
 	orientation-switch;
-	svid = <0xff01>;
+	mode-switch;
 	sbu1-dc-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
 
