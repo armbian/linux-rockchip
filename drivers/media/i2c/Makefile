@@ -76,6 +76,7 @@ obj-$(CONFIG_VIDEO_GC5035) += gc5035.o
 obj-$(CONFIG_VIDEO_GC6603) += gc6603.o
 obj-$(CONFIG_VIDEO_GC8034) += gc8034.o
 obj-$(CONFIG_VIDEO_GC8613) += gc8613.o
+obj-$(CONFIG_VIDEO_GH2DPK) += gh2dpk.o
 obj-$(CONFIG_VIDEO_HI556) += hi556.o
 obj-$(CONFIG_VIDEO_HI846) += hi846.o
 obj-$(CONFIG_VIDEO_HI847) += hi847.o
