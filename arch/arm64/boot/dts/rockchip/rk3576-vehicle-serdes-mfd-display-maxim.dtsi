@@ -1682,15 +1682,6 @@
 	status = "okay";
 };
 
-&usbdp_phy_dp {
-	status = "okay";
-};
-
-&usbdp_phy_u3 {
-	maximum-speed = "high-speed";
-	status = "okay";
-};
-
 &vop {
 	assigned-clocks = <&cru PLL_VPLL>;
 	assigned-clock-rates = <1150000000>;

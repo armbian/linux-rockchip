@@ -743,14 +743,6 @@
 	status = "okay";
 };
 
-&usbdp_phy_dp {
-	status = "disabled";
-};
-
-&usbdp_phy_u3 {
-	status = "okay";
-};
-
 &usb_drd0_dwc3 {
 	status = "okay";
 };
