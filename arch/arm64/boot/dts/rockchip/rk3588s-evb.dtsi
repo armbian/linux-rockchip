@@ -1090,14 +1090,6 @@
 	status = "okay";
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
-};
-
 &usbdrd3_0 {
 	status = "okay";
 };

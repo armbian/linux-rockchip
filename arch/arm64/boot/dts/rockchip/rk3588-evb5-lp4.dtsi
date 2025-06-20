@@ -276,14 +276,6 @@
 	status = "disabled";
 };
 
-&usbdp_phy0_dp {
-	status = "disabled";
-};
-
-&usbdp_phy0_u3 {
-	status = "disabled";
-};
-
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
 	phys = <&u2phy0_otg>;

@@ -159,14 +159,6 @@
 	status = "disabled";
 };
 
-&usbdp_phy1_dp {
-	status = "disabled";
-};
-
-&usbdp_phy1_u3 {
-	status = "disabled";
-};
-
 &usbdrd3_1 {
 	status = "disabled";
 };
