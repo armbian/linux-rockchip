@@ -232,6 +232,9 @@
 #define RKMODULE_GET_ERROR_INFO       \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 56, struct rkmodule_error_info)
 
+#define RKMODULE_SET_EXPAND_SINGLE_MODE       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 57, __u32)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -993,6 +996,14 @@ enum rkmodule_cmps_mode {
 struct rkmodule_error_info {
 	__u32 err_code;
 	__u8 detail[256];
+};
+
+enum rkmodule_expand_single_mode {
+	EXPAND_SINGLE_LCG,
+	EXPAND_SINGLE_HCG,
+	EXPAND_SINGLE_VS,
+	EXPAND_SINGLE_SPD,
+	EXPAND_SINGLE_LOFIC,
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
