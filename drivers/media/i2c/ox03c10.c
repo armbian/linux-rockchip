@@ -5399,9 +5399,10 @@ static int ox03c10_set_hdrae(struct ox03c10 *ox03c10,
 	dev_dbg(&ox03c10->client->dev,
 		"l_again 0x%x l_dgain 0x%x, m_again 0x%x m_dgain 0x%x, s_again 0x%x s_dgain 0x%x\n",
 		l_again, l_dgain, m_again, m_dgain, s_again, s_dgain);
-	ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-				 OX03C10_REG_VALUE_08BIT,
-				 OX03C10_GROUP_UPDATE_START_DATA);
+	if (ox03c10->streaming)
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+					 OX03C10_REG_VALUE_08BIT,
+					 OX03C10_GROUP_UPDATE_START_DATA);
 	// dcg exposure
 	ret |= ox03c10_write_reg(ox03c10->client, OX03C10_REG_EXPOSURE_DCG_H,
 				 OX03C10_REG_VALUE_16BIT,
@@ -5507,12 +5508,14 @@ static int ox03c10_set_hdrae(struct ox03c10 *ox03c10,
 					 (s_dgain << 6) & 0xc0);
 	}
 
-	ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-				 OX03C10_REG_VALUE_08BIT,
-				 OX03C10_GROUP_UPDATE_END_DATA);
-	ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-				 OX03C10_REG_VALUE_08BIT,
-				 OX03C10_GROUP_UPDATE_LAUNCH);
+	if (ox03c10->streaming) {
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+					 OX03C10_REG_VALUE_08BIT,
+					 OX03C10_GROUP_UPDATE_END_DATA);
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+					 OX03C10_REG_VALUE_08BIT,
+					 OX03C10_GROUP_UPDATE_LAUNCH);
+	}
 	return ret;
 }
 
@@ -6421,19 +6424,22 @@ static int ox03c10_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		if (ox03c10->cur_mode->hdr_mode != NO_HDR)
 			break;
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-				 OX03C10_REG_VALUE_08BIT,
-				 OX03C10_GROUP_UPDATE_START_DATA);
+		if (ox03c10->streaming)
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP_UPDATE_START_DATA);
 		ret |= ox03c10_write_reg(ox03c10->client,
 					 OX03C10_REG_EXPOSURE_DCG_H,
 					 OX03C10_REG_VALUE_16BIT,
 					 ctrl->val);
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-					 OX03C10_REG_VALUE_08BIT,
-					 OX03C10_GROUP_UPDATE_END_DATA);
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-					 OX03C10_REG_VALUE_08BIT,
-					 OX03C10_GROUP_UPDATE_LAUNCH);
+		if (ox03c10->streaming) {
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP_UPDATE_END_DATA);
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP_UPDATE_LAUNCH);
+		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (ox03c10->cur_mode->hdr_mode != NO_HDR)
@@ -6464,9 +6470,10 @@ static int ox03c10_set_ctrl(struct v4l2_ctrl *ctrl)
 				__func__, ctrl->val);
 			break;
 		}
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-				 OX03C10_REG_VALUE_08BIT,
-				 OX03C10_GROUP1_UPDATE_START_DATA);
+		if (ox03c10->streaming)
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP1_UPDATE_START_DATA);
 
 		// lcg real gain
 		ret |= ox03c10_write_reg(ox03c10->client,
@@ -6478,14 +6485,14 @@ static int ox03c10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 OX03C10_REG_DGAIN_LCG_H,
 					 OX03C10_REG_VALUE_24BIT,
 					 (dgain << 6) & 0xfffc0);
-
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-					 OX03C10_REG_VALUE_08BIT,
-					 OX03C10_GROUP1_UPDATE_END_DATA);
-		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
-					 OX03C10_REG_VALUE_08BIT,
-					 OX03C10_GROUP1_UPDATE_LAUNCH);
-
+		if (ox03c10->streaming) {
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP1_UPDATE_END_DATA);
+			ret |= ox03c10_write_reg(ox03c10->client, OX03C10_GROUP_UPDATE_ADDRESS,
+						 OX03C10_REG_VALUE_08BIT,
+						 OX03C10_GROUP1_UPDATE_LAUNCH);
+		}
 		dev_err(&client->dev, "%s set gain val:0x%x ret:%d again:0x%x, dgain:0x%x",
 					__func__, ctrl->val, ret,
 					again, dgain);
