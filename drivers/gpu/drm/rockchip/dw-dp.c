@@ -5573,7 +5573,7 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 
 	ret = phy_init(dp->phy);
 	if (ret)
-		goto error_unregister_aux;
+		goto error_phy_init;
 
 	enable_irq(dp->irq);
 	if (dp->hpd_gpio)
@@ -5581,6 +5581,11 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 
 	return 0;
 
+error_phy_init:
+	if (!dp->dynamic_pd_ctrl)
+		pm_runtime_put(dp->dev);
+	pm_runtime_dont_use_autosuspend(dp->dev);
+	pm_runtime_disable(dp->dev);
 error_unregister_aux:
 	drm_dp_aux_unregister(&dp->aux);
 	return ret;
