@@ -2630,6 +2630,56 @@ static ssize_t gpuinfo_show(struct device *dev, struct device_attribute *attr, c
 static DEVICE_ATTR_RO(gpuinfo);
 
 /**
+ * gpumem_private_show - Show callback for the gpumem_private sysfs entry.
+ * @dev:  The device this sysfs file is for.
+ * @attr: The attributes of the sysfs file.
+ * @buf:  The output buffer to receive the GPU memory information.
+ *
+ * This function is called to get the current number of pages used by the GPU.
+ * The returned value is in bytes.
+ *
+ * Return: The number of bytes output to @buf.
+ */
+static ssize_t private_gpu_mem_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct kbase_device *kbdev;
+
+	CSTD_UNUSED(attr);
+
+	kbdev = to_kbase_device(dev);
+	if (!kbdev)
+		return -ENODEV;
+
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", (u64)atomic_read(&(kbdev->memdev.used_pages)) << PAGE_SHIFT);
+}
+static DEVICE_ATTR_RO(private_gpu_mem);
+
+/**
+ * total_gpu_mem_show - Show callback for the total_gpu_mem sysfs entry.
+ * @dev:  The device this sysfs file is for.
+ * @attr: The attributes of the sysfs file.
+ * @buf:  The output buffer to receive the GPU memory information.
+ *
+ * This function is called to get the total GPU memory including dmabuf memory.
+ * The returned value is in bytes.
+ *
+ * Return: The number of bytes output to @buf.
+ */
+static ssize_t total_gpu_mem_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct kbase_device *kbdev;
+
+	CSTD_UNUSED(attr);
+
+	kbdev = to_kbase_device(dev);
+	if (!kbdev)
+		return -ENODEV;
+
+	return scnprintf(buf, PAGE_SIZE, "%zu\n", kbdev->total_gpu_pages << PAGE_SHIFT);
+}
+static DEVICE_ATTR_RO(total_gpu_mem);
+
+/**
  * dvfs_period_store - Store callback for the dvfs_period sysfs file.
  * @dev:   The device with sysfs file is for
  * @attr:  The attributes of the sysfs file
@@ -4281,6 +4331,8 @@ static struct attribute *kbase_attrs[] = {
 	&dev_attr_debug_command.attr,
 #endif
 	&dev_attr_gpuinfo.attr,
+	&dev_attr_total_gpu_mem.attr,
+	&dev_attr_private_gpu_mem.attr,
 	&dev_attr_dvfs_period.attr,
 	&dev_attr_pm_poweroff.attr,
 	&dev_attr_reset_timeout.attr,
@@ -4328,6 +4380,12 @@ int kbase_sysfs_init(struct kbase_device *kbdev)
 		return err;
 	}
 
+	kbdev->kprcs_kobj = kobject_create_and_add("kprcs", &kbdev->dev->kobj);
+	if (!kbdev->kprcs_kobj) {
+		dev_err(kbdev->dev, "Creation of kprcs sysfs group failed");
+		sysfs_remove_group(&kbdev->dev->kobj, &kbase_scheduling_attr_group);
+		sysfs_remove_group(&kbdev->dev->kobj, &kbase_attr_group);
+	}
 	return err;
 }
 
@@ -4335,6 +4393,7 @@ void kbase_sysfs_term(struct kbase_device *kbdev)
 {
 	sysfs_remove_group(&kbdev->dev->kobj, &kbase_scheduling_attr_group);
 	sysfs_remove_group(&kbdev->dev->kobj, &kbase_attr_group);
+	kobject_put(kbdev->kprcs_kobj);
 	put_device(kbdev->dev);
 }
 
