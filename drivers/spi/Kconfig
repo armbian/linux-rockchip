@@ -816,6 +816,16 @@ config SPI_ROCKCHIP_SLAVE
 	  SPI Slave controller.
 	  Rockchip SPI Slave controller support DMA transport and IRQ mode.
 
+config SPI_ROCKCHIP_SLAVE_MISCDEV
+	bool "Rockchip SPI controller Slave misc devices"
+	depends on SPI_ROCKCHIP_SLAVE
+	help
+	  This selects a misc driver for Rockchip SPI Slave controller.
+
+	  If you say yes to this option, It will register rkspi-slave-devN misc device
+	  for each spi controller slave and support to get the controller register
+	  resource by calling mmap.
+
 config SPI_RB4XX
 	tristate "Mikrotik RB4XX SPI master"
 	depends on SPI_MASTER && ATH79
