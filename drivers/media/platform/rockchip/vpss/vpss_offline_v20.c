@@ -324,32 +324,124 @@ static void average_scale_down(struct rkvpss_frame_cfg *frame_cfg,
 		rkvpss_hw_set_bits(hw, RKVPSS_VPSS_CLK_GATE, clk_mask, clk_mask);
 
 	if (!unite) {
-		if (in_w == out_w && in_h == out_w)
+		if (in_w == out_w && in_h == out_h)
 			goto end;
 
 		val = in_w | (in_h << 16);
-		rkvpss_hw_write(hw, reg_base + 0x8, val);
+		rkvpss_hw_write(hw, reg_base + 0x8, val);   /* input size */
 		val = out_w | (out_h << 16);
-		rkvpss_hw_write(hw, reg_base + 0xc, val);
+		rkvpss_hw_write(hw, reg_base + 0xc, val);   /* output size */
 
 		if (in_w != out_w) {
 			val = (out_w - 1) * 65536 / (in_w - 1) + 1;
-			rkvpss_hw_write(hw, reg_base + 0x10, val);
-			val = (out_w / 2 - 1) * 65536 / (in_w / 2 - 1) + 1;
-			rkvpss_hw_write(hw, reg_base + 0x14, val);
-
-			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN | RKVPSS2X_SW_AVG_SCALE_H_EN;
+			rkvpss_hw_write(hw, reg_base + 0x10, val);  /* y_w_fac */
+			rkvpss_hw_write(hw, reg_base + 0x14, val);  /* c_w_fac */
+			ctrl |= RKVPSS2X_SW_SCL_HY_EN | RKVPSS2X_SW_SCL_HC_EN |
+			       RKVPSS2X_SW_AVG_SCALE_H_EN;
 		}
+
 		if (in_h != out_h) {
 			val = (out_h - 1) * 65536 / (in_h - 1) + 1;
-			rkvpss_hw_write(hw, reg_base + 0x18, val);
-			val = (out_h - 1) * 65536 / (in_h  - 1) + 1;
-			rkvpss_hw_write(hw, reg_base + 0x1c, val);
+			rkvpss_hw_write(hw, reg_base + 0x18, val);  /* y_h_fac */
+			rkvpss_hw_write(hw, reg_base + 0x1c, val);  /* c_h_fac */
+			ctrl |= RKVPSS2X_SW_SCL_VY_EN | RKVPSS2X_SW_SCL_VC_EN |
+			       RKVPSS2X_SW_AVG_SCALE_V_EN;
+		}
+	} else {
+		u32 in_width = cfg->crop_width / 2;
+		u32 out_width = cfg->scl_width / 2;
+		u32 overlap = UNITE_ENLARGE;
 
-			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN | RKVPSS2X_SW_AVG_SCALE_V_EN;
+		if (left) {
+			/* Left side processing */
+			rkvpss_hw_write(hw, reg_base + 0x50, 0);   /* in_crop_offs */
+			rkvpss_hw_write(hw, reg_base + 0x20, 0);   /* hy_offs */
+			rkvpss_hw_write(hw, reg_base + 0x24, 0);   /* hc_offs */
+			rkvpss_hw_write(hw, reg_base + 0x28, 0);   /* vy_offs */
+			rkvpss_hw_write(hw, reg_base + 0x2c, 0);   /* vc_offs */
+			rkvpss_hw_write(hw, reg_base + 0x48, 0);   /* hy_offs_mi */
+			rkvpss_hw_write(hw, reg_base + 0x4c, 0);   /* hc_offs_mi */
+
+			u32 in_w_for_hw = (in_width == out_width) ? in_width : (in_width + overlap);
+			u32 aligned_width = ALIGN(in_w_for_hw, 16);
+
+			val = aligned_width | (cfg->crop_height << 16);
+			rkvpss_hw_write(hw, reg_base + 0x8, val);   /* input size */
+
+			aligned_width = ALIGN(out_width, 16);
+			val = aligned_width | (cfg->scl_height << 16);
+			rkvpss_hw_write(hw, reg_base + 0xc, val);   /* output size */
+
+			ctrl |= RKVPSS2X_SW_SCL_CLIP_EN;
+		} else {
+			/* Right side processing */
+			val = ofl->unite_params[idx].scl_in_crop_w_y |
+			      (ofl->unite_params[idx].scl_in_crop_w_c << 4);
+			rkvpss_hw_write(hw, reg_base + 0x50, val);   /* in_crop_offs */
+
+			ctrl |= RKVPSS2X_SW_SCL_HPHASE_EN;
+
+			u32 y_phase = ofl->unite_params[idx].y_w_phase;
+			u32 c_phase = ofl->unite_params[idx].c_w_phase;
+
+			rkvpss_hw_write(hw, reg_base + 0x20, y_phase);   /* hy_offs */
+			rkvpss_hw_write(hw, reg_base + 0x24, c_phase);   /* hc_offs */
+			rkvpss_hw_write(hw, reg_base + 0x28, 0);   /* vy_offs */
+			rkvpss_hw_write(hw, reg_base + 0x2c, 0);   /* vc_offs */
+
+			val = 16 - (cfg->scl_width / 2 & 0xf);
+			if (val == 16)
+				val = 0;
+			rkvpss_hw_write(hw, reg_base + 0x48, val);   /* hy_offs_mi */
+			rkvpss_hw_write(hw, reg_base + 0x4c, val);   /* hc_offs_mi */
+
+			u32 in_w_for_hw = (in_width == out_width) ? in_width : (in_width + overlap);
+			u32 aligned_width = ALIGN(in_w_for_hw, 16);
+
+			val = aligned_width | (cfg->crop_height << 16);
+			rkvpss_hw_write(hw, reg_base + 0x8, val);   /* input size */
+
+			aligned_width = ALIGN(out_width, 16);
+			val = aligned_width | (cfg->scl_height << 16);
+			rkvpss_hw_write(hw, reg_base + 0xc, val);   /* output size */
+
+			v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
+				"Right side: in_w=%d out_w=%d y_phase=0x%x c_phase=0x%x mi_offset=0x%x\n",
+				aligned_width, out_width, y_phase, c_phase, val);
+
+			if (in_width != out_width) {
+				ctrl |= RKVPSS2X_SW_SCL_HY_EN | RKVPSS2X_SW_SCL_HC_EN |
+				       RKVPSS2X_SW_AVG_SCALE_H_EN;
+			}
+			if (cfg->crop_height != cfg->scl_height) {
+				ctrl |= RKVPSS2X_SW_SCL_VY_EN | RKVPSS2X_SW_SCL_VC_EN |
+				       RKVPSS2X_SW_AVG_SCALE_V_EN;
+			}
+
+			if (overlap > 0) {
+				ctrl |= RKVPSS2X_SW_SCL_CLIP_EN;
+				if (aligned_width > out_width)
+					ctrl |= RKVPSS2X_SW_SCL_IN_CLIP_EN;
+			}
+		}
+
+		if (cfg->scl_width != frame_cfg->input.width) {
+			val = ofl->unite_params[idx].y_w_fac;
+			rkvpss_hw_write(hw, reg_base + 0x10, val);   /* y_w_fac */
+			val = ofl->unite_params[idx].c_w_fac;
+			rkvpss_hw_write(hw, reg_base + 0x14, val);   /* c_w_fac */
+			ctrl |= RKVPSS2X_SW_SCL_HY_EN | RKVPSS2X_SW_SCL_HC_EN |
+			       RKVPSS2X_SW_AVG_SCALE_H_EN;
+		}
+		if (cfg->scl_height != frame_cfg->input.height) {
+			val = ofl->unite_params[idx].y_h_fac;
+			rkvpss_hw_write(hw, reg_base + 0x18, val);   /* y_h_fac */
+			val = ofl->unite_params[idx].c_h_fac;
+			rkvpss_hw_write(hw, reg_base + 0x1c, val);   /* c_h_fac */
+			ctrl |= RKVPSS2X_SW_SCL_VY_EN | RKVPSS2X_SW_SCL_VC_EN |
+			       RKVPSS2X_SW_AVG_SCALE_V_EN;
 		}
 	}
-	//unite todo
 
 end:
 	rkvpss_hw_write(hw, reg_base, ctrl);
@@ -410,7 +502,7 @@ static void bilinear_scale(struct rkvpss_frame_cfg *frame_cfg,
 		rkvpss_hw_set_bits(hw, RKVPSS_VPSS_CLK_GATE, clk_mask, clk_mask);
 
 	if (!unite) {
-		if (in_w == out_w && in_h == out_w)
+		if (in_w == out_w && in_h == out_h)
 			goto end;
 
 		/* TODO diff for input and output format */
@@ -507,14 +599,42 @@ static void scale_config(struct rkvpss_offline_dev *ofl,
 			 struct rkvpss_frame_cfg *cfg, bool unite, bool left)
 {
 	int i;
+	bool is_downscale_w;
+	bool is_downscale_h;
+	bool use_average;
 
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (!cfg->output[i].enable)
 			continue;
-		if ((i == 0 || i == 2) && cfg->output[i].avg_scl_down)
-			average_scale_down(cfg, ofl, &cfg->output[i], i, unite, left);
-		else
-			bilinear_scale(cfg, ofl, &cfg->output[i], i, unite, left);
+		is_downscale_w = cfg->output[i].scl_width <= cfg->output[i].crop_width;
+		is_downscale_h = cfg->output[i].scl_height <= cfg->output[i].crop_height;
+		use_average = is_downscale_w && is_downscale_h;
+
+		/* channel 0 and 2 use average_scale_down when downscale */
+		if (use_average && (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2)) {
+			if (unite) {
+				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "Unite mode: average_scale_down for channel %d\n", i);
+				average_scale_down(cfg, ofl, &cfg->output[i], i, true, true);
+				average_scale_down(cfg, ofl, &cfg->output[i], i, true, false);
+			} else {
+				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "Normal mode: average_scale_down for channel %d\n", i);
+				average_scale_down(cfg, ofl, &cfg->output[i], i, false, false);
+			}
+		} else {
+			/* use bilinear_scale for other channels */
+			if (unite) {
+				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "Unite mode: bilinear_scale for channel %d\n", i);
+				bilinear_scale(cfg, ofl, &cfg->output[i], i, true, true);
+				bilinear_scale(cfg, ofl, &cfg->output[i], i, true, false);
+			} else {
+				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "Normal mode: bilinear_scale for channel %d\n", i);
+				bilinear_scale(cfg, ofl, &cfg->output[i], i, false, false);
+			}
+		}
 	}
 }
 
@@ -1912,12 +2032,6 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 		goto end;
 	}
 
-	/* set unite mode */
-	if (cfg->input.width > RKVPSS_MAX_WIDTH_V20)
-		*unite = true;
-	else
-		*unite = false;
-
 	/* check input format */
 	switch (cfg->input.format) {
 	case V4L2_PIX_FMT_NV16:
@@ -2043,6 +2157,12 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 			ret = -EINVAL;
 			goto end;
 		}
+
+		/* set unite mode */
+		if (out_width > RKVPSS_MAX_WIDTH_V20)
+			*unite = true;
+		else
+			*unite = false;
 
 		/* check crop */
 		cfg->output[i].crop_h_offs = ALIGN(cfg->output[i].crop_h_offs, 2);
@@ -2233,12 +2353,7 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 				ret = -EINVAL;
 				goto end;
 			}
-			if (cfg->output[i].scl_width > cfg->input.width) {
-				v4l2_err(&ofl->v4l2_dev, "dev_id:%d unite horizontal no support scale up\n",
-					 cfg->dev_id);
-				ret = -EINVAL;
-				goto end;
-			}
+
 			if (cfg->output[i].aspt.enable) {
 				v4l2_err(&ofl->v4l2_dev, "dev_id:%d unite no support aspt\n",
 					 cfg->dev_id);
