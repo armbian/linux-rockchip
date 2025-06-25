@@ -50,6 +50,10 @@
 };
 
 &ebc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&vo_ebc_pins>;
+	pinctrl-1 = <&vo_ebc_sleep>;
+
 	status = "okay";
 };
 
