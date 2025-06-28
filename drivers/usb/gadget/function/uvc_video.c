@@ -526,7 +526,6 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		queue_work(video->async_wq, &video->pump);
 	}
 
-	list_add_tail(&req->list, &video->req_free);
 	spin_unlock_irqrestore(&video->req_lock, flags);
 }
 
@@ -778,9 +777,9 @@ uvcg_video_disable(struct uvc_video *video)
  */
 int uvcg_video_enable(struct uvc_video *video)
 {
-	int ret;
 	struct uvc_device *uvc;
 	struct f_uvc_opts *opts;
+	int ret;
 
 	if (video->ep == NULL) {
 		uvcg_info(&video->uvc->func,
@@ -788,6 +787,9 @@ int uvcg_video_enable(struct uvc_video *video)
 		return -ENODEV;
 	}
 
+	uvc = container_of(video, struct uvc_device, video);
+	opts = fi_to_f_uvc_opts(uvc->func.fi);
+	cpu_latency_qos_add_request(&uvc->pm_qos, opts->pm_qos_latency);
 	/*
 	 * Safe to access request related fields without req_lock because
 	 * this is the only thread currently active, and no other
@@ -796,9 +798,6 @@ int uvcg_video_enable(struct uvc_video *video)
 	 */
 	video->is_enabled = true;
 
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
-	cpu_latency_qos_add_request(&uvc->pm_qos, opts->pm_qos_latency);
 	if ((ret = uvcg_queue_enable(&video->queue, 1)) < 0)
 		return ret;
 
