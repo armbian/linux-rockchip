@@ -436,7 +436,7 @@ static int rockchip_lvds_encoder_loader_protect(struct rockchip_drm_sub_dev *sub
 	struct rockchip_lvds *lvds = container_of(sub_dev, struct rockchip_lvds, sub_dev);
 
 	if (lvds->panel)
-		panel_simple_loader_protect(lvds->panel);
+		rockchip_drm_panel_loader_protect(lvds->panel, on);
 
 
 	if (on) {

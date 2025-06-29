@@ -45,7 +45,7 @@
 #include <drm/drm_panel.h>
 #include <drm/display/drm_dsc.h>
 
-#include "panel-simple.h"
+#include "../rockchip/rockchip_drm_drv.h"
 
 enum panel_simple_cmd_type {
 	CMD_TYPE_DEFAULT,
@@ -220,6 +220,8 @@ struct panel_simple {
 	enum drm_panel_orientation orientation;
 
 	struct rockchip_panel_notifier panel_notifier;
+
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 static inline void panel_simple_msleep(unsigned int msecs)
@@ -519,23 +521,29 @@ static int panel_simple_regulator_disable(struct panel_simple *p)
 	return 0;
 }
 
-int panel_simple_loader_protect(struct drm_panel *panel)
+static int panel_simple_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct panel_simple *p = to_panel_simple(panel);
+	struct panel_simple *p = container_of(sub_dev, struct panel_simple, sub_dev);
 	int err;
 
-	err = panel_simple_regulator_enable(p);
-	if (err < 0) {
-		dev_err(panel->dev, "failed to enable supply: %d\n", err);
-		return err;
-	}
+	if (on) {
+		err = panel_simple_regulator_enable(p);
+		if (err < 0) {
+			dev_err(p->base.dev, "failed to enable supply: %d\n", err);
+			return err;
+		}
 
-	p->prepared = true;
-	p->enabled = true;
+		p->prepared = true;
+		p->enabled = true;
+	} else {
+		p->enabled = false;
+		p->prepared = false;
+
+		panel_simple_regulator_disable(p);
+	}
 
 	return 0;
 }
-EXPORT_SYMBOL(panel_simple_loader_protect);
 
 static int panel_simple_disable(struct drm_panel *panel)
 {
@@ -1003,6 +1011,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	drm_panel_add(&panel->base);
 
+	panel->sub_dev.of_node = dev->of_node;
+	panel->sub_dev.loader_protect = panel_simple_loader_protect;
+	rockchip_drm_register_sub_dev(&panel->sub_dev);
+
 	return 0;
 
 free_ddc:
@@ -1015,6 +1027,8 @@ free_ddc:
 static void panel_simple_remove(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
+
+	rockchip_drm_unregister_sub_dev(&panel->sub_dev);
 
 	drm_panel_remove(&panel->base);
 	drm_panel_disable(&panel->base);

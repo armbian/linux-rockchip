@@ -15,6 +15,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_panel.h>
 #include <drm/rockchip_drm.h>
 
 #include <linux/media-bus-format.h>
@@ -22,8 +23,6 @@
 #include <linux/component.h>
 
 #include <soc/rockchip/rockchip_dmc.h>
-
-#include "../panel/panel-simple.h"
 
 #include "rockchip_drm_debugfs.h"
 
@@ -693,6 +692,7 @@ const char *rockchip_drm_modifier_to_string(uint64_t modifier);
 void rockchip_drm_reset_iommu_fault_handler_rate_limit(void);
 void rockchip_drm_send_error_event(struct rockchip_drm_private *priv,
 				   enum rockchip_drm_error_event_type event);
+int rockchip_drm_panel_loader_protect(struct drm_panel *panel, bool on);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev,

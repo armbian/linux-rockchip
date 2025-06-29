@@ -417,7 +417,7 @@ static int rockchip_rgb_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_
 	}
 
 	if (rgb->panel)
-		panel_simple_loader_protect(rgb->panel);
+		rockchip_drm_panel_loader_protect(rgb->panel, on);
 
 	if (on) {
 		phy_init(rgb->phy);

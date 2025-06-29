@@ -921,7 +921,7 @@ static int dw_mipi_dsi_rockchip_encoder_loader_protect(struct rockchip_drm_sub_d
 							sub_dev);
 
 	if (dsi->panel)
-		panel_simple_loader_protect(dsi->panel);
+		rockchip_drm_panel_loader_protect(dsi->panel, on);
 
 	dw_mipi_dsi_rockchip_loader_protect(dsi, on);
 
