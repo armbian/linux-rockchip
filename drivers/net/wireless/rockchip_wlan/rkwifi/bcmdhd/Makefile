@@ -68,7 +68,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time -Wno-strict-prototypes   \
 	-DENABLE_INSMOD_NO_FW_LOAD
 
 DHDCFLAGS += -Wframe-larger-than=2048
-DHDCFLAGS += -Wno-missing-prototypes -Wno-missing-declarations -Wno-empty-body
+DHDCFLAGS += -Wno-missing-prototypes -Wno-missing-declarations -Wno-empty-body -Wno-array-bounds
 
 DHDOFILES = aiutils.o siutils.o sbutils.o                                 \
 	bcmutils.o bcmwifi_channels.o bcmxtlv.o bcm_app_utils.o bcmstdlib_s.o \
