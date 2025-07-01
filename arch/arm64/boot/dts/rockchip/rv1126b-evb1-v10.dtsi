@@ -132,6 +132,10 @@
 	status = "okay";
 };
 
+&audio_codec_pmu {
+	status = "okay";
+};
+
 &audio_codec {
 	status = "okay";
 };

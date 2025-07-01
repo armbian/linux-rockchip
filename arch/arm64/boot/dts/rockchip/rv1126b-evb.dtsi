@@ -20,7 +20,7 @@
 		rockchip,format = "i2s";
 		rockchip,mclk-fs-mapping = <256 1024>;
 		rockchip,cpu = <&sai2>;
-		rockchip,codec = <&audio_codec>, <&acdcdig_dsm>;
+		rockchip,codec = <&audio_codec_pmu>, <&audio_codec>, <&acdcdig_dsm>;
 	};
 
 	adc-keys {
