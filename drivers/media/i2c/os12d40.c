@@ -181,6 +181,10 @@ struct os12d40 {
 	const char		*module_name;
 	const char		*len_name;
 	struct rkmodule_awb_cfg	awb_cfg;
+	bool			has_init_wbgain;
+	bool			has_init_blc;
+	struct rkmodule_wb_gain_group init_wbgain;
+	struct rkmodule_blc_group init_blc;
 };
 
 #define to_os12d40(sd) container_of(sd, struct os12d40, subdev)
@@ -2271,6 +2275,87 @@ static void os12d40_set_awb_cfg(struct os12d40 *os12d40,
 	mutex_unlock(&os12d40->mutex);
 }
 
+static int os12d40_set_wb_gain(struct os12d40 *os12d40,
+				    struct rkmodule_wb_gain_group *wb_gain_group)
+{
+	struct rkmodule_wb_gain wb_gain;
+	u16 reg_bgain = 0, reg_gbgain = 0, reg_grgain = 0, reg_rgain = 0;
+	int ret = 0;
+#ifdef DEBUG
+	u32 bgain = 0, gbgain = 0, grgain = 0, rgain = 0;
+#endif
+
+	if (!os12d40->has_init_wbgain && !os12d40->streaming) {
+		os12d40->init_wbgain = *wb_gain_group;
+		os12d40->has_init_wbgain = true;
+		dev_dbg(&os12d40->client->dev, "os12d40 don't stream, record wbgain!\n");
+		return ret;
+	}
+	reg_bgain = 0x7000;
+	reg_gbgain = 0x7002;
+	reg_grgain = 0x7004;
+	reg_rgain = 0x7006;
+	wb_gain = wb_gain_group->wb_gain[0];
+	ret = os12d40_write_reg(os12d40->client, reg_bgain,
+				OS12D40_REG_VALUE_16BIT, wb_gain.b_gain & 0xffff);
+	ret |= os12d40_write_reg(os12d40->client, reg_grgain,
+				 OS12D40_REG_VALUE_16BIT, wb_gain.gr_gain & 0xffff);
+	ret |= os12d40_write_reg(os12d40->client, reg_gbgain,
+				 OS12D40_REG_VALUE_16BIT, wb_gain.gb_gain & 0xffff);
+	ret |= os12d40_write_reg(os12d40->client, reg_rgain,
+				 OS12D40_REG_VALUE_16BIT, wb_gain.r_gain & 0xffff);
+	dev_info(&os12d40->client->dev,
+		 "write wb gain, type:%d, b:0x%x, gb:0x%x, gr:0x%x, r:0x%x\n",
+		 wb_gain_group->wb_gain_type[0],
+		 wb_gain.b_gain, wb_gain.gb_gain,
+		 wb_gain.gr_gain, wb_gain.r_gain);
+#ifdef DEBUG
+	ret |= os12d40_read_reg(os12d40->client, reg_bgain,
+				OS12D40_REG_VALUE_16BIT, &bgain);
+	ret |= os12d40_read_reg(os12d40->client, reg_gbgain,
+				OS12D40_REG_VALUE_16BIT, &gbgain);
+	ret |= os12d40_read_reg(os12d40->client, reg_grgain,
+				OS12D40_REG_VALUE_16BIT, &grgain);
+	ret |= os12d40_read_reg(os12d40->client, reg_rgain,
+				OS12D40_REG_VALUE_16BIT, &rgain);
+	dev_info(&os12d40->client->dev,
+		 "read wb gain, type %d, b:0x%x, gb:0x%x, gr:0x%x, r:0x%x\n",
+		 wb_gain_group->wb_gain_type[0], bgain, gbgain, grgain, rgain);
+#endif
+	return ret;
+}
+
+static int os12d40_set_blc(struct os12d40 *os12d40,
+			   struct rkmodule_blc_group *blc_group)
+{
+	u32 reg_blc = 0;
+	u32 blc_val = 0;
+	int ret = 0;
+
+	if (!os12d40->has_init_blc && !os12d40->streaming) {
+		os12d40->init_blc = *blc_group;
+		os12d40->has_init_blc = true;
+		dev_dbg(&os12d40->client->dev, "os12d40 don't stream, record blc!\n");
+		return ret;
+	}
+	reg_blc = 0x4019;
+	blc_val = blc_group->blc[0];
+	ret = os12d40_write_reg(os12d40->client, reg_blc,
+				OS12D40_REG_VALUE_16BIT, blc_val & 0x3ff);
+	dev_info(&os12d40->client->dev,
+		 "write blc, type:%d, blc_val:0x%x\n",
+		 blc_group->blc_type[0],
+		 blc_val);
+#ifdef DEBUG
+	ret |= os12d40_read_reg(os12d40->client, reg_blc,
+				OS12D40_REG_VALUE_16BIT, &blc_val);
+	dev_info(&os12d40->client->dev,
+		 "read blc, type %d, blc_val:0x%x\n",
+		 blc_group->blc_type[0], blc_val);
+#endif
+	return ret;
+}
+
 static long os12d40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct os12d40 *os12d40 = to_os12d40(sd);
@@ -2278,6 +2363,10 @@ static long os12d40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	u32 stream = 0;
 	u32 *bayer_mode;
+	struct rkmodule_wb_gain_info *wb_gain_info;
+	struct rkmodule_blc_info *blc_info;
+	struct rkmodule_wb_gain_group *wb_gain_group;
+	struct rkmodule_blc_group *blc_group;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2318,6 +2407,23 @@ static long os12d40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*bayer_mode = RKMODULE_NORMAL_BAYER;
 #endif
 		break;
+	case RKMODULE_GET_WB_GAIN_INFO:
+		wb_gain_info = (struct rkmodule_wb_gain_info *)arg;
+		wb_gain_info->coarse_bit = 5;
+		wb_gain_info->fine_bit = 10;
+		break;
+	case RKMODULE_GET_BLC_INFO:
+		blc_info = (struct rkmodule_blc_info *)arg;
+		blc_info->bit_width = 10;
+		break;
+	case RKMODULE_SET_WB_GAIN:
+		wb_gain_group = (struct rkmodule_wb_gain_group *)arg;
+		ret = os12d40_set_wb_gain(os12d40, wb_gain_group);
+		break;
+	case RKMODULE_SET_BLC:
+		blc_group = (struct rkmodule_blc_group *)arg;
+		ret = os12d40_set_blc(os12d40, blc_group);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2337,6 +2443,10 @@ static long os12d40_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	u32 stream = 0;
 	u32 bayer_mode = 0;
+	struct rkmodule_wb_gain_info *wb_gain_info;
+	struct rkmodule_blc_info *blc_info;
+	struct rkmodule_wb_gain_group *wb_gain_group;
+	struct rkmodule_blc_group *blc_group;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2413,6 +2523,68 @@ static long os12d40_compat_ioctl32(struct v4l2_subdev *sd,
 				return -EFAULT;
 		}
 		break;
+	case RKMODULE_GET_WB_GAIN_INFO:
+		wb_gain_info = kzalloc(sizeof(*wb_gain_info), GFP_KERNEL);
+		if (!wb_gain_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os12d40_ioctl(sd, cmd, wb_gain_info);
+		if (!ret) {
+			if (copy_to_user(up, wb_gain_info, sizeof(*wb_gain_info))) {
+				kfree(wb_gain_info);
+				return -EFAULT;
+			}
+		}
+		kfree(wb_gain_info);
+		break;
+	case RKMODULE_GET_BLC_INFO:
+		blc_info = kzalloc(sizeof(*blc_info), GFP_KERNEL);
+		if (!blc_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os12d40_ioctl(sd, cmd, blc_info);
+		if (!ret) {
+			if (copy_to_user(up, blc_info, sizeof(*blc_info))) {
+				kfree(blc_info);
+				return -EFAULT;
+			}
+		}
+		kfree(blc_info);
+		break;
+	case RKMODULE_SET_WB_GAIN:
+		wb_gain_group = kzalloc(sizeof(*wb_gain_group), GFP_KERNEL);
+		if (!wb_gain_group) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os12d40_ioctl(sd, cmd, wb_gain_group);
+		if (!ret) {
+			ret = copy_to_user(up, wb_gain_group, sizeof(*wb_gain_group));
+			if (ret)
+				return -EFAULT;
+		}
+		kfree(wb_gain_group);
+		break;
+	case RKMODULE_SET_BLC:
+		blc_group = kzalloc(sizeof(*blc_group), GFP_KERNEL);
+		if (!blc_group) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os12d40_ioctl(sd, cmd, blc_group);
+		if (!ret) {
+			ret = copy_to_user(up, blc_group, sizeof(*blc_group));
+			if (ret)
+				return -EFAULT;
+		}
+		kfree(blc_group);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2452,6 +2624,26 @@ static int __os12d40_start_stream(struct os12d40 *os12d40)
 	if (ret)
 		return ret;
 
+	if (os12d40->has_init_wbgain) {
+		ret = os12d40_ioctl(&os12d40->subdev,
+				   RKMODULE_SET_WB_GAIN,
+				   &os12d40->init_wbgain);
+		if (ret) {
+			dev_err(&os12d40->client->dev,
+				"init wbgain fail\n");
+			return ret;
+		}
+	}
+	if (os12d40->has_init_blc) {
+		ret = os12d40_ioctl(&os12d40->subdev,
+				   RKMODULE_SET_BLC,
+				   &os12d40->init_blc);
+		if (ret) {
+			dev_err(&os12d40->client->dev,
+				"init blc fail\n");
+			return ret;
+		}
+	}
 	ret = os12d40_write_reg(os12d40->client, OS12D40_REG_CTRL_MODE,
 				OS12D40_REG_VALUE_08BIT, OS12D40_MODE_STREAMING);
 	return ret;
@@ -2459,6 +2651,8 @@ static int __os12d40_start_stream(struct os12d40 *os12d40)
 
 static int __os12d40_stop_stream(struct os12d40 *os12d40)
 {
+	os12d40->has_init_wbgain = false;
+	os12d40->has_init_blc = false;
 	return os12d40_write_reg(os12d40->client, OS12D40_REG_CTRL_MODE,
 				OS12D40_REG_VALUE_08BIT, OS12D40_MODE_SW_STANDBY);
 }
@@ -3001,6 +3195,8 @@ static int os12d40_initialize_controls(struct os12d40 *os12d40)
 	}
 
 	os12d40->subdev.ctrl_handler = handler;
+	os12d40->has_init_wbgain = false;
+	os12d40->has_init_blc = false;
 
 	return 0;
 
