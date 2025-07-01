@@ -201,7 +201,12 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 
 	__dma_buf_debugfs_list_del(file->private_data);
 #if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
-	db_total_size -= dmabuf->size;
+	{
+		struct dma_buf *dmabuf = file->private_data;
+
+		if (dmabuf)
+			db_total_size -= dmabuf->size;
+	}
 #endif
 
 	return 0;
