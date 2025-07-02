@@ -2280,6 +2280,11 @@ static void pl330_tasklet(struct tasklet_struct *t)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
+	if (!pch->thread) {
+		spin_unlock_irqrestore(&pch->lock, flags);
+		return;
+	}
+
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node) {
 		if (desc->status == DONE) {
