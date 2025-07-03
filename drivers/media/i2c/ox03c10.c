@@ -5200,6 +5200,10 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 static int __ox03c10_start_stream(struct ox03c10 *ox03c10)
 {
 	int ret;
+#ifdef OX03C10_LENC_CALIBRATION
+	u32 val = 0;
+	int i = 0;
+#endif
 
 	if (ox03c10->cur_mode->hdr_mode == NO_HDR) {
 		if (ox03c10->cur_mode->single_mode == EXPAND_SINGLE_HCG)
@@ -5253,7 +5257,36 @@ static int __ox03c10_start_stream(struct ox03c10 *ox03c10)
 			return ret;
 		}
 	}
+#ifdef OX03C10_LENC_CALIBRATION
+	ret = ox03c10_read_reg(ox03c10->client, 0x5003,
+			       OX03C10_REG_VALUE_08BIT, &val);
+	if (ret)
+		return -EINVAL;
+	val &= ~BIT(2);
+	ret |= ox03c10_write_reg(ox03c10->client, 0x5003,
+				 OX03C10_REG_VALUE_08BIT, val);
+	val = 0x400;
+	//init lcg wb gain
+	for (i = 0; i < 4; i++)
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_REG_LCG_B_GAIN + i * 2,
+					 OX03C10_REG_VALUE_16BIT, val);
+	//init hcg wb gain
+	for (i = 0; i < 4; i++)
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_REG_HCG_B_GAIN + i * 2,
+					 OX03C10_REG_VALUE_16BIT, val);
 
+	//init vs wb gain
+	for (i = 0; i < 4; i++)
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_REG_VS_B_GAIN + i * 2,
+					 OX03C10_REG_VALUE_16BIT, val);
+
+	//init spd wb gain
+	for (i = 0; i < 4; i++)
+		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_REG_SPD_B_GAIN + i * 2,
+					 OX03C10_REG_VALUE_16BIT, val);
+	if (ret)
+		return -EINVAL;
+#endif
 	return ox03c10_write_reg(ox03c10->client, OX03C10_REG_CTRL_MODE,
 				OX03C10_REG_VALUE_08BIT, OX03C10_MODE_STREAMING);
 }
