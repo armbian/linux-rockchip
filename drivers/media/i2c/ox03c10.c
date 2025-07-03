@@ -227,10 +227,12 @@ struct ox03c10 {
 	const char		*len_name;
 	bool			has_init_exp;
 	bool			has_init_wbgain;
+	bool			has_init_lenc_gain;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct rkmodule_wb_gain_group init_wbgain;
 	struct rkmodule_dcg_ratio dcg_ratio;
 	struct rkmodule_dcg_ratio spd_ratio;
+	struct rkmodule_lenc_gain lenc_gain;
 };
 
 #define to_ox03c10(sd) container_of(sd, struct ox03c10, subdev)
@@ -4840,6 +4842,41 @@ static int ox03c10_select_expand_single_mode(struct ox03c10 *ox03c10, u32 single
 	return ret;
 }
 
+static int ox03c10_set_lenc(struct ox03c10 *ox03c10,
+			    struct rkmodule_lenc_gain *lenc_gain)
+{
+	int i = 0;
+	int ret = 0;
+	u32 val = 0;
+
+	if (!ox03c10->has_init_lenc_gain && !ox03c10->streaming) {
+		ox03c10->lenc_gain = *lenc_gain;
+		ox03c10->has_init_lenc_gain = true;
+		dev_dbg(&ox03c10->client->dev, "ox03c10 don't stream, record lenc gain!\n");
+		return ret;
+	}
+	ret = ox03c10_read_reg(ox03c10->client, 0x5003, OX03C10_REG_VALUE_08BIT, &val);
+	val |= BIT(2);
+	ret |= ox03c10_write_reg(ox03c10->client, 0x5003,
+				 OX03C10_REG_VALUE_08BIT, val);
+	for (i = 0; i < 64; i++) {
+		ret |= ox03c10_write_reg(ox03c10->client, 0x5a20 + i,
+					 OX03C10_REG_VALUE_08BIT, lenc_gain->g[i]);
+		ret |= ox03c10_write_reg(ox03c10->client, 0x5a60 + i,
+					 OX03C10_REG_VALUE_08BIT, lenc_gain->b[i]);
+		ret |= ox03c10_write_reg(ox03c10->client, 0x5aa0 + i,
+					 OX03C10_REG_VALUE_08BIT, lenc_gain->r[i]);
+#ifdef DEBUG
+		dev_info(&ox03c10->client->dev,
+			 "write lenc, g:0x%x,0x%x b:0x%x,0x%x r:0x%x,0x%x\n",
+			 0x5a20 + i, lenc_gain->g[i],
+			 0x5a60 + i, lenc_gain->b[i],
+			 0x5aa0 + i, lenc_gain->r[i]);
+#endif
+	}
+	return ret;
+}
+
 static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
@@ -4854,6 +4891,8 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 *exp_mode;
 	struct rkmodule_wb_gain_info *wb_gain_info;
 	struct rkmodule_blc_info *blc_info;
+	struct rkmodule_lenc_info *lenc_info;
+	struct rkmodule_lenc_gain *lenc_gain;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -4949,6 +4988,15 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_EXPAND_SINGLE_MODE:
 		ret = ox03c10_select_expand_single_mode(ox03c10, *(u32 *)arg);
 		break;
+	case RKMODULE_GET_LENC_INFO:
+		lenc_info = (struct rkmodule_lenc_info *)arg;
+		lenc_info->bit_width = 10;
+		lenc_info->grid_num = 64;
+		break;
+	case RKMODULE_SET_LENC:
+		lenc_gain = (struct rkmodule_lenc_gain *)arg;
+		ret = ox03c10_set_lenc(ox03c10, lenc_gain);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -4977,6 +5025,8 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_blc_info *blc_info;
 	u32 cmps_mode;
 	u32 single_mode;
+	struct rkmodule_lenc_info *lenc_info;
+	struct rkmodule_lenc_gain *lenc_gain;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5188,6 +5238,37 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 		ret = ox03c10_ioctl(sd, cmd, &single_mode);
 		break;
+	case RKMODULE_GET_LENC_INFO:
+		lenc_info = kzalloc(sizeof(*lenc_info), GFP_KERNEL);
+		if (!lenc_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, lenc_info);
+		if (!ret) {
+			if (copy_to_user(up, lenc_info, sizeof(*lenc_info))) {
+				kfree(lenc_info);
+				return -EFAULT;
+			}
+		}
+		kfree(lenc_info);
+		break;
+	case RKMODULE_SET_LENC:
+		lenc_gain = kzalloc(sizeof(*lenc_gain), GFP_KERNEL);
+		if (!lenc_gain) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, lenc_gain);
+		if (!ret) {
+			ret = copy_to_user(up, lenc_gain, sizeof(*lenc_gain));
+			if (ret)
+				return -EFAULT;
+		}
+		kfree(lenc_gain);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5257,6 +5338,16 @@ static int __ox03c10_start_stream(struct ox03c10 *ox03c10)
 			return ret;
 		}
 	}
+	if (ox03c10->has_init_lenc_gain) {
+		ret = ox03c10_ioctl(&ox03c10->subdev,
+				   RKMODULE_SET_LENC,
+				   &ox03c10->lenc_gain);
+		if (ret) {
+			dev_err(&ox03c10->client->dev,
+				"init lenc_gain fail\n");
+			return ret;
+		}
+	}
 #ifdef OX03C10_LENC_CALIBRATION
 	ret = ox03c10_read_reg(ox03c10->client, 0x5003,
 			       OX03C10_REG_VALUE_08BIT, &val);
@@ -5295,6 +5386,7 @@ static int __ox03c10_stop_stream(struct ox03c10 *ox03c10)
 {
 	ox03c10->has_init_exp = false;
 	ox03c10->has_init_wbgain = false;
+	ox03c10->has_init_lenc_gain = false;
 	return ox03c10_write_reg(ox03c10->client, OX03C10_REG_CTRL_MODE,
 				OX03C10_REG_VALUE_08BIT, OX03C10_MODE_SW_STANDBY);
 }
@@ -5785,6 +5877,7 @@ static int ox03c10_initialize_controls(struct ox03c10 *ox03c10)
 	ox03c10->subdev.ctrl_handler = handler;
 	ox03c10->has_init_exp = false;
 	ox03c10->has_init_wbgain = false;
+	ox03c10->has_init_lenc_gain = false;
 
 	return 0;
 
