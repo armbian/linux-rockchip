@@ -4,6 +4,7 @@
 #
 obj-$(CONFIG_ROCKCHIP_AOA_MIDDLEWARE) += aoa_middleware/
 obj-$(CONFIG_ROCKCHIP_AMP) += rockchip_amp.o
+obj-$(CONFIG_ROCKCHIP_AMP_RPMSG_FILE) += rockchip_amp_rpmsg_file.o
 obj-$(CONFIG_ROCKCHIP_AMP_RPMSG_SHAREDMEM) += rockchip_amp_rpmsg_sharedmem.o
 obj-$(CONFIG_ROCKCHIP_AMP_RPMSG_TIMESYNC) += rockchip_amp_rpmsg_timesync.o
 obj-$(CONFIG_ROCKCHIP_CPUINFO) += rockchip-cpuinfo.o
