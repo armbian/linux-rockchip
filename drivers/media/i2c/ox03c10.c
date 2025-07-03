@@ -25,6 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/crc32.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -191,6 +192,7 @@ struct ox03c10_mode {
 	u32 vc[PAD_MAX];
 	u32 exp_mode;
 	u32 single_mode;
+	u32 reg_list_crc;
 };
 
 struct ox03c10 {
@@ -5918,6 +5920,64 @@ static int ox03c10_configure_regulators(struct ox03c10 *ox03c10)
 					ox03c10->supplies);
 }
 
+//#define OX03C10_SETTING_CRC_CHECK
+#ifdef OX03C10_SETTING_CRC_CHECK
+u8 *generate_byte_stream(const struct regval *regs, size_t *stream_len)
+{
+	size_t count = 0;
+	const struct regval *p = regs;
+	u8 *buf = NULL;
+	u8 *ptr = NULL;
+
+	while (p->addr != REG_NULL) {
+		if (p->addr != DELAY_MS)
+			count += 3;
+		p++;
+	}
+
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return NULL;
+	ptr = buf;
+	p = regs;
+	while (p->addr != REG_NULL) {
+		if (p->addr == DELAY_MS) {
+			p++;
+			continue;
+		}
+		*ptr++ = p->addr & 0xFF;
+		*ptr++ = (p->addr >> 8) & 0xFF;
+		*ptr++ = p->val;
+		p++;
+	}
+	*stream_len = count;
+	return buf;
+}
+
+static void ox03c10_setting_crc_check(struct ox03c10 *ox03c10)
+{
+	const struct regval *regs;
+	size_t stream_len;
+	u8 *data = NULL;
+	int i = 0;
+	u32 crc;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (supported_modes[i].hdr_mode == NO_HDR)
+			regs = supported_modes[i].linear_reg_list;
+		else
+			regs = supported_modes[i].reg_list;
+		data = generate_byte_stream(regs, &stream_len);
+		if (!data)
+			continue;
+		crc = crc32_le(0xFFFFFFFF, data, stream_len);
+		kfree(data);
+		dev_info(&ox03c10->client->dev, "supported_modes[%d] crc 0x%x\n",
+			 i, crc);
+	}
+}
+#endif
+
 static int ox03c10_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -5964,6 +6024,9 @@ static int ox03c10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+#ifdef OX03C10_SETTING_CRC_CHECK
+	ox03c10_setting_crc_check(ox03c10);
+#endif
 	ox03c10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ox03c10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
