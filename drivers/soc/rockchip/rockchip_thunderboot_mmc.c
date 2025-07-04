@@ -58,13 +58,17 @@ static int rk_tb_mmc_thread(void *p)
 
 	if (readl_poll_timeout(regs + SDMMC_STATUS, status,
 			       !(status & (BIT(10) | GENMASK(7, 4))), 100,
-			       500 * USEC_PER_MSEC))
+			       500 * USEC_PER_MSEC)) {
 		dev_err(dev, "Controller is occupied!\n");
+		goto out;
+	}
 
 	if (readl_poll_timeout(regs + SDMMC_IDSTS, status,
 			       !(status & GENMASK(16, 13)), 100,
-			       500 * USEC_PER_MSEC))
+			       500 * USEC_PER_MSEC)) {
 		dev_err(dev, "DMA is still running!\n");
+		goto out;
+	}
 
 	status = readl_relaxed(regs + SDMMC_RINTSTS);
 	if (status & SDMMC_INTR_ERROR) {
