@@ -11086,7 +11086,8 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 	 * or fs and fe had been not paired.
 	 */
 	if (stream->is_fs_fe_not_paired ||
-	    stream->fs_cnt_in_single_frame > RKCIF_FS_DETECTED_NUM) {
+	    (stream->fs_cnt_in_single_frame > RKCIF_FS_DETECTED_NUM &&
+	     dev->chip_id < CHIP_RK3588_CIF)) {
 		is_triggered = true;
 		v4l2_info(&dev->v4l2_dev, "reset for fs & fe not paired\n");
 	}
@@ -13967,9 +13968,6 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 		v4l2_subdev_call(sd, core, ioctl,
 				 RKISP_VICAP_CMD_SOF, &sof);
 	}
-
-	if (cif_dev->chip_id < CHIP_RK3588_CIF)
-		detect_stream->fs_cnt_in_single_frame++;
 
 	if (cif_dev->sditf[0] &&
 	    cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ &&
