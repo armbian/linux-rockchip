@@ -668,7 +668,7 @@ static long gt1x_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int cnt = 30;
 
 	/* Blocking when firmwaer updating */
-	while (cnt-- && update_info.status) {
+	while (cnt-- && gt1x_update_info.status) {
 		ssleep(1);
 	}
 	/*GTP_DEBUG("IOCTL CMD:%x", cmd);*/

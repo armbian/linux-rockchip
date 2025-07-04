@@ -260,7 +260,7 @@ static ssize_t gt1x_debug_write_proc(struct file *file, const char *buffer, size
 	}
 
 	if (strcmp(mode_str, "force_update") == 0) {
-		update_info.force_update = !!mode;
+		gt1x_update_info.force_update = !!mode;
 	}
 	return gt1x_debug_proc(buf, count);
 }
@@ -360,7 +360,7 @@ parse_cfg_fail1:
 }
 #endif
 
-s32 _do_i2c_read(struct i2c_msg *msgs, u16 addr, u8 *buffer, s32 len)
+s32 gt1x_do_i2c_read(struct i2c_msg *msgs, u16 addr, u8 *buffer, s32 len)
 {
 	s32 ret = -1;
 	s32 pos = 0;
@@ -400,7 +400,7 @@ s32 _do_i2c_read(struct i2c_msg *msgs, u16 addr, u8 *buffer, s32 len)
 	return 0;
 }
 
-s32 _do_i2c_write(struct i2c_msg *msg, u16 addr, u8 *buffer, s32 len)
+s32 gt1x_do_i2c_write(struct i2c_msg *msg, u16 addr, u8 *buffer, s32 len)
 {
 	s32 ret = -1;
 	s32 pos = 0;
@@ -519,7 +519,7 @@ s32 gt1x_send_cfg(u8 *config, int cfg_len)
 	s32 retry = 0;
 	u16 checksum = 0;
 
-	if (update_info.status) {
+	if (gt1x_update_info.status) {
 		GTP_DEBUG("Ignore cfg during fw update.");
 		return -1;
 	}
@@ -1046,7 +1046,7 @@ void gt1x_power_reset(void)
 	static int rst_flag;
 	s32 i = 0;
 
-	if (rst_flag || update_info.status) {
+	if (rst_flag || gt1x_update_info.status) {
 		return;
 	}
 	GTP_INFO("force_reset_guitar");
@@ -2169,7 +2169,7 @@ int gt1x_suspend(void)
 	u8 buf[1] = { 0 };
 #endif
 
-	if (update_info.status) {
+	if (gt1x_update_info.status) {
 		return 0;
 	}
 #if GTP_SMART_COVER
@@ -2238,7 +2238,7 @@ int gt1x_resume(void)
 {
 	s32 ret = -1;
 
-	if (update_info.status) {
+	if (gt1x_update_info.status) {
 		return 0;
 	}
 
