@@ -67,6 +67,7 @@ struct rk_fiq_debugger {
 
 static int rk_fiq_debugger_id;
 static int serial_hwirq;
+static int irq_mode;
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 static bool tf_fiq_sup;
@@ -933,7 +934,7 @@ static void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
 		res[0].start = irq;
 		res[0].end = irq;
 #if defined(CONFIG_FIQ_GLUE)
-		if (signal_irq > 0)
+		if (irq_mode != 1 && signal_irq > 0)
 			res[0].name = "fiq";
 		else
 			res[0].name = "uart_irq";
@@ -1041,7 +1042,7 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	unsigned int id, ok = 0;
 	int irq, signal_irq = -1, wake_irq = -1;
-	unsigned int baudrate = 0, irq_mode = 0;
+	unsigned int baudrate = 0;
 	phys_addr_t phy_base = 0;
 	int serial_id;
 	struct clk *clk;
