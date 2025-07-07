@@ -275,6 +275,7 @@ struct rockchip_crtc_state {
 	int output_flags;
 	int data_map_mode;
 	bool enable_afbc;
+	bool yuv_overlay;
 	/**
 	 * @splice_mode: enabled when display a hdisplay > 4096 on rk3588
 	 */
@@ -320,7 +321,6 @@ struct rockchip_crtc_state {
 	u32 output_if_left_panel;
 	u32 bus_format;
 	u32 bus_flags;
-	int yuv_overlay;
 	int post_r2y_en;
 	int post_y2r_en;
 	int post_csc_mode;
