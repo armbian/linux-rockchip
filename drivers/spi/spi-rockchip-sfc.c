@@ -1214,6 +1214,9 @@ static struct platform_driver rockchip_sfc_driver = {
 		.name	= "rockchip-sfc",
 		.of_match_table = rockchip_sfc_dt_ids,
 		.pm = &rockchip_sfc_pm_ops,
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+#endif
 	},
 	.probe	= rockchip_sfc_probe,
 	.remove	= rockchip_sfc_remove,
