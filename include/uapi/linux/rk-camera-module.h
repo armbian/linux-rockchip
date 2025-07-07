@@ -241,6 +241,9 @@
 #define RKMODULE_GET_LENC_INFO  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 59, struct rkmodule_lenc_info)
 
+#define RKMODULE_SET_REG_SETTING  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 60, struct rkmodule_reg_setting)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -1037,6 +1040,25 @@ struct rkmodule_lenc_info {
 	__u32 bit_width;
 	__u32 grid_num;
 	__u32 reserved[8];
+};
+
+struct rkmodule_reg_struct {
+	__u32 reg_addr;
+	__u32 reg_val;
+};
+
+enum rkmodule_binning_mode {
+	BAYER_BINNING_2X2,
+	BAYER_SKIP_2X2,
+	QBC_BINNING_2X2,
+};
+
+#define RKMODULE_REG_LIST_MAX (16)
+struct rkmodule_reg_setting {
+	__u32 setting_id;
+	__u32 binning_mode;
+	__u32 reg_num;
+	struct rkmodule_reg_struct reg_list[RKMODULE_REG_LIST_MAX];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
