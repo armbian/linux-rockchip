@@ -65,19 +65,3 @@
 	 */
 	reg = <0x41320000 0x14c8000>;
 };
-
-&usb2phy {
-	status = "okay";
-};
-
-&usb2phy_otg {
-	status = "okay";
-};
-
-&usb3phy {
-	status = "okay";
-};
-
-&usb_drd_dwc3 {
-	status = "okay";
-};
