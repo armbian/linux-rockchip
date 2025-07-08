@@ -387,6 +387,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-orangepi-5-max.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-orangepi-5-plus.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-orangepi-5-ultra.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5b.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-radxa-rock-5b+.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5-itx.dtb
