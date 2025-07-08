@@ -1189,7 +1189,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb2-v10-mcu-k350c4516t.dtb \
 	rv1126b-evb2-v10-rgb-Q7050ITH2641AA1T.dtb \
 	rv1126b-evb2-v10-sii9022-bt1120-to-hdmi.dtb \
-	rv1126b-evb2-v10-tb-400w.dtb \
+	rv1126b-evb2-v10-tb-400w-spi-nor.dtb \
 	rv1126b-evb3-v10.dtb \
 	rv1126b-evb4-v10.dtb \
 	rv1126b-iotest-v10.dtb \

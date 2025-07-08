@@ -4,15 +4,15 @@
  */
 
 /dts-v1/;
-#include "rv1126b.dtsi"
-#include "rv1126b-evb.dtsi"
-#include "rv1126b-evb2-v10.dtsi"
+#include "arm64/rockchip/rv1126b.dtsi"
+#include "arm64/rockchip/rv1126b-evb.dtsi"
+#include "arm64/rockchip/rv1126b-evb2-v10.dtsi"
 #include "rv1126b-thunder-boot-cam.dtsi"
 #include "rv1126b-thunder-boot-spi-nor.dtsi"
 
 / {
-	model = "Rockchip RV1126B EVB2 V10 ARM64 TB 400W Board";
-	compatible = "rockchip,rv1126b-evb2-v10-tb-400w", "rockchip,rv1126b";
+	model = "Rockchip RV1126B EVB2 V10 TB 400W SPI NorFlash Board";
+	compatible = "rockchip,rv1126b-evb2-v10-tb-400w-spi-nor", "rockchip,rv1126b";
 
 	chosen {
 		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
@@ -28,7 +28,6 @@
 
 	sc450ai: sc450ai@30 {
 		compatible = "smartsens,sc450ai";
-		status = "okay";
 		reg = <0x30>;
 		clocks = <&cru CLK_MIPI0_OUT2IO>;
 		clock-names = "xvclk";
@@ -50,11 +49,11 @@
 };
 
 &ramdisk_r {
-	reg = <0x48c40000 (40 * 0x00100000)>;
+	reg = <0x48c40000 (30 * 0x00100000)>;
 };
 
 &ramdisk_c {
-	reg = <0x4b440000 (20 * 0x00100000)>;
+	reg = <0x4aa40000 (20 * 0x00100000)>;
 };
 
 &rkisp_thunderboot {
