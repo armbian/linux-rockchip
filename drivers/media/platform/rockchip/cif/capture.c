@@ -4763,9 +4763,9 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		return 0;
 	}
 
+	val = rkcif_read_register(dev, CIF_REG_GLB_CTRL);
 	if (stream->sw_dbg_en) {
-		rkcif_write_register_and(dev, CIF_REG_GLB_CTRL,
-					 ~(u32)BIT(16));
+		val &= ~BIT(16);
 		v4l2_subdev_call(dev->active_sensor->sd,
 				 core, ioctl,
 				 RKCIF_CMD_SET_PPI_DATA_DEBUG,
@@ -4776,18 +4776,23 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				 RKCIF_CMD_SET_PPI_DATA_DEBUG,
 				 &stream->sw_dbg_en);
 	}
-
 	if (dev->chip_id == CHIP_RK3588_CIF ||
 	    dev->chip_id == CHIP_RV1106_CIF ||
 	    dev->chip_id == CHIP_RK3562_CIF) {
-		val = GLB_RESET_IDI_EN_RK3588;
+		val |= GLB_RESET_IDI_EN_RK3588;
 	} else if (dev->chip_id == CHIP_RK3576_CIF) {
-		val = GLB_RESET_IDI_EN_RK3576;
+		val |= GLB_RESET_IDI_EN_RK3576;
 		val |= rkcif_get_split_dphy_mask_rk3576(dev);
 	} else if (dev->chip_id == CHIP_RV1103B_CIF) {
-		val = rkcif_get_split_dphy_mask_rv1103b(dev);
+		val |= rkcif_get_split_dphy_mask_rv1103b(dev);
 	}
-	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
+	if (dev->chip_id == CHIP_RV1103B_CIF) {
+		if (rkcif_frm_toisp_protect)
+			val &= ~BIT(28);
+		else
+			val |= BIT(28);
+	}
+	rkcif_write_register(dev, CIF_REG_GLB_CTRL, val);
 
 	if (dev->terminal_sensor.hdmi_input_en) {
 		if (dev->chip_id == CHIP_RK3562_CIF ||
@@ -5075,8 +5080,13 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 				     CSI_DISABLE_CAPTURE);
 		return 0;
 	}
-	val = rkcif_get_split_mask_rv1126b(dev);
-	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
+	val = rkcif_read_register(dev, CIF_REG_GLB_CTRL);
+	val |= rkcif_get_split_mask_rv1126b(dev);
+	if (rkcif_frm_toisp_protect)
+		val &= ~BIT(28);
+	else
+		val |= BIT(28);
+	rkcif_write_register(dev, CIF_REG_GLB_CTRL, val);
 	rkcif_write_register_and(dev, CIF_REG_MIPI_LVDS_INTSTAT,
 				 ~(CSI_START_INTSTAT(channel->id) |
 				 CSI_DMA_END_INTSTAT(channel->id) |
