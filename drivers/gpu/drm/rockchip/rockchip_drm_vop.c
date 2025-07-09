@@ -4842,7 +4842,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 
 	if (vop_data->feature & VOP_FEATURE_OUTPUT_10BIT)
 		brightness = interpolate(0, -128, 100, 127, s->tv_state->brightness);
-	else if (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 6) /* px30 vopb */
+	else if (vop->version == VOP_VERSION_PX30_BIG || vop->version >= VOP_VERSION_RK3506)
 		brightness = interpolate(0, -64, 100, 63, s->tv_state->brightness);
 	else
 		brightness = interpolate(0, -32, 100, 31, s->tv_state->brightness);
