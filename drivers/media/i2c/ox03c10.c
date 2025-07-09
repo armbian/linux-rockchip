@@ -3951,6 +3951,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_NORMAL,
 		.single_mode = EXPAND_SINGLE_LCG,
+		.reg_list_crc = 0x565b8838,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -3972,6 +3973,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_NORMAL,
 		.single_mode = EXPAND_SINGLE_HCG,
+		.reg_list_crc = 0x318514f6,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -3993,6 +3995,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_NORMAL,
 		.single_mode = EXPAND_SINGLE_VS,
+		.reg_list_crc = 0x99e6b1a4,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -4014,6 +4017,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_NORMAL,
 		.single_mode = EXPAND_SINGLE_SPD,
+		.reg_list_crc = 0xfe382d6a,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -4034,6 +4038,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.hdr_operating_mode = OX03C10_HDR3_DCG_VS_12BIT,
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_HDR3_DCG_VS,
+		.reg_list_crc = 0xc1e4ba5d,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR16_1X16,
@@ -4057,6 +4062,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.vc[PAD2] = 2,
 		.vc[PAD3] = 3,
 		.exp_mode = EXP_HDR3_DCG_VS,
+		.reg_list_crc = 0xa9ae5cf,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -4077,6 +4083,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.hdr_operating_mode = OX03C10_HDR3_DCG_SPD_12BIT,
 		.vc[PAD0] = 0,
 		.exp_mode = EXP_HDR3_DCG_SPD,
+		.reg_list_crc = 0x71fab602,
 	},
 };
 
@@ -4879,6 +4886,36 @@ static int ox03c10_set_lenc(struct ox03c10 *ox03c10,
 	return ret;
 }
 
+static int ox03c10_set_reg_setting(struct ox03c10 *ox03c10,
+				   struct rkmodule_reg_setting *reg_setting)
+{
+	int i = 0;
+	int ret = 0;
+
+	if (ox03c10->cur_mode->reg_list_crc != reg_setting->setting_id) {
+		dev_info(&ox03c10->client->dev,
+			 "cis scene not match, local: 0x%x, aiq: 0x%x\n",
+			 ox03c10->cur_mode->reg_list_crc,
+			 reg_setting->setting_id);
+		return -EINVAL;
+	}
+	if (reg_setting->reg_num > RKMODULE_REG_LIST_MAX) {
+		dev_info(&ox03c10->client->dev,
+			 "reg_setting reg_num %d, bigger than support\n",
+			 reg_setting->reg_num);
+		return -EINVAL;
+	}
+	for (i = 0; i < reg_setting->reg_num; i++) {
+		ret |= ox03c10_write_reg(ox03c10->client, reg_setting->reg_list[i].reg_addr,
+					 OX03C10_REG_VALUE_08BIT, reg_setting->reg_list[i].reg_val);
+		dev_dbg(&ox03c10->client->dev,
+			"reg_setting reg write 0x%x, 0x%x\n",
+			reg_setting->reg_list[i].reg_addr,
+			reg_setting->reg_list[i].reg_val);
+	}
+	return ret;
+}
+
 static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
@@ -4895,6 +4932,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_blc_info *blc_info;
 	struct rkmodule_lenc_info *lenc_info;
 	struct rkmodule_lenc_gain *lenc_gain;
+	struct rkmodule_reg_setting *reg_setting;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -4999,6 +5037,10 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		lenc_gain = (struct rkmodule_lenc_gain *)arg;
 		ret = ox03c10_set_lenc(ox03c10, lenc_gain);
 		break;
+	case RKMODULE_SET_REG_SETTING:
+		reg_setting = (struct rkmodule_reg_setting *)arg;
+		ret = ox03c10_set_reg_setting(ox03c10, reg_setting);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5029,6 +5071,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	u32 single_mode;
 	struct rkmodule_lenc_info *lenc_info;
 	struct rkmodule_lenc_gain *lenc_gain;
+	struct rkmodule_reg_setting *reg_setting;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5270,6 +5313,21 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 				return -EFAULT;
 		}
 		kfree(lenc_gain);
+		break;
+	case RKMODULE_SET_REG_SETTING:
+		reg_setting = kzalloc(sizeof(*reg_setting), GFP_KERNEL);
+		if (!reg_setting) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, reg_setting);
+		if (!ret) {
+			ret = copy_to_user(up, reg_setting, sizeof(*reg_setting));
+			if (ret)
+				return -EFAULT;
+		}
+		kfree(reg_setting);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
