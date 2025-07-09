@@ -8,6 +8,10 @@
 / {
 };
 
+&npu_opp_table {
+	rockchip,init-freq = <600000>;
+};
+
 &rgb {
 	/*
 	 * RV1126 compatible pin output mode 0.
