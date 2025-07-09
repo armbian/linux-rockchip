@@ -1112,6 +1112,8 @@ static inline void rk3588_vop2_dsc_cfg_done(struct drm_crtc *crtc);
 static inline void vop2_cfg_done(struct drm_crtc *crtc);
 static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp);
 static int vop2_clk_reset(struct reset_control *rstc);
+static inline bool vop2_cluster_sub_window(struct vop2_win *win);
+static inline bool vop2_multi_area_sub_window(struct vop2_win *win);
 static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_port *vp,
 							   u32 current_line,
 							   u32 wait_line);
@@ -2285,14 +2287,17 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			}
 		}
 
-		vp_id = ffs(win->vp_mask) - 1;
-		if (vp_id >= ROCKCHIP_MAX_CRTC) {
-			DRM_ERROR("Unsupported vp_id: %d\n", vp_id);
-			return;
+		if (!vop2_cluster_sub_window(win) && !vop2_multi_area_sub_window(win)) {
+			vp_id = ffs(win->vp_mask) - 1;
+			if (vp_id >= ROCKCHIP_MAX_CRTC) {
+				DRM_ERROR("%s unsupported vp_id: %d, win->vp_mask:0x%x\n",
+					  win->name, vp_id, win->vp_mask);
+				return;
+			}
+			vp = &vop2->vps[vp_id];
+			if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID)
+				vp->win_cfg_done_bits |= BIT(win->reg_done_bit);
 		}
-		vp = &vop2->vps[vp_id];
-		if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID)
-			vp->win_cfg_done_bits |= BIT(win->reg_done_bit);
 	}
 
 	if (win->left_win && win->splice_mode_right) {
@@ -7164,7 +7169,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_CLUSTER_SET(vop2, win, frm_reset_en, 1);
 		VOP_CLUSTER_SET(vop2, win, dma_stride_4k_disable, 1);
 	}
-	vp->win_cfg_done_bits |= BIT(win->reg_done_bit);
+	if (!vop2_cluster_sub_window(win) && !vop2_multi_area_sub_window(win))
+		vp->win_cfg_done_bits |= BIT(win->reg_done_bit);
 	spin_unlock(&vop2->reg_lock);
 }
 
