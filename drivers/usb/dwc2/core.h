@@ -1387,6 +1387,11 @@ static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
 }
 
+static inline int dwc2_is_force_host_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg, GUSBCFG) & GUSBCFG_FORCEHOSTMODE) != 0;
+}
+
 int dwc2_drd_init(struct dwc2_hsotg *hsotg);
 void dwc2_drd_suspend(struct dwc2_hsotg *hsotg);
 void dwc2_drd_resume(struct dwc2_hsotg *hsotg);

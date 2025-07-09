@@ -796,7 +796,8 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 		dwc2_drd_resume(dwc2);
 	}
 
-	if (dwc2->dr_mode == USB_DR_MODE_HOST && dwc2_is_device_mode(dwc2)) {
+	if (dwc2->dr_mode == USB_DR_MODE_HOST && (dwc2_is_device_mode(dwc2) ||
+	    !dwc2_is_force_host_mode(dwc2))) {
 		/* Reinit for Host mode if lost power */
 		dwc2_force_mode(dwc2, true);
 
