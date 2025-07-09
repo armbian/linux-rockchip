@@ -2499,8 +2499,6 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 		}
 	}
 
-	pwmchip_remove(&pc->chip);
-
 	if (pc->oneshot_en)
 		clk_disable(pc->pclk);
 	clk_unprepare(pc->clk_osc);
