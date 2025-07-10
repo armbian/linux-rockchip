@@ -4058,7 +4058,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	    channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		channel->width = channel->width * fmt->bpp[0] / 8;
 
-	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF)
 		channel->width /= 2;
 	/*
 	 * rk cif don't support output yuyv fmt data
@@ -11218,7 +11218,7 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 	    mbus->type == V4L2_MBUS_CCP2) {
 		struct csi_channel_info *channel = &cif_dev->channels[stream->id];
 
-		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && cif_dev->chip_id < CHIP_RK3576_CIF)
 			crop_x = 3 * stream->crop[CROP_SRC_ACT].left / 2;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 			crop_x = 2 * stream->crop[CROP_SRC_ACT].left;
