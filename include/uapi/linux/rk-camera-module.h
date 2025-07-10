@@ -244,6 +244,9 @@
 #define RKMODULE_SET_REG_SETTING  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 60, struct rkmodule_reg_setting)
 
+#define RKMODULE_SET_BAYER_MODE       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 61, struct rkmodule_bayer_param)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1063,6 +1066,12 @@ enum rkmodule_binning_mode {
 struct rkmodule_reg_setting {
 	__u32 setting_id;
 	__u32 binning_mode;
+	__u32 reg_num;
+	struct rkmodule_reg_struct reg_list[RKMODULE_REG_LIST_MAX];
+};
+
+struct rkmodule_bayer_param {
+	__u32 bayer_mode;
 	__u32 reg_num;
 	struct rkmodule_reg_struct reg_list[RKMODULE_REG_LIST_MAX];
 };
