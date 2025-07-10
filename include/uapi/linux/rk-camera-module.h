@@ -244,6 +244,12 @@
 #define RKMODULE_SET_REG_SETTING  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 60, struct rkmodule_reg_setting)
 
+#define RKMODULE_REG_LIST_MAX (16)
+struct rkmodule_reg_struct {
+	__u32 reg_addr;
+	__u32 reg_val;
+};
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -976,9 +982,15 @@ enum rkmodule_blc_type {
 };
 
 struct rkmodule_blc_group {
+	__u32 enable;
 	__u32 group_num;
 	enum rkmodule_blc_type blc_type[RKMODULE_MAX_BLC_GROUP];
 	__u32 blc[RKMODULE_MAX_BLC_GROUP];
+	__u32 bkdg_sw_en;
+	__u32 dgbk2bkdg_thred;
+	__u32 bkdg2dgbk_thred;
+	__u32 reg_num;
+	struct rkmodule_reg_struct reg_list[RKMODULE_REG_LIST_MAX];
 };
 
 enum rkmodule_bayer_mode {
@@ -1042,18 +1054,12 @@ struct rkmodule_lenc_info {
 	__u32 reserved[8];
 };
 
-struct rkmodule_reg_struct {
-	__u32 reg_addr;
-	__u32 reg_val;
-};
-
 enum rkmodule_binning_mode {
 	BAYER_BINNING_2X2,
 	BAYER_SKIP_2X2,
 	QBC_BINNING_2X2,
 };
 
-#define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_setting {
 	__u32 setting_id;
 	__u32 binning_mode;
