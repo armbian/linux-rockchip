@@ -916,6 +916,21 @@ static __maybe_unused __init int rk3528_dfi_init(struct platform_device *pdev,
 	return 0;
 }
 
+static __maybe_unused __init int rk3562_dfi_init(struct platform_device *pdev,
+						 struct rockchip_dfi *data,
+						 struct devfreq_event_desc *desc)
+{
+	int ret;
+
+	ret = px30_dfi_init(pdev, data, desc);
+	if (ret)
+		return ret;
+
+	data->count_rate = 2;
+
+	return 0;
+}
+
 static const struct of_device_id rockchip_dfi_id_match[] = {
 #ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-dfi", .data = px30_dfi_init },
@@ -942,7 +957,7 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,rk3528-dfi", .data = rk3528_dfi_init },
 #endif
 #ifdef CONFIG_CPU_RK3562
-	{ .compatible = "rockchip,rk3562-dfi", .data = px30_dfi_init },
+	{ .compatible = "rockchip,rk3562-dfi", .data = rk3562_dfi_init },
 #endif
 #ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-dfi", .data = px30_dfi_init },
