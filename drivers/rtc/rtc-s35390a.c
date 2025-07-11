@@ -468,6 +468,45 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 	.ioctl          = s35390a_rtc_ioctl,
 };
 
+static irqreturn_t s35390a_irq(int irq, void *dev_id)
+{
+	int err;
+	char sts = 0;
+	char status1;
+	struct s35390a *s35390a = (struct s35390a *)dev_id;
+	struct i2c_client *client = s35390a->client[0];
+
+	rtc_lock(s35390a->rtc);
+
+	err = s35390a_read_status(s35390a, &status1);
+	if (err < 0) {
+		dev_err(&client->dev, "read status failure\n");
+		goto out;
+	}
+
+	if (status1 & S35390A_FLAG_INT2) {
+		/* clear pending interrupt (in STATUS1 only), if any */
+		err = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, &sts, sizeof(sts));
+		if (err < 0) {
+			dev_err(&client->dev, "read S35390A_CMD_STATUS1 failure\n");
+			goto out;
+		}
+
+		sts = S35390A_INT2_MODE_NOINTR | S35390A_INT2_MODE_32K;
+
+		/* disable interrupt */
+		err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
+		if (err < 0) {
+			dev_err(&client->dev, "clear interrupt failure\n");
+			goto out;
+		}
+		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
+	}
+out:
+	rtc_unlock(s35390a->rtc);
+	return IRQ_HANDLED;
+}
+
 static int s35390a_probe(struct i2c_client *client)
 {
 	int err, err_read;
@@ -545,6 +584,18 @@ static int s35390a_probe(struct i2c_client *client)
 
 	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, s35390a->rtc->features);
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, s35390a->rtc->features );
+
+	if (client->irq > 0) {
+		err = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, s35390a_irq,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						client->name, s35390a);
+		if (err < 0) {
+			dev_err(&client->dev, "irq %d request failed, %d\n",
+				client->irq, err);
+			return err;
+		}
+	}
 
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
