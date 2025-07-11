@@ -3377,8 +3377,8 @@
 		compatible = "rockchip,hw-decompress";
 		reg = <0x22100000 0x1000>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>;
-		clock-names = "aclk", "dclk", "pclk";
+		clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>, <&cru ACLK_RKMMU_DECOM>, <&cru HCLK_RKMMU_DECOM>;
+		clock-names = "aclk", "dclk", "pclk", "aclk_mmu", "hclk_mmu";
 		resets = <&cru SRST_DRESETN_DECOM>;
 		reset-names = "dresetn";
 		status = "disabled";
