@@ -2409,7 +2409,7 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	fc_config->adaper_power_init_flag = 0;
-	cm->is_normal_charge = false;
+	cm->is_normal_charge = true;
 	cm->is_fast_charge = false;
 	cm->is_pps_charge = false;
 
@@ -2561,20 +2561,21 @@ static int charger_extcon_notifier(struct notifier_block *self,
 			return ret;
 		}
 		switch (val.intval) {
+		case POWER_SUPPLY_USB_TYPE_PD_PPS:
+			if ((!cm->is_pps_charge) && (desc->psy_charger_pump_stat)) {
+				ret = cm_pps_adapter_det(cm);
+				if (ret)
+					return NOTIFY_BAD;
+				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
+				break;
+			}
+		fallthrough;
 		case POWER_SUPPLY_USB_TYPE_PD:
 			if (!cm->is_pps_charge && !cm->is_pd_charge) {
 				ret = cm_pd_adapter_det(cm);
 				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
 				if (ret)
 					return NOTIFY_BAD;
-			}
-		break;
-		case POWER_SUPPLY_USB_TYPE_PD_PPS:
-			if (!cm->is_pps_charge) {
-				ret = cm_pps_adapter_det(cm);
-				if (ret)
-					return NOTIFY_BAD;
-				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
 			}
 		break;
 		default:
@@ -2586,7 +2587,8 @@ static int charger_extcon_notifier(struct notifier_block *self,
 		break;
 		}
 
-		if (val.intval != POWER_SUPPLY_USB_TYPE_PD_PPS) {
+		if ((val.intval != POWER_SUPPLY_USB_TYPE_PD_PPS) ||
+		    (!desc->psy_charger_pump_stat)) {
 			if (cm->fc_config->jeita_charge_support) {
 				cancel_delayed_work(&cm->cm_jeita_work);
 				queue_delayed_work(cm->cm_wq, &cm->cm_jeita_work, 0);
@@ -2631,9 +2633,11 @@ static void cm_pd_work(struct work_struct *work)
 		switch (usb_type) {
 		case POWER_SUPPLY_USB_TYPE_PD_PPS:
 			CM_DBG("POWER_SUPPLY_USB_TYPE_PD_PPS\n");
-			if (!cm->is_pps_charge)
+			if ((!cm->is_pps_charge) && (desc->psy_charger_pump_stat)) {
 				cm_pps_adapter_det(cm);
-			break;
+				break;
+			}
+			fallthrough;
 		case POWER_SUPPLY_USB_TYPE_PD:
 			CM_DBG("POWER_SUPPLY_USB_TYPE_PD\n");
 			power_supply_get_property(desc->tcpm_psy,
