@@ -641,12 +641,51 @@ static void csi2_quick_stream_off(struct csi2_dev *csi2)
 	}
 }
 
+static int csi2_get_error_info(struct csi2_dev *csi2,
+			       struct rkmodule_error_info *err_info)
+{
+	int count = 0;
+
+	memset(err_info, 0, sizeof(*err_info));
+
+	count = snprintf(err_info->detail, sizeof(err_info->detail), "%s:", csi2->dev_name);
+
+#define APPEND_STAT(field) \
+	do {\
+		ssize_t remaining = sizeof(err_info->detail) - count;\
+		if (remaining > 0) { \
+			int written = snprintf(err_info->detail + count, remaining, "%u,", csi2->err_list[field].cnt); \
+			if (written >= 0) { \
+				count += written; \
+			} \
+		} \
+	} while (0)
+
+	APPEND_STAT(RK_CSI2_ERR_SOTSYN);
+	APPEND_STAT(RK_CSI2_ERR_FS_FE_MIS);
+	APPEND_STAT(RK_CSI2_ERR_FRM_SEQ_ERR);
+	APPEND_STAT(RK_CSI2_ERR_CRC_ONCE);
+	APPEND_STAT(RK_CSI2_ERR_CRC);
+	APPEND_STAT(RK_CSI2_ERR_ECC2);
+	APPEND_STAT(RK_CSI2_ERR_CTRL);
+	APPEND_STAT(RK_CSI2_ERR_ULPM);
+	APPEND_STAT(RK_CSI2_ERR_SOT);
+	APPEND_STAT(RK_CSI2_ERR_ECC);
+	APPEND_STAT(RK_CSI2_ERR_ID);
+	APPEND_STAT(RK_CSI2_ERR_CODE);
+
+	err_info->err_code = csi2->err_list[RK_CSI2_ERR_ALL].cnt ? BIT(0) : 0;
+
+	return 0;
+}
+
 static long rkcif_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 	struct v4l2_subdev *sensor = get_remote_sensor(sd);
 	long ret = 0;
 	int i = 0;
+	struct rkmodule_error_info *err_info;
 
 	switch (cmd) {
 	case RKCIF_CMD_SET_CSI_IDX:
@@ -667,6 +706,10 @@ static long rkcif_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		else
 			csi2_quick_stream_off(csi2);
 		break;
+	case RKMODULE_GET_ERROR_INFO:
+		err_info = (struct rkmodule_error_info *)arg;
+		ret = csi2_get_error_info(csi2, err_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -683,6 +726,7 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkcif_csi_info csi_info;
 	int sw_dbg = 0;
 	long ret;
+	struct rkmodule_error_info *err_info;
 
 	switch (cmd) {
 	case RKCIF_CMD_SET_CSI_IDX:
@@ -696,6 +740,22 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 
 		ret = rkcif_csi2_ioctl(sd, cmd, &sw_dbg);
+		break;
+	case RKMODULE_GET_ERROR_INFO:
+		err_info = kzalloc(sizeof(*err_info), GFP_KERNEL);
+		if (!err_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = rkcif_csi2_ioctl(sd, cmd, err_info);
+		if (!ret) {
+			if (copy_to_user(up, err_info, sizeof(*err_info))) {
+				kfree(err_info);
+				return -EFAULT;
+			}
+		}
+		kfree(err_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -960,6 +1020,7 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	char err_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
 	u64 cur_timestamp = ktime_get_ns();
+	struct csi2_err_stats *err_list = NULL;
 
 	if (!csi2_hw) {
 		disable_irq_nosync(irq);
@@ -975,26 +1036,36 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR2);
 	if (val) {
 		if (val & CSIHOST_ERR2_PHYERR_ESC) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_ULPM];
+			err_list->cnt++;
 			csi2_find_err_vc(val & 0xf, vc_info);
 			snprintf(cur_str, CSI_ERRSTR_LEN, "(ULPM,lane:%s) ", vc_info);
 			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_PHYERR_SOTHS) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_SOT];
+			err_list->cnt++;
 			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
 			snprintf(cur_str, CSI_ERRSTR_LEN, "(sot,lane:%s) ", vc_info);
 			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_ECC_CORRECTED) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_ECC];
+			err_list->cnt++;
 			csi2_find_err_vc((val >> 8) & 0xf, vc_info);
 			snprintf(cur_str, CSI_ERRSTR_LEN, "(ecc,vc:%s) ", vc_info);
 			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_ERR_ID) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_ID];
+			err_list->cnt++;
 			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
 			snprintf(cur_str, CSI_ERRSTR_LEN, "(err id,vc:%s) ", vc_info);
 			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_PHYERR_CODEHS) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_CODE];
+			err_list->cnt++;
 			snprintf(cur_str, CSI_ERRSTR_LEN, "(err code) ");
 			csi2_err_strncat(err_str, cur_str);
 		}

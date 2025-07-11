@@ -6912,20 +6912,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		ret = dev->pipe.close(&dev->pipe);
 		if (ret < 0)
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
-		if (dev->hdr.hdr_mode == HDR_X2) {
-			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
-			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
-				dev->can_be_reset = true;
-			}
-		} else if (dev->hdr.hdr_mode == HDR_X3) {
-			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
-			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY &&
-			    dev->stream[RKCIF_STREAM_MIPI_ID2].state == RKCIF_STATE_READY) {
-				dev->can_be_reset = true;
-			}
-		} else {
+		if (atomic_read(&dev->pipe.stream_cnt) == 0)
 			dev->can_be_reset = true;
-		}
 		mutex_lock(&hw_dev->dev_lock);
 		for (i = 0; i < hw_dev->dev_num; i++) {
 			if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
@@ -9903,6 +9891,55 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 	mutex_unlock(&dev->stream_lock);
 }
 
+static int rkcif_get_error_info(struct rkcif_device *cif_dev,
+				struct rkmodule_error_info *err_info)
+{
+	int count = 0;
+	int is_dvp = (cif_dev->inf_id == RKCIF_DVP);
+
+	memset(err_info, 0, sizeof(*err_info));
+
+	if (is_dvp)
+		count = snprintf(err_info->detail, sizeof(err_info->detail), "rkcif_dvp:");
+	else
+		count = snprintf(err_info->detail, sizeof(err_info->detail), "rkcif_mipi%d:", cif_dev->csi_host_idx);
+
+#define APPEND_STAT(field) \
+	do {\
+		ssize_t remaining = sizeof(err_info->detail) - count;\
+		if (remaining > 0) { \
+			int written = snprintf(err_info->detail + count, remaining, "%lld,", cif_dev->irq_stats.field); \
+			if (written >= 0) { \
+				count += written; \
+			} \
+		} \
+	} while (0)
+
+	APPEND_STAT(bus0_err);
+	APPEND_STAT(bus1_err);
+
+	if (is_dvp) {
+		APPEND_STAT(dvp_overflow_cnt);
+		APPEND_STAT(dvp_bwidth_lack_cnt);
+		APPEND_STAT(dvp_size_err_cnt);
+	} else {
+		APPEND_STAT(csi_overflow_cnt);
+		APPEND_STAT(csi_bwidth_lack_cnt);
+		APPEND_STAT(csi_size_err_cnt);
+	}
+
+	count += snprintf(err_info->detail + count, sizeof(err_info->detail) - count,
+			  "%lld,%lld,%lld,%lld,",
+			  cif_dev->irq_stats.not_active_buf_cnt[0],
+			  cif_dev->irq_stats.not_active_buf_cnt[1],
+			  cif_dev->irq_stats.not_active_buf_cnt[2],
+			  cif_dev->irq_stats.not_active_buf_cnt[3]);
+
+	err_info->err_code = cif_dev->irq_stats.all_err_cnt ? BIT(0) : 0;
+
+	return 0;
+}
+
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			       enum rkmodule_reset_src reset_src);
 
@@ -9933,6 +9970,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	u32 vblank = 0;
 	struct rkisp_vicap_mode vicap_mode;
 	struct v4l2_subdev *sd = NULL;
+	struct rkmodule_error_info *err_info;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -10234,6 +10272,10 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 			dev->is_support_get_exp = true;
 		else
 			dev->is_support_get_exp = false;
+		break;
+	case RKMODULE_GET_ERROR_INFO:
+		err_info = (struct rkmodule_error_info *)arg;
+		ret = rkcif_get_error_info(dev, err_info);
 		break;
 	default:
 		return -EINVAL;
@@ -14102,12 +14144,16 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 		v4l2_err(&cif_dev->v4l2_dev,
 			"ERROR: AXI0 bus err intstat_glb:0x%x !!\n",
 			intstat_glb);
+		cif_dev->irq_stats.bus0_err++;
+		cif_dev->irq_stats.all_err_cnt++;
 		return 0;
 	}
 	if (cif_dev->chip_id == CHIP_RK3588_CIF && intstat_glb & SCALE_TOISP_AXI1_ERR) {
 		v4l2_err(&cif_dev->v4l2_dev,
 			"ERROR: AXI1 bus err intstat_glb:0x%x !!\n",
 			intstat_glb);
+		cif_dev->irq_stats.bus1_err++;
+		cif_dev->irq_stats.all_err_cnt++;
 		return 0;
 	}
 	return intstat_glb;
@@ -15029,12 +15075,14 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				if (cif_dev->chip_id >= CHIP_RV1103B_CIF)
 					rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_CTRL, ~0x000f0000);
 			}
+			cif_dev->irq_stats.all_err_cnt++;
 			return;
 		}
 
 		if (intstat & CSI_FIFO_OVERFLOW_V1) {
 			cif_dev->irq_stats.csi_overflow_cnt++;
 			cif_dev->err_state |= RKCIF_ERR_OVERFLOW;
+			cif_dev->irq_stats.all_err_cnt++;
 			return;
 		}
 
