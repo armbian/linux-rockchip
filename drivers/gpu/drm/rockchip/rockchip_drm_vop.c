@@ -37,7 +37,6 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_writeback.h>
 
@@ -5744,11 +5743,6 @@ static int vop_create_crtc(struct vop *vop)
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
 #undef VOP_ATTACH_MODE_CONFIG_PROP
 	vop_crtc_create_feature_property(vop, crtc);
-	ret = drm_self_refresh_helper_init(crtc);
-	if (ret)
-		DRM_DEV_DEBUG_KMS(vop->dev,
-				  "Failed to init %s with SR helpers %d, ignoring\n",
-				  crtc->name, ret);
 
 	if (vop->lut_regs) {
 		u16 *r_base, *g_base, *b_base;
@@ -5801,8 +5795,6 @@ static void vop_destroy_crtc(struct vop *vop)
 	struct drm_crtc *crtc = &vop->rockchip_crtc.crtc;
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *plane, *tmp;
-
-	drm_self_refresh_helper_cleanup(crtc);
 
 	of_node_put(crtc->port);
 

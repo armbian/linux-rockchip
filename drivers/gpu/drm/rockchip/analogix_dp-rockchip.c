@@ -27,6 +27,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
@@ -634,6 +635,38 @@ static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 	return 0;
 }
 
+static void rockchip_dp_drm_self_refresh_helper_init(struct rockchip_dp_device *dp)
+{
+	struct drm_encoder *encoder = &dp->encoder.encoder;
+	struct drm_crtc *crtc;
+	int ret;
+
+	if (!dp->plat_data.disable_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc)) {
+				ret = drm_self_refresh_helper_init(crtc);
+				if (ret)
+					dev_warn(dp->dev,
+						 "Failed to init self refresh helper for crtc-%d\n",
+						 drm_crtc_index(crtc));
+			}
+		}
+	}
+}
+
+static void rockchip_dp_drm_self_refresh_helper_cleanup(struct rockchip_dp_device *dp)
+{
+	struct drm_encoder *encoder = &dp->encoder.encoder;
+	struct drm_crtc *crtc;
+
+	if (!dp->plat_data.disable_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc))
+				drm_self_refresh_helper_cleanup(crtc);
+		}
+	}
+}
+
 static int rockchip_dp_bind(struct device *dev, struct device *master,
 			    void *data)
 {
@@ -657,6 +690,8 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	if (ret)
 		goto err_unregister_audio_pdev;
 
+	rockchip_dp_drm_self_refresh_helper_init(dp);
+
 	return 0;
 
 err_unregister_audio_pdev:
@@ -672,6 +707,7 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 
 	if (dp->audio_pdev)
 		platform_device_unregister(dp->audio_pdev);
+	rockchip_dp_drm_self_refresh_helper_cleanup(dp);
 	analogix_dp_unbind(dp->adp);
 	dp->encoder.encoder.funcs->destroy(&dp->encoder.encoder);
 }

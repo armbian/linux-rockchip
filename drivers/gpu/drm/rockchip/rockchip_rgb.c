@@ -22,6 +22,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_self_refresh_helper.h>
 
 #include <uapi/linux/videodev2.h>
 
@@ -914,6 +915,38 @@ static struct backlight_device *rockchip_mcu_panel_find_backlight(struct rockchi
 	return bd;
 }
 
+static void rockchip_rgb_drm_self_refresh_helper_init(struct rockchip_rgb *rgb)
+{
+	struct drm_encoder *encoder = &rgb->encoder;
+	struct drm_crtc *crtc;
+	int ret;
+
+	if (rgb->np_mcu_panel && rgb->support_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc)) {
+				ret = drm_self_refresh_helper_init(crtc);
+				if (ret)
+					dev_warn(rgb->dev,
+						 "Failed to init self refresh helper for crtc-%d\n",
+						 drm_crtc_index(crtc));
+			}
+		}
+	}
+}
+
+static void rockchip_rgb_drm_self_refresh_helper_cleanup(struct rockchip_rgb *rgb)
+{
+	struct drm_encoder *encoder = &rgb->encoder;
+	struct drm_crtc *crtc;
+
+	if (rgb->np_mcu_panel && rgb->support_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc))
+				drm_self_refresh_helper_cleanup(crtc);
+		}
+	}
+}
+
 static int rockchip_rgb_bind(struct device *dev, struct device *master,
 			     void *data)
 {
@@ -1019,6 +1052,8 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	}
 
+	rockchip_rgb_drm_self_refresh_helper_init(rgb);
+
 	return 0;
 
 err_free_connector:
@@ -1032,6 +1067,8 @@ static void rockchip_rgb_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
+
+	rockchip_rgb_drm_self_refresh_helper_cleanup(rgb);
 
 	if (rgb->sub_dev.connector)
 		rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
