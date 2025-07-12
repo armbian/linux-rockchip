@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -902,6 +902,7 @@ kbasep_hwcnt_backend_csf_if_fw_ctx_create(struct kbase_device *kbdev,
 
 	ctx->clk_enable_map = 0;
 	kbase_ccswe_init(&ctx->ccswe_shader_cores);
+	INIT_LIST_HEAD(&ctx->rate_listener.node);
 	ctx->rate_listener.notify = kbasep_hwcnt_backend_csf_if_fw_on_freq_change;
 
 	*out_ctx = ctx;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2015-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -215,7 +215,6 @@ char *kbase_tlstream_msgbuf_acquire(struct kbase_tlstream *stream, size_t msg_si
 	size_t wb_size;
 
 	KBASE_DEBUG_ASSERT(PACKET_SIZE - PACKET_HEADER_SIZE - PACKET_NUMBER_SIZE >= msg_size);
-	WARN_ON(!stream->buffer);
 
 	spin_lock_irqsave(&stream->lock, *flags);
 

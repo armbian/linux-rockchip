@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1026,6 +1026,8 @@ int kbase_mem_free_region(struct kbase_context *kctx, struct kbase_va_region *re
 			atomic64_dec(&kctx->num_fixable_allocs);
 	}
 
+	KBASE_TLSTREAM_REGION_FREE(kctx->kbdev, kctx->id, reg->start_pfn << PAGE_SHIFT,
+				   reg->nr_pages * PAGE_SIZE, kbase_reg_current_backed_size(reg));
 	/* This will also free the physical pages */
 	kbase_free_alloced_region(reg);
 
@@ -1352,6 +1354,7 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc *alloc, size_t nr_pa
 				INIT_LIST_HEAD(&sa->link);
 				bitmap_zero(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE);
 				sa->page = np;
+				sa->group_id = alloc->group_id;
 
 				for (i = 0; i < nr_left; i++)
 					*tp++ = as_tagged_tag(page_to_phys(np + i), FROM_PARTIAL);
@@ -1393,6 +1396,7 @@ no_new_partial:
 
 	KBASE_TLSTREAM_AUX_PAGESALLOC(kbdev, kctx->id, (u64)new_page_count);
 
+	KBASE_TLSTREAM_PHY_PAGES_ALLOC(kbdev, kctx->id, (u64)alloc->nents, (u64)new_page_count);
 done:
 	return 0;
 
@@ -1439,6 +1443,7 @@ static size_t free_partial_locked(struct kbase_context *kctx, struct kbase_mem_p
 	struct page *p, *head_page;
 	struct kbase_sub_alloc *sa;
 	size_t nr_pages_to_account = 0;
+	struct kbase_mem_pool *temp_pool;
 
 	lockdep_assert_held(&pool->pool_lock);
 	lockdep_assert_held(&kctx->mem_partials_lock);
@@ -1453,7 +1458,17 @@ static size_t free_partial_locked(struct kbase_context *kctx, struct kbase_mem_p
 	}
 	if (bitmap_empty(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE)) {
 		list_del(&sa->link);
-		kbase_mem_pool_free_locked(pool, head_page, false);
+
+		/* If group_id differ, use the temp pool from sa->group_id */
+		if (pool->group_id != sa->group_id) {
+			temp_pool = &kctx->mem_pools.large[sa->group_id];
+			kbase_mem_pool_lock(temp_pool);
+			kbase_mem_pool_free_locked(temp_pool, head_page, false);
+			kbase_mem_pool_unlock(temp_pool);
+		} else {
+			kbase_mem_pool_free_locked(pool, head_page, false);
+		}
+
 		kfree(sa);
 		nr_pages_to_account = NUM_PAGES_IN_2MB_LARGE_PAGE;
 	} else if (bitmap_weight(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE) ==
@@ -1577,6 +1592,7 @@ struct tagged_addr *kbase_alloc_phy_pages_helper_locked(struct kbase_mem_phy_all
 				INIT_LIST_HEAD(&sa->link);
 				bitmap_zero(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE);
 				sa->page = np;
+				sa->group_id = pool->group_id;
 
 				for (i = 0; i < nr_left; i++)
 					*tp++ = as_tagged_tag(page_to_phys(np + i), FROM_PARTIAL);
@@ -1666,8 +1682,7 @@ invalid_request:
 	return NULL;
 }
 
-static size_t free_partial(struct kbase_context *kctx, int group_id, struct tagged_addr tp,
-			   bool syncback)
+static size_t free_partial(struct kbase_context *kctx, struct tagged_addr tp, bool syncback)
 {
 	struct page *p, *head_page;
 	struct kbase_sub_alloc *sa;
@@ -1684,7 +1699,7 @@ static size_t free_partial(struct kbase_context *kctx, int group_id, struct tagg
 	clear_bit(p - head_page, sa->sub_pages);
 	if (bitmap_empty(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE)) {
 		list_del(&sa->link);
-		kbase_mem_pool_free(&kctx->mem_pools.large[group_id], head_page, false);
+		kbase_mem_pool_free(&kctx->mem_pools.large[sa->group_id], head_page, false);
 		kfree(sa);
 		nr_pages_to_account = NUM_PAGES_IN_2MB_LARGE_PAGE;
 	} else if (bitmap_weight(sa->sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE) ==
@@ -1747,8 +1762,7 @@ int kbase_free_phy_pages_helper(struct kbase_mem_phy_alloc *alloc, size_t nr_pag
 			freed += NUM_PAGES_IN_2MB_LARGE_PAGE;
 			nr_pages_to_account += NUM_PAGES_IN_2MB_LARGE_PAGE;
 		} else if (is_partial(*start_free)) {
-			nr_pages_to_account +=
-				free_partial(kctx, alloc->group_id, *start_free, syncback);
+			nr_pages_to_account += free_partial(kctx, *start_free, syncback);
 			nr_pages_to_free--;
 			start_free++;
 			freed++;
@@ -1778,6 +1792,8 @@ int kbase_free_phy_pages_helper(struct kbase_mem_phy_alloc *alloc, size_t nr_pag
 		 */
 		new_page_count = mem_account_dec(kctx, nr_pages_to_account);
 		KBASE_TLSTREAM_AUX_PAGESALLOC(kbdev, kctx->id, (u64)new_page_count);
+		KBASE_TLSTREAM_PHY_PAGES_FREE(kbdev, kctx->id, (u64)alloc->nents,
+					      (u64)new_page_count);
 	} else if (freed != nr_pages_to_account) {
 		/* If the allocation was reclaimed then alloc->nents pages
 		 * have already been accounted for.
@@ -1791,6 +1807,8 @@ int kbase_free_phy_pages_helper(struct kbase_mem_phy_alloc *alloc, size_t nr_pag
 		else
 			new_page_count = mem_account_dec(kctx, nr_pages_to_account - freed);
 		KBASE_TLSTREAM_AUX_PAGESALLOC(kbdev, kctx->id, (u64)new_page_count);
+		KBASE_TLSTREAM_PHY_PAGES_FREE(kbdev, kctx->id, (u64)alloc->nents,
+					      (u64)new_page_count);
 	}
 
 	return 0;
@@ -1946,6 +1964,12 @@ void kbase_mem_kref_free(struct kref *kref)
 #endif
 			kbase_remove_dma_buf_usage(alloc->imported.umm.kctx, alloc);
 		}
+		/* Check if delegation of free is required. On true, return directly. The
+		 * alloc will be freed by the deferral-control later when the deferral end
+		 * condition is satisfied.
+		 */
+		if (kbase_csf_scheduler_delegate_imported_buf_alloc_free(alloc))
+			return;
 		dma_buf_detach(alloc->imported.umm.dma_buf, alloc->imported.umm.dma_attachment);
 		dma_buf_put(alloc->imported.umm.dma_buf);
 		break;
@@ -1954,6 +1978,13 @@ void kbase_mem_kref_free(struct kref *kref)
 		case KBASE_USER_BUF_STATE_PINNED:
 		case KBASE_USER_BUF_STATE_DMA_MAPPED:
 		case KBASE_USER_BUF_STATE_GPU_MAPPED: {
+			/* Check if delegation of free is required. On true, return directly. The
+			 * alloc will be freed by the deferral-control later when the deferral end
+			 * condition is satisfied.
+			 */
+			if (kbase_csf_scheduler_delegate_imported_buf_alloc_free(alloc))
+				return;
+
 			/* It's too late to undo all of the operations that might have been
 			 * done on an imported USER_BUFFER handle, as references have been
 			 * lost already.
@@ -2025,7 +2056,6 @@ int kbase_alloc_phy_pages(struct kbase_va_region *reg, size_t vsize, size_t size
 			goto out_rollback;
 		reg->gpu_alloc->reg = reg;
 	}
-
 	return 0;
 
 out_rollback:
@@ -3263,6 +3293,8 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 	}
 
 	trace_mali_jit_alloc(reg, info->id);
+	KBASE_TLSTREAM_JIT_ALLOC(kctx->kbdev, kctx->id, reg->start_pfn << PAGE_SHIFT,
+				 info->va_pages, info->commit_pages);
 
 	kctx->jit_current_allocations++;
 	kctx->jit_current_allocations_per_bin[info->bin_id]++;
@@ -3325,6 +3357,8 @@ void kbase_jit_free(struct kbase_context *kctx, struct kbase_va_region *reg)
 	kctx->jit_current_allocations_per_bin[reg->jit_bin_id]--;
 
 	trace_jit_stats(kctx, reg->jit_bin_id, UINT_MAX);
+	KBASE_TLSTREAM_JIT_FREE(kctx->kbdev, kctx->id, reg->start_pfn << PAGE_SHIFT, reg->nr_pages,
+				reg->nr_pages);
 
 	kbase_gpu_vm_lock_with_pmode_sync(kctx);
 	if (unlikely(atomic_read(&reg->cpu_alloc->kernel_mappings))) {

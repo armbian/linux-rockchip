@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -658,7 +658,7 @@ static inline void kbase_lockdep_assert_held_read(struct rw_semaphore *rwlock)
 #endif
 }
 
-#if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
+#if defined(CONFIG_ARM) || (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
 static unsigned long __maybe_unused regs_get_kernel_argument(struct pt_regs *regs, unsigned int n)
 {
 	return regs_get_register(regs, n);

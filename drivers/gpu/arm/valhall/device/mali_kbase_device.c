@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -370,6 +370,13 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 	}
 
 	atomic_set(&kbdev->fence_signal_timeout_enabled, 1);
+
+	if ((kbdev->gpu_props.impl_tech == THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_FPGA) ||
+	    (kbdev->gpu_props.impl_tech == THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE)) {
+		kbdev->kcpu_fence_signal_timeout_ms = KCPU_FENCE_SIGNAL_TIMEOUT_MS_FPGA;
+	} else {
+		kbdev->kcpu_fence_signal_timeout_ms = KCPU_FENCE_SIGNAL_TIMEOUT_MS;
+	}
 
 	kbdev->csf.neural_allowed_mask = neural_allowed_mask;
 

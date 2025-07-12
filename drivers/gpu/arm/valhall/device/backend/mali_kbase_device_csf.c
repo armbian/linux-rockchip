@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -474,6 +474,8 @@ static int kbase_csf_firmware_deferred_init(struct kbase_device *kbdev)
 		unsigned long flags;
 
 		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		kbdev->csf.firmware_reloaded = true;
+		kbdev->csf.firmware_booted_once = true;
 		kbdev->pm.backend.mcu_state = KBASE_MCU_ON;
 		kbdev->csf.firmware_inited = true;
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);

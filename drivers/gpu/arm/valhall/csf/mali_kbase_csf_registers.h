@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -180,6 +180,7 @@
 #define CSG_PROTM_SUSPEND_BUF_HI 0x004C /* () Protected mode suspend buffer, high word */
 #define CSG_CONFIG 0x0050 /* () CSG configuration options */
 #define CSG_ITER_TRACE_CONFIG 0x0054 /* () CSG trace configuration */
+#define CSG_ENDPOINT_TASK_LIMIT 0x0058 /* () Endpoint task limit configuration */
 #define CSG_DVS_BUF_LO 0x0060 /* () Normal mode deferred vertex shading work buffer, low word */
 #define CSG_DVS_BUF_HI 0x0064 /* () Normal mode deferred vertex shading work buffer, high word */
 

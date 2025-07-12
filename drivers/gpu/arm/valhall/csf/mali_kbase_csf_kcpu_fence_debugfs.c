@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,6 +26,7 @@
 #endif
 
 #include <mali_kbase.h>
+#include "mali_kbase_config_defaults.h"
 #include <csf/mali_kbase_csf_kcpu_fence_debugfs.h>
 #include <mali_kbase_hwaccess_time.h>
 
@@ -79,7 +80,7 @@ static ssize_t kbase_csf_kcpu_queue_fence_signal_timeout_get(struct file *file, 
 	int size;
 	char buffer[BUF_SIZE];
 	struct kbase_device *kbdev = file->private_data;
-	unsigned int timeout_ms = kbase_get_timeout_ms(kbdev, KCPU_FENCE_SIGNAL_TIMEOUT);
+	unsigned int timeout_ms = kbdev->kcpu_fence_signal_timeout_ms;
 
 	size = scnprintf(buffer, sizeof(buffer), "%u\n", timeout_ms);
 	return simple_read_from_buffer(buf, count, ppos, buffer, (size_t)size);
@@ -99,11 +100,20 @@ static ssize_t kbase_csf_kcpu_queue_fence_signal_timeout_set(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	/* The timeout passed by the user is bounded when trying to insert it into
-	 * the precomputed timeout table, so we don't need to do any more validation
-	 * before-hand.
+	/* Apply capping logic to fence signal timeout value on silicon
+	 * Skip capping the value on FPGA platform or if vector dump is enabled
+	 * because we may need much longer timeouts in those cases
 	 */
-	kbase_device_set_timeout_ms(kbdev, KCPU_FENCE_SIGNAL_TIMEOUT, timeout_ms);
+	if  (!IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) &&
+		(kbdev->gpu_props.impl_tech != THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_FPGA) &&
+	    (kbdev->gpu_props.impl_tech != THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE) &&
+		unlikely(timeout_ms > MAX_FENCE_SIGNAL_TIMEOUT_MS)) {
+		dev_dbg(kbdev->dev, "KCPU_FENCE_SIGNAL_TIMEOUT_MS is capped from %dms to %dms\n",
+			 timeout_ms, MAX_FENCE_SIGNAL_TIMEOUT_MS);
+		timeout_ms = MAX_FENCE_SIGNAL_TIMEOUT_MS;
+	}
+
+	kbdev->kcpu_fence_signal_timeout_ms = timeout_ms;
 
 	return (ssize_t)count;
 }

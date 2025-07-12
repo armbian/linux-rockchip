@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2024-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -130,17 +130,6 @@ static inline int check_padding_KBASE_IOCTL_MEM_QUERY(union kbase_ioctl_mem_quer
 static inline int check_padding_KBASE_IOCTL_MEM_FREE(struct kbase_ioctl_mem_free *p)
 {
 	return 0;
-}
-
-static inline int
-check_padding_KBASE_IOCTL_HWCNT_READER_SETUP(struct kbase_ioctl_hwcnt_reader_setup *p)
-{
-	return 0;
-}
-
-static inline int check_padding_KBASE_IOCTL_HWCNT_SET(struct kbase_ioctl_hwcnt_values *p)
-{
-	return p->padding;
 }
 
 static inline int check_padding_KBASE_IOCTL_GET_DDK_VERSION(struct kbase_ioctl_get_ddk_version *p)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -93,6 +93,11 @@ static int kbase_mem_pool_debugfs_size_show(struct seq_file *sfile, void *data)
 					     kbase_mem_pool_debugfs_size);
 }
 
+static int kbase_mem_pool_debugfs_open(struct inode *in, struct file *file)
+{
+	return single_open(file, kbase_mem_pool_debugfs_size_show, in->i_private);
+}
+
 static ssize_t kbase_mem_pool_debugfs_write(struct file *file, const char __user *ubuf,
 					    size_t count, loff_t *ppos)
 {
@@ -102,11 +107,6 @@ static ssize_t kbase_mem_pool_debugfs_write(struct file *file, const char __user
 	err = kbase_debugfs_helper_seq_write(file, ubuf, count, MEMORY_GROUP_MANAGER_NR_GROUPS,
 					     kbase_mem_pool_debugfs_trim);
 	return err ? err : (ssize_t)count;
-}
-
-static int kbase_mem_pool_debugfs_open(struct inode *in, struct file *file)
-{
-	return single_open(file, kbase_mem_pool_debugfs_size_show, in->i_private);
 }
 
 static const struct file_operations kbase_mem_pool_debugfs_fops = {
@@ -125,6 +125,11 @@ static int kbase_mem_pool_debugfs_max_size_show(struct seq_file *sfile, void *da
 					     kbase_mem_pool_debugfs_max_size);
 }
 
+static int kbase_mem_pool_debugfs_max_size_open(struct inode *in, struct file *file)
+{
+	return single_open(file, kbase_mem_pool_debugfs_max_size_show, in->i_private);
+}
+
 static ssize_t kbase_mem_pool_debugfs_max_size_write(struct file *file, const char __user *ubuf,
 						     size_t count, loff_t *ppos)
 {
@@ -134,11 +139,6 @@ static ssize_t kbase_mem_pool_debugfs_max_size_write(struct file *file, const ch
 	err = kbase_debugfs_helper_seq_write(file, ubuf, count, MEMORY_GROUP_MANAGER_NR_GROUPS,
 					     kbase_mem_pool_debugfs_set_max_size);
 	return err ? err : (ssize_t)count;
-}
-
-static int kbase_mem_pool_debugfs_max_size_open(struct inode *in, struct file *file)
-{
-	return single_open(file, kbase_mem_pool_debugfs_max_size_show, in->i_private);
 }
 
 static const struct file_operations kbase_mem_pool_debugfs_max_size_fops = {
@@ -153,22 +153,124 @@ static const struct file_operations kbase_mem_pool_debugfs_max_size_fops = {
 void kbase_mem_pool_debugfs_init(struct dentry *parent, struct kbase_context *kctx)
 {
 	const mode_t mode = 0644;
+	struct dentry *dentry;
 
-	debugfs_create_file("mem_pool_size", mode, parent, &kctx->mem_pools.small,
-			    &kbase_mem_pool_debugfs_fops);
+	dentry = debugfs_create_file("mem_pool_size", mode, parent, &kctx->mem_pools.small,
+				     &kbase_mem_pool_debugfs_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kctx->kbdev->dev, "Unable to create mem_pool_size\n");
 
-	debugfs_create_file("mem_pool_max_size", mode, parent, &kctx->mem_pools.small,
-			    &kbase_mem_pool_debugfs_max_size_fops);
+	dentry = debugfs_create_file("mem_pool_max_size", mode, parent, &kctx->mem_pools.small,
+				     &kbase_mem_pool_debugfs_max_size_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kctx->kbdev->dev, "Unable to create mem_pool_max_size\n");
 
-	debugfs_create_file("lp_mem_pool_size", mode, parent, &kctx->mem_pools.large,
-			    &kbase_mem_pool_debugfs_fops);
+	dentry = debugfs_create_file("lp_mem_pool_size", mode, parent, &kctx->mem_pools.large,
+				     &kbase_mem_pool_debugfs_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kctx->kbdev->dev, "Unable to create lp_mem_pool_size\n");
 
-	debugfs_create_file("lp_mem_pool_max_size", mode, parent, &kctx->mem_pools.large,
-			    &kbase_mem_pool_debugfs_max_size_fops);
+	dentry = debugfs_create_file("lp_mem_pool_max_size", mode, parent, &kctx->mem_pools.large,
+				     &kbase_mem_pool_debugfs_max_size_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kctx->kbdev->dev, "Unable to create lp_mem_pool_max_size\n");
+}
 
-	debugfs_create_file("pdg_pool_size", mode, parent, &kctx->pgd_mem_pool,
-			    &kbase_mem_pool_debugfs_fops);
+static int kbase_dev_mem_pool_debugfs_size_show(struct seq_file *sfile, void *data)
+{
+	CSTD_UNUSED(data);
+	return kbase_debugfs_helper_seq_read(sfile, 1, kbase_mem_pool_debugfs_size);
+}
 
-	debugfs_create_file("pgd_mem_pool_max_size", mode, parent, &kctx->pgd_mem_pool,
-			    &kbase_mem_pool_debugfs_max_size_fops);
+static int kbase_dev_mem_pool_debugfs_open(struct inode *in, struct file *file)
+{
+	return single_open(file, kbase_dev_mem_pool_debugfs_size_show, in->i_private);
+}
+
+static ssize_t kbase_dev_mem_pool_debugfs_write(struct file *file, const char __user *ubuf,
+						size_t count, loff_t *ppos)
+{
+	ssize_t err;
+
+	CSTD_UNUSED(ppos);
+	err = kbase_debugfs_helper_seq_write(file, ubuf, count, 1, kbase_mem_pool_debugfs_trim);
+	return err ? err : (ssize_t)count;
+}
+
+static const struct file_operations kbase_dev_mem_pool_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = kbase_dev_mem_pool_debugfs_open,
+	.read = seq_read,
+	.write = kbase_dev_mem_pool_debugfs_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int kbase_dev_mem_pool_debugfs_max_size_show(struct seq_file *sfile, void *data)
+{
+	CSTD_UNUSED(data);
+	return kbase_debugfs_helper_seq_read(sfile, 1, kbase_mem_pool_debugfs_max_size);
+}
+
+static int kbase_dev_mem_pool_debugfs_max_size_open(struct inode *in, struct file *file)
+{
+	return single_open(file, kbase_dev_mem_pool_debugfs_max_size_show, in->i_private);
+}
+
+static ssize_t kbase_dev_mem_pool_debugfs_max_size_write(struct file *file, const char __user *ubuf,
+							 size_t count, loff_t *ppos)
+{
+	ssize_t err;
+
+	CSTD_UNUSED(ppos);
+	err = kbase_debugfs_helper_seq_write(file, ubuf, count, 1,
+					     kbase_mem_pool_debugfs_set_max_size);
+	return err ? err : (ssize_t)count;
+}
+
+static const struct file_operations kbase_dev_mem_pool_debugfs_max_size_fops = {
+	.owner = THIS_MODULE,
+	.open = kbase_dev_mem_pool_debugfs_max_size_open,
+	.read = seq_read,
+	.write = kbase_dev_mem_pool_debugfs_max_size_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void kbase_dev_mem_pool_debugfs_init(struct dentry *parent, struct kbase_device *kbdev)
+{
+	const mode_t mode = 0644;
+	struct dentry *dentry;
+
+	dentry = debugfs_create_file("pgd_mem_pool_size", mode, parent, &kbdev->pgd_mem_pool,
+				     &kbase_dev_mem_pool_debugfs_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create pgd_mem_pool_size\n");
+
+	dentry = debugfs_create_file("pgd_mem_pool_max_size", mode, parent, &kbdev->pgd_mem_pool,
+				     &kbase_dev_mem_pool_debugfs_max_size_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create pgd_mem_pool_max_size\n");
+
+	dentry = debugfs_create_file("fw_mem_pool_size", mode, parent, &kbdev->fw_mem_pools.small,
+				     &kbase_dev_mem_pool_debugfs_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create fw_mem_pool_size\n");
+
+	dentry = debugfs_create_file("fw_mem_pool_max_size", mode, parent,
+				     &kbdev->fw_mem_pools.small,
+				     &kbase_dev_mem_pool_debugfs_max_size_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create fw_mem_pool_max_size\n");
+
+	dentry = debugfs_create_file("lp_fw_mem_pool_size", mode, parent,
+				     &kbdev->fw_mem_pools.large, &kbase_dev_mem_pool_debugfs_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create lp_fw_mem_pool_size\n");
+
+	dentry = debugfs_create_file("lp_fw_mem_pool_max_size", mode, parent,
+				     &kbdev->fw_mem_pools.large,
+				     &kbase_dev_mem_pool_debugfs_max_size_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		dev_err(kbdev->dev, "Unable to create lp_fw_mem_pool_max_size\n");
 }

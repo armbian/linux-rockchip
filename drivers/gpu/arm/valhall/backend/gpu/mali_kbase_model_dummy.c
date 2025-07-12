@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -903,10 +903,10 @@ static void find_gpu_rev(char *new_gpu_name, const char *gpu)
 	{
 #ifdef CONFIG_GPU_HWVER
 		if (!strcmp(CONFIG_GPU_HWVER, "r0p0"))
-			strcat(new_gpu_name, "_r0p0");
+			strncat(new_gpu_name, "_r0p0", GPU_REV_STR_LEN + 1);
 		else if (!strcmp(CONFIG_GPU_HWVER, "r1p0"))
 #endif /* CONFIG_GPU_HWVER defined */
-			strcat(new_gpu_name, "_r1p0");
+			strncat(new_gpu_name, "_r1p0", GPU_REV_STR_LEN + 1);
 	}
 }
 

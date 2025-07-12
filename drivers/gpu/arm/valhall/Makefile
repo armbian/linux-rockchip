@@ -34,26 +34,26 @@ endif
 #
 CONFIGS :=
 ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
-    CONFIG_MALI_BIFROST ?= m
-    ifeq ($(CONFIG_MALI_BIFROST),m)
+    CONFIG_MALI_VALHALL ?= m
+    ifeq ($(CONFIG_MALI_VALHALL),m)
         CONFIG_MALI_VALHALL_PLATFORM_NAME ?= "devicetree"
         CONFIG_MALI_VALHALL_TRACE_POWER_GPU_WORK_PERIOD ?= y
-        CONFIG_MALI_BIFROST_GATOR_SUPPORT ?= y
+        CONFIG_MALI_VALHALL_GATOR_SUPPORT ?= y
         CONFIG_MALI_KUTF_PTM_TESTS ?= n
 
 
-        ifneq ($(CONFIG_MALI_BIFROST_NO_MALI),y)
-            # Prevent misuse when CONFIG_MALI_BIFROST_NO_MALI!=y
+        ifneq ($(CONFIG_MALI_VALHALL_NO_MALI),y)
+            # Prevent misuse when CONFIG_MALI_VALHALL_NO_MALI!=y
             CONFIG_MALI_VALHALL_REAL_HW ?= y
         else
             CONFIG_MALI_VALHALL_CORESIGHT = n
         endif
 
-        ifeq ($(CONFIG_MALI_BIFROST_DVFS),y)
-            # Prevent misuse when CONFIG_MALI_BIFROST_DVFS=y
-            CONFIG_MALI_BIFROST_DEVFREQ ?= n
+        ifeq ($(CONFIG_MALI_VALHALL_DVFS),y)
+            # Prevent misuse when CONFIG_MALI_VALHALL_DVFS=y
+            CONFIG_MALI_VALHALL_DEVFREQ ?= n
         else
-            CONFIG_MALI_BIFROST_DEVFREQ ?= y
+            CONFIG_MALI_VALHALL_DEVFREQ ?= y
         endif
 
         ifeq ($(CONFIG_MALI_VALHALL_DMA_BUF_MAP_ON_DEMAND), y)
@@ -68,13 +68,13 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
         #
         # Expert/Debug/Test released configurations
         #
-        ifeq ($(CONFIG_MALI_BIFROST_EXPERT), y)
-            ifeq ($(CONFIG_MALI_BIFROST_NO_MALI), y)
+        ifeq ($(CONFIG_MALI_VALHALL_EXPERT), y)
+            ifeq ($(CONFIG_MALI_VALHALL_NO_MALI), y)
                 CONFIG_MALI_VALHALL_REAL_HW = n
                 CONFIG_MALI_VALHALL_NO_MALI_DEFAULT_GPU ?= "tMIx"
 
             else
-                # Prevent misuse when CONFIG_MALI_BIFROST_NO_MALI=n
+                # Prevent misuse when CONFIG_MALI_VALHALL_NO_MALI=n
                 CONFIG_MALI_VALHALL_REAL_HW = y
             endif
 
@@ -84,45 +84,45 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
                 CONFIG_MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE = n
             endif
 
-            ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
-                CONFIG_MALI_BIFROST_ENABLE_TRACE ?= y
-                CONFIG_MALI_BIFROST_SYSTEM_TRACE ?= y
+            ifeq ($(CONFIG_MALI_VALHALL_DEBUG), y)
+                CONFIG_MALI_VALHALL_ENABLE_TRACE ?= y
+                CONFIG_MALI_VALHALL_SYSTEM_TRACE ?= y
 
                 ifeq ($(CONFIG_SYNC_FILE), y)
-                    CONFIG_MALI_BIFROST_FENCE_DEBUG ?= y
+                    CONFIG_MALI_VALHALL_FENCE_DEBUG ?= y
                 else
-                    CONFIG_MALI_BIFROST_FENCE_DEBUG = n
+                    CONFIG_MALI_VALHALL_FENCE_DEBUG = n
                 endif
             else
-                # Prevent misuse when CONFIG_MALI_BIFROST_DEBUG=n
-                CONFIG_MALI_BIFROST_ENABLE_TRACE = n
-                CONFIG_MALI_BIFROST_SYSTEM_TRACE = n
-                CONFIG_MALI_BIFROST_FENCE_DEBUG = n
+                # Prevent misuse when CONFIG_MALI_VALHALL_DEBUG=n
+                CONFIG_MALI_VALHALL_ENABLE_TRACE = n
+                CONFIG_MALI_VALHALL_SYSTEM_TRACE = n
+                CONFIG_MALI_VALHALL_FENCE_DEBUG = n
             endif
         else
-            # Prevent misuse when CONFIG_MALI_BIFROST_EXPERT=n
+            # Prevent misuse when CONFIG_MALI_VALHALL_EXPERT=n
             CONFIG_MALI_VALHALL_CORESTACK = n
             CONFIG_VALHALL_LARGE_PAGE_SUPPORT = y
             CONFIG_MALI_VALHALL_JOB_DUMP = n
-            CONFIG_MALI_BIFROST_NO_MALI = n
+            CONFIG_MALI_VALHALL_NO_MALI = n
             CONFIG_MALI_VALHALL_REAL_HW = y
             CONFIG_MALI_VALHALL_HW_ERRATA_1485982_NOT_AFFECTED = n
             CONFIG_MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE = n
             CONFIG_MALI_VALHALL_PRFCNT_SET_SELECT_VIA_DEBUG_FS = n
-            CONFIG_MALI_BIFROST_DEBUG = n
-            CONFIG_MALI_BIFROST_ENABLE_TRACE = n
-            CONFIG_MALI_BIFROST_SYSTEM_TRACE = n
-            CONFIG_MALI_BIFROST_FENCE_DEBUG = n
+            CONFIG_MALI_VALHALL_DEBUG = n
+            CONFIG_MALI_VALHALL_ENABLE_TRACE = n
+            CONFIG_MALI_VALHALL_SYSTEM_TRACE = n
+            CONFIG_MALI_VALHALL_FENCE_DEBUG = n
         endif
 
-        ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
+        ifeq ($(CONFIG_MALI_VALHALL_DEBUG), y)
             CONFIG_MALI_VALHALL_KUTF ?= y
             ifeq ($(CONFIG_MALI_VALHALL_KUTF), y)
                 CONFIG_MALI_VALHALL_KUTF_IRQ_TEST ?= y
                 CONFIG_MALI_VALHALL_KUTF_CLK_RATE_TRACE ?= y
                 CONFIG_MALI_VALHALL_KUTF_MGM_INTEGRATION_TEST ?= y
-                ifeq ($(CONFIG_MALI_BIFROST_DEVFREQ), y)
-                    ifeq ($(CONFIG_MALI_BIFROST_NO_MALI), y)
+                ifeq ($(CONFIG_MALI_VALHALL_DEVFREQ), y)
+                    ifeq ($(CONFIG_MALI_VALHALL_NO_MALI), y)
                         CONFIG_MALI_KUTF_IPA_UNIT_TEST ?= y
                     endif
                 endif
@@ -134,14 +134,14 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
                 CONFIG_MALI_VALHALL_KUTF_MGM_INTEGRATION_TEST = n
             endif
         else
-            # Prevent misuse when CONFIG_MALI_BIFROST_DEBUG=n
+            # Prevent misuse when CONFIG_MALI_VALHALL_DEBUG=n
             CONFIG_MALI_VALHALL_KUTF = n
             CONFIG_MALI_VALHALL_KUTF_IRQ_TEST = n
             CONFIG_MALI_VALHALL_KUTF_CLK_RATE_TRACE = n
             CONFIG_MALI_VALHALL_KUTF_MGM_INTEGRATION_TEST = n
         endif
     else
-        # Prevent misuse when CONFIG_MALI_BIFROST=n
+        # Prevent misuse when CONFIG_MALI_VALHALL=n
         CONFIG_MALI_VALHALL_KUTF = n
         CONFIG_MALI_VALHALL_KUTF_IRQ_TEST = n
         CONFIG_MALI_VALHALL_KUTF_CLK_RATE_TRACE = n
@@ -150,30 +150,30 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
 
     # All Mali CONFIG should be listed here
     CONFIGS += \
-        CONFIG_MALI_BIFROST \
+        CONFIG_MALI_VALHALL \
         CONFIG_MALI_VALHALL_CSF_SUPPORT \
-        CONFIG_MALI_BIFROST_GATOR_SUPPORT \
+        CONFIG_MALI_VALHALL_GATOR_SUPPORT \
         CONFIG_MALI_KUTF_PTM_TESTS \
         CONFIG_MALI_VALHALL_REAL_HW \
-        CONFIG_MALI_BIFROST_DEVFREQ \
-        CONFIG_MALI_BIFROST_DVFS \
+        CONFIG_MALI_VALHALL_DEVFREQ \
+        CONFIG_MALI_VALHALL_DVFS \
         CONFIG_MALI_VALHALL_DMA_BUF_MAP_ON_DEMAND \
         CONFIG_MALI_VALHALL_DMA_BUF_LEGACY_COMPAT \
-        CONFIG_MALI_BIFROST_EXPERT \
+        CONFIG_MALI_VALHALL_EXPERT \
         CONFIG_MALI_VALHALL_CORESTACK \
         CONFIG_VALHALL_LARGE_PAGE_SUPPORT \
         CONFIG_MALI_VALHALL_JOB_DUMP \
-        CONFIG_MALI_BIFROST_NO_MALI \
+        CONFIG_MALI_VALHALL_NO_MALI \
         CONFIG_MALI_VALHALL_HW_ERRATA_1485982_NOT_AFFECTED \
         CONFIG_MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE \
         CONFIG_MALI_VALHALL_PRFCNT_SET_PRIMARY \
-        CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY \
+        CONFIG_MALI_VALHALL_PRFCNT_SET_SECONDARY \
         CONFIG_MALI_VALHALL_PRFCNT_SET_TERTIARY \
         CONFIG_MALI_VALHALL_PRFCNT_SET_SELECT_VIA_DEBUG_FS \
-        CONFIG_MALI_BIFROST_DEBUG \
-        CONFIG_MALI_BIFROST_ENABLE_TRACE \
-        CONFIG_MALI_BIFROST_SYSTEM_TRACE \
-        CONFIG_MALI_BIFROST_FENCE_DEBUG \
+        CONFIG_MALI_VALHALL_DEBUG \
+        CONFIG_MALI_VALHALL_ENABLE_TRACE \
+        CONFIG_MALI_VALHALL_SYSTEM_TRACE \
+        CONFIG_MALI_VALHALL_FENCE_DEBUG \
         CONFIG_MALI_VALHALL_KUTF \
         CONFIG_MALI_VALHALL_KUTF_IRQ_TEST \
         CONFIG_MALI_VALHALL_KUTF_CLK_RATE_TRACE \

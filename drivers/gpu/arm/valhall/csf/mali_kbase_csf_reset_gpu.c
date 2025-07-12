@@ -26,10 +26,11 @@
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
-#include <csf/mali_kbase_csf_trace_buffer.h>
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 #include <mali_kbase_reset_gpu.h>
 #include <csf/mali_kbase_csf_firmware_log.h>
+#include <csf/mali_kbase_csf_scheduler.h>
+#include <csf/mali_kbase_csf_trace_buffer.h>
 
 enum kbasep_soft_reset_status {
 	RESET_SUCCESS = 0,
@@ -307,6 +308,7 @@ kbase_csf_reset_gpu_once(struct kbase_device *kbdev, bool firmware_inited, bool 
 	unsigned long flags;
 	int err;
 	enum kbasep_soft_reset_status ret = RESET_SUCCESS;
+	atomic_t *const ptr_event_id = &kbdev->csf.scheduler.pages_defer_ctrl.protm_event_id;
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	spin_lock(&kbdev->mmu_mask_change);
@@ -364,6 +366,8 @@ kbase_csf_reset_gpu_once(struct kbase_device *kbdev, bool firmware_inited, bool 
 
 	mutex_unlock(&kbdev->pm.lock);
 
+	kbdev->csf.firmware_unrecoverable = false;
+
 	if (WARN_ON(err))
 		return SOFT_RESET_FAILED;
 
@@ -377,6 +381,14 @@ kbase_csf_reset_gpu_once(struct kbase_device *kbdev, bool firmware_inited, bool 
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	kbase_pm_enable_interrupts(kbdev);
+
+	if (atomic_read(ptr_event_id) & CSF_SCHED_PROTM_EVENT_FLAGS_MASK) {
+		kbase_csf_scheduler_spin_lock(kbdev, &flags);
+		kbase_csf_scheduler_complete_protm_event(kbdev);
+		kbase_csf_scheduler_spin_unlock(kbdev, flags);
+		dev_dbg(kbdev->dev, "GPU reset lead to protected mode new event_seq: %d",
+			GET_PROTM_EVENT_ID_SEQ(atomic_read(ptr_event_id)));
+	}
 
 	mutex_lock(&kbdev->pm.lock);
 	kbase_pm_reset_complete(kbdev);
@@ -499,7 +511,7 @@ static void kbase_csf_reset_gpu_worker(struct work_struct *data)
 		 * No pm active reference is taken here since GPU is in sleep
 		 * state and both runtime & system suspend synchronize with the
 		 * GPU reset before they wake up the GPU to suspend on-slot
-		 * groups. GPUCORE-29850 would add the proper handling.
+		 * groups.
 		 */
 		kbase_pm_lock(kbdev);
 		if (kbase_pm_force_mcu_wakeup_after_sleep(kbdev))
@@ -542,13 +554,6 @@ bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev, unsigned int flags)
 }
 KBASE_EXPORT_TEST_API(kbase_prepare_to_reset_gpu);
 
-bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev, unsigned int flags)
-{
-	lockdep_assert_held(&kbdev->hwaccess_lock);
-
-	return kbase_prepare_to_reset_gpu(kbdev, flags);
-}
-
 void kbase_reset_gpu(struct kbase_device *kbdev)
 {
 	/* Note this is a WARN/atomic_set because it is a software issue for
@@ -565,13 +570,6 @@ void kbase_reset_gpu(struct kbase_device *kbdev)
 	queue_work(kbdev->csf.reset.workq, &kbdev->csf.reset.work);
 }
 KBASE_EXPORT_TEST_API(kbase_reset_gpu);
-
-void kbase_reset_gpu_locked(struct kbase_device *kbdev)
-{
-	lockdep_assert_held(&kbdev->hwaccess_lock);
-
-	kbase_reset_gpu(kbdev);
-}
 
 int kbase_reset_gpu_silent(struct kbase_device *kbdev)
 {

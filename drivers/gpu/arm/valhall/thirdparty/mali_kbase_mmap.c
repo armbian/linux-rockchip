@@ -400,7 +400,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 					      const unsigned long pgoff, const unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = { 0 };
 	unsigned long align_offset = 0;
 	unsigned long align_mask = 0;
 #if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
@@ -495,7 +495,11 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 		return kbase_mm_get_unmapped_area_helper(mm, kctx->filp, addr, len, pgoff, flags);
 	}
 
-	info.flags = 0;
+	/* info was initialized as zero therefore only set
+	 * the fields that need a definite value.
+	 * By default, flags and all field that depend on flags
+	 * are set to zero.
+	 */
 	info.length = len;
 	info.low_limit = low_limit;
 	info.high_limit = high_limit;

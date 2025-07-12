@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -460,8 +460,6 @@ struct kbase_clk_rate_trace_manager {
  * @resume_wait: Wait queue to wait for the System suspend/resume of GPU device.
  * @debug_core_mask: Bit masks identifying the available shader cores that are
  *                   specified via sysfs. One mask per job slot.
- * @sysfs_gov_core_mask: Bit masks identifying the available shader cores that are
- *                       specified via sysfs when writing to GOV_CORE_MASK.
  * @callback_power_runtime_init: Callback for initializing the runtime power
  *                               management. Return 0 on success, else error code
  * @callback_power_runtime_term: Callback for terminating the runtime power
@@ -476,7 +474,7 @@ struct kbase_clk_rate_trace_manager {
  */
 struct kbase_pm_device_data {
 	struct mutex lock;
-	int active_count;
+	atomic_t active_count;
 	bool suspending;
 	bool resuming;
 	bool runtime_active;
@@ -486,7 +484,6 @@ struct kbase_pm_device_data {
 	wait_queue_head_t resume_wait;
 
 	u64 debug_core_mask;
-	u64 sysfs_gov_core_mask;
 
 	int (*callback_power_runtime_init)(struct kbase_device *kbdev);
 	void (*callback_power_runtime_term)(struct kbase_device *kbdev);
@@ -499,10 +496,13 @@ struct kbase_pm_device_data {
 
 /**
  * struct kbase_mem_pool - Page based memory pool for kctx/kbdev
+ *
+ * @link_to_ctrl:              For hook onto the deferred_mem_pools_list
  * @kbdev:                     Kbase device where memory is used
  * @cur_size:                  Number of free pages currently in the pool (may exceed
  *                             @max_size in some corner cases)
  * @max_size:                  Maximum number of free pages in the pool
+ * @deferred_size:             Number of pages in deferred_pages_list
  * @order:                     order = 0 refers to a pool of small pages
  *                             order != 0 refers to a pool of 2 MB pages, so
  *                             order = 9 (when small page size is 4KB,  2^9 *  4KB = 2 MB)
@@ -514,10 +514,15 @@ struct kbase_pm_device_data {
  * @pool_lock:                 Lock protecting the pool - must be held when modifying
  *                             @cur_size and @page_list
  * @page_list:                 List of free pages in the pool
+ * @deferred_pages_list:       List of deferred pages.
+ *                             This is to implement deferred release during protected mode.
+ *                             Pages will be returned to free pages list
+ *                             when GPU leaves protected mode.
  * @reclaim:                   Shrinker for kernel reclaim of free pages
  * @isolation_in_progress_cnt: Number of pages in pool undergoing page isolation.
  *                             This is used to avoid race condition between pool termination
  *                             and page isolation for page migration.
+ * @defer_seq:                 Sequence number for last protected mode entries
  * @dying:                     true if the pool is being terminated, and any ongoing
  *                             operations should be abandoned
  * @pool_supports_reclaim:     Whether this pool supports page reclaiming.
@@ -526,15 +531,19 @@ struct kbase_pm_device_data {
  *                             memory from it - eg during a grow operation.
  */
 struct kbase_mem_pool {
+	struct list_head link_to_ctrl;
 	struct kbase_device *kbdev;
 	size_t cur_size;
 	size_t max_size;
+	atomic_t deferred_size;
 	u8 order;
 	u8 group_id;
 	spinlock_t pool_lock;
 	struct list_head page_list;
+	struct list_head deferred_pages_list;
 	DEFINE_KBASE_SHRINKER reclaim;
 	atomic_t isolation_in_progress_cnt;
+	atomic_t defer_seq;
 
 	bool dying;
 	bool pool_supports_reclaim;
@@ -1045,6 +1054,7 @@ struct kbase_mem_migrate {
  * @page_metadata_slab:     kmem_cache (slab) for allocated @kbase_page_metadata structures.
  * @fence_signal_timeout_enabled: Global flag for whether fence signal timeout tracking
  *                                is enabled.
+ * @kcpu_fence_signal_timeout_ms: Waiting time in ms for triggering a KCPU queue sync state dump.
  * @pcm_prioritized_process_nb: Notifier block for the Priority Control Manager
  *                              driver, this is used to be informed of the
  *                              changes in the list of prioritized processes.
@@ -1315,6 +1325,7 @@ struct kbase_device {
 	struct kbase_gpu_metrics gpu_metrics;
 #endif
 	atomic_t fence_signal_timeout_enabled;
+	u32 kcpu_fence_signal_timeout_ms;
 
 	struct notifier_block pcm_prioritized_process_nb;
 
@@ -1545,6 +1556,7 @@ struct kbase_sub_alloc {
 	struct list_head link;
 	struct page *page;
 	DECLARE_BITMAP(sub_pages, NUM_PAGES_IN_2MB_LARGE_PAGE);
+	int group_id;
 };
 
 /**

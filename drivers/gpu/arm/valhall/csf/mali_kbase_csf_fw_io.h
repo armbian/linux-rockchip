@@ -427,7 +427,7 @@ bool kbase_csf_fw_io_check_status_gpu_suspended(struct kbase_csf_fw_io *fw_io);
  * occurs, GPU_SUSPENDED FW I/O status bit is set, or AW was removed.
  * The rest of the functionalities is equal to wait_event_timeout().
  *
- * @fw_io:     Firmware I/O manager.
+ * @fw_io_p:     Firmware I/O manager.
  * @wq_head:   The waitqueue to wait on.
  * @condition: C expression for the event to wait for
  * @timeout:   Timeout, in jiffies
@@ -438,16 +438,18 @@ bool kbase_csf_fw_io_check_status_gpu_suspended(struct kbase_csf_fw_io *fw_io);
  *         if GPU_SUSPENDED FW I/O status bit is set
  *         or AW was removed.
  */
-#define kbase_csf_fw_io_wait_event_timeout(fw_io, wq_head, condition, timeout)              \
-	({                                                                                  \
-		int __ret;                                                                  \
-		int __wait_remaining = wait_event_timeout(                                  \
-			wq_head,                                                            \
-			(condition) || kbase_csf_fw_io_check_status_gpu_suspended(fw_io) || \
-				kbase_io_is_aw_removed((fw_io)->kbdev),                     \
-			timeout);                                                           \
-		__ret = kbasep_csf_fw_io_handle_wait_result(fw_io, __wait_remaining);       \
-		__ret;                                                                      \
+#define kbase_csf_fw_io_wait_event_timeout(fw_io_p, wq_head, condition, timeout)              \
+	({                                                                                    \
+		long __ret;                                                                   \
+		struct kbase_device *__kbdev =                                                \
+			container_of(fw_io_p, struct kbase_device, csf.fw_io);                \
+		long __wait_remaining = kbase_csf_wait_event_timeout(                         \
+			__kbdev, wq_head,                                                     \
+			(condition) || kbase_csf_fw_io_check_status_gpu_suspended(fw_io_p) || \
+				kbase_io_is_aw_removed((fw_io_p)->kbdev),                     \
+			timeout);                                                             \
+		__ret = kbasep_csf_fw_io_handle_wait_result(fw_io_p, __wait_remaining);       \
+		__ret;                                                                        \
 	})
 
 /**
@@ -463,8 +465,8 @@ bool kbase_csf_fw_io_check_status_gpu_suspended(struct kbase_csf_fw_io *fw_io);
  *         if GPU_SUSPENDED FW I/O status bit is set
  *         or AW was removed.
  */
-static inline int kbasep_csf_fw_io_handle_wait_result(struct kbase_csf_fw_io *fw_io,
-						      int wait_remaining)
+static inline long kbasep_csf_fw_io_handle_wait_result(struct kbase_csf_fw_io *fw_io,
+						       long wait_remaining)
 {
 	return (kbase_csf_fw_io_check_status_gpu_suspended(fw_io) ||
 		kbase_io_is_aw_removed(fw_io->kbdev)) ?

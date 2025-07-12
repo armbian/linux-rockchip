@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,6 +26,9 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/of_platform.h>
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+#include <linux/of.h>
+#endif
 
 #include <linux/mali_kbase_debug_coresight_csf.h>
 #include <coresight-priv.h>
@@ -63,11 +66,27 @@ static int coresight_mali_source_trace_id(struct coresight_device *csdev)
 	return drvdata->trcid;
 }
 
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+#ifndef CSTD_UNUSED
+#define CSTD_UNUSED(x) ((void)(x))
+#endif
+
+static int coresight_mali_enable_source(struct coresight_device *csdev, struct perf_event *event,
+					u32 mode, struct coresight_trace_id_map *id_map)
+{
+	/* id_map is used by Perf sessions and since mali sources work in SYSFS mode (CS_MODE_SYSFS)
+	 * id_map will not be utilized at all
+	 */
+	CSTD_UNUSED(id_map);
+	return coresight_mali_enable_component(csdev, mode);
+}
+#else
 static int coresight_mali_enable_source(struct coresight_device *csdev, struct perf_event *event,
 					u32 mode)
 {
 	return coresight_mali_enable_component(csdev, mode);
 }
+#endif
 
 static void coresight_mali_disable_source(struct coresight_device *csdev, struct perf_event *event)
 {

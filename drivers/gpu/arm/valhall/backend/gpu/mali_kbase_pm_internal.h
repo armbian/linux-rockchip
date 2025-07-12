@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,19 +30,6 @@
 
 #include "backend/gpu/mali_kbase_pm_ca.h"
 #include "mali_kbase_pm_policy.h"
-
-/**
- * enum mask_type - used to determine which mask is being updated
- *
- * @SYSFS_COREMASK: core mask requested via sysfs
- * @DEVFREQ_COREMASK: core mask requested via devfreq
- */
-enum mask_type {
-	SYSFS_COREMASK,
-#ifdef CONFIG_MALI_VALHALL_DEVFREQ
-	DEVFREQ_COREMASK
-#endif
-};
 
 /**
  * kbase_pm_dev_idle - The GPU is idle.
@@ -632,28 +619,6 @@ void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev);
  * This function should be called before L2 power off.
  */
 void kbase_pm_cache_snoop_disable(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_ca_set_gov_core_mask - Set governor core mask
- * @kbdev:	          Device pointer.
- * @core_mask_type:   which mask is being used to update register.
- * @core_mask:        New core mask.
- *
- * This function is used to change the available core mask as defined via either sysfs or devfreq.
- */
-void kbase_pm_ca_set_gov_core_mask(struct kbase_device *kbdev, enum mask_type core_mask_type,
-				   u64 core_mask);
-
-/**
- * kbase_pm_ca_set_gov_core_mask_nolock - Set governor core mask with lock already taken
- * @kbdev:	          Device pointer.
- * @core_mask_type:   which mask is being used to update register.
- * @core_mask:        New core mask.
- *
- * This function is used to change the available core mask as defined via either sysfs or devfreq.
- */
-void kbase_pm_ca_set_gov_core_mask_nolock(struct kbase_device *kbdev, enum mask_type core_mask_type,
-					  u64 core_mask);
 
 #ifdef CONFIG_MALI_VALHALL_DEVFREQ
 /**

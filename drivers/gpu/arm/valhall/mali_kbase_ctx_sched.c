@@ -23,7 +23,6 @@
 #include <mali_kbase_io.h>
 #include <mali_kbase_defs.h>
 #include "mali_kbase_ctx_sched.h"
-#include "tl/mali_kbase_tracepoints.h"
 #include "mali_kbase_reset_gpu.h"
 
 /* Helper for ktrace */

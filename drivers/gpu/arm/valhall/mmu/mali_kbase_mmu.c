@@ -371,6 +371,12 @@ static void mmu_flush_pa_range(struct kbase_device *kbdev, phys_addr_t phys, siz
 		dev_err(kbdev->dev, "Flush for physical address range did not complete");
 }
 
+bool mmu_register_updateable(struct kbase_device *kbdev)
+{
+	return (kbdev->pm.backend.l2_state != KBASE_L2_OFF) &&
+	       (kbdev->pm.backend.l2_state != KBASE_L2_PEND_OFF);
+}
+
 /**
  * mmu_invalidate() - Perform an invalidate operation on MMU caches.
  * @kbdev:      The Kbase device.
@@ -389,7 +395,7 @@ static void mmu_invalidate(struct kbase_device *kbdev, struct kbase_context *kct
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbdev->pm.backend.gpu_ready && (!kctx || kctx->as_nr >= 0)) {
+	if (mmu_register_updateable(kbdev) && (!kctx || kctx->as_nr >= 0)) {
 		as_nr = kctx ? kctx->as_nr : as_nr;
 		if (kbase_mmu_hw_do_unlock(kbdev, &kbdev->as[as_nr], op_param))
 			dev_err(kbdev->dev,
@@ -448,7 +454,7 @@ static void mmu_flush_invalidate_as(struct kbase_device *kbdev, struct kbase_as 
 	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbdev->pm.backend.gpu_ready && kbase_mmu_hw_do_flush(kbdev, as, op_param))
+	if (mmu_register_updateable(kbdev) && kbase_mmu_hw_do_flush(kbdev, as, op_param))
 		dev_err(kbdev->dev, "Flush for GPU page table update did not complete");
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
@@ -525,7 +531,7 @@ static void mmu_flush_invalidate_on_gpu_ctrl(struct kbase_device *kbdev, struct 
 	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbdev->pm.backend.gpu_ready && (!kctx || kctx->as_nr >= 0)) {
+	if (mmu_register_updateable(kbdev) && (!kctx || kctx->as_nr >= 0)) {
 		as_nr = kctx ? kctx->as_nr : as_nr;
 		if (kbase_mmu_hw_do_flush_on_gpu_ctrl(kbdev, &kbdev->as[as_nr], op_param))
 			dev_err(kbdev->dev, "Flush for GPU page table update did not complete");
@@ -1263,6 +1269,16 @@ page_fault_retry:
 			goto fault_done;
 		}
 		KBASE_TLSTREAM_AUX_PAGEFAULT(kbdev, kctx->id, as_no, (u64)new_pages);
+		KBASE_TLSTREAM_REGION_GROW_ON_FAULT(kbdev, kctx->id,
+						    region->start_pfn << PAGE_SHIFT, fault->addr,
+						    region->nr_pages * PAGE_SIZE,
+						    current_backed_size, (u64)new_pages);
+
+		if (region->flags & BASEP_MEM_ACTIVE_JIT_ALLOC) {
+			KBASE_TLSTREAM_JIT_GROW_ON_FAULT(kbdev, kctx->id,
+							 region->start_pfn << PAGE_SHIFT,
+							 fault->addr, (u64)new_pages);
+		}
 
 		{
 			if (kbase_reg_is_valid(kbdev, MMU_AS_OFFSET(as_no, FAULTEXTRA)))
@@ -1383,6 +1399,13 @@ fault_done:
 	release_ctx(kbdev, kctx);
 
 	atomic_dec(&kbdev->faults_pending);
+	/*
+	 * Call kbase_pm_update_state here so that L2 power down
+	 * could be performed after faults_pending reset to 0.
+	 */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
+	kbase_pm_update_state(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
 	dev_dbg(kbdev->dev, "Leaving page_fault_worker %pK", (void *)data);
 }
 
@@ -2840,7 +2863,7 @@ static void mmu_flush_invalidate_teardown_pages(struct kbase_device *kbdev,
 
 		for (i = 0; !flush_done && i < phys_page_nr; i++) {
 			spin_lock_irqsave(&kbdev->hwaccess_lock, irq_flags);
-			if (kbdev->pm.backend.gpu_ready && (!kctx || kctx->as_nr >= 0))
+			if (mmu_register_updateable(kbdev) && (!kctx || kctx->as_nr >= 0))
 				mmu_flush_pa_range(kbdev, as_phys_addr_t(phys[i]), PAGE_SIZE,
 						   KBASE_MMU_OP_FLUSH_MEM);
 			else
@@ -3403,13 +3426,11 @@ static void mmu_undo_migrate_pgd_sub_page(struct kbase_mmu_table *mmut, phys_add
 	dma_sync_single_for_device(kbdev->dev, new_pgd_dma_addr, GPU_PAGE_SIZE, DMA_BIDIRECTIONAL);
 }
 
-static int mmu_migrate_pgd_sub_page(phys_addr_t old_pgd_phys, phys_addr_t new_pgd_phys,
-				    dma_addr_t old_pgd_dma_addr, dma_addr_t new_pgd_dma_addr,
-				    u64 pgd_vpfn_level)
+static int mmu_migrate_pgd_sub_page(struct kbase_mmu_table *mmut, phys_addr_t old_pgd_phys,
+				    phys_addr_t new_pgd_phys, dma_addr_t old_pgd_dma_addr,
+				    dma_addr_t new_pgd_dma_addr, u64 pgd_vpfn_level)
 {
-	struct kbase_page_metadata *page_md = kbase_page_private(phys_to_page(old_pgd_phys));
 	struct kbase_mmu_hw_op_param op_param;
-	struct kbase_mmu_table *mmut;
 	struct kbase_device *kbdev;
 	u64 *old_pgd_page, *new_pgd_page, *parent_pgd_page, *target;
 	u64 vpfn = PGD_VPFN_LEVEL_GET_VPFN(pgd_vpfn_level);
@@ -3421,12 +3442,6 @@ static int mmu_migrate_pgd_sub_page(phys_addr_t old_pgd_phys, phys_addr_t new_pg
 	u64 managed_pte;
 	int ret = 0;
 
-	if (WARN_ONCE(PAGE_STATUS_GET(page_md->status) != PT_MAPPED,
-		      "Page metadata status %d does match expected value %d", page_md->status,
-		      PT_MAPPED))
-		return -EINVAL;
-
-	mmut = page_md->data.pt_mapped.mmut;
 	kbdev = mmut->kctx->kbdev;
 
 	lockdep_assert_held(&mmut->kctx->reg_lock);
@@ -3514,7 +3529,7 @@ static int mmu_migrate_pgd_sub_page(phys_addr_t old_pgd_phys, phys_addr_t new_pg
 	}
 	/* Prevent transitional phases in L2 by starting the transaction */
 	mmu_page_migration_transaction_begin(kbdev);
-	if (kbdev->pm.backend.gpu_ready && mmut->kctx->as_nr >= 0) {
+	if (mmu_register_updateable(kbdev) && mmut->kctx->as_nr >= 0) {
 		int as_nr = mmut->kctx->as_nr;
 		struct kbase_as *as = &kbdev->as[as_nr];
 
@@ -3607,7 +3622,7 @@ static int mmu_migrate_pgd_sub_page(phys_addr_t old_pgd_phys, phys_addr_t new_pg
 	 * and the failure can be ignored.
 	 */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
-	if (kbdev->pm.backend.gpu_ready && mmut->kctx->as_nr >= 0) {
+	if (mmu_register_updateable(kbdev) && mmut->kctx->as_nr >= 0) {
 		int as_nr = mmut->kctx->as_nr;
 		struct kbase_as *as = &kbdev->as[as_nr];
 		int local_ret = kbase_mmu_hw_do_unlock_no_addr(kbdev, as, &op_param);
@@ -3647,12 +3662,21 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 	if (!kbase_is_page_migration_enabled())
 		return -EINVAL;
 
-	if (WARN_ONCE(PAGE_STATUS_GET(page_md->status) != PT_MAPPED,
-		      "Page metadata status %d does match expected value %d", page_md->status,
-		      PT_MAPPED))
-		return -EINVAL;
+	spin_lock(&page_md->migrate_lock);
+
+	check_state = PAGE_STATUS_GET(page_md->status);
+
+	if (WARN_ONCE(check_state != PT_MAPPED,
+		      "Page metadata status %d doesn't match expected value %d", check_state,
+		      PT_MAPPED)) {
+		ret = -EINVAL;
+		goto early_exit;
+	}
 
 	mmut = page_md->data.pt_mapped.mmut;
+
+	spin_unlock(&page_md->migrate_lock);
+
 	/* Due to the hard binding of mmu_command_instr with kctx_id via kbase_mmu_hw_op_param,
 	 * here we skip the no kctx case, which is only used with MCU's mmut.
 	 */
@@ -3669,33 +3693,39 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 
 	lockdep_assert_held(&mmut->kctx->reg_lock);
 
-	mutex_lock(&mmut->mmu_lock);
-
 	/* The state was evaluated before entering this function, but it could
 	 * have changed before the mmu_lock was taken. However, the state
 	 * transitions which are possible at this point are only two, and in both
 	 * cases it is a stable state progressing to a "free in progress" state.
 	 *
-	 * After taking the mmu_lock the state can no longer change: read it again
-	 * and make sure that it hasn't changed before continuing.
+	 * After taking the mmu_lock the state can no longer change.
 	 */
+	mutex_lock(&mmut->mmu_lock);
 	spin_lock(&page_md->migrate_lock);
+
 	check_state = PAGE_STATUS_GET(page_md->status);
-	spin_unlock(&page_md->migrate_lock);
+
 	if (check_state != PT_MAPPED) {
 		dev_dbg(kbdev->dev, "%s: state changed to %d (was %d), abort PGD page migration",
 			__func__, check_state, PT_MAPPED);
 		WARN_ON_ONCE(check_state != FREE_PT_ISOLATED_IN_PROGRESS);
 		ret = -EAGAIN;
-		goto unlock;
+		goto metadata_unlock;
 	}
+
+	if (kbase_mem_is_pmode_deferral_required(kbdev)) {
+		ret = -EAGAIN;
+		goto metadata_unlock;
+	}
+
+	spin_unlock(&page_md->migrate_lock);
 
 	for (sub_page_index = 0; sub_page_index < GPU_PAGES_PER_CPU_PAGE; sub_page_index++) {
 		if (!page_md->data.pt_mapped.pgd_vpfn_level[sub_page_index])
 			continue;
 
 		ret = mmu_migrate_pgd_sub_page(
-			old_pgd_phys_addr + (sub_page_index * GPU_PAGE_SIZE),
+			mmut, old_pgd_phys_addr + (sub_page_index * GPU_PAGE_SIZE),
 			new_pgd_phys_addr + (sub_page_index * GPU_PAGE_SIZE),
 			old_pgd_dma_addr + (sub_page_index * GPU_PAGE_SIZE),
 			new_pgd_dma_addr + (sub_page_index * GPU_PAGE_SIZE),
@@ -3705,8 +3735,6 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 	}
 
 	if (ret == 0) {
-		/* Undertaking metadata transfer, while we are holding the mmu_lock */
-		spin_lock(&page_md->migrate_lock);
 		/* Update the new page dma_addr with the transferred metadata from the old_page */
 		page_md->dma_addr = new_pgd_dma_addr;
 		page_md->status = PAGE_ISOLATE_SET(page_md->status, 0);
@@ -3718,8 +3746,6 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 		if (mmut->last_freed_pgd_page == as_page(old_pgd_phys))
 			mmut->last_freed_pgd_page = as_page(new_pgd_phys);
 #endif
-		spin_unlock(&page_md->migrate_lock);
-
 		set_page_private(as_page(new_pgd_phys), (unsigned long)page_md);
 		/* Old page metatdata pointer cleared as it now owned by the new page */
 		set_page_private(as_page(old_pgd_phys), 0);
@@ -3739,7 +3765,7 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 		}
 
 		spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
-		if (kbdev->pm.backend.gpu_ready && mmut->kctx->as_nr >= 0) {
+		if (mmu_register_updateable(kbdev) && mmut->kctx->as_nr >= 0) {
 			struct kbase_mmu_hw_op_param op_param = {
 				.vpfn = 0,
 				.nr = ~0U,
@@ -3765,8 +3791,16 @@ int kbase_mmu_migrate_pgd_page(struct tagged_addr old_pgd_phys, struct tagged_ad
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
 	}
 
-unlock:
 	mutex_unlock(&mmut->mmu_lock);
+	return ret;
+
+metadata_unlock:
+	spin_unlock(&page_md->migrate_lock);
+	mutex_unlock(&mmut->mmu_lock);
+	return ret;
+
+early_exit:
+	spin_unlock(&page_md->migrate_lock);
 	return ret;
 }
 
@@ -3792,12 +3826,21 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	if (!kbase_is_page_migration_enabled())
 		return -EINVAL;
 
-	if (WARN_ONCE(PAGE_STATUS_GET(page_md->status) != ALLOCATED_MAPPED,
-		      "Page metadata status %d does match expected value %d", page_md->status,
-		      ALLOCATED_MAPPED))
-		return -EINVAL;
+	spin_lock(&page_md->migrate_lock);
+
+	check_state = PAGE_STATUS_GET(page_md->status);
+
+	if (WARN_ONCE(check_state != ALLOCATED_MAPPED,
+		      "Page metadata status %d doesn't match expected value %d", check_state,
+		      ALLOCATED_MAPPED)) {
+		ret = -EINVAL;
+		goto early_exit;
+	}
 
 	mmut = page_md->data.mapped.mmut;
+	vpfn = page_md->data.mapped.vpfn;
+
+	spin_unlock(&page_md->migrate_lock);
 
 	/* Due to the hard binding of mmu_command_instr with kctx_id via kbase_mmu_hw_op_param,
 	 * here we skip the no kctx case, which is only used with MCU's mmut.
@@ -3807,7 +3850,6 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 
 	lockdep_assert_held(&mmut->kctx->reg_lock);
 
-	vpfn = page_md->data.mapped.vpfn;
 	kbdev = mmut->kctx->kbdev;
 	index = vpfn & 0x1FFU;
 
@@ -3863,20 +3905,17 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	op_param.op = KBASE_MMU_OP_FLUSH_PT;
 	op_param.flush_skip_levels = pgd_level_to_skip_flush(1ULL << MIDGARD_MMU_BOTTOMLEVEL);
 
-	mutex_lock(&mmut->mmu_lock);
-
 	/* The state was evaluated before entering this function, but it could
 	 * have changed before the mmu_lock was taken. However, the state
 	 * transitions which are possible at this point are only two, and in both
 	 * cases it is a stable state progressing to a "free in progress" state.
 	 *
-	 * After taking the mmu_lock the state can no longer change: read it again
-	 * and make sure that it hasn't changed before continuing.
+	 * After taking the mmu_lock the state can no longer change.
 	 */
+	mutex_lock(&mmut->mmu_lock);
 	spin_lock(&page_md->migrate_lock);
 	check_state = PAGE_STATUS_GET(page_md->status);
 	vmap_count = page_md->vmap_count;
-	spin_unlock(&page_md->migrate_lock);
 
 	if (check_state != ALLOCATED_MAPPED) {
 		dev_dbg(kbdev->dev, "%s: state changed to %d (was %d), abort page migration",
@@ -3902,6 +3941,7 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 		goto pgd_page_map_error;
 	}
 
+	spin_unlock(&page_md->migrate_lock);
 	mutex_lock(&kbdev->mmu_hw_mutex);
 
 	/* Lock MMU region and flush GPU cache by using GPU control,
@@ -3909,16 +3949,23 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	 */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
 	if (unlikely(!kbase_pm_l2_allow_mmu_page_migration(kbdev))) {
-		/* Defer the migration as L2 is in a transitional phase */
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
-		mutex_unlock(&kbdev->mmu_hw_mutex);
-		dev_dbg(kbdev->dev, "%s: L2 in transtion, abort PGD page migration", __func__);
+		dev_dbg(kbdev->dev, "%s: L2 in transition, abort PGD page migration", __func__);
 		ret = -EAGAIN;
-		goto l2_state_defer_out;
+		goto defer_out;
 	}
+
+	if (unlikely(kbase_mem_is_pmode_deferral_required(kbdev))) {
+		/* Defer the migration if we're in pmode */
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
+		dev_dbg(kbdev->dev, "%s: In protectd mode, abort PGD page migration", __func__);
+		ret = -EAGAIN;
+		goto defer_out;
+	}
+
 	/* Prevent transitional phases in L2 by starting the transaction */
 	mmu_page_migration_transaction_begin(kbdev);
-	if (kbdev->pm.backend.gpu_ready && mmut->kctx->as_nr >= 0) {
+	if (mmu_register_updateable(kbdev) && mmut->kctx->as_nr >= 0) {
 		int as_nr = mmut->kctx->as_nr;
 		struct kbase_as *as = &kbdev->as[as_nr];
 
@@ -3938,7 +3985,6 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
 
 	if (ret < 0) {
-		mutex_unlock(&kbdev->mmu_hw_mutex);
 		dev_err(kbdev->dev, "%s: failed to lock MMU region or flush GPU cache", __func__);
 		goto undo_mappings;
 	}
@@ -4011,7 +4057,7 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	 * and the failure can be ignored.
 	 */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
-	if (kbdev->pm.backend.gpu_ready && mmut->kctx->as_nr >= 0) {
+	if (mmu_register_updateable(kbdev) && mmut->kctx->as_nr >= 0) {
 		int as_nr = mmut->kctx->as_nr;
 		struct kbase_as *as = &kbdev->as[as_nr];
 		int local_ret = kbase_mmu_hw_do_unlock_no_addr(kbdev, as, &op_param);
@@ -4022,11 +4068,13 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	/* Release the transition prevention in L2 by ending the transaction */
 	mmu_page_migration_transaction_end(kbdev);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
-	/* Releasing locks before checking the migration transaction error state */
+	/* Releasing locks before checking the migration transaction error state.
+	 * Reacquire the migrate_lock immediately since we're releasing the mutex.
+	 */
 	mutex_unlock(&kbdev->mmu_hw_mutex);
+	spin_lock(&page_md->migrate_lock);
 
 	/* Undertaking metadata transfer, while we are holding the mmu_lock */
-	spin_lock(&page_md->migrate_lock);
 	page_status = PAGE_STATUS_GET(page_md->status);
 	if (page_status == ALLOCATED_MAPPED) {
 		/* Replace page in array of pages of the physical allocation. */
@@ -4044,18 +4092,16 @@ int kbase_mmu_migrate_data_page(struct tagged_addr old_phys, struct tagged_addr 
 	/* Update the new page dma_addr with the transferred metadata from the old_page */
 	page_md->dma_addr = new_dma_addr;
 	page_md->status = PAGE_ISOLATE_SET(page_md->status, 0);
-	spin_unlock(&page_md->migrate_lock);
 	set_page_private(as_page(new_phys), (unsigned long)page_md);
 	/* Old page metatdata pointer cleared as it now owned by the new page */
 	set_page_private(as_page(old_phys), 0);
 
-l2_state_defer_out:
 	kunmap_pgd(phys_to_page(pgd), pgd_page);
 pgd_page_map_error:
 get_pgd_at_level_error:
 page_state_change_out:
+	spin_unlock(&page_md->migrate_lock);
 	mutex_unlock(&mmut->mmu_lock);
-
 	kbase_kunmap(as_page(new_phys), new_page);
 new_page_map_error:
 	kbase_kunmap(as_page(old_phys), old_page);
@@ -4063,12 +4109,16 @@ old_page_map_error:
 	return ret;
 
 undo_mappings:
-	/* Unlock the MMU table and undo mappings. */
+defer_out:
+	mutex_unlock(&kbdev->mmu_hw_mutex);
 	mutex_unlock(&mmut->mmu_lock);
 	kunmap_pgd(phys_to_page(pgd), pgd_page);
 	kbase_kunmap(as_page(new_phys), new_page);
 	kbase_kunmap(as_page(old_phys), old_page);
+	return ret;
 
+early_exit:
+	spin_unlock(&page_md->migrate_lock);
 	return ret;
 }
 
@@ -4130,6 +4180,8 @@ static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct 
 	if (!kbase_is_page_migration_enabled())
 		return;
 
+	lock_page(page);
+
 	/* Composite large-page is excluded from migration, trigger a warn if a development
 	 * wrongly leads to it.
 	 */
@@ -4145,7 +4197,9 @@ static void kbase_mmu_mark_non_movable(struct kbase_device *const kbdev, struct 
 	if (IS_PAGE_MOVABLE(page_md->status))
 		page_md->status = PAGE_MOVABLE_CLEAR(page_md->status);
 
+	__ClearPageMovable(page);
 	spin_unlock(&page_md->migrate_lock);
+	unlock_page(page);
 }
 
 int kbase_mmu_init(struct kbase_device *const kbdev, struct kbase_mmu_table *const mmut,
@@ -4222,7 +4276,7 @@ void kbase_mmu_flush_pa_range(struct kbase_device *kbdev, struct kbase_context *
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, irq_flags);
 	if (mmu_flush_cache_on_gpu_ctrl(kbdev) && (flush_op != KBASE_MMU_OP_NONE) &&
-	    kbdev->pm.backend.gpu_ready && (!kctx || kctx->as_nr >= 0))
+	    mmu_register_updateable(kbdev) && (!kctx || kctx->as_nr >= 0))
 		mmu_flush_pa_range(kbdev, phys, size, KBASE_MMU_OP_FLUSH_PT);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, irq_flags);
 }
@@ -4375,6 +4429,7 @@ void kbase_mmu_bus_fault_worker(struct work_struct *data)
 	struct kbase_context *kctx;
 	struct kbase_device *kbdev;
 	struct kbase_fault *fault;
+	unsigned long hwaccess_flags;
 
 	faulting_as = container_of(data, struct kbase_as, work_busfault);
 	fault = &faulting_as->bf_data;
@@ -4421,6 +4476,13 @@ void kbase_mmu_bus_fault_worker(struct work_struct *data)
 	release_ctx(kbdev, kctx);
 
 	atomic_dec(&kbdev->faults_pending);
+	/*
+	 * Call kbase_pm_update_state here so that L2 power down
+	 * could be performed after faults_pending reset to 0.
+	 */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, hwaccess_flags);
+	kbase_pm_update_state(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, hwaccess_flags);
 }
 
 void kbase_flush_mmu_wqs(struct kbase_device *kbdev)

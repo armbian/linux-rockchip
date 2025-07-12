@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -79,6 +79,8 @@ static ssize_t int_id_overrides_write(struct file *file, const char __user *ubuf
 	struct seq_file *sfile = file->private_data;
 	struct kbase_device *kbdev = sfile->private;
 	char raw_str[128];
+	char *token;
+	char *raw_ptr;
 	unsigned int id;
 	unsigned int r_val;
 	unsigned int w_val;
@@ -91,7 +93,15 @@ static ssize_t int_id_overrides_write(struct file *file, const char __user *ubuf
 		return -EINVAL;
 	raw_str[count] = '\0';
 
-	if (sscanf(raw_str, "%u %x %x", &id, &r_val, &w_val) != 3)
+	raw_ptr = raw_str;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 10, &id) < 0)
+		return -EINVAL;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 16, &r_val) < 0)
+		return -EINVAL;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 16, &w_val) < 0)
 		return -EINVAL;
 
 	if (kbase_pbha_record_settings(kbdev, true, id, r_val, w_val))

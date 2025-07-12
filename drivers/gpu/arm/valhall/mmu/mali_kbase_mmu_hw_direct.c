@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -179,8 +179,8 @@ static int wait_ready(struct kbase_device *kbdev, unsigned int as_nr)
 		"AS_ACTIVE bit stuck for as %u. Might be caused by unstable GPU clk/pwr or faulty system",
 		as_nr);
 	kbdev->mmu_unresponsive = true;
-	if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
-		kbase_reset_gpu_locked(kbdev);
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
+		kbase_reset_gpu(kbdev);
 
 	return -ETIMEDOUT;
 }
@@ -219,8 +219,8 @@ static int wait_l2_power_trans_complete(struct kbase_device *kbdev)
 	if (err) {
 		dev_warn(kbdev->dev, "L2_PWRTRANS %016llx set for too long",
 			 kbase_reg_read64(kbdev, GPU_CONTROL_ENUM(L2_PWRTRANS)));
-		if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_NONE))
-			kbase_reset_gpu_locked(kbdev);
+		if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE))
+			kbase_reset_gpu(kbdev);
 	}
 
 	return err;
@@ -296,9 +296,8 @@ static int apply_hw_issue_GPU2019_3901_wa(struct kbase_device *kbdev, u32 *mmu_c
 
 		ret = wait_cores_power_trans_complete(kbdev);
 		if (unlikely(ret)) {
-			if (kbase_prepare_to_reset_gpu_locked(kbdev,
-							      RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
-				kbase_reset_gpu_locked(kbdev);
+			if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
+				kbase_reset_gpu(kbdev);
 			return ret;
 		}
 
@@ -609,6 +608,8 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 
 	CSTD_UNUSED(type);
 
+	WARN_ON_ONCE(!mmu_register_updateable(kbdev));
+
 	spin_lock_irqsave(&kbdev->mmu_mask_change, flags);
 
 	/*
@@ -640,6 +641,8 @@ void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 	u32 irq_mask;
 
 	CSTD_UNUSED(type);
+
+	WARN_ON_ONCE(!mmu_register_updateable(kbdev));
 
 	/* Enable the page fault IRQ
 	 * (and bus fault IRQ as well in case one occurred)
