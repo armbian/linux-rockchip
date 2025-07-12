@@ -6966,6 +6966,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 			kfifo_free(&stream->dcg_kfifo);
 		}
+		stream->crop_enable = false;
 		stream->crop_mask = 0;
 		stream->frame_loss = 0;
 		stream->is_fb_first_frame = true;
