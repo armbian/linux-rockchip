@@ -2485,6 +2485,8 @@ static long hdmirx_ioctl_default(struct file *file, void *fh,
 {
 	struct hdmirx_stream *stream = video_drvdata(file);
 	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	struct v4l2_dv_timings timings = hdmirx_dev->timings;
+	struct v4l2_bt_timings *bt = &timings.bt;
 	long ret = 0;
 	bool hpd;
 	enum mute_type type;
@@ -2496,6 +2498,14 @@ static long hdmirx_ioctl_default(struct file *file, void *fh,
 	switch (cmd) {
 	case RK_HDMIRX_CMD_GET_FPS:
 		*(int *)arg = hdmirx_dev->get_timing ? hdmirx_dev->fps : 0;
+		break;
+	case RK_HDMIRX_CMD_GET_SCAN_MODE:
+		if (!hdmirx_dev->get_timing)
+			*(int *)arg = HDMIRX_PROGRESSIVE;
+		else if (bt->interlaced == V4L2_DV_INTERLACED)
+			*(int *)arg = HDMIRX_INTERLACED;
+		else
+			*(int *)arg = HDMIRX_PROGRESSIVE;
 		break;
 	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
 		*(int *)arg = hdmirx_dev->get_timing;
