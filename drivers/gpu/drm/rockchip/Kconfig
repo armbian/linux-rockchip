@@ -82,6 +82,15 @@ config ROCKCHIP_CDN_DP
 	  RK3399 based SoC, you should select this
 	  option.
 
+config ROCKCHIP_DIMMING_PANEL
+	bool "Rockchip dimming panel support"
+	depends on SPI
+	default n
+	help
+	  Choose this option to enable support for generic dimming panel
+	  which supports to adjust the backlight brightness of different
+	  zones.
+
 config ROCKCHIP_DRM_TVE
 	bool "Rockchip TVE support"
 	depends on DRM_ROCKCHIP

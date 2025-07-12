@@ -33,6 +33,7 @@ obj-$(CONFIG_ROCKCHIP_PANEL_NOTIFIER) += rockchip_panel_notifier.o
 obj-$(CONFIG_ROCKCHIP_DW_HDCP2) += dw_hdcp2.o
 obj-$(CONFIG_DRM_ROCKCHIP) += rockchipdrm.o
 obj-$(CONFIG_DRM_ROCKCHIP_RK618) += rk618/
+obj-$(CONFIG_ROCKCHIP_DIMMING_PANEL) += rockchip_dimming_panel.o
 
 rockchip_aux_client-y := rockchip_dp_mst_aux_client.o rockchip_dp_mst_aux_client_helper.o
 obj-$(CONFIG_ROCKCHIP_DP_MST_AUX_CLIENT) += rockchip_aux_client.o
