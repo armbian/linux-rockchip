@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -311,6 +311,8 @@ enum kbase_user_buf_state {
  *                 kbase_phy_alloc_mapping_put() pair should be used
  *                 around access to the kernel-side CPU mapping so that
  *                 mapping doesn't disappear whilst it is being accessed.
+ * @delegate_hook: List head to hook onto kbdev deferral control for
+ *                 deferred releases of certain imported buffer types.
  * @properties: Bitmask of properties, e.g. KBASE_MEM_PHY_ALLOC_LARGE.
  * @group_id: A memory group ID to be passed to a platform-specific
  *            memory group manager, if present.
@@ -329,6 +331,7 @@ struct kbase_mem_phy_alloc {
 	struct kbase_va_region *reg;
 	enum kbase_memory_type type;
 	struct kbase_vmap_struct *permanent_map;
+	struct list_head delegate_hook;
 	u8 properties;
 	u8 group_id;
 
@@ -361,6 +364,7 @@ struct kbase_mem_phy_alloc {
 			u32 current_mapping_usage_count;
 			struct mm_struct *mm;
 			dma_addr_t *dma_addrs;
+			struct kbase_device *kbdev;
 			enum kbase_user_buf_state state;
 		} user_buf;
 	} imported;
@@ -909,8 +913,12 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(struct kbase_contex
 	alloc->type = type;
 	alloc->group_id = group_id;
 
-	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF)
+	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF) {
 		alloc->imported.user_buf.dma_addrs = (void *)(alloc->pages + nr_pages);
+		alloc->imported.user_buf.kbdev = kctx->kbdev;
+	}
+
+	INIT_LIST_HEAD(&alloc->delegate_hook);
 
 	return alloc;
 }
@@ -2530,6 +2538,32 @@ int kbase_mem_copy_to_pinned_user_pages(struct page **dest_pages, void *src_page
 					size_t offset);
 
 /**
+ * kbase_mem_pool_free_pages_from_deferred_list() - Free pages from deferred_pages_list
+ *
+ * @pool: Pointer to the memory pool.
+ * @from_defer_ctrl: Indicating the caller is defer_controller.
+ *
+ * This function frees pages from the deferred list. The destination of the pages
+ * depends on the pool capacity: firstly it tries to promote pages to the internal
+ * free_pages list, and then it releases the excess pages to kernel.
+ *
+ * The deferred pages shall be freed only if the derferral window is passed.
+ */
+void kbase_mem_pool_free_pages_from_deferred_list(struct kbase_mem_pool *pool,
+						  bool from_defer_ctrl);
+
+/**
+ * kbase_mem_pool_deferred_list_size() - get size of deferred page list
+ *
+ * @pool: Pointer to the memory pool.
+ *
+ * This function return number of pages stored in deferred pages list
+ *
+ * Return: size of deferred page list
+ */
+size_t kbase_mem_pool_deferred_list_size(struct kbase_mem_pool *pool);
+
+/**
  * kbase_mem_allow_alloc - Check if allocation of GPU memory is allowed
  * @kctx: Pointer to kbase context
  *
@@ -2593,5 +2627,27 @@ static inline base_mem_alloc_flags kbase_mem_group_id_set(int id)
 }
 
 bool kbase_is_large_pages_enabled(void);
+
+/**
+ * kbase_mem_is_pmode_deferral_required() - check if a GPU protm session is inflight
+ *                                          and actions have to be deferred
+ *
+ * @kbdev: Pointer to the device.
+ *
+ * If a protected mode session is currently in progress, it could be the case that
+ * some actions concerning memory pages need to be deferred, like for instance
+ * migrating pages or adding them to a memory pool.
+ * The function returns true if protected mode is active and page release deferral
+ * is required, otherwise return false.
+ *
+ * Return: true on deferral required, otherwise false.
+ */
+static inline bool kbase_mem_is_pmode_deferral_required(struct kbase_device *kbdev)
+{
+	struct kbase_csf_protm_mem_pages_defer_ctrl *ctrl = &kbdev->csf.scheduler.pages_defer_ctrl;
+
+	return (ctrl->do_defer &&
+		(atomic_read(&ctrl->protm_event_id) & CSF_SCHED_PROTM_EVENT_FLAGS_MASK));
+}
 
 #endif /* _KBASE_MEM_H_ */

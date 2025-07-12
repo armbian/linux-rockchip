@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -133,10 +133,14 @@
  * - Add reserved field to QUEUE_GROUP_CREATE ioctl for future use.
  * - Previous version retained as KBASE_IOCTL_CS_QUEUE_GROUP_CREATE_1_35
  *   for backwards compatibility.
+ * 1.37:
+ * - Enable TIMESTAMP broadcast by default.
+ * 1.38:
+ * - Add fragment_endpoint_task_limit to CSG configuration.
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 36
+#define BASE_UK_VERSION_MINOR 38
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between
@@ -747,6 +751,8 @@ union kbase_ioctl_cs_tiler_heap_size {
  *                     has been reached which are prioritized for compute
  *                     iterator tasks.
  * @in.padding:       Currently unused, must be zero
+ * @in.fragment_endpoint_task_limit: The limit on outstanding tasks allowed
+ *                                   in each fragment endpoint.
  * @out:              Output parameters
  * @out.group_handle: Handle of a newly created queue group.
  * @out.padding:      Currently unused, must be zero
@@ -769,7 +775,8 @@ union kbase_ioctl_cs_queue_group_create {
 		__u64 neural_mask;
 		__u8 comp_pri_threshold;
 		__u8 comp_pri_ratio;
-		__u8 padding[62];
+		__u8 padding[58];
+		__u32 fragment_endpoint_task_limit;
 		__u64 reserved;
 	} in;
 	struct {

@@ -161,6 +161,7 @@ int kbase_io_history_init(struct kbase_io_history *h, u16 n)
 
 	return 0;
 }
+KBASE_EXPORT_TEST_API(kbase_io_history_init);
 
 void kbase_io_history_term(struct kbase_io_history *h)
 {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -56,8 +56,6 @@ static struct kbase_timeout_info timeout_info[KBASE_TIMEOUT_SELECTOR_COUNT] = {
 					       DEFAULT_PROGRESS_TIMEOUT_CYCLES },
 	[MMU_AS_INACTIVE_WAIT_TIMEOUT] = { "MMU_AS_INACTIVE_WAIT_TIMEOUT",
 					   MMU_AS_INACTIVE_WAIT_TIMEOUT_CYCLES },
-	[KCPU_FENCE_SIGNAL_TIMEOUT] = { "KCPU_FENCE_SIGNAL_TIMEOUT",
-					KCPU_FENCE_SIGNAL_TIMEOUT_CYCLES },
 	[KBASE_PRFCNT_ACTIVE_TIMEOUT] = { "KBASE_PRFCNT_ACTIVE_TIMEOUT",
 					  KBASE_PRFCNT_ACTIVE_TIMEOUT_CYCLES },
 	[KBASE_CLEAN_CACHE_TIMEOUT] = { "KBASE_CLEAN_CACHE_TIMEOUT",
@@ -279,15 +277,6 @@ static int kbase_timeout_scaling_init(struct kbase_device *kbdev)
 		 */
 		if (selector == CSF_SCHED_PROTM_PROGRESS_TIMEOUT)
 			nr_cycles = kbase_csf_timeout_get(kbdev);
-
-		if (selector == KCPU_FENCE_SIGNAL_TIMEOUT) {
-			if ((kbdev->gpu_props.impl_tech ==
-			     THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_FPGA) ||
-			    (kbdev->gpu_props.impl_tech ==
-			     THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE)) {
-				nr_cycles = KCPU_FENCE_SIGNAL_TIMEOUT_CYCLES_FPGA;
-			}
-		}
 
 		/* Since we are in control of the iteration bounds for the selector,
 		 * we don't have to worry about bounds checking when setting the timeout.

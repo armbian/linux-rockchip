@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -419,7 +419,6 @@ static int fw_core_dump_write_elf_header(struct seq_file *m)
 	u32 elf_prstatus_offset;
 	u32 elf_phdr_note_offset;
 	u32 elf_memory_sections_data_offset;
-	u32 total_pages = 0;
 	u32 padding_size, *padding;
 	struct fw_core_dump_mcu regs = { 0 };
 
@@ -463,7 +462,6 @@ static int fw_core_dump_write_elf_header(struct seq_file *m)
 		seq_write(m, &phdr, sizeof(struct elf32_phdr));
 
 		elf_memory_sections_data_offset += interface->num_pages * FW_PAGE_SIZE;
-		total_pages += interface->num_pages;
 	}
 
 	/* Prepare PHDR of PT_NOTE type. */

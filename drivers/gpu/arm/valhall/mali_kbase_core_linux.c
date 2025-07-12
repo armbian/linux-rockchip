@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -822,7 +822,7 @@ static int kbase_api_mem_alloc_ex(struct kbase_context *kctx,
 {
 	struct kbase_va_region *reg;
 	base_mem_alloc_flags flags = alloc_ex->in.flags;
-	u64 gpu_va;
+	u64 gpu_va = 0;
 
 	/* Calls to this function are inherently asynchronous, with respect to
 	 * MMU operations.
@@ -971,13 +971,6 @@ static int kbase_api_get_cpu_gpu_timeinfo(struct kbase_context *kctx,
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)
-static int kbase_api_hwcnt_set(struct kbase_context *kctx, struct kbase_ioctl_hwcnt_values *values)
-{
-	return gpu_model_set_dummy_prfcnt_user_sample(u64_to_user_ptr(values->data), values->size);
-}
-#endif /* CONFIG_MALI_VALHALL_NO_MALI */
 
 static int kbase_api_disjoint_query(struct kbase_context *kctx,
 				    struct kbase_ioctl_disjoint_query *query)
@@ -1222,7 +1215,7 @@ static int kbase_api_sticky_resource_map(struct kbase_context *kctx,
 	int ret;
 	u64 i;
 	u64 gpu_addr[BASE_EXT_RES_COUNT_MAX];
-	size_t copy_size;
+	size_t copy_size = 0;
 
 	if (!map->count || map->count > BASE_EXT_RES_COUNT_MAX)
 		return -EOVERFLOW;
@@ -1265,7 +1258,7 @@ static int kbase_api_sticky_resource_unmap(struct kbase_context *kctx,
 	int ret;
 	u64 i;
 	u64 gpu_addr[BASE_EXT_RES_COUNT_MAX];
-	size_t copy_size;
+	size_t copy_size = 0;
 
 	if (!unmap->count || unmap->count > BASE_EXT_RES_COUNT_MAX)
 		return -EOVERFLOW;
@@ -1795,12 +1788,6 @@ static long kbase_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					 kbase_api_get_cpu_gpu_timeinfo,
 					 union kbase_ioctl_get_cpu_gpu_timeinfo, kctx);
 		break;
-#if IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)
-	case KBASE_IOCTL_HWCNT_SET:
-		KBASE_HANDLE_IOCTL_IN(KBASE_IOCTL_HWCNT_SET, kbase_api_hwcnt_set,
-				      struct kbase_ioctl_hwcnt_values, kctx);
-		break;
-#endif /* CONFIG_MALI_VALHALL_NO_MALI */
 	case KBASE_IOCTL_CS_EVENT_SIGNAL:
 		KBASE_HANDLE_IOCTL(KBASE_IOCTL_CS_EVENT_SIGNAL, kbasep_cs_event_signal, kctx);
 		break;
@@ -2159,6 +2146,12 @@ static ssize_t power_policy_store(struct device *dev, struct device_attribute *a
 		return -EINVAL;
 	}
 
+	/* Ensure CSF scheduler to be initialized and ready for changing power policy
+	 * in case user space hasn't yet created a base context.
+	 */
+	if (unlikely(kbase_device_firmware_init_once(kbdev)))
+		return -ENODEV;
+
 	kbase_pm_set_policy(kbdev, new_policy);
 
 	return (ssize_t)count;
@@ -2189,8 +2182,9 @@ static ssize_t core_mask_show(struct device *dev, struct device_attribute *attr,
 	struct kbase_device *kbdev;
 	unsigned long flags;
 	u64 debug_mask;
-	u64 ca_mask;
+	u64 desired_mask;
 	ssize_t ret = 0;
+	struct kbase_pm_core_masks all_core_masks;
 
 	CSTD_UNUSED(attr);
 
@@ -2201,18 +2195,14 @@ static ssize_t core_mask_show(struct device *dev, struct device_attribute *attr,
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT)) {
-		ca_mask = kbase_pm_ca_get_gov_core_mask(kbdev);
-		debug_mask = kbase_pm_ca_get_sysfs_gov_core_mask(kbdev);
-	} else {
-		ca_mask = kbase_pm_ca_get_core_mask(kbdev);
-		debug_mask = kbase_pm_ca_get_debug_core_mask(kbdev);
-	}
+	all_core_masks = kbase_pm_ca_get_core_masks(kbdev);
+	debug_mask = all_core_masks.pm_core_mask_debug;
+	desired_mask = all_core_masks.pm_core_mask_desired;
 
 	ret += scnprintf(buf + ret, (size_t)(PAGE_SIZE - ret), "Current debug core mask : 0x%llX\n",
 			 debug_mask);
 	ret += scnprintf(buf + ret, (size_t)(PAGE_SIZE - ret),
-			 "Current desired core mask : 0x%llX\n", ca_mask);
+			 "Current desired core mask : 0x%llX\n", desired_mask);
 	if (!kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT))
 		ret += scnprintf(buf + ret, (size_t)(PAGE_SIZE - ret),
 				 "Current in use core mask : 0x%llX\n",
@@ -2244,44 +2234,43 @@ static int core_mask_set(struct kbase_device *kbdev, struct kbase_core_mask *con
 {
 	u64 new_core_mask = new_mask->new_core_mask;
 	u64 shader_present;
-	u64 ca_mask;
+	u64 devfreq_mask;
 	u64 debug_mask;
 	unsigned long flags;
 	int ret = 0;
+	struct kbase_pm_core_masks all_core_masks;
 
 	kbase_csf_scheduler_lock(kbdev);
 	kbase_pm_lock(kbdev);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT)) {
-		ca_mask = kbdev->pm.backend.ca_gov_cores_enabled;
-		debug_mask = kbase_pm_ca_get_sysfs_gov_core_mask(kbdev);
-	} else {
-		ca_mask = kbdev->pm.backend.ca_cores_enabled;
-		debug_mask = kbase_pm_ca_get_debug_core_mask(kbdev);
-	}
+	all_core_masks = kbase_pm_ca_get_core_masks(kbdev);
+	debug_mask = all_core_masks.pm_core_mask_debug;
+	devfreq_mask = all_core_masks.pm_core_mask_devfreq;
 
 	shader_present = kbdev->gpu_props.shader_present;
 
-	if ((new_core_mask & shader_present) != new_core_mask) {
+	/* Sanity checks on the new core-mask */
+	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT) &&
+	    (new_core_mask == 0))
+		/* Skip sanity checks when the value is 0x0 on GOV-CORE_MASK.
+		 * 0x0 is a valid to ignore sys-core-mask and to use devfreq-core-mask instead.
+		 */
+		dev_dbg(kbdev->dev,
+			"Zero is set on core-mask. Devfreq core-mask will be applied instead.");
+	else if ((new_core_mask & shader_present) != new_core_mask) {
 		dev_err(kbdev->dev,
 			"Invalid requested core mask 0x%llX: Includes non-existent cores (present = 0x%llX)",
 			new_core_mask, shader_present);
 		ret = -EINVAL;
 		goto exit;
-	} else if (!(new_core_mask & shader_present & ca_mask)) {
-		if (!kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT) ||
-		    (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_GOV_CORE_MASK_SUPPORT) &&
-		     new_core_mask != 0)) {
-			dev_err(kbdev->dev,
-				"Invalid requested core mask 0x%llX: No intersection with currently available cores (present = 0x%llX, CA enabled = 0x%llX)",
-				new_core_mask, kbdev->gpu_props.shader_present, ca_mask);
-			ret = -EINVAL;
-			goto exit;
-		}
-	}
-
-	if (kbase_csf_dev_has_ne(kbdev)) {
+	} else if (!(new_core_mask & shader_present & devfreq_mask)) {
+		dev_err(kbdev->dev,
+			"Invalid requested core mask 0x%llX: No intersection with currently available cores (present = 0x%llX, CA enabled = 0x%llX)",
+			new_core_mask, kbdev->gpu_props.shader_present, devfreq_mask);
+		ret = -EINVAL;
+		goto exit;
+	} else if (kbase_csf_dev_has_ne(kbdev)) {
 		u64 neural_present = kbdev->gpu_props.neural_present;
 		u64 sc_with_ne = shader_present & neural_present;
 
@@ -2514,9 +2503,9 @@ static ssize_t gpuinfo_show(struct device *dev, struct device_attribute *attr, c
 		{ .id = GPU_ID_PRODUCT_LTIX, .name = "Mali-G620" },
 		{ .id = GPU_ID_PRODUCT_TKRX, .name = "Mali-G725" },
 		{ .id = GPU_ID_PRODUCT_LKRX, .name = "Mali-G625" },
-		{ .id = GPU_ID_PRODUCT_IDRX, .name = "Mali-TDRX-Immortalis" },
-		{ .id = GPU_ID_PRODUCT_TDRX, .name = "Mali-TDRX" },
-		{ .id = GPU_ID_PRODUCT_LDRX, .name = "Mali-LDRX" },
+		{ .id = GPU_ID_PRODUCT_IDRX, .name = "Mali-G1-Ultra" },
+		{ .id = GPU_ID_PRODUCT_TDRX, .name = "Mali-G1-Premium" },
+		{ .id = GPU_ID_PRODUCT_LDRX, .name = "Mali-G1-Pro" },
 	};
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
@@ -2814,10 +2803,11 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 {
 	struct kbase_device *kbdev;
 	struct kbasep_pm_tick_timer_state *stt;
-	int items;
 	u64 gpu_poweroff_time;
 	unsigned int poweroff_shader_ticks, poweroff_gpu_ticks;
 	unsigned long flags;
+	char *buf_tmp;
+	char *token;
 
 	CSTD_UNUSED(attr);
 
@@ -2825,15 +2815,22 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 	if (!kbdev)
 		return -ENODEV;
 
-	items = sscanf(buf, "%llu %u %u", &gpu_poweroff_time, &poweroff_shader_ticks,
-		       &poweroff_gpu_ticks);
-	if (items != 3) {
-		dev_err(kbdev->dev,
-			"Couldn't process pm_poweroff write operation.\n"
-			"Use format <gpu_poweroff_time_ns> <poweroff_shader_ticks> <poweroff_gpu_ticks>\n");
-		return -EINVAL;
-	}
+	buf_tmp = kstrdup(buf, GFP_KERNEL);
+	if (buf_tmp == NULL)
+		goto error;
 
+	token = strsep(&buf_tmp, " ");
+	if (token == NULL || kstrtoull(token, 10, &gpu_poweroff_time) < 0)
+		goto error;
+
+	token = strsep(&buf_tmp, " ");
+	if (token == NULL || kstrtou32(token, 10, &poweroff_shader_ticks) < 0)
+		goto error;
+
+	token = strsep(&buf_tmp, " ");
+	if (token == NULL || kstrtou32(token, 10, &poweroff_gpu_ticks) < 0)
+		goto error;
+	kfree(buf_tmp);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	stt = &kbdev->pm.backend.shader_tick_timer;
@@ -2847,6 +2844,12 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 		dev_warn(kbdev->dev, "Separate GPU poweroff delay no longer supported.\n");
 
 	return (ssize_t)count;
+error:
+	kfree(buf_tmp);
+	dev_err(kbdev->dev,
+		"Couldn't process pm_poweroff write operation.\n"
+		"Use format <gpu_poweroff_time_ns> <poweroff_shader_ticks> <poweroff_gpu_ticks>\n");
+	return -EINVAL;
 }
 
 /**
@@ -3079,7 +3082,7 @@ out_region:
 static void kbase_common_reg_unmap(struct kbase_device *const kbdev)
 {
 	if (kbdev->reg) {
-		mali_iounmap(kbdev->reg);
+		mali_iounmap((void __force __iomem *)kbdev->reg);
 		release_mem_region(kbdev->reg_start, kbdev->reg_size);
 		kbdev->reg = NULL;
 		kbdev->reg_start = 0;
@@ -3479,6 +3482,8 @@ static ssize_t kbase_device_debugfs_heap_reclaim_offslot_write(struct file *file
 	struct kbase_csf_heap_reclaim_offslot *const setting = sfile->private;
 	u32 read_len, timeout_ms, pages;
 	char kbuf[32];
+	char *kbuf_ptr;
+	char *token;
 
 	CSTD_UNUSED(ppos);
 
@@ -3487,7 +3492,12 @@ static ssize_t kbase_device_debugfs_heap_reclaim_offslot_write(struct file *file
 		return -EFAULT;
 	kbuf[read_len] = '\0';
 
-	if (sscanf(kbuf, "%u %u", &timeout_ms, &pages) != 2)
+	kbuf_ptr = kbuf;
+	token = strsep(&kbuf_ptr, " ");
+	if (token == NULL || kstrtou32(token, 10, &timeout_ms) < 0)
+		return -EINVAL;
+	token = strsep(&kbuf_ptr, " ");
+	if (token == NULL || kstrtou32(token, 10, &pages) < 0)
 		return -EINVAL;
 
 	setting->timeout_ms = timeout_ms;
@@ -3577,6 +3587,7 @@ static struct dentry *init_debugfs(struct kbase_device *kbdev)
 #endif
 	kbase_pbha_debugfs_init(kbdev);
 	kbase_gpu_timestamp_offset_debugfs_init(kbdev);
+	kbase_dev_mem_pool_debugfs_init(kbdev->mali_debugfs_directory, kbdev);
 
 	/* fops_* variables created by invocations of macro
 	 * MAKE_QUIRK_ACCESSORS() above.
