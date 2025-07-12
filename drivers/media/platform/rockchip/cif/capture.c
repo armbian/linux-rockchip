@@ -2308,6 +2308,8 @@ void rkcif_dphy_quick_stream(struct rkcif_device *dev, int on)
 	}
 }
 
+static u32 rkcif_get_sof(struct rkcif_device *cif_dev);
+
 static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 						int channel_id)
 {
@@ -2329,12 +2331,12 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 		dev->is_stop_skip = false;
 		if (((stream->frame_idx - 1) % stream->thunderboot_skip_interval) != 0) {
 			stream->thunderboot_skip_interval = 0;
-			stream->frame_idx = stream->sequence + 1;
+			stream->frame_idx = rkcif_get_sof(dev) + 1;
 			spin_unlock_irqrestore(&buf_stream->vbq_lock, flags);
 			return 0;
 		} else {
 			stream->thunderboot_skip_interval = 0;
-			stream->frame_idx = stream->sequence + 2;
+			stream->frame_idx = rkcif_get_sof(dev) + 1;
 		}
 	}
 	if (dev->is_thunderboot &&
