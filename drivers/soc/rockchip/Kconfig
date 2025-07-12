@@ -48,6 +48,12 @@ config ROCKCHIP_AMP_RPMSG_HEARTBEAT
 	help
 	  Say y here to enable Rockchip RPMsg Heartbeat.
 
+config ROCKCHIP_AMP_RPMSG_MCULOG
+	tristate "Rockchip RPMsg MCU Log"
+	depends on ARCH_ROCKCHIP && RPMSG
+	help
+	  Say y here to enable Rockchip RPMsg MCU Log.
+
 config ROCKCHIP_AMP_RPMSG_SHAREDMEM
 	tristate "Rockchip AMP RPMsg Shared Memory"
 	depends on ARCH_ROCKCHIP && RPMSG
