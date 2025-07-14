@@ -819,37 +819,66 @@ static int analogix_dp_init_link_rate_table(struct analogix_dp_device *dp)
 static int analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
 					    u8 *bandwidth)
 {
+	u32 max_link_rate;
 	u8 data;
 	int ret;
 
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_DPCD_REV, &data);
-	if (ret == 1 && data >= DP_EDP_14) {
-		u32 max_link_rate;
+	/*
+	 * For DP rev.1.1, Maximum link rate of Main Link lanes
+	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
+	 * For DP rev.1.2, Maximum link rate of Main Link lanes
+	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
+	 */
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
+	if (ret < 0)
+		return ret;
 
-		/* As the Table 4-23 in eDP 1.4 spec, the link rate table is required */
-		if (!dp->nr_link_rate_table) {
-			dev_info(dp->dev, "eDP version: 0x%02x supports link rate table\n", data);
+	*bandwidth = data;
 
-			ret = analogix_dp_init_link_rate_table(dp);
-			if (ret) {
-				dev_err(dp->dev, "failed to read link rate table: %d\n", ret);
-				return ret;
+	/*
+	 * As the Table 4-24 in eDP 1.4 spec, the Sink device can only support
+	 * Main-Link rate selection via SUPPORTED_LINK_RATES when the value of
+	 * DPCD MAX_LINK_RATE is 00h. If MAX_LINK_RATE and SUPPORTED_LINK_RATES
+	 * are both non-zero, the Sink device can support both methods.
+	 *
+	 * In practice, if MAX_LINK_RATE is not 00h and SUPPORTED_LINK_RATES
+	 * contains non-zero values, sometimes the sink device can only support
+	 * to set link rate via LINK_BW_SET. In such case, there will be errors
+	 * if set the link rate read from SUPPORTED_LINK_RATES to LINK_RATE_SET.
+	 *
+	 * The panel vendor may explain this is to ensure the same Sink firmware
+	 * remains compatible across different versions of the eDP spec. Or the
+	 * Main-Link rate selection method has not been fully verified.
+	 *
+	 * In order to avoid these unexpected cases, MAX_LINK_RATE/LINK_BW_SET
+	 * method will be selected first if MAX_LINK_RATE is non-zero for eDP
+	 * panels that support 1.4 or higher.
+	 */
+	if (*bandwidth == 0) {
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_DPCD_REV, &data);
+		if (ret == 1 && data >= DP_EDP_14) {
+			/*
+			 * As the Table 4-23 in eDP 1.4 spec, the link rate table is required
+			 * for eDP 1.4 Sink devices.
+			 */
+			if (!dp->nr_link_rate_table) {
+				dev_info(dp->dev, "eDP version: 0x%02x supports link rate table\n",
+					 data);
+
+				ret = analogix_dp_init_link_rate_table(dp);
+				if (ret) {
+					dev_err(dp->dev, "failed to read link rate table: %d\n",
+						ret);
+					return ret;
+				}
 			}
+			max_link_rate = dp->link_rate_table[dp->nr_link_rate_table - 1];
+			*bandwidth = drm_dp_link_rate_to_bw_code(max_link_rate);
+		} else {
+			dev_err(dp->dev, "eDP version: 0x%02x MAX_LINK_RATE should be non-zero\n",
+				data);
+			return -EINVAL;
 		}
-		max_link_rate = dp->link_rate_table[dp->nr_link_rate_table - 1];
-		*bandwidth = drm_dp_link_rate_to_bw_code(max_link_rate);
-	} else {
-		/*
-		 * For DP rev.1.1, Maximum link rate of Main Link lanes
-		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
-		 * For DP rev.1.2, Maximum link rate of Main Link lanes
-		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
-		 */
-		ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
-		if (ret < 0)
-			return ret;
-
-		*bandwidth = data;
 	}
 
 	return 0;
