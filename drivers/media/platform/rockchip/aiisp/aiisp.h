@@ -147,6 +147,7 @@ struct rkaiisp_device {
 	enum rkaiisp_exemode exemode;
 	enum rkaiisp_model_mode model_mode;
 	enum rkaiisp_hwstate hwstate;
+	enum rkaiisp_mem_mode mem_mode;
 	u32 para_size;
 	u32 max_runcnt;
 	u32 model_runcnt;

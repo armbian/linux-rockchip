@@ -655,6 +655,9 @@ static int rkaiisp_init_pool(struct rkaiisp_device *aidev, struct rkaiisp_ispbuf
 	if (aidev->exealgo == AIYNR) {
 		stride = ((ispbuf->iir_width + 3) / 4 * 8 * 11 + 7) >> 3;
 		size = stride * (ispbuf->iir_height + 3) / 4;
+	} else if (aidev->mem_mode == COMBO_MEMODE) {
+		stride = ((ispbuf->iir_width + 7) / 8 * 15 * 11 + 7) >> 3;
+		size = stride * (ispbuf->iir_height + 7) / 8;
 	} else {
 		stride = ((ispbuf->iir_width + 1) / 2 * 15 * 11 + 7) >> 3;
 		size = stride * (ispbuf->iir_height + 1) / 2;
@@ -1940,6 +1943,13 @@ static long rkaiisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKAIISP_CMD_GET_YNRBUF_INFO:
 		ret = rkaiisp_get_ynrbuf_info(aidev, arg);
+		break;
+	case RKAIISP_CMD_SET_MEMORY_MODE: {
+			enum rkaiisp_mem_mode *mem_mode = (enum rkaiisp_mem_mode *)arg;
+
+			aidev->mem_mode = *mem_mode;
+			ret = 0;
+		}
 		break;
 	default:
 		ret = -EINVAL;
