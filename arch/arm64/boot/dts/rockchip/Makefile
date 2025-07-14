@@ -278,6 +278,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-rgb2lvds-lp4x-v10.d
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-rgb2rgb-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2dsi-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2lvds0-lp4x-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-100ask-dshanpi-a1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-cm5-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-cm5-rpi-cm4-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-sige5.dtb
