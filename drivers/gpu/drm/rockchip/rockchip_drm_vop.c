@@ -772,8 +772,6 @@ static int vop_convert_afbc_format(uint32_t format)
 		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
 		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
