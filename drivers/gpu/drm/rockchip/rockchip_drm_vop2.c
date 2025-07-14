@@ -965,6 +965,9 @@ struct vop2 {
 	 */
 	bool report_post_buf_empty;
 
+	/* disable vop writeback */
+	bool disable_wb;
+
 	bool loader_protect;
 
 	bool aclk_rate_reset;
@@ -3978,6 +3981,9 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 	uint32_t fifo_throd;
 	uint8_t r2y;
 
+	if (!vop2->wb.regs)
+		return;
+
 	if (!conn_state)
 		return;
 	wb_state = to_wb_state(conn_state);
@@ -4699,9 +4705,10 @@ static void vop2_initial(struct drm_crtc *crtc)
 			rk3588_vop2_regsbak(vop2);
 		else
 			memcpy(vop2->regsbak, vop2->base_res.regs, vop2->len);
-
-		VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
-		VOP_MODULE_SET(vop2, wb, axi_uv_id, 0xe);
+		if (vop2->wb.regs) {
+			VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
+			VOP_MODULE_SET(vop2, wb, axi_uv_id, 0xe);
+		}
 		vop2_wb_cfg_done(vp);
 
 		if (is_vop3(vop2)) {
@@ -13441,9 +13448,11 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	bool wb_mode = conn_state && conn_state->writeback_job && conn_state->writeback_job->fb;
-	bool wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
 	bool dovi_mode = vop2_is_dovi_mode(vp) && vp->enabled_win_mask;
+	bool wb_oneframe_mode = false;
 
+	if (vop2->wb.regs)
+		wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
 	    vp->rockchip_crtc.vop_dump_times > 0) {
@@ -14141,8 +14150,12 @@ static void vop2_wb_handler(struct vop2_video_port *vp)
 	uint8_t wb_en;
 	uint8_t wb_vp_id;
 	uint8_t i;
-	bool wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
+	bool wb_oneframe_mode;
 
+	if (!vop2->wb.regs)
+		return;
+
+	wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
 	wb_en = VOP_MODULE_GET(vop2, wb, enable);
 	wb_vp_id = VOP_MODULE_GET(vop2, wb, vp_id);
 	if (wb_vp_id != vp->id)
@@ -16318,6 +16331,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->skip_ref_fb = of_property_read_bool(dev->of_node, "skip-ref-fb");
 	vop2->report_iommu_fault = of_property_read_bool(dev->of_node, "rockchip,report-iommu-fault");
 	vop2->report_post_buf_empty = of_property_read_bool(dev->of_node, "rockchip,report-post-buf-empty");
+	vop2->disable_wb = of_property_read_bool(dev->of_node, "rockchip,disable-writeback");
 	if (!is_vop3(vop2) ||
 	    vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
 		vop2->merge_irq = true;
@@ -16556,7 +16570,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	vop2_clk_init(vop2);
 	vop2_cubic_lut_init(vop2);
-	vop2_wb_connector_init(vop2, registered_num_crtcs);
+	if (!vop2->disable_wb)
+		vop2_wb_connector_init(vop2, registered_num_crtcs);
 	rockchip_drm_dma_init_device(drm_dev, vop2->dev);
 	pm_runtime_enable(&pdev->dev);
 	rockchip_vop2_devfreq_init(vop2);
