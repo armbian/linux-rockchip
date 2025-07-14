@@ -1735,21 +1735,16 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	if (err)
 		goto err_setup_host;
 
-	pm_runtime_put(dev);
-	if (rk_priv && !rk_priv->acpi_en) {
-		if (dev->pm_domain) {
-			struct generic_pm_domain *genpd;
+	if (dev->pm_domain) {
+		struct generic_pm_domain *genpd;
 
-			genpd = pd_to_genpd(dev->pm_domain);
-			genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
-		}
-		pm_runtime_get_noresume(&pdev->dev);
-		pm_runtime_set_active(&pdev->dev);
-		pm_runtime_enable(&pdev->dev);
-		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
-		pm_runtime_use_autosuspend(&pdev->dev);
-		pm_runtime_put_autosuspend(&pdev->dev);
+		genpd = pd_to_genpd(dev->pm_domain);
+		genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
 	}
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
 
@@ -1783,18 +1778,11 @@ static void dwcmshc_remove(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct rk35xx_priv *rk_priv = priv->priv;
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-
-	if (rk_priv && !rk_priv->acpi_en) {
-		pm_runtime_get_sync(&pdev->dev);
-		pm_runtime_disable(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
-		pm_runtime_dont_use_autosuspend(&pdev->dev);
-	}
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 
 	sdhci_remove_host(host, 0);
 
