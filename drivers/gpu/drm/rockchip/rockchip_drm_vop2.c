@@ -2434,8 +2434,6 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 		DRM_WARN_ONCE("unsupported AFBC format %p4cc\n", &format);
 		return VOP2_AFBC_FMT_INVALID;
 	}
-
-	return VOP2_AFBC_FMT_INVALID;
 }
 
 static enum vop2_tiled_format vop2_convert_tiled_format(uint32_t format)
@@ -2460,8 +2458,6 @@ static enum vop2_tiled_format vop2_convert_tiled_format(uint32_t format)
 		DRM_WARN_ONCE("unsupported tiled format %p4cc\n", &format);
 		return VOP2_TILED_FMT_INVALID;
 	}
-
-	return VOP2_TILED_FMT_INVALID;
 }
 
 static enum vop3_tiled_format vop3_convert_tiled_format(uint32_t format, uint32_t tile_mode)
@@ -2492,8 +2488,6 @@ static enum vop3_tiled_format vop3_convert_tiled_format(uint32_t format, uint32_
 		DRM_WARN_ONCE("unsupported tiled format %p4cc\n", &format);
 		return VOP3_TILED_FMT_INVALID;
 	}
-
-	return VOP3_TILED_FMT_INVALID;
 }
 
 static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
