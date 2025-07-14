@@ -393,7 +393,7 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 
 enum drm_gpu_sched_stat {
 	DRM_GPU_SCHED_STAT_NONE, /* Reserve 0 */
-	DRM_GPU_SCHED_STAT_NOMINAL,
+	DRM_GPU_SCHED_STAT_RESET,
 	DRM_GPU_SCHED_STAT_ENODEV,
 };
 
@@ -461,7 +461,7 @@ struct drm_sched_backend_ops {
 	 * 5. Restart all schedulers that were stopped in step #1 using
 	 *    drm_sched_start()
 	 *
-	 * Return DRM_GPU_SCHED_STAT_NOMINAL, when all is normal,
+	 * Return DRM_GPU_SCHED_STAT_RESET, when all is normal,
 	 * and the underlying driver has started or completed recovery.
 	 *
 	 * Return DRM_GPU_SCHED_STAT_ENODEV, if the device is no longer
