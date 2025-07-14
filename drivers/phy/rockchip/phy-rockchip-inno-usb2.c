@@ -267,10 +267,11 @@ struct rockchip_usb2phy_cfg {
  * @otg_mux_irq: IRQ number which multiplex otg-id/otg-bvalid/linestate
  *		 irqs to one irq in otg-port.
  * @mutex: for register updating in sm_work.
- * @chg_work: charge detect work.
  * @bypass_uart_work: usb bypass uart work.
  * @otg_sm_work: OTG state machine work.
  * @sm_work: HOST state machine work.
+ * @chg_work: charge detect kthread work.
+ * @chg_worker: charge detect kthread worker.
  * @vbus: vbus regulator supply on few rockchip boards.
  * @sw: orientation switch, communicate with TCPM (Type-C Port Manager).
  * @port_cfg: port register configuration, assigned by driver data.
@@ -304,9 +305,10 @@ struct rockchip_usb2phy_port {
 	int		otg_mux_irq;
 	struct mutex	mutex;
 	struct		delayed_work bypass_uart_work;
-	struct		delayed_work chg_work;
 	struct		delayed_work otg_sm_work;
 	struct		delayed_work sm_work;
+	struct		kthread_work chg_work;
+	struct		kthread_worker *chg_worker;
 	struct		regulator *vbus;
 	struct		typec_switch_dev *sw;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
@@ -1306,7 +1308,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			switch (rphy->chg_state) {
 			case USB_CHG_STATE_UNDEFINED:
 				mutex_unlock(&rport->mutex);
-				schedule_delayed_work(&rport->chg_work, 0);
+				kthread_queue_work(rport->chg_worker, &rport->chg_work);
 				return;
 			case USB_CHG_STATE_DETECTED:
 				switch (rphy->chg_type) {
@@ -1472,46 +1474,17 @@ static void rockchip_chg_enable_secondary_det(struct rockchip_usb2phy *rphy,
 #define CHG_DCD_MAX_RETRIES	6
 #define CHG_PRIMARY_DET_TIME	(40 * HZ / 1000)
 #define CHG_SECONDARY_DET_TIME	(40 * HZ / 1000)
-static void rockchip_chg_detect_work(struct work_struct *work)
+static void rockchip_run_chg_detect_machine(struct rockchip_usb2phy_port *rport)
 {
-	struct rockchip_usb2phy_port *rport =
-		container_of(work, struct rockchip_usb2phy_port, chg_work.work);
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
-	struct regmap *base = get_reg_base(rphy);
-	const struct usb2phy_reg *phy_sus_reg;
 	bool is_dcd, tmout, vout;
 	unsigned long delay;
-	unsigned int mask;
-	int ret;
 
 	dev_dbg(&rport->phy->dev, "chg detection work state = %d\n",
 		rphy->chg_state);
 
-	/*
-	 * The conditions for charger detection:
-	 * 1. Set the PHY in normal mode to keep the UTMI_CLK on.
-	 * 2. Set the utmi_opmode in non-driving mode.
-	 * 3. Set the utmi_xcvrselect to FS speed.
-	 * 4. Set the utmi_termselect to FS speed.
-	 * 5. Enable the DP/DM pulldown resistor.
-	 */
 	switch (rphy->chg_state) {
 	case USB_CHG_STATE_UNDEFINED:
-		mutex_lock(&rport->mutex);
-		/* Store the PHY current suspend configuration */
-		phy_sus_reg = &rport->port_cfg->phy_sus;
-		ret = regmap_read(base, phy_sus_reg->offset,
-				  &rphy->phy_sus_cfg);
-		if (ret) {
-			dev_err(&rport->phy->dev,
-				"Fail to read phy_sus reg offset 0x%x, ret %d\n",
-				phy_sus_reg->offset, ret);
-			mutex_unlock(&rport->mutex);
-			return;
-		}
-
-		/* Set the PHY in charger detection mode */
-		property_enable(base, &rphy->phy_cfg->chg_det.chg_mode, true);
 		/* Start DCD processing stage 1 */
 		rockchip_chg_enable_dcd(rphy, true);
 		rphy->chg_state = USB_CHG_STATE_WAIT_FOR_DCD;
@@ -1585,37 +1558,75 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		fallthrough;
 	case USB_CHG_STATE_SECONDARY_DONE:
 		rphy->chg_state = USB_CHG_STATE_DETECTED;
-		fallthrough;
-	case USB_CHG_STATE_DETECTED:
-		if (rphy->phy_cfg->chg_det.chg_mode.offset !=
-		    rport->port_cfg->phy_sus.offset)
-			property_enable(base, &rphy->phy_cfg->chg_det.chg_mode, false);
-
-		/* Restore the PHY suspend configuration */
-		phy_sus_reg = &rport->port_cfg->phy_sus;
-		mask = GENMASK(phy_sus_reg->bitend, phy_sus_reg->bitstart);
-		ret = regmap_write(base, phy_sus_reg->offset,
-				   (rphy->phy_sus_cfg | (mask << BIT_WRITEABLE_SHIFT)));
-		if (ret)
-			dev_err(&rport->phy->dev,
-				"Fail to set phy_sus reg offset 0x%x, ret %d\n",
-				phy_sus_reg->offset, ret);
-		mutex_unlock(&rport->mutex);
-		rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
-		dev_dbg(&rport->phy->dev, "charger = %s\n",
-			 chg_to_string(rphy->chg_type));
 		return;
 	default:
+		rphy->chg_state = USB_CHG_STATE_DETECTED;
+		rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
+		return;
+	}
+
+	if (delay)
+		msleep(jiffies_to_msecs(delay));
+}
+
+static void rockchip_chg_detect_work(struct kthread_work *work)
+{
+	struct rockchip_usb2phy_port *rport =
+		container_of(work, struct rockchip_usb2phy_port, chg_work);
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	struct regmap *base = get_reg_base(rphy);
+	const struct usb2phy_reg *phy_sus_reg;
+	unsigned int mask;
+	int ret;
+
+	mutex_lock(&rport->mutex);
+
+	/* Store the PHY current suspend configuration */
+	phy_sus_reg = &rport->port_cfg->phy_sus;
+	ret = regmap_read(base, phy_sus_reg->offset, &rphy->phy_sus_cfg);
+	if (ret) {
+		dev_err(&rport->phy->dev,
+			"Fail to read phy_sus reg offset 0x%x, ret %d\n",
+			phy_sus_reg->offset, ret);
 		mutex_unlock(&rport->mutex);
 		return;
 	}
 
-	/*
-	 * Hold the mutex lock during the whole charger
-	 * detection stage, and release it after detect
-	 * the charger type.
+	/* Set the PHY in charger detection mode.
+	 * The conditions for charger detection:
+	 * 1. Set the PHY in normal mode to keep the UTMI_CLK on.
+	 * 2. Set the utmi_opmode in non-driving mode.
+	 * 3. Set the utmi_xcvrselect to FS speed.
+	 * 4. Set the utmi_termselect to FS speed.
+	 * 5. Enable the DP/DM pulldown resistor.
 	 */
-	schedule_delayed_work(&rport->chg_work, delay);
+	property_enable(base, &rphy->phy_cfg->chg_det.chg_mode, true);
+
+	do {
+		rockchip_run_chg_detect_machine(rport);
+	} while (rphy->chg_state != USB_CHG_STATE_UNDEFINED &&
+		 rphy->chg_state != USB_CHG_STATE_DETECTED);
+
+	dev_info(&rport->phy->dev, "charger = %s\n", chg_to_string(rphy->chg_type));
+
+	/* Disable charger detection mode */
+	if (rphy->phy_cfg->chg_det.chg_mode.offset != rport->port_cfg->phy_sus.offset)
+		property_enable(base, &rphy->phy_cfg->chg_det.chg_mode, false);
+
+	/* Restore the PHY suspend configuration */
+	phy_sus_reg = &rport->port_cfg->phy_sus;
+	mask = GENMASK(phy_sus_reg->bitend, phy_sus_reg->bitstart);
+	ret = regmap_write(base, phy_sus_reg->offset,
+			   (rphy->phy_sus_cfg | (mask << BIT_WRITEABLE_SHIFT)));
+	if (ret)
+		dev_err(&rport->phy->dev,
+			"Fail to set phy_sus reg offset 0x%x, ret %d\n",
+			phy_sus_reg->offset, ret);
+
+	mutex_unlock(&rport->mutex);
+
+	if (rphy->chg_state == USB_CHG_STATE_DETECTED)
+		rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
 }
 
 /*
@@ -2382,7 +2393,6 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
 			  rockchip_usb_bypass_uart_work);
-	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
 
 	if (!IS_ERR(rphy->edev)) {
@@ -2395,6 +2405,12 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			return ret;
 		}
 	}
+
+	rport->chg_worker = kthread_create_worker(0, "usbchg-worker-%d",
+						  rport->phy->id);
+	if (IS_ERR(rport->chg_worker))
+		return PTR_ERR(rport->chg_worker);
+	kthread_init_work(&rport->chg_work, rockchip_chg_detect_work);
 
 out:
 	/*
@@ -2624,6 +2640,31 @@ disable_clks:
 	pm_runtime_disable(dev);
 	clk_bulk_disable_unprepare(rphy->num_clks, rphy->clks);
 	return ret;
+}
+
+static int rockchip_usb2phy_remove(struct platform_device *pdev)
+{
+	struct rockchip_usb2phy *rphy = platform_get_drvdata(pdev);
+	struct rockchip_usb2phy_port *rport;
+	unsigned int index;
+
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		rport = &rphy->ports[index];
+		if (!rport->phy)
+			continue;
+
+		if (rport->port_id == USB2PHY_PORT_HOST) {
+			cancel_delayed_work_sync(&rport->sm_work);
+		} else if (rport->port_id == USB2PHY_PORT_OTG) {
+			if (rport->chg_worker)
+				kthread_destroy_worker(rport->chg_worker);
+
+			if (rport->otg_sm_work.work.func)
+				cancel_delayed_work_sync(&rport->otg_sm_work);
+		}
+	}
+
+	return 0;
 }
 
 static int __maybe_unused
@@ -4802,6 +4843,7 @@ MODULE_DEVICE_TABLE(of, rockchip_usb2phy_dt_match);
 
 static struct platform_driver rockchip_usb2phy_driver = {
 	.probe		= rockchip_usb2phy_probe,
+	.remove		= rockchip_usb2phy_remove,
 	.driver		= {
 		.name	= "rockchip-usb2phy",
 		.pm	= ROCKCHIP_USB2PHY_DEV_PM,
