@@ -85,7 +85,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 exit:
 	adev->job_hang = false;
 	drm_dev_exit(idx);
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_RESET;
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
