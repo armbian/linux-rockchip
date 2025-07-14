@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126b-evb1-v10-fastboot-emmc.dts"
+#include "rv1126b-evb1-v11.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB1 V11 Arm64 Fastboot Board";
+	compatible = "rockchip,rv1126b-evb1-v11-fastboot", "rockchip,rv1126b";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_debug=0 earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&ramdisk_r {
+	reg = <0x48c40000 (40 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x4b440000 (20 * 0x00100000)>;
+};
