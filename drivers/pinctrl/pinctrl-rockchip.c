@@ -35,6 +35,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/string_helpers.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/rockchip/rockchip_sip.h>
 
 #include <dt-bindings/pinctrl/rockchip.h>
 
@@ -324,6 +325,7 @@
 				    offset0, offset1, offset2, offset3)
 static struct pinctrl_dev *g_pctldev;
 static DEFINE_MUTEX(iomux_lock);
+static u32 group_info;
 
 static struct regmap_config rockchip_regmap_config = {
 	.reg_bits = 32,
@@ -970,6 +972,31 @@ static struct rockchip_mux_route_data rv1126_mux_route_data[] = {
 	RK_MUXROUTE_PMU(1, RK_PD0, 5, 0x0118, WRITE_MASK_VAL(2, 2, 1)), /* UART1_TX_M1 */
 };
 
+static int rockchip_check_group_pins(struct rockchip_pin_bank *bank, int pin)
+{
+	struct arm_smccc_res res;
+	unsigned long pending = group_info;
+	unsigned int group;
+
+	for_each_set_bit(group, &pending, 32) {
+		res = sip_smc_gpio_config(GPIO_GET_GROUP_INFO, bank->bank_num, group, 0);
+		switch (res.a0) {
+		case SIP_RET_SUCCESS:
+			if (res.a1 & BIT(pin))
+				return 0;
+			break;
+		case SIP_RET_NOT_SUPPORTED:
+			dev_err(bank->dev, "Failed to get group info, please upgrade trust firmware\n");
+			return -EOPNOTSUPP;
+		default:
+			dev_err(bank->dev, "Failed to get group info, ret = %ld\n", res.a0);
+			return -EINVAL;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static void rockchip_get_recalced_mux(struct rockchip_pin_bank *bank, int pin,
 				      int *reg, u8 *bit, int *mask)
 {
@@ -1469,6 +1496,12 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	int reg, ret, mask, mux_type;
 	u8 bit;
 	u32 data, rmask, route_location, route_reg, route_val;
+
+	if (group_info && rockchip_check_group_pins(bank, pin)) {
+		dev_err(bank->dev, "GPIO%d-%d set mux failed, please check group info\n",
+			 bank->bank_num, pin);
+		return -EINVAL;
+	}
 
 	ret = rockchip_verify_mux(bank, pin, mux);
 	if (ret < 0)
@@ -4531,6 +4564,12 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	int i;
 	int rc;
 
+	if (group_info && rockchip_check_group_pins(bank, pin - bank->pin_base)) {
+		dev_err(bank->dev, "GPIO%d-%d set config failed, please check group info\n",
+			 bank->bank_num, pin);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
 		arg = pinconf_to_config_argument(configs[i]);
@@ -5181,6 +5220,14 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (!ctrl)
 		return dev_err_probe(dev, -EINVAL, "driver data not available\n");
 	info->ctrl = ctrl;
+
+	if (!of_property_read_u32(dev->of_node, "rockchip,group-info", &group_info)) {
+		if (group_info & ~RK_GROUP_MASK) {
+			dev_err(dev, "group_info invalid, max group id is %d\n", RK_GROUP_NUM - 1);
+			return -EINVAL;
+		}
+		dev_info(dev, "group_info = 0x%x\n", group_info);
+	}
 
 	node = of_parse_phandle(np, "rockchip,grf", 0);
 	if (node) {
