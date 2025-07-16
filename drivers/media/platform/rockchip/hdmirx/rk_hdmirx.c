@@ -1713,7 +1713,8 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 
 		if (!tx_5v_power_present(hdmirx_dev)) {
 			v4l2_ctrl_s_ctrl(hdmirx_dev->content_type, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
-			v4l2_err(v4l2_dev, "%s HDMI pull out, return!\n", __func__);
+			v4l2_dbg(1, debug, v4l2_dev,
+				 "%s HDMI pull out, return!\n", __func__);
 			return -1;
 		}
 
