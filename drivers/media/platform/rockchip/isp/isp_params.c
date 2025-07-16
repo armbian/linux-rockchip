@@ -313,6 +313,11 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	}
 	dev->is_aiisp_yuv = false;
 	dev->is_aiisp_en = false;
+	dev->is_aiisp_first_frame = false;
+	dev->is_aiisp_l2 = false;
+	dev->is_aiisp_l2_st = false;
+	dev->is_aiisp_l2_first_cfg = false;
+	dev->is_aiisp_l2_init = false;
 	dev->is_aiisp_stop = false;
 	dev->is_aiisp_stopping = false;
 	memset(&dev->aiisp_cfg, 0, sizeof(dev->aiisp_cfg));

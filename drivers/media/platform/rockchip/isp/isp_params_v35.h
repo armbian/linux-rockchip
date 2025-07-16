@@ -38,6 +38,10 @@ struct rkisp_isp_params_val_v35 {
 	struct rkisp_dummy_buffer buf_vpsl[RKISP_BUFFER_MAX];
 	struct rkisp_dummy_buffer buf_y_src[RKISP_BUFFER_MAX];
 
+	struct rkisp_dummy_buffer buf_bay3d_iir_l2;
+	struct rkisp_dummy_buffer buf_bay3d_wgt_l2;
+	struct rkisp_dummy_buffer buf_bay3d_ds_l2;
+
 	spinlock_t buf_lock;
 	struct list_head iir_list;
 	struct list_head gain_list;
@@ -105,6 +109,7 @@ struct rkisp_isp_params_val_v35 {
 	bool is_af_fe;
 	bool is_awb_fe;
 	bool is_aiawb_fe;
+	bool is_aiisp_l2_buf;
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35)

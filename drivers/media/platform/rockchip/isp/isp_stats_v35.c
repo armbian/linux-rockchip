@@ -464,6 +464,10 @@ rkisp_stats_send_meas_fe(struct rkisp_isp_stats_vdev *stats_vdev)
 				isp3_module_done(stats_vdev, ISP3X_RAWHIST_BIG1_BASE, val);
 		}
 	}
+
+	if (dev->is_aiisp_l2_st)
+		return;
+
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, &ns, true);
 	if (!ns)
 		ns = ktime_get_ns();

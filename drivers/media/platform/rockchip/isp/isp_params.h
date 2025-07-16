@@ -60,6 +60,8 @@ struct rkisp_isp_params_ops {
 	int (*get_aiawb_buffd)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 	void (*vpsl_update_regs)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*aiisp_switch)(struct rkisp_isp_params_vdev *params_vdev, bool on);
+	void (*aiisp_l2_enter)(struct rkisp_isp_params_vdev *params_vdev, struct rkisp_aiisp_st *st);
+	void (*aiisp_l2_exit)(struct rkisp_isp_params_vdev *params_vdev);
 };
 
 /*

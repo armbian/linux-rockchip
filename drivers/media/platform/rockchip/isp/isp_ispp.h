@@ -72,9 +72,7 @@ enum rkisp_ispp_reg_stat {
 
 struct frame_debug_info {
 	u64 timestamp;
-	u64 timestamp_be;
 	u32 interval;
-	u32 interval_be;
 	u32 delay;
 	u32 id;
 	u32 frameloss;

@@ -58,6 +58,7 @@
 #define ISP35_MODULE_AI			BIT_ULL(51)
 #define ISP35_MODULE_AIAWB		BIT_ULL(52)
 #define ISP35_MODULE_AWBSYNC		BIT_ULL(53)
+#define ISP35_MODULE_BAY3D_L2		BIT_ULL(54)
 
 #define ISP35_MODULE_FORCE		ISP3X_MODULE_FORCE
 
@@ -1722,6 +1723,7 @@ struct isp35_isp_other_cfg {
 	struct isp35_hdrmge_cfg hdrmge_cfg;
 	struct isp3x_gain_cfg gain_cfg;
 	struct isp35_bay3d_cfg bay3d_cfg;
+	struct isp35_bay3d_cfg bay3d_l2_cfg;
 	struct isp35_ai_cfg ai_cfg;
 
 	struct isp33_cac_cfg cac_cfg;
