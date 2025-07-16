@@ -3765,15 +3765,14 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 		mutex_lock(&hdmi->audio_mutex);
 		if (hdmi->plat_data->dclk_set)
 			hdmi->plat_data->dclk_set(data, true, hdmi->vp_id);
+		if (hdmi->plat_data->crtc_post_enable)
+			hdmi->plat_data->crtc_post_enable(data, bridge->encoder->crtc);
 		hdmi->dclk_en = true;
 		mutex_unlock(&hdmi->audio_mutex);
 	}
 
 	if (link_cfg && link_cfg->frl_mode)
 		queue_work(hdmi->workqueue, &hdmi->flt_work);
-
-	if (hdmi->plat_data->crtc_post_enable)
-		hdmi->plat_data->crtc_post_enable(data, bridge->encoder->crtc);
 
 	dw_hdmi_qp_init_audio_infoframe(hdmi);
 	dw_hdmi_qp_audio_enable(hdmi);
