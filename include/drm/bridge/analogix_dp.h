@@ -53,6 +53,8 @@ struct analogix_dp_plat_data {
 	bool dual_connector_split;
 	bool left_display;
 
+	bool disable_psr;
+
 	u8 max_bpc;
 
 	struct analogix_dp_device *left;

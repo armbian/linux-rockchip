@@ -733,6 +733,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->plat_data.convert_to_origin_mode = drm_mode_convert_to_origin_mode;
 	dp->plat_data.skip_connector = rockchip_dp_skip_connector(bridge);
 	dp->plat_data.bridge = bridge;
+	dp->plat_data.disable_psr = device_property_read_bool(dp->dev, "rockchip,disable-psr");
 
 	ret = rockchip_dp_of_probe(dp);
 	if (ret < 0)
