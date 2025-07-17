@@ -3106,7 +3106,8 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.background = VOP_REG(RK3568_ESMART0_BG_EN, 0xffffffff, 0),
 	.scale_engine_num = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 12),/* supported from vop3 */
 	.csc_y2r_path_sel = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 24),
-	.win_alpha_map = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0xffffffff, 0),
+	.alpha_map_en = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0x1, 31),
+	.alpha_map_val = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0xffff, 0),
 };
 
 /*

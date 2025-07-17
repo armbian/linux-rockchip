@@ -910,7 +910,8 @@ struct vop2_win_regs {
 	struct vop_reg axi_yrgb_id;
 	struct vop_reg axi_uv_id;
 	struct vop_reg scale_engine_num;
-	struct vop_reg win_alpha_map;
+	struct vop_reg alpha_map_en;
+	struct vop_reg alpha_map_val;
 };
 
 struct vop2_video_port_regs {

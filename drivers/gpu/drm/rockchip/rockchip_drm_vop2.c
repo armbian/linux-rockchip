@@ -7112,9 +7112,11 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 
 	if (win->alpha_map_prop) {
-		u32 alpha_map = vpstate->alpha_map ? vpstate->alpha_map : 0x8000ff00;
+		u32 alpha_map_en = vpstate->alpha_map ? true : false;
+		u32 alpha_map_val = vpstate->alpha_map & 0xffff;
 
-		VOP_WIN_SET(vop2, win, win_alpha_map, alpha_map);
+		VOP_WIN_SET(vop2, win, alpha_map_en, alpha_map_en);
+		VOP_WIN_SET(vop2, win, alpha_map_val, alpha_map_val);
 	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
