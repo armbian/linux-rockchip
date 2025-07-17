@@ -910,6 +910,7 @@ struct vop2_win_regs {
 	struct vop_reg axi_yrgb_id;
 	struct vop_reg axi_uv_id;
 	struct vop_reg scale_engine_num;
+	struct vop_reg win_alpha_map;
 };
 
 struct vop2_video_port_regs {
@@ -1527,7 +1528,6 @@ struct vop2_ctrl {
 	/* This will be reference by win_phy_id */
 	struct vop_reg win_vp_id[16];
 	struct vop_reg win_dly[16];
-	struct vop_reg win_alpha_map[16];
 
 	/* connector mux */
 	struct vop_reg rgb_mux;

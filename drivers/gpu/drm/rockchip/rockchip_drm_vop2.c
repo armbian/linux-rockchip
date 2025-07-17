@@ -7114,7 +7114,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	if (win->alpha_map_prop) {
 		u32 alpha_map = vpstate->alpha_map ? vpstate->alpha_map : 0x8000ff00;
 
-		VOP_CTRL_SET(vop2, win_alpha_map[win->phys_id], alpha_map);
+		VOP_WIN_SET(vop2, win, win_alpha_map, alpha_map);
 	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);

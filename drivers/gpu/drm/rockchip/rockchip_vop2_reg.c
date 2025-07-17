@@ -3106,6 +3106,7 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.background = VOP_REG(RK3568_ESMART0_BG_EN, 0xffffffff, 0),
 	.scale_engine_num = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 12),/* supported from vop3 */
 	.csc_y2r_path_sel = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 24),
+	.win_alpha_map = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0xffffffff, 0),
 };
 
 /*
@@ -4898,10 +4899,6 @@ static const struct vop2_ctrl rk3576_vop_ctrl = {
 	.win_dly[ROCKCHIP_VOP2_ESMART1] = VOP_REG(RK3576_ESMART1_DLY_NUM, 0xff, 0),
 	.win_dly[ROCKCHIP_VOP2_ESMART2] = VOP_REG(RK3576_ESMART2_DLY_NUM, 0xff, 0),
 	.win_dly[ROCKCHIP_VOP2_ESMART3] = VOP_REG(RK3576_ESMART3_DLY_NUM, 0xff, 0),
-	.win_alpha_map[ROCKCHIP_VOP2_ESMART0] = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0xffffffff, 0),
-	.win_alpha_map[ROCKCHIP_VOP2_ESMART1] = VOP_REG(RK3576_ESMART1_ALPHA_MAP, 0xffffffff, 0),
-	.win_alpha_map[ROCKCHIP_VOP2_ESMART2] = VOP_REG(RK3576_ESMART2_ALPHA_MAP, 0xffffffff, 0),
-	.win_alpha_map[ROCKCHIP_VOP2_ESMART3] = VOP_REG(RK3576_ESMART3_ALPHA_MAP, 0xffffffff, 0),
 };
 
 static const struct vop_grf_ctrl rk3588_sys_grf_ctrl = {
