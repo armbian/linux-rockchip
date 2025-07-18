@@ -49,6 +49,11 @@ properties:
       channel mode. It can be helpful to deal with the reversed hardware
       design issue in left and right display interfaces.
 
+  rockchip,disable-psr:
+    description:
+      Indicate whether to disable PSR function when the PSR
+      capability of Sink device is detected.
+
   rockchip,dual-channel:
     description:
       Indicate whether to enable dual channel mode, which horizontally
