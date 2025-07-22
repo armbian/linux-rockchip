@@ -2634,6 +2634,16 @@ next_child:
 	return 0;
 
 put_child:
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		struct rockchip_usb2phy_port *rport = &rphy->ports[index];
+
+		if (!rport->phy)
+			continue;
+
+		if (rport->port_id == USB2PHY_PORT_OTG && !IS_ERR_OR_NULL(rport->chg_worker))
+			kthread_destroy_worker(rport->chg_worker);
+	}
+
 	of_node_put(child_np);
 disable_clks:
 	pm_runtime_put_sync(dev);
