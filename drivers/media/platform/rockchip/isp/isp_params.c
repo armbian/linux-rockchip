@@ -223,6 +223,10 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	if (dev->is_wait_aiq) {
+		if (rkisp_cond_poll_timeout(dev->is_wait_aiq_isp_end, 1000, 50 * USEC_PER_MSEC)) {
+			dev_err(dev->dev, "wait for isp idle timeout\n");
+			return;
+		}
 		dev_info(dev->dev, "sync params for rtt\n");
 		dev->is_wait_aiq = false;
 		dev->skip_frame = 0;
@@ -250,11 +254,16 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
 		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+		if (rkisp_cond_poll_timeout(!dev->is_rtt_first, 1000, 50 * USEC_PER_MSEC)) {
+			dev_err(dev->dev, "wait for isp idle timeout\n");
+			return;
+		}
 		dev_info(dev->dev, "params seq:%d for rtt\n", params->frame_id);
 		dev->is_first_double = false;
 		if (dev->isp_ver >= ISP_V33) {
 			dev->skip_frame = 1;
 			dev->is_wait_aiq = true;
+			dev->is_wait_aiq_isp_end = false;
 		}
 		dev->sw_rd_cnt = 0;
 		if (dev->hw_dev->unite == ISP_UNITE_ONE) {

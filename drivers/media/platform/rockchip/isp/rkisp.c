@@ -1398,8 +1398,10 @@ static void rkisp_frame_end_idle(struct rkisp_device *dev)
 
 end:
 	if (dev->is_wait_aiq &&
-	    (dev->unite_div < ISP_UNITE_DIV2 || dev->unite_index == ISP_UNITE_RIGHT))
+	    (dev->unite_div < ISP_UNITE_DIV2 || dev->unite_index == ISP_UNITE_RIGHT)) {
+		dev->is_wait_aiq_isp_end = true;
 		return;
+	}
 	rkisp_config_aiisp(dev);
 	if (dev->hw_dev->is_dvfs)
 		schedule_work(&dev->rdbk_work);
