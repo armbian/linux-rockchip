@@ -273,14 +273,15 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 	dev->is_idle = false;
 
 	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
-		 "%s unite_mode:%u, unite_indev:%u seq:%d\n", __func__,
-		 dev->unite_mode, dev->unite_index, info->seq);
+		 "%s unite(mode:%u indev:%u) seq:%d drop:%d\n", __func__,
+		 dev->unite_mode, dev->unite_index, info->seq, info->skip_frame);
 
 	rkvpss_cmsc_config(dev, !info->irq);
 	for (i = 0; i < vpss_outchn_max(dev->hw_dev->vpss_ver); i++) {
 		stream = &dev->stream_vdev.stream[i];
 		if (!stream->streaming)
 			continue;
+		stream->skip_frame = info->skip_frame;
 		if (stream->ops->frame_start)
 			stream->ops->frame_start(stream, info->irq);
 	}

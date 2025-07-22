@@ -1243,6 +1243,14 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 		u64 ns = sdev->frame_timestamp;
 		int i;
 
+		if (stream->skip_frame) {
+			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+			list_add_tail(&buf->queue, &stream->buf_queue);
+			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			stream->skip_frame--;
+			goto end;
+		}
+
 		for (i = 0; i < fmt->mplanes; i++) {
 			u32 payload_size = stream->out_fmt.plane_fmt[i].sizeimage;
 
@@ -1275,7 +1283,7 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 			rkvpss_dvbm_event(dev, ROCKIT_DVBM_END);
 		}
 	}
-
+end:
 	rkvpss_stream_mf(stream);
 	stream->ops->update_mi(stream);
 }
