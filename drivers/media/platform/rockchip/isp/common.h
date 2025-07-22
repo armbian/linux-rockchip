@@ -137,6 +137,7 @@ struct rkisp_dummy_buffer {
 	void *mem_priv;
 	void *vaddr;
 	u32 size;
+	u32 stride;
 	int dma_fd;
 	int index;
 	bool is_need_vaddr;

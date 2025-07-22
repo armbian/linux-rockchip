@@ -340,6 +340,7 @@ void rkisp_free_buffer(struct rkisp_device *dev,
 			dma_buf_put(buf->dbuf);
 		g_ops->put(buf->mem_priv);
 		buf->size = 0;
+		buf->stride = 0;
 		buf->index = -1;
 		buf->dbuf = NULL;
 		buf->vaddr = NULL;

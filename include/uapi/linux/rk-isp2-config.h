@@ -337,6 +337,7 @@
 struct rkisp_buf_info {
 	int buf_cnt;
 	int buf_size;
+	int buf_stride;
 	int buf_fd[RKISP_BUFFER_MAX];
 } __attribute__ ((packed));
 
