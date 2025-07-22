@@ -129,6 +129,7 @@
 
 struct rockchip_pcie {
 	struct dw_pcie			pci;
+
 	void __iomem			*apb_base;
 	struct phy			*phy;
 	struct clk_bulk_data		*clks;
@@ -157,6 +158,7 @@ struct rockchip_pcie {
 	struct mutex			file_mutex;
 	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	wait_queue_head_t wq_head;
+	struct rockchip_pcie_misc_dev	*pcie_dev;
 
 	/* interrupt */
 	int				irq;
@@ -227,6 +229,11 @@ static void *rockchip_pcie_map_kernel(phys_addr_t start, size_t len)
 	vfree(p);
 
 	return vaddr;
+}
+
+static void rockchip_pcie_unmap_kernel(void *vaddr)
+{
+	vunmap(vaddr);
 }
 
 static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
@@ -357,6 +364,15 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	return 0;
 }
 
+static void rockchip_pcie_release_io_resource(struct rockchip_pcie *rockchip)
+{
+	int i;
+
+	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
+		if (rockchip->ib_target_base[i])
+			rockchip_pcie_unmap_kernel(rockchip->ib_target_base[i]);
+}
+
 static int rockchip_pcie_get_resource(struct platform_device *pdev,
 				      struct rockchip_pcie *rockchip)
 {
@@ -406,6 +422,11 @@ static int rockchip_pcie_get_resource(struct platform_device *pdev,
 	return ret;
 }
 
+static void rockchip_pcie_release_resource(struct rockchip_pcie *rockchip)
+{
+	rockchip_pcie_release_io_resource(rockchip);
+}
+
 static int rockchip_pci_find_ext_capability(struct rockchip_pcie *rockchip, int cap)
 {
 	u32 header;
@@ -439,6 +460,40 @@ static int rockchip_pci_find_ext_capability(struct rockchip_pcie *rockchip, int 
 	}
 
 	return 0;
+}
+
+static int rockchip_pcie_prog_inbound_atu_unroll(struct rockchip_pcie *rockchip, u8 func_no,
+						 int index, int bar, u64 cpu_addr,
+						 int type)
+{
+	u32 retries, val;
+	struct dw_pcie *pci = &rockchip->pci;
+	u32 offset = DEFAULT_DBI_ATU_OFFSET + PCIE_ATU_UNROLL_BASE(PCIE_ATU_REGION_DIR_IB, index);
+
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_LOWER_TARGET, lower_32_bits(cpu_addr));
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_UPPER_TARGET, upper_32_bits(cpu_addr));
+
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL1, type |
+				 PCIE_ATU_FUNC_NUM(func_no));
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL2,
+				 PCIE_ATU_FUNC_NUM_MATCH_EN |
+				 PCIE_ATU_ENABLE |
+				 PCIE_ATU_BAR_MODE_ENABLE | (bar << 8));
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL2);
+		if (val & PCIE_ATU_ENABLE)
+			return 0;
+
+		msleep(LINK_WAIT_IATU);
+	}
+	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+
+	return -EBUSY;
 }
 
 static int rockchip_pcie_ep_set_bar_flag(struct rockchip_pcie *rockchip, enum pci_barno barno,
@@ -521,7 +576,7 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip, enum pci_bar
 		return -EINVAL;
 	}
 
-	ret = dw_pcie_prog_inbound_atu(pci, 0, free_win, PCIE_ATU_TYPE_MEM, cpu_addr, bar);
+	ret = rockchip_pcie_prog_inbound_atu_unroll(rockchip, 0, free_win, bar, cpu_addr, PCIE_ATU_TYPE_MEM);
 	if (ret < 0) {
 		dev_err(pci->dev, "Failed to program IB window\n");
 		return ret;
@@ -890,7 +945,11 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	else
 		dev_info(dev, "Configure complete registers\n");
 
-	dw_pcie_setup(&rockchip->pci);
+	ret = dw_pcie_ep_init_complete(&rockchip->pci.ep);
+	if (ret) {
+		dev_err(dev, "Failed to complete initialization: %d\n", ret);
+		return ret;
+	}
 
 	rockchip_pcie_hide_broken_ats_cap(pci);
 
@@ -999,6 +1058,10 @@ already_linkup:
 	/* Setting device */
 	if (dw_pcie_readl_dbi(&rockchip->pci, PCIE_ATU_VIEWPORT) == 0xffffffff)
 		rockchip->pci.iatu_unroll_enabled = 1;
+	else {
+		dev_err(dev, "Failed to get iatu_unroll CAP\n");
+		return -ENODEV;
+	}
 	memset(rockchip->ib_window_map, 0, BITS_TO_LONGS(rockchip->num_ib_windows) * sizeof(long));
 	memset(rockchip->ob_window_map, 0, BITS_TO_LONGS(rockchip->num_ob_windows) * sizeof(long));
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
@@ -1031,6 +1094,11 @@ static int rockchip_pcie_config_irq_and_works(struct rockchip_pcie *rockchip)
 	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKUP);
 
 	return 0;
+}
+
+static void rockchip_pcie_deinit_irq_and_works(struct rockchip_pcie *rockchip)
+{
+	destroy_workqueue(rockchip->hot_rst_wq);
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
@@ -1191,6 +1259,12 @@ static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 	}
 
 	return 0;
+}
+
+static void rockchip_pcie_deinit_dma_trx(struct rockchip_pcie *rockchip)
+{
+	if (rockchip->dma_obj)
+		pcie_dw_dmatest_unregister(rockchip->dma_obj);
 }
 
 static int pcie_ep_open(struct inode *inode, struct file *file)
@@ -1378,10 +1452,16 @@ static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 	}
 
 	pcie_dev->pcie = rockchip;
+	rockchip->pcie_dev = pcie_dev;
 
 	dev_info(rockchip->pci.dev, "register misc device pcie_ep\n");
 
 	return 0;
+}
+
+static void rockchip_pcie_delete_misc(struct rockchip_pcie *rockchip)
+{
+	misc_deregister(&rockchip->pcie_dev->dev);
 }
 
 #define RAS_DES_EVENT(ss, v) \
@@ -1559,7 +1639,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	ret = rockchip_pcie_init_host(rockchip);
 	if (ret) {
 		dev_err(dev, "Failed to init host!\n");
-		return ret;
+		goto release_res;
 	}
 
 	ret = rockchip_pcie_config_host(rockchip);
@@ -1577,7 +1657,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	ret = rockchip_pcie_init_dma_trx(rockchip);
 	if (ret) {
 		dev_err(dev, "Failed to initial dma trx!\n");
-		goto deinit_host;
+		goto deinit_irq_and_works;
 	}
 
 	rockchip_pcie_add_misc(rockchip);
@@ -1590,9 +1670,27 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 	return 0;
 
+deinit_irq_and_works:
+	rockchip_pcie_deinit_irq_and_works(rockchip);
 deinit_host:
 	rockchip_pcie_deinit_host(rockchip);
+release_res:
+	rockchip_pcie_release_resource(rockchip);
 	return ret;
+}
+
+static int rockchip_pcie_ep_remove(struct platform_device *pdev)
+{
+	struct rockchip_pcie *rockchip = platform_get_drvdata(pdev);
+
+	rockchip_pcie_debugfs_exit(rockchip);
+	rockchip_pcie_delete_misc(rockchip);
+	rockchip_pcie_deinit_dma_trx(rockchip);
+	rockchip_pcie_deinit_irq_and_works(rockchip);
+	rockchip_pcie_deinit_host(rockchip);
+	rockchip_pcie_release_resource(rockchip);
+
+	return 0;
 }
 
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
@@ -1645,6 +1743,7 @@ static struct platform_driver rk_plat_pcie_driver = {
 		.pm = &rockchip_dw_pcie_pm_ops,
 	},
 	.probe = rockchip_pcie_ep_probe,
+	.remove = rockchip_pcie_ep_remove,
 };
 
 module_platform_driver(rk_plat_pcie_driver);

@@ -98,7 +98,7 @@ config PCIE_RK_THREADED_INIT
 	  Enables threaded initialize Rockchip DW based PCIe controller.
 
 config PCIE_DW_ROCKCHIP_EP
-	bool "Rockchip DesignWare PCIe EP controller"
+	tristate "Rockchip DesignWare PCIe EP controller"
 	select PCIE_DW
 	depends on ARCH_ROCKCHIP
 	depends on OF
