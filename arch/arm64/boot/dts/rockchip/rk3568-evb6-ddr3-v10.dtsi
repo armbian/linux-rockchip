@@ -444,6 +444,7 @@
 
 &wireless_bluetooth {
 	compatible = "bluetooth-platdata";
+	bt_port = "/dev/ttyS1";
 	clocks = <&pmucru CLK_RTC_32K>;
 	clock-names = "ext_clock";
 	//wifi-bt-power-toggle;

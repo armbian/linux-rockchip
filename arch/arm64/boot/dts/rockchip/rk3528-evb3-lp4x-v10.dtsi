@@ -55,6 +55,7 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
+		bt_port = "/dev/ttyS2";
 		uart_rts_gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart2m0_rtsn>;

@@ -164,6 +164,7 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
+		bt_port = "/dev/ttyS1";
 		clocks = <&rk809 1>;
 		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;
