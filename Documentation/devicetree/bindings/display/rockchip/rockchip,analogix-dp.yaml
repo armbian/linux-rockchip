@@ -43,10 +43,51 @@ properties:
       - const: dp
       - const: apb
 
+  rockchip,data-swap:
+    description:
+      Indicate whether to enable data swap function for split mode or dual
+      channel mode. It can be helpful to deal with the reversed hardware
+      design issue in left and right display interfaces.
+
+  rockchip,dual-channel:
+    description:
+      Indicate whether to enable dual channel mode, which horizontally
+      splits a single video port's output to drive one displays with
+      identical interfaces and consistent display timing.
+      |            | ---> | eDP0 | \    |                              |
+      | Video Port |                --> |             Panel            |
+      |            | ---> | eDP1 | /    |                              |
+
+  rockchip,dual-connector-split:
+    description:
+      Indicate whether to enable dual connector split mode, which horizontally
+      splits a single video port's output to drive two displays with different
+      interfaces and consistent display timing.
+      |            | ---> | eDP0  | ---> |              |               |
+      | Video Port |                     | Panel0(Left) | Panel1(right) |
+      |            | ---> | MIPI1 |      |              |               |
+                              ----------------------------------^
+
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       This SoC makes use of GRF regs.
+
+  rockchip,left-display:
+    description:
+      Assign the specific interface for the left display in dual connector
+      split mode. It can be helpful to deal with the reversed hardware
+      design issue in left and right display interfaces.
+
+  rockchip,split-mode:
+    description:
+      Indicate whether to enable split mode, which horizontally splits
+      a single video port's output to drive two displays with identical
+      interfaces and consistent display timing.
+      |            | ---> | eDP0 | ---> |              |               |
+      | Video Port |                    | Panel0(Left) | Panel1(right) |
+      |            | ---> | eDP1 |      |              |               |
+                              ---------------------------------^
 
 required:
   - compatible
