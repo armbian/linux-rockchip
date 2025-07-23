@@ -1474,9 +1474,7 @@ static void rkaiisp_run_cfg(struct rkaiisp_device *aidev, u32 run_idx)
 			rkaiisp_gen_slice_param(aidev, model_cfg, sig_width);
 			rkaiisp_determine_size(aidev, model_cfg);
 
-			iir_stride = CEIL_BY(ispbuf->iir_width, 16);
-			iir_stride = CEIL_BY(iir_stride * 9 / 4, 16);
-			iir_stride = iir_stride >> 1;
+			iir_stride = ispbuf->bnr_buf.u.v35.aiisp.buf_stride >> 1;
 			rkaiisp_write(aidev, AIISP_MI_CHN0_WR_STRIDE, iir_stride / 2, false);
 		}
 	} else {
@@ -1513,9 +1511,7 @@ static void rkaiisp_run_cfg(struct rkaiisp_device *aidev, u32 run_idx)
 			rkaiisp_gen_slice_param(aidev, model_cfg, ispbuf->sig_width[0]);
 			rkaiisp_determine_size(aidev, model_cfg);
 
-			iir_stride = CEIL_BY(ispbuf->iir_width, 16);
-			iir_stride = CEIL_BY(iir_stride * 9 / 4, 16);
-			iir_stride = iir_stride >> 1;
+			iir_stride = ispbuf->bnr_buf.u.v35.aiisp.buf_stride >> 1;
 			rkaiisp_write(aidev, AIISP_MI_CHN0_WR_STRIDE, iir_stride / 2, false);
 		}
 	}
