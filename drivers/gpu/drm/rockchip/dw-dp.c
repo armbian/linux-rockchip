@@ -4017,6 +4017,9 @@ static void dw_dp_enable_vop_gate(struct dw_dp *dp, struct drm_crtc *crtc,
 {
 	int output_if;
 
+	if (!crtc)
+		return;
+
 	switch (stream_id) {
 	case 0:
 		output_if = VOP_OUTPUT_IF_DP0;
