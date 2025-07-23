@@ -115,15 +115,15 @@ static void uio_free_dma_rx_desc_resources(struct stmmac_priv *priv)
 
 	/* Free RX queue resources */
 	for (queue = 0; queue < rx_count; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
 
 		/* Free DMA regions of consistent memory previously allocated */
 		if (!priv->extend_desc)
-			dma_free_coherent(priv->device, priv->dma_rx_size *
+			dma_free_coherent(priv->device, priv->dma_conf.dma_rx_size *
 					  sizeof(struct dma_desc),
 					  rx_q->dma_rx, rx_q->dma_rx_phy);
 		else
-			dma_free_coherent(priv->device, priv->dma_rx_size *
+			dma_free_coherent(priv->device, priv->dma_conf.dma_rx_size *
 					  sizeof(struct dma_extended_desc),
 					  rx_q->dma_erx, rx_q->dma_rx_phy);
 	}
@@ -140,7 +140,7 @@ static void uio_free_dma_tx_desc_resources(struct stmmac_priv *priv)
 
 	/* Free TX queue resources */
 	for (queue = 0; queue < tx_count; queue++) {
-		struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
+		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
 		size_t size;
 		void *addr;
 
@@ -155,7 +155,7 @@ static void uio_free_dma_tx_desc_resources(struct stmmac_priv *priv)
 			addr = tx_q->dma_tx;
 		}
 
-		size *= priv->dma_tx_size;
+		size *= priv->dma_conf.dma_tx_size;
 
 		dma_free_coherent(priv->device, size, addr, tx_q->dma_tx_phy);
 	}
@@ -177,11 +177,11 @@ static int uio_alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 
 	/* RX queues buffers and DMA */
 	for (queue = 0; queue < rx_count; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
 
 		if (priv->extend_desc) {
 			rx_q->dma_erx = dma_alloc_coherent(priv->device,
-							   priv->dma_rx_size *
+							   priv->dma_conf.dma_rx_size *
 							   sizeof(struct dma_extended_desc),
 							   &rx_q->dma_rx_phy,
 							   GFP_KERNEL);
@@ -189,7 +189,7 @@ static int uio_alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 				goto err_dma;
 		} else {
 			rx_q->dma_rx = dma_alloc_coherent(priv->device,
-							  priv->dma_rx_size *
+							  priv->dma_conf.dma_rx_size *
 							  sizeof(struct dma_desc),
 							  &rx_q->dma_rx_phy,
 							  GFP_KERNEL);
@@ -222,7 +222,7 @@ static int uio_alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
 
 	/* TX queues buffers and DMA */
 	for (queue = 0; queue < tx_count; queue++) {
-		struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
+		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
 		size_t size;
 		void *addr;
 
@@ -236,7 +236,7 @@ static int uio_alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
 		else
 			size = sizeof(struct dma_desc);
 
-		size *= priv->dma_tx_size;
+		size *= priv->dma_conf.dma_tx_size;
 
 		addr = dma_alloc_coherent(priv->device, size,
 					  &tx_q->dma_tx_phy, GFP_KERNEL);
@@ -382,13 +382,13 @@ static int rockchip_gmac_uio_init_dma_engine(struct stmmac_priv *priv)
 
 	/* DMA RX Channel Configuration */
 	for (chan = 0; chan < rx_channels_count; chan++) {
-		rx_q = &priv->rx_queue[chan];
+		rx_q = &priv->dma_conf.rx_queue[chan];
 
 		stmmac_init_rx_chan(priv, priv->ioaddr, priv->plat->dma_cfg,
 				    rx_q->dma_rx_phy, chan);
 
 		rx_q->rx_tail_addr = rx_q->dma_rx_phy +
-				     (priv->dma_rx_size *
+				     (priv->dma_conf.dma_rx_size *
 				      sizeof(struct dma_desc));
 		stmmac_set_rx_tail_ptr(priv, priv->ioaddr,
 				       rx_q->rx_tail_addr, chan);
@@ -396,7 +396,7 @@ static int rockchip_gmac_uio_init_dma_engine(struct stmmac_priv *priv)
 
 	/* DMA TX Channel Configuration */
 	for (chan = 0; chan < tx_channels_count; chan++) {
-		tx_q = &priv->tx_queue[chan];
+		tx_q = &priv->dma_conf.tx_queue[chan];
 
 		stmmac_init_tx_chan(priv, priv->ioaddr, priv->plat->dma_cfg,
 				    tx_q->dma_tx_phy, chan);
@@ -418,12 +418,12 @@ static void uio_set_rings_length(struct stmmac_priv *priv)
 	/* set TX ring length */
 	for (chan = 0; chan < tx_channels_count; chan++)
 		stmmac_set_tx_ring_len(priv, priv->ioaddr,
-				       (priv->dma_tx_size - 1), chan);
+				       (priv->dma_conf.dma_tx_size - 1), chan);
 
 	/* set RX ring length */
 	for (chan = 0; chan < rx_channels_count; chan++)
 		stmmac_set_rx_ring_len(priv, priv->ioaddr,
-				       (priv->dma_rx_size - 1), chan);
+				       (priv->dma_conf.dma_rx_size - 1), chan);
 }
 
 /**
@@ -634,7 +634,8 @@ static void uio_safety_feat_configuration(struct stmmac_priv *priv)
 {
 	if (priv->dma_cap.asp) {
 		netdev_info(priv->dev, "Enabling Safety Features\n");
-		stmmac_safety_feat_config(priv, priv->ioaddr, priv->dma_cap.asp);
+		stmmac_safety_feat_config(priv, priv->ioaddr, priv->dma_cap.asp,
+					  priv->plat->safety_feat_cfg);
 	} else {
 		netdev_info(priv->dev, "No Safety Features support found\n");
 	}
@@ -690,7 +691,7 @@ static void uio_dma_operation_mode(struct stmmac_priv *priv)
 
 		stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan,
 				   rxfifosz, qmode);
-		stmmac_set_dma_bfsize(priv, priv->ioaddr, priv->dma_buf_sz,
+		stmmac_set_dma_bfsize(priv, priv->ioaddr, priv->dma_conf.dma_buf_sz,
 				      chan);
 	}
 
@@ -828,17 +829,17 @@ static int uio_open(struct net_device *dev)
 		bfsize = 0;
 
 	if (bfsize < BUF_SIZE_16KiB)
-		bfsize = uio_set_bfsize(dev->mtu, priv->dma_buf_sz);
+		bfsize = uio_set_bfsize(dev->mtu, priv->dma_conf.dma_buf_sz);
 
-	priv->dma_buf_sz = bfsize;
+	priv->dma_conf.dma_buf_sz = bfsize;
 	buf_sz = bfsize;
 
 	priv->rx_copybreak = STMMAC_RX_COPYBREAK;
 
-	if (!priv->dma_tx_size)
-		priv->dma_tx_size = DMA_DEFAULT_TX_SIZE;
-	if (!priv->dma_rx_size)
-		priv->dma_rx_size = DMA_DEFAULT_RX_SIZE;
+	if (!priv->dma_conf.dma_tx_size)
+		priv->dma_conf.dma_tx_size = DMA_DEFAULT_TX_SIZE;
+	if (!priv->dma_conf.dma_rx_size)
+		priv->dma_conf.dma_rx_size = DMA_DEFAULT_RX_SIZE;
 
 	ret = uio_alloc_dma_desc_resources(priv);
 	if (ret < 0) {
@@ -963,13 +964,13 @@ static int rockchip_gmac_uio_probe(struct platform_device *pdev)
 	uio->mem[0].memtype = UIO_MEM_PHYS;
 
 	uio->mem[1].name = "eth_rx_bd";
-	uio->mem[1].addr = priv->rx_queue[0].dma_rx_phy;
-	uio->mem[1].size = priv->dma_rx_size * sizeof(struct dma_desc);
+	uio->mem[1].addr = priv->dma_conf.rx_queue[0].dma_rx_phy;
+	uio->mem[1].size = priv->dma_conf.dma_rx_size * sizeof(struct dma_desc);
 	uio->mem[1].memtype = UIO_MEM_PHYS;
 
 	uio->mem[2].name = "eth_tx_bd";
-	uio->mem[2].addr = priv->tx_queue[0].dma_tx_phy;
-	uio->mem[2].size = priv->dma_tx_size * sizeof(struct dma_desc);
+	uio->mem[2].addr = priv->dma_conf.tx_queue[0].dma_tx_phy;
+	uio->mem[2].size = priv->dma_conf.dma_tx_size * sizeof(struct dma_desc);
 	uio->mem[2].memtype = UIO_MEM_PHYS;
 
 	uio->open = rockchip_gmac_uio_open;
