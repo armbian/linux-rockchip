@@ -1902,7 +1902,7 @@ static void rkcif_s_rx_buffer(struct rkcif_stream *stream, struct rkisp_rx_buf *
 	}
 	if ((dev->rdbk_debug &&
 	     dbufs->sequence < 15) ||
-	    rkcif_debug == 3)
+	    rkcif_debug >= 3)
 		v4l2_info(&dev->v4l2_dev,
 			  "s_buf seq %d type %d, dma addr %x, %lld\n",
 			  dbufs->sequence, dbufs->type, (u32)rx_buf->dummy.dma_addr,
@@ -15144,20 +15144,27 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				continue;
 
 			if (cif_dev->switch_info.is_use_switch) {
+				v4l2_dbg(5, rkcif_debug, &cif_dev->v4l2_dev,
+					 "%s %d: switch_info.is_use_switch = %d, is_active = %d, sensor_off = %d\n",
+					 __func__, __LINE__,
+					 cif_dev->switch_info.is_use_switch,
+					 cif_dev->switch_info.is_active,
+					 atomic_read(&cif_dev->sensor_off));
 				if (cif_dev->switch_info.is_active) {
-					cif_dev->switch_info.is_active = false;
-					cif_dev->switch_info.switch_dev->switch_info.is_active = true;
 					stream = &cif_dev->stream[mipi_id];
-					if (cif_dev->switch_info.switch_dev->stream[0].state == RKCIF_STATE_STREAMING)
+					if (atomic_read(&cif_dev->switch_info.switch_dev->sensor_off) == 0) {
+						cif_dev->switch_info.is_active = false;
+						cif_dev->switch_info.switch_dev->switch_info.is_active = true;
 						rkcif_switch_change(cif_dev, !!cif_dev->switch_info.switch_dev->switch_info.gpio_val);
+					}
 				} else {
-					cif_dev->switch_info.is_active = true;
-					cif_dev->switch_info.switch_dev->switch_info.is_active = false;
 					stream = &cif_dev->switch_info.switch_dev->stream[mipi_id];
-					if (cif_dev->stream[0].state == RKCIF_STATE_STREAMING)
+					if (atomic_read(&cif_dev->sensor_off) == 0) {
+						cif_dev->switch_info.is_active = true;
+						cif_dev->switch_info.switch_dev->switch_info.is_active = false;
 						rkcif_switch_change(cif_dev, !!cif_dev->switch_info.gpio_val);
+					}
 				}
-
 			} else {
 				stream = &cif_dev->stream[mipi_id];
 			}
