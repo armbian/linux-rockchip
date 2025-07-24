@@ -8924,7 +8924,8 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 				bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 			} else {
 				bpp = rkcif_align_bits_per_pixel(stream, fmt, i);
-				bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
+				bpl = ALIGN(width * bpp / CIF_YUV_STORED_BIT_WIDTH, 8);
+
 			}
 		}
 		if (dev->chip_id > CHIP_RK3562_CIF && stream->sw_dbg_en)
