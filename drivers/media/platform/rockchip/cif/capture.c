@@ -10160,8 +10160,14 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 					cur_stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
 				rkcif_enable_dma_capture(cur_stream, true);
 			}
-			if (dev->switch_info.is_use_switch)
+			if (dev->switch_info.is_use_switch) {
 				atomic_inc(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]);
+				if (dev->sync_cfg.type == INTERNAL_MASTER_MODE) {
+					dev->switch_info.is_active = true;
+					dev->switch_info.switch_dev->switch_info.is_active = false;
+					rkcif_switch_change(dev, !!dev->switch_info.gpio_val);
+				}
+			}
 		}
 		mutex_lock(&stream->cifdev->stream_lock);
 		on = 1;
@@ -14642,6 +14648,11 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 				if (cif_dev->switch_info.switch_dev->switch_info.is_init_buf)
 					tmp_stream = &cif_dev->switch_info.switch_dev->stream[stream->id];
 				rkcif_clean_buffer_state(tmp_stream);
+			}
+			if (cif_dev->sync_cfg.type == INTERNAL_MASTER_MODE) {
+				cif_dev->switch_info.is_active = true;
+				cif_dev->switch_info.switch_dev->switch_info.is_active = false;
+				rkcif_switch_change(cif_dev, !!cif_dev->switch_info.gpio_val);
 			}
 		} else {
 			rkcif_clean_buffer_state(stream);
