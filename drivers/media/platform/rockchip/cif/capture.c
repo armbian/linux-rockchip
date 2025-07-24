@@ -9870,6 +9870,7 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 	if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 		for (i = 0; i < stream_num; i++) {
 			cur_stream = &dev->stream[i];
+			cur_stream->is_pause_stream = false;
 			if (dev->hdr.hdr_mode == NO_HDR ||
 			    (dev->hdr.hdr_mode == HDR_X2 && cur_stream->id == 1) ||
 			    (dev->hdr.hdr_mode == HDR_X3 && cur_stream->id == 2)) {
@@ -9887,6 +9888,7 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 	} else {
 		for (i = 0; i < stream_num; i++) {
 			cur_stream = &dev->stream[i];
+			cur_stream->is_pause_stream = false;
 			if (dev->sditf[0]->mode.rdbk_mode != RKISP_VICAP_RDBK_AIQ)
 				cur_stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 			else
