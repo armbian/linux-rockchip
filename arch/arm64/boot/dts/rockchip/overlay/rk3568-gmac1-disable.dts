@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Disable onboard Ethernet";
+		compatible = "radxa,rock-3c";
+		category = "misc";
+		exclusive = "gmac1";
+		description = "Disable onboard Ethernet.
+Has no affect on external Ethernet (for example USB adapter).";
+	};
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
+
+&rgmii_phy1 {
+	status = "disabled";
+};
