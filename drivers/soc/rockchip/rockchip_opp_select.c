@@ -1411,10 +1411,10 @@ static void rockchip_init_pvtpll_table(struct device *dev,
 			 "rockchip,pvtpll-table-B%d", info->bin);
 		prop = of_find_property(np, prop_name, NULL);
 	}
-	if (!prop)
+	if (!prop) {
 		sprintf(prop_name, "rockchip,pvtpll-table");
-
-	prop = of_find_property(np, prop_name, NULL);
+		prop = of_find_property(np, prop_name, NULL);
+	}
 	if (!prop)
 		goto out;
 
