@@ -1220,6 +1220,9 @@ static int hdmirx_write_edid(struct rk_hdmirx_dev *hdmirx_dev,
 			EDID_SLAVE_ADDR(0x50));
 	for (i = 0; i < edid_len; i++)
 		hdmirx_writel(hdmirx_dev, DMA_CONFIG10, edid->edid[i]);
+	/* write block3_4 */
+	for (i = 0; i < edid_len; i++)
+		hdmirx_writel(hdmirx_dev, DMA_CONFIG10, edid->edid[i]);
 
 	/* read out for debug */
 	if (debug >= 2) {
