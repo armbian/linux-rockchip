@@ -170,6 +170,8 @@ struct rkaiisp_device {
 	bool showreg;
 	bool init_buf;
 	bool is_state_err;
+
+	u8 iq_parambuf_num;
 };
 
 extern int rkaiisp_debug;

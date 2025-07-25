@@ -1623,7 +1623,7 @@ static void rkaiisp_run_start(struct rkaiisp_device *aidev)
 		rkaiisp_update_list_reg(aidev);
 }
 
-static void rkaiisp_get_new_iqparam(struct rkaiisp_device *aidev)
+static int rkaiisp_get_new_iqparam(struct rkaiisp_device *aidev)
 {
 	struct rkaiisp_params *iq_params, *old_params;
 	struct rkaiisp_buffer *cur_buf = NULL;
@@ -1637,7 +1637,7 @@ static void rkaiisp_get_new_iqparam(struct rkaiisp_device *aidev)
 					   struct rkaiisp_buffer, queue);
 	if (!cur_buf) {
 		spin_unlock_irqrestore(&aidev->config_lock, flags);
-		return;
+		return -1;
 	}
 
 	list_del(&cur_buf->queue);
@@ -1672,8 +1672,22 @@ static void rkaiisp_get_new_iqparam(struct rkaiisp_device *aidev)
 		aidev->model_runcnt = iq_params->model_runcnt;
 		rkaiisp_cfg_other_iqparam(aidev, &iq_params->other_cfg);
 	}
+
+	return 0;
 }
 
+static int rkaiisp_clear_iqparams(struct rkaiisp_device *aidev)
+{
+	int i;
+
+	for (i = 0; i < aidev->iq_parambuf_num; i++) {
+		if (rkaiisp_get_new_iqparam(aidev) != 0)
+			break;
+	}
+	v4l2_dbg(1, rkaiisp_debug, &aidev->v4l2_dev,
+		"clear unused iq params\n");
+	return 0;
+}
 
 void rkaiisp_trigger(struct rkaiisp_device *aidev)
 {
@@ -1947,6 +1961,9 @@ static long rkaiisp_ioctl_default(struct file *file, void *fh,
 			ret = 0;
 		}
 		break;
+	case RKAIISP_CMD_CLEAR_IQPARAMS:
+		ret = rkaiisp_clear_iqparams(aidev);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1988,6 +2005,7 @@ static int rkaiisp_vb2_queue_setup(struct vb2_queue *vq,
 
 	sizes[0] = sizeof(struct rkaiisp_params) + aidev->para_size * aidev->max_runcnt;
 	aidev->vdev_fmt.fmt.meta.buffersize = sizes[0];
+	aidev->iq_parambuf_num = *num_buffers;
 
 	INIT_LIST_HEAD(&aidev->params);
 
