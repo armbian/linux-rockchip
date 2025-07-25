@@ -1629,6 +1629,16 @@
 		};
 	};
 
+	dmac_lp: dma-controller@20880000 {
+		compatible = "rockchip,rv1126b-dma", "rockchip,dma";
+		reg = <0x20880000 0x2000>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&xin24m>;
+		clock-names = "aclk";
+		#dma-cells = <1>;
+		status = "disabled";
+	};
+
 	audio_codec_pmu: audio-codec@20898000 {
 		compatible = "rockchip,rv1126b-codec", "rockchip,rk3506-codec";
 		reg = <0x20898000 0x1000>;
@@ -1639,6 +1649,16 @@
 		resets = <&cru SRST_MRESETN_AUDIO_ADC_PMU>;
 		reset-names = "rst";
 		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	aoa: aoa@208b0000 {
+		compatible = "rockchip,rv1126b-aoa", "rockchip,aoa";
+		reg = <0x208b0000 0x1000>;
+		interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cru SRST_PRESETN_AOA_TDD>, <&cru SRST_PRESETN_AOA_FE>,
+			 <&cru SRST_PRESETN_AOA_AAD>, <&cru SRST_PRESETN_AOA_APB>;
+		reset-names = "atd", "afe", "aad", "apb";
 		status = "disabled";
 	};
 
@@ -3554,6 +3574,15 @@
 		      <0x22510000 0x1000>,
 		      <0x22610000 0x1000>,
 		      <0x22710000 0x1000>;
+	};
+
+	aoa_sram: sram@3ff20000 {
+		compatible = "mmio-sram";
+		reg = <0x3ff20000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x3ff20000 0x10000>;
+		status = "disabled";
 	};
 
 	system_sram: sram@3ffb0000 {
