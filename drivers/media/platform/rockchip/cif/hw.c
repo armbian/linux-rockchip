@@ -1597,7 +1597,8 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 		}
 		if (cif_hw->chip_id >= CHIP_RK3588_CIF && intstat_glb) {
 			rkcif_irq_handle_toisp(cif_hw->cif_dev[i], intstat_glb);
-			rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
+			if (cif_hw->chip_id != CHIP_RV1103B_CIF)
+				rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
 		}
 	}
 	irq_stop = ktime_get_ns();
