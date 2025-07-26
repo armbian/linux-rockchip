@@ -1118,22 +1118,11 @@ void analogix_dp_phy_power_off(struct analogix_dp_device *dp)
 	phy_power_off(dp->phy);
 }
 
-enum {
-	AUX_STATUS_OK,
-	AUX_STATUS_NACK_ERROR,
-	AUX_STATUS_TIMEOUT_ERROR,
-	AUX_STATUS_UNKNOWN_ERROR,
-	AUX_STATUS_MUCH_DEFER_ERROR,
-	AUX_STATUS_TX_SHORT_ERROR,
-	AUX_STATUS_RX_SHORT_ERROR,
-	AUX_STATUS_NACK_WITHOUT_M_ERROR,
-	AUX_STATUS_I2C_NACK_ERROR
-};
-
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg)
 {
 	u32 reg;
+	u32 status_reg;
 	u8 *buffer = msg->buffer;
 	unsigned int i;
 	int ret;
@@ -1218,9 +1207,16 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	/* Clear interrupt source for AUX CH command reply */
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA, RPLY_RECEIV);
 
-	reg = analogix_dp_read(dp, ANALOGIX_DP_AUX_CH_STA);
-	if ((reg & AUX_STATUS_MASK) == AUX_STATUS_TIMEOUT_ERROR)
-		return -ETIMEDOUT;
+	/* Clear interrupt source for AUX CH access error */
+	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA);
+	status_reg = analogix_dp_read(dp, ANALOGIX_DP_AUX_CH_STA);
+	if ((reg & AUX_ERR) || (status_reg & AUX_STATUS_MASK)) {
+		analogix_dp_write(dp, ANALOGIX_DP_INT_STA, AUX_ERR);
+
+		dev_warn(dp->dev, "AUX CH error happened: %#x (%d)\n",
+			 status_reg & AUX_STATUS_MASK, !!(reg & AUX_ERR));
+		goto aux_error;
+	}
 
 	if (msg->request & DP_AUX_I2C_READ) {
 		size_t buf_data_count;
