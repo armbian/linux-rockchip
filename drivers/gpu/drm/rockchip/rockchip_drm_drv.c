@@ -1802,10 +1802,22 @@ int rockchip_drm_panel_loader_protect(struct drm_panel *panel, bool on)
 }
 EXPORT_SYMBOL(rockchip_drm_panel_loader_protect);
 
+static void rockchip_drm_fix_encoder_possible_clones(struct drm_encoder *encoder)
+{
+	struct drm_device *drm_dev = encoder->dev;
+	struct drm_encoder *other;
+
+	drm_for_each_encoder(other, drm_dev) {
+		if (other->possible_crtcs & encoder->possible_crtcs)
+			encoder->possible_clones |= drm_encoder_mask(other);
+	}
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
 	struct rockchip_drm_private *private;
+	struct drm_encoder *encoder;
 	int ret;
 
 	/* Remove existing drivers that may own the framebuffer memory. */
@@ -1894,6 +1906,9 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_helper_poll_fini;
+
+	drm_for_each_encoder(encoder, drm_dev)
+		rockchip_drm_fix_encoder_possible_clones(encoder);
 
 	rockchip_drm_show_logo(drm_dev);
 
