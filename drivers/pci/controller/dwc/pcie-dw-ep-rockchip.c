@@ -148,16 +148,20 @@ struct rockchip_pcie {
 	dma_addr_t			ib_target_address[PCIE_BAR_MAX_NUM];
 	u32				ib_target_size[PCIE_BAR_MAX_NUM];
 	void				*ib_target_base[PCIE_BAR_MAX_NUM];
+
+	/* object */
 	struct dma_trx_obj		*dma_obj;
 	phys_addr_t			dbi_base_physical;
 	struct pcie_ep_obj_info		*obj_info;
 	enum pcie_ep_mmap_resource	cur_mmap_res;
-	int				irq;
-	struct workqueue_struct		*hot_rst_wq;
-	struct work_struct		hot_rst_work;
 	struct mutex			file_mutex;
 	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	wait_queue_head_t wq_head;
+
+	/* interrupt */
+	int				irq;
+	struct workqueue_struct		*hot_rst_wq;
+	struct work_struct		hot_rst_work;
 };
 
 struct rockchip_pcie_misc_dev {
