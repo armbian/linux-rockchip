@@ -6235,13 +6235,13 @@ rkisp_params_aiisp_start_v35(struct rkisp_isp_params_vdev *params_vdev,
 	val = priv->pbuf_gain_rd->dma_addr;
 	if (!params_vdev->is_hdr) {
 		rkisp_write(dev, ISP3X_MI_RAW0_RD_BASE, val, false);
-		if (dev->hw_dev->is_single) {
+		if (dev->hw_dev->is_single && !dev->is_aiisp_stop) {
 			rkisp_set_bits(dev, ISP3X_CSI2RX_RAW_RD_CTRL, 0, ISP35_RX0_FORCE_UPD, true);
 			rkisp_set_bits(dev, ISP3X_MI_WR_CTRL2, 0, ISP3X_DBR_RDSELF_UPD, true);
 		}
 	} else {
 		rkisp_write(dev, ISP35_B3DLDCH_RD_BASE, val, false);
-		if (dev->hw_dev->is_single) {
+		if (dev->hw_dev->is_single && !dev->is_aiisp_stop) {
 			val = ISP3X_DBR_RDSELF_UPD | ISP3X_BAY3D_RDSELF_UPD;
 			rkisp_set_bits(dev, ISP3X_MI_WR_CTRL2, 0, val, true);
 		}
@@ -6328,12 +6328,16 @@ rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on
 		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
 		rkisp_write(dev, ISP35_AI_CTRL, val, false);
 
-		val = rkisp_read(dev, ISP3X_MI_BAY3D_IIR_RD_BASE_SHD, true);
-		rkisp_write(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, val, false);
 		if (dev->hw_dev->is_single) {
+			val = rkisp_read(dev, ISP3X_MI_BAY3D_IIR_RD_BASE_SHD, true);
+			rkisp_write(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, val, false);
+
 			val = ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_RDSELF_UPD |
 			      ISP3X_GAINSELF_UPD;
 			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, false);
+		} else {
+			val = rkisp_read_reg_cache(dev, ISP3X_MI_BAY3D_IIR_RD_BASE);
+			rkisp_write(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, val, false);
 		}
 
 		rkisp_stats_first_ddr_config(stats_vdev);
@@ -6504,6 +6508,7 @@ void rkisp_params_vpsl_mi_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32
 	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
 	struct rkisp_device *dev = params_vdev->dev;
 	unsigned long lock_flags = 0;
+	bool is_event = false;
 
 	if (!dev->is_aiisp_en)
 		return;
@@ -6518,9 +6523,11 @@ void rkisp_params_vpsl_mi_isr_v35(struct rkisp_isp_params_vdev *params_vdev, u32
 			priv->vpsl_cur_idx = priv->vpsl_idx;
 		}
 		if (dev->is_aiisp_sync)
-			rkisp_check_idle(dev, ISP_FRAME_VPSL);
+			is_event = true;
 	}
 	spin_unlock_irqrestore(&priv->buf_lock, lock_flags);
+	if (is_event)
+		rkisp_check_idle(dev, ISP_FRAME_VPSL);
 }
 
 static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
