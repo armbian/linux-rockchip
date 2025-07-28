@@ -154,8 +154,8 @@ static int rk_pcie_local_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
 	return ret;
 }
 
-int rk_pcie_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
-				  u64 bus_paddr, u64 local_paddr, u32 size)
+static int rk_pcie_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
+					 u64 bus_paddr, u64 local_paddr, u32 size)
 {
 	struct pcie_dw_dmatest_dev *dmatest_dev = (struct pcie_dw_dmatest_dev *)obj->priv;
 	struct dma_table *table;
