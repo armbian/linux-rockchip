@@ -634,6 +634,7 @@
 
 &wireless_bluetooth {
 	compatible = "bluetooth-platdata";
+	bt_port = "/dev/ttyS1";
 	clocks = <&rk809 1>;
 	clock-names = "ext_clock";
 	//wifi-bt-power-toggle;

@@ -590,7 +590,7 @@ static int csi2_dphy_enable_clk(struct csi2_dphy *dphy)
 		if (dphy->csi_info.dphy_vendor[i] == PHY_VENDOR_SAMSUNG) {
 			samsung_phy = (struct samsung_mipi_dcphy *)dphy->phy_hw[i];
 			if (samsung_phy)
-				clk_prepare_enable(samsung_phy->pclk);
+				pm_runtime_get_sync(samsung_phy->dev);
 		} else {
 			hw = (struct csi2_dphy_hw *)dphy->phy_hw[i];
 			if (hw) {
@@ -615,7 +615,7 @@ static void csi2_dphy_disable_clk(struct csi2_dphy *dphy)
 		if (dphy->csi_info.dphy_vendor[i] == PHY_VENDOR_SAMSUNG) {
 			samsung_phy = (struct samsung_mipi_dcphy *)dphy->phy_hw[i];
 			if (samsung_phy)
-				clk_disable_unprepare(samsung_phy->pclk);
+				pm_runtime_put(samsung_phy->dev);
 		} else {
 			hw = (struct csi2_dphy_hw *)dphy->phy_hw[i];
 			if (hw)

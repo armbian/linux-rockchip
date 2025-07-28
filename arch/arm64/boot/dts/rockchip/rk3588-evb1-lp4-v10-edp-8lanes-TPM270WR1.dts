@@ -1,0 +1,308 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board + RK3588 EDP 8LANES V10 Ext Board";
+	compatible = "rockchip,rk3588-evb1-lp4-v10-edp-8lanes-TPM270WR1", "rockchip,rk3588";
+
+	vcc3v3_edp_bl: vcc3v3-edp-bl {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_edp_bl";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc3v3_edp: vcc3v3-edp {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_edp";
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+};
+
+&bt_sco {
+	status = "okay";
+};
+
+&bt_sound {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+	rockchip,dual-channel;
+	rockchip,data-swap;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp0>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp0 {
+	status = "okay";
+};
+
+&edp0_in_vp1 {
+	status = "disabled";
+};
+
+&edp0_in_vp2 {
+	status = "disabled";
+};
+
+&edp1 {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp1>;
+			};
+		};
+	};
+};
+
+&edp1_in_vp0 {
+	status = "okay";
+};
+
+&edp1_in_vp1 {
+	status = "disabled";
+};
+
+&edp1_in_vp2 {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&pcie2x1l0 {
+	status = "disabled";
+};
+
+&pcie3x4 {
+	status = "disabled";
+};
+
+&route_dsi0 {
+	status = "disabled";
+};
+
+&route_edp0 {
+	status = "disabled";
+	connect = <&vp0_out_edp0>;
+};
+
+&route_edp1 {
+	status = "disabled";
+	connect = <&vp0_out_edp1>;
+};
+
+&route_hdmi0 {
+	status = "disabled";
+};
+
+&route_hdmi1 {
+	status = "disabled";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m1_cs1 &spi0m1_pins>;
+	rockchip,poll-only;
+	status = "okay";
+
+	panel-edp@1 {
+		compatible = "rockchip,dimming-panel";
+		reg = <1>;
+		spi-max-frequency = <10000000>;
+		lden-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+		blen-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+		sync-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		dbcl-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_edp>;
+		enable-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		hzone-num = <48>;
+		vzone-num = <24>;
+		brightness-max = <255>;
+		brightness-min = <0>;
+		brightness-bpc = <8>;
+		command-header = [
+			aa	// indicator
+			81	// command
+			00	// hdr on/off
+			0c	// sdr current
+			20	// hdr current
+			00	// reserve
+		];
+		command-tail = [
+			00	// checknum
+			00	// end
+		];
+		/*
+		 * The demo configs for 16bpc:
+		 * brightness-bpc = <16>;
+		 * command-header = [
+		 *	00 aa	// indicator
+		 *	00 81	// command
+		 *	00 00	// hdr on/off
+		 *	00 0c	// sdr current
+		 *	00 20	// hdr current
+		 *	00 00	// reserve
+		 * ];
+		 * command-tail = [
+		 *	00 00	// checknum
+		 *	00 00	// end
+		 * ];
+		 */
+		status = "okay";
+
+		display-timings {
+			native-mode = <&timing_4kp60_dimming>;
+			timing_4kp60_dimming: timing2 {
+				clock-frequency = <528000000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <60>;
+				hsync-len = <40>;
+				hback-porch = <60>;
+				vfront-porch = <15>;
+				vsync-len = <10>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			timing_4kp144_dimming: timing3 {
+				clock-frequency = <1267200000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <60>;
+				hsync-len = <40>;
+				hback-porch = <60>;
+				vfront-porch = <15>;
+				vsync-len = <10>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_edp0: endpoint {
+					remote-endpoint = <&edp0_out_panel>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				panel_in_edp1: endpoint {
+					remote-endpoint = <&edp1_out_panel>;
+				};
+			};
+		};
+	};
+};
+
+&vop {
+	assigned-clocks = <&cru ACLK_VOP>;
+	assigned-clock-rates = <800000000>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp2 {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};

@@ -37,6 +37,8 @@
 #define RKAIISP_SW_REG_SIZE		0x3000
 #define RKAIISP_SW_MAX_SIZE		(RKAIISP_SW_REG_SIZE * 2)
 #define RKAIISP_AIRMS_BUF_MAXCNT	8
+#define RKAIISP_AIRMS_MAX_WIDTH		4096
+#define RKAIISP_AIRMS_EXTEND_PIXEL	16
 #define RKAIISP_MIN(a, b)		((a) < (b) ? (a) : (b))
 
 enum rkaiisp_irqhdl_ret {
@@ -121,10 +123,11 @@ struct rkaiisp_device {
 	struct rkaiisp_dummy_buffer *lastout_buf[RKAIISP_LASTOUT_BUF_CNT];
 	u32 outbuf_idx;
 
+	bool is_parthdl;
 	struct rkaiisp_rmsbuf_info rmsbuf;
+	struct rkaiisp_rmsbuf_info part_rmsbuf;
 	struct rkaiisp_dummy_buffer rms_inbuf[RKAIISP_AIRMS_BUF_MAXCNT];
 	struct rkaiisp_dummy_buffer rms_outbuf[RKAIISP_AIRMS_BUF_MAXCNT];
-	struct rkaiisp_dummy_buffer sigma_buf;
 	struct rkaiisp_dummy_buffer narmap_buf;
 
 	struct aiisp_aiynr_ybuf_cfg ynr_ybuf_cfg;
@@ -144,11 +147,16 @@ struct rkaiisp_device {
 	enum rkaiisp_exemode exemode;
 	enum rkaiisp_model_mode model_mode;
 	enum rkaiisp_hwstate hwstate;
+	enum rkaiisp_mem_mode mem_mode;
 	u32 para_size;
 	u32 max_runcnt;
 	u32 model_runcnt;
 	u32 run_idx;
 	u32 frame_id;
+
+	u32 parthdl_idx;
+	u32 parthdl_num;
+	u32 parthdl_image_oft;
 
 	u64 pre_frm_st;
 	u64 frm_st;
@@ -161,6 +169,7 @@ struct rkaiisp_device {
 	bool streamon;
 	bool showreg;
 	bool init_buf;
+	bool is_state_err;
 };
 
 extern int rkaiisp_debug;

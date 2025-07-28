@@ -35,6 +35,9 @@
 #define RKAIISP_CMD_GET_YNRBUF_INFO		\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 5, struct rkaiisp_ynrbuf_info)
 
+#define RKAIISP_CMD_SET_MEMORY_MODE		\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 6, enum rkaiisp_mem_mode)
+
 /**********************EVENT_PRIVATE***************************/
 #define RKAIISP_V4L2_EVENT_AIISP_DONE		(V4L2_EVENT_PRIVATE_START + 1)
 
@@ -56,7 +59,8 @@ enum rkaiisp_chn_src {
 	VICAP_BAYER_RAW,
 	ALLZERO_SIGMA,
 	ALLZERO_NARMAP,
-	ISP_FINAL_Y
+	ISP_FINAL_Y,
+	VICAP_BAYER_RAW_DOWN
 };
 
 enum rkaiisp_exealgo {
@@ -77,6 +81,11 @@ enum rkaiisp_exemode {
 	BOTHEVENT_TO_AIQ,
 	ISPEVENT_IN_KERNEL,
 	BOTHEVENT_IN_KERNEL
+};
+
+enum rkaiisp_mem_mode {
+	SINGLE_MEMODE,
+	COMBO_MEMODE,
 };
 
 struct rkaiisp_airms_st {

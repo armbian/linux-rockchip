@@ -2089,6 +2089,27 @@ static void rga3_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t 
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
+static void rga3_dump_read_back_iommu_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		cmd_reg[i] = rga_read(RGA3_IOMMU_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	rga_job_log(job, "IOMMU_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA3_IOMMU_REG_BASE + i * 0x10,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+}
+
 static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
@@ -2117,6 +2138,8 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				RGA3_CMD_REG_BASE + i * 0x10,
 				cmd[0 + i * 4], cmd[1 + i * 4],
 				cmd[2 + i * 4], cmd[3 + i * 4]);
+
+		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
 	/* All CMD finish int */
@@ -2151,6 +2174,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(REG)) {
 		rga3_dump_read_back_sys_reg(job, scheduler);
 		rga3_dump_read_back_reg(job, scheduler);
+		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
 	return 0;

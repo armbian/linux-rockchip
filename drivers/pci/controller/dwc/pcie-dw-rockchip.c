@@ -577,13 +577,16 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	if (!rk_pcie_udma_enabled(rk_pcie))
 		return 0;
 
+#ifdef PCIE_DW_ROCKCHIP_RC_DMATEST
 	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci->dev, true);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
-	} else if (!rk_pcie->dma_obj) { /* !CONFIG_ROCKCHIP_PCIE_DMA_OBJ */
-		return 0;
 	}
+#endif
+
+	if (!rk_pcie->dma_obj)
+		return 0;
 
 	/* Enable client write and read interrupt */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xc000000);

@@ -116,7 +116,7 @@
 	};
 
 	rtos: rtos@48c00000 {
-		reg = <0x48c00000 0x0003a000>;
+		reg = <0x48c00000 0x0003c000>;
 	};
 
 	mcu_log: mcu_log@48c3c000 {

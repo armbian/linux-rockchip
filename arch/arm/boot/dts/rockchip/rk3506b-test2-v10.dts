@@ -632,6 +632,10 @@
 		pmic_int: pmic-int {
 			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
+
+		soc_pwrctrl_reset: soc-pwrctrl-reset {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_output_high>;
+		};
 	};
 
 	sdcard {

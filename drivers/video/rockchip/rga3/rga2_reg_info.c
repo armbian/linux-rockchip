@@ -2695,10 +2695,13 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
-	u32 iommu_dte_addr = 0;
+	u32 iommu_dte_addr = 0, iommu_int_mask = 0, iommu_auto_gate = 0;
 
-	if (scheduler->data->mmu == RGA_IOMMU)
+	if (scheduler->data->mmu == RGA_IOMMU) {
 		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
+		iommu_int_mask = rga_read(RGA_IOMMU_INT_MASK, scheduler);
+		iommu_auto_gate = rga_read(RGA_IOMMU_AUTO_GATING, scheduler);
+	}
 
 	rga_write(m_RGA2_SYS_CTRL_ACLK_SRESET_P | m_RGA2_SYS_CTRL_CCLK_SRESET_P |
 		  m_RGA2_SYS_CTRL_RST_PROTECT_P,
@@ -2716,6 +2719,11 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
 		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
+		rga_write(RGA_IOMMU_CMD_ZAP_CACHE, RGA_IOMMU_COMMAND, scheduler);
+
+		rga_write(iommu_int_mask, RGA_IOMMU_INT_MASK, scheduler);
+		rga_write(iommu_auto_gate, RGA_IOMMU_AUTO_GATING, scheduler);
+
 		/* enable iommu */
 		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
 	}
@@ -2723,9 +2731,13 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	if (i == RGA_RESET_TIMEOUT)
 		rga_err("%s[%#x] soft reset timeout.\n",
 			rga_get_core_name(scheduler->core), scheduler->core);
-	else
-		rga_log("%s[%#x] soft reset complete.\n",
-			rga_get_core_name(scheduler->core), scheduler->core);
+}
+
+static void rga2_soft_reset_print(struct rga_scheduler_t *scheduler)
+{
+	rga2_soft_reset(scheduler);
+	rga_log("%s[%#x] soft reset complete.\n",
+		rga_get_core_name(scheduler->core), scheduler->core);
 }
 
 static int rga2_check_param(struct rga_job *job,
@@ -3023,6 +3035,27 @@ static void rga2_dump_read_back_cmd_reg(struct rga_job *job, struct rga_schedule
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
+static void rga2_dump_read_back_iommu_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		cmd_reg[i] = rga_read(RGA2_IOMMU_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	rga_job_log(job, "IOMMU_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA2_IOMMU_REG_BASE + i * 0x10,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+}
+
 static void rga2_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	rga2_dump_read_back_sys_reg(job, scheduler);
@@ -3030,6 +3063,7 @@ static void rga2_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t 
 	if (scheduler->data->version > 0)
 		rga2_dump_read_back_other_reg(job, scheduler);
 	rga2_dump_read_back_cmd_reg(job, scheduler);
+	rga2_dump_read_back_iommu_reg(job, scheduler);
 }
 
 static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
@@ -3120,6 +3154,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				RGA2_CMD_REG_BASE + i * 0x10,
 				cmd[0 + i * 4], cmd[1 + i * 4],
 				cmd[2 + i * 4], cmd[3 + i * 4]);
+		rga2_dump_read_back_iommu_reg(scheduler->running_job, scheduler);
 	}
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
@@ -3132,12 +3167,11 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		sys_ctrl |= m_RGA2_SYS_CTRL_DST_WR_OPT_DIS | m_RGA2_SRC0_YUV420SP_RD_OPT_DIS;
 
 	if (rga_hw_has_issue(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST)) {
-		/*
-		 *   when RGA is running continuously, disabling auto_rst
-		 * requires resetting core_clk.
-		 */
-		rga_write(m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_CCLK_SRESET_P,
-			  RGA2_SYS_CTRL, scheduler);
+		/* disable all_finish & cur_finish intr_en */
+		rga_write(0, RGA2_INT, scheduler);
+		rga_write(0, RGA2_CMD_REG_BASE + RGA2_MODE_CTRL_OFFSET, scheduler);
+		/* replace auto_rst */
+		rga2_soft_reset(scheduler);
 	} else {
 		sys_ctrl |= m_RGA2_SYS_CTRL_AUTO_RST;
 	}
@@ -3346,7 +3380,7 @@ const struct rga_backend_ops rga2_ops = {
 	.get_version = rga2_get_version,
 	.set_reg = rga2_set_reg,
 	.init_reg = rga2_init_reg,
-	.soft_reset = rga2_soft_reset,
+	.soft_reset = rga2_soft_reset_print,
 	.read_back_reg = rga2_read_back_reg,
 	.read_status = rga2_read_status,
 	.irq = rga2_irq,

@@ -526,6 +526,27 @@ static void rkcif_show_reg_dbg(struct rkcif_device *dev, struct seq_file *f)
 	}
 }
 
+static void rkcif_show_mipi_csi2_error_info(struct rkcif_device *dev, struct seq_file *f)
+{
+	struct csi2_dev *csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
+
+	seq_puts(f, "\nMipi error info:\n");
+	seq_printf(f, "\terr sot sync:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_SOTSYN].cnt);
+	seq_printf(f, "\terr fs/fe not match:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt);
+	seq_printf(f, "\terr frm seq:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_FRM_SEQ_ERR].cnt);
+	seq_printf(f, "\terr crc once:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_CRC_ONCE].cnt);
+	seq_printf(f, "\terr crc:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_CRC].cnt);
+	seq_printf(f, "\terr ecc2:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_ECC2].cnt);
+	seq_printf(f, "\terr ctrl:%u\n",
+		   csi2->err_list[RK_CSI2_ERR_CTRL].cnt);
+}
+
 static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 {
 	struct rkcif_stream *stream = &dev->stream[0];
@@ -676,6 +697,9 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			rkcif_show_toisp_info(dev, f);
 		if (dev->reg_dbg)
 			rkcif_show_reg_dbg(dev, f);
+		if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
+		    sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
+			rkcif_show_mipi_csi2_error_info(dev, f);
 	}
 }
 

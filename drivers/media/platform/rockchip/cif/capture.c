@@ -1975,8 +1975,9 @@ static void rkcif_rdbk_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
-		list_add_tail(&active_buf->list, &stream->tools_vdev->buf_done_head);
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && active_buf) {
+		list_add_tail(&active_buf->list_tool, &stream->tools_vdev->buf_done_head);
+		active_buf->use_cnt = 2;
 		if (!work_busy(&stream->tools_vdev->work))
 			schedule_work(&stream->tools_vdev->work);
 	}
@@ -4067,7 +4068,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	    channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		channel->width = channel->width * fmt->bpp[0] / 8;
 
-	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF)
 		channel->width /= 2;
 	/*
 	 * rk cif don't support output yuyv fmt data
@@ -4772,9 +4773,9 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		return 0;
 	}
 
+	val = rkcif_read_register(dev, CIF_REG_GLB_CTRL);
 	if (stream->sw_dbg_en) {
-		rkcif_write_register_and(dev, CIF_REG_GLB_CTRL,
-					 ~(u32)BIT(16));
+		val &= ~BIT(16);
 		v4l2_subdev_call(dev->active_sensor->sd,
 				 core, ioctl,
 				 RKCIF_CMD_SET_PPI_DATA_DEBUG,
@@ -4785,18 +4786,23 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				 RKCIF_CMD_SET_PPI_DATA_DEBUG,
 				 &stream->sw_dbg_en);
 	}
-
 	if (dev->chip_id == CHIP_RK3588_CIF ||
 	    dev->chip_id == CHIP_RV1106_CIF ||
 	    dev->chip_id == CHIP_RK3562_CIF) {
-		val = GLB_RESET_IDI_EN_RK3588;
+		val |= GLB_RESET_IDI_EN_RK3588;
 	} else if (dev->chip_id == CHIP_RK3576_CIF) {
-		val = GLB_RESET_IDI_EN_RK3576;
+		val |= GLB_RESET_IDI_EN_RK3576;
 		val |= rkcif_get_split_dphy_mask_rk3576(dev);
 	} else if (dev->chip_id == CHIP_RV1103B_CIF) {
-		val = rkcif_get_split_dphy_mask_rv1103b(dev);
+		val |= rkcif_get_split_dphy_mask_rv1103b(dev);
 	}
-	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
+	if (dev->chip_id == CHIP_RV1103B_CIF) {
+		if (rkcif_frm_toisp_protect)
+			val &= ~BIT(28);
+		else
+			val |= BIT(28);
+	}
+	rkcif_write_register(dev, CIF_REG_GLB_CTRL, val);
 
 	if (dev->terminal_sensor.hdmi_input_en) {
 		if (dev->chip_id == CHIP_RK3562_CIF ||
@@ -5084,8 +5090,13 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 				     CSI_DISABLE_CAPTURE);
 		return 0;
 	}
-	val = rkcif_get_split_mask_rv1126b(dev);
-	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
+	val = rkcif_read_register(dev, CIF_REG_GLB_CTRL);
+	val |= rkcif_get_split_mask_rv1126b(dev);
+	if (rkcif_frm_toisp_protect)
+		val &= ~BIT(28);
+	else
+		val |= BIT(28);
+	rkcif_write_register(dev, CIF_REG_GLB_CTRL, val);
 	rkcif_write_register_and(dev, CIF_REG_MIPI_LVDS_INTSTAT,
 				 ~(CSI_START_INTSTAT(channel->id) |
 				 CSI_DMA_END_INTSTAT(channel->id) |
@@ -6969,6 +6980,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 			kfifo_free(&stream->dcg_kfifo);
 		}
+		stream->crop_enable = false;
 		stream->crop_mask = 0;
 		stream->frame_loss = 0;
 		stream->is_fb_first_frame = true;
@@ -9833,6 +9845,7 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 	if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 		for (i = 0; i < stream_num; i++) {
 			stream = &dev->stream[i];
+			stream->is_pause_stream = false;
 			if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
 			    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
 			    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
@@ -9862,6 +9875,7 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 						       RKISP_VICAP_CMD_MODE, &dev->sditf[0]->mode);
 		}
 		for (i = 0; i < stream_num; i++) {
+			dev->stream[i].is_pause_stream = false;
 			if (dev->sditf[0]->mode.rdbk_mode != RKISP_VICAP_RDBK_AIQ)
 				dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
 			else
@@ -11144,7 +11158,8 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 	 * or fs and fe had been not paired.
 	 */
 	if (stream->is_fs_fe_not_paired ||
-	    stream->fs_cnt_in_single_frame > RKCIF_FS_DETECTED_NUM) {
+	    (stream->fs_cnt_in_single_frame > RKCIF_FS_DETECTED_NUM &&
+	     dev->chip_id < CHIP_RK3588_CIF)) {
 		is_triggered = true;
 		v4l2_info(&dev->v4l2_dev, "reset for fs & fe not paired\n");
 	}
@@ -11276,7 +11291,7 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 	    mbus->type == V4L2_MBUS_CCP2) {
 		struct csi_channel_info *channel = &cif_dev->channels[stream->id];
 
-		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && cif_dev->chip_id < CHIP_RK3576_CIF)
 			crop_x = 3 * stream->crop[CROP_SRC_ACT].left / 2;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 			crop_x = 2 * stream->crop[CROP_SRC_ACT].left;
@@ -14043,9 +14058,6 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 		v4l2_subdev_call(sd, core, ioctl,
 				 RKISP_VICAP_CMD_SOF, &sof);
 	}
-
-	if (cif_dev->chip_id < CHIP_RK3588_CIF)
-		detect_stream->fs_cnt_in_single_frame++;
 
 	if (cif_dev->sditf[0] &&
 	    cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ &&

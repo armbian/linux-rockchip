@@ -5818,6 +5818,57 @@
 		};
 
 		/omit-if-no-ref/
+		vo_ebc_sleep: vo_ebc-sleep {
+			rockchip,pins =
+				/* vo_ebc_gdclk */
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_gdoe */
+				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_gdsp */
+				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sdce0 */
+				<3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sdclk */
+				<3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo0 */
+				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo1 */
+				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo2 */
+				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo3 */
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo4 */
+				<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo5 */
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo6 */
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo7 */
+				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo8 */
+				<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo9 */
+				<3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo10 */
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo11 */
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo12 */
+				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo13 */
+				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo14 */
+				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sddo15 */
+				<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sdle */
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* vo_ebc_sdoe */
+				<3 RK_PD7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		/omit-if-no-ref/
 		vo_ebc_extern: vo_ebc-extern {
 			rockchip,pins =
 				/* vo_ebc_sdce1 */

@@ -994,7 +994,7 @@ static void rk628_show_resolution(struct seq_file *s)
 	src_vtotal = src_mode->vtotal;
 
 	/* get fps */
-	fps = src_dclk * 1000 / (src_htotal * src_vtotal);
+	fps = DIV_ROUND_CLOSEST_ULL(src_dclk * 1000, src_htotal * src_vtotal);
 
 	clk_rx_read = rk628_cru_clk_get_rate(rk628, CGU_CLK_RX_READ) / 1000;
 
@@ -1058,7 +1058,7 @@ static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 	src_vtotal = val & 0xffff;
 
 	/* get fps */
-	fps = src_dclk * 1000 / (src_htotal * src_vtotal);
+	fps = DIV_ROUND_CLOSEST_ULL(src_dclk * 1000, src_htotal * src_vtotal);
 
 	clk_rx_read = rk628_cru_clk_get_rate(rk628, CGU_CLK_RX_READ) / 1000;
 
@@ -1117,7 +1117,7 @@ static void rk628_show_output_resolution(struct seq_file *s)
 	dsp_vact_end = val & 0xfff;
 
 	/* get fps */
-	fps = sclk_vop * 1000 / (dsp_vtotal * dsp_htotal);
+	fps = DIV_ROUND_CLOSEST_ULL(sclk_vop * 1000, (dsp_vtotal * dsp_htotal));
 
 	bus_format_s = rk628_get_output_bus_format_name(rk628);
 

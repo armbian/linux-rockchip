@@ -282,6 +282,7 @@
 
 &wireless_bluetooth {
 	uart_rts-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
+	bt_port = "/dev/ttyS1";
 	pinctrl-names = "default", "rts_gpio";
 	pinctrl-0 = <&uart1m1_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;

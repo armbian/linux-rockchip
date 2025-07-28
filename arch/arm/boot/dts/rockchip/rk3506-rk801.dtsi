@@ -20,8 +20,9 @@
 		interrupts = <RK_PC2 IRQ_TYPE_LEVEL_LOW>;
 		pwrctrl-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 
-		pinctrl-names = "default";
+		pinctrl-names = "default", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
+		pinctrl-1 = <&soc_pwrctrl_reset>;
 		rockchip,system-power-controller;
 		wakeup-source;
 
