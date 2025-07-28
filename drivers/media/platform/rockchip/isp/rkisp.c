@@ -3003,22 +3003,34 @@ static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 	case ISP_V30:
 		max_size = CIF_ISP_INPUT_W_MAX_V30 * CIF_ISP_INPUT_H_MAX_V30;
 		max_w = CIF_ISP_INPUT_W_MAX_V30;
-		max_h = max_size / w;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
 		break;
 	case ISP_V32:
 		max_size = CIF_ISP_INPUT_W_MAX_V32 * CIF_ISP_INPUT_H_MAX_V32;
 		max_w = CIF_ISP_INPUT_W_MAX_V32;
-		max_h = max_size / w;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
 		break;
 	case ISP_V32_L:
 		max_size = CIF_ISP_INPUT_W_MAX_V32_L * CIF_ISP_INPUT_H_MAX_V32_L;
 		max_w = CIF_ISP_INPUT_W_MAX_V32_L;
-		max_h = max_size / w;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
 		break;
 	case ISP_V33:
 		max_size = CIF_ISP_INPUT_W_MAX_V33 * CIF_ISP_INPUT_H_MAX_V33;
 		max_w = CIF_ISP_INPUT_W_MAX_V33;
-		max_h = max_size / w;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
 		break;
 	case ISP_V35:
 		max_size = CIF_ISP_INPUT_W_MAX_V35 * CIF_ISP_INPUT_H_MAX_V35;
@@ -3028,7 +3040,10 @@ static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 	case ISP_V39:
 		max_size = CIF_ISP_INPUT_W_MAX_V39_UNITE / 2 * CIF_ISP_INPUT_H_MAX_V39_UNITE;
 		max_w = CIF_ISP_INPUT_W_MAX_V39;
-		max_h = max_size / w;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
 		break;
 	default:
 		return -EINVAL;
