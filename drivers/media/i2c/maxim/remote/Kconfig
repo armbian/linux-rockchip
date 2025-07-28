@@ -74,6 +74,15 @@ config VIDEO_MAXIM_CAM_OV231X
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov231x.
 
+config VIDEO_MAXIM_CAM_OX03C10
+	tristate "Maxim Remote Sensor ox03c10 support"
+	depends on VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the remote sensor ox03c10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ox03c10.
+
 config VIDEO_MAXIM_CAM_OX03J10
 	tristate "Maxim Remote Sensor ox03j10 support"
 	depends on VIDEO_MAXIM_SERDES

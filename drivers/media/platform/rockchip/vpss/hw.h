@@ -70,6 +70,8 @@ struct rkvpss_hw_dev {
 	bool is_suspend;
 	bool is_first;
 	bool is_probe_end;
+	int dvbm_refcnt;
+	int dvbm_flag;
 };
 
 #ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V10

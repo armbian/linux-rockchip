@@ -38,6 +38,7 @@ struct rkisp_isp_stats_ops {
 	void (*first_ddr_cfg)(struct rkisp_isp_stats_vdev *stats_vdev);
 	void (*next_ddr_cfg)(struct rkisp_isp_stats_vdev *stats_vdev);
 	int (*stats_tb)(struct rkisp_isp_stats_vdev *stats_vdev, struct rkisp_buffer *stats_buf);
+	void (*stats_stop)(struct rkisp_isp_stats_vdev *stats_vdev);
 };
 
 /*

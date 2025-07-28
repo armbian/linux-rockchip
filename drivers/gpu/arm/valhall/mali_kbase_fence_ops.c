@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,21 +31,12 @@ static const char *kbase_fence_get_driver_name(struct dma_fence *fence)
 	return KBASE_DRV_NAME;
 }
 
-#if MALI_USE_CSF
 static const char *kbase_fence_get_timeline_name(struct dma_fence *fence)
 {
 	struct kbase_kcpu_dma_fence *kcpu_fence = (struct kbase_kcpu_dma_fence *)fence;
 
 	return kcpu_fence->metadata->timeline_name;
 }
-#else
-static const char *kbase_fence_get_timeline_name(struct dma_fence *fence)
-{
-	CSTD_UNUSED(fence);
-
-	return KBASE_TIMELINE_NAME;
-}
-#endif /* MALI_USE_CSF */
 
 static bool kbase_fence_enable_signaling(struct dma_fence *fence)
 {
@@ -67,12 +58,13 @@ static void kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int 
 		pr_err("Fail to encode fence seqno to string");
 }
 
-#if MALI_USE_CSF
 static void kbase_fence_release(struct dma_fence *fence)
 {
 	struct kbase_kcpu_dma_fence *kcpu_fence = (struct kbase_kcpu_dma_fence *)fence;
 
 	kbase_kcpu_dma_fence_meta_put(kcpu_fence->metadata);
+	if (likely(kcpu_fence->module))
+		module_put(kcpu_fence->module);
 	kfree(kcpu_fence);
 }
 
@@ -83,13 +75,5 @@ const struct dma_fence_ops kbase_fence_ops = { .wait = dma_fence_default_wait,
 					       .enable_signaling = kbase_fence_enable_signaling,
 					       .fence_value_str = kbase_fence_fence_value_str,
 					       .release = kbase_fence_release };
-#else
-extern const struct dma_fence_ops kbase_fence_ops; /* silence checker warning */
-const struct dma_fence_ops kbase_fence_ops = { .wait = dma_fence_default_wait,
-					       .get_driver_name = kbase_fence_get_driver_name,
-					       .get_timeline_name = kbase_fence_get_timeline_name,
-					       .enable_signaling = kbase_fence_enable_signaling,
-					       .fence_value_str = kbase_fence_fence_value_str };
-#endif /* MALI_USE_CSF */
 
 KBASE_EXPORT_TEST_API(kbase_fence_ops);

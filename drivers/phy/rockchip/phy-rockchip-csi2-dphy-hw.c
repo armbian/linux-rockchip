@@ -1392,7 +1392,7 @@ int rockchip_csi2_dphy_hw_init(void)
 	return platform_driver_register(&rockchip_csi2_dphy_hw_driver);
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
 subsys_initcall(rockchip_csi2_dphy_hw_init);
 #else
 #if !defined(CONFIG_VIDEO_REVERSE_IMAGE)

@@ -46,6 +46,13 @@
 	goodix,irq-gpio = <&gpio0 RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 };
 
+&hynitron {
+	status = "okay";
+	power-supply = <&vcc3v3_lcd0_n>;
+	reset-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+	irq-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+};
+
 &i2c2_rk628 {
 		panel-backlight = <&backlight>;
 		panel-power-supply = <&vcc3v3_lcd0_n>;

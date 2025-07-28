@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,9 +22,6 @@
 #ifndef _MALI_KBASE_REGMAP_LEGACY_CSF_H_
 #define _MALI_KBASE_REGMAP_LEGACY_CSF_H_
 
-#if !MALI_USE_CSF && defined(__KERNEL__)
-#error "Cannot be compiled with JM"
-#endif
 /* GPU control registers */
 #define MCU_CONTROL 0x700
 

@@ -42,14 +42,12 @@ char *kbase_reg_zone_get_name(enum kbase_memory_zone zone)
 		return "CUSTOM_VA";
 	case EXEC_VA_ZONE:
 		return "EXEC_VA";
-#if MALI_USE_CSF
 	case MCU_SHARED_ZONE:
 		return "MCU_SHARED";
 	case EXEC_FIXED_VA_ZONE:
 		return "EXEC_FIXED_VA";
 	case FIXED_VA_ZONE:
 		return "FIXED_VA";
-#endif
 	default:
 		return NULL;
 	}
@@ -345,7 +343,7 @@ kbase_region_tracker_find_region_meeting_reqs(struct kbase_va_region *reg_reqs, 
 void kbase_remove_va_region(struct kbase_device *kbdev, struct kbase_va_region *reg)
 {
 	struct rb_node *rbprev;
-	struct kbase_reg_zone *zone = container_of(reg->rbtree, struct kbase_reg_zone, reg_rbtree);
+	struct kbase_reg_zone *zone;
 	struct kbase_va_region *prev = NULL;
 	struct rb_node *rbnext;
 	struct kbase_va_region *next = NULL;
@@ -355,6 +353,10 @@ void kbase_remove_va_region(struct kbase_device *kbdev, struct kbase_va_region *
 	int merged_front = 0;
 	int merged_back = 0;
 
+	if (WARN_ON(reg == NULL))
+		return;
+
+	zone = container_of(reg->rbtree, struct kbase_reg_zone, reg_rbtree);
 	reg_rbtree = reg->rbtree;
 
 	if (WARN_ON(RB_EMPTY_ROOT(reg_rbtree)))
@@ -566,14 +568,10 @@ int kbase_add_va_region(struct kbase_context *kctx, struct kbase_va_region *reg,
 	 * Also, executable allocations from EXEC_VA don't need the special
 	 * alignment.
 	 */
-#if MALI_USE_CSF
 	/* The same is also true for the EXEC_FIXED_VA zone.
 	 */
-#endif
 	if (!(reg->flags & KBASE_REG_GPU_NX) && !addr &&
-#if MALI_USE_CSF
 	    ((kbase_bits_to_zone(reg->flags)) != EXEC_FIXED_VA_ZONE) &&
-#endif
 	    ((kbase_bits_to_zone(reg->flags)) != EXEC_VA_ZONE)) {
 		if (cpu_va_bits > gpu_pc_bits) {
 			align = max(align, (size_t)((1ULL << gpu_pc_bits) >> PAGE_SHIFT));
@@ -664,16 +662,6 @@ int kbase_add_va_region_rbtree(struct kbase_device *kbdev, struct kbase_va_regio
 		u64 start_pfn;
 		size_t align_offset = align;
 		size_t align_mask = align - 1;
-
-#if !MALI_USE_CSF
-		if ((reg->flags & KBASE_REG_TILER_ALIGN_TOP)) {
-			WARN(align > 1,
-			     "%s with align %lx might not be honored for KBASE_REG_TILER_ALIGN_TOP memory",
-			     __func__, (unsigned long)align);
-			align_mask = reg->extension - 1;
-			align_offset = reg->extension - reg->initial_commit;
-		}
-#endif /* !MALI_USE_CSF */
 
 		tmp = kbase_region_tracker_find_region_meeting_reqs(reg, nr_pages, align_offset,
 								    align_mask, &start_pfn);
@@ -768,7 +756,6 @@ static int kbase_reg_zone_same_va_init(struct kbase_context *kctx, u64 gpu_va_li
 
 	lockdep_assert_held(&kctx->reg_lock);
 
-#if MALI_USE_CSF
 	if ((base_pfn + nr_pages) > KBASE_REG_ZONE_EXEC_VA_BASE_64) {
 		/* Depending on how the kernel is configured, it's possible (eg on aarch64) for
 		 * same_va_bits to reach 48 bits. Cap same_va_pages so that the same_va zone
@@ -776,7 +763,6 @@ static int kbase_reg_zone_same_va_init(struct kbase_context *kctx, u64 gpu_va_li
 		 */
 		nr_pages = KBASE_REG_ZONE_EXEC_VA_BASE_64 - base_pfn;
 	}
-#endif
 	err = kbase_reg_zone_init(kctx->kbdev, zone, SAME_VA_ZONE, base_pfn, nr_pages);
 	if (err)
 		return -ENOMEM;
@@ -841,17 +827,9 @@ static inline u64 kbase_get_exec_va_zone_base(struct kbase_context *kctx)
 {
 	u64 base_pfn;
 
-#if MALI_USE_CSF
 	base_pfn = KBASE_REG_ZONE_EXEC_VA_BASE_64;
 	if (kbase_ctx_compat_mode(kctx))
 		base_pfn = KBASE_REG_ZONE_EXEC_VA_BASE_32;
-#else
-	CSTD_UNUSED(kctx);
-	/* EXEC_VA zone's codepaths are slightly easier when its base_pfn is
-	 * initially U64_MAX
-	 */
-	base_pfn = U64_MAX;
-#endif
 
 	return base_pfn;
 }
@@ -864,10 +842,6 @@ static inline int kbase_reg_zone_exec_va_init(struct kbase_context *kctx, u64 gp
 
 	CSTD_UNUSED(gpu_va_limit);
 
-#if !MALI_USE_CSF
-	nr_pages = 0;
-#endif
-
 	return kbase_reg_zone_init(kctx->kbdev, zone, EXEC_VA_ZONE, base_pfn, nr_pages);
 }
 
@@ -878,7 +852,6 @@ static void kbase_reg_zone_exec_va_term(struct kbase_context *kctx)
 	kbase_reg_zone_term(zone);
 }
 
-#if MALI_USE_CSF
 static inline u64 kbase_get_exec_fixed_va_zone_base(struct kbase_context *kctx)
 {
 	return kbase_get_exec_va_zone_base(kctx) + KBASE_REG_ZONE_EXEC_VA_SIZE;
@@ -931,7 +904,6 @@ static void kbase_reg_zone_fixed_va_term(struct kbase_context *kctx)
 
 	kbase_reg_zone_term(zone);
 }
-#endif
 
 typedef int kbase_memory_zone_init(struct kbase_context *kctx, u64 gpu_va_limit);
 typedef void kbase_memory_zone_term(struct kbase_context *kctx);
@@ -949,13 +921,11 @@ static const struct kbase_memory_zone_init_meta zones_init[] = {
 			     "Could not initialize CUSTOM_VA zone" },
 	[EXEC_VA_ZONE] = { kbase_reg_zone_exec_va_init, kbase_reg_zone_exec_va_term,
 			   "Could not initialize EXEC_VA zone" },
-#if MALI_USE_CSF
 	[EXEC_FIXED_VA_ZONE] = { kbase_reg_zone_exec_fixed_va_init,
 				 kbase_reg_zone_exec_fixed_va_term,
 				 "Could not initialize EXEC_FIXED_VA zone" },
 	[FIXED_VA_ZONE] = { kbase_reg_zone_fixed_va_init, kbase_reg_zone_fixed_va_term,
 			    "Could not initialize FIXED_VA zone" },
-#endif
 };
 
 int kbase_region_tracker_init(struct kbase_context *kctx)
@@ -975,9 +945,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 			goto term;
 		}
 	}
-#if MALI_USE_CSF
 	INIT_LIST_HEAD(&kctx->csf.event_pages_head);
-#endif
 	kctx->jit_va = false;
 
 	kbase_gpu_vm_unlock(kctx);
@@ -1217,16 +1185,6 @@ KBASE_EXPORT_TEST_API(kbase_region_tracker_init_jit);
 
 int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages)
 {
-#if !MALI_USE_CSF
-	struct kbase_reg_zone *exec_va_zone;
-	struct kbase_reg_zone *target_zone;
-	struct kbase_va_region *target_reg;
-	u64 target_zone_base_addr;
-	enum kbase_memory_zone target_zone_id;
-	u64 exec_va_start;
-	int err;
-#endif
-
 	/* The EXEC_VA zone shall be created by making space either:
 	 * - for 64-bit clients, at the end of the process's address space
 	 * - for 32-bit clients, in the CUSTOM zone
@@ -1239,85 +1197,14 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 	if (exec_va_pages == 0 || exec_va_pages > KBASE_REG_ZONE_EXEC_VA_MAX_PAGES)
 		return -EINVAL;
 
-#if MALI_USE_CSF
 	/* For CSF GPUs we now setup the EXEC_VA zone during initialization,
 	 * so this request is a null-op.
 	 */
 	CSTD_UNUSED(kctx);
 	return 0;
-#else
-	kbase_gpu_vm_lock(kctx);
-
-	/* Verify that we've not already created a EXEC_VA zone, and that the
-	 * EXEC_VA zone must come before JIT's CUSTOM_VA.
-	 */
-	if (kbase_has_exec_va_zone_locked(kctx) || kctx->jit_va) {
-		err = -EPERM;
-		goto exit_unlock;
-	}
-
-	if (exec_va_pages > kctx->gpu_va_end) {
-		err = -ENOMEM;
-		goto exit_unlock;
-	}
-
-	/* Verify no allocations have already been made */
-	if (kbase_region_tracker_has_allocs(kctx)) {
-		err = -ENOMEM;
-		goto exit_unlock;
-	}
-
-	if (kbase_ctx_compat_mode(kctx)) {
-		/* 32-bit client: take from CUSTOM_VA zone */
-		target_zone_id = CUSTOM_VA_ZONE;
-	} else {
-		/* 64-bit client: take from SAME_VA zone */
-		target_zone_id = SAME_VA_ZONE;
-	}
-
-	target_zone = kbase_ctx_reg_zone_get(kctx, target_zone_id);
-	target_zone_base_addr = target_zone->base_pfn << PAGE_SHIFT;
-
-	target_reg = kbase_region_tracker_find_region_base_address(kctx, target_zone_base_addr);
-	if (WARN(!target_reg,
-		 "Already found a free region at the start of every zone, but now cannot find any region for zone base 0x%.16llx zone %s",
-		 (unsigned long long)target_zone_base_addr,
-		 kbase_reg_zone_get_name(target_zone_id))) {
-		err = -ENOMEM;
-		goto exit_unlock;
-	}
-	/* kbase_region_tracker_has_allocs() above has already ensured that all
-	 * of the zones have no allocs, so no need to check that again on
-	 * target_reg
-	 */
-	WARN_ON((!(target_reg->flags & KBASE_REG_FREE)) ||
-		target_reg->nr_pages != target_zone->va_size_pages);
-
-	if (target_reg->nr_pages <= exec_va_pages || target_zone->va_size_pages <= exec_va_pages) {
-		err = -ENOMEM;
-		goto exit_unlock;
-	}
-
-	/* Taken from the end of the target zone */
-	exec_va_start = kbase_reg_zone_end_pfn(target_zone) - exec_va_pages;
-	exec_va_zone = kbase_ctx_reg_zone_get(kctx, EXEC_VA_ZONE);
-	if (kbase_reg_zone_init(kctx->kbdev, exec_va_zone, EXEC_VA_ZONE, exec_va_start,
-				exec_va_pages))
-		return -ENOMEM;
-
-	/* Update target zone and corresponding region */
-	target_reg->nr_pages -= exec_va_pages;
-	target_zone->va_size_pages -= exec_va_pages;
-	err = 0;
-
-exit_unlock:
-	kbase_gpu_vm_unlock(kctx);
-	return err;
-#endif /* MALI_USE_CSF */
 }
 KBASE_EXPORT_TEST_API(kbase_region_tracker_init_exec);
 
-#if MALI_USE_CSF
 void kbase_mcu_shared_interface_region_tracker_term(struct kbase_device *kbdev)
 {
 	kbase_reg_zone_term(&kbdev->csf.mcu_shared_zone);
@@ -1328,7 +1215,6 @@ int kbase_mcu_shared_interface_region_tracker_init(struct kbase_device *kbdev)
 	return kbase_reg_zone_init(kbdev, &kbdev->csf.mcu_shared_zone, MCU_SHARED_ZONE,
 				   KBASE_REG_ZONE_MCU_SHARED_BASE, MCU_SHARED_ZONE_SIZE);
 }
-#endif
 
 /**
  * kbase_alloc_free_region - Allocate a free region object.
@@ -1410,12 +1296,10 @@ KBASE_EXPORT_TEST_API(kbase_ctx_alloc_free_region);
  */
 void kbase_free_alloced_region(struct kbase_va_region *reg)
 {
-#if MALI_USE_CSF
 	if (kbase_bits_to_zone(reg->flags) == MCU_SHARED_ZONE) {
 		kfree(reg);
 		return;
 	}
-#endif
 	if (!(reg->flags & KBASE_REG_FREE)) {
 		struct kbase_context *kctx = kbase_reg_to_kctx(reg);
 
@@ -1427,7 +1311,6 @@ void kbase_free_alloced_region(struct kbase_va_region *reg)
 
 		dev_dbg(kctx->kbdev->dev, "Freeing memory region %pK\n of zone %s", (void *)reg,
 			kbase_reg_zone_get_name(kbase_bits_to_zone(reg->flags)));
-#if MALI_USE_CSF
 		if (reg->flags & KBASE_REG_CSF_EVENT)
 			/*
 			 * This should not be reachable if called from 'mcu_shared' functions
@@ -1437,7 +1320,6 @@ void kbase_free_alloced_region(struct kbase_va_region *reg)
 			 */
 
 			kbase_unlink_event_mem_page(kctx, reg);
-#endif
 
 		mutex_lock(&kctx->jit_evict_lock);
 

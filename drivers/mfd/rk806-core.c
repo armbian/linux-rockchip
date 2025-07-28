@@ -966,6 +966,28 @@ int rk806_device_init(struct rk806 *rk806)
 }
 EXPORT_SYMBOL_GPL(rk806_device_init);
 
+int rk806_core_suspend(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	disable_irq(rk806->irq);
+	enable_irq_wake(rk806->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rk806_core_suspend);
+
+int rk806_core_resume(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	enable_irq(rk806->irq);
+	disable_irq_wake(rk806->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rk806_core_resume);
+
 int rk806_device_exit(struct rk806 *rk806)
 {
 	struct device_node *np = rk806->dev->of_node;

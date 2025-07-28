@@ -31,9 +31,34 @@
 #include "hwcnt/backend/mali_kbase_hwcnt_backend_csf_if.h"
 #include "hwcnt/mali_kbase_hwcnt_watchdog_if.h"
 #include "hwcnt/mali_kbase_hwcnt_types.h"
+#include <hwcnt/mali_kbase_hwcnt_context.h>
 
 struct kbase_hwcnt_physical_enable_map;
 struct kbase_hwcnt_backend_csf;
+
+/**
+ * enum kbase_hwcnt_backend_sample_reason - HWC CSF metadata block sample
+ *                                          reasons.
+ *
+ * @SAMPLE_REASON_NONE:            No metadata was enabled or available.
+ * @SAMPLE_REASON_BEFORE_PROTM:    The sample was taken just before the GPU enters protected mode.
+ * @SAMPLE_REASON_BEFORE_HALT:     The sample was taken just before the GPU enters the HALT state.
+ * @SAMPLE_REASON_BEFORE_SLEEP:    The sample was taken just before the GPU enters the SLEEP state.
+ * @SAMPLE_REASON_BEFORE_SUSPEND:  The sample was taken just before the GPU enters the SUSPEND
+ *                                 state.
+ * @SAMPLE_REASON_BEFORE_YIELD:    The sample was taken just before GPU subinstance yields the
+ *                                 access window.
+ * @SAMPLE_REASON_AFTER_WARM_BOOT: The sample taken after GPU subinstance completed a warm boot.
+ */
+enum kbase_hwcnt_backend_sample_reason {
+	SAMPLE_REASON_NONE,
+	SAMPLE_REASON_BEFORE_PROTM,
+	SAMPLE_REASON_BEFORE_HALT,
+	SAMPLE_REASON_BEFORE_SLEEP,
+	SAMPLE_REASON_BEFORE_SUSPEND,
+	SAMPLE_REASON_BEFORE_YIELD,
+	SAMPLE_REASON_AFTER_WARM_BOOT
+};
 
 /**
  * kbase_hwcnt_backend_csf_create() - Create a CSF hardware counter backend
@@ -71,6 +96,18 @@ int kbase_hwcnt_backend_csf_metadata_init(struct kbase_hwcnt_backend_interface *
  * @iface: Non-NULL pointer to backend interface structure.
  */
 void kbase_hwcnt_backend_csf_metadata_term(struct kbase_hwcnt_backend_interface *iface);
+
+/**
+ * kbase_hwcnt_backend_csf_ring_buf_term() - Terminate the ring buffers for a CSF
+ *                                           hardware counter backend. Must be called while
+ *                                           FW is still loaded.
+ *
+ * @iface: Non-NULL pointer to backend interface structure.
+ *
+ * If the ring buffer was not freed while HWC backend was present
+ * (e.g. due to MCU being powered off), this function will free it.
+ */
+void kbase_hwcnt_backend_csf_ring_buf_term(struct kbase_hwcnt_backend_interface *iface);
 
 /**
  * kbase_hwcnt_backend_csf_destroy() - Destroy a CSF hardware counter backend
@@ -123,8 +160,8 @@ void kbase_hwcnt_backend_csf_on_before_reset(struct kbase_hwcnt_backend_interfac
 /**
  * kbase_hwcnt_backend_csf_set_hw_availability() - CSF HWC backend function to
  *                                                 set current HW configuration.
- *                                                 HWC must be disabled before
- *                                                 this function is called.
+ *                                                 Can only be called when the MCU is off.
+ *
  * @iface: Non-NULL pointer to HWC backend interface.
  * @num_l2_slices: Current number of L2 slices allocated to the GPU.
  * @shader_present: Shader_present of the current configuration.
@@ -180,20 +217,60 @@ void kbase_hwcnt_backend_csf_on_prfcnt_enable(struct kbase_hwcnt_backend_interfa
 void kbase_hwcnt_backend_csf_on_prfcnt_disable(struct kbase_hwcnt_backend_interface *iface);
 
 /**
+ * kbase_hwcnt_backend_csf_on_after_mcu_off() - CSF HWC backend function to be called immediately
+ *                                              after the MCU shut down process is completed,
+ *                                              informing the backend that it is no longer valid
+ *                                              to send commands to the MCU and that any
+ *                                              outstanding commands will not be ACKed.
+ * @iface: Non-NULL pointer to HWC backend interface.
+ */
+void kbase_hwcnt_backend_csf_on_after_mcu_off(struct kbase_hwcnt_backend_interface *iface);
+
+/**
+ * kbase_hwcnt_backend_csf_on_after_mcu_off_reset() - Similar to
+ *                                              kbase_hwcnt_backend_csf_on_after_mcu_off().
+ *                                              To be called only after a completed reset.
+ *                                              This function will notify backend about MCU
+ *                                              being powered off only if it hasn't been
+ *                                              done yet. This is due to the fact that it's
+ *                                              uncertain if the MCU_OFF notification was
+ *                                              raised prior to the reset.
+ * @iface: Non-NULL pointer to HWC backend interface.
+ */
+void kbase_hwcnt_backend_csf_on_after_mcu_off_reset(struct kbase_hwcnt_backend_interface *iface);
+
+/**
+ * kbase_hwcnt_backend_csf_on_after_mcu_on() - CSF HWC backend function to be called immediately
+ *                                             after the MCU has booted, informing the backend
+ *                                             that it is now valid to send commands to the MCU.
+ * @iface: Non-NULL pointer to HWC backend interface.
+ */
+void kbase_hwcnt_backend_csf_on_after_mcu_on(struct kbase_hwcnt_backend_interface *iface);
+
+/**
+ * kbase_hwcnt_backend_csf_on_before_mcu_cold_boot() - CSF HWC backend function to be called
+ *                                                     immediately before a cold MCU boot,
+ *                                                     allowing the backend to reset its internal
+ *                                                     state machine to match the cold-booted
+ *                                                     FW state.
+ * @iface: Non-NULL pointer to HWC backend interface.
+ */
+void kbase_hwcnt_backend_csf_on_before_mcu_cold_boot(struct kbase_hwcnt_backend_interface *iface);
+
+/**
  * kbasep_hwcnt_backend_csf_update_block_state - Update block state of a block instance with
  *                              information from a sample.
  * @backend:                    CSF hardware counter backend.
  * @enable_mask:                Counter enable mask for the block whose state is being updated.
- * @exiting_protm:              Whether or not the sample is taken when the GPU is exiting
- *                              protected mode.
- * @block_idx:                  Index of block within the ringbuffer.
+  * @block_idx:                  Index of the block in the dump.
  * @block_state:                Pointer to existing block state of the block whose state is being
  *                              updated.
- * @fw_in_protected_mode:       Whether or not GPU is in protected mode during sampling.
+ * @prev_sample_reason:         The previous sample reason
+ * @curr_sample_reason:         The current sample reason
  */
-void kbasep_hwcnt_backend_csf_update_block_state(struct kbase_hwcnt_backend_csf *backend,
-						 const u32 enable_mask, bool exiting_protm,
-						 size_t block_idx, blk_stt_t *const block_state,
-						 bool fw_in_protected_mode);
+void kbasep_hwcnt_backend_csf_update_block_state(
+	struct kbase_hwcnt_backend_csf *backend, const u32 enable_mask, size_t block_idx,
+	blk_stt_t *const block_state, enum kbase_hwcnt_backend_sample_reason prev_sample_reason,
+	enum kbase_hwcnt_backend_sample_reason curr_sample_reason);
 
 #endif /* _KBASE_HWCNT_BACKEND_CSF_H_ */

@@ -546,9 +546,9 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static int rockchip_tve_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+static int rockchip_tve_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_tve *tve = encoder_to_tve(encoder);
+	struct rockchip_tve *tve = container_of(sub_dev, struct rockchip_tve, sub_dev);
 	int ret;
 
 	if (on) {

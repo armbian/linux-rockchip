@@ -18,9 +18,7 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_pm_defs.h>
 
-#if MALI_USE_CSF
 #include <asm/arch_timer.h>
-#endif
 
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>

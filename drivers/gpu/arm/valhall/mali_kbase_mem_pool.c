@@ -34,9 +34,8 @@
 #include <linux/signal.h>
 #endif
 
-#define pool_dbg(pool, format, ...)                                              \
-	dev_dbg(pool->kbdev->dev, "%s-pool [%zu/%zu]: " format,                  \
-		(pool->next_pool) ? "kctx" : "kbdev", kbase_mem_pool_size(pool), \
+#define pool_dbg(pool, format, ...)                                                                \
+	dev_dbg(pool->kbdev->dev, "%s-pool [%zu/%zu]: " format, "kctx", kbase_mem_pool_size(pool), \
 		kbase_mem_pool_max_size(pool), ##__VA_ARGS__)
 
 #define NOT_DIRTY false
@@ -257,14 +256,6 @@ static void kbase_mem_pool_zero_page(struct kbase_mem_pool *pool, struct page *p
 	kbase_mem_pool_sync_page(pool, p);
 }
 
-static void kbase_mem_pool_spill(struct kbase_mem_pool *next_pool, struct page *p)
-{
-	/* Zero page before spilling */
-	kbase_mem_pool_zero_page(next_pool, p);
-
-	kbase_mem_pool_add(next_pool, p);
-}
-
 struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool)
 {
 	struct page *p;
@@ -308,13 +299,15 @@ struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool)
 
 	return p;
 }
+KBASE_EXPORT_TEST_API(kbase_mem_alloc_page);
 
 static void enqueue_free_pool_pages_work(struct kbase_mem_pool *pool)
 {
-	struct kbase_mem_migrate *mem_migrate = &pool->kbdev->mem_migrate;
+	if (!pool->order && kbase_is_page_migration_enabled()) {
+		struct kbase_mem_migrate *mem_migrate = &pool->kbdev->mem_migrate;
 
-	if (!pool->order && kbase_is_page_migration_enabled())
 		queue_work(mem_migrate->free_pages_workq, &mem_migrate->free_pages_work);
+	}
 }
 
 void kbase_mem_pool_free_page(struct kbase_mem_pool *pool, struct page *p)
@@ -345,6 +338,7 @@ void kbase_mem_pool_free_page(struct kbase_mem_pool *pool, struct page *p)
 		pool_dbg(pool, "freed page to kernel\n");
 	}
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_free_page);
 
 static size_t kbase_mem_pool_shrink_locked(struct kbase_mem_pool *pool, size_t nr_to_shrink)
 {
@@ -383,10 +377,13 @@ int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow,
 
 	kbase_mem_pool_lock(pool);
 
-	pool->dont_reclaim = true;
+	pool->reclaim_allowed = false;
+
 	for (i = 0; i < nr_to_grow; i++) {
 		if (pool->dying) {
-			pool->dont_reclaim = false;
+			if (pool->pool_supports_reclaim)
+				pool->reclaim_allowed = true;
+
 			kbase_mem_pool_shrink_locked(pool, nr_to_grow);
 			kbase_mem_pool_unlock(pool);
 			if (page_owner)
@@ -402,9 +399,11 @@ int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow,
 
 		p = kbase_mem_alloc_page(pool);
 		if (!p) {
-			kbase_mem_pool_lock(pool);
-			pool->dont_reclaim = false;
-			kbase_mem_pool_unlock(pool);
+			if (pool->pool_supports_reclaim) {
+				kbase_mem_pool_lock(pool);
+				pool->reclaim_allowed = true;
+				kbase_mem_pool_unlock(pool);
+			}
 
 			return -ENOMEM;
 		}
@@ -412,7 +411,10 @@ int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow,
 		kbase_mem_pool_lock(pool);
 		kbase_mem_pool_add_locked(pool, p);
 	}
-	pool->dont_reclaim = false;
+
+	if (pool->pool_supports_reclaim)
+		pool->reclaim_allowed = true;
+
 	kbase_mem_pool_unlock(pool);
 
 	return 0;
@@ -443,6 +445,7 @@ void kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size)
 			(new_size - cur_size), (grown_size - cur_size));
 	}
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_trim);
 
 void kbase_mem_pool_set_max_size(struct kbase_mem_pool *pool, size_t max_size)
 {
@@ -473,8 +476,12 @@ static unsigned long kbase_mem_pool_reclaim_count_objects(struct shrinker *s,
 
 	pool = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_mem_pool, reclaim);
 
+	/* Pools not supporting reclaims are not assumed to register reclaim callbacks */
+	if (WARN_ON(!pool->pool_supports_reclaim))
+		return 0;
+
 	kbase_mem_pool_lock(pool);
-	if (pool->dont_reclaim && !pool->dying) {
+	if (!pool->reclaim_allowed && !pool->dying) {
 		kbase_mem_pool_unlock(pool);
 		/* Tell shrinker to skip reclaim
 		 * even though freeable pages are available
@@ -495,10 +502,13 @@ static unsigned long kbase_mem_pool_reclaim_scan_objects(struct shrinker *s,
 
 	pool = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_mem_pool, reclaim);
 
+	if (WARN_ON(!pool->pool_supports_reclaim))
+		return SHRINK_STOP;
+
 	kbase_mem_pool_lock(pool);
-	if (pool->dont_reclaim && !pool->dying) {
+	if (!pool->reclaim_allowed && !pool->dying) {
 		kbase_mem_pool_unlock(pool);
-		/* Tell shrinker that reclaim can't be made and
+		/* Tell shrinker that reclaim can't be done, and
 		 * do not attempt again for this reclaim context.
 		 */
 		return SHRINK_STOP;
@@ -515,9 +525,8 @@ static unsigned long kbase_mem_pool_reclaim_scan_objects(struct shrinker *s,
 	return freed;
 }
 
-int kbase_mem_pool_init(struct kbase_mem_pool *pool, const struct kbase_mem_pool_config *config,
-			unsigned int order, int group_id, struct kbase_device *kbdev,
-			struct kbase_mem_pool *next_pool)
+static int kbasep_mem_pool_init(struct kbase_mem_pool *pool, size_t max_size, unsigned int order,
+				int group_id, struct kbase_device *kbdev, bool support_reclaim)
 {
 	struct shrinker *reclaim;
 
@@ -526,34 +535,50 @@ int kbase_mem_pool_init(struct kbase_mem_pool *pool, const struct kbase_mem_pool
 	}
 
 	pool->cur_size = 0;
-	pool->max_size = kbase_mem_pool_config_get_max_size(config);
+	pool->max_size = max_size;
 	pool->order = order;
 	pool->group_id = group_id;
 	pool->kbdev = kbdev;
-	pool->next_pool = next_pool;
 	pool->dying = false;
+	pool->pool_supports_reclaim = support_reclaim;
+	pool->reclaim_allowed = false;
 	atomic_set(&pool->isolation_in_progress_cnt, 0);
 
 	spin_lock_init(&pool->pool_lock);
 	INIT_LIST_HEAD(&pool->page_list);
 
-	reclaim = KBASE_INIT_RECLAIM(pool, reclaim, "mali-mem-pool");
-	if (!reclaim)
-		return -ENOMEM;
-	KBASE_SET_RECLAIM(pool, reclaim, reclaim);
+	if (support_reclaim) {
+		reclaim = KBASE_INIT_RECLAIM(pool, reclaim, "mali-mem-pool");
+		if (!reclaim)
+			return -ENOMEM;
+		KBASE_SET_RECLAIM(pool, reclaim, reclaim);
 
-	reclaim->count_objects = kbase_mem_pool_reclaim_count_objects;
-	reclaim->scan_objects = kbase_mem_pool_reclaim_scan_objects;
-	reclaim->seeks = DEFAULT_SEEKS;
-	reclaim->batch = 0;
+		reclaim->count_objects = kbase_mem_pool_reclaim_count_objects;
+		reclaim->scan_objects = kbase_mem_pool_reclaim_scan_objects;
+		reclaim->seeks = DEFAULT_SEEKS;
+		reclaim->batch = 0;
 
-	KBASE_REGISTER_SHRINKER(reclaim, "mali-mem-pool", pool);
+		KBASE_REGISTER_SHRINKER(reclaim, "mali-mem-pool", pool);
+	}
 
 	pool_dbg(pool, "initialized\n");
 
 	return 0;
 }
+
+int kbase_mem_pool_init(struct kbase_mem_pool *pool, size_t max_size, unsigned int order,
+			int group_id, struct kbase_device *kbdev)
+{
+	return kbasep_mem_pool_init(pool, max_size, order, group_id, kbdev, true);
+}
 KBASE_EXPORT_TEST_API(kbase_mem_pool_init);
+
+int kbase_mem_pool_init_no_reclaim(struct kbase_mem_pool *pool, size_t max_size, unsigned int order,
+				   int group_id, struct kbase_device *kbdev)
+{
+	return kbasep_mem_pool_init(pool, max_size, order, group_id, kbdev, false);
+}
+KBASE_EXPORT_TEST_API(kbase_mem_pool_init_no_reclaim);
 
 void kbase_mem_pool_mark_dying(struct kbase_mem_pool *pool)
 {
@@ -561,35 +586,21 @@ void kbase_mem_pool_mark_dying(struct kbase_mem_pool *pool)
 	pool->dying = true;
 	kbase_mem_pool_unlock(pool);
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_mark_dying);
 
 void kbase_mem_pool_term(struct kbase_mem_pool *pool)
 {
-	struct kbase_mem_pool *next_pool = pool->next_pool;
 	struct page *p, *tmp;
-	size_t nr_to_spill = 0;
 	LIST_HEAD(spill_list);
 	LIST_HEAD(free_list);
-	size_t i;
 
 	pool_dbg(pool, "terminate()\n");
 
-	KBASE_UNREGISTER_SHRINKER(pool->reclaim);
+	if (pool->pool_supports_reclaim)
+		KBASE_UNREGISTER_SHRINKER(pool->reclaim);
 
 	kbase_mem_pool_lock(pool);
 	pool->max_size = 0;
-
-	if (next_pool && !kbase_mem_pool_is_full(next_pool)) {
-		/* Spill to next pool (may overspill) */
-		nr_to_spill = kbase_mem_pool_capacity(next_pool);
-		nr_to_spill = min(kbase_mem_pool_size(pool), nr_to_spill);
-
-		/* Zero pages first without holding the next_pool lock */
-		for (i = 0; i < nr_to_spill; i++) {
-			p = kbase_mem_pool_remove_locked(pool, SPILL_IN_PROGRESS);
-			if (p)
-				list_add(&p->lru, &spill_list);
-		}
-	}
 
 	while (!kbase_mem_pool_is_empty(pool)) {
 		/* Free remaining pages to kernel */
@@ -599,16 +610,6 @@ void kbase_mem_pool_term(struct kbase_mem_pool *pool)
 	}
 
 	kbase_mem_pool_unlock(pool);
-
-	if (next_pool && nr_to_spill) {
-		list_for_each_entry(p, &spill_list, lru)
-			kbase_mem_pool_zero_page(pool, p);
-
-		/* Add new page list to next_pool */
-		kbase_mem_pool_add_list(next_pool, &spill_list, nr_to_spill);
-
-		pool_dbg(pool, "terminate() spilled %zu pages\n", nr_to_spill);
-	}
 
 	list_for_each_entry_safe(p, tmp, &free_list, lru) {
 		list_del_init(&p->lru);
@@ -633,18 +634,12 @@ struct page *kbase_mem_pool_alloc(struct kbase_mem_pool *pool)
 {
 	struct page *p;
 
-	do {
-		pool_dbg(pool, "alloc()\n");
-		p = kbase_mem_pool_remove(pool, ALLOCATE_IN_PROGRESS);
+	pool_dbg(pool, "alloc()\n");
+	p = kbase_mem_pool_remove(pool, ALLOCATE_IN_PROGRESS);
 
-		if (p)
-			return p;
-
-		pool = pool->next_pool;
-	} while (pool);
-
-	return NULL;
+	return p;
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_alloc);
 
 struct page *kbase_mem_pool_alloc_locked(struct kbase_mem_pool *pool)
 {
@@ -656,8 +651,6 @@ struct page *kbase_mem_pool_alloc_locked(struct kbase_mem_pool *pool)
 
 void kbase_mem_pool_free(struct kbase_mem_pool *pool, struct page *p, bool dirty)
 {
-	struct kbase_mem_pool *next_pool = pool->next_pool;
-
 	pool_dbg(pool, "free()\n");
 
 	if (!kbase_mem_pool_is_full(pool)) {
@@ -666,9 +659,6 @@ void kbase_mem_pool_free(struct kbase_mem_pool *pool, struct page *p, bool dirty
 			kbase_mem_pool_sync_page(pool, p);
 
 		kbase_mem_pool_add(pool, p);
-	} else if (next_pool && !kbase_mem_pool_is_full(next_pool)) {
-		/* Spill to next pool */
-		kbase_mem_pool_spill(next_pool, p);
 	} else {
 		/* Free page */
 		kbase_mem_pool_free_page(pool, p);
@@ -676,6 +666,7 @@ void kbase_mem_pool_free(struct kbase_mem_pool *pool, struct page *p, bool dirty
 		enqueue_free_pool_pages_work(pool);
 	}
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_free);
 
 void kbase_mem_pool_free_locked(struct kbase_mem_pool *pool, struct page *p, bool dirty)
 {
@@ -696,6 +687,7 @@ void kbase_mem_pool_free_locked(struct kbase_mem_pool *pool, struct page *p, boo
 		enqueue_free_pool_pages_work(pool);
 	}
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_free_locked);
 
 int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_small_pages,
 			       struct tagged_addr *pages, bool partial_allowed,
@@ -735,42 +727,31 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_small_page
 	}
 	kbase_mem_pool_unlock(pool);
 
-	if (i != nr_small_pages && pool->next_pool) {
-		/* Allocate via next pool */
-		err = kbase_mem_pool_alloc_pages(pool->next_pool, nr_small_pages - i, pages + i,
-						 partial_allowed, page_owner);
-
-		if (err < 0)
+	/* Get any remaining pages from kernel */
+	while (i != nr_small_pages) {
+		if (unlikely(!can_alloc_page(pool, page_owner)))
 			goto err_rollback;
 
-		i += (size_t)err;
-	} else {
-		/* Get any remaining pages from kernel */
-		while (i != nr_small_pages) {
-			if (unlikely(!can_alloc_page(pool, page_owner)))
+		p = kbase_mem_alloc_page(pool);
+		if (!p) {
+			if (partial_allowed)
+				goto done;
+			else
 				goto err_rollback;
+		}
 
-			p = kbase_mem_alloc_page(pool);
-			if (!p) {
-				if (partial_allowed)
-					goto done;
-				else
-					goto err_rollback;
+		if (pool->order) {
+			uint j;
+
+			pages[i++] = as_tagged_tag(page_to_phys(p), HUGE_PAGE | HUGE_HEAD);
+			for (j = 1; j < (1u << pool->order); j++) {
+				phys_addr_t phys;
+
+				phys = page_to_phys(p) + PAGE_SIZE * j;
+				pages[i++] = as_tagged_tag(phys, HUGE_PAGE);
 			}
-
-			if (pool->order) {
-				uint j;
-
-				pages[i++] = as_tagged_tag(page_to_phys(p), HUGE_PAGE | HUGE_HEAD);
-				for (j = 1; j < (1u << pool->order); j++) {
-					phys_addr_t phys;
-
-					phys = page_to_phys(p) + PAGE_SIZE * j;
-					pages[i++] = as_tagged_tag(phys, HUGE_PAGE);
-				}
-			} else {
-				pages[i++] = as_tagged(page_to_phys(p));
-			}
+		} else {
+			pages[i++] = as_tagged(page_to_phys(p));
 		}
 	}
 
@@ -782,6 +763,7 @@ err_rollback:
 	kbase_mem_pool_free_pages(pool, i, pages, NOT_DIRTY, NOT_RECLAIMED);
 	return err;
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_alloc_pages);
 
 int kbase_mem_pool_alloc_pages_locked(struct kbase_mem_pool *pool, size_t nr_small_pages,
 				      struct tagged_addr *pages)
@@ -822,6 +804,7 @@ int kbase_mem_pool_alloc_pages_locked(struct kbase_mem_pool *pool, size_t nr_sma
 
 	return nr_small_pages;
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_alloc_pages_locked);
 
 static void kbase_mem_pool_add_array(struct kbase_mem_pool *pool, size_t nr_pages,
 				     struct tagged_addr *pages, bool zero, bool sync)
@@ -902,7 +885,6 @@ static void kbase_mem_pool_add_array_locked(struct kbase_mem_pool *pool, size_t 
 void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 			       struct tagged_addr *pages, bool dirty, bool reclaimed)
 {
-	struct kbase_mem_pool *next_pool = pool->next_pool;
 	struct page *p;
 	size_t nr_to_pool;
 	LIST_HEAD(to_pool_list);
@@ -919,15 +901,6 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 		kbase_mem_pool_add_array(pool, nr_to_pool, pages, false, dirty);
 
 		i += nr_to_pool;
-
-		if (i != nr_pages && next_pool) {
-			/* Spill to next pool (may overspill) */
-			nr_to_pool = kbase_mem_pool_capacity(next_pool);
-			nr_to_pool = min(nr_pages - i, nr_to_pool);
-
-			kbase_mem_pool_add_array(next_pool, nr_to_pool, pages + i, true, dirty);
-			i += nr_to_pool;
-		}
 	}
 
 	/* Free any remaining pages to kernel */
@@ -952,6 +925,7 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 
 	pool_dbg(pool, "free_pages(%zu) done\n", nr_pages);
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_free_pages);
 
 void kbase_mem_pool_free_pages_locked(struct kbase_mem_pool *pool, size_t nr_pages,
 				      struct tagged_addr *pages, bool dirty, bool reclaimed)
@@ -999,3 +973,4 @@ void kbase_mem_pool_free_pages_locked(struct kbase_mem_pool *pool, size_t nr_pag
 
 	pool_dbg(pool, "free_pages_locked(%zu) done\n", nr_pages);
 }
+KBASE_EXPORT_TEST_API(kbase_mem_pool_free_pages_locked);

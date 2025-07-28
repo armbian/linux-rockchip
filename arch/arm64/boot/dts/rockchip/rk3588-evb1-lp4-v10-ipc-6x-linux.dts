@@ -83,6 +83,10 @@
 	status = "disabled";
 };
 
+&hynitron {
+	status = "disabled";
+};
+
 &i2c6 {
 	status = "disabled";
 };

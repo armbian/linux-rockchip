@@ -50,6 +50,14 @@ int rkvpss_dvbm_init(struct rkvpss_stream *stream)
 
 	if (!g_dvbm)
 		return -EINVAL;
+	if (vpss_dev->hw_dev->dvbm_flag == DVBM_OFFLINE) {
+		v4l2_err(&vpss_dev->v4l2_dev,
+			"offline dvbm already set, online dvbm set fail.\n");
+		return -EINVAL;
+	}
+
+	vpss_dev->hw_dev->dvbm_refcnt++;
+	vpss_dev->hw_dev->dvbm_flag = DVBM_ONLINE;
 
 	width = stream->out_fmt.plane_fmt[0].bytesperline;
 	height = stream->out_fmt.height;
@@ -76,6 +84,11 @@ void rkvpss_dvbm_deinit(struct rkvpss_device *vpss_dev)
 		pr_err("g_dvbm %p or vpss_dev %p is NULL\n", g_dvbm, vpss_dev);
 		return;
 	}
+
+	vpss_dev->hw_dev->dvbm_refcnt--;
+	if (vpss_dev->hw_dev->dvbm_refcnt <= 0)
+		vpss_dev->hw_dev->dvbm_flag = DVBM_DEINIT;
+
 	rk_dvbm_unlink(g_dvbm, vpss_dev->dev_id);
 }
 

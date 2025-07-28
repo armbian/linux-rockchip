@@ -325,6 +325,7 @@ static const struct of_device_id serdes_bridge_split_of_match[] = {
 	{ .compatible = "rohm,bu18tl82-bridge-split", },
 	{ .compatible = "rohm,bu18rl82-bridge-split", },
 	{ .compatible = "maxim,max96745-bridge-split", },
+	{ .compatible = "maxim,max96749-bridge-split", },
 	{ .compatible = "maxim,max96755-bridge-split", },
 	{ .compatible = "maxim,max96752-bridge-split", },
 	{ .compatible = "maxim,max96789-bridge-split", },

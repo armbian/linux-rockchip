@@ -17,6 +17,12 @@ config SERDES_DISPLAY_CHIP_MAXIM_MAX96745
 	help
 	  To support maxim max96745 display serdes.
 
+config SERDES_DISPLAY_CHIP_MAXIM_MAX96749
+	tristate "maxim max96749 serdes"
+	default y
+	help
+	  To support maxim max96749 display serdes.
+
 config SERDES_DISPLAY_CHIP_MAXIM_MAX96752
 	tristate "maxim max96752 serdes"
 	default y

@@ -537,7 +537,7 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
-	struct mpp_dma_buffer *table = link_dec->table;
+	struct mpp_dma_buffer *table = task->table;
 	struct rkvdec_link_info *info = link_dec->info;
 	struct rkvdec_link_part *part = info->part_r;
 	u32 *tb_reg = (u32 *)table->vaddr;

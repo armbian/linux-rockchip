@@ -87,6 +87,7 @@
 /* RTC_CTRL_REG bitfields */
 #define RTC_CTRL_REG_START_RTC		BIT(0)
 #define RTC_TIMEOUT			(3000 * 1000)
+#define RTC_STATUS_TIMEOUT		(500)
 
 /* RK630 has a shadowed register for saving a "frozen" RTC time.
  * When user setting "GET_TIME" to 1, the time will save in this shadowed
@@ -256,8 +257,7 @@ static int rockchip_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return ret;
 }
 
-/* Set current time and date in RTC */
-static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
+static int rockchip_rtc_do_set_time(struct device *dev, struct rtc_time *tm, bool ready)
 {
 	struct rockchip_rtc *rtc = dev_get_drvdata(dev);
 	u32 rtc_data[NUM_TIME_REGS];
@@ -292,13 +292,15 @@ static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
-				       !(status & RTC_CTRL_REG_START_RTC),
-				       0, RTC_TIMEOUT);
-	if (ret)
-		dev_err(dev,
-			"%s:timeout Update RTC_STATUS1 : %d\n",
-			__func__, ret);
+	if (ready) {
+		ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
+					       !(status & RTC_CTRL_REG_START_RTC),
+					       100, RTC_STATUS_TIMEOUT);
+		if (ret)
+			dev_err(dev,
+				"%s:timeout Update RTC_STATUS1 : %d\n",
+				__func__, ret);
+	}
 
 	ret = regmap_bulk_write(rtc->regmap, RTC_SET_SECONDS,
 				rtc_data, NUM_TIME_REGS);
@@ -318,15 +320,23 @@ static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
-				       (status & RTC_CTRL_REG_START_RTC),
-				       0, RTC_TIMEOUT);
-	if (ret)
-		dev_err(dev,
-			"%s:timeout Update RTC_STATUS1 : %d\n",
-			__func__, ret);
+	if (ready) {
+		ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
+					       (status & RTC_CTRL_REG_START_RTC),
+					       100, RTC_STATUS_TIMEOUT);
+		if (ret)
+			dev_err(dev,
+				"%s:timeout Update RTC_STATUS1 : %d\n",
+				__func__, ret);
+	}
 
 	return 0;
+}
+
+/* Set current time and date in RTC */
+static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
+{
+	return rockchip_rtc_do_set_time(dev, tm, true);
 }
 
 /* Read alarm time and date in RTC */
@@ -948,7 +958,7 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 
 	rockchip_rtc_read_time(&pdev->dev, &tm_read);
 	if (rtc_valid_tm(&tm_read) != 0)
-		rockchip_rtc_set_time(&pdev->dev, &tm);
+		rockchip_rtc_do_set_time(&pdev->dev, &tm, false);
 
 	rtc->irq = platform_get_irq(pdev, 0);
 	if (rtc->irq < 0)

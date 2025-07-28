@@ -29,11 +29,7 @@
 #include <linux/types.h>
 
 #define KBASE_DUMMY_MODEL_COUNTER_HEADER_DWORDS (4)
-#if MALI_USE_CSF
 #define KBASE_DUMMY_MODEL_COUNTER_PER_CORE (65)
-#else /* MALI_USE_CSF */
-#define KBASE_DUMMY_MODEL_COUNTER_PER_CORE (60)
-#endif /* MALI_USE_CSF */
 #define KBASE_DUMMY_MODEL_COUNTERS_PER_BIT (4)
 #define KBASE_DUMMY_MODEL_COUNTER_ENABLED(enable_mask, ctr_idx) \
 	(enable_mask & (1U << (ctr_idx / KBASE_DUMMY_MODEL_COUNTERS_PER_BIT)))

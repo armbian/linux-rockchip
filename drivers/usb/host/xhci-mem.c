@@ -1445,7 +1445,8 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		err_count = 3;
 	/* HS bulk max packet should be 512, FS bulk supports 8, 16, 32 or 64 */
 	if (usb_endpoint_xfer_bulk(&ep->desc)) {
-		if (udev->speed == USB_SPEED_HIGH)
+		/* xHCI 1.1 can support HS bulk max packet smaller than 512 */
+		if (udev->speed == USB_SPEED_HIGH && xhci->hci_version < 0x110)
 			max_packet = 512;
 		if (udev->speed == USB_SPEED_FULL) {
 			max_packet = rounddown_pow_of_two(max_packet);

@@ -1377,14 +1377,16 @@ static int isp_show(struct seq_file *p, void *v)
 			   info,  sdev->dbg.frameloss,
 			   dev->rdbk_cnt, dev->rdbk_cnt_x1, dev->rdbk_cnt_x2, dev->rdbk_cnt_x3,
 			   rkisp_stream_buf_cnt(stream));
-		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d)\n",
+		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d) div:%d extend:%d\n",
 			   dev->hw_dev->dev_link_num, dev->hw_dev->is_idle,
-			   dev->multi_mode, dev->multi_index);
+			   dev->multi_mode, dev->multi_index, dev->unite_div,
+			   dev->hw_dev->unite_extend_pixel);
 	} else {
-		seq_printf(p, "%-10s frame:%d state:%s %s v-blank:%dus\n",
+		seq_printf(p, "%-10s frame:%d state:%s %s v-blank:%dus div:%d extend:%d\n",
 			   "Isp online", sdev->dbg.id,
 			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
-			   info, sdev->dbg.delay / 1000);
+			   info, sdev->dbg.delay / 1000,
+			   dev->unite_div, dev->hw_dev->unite_extend_pixel);
 	}
 	if (dev->br_dev.en)
 		seq_printf(p, "%-10s rkispp%d Format:%s%s Size:%dx%d (frame:%d rate:%dms frameloss:%d)\n",

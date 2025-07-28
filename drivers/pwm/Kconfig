@@ -566,6 +566,13 @@ config PWM_RZ_MTU3
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-rz-mtu3.
 
+config PWM_R7F701
+	tristate "R7F701 PWM support"
+	help
+	  This is a MCU for controlling brightness on the screen, which
+	  adjusts brightness by writing corresponding registers through I2C.
+	  If you don't have this MCU in your design, choose N.
+
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST

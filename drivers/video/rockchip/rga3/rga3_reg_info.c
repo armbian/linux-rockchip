@@ -155,11 +155,13 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
@@ -540,11 +542,13 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
@@ -825,13 +829,24 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
-		wr_pix_swp = 1;
+
+		/* fbc default RGBA8888, raster default BGRA8888 */
+		if (msg->wr.rd_mode == 1)
+			wr_pix_swp = 0;
+		else
+			wr_pix_swp = 1;
 		break;
 	case RGA_FORMAT_BGRA_8888:
 	case RGA_FORMAT_BGRX_8888:
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
+
+		/* fbc default BGRA8888, raster default RGBA8888 */
+		if (msg->wr.rd_mode == 1)
+			wr_pix_swp = 1;
+		else
+			wr_pix_swp = 0;
 		break;
 	case RGA_FORMAT_RGB_888:
 		wr_format = 0x5;
@@ -1568,9 +1583,6 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			set_win_info(&req->win0, &req_rga->dst);
 			addr_copy(&req->win0, &req_rga->dst);
 			req->win0.format = req_rga->dst.format;
-
-			/* only win1 && wr support fbcd, win0 default raster */
-			req->win0.rd_mode = 0;
 
 			/* set win0 dst size */
 			req->win0.dst_act_w = req_rga->dst.act_w;

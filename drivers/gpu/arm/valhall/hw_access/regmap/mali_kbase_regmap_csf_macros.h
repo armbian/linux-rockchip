@@ -22,10 +22,6 @@
 #ifndef _MALI_KBASE_REGMAP_CSF_MACROS_H_
 #define _MALI_KBASE_REGMAP_CSF_MACROS_H_
 
-#if !MALI_USE_CSF
-#error "Cannot be compiled with JM"
-#endif
-
 #define ENUM_OFFSET(_index, _base, _next) (_base + _index * (_next - _base))
 
 

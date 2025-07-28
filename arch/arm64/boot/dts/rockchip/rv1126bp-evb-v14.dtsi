@@ -236,7 +236,6 @@
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <800000>;
 				};
 			};
 
@@ -263,15 +262,15 @@
 				};
 			};
 
-			vcc_0v8: LDO_REG1 {
+			vcc_0v9: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <800000>;
-				regulator-name = "vcc_0v8";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-name = "vcc_0v9";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -287,15 +286,15 @@
 				};
 			};
 
-			vdd0v8_pmu: LDO_REG3 {
+			vdd0v9_pmu: LDO_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <800000>;
-				regulator-name = "vcc0v8_pmu";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-name = "vcc0v9_pmu";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -424,6 +423,25 @@
 		goodix,rst-gpio = <&gpio5 RK_PA4 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio5 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
 	};
+
+	hynitron: hynitron@5a {
+		compatible = "hyn,3240";
+		reg = <0x5a>;
+		power-supply = <&vcc_mipi>;
+
+		pinctrl-names = "ts_active","ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+		reset-gpios = <&gpio5 RK_PA4 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio5 RK_PA6 GPIO_ACTIVE_LOW>;
+
+		max-touch-number = <5>;
+		display-coords = <0 0 1080 1920>;
+		pos-swap = <0>;
+		posx-reverse = <0>;
+		posy-reverse = <0>;
+	};
 };
 
 &mdio {
@@ -457,6 +475,24 @@
 		};
 	};
 
+	touch {
+		ts_int_active: ts_int_active {
+			rockchip,pins = <5 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_reset_active: ts_reset_active {
+			rockchip,pins = <5 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_int_suspend: ts_int_suspend {
+			rockchip,pins = <5 RK_PA6 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		ts_reset_suspend: ts_reset_suspend {
+			rockchip,pins = <5 RK_PA4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
 	wireless-bluetooth {
 		uart2_gpios: uart2-gpios {
 			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -483,6 +519,22 @@
 };
 
 &rkaiisp_vir0 {
+	status = "okay";
+};
+
+&rkavsp {
+	status = "okay";
+};
+
+&rkavsp_mmu {
+	status = "okay";
+};
+
+&rkfec {
+	status = "okay";
+};
+
+&rkfec_mmu {
 	status = "okay";
 };
 

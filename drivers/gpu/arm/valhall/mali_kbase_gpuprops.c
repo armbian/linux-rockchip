@@ -239,11 +239,7 @@ static int kbase_gpuprops_get_props(struct kbase_device *kbdev)
 	else
 		gpu_props->max_threads = regdump->thread_max_threads;
 
-#if MALI_USE_CSF
 	gpu_props->impl_tech = KBASE_UBFX32(regdump->thread_features, 22U, 2);
-#else /* MALI_USE_CSF */
-	gpu_props->impl_tech = KBASE_UBFX32(regdump->thread_features, 30U, 2);
-#endif /* MALI_USE_CSF */
 
 	if (IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI))
 		gpu_props->impl_tech = THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_NO_MALI;
@@ -678,9 +674,6 @@ static void kbase_populate_user_data(struct kbase_device *kbdev, struct gpu_prop
 	 * GPUs like tTIx have additional fields like LSC_SIZE that are
 	 * otherwise reserved/RAZ on older GPUs.
 	 */
-#if !MALI_USE_CSF
-	data->core_props.num_exec_engines = KBASE_UBFX64(regdump->core_features, 0, 4);
-#endif
 
 	data->l2_props.log2_cache_size = KBASE_UBFX64(regdump->l2_features, 16U, 8);
 	data->coherency_info.coherency = regdump->mem_features;
@@ -707,15 +700,9 @@ static void kbase_populate_user_data(struct kbase_device *kbdev, struct gpu_prop
 	else
 		data->thread_props.tls_alloc = regdump->thread_tls_alloc;
 
-#if MALI_USE_CSF
 	data->thread_props.max_registers = KBASE_UBFX32(regdump->thread_features, 0U, 22);
 	data->thread_props.max_task_queue = KBASE_UBFX32(regdump->thread_features, 24U, 8);
 	data->thread_props.max_thread_group_split = 0;
-#else
-	data->thread_props.max_registers = KBASE_UBFX32(regdump->thread_features, 0U, 16);
-	data->thread_props.max_task_queue = KBASE_UBFX32(regdump->thread_features, 16U, 8);
-	data->thread_props.max_thread_group_split = KBASE_UBFX32(regdump->thread_features, 24U, 6);
-#endif
 
 	if (data->thread_props.max_registers == 0) {
 		data->thread_props.max_registers = THREAD_MR_DEFAULT;

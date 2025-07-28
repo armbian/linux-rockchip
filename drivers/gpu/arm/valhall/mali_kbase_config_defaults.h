@@ -314,13 +314,6 @@ enum {
 /* MAX allowed timeout value(ms) on host side, should be less than ANR timeout */
 #define MAX_TIMEOUT_MS (4500)
 
-#if !MALI_USE_CSF
-/* Default number of milliseconds given for other jobs on the GPU to be
- * soft-stopped when the GPU needs to be reset.
- */
-#define JM_DEFAULT_RESET_TIMEOUT_MS (1) /* 1 ms */
-#endif /* !MALI_USE_CSF */
-
 /* Timeout for polling the GPU PRFCNT_ACTIVE bit in clock cycles.
  *
  * Based on 120s timeout at 100MHz, based on original MAX_LOOPS value.

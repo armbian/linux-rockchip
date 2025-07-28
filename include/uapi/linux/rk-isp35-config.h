@@ -128,8 +128,8 @@
 
 #define ISP35_ENH_LUMA_NUM		ISP33_ENH_LUMA_NUM
 #define ISP35_ENH_DETAIL_NUM		ISP33_ENH_DETAIL_NUM
-#define ISP35_ENH_IIR_ROW_MAX		ISP33_ENH_IIR_ROW_MAX
-#define ISP35_ENH_IIR_COL_MAX		ISP33_ENH_IIR_COL_MAX
+#define ISP35_ENH_IIR_ROW_MAX		24
+#define ISP35_ENH_IIR_COL_MAX		32
 
 #define ISP35_HIST_ALPHA_NUM		ISP33_HIST_ALPHA_NUM
 #define ISP35_HIST_THUMB_ROW_MAX	ISP33_HIST_THUMB_ROW_MAX
@@ -961,6 +961,45 @@ struct isp35_sharp_cfg {
 	__u16 lo_saturation_strg;
 } __attribute__ ((packed));
 
+struct isp35_enh_cfg {
+	/* CTRL */
+	__u8 bypass;
+	__u8 blf3_bypass;
+	/* IIR_FLT */
+	__u16 iir_inv_sigma;
+	__u8 iir_soft_thed;
+	__u8 iir_cur_wgt;
+	/* BILAT_FLT3X3 */
+	__u16 blf3_inv_sigma;
+	__u16 blf3_cur_wgt;
+	__u8 blf3_thumb_cur_wgt;
+	/* BILAT_FLT5X5 */
+	__u8 blf5_cur_wgt;
+	__u16 blf5_inv_sigma;
+	/* GLOBAL_STRG */
+	__u16 global_strg;
+	/* LUMA_LUT */
+	__u16 lum2strg[ISP35_ENH_LUMA_NUM];
+	/* DETAIL_IDX */
+	__u16 detail2strg_idx[ISP35_ENH_DETAIL_NUM];
+	/* DETAIL_POWER */
+	__u8 detail2strg_power0;
+	__u8 detail2strg_power1;
+	__u8 detail2strg_power2;
+	__u8 detail2strg_power3;
+	__u8 detail2strg_power4;
+	__u8 detail2strg_power5;
+	__u8 detail2strg_power6;
+	/* DETAIL_VALUE */
+	__u16 detail2strg_val[ISP35_ENH_DETAIL_NUM];
+	/* PRE_FRAME */
+	__u8 pre_wet_frame_cnt0;
+	__u8 pre_wet_frame_cnt1;
+	/* IIR */
+	__u8 iir_wr;
+	__u8 iir[ISP35_ENH_IIR_ROW_MAX][ISP35_ENH_IIR_COL_MAX];
+} __attribute__ ((packed));
+
 struct isp35_drc_cfg {
 	/* DRC_CTRL0 */
 	__u8 bypass_en;
@@ -1698,7 +1737,7 @@ struct isp35_isp_other_cfg {
 	struct isp35_cnr_cfg cnr_cfg;
 	struct isp35_ynr_cfg ynr_cfg;
 	struct isp35_sharp_cfg sharp_cfg;
-	struct isp33_enh_cfg enh_cfg;
+	struct isp35_enh_cfg enh_cfg;
 	struct isp33_hist_cfg hist_cfg;
 	struct isp32_ldch_cfg ldch_cfg;
 	struct isp21_cgc_cfg cgc_cfg;
@@ -1734,6 +1773,10 @@ struct isp35_awbsync_stat {
 	__u64 sump[ISP35_AWBSYNC_WIN_MAX];
 } __attribute__ ((packed));
 
+struct isp35_enh_stat {
+	__u8 iir[ISP35_ENH_IIR_ROW_MAX][ISP35_ENH_IIR_COL_MAX];
+} __attribute__ ((packed));
+
 struct isp35_stat {
 	/* mean to ddr */
 	struct isp33_rawae_stat rawae3;
@@ -1745,7 +1788,7 @@ struct isp35_stat {
 	/* ahb read reg */
 	struct isp33_bay3d_stat bay3d;
 	struct isp33_sharp_stat sharp;
-	struct isp33_enh_stat enh;
+	struct isp35_enh_stat enh;
 	struct isp33_hist_stat hist;
 	struct isp35_awbsync_stat awbsync;
 	struct isp32_info2ddr_stat info2ddr;

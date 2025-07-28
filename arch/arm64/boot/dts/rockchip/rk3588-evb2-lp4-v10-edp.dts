@@ -118,6 +118,10 @@
 	status = "okay";
 };
 
+&hynitron {
+	status = "disabled";
+};
+
 &i2c6 {
 	clock-frequency = <400000>;
 	status = "okay";

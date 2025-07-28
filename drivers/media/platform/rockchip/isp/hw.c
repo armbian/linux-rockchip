@@ -1367,6 +1367,9 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	} else {
 		hw_dev->unite = ISP_UNITE_NONE;
 	}
+	hw_dev->unite_extend_pixel = 128;
+	if (hw_dev->isp_ver == ISP_V33 || hw_dev->isp_ver == ISP_V35)
+		hw_dev->unite_extend_pixel = 512;
 
 	hw_dev->vpsl_base_addr = NULL;
 	if (hw_dev->isp_ver == ISP_V35) {
@@ -1396,7 +1399,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		hw_dev->max_in.is_fix = true;
 		if (hw_dev->unite) {
 			hw_dev->max_in.w /= 2;
-			hw_dev->max_in.w += RKMOUDLE_UNITE_EXTEND_PIXEL;
+			hw_dev->max_in.w += hw_dev->unite_extend_pixel;
 		}
 	}
 	dev_info(dev, "max input:%dx%d@%dfps\n",
@@ -1553,9 +1556,9 @@ void rkisp_hw_enum_isp_size(struct rkisp_hw_dev *hw_dev)
 		w = isp->isp_sdev.in_crop.width;
 		h = isp->isp_sdev.in_crop.height;
 		if (isp->unite_div > ISP_UNITE_DIV1)
-			w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			w = w / 2 + hw_dev->unite_extend_pixel;
 		if (isp->unite_div == ISP_UNITE_DIV4)
-			h = h / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			h = h / 2 + hw_dev->unite_extend_pixel;
 		hw_dev->isp_size[i].w = w;
 		hw_dev->isp_size[i].h = h;
 		hw_dev->isp_size[i].size = w * h;
@@ -1678,8 +1681,8 @@ static void __exit rkisp_hw_drv_exit(void)
 	platform_driver_unregister(&rkisp_hw_drv);
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
-subsys_initcall(rkisp_hw_drv_init);
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
+subsys_initcall_sync(rkisp_hw_drv_init);
 #else
 module_init(rkisp_hw_drv_init);
 #endif

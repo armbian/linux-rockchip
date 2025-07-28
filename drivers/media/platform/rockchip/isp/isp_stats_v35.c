@@ -164,8 +164,8 @@ rkisp_stats_get_enh_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_isp_params_vdev *params = &dev->params_vdev;
 	struct rkisp_isp_params_val_v35 *priv_val = params->priv_val;
 	struct isp35_isp_params_cfg *params_rec = params->isp35_params + dev->unite_index;
-	struct isp33_enh_cfg *arg_rec = &params_rec->others.enh_cfg;
-	struct isp33_enh_stat *enh;
+	struct isp35_enh_cfg *arg_rec = &params_rec->others.enh_cfg;
+	struct isp35_enh_stat *enh;
 	int val, i, j, timeout;
 
 	val = isp3_stats_read(stats_vdev, ISP33_ENH_CTRL);
@@ -629,17 +629,17 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 			cur_stat_buf = cur_buf->vaddr[0];
 		}
 
-		/* buffer done when frame of right handle */
-		if (dev->unite_div > ISP_UNITE_DIV1) {
-			if (dev->unite_index == ISP_UNITE_LEFT) {
-				cur_buf = NULL;
-				is_dummy = false;
-			} else if (cur_stat_buf) {
-				cur_stat_buf = (void *)cur_stat_buf + size / 2;
-			}
+		if (dev->unite_index > ISP_UNITE_LEFT && cur_stat_buf)
+			cur_stat_buf = (void *)cur_stat_buf + size / dev->unite_div * dev->unite_index;
+		if ((dev->unite_div == ISP_UNITE_DIV2 && dev->unite_index != ISP_UNITE_RIGHT) ||
+		    (dev->unite_div == ISP_UNITE_DIV4 && dev->unite_index != ISP_UNITE_RIGHT_B)) {
+			cur_buf = NULL;
+			is_dummy = false;
 		}
 
-		if (dev->unite_div < ISP_UNITE_DIV2 || dev->unite_index == ISP_UNITE_RIGHT) {
+		if (dev->unite_div < ISP_UNITE_DIV2 ||
+		    (dev->unite_div == ISP_UNITE_DIV2 && dev->unite_index == ISP_UNITE_RIGHT) ||
+		    (dev->unite_div == ISP_UNITE_DIV4 && dev->unite_index == ISP_UNITE_RIGHT_B)) {
 			/* config buf for next frame */
 			stats_vdev->cur_buf = NULL;
 			if (stats_vdev->nxt_buf) {
@@ -812,7 +812,9 @@ rkisp_stats_first_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	rkisp_get_stat_size_v35(stats_vdev, &size);
 	stats_vdev->stats_buf[0].is_need_vaddr = true;
 	stats_vdev->stats_buf[0].size = size;
-	if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]))
+	if (!stats_vdev->stats_buf[0].mem_priv)
+		rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]);
+	if (!stats_vdev->stats_buf[0].vaddr)
 		v4l2_warn(&dev->v4l2_dev, "stats alloc buf fail\n");
 	else
 		memset(stats_vdev->stats_buf[0].vaddr, 0, size);
@@ -823,12 +825,14 @@ rkisp_stats_first_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (dev->hw_dev->is_single)
 		rkisp_unite_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);
 	val = rkisp_read(dev, ISP39_W3A_CTRL0, false);
+	val &= ~(ISP39_W3A_AUTO_CLR_EN | ISP35_W3A_FORCE_UPD_F);
 	val |= ISP39_W3A_EN | ISP39_W3A_FORCE_UPD;
 	if (!dev->is_aiisp_en)
 		val |= ISP39_W3A_AUTO_CLR_EN;
 	else
 		val |= ISP35_W3A_FORCE_UPD_F;
-	if (pdaf_vdev && pdaf_vdev->streaming) {
+	if (pdaf_vdev && pdaf_vdev->streaming &&
+	    !(dev->isp_state & ISP_START)) {
 		val |= ISP39_W3A_PDAF_EN;
 		rkisp_pdaf_update_buf(dev);
 		if (pdaf_vdev->next_buf) {
@@ -857,8 +861,24 @@ rkisp_stats_next_ddr_config_v35(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (hw->is_single) {
 		if (!dev->is_aiisp_en)
 			rkisp_stats_update_buf(stats_vdev);
-		if (pdaf_vdev && pdaf_vdev->streaming)
+		if (pdaf_vdev && pdaf_vdev->streaming &&
+		    !(dev->isp_state & ISP_START))
 			rkisp_pdaf_update_buf(dev);
+	}
+}
+
+static void rkisp_stats_stop_v35(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+	struct rkisp_device *dev = stats_vdev->dev;
+	u32 val, addr;
+
+	/* aiq crash or exit first */
+	if (dev->isp_state & ISP_START &&
+	    stats_vdev->stats_buf[0].mem_priv) {
+		rkisp_stats_update_buf(stats_vdev);
+		addr = stats_vdev->stats_buf[0].dma_addr;
+		readl_poll_timeout(dev->hw_dev->base_addr + ISP39_W3A_AEBIG_ADDR_SHD,
+				   val, val == addr, 5000, 50000);
 	}
 }
 
@@ -868,6 +888,7 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.stats_tb = rkisp_stats_tb_v35,
 	.first_ddr_cfg = rkisp_stats_first_ddr_config_v35,
 	.next_ddr_cfg = rkisp_stats_next_ddr_config_v35,
+	.stats_stop = rkisp_stats_stop_v35,
 };
 
 void rkisp_init_stats_vdev_v35(struct rkisp_isp_stats_vdev *stats_vdev)

@@ -146,6 +146,7 @@ struct rockchip_rgb {
 	u8 id;
 	u32 max_dclk_rate;
 	u32 mcu_pix_total;
+	int data_map_mode;
 	struct device *dev;
 	struct device_node *np_mcu_panel;
 	struct drm_panel *panel;
@@ -393,6 +394,7 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 	}
 
+	s->data_map_mode = rgb->data_map_mode;
 	s->output_type = DRM_MODE_CONNECTOR_DPI;
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -403,10 +405,9 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
-					       bool on)
+static int rockchip_rgb_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	struct rockchip_rgb *rgb = container_of(sub_dev, struct rockchip_rgb, sub_dev);
 
 	if (rgb->np_mcu_panel) {
 		struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
@@ -418,7 +419,7 @@ static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 	}
 
 	if (rgb->panel)
-		panel_simple_loader_protect(rgb->panel);
+		rockchip_drm_panel_loader_protect(rgb->panel, on);
 
 	if (on) {
 		phy_init(rgb->phy);
@@ -1062,6 +1063,10 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 		id = 0;
 
 	rgb->data_sync_bypass = of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
+	if (of_property_read_u32(dev->of_node, "rockchip,data-map-mode", &rgb->data_map_mode))
+		rgb->data_map_mode = -1;
+	if (rgb->data_map_mode < 0 || rgb->data_map_mode > 3)
+		rgb->data_map_mode = -1;
 
 	fwnode_mcu_panel = device_get_named_child_node(dev, "mcu-panel");
 	if (fwnode_mcu_panel) {

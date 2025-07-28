@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2015-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -120,14 +120,12 @@ static const struct {
 		TL_PACKET_TYPE_BODY,
 		TL_STREAM_ID_KERNEL,
 	},
-#if MALI_USE_CSF
 	{
 		TL_PACKET_FAMILY_TL,
 		TL_PACKET_CLASS_OBJ,
 		TL_PACKET_TYPE_BODY,
 		TL_STREAM_ID_CSFFW,
 	},
-#endif
 };
 
 void kbase_tlstream_init(struct kbase_tlstream *stream, enum tl_stream_type stream_type,
@@ -137,8 +135,6 @@ void kbase_tlstream_init(struct kbase_tlstream *stream, enum tl_stream_type stre
 
 	KBASE_DEBUG_ASSERT(stream);
 	KBASE_DEBUG_ASSERT(stream_type < TL_STREAM_TYPE_COUNT);
-
-	spin_lock_init(&stream->lock);
 
 	/* All packets carrying tracepoints shall be numbered. */
 	if (tl_stream_cfg[stream_type].pkt_type == TL_PACKET_TYPE_BODY)
@@ -219,6 +215,7 @@ char *kbase_tlstream_msgbuf_acquire(struct kbase_tlstream *stream, size_t msg_si
 	size_t wb_size;
 
 	KBASE_DEBUG_ASSERT(PACKET_SIZE - PACKET_HEADER_SIZE - PACKET_NUMBER_SIZE >= msg_size);
+	WARN_ON(!stream->buffer);
 
 	spin_lock_irqsave(&stream->lock, *flags);
 
@@ -258,6 +255,9 @@ size_t kbase_tlstream_flush_stream(struct kbase_tlstream *stream)
 	unsigned int wb_idx;
 	size_t wb_size;
 	size_t min_size = PACKET_HEADER_SIZE;
+
+	if (!stream->buffer)
+		return 0;
 
 	if (stream->numbered)
 		min_size += PACKET_NUMBER_SIZE;

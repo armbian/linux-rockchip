@@ -310,6 +310,9 @@ KBASE_EXPORT_TEST_API(kbase_get_timeout_ms);
 
 u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev)
 {
+	if (kbase_io_is_aw_removed(kbdev))
+		return 0;
+
 	return kbase_reg_read64_coherent(kbdev, GPU_CONTROL_ENUM(CYCLE_COUNT));
 }
 
@@ -329,6 +332,36 @@ u64 kbase_arch_timer_get_cntfrq(struct kbase_device *kbdev)
 	dev_dbg(kbdev->dev, "System Timer Freq = %lluHz", freq);
 
 	return freq;
+}
+static int kbase_gpu_timestamp_offset_read(void *data, u64 *val)
+{
+	struct kbase_device *kbdev = (struct kbase_device *)data;
+
+	if (kbdev->backend_time.gpu_timestamp_offset == GPU_TIMESTAMP_OFFSET_INVALID)
+		return -EINVAL;
+
+	*val = kbdev->backend_time.gpu_timestamp_offset;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(timestamp_offset_debugfs_fops, kbase_gpu_timestamp_offset_read, NULL,
+			 "%lld\n");
+
+void kbase_gpu_timestamp_offset_debugfs_init(struct kbase_device *kbdev)
+{
+	struct dentry *timestamp_offset_file;
+
+	if (unlikely(!kbdev)) {
+		pr_warn("%s: kbdev is NULL\n", __func__);
+		return;
+	}
+
+	timestamp_offset_file = debugfs_create_file("gpu_timestamp_offset", 0400,
+						    kbdev->mali_debugfs_directory, kbdev,
+						    &timestamp_offset_debugfs_fops);
+	if (IS_ERR_OR_NULL(timestamp_offset_file))
+		dev_warn(kbdev->dev, "Failed to create gpu_timestamp_offset debugfs entry");
 }
 
 int kbase_backend_time_init(struct kbase_device *kbdev)

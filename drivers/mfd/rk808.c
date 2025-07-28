@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/reboot.h>
 #include <linux/syscore_ops.h>
@@ -299,8 +300,7 @@ static const struct mfd_cell rk818s[] = {
 
 static const struct rk808_reg_data rk801_pre_init_reg[] = {
 	{ RK801_SLEEP_CFG_REG, RK801_SLEEP_FUN_MSK, RK801_NONE_FUN },
-	{ RK801_SYS_CFG2_REG, RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H },
-	{ RK801_SYS_CFG2_REG, RK801_RST_MSK, RK801_RST_RESTART_REG },
+	{ RK801_SYS_CFG2_REG, RK801_RST_MSK, RK801_RST_RESTART_REG_RESETB },
 	{ RK801_INT_CONFIG_REG, RK801_INT_POL_MSK, RK801_INT_ACT_L },
 	{ RK801_POWER_FPWM_EN_REG, RK801_PLDO_HRDEC_EN, RK801_PLDO_HRDEC_EN },
 	{ RK801_BUCK_DEBUG5_REG, 0xff, 0x54 },
@@ -850,6 +850,46 @@ static struct i2c_client *rk808_i2c_client;
 static struct rk808_reg_data *suspend_reg, *resume_reg;
 static int suspend_reg_num, resume_reg_num;
 
+static inline int rk801_act_pol(bool act_low)
+{
+	return act_low ? RK801_SLEEP_ACT_L : RK801_SLEEP_ACT_H;
+}
+
+static inline int rk801_inact_pol(bool act_low)
+{
+	return act_low ? RK801_SLEEP_ACT_H : RK801_SLEEP_ACT_L;
+}
+
+static void rk801_device_reboot(void)
+{
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+	int ret, act_pol;
+
+	if (!rk808->pins || !rk808->pins->reset)
+		return;
+
+	regmap_update_bits(rk808->regmap, RK801_SLEEP_CFG_REG,
+			   RK801_SLEEP_FUN_MSK, RK801_NONE_FUN);
+
+	ret = pinctrl_select_state(rk808->pins->p, rk808->pins->reset);
+	if (ret)
+		pr_err("failed to pmic-reset pinctrl state, ret=%d\n", ret);
+
+	/* raw value ! */
+	act_pol = gpiod_get_raw_value(rk808->pwrctrl.gpio) ?
+				RK801_SLEEP_ACT_L : RK801_SLEEP_ACT_H;
+	regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
+			   RK801_SLEEP_POL_MSK, act_pol);
+
+	/* pmic rst func: register + 5ms-npor-signal */
+	regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
+			   RK801_RST_MSK, RK801_RST_RESTART_REG_RESETB);
+	regmap_update_bits(rk808->regmap, RK801_SLEEP_CFG_REG,
+			   RK801_SLEEP_FUN_MSK, RK801_RESET_FUN);
+
+	dev_info(&rk808_i2c_client->dev, "rk801 system reboot ready\n");
+}
+
 static int rk801_device_shutdown_prepare(struct sys_off_data *data)
 {
 	int ret = 0;
@@ -859,7 +899,8 @@ static int rk801_device_shutdown_prepare(struct sys_off_data *data)
 		return -1;
 
 	ret = regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
-				 RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H);
+				 RK801_SLEEP_POL_MSK,
+				 rk801_act_pol(rk808->pwrctrl.act_low));
 	if (ret < 0)
 		return ret;
 
@@ -966,6 +1007,7 @@ static void rk8xx_device_shutdown(void)
 
 /* Called in syscore shutdown */
 static void (*pm_shutdown)(void);
+static void (*pm_reboot)(void);
 
 static void rk8xx_syscore_shutdown(void)
 {
@@ -1016,6 +1058,11 @@ static void rk8xx_syscore_shutdown(void)
 				 "Power off failed !\n");
 			while (1)
 				;
+		}
+	} else if (system_state == SYSTEM_RESTART) {
+		if (pm_reboot) {
+			dev_info(&rk808_i2c_client->dev, "System reboot\n");
+			pm_reboot();
 		}
 	}
 }
@@ -1086,6 +1133,42 @@ static ssize_t rk8xx_dbg_store(struct device *dev,
 
 out:
 	return count;
+}
+
+static int rk801_pinctrl_init(struct device *dev, struct rk808 *rk808)
+{
+	struct gpio_desc *gpio;
+
+	/* init soc-pwrctrl inactive pol (GPIOD_OUT_LOW is logic value) */
+	gpio = devm_gpiod_get_optional(dev, "pwrctrl", GPIOD_OUT_LOW);
+	if (IS_ERR_OR_NULL(gpio)) {
+		dev_err(dev, "there is no pwrctrl gpio!\n");
+		return -EINVAL;
+	}
+	rk808->pwrctrl.gpio = gpio;
+	rk808->pwrctrl.act_low = gpiod_is_active_low(gpio);
+
+	/* init pmic-pwrctrl active pol */
+	regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
+			   RK801_SLEEP_POL_MSK,
+			   rk801_act_pol(rk808->pwrctrl.act_low));
+
+	/* pinctrl */
+	rk808->pins = devm_kzalloc(dev, sizeof(struct rk808_pin_info), GFP_KERNEL);
+	if (!rk808->pins)
+		return -ENOMEM;
+
+	rk808->pins->p = devm_pinctrl_get(dev);
+	if (IS_ERR(rk808->pins->p)) {
+		dev_err(dev, "no pinctrl settings\n");
+		return -EINVAL;
+	}
+
+	rk808->pins->reset = pinctrl_lookup_state(rk808->pins->p, "pmic-reset");
+	if (IS_ERR(rk808->pins->reset))
+		rk808->pins->reset = NULL;
+
+	return 0;
 }
 
 static int rk817_pinctrl_init(struct device *dev, struct rk808 *rk808)
@@ -1316,8 +1399,10 @@ static int rk808_probe(struct i2c_client *client)
 	const struct mfd_cell *cells;
 	u8 on_source = 0, off_source = 0;
 	unsigned int on, off;
+	u32 pmic_id_mask = RK8XX_ID_MSK;
 	int nr_pre_init_regs;
 	int nr_cells;
+	int pmic_id;
 	int msb, lsb;
 	unsigned char pmic_id_msb, pmic_id_lsb;
 	int ret;
@@ -1326,6 +1411,7 @@ static int rk808_probe(struct i2c_client *client)
 				       struct device *dev) = NULL;
 	int (*pinctrl_init)(struct device *dev, struct rk808 *rk808) = NULL;
 	void (*device_shutdown_fn)(void) = NULL;
+	void (*device_reboot_fn)(void) = NULL;
 
 	rk808 = devm_kzalloc(&client->dev, sizeof(*rk808), GFP_KERNEL);
 	if (!rk808)
@@ -1338,6 +1424,7 @@ static int rk808_probe(struct i2c_client *client)
 	} else if (of_device_is_compatible(np, "rockchip,rk801")) {
 		pmic_id_msb = RK801_ID_MSB;
 		pmic_id_lsb = RK801_ID_LSB;
+		pmic_id_mask = RK801_ID_MSK;
 	} else {
 		pmic_id_msb = RK808_ID_MSB;
 		pmic_id_lsb = RK808_ID_LSB;
@@ -1358,11 +1445,13 @@ static int rk808_probe(struct i2c_client *client)
 		return lsb;
 	}
 
-	rk808->variant = ((msb << 8) | lsb) & RK8XX_ID_MSK;
-	dev_info(&client->dev, "chip id: 0x%x\n", (unsigned int)rk808->variant);
+	pmic_id = (msb << 8) | lsb;
+	rk808->variant = pmic_id & RK8XX_ID_MSK;
+	dev_info(&client->dev, "chip id: 0x%x\n", pmic_id & pmic_id_mask);
 
 	switch (rk808->variant) {
 	case RK801_ID:
+		rk808->pwrctrl.req_pwrctrl_dvs = (lsb & 0x0f) < 3;
 		rk808->regmap_cfg = &rk801_regmap_config;
 		rk808->regmap_irq_chip = &rk801_irq_chip;
 		pre_init_reg = rk801_pre_init_reg;
@@ -1372,6 +1461,8 @@ static int rk808_probe(struct i2c_client *client)
 		on_source = RK801_ON_SOURCE_REG;
 		off_source = RK801_OFF_SOURCE_REG;
 		device_shutdown_fn = rk8xx_device_shutdown;
+		device_reboot_fn = rk801_device_reboot;
+		pinctrl_init = rk801_pinctrl_init;
 		break;
 	case RK805_ID:
 		rk808->regmap_cfg = &rk805_regmap_config;
@@ -1576,6 +1667,7 @@ static int rk808_probe(struct i2c_client *client)
 			register_syscore_ops(&rk808_syscore_ops);
 			/* power off system in the syscore shutdown ! */
 			pm_shutdown = device_shutdown_fn;
+			pm_reboot = device_reboot_fn;
 		}
 	}
 
@@ -1636,7 +1728,8 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 	switch (rk808->variant) {
 	case RK801_ID:
 		ret = regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
-					 RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H);
+					 RK801_SLEEP_POL_MSK,
+					 rk801_act_pol(rk808->pwrctrl.act_low));
 		if (ret < 0)
 			return ret;
 

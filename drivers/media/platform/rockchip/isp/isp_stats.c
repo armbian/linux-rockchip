@@ -219,6 +219,8 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 
 	stats_vdev->ae_meas_done_next = false;
 	stats_vdev->af_meas_done_next = false;
+	if (stats_vdev->ops->stats_stop)
+		stats_vdev->ops->stats_stop(stats_vdev);
 }
 
 static int

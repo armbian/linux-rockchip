@@ -117,7 +117,6 @@ bob_defaults {
         "CONFIG_MALI_VALHALL_PLATFORM_NAME={{.mali_platform_name}}",
         "MALI_CUSTOMER_RELEASE={{.release}}",
         "MALI_UNIT_TEST={{.unit_test_code}}",
-        "MALI_USE_CSF={{.gpu_has_csf}}",
         "MALI_JIT_PRESSURE_LIMIT_BASE={{.jit_pressure_limit_base}}",
 
         // Start of CS experimental features definitions.
@@ -133,7 +132,6 @@ bob_defaults {
         // is an umbrella feature that would be open for inappropriate use
         // (catch-all for experimental CS code without separating it into
         // different features).
-        "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
     ],
 }
 

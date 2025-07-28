@@ -202,7 +202,6 @@ void gpu_model_set_dummy_prfcnt_cores(struct kbase_device *kbdev, u64 l2_present
 /* Clear the counter values array maintained by the dummy model */
 void gpu_model_clear_prfcnt_values(void);
 
-#if MALI_USE_CSF
 /**
  * gpu_model_prfcnt_dump_request() - Request performance counter sample dump.
  * @sample_buf:  Pointer to KBASE_DUMMY_MODEL_MAX_VALUES_PER_SAMPLE sized array
@@ -217,7 +216,6 @@ void gpu_model_prfcnt_dump_request(uint32_t *sample_buf, struct gpu_model_prfcnt
  * @model: Model pointer returned by midgard_model_create().
  */
 void gpu_model_glb_request_job_irq(void *model);
-#endif /* MALI_USE_CSF */
 
 extern struct error_status_t hw_error_status;
 

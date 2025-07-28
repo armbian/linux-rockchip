@@ -798,13 +798,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 
 	LOG("Enter %s\n", __func__);
 
-	ret = class_register(&rkwifi_power);
-	if (ret < 0)
-		return ret;
-
 	if (!pdata) {
 #ifdef CONFIG_OF
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -818,9 +814,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 #endif
 	}
 
-	rfkill = kzalloc(sizeof(*rfkill), GFP_KERNEL);
+	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
 	if (!rfkill)
-		goto rfkill_alloc_fail;
+		return -ENOMEM;
 
 	rfkill->pdata = pdata;
 	g_rfkill = rfkill;
@@ -857,21 +853,11 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	LOG("Exit %s\n", __func__);
 
 	return 0;
-#ifdef COMPATIBILE_WITH_GPIO_FOR_LOWERVERSION
-fail_alloc:
-#endif
-	kfree(rfkill);
-rfkill_alloc_fail:
-	kfree(pdata);
-
-	g_rfkill = NULL;
-
-	return ret;
 }
 
 static void rfkill_wlan_remove(struct platform_device *pdev)
 {
-	struct rfkill_wlan_data *rfkill = platform_get_drvdata(pdev);
+	struct rfkill_wlan_data *rfkill = g_rfkill;
 
 	LOG("Enter %s\n", __func__);
 
@@ -882,7 +868,6 @@ static void rfkill_wlan_remove(struct platform_device *pdev)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&wlan_early_suspend_handler);
 #endif
-	kfree(rfkill);
 	g_rfkill = NULL;
 }
 
@@ -918,24 +903,33 @@ static struct platform_driver rfkill_wlan_driver = {
 	.probe = rfkill_wlan_probe,
 	.remove = rfkill_wlan_remove,
 	.shutdown = rfkill_wlan_shutdown,
-    .suspend = rfkill_wlan_suspend,
-    .resume = rfkill_wlan_resume,
+	.suspend = rfkill_wlan_suspend,
+	.resume = rfkill_wlan_resume,
 	.driver = {
 		.name = "wlan-platdata",
 		.owner = THIS_MODULE,
-        .of_match_table = of_match_ptr(wlan_platdata_of_match),
+		.of_match_table = of_match_ptr(wlan_platdata_of_match),
 	},
 };
 
 int __init rfkill_wlan_init(void)
 {
+	int ret;
+
 	LOG("Enter %s\n", __func__);
+
+	ret = class_register(&rkwifi_power);
+	if (ret < 0)
+		return ret;
+
 	return platform_driver_register(&rfkill_wlan_driver);
 }
 
 void __exit rfkill_wlan_exit(void)
 {
 	LOG("Enter %s\n", __func__);
+
+	class_unregister(&rkwifi_power);
 	platform_driver_unregister(&rfkill_wlan_driver);
 }
 

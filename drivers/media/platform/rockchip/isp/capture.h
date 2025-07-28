@@ -244,6 +244,7 @@ struct streams_ops {
 	int (*set_wrap)(struct rkisp_stream *stream, int line);
 	int (*isp_end)(struct rkisp_stream *stream, u32 irq);
 	int (*switch_grey)(struct rkisp_stream *stream);
+	void (*push_buf)(struct rkisp_stream *stream);
 };
 
 struct rockit_isp_ops {
@@ -286,12 +287,15 @@ struct rkisp_stream {
 	struct stream_config *config;
 	spinlock_t vbq_lock;
 	struct list_head buf_queue;
+	struct list_head buf_queue_tmp;
 	struct rkisp_buffer *curr_buf;
 	struct rkisp_buffer *next_buf;
 	struct rkisp_dummy_buffer dummy_buf;
 	struct mutex apilock;
 	struct tasklet_struct buf_done_tasklet;
 	struct list_head buf_done_list;
+	struct dma_buf *dbuf_pool[VIDEO_MAX_FRAME];
+	bool is_rockit_buf;
 	bool streaming;
 	bool stopping;
 	bool frame_end;

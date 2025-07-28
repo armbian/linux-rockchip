@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -57,7 +57,8 @@ static void kbasep_hwcnt_watchdog_callback(struct work_struct *const work)
 	struct kbase_hwcnt_watchdog_if_timer_info *const info =
 		container_of(work, struct kbase_hwcnt_watchdog_if_timer_info, dwork.work);
 
-	if (info->callback)
+	/* Issue the callback only if timer is enabled. */
+	if (info->callback && info->timer_enabled)
 		info->callback(info->user_data);
 }
 
@@ -80,7 +81,8 @@ static int kbasep_hwcnt_watchdog_if_timer_enable(
 }
 
 static void
-kbasep_hwcnt_watchdog_if_timer_disable(const struct kbase_hwcnt_watchdog_info *const timer)
+kbasep_hwcnt_watchdog_if_timer_disable(const struct kbase_hwcnt_watchdog_info *const timer,
+				       enum kbase_hwcnt_watchdog_disable_type type)
 {
 	struct kbase_hwcnt_watchdog_if_timer_info *const timer_info = (void *)timer;
 
@@ -90,7 +92,16 @@ kbasep_hwcnt_watchdog_if_timer_disable(const struct kbase_hwcnt_watchdog_info *c
 	if (!timer_info->timer_enabled)
 		return;
 
-	cancel_delayed_work_sync(&timer_info->dwork);
+	/* Cancel any pending work.
+	 * Use a blocking call if the caller can afford to wait.
+	 * In an opposite case (KBASE_HWCNT_WATCHDOG_DISABLE_SHOULD_NOT_BLOCK),
+	 * timer callback will be effectively canceled by setting timer_enabled to false.
+	 * This will prevent the timer callback from being issued and from rescheduling
+	 * itself.
+	 */
+	if (type == KBASE_HWCNT_WATCHDOG_DISABLE_SHOULD_BLOCK)
+		cancel_delayed_work_sync(&timer_info->dwork);
+
 	timer_info->timer_enabled = false;
 }
 
@@ -100,7 +111,7 @@ kbasep_hwcnt_watchdog_if_timer_modify(const struct kbase_hwcnt_watchdog_info *co
 {
 	struct kbase_hwcnt_watchdog_if_timer_info *const timer_info = (void *)timer;
 
-	if (WARN_ON(!timer) || WARN_ON(!timer_info->timer_enabled))
+	if (WARN_ON(!timer) || !timer_info->timer_enabled)
 		return;
 
 	mod_delayed_work(timer_info->workq, &timer_info->dwork, msecs_to_jiffies(delay_ms));
@@ -118,6 +129,7 @@ void kbase_hwcnt_watchdog_if_timer_destroy(struct kbase_hwcnt_watchdog_interface
 	if (WARN_ON(!timer_info))
 		return;
 
+	cancel_delayed_work_sync(&timer_info->dwork);
 	destroy_workqueue(timer_info->workq);
 	kfree(timer_info);
 

@@ -163,6 +163,10 @@
 	status = "disabled";
 };
 
+&hynitron {
+	status = "disabled";
+};
+
 &i2c2 {
 	status = "okay";
 	/delete-node/ husb311@4e;

@@ -172,6 +172,9 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		isprk_buf->sgt = sgt;
 		stream_cfg->rkisp_buff[i] = isprk_buf;
 		stream->buf_cnt++;
+		isprk_buf->isp_buf.index = i;
+		stream->dbuf_pool[i] = input_rockit_cfg->buf;
+		stream->is_rockit_buf = true;
 	}
 
 	if (ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP) {
@@ -641,6 +644,7 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 		}
 	}
 	mutex_unlock(&stream_cfg->freebuf_lock);
+	stream->is_rockit_buf = false;
 	return 0;
 }
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -42,11 +42,6 @@
  * @WAIT_OFF_CORESTACK_ON:            The shaders have been requested to power
  *                                    off, but they remain on for the duration
  *                                    of the hysteresis timer
- * @WAIT_GPU_IDLE:                    The shaders partial poweroff needs to
- *                                    reach a state where jobs on the GPU are
- *                                    finished including jobs currently running
- *                                    and in the GPU queue because of
- *                                    GPU2017-861
  * @WAIT_FINISHED_CORESTACK_ON:       The hysteresis timer has expired
  * @L2_FLUSHING_CORESTACK_ON:         The core stacks are on and the level 2
  *                                    cache is being flushed.
@@ -67,9 +62,6 @@ KBASEP_SHADER_STATE(PEND_ON_CORESTACK_ON)
 KBASEP_SHADER_STATE(ON_CORESTACK_ON)
 KBASEP_SHADER_STATE(ON_CORESTACK_ON_RECHECK)
 KBASEP_SHADER_STATE(WAIT_OFF_CORESTACK_ON)
-#if !MALI_USE_CSF
-KBASEP_SHADER_STATE(WAIT_GPU_IDLE)
-#endif /* !MALI_USE_CSF */
 KBASEP_SHADER_STATE(WAIT_FINISHED_CORESTACK_ON)
 KBASEP_SHADER_STATE(L2_FLUSHING_CORESTACK_ON)
 KBASEP_SHADER_STATE(READY_OFF_CORESTACK_ON)

@@ -2150,9 +2150,9 @@ static int _dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_hdmi *hdmi, 
 	return 0;
 }
 
-static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+static int dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct rockchip_hdmi *hdmi = container_of(sub_dev, struct rockchip_hdmi, sub_dev);
 	struct rockchip_hdmi *secondary;
 
 	_dw_hdmi_rockchip_encoder_loader_protect(hdmi, on);

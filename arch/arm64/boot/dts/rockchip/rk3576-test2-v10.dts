@@ -9,6 +9,7 @@
 #include "rk3576.dtsi"
 #include "rk3576-test2.dtsi"
 #include "rk3576-android.dtsi"
+#include "rk3576-test2-cam-dcphy0.dtsi"
 
 / {
 	model = "Rockchip RK3576 TEST2 V10 Board";

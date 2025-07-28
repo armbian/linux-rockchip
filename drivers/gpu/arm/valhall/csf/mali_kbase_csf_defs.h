@@ -1044,6 +1044,17 @@ struct kbase_csf_csg_slot {
 };
 
 /**
+ * struct kbase_csf_heap_reclaim_offslot - Setting for reclaiming offslot CSG's heap.
+ *
+ * @timeout_ms:   Reclaim from CSGs being offslot longer than this.
+ * @pages:        Max number of pages for each reclaim.
+ */
+struct kbase_csf_heap_reclaim_offslot {
+	u32 timeout_ms;
+	u32 pages;
+};
+
+/**
  * struct kbase_csf_sched_heap_reclaim_mgr - Object for managing tiler heap reclaim
  *                                           kctx lists inside the CSF device's scheduler.
  *
@@ -1052,12 +1063,14 @@ struct kbase_csf_csg_slot {
  *                  lists track the kctxs attached to the reclaim manager.
  * @unused_pages:   Estimated number of unused pages from the @ctxlist array. The
  *                  number is indicative for use with reclaim shrinker's count method.
+ * @offslot_setting: Setting for reclaiming offslot CSG's heap.
  */
 struct kbase_csf_sched_heap_reclaim_mgr {
 	DEFINE_KBASE_SHRINKER heap_reclaim;
 
 	struct list_head ctx_lists[KBASE_QUEUE_GROUP_PRIORITY_COUNT];
 	atomic_t unused_pages;
+	struct kbase_csf_heap_reclaim_offslot offslot_setting;
 };
 
 /**
@@ -1177,6 +1190,9 @@ struct kbase_csf_mcu_shared_regions {
  *                          perform a scheduling tock.
  * @pending_gpu_idle_work:  Indicates that kbase_csf_scheduler_kthread() should
  *                          handle the GPU IDLE event.
+ * @pending_runtime_suspend_work: Indicates that kbase_csf_scheduler_kthread()
+ *                                should proceed to suspend the GPU as part of
+ *                                handling the runtime suspend event.
  * @pending_power_off_work: Indicates that kbase_csf_scheduler_kthread() should
  *                          proceed to power off the GPU.
  * @ping_work:              Work item that would ping the firmware at regular
@@ -1228,10 +1244,13 @@ struct kbase_csf_mcu_shared_regions {
  * @mcu_regs_data:          Scheduler MCU shared regions data for managing the
  *                          shared interface mappings for on-slot queues and
  *                          CSG suspend buffers.
- * @kthread_signal:         Used to wake up the GPU queue submission
- *                          thread when a queue needs attention.
- * @kthread_running:        Whether the GPU queue submission thread should keep
- *                          executing.
+ * @kthread_signal:         Used to wake up the main CSF scheduler thread
+ *                          to handle pending work items.
+ * @kthread_running:        Set to true to indicate that the CSF scheduler
+ *                          thread will handle work items. Work items that
+ *                          are handled by this thread all require the schduler
+ *                          mutex lock, thus are serialised and executed in a
+ *                          predefined order.
  * @gpuq_kthread:           Dedicated thread primarily used to handle
  *                          latency-sensitive tasks such as GPU queue
  *                          submissions.
@@ -1272,6 +1291,7 @@ struct kbase_csf_scheduler {
 	atomic_t pending_tick_work;
 	atomic_t pending_tock_work;
 	atomic_t pending_gpu_idle_work;
+	atomic_t pending_runtime_suspend_work;
 	atomic_t pending_power_off_work;
 	struct delayed_work ping_work;
 	struct kbase_context *top_kctx;
@@ -1813,7 +1833,8 @@ struct kbase_csf_user_reg {
  * @fw_io:                  Firmware I/O interface.
  * @compute_progress_timeout_cc: Value of GPU cycle count register when progress
  *                               timer timeout is reported for the compute iterator.
- * @num_doorbells: Number of doorbells supported by the GPU.
+ * @neural_allowed_mask:         A mask for optionally disabling neural cores across all CSGs
+ * @num_doorbells:               Number of doorbells supported by the GPU.
  */
 struct kbase_csf_device {
 	struct kbase_mmu_table mcu_mmu;
@@ -1877,6 +1898,7 @@ struct kbase_csf_device {
 	u32 page_fault_cnt;
 	struct kbase_csf_fw_io fw_io;
 	u64 compute_progress_timeout_cc;
+	u64 neural_allowed_mask;
 	u32 num_doorbells;
 };
 

@@ -3960,9 +3960,10 @@ static unsigned char get_csi_fmt_val(struct rkcif_stream *stream,
 			csi_fmt_val = CSI_WRDDR_TYPE_RAW12;
 			break;
 		}
-	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB565 ||
-		   (stream->cifdev->chip_id < CHIP_RK3576_CIF &&
-		    cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)) {
+	} else if (stream->cifdev->chip_id < CHIP_RK3576_CIF &&
+		   cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888) {
+		csi_fmt_val = CSI_WRDDR_TYPE_YUV422;
+	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB565) {
 		csi_fmt_val = CSI_WRDDR_TYPE_RAW8;
 	} else {
 		csi_fmt_val = cif_fmt_in->csi_fmt_val;
@@ -3994,7 +3995,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->crop_en = 1;
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF)
-			channel->crop_st_x = 3 * stream->crop[CROP_SRC_ACT].left;
+			channel->crop_st_x = 3 * stream->crop[CROP_SRC_ACT].left / 2;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 			channel->crop_st_x = 2 * stream->crop[CROP_SRC_ACT].left;
 		else
@@ -4032,9 +4033,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	     (dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
 	     (dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
 		channel->crop_st_x += channel->width / 2;
-		channel->crop_st_x -= RKMOUDLE_UNITE_EXTEND_PIXEL;
+		channel->crop_st_x -= dev->unite_extend_pixel;
 		channel->width /= 2;
-		channel->width += RKMOUDLE_UNITE_EXTEND_PIXEL;
+		channel->width += dev->unite_extend_pixel;
 	}
 	/*
 	 * for mipi or lvds, when enable compact, the virtual width of raw10/raw12
@@ -4065,6 +4066,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	if ((channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF) ||
 	    channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		channel->width = channel->width * fmt->bpp[0] / 8;
+
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+		channel->width /= 2;
 	/*
 	 * rk cif don't support output yuyv fmt data
 	 * if user request yuyv fmt, the input mode must be RAW8
@@ -4381,6 +4385,8 @@ static int rkcif_csi_get_output_type_mask(struct rkcif_stream *stream)
 		break;
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_BGR24:
+		mask = CSI_WRDDR_TYPE_YUV_PACKET | CSI_YUV_OUTPUT_ORDER_UYVY;
+		break;
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_BGR666:
 		mask = CSI_WRDDR_TYPE_RAW_COMPACT;
@@ -4983,7 +4989,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			      channel->vc << 8 | channel->data_type << 10;
 			if (dev->chip_id >= CHIP_RK3588_CIF) {
 				if (channel->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)
-					val |= CSI_WRDDR_TYPE_RAW8;
+					val |= CSI_WRDDR_TYPE_YUV422;
 				else if (channel->csi_fmt_val == CSI_WRDDR_TYPE_RAW14_RK3588)
 					val |= channel->csi_fmt_val << 1;
 				else
@@ -5278,9 +5284,9 @@ void rkcif_reinit_right_half_config(struct rkcif_stream *stream)
 		return;
 	}
 	channel->crop_st_x += channel->width / 2;
-	channel->crop_st_x -= RKMOUDLE_UNITE_EXTEND_PIXEL;
+	channel->crop_st_x -= cif_dev->unite_extend_pixel;
 	channel->width /= 2;
-	channel->width += RKMOUDLE_UNITE_EXTEND_PIXEL;
+	channel->width += cif_dev->unite_extend_pixel;
 	channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 256);
 	if (cif_dev->chip_id < CHIP_RK3576_CIF)
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl1(channel->id),
@@ -6180,6 +6186,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 			if (buf->dbufs.is_init)
 				v4l2_subdev_call(sd, core, ioctl,
 						 RKISP_VICAP_CMD_RX_BUFFER_FREE, &buf->dbufs);
+			rkcif_free_reserved_mem_buf(dev, buf);
 			memset(buf, 0, sizeof(*buf));
 			buf->dummy.is_free = true;
 		}
@@ -6273,7 +6280,7 @@ static u32 rkcif_get_right_half_buf_size(struct rkcif_stream *stream)
 		height = stream->pixm.height;
 	}
 	width /= 2;
-	width += RKMOUDLE_UNITE_EXTEND_PIXEL;
+	width += stream->cifdev->unite_extend_pixel;
 	if (stream->is_compact)
 		virtual_width = ALIGN(width * stream->cif_fmt_out->raw_bpp / 8, 256);
 	else
@@ -6928,6 +6935,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 				break;
 			}
 		}
+		if (can_reset && hw_dev->dummy_buf.vaddr)
+			rkcif_destroy_dummy_buf(stream);
 		mutex_unlock(&hw_dev->dev_lock);
 		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF) {
 			rkcif_do_soft_reset(dev);
@@ -6950,8 +6959,6 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 		if (atomic_read(&dev->pipe.stream_cnt) == 0)
 			atomic_set(&stream->sub_stream_buf_cnt, 0);
-		if (can_reset && hw_dev->dummy_buf.vaddr)
-			rkcif_destroy_dummy_buf(stream);
 		stream->rounding_bit = 0;
 		if (stream->id == RKCIF_STREAM_MIPI_ID0 && dev->is_support_get_exp) {
 			kfifo_free(&stream->exp_kfifo);
@@ -11270,7 +11277,7 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 		struct csi_channel_info *channel = &cif_dev->channels[stream->id];
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
-			crop_x = 3 * stream->crop[CROP_SRC_ACT].left;
+			crop_x = 3 * stream->crop[CROP_SRC_ACT].left / 2;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 			crop_x = 2 * stream->crop[CROP_SRC_ACT].left;
 		else
@@ -14021,7 +14028,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	detect_stream->fs_cnt_in_single_frame++;
 	if ((!cif_dev->sditf[0] ||
 	     cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ) &&
-	    detect_stream->fs_cnt_in_single_frame > 1)
+	    detect_stream->fs_cnt_in_single_frame > 1 &&
+	    cif_dev->chip_id < CHIP_RK3588_CIF)
 		return;
 
 	spin_lock_irqsave(&detect_stream->fps_lock, flags);
@@ -15000,6 +15008,17 @@ void rkcif_switch_change(struct rkcif_device *cif_dev, bool is_switch)
 	} else {
 		gpiod_direction_output_raw(cif_dev->switch_info.gpio_pin, 0);
 	}
+}
+
+void rkcif_update_unite_extend_pixel(struct rkcif_device *cif_dev)
+{
+	struct v4l2_subdev *sd = get_rkisp_sd(cif_dev->sditf[0]);
+
+	if (!sd)
+		return;
+	v4l2_subdev_call(sd, core, ioctl,
+			 RKISP_VICAP_CMD_GET_UNITE_EXTEND_PIXEL,
+			 &cif_dev->unite_extend_pixel);
 }
 
 /* pingpong irq for rk3588 and next */

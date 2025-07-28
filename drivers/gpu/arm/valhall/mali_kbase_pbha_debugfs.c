@@ -25,9 +25,7 @@
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase.h>
 
-#if MALI_USE_CSF
 #include "backend/gpu/mali_kbase_pm_internal.h"
-#endif
 
 static int int_id_overrides_show(struct seq_file *sfile, void *data)
 {
@@ -43,11 +41,7 @@ static int int_id_overrides_show(struct seq_file *sfile, void *data)
 	for (i = 0; i < GPU_SYSC_ALLOC_COUNT; ++i) {
 		uint j;
 
-#if MALI_USE_CSF
 		u32 reg = kbase_reg_read32(kbdev, GPU_SYSC_ALLOC_OFFSET(i));
-#else /* MALI_USE_CSF */
-		u32 reg = 0;
-#endif /* MALI_USE_CSF */
 
 		for (j = 0; j < sizeof(u32); ++j) {
 			u8 r_val = 0;
@@ -120,7 +114,6 @@ static int int_id_overrides_open(struct inode *in, struct file *file)
 	return single_open(file, int_id_overrides_show, in->i_private);
 }
 
-#if MALI_USE_CSF
 /**
  * propagate_bits_show - Read PBHA bits from L2_CONFIG out to debugfs.
  *
@@ -207,7 +200,6 @@ static const struct file_operations pbha_propagate_bits_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-#endif /* MALI_USE_CSF */
 
 static const struct file_operations pbha_int_id_overrides_fops = {
 	.owner = THIS_MODULE,
@@ -233,10 +225,8 @@ void kbase_pbha_debugfs_init(struct kbase_device *kbdev)
 
 		debugfs_create_file("int_id_overrides", mode, debugfs_pbha_dir, kbdev,
 				    &pbha_int_id_overrides_fops);
-#if MALI_USE_CSF
 		if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_PBHA_HWU))
 			debugfs_create_file("propagate_bits", mode, debugfs_pbha_dir, kbdev,
 					    &pbha_propagate_bits_fops);
-#endif /* MALI_USE_CSF */
 	}
 }

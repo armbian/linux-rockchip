@@ -195,25 +195,29 @@ static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
 
 static int rockchip_p3phy_rk3588_calibrate(struct rockchip_p3phy_priv *priv)
 {
-	int ret = 0;
-	u32 reg;
+	u32 phy0_status, phy1_status;
+	int i, sleep_us = 100;
+	bool check_both = (priv->pcie30_phymode == PHY_MODE_PCIE_AGGREGATION);
 
-	ret = regmap_read_poll_timeout(priv->phy_grf,
-				       RK3588_PCIE3PHY_GRF_PHY0_STATUS1,
-				       reg, RK3588_SRAM_INIT_DONE(reg),
-				       100, RK_PCIE_SRAM_INIT_TIMEOUT);
-	if (priv->pcie30_phymode == PHY_MODE_PCIE_AGGREGATION) {
-		ret |= regmap_read_poll_timeout(priv->phy_grf,
-						RK3588_PCIE3PHY_GRF_PHY1_STATUS1,
-						reg, RK3588_SRAM_INIT_DONE(reg),
-						100, RK_PCIE_SRAM_INIT_TIMEOUT);
+	for (i = 0; i < RK_PCIE_SRAM_INIT_TIMEOUT; i += sleep_us) {
+		regmap_read(priv->phy_grf, RK3588_PCIE3PHY_GRF_PHY0_STATUS1, &phy0_status);
+		regmap_read(priv->phy_grf, RK3588_PCIE3PHY_GRF_PHY1_STATUS1, &phy1_status);
+
+		if (check_both) {
+			if (RK3588_SRAM_INIT_DONE(phy0_status) && RK3588_SRAM_INIT_DONE(phy1_status))
+				return 0;
+		} else {
+			if (RK3588_SRAM_INIT_DONE(phy0_status) || RK3588_SRAM_INIT_DONE(phy1_status))
+				return 0;
+		}
+
+		usleep_range(sleep_us, sleep_us + 10);
 	}
 
-	if (ret)
-		dev_err(&priv->phy->dev, "%s: lock failed 0x%x, check input refclk and power supply\n",
-		       __func__, reg);
+	pr_err("%s: lock failed p0=0x%x p1=0x%x, check input refclk and power supply\n",
+	       __func__, phy0_status, phy1_status);
 
-	return ret;
+	return -ETIMEDOUT;
 }
 
 static const struct rockchip_p3phy_ops rk3588_ops = {

@@ -29,7 +29,6 @@
 #include <tl/mali_kbase_tracepoints.h>
 #include <linux/delay.h>
 
-#if MALI_USE_CSF
 /**
  * mmu_has_flush_skip_pgd_levels() - Check if the GPU has the feature
  *                                   AS_LOCKADDR_FLUSH_SKIP_LEVELS
@@ -45,7 +44,6 @@ static bool mmu_has_flush_skip_pgd_levels(struct kbase_gpu_props const *gpu_prop
 {
 	return gpu_props->gpu_id.arch_id >= GPU_ID_ARCH_MAKE(12, 0, 4);
 }
-#endif
 
 /**
  * lock_region() - Generate lockaddr to lock memory region in MMU
@@ -145,11 +143,9 @@ static int lock_region(struct kbase_gpu_props const *gpu_props, u64 *lockaddr,
 	*lockaddr = lockaddr_base & ~((1ull << lockaddr_size_log2) - 1);
 	*lockaddr |= lockaddr_size_log2 - 1;
 
-#if MALI_USE_CSF
 	if (mmu_has_flush_skip_pgd_levels(gpu_props))
 		*lockaddr =
 			AS_LOCKADDR_FLUSH_SKIP_LEVELS_SET(*lockaddr, op_param->flush_skip_levels);
-#endif
 
 	return 0;
 }
@@ -210,7 +206,6 @@ static int write_cmd(struct kbase_device *kbdev, unsigned int as_nr, u32 cmd)
 	return status;
 }
 
-#if MALI_USE_CSF
 static int wait_l2_power_trans_complete(struct kbase_device *kbdev)
 {
 	u32 val;
@@ -316,7 +311,6 @@ static int apply_hw_issue_GPU2019_3901_wa(struct kbase_device *kbdev, u32 *mmu_c
 	return ret;
 }
 #endif /* !IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI) */
-#endif /* MALI_USE_CSF */
 
 void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 {
@@ -324,9 +318,6 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 	u64 transcfg = 0;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
-#if !MALI_USE_CSF
-	lockdep_assert_held(&kbdev->mmu_hw_mutex);
-#endif
 
 	transcfg = current_setup->transcfg;
 
@@ -343,18 +334,19 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 		transcfg = AS_TRANSCFG_PTW_SH_SET(transcfg, AS_TRANSCFG_PTW_SH_OUTER_SHAREABLE);
 	}
 
+
 	kbase_reg_write64(kbdev, MMU_AS_OFFSET(as->number, TRANSCFG), transcfg);
 	kbase_reg_write64(kbdev, MMU_AS_OFFSET(as->number, TRANSTAB), current_setup->transtab);
 	kbase_reg_write64(kbdev, MMU_AS_OFFSET(as->number, MEMATTR), current_setup->memattr);
 
 	KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG(kbdev, as, current_setup->transtab,
 					   current_setup->memattr, transcfg);
+	KBASE_TLSTREAM_JD_AS_INFO(kbdev, as->number, current_setup->transtab,
+				  current_setup->memattr, transcfg);
 
 	write_cmd(kbdev, as->number, AS_COMMAND_COMMAND_UPDATE);
-#if MALI_USE_CSF
 	/* Wait for UPDATE command to complete */
 	wait_ready(kbdev, as->number);
-#endif
 }
 
 /**
@@ -465,6 +457,7 @@ int kbase_mmu_hw_do_unlock_no_addr(struct kbase_device *kbdev, struct kbase_as *
 	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
 		return -EINVAL;
 
+
 	ret = write_cmd(kbdev, as->number, AS_COMMAND_COMMAND_UNLOCK);
 
 	/* Wait for UNLOCK command to complete */
@@ -490,6 +483,7 @@ int kbase_mmu_hw_do_unlock(struct kbase_device *kbdev, struct kbase_as *as,
 
 	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
 		return -EINVAL;
+
 
 	ret = mmu_hw_set_lock_addr(kbdev, as->number, &lock_addr, op_param);
 
@@ -528,7 +522,7 @@ int kbase_mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
 	if (ret)
 		return ret;
 
-#if MALI_USE_CSF && !IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)
+#if !IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)
 	/* WA for the KBASE_HW_ISSUE_GPU2019_3901. */
 	if (kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_GPU2019_3901) &&
 	    mmu_cmd == AS_COMMAND_COMMAND_FLUSH_MEM) {
@@ -553,12 +547,10 @@ int kbase_mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
 	if (likely(!ret)) {
 		mmu_command_instr(kbdev, op_param->kctx_id, mmu_cmd, lock_addr,
 				  op_param->mmu_sync_info);
-#if MALI_USE_CSF
 		if (flush_op == KBASE_MMU_OP_FLUSH_MEM &&
 		    kbdev->pm.backend.apply_hw_issue_TITANHW_2938_wa &&
 		    kbdev->pm.backend.l2_state == KBASE_L2_PEND_OFF)
 			ret = wait_l2_power_trans_complete(kbdev);
-#endif
 	}
 
 	return ret;
@@ -587,6 +579,7 @@ int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_a
 	if (flush_op == KBASE_MMU_OP_FLUSH_PT)
 		gpu_cmd = GPU_COMMAND_CACHE_CLN_INV_L2;
 
+
 	/* 1. Issue MMU_AS_CONTROL.COMMAND.LOCK operation. */
 	ret = mmu_hw_do_lock(kbdev, as, op_param);
 	if (ret)
@@ -598,14 +591,12 @@ int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_a
 	/* 3. Issue MMU_AS_CONTROL.COMMAND.UNLOCK operation. */
 	ret2 = kbase_mmu_hw_do_unlock_no_addr(kbdev, as, op_param);
 
-#if MALI_USE_CSF
 	if (!ret && !ret2) {
 		if (flush_op == KBASE_MMU_OP_FLUSH_MEM &&
 		    kbdev->pm.backend.apply_hw_issue_TITANHW_2938_wa &&
 		    kbdev->pm.backend.l2_state == KBASE_L2_PEND_OFF)
 			ret = wait_l2_power_trans_complete(kbdev);
 	}
-#endif
 
 	return ret ?: ret2;
 }
@@ -629,20 +620,14 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 
 	/* Clear the page (and bus fault IRQ as well in case one occurred) */
 	pf_bf_mask = MMU_PAGE_FAULT(as->number);
-#if !MALI_USE_CSF
-	if (type == KBASE_MMU_FAULT_TYPE_BUS || type == KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED)
-		pf_bf_mask |= MMU_BUS_ERROR(as->number);
-#endif
 	kbase_reg_write32(kbdev, MMU_CONTROL_ENUM(IRQ_CLEAR), pf_bf_mask);
 
-#if MALI_USE_CSF
 	/* For valid page faults, this function is called just before unblocking the MMU (which
 	 * would in turn unblock the MCU firmware) and so this is an opportune location to
 	 * update the page fault counter value in firmware visible memory.
 	 */
 	if (likely(type == KBASE_MMU_FAULT_TYPE_PAGE) && kbdev->csf.page_fault_cnt_ptr)
 		*kbdev->csf.page_fault_cnt_ptr = ++kbdev->csf.page_fault_cnt;
-#endif
 
 unlock:
 	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
@@ -670,10 +655,6 @@ void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 
 	irq_mask = kbase_reg_read32(kbdev, MMU_CONTROL_ENUM(IRQ_MASK)) | MMU_PAGE_FAULT(as->number);
 
-#if !MALI_USE_CSF
-	if (type == KBASE_MMU_FAULT_TYPE_BUS || type == KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED)
-		irq_mask |= MMU_BUS_ERROR(as->number);
-#endif
 	kbase_reg_write32(kbdev, MMU_CONTROL_ENUM(IRQ_MASK), irq_mask);
 
 unlock:

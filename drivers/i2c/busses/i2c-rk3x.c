@@ -639,7 +639,11 @@ static void rk3x_i2c_start_fifo(struct rk3x_i2c *i2c)
 	}
 
 	/* enable adapter with correct mode, send START condition */
-	val |= REG_CON_EN | REG_CON_MOD(i2c->mode) | REG_CON_START | REG_CON_CLEAN_DMA;
+	val |= REG_CON_EN | REG_CON_MOD(i2c->mode) | REG_CON_START;
+
+	/* if supports DMA, make sure clean DMA states for current transfer */
+	if (i2c->dma_tx && i2c->dma_rx)
+		val |= REG_CON_CLEAN_DMA;
 
 	/* if we want to react to NACK, set ACTACK bit */
 	if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
@@ -2120,11 +2124,7 @@ static int __init rk3x_i2c_driver_init(void)
 {
 	return platform_driver_register(&rk3x_i2c_driver);
 }
-#ifdef CONFIG_INITCALL_ASYNC
-subsys_initcall_sync(rk3x_i2c_driver_init);
-#else
 subsys_initcall(rk3x_i2c_driver_init);
-#endif
 
 static void __exit rk3x_i2c_driver_exit(void)
 {

@@ -610,7 +610,6 @@ static inline bool kbase_csf_scheduler_queue_has_trace(struct kbase_queue *queue
 	return (queue->trace_buffer_size && queue->trace_buffer_base);
 }
 
-#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_csf_scheduler_reval_idleness_post_sleep() - Check GPU's idleness after
  *                                                   putting MCU to sleep state
@@ -645,7 +644,6 @@ void kbase_csf_scheduler_reval_idleness_post_sleep(struct kbase_device *kbdev);
  * Return: 0 if all the CSGs were suspended, otherwise an error code.
  */
 int kbase_csf_scheduler_handle_runtime_suspend(struct kbase_device *kbdev);
-#endif
 
 /**
  * kbase_csf_scheduler_process_gpu_idle_event() - Process GPU idle IRQ
@@ -697,7 +695,6 @@ u32 kbase_csf_scheduler_get_nr_active_csgs_locked(struct kbase_device *kbdev);
  */
 void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
 
-#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_csf_scheduler_force_sleep() - Forcefully put the Scheduler to sleeping
  *                                     state.
@@ -710,7 +707,6 @@ void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
  * This function is only used for testing purpose.
  */
 void kbase_csf_scheduler_force_sleep(struct kbase_device *kbdev);
-#endif
 
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

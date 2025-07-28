@@ -286,8 +286,6 @@ check_padding_KBASE_IOCTL_KINSTR_PRFCNT_SETUP(union kbase_ioctl_kinstr_prfcnt_se
 #if MALI_UNIT_TEST
 #endif /* MALI_UNIT_TEST */
 
-#if MALI_USE_CSF
-
 static inline int
 check_padding_KBASE_IOCTL_CS_QUEUE_REGISTER(struct kbase_ioctl_cs_queue_register *p)
 {
@@ -517,32 +515,5 @@ check_padding_KBASE_IOCTL_CS_TILER_HEAP_SIZE(union kbase_ioctl_cs_tiler_heap_siz
 {
 	return 0;
 }
-
-#else /* MALI_USE_CSF */
-
-static inline int check_padding_KBASE_IOCTL_JOB_SUBMIT(struct kbase_ioctl_job_submit *p)
-{
-	return 0;
-}
-
-static inline int
-check_padding_KBASE_IOCTL_SOFT_EVENT_UPDATE(struct kbase_ioctl_soft_event_update *p)
-{
-	return 0;
-}
-
-static inline int check_padding_KBASE_IOCTL_KINSTR_JM_FD(union kbase_kinstr_jm_fd *p)
-{
-	size_t i;
-
-	for (i = 0; i < ARRAY_SIZE(p->in.padding); i++) {
-		if (p->in.padding[i])
-			return -1;
-	}
-
-	return 0;
-}
-
-#endif /* !MALI_USE_CSF */
 
 #endif /* _KBASE_IOCTL_HELPERS_H_ */

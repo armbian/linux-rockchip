@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,10 +22,6 @@
 #ifndef _UAPI_KBASE_GPU_REGMAP_H_
 #define _UAPI_KBASE_GPU_REGMAP_H_
 
-#if MALI_USE_CSF
 #include "backend/mali_kbase_gpu_regmap_csf.h"
-#else
-#include "backend/mali_kbase_gpu_regmap_jm.h"
-#endif /* !MALI_USE_CSF */
 
 #endif /* _UAPI_KBASE_GPU_REGMAP_H_ */

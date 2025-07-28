@@ -22,11 +22,7 @@
 #ifndef _KBASE_MEM_FLAGS_H_
 #define _KBASE_MEM_FLAGS_H_
 
-#if MALI_USE_CSF
 #include <csf/mali_kbase_csf_mem_flags.h>
-#else
-#include <jm/mali_kbase_jm_mem_flags.h>
-#endif
 
 /* Will be permanently mapped in kernel space.
  * Flag is only allowed on allocations originating from kbase.

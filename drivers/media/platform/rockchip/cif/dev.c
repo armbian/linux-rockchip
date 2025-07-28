@@ -3231,6 +3231,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
+	cif_dev->unite_extend_pixel = 128;
 
 	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
 		return -ENODEV;

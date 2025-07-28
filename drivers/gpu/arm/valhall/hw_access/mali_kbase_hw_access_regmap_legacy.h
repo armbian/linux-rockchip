@@ -22,11 +22,7 @@
 #ifndef _MALI_KBASE_REGMAP_LEGACY_H_
 #define _MALI_KBASE_REGMAP_LEGACY_H_
 
-#if MALI_USE_CSF
 #include "regmap/mali_kbase_regmap_legacy_csf.h"
-#else
-#include "regmap/mali_kbase_regmap_legacy_jm.h"
-#endif
 
 /* Begin Register Offsets */
 

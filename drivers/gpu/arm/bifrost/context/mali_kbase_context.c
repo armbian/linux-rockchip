@@ -72,6 +72,74 @@ static struct kbase_process *find_process_node(struct rb_node *node, pid_t tgid)
 	return kprcs;
 }
 
+static ssize_t kbase_kctx_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	struct kobj_attribute *kattr = container_of(attr, struct kobj_attribute, attr);
+
+	if (kattr->show)
+		return kattr->show(kobj, kattr, buf);
+
+	return -EIO;
+}
+
+static ssize_t kbase_total_gpu_mem_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct kbase_process *kprcs = container_of(kobj, struct kbase_process, kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "%zu\n", kprcs->total_gpu_pages << PAGE_SHIFT);
+}
+
+static ssize_t kbase_private_gpu_mem_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct kbase_process *kprcs = container_of(kobj, struct kbase_process, kobj);
+	struct kbase_context *tmp_kctx;
+	size_t total_pages = 0;
+
+	/* Sum up used_pages from all contexts in the process */
+	list_for_each_entry(tmp_kctx, &kprcs->kctx_list, kprcs_link) {
+		total_pages += atomic_read(&tmp_kctx->used_pages);
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%zu\n", total_pages << PAGE_SHIFT);
+}
+
+static struct kobj_attribute kbase_total_gpu_mem_attr = {
+	.attr = {
+		.name = "total_gpu_mem",
+		.mode = 0444,
+	},
+	.show = kbase_total_gpu_mem_show,
+	.store = NULL,
+};
+
+static struct kobj_attribute kbase_private_gpu_mem_attr = {
+	.attr = {
+		.name = "private_gpu_mem",
+		.mode = 0444,
+	},
+	.show = kbase_private_gpu_mem_show,
+	.store = NULL,
+};
+
+static struct attribute *kbase_kctx_attrs[] = {
+	&kbase_total_gpu_mem_attr.attr,
+	&kbase_private_gpu_mem_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group kbase_kctx_attr_group = {
+	.attrs = kbase_kctx_attrs,
+};
+
+static const struct sysfs_ops kbase_kctx_sysfs_ops = {
+	.show = kbase_kctx_attr_show,
+};
+
+static const struct kobj_type kbase_kctx_ktype = {
+	.sysfs_ops = &kbase_kctx_sysfs_ops,
+	.default_groups = (const struct attribute_group *[]) { &kbase_kctx_attr_group, NULL },
+};
+
 /**
  * kbase_insert_kctx_to_process - Initialise kbase process context.
  *
@@ -100,6 +168,8 @@ static int kbase_insert_kctx_to_process(struct kbase_context *kctx)
 	 */
 	if (!kprcs) {
 		struct rb_node **new = &prcs_root->rb_node, *parent = NULL;
+		char kctx_name[64];
+		int ret = 0;
 
 		kprcs = kzalloc(sizeof(*kprcs), GFP_KERNEL);
 		if (kprcs == NULL)
@@ -108,6 +178,15 @@ static int kbase_insert_kctx_to_process(struct kbase_context *kctx)
 		INIT_LIST_HEAD(&kprcs->kctx_list);
 		kprcs->dma_buf_root = RB_ROOT;
 		kprcs->total_gpu_pages = 0;
+
+		if (unlikely(!scnprintf(kctx_name, 64, "%d", tgid)))
+			return -ENOMEM;
+
+		ret = kobject_init_and_add(&kprcs->kobj, &kbase_kctx_ktype, kctx->kbdev->kprcs_kobj, kctx_name);
+		if (ret) {
+			dev_err(kctx->kbdev->dev, "Failed to create kctx kobject");
+			kobject_put(&kprcs->kobj);
+		}
 
 		while (*new) {
 			struct kbase_process *prcs_node;
@@ -260,6 +339,7 @@ static void kbase_remove_kctx_from_process(struct kbase_context *kctx)
 	 * we can remove it from the process rb_tree.
 	 */
 	if (list_empty(&kprcs->kctx_list)) {
+		kobject_put(&kprcs->kobj);
 		rb_erase(&kprcs->kprcs_node, &kctx->kbdev->process_root);
 		/* Add checks, so that the terminating process Should not
 		 * hold any gpu_memory.

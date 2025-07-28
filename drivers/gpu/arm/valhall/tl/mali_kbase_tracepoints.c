@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -83,7 +83,7 @@ enum tl_msg_id_obj {
 	KBASE_TL_ATTRIB_ATOM_PRIORITY,
 	KBASE_TL_ATTRIB_ATOM_STATE,
 	KBASE_TL_ATTRIB_ATOM_PRIORITIZED,
-	KBASE_TL_ATTRIB_ATOM_JIT,
+	KBASE_JD_AS_INFO,
 	KBASE_TL_KBASE_NEW_DEVICE,
 	KBASE_TL_KBASE_GPUCMDQUEUE_KICK,
 	KBASE_TL_KBASE_DEVICE_PROGRAM_CSG,
@@ -354,10 +354,10 @@ enum tl_msg_id_obj {
 		"atom caused priority change", \
 		"@p", \
 		"atom") \
-	TRACEPOINT_DESC(KBASE_TL_ATTRIB_ATOM_JIT, \
-		"jit done for atom", \
-		"@pLLILILLL", \
-		"atom,edit_addr,new_addr,jit_flags,mem_flags,j_id,com_pgs,extent,va_pgs") \
+	TRACEPOINT_DESC(KBASE_JD_AS_INFO, \
+		"address space attributes", \
+		"@ILLL", \
+		"as_nr,transtab,memattr,transcfg") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_NEW_DEVICE, \
 		"New KBase Device", \
 		"@IIIIIIII", \
@@ -2043,30 +2043,20 @@ void __kbase_tlstream_tl_attrib_atom_prioritized(
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }
 
-void __kbase_tlstream_tl_attrib_atom_jit(
+void __kbase_tlstream_jd_as_info(
 	struct kbase_tlstream *stream,
-	const void *atom,
-	u64 edit_addr,
-	u64 new_addr,
-	u32 jit_flags,
-	u64 mem_flags,
-	u32 j_id,
-	u64 com_pgs,
-	u64 extent,
-	u64 va_pgs
+	u32 as_nr,
+	u64 transtab,
+	u64 memattr,
+	u64 transcfg
 )
 {
-	const u32 msg_id = KBASE_TL_ATTRIB_ATOM_JIT;
+	const u32 msg_id = KBASE_JD_AS_INFO;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
-		+ sizeof(atom)
-		+ sizeof(edit_addr)
-		+ sizeof(new_addr)
-		+ sizeof(jit_flags)
-		+ sizeof(mem_flags)
-		+ sizeof(j_id)
-		+ sizeof(com_pgs)
-		+ sizeof(extent)
-		+ sizeof(va_pgs)
+		+ sizeof(as_nr)
+		+ sizeof(transtab)
+		+ sizeof(memattr)
+		+ sizeof(transcfg)
 		;
 	char *buffer;
 	unsigned long acq_flags;
@@ -2077,23 +2067,13 @@ void __kbase_tlstream_tl_attrib_atom_jit(
 	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
 	pos = kbasep_serialize_timestamp(buffer, pos);
 	pos = kbasep_serialize_bytes(buffer,
-		pos, &atom, sizeof(atom));
+		pos, &as_nr, sizeof(as_nr));
 	pos = kbasep_serialize_bytes(buffer,
-		pos, &edit_addr, sizeof(edit_addr));
+		pos, &transtab, sizeof(transtab));
 	pos = kbasep_serialize_bytes(buffer,
-		pos, &new_addr, sizeof(new_addr));
+		pos, &memattr, sizeof(memattr));
 	pos = kbasep_serialize_bytes(buffer,
-		pos, &jit_flags, sizeof(jit_flags));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &mem_flags, sizeof(mem_flags));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &j_id, sizeof(j_id));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &com_pgs, sizeof(com_pgs));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &extent, sizeof(extent));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &va_pgs, sizeof(va_pgs));
+		pos, &transcfg, sizeof(transcfg));
 
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }

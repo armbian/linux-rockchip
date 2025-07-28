@@ -568,6 +568,21 @@ rkisp_stats_next_ddr_config_v33(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_stats_update_buf(stats_vdev);
 }
 
+static void rkisp_stats_stop_v33(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+	struct rkisp_device *dev = stats_vdev->dev;
+	u32 val, addr;
+
+	/* aiq crash or exit first */
+	if (dev->isp_state & ISP_START &&
+	    stats_vdev->stats_buf[0].mem_priv) {
+		rkisp_stats_update_buf(stats_vdev);
+		addr = stats_vdev->stats_buf[0].dma_addr;
+		readl_poll_timeout(dev->hw_dev->base_addr + ISP39_W3A_AEBIG_ADDR_SHD,
+				   val, val == addr, 5000, 50000);
+	}
+}
+
 static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.isr_hdl = rkisp_stats_isr_v33,
 	.send_meas = rkisp_stats_send_meas_v33,
@@ -575,6 +590,7 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.stats_tb = rkisp_stats_tb_v33,
 	.first_ddr_cfg = rkisp_stats_first_ddr_config_v33,
 	.next_ddr_cfg = rkisp_stats_next_ddr_config_v33,
+	.stats_stop = rkisp_stats_stop_v33,
 };
 
 void rkisp_init_stats_vdev_v33(struct rkisp_isp_stats_vdev *stats_vdev)

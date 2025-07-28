@@ -251,6 +251,25 @@
 		goodix,rst-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
 	};
+
+	hynitron: hynitron@5a {
+		status = "disabled";
+		compatible = "hyn,3240";
+		reg = <0x5a>;
+
+		pinctrl-names = "ts_active","ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+
+		max-touch-number = <5>;
+		display-coords = <0 0 1080 1920>;
+		pos-swap = <0>;
+		posx-reverse = <0>;
+		posy-reverse = <0>;
+	};
 };
 
 &i2c2 {
@@ -304,6 +323,22 @@
 			rockchip,pins =
 				<0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_int_active: ts_int_active {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_reset_active: ts_reset_active {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_int_suspend: ts_int_suspend {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		ts_reset_suspend: ts_reset_suspend {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 

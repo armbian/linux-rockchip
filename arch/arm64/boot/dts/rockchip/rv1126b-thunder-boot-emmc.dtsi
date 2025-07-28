@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126b-thunder-boot.dtsi"
+
+/ {
+	thunder_boot_mmc: thunder-boot-mmc {
+		compatible = "rockchip,thunder-boot-mmc";
+		reg = <0x21470000 0x4000>;
+		clocks = <&cru HCLK_EMMC>, <&cru CCLK_EMMC>;
+		clock-names = "biu", "ciu";
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+		memory-region-idmac = <&mmc_idmac>;
+	};
+};
+
+&emmc {
+	memory-region-ecsd = <&mmc_ecsd>;
+	post-power-on-delay-ms = <0>;
+};
+
+&reserved_memory {
+	mmc_ecsd: mmc@47fffe00 {
+		reg = <0x47fffe00 0x00001000>;
+	};
+
+	mmc_idmac: mmc@48000000 {
+		reg = <0x48000000 0x00400000>;
+	};
+};

@@ -2487,6 +2487,28 @@
 		status = "disabled";
 	};
 
+	cci: cci@27500000 {
+		compatible = "arm,cci-500";
+		reg = <0x0 0x27500000 0x0 0x100000>;
+		ranges = <0x0 0x0 0x27500000 0x100000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pmu@10000 {
+			compatible = "arm,cci-500-pmu,r0";
+			reg = <0x10000 0x80000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
 	rknpu: npu@27700000 {
 		compatible = "rockchip,rk3576-rknpu";
 		reg = <0x0 0x27700000 0x0 0x8000>,

@@ -44,6 +44,10 @@
 	status = "disabled";
 };
 
+&hynitron {
+	status = "disabled";
+};
+
 &combphy0_us {
 	status = "okay";
 };

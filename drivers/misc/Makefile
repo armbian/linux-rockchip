@@ -6,6 +6,7 @@
 obj-y				+= rk628/
 obj-$(CONFIG_RK803)		+= rk803.o
 obj-y				+= rockchip/
+obj-y				+= vehicle/
 obj-$(CONFIG_LT7911D_FB_NOTIFIER) += lt7911d-fb-notifier.o
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_IBMVMC)		+= ibmvmc.o

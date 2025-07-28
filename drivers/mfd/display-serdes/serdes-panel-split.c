@@ -148,10 +148,6 @@ static int serdes_panel_split_parse_dt(struct serdes_panel_split *serdes_panel_s
 	serdes_panel_split->width_mm = panel_size[0];
 	serdes_panel_split->height_mm = panel_size[1];
 
-	serdes_panel_split->link_rate = link_rate_count_ssc[0];
-	serdes_panel_split->lane_count = link_rate_count_ssc[1];
-	serdes_panel_split->ssc = link_rate_count_ssc[2];
-
 	if (of_find_property(dev->of_node, "panel-size", &len)) {
 		len /= sizeof(unsigned int);
 		ret = of_property_read_u32_array(dev->of_node, "panel-size",

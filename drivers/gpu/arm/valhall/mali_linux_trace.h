@@ -137,7 +137,6 @@ TRACE_EVENT(mali_total_alloc_pages_change, TP_PROTO(u32 gpu_id, s64 event_id),
 	__print_symbolic(KBASE_MMU_FAULT_STATUS_ACCESS(status), \
 			 KBASE_MMU_FAULT_ACCESS_SYMBOLIC_STRINGS)
 
-#if MALI_USE_CSF
 #define KBASE_MMU_FAULT_CODE_VALID(code)                                           \
 	((code >= 0xC0 && code <= 0xEB) && (!(code >= 0xC5 && code <= 0xC7)) &&    \
 	 (!(code >= 0xCC && code <= 0xD8)) && (!(code >= 0xDC && code <= 0xDF)) && \
@@ -148,20 +147,6 @@ TRACE_EVENT(mali_total_alloc_pages_change, TP_PROTO(u32 gpu_id, s64 event_id),
 			    { 0xD8, "ACCESS_FLAG_" }, { 0xE0, "ADDRESS_SIZE_FAULT_IN" },    \
 			    { 0xE4, "ADDRESS_SIZE_FAULT_OUT" },                             \
 			    { 0xE8, "MEMORY_ATTRIBUTES_FAULT_" })
-#else /* MALI_USE_CSF */
-#define KBASE_MMU_FAULT_CODE_VALID(code)                                           \
-	((code >= 0xC0 && code <= 0xEF) && (!(code >= 0xC5 && code <= 0xC6)) &&    \
-	 (!(code >= 0xCC && code <= 0xCF)) && (!(code >= 0xD4 && code <= 0xD7)) && \
-	 (!(code >= 0xDC && code <= 0xDF)))
-#define KBASE_MMU_FAULT_CODE_SYMBOLIC_STRINGS                                               \
-	_ENSURE_PARENTHESIS({ 0xC0, "TRANSLATION_FAULT_" },                                 \
-			    { 0xC4, "TRANSLATION_FAULT(_7==_IDENTITY)_" },                  \
-			    { 0xC8, "PERMISSION_FAULT_" }, { 0xD0, "TRANSTAB_BUS_FAULT_" }, \
-			    { 0xD8, "ACCESS_FLAG_" }, { 0xE0, "ADDRESS_SIZE_FAULT_IN" },    \
-			    { 0xE4, "ADDRESS_SIZE_FAULT_OUT" },                             \
-			    { 0xE8, "MEMORY_ATTRIBUTES_FAULT_" },                           \
-			    { 0xEC, "MEMORY_ATTRIBUTES_NONCACHEABLE_" })
-#endif /* MALI_USE_CSF */
 #endif /* __TRACE_MALI_MMU_HELPERS */
 
 /* trace_mali_mmu_page_fault_extra_grow
@@ -254,35 +239,6 @@ DEFINE_EVENT_PRINT(mali_jit_softjob_template, mali_jit_free,
 		   TP_PROTO(struct kbase_va_region *reg, u8 jit_id), TP_ARGS(reg, jit_id),
 		   TP_printk("start=0x%llx va_pages=0x%zx backed_size=0x%zx", __entry->start_addr,
 			     __entry->nr_pages, __entry->backed_pages));
-
-#if !MALI_USE_CSF
-#if MALI_JIT_PRESSURE_LIMIT_BASE
-/* trace_mali_jit_report
- *
- * Tracepoint about the GPU data structure read to form a just-in-time memory
- * allocation report, and its calculated physical page usage
- */
-TRACE_EVENT(mali_jit_report,
-	    TP_PROTO(struct kbase_jd_atom *katom, struct kbase_va_region *reg, unsigned int id_idx,
-		     u64 read_val, u64 used_pages),
-	    TP_ARGS(katom, reg, id_idx, read_val, used_pages),
-	    TP_STRUCT__entry(__field(u64, start_addr) __field(u64, read_val)
-				     __field(u64, used_pages) __field(unsigned long, flags)
-					     __field(u8, id_idx) __field(u8, jit_id)),
-	    TP_fast_assign(__entry->start_addr = ((u64)reg->start_pfn) << PAGE_SHIFT;
-			   __entry->read_val = read_val; __entry->used_pages = used_pages;
-			   __entry->flags = reg->flags; __entry->id_idx = id_idx;
-			   __entry->jit_id = katom->jit_ids[id_idx];),
-	    TP_printk("start=0x%llx jit_ids[%u]=%u read_type='%s' read_val=0x%llx used_pages=%llu",
-		      __entry->start_addr, __entry->id_idx, __entry->jit_id,
-		      __print_symbolic(__entry->flags, { 0, "address" },
-				       { KBASE_REG_TILER_ALIGN_TOP, "address with align" },
-				       { KBASE_REG_HEAP_INFO_IS_SIZE, "size" },
-				       { KBASE_REG_HEAP_INFO_IS_SIZE | KBASE_REG_TILER_ALIGN_TOP,
-					 "size with align (invalid)" }),
-		      __entry->read_val, __entry->used_pages));
-#endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
-#endif /* !MALI_USE_CSF */
 
 TRACE_DEFINE_ENUM(KBASE_JIT_REPORT_ON_ALLOC_OR_FREE);
 #if MALI_JIT_PRESSURE_LIMIT_BASE

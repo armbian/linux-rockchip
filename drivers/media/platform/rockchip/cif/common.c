@@ -344,17 +344,42 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 {
 	struct rkcif_dummy_buffer *dummy = &buf->dummy;
 	u32 reserved_mem = 0;
+	struct dma_buf_attachment *dba;
+	struct sg_table *sgt;
+	dma_addr_t dma;
+	int ret = 0;
+	u32 dma_addr = 0;
 
 	if (dev->pre_buf_num)
 		reserved_mem = SHARED_MEM_RESERVED_HEAD_SIZE;
-	dummy->dma_addr = reserved_mem + dev->resmem_pa + dummy->size * buf->buf_idx;
-	if (dummy->dma_addr + dummy->size > dev->resmem_pa + dev->resmem_size)
+	dma_addr = reserved_mem + dev->resmem_pa + dummy->size * buf->buf_idx;
+	if (dma_addr + dummy->size > dev->resmem_pa + dev->resmem_size)
 		return -EINVAL;
-	buf->dbufs.dma = dummy->dma_addr;
+	buf->dbufs.dma = dma_addr;
 	buf->dbufs.is_resmem = true;
-	buf->shmem.shm_start = dummy->dma_addr;
+	buf->shmem.shm_start = dma_addr;
 	buf->shmem.shm_size = dummy->size;
 	dummy->dbuf = rkcif_shm_alloc(&buf->shmem);
+	buf->dbufs.dbuf = dummy->dbuf;
+	if (dev->hw_dev->iommu_en) {
+		dba = dma_buf_attach(dummy->dbuf, dev->hw_dev->dev);
+		if (IS_ERR(dba)) {
+			ret = PTR_ERR(dba);
+			goto err_alloc;
+		}
+		dummy->dba = dba;
+		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		if (IS_ERR(sgt)) {
+			ret = PTR_ERR(sgt);
+			goto err_alloc;
+		}
+		dummy->sgt = sgt;
+		dma = sg_dma_address(sgt->sgl);
+		get_dma_buf(dummy->dbuf);
+		dummy->dma_addr = dma;
+	} else {
+		dummy->dma_addr = dma_addr;
+	}
 	if (dummy->is_need_vaddr) {
 		struct iosys_map map;
 
@@ -362,6 +387,11 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 		dummy->vaddr = map.vaddr;
 	}
 	return 0;
+err_alloc:
+	v4l2_info(&dev->v4l2_dev,
+		  "can't match dma_buf 0x%x with iommu\n",
+		  (u32)dummy->dma_addr);
+	return ret;
 }
 
 void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
@@ -397,13 +427,30 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	if (buf->dbufs.is_init)
 		v4l2_subdev_call(sd, core, ioctl,
 				 RKISP_VICAP_CMD_RX_BUFFER_FREE, &buf->dbufs);
+	if (dev->hw_dev->iommu_en) {
+		if (dummy->dba) {
+			if (dummy->sgt) {
+				dma_buf_unmap_attachment(dummy->dba, dummy->sgt,
+							 DMA_BIDIRECTIONAL);
+				dummy->sgt = NULL;
+			}
+			dma_buf_detach(dummy->dbuf, dummy->dba);
+			dma_buf_put(dummy->dbuf);
+			dummy->dba = NULL;
+		}
+	}
 	if (dummy->is_need_vaddr)
 		dummy->dbuf->ops->vunmap(dummy->dbuf, NULL);
+	dma_buf_put(dummy->dbuf);
+	buf->dummy.is_free = true;
+}
+
+void rkcif_free_reserved_mem(u32 start, u32 size)
+{
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
-	free_reserved_area(phys_to_virt(buf->shmem.shm_start),
-			   phys_to_virt(buf->shmem.shm_start + buf->shmem.shm_size),
+	free_reserved_area(phys_to_virt(start),
+			   phys_to_virt(start + size),
 			   -1, "rkisp_thunderboot");
 #endif
-	buf->dummy.is_free = true;
 }
 

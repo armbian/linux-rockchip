@@ -4,7 +4,7 @@
  */
 
 /dts-v1/;
-#include "rv1126b.dtsi"
+#include "rv1126bp.dtsi"
 #include "rv1126bp-evb.dtsi"
 #include "rv1126bp-evb-v14.dtsi"
 #include "rv1126bp-evb-cam-csi0.dtsi"

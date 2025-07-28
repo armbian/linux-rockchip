@@ -2209,6 +2209,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct vop *vop = to_vop(crtc);
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	int sys_status = drm_crtc_index(crtc) ?
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	unsigned long status;
@@ -2221,6 +2222,10 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 
 	vop_lock(vop);
+	if (s->hold_mode) {
+		VOP_CTRL_SET(vop, edpi_te_en, 0);
+		VOP_CTRL_SET(vop, edpi_ctrl_mode, 0);
+	}
 	VOP_CTRL_SET(vop, reg_done_frm, 1);
 	VOP_CTRL_SET(vop, dsp_interlace, 0);
 	drm_crtc_vblank_off(crtc);
@@ -3820,8 +3825,24 @@ static void vop_crtc_te_handler(struct drm_crtc *crtc)
 
 	vop = to_vop(crtc);
 
-	if (vop->mcu_timing.mcu_pix_total)
+	if (vop->mcu_timing.mcu_pix_total) {
 		VOP_CTRL_SET(vop, mcu_frame_st, 1);
+	} else {
+		/*
+		 * For software TE mode, we register a gpio IRQ to respond to
+		 * the TE signal from the panel. If the TE signal is detected
+		 * via gpio, a new frame will be sent to the panel for display
+		 * only by controlling the edpi_wms_fs bit.
+		 *
+		 * As the IC design, the VOP will only refresh one new frame
+		 * of image when the ​​edpi_wms_fs​​ bit, which can take effect
+		 * immediately, is first written with ​​1​ and then cleared to 0​​.
+		 * If only written to ​​1​​, it will result in ​​two frames being
+		 * refreshed​​ instead.
+		 */
+		VOP_CTRL_SET(vop, edpi_wms_fs, 1);
+		VOP_CTRL_SET(vop, edpi_wms_fs, 0);
+	}
 }
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
@@ -4168,6 +4189,15 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vop->lut_active)
 		vop_crtc_load_lut(crtc);
 
+	if (s->data_map_mode != -1) {
+		if (s->output_if & VOP_OUTPUT_IF_BT1120)
+			VOP_CTRL_SET(vop, bt1120_data_map_mode, s->data_map_mode);
+		else if (s->output_if & VOP_OUTPUT_IF_BT656)
+			VOP_CTRL_SET(vop, bt656_data_map_mode, s->data_map_mode);
+		else if (vop->mcu_timing.mcu_pix_total)
+			VOP_CTRL_SET(vop, mcu_data_map_mode, s->data_map_mode);
+	}
+
 	if (vop->mcu_timing.mcu_pix_total) {
 		/*
 		 * For RK3576_LITE/RK3506/RV1126B
@@ -4262,6 +4292,10 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_mode, 0);
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_pin_pol, val);
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_1to4_en, 1);
+		if (s->hold_mode) {
+			VOP_CTRL_SET(vop, edpi_te_en, !s->soft_te);
+			VOP_CTRL_SET(vop, edpi_ctrl_mode, 1);
+		}
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		VOP_CTRL_SET(vop, dp_dclk_pol, 0);

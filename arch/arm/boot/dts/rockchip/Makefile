@@ -60,11 +60,17 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v10-bt-sco.dtb \
 	rv1126b-evb1-v10-dual-4k.dtb \
 	rv1126b-evb1-v10-dv.dtb \
+	rv1126b-evb1-v10-fastboot-emmc.dtb \
+	rv1126b-evb1-v10-fastboot-spi-nand.dtb \
+	rv1126b-evb1-v10-fastboot-spi-nor.dtb \
 	rv1126b-evb1-v10-spi-nor.dtb \
+	rv1126b-evb1-v11.dtb \
+	rv1126b-evb1-v11-dual-4k.dtb \
 	rv1126b-evb2-v10.dtb \
 	rv1126b-evb2-v10-mcu-k350c4516t.dtb \
 	rv1126b-evb2-v10-rgb-Q7050ITH2641AA1T.dtb \
 	rv1126b-evb2-v10-sii9022-bt1120-to-hdmi.dtb \
+	rv1126b-evb2-v10-tb-400w.dtb \
 	rv1126b-evb3-v10.dtb \
 	rv1126b-evb4-v10.dtb \
 	rv1126b-iotest-v10.dtb \

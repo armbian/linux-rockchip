@@ -34,6 +34,8 @@ const uint32_t rga3_input_raster_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 	RGA_FORMAT_ARGB_8888,
 	RGA_FORMAT_ABGR_8888,
+	RGA_FORMAT_XRGB_8888,
+	RGA_FORMAT_XBGR_8888,
 };
 
 const uint32_t rga3_output_raster_format[] = {
@@ -60,6 +62,29 @@ const uint32_t rga3_output_raster_format[] = {
 };
 
 const uint32_t rga3_fbcd_format[] = {
+	RGA_FORMAT_RGBA_8888,
+	RGA_FORMAT_BGRA_8888,
+	RGA_FORMAT_RGBX_8888,
+	RGA_FORMAT_BGRX_8888,
+	RGA_FORMAT_ARGB_8888,
+	RGA_FORMAT_ABGR_8888,
+	RGA_FORMAT_XRGB_8888,
+	RGA_FORMAT_XBGR_8888,
+	RGA_FORMAT_RGB_888,
+	RGA_FORMAT_BGR_888,
+	RGA_FORMAT_RGB_565,
+	RGA_FORMAT_BGR_565,
+	RGA_FORMAT_YCbCr_422_SP,
+	RGA_FORMAT_YCbCr_420_SP,
+	RGA_FORMAT_YCrCb_422_SP,
+	RGA_FORMAT_YCrCb_420_SP,
+	RGA_FORMAT_YCbCr_420_SP_10B,
+	RGA_FORMAT_YCrCb_420_SP_10B,
+	RGA_FORMAT_YCbCr_422_SP_10B,
+	RGA_FORMAT_YCrCb_422_SP_10B,
+};
+
+const uint32_t rga3_fbce_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -358,8 +383,8 @@ const struct rga_win_data rga3_win_data[] = {
 		.name = "rga3-wr",
 		.formats[RGA_RASTER_INDEX] = rga3_output_raster_format,
 		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga3_output_raster_format),
-		.formats[RGA_AFBC16x16_INDEX] = rga3_fbcd_format,
-		.formats_count[RGA_AFBC16x16_INDEX] = ARRAY_SIZE(rga3_fbcd_format),
+		.formats[RGA_AFBC16x16_INDEX] = rga3_fbce_format,
+		.formats_count[RGA_AFBC16x16_INDEX] = ARRAY_SIZE(rga3_fbce_format),
 		.formats[RGA_TILE8x8_INDEX] = rga3_tile_format,
 		.formats_count[RGA_TILE8x8_INDEX] = ARRAY_SIZE(rga3_tile_format),
 		.supported_rotations = 0,

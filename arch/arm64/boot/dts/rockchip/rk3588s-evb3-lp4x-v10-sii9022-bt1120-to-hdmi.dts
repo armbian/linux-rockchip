@@ -20,9 +20,13 @@
 };
 
 /*
- * The pins of gt1x and sii9022 are multiplexed
+ * The pins of gt1x/hynitron and sii9022 are multiplexed
  */
 &gt1x {
+	status = "disabled";
+};
+
+&hynitron {
 	status = "disabled";
 };
 

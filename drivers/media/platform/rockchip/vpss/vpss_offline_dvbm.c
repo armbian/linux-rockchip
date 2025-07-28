@@ -38,13 +38,20 @@ int rkvpss_ofl_dvbm_get(struct rkvpss_offline_dev *ofl)
 	return ret;
 }
 
-int rkvpss_ofl_dvbm_init(struct dma_buf *dbuf, u32 dma_addr, u32 wrap_line,
-	int width, int height, int id)
+int rkvpss_ofl_dvbm_init(struct rkvpss_offline_dev *ofl, struct dma_buf *dbuf, u32 dma_addr,
+	u32 wrap_line, int width, int height, int id)
 {
 	struct dvbm_isp_cfg_t dvbm_cfg;
 
 	if (!g_ofl_dvbm)
 		return -EINVAL;
+	if (ofl->hw->dvbm_flag == DVBM_ONLINE) {
+		v4l2_err(&ofl->v4l2_dev,
+			"online dvbm already set, offline dvbm set fail.\n");
+		return -EINVAL;
+	}
+
+	ofl->hw->dvbm_flag = DVBM_OFFLINE;
 
 	dvbm_cfg.dma_addr = dma_addr;
 	dvbm_cfg.buf = dbuf;
@@ -70,7 +77,10 @@ void rkvpss_ofl_dvbm_deinit(struct rkvpss_offline_dev *ofl, int id)
 		pr_err("g_dvbm %p or vpss_dev %p is NULL\n", g_ofl_dvbm, ofl);
 		return;
 	}
+	ofl->hw->dvbm_flag = DVBM_DEINIT;
 	rk_dvbm_unlink(g_ofl_dvbm, id);
+	v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev, "%s: clear vpss2enc_sel\n", __func__);
+	rkvpss_hw_clear_bits(ofl->hw, RKVPSS_VPSS_CTRL, RKVPSS_VPSS2ENC_SEL);
 }
 
 int rkvpss_ofl_dvbm_event(u32 event, u32 seq)

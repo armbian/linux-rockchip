@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2022, 2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -23,14 +23,6 @@ valhall_kbase-y += \
     hwcnt/mali_kbase_hwcnt_gpu.o \
     hwcnt/mali_kbase_hwcnt_types.o \
     hwcnt/mali_kbase_hwcnt_virtualizer.o \
-    hwcnt/mali_kbase_hwcnt_watchdog_if_timer.o
-
-ifeq ($(CONFIG_MALI_VALHALL_CSF_SUPPORT),y)
-    valhall_kbase-y += \
-        hwcnt/backend/mali_kbase_hwcnt_backend_csf.o \
-        hwcnt/backend/mali_kbase_hwcnt_backend_csf_if_fw.o
-else
-    valhall_kbase-y += \
-        hwcnt/backend/mali_kbase_hwcnt_backend_jm.o \
-        hwcnt/backend/mali_kbase_hwcnt_backend_jm_watchdog.o
-endif
+    hwcnt/mali_kbase_hwcnt_watchdog_if_timer.o \
+    hwcnt/backend/mali_kbase_hwcnt_backend_csf.o \
+    hwcnt/backend/mali_kbase_hwcnt_backend_csf_if_fw.o

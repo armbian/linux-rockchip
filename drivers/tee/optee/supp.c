@@ -82,8 +82,6 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	struct optee_supp_req *req;
 	bool interruptable;
 	u32 ret;
-	int id;
-	struct optee_supp_req *get_req;
 
 	/*
 	 * Return in case there is no supplicant available and
@@ -116,15 +114,8 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	 * exclusive access again.
 	 */
 	while (wait_for_completion_interruptible(&req->c)) {
-		if (supp->shutdown) {
-			/* Reboot happen, tee-supplicant is dead, interrupt an RPC */
-			interruptable = true;
-		} else {
-			/* Deep sleep, tee-supplicant is freeze, wait tee-supplicant */
-			continue;
-		}
-
 		mutex_lock(&supp->mutex);
+		interruptable = !supp->ctx;
 		if (interruptable) {
 			/*
 			 * There's no supplicant available and since the
@@ -142,14 +133,6 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			if (req->in_queue) {
 				list_del(&req->link);
 				req->in_queue = false;
-			}
-
-			idr_for_each_entry(&supp->idr, get_req, id) {
-				if (get_req == req) {
-					idr_remove(&supp->idr, id);
-					supp->req_id = -1;
-					break;
-				}
 			}
 		}
 		mutex_unlock(&supp->mutex);

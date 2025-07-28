@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126b.dtsi"
+
+/ {
+};
+
+&rgb {
+	/*
+	 * RV1126 compatible pin output mode 0.
+	 *
+	 * MCU: ROCKCHIP_MCU_DATA_MAP_DATA_1x24
+	 * BT1120: ROCKCHIP_BT1120_DATA_MAP_DATA_PADLO
+	 * BT656: ROCKCHIP_BT656_DATA_MAP_PADLO
+	 */
+	rockchip,data-map-mode = <0>;
+};
+
+&usb_drd_dwc3 {
+	phys = <&usb2phy_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	snps,usb2-gadget-lpm-disable;
+};

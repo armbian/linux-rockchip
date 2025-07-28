@@ -34,6 +34,13 @@
 /* Tiler heap reclaim scan (free) method size for limiting a scan run length */
 #define HEAP_RECLAIM_SCAN_BATCH_SIZE (HEAP_SHRINKER_BATCH << 7)
 
+/*
+ * Default setting for reclaiming offslot CSG's heap.
+ * Disabling reclaim with pages being 0.
+ */
+#define HEAP_RECLAIM_OFFSLOT_TIMEOUT_MS (30000)
+#define HEAP_RECLAIM_OFFSLOT_PAGES (0)
+
 static u8 get_kctx_highest_csg_priority(struct kbase_context *kctx)
 {
 	u8 prio;
@@ -76,6 +83,9 @@ static void detach_ctx_from_heap_reclaim_mgr(struct kbase_context *kctx)
 			"Reclaim_mgr_detach: ctx_%d_%d, est_pages=0%u, freed_pages=%u", kctx->tgid,
 			kctx->id, info->nr_est_unused_pages, info->nr_freed_pages);
 	}
+
+	/* 0 indicates that the kctx may have CSG on slot */
+	kctx->offslot_ts = 0;
 }
 
 static void attach_ctx_to_heap_reclaim_mgr(struct kbase_context *kctx)
@@ -98,8 +108,9 @@ static void attach_ctx_to_heap_reclaim_mgr(struct kbase_context *kctx)
 	/* Accumulate the estimated pages to the manager total field */
 	atomic_add((int)info->nr_est_unused_pages, &scheduler->reclaim_mgr.unused_pages);
 
-	dev_dbg(kctx->kbdev->dev, "Reclaim_mgr_attach: ctx_%d_%d, est_count_pages=%u", kctx->tgid,
-		kctx->id, info->nr_est_unused_pages);
+	kctx->offslot_ts = ktime_get_raw_ns();
+	dev_dbg(kctx->kbdev->dev, "Reclaim_mgr_attach [%llu]: ctx_%d_%d, est_count_pages=%u",
+		kctx->offslot_ts, kctx->tgid, kctx->id, info->nr_est_unused_pages);
 }
 
 void kbase_csf_tiler_heap_reclaim_sched_notify_grp_active(struct kbase_queue_group *group)
@@ -187,14 +198,42 @@ void kbase_csf_tiler_heap_reclaim_sched_notify_grp_suspend(struct kbase_queue_gr
 	}
 }
 
-static unsigned long reclaim_unused_heap_pages(struct kbase_device *kbdev)
+unsigned long kbase_csf_tiler_heap_reclaim_unused_pages(struct kbase_device *kbdev,
+							enum heap_reclaim_scenario scenario)
 {
 	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
 	struct kbase_csf_sched_heap_reclaim_mgr *const mgr = &scheduler->reclaim_mgr;
-	unsigned long total_freed_pages = 0;
-	int prio;
+	unsigned long total_freed_pages = 0, max_pages;
+	int prio, min_prio;
+	u64 now = 0, offslot_ts = 0;
 
 	lockdep_assert_held(&scheduler->lock);
+
+	if (scenario == HEAP_RECLAIM_SCENARIO_SHRINKER) {
+		/* triggered by shrinker */
+		max_pages = HEAP_RECLAIM_SCAN_BATCH_SIZE;
+		min_prio = KBASE_QUEUE_GROUP_PRIORITY_REALTIME;
+	} else if (scenario == HEAP_RECLAIM_SCENARIO_SCHEDULER) {
+		/* triggered by schedule_on_tick
+		 * reclaim heap from CSGs with below conditions:
+		 * 1.being offslot for a period
+		 * 2.limit page numbers for each reclaim
+		 * 3.skip RT kctx
+		 */
+		if (mgr->offslot_setting.pages == 0) {
+			dev_dbg(kbdev->dev, "HEAP_RECLAIM_SCENARIO_SCHEDULER is disabled");
+			return 0;
+		}
+		max_pages = mgr->offslot_setting.pages;
+		min_prio = KBASE_QUEUE_GROUP_PRIORITY_HIGH;
+		now = ktime_get_raw_ns();
+		offslot_ts = now > mgr->offslot_setting.timeout_ms * 1000000ULL ?
+					   now - mgr->offslot_setting.timeout_ms * 1000000ULL :
+					   0;
+	} else {
+		dev_err(kbdev->dev, "Unknown heap reclaim scenario %d\n", scenario);
+		return 0;
+	}
 
 	if (scheduler->state != SCHED_SUSPENDED) {
 		/* Clean and invalidate the L2 cache before reading from the heap contexts,
@@ -219,9 +258,7 @@ static unsigned long reclaim_unused_heap_pages(struct kbase_device *kbdev)
 	}
 
 	for (prio = KBASE_QUEUE_GROUP_PRIORITY_LOW;
-	     total_freed_pages < HEAP_RECLAIM_SCAN_BATCH_SIZE &&
-	     prio >= KBASE_QUEUE_GROUP_PRIORITY_REALTIME;
-	     prio--) {
+	     total_freed_pages < max_pages && prio >= min_prio; prio--) {
 		struct kbase_csf_ctx_heap_reclaim_info *info, *tmp;
 		u32 cnt_ctxs = 0;
 
@@ -229,8 +266,25 @@ static unsigned long reclaim_unused_heap_pages(struct kbase_device *kbdev)
 					 mgr_link) {
 			struct kbase_context *kctx =
 				container_of(info, struct kbase_context, csf.sched.heap_info);
-			u32 freed_pages = kbase_csf_tiler_heap_scan_kctx_unused_pages(
+			u32 freed_pages;
+
+			if (scenario == HEAP_RECLAIM_SCENARIO_SCHEDULER) {
+				WARN_ON(kctx->offslot_ts == 0);
+				if (kctx->offslot_ts > offslot_ts) {
+					dev_dbg(kbdev->dev,
+						"Reclaim aborts from ctx %d_%d, prio %d, current time %llu - offslot time %llu = %llu",
+						kctx->tgid, kctx->id, prio, now, kctx->offslot_ts,
+						now - kctx->offslot_ts);
+					/* Skip following ctx as they are attached later */
+					break;
+				}
+			}
+
+			freed_pages = kbase_csf_tiler_heap_scan_kctx_unused_pages(
 				kctx, info->nr_est_unused_pages);
+
+			dev_dbg(kbdev->dev, "Reclaim free heap pages for ctx %d_%d freed pages %u",
+				kctx->tgid, kctx->id, freed_pages);
 
 			if (freed_pages) {
 				/* Remove the freed pages from the manager retained estimate. The
@@ -260,7 +314,7 @@ static unsigned long reclaim_unused_heap_pages(struct kbase_device *kbdev)
 			cnt_ctxs++;
 
 			/* Enough has been freed, break to avoid holding the lock too long */
-			if (total_freed_pages >= HEAP_RECLAIM_SCAN_BATCH_SIZE)
+			if (total_freed_pages >= max_pages)
 				break;
 		}
 
@@ -313,7 +367,8 @@ static unsigned long kbase_csf_tiler_heap_reclaim_scan_free_pages(struct kbase_d
 
 	avail = (unsigned long)atomic_read(&mgr->unused_pages);
 	if (avail)
-		freed = reclaim_unused_heap_pages(kbdev);
+		freed = kbase_csf_tiler_heap_reclaim_unused_pages(kbdev,
+								  HEAP_RECLAIM_SCENARIO_SHRINKER);
 
 	mutex_unlock(&kbdev->csf.scheduler.lock);
 
@@ -371,6 +426,9 @@ int kbase_csf_tiler_heap_reclaim_mgr_init(struct kbase_device *kbdev)
 	for (prio = KBASE_QUEUE_GROUP_PRIORITY_REALTIME; prio < KBASE_QUEUE_GROUP_PRIORITY_COUNT;
 	     prio++)
 		INIT_LIST_HEAD(&scheduler->reclaim_mgr.ctx_lists[prio]);
+
+	scheduler->reclaim_mgr.offslot_setting.timeout_ms = HEAP_RECLAIM_OFFSLOT_TIMEOUT_MS;
+	scheduler->reclaim_mgr.offslot_setting.pages = HEAP_RECLAIM_OFFSLOT_PAGES;
 
 	reclaim->count_objects = kbase_csf_tiler_heap_reclaim_count_objects;
 	reclaim->scan_objects = kbase_csf_tiler_heap_reclaim_scan_objects;

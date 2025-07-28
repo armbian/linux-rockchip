@@ -744,11 +744,12 @@ struct capture_fmt *find_fmt(struct rkisp_stream *stream, const u32 pixelfmt)
 }
 
 static void restrict_rsz_resolution(struct rkisp_stream *stream,
-				    const struct stream_config *cfg,
+				    u32 dest_w, u32 dest_h,
 				    struct v4l2_rect *max_rsz)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_rect *input_win = rkisp_get_isp_sd_win(&dev->isp_sdev);
+	const struct stream_config *cfg = stream->config;
 
 	if (stream->id == RKISP_STREAM_VIR ||
 	    stream->id == RKISP_STREAM_LDC ||
@@ -769,14 +770,24 @@ static void restrict_rsz_resolution(struct rkisp_stream *stream,
 
 		max_rsz->width = ALIGN(DIV_ROUND_UP(input_win->width, div), 4);
 		max_rsz->height = DIV_ROUND_UP(input_win->height, div);
-	} else if (dev->hw_dev->unite) {
+	} else if (dev->unite_div > ISP_UNITE_DIV1) {
 		/* scale down only for unite mode */
-		max_rsz->width = min_t(int, input_win->width, cfg->max_rsz_width);
-		max_rsz->height = min_t(int, input_win->height, cfg->max_rsz_height);
+		if (dest_w == input_win->width && dest_h == input_win->height) {
+			max_rsz->width = dest_w;
+			max_rsz->height = dest_h;
+		} else {
+			max_rsz->width = min_t(int, input_win->width, cfg->max_rsz_width);
+			max_rsz->height = min_t(int, input_win->height, cfg->max_rsz_height);
+		}
 	} else {
 		/* scale up/down */
-		max_rsz->width = cfg->max_rsz_width;
-		max_rsz->height = cfg->max_rsz_height;
+		if (dest_w == input_win->width && dest_h == input_win->height) {
+			max_rsz->width = dest_w;
+			max_rsz->height = dest_h;
+		} else {
+			max_rsz->width = cfg->max_rsz_width;
+			max_rsz->height = cfg->max_rsz_height;
+		}
 	}
 }
 
@@ -817,7 +828,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	}
 
 	/* do checks on resolution */
-	restrict_rsz_resolution(stream, config, &max_rsz);
+	restrict_rsz_resolution(stream, pixm->width, pixm->height, &max_rsz);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP ||
 	    (stream->id == RKISP_STREAM_BP && dev->isp_ver != ISP_V30)) {
@@ -1087,7 +1098,6 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 				 struct v4l2_frmsizeenum *fsize)
 {
 	struct rkisp_stream *stream = video_drvdata(file);
-	const struct stream_config *config = stream->config;
 	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
 	struct v4l2_frmsize_discrete *d = &fsize->discrete;
 	struct rkisp_device *dev = stream->ispdev;
@@ -1100,7 +1110,7 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 	if (!find_fmt(stream, fsize->pixel_format))
 		return -EINVAL;
 
-	restrict_rsz_resolution(stream, config, &max_rsz);
+	restrict_rsz_resolution(stream, 0, 0, &max_rsz);
 
 	if (stream->out_isp_fmt.fmt_type == FMT_BAYER ||
 	    stream->id == RKISP_STREAM_FBC ||

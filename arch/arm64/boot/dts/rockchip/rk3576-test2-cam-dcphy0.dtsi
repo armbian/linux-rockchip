@@ -1,0 +1,173 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam5: endpoint@6 {
+				reg = <6>;
+				remote-endpoint = <&ov50c40_out>;
+				data-lanes = <1 2 3>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-0 = <&i2c8m3_xfer>;
+
+	aw8601: aw8601@c {
+		compatible = "awinic,aw8601";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-start-current = <56>;
+		rockchip,vcm-rated-current = <96>;
+		rockchip,vcm-step-mode = <4>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	ov50c40: ov50c40@36 {
+		compatible = "ovti,ov50c40";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipicsi0>;
+		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HZGA06";
+		rockchip,camera-module-lens-name = "ZE0082C1";
+		eeprom-ctrl = <&otp_eeprom>;
+		lens-focus = <&aw8601>;
+		port {
+			ov50c40_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam5>;
+				bus-type = <1>;
+				data-lanes = <1 2 3>;
+			};
+		};
+	};
+
+	otp_eeprom: otp_eeprom@50 {
+		compatible = "rk,otp_eeprom";
+		status = "okay";
+		reg = <0x50>;
+	};
+};
+
+&mipidcphy0 {
+	status = "okay";
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+&rkisp_vir0_sditf {
+	status = "okay";
+};

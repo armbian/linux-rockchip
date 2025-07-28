@@ -111,6 +111,8 @@ static void rk806_spi_remove(struct spi_device *spi)
 	rk806_device_exit(rk806);
 }
 
+static DEFINE_SIMPLE_DEV_PM_OPS(rk806_spi_pm_ops, rk806_core_suspend, rk806_core_resume);
+
 static const struct spi_device_id rk806_spi_id_table[] = {
 	{ "rk806", 0 },
 	{ /* sentinel */ }
@@ -122,6 +124,7 @@ static struct spi_driver rk806_spi_driver = {
 		.name	= "rk806",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rk806_of_match),
+		.pm = pm_sleep_ptr(&rk806_spi_pm_ops),
 	},
 	.probe		= rk806_spi_probe,
 	.remove		= rk806_spi_remove,

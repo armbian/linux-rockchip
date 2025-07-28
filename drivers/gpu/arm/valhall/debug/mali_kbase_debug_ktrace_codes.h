@@ -165,11 +165,7 @@ KBASE_KTRACE_CODE_MAKE_CODE(CORE_CTX_DESTROY),
 	KBASE_KTRACE_CODE_MAKE_CODE(ARB_GPU_STOPPED),
 	KBASE_KTRACE_CODE_MAKE_CODE(ARB_GPU_REQUESTED),
 
-#if MALI_USE_CSF
 #include "debug/backend/mali_kbase_debug_ktrace_codes_csf.h"
-#else
-#include "debug/backend/mali_kbase_debug_ktrace_codes_jm.h"
-#endif
 	/*
 	 * Unused code just to make it easier to not have a comma at the end.
 	 * All other codes MUST come before this

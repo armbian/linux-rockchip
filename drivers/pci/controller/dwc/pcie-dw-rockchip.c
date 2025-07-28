@@ -1793,7 +1793,8 @@ static void rk_pcie_remove(struct platform_device *pdev)
 		 * Timeout should not happen as it's longer than regular probe actually.
 		 * But probe maybe fail, so need to double check bridge bus.
 		 */
-		if (!rk_pcie || !rk_pcie->finish_probe || !rk_pcie->pci->pp.bridge->bus) {
+		if (!rk_pcie || !rk_pcie->pci || !rk_pcie->pci->pp.bridge ||
+		    !rk_pcie->pci->pp.bridge->bus) {
 			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
 			return;
 		}

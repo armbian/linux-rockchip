@@ -33,12 +33,10 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	struct kbase_timeline *timeline = kbdev->timeline;
 	struct kbase_tlstream *summary = &kbdev->timeline->streams[TL_STREAM_TYPE_OBJ_SUMMARY];
 	u32 const num_sb_entries = kbdev->gpu_props.gpu_id.arch_major >= 11 ? 16 : 8;
-	u32 const supports_gpu_sleep =
-#ifdef KBASE_PM_RUNTIME
-		test_bit(KBASE_GPU_SUPPORTS_GPU_SLEEP, &kbdev->pm.backend.gpu_sleep_allowed);
-#else
-		false;
-#endif /* KBASE_PM_RUNTIME */
+	u32 const supports_gpu_sleep = IS_ENABLED(CONFIG_PM) ?
+						     test_bit(KBASE_GPU_SUPPORTS_GPU_SLEEP,
+							&kbdev->pm.backend.gpu_sleep_allowed) :
+						     false;
 
 	/* Summarize the Address Space objects. */
 	for (as_nr = 0; as_nr < kbdev->nr_hw_address_spaces; as_nr++)

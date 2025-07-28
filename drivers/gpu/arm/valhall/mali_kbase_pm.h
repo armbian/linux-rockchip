@@ -53,29 +53,6 @@ struct kbase_device;
 int kbase_pm_init(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_powerup - Power up GPU after all modules have been initialized
- *                    and interrupt handlers installed.
- *
- * @kbdev:     The kbase device structure for the device (must be a valid pointer)
- * @flags:     Flags to pass on to kbase_pm_init_hw
- *
- * Return: 0 if powerup was successful.
- */
-int kbase_pm_powerup(struct kbase_device *kbdev, unsigned int flags);
-
-/**
- * kbase_pm_halt - Halt the power management framework.
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- *
- * Should ensure that no new interrupts are generated,
- * but allow any currently running interrupt handlers to complete successfully.
- * The GPU is forced off by the time this function returns, regardless of
- * whether or not the active power policy asks for the GPU to be powered off.
- */
-void kbase_pm_halt(struct kbase_device *kbdev);
-
-/**
  * kbase_pm_term - Terminate the power management framework.
  *
  * @kbdev:     The kbase device structure for the device (must be a valid pointer)

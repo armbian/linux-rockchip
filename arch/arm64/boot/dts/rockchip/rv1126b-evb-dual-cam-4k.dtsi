@@ -25,6 +25,12 @@
 				remote-endpoint = <&imx415_out0>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			csi_dphy_input1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&sc850sl_out0>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -55,6 +61,13 @@
 				remote-endpoint = <&imx415_out1>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			csi_dphy3_input1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&sc850sl_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+
 		};
 		port@1 {
 			reg = <1>;
@@ -108,6 +121,55 @@
 		port {
 			imx415_out1: endpoint {
 				remote-endpoint = <&csi_dphy3_input0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	sc850sl_0: sc850sl_0@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc850sl_out0: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_pins>;
+
+	sc850sl_1: sc850sl_1@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI2_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio5 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			sc850sl_out1: endpoint {
+				remote-endpoint = <&csi_dphy3_input1>;
 				data-lanes = <1 2 3 4>;
 			};
 		};

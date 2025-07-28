@@ -324,15 +324,6 @@ config MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 
 endif
 
-config MALI_VALHALL_ARBITRATION
-	tristate "Enable Virtualization reference code"
-	depends on MALI_VALHALL
-	default n
-	help
-	  Enables the build of several reference modules used in the reference
-	  virtualization setup for Mali
-	  If unsure, say N.
-
 config MALI_VALHALL_TRACE_POWER_GPU_WORK_PERIOD
 	bool "Enable per-application GPU metrics tracepoints"
 	depends on MALI_VALHALL

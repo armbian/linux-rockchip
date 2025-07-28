@@ -32,14 +32,12 @@ struct kbase_io;
 /**
  * enum kbase_io_status_bits - Status bits for kbase I/O interface.
  *
- * @KBASE_IO_STATUS_GPU_SUSPENDED: The GPU is suspended.
  * @KBASE_IO_STATUS_GPU_OFF: The GPU is OFF.
  * @KBASE_IO_STATUS_AW_REMOVED: The GPU access window has been removed.
  * @KBASE_IO_STATUS_NUM_BITS: Number of bits used to encode the status.
  */
 enum kbase_io_status_bits {
-	KBASE_IO_STATUS_GPU_SUSPENDED = 0,
-	KBASE_IO_STATUS_GPU_OFF,
+	KBASE_IO_STATUS_GPU_OFF = 0,
 	KBASE_IO_STATUS_AW_REMOVED,
 	KBASE_IO_STATUS_NUM_BITS,
 };

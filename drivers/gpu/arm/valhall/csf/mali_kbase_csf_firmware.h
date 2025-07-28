@@ -161,6 +161,7 @@ struct kbase_csf_cmd_stream_group_info {
  *                CSG capability structures.
  * @prfcnt_size: Performance counters size.
  * @instr_features: Instrumentation features. (csf >= 1.1.0)
+ * @prfcnt_features: Performance Counter features.
  * @groups: Address of an array of CSG capability structures.
  */
 struct kbase_csf_global_iface {
@@ -171,6 +172,7 @@ struct kbase_csf_global_iface {
 	u32 group_stride;
 	u32 prfcnt_size;
 	u32 instr_features;
+	u32 prfcnt_features;
 	struct kbase_csf_cmd_stream_group_info *groups;
 };
 
@@ -477,7 +479,6 @@ void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev);
  */
 void kbase_csf_stop_firmware_and_wait(struct kbase_device *kbdev);
 
-#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_csf_firmware_trigger_mcu_sleep - Send the command to put MCU in sleep
  *                                        state.
@@ -496,7 +497,6 @@ void kbase_csf_firmware_trigger_mcu_sleep(struct kbase_device *kbdev);
  */
 bool kbase_csf_firmware_is_mcu_in_sleep(struct kbase_device *kbdev);
 
-#endif
 
 /**
  * kbase_csf_firmware_trigger_reload() - Trigger the reboot of MCU firmware, for
@@ -812,8 +812,6 @@ int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev);
  */
 int kbase_csf_firmware_req_core_dump(struct kbase_device *const kbdev);
 
-#ifdef KBASE_PM_RUNTIME
-
 /**
  * kbase_csf_firmware_soi_update - Update FW Sleep-on-Idle config
  *
@@ -842,7 +840,5 @@ void kbase_csf_firmware_glb_idle_timer_update(struct kbase_device *kbdev);
  */
 int kbase_csf_firmware_soi_disable_on_scheduler_suspend(struct kbase_device *kbdev);
 
-#endif /* KBASE_PM_RUNTIME */
 
-
-#endif
+#endif /* _KBASE_CSF_FIRMWARE_H_ */

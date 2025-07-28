@@ -82,12 +82,10 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 	struct kbase_csf_scheduler *scheduler = &kbdev->csf.scheduler;
 	bool is_legacy_gpu_irq_mask = true;
 
-#if MALI_USE_CSF
 	if (kbdev->pm.backend.has_host_pwr_iface) {
 		power_changed_mask = MCU_STATUS_GPU_IRQ;
 		is_legacy_gpu_irq_mask = false;
 	}
-#endif
 
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ, NULL, val);
 
@@ -136,15 +134,10 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		val &= ~GPU_PROTECTED_FAULT;
 	}
 
-#if MALI_USE_CSF
 	if (!kbdev->pm.backend.has_host_pwr_iface) {
 		if (val & RESET_COMPLETED)
 			kbase_pm_reset_done(kbdev);
 	}
-#else
-	if (val & RESET_COMPLETED)
-		kbase_pm_reset_done(kbdev);
-#endif
 
 	/* Defer clearing CLEAN_CACHES_COMPLETED to kbase_clean_caches_done.
 	 * We need to acquire hwaccess_lock to avoid a race condition with
@@ -153,8 +146,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, val & ~CLEAN_CACHES_COMPLETED);
 	kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_CLEAR), val & ~CLEAN_CACHES_COMPLETED);
 
-#ifdef KBASE_PM_RUNTIME
-	if (val & DOORBELL_MIRROR) {
+	if (IS_ENABLED(CONFIG_PM) && (val & DOORBELL_MIRROR)) {
 		unsigned long flags;
 
 		dev_dbg(kbdev->dev, "Doorbell mirror interrupt received");
@@ -213,7 +205,6 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		}
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	}
-#endif
 
 	/* kbase_pm_check_transitions (called by kbase_pm_power_changed) must
 	 * be called after the IRQ has been cleared. This is because it might

@@ -136,6 +136,42 @@ static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 	return ret;
 }
 
+static int rv1126b_npu_get_soc_info(struct device *dev, struct device_node *np,
+				    int *bin, int *process)
+{
+	int ret = 0;
+	u8 value = 0;
+
+	if (!bin)
+		return 0;
+
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "specification_serial_number") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(
+			np, "specification_serial_number", &value);
+		if (ret) {
+			LOG_DEV_ERROR(
+				dev,
+				"Failed to get specification_serial_number\n");
+			return ret;
+		}
+		/* RV1126BM */
+		if (value == 0xd)
+			*bin = 1;
+		/* RV1126BJ */
+		else if (value == 0xa)
+			*bin = 2;
+		/* RV1126BP */
+		else if (value == 0x10)
+			*bin = 3;
+	}
+	if (*bin < 0)
+		*bin = 0;
+	LOG_DEV_INFO(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
+
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 static int rk3588_npu_set_soc_info(struct device *dev, struct device_node *np,
 				   struct rockchip_opp_info *opp_info)
@@ -262,6 +298,8 @@ static const struct rockchip_opp_data rk3588_npu_opp_data = {
 
 static const struct rockchip_opp_data rv1126b_npu_opp_data = {
 	.is_use_pvtpll = true,
+	.get_soc_info = rv1126b_npu_get_soc_info,
+	.set_soc_info = rk3588_npu_set_soc_info,
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	.config_regulators = npu_opp_config_regulators,
 	.config_clks = npu_opp_config_clks,

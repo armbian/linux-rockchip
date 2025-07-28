@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# vehicle configuration
+#
+
+menu "misc vehicle setting"
+
+config VEHICLE_CORE
+	tristate "ROCKCHIP VEHICLE core support"
+	help
+	  If you say yes here you get support for the RK
+	  vehicle core module.
+
+config VEHICLE_DUMMY
+	tristate "RK VEHICLE DUMMY support"
+	select EXTCON
+	depends on VEHICLE_CORE
+	help
+	  If you say yes here you get support for the RK dummy MCU
+	  which simulate the vehicle signal.
+
+config VEHICLE_ADC
+	tristate "VEHICLE ADC support"
+	depends on VEHICLE_CORE
+	help
+	  If you say yes here you get support for the vehicle with adc
+	  which simulate the vehicle signal.
+
+config VEHICLE_GPIO
+	tristate "VEHICLE GPIO support"
+	depends on VEHICLE_CORE
+	help
+	  If you say yes here you get support for the vehicle with gpio
+	  which simulate the vehicle signal.
+
+config VEHICLE_SPI
+	tristate "VEHICLE SPI support"
+	depends on VEHICLE_CORE
+	help
+	  If you say yes here you get support for the vehicle with spi bus
+          which simulate the vehicle signal.
+
+config VEHICLE_SPI_PROTOCOL
+	tristate "VEHICLE SPI_PROTOCOL support"
+	depends on VEHICLE_SPI
+	help
+	  If you say yes here, you can get support for vehicle spi protocol.
+
+config VEHICLE_GPIO_MCU_EXPANDER
+        tristate "VEHICLE MCU GPIO EXPANDER support"
+        help
+          If you say yes here you get support for the mcu gpio expander.
+
+config VEHICLE_DRIVER_OREO
+	bool "RK vehicle driver for android oreo"
+	help
+	  If you say yes here, you can get support for vehicle protocol
+	  in android o, otherwise it support android p.
+
+endmenu

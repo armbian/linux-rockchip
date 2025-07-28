@@ -879,7 +879,7 @@
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-config";
 		status = "disabled";
-
+		rockchip,sleep-debug-en = <0>;
 		rockchip,sleep-mode-config = <
 			(0
 			| RKPM_SLP_ARMOFF_PMUOFF
@@ -903,7 +903,7 @@
 	thermal_zones: thermal-zones {
 		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
-			polling-delay = <1000>; /* milliseconds */
+			polling-delay = <100>; /* milliseconds */
 			thermal-sensors = <&tsadc 0>;
 			trips {
 				soc_crit: soc-crit {
@@ -940,7 +940,8 @@
 			<&cru CLK_UART_FRAC0>, <&cru CLK_UART_FRAC1>,
 			<&cru CLK_CM_FRAC0>, <&cru CLK_CM_FRAC1>,
 			<&cru CLK_CM_FRAC2>, <&cru CLK_AUDIO_FRAC0>,
-			<&cru CLK_AUDIO_FRAC1>;
+			<&cru CLK_AUDIO_FRAC1>, <&cru CLK_AISP_PLL_SRC>,
+			<&cru CLK_CPLL_DIV10>;
 		assigned-clock-rates =
 			<1188000000>, <1000000000>,
 			<786432000>, <786432000>,
@@ -950,7 +951,8 @@
 			<96000000>, <128000000>,
 			<18432000>, <500000000>,
 			<32768000>, <45158400>,
-			<49152000>;
+			<49152000>, <786432000>,
+			<98304000>;
 	};
 
 	grf: syscon@20100000 {
@@ -1873,6 +1875,10 @@
 		cpu_code: cpu-code@2 {
 			reg = <0x02 0x2>;
 		};
+		specification_serial_number: specification-serial-number@7 {
+			reg = <0x08 0x1>;
+			bits = <0 5>;
+		};
 		cpu_version: cpu-version@21 {
 			reg = <0x21 0x1>;
 			bits = <3 3>;
@@ -1898,9 +1904,6 @@
 		clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>,
 			 <&cru CLK_TSADC_PHYCTRL>;
 		clock-names = "tsadc", "apb_pclk", "tsadc_phyctrl";
-		resets = <&cru SRST_RESETN_TSADC>, <&cru SRST_PRESETN_TSADC>,
-			 <&cru SRST_RESETN_TSADC_PHYCTRL>;
-		reset-names = "tsadc", "tsadc-apb", "tsadc-phy";
 		#thermal-sensor-cells = <1>;
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <120000>;
@@ -3013,7 +3016,7 @@
 
 	rkcif: rkcif@21d10000 {
 		compatible = "rockchip,rv1126b-cif";
-		reg = <0x21d10000 0x1000>;
+		reg = <0x21d10000 0xf00>;
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
@@ -3283,10 +3286,11 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&npu_leakage>;
-		nvmem-cell-names = "leakage";
+		nvmem-cells = <&npu_leakage>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "specification_serial_number";
 		rockchip,init-freq = <800000>;
 
+		rockchip,supported-hw;
 		rockchip,pvtm-voltage-sel = <
 			0	969	0
 			970	1009	1
@@ -3305,45 +3309,52 @@
 		rockchip,pvtm-volt = <1000000>;
 		rockchip,pvtm-ref-temp = <40>;
 		rockchip,pvtm-temp-prop = <0 0>;
-		rockchip,pvtm-thermal-zone = "npu-thermal";
+		rockchip,pvtm-thermal-zone = "cpu-thermal";
 		rockchip,grf = <&pvtpll_npu>;
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <950000>;
 
 		opp-396000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <396000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-510000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <510000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-600000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-700000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-800000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <925000 925000 1050000>;
 		};
 		opp-900000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <975000 975000 1050000>;
 		};
 		opp-950000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <950000000>;
 			opp-microvolt = <975000 975000 1050000>;
 			opp-microvolt-L0 = <1000000 1000000 1050000>;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -67,6 +67,26 @@ u64 kbase_pm_ca_get_core_mask(struct kbase_device *kbdev);
  * Return: The bit mask of user-selected cores
  */
 u64 kbase_pm_ca_get_debug_core_mask(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_ca_get_sysfs_gov_core_mask - Get the value sysfs has requested to set shader core mask
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This is used only when Kbase has access to the GOV_CORE_MASK register.
+ * Return: The bit mask of user-selected cores
+ */
+u64 kbase_pm_ca_get_sysfs_gov_core_mask(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_ca_get_gov_core_mask - Get currently available gov core mask.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This is used only when Kbase has access to the GOV_CORE_MASK register.
+ * Return: a mask of the currently available shader cores.
+ */
+u64 kbase_pm_ca_get_gov_core_mask(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_ca_update_core_status - Update core status

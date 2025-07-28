@@ -44,10 +44,13 @@ static void rk806_remove(struct i2c_client *client)
 	rk806_device_exit(rk806);
 }
 
+static DEFINE_SIMPLE_DEV_PM_OPS(rk806_i2c_pm_ops, rk806_core_suspend, rk806_core_resume);
+
 static struct i2c_driver rk806_i2c_driver = {
 	.driver = {
 		.name = "rk806",
 		.of_match_table = of_match_ptr(rk806_of_match),
+		.pm = pm_sleep_ptr(&rk806_i2c_pm_ops),
 	},
 	.probe    = rk806_i2c_probe,
 	.remove   = rk806_remove,

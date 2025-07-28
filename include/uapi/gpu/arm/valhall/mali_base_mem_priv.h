@@ -33,21 +33,21 @@
  * It can either be:
  * @li a sync from CPU to Memory:
  *	- type = ::BASE_SYNCSET_OP_MSYNC
- *	- mem_handle = a handle to the memory object on which the operation
+ *	- gpu_va = GPU VA of GPU memory object on which the operation
  *	  is taking place
  *	- user_addr = the address of the range to be synced
  *	- size = the amount of data to be synced, in bytes
  *	- offset is ignored.
  * @li a sync from Memory to CPU:
  *	- type = ::BASE_SYNCSET_OP_CSYNC
- *	- mem_handle = a handle to the memory object on which the operation
+ *	- gpu_va = GPU VA of GPU memory object on which the operation
  *	  is taking place
  *	- user_addr = the address of the range to be synced
  *	- size = the amount of data to be synced, in bytes.
  *	- offset is ignored.
  */
 struct basep_syncset {
-	struct base_mem_handle mem_handle;
+	__u64 gpu_va;
 	__u64 user_addr;
 	__u64 size;
 	__u8 type;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -164,5 +164,11 @@ void kbase_mem_pool_debugfs_init(struct dentry *parent, struct kbase_context *kc
 			    &kbase_mem_pool_debugfs_fops);
 
 	debugfs_create_file("lp_mem_pool_max_size", mode, parent, &kctx->mem_pools.large,
+			    &kbase_mem_pool_debugfs_max_size_fops);
+
+	debugfs_create_file("pdg_pool_size", mode, parent, &kctx->pgd_mem_pool,
+			    &kbase_mem_pool_debugfs_fops);
+
+	debugfs_create_file("pgd_mem_pool_max_size", mode, parent, &kctx->pgd_mem_pool,
 			    &kbase_mem_pool_debugfs_max_size_fops);
 }

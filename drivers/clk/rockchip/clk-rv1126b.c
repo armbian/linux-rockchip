@@ -14,6 +14,7 @@
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rockchip,rv1126b-cru.h>
 #include "clk.h"
+#include <linux/rockchip/cpu.h>
 
 #define RV1126B_GRF_SOC_STATUS0		0x10
 
@@ -143,6 +144,7 @@ PNAME(clk_timer3_parents_p)		= { "clk_timer_root", "mclk_asrc0", "mclk_asrc1" };
 PNAME(clk_timer4_parents_p)		= { "clk_timer_root", "mclk_asrc2", "mclk_asrc3" };
 PNAME(clk_macphy_p)			= { "xin24m", "clk_cpll_div20" };
 PNAME(mux_ddrphy_p)			= { "dpll", "aclk_sysmem" };
+PNAME(clk_cpll_div10_p)			= { "gpll", "clk_aisp_pll_src" };
 
 static struct rockchip_pll_clock rv1126b_pll_clks[] __initdata = {
 	[gpll] = PLL(pll_rk3328, PLL_GPLL, "gpll", mux_pll_p,
@@ -178,9 +180,6 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_CPLL_DIV20, "clk_cpll_div20", "cpll", 0,
 			RV1126B_CLKSEL_CON(1), 0, 5, DFLAGS,
 			RV1126B_CLKGATE_CON(0), 0, GFLAGS),
-	COMPOSITE(CLK_CPLL_DIV10, "clk_cpll_div10", mux_gpll_cpll_p, 0,
-			RV1126B_CLKSEL_CON(1), 15, 1, MFLAGS, 5, 5, DFLAGS,
-			RV1126B_CLKGATE_CON(0), 1, GFLAGS),
 	COMPOSITE_NOMUX(CLK_CPLL_DIV8, "clk_cpll_div8", "cpll", 0,
 			RV1126B_CLKSEL_CON(1), 10, 5, DFLAGS,
 			RV1126B_CLKGATE_CON(0), 2, GFLAGS),
@@ -323,9 +322,6 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 	COMPOSITE(CLK_ISP_PLL, "clk_isp_pll", mux_gpll_aupll_cpll_p, 0,
 			RV1126B_CLKSEL_CON(61), 10, 2, MFLAGS, 6, 4, DFLAGS,
 			RV1126B_CLKGATE_CON(5), 3, GFLAGS),
-	COMPOSITE(CLK_AISP_PLL, "clk_aisp_pll", mux_gpll_aupll_cpll_p, 0,
-			RV1126B_CLKSEL_CON(62), 4, 2, MFLAGS, 0, 3, DFLAGS,
-			RV1126B_CLKGATE_CON(5), 4, GFLAGS),
 	COMPOSITE(CLK_SARADC0_SRC, "clk_saradc0_src", mux_200m_24m_p, 0,
 			RV1126B_CLKSEL_CON(63), 12, 1, MFLAGS, 0, 3, DFLAGS,
 			RV1126B_CLKGATE_CON(5), 6, GFLAGS),
@@ -870,7 +866,7 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 			RV1126B_BUSCLKGATE_CON(2), 14, GFLAGS),
 	GATE(HCLK_RKRNG_NS, "hclk_rkrng_ns", "hclk_rkrng_s_ns", 0,
 			RV1126B_BUSCLKGATE_CON(2), 15, GFLAGS),
-	GATE(CLK_TIMER5, "clk_timer5", "clk_timer_root", 0,
+	GATE(CLK_TIMER5, "clk_timer5", "clk_timer_root", CLK_IS_CRITICAL,
 			RV1126B_BUSCLKGATE_CON(2), 11, GFLAGS),
 	GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus_root", 0,
 			RV1126B_BUSCLKGATE_CON(3), 0, GFLAGS),
@@ -928,9 +924,9 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 			RV1126B_BUSCLKGATE_CON(4), 14, GFLAGS),
 	GATE(PCLK_UART7, "pclk_uart7", "pclk_bus_root", 0,
 			RV1126B_BUSCLKGATE_CON(4), 15, GFLAGS),
-	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus_root", 0,
+	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus_root", CLK_IS_CRITICAL,
 			RV1126B_BUSCLKGATE_CON(5), 0, GFLAGS),
-	GATE(CLK_TSADC, "clk_tsadc", "xin24m", 0,
+	GATE(CLK_TSADC, "clk_tsadc", "xin24m", CLK_IS_CRITICAL,
 			RV1126B_BUSCLKGATE_CON(5), 1, GFLAGS),
 	GATE(HCLK_SAI0, "hclk_sai0", "hclk_bus_root", 0,
 			RV1126B_BUSCLKGATE_CON(5), 2, GFLAGS),
@@ -966,7 +962,7 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 			RV1126B_BUSCLKGATE_CON(6), 4, GFLAGS),
 	GATE(PCLK_OTP_MASK, "pclk_otp_mask", "pclk_bus_root", 0,
 			RV1126B_BUSCLKGATE_CON(6), 6, GFLAGS),
-	GATE(CLK_TSADC_PHYCTRL, "clk_tsadc_phyctrl", "xin24m", 0,
+	GATE(CLK_TSADC_PHYCTRL, "clk_tsadc_phyctrl", "xin24m", CLK_IS_CRITICAL,
 			RV1126B_BUSCLKGATE_CON(6), 8, GFLAGS),
 	MUX(LRCK_SRC_ASRC0, "lrck_src_asrc0", lrck_src_asrc_p, 0,
 			RV1126B_BUSCLKSEL_CON(3), 0, 3, MFLAGS),
@@ -1019,6 +1015,30 @@ static struct rockchip_clk_branch rv1126b_clk_branches[] __initdata = {
 			RV1126B_PERICLKSEL_CON(1), 12, 1, MFLAGS),
 };
 
+static struct rockchip_clk_branch rv1126b_clk_cpll_div10_v0[] __initdata = {
+	COMPOSITE_NODIV(CLK_AISP_PLL_SRC, "clk_aisp_pll_src", mux_gpll_aupll_cpll_p, 0,
+		RV1126B_CLKSEL_CON(62), 4, 2, MFLAGS,
+		RV1126B_CLKGATE_CON(5), 4, GFLAGS),
+	DIV(CLK_AISP_PLL, "clk_aisp_pll", "clk_aisp_pll_src", 0,
+		RV1126B_CLKSEL_CON(62), 0, 3, DFLAGS),
+
+	COMPOSITE(CLK_CPLL_DIV10, "clk_cpll_div10", mux_gpll_cpll_p, 0,
+		RV1126B_CLKSEL_CON(1), 15, 1, MFLAGS, 5, 5, DFLAGS,
+		RV1126B_CLKGATE_CON(0), 1, GFLAGS),
+};
+
+static struct rockchip_clk_branch rv1126b_clk_cpll_div10[] __initdata = {
+	COMPOSITE_NODIV(CLK_AISP_PLL_SRC, "clk_aisp_pll_src", mux_gpll_aupll_cpll_p, 0,
+		RV1126B_CLKSEL_CON(62), 4, 2, MFLAGS,
+		RV1126B_CLKGATE_CON(5), 4, GFLAGS),
+	DIV(CLK_AISP_PLL, "clk_aisp_pll", "clk_aisp_pll_src", 0,
+		RV1126B_CLKSEL_CON(62), 0, 3, DFLAGS),
+
+	COMPOSITE(CLK_CPLL_DIV10, "clk_cpll_div10", clk_cpll_div10_p, 0,
+		RV1126B_CLKSEL_CON(1), 15, 1, MFLAGS, 5, 5, DFLAGS,
+		RV1126B_CLKGATE_CON(0), 1, GFLAGS),
+};
+
 static struct rockchip_clk_branch rv1126b_armclk __initdata =
 	MUX(ARMCLK, "armclk", mux_armclk_p, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
 			RV1126B_CORECLKSEL_CON(0), 1, 1, MFLAGS);
@@ -1060,6 +1080,14 @@ static void __init rv1126b_clk_init(struct device_node *np)
 	rockchip_clk_register_plls(ctx, rv1126b_pll_clks,
 				   ARRAY_SIZE(rv1126b_pll_clks),
 				   RV1126B_GRF_SOC_STATUS0);
+
+	rockchip_soc_id_init();
+	if (rockchip_get_cpu_version())
+		rockchip_clk_register_branches(ctx, rv1126b_clk_cpll_div10,
+					       ARRAY_SIZE(rv1126b_clk_cpll_div10));
+	else
+		rockchip_clk_register_branches(ctx, rv1126b_clk_cpll_div10_v0,
+					       ARRAY_SIZE(rv1126b_clk_cpll_div10_v0));
 
 	rockchip_clk_register_branches(ctx, rv1126b_clk_branches,
 				       ARRAY_SIZE(rv1126b_clk_branches));

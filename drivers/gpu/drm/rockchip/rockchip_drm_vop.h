@@ -109,13 +109,6 @@
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
 
-enum vop_vp_id {
-	ROCKCHIP_VOP_VP0 = 0,
-	ROCKCHIP_VOP_VP1,
-	ROCKCHIP_VOP_VP2,
-	ROCKCHIP_VOP_VP3,
-};
-
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
 	BCSH_OUT_MODE_BLUE,
@@ -458,17 +451,24 @@ struct vop_ctrl {
 	struct vop_reg mcu_type;
 	struct vop_reg mcu_rw_bypass_port;
 	struct vop_reg mcu_force_rdn;
+	struct vop_reg mcu_data_map_mode;
 
 	/* bt1120 */
 	struct vop_reg bt1120_uv_swap;
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt1120_en;
+	struct vop_reg bt1120_data_map_mode;
 
 	/* bt656 */
 	struct vop_reg bt656_en;
+	struct vop_reg bt656_data_map_mode;
 
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
+
+	struct vop_reg edpi_wms_fs;
+	struct vop_reg edpi_ctrl_mode;
+	struct vop_reg edpi_te_en;
 
 	/* ebc vop */
 	struct vop_reg enable;
@@ -914,6 +914,7 @@ struct vop2_win_regs {
 
 struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
+	struct vop_reg sys_cfg_done;
 	struct vop_reg overlay_mode;
 	struct vop_reg dsp_background;
 	struct vop_reg port_mux;
@@ -1234,6 +1235,7 @@ struct vop2_win_data {
 	uint8_t axi_uv_id;
 	uint8_t possible_vp_mask;
 	uint8_t dci_rid_id;
+	uint8_t reg_done_bit;
 
 	uint32_t base;
 	enum drm_plane_type type;
@@ -1464,6 +1466,7 @@ struct vop_data {
 struct vop2_ctrl {
 	struct vop_reg cfg_done_en;
 	struct vop_reg wb_cfg_done;
+	struct vop_reg win_cfg_done;
 	struct vop_reg auto_gating_en;
 	struct vop_reg aclk_pre_auto_gating_en;
 	struct vop_reg dma_finish_mode;

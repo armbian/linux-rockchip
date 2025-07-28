@@ -433,13 +433,12 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(lvds->panel);
 }
 
-static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
-						bool on)
+static int rockchip_lvds_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+	struct rockchip_lvds *lvds = container_of(sub_dev, struct rockchip_lvds, sub_dev);
 
 	if (lvds->panel)
-		panel_simple_loader_protect(lvds->panel);
+		rockchip_drm_panel_loader_protect(lvds->panel, on);
 
 
 	if (on) {

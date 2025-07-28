@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -63,7 +63,6 @@ static int debug_mem_zones_show(struct seq_file *sfile, void *data)
 				   reg_zone->va_size_pages);
 		}
 	}
-#if MALI_USE_CSF
 	reg_zone = &kctx->kbdev->csf.mcu_shared_zone;
 
 	if (reg_zone && reg_zone->base_pfn) {
@@ -71,7 +70,6 @@ static int debug_mem_zones_show(struct seq_file *sfile, void *data)
 			   kbase_reg_zone_get_name(MCU_SHARED_ZONE), MCU_SHARED_ZONE,
 			   reg_zone->base_pfn, reg_zone->va_size_pages);
 	}
-#endif
 
 	kbase_gpu_vm_unlock(kctx);
 	return 0;

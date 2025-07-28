@@ -41,6 +41,11 @@ typedef int vm_fault_t;
 struct memory_group_manager_device;
 struct memory_group_manager_import_data;
 
+/**
+ * enum mgm_pte_flags - Memory Group Manager PTE Flags
+ * @MMA_VIOLATION:   Bit-number of flag used to indicate that Mismatched Memory Attributes (MMA)
+ *                   exist for a page. Specifically, this means CPU-uncached, GPU-cached.
+ */
 enum mgm_pte_flags {
 	MMA_VIOLATION = 0,
 };
@@ -138,11 +143,17 @@ struct memory_group_manager_ops {
 	 *             decoded to determine the physical address and any other
 	 *             properties of the mapping the manager requires.
 	 *
-	 * This function allows the memory group manager to modify a GPU page
-	 * table entry before it is stored by the kbase module (controller
-	 * driver). It may set certain bits in the page table entry attributes
-	 * or modify the physical address, based on the physical memory group ID,
-	 * PBHA ID, PTE flags and/or additional data in struct memory_group_manager_device.
+	 * This function allows the memory group manager to modify a GPU page table entry before it
+	 * is stored by the kbase module (controller driver). It may set certain bits in the page
+	 * table entry attributes or modify the physical address, based on the physical memory
+	 * group ID, PBHA ID, PTE flags and/or additional data in
+	 * struct memory_group_manager_device.
+	 *
+	 * If mgm_pte_flags has the MMA_VIOLATION bit set - ie, 1<<MMA_VIOLATION, the system
+	 * integrator may decide to encode the pbha_id into the PTE if (and only if) the
+	 * NONCACHEABLE SYSC_PHBA_OVERRIDE is required.The sample implementation in
+	 * example_mgm_pte_to_original_pte() does enable this, but implementors may choose not to
+	 * do so.
 	 *
 	 * Return: A modified GPU page table entry to be stored in a page table.
 	 */
@@ -198,8 +209,8 @@ struct memory_group_manager_ops {
 					      pgprot_t pgprot);
 
 	/*
-	 * mgm_get_import_memory_cached_access_permitted - Check if a given imported memory
-	 *                            is allowed to be accessed as cached or not by the GPU
+	 * mgm_get_import_memory_cached_access_permitted - Check if the externally visible accesses
+	 *		by the GPU to the given imported memory are allowed to be cached or not.
 	 *
 	 * @mgm_dev:     The memory group manager through which the request
 	 *               is being made.

@@ -270,9 +270,7 @@ static inline u32 kbase_reg_gpu_irq_all(bool is_legacy)
 	u32 mask = GPU_IRQ_REG_COMMON;
 
 	if (is_legacy) {
-#if MALI_USE_CSF
 		mask |= (RESET_COMPLETED | POWER_CHANGED_ALL);
-#endif /* MALI_USE_CSF */
 		/* Include POWER_CHANGED_SINGLE in debug builds for use in irq latency test. */
 		if (IS_ENABLED(CONFIG_MALI_VALHALL_DEBUG))
 			mask |= POWER_CHANGED_SINGLE;

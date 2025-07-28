@@ -850,8 +850,8 @@ int kbase_csf_mcu_shared_regs_data_init(struct kbase_device *kbdev)
 	if (!shared_regs->dummy_phys)
 		return -ENOMEM;
 
-	if (kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1,
-				       &shared_regs->dummy_phys[0], false, NULL) <= 0)
+	if (kbase_mem_pool_alloc_pages(&kbdev->fw_mem_pools.small, 1, &shared_regs->dummy_phys[0],
+				       false, NULL) <= 0)
 		return -ENOMEM;
 
 	shared_regs->dummy_phys_allocated = true;
@@ -920,7 +920,7 @@ void kbase_csf_mcu_shared_regs_data_term(struct kbase_device *kbdev)
 	if (shared_regs->dummy_phys_allocated) {
 		struct page *page = as_page(shared_regs->dummy_phys[0]);
 
-		kbase_mem_pool_free(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], page, false);
+		kbase_mem_pool_free(&kbdev->fw_mem_pools.small, page, false);
 	}
 
 	kfree(shared_regs->dummy_phys);

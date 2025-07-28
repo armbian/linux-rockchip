@@ -22,6 +22,9 @@
 #define RKISP_VPSS_GET_ISP_WORKING \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 5, int)
 
+#define RKISP_VPSS_GET_UNITE_EXTEND_PIXEL \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 6, int)
+
 struct rkisp_vpss_sof {
 	u32 irq;
 	u32 seq;

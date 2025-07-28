@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,22 +33,13 @@ struct kbase_va_region;
 struct kbase_device;
 struct kmem_cache;
 
-#if MALI_USE_CSF
 /* Space for 8 different zones */
 #define KBASE_REG_ZONE_BITS 3
-#else
-/* Space for 4 different zones */
-#define KBASE_REG_ZONE_BITS 2
-#endif
 
 /**
  * KBASE_REG_ZONE_MAX - Maximum number of GPU memory region zones
  */
-#if MALI_USE_CSF
 #define KBASE_REG_ZONE_MAX 6ul
-#else
-#define KBASE_REG_ZONE_MAX 4ul
-#endif
 
 /* The bits 11-13 (inclusive) of the kbase_va_region flag are reserved
  * for information about the zone in which it was allocated.
@@ -62,22 +53,10 @@ struct kmem_cache;
 
 #define KBASE_REG_ZONE_CUSTOM_VA_BASE (0x100000000ULL >> PAGE_SHIFT)
 
-#if MALI_USE_CSF
 /* only used with 32-bit clients */
 /* On a 32bit platform, custom VA should be wired from 4GB to 2^(43).
  */
 #define KBASE_REG_ZONE_CUSTOM_VA_SIZE (((1ULL << 43) >> PAGE_SHIFT) - KBASE_REG_ZONE_CUSTOM_VA_BASE)
-#else
-/* only used with 32-bit clients */
-/* On a 32bit platform, custom VA should be wired from 4GB to the VA limit of the
- * GPU. Unfortunately, the Linux mmap() interface limits us to 2^32 pages (2^44
- * bytes, see mmap64 man page for reference).  So we put the default limit to the
- * maximum possible on Linux and shrink it down, if required by the GPU, during
- * initialization.
- */
-#define KBASE_REG_ZONE_CUSTOM_VA_SIZE (((1ULL << 44) >> PAGE_SHIFT) - KBASE_REG_ZONE_CUSTOM_VA_BASE)
-/* end 32-bit clients only */
-#endif
 
 /* The starting address and size of the GPU-executable zone are dynamic
  * and depend on the platform and the number of pages requested by the
@@ -86,7 +65,6 @@ struct kmem_cache;
 #define KBASE_REG_ZONE_EXEC_VA_MAX_PAGES ((1ULL << 32) >> PAGE_SHIFT) /* 4 GB */
 #define KBASE_REG_ZONE_EXEC_VA_SIZE KBASE_REG_ZONE_EXEC_VA_MAX_PAGES
 
-#if MALI_USE_CSF
 #define KBASE_REG_ZONE_MCU_SHARED_BASE (0x04000000ULL >> PAGE_SHIFT)
 #define MCU_SHARED_ZONE_SIZE (((0x08000000ULL) >> PAGE_SHIFT) - KBASE_REG_ZONE_MCU_SHARED_BASE)
 
@@ -108,8 +86,6 @@ struct kmem_cache;
  */
 #define KBASE_REG_ZONE_FIXED_VA_END_64 ((1ULL << 48) >> PAGE_SHIFT)
 #define KBASE_REG_ZONE_FIXED_VA_END_32 ((1ULL << 44) >> PAGE_SHIFT)
-
-#endif
 
 /**
  * enum kbase_memory_zone - Kbase memory zone identifier
@@ -142,17 +118,11 @@ enum kbase_memory_zone {
 	SAME_VA_ZONE,
 	CUSTOM_VA_ZONE,
 	EXEC_VA_ZONE,
-#if IS_ENABLED(MALI_USE_CSF)
 	EXEC_FIXED_VA_ZONE,
 	FIXED_VA_ZONE,
 	MCU_SHARED_ZONE,
-#endif
 	MEMORY_ZONE_MAX,
-#if IS_ENABLED(MALI_USE_CSF)
 	CONTEXT_ZONE_MAX = FIXED_VA_ZONE + 1
-#else
-	CONTEXT_ZONE_MAX = EXEC_VA_ZONE + 1
-#endif
 };
 
 /**
@@ -196,7 +166,7 @@ unsigned long kbase_zone_to_bits(enum kbase_memory_zone zone);
 enum kbase_memory_zone kbase_bits_to_zone(unsigned long zone_bits);
 
 /**
- * kbase_mem_zone_get_name - Get the string name for a given memory zone
+ * kbase_reg_zone_get_name - Get the string name for a given memory zone
  * @zone: Memory zone identifier
  *
  * Return: string for valid memory zone, NULL otherwise
@@ -212,11 +182,7 @@ char *kbase_reg_zone_get_name(enum kbase_memory_zone zone);
  */
 static inline bool kbase_is_ctx_reg_zone(enum kbase_memory_zone zone)
 {
-#if MALI_USE_CSF
 	return !(zone == MCU_SHARED_ZONE);
-#else
-	return true;
-#endif
 }
 
 /**

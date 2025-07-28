@@ -739,13 +739,15 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   u64 *dst_pclk)
 {
 	u64 dst_rate, src_rate;
-	u64 dst_htotal, src_htotal;
+	u64 dst_htotal, dst_vtotal, src_htotal, src_vtotal;
 
 	src_rate = src->pixelclock;
 	dst_htotal = dst->hactive + dst->hfront_porch + dst->hsync_len + dst->hback_porch;
-	dst_rate = src_rate * dst->vactive * dst_htotal;
+	dst_vtotal = dst->vactive + dst->vfront_porch + dst->vsync_len + dst->vback_porch;
+	dst_rate = src_rate * dst_vtotal * dst_htotal;
 	src_htotal = src->hactive + src->hfront_porch + src->hsync_len + src->hback_porch;
-	do_div(dst_rate, (src->vactive * src_htotal));
+	src_vtotal = src->vactive + src->vfront_porch + src->vsync_len + src->vback_porch;
+	do_div(dst_rate, (src_vtotal * src_htotal));
 	dst->pixelclock = dst_rate;
 	*dst_pclk = dst->pixelclock;
 

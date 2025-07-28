@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "arm64/rockchip/rv1126b-evb2-v10-tb-400w.dts"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V10 TB 400W Board";
+	compatible = "rockchip,rv1126b-evb2-v10-tb-400w", "rockchip,rv1126b";
+};
+
+&ramdisk_r {
+	reg = <0x48c40000 (30 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x4aa40000 (20 * 0x00100000)>;
+};

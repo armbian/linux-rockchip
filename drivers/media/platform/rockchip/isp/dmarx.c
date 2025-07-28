@@ -396,7 +396,7 @@ static void update_rawrd(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
 	struct capture_fmt *fmt = &stream->out_isp_fmt;
-	u32 offs, offs_h = stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
+	u32 offs, offs_h = stream->out_fmt.width / 2 - dev->hw_dev->unite_extend_pixel;
 	u32 val = 0;
 
 	if (stream->curr_buf) {
@@ -417,7 +417,7 @@ static void update_rawrd(struct rkisp_stream *stream)
 					val + offs_h, ISP_UNITE_RIGHT, false);
 		if (dev->unite_div == ISP_UNITE_DIV4) {
 			offs = stream->out_fmt.plane_fmt[0].bytesperline *
-			       (stream->out_fmt.height / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL);
+			       (stream->out_fmt.height / 2 - dev->hw_dev->unite_extend_pixel);
 			rkisp_idx_write(dev, stream->config->mi.y_base_ad_init,
 					val + offs, ISP_UNITE_LEFT_B, false);
 			offs += offs_h;
@@ -1218,9 +1218,9 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 	w = width;
 	h = height;
 	if (dev->unite_div > ISP_UNITE_DIV1)
-		w = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		w = width / 2 + dev->hw_dev->unite_extend_pixel;
 	if (dev->unite_div == ISP_UNITE_DIV4)
-		h = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		h = height / 2 + dev->hw_dev->unite_extend_pixel;
 
 	/* isp20 extend line for normal read back mode to fix internal bug */
 	if (dev->isp_ver == ISP_V20 &&

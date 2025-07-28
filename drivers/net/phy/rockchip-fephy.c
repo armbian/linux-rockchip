@@ -107,7 +107,12 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 		return ret;
 
 	/* 100M amplitude control */
-	ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0x18, 0xc);
+	ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0x18, 0x9);
+	if (ret)
+		return ret;
+
+	/* 10M amplitude control */
+	ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0x1f, 0x7);
 	if (ret)
 		return ret;
 

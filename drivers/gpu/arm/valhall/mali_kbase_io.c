@@ -36,25 +36,6 @@ struct kbase_io {
 	struct kbase_device *kbdev;
 };
 
-/**
- * kbase_io_is_gpu_removed() - Has the GPU been removed.
- * @kbdev:    Kbase device pointer
- *
- * When Kbase takes too long to give up the GPU, the Arbiter
- * can remove it.  This will then be followed by a GPU lost event.
- * This function will return true if the GPU has been removed.
- * When this happens register reads will be zero. A zero GPU_ID is
- * invalid so this is used to detect when GPU is removed.
- *
- * Return: True if GPU removed
- */
-static bool kbase_io_is_gpu_removed(struct kbase_device *kbdev)
-{
-	if (!kbase_has_arbiter(kbdev))
-		return false;
-	return (KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(GPU_ID)) == 0);
-}
-
 void kbase_io_set_status(struct kbase_io *io, enum kbase_io_status_bits status_bit)
 {
 	set_bit(status_bit, io->status);
@@ -81,21 +62,13 @@ KBASE_EXPORT_TEST_API(kbase_io_is_gpu_powered);
 
 bool kbase_io_is_aw_removed(struct kbase_device *kbdev)
 {
-	return (kbdev->arb.arb_if && test_bit(KBASE_IO_STATUS_AW_REMOVED, kbdev->io->status));
+	return test_bit(KBASE_IO_STATUS_AW_REMOVED, kbdev->io->status);
 }
 KBASE_EXPORT_TEST_API(kbase_io_is_aw_removed);
 
 bool kbase_io_has_gpu(struct kbase_device *kbdev)
 {
-	if (kbase_io_test_status(kbdev, KBASE_IO_STATUS_AW_REMOVED))
-		return false;
-
-	if (kbase_io_is_gpu_removed(kbdev)) {
-		kbase_io_set_status(kbdev->io, KBASE_IO_STATUS_AW_REMOVED);
-		return false;
-	}
-
-	return true;
+	return kbase_io_is_gpu_powered(kbdev) && !kbase_io_is_aw_removed(kbdev);
 }
 KBASE_EXPORT_TEST_API(kbase_io_has_gpu);
 

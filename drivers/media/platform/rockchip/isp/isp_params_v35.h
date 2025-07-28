@@ -36,18 +36,21 @@ struct rkisp_isp_params_val_v35 {
 	struct rkisp_dummy_buffer buf_aipre_gain[RKISP_BUFFER_MAX];
 	struct rkisp_dummy_buffer buf_aiisp[RKISP_BUFFER_MAX];
 	struct rkisp_dummy_buffer buf_vpsl[RKISP_BUFFER_MAX];
+	struct rkisp_dummy_buffer buf_y_src[RKISP_BUFFER_MAX];
 
 	spinlock_t buf_lock;
 	struct list_head iir_list;
 	struct list_head gain_list;
 	struct list_head aipre_gain_list;
 	struct list_head vpsl_list;
+	struct list_head y_src_list;
 	struct rkisp_dummy_buffer *pbuf_bay3d_iir;
 	struct rkisp_dummy_buffer *pbuf_gain_wr;
 	struct rkisp_dummy_buffer *pbuf_gain_rd;
 	struct rkisp_dummy_buffer *pbuf_aipre_gain;
 	struct rkisp_dummy_buffer *pbuf_vpsl;
 	struct rkisp_dummy_buffer *pbuf_aiisp;
+	struct rkisp_dummy_buffer *pbuf_y_src;
 
 	u32 bay3d_iir_rw_fmt;
 	u32 bay3d_iir_offs;
@@ -76,10 +79,16 @@ struct rkisp_isp_params_val_v35 {
 
 	u32 aipre_gain_stride;
 	int aipre_gain_cnt;
+	int aipre_gain_idx;
 	int aipre_gain_cur_idx;
 
 	int vpsl_cnt;
+	int vpsl_idx;
 	int vpsl_cur_idx;
+
+	int y_src_cnt;
+	int y_src_idx;
+	int y_src_cur_idx;
 
 	u32 vpsl_yraw_offs[VPSL_YRAW_CHN_MAX];
 	u32 vpsl_yraw_stride[VPSL_YRAW_CHN_MAX];

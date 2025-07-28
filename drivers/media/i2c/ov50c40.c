@@ -3914,6 +3914,7 @@ static const struct regval ov50c40_10bit_8192x6144_dphy_12fps_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+#ifdef DEBUG
 static const struct regval ov50c40_10bit_4096x3072_cphy_regs[] = {
 	{0x0103, 0x01},
 	{0x0301, 0xc0},
@@ -4504,6 +4505,7 @@ static const struct regval ov50c40_10bit_4096x3072_cphy_regs[] = {
 	{0x5d45, 0x05},
 	{REG_NULL, 0x00},
 };
+#endif
 
 static const struct regval ov50c40_10bit_4096x3072_cphy_30fps_regs[] = {
 	{0x0103, 0x01},
@@ -5828,6 +5830,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 };
 
 static const struct ov50c40_mode supported_modes_cphy[] = {
+#ifdef DEBUG
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
@@ -5846,6 +5849,7 @@ static const struct ov50c40_mode supported_modes_cphy[] = {
 		.spd = &ov50c40_spd,
 		.vc[PAD0] = 0,
 	},
+#endif
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,

@@ -310,6 +310,8 @@ static int serdes_get_init_seq(struct serdes *serdes)
 		return err;
 	}
 
+	serdes->dual_link = of_property_read_bool(dev->of_node, "dual-link");
+
 	/* init ser register(not des register) more early if uboot logo disabled */
 	serdes->route_enable = of_property_read_bool(dev->of_node, "route-enable");
 	if ((!serdes->route_enable) && (serdes->chip_data->serdes_type == TYPE_SER)) {
@@ -445,6 +447,8 @@ static int serdes_i2c_probe(struct i2c_client *client)
 		SERDES_DBG_MFD("%s: use_reg_check_work=%d\n", __func__, serdes->use_reg_check_work);
 	}
 
+	serdes_create_debugfs(serdes);
+
 	dev_info(dev, "serdes %s serdes_i2c_probe successful version %s\n",
 		 serdes->chip_data->name, MFD_SERDES_DISPLAY_VERSION);
 
@@ -471,6 +475,8 @@ static void serdes_i2c_remove(struct i2c_client *client)
 		cancel_delayed_work_sync(&serdes->mfd_delay_work);
 		destroy_workqueue(serdes->mfd_wq);
 	}
+
+	serdes_destroy_debugfs(serdes);
 }
 
 static int serdes_i2c_prepare(struct device *dev)
@@ -535,6 +541,9 @@ static const struct of_device_id serdes_of_match[] = {
 #if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_MAXIM_MAX96745)
 	{ .compatible = "maxim,max96745", .data = &serdes_max96745_data },
 #endif
+#if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_MAXIM_MAX96749)
+	{ .compatible = "maxim,max96749", .data = &serdes_max96749_data },
+#endif
 #if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_MAXIM_MAX96752)
 	{ .compatible = "maxim,max96752", .data = &serdes_max96752_data },
 #endif
@@ -583,12 +592,24 @@ static int __init serdes_i2c_init(void)
 	int ret;
 
 	ret = i2c_add_driver(&serdes_i2c_driver);
-	if (ret != 0)
+	if (ret != 0) {
 		pr_err("Failed to register serdes I2C driver: %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	serdes_debugfs_init();
+
+	return 0;
 }
+
+static void __exit serdes_i2c_exit(void)
+{
+	i2c_del_driver(&serdes_i2c_driver);
+	serdes_debugfs_exit();
+}
+
 subsys_initcall(serdes_i2c_init);
+module_exit(serdes_i2c_exit);
 
 MODULE_AUTHOR("Luo Wei <lw@rock-chips.com>");
 MODULE_DESCRIPTION("display i2c interface for different serdes");

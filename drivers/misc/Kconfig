@@ -14,6 +14,7 @@ config RK803
 	  Driver for RK803 which is used for driving porjector and IR flood LED.
 
 source "drivers/misc/rockchip/Kconfig"
+source "drivers/misc/vehicle/Kconfig"
 
 config LT7911D_FB_NOTIFIER
 	tristate "Lontium LT7911D FB Notifier"

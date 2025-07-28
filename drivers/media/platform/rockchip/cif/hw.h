@@ -81,6 +81,8 @@ struct rkcif_dummy_buffer {
 	struct vb2_queue vb2_queue;
 	struct list_head list;
 	struct dma_buf *dbuf;
+	struct dma_buf_attachment *dba;
+	struct sg_table *sgt;
 	dma_addr_t dma_addr;
 	struct page **pages;
 	void *mem_priv;

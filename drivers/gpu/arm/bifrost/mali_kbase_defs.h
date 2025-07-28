@@ -688,6 +688,7 @@ struct kbase_devfreq_queue_info {
 /**
  * struct kbase_process - Representing an object of a kbase process instantiated
  *                        when the first kbase context is created under it.
+ * @kobj:               Kernel object for sysfs representation of the process.
  * @tgid:               Thread group ID.
  * @total_gpu_pages:    Total gpu pages allocated across all the contexts
  *                      of this process, it accounts for both native allocations
@@ -703,6 +704,7 @@ struct kbase_devfreq_queue_info {
  *                      imported multiple times for the process.
  */
 struct kbase_process {
+	struct kobject kobj;
 	pid_t tgid;
 	size_t total_gpu_pages;
 	struct list_head kctx_list;
@@ -1109,6 +1111,7 @@ struct kbase_device {
 	unsigned int nr_regulators;
 #endif /* CONFIG_REGULATOR */
 	char devname[DEVNAME_SIZE];
+	struct kobject *kprcs_kobj;
 	u32 id;
 
 #if !IS_ENABLED(CONFIG_MALI_REAL_HW)

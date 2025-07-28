@@ -324,6 +324,7 @@ static const struct of_device_id serdes_bridge_of_match[] = {
 	{ .compatible = "rohm,bu18tl82-bridge", },
 	{ .compatible = "rohm,bu18rl82-bridge", },
 	{ .compatible = "maxim,max96745-bridge", },
+	{ .compatible = "maxim,max96749-bridge", },
 	{ .compatible = "maxim,max96755-bridge", },
 	{ .compatible = "maxim,max96789-bridge", },
 	{ .compatible = "rockchip,rkx111-bridge", },

@@ -1198,7 +1198,7 @@ isp_rawaelite_config(struct rkisp_isp_params_vdev *params_vdev,
 	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx];
 	value = block_hsize * ae_wnd_num[wnd_num_idx] + arg->win.h_offs;
 	if (ispdev->hw_dev->unite)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + ispdev->hw_dev->unite_extend_pixel;
 	if (value + 1 > width)
 		block_hsize -= 1;
 	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx];
@@ -1291,7 +1291,7 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx];
 	value = block_hsize * ae_wnd_num[wnd_num_idx] + arg->win.h_offs;
 	if (ispdev->hw_dev->unite)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + ispdev->hw_dev->unite_extend_pixel;
 	if (value + 1 > width)
 		block_hsize -= 1;
 	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx];
@@ -4149,7 +4149,7 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		w = ALIGN(isp_sdev->in_crop.width, 16);
 		h = ALIGN(isp_sdev->in_crop.height, 16);
 		if (ispdev->hw_dev->unite)
-			w = ALIGN(isp_sdev->in_crop.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL, 16);
+			w = ALIGN(isp_sdev->in_crop.width / 2 + ispdev->hw_dev->unite_extend_pixel, 16);
 
 		size = ALIGN((w + w / 8) * h * 2, 16);
 
@@ -4243,7 +4243,7 @@ multi_overflow:
 				continue;
 			dev_warn(dev, "isp%d %dx%d over four vir isp max:%dx1536\n",
 				 i, hw->isp_size[i].w, hw->isp_size[i].h,
-				 hw->unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+				 hw->unite ? (2560 - hw->unite_extend_pixel) * 2 : 2560);
 			hw->is_multi_overflow = true;
 			goto multi_overflow;
 		}
@@ -4285,7 +4285,7 @@ multi_overflow:
 			    (hw->isp_size[idx1[0]].size > ISP3X_VIR2_MAX_SIZE)) {
 				dev_warn(dev, "isp%d %dx%d over three vir isp max:%dx1536\n",
 					 idx1[0], hw->isp_size[idx1[0]].w, hw->isp_size[idx1[0]].h,
-					 hw->unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+					 hw->unite ? (2560 - hw->unite_extend_pixel) * 2 : 2560);
 				hw->is_multi_overflow = true;
 				goto multi_overflow;
 			} else {
@@ -4344,7 +4344,7 @@ multi_overflow:
 			    hw->isp_size[idx1[k - 1]].size > (ISP3X_VIR4_MAX_SIZE + ISP3X_VIR2_MAX_SIZE)) {
 				dev_warn(dev, "isp%d %dx%d over two vir isp max:%dx2160\n",
 					 idx1[k - 1], hw->isp_size[idx1[k - 1]].w, hw->isp_size[idx1[k - 1]].h,
-					 hw->unite ? (3840 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 3840);
+					 hw->unite ? (3840 - hw->unite_extend_pixel) * 2 : 3840);
 				hw->is_multi_overflow = true;
 				goto multi_overflow;
 			} else {
@@ -4367,7 +4367,7 @@ multi_overflow:
 		ispdev->multi_index = 0;
 		width = crop->width;
 		if (hw->unite)
-			width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			width = width / 2 + hw->unite_extend_pixel;
 		height = crop->height;
 		size = width * height;
 		break;
@@ -4497,6 +4497,7 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 	u32 mesh_size, buf_size;
 	int i, ret, id = meshsize->unite_isp_id;
 	int buf_cnt = meshsize->buf_cnt;
+	bool is_alloc;
 
 	priv_val = params_vdev->priv_val;
 	if (!priv_val) {
@@ -4529,14 +4530,26 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 		buf->is_need_vaddr = true;
 		buf->is_need_dbuf = true;
 		buf->is_need_dmafd = true;
-		buf->size = buf_size;
-		ret = rkisp_alloc_buffer(params_vdev->dev, buf);
-		if (ret) {
-			dev_err(dev, "%s failed\n", __func__);
-			goto err;
+		is_alloc = true;
+		if (buf->mem_priv) {
+			if (buf_size > buf->size) {
+				rkisp_free_buffer(params_vdev->dev, buf);
+			} else {
+				is_alloc = false;
+				if (rkisp_buf_get_fd(ispdev, buf, false) < 0)
+					goto err;
+				mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
+			}
 		}
-
-		mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
+		if (is_alloc) {
+			buf->size = buf_size;
+			ret = rkisp_alloc_buffer(params_vdev->dev, buf);
+			if (ret) {
+				dev_err(dev, "%s failed\n", __func__);
+				goto err;
+			}
+			mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
+		}
 		mesh_head->stat = MESH_BUF_INIT;
 		mesh_head->data_oft = ALIGN(sizeof(struct isp2x_mesh_head), 16);
 		buf++;

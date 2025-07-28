@@ -9,6 +9,9 @@
 
 #include "core.h"
 
+static unsigned long serdes_log_level;
+static struct dentry *serdes_debugfs_root;
+
 static const struct mfd_cell serdes_bu18tl82_devs[] = {
 	{
 		.name = "serdes-pinctrl",
@@ -43,6 +46,21 @@ static const struct mfd_cell serdes_max96745_devs[] = {
 	{
 		.name = "serdes-bridge-split",
 		.of_compatible = "maxim,max96745-bridge-split",
+	},
+};
+
+static const struct mfd_cell serdes_max96749_devs[] = {
+	{
+		.name = "serdes-pinctrl",
+		.of_compatible = "maxim,max96749-pinctrl",
+	},
+	{
+		.name = "serdes-bridge",
+		.of_compatible = "maxim,max96749-bridge",
+	},
+	{
+		.name = "serdes-bridge-split",
+		.of_compatible = "maxim,max96749-bridge-split",
 	},
 };
 
@@ -175,6 +193,9 @@ int serdes_bulk_write(struct serdes *serdes, unsigned int reg,
 	u16 *buf = src;
 	int i, ret;
 
+	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
+		return 0;
+
 	WARN_ON(count <= 0);
 
 	mutex_lock(&serdes->io_lock);
@@ -205,6 +226,9 @@ int serdes_multi_reg_write(struct serdes *serdes, const struct reg_sequence *reg
 {
 	int i, ret;
 
+	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
+		return 0;
+
 	SERDES_DBG_I2C("%s %s %s num=%d\n", __func__, dev_name(serdes->dev),
 		       serdes->chip_data->name, num_regs);
 	ret = regmap_multi_reg_write(serdes->regmap, regs, num_regs);
@@ -229,6 +253,9 @@ int serdes_reg_write(struct serdes *serdes, unsigned int reg,
 {
 	int ret;
 
+	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
+		return 0;
+
 	ret = regmap_write(serdes->regmap, reg, val);
 	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x ret=%d\n", __func__, dev_name(serdes->dev),
 		       serdes->chip_data->name, reg, val, ret);
@@ -251,6 +278,9 @@ int serdes_set_bits(struct serdes *serdes, unsigned int reg,
 		    unsigned int mask, unsigned int val)
 {
 	int ret;
+
+	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
+		return 0;
 
 	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x) mask=%04x\n", __func__,
 		       dev_name(serdes->dev), serdes->chip_data->name, reg, val, mask);
@@ -349,6 +379,10 @@ int serdes_device_init(struct serdes *serdes)
 		serdes_devs = serdes_max96745_devs;
 		mfd_num = ARRAY_SIZE(serdes_max96745_devs);
 		break;
+	case MAXIM_ID_MAX96749:
+		serdes_devs = serdes_max96749_devs;
+		mfd_num = ARRAY_SIZE(serdes_max96749_devs);
+		break;
 	case MAXIM_ID_MAX96752:
 		serdes_devs = serdes_max96752_devs;
 		mfd_num = ARRAY_SIZE(serdes_max96752_devs);
@@ -389,6 +423,162 @@ int serdes_device_init(struct serdes *serdes)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(serdes_device_init);
+
+static int log_level_show(struct seq_file *m, void *data)
+{
+	seq_printf(m, "%lu\n", serdes_log_level);
+
+	return 0;
+}
+
+static int log_level_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, log_level_show, NULL);
+}
+
+static ssize_t log_level_write(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	char buf[12];
+	unsigned long value;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (kstrtoul(buf, 0, &value))
+		return -EINVAL;
+
+	serdes_log_level = value;
+
+	return len;
+}
+
+static int debug_show(struct seq_file *m, void *data)
+{
+	struct serdes *serdes = m->private;
+
+	seq_printf(m, "%d\n", serdes->debug);
+
+	return 0;
+}
+
+static int debug_open(struct inode *inode, struct file *file)
+{
+	struct serdes *serdes = inode->i_private;
+
+	return single_open(file, debug_show, serdes);
+}
+
+static ssize_t debug_write(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct serdes *serdes = m->private;
+	char buf[12];
+
+	if (!serdes)
+		return -EINVAL;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (sysfs_streq(buf, "on"))
+		serdes->debug = SERDES_OPEN_I2C_WRITE;
+	else if (sysfs_streq(buf, "off"))
+		serdes->debug = SERDES_CLOSE_I2C_WRITE;
+	else if (sysfs_streq(buf, "default")) {
+		serdes->debug = SERDES_SET_PINCTRL_DEFAULT;
+		serdes_set_pinctrl_default(serdes);
+	} else if (sysfs_streq(buf, "sleep")) {
+		serdes->debug = SERDES_SET_PINCTRL_SLEEP;
+		serdes_set_pinctrl_sleep(serdes);
+	} else if (sysfs_streq(buf, "seq")) {
+		serdes->debug = SERDES_SET_SEQUENCE;
+		serdes_i2c_set_sequence(serdes);
+	} else
+		return -EINVAL;
+
+	return len;
+}
+
+static const struct file_operations log_level_fops = {
+	.owner = THIS_MODULE,
+	.open = log_level_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = log_level_write
+};
+
+static const struct file_operations debug_fops = {
+	.owner = THIS_MODULE,
+	.open = debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = debug_write
+};
+
+void serdes_create_debugfs(struct serdes *serdes)
+{
+
+	snprintf(serdes->dir_name, sizeof(serdes->dir_name), "%s-%s",
+				     dev_name(serdes->dev), serdes->chip_data->name);
+
+	serdes->debugfs_dentry = debugfs_create_dir(serdes->dir_name, serdes_debugfs_root);
+	debugfs_create_file("debug", 0664, serdes->debugfs_dentry, serdes,
+				     &debug_fops);
+}
+EXPORT_SYMBOL(serdes_create_debugfs);
+
+void serdes_destroy_debugfs(struct serdes *serdes)
+{
+	debugfs_remove_recursive(serdes->debugfs_dentry);
+}
+EXPORT_SYMBOL(serdes_destroy_debugfs);
+
+void serdes_debugfs_init(void)
+{
+	serdes_debugfs_root = debugfs_create_dir("serdes", NULL);
+
+	debugfs_create_file("log_level", 0664, serdes_debugfs_root, NULL,
+				     &log_level_fops);
+}
+EXPORT_SYMBOL(serdes_debugfs_init);
+
+void serdes_debugfs_exit(void)
+{
+	debugfs_remove_recursive(serdes_debugfs_root);
+}
+EXPORT_SYMBOL(serdes_debugfs_exit);
+
+void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!unlikely(serdes_log_level & BIT(category)))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	pr_info("%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(serdes_dev_dbg);
 
 int serdes_set_pinctrl_default(struct serdes *serdes)
 {

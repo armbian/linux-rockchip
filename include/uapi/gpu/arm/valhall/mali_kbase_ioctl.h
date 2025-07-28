@@ -29,11 +29,7 @@ extern "C" {
 #include <asm-generic/ioctl.h>
 #include <linux/types.h>
 
-#if MALI_USE_CSF
 #include "csf/mali_kbase_csf_ioctl.h"
-#else
-#include "jm/mali_kbase_jm_ioctl.h"
-#endif /* MALI_USE_CSF */
 
 #define KBASE_IOCTL_TYPE 0x80
 
@@ -236,9 +232,9 @@ struct kbase_ioctl_mem_jit_init {
 #define KBASE_IOCTL_MEM_JIT_INIT _IOW(KBASE_IOCTL_TYPE, 14, struct kbase_ioctl_mem_jit_init)
 
 /**
- * struct kbase_ioctl_mem_sync - Perform cache maintenance on memory
+ * struct kbase_ioctl_mem_sync - Perform CPU cache maintenance on GPU memory
  *
- * @handle: GPU memory handle (GPU VA)
+ * @gpu_va: GPU VA of the memory for which cache maintenance needs to be performed.
  * @user_addr: The address where it is mapped in user space
  * @size: The number of bytes to synchronise
  * @type: The direction to synchronise: 0 is sync to memory (clean),
@@ -246,7 +242,7 @@ struct kbase_ioctl_mem_jit_init {
  * @padding: Padding to round up to a multiple of 8 bytes, must be zero
  */
 struct kbase_ioctl_mem_sync {
-	__u64 handle;
+	__u64 gpu_va;
 	__u64 user_addr;
 	__u64 size;
 	__u8 type;

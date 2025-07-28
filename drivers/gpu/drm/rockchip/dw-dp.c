@@ -3295,6 +3295,8 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 		extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, true);
 		dw_dp_audio_handle_plugged_change(dp->audio, true);
 		phy_power_on(dp->phy);
+		link->train.clock_recovered = true;
+		link->train.channel_equalized = true;
 	} else {
 		phy_power_off(dp->phy);
 		extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
@@ -3307,9 +3309,9 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 	}
 }
 
-static int dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+static int dw_dp_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct dw_dp *dp = encoder_to_dp(encoder);
+	struct dw_dp *dp = container_of(sub_dev, struct dw_dp, sub_dev);
 
 	dp->is_loader_protect = true;
 	_dw_dp_loader_protect(dp, on);
@@ -4678,7 +4680,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 				continue;
 		}
 
-		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 10)
+		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 8)
 			continue;
 
 		output_fmts[j++] = fmt->bus_format;

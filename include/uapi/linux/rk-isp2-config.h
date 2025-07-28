@@ -436,6 +436,9 @@ struct rkisp_aiisp_ev_info {
 	int vpsl_index;
 
 	int aiisp_index;
+
+	int y_src_index;
+	int y_dest_index;
 } __attribute__ ((packed));
 
 struct rkisp_aiisp_st {
@@ -449,17 +452,22 @@ struct rkisp_aiisp_st {
 
 	int aipre_gain_index;
 	int vpsl_index;
+
+	int y_src_index;
+	int y_dest_index;
 } __attribute__ ((packed));
 
 /* struct rkisp_aiisp_cfg
- * mode: 0: disable aiisp, 1:enable aiisp
- * wr_linecnt: aiisp write irq line
- * rd_linecnt: aiisp read irq line
+ * mode: 0:isp whole  1:isp divided into isp_fe and isp_be
+ * wr_linecnt: btnr iir write irq line
+ * rd_linecnt: isp_be read irq line
+ * wr_mode: 0:frame with only one RKISP_AIISP_WR_LINECNT_ID event, else event per wr_linecnt
  */
 struct rkisp_aiisp_cfg {
 	int mode;
 	int wr_linecnt;
 	int rd_linecnt;
+	int wr_mode;
 } __attribute__ ((packed));
 
 #define VPSL_YRAW_CHN_MAX	6
@@ -481,6 +489,7 @@ struct rkisp_bnr_buf_info {
 			struct rkisp_buf_info gain;
 			struct rkisp_buf_info aipre_gain;
 			struct rkisp_buf_info vpsl;
+			struct rkisp_buf_info y_src;
 			__u8 iir_rw_fmt;
 			__u8 gain_mode;
 			__u8 yraw_sel;

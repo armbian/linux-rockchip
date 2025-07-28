@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,6 +33,15 @@
  */
 struct kbase_hwcnt_watchdog_info;
 
+/*
+ * Enum describing different types of watchdog disable calls.
+ */
+enum kbase_hwcnt_watchdog_disable_type {
+	KBASE_HWCNT_WATCHDOG_DISABLE_SHOULD_BLOCK,
+	KBASE_HWCNT_WATCHDOG_DISABLE_SHOULD_NOT_BLOCK,
+	KBASE_HWCNT_WATCHDOG_DISABLE_TYPE_CNT
+};
+
 /**
  * typedef kbase_hwcnt_watchdog_callback_fn - Callback function when watchdog timer is done
  *
@@ -59,8 +68,10 @@ typedef int kbase_hwcnt_watchdog_enable_fn(const struct kbase_hwcnt_watchdog_inf
  * typedef kbase_hwcnt_watchdog_disable_fn - Disable watchdog timer
  *
  * @timer: Non-NULL pointer to a watchdog timer interface context
+ * @type: Disable type to use
  */
-typedef void kbase_hwcnt_watchdog_disable_fn(const struct kbase_hwcnt_watchdog_info *timer);
+typedef void kbase_hwcnt_watchdog_disable_fn(const struct kbase_hwcnt_watchdog_info *timer,
+					     enum kbase_hwcnt_watchdog_disable_type type);
 
 /**
  * typedef kbase_hwcnt_watchdog_modify_fn - Modify watchdog timer's timeout

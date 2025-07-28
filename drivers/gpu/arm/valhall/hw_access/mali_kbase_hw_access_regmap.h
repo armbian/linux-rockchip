@@ -22,13 +22,8 @@
 #ifndef _MALI_KBASE_HW_ACCESS_REGMAP_H_
 #define _MALI_KBASE_HW_ACCESS_REGMAP_H_
 
-#if MALI_USE_CSF
 #include "regmap/mali_kbase_regmap_csf_enums.h"
 #include "regmap/mali_kbase_regmap_csf_macros.h"
-#else
-#include "regmap/mali_kbase_regmap_jm_enums.h"
-#include "regmap/mali_kbase_regmap_jm_macros.h"
-#endif
 
 /* GPU_U definition */
 #ifdef __ASSEMBLER__

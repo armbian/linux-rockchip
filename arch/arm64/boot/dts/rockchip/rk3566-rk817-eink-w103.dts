@@ -790,6 +790,8 @@
 
 					cy,vkeys_x = <1404>;
 					cy,vkeys_y = <1872>;
+					cy,max_x = <1872>;
+					cy,max_y = <1404>;
 					cy,revert_x = <0>;
 					cy,revert_y = <0>;
 					cy,xy_exchange = <0>;

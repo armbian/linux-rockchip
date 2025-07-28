@@ -2688,7 +2688,8 @@ static inline void mi_raw_length(struct rkisp_stream *stream)
 		    !IS_HDR_RDBK(stream->ispdev->rd_mode) &&
 		    stream->config->mi.length == MI_RAW2_RD_LENGTH &&
 		    stream->ispdev->unite_div == ISP_UNITE_DIV2) {
-			bytesperline = stream->out_fmt.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			bytesperline = stream->out_fmt.width / 2 +
+					stream->ispdev->hw_dev->unite_extend_pixel;
 			bytesperline = ALIGN(bytesperline * stream->out_isp_fmt.bpp[0] / 8, 256);
 		}
 	}

@@ -111,6 +111,10 @@
 	power-supply = <&vcc3v3_lcd0_n>;
 };
 
+&hynitron {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
 &i2c2 {
 	status = "okay";
 	pinctrl-names = "default";

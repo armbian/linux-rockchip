@@ -184,7 +184,7 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 	rkvpss_cmsc_config(dev, true);
 
 	if (dev->unite_mode)
-		w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		w = w / 2 + dev->unite_extend_pixel;
 
 	rkvpss_unite_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
 
@@ -236,6 +236,8 @@ static int rkvpss_sd_s_power(struct v4l2_subdev *sd, int on)
 				return ret;
 			}
 		}
+		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_GET_UNITE_EXTEND_PIXEL,
+				 &dev->unite_extend_pixel);
 		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_GET_UNITE_MODE,
 				 &dev->unite_mode);
 		ret = pm_runtime_get_sync(dev->dev);

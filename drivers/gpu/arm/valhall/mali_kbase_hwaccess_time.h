@@ -53,15 +53,12 @@
  *
  */
 struct kbase_backend_time {
-#if MALI_USE_CSF
 	u64 multiplier;
 	u64 divisor;
 	s64 gpu_timestamp_offset;
-#endif
 	unsigned int device_scaled_timeouts[KBASE_TIMEOUT_SELECTOR_COUNT];
 };
 
-#if MALI_USE_CSF
 /**
  * kbase_backend_time_convert_gpu_to_cpu() - Convert GPU timestamp to CPU timestamp.
  *
@@ -104,7 +101,6 @@ void kbase_backend_invalidate_gpu_timestamp_offset(struct kbase_device *kbdev);
  * Return: GPU TIMESTAMP OFFSET Register value, as unsigned 64 bit value
  */
 u64 kbase_backend_read_gpu_timestamp_offset_reg(struct kbase_device *kbdev);
-#endif
 #endif
 
 /**
@@ -205,4 +201,11 @@ u64 kbase_arch_timer_get_cntfrq(struct kbase_device *kbdev);
  */
 int kbase_backend_time_init(struct kbase_device *kbdev);
 
+/**
+ * kbase_gpu_timestamp_offset_debugfs_init - Define debugfs entry to read the GPU timestamp offset.
+ *
+ * @kbdev:      kbase device pointer
+ *
+ */
+void kbase_gpu_timestamp_offset_debugfs_init(struct kbase_device *kbdev);
 #endif /* _KBASE_BACKEND_TIME_H_ */

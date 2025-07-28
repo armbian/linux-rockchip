@@ -18,6 +18,10 @@ int rkvpss_debug;
 module_param_named(debug, rkvpss_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-6)");
 
+int rkvpss_buf_dbg;
+module_param_named(buf_dbg, rkvpss_buf_dbg, int, 0644);
+MODULE_PARM_DESC(buf_dbg, "rkvpss buf dbg");
+
 static bool rkvpss_clk_dbg;
 module_param_named(clk_dbg, rkvpss_clk_dbg, bool, 0644);
 MODULE_PARM_DESC(clk_dbg, "rkvpss clk set by user");
@@ -315,6 +319,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, vpss_dev);
 	vpss_dev->dev = dev;
+	vpss_dev->unite_extend_pixel = 128;
 
 	ret = rkvpss_attach_hw(vpss_dev);
 	if (ret)

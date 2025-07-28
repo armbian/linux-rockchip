@@ -92,6 +92,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "internal_master";
 		port {
 			sc450ai_1_out: endpoint {
 				remote-endpoint = <&csi_dphy2_input0>;
@@ -114,6 +115,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "external_master";
 		port {
 			sc450ai_2_out: endpoint {
 				remote-endpoint = <&csi_dphy1_input0>;
@@ -258,7 +260,7 @@
 
 &rkisp_vir0_sditf {
 	status = "okay";
-}
+};
 
 &rkisp_vir1 {
 	status = "okay";

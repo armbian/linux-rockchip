@@ -261,8 +261,10 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
-		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>,
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code",
+				   "specification_serial_number", "remark_spec_serial_number";
 	};
 
 	display_subsystem: display-subsystem {

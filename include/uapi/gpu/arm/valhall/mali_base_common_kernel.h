@@ -25,12 +25,6 @@
 #include <linux/types.h>
 #include "mali_kbase_mem_flags.h"
 
-struct base_mem_handle {
-	struct {
-		__u64 handle;
-	} basep;
-};
-
 #define BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS 4
 
 /* Flags to pass to ::base_context_init.

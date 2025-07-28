@@ -1,0 +1,576 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-vehicle-evb-v20.dtsi"
+#include "rk3576-vehicle-evb-v20-nca9539-io-expander.dtsi"
+#include "rk3576-vehicle-evb-v20-serdes-mfd-display-maxim.dtsi"
+#include "rk3576-vehicle-evb-v20-maxim-max96712-dphy0-ox03j10.dtsi"
+#include "rk3576-vehicle-evb-v20-maxim-max96712-dphy3-sc233at.dtsi"
+#include "rk3576-android.dtsi"
+
+/delete-node/ &vcc5v0_host_usb30;
+
+/ {
+	model = "Rockchip RK3576 VEHICLE EVB V21 Board";
+	compatible = "rockchip,rk3576-vehicle-evb-v21", "rockchip,rk3576";
+
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x2ad40000 console=ttyFIQ0 rcupdate.rcu_expedited=1 rcu_nocbs=all spidev.bufsiz=131072";
+	};
+
+	vehicle_dummy: vehicle-dummy {
+		status = "okay";
+		compatible = "rockchip,vehicle-dummy-adc";
+		io-channels = <&saradc 4>, <&saradc 5>, <&saradc 6>;
+		io-channel-names = "gear", "turn_left", "turn_right";
+	};
+
+	vcc5v0_buck: vcc5v0-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_buck_en>;
+		startup-delay-us = <2500>;
+		off-on-delay-us = <1500>;
+		regulator-state-mem {
+			regulator-on-in-suspend;
+			regulator-suspend-microvolt = <5000000>;
+		};
+	};
+
+	cluster_power_buck: cluster_power-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "cluster_power_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		//enable-active-high;
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+		vin-supply = <&vcc_1v8_s0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cluster_buck_en>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <1800000>;
+		};
+	};
+
+	usb_otg_vcc5v_buck: usb_otg_vcc5v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_otg_vcc5v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		//enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_buck>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <5000000>;
+		};
+	};
+
+	usb_host_vcc5v_buck: usb_host_vcc5v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_host_vcc5v_buck";
+		//regulator-boot-on;
+		//regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_buck>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <5000000>;
+		};
+	};
+
+	lcd1_vcc12v_buck: lcd1_vcc12v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd1_vcc12v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 2 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	lcd2_vcc12v_buck: lcd2_vcc12v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd2_vcc12v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 3 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	lcd1_ser_vcc5v_buck: lcd1_ser_vcc5v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd1_ser_vcc5v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_buck>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <5000000>;
+		};
+	};
+
+	lcd2_ser_vcc5v_buck: lcd2_ser_vcc5v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd2_ser_vcc5v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_buck>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <5000000>;
+		};
+	};
+
+	adsp_vcc12v_buck: adsp_vcc12v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "adsp_vcc12v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c0_nca9539_gpio 6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	lcd3_vcc12v_buck: lcd3_vcc12v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd3_vcc12v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	lcd3_vcc5v_buck: lcd3_vcc5v-buck {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd3_vcc5v_buck";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dcphy0_vcc12v_buck1: dcphy0_vcc12v-buck1 {
+		compatible = "regulator-fixed";
+		regulator-name = "dcphy0_vcc12v_buck1";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 3 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dcphy0_vcc12v_buck2: dcphy0_vcc12v-buck2 {
+		compatible = "regulator-fixed";
+		regulator-name = "dcphy0_vcc12v_buck2";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dcphy0_vcc12v_buck3: dcphy0_vcc12v-buck3 {
+		compatible = "regulator-fixed";
+		regulator-name = "dcphy0_vcc12v_buck3";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 5 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dcphy0_vcc12v_buck4: dcphy0_vcc12v-buck4 {
+		compatible = "regulator-fixed";
+		regulator-name = "dcphy0_vcc12v_buck4";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 6 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy0_vcc12v_buck1: dphy0_vcc12v-buck1 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy0_vcc12v_buck1";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 7 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy0_vcc12v_buck2: dphy0_vcc12v-buck2 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy0_vcc12v_buck2";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 8 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy0_vcc12v_buck3: dphy0_vcc12v-buck3 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy0_vcc12v_buck3";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 9 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy0_vcc12v_buck4: dphy0_vcc12v-buck4 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy0_vcc12v_buck4";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy3_vcc12v_buck1: dphy3_vcc12v-buck1 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy3_vcc12v_buck1";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 11 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy3_vcc12v_buck2: dphy3_vcc12v-buck2 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy3_vcc12v_buck2";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 12 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy3_vcc12v_buck3: dphy3_vcc12v-buck3 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy3_vcc12v_buck3";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 13 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+
+	dphy3_vcc12v_buck4: dphy3_vcc12v-buck4 {
+		compatible = "regulator-fixed";
+		regulator-name = "dphy3_vcc12v_buck4";
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&i2c7_nca9539_gpio 14 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <2000>;
+		off-on-delay-us = <16000>;
+		vin-supply = <&vcc12v_dcin>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+			regulator-suspend-microvolt = <12000000>;
+		};
+	};
+};
+
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&hym8563 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m0_xfer>;
+};
+
+/*edp*/
+&i2c3_max96752 {
+	use-reg-check-work;
+	vpower-supply = <&lcd1_vcc12v_buck>;
+};
+
+/*edp touch*/
+&i2c3_himax {
+	himax,irq-gpio = <&gpio0 RK_PB6 IRQ_TYPE_EDGE_FALLING>;
+};
+
+/*dp*/
+&i2c5_max96745 {
+	lock-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c5_ilitek {
+	interrupt-parent = <&gpio4>;
+	interrupts = <RK_PA0 IRQ_TYPE_LEVEL_LOW>;
+};
+
+/*dp*/
+&i2c5_max96752 {
+	use-reg-check-work;
+	vpower-supply = <&lcd2_vcc12v_buck>;
+};
+
+&i2c8_max96789 {
+	route-enable;
+};
+
+/*dsi*/
+&i2c8_max96752 {
+	use-reg-check-work;
+	vpower-supply = <&lcd3_vcc12v_buck>;
+};
+
+&dp2lvds_backlight0 {
+	pwms = <&pwm2_8ch_7 0 25000 0>;
+};
+
+&edp2lvds_backlight0 {
+	pwms = <&pwm0_2ch_0 0 25000 0>;
+};
+
+/* edp->serdes->lvds_panel */
+&pwm0_2ch_0 {
+	pinctrl-0 = <&pwm0m3_ch0>;
+};
+
+/* dp->serdes->lvds_panel */
+&pwm2_8ch_7 {
+	pinctrl-0 = <&pwm2m3_ch7>;
+};
+
+&pinctrl {
+	touch {
+		//dsi-i2c8
+		touch_gpio_dsi: touch-gpio-dsi {
+			rockchip,pins =
+				<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		//dp-i2c5
+		touch_gpio_dp: touch-gpio-dp {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		//edp0-i2c3
+		touch_gpio_edp: touch-gpio-edp {
+			rockchip,pins =
+				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	vcc5v0-buck {
+		vcc5v0_buck_en: vcc5v0-buck-en {
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cluster-buck {
+		cluster_buck_en: cluster-buck-en {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&ufs {
+	status = "disabled";
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	//vbus-supply = <&usb_otg_vcc5v_buck>;
+	status = "okay";
+};
+
+&u2phy1_otg {
+	phy-supply = <&usb_host_vcc5v_buck>;
+	status = "okay";
+};
+
+&usbdp_phy {
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};

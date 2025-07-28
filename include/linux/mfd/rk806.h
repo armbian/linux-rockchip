@@ -541,6 +541,8 @@ extern const struct regmap_config rk806_regmap_config;
 extern const struct of_device_id rk806_of_match[];
 int rk806_device_init(struct rk806 *rk806);
 int rk806_device_exit(struct rk806 *rk806);
+int rk806_core_suspend(struct device *dev);
+int rk806_core_resume(struct device *dev);
 int rk806_field_write(struct rk806 *rk806,
 		      enum rk806_fields field_id,
 		      unsigned int val);

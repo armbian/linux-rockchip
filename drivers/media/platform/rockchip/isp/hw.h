@@ -93,6 +93,7 @@ struct rkisp_hw_dev {
 	u64 iq_feature;
 	int buf_init_cnt;
 	u32 unite;
+	u32 unite_extend_pixel;
 	bool is_feature_on;
 	bool is_dma_contig;
 	bool is_dma_sg_ops;

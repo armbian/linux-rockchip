@@ -717,7 +717,7 @@ static long sc3338_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			memcpy(&sc3338->cam_sw_inf->hdr_ae, (struct preisp_hdrae_exp_s *)(arg),
 				sizeof(struct preisp_hdrae_exp_s));
 		break;
-	case RKMODULE_SET_QUICK_STREAM:
+	case RKMODULE_SET_QUICK_STREAM:;
 
 		stream = *((u32 *)arg);
 
@@ -1591,7 +1591,7 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&sc3338_i2c_driver);
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
 subsys_initcall(sensor_mod_init);
 #else
 device_initcall_sync(sensor_mod_init);

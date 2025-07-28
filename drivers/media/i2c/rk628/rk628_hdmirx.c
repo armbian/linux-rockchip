@@ -107,6 +107,25 @@ static int supported_fs[] = {
 	-1
 };
 
+static int rk628_hdmirx_write_nolock(struct rk628 *rk628, u32 reg, u32 val)
+{
+	int region = (reg >> 16) & 0xff;
+	int ret = 0;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = regmap_write(rk628->regmap[region], reg, val);
+	if (ret < 0)
+		dev_err(rk628->dev,
+			"%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
+
+	return ret;
+}
+
 static int hdcp_load_keys_cb(struct rk628 *rk628, struct rk628_hdcp *hdcp)
 {
 	int size;
@@ -1932,11 +1951,11 @@ void rk628_hdmirx_controller_reset(struct rk628 *rk628)
 	rk628_control_deassert(rk628, RGU_HDMIRX);
 	rk628_control_deassert(rk628, RGU_HDMIRX_PON);
 	usleep_range(20 * 1000, 20 * 1100);
+	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_SW_RST, 0x000101ff);
+	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
+	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
+	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
 	mutex_unlock(&rk628->rst_lock);
-	rk628_i2c_write(rk628, HDMI_RX_DMI_SW_RST, 0x000101ff);
-	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
-	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
-	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_reset);
 

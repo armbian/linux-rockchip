@@ -98,6 +98,7 @@ static void sditf_buffree_work(struct work_struct *work)
 		if (rx_buf) {
 			list_del(&rx_buf->list_free);
 			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
+			rkcif_free_reserved_mem(rx_buf->shmem.shm_start, rx_buf->shmem.shm_size);
 			memset(rx_buf, 0, sizeof(*rx_buf));
 			rx_buf->dummy.is_free = true;
 		}
@@ -218,7 +219,7 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 
 		out_fmt = rkcif_find_output_fmt(NULL, pixm.pixelformat);
 		if (priv->toisp_inf.link_mode == TOISP_UNITE &&
-		    ((pixm.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) * out_fmt->raw_bpp / 8) & 0xf)
+		    ((pixm.width / 2 - cif_dev->unite_extend_pixel) * out_fmt->raw_bpp / 8) & 0xf)
 			is_uncompact = true;
 
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
@@ -816,7 +817,7 @@ static int sditf_channel_enable_rv1103b(struct sditf_priv *priv, int user)
 	if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
 	    priv->toisp_inf.link_mode == TOISP_UNITE) {
 		if (capture_info->multi_dev.dev_num != 2 ||
-		    capture_info->multi_dev.pixel_offset != RKMOUDLE_UNITE_EXTEND_PIXEL) {
+		    capture_info->multi_dev.pixel_offset != cif_dev->unite_extend_pixel) {
 			v4l2_err(&cif_dev->v4l2_dev,
 				 "param error of online mode, combine dev num %d, offset %d\n",
 				 capture_info->multi_dev.dev_num,
@@ -887,9 +888,9 @@ static int sditf_channel_enable_rv1103b(struct sditf_priv *priv, int user)
 	if (user == 0) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE) {
 			width /= 2;
-			width += RKMOUDLE_UNITE_EXTEND_PIXEL;
+			width += cif_dev->unite_extend_pixel;
 		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
-			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			width = priv->cap_info.width / 2 + cif_dev->unite_extend_pixel;
 		}
 		rkcif_write_register(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_ch0);
 		rkcif_write_register(cif_dev, CIF_REG_TOISP0_CROP,
@@ -944,7 +945,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
 	    priv->toisp_inf.link_mode == TOISP_UNITE) {
 		if (capture_info->multi_dev.dev_num != 2 ||
-		    capture_info->multi_dev.pixel_offset != RKMOUDLE_UNITE_EXTEND_PIXEL) {
+		    capture_info->multi_dev.pixel_offset != cif_dev->unite_extend_pixel) {
 			v4l2_err(&cif_dev->v4l2_dev,
 				 "param error of online mode, combine dev num %d, offset %d\n",
 				 capture_info->multi_dev.dev_num,
@@ -1021,7 +1022,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 		ctrl_val |= BIT(28);
 	if (user == 0) {
 		if (priv->toisp_inf.link_mode == TOISP_UNITE)
-			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			width = priv->cap_info.width / 2 + cif_dev->unite_extend_pixel;
 		rkcif_write_register(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_val);
 		if (width && height) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP0_CROP,
@@ -1036,8 +1037,8 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 			if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE)
 				offset_x = 0;
 			else
-				offset_x = priv->cap_info.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
-			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+				offset_x = priv->cap_info.width / 2 - cif_dev->unite_extend_pixel;
+			width = priv->cap_info.width / 2 + cif_dev->unite_extend_pixel;
 		}
 		rkcif_write_register(cif_dev, CIF_REG_TOISP1_CTRL, ctrl_val);
 		if (width && height) {
@@ -1330,6 +1331,8 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 	if (on && atomic_inc_return(&priv->power_cnt) > 1)
 		return 0;
 
+	if (on)
+		rkcif_update_unite_extend_pixel(cif_dev);
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, toisp mode %d, hdr %d, set power %d\n",
@@ -1453,7 +1456,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			if (cif_dev->is_thunderboot ||
 			    cif_dev->is_rtt_suspend ||
 			    cif_dev->is_aov_reserved)
-				dma_sync_single_for_device(cif_dev->dev,
+				dma_sync_single_for_device(cif_dev->hw_dev->dev,
 							   rx_buf->dummy.dma_addr + rx_buf->dummy.size -
 							   stream->pixm.plane_fmt[0].bytesperline * 3,
 							   stream->pixm.plane_fmt[0].bytesperline * 3,
@@ -1462,6 +1465,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 				cif_dev->hw_dev->mem_ops->prepare(rx_buf->dummy.mem_priv);
 		}
 	}
+	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	if (dbufs->is_switch && dbufs->type == BUF_SHORT) {
 		if (stream->is_in_vblank || !stream->dma_en) {
@@ -1474,7 +1478,6 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 			 "switch to online mode\n");
 	}
-	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	spin_lock_irqsave(&stream->cifdev->stream_spinlock, flags);
 	stream->is_finish_single_cap = true;

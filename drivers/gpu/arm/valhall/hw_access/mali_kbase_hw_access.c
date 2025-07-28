@@ -33,30 +33,12 @@
 
 static u32 always_powered_regs[] = {
 
-#if !MALI_USE_CSF
-	PTM_AW_IRQ_CLEAR,
-	PTM_AW_IRQ_INJECTION,
-	PTM_AW_IRQ_MASK,
-	PTM_AW_IRQ_RAWSTAT,
-	PTM_AW_IRQ_STATUS,
-	PTM_AW_MESSAGE__PTM_INCOMING_MESSAGE0,
-	PTM_AW_MESSAGE__PTM_INCOMING_MESSAGE1,
-	PTM_AW_MESSAGE__PTM_OUTGOING_MESSAGE0,
-	PTM_AW_MESSAGE__PTM_OUTGOING_MESSAGE1,
-	PTM_AW_MESSAGE__PTM_OUTGOING_MESSAGE_STATUS,
-	PTM_ID,
-#endif /* !MALI_USE_CSF */
 };
 
 static void kbasep_reg_setup_always_powered_registers(struct kbase_device *kbdev)
 {
 	u32 i;
 
-
-#if !MALI_USE_CSF
-	if (kbdev->gpu_props.gpu_id.arch_id < GPU_ID_ARCH_MAKE(9, 14, 0))
-		return;
-#endif /* MALI_USE_CSF */
 
 	for (i = 0; i < ARRAY_SIZE(always_powered_regs); i++) {
 		u32 reg_enum = always_powered_regs[i];

@@ -303,6 +303,7 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 			KBASE_DUMMY_MODEL_MAX_NUM_HARDWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
 		.prfcnt_fw_size =
 			KBASE_DUMMY_MODEL_MAX_FIRMWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
+		.metadata_size = 0,
 		.dump_bytes = KBASE_DUMMY_MODEL_MAX_SAMPLE_SIZE,
 		.prfcnt_block_size = KBASE_DUMMY_MODEL_BLOCK_SIZE,
 		.clk_cnt = 1,
@@ -317,6 +318,8 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	u32 prfcnt_size;
 	u32 prfcnt_hw_size;
 	u32 prfcnt_fw_size;
+	u32 prfcnt_features;
+	u32 metadata_size;
 	u32 csg_count;
 	u32 fw_block_count = 0;
 	u32 prfcnt_block_size =
@@ -330,8 +333,10 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	kbdev = fw_ctx->kbdev;
 	csg_count = kbdev->csf.global_iface.group_num;
 	prfcnt_size = kbdev->csf.global_iface.prfcnt_size;
+	prfcnt_features = kbdev->csf.global_iface.prfcnt_features;
 	prfcnt_hw_size = GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET(prfcnt_size);
 	prfcnt_fw_size = GLB_PRFCNT_SIZE_FIRMWARE_SIZE_GET(prfcnt_size);
+	metadata_size = GLB_PRFCNT_FEATURES_METADATA_SIZE_GET(prfcnt_features);
 	has_virtual_core_ids = kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(14, 8, 4);
 
 	/* Read the block size if the GPU has the register PRFCNT_FEATURES
@@ -355,10 +360,11 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	else
 		WARN_ON_ONCE(true);
 
-	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size;
+	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size + metadata_size;
 	*prfcnt_info = (struct kbase_hwcnt_backend_csf_if_prfcnt_info){
 		.prfcnt_hw_size = prfcnt_hw_size,
 		.prfcnt_fw_size = prfcnt_fw_size,
+		.metadata_size = metadata_size,
 		.dump_bytes = fw_ctx->buf_bytes,
 		.prfcnt_block_size = prfcnt_block_size,
 		.l2_count = kbdev->gpu_props.num_l2_slices,
@@ -380,10 +386,17 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	else
 		WARN_ON(prfcnt_info->ne_core_mask != 0);
 
+	WARN((metadata_size % prfcnt_info->prfcnt_block_size) != 0,
+	     "Metadata block size is not aligned to block size (metadata size %u, block size %zu)",
+	     metadata_size, prfcnt_info->prfcnt_block_size);
 	/* Block size must be multiple of counter size. */
-	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) != 0);
+	WARN((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) != 0,
+	     "Block size is not a multiple of counter size (block size %zu, counter size %lu)",
+	     prfcnt_info->prfcnt_block_size, (unsigned long)KBASE_HWCNT_VALUE_HW_BYTES);
 	/* Total size must be multiple of block size. */
-	WARN_ON((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) != 0);
+	WARN((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) != 0,
+	     "Total size should be a multiple of block size (total size %zu, block size %zu)",
+	     prfcnt_info->dump_bytes, prfcnt_info->prfcnt_block_size);
 #endif
 }
 
@@ -440,8 +453,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 		goto page_list_alloc_error;
 
 	/* Get physical page for the buffer */
-	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false, NULL);
+	ret = kbase_mem_pool_alloc_pages(&kbdev->fw_mem_pools.small, num_pages, phys, false, NULL);
 	if ((size_t)ret != num_pages)
 		goto phys_mem_pool_alloc_error;
 
@@ -484,8 +496,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 mmu_insert_failed:
 	vunmap(cpu_addr);
 vmap_error:
-	kbase_mem_pool_free_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages, phys,
-				  false, false);
+	kbase_mem_pool_free_pages(&kbdev->fw_mem_pools.small, num_pages, phys, false, false);
 phys_mem_pool_alloc_error:
 	kfree(page_list);
 page_list_alloc_error:
@@ -604,7 +615,7 @@ kbasep_hwcnt_backend_csf_if_fw_ring_buf_free(struct kbase_hwcnt_backend_csf_if_c
 		/* After zeroing, the ring_buf pages are dirty so need to pass the 'dirty' flag
 		 * as true when freeing the pages to the Global pool.
 		 */
-		kbase_mem_pool_free_pages(&fw_ctx->kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW],
+		kbase_mem_pool_free_pages(&fw_ctx->kbdev->fw_mem_pools.small,
 					  fw_ring_buf->num_pages, fw_ring_buf->phys, true, false);
 
 		kfree(fw_ring_buf->phys);
@@ -640,6 +651,7 @@ kbasep_hwcnt_backend_csf_if_fw_dump_enable(struct kbase_hwcnt_backend_csf_if_ctx
 	/* Configure */
 	prfcnt_config = GLB_PRFCNT_CONFIG_SIZE_SET(0, fw_ring_buf->buf_count);
 	prfcnt_config = GLB_PRFCNT_CONFIG_SET_SELECT_SET(prfcnt_config, enable->counter_set);
+	prfcnt_config = GLB_PRFCNT_CONFIG_METADATA_ENABLE_SET(prfcnt_config, 1);
 
 	/* Configure the ring buffer base address */
 	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_JASID, fw_ring_buf->as_nr);
@@ -808,15 +820,27 @@ kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count(struct kbase_hwcnt_backend_cs
 		if (!(clk_enable_map & (1ull << clk)))
 			continue;
 
-		if (clk == KBASE_CLOCK_DOMAIN_TOP) {
+		/* Collect cycle count from GPU register.
+		 * If GPU is unavailable, fall back to a SW estimation.
+		 */
+		if (clk == KBASE_CLOCK_DOMAIN_TOP && kbase_io_has_gpu(fw_ctx->kbdev)) {
 			/* Read cycle count for top clock domain. */
 			kbase_backend_get_gpu_time_norequest(fw_ctx->kbdev, &cycle_counts[clk],
 							     NULL, NULL);
-		} else {
-			/* Estimate cycle count for non-top clock domain. */
-			cycle_counts[clk] =
-				kbase_ccswe_cycle_at(&fw_ctx->ccswe_shader_cores, timestamp_ns);
+
+			/* Check again if the device is lost.
+			 * If we still have GPU, then the value is correct and we can continue with
+			 * the next loop iteration.
+			 * If it's lost, we can't guarantee we have read good data out
+			 * from CYCLE_COUNT, so fall back to the SW estimated cycle count.
+			 */
+			if (kbase_io_has_gpu(fw_ctx->kbdev))
+				continue;
 		}
+		/* Estimate cycle count for non-top clock domain or for the top clock domain while
+		 * the device is lost.
+		 */
+		cycle_counts[clk] = kbase_ccswe_cycle_at(&fw_ctx->ccswe_shader_cores, timestamp_ns);
 	}
 }
 

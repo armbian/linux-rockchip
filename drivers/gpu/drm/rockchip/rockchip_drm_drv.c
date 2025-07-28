@@ -383,7 +383,7 @@ void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_dis
 
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
-		if (sub_dev->connector->state->crtc == crtc) {
+		if (sub_dev->connector && sub_dev->connector->state->crtc == crtc) {
 			if (sub_dev->update_vfp_for_vrr)
 				sub_dev->update_vfp_for_vrr(sub_dev->connector, mode, vfp);
 		}
@@ -433,7 +433,7 @@ int rockchip_drm_get_sub_dev_type(void)
 
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
-		if (sub_dev->connector->encoder) {
+		if (sub_dev->connector && sub_dev->connector->encoder) {
 			connector_type = sub_dev->connector->connector_type;
 			break;
 		}
@@ -452,7 +452,8 @@ u32 rockchip_drm_get_scan_line_time_ns(void)
 
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
-		if (sub_dev->connector->encoder && sub_dev->connector->state->crtc) {
+		if (sub_dev->connector && sub_dev->connector->encoder &&
+		    sub_dev->connector->state->crtc) {
 			mode = &sub_dev->connector->state->crtc->state->adjusted_mode;
 			linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, mode->crtc_clock);
 			break;
@@ -1481,6 +1482,9 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	private->cubic_lut_size_prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
 								 "CUBIC_LUT_SIZE", 0, UINT_MAX);
 
+	private->dimming_data_prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+							 "DIMMING_DATA", 0);
+
 	return drm_mode_create_tv_properties_legacy(dev, 0, NULL);
 }
 
@@ -1755,6 +1759,21 @@ static void rockchip_drm_error_event_fini(struct drm_device *drm_dev)
 		kthread_stop(priv->error_event.thread);
 	device_remove_file(drm_dev->dev, &dev_attr_error_event);
 }
+
+int rockchip_drm_panel_loader_protect(struct drm_panel *panel, bool on)
+{
+	struct rockchip_drm_sub_dev *sub_dev;
+
+	if (!panel)
+		return -EINVAL;
+
+	sub_dev = rockchip_drm_get_sub_dev(panel->dev->of_node);
+	if (sub_dev && sub_dev->loader_protect)
+		return sub_dev->loader_protect(sub_dev, on);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_panel_loader_protect);
 
 static int rockchip_drm_bind(struct device *dev)
 {

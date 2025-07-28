@@ -383,6 +383,17 @@
 	status = "okay";
 };
 
+&rgb {
+	/*
+	 * RV1126 compatible pin output mode 0.
+	 *
+	 * MCU: ROCKCHIP_MCU_DATA_MAP_DATA_1x24
+	 * BT1120: ROCKCHIP_BT1120_DATA_MAP_DATA_PADLO
+	 * BT656: ROCKCHIP_BT656_DATA_MAP_PADLO
+	 */
+	rockchip,data-map-mode = <0>;
+};
+
 &rkdvbm {
 	status = "okay";
 };

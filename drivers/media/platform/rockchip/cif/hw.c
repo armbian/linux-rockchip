@@ -2074,8 +2074,8 @@ static void __exit rk_cif_plat_drv_exit(void)
 	rkcif_csi2_hw_plat_drv_exit();
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
-subsys_initcall(rk_cif_plat_drv_init);
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
+subsys_initcall_sync(rk_cif_plat_drv_init);
 #else
 #if !defined(CONFIG_VIDEO_REVERSE_IMAGE)
 module_init(rk_cif_plat_drv_init);

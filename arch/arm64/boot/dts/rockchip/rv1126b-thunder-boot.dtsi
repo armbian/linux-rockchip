@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	thunder_boot_rkisp: thunder-boot-rkisp {
+		compatible = "rockchip,thunder-boot-rkisp";
+		clocks = <&cru CLK_HPMCU>,
+			 <&cru PCLK_HPMCU_INTMUX>, <&cru PCLK_HPMCU_MAILBOX>,
+			 <&cru PCLK_WDT_HPMCU>, <&cru HCLK_CACHE>,
+			 <&cru PCLK_TIMER>,
+			 <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru CLK_CORE_ISP>, <&cru ISP0CLK_VICAP>,
+			 <&cru ACLK_VICAP>, <&cru HCLK_VICAP>,
+			 <&cru DCLK_VICAP>, <&cru ISP0CLK_VICAP>,
+			 <&cru PCLK_CSI2HOST0>, <&cru PCLK_CSI2HOST1>,
+			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
+		clock-names = "clk_hpmcu",
+			      "pclk_hpmcu_intmux", "pclk_hpmcu_mailbox",
+			      "pclk_wdt_hpmcu", "hclk_cache",
+			      "pclk_timer",
+			      "aclk_isp", "hclk_isp",
+			      "clk_isp_core", "clk_isp_core_vicap",
+			      "aclk_cif","hclk_cif",
+			      "dclk_cif", "isp0clk_cif",
+			      "pclk_csi2host0", "pclk_csi2host1",
+			      "clk_i2c4", "pclk_i2c4";
+	};
+
+	thunder_boot_service: thunder-boot-service {
+		compatible = "rockchip,thunder-boot-service";
+		mbox-names = "amp-rx";
+		mboxes = <&hpmcu_mbox0 0>;
+		resets = <&cru SRST_RESETN_HPMCU_FULL_CLUSTER>;
+		reset-names = "hpmcu_full_cluster";
+		memory-region = <&rtos>;
+		status = "okay";
+	};
+};
+
+&hpmcu_mbox0 {
+	status = "okay";
+};
+
+&hw_decompress {
+	memory-region = <&ramdisk_c>;
+	status = "okay";
+};
+
+&reserved_memory {
+	/*
+	 * reserved memory layout
+	 *
+	 *  H		 _______________________
+	 *		|			|
+	 *		|	ramdisk_c	|
+	 *		|_______________________|
+	 *		|			|
+	 *		|	ramdisk_r	|
+	 * 0x48c40000	|_______________________|
+	 *		|			|
+	 *		|        mcu_log	|
+	 * 0x48c3c000	|_______________________|
+	 *		|			|
+	 *		|         mcu		|
+	 * 0x48c00000	|_______________________|
+	 *		|			|
+	 *		|     [TEEOS+TA+SHM]	|
+	 * 0x48400000	|_______________________|
+	 *		|			|
+	 *		|    isp[0..1]_tb_rmem	|
+	 *		|_______________________|
+	 *		|			|
+	 *		|         meta		|
+	 * 0x41240000	|_______________________|
+	 *		|			|
+	 *		|	   fdt		|
+	 * 0x41200000	|_______________________|
+	 *		|			|
+	 *		|	kernel_r	|
+	 * 0x40208000	|_______________________|
+	 *		|			|
+	 *		|	   bl31		|
+	 * L		|_______________________|
+	 *
+	 */
+
+	meta: meta@41240000 {
+		/* reg's offset MUST match with RTOS */
+		reg = <0x41240000 0x000e0000>;
+	};
+
+	rkisp_thunderboot: rkisp@41320000 {
+		/* reg's offset MUST match with RTOS */
+		/*
+		 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+		 * e.g. 1920x1080: 0xa8c000
+		 */
+		reg = <0x41320000 0xa8c000>;
+	};
+
+	rkisp1_thunderboot: rkisp1_thunderboot {
+		/* vicap capture for a second camera */
+	};
+
+	/* Should enable this node if the security feature is enabled, like TA. */
+	tee: tee@48400000 {
+		reg = <0x48400000 0x00800000>;
+		status = "disabled";
+	};
+
+	rtos: rtos@48c00000 {
+		reg = <0x48c00000 0x0003a000>;
+	};
+
+	mcu_log: mcu_log@48c3c000 {
+		reg = <0x48c3c000 0x4000>;
+	};
+
+	ramdisk_r: ramdisk_r {
+		reg = <0x48c40000 (10 * 0x00100000)>;
+	};
+
+	ramdisk_c: ramdisk_c {
+		reg = <0x49640000 (5 * 0x00100000)>;
+	};
+};

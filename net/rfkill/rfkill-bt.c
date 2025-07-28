@@ -775,6 +775,7 @@ static void rfkill_rk_remove(struct platform_device *pdev)
 	rfkill_unregister(rfkill->rfkill_dev);
 	rfkill_destroy(rfkill->rfkill_dev);
 	remove_proc_subtree("bluetooth/sleep", NULL);
+	remove_proc_entry("bluetooth", NULL);
 
 	cancel_delayed_work_sync(&rfkill->bt_sleep_delay_work);
 

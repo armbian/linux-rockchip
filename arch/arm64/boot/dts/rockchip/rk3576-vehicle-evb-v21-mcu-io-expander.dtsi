@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#define MCU_PERI_5V_EN			0x01
+#define MCU_CAM1_PWREN			0x02
+#define MCU_CAM2_PWREN			0x03
+#define DSP_CORE_PWR_EN			0x04
+#define MCU_DSP_RST			0x05
+#define FM_PWR_EN_MCU			0x06
+#define ADC_PWDN_MCU			0x07
+#define MCU_ADSP_VCC12V_EN		0x08
+#define MCU_CAM3_PWREN			0x08
+#define A2B_PWR_EN_MCU			0x09
+#define MCU_RSTB_ETH			0x0a
+#define MCU_DISB_ETH			0x0b
+#define MUTE_AMP_MCU			0x0c
+#define MCU_LCD1_SER_EN			0x0a
+#define MCU_LCD2_SER_EN			0x0b
+#define MCU_LCD3_SER_EN			0x0c
+#define STANDBY_AMP_MCU			0x0d
+#define MCU_CTRL_CluPWR			0x0e
+#define MCU_LCD1_12V_EN			0x0f
+#define MCU_LCD2_12V_EN			0x10
+#define MCU_LCD3_12V_EN			0x11
+#define MCU_CAM1_OUT1_EN		0x12
+#define MCU_CAM1_OUT2_EN		0x13
+#define MCU_CAM1_OUT3_EN		0x14
+#define MCU_CAM1_OUT4_EN		0x15
+#define MCU_CAM2_OUT1_EN		0x16
+#define MCU_CAM2_OUT2_EN		0x17
+#define MCU_CAM2_OUT3_EN		0x18
+#define MCU_CAM2_OUT4_EN		0x19
+#define MCU_CAM3_OUT1_EN		0x1a
+#define MCU_CAM3_OUT2_EN		0x1b
+#define MCU_CAM3_OUT3_EN		0x1c
+#define MCU_CAM3_OUT4_EN		0x1d
+#define MCU_USB3HOST_PWREN		0x1e
+#define USB_OTG0_PWREN_H		0x1f
+#define MCU_CTRL_VSYS			0x20
+#define DSP_VCC1V8_PWR_EN		0x21
+#define DSP_VCC3V3_PWR_EN		0x22
+
+#define PERI_5V_PG			0x92
+#define SYS4V_PG			0x93
+#define FAULT_AMP3_MCU			0x92
+#define FAULT_AMP4_MCU			0x93
+#define MCU_DSP_FAULTB			0x94
+#define ADC_INT_MCU			0x95
+#define A2B_IRQ_MCU			0x96
+#define ACC_DET				0x97
+#define BACK_DET			0x98
+#define MCU_CAM2_OUT1_DIAG		0x99
+#define MCU_CAM2_OUT2_DIAG		0x9a
+#define MCU_CAM2_OUT3_DIAG		0x9b
+#define MCU_CAM2_OUT4_DIAG		0x9c
+#define MCU_LCD1_PWR_DIAG		0x9d
+#define MCU_LCD2_PWR_DIAG		0x9e
+#define MCU_LCD3_PWR_DIAG		0x9f
+
+/ {
+	gpio_mcu_rockchip: gpio-mcu-rockchip {
+		compatible = "rockchip,mcu-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		status = "okay";
+	};
+};
+
+&spi4 {
+	compatible = "rockchip,spi-slave";
+	status = "okay";
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi4m3_csn0 &spi4m3_pins>;
+	ready-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+	slave@0 {
+		compatible = "rockchip,vehicle-spi";
+		status = "okay";
+		id  = <0x0>;
+		reg = <0x0>;
+		spi-max-frequency = <1000000>;
+		spi-lsb-first;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi_irq_mcu>;
+		irq-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	slave-external-mcu {
+		spi_irq_mcu: spi-irq-mcu {
+			rockchip,pins = <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

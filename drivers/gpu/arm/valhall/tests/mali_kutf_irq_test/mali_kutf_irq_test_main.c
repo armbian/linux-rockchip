@@ -85,7 +85,6 @@ static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 	u64 tval;
 	bool has_test_irq = val & test_irq;
 
-#if MALI_USE_CSF
 	if (kbdev->pm.backend.has_host_pwr_iface) {
 		status_reg_enum = HOST_POWER_ENUM(PWR_IRQ_STATUS);
 		clear_reg_enum = HOST_POWER_ENUM(PWR_IRQ_CLEAR);
@@ -93,7 +92,6 @@ static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 		val = kbase_reg_read32(kbdev, status_reg_enum);
 		has_test_irq = val & test_irq;
 	}
-#endif
 
 	if (has_test_irq) {
 		tval = ktime_get_real_ns();
@@ -201,12 +199,10 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 		triggered = false;
 
 		/* Trigger fake IRQ */
-#if MALI_USE_CSF
 		if (kbdev->pm.backend.has_host_pwr_iface) {
 			reg_enum = HOST_POWER_ENUM(PWR_IRQ_RAWSTAT);
 			test_irq = PWR_IRQ_POWER_CHANGED_SINGLE;
 		}
-#endif
 		kbase_reg_write32(kbdev, reg_enum, test_irq);
 
 		if (wait_event_timeout(wait, triggered, IRQ_TIMEOUT) == 0) {

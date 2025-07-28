@@ -535,7 +535,7 @@ u64 rkisp_time_get_ns(struct rkisp_device *dev)
 {
 	u64 ns;
 
-	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33)
+	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33 || dev->isp_ver == ISP_V35)
 		ns = ktime_get_boottime_ns();
 	else
 		ns = ktime_get_ns();

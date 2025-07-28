@@ -82,7 +82,7 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		u32 right_w, left_w = tmp.width;
 
 		reg = stream->config->dual_crop.h_offset;
-		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_RIGHT, false);
 		reg = stream->config->dual_crop.h_size;
 		right_w = rect->width - left_w;
 		rkisp_idx_write(dev, reg, right_w, ISP_UNITE_RIGHT, false);
@@ -91,7 +91,7 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_RIGHT, false);
 		/* output with scale */
 		if (stream->out_fmt.width < rect->width) {
-			left_w += RKMOUDLE_UNITE_EXTEND_PIXEL;
+			left_w += dev->hw_dev->unite_extend_pixel;
 			reg = stream->config->dual_crop.h_size;
 			rkisp_idx_write(dev, reg, left_w, ISP_UNITE_LEFT, false);
 		}
@@ -100,20 +100,20 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 			 tmp.left, tmp.top, left_w, tmp.height);
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "right dcrop (%d, %d) %dx%d\n",
-			 RKMOUDLE_UNITE_EXTEND_PIXEL, tmp.top, right_w, tmp.height);
+			 dev->hw_dev->unite_extend_pixel, tmp.top, right_w, tmp.height);
 	}
 	if (dev->unite_div == ISP_UNITE_DIV4) {
 		reg = stream->config->dual_crop.h_offset;
 		rkisp_idx_write(dev, reg, tmp.left, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT_B, false);
+		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_RIGHT_B, false);
 
 		reg = stream->config->dual_crop.h_size;
 		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_LEFT_B, false);
 		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_RIGHT_B, false);
 
 		reg = stream->config->dual_crop.v_offset;
-		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT_B, false);
+		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_LEFT_B, false);
+		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_RIGHT_B, false);
 
 		reg = stream->config->dual_crop.ctrl;
 		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_LEFT_B, false);
@@ -240,7 +240,7 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 
 	if (dev->unite_div > ISP_UNITE_DIV1) {
 		u32 hy_size_reg, hc_size_reg, hy_offs_mi_reg, hc_offs_mi_reg, in_crop_offs_reg;
-		u32 isp_in_w = in_y->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		u32 isp_in_w = in_y->width / 2 + dev->hw_dev->unite_extend_pixel;
 		u32 scl_w = out_y->width / 2;
 		u32 left_y = scale_hy == 1 ? scl_w : DIV_ROUND_UP(scl_w * 65536, scale_hy);
 		u32 left_c = scale_hc == 1 ? scl_w / 2 : DIV_ROUND_UP(scl_w * 65536 / 2, scale_hc);
@@ -254,7 +254,7 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 		u32 right_c = phase_left_c ? in_y->width - (left_c - 1) * 2 : in_y->width - left_c * 2;
 		u32 right_crop_y = isp_in_w - right_y;
 		u32 right_crop_c = isp_in_w - right_c;
-		u32 extend = RKMOUDLE_UNITE_EXTEND_PIXEL;
+		u32 extend = dev->hw_dev->unite_extend_pixel;
 		u32 right_scl_in_y;
 		u32 right_scl_in_c;
 
@@ -286,7 +286,7 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 			return;
 		}
 
-		if (right_crop_y < RKMOUDLE_UNITE_EXTEND_PIXEL) {
+		if (right_crop_y < dev->hw_dev->unite_extend_pixel) {
 			u32 reg;
 
 			extend = right_crop_y & ~0x1;
@@ -354,7 +354,7 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 	in_w = in_y->width;
 	out_w = out_y->width;
 	if (dev->unite_div > ISP_UNITE_DIV1) {
-		in_w = in_y->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		in_w = in_y->width / 2 + dev->hw_dev->unite_extend_pixel;
 		out_w /= 2;
 	}
 	val = in_w | in_y->height << 16;
@@ -418,7 +418,7 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 		scl_in_hc_offs = right_scl_in_size - right_need_in_size_c;
 		right_crop = in_w - right_scl_in_size;
 
-		if (right_crop != RKMOUDLE_UNITE_EXTEND_PIXEL) {
+		if (right_crop != dev->hw_dev->unite_extend_pixel) {
 			reg = stream->config->dual_crop.h_offset;
 			rkisp_idx_write(dev, reg, right_crop, ISP_UNITE_RIGHT, false);
 			reg = stream->config->dual_crop.h_size;

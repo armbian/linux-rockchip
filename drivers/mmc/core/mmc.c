@@ -2405,9 +2405,13 @@ int mmc_attach_mmc(struct mmc_host *host)
 	if (!mmc_host_is_spi(host))
 		mmc_set_bus_mode(host, MMC_BUSMODE_OPENDRAIN);
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 	err = mmc_send_op_cond(host, 0, &ocr);
 	if (err)
 		return err;
+#else
+	ocr = 0xc0ff8080;
+#endif
 
 	mmc_attach_bus(host, &mmc_ops);
 	if (host->ocr_avail_mmc)

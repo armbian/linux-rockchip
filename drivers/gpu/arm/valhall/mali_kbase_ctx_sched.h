@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -131,6 +131,20 @@ void kbase_ctx_sched_release_ctx(struct kbase_context *kctx);
 void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx);
 
 /**
+ * kbase_ctx_sched_remove_ctx_nolock - Unassign previously assigned address space
+ * @kctx: The context to be removed
+ *
+ * The following lock must be held by the caller:
+ * kbase_device::mmu_hw_mutex
+ * kbase_device::hwaccess_lock
+ *
+ * This function should be called when a context is being destroyed. The
+ * context must no longer have any reference. If it has been assigned an
+ * address space before then the AS will be unprogrammed.
+ */
+void kbase_ctx_sched_remove_ctx_nolock(struct kbase_context *kctx);
+
+/**
  * kbase_ctx_sched_restore_all_as - Reprogram all address spaces
  * @kbdev: The device for which address spaces to be reprogrammed
  *
@@ -228,7 +242,6 @@ bool kbase_ctx_sched_inc_refcount(struct kbase_context *kctx);
  */
 void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx);
 
-#if MALI_USE_CSF
 /**
  * kbase_ctx_sched_inc_refcount_if_as_valid - Refcount the context if it has GPU
  *                                            address space slot assigned to it.
@@ -244,6 +257,5 @@ void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx);
  * was not assigned).
  */
 bool kbase_ctx_sched_inc_refcount_if_as_valid(struct kbase_context *kctx);
-#endif
 
 #endif /* _KBASE_CTX_SCHED_H_ */

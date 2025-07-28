@@ -61,6 +61,7 @@ static void kbase_device_firmware_hwcnt_term(struct kbase_device *kbdev)
 		kbase_kinstr_prfcnt_term(kbdev->kinstr_prfcnt_ctx);
 		kbase_hwcnt_virtualizer_term(kbdev->hwcnt_gpu_virt);
 		kbase_hwcnt_backend_csf_metadata_term(&kbdev->hwcnt_gpu_iface);
+		kbase_hwcnt_backend_csf_ring_buf_term(&kbdev->hwcnt_gpu_iface);
 		kbase_csf_firmware_unload_term(kbdev);
 	}
 }

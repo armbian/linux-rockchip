@@ -91,6 +91,7 @@ struct rkvpss_device {
 	bool mir_en;
 	bool cmsc_upd;
 	u32 unite_mode;
+	u32 unite_extend_pixel;
 	u8 unite_index;
 	bool stopping;
 	wait_queue_head_t stop_done;

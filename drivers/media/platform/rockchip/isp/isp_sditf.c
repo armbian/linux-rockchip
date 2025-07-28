@@ -64,7 +64,8 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			goto pipe_close;
 		sditf->is_on = true;
-		dev->irq_ends_mask |= ISP_FRAME_VPSS;
+		if (!dev->is_aiisp_sync)
+			dev->irq_ends_mask |= ISP_FRAME_VPSS;
 		goto unlock;
 	}
 	sditf->is_on = false;
@@ -159,7 +160,7 @@ void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 	if (!sditf || !sditf->is_on || !sditf->remote_sd)
 		return;
 	info.irq = irq;
-	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, true);
+	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, !dev->is_aiisp_en);
 	info.unite_index = dev->unite_index;
 	if (dev->isp_ver == ISP_V35)
 		info.grey = !!(rkisp_read(dev, ISP3X_CNR_CTRL, false) & ISP35_CNR_UV_DIS);
@@ -184,13 +185,13 @@ static long rkisp_sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *ar
 		rkisp_check_idle(sditf->isp, ISP_FRAME_VPSS);
 		break;
 	case RKISP_VPSS_GET_UNITE_MODE:
-		if (sditf->isp->unite_div == ISP_UNITE_DIV2)
-			*(unsigned int *)arg = sditf->isp->unite_div;
-		else
-			*(unsigned int *)arg = 0;
+		*(unsigned int *)arg = sditf->isp->unite_div - 1;
 		break;
 	case RKISP_VPSS_GET_ISP_WORKING:
 		*(int *)arg = sditf->isp->hw_dev->is_runing;
+		break;
+	case RKISP_VPSS_GET_UNITE_EXTEND_PIXEL:
+		*(int *)arg = sditf->isp->hw_dev->unite_extend_pixel;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+#include "rv1126b-evb2-v10.dtsi"
+#include "rv1126b-thunder-boot-cam.dtsi"
+#include "rv1126b-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V10 ARM64 TB 400W Board";
+	compatible = "rockchip,rv1126b-evb2-v10-tb-400w", "rockchip,rv1126b";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc450ai: sc450ai@30 {
+		compatible = "smartsens,sc450ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&ramdisk_r {
+	reg = <0x48c40000 (40 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x4b440000 (20 * 0x00100000)>;
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 2688x1520: 0x14c8000
+	 */
+	reg = <0x41320000 0x14c8000>;
+};
+
+&usb2phy {
+	status = "okay";
+};
+
+&usb2phy_otg {
+	status = "okay";
+};
+
+&usb3phy {
+	status = "okay";
+};
+
+&usb_drd_dwc3 {
+	status = "okay";
+};

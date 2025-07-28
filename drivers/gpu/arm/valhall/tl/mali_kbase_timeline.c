@@ -94,9 +94,8 @@ static void kbasep_timeline_autoflush_timer_callback(struct timer_list *timer)
 int kbase_timeline_init(struct kbase_timeline **timeline, atomic_t *timeline_flags)
 {
 	struct kbase_timeline *result;
-#if MALI_USE_CSF
 	struct kbase_tlstream *csffw_stream;
-#endif
+	int i;
 
 	if (!timeline || !timeline_flags)
 		return -EINVAL;
@@ -109,6 +108,9 @@ int kbase_timeline_init(struct kbase_timeline **timeline, atomic_t *timeline_fla
 	mutex_init(&result->streams_buf_lock);
 	init_waitqueue_head(&result->event_queue);
 
+	for (i = 0; i < TL_STREAM_TYPE_COUNT; i++)
+		spin_lock_init(&result->streams[i].lock);
+
 	/* Initialize the kctx list */
 	mutex_init(&result->tl_kctx_list_lock);
 	INIT_LIST_HEAD(&result->tl_kctx_list);
@@ -118,10 +120,8 @@ int kbase_timeline_init(struct kbase_timeline **timeline, atomic_t *timeline_fla
 	kbase_timer_setup(&result->autoflush_timer, kbasep_timeline_autoflush_timer_callback);
 	result->timeline_flags = timeline_flags;
 
-#if MALI_USE_CSF
 	csffw_stream = &result->streams[TL_STREAM_TYPE_CSFFW];
 	kbase_csf_tl_reader_init(&result->csf_tl_reader, csffw_stream);
-#endif
 
 	*timeline = result;
 	return 0;
@@ -134,9 +134,7 @@ void kbase_timeline_term(struct kbase_timeline *timeline)
 	if (!timeline)
 		return;
 
-#if MALI_USE_CSF
 	kbase_csf_tl_reader_term(&timeline->csf_tl_reader);
-#endif
 
 	WARN_ON(!list_empty(&timeline->tl_kctx_list));
 
@@ -208,7 +206,6 @@ int kbase_timeline_acquire(struct kbase_device *kbdev, u32 flags)
 	if (atomic_cmpxchg(timeline->timeline_flags, 0, (int)timeline_flags))
 		return -EBUSY;
 
-#if MALI_USE_CSF
 	if (flags & BASE_TLSTREAM_ENABLE_CSFFW_TRACEPOINTS) {
 		err = kbase_csf_tl_reader_start(&timeline->csf_tl_reader, kbdev);
 		if (err) {
@@ -216,25 +213,12 @@ int kbase_timeline_acquire(struct kbase_device *kbdev, u32 flags)
 			return err;
 		}
 	}
-#endif
 
 	/* Reset and initialize header streams. */
 	kbase_tlstream_reset(&timeline->streams[TL_STREAM_TYPE_OBJ_SUMMARY]);
 
 	timeline->obj_header_btc = obj_desc_header_size;
 	timeline->aux_header_btc = aux_desc_header_size;
-
-#if !MALI_USE_CSF
-	/* If job dumping is enabled, readjust the software event's
-	 * timeout as the default value of 3 seconds is often
-	 * insufficient.
-	 */
-	if (flags & BASE_TLSTREAM_JOB_DUMPING_ENABLED) {
-		dev_info(kbdev->dev,
-			 "Job dumping is enabled, readjusting the software event's timeout\n");
-		atomic_set(&kbdev->js_data.soft_job_timeout_ms, 1800000);
-	}
-#endif /* !MALI_USE_CSF */
 
 	/* Summary stream was cleared during acquire.
 	 * Create static timeline objects that will be
@@ -285,9 +269,7 @@ void kbase_timeline_release(struct kbase_timeline *timeline)
 	if (time_to_sleep > 0)
 		msleep_interruptible(time_to_sleep);
 
-#if MALI_USE_CSF
 	kbase_csf_tl_reader_stop(&timeline->csf_tl_reader);
-#endif
 
 	/* Stop autoflush timer before releasing access to streams. */
 	atomic_set(&timeline->autoflush_timer_active, 0);
@@ -305,14 +287,12 @@ int kbase_timeline_streams_flush(struct kbase_timeline *timeline)
 	if (WARN_ON(!timeline))
 		return -EINVAL;
 
-#if MALI_USE_CSF
 	{
 		int ret = kbase_csf_tl_reader_flush_buffer(&timeline->csf_tl_reader);
 
 		if (ret > 0)
 			has_bytes = true;
 	}
-#endif
 
 	for (stype = 0; stype < TL_STREAM_TYPE_COUNT; stype++) {
 		nbytes = kbase_tlstream_flush_stream(&timeline->streams[stype]);
@@ -326,9 +306,7 @@ void kbase_timeline_streams_body_reset(struct kbase_timeline *timeline)
 {
 	kbase_tlstream_reset(&timeline->streams[TL_STREAM_TYPE_OBJ]);
 	kbase_tlstream_reset(&timeline->streams[TL_STREAM_TYPE_AUX]);
-#if MALI_USE_CSF
 	kbase_tlstream_reset(&timeline->streams[TL_STREAM_TYPE_CSFFW]);
-#endif
 }
 
 void kbase_timeline_pre_kbase_context_destroy(struct kbase_context *kctx)
@@ -370,9 +348,7 @@ void kbase_timeline_post_kbase_context_create(struct kbase_context *kctx)
 	 * never in parallel with it. If fired in parallel, we could get
 	 * duplicate creation tracepoints.
 	 */
-#if MALI_USE_CSF
 	KBASE_TLSTREAM_TL_KBASE_NEW_CTX(kbdev, kctx->id, kbdev->id);
-#endif
 	/* Trace with the AOM tracepoint even in CSF for dumping */
 	KBASE_TLSTREAM_TL_NEW_CTX(kbdev, kctx, kctx->id, 0);
 
@@ -385,9 +361,7 @@ void kbase_timeline_post_kbase_context_destroy(struct kbase_context *kctx)
 
 	/* Trace with the AOM tracepoint even in CSF for dumping */
 	KBASE_TLSTREAM_TL_DEL_CTX(kbdev, kctx);
-#if MALI_USE_CSF
 	KBASE_TLSTREAM_TL_KBASE_DEL_CTX(kbdev, kctx->id);
-#endif
 
 	/* Flush the timeline stream, so the user can see the termination
 	 * tracepoints being fired.

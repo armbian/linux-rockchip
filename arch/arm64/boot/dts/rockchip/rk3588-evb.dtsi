@@ -280,6 +280,11 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
+};
+
 &dsi0 {
 	status = "disabled";
 	//rockchip,lane-rate = <1000>;
@@ -291,6 +296,7 @@
 		reset-delay-ms = <10>;
 		enable-delay-ms = <10>;
 		prepare-delay-ms = <10>;
+		init-delay-ms = <10>;
 		unprepare-delay-ms = <10>;
 		disable-delay-ms = <60>;
 		width-mm = <68>;
@@ -625,6 +631,7 @@
 		reset-delay-ms = <10>;
 		enable-delay-ms = <10>;
 		prepare-delay-ms = <10>;
+		init-delay-ms = <10>;
 		unprepare-delay-ms = <10>;
 		disable-delay-ms = <10>;
 		width-mm = <68>;

@@ -53,6 +53,12 @@
 #include "arbiter/mali_kbase_arbiter_pm.h"
 #include <mali_kbase_io.h>
 
+static uint64_t neural_allowed_mask = UINT64_MAX;
+module_param(neural_allowed_mask, ullong, 0444);
+MODULE_PARM_DESC(
+	neural_allowed_mask,
+	"Additional optional bitmask to restrict which neural engine cores any CSG can enable");
+
 #if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)
 
 /* Number of register accesses for the buffer that we allocate during
@@ -123,8 +129,6 @@ static void kbase_device_all_as_term(struct kbase_device *kbdev)
 
 static int pcm_prioritized_process_cb(struct notifier_block *nb, unsigned long action, void *data)
 {
-#if MALI_USE_CSF
-
 	struct kbase_device *const kbdev =
 		container_of(nb, struct kbase_device, pcm_prioritized_process_nb);
 	struct pcm_prioritized_process_notifier_data *const notifier_data = data;
@@ -142,8 +146,6 @@ static int pcm_prioritized_process_cb(struct notifier_block *nb, unsigned long a
 	}
 
 	return ret;
-
-#endif /* MALI_USE_CSF */
 
 	return 0;
 }
@@ -351,12 +353,7 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 
 	kbdev->pm.dvfs_period = DEFAULT_PM_DVFS_PERIOD;
 
-#if MALI_USE_CSF
 	kbdev->reset_timeout_ms = kbase_get_timeout_ms(kbdev, CSF_GPU_RESET_TIMEOUT);
-#else /* MALI_USE_CSF */
-	kbdev->reset_timeout_ms = JM_DEFAULT_RESET_TIMEOUT_MS;
-#endif /* !MALI_USE_CSF */
-
 
 	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
 	mutex_init(&kbdev->kctx_list_lock);
@@ -372,15 +369,9 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 		kbdev->oom_notifier_block.notifier_call = NULL;
 	}
 
-#if !MALI_USE_CSF
-	spin_lock_init(&kbdev->quick_reset_lock);
-	kbdev->quick_reset_enabled = true;
-	kbdev->num_of_atoms_hw_completed = 0;
-#endif
-
-#if MALI_USE_CSF
 	atomic_set(&kbdev->fence_signal_timeout_enabled, 1);
-#endif
+
+	kbdev->csf.neural_allowed_mask = neural_allowed_mask;
 
 	return 0;
 
@@ -405,42 +396,11 @@ void kbase_device_misc_term(struct kbase_device *kbdev)
 	if (kbdev->oom_notifier_block.notifier_call)
 		unregister_oom_notifier(&kbdev->oom_notifier_block);
 
-#if MALI_USE_CSF && IS_ENABLED(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	if (atomic_read(&kbdev->live_fence_metadata) > 0)
 		dev_warn(kbdev->dev, "Terminating Kbase device with live fence metadata!");
 #endif
 }
-
-#if !MALI_USE_CSF
-void kbase_enable_quick_reset(struct kbase_device *kbdev)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&kbdev->quick_reset_lock, flags);
-
-	kbdev->quick_reset_enabled = true;
-	kbdev->num_of_atoms_hw_completed = 0;
-
-	spin_unlock_irqrestore(&kbdev->quick_reset_lock, flags);
-}
-
-void kbase_disable_quick_reset(struct kbase_device *kbdev)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&kbdev->quick_reset_lock, flags);
-
-	kbdev->quick_reset_enabled = false;
-	kbdev->num_of_atoms_hw_completed = 0;
-
-	spin_unlock_irqrestore(&kbdev->quick_reset_lock, flags);
-}
-
-bool kbase_is_quick_reset_enabled(struct kbase_device *kbdev)
-{
-	return kbdev->quick_reset_enabled;
-}
-#endif
 
 void kbase_device_free(struct kbase_device *kbdev)
 {

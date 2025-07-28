@@ -216,8 +216,13 @@ int rkvpss_rockit_buf_queue(struct rockit_rkvpss_cfg *input_cfg)
 		}
 
 		vpssrk_buf->vaddr = NULL;
-		if (dma_buf_vmap(input_cfg->buf, &map) == 0)
-			vpssrk_buf->vaddr = map.vaddr;
+		/* default vmap two to get image, rkvpss_buf_dbg > 0 to vmap all */
+		if (i < 2 || rkvpss_buf_dbg > 0) {
+			v4l2_dbg(3, rkvpss_debug, &vpss_dev->v4l2_dev,
+				 "stream:%d rockit vmap buf:%p\n", stream->id, input_cfg->buf);
+			if (dma_buf_vmap(input_cfg->buf, &map) == 0)
+				vpssrk_buf->vaddr = map.vaddr;
+		}
 
 		vpssrk_buf->buff_addr = sg_dma_address(sgt->sgl);
 		get_dma_buf(input_cfg->buf);

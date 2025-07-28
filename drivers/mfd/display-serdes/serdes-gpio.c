@@ -209,6 +209,7 @@ static const struct of_device_id serdes_gpio_of_match[] = {
 	{ .compatible = "rohm,bu18tl82-gpio", },
 	{ .compatible = "rohm,bu18rl82-gpio", },
 	{ .compatible = "maxim,max96745-gpio", },
+	{ .compatible = "maxim,max96749-gpio", },
 	{ .compatible = "maxim,max96752-gpio", },
 	{ .compatible = "maxim,max96755-gpio", },
 	{ .compatible = "maxim,max96772-gpio", },

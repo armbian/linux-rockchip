@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru TCLK_WDT_HPMCU>, <&cru PCLK_WDT_HPMCU>,
+				<&cru HCLK_CACHE>, <&cru CLK_HPMCU>,
+				<&cru CLK_HPMCU_RTC>, <&cru PCLK_HPMCU_INTMUX>,
+				<&cru SCLK_UART4>, <&cru PCLK_UART4>, <&cru PCLK_HPMCU_MAILBOX>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4m2_xfer_pins>;
+
+		status = "okay";
+	};
+
+	reserved-memory {
+		/* hpmcu address */
+		hpmcu_reserved: hpmcu@48c02000 {
+			reg = <0x48c02000 0x3a000>;
+			no-map;
+		};
+
+		rpmsg_reserved: rpmsg@48c3c000 {
+			reg = <0x48c3c000 0x10000>;
+			no-map;
+		};
+
+		rpmsg_dma_reserved: rpmsg-dma@48c4c000 {
+			compatible = "shared-dma-pool";
+			reg = <0x48c4c000 0x10000>;
+			no-map;
+		};
+	};
+
+	rpmsg: rpmsg@48c3c000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&hpmcu_mbox0 0 &hpmcu_mbox3 0>;
+		rockchip,vdev-nums = <1>;
+		/* hpmcu: link-id 0x03; */
+		rockchip,link-id = <0x03>;
+		reg = <0x48c3c000 0x10000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
+	};
+};
+
+&hpmcu_mbox0 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&hpmcu_mbox3 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};

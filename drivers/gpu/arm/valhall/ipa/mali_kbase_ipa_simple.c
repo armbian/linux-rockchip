@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,8 +34,6 @@
 #include "mali_kbase_ipa_simple.h"
 #include "mali_kbase_ipa_debugfs.h"
 
-#if MALI_USE_CSF
-
 /* This is used if the dynamic power for top-level is estimated separately
  * through the counter model. To roughly match the contribution of top-level
  * power in the total dynamic power, when calculated through counter model,
@@ -45,8 +43,6 @@
  * core power and then averaging it across all samples.
  */
 #define TOP_LEVEL_DYN_COEFF_SCALER (3)
-
-#endif /* MALI_USE_CSF */
 
 #if MALI_UNIT_TEST
 
@@ -208,7 +204,6 @@ static int model_dynamic_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	struct kbase_ipa_model_simple_data *model_data =
 		(struct kbase_ipa_model_simple_data *)model->model_data;
 
-#if MALI_USE_CSF
 	/* On CSF GPUs, the dynamic power for top-level and shader cores is
 	 * estimated separately. Currently there is a single dynamic
 	 * coefficient value provided in the device tree for simple model.
@@ -219,9 +214,6 @@ static int model_dynamic_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	coeffp[KBASE_IPA_BLOCK_TYPE_TOP_LEVEL] =
 		model_data->dynamic_coefficient / TOP_LEVEL_DYN_COEFF_SCALER;
 	coeffp[KBASE_IPA_BLOCK_TYPE_SHADER_CORES] = model_data->dynamic_coefficient;
-#else
-	*coeffp = model_data->dynamic_coefficient;
-#endif
 
 	return 0;
 }

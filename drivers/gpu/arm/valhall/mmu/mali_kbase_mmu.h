@@ -215,7 +215,6 @@ int kbase_mmu_teardown_imported_pages(struct kbase_device *kbdev, struct kbase_m
 
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, struct tagged_addr *phys,
 			   size_t nr, unsigned long flags, int const group_id);
-#if MALI_USE_CSF
 /**
  * kbase_mmu_update_csf_mcu_pages - Update MCU mappings with changes of phys and flags
  *
@@ -233,7 +232,6 @@ int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, struct tagged_a
  */
 int kbase_mmu_update_csf_mcu_pages(struct kbase_device *kbdev, u64 vpfn, struct tagged_addr *phys,
 				   size_t nr, unsigned long flags, int const group_id);
-#endif
 
 /**
  * kbase_mmu_migrate_data_page - Migrate GPU mappings and content of data pages between memory pages

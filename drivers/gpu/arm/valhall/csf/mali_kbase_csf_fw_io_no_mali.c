@@ -87,7 +87,7 @@ static inline void input_page_partial_write64(u64 *const input, const u32 offset
 void kbase_csf_fw_io_init(struct kbase_csf_fw_io *fw_io, struct kbase_device *kbdev)
 {
 	spin_lock_init(&fw_io->lock);
-	kbase_io_clear_status(kbdev->io, KBASE_IO_STATUS_GPU_SUSPENDED);
+	bitmap_zero(fw_io->status, KBASEP_FW_IO_STATUS_NUM_BITS);
 	fw_io->kbdev = kbdev;
 }
 KBASE_EXPORT_TEST_API(kbase_csf_fw_io_init);
@@ -393,19 +393,19 @@ KBASE_EXPORT_TEST_API(kbase_csf_fw_io_stream_read);
 
 void kbase_csf_fw_io_set_status_gpu_suspended(struct kbase_csf_fw_io *fw_io)
 {
-	kbase_io_set_status(fw_io->kbdev->io, KBASE_IO_STATUS_GPU_SUSPENDED);
+	set_bit(KBASEP_FW_IO_STATUS_GPU_SUSPENDED, fw_io->status);
 }
 KBASE_EXPORT_TEST_API(kbase_csf_fw_io_set_status_gpu_suspended);
 
 void kbase_csf_fw_io_clear_status_gpu_suspended(struct kbase_csf_fw_io *fw_io)
 {
-	kbase_io_clear_status(fw_io->kbdev->io, KBASE_IO_STATUS_GPU_SUSPENDED);
+	clear_bit(KBASEP_FW_IO_STATUS_GPU_SUSPENDED, fw_io->status);
 }
 KBASE_EXPORT_TEST_API(kbase_csf_fw_io_clear_status_gpu_suspended);
 
 bool kbase_csf_fw_io_check_status_gpu_suspended(struct kbase_csf_fw_io *fw_io)
 {
-	return kbase_io_test_status(fw_io->kbdev, KBASE_IO_STATUS_GPU_SUSPENDED);
+	return test_bit(KBASEP_FW_IO_STATUS_GPU_SUSPENDED, fw_io->status);
 }
 KBASE_EXPORT_TEST_API(kbase_csf_fw_io_check_status_gpu_suspended);
 
