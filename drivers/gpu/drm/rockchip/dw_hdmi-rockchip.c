@@ -1036,23 +1036,36 @@ rockchip_hdmi_find_by_id(struct device_driver *drv, unsigned int id)
 	return dev_get_drvdata(dev);
 }
 
+static bool rockchip_hdmi_check_dsc_rate_supported(struct rockchip_hdmi *hdmi,
+						   u64 tmdsclk, u8 bpp)
+{
+	u64 data_rate, dsc_rate;
+	u64 frl_rate, dsc_frl_rate;
+
+	frl_rate = (u64)hdmi->hdmi21_data.max_lanes *
+		hdmi->hdmi21_data.max_frl_rate_per_lane * 1000000000;
+	dsc_frl_rate = (u64)hdmi->hdmi21_data.dsc_cap.max_lanes *
+		hdmi->hdmi21_data.dsc_cap.max_frl_rate_per_lane * 1000000000;
+	data_rate = (u64)tmdsclk * bpp;
+	data_rate = DIV_ROUND_UP_ULL(data_rate * 18, 16);
+	/* compression ratio needs to be greater than 0.375. */
+	dsc_rate = DIV_ROUND_UP_ULL(data_rate * 9, 24);
+
+	if ((data_rate > frl_rate) && (dsc_rate > dsc_frl_rate))
+		return true;
+
+	return false;
+}
+
 static bool rockchip_hdmi_if_dsc_enable(struct rockchip_hdmi *hdmi, unsigned int tmdsclk)
 {
-	u64 data_rate;
-	u64 frl_rate = (u64)hdmi->link_cfg.frl_lanes * hdmi->link_cfg.rate_per_lane * 1000000;
 	u8 bpp = hdmi_bus_fmt_color_depth(hdmi->bus_format) * 3;
 
 	/* rk3588 dsc can't support yuv420/422 dsc */
 	if (hdmi_bus_fmt_is_yuv420(hdmi->bus_format) || hdmi_bus_fmt_is_yuv422(hdmi->bus_format))
 		return false;
 
-	data_rate = (u64)tmdsclk * bpp;
-	data_rate = DIV_ROUND_UP_ULL(data_rate * 18, 16);
-
-	if (data_rate > frl_rate)
-		return true;
-
-	return false;
+	return rockchip_hdmi_check_dsc_rate_supported(hdmi, tmdsclk, bpp);
 }
 
 static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
@@ -1092,7 +1105,7 @@ static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
 	max_dsc_rate_per_lane =
 		hdmi->hdmi21_data.dsc_cap.max_frl_rate_per_lane;
 
-	if (rockchip_hdmi_if_dsc_enable(hdmi, tmdsclk)) {
+	if (rockchip_hdmi_if_dsc_enable(hdmi,  tmdsclk * 1000)) {
 		hdmi->link_cfg.dsc_mode = true;
 		hdmi->link_cfg.frl_lanes = max_dsc_lanes;
 		hdmi->link_cfg.rate_per_lane = max_dsc_rate_per_lane;
@@ -2419,6 +2432,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	bool support_dc = false;
 	bool sink_is_hdmi = true;
 	bool yuv422_out = false;
+	bool dsc_rate_supported;
 	u32 max_tmds_clock = info->max_tmds_clock;
 	int output_eotf;
 
@@ -2537,9 +2551,14 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		DRM_MODE_FLAG_3D_FRAME_PACKING)
 		pixclock *= 2;
 
+	tmdsclock = hdmi_get_tmdsclock(hdmi, mode.clock * 1000);
+	dsc_rate_supported =
+		rockchip_hdmi_check_dsc_rate_supported(hdmi, tmdsclock, color_depth * 3);
+
 	if (drm_mode_is_420_only(info, &mode) ||
 	    (hdmi->is_hdmi_qp && mode.clock > 1188000 &&
-	     (*color_format == RK_IF_FORMAT_YCBCR422 || hdmi->force_disable_dsc)))
+	     (*color_format == RK_IF_FORMAT_YCBCR422 || hdmi->force_disable_dsc ||
+	      !dsc_rate_supported)))
 		*color_format = RK_IF_FORMAT_YCBCR420;
 
 	if (!sink_is_hdmi) {
