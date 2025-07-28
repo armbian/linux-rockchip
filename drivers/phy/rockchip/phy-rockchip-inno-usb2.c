@@ -2651,7 +2651,7 @@ disable_clks:
 	return ret;
 }
 
-static int rockchip_usb2phy_remove(struct platform_device *pdev)
+static void rockchip_usb2phy_remove(struct platform_device *pdev)
 {
 	struct rockchip_usb2phy *rphy = platform_get_drvdata(pdev);
 	struct rockchip_usb2phy_port *rport;
@@ -2672,8 +2672,6 @@ static int rockchip_usb2phy_remove(struct platform_device *pdev)
 				cancel_delayed_work_sync(&rport->otg_sm_work);
 		}
 	}
-
-	return 0;
 }
 
 static int __maybe_unused
