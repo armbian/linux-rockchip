@@ -250,6 +250,9 @@
 #define RKMODULE_GET_HDR_COMPR_SINGLE_FRAME_INFO  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 62, struct rkmodule_hdr_compr_single_frame_info)
 
+#define RKMODULE_SET_CHANNEL_POWER	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 63, struct rkmodule_channel_power)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1084,6 +1087,11 @@ struct rkmodule_bayer_param {
 struct rkmodule_hdr_compr_single_frame_info {
 	__u32 single_bitwidth;
 	__u32 reserved[8];
+};
+
+struct rkmodule_channel_power {
+	__u32 channel;
+	__u32 enable;
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
