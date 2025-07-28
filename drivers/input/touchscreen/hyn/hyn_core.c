@@ -608,7 +608,7 @@ static void hyn_ts_remove(struct i2c_client *client);
 #else
 static int hyn_ts_remove(struct i2c_client *client);
 #endif
-static int hyn_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int hyn_ts_probe(struct i2c_client *client)
 #else
 
 #ifdef CONFIG_BUS_SPI
