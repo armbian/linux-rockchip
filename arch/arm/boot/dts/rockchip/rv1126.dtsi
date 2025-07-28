@@ -617,7 +617,6 @@
 
 		pmu_io_domains: io-domains {
 			compatible = "rockchip,rv1126-pmu-io-voltage-domain";
-			status = "disabled";
 		};
 
 		reboot-mode {
