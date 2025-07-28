@@ -253,6 +253,9 @@
 #define RKMODULE_SET_CHANNEL_POWER	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 63, struct rkmodule_channel_power)
 
+#define RKMODULE_SET_CHANNEL_STREAM	\
+	_IOW('x', 0, struct rkmodule_channel_stream)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1090,6 +1093,11 @@ struct rkmodule_hdr_compr_single_frame_info {
 };
 
 struct rkmodule_channel_power {
+	__u32 channel;
+	__u32 enable;
+};
+
+struct rkmodule_channel_stream {
 	__u32 channel;
 	__u32 enable;
 };
