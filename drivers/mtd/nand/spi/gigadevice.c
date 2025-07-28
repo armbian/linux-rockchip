@@ -548,7 +548,19 @@ static const struct spinand_info gigadevice_spinand_table[] = {
 		     SPINAND_ECCINFO(&gd5fxgqx_variant2_ooblayout, gd5fxgq4xa_ecc_get_status)),
 };
 
+static int gigadevice_spinand_init(struct spinand_device *spinand)
+{
+	/* Enable buf read */
+	if (spinand->id.data[1] == 0x91 || spinand->id.data[1] == 0x81) {
+		spinand_upd_cfg(spinand, BIT(3), BIT(3));
+		dev_info(&spinand->spimem->spi->dev, "Enable buf_read\n");
+	}
+
+	return 0;
+}
+
 static const struct spinand_manufacturer_ops gigadevice_spinand_manuf_ops = {
+	.init = gigadevice_spinand_init,
 };
 
 const struct spinand_manufacturer gigadevice_spinand_manufacturer = {
