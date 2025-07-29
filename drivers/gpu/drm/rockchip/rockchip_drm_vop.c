@@ -5756,8 +5756,10 @@ static int vop_create_crtc(struct vop *vop)
 
 		vop->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vop->lut),
 					      GFP_KERNEL);
-		if (!vop->lut)
+		if (!vop->lut) {
+			ret = -ENOMEM;
 			goto err_unregister_crtc_funcs;
+		}
 
 		if (vop_of_init_display_lut(vop)) {
 			for (i = 0; i < lut_len; i++) {
