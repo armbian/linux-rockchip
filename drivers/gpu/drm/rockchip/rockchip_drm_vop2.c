@@ -14,7 +14,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_self_refresh_helper.h>
 
 #include <drm/drm_writeback.h>
 #ifdef CONFIG_DRM_ANALOGIX_DP
@@ -15398,12 +15397,6 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		vop2_crtc_create_feature_property(vop2, crtc);
 		vop2_crtc_create_vrr_property(vop2, crtc);
 
-		ret = drm_self_refresh_helper_init(crtc);
-		if (ret)
-			DRM_DEV_DEBUG_KMS(vop2->dev,
-					  "Failed to init %s with SR helpers %d, ignoring\n",
-					  crtc->name, ret);
-
 		if (vp_data->feature & (VOP_FEATURE_VIVID_HDR | VOP_FEATURE_DOVI))
 			vop2_crtc_create_hdr_property(vop2, crtc);
 		if (vp_data->feature & VOP_FEATURE_POST_ACM)
@@ -15491,7 +15484,6 @@ static void vop2_destroy_crtc(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 
-	drm_self_refresh_helper_cleanup(crtc);
 	if (vp->hdr_lut_gem_obj)
 		rockchip_gem_free_object(&vp->hdr_lut_gem_obj->base);
 

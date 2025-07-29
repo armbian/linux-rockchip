@@ -75,7 +75,6 @@
 
 &edp0 {
 	force-hpd;
-	support-psr;
 	status = "okay";
 
 	ports {
