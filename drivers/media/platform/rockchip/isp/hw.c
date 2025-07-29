@@ -1014,9 +1014,25 @@ static const struct of_device_id rkisp_hw_of_match[] = {
 	{},
 };
 
-static inline bool is_iommu_enable(struct device *dev)
+static int rkisp_iommu_fault_handle(struct iommu_domain *iommu, struct device *iommu_dev,
+				    unsigned long iova, int status, void *arg)
 {
+	struct rkisp_hw_dev *hw_dev = arg;
+
+	dev_err(iommu_dev, "fault addr:0x%08lx status:%x arg:%p\n", iova, status, arg);
+	if (!hw_dev) {
+		dev_err(iommu_dev, "pagefault without device to handle\n");
+		return 0;
+	}
+	rockchip_iommu_mask_irq(hw_dev->dev);
+	return 0;
+}
+
+static inline bool is_iommu_enable(struct rkisp_hw_dev *hw_dev)
+{
+	struct device *dev = hw_dev->dev;
 	struct device_node *iommu;
+	struct iommu_domain *domain;
 
 	iommu = of_parse_phandle(dev->of_node, "iommus", 0);
 	if (!iommu) {
@@ -1029,6 +1045,9 @@ static inline bool is_iommu_enable(struct device *dev)
 	}
 	of_node_put(iommu);
 
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain)
+		iommu_set_fault_handler(domain, rkisp_iommu_fault_handle, hw_dev);
 	return true;
 }
 
@@ -1469,7 +1488,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_dma_sg_ops = true;
 	hw_dev->is_buf_init = false;
 	hw_dev->is_shutdown = false;
-	hw_dev->is_mmu = is_iommu_enable(dev);
+	hw_dev->is_mmu = is_iommu_enable(hw_dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
 		is_mem_reserved = false;
