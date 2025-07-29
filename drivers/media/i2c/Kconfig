@@ -2109,6 +2109,16 @@ config VIDEO_SC450AI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC450ai camera.
 
+config VIDEO_SC485SL
+	tristate "SmartSens SC485SL sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  sc485sl camera.
+
 config VIDEO_SC500AI
 	tristate "SmartSens SC500AI sensor support"
 	depends on I2C && VIDEO_DEV
