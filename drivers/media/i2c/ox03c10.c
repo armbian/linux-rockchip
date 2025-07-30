@@ -4954,6 +4954,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_lenc_info *lenc_info;
 	struct rkmodule_lenc_gain *lenc_gain;
 	struct rkmodule_reg_setting *reg_setting;
+	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5062,6 +5063,10 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		reg_setting = (struct rkmodule_reg_setting *)arg;
 		ret = ox03c10_set_reg_setting(ox03c10, reg_setting);
 		break;
+	case RKMODULE_GET_HDR_COMPR_SINGLE_FRAME_INFO:
+		single_frame_info = (struct rkmodule_hdr_compr_single_frame_info *)arg;
+		single_frame_info->single_bitwidth = 10;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5093,6 +5098,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_lenc_info *lenc_info;
 	struct rkmodule_lenc_gain *lenc_gain;
 	struct rkmodule_reg_setting *reg_setting;
+	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5349,6 +5355,22 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 				return -EFAULT;
 		}
 		kfree(reg_setting);
+		break;
+	case RKMODULE_GET_HDR_COMPR_SINGLE_FRAME_INFO:
+		single_frame_info = kzalloc(sizeof(*single_frame_info), GFP_KERNEL);
+		if (!single_frame_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, single_frame_info);
+		if (!ret) {
+			if (copy_to_user(up, single_frame_info, sizeof(*single_frame_info))) {
+				kfree(single_frame_info);
+				return -EFAULT;
+			}
+		}
+		kfree(single_frame_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
