@@ -1172,7 +1172,6 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 				sditf_channel_disable(priv, 1);
 		}
 	}
-	priv->is_toisp_off = true;
 	if (priv->cif_dev->switch_info.is_use_switch)
 		priv->cif_dev->switch_info.is_active = false;
 }
@@ -1274,6 +1273,7 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
 	priv->toisp_inf.ch_info[2].is_valid = false;
+	priv->is_toisp_off = true;
 	return 0;
 }
 

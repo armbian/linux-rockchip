@@ -13742,6 +13742,12 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 	struct v4l2_subdev *sd = NULL;
 	struct rkisp_vicap_sof sof = {0};
 
+	v4l2_dbg(5, rkcif_debug, &priv->cif_dev->v4l2_dev,
+		 "toisp_off %d\n", priv->is_toisp_off);
+
+	if (priv->is_toisp_off)
+		return;
+
 	for (i = 0; i < TOISP_CH_MAX; i++) {
 		if (priv->cif_dev->chip_id < CHIP_RK3576_CIF)
 			ch = rkcif_g_toisp_ch(intstat_glb, index);
@@ -13772,13 +13778,16 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 
 			spin_lock_irqsave(&stream->cifdev->stream_spinlock, flags);
 			if (stream->is_wait_stop_complete) {
-				if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-				    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
-				    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
-					rkcif_disable_capture(stream);
-				} else {
-					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
-					rkcif_stop_dma_capture(stream);
+				if (!stream->cifdev->switch_info.is_use_switch ||
+				    atomic_dec_if_positive(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0) {
+					if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
+					    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+					    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
+						rkcif_disable_capture(stream);
+					} else {
+						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+						rkcif_stop_dma_capture(stream);
+					}
 				}
 				stream->is_wait_stop_complete = false;
 				stream->is_pause_stream = true;
@@ -13790,7 +13799,9 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 			    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
 				stream->cifdev->sensor_state_change = false;
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
-				rkcif_dphy_quick_stream(stream->cifdev, on);
+				if (!stream->cifdev->switch_info.is_use_switch ||
+				    atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0)
+					rkcif_dphy_quick_stream(stream->cifdev, on);
 				atomic_inc(&stream->cifdev->sensor_off);
 				stream->cifdev->sensor_work.on = stream->cifdev->sensor_state;
 				schedule_work(&stream->cifdev->sensor_work.work);
@@ -13806,7 +13817,9 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				if (!stream->is_wait_single_cap) {
 					stream->is_single_cap = false;
 					spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
-					rkcif_dphy_quick_stream(stream->cifdev, on);
+					if (!stream->cifdev->switch_info.is_use_switch ||
+					    atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0)
+						rkcif_dphy_quick_stream(stream->cifdev, on);
 					stream->cifdev->sensor_work.on = 0;
 					atomic_inc(&stream->cifdev->sensor_off);
 					schedule_work(&stream->cifdev->sensor_work.work);
@@ -13833,7 +13846,9 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					  "stream[%d] toisp fe %d\n",
 					  stream->id,
 					  stream->frame_idx - 1);
-
+			if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE ||
+			    priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_MULTI)
+				priv->is_toisp_off = true;
 			switch (ch) {
 			case RKCIF_TOISP_CH0:
 				if (priv->cif_dev->chip_id < CHIP_RK3576_CIF)
@@ -13860,13 +13875,11 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				break;
 			}
 		}
-		if (priv->is_toisp_off)
-			continue;
 		if (priv->cif_dev->chip_id < CHIP_RK3576_CIF)
 			ch = rkcif_g_toisp_fs(intstat_glb, index);
 		else
 			ch = rkcif_g_toisp_fs_rk3576(intstat_glb, index);
-		if (ch >= 0 && (!priv->is_toisp_off)) {
+		if (ch >= 0) {
 			src_id = priv->toisp_inf.ch_info[ch].id;
 			if (src_id != rkcif_toisp_get_src_id(priv, index, ch))
 				continue;
@@ -14519,6 +14532,9 @@ int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode)
 
 		}
 	}
+
+	if (priv && priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
+		priv->is_toisp_off = true;
 
 	if (suspend_cnt == 0)
 		goto out_suspend;
