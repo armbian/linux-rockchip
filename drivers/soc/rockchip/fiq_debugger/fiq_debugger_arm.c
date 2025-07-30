@@ -181,11 +181,13 @@ void fiq_debugger_dump_allregs(struct fiq_debugger_output *output,
 struct stacktrace_state {
 	struct fiq_debugger_output *output;
 	unsigned int depth;
+	struct stackframe *frame;
 };
 
-static int report_trace(struct stackframe *frame, void *d)
+static bool report_trace(void *d, unsigned long pc)
 {
 	struct stacktrace_state *sts = d;
+	struct stackframe *frame = sts->frame;
 
 	if (sts->depth) {
 		sts->output->printf(sts->output,
@@ -193,11 +195,11 @@ static int report_trace(struct stackframe *frame, void *d)
 			frame->pc, frame->pc, frame->lr, frame->lr,
 			frame->sp, frame->fp);
 		sts->depth--;
-		return 0;
+		return true;
 	}
 	sts->output->printf(sts->output, "  ...\n");
 
-	return sts->depth == 0;
+	return false;
 }
 
 #ifndef CONFIG_FIQ_DEBUGGER_MODULE
@@ -263,6 +265,7 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		frame.lr = regs->ARM_lr;
 		frame.pc = regs->ARM_pc;
 		output->printf(output, "\n");
+		sts.frame = &frame;
 		walk_stackframe(&frame, report_trace, &sts);
 		return;
 	}
