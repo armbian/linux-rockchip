@@ -561,6 +561,8 @@ enum exp_mode_e {
 	EXP_HDR3_DCG_VS,
 	EXP_HDR3_DCG_SPD,
 	EXP_HDR3_STA,
+	EXP_HDR3_DCG_LOFIC,
+	EXP_HDR3_LCG_LOFIC_VS,
 };
 
 struct rkmodule_hdr_cfg {
