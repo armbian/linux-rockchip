@@ -49,4 +49,7 @@ extern void	pstore_record_init(struct pstore_record *record,
 int __init	pstore_init_fs(void);
 void __exit	pstore_exit_fs(void);
 
+#ifdef CONFIG_PSTORE_BOOT_LOG
+ssize_t ramoops_pstore_read_for_boot_log(struct pstore_record *record);
+#endif
 #endif

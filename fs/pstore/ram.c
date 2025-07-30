@@ -538,7 +538,7 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	/* Free boot log PRZs */
 	if (cxt->boot_przs) {
 		for (i = 0; i < cxt->max_boot_log_cnt; i++)
-			persistent_ram_free(cxt->boot_przs[i]);
+			persistent_ram_free(&cxt->boot_przs[i]);
 		kfree(cxt->boot_przs);
 		cxt->max_boot_log_cnt = 0;
 	}
