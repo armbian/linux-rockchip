@@ -229,9 +229,11 @@ struct ox03c10 {
 	const char		*len_name;
 	bool			has_init_exp;
 	bool			has_init_wbgain;
+	bool			has_init_blc;
 	bool			has_init_lenc_gain;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct rkmodule_wb_gain_group init_wbgain;
+	struct rkmodule_blc_group init_blc;
 	struct rkmodule_dcg_ratio dcg_ratio;
 	struct rkmodule_dcg_ratio spd_ratio;
 	struct rkmodule_lenc_gain lenc_gain;
@@ -4701,6 +4703,16 @@ static int ox03c10_set_blc(struct ox03c10 *ox03c10,
 	int i = 0;
 	int ret = 0;
 
+	if (!blc_group->enable)
+		return 0;
+
+	if (!ox03c10->has_init_blc && !ox03c10->streaming) {
+		ox03c10->init_blc = *blc_group;
+		ox03c10->has_init_blc = true;
+		dev_dbg(&ox03c10->client->dev, "ox03c10 don't stream, record blc!\n");
+		return ret;
+	}
+
 	for (i = 0; i < blc_group->group_num; i++) {
 		switch (blc_group->blc_type[i]) {
 		case RKMODULE_HCG_BLC:
@@ -4733,6 +4745,15 @@ static int ox03c10_set_blc(struct ox03c10 *ox03c10,
 			 blc_group->blc_type[i], blc_val);
 #endif
 	}
+	if (blc_group->reg_num > RKMODULE_REG_LIST_MAX) {
+		dev_info(&ox03c10->client->dev,
+			 "reg_list size error %d\n",
+			 blc_group->reg_num);
+		return -EINVAL;
+	}
+	for (i = 0; i < blc_group->reg_num; i++)
+		ret |= ox03c10_write_reg(ox03c10->client, blc_group->reg_list[i].reg_addr,
+					 OX03C10_REG_VALUE_16BIT, blc_group->reg_list[i].reg_val);
 	return ret;
 }
 
@@ -5398,6 +5419,16 @@ static int __ox03c10_start_stream(struct ox03c10 *ox03c10)
 			return ret;
 		}
 	}
+	if (ox03c10->has_init_blc) {
+		ret = ox03c10_ioctl(&ox03c10->subdev,
+				   RKMODULE_SET_BLC,
+				   &ox03c10->init_blc);
+		if (ret) {
+			dev_err(&ox03c10->client->dev,
+				"init blc fail\n");
+			return ret;
+		}
+	}
 	if (ox03c10->has_init_lenc_gain) {
 		ret = ox03c10_ioctl(&ox03c10->subdev,
 				   RKMODULE_SET_LENC,
@@ -5446,6 +5477,7 @@ static int __ox03c10_stop_stream(struct ox03c10 *ox03c10)
 {
 	ox03c10->has_init_exp = false;
 	ox03c10->has_init_wbgain = false;
+	ox03c10->has_init_blc = false;
 	ox03c10->has_init_lenc_gain = false;
 	return ox03c10_write_reg(ox03c10->client, OX03C10_REG_CTRL_MODE,
 				OX03C10_REG_VALUE_08BIT, OX03C10_MODE_SW_STANDBY);
@@ -5937,6 +5969,7 @@ static int ox03c10_initialize_controls(struct ox03c10 *ox03c10)
 	ox03c10->subdev.ctrl_handler = handler;
 	ox03c10->has_init_exp = false;
 	ox03c10->has_init_wbgain = false;
+	ox03c10->has_init_blc = false;
 	ox03c10->has_init_lenc_gain = false;
 
 	return 0;
