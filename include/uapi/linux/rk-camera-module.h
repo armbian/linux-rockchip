@@ -247,6 +247,9 @@
 #define RKMODULE_SET_BAYER_MODE       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 61, struct rkmodule_bayer_param)
 
+#define RKMODULE_GET_HDR_COMPR_SINGLE_FRAME_INFO  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 62, struct rkmodule_hdr_compr_single_frame_info)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1074,6 +1077,11 @@ struct rkmodule_bayer_param {
 	__u32 bayer_mode;
 	__u32 reg_num;
 	struct rkmodule_reg_struct reg_list[RKMODULE_REG_LIST_MAX];
+};
+
+struct rkmodule_hdr_compr_single_frame_info {
+	__u32 single_bitwidth;
+	__u32 reserved[8];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
