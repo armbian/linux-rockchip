@@ -29,6 +29,7 @@
 #define RKPM_SLP_PMU_DBG		BIT(26)
 #define RKPM_SLP_LP_PR			BIT(27)
 #define RKPM_SLP_ARCH_TIMER_RESET	BIT(28)
+#define RKPM_SLP_LP_AOA			BIT(29)
 
 /* the wake up source */
 #define RKPM_CPU0_WKUP_EN		BIT(0)

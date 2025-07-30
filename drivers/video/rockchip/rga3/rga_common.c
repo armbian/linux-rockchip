@@ -488,9 +488,6 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 	case RGA_FORMAT_YCrCb_422_SP_10B:
 		pixel_stride = 10;
 		break;
-	case RGA_FORMAT_BPP1:
-	case RGA_FORMAT_BPP2:
-	case RGA_FORMAT_BPP4:
 	case RGA_FORMAT_BPP8:
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_A8:
@@ -505,8 +502,15 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 	case RGA_FORMAT_Y8:
 		pixel_stride = 8;
 		break;
+	case RGA_FORMAT_BPP4:
 	case RGA_FORMAT_Y4:
 		pixel_stride = 4;
+		break;
+	case RGA_FORMAT_BPP2:
+		pixel_stride = 2;
+		break;
+	case RGA_FORMAT_BPP1:
+		pixel_stride = 1;
 		break;
 	default:
 		rga_err("unknown format [0x%x]\n", format);
@@ -823,13 +827,21 @@ int rga_image_size_cal(int w, int h, int format,
 		uv = (w * h) >> 2;
 		v = uv;
 		break;
+	case RGA_FORMAT_BPP8:
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_A8:
 	case RGA_FORMAT_Y8:
 		yrgb = w * h;
 		break;
+	case RGA_FORMAT_BPP4:
 	case RGA_FORMAT_Y4:
 		yrgb = (w * h) >> 1;
+		break;
+	case RGA_FORMAT_BPP2:
+		yrgb = (w * h) >> 2;
+		break;
+	case RGA_FORMAT_BPP1:
+		yrgb = (w * h) >> 3;
 		break;
 	default:
 		rga_err("Unsuport format [0x%x]\n", format);

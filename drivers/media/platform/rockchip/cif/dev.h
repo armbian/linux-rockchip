@@ -398,6 +398,8 @@ struct rkcif_irq_stats {
 	u64 frm_end_cnt[RKCIF_MAX_STREAM_MIPI];
 	u64 not_active_buf_cnt[RKCIF_MAX_STREAM_MIPI];
 	u64 trig_simult_cnt[RKCIF_MAX_STREAM_MIPI];
+	u64 bus0_err;
+	u64 bus1_err;
 	u64 all_err_cnt;
 };
 

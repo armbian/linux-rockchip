@@ -229,6 +229,9 @@
 #define RKMODULE_SET_CMPS_MODE       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 55, __u32)
 
+#define RKMODULE_GET_ERROR_INFO       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 56, struct rkmodule_error_info)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -985,6 +988,11 @@ struct rkmodule_blc_info {
 enum rkmodule_cmps_mode {
 	CMPS_LOW_BIT_WIDTH_MODE,
 	CMPS_HIGH_BIT_WIDTH_MODE,
+};
+
+struct rkmodule_error_info {
+	__u32 err_code;
+	__u8 detail[256];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
