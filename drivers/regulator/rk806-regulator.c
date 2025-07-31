@@ -1250,12 +1250,10 @@ static void rk806_regulator_shutdown(struct platform_device *pdev)
 
 	if (system_state == SYSTEM_POWER_OFF) {
 		rk806_shutdown_requence_config(rk806);
-		if ((rk806->pins->p) && (rk806->pins->power_off))
-			pinctrl_select_state(rk806->pins->p, rk806->pins->power_off);
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+		rk806_field_write(rk806, PWRCTRL1_POL, POL_HIGH);
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_POWOFF_FUN);
 	}
-	if (system_state == SYSTEM_RESTART)
-		if ((rk806->pins->p) && (rk806->pins->reset))
-			pinctrl_select_state(rk806->pins->p, rk806->pins->reset);
 }
 
 static const struct platform_device_id rk806_regulator_id_table[] = {
