@@ -15202,9 +15202,9 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 
 		snprintf(clk_name, sizeof(clk_name), "dclk_src_vp%d", vp->id);
 		vp->dclk_parent = devm_clk_get_optional(vop2->dev, clk_name);
-		if (IS_ERR(vp->dclk)) {
+		if (IS_ERR(vp->dclk_parent)) {
 			DRM_DEV_ERROR(vop2->dev, "failed to get %s\n", clk_name);
-			return PTR_ERR(vp->dclk);
+			return PTR_ERR(vp->dclk_parent);
 		}
 
 		crtc = &vp->rockchip_crtc.crtc;
