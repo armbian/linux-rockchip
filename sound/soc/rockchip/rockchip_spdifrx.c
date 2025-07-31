@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 #include <sound/asoundef.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
@@ -46,9 +47,11 @@ struct rk_spdifrx_dev {
 	struct reset_control *reset;
 	struct rk_spdifrx_info info;
 	struct snd_soc_dai *dai;
+	struct snd_pcm_substream *substream;
 	struct timer_list debounce_timer;
 	struct timer_list non_liner_timer;
 	struct timer_list fifo_timer;
+	struct work_struct xrun_work;
 	unsigned int mclk_rate;
 	int irq;
 	bool cdr_count_avg;
@@ -129,6 +132,7 @@ static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
 	spdifrx->info.sample_rate_src_last = 0;
 	spdifrx->info.sample_width_last = 0;
 	spdifrx->info.liner_pcm_last = 1;
+	spdifrx->substream = substream;
 
 	if (params_rate(params) >= 44100)
 		spdifrx->cdr_count_avg = true;
@@ -155,7 +159,7 @@ static int rk_spdifrx_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		rk_spdifrx_reset(spdifrx);
+		regmap_write(spdifrx->regmap, SPDIFRX_CLR, SPDIFRX_CLR_RXSC);
 		ret = regmap_update_bits(spdifrx->regmap, SPDIFRX_DMACR,
 					 SPDIFRX_DMACR_RDE_MASK,
 					 SPDIFRX_DMACR_RDE_ENABLE);
@@ -166,6 +170,9 @@ static int rk_spdifrx_trigger(struct snd_pcm_substream *substream,
 		ret = regmap_update_bits(spdifrx->regmap, SPDIFRX_CFGR,
 					 SPDIFRX_EN_MASK,
 					 SPDIFRX_EN);
+
+		mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(1000));
+		dev_dbg(spdifrx->dev, "start fifo timer\n");
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -391,6 +398,7 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 				 ARRAY_SIZE(rk_spdifrx_controls));
 
 	rk_spdifrx_parse_quirks(spdifrx);
+	spdifrx->need_reset = true;
 
 	return 0;
 }
@@ -618,6 +626,24 @@ static unsigned int rk_spdifrx_convert_sample_rate(unsigned int mclk, unsigned i
 	return 0;
 }
 
+static int rk_spdifrx_disable_dma(struct rk_spdifrx_dev *spdifrx)
+{
+	int ret;
+
+	ret = regmap_update_bits(spdifrx->regmap, SPDIFRX_DMACR,
+				 SPDIFRX_DMACR_RDE_MASK,
+				 SPDIFRX_DMACR_RDE_DISABLE);
+
+	if (ret != 0) {
+		dev_err(spdifrx->dev, "Failed to disable rxdma\n");
+		return ret;
+	}
+
+	dev_dbg(spdifrx->dev, "rxdma disabled\n");
+
+	return ret;
+}
+
 static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 {
 	struct rk_spdifrx_dev *spdifrx = dev_id;
@@ -642,6 +668,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NVLDICLR);
 		rk_spdifrx_reset(spdifrx);
 		spdifrx->need_reset = true;
+		rk_spdifrx_disable_dma(spdifrx);
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
 	}
@@ -658,6 +685,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_PEICLR);
 		rk_spdifrx_reset(spdifrx);
 		spdifrx->need_reset = true;
+		rk_spdifrx_disable_dma(spdifrx);
 	}
 
 	if (intsr & SPDIFRX_INTSR_NPSPISR_ACTIVE) {
@@ -679,6 +707,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_BMDEICLR);
 		rk_spdifrx_reset(spdifrx);
 		spdifrx->need_reset = true;
+		rk_spdifrx_disable_dma(spdifrx);
 	}
 
 	if (intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) {
@@ -690,7 +719,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN, SPDIFRX_INTEN_NSYNCIE_MASK,
 				   SPDIFRX_INTEN_NSYNCIE_DIS);
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NSYNCICLR);
-		regmap_write(spdifrx->regmap, SPDIFRX_CLR, 0x1);
+		regmap_write(spdifrx->regmap, SPDIFRX_CLR, SPDIFRX_CLR_RXSC);
 	}
 
 	if (intsr & SPDIFRX_INTSR_BTEISR_ACTIVE) {
@@ -784,8 +813,18 @@ static void rk_spdifrx_fifo_timer_isr(struct timer_list *timer)
 	ktime_t start, end;
 	int ret;
 
-	if (spdifrx->info.sync == 0 || spdifrx->need_reset || spdifrx->info.sample_rate_src == 0)
+	if (spdifrx->info.sync == 0 || spdifrx->need_reset || spdifrx->info.sample_rate_src == 0) {
+		dev_dbg(spdifrx->dev, "exit fifo timer\n");
+		dev_dbg(spdifrx->dev, "sync: %d, need_reset: %d, sample_rate_src: %u\n",
+			spdifrx->info.sync, spdifrx->need_reset, spdifrx->info.sample_rate_src);
 		return;
+	}
+
+	regmap_read(spdifrx->regmap, SPDIFRX_DMACR, &val);
+	if ((val & SPDIFRX_DMACR_RDE_MASK) == 0) {
+		dev_dbg(spdifrx->dev, "exit fifo timer: rxdma disabled\n");
+		return;
+	}
 
 	timeout_us = DIV_ROUND_UP(500000, spdifrx->info.sample_rate_src);
 
@@ -802,6 +841,7 @@ static void rk_spdifrx_fifo_timer_isr(struct timer_list *timer)
 			dev_info(spdifrx->dev, "no data to fifo, reset\n");
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = true;
+			rk_spdifrx_disable_dma(spdifrx);
 			return;
 		}
 	}
@@ -839,6 +879,7 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 		if (spdifrx->need_reset) {
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = false;
+			schedule_work(&spdifrx->xrun_work);
 		} else {
 			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
 			if (spdifrx->cdr_count_avg)
@@ -858,7 +899,6 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 			snd_ctl_notify(dai->component->card->snd_card,
 				       SNDRV_CTL_EVENT_MASK_VALUE, &sync_kctl->id);
 			spdifrx->info.sample_rate_cal_last = spdifrx->info.sample_rate_cal;
-			mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(1000));
 			if (spdifrx->info.liner_pcm == 1)
 				regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 						   SPDIFRX_INTEN_NVLDIE_MASK,
@@ -870,6 +910,24 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 		snd_ctl_notify(dai->component->card->snd_card,
 			       SNDRV_CTL_EVENT_MASK_VALUE, &sync_kctl->id);
 		dev_dbg(spdifrx->dev, "notify usync\n");
+	}
+}
+
+static void rk_spdifrx_xrun_work(struct work_struct *work)
+{
+	struct rk_spdifrx_dev *spdifrx = container_of(work, struct rk_spdifrx_dev, xrun_work);
+	int ret;
+	u32 val;
+
+	ret = regmap_read_poll_timeout(spdifrx->regmap, SPDIFRX_CDR, val,
+				       ((val & SPDIFRX_CDR_CS_MASK) >> 9) == 0x3, 300, 3000);
+	if (!ret) {
+		if (spdifrx->substream) {
+			snd_pcm_stop_xrun(spdifrx->substream);
+			dev_dbg(spdifrx->dev, "stop xrun\n");
+		}
+	} else {
+		dev_dbg(spdifrx->dev, "reset enter sync failed\n");
 	}
 }
 
@@ -911,6 +969,7 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 	timer_setup(&spdifrx->debounce_timer, rk_spdifrx_debounce_timer_isr, 0);
 	timer_setup(&spdifrx->non_liner_timer, rk_spdifrx_non_liner_timer_isr, 0);
 	timer_setup(&spdifrx->fifo_timer, rk_spdifrx_fifo_timer_isr, 0);
+	INIT_WORK(&spdifrx->xrun_work, rk_spdifrx_xrun_work);
 
 	ret = devm_request_threaded_irq(&pdev->dev, spdifrx->irq, NULL,
 					rk_spdifrx_isr,
