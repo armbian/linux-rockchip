@@ -5052,7 +5052,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_LENC_INFO:
 		lenc_info = (struct rkmodule_lenc_info *)arg;
-		lenc_info->bit_width = 10;
+		lenc_info->bit_width = 6;
 		lenc_info->grid_num = 64;
 		break;
 	case RKMODULE_SET_LENC:
