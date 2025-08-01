@@ -1202,6 +1202,24 @@ config VIDEO_OS08A20
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OS08A20 camera.
 
+config VIDEO_OS08G10
+	tristate "OmniVision OS08G10 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OS08G10 camera.
+
+	  This driver uses the V4L2 sub-device API (VIDEO_V4L2_SUBDEV_API)
+	  and media controller (MEDIA_CONTROLLER); both are selected
+	  automatically when this option is enabled.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called os08g10.
+
 config VIDEO_OS12D40
 	tristate "OmniVision OS12D40 sensor support"
 	depends on I2C && VIDEO_DEV
