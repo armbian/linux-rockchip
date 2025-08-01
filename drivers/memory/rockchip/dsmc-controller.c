@@ -13,9 +13,6 @@
 
 #define MHZ					(1000000)
 
-#define REG_CLRSETBITS(dsmc, offset, clrbits, setbits) \
-		dsmc_modify_reg(dsmc, offset, clrbits, setbits)
-
 /* psram id */
 enum {
 	CYPRESS = 0x1,
@@ -71,17 +68,6 @@ static inline void lb_write_cmn(struct dsmc_map *map,
 static inline uint32_t lb_read_cmn(struct dsmc_map *map, uint32_t cmn_reg)
 {
 	return readl(map->virt + cmn_reg);
-}
-
-static inline void dsmc_modify_reg(struct rockchip_dsmc *dsmc, uint32_t offset,
-				   uint32_t clrbits, uint32_t setbits)
-{
-	uint32_t value;
-
-	value = readl(dsmc->regs + offset);
-	value &= ~clrbits;
-	value |= setbits;
-	writel(value, dsmc->regs + offset);
 }
 
 static int find_attr_region(struct dsmc_config_cs *cfg, uint32_t attribute)
@@ -315,6 +301,14 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		REG_CLRSETBITS(dsmc, dsmc->cfg.dma_req_mux_offset,
 			       DMA_REQ_MUX_MASK(cs),
 			       DMA_REQ_MUX(cs, dsmc->cfg.cs_cfg[cs].int_en));
+	if (dsmc->cfg.version >= DSMC_VERSION_4_0) {
+		writel(((dsmc->cfg.rd_otsding & OTST_CFG_RD_OTSDING_MASK) <<
+			OTST_CFG_RD_OTSDING_SHIFT) |
+		       ((dsmc->cfg.wr_otsding & OTST_CFG_WR_OTSDING_MASK) |
+			OTST_CFG_WR_OTSDING_SHIFT),
+		       dsmc->regs + DSMC_OTST_CFG);
+		dsmc->cfg.local_dma_en = 1;
+	}
 
 	return 0;
 }
@@ -949,10 +943,15 @@ void rockchip_dsmc_lb_dma_hw_mode_dis(struct rockchip_dsmc *dsmc)
 {
 	uint32_t cs = dsmc->xfer.ops_cs;
 
-	/* clear dsmc interrupt */
-	writel(INT_STATUS(cs), dsmc->regs + DSMC_INT_STATUS);
-	/* disable dma request */
-	writel(DMA_REQ_DIS(cs), dsmc->regs + DSMC_DMA_EN);
+	if (dsmc->cfg.local_dma_en) {
+		/* clear local dma finish interrupt */
+		writel(INT_STATUS_DMA_FINISH_MASK, dsmc->regs + DSMC_INT_STATUS);
+	} else {
+		/* clear dsmc interrupt */
+		writel(INT_STATUS(cs), dsmc->regs + DSMC_INT_STATUS);
+		/* disable dma request */
+		writel(DMA_REQ_DIS(cs), dsmc->regs + DSMC_DMA_EN);
+	}
 
 	dsmc_lb_dma_clear_s2h_intrupt(dsmc, cs);
 }
@@ -1001,6 +1000,65 @@ int rockchip_dsmc_lb_dma_trigger_by_host(struct rockchip_dsmc *dsmc, uint32_t cs
 }
 EXPORT_SYMBOL(rockchip_dsmc_lb_dma_trigger_by_host);
 
+int rockchip_dsmc_lb_local_dma_prepare(struct rockchip_dsmc *dsmc)
+{
+	writel((((dsmc->xfer.transfer_size / AHB_DMA_BURST_SIZE_8BYTE) &
+		 AHB_DMA_TRANS_LEN_MASK) << AHB_DMA_TRANS_LEN_SHIFT) |
+		((dsmc->xfer.local_dma.burst_type & AHB_DMA_BURST_MASK) <<
+		 AHB_DMA_BURST_SHIFT) |
+		((dsmc->xfer.local_dma.dir & AHB_DMA_RDWR_MASK) <<
+		 AHB_DMA_RDWR_SHIFT),
+		dsmc->regs + DSMC_AHB_DMA_CON1);
+
+	writel(P_WAIT_TIME_MASK, dsmc->regs + DSMC_AHB_DMA_PWAIT_TIME);
+
+	if (dsmc->xfer.local_dma.dir == AHB_DMA_DIR_RX) {
+		writel((uint64_t)dsmc->xfer.src_addr & AHB_LBC_ADDR_MASK,
+			dsmc->regs + DSMC_AHB_DMA_LBC_ADDR);
+		writel((uint64_t)dsmc->xfer.dst_addr & AHB_ADDR_L_MASK,
+			dsmc->regs + DSMC_AHB_DMA_ADDR_L);
+		writel(((uint64_t)dsmc->xfer.dst_addr >> 32) & AHB_ADDR_H_MASK,
+			dsmc->regs + DSMC_AHB_DMA_ADDR_H);
+	} else {
+		writel((uint64_t)dsmc->xfer.dst_addr & AHB_LBC_ADDR_MASK,
+			dsmc->regs + DSMC_AHB_DMA_LBC_ADDR);
+		writel((uint64_t)dsmc->xfer.src_addr & AHB_ADDR_L_MASK,
+			dsmc->regs + DSMC_AHB_DMA_ADDR_L);
+		writel(((uint64_t)dsmc->xfer.src_addr >> 32) & AHB_ADDR_H_MASK,
+			dsmc->regs + DSMC_AHB_DMA_ADDR_H);
+	}
+	if (dsmc->xfer.local_dma.ll_trans_en) {
+		writel((uint64_t)dsmc->xfer.local_dma.link_list & AHB_DMA_LL_ADDR_L_MASK,
+			dsmc->regs + DSMC_AHB_DMA_LL_ADDR_L);
+		writel(((uint64_t)dsmc->xfer.local_dma.link_list >> 32) & AHB_DMA_LL_ADDR_H_MASK,
+			dsmc->regs + DSMC_AHB_DMA_LL_ADDR_H);
+	}
+
+	writel(((dsmc->xfer.local_dma.peri_req_burst << PERI_REQ_BURST_SHIFT) |
+		(PERI_REQ_BURST_MASK << (16 + PERI_REQ_BURST_SHIFT))) |
+		((dsmc->xfer.local_dma.p_trans_en << P_TRANS_EN_SHIFT) |
+		(P_TRANS_EN_MASK << (16 + P_TRANS_EN_SHIFT))) |
+		((dsmc->xfer.local_dma.ll_trans_en << LL_TRANS_EN_SHIFT) |
+		(LL_TRANS_EN_MASK << (16 + LL_TRANS_EN_SHIFT))),
+		dsmc->regs + DSMC_AHB_DMA_CON0);
+
+	/* used local dma */
+	writel(0x0 << DMA_REQ_SEL_SHIFT, dsmc->regs + DSMC_DMA_REQ_SEL);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_dsmc_lb_local_dma_prepare);
+
+void rockchip_dsmc_lb_local_dma_start(struct rockchip_dsmc *dsmc)
+{
+	if (dsmc->cfg.local_dma_en)
+		writel(((DMA_START << DMA_START_SHIFT) |
+			(DMA_START_MASK << (16 + DMA_START_SHIFT))),
+			dsmc->regs + DSMC_AHB_DMA_CON0);
+
+}
+EXPORT_SYMBOL(rockchip_dsmc_lb_local_dma_start);
+
 int rockchip_dsmc_device_dectect(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	int ret = 0;
@@ -1046,6 +1104,8 @@ int rockchip_dsmc_ctrller_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 	uint32_t i;
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
+	dsmc->cfg.version = (readl(dsmc->regs + DSMC_VER) >> DSMC_VERSION_SHIFT) &
+			    DSMC_VERSION_MASK;
 	writel(MRGTCR_READ_WRITE_MERGE_EN,
 	       dsmc->regs + DSMC_MRGTCR(cs));
 	writel((0x1 << RDS_DLL0_CTL_RDS_0_CLK_SMP_SEL_SHIFT) |

@@ -17,10 +17,6 @@
 #include "dsmc-host.h"
 #include "dsmc-lb-slave.h"
 
-/* DMA translate state flags */
-#define RXDMA					(1 << 0)
-#define TXDMA					(1 << 1)
-
 #ifndef FALSE
 #define FALSE					0
 #endif
@@ -108,6 +104,56 @@ static __maybe_unused int rk3506_dsmc_platform_init(struct platform_device *pdev
 	return ret;
 }
 
+static __maybe_unused int rk3572_dsmc_platform_init(struct platform_device *pdev)
+{
+	struct rockchip_dsmc_device *priv;
+	struct rockchip_dsmc *dsmc;
+	struct device *dev = &pdev->dev;
+	int ret = 0;
+
+	priv = platform_get_drvdata(pdev);
+	dsmc = &priv->dsmc;
+
+	if (IS_ERR_OR_NULL(priv->dsmc.grf)) {
+		dev_err(priv->dsmc.dev, "Missing rockchip,grf property\n");
+		return -ENODEV;
+	}
+
+	/* gate dsmc memory */
+	regmap_write(priv->dsmc.grf, RK3572_DSMC_GRF_CON0_OFFSET, DSMC_MEM_CLK_GATE_EN(1));
+
+	dsmc->hclk_root = devm_clk_get_enabled(dev, "hclk_root");
+	if (IS_ERR(dsmc->hclk_root)) {
+		ret = PTR_ERR(dsmc->hclk_root);
+		dev_err(dev, "Can't get and enable hclk_root clk: %d\n", ret);
+		return ret;
+	}
+
+	/* max 200MHz */
+	ret = clk_set_rate(dsmc->hclk_root, 200 * MHz);
+	if (ret) {
+		dev_err(dev, "Failed to set dsmc hclk_root rate\n");
+		return ret;
+	}
+
+	dsmc->pclk_subsys_root = devm_clk_get_enabled(dev, "pclk_subsys_root");
+	if (IS_ERR(dsmc->pclk_subsys_root)) {
+		ret = PTR_ERR(dsmc->pclk_subsys_root);
+		dev_err(dev, "Can't get and enable pclk_subsys_root clk: %d\n", ret);
+		return ret;
+	}
+
+	dsmc->pclk_root = devm_clk_get_enabled(dev, "pclk_root");
+	if (IS_ERR(dsmc->pclk_root)) {
+		ret = PTR_ERR(dsmc->pclk_root);
+		dev_err(dev, "Can't get and enable pclk_root clk: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+
 static const struct of_device_id dsmc_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3576)
 	{
@@ -122,6 +168,11 @@ static const struct of_device_id dsmc_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RV1126B)
 	{
 		.compatible = "rockchip,rv1126b-dsmc", .data = rk3506_dsmc_platform_init
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3572)
+	{
+		.compatible = "rockchip,rk3572-dsmc", .data = rk3572_dsmc_platform_init
 	},
 #endif
 	{},
@@ -557,15 +608,22 @@ static void dsmc_lb_dma_hw_mode_en(struct rockchip_dsmc *dsmc, uint32_t cs)
 	uint32_t burst_byte = xfer->brst_len * xfer->brst_size;
 	uint32_t dma_req_num;
 
-	dma_req_num = size / burst_byte;
-	if (size % burst_byte) {
-		dev_warn(dev, "DMA size is unaligned\n");
-		dma_req_num++;
-	}
-	writel(dma_req_num, dsmc->regs + DSMC_DMA_REQ_NUM(cs));
+	/* enable local dma finish interrupt */
+	if (dsmc->cfg.local_dma_en) {
+		REG_CLRSETBITS(dsmc, DSMC_INT_EN,
+			       DMA_FINISH_INT_EN_MASK << DMA_FINISH_INT_EN_SHIFT,
+			       0x1 << DMA_FINISH_INT_EN_SHIFT);
+	} else {
+		dma_req_num = size / burst_byte;
+		if (size % burst_byte) {
+			dev_warn(dev, "DMA size is unaligned\n");
+			dma_req_num++;
+		}
+		writel(dma_req_num, dsmc->regs + DSMC_DMA_REQ_NUM(cs));
 
-	/* enable dma request */
-	writel(DMA_REQ_EN(cs), dsmc->regs + DSMC_DMA_EN);
+		/* enable dma request */
+		writel(DMA_REQ_EN(cs), dsmc->regs + DSMC_DMA_EN);
+	}
 }
 
 static void rockchip_dsmc_interrupt_mask(struct rockchip_dsmc *dsmc)
@@ -582,6 +640,27 @@ static void rockchip_dsmc_interrupt_unmask(struct rockchip_dsmc *dsmc)
 
 	/* mask dsmc interrupt */
 	writel(INT_UNMASK(cs), dsmc->regs + DSMC_INT_MASK);
+}
+
+static irqreturn_t rockchip_dsmc_isr(int irq, void *dev_id)
+{
+	uint32_t int_status;
+	struct rockchip_dsmc *dsmc = dev_id;
+
+	int_status = readl(dsmc->regs + DSMC_INT_STATUS);
+	if (int_status & INT_STATUS_DMA_FINISH_MASK) {
+		writel(INT_STATUS_DMA_FINISH_MASK, dsmc->regs + DSMC_INT_STATUS);
+		if (dsmc->xfer.local_dma.local_dma_callback)
+			dsmc->xfer.local_dma.local_dma_callback(dsmc);
+	} else if (int_status & INT_STATUS_DMA_TIMEOUT_MASK) {
+		writel(INT_STATUS_DMA_TIMEOUT_MASK, dsmc->regs + DSMC_INT_STATUS);
+		atomic_or(LOCAL_DMA_STAT_TIMEOUT, &dsmc->xfer.state);
+	} else if (int_status & INT_STATUS_DMA_ERROR_MASK) {
+		writel(INT_STATUS_DMA_ERROR_MASK, dsmc->regs + DSMC_INT_STATUS);
+		atomic_or(LOCAL_DMA_STAT_ERROR, &dsmc->xfer.state);
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int dmaengine_config_interleaved(struct dsmc_transfer *xfer,
@@ -624,6 +703,13 @@ static void rockchip_dsmc_lb_dma_rxcb(void *data)
 	atomic_fetch_andnot(RXDMA, &dsmc->xfer.state);
 	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
 	rockchip_dsmc_interrupt_unmask(dsmc);
+}
+
+static void rockchip_dsmc_lb_dma_sg_cb(void *data)
+{
+	struct rockchip_dsmc *dsmc = data;
+
+	atomic_fetch_andnot(RXDMA | TXDMA, &dsmc->xfer.state);
 }
 
 static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
@@ -701,6 +787,56 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 
 }
 
+static int dsmc_copy_sg(struct rockchip_dsmc_device *dsmc_dev,
+			struct dsmc_local_dma_link_list *sg_list,
+			phys_addr_t sg_list_phys,
+			uint32_t cs)
+{
+	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	struct device *dev = dsmc_dev->dsmc.dev;
+
+	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
+		dev_warn(dev, "copy_sg: the transfer is busy!\n");
+		return -EBUSY;
+	}
+	if (atomic_read(&dsmc->xfer.state) & (LOCAL_DMA_STAT_TIMEOUT | LOCAL_DMA_STAT_ERROR)) {
+		dev_warn(dev, "copy_sg: the local DMA is in wrong state!\n");
+		return -EBUSY;
+	}
+
+	if (!dsmc->cfg.local_dma_en)
+		return -ENXIO;
+
+	dsmc->xfer.local_dma.link_list = sg_list_phys;
+	dsmc->xfer.ops_cs = cs;
+
+	dsmc->xfer.src_addr = (phys_addr_t)sg_list->ll_lbc_addr;
+	dsmc->xfer.dst_addr = sg_list->ll_ahb_addr_f.ahb_addr;
+	dsmc->xfer.transfer_size = sg_list->ll_ctl_f.ll_trans_len;
+	dsmc->xfer.local_dma.dir = sg_list->ll_ctl_f.ll_rdwr;
+	dsmc->xfer.local_dma.burst_type = sg_list->ll_ctl_f.ll_burst;
+	dsmc->xfer.local_dma.p_trans_en = sg_list->ll_ctl_f.p_trans_en;
+
+	dsmc->xfer.local_dma.mode = DSMC_LOCAL_DMA_SOFTWARE_MODE;
+	dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
+	dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_EN;
+
+	atomic_or(RXDMA | TXDMA, &dsmc->xfer.state);
+	dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_sg_cb;
+
+	rockchip_dsmc_interrupt_mask(dsmc);
+	rockchip_dsmc_lb_local_dma_prepare(dsmc);
+
+	dsmc_lb_dma_hw_mode_en(dsmc, cs);
+
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
+		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+	else
+		rockchip_dsmc_lb_local_dma_start(dsmc);
+
+	return 0;
+}
+
 static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint32_t region,
 			  uint32_t from, dma_addr_t dst_phys, size_t size)
 {
@@ -720,11 +856,26 @@ static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, ui
 
 	rockchip_dsmc_interrupt_mask(dsmc);
 
-	rockchip_dsmc_lb_prepare_rx_dma(dev, dsmc, cs);
+	if (dsmc->cfg.local_dma_en) {
+		dsmc->xfer.local_dma.mode = DSMC_LOCAL_DMA_SOFTWARE_MODE;
+		dsmc->xfer.local_dma.dir = AHB_DMA_DIR_RX;
+		dsmc->xfer.local_dma.burst_type = AHB_DMA_BURST_INCR16;
+		dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
+		dsmc->xfer.local_dma.p_trans_en = P_TRANS_DIS;
+		dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_DIS;
+		rockchip_dsmc_lb_local_dma_prepare(dsmc);
+		atomic_or(RXDMA, &dsmc->xfer.state);
+		dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_rxcb;
+	} else {
+		rockchip_dsmc_lb_prepare_rx_dma(dev, dsmc, cs);
+	}
 
 	dsmc_lb_dma_hw_mode_en(dsmc, cs);
 
-	rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
+		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+	else
+		rockchip_dsmc_lb_local_dma_start(dsmc);
 
 	return 0;
 }
@@ -758,11 +909,26 @@ static int dsmc_copy_to(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint
 
 	rockchip_dsmc_interrupt_mask(dsmc);
 
-	rockchip_dsmc_lb_prepare_tx_dma(dev, dsmc, cs);
+	if (dsmc->cfg.local_dma_en) {
+		dsmc->xfer.local_dma.mode = DSMC_LOCAL_DMA_SOFTWARE_MODE;
+		dsmc->xfer.local_dma.dir = AHB_DMA_DIR_TX;
+		dsmc->xfer.local_dma.burst_type = AHB_DMA_BURST_INCR16;
+		dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
+		dsmc->xfer.local_dma.p_trans_en = P_TRANS_DIS;
+		dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_DIS;
+		rockchip_dsmc_lb_local_dma_prepare(dsmc);
+		atomic_or(TXDMA, &dsmc->xfer.state);
+		dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_txcb;
+	} else {
+		rockchip_dsmc_lb_prepare_tx_dma(dev, dsmc, cs);
+	}
 
 	dsmc_lb_dma_hw_mode_en(dsmc, cs);
 
-	rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
+		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+	else
+		rockchip_dsmc_lb_local_dma_start(dsmc);
 
 	return 0;
 }
@@ -777,6 +943,16 @@ static int dsmc_copy_to_state(struct rockchip_dsmc_device *dsmc_dev)
 		return 0;
 }
 
+static int dsmc_copy_sg_state(struct rockchip_dsmc_device *dsmc_dev)
+{
+	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+
+	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA))
+		return -EBUSY;
+	else
+		return 0;
+}
+
 static void dsmc_data_init(struct rockchip_dsmc *dsmc)
 {
 	uint32_t cs;
@@ -785,6 +961,9 @@ static void dsmc_data_init(struct rockchip_dsmc *dsmc)
 
 	dsmc->xfer.brst_len = 16;
 	dsmc->xfer.brst_size = DMA_SLAVE_BUSWIDTH_8_BYTES;
+	dsmc->cfg.rd_otsding = 3;
+	dsmc->cfg.wr_otsding = 3;
+	dsmc->cfg.local_dma_en = 0;
 	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
 		if (cfg->cs_cfg[cs].device_type == DSMC_UNKNOWN_DEVICE)
 			continue;
@@ -894,6 +1073,8 @@ static struct dsmc_ops rockchip_dsmc_ops = {
 	.copy_from_state = dsmc_copy_from_state,
 	.copy_to = dsmc_copy_to,
 	.copy_to_state = dsmc_copy_to_state,
+	.copy_sg = dsmc_copy_sg,
+	.copy_sg_state = dsmc_copy_sg_state,
 };
 
 static int rockchip_dsmc_dma_request(struct device *dev, struct rockchip_dsmc *dsmc)
@@ -1099,6 +1280,26 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 	if (rockchip_dsmc_status_check(priv)) {
 		ret = -ENODEV;
 		dev_err(dev, "DSMC status error, please check hardware matched(io, slave etc.)\n");
+		goto err_release_dma;
+	}
+
+	/* register interrupts */
+	priv->irq = platform_get_irq_byname(pdev, "dsmc");
+	if (priv->irq < 0)
+		priv->irq = platform_get_irq(pdev, 0);
+
+	if (priv->irq < 0) {
+		ret = -ENODEV;
+		dev_err(dev, "cannot find dsmc IRQ\n");
+		goto err_release_dma;
+	}
+	ret = devm_request_irq(&pdev->dev, priv->irq,
+			       rockchip_dsmc_isr,
+			       0,
+			       "dsmc_irq", dsmc);
+	if (ret) {
+		dev_err(&pdev->dev, "couldn't request irq%d: %d\n",
+			priv->irq, ret);
 		goto err_release_dma;
 	}
 

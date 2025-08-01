@@ -27,6 +27,7 @@
 #define DSMC_CSR					0x0008
 #define DSMC_TAR					0x0010
 #define DSMC_AXICTL					0x0014
+#define DSMC_OTST_CFG					0x0018
 #define DSMC_CLK_MD					0x0020
 #define DSMC_DLL_DBG_CTRL				0x0028
 #define DSMC_DEV_SIZE					0x0030
@@ -36,6 +37,17 @@
 #define DSMC_DMA_EN					0x0050
 #define DSMC_DMA_REQ_NUM(n)				(0x0054 + (0x4 * (n)))
 #define DSMC_DMA_MUX					0x005c
+#define DSMC_AHB_DMA_CON0				0x80
+#define DSMC_AHB_DMA_CON1				0x84
+#define DSMC_AHB_DMA_PWAIT_TIME				0x88
+#define DSMC_AHB_DMA_LBC_ADDR				0x8C
+#define DSMC_AHB_DMA_LL_ADDR_L				0x90
+#define DSMC_AHB_DMA_LL_ADDR_H				0x94
+#define DSMC_AHB_DMA_ADDR_L				0x98
+#define DSMC_AHB_DMA_ADDR_H				0x9C
+#define DSMC_AHB_AXI_ARB_CON				0xA0
+#define DSMC_AHB_AXI_ARB_ST				0xA4
+#define DSMC_DMA_REQ_SEL				0xA8
 #define DSMC_VDMC(n)					(0x1000 * ((n) + 1))
 #define DSMC_MCR(n)					(0x1000 * ((n) + 1) + 0x10)
 #define DSMC_MTR(n)					(0x1000 * ((n) + 1) + 0x14)
@@ -51,6 +63,23 @@
 #define DSMC_RGN3_ATTR(n)				(0x1000 * ((n) + 1) + 0x5c)
 
 #define DSMC_RDS_DLL_CTL(cs, byte)			(0x1000 * ((cs) + 1) + 0x30 + (byte) * 0x4)
+#define DSMC_LOCAL_DMA_HARDWARE_MODE			(0)
+#define DSMC_LOCAL_DMA_SOFTWARE_MODE			(1)
+
+/* VER */
+#define DSMC_VERSION_4_0				0x0400
+#define DSMC_VERSION_SHIFT				16
+#define DSMC_VERSION_MASK				0xffff
+
+/* OTST_CFG */
+#define OTST_CFG_WR_OTSDING_SHIFT			(0)
+#define OTST_CFG_WR_OTSDING_MASK			(0xF)
+#define OTST_CFG_RD_OTSDING_SHIFT			(4)
+#define OTST_CFG_RD_OTSDING_MASK			(0xF)
+
+/* DMA_REQ_SEL */
+#define DMA_REQ_SEL_SHIFT				(0)
+#define DMA_REQ_SEL_MASK				(0x1)
 
 /* AXICTL */
 #define AXICTL_RD_NO_ERR_SHIFT				8
@@ -60,11 +89,27 @@
 #define INT_EN_SHIFT					0
 #define INT_EN_MASK(cs)					(0x1 << (cs))
 #define INT_EN(cs)					(0x1 << (cs))
+#define RDSTALL_INT_EN_SHIFT				(4)
+#define RDSTALL_INT_EN_MASK				(0x1)
+#define DMA_FINISH_INT_EN_SHIFT				(5)
+#define DMA_FINISH_INT_EN_MASK				(0x1)
+#define DMA_TIMEOUT_INT_EN_SHIFT			(6)
+#define DMA_TIMEOUT_INT_EN_MASK				(0x1)
+#define DMA_ERROR_INT_EN_SHIFT				(7)
+#define DMA_ERROR_INT_EN_MASK				(0x1)
 
 /* INT_STATUS */
 #define INT_STATUS_SHIFT				0
 #define INT_STATUS_MASK(cs)				(0x1 << (cs))
 #define INT_STATUS(cs)					(0x1 << (cs))
+#define INT_STATUS_RDSTALL_SHIFT			(4U)
+#define INT_STATUS_RDSTALL_MASK				(0x1U << INT_STATUS_RDSTALL_SHIFT)
+#define INT_STATUS_DMA_FINISH_SHIFT			(5U)
+#define INT_STATUS_DMA_FINISH_MASK			(0x1U << INT_STATUS_DMA_FINISH_SHIFT)
+#define INT_STATUS_DMA_TIMEOUT_SHIFT			(6U)
+#define INT_STATUS_DMA_TIMEOUT_MASK			(0x1U << INT_STATUS_DMA_TIMEOUT_SHIFT)
+#define INT_STATUS_DMA_ERROR_SHIFT			(7U)
+#define INT_STATUS_DMA_ERROR_MASK			(0x1U << INT_STATUS_DMA_ERROR_SHIFT)
 
 /* INT_MASK */
 #define INT_MASK(cs)					(0x1 << (cs))
@@ -79,6 +124,65 @@
 /* DSMC_DMA_MUX */
 #define DMA_REQ_MUX_MASK(req)				(0x3 << ((req) * 4))
 #define DMA_REQ_MUX(req, n)				(((n) & 0x3) << ((req) * 4))
+
+/* AHB_DMA_CON0 */
+#define DMA_START_SHIFT					(0)
+#define DMA_START_MASK					(0x1)
+#define DMA_START					(0x1)
+#define P_TRANS_EN_SHIFT				(1)
+#define P_TRANS_EN_MASK					(0x1)
+#define P_TRANS_EN					(0x1)
+#define P_TRANS_DIS					(0x0)
+#define LL_TRANS_EN_SHIFT				(2)
+#define LL_TRANS_EN_MASK				(0x1)
+#define LL_TRANS_DIS					(0x0)
+#define LL_TRANS_EN					(0x1)
+#define PERI_REQ_BURST_SHIFT				(3)
+#define PERI_REQ_BURST_MASK				(0x1)
+#define PERI_REQ_BURST_WHOLE_TRANS			(0)
+#define PERI_REQ_BURST_ONE_BURST_TRANS			(1)
+
+#define AUTO_SET_BUFFERABLE_SHIFT			(4)
+#define AUTO_SET_BUFFERABLE_MASK			(0x1)
+#define BUFFERABLE_SHIFT				(5)
+#define BUFFERABLE_MASK					(0x1)
+
+/* AHB_DMA_CON1 */
+#define AHB_DMA_RDWR_SHIFT				(0)
+#define AHB_DMA_RDWR_MASK				(0x1)
+#define AHB_DMA_DIR_TX					(0)
+#define AHB_DMA_DIR_RX					(1)
+#define AHB_DMA_BURST_SHIFT				(1)
+#define AHB_DMA_BURST_MASK				(0x7)
+#define AHB_DMA_BURST_SINGLE				(0x0)
+#define AHB_DMA_BURST_INCR4				(0x3)
+#define AHB_DMA_BURST_INCR8				(0x5)
+#define AHB_DMA_BURST_INCR16				(0x7)
+#define AHB_DMA_BURST_SIZE_8BYTE			(8)
+#define AHB_DMA_TRANS_LEN_SHIFT				(4)
+#define AHB_DMA_TRANS_LEN_MASK				(0x7FF)
+
+/* AHB_DMA_PWAIT_TIME */
+#define P_WAIT_TIME_SHIFT				(0)
+#define P_WAIT_TIME_MASK				(0xFFFF)
+
+/* AHB_DMA_LL_ADDR_L */
+#define AHB_DMA_LL_ADDR_L_SHIFT				(0)
+#define AHB_DMA_LL_ADDR_L_MASK				(0xFFFFFFFF)
+/* AHB_DMA_LL_ADDR_H */
+#define AHB_DMA_LL_ADDR_H_SHIFT				(0)
+#define AHB_DMA_LL_ADDR_H_MASK				(0xFF)
+
+/* AHB_DMA_LBC_ADDR */
+#define AHB_LBC_ADDR_MASK				(0xFFFFFFFF)
+
+/* AHB_DMA_ADDR_L */
+#define AHB_ADDR_L_SHIFT				(0)
+#define AHB_ADDR_L_MASK					(0xFFFFFFFF)
+
+/* AHB_DMA_ADDR_H */
+#define AHB_ADDR_H_SHIFT				(0)
+#define AHB_ADDR_H_MASK					(0x1)
 
 /* VDMC */
 #define VDMC_MID_SHIFT					0
@@ -313,6 +417,18 @@
 
 #define RK3506_IOMUX_SEL(v, s)				(((v) << (s)) | (0xf << ((s) + 16)))
 
+#define RK3572_DSMC_GRF_CON0_OFFSET			(0xc)
+#define DSMC_MEM_CLK_GATE_EN(n)				((0x1 << (3 + 16)) | ((n) << 3))
+
+/* DMA translate state flags */
+#define RXDMA					(1 << 0)
+#define TXDMA					(1 << 1)
+#define LOCAL_DMA_STAT_TIMEOUT			(1 << 2)
+#define LOCAL_DMA_STAT_ERROR			(1 << 3)
+
+#define MHz					1000000
+#define KHz					1000
+
 struct regions_config {
 	uint32_t attribute;
 	uint32_t ca_addr_width;
@@ -353,11 +469,15 @@ struct dsmc_config_cs {
 };
 
 struct dsmc_ctrl_config {
+	uint32_t version;
 	uint32_t clk_mode;
 	uint32_t freq_hz;
 	uint32_t ctrl_freq_hz;
 	uint32_t cap;
 	uint32_t dma_req_mux_offset;
+	uint32_t local_dma_en;
+	uint32_t rd_otsding;
+	uint32_t wr_otsding;
 	struct dsmc_config_cs cs_cfg[DSMC_MAX_SLAVE_NUM];
 };
 
@@ -371,15 +491,92 @@ struct dsmc_cs_map {
 	struct dsmc_map region_map[DSMC_LB_MAX_RGN];
 };
 
+/**
+ * struct dsmc_local_dma_link_list - DSMC local DMA linked list node
+ *
+ * Hardware-supported scatter-gather DMA linked list node. Each node describes
+ * a DMA transfer segment. Hardware traverses this list to execute multiple
+ * discontinuous DMA transfers.
+ * ---dsmc local dma link list fields---
+ * @ll_ctl: Complete value of linked list control register.
+ *	@ll_rdwr: Transfer direction: 0=dsmc write (AHB->LBC), 1=dsmc read (LBC->AHB).
+ *	@ll_burst: Burst type: defines burst length.
+ *		0: Single, 1: INCR4, 2: INCR8, 3: INCR16
+ *		And the burst size is fixed to 8Byte.
+ *	@p_trans_en: Peripheral transfer enable.
+		1: use peripheral request mode(external interrupt pin).
+ *	@ll_trans_len: Transfer length for this node.
+ *	@is_ll_last: End of list flag: 1=last node in the list.
+ * @ll_ahb_addr: Complete value of AHB address register.
+ *	@ahb_addr: The AHB address of DMA transfer(source or destination).
+ * @ll_lbc_addr: Complete value of LBC address register.
+ *	@lbc_addr: The LocalBus address of DMA transfer(source or destination).
+ * @next: Pointer to next list node.
+ */
+struct dsmc_local_dma_link_list {
+	union {
+		uint64_t ll_ctl;
+		struct {
+			uint64_t ll_rdwr:1;
+			uint64_t ll_burst:3;
+			uint64_t p_trans_en:1;
+			uint64_t ll_trans_len:11;
+			uint64_t is_ll_last:1;
+			uint64_t reserved:47;
+		} ll_ctl_f;
+	};
+	union {
+		uint64_t ll_ahb_addr;
+		struct {
+			uint64_t ahb_addr:40;
+			uint64_t reserved:24;
+		} ll_ahb_addr_f;
+	};
+	union {
+		uint64_t ll_lbc_addr;
+		struct {
+			uint64_t lbc_addr:32;
+			uint64_t reserved:32;
+		} ll_lbc_addr_f;
+	};
+	struct dsmc_local_dma_link_list *next;
+};
+
+/**
+ * struct dsmc_local_dma_descriptor - DSMC local DMA descriptor
+ *
+ * Descriptor containing configuration for local DMA transfers between
+ * AHB system bus and LBC (Local Bus Controller) peripheral.
+ * ---dsmc local dma descriptor fields---
+ * @dir: Transfer direction: 0=dsmc write (AHB->LBC), 1=dsmc read (LBC->AHB).
+ * @mode: Trigger DMA transfer mode: hardware or software mode.
+ * @burst_type: Burst transfer type for AHB bus.
+ * @peri_req_burst: The DMA transfet the whole transaction or only the burst.
+ * @ll_trans_en: Linked list transfer enable.
+ * @local_dma_callback: Callback function to be invoked after DMA completion.
+ * @link_list: Physical address of the first linked list node
+ */
+struct dsmc_local_dma_descriptor {
+	uint32_t dir;
+	uint32_t mode;
+	uint32_t burst_type;
+	uint32_t peri_req_burst;
+	uint32_t ll_trans_en;
+	uint32_t p_trans_en;
+	void (*local_dma_callback)(void *data);
+	phys_addr_t link_list;
+};
+
 struct dsmc_transfer {
 	uint32_t ops_cs;
 	struct dma_chan *dma_chan;
-	dma_addr_t src_addr;
-	dma_addr_t dst_addr;
+	phys_addr_t src_addr;
+	phys_addr_t dst_addr;
 	size_t transfer_size;
 	u8 brst_size;
 	u8 brst_len;
 	atomic_t state;
+	struct dsmc_local_dma_descriptor local_dma;
 };
 
 struct rockchip_dsmc {
@@ -387,6 +584,9 @@ struct rockchip_dsmc {
 	void __iomem *regs;
 	struct regmap *grf;
 	struct clk *aclk_root;
+	struct clk *hclk_root;
+	struct clk *pclk_root;
+	struct clk *pclk_subsys_root;
 	struct clk *aclk;
 	struct clk *pclk;
 	struct clk *clk_sys;
@@ -403,11 +603,30 @@ struct rockchip_dsmc {
 	struct dsmc_ctrl_config cfg;
 };
 
+/**
+ * struct rockchip_dsmc_device - DSMC device wrapper structure
+ *
+ * Wrapper containing DSMC controller instance and operational interface.
+ */
 struct rockchip_dsmc_device {
+	int irq;
 	struct dsmc_ops *ops;
 	struct rockchip_dsmc dsmc;
 };
 
+/**
+ * struct dsmc_ops - DSMC operations interface
+ *
+ * Function pointer table defining the DSMC controller operations.
+ * @read: Read a 32-bit value from DSMC slave memory
+ * @write: Write a 32-bit value to DSMC slave memory
+ * @copy_from: Copy data from DSMC slave memory to system memory using public DMA or local DMA.
+ * @copy_to: Copy data from system memory to DSMC slave memory using public DMA or local DMA.
+ * @copy_sg: Perform scatter-gather DMA transfer using DSMC linked list by local DMA.
+ * @copy_from_state: Query status of an ongoing copy_from operation.
+ * @copy_to_state: Query status of an ongoing copy_to operation.
+ * @copy_sg_state: Query status of an ongoing copy_sg operation.
+ */
 struct dsmc_ops {
 	int (*read)(struct rockchip_dsmc_device *dsmc_dev,
 		    uint32_t cs, uint32_t region,
@@ -422,9 +641,29 @@ struct dsmc_ops {
 	int (*copy_to)(struct rockchip_dsmc_device *dsmc_dev,
 		       uint32_t cs, uint32_t region, dma_addr_t src_phys,
 		       uint32_t to, size_t size);
+	int (*copy_sg)(struct rockchip_dsmc_device *dsmc_dev,
+		       struct dsmc_local_dma_link_list *sg_list,
+			phys_addr_t sg_list_phys,
+		       uint32_t cs);
 	int (*copy_from_state)(struct rockchip_dsmc_device *dsmc_dev);
 	int (*copy_to_state)(struct rockchip_dsmc_device *dsmc_dev);
+	int (*copy_sg_state)(struct rockchip_dsmc_device *dsmc_dev);
+
 };
+
+#define REG_CLRSETBITS(dsmc, offset, clrbits, setbits) \
+		dsmc_modify_reg(dsmc, offset, clrbits, setbits)
+
+static inline void dsmc_modify_reg(struct rockchip_dsmc *dsmc, uint32_t offset,
+				   uint32_t clrbits, uint32_t setbits)
+{
+	uint32_t value;
+
+	value = readl(dsmc->regs + offset);
+	value &= ~clrbits;
+	value |= setbits;
+	writel(value, dsmc->regs + offset);
+}
 
 int rockchip_dsmc_ctrller_init(struct rockchip_dsmc *dsmc, uint32_t cs);
 int rockchip_dsmc_device_dectect(struct rockchip_dsmc *dsmc, uint32_t cs);
@@ -434,6 +673,8 @@ const char *rockchip_dsmc_get_compat(int index);
 int rockchip_dsmc_lb_class_create(const char *name);
 int rockchip_dsmc_lb_class_destroy(void);
 void rockchip_dsmc_lb_dma_hw_mode_dis(struct rockchip_dsmc *dsmc);
+int rockchip_dsmc_lb_local_dma_prepare(struct rockchip_dsmc *dsmc);
+void rockchip_dsmc_lb_local_dma_start(struct rockchip_dsmc *dsmc);
 int rockchip_dsmc_lb_dma_trigger_by_host(struct rockchip_dsmc *dsmc, uint32_t cs);
 int rockchip_dsmc_lb_init(struct rockchip_dsmc *dsmc, uint32_t cs);
 int rockchip_dsmc_psram_reinit(struct rockchip_dsmc *dsmc, uint32_t cs);
