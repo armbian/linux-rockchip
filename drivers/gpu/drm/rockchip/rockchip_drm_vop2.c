@@ -12034,6 +12034,28 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
 	}
 
+	/* To deal with bottom_layer_global_alpha when only have one esmart layer at
+	 * bottom layer. And the cluster global alpha is processed by cluster mix.
+	 */
+	if (vp->nr_layers == 1) {
+		zpos = &vop2_zpos[0];
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+		if (!vop2_cluster_window(win) && (bottom_layer_global_alpha != 0xff)) {
+			alpha_config.src_premulti_en = true;
+			alpha_config.dst_premulti_en = false;
+			alpha_config.src_pixel_alpha_en = true;
+			alpha_config.src_glb_alpha_value = 0xff;
+			alpha_config.dst_glb_alpha_value = bottom_layer_global_alpha;
+			vop2_parse_alpha(&alpha_config, &alpha);
+			offset = (i - 1) * 0x10;
+			vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
+			vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
+			vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
+			vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+			i++;
+		}
+	}
+
 	/* Transfer pixel alpha value to next mix */
 	alpha_config.src_premulti_en = true;
 	alpha_config.dst_premulti_en = true;
