@@ -1184,6 +1184,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v10-fastboot-spi-nor.dtb \
 	rv1126b-evb1-v10-spi-nor.dtb \
 	rv1126b-evb1-v11.dtb \
+	rv1126b-evb1-v11-dual-cam-csi0.dtb \
 	rv1126b-evb1-v11-dual-4k.dtb \
 	rv1126b-evb1-v11-fastboot-emmc.dtb \
 	rv1126b-evb1-v11-fastboot-emmc-projector.dtb \
