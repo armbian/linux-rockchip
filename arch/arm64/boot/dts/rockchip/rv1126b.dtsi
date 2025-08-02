@@ -781,6 +781,13 @@
 		status = "disabled";
 	};
 
+	rkisp_vir4: rkisp-vir4 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		dvbm = <&rkdvbm>;
+		status = "disabled";
+	};
+
 	rkisp_vir0_sditf: rkisp-vir0-sditf {
 		compatible = "rockchip,rkisp-sditf";
 		rockchip,isp = <&rkisp_vir0>;
@@ -829,6 +836,18 @@
 		};
 	};
 
+	rkisp_vir4_sditf: rkisp-vir4-sditf {
+		compatible = "rockchip,rkisp-sditf";
+		rockchip,isp = <&rkisp_vir4>;
+		status = "disabled";
+
+		port {
+			isp_sditf4: endpoint {
+				remote-endpoint = <&vpss4_in>;
+			};
+		};
+	};
+
 	rkvpss_vir0: rkvpss-vir0 {
 		compatible = "rockchip,rkvpss-vir";
 		rockchip,hw = <&rkvpss>;
@@ -873,6 +892,18 @@
 		port {
 			vpss3_in: endpoint {
 				remote-endpoint = <&isp_sditf3>;
+			};
+		};
+	};
+
+	rkvpss_vir4: rkvpss-vir4 {
+		compatible = "rockchip,rkvpss-vir";
+		rockchip,hw = <&rkvpss>;
+		status = "disabled";
+
+		port {
+			vpss4_in: endpoint {
+				remote-endpoint = <&isp_sditf4>;
 			};
 		};
 	};
