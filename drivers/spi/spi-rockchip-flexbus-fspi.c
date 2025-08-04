@@ -434,7 +434,7 @@ static int rk_flexbus_fspi_exec_op_bypass(struct rk_flexbus_fspi *fspi,
 					  struct spi_mem *mem,
 					  const struct spi_mem_op *op)
 {
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 	u32 ret;
 
 	rk_flexbus_fspi_set_cs_gpio(fspi, cs, true);
@@ -460,7 +460,7 @@ static void rk_flexbus_fspi_delay_lines_tuning(struct rk_flexbus_fspi *fspi, str
 	u16 right, left = 0;
 	u16 step = FLEXBUS_DLL_TRANING_STEP;
 	bool dll_valid = false;
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 
 	rk_flexbus_fspi_clk_set_rate(fspi, FLEXBUS_DLL_THRESHOLD_RATE);
 	op.data.buf.in = &id;
@@ -533,7 +533,7 @@ static int rk_flexbus_fspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem
 {
 	struct rk_flexbus_fspi *fspi = spi_controller_get_devdata(mem->spi->master);
 	int ret;
-	u8 cs = mem->spi->chip_select;
+	u8 cs = spi_get_chipselect(mem->spi, 0);
 
 	if (unlikely(mem->spi->max_speed_hz != fspi->speed[cs]) &&
 	    !has_acpi_companion(fspi->dev)) {
