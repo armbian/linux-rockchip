@@ -1071,7 +1071,7 @@ static int dwmac_rk_init_dma_engine(struct stmmac_priv *priv,
 	u32 chan = 0;
 	int ret = 0;
 
-	ret = stmmac_reset(priv, priv->ioaddr);
+	ret = stmmac_do_callback(priv, dma, reset, priv->ioaddr);
 	if (ret) {
 		dev_err(priv->device, "Failed to reset the dma\n");
 		return ret;
