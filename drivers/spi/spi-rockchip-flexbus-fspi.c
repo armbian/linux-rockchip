@@ -531,7 +531,7 @@ static void rk_flexbus_fspi_delay_lines_tuning(struct rk_flexbus_fspi *fspi, str
 
 static int rk_flexbus_fspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct rk_flexbus_fspi *fspi = spi_controller_get_devdata(mem->spi->master);
+	struct rk_flexbus_fspi *fspi = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
 	u8 cs = spi_get_chipselect(mem->spi, 0);
 
@@ -565,7 +565,7 @@ out:
 
 static int rk_flexbus_fspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	struct rk_flexbus_fspi *fspi = spi_controller_get_devdata(mem->spi->master);
+	struct rk_flexbus_fspi *fspi = spi_controller_get_devdata(mem->spi->controller);
 
 	op->data.nbytes = min(op->data.nbytes, fspi->max_iosize);
 
