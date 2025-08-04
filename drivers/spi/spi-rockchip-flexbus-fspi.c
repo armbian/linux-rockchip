@@ -683,7 +683,7 @@ static int rk_flexbus_fspi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->flags = SPI_MASTER_HALF_DUPLEX;
+	master->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	master->mem_ops = &rk_flexbus_fspi_mem_ops;
 	master->dev.of_node = pdev->dev.of_node;
 	master->max_speed_hz = FLEXBUS_MAX_SPEED;
