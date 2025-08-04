@@ -925,7 +925,6 @@ struct vop2 {
 	struct drm_prop_enum_list *plane_name_list;
 	struct vop2_shared_mode_res shared_mode_res;
 	bool is_iommu_enabled;
-	bool is_iommu_needed;
 	bool is_enabled;
 	bool support_multi_area;
 	bool disable_afbc_win;
@@ -7241,8 +7240,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	}
 
 	vop2_win_atomic_update(win, &wsrc, &wdst, pstate);
-
-	vop2->is_iommu_needed = true;
 }
 
 static const struct drm_plane_helper_funcs vop2_plane_helper_funcs = {
@@ -13483,7 +13480,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 
 	vop2_cfg_update(crtc, old_cstate);
 
-	if (!vop2->is_iommu_enabled && vop2->is_iommu_needed) {
+	if (!vop2->is_iommu_enabled) {
 		enum rockchip_drm_vop_aclk_mode aclk_mode = vop2->aclk_mode;
 		bool enter_vop_aclk_reset_mode = false;
 
