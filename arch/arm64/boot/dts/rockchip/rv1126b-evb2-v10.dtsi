@@ -230,6 +230,13 @@
 		WIFI,host_wake_irq = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	rk96x_wake_aov_irq: rk96x-wake-aov-irq {
+		compatible = "rockchip,rk96x-wake-aov-irq";
+		rk96x-wake-irq-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
+		status = "okay";
+	};
 };
 
 &acdcdig_dsm {
