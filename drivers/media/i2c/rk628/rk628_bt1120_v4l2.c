@@ -2182,33 +2182,40 @@ power_off:
 
 static void rk628_bt1120_remove(struct i2c_client *client)
 {
-	struct rk628_bt1120 *bt1120 = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	rk628_debugfs_remove(bt1120->rk628);
+	if (bt1120->hdmirx_irq)
+		disable_irq(bt1120->hdmirx_irq);
+	if (bt1120->plugin_irq)
+		disable_irq(bt1120->plugin_irq);
+
 	if (!bt1120->hdmirx_irq) {
 		del_timer_sync(&bt1120->timer);
 		flush_work(&bt1120->work_i2c_poll);
 	}
 
-	if (bt1120->cec_enable && bt1120->cec)
-		rk628_hdmirx_cec_unregister(bt1120->cec);
-
 	cancel_delayed_work_sync(&bt1120->delayed_work_enable_hotplug);
 	cancel_delayed_work_sync(&bt1120->delayed_work_res_change);
 	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
-	rk628_hdmirx_audio_cancel_work_rate_change(bt1120->audio_info, true);
+	if (bt1120->rk628->version < RK628F_VERSION)
+		rk628_hdmirx_audio_cancel_work_rate_change(bt1120->audio_info, true);
+	rk628_hdmirx_hpd_ctrl(sd, false);
 
-	if (bt1120->rxphy_pwron)
-		rk628_rxphy_power_off(bt1120->rk628);
+	if (bt1120->cec_enable && bt1120->cec)
+		rk628_hdmirx_cec_unregister(bt1120->cec);
+
+	rk628_debugfs_remove(bt1120->rk628);
+	rk628_hdmirx_audio_destroy(bt1120->audio_info);
+
+	v4l2_async_unregister_subdev(sd);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_entity_cleanup(&sd->entity);
+#endif
+	v4l2_ctrl_handler_free(&bt1120->hdl);
 
 	mutex_destroy(&bt1120->confctl_mutex);
 
-	rk628_control_assert(bt1120->rk628, RGU_HDMIRX);
-	rk628_control_assert(bt1120->rk628, RGU_HDMIRX_PON);
-	rk628_control_assert(bt1120->rk628, RGU_DECODER);
-	rk628_control_assert(bt1120->rk628, RGU_CLK_RX);
-	rk628_control_assert(bt1120->rk628, RGU_VOP);
-	rk628_control_assert(bt1120->rk628, RGU_BT1120DEC);
 	rk628_bt1120_power_off(bt1120);
 }
 

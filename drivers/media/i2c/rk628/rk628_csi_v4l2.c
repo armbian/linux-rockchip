@@ -3767,37 +3767,42 @@ static void rk628_csi_remove(struct i2c_client *client)
 static int rk628_csi_remove(struct i2c_client *client)
 #endif
 {
-	struct rk628_csi *csi = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_csi *csi = to_csi(sd);
 
-	rk628_debugfs_remove(csi->rk628);
+	if (csi->hdmirx_irq)
+		disable_irq(csi->hdmirx_irq);
+	if (csi->plugin_irq)
+		disable_irq(csi->plugin_irq);
+
 	if (!csi->hdmirx_irq) {
 		del_timer_sync(&csi->timer);
 		flush_work(&csi->work_i2c_poll);
 	}
+	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);
+	cancel_delayed_work_sync(&csi->delayed_work_res_change);
+	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
+	if (csi->rk628->version < RK628F_VERSION)
+		rk628_hdmirx_audio_cancel_work_rate_change(csi->audio_info, true);
+	rk628_hdmirx_hpd_ctrl(sd, false);
 
 	if (csi->cec_enable && csi->cec)
 		rk628_hdmirx_cec_unregister(csi->cec);
 
-	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
-	rk628_hdmirx_audio_cancel_work_rate_change(csi->audio_info, true);
-	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);
-	cancel_delayed_work_sync(&csi->delayed_work_res_change);
+	rk628_debugfs_remove(csi->rk628);
+	rk628_hdmirx_audio_destroy(csi->audio_info);
 
-	if (csi->rxphy_pwron)
-		rk628_rxphy_power_off(csi->rk628);
-	if (csi->txphy_pwron)
-		mipi_dphy_power_off(csi);
+	v4l2_async_unregister_subdev(sd);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_entity_cleanup(&sd->entity);
+#endif
+	v4l2_ctrl_handler_free(&csi->hdl);
+
+	if (csi->classdev)
+		device_destroy(rk_hdmirx_class(), MKDEV(0, 0));
 
 	mutex_destroy(&csi->confctl_mutex);
 
-	rk628_control_assert(csi->rk628, RGU_HDMIRX);
-	rk628_control_assert(csi->rk628, RGU_HDMIRX_PON);
-	rk628_control_assert(csi->rk628, RGU_DECODER);
-	rk628_control_assert(csi->rk628, RGU_CLK_RX);
-	rk628_control_assert(csi->rk628, RGU_VOP);
-	rk628_control_assert(csi->rk628, RGU_CSI);
-	if (csi->rk628->version >= RK628F_VERSION)
-		rk628_control_assert(csi->rk628, RGU_CSI1);
 	rk628_csi_power_off(csi);
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
