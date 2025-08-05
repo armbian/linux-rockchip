@@ -70,6 +70,22 @@ properties:
 
   ranges: true
 
+  rockchip,group-info:
+    type: integer
+    description: |
+      Optional 32-bit bitmap specifying enabled pin control groups.
+      Each bit represents a pin group:
+        - Bit 0: Group 0
+        - Bit 1: Group 1
+        - ...
+      Only pins belonging to groups with their corresponding bit set to
+      1 can be configured via the pinctrl subsystem.
+      If this property is omitted, all groups are enabled by default.
+      This property is specifically intended for SoCs that support:
+        1. Hardware pin grouping capability
+        2. Multi-OS/core complex co-existence scenarios
+      If this property is omitted, all groups are enabled by default.
+
 allOf:
   - $ref: "pinctrl.yaml#"
 
@@ -152,6 +168,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <1>;
       ranges;
+      rockchip,group-info = <(RK_GROUP_TO_BIT(0) | RK_GROUP_TO_BIT(1))>;
 
       gpio0: gpio@20034000 {
         compatible = "rockchip,gpio-bank";
