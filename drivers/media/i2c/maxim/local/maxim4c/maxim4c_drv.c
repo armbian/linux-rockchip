@@ -504,6 +504,8 @@ static int maxim4c_runtime_resume(struct device *dev)
 	if (maxim4c->local_power_off_enable == 0)
 		return 0;
 
+	dev_info(dev, "maxim4c runtime resume\n");
+
 	return maxim4c_device_power_on(maxim4c);
 }
 
@@ -515,6 +517,8 @@ static int maxim4c_runtime_suspend(struct device *dev)
 
 	if (maxim4c->local_power_off_enable == 0)
 		return 0;
+
+	dev_info(dev, "maxim4c runtime suspend\n");
 
 	maxim4c_device_power_off(maxim4c);
 
@@ -528,7 +532,7 @@ static int __maybe_unused maxim4c_resume(struct device *dev)
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (maxim4c->local_power_off_enable == 0)
+	if (maxim4c->local_power_off_enable != 0)
 		return 0;
 
 	dev_info(dev, "maxim4c resume\n");
@@ -552,6 +556,15 @@ static int __maybe_unused maxim4c_resume(struct device *dev)
 
 static int __maybe_unused maxim4c_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
+
+	if (maxim4c->local_power_off_enable != 0)
+		return 0;
+
+	dev_info(dev, "maxim4c suspend\n");
+
 	return 0;
 }
 
