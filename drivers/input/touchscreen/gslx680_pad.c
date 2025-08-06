@@ -45,8 +45,8 @@
 #define GSLX680_I2C_NAME 	"gslX680-pad"
 #define GSLX680_I2C_ADDR 	0x40
 
-int g_wake_pin=0;
-int g_irq_pin=0;
+static int g_wake_pin;
+static int g_irq_pin;
 
 #define GSL_DATA_REG		0x80
 #define GSL_STATUS_REG		0xe0
