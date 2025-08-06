@@ -1511,6 +1511,7 @@ static int analogix_dp_disable_psr(struct analogix_dp_device *dp)
 static int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
+	struct drm_display_info *di = &connector->display_info;
 	struct edid *edid;
 	int ret, num_modes = 0;
 
@@ -1547,6 +1548,12 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 
 		analogix_dp_phy_power_off(dp);
 	}
+
+	if (!di->color_formats)
+		di->color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	if (!di->bpc)
+		di->bpc = 8;
 
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
