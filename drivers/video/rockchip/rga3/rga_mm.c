@@ -204,82 +204,97 @@ static void rga_current_mm_read_unlock(struct mm_struct *mm)
 #endif
 }
 
-static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory,
+static void rga_current_mm_assert_locked(struct mm_struct *mm)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_assert_locked(mm);
+#else
+	lockdep_assert_held(&mm->mmap_lock);
+	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_lock), mm);
+#endif
+}
+
+static int rga_get_user_pages_from_vma(struct page **pages, unsigned long user_address,
 				       uint32_t pageCount, struct mm_struct *current_mm)
 {
 	int ret = 0;
-	int i;
-	struct vm_area_struct *vma;
-	spinlock_t *ptl;
-	pte_t *pte;
-	pgd_t *pgd;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-	p4d_t *p4d;
-#endif
-	pud_t *pud;
-	pmd_t *pmd;
+	size_t i;
+	struct vm_area_struct *vma = NULL;
 	unsigned long pfn;
+	unsigned long cur_addr;
+
+	rga_current_mm_assert_locked(current_mm);
 
 	for (i = 0; i < pageCount; i++) {
-		vma = find_vma(current_mm, (Memory + i) << PAGE_SHIFT);
-		if (!vma) {
-			rga_err("page[%d] failed to get vma\n", i);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
-		}
+		cur_addr = user_address + (i << PAGE_SHIFT);
 
-		pgd = pgd_offset(current_mm, (Memory + i) << PAGE_SHIFT);
-		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
-			rga_err("page[%d] failed to get pgd\n", i);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
-		}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-		/*
-		 * In the four-level page table,
-		 * it will do nothing and return pgd.
-		 */
-		p4d = p4d_offset(pgd, (Memory + i) << PAGE_SHIFT);
-		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d))) {
-			rga_err("page[%d] failed to get p4d\n", i);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
-		}
-
-		pud = pud_offset(p4d, (Memory + i) << PAGE_SHIFT);
+		if (vma == NULL || cur_addr >= vma->vm_end) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+			vma = vma_lookup(current_mm, cur_addr);
 #else
-		pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
+			vma = find_vma(current_mm, cur_addr);
+			if (vma != NULL && cur_addr < vma->vm_start)
+				vma = NULL;
+#endif
+			if (vma == NULL) {
+				rga_err("va[0x%lx] is not mapped (unmapped gap detected)\n",
+					cur_addr);
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+		struct follow_pfnmap_args args = {
+			.vma = vma,
+			.address = cur_addr,
+		};
+
+		ret = follow_pfnmap_start(&args);
+		if (ret) {
+			rga_err("va[0x%lx] failed to get pfn, ret = %d\n", cur_addr, ret);
+			goto out;
+		}
+
+		pfn = args.pfn;
+
+		follow_pfnmap_end(&args);
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+		spinlock_t *ptl;
+		pte_t *ptep;
+
+		ret = follow_pte(vma->vm_mm, cur_addr, &ptep, &ptl);
+		if (ret < 0) {
+			rga_err("va[0x%lx] failed to get pte, ret = %d\n", cur_addr, ret);
+			goto out;
+		}
+
+		pfn = pte_pfn(ptep_get(ptep));
+
+		pte_unmap_unlock(ptep, ptl);
+
+#else
+		ret = follow_pfn(vma, cur_addr, &pfn);
+		if (ret < 0) {
+			rga_err("va[0x%lx] failed to get pfn, ret = %d\n", cur_addr, ret);
+			goto out;
+		}
 #endif
 
-		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
-			rga_err("page[%d] failed to get pud\n", i);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
+		if (pfn_valid(pfn)) {
+			pages[i] = pfn_to_page(pfn);
+		} else {
+			rga_err("va[0x%lx] pfn[0x%lx] has no valid struct page\n", cur_addr, pfn);
+			ret = -EINVAL;
+			goto out;
 		}
-		pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
-		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd))) {
-			rga_err("page[%d] failed to get pmd\n", i);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
-		}
-		pte = pte_offset_map_lock(current_mm, pmd,
-					  (Memory + i) << PAGE_SHIFT, &ptl);
-		if (pte_none(*pte)) {
-			rga_err("page[%d] failed to get pte\n", i);
-			pte_unmap_unlock(pte, ptl);
-			ret = RGA_OUT_OF_RESOURCES;
-			break;
-		}
-
-		pfn = pte_pfn(*pte);
-		pages[i] = pfn_to_page(pfn);
-		pte_unmap_unlock(pte, ptl);
 	}
 
-	if (ret == RGA_OUT_OF_RESOURCES && i > 0)
-		rga_err("Only get buffer %d byte from vma, but current image required %d byte",
-			(int)(i * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
-
+	return 0;
+out:
+	rga_err("Only get buffer %d byte from vma, but current image required %d byte",
+		(int)(i << PAGE_SHIFT), (int)(pageCount << PAGE_SHIFT));
 	return ret;
 }
 
@@ -320,7 +335,8 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 			for (i = 0; i < result; i++)
 				put_page(pages[i]);
 
-		ret = rga_get_user_pages_from_vma(pages, Memory, pageCount, current_mm);
+		ret = rga_get_user_pages_from_vma(pages, Memory << PAGE_SHIFT,
+						  pageCount, current_mm);
 		if (ret < 0 && result > 0) {
 			rga_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
 				(int)(result * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
