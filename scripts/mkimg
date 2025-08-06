@@ -54,7 +54,7 @@ LOGO_KERNEL_PATH=${srctree}/logo_kernel.bmp
 KERNEL_IMAGE_PATH=${objtree}/arch/${ARCH}/boot/Image
 KERNEL_IMAGE_ARG="--kernel ${KERNEL_IMAGE_PATH}"
 if [ "${ARCH}" == "arm" ]; then
-	DTB_PATH=${objtree}/arch/arm/boot/dts/${DTB}
+	DTB_PATH=${objtree}/arch/arm/boot/dts/rockchip/${DTB}
 	ZIMAGE=zImage
 else
 	DTB_PATH=${objtree}/arch/arm64/boot/dts/rockchip/${DTB}
