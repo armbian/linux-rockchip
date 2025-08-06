@@ -345,9 +345,9 @@ MAKE_MODULES ?= y
 
 %.img:
 ifeq ("$(CONFIG_MODULES)$(MAKE_MODULES)$(srctree)","yy$(objtree)")
-	$(Q)$(MAKE) $*.dtb zImage Image.gz modules
+	$(Q)$(MAKE) rockchip/$*.dtb zImage Image.gz modules
 else
-	$(Q)$(MAKE) $*.dtb zImage Image.gz
+	$(Q)$(MAKE) rockchip/$*.dtb zImage Image.gz
 endif
 	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
 
