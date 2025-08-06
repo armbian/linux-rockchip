@@ -205,6 +205,8 @@
 			clock-output-names = "clk_core_pvtpll";
 			assigned-clocks = <&pvtpll_core>;
 			assigned-clock-rates = <1200000000>;
+			nvmem-cells = <&cpu_opp_info>;
+			nvmem-cell-names = "opp-info";
 		};
 
 		pvtpll_isp: pvtpll-isp@21c60000 {
@@ -223,7 +225,7 @@
 			#clock-cells = <0>;
 			clock-output-names = "clk_vepu_pvtpll";
 			assigned-clocks = <&pvtpll_enc>;
-			assigned-clock-rates = <480000000>;
+			assigned-clock-rates = <550000000>;
 		};
 
 		pvtpll_aisp: pvtpll-aisp@21fc0000 {
@@ -245,6 +247,8 @@
 			clock-output-names = "clk_npu_pvtpll";
 			assigned-clocks = <&pvtpll_npu>;
 			assigned-clock-rates = <800000000>;
+			nvmem-cells = <&npu_opp_info>;
+			nvmem-cell-names = "opp-info";
 		};
 	};
 
@@ -307,8 +311,11 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		nvmem-cells = <&cpu_leakage>;
-		nvmem-cell-names = "leakage";
+		mbist-vmin = <850000 900000 950000>;
+		nvmem-cells = <&cpu_leakage>, <&cpu_opp_info>, <&cpu_mbist_vmin>, <&cpu_pvtpll>,
+			      <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin", "pvtm",
+				   "specification_serial_number";
 
 		rockchip,pvtm-voltage-sel = <
 			0	1669	0
@@ -318,8 +325,8 @@
 			1805	1849	4
 			1850	1894	5
 			1895	1939	6
-			1940	1984	7
-			1985	2029	8
+			1940	2029	7
+			2030	9999	8
 		>;
 		rockchip,pvtm-pvtpll;
 		rockchip,pvtm-offset = <0x54>;
@@ -337,6 +344,8 @@
 		opp-594000000 {
 			opp-hz = /bits/ 64 <594000000>;
 			opp-microvolt = <850000 850000 1100000>;
+			opp-microvolt-L0 = <900000 900000 1100000>;
+			opp-microvolt-L1 = <875000 875000 1100000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
@@ -499,13 +508,18 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
+		mbist-vmin = <850000 900000 950000>;
+		nvmem-cells = <&log_leakage>, <&dmc_opp_info>, <&log_mbist_vmin>,
+			      <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin",
+				   "specification_serial_number";
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <950000>;
 
-		opp-1560000000 {
-			opp-hz = /bits/ 64 <1560000000>;
-			opp-microvolt = <900000 900000 950000>;
+		opp-1332000000 {
+			opp-hz = /bits/ 64 <1332000000>;
+			opp-microvolt = <862500 862500 950000>;
 		};
 	};
 
@@ -1948,6 +1962,33 @@
 		npu_leakage: npu-leakage@34 {
 			reg = <0x34 0x1>;
 		};
+		cpu_pvtpll: cpu-pvtpll@3a {
+			reg = <0x3a 0x2>;
+		};
+		npu_pvtpll: npu-pvtpll@3c {
+			reg = <0x3c 0x2>;
+		};
+		cpu_opp_info: cpu-opp-info@48 {
+			reg = <0x48 0x6>;
+		};
+		dmc_opp_info: dmc-opp-info@4e {
+			reg = <0x4e 0x6>;
+		};
+		npu_opp_info: npu-opp-info@54 {
+			reg = <0x54 0x6>;
+		};
+		cpu_mbist_vmin: cpu-mbist-vmin@74 {
+			reg = <0x74 0x1>;
+			bits = <0 4>;
+		};
+		log_mbist_vmin: log-mbist-vmin@74 {
+			reg = <0x74 0x1>;
+			bits = <4 4>;
+		};
+		npu_mbist_vmin: npu-mbist-vmin@75 {
+			reg = <0x75 0x1>;
+			bits = <0 4>;
+		};
 	};
 
 	tsadc: tsadc@20bb0000 {
@@ -3182,12 +3223,12 @@
 		interrupt-names = "irq_rkvenc";
 		clocks = <&cru ACLK_VEPU>, <&cru HCLK_VEPU>, <&cru CLK_CORE_VEPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <396000000>, <0>, <480000000>;
+		rockchip,normal-rates = <396000000>, <0>, <550000000>;
 		resets = <&cru SRST_ARESETN_VEPU>, <&cru SRST_HRESETN_VEPU>,
 			 <&cru SRST_RESETN_CORE_VEPU>;
 		reset-names = "video_a", "video_h", "video_core";
 		assigned-clocks = <&cru ACLK_VEPU>, <&cru CLK_CORE_VEPU>;
-		assigned-clock-rates = <396000000>, <480000000>;
+		assigned-clock-rates = <396000000>, <550000000>;
 		iommus = <&rkvenc_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -3202,17 +3243,26 @@
 	rkvenc_opp_table: rkvenc-opp-table {
 		compatible = "operating-points-v2";
 
+		mbist-vmin = <850000 900000 950000>;
+		nvmem-cells = <&log_leakage>, <&log_mbist_vmin>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "mbist-vmin", "specification_serial_number";
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <950000>;
+
+		rockchip,leakage-voltage-sel = <
+			1   17     0
+			18  254    1
+		>;
+
 		opp-396000000 {
 			opp-hz = /bits/ 64 <396000000>;
 			opp-microvolt = <862500 862500 950000>;
 		};
-		opp-480000000 {
-			opp-hz = /bits/ 64 <480000000>;
-			opp-microvolt = <900000 900000 950000>;
-		};
 		opp-550000000 {
 			opp-hz = /bits/ 64 <550000000>;
-			opp-microvolt = <950000 950000 950000>;
+			opp-microvolt = <900000 900000 950000>;
+			opp-microvolt-L0 = <925000 925000 950000>;
 		};
 	};
 
@@ -3339,8 +3389,11 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&npu_leakage>, <&specification_serial_number>;
-		nvmem-cell-names = "leakage", "specification_serial_number";
+		mbist-vmin = <850000 900000 950000>;
+		nvmem-cells = <&npu_leakage>, <&npu_opp_info>, <&npu_mbist_vmin>, <&npu_pvtpll>,
+			      <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin", "pvtm",
+				   "specification_serial_number";
 		rockchip,init-freq = <800000>;
 
 		rockchip,supported-hw;
@@ -3353,7 +3406,7 @@
 			1130	1169	5
 			1170	1209	6
 			1210	1249	7
-			1250	1299	8
+			1250	9999	8
 		>;
 		rockchip,pvtm-pvtpll;
 		rockchip,pvtm-offset = <0x54>;
@@ -3399,18 +3452,20 @@
 		opp-800000000 {
 			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <925000 925000 1050000>;
+			opp-microvolt = <900000 900000 1050000>;
 		};
 		opp-900000000 {
 			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
-			opp-microvolt = <975000 975000 1050000>;
+			opp-microvolt = <950000 950000 1050000>;
+			opp-microvolt-L0 = <975000 975000 1050000>;
 		};
 		opp-950000000 {
 			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <950000000>;
-			opp-microvolt = <975000 975000 1050000>;
+			opp-microvolt = <950000 950000 1050000>;
 			opp-microvolt-L0 = <1000000 1000000 1050000>;
+			opp-microvolt-L1 = <975000 975000 1050000>;
 		};
 	};
 

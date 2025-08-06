@@ -8,6 +8,27 @@
 / {
 };
 
+&pvtpll_enc {
+	assigned-clock-rates = <480000000>;
+};
+
+&rkvenc {
+	rockchip,normal-rates = <396000000>, <0>, <480000000>;
+	assigned-clock-rates = <396000000>, <480000000>;
+};
+
+&rkvenc_opp_table {
+	/delete-node/ opp-550000000;
+	opp-480000000 {
+		opp-hz = /bits/ 64 <480000000>;
+		opp-microvolt = <900000 900000 950000>;
+	};
+	opp-555000000 {
+		opp-hz = /bits/ 64 <555000000>;
+		opp-microvolt = <950000 950000 950000>;
+	};
+};
+
 &npu_opp_table {
 	rockchip,init-freq = <600000>;
 };
