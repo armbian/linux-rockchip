@@ -370,6 +370,8 @@ struct rga_scheduler_t {
 	int core;
 
 	struct rga_timer timer;
+
+	struct rga_dma_buf_pool *cmd_buf_pool;
 };
 
 struct rga_request {

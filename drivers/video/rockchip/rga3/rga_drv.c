@@ -1556,6 +1556,7 @@ static struct platform_driver rga2_driver = {
 static int __init rga_init(void)
 {
 	int ret;
+	int i;
 
 	rga_drvdata = kzalloc(sizeof(struct rga_drvdata_t), GFP_KERNEL);
 	if (rga_drvdata == NULL) {
@@ -1590,6 +1591,21 @@ static int __init rga_init(void)
 		goto err_unbind_iommu;
 	}
 
+	/* init cmd reg buffer pool */
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		struct rga_scheduler_t *scheduler = rga_drvdata->scheduler[i];
+
+		scheduler->cmd_buf_pool =
+			rga_dma_buf_pool_init(scheduler,
+					      scheduler->data->cmd_reg_size * sizeof(uint32_t));
+		if (IS_ERR(scheduler->cmd_buf_pool)) {
+			dev_err(scheduler->dev, "failed to init cmd buf pool\n");
+			ret = PTR_ERR(scheduler->cmd_buf_pool);
+			scheduler->cmd_buf_pool = NULL;
+			goto err_destroy_buf_pool;
+		}
+	}
+
 	rga_init_timer();
 
 	rga_mm_init(&rga_drvdata->mm);
@@ -1610,6 +1626,16 @@ static int __init rga_init(void)
 
 	return 0;
 
+err_destroy_buf_pool:
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		struct rga_scheduler_t *scheduler = rga_drvdata->scheduler[i];
+
+		if (scheduler->cmd_buf_pool) {
+			rga_dma_buf_pool_destroy(scheduler->cmd_buf_pool);
+			scheduler->cmd_buf_pool = NULL;
+		}
+	}
+
 err_unbind_iommu:
 	rga_iommu_unbind();
 
@@ -1627,6 +1653,8 @@ err_free_drvdata:
 
 static void __exit rga_exit(void)
 {
+	int i;
+
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_remove(&rga_drvdata->debugger);
 #endif
@@ -1642,6 +1670,15 @@ static void __exit rga_exit(void)
 	rga_session_manager_remove(&rga_drvdata->session_manager);
 
 	rga_cancel_timer();
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		struct rga_scheduler_t *scheduler = rga_drvdata->scheduler[i];
+
+		if (scheduler->cmd_buf_pool) {
+			rga_dma_buf_pool_destroy(scheduler->cmd_buf_pool);
+			scheduler->cmd_buf_pool = NULL;
+		}
+	}
 
 	rga_iommu_unbind();
 

@@ -589,6 +589,8 @@ const struct rga_hw_data rga3_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709 | RGA_MODE_CSC_BT2020,
 	.mmu = RGA_IOMMU,
+
+	.cmd_reg_size = 48, //0x100:0x1bc
 };
 
 const struct rga_hw_data rga2e_data = {
@@ -613,6 +615,8 @@ const struct rga_hw_data rga2e_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_MMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2e_1106_data = {
@@ -639,6 +643,8 @@ const struct rga_hw_data rga2e_1106_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_NONE_MMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2e_3506_data = {
@@ -663,6 +669,8 @@ const struct rga_hw_data rga2e_3506_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_NONE_MMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2e_iommu_data = {
@@ -689,6 +697,8 @@ const struct rga_hw_data rga2e_iommu_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_IOMMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2p_iommu_data = {
@@ -715,6 +725,8 @@ const struct rga_hw_data rga2p_iommu_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_IOMMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2p_lite_1103b_data = {
@@ -739,6 +751,8 @@ const struct rga_hw_data rga2p_lite_1103b_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_NONE_MMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };
 
 const struct rga_hw_data rga2p_iommu_non_fbc_data = {
@@ -765,4 +779,6 @@ const struct rga_hw_data rga2p_iommu_non_fbc_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_IOMMU,
+
+	.cmd_reg_size = 32, //0x100:0x17c
 };

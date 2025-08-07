@@ -16,7 +16,7 @@
 static void rga_job_free(struct rga_job *job)
 {
 	if (job->cmd_buf)
-		rga_dma_free(job->cmd_buf);
+		rga_dma_buf_pool_free(job->scheduler->cmd_buf_pool, job->cmd_buf);
 
 	kfree(job);
 }
@@ -425,9 +425,10 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request
 		goto err_free_job;
 	}
 
-	job->cmd_buf = rga_dma_alloc_coherent(scheduler, RGA_CMD_REG_SIZE);
+	job->cmd_buf = rga_dma_buf_pool_alloc(scheduler->cmd_buf_pool);
 	if (job->cmd_buf == NULL) {
 		rga_job_err(job, "failed to alloc command buffer.\n");
+		job->ret = -ENOMEM;
 		goto err_free_job;
 	}
 
@@ -467,7 +468,7 @@ err_power_disable:
 	rga_power_disable(scheduler);
 
 err_free_cmd_buf:
-	rga_dma_free(job->cmd_buf);
+	rga_dma_buf_pool_free(scheduler->cmd_buf_pool, job->cmd_buf);
 	job->cmd_buf = NULL;
 
 err_free_job:

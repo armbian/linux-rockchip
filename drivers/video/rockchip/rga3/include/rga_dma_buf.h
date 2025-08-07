@@ -9,7 +9,25 @@
 #ifndef __RGA3_DMA_BUF_H__
 #define __RGA3_DMA_BUF_H__
 
+#ifdef CONFIG_ROCKCHIP_RGA_GENPOOL
+#include <linux/genalloc.h>
+#else
+#include <linux/dmapool.h>
+#endif
+
 #include "rga_drv.h"
+
+struct rga_dma_buf_pool {
+#ifdef CONFIG_ROCKCHIP_RGA_GENPOOL
+	struct gen_pool *pool;
+#else
+	struct dma_pool *pool;
+#endif
+	struct rga_dma_buffer *dma_buf;
+	size_t block_size;
+
+	struct rga_scheduler_t *scheduler;
+};
 
 #ifndef for_each_sgtable_sg
 /*
@@ -44,6 +62,12 @@ void rga_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *
 
 struct rga_dma_buffer *rga_dma_alloc_coherent(struct rga_scheduler_t *scheduler, int size);
 int rga_dma_free(struct rga_dma_buffer *buffer);
+
+struct rga_dma_buf_pool *rga_dma_buf_pool_init(struct rga_scheduler_t *scheduler,
+					       int block_size);
+void rga_dma_buf_pool_destroy(struct rga_dma_buf_pool *pool);
+struct rga_dma_buffer *rga_dma_buf_pool_alloc(struct rga_dma_buf_pool *pool);
+int rga_dma_buf_pool_free(struct rga_dma_buf_pool *pool, struct rga_dma_buffer *buffer);
 
 #endif /* #ifndef __RGA3_DMA_BUF_H__ */
 
