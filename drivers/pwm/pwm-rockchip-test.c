@@ -59,6 +59,7 @@ enum pwm_cmd_type {
 	PWM_SET_FREQ_METER,
 	PWM_SET_BIPHASIC,
 	PWM_SET_WAVE,
+	PWM_SET_FILTER,
 	PWM_GLOBAL_CTRL,
 	PWM_TEST_HELP,
 };
@@ -83,6 +84,8 @@ static enum pwm_cmd_type pwm_rockchip_test_parse_cmd(char *cmd_type)
 		return PWM_SET_BIPHASIC;
 	else if (!strcmp(cmd_type, "wave"))
 		return PWM_SET_WAVE;
+	else if (!strcmp(cmd_type, "filter"))
+		return PWM_SET_FILTER;
 	else if (!strcmp(cmd_type, "global"))
 		return PWM_GLOBAL_CTRL;
 	else if (!strcmp(cmd_type, "help"))
@@ -165,6 +168,9 @@ static void pwm_rockchip_test_help_info(void)
 	pr_info("[demo for updating both period and duty]\n");
 	pr_info("echo continuous 0 1 1000 500 normal > /dev/pwm_rockchip_misc_test\n");
 	pr_info("echo enable 0 1 true > /dev/pwm_rockchip_misc_test\n");
+	pr_info("\n");
+	pr_info("filter setup demo:\n");
+	pr_info("echo filter 1 0 1000 > /dev/pwm_rockchip_misc_test\n");
 	pr_info("------------------------------------------------------------------------------------\n");
 }
 
@@ -218,6 +224,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 	unsigned long freq_hz;
 	unsigned long counter_res;
 	unsigned long biphasic_res;
+	unsigned long filter_window_ns;
 	int controller_id, channel_id;
 	int period, duty;
 #ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
@@ -718,6 +725,32 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 		pr_info("%s %s mode for pwm%d_%d: table_len = %d, table_step = %d\n",
 			argv[2], cmd, controller_id, channel_id, PWM_TABLE_MAX, PWM_WAVE_STEP);
 #endif
+		break;
+	case PWM_SET_FILTER:
+		pdev = pwm_rockchip_test_get_pwm_dev(argv[0], argv[1],
+						     &controller_id, &channel_id);
+		if (!pdev) {
+			pr_err("failed to get pwm device\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+		ret = kstrtoul(argv[2], 10, &filter_window_ns);
+		if (ret) {
+			pr_err("failed to parse filter_window_ns for pwm%d_%d in %s configuration\n",
+			       controller_id, channel_id, cmd);
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		ret = rockchip_pwm_set_filter(pdev, filter_window_ns);
+		if (ret) {
+			pr_err("failed to set %s for pwm%d_%d\n",
+			       cmd, controller_id, channel_id);
+			return -EINVAL;
+		}
+
+		pr_info("set %s for pwm%d_%d: filter_window = %ldns\n",
+			cmd, controller_id, channel_id, filter_window_ns);
 		break;
 	case PWM_GLOBAL_CTRL:
 		if (!argv[0]) {
