@@ -3948,7 +3948,6 @@ static void vop2_wb_irqs_enable(struct vop2 *vop2)
 	if (is_vop3(vop2))
 		irqs |= WB_COMPLETE_INTR;
 
-	VOP_INTR_SET_TYPE(vop2, intr, clear, irqs, 1);
 	VOP_INTR_SET_TYPE(vop2, intr, enable, irqs, 1);
 }
 
