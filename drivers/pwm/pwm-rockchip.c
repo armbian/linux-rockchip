@@ -65,10 +65,18 @@
 #define PWM_ONESHOT_COUNT_SHIFT	24
 #define PWM_ONESHOT_COUNT_MASK	(0xff << PWM_ONESHOT_COUNT_SHIFT)
 
+/* PWM_INTSTS */
 #define PWM_REG_INTSTS(n)	((3 - (n)) * 0x10 + 0x10)
+/* PWM_INT_EN */
 #define PWM_REG_INT_EN(n)	((3 - (n)) * 0x10 + 0x14)
-
 #define PWM_CH_INT(n)		BIT(n)
+
+/* PWM_CHANNEL_IO_CTRL */
+#define PWM_REG_IO_CTRL(n)	((3 - (n)) * 0x10 + 0xa0)
+#define PWM_FILTER_NUMBER_SHIFT	4
+#define PWM_FILTER_NUMBER_MASK	(0x1ff << PWM_FILTER_NUMBER_SHIFT)
+#define PWM_FILTER_ENABLE_MASK	0xf
+#define PWM_FILTER_ENABLE(n)	BIT(n)
 
 /*
  * regs for pwm v4
@@ -132,6 +140,10 @@
 #define RPT				0x1c
 #define FIRST_DIMENSIONAL_SHIFT		0
 #define SECOND_DIMENSINAL_SHIFT		16
+/* FILTER_CTRL */
+#define FILTER_CTRL			0x20
+#define FILTER_ENABLE(v)		HIWORD_UPDATE(v, 0, 0)
+#define FILTER_NUMBER(v)		HIWORD_UPDATE(v, 4, 9)
 /* HPC */
 #define HPC				0x2c
 /* LPC */
@@ -330,10 +342,12 @@ struct rockchip_pwm_chip {
 	bool freq_meter_support;
 	bool counter_support;
 	bool wave_support;
+	bool filter_support;
 	bool biphasic_support;
 	bool ledc_support;
 	int channel_id;
 	int irq;
+	u64 filter_window_ns;
 	u32 scaler;
 	u8 main_version;
 	u8 minor_version;
@@ -378,6 +392,7 @@ struct rockchip_pwm_funcs {
 				   unsigned long *biphasic_res);
 	int (*ir_transmit)(struct pwm_chip *chip, unsigned int *txbuf, unsigned int count);
 	irqreturn_t (*irq_handler)(int irq, void *data);
+	int (*set_filter)(struct pwm_chip *chip, struct pwm_device *pwm, u64 filter_window_ns);
 };
 
 struct rockchip_pwm_data {
@@ -1908,6 +1923,94 @@ int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biph
 }
 EXPORT_SYMBOL_GPL(rockchip_pwm_get_biphasic_result);
 
+static int rockchip_pwm_set_filter_v1(struct pwm_chip *chip, struct pwm_device *pwm,
+				      u64 filter_window_ns)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u64 filter;
+	u64 div;
+	u32 mask;
+	u32 ctrl;
+
+	ctrl = readl_relaxed(pc->base + PWM_REG_IO_CTRL(pc->channel_id));
+	if (filter_window_ns) {
+		mask = PWM_FILTER_ENABLE_MASK & (~PWM_FILTER_ENABLE(pc->channel_id));
+		if (ctrl & mask) {
+			dev_err(chip->dev,
+				"Failed to set filter for PWM%d: only single-channel filtering supported\n",
+				pc->channel_id);
+			return -EBUSY;
+		}
+
+		div = (u64)pc->clk_rate * filter_window_ns;
+		filter = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+
+		ctrl &= ~PWM_FILTER_NUMBER_MASK;
+		ctrl |= filter << PWM_FILTER_NUMBER_SHIFT;
+		ctrl |= PWM_FILTER_ENABLE(pc->channel_id);
+	} else {
+		ctrl &= ~PWM_FILTER_NUMBER_MASK;
+		ctrl &= ~PWM_FILTER_ENABLE(pc->channel_id);
+	}
+	writel_relaxed(ctrl, pc->base + PWM_REG_IO_CTRL(pc->channel_id));
+
+	return 0;
+}
+
+static int rockchip_pwm_set_filter_v4(struct pwm_chip *chip, struct pwm_device *pwm,
+				      u64 filter_window_ns)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u64 filter = 0;
+	u64 clk_rate_kHz = pc->clk_rate / 1000;
+	u64 div = 0;
+	u64 tmp = 0;
+	u32 scaler = pc->scaler ? pc->scaler * 2 : 1;
+
+	if (filter_window_ns) {
+		div = (u64)clk_rate_kHz * filter_window_ns;
+		tmp = (u64)pc->data->prescaler * scaler * USEC_PER_SEC;
+		filter = DIV_ROUND_CLOSEST_ULL(div, tmp);
+	}
+
+	writel_relaxed(FILTER_ENABLE(filter_window_ns ? true : false) | FILTER_NUMBER(filter),
+		       pc->base + FILTER_CTRL);
+
+	return 0;
+}
+
+int rockchip_pwm_set_filter(struct pwm_device *pwm, u64 filter_window_ns)
+{
+	struct pwm_chip *chip;
+	struct rockchip_pwm_chip *pc;
+	int ret = 0;
+
+	if (!pwm)
+		return -EINVAL;
+
+	chip = pwm->chip;
+	pc = to_rockchip_pwm_chip(chip);
+
+	if ((pc->main_version > 4 && !pc->filter_support) || !pc->data->funcs.set_filter) {
+		dev_err(chip->dev, "Unsupported filter configuration\n");
+		return -EINVAL;
+	}
+
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
+
+	ret = pc->data->funcs.set_filter(chip, pwm, filter_window_ns);
+	if (ret)
+		dev_err(chip->dev, "Failed to get biphasic counter result for PWM%d\n",
+			pc->channel_id);
+
+	clk_disable(pc->pclk);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_pwm_set_filter);
+
 #ifdef CONFIG_RC_CORE
 static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbuf,
 				       unsigned int count)
@@ -2206,6 +2309,7 @@ static const struct rockchip_pwm_data pwm_data_v3 = {
 		.set_capture = rockchip_pwm_set_capture_v1,
 		.get_capture_result = rockchip_pwm_get_capture_result_v1,
 		.irq_handler = rockchip_pwm_irq_v1,
+		.set_filter = rockchip_pwm_set_filter_v1,
 	},
 };
 
@@ -2242,6 +2346,7 @@ static const struct rockchip_pwm_data pwm_data_v4 = {
 		.get_biphasic_result = rockchip_pwm_get_biphasic_result_v4,
 		.ir_transmit = rockchip_pwm_ir_transmit_v4,
 		.irq_handler = rockchip_pwm_irq_v4,
+		.set_filter = rockchip_pwm_set_filter_v4,
 	},
 };
 
@@ -2360,6 +2465,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
 		pc->counter_support = !!(feature & COUNTER_SUPPORT);
 		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->filter_support = !!(feature & FILTER_SUPPORT);
 		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
 	} else {
 		feature = readl_relaxed(pc->base + FEATURE);
@@ -2368,6 +2474,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
 		pc->counter_support = !!(feature & COUNTER_SUPPORT);
 		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->filter_support = !!(feature & FILTER_SUPPORT);
 		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
 		pc->ledc_support = !!(feature & LEDC_SUPPORT);
 	}
