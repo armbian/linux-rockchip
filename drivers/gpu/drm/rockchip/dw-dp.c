@@ -1218,7 +1218,7 @@ static void dw_dp_atomic_connector_reset(struct drm_connector *connector)
 
 	__drm_atomic_helper_connector_reset(connector, &dp_state->state);
 	dp_state->bpc = 0;
-	dp_state->color_format = RK_IF_FORMAT_RGB;
+	dp_state->color_format = RK_IF_FORMAT_YCBCR_HQ;
 }
 
 static struct drm_connector_state *
@@ -1578,12 +1578,8 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	}
 
 	if ((dp_old_state->bpc != dp_new_state->bpc) ||
-	    (dp_old_state->color_format != dp_new_state->color_format)) {
-		if ((dp_old_state->bpc == 0) && (dp_new_state->bpc == 0))
-			dev_info(dp->dev, "still auto set color mode\n");
-		else
-			crtc_state->mode_changed = true;
-	}
+	    (dp_old_state->color_format != dp_new_state->color_format))
+		crtc_state->mode_changed = true;
 
 	if (dp->mst_mgr.cbs) {
 		ret = drm_dp_mst_root_conn_atomic_check(new_state, &dp->mst_mgr);
@@ -4613,7 +4609,9 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	struct dw_dp_link *link = &dp->link;
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct drm_display_mode mode = crtc_state->mode;
+	const struct dw_dp_output_format *fmt;
 	u32 *output_fmts;
+	u32 default_fmt = MEDIA_BUS_FMT_RGB888_1X24;
 	unsigned int i, j = 0;
 
 	dp->eotf_type = dw_dp_get_eotf(conn_state);
@@ -4644,7 +4642,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(possible_output_fmts); i++) {
-		const struct dw_dp_output_format *fmt = &possible_output_fmts[i];
+		fmt = &possible_output_fmts[i];
 
 		if (fmt->bpc > conn_state->max_bpc)
 			continue;
@@ -4667,34 +4665,72 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->max_rate))
 			continue;
 
-		if (dp_state->bpc != 0) {
-			if (fmt->bpc != dp_state->bpc)
-				continue;
-
-			if (dp_state->color_format != RK_IF_FORMAT_YCBCR_HQ &&
-			    dp_state->color_format != RK_IF_FORMAT_YCBCR_LQ &&
-			    (fmt->color_format != BIT(dp_state->color_format)))
-				continue;
-		}
-
 		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 8)
 			continue;
 
 		output_fmts[j++] = fmt->bus_format;
 	}
 
+	*num_output_fmts = j;
+	if (*num_output_fmts == 0) {
+		/*
+		 * If there are not support bus format found, choose the rgb 8bit as
+		 * the default color format.
+		 */
+		output_fmts[0] = default_fmt;
+		*num_output_fmts = 1;
+		dev_warn(dp->dev, "Not support bus format found, use rgb format\n");
+		dev_info(dp->dev, "max bpc:%d, max fmt:%x, lanes:%d, rate:%d, eotf:%d\n",
+			 conn_state->max_bpc, di->color_formats, link->lanes, link->max_rate,
+			 dp->eotf_type);
+	}
+
+	if (dp_state->bpc != 0) {
+		/*
+		 * If userspace select a bpc, match the bus format attach this
+		 * bpc. If can't match, select a bpc by auto mode.
+		 */
+		j = 0;
+		for (i = 0; i < *num_output_fmts; i++) {
+			fmt = dw_dp_get_output_format(output_fmts[i]);
+
+			if (fmt->bpc != dp_state->bpc)
+				continue;
+
+			output_fmts[j++] = fmt->bus_format;
+		}
+		if (j)
+			*num_output_fmts = j;
+		else
+			dev_warn(dp->dev, "Not support bpc:%d, auto select bpc\n", dp_state->bpc);
+
+	}
+
+	if (dp_state->color_format <= RK_IF_FORMAT_YCBCR420) {
+		/*
+		 * If userspace select a color format, match the bus format
+		 * attach this color format. If can't match, select a color
+		 * format by auto mode.
+		 */
+		j = 0;
+		for (i = 0; i < *num_output_fmts; i++) {
+			fmt = dw_dp_get_output_format(output_fmts[i]);
+
+			if (fmt->color_format != BIT(dp_state->color_format))
+				continue;
+
+			output_fmts[j++] = fmt->bus_format;
+		}
+		if (j)
+			*num_output_fmts = j;
+		else
+			dev_warn(dp->dev,
+				 "Not support color format:%d, auto select color formatt\n",
+				 dp_state->color_format);
+	}
+
 	if (dp_state->color_format == RK_IF_FORMAT_YCBCR_LQ)
 		dw_dp_swap_fmts(output_fmts, j);
-
-	*num_output_fmts = j;
-
-	if (*num_output_fmts == 0) {
-		dev_warn(dp->dev, "here is not satisfied the require bus format\n");
-		dev_info(dp->dev,
-			 "max bpc:%d, max fmt:%x, lanes:%d, rate:%d, bpc:%d, fmt:%d, eotf:%d\n",
-			 conn_state->max_bpc, di->color_formats, link->lanes, link->max_rate,
-			 dp_state->bpc, dp_state->color_format, dp->eotf_type);
-	}
 
 	return output_fmts;
 }
