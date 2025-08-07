@@ -459,19 +459,21 @@ struct rga_dma_buffer *rga_dma_alloc_coherent(struct rga_scheduler_t *scheduler,
 	size_t align_size;
 	dma_addr_t dma_addr;
 	struct  rga_dma_buffer *buffer;
+	struct device *map_dev;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
 		return NULL;
 
 	align_size = PAGE_ALIGN(size);
-	buffer->vaddr = dma_alloc_coherent(scheduler->dev, align_size, &dma_addr, GFP_KERNEL);
+	map_dev = scheduler->iommu_info ? scheduler->iommu_info->default_dev : scheduler->dev;
+	buffer->vaddr = dma_alloc_coherent(map_dev, align_size, &dma_addr, GFP_KERNEL);
 	if (!buffer->vaddr)
 		goto fail_dma_alloc;
 
 	buffer->size = align_size;
 	buffer->dma_addr = dma_addr;
-	buffer->map_dev = scheduler->dev;
+	buffer->map_dev = map_dev;
 	if (scheduler->data->mmu == RGA_IOMMU)
 		buffer->iova = buffer->dma_addr;
 
