@@ -17,7 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/extcon.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/jiffies.h>
@@ -120,9 +120,7 @@ struct charger_platform_data {
 	u32 max_chrg_voltage;
 	u32 pwroff_vol;
 	u32 power_dc2otg;
-	u32 dc_det_level;
-	int dc_det_pin;
-	bool support_dc_det;
+	struct gpio_desc *dc_det_pin;
 	int virtual_power;
 	int sample_res;
 	int otg5v_suspend_enable;
@@ -320,8 +318,7 @@ static int rk818_cg_get_bat_psy(struct device *dev, void *data)
 static void rk818_cg_get_psy(struct rk818_charger *cg)
 {
 	if (!cg->bat_psy)
-		class_for_each_device(power_supply_class, NULL, (void *)cg,
-				      rk818_cg_get_bat_psy);
+		power_supply_for_each_device((void *)cg, rk818_cg_get_bat_psy);
 }
 
 static int rk818_cg_get_bat_max_cur(struct rk818_charger *cg)
@@ -744,15 +741,8 @@ static void rk818_cg_set_otg_power(struct rk818_charger *cg, int state)
 
 static enum charger_t rk818_cg_get_dc_state(struct rk818_charger *cg)
 {
-	int level;
-
-	if (!gpio_is_valid(cg->pdata->dc_det_pin))
-		return DC_TYPE_NONE_CHARGER;
-
-	level = gpio_get_value(cg->pdata->dc_det_pin);
-
-	return (level == cg->pdata->dc_det_level) ?
-		DC_TYPE_DC_CHARGER : DC_TYPE_NONE_CHARGER;
+	return gpiod_get_value(cg->pdata->dc_det_pin) ?
+		DC_TYPE_NONE_CHARGER : DC_TYPE_DC_CHARGER;
 }
 
 static void rk818_cg_dc_det_worker(struct work_struct *work)
@@ -1064,7 +1054,7 @@ static irqreturn_t rk818_dc_det_isr(int irq, void *charger)
 {
 	struct rk818_charger *cg = (struct rk818_charger *)charger;
 
-	if (gpio_get_value(cg->pdata->dc_det_pin))
+	if (gpiod_get_value(cg->pdata->dc_det_pin))
 		irq_set_irq_type(irq, IRQF_TRIGGER_LOW);
 	else
 		irq_set_irq_type(irq, IRQF_TRIGGER_HIGH);
@@ -1121,7 +1111,7 @@ static int rk818_cg_init_irqs(struct rk818_charger *cg)
 
 static int rk818_cg_init_dc(struct rk818_charger *cg)
 {
-	int ret, level;
+	int ret;
 	unsigned long irq_flags;
 	unsigned int dc_det_irq;
 
@@ -1131,34 +1121,18 @@ static int rk818_cg_init_dc(struct rk818_charger *cg)
 	INIT_DELAYED_WORK(&cg->dc_work, rk818_cg_dc_det_worker);
 	cg->dc_charger = DC_TYPE_NONE_CHARGER;
 
-	if (!cg->pdata->support_dc_det)
+	if (IS_ERR_OR_NULL(cg->pdata->dc_det_pin))
 		return 0;
 
-	ret = devm_gpio_request(cg->dev, cg->pdata->dc_det_pin, "rk818_dc_det");
-	if (ret < 0) {
-		dev_err(cg->dev, "failed to request gpio %d\n",
-			cg->pdata->dc_det_pin);
-		return ret;
-	}
-
-	ret = gpio_direction_input(cg->pdata->dc_det_pin);
-	if (ret) {
-		dev_err(cg->dev, "failed to set gpio input\n");
-		return ret;
-	}
-
-	level = gpio_get_value(cg->pdata->dc_det_pin);
-	if (level == cg->pdata->dc_det_level)
-		cg->dc_charger = DC_TYPE_DC_CHARGER;
-	else
+	if (gpiod_get_value(cg->pdata->dc_det_pin)) {
 		cg->dc_charger = DC_TYPE_NONE_CHARGER;
-
-	if (level)
 		irq_flags = IRQF_TRIGGER_LOW;
-	else
+	} else {
+		cg->dc_charger = DC_TYPE_DC_CHARGER;
 		irq_flags = IRQF_TRIGGER_HIGH;
+	}
 
-	dc_det_irq = gpio_to_irq(cg->pdata->dc_det_pin);
+	dc_det_irq = gpiod_to_irq(cg->pdata->dc_det_pin);
 	ret = devm_request_irq(cg->dev, dc_det_irq, rk818_dc_det_isr,
 			       irq_flags, "rk818_dc_det", cg);
 	if (ret != 0) {
@@ -1571,7 +1545,6 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 {
 	struct device_node *np;
 	struct charger_platform_data *pdata;
-	enum of_gpio_flags flags;
 	struct device *dev = cg->dev;
 	int ret;
 
@@ -1637,22 +1610,11 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 	cg->res_div = (cg->pdata->sample_res == SAMPLE_RES_20MR) ?
 		       SAMPLE_RES_DIV1 : SAMPLE_RES_DIV2;
 
-	if (!of_find_property(np, "dc_det_gpio", &ret)) {
-		pdata->support_dc_det = false;
-		CG_INFO("not support dc\n");
-	} else {
-		pdata->support_dc_det = true;
-		pdata->dc_det_pin = of_get_named_gpio_flags(np, "dc_det_gpio",
-							    0, &flags);
-		if (gpio_is_valid(pdata->dc_det_pin)) {
-			CG_INFO("support dc\n");
-			pdata->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW) ?
-					       0 : 1;
-		} else {
-			dev_err(dev, "invalid dc det gpio!\n");
-			return -EINVAL;
-		}
-	}
+	pdata->dc_det_pin = devm_gpiod_get_optional(dev, "dc-det", GPIOD_IN);
+	if (IS_ERR_OR_NULL(pdata->dc_det_pin))
+		DBG("not support dc\n");
+	else
+		DBG("support dc\n");
 
 	ret = parse_temperature_chrg_table(cg, np);
 	if (ret)
