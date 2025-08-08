@@ -924,11 +924,9 @@ static int rk818_bat_get_ac_psy(struct device *dev, void *data)
 static void rk818_bat_get_chrg_psy(struct rk818_battery *di)
 {
 	if (!di->usb_psy)
-		class_for_each_device(power_supply_class, NULL, (void *)di,
-				      rk818_bat_get_usb_psy);
+		power_supply_for_each_device((void *)di, rk818_bat_get_usb_psy);
 	if (!di->ac_psy)
-		class_for_each_device(power_supply_class, NULL, (void *)di,
-				      rk818_bat_get_ac_psy);
+		power_supply_for_each_device((void *)di, rk818_bat_get_ac_psy);
 }
 
 static int rk818_bat_get_charge_state(struct rk818_battery *di)

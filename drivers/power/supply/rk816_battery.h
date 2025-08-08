@@ -199,8 +199,7 @@ struct battery_platform_data {
 	u32 energy_mode;
 	u32 cccv_hour;
 	u32 dc_det_adc;
-	int dc_det_pin;
-	u8  dc_det_level;
+	struct gpio_desc *dc_det_pin;
 	int otg5v_suspend_enable;
 	u32 sample_res;
 	bool extcon;

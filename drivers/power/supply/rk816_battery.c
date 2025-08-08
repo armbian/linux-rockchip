@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/extcon.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/irq.h>
@@ -1805,15 +1805,8 @@ static enum charger_t rk816_bat_get_adc_dc_state(struct rk816_battery *di)
 
 static enum charger_t rk816_bat_get_gpio_dc_state(struct rk816_battery *di)
 {
-	int level;
-
-	if (!gpio_is_valid(di->pdata->dc_det_pin))
-		return DC_TYPE_NONE_CHARGER;
-
-	level = gpio_get_value(di->pdata->dc_det_pin);
-
-	return (level == di->pdata->dc_det_level) ?
-		DC_TYPE_DC_CHARGER : DC_TYPE_NONE_CHARGER;
+	return gpiod_get_value(di->pdata->dc_det_pin) ?
+		DC_TYPE_NONE_CHARGER : DC_TYPE_DC_CHARGER;
 }
 
 static enum charger_t rk816_bat_get_dc_state(struct rk816_battery *di)
@@ -4061,7 +4054,7 @@ static irqreturn_t rk816_vbat_dc_det(int irq, void *bat)
 {
 	struct rk816_battery *di = (struct rk816_battery *)bat;
 
-	if (gpio_get_value(di->pdata->dc_det_pin))
+	if (gpiod_get_value(di->pdata->dc_det_pin))
 		irq_set_irq_type(irq, IRQF_TRIGGER_LOW);
 	else
 		irq_set_irq_type(irq, IRQF_TRIGGER_HIGH);
@@ -4190,47 +4183,31 @@ static enum charger_t rk816_bat_init_adc_dc_det(struct rk816_battery *di)
 
 static enum charger_t rk816_bat_init_gpio_dc_det(struct rk816_battery *di)
 {
-	int ret, level;
+	int ret;
 	unsigned long irq_flags;
 	unsigned int dc_det_irq;
 	enum charger_t type = DC_TYPE_NONE_CHARGER;
 
-	if (gpio_is_valid(di->pdata->dc_det_pin)) {
-		ret = devm_gpio_request(di->dev, di->pdata->dc_det_pin,
-					"rk816_dc_det");
-		if (ret < 0) {
-			dev_err(di->dev, "Failed to request gpio %d\n",
-				di->pdata->dc_det_pin);
-			goto out;
-		}
+	if (IS_ERR_OR_NULL(di->pdata->dc_det_pin))
+		return 0;
 
-		ret = gpio_direction_input(di->pdata->dc_det_pin);
-		if (ret) {
-			dev_err(di->dev, "failed to set gpio input\n");
-			goto out;
-		}
-
-		level = gpio_get_value(di->pdata->dc_det_pin);
-		if (level == di->pdata->dc_det_level)
-			type = DC_TYPE_DC_CHARGER;
-		else
-			type = DC_TYPE_NONE_CHARGER;
-
-		if (level)
-			irq_flags = IRQF_TRIGGER_LOW;
-		else
-			irq_flags = IRQF_TRIGGER_HIGH;
-
-		dc_det_irq = gpio_to_irq(di->pdata->dc_det_pin);
-		ret = devm_request_irq(di->dev, dc_det_irq, rk816_vbat_dc_det,
-				       irq_flags, "rk816_dc_det", di);
-		if (ret != 0) {
-			dev_err(di->dev, "rk816_dc_det_irq request failed!\n");
-			goto out;
-		}
-
-		enable_irq_wake(dc_det_irq);
+	if (gpiod_get_value(di->pdata->dc_det_pin)) {
+		irq_flags = IRQF_TRIGGER_LOW;
+		type = DC_TYPE_NONE_CHARGER;
+	} else {
+		type = DC_TYPE_DC_CHARGER;
+		irq_flags = IRQF_TRIGGER_HIGH;
 	}
+
+	dc_det_irq = gpiod_to_irq(di->pdata->dc_det_pin);
+	ret = devm_request_irq(di->dev, dc_det_irq, rk816_vbat_dc_det,
+			       irq_flags, "rk816_dc_det", di);
+	if (ret != 0) {
+		dev_err(di->dev, "rk816_dc_det_irq request failed!\n");
+		goto out;
+	}
+
+	enable_irq_wake(dc_det_irq);
 out:
 	return type;
 }
@@ -4650,7 +4627,6 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 	struct device_node *np;
 	struct battery_platform_data *pdata;
 	struct device *dev = di->dev;
-	enum of_gpio_flags flags;
 
 	np = of_find_node_by_name(di->rk816->i2c->dev.of_node, "battery");
 	if (!np) {
@@ -4818,8 +4794,8 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 	if (ret < 0)
 		pdata->otg5v_suspend_enable = 1;
 
-	if (!of_find_property(np, "dc_det_gpio", &length)) {
-		pdata->dc_det_pin = -1;
+	pdata->dc_det_pin = devm_gpiod_get_optional(dev, "dc-det", GPIOD_IN);
+	if (IS_ERR_OR_NULL(pdata->dc_det_pin)) {
 		of_property_read_u32(np, "dc_det_adc", &pdata->dc_det_adc);
 		if (!pdata->dc_det_adc)
 			BAT_INFO("not support dc\n");
@@ -4827,14 +4803,8 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 			BAT_INFO("support adc dc\n");
 	} else {
 		BAT_INFO("support gpio dc\n");
-		pdata->dc_det_pin = of_get_named_gpio_flags(np, "dc_det_gpio",
-							    0, &flags);
-		if (gpio_is_valid(pdata->dc_det_pin)) {
-			pdata->dc_det_level =
-					(flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-			/* if support dc, default set power_dc2otg = 1 */
-			pdata->power_dc2otg = 1;
-		}
+		/* if support dc, default set power_dc2otg = 1 */
+		pdata->power_dc2otg = 1;
 	}
 
 	if (!of_find_property(np, "ntc_table", &length)) {
