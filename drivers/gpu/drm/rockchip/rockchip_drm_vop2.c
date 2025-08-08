@@ -14739,7 +14739,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					  DRM_COLOR_YCBCR_BT601,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
-	if (win->regs->background.mask && !win->parent)
+	if (win->regs->background.mask && !win->parent && !vop2_cluster_window(win))
 		drm_object_attach_property(&win->base.base, private->bg_prop, 0);
 
 	drm_object_attach_property(&win->base.base, private->async_commit_prop, 0);
