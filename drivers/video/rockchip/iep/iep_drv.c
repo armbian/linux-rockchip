@@ -897,6 +897,68 @@ static int iep_sysmmu_fault_handler(struct iommu_domain *domain,
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
+static int proc_iep_show(struct seq_file *s, void *v)
+{
+	struct iep_status sts;
+
+	if (!iep_drvdata1)
+		return 0;
+
+	iep_power_on();
+	seq_puts(s, "\nIEP Modules Status:\n");
+	sts = iep_get_status(iep_drvdata1->iep_base);
+	seq_printf(s, "scl_sts %u dil_sts %u wyuv_sts %u ryuv_sts %u\n",
+		   sts.scl_sts, sts.dil_sts, sts.wyuv_sts, sts.ryuv_sts);
+
+	seq_printf(s, "wrgb_sts %u rrgb_sts %u voi_sts %u\n",
+		   sts.wrgb_sts, sts.rrgb_sts, sts.voi_sts);
+
+	{
+		int *reg = (int *)iep_drvdata1->iep_base;
+		int i;
+
+		/* could not read validate data from address after base+0x40 */
+		for (i = 0; i < 0x40; i++) {
+			seq_printf(s, "%08x ", reg[i]);
+
+			if ((i + 1) % 4 == 0)
+				seq_puts(s, "\n");
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static int proc_iep_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_iep_show, NULL);
+}
+
+static const struct proc_ops proc_iep_fops = {
+	.proc_open	= proc_iep_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static int iep_proc_init(void)
+{
+	proc_create("iep", 0, NULL, &proc_iep_fops);
+	return 0;
+}
+
+static void iep_proc_release(void)
+{
+	remove_proc_entry("iep", NULL);
+}
+#endif
+
 static int iep_drv_probe(struct platform_device *pdev)
 {
 	struct iep_drvdata *data;
@@ -1056,6 +1118,10 @@ static int iep_drv_probe(struct platform_device *pdev)
 						       iep_service.alloc_type);
 	iep_power_off();
 
+#ifdef CONFIG_PROC_FS
+	iep_proc_init();
+#endif
+
 	IEP_INFO("IEP Driver loaded succesfully\n");
 
 	return 0;
@@ -1087,6 +1153,10 @@ static int iep_drv_remove(struct platform_device *pdev)
 	pm_runtime_disable(data->dev);
 #endif
 
+#ifdef CONFIG_PROC_FS
+	iep_proc_release();
+#endif
+
 	return 0;
 }
 
@@ -1108,64 +1178,6 @@ static struct platform_driver iep_driver = {
 	},
 };
 
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-
-static int proc_iep_show(struct seq_file *s, void *v)
-{
-	struct iep_status sts;
-	//mutex_lock(&iep_service.mutex);
-	iep_power_on();
-	seq_printf(s, "\nIEP Modules Status:\n");
-	sts = iep_get_status(iep_drvdata1->iep_base);
-	seq_printf(s, "scl_sts: %u, dil_sts %u, wyuv_sts %u, "
-		      "ryuv_sts %u, wrgb_sts %u, rrgb_sts %u, voi_sts %u\n",
-		sts.scl_sts, sts.dil_sts, sts.wyuv_sts, sts.ryuv_sts,
-		sts.wrgb_sts, sts.rrgb_sts, sts.voi_sts); {
-		int *reg = (int *)iep_drvdata1->iep_base;
-		int i;
-
-		/* could not read validate data from address after base+0x40 */
-		for (i = 0; i < 0x40; i++) {
-			seq_printf(s, "%08x ", reg[i]);
-
-			if ((i + 1) % 4 == 0)
-				seq_printf(s, "\n");
-		}
-
-		seq_printf(s, "\n");
-	}
-
-	//mutex_unlock(&iep_service.mutex);
-
-	return 0;
-}
-
-static int proc_iep_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_iep_show, NULL);
-}
-
-static const struct proc_ops proc_iep_fops = {
-	.proc_open	= proc_iep_open,
-	.proc_read	= seq_read,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= single_release,
-};
-
-static int __init iep_proc_init(void)
-{
-	proc_create("iep", 0, NULL, &proc_iep_fops);
-	return 0;
-}
-
-static void __exit iep_proc_release(void)
-{
-	remove_proc_entry("iep", NULL);
-}
-#endif
-
 #ifdef IEP_TEST_CASE
 void iep_test_case0(void);
 #endif
@@ -1179,10 +1191,6 @@ static int __init iep_init(void)
 		return ret;
 	}
 
-#ifdef CONFIG_PROC_FS
-	iep_proc_init();
-#endif
-
 	IEP_INFO("Module initialized.\n");
 
 #ifdef IEP_TEST_CASE
@@ -1195,9 +1203,6 @@ static int __init iep_init(void)
 static void __exit iep_exit(void)
 {
 	IEP_ERR("%s IN\n", __func__);
-#ifdef CONFIG_PROC_FS
-	iep_proc_release();
-#endif
 
 	iep_power_off();
 	platform_driver_unregister(&iep_driver);
