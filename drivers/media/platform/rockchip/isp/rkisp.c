@@ -2569,6 +2569,9 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	rkisp_unite_write(dev, CIF_ISP_CTRL, val, is_direct);
 	rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, upd);
 
+	val = CIF_MI_CTRL_INIT_BASE_EN | CIF_MI_CTRL_INIT_OFFSET_EN;
+	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, false);
+
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
 	dev->irq_ends_mask |= ISP_FRAME_END;

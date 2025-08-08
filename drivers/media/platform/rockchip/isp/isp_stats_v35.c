@@ -407,7 +407,7 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 }
 
 static void
-rkisp_stats_send_meas_fe(struct rkisp_isp_stats_vdev *stats_vdev)
+rkisp_stats_send_meas_fe(struct rkisp_isp_stats_vdev *stats_vdev, u32 w3a_ris)
 {
 	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
 	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
@@ -537,14 +537,14 @@ rkisp_stats_send_meas_fe(struct rkisp_isp_stats_vdev *stats_vdev)
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 	v4l2_dbg(4, rkisp_debug, &stats_vdev->dev->v4l2_dev,
-		 "%s seq:%d params_id:%d ris:0x%x buf:0x%x meas_type:0x%x\n",
-		 __func__, cur_frame_id, params_vdev->cur_fe_frame_id, ris,
+		 "%s seq:%d params_id:%d ris:0x%x w3a:0x%x buf:0x%x meas_type:0x%x\n",
+		 __func__, cur_frame_id, params_vdev->cur_fe_frame_id, ris, w3a_ris,
 		 !cur_buf ? -1 : cur_buf->buff_addr[0],
 		 !stat_buf ? 0 : stat_buf->meas_type);
 }
 
 static void
-rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev)
+rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev, u32 w3a_ris)
 {
 	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
 	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
@@ -745,8 +745,8 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 	v4l2_dbg(4, rkisp_debug, &stats_vdev->dev->v4l2_dev,
-		 "%s seq:%d params_id:%d ris:0x%x buf:0x%x meas_type:0x%x\n",
-		 __func__, cur_frame_id, params_vdev->cur_frame_id, ris,
+		 "%s seq:%d params_id:%d ris:0x%x w3a:0x%x buf:0x%x meas_type:0x%x\n",
+		 __func__, cur_frame_id, params_vdev->cur_frame_id, ris, w3a_ris,
 		 !cur_buf ? -1 : cur_buf->buff_addr[0],
 		 !cur_stat_buf ? 0 : cur_stat_buf->meas_type);
 }
@@ -760,15 +760,16 @@ rkisp_stats_isr_v35(struct rkisp_isp_stats_vdev *stats_vdev,
 	rkisp_pdaf_isr(stats_vdev->dev);
 
 	w3a_ris = rkisp_read(stats_vdev->dev, ISP39_W3A_INT_STAT, true);
-	if (w3a_ris & ISP39_W3A_INT_ERR_MASK) {
-		v4l2_err(&stats_vdev->dev->v4l2_dev, "w3a error 0x%x\n", w3a_ris);
+	if (w3a_ris) {
 		rkisp_write(stats_vdev->dev, ISP39_W3A_INT_STAT, w3a_ris, true);
+		if (w3a_ris & ISP39_W3A_INT_ERR_MASK)
+			v4l2_err(&stats_vdev->dev->v4l2_dev, "w3a error 0x%x\n", w3a_ris);
 	}
 
 	if (isp_ris & ISP3X_BAY3D_FRM_END)
-		rkisp_stats_send_meas_fe(stats_vdev);
+		rkisp_stats_send_meas_fe(stats_vdev, w3a_ris);
 	if (isp_ris & ISP3X_FRAME)
-		rkisp_stats_send_meas(stats_vdev);
+		rkisp_stats_send_meas(stats_vdev, w3a_ris);
 }
 
 static void
