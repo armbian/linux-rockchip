@@ -14,9 +14,16 @@
 
 struct rk_dma_heap;
 
-#if defined(CONFIG_DMABUF_HEAPS_ROCKCHIP)
+#if IS_REACHABLE(CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_HEAP)
 int rk_dma_heap_cma_setup(void);
+#else
+static inline int rk_dma_heap_cma_setup(void)
+{
+	return -ENODEV;
+}
+#endif
 
+#if defined(CONFIG_DMABUF_HEAPS_ROCKCHIP)
 /**
  * rk_dma_heap_set_dev - set heap dev dma param
  * @heap: DMA-Heap to retrieve private data for
@@ -88,11 +95,6 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap, struct page *pages,
 				   size_t len, const char *name);
 
 #else
-static inline int rk_dma_heap_cma_setup(void)
-{
-	return -ENODEV;
-}
-
 static inline int rk_dma_heap_set_dev(struct device *heap_dev)
 {
 	return -ENODEV;
