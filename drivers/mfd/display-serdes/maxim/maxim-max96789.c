@@ -691,8 +691,9 @@ static struct serdes_chip_gpio_ops max96789_gpio_ops = {
 
 static int max96789_select(struct serdes *serdes, int chan)
 {
-	u32 link_cfg, val;
-	int ret;
+	int i;
+	int link_mode = LINKA;
+	u32 link_cfg, link_status;
 
 	serdes_set_bits(serdes, 0x0001, DIS_REM_CC,
 			   FIELD_PREP(DIS_REM_CC, 0));
@@ -712,6 +713,7 @@ static int max96789_select(struct serdes *serdes, int chan)
 				   FIELD_PREP(RESET_ONESHOT, 1) |
 				   FIELD_PREP(AUTO_LINK, 0) |
 				   FIELD_PREP(LINK_CFG, DUAL_LINK));
+		link_mode = DUAL_LINK;
 		SERDES_DBG_CHIP("%s: change to use dual link\n", __func__);
 	} else if (chan == 1 && (link_cfg & LINK_CFG) != LINKA) {
 		serdes_set_bits(serdes, 0x0004,
@@ -723,6 +725,7 @@ static int max96789_select(struct serdes *serdes, int chan)
 				   FIELD_PREP(RESET_ONESHOT, 1) |
 				   FIELD_PREP(AUTO_LINK, 0) |
 				   FIELD_PREP(LINK_CFG, LINKA));
+		link_mode = LINKA;
 		SERDES_DBG_CHIP("%s: change to use linkA\n", __func__);
 	} else if (chan == 2 && (link_cfg & LINK_CFG) != LINKB) {
 		serdes_set_bits(serdes, 0x0004,
@@ -734,6 +737,7 @@ static int max96789_select(struct serdes *serdes, int chan)
 				   FIELD_PREP(RESET_ONESHOT, 1) |
 				   FIELD_PREP(AUTO_LINK, 0) |
 				   FIELD_PREP(LINK_CFG, LINKB));
+		link_mode = LINKB;
 		SERDES_DBG_CHIP("%s: change to use linkB\n", __func__);
 	} else if (chan == 3 && (link_cfg & LINK_CFG) != SPLITTER_MODE) {
 		serdes_set_bits(serdes, 0x0004,
@@ -745,16 +749,39 @@ static int max96789_select(struct serdes *serdes, int chan)
 				   FIELD_PREP(RESET_ONESHOT, 1) |
 				   FIELD_PREP(AUTO_LINK, 0) |
 				   FIELD_PREP(LINK_CFG, SPLITTER_MODE));
+		link_mode = SPLITTER_MODE;
 		SERDES_DBG_CHIP("%s: change to use split mode\n", __func__);
 	}
 
-	ret = regmap_read_poll_timeout(serdes->regmap, 0x0013, val,
-				       val & LOCKED, 100,
-				       50 * USEC_PER_MSEC);
-	if (ret < 0) {
-		dev_err(serdes->dev, "GMSL2 link lock timeout\n");
-		return ret;
+	for (i = 0; i < 50; i++) {
+		serdes_reg_read(serdes, 0x001f, &link_status);
+		switch (link_mode) {
+		case DUAL_LINK:
+		case SPLITTER_MODE:
+			if ((link_status & LINKA_LOCKED) &&
+			    (link_status & LINKB_LOCKED))
+				goto out;
+		break;
+		case LINKA:
+			if (link_status & LINKA_LOCKED)
+				goto out;
+		break;
+		case LINKB:
+			if (link_status & LINKB_LOCKED)
+				goto out;
+		break;
+		}
+
+		mdelay(5);
 	}
+
+out:
+	if (i > 49)
+		dev_info(serdes->dev, "link lock timeout, mode=%d val=0x%x\n",
+			link_mode, link_status);
+	else
+		dev_info(serdes->dev, "link locked, mode=%d, val=0x%x\n",
+			link_mode, link_status);
 
 	return 0;
 }
