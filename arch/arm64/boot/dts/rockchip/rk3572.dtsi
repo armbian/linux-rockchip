@@ -720,6 +720,46 @@
 			status = "disabled";
 		};
 
+		sai4: sai@27610000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x27610000 0x0 0x1000>;
+			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI4>, <&cru HCLK_SAI4>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 8>, <&dmac0 9>;
+			dma-names = "tx", "rx";
+			power-domains = <&power RK3572_PD_VO>;
+			resets = <&cru SRST_MRESETN_SAI4>, <&cru SRST_HRESETN_SAI4>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai4m0_lrck_pins
+				     &sai4m0_sclk_pins
+				     &sai4m0_sdi0_pins
+				     &sai4m0_sdi1_pins
+				     &sai4m0_sdi2_pins
+				     &sai4m0_sdi3_pins
+				     &sai4m0_sdo0_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI4";
+			status = "disabled";
+		};
+
+		sai5: sai@27620000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x27620000 0x0 0x1000>;
+			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI5>, <&cru HCLK_SAI5>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 10>;
+			dma-names = "rx";
+			power-domains = <&power RK3572_PD_VO>;
+			resets = <&cru SRST_MRESETN_SAI5>, <&cru SRST_HRESETN_SAI5>;
+			reset-names = "m", "h";
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI5";
+			status = "disabled";
+		};
+
 		edp: edp@276b0000 {
 			compatible = "rockchip,rk3572-edp";
 			reg = <0x0 0x276b0000 0x0 0x10000>;
@@ -764,6 +804,99 @@
 					};
 				};
 			};
+		};
+
+		sai0: sai@2a500000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x2a500000 0x0 0x1000>;
+			interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI0>, <&cru HCLK_SAI0>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 0>, <&dmac0 1>;
+			dma-names = "tx", "rx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_MRESETN_SAI0>, <&cru SRST_HRESETN_SAI0>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai0m0_lrck_pins
+				     &sai0m0_sclk_pins
+				     &sai0m0_sdi0_pins
+				     &sai0m0_sdi1_pins
+				     &sai0m0_sdi2_pins
+				     &sai0m0_sdi3_pins
+				     &sai0m0_sdo0_pins
+				     &sai0m0_sdo1_pins
+				     &sai0m0_sdo2_pins
+				     &sai0m0_sdo3_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI0";
+			status = "disabled";
+		};
+
+		sai1: sai@2a510000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x2a510000 0x0 0x1000>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI1>, <&cru HCLK_SAI1>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 2>, <&dmac0 3>;
+			dma-names = "tx", "rx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_MRESETN_SAI1>, <&cru SRST_HRESETN_SAI1>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai1m0_lrck_pins
+				     &sai1m0_sclk_pins
+				     &sai1m0_sdi0_pins
+				     &sai1m0_sdi1_pins
+				     &sai1m0_sdi2_pins
+				     &sai1m0_sdi3_pins
+				     &sai1m0_sdo0_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI1";
+			status = "disabled";
+		};
+
+		sai2: sai@2a520000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x2a520000 0x0 0x1000>;
+			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI2>, <&cru HCLK_SAI2>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 4>, <&dmac0 5>;
+			dma-names = "tx", "rx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_MRESETN_SAI2>, <&cru SRST_HRESETN_SAI2>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai2m0_lrck_pins
+				     &sai2m0_sclk_pins
+				     &sai2m0_sdi_pins
+				     &sai2m0_sdo_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI2";
+			status = "disabled";
+		};
+
+		sai3: sai@2a530000 {
+			compatible = "rockchip,rk3572-sai", "rockchip,sai-v1";
+			reg = <0x0 0x2a530000 0x0 0x1000>;
+			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI3>, <&cru HCLK_SAI3>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac0 6>, <&dmac0 7>;
+			dma-names = "tx", "rx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_MRESETN_SAI3>, <&cru SRST_HRESETN_SAI3>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai3m0_lrck_pins
+				     &sai3m0_sclk_pins
+				     &sai3m0_sdi_pins
+				     &sai3m0_sdo_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI3";
+			status = "disabled";
 		};
 
 		gic: interrupt-controller@2a601000 {
