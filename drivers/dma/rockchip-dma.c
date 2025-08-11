@@ -53,6 +53,8 @@
 #define RK_DMA_CMN_DYNCTL		RK_DMA_CMN_REG(0x0014) /* Address Offset: 0x0014 */
 #define RK_DMA_CMN_IS0			RK_DMA_CMN_REG(0x0018) /* Address Offset: 0x0018 */
 #define RK_DMA_CMN_IS1			RK_DMA_CMN_REG(0x001c) /* Address Offset: 0x001C */
+#define RK_DMA_CMN_IE0			RK_DMA_CMN_REG(0x0020) /* Address Offset: 0x0020 */
+#define RK_DMA_CMN_IE1			RK_DMA_CMN_REG(0x0024) /* Address Offset: 0x0024 */
 #define RK_DMA_CMN_CAP0			RK_DMA_CMN_REG(0x0030) /* Address Offset: 0x0030 */
 #define RK_DMA_CMN_CAP1			RK_DMA_CMN_REG(0x0034) /* Address Offset: 0x0034 */
 #define RK_DMA_CMN_PCH_EN		RK_DMA_CMN_REG(0x0040) /* Address Offset: 0x0040 */
@@ -522,6 +524,11 @@ static int rk_dma_init(struct rk_dma_dev *d)
 	writel(0xffffffff, RK_DMA_CMN_DYNCTL);
 	writel(0xffffffff, RK_DMA_CMN_IS0);
 	writel(0xffffffff, RK_DMA_CMN_IS1);
+
+	if (ver >= RK_DMA_VER(1, 2)) {
+		writel(0xffffffff, RK_DMA_CMN_IE0);
+		writel(0xffffffff, RK_DMA_CMN_IE1);
+	}
 
 	for (i = 0; i < pch; i++)
 		writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
