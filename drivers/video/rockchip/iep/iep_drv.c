@@ -1141,6 +1141,8 @@ static int iep_drv_remove(struct platform_device *pdev)
 {
 	struct iep_drvdata *data = platform_get_drvdata(pdev);
 
+	iep_power_off();
+
 	iep_iommu_info_destroy(iep_service.iommu_info);
 	iep_service.iommu_info = NULL;
 
@@ -1204,7 +1206,6 @@ static void __exit iep_exit(void)
 {
 	IEP_ERR("%s IN\n", __func__);
 
-	iep_power_off();
 	platform_driver_unregister(&iep_driver);
 }
 
