@@ -4998,7 +4998,6 @@ static bool dw_dp_hpd_short_pulse(struct dw_dp *dp)
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
 		return false;
 	default:
-		dev_warn(dp->dev, "test_type%lu is not support\n", dp->compliance.test_type);
 		break;
 	}
 
