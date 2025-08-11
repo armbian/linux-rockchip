@@ -1126,6 +1126,42 @@
 			status = "disabled";
 		};
 
+		dmac0: dma-controller@2bfe0000 {
+			compatible = "rockchip,rk3572-dma", "rockchip,dma";
+			reg = <0x0 0x2bfe0000 0x0 0x2000>;
+			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_RKDMA0>, <&cru PCLK_RKDMA0>;
+			clock-names = "aclk", "pclk";
+			#dma-cells = <1>;
+		};
+
+		dmac1: dma-controller@2bff0000 {
+			compatible = "rockchip,rk3572-dma", "rockchip,dma";
+			reg = <0x0 0x2bff0000 0x0 0x2000>;
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_RKDMA1>, <&cru PCLK_RKDMA1>;
+			clock-names = "aclk", "pclk";
+			#dma-cells = <1>;
+		};
+
+		dmac2: dma-controller@2c000000 {
+			compatible = "rockchip,rk3572-dma", "rockchip,dma";
+			reg = <0x0 0x2c000000 0x0 0x2000>;
+			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_RKDMA2>, <&cru PCLK_RKDMA2>;
+			clock-names = "aclk", "pclk";
+			#dma-cells = <1>;
+		};
+
+		dmac3: dma-controller@2c010000 {
+			compatible = "rockchip,rk3572-dma", "rockchip,dma";
+			reg = <0x0 0x2c010000 0x0 0x2000>;
+			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_RKDMA3>, <&cru PCLK_RKDMA3>;
+			clock-names = "aclk", "pclk";
+			#dma-cells = <1>;
+		};
+
 		uart0: serial@2c130000 {
 			compatible = "rockchip,rk3572-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x2c130000 0x0 0x100>;
