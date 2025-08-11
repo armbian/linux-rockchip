@@ -45,8 +45,8 @@
 #define GSLX680_I2C_NAME 	"gslX680-pad"
 #define GSLX680_I2C_ADDR 	0x40
 
-int g_wake_pin=0;
-int g_irq_pin=0;
+static struct gpio_desc *g_wake_pin;
+static struct gpio_desc *g_irq_pin;
 
 #define GSL_DATA_REG		0x80
 #define GSL_STATUS_REG		0xe0
@@ -111,8 +111,8 @@ struct gsl_ts {
     u8 *touch_data;
     u8 device_id;
     int irq;
-    int irq_pin;
-    int wake_pin;
+    struct gpio_desc *irq_pin;
+    struct gpio_desc *wake_pin;
     struct  tp_device  tp;
     int screen_max_x;
     int screen_max_y;
@@ -148,8 +148,8 @@ static struct gsl_touch_chip_info gsl_chip_info[] = {
 
 static int gslX680_init(void)
 {
-    gpio_set_value(g_wake_pin,1);
-    gpio_set_value(g_irq_pin,1);
+    gpiod_set_value(g_wake_pin,1);
+    gpiod_set_value(g_irq_pin,1);
     return 0;
 }
 
@@ -157,8 +157,8 @@ static int gslX680_shutdown_low(void)
 {
     if(g_wake_pin !=0)
     {
-        gpio_direction_output(g_wake_pin, 0);
-        gpio_set_value(g_wake_pin,0);
+        gpiod_direction_output(g_wake_pin, 0);
+        gpiod_set_value(g_wake_pin,0);
     }
     return 0;
 }
@@ -167,8 +167,8 @@ static int gslX680_shutdown_high(void)
 {
     if(g_wake_pin !=0)
     {
-        gpio_direction_output(g_wake_pin, 0);
-        gpio_set_value(g_wake_pin,1);
+        gpiod_direction_output(g_wake_pin, 0);
+        gpiod_set_value(g_wake_pin,1);
     }
     return 0;
 }
@@ -367,7 +367,7 @@ static void init_chip(struct i2c_client *client)
     gslX680_shutdown_low();
     mdelay(20);
     gslX680_shutdown_high();
-    gpio_set_value(g_irq_pin,1);
+    gpiod_set_value(g_irq_pin,1);
     msleep(20);
     rc = test_i2c(client);
     if(rc < 0)
@@ -1003,7 +1003,6 @@ static void  gsl_resume_work(struct work_struct *work)
 static int gsl_ts_probe(struct i2c_client *client)
 {
     struct device_node *np = client->dev.of_node;
-    enum of_gpio_flags wake_flags, irq_flags;
     struct gsl_ts *ts;
     int rc;
     int gsl_chip_id = 0;
@@ -1022,8 +1021,6 @@ static int gsl_ts_probe(struct i2c_client *client)
 
     ts->client = client;
     i2c_set_clientdata(client, ts);
-    ts->device_id = id->driver_data;
-
 
     of_property_read_u32(np,"screen_max_x",&(ts->screen_max_x));
     of_property_read_u32(np,"screen_max_y",&(ts->screen_max_y));
@@ -1039,8 +1036,16 @@ static int gsl_ts_probe(struct i2c_client *client)
     dev_info(&ts->client->dev, "[tp-gsl] revert_y =[%d] \n",revert_y);
     dev_info(&ts->client->dev, "[tp-gsl] revert_xy =[%d] \n",revert_xy);
 
-    ts->irq_pin=of_get_named_gpio_flags(np, "touch-gpio", 0, &irq_flags);
-    ts->wake_pin=of_get_named_gpio_flags(np, "reset-gpio", 0, &wake_flags);
+    ts->wake_pin = devm_gpiod_get(&ts->client->dev, "reset", GPIOD_OUT_HIGH);
+    if (IS_ERR(ts->wake_pin)) {
+	    dev_err(&client->dev, "Failed to get reset GPIO");
+	    return PTR_ERR(ts->wake_pin);
+    }
+    ts->irq_pin = devm_gpiod_get(&ts->client->dev, "touch", GPIOD_IN);
+    if (IS_ERR(ts->irq_pin)) {
+	    dev_err(&client->dev, "Failed to get irq GPIO");
+	    return PTR_ERR(ts->irq_pin);
+    }
 
     ret = of_property_read_u32(np, "chip_id", &gsl_chip_id);
     if (ret)
@@ -1054,26 +1059,8 @@ static int gsl_ts_probe(struct i2c_client *client)
         }
     }
 
-    if (gpio_is_valid(ts->wake_pin)) {
-        rc = devm_gpio_request_one(&ts->client->dev, ts->wake_pin, (wake_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH, "gslX680 wake pin");
-        if (rc != 0) {
-            dev_err(&ts->client->dev, "gslX680 wake pin error\n");
-            return -EIO;
-        }
-        g_wake_pin = ts->wake_pin;
-    } else {
-        dev_info(&ts->client->dev, "wake pin invalid\n");
-    }
-    if (gpio_is_valid(ts->irq_pin)) {
-        rc = devm_gpio_request_one(&ts->client->dev, ts->irq_pin, (irq_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH, "gslX680 irq pin");
-        if (rc != 0) {
-            dev_err(&ts->client->dev, "gslX680 irq pin error\n");
-            return -EIO;
-        }
-        g_irq_pin = ts->irq_pin;
-    } else {
-        dev_info(&ts->client->dev, "irq pin invalid\n");
-    }
+    g_wake_pin = ts->wake_pin;
+    g_irq_pin = ts->irq_pin;
 
     INIT_WORK(&ts->download_fw_work, gsl_download_fw_work);
     INIT_WORK(&ts->resume_work, gsl_resume_work);
@@ -1089,10 +1076,10 @@ static int gsl_ts_probe(struct i2c_client *client)
     init_chip(ts->client);
     check_mem_data(ts->client);
 
-    ts->irq=gpio_to_irq(ts->irq_pin);		//If not defined in client
+    ts->irq=gpiod_to_irq(ts->irq_pin);		//If not defined in client
     if (ts->irq)
     {
-        rc = devm_request_threaded_irq(&client->dev, ts->irq, NULL, gsl_ts_irq, irq_flags | IRQF_ONESHOT, client->name, ts);
+        rc = devm_request_threaded_irq(&client->dev, ts->irq, NULL, gsl_ts_irq, IRQF_TRIGGER_RISING | IRQF_ONESHOT, client->name, ts);
         if (rc != 0) {
             dev_err(&client->dev, "Cannot allocate ts INT!ERRNO:%d\n", rc);
             goto error_req_irq_fail;
@@ -1111,7 +1098,7 @@ static int gsl_ts_probe(struct i2c_client *client)
     gsl_proc_flag = 0;
 #endif
 
-    gpio_set_value(ts->irq_pin, 0);
+    gpiod_set_value(ts->irq_pin, 0);
     enable_irq(ts->irq);
 
     ts->tp.tp_resume = gsl_ts_late_resume;
