@@ -545,8 +545,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -856,9 +854,10 @@
 
 	};
 
-	i2c5_max96752: i2c5-max96752@4a {
+	i2c5_max96752: i2c5-max96752@4b {
 		compatible = "maxim,max96752";
-		reg = <0x4a>;
+		reg = <0x4b>;
+		reg-hw = <0x4a>
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-panel-split = <0x02>;
@@ -868,8 +867,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -982,10 +979,9 @@
 		};
 	};
 
-	i2c5_max96752_split: i2c5-max96752-split@4b {
+	i2c5_max96752_split: i2c5-max96752-split@4a {
 		compatible = "maxim,max96752";
-		reg = <0x4b>;
-		reg-hw = <0x4a>;
+		reg = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-panel-split = <0x02>;
@@ -995,8 +991,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0032
-			007b 0032
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008c

@@ -640,10 +640,10 @@
 		};
 	};
 
-	i2c2_max96752: i2c2-max96752@4a {
+	i2c2_max96752: i2c2-max96752@4b {
 		compatible = "maxim,max96752";
-		reg = <0x4a>;
-		//reg-hw = <0x4a>;
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
 		id-serdes-panel-split = <0x01>;
 		link = <0x01>;
 		status = "okay";
@@ -651,8 +651,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -769,10 +767,9 @@
 		};
 	};
 
-	i2c2_max96752_split: i2c2-max96752-split@4b {
+	i2c2_max96752_split: i2c2-max96752-split@4a {
 		compatible = "maxim,max96752";
-		reg = <0x4b>;
-		reg-hw = <0x4a>;
+		reg = <0x4a>;
 		id-serdes-panel-split = <0x01>;
 		link = <0x02>;
 		status = "okay";
@@ -780,10 +777,7 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0032
-			007b 0032
 			007d 0038
-
 			//Address Value of I2C SRC_A
 			0042 008c
 			//Address Value of I2C DST_A
@@ -1318,8 +1312,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -1459,7 +1451,7 @@
 		lock-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		id-serdes-bridge-split = <0x02>;
+		id-serdes-bridge-split = <0x03>;
 		status = "okay";
 
 		serdes-init-sequence = [
@@ -1832,15 +1824,13 @@
 		reg = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		id-serdes-panel-split = <0x02>;
+		id-serdes-panel-split = <0x03>;
 		link = <0x01>;
 		status = "okay";
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
