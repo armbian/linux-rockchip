@@ -1,0 +1,18 @@
+* LTE EM05 modem device tree bindings
+
+Required properties:
+- compatible : "lte-em05-modem-platdata"
+
+Optional properties:
+- em05,airplane-gpio : EM05 modem airplane mode enter/exit gpio
+- em05,power-gpio : EM05 modem power enable/disable gpio
+- em05,reset-gpio : EM05 modem reset gpio
+
+Example:
+
+	em05_modem: em05-modem {
+		compatible="lte-em05-modem-platdata";
+		em05,airplane-gpio = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		em05,power-gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
+		em05,reset-gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+	}
