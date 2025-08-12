@@ -11,6 +11,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rockchip,rv1126b-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip,rv1126b-hwspinlock.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rv1126b.h>
 
@@ -2497,7 +2498,7 @@
 		reg = <0x21210000 0x100>;
 		#hwlock-cells = <1>;
 		rockchip,hwlock-num-locks = <64>;
-		status = "disabled";
+		rockchip,hwlock-user-id = <HWSPINLOCK_USER_PRIMARY_OS>;
 	};
 
 	rtc: rtc@21280000 {
