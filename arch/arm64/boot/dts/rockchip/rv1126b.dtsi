@@ -1891,6 +1891,7 @@
 		resets = <&cru SRST_RESETN_USER_OTPC_NS>, <&cru SRST_RESETN_SBPI_OTPC_NS>,
 			 <&cru SRST_PRESETN_OTPC_NS>, <&cru SRST_PRESETN_OTP_MASK>;
 		reset-names = "usr", "sbpi", "apb", "phy";
+		hwlocks = <&hwlock HWSPINLOCK_LOCK_OTP>;
 
 		/* Data cells */
 		cpu_code: cpu-code@2 {
