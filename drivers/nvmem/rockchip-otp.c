@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -152,6 +153,9 @@
 /* each bit mask 32 bits in OTP NVM */
 #define ROCKCHIP_OTP_WP_MASK_NBITS	64
 
+/* Timeout (ms) for the trylock of hardware spinlocks */
+#define ROCKCHIP_OTP_HWLOCK_TIMEOUT    5000
+
 static unsigned int rockchip_otp_wr_magic;
 module_param(rockchip_otp_wr_magic, uint, 0644);
 MODULE_PARM_DESC(rockchip_otp_wr_magic, "magic for enable otp write func.");
@@ -167,6 +171,7 @@ struct rockchip_otp {
 	struct nvmem_config *config;
 	const struct rockchip_data *data;
 	struct mutex mutex;
+	struct hwspinlock *hwlock;
 	DECLARE_BITMAP(wp_mask, ROCKCHIP_OTP_WP_MASK_NBITS);
 };
 
@@ -706,16 +711,41 @@ static int rv1126_otp_oem_write(void *context, unsigned int offset, void *val,
 	return ret;
 }
 
+static int rockchip_otp_lock(struct rockchip_otp *otp)
+{
+	mutex_lock(&otp->mutex);
+
+	if (otp->hwlock) {
+		if (hwspin_lock_timeout_raw(otp->hwlock, ROCKCHIP_OTP_HWLOCK_TIMEOUT)) {
+			dev_err(otp->dev, "timeout get the hwspinlock\n");
+			mutex_unlock(&otp->mutex);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+static void rockchip_otp_unlock(struct rockchip_otp *otp)
+{
+	if (otp->hwlock)
+		hwspin_unlock_raw(otp->hwlock);
+
+	mutex_unlock(&otp->mutex);
+}
+
 static int rockchip_otp_read(void *context, unsigned int offset, void *val,
 			     size_t bytes)
 {
 	struct rockchip_otp *otp = context;
 	int ret = -EINVAL;
 
-	mutex_lock(&otp->mutex);
+	ret = rockchip_otp_lock(otp);
+	if (ret)
+		return ret;
 	if (otp->data && otp->data->reg_read)
 		ret = otp->data->reg_read(context, offset, val, bytes);
-	mutex_unlock(&otp->mutex);
+	rockchip_otp_unlock(otp);
 
 	return ret;
 }
@@ -726,13 +756,15 @@ static int rockchip_otp_write(void *context, unsigned int offset, void *val,
 	struct rockchip_otp *otp = context;
 	int ret = -EINVAL;
 
-	mutex_lock(&otp->mutex);
+	ret = rockchip_otp_lock(otp);
+	if (ret)
+		return ret;
 	if (rockchip_otp_wr_magic == ROCKCHIP_OTP_WR_MAGIC &&
 	    otp->data && otp->data->reg_write) {
 		ret = otp->data->reg_write(context, offset, val, bytes);
 		rockchip_otp_wr_magic = 0;
 	}
-	mutex_unlock(&otp->mutex);
+	rockchip_otp_unlock(otp);
 
 	return ret;
 }
@@ -958,6 +990,10 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	otp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otp->base))
 		return PTR_ERR(otp->base);
+
+	ret = of_hwspin_lock_get_id(dev->of_node, 0);
+	if (ret >= 0)
+		otp->hwlock = devm_hwspin_lock_request_specific(dev, ret);
 
 	otp->num_clks = data->num_clks;
 	otp->clks = devm_kcalloc(dev, otp->num_clks,
