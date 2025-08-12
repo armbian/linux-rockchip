@@ -1572,6 +1572,38 @@ u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_tmdsclk_cnt);
 
+int rk628_hdmirx_get_hdr_matedata(struct rk628 *rk628,
+				  struct hdr_metadata_infoframe *hdmi_metadata)
+{
+	u32 val;
+	int i;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_HB, &val);
+	if (!val)
+		return -EINVAL;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_PAYLOAD0, &val);
+	hdmi_metadata->eotf = (val >> 8) & 0xff;
+	hdmi_metadata->metadata_type = (val >> 16) & 0xff;
+	for (i = 0; i < 3; i++) {
+		rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_PAYLOAD1 + i * 4, &val);
+		hdmi_metadata->display_primaries[i].x = val & 0xffff;
+		hdmi_metadata->display_primaries[i].y = (val >> 16) & 0xffff;
+	}
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_PAYLOAD4, &val);
+	hdmi_metadata->white_point.x = val & 0xffff;
+	hdmi_metadata->white_point.y = (val >> 16) & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_PAYLOAD5, &val);
+	hdmi_metadata->max_display_mastering_luminance = val & 0xffff;
+	hdmi_metadata->min_display_mastering_luminance = (val >> 16) & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_DRM_PAYLOAD6, &val);
+	hdmi_metadata->max_cll = val & 0xffff;
+	hdmi_metadata->max_fall = (val >> 16) & 0xffff;
+
+	return 0;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_hdr_matedata);
+
 struct rk628_timings {
 	int vic;
 	int hactive;
@@ -2205,6 +2237,7 @@ static int rk628_hdmirx_status_show(struct seq_file *s, void *v)
 	bool plugin;
 	u32 val, htot, vtot, fps, format;
 	u8 fmt, range, space;
+	struct hdr_metadata_infoframe hdmi_metadata;
 
 	plugin = rk628_hdmirx_tx_5v_power_detect(rk628->hdmirx_det_gpio);
 	seq_printf(s, "status: %s\n",  plugin ? "plugin" : "plugout");
@@ -2264,6 +2297,41 @@ static int rk628_hdmirx_status_show(struct seq_file *s, void *v)
 		seq_printf(s, "%s\n", bus_color_space_str[space]);
 	else
 		seq_puts(s, "Unknown\n");
+
+	seq_puts(s, "EOTF: ");
+	if (!rk628_hdmirx_get_hdr_matedata(rk628, &hdmi_metadata)) {
+		switch (hdmi_metadata.eotf & 0x7) {
+		case HDMI_EOTF_TRADITIONAL_GAMMA_SDR:
+			seq_puts(s, "SDR");
+			break;
+		case HDMI_EOTF_TRADITIONAL_GAMMA_HDR:
+			seq_puts(s, "HDR");
+			break;
+		case HDMI_EOTF_SMPTE_ST2084:
+			seq_puts(s, "ST2084");
+			break;
+		case HDMI_EOTF_BT_2100_HLG:
+			seq_puts(s, "HLG");
+			break;
+		default:
+			seq_puts(s, "Not Defined\n");
+			return 0;
+		}
+		seq_printf(s, "\nx0: %d", hdmi_metadata.display_primaries[0].x);
+		seq_printf(s, "\t\t\t\ty0: %d\n", hdmi_metadata.display_primaries[0].y);
+		seq_printf(s, "x1: %d", hdmi_metadata.display_primaries[1].x);
+		seq_printf(s, "\t\t\t\ty1: %d\n", hdmi_metadata.display_primaries[1].y);
+		seq_printf(s, "x2: %d", hdmi_metadata.display_primaries[2].x);
+		seq_printf(s, "\t\t\t\ty2: %d\n", hdmi_metadata.display_primaries[2].y);
+		seq_printf(s, "white x: %d", hdmi_metadata.white_point.x);
+		seq_printf(s, "\t\t\twhite y: %d\n", hdmi_metadata.white_point.y);
+		seq_printf(s, "max lum: %d", hdmi_metadata.max_display_mastering_luminance);
+		seq_printf(s, "\t\t\tmin lum: %d\n", hdmi_metadata.min_display_mastering_luminance);
+		seq_printf(s, "max cll: %d", hdmi_metadata.max_cll);
+		seq_printf(s, "\t\t\tmax fall: %d\n", hdmi_metadata.max_fall);
+	} else {
+		seq_puts(s, "Off\n");
+	}
 
 	return 0;
 }
