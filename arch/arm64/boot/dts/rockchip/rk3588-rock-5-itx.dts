@@ -984,6 +984,8 @@
 };
 
 &pcie30phy {
+	/* separate clock lines from the clock generator to phy and devices */
+	rockchip,rx-common-refclk-mode = <0 0 0 0>;
 	rockchip,pcie30-phymode = <PHY_MODE_PCIE_NANBNB>;
 	status = "okay";
 };
