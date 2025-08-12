@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
- * Copyright (c) 2022 Radxa Limited
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2024 Radxa Computer (Shenzhen) Co., Ltd.
  *
  */
 
@@ -26,6 +26,13 @@
 
 	/delete-node/ chosen;
 
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-levels = <0 64 128 192 255>;
+		pwms = <&pwm1 0 60000 0>;
+	};
+
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -45,20 +52,20 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
-	wifi_disable: wifi-diable-gpio-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "wifi_disable";
-		enable-active-high;
-		gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
 	bt_wake: bt-wake-gpio-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "bt_wake";
 		enable-active-high;
 		gpio = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	wifi_disable: wifi-diable-gpio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_disable";
+		enable-active-high;
+		gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -114,7 +121,7 @@
 	dp0_sound: dp0-sound {
 		status = "okay";
 		compatible = "rockchip,hdmi";
-		rockchip,card-name = "rockchip-dp0";
+		rockchip,card-name= "rockchip-hdmi2";
 		rockchip,mclk-fs = <512>;
 		rockchip,cpu = <&spdif_tx2>;
 		rockchip,codec = <&dp0 1>;
@@ -127,7 +134,7 @@
 		rockchip,card-name = "rockchip-es8316";
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s0_8ch >;
+		rockchip,cpu = <&i2s0_8ch>;
 		rockchip,codec = <&es8316>;
 		poll-interval = <100>;
 		io-channels = <&saradc 3>;
@@ -146,8 +153,6 @@
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -190,17 +195,6 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-
-		user-led2 {
-			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			default-state = "on";
-		};
-	};
-
 	/* If hdmirx node is disabled, delete the reserved-memory node here. */
 	reserved-memory {
 		#address-cells = <2>;
@@ -217,22 +211,27 @@
 	};
 
 	hdmiin-sound {
+		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
 		rockchip,format = "i2s";
 		rockchip,bitclock-master = <&hdmirx_ctrler>;
 		rockchip,frame-master = <&hdmirx_ctrler>;
-		rockchip,card-name = "rockchip-hdmiin";
+		rockchip,card-name = "rockchip,hdmiin";
 		rockchip,cpu = <&i2s7_8ch>;
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
 	};
 
-	fan0: pwm-fan {
-		compatible = "pwm-fan";
-		#cooling-cells = <2>;
-		cooling-levels = <72 94 117 139 162 184 207 229 255>;
-		pwms = <&pwm1 0 10000 0>;
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+
+		user-led2 {
+			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
 	};
 };
 
@@ -241,10 +240,6 @@
 };
 
 &av1d_mmu {
-	status = "okay";
-};
-
-&avsd {
 	status = "okay";
 };
 
@@ -489,6 +484,7 @@
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
+	mmc-hs200-1_8v;
 	status = "okay";
 };
 
@@ -639,26 +635,6 @@
 &display_subsystem {
 	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi1>;
 	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
-
-	route {
-		route_hdmi0: route-hdmi0 {
-			status = "okay";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vp0_out_hdmi0>;
-		};
-
-		route_hdmi1: route-hdmi1 {
-			status = "okay";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vp1_out_hdmi1>;
-		};
-	};
 };
 
 &hdptxphy_hdmi0 {
@@ -671,7 +647,8 @@
 
 &hdmi0 {
 	status = "okay";
-        cec-enable = "true";
+	cec-enable = "true";
+	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 };
 
 &hdmi0_in_vp0 {
@@ -694,7 +671,8 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim0_tx1_cec &hdmim0_tx1_hpd &hdmim1_tx1_scl &hdmim1_tx1_sda>;
-        cec-enable = "true";
+	cec-enable = "true";
+	enable-gpios = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
 };
 
 &hdmi1_in_vp0 {
@@ -713,25 +691,24 @@
 	status = "okay";
 };
 
-/* Should work with at least 128MB cma reserved above. */
-&hdmirx_ctrler {
-	status = "okay";
-
-	#sound-dai-cells = <1>;
-	/* Effective level used to trigger HPD: 0-low, 1-high */
-	hpd-trigger-level = <1>;
-	hdmirx-det-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
-
-	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
-	pinctrl-names = "default";
-};
-
 &hdptxphy_hdmi0 {
 	status = "okay";
 };
 
 &hdptxphy_hdmi1 {
 	status = "okay";
+};
+
+/* Should work with at least 128MB cma reserved above. */
+&hdmirx_ctrler {
+	status = "okay";
+
+	/* Effective level used to trigger HPD: 0-low, 1-high */
+	hpd-trigger-level = <1>;
+	hdmirx-det-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
+	pinctrl-names = "default";
+	#sound-dai-cells = <1>;
 };
 
 &i2s5_8ch {
@@ -832,6 +809,7 @@
 };
 
 &u2phy1_otg {
+	vbus-supply = <&vcc5v0_host>;
 	status = "okay";
 };
 
@@ -1058,6 +1036,8 @@
 		reg = <0x11>;
 		clocks = <&mclkout_i2s0>;
 		clock-names = "mclk";
+		assigned-clocks = <&mclkout_i2s0>;
+		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 		#sound-dai-cells = <0>;
@@ -1071,40 +1051,9 @@
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_lrck
-			 &i2s0_sclk
-			 &i2s0_sdi0
-			 &i2s0_sdo0>;
-};
-
-&sfc {
-	status = "okay";
-	max-freq = <50000000>;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&fspim2_pins>;
-
-	spi_flash: spi-flash@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "jedec,spi-nor";
-		reg = <0x0>;
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <4>;
-		status = "okay";
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			loader@0 {
-				label = "loader";
-				reg = <0x0 0x1000000>;
-			};
-		};
-	};
+		     &i2s0_sclk
+		     &i2s0_sdi0
+		     &i2s0_sdo0>;
 };
 
 &rockchip_suspend {
@@ -1163,6 +1112,37 @@
 	regulator-state-mem {
 		regulator-on-in-suspend;
 		regulator-suspend-microvolt = <850000>;
+	};
+};
+
+&sfc {
+	status = "okay";
+	max-freq = <50000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspim2_pins>;
+
+	spi_flash: spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		status = "okay";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			loader@0 {
+				label = "loader";
+				reg = <0x0 0x1000000>;
+			};
+		};
 	};
 };
 

@@ -149,8 +149,6 @@
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -722,6 +720,7 @@
 };
 
 &u2phy1_otg {
+	vbus-supply = <&vcc5v0_host>;
 	status = "okay";
 };
 
