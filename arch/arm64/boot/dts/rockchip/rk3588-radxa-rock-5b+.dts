@@ -30,7 +30,7 @@
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		cooling-levels = <0 64 128 192 255>;
-		pwms = <&pwm1 0 10000 0>;
+		pwms = <&pwm1 0 60000 0>;
 	};
 
 	vcc12v_dcin: vcc12v-dcin {
@@ -149,8 +149,6 @@
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -253,10 +251,6 @@
 };
 
 &av1d_mmu {
-	status = "okay";
-};
-
-&avsd {
 	status = "okay";
 };
 
@@ -723,6 +717,7 @@
 };
 
 &u2phy1_otg {
+	vbus-supply = <&vcc5v0_host>;
 	status = "okay";
 };
 
@@ -774,6 +769,7 @@
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";
+			faster-pd-negotiation;
 			power-role = "dual";
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
