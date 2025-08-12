@@ -82,6 +82,11 @@ struct platform_device;
 #define SUPPORT_HDMI_ALLM	BIT(1)
 #define DOVI_VSIF_LEN		8
 
+#define HDMI_HDR_STATUS_CHANGED		BIT(0)
+#define HDMI_COLOR_FMT_CHANGED		BIT(1)
+#define HDMI_OUTPUT_MODE_CHANGED	BIT(2)
+#define HDMI_VSIF_CHANGED		BIT(3)
+
 enum {
 	DW_HDMI_RES_8,
 	DW_HDMI_RES_10,
