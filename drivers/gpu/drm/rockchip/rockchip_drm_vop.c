@@ -1805,7 +1805,6 @@ static void vop_wb_irqs_enable(struct vop *vop)
 	uint32_t irqs = VOPL_WB_UV_FIFO_FULL_INTR | VOPL_WB_YRGB_FIFO_FULL_INTR |
 			VOPL_WB_COMPLETE_INTR;
 
-	VOP_INTR_SET_TYPE2(vop, intr, clear, irqs, 1);
 	VOP_INTR_SET_TYPE2(vop, intr, enable, irqs, 1);
 }
 
