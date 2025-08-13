@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,6 +36,7 @@
 
 #include <asm/arch_timer.h>
 
+#if MALI_USE_CSF
 #include <csf/mali_kbase_csf_firmware.h>
 
 /* Index of the last value register for each type of core, with the 1st value
@@ -43,30 +44,29 @@
  */
 #define IPA_CTL_MAX_VAL_CNT_IDX (KBASE_IPA_CONTROL_NUM_BLOCK_COUNTERS - 1)
 
-/* Number of bytes for '_rxpx' gpu name string */
-#define GPU_REV_STR_LEN 5
-
-static u32 gpu_control_base_addr;
-
-#define GET_GPU_CONTROL_REG(r) (((r)&GPU_CONTROL_REG_PAGE_MASK) + gpu_control_base_addr)
-#define GET_HOST_POWER_REG(r) GET_GPU_CONTROL_REG(HOST_POWER_REG(r))
-
 /* Array for storing the value of SELECT register for each type of core */
 static u64 ipa_ctl_select_config[KBASE_IPA_CORE_TYPE_NUM];
 static u32 ipa_control_timer_enabled;
+#endif
 
+#if MALI_USE_CSF
 static u32 sysc_alloc_regs[SYSC_ALLOC_COUNT];
+#endif
 
 #define LO_MASK(M) ((M)&0xFFFFFFFF)
 #define HI_MASK(M) ((M)&0xFFFFFFFF00000000)
-
 
 /* Construct a value for the THREAD_FEATURES register, *except* the two most
  * significant bits, which are set to THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE in
  * midgard_model_read_reg().
  */
+#if MALI_USE_CSF
 #define THREAD_FEATURES_PARTIAL(MAX_REGISTERS, MAX_TASK_QUEUE, MAX_TG_SPLIT) \
 	((MAX_REGISTERS) | ((MAX_TASK_QUEUE) << 24))
+#else
+#define THREAD_FEATURES_PARTIAL(MAX_REGISTERS, MAX_TASK_QUEUE, MAX_TG_SPLIT) \
+	((MAX_REGISTERS) | ((MAX_TASK_QUEUE) << 16) | ((MAX_TG_SPLIT) << 24))
+#endif
 
 struct error_status_t hw_error_status;
 
@@ -88,8 +88,6 @@ struct error_status_t hw_error_status;
  * @gpu_features_hi:		GPU features (high)
  * @shader_present:		Available shader bitmap
  * @stack_present:		Core stack present bitmap
- * @base_present:		Shader core base present bitmap
- * @neural_present:		Neural engine present bitmap
  *
  */
 struct control_reg_values_t {
@@ -107,8 +105,6 @@ struct control_reg_values_t {
 	u32 gpu_features_hi;
 	u32 shader_present;
 	u32 stack_present;
-	u64 base_present;
-	u64 neural_present;
 };
 
 struct job_slot {
@@ -124,31 +120,23 @@ enum pwr_on_index {
 	INDEX_TILER,
 	INDEX_SHADER,
 	INDEX_STACK,
-	INDEX_BASE,
-	INDEX_NEURAL,
 	INDEX_DOMAIN_COUNT
 };
 
 struct dummy_model_t {
 	int reset_completed;
 	int reset_completed_mask;
+#if !MALI_USE_CSF
+	int prfcnt_sample_completed;
+#endif /* !MALI_USE_CSF */
 	int power_changed_mask; /* 2 bits: _ALL,_SINGLE */
 	int power_changed; /* 1 bit */
 	bool clean_caches_completed;
 	bool clean_caches_completed_irq_enabled;
+#if MALI_USE_CSF
 	bool flush_pa_range_completed;
 	bool flush_pa_range_completed_irq_enabled;
-	/* Representations of COMMAND_NOT_ALLOWED and COMMAND_INVALID bits in
-	 * the PWR_IRQ_* registers.
-	 * The _mask variants enable and disable the respective IRQ sources
-	 */
-	bool command_not_allowed_mask; /* 1 bit */
-	bool command_not_allowed; /* 1 bit */
-	bool command_invalid_mask; /* 1 bit */
-	bool command_invalid; /* 1 bit */
-
-	u64 command_arg; /* PWR_CMDARG register */
-	u64 gov_core_mask;
+#endif
 	uint32_t domain_power_on[INDEX_DOMAIN_COUNT];
 	u32 coherency_enable;
 	unsigned int job_irq_js_state;
@@ -156,7 +144,6 @@ struct dummy_model_t {
 	const struct control_reg_values_t *control_reg_values;
 	u32 l2_config;
 	struct kbase_device *kbdev;
-	u32 arch_id;
 };
 
 /* Array associating GPU names with control register values. The first
@@ -424,28 +411,13 @@ static const struct control_reg_values_t all_control_reg_values[] = {
 		.shader_present = DUMMY_IMPLEMENTATION_SHADER_PRESENT_TKRX,
 		.stack_present = DUMMY_IMPLEMENTATION_STACK_PRESENT,
 	},
-	{
-		.name = "tDRx",
-		.gpu_id = GPU_ID2_MAKE(14, 8, 5, 0, 0, 0, 0),
-		.as_present = 0xFF,
-		.thread_max_threads = 0x800,
-		.thread_max_workgroup_size = 0x400,
-		.thread_max_barrier_size = 0x400,
-		.thread_features = THREAD_FEATURES_PARTIAL(0x10000, 16, 0),
-		.core_features = 0x1, /* core_1e64fma4tex */
-		.tiler_features = 0x809,
-		.mmu_features = 0x2830,
-		.gpu_features_lo = 0x3f,
-		.gpu_features_hi = 0,
-		.shader_present = DUMMY_IMPLEMENTATION_SHADER_PRESENT_TDRX,
-		.stack_present = DUMMY_IMPLEMENTATION_STACK_PRESENT,
-		.base_present = DUMMY_IMPLEMENTATION_BASE_PRESENT,
-		.neural_present = DUMMY_IMPLEMENTATION_NEURAL_PRESENT,
-	},
 };
 
 static struct {
 	spinlock_t access_lock;
+#if !MALI_USE_CSF
+	unsigned long prfcnt_base;
+#endif /* !MALI_USE_CSF */
 	u32 *prfcnt_base_cpu;
 
 	u32 time;
@@ -455,7 +427,11 @@ static struct {
 	u64 l2_present;
 	u64 shader_present;
 
+#if !MALI_USE_CSF
+	u64 jm_counters[KBASE_DUMMY_MODEL_COUNTER_PER_CORE];
+#else
 	u64 cshw_counters[KBASE_DUMMY_MODEL_COUNTER_PER_CORE];
+#endif /* !MALI_USE_CSF */
 	u64 tiler_counters[KBASE_DUMMY_MODEL_COUNTER_PER_CORE];
 	u64 l2_counters[KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS * KBASE_DUMMY_MODEL_COUNTER_PER_CORE];
 	u64 shader_counters[KBASE_DUMMY_MODEL_MAX_SHADER_CORES * KBASE_DUMMY_MODEL_COUNTER_PER_CORE];
@@ -475,38 +451,20 @@ static struct {
 static u32 get_implementation_register(u32 reg,
 				       const struct control_reg_values_t *const control_reg_values)
 {
-	if (reg == GET_GPU_CONTROL_REG(SHADER_PRESENT_LO))
+	switch (reg) {
+	case GPU_CONTROL_REG(SHADER_PRESENT_LO):
 		return LO_MASK(control_reg_values->shader_present);
-	else if (reg == GET_GPU_CONTROL_REG(TILER_PRESENT_LO))
+	case GPU_CONTROL_REG(TILER_PRESENT_LO):
 		return LO_MASK(DUMMY_IMPLEMENTATION_TILER_PRESENT);
-	else if (reg == GET_GPU_CONTROL_REG(L2_PRESENT_LO))
+	case GPU_CONTROL_REG(L2_PRESENT_LO):
 		return LO_MASK(DUMMY_IMPLEMENTATION_L2_PRESENT);
-	else if (reg == GET_GPU_CONTROL_REG(STACK_PRESENT_LO))
+	case GPU_CONTROL_REG(STACK_PRESENT_LO):
 		return LO_MASK(control_reg_values->stack_present);
-
-	return 0;
+	default:
+		return 0;
+	}
 }
 
-static u32
-hctrl_get_implementation_register(u32 reg,
-				  const struct control_reg_values_t *const control_reg_values)
-{
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_SHADER_PRESENT_LO))
-		return LO_MASK(control_reg_values->shader_present);
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_TILER_PRESENT_LO))
-		return LO_MASK(DUMMY_IMPLEMENTATION_TILER_PRESENT);
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_LO))
-		return LO_MASK(DUMMY_IMPLEMENTATION_L2_PRESENT);
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_STACK_PRESENT_LO))
-		return LO_MASK(control_reg_values->stack_present);
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_BASE_PRESENT_LO))
-		return LO_MASK(control_reg_values->base_present);
-	if (reg == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PRESENT_LO) &&
-	    (control_reg_values->gpu_features_lo & GPU_FEATURES_NEURAL_ENGINE_MASK))
-		return LO_MASK(control_reg_values->neural_present);
-
-	return 0;
-}
 
 void gpu_device_set_data(void *model, void *data)
 {
@@ -528,6 +486,7 @@ static char *no_mali_gpu = CONFIG_MALI_VALHALL_NO_MALI_DEFAULT_GPU;
 module_param(no_mali_gpu, charp, 0000);
 MODULE_PARM_DESC(no_mali_gpu, "GPU to identify as");
 
+#if MALI_USE_CSF
 static u32 gpu_model_get_prfcnt_value(enum kbase_ipa_core_type core_type, u32 cnt_idx,
 				      bool is_low_word)
 {
@@ -602,6 +561,7 @@ static u32 gpu_model_get_prfcnt_value(enum kbase_ipa_core_type core_type, u32 cn
 	else
 		return (value >> 32);
 }
+#endif /* MALI_USE_CSF */
 
 /**
  * gpu_model_clear_prfcnt_values_nolock - Clear performance counter values
@@ -612,13 +572,18 @@ static u32 gpu_model_get_prfcnt_value(enum kbase_ipa_core_type core_type, u32 cn
 static void gpu_model_clear_prfcnt_values_nolock(void)
 {
 	lockdep_assert_held(&performance_counters.access_lock);
+#if !MALI_USE_CSF
+	memset(performance_counters.jm_counters, 0, sizeof(performance_counters.jm_counters));
+#else
 	memset(performance_counters.cshw_counters, 0, sizeof(performance_counters.cshw_counters));
+#endif /* !MALI_USE_CSF */
 	memset(performance_counters.tiler_counters, 0, sizeof(performance_counters.tiler_counters));
 	memset(performance_counters.l2_counters, 0, sizeof(performance_counters.l2_counters));
 	memset(performance_counters.shader_counters, 0,
 	       sizeof(performance_counters.shader_counters));
 }
 
+#if MALI_USE_CSF
 void gpu_model_clear_prfcnt_values(void)
 {
 	unsigned long flags;
@@ -628,6 +593,7 @@ void gpu_model_clear_prfcnt_values(void)
 	spin_unlock_irqrestore(&performance_counters.access_lock, flags);
 }
 KBASE_EXPORT_TEST_API(gpu_model_clear_prfcnt_values);
+#endif /* MALI_USE_CSF */
 
 /**
  * gpu_model_dump_prfcnt_blocks() - Dump performance counter values to buffer
@@ -656,9 +622,11 @@ static void gpu_model_dump_prfcnt_blocks(u64 *values, u32 *out_index, u32 block_
 	for (block_idx = 0; block_idx < block_count; block_idx++) {
 		/* only dump values if core is present */
 		if (!(blocks_present & (1U << block_idx))) {
+#if MALI_USE_CSF
 			/* if CSF dump zeroed out block */
 			memset(&prfcnt_base[*out_index], 0, KBASE_DUMMY_MODEL_BLOCK_SIZE);
 			*out_index += KBASE_DUMMY_MODEL_VALUES_PER_BLOCK;
+#endif /* MALI_USE_CSF */
 			continue;
 		}
 
@@ -689,8 +657,13 @@ static void gpu_model_dump_nolock(void)
 
 	lockdep_assert_held(&performance_counters.access_lock);
 
+#if !MALI_USE_CSF
+	gpu_model_dump_prfcnt_blocks(performance_counters.jm_counters, &index, 1,
+				     performance_counters.prfcnt_en.fe, 0x1);
+#else
 	gpu_model_dump_prfcnt_blocks(performance_counters.cshw_counters, &index, 1,
 				     performance_counters.prfcnt_en.fe, 0x1);
+#endif /* !MALI_USE_CSF */
 	gpu_model_dump_prfcnt_blocks(performance_counters.tiler_counters, &index, 1,
 				     performance_counters.prfcnt_en.tiler,
 				     DUMMY_IMPLEMENTATION_TILER_PRESENT);
@@ -712,17 +685,19 @@ static void gpu_model_dump_nolock(void)
 
 static void gpu_model_raise_irq(void *model, u32 irq)
 {
-	struct kbase_device *kbdev = gpu_device_get_data(model);
-
-	/*
-	 * Use unified IRQ handler from GPU Arch version 14.8.0
-	 */
-	if (kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(14, 8, 0))
-		gpu_device_raise_irq(model, MODEL_LINUX_IRQAW_IRQ);
-	else
 		gpu_device_raise_irq(model, irq);
 }
 
+#if !MALI_USE_CSF
+static void midgard_model_dump_prfcnt(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&performance_counters.access_lock, flags);
+	gpu_model_dump_nolock();
+	spin_unlock_irqrestore(&performance_counters.access_lock, flags);
+}
+#else
 void gpu_model_prfcnt_dump_request(u32 *sample_buf, struct gpu_model_prfcnt_en enable_maps)
 {
 	unsigned long flags;
@@ -746,6 +721,7 @@ void gpu_model_glb_request_job_irq(void *model)
 	spin_unlock_irqrestore(&hw_error_status.access_lock, flags);
 	gpu_model_raise_irq(model, MODEL_LINUX_JOB_IRQ);
 }
+#endif /* !MALI_USE_CSF */
 
 static void init_register_statuses(struct dummy_model_t *dummy)
 {
@@ -779,6 +755,117 @@ static void update_register_statuses(struct dummy_model_t *dummy, u32 job_slot)
 
 	if (hw_error_status.errors_mask & IS_A_JOB_ERROR) {
 		if (job_slot == hw_error_status.current_job_slot) {
+#if !MALI_USE_CSF
+			if (hw_error_status.js_status[job_slot] == 0) {
+				/* status reg is clean; it can be written */
+
+				switch (hw_error_status.errors_mask & IS_A_JOB_ERROR) {
+				case KBASE_JOB_INTERRUPTED:
+					hw_error_status.js_status[job_slot] = JS_STATUS_INTERRUPTED;
+					break;
+
+				case KBASE_JOB_STOPPED:
+					hw_error_status.js_status[job_slot] = JS_STATUS_STOPPED;
+					break;
+
+				case KBASE_JOB_TERMINATED:
+					hw_error_status.js_status[job_slot] = JS_STATUS_TERMINATED;
+					break;
+
+				case KBASE_JOB_CONFIG_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_CONFIG_FAULT;
+					break;
+
+				case KBASE_JOB_POWER_FAULT:
+					hw_error_status.js_status[job_slot] = JS_STATUS_POWER_FAULT;
+					break;
+
+				case KBASE_JOB_READ_FAULT:
+					hw_error_status.js_status[job_slot] = JS_STATUS_READ_FAULT;
+					break;
+
+				case KBASE_JOB_WRITE_FAULT:
+					hw_error_status.js_status[job_slot] = JS_STATUS_WRITE_FAULT;
+					break;
+
+				case KBASE_JOB_AFFINITY_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_AFFINITY_FAULT;
+					break;
+
+				case KBASE_JOB_BUS_FAULT:
+					hw_error_status.js_status[job_slot] = JS_STATUS_BUS_FAULT;
+					break;
+
+				case KBASE_INSTR_INVALID_PC:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_INVALID_PC;
+					break;
+
+				case KBASE_INSTR_INVALID_ENC:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_INVALID_ENC;
+					break;
+
+				case KBASE_INSTR_TYPE_MISMATCH:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_TYPE_MISMATCH;
+					break;
+
+				case KBASE_INSTR_OPERAND_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_OPERAND_FAULT;
+					break;
+
+				case KBASE_INSTR_TLS_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_TLS_FAULT;
+					break;
+
+				case KBASE_INSTR_BARRIER_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_BARRIER_FAULT;
+					break;
+
+				case KBASE_INSTR_ALIGN_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_INSTR_ALIGN_FAULT;
+					break;
+
+				case KBASE_DATA_INVALID_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_DATA_INVALID_FAULT;
+					break;
+
+				case KBASE_TILE_RANGE_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_TILE_RANGE_FAULT;
+					break;
+
+				case KBASE_ADDR_RANGE_FAULT:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_ADDRESS_RANGE_FAULT;
+					break;
+
+				case KBASE_OUT_OF_MEMORY:
+					hw_error_status.js_status[job_slot] =
+						JS_STATUS_OUT_OF_MEMORY;
+					break;
+
+				case KBASE_UNKNOWN:
+					hw_error_status.js_status[job_slot] = JS_STATUS_UNKNOWN;
+					break;
+
+				default:
+					model_error_log(KBASE_CORE,
+							"\nAtom Chain 0x%llx: Invalid Error Mask!",
+							hw_error_status.current_jc);
+					break;
+				}
+			}
+#endif /* !MALI_USE_CSF */
+
 			/* we set JOB_FAIL_<n> */
 			hw_error_status.job_irq_rawstat |=
 				(dummy->slots[job_slot].job_complete_irq_asserted)
@@ -887,28 +974,39 @@ static void update_register_statuses(struct dummy_model_t *dummy, u32 job_slot)
 	hw_error_status.errors_mask = 0; /*clear error mask */
 }
 
-/**
- * find_gpu_rev() - Append GPU HW revision to the GPU name, if needed.
- * @new_gpu_name: Caller-allocated string for the new GPU name.
- * @gpu:          Current GPU name.
- *
- * In cases where CONFIG_GPU_HWVER is unavailable, _r1p0 is appended.
- */
-static void find_gpu_rev(char *new_gpu_name, const char *gpu)
+#if !MALI_USE_CSF
+static void update_job_irq_js_state(struct dummy_model_t *dummy, int mask)
 {
-	strscpy(new_gpu_name, gpu, strlen(gpu) + GPU_REV_STR_LEN + 1);
+	int i;
 
+	lockdep_assert_held(&hw_error_status.access_lock);
+	pr_debug("%s", "Updating the JS_ACTIVE register");
 
-	if (!strcmp(gpu, "tGOx"))
-	{
-#ifdef CONFIG_GPU_HWVER
-		if (!strcmp(CONFIG_GPU_HWVER, "r0p0"))
-			strncat(new_gpu_name, "_r0p0", GPU_REV_STR_LEN + 1);
-		else if (!strcmp(CONFIG_GPU_HWVER, "r1p0"))
-#endif /* CONFIG_GPU_HWVER defined */
-			strncat(new_gpu_name, "_r1p0", GPU_REV_STR_LEN + 1);
+	for (i = 0; i < NUM_SLOTS; i++) {
+		int slot_active = dummy->slots[i].job_active;
+		int next_busy = dummy->slots[i].job_queued;
+
+		if ((mask & (1 << i)) || (mask & (1 << (i + 16)))) {
+			/* clear the bits we're updating */
+			dummy->job_irq_js_state &= ~((1 << (16 + i)) | (1 << i));
+			if (hw_error_status.js_status[i]) {
+				dummy->job_irq_js_state |= next_busy << (i + 16);
+				if (mask & (1 << (i + 16))) {
+					/* clear job slot status */
+					hw_error_status.js_status[i] = 0;
+					/* continue execution of jobchain */
+					dummy->slots[i].job_active = dummy->slots[i].job_queued;
+				}
+			} else {
+				/* set bits if needed */
+				dummy->job_irq_js_state |=
+					((slot_active << i) | (next_busy << (i + 16)));
+			}
+		}
 	}
+	pr_debug("The new snapshot is 0x%08X\n", dummy->job_irq_js_state);
 }
+#endif /* !MALI_USE_CSF */
 
 /**
  * find_control_reg_values() - Look up constant control register values.
@@ -923,39 +1021,39 @@ static const struct control_reg_values_t *find_control_reg_values(const char *gp
 {
 	size_t i;
 	const struct control_reg_values_t *ret = NULL;
-	char *gpu_with_rev = kmalloc(strlen(gpu) + GPU_REV_STR_LEN + 1, GFP_KERNEL);
 
-	if (gpu_with_rev == NULL)
-		return NULL;
-
-	/* Fix gpu name in case there are multiple entries for different HW versions. */
-	find_gpu_rev(gpu_with_rev, gpu);
+	/* Edge case for tGOx, as it has 2 entries in the table for its R0 and R1
+	 * revisions respectively. As none of them are named "tGOx" the name comparison
+	 * needs to be fixed in these cases. CONFIG_GPU_HWVER should be one of "r0p0"
+	 * or "r1p0" and is derived from the DDK's build configuration. In cases
+	 * where it is unavailable, it defaults to tGOx r1p0.
+	 */
+	if (!strcmp(gpu, "tGOx")) {
+#ifdef CONFIG_GPU_HWVER
+		if (!strcmp(CONFIG_GPU_HWVER, "r0p0"))
+			gpu = "tGOx_r0p0";
+		else if (!strcmp(CONFIG_GPU_HWVER, "r1p0"))
+#endif /* CONFIG_GPU_HWVER defined */
+			gpu = "tGOx_r1p0";
+	}
 
 	for (i = 0; i < ARRAY_SIZE(all_control_reg_values); ++i) {
 		const struct control_reg_values_t *const fcrv = &all_control_reg_values[i];
 
-		if (!strcmp(fcrv->name, gpu_with_rev)) {
+		if (!strcmp(fcrv->name, gpu)) {
 			ret = fcrv;
-			pr_debug("Found control register values for %s\n", gpu_with_rev);
+			pr_debug("Found control register values for %s\n", gpu);
 			break;
 		}
 	}
 
 	if (!ret) {
 		ret = &all_control_reg_values[0];
-		pr_warn("Couldn't find control register values for GPU %s; using default %s\n",
-			gpu_with_rev, ret->name);
+		pr_warn("Couldn't find control register values for GPU %s; using default %s\n", gpu,
+			ret->name);
 	}
 
-	kfree(gpu_with_rev);
 	return ret;
-}
-
-static u32 get_arch_id(u64 gpu_id)
-{
-		return GPU_ID_ARCH_MAKE(GPU_ID2_ARCH_MAJOR_GET(gpu_id),
-					GPU_ID2_ARCH_MINOR_GET(gpu_id),
-					GPU_ID2_ARCH_REV_GET(gpu_id));
 }
 
 void *midgard_model_create(struct kbase_device *kbdev)
@@ -971,27 +1069,11 @@ void *midgard_model_create(struct kbase_device *kbdev)
 		dummy->job_irq_js_state = 0;
 		init_register_statuses(dummy);
 		dummy->control_reg_values = find_control_reg_values(no_mali_gpu);
-
-		if (dummy->control_reg_values == NULL) {
-			kfree(dummy);
-			return NULL;
-		}
-
-		dummy->arch_id = get_arch_id(dummy->control_reg_values->gpu_id);
-
-			gpu_control_base_addr = GPU_CONTROL_BASE;
-		if (kbdev->pm.backend.has_host_pwr_iface) {
-			performance_counters.l2_present = hctrl_get_implementation_register(
-				GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_LO),
-				dummy->control_reg_values);
-			performance_counters.shader_present = hctrl_get_implementation_register(
-				GET_HOST_POWER_REG(HOST_POWER_SHADER_PRESENT_LO),
-				dummy->control_reg_values);
-		} else {
+		{
 			performance_counters.l2_present = get_implementation_register(
-				GET_GPU_CONTROL_REG(L2_PRESENT_LO), dummy->control_reg_values);
+				GPU_CONTROL_REG(L2_PRESENT_LO), dummy->control_reg_values);
 			performance_counters.shader_present = get_implementation_register(
-				GET_GPU_CONTROL_REG(SHADER_PRESENT_LO), dummy->control_reg_values);
+				GPU_CONTROL_REG(SHADER_PRESENT_LO), dummy->control_reg_values);
 		}
 
 		gpu_device_set_data(dummy, kbdev);
@@ -1010,35 +1092,25 @@ void midgard_model_destroy(void *h)
 static void midgard_model_get_outputs(void *h)
 {
 	struct dummy_model_t *dummy = (struct dummy_model_t *)h;
-	u32 irqs = 0;
-	int i;
 
 	lockdep_assert_held(&hw_error_status.access_lock);
 
-	if (hw_error_status.job_irq_status) {
-		irqs |= MODEL_LINUX_JOB_IRQ;
-	}
+	if (hw_error_status.job_irq_status)
+		gpu_model_raise_irq(dummy, MODEL_LINUX_JOB_IRQ);
 
 	if ((dummy->power_changed && dummy->power_changed_mask) ||
-	    (dummy->reset_completed & dummy->reset_completed_mask)) {
-		irqs |= MODEL_LINUX_GPU_IRQ;
-	}
-
-	if (hw_error_status.gpu_error_irq ||
+	    (dummy->reset_completed & dummy->reset_completed_mask) ||
+	    hw_error_status.gpu_error_irq ||
+#if !MALI_USE_CSF
+	    dummy->prfcnt_sample_completed ||
+#else
 	    (dummy->flush_pa_range_completed && dummy->flush_pa_range_completed_irq_enabled) ||
-	    (dummy->clean_caches_completed && dummy->clean_caches_completed_irq_enabled)) {
-		irqs |= MODEL_LINUX_GPU_IRQ;
-	}
+#endif
+	    (dummy->clean_caches_completed && dummy->clean_caches_completed_irq_enabled))
+		gpu_model_raise_irq(dummy, MODEL_LINUX_GPU_IRQ);
 
-	if (hw_error_status.mmu_irq_rawstat & hw_error_status.mmu_irq_mask) {
-		irqs |= MODEL_LINUX_MMU_IRQ;
-	}
-
-
-	for (i = 0; irqs; i++, irqs >>= 1) {
-		if (irqs & 0x1)
-			gpu_model_raise_irq(dummy, (0x1 << i));
-	}
+	if (hw_error_status.mmu_irq_rawstat & hw_error_status.mmu_irq_mask)
+		gpu_model_raise_irq(dummy, MODEL_LINUX_MMU_IRQ);
 }
 
 static void midgard_model_update(void *h)
@@ -1109,6 +1181,73 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 
 	spin_lock_irqsave(&hw_error_status.access_lock, flags);
 
+#if !MALI_USE_CSF
+	if ((addr >= JOB_CONTROL_REG(JOB_SLOT0)) && (addr < (JOB_CONTROL_REG(JOB_SLOT15) + 0x80))) {
+		unsigned int slot_idx = (addr >> 7) & 0xf;
+
+		KBASE_DEBUG_ASSERT(slot_idx < NUM_SLOTS);
+		if (addr == JOB_SLOT_REG(slot_idx, JS_HEAD_NEXT_LO)) {
+			hw_error_status.current_jc &= ~((u64)(0xFFFFFFFF));
+			hw_error_status.current_jc |= (u64)value;
+		}
+		if (addr == JOB_SLOT_REG(slot_idx, JS_HEAD_NEXT_HI)) {
+			hw_error_status.current_jc &= (u64)0xFFFFFFFF;
+			hw_error_status.current_jc |= ((u64)value) << 32;
+		}
+		if (addr == JOB_SLOT_REG(slot_idx, JS_COMMAND_NEXT) && value == 1) {
+			pr_debug("%s", "start detected");
+			KBASE_DEBUG_ASSERT(!dummy->slots[slot_idx].job_active ||
+					   !dummy->slots[slot_idx].job_queued);
+			if ((dummy->slots[slot_idx].job_active) ||
+			    (hw_error_status.job_irq_rawstat & (1 << (slot_idx + 16)))) {
+				pr_debug(
+					"~~~~~~~~~~~ Start: job slot is already active or there are IRQ pending  ~~~~~~~~~");
+				dummy->slots[slot_idx].job_queued = 1;
+			} else {
+				dummy->slots[slot_idx].job_active = 1;
+			}
+		}
+
+		if (addr == JOB_SLOT_REG(slot_idx, JS_COMMAND_NEXT) && value == 0)
+			dummy->slots[slot_idx].job_queued = 0;
+
+		if ((addr == JOB_SLOT_REG(slot_idx, JS_COMMAND)) &&
+		    (value == JS_COMMAND_SOFT_STOP || value == JS_COMMAND_HARD_STOP)) {
+			/*dummy->slots[slot_idx].job_active = 0; */
+			hw_error_status.current_job_slot = slot_idx;
+			if (value == JS_COMMAND_SOFT_STOP) {
+				hw_error_status.errors_mask = KBASE_JOB_STOPPED;
+			} else { /*value == 3 */
+
+				if (dummy->slots[slot_idx].job_disabled != 0) {
+					pr_debug("enabling slot after HARD_STOP");
+					dummy->slots[slot_idx].job_disabled = 0;
+				}
+				hw_error_status.errors_mask = KBASE_JOB_TERMINATED;
+			}
+		}
+	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_CLEAR)) {
+		int i;
+
+		for (i = 0; i < NUM_SLOTS; i++) {
+			if (value & ((1u << i) | (1u << (i + 16))))
+				dummy->slots[i].job_complete_irq_asserted = 0;
+			/* hw_error_status.js_status[i] is cleared in
+			 * update_job_irq_js_state
+			 */
+		}
+		pr_debug("%s", "job irq cleared");
+		update_job_irq_js_state(dummy, value);
+		/*remove error condition for JOB */
+		hw_error_status.job_irq_rawstat &= ~(value);
+		hw_error_status.job_irq_status &= ~(value);
+	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK)) {
+		int i;
+
+		for (i = 0; i < NUM_SLOTS; i++)
+			dummy->slots[i].job_irq_mask = (value >> i) & 0x01;
+		pr_debug("job irq mask to value %x", value);
+#else /* MALI_USE_CSF */
 	if (addr == JOB_CONTROL_REG(JOB_IRQ_CLEAR)) {
 		pr_debug("%s", "job irq cleared");
 
@@ -1119,162 +1258,41 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 		hw_error_status.job_irq_status |= value;
 	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK)) {
 		/* ignore JOB_IRQ_MASK as it is handled by CSFFW */
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_IRQ_MASK)) {
+#endif /* !MALI_USE_CSF */
+	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_MASK)) {
 		pr_debug("GPU_IRQ_MASK set to 0x%x", value);
-		if (!dummy->kbdev->pm.backend.has_host_pwr_iface) {
-			dummy->reset_completed_mask = (value >> 8) & 0x01;
-			dummy->power_changed_mask = (value >> 9) & 0x03;
-		}
+		dummy->reset_completed_mask = (value >> 8) & 0x01;
+		dummy->power_changed_mask = (value >> 9) & 0x03;
 		dummy->clean_caches_completed_irq_enabled = (value & (1u << 17)) != 0u;
+#if MALI_USE_CSF
 		dummy->flush_pa_range_completed_irq_enabled = (value & (1u << 20)) != 0u;
-	} else if (addr == GET_GPU_CONTROL_REG(COHERENCY_ENABLE)) {
+#endif
+	} else if (addr == GPU_CONTROL_REG(COHERENCY_ENABLE)) {
 		dummy->coherency_enable = value;
-	} else if (addr == GET_HOST_POWER_REG(PWR_IRQ_MASK)) {
-		pr_debug("PWR_IRQ_MASK set to 0x%x", value);
-		dummy->power_changed_mask = (value & PWR_IRQ_POWER_CHANGED_SINGLE) |
-					    (value & PWR_IRQ_POWER_CHANGED_ALL);
-		dummy->reset_completed_mask = !!(value & PWR_IRQ_RESET_COMPLETED);
-		dummy->command_not_allowed_mask = PWR_IRQ_COMMAND_NOT_ALLOWED_GET(value);
-		dummy->command_invalid_mask = PWR_IRQ_COMMAND_INVALID_GET(value);
-	} else if (addr == GET_HOST_POWER_REG(PWR_IRQ_CLEAR)) {
-		if (value & PWR_IRQ_RESET_COMPLETED) {
-			pr_debug("%s", "pwr RESET_COMPLETED irq cleared");
+	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_CLEAR)) {
+		if (value & RESET_COMPLETED) {
+			pr_debug("%s", "gpu RESET_COMPLETED irq cleared");
 			dummy->reset_completed = 0;
 		}
-		if (value & (PWR_IRQ_POWER_CHANGED_SINGLE | PWR_IRQ_POWER_CHANGED_ALL))
+		if (value & (POWER_CHANGED_SINGLE | POWER_CHANGED_ALL))
 			dummy->power_changed = 0;
-		if (value & PWR_IRQ_COMMAND_NOT_ALLOWED_MASK)
-			dummy->command_not_allowed = 0;
-		if (value & PWR_IRQ_COMMAND_INVALID_MASK)
-			dummy->command_invalid = 0;
-	} else if (addr == GET_HOST_POWER_REG(PWR_CMDARG_LO)) {
-		dummy->command_arg = value | HI_MASK(dummy->command_arg);
-	} else if (addr == GET_HOST_POWER_REG(PWR_CMDARG_HI)) {
-		dummy->command_arg = ((uint64_t)value << 32) | LO_MASK(dummy->command_arg);
-	} else if (addr == GET_HOST_POWER_REG(PWR_COMMAND)) {
-		switch (PWR_COMMAND_COMMAND_GET(value)) {
-		case PWR_COMMAND_COMMAND_RESET_FAST:
-		case PWR_COMMAND_COMMAND_RESET_SOFT:
-		case PWR_COMMAND_COMMAND_RESET_HARD:
-			pr_debug("GPU reset (%d) requested", value);
-			hw_error_status.gpu_fault_status = 0; /* no more fault status */
-			dummy->reset_completed = 1; /* completed reset instantly */
-			break;
-		case PWR_COMMAND_COMMAND_POWER_UP:
-			switch (PWR_COMMAND_DOMAIN_GET(value)) {
-			case PWR_COMMAND_DOMAIN_L2:
-				dummy->domain_power_on[INDEX_L2] |= dummy->command_arg &
-								    DUMMY_IMPLEMENTATION_L2_PRESENT;
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_TILER:
-				dummy->domain_power_on[INDEX_TILER] |=
-					dummy->command_arg & DUMMY_IMPLEMENTATION_TILER_PRESENT;
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_SHADER:
-				/**
-				 * We are not concerned with the RTU as it is a subdomain and it's
-				 * power status cannot be checked
-				 */
-				dummy->domain_power_on[INDEX_SHADER] |=
-					dummy->command_arg &
-					dummy->control_reg_values->shader_present;
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_STACK:
-				dummy->domain_power_on[INDEX_STACK] |=
-					dummy->command_arg &
-					dummy->control_reg_values->stack_present;
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_BASE:
-				dummy->domain_power_on[INDEX_BASE] |=
-					dummy->command_arg &
-					dummy->control_reg_values->base_present;
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_NEURAL:
-				dummy->domain_power_on[INDEX_NEURAL] |=
-					dummy->command_arg &
-					dummy->control_reg_values->neural_present;
-				dummy->power_changed = 1;
-				break;
-			default:
-				model_error_log(KBASE_CORE, "\n Domain(%x) is not supported",
-						PWR_COMMAND_DOMAIN_GET(value));
-				break;
-			}
-			break;
-		case PWR_COMMAND_COMMAND_POWER_DOWN:
-			switch (PWR_COMMAND_DOMAIN_GET(value)) {
-			case PWR_COMMAND_DOMAIN_L2:
-				dummy->domain_power_on[INDEX_L2] &=
-					~(dummy->command_arg & DUMMY_IMPLEMENTATION_L2_PRESENT);
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_TILER:
-				dummy->domain_power_on[INDEX_TILER] &=
-					~(dummy->command_arg & DUMMY_IMPLEMENTATION_TILER_PRESENT);
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_SHADER:
-				dummy->domain_power_on[INDEX_SHADER] &=
-					~(dummy->command_arg &
-					  dummy->control_reg_values->shader_present);
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_STACK:
-				dummy->domain_power_on[INDEX_STACK] &=
-					~(dummy->command_arg &
-					  dummy->control_reg_values->stack_present);
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_BASE:
-				dummy->domain_power_on[INDEX_BASE] &=
-					~(dummy->command_arg &
-					  dummy->control_reg_values->base_present);
-				dummy->power_changed = 1;
-				break;
-			case PWR_COMMAND_DOMAIN_NEURAL:
-				dummy->domain_power_on[INDEX_NEURAL] &=
-					~(dummy->command_arg &
-					  dummy->control_reg_values->neural_present);
-				dummy->power_changed = 1;
-				break;
-			default:
-				model_error_log(KBASE_CORE, "\n Domain(%x) is not supported",
-						PWR_COMMAND_DOMAIN_GET(value));
-				break;
-			}
-			break;
-		case PWR_COMMAND_COMMAND_DELEGATE:
-		case PWR_COMMAND_COMMAND_RETRACT:
-		case PWR_COMMAND_COMMAND_INSPECT:
-		default:
-			model_error_log(KBASE_CORE, "\n Command(%x) is not supported",
-					PWR_COMMAND_COMMAND_GET(value));
-			break;
-		}
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_IRQ_CLEAR)) {
-		if (!dummy->kbdev->pm.backend.has_host_pwr_iface) {
-			if (value & RESET_COMPLETED) {
-				pr_debug("%s", "gpu RESET_COMPLETED irq cleared");
-				dummy->reset_completed = 0;
-			}
-			if (value & (POWER_CHANGED_SINGLE | POWER_CHANGED_ALL))
-				dummy->power_changed = 0;
-		}
 
 		if (value & CLEAN_CACHES_COMPLETED)
 			dummy->clean_caches_completed = false;
 
+#if MALI_USE_CSF
 		if (value & (1u << 20))
 			dummy->flush_pa_range_completed = false;
+#endif /* MALI_USE_CSF */
+
+#if !MALI_USE_CSF
+		if (value & PRFCNT_SAMPLE_COMPLETED) /* (1 << 16) */
+			dummy->prfcnt_sample_completed = 0;
+#endif /* !MALI_USE_CSF */
 
 		/*update error status */
 		hw_error_status.gpu_error_irq &= ~(value);
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_COMMAND)) {
+	} else if (addr == GPU_CONTROL_REG(GPU_COMMAND)) {
 		switch (value) {
 		case GPU_COMMAND_SOFT_RESET:
 		case GPU_COMMAND_HARD_RESET:
@@ -1284,45 +1302,59 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 			/* completed reset instantly */
 			dummy->reset_completed = 1;
 			break;
+#if MALI_USE_CSF
 		case GPU_COMMAND_CACHE_CLN_INV_L2:
 		case GPU_COMMAND_CACHE_CLN_INV_L2_LSC:
 		case GPU_COMMAND_CACHE_CLN_INV_FULL:
+#else
+		case GPU_COMMAND_CLEAN_CACHES:
+		case GPU_COMMAND_CLEAN_INV_CACHES:
+#endif
 			pr_debug("clean caches requested");
 			dummy->clean_caches_completed = true;
 			break;
+#if MALI_USE_CSF
 		case GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_L2:
 		case GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_L2_LSC:
 		case GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_FULL:
 			pr_debug("pa range flush requested");
 			dummy->flush_pa_range_completed = true;
 			break;
+#endif /* MALI_USE_CSF */
+#if !MALI_USE_CSF
+		case GPU_COMMAND_PRFCNT_SAMPLE:
+			midgard_model_dump_prfcnt();
+			dummy->prfcnt_sample_completed = 1;
+#endif /* !MALI_USE_CSF */
 		default:
 			break;
 		}
-	} else if (addr >= GET_GPU_CONTROL_REG(GPU_COMMAND_ARG0_LO) &&
-		   addr <= GET_GPU_CONTROL_REG(GPU_COMMAND_ARG1_HI)) {
+#if MALI_USE_CSF
+	} else if (addr >= GPU_CONTROL_REG(GPU_COMMAND_ARG0_LO) &&
+		   addr <= GPU_CONTROL_REG(GPU_COMMAND_ARG1_HI)) {
 		/* Writes ignored */
-	} else if (addr == GET_GPU_CONTROL_REG(L2_CONFIG)) {
+#endif
+	} else if (addr == GPU_CONTROL_REG(L2_CONFIG)) {
 		dummy->l2_config = value;
+#if MALI_USE_CSF
 	} else if (addr >= CSF_HW_DOORBELL_PAGE_OFFSET &&
 		   addr < CSF_HW_DOORBELL_PAGE_OFFSET +
-				   (dummy->kbdev->csf.num_doorbells * CSF_HW_DOORBELL_PAGE_SIZE)) {
-		WARN_ON(!dummy->kbdev->csf.num_doorbells);
+				   (CSF_NUM_DOORBELL * CSF_HW_DOORBELL_PAGE_SIZE)) {
 		if (addr == CSF_HW_DOORBELL_PAGE_OFFSET)
 			hw_error_status.job_irq_status = JOB_IRQ_GLOBAL_IF;
-	} else if ((addr >= GET_GPU_CONTROL_REG(SYSC_ALLOC0)) &&
-		   (addr < GET_GPU_CONTROL_REG(SYSC_ALLOC(SYSC_ALLOC_COUNT)))) {
-		u32 alloc_reg = (addr - GET_GPU_CONTROL_REG(SYSC_ALLOC0)) >> 2;
+	} else if ((addr >= GPU_CONTROL_REG(SYSC_ALLOC0)) &&
+		   (addr < GPU_CONTROL_REG(SYSC_ALLOC(SYSC_ALLOC_COUNT)))) {
+		u32 alloc_reg = (addr - GPU_CONTROL_REG(SYSC_ALLOC0)) >> 2;
 
 		sysc_alloc_regs[alloc_reg] = value;
-	} else if ((addr >= GET_GPU_CONTROL_REG(L2_SLICE_HASH_0)) &&
-		   (addr < GET_GPU_CONTROL_REG(L2_SLICE_HASH(L2_SLICE_HASH_COUNT)))) {
+	} else if ((addr >= GPU_CONTROL_REG(L2_SLICE_HASH_0)) &&
+		   (addr < GPU_CONTROL_REG(L2_SLICE_HASH(L2_SLICE_HASH_COUNT)))) {
 		/* Do nothing */
-	} else if (addr == IPA_CONTROL_REG(COMMAND) ||
-		   addr == IPA_CONTROL_REG(COMMAND) + GPU_GOV_IPA_CONTROL_OFFSET) {
+	} else if (addr == IPA_CONTROL_REG(COMMAND)
+	) {
 		pr_debug("Received IPA_CONTROL command");
-	} else if (addr == IPA_CONTROL_REG(TIMER) ||
-		   addr == IPA_CONTROL_REG(TIMER) + GPU_GOV_IPA_CONTROL_OFFSET) {
+	} else if (addr == IPA_CONTROL_REG(TIMER)
+	) {
 		ipa_control_timer_enabled = value ? 1U : 0U;
 	} else if ((addr >= IPA_CONTROL_REG(SELECT_CSHW_LO)) &&
 		   (addr <= IPA_CONTROL_REG(SELECT_SHADER_HI))) {
@@ -1337,33 +1369,14 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 			ipa_ctl_select_config[core_type] &= U32_MAX;
 			ipa_ctl_select_config[core_type] |= ((u64)value << 32);
 		}
-	} else if ((addr >= IPA_CONTROL_REG(SELECT_CSHW_LO) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(SELECT_SHADER_HI) + GPU_GOV_IPA_CONTROL_OFFSET)) {
-		enum kbase_ipa_core_type core_type = (enum kbase_ipa_core_type)(
-			(addr - IPA_CONTROL_REG(SELECT_CSHW_LO) - GPU_GOV_IPA_CONTROL_OFFSET) >> 3);
-		bool is_low_word = !(
-			(addr - IPA_CONTROL_REG(SELECT_CSHW_LO) - GPU_GOV_IPA_CONTROL_OFFSET) & 7);
-
-		if (is_low_word) {
-			ipa_ctl_select_config[core_type] &= ~(u64)U32_MAX;
-			ipa_ctl_select_config[core_type] |= value;
-		} else {
-			ipa_ctl_select_config[core_type] &= U32_MAX;
-			ipa_ctl_select_config[core_type] |= ((u64)value << 32);
-		}
-	} else if (addr == GPU_GOV_CORE_MASK_OFFSET) {
-		dummy->gov_core_mask = value;
+#endif
 	} else if (addr == MMU_CONTROL_REG(MMU_IRQ_MASK)) {
 		hw_error_status.mmu_irq_mask = value;
 	} else if (addr == MMU_CONTROL_REG(MMU_IRQ_CLEAR)) {
 		hw_error_status.mmu_irq_rawstat &= (~value);
 	} else if ((addr >= MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) &&
 		   (addr <= MMU_STAGE1_REG(MMU_AS_REG(15, AS_STATUS)))) {
-		u32 mem_addr_space = (addr - MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) >>
-				     MMU_STAGE1_AS_SHIFT;
-		if (WARN_ON(mem_addr_space >= NUM_MMU_AS)) {
-			return;
-		}
+		u32 mem_addr_space = (addr - MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) >> 6;
 
 		switch (addr & 0x3F) {
 		case AS_COMMAND:
@@ -1442,6 +1455,32 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 		}
 	} else {
 		switch (addr) {
+#if !MALI_USE_CSF
+		case PRFCNT_BASE_LO:
+			performance_counters.prfcnt_base =
+				HI_MASK(performance_counters.prfcnt_base) | value;
+			performance_counters.prfcnt_base_cpu =
+				(u32 *)(uintptr_t)performance_counters.prfcnt_base;
+			break;
+		case PRFCNT_BASE_HI:
+			performance_counters.prfcnt_base =
+				LO_MASK(performance_counters.prfcnt_base) | (((u64)value) << 32);
+			performance_counters.prfcnt_base_cpu =
+				(u32 *)(uintptr_t)performance_counters.prfcnt_base;
+			break;
+		case PRFCNT_JM_EN:
+			performance_counters.prfcnt_en.fe = value;
+			break;
+		case PRFCNT_SHADER_EN:
+			performance_counters.prfcnt_en.shader = value;
+			break;
+		case PRFCNT_TILER_EN:
+			performance_counters.prfcnt_en.tiler = value;
+			break;
+		case PRFCNT_MMU_L2_EN:
+			performance_counters.prfcnt_en.l2 = value;
+			break;
+#endif /* !MALI_USE_CSF */
 		case TILER_PWRON_LO:
 			dummy->domain_power_on[INDEX_TILER] |= value &
 							       DUMMY_IMPLEMENTATION_TILER_PRESENT;
@@ -1492,8 +1531,13 @@ void midgard_model_write_reg(void *h, u32 addr, u32 value)
 		case PWR_KEY:
 		case PWR_OVERRIDE0:
 		case PWR_OVERRIDE1:
+#if MALI_USE_CSF
 		case SHADER_PWRFEATURES:
 		case CSF_CONFIG:
+#else /* !MALI_USE_CSF */
+		case JM_CONFIG:
+		case PRFCNT_CONFIG:
+#endif /* MALI_USE_CSF */
 		case SHADER_CONFIG:
 		case TILER_CONFIG:
 		case L2_MMU_CONFIG:
@@ -1521,7 +1565,15 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 	spin_lock_irqsave(&hw_error_status.access_lock, flags);
 
 	*value = 0; /* 0 by default */
-	if (addr == GET_GPU_CONTROL_REG(GPU_ID)) {
+#if !MALI_USE_CSF
+	if (addr == JOB_CONTROL_REG(JOB_IRQ_JS_STATE)) {
+		pr_debug("%s", "JS_ACTIVE being read");
+
+		*value = dummy->job_irq_js_state;
+	} else if (addr == GPU_CONTROL_REG(GPU_ID)) {
+#else /* !MALI_USE_CSF */
+	if (addr == GPU_CONTROL_REG(GPU_ID)) {
+#endif /* !MALI_USE_CSF */
 		*value = dummy->control_reg_values->gpu_id & U32_MAX;
 	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_RAWSTAT)) {
 		*value = hw_error_status.job_irq_rawstat;
@@ -1529,282 +1581,294 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_STATUS)) {
 		*value = hw_error_status.job_irq_status;
 		pr_debug("JS_IRQ_STATUS being read %x", *value);
+#if !MALI_USE_CSF
+	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK)) {
+		int i;
+
+		*value = 0;
+		for (i = 0; i < NUM_SLOTS; i++)
+			*value |= dummy->slots[i].job_irq_mask << i;
+		pr_debug("JS_IRQ_MASK being read %x", *value);
+#else /* !MALI_USE_CSF */
 	} else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK)) {
 		/* ignore JOB_IRQ_MASK as it is handled by CSFFW */
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_IRQ_MASK)) {
+#endif /* !MALI_USE_CSF */
+	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_MASK)) {
 		*value = (dummy->reset_completed_mask << 8) |
 			 ((dummy->clean_caches_completed_irq_enabled ? 1u : 0u) << 17) |
+#if MALI_USE_CSF
 			 ((dummy->flush_pa_range_completed_irq_enabled ? 1u : 0u) << 20) |
+#endif
 			 (dummy->power_changed_mask << 9) | (1u << 7) | 1u;
 		pr_debug("GPU_IRQ_MASK read %x", *value);
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)) {
+	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)) {
 		*value = ((dummy->clean_caches_completed ? 1u : 0u) << 17) |
+#if MALI_USE_CSF
 			 ((dummy->flush_pa_range_completed ? 1u : 0u) << 20) |
+#else
+			 (dummy->prfcnt_sample_completed ? PRFCNT_SAMPLE_COMPLETED : 0) |
+#endif
 			 hw_error_status.gpu_error_irq;
-		if (!dummy->kbdev->pm.backend.has_host_pwr_iface)
-			*value |= (dummy->power_changed << 9) | (dummy->power_changed << 10) |
-				  (dummy->reset_completed << 8);
+		*value |= (dummy->power_changed << 9) | (dummy->power_changed << 10) |
+			  (dummy->reset_completed << 8);
 
 		pr_debug("GPU_IRQ_RAWSTAT read %x", *value);
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_IRQ_STATUS)) {
+	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_STATUS)) {
 		*value = (((dummy->clean_caches_completed &&
 			    dummy->clean_caches_completed_irq_enabled) ?
 					 1u :
 					 0u)
 			  << 17) |
+#if MALI_USE_CSF
 			 (((dummy->flush_pa_range_completed &&
 			    dummy->flush_pa_range_completed_irq_enabled) ?
 					 1u :
 					 0u)
 			  << 20) |
+#else
+			 (dummy->prfcnt_sample_completed ? PRFCNT_SAMPLE_COMPLETED : 0) |
+#endif
 			 hw_error_status.gpu_error_irq;
-		if (!dummy->kbdev->pm.backend.has_host_pwr_iface)
-			*value |=
-				((dummy->power_changed && (dummy->power_changed_mask & 0x1)) << 9) |
-				((dummy->power_changed && (dummy->power_changed_mask & 0x2))
-				 << 10) |
-				((dummy->reset_completed & dummy->reset_completed_mask) << 8);
+		*value |= ((dummy->power_changed && (dummy->power_changed_mask & 0x1)) << 9) |
+			  ((dummy->power_changed && (dummy->power_changed_mask & 0x2)) << 10) |
+			  ((dummy->reset_completed & dummy->reset_completed_mask) << 8);
 		pr_debug("GPU_IRQ_STAT read %x", *value);
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_STATUS)) {
+	} else if (addr == GPU_CONTROL_REG(GPU_STATUS)) {
 		*value = 0;
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_FAULTSTATUS)) {
+#if !MALI_USE_CSF
+	} else if (addr == GPU_CONTROL_REG(LATEST_FLUSH)) {
+		*value = 0;
+#endif
+	} else if (addr == GPU_CONTROL_REG(GPU_FAULTSTATUS)) {
 		*value = hw_error_status.gpu_fault_status;
-	} else if (addr == GET_GPU_CONTROL_REG(L2_CONFIG)) {
+	} else if (addr == GPU_CONTROL_REG(L2_CONFIG)) {
 		*value = dummy->l2_config;
-	} else if ((addr >= GET_GPU_CONTROL_REG(SYSC_ALLOC0)) &&
-		   (addr < GET_GPU_CONTROL_REG(SYSC_ALLOC(SYSC_ALLOC_COUNT)))) {
-		u32 alloc_reg = (addr - GET_GPU_CONTROL_REG(SYSC_ALLOC0)) >> 2;
+#if MALI_USE_CSF
+	} else if ((addr >= GPU_CONTROL_REG(SYSC_ALLOC0)) &&
+		   (addr < GPU_CONTROL_REG(SYSC_ALLOC(SYSC_ALLOC_COUNT)))) {
+		u32 alloc_reg = (addr - GPU_CONTROL_REG(SYSC_ALLOC0)) >> 2;
 		*value = sysc_alloc_regs[alloc_reg];
-	} else if ((addr >= GET_GPU_CONTROL_REG(L2_SLICE_HASH_0)) &&
-		   (addr < GET_GPU_CONTROL_REG(L2_SLICE_HASH(L2_SLICE_HASH_COUNT)))) {
+	} else if ((addr >= GPU_CONTROL_REG(L2_SLICE_HASH_0)) &&
+		   (addr < GPU_CONTROL_REG(L2_SLICE_HASH(L2_SLICE_HASH_COUNT)))) {
 		*value = 0;
-	} else if (addr == GET_HOST_POWER_REG(PWR_IRQ_RAWSTAT)) {
-		*value = (dummy->power_changed << PWR_IRQ_POWER_CHANGED_SINGLE_SHIFT) |
-			 (dummy->power_changed << PWR_IRQ_POWER_CHANGED_ALL_SHIFT) |
-			 (dummy->reset_completed << PWR_IRQ_RESET_COMPLETED_SHIFT) |
-			 (dummy->command_not_allowed << PWR_IRQ_COMMAND_NOT_ALLOWED_SHIFT) |
-			 (dummy->command_invalid << PWR_IRQ_COMMAND_INVALID_SHIFT);
-		pr_debug("PWR_IRQ_RAWSTAT read %x", *value);
-	} else if (addr == GET_HOST_POWER_REG(PWR_IRQ_STATUS)) {
-		*value = ((dummy->power_changed &&
-			   (dummy->power_changed_mask & PWR_IRQ_POWER_CHANGED_SINGLE))
-			  << PWR_IRQ_POWER_CHANGED_SINGLE_SHIFT) |
-			 ((dummy->power_changed &&
-			   (dummy->power_changed_mask & PWR_IRQ_POWER_CHANGED_ALL))
-			  << PWR_IRQ_POWER_CHANGED_ALL_SHIFT) |
-			 ((dummy->reset_completed && dummy->reset_completed_mask)
-			  << PWR_IRQ_RESET_COMPLETED_SHIFT) |
-			 ((dummy->command_not_allowed && dummy->command_not_allowed_mask)
-			  << PWR_IRQ_COMMAND_NOT_ALLOWED_SHIFT) |
-			 ((dummy->command_invalid && dummy->command_invalid_mask)
-			  << PWR_IRQ_COMMAND_INVALID_SHIFT);
-		pr_debug("PWR_IRQ_STATUS read %x", *value);
-	} else if (addr == GET_HOST_POWER_REG(PWR_STATUS_LO)) {
-		*value = PWR_STATUS_ALLOW_L2_MASK | PWR_STATUS_ALLOW_TILER_MASK |
-			 PWR_STATUS_ALLOW_SHADER_MASK | PWR_STATUS_ALLOW_NEURAL_MASK |
-			 PWR_STATUS_ALLOW_BASE_MASK | PWR_STATUS_ALLOW_STACK_MASK;
-	} else if (addr == GET_HOST_POWER_REG(PWR_STATUS_HI)) {
-		*value = (PWR_STATUS_ALLOW_HARD_RESET_MASK | PWR_STATUS_ALLOW_SOFT_RESET_MASK) >>
-			 PWR_STATUS_ALLOW_HARD_RESET_SHIFT;
-	} else if (addr >= GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_LO) &&
-		   addr <= GET_HOST_POWER_REG(HOST_POWER_STACK_PWRTRANS_HI)) {
-		if (addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PRESENT_LO) ||
-		    addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PRESENT_LO) ||
-		    addr == GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_LO) ||
-		    addr == GET_HOST_POWER_REG(HOST_POWER_STACK_PRESENT_LO) ||
-		    addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PRESENT_LO) ||
-		    addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PRESENT_LO))
-			*value = hctrl_get_implementation_register(addr, dummy->control_reg_values);
-		else if (addr == GET_HOST_POWER_REG(HOST_POWER_L2_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_L2] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_TILER_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_TILER] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_TILER_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_SHADER] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_SHADER_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_STACK_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_STACK] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_STACK_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_BASE_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_BASE] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_BASE_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_READY_LO)) {
-			*value = dummy->domain_power_on[INDEX_NEURAL] &
-				 hctrl_get_implementation_register(
-					 GET_HOST_POWER_REG(HOST_POWER_NEURAL_PRESENT_LO),
-					 dummy->control_reg_values);
-		} else if (addr == GET_HOST_POWER_REG(HOST_POWER_L2_READY_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_READY_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_READY_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_STACK_READY_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_READY_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_READY_HI) ||
-
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PRESENT_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PRESENT_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_L2_PRESENT_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_STACK_PRESENT_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PRESENT_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PRESENT_HI) ||
-
-			   addr == GET_HOST_POWER_REG(HOST_POWER_L2_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_L2_PWRTRANS_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PWRTRANS_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PWRTRANS_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_STACK_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_STACK_PWRTRANS_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PWRTRANS_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PWRTRANS_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PWRTRANS_HI) ||
-
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PWRACTIVE_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_TILER_PWRACTIVE_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PWRACTIVE_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_SHADER_PWRACTIVE_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PWRACTIVE_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_BASE_PWRACTIVE_HI) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PWRACTIVE_LO) ||
-			   addr == GET_HOST_POWER_REG(HOST_POWER_NEURAL_PWRACTIVE_HI) ||
-			   addr == GET_GPU_CONTROL_REG(THREAD_TLS_ALLOC))
-			*value = 0;
-		else if (addr == GET_GPU_CONTROL_REG(COHERENCY_FEATURES) &&
-			 dummy->arch_id < GPU_ID_ARCH_MAKE(14, 10, 0))
-			*value = BIT(0) | BIT(1); /* ace_lite and ace, respectively. */
-		else if (addr == GET_GPU_CONTROL_REG(COHERENCY_ENABLE))
-			*value = dummy->coherency_enable;
-		else {
-			*value = 0;
-			model_error_log(
-				KBASE_CORE,
-				"Dummy model register access: Reading unknown control reg 0x%x\n",
-				addr);
-		}
-	} else if ((addr >= GET_GPU_CONTROL_REG(SHADER_PRESENT_LO)) &&
-		   (addr <= GET_GPU_CONTROL_REG(L2_MMU_CONFIG))) {
-		if (addr == GET_GPU_CONTROL_REG(SHADER_PRESENT_LO) ||
-		    addr == GET_GPU_CONTROL_REG(SHADER_PRESENT_HI) ||
-		    addr == GET_GPU_CONTROL_REG(TILER_PRESENT_LO) ||
-		    addr == GET_GPU_CONTROL_REG(TILER_PRESENT_HI) ||
-		    addr == GET_GPU_CONTROL_REG(L2_PRESENT_LO) ||
-		    addr == GET_GPU_CONTROL_REG(L2_PRESENT_HI) ||
-		    addr == GET_GPU_CONTROL_REG(STACK_PRESENT_LO) ||
-		    addr == GET_GPU_CONTROL_REG(STACK_PRESENT_HI))
+#endif
+	} else if ((addr >= GPU_CONTROL_REG(SHADER_PRESENT_LO)) &&
+		   (addr <= GPU_CONTROL_REG(L2_MMU_CONFIG))) {
+		switch (addr) {
+		case GPU_CONTROL_REG(SHADER_PRESENT_LO):
+		case GPU_CONTROL_REG(SHADER_PRESENT_HI):
+		case GPU_CONTROL_REG(TILER_PRESENT_LO):
+		case GPU_CONTROL_REG(TILER_PRESENT_HI):
+		case GPU_CONTROL_REG(L2_PRESENT_LO):
+		case GPU_CONTROL_REG(L2_PRESENT_HI):
+		case GPU_CONTROL_REG(STACK_PRESENT_LO):
+		case GPU_CONTROL_REG(STACK_PRESENT_HI):
 			*value = get_implementation_register(addr, dummy->control_reg_values);
-		else if (addr == GET_GPU_CONTROL_REG(SHADER_READY_LO))
+			break;
+		case GPU_CONTROL_REG(SHADER_READY_LO):
 			*value = (dummy->domain_power_on[INDEX_SHADER]) &
-				 get_implementation_register(GET_GPU_CONTROL_REG(SHADER_PRESENT_LO),
+				 get_implementation_register(GPU_CONTROL_REG(SHADER_PRESENT_LO),
 							     dummy->control_reg_values);
-		else if (addr == GET_GPU_CONTROL_REG(TILER_READY_LO))
+			break;
+		case GPU_CONTROL_REG(TILER_READY_LO):
 			*value = (dummy->domain_power_on[INDEX_TILER]) &
-				 get_implementation_register(GET_GPU_CONTROL_REG(TILER_PRESENT_LO),
+				 get_implementation_register(GPU_CONTROL_REG(TILER_PRESENT_LO),
 							     dummy->control_reg_values);
-		else if (addr == GET_GPU_CONTROL_REG(L2_READY_LO))
+			break;
+		case GPU_CONTROL_REG(L2_READY_LO):
 			*value = dummy->domain_power_on[INDEX_L2] &
-				 get_implementation_register(GET_GPU_CONTROL_REG(L2_PRESENT_LO),
+				 get_implementation_register(GPU_CONTROL_REG(L2_PRESENT_LO),
 							     dummy->control_reg_values);
-		else if (addr == GET_GPU_CONTROL_REG(STACK_READY_LO))
+			break;
+		case GPU_CONTROL_REG(STACK_READY_LO):
 			*value = dummy->domain_power_on[INDEX_STACK] &
-				 get_implementation_register(GET_GPU_CONTROL_REG(STACK_PRESENT_LO),
+				 get_implementation_register(GPU_CONTROL_REG(STACK_PRESENT_LO),
 							     dummy->control_reg_values);
-		else if (addr == GET_GPU_CONTROL_REG(SHADER_READY_HI) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_READY_HI) ||
-			 addr == GET_GPU_CONTROL_REG(L2_READY_HI) ||
-			 addr == GET_GPU_CONTROL_REG(STACK_READY_HI) ||
-			 addr == GET_GPU_CONTROL_REG(L2_PWRTRANS_LO) ||
-			 addr == GET_GPU_CONTROL_REG(L2_PWRTRANS_HI) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_PWRTRANS_LO) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_PWRTRANS_HI) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_PWRTRANS_LO) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_PWRTRANS_HI) ||
-			 addr == GET_GPU_CONTROL_REG(STACK_PWRTRANS_LO) ||
-			 addr == GET_GPU_CONTROL_REG(STACK_PWRTRANS_HI) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_PWRACTIVE_LO) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_PWRACTIVE_HI) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_PWRACTIVE_LO) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_PWRACTIVE_HI) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_PWRFEATURES) ||
-			 addr == GET_GPU_CONTROL_REG(CSF_CONFIG) ||
-			 addr == GET_GPU_CONTROL_REG(SHADER_CONFIG) ||
-			 addr == GET_GPU_CONTROL_REG(TILER_CONFIG) ||
-			 addr == GET_GPU_CONTROL_REG(L2_MMU_CONFIG) ||
-			 addr == GET_GPU_CONTROL_REG(THREAD_TLS_ALLOC))
+			break;
+
+		case GPU_CONTROL_REG(SHADER_READY_HI):
+		case GPU_CONTROL_REG(TILER_READY_HI):
+		case GPU_CONTROL_REG(L2_READY_HI):
+		case GPU_CONTROL_REG(STACK_READY_HI):
+
+		case GPU_CONTROL_REG(L2_PWRTRANS_LO):
+		case GPU_CONTROL_REG(L2_PWRTRANS_HI):
+		case GPU_CONTROL_REG(TILER_PWRTRANS_LO):
+		case GPU_CONTROL_REG(TILER_PWRTRANS_HI):
+		case GPU_CONTROL_REG(SHADER_PWRTRANS_LO):
+		case GPU_CONTROL_REG(SHADER_PWRTRANS_HI):
+		case GPU_CONTROL_REG(STACK_PWRTRANS_LO):
+		case GPU_CONTROL_REG(STACK_PWRTRANS_HI):
+
+		case GPU_CONTROL_REG(L2_PWRACTIVE_LO):
+		case GPU_CONTROL_REG(L2_PWRACTIVE_HI):
+		case GPU_CONTROL_REG(TILER_PWRACTIVE_LO):
+		case GPU_CONTROL_REG(TILER_PWRACTIVE_HI):
+		case GPU_CONTROL_REG(SHADER_PWRACTIVE_LO):
+		case GPU_CONTROL_REG(SHADER_PWRACTIVE_HI):
+
+#if MALI_USE_CSF
+		case GPU_CONTROL_REG(SHADER_PWRFEATURES):
+		case GPU_CONTROL_REG(CSF_CONFIG):
+#else /* !MALI_USE_CSF */
+		case GPU_CONTROL_REG(JM_CONFIG):
+#endif /* MALI_USE_CSF */
+		case GPU_CONTROL_REG(SHADER_CONFIG):
+		case GPU_CONTROL_REG(TILER_CONFIG):
+		case GPU_CONTROL_REG(L2_MMU_CONFIG):
+		case GPU_CONTROL_REG(THREAD_TLS_ALLOC):
 			*value = 0;
-		else if (addr == GET_GPU_CONTROL_REG(COHERENCY_FEATURES) &&
-			 dummy->arch_id < GPU_ID_ARCH_MAKE(14, 10, 0))
+			break;
+
+		case GPU_CONTROL_REG(COHERENCY_FEATURES):
 			*value = BIT(0) | BIT(1); /* ace_lite and ace, respectively. */
-		else if (addr == GET_GPU_CONTROL_REG(COHERENCY_ENABLE))
+			break;
+		case GPU_CONTROL_REG(COHERENCY_ENABLE):
 			*value = dummy->coherency_enable;
-		else {
+			break;
+
+		default:
 			model_error_log(
 				KBASE_CORE,
 				"Dummy model register access: Reading unknown control reg 0x%x\n",
 				addr);
+			break;
 		}
+#if !MALI_USE_CSF
+	} else if ((addr >= JOB_CONTROL_REG(JOB_SLOT0)) &&
+		   (addr < (JOB_CONTROL_REG(JOB_SLOT15) + 0x80))) {
+		int slot_idx = (addr >> 7) & 0xf;
+		int sub_reg = addr & 0x7F;
 
-	} else if (addr == GET_GPU_CONTROL_REG(AS_PRESENT)) {
+		KBASE_DEBUG_ASSERT(slot_idx < NUM_SLOTS);
+		switch (sub_reg) {
+		case JS_HEAD_NEXT_LO:
+			*value = (u32)((hw_error_status.current_jc) & 0xFFFFFFFF);
+			break;
+		case JS_HEAD_NEXT_HI:
+			*value = (u32)(hw_error_status.current_jc >> 32);
+			break;
+		case JS_STATUS:
+			if (hw_error_status.js_status[slot_idx])
+				*value = hw_error_status.js_status[slot_idx];
+			else /* 0x08 means active, 0x00 idle */
+				*value = (dummy->slots[slot_idx].job_active) << 3;
+			break;
+		case JS_COMMAND_NEXT:
+			*value = dummy->slots[slot_idx].job_queued;
+			break;
+
+		/**
+		 * The dummy model does not implement these registers
+		 * avoid printing error messages
+		 */
+		case JS_HEAD_HI:
+		case JS_HEAD_LO:
+		case JS_TAIL_HI:
+		case JS_TAIL_LO:
+		case JS_FLUSH_ID_NEXT:
+			break;
+
+		default:
+			model_error_log(
+				KBASE_CORE,
+				"Dummy model register access: unknown job slot reg 0x%02X being read\n",
+				sub_reg);
+			break;
+		}
+	} else if (addr == GPU_CONTROL_REG(JS_PRESENT)) {
+		*value = 0x7;
+#endif /* !MALI_USE_CSF */
+	} else if (addr == GPU_CONTROL_REG(AS_PRESENT)) {
 		*value = dummy->control_reg_values->as_present;
-	} else if (addr >= GET_GPU_CONTROL_REG(TEXTURE_FEATURES_0) &&
-		   addr <= GET_GPU_CONTROL_REG(TEXTURE_FEATURES_3)) {
-		if (addr == GET_GPU_CONTROL_REG(TEXTURE_FEATURES_0))
+	} else if (addr >= GPU_CONTROL_REG(TEXTURE_FEATURES_0) &&
+		   addr <= GPU_CONTROL_REG(TEXTURE_FEATURES_3)) {
+		switch (addr) {
+		case GPU_CONTROL_REG(TEXTURE_FEATURES_0):
 			*value = 0xfffff;
-		else if (addr == GET_GPU_CONTROL_REG(TEXTURE_FEATURES_1))
+			break;
+
+		case GPU_CONTROL_REG(TEXTURE_FEATURES_1):
 			*value = 0xffff;
-		else if (addr == GET_GPU_CONTROL_REG(TEXTURE_FEATURES_2))
+			break;
+
+		case GPU_CONTROL_REG(TEXTURE_FEATURES_2):
 			*value = 0x9f81ffff;
-		else if (addr == GET_GPU_CONTROL_REG(TEXTURE_FEATURES_3))
+			break;
+
+		case GPU_CONTROL_REG(TEXTURE_FEATURES_3):
 			*value = 0;
-	} else if (addr >= GET_GPU_CONTROL_REG(L2_FEATURES) &&
-		   addr <= GET_GPU_CONTROL_REG(MMU_FEATURES)) {
-		if (addr == GET_GPU_CONTROL_REG(L2_FEATURES))
+			break;
+		}
+#if !MALI_USE_CSF
+	} else if (addr >= GPU_CONTROL_REG(JS0_FEATURES) &&
+		   addr <= GPU_CONTROL_REG(JS15_FEATURES)) {
+		switch (addr) {
+		case GPU_CONTROL_REG(JS0_FEATURES):
+			*value = 0x20e;
+			break;
+
+		case GPU_CONTROL_REG(JS1_FEATURES):
+			*value = 0x1fe;
+			break;
+
+		case GPU_CONTROL_REG(JS2_FEATURES):
+			*value = 0x7e;
+			break;
+
+		default:
+			*value = 0;
+			break;
+		}
+#endif /* !MALI_USE_CSF */
+	} else if (addr >= GPU_CONTROL_REG(L2_FEATURES) && addr <= GPU_CONTROL_REG(MMU_FEATURES)) {
+		switch (addr) {
+		case GPU_CONTROL_REG(L2_FEATURES):
 			*value = 0x6100206;
-		else if (addr == GET_GPU_CONTROL_REG(CORE_FEATURES))
+			break;
+
+		case GPU_CONTROL_REG(CORE_FEATURES):
 			*value = dummy->control_reg_values->core_features;
-		else if (addr == GET_GPU_CONTROL_REG(TILER_FEATURES))
+			break;
+
+		case GPU_CONTROL_REG(TILER_FEATURES):
 			*value = dummy->control_reg_values->tiler_features;
-		else if (addr == GET_GPU_CONTROL_REG(MEM_FEATURES)) {
+			break;
+
+		case GPU_CONTROL_REG(MEM_FEATURES):
 			/* Bit 0: Core group is coherent */
 			*value = 0x01;
-
 			/* Bits 11:8: L2 slice count - 1 */
 			*value |= (hweight64(DUMMY_IMPLEMENTATION_L2_PRESENT) - 1) << 8;
-		} else if (addr == GET_GPU_CONTROL_REG(MMU_FEATURES))
+			break;
+
+		case GPU_CONTROL_REG(MMU_FEATURES):
 			*value = dummy->control_reg_values->mmu_features;
-	} else if (addr >= GET_GPU_CONTROL_REG(THREAD_MAX_THREADS) &&
-		   addr <= GET_GPU_CONTROL_REG(THREAD_FEATURES)) {
-		if (addr == GET_GPU_CONTROL_REG(THREAD_FEATURES))
+			break;
+		}
+	} else if (addr >= GPU_CONTROL_REG(THREAD_MAX_THREADS) &&
+		   addr <= GPU_CONTROL_REG(THREAD_FEATURES)) {
+		switch (addr) {
+		case GPU_CONTROL_REG(THREAD_FEATURES):
 			*value = dummy->control_reg_values->thread_features |
 				 (THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE << 30);
-		else if (addr == GET_GPU_CONTROL_REG(THREAD_MAX_BARRIER_SIZE))
+			break;
+		case GPU_CONTROL_REG(THREAD_MAX_BARRIER_SIZE):
 			*value = dummy->control_reg_values->thread_max_barrier_size;
-		else if (addr == GET_GPU_CONTROL_REG(THREAD_MAX_THREADS))
-			*value = dummy->control_reg_values->thread_max_threads;
-		else if (addr == GET_GPU_CONTROL_REG(THREAD_MAX_WORKGROUP_SIZE))
+			break;
+		case GPU_CONTROL_REG(THREAD_MAX_WORKGROUP_SIZE):
 			*value = dummy->control_reg_values->thread_max_workgroup_size;
-	} else if (addr >= GET_GPU_CONTROL_REG(CYCLE_COUNT_LO) &&
-		   addr <= GET_GPU_CONTROL_REG(TIMESTAMP_HI)) {
+			break;
+		case GPU_CONTROL_REG(THREAD_MAX_THREADS):
+			*value = dummy->control_reg_values->thread_max_threads;
+			break;
+		}
+	} else if (addr >= GPU_CONTROL_REG(CYCLE_COUNT_LO) &&
+		   addr <= GPU_CONTROL_REG(TIMESTAMP_HI)) {
 		*value = 0;
-
-	} else if ((addr >= MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) &&
-		   (addr <= MMU_STAGE1_REG(MMU_AS_REG(15, AS_STATUS)))) {
-		u32 mem_addr_space;
-
-			mem_addr_space = (addr - MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) >>
-					 MMU_STAGE1_AS_SHIFT;
+	} else if (addr >= MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO)) &&
+		   addr <= MMU_STAGE1_REG(MMU_AS_REG(15, AS_STATUS))) {
+		u32 mem_addr_space = (addr - MMU_STAGE1_REG(MMU_AS_REG(0, AS_TRANSTAB_LO))) >> 6;
 
 		switch (addr & 0x3F) {
 		case AS_TRANSTAB_LO:
@@ -1851,8 +1915,9 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 		*value = hw_error_status.mmu_irq_rawstat;
 	} else if (addr == MMU_CONTROL_REG(MMU_IRQ_STATUS)) {
 		*value = hw_error_status.mmu_irq_mask & hw_error_status.mmu_irq_rawstat;
-	} else if (addr == IPA_CONTROL_REG(STATUS) ||
-		   addr == IPA_CONTROL_REG(STATUS) + GPU_GOV_IPA_CONTROL_OFFSET) {
+#if MALI_USE_CSF
+	} else if (addr == IPA_CONTROL_REG(STATUS)
+	) {
 		*value = (ipa_control_timer_enabled << 31);
 	} else if ((addr >= IPA_CONTROL_REG(VALUE_CSHW_REG_LO(0))) &&
 		   (addr <= IPA_CONTROL_REG(VALUE_CSHW_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)))) {
@@ -1883,72 +1948,12 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_SHADER, counter_index,
 						    is_low_word);
 
-	} else if ((addr >= IPA_CONTROL_REG(VALUE_CSHW_REG_LO(0)) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(VALUE_CSHW_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)) +
-				    GPU_GOV_IPA_CONTROL_OFFSET)) {
-		u32 counter_index = (addr - IPA_CONTROL_REG(VALUE_CSHW_REG_LO(0)) -
-				     GPU_GOV_IPA_CONTROL_OFFSET) >>
-				    3;
-		bool is_low_word = !((addr - IPA_CONTROL_REG(VALUE_CSHW_REG_LO(0)) -
-				      GPU_GOV_IPA_CONTROL_OFFSET) &
-				     7);
-
-		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_CSHW, counter_index,
-						    is_low_word);
-	} else if ((addr >= IPA_CONTROL_REG(VALUE_MEMSYS_REG_LO(0)) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(VALUE_MEMSYS_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)) +
-				    GPU_GOV_IPA_CONTROL_OFFSET)) {
-		u32 counter_index = (addr - IPA_CONTROL_REG(VALUE_MEMSYS_REG_LO(0)) -
-				     GPU_GOV_IPA_CONTROL_OFFSET) >>
-				    3;
-		bool is_low_word = !((addr - IPA_CONTROL_REG(VALUE_MEMSYS_REG_LO(0)) -
-				      GPU_GOV_IPA_CONTROL_OFFSET) &
-				     7);
-
-		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_MEMSYS, counter_index,
-						    is_low_word);
-	} else if ((addr >= IPA_CONTROL_REG(VALUE_TILER_REG_LO(0)) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(VALUE_TILER_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)) +
-				    GPU_GOV_IPA_CONTROL_OFFSET)) {
-		u32 counter_index = (addr - IPA_CONTROL_REG(VALUE_TILER_REG_LO(0)) -
-				     GPU_GOV_IPA_CONTROL_OFFSET) >>
-				    3;
-		bool is_low_word = !((addr - IPA_CONTROL_REG(VALUE_TILER_REG_LO(0)) -
-				      GPU_GOV_IPA_CONTROL_OFFSET) &
-				     7);
-
-		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_TILER, counter_index,
-						    is_low_word);
-	} else if ((addr >= IPA_CONTROL_REG(VALUE_SHADER_REG_LO(0)) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(VALUE_SHADER_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)) +
-				    GPU_GOV_IPA_CONTROL_OFFSET)) {
-		u32 counter_index = (addr - IPA_CONTROL_REG(VALUE_SHADER_REG_LO(0)) -
-				     GPU_GOV_IPA_CONTROL_OFFSET) >>
-				    3;
-		bool is_low_word = !((addr - IPA_CONTROL_REG(VALUE_SHADER_REG_LO(0)) -
-				      GPU_GOV_IPA_CONTROL_OFFSET) &
-				     7);
-
-		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_SHADER, counter_index,
-						    is_low_word);
-	} else if ((addr >= IPA_CONTROL_REG(VALUE_NEURAL_REG_LO(0)) + GPU_GOV_IPA_CONTROL_OFFSET) &&
-		   (addr <= IPA_CONTROL_REG(VALUE_NEURAL_REG_HI(IPA_CTL_MAX_VAL_CNT_IDX)) +
-				    GPU_GOV_IPA_CONTROL_OFFSET)) {
-		u32 counter_index = (addr - IPA_CONTROL_REG(VALUE_NEURAL_REG_LO(0)) -
-				     GPU_GOV_IPA_CONTROL_OFFSET) >>
-				    3;
-		bool is_low_word = !((addr - IPA_CONTROL_REG(VALUE_NEURAL_REG_LO(0)) -
-				      GPU_GOV_IPA_CONTROL_OFFSET) &
-				     7);
-
-		*value = gpu_model_get_prfcnt_value(KBASE_IPA_CORE_TYPE_NEURAL, counter_index,
-						    is_low_word);
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_FEATURES_LO)) {
+#endif
+	} else if (addr == GPU_CONTROL_REG(GPU_FEATURES_LO)) {
 		*value = dummy->control_reg_values->gpu_features_lo;
-	} else if (addr == GET_GPU_CONTROL_REG(GPU_FEATURES_HI)) {
+	} else if (addr == GPU_CONTROL_REG(GPU_FEATURES_HI)) {
 		*value = dummy->control_reg_values->gpu_features_hi;
-	}
-	else {
+	} else {
 		model_error_log(
 			KBASE_CORE,
 			"Dummy model register access: Reading unsupported register 0x%x. Returning 0\n",
@@ -2033,8 +2038,13 @@ int gpu_model_set_dummy_prfcnt_user_sample(u32 __user *data, u32 size)
 	}
 
 	spin_lock_irqsave(&performance_counters.access_lock, flags);
+#if !MALI_USE_CSF
+	offset = set_user_sample_core_type(performance_counters.jm_counters, user_data, offset,
+					   size, 1);
+#else
 	offset = set_user_sample_core_type(performance_counters.cshw_counters, user_data, offset,
 					   size, 1);
+#endif /* !MALI_USE_CSF */
 	offset = set_user_sample_core_type(performance_counters.tiler_counters, user_data, offset,
 					   size, hweight64(DUMMY_IMPLEMENTATION_TILER_PRESENT));
 	offset = set_user_sample_core_type(performance_counters.l2_counters, user_data, offset,
@@ -2054,8 +2064,13 @@ void gpu_model_set_dummy_prfcnt_kernel_sample(u64 *data, u32 size)
 	u32 offset = 0;
 
 	spin_lock_irqsave(&performance_counters.access_lock, flags);
+#if !MALI_USE_CSF
+	offset = set_kernel_sample_core_type(performance_counters.jm_counters, data, offset, size,
+					     1);
+#else
 	offset = set_kernel_sample_core_type(performance_counters.cshw_counters, data, offset, size,
 					     1);
+#endif /* !MALI_USE_CSF */
 	offset = set_kernel_sample_core_type(performance_counters.tiler_counters, data, offset,
 					     size, hweight64(DUMMY_IMPLEMENTATION_TILER_PRESENT));
 	offset = set_kernel_sample_core_type(performance_counters.l2_counters, data, offset, size,

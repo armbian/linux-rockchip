@@ -476,7 +476,7 @@ static int do_dma_buf_te_ioctl_alloc(struct dma_buf_te_ioctl_alloc __user *buf, 
 
 	if (copy_from_user(&alloc_req, buf, sizeof(alloc_req))) {
 		dev_err(te_device.this_device, "%s: couldn't get user data", __func__);
-		return -EFAULT;
+		goto no_input;
 	}
 
 	if (!alloc_req.size) {
@@ -604,6 +604,7 @@ free_alloc_object:
 	kfree(alloc);
 no_alloc_object:
 invalid_size:
+no_input:
 	return -EFAULT;
 }
 

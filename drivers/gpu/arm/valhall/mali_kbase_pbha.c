@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,7 +24,9 @@
 #include <device/mali_kbase_device.h>
 #include <mali_kbase.h>
 
+#if MALI_USE_CSF
 #define DTB_SET_SIZE 2
+#endif
 
 static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigned int read_setting)
 {
@@ -47,12 +49,6 @@ static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigne
 		break;
 	case SYSC_ALLOC_ID_R_VL:
 		if (prod_model == GPU_ID_PRODUCT_TTIX)
-			return false;
-		break;
-	case SYSC_ALLOC_ID_R_RT:
-	case SYSC_ALLOC_ID_R_NE_A:
-	case SYSC_ALLOC_ID_R_NE_N:
-		if (prod_model < GPU_ID_MODEL_MAKE(14, 0))
 			return false;
 		break;
 	default:
@@ -78,6 +74,7 @@ static bool read_setting_valid(unsigned int prod_model, unsigned int id, unsigne
 static bool write_setting_valid(unsigned int prod_model, unsigned int id,
 				unsigned int write_setting)
 {
+	CSTD_UNUSED(prod_model);
 	switch (id) {
 	/* Valid ID - fall through all */
 	case SYSC_ALLOC_ID_W_OTHER:
@@ -96,12 +93,6 @@ static bool write_setting_valid(unsigned int prod_model, unsigned int id,
 	case SYSC_ALLOC_ID_W_TIB_DS_AFBCH:
 	case SYSC_ALLOC_ID_W_TIB_DS_AFBCB:
 	case SYSC_ALLOC_ID_W_LSC:
-		break;
-	case SYSC_ALLOC_ID_W_RT:
-	case SYSC_ALLOC_ID_W_NE_A:
-	case SYSC_ALLOC_ID_W_NE_N:
-		if (prod_model < GPU_ID_MODEL_MAKE(14, 0))
-			return false;
 		break;
 	default:
 		return false;
@@ -162,6 +153,7 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigne
 		unsigned int const sysc_alloc_num = id / sizeof(u32);
 		u32 modified_reg;
 
+#if MALI_USE_CSF
 		if (runtime) {
 			uint i;
 
@@ -172,6 +164,9 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigne
 					kbase_reg_read32(kbdev, GPU_SYSC_ALLOC_OFFSET(i));
 			kbase_pm_context_idle(kbdev);
 		}
+#else
+		CSTD_UNUSED(runtime);
+#endif /* MALI_USE_CSF */
 
 		modified_reg = kbdev->sysc_alloc[sysc_alloc_num];
 
@@ -218,32 +213,19 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime, unsigne
 
 void kbase_pbha_write_settings(struct kbase_device *kbdev)
 {
+#if MALI_USE_CSF
 	if (kbasep_pbha_supported(kbdev)) {
 		uint i;
 
 		for (i = 0; i < GPU_SYSC_ALLOC_COUNT; ++i)
 			kbase_reg_write32(kbdev, GPU_SYSC_ALLOC_OFFSET(i), kbdev->sysc_alloc[i]);
 	}
-
-	if (kbdev->mma_wa_id) {
-		/* PBHA OVERRIDE register index (0-3) */
-		uint reg_index = kbdev->mma_wa_id >> 2;
-		/* PBHA index within a PBHA OVERRIDE register (0-3) */
-		uint pbha_index = kbdev->mma_wa_id & 0x3;
-		/* 4 bits of read attributes + 4 bits of write attributes for each PBHA */
-		uint pbha_shift = pbha_index * 8;
-		/* Noncacheable read = noncacheable write = b0001*/
-		uint pbha_override_rw_noncacheable = 0x01 | 0x10;
-
-		u32 pbha_override_val =
-			kbase_reg_read32(kbdev, GPU_SYSC_PBHA_OVERRIDE_OFFSET(reg_index));
-		pbha_override_val &= ~((u32)0xFF << pbha_shift);
-		pbha_override_val |= ((u32)pbha_override_rw_noncacheable << pbha_shift);
-		kbase_reg_write32(kbdev, GPU_SYSC_PBHA_OVERRIDE_OFFSET(reg_index),
-				  pbha_override_val);
-	}
+#else
+	CSTD_UNUSED(kbdev);
+#endif /* MALI_USE_CSF */
 }
 
+#if MALI_USE_CSF
 static int kbase_pbha_read_int_id_override_property(struct kbase_device *kbdev,
 						    const struct device_node *pbha_node)
 {
@@ -298,7 +280,7 @@ static int kbase_pbha_read_propagate_bits_property(struct kbase_device *kbdev,
 	u8 bits = 0;
 	int err;
 
-	if (!kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_PBHA_HWU))
+	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PBHA_HWU))
 		return 0;
 
 	err = of_property_read_u8(pbha_node, "propagate-bits", &bits);
@@ -328,46 +310,11 @@ static int kbase_pbha_read_propagate_bits_property(struct kbase_device *kbdev,
 	kbdev->pbha_propagate_bits = bits;
 	return 0;
 }
-
-static int kbase_pbha_read_mma_wa_id_property(struct kbase_device *kbdev,
-					      const struct device_node *pbha_node)
-{
-	u32 mma_wa_id = 0;
-	int err;
-
-	/* Skip if kbdev->mma_wa_id has already been set via the module parameter */
-	if ((kbdev->gpu_props.gpu_id.arch_id < GPU_ID_ARCH_MAKE(14, 8, 0)) || kbdev->mma_wa_id != 0)
-		return 0;
-
-	err = of_property_read_u32(pbha_node, "mma-wa-id", &mma_wa_id);
-
-	/* Property does not exist. This is not a mandatory property, ignore this error */
-	if (err == -EINVAL)
-		return 0;
-
-	if (err == -ENODATA) {
-		dev_err(kbdev->dev, "DTB property mma-wa-id has no value\n");
-		return err;
-	}
-
-	if (err == -EOVERFLOW) {
-		dev_err(kbdev->dev, "DTB value for mma-wa-id is out of range\n");
-		return err;
-	}
-
-	if (mma_wa_id == 0 || mma_wa_id > 15) {
-		dev_err(kbdev->dev,
-			"Invalid DTB value for mma-wa-id: %u. Valid range is between 1 and 15.\n",
-			mma_wa_id);
-		return -EINVAL;
-	}
-
-	kbdev->mma_wa_id = mma_wa_id;
-	return 0;
-}
+#endif /* MALI_USE_CSF */
 
 int kbase_pbha_read_dtb(struct kbase_device *kbdev)
 {
+#if MALI_USE_CSF
 	const struct device_node *pbha_node;
 	int err;
 
@@ -384,11 +331,8 @@ int kbase_pbha_read_dtb(struct kbase_device *kbdev)
 		return err;
 
 	err = kbase_pbha_read_propagate_bits_property(kbdev, pbha_node);
-
-	if (err < 0)
-		return err;
-
-	err = kbase_pbha_read_mma_wa_id_property(kbdev, pbha_node);
-
 	return err;
+#else
+	return 0;
+#endif
 }

@@ -700,7 +700,7 @@ void kutf_add_test_with_filters(struct kutf_suite *suite, unsigned int id, const
 	data.ptr_value = NULL;
 
 	kutf_add_test_with_filters_and_data(suite, id, name, execute,
-					    suite->suite_default_flags | filters, data);
+					    suite->suite_default_flags & filters, data);
 }
 EXPORT_SYMBOL(kutf_add_test_with_filters);
 

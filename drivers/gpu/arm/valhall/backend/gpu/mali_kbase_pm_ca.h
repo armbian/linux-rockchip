@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2025 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,21 +27,6 @@
 #define _KBASE_PM_CA_H_
 
 /**
- * enum kbase_core_mask_type - used to determine which mask is being updated
- *
- * @PM_CA_COREMASK_TYPE_SYSFS: core mask requested via sysfs
- * @PM_CA_COREMASK_TYPE_DEVFREQ: core mask requested via devfreq
- * @PM_CA_COREMASK_TYPE_REWRITE: to rewrite existing mask again
- */
-enum kbase_core_mask_type {
-	PM_CA_COREMASK_TYPE_SYSFS,
-#ifdef CONFIG_MALI_VALHALL_DEVFREQ
-	PM_CA_COREMASK_TYPE_DEVFREQ,
-#endif
-	PM_CA_COREMASK_TYPE_REWRITE,
-};
-
-/**
  * kbase_pm_ca_init - Initialize core availability framework
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
@@ -61,26 +46,27 @@ int kbase_pm_ca_init(struct kbase_device *kbdev);
 void kbase_pm_ca_term(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_ca_set_core_mask - Filter and store core_mask inputs
- *
- * @kbdev:           The kbase device structure for the device (must be a valid pointer)
- * @core_mask_type:  Which mask is being used to update register.
- * @core_mask:       New core mask.
- *
- */
-void kbase_pm_ca_set_core_mask(struct kbase_device *kbdev, enum kbase_core_mask_type core_mask_type,
-			       u64 core_mask);
-
-/**
- * kbase_pm_ca_get_core_masks - Get all current core masks
+ * kbase_pm_ca_get_core_mask - Get currently available shaders core mask
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * Returns a struct which stores current core masks.
+ * Returns a mask of the currently available shader cores.
+ * Calls into the core availability policy
  *
- * Return: kbase_pm_core_masks struct with all current core masks
+ * Return: The bit mask of available cores
  */
-struct kbase_pm_core_masks kbase_pm_ca_get_core_masks(struct kbase_device *kbdev);
+u64 kbase_pm_ca_get_core_mask(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_ca_get_debug_core_mask - Get debug core mask.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Returns a mask of the currently selected shader cores.
+ *
+ * Return: The bit mask of user-selected cores
+ */
+u64 kbase_pm_ca_get_debug_core_mask(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_ca_update_core_status - Update core status
