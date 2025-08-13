@@ -23,15 +23,15 @@
  * Run-time work-arounds helpers
  */
 
-#include <mali_kbase_hwconfig_features.h>
-#include <mali_kbase_hwconfig_issues.h>
+#include <mali_base_hwconfig_features.h>
+#include <mali_base_hwconfig_issues.h>
 #include <hw_access/mali_kbase_hw_access_regmap.h>
 #include "mali_kbase.h"
 #include "mali_kbase_hw.h"
 
 void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 {
-	const enum base_hw_feature *features = base_hw_features_generic;
+	const enum base_hw_feature *features;
 
 	switch (kbdev->gpu_props.gpu_id.product_model) {
 	case GPU_ID_PRODUCT_TMIX:
@@ -87,21 +87,12 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	case GPU_ID_PRODUCT_LKRX:
 		features = base_hw_features_tKRx;
 		break;
-	case GPU_ID_PRODUCT_IDRX:
-	case GPU_ID_PRODUCT_TDRX:
-	case GPU_ID_PRODUCT_LDRX:
-		if (kbdev->gpu_props.gpu_id.version_major == 0) {
-			if (kbdev->gpu_props.gpu_id.version_minor == 1)
-				features = base_hw_features_tDRx_r0p1;
-			else
-				features = base_hw_features_tDRx_r0p0;
-		}
-		break;
 	default:
+		features = base_hw_features_generic;
 		break;
 	}
 
-	for (; *features != KBASE_HW_FEATURE_END; features++)
+	for (; *features != BASE_HW_FEATURE_END; features++)
 		set_bit(*features, &kbdev->hw_features_mask[0]);
 
 #if defined(CONFIG_MALI_VECTOR_DUMP)
@@ -112,8 +103,8 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	 * in the implementation of flush reduction optimization due to
 	 * unclear or ambiguous ARCH spec.
 	 */
-	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_CLEAN_ONLY_SAFE))
-		clear_bit(KBASE_HW_FEATURE_FLUSH_REDUCTION, &kbdev->hw_features_mask[0]);
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_CLEAN_ONLY_SAFE))
+		clear_bit(BASE_HW_FEATURE_FLUSH_REDUCTION, &kbdev->hw_features_mask[0]);
 #endif
 }
 
@@ -122,7 +113,7 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
  * @kbdev: Device pointer
  *
  * Return: pointer to an array of hardware issues, terminated by
- * KBASE_HW_ISSUE_END.
+ * BASE_HW_ISSUE_END.
  *
  * In debugging versions of the driver, unknown versions of a known GPU will
  * be treated as the most recent known version not later than the actual
@@ -235,7 +226,7 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(struct kbase_dev
 		{ GPU_ID_PRODUCT_TVAX,
 		  { { GPU_ID_VERSION_MAKE(0, 0, 0), base_hw_issues_tVAx_r0p0 },
 		    { GPU_ID_VERSION_MAKE(0, 0, 5), base_hw_issues_tVAx_r0p0 },
-		    { GPU_ID_VERSION_MAKE(1, 0, 0), base_hw_issues_tVAx_r1p0 },
+		    { GPU_ID_VERSION_MAKE(0, 1, 0), base_hw_issues_tVAx_r0p1 },
 		    { U32_MAX, NULL } } },
 
 		{ GPU_ID_PRODUCT_TTUX,
@@ -273,18 +264,6 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(struct kbase_dev
 		  { { GPU_ID_VERSION_MAKE(0, 0, 0), base_hw_issues_tKRx_r0p0 },
 		    { GPU_ID_VERSION_MAKE(0, 1, 0), base_hw_issues_tKRx_r0p1 },
 		    { U32_MAX, NULL } } },
-		{ GPU_ID_PRODUCT_IDRX,
-		  { { GPU_ID_VERSION_MAKE(0, 0, 0), base_hw_issues_tDRx_r0p0 },
-		    { GPU_ID_VERSION_MAKE(0, 1, 0), base_hw_issues_tDRx_r0p1 },
-		    { U32_MAX, NULL } } },
-		{ GPU_ID_PRODUCT_TDRX,
-		  { { GPU_ID_VERSION_MAKE(0, 0, 0), base_hw_issues_tDRx_r0p0 },
-		    { GPU_ID_VERSION_MAKE(0, 1, 0), base_hw_issues_tDRx_r0p1 },
-		    { U32_MAX, NULL } } },
-		{ GPU_ID_PRODUCT_LDRX,
-		  { { GPU_ID_VERSION_MAKE(0, 0, 0), base_hw_issues_tDRx_r0p0 },
-		    { GPU_ID_VERSION_MAKE(0, 1, 0), base_hw_issues_tDRx_r0p1 },
-		    { U32_MAX, NULL } } },
 	};
 
 	struct kbase_gpu_id_props *gpu_id = &kbdev->gpu_props.gpu_id;
@@ -298,7 +277,6 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(struct kbase_dev
 			break;
 		}
 	}
-
 
 	if (product != NULL) {
 		/* Found a matching product. */
@@ -358,6 +336,7 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(struct kbase_dev
 			gpu_id->version_id = fallback_version;
 		}
 	}
+
 
 	return issues;
 }
@@ -434,11 +413,6 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		case GPU_ID_PRODUCT_LKRX:
 			issues = base_hw_issues_model_tKRx;
 			break;
-		case GPU_ID_PRODUCT_IDRX:
-		case GPU_ID_PRODUCT_TDRX:
-		case GPU_ID_PRODUCT_LDRX:
-			issues = base_hw_issues_model_tDRx;
-			break;
 		default:
 			dev_err(kbdev->dev, "HW issues - Unknown Product ID %x",
 				gpu_id->product_id);
@@ -450,7 +424,7 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		 gpu_id->product_major, gpu_id->arch_major, gpu_id->arch_minor, gpu_id->arch_rev,
 		 gpu_id->version_major, gpu_id->version_minor, gpu_id->version_status);
 
-	for (; *issues != KBASE_HW_ISSUE_END; issues++)
+	for (; *issues != BASE_HW_ISSUE_END; issues++)
 		set_bit(*issues, &kbdev->hw_issues_mask[0]);
 
 	return 0;

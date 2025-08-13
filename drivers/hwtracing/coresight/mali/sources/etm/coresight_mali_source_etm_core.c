@@ -152,10 +152,8 @@ int coresight_mali_sources_init_drvdata(struct coresight_mali_source_drvdata *dr
 	drvdata->base.disable_seq.ops = etm_disable_ops;
 	drvdata->base.disable_seq.nr_ops = NELEMS(etm_disable_ops);
 
-	drvdata->base.config = kbase_debug_coresight_csf_config_create(drvdata->base.kbase_client,
-								       &drvdata->base.enable_seq,
-								       &drvdata->base.disable_seq,
-								       false);
+	drvdata->base.config = kbase_debug_coresight_csf_config_create(
+		drvdata->base.kbase_client, &drvdata->base.enable_seq, &drvdata->base.disable_seq);
 	if (!drvdata->base.config) {
 		dev_err(drvdata->base.dev, "Config create failed unexpectedly\n");
 		kbase_debug_coresight_csf_unregister(drvdata->base.kbase_client);
@@ -224,8 +222,12 @@ static ssize_t is_enabled_show(struct device *dev, struct device_attribute *attr
 static DEVICE_ATTR_RO(is_enabled);
 
 static struct attribute *coresight_etm_attrs[] = {
-	&dev_attr_is_enabled.attr,  &dev_attr_trcconfigr.attr,	 &dev_attr_trctraceidr.attr,
-	&dev_attr_trcviiectlr.attr, &dev_attr_trcstallctlr.attr, NULL,
+	&dev_attr_is_enabled.attr,
+	&dev_attr_trcconfigr.attr,
+	&dev_attr_trctraceidr.attr,
+	&dev_attr_trcviiectlr.attr,
+	&dev_attr_trcstallctlr.attr,
+	NULL,
 };
 static struct attribute_group coresight_etm_group = { .attrs = coresight_etm_attrs,
 						      .name = "mgmt" };

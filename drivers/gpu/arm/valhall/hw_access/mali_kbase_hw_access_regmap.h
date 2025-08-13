@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,8 +22,13 @@
 #ifndef _MALI_KBASE_HW_ACCESS_REGMAP_H_
 #define _MALI_KBASE_HW_ACCESS_REGMAP_H_
 
+#if MALI_USE_CSF
 #include "regmap/mali_kbase_regmap_csf_enums.h"
 #include "regmap/mali_kbase_regmap_csf_macros.h"
+#else
+#include "regmap/mali_kbase_regmap_jm_enums.h"
+#include "regmap/mali_kbase_regmap_jm_macros.h"
+#endif
 
 /* GPU_U definition */
 #ifdef __ASSEMBLER__
@@ -44,12 +49,12 @@
 #define GPU_L2_SLICE_HASH_COUNT 3
 /* GPU_ASN_HASH_COUNT is an alias to GPU_L2_SLICE_HASH_COUNT */
 #define GPU_ASN_HASH_COUNT GPU_L2_SLICE_HASH_COUNT
-/* GPU_L2C_SLICE_HASH_COUNT is an alias to GPU_L2_SLICE_HASH_COUNT */
-#define GPU_L2C_SLICE_HASH_COUNT GPU_L2_SLICE_HASH_COUNT
 
 /* Cores groups are l2 coherent */
 #define MEM_FEATURES_COHERENT_CORE_GROUP_SHIFT GPU_U(0)
 #define MEM_FEATURES_COHERENT_CORE_GROUP_MASK (GPU_U(0x1) << MEM_FEATURES_COHERENT_CORE_GROUP_SHIFT)
+
+#define GPU_IRQ_REG_ALL (GPU_IRQ_REG_COMMON)
 
 /*
  * MMU_IRQ_RAWSTAT register values. Values are valid also for
@@ -289,8 +294,6 @@
 #define THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SILICON 1U
 #define THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_FPGA 2U
 #define THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_SOFTWARE 3U
-/* Additional THREAD_FEATURES IMPLEMENTATION_TECHNOLOGY, not in spec. */
-#define THREAD_FEATURES_IMPLEMENTATION_TECHNOLOGY_NO_MALI (U8_MAX)
 
 /* End THREAD_* registers */
 
@@ -326,9 +329,6 @@
 #define L2_CONFIG_ASN_HASH_ENABLE_SHIFT L2_CONFIG_L2_SLICE_HASH_ENABLE_SHIFT
 #define L2_CONFIG_ASN_HASH_ENABLE_MASK L2_CONFIG_L2_SLICE_HASH_ENABLE_MASK
 
-/* Aliases reflecting _ASN_HASH_ renaming changes */
-#define L2_CONFIG_L2C_SLICE_HASH_ENABLE_SHIFT L2_CONFIG_L2_SLICE_HASH_ENABLE_SHIFT
-#define L2_CONFIG_L2C_SLICE_HASH_ENABLE_MASK L2_CONFIG_L2_SLICE_HASH_ENABLE_MASK
 /* End L2_CONFIG register */
 
 /* AMBA_FEATURES register */
@@ -410,10 +410,7 @@
 #define SYSC_ALLOC_ID_R_FSDC 0x13
 #define SYSC_ALLOC_ID_R_VL 0x14
 #define SYSC_ALLOC_ID_R_PLR 0x15
-#define SYSC_ALLOC_ID_R_RT 0x17
 #define SYSC_ALLOC_ID_R_TEX 0x18
-#define SYSC_ALLOC_ID_R_NE_A 0x19
-#define SYSC_ALLOC_ID_R_NE_N 0x1A
 #define SYSC_ALLOC_ID_R_LSC 0x1c
 
 /* SYSC_ALLOC write IDs */
@@ -432,9 +429,6 @@
 #define SYSC_ALLOC_ID_W_TIB_DS 0x14
 #define SYSC_ALLOC_ID_W_TIB_DS_AFBCH 0x15
 #define SYSC_ALLOC_ID_W_TIB_DS_AFBCB 0x16
-#define SYSC_ALLOC_ID_W_RT 0x17
-#define SYSC_ALLOC_ID_W_NE_A 0x19
-#define SYSC_ALLOC_ID_W_NE_N 0x1A
 #define SYSC_ALLOC_ID_W_LSC 0x1C
 
 /* SYSC_ALLOC values */
@@ -513,5 +507,11 @@
 /* IDVS_GROUP register */
 #define IDVS_GROUP_SIZE_SHIFT (16)
 #define IDVS_GROUP_MAX_SIZE (0x3F)
+
+/* Include POWER_CHANGED_SINGLE in debug builds for use in irq latency test. */
+#ifdef CONFIG_MALI_VALHALL_DEBUG
+#undef GPU_IRQ_REG_ALL
+#define GPU_IRQ_REG_ALL (GPU_IRQ_REG_COMMON | POWER_CHANGED_SINGLE)
+#endif /* CONFIG_MALI_VALHALL_DEBUG */
 
 #endif /* _MALI_KBASE_HW_ACCESS_REGMAP_H_ */

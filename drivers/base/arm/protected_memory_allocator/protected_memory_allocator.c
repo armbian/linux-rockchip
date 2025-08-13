@@ -22,7 +22,6 @@
 #include <linux/version.h>
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -420,7 +419,6 @@ static int protected_memory_allocator_probe(struct platform_device *pdev)
 	phys_addr_t rmem_base;
 	size_t rmem_size;
 	size_t alloc_bitmap_pages_arr_size;
-	struct resource *mem_res;
 #if (KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE)
 	struct reserved_mem *rmem;
 #endif
@@ -430,14 +428,6 @@ static int protected_memory_allocator_probe(struct platform_device *pdev)
 	if (!np) {
 		dev_err(&pdev->dev, "device node pointer not set\n");
 		return -ENODEV;
-	}
-
-	/* Try to get reserved memory from IO resource memory */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res) {
-		rmem_base = mem_res->start;
-		rmem_size = resource_size(mem_res) >> PAGE_SHIFT;
-		goto skip_reserved_lookup;
 	}
 
 	np = of_parse_phandle(np, "memory-region", 0);
@@ -458,8 +448,6 @@ static int protected_memory_allocator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not read reserved memory-region\n");
 		return -ENODEV;
 	}
-
-skip_reserved_lookup:
 
 	of_node_put(np);
 	epma_dev = devm_kzalloc(&pdev->dev, sizeof(*epma_dev), GFP_KERNEL);
@@ -517,8 +505,12 @@ static void protected_memory_allocator_remove(struct platform_device *pdev)
 	struct simple_pma_device *epma_dev;
 	struct device *dev;
 
-	if (unlikely(!pma_dev))
-		goto out_err;
+	if (!pma_dev)
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
+		return -EINVAL;
+#else
+		return;
+#endif
 
 	epma_dev = container_of(pma_dev, struct simple_pma_device, pma_dev);
 	dev = epma_dev->dev;
@@ -534,11 +526,8 @@ static void protected_memory_allocator_remove(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Protected memory allocator removed successfully\n");
 
-out_err:
 #if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 	return 0;
-#else
-	return;
 #endif
 }
 

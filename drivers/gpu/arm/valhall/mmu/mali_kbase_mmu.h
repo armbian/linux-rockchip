@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2025 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -215,6 +215,7 @@ int kbase_mmu_teardown_imported_pages(struct kbase_device *kbdev, struct kbase_m
 
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, struct tagged_addr *phys,
 			   size_t nr, unsigned long flags, int const group_id);
+#if MALI_USE_CSF
 /**
  * kbase_mmu_update_csf_mcu_pages - Update MCU mappings with changes of phys and flags
  *
@@ -232,6 +233,7 @@ int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, struct tagged_a
  */
 int kbase_mmu_update_csf_mcu_pages(struct kbase_device *kbdev, u64 vpfn, struct tagged_addr *phys,
 				   size_t nr, unsigned long flags, int const group_id);
+#endif
 
 /**
  * kbase_mmu_migrate_data_page - Migrate GPU mappings and content of data pages between memory pages
@@ -354,12 +356,4 @@ static inline int kbase_context_mmu_group_id_get(base_context_create_flags const
 	return (int)BASE_CONTEXT_MMU_GROUP_ID_GET(flags);
 }
 
-/**
- * mmu_register_updateable() - check whether MMU register need to update or not
- * @kbdev:      The Kbase device.
- *
- * Return: True if L2 is OFF or in transaction of OFF (MMU registers don't need
- * to be updated). False otherwise.
- */
-bool mmu_register_updateable(struct kbase_device *kbdev);
 #endif /* _KBASE_MMU_H_ */

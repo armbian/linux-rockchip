@@ -50,6 +50,20 @@ enum kbase_arbif_evt {
 	KBASE_VM_OS_RESUME_EVENT,
 };
 
+/**
+ * kbase_arbif_init() - Initialize the arbiter interface functionality.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Initialize the arbiter interface and also determines
+ * if Arbiter functionality is required.
+ *
+ * Return:
+ * * 0			- the interface was initialized or was not specified
+ * *			in the device tree.
+ * * -EFAULT		- the interface was specified but failed to initialize.
+ * * -EPROBE_DEFER	- module dependencies are not yet available.
+ */
+int kbase_arbif_init(struct kbase_device *kbdev);
 
 /**
  * kbase_arbif_destroy() - Cleanups the arbiter interface functionality.
