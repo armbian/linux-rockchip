@@ -834,13 +834,13 @@ static int gslX680_ts_init(struct i2c_client *client, struct gsl_ts *ts)
         ts->dd->touch_index = 0;
     }
 
-    ts->touch_data = kzalloc(ts->dd->data_size, GFP_KERNEL);
+    ts->touch_data = devm_kzalloc(&client->dev, ts->dd->data_size, GFP_KERNEL);
     if (!ts->touch_data) {
         pr_err("%s: Unable to allocate memory\n", __func__);
         return -ENOMEM;
     }
 
-    input_device = input_allocate_device();
+    input_device = devm_input_allocate_device(&client->dev);
     if (!input_device) {
         rc = -ENOMEM;
         goto error_alloc_dev;
@@ -879,6 +879,7 @@ static int gslX680_ts_init(struct i2c_client *client, struct gsl_ts *ts)
     ts->wq = create_singlethread_workqueue("kworkqueue_ts");
     if (!ts->wq) {
         dev_err(&client->dev, "Could not create workqueue\n");
+        rc = -ENOMEM;
         goto error_wq_create;
     }
     flush_workqueue(ts->wq);
@@ -891,9 +892,7 @@ static int gslX680_ts_init(struct i2c_client *client, struct gsl_ts *ts)
 error_unreg_device:
     destroy_workqueue(ts->wq);
 error_wq_create:
-    input_free_device(input_device);
 error_alloc_dev:
-    kfree(ts->touch_data);
     return rc;
 }
 
@@ -1017,7 +1016,7 @@ static int  gsl_ts_probe(struct i2c_client *client,
         return -ENODEV;
     }
 
-    ts = kzalloc(sizeof(*ts), GFP_KERNEL);
+    ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
     if (!ts)
         return -ENOMEM;
 
@@ -1123,11 +1122,8 @@ static int  gsl_ts_probe(struct i2c_client *client,
 
     //exit_set_irq_mode:
 error_req_irq_fail:
-    free_irq(ts->irq, ts);
 
 error_mutex_destroy:
-    input_free_device(ts->input);
-    kfree(ts);
     return rc;
 }
 
@@ -1135,14 +1131,10 @@ static void gsl_ts_remove(struct i2c_client *client)
 {
     struct gsl_ts *ts = i2c_get_clientdata(client);
 
+    tp_unregister_fb(&ts->tp);
     device_init_wakeup(&client->dev, 0);
     cancel_work_sync(&ts->work);
-    free_irq(ts->irq, ts);
     destroy_workqueue(ts->wq);
-    input_unregister_device(ts->input);
-
-    kfree(ts->touch_data);
-    kfree(ts);
 }
 
 static struct of_device_id gsl_ts_ids[] = {
