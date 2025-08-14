@@ -9848,6 +9848,8 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 			rkcif_enable_dma_capture(&dev->stream[i], true);
 		}
 	}
+
+	rkcif_do_soft_reset(dev);
 	if (is_intr) {
 		if (atomic_read(&dev->sensor_off)) {
 			atomic_set(&dev->sensor_off, 0);
