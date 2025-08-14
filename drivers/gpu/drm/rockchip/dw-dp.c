@@ -6112,17 +6112,17 @@ static const struct dw_dp_chip_data rk3576_dp[] = {
 		.caps = {
 			{
 				.max_hactive = 4096,
-				.max_vactive = 2160,
+				.max_vactive = 4096,
 				.max_pixel_clock = 1188000,
 			},
 			{
 				.max_hactive = 2560,
-				.max_vactive = 1440,
+				.max_vactive = 2560,
 				.max_pixel_clock = 300000,
 			},
 			{
 				.max_hactive = 1920,
-				.max_vactive = 1080,
+				.max_vactive = 1920,
 				.max_pixel_clock = 150000,
 			},
 
