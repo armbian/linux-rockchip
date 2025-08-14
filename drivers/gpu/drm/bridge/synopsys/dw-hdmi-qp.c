@@ -2285,6 +2285,7 @@ static int hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 
 	if (!link_cfg->frl_mode) {
 		dev_info(hdmi->dev, "dw hdmi qp use tmds mode\n");
+		hdmi_modb(hdmi, 0, AVP_DATAPATH_VIDEO_SWDISABLE, GLOBAL_SWDISABLE);
 		hdmi_modb(hdmi, 0, OPMODE_FRL, LINK_CONFIG0);
 		hdmi_modb(hdmi, 0, OPMODE_FRL_4LANES, LINK_CONFIG0);
 		if (!hdmi->update) {
