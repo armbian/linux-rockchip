@@ -284,7 +284,6 @@ struct vop {
 	struct drm_property *feature_prop;
 
 	bool is_iommu_enabled;
-	bool is_iommu_needed;
 	bool is_enabled;
 	bool support_multi_area;
 
@@ -2727,11 +2726,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 				     dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
 				     afbc_en ? "[AFBC]" : "",
 				     &vop_plane_state->yrgb_mst);
-	/*
-	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
-	 * actual_w, actual_h)
-	 */
-	vop->is_iommu_needed = true;
 }
 
 static int vop_plane_atomic_async_check(struct drm_plane *plane,
@@ -4948,7 +4942,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	vop_cfg_update(crtc, old_crtc_state);
 
-	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
+	if (!vop->is_iommu_enabled) {
 		int ret;
 
 		if (s->mode_update)
