@@ -27,7 +27,7 @@
 
 /* AVSP_SRC_SIZE */
 #define SW_AVSP_SRC_WIDTH(x)            ((x) & 0x07ff)
-#define Sw_AVSP_SRC_HEIGHT(x)           (((x) & 0x1fff) << 16)
+#define SW_AVSP_SRC_HEIGHT(x)           (((x) & 0x1fff) << 16)
 
 /* AVSP_RD_VIR_STRIDE */
 #define AVSP_RD_VIR_STRIDE_Y(x)         ((x) & 0x3fff)

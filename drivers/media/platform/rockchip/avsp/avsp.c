@@ -5,6 +5,7 @@
 
 #include "avsp.h"
 #include "regs.h"
+#include "procfs.h"
 
 int rkavsp_log_level;
 module_param_named(debug, rkavsp_log_level, int, 0644);
@@ -26,13 +27,12 @@ static void init_vb2(struct rkavsp_dev *avsp, struct rkavsp_buf *buf)
 	if (!buf)
 		return;
 	memset(&buf->vb, 0, sizeof(buf->vb));
-	memset(&buf->vb2_queue, 0, sizeof(buf->vb2_queue));
-	buf->vb2_queue.gfp_flags = GFP_KERNEL | GFP_DMA32;
-	buf->vb2_queue.dma_dir = DMA_BIDIRECTIONAL;
+	avsp->vb2_queue.gfp_flags = GFP_KERNEL | GFP_DMA32;
+	avsp->vb2_queue.dma_dir = DMA_BIDIRECTIONAL;
 	if (avsp->is_dma_config)
 		attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
-	buf->vb2_queue.dma_attrs = attrs;
-	buf->vb.vb2_queue = &buf->vb2_queue;
+	avsp->vb2_queue.dma_attrs = attrs;
+	buf->vb.vb2_queue = &avsp->vb2_queue;
 }
 #endif
 
@@ -149,8 +149,17 @@ static int avsp_dcp_run(struct file *file, struct rkavsp_dcp_in_out *buf)
 	u32 bandnum = buf->bandnum;
 	u32 wr_mode = buf->dcp_wr_mode, rd_mode = buf->dcp_rd_mode;
 	u32 dcp_rd_stride_y = buf->dcp_rd_stride_y, dcp_rd_stride_c = buf->dcp_rd_stride_c;
+	ktime_t t = 0;
+	s64 us = 0;
 
 	mutex_lock(&avsp->dcp_lock);
+	t = ktime_get();
+	avsp->dcp_prev_frame.fs_seq = avsp->dcp_curr_frame.fs_seq;
+	avsp->dcp_prev_frame.fs_timestamp = avsp->dcp_curr_frame.fs_timestamp;
+	avsp->dcp_curr_frame.fs_seq++;
+	avsp->dcp_curr_frame.fs_timestamp = ktime_to_ns(t);
+	avsp->dcp_state = RKAVSP_DCP_START;
+
 	if (rd_mode != AVSP_MODE_QUAD && rd_mode != AVSP_MODE_RASTER) {
 		RKAVSP_ERR("dcp rd_mode err.\n");
 		mutex_unlock(&avsp->dcp_lock);
@@ -173,7 +182,7 @@ static int avsp_dcp_run(struct file *file, struct rkavsp_dcp_in_out *buf)
 	val = SW_DCP_BYPASS(dcp_bypass) | SW_DCP_WR_MODE(wr_mode) |
 	      SW_DCP_RD_MODE(rd_mode) | SW_DCP_BAND_NUM(bandnum);
 	writel(val, base + AVSP_DCP_CTRL);
-	val = SW_AVSP_SRC_WIDTH(in_w) | Sw_AVSP_SRC_HEIGHT(in_h);
+	val = SW_AVSP_SRC_WIDTH(in_w) | SW_AVSP_SRC_HEIGHT(in_h);
 	writel(val, base + AVSP_DCP_SIZE);
 	val = AVSP_RD_VIR_STRIDE_Y(dcp_rd_stride_y) | AVSP_RD_VIR_STRIDE_C(dcp_rd_stride_c);
 	writel(val, base + AVSP_DCP_RD_VIR_SIZE);
@@ -229,16 +238,38 @@ static int avsp_dcp_run(struct file *file, struct rkavsp_dcp_in_out *buf)
 	writel(AVSP_ST, base + AVSP_DCP_STRT);
 	RKAVSP_DBG("DCP: write start success.\n");
 
+	// add info for procfs
+	avsp->dcp_in_fmt.bandnum = bandnum;
+	avsp->dcp_in_fmt.width = in_w;
+	avsp->dcp_in_fmt.height = in_h;
+	avsp->dcp_in_fmt.mode = buf->dcp_rd_mode;
+	avsp->dcp_in_fmt.stride_y = dcp_rd_stride_y;
+	avsp->dcp_in_fmt.stride_c = dcp_rd_stride_y;
+	avsp->dcp_in_fmt.offset = in_offs;
+
+	avsp->dcp_out_fmt.mode = wr_mode;
+	for (i = 0; i < bandnum; i++) {
+		avsp->dcp_out_fmt.width[i] = buf->dcp_wr_stride_y[i];
+		avsp->dcp_out_fmt.height[i] = pry_h[i];
+	}
+
 	ret = wait_for_completion_timeout(&avsp->dcp_cmpl, msecs_to_jiffies(300));
 	if (!ret) {
 		RKAVSP_ERR("IOCTL AVSP_DCP work out time.\n");
+		avsp->dcp_debug.frame_timeout_cnt++;
 		ret = -EAGAIN;
 		rkavsp_soft_reset(avsp);
 		goto free_buf;
 	} else {
 		ret = 0;
 	}
+
+	us = ktime_us_delta(ktime_get(), t);
+	avsp->dcp_debug.interval = us;
+	avsp->dcp_state = RKAVSP_DCP_FRAME_END;
+
 	mutex_unlock(&avsp->dcp_lock);
+
 	return ret;
 
 free_buf:
@@ -257,9 +288,12 @@ static int avsp_rcs_run(struct file *file, struct rkavsp_rcs_in_out *buf)
 	struct sg_table *sgt;
 	int ret = -EINVAL;
 	int i;
+	ktime_t t = 0;
+	s64 us = 0;
 
 	u32 rd_mode = AVSP_MODE_QUAD;
-	u32 out_offs, val, c_addr;
+	u32 out_offs = 0;
+	u32 val, c_addr;
 	u32 in_w = buf->in_width, in_h = buf->in_height;
 	u32 bandnum = buf->bandnum;
 	u32 wr_mode = buf->rcs_wr_mode;
@@ -267,12 +301,20 @@ static int avsp_rcs_run(struct file *file, struct rkavsp_rcs_in_out *buf)
 	u32 rcs_out_start_offset = buf->rcs_out_start_offset;
 
 	mutex_lock(&avsp->rcs_lock);
+
+	t = ktime_get();
+	avsp->rcs_prev_frame.fs_seq = avsp->rcs_curr_frame.fs_seq;
+	avsp->rcs_prev_frame.fs_timestamp = avsp->rcs_curr_frame.fs_timestamp;
+	avsp->rcs_curr_frame.fs_seq++;
+	avsp->rcs_curr_frame.fs_timestamp = ktime_to_ns(t);
+	avsp->rcs_state = RKAVSP_RCS_START;
+
 	val = SW_RCS_BAND_NUM(bandnum) | SW_RCS_RD_MODE(rd_mode) | SW_RCS_WR_MODE(wr_mode);
 	if (wr_mode == AVSP_MODE_FBCE)
 		val |= SW_RCS_FBCE_CTL;
 
 	writel(val, base + AVSP_RCS_CTRL);
-	val = SW_AVSP_SRC_WIDTH(in_w) | Sw_AVSP_SRC_HEIGHT(in_h);
+	val = SW_AVSP_SRC_WIDTH(in_w) | SW_AVSP_SRC_HEIGHT(in_h);
 	writel(val, base + AVSP_RCS_SIZE);
 	val = AVSP_WR_VIR_STRIDE_Y(rcs_wr_stride_y) | AVSP_WR_VIR_STRIDE_C(rcs_wr_stride_c);
 	writel(val, base + AVSP_RCS_WR_STRIDE);
@@ -359,16 +401,35 @@ static int avsp_rcs_run(struct file *file, struct rkavsp_rcs_in_out *buf)
 
 	writel(AVSP_FORCE_UPD, base + AVSP_RCS_UPDATE);
 	writel(AVSP_ST, base + AVSP_RCS_STRT);
+
+	// add info for procfs
+	avsp->rcs_state = RKAVSP_RCS_START;
+	avsp->rcs_in_fmt.bandnum = bandnum;
+	avsp->rcs_in_fmt.width = in_w;
+	avsp->rcs_in_fmt.height = in_h;
+	avsp->rcs_in_fmt.mode = rd_mode;
+
+	avsp->rcs_out_fmt.mode = wr_mode;
+	avsp->rcs_out_fmt.offset = out_offs;
+	avsp->rcs_out_fmt.stride_y = rcs_wr_stride_y;
+	avsp->rcs_out_fmt.stride_c = rcs_wr_stride_c;
+
 	ret = wait_for_completion_timeout(&avsp->rcs_cmpl, msecs_to_jiffies(300));
 	if (!ret) {
 		RKAVSP_ERR("IOCTL AVSP_RCS work out time.\n");
+		avsp->rcs_debug.frame_timeout_cnt++;
 		ret = -EAGAIN;
 		rkavsp_soft_reset(avsp);
 		goto free_buf;
 	} else {
 		ret = 0;
 	}
+
+	us = ktime_us_delta(ktime_get(), t);
+	avsp->rcs_debug.interval = us;
+	avsp->rcs_state = RKAVSP_RCS_FRAME_END;
 	mutex_unlock(&avsp->rcs_lock);
+
 	return ret;
 
 free_buf:
@@ -455,12 +516,16 @@ static irqreturn_t avsp_dcp_irq_hdl(int irq, void *dev_id)
 	mis_val = readl(base + AVSP_DCP_INT_MSK);
 	writel(mis_val, base + AVSP_DCP_INT_CLR);
 
+	avsp->dcp_isr_cnt++;
+
 	if (mis_val & DCP_INT) {
 		mis_val &= (~DCP_INT);
 		if (!completion_done(&avsp->dcp_cmpl)) {
 			complete(&avsp->dcp_cmpl);
 			RKAVSP_DBG("misval: 0x%x\n", mis_val);
 		}
+	} else {
+		avsp->dcp_err_cnt++;
 	}
 	return IRQ_HANDLED;
 }
@@ -476,12 +541,16 @@ static irqreturn_t avsp_rcs_irq_hdl(int irq, void *dev_id)
 	writel(mis_val, base + AVSP_RCS_INT_CLR0);
 	writel(mis_val, base + AVSP_RCS_INT_CLR1);
 
+	avsp->rcs_isr_cnt++;
+
 	if (mis_val & RCS_INT) {
 		mis_val &= (~RCS_INT);
 		if (!completion_done(&avsp->rcs_cmpl)) {
 			complete(&avsp->rcs_cmpl);
 			RKAVSP_DBG("misval: 0x%x\n", mis_val);
 		}
+	} else {
+		avsp->rcs_err_cnt++;
 	}
 	return IRQ_HANDLED;
 }
@@ -565,7 +634,16 @@ static int avsp_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&avsp->list);
 	init_completion(&avsp->dcp_cmpl);
 	init_completion(&avsp->rcs_cmpl);
+	memset(&avsp->vb2_queue, 0, sizeof(avsp->vb2_queue));
 	avsp->mem_ops = &vb2_cma_sg_memops;
+
+	rkavsp_proc_init(avsp);
+	avsp->dcp_state = RKAVSP_DCP_STOP;
+	avsp->rcs_state = RKAVSP_RCS_STOP;
+	memset(&avsp->dcp_curr_frame, 0, sizeof(avsp->dcp_curr_frame));
+	memset(&avsp->dcp_prev_frame, 0, sizeof(avsp->dcp_prev_frame));
+	memset(&avsp->rcs_curr_frame, 0, sizeof(avsp->rcs_curr_frame));
+	memset(&avsp->rcs_prev_frame, 0, sizeof(avsp->rcs_prev_frame));
 
 	/* get the irq */
 	for (i = 0; i < match_data->num_irqs; i++) {
@@ -631,6 +709,7 @@ static int avsp_remove(struct platform_device *pdev)
 	/* misc device remove */
 	struct rkavsp_dev *avsp = platform_get_drvdata(pdev);
 
+	rkavsp_proc_cleanup(avsp);
 	pm_runtime_disable(&pdev->dev);
 	misc_deregister(&avsp->mdev);
 	mutex_destroy(&avsp->rcs_lock);
