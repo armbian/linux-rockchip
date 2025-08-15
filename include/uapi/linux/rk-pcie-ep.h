@@ -117,6 +117,7 @@ struct pcie_ep_obj_poll_virtual_id_cfg {
 #define PCIE_EP_RAISE_MSI		_IOW(PCIE_BASE, 4, int)
 #define PCIE_EP_SET_MMAP_RESOURCE	_IOW(PCIE_BASE, 6, int)
 #define PCIE_EP_RAISE_ELBI		_IOW(PCIE_BASE, 7, int)
+#define PCIE_EP_RESET_CTRL		_IOW(PCIE_BASE, 8, int)
 #define PCIE_EP_REQUEST_VIRTUAL_ID	_IOR(PCIE_BASE, 16, int)
 #define PCIE_EP_RELEASE_VIRTUAL_ID	_IOW(PCIE_BASE, 17, int)
 #define PCIE_EP_RAISE_IRQ_USER		_IOW(PCIE_BASE, 18, int)

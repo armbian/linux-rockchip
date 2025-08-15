@@ -23,6 +23,9 @@
 #include <linux/iopoll.h>
 
 #include <uapi/linux/rk-pcie-ep.h>
+#ifdef CONFIG_PCIEASPM_EXT
+#include <linux/aspm_ext.h>
+#endif
 
 #include "../../pci/controller/rockchip-pcie-dma.h"
 #include "../../pci/controller/dwc/pcie-dw-dmatest.h"
@@ -772,6 +775,14 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (copy_to_user(argp, &val, sizeof(val)))
 			return -EFAULT;
 		break;
+	case PCIE_EP_RESET_CTRL:
+#ifdef CONFIG_PCIEASPM_EXT
+		dev_info(&pcie_rkep->pdev->dev, "reset controller\n");
+		return rockchip_dw_pcie_pm_ctrl_for_user(pcie_rkep->pdev, ROCKCHIP_PCIE_PM_CTRL_RESET);
+#else
+		dev_warn(&pcie_rkep->pdev->dev, "reset controller not support\n");
+		return -EINVAL;
+#endif
 	default:
 		break;
 	}
