@@ -1464,6 +1464,21 @@ config VIDEO_OV2740
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2740.
 
+config VIDEO_OV32B40
+	tristate "OmniVision OV32B40 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	select VIDEO_OTP_EEPROM
+	help
+	  This is a Video4Linux2 sensor driver for the Omnivision
+	  OV32B40 camera sensor with a MIPI CSI-2 interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov32b40.
+
 config VIDEO_OV4686
 	tristate "OmniVision OV4686 sensor support"
 	depends on VIDEO_DEV && I2C
