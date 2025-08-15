@@ -13,7 +13,10 @@ config LTE_RM310
 	default n
 
 config LTE_EM05
-	bool "LTE em05 support"
+	tristate "LTE EM05 support"
 	default n
+	help
+	  Enable support for the LTE EM05 modem driver.
+	  Say 'M' to compile as a loadable kernel module.
 
 endif
