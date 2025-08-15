@@ -5,31 +5,23 @@
  * LTE EM05 modem driver
  */
 
+ /*
+ Modified by Rafay Ahmed:
+	Removed unnecessary includes, replaced late_initcall with module_init to enable the driver to be built as a module. Added class cleanup in module exit function.
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
-#include <linux/i2c.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/fs.h>
-#include <linux/uaccess.h>
-#include <linux/miscdevice.h>
-#include <linux/circ_buf.h>
-#include <linux/miscdevice.h>
 #include <linux/gpio.h>
-#include <dt-bindings/gpio/gpio.h>
-#include <linux/delay.h>
-#include <linux/poll.h>
-#include <linux/wait.h>
-#include <linux/wakelock.h>
-#include <linux/workqueue.h>
-#include <linux/lte.h>
-#include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/lte.h>
+#include <linux/device.h>
+#include <linux/sysfs.h>
 
 #define LOG(x...)   pr_info("[lte_em05_modem]: " x)
 
@@ -354,10 +346,19 @@ static int __init lte_em05_init(void)
 static void __exit lte_em05_exit(void)
 {
 	platform_driver_unregister(&lte_em05_driver);
+
+	// Clean up class attributes
+	if (modem_class){
+		class_remove_file(modem_class, &class_attr_modem_power);
+		class_remove_file(modem_class, &class_attr_modem_reset);
+		class_remove_file(modem_class, &class_attr_modem_airplane_mode);
+		class_destroy(modem_class);
+	}
 }
 
-late_initcall(lte_em05_init);
+module_init(lte_em05_init);
 module_exit(lte_em05_exit);
+
 
 MODULE_AUTHOR("Stephen <stephen@vamrs.com>");
 MODULE_DESCRIPTION("LTE EM05 modem driver");
