@@ -960,12 +960,15 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 	u32 in_ctrl, in_size, in_c_offs, unite_r_offs, val, mask, unite_off = 0, enlarge = 0,
 		header_size = 0, payload_size = 0;
 
+	if (!IS_ALIGNED(cfg->input.stride, 4)) {
+		v4l2_err(&ofl->v4l2_dev, "input stride %d is not 4-byte aligned\n", cfg->input.stride);
+		return -EINVAL;
+	}
+
 	in_c_offs = 0;
 	in_ctrl = 0;
 	switch (cfg->input.format) {
 	case V4L2_PIX_FMT_NV16:
-		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
-			cfg->input.stride = ALIGN(cfg->input.width, 16);
 		in_c_offs = cfg->input.ver_stride ?
 				cfg->input.stride * cfg->input.ver_stride :
 				cfg->input.stride * cfg->input.height;
@@ -974,8 +977,6 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 		unite_off = 8;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
-			cfg->input.stride = ALIGN(cfg->input.width, 16);
 		in_c_offs = cfg->input.ver_stride ?
 				cfg->input.stride * cfg->input.ver_stride :
 				cfg->input.stride * cfg->input.height;
@@ -984,8 +985,6 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 		unite_off = 8;
 		break;
 	case V4L2_PIX_FMT_NV61:
-		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
-			cfg->input.stride = ALIGN(cfg->input.width, 16);
 		in_c_offs = cfg->input.ver_stride ?
 				cfg->input.stride * cfg->input.ver_stride :
 				cfg->input.stride * cfg->input.height;
@@ -994,8 +993,6 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 		unite_off = 8;
 		break;
 	case V4L2_PIX_FMT_NV21:
-		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
-			cfg->input.stride = ALIGN(cfg->input.width, 16);
 		in_c_offs = cfg->input.ver_stride ?
 				cfg->input.stride * cfg->input.ver_stride :
 				cfg->input.stride * cfg->input.height;
@@ -1004,58 +1001,42 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 		unite_off = 8;
 		break;
 	case V4L2_PIX_FMT_RGB565:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR565;
 		unite_off = 16;
 		break;
 	case V4L2_PIX_FMT_RGB565X:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR565 | RKVPSS_MI_RD_RB_SWAP;
 		unite_off = 16;
 		break;
 	case V4L2_PIX_FMT_RGB24:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 3, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 3, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR888;
 		unite_off = 24;
 		break;
 	case V4L2_PIX_FMT_BGR24:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 3, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 3, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR888 | RKVPSS_MI_RD_RB_SWAP;
 		unite_off = 24;
 		break;
 	case V4L2_PIX_FMT_XRGB32:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888;
 		unite_off = 32;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888 | RKVPSS_MI_RD_RB_SWAP;
 		unite_off = 32;
 		break;
 	case V4L2_PIX_FMT_RGBX32:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888
 				| RKVPSS_MI_RD_ALPHA_SWAP;
 		unite_off = 32;
 		break;
 	case V4L2_PIX_FMT_BGRX32:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888
 				| RKVPSS_MI_RD_RB_SWAP
@@ -1093,43 +1074,31 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP | RKVPSS_MI_RD_FBCD_YUV444_EN;
 		break;
 	case V4L2_PIX_FMT_TILE420:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 6, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 6, 16);
 		in_c_offs = 0;
 		in_size = cfg->input.stride * (cfg->input.height / 4);
 		in_ctrl |= RKVPSS_MI_RD_INPUT_420SP;
 		break;
 	case V4L2_PIX_FMT_TILE422:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 8, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 8, 16);
 		in_c_offs = 0;
 		in_size = cfg->input.stride * (cfg->input.height / 4);
 		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP;
 		break;
 	case V4L2_PIX_FMT_UYVY:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS2X_MI_RD_INPUT_UYVY;
 		//unite_off  todo
 		break;
 	case V4L2_PIX_FMT_VYUY:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS2X_MI_RD_INPUT_UYVY | RKVPSS_MI_RD_UV_SWAP;
 		//unite_off  todo
 		break;
 	case V4L2_PIX_FMT_YUYV:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS2X_MI_RD_INPUT_UYVY | RKVPSS_MI_RD_RB_SWAP;
 		//unite_off  todo
 		break;
 	case V4L2_PIX_FMT_YVYU:
-		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
-			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS2X_MI_RD_INPUT_UYVY | RKVPSS_MI_RD_RB_SWAP | RKVPSS_MI_RD_UV_SWAP;
 		//unite_off  todo
@@ -1398,6 +1367,12 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 			continue;
 		ch_en = true;
 
+		if (!IS_ALIGNED(cfg->output[i].stride, 4)) {
+			v4l2_err(&ofl->v4l2_dev, "output stride %d is not 4-byte aligned for ch%d\n",
+				 cfg->output[i].stride, i);
+			return -EINVAL;
+		}
+
 		if (cfg->output[i].aspt.enable) {
 			w = cfg->output[i].aspt.width;
 			h = cfg->output[i].aspt.height;
@@ -1410,36 +1385,24 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 
 			switch (cfg->output[i].format) {
 			case V4L2_PIX_FMT_RGB565:
-				if (cfg->output[i].stride < ALIGN(w * 2, 16))
-					cfg->output[i].stride = ALIGN(w * 2, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB565 |
 						  RKVPSS_MI_CHN_WR_RB_SWAP;
 				break;
 			case V4L2_PIX_FMT_RGB24:
-				if (cfg->output[i].stride < ALIGN(w * 3, 16))
-					cfg->output[i].stride = ALIGN(w * 3, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB888 |
 						  RKVPSS_MI_CHN_WR_RB_SWAP;
 				break;
 			case V4L2_PIX_FMT_RGB565X:
-				if (cfg->output[i].stride < ALIGN(w * 2, 16))
-					cfg->output[i].stride = ALIGN(w * 2, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB565;
 				break;
 			case V4L2_PIX_FMT_BGR24:
-				if (cfg->output[i].stride < ALIGN(w * 3, 16))
-					cfg->output[i].stride = ALIGN(w * 3, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB888;
 				break;
 			case V4L2_PIX_FMT_XBGR32:
-				if (cfg->output[i].stride < ALIGN(w * 4, 16))
-					cfg->output[i].stride = ALIGN(w * 4, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_ARGB888 |
 						RKVPSS2X_CH1_WR_RGB888_ALPHA(cfg->output[i].alpha);
 				break;
 			case V4L2_PIX_FMT_XRGB32:
-				if (cfg->output[i].stride < ALIGN(w * 4, 16))
-					cfg->output[i].stride = ALIGN(w * 4, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_ARGB888 |
 						RKVPSS_MI_CHN_WR_RB_SWAP |
 						RKVPSS2X_CH1_WR_RGB888_ALPHA(cfg->output[i].alpha);
@@ -1455,61 +1418,43 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 		}
 		switch (cfg->output[i].format) {
 		case V4L2_PIX_FMT_UYVY:
-			if (cfg->output[i].stride < ALIGN(w * 2, 16))
-				cfg->output[i].stride = ALIGN(w * 2, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_422P | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_NV16:
-			if (cfg->output[i].stride < ALIGN(w, 16))
-				cfg->output[i].stride = ALIGN(w, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = cfg->output[i].stride * h * 2;
 			out_ch[i].c_offs = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_NV12:
-			if (cfg->output[i].stride < ALIGN(w, 16))
-				cfg->output[i].stride = ALIGN(w, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
 			out_ch[i].size = cfg->output[i].stride * h * 3 / 2;
 			out_ch[i].c_offs = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_GREY:
-			if (cfg->output[i].stride < ALIGN(w, 16))
-				cfg->output[i].stride = ALIGN(w, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV400;
 			out_ch[i].size = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_VYUY:
-			if (cfg->output[i].stride < ALIGN(w * 2, 16))
-				cfg->output[i].stride = ALIGN(w * 2, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_422P | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_NV61:
-			if (cfg->output[i].stride < ALIGN(w, 16))
-				cfg->output[i].stride = ALIGN(w, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = cfg->output[i].stride * h * 2;
 			out_ch[i].c_offs = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_NV21:
-			if (cfg->output[i].stride < ALIGN(w, 16))
-				cfg->output[i].stride = ALIGN(w, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
 			out_ch[i].size = cfg->output[i].stride * h * 3 / 2;
 			out_ch[i].c_offs = cfg->output[i].stride * h;
 			break;
 		case V4L2_PIX_FMT_TILE420:
-			if (cfg->output[i].stride < ALIGN(w * 6, 16))
-				cfg->output[i].stride = ALIGN(w * 6, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
 			out_ch[i].size = cfg->output[i].stride * (h / 4);
 			out_ch[i].c_offs = 0;
 			break;
 		case V4L2_PIX_FMT_TILE422:
-			if (cfg->output[i].stride < ALIGN(w * 8, 16))
-				cfg->output[i].stride = ALIGN(w * 8, 16);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = cfg->output[i].stride * (h / 4);
 			out_ch[i].c_offs = 0;
