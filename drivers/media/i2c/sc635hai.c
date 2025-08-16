@@ -1153,7 +1153,7 @@ static const char *const sc635hai_test_pattern_menu[] = {
 
 
 static int sc635hai_write_reg(struct i2c_client *client, u16 reg,
-			     u32 len, u32 val)
+			      u32 len, u32 val)
 {
 	u32 buf_i, val_i;
 	u8 buf[6];
@@ -1180,20 +1180,20 @@ static int sc635hai_write_reg(struct i2c_client *client, u16 reg,
 }
 
 static int sc635hai_write_array(struct i2c_client *client,
-			       const struct regval *regs)
+				const struct regval *regs)
 {
 	u32 i;
 	int ret = 0;
 
 	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++)
 		ret = sc635hai_write_reg(client, regs[i].addr,
-					SC635HAI_REG_VALUE_08BIT, regs[i].val);
+					 SC635HAI_REG_VALUE_08BIT, regs[i].val);
 
 	return ret;
 }
 
 static int sc635hai_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
-			    u32 *val)
+			     u32 *val)
 {
 	struct i2c_msg msgs[2];
 	u8 *data_be_p;
@@ -1302,44 +1302,44 @@ static int sc635hai_set_gain_reg(struct sc635hai *sc635hai, u32 gain, int mode)
 
 	if (mode == SC635HAI_LGAIN) {
 		ret = sc635hai_write_reg(sc635hai->client,
-					SC635HAI_REG_DIG_GAIN,
-					SC635HAI_REG_VALUE_08BIT,
-					coarse_dgain);
-		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_DIG_FINE_GAIN,
+					 SC635HAI_REG_DIG_GAIN,
 					 SC635HAI_REG_VALUE_08BIT,
-					 fine_dgain);
+					 coarse_dgain);
 		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_ANA_GAIN,
-					 SC635HAI_REG_VALUE_08BIT,
-					 coarse_again);
+					  SC635HAI_REG_DIG_FINE_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  fine_dgain);
 		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_ANA_FINE_GAIN,
-					 SC635HAI_REG_VALUE_08BIT,
-					 fine_again);
+					  SC635HAI_REG_ANA_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  coarse_again);
+		ret |= sc635hai_write_reg(sc635hai->client,
+					  SC635HAI_REG_ANA_FINE_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  fine_again);
 	} else {
 		ret = sc635hai_write_reg(sc635hai->client,
-					SC635HAI_REG_SDIG_GAIN,
-					SC635HAI_REG_VALUE_08BIT,
-					coarse_dgain);
-		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_SDIG_FINE_GAIN,
+					 SC635HAI_REG_SDIG_GAIN,
 					 SC635HAI_REG_VALUE_08BIT,
-					 fine_dgain);
+					 coarse_dgain);
 		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_SANA_GAIN,
-					 SC635HAI_REG_VALUE_08BIT,
-					 coarse_again);
+					  SC635HAI_REG_SDIG_FINE_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  fine_dgain);
 		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_SANA_FINE_GAIN,
-					 SC635HAI_REG_VALUE_08BIT,
-					 fine_again);
+					  SC635HAI_REG_SANA_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  coarse_again);
+		ret |= sc635hai_write_reg(sc635hai->client,
+					  SC635HAI_REG_SANA_FINE_GAIN,
+					  SC635HAI_REG_VALUE_08BIT,
+					  fine_again);
 	}
 	return ret;
 }
 
 static int sc635hai_set_hdrae(struct sc635hai *sc635hai,
-			     struct preisp_hdrae_exp_s *ae)
+			      struct preisp_hdrae_exp_s *ae)
 {
 	int ret = 0;
 	u32 l_exp_time, m_exp_time, s_exp_time;
@@ -1392,25 +1392,25 @@ static int sc635hai_set_hdrae(struct sc635hai *sc635hai,
 		s_exp_time = 184;
 
 	ret = sc635hai_write_reg(sc635hai->client,
-				SC635HAI_REG_EXPOSURE_H,
-				SC635HAI_REG_VALUE_08BIT,
-				SC635HAI_FETCH_EXP_H(l_exp_time));
-	ret |= sc635hai_write_reg(sc635hai->client,
-				 SC635HAI_REG_EXPOSURE_M,
+				 SC635HAI_REG_EXPOSURE_H,
 				 SC635HAI_REG_VALUE_08BIT,
-				 SC635HAI_FETCH_EXP_M(l_exp_time));
+				 SC635HAI_FETCH_EXP_H(l_exp_time));
 	ret |= sc635hai_write_reg(sc635hai->client,
-				 SC635HAI_REG_EXPOSURE_L,
-				 SC635HAI_REG_VALUE_08BIT,
-				 SC635HAI_FETCH_EXP_L(l_exp_time));
+				  SC635HAI_REG_EXPOSURE_M,
+				  SC635HAI_REG_VALUE_08BIT,
+				  SC635HAI_FETCH_EXP_M(l_exp_time));
 	ret |= sc635hai_write_reg(sc635hai->client,
-				 SC635HAI_REG_SEXPOSURE_M,
-				 SC635HAI_REG_VALUE_08BIT,
-				 SC635HAI_FETCH_EXP_M(s_exp_time));
+				  SC635HAI_REG_EXPOSURE_L,
+				  SC635HAI_REG_VALUE_08BIT,
+				  SC635HAI_FETCH_EXP_L(l_exp_time));
 	ret |= sc635hai_write_reg(sc635hai->client,
-				 SC635HAI_REG_SEXPOSURE_L,
-				 SC635HAI_REG_VALUE_08BIT,
-				 SC635HAI_FETCH_EXP_L(s_exp_time));
+				  SC635HAI_REG_SEXPOSURE_M,
+				  SC635HAI_REG_VALUE_08BIT,
+				  SC635HAI_FETCH_EXP_M(s_exp_time));
+	ret |= sc635hai_write_reg(sc635hai->client,
+				  SC635HAI_REG_SEXPOSURE_L,
+				  SC635HAI_REG_VALUE_08BIT,
+				  SC635HAI_FETCH_EXP_L(s_exp_time));
 
 	ret |= sc635hai_set_gain_reg(sc635hai, l_a_gain, SC635HAI_LGAIN);
 	ret |= sc635hai_set_gain_reg(sc635hai, s_a_gain, SC635HAI_SGAIN);
@@ -1418,7 +1418,7 @@ static int sc635hai_set_hdrae(struct sc635hai *sc635hai,
 }
 
 static int sc635hai_get_reso_dist(const struct sc635hai_mode *mode,
-				 struct v4l2_mbus_framefmt *framefmt)
+				  struct v4l2_mbus_framefmt *framefmt)
 {
 	return abs(mode->width - framefmt->width) +
 	       abs(mode->height - framefmt->height);
@@ -1449,8 +1449,8 @@ sc635hai_find_best_fit(struct sc635hai *sc635hai, struct v4l2_subdev_format *fmt
 }
 
 static int sc635hai_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *fmt)
+			    struct v4l2_subdev_state *sd_state,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 	const struct sc635hai_mode *mode;
@@ -1498,8 +1498,8 @@ static int sc635hai_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int sc635hai_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *fmt)
+			    struct v4l2_subdev_state *sd_state,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 	const struct sc635hai_mode *mode = sc635hai->cur_mode;
@@ -1529,8 +1529,8 @@ static int sc635hai_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int sc635hai_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state,
-				  struct v4l2_subdev_mbus_code_enum *code)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
@@ -1540,8 +1540,8 @@ static int sc635hai_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int sc635hai_enum_frame_sizes(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *sd_state,
-				    struct v4l2_subdev_frame_size_enum *fse)
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 
@@ -1565,19 +1565,19 @@ static int sc635hai_enable_test_pattern(struct sc635hai *sc635hai, u32 pattern)
 	int ret = 0;
 
 	ret = sc635hai_read_reg(sc635hai->client, SC635HAI_REG_TEST_PATTERN,
-			       SC635HAI_REG_VALUE_08BIT, &val);
+				SC635HAI_REG_VALUE_08BIT, &val);
 	if (pattern)
 		val |= SC635HAI_TEST_PATTERN_BIT_MASK;
 	else
 		val &= ~SC635HAI_TEST_PATTERN_BIT_MASK;
 
 	ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_TEST_PATTERN,
-				 SC635HAI_REG_VALUE_08BIT, val);
+				  SC635HAI_REG_VALUE_08BIT, val);
 	return ret;
 }
 
 static int sc635hai_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *fi)
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 	const struct sc635hai_mode *mode = sc635hai->cur_mode;
@@ -1614,7 +1614,7 @@ static const struct sc635hai_mode *sc635hai_find_mode(struct sc635hai *sc635hai,
 }
 
 static int sc635hai_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *fi)
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 	const struct sc635hai_mode *mode = NULL;
@@ -1662,8 +1662,8 @@ static int sc635hai_s_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int sc635hai_g_mbus_config(struct v4l2_subdev *sd,
-				 unsigned int pad_id,
-				 struct v4l2_mbus_config *config)
+				  unsigned int pad_id,
+				  struct v4l2_mbus_config *config)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 	u8 lanes = sc635hai->bus_cfg.bus.mipi_csi2.num_data_lanes;
@@ -1675,7 +1675,7 @@ static int sc635hai_g_mbus_config(struct v4l2_subdev *sd,
 }
 
 static void sc635hai_get_module_inf(struct sc635hai *sc635hai,
-				   struct rkmodule_inf *inf)
+				    struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
 	strscpy(inf->base.sensor, SC635HAI_NAME, sizeof(inf->base.sensor));
@@ -1861,8 +1861,8 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				usleep_range(4000, 5000);
 				/* mipi clk on */
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_MIPI_CTRL,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MIPI_CTRL_ON);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MIPI_CTRL_ON);
 				/* adjust timing */
 				ret |= sc635hai_adjust_time(sc635hai);
 
@@ -1872,8 +1872,8 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				/* Check if the current mode is HDR and cam sw info is available */
 				if (sc635hai->cur_mode->hdr_mode != NO_HDR && sc635hai->cam_sw_inf) {
 					ret = sc635hai_ioctl(&sc635hai->subdev,
-							    PREISP_CMD_SET_HDRAE_EXP,
-							    &sc635hai->cam_sw_inf->hdr_ae);
+							     PREISP_CMD_SET_HDRAE_EXP,
+							     &sc635hai->cam_sw_inf->hdr_ae);
 					if (ret) {
 						dev_err(&sc635hai->client->dev,
 							"Failed init exp fail in hdr mode\n");
@@ -1885,8 +1885,8 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 				/* stream on */
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MODE_STREAMING);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MODE_STREAMING);
 				dev_info(&sc635hai->client->dev,
 					 "quickstream, streaming on: exit hw standby mode\n");
 			} else {
@@ -1895,12 +1895,12 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 				/* stream off */
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MODE_SW_STANDBY);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MODE_SW_STANDBY);
 				/* mipi clk off */
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_MIPI_CTRL,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MIPI_CTRL_OFF);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MIPI_CTRL_OFF);
 
 				sc635hai->is_standby = true;
 				/* pwnd gpio pull down */
@@ -1912,20 +1912,20 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		} else {	/* software standby */
 			if (stream) {
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_MIPI_CTRL,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MIPI_CTRL_ON);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MIPI_CTRL_ON);
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MODE_STREAMING);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MODE_STREAMING);
 				dev_info(&sc635hai->client->dev,
 					 "quickstream, streaming on: exit soft standby mode\n");
 			} else {
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MODE_SW_STANDBY);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MODE_SW_STANDBY);
 				ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_MIPI_CTRL,
-							 SC635HAI_REG_VALUE_08BIT,
-							 SC635HAI_MIPI_CTRL_OFF);
+							  SC635HAI_REG_VALUE_08BIT,
+							  SC635HAI_MIPI_CTRL_OFF);
 				dev_info(&sc635hai->client->dev,
 					 "quickstream, streaming off: enter soft standby mode\n");
 			}
@@ -1946,7 +1946,7 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 #ifdef CONFIG_COMPAT
 static long sc635hai_compat_ioctl32(struct v4l2_subdev *sd,
-				   unsigned int cmd, unsigned long arg)
+				    unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
@@ -2072,7 +2072,7 @@ static int __sc635hai_start_stream(struct sc635hai *sc635hai)
 			return ret;
 		if (sc635hai->has_init_exp && sc635hai->cur_mode->hdr_mode != NO_HDR) {
 			ret = sc635hai_ioctl(&sc635hai->subdev, PREISP_CMD_SET_HDRAE_EXP,
-					    &sc635hai->init_hdrae_exp);
+					     &sc635hai->init_hdrae_exp);
 			if (ret) {
 				dev_err(&sc635hai->client->dev,
 					"init exp fail in hdr mode\n");
@@ -2091,7 +2091,7 @@ static int __sc635hai_stop_stream(struct sc635hai *sc635hai)
 	if (sc635hai->is_thunderboot)
 		sc635hai->is_first_streamoff = true;
 	return sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-				 SC635HAI_REG_VALUE_08BIT, SC635HAI_MODE_SW_STANDBY);
+				  SC635HAI_REG_VALUE_08BIT, SC635HAI_MODE_SW_STANDBY);
 }
 
 /* Calculate the delay in us by clock rate and clock cycles */
@@ -2252,7 +2252,7 @@ static int sc635hai_s_power(struct v4l2_subdev *sd, int on)
 
 		if (!sc635hai->is_thunderboot) {
 			ret = sc635hai_write_array(sc635hai->client,
-						  sc635hai->cur_mode->global_reg_list);
+						   sc635hai->cur_mode->global_reg_list);
 			if (ret) {
 				v4l2_err(sd, "could not set init registers\n");
 				pm_runtime_put_noidle(&client->dev);
@@ -2294,7 +2294,7 @@ static int __maybe_unused sc635hai_resume(struct device *dev)
 
 	if (sc635hai->has_init_exp && sc635hai->cur_mode != NO_HDR) {	// hdr mode
 		ret = sc635hai_ioctl(&sc635hai->subdev, PREISP_CMD_SET_HDRAE_EXP,
-				    &sc635hai->cam_sw_inf->hdr_ae);
+				     &sc635hai->cam_sw_inf->hdr_ae);
 		if (ret) {
 			dev_err(&sc635hai->client->dev, "set exp fail in hdr mode\n");
 			return ret;
@@ -2370,8 +2370,8 @@ static int sc635hai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 static int sc635hai_enum_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_state *sd_state,
-				       struct v4l2_subdev_frame_interval_enum *fie)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct sc635hai *sc635hai = to_sc635hai(sd);
 
@@ -2434,13 +2434,13 @@ static void sc635hai_modify_fps_info(struct sc635hai *sc635hai)
 	const struct sc635hai_mode *mode = sc635hai->cur_mode;
 
 	sc635hai->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
-				       sc635hai->cur_vts;
+					sc635hai->cur_vts;
 }
 
 static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc635hai *sc635hai = container_of(ctrl->handler,
-					       struct sc635hai, ctrl_handler);
+				    struct sc635hai, ctrl_handler);
 	struct i2c_client *client = sc635hai->client;
 	s64 max;
 	int ret = 0;
@@ -2472,17 +2472,17 @@ static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 		if (sc635hai->cur_mode->hdr_mode == NO_HDR) {
 			/* 4 least significant bits of expsoure are fractional part */
 			ret = sc635hai_write_reg(sc635hai->client,
-						SC635HAI_REG_EXPOSURE_H,
-						SC635HAI_REG_VALUE_08BIT,
-						SC635HAI_FETCH_EXP_H(ctrl->val));
-			ret |= sc635hai_write_reg(sc635hai->client,
-						 SC635HAI_REG_EXPOSURE_M,
+						 SC635HAI_REG_EXPOSURE_H,
 						 SC635HAI_REG_VALUE_08BIT,
-						 SC635HAI_FETCH_EXP_M(ctrl->val));
+						 SC635HAI_FETCH_EXP_H(ctrl->val));
 			ret |= sc635hai_write_reg(sc635hai->client,
-						 SC635HAI_REG_EXPOSURE_L,
-						 SC635HAI_REG_VALUE_08BIT,
-						 SC635HAI_FETCH_EXP_L(ctrl->val));
+						  SC635HAI_REG_EXPOSURE_M,
+						  SC635HAI_REG_VALUE_08BIT,
+						  SC635HAI_FETCH_EXP_M(ctrl->val));
+			ret |= sc635hai_write_reg(sc635hai->client,
+						  SC635HAI_REG_EXPOSURE_L,
+						  SC635HAI_REG_VALUE_08BIT,
+						  SC635HAI_FETCH_EXP_L(ctrl->val));
 		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
@@ -2493,17 +2493,17 @@ static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
 		ret = sc635hai_write_reg(sc635hai->client,
-					SC635HAI_REG_VTS_H,
-					SC635HAI_REG_VALUE_08BIT,
-					0x00);
-		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_VTS_M,
+					 SC635HAI_REG_VTS_H,
 					 SC635HAI_REG_VALUE_08BIT,
-					 (ctrl->val + sc635hai->cur_mode->height) >> 8);
+					 0x00);
 		ret |= sc635hai_write_reg(sc635hai->client,
-					 SC635HAI_REG_VTS_L,
-					 SC635HAI_REG_VALUE_08BIT,
-					 (ctrl->val + sc635hai->cur_mode->height) & 0xff);
+					  SC635HAI_REG_VTS_M,
+					  SC635HAI_REG_VALUE_08BIT,
+					  (ctrl->val + sc635hai->cur_mode->height) >> 8);
+		ret |= sc635hai_write_reg(sc635hai->client,
+					  SC635HAI_REG_VTS_L,
+					  SC635HAI_REG_VALUE_08BIT,
+					  (ctrl->val + sc635hai->cur_mode->height) & 0xff);
 		sc635hai->cur_vts = ctrl->val + sc635hai->cur_mode->height;
 		if (sc635hai->cur_vts != sc635hai->cur_mode->vts_def)
 			sc635hai_modify_fps_info(sc635hai);
@@ -2513,17 +2513,17 @@ static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc635hai_read_reg(sc635hai->client, SC635HAI_FLIP_MIRROR_REG,
-				       SC635HAI_REG_VALUE_08BIT, &val);
+					SC635HAI_REG_VALUE_08BIT, &val);
 		ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_FLIP_MIRROR_REG,
-					 SC635HAI_REG_VALUE_08BIT,
-					 SC635HAI_FETCH_MIRROR(val, ctrl->val));
+					  SC635HAI_REG_VALUE_08BIT,
+					  SC635HAI_FETCH_MIRROR(val, ctrl->val));
 		break;
 	case V4L2_CID_VFLIP:
 		ret = sc635hai_read_reg(sc635hai->client, SC635HAI_FLIP_MIRROR_REG,
-				       SC635HAI_REG_VALUE_08BIT, &val);
+					SC635HAI_REG_VALUE_08BIT, &val);
 		ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_FLIP_MIRROR_REG,
-					 SC635HAI_REG_VALUE_08BIT,
-					 SC635HAI_FETCH_FLIP(val, ctrl->val));
+					  SC635HAI_REG_VALUE_08BIT,
+					  SC635HAI_FETCH_FLIP(val, ctrl->val));
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -2560,9 +2560,9 @@ static int sc635hai_initialize_controls(struct sc635hai *sc635hai)
 	handler->lock = &sc635hai->mutex;
 
 	sc635hai->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
-			     V4L2_CID_LINK_FREQ,
-			     ARRAY_SIZE(link_freq_menu_items) - 1,
-			     0, link_freq_menu_items);
+			      V4L2_CID_LINK_FREQ,
+			      ARRAY_SIZE(link_freq_menu_items) - 1,
+			      0, link_freq_menu_items);
 	if (sc635hai->link_freq)
 		sc635hai->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
@@ -2572,45 +2572,45 @@ static int sc635hai_initialize_controls(struct sc635hai *sc635hai)
 			 mode->bpp * 2 * lanes;
 	if (lanes == 2) {
 		sc635hai->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-							0, PIXEL_RATE_WITH_540M_10BIT_2L,
-							1, dst_pixel_rate);
+				       0, PIXEL_RATE_WITH_540M_10BIT_2L,
+				       1, dst_pixel_rate);
 	} else if (lanes == 4) {
 		if (mode->hdr_mode == NO_HDR)
 			sc635hai->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-								0, PIXEL_RATE_WITH_540M_10BIT_4L,
-								1, dst_pixel_rate);
+					       0, PIXEL_RATE_WITH_540M_10BIT_4L,
+					       1, dst_pixel_rate);
 		else if (mode->hdr_mode == HDR_X2)
 			sc635hai->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-								0, PIXEL_RATE_WITH_540M_10BIT_4L,
-								1, dst_pixel_rate);
+					       0, PIXEL_RATE_WITH_540M_10BIT_4L,
+					       1, dst_pixel_rate);
 	}
 
 	__v4l2_ctrl_s_ctrl(sc635hai->link_freq, dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	sc635hai->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
-					    h_blank, h_blank, 1, h_blank);
+					     h_blank, h_blank, 1, h_blank);
 	if (sc635hai->hblank)
 		sc635hai->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	vblank_def = mode->vts_def - mode->height;
 	sc635hai->vblank = v4l2_ctrl_new_std(handler, &sc635hai_ctrl_ops,
-					    V4L2_CID_VBLANK, vblank_def,
-					    SC635HAI_VTS_MAX - mode->height,
-					    1, vblank_def);
+					     V4L2_CID_VBLANK, vblank_def,
+					     SC635HAI_VTS_MAX - mode->height,
+					     1, vblank_def);
 	exposure_max = mode->vts_def - 8;
 	sc635hai->exposure = v4l2_ctrl_new_std(handler, &sc635hai_ctrl_ops,
-					      V4L2_CID_EXPOSURE, SC635HAI_EXPOSURE_MIN,
-					      exposure_max, SC635HAI_EXPOSURE_STEP,
-					      mode->exp_def); //Set default exposure
+					       V4L2_CID_EXPOSURE, SC635HAI_EXPOSURE_MIN,
+					       exposure_max, SC635HAI_EXPOSURE_STEP,
+					       mode->exp_def); //Set default exposure
 	sc635hai->anal_gain = v4l2_ctrl_new_std(handler, &sc635hai_ctrl_ops,
-					       V4L2_CID_ANALOGUE_GAIN, SC635HAI_GAIN_MIN,
-					       SC635HAI_GAIN_MAX, SC635HAI_GAIN_STEP,
-					       SC635HAI_GAIN_DEFAULT); //Set default gain
+						V4L2_CID_ANALOGUE_GAIN, SC635HAI_GAIN_MIN,
+						SC635HAI_GAIN_MAX, SC635HAI_GAIN_STEP,
+						SC635HAI_GAIN_DEFAULT); //Set default gain
 	sc635hai->test_pattern = v4l2_ctrl_new_std_menu_items(handler,
-				&sc635hai_ctrl_ops,
-				V4L2_CID_TEST_PATTERN,
-				ARRAY_SIZE(sc635hai_test_pattern_menu) - 1,
-				0, 0, sc635hai_test_pattern_menu);
+				 &sc635hai_ctrl_ops,
+				 V4L2_CID_TEST_PATTERN,
+				 ARRAY_SIZE(sc635hai_test_pattern_menu) - 1,
+				 0, 0, sc635hai_test_pattern_menu);
 	v4l2_ctrl_new_std(handler, &sc635hai_ctrl_ops,
 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(handler, &sc635hai_ctrl_ops,
@@ -2636,7 +2636,7 @@ err_free_handler:
 }
 
 static int sc635hai_check_sensor_id(struct sc635hai *sc635hai,
-				   struct i2c_client *client)
+				    struct i2c_client *client)
 {
 	struct device *dev = &sc635hai->client->dev;
 	u32 id = 0;
@@ -2648,7 +2648,7 @@ static int sc635hai_check_sensor_id(struct sc635hai *sc635hai,
 	}
 
 	ret = sc635hai_read_reg(client, SC635HAI_REG_CHIP_ID,
-			       SC635HAI_REG_VALUE_16BIT, &id);
+				SC635HAI_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
@@ -2725,7 +2725,7 @@ static int sc635hai_find_modes(struct sc635hai *sc635hai)
 	}
 
 	dev_info(dev, "Detect sc635hai lane: %d\n",
-		sc635hai->bus_cfg.bus.mipi_csi2.num_data_lanes);
+		 sc635hai->bus_cfg.bus.mipi_csi2.num_data_lanes);
 	if (sc635hai->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
 		sc635hai->supported_modes = supported_modes_4lane;
 		sc635hai->cfg_num = ARRAY_SIZE(supported_modes_4lane);
@@ -2758,12 +2758,12 @@ static int sc635hai_setup_clocks_and_gpios(struct sc635hai *sc635hai)
 	}
 
 	sc635hai->reset_gpio = devm_gpiod_get(dev, "reset",
-					     sc635hai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
+					      sc635hai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc635hai->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
 	sc635hai->pwdn_gpio = devm_gpiod_get(dev, "pwdn",
-					    sc635hai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
+					     sc635hai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc635hai->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
@@ -2788,7 +2788,7 @@ static int sc635hai_setup_clocks_and_gpios(struct sc635hai *sc635hai)
 }
 
 static int sc635hai_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+			  const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct sc635hai *sc635hai;
