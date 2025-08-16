@@ -222,9 +222,35 @@ struct sc635hai {
 	struct cam_sw_info	*cam_sw_inf;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	struct rk_light_param	light_param;
+	enum rkmodule_sync_mode	sync_mode;
 };
 
 #define to_sc635hai(sd) container_of(sd, struct sc635hai, subdev)
+
+/* sync mode regs*/
+static __maybe_unused const struct regval sc635hai_interal_sync_master_start_regs[] = {
+	{0x3222, 0x00}, //Slave mode en,0: master mode;1:slave mode
+	{0x300a, 0x24}, //Bit[2]: FSYNC output en; FSYNC as output PAD
+	{0x3032, 0xb0},
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc635hai_interal_sync_master_stop_regs[] = {
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc635hai_interal_sync_slave_start_regs[] = {
+	{0x3222, 0x01}, //Slave mode en,0: master mode;1:slave mode
+	{0x3224, 0xd2}, //trigger by fync
+	{0x3230, 0x00}, //Rows Before Read
+	{0x3231, 0x04}, //Rows Before Read
+	{0x300a, 0x60}, //Bit[6]: EFSYNC output en; EFSYNC as input PAD
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc635hai_interal_sync_slave_stop_regs[] = {
+	{REG_NULL, 0x00},
+};
 
 /*
  * Xclk 24Mhz
@@ -1782,6 +1808,7 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	int cur_best_fit = -1;
 	int cur_best_fit_dist = -1;
 	int cur_dist, cur_fps, dst_fps;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1935,6 +1962,21 @@ static long sc635hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		setting = (struct rk_sensor_setting *)arg;
 		ret = sc635hai_set_setting(sc635hai, setting);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		*sync_mode = sc635hai->sync_mode;
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		if (sync_mode) {
+			sc635hai->sync_mode = *sync_mode;
+			dev_info(&sc635hai->client->dev, "set sync mode is: %s\n",
+				 ((*sync_mode == EXTERNAL_MASTER_MODE) ||
+				  (*sync_mode == SLAVE_MODE)) ? "secondary" : "primary");
+		} else {
+			dev_info(&sc635hai->client->dev, "set sync mode is: NO_SYNC_MODE\n");
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1956,6 +1998,7 @@ static long sc635hai_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rk_light_param *light_param;
 	long ret;
 	u32 stream = 0;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2035,6 +2078,21 @@ static long sc635hai_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -EFAULT;
 		kfree(setting);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		ret = sc635hai_ioctl(sd, cmd, &sync_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &sync_mode, sizeof(u32));
+			if (ret)
+				ret = -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		ret = copy_from_user(&sync_mode, up, sizeof(u32));
+		if (!ret)
+			ret = sc635hai_ioctl(sd, cmd, &sync_mode);
+		else
+			ret = -EFAULT;
+		break;
 	case RKCIS_CMD_FLASH_LIGHT_CTRL:
 		light_param = kzalloc(sizeof(*light_param), GFP_KERNEL);
 		if (!light_param) {
@@ -2060,7 +2118,7 @@ static long sc635hai_compat_ioctl32(struct v4l2_subdev *sd,
 
 static int __sc635hai_start_stream(struct sc635hai *sc635hai)
 {
-	int ret;
+	int ret = 0;
 
 	if (!sc635hai->is_thunderboot) {
 		ret = sc635hai_write_array(sc635hai->client, sc635hai->cur_mode->reg_list);
@@ -2080,8 +2138,15 @@ static int __sc635hai_start_stream(struct sc635hai *sc635hai)
 			}
 		}
 	}
-	ret = sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
-				SC635HAI_REG_VALUE_08BIT, SC635HAI_MODE_STREAMING);
+	if (sc635hai->sync_mode == INTERNAL_MASTER_MODE)
+		ret |= sc635hai_write_array(sc635hai->client,
+					    sc635hai_interal_sync_master_start_regs);
+	else if (sc635hai->sync_mode == EXTERNAL_MASTER_MODE)
+		ret |= sc635hai_write_array(sc635hai->client,
+					    sc635hai_interal_sync_slave_start_regs);
+	else if (sc635hai->sync_mode == NO_SYNC_MODE)
+		ret |= sc635hai_write_reg(sc635hai->client, SC635HAI_REG_CTRL_MODE,
+					  SC635HAI_REG_VALUE_08BIT, SC635HAI_MODE_STREAMING);
 	return ret;
 }
 
@@ -2676,6 +2741,7 @@ static int sc635hai_read_module_info(struct sc635hai *sc635hai)
 	int ret;
 	struct device *dev = &sc635hai->client->dev;
 	struct device_node *node = dev->of_node;
+	const char *sync_mode_name = NULL;
 
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &sc635hai->module_index);
@@ -2693,6 +2759,25 @@ static int sc635hai_read_module_info(struct sc635hai *sc635hai)
 			     &sc635hai->standby_hw);
 	dev_info(dev, "sc635hai->standby_hw = %d\n", sc635hai->standby_hw);
 
+	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
+				      &sync_mode_name);
+	if (ret) {
+		sc635hai->sync_mode = NO_SYNC_MODE;
+		dev_err(dev, "could not get sync mode!\n");
+	} else {
+		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0) {
+			sc635hai->sync_mode = EXTERNAL_MASTER_MODE;
+			dev_info(dev, "sync_mode= [EXTERNAL_MASTER_MODE]\n");
+		} else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0) {
+			sc635hai->sync_mode = INTERNAL_MASTER_MODE;
+			dev_info(dev, "sync_mode= [INTERNAL_MASTER_MODE]\n");
+		} else if (strcmp(sync_mode_name, RKMODULE_SOFT_SYNC_MODE) == 0) {
+			sc635hai->sync_mode = SOFT_SYNC_MODE;
+			dev_info(dev, "sync_mode= [SOFT_SYNC_MODE]\n");
+		} else {
+			dev_info(dev, "sync_mode= [NO_SYNC_MODE]\n");
+		}
+	}
 	return ret;
 }
 
