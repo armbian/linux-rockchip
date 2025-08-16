@@ -257,23 +257,6 @@ static const unsigned int rk628_csi_extcon_cable[] = {
 	EXTCON_NONE,
 };
 
-static const struct mipi_timing rk628d_csi_mipi = {
-	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
-};
-
-static const struct mipi_timing rk628f_csi0_mipi = {
-	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
-};
-
-static const struct mipi_timing rk628f_csi1_mipi = {
-//data_lp, data-pre, data-zero, data-trail, clk_lp, clk-pre, clk-zero, clk-trail, clk-post
-	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
-};
-
-static const struct mipi_timing rk628f_dsi0_mipi = {
-	0x10, 0x70, 0x1c, 0x7f, 0x10, 0x70, 0x3f, 0x7f, 0x1f
-};
-
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
 	.lp_vol_ref = 0,
@@ -1488,17 +1471,6 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 	struct rk628_csi *csi = to_csi(sd);
 
 	rk628_csi_initial(sd);
-	if (csi->rk628->version >= RK628F_VERSION) {
-		csi->rk628->mipi_timing[0] = rk628f_csi0_mipi;
-		csi->rk628->mipi_timing[1] = rk628f_csi1_mipi;
-	} else {
-		csi->rk628->mipi_timing[0] = rk628d_csi_mipi;
-	}
-
-	if (csi->plat_data->tx_mode == DSI_MODE) {
-		csi->rk628->mipi_timing[0] = rk628f_dsi0_mipi;
-		csi->rk628->mipi_timing[1] = rk628f_dsi0_mipi;
-	}
 
 	csi->rk628->dphy_lane_en = 0x1f;
 	csi->txphy_pwron = true;
@@ -2156,11 +2128,37 @@ static int rk628_csi_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static u32 rk628_csi_get_lane_rate_mbps(struct rk628_csi *csi)
+{
+	u32 lane_rate;
+	u32 max_lane_rate = 1300;
+	u8 bpp, lanes;
+	u64 pixelclock = csi->timings.bt.pixelclock;
+
+	bpp = 16;
+	lanes = csi->csi_lanes_in_use;
+	pixelclock = div_u64(pixelclock, 1000 * 1000);
+	lane_rate = pixelclock * bpp;
+	lane_rate = div_u64(lane_rate, lanes);
+	if (csi->rk628->dual_mipi)
+		lane_rate /= 2;
+
+	if (lane_rate > 1300)
+		lane_rate = max_lane_rate;
+	else if (lane_rate > 700 && lane_rate <= 1300)
+		lane_rate = 1300;
+	else
+		lane_rate = 700;
+
+	return lane_rate;
+}
+
 static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct rk628_csi *csi = to_csi(sd);
+	u32 rate;
 
 	if (!tx_5v_power_present(sd) || csi->nosignal) {
 		v4l2_info(sd, "%s hdmirx no signal\n", __func__);
@@ -2178,46 +2176,23 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
 
 	if (csi->plat_data->tx_mode == CSI_MODE) {
-		if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
-			v4l2_dbg(1, debug, sd,
-				"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-				__func__, csi->timings.bt.width, csi->timings.bt.height,
-				link_freq_menu_items[1], RK628_CSI_PIXEL_RATE_HIGH);
-			__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
-			__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-				RK628_CSI_PIXEL_RATE_HIGH);
-		} else {
-			v4l2_dbg(1, debug, sd,
-				"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-				__func__, csi->timings.bt.width, csi->timings.bt.height,
-				link_freq_menu_items[0], RK628_CSI_PIXEL_RATE_LOW);
-			__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
-			__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-				RK628_CSI_PIXEL_RATE_LOW);
-		}
+		rate = rk628_csi_get_lane_rate_mbps(csi);
 	} else {
-		u32 rate;
-
 		csi->dsi.rk628 = csi->rk628;
 		csi->dsi.timings = csi->timings;
 		rate = rk628_dsi_get_lane_rate_mbps(&csi->dsi);
-		v4l2_dbg(1, debug, sd, "%s mipi bitrate:%u mbps\n", __func__, rate);
-
-		if (rate > 1300) {
-			csi->rk628->mipi_timing[0] = rk628f_dsi0_mipi;
-			csi->rk628->mipi_timing[1] = rk628f_dsi0_mipi;
-			__v4l2_ctrl_s_ctrl(csi->link_freq, 2);
-		} else if (rate <= 1300 && rate > 700) {
-			csi->rk628->mipi_timing[0] = rk628f_csi0_mipi;
-			csi->rk628->mipi_timing[1] = rk628f_csi0_mipi;
-			__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
-		} else {
-			csi->rk628->mipi_timing[0] = rk628f_csi0_mipi;
-			csi->rk628->mipi_timing[1] = rk628f_csi0_mipi;
-			__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
-		}
-		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate, RK628_CSI_PIXEL_RATE_HIGH);
 	}
+
+	v4l2_dbg(1, debug, sd, "%s mipi bitrate:%u mbps\n", __func__, rate);
+
+	if (rate > 1300)
+		__v4l2_ctrl_s_ctrl(csi->link_freq, 2);
+	else if (rate <= 1300 && rate > 700)
+		__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
+	else
+		__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
+
+	__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate, RK628_CSI_PIXEL_RATE_HIGH);
 
 	mutex_unlock(&csi->confctl_mutex);
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
@@ -2649,19 +2624,13 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	struct v4l2_subdev *sd = &csi->sd;
 	int ret;
 
-	if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
-		csi->lane_mbps = MIPI_DATARATE_MBPS_HIGH;
-	} else {
-		csi->lane_mbps = MIPI_DATARATE_MBPS_LOW;
-	}
-	if (csi->rk628->dual_mipi)
-		csi->lane_mbps = MIPI_DATARATE_MBPS_HIGH;
+	csi->lane_mbps = rk628_csi_get_lane_rate_mbps(csi);
 	bus_width =  csi->lane_mbps << 8;
 	bus_width |= COMBTXPHY_MODULEA_EN;
 	if (csi->rk628->version >= RK628F_VERSION)
 		bus_width |= COMBTXPHY_MODULEB_EN;
-	v4l2_dbg(1, debug, sd, "%s mipi bitrate:%llu mbps\n", __func__,
-			csi->lane_mbps);
+	v4l2_info(sd, "%s mipi bitrate:%llu mbps\n", __func__, csi->lane_mbps);
+
 	rk628_mipi_dphy_reset_assert(csi->rk628);
 	rk628_mipi_dphy_reset_deassert(csi->rk628);
 
@@ -2672,18 +2641,6 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 1);
 
-	if (csi->rk628->dual_mipi) {
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 0);
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 1);
-	} else if (csi->lane_mbps == MIPI_DATARATE_MBPS_HIGH && !csi->rk628->dual_mipi) {
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 0);
-		if (csi->rk628->version >= RK628F_VERSION)
-			rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
-	} else {
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 0);
-		if (csi->rk628->version >= RK628F_VERSION)
-			rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
-	}
 	rk628_txphy_power_on(csi->rk628);
 
 	usleep_range(1500, 2000);
