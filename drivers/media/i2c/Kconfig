@@ -1999,6 +1999,16 @@ config VIDEO_SC2355
 	  To compile this driver as a module, choose M here: the
 	  module will be called sc2355.
 
+config VIDEO_SC235HAI
+	tristate "SmartSens SC235HAI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC235HAI camera.
+
 config VIDEO_SC301IOT
     tristate "SmartSens SC301IOT sensor support"
 	depends on I2C && VIDEO_DEV
