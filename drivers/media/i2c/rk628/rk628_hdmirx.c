@@ -1753,6 +1753,7 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 				hfp = hfp * 2 * 8 / 10;
 				hbp = hbp * 2 * 8 / 10;
 				hs = hs * 2 * 8 / 10;
+				rk628->is_10bit = true;
 			} else {
 				htotal *= 2;
 				hact *= 2;

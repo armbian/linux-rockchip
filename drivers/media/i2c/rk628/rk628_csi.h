@@ -115,4 +115,18 @@
 
 #define CSI_SKIP_FRAME_NORMAL		1
 
+enum csi_pixfmt {
+	CSI_RAW8 = 0,
+	CSI_RAW10,
+	CSI_PIXEL10,
+	CSI_PIXEL128,
+	CSI_RAW12,
+	CSI_PIXEL12,
+};
+
+enum csi_datatype {
+	YUV422_8BIT = 0x1e,
+	YUV422_10BIT = 0x1f,
+};
+
 #endif

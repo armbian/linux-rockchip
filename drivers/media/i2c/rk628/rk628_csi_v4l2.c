@@ -152,8 +152,10 @@ struct rk628_edid {
 };
 
 static const s64 link_freq_menu_items[] = {
-	RK628_CSI_LINK_FREQ_LOW,
-	RK628_CSI_LINK_FREQ_HIGH,
+	RK628_CSI_LINK_FREQ_350M,
+	RK628_CSI_LINK_FREQ_450M,
+	RK628_CSI_LINK_FREQ_650M,
+	RK628_CSI_LINK_FREQ_750M,
 	RK628_CSI_LINK_FREQ_925M,
 };
 
@@ -484,10 +486,18 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	struct rk628_csi *csi = to_csi(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
 	int ret;
+	u32 val, eotf;
 
+	csi->rk628->is_10bit = false;
 	ret = rk628_hdmirx_get_timings(csi->rk628, timings);
 	if (ret)
 		return ret;
+
+	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_DRM_HB, &val);
+	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_DRM_PAYLOAD0, &val);
+	eotf = (val >> 8) & 0xff;
+	if (eotf == 0x02 && csi->rk628->color_format == BUS_FMT_YUV422)
+		csi->rk628->is_10bit = true;
 
 	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, interlace:%d\n",
 		 bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch, bt->vsync,
@@ -504,6 +514,13 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	} else {
 		v4l2_info(sd, "pixclk less than 300M, use single mipi mode\n");
 		csi->rk628->dual_mipi = false;
+	}
+
+	if (csi->plat_data->tx_mode == CSI_MODE) {
+		if (csi->rk628->is_10bit)
+			csi->mbus_fmt_code = MEDIA_BUS_FMT_YUYV10_2X10;
+		else
+			csi->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	return ret;
@@ -1060,15 +1077,31 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	struct rk628_csi *csi = to_csi(sd);
 	u8 video_fmt;
 	u8 lanes = csi->csi_lanes_in_use;
-	u8 lane_num;
-	u32 wc_usrdef, val;
+	u8 lane_num, yc_swap;
+	u32 wc_usrdef, val, data_type, pixfmt;
 	int avi_rdy;
 
 	lane_num = lanes - 1;
 	csi->rk628->dphy_lane_en = (1 << (lanes + 1)) - 1;
-	wc_usrdef = csi->timings.bt.width * 2;
-	if (csi->rk628->dual_mipi)
+
+	if (csi->rk628->dual_mipi && !csi->rk628->is_10bit)
 		wc_usrdef = csi->timings.bt.width;
+	else if (csi->rk628->dual_mipi && csi->rk628->is_10bit)
+		wc_usrdef = div_u64(csi->timings.bt.width * 10, 8);
+	else if (!csi->rk628->dual_mipi && csi->rk628->is_10bit)
+		wc_usrdef = div_u64(csi->timings.bt.width * 2 * 10, 8);
+	else
+		wc_usrdef = csi->timings.bt.width * 2;
+
+	if (csi->rk628->is_10bit) {
+		pixfmt = CSI_RAW10;
+		data_type = YUV422_10BIT;
+		yc_swap = 1;
+	} else {
+		pixfmt = CSI_RAW8;
+		data_type = YUV422_8BIT;
+		yc_swap = 0;
+	}
 	v4l2_info(sd, "%s mipi mode, word count user define: %d\n",
 			csi->rk628->dual_mipi ? "dual" : "single", wc_usrdef);
 	rk628_csi_disable_stream(sd);
@@ -1109,6 +1142,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 			BYPASS_SELECT(1));
 	} else {
 		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
+			VOP_YU_SWAP_MASK |
 			VOP_UV_SWAP_MASK |
 			VOP_YUV422_EN_MASK |
 			VOP_YUV422_MODE_MASK |
@@ -1116,6 +1150,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 			LANE_NUM_MASK |
 			DPHY_EN_MASK |
 			CSITX_EN_MASK,
+			VOP_YU_SWAP(yc_swap) |
 			VOP_UV_SWAP(0) |
 			VOP_YUV422_EN(1) |
 			VOP_YUV422_MODE(2) |
@@ -1149,8 +1184,8 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 
 	rk628_i2c_write(csi->rk628, CSITX_VOP_PATH_CTRL,
 			VOP_WC_USERDEFINE(wc_usrdef) |
-			VOP_DT_USERDEFINE(YUV422_8BIT) |
-			VOP_PIXEL_FORMAT(0) |
+			VOP_DT_USERDEFINE(data_type) |
+			VOP_PIXEL_FORMAT(pixfmt) |
 			VOP_WC_USERDEFINE_EN(1) |
 			VOP_DT_USERDEFINE_EN(1) |
 			VOP_PATH_EN(1));
@@ -1165,6 +1200,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 
 	if (csi->rk628->version >= RK628F_VERSION) {
 		rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+				VOP_YU_SWAP_MASK |
 				VOP_UV_SWAP_MASK |
 				VOP_YUV422_EN_MASK |
 				VOP_YUV422_MODE_MASK |
@@ -1172,6 +1208,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 				LANE_NUM_MASK |
 				DPHY_EN_MASK |
 				CSITX_EN_MASK,
+				VOP_YU_SWAP(yc_swap) |
 				VOP_UV_SWAP(0) |
 				VOP_YUV422_EN(1) |
 				VOP_YUV422_MODE(2) |
@@ -1203,8 +1240,8 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 
 		rk628_i2c_write(csi->rk628, CSITX1_VOP_PATH_CTRL,
 				VOP_WC_USERDEFINE(wc_usrdef) |
-				VOP_DT_USERDEFINE(YUV422_8BIT) |
-				VOP_PIXEL_FORMAT(0) |
+				VOP_DT_USERDEFINE(data_type) |
+				VOP_PIXEL_FORMAT(pixfmt) |
 				VOP_WC_USERDEFINE_EN(1) |
 				VOP_DT_USERDEFINE_EN(1) |
 				VOP_PATH_EN(1));
@@ -2185,7 +2222,7 @@ static int rk628_csi_enum_frame_interval(struct v4l2_subdev *sd,
 static u32 rk628_csi_get_lane_rate_mbps(struct rk628_csi *csi)
 {
 	u32 lane_rate;
-	u32 max_lane_rate = 1300;
+	u32 max_lane_rate = 1800;
 	u8 bpp, lanes;
 	u64 pixelclock = csi->timings.bt.pixelclock;
 
@@ -2196,15 +2233,39 @@ static u32 rk628_csi_get_lane_rate_mbps(struct rk628_csi *csi)
 	lane_rate = div_u64(lane_rate, lanes);
 	if (csi->rk628->dual_mipi)
 		lane_rate /= 2;
+	if (csi->rk628->is_10bit)
+		lane_rate = div_u64(lane_rate * 5, 4);
 
-	if (lane_rate > 1300)
+	if (lane_rate > 1500)
 		lane_rate = max_lane_rate;
-	else if (lane_rate > 700 && lane_rate <= 1300)
+	else if (lane_rate > 1300 && lane_rate <= 1500)
+		lane_rate = 1500;
+	else if (lane_rate > 900 && lane_rate <= 1300)
 		lane_rate = 1300;
+	else if (lane_rate > 700 && lane_rate <= 900)
+		lane_rate = 900;
 	else
 		lane_rate = 700;
 
 	return lane_rate;
+}
+
+static int rk628_find_best_link_freq(u32 rate)
+{
+	u32 dist;
+	int cur_best_fit = 0;
+	u32 cur_best_fit_dist = -1;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
+		dist = abs(div_u64(link_freq_menu_items[i] * 2, 1000000) - rate);
+		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+			cur_best_fit_dist = dist;
+			cur_best_fit = i;
+		}
+	}
+
+	return cur_best_fit;
 }
 
 static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
@@ -2213,6 +2274,7 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 	u32 rate;
+	int index;
 
 	if (!tx_5v_power_present(sd) || csi->nosignal) {
 		v4l2_info(sd, "%s hdmirx no signal\n", __func__);
@@ -2239,13 +2301,8 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 
 	v4l2_dbg(1, debug, sd, "%s mipi bitrate:%u mbps\n", __func__, rate);
 
-	if (rate > 1300)
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 2);
-	else if (rate <= 1300 && rate > 700)
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
-	else
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
-
+	index = rk628_find_best_link_freq(rate);
+	__v4l2_ctrl_s_ctrl(csi->link_freq, index);
 	__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate, RK628_CSI_PIXEL_RATE_HIGH);
 
 	mutex_unlock(&csi->confctl_mutex);
@@ -2300,11 +2357,15 @@ static int rk628_csi_set_fmt(struct v4l2_subdev *sd,
 
 	switch (code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
-		if (csi->plat_data->bus_fmt == MEDIA_BUS_FMT_UYVY8_2X8)
+		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_2X8)
 			break;
 		return -EINVAL;
 	case MEDIA_BUS_FMT_RGB888_1X24:
-		if (csi->plat_data->bus_fmt == MEDIA_BUS_FMT_RGB888_1X24)
+		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_RGB888_1X24)
+			break;
+		return -EINVAL;
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_YUYV10_2X10)
 			break;
 		return -EINVAL;
 	default:
