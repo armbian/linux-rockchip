@@ -59,6 +59,7 @@
 #define RGA2_SRC_BASE2_OFFSET			0x010
 #define RGA2_FBCIN_OFF_OFFSET			0x010 // repeat
 #define RGA2_SRC_BASE3_OFFSET			0x014
+#define RGA2_FBCIN1_HEAD_BASE_OFFSET		0x014 // repeat
 #define RGA2_SRC_VIR_INFO_OFFSET		0x018
 #define RGA2_FBCIN_HEAD_VIR_INFO_OFFSET		0x018 // repeat
 #define RGA2_SRC_ACT_INFO_OFFSET		0x01c
@@ -69,8 +70,10 @@
 #define RGA2_SRC_BG_COLOR_OFFSET		0x028
 #define RGA2_OSD_COLOR0_OFFSET			0x028 // repeat
 #define RGA2_GAUSS_COE_OFFSET			0x028 // repeat
+#define RGA2_FBCIN1_PAYL_BASE_OFFSET		0x028 // repeat
 #define RGA2_SRC_FG_COLOR_OFFSET		0x02c
 #define RGA2_OSD_COLOR1_OFFSET			0x02c // repeat
+#define RGA2_FBCIN1_OFF_OFFSET			0x02c // repeat
 #define RGA2_SRC_TR_COLOR0_OFFSET		0x030
 #define RGA2_CF_GR_A_OFFSET			0x030 // repeat
 #define RGA2_OSD_LAST_FLAGS0_OFFSET		0x030 // repeat
@@ -88,6 +91,7 @@
 #define RGA2_FBCOUT_PAYL_BASE_OFFSET		0x044 // repeat
 #define RGA2_DST_VIR_INFO_OFFSET		0x048
 #define RGA2_FBCOUT_HEAD_VIR_INFO_OFFSET	0x048 // repeat
+#define RGA2_FBCIN1_HEAD_VIR_INFO_OFFSET	0x048 // repeat
 #define RGA2_DST_ACT_INFO_OFFSET		0x04c
 #define RGA2_ALPHA_CTRL0_OFFSET			0x050
 #define RGA2_ALPHA_CTRL1_OFFSET			0x054
@@ -254,6 +258,7 @@
 #define m_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN		(0x1 << 17)
 #define m_RGA2_MODE_CTRL_SW_FBC_OUT_EN			(0x1 << 18)
 #define m_RGA2_MODE_CTRL_SW_DATA_8B_PROC		(0x1 << 19)
+#define m_RGA2_MODE_CTRL_SW_FBC_IN1_EN			(0x1 << 20)
 #define m_RGA2_MODE_CTRL_SW_SECURE_ACCESS		(0x1 << 21)
 /* moved to RGA_BACKDOOR0 since RV1126B */
 #define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18)
@@ -277,6 +282,7 @@
 #define s_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN(x)		((x & 0x1) << 17)
 #define s_RGA2_MODE_CTRL_SW_FBC_OUT_EN(x)		((x & 0x1) << 18)
 #define s_RGA2_MODE_CTRL_SW_DATA_8B_PROC(x)		((x & 0x1) << 19)
+#define s_RGA2_MODE_CTRL_SW_FBC_IN1_EN(x)		((x & 0x1) << 20)
 #define s_RGA2_MODE_CTRL_SW_SECURE_ACCESS(x)		((x & 0x1) << 21)
 /* moved to RGA_BACKDOOR0 since RV1126B */
 #define s_RGA2_MODE_CTRL_SW_FBC_BSP_DIS(x)		((x & 0x1) << 18)
@@ -406,6 +412,7 @@
 #define m_RGA2_DST_INFO_SW_ALPHA_SWAP			(0x1 << 5)
 #define m_RGA2_DST_INFO_SW_DST_UV_SWAP			(0x1 << 6)
 #define m_RGA2_DST_INFO_SW_SRC1_FMT			(0x7 << 7)
+#define m_RGA2_DST_INFO_SW_FBCIN1_FMT			(0x3 << 7) // repeat
 #define m_RGA2_DST_INFO_SW_SRC1_RB_SWP			(0x1 << 10)
 #define m_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP		(0x1 << 11)
 #define m_RGA2_DST_INFO_SW_DITHER_UP_E			(0x1 << 12)
@@ -429,6 +436,7 @@
 #define s_RGA2_DST_INFO_SW_ALPHA_SWAP(x)		((x & 0x1) << 5)
 #define s_RGA2_DST_INFO_SW_DST_UV_SWAP(x)		((x & 0x1) << 6)
 #define s_RGA2_DST_INFO_SW_SRC1_FMT(x)			((x & 0x7) << 7)
+#define s_RGA2_DST_INFO_SW_FBCIN1_FMT(x)		((x & 0x3) << 7) // repeat
 #define s_RGA2_DST_INFO_SW_SRC1_RB_SWP(x)		((x & 0x1) << 10)
 #define s_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP(x)		((x & 0x1) << 11)
 #define s_RGA2_DST_INFO_SW_DITHER_UP_E(x)		((x & 0x1) << 12)
