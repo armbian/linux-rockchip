@@ -3110,21 +3110,6 @@ static int dw_hdmi_link_clk_set(void *data, bool enable)
 	return 0;
 }
 
-static bool
-dw_hdmi_rockchip_check_hdr_color_change(struct drm_connector_state *conn_state,
-					void *data)
-{
-	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
-
-	if (!conn_state || !data)
-		return false;
-
-	if (dw_hdmi_rockchip_check_color(conn_state, hdmi))
-		return true;
-
-	return false;
-}
-
 static void dw_hdmi_rockchip_set_prev_bus_format(void *data, unsigned long bus_format)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -3713,18 +3698,9 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 
 	if (property == hdmi->color_depth_property) {
 		hdmi->colordepth = val;
-		/* If hdmi is disconnected, state->crtc is null */
-		if (!state->crtc)
-			return 0;
-		if (dw_hdmi_rockchip_check_color(state, hdmi))
-			hdmi->color_changed++;
 		return 0;
 	} else if (property == hdmi->hdmi_output_property) {
 		hdmi->hdmi_output = val;
-		if (!state->crtc)
-			return 0;
-		if (dw_hdmi_rockchip_check_color(state, hdmi))
-			hdmi->color_changed++;
 		return 0;
 	} else if (property == hdmi->quant_range) {
 		u64 quant_range = hdmi->hdmi_quant_range;
@@ -4590,8 +4566,6 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->get_vp_id = dw_hdmi_rockchip_get_vp_id;
 	plat_data->update_color_format =
 		dw_hdmi_rockchip_update_color_format;
-	plat_data->check_hdr_color_change =
-		dw_hdmi_rockchip_check_hdr_color_change;
 	plat_data->set_prev_bus_format =
 		dw_hdmi_rockchip_set_prev_bus_format;
 	plat_data->set_ddc_io =
