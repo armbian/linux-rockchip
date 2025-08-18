@@ -844,6 +844,18 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		case RGA_FORMAT_BGR_888:
 			fbc_fmt = 0x1;
 			break;
+		case RGA_FORMAT_YCbCr_420_SP:
+		case RGA_FORMAT_YCrCb_420_SP:
+		case RGA_FORMAT_YCbCr_420_SP_10B:
+		case RGA_FORMAT_YCrCb_420_SP_10B:
+			fbc_fmt = 0x2;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP:
+		case RGA_FORMAT_YCrCb_422_SP:
+		case RGA_FORMAT_YCbCr_422_SP_10B:
+		case RGA_FORMAT_YCrCb_422_SP_10B:
+			fbc_fmt = 0x3;
+			break;
 		}
 
 		fbc_mode = 0x1;
