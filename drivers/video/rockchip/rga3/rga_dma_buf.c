@@ -251,32 +251,6 @@ int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_i
 	return ret;
 }
 
-int rga_dma_map_phys_addr(phys_addr_t phys_addr, size_t size, struct rga_dma_buffer *buffer,
-			 enum dma_data_direction dir, struct device *map_dev)
-{
-	int ret;
-	dma_addr_t addr;
-
-	addr = dma_map_resource(map_dev, phys_addr, size, dir, 0);
-	ret = dma_mapping_error(map_dev, addr);
-	if (ret < 0) {
-		rga_err("dma_map_resouce failed!, ret = %d\n", ret);
-		return ret;
-	}
-
-	buffer->dma_addr = addr;
-	buffer->dir = dir;
-	buffer->size = size;
-	buffer->map_dev = map_dev;
-
-	return 0;
-}
-
-void rga_dma_unmap_phys_addr(struct rga_dma_buffer *buffer)
-{
-	dma_unmap_resource(buffer->map_dev, buffer->dma_addr, buffer->size, buffer->dir, 0);
-}
-
 int rga_dma_map_sgt(struct sg_table *sgt, struct rga_dma_buffer *buffer,
 		    enum dma_data_direction dir, struct device *map_dev)
 {

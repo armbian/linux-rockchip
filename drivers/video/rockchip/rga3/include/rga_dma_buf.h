@@ -44,10 +44,6 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd);
 int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_info_t *img);
 
-int rga_dma_map_phys_addr(phys_addr_t phys_addr, size_t size, struct rga_dma_buffer *buffer,
-			 enum dma_data_direction dir, struct device *map_dev);
-void rga_dma_unmap_phys_addr(struct rga_dma_buffer *buffer);
-
 int rga_dma_map_sgt(struct sg_table *sgt, struct rga_dma_buffer *buffer,
 		    enum dma_data_direction dir, struct device *map_dev);
 void rga_dma_unmap_sgt(struct rga_dma_buffer *buffer);
