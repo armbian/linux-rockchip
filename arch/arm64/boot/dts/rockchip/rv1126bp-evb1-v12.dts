@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126bp-evb-v14.dts"
+
+/ {
+	model = "Rockchip RV1126B-P EVB1 V12 Board";
+	compatible = "rockchip,rv1126bp-evb1-v12", "rockchip,rv1126b";
+};
+
+&gmac {
+	snps,reset-gpio = <&gpio5 RK_PB4 GPIO_ACTIVE_LOW>;
+};
