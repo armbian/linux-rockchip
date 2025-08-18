@@ -1206,6 +1206,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-iotest-v10.dtb \
 	rv1126bp-evb-v14.dtb \
 	rv1126bp-evb-v14-dual-cam.dtb \
+	rv1126bp-evb1-v12.dtb \
 	rk3036-evb.dtb \
 	rk3036-evb1-ddr3-v10.dtb \
 	rk3036-kylin.dtb \
