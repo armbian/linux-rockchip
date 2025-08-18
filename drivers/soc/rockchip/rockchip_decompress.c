@@ -516,7 +516,7 @@ static int __init rockchip_decom_probe(struct platform_device *pdev)
 	rk_dec->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(rk_dec->regs)) {
 		ret = PTR_ERR(rk_dec->regs);
-		goto disable_clk;
+		return ret;
 	}
 
 	dev_set_drvdata(dev, rk_dec);
@@ -536,7 +536,7 @@ static int __init rockchip_decom_probe(struct platform_device *pdev)
 					dev_name(dev), rk_dec);
 	if (ret < 0) {
 		dev_err(dev, "failed to attach decompress irq\n");
-		goto disable_clk;
+		return ret;
 	}
 
 #ifdef CONFIG_ROCKCHIP_HW_DECOMPRESS_TEST
@@ -554,11 +554,6 @@ static int __init rockchip_decom_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 #endif
 	return 0;
-
-disable_clk:
-	clk_bulk_disable_unprepare(rk_dec->num_clocks, rk_dec->clocks);
-
-	return ret;
 }
 
 #ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
