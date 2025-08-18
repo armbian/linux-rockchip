@@ -1051,7 +1051,7 @@ static bool rockchip_hdmi_check_dsc_rate_supported(struct rockchip_hdmi *hdmi,
 	/* compression ratio needs to be greater than 0.375. */
 	dsc_rate = DIV_ROUND_UP_ULL(data_rate * 9, 24);
 
-	if ((data_rate > frl_rate) && (dsc_rate > dsc_frl_rate))
+	if ((data_rate > frl_rate) && (dsc_rate < dsc_frl_rate))
 		return true;
 
 	return false;
