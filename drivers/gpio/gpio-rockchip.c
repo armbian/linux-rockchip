@@ -37,6 +37,7 @@
 #define GPIO_TYPE_V2_6		(0x010637A6)  /* GPIO Version ID 0x010637A6 */
 #define GPIO_TYPE_V2_6_1	(0x01063F6E)  /* GPIO Version ID 0x01063F6E */
 #define GPIO_TYPE_V2_6_2	(0x01064899)  /* GPIO Version ID 0x01064899 */
+#define GPIO_TYPE_V2_7		(0x01074D2E)  /* GPIO Version ID 0x01074D2E */
 
 #define GPIO_MAX_PINS	(32)
 
@@ -805,6 +806,10 @@ static void rockchip_gpio_get_ver(struct rockchip_pin_bank *bank)
 	case GPIO_TYPE_V2_6_2:
 		bank->gpio_regs = &gpio_regs_v2;
 		bank->gpio_type = GPIO_TYPE_V2_6;
+		break;
+	case GPIO_TYPE_V2_7:
+		bank->gpio_regs = &gpio_regs_v2;
+		bank->gpio_type = GPIO_TYPE_V2_7;
 		break;
 	default:
 		bank->gpio_regs = &gpio_regs_v1;
