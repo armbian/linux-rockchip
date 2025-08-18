@@ -35,7 +35,10 @@ struct rk_vmap_pfn_data {
  * struct rk_dma_heap_ops - ops to operate on a given heap
  * @allocate:		allocate dmabuf and return struct dma_buf ptr
  * @get_pool_size:	if heap maintains memory pools, get pool size in bytes
- *
+   @alloc_contig_pages: alloc pages from CMA
+   @free_contig_pages:	free pages to CMA
+ * @alloc_pages:	alloc pages from system
+ * @free_pages:		free pages to system
  * allocate returns dmabuf on success, ERR_PTR(-errno) on error.
  */
 struct rk_dma_heap_ops {
@@ -44,12 +47,16 @@ struct rk_dma_heap_ops {
 			unsigned long fd_flags,
 			unsigned long heap_flags,
 			const char *name);
+	long (*get_pool_size)(struct rk_dma_heap *heap);
 	struct page *(*alloc_contig_pages)(struct rk_dma_heap *heap,
 					   size_t len, const char *name);
 	void (*free_contig_pages)(struct rk_dma_heap *heap,
 				  struct page *pages, size_t len,
 				  const char *name);
-	long (*get_pool_size)(struct rk_dma_heap *heap);
+	int (*alloc_pages)(struct rk_dma_heap *heap, struct page **pages,
+			   size_t len, gfp_t flags, const char *name);
+	void (*free_pages)(struct rk_dma_heap *heap,
+			   struct page **pages, unsigned int count);
 };
 
 /**
@@ -65,6 +72,7 @@ struct rk_dma_heap_export_info {
 	const struct rk_dma_heap_ops *ops;
 	void *priv;
 	bool support_cma;
+	bool permit_noalloc;
 };
 
 /**
@@ -88,6 +96,8 @@ struct rk_dma_heap {
 	struct mutex dmabuf_lock;
 	struct list_head contig_list; /* contig buffer attach to this node */
 	struct mutex contig_lock;
+	struct list_head pages_list;
+	struct mutex pages_lock;
 	struct cdev heap_cdev;
 	struct kref refcount;
 	struct device *heap_dev;
@@ -110,6 +120,13 @@ struct rk_dma_heap_contig_buf {
 	const char *orig_alloc;
 	phys_addr_t start;
 	phys_addr_t end;
+};
+
+struct rk_dma_heap_pages_buf {
+	struct list_head node;
+	unsigned long size;
+	const char *orig_alloc;
+	phys_addr_t start;
 };
 
 /**

@@ -215,6 +215,25 @@ void rk_dma_heap_total_dec(struct rk_dma_heap *heap, size_t len)
 	mutex_unlock(&rk_heap_list_lock);
 }
 
+int rk_dma_heap_alloc_pages(struct rk_dma_heap *heap,
+			    struct page **pages, size_t len, gfp_t flags,
+			    const char *name)
+{
+	len = PAGE_ALIGN(len);
+	if (!len)
+		return -EINVAL;
+
+	return heap->ops->alloc_pages(heap, pages, len, flags, name);
+}
+EXPORT_SYMBOL_GPL(rk_dma_heap_alloc_pages);
+
+void rk_dma_heap_free_pages(struct rk_dma_heap *heap,
+			    struct page **pages, unsigned int count)
+{
+	return heap->ops->free_pages(heap, pages, count);
+}
+EXPORT_SYMBOL_GPL(rk_dma_heap_free_pages);
+
 static int rk_dma_heap_open(struct inode *inode, struct file *file)
 {
 	struct rk_dma_heap *heap;
@@ -398,7 +417,7 @@ struct rk_dma_heap *rk_dma_heap_add(const struct rk_dma_heap_export_info *exp_in
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!exp_info->ops || !exp_info->ops->allocate) {
+	if (!exp_info->ops || (!exp_info->permit_noalloc && !exp_info->ops->allocate)) {
 		pr_err("rk_dma_heap: Cannot add heap with invalid ops struct\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -423,8 +442,10 @@ struct rk_dma_heap *rk_dma_heap_add(const struct rk_dma_heap_export_info *exp_in
 	heap->support_cma = exp_info->support_cma;
 	INIT_LIST_HEAD(&heap->dmabuf_list);
 	INIT_LIST_HEAD(&heap->contig_list);
+	INIT_LIST_HEAD(&heap->pages_list);
 	mutex_init(&heap->dmabuf_lock);
 	mutex_init(&heap->contig_lock);
+	mutex_init(&heap->pages_lock);
 
 	/* Find unused minor number */
 	ret = xa_alloc(&rk_dma_heap_minors, &minor, heap,
@@ -450,7 +471,7 @@ struct rk_dma_heap *rk_dma_heap_add(const struct rk_dma_heap_export_info *exp_in
 				       NULL,
 				       heap->heap_devt,
 				       NULL,
-				       heap->name);
+				       "%s", heap->name);
 	if (IS_ERR(heap->heap_dev)) {
 		pr_err("rk_dma_heap: Unable to create device\n");
 		err_ret = ERR_CAST(heap->heap_dev);
@@ -551,6 +572,21 @@ static int rk_dma_heap_dump_contig(void *data)
 	return 0;
 }
 
+static int rk_dma_heap_dump_pages(void *data)
+{
+	struct rk_dma_heap *heap = (struct rk_dma_heap *)data;
+	struct rk_dma_heap_pages_buf *buf;
+
+	mutex_lock(&heap->pages_lock);
+	list_for_each_entry(buf, &heap->pages_list, node) {
+		seq_printf(heap->s, "\tAlloc by (%-20s)\t%lx (%lu KiB)\n",
+			   buf->orig_alloc, buf->size, K(buf->size));
+	}
+	mutex_unlock(&heap->pages_lock);
+
+	return 0;
+}
+
 static ssize_t rk_total_pools_kb_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
 {
@@ -616,6 +652,7 @@ static int rk_dma_heap_debug_show(struct seq_file *s, void *unused)
 		heap->s = s;
 		dma_buf_get_each(rk_dma_heap_dump_dmabuf, heap);
 		rk_dma_heap_dump_contig(heap);
+		rk_dma_heap_dump_pages(heap);
 		total += heap->total_size;
 	}
 	seq_printf(s, "\nTotal : 0x%lx (%lu KiB)\n", total, K(total));
@@ -665,6 +702,7 @@ static int rk_dma_heap_proc_show(struct seq_file *s, void *unused)
 		heap->s = s;
 		dma_buf_get_each(rk_dma_heap_dump_dmabuf, heap);
 		rk_dma_heap_dump_contig(heap);
+		rk_dma_heap_dump_pages(heap);
 		total += heap->total_size;
 	}
 	seq_printf(s, "\nTotal : 0x%lx (%lu KiB)\n", total, K(total));
