@@ -1474,13 +1474,10 @@ static void rkvenc2_calc_timeout_thd(struct mpp_dev *mpp)
 	}
 
 	/*
-	 * When vepu_type is RKVENC_VEPU_510, multiplied by 256 core clock cycles,
-	 * else use x1024 core clk cycles
+	 * The frame timeout threshold is *1024 core clock cycles,
+	 * but the sub module timeout threshold is 1/4 frame timeout.
 	 */
-	if (hw->vepu_type == RKVENC_VEPU_510)
-		timeout_thd |= timeout_ms * (clk_get_rate(enc->core_clk_info.clk) / 256000);
-	else
-		timeout_thd |= timeout_ms * (clk_get_rate(enc->core_clk_info.clk) / 1024000);
+	timeout_thd |= timeout_ms * (clk_get_rate(enc->core_clk_info.clk) / 256000);
 
 	mpp_write(mpp, RKVENC_WDG, timeout_thd);
 }
