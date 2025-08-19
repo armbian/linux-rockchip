@@ -1980,8 +1980,9 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 		ret = rkisp_register_stream_v33(dev);
 	} else if (dev->isp_ver == ISP_V35) {
 		ret = rkisp_register_stream_v35(dev);
+	} else if (dev->isp_ver == ISP_V35_1) {
+		ret = rkisp_register_stream_v351s(dev);
 	}
-
 	INIT_WORK(&cap_dev->fast_work, rkisp_stream_fast);
 	return ret;
 }
@@ -2004,6 +2005,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v33(dev);
 	else if (dev->isp_ver == ISP_V35)
 		rkisp_unregister_stream_v35(dev);
+	else if (dev->isp_ver == ISP_V35_1)
+		rkisp_unregister_stream_v351s(dev);
 }
 
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
@@ -2024,6 +2027,8 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v33_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V35)
 		rkisp_mi_v35_isr(mis_val, dev);
+	else if (dev->isp_ver == ISP_V35_1)
+		rkisp_mi_v351s_isr(mis_val, dev);
 }
 
 void rkisp_mipi_v3x_isr(unsigned int phy, unsigned int packet,

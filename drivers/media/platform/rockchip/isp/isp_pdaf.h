@@ -25,7 +25,9 @@ struct rkisp_pdaf_vdev {
 	bool stopping;
 };
 
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V39) || IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V39) || \
+IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35) || \
+IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35_1)
 void rkisp_pdaf_update_buf(struct rkisp_device *dev);
 void rkisp_pdaf_isr(struct rkisp_device *dev);
 int rkisp_register_pdaf_vdev(struct rkisp_device *dev);

@@ -37,8 +37,9 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
 	struct rkisp_stream *stream;
 	int ret = 0;
+	u32 val;
 
-	if (dev->isp_ver == ISP_V39) {
+	if (dev->isp_ver == ISP_V39 || dev->isp_ver == ISP_V35_1) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_LDC];
 		if (stream->linked) {
 			v4l2_err(sd, "isp to vpss online no support for ldcpath link\n");
@@ -57,6 +58,12 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 			rkisp_hw_enum_isp_size(dev->hw_dev);
 
 		atomic_inc(&dev->cap_dev.refcnt);
+		if (dev->isp_ver == ISP_V35_1) {
+			val = ISP351S_ISP2VPSS_PATH_EN;
+			if (!dev->hw_dev->is_single || atomic_read(&dev->cap_dev.refcnt) == 1)
+				val |= ISP351S_ISP2VPSS_FORCE_UPD;
+			rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, val, false);
+		}
 		ret = dev->pipe.open(&dev->pipe, &isp_sdev->sd.entity, true);
 		if (ret < 0)
 			goto refcnt_dec;
@@ -70,6 +77,10 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 			dev->irq_ends_mask |= ISP_FRAME_VPSS;
 		goto unlock;
 	}
+	if (dev->isp_ver == ISP_V35_1) {
+		val = ISP351S_ISP2VPSS_PATH_EN | ISP351S_ISP2VPSS_FORCE_UPD;
+		rkisp_unite_clear_bits(dev, CTRL_SWS_CFG, val, false);
+	}
 	sditf->is_on = false;
 	dev->irq_ends_mask &= ~ISP_FRAME_VPSS;
 	dev->pipe.set_stream(&dev->pipe, false);
@@ -77,6 +88,12 @@ pipe_close:
 	dev->pipe.close(&dev->pipe);
 refcnt_dec:
 	atomic_dec(&dev->cap_dev.refcnt);
+	if (dev->isp_ver == ISP_V35_1) {
+		val = 0;
+		if (atomic_read(&dev->cap_dev.refcnt) == 0)
+			val = ISP351S_ISP2VPSS_FORCE_UPD;
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, ISP351S_ISP2VPSS_PATH_EN, val, false);
+	}
 unlock:
 	if (dev->is_pre_on && !atomic_read(&dev->cap_dev.refcnt)) {
 		dev->is_pre_on = false;

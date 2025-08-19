@@ -17,6 +17,7 @@
 #include "isp_params_v39.h"
 #include "isp_params_v33.h"
 #include "isp_params_v35.h"
+#include "isp_params_v351s.h"
 #include "regs.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
@@ -462,6 +463,8 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_init_params_vdev_v33(params_vdev);
 	else if (dev->isp_ver == ISP_V35)
 		ret = rkisp_init_params_vdev_v35(params_vdev);
+	else if (dev->isp_ver == ISP_V35_1)
+		ret = rkisp_init_params_vdev_v351s(params_vdev);
 
 	params_vdev->vdev_fmt.fmt.meta.dataformat = V4L2_META_FMT_RK_ISP1_PARAMS;
 	return ret;
@@ -487,6 +490,8 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v33(params_vdev);
 	else if (dev->isp_ver == ISP_V35)
 		rkisp_uninit_params_vdev_v35(params_vdev);
+	else if (dev->isp_ver == ISP_V35_1)
+		rkisp_uninit_params_vdev_v351s(params_vdev);
 }
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,

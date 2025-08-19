@@ -242,6 +242,7 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 			CIF_ISP_INPUT_H_MAX_V33_UNITE : CIF_ISP_INPUT_H_MAX_V33;
 		break;
 	case ISP_V35:
+	case ISP_V35_1:
 		max_w = dev->hw_dev->unite ?
 			CIF_ISP_INPUT_W_MAX_V35_UNITE : CIF_ISP_INPUT_W_MAX_V35;
 		max_h = dev->hw_dev->unite ?
@@ -438,6 +439,7 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 		}
 	}
 
+	sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &sensor->fi);
 	dev->active_sensor = sensor;
 	i = dev->dev_id;
@@ -781,7 +783,7 @@ static void rkisp_check_mi_ends_mask(struct rkisp_device *dev)
 		dev->irq_ends_mask |= ISP_FRAME_BP;
 	else
 		dev->irq_ends_mask &= ~ISP_FRAME_BP;
-	if (dev->isp_ver == ISP_V39 &&
+	if ((dev->isp_ver == ISP_V39 || dev->isp_ver == ISP_V35_1) &&
 	    rkisp_read(dev, ISP39_LDCV_CTRL, true) & ISP39_LDCV_EN_SHD)
 		dev->irq_ends_mask |= ISP_FRAME_LDC;
 	else
@@ -1027,7 +1029,7 @@ run_next:
 		udelay(25);
 	}
 
-	if (hw->isp_ver == ISP_V35) {
+	if (hw->isp_ver == ISP_V35 || hw->isp_ver == ISP_V35_1) {
 		val = rkisp_read_reg_cache(dev, ISP3X_CSI2RX_RAW_RD_CTRL);
 		val |= ISP35_RXS_FORCE_UPD;
 		if (dev->rd_mode == HDR_RDBK_FRAME2 ||
@@ -3155,6 +3157,14 @@ static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 		max_w = CIF_ISP_INPUT_W_MAX_V35;
 		max_h = CIF_ISP_INPUT_H_MAX_V35;
 		break;
+	case ISP_V35_1:
+		max_size = CIF_ISP_INPUT_W_MAX_V35 * CIF_ISP_INPUT_H_MAX_V35;
+		max_w = CIF_ISP_INPUT_W_MAX_V35;
+		if (w > max_w)
+			max_h = max_size * 2 / w;
+		else
+			max_h = max_size / w;
+		break;
 	case ISP_V39:
 		max_size = CIF_ISP_INPUT_W_MAX_V39 * CIF_ISP_INPUT_H_MAX_V39;
 		max_w = CIF_ISP_INPUT_W_MAX_V39;
@@ -3265,6 +3275,7 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 					CIF_ISP_INPUT_H_MAX_V33_UNITE : CIF_ISP_INPUT_H_MAX_V33;
 				break;
 			case ISP_V35:
+			case ISP_V35_1:
 				max_w = dev->hw_dev->unite ?
 					CIF_ISP_INPUT_W_MAX_V35_UNITE : CIF_ISP_INPUT_W_MAX_V35;
 				max_h = dev->hw_dev->unite ?
@@ -4399,10 +4410,8 @@ static int rkisp_set_online_hdr_wrap(struct rkisp_device *dev, int *line)
 			  "hdr wrap no support for offline\n");
 		return -EINVAL;
 	}
-	if (dev->unite_div != ISP_UNITE_DIV1 ||
-	    (dev->isp_ver != ISP_V33 && dev->isp_ver != ISP_V35)) {
-		v4l2_warn(&dev->v4l2_dev,
-			  "hdr wrap support for 1103b and no unite mode\n");
+	if (dev->unite_div != ISP_UNITE_DIV1 || dev->isp_ver < ISP_V35) {
+		v4l2_warn(&dev->v4l2_dev, "hdr wrap no support\n");
 		return -EINVAL;
 	}
 	dev->hdr_wrap_line = *line;
@@ -5565,9 +5574,12 @@ vs_skip:
 	if (isp_mis & ISP3X_OUT_FRM_END)
 		writel(ISP3X_OUT_FRM_END, base + CIF_ISP_ICR);
 
-	if ((isp_mis & ISP39_LDCV_END) && (dev->isp_ver == ISP_V39)) {
+	if ((isp_mis & ISP39_LDCV_END)) {
 		writel(ISP39_LDCV_END, base + CIF_ISP_ICR);
-		rkisp_stream_ldc_end_v39(dev);
+		if (dev->isp_ver == ISP_V39)
+			rkisp_stream_ldc_end_v39(dev);
+		else if (dev->isp_ver == ISP_V35_1)
+			rkisp_stream_ldc_end_v351s(dev);
 	}
 	if (isp_mis & CIF_ISP_FRAME) {
 		if (dev->hw_dev->monitor.is_en) {

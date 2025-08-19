@@ -507,6 +507,17 @@ struct rkisp_bnr_buf_info {
 			__u32 vpsl_sig_offs[VPSL_SIG_CHN_MAX];
 			__u32 vpsl_sig_stride[VPSL_SIG_CHN_MAX];
 		} v35;
+		struct {
+			struct rkisp_buf_info ds;
+			struct rkisp_buf_info wgt;
+
+			struct rkisp_buf_info aiisp;
+			struct rkisp_buf_info gain;
+			struct rkisp_buf_info aipre;
+			__u8 iir_rw_fmt;
+			__u8 gain_mode;
+			__u8 aibnr_l2;
+		} v351s;
 	} u;
 } __attribute__ ((packed));
 

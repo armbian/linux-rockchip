@@ -17,6 +17,7 @@
 #include "isp_stats_v39.h"
 #include "isp_stats_v33.h"
 #include "isp_stats_v35.h"
+#include "isp_stats_v351s.h"
 
 #define STATS_NAME DRIVER_NAME "-statistics"
 #define RKISP_ISP_STATS_REQ_BUFS_MIN 2
@@ -315,6 +316,8 @@ static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_init_stats_vdev_v33(stats_vdev);
 	else if (dev->isp_ver == ISP_V35)
 		rkisp_init_stats_vdev_v35(stats_vdev);
+	else if (dev->isp_ver == ISP_V35_1)
+		rkisp_init_stats_vdev_v351s(stats_vdev);
 }
 
 static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
@@ -337,6 +340,8 @@ static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_uninit_stats_vdev_v33(stats_vdev);
 	else if (dev->isp_ver == ISP_V35)
 		rkisp_uninit_stats_vdev_v35(stats_vdev);
+	else if (dev->isp_ver == ISP_V35_1)
+		rkisp_uninit_stats_vdev_v351s(stats_vdev);
 }
 
 void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en)

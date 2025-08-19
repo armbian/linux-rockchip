@@ -941,6 +941,17 @@ static const struct isp_match_data rk3568_isp_match_data = {
 	.unite = false,
 };
 
+static const struct isp_match_data rk3572_isp_match_data = {
+	.clks = rk3576_isp_clks,
+	.num_clks = ARRAY_SIZE(rk3576_isp_clks),
+	.isp_ver = ISP_V35_1,
+	.clk_rate_tbl = rk3576_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3576_isp_clk_rate),
+	.irqs = isp_irqs,
+	.num_irqs = ARRAY_SIZE(isp_irqs),
+	.unite = false,
+};
+
 static const struct isp_match_data rk3576_isp_match_data = {
 	.clks = rk3576_isp_clks,
 	.num_clks = ARRAY_SIZE(rk3576_isp_clks),
@@ -985,6 +996,12 @@ static const struct of_device_id rkisp_hw_of_match[] = {
 	{
 		.compatible = "rockchip,rk3568-rkisp",
 		.data = &rk3568_isp_match_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3572
+	{
+		.compatible = "rockchip,rk3572-rkisp",
+		.data = &rk3572_isp_match_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3576

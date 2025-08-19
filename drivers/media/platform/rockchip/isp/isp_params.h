@@ -11,6 +11,7 @@
 #include <linux/rk-isp39-config.h>
 #include <linux/rk-isp33-config.h>
 #include <linux/rk-isp35-config.h>
+#include <linux/rk-isp351s-config.h>
 #include <linux/rk-preisp.h>
 #include <linux/vmalloc.h>
 #include "common.h"
@@ -87,6 +88,7 @@ struct rkisp_isp_params_vdev {
 		struct isp39_isp_params_cfg *isp39_params;
 		struct isp33_isp_params_cfg *isp33_params;
 		struct isp35_isp_params_cfg *isp35_params;
+		struct isp351s_isp_params_cfg *isp351s_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;

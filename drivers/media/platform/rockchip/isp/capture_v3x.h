@@ -50,6 +50,18 @@ static inline void rkisp_unregister_stream_v35(struct rkisp_device *dev) {}
 static inline void rkisp_mi_v35_isr(u32 mis_val, struct rkisp_device *dev) {}
 #endif
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35_1)
+int rkisp_register_stream_v351s(struct rkisp_device *dev);
+void rkisp_unregister_stream_v351s(struct rkisp_device *dev);
+void rkisp_mi_v351s_isr(u32 mis_val, struct rkisp_device *dev);
+void rkisp_stream_ldc_end_v351s(struct rkisp_device *dev);
+#else
+static inline int rkisp_register_stream_v351s(struct rkisp_device *dev) { return -EINVAL; }
+static inline void rkisp_unregister_stream_v351s(struct rkisp_device *dev) {}
+static inline void rkisp_mi_v351s_isr(u32 mis_val, struct rkisp_device *dev) {}
+static inline void rkisp_stream_ldc_end_v351s(struct rkisp_device *dev) {}
+#endif
+
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32) || \
 IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V33) || \
 IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35)

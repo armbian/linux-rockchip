@@ -65,6 +65,13 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35) += \
 		isp_sditf.o \
 		isp_rockit.o
 
+video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35_1) += \
+		capture_v351s.o \
+		isp_params_v351s.o \
+		isp_stats_v351s.o \
+		isp_pdaf.o \
+		isp_sditf.o
+
 video_rkisp-$(CONFIG_ROCKCHIP_DVBM) += \
 		isp_dvbm.o
 

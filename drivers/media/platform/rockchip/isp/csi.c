@@ -418,7 +418,8 @@ int rkisp_expander_config(struct rkisp_device *dev,
 	u32 i, val, num, d0, d1, drop_bit = 0;
 	u32 output_bit, input_bit, max;
 
-	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35)
+	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35 &&
+	    dev->isp_ver != ISP_V35_1)
 		return 0;
 
 	if (!on) {

@@ -243,7 +243,7 @@ static int rkisp_pdaf_start_streaming(struct vb2_queue *vq, unsigned int count)
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s cnt:%d\n", __func__, count);
 	val = pdaf_vdev->fmt.plane_fmt[0].bytesperline;
-	if (dev->isp_ver == ISP_V35)
+	if (dev->isp_ver == ISP_V35 || dev->isp_ver == ISP_V35_1)
 		val = 512;
 	rkisp_write(dev, ISP39_W3A_CTRL1, val, false);
 	pdaf_vdev->streaming = true;
@@ -402,7 +402,8 @@ int rkisp_register_pdaf_vdev(struct rkisp_device *dev)
 	struct media_entity *source, *sink;
 	int ret;
 
-	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35)
+	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35 &&
+	    dev->isp_ver != ISP_V35_1)
 		return 0;
 	pdaf_vdev = kzalloc(sizeof(struct rkisp_pdaf_vdev), GFP_KERNEL);
 	if (!pdaf_vdev)
