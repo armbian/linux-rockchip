@@ -385,8 +385,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 		job->core = rga_job_assign(job);
 		if (job->core <= 0) {
 			rga_job_err(job, "job assign failed");
-			job->ret = -EINVAL;
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 	} else {
 		job->core = rga_drvdata->scheduler[0]->core;
@@ -396,8 +395,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	scheduler = job->scheduler;
 	if (scheduler == NULL) {
 		rga_job_err(job, "failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-		job->ret = -EFAULT;
-		return NULL;
+		return ERR_PTR(-EFAULT);
 	}
 
 	return scheduler;
@@ -421,35 +419,34 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request
 	job->mm = request->current_mm;
 
 	scheduler = rga_job_schedule(job);
-	if (scheduler == NULL) {
+	if (IS_ERR(scheduler)) {
+		ret = PTR_ERR(scheduler);
 		goto err_free_job;
 	}
 
 	job->cmd_buf = rga_dma_buf_pool_alloc(scheduler->cmd_buf_pool);
 	if (job->cmd_buf == NULL) {
 		rga_job_err(job, "failed to alloc command buffer.\n");
-		job->ret = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_free_job;
 	}
 
 	/* Memory mapping needs to keep pd enabled. */
-	if (rga_power_enable(scheduler) < 0) {
+	ret = rga_power_enable(scheduler);
+	if (ret < 0) {
 		rga_job_err(job, "power enable failed");
-		job->ret = -EFAULT;
 		goto err_free_cmd_buf;
 	}
 
 	ret = rga_mm_map_job_info(job);
 	if (ret < 0) {
 		rga_job_err(job, "%s: failed to map job info\n", __func__);
-		job->ret = ret;
 		goto err_power_disable;
 	}
 
 	ret = scheduler->ops->init_reg(job);
 	if (ret < 0) {
 		rga_job_err(job, "%s: init reg failed", __func__);
-		job->ret = ret;
 		goto err_unmap_job_info;
 	}
 
@@ -472,7 +469,6 @@ err_free_cmd_buf:
 	job->cmd_buf = NULL;
 
 err_free_job:
-	ret = job->ret;
 	rga_job_free(job);
 
 	return ret;
