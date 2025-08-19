@@ -1700,7 +1700,7 @@ static int rk_pcie_really_probe(void *p)
 	if (ret && !rk_pcie->slot_pluggable)
 		goto deinit_irq_and_wq;
 
-	if (rk_pcie->slot_pluggable) {
+	if (IS_BUILTIN(CONFIG_PCIE_DW_ROCKCHIP) && rk_pcie->slot_pluggable) {
 		rk_pcie->hp_slot.plat_ops = &rk_pcie_gpio_hp_plat_ops;
 		rk_pcie->hp_slot.np = rk_pcie->pci->dev->of_node;
 		rk_pcie->hp_slot.slot_nr = rk_pcie->pci->pp.bridge->busnr;
@@ -1816,6 +1816,9 @@ static int rk_pcie_remove(struct platform_device *pdev)
 		irq_set_chained_handler_and_data(rk_pcie->irq, NULL, NULL);
 		irq_domain_remove(rk_pcie->irq_domain);
 	}
+
+	if (IS_BUILTIN(CONFIG_PCIE_DW_ROCKCHIP) && rk_pcie->slot_pluggable)
+		unregister_gpio_hotplug_slot(&rk_pcie->hp_slot);
 
 	device_init_wakeup(dev, false);
 
