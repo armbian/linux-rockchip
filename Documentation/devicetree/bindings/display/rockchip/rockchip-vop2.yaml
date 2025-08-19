@@ -87,6 +87,13 @@ properties:
   power-domains:
     maxItems: 1
 
+  rockchip,extend-phy-pll-shared-mode:
+    description:
+      True indicate a hdmi phy pll can be take over by a subsequently
+      connected interface that attached one VP. False mean a hdmi phy
+      pll can be only used by the VP that attach this hdmi itself.
+    type: boolean
+
 required:
   - compatible
   - reg
