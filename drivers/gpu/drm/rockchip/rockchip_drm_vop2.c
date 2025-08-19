@@ -972,6 +972,15 @@ struct vop2 {
 	/* disable vop writeback */
 	bool disable_wb;
 
+	/*
+	 * The extend phy pll shared mode is only used when extend phy pll
+	 * enabled. When extend phy pll shared mode is true, it mean that
+	 * a hdmi phy pll that is in use can be take over by a subsequently
+	 * connected interface. Otherwise, The hdmi phy pll can be only used
+	 * by the vp that attach this hdmi itself.
+	 */
+	bool extend_phy_pll_shared_mode;
+
 	bool loader_protect;
 
 	bool aclk_rate_reset;
@@ -5746,6 +5755,9 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 			struct clk_hw *p_hw;
 			const char *name;
 
+			if (!vop2->extend_phy_pll_shared_mode)
+				return 0;
+
 			hw = __clk_get_hw(vp->dclk_parent);
 			if (!hw)
 				return -EINVAL;
@@ -8800,17 +8812,44 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 		return MODE_CLOCK_HIGH;
 	}
 
-	if ((request_clock <= VOP2_MAX_DCLK_RATE) &&
-	    (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
+	if (mode->clock > VOP2_MAX_DCLK_RATE) {
+		if (vop2->version == VOP_VERSION_RK3576)
+			request_clock = request_clock >> 1;
+		else if (vop2->version == VOP_VERSION_RK3588)
+			request_clock = request_clock >> 2;
+	}
+	if ((vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
 	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
-		clock = request_clock;
-	} else {
-		if (request_clock > VOP2_MAX_DCLK_RATE) {
-			if (vop2->version == VOP_VERSION_RK3576)
-				request_clock = request_clock >> 1;
-			else if (vop2->version == VOP_VERSION_RK3588)
-				request_clock = request_clock >> 2;
+		if (mode->clock > VOP2_MAX_DCLK_RATE) {
+			clock = rockchip_drm_dclk_round_rate(vop2->version,
+							     vp->dclk_parent ? vp->dclk_parent :
+							     vp->dclk, request_clock * 1000) / 1000;
+		} else {
+			/*
+			 * If extend_dclk_phy_pll_shared_mode is true, it assume
+			 * that any dclk rate support(except RK3588 VP3). Otherwise,
+			 * only hdmi can support any dclk rate.
+			 */
+			if (vop2->extend_phy_pll_shared_mode) {
+				if ((vop2->version == VOP_VERSION_RK3588) && vp->id == 3) {
+					clock = rockchip_drm_dclk_round_rate(vop2->version,
+									     vp->dclk,
+									     request_clock * 1000);
+					clock /= 1000;
+				} else {
+					clock = request_clock;
+				}
+			} else if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+				clock = request_clock;
+			} else {
+				clock = rockchip_drm_dclk_round_rate(vop2->version,
+								     vp->dclk_parent ?
+								     vp->dclk_parent :
+								     vp->dclk,
+								     request_clock * 1000) / 1000;
+			}
 		}
+	} else {
 		clock = rockchip_drm_dclk_round_rate(vop2->version,
 						     vp->dclk_parent ? clk_get_parent(vp->dclk) :
 						     vp->dclk, request_clock * 1000) / 1000;
@@ -16748,6 +16787,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->report_iommu_fault = of_property_read_bool(dev->of_node, "rockchip,report-iommu-fault");
 	vop2->report_post_buf_empty = of_property_read_bool(dev->of_node, "rockchip,report-post-buf-empty");
 	vop2->disable_wb = of_property_read_bool(dev->of_node, "rockchip,disable-writeback");
+	vop2->extend_phy_pll_shared_mode = of_property_read_bool(dev->of_node,
+							"rockchip,extend-phy-pll-shared-mode");
 	if (!is_vop3(vop2) ||
 	    vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
 		vop2->merge_irq = true;
