@@ -289,6 +289,7 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	if (IS_ERR(rockchip->pci.dbi_base))
 		return PTR_ERR(rockchip->pci.dbi_base);
 	rockchip->pci.atu_base = rockchip->pci.dbi_base + DEFAULT_DBI_ATU_OFFSET;
+	rockchip->pci.atu_size = SZ_4K;
 	rockchip->dbi_base_physical = dbi_res->start;
 
 	ret = device_property_read_u32(dev, "num-ib-windows", &rockchip->num_ib_windows);
@@ -937,9 +938,6 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	u32 reg, val;
 	int ret, retries, i;
 
-	/* Detecting ATU features to achieve DWC ATU interface development */
-	dw_pcie_iatu_detect(&rockchip->pci);
-
 	if (dw_pcie_link_up(&rockchip->pci))
 		goto already_linkup;
 	else
@@ -1246,13 +1244,14 @@ static int rockchip_pcie_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dm
 
 static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 {
-	struct dw_pcie *pci = &rockchip->pci;
-
-	rockchip->dma_obj = pcie_dw_dmatest_register(pci->dev, true);
-	if (IS_ERR(rockchip->dma_obj)) {
-		dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
-		return -EINVAL;
-	} else if (rockchip->dma_obj) {
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST)) {
+		rockchip->dma_obj = pcie_dw_dmatest_register(rockchip->pci.dev, true);
+		if (IS_ERR(rockchip->dma_obj)) {
+			dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
+			return -EINVAL;
+		}
+	}
+	if (rockchip->dma_obj) {
 		rockchip->dma_obj->start_dma_func = rockchip_pcie_start_dma_dwc;
 		rockchip->dma_obj->config_dma_func = rockchip_pcie_config_dma_dwc;
 		rockchip->dma_obj->get_dma_status = rockchip_pcie_get_dma_status;
@@ -1263,7 +1262,7 @@ static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 
 static void rockchip_pcie_deinit_dma_trx(struct rockchip_pcie *rockchip)
 {
-	if (rockchip->dma_obj)
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST) && rockchip->dma_obj)
 		pcie_dw_dmatest_unregister(rockchip->dma_obj);
 }
 
