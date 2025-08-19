@@ -2557,6 +2557,9 @@ static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VBLANK:
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
+		val = ctrl->val + sc635hai->cur_mode->height;
+		if (sc635hai->sync_mode == EXTERNAL_MASTER_MODE)
+			val -= 2;
 		ret = sc635hai_write_reg(sc635hai->client,
 					 SC635HAI_REG_VTS_H,
 					 SC635HAI_REG_VALUE_08BIT,
@@ -2564,11 +2567,11 @@ static int sc635hai_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= sc635hai_write_reg(sc635hai->client,
 					  SC635HAI_REG_VTS_M,
 					  SC635HAI_REG_VALUE_08BIT,
-					  (ctrl->val + sc635hai->cur_mode->height) >> 8);
+					  val >> 8);
 		ret |= sc635hai_write_reg(sc635hai->client,
 					  SC635HAI_REG_VTS_L,
 					  SC635HAI_REG_VALUE_08BIT,
-					  (ctrl->val + sc635hai->cur_mode->height) & 0xff);
+					  val & 0xff);
 		sc635hai->cur_vts = ctrl->val + sc635hai->cur_mode->height;
 		if (sc635hai->cur_vts != sc635hai->cur_mode->vts_def)
 			sc635hai_modify_fps_info(sc635hai);
