@@ -3309,6 +3309,8 @@ static int dw_dp_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 	struct dw_dp *dp = container_of(sub_dev, struct dw_dp, sub_dev);
 
 	dp->is_loader_protect = true;
+	if (dp->panel)
+		rockchip_drm_panel_loader_protect(dp->panel, on);
 	_dw_dp_loader_protect(dp, on);
 	if (dp->right)
 		_dw_dp_loader_protect(dp->right, on);
