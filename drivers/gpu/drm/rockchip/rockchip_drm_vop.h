@@ -1205,6 +1205,7 @@ struct vop2_wb_regs {
 	struct vop_reg format;
 	struct vop_reg dither_en;
 	struct vop_reg r2y_en;
+	struct vop_reg y2r_en;
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
 	struct vop_reg vp_id;
@@ -1220,6 +1221,10 @@ struct vop2_wb_regs {
 	struct vop_reg post_empty_stop_en;
 	struct vop_reg one_frame_mode;
 	struct vop_reg auto_gating;
+	/* writeback from win */
+	struct vop_reg win_en;
+	struct vop_reg win_sel;
+	struct vop_reg win_src_height;
 };
 
 struct vop2_power_domain_data {
@@ -1340,6 +1345,8 @@ struct vop2_wb_data {
 	const uint32_t *formats;
 	struct vop_rect max_output;
 	const struct vop2_wb_regs *regs;
+	uint32_t num_plane_source;
+	const struct drm_prop_enum_list *plane_source;
 	uint32_t fifo_depth;
 };
 

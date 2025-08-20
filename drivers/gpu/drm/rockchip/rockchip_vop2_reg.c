@@ -1169,11 +1169,18 @@ static const struct vop2_wb_data rk3568_vop_wb_data = {
 	.regs = &rk3568_vop_wb_regs,
 };
 
+static const struct drm_prop_enum_list rk3572_wb_plane_source[] = {
+	{ ROCKCHIP_VOP2_PHY_ID_INVALID, "CRTC" },
+	{ ROCKCHIP_VOP2_MSMART0, "Msmart0" },
+	{ ROCKCHIP_VOP2_MSMART1, "Msmart1" },
+};
+
 static const struct vop2_wb_regs rk3572_vop_wb_regs = {
 	.enable = VOP_REG(RK3572_WB_CTRL, 0x1, 0),
 	.format = VOP_REG(RK3572_WB_CTRL, 0x7, 1),
 	.dither_en = VOP_REG(RK3572_WB_CTRL, 0x1, 4),
 	.r2y_en = VOP_REG(RK3572_WB_CTRL, 0x1, 5),
+	.y2r_en = VOP_REG(RK3572_WB_CTRL, 0x1, 29),
 	.scale_x_en = VOP_REG(RK3572_WB_CTRL, 0x1, 7),
 	.scale_y_en = VOP_REG(RK3572_WB_CTRL, 0x1, 8),
 	.post_empty_stop_en = VOP_REG(RK3572_WB_CTRL, 0x1, 11),
@@ -1189,6 +1196,9 @@ static const struct vop2_wb_regs rk3572_vop_wb_regs = {
 	.vir_stride_en = VOP_REG(RK3572_WB_VIR_STRIDE, 0x1, 15),
 	.act_width = VOP_REG(RK3572_WB_VIR_STRIDE, 0x1fff, 16),
 	.auto_gating = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 11),
+	.win_en = VOP_REG(RK3572_WB_WIN_CTRL, 0x1, 0),
+	.win_sel = VOP_REG(RK3572_WB_WIN_CTRL, 0x1, 4),
+	.win_src_height = VOP_REG(RK3572_WB_WIN_CTRL, 0x1fff, 16),
 };
 
 static const struct vop2_wb_data rk3572_vop_wb_data = {
@@ -1196,6 +1206,8 @@ static const struct vop2_wb_data rk3572_vop_wb_data = {
 	.nformats = ARRAY_SIZE(formats_wb),
 	.max_output = { 1920, 1080 },
 	.fifo_depth =  1920 * 4 / 16,
+	.num_plane_source = ARRAY_SIZE(rk3572_wb_plane_source),
+	.plane_source = rk3572_wb_plane_source,
 	.regs = &rk3572_vop_wb_regs,
 };
 

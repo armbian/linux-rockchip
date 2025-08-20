@@ -559,7 +559,8 @@ struct vop2_wb {
 	 * spinlock to protect the job between vop2_wb_commit and vop2_wb_handler in isr.
 	 */
 	spinlock_t job_lock;
-
+	struct drm_property *wb_source_prop;
+	uint64_t wb_source;
 };
 
 struct vop2_dovi_core {
@@ -592,7 +593,9 @@ struct vop2_wb_connector_state {
 	dma_addr_t yrgb_addr;
 	dma_addr_t uv_addr;
 	enum vop2_wb_format format;
+	struct vop2_win *wb_source_win;
 	uint16_t scale_x_factor;
+	uint8_t win_sel;
 	uint8_t scale_x_en;
 	uint8_t scale_y_en;
 	uint8_t vp_id;
@@ -3943,6 +3946,44 @@ vop2_wb_connector_duplicate_state(struct drm_connector *connector)
 	return &wb_state->base;
 }
 
+static int vop2_wb_connector_atomic_set_property(struct drm_connector *connector,
+						 struct drm_connector_state *connector_state,
+						 struct drm_property *property,
+						 uint64_t val)
+{
+	struct drm_writeback_connector *wb_conn;
+	struct vop2_wb *wb;
+
+	wb_conn = container_of(connector, struct drm_writeback_connector, base);
+	wb = container_of(wb_conn, struct vop2_wb, conn);
+
+	if (property == wb->wb_source_prop) {
+		wb->wb_source = val;
+		return 0;
+	}
+
+	return 0;
+}
+
+static int vop2_wb_connector_atomic_get_property(struct drm_connector *connector,
+						 const struct drm_connector_state *state,
+						 struct drm_property *property,
+						 uint64_t *val)
+{
+	struct drm_writeback_connector *wb_conn;
+	struct vop2_wb *wb;
+
+	wb_conn = container_of(connector, struct drm_writeback_connector, base);
+	wb = container_of(wb_conn, struct vop2_wb, conn);
+
+	if (property == wb->wb_source_prop) {
+		*val = wb->wb_source;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static const struct drm_connector_funcs vop2_wb_connector_funcs = {
 	.reset = vop2_wb_connector_reset,
 	.detect = vop2_wb_connector_detect,
@@ -3950,6 +3991,8 @@ static const struct drm_connector_funcs vop2_wb_connector_funcs = {
 	.destroy = vop2_wb_connector_destroy,
 	.atomic_duplicate_state = vop2_wb_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_set_property = vop2_wb_connector_atomic_set_property,
+	.atomic_get_property = vop2_wb_connector_atomic_get_property,
 };
 
 static int vop2_wb_connector_get_modes(struct drm_connector *connector)
@@ -4029,6 +4072,10 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
+	struct vop2_win *win;
+	struct vop2_plane_state *vpstate;
+	u16 source_width, source_height;
+	int i;
 
 	/*
 	 * No need for a full modested when the only connector changed is the
@@ -4046,9 +4093,38 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	fb = conn_state->writeback_job->fb;
 	DRM_DEV_DEBUG(vp->vop2->dev, "%d x % d\n", fb->width, fb->height);
 
-	if (!fb->format->is_yuv && is_yuv_output(vcstate->bus_format)) {
+	if (!fb->format->is_yuv && is_yuv_output(vcstate->bus_format) &&
+	    vop2->version != VOP_VERSION_RK3572) {
 		DRM_ERROR("YUV2RGB is not supported by writeback\n");
 		return -EINVAL;
+	}
+
+	if (vop2->version == VOP_VERSION_RK3572 &&
+	    vop2->wb.wb_source != ROCKCHIP_VOP2_PHY_ID_INVALID) {
+		win = vop2_find_win_by_phys_id(vop2, vop2->wb.wb_source);
+		if (!vop2_win_can_attach_to_vp(vp, win)) {
+			drm_err(vop2->drm_dev, "writeback win[%s] can not use with vp%d\n",
+				win->name, vp->id);
+			return -EINVAL;
+		}
+
+		for (i = 1; i < vop2->data->wb->num_plane_source; i++) {
+			if (vop2->wb.wb_source == vop2->data->wb->plane_source[i].type) {
+				i--;
+				break;
+			}
+		}
+
+		wb_state->win_sel = i;
+		wb_state->wb_source_win = win;
+
+		vpstate = to_vop2_plane_state(win->base.state);
+		source_width = drm_rect_width(&vpstate->src) >> 16;
+		source_height = drm_rect_height(&vpstate->src) >> 16;
+	} else {
+		wb_state->wb_source_win = NULL;
+		source_width = cstate->mode.hdisplay;
+		source_height = cstate->mode.vdisplay;
 	}
 
 	/*
@@ -4061,18 +4137,18 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 				 ALIGN_DOWN(fb->width, 16));
 	}
 
-	if ((fb->width > cstate->mode.hdisplay) ||
-	    ((fb->height < cstate->mode.vdisplay) &&
-	    (fb->height != (cstate->mode.vdisplay >> 1)))) {
+	if ((fb->width > source_width) ||
+	    ((fb->height < source_height) &&
+	    (fb->height != (source_height >> 1)))) {
 		DRM_DEBUG_KMS("Invalid framebuffer size %ux%u, Only support x scale down and 1/2 y scale down\n",
 				fb->width, fb->height);
 		return -EINVAL;
 	}
 
 	wb_state->scale_x_factor = vop2_scale_factor(SCALE_DOWN, VOP2_SCALE_DOWN_BIL,
-						      cstate->mode.hdisplay, fb->width);
-	wb_state->scale_x_en = (fb->width < cstate->mode.hdisplay) ? 1 : 0;
-	wb_state->scale_y_en = (fb->height < cstate->mode.vdisplay) ? 1 : 0;
+						     source_width, fb->width);
+	wb_state->scale_x_en = (fb->width < source_width) ? 1 : 0;
+	wb_state->scale_y_en = (fb->height < source_height) ? 1 : 0;
 
 	wb_state->format = vop2_convert_wb_format(fb->format->format);
 	if (wb_state->format < 0) {
@@ -4121,6 +4197,7 @@ static const struct drm_connector_helper_funcs vop2_wb_connector_helper_funcs = 
 static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 {
 	const struct vop2_data *vop2_data = vop2->data;
+	struct drm_property *wb_source_prop;
 	int ret;
 
 	vop2->wb.regs = vop2_data->wb->regs;
@@ -4134,8 +4211,28 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 					   vop2_data->wb->formats,
 					   vop2_data->wb->nformats,
 					   vop2->wb.conn.encoder.possible_crtcs);
-	if (ret)
+	if (ret) {
 		DRM_DEV_ERROR(vop2->dev, "writeback connector init failed\n");
+		return ret;
+	}
+
+	/* output from VP by default */
+	vop2->wb.wb_source = ROCKCHIP_VOP2_PHY_ID_INVALID;
+
+	if (vop2_data->wb->num_plane_source) {
+		wb_source_prop = drm_property_create_enum(vop2->drm_dev, 0, "WB_SOURCE",
+							  vop2_data->wb->plane_source,
+							  vop2_data->wb->num_plane_source);
+		if (!wb_source_prop) {
+			drm_err(vop2, "Failed to create WB_SOURCE prop\n");
+			return -ENOMEM;
+		}
+
+		drm_object_attach_property(&vop2->wb.conn.base.base, wb_source_prop,
+					   ROCKCHIP_VOP2_PHY_ID_INVALID);
+		vop2->wb.wb_source_prop = wb_source_prop;
+	}
+
 	return ret;
 }
 
@@ -4181,9 +4278,11 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	struct vop2_wb_connector_state *wb_state;
+	struct vop2_plane_state *vpstate;
 	unsigned long flags;
 	uint32_t fifo_throd;
-	uint8_t r2y;
+	uint8_t r2y, y2r;
+	bool input_yuv;
 
 	if (!vop2->wb.regs)
 		return;
@@ -4222,7 +4321,31 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		fifo_throd = fb->pitches[0] >> 4;
 		if (fifo_throd >= vop2->data->wb->fifo_depth)
 			fifo_throd = vop2->data->wb->fifo_depth;
-		r2y = !vcstate->yuv_overlay && fb->format->is_yuv;
+
+		if (wb_state->wb_source_win) {
+			vpstate = to_vop2_plane_state(wb_state->wb_source_win->base.state);
+			if (vpstate->y2r_en)
+				input_yuv = false;
+			else if (vpstate->r2y_en)
+				input_yuv = true;
+			else if (vpstate->format < VOP2_FMT_YUV420SP)
+				input_yuv = false;
+			else
+				input_yuv = true;
+
+			VOP_MODULE_SET(vop2, wb, win_src_height,
+				       (drm_rect_height(&vpstate->src) >> 16) - 1);
+			VOP_MODULE_SET(vop2, wb, win_en, 1);
+			VOP_MODULE_SET(vop2, wb, win_sel, wb_state->win_sel);
+		} else {
+			/* writeback from vp */
+			input_yuv = vcstate->yuv_overlay;
+			VOP_MODULE_SET(vop2, wb, win_en, 0);
+			VOP_MODULE_SET(vop2, wb, win_sel, 0);
+		}
+
+		r2y = !input_yuv && fb->format->is_yuv;
+		y2r = input_yuv && !fb->format->is_yuv;
 
 		/*
 		 * the vp_id register config done immediately
@@ -4236,6 +4359,29 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, wb, scale_x_en, wb_state->scale_x_en);
 		VOP_MODULE_SET(vop2, wb, scale_y_en, wb_state->scale_y_en);
 		VOP_MODULE_SET(vop2, wb, r2y_en, r2y);
+		VOP_MODULE_SET(vop2, wb, y2r_en, y2r);
+
+		if (vop2->version >= VOP_VERSION_RK3572) {
+			if (y2r) {
+				vop2_writel(vop2, RK3572_WB_CSC_COE01_00, 0x400);
+				vop2_writel(vop2, RK3572_WB_CSC_COE10_02, 0x0400064d);
+				vop2_writel(vop2, RK3572_WB_CSC_COE12_11, 0xfe21ff40);
+				vop2_writel(vop2, RK3572_WB_CSC_COE21_20, 0x076c0400);
+				vop2_writel(vop2, RK3572_WB_CSC_COE22, 0x0);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET0, 0xfffcd980);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET1, 0x14F80);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET2, 0xfffc4a00);
+			} else if (r2y) {
+				vop2_writel(vop2, RK3572_WB_CSC_COE01_00, 0x02dc00da);
+				vop2_writel(vop2, RK3572_WB_CSC_COE10_02, 0xff8b004a);
+				vop2_writel(vop2, RK3572_WB_CSC_COE12_11, 0x0200fe75);
+				vop2_writel(vop2, RK3572_WB_CSC_COE21_20, 0xfe2f0200);
+				vop2_writel(vop2, RK3572_WB_CSC_COE22, 0xffd1);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET0, 0x0);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET1, 0x20000);
+				vop2_writel(vop2, RK3572_WB_CSC_OFFSET2, 0x20000);
+			}
+		}
 
 		/*
 		 * From rk3576, VOP writeback can support oneshot mode, and
@@ -4252,7 +4398,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 			VOP_MODULE_SET(vop2, wb, vir_stride_en, 1);
 			VOP_MODULE_SET(vop2, wb, post_empty_stop_en, 1);
 			if (one_frame_mode) {
-				if (vop2->version == VOP_VERSION_RK3576)
+				if (vop2->version >= VOP_VERSION_RK3572)
 					VOP_MODULE_SET(vop2, wb, auto_gating, 0);
 				VOP_MODULE_SET(vop2, wb, one_frame_mode, 1);
 				vop2_write_reg_uncached(vop2, &wb->regs->enable, 1);
