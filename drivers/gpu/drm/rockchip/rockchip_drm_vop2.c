@@ -3562,7 +3562,7 @@ static void vop2_axi_irqs_enable(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop_intr *intr;
-	uint32_t irqs = BUS_ERROR_INTR | MMU_EN_INTR;
+	uint32_t irqs = BUS_ERROR_INTR | MMU_EN_INTR | WB_COMPLETE_INTR;
 	uint32_t i;
 
 	for (i = 0; i < vop2_data->nr_axi_intr; i++) {
