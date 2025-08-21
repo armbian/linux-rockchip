@@ -368,6 +368,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_FBCIN_PAYL_BASE;
 	u32 *bRGA_FBCIN_OFF;
 	u32 *bRGA_FBCIN_HEAD_VIR_INFO;
+	u32 *bRGA_FBCIN_OVERLAP_OFF;
 
 	u8 disable_uv_channel_en = 0;
 
@@ -422,6 +423,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	bRGA_FBCIN_PAYL_BASE = (u32 *) (base + RGA2_FBCIN_PAYL_BASE_OFFSET);
 	bRGA_FBCIN_OFF = (u32 *) (base + RGA2_FBCIN_OFF_OFFSET);
 	bRGA_FBCIN_HEAD_VIR_INFO = (u32 *) (base + RGA2_FBCIN_HEAD_VIR_INFO_OFFSET);
+	bRGA_FBCIN_OVERLAP_OFF = (u32 *) (base + RGA2_FBCIN_OVERLAP_OFF_OFFSET);
 
 	{
 		rotate_mode = msg->rotate_mode & 0x3;
@@ -986,8 +988,20 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		*bRGA_FBCIN_HEAD_BASE = head_base_addr;
 		*bRGA_FBCIN_PAYL_BASE = payload_base_addr;
 		*bRGA_FBCIN_HEAD_VIR_INFO = stride;
-		*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
-		*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+
+		if (msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+		    msg->alpha_rop_flag & 1) {
+			*bRGA_FBCIN_OFF = ALIGN_DOWN(msg->src.x_offset, 32) |
+					  (ALIGN_DOWN(msg->src.y_offset, 8) << 16);
+			*bRGA_FBCIN_OVERLAP_OFF = (msg->src.x_offset % 32) |
+						  (msg->src.y_offset % 8 << 8);
+			*bRGA_SRC_ACT_INFO =
+				(ALIGN(msg->src.act_w + msg->src.x_offset % 32, 32) - 1) |
+				((ALIGN(msg->src.act_h + msg->src.y_offset % 8, 8) - 1) << 16);
+		} else {
+			*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
+			*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+		}
 	} else {
 		*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
 		if (disable_uv_channel_en == 1) {
@@ -1041,6 +1055,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_FBCIN1_HEAD_BASE;
 	u32 *bRGA_FBCIN1_PAYL_BASE;
 	u32 *bRGA_FBCIN1_OFF;
+	u32 *bRGA_SRC1_ACT_SIZE;
 
 	u32 *bRGA_FBCOUT_CTL;
 	u32 *bRGA_FBCOUT_HEAD_BASE;
@@ -1082,6 +1097,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 u_lt_addr = 0, u_ld_addr = 0, u_rt_addr = 0, u_rd_addr = 0;
 	u32 v_lt_addr = 0, v_ld_addr = 0, v_rt_addr = 0, v_rd_addr = 0;
 	u32 yrgb_offset = 0, uv_offset = 0, v_offset = 0;
+	u32 x_offset, y_offset;
 	u32 tile_x_offset = 0;
 	u32 tile_y_offset = 0;
 	u32 tile_block_size;
@@ -1089,6 +1105,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 dst_head_base_addr;
 	u32 dst_head_stride;
 	u32 dst_head_size;
+	u32 dst_head_offset;
 	u32 dst_payload_base_addr;
 	u32 dst_payload_stride;
 	u32 dst_payload_block_size;
@@ -1125,6 +1142,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	bRGA_FBCIN1_HEAD_BASE = (u32 *) (base + RGA2_FBCIN1_HEAD_BASE_OFFSET);
 	bRGA_FBCIN1_PAYL_BASE = (u32 *) (base + RGA2_FBCIN1_PAYL_BASE_OFFSET);
 	bRGA_FBCIN1_OFF = (u32 *) (base + RGA2_FBCIN1_OFF_OFFSET);
+	bRGA_SRC1_ACT_SIZE = (u32 *)(base + RGA2_SRC1_ACT_SIZE);
 
 	bRGA_FBCOUT_CTL = (u32 *) (base + RGA2_FBCOUT_CTRL_OFFSET);
 	bRGA_FBCOUT_HEAD_BASE = (u32 *) (base + RGA2_FBCOUT_HEAD_BASE_OFFSET);
@@ -1309,6 +1327,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		*bRGA_FBCIN1_HEAD_BASE = s_head_base_addr;
 		*bRGA_FBCIN1_PAYL_BASE = s_payload_base_addr;
 		*bRGA_FBCIN1_OFF = msg->src1.x_offset | (msg->src1.y_offset << 16);
+
+		*bRGA_SRC1_ACT_SIZE = (msg->src1.act_w - 1) | ((msg->src1.act_h - 1) << 16);
 	} else {
 		*bRGA_SRC_BASE3 = (u32)msg->src1.yrgb_addr + s_yrgb_offset;
 	}
@@ -1640,9 +1660,19 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 			d_stride = ALIGN(d_stride, 2) >> 1;
 		d_uv_stride = ALIGN(d_stride / x_div * plane_width, 4);
 
-		yrgb_offset = msg->dst.y_offset * d_stride + msg->dst.x_offset * dpw;
-		uv_offset = (msg->dst.y_offset / y_div) * d_uv_stride +
-			    (msg->dst.x_offset / x_div * plane_width);
+		if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
+			msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+		    msg->alpha_rop_flag & 1) {
+			x_offset = ALIGN_DOWN(msg->dst.x_offset, 32);
+			y_offset = ALIGN_DOWN(msg->dst.y_offset, 8);
+		} else {
+			x_offset = msg->dst.x_offset;
+			y_offset = msg->dst.y_offset;
+		}
+
+		yrgb_offset = y_offset * d_stride + x_offset * dpw;
+		uv_offset = (y_offset / y_div) * d_uv_stride +
+			    (x_offset / x_div * plane_width);
 		v_offset = uv_offset;
 
 		yrgb_addr = (u32)msg->dst.yrgb_addr + yrgb_offset;
@@ -1823,8 +1853,17 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		}
 
 		dst_payload_base_addr = dst_head_base_addr + dst_head_size;
-		dst_payload_offset = (msg->dst.y_offset / 8) * dst_payload_stride +
-				     msg->dst.x_offset * dst_payload_block_size;
+
+		/* offset */
+		x_offset = ALIGN_DOWN(msg->dst.x_offset, 32);
+		y_offset = ALIGN_DOWN(msg->dst.y_offset, 8);
+
+		dst_head_offset = (y_offset / 8) * dst_head_stride +
+				      (x_offset / 32) * 16;
+		dst_payload_offset = (y_offset / 8) * dst_payload_stride +
+				     (x_offset / 32) * dst_payload_block_size;
+
+		dst_head_base_addr += dst_head_offset;
 		dst_payload_base_addr += dst_payload_offset;
 
 		dst_fbc_mode = 0x1;
@@ -1899,16 +1938,25 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	*bRGA_DST_VIR_INFO = (d_stride >> 2) | ((s_stride >> 2) << 16);
 
-	if ((msg->dst.vir_w % 2 != 0) &&
-	    (msg->dst.act_w == msg->src.act_w) && (msg->dst.act_h == msg->src.act_h) &&
-	    (msg->dst.format == RGA_FORMAT_BGR_888 || msg->dst.format == RGA_FORMAT_RGB_888))
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16) |
-			tile_x_offset << 14 | tile_y_offset << 30;
-	else
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16) |
-			tile_x_offset << 14 | tile_y_offset << 30;
+	if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
+	    msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+	    msg->alpha_rop_flag & 1) {
+		*bRGA_DST_ACT_INFO = (ALIGN(msg->dst.act_w + msg->dst.x_offset % 32, 32) - 1) |
+				     ((ALIGN(msg->dst.act_h + msg->dst.y_offset % 8, 8) - 1) << 16);
+	} else {
+		if ((msg->dst.vir_w % 2 != 0) &&
+		    (msg->dst.act_w == msg->src.act_w) &&
+		    (msg->dst.act_h == msg->src.act_h) &&
+		    (msg->dst.format == RGA_FORMAT_BGR_888 ||
+		     msg->dst.format == RGA_FORMAT_RGB_888))
+			*bRGA_DST_ACT_INFO =
+				(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16) |
+				tile_x_offset << 14 | tile_y_offset << 30;
+		else
+			*bRGA_DST_ACT_INFO =
+				(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16) |
+				tile_x_offset << 14 | tile_y_offset << 30;
+	}
 
 	if (rot_90_flag == 0) {
 		if (y_mirr == 1) {
@@ -1981,7 +2029,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		break;
 	case RGA_AFBC32x8_MODE:
 		*bRGA_FBCOUT_HEAD_BASE = dst_head_base_addr;
-		*bRGA_FBCOUT_HEAD_OFF = dst_payload_base_addr - dst_head_base_addr;
+		*bRGA_FBCOUT_HEAD_OFF = dst_payload_base_addr - msg->dst.yrgb_addr;
 
 		*bRGA_FBCOUT_PAYL_BASE = dst_payload_base_addr;
 		*bRGA_FBCOUT_PAYL_VIR_INFO = dst_payload_stride >> 2;
