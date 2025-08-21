@@ -840,42 +840,80 @@ static int ov13b10_g_frame_interval(struct v4l2_subdev *sd,
 static void ov13b10_get_otp(struct otp_info *otp,
 			       struct rkmodule_inf *inf)
 {
-	u32 i;
+	u32 i, j;
+	u32 w, h;
 
-	if (otp->total_checksum) {
-		/* awb */
-		if (otp->awb_data.flag) {
-			inf->awb.flag = 1;
-			inf->awb.r_value = otp->awb_data.r_ratio;
-			inf->awb.b_value = otp->awb_data.b_ratio;
-			inf->awb.gr_value = otp->awb_data.g_ratio;
-			inf->awb.gb_value = 0x0;
+	/* awb */
+	if (otp->awb_data.flag) {
+		inf->awb.flag = 1;
+		inf->awb.r_value = otp->awb_data.r_ratio;
+		inf->awb.b_value = otp->awb_data.b_ratio;
+		inf->awb.gr_value = otp->awb_data.g_ratio;
+		inf->awb.gb_value = 0x0;
 
-			inf->awb.golden_r_value = otp->awb_data.r_golden;
-			inf->awb.golden_b_value = otp->awb_data.b_golden;
-			inf->awb.golden_gr_value = otp->awb_data.g_golden;
-			inf->awb.golden_gb_value = 0x0;
+		inf->awb.golden_r_value = otp->awb_data.r_golden;
+		inf->awb.golden_b_value = otp->awb_data.b_golden;
+		inf->awb.golden_gr_value = otp->awb_data.g_golden;
+		inf->awb.golden_gb_value = 0x0;
+	}
+
+	/* lsc */
+	if (otp->lsc_data.flag) {
+		inf->lsc.flag = 1;
+		inf->lsc.width = otp->basic_data.size.width;
+		inf->lsc.height = otp->basic_data.size.height;
+		inf->lsc.table_size = otp->lsc_data.table_size;
+
+		for (i = 0; i < 289; i++) {
+			inf->lsc.lsc_r[i] = (otp->lsc_data.data[i * 2] << 8) |
+					     otp->lsc_data.data[i * 2 + 1];
+			inf->lsc.lsc_gr[i] = (otp->lsc_data.data[i * 2 + 578] << 8) |
+					      otp->lsc_data.data[i * 2 + 579];
+			inf->lsc.lsc_gb[i] = (otp->lsc_data.data[i * 2 + 1156] << 8) |
+					      otp->lsc_data.data[i * 2 + 1157];
+			inf->lsc.lsc_b[i] = (otp->lsc_data.data[i * 2 + 1734] << 8) |
+					     otp->lsc_data.data[i * 2 + 1735];
 		}
+	}
 
-		/* lsc */
-		if (otp->lsc_data.flag) {
-			inf->lsc.flag = 1;
-			inf->lsc.width = otp->basic_data.size.width;
-			inf->lsc.height = otp->basic_data.size.height;
-			inf->lsc.table_size = otp->lsc_data.table_size;
-
-			for (i = 0; i < 289; i++) {
-				inf->lsc.lsc_r[i] = (otp->lsc_data.data[i * 2] << 8) |
-						     otp->lsc_data.data[i * 2 + 1];
-				inf->lsc.lsc_gr[i] = (otp->lsc_data.data[i * 2 + 578] << 8) |
-						      otp->lsc_data.data[i * 2 + 579];
-				inf->lsc.lsc_gb[i] = (otp->lsc_data.data[i * 2 + 1156] << 8) |
-						      otp->lsc_data.data[i * 2 + 1157];
-				inf->lsc.lsc_b[i] = (otp->lsc_data.data[i * 2 + 1734] << 8) |
-						     otp->lsc_data.data[i * 2 + 1735];
+	/* pdaf */
+	if (otp->pdaf_data.flag) {
+		inf->pdaf.flag = 1;
+		inf->pdaf.gainmap_width = otp->pdaf_data.gainmap_width;
+		inf->pdaf.gainmap_height = otp->pdaf_data.gainmap_height;
+		inf->pdaf.dcc_mode = otp->pdaf_data.dcc_mode;
+		inf->pdaf.dcc_dir = otp->pdaf_data.dcc_dir;
+		inf->pdaf.dccmap_width = otp->pdaf_data.dccmap_width;
+		inf->pdaf.dccmap_height = otp->pdaf_data.dccmap_height;
+		w = otp->pdaf_data.gainmap_width;
+		h = otp->pdaf_data.gainmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.gainmap[i * w + j] =
+					(otp->pdaf_data.gainmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.gainmap[(i * w + j) * 2 + 1];
+			}
+		}
+		w = otp->pdaf_data.dccmap_width;
+		h = otp->pdaf_data.dccmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.dccmap[i * w + j] =
+					(otp->pdaf_data.dccmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.dccmap[(i * w + j) * 2 + 1];
 			}
 		}
 	}
+
+	/* af */
+	if (otp->af_data.flag) {
+		inf->af.flag = 1;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp->af_data.af_inf;
+		inf->af.af_otp[0].vcm_end = otp->af_data.af_macro;
+		inf->af.af_otp[0].vcm_dir = 0;
+	}
+
 }
 
 static int ov13b10_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
