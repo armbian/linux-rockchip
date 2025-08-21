@@ -19,6 +19,7 @@ struct rk_aoa_dev {
 	struct device *dev;
 	struct reset_control *rst;
 	void __iomem *base;
+	int irq;
 };
 
 static const struct of_device_id rockchip_aoa_match[] __maybe_unused = {
@@ -46,36 +47,69 @@ int rockchip_aoa_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct rk_aoa_dev *aoa;
 	int ret, irq;
+	struct resource *res;
 
-	aoa = devm_kzalloc(&pdev->dev, sizeof(*aoa), GFP_KERNEL);
-	if (!aoa)
-		return -ENOMEM;
+	aoa = kzalloc(sizeof(*aoa), GFP_KERNEL);
+	if (!aoa) {
+		ret = -ENOMEM;
+		goto err_out;
+	}
 
 	aoa->dev = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, aoa);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENODEV;
+		goto err_free_aoa;
+	}
 
-	aoa->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(aoa->base))
-		return PTR_ERR(aoa->base);
+	aoa->base = ioremap(res->start, resource_size(res));
+	if (!aoa->base) {
+		ret = -ENOMEM;
+		goto err_free_aoa;
+	}
 
-	aoa->rst = devm_reset_control_array_get_optional_exclusive(aoa->dev);
-	if (IS_ERR(aoa->rst))
-		return PTR_ERR(aoa->rst);
+	aoa->rst = of_reset_control_array_get_optional_exclusive(node);
+	if (IS_ERR(aoa->rst)) {
+		ret = PTR_ERR(aoa->rst);
+		goto err_unmap;
+	}
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0) {
-		ret = devm_request_irq(&pdev->dev, irq, rockchip_aoa_isr,
-				       IRQF_SHARED, node->name, aoa);
+		ret = request_irq(irq, rockchip_aoa_isr, 0, node->name, aoa);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to request irq %d\n", irq);
-			return ret;
+			goto err_put_rst;
 		}
 	}
-
+	aoa->irq = irq;
+	dev_set_drvdata(&pdev->dev, aoa);
 	return 0;
+
+err_put_rst:
+	reset_control_put(aoa->rst);
+err_unmap:
+	iounmap(aoa->base);
+err_free_aoa:
+	kfree(aoa);
+err_out:
+	return ret;
 }
 
 int rockchip_aoa_remove(struct platform_device *pdev)
 {
+	struct rk_aoa_dev *aoa = platform_get_drvdata(pdev);
+
+	if (aoa) {
+		if (aoa->irq > 0) {
+			disable_irq(aoa->irq);
+			free_irq(aoa->irq, aoa);
+		}
+
+		reset_control_put(aoa->rst);
+		iounmap(aoa->base);
+		kfree(aoa);
+		dev_set_drvdata(&pdev->dev, NULL);
+	}
 	return 0;
 }

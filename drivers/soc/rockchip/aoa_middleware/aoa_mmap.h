@@ -9,7 +9,7 @@
 #ifndef __AOA_MMAP_H__
 #define __AOA_MMAP_H__
 
-int aoa_mmap_probe(struct platform_device *pdev);
-int aoa_mmap_remove(struct platform_device *pdev);
+void *aoa_mmap_probe(struct platform_device *pdev);
+int aoa_mmap_remove(struct platform_device *pdev, void *am_d);
 
 #endif /* __AOA_MMAP_H__ */

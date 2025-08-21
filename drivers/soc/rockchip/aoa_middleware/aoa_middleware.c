@@ -37,6 +37,7 @@ struct aoa_middleware_devs {
 	struct device *dev;
 	struct platform_device *pdev_aoa;
 	struct platform_device *pdev_dma;
+	void *am_d;
 };
 
 static struct fasync_struct *rk_aoa_fasync_queue;
@@ -167,88 +168,143 @@ static struct miscdevice rk_dma_notifier_misc = {
 static int aoa_middleware_probe(struct platform_device *pdev)
 {
 	struct aoa_middleware_devs *amw_d;
-	struct platform_device *pdev_slave;
-	struct device_node *np;
-	int ret;
+	struct platform_device *pdev_slave = NULL;
+	struct device_node *np = NULL;
+	void *am_map = NULL;
+	int ret = 0;
 
 	amw_d = devm_kzalloc(&pdev->dev, sizeof(*amw_d), GFP_KERNEL);
 	if (!amw_d)
 		return -ENOMEM;
 	amw_d->dev = &pdev->dev;
+	amw_d->pdev_aoa = NULL;
+	amw_d->pdev_dma = NULL;
+	amw_d->am_d = NULL;
 
 	/* prepare rockchip aoa control driver */
 	np = of_parse_phandle(pdev->dev.of_node, "rockchip,aoa", 0);
 	if (!np || !of_device_is_available(np)) {
 		dev_err(&pdev->dev, "can't find 'rockchip,aoa' node\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_out;
 	}
+
 	pdev_slave = of_find_device_by_node(np);
 	of_node_put(np);
 	if (!pdev_slave) {
 		dev_err(&pdev->dev, "get aoa node failed\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_out;
 	}
+
 	ret = rockchip_aoa_probe(pdev_slave);
 	if (ret) {
 		dev_err(&pdev->dev, "probe rockchip aoa failed: %d\n", ret);
-		return ret;
+		goto err_put_aoa;
 	}
 	amw_d->pdev_aoa = pdev_slave;
+	pdev_slave = NULL;
 
 	/* prepare rockchip low-power dma driver */
 	np = of_parse_phandle(pdev->dev.of_node, "rockchip,dma", 0);
 	if (!np || !of_device_is_available(np)) {
 		dev_err(&pdev->dev, "can't find 'rockchip,dma' node\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_unprobe_aoa;
 	}
+
 	pdev_slave = of_find_device_by_node(np);
 	of_node_put(np);
 	if (!pdev_slave) {
 		dev_err(&pdev->dev, "get dma node failed\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_unprobe_aoa;
 	}
+
 	ret = lp_rkdma_probe(pdev_slave);
 	if (ret) {
 		dev_err(&pdev->dev, "probe rockchip dma failed: %d\n", ret);
-		return ret;
+		goto err_put_dma;
 	}
 	amw_d->pdev_dma = pdev_slave;
+	pdev_slave = NULL;
 
-	/* prepare aoa memory mapping */
-	ret = aoa_mmap_probe(pdev);
-	if (ret) {
+	am_map = aoa_mmap_probe(pdev);
+	if (IS_ERR_OR_NULL(am_map)) {
+		if (IS_ERR(am_map))
+			ret = PTR_ERR(am_map);
+		else
+			ret = -EINVAL;
 		dev_err(&pdev->dev, "%s: aoa mmap probe failed (%d)\n", __func__, ret);
-		return ret;
+		goto err_unprobe_dma;
 	}
+	amw_d->am_d = am_map;
 
-	/* prepare aoa/dma notifiers */
 	ret = misc_register(&rk_aoa_notifier_misc);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: aoa notifier misc register failed (%d)\n", __func__, ret);
-		return ret;
+		goto err_mmap_remove;
 	}
 
 	ret = misc_register(&rk_dma_notifier_misc);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: dma notifier misc register failed (%d)\n", __func__, ret);
-		return ret;
+		goto err_unregister_aoa_misc;
 	}
 
 	platform_set_drvdata(pdev, amw_d);
 	dev_info(&pdev->dev, "%s: all aoa middlewares are registered\n", __func__);
 	return 0;
+
+err_unregister_aoa_misc:
+	misc_deregister(&rk_aoa_notifier_misc);
+err_mmap_remove:
+	if (amw_d->am_d) {
+		aoa_mmap_remove(pdev, amw_d->am_d);
+		amw_d->am_d = NULL;
+	}
+err_unprobe_dma:
+	if (amw_d->pdev_dma)
+		lp_rkdma_remove(amw_d->pdev_dma);
+err_put_dma:
+	if (amw_d->pdev_dma) {
+		platform_device_put(amw_d->pdev_dma);
+		amw_d->pdev_dma = NULL;
+	}
+err_unprobe_aoa:
+	if (amw_d->pdev_aoa)
+		rockchip_aoa_remove(amw_d->pdev_aoa);
+err_put_aoa:
+	if (amw_d->pdev_aoa) {
+		platform_device_put(amw_d->pdev_aoa);
+		amw_d->pdev_aoa = NULL;
+	}
+err_out:
+	if (pdev_slave)
+		platform_device_put(pdev_slave);
+	return ret;
 }
 
 static int aoa_middleware_remove(struct platform_device *pdev)
 {
 	struct aoa_middleware_devs *amw_d = platform_get_drvdata(pdev);
 
-	if (IS_ERR(amw_d))
+	if (IS_ERR_OR_NULL(amw_d))
 		return -EINVAL;
 
-	rockchip_aoa_remove(amw_d->pdev_aoa);
-	lp_rkdma_remove(amw_d->pdev_dma);
-	aoa_mmap_remove(pdev);
+	if (amw_d->pdev_aoa) {
+		rockchip_aoa_remove(amw_d->pdev_aoa);
+		platform_device_put(amw_d->pdev_aoa);
+		amw_d->pdev_aoa = NULL;
+	}
+
+	if (amw_d->pdev_dma) {
+		lp_rkdma_remove(amw_d->pdev_dma);
+		platform_device_put(amw_d->pdev_dma);
+		amw_d->pdev_dma = NULL;
+	}
+
+	aoa_mmap_remove(pdev, amw_d->am_d);
 
 	misc_deregister(&rk_dma_notifier_misc);
 	misc_deregister(&rk_aoa_notifier_misc);

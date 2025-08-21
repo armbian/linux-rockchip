@@ -95,7 +95,7 @@ static const struct file_operations aoa_mmap_fops = {
 	.unlocked_ioctl = aoa_mmap_ioctl,
 };
 
-int aoa_mmap_probe(struct platform_device *pdev)
+void *aoa_mmap_probe(struct platform_device *pdev)
 {
 	struct aoa_mmap_dev *am_d;
 	struct resource res;
@@ -104,20 +104,20 @@ int aoa_mmap_probe(struct platform_device *pdev)
 
 	am_d = devm_kzalloc(&pdev->dev, sizeof(*am_d), GFP_KERNEL);
 	if (!am_d)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	am_d->dev = &pdev->dev;
 
 	res_node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
 	if (!res_node) {
 		dev_err(&pdev->dev, "failed to get memory region node\n");
-		return -ENODEV;
+		return NULL;
 	}
 
 	ret = of_address_to_resource(res_node, 0, &res);
 	of_node_put(res_node);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get reserved region address\n");
-		return -ENODEV;
+		return NULL;
 	}
 
 	am_d->phys = res.start;
@@ -127,7 +127,7 @@ int aoa_mmap_probe(struct platform_device *pdev)
 	am_d->kvirt = devm_ioremap(am_d->dev, am_d->phys, am_d->size);
 	if (!am_d->kvirt) {
 		dev_err(am_d->dev, "ioremap failed\n");
-		return -ENOMEM;
+		return NULL;
 	}
 
 	am_d->misc.minor = MISC_DYNAMIC_MINOR;
@@ -137,19 +137,19 @@ int aoa_mmap_probe(struct platform_device *pdev)
 	ret = misc_register(&am_d->misc);
 	if (ret) {
 		dev_err(am_d->dev, "misc_register failed: %d\n", ret);
-		return ret;
+		return NULL;
 	}
 
-	platform_set_drvdata(pdev, am_d);
 	dev_info(am_d->dev, "aoa_mmap_mem: mapped phys=%pa size=%u\n",
 		 &am_d->phys, am_d->size);
-	return 0;
+	return am_d;
 }
 
-int aoa_mmap_remove(struct platform_device *pdev)
+int aoa_mmap_remove(struct platform_device *pdev, void *am_d)
 {
-	struct aoa_mmap_dev *am_d = platform_get_drvdata(pdev);
+	if (!am_d)
+		return -ENOMEM;
 
-	misc_deregister(&am_d->misc);
+	misc_deregister(&((struct aoa_mmap_dev *)am_d)->misc);
 	return 0;
 }

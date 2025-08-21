@@ -169,20 +169,35 @@ static irqreturn_t lp_rkdma_irq_handler(int irq, void *dev_id)
 int lp_rkdma_probe(struct platform_device *pdev)
 {
 	struct lp_rkdma_dev *d;
+	struct resource *res;
 	int i, ret;
 
-	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
-	if (!d)
-		return -ENOMEM;
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	if (!d) {
+		ret = -ENOMEM;
+		goto err_out;
+	}
 
-	d->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(d->base))
-		return PTR_ERR(d->base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENODEV;
+		goto err_free_d;
+	}
+	if (!request_mem_region(res->start, resource_size(res), dev_name(&pdev->dev))) {
+		ret = -EBUSY;
+		goto err_free_d;
+	}
+	d->base = ioremap(res->start, resource_size(res));
+	if (!d->base) {
+		ret = -ENOMEM;
+		goto err_free_region;
+	}
 
-	d->num_clks = devm_clk_bulk_get_all(&pdev->dev, &d->clks);
+	d->num_clks = clk_bulk_get_all(&pdev->dev, &d->clks);
 	if (d->num_clks < 1) {
 		dev_err(&pdev->dev, "Failed to get clk\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_free_ioremap;
 	}
 
 	d->irq = platform_get_irq(pdev, 0);
@@ -193,13 +208,13 @@ int lp_rkdma_probe(struct platform_device *pdev)
 	ret = clk_bulk_prepare_enable(d->num_clks, d->clks);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to enable clk: %d\n", ret);
-		return ret;
+		goto err_put_clks;
 	}
 
 	lp_rkdma_init(d);
 
 	/* init lch channel */
-	d->lch = devm_kcalloc(&pdev->dev, d->dma_channels, sizeof(struct lp_rkdma_lch), GFP_KERNEL);
+	d->lch = kcalloc(d->dma_channels, sizeof(struct lp_rkdma_lch), GFP_KERNEL);
 	if (!d->lch) {
 		ret = -ENOMEM;
 		goto err_disable_clk;
@@ -212,17 +227,46 @@ int lp_rkdma_probe(struct platform_device *pdev)
 		l->base = RK_DMA_LCHn_REG(i, 0);
 	}
 
-	return devm_request_irq(&pdev->dev, d->irq, lp_rkdma_irq_handler, 0, dev_name(&pdev->dev), d);
+	ret = request_irq(d->irq, lp_rkdma_irq_handler, 0, dev_name(&pdev->dev), d);
+	if (ret)
+		goto err_free_lch;
+	return 0;
 
+err_free_lch:
+	kfree(d->lch);
 err_disable_clk:
 	clk_bulk_disable_unprepare(d->num_clks, d->clks);
+err_put_clks:
+	clk_bulk_put_all(d->num_clks, d->clks);
+err_free_ioremap:
+	iounmap(d->base);
+err_free_region:
+	release_mem_region(res->start, resource_size(res));
+err_free_d:
+	kfree(d);
+err_out:
 	return ret;
 }
 
 int lp_rkdma_remove(struct platform_device *pdev)
 {
 	struct lp_rkdma_dev *d = platform_get_drvdata(pdev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	clk_bulk_disable_unprepare(d->num_clks, d->clks);
+	if (d) {
+		if (d->irq > 0) {
+			disable_irq(d->irq);
+			free_irq(d->irq, d);
+		}
+
+		clk_bulk_disable_unprepare(d->num_clks, d->clks);
+		clk_bulk_put_all(d->num_clks, d->clks);
+		kfree(d->lch);
+		iounmap(d->base);
+		if (res)
+			release_mem_region(res->start, resource_size(res));
+		kfree(d);
+		platform_set_drvdata(pdev, NULL);
+	}
 	return 0;
 }
