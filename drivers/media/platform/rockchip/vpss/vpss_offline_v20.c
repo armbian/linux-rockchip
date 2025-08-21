@@ -606,34 +606,20 @@ static void scale_config(struct rkvpss_offline_dev *ofl,
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (!cfg->output[i].enable)
 			continue;
+
 		is_downscale_w = cfg->output[i].scl_width <= cfg->output[i].crop_width;
 		is_downscale_h = cfg->output[i].scl_height <= cfg->output[i].crop_height;
 		use_average = is_downscale_w && is_downscale_h;
 
-		/* channel 0 and 2 use average_scale_down when downscale */
-		if (use_average && (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2)) {
-			if (unite) {
-				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
-				 "Unite mode: average_scale_down for channel %d\n", i);
-				average_scale_down(cfg, ofl, &cfg->output[i], i, true, true);
-				average_scale_down(cfg, ofl, &cfg->output[i], i, true, false);
-			} else {
-				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
-				 "Normal mode: average_scale_down for channel %d\n", i);
-				average_scale_down(cfg, ofl, &cfg->output[i], i, false, false);
-			}
+		if ((i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
+		    (use_average || cfg->output[i].avg_scl_down)) {
+			v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "CH%d: average_scale_down, unite:%d left:%d\n", i, unite, left);
+			average_scale_down(cfg, ofl, &cfg->output[i], i, unite, left);
 		} else {
-			/* use bilinear_scale for other channels */
-			if (unite) {
-				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
-				 "Unite mode: bilinear_scale for channel %d\n", i);
-				bilinear_scale(cfg, ofl, &cfg->output[i], i, true, true);
-				bilinear_scale(cfg, ofl, &cfg->output[i], i, true, false);
-			} else {
-				v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
-				 "Normal mode: bilinear_scale for channel %d\n", i);
-				bilinear_scale(cfg, ofl, &cfg->output[i], i, false, false);
-			}
+			v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+				 "CH%d: bilinear_scale, unite:%d left:%d\n", i, unite, left);
+			bilinear_scale(cfg, ofl, &cfg->output[i], i, unite, left);
 		}
 	}
 }
@@ -1709,24 +1695,46 @@ static void calc_unite_scl_params(struct rkvpss_offline_dev *ofl,
 	u32 right_fst_position_y, right_fst_position_c;
 	u32 right_y_crop_total;
 	u32 right_c_crop_total;
+	bool is_downscale_w, is_downscale_h, use_average;
 
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (cfg->output[i].enable == 0)
 			continue;
 		params = &ofl->unite_params[i];
-		params->y_w_fac = (cfg->output[i].crop_width - 1) * 4096 /
-				  (cfg->output[i].scl_width  - 1);
-		params->c_w_fac = (cfg->output[i].crop_width / 2 - 1) * 4096 /
-				  (cfg->output[i].scl_width / 2 - 1);
-		params->y_h_fac = (cfg->output[i].crop_height - 1) * 4096 /
-				  (cfg->output[i].scl_height - 1);
-		params->c_h_fac = (cfg->output[i].crop_height - 1) * 4096 /
-				  (cfg->output[i].scl_height - 1);
 
-		right_fst_position_y = cfg->output[i].scl_width / 2 *
-				       params->y_w_fac;
-		right_fst_position_c = cfg->output[i].scl_width / 2 / 2 *
-				       params->c_w_fac;
+		is_downscale_w = cfg->output[i].scl_width <= cfg->output[i].crop_width;
+		is_downscale_h = cfg->output[i].scl_height <= cfg->output[i].crop_height;
+		use_average = is_downscale_w && is_downscale_h;
+
+		if (use_average && (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2)) {
+			params->y_w_fac = (cfg->output[i].scl_width - 1) * 65536 /
+					  (cfg->output[i].crop_width - 1) + 1;
+			params->c_w_fac = (cfg->output[i].scl_width / 2 - 1) * 65536 /
+					  (cfg->output[i].crop_width / 2 - 1) + 1;
+			params->y_h_fac = (cfg->output[i].scl_height - 1) * 65536 /
+					  (cfg->output[i].crop_height - 1) + 1;
+			params->c_h_fac = (cfg->output[i].scl_height - 1) * 65536 /
+					  (cfg->output[i].crop_height - 1) + 1;
+
+			right_fst_position_y = cfg->output[i].scl_width / 2 *
+						   ((cfg->output[i].crop_width - 1) * 4096 / (cfg->output[i].scl_width - 1));
+			right_fst_position_c = cfg->output[i].scl_width / 2 / 2 *
+						   ((cfg->output[i].crop_width / 2 - 1) * 4096 / (cfg->output[i].scl_width / 2 - 1));
+		} else {
+			params->y_w_fac = (cfg->output[i].crop_width - 1) * 4096 /
+					  (cfg->output[i].scl_width  - 1);
+			params->c_w_fac = (cfg->output[i].crop_width / 2 - 1) * 4096 /
+					  (cfg->output[i].scl_width / 2 - 1);
+			params->y_h_fac = (cfg->output[i].crop_height - 1) * 4096 /
+					  (cfg->output[i].scl_height - 1);
+			params->c_h_fac = (cfg->output[i].crop_height - 1) * 4096 /
+					  (cfg->output[i].scl_height - 1);
+
+			right_fst_position_y = cfg->output[i].scl_width / 2 *
+						   params->y_w_fac;
+			right_fst_position_c = cfg->output[i].scl_width / 2 / 2 *
+						   params->c_w_fac;
+		}
 
 		left_in_used_size_y = right_fst_position_y >> 12;
 		left_in_used_size_c = (right_fst_position_c >> 12) * 2;
@@ -2020,6 +2028,20 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 		goto end;
 	}
 
+	*unite = false;
+	if (cfg->input.width > RKVPSS_MAX_WIDTH_V20) {
+		*unite = true;
+	} else {
+		for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
+			if (!cfg->output[i].enable)
+				continue;
+			if (cfg->output[i].scl_width > RKVPSS_MAX_WIDTH_V20) {
+				*unite = true;
+				break;
+			}
+		}
+	}
+
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (!cfg->output[i].enable)
 			continue;
@@ -2103,11 +2125,12 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 			goto end;
 		}
 
-		/* set unite mode */
-		if (out_width > RKVPSS_MAX_WIDTH_V20)
-			*unite = true;
-		else
-			*unite = false;
+		if ((out_width % 4) != 0) {
+			v4l2_err(&ofl->v4l2_dev, "dev_id:%d ch:%d output width:%d must be 4-byte aligned\n",
+				 cfg->dev_id, i, out_width);
+			ret = -EINVAL;
+			goto end;
+		}
 
 		/* check crop */
 		cfg->output[i].crop_h_offs = ALIGN(cfg->output[i].crop_h_offs, 2);
