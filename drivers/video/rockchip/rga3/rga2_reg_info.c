@@ -315,6 +315,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_FBC_OUT_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_FBC_OUT_EN(1)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_SECURE_ACCESS)) |
+	       (s_RGA2_MODE_CTRL_SW_SECURE_ACCESS(msg->secure_access)));
+
 	*bRGA_MODE_CTL = reg;
 }
 
@@ -2888,6 +2891,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 			req->alpha_config.fg_global_alpha_value = 0xff;
 		}
 	}
+
+	req->secure_access = req_rga->secure_access;
 
 	if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
 		req->mmu_info.src0_mmu_flag = 1;

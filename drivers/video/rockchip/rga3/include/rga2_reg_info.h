@@ -253,6 +253,7 @@
 #define m_RGA2_MODE_CTRL_SW_FBC_IN_EN			(0x1 << 16)
 #define m_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN		(0x1 << 17)
 #define m_RGA2_MODE_CTRL_SW_FBC_OUT_EN			(0x1 << 18)
+#define m_RGA2_MODE_CTRL_SW_SECURE_ACCESS		(0x1 << 21)
 /* moved to RGA_BACKDOOR0 since RV1126B */
 #define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18)
 #define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19)
@@ -274,6 +275,7 @@
 #define s_RGA2_MODE_CTRL_SW_FBC_IN_EN(x)		((x & 0x1) << 16)
 #define s_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN(x)		((x & 0x1) << 17)
 #define s_RGA2_MODE_CTRL_SW_FBC_OUT_EN(x)		((x & 0x1) << 18)
+#define s_RGA2_MODE_CTRL_SW_SECURE_ACCESS(x)		((x & 0x1) << 21)
 /* moved to RGA_BACKDOOR0 since RV1126B */
 #define s_RGA2_MODE_CTRL_SW_FBC_BSP_DIS(x)		((x & 0x1) << 18)
 #define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS(x)	((x & 0x1) << 19)
