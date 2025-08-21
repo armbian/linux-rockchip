@@ -159,12 +159,23 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 					 &mpi_cmd.pat,
 					 &cached_cmd->pat);
 
-	if ((mpi_job->dst != NULL) && (request->flags & RGA_CONTEXT_DST_MASK))
+	if ((mpi_job->dst != NULL) && (request->flags & RGA_CONTEXT_DST_MASK)) {
 		rga_mpi_set_channel_info(RGA_CONTEXT_DST_MASK,
 					 request->flags,
 					 mpi_job->dst,
 					 &mpi_cmd.dst,
 					 &cached_cmd->dst);
+
+		/* rotate 90/270 */
+		if (((mpi_cmd.rotate_mode & 0xf) == 1) &&
+		    ((mpi_cmd.sina == 65536 && mpi_cmd.cosa == 0) ||
+		     (mpi_cmd.sina == -65536 && mpi_cmd.cosa == 0))) {
+			swap(mpi_cmd.dst.act_w, mpi_cmd.dst.act_h);
+
+			if (request->flags & RGA_CONTEXT_DST_CACHE_INFO)
+				swap(cached_cmd->dst.act_w, cached_cmd->dst.act_h);
+		}
+	}
 
 	/* set buffer handle */
 	if (mpi_job->dma_buf_src0 != NULL) {
