@@ -1424,9 +1424,12 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_right_shift(&temp0, PQ_CSC_PARAM_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp1, &temp0, &saturation_matrix);
 		csc_matrix_element_right_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
-		csc_matrix_multiply(out_matrix, &temp1, r2y_matrix);
+		csc_matrix_multiply(&temp0, &temp1, r2y_matrix);
+		csc_matrix_element_right_shift(&temp0, PQ_CSC_PARAM_FIX_BIT_WIDTH);
+		csc_matrix_multiply(out_matrix, csc_mode_cfg->pst_csc_coef, &temp0);
 		csc_matrix_element_right_shift_with_simple_round(out_matrix,
-			PQ_CSC_PARAM_FIX_BIT_WIDTH + PQ_CALC_ENHANCE_BIT);
+								 PQ_CSC_PARAM_FIX_BIT_WIDTH +
+								 PQ_CALC_ENHANCE_BIT);
 
 		dc_in_ventor.csc_offset0 = dc_in_offset;
 		dc_in_ventor.csc_offset1 = dc_in_offset;
