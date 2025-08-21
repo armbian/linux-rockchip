@@ -946,11 +946,6 @@ static int read_config(struct rkvpss_offline_dev *ofl,
 	u32 in_ctrl, in_size, in_c_offs, unite_r_offs, val, mask, unite_off = 0, enlarge = 0,
 		header_size = 0, payload_size = 0;
 
-	if (!IS_ALIGNED(cfg->input.stride, 4)) {
-		v4l2_err(&ofl->v4l2_dev, "input stride %d is not 4-byte aligned\n", cfg->input.stride);
-		return -EINVAL;
-	}
-
 	in_c_offs = 0;
 	in_ctrl = 0;
 	switch (cfg->input.format) {
@@ -1348,16 +1343,9 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 				 cfg->dev_id, i);
 			cfg->output[i].enable = 0;
 		}
-
 		if (!cfg->output[i].enable)
 			continue;
 		ch_en = true;
-
-		if (!IS_ALIGNED(cfg->output[i].stride, 4)) {
-			v4l2_err(&ofl->v4l2_dev, "output stride %d is not 4-byte aligned for ch%d\n",
-				 cfg->output[i].stride, i);
-			return -EINVAL;
-		}
 
 		if (cfg->output[i].aspt.enable) {
 			w = cfg->output[i].aspt.width;
@@ -2028,6 +2016,34 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 		goto end;
 	}
 
+	/* check input format alignment */
+	if (cfg->input.format == V4L2_PIX_FMT_FBC0 ||
+	    cfg->input.format == V4L2_PIX_FMT_FBC2 ||
+	    cfg->input.format == V4L2_PIX_FMT_FBC4) {
+		if (!IS_ALIGNED(cfg->input.width, 64)) {
+			v4l2_err(&ofl->v4l2_dev,
+				 "dev_id:%d fbc input width %d is not 64 aligned\n",
+				 cfg->dev_id, cfg->input.width);
+			ret = -EINVAL;
+			goto end;
+		}
+		if (!IS_ALIGNED(cfg->input.height, 4)) {
+			v4l2_err(&ofl->v4l2_dev,
+				 "dev_id:%d fbc input height %d is not 4 aligned\n",
+				 cfg->dev_id, cfg->input.height);
+			ret = -EINVAL;
+			goto end;
+		}
+	} else {
+		if (!IS_ALIGNED(cfg->input.stride, 4)) {
+			v4l2_err(&ofl->v4l2_dev,
+				 "dev_id:%d input stride %d is not 4-byte aligned\n",
+				 cfg->dev_id, cfg->input.stride);
+			ret = -EINVAL;
+			goto end;
+		}
+	}
+
 	*unite = false;
 	if (cfg->input.width > RKVPSS_MAX_WIDTH_V20) {
 		*unite = true;
@@ -2105,6 +2121,34 @@ int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 				 cfg->output[i].format >> 16, cfg->output[i].format >> 24);
 			ret = -EINVAL;
 			goto end;
+		}
+
+		/* check output format alignment */
+		if (cfg->output[i].format == V4L2_PIX_FMT_FBC0 ||
+		    cfg->output[i].format == V4L2_PIX_FMT_FBC2 ||
+		    cfg->output[i].format == V4L2_PIX_FMT_FBC4) {
+			if (!IS_ALIGNED(cfg->input.width, 64)) {
+				v4l2_err(&ofl->v4l2_dev,
+					 "dev_id:%d ch:%d fbc output width %d is not 64 aligned\n",
+					 cfg->dev_id, i, cfg->input.width);
+				ret = -EINVAL;
+				goto end;
+			}
+			if (!IS_ALIGNED(cfg->input.height, 4)) {
+				v4l2_err(&ofl->v4l2_dev,
+					 "dev_id:%d ch:%d fbc output height %d is not 4 aligned\n",
+					 cfg->dev_id, i, cfg->input.height);
+				ret = -EINVAL;
+				goto end;
+			}
+		} else {
+			if (!IS_ALIGNED(cfg->output[i].stride, 4)) {
+				v4l2_err(&ofl->v4l2_dev,
+					 "dev_id:%d ch:%d output stride %d is not 4-byte aligned\n",
+					 cfg->dev_id, i, cfg->output[i].stride);
+				ret = -EINVAL;
+				goto end;
+			}
 		}
 
 		/* check output size */
