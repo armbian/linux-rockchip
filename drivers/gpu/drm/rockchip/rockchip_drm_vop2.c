@@ -108,6 +108,9 @@
 #define VOP_MODULE_SET(vop2, module, name, v) \
 		REG_SET(vop2, name, 0, module->regs->name, v, false)
 
+#define VOP_WIN_DATA_SET(vop2, win_data, name, v) \
+		REG_SET(vop2, name, 0, win_data->name, v, false)
+
 #define VOP_INTR_SET_MASK(vop2, intr, name, mask, v) \
 		REG_SET_MASK(vop2, name, 0, intr->name, mask, v, false)
 
@@ -128,6 +131,9 @@
 
 #define VOP_MODULE_GET(x, module, name) \
 		vop2_read_reg(x, 0, &module->regs->name)
+
+#define VOP_WIN_DATA_GET(x, win_data, name) \
+		vop2_read_reg(x, 0, &win_data->name)
 
 #define VOP_WIN_GET(vop2, win, name) \
 		vop2_read_reg(vop2, win->offset, &VOP_WIN_NAME(win, name))
@@ -484,6 +490,9 @@ struct vop2_win {
 	/* capacity of msmart layer */
 	uint32_t max_grids;
 	uint32_t max_grids_per_row;
+
+	struct vop_reg crc_enable;
+	uint32_t crc_value_offset;
 
 	const struct vop2_win_regs *regs;
 	const uint64_t *format_modifiers;
@@ -913,6 +922,8 @@ struct vop2_video_port {
 	 * @win_cfg_done_bits: control reg done bit for each win
 	 */
 	u32 win_cfg_done_bits;
+
+	struct vop2_win *crc_source_win;
 };
 
 struct vop2_extend_pll {
@@ -1453,6 +1464,20 @@ static inline uint32_t vop2_get_intr_type(struct vop2 *vop2, const struct vop_in
 	}
 
 	return ret;
+}
+
+static struct vop2_win *vop2_find_win_by_name(struct vop2 *vop2, const char *name)
+{
+	struct vop2_win *win;
+	int i;
+
+	for (i = 0; i < vop2->registered_num_wins; i++) {
+		win = &vop2->win[i];
+		if (!strcmp(win->name, name))
+			return win;
+	}
+
+	return NULL;
 }
 
 /*
@@ -8183,7 +8208,17 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_CLUSTER_SET(vop2, win, lb_mode, lb_mode);
 		VOP_CLUSTER_SET(vop2, win, scl_lb_mode, lb_mode == 1 ? 3 : 0);
 		VOP_CLUSTER_SET(vop2, win, enable, 1);
-		VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+		if (crtc->crc.opened && vp->crc_source_win == win) {
+			if (vop2->version == VOP_VERSION_RK3572 && vop2_msmart_window(win) &&
+			    vpstate->msmart_data && vpstate->msmart_data->data) {
+				DRM_WARN_ONCE("CRC can not work with msmart in multi mode!\n");
+				VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+			} else {
+				VOP_WIN_SET(vop2, win, frm_reset_en, 0);
+			}
+		} else {
+			VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+		}
 		VOP_CLUSTER_SET(vop2, win, dma_stride_4k_disable, 1);
 	}
 	if (!vop2_cluster_sub_window(win) && !vop2_multi_area_sub_window(win)) {
@@ -10093,10 +10128,21 @@ static int vop2_crtc_get_crc(struct drm_crtc *crtc)
 	const struct vop2_data *vop2_data = vop2->data;
 	u32 crc32 = 0;
 
+	if (!crtc->crc.opened)
+		return 0;
+
 	if (!vop2_data->crc_sources)
 		return -ENODEV;
 
-	crc32 = VOP_MODULE_GET(vop2, vp, crc_val);
+	if (vp->crc_source_win) {
+		/* This plane is not attach to current vp or disabled */
+		if (!(vp->enabled_win_mask & BIT(vp->crc_source_win->phys_id)))
+			return 0;
+		crc32 = vop2_readl(vop2, vp->crc_source_win->crc_value_offset);
+	} else {
+		crc32 = VOP_MODULE_GET(vop2, vp, crc_val);
+	}
+
 	drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, &crc32);
 
 	return 0;
@@ -15116,19 +15162,26 @@ static int vop2_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_na
 	const struct vop2_data *vop2_data = vp->vop2->data;
 	const char * const *crc_sources = vop2_data->crc_sources;
 	uint8_t crc_sources_num = vop2_data->crc_sources_num;
+	struct vop2_win *win;
 	int ret = 0;
 
+	vp->crc_source_win = NULL;
+	if (crc_sources)
+		ret = match_string(crc_sources, crc_sources_num, crtc->crc.source);
 	/* use crtc crc */
-	if (crc_sources && strcmp(crtc->crc.source, "encoder") != 0) {
+	if (crc_sources && (!strcmp(crtc->crc.source, "auto") ||
+	    !strcmp(crtc->crc.source, "crtc"))) {
 		if (source_name &&
 		    match_string(crc_sources, crc_sources_num, source_name) >= 0) {
 			VOP_MODULE_SET(vop2, vp, crc_en, 1);
+			ret = 0;
 		} else if (!source_name) {
 			VOP_MODULE_SET(vop2, vp, crc_en, 0);
+			ret = 0;
 		} else {
 			ret = -EINVAL;
 		}
-	} else {/* use encoder crc */
+	} else if (!crc_sources || !strcmp(crtc->crc.source, "encoder")) {/* use encoder crc */
 #ifdef CONFIG_DRM_ANALOGIX_DP
 		struct drm_connector *connector;
 
@@ -15144,6 +15197,15 @@ static int vop2_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_na
 #else
 		return -ENODEV;
 #endif
+	} else if (crc_sources && ret >= 0) {
+		win = vop2_find_win_by_name(vop2, crc_sources[ret]);
+		if (!win)
+			return -ENODEV;
+
+		vp->crc_source_win = win;
+		VOP_WIN_DATA_SET(vop2, win, crc_enable, !!source_name);
+
+		return 0;
 	}
 
 	return ret;
@@ -17154,6 +17216,8 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->reg_done_bit = win_data->reg_done_bit;
 		win->csc_coe_offset = win_data->csc_coe_offset;
 		win->csc_coe_bits = win_data->csc_coe_bits;
+		win->crc_enable = win_data->crc_enable;
+		win->crc_value_offset = win_data->crc_value_offset;
 
 		if (win_data->pd_id)
 			win->pd = vop2_find_pd_by_id(vop2, win_data->pd_id);

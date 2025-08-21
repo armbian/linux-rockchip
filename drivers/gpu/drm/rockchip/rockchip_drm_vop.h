@@ -1282,6 +1282,8 @@ struct vop2_win_data {
 	const uint8_t csc_coe_bits;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
+	const struct vop_reg crc_enable;
+	const uint32_t crc_value_offset;
 
 	/*
 	 * vertical/horizontal scale up/down filter mode
