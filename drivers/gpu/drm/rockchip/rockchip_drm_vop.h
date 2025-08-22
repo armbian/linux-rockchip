@@ -1250,6 +1250,8 @@ struct vop2_win_data {
 	const struct vop2_win_regs *regs;
 	const struct vop2_win_regs **area;
 	unsigned int area_size;
+	struct vop_rect max_input;
+	struct vop_rect max_output;
 
 	/*
 	 * vertical/horizontal scale up/down filter mode

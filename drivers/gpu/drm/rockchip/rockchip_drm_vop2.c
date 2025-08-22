@@ -14864,18 +14864,36 @@ static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 		return false;
 }
 
-static u32 vop3_esmart_linebuffer_size(struct vop2 *vop2, struct vop2_win *win)
+static int vop2_get_max_output_width(struct vop2 *vop2, struct vop2_win *win)
 {
-	if (!is_vop3(vop2) || vop2_cluster_window(win))
-		return vop2->data->max_output.width;
+	int width = vop2->data->win[win->win_id].max_output.width;
 
-	if (vop2->esmart_lb_mode == VOP3_ESMART_2K_2K_2K_2K_MODE ||
-	    (vop2->esmart_lb_mode == VOP3_ESMART_4K_2K_2K_MODE && win->phys_id != ROCKCHIP_VOP2_ESMART0) ||
-	    (vop2->esmart_lb_mode == VOP3_ESMART_4K_4K_2K_2K_MODE &&
-	     (win->phys_id == ROCKCHIP_VOP2_ESMART2 || win->phys_id == ROCKCHIP_VOP2_ESMART3)))
-		return vop2->data->max_output.width / 2;
-	else
-		return vop2->data->max_output.width;
+	if (vop2_cluster_window(win))
+		return width;
+
+	switch (vop2->version) {
+	case VOP_VERSION_RK3528:
+	case VOP_VERSION_RK3562:
+		if (vop2->esmart_lb_mode == VOP3_ESMART_2K_2K_2K_2K_MODE)
+			return width / 2;
+		else if (vop2->esmart_lb_mode == VOP3_ESMART_4K_2K_2K_MODE &&
+			 (win->phys_id == ROCKCHIP_VOP2_ESMART2 ||
+			  win->phys_id == ROCKCHIP_VOP2_ESMART3))
+			return width / 2;
+		else
+			return width;
+	case VOP_VERSION_RK3576:
+		if (vop2->esmart_lb_mode == VOP3_ESMART_4K_4K_2K_2K_MODE &&
+		    (win->phys_id == ROCKCHIP_VOP2_ESMART2 ||
+		     win->phys_id == ROCKCHIP_VOP2_ESMART3))
+			return width / 2;
+		else
+			return width;
+	case VOP_VERSION_RK3568:
+	case VOP_VERSION_RK3588:
+	default:
+		return width;
+	}
 }
 
 static int rk3576_shared_mode_esmart_scale_engine(int phy_id)
@@ -14985,18 +15003,15 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	if (win->feature & WIN_FEATURE_DCI)
 		vop2_plane_create_dci_property(vop2, win);
 
-	max_width = vop2->data->max_input.width;
-	max_height = vop2->data->max_input.height;
-	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
-		max_width >>= 1;
+	max_width = vop2->data->win[win->win_id].max_input.width;
+	max_height = vop2->data->win[win->win_id].max_input.height;
 	win->input_width_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							  "INPUT_WIDTH", 0, max_width);
 	win->input_height_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							   "INPUT_HEIGHT", 0, max_height);
-	max_width = vop3_esmart_linebuffer_size(vop2, win);
-	max_height = vop2->data->max_output.height;
-	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
-		max_width >>= 1;
+
+	max_width = vop2_get_max_output_width(vop2, win);
+	max_height = vop2->data->win[win->win_id].max_output.height;
 	win->output_width_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							   "OUTPUT_WIDTH", 0, max_width);
 	win->output_height_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
