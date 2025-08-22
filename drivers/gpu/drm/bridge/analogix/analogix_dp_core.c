@@ -2071,11 +2071,11 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	if (!analogix_dp_get_plug_in_status(dp))
 		analogix_dp_link_power_down(dp);
 
-	if (dp->plat_data->power_off)
-		dp->plat_data->power_off(dp->plat_data);
-
 	analogix_dp_set_analog_power_down(dp, POWER_ALL, 1);
 	analogix_dp_phy_power_off(dp);
+
+	if (dp->plat_data->power_off)
+		dp->plat_data->power_off(dp->plat_data);
 
 	if (dp->plat_data->panel)
 		analogix_dp_panel_unprepare(dp);
