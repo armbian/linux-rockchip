@@ -1638,7 +1638,7 @@ static u8 rk628_get_output_color_space(struct rk628 *rk628, u8 input_color_space
 		return rk628->tx_mode ? OPTM_CS_E_RGB : OPTM_CS_E_XV_YCC_709;
 	case OPTM_CS_E_XV_YCC_2020:
 	case OPTM_CS_E_RGB_2020:
-		return rk628->tx_mode ? OPTM_CS_E_RGB_2020 : OPTM_CS_E_XV_YCC_709;
+		return rk628->tx_mode ? OPTM_CS_E_RGB_2020 : OPTM_CS_E_XV_YCC_2020;
 	case OPTM_CS_E_RGB_ADOBE:
 	case OPTM_CS_E_YUV_ADOBE:
 		return rk628->tx_mode ? OPTM_CS_E_RGB_ADOBE : OPTM_CS_E_XV_YCC_709;
