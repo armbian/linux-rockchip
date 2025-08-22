@@ -16,8 +16,11 @@
 #include <linux/soc/rockchip/rockchip_decompress.h>
 #include <linux/soc/rockchip/rockchip_thunderboot_crypto.h>
 
+#define SDMMC_CTRL		0x000
 #define SDMMC_RINTSTS		0x044
 #define SDMMC_STATUS		0x048
+#define SDMMC_BMOD		0x080
+#define SDMMC_DBADDR		0x088
 #define SDMMC_IDSTS		0x08c
 #define SDMMC_INTR_ERROR	0xB7C2
 
@@ -75,6 +78,11 @@ static int rk_tb_mmc_thread(void *p)
 		dev_err(dev, "SDMMC_INTR_ERROR status: 0x%08x\n", status);
 		goto out;
 	}
+
+	/* Disable the DMA of the MMC controller */
+	writel(0, regs + SDMMC_CTRL);
+	writel(0, regs + SDMMC_BMOD);
+	writel(0, regs + SDMMC_DBADDR);
 
 	/* Parse ramdisk addr and help start decompressing */
 	if (rds && rdd) {
