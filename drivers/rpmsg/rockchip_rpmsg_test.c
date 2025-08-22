@@ -47,7 +47,8 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
 	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG_2, strlen(LINUX_TEST_MSG_2), remote_ept_id);
 	if (ret)
 		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
-		return ret;
+
+	return ret;
 }
 
 static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
