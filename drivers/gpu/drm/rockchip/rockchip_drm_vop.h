@@ -80,6 +80,7 @@
 #define VOP_FEATURE_POST_CSC		BIT(9)
 #define VOP_FEATURE_POST_FRC_V2		BIT(10)
 #define VOP_FEATURE_POST_SHARP		BIT(11)
+#define VOP_FEATURE_HW_CURSOR		BIT(12)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -103,6 +104,7 @@
 #define WIN_FEATURE_MULTI_AREA		BIT(7)
 #define WIN_FEATURE_Y2R_13BIT_DEPTH	BIT(8)
 #define WIN_FEATURE_DCI			BIT(9)
+#define WIN_FEATURE_HW_CURSOR		BIT(10)
 
 
 #define VOP2_SOC_VARIANT		4
@@ -1329,6 +1331,7 @@ struct vop3_ovl_regs {
 	const struct vop3_ovl_mix_regs *layer_mix_regs;
 	const struct vop3_ovl_mix_regs *hdr_mix_regs;
 	const struct vop3_ovl_mix_regs *extra_mix_regs;
+	const struct vop3_ovl_mix_regs *cursor_mix_regs;
 };
 
 struct vop2_video_port_data {
@@ -1349,6 +1352,7 @@ struct vop2_video_port_data {
 	const u8 hdr_mix_dly;
 	const u8 win_dly;
 	const u8 pixel_rate;
+	const u8 cursor_dly;
 	const struct vop_intr *intr;
 	const struct vop_urgency *urgency;
 	const struct vop_hdr_table *hdr_table;

@@ -2814,6 +2814,11 @@ static inline bool vop2_cluster_sub_window(struct vop2_win *win)
 	return (win->feature & WIN_FEATURE_CLUSTER_SUB);
 }
 
+static inline bool vop2_cursor_window(struct vop2_win *win)
+{
+	return  (win->feature & WIN_FEATURE_HW_CURSOR);
+}
+
 static inline bool vop2_has_feature(struct vop2 *vop2, uint64_t feature)
 {
 	return (vop2->data->feature & feature);
@@ -10301,6 +10306,10 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 		if (vop2_cluster_window(win))
 			dly |= dly << 8;
 
+		/* cursor bypass other layer mix, so need to add extra cursor dly */
+		if (vop2_cursor_window(win))
+			dly += vp_data->cursor_dly;
+
 		win->dly_num = dly;
 	}
 }
@@ -11999,6 +12008,60 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 	}
 }
 
+static void rk3572_cursor_alpha(struct vop2_video_port *vp,
+				const struct vop2_zpos *vop2_zpos)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop3_ovl_regs *ovl_regs = vop2->data->vp[vp->id].ovl_regs;
+	uint32_t src_color_ctrl_offset = ovl_regs->cursor_mix_regs->src_color_ctrl.offset;
+	uint32_t dst_color_ctrl_offset = ovl_regs->cursor_mix_regs->dst_color_ctrl.offset;
+	uint32_t src_alpha_ctrl_offset = ovl_regs->cursor_mix_regs->src_alpha_ctrl.offset;
+	uint32_t dst_alpha_ctrl_offset = ovl_regs->cursor_mix_regs->dst_alpha_ctrl.offset;
+	const struct vop2_zpos *zpos;
+	struct vop2_plane_state *vpstate;
+	struct vop2_alpha_config alpha_config;
+	struct vop2_alpha alpha;
+	struct vop2_win *win;
+	struct drm_plane_state *pstate;
+	struct drm_framebuffer *fb;
+	int premulti_en = 1;
+	int pixel_alpha_en = 1;
+
+	zpos = &vop2_zpos[vp->nr_layers - 1];/* top layer */
+	win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+	if (win && vop2_cursor_window(win)) {
+		pstate = win->base.state;
+		vpstate = to_vop2_plane_state(pstate);
+		fb = pstate->fb;
+		if (pstate->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
+		    pstate->pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
+			premulti_en = 1;
+		else
+			premulti_en = 0;
+		pixel_alpha_en = is_alpha_support(fb->format->format);
+
+		alpha_config.src_premulti_en = premulti_en;
+		alpha_config.dst_premulti_en = true;
+		alpha_config.src_pixel_alpha_en = pixel_alpha_en;
+		alpha_config.dst_pixel_alpha_en = true;
+		alpha_config.src_glb_alpha_value = vpstate->global_alpha;
+		alpha_config.dst_glb_alpha_value = 0xff;
+	} else {
+		alpha_config.src_premulti_en = true;
+		alpha_config.dst_premulti_en = true;
+		alpha_config.src_pixel_alpha_en = false;
+		alpha_config.dst_pixel_alpha_en = true;
+		alpha_config.src_glb_alpha_value = 0xff;
+		alpha_config.dst_glb_alpha_value = 0xff;
+	}
+	vop2_parse_alpha(&alpha_config, &alpha);
+
+	vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
+	vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
+	vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
+	vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+}
+
 static void vop3_setup_alpha(struct vop2_video_port *vp,
 			     const struct vop2_zpos *vop2_zpos)
 {
@@ -12025,6 +12088,8 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 	bool bottom_layer_pixel_alpha_en = false;
 	bool bottom_layer_global_alpha_en = false;
 	u32 bottom_layer_global_alpha = 0xff;
+	uint8_t cursor_mix = 0;
+	uint8_t nr_layers;
 
 	zpos = &vop2_zpos[0];
 	win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
@@ -12046,9 +12111,21 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 			bottom_layer_premulti_en = 0;
 	}
 	bottom_win = win;
+	if (vp_data->feature & VOP_FEATURE_HW_CURSOR) {
+		zpos = &vop2_zpos[vp->nr_layers - 1];/* top layer */
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+		if (vop2_cursor_window(win))
+			cursor_mix = 1;
+	}
 
 	alpha_config.dst_pixel_alpha_en = true; /* alpha value need transfer to next mix */
-	for (i = 1; i < vp->nr_layers; i++) {
+	/*
+	 * The cursor layer always stays on top of all other layers. No matter
+	 * how many layers there are or whether all layer-mix paths are in use,
+	 * the cursor mix is applied last.
+	 */
+	nr_layers = vp->nr_layers - cursor_mix;
+	for (i = 1; i < nr_layers; i++) {
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
 		pstate = win->base.state;
@@ -12155,7 +12232,8 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 	alpha_config.dst_glb_alpha_value = 0xff;
 	vop2_parse_alpha(&alpha_config, &alpha);
 
-	for (; i < vop2->data->nr_layers; i++) {
+	nr_layers = vop2->data->nr_layers - cursor_mix;
+	for (; i < nr_layers; i++) {
 		offset = (i - 1) * 0x10;
 
 		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
@@ -12163,6 +12241,10 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
 		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
 	}
+
+	if (vp_data->feature & VOP_FEATURE_HW_CURSOR)
+		rk3572_cursor_alpha(vp, vop2_zpos);
+
 
 	if (vp_data->feature & (VOP_FEATURE_HDR10 | VOP_FEATURE_VIVID_HDR)) {
 		src_color_ctrl_offset = ovl_regs->hdr_mix_regs->src_color_ctrl.offset;
@@ -15308,6 +15390,8 @@ static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
 		{ ROCKCHIP_VOP2_CLUSTER3, "Cluster3" },
 		{ ROCKCHIP_VOP2_ESMART2, "Esmart2" },
 		{ ROCKCHIP_VOP2_ESMART3, "Esmart3" },
+		{ ROCKCHIP_VOP2_CURSOR0, "Cursor0" },
+		{ ROCKCHIP_VOP2_CURSOR1, "Cursor1" },
 	};
 
 	prop = drm_property_create_bitmask(vop2->drm_dev,
