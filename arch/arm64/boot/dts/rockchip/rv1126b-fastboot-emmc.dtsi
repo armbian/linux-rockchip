@@ -36,8 +36,8 @@
 		reg = <0x48000000 0x00400000>;
 	};
 
-	mmc_ecsd: mmc@47FFFE00{
-		reg = <0x47FFFE00 0x00001000>;
+	mmc_ecsd: mmc@47FFF000{
+		reg = <0x47FFF000 0x00001000>;
 	};
 
 	ramdisk_r: ramdisk_r {
