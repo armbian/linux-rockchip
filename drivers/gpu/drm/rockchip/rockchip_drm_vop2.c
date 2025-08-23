@@ -11885,7 +11885,7 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 		vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
 		vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
 
-		vop2_writel(vop2, 0x500, 1);/* enable port0_extra_alpha_en */
+		VOP_MODULE_SET(vop2, vp, port_extra_en, 1);/* enable port0_extra_alpha_en */
 	} else {
 		/* alpha value need transfer to next mix, and the data from last mix is at bottom layer */
 		alpha_config.dst_pixel_alpha_en = true;
@@ -11906,7 +11906,7 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 		vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
 		vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
 		vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
-		vop2_writel(vop2, 0x500, 0);/* disable port0_extra_alpha_en */
+		VOP_MODULE_SET(vop2, vp, port_extra_en, 0);/* disable port0_extra_alpha_en */
 	}
 }
 

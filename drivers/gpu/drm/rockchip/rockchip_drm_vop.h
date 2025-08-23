@@ -1003,6 +1003,7 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr_dst_color_ctrl;
 	struct vop_reg hdr_src_alpha_ctrl;
 	struct vop_reg hdr_dst_alpha_ctrl;
+	struct vop_reg port_extra_en;
 	struct vop_reg bg_mix_ctrl;
 	struct vop_reg layer_sel;
 
