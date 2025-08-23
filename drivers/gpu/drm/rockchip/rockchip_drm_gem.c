@@ -15,9 +15,6 @@
 #include <drm/drm_vma_manager.h>
 
 #include <linux/genalloc.h>
-#include <linux/iommu.h>
-#include <linux/pagemap.h>
-#include <linux/vmalloc.h>
 #include <linux/rockchip/rockchip_sip.h>
 
 #include "rockchip_drm_drv.h"
