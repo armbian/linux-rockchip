@@ -226,6 +226,16 @@ static int rockchip_drm_debugfs_color_bar_show(struct seq_file *s, void *data)
 	seq_puts(s, "      echo 1 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
 	seq_puts(s, "  Enable vertical color bar:\n");
 	seq_puts(s, "      echo 2 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable horizontal color gradient:\n");
+	seq_puts(s, "      echo 3 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable vertical color gradient:\n");
+	seq_puts(s, "      echo 4 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable mutant color:\n");
+	seq_puts(s, "      echo 5 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable fix black color:\n");
+	seq_puts(s, "      echo 6 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
+	seq_puts(s, "  Enable fix white color:\n");
+	seq_puts(s, "      echo 7 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
 	seq_puts(s, "  Disable color bar:\n");
 	seq_puts(s, "      echo 0 > /sys/kernel/debug/dri/0/video_port0/color_bar\n");
 

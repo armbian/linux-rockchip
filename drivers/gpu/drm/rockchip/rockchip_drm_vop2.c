@@ -9030,6 +9030,36 @@ static int vop2_crtc_set_color_bar(struct drm_crtc *crtc, enum rockchip_color_ba
 		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
 		vop2_cfg_done(crtc);
 		break;
+	case ROCKCHIP_COLOR_BAR_HORIZONTAL_COLOR_GRADIENT:
+		DRM_INFO("enable horizontal color gradient in VP%d\n", vp->id);
+		VOP_MODULE_SET(vop2, vp, color_bar_mode, 2);
+		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
+		vop2_cfg_done(crtc);
+		break;
+	case ROCKCHIP_COLOR_BAR_VERTICAL_COLOR_GRADIENT:
+		DRM_INFO("enable vertical color gradient in VP%d\n", vp->id);
+		VOP_MODULE_SET(vop2, vp, color_bar_mode, 3);
+		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
+		vop2_cfg_done(crtc);
+		break;
+	case ROCKCHIP_COLOR_BAR_MUTANT:
+		DRM_INFO("enable mutant color in VP%d\n", vp->id);
+		VOP_MODULE_SET(vop2, vp, color_bar_mode, 4);
+		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
+		vop2_cfg_done(crtc);
+		break;
+	case ROCKCHIP_COLOR_BAR_FIX0:
+		DRM_INFO("enable fix black color in VP%d\n", vp->id);
+		VOP_MODULE_SET(vop2, vp, color_bar_mode, 5);
+		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
+		vop2_cfg_done(crtc);
+		break;
+	case ROCKCHIP_COLOR_BAR_FIX1:
+		DRM_INFO("enable fix white color in VP%d\n", vp->id);
+		VOP_MODULE_SET(vop2, vp, color_bar_mode, 6);
+		VOP_MODULE_SET(vop2, vp, color_bar_en, 1);
+		vop2_cfg_done(crtc);
+		break;
 	default:
 		DRM_INFO("Unsupported color bar mode\n");
 		ret = -EINVAL;
