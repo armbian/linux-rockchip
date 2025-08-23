@@ -1095,6 +1095,9 @@ struct vop2_video_port_regs {
 	/* clk calc*/
 	struct vop_reg calc_clk_en;
 	struct vop_reg calc_dclk_cnt;
+
+	/* dsp vcnt */
+	struct vop_reg dsp_vcnt;
 };
 
 struct vop2_power_domain_regs {
