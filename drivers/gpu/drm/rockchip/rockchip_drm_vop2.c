@@ -2346,6 +2346,56 @@ static bool is_argb1555_format(uint32_t format)
 	}
 }
 
+static enum vop2_data_format vop2_convert_cluster_format(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		return VOP2_FMT_XRGB101010;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return VOP2_FMT_ARGB8888;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		return VOP2_FMT_RGB888_YUV444;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XBGR1555:
+		return VOP2_FMT_RGB565;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_YUV420_8BIT:
+		return VOP2_FMT_YUV420SP;
+	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_YUV420_10BIT:
+		return VOP2_FMT_YUV420SP_10;
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_YUYV:
+		return VOP2_FMT_YUV422SP;
+	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_Y210:
+		return VOP2_FMT_YUV422SP_10;
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
+	case DRM_FORMAT_VUY888:
+		return VOP2_FMT_YUV444SP;
+	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_VUY101010:
+		return VOP2_FMT_YUV444SP_10;
+	default:
+		DRM_ERROR("unsupported format %p4cc\n", &format);
+		return -EINVAL;
+	}
+}
+
 static enum vop2_data_format vop2_convert_format(uint32_t format)
 {
 	switch (format) {
@@ -6402,7 +6452,10 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	vpstate->zpos = pstate->zpos;
 	vpstate->global_alpha = pstate->alpha >> 8;
 	vpstate->blend_mode = pstate->pixel_blend_mode;
-	vpstate->format = vop2_convert_format(fb->format->format);
+	if (vop2_cluster_window(win))
+		vpstate->format = vop2_convert_cluster_format(fb->format->format);
+	else
+		vpstate->format = vop2_convert_format(fb->format->format);
 	if (vpstate->format < 0)
 		return vpstate->format;
 
@@ -6998,7 +7051,10 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		else
 			format = vop2_convert_tiled_format(fb->format->format);
 	} else {
-		format = vop2_convert_format(fb->format->format);
+		if (vop2_cluster_window(win))
+			format = vop2_convert_cluster_format(fb->format->format);
+		else
+			format = vop2_convert_format(fb->format->format);
 	}
 
 	vop2_setup_csc_mode(vp, vpstate);
