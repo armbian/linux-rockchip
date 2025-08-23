@@ -90,7 +90,10 @@
 		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), v, true)
 
 #define VOP_SCL_SET(x, win, name, v) \
-		REG_SET(x, name, win->offset, win->regs->scl->name, v, true)
+	do { \
+		if (win->regs->scl) \
+			REG_SET(x, name, win->offset, win->regs->scl->name, v, true); \
+	} while (0)
 
 #define VOP_CTRL_SET(x, name, v) \
 		REG_SET(x, name, 0, (x)->data->ctrl->name, v, false)
