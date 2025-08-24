@@ -903,25 +903,25 @@
 		i2c5_max96749_bridge: i2c5-max96749-bridge {
 			compatible = "maxim,max96749-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_max96749_from_dp: endpoint {
-					remote-endpoint = <&dp_out_i2c5_max96749>;
+					i2c5_max96749_from_dp: endpoint {
+						remote-endpoint = <&dp_out_i2c5_max96749>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_max96749_out_i2c5_max96772: endpoint {
-					remote-endpoint = <&i2c5_max96772_from_i2c5_max96749>;
+					i2c5_max96749_out_i2c5_max96772: endpoint {
+						remote-endpoint = <&i2c5_max96772_from_i2c5_max96749>;
+					};
 				};
 			};
 		};
