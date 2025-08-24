@@ -34,7 +34,7 @@
 #endif
 
 #define DRV_NAME "pcie-rkep"
-#define DRV_VERSION 0x00030000
+#define DRV_VERSION 0x00030200
 
 #ifndef PCI_VENDOR_ID_ROCKCHIP
 #define PCI_VENDOR_ID_ROCKCHIP          0x1d87
@@ -115,7 +115,6 @@ struct pcie_rkep {
 	void __iomem *bar0;
 	void __iomem *bar2;
 	void __iomem *bar4;
-	int cur_mmap_res;
 	struct pcie_rkep_irq_context irq_ctx[RKEP_NUM_IRQ_VECTORS];
 	int irq_valid;
 
@@ -129,10 +128,22 @@ struct pcie_rkep {
 	wait_queue_head_t wq_head;
 };
 
+struct pcie_ep_continuous_buffer_req {
+	struct list_head cont_buffer_list;
+	uint64_t dma_addr;
+	void *vir_addr;
+	u32 size;
+};
+
 struct pcie_file {
 	struct mutex file_lock_mutex;
 	struct pcie_rkep *pcie_rkep;
 	DECLARE_BITMAP(child_vid_bitmap, RKEP_EP_VIRTUAL_ID_MAX); /* The virtual IDs applied for each task */
+	int cur_mmap_res;
+	u64 cur_mmap_addr;
+
+	/* memory manager */
+	struct list_head cont_buffer_list;
 };
 
 static bool pcie_rkep_wait_for_link_up(struct pci_dev *pdev)
@@ -325,6 +336,66 @@ static int rkep_ep_poll_irq_user(struct pcie_file *pcie_file, struct pcie_ep_obj
 	return 0;
 }
 
+static int rkep_mem_continuous_buffer_alloc(struct pcie_file *pcie_file,
+					    struct pcie_ep_continuous_buffer_param *param)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req;
+	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
+	dma_addr_t dma_addr;
+	void *vir_addr;
+	int ret = 0;
+
+	mutex_lock(&pcie_file->file_lock_mutex);
+
+	vir_addr = dma_alloc_coherent(&pcie_rkep->pdev->dev, param->size,
+				      &dma_addr, GFP_KERNEL);
+	if (!vir_addr) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	buffer_req = kzalloc(sizeof(*buffer_req), GFP_KERNEL);
+	if (!buffer_req) {
+		dma_free_coherent(&pcie_rkep->pdev->dev, param->size, vir_addr, dma_addr);
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	buffer_req->dma_addr = dma_addr;
+
+	param->dma_addr = dma_addr;
+
+	list_add(&buffer_req->cont_buffer_list, &pcie_file->cont_buffer_list);
+
+unlock:
+	mutex_unlock(&pcie_file->file_lock_mutex);
+	return ret;
+}
+
+static int rkep_mem_continuous_buffer_free(struct pcie_file *pcie_file,
+					   struct pcie_ep_continuous_buffer_param *param)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req, *tmp;
+	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
+	int ret = -ENOENT;
+
+	mutex_lock(&pcie_file->file_lock_mutex);
+
+	list_for_each_entry_safe(buffer_req, tmp, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		if (buffer_req->dma_addr == param->dma_addr && buffer_req->size == param->size) {
+			dma_free_coherent(&pcie_rkep->pdev->dev, buffer_req->size,
+					  buffer_req->vir_addr, buffer_req->dma_addr);
+			list_del(&buffer_req->cont_buffer_list);
+			kfree(buffer_req);
+			ret = 0;
+			break;
+		}
+	}
+
+	mutex_unlock(&pcie_file->file_lock_mutex);
+	return ret;
+}
+
 static int pcie_rkep_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *miscdev = file->private_data;
@@ -338,6 +409,7 @@ static int pcie_rkep_open(struct inode *inode, struct file *file)
 	pcie_file->pcie_rkep = pcie_rkep;
 
 	mutex_init(&pcie_file->file_lock_mutex);
+	INIT_LIST_HEAD(&pcie_file->cont_buffer_list);
 
 	file->private_data = pcie_file;
 
@@ -348,6 +420,7 @@ static int pcie_rkep_release(struct inode *inode, struct file *file)
 {
 	struct pcie_file *pcie_file = file->private_data;
 	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
+	struct pcie_ep_continuous_buffer_req *buffer_req, *tmp;
 	int index;
 
 	while (1) {
@@ -369,7 +442,14 @@ static int pcie_rkep_release(struct inode *inode, struct file *file)
 		dev_dbg(&pcie_rkep->pdev->dev, "release virtual id %d\n", index);
 	}
 
-	devm_kfree(&pcie_rkep->pdev->dev, pcie_file);
+	mutex_lock(&pcie_file->file_lock_mutex);
+	list_for_each_entry_safe(buffer_req, tmp, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		dma_free_coherent(&pcie_rkep->pdev->dev, buffer_req->size,
+				  buffer_req->vir_addr, buffer_req->dma_addr);
+		list_del(&buffer_req->cont_buffer_list);
+		kfree(buffer_req);
+	}
+	mutex_unlock(&pcie_file->file_lock_mutex);
 
 	return 0;
 }
@@ -541,7 +621,7 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 	resource_size_t bar_size;
 	int err;
 
-	switch (pcie_rkep->cur_mmap_res) {
+	switch (pcie_file->cur_mmap_res) {
 	case PCIE_EP_MMAP_RESOURCE_RK3568_RC_DBI:
 		if (size > PCIE_DBI_SIZE) {
 			dev_warn(&pcie_rkep->pdev->dev, "dbi mmap size is out of limitation\n");
@@ -608,12 +688,16 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		addr = page_to_phys(pcie_rkep->user_pages);
 		break;
+	case PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER:
+		addr = pcie_file->cur_mmap_addr;
+		break;
 	default:
-		dev_err(&pcie_rkep->pdev->dev, "cur mmap_res %d is unsurreport\n", pcie_rkep->cur_mmap_res);
+		dev_err(&pcie_rkep->pdev->dev, "cur mmap_res %d is unsurreport\n", pcie_file->cur_mmap_res);
 		return -EINVAL;
 	}
 
-	if (pcie_rkep->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM)
+	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM ||
+	    pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	else
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -629,20 +713,18 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 
 static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long args)
 {
-	void __user *argp;
 	struct pcie_file *pcie_file = file->private_data;
 	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
 	struct pcie_ep_dma_cache_cfg cfg;
 	struct pcie_ep_dma_block_req dma;
 	void __user *uarg = (void __user *)args;
 	struct pcie_ep_obj_poll_virtual_id_cfg poll_cfg;
+	struct pcie_ep_continuous_buffer_param cont_buf_pram;
 	int mmap_res;
 	int ret;
 	int index;
 	u64 addr;
 	u32 val;
-
-	argp = (void __user *)args;
 
 	switch (cmd) {
 	case 0x4:
@@ -652,7 +734,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			return -EINVAL;
 		}
 		addr = page_to_phys(pcie_rkep->user_pages);
-		if (copy_to_user(argp, &addr, sizeof(addr)))
+		if (copy_to_user(uarg, &addr, sizeof(addr)))
 			return -EFAULT;
 		break;
 	case PCIE_DMA_CACHE_INVALIDE:
@@ -695,7 +777,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 			return -EFAULT;
 		}
-		if (copy_to_user(argp, &index, sizeof(index)))
+		if (copy_to_user(uarg, &index, sizeof(index)))
 			return -EFAULT;
 		break;
 	case PCIE_EP_RELEASE_VIRTUAL_ID:
@@ -738,7 +820,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (ret < 0)
 			return -EFAULT;
 
-		if (copy_to_user(argp, &poll_cfg, sizeof(poll_cfg)))
+		if (copy_to_user(uarg, &poll_cfg, sizeof(poll_cfg)))
 			return -EFAULT;
 		break;
 	case PCIE_EP_RAISE_ELBI:
@@ -768,14 +850,13 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			return -EINVAL;
 		}
 
-		pcie_rkep->cur_mmap_res = mmap_res;
+		pcie_file->cur_mmap_res = mmap_res;
 		break;
 	case PCIE_EP_GET_FUNC_DRV_VERSION:
 		val = DRV_VERSION;
-		if (copy_to_user(argp, &val, sizeof(val)))
+		if (copy_to_user(uarg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
-	case PCIE_EP_RESET_CTRL:
 #ifdef CONFIG_PCIEASPM_EXT
 		dev_info(&pcie_rkep->pdev->dev, "reset controller\n");
 		return rockchip_dw_pcie_pm_ctrl_for_user(pcie_rkep->pdev, ROCKCHIP_PCIE_PM_CTRL_RESET);
@@ -783,6 +864,27 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		dev_warn(&pcie_rkep->pdev->dev, "reset controller not support\n");
 		return -EINVAL;
 #endif
+	case PCIE_EP_CONTINUOUS_BUFFER_ALLOC:
+		if (copy_from_user(&cont_buf_pram, uarg, sizeof(cont_buf_pram)))
+			return -EFAULT;
+		ret = rkep_mem_continuous_buffer_alloc(pcie_file, &cont_buf_pram);
+		if (ret) {
+			dev_err(&pcie_rkep->pdev->dev, "buffer alloc failed, ret=%d\n", ret);
+			return ret;
+		}
+		if (copy_to_user(uarg, &cont_buf_pram, sizeof(cont_buf_pram)))
+			return -EFAULT;
+		break;
+	case PCIE_EP_CONTINUOUS_BUFFER_FREE:
+		if (copy_from_user(&cont_buf_pram, uarg, sizeof(cont_buf_pram)))
+			return -EFAULT;
+		return rkep_mem_continuous_buffer_free(pcie_file, &cont_buf_pram);
+	case PCIE_EP_SET_MMAP_RESOURCE_CONTINUOUS_BUFFER:
+		if (copy_from_user(&cont_buf_pram, uarg, sizeof(cont_buf_pram)))
+			return -EFAULT;
+		pcie_file->cur_mmap_res = PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER;
+		pcie_file->cur_mmap_addr = cont_buf_pram.dma_addr;
+		break;
 	default:
 		break;
 	}
@@ -1232,7 +1334,6 @@ static ssize_t rkep_store(struct device *dev, struct device_attribute *attr,
 	else if (val == 3)
 		writel(RKEP_CMD_LOADER_RUN, pcie_rkep->bar0 + 0x400);
 
-	dev_info(dev, "%s done\n", __func__);
 
 	return count;
 }
@@ -1348,7 +1449,6 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 		goto err_register_obj;
 	}
-	pcie_rkep->cur_mmap_res = PCIE_EP_MMAP_RESOURCE_USER_MEM;
 	dev_info(&pdev->dev, "successfully allocate continuouse buffer for userspace\n");
 
 	pci_read_config_word(pcie_rkep->pdev, PCI_VENDOR_ID, &val);
