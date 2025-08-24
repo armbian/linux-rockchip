@@ -2355,12 +2355,22 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 			break;
 		}
 
-		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops, NULL,
-				   DRM_SCHED_PRIORITY_COUNT,
-				   ring->num_hw_submission, amdgpu_job_hang_limit,
-				   timeout, adev->reset_domain->wq,
-				   ring->sched_score, ring->name,
-				   adev->dev);
+		{
+			const struct drm_sched_init_args sched_args = {
+				.ops = &amdgpu_sched_ops,
+				.submit_wq = NULL,
+				.timeout_wq = adev->reset_domain->wq,
+				.num_rqs = DRM_SCHED_PRIORITY_COUNT,
+				.credit_limit = ring->num_hw_submission,
+				.hang_limit = amdgpu_job_hang_limit,
+				.timeout = timeout,
+				.score = ring->sched_score,
+				.name = ring->name,
+				.dev = adev->dev,
+			};
+
+			r = drm_sched_init(&ring->sched, &sched_args);
+		}
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);
