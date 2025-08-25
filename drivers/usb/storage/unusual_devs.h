@@ -2387,6 +2387,12 @@ UNUSUAL_DEV(  0x3340, 0xffff, 0x0000, 0x0000,
 		USB_SC_DEVICE,USB_PR_DEVICE,NULL,
 		US_FL_MAX_SECTORS_64 ),
 
+UNUSUAL_DEV(  0x346d, 0x5678, 0x0000, 0xffff,
+		"Teclast",
+		"CoolFlash",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Cyril Roelandt <tipecaml@gmail.com> */
 UNUSUAL_DEV(  0x357d, 0x7788, 0x0114, 0x0114,
 		"JMicron",
