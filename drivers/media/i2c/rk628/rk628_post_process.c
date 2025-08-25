@@ -1603,7 +1603,7 @@ static int rockchip_calc_post_csc(struct rk628 *rk628, struct post_csc_coef *csc
 	return ret;
 }
 
-static u8 rk628_csc_color_space_convert(u8 in_color_space, u8 format)
+u8 rk628_csc_color_space_convert(u8 in_color_space, u8 format)
 {
 	switch (in_color_space) {
 	case HDMIRX_XVYCC601:
@@ -1628,8 +1628,9 @@ static u8 rk628_csc_color_space_convert(u8 in_color_space, u8 format)
 		return OPTM_CS_E_UNKNOWN;
 	}
 }
+EXPORT_SYMBOL(rk628_csc_color_space_convert);
 
-static u8 rk628_get_output_color_space(struct rk628 *rk628, u8 input_color_space)
+u8 rk628_get_output_color_space(struct rk628 *rk628, u8 input_color_space)
 {
 	switch (input_color_space) {
 	case OPTM_CS_E_XV_YCC_601:
@@ -1646,6 +1647,7 @@ static u8 rk628_get_output_color_space(struct rk628 *rk628, u8 input_color_space
 		return OPTM_CS_E_XV_YCC_709;
 	}
 }
+EXPORT_SYMBOL(rk628_get_output_color_space);
 
 static void rk628_post_process_csc(struct rk628 *rk628,
 				bool is_input_full_range, bool is_output_full_range)

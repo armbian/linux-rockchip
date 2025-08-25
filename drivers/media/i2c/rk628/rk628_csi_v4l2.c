@@ -2627,6 +2627,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 stream = 0;
 	int edid_version, i;
 	struct hdr_metadata_infoframe hdmi_metadata;
+	u8 input_color_space;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2728,6 +2729,14 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RK_HDMIRX_CMD_GET_HDR_METADATA:
 		rk628_hdmirx_get_hdr_matedata(csi->rk628, &hdmi_metadata);
 		memcpy(arg, &hdmi_metadata, sizeof(hdmi_metadata));
+		break;
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_RANGE:
+		*(int *)arg = HDMIRX_FULL_RANGE;
+		break;
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_SPACE:
+		input_color_space = rk628_csc_color_space_convert(csi->rk628->color_space,
+								 csi->rk628->color_format);
+		*(int *)arg = rk628_get_output_color_space(csi->rk628, input_color_space);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

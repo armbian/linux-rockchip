@@ -123,6 +123,12 @@ enum user_color_range {
 #define RK_HDMIRX_CMD_GET_HDR_METADATA  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 18, struct hdr_metadata_infoframe)
 
+#define RK_HDMIRX_CMD_GET_OUTPUT_COLOR_RANGE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 19, int)
+
+#define RK_HDMIRX_CMD_GET_OUTPUT_COLOR_SPACE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 20, int)
+
 /* Private v4l2 event */
 #define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \
 	(V4L2_EVENT_PRIVATE_START + 1)
