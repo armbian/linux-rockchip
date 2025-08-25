@@ -205,8 +205,8 @@
 			clock-output-names = "clk_core_pvtpll";
 			assigned-clocks = <&pvtpll_core>;
 			assigned-clock-rates = <1200000000>;
-			nvmem-cells = <&cpu_opp_info>;
-			nvmem-cell-names = "opp-info";
+			nvmem-cells = <&cpu_opp_info>, <&specification_serial_number>;
+			nvmem-cell-names = "opp-info", "specification_serial_number";
 		};
 
 		pvtpll_isp: pvtpll-isp@21c60000 {
@@ -247,8 +247,8 @@
 			clock-output-names = "clk_npu_pvtpll";
 			assigned-clocks = <&pvtpll_npu>;
 			assigned-clock-rates = <800000000>;
-			nvmem-cells = <&npu_opp_info>;
-			nvmem-cell-names = "opp-info";
+			nvmem-cells = <&npu_opp_info>, <&specification_serial_number>;
+			nvmem-cell-names = "opp-info", "specification_serial_number";
 		};
 	};
 
@@ -317,6 +317,7 @@
 		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin", "pvtm",
 				   "specification_serial_number";
 
+		rockchip,supported-hw;
 		rockchip,pvtm-voltage-sel = <
 			0	1669	0
 			1670	1714	1
@@ -342,6 +343,7 @@
 		rockchip,low-temp-min-volt = <950000>;
 
 		opp-594000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <594000000>;
 			opp-microvolt = <850000 850000 1100000>;
 			opp-microvolt-L0 = <900000 900000 1100000>;
@@ -351,6 +353,7 @@
 		};
 
 		opp-816000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <850000 850000 1100000>;
 			opp-microvolt-L0 = <900000 900000 1100000>;
@@ -358,6 +361,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <850000 850000 1100000>;
 			opp-microvolt-L0 = <900000 900000 1100000>;
@@ -365,6 +369,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <900000 900000 1100000>;
 			opp-microvolt-L0 = <950000 950000 1100000>;
@@ -372,6 +377,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1296000000>;
 			opp-microvolt = <950000 950000 1100000>;
 			opp-microvolt-L0 = <1000000 1000000 1100000>;
@@ -379,6 +385,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <975000 975000 1100000>;
 			opp-microvolt-L0 = <1025000 1025000 1100000>;
@@ -386,6 +393,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1512000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1512000000>;
 			opp-microvolt = <1000000 1000000 1100000>;
 			opp-microvolt-L0 = <1050000 1050000 1100000>;
@@ -393,6 +401,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <1000000 1000000 1100000>;
 			opp-microvolt-L0 = <1100000 1100000 1100000>;
@@ -400,6 +409,88 @@
 			opp-microvolt-L2 = <1050000 1050000 1100000>;
 			opp-microvolt-L3 = <1025000 1025000 1100000>;
 			clock-latency-ns = <40000>;
+		};
+
+		/* RV1126BJ cpu OPPs */
+		opp-j-594000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <594000000>;
+			opp-microvolt = <900000 900000 1100000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-j-816000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <900000 900000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-1008000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <900000 900000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-1200000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <900000 900000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-j-1296000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <900000 900000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		/*
+		 * The Max frequency is 1296MHz in default normal mode.
+		 * The Max frequency is 1750MHz in overdrive mode,
+		 * but under the overdrive mode for a long time,
+		 * the chipset may shorten the lifetime, especially in high
+		 * temperature condition. Disable overdrive opps by default
+		 * and you can enable them in dts file.
+		 */
+		cpu_opp_j_od_1416000000: opp-j-od-1416000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <925000 925000 1100000>;
+			opp-microvolt-L0 = <9750000 9750000 1100000>;
+			opp-microvolt-L1 = <950000 950000 1100000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		cpu_opp_j_od_1512000000: opp-j-od-1512000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <950000 950000 1100000>;
+			opp-microvolt-L0 = <1000000 1000000 1100000>;
+			opp-microvolt-L1 = <975000 975000 1100000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		cpu_opp_j_od_1608000000: opp-j-od-1608000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <1000000 1000000 1100000>;
+			opp-microvolt-L0 = <1100000 1100000 1100000>;
+			opp-microvolt-L1 = <1075000 1075000 1100000>;
+			opp-microvolt-L2 = <1050000 1050000 1100000>;
+			opp-microvolt-L3 = <1025000 1025000 1100000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		cpu_opp_j_od_1750000000: opp-j-od-1750000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1750000000>;
+			opp-microvolt = <1100000 1100000 1100000>;
+			opp-microvolt-L4 = <1075000 1075000 1100000>;
+			opp-microvolt-L5 = <1050000 1050000 1100000>;
+			opp-microvolt-L6 = <1050000 1050000 1100000>;
+			opp-microvolt-L7 = <1050000 1050000 1100000>;
+			opp-microvolt-L8 = <1050000 1050000 1100000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
 		};
 	};
 
@@ -3422,50 +3513,92 @@
 		rockchip,low-temp-min-volt = <950000>;
 
 		opp-396000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <396000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-510000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <510000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-600000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-700000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <850000 850000 1050000>;
 			opp-microvolt-L0 = <900000 900000 1050000>;
 			opp-microvolt-L1 = <875000 875000 1050000>;
 		};
 		opp-800000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <900000 900000 1050000>;
 		};
 		opp-900000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <950000 950000 1050000>;
 			opp-microvolt-L0 = <975000 975000 1050000>;
 		};
 		opp-950000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xf9 0xffff>;
 			opp-hz = /bits/ 64 <950000000>;
 			opp-microvolt = <950000 950000 1050000>;
 			opp-microvolt-L0 = <1000000 1000000 1050000>;
 			opp-microvolt-L1 = <975000 975000 1050000>;
+		};
+
+		/* RV1126BJ npu OPPs */
+		opp-j-396000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <900000 900000 1050000>;
+		};
+		opp-j-510000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <510000000>;
+			opp-microvolt = <900000 900000 1050000>;
+		};
+		opp-j-600000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <900000 900000 1050000>;
+		};
+		opp-j-700000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <900000 900000 1050000>;
+		};
+		opp-j-800000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <900000 900000 1050000>;
+		};
+		/* The Max frequency is 800MHz in default normal mode.
+		 * The Max frequency is 950MHz in overdrive mode,
+		 * but under the overdrive mode for a long time,
+		 * the chipset may shorten the lifetime, especially in high
+		 * temperature condition. Disable overdrive opps by default
+		 * and you can enable them in dts file.
+		 */
+		npu_opp_j_od_950000000: opp-j-od-950000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <950000000>;
+			opp-microvolt = <950000 950000 1050000>;
+			opp-microvolt-L0 = <1000000 1000000 1050000>;
+			opp-microvolt-L1 = <975000 975000 1050000>;
+			status = "disabled";
 		};
 	};
 
