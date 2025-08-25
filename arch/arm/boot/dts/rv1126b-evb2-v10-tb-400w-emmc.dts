@@ -74,8 +74,8 @@
 &rkisp_thunderboot {
 	/* reg's offset MUST match with RTOS */
 	/*
-	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
-	 * e.g. 2688x1520: 0x14c8000
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * e.g. 2688x1520: 0x14c80000 + 0x9000
 	 */
-	reg = <0x41320000 0x14c8000>;
+	reg = <0x41320000 0x14d1000>;
 };
