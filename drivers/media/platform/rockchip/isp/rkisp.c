@@ -2788,6 +2788,41 @@ static const struct ispsd_in_fmt rkisp_isp_input_formats[] = {
 		.yuv_seq	= CIF_ISP_ACQ_PROP_YCBYCR,
 		.bus_width	= 12,
 	}, {
+		.name		= "Y14_1X14",
+		.mbus_code	= MEDIA_BUS_FMT_Y14_1X14,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW14,
+		.yuv_seq	= CIF_ISP_ACQ_PROP_YCBYCR,
+		.bus_width	= 14,
+	}, {
+		.name		= "SRGGB14_1X14",
+		.mbus_code	= MEDIA_BUS_FMT_SRGGB14_1X14,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW14,
+		.bayer_pat	= RAW_RGGB,
+		.bus_width	= 14,
+	}, {
+		.name		= "SBGGR14_1X14",
+		.mbus_code	= MEDIA_BUS_FMT_SBGGR14_1X14,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW14,
+		.bayer_pat	= RAW_BGGR,
+		.bus_width	= 14,
+	}, {
+		.name		= "SGBRG14_1X14",
+		.mbus_code	= MEDIA_BUS_FMT_SGBRG14_1X14,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW14,
+		.bayer_pat	= RAW_GBRG,
+		.bus_width	= 14,
+	}, {
+		.name		= "SGRBG14_1X14",
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG14_1X14,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW14,
+		.bayer_pat	= RAW_GRBG,
+		.bus_width	= 14,
+	}, {
 		.name		= "SRGGB16_1X16",
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB16_1X16,
 		.fmt_type	= FMT_BAYER,
@@ -2795,21 +2830,21 @@ static const struct ispsd_in_fmt rkisp_isp_input_formats[] = {
 		.bayer_pat	= RAW_RGGB,
 		.bus_width	= 16,
 	}, {
-		.name		= "SBGGR12_1X16",
+		.name		= "SBGGR16_1X16",
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR16_1X16,
 		.fmt_type	= FMT_BAYER,
 		.mipi_dt	= CIF_CSI2_DT_RAW16,
 		.bayer_pat	= RAW_BGGR,
 		.bus_width	= 16,
 	}, {
-		.name		= "SGBRG12_1X16",
+		.name		= "SGBRG16_1X16",
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG16_1X16,
 		.fmt_type	= FMT_BAYER,
 		.mipi_dt	= CIF_CSI2_DT_RAW16,
 		.bayer_pat	= RAW_GBRG,
 		.bus_width	= 16,
 	}, {
-		.name		= "SGRBG12_1X16",
+		.name		= "SGRBG16_1X16",
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG16_1X16,
 		.fmt_type	= FMT_BAYER,
 		.mipi_dt	= CIF_CSI2_DT_RAW16,
@@ -2974,6 +3009,25 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_pix_format_mplane pixm = { 0 };
 		const struct ispsd_in_fmt *in_fmt;
 
+		if (isp_dev->isp_ver < ISP_V35 &&
+		    (mf->code == MEDIA_BUS_FMT_SGRBG14_1X14 ||
+		     mf->code == MEDIA_BUS_FMT_SGBRG14_1X14 ||
+		     mf->code == MEDIA_BUS_FMT_SBGGR14_1X14 ||
+		     mf->code == MEDIA_BUS_FMT_SRGGB14_1X14 ||
+		     mf->code == MEDIA_BUS_FMT_Y14_1X14)) {
+			if (mf->code == MEDIA_BUS_FMT_SGRBG14_1X14)
+				mf->code = MEDIA_BUS_FMT_SGRBG12_1X12;
+			else if (mf->code == MEDIA_BUS_FMT_SGBRG14_1X14)
+				mf->code = MEDIA_BUS_FMT_SGBRG12_1X12;
+			else if (mf->code == MEDIA_BUS_FMT_SBGGR12_1X12)
+				mf->code = MEDIA_BUS_FMT_SBGGR12_1X12;
+			else if (mf->code == MEDIA_BUS_FMT_SRGGB14_1X14)
+				mf->code = MEDIA_BUS_FMT_SRGGB12_1X12;
+			else
+				mf->code = MEDIA_BUS_FMT_Y12_1X12;
+			v4l2_warn(&isp_dev->v4l2_dev,
+				  "no support raw14, isp format force to raw12\n");
+		}
 		in_fmt = find_in_fmt(mf->code);
 		if (!in_fmt ||
 		    mf->width < CIF_ISP_INPUT_W_MIN ||

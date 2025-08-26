@@ -197,6 +197,26 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.bpp = { 16 },
 		.mplanes = 1,
 	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB14,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 14 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG14,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 14 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG14,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 14 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR14,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 14 },
+		.mplanes = 1,
+	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB16,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 16 },
@@ -215,6 +235,11 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.fourcc = V4L2_PIX_FMT_SBGGR16,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y14,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 14 },
 		.mplanes = 1,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y16,
@@ -366,6 +391,13 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 		val |= CIF_CSI2_DT_YUV422_8b;
+		break;
+	case V4L2_PIX_FMT_SRGGB14:
+	case V4L2_PIX_FMT_SBGGR14:
+	case V4L2_PIX_FMT_SGRBG14:
+	case V4L2_PIX_FMT_SGBRG14:
+	case V4L2_PIX_FMT_Y14:
+		val |= CIF_CSI2_DT_RAW14;
 		break;
 	case V4L2_PIX_FMT_SRGGB16:
 	case V4L2_PIX_FMT_SBGGR16:
@@ -815,6 +847,26 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	unsigned int planes;
 	u32 xsubs = 1, ysubs = 1;
 	unsigned int i;
+
+	if (stream->ispdev->isp_ver < ISP_V35 &&
+	    (pixm->pixelformat == V4L2_PIX_FMT_SBGGR14 ||
+	     pixm->pixelformat == V4L2_PIX_FMT_SGBRG14 ||
+	     pixm->pixelformat == V4L2_PIX_FMT_SGRBG14 ||
+	     pixm->pixelformat == V4L2_PIX_FMT_SRGGB14 ||
+	     pixm->pixelformat == V4L2_PIX_FMT_Y14)) {
+		if (pixm->pixelformat == V4L2_PIX_FMT_SBGGR14)
+			pixm->pixelformat = V4L2_PIX_FMT_SBGGR12;
+		else if (pixm->pixelformat == V4L2_PIX_FMT_SGBRG14)
+			pixm->pixelformat = V4L2_PIX_FMT_SGBRG12;
+		else if (pixm->pixelformat == V4L2_PIX_FMT_SGRBG14)
+			pixm->pixelformat = V4L2_PIX_FMT_SGRBG12;
+		else if (pixm->pixelformat == V4L2_PIX_FMT_SRGGB14)
+			pixm->pixelformat = V4L2_PIX_FMT_SRGGB12;
+		else
+			pixm->pixelformat = V4L2_PIX_FMT_Y12;
+		v4l2_warn(&stream->ispdev->v4l2_dev,
+			 "no support raw14, rawrd format force to raw12\n");
+	}
 
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {

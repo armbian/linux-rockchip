@@ -644,6 +644,8 @@ int rkisp_csi_config_patch(struct rkisp_device *dev, bool is_pre_cfg)
 		} else {
 			rkisp_unite_write(dev, CSI2RX_CTRL0,
 					  SW_IBUF_OP_MODE(dev->hdr.op_mode), false);
+			rkisp_unite_write(dev, CSI2RX_DATA_IDS_1,
+					  dev->isp_sdev.in_fmt.mipi_dt, false);
 		}
 		/* hdr merge */
 		switch (dev->hdr.op_mode) {
