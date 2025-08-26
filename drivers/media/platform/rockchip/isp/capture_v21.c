@@ -1585,6 +1585,23 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
+static void rkisp_stop_streaming_tx(struct rkisp_stream *stream)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	stream->stopping = true;
+	if (dev->isp_state & ISP_START &&
+	    !stream->ops->is_stream_stopped(dev->base_addr)) {
+		stream->ops->stop_mi(stream);
+		wait_event_timeout(stream->done, !stream->streaming,
+				   msecs_to_jiffies(300));
+	}
+	stream->stopping = false;
+	stream->streaming = false;
+	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
+	tasklet_disable(&stream->buf_done_tasklet);
+}
+
 static void rkisp_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
@@ -1593,13 +1610,14 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret;
 
-	mutex_lock(&dev->hw_dev->dev_lock);
-
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
 	if (!stream->streaming)
-		goto end;
+		return;
+
+	if (stream->id != RKISP_STREAM_MP && stream->id != RKISP_STREAM_SP)
+		return rkisp_stop_streaming_tx(stream);
 
 	if (stream->id == RKISP_STREAM_VIR) {
 		stream->stopping = true;
@@ -1613,19 +1631,18 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 		if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
 			complete(&dev->cap_dev.vir_cpy.cmpl);
 		stream->conn_id = -1;
-		goto end;
+		return;
 	}
 
+	mutex_lock(&dev->hw_dev->dev_lock);
+
 	rkisp_stream_stop(stream);
-	if (stream->id == RKISP_STREAM_MP ||
-	    stream->id == RKISP_STREAM_SP) {
-		/* call to the other devices */
-		video_device_pipeline_stop(&node->vdev);
-		ret = dev->pipe.set_stream(&dev->pipe, false);
-		if (ret < 0)
-			v4l2_err(v4l2_dev,
-				 "pipeline stream-off failed:%d\n", ret);
-	}
+	/* call to the other devices */
+	video_device_pipeline_stop(&node->vdev);
+	ret = dev->pipe.set_stream(&dev->pipe, false);
+	if (ret < 0)
+		v4l2_err(v4l2_dev,
+			 "pipeline stream-off failed:%d\n", ret);
 
 	/* release buffers */
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
@@ -1636,7 +1653,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
 	tasklet_disable(&stream->buf_done_tasklet);
-end:
+
 	mutex_unlock(&dev->hw_dev->dev_lock);
 }
 
@@ -1679,6 +1696,26 @@ end:
 }
 
 static int
+rkisp_start_streaming_tx(struct rkisp_stream *stream)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	int ret = -1;
+
+	if (!dev->isp_inp || !stream->linked)
+		goto buffer_done;
+
+	ret = rkisp_stream_start(stream);
+	if (ret < 0)
+		goto buffer_done;
+	tasklet_enable(&stream->buf_done_tasklet);
+	return 0;
+buffer_done:
+	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
+	stream->streaming = false;
+	return ret;
+}
+
+static int
 rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
@@ -1687,15 +1724,11 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -1;
 
-	mutex_lock(&dev->hw_dev->dev_lock);
-
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
-	if (WARN_ON(stream->streaming)) {
-		mutex_unlock(&dev->hw_dev->dev_lock);
+	if (WARN_ON(stream->streaming))
 		return -EBUSY;
-	}
 
 	if (stream->id == RKISP_STREAM_VIR) {
 		struct rkisp_stream *t = &dev->cap_dev.stream[stream->conn_id];
@@ -1713,13 +1746,15 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 			destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 			ret = -EINVAL;
 		}
-
-		mutex_unlock(&dev->hw_dev->dev_lock);
-
 		return ret;
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
+
+	if (stream->id != RKISP_STREAM_MP && stream->id != RKISP_STREAM_SP)
+		return rkisp_start_streaming_tx(stream);
+
+	mutex_lock(&dev->hw_dev->dev_lock);
 	atomic_inc(&dev->cap_dev.refcnt);
 	if (!dev->isp_inp || !stream->linked) {
 		v4l2_err(v4l2_dev, "check video link or isp input\n");
@@ -1769,19 +1804,16 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto close_pipe;
 	}
 
-	if (stream->id == RKISP_STREAM_MP ||
-	    stream->id == RKISP_STREAM_SP) {
-		/* start sub-devices */
-		ret = dev->pipe.set_stream(&dev->pipe, true);
-		if (ret < 0)
-			goto stop_stream;
+	/* start sub-devices */
+	ret = dev->pipe.set_stream(&dev->pipe, true);
+	if (ret < 0)
+		goto stop_stream;
 
-		ret = video_device_pipeline_start(&node->vdev, &dev->pipe.pipe);
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "start pipeline failed %d\n", ret);
-			goto pipe_stream_off;
-		}
+	ret = video_device_pipeline_start(&node->vdev, &dev->pipe.pipe);
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev,
+			 "start pipeline failed %d\n", ret);
+		goto pipe_stream_off;
 	}
 	tasklet_enable(&stream->buf_done_tasklet);
 	mutex_unlock(&dev->hw_dev->dev_lock);
