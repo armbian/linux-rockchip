@@ -11,6 +11,7 @@
 #include <linux/mtd/spinand.h>
 
 #define SPINAND_MFR_XINCUN		0x8C
+#define SPINAND_MFR_XINCUN_6C		0x6C
 #define XINCUN_STATUS_ECC_HAS_BITFLIPS_T	(3 << 4)
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
@@ -103,6 +104,18 @@ static const struct spinand_info xincun_spinand_table[] = {
 		     SPINAND_ECCINFO(&xcsp2aapk_ooblayout, xcsp2aapk_ecc_get_status)),
 };
 
+static const struct spinand_info xincun_6c_spinand_table[] = {
+	SPINAND_INFO("XCSP4AXPK-IT",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xB1, 0x0A),
+		     NAND_MEMORG(1, 4096, 128, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(9, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&xcsp2aapk_ooblayout, xcsp2aapk_ecc_get_status)),
+};
+
 static const struct spinand_manufacturer_ops xincun_spinand_manuf_ops = {
 };
 
@@ -111,5 +124,13 @@ const struct spinand_manufacturer xincun_spinand_manufacturer = {
 	.name = "XINCUN",
 	.chips = xincun_spinand_table,
 	.nchips = ARRAY_SIZE(xincun_spinand_table),
+	.ops = &xincun_spinand_manuf_ops,
+};
+
+const struct spinand_manufacturer xincun_6c_spinand_manufacturer = {
+	.id = SPINAND_MFR_XINCUN_6C,
+	.name = "XINCUN",
+	.chips = xincun_6c_spinand_table,
+	.nchips = ARRAY_SIZE(xincun_6c_spinand_table),
 	.ops = &xincun_spinand_manuf_ops,
 };

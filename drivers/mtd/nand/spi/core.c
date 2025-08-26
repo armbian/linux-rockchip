@@ -1040,6 +1040,7 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 #endif
 #ifdef CONFIG_MTD_SPI_NAND_XINCUN
 	&xincun_spinand_manufacturer,
+	&xincun_6c_spinand_manufacturer,
 #endif
 #ifdef CONFIG_MTD_SPI_NAND_XTX
 	&xtx_spinand_manufacturer,
