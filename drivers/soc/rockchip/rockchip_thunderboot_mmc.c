@@ -17,6 +17,8 @@
 #include <linux/soc/rockchip/rockchip_thunderboot_crypto.h>
 
 #define SDMMC_CTRL		0x000
+#define SDMMC_CMDARG		0x028
+#define SDMMC_CMD		0x02c
 #define SDMMC_RINTSTS		0x044
 #define SDMMC_STATUS		0x048
 #define SDMMC_BMOD		0x080
@@ -83,6 +85,18 @@ static int rk_tb_mmc_thread(void *p)
 	writel(0, regs + SDMMC_CTRL);
 	writel(0, regs + SDMMC_BMOD);
 	writel(0, regs + SDMMC_DBADDR);
+
+	/* Send CMD12 to stop transmission */
+	writel(0xffffffff, regs + SDMMC_RINTSTS);
+	writel(0, regs + SDMMC_CMDARG);
+	writel(0xa000414c, regs + SDMMC_CMD);
+
+	if (readl_poll_timeout(regs + SDMMC_RINTSTS, status,
+			       !(status & BIT(2)), 100,
+			       11 * USEC_PER_MSEC)) {
+		dev_err(dev, "Send CMD12 timeout!\n");
+		goto out;
+	}
 
 	/* Parse ramdisk addr and help start decompressing */
 	if (rds && rdd) {
