@@ -775,6 +775,18 @@
 	};
 };
 
+&pmic_pins {
+	rockchip,pins =
+		/* pmic_int_l */
+		<0 RK_PA7 0 &pcfg_pull_up>,
+		/* pmic_sleep1 */
+		<0 RK_PA2 1 &pcfg_pull_none>,
+		/* pmic_sleep2 */
+		<0 RK_PA3 1 &pcfg_pull_none>,
+		/* pmic_sleep3 */
+		<0 RK_PC1 1 &pcfg_pull_none>;
+};
+
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
