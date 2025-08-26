@@ -3910,9 +3910,9 @@ static const struct vop2_win_regs rk3572_msmart_win_data = {
 	.uv_swap = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 17),
 	.dither_up = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 18),
 	.ymirror = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 21),
-	.multi_region_en = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 24),
+	.multi_grid_en = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 24),
 	.crc_check_en = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 25),
-	.multi_region_num = VOP_REG(RK3572_MSMART0_CTRL0, 0x3f, 26),
+	.multi_grid_num = VOP_REG(RK3572_MSMART0_CTRL0, 0x3f, 26),
 
 	.axi_yrgb_id = VOP_REG(RK3572_MSMART0_AXI_CTRL, 0x1f, 8),
 	.axi_uv_id = VOP_REG(RK3572_MSMART0_AXI_CTRL, 0x1f, 16),
@@ -3920,7 +3920,7 @@ static const struct vop2_win_regs rk3572_msmart_win_data = {
 
 	.alpha_map_en = VOP_REG(RK3572_MSMART0_ALPHA_MAP, 0x1, 16),
 	.alpha_map_val = VOP_REG(RK3572_MSMART0_ALPHA_MAP, 0xffff, 0),
-	.multi_region_mst = VOP_REG(RK3572_MSMART0_REGION_MST, 0xffffffff, 0),
+	.multi_grid_mst = VOP_REG(RK3572_MSMART0_GRID_MST, 0xffffffff, 0),
 
 	.crc_check_val = VOP_REG(RK3572_MSMART0_CRC_CHK_STATUS, 0xffffffff, 0),
 
@@ -3938,7 +3938,8 @@ static const struct vop2_win_regs rk3572_msmart_win_data = {
 	.uv_mst = VOP_REG(RK3572_MSMART0_CBCR_MST, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(RK3572_MSMART0_VIR, 0xffff, 0),
 	.uv_vir = VOP_REG(RK3572_MSMART0_VIR, 0xffff, 16),
-	.region0_act_info = VOP_REG(RK3572_MSMART0_REGION0_ACT_INFO, 0x1fff1fff, 0),
+	.grid0_act_info = VOP_REG(RK3572_MSMART0_GRID0_ACT_INFO, 0x1fff1fff, 0),
+	.frm_reset_en = VOP_REG(RK3572_MSMART0_AXI_CTRL, 0x1, 27),
 
 	.win_cfg_done = VOP_REG_MASK(RK3572_MSMART0_CFG_DONE, 0x1, 0),
 };
@@ -4962,6 +4963,8 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .max_grids = 64,
+	  .max_grids_per_row = 8,
 	  .feature = WIN_FEATURE_MSMART,
 	},
 
@@ -4993,6 +4996,8 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .max_grids = 36,
+	  .max_grids_per_row = 6,
 	  .feature = WIN_FEATURE_MSMART,
 	},
 };

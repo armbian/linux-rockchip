@@ -277,6 +277,45 @@ struct dci_data {
 	u32 dci_en;
 };
 
+#define ROCKCHIP_VOP_MSMART_MAX_GRIDS_NUM	100
+#define ROCKCHIP_VOP_MSMART_LUT_LENGTH		1536
+
+/* msmart layer grid info */
+struct rockchip_vop_msmart_grid {
+	u32 fb_id; /* fb object contains grid format type */
+
+	/* dest location which should not exceed the main layer */
+	u32 dst_x;
+	u32 dst_y;
+	u32 dst_w;
+	u32 dst_h;
+
+	/* Source values are 16.16 fixed point */
+	u32 src_x;
+	u32 src_y;
+	u32 src_h;
+	u32 src_w;
+
+	u32 reserved[20];
+};
+
+struct msmart_data {
+	u32 version;
+
+	/* Source values are 16.16 fixed point */
+	u32 src_w;
+	u32 src_h;
+
+	u32 crtc_x;
+	u32 crtc_y;
+	u32 crtc_w;
+	u32 crtc_h;
+
+	u32 active_grid_num;
+	u32 reserved[30];
+	struct rockchip_vop_msmart_grid grid[ROCKCHIP_VOP_MSMART_MAX_GRIDS_NUM];
+};
+
 #define SHARP_REG_LENGTH 692
 
 struct post_sharp {

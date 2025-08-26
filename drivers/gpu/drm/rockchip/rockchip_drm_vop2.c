@@ -376,6 +376,7 @@ struct vop2_plane_state {
 	bool async_commit;
 
 	struct drm_property_blob *dci_data;
+	struct drm_property_blob *msmart_data;
 };
 
 struct vop2_win {
@@ -480,6 +481,10 @@ struct vop2_win {
 	uint8_t csc_coe_bits;
 	uint32_t csc_coe_offset;
 
+	/* capacity of msmart layer */
+	uint32_t max_grids;
+	uint32_t max_grids_per_row;
+
 	const struct vop2_win_regs *regs;
 	const uint64_t *format_modifiers;
 	const uint32_t *formats;
@@ -499,9 +504,19 @@ struct vop2_win {
 	 */
 	struct drm_property *dci_data_prop;
 	/**
+	 * @msmart_data_prop: msmart layer data interaction with userspace
+	 */
+	struct drm_property *msmart_data_prop;
+	/**
 	 * @dci_lut_gem_obj: gem obj to store dci lut
 	 */
 	struct rockchip_gem_object *dci_lut_gem_obj;
+
+	uint32_t msmart_reg_cfg_count;
+	/**
+	 * @msmart_reg_gem_obj: gem obj to store msmart reg
+	 */
+	struct rockchip_gem_object *msmart_reg_gem_obj[2];
 };
 
 struct vop2_cluster {
@@ -1088,6 +1103,11 @@ struct vop2_clk {
 	struct clk_divider div;
 	int div_val;
 	u8 parent_index;
+};
+
+struct msmart_grid_scan_point {
+	int point_y;
+	int delta;
 };
 
 #define to_vop2_clk(_hw) container_of(_hw, struct vop2_clk, hw)
@@ -6482,6 +6502,469 @@ vop2_plane_pixel_shift_adjust(struct drm_crtc *crtc, struct drm_plane_state *pst
 	return 0;
 }
 
+static int compare_msmart_grid_scan_point(const void *a, const void *b)
+{
+
+	const struct msmart_grid_scan_point *scan_pa = (const struct msmart_grid_scan_point *)a;
+	const struct msmart_grid_scan_point *scan_pb = (const struct msmart_grid_scan_point *)b;
+
+	if (scan_pa->point_y != scan_pb->point_y)
+		return scan_pa->point_y - scan_pb->point_y;
+
+	return scan_pa->delta - scan_pb->delta;
+}
+
+/*
+ * Algorithm: Count of rectangles hit by a scan-line
+ * 1.Scan Point Generation
+ *   For every grid rectangle (x, y, w, h) create two scan points:
+ *   Start-point: (y, +1). (rectangle becomes active at y)
+ *   End-point: (y + h, –1). (rectangle ceases to be active at y + h)
+ * 2.Sorting
+ *   Sort all scan points by increasing y.
+ *   If two scan points share the same y, process the –1 point before the +1
+ *   point(“exit before enter”).
+ * 3.Linear Sweep
+ *   Initialize current_count = 0, then sweep every scan point:
+ *   current_count ← current_count + Δ (+1 or –1)
+ * 4.Check Result
+ *   if current_count > max_grid_per_row, then the grid layout is illegal.
+ */
+static int vop3_msmart_grid_max_grid_per_row_check(struct drm_plane *plane,
+						    struct drm_atomic_state *state,
+						    struct msmart_data *msmart_data,
+						    int max_grid_per_row)
+{
+	struct msmart_grid_scan_point *scan_points;
+	int i, scan_point_count = 0;
+	int current_count = 0;
+	int current_py = 0;
+
+	scan_points = kmalloc_array(msmart_data->active_grid_num,
+				   sizeof(struct msmart_grid_scan_point),
+				   GFP_KERNEL);
+	if (!scan_points)
+		return -ENOMEM;
+
+	/* generate scan points */
+	for (i = 0; i < msmart_data->active_grid_num; i++) {
+		scan_points[scan_point_count].point_y = msmart_data->grid[i].dst_y;
+		scan_points[scan_point_count].delta = 1;
+		scan_point_count++;
+
+		scan_points[scan_point_count].point_y = msmart_data->grid[i].dst_y +
+							msmart_data->grid[i].dst_h;
+		scan_points[scan_point_count].delta = -1;
+		scan_point_count++;
+	}
+
+	sort(scan_points, scan_point_count, sizeof(struct msmart_grid_scan_point),
+	     compare_msmart_grid_scan_point, NULL);
+
+	for (i = 0; i < scan_point_count; i++) {
+		current_count += scan_points[i].delta;
+		if (current_count < 0)
+			current_count = 0;
+		current_py = scan_points[i].point_y;
+		if (current_count > max_grid_per_row) {
+			drm_err(plane->dev, "the grid exceed %d in row:%d\n", max_grid_per_row,
+				current_py);
+				return true;
+		}
+	}
+
+	kfree(scan_points);
+
+	return false;
+}
+
+static bool vop3_msmart_grid_overlap_check(struct drm_plane *plane,
+					    struct msmart_data *msmart_data)
+{
+	struct drm_rect dst0, dst1;
+	int i, j;
+
+	for (i = 0; i < msmart_data->active_grid_num - 1; i++) {
+		dst0.x1 = msmart_data->grid[i].dst_x;
+		dst0.y1 = msmart_data->grid[i].dst_y;
+		dst0.x2 = msmart_data->grid[i].dst_x + msmart_data->grid[i].dst_w;
+		dst0.y2 = msmart_data->grid[i].dst_y + msmart_data->grid[i].dst_h;
+
+		for (j = i + 1; j < msmart_data->active_grid_num; j++) {
+			dst1.x1 = msmart_data->grid[j].dst_x;
+			dst1.y1 = msmart_data->grid[j].dst_y;
+			dst1.x2 = msmart_data->grid[j].dst_x + msmart_data->grid[j].dst_w;
+			dst1.y2 = msmart_data->grid[j].dst_y + msmart_data->grid[j].dst_h;
+
+			if (drm_rect_intersect(&dst0, &dst1)) {
+				drm_err(plane->dev, "grid%d and grid%d overlap\n", i, j);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+/*
+ * 1. NV12, NV21, NV16, NV61 act_width must aligned as 2 pixels;
+ * 2. NV12, NV21, NV16, NV61 act_xoffset must aligned as 2 pixels;
+ * 3. NV15, NV20, NV30 act_width must aligned as 2 pixels;
+ * 4. NV30, NV20, NV15 act_xoffset must aligned as 4 pixels;
+ * 5. NV12, NV21, NV15 act_height must aligned as 2 lines;
+ * 6. NV12, NV21, NV15 act_yoffset must aligned as 2 lines;
+ */
+static int vop3_msmart_grid_linear_yuv_format_check(struct drm_plane *plane,
+						    struct rockchip_vop_msmart_grid *grid,
+						    struct drm_framebuffer *fb)
+{
+	u32 val = 0;
+
+	if (!fb->format->is_yuv)
+		return 0;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		val = grid->src_w >> 16;
+		if (val % 2)
+			drm_warn(plane->dev, "%p4cc fmt src w:%d not 2 pixel align\n",
+				 &fb->format->format, val);
+
+		val = grid->src_h >> 16;
+		if (val % 2) {
+			grid->src_h = ALIGN(val, 2) << 16;
+			grid->dst_h = ALIGN(val, 2);
+			drm_warn(plane->dev, "%p4cc fmt src h:%d need 2 line align\n",
+				 &fb->format->format, val);
+		}
+		val = grid->src_x >> 16;
+		if (val % 2) {
+			grid->src_x = ALIGN(val, 2) << 16;
+			drm_warn(plane->dev, "%p4cc fmt src x:%d need 2 pixel align\n",
+				 &fb->format->format, val);
+		}
+		val = grid->src_y >> 16;
+		if (val % 2) {
+			grid->src_y = ALIGN(val, 2) << 16;
+			drm_warn(plane->dev, "%p4cc fmt src y:%d need 2 line align\n",
+				 &fb->format->format, val);
+		}
+		break;
+	case DRM_FORMAT_NV15:
+		val = grid->src_w >> 16;
+		if (val % 2)
+			drm_warn(plane->dev, "NV15 fmt src w:%d not 2 pixel align\n", val);
+
+		val = grid->src_h >> 16;
+		if (val % 2) {
+			grid->src_h = ALIGN(val, 2) << 16;
+			grid->dst_h = ALIGN(val, 2);
+			drm_warn(plane->dev, "NV15 fmt src h:%d need 2 line align\n", val);
+		}
+		val = grid->src_x >> 16;
+		if (val % 4) {
+			grid->src_x = ALIGN(val, 4) << 16;
+			drm_warn(plane->dev, "NV15 fmt src x:%d need 4 pixel align\n", val);
+		}
+		val = grid->src_y >> 16;
+		if (val % 2) {
+			grid->src_y = ALIGN(val, 2) << 16;
+			drm_warn(plane->dev, "NV15 fmt src y:%d need 2 line align\n", val);
+		}
+		break;
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+		val = grid->src_w >> 16;
+		if (val % 2)
+			drm_warn(plane->dev, "%p4cc fmt src w:%d not 2 pixel align\n",
+				 &fb->format->format, val);
+
+		val = grid->src_x >> 16;
+		if (val % 2) {
+			grid->src_x = ALIGN(val, 2) << 16;
+			drm_warn(plane->dev, "%p4cc fmt src x:%d need 2 pixel align\n",
+				 &fb->format->format, val);
+		}
+		break;
+	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_NV30:
+		val = grid->src_w >> 16;
+		if (val % 2)
+			drm_warn(plane->dev, "%p4cc fmt src w:%d not 2 pixel align\n",
+				 &fb->format->format, val);
+
+		val = grid->src_x >> 16;
+		if (val % 4) {
+			grid->src_x = ALIGN(val, 4) << 16;
+			drm_warn(plane->dev, "%p4cc fmt src x:%d need 4 pixel align\n",
+				 &fb->format->format, val);
+		}
+		break;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+/*
+ * For RK3572 MSMART0/1, the min actual width limit as follow:
+ * XR30/AR30/XB30/AB30, XR24/AR24/XB24/AB24: actual_w > 4
+ * RG24/BG24: actual_w > 5
+ * RG16/BG16, AR15/AB15/XR15/XB15: actual_w > 8
+ * NV12/NV21, NV16/NV61, NV24/NV42: actual_w > 16
+ * NV15, NV20, NV30: actual_w > 12
+ */
+static int vop3_msmart_min_width_check(struct drm_plane *plane, uint32_t format, uint32_t actual_w)
+{
+	switch (format) {
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		if (actual_w <= 4) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 4\n", plane->name,
+				&format, actual_w);
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		if (actual_w <= 5) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 5\n", plane->name,
+				&format, actual_w);
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XBGR1555:
+		if (actual_w <= 8) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 8\n", plane->name,
+				&format, actual_w);
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
+		if (actual_w <= 16) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 16\n", plane->name,
+				&format, actual_w);
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_NV30:
+		if (actual_w <= 12) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 12\n", plane->name,
+				&format, actual_w);
+			return -EINVAL;
+		}
+		break;
+	default:
+		break;
+	};
+
+	return 0;
+}
+
+static int vop3_msmart_grid_check(struct drm_plane *plane, struct drm_atomic_state *state)
+{
+	struct drm_plane_state *pstate = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_rect src;
+	struct drm_rect dst;
+	struct drm_crtc *crtc = pstate->crtc;
+	struct drm_crtc_state *cstate;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
+	struct rockchip_vop_msmart_grid *grid;
+	struct msmart_data *msmart_data;
+	struct drm_framebuffer *fb;
+	int min_scale = win->regs->scl ? FRAC_16_16(1, 8) : DRM_PLANE_NO_SCALING;
+	int max_scale = win->regs->scl ? FRAC_16_16(2, 1) - 1 : DRM_PLANE_NO_SCALING;
+	int hdisplay, vdisplay;
+	int hscale, vscale;
+	int i;
+
+	cstate = drm_atomic_get_existing_crtc_state(pstate->state, crtc);
+
+	msmart_data = (struct msmart_data *)vpstate->msmart_data->data;
+	if (msmart_data->active_grid_num  > win->max_grids) {
+		drm_err(plane->dev, "config too much msmart grid: %d, the max grids is %d\n",
+			msmart_data->active_grid_num, win->max_grids);
+		return -EINVAL;
+	}
+
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
+			 "grid total src: %d x %d, crtc: %d, %d, %d, %d\n", msmart_data->src_w,
+			 msmart_data->src_h, msmart_data->crtc_x, msmart_data->crtc_y,
+			 msmart_data->crtc_w, msmart_data->crtc_h);
+	for (i = 0; i < msmart_data->active_grid_num; i++) {
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
+				 "grid%d: fb: %d, dst: %d %d %d %d, src:%d %d %d %d\n", i,
+				 msmart_data->grid[i].fb_id,
+				 msmart_data->grid[i].dst_x, msmart_data->grid[i].dst_y,
+				 msmart_data->grid[i].dst_w, msmart_data->grid[i].dst_h,
+				 msmart_data->grid[i].src_x >> 16,
+				 msmart_data->grid[i].src_y >> 16,
+				 msmart_data->grid[i].src_w >> 16,
+				 msmart_data->grid[i].src_h >> 16);
+	}
+
+	if ((pstate->rotation & (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90 |
+				 DRM_MODE_ROTATE_270))) {
+		drm_err(plane->dev, "msmart laye don't support  y mirror or rotation\n");
+		return -EINVAL;
+	}
+
+	if ((msmart_data->src_w >> 16) > win_data->max_input.width ||
+	    (msmart_data->src_h >> 16) > win_data->max_input.height) {
+		drm_err(plane->dev, "src size %dx%d exceed the limit %dx%d\n",
+			msmart_data->src_w >> 16, msmart_data->src_h >> 16,
+			win_data->max_input.width,  win_data->max_input.height);
+		return -EINVAL;
+	}
+
+	if (msmart_data->crtc_w > win_data->max_output.width ||
+	    msmart_data->crtc_h > win_data->max_output.height) {
+		drm_err(plane->dev, "dst size %dx%d exceed the limit %dx%d\n",
+			msmart_data->crtc_w, msmart_data->crtc_h,
+			win_data->max_output.width,  win_data->max_output.height);
+		return -EINVAL;
+	}
+
+	drm_mode_get_hv_timing(&cstate->mode, &hdisplay, &vdisplay);
+	if (msmart_data->crtc_x + msmart_data->crtc_w > hdisplay ||
+	    msmart_data->crtc_y + msmart_data->crtc_h > vdisplay) {
+		drm_err(plane->dev, "illegal crtc parameters: %d, %d, %d, %d\n",
+			msmart_data->crtc_x, msmart_data->crtc_y, msmart_data->crtc_w,
+			msmart_data->crtc_h);
+		return -EINVAL;
+	}
+
+	src.x1 = 0;
+	src.x2 = msmart_data->src_w;
+	src.y1 = 0;
+	src.y2 = msmart_data->src_h;
+	dst.x1 = msmart_data->crtc_x;
+	dst.x2 = msmart_data->crtc_x + msmart_data->crtc_w;
+	dst.y1 = msmart_data->crtc_y;
+	dst.y2 = msmart_data->crtc_y + msmart_data->crtc_h;
+	hscale = drm_rect_calc_hscale(&src, &dst, min_scale, max_scale);
+	vscale = drm_rect_calc_vscale(&src, &dst, min_scale, max_scale);
+	if (hscale < 0 || vscale < 0) {
+		drm_err(plane->dev, "Invalid scaling of msmart\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < msmart_data->active_grid_num; i++) {
+		grid = &msmart_data->grid[i];
+		fb = drm_framebuffer_lookup(plane->dev, NULL, grid->fb_id);
+		if (!fb) {
+			drm_err(plane->dev, "Unknown sub plane%d framebuffer id :0x%x\n", i,
+				grid->fb_id);
+			return -ENOENT;
+		}
+
+		if (vpstate->format != vop2_convert_format(fb->format->format)) {
+			drm_err(plane->dev, "framebuffer:%d format:%d mismatch target format:%d\n",
+				grid->fb_id, vpstate->format,
+				vop2_convert_format(fb->format->format));
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		if (vop3_msmart_grid_linear_yuv_format_check(plane, grid, fb)) {
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		if (vop3_msmart_min_width_check(plane, fb->format->format,
+						grid->src_w >> 16)) {
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		/* msmart grid src should not exceed the framebuffer */
+		if ((grid->src_x >> 16) + (grid->src_w >> 16) > fb->width) {
+			drm_err(plane->dev,
+				"sub plane%d src_x:%d + src_w:%d exceed fb width:%d\n",
+				i, grid->src_x >> 16, grid->src_w >> 16, fb->width);
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+		if ((grid->src_y >> 16) + (grid->src_h >> 16) > fb->height) {
+			drm_err(plane->dev,
+				"sub plane%d src_y:%d + src_h:%d exceed fb height:%d\n",
+				i, grid->src_y >> 16, grid->src_h >> 16, fb->height);
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		/* msmart grid min size is 4x4 */
+		if ((grid->src_w >> 16) < 4 || (grid->src_h >> 16) < 4 ||
+		    grid->dst_w < 4 || grid->dst_h < 4) {
+			drm_err(plane->dev,
+				"sub plane%d invalid size:%dx%d->%dx%d, min size is 4x4\n",
+				i, grid->src_w >> 16, grid->src_h >> 16,
+				grid->dst_w, grid->dst_h);
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		/* msmart sub grid need src rect equal to dst rect */
+		if ((grid->src_w >> 16) != grid->dst_w ||
+		    (grid->src_h >> 16) != grid->dst_h) {
+			drm_err(plane->dev,
+				"sub plane%d invalid size:%dx%d->%dx%d, src should equal to crtc",
+				i, grid->src_w >> 16, grid->src_h >> 16,
+				grid->dst_w, grid->dst_h);
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		/* msmart grid don't exceed the msmart layer size */
+		if (grid->dst_x + grid->dst_w > (msmart_data->src_w >> 16) ||
+		    grid->dst_y + grid->dst_h > (msmart_data->src_h >> 16)) {
+			drm_err(plane->dev,
+				"sub plane%d invalid dst size:%d, %d, %d, %d, exceed the max size",
+				i, grid->dst_x, grid->dst_y, grid->dst_w,
+				grid->dst_h);
+			drm_framebuffer_put(fb);
+			return -EINVAL;
+		}
+
+		drm_framebuffer_put(fb);
+	}
+
+	/* msmart grid overlap check */
+	if (vop3_msmart_grid_overlap_check(plane, msmart_data))
+		return -EINVAL;
+
+	/* check the max grid number in a row */
+	if (vop3_msmart_grid_max_grid_per_row_check(plane, state, msmart_data,
+						    win->max_grids_per_row))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
 {
 	struct drm_plane_state *pstate = drm_atomic_get_new_plane_state(state, plane);
@@ -6607,6 +7090,13 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		return -EINVAL;
 	}
 
+	if (vop2_msmart_window(win)) {
+		ret = vop3_msmart_min_width_check(plane, fb->format->format,
+						  drm_rect_width(src) >> 16);
+		if (ret)
+			return ret;
+	}
+
 	if (rockchip_afbc(plane, fb->modifier) || rockchip_rfbc(plane, fb->modifier))
 		vpstate->afbc_en = true;
 	else
@@ -6687,6 +7177,14 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
 		offset += ALIGN_DOWN(src->y1 >> 16, tile_size) * fb->pitches[0];
+
+	if (vop2_msmart_window(win)) {
+		if (vpstate->msmart_data && vpstate->msmart_data->data) {
+			ret = vop3_msmart_grid_check(plane, state);
+			if (ret)
+				return ret;
+		}
+	}
 
 	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
@@ -6794,7 +7292,14 @@ static void vop2_plane_setup_background(struct drm_plane *plane)
 	g <<= 2;
 	b <<= 2;
 
-	bg_val = BIT(31) | (r << 20) | (g << 10) | b;
+	if (vop2->version >= VOP_VERSION_RK3572 && vop2_msmart_window(win)) {
+		if (vpstate->msmart_data && vpstate->msmart_data->data)
+			bg_val = BIT(31) | (r << 20) | (g << 10) | b;
+		else
+			bg_val = BIT(30) | (r << 20) | (g << 10) | b;
+	} else {
+		bg_val = BIT(31) | (r << 20) | (g << 10) | b;
+	}
 
 	VOP_WIN_SET(vop2, win, background, bg_val);
 }
@@ -7049,6 +7554,118 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	VOP_CLUSTER_SET(vop2, win, dci_en, 1);
 
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+}
+
+static int vop3_msmart_grid_cmp(const void *a, const void *b)
+{
+	const struct rockchip_vop_msmart_grid *grid_a = a;
+	const struct rockchip_vop_msmart_grid *grid_b = b;
+
+	if (grid_a->dst_y != grid_b->dst_y)
+		return grid_a->dst_y - grid_b->dst_y;
+	else
+		return grid_a->dst_x - grid_b->dst_x;
+}
+
+static int vop3_msmart_grid_update(struct drm_plane *plane, struct drm_plane_state *pstate)
+{
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+	struct rockchip_gem_object *reg_gem_obj;
+	struct rockchip_vop_msmart_grid *grid;
+	struct drm_gem_object *obj, *uv_obj;
+	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
+	struct drm_framebuffer *fb;
+	struct msmart_data *msmart_data = vpstate->msmart_data->data;
+	u32 *msmart_lut_kvaddr;
+	dma_addr_t msmart_lut_mst;
+	uint32_t stride, uv_stride = 0;
+	uint32_t actual_w, actual_h;
+	unsigned long offset;
+	int hsub;
+	int vsub;
+	int i = 0;
+
+	if (!win->msmart_reg_gem_obj[win->msmart_reg_cfg_count % 2]) {
+		reg_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+			ROCKCHIP_VOP_MSMART_LUT_LENGTH, true, 0);
+		if (IS_ERR(reg_gem_obj)) {
+			DRM_ERROR("create msmart lut obj failed\n");
+			return -EINVAL;
+		}
+		win->msmart_reg_gem_obj[win->msmart_reg_cfg_count % 2] = reg_gem_obj;
+	}
+
+	msmart_lut_kvaddr = (u32 *)win->msmart_reg_gem_obj[win->msmart_reg_cfg_count % 2]->kvaddr;
+	msmart_lut_mst = win->msmart_reg_gem_obj[win->msmart_reg_cfg_count % 2]->dma_addr;
+	win->msmart_reg_cfg_count++;
+
+	sort(msmart_data->grid, msmart_data->active_grid_num,
+	     sizeof(struct rockchip_vop_msmart_grid), vop3_msmart_grid_cmp, NULL);
+	for (i = 0; i <  msmart_data->active_grid_num; i++) {
+		grid = &msmart_data->grid[i];
+		fb = drm_framebuffer_lookup(plane->dev, NULL, grid->fb_id);
+
+		actual_w = grid->src_w >> 16;
+		actual_h = grid->src_h >> 16;
+
+		obj = fb->obj[0];
+		rk_obj = to_rockchip_obj(obj);
+
+		if (fb->format->char_per_block[0] == 0)
+			offset = ALIGN_DOWN(grid->src_x >> 16, 1) * fb->format->cpp[0];
+		else
+			offset = drm_format_info_min_pitch(fb->format, 0,
+							   ALIGN_DOWN(grid->src_x >> 16, 1));
+		if (vpstate->ymirror_en)
+			offset += (((grid->src_y + grid->src_h) >> 16) - 1) *
+				  fb->pitches[0];
+		else
+			offset += ALIGN_DOWN(grid->src_y >> 16, 1) * fb->pitches[0];
+		msmart_lut_kvaddr[0] = rk_obj->dma_addr + offset + fb->offsets[0];
+		stride = DIV_ROUND_UP(fb->pitches[0], 4);
+		if (fb->format->is_yuv && fb->format->num_planes > 1) {
+			hsub = fb->format->hsub;
+			vsub = fb->format->vsub;
+			if (fb->format->char_per_block[0] == 0) {
+				offset = ALIGN_DOWN(grid->src_x >> 16, 1) *
+					 fb->format->cpp[1] / hsub;
+			} else {
+				offset = drm_format_info_min_pitch(fb->format, 1,
+						ALIGN_DOWN(grid->src_x >> 16, 1));
+				offset /= hsub;
+			}
+			offset += ALIGN_DOWN(grid->src_y >> 16, 1) * fb->pitches[1] / vsub;
+			if (vpstate->ymirror_en && !vpstate->afbc_en)
+				offset += fb->pitches[1] * ((grid->src_h >> 16) - 2)  / vsub;
+			uv_obj = fb->obj[1];
+			rk_uv_obj = to_rockchip_obj(uv_obj);
+			msmart_lut_kvaddr[1] = rk_uv_obj->dma_addr + offset + fb->offsets[1];
+			uv_stride = DIV_ROUND_UP(fb->pitches[1], 4);
+		} else {
+			msmart_lut_kvaddr[1] = 0;
+			uv_stride = 0;
+		}
+
+		msmart_lut_kvaddr[2] = ((uv_stride & 0xffff) << 16) | (stride & 0xffff);
+		msmart_lut_kvaddr[3] = ((actual_h - 1) << 16) | (actual_w - 1);
+		msmart_lut_kvaddr[4] = 0;
+		msmart_lut_kvaddr[5] = (grid->dst_y << 16) | grid->dst_x;
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
+				 "grid%d cfg dump: %08x, %08x, %08x, %08x, %08x, %08x\n", i,
+				 msmart_lut_kvaddr[0], msmart_lut_kvaddr[1], msmart_lut_kvaddr[2],
+				 msmart_lut_kvaddr[3], msmart_lut_kvaddr[4], msmart_lut_kvaddr[5]);
+		msmart_lut_kvaddr += 6;
+
+		drm_framebuffer_put(fb);
+	}
+
+	VOP_WIN_SET(vop2, win, multi_grid_en, 1);
+	VOP_WIN_SET(vop2, win, multi_grid_num, msmart_data->active_grid_num - 1);
+	VOP_WIN_SET(vop2, win, multi_grid_mst, msmart_lut_mst);
+
+	return 0;
 }
 
 static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, struct drm_rect *dst,
@@ -7312,6 +7929,22 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_WIN_SET(vop2, win, alpha_map_val, alpha_map_val);
 	}
 
+	if (vop2_msmart_window(win)) {
+		if (vpstate->msmart_data && vpstate->msmart_data->data) {
+			vop3_msmart_grid_update(&win->base, pstate);
+		} else {
+			/*
+			 * In multi mode switch to single mode,
+			 * All the grid 0 register should config
+			 * before disable multi grid.
+			 */
+			VOP_WIN_SET(vop2, win, multi_grid_en, 0);
+			VOP_WIN_SET(vop2, win, multi_grid_num, 0);
+		}
+		VOP_WIN_SET(vop2, win, grid0_act_info, act_info);
+		VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+	}
+
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
 
 	rb_swap = vop2_win_rb_swap(fb->format->format);
@@ -7387,8 +8020,6 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_WIN_SET(vop2, win, dsp_info, dsp_info);
 	VOP_WIN_SET(vop2, win, dsp_st, dsp_st);
 
-	if (vop2_msmart_window(win))
-		VOP_WIN_SET(vop2, win, region0_act_info, act_info);
 	VOP_WIN_SET(vop2, win, y2r_en, vpstate->y2r_en);
 	VOP_WIN_SET(vop2, win, r2y_en, vpstate->r2y_en);
 	VOP_WIN_SET(vop2, win, csc_mode, vpstate->csc_mode);
@@ -7483,6 +8114,26 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	} else {
 		memcpy(&wsrc, &vpstate->src, sizeof(struct drm_rect));
 		memcpy(&wdst, &vpstate->dest, sizeof(struct drm_rect));
+		if (vop2_msmart_window(win)) {
+			/*
+			 * msmart multi-grid mode, get the totoal src rect and
+			 * dst rect from msmart data. And the grid0's src rect
+			 * and dst rect transferred by both drm plane and msmart
+			 * data.
+			 */
+			if (vpstate->msmart_data && vpstate->msmart_data->data) {
+				struct msmart_data *msmart_data = vpstate->msmart_data->data;
+
+				wsrc.x1 = 0;
+				wsrc.x2 = msmart_data->src_w;
+				wsrc.y1 = 0;
+				wsrc.y2 = msmart_data->src_h;
+				wdst.x1 = msmart_data->crtc_x;
+				wdst.x2 = msmart_data->crtc_x + msmart_data->crtc_w;
+				wdst.y1 = msmart_data->crtc_y;
+				wdst.y2 = msmart_data->crtc_y + msmart_data->crtc_h;
+			}
+		}
 	}
 
 	vop2_win_atomic_update(win, &wsrc, &wdst, pstate);
@@ -7653,6 +8304,8 @@ static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plan
 
 	if (vpstate->dci_data)
 		drm_property_blob_get(vpstate->dci_data);
+	if (vpstate->msmart_data)
+		drm_property_blob_get(vpstate->msmart_data);
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vpstate->base);
 
@@ -7665,6 +8318,7 @@ static void vop2_atomic_plane_destroy_state(struct drm_plane *plane,
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
 
 	drm_property_blob_put(vpstate->dci_data);
+	drm_property_blob_put(vpstate->msmart_data);
 	__drm_atomic_helper_plane_destroy_state(state);
 
 	kfree(vpstate);
@@ -7749,6 +8403,15 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 		return ret;
 	}
 
+	if (property == win->msmart_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vpstate->msmart_data,
+								val,
+								sizeof(struct msmart_data), -1,
+								&replaced);
+		return ret;
+	}
+
 	if (property == private->dovi_input_type_prop) {
 		vpstate->dovi_input_type = val;
 		return 0;
@@ -7808,6 +8471,11 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->dci_data_prop) {
 		*val = vpstate->dci_data ? vpstate->dci_data->base.id : 0;
+		return 0;
+	}
+
+	if (property == win->msmart_data_prop) {
+		*val = vpstate->msmart_data ? vpstate->msmart_data->base.id : 0;
 		return 0;
 	}
 
@@ -8303,6 +8971,38 @@ static const char *hdr_to_string(int eotf)
 				pr_err(args); \
 		} while (0)
 
+static void vop3_msmart_info_dump(struct seq_file *s, struct drm_plane *plane)
+{
+	struct vop2_win *win = to_vop2_win(plane);
+	struct drm_plane_state *pstate = plane->state;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct msmart_data *msmart_data;
+	struct rockchip_vop_msmart_grid *grid;
+	int i;
+
+	if (!vop2_msmart_window(win))
+		return;
+
+	if (!vpstate->msmart_data || !vpstate->msmart_data->data)
+		return;
+
+	msmart_data = (struct msmart_data *)vpstate->msmart_data->data;
+	DEBUG_PRINT("\tgrid total src: pos[0, 0] rect[%d x %d]\n",
+		    msmart_data->src_w >> 16, msmart_data->src_h >> 16);
+	DEBUG_PRINT("\tgrid total crtc: pos[%d, %d] rect[%d x %d]\n",
+		    msmart_data->crtc_x, msmart_data->crtc_y,
+		    msmart_data->crtc_w, msmart_data->crtc_h);
+	for (i = 0; i < msmart_data->active_grid_num; i++) {
+		grid = &msmart_data->grid[i];
+		DEBUG_PRINT("\tgrid%d src: pos[%d, %d] rect[%d x %d]\n", i,
+			    grid->src_x >> 16, grid->src_y >> 16,
+			    grid->src_w >> 16, grid->src_h >> 16);
+		DEBUG_PRINT("\tgrid%d dst: pos[%d, %d] rect[%d x %d]\n", i,
+			    grid->dst_x, grid->dst_y,
+			    grid->dst_w, grid->dst_h);
+	}
+}
+
 static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 {
 	struct vop2_win *win = to_vop2_win(plane);
@@ -8353,6 +9053,8 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 		DEBUG_PRINT("\tbuf[%d]: addr: %pad pitch: %d offset: %d\n",
 			    i, &fb_addr, fb->pitches[i], fb->offsets[i]);
 	}
+
+	vop3_msmart_info_dump(s, plane);
 
 	return 0;
 }
@@ -15236,6 +15938,22 @@ static int vop2_plane_create_dci_property(struct vop2 *vop2, struct vop2_win *wi
 	return 0;
 }
 
+static int vop2_plane_create_msmart_property(struct vop2 *vop2, struct vop2_win *win)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "MSMART_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create msmart data prop for win%d failed\n",
+			      win->win_id);
+		return -ENOMEM;
+	}
+	win->msmart_data_prop = prop;
+	drm_object_attach_property(&win->base.base, win->msmart_data_prop, 0);
+
+	return 0;
+}
+
 static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 {
 	switch (vop2->version) {
@@ -15404,6 +16122,8 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	vop2_plane_create_feature_property(vop2, win);
 	if (win->feature & WIN_FEATURE_DCI)
 		vop2_plane_create_dci_property(vop2, win);
+	if (win->feature & WIN_FEATURE_MSMART)
+		vop2_plane_create_msmart_property(vop2, win);
 
 	max_width = vop2->data->win[win->win_id].max_input.width;
 	max_height = vop2->data->win[win->win_id].max_input.height;
@@ -16263,6 +16983,8 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->supported_rotations = win_data->supported_rotations;
 		win->max_upscale_factor = win_data->max_upscale_factor;
 		win->max_downscale_factor = win_data->max_downscale_factor;
+		win->max_grids = win_data->max_grids;
+		win->max_grids_per_row = win_data->max_grids_per_row;
 		win->hsu_filter_mode = win_data->hsu_filter_mode;
 		win->hsd_filter_mode = win_data->hsd_filter_mode;
 		win->vsu_filter_mode = win_data->vsu_filter_mode;

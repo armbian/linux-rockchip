@@ -896,10 +896,10 @@ struct vop2_win_regs {
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;
-	struct vop_reg region0_act_info; /* for msmart layer */
-	struct vop_reg multi_region_en; /* for msmart layer */
-	struct vop_reg multi_region_num; /* for msmart layer */
-	struct vop_reg multi_region_mst; /* for msmart layer */
+	struct vop_reg grid0_act_info; /* for msmart layer */
+	struct vop_reg multi_grid_en; /* for msmart layer */
+	struct vop_reg multi_grid_num; /* for msmart layer */
+	struct vop_reg multi_grid_mst; /* for msmart layer */
 	struct vop_reg frm_reset_en;
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
@@ -1296,6 +1296,10 @@ struct vop2_win_data {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
+
+	/* capacity of msmart layer */
+	const uint32_t max_grids;
+	const uint32_t max_grids_per_row;
 };
 
 struct vop2_dovi_core_data {
