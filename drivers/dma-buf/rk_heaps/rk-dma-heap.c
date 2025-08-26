@@ -361,6 +361,7 @@ void rk_dma_heap_put(struct rk_dma_heap *h)
 	kref_put(&h->refcount, rk_dma_heap_release);
 	mutex_unlock(&rk_heap_list_lock);
 }
+EXPORT_SYMBOL_GPL(rk_dma_heap_put);
 
 /**
  * rk_dma_heap_get_dev() - get device struct for the heap

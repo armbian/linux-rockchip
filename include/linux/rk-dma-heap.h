@@ -34,6 +34,12 @@ static inline int rk_dma_heap_cma_setup(void)
 int rk_dma_heap_set_dev(struct device *heap_dev);
 
 /**
+ * rk_dma_heap_put - drops a reference to a dmabuf heaps, potentially freeing it
+ * @heap:		heap pointer
+ */
+void rk_dma_heap_put(struct rk_dma_heap *heap);
+
+/**
  * rk_dma_heap_find - Returns the registered dma_heap with the specified name
  * @name: Name of the heap to find
  *
@@ -98,6 +104,10 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap, struct page *pages,
 static inline int rk_dma_heap_set_dev(struct device *heap_dev)
 {
 	return -ENODEV;
+}
+
+static inline void rk_dma_heap_put(struct rk_dma_heap *heap)
+{
 }
 
 static inline struct rk_dma_heap *rk_dma_heap_find(const char *name)
