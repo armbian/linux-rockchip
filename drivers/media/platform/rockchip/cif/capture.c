@@ -13199,25 +13199,31 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 							CSI_START_INTEN_RK3576(stream->id));
 			}
 		}
-		if (!stream->is_compact)
-			val |= uncompact;
-		else
-			val &= ~uncompact;
+		if (stream->cif_fmt_out->fmt_type == CIF_FMT_TYPE_RAW) {
+			if (!stream->is_compact)
+				val |= uncompact;
+			else
+				val &= ~uncompact;
+		}
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
 	} else if (mbus_cfg->type == V4L2_MBUS_CCP2) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id));
-		if (!stream->is_compact)
-			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17;
-		else
-			val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17);
+		if (stream->cif_fmt_out->fmt_type == CIF_FMT_TYPE_RAW) {
+			if (!stream->is_compact)
+				val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17;
+			else
+				val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17);
+		}
 		val |= LVDS_DMAEN_RV1106;
 		rkcif_write_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id), val);
 	} else {
 		val = rkcif_read_register(cif_dev, CIF_REG_DVP_FOR);
-		if (!stream->is_compact)
-			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11;
-		else
-			val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11);
+		if (stream->cif_fmt_out->fmt_type == CIF_FMT_TYPE_RAW) {
+			if (!stream->is_compact)
+				val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11;
+			else
+				val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11);
+		}
 		rkcif_write_register(cif_dev, CIF_REG_DVP_FOR, val);
 		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 		if (cif_dev->chip_id == CHIP_RK3588_CIF)
