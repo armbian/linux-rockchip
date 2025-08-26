@@ -477,6 +477,10 @@
 	rknpu-supply = <&vdd_npu>;
 };
 
+&rkvenc {
+	venc-supply = <&vdd_logic>;
+};
+
 &rockchip_suspend {
 	status = "okay";
 
