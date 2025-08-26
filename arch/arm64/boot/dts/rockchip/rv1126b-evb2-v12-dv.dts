@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+#include "rv1126b-evb2-v10.dtsi"
+#include "rv1126b-evb-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V12 DV Board";
+	compatible = "rockchip,rv1126b-evb2-v12-dv", "rockchip,rv1126b";
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K isolcpus=3 nohz_full=3";
+	};
+};
+
+/ {
+	model = "Rockchip RV1126B EVB2 V12 Board";
+	compatible = "rockchip,rv1126b-evb2-v12-dv", "rockchip,rv1126b";
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	no-sdio;
+	no-sd;
+	status = "okay";
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&gpio4 {
+	interrupt-affinity = <&cpu0>, <&cpu0>, <&cpu0>, <&cpu3>;
+	interrupt-pins = <0>,
+			 <0>,
+			 <0>,
+			 <RK_PIN_TO_BIT(RK_PA3)>;
+};
+
+&gt1x {
+	goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
+	goodix,irq-gpio = <&gpio3 RK_PA7 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&imx586 {
+	reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+};
+
+&pinctrl {
+	inv {
+		inv_int1: inv-int1 {
+			rockchip,pins =
+				<4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	max-freq = <20000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1m1_clk_pins &spi1m1_csn0_pins>;
+	icm42670: icm42670@0 {
+		compatible = "invensense,icm42670";
+		reg = <0x0>;
+		spi-max-frequency = <20000000>;
+		spi-cpha;
+		spi-cpol;
+		int1-gpio = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&inv_int1>;
+		status = "okay";
+	};
+};
+
+&rkfec {
+	status = "okay";
+};
+
+&rkfec_mmu {
+	status = "okay";
+};
+
+&touch_gpio {
+	rockchip,pins =
+		<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,
+		<5 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+};
+
+&uart2 {
+	status = "disabled";
+};
