@@ -80,10 +80,14 @@
 #define RGA2_OSD_LAST_FLAGS1_OFFSET		0x034 // repeat
 #define RGA2_DST_INFO_OFFSET			0x038
 #define RGA2_DST_BASE0_OFFSET			0x03c
+#define RGA2_FBCOUT_HEAD_BASE_OFFSET		0x03c // repeat
 #define RGA2_DST_BASE1_OFFSET			0x040
+#define RGA2_FBCOUT_HEAD_OFF_OFFSET		0x040 // repeat
 #define RGA2_DST_BASE2_OFFSET			0x044
 #define RGA2_TILE4x4_OUT_BASE_OFFSET		0x044 //repeat
+#define RGA2_FBCOUT_PAYL_BASE_OFFSET		0x044 // repeat
 #define RGA2_DST_VIR_INFO_OFFSET		0x048
+#define RGA2_FBCOUT_HEAD_VIR_INFO_OFFSET	0x048 // repeat
 #define RGA2_DST_ACT_INFO_OFFSET		0x04c
 #define RGA2_ALPHA_CTRL0_OFFSET			0x050
 #define RGA2_ALPHA_CTRL1_OFFSET			0x054
@@ -105,7 +109,9 @@
 #define RGA2_MMU_SRC_BASE_OFFSET		0x070
 #define RGA2_PREFETCH_ADDR_TH_OFFSET		0x070 // repeat
 #define RGA2_MMU_SRC1_BASE_OFFSET		0x074
+#define RGA2_FBCOUT_CTRL_OFFSET			0x074 // repeat
 #define RGA2_MMU_DST_BASE_OFFSET		0x078
+#define RGA2_FBCOUT_PAYL_STRIDE_OFFSET		0x078 // repeat
 #define RGA2_MMU_ELS_BASE_OFFSET		0x07c
 
 /*RGA_SYS*/
@@ -246,10 +252,12 @@
 #define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE	(0x3 << 14)
 #define m_RGA2_MODE_CTRL_SW_FBC_IN_EN			(0x1 << 16)
 #define m_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN		(0x1 << 17)
-#define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18) /* moved to RGA_BACKDOOR0 since RV1126B */
-#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19) /* moved to RGA_BACKDOOR0 since RV1126B */
-#define m_RGA2_MODE_CTRL_SW_AXI_WR128_DIS		(0x1 << 20) /* moved to RGA_BACKDOOR0 since RV1126B */
-#define m_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS		(0x1 << 21) /* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MODE_CTRL_SW_FBC_OUT_EN			(0x1 << 18)
+/* moved to RGA_BACKDOOR0 since RV1126B */
+#define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18)
+#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19)
+#define m_RGA2_MODE_CTRL_SW_AXI_WR128_DIS		(0x1 << 20)
+#define m_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS		(0x1 << 21)
 
 #define s_RGA2_MODE_CTRL_SW_RENDER_MODE(x)		((x & 0x7) << 0)
 #define s_RGA2_MODE_CTRL_SW_BITBLT_MODE(x)		((x & 0x1) << 3)
@@ -265,6 +273,8 @@
 #define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE(x)	((x & 0x3) << 14)
 #define s_RGA2_MODE_CTRL_SW_FBC_IN_EN(x)		((x & 0x1) << 16)
 #define s_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN(x)		((x & 0x1) << 17)
+#define s_RGA2_MODE_CTRL_SW_FBC_OUT_EN(x)		((x & 0x1) << 18)
+/* moved to RGA_BACKDOOR0 since RV1126B */
 #define s_RGA2_MODE_CTRL_SW_FBC_BSP_DIS(x)		((x & 0x1) << 18)
 #define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS(x)	((x & 0x1) << 19)
 #define s_RGA2_MODE_CTRL_SW_AXI_WR128_DIS(x)		((x & 0x1) << 20)
@@ -387,6 +397,7 @@
 
 /* RGA_DST_INFO */
 #define m_RGA2_DST_INFO_SW_DST_FMT			(0xf << 0)
+#define m_RGA2_DST_INFO_SW_FBCOUT_FMT			(0xf << 0) // repeat
 #define m_RGA2_DST_INFO_SW_DST_RB_SWAP			(0x1 << 4)
 #define m_RGA2_DST_INFO_SW_ALPHA_SWAP			(0x1 << 5)
 #define m_RGA2_DST_INFO_SW_DST_UV_SWAP			(0x1 << 6)
@@ -409,6 +420,7 @@
 #define m_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN	(0x1 << 28)
 
 #define s_RGA2_DST_INFO_SW_DST_FMT(x)			((x & 0xf) << 0)
+#define s_RGA2_DST_INFO_SW_FBCOUT_FMT(x)		((x & 0xf) << 0) // repeat
 #define s_RGA2_DST_INFO_SW_DST_RB_SWAP(x)		((x & 0x1) << 4)
 #define s_RGA2_DST_INFO_SW_ALPHA_SWAP(x)		((x & 0x1) << 5)
 #define s_RGA2_DST_INFO_SW_DST_UV_SWAP(x)		((x & 0x1) << 6)
@@ -486,7 +498,20 @@
 #define s_RGA2_ALPHA_CTRL1_SW_DST_ALPHA_M1(x)		((x & 0x1) << 28)
 #define s_RGA2_ALPHA_CTRL1_SW_SRC_ALPHA_M1(x)		((x & 0x1) << 29)
 
+/* RGA_FBCOUT_CTRL */
+#define m_RGA2_FBCOUT_CTRL_SW_FBCOUT_MODE		(0x3 << 0)
+#define m_RGA2_FBCOUT_CTRL_SW_FBCOUT_BND_FAKE		(0x1 << 2)
+#define m_RGA2_FBCOUT_CTRL_SW_FBCOUT_ALLOW_16X8_CP	(0x1 << 3)
+#define m_RGA2_FBCOUT_CTRL_SW_FBCE_CORE_WATERMARK	(0xff << 4)
+#define m_RGA2_FBCOUT_CTRL_SW_FBCOUT_PAYL_LEN		(0xf << 12)
+#define m_RGA2_FBCOUT_CTRL_SW_FBCOUT_FORCE_UNCP		(0x1 << 16)
 
+#define s_RGA2_FBCOUT_CTRL_SW_FBCOUT_MODE(x)		((x & 0x3) << 0)
+#define s_RGA2_FBCOUT_CTRL_SW_FBCOUT_BND_FAKE(x)	((x & 0x1) << 2)
+#define s_RGA2_FBCOUT_CTRL_SW_FBCOUT_ALLOW_16X8_CP(x)	((x & 0x1) << 3)
+#define s_RGA2_FBCOUT_CTRL_SW_FBCE_CORE_WATERMARK(x)	((x & 0xff) << 4)
+#define s_RGA2_FBCOUT_CTRL_SW_FBCOUT_PAYL_LEN(x)	((x & 0xf) << 12)
+#define s_RGA2_FBCOUT_CTRL_SW_FBCOUT_FORCE_UNCP(x)	((x & 0x1) << 16)
 
 /* RGA_MMU_CTRL1 */
 #define m_RGA2_MMU_CTRL1_SW_SRC_MMU_EN			(0x1 << 0)
