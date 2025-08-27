@@ -667,7 +667,14 @@
 };
 
 &i2c7 {
-	status = "disabled";
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m0_xfer>;
+};
+
+&max96756 {
+	lock-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 };
 
 &pinctrl {
@@ -696,6 +703,12 @@
 
 		max96712_dphy3_lock: max96712-dphy3-lock {
 			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none_smt>;
+		};
+	};
+
+	max96756-dphy0 {
+		max96756_dphy0_lock: max96756-dphy0-lock {
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 	};
 
