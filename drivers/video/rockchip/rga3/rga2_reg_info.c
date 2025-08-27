@@ -315,6 +315,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_FBC_OUT_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_FBC_OUT_EN(1)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_DATA_8B_PROC)) |
+	       (s_RGA2_MODE_CTRL_SW_DATA_8B_PROC(0)));
+
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_SECURE_ACCESS)) |
 	       (s_RGA2_MODE_CTRL_SW_SECURE_ACCESS(msg->secure_access)));
 
