@@ -11,6 +11,9 @@
  *
  * V0.0X01.0X02
  *	- Compatible with kernel-6.1 version
+ *
+ * V0.0X01.0X03
+ *	- Add writing EDID tables
  */
 #define DEBUG
 
@@ -40,7 +43,7 @@
 #include <linux/bitfield.h>
 #include "max96756.h"
 
-#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x03)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -64,18 +67,41 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT "rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP "rockchip,camera_sleep"
+#define MAX96756_WRITEEDID_ENABLE "rockchip,max96756-writeedid-enable"
 
 #define MAX96756_REG_VALUE_08BIT 1
 #define MAX96756_REG_VALUE_16BIT 2
 
 #define MAX96756_NAME "max96756"
 #define MAX96756_MEDIA_BUS_FMT MEDIA_BUS_FMT_BGR888_1X24
+#define MAX96745_I2CADDR 0x40
 
 static const char *const max96756_supply_names[] = {
 	"vcc1v2", /* Analog power */
 	"vcc1v8", /* Digital I/O power */
 };
 #define MAX96756_NUM_SUPPLIES ARRAY_SIZE(max96756_supply_names)
+
+#define MAX96756_EDID_COUNT 256
+
+static const u8 edid_1080p60_720p_480p_rgb888[MAX96756_EDID_COUNT] = {
+0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x34, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x01, 0x00, 0x01, 0x04, 0xA5, 0xF0, 0x90, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
+0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x02, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x58, 0x2C,
+0x45, 0x00, 0x40, 0x44, 0x21, 0x00, 0x00, 0x18, 0x01, 0x1D, 0x00, 0x72, 0x51, 0xD0, 0x1E, 0x20,
+0x6E, 0x28, 0x55, 0x00, 0x40, 0x44, 0x21, 0x00, 0x00, 0x18, 0x8C, 0x0A, 0xD0, 0x8A, 0x20, 0xE0,
+0x2D, 0x10, 0x10, 0x3E, 0x96, 0x00, 0x40, 0x44, 0x21, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x10,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x7F,
+0x02, 0x03, 0x09, 0xF3, 0x40, 0x23, 0x09, 0x07, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x85
+};
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
@@ -93,6 +119,11 @@ struct regval {
 	u16 addr;
 	u8 val;
 	u16 delay;
+};
+
+struct edid_msg {
+	u32 max_width;
+	const u8 *edid_list;
 };
 
 struct max96756_mode {
@@ -156,6 +187,9 @@ struct max96756 {
 	const char *module_facing;
 	const char *module_name;
 	const char *len_name;
+
+	bool writeedid_enable;
+	const struct edid_msg *cur_edid_msg;
 };
 
 #define to_max96756(sd) container_of(sd, struct max96756, subdev)
@@ -238,10 +272,53 @@ static const struct regval max96756_mipi_1080p_60fps[] = {
 	{ 0x48, REG_NULL, 0x00, 0x00 },
 };
 
+static const struct regval max96745_reconfig_begin[] = {
+
+	{ 0x40, 0x7000, 0x00, 0x00 }, // Disable LINK_ENABLE
+	{ 0x40, 0x6422, 0x05, 0x00 },
+	{ 0x40, REG_NULL, 0x00, 0x00 },
+};
+
+static const struct regval max96745_reconfig_end[] = {
+
+	{ 0x40, 0x6422, 0x73, 0x00 },
+	{ 0x40, 0x7054, 0x03, 0x32 }, // video input and link reset
+	{ 0x40, 0x7000, 0x01, 0x00 }, // Enable LINK_ENABLE
+	{ 0x48, 0x0010, 0x25, 0x32 }, // max96756 reset one shot
+	{ 0x48, REG_NULL, 0x00, 0x00 },
+};
+
+static const struct edid_msg edid_msgs[] = {
+	{
+		.max_width = 1920,
+		.edid_list = edid_1080p60_720p_480p_rgb888,
+	},
+};
+
 static const struct max96756_mode supported_modes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.reg_list = max96756_mipi_1080p_60fps,
+		.link_freq_idx = 0,
+	},
+	{
+		.width = 1280,
+		.height = 720,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.reg_list = max96756_mipi_1080p_60fps,
+		.link_freq_idx = 0,
+	},
+	{
+		.width = 720,
+		.height = 480,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 600000,
@@ -349,6 +426,40 @@ static int max96756_read_reg(struct i2c_client *client, u16 reg,
 
 	*val = be32_to_cpu(data_be);
 
+	return 0;
+}
+
+static int max96756_write_reg_burst(struct i2c_client *client, u16 reg,
+				const u8 *val)
+{
+	struct i2c_msg msgs[1];
+	int ret;
+	int total_len = 2 + MAX96756_EDID_COUNT;
+	u8 *buf;
+
+	buf = kzalloc(total_len, GFP_KERNEL);
+	if (buf == NULL) {
+		dev_err(&client->dev, "Failed to allocate bytes\n");
+		return -ENOMEM;
+	}
+
+	buf[0] = (reg >> 8) & 0xff;
+	buf[1] = reg & 0xff;
+	memcpy(&buf[2], val, MAX96756_EDID_COUNT);
+
+	/* Fill msg struct */
+	msgs[0].addr = client->addr;
+	msgs[0].flags = 0;
+	msgs[0].len = total_len;
+	msgs[0].buf = buf;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret != ARRAY_SIZE(msgs)) {
+		kfree(buf);
+		return -EIO;
+	}
+
+	kfree(buf);
 	return 0;
 }
 
@@ -727,6 +838,59 @@ static int max96756_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	}
 }
 
+static int max96745_reconfig_edid(struct max96756 *max96756)
+{
+	int ret = -1;
+	u32 val = 0, i, flag = 0;
+	unsigned short temp_addr = 0;
+
+	temp_addr = max96756->client->addr;
+
+	//wait for link lock
+	for (i = 0; i < 10; i++) { // Maximum waiting time 100ms
+		max96756_read_reg(max96756->client, 0x0013,
+			MAX96756_REG_VALUE_08BIT, &val);
+		if (val & (1 << 3)) {
+			dev_dbg(&max96756->client->dev, "serdes reg locked 0x%x\n", val);
+			flag = 1;
+			break;
+		}
+		usleep_range(10000, 10100);
+	}
+
+	if (flag != 1) {
+		dev_err(&max96756->client->dev, "%s: serdes reg still not locked ", __func__);
+		return ret;
+	}
+
+	//common begin
+	ret = max96756_write_array(max96756->client,
+		max96745_reconfig_begin);
+	if (ret) {
+		dev_err(&max96756->client->dev, "max96745_reconfig_begin err\n");
+		max96756->client->addr = temp_addr;
+		return ret;
+	}
+
+	//write edid table
+	max96756->client->addr = MAX96745_I2CADDR;
+	ret = max96756_write_reg_burst(max96756->client, 0x6500, max96756->cur_edid_msg->edid_list);
+	if (ret) {
+		dev_err(&max96756->client->dev, "edid_table err\n");
+		max96756->client->addr = temp_addr;
+		return ret;
+	}
+
+	//common end
+	ret = max96756_write_array(max96756->client,
+		max96745_reconfig_end);
+	if (ret)
+		dev_err(&max96756->client->dev, "max96745_reconfig_end err\n");
+
+	max96756->client->addr = temp_addr;
+	return ret;
+}
+
 static int __max96756_start_stream(struct max96756 *max96756)
 {
 	int ret;
@@ -739,10 +903,16 @@ static int __max96756_start_stream(struct max96756 *max96756)
 		return ret;
 	}
 
+	if (max96756->writeedid_enable) {
+		ret = max96745_reconfig_edid(max96756);
+		if (ret) {
+			dev_err(&max96756->client->dev, "Failed to write edid\n");
+			return ret;
+		}
+	}
+
 	/* In case these controls are set before streaming */
-	mutex_unlock(&max96756->mutex);
-	ret = v4l2_ctrl_handler_setup(&max96756->ctrl_handler);
-	mutex_lock(&max96756->mutex);
+	ret = __v4l2_ctrl_handler_setup(&max96756->ctrl_handler);
 	if (ret) {
 		dev_warn(&max96756->client->dev, "Failed to setup ctrl\n");
 		return ret;
@@ -1329,6 +1499,8 @@ static int max96756_probe(struct i2c_client *client)
 
 	max96756->client = client;
 	max96756->cur_mode = &supported_modes[0];
+	max96756->writeedid_enable = of_property_read_bool(node, MAX96756_WRITEEDID_ENABLE);
+	max96756->cur_edid_msg = &edid_msgs[0];
 
 	max96756->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(max96756->pwdn_gpio))
