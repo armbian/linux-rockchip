@@ -8,6 +8,9 @@
  *
  * V0.0X01.0X01
  *  - Support V4L2 DV class features
+ *
+ * V0.0X01.0X02
+ *	- Compatible with kernel-6.1 version
  */
 #define DEBUG
 
@@ -33,9 +36,11 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/of_graph.h>
+#include <linux/bitfield.h>
 #include "max96756.h"
 
-#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x02)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -304,6 +309,8 @@ static int max96756_write_array(struct i2c_client *client,
 		client->addr = regs[i].i2c_addr;
 		ret = max96756_write_reg(client, regs[i].addr,
 					 MAX96756_REG_VALUE_08BIT, regs[i].val);
+		if (ret != 0)
+			dev_warn(&client->dev, "%x err i2c write!\n", client->addr);
 		if (regs[i].delay > 0)
 			msleep(regs[i].delay);
 	}
@@ -372,9 +379,15 @@ max96756_find_best_fit(struct v4l2_subdev_format *fmt)
 	return &supported_modes[cur_best_fit];
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 static int max96756_set_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_format *fmt)
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
+static int max96756_set_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_format *fmt)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 	const struct max96756_mode *mode;
@@ -388,7 +401,11 @@ static int max96756_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+	#endif
 #else
 		mutex_unlock(&max96756->mutex);
 		return -ENOTTY;
@@ -405,9 +422,15 @@ static int max96756_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_get_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
 static int max96756_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
 			    struct v4l2_subdev_format *fmt)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 	const struct max96756_mode *mode = max96756->cur_mode;
@@ -415,7 +438,11 @@ static int max96756_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&max96756->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+	#endif
 #else
 		mutex_unlock(&max96756->mutex);
 		return -ENOTTY;
@@ -431,9 +458,15 @@ static int max96756_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_enum_mbus_code(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_mbus_code_enum *code)
+#else
 static int max96756_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_mbus_code_enum *code)
+#endif
 {
 	if (code->index != 0)
 		return -EINVAL;
@@ -443,9 +476,15 @@ static int max96756_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_enum_frame_sizes(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_size_enum *fse)
+#else
 static int max96756_enum_frame_sizes(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_pad_config *cfg,
 				     struct v4l2_subdev_frame_size_enum *fse)
+#endif
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
@@ -548,6 +587,7 @@ static long max96756_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
 		*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&max96756->client->dev, "sensor get dphy param\n");
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -810,6 +850,7 @@ static int max96756_s_dv_timings(struct v4l2_subdev *sd,
 
 	return 0;
 }
+
 static int max96756_g_dv_timings(struct v4l2_subdev *sd,
 				 struct v4l2_dv_timings *timings)
 {
@@ -996,8 +1037,13 @@ static int max96756_runtime_suspend(struct device *dev)
 static int max96756_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct max96756 *max96756 = to_max96756(sd);
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
+#else
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+#endif
 	const struct max96756_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&max96756->mutex);
@@ -1014,10 +1060,15 @@ static int max96756_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int
-max96756_enum_frame_interval(struct v4l2_subdev *sd,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_enum_frame_interval(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state,
+			     struct v4l2_subdev_frame_interval_enum *fie)
+#else
+static int max96756_enum_frame_interval(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_frame_interval_enum *fie)
+#endif
 {
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
@@ -1031,6 +1082,39 @@ max96756_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				  struct v4l2_mbus_config *config)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2 = max96756->bus_cfg.bus.mipi_csi2;
+
+	return 0;
+}
+#elif KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				  struct v4l2_mbus_config *config)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+	u32 val = 0;
+	const struct max96756_mode *mode = max96756->cur_mode;
+	u8 data_lanes = max96756->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
+
+	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	val |= (1 << (data_lanes - 1));
+
+	for (i = 0; i < PAD_MAX; i++)
+		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->flags = val;
+
+	return 0;
+}
+#else
 static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				  struct v4l2_mbus_config *config)
 {
@@ -1040,10 +1124,17 @@ static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	return 0;
 }
+#endif
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int max96756_get_selection(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_selection *sel)
+#else
 static int max96756_get_selection(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_selection *sel)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 
@@ -1204,6 +1295,30 @@ static int max96756_configure_regulators(struct max96756 *max96756)
 				       max96756->supplies);
 }
 
+static int max96756_mipi_data_lanes_parse(struct max96756 *max96756)
+{
+	struct device *dev = &max96756->client->dev;
+	struct device_node *endpoint;
+	int ret = 0;
+	u8 mipi_data_line;
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &max96756->bus_cfg);
+	if (ret) {
+		dev_err(dev, "Failed to get bus config\n");
+		return -EINVAL;
+	}
+	mipi_data_line = max96756->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	dev_info(dev, "mipi csi2 phy data lanes = %d\n", mipi_data_line);
+
+	return 0;
+}
+
 static int max96756_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -1280,7 +1395,10 @@ static int max96756_probe(struct i2c_client *client)
 
 	mutex_init(&max96756->mutex);
 
+	max96756_mipi_data_lanes_parse(max96756);
+
 	sd = &max96756->subdev;
+
 	v4l2_i2c_subdev_init(sd, client, &max96756_subdev_ops);
 	ret = max96756_initialize_controls(max96756);
 	if (ret)
@@ -1318,7 +1436,11 @@ static int max96756_probe(struct i2c_client *client)
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 max96756->module_index, facing, MAX96756_NAME,
 		 dev_name(sd->dev));
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	ret = v4l2_async_register_subdev_sensor(sd);
+#else
 	ret = v4l2_async_register_subdev_sensor_common(sd);
+#endif
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1344,7 +1466,11 @@ err_destroy_mutex:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int max96756_remove(struct i2c_client *client)
+#else
+static void max96756_remove(struct i2c_client *client)
+#endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct max96756 *max96756 = to_max96756(sd);
@@ -1362,8 +1488,9 @@ static int max96756_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__max96756_power_off(max96756);
 	pm_runtime_set_suspended(&client->dev);
-
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 #if IS_ENABLED(CONFIG_OF)
