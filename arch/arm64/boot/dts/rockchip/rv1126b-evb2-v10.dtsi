@@ -190,8 +190,8 @@
 		pwms = <&pwm0_8ch_0 0 25000 1>;
 		regulator-name = "vdd_cpu";
 		regulator-init-microvolt = <950000>;
-		regulator-min-microvolt = <750000>;
-		regulator-max-microvolt = <1100000>;
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1150000>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -203,7 +203,7 @@
 		pwms = <&pwm0_8ch_1 0 25000 1>;
 		regulator-name = "vdd_npu";
 		regulator-init-microvolt = <950000>;
-		regulator-min-microvolt = <750000>;
+		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1100000>;
 		regulator-always-on;
 		regulator-boot-on;
