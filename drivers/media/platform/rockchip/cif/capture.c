@@ -10120,7 +10120,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				mutex_unlock(&stream->cifdev->stream_lock);
 			}
 			stream_param->frame_num = dev->stream[0].frame_idx - 1;
-			if (!dev->is_rtt_suspend) {
+			if (!dev->is_rtt_suspend && stream_param->resume_mode != -1) {
 				dev->resume_mode = stream_param->resume_mode;
 				v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 					 "set resume mode %d\n", dev->resume_mode);
