@@ -8,6 +8,7 @@
  * V0.0X01.0X01
  * 1. add delays in setting to fix probability reg write failed.
  * 2. remove duplicate global register setting.
+ * V0.0X01.0X02 fix wrong no ioctl return value
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -37,7 +38,7 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -722,7 +723,7 @@ static long ov08d10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ret = ov08d10_get_channel_info(ov08d10, ch_info);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -ENOIOCTLCMD;
 		break;
 	}
 
@@ -793,7 +794,7 @@ static long ov08d10_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(ch_info);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -ENOIOCTLCMD;
 		break;
 	}
 
