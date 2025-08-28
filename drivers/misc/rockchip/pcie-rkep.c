@@ -857,6 +857,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (copy_to_user(uarg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
+	case PCIE_EP_RESET_CTRL:
 #ifdef CONFIG_PCIEASPM_EXT
 		dev_info(&pcie_rkep->pdev->dev, "reset controller\n");
 		return rockchip_dw_pcie_pm_ctrl_for_user(pcie_rkep->pdev, ROCKCHIP_PCIE_PM_CTRL_RESET);
