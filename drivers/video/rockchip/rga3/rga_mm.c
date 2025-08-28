@@ -2385,8 +2385,6 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	internal_buffer = kzalloc(sizeof(struct rga_internal_buffer), GFP_KERNEL);
 	if (internal_buffer == NULL) {
 		rga_err("%s alloc internal_buffer error!\n", __func__);
-
-		mutex_unlock(&mm->lock);
 		return -ENOMEM;
 	}
 
