@@ -1322,6 +1322,8 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 	if (on && atomic_inc_return(&priv->power_cnt) > 1)
 		return 0;
 
+	rkcif_update_sensor_info(&cif_dev->stream[0]);
+
 	if (on)
 		rkcif_update_unite_extend_pixel(cif_dev);
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
