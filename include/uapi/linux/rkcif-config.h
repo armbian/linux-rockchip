@@ -129,6 +129,12 @@ struct rkcif_csi_info {
 	int dphy_vendor[RKCIF_MAX_CSI_NUM];
 };
 
+/*
+ * function: to quick start or stop stream
+ * on(input): to start or stop stream
+ * frame_num(output): for aiq to record frame number after stop stream
+ * resume_mode(input): set resume_mode to driver for AOV, set -1 for other case
+ */
 struct rkcif_quick_stream_param {
 	int on;
 	__u32 frame_num;
