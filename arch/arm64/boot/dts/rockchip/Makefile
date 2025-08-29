@@ -404,6 +404,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v10-sii9022-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v12.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v12-fastboot-emmc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v12-fastboot-spi-nand.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v12-fastboot-spi-nor.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-iotest-v10.dtb
