@@ -342,10 +342,15 @@ static void sditf_free_buf(struct sditf_priv *priv)
 	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
+		cif_dev->rdbk_rx_buf[RDBK_L] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_M] = NULL;
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[2], cif_dev->stream[2].rx_buf_num);
+		cif_dev->rdbk_rx_buf[RDBK_L] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_M] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_S] = NULL;
 	} else {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 	}
