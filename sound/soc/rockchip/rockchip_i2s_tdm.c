@@ -3294,6 +3294,11 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->frame_width = 64;
 
 	i2s_tdm->clk_trcm = TRCM_TXRX;
+	if (!of_property_read_u32(node, "rockchip,clk-trcm", &val)) {
+		if (val >= 0 && val <= 2)
+			i2s_tdm->clk_trcm = val;
+		dev_warn(i2s_tdm->dev, "Deprecated property 'rockchip,clk-trcm', please use 'rockchip,trcm-sync-tx/rx-only' in DT\n");
+	}
 	if (of_property_read_bool(node, "rockchip,trcm-sync-tx-only"))
 		i2s_tdm->clk_trcm = TRCM_TX;
 	if (of_property_read_bool(node, "rockchip,trcm-sync-rx-only")) {
