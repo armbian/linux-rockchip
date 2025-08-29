@@ -270,6 +270,9 @@
 
 #define DPTX_MAX_STREAMS			4
 
+#define dw_dp_dbg(dp, fmt, ...)	\
+	drm_dbg_dp(dp->bridge.dev, "%s: " fmt, dev_name(dp->dev), ##__VA_ARGS__)
+
 enum {
 	RK3576_DP,
 	RK3588_DP,
@@ -2822,7 +2825,7 @@ static void dw_dp_gpio_hpd_state_work(struct work_struct *work)
 
 	mutex_lock(&dp->irq_lock);
 	if (hotplug->state == GPIO_STATE_UNPLUG) {
-		dev_dbg(dp->dev, "hpd state unplug to idle\n");
+		dw_dp_dbg(dp, "hpd state unplug to idle\n");
 		dp->hotplug.long_hpd = true;
 		dp->hotplug.status = false;
 		dp->hotplug.state = GPIO_STATE_IDLE;
@@ -2836,24 +2839,24 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 	struct dw_dp *dp = arg;
 	bool hpd = dw_dp_detect(dp);
 
-	dev_dbg(dp->dev, "trigger gpio to %s\n", hpd ? "high" : "low");
+	dw_dp_dbg(dp, "trigger gpio to %s\n", hpd ? "high" : "low");
 	mutex_lock(&dp->irq_lock);
 	if (dp->hotplug.state == GPIO_STATE_IDLE) {
 		if (hpd) {
-			dev_dbg(dp->dev, "hpd state idle to plug\n");
+			dw_dp_dbg(dp, "hpd state idle to plug\n");
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
 		}
 	} else if (dp->hotplug.state == GPIO_STATE_PLUG) {
 		if (!hpd) {
-			dev_dbg(dp->dev, "hpd state plug to unplug\n");
+			dw_dp_dbg(dp, "hpd state plug to unplug\n");
 			dp->hotplug.state = GPIO_STATE_UNPLUG;
 			schedule_delayed_work(&dp->hotplug.state_work, msecs_to_jiffies(2));
 		}
 	} else if (dp->hotplug.state == GPIO_STATE_UNPLUG) {
 		if (hpd) {
-			dev_dbg(dp->dev, "hpd state unplug to plug\n");
+			dw_dp_dbg(dp, "hpd state unplug to plug\n");
 			cancel_delayed_work_sync(&dp->hotplug.state_work);
 			dp->hotplug.long_hpd = false;
 			dp->hotplug.status = hpd;
@@ -3158,7 +3161,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	status = wait_for_completion_timeout(&dp->complete, timeout);
 	if (!status) {
-		dev_dbg(dp->dev, "timeout waiting for AUX reply\n");
+		dw_dp_dbg(dp, "timeout waiting for AUX reply\n");
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -3679,7 +3682,7 @@ static void dw_dp_set_vcpid_table_range(struct dw_dp *dp, u32 start, u32 count, 
 
 	for (i = 0; i < count; i++)
 		dw_dp_set_vcpid_table_slot(dp, start + i, stream_id + 1);
-	dev_dbg(dp->dev, "set stream%d start:%d, conunt:%d\n", stream_id, start, count);
+	dw_dp_dbg(dp, "set stream%d start:%d, conunt:%d\n", stream_id, start, count);
 }
 
 static int dw_dp_set_vcpid_tables(struct dw_dp *dp,
@@ -4767,9 +4770,9 @@ static int dw_dp_bridge_atomic_check(struct drm_bridge *bridge,
 	const struct dw_dp_output_format *fmt =
 		dw_dp_get_output_format(bridge_state->output_bus_cfg.format);
 
-	dev_dbg(dp->dev, "input format 0x%04x, output format 0x%04x\n",
-		bridge_state->input_bus_cfg.format,
-		bridge_state->output_bus_cfg.format);
+	dw_dp_dbg(dp, "input format 0x%04x, output format 0x%04x\n",
+		  bridge_state->input_bus_cfg.format,
+		  bridge_state->output_bus_cfg.format);
 
 	if (video->bus_format != fmt->bus_format)
 		crtc_state->mode_changed = true;
@@ -4810,7 +4813,7 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 	if (!dw_dp_needs_link_retrain(dp))
 		return 0;
 
-	dev_dbg(dp->dev, "Retraining link\n");
+	dw_dp_dbg(dp, "Retraining link\n");
 
 	drm_modeset_acquire_init(&ctx, 0);
 	for (;;) {
@@ -5087,7 +5090,7 @@ static void dw_dp_hpd_work(struct work_struct *work)
 	long_hpd = dp->hotplug.long_hpd;
 	mutex_unlock(&dp->irq_lock);
 
-	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
+	dw_dp_dbg(dp, "got hpd irq - %s\n", long_hpd ? "long" : "short");
 
 	if (!long_hpd) {
 		phy_power_on(dp->phy);
@@ -5128,19 +5131,19 @@ static void dw_dp_handle_hpd_event(struct dw_dp *dp)
 	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
 
 	if (value & HPD_IRQ) {
-		dev_dbg(dp->dev, "IRQ from the HPD\n");
+		dw_dp_dbg(dp, "IRQ from the HPD\n");
 		dp->hotplug.long_hpd = false;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_IRQ);
 	}
 
 	if (value & HPD_HOT_PLUG) {
-		dev_dbg(dp->dev, "Hot plug detected\n");
+		dw_dp_dbg(dp, "Hot plug detected\n");
 		dp->hotplug.long_hpd = true;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
 	}
 
 	if (value & HPD_HOT_UNPLUG) {
-		dev_dbg(dp->dev, "Unplug detected\n");
+		dw_dp_dbg(dp, "Unplug detected\n");
 		dp->hotplug.long_hpd = true;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_UNPLUG);
 	}
@@ -5795,22 +5798,22 @@ static int dw_dp_typec_mux_set(struct typec_mux_dev *mux, struct typec_mux_state
 		struct typec_displayport_data *data = state->data;
 
 		if (!data) {
-			dev_dbg(dp->dev, "hotunplug from the usbdp\n");
+			dw_dp_dbg(dp, "hotunplug from the usbdp\n");
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = false;
 			schedule_work(&dp->hpd_work);
 		} else if (data->status & DP_STATUS_IRQ_HPD) {
-			dev_dbg(dp->dev, "IRQ from the usbdp\n");
+			dw_dp_dbg(dp, "IRQ from the usbdp\n");
 			dp->hotplug.long_hpd = false;
 			dp->hotplug.status = true;
 			schedule_work(&dp->hpd_work);
 		} else if (data->status & DP_STATUS_HPD_STATE) {
-			dev_dbg(dp->dev, "hotplug from the usbdp\n");
+			dw_dp_dbg(dp, "hotplug from the usbdp\n");
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = true;
 			schedule_work(&dp->hpd_work);
 		} else {
-			dev_dbg(dp->dev, "hotunplug from the usbdp\n");
+			dw_dp_dbg(dp, "hotunplug from the usbdp\n");
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = false;
 			schedule_work(&dp->hpd_work);
