@@ -390,6 +390,26 @@ static void handle_plugged_change(struct dw_hdmi_qp *hdmi, bool plugged)
 		hdmi->plugged_cb(hdmi->codec_dev, plugged);
 }
 
+static const struct drm_display_mode *
+dw_hdmi_qp_connector_get_mode(const struct drm_connector *connector)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	struct drm_connector_state *new_state;
+
+	new_state = connector->state;
+	if (!new_state || !new_state->crtc)
+		return NULL;
+
+	crtc = new_state->crtc;
+
+	crtc_state = crtc->state;
+	if (!crtc_state)
+		return NULL;
+
+	return &crtc_state->mode;
+}
+
 int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
 			      struct device *codec_dev)
 {
@@ -1459,10 +1479,10 @@ bool hdmi_quirk_vsi(const struct drm_connector *connector, u8 *vendor_info)
 }
 
 static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
-			    const struct drm_connector *connector,
-			    const struct drm_display_mode *mode)
+			    const struct drm_connector *connector)
 {
 	struct hdmi_avi_infoframe frame;
+	const struct drm_display_mode *mode = dw_hdmi_qp_connector_get_mode(connector);
 	u32 val, i, j;
 	u8 buff[17];
 	enum hdmi_quantization_range rgb_quant_range =
@@ -1588,10 +1608,10 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 #define HDMI_FORUM_LEN		9
 
 static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi_qp *hdmi,
-						  const struct drm_connector *connector,
-						  const struct drm_display_mode *mode)
+						  const struct drm_connector *connector)
 {
 	struct hdmi_vendor_infoframe frame;
+	const struct drm_display_mode *mode = dw_hdmi_qp_connector_get_mode(connector);
 	u8 buffer[10];
 	u32 val;
 	ssize_t err;
@@ -2560,14 +2580,14 @@ static void dw_hdmi_qp_flt_work(struct work_struct *p_work)
 
 static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 			    const struct drm_connector *connector,
-			    struct drm_display_mode *mode)
+			    struct drm_atomic_state *state)
 {
 	void *data = hdmi->plat_data->phy_data;
 	struct hdmi_vmode_qp *vmode = &hdmi->hdmi_data.video_mode;
 	struct dw_hdmi_link_config *link_cfg;
 	u8 bytes = 0;
 
-	hdmi->vic = drm_match_cea_mode(mode);
+	hdmi->vic = drm_match_cea_mode(dw_hdmi_qp_connector_get_mode(connector));
 	if (!hdmi->vic)
 		dev_dbg(hdmi->dev, "Non-CEA mode used in HDMI\n");
 	else
@@ -2584,7 +2604,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	else
 		hdmi->hdmi_data.enc_out_encoding = V4L2_YCBCR_ENC_709;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
+	if (hdmi->previous_mode.flags & DRM_MODE_FLAG_DBLCLK) {
 		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 1;
 		hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 1;
 	} else {
@@ -2646,12 +2666,12 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	 * 0001b: Pixel sent two times (pixel repeated once)
 	 */
 	hdmi->hdmi_data.pix_repet_factor =
-		(mode->flags & DRM_MODE_FLAG_DBLCLK) ? 1 : 0;
+		(hdmi->previous_mode.flags & DRM_MODE_FLAG_DBLCLK) ? 1 : 0;
 	hdmi->hdmi_data.video_mode.mdataenablepolarity = true;
 
 	vmode->previous_pixelclock = vmode->mpixelclock;
-	vmode->mpixelclock = mode->crtc_clock * 1000;
-	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+	vmode->mpixelclock = hdmi->previous_mode.crtc_clock * 1000;
+	if ((hdmi->previous_mode.flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
 		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %ld\n", vmode->mpixelclock);
 	vmode->previous_tmdsclock = vmode->mtmdsclock;
@@ -2698,8 +2718,8 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 			}
 		}
 		/* HDMI Initialization Step F - Configure AVI InfoFrame */
-		hdmi_config_AVI(hdmi, connector, mode);
-		hdmi_config_vendor_specific_infoframe(hdmi, connector, mode);
+		hdmi_config_AVI(hdmi, connector);
+		hdmi_config_vendor_specific_infoframe(hdmi, connector);
 		hdmi_config_CVTEM(hdmi);
 		hdmi_config_drm_infoframe(hdmi, connector);
 		ret = hdmi_set_op_mode(hdmi, link_cfg, connector);
@@ -3015,7 +3035,7 @@ void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi, bool enable)
 		return;
 	}
 
-	hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
+	hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_allm_enable);
 
@@ -3613,7 +3633,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		if (hdmi->hdmi_changed_status & HDMI_COLOR_FMT_CHANGED) {
 			if (hdmi->plat_data->set_grf_cfg)
 				hdmi->plat_data->set_grf_cfg(hdmi->plat_data->phy_data);
-			hdmi_config_AVI(hdmi, connector, &hdmi->previous_mode);
+			hdmi_config_AVI(hdmi, connector);
 		}
 		if (hdmi->hdmi_changed_status & HDMI_HDR_STATUS_CHANGED)
 			hdmi_config_drm_infoframe(hdmi, connector);
@@ -3626,8 +3646,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 	if (!hdmi->disabled) {
 		set_dw_hdmi_hdcp_enable(hdmi, connector, state);
 		if (hdmi->hdmi_changed_status & HDMI_VSIF_CHANGED)
-			hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn,
-							      &hdmi->previous_mode);
+			hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn);
 	}
 }
 
@@ -3642,7 +3661,7 @@ void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi)
 		hdmi->hdmi_data.quant_range =
 			hdmi->plat_data->get_quant_range(data);
 
-	hdmi_config_AVI(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
+	hdmi_config_AVI(hdmi, hdmi->curr_conn);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_quant_range);
 
@@ -3899,7 +3918,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	mutex_lock(&hdmi->mutex);
 	hdmi->curr_conn = connector;
 
-	dw_hdmi_qp_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
+	dw_hdmi_qp_setup(hdmi, hdmi->curr_conn, state);
 
 	if (link_cfg && !link_cfg->frl_mode) {
 		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);
