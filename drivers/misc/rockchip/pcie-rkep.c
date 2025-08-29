@@ -396,6 +396,18 @@ static int rkep_mem_continuous_buffer_free(struct pcie_file *pcie_file,
 	return ret;
 }
 
+static void *rkep_mem_continuous_buffer_to_virt(struct pcie_file *pcie_file, uint64_t dma_addr)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req, *tmp;
+
+	list_for_each_entry_safe(buffer_req, tmp, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		if (buffer_req->dma_addr == dma_addr)
+			return buffer_req->vir_addr;
+	}
+
+	return NULL;
+}
+
 static int pcie_rkep_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *miscdev = file->private_data;
@@ -696,15 +708,21 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM ||
-	    pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER)
+	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM) {
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	else
+		err = remap_pfn_range(vma, vma->vm_start,
+				      __phys_to_pfn(addr),
+				      size, vma->vm_page_prot);
+	} else if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER) {
+		err = dma_mmap_coherent(&pcie_rkep->pdev->dev, vma,
+					rkep_mem_continuous_buffer_to_virt(pcie_file, addr),
+					addr, size);
+	} else {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	err = remap_pfn_range(vma, vma->vm_start,
-			      __phys_to_pfn(addr),
-			      size, vma->vm_page_prot);
+		err = remap_pfn_range(vma, vma->vm_start,
+				      __phys_to_pfn(addr),
+				      size, vma->vm_page_prot);
+	}
 	if (err)
 		return -EAGAIN;
 
