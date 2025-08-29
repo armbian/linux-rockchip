@@ -1537,7 +1537,11 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 			rkvpss_hw_write(hw, reg + i * 0x100, val);
 
 			reg = RKVPSS_MI_CHN0_WR_Y_STRIDE;
-			val = cfg->output[i].stride;
+			/* If 16-aligned, use stride; otherwise set to 0 */
+			if (IS_ALIGNED(cfg->output[i].stride, 16))
+				val = cfg->output[i].stride;
+			else
+				val = 0;
 			rkvpss_hw_write(hw, reg + i * 0x100, val);
 
 			reg = RKVPSS_MI_CHN0_WR_Y_SIZE;
