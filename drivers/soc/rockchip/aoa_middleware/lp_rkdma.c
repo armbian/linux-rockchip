@@ -106,11 +106,10 @@ struct lp_rkdma_dev {
 
 static int lp_rkdma_init(struct lp_rkdma_dev *d)
 {
-	int i, lch, pch, buswidth, maxburst, dep, addrwidth;
+	int lch, pch, buswidth, maxburst, dep, addrwidth;
 	u32 cap0, cap1, ver;
 
-	writel(CMN_CFG_EN | CMN_CFG_IE_EN, RK_DMA_CMN_CFG);
-
+	/* Just get base infos of rkdma */
 	ver  = readl(RK_DMA_CMN_VER);
 	cap0 = readl(RK_DMA_CMN_CAP0);
 	cap1 = readl(RK_DMA_CMN_CAP1);
@@ -128,13 +127,6 @@ static int lp_rkdma_init(struct lp_rkdma_dev *d)
 	d->buf_dep = dep;
 	d->dma_channels = CMN_LCH_NUM(cap0);
 	d->dma_requests = CMN_LCH_NUM(cap0);
-
-	writel(0xffffffff, RK_DMA_CMN_DYNCTL);
-	writel(0xffffffff, RK_DMA_CMN_IS0);
-	writel(0xffffffff, RK_DMA_CMN_IS1);
-
-	for (i = 0; i < pch; i++)
-		writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
 
 	dev_info(d->dev, "Lowpower RKDMA: NR_LCH-%d NR_PCH-%d PCH_BUF-%dx%dBytes AXI_LEN-%d ADDR-%dBits V%lu.%lu\n",
 		 lch, pch, dep, buswidth, maxburst, addrwidth,
@@ -251,7 +243,12 @@ err_out:
 int lp_rkdma_remove(struct platform_device *pdev)
 {
 	struct lp_rkdma_dev *d = platform_get_drvdata(pdev);
+	struct lp_rkdma_lch *l = &d->lch[0];
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	/* make sure disable IRQ requests during removing module */
+	writel(0x0, RK_DMA_LCH_CTL0);
+	writel(0x0, RK_DMA_LCH_IE);
 
 	if (d) {
 		if (d->irq > 0) {
