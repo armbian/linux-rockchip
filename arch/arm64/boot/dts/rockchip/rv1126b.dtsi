@@ -405,8 +405,8 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&otp_id>, <&cpu_version>, <&cpu_code>;
-		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+		nvmem-cells = <&otp_id>, <&cpu_version>, <&cpu_code>, <&specification_serial_number>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code", "spec-sn";
 	};
 
 	/* dphy0 full mode */
@@ -1942,7 +1942,7 @@
 		cpu_code: cpu-code@2 {
 			reg = <0x02 0x2>;
 		};
-		specification_serial_number: specification-serial-number@7 {
+		specification_serial_number: specification-serial-number@8 {
 			reg = <0x08 0x1>;
 			bits = <0 5>;
 		};
