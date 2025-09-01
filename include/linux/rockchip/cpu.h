@@ -248,6 +248,7 @@ static inline bool cpu_is_rk3567(void) { return false; }
 static inline bool cpu_is_rk3568(void) { return false; }
 #endif
 
+#define ROCKCHIP_SOC_SSN_MASK	0xff
 #define ROCKCHIP_SOC_MASK	(ROCKCHIP_CPU_MASK | 0xff)
 #define ROCKCHIP_SOC_PX30	(ROCKCHIP_CPU_PX30 | 0x00)
 #define ROCKCHIP_SOC_PX30S	(ROCKCHIP_CPU_PX30 | 0x01)
