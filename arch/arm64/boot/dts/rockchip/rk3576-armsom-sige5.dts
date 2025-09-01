@@ -74,8 +74,17 @@
 	leds: leds {
 		compatible = "gpio-leds";
 		work_led: work {
-			gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+			label = "red";
+			gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+			default-state = "off";
+		};
+
+		active_led: active {
+			label = "green";
+			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
+			default-state = "on";
 		};
 	};
 
