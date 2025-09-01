@@ -1819,8 +1819,8 @@ static int __maybe_unused rk_iommu_resume(struct device *dev)
 
 static const struct dev_pm_ops rk_iommu_pm_ops = {
 	SET_RUNTIME_PM_OPS(rk_iommu_suspend, rk_iommu_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				 pm_runtime_force_resume)
 };
 
 static struct rk_iommu_ops iommu_data_ops_v1 = {
