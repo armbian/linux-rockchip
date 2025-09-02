@@ -91,6 +91,10 @@ config CPU_RK3568
 	bool "RK3566/8"
 	depends on ARM || ARM64
 
+config CPU_RK3572
+	bool "RK3572"
+	depends on ARM || ARM64
+
 config CPU_RK3576
 	bool "RK3576"
 	depends on ARM || ARM64
