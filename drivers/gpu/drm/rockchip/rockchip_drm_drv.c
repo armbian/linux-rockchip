@@ -101,7 +101,7 @@ static const struct mvrr_const_val const_hdmi720p60_6000 = {
 	.vtotal_fixed = 750,
 };
 
-/**
+/*
  * @vrefresh_khz:	qms-vrr target refresh rate is 59.94Hz
  * @vtotal_fixed:	When switch to target refresh rate, vtotal is 750
  * @bit_len:		frac_array's bit length
