@@ -9,7 +9,7 @@
 #ifndef __AOA_DRV_H__
 #define __AOA_DRV_H__
 
-int rockchip_aoa_probe(struct platform_device *pdev);
+int rockchip_aoa_probe(struct platform_device *pdev, void *data);
 int rockchip_aoa_remove(struct platform_device *pdev);
 
 #endif /* __AOA_DRV_H__ */

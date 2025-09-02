@@ -9,7 +9,7 @@
 #ifndef __AOA_MIDDLEWARE_H__
 #define __AOA_MIDDLEWARE_H__
 
-int aoa_middleware_aoa_notifier(s32 status);
-int aoa_middleware_dma_notifier(s32 dma_count);
+int aoa_middleware_aoa_notifier(s32 status, void *data);
+int aoa_middleware_dma_notifier(s32 dma_count, void *data);
 
 #endif /* __AOA_MIDDLEWARE_H__ */

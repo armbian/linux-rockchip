@@ -102,6 +102,7 @@ struct lp_rkdma_dev {
 	u32			dma_channels;
 	u32			dma_requests;
 	u32			version;
+	void			*data;
 };
 
 static int lp_rkdma_init(struct lp_rkdma_dev *d)
@@ -142,7 +143,7 @@ static irqreturn_t lp_rkdma_irq_handler(int irq, void *dev_id)
 	u64 is = 0, is_raw = 0;
 	u32 i = 0;
 
-	aoa_middleware_dma_notifier(readl(RK_DMA_LCH_LLI_CNT));
+	aoa_middleware_dma_notifier(readl(RK_DMA_LCH_LLI_CNT), d->data);
 
 	is = readq(RK_DMA_CMN_IS0);
 	is_raw = is;
@@ -158,7 +159,7 @@ static irqreturn_t lp_rkdma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int lp_rkdma_probe(struct platform_device *pdev)
+int lp_rkdma_probe(struct platform_device *pdev, void *data)
 {
 	struct lp_rkdma_dev *d;
 	struct resource *res;
@@ -218,6 +219,7 @@ int lp_rkdma_probe(struct platform_device *pdev)
 		l->id = i;
 		l->base = RK_DMA_LCHn_REG(i, 0);
 	}
+	d->data = data;
 
 	ret = request_irq(d->irq, lp_rkdma_irq_handler, 0, dev_name(&pdev->dev), d);
 	if (ret)

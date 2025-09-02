@@ -20,6 +20,7 @@ struct rk_aoa_dev {
 	struct reset_control *rst;
 	void __iomem *base;
 	int irq;
+	void *data;
 };
 
 static const struct of_device_id rockchip_aoa_match[] __maybe_unused = {
@@ -36,13 +37,13 @@ static irqreturn_t rockchip_aoa_isr(int irq, void *devid)
 	writel(st, aoa->base + AOA_AAD_IRQ_ST);
 	for (s = 1; s < 8; s++) {
 		if (st & (1 << s))
-			aoa_middleware_aoa_notifier(s);
+			aoa_middleware_aoa_notifier(s, aoa->data);
 	}
 
 	return IRQ_HANDLED;
 }
 
-int rockchip_aoa_probe(struct platform_device *pdev)
+int rockchip_aoa_probe(struct platform_device *pdev, void *data)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct rk_aoa_dev *aoa;
@@ -83,6 +84,7 @@ int rockchip_aoa_probe(struct platform_device *pdev)
 		}
 	}
 	aoa->irq = irq;
+	aoa->data = data;
 	dev_set_drvdata(&pdev->dev, aoa);
 	return 0;
 

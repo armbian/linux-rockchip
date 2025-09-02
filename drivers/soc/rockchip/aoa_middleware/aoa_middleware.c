@@ -38,36 +38,60 @@ struct aoa_middleware_devs {
 	struct platform_device *pdev_aoa;
 	struct platform_device *pdev_dma;
 	void *am_d;
+	struct notify_rkdma *nty_rkdma;
+	struct notify_ns *nty_ns;
+	struct miscdevice misc_notifier_aoa;
+	struct miscdevice misc_notifier_dma;
+	struct fasync_struct *rk_aoa_fasync_queue;
+	struct fasync_struct *rk_dma_fasync_queue;
 };
 
-static struct fasync_struct *rk_aoa_fasync_queue;
-static struct fasync_struct *rk_dma_fasync_queue;
-
-static struct notify_rkdma g_notify;
-static struct notify_ns g_dma_ns;
-
-int aoa_middleware_aoa_notifier(s32 status)
+int aoa_middleware_aoa_notifier(s32 status, void *data)
 {
+	struct aoa_middleware_devs *amw_d = data;
+
+	if (!amw_d) {
+		pr_err("%s: amw_d pointer is null\n", __func__);
+		return -EINVAL;
+	}
+
 	/* AOA Notify starting from SIGRTMIN + 1 */
-	kill_fasync(&rk_aoa_fasync_queue, SIGRTMIN + status, POLL_IN);
+	kill_fasync(&amw_d->rk_aoa_fasync_queue, SIGRTMIN + status, POLL_IN);
 	return 0;
 }
 EXPORT_SYMBOL(aoa_middleware_aoa_notifier);
 
-int aoa_middleware_dma_notifier(s32 dma_count)
+int aoa_middleware_dma_notifier(s32 dma_count, void *data)
 {
-	struct notify_rkdma *n_rkdma = &g_notify;
-	struct notify_ns *n_ns = &g_dma_ns;
+	struct aoa_middleware_devs *amw_d = data;
+	struct notify_rkdma *n_rkdma;
+	struct notify_ns *n_ns;
 	struct timespec64 ts;
 	s32 delta_id;
 
+	if (!amw_d) {
+		pr_err("%s: amw_d pointer is null\n", __func__);
+		return -EINVAL;
+	}
+	if (!amw_d->nty_rkdma) {
+		pr_err("%s: nty_rkdma pointer is null\n", __func__);
+		return -EINVAL;
+	}
+	if (!amw_d->nty_ns) {
+		pr_err("%s: nty_ns pointer is null\n", __func__);
+		return -EINVAL;
+	}
+
+	n_rkdma = amw_d->nty_rkdma;
+	n_ns = amw_d->nty_ns;
+
 	ktime_get_boottime_ts64(&ts);
 	n_ns->ns = timespec64_to_ns(&ts);
-	kill_fasync(&rk_dma_fasync_queue, SIGRTMIN + 0, POLL_IN);
+	kill_fasync(&amw_d->rk_dma_fasync_queue, SIGRTMIN + 0, POLL_IN);
 
 	/* ns_id: start from 1, range: 0 ~ (periods-1) */
 	if (dma_count < 0 || dma_count >= n_rkdma->periods) {
-		pr_err("Invalid dma_count: %d\n", dma_count);
+		pr_err("Invalid dma_count: %d >= periods: %d\n", dma_count, n_rkdma->periods);
 		return -EINVAL;
 	}
 	dma_count = array_index_nospec(dma_count, n_rkdma->periods);
@@ -98,31 +122,55 @@ int aoa_middleware_dma_notifier(s32 dma_count)
 }
 EXPORT_SYMBOL(aoa_middleware_dma_notifier);
 
+static int rk_aoa_notifier_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *misc = file->private_data;
+	struct aoa_middleware_devs *amw_d = container_of(misc, struct aoa_middleware_devs, misc_notifier_aoa);
+
+	file->private_data = amw_d;
+	return 0;
+}
+
 static int rk_aoa_notifier_fasync(int fd, struct file *file, int mode)
 {
-	return fasync_helper(fd, file, mode, &rk_aoa_fasync_queue);
+	struct aoa_middleware_devs *amw_d = file->private_data;
+
+	return fasync_helper(fd, file, mode, &amw_d->rk_aoa_fasync_queue);
 }
 
 static const struct file_operations rk_aoa_notifier_fops = {
 	.owner   = THIS_MODULE,
+	.open    = rk_aoa_notifier_open,
 	.fasync  = rk_aoa_notifier_fasync,
 };
 
-static struct miscdevice rk_aoa_notifier_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name  = "rk-aoa-notifier",
-	.fops  = &rk_aoa_notifier_fops,
-};
+static int rk_dma_notifier_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *misc = file->private_data;
+	struct aoa_middleware_devs *amw_d = container_of(misc, struct aoa_middleware_devs, misc_notifier_dma);
+
+	file->private_data = amw_d;
+	return 0;
+}
 
 static int rk_dma_notifier_fasync(int fd, struct file *file, int mode)
 {
-	return fasync_helper(fd, file, mode, &rk_dma_fasync_queue);
+	struct aoa_middleware_devs *amw_d = file->private_data;
+
+	return fasync_helper(fd, file, mode, &amw_d->rk_dma_fasync_queue);
 }
 
 static long rk_dma_notifier_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct notify_rkdma *n_rkdma = &g_notify;
+	struct aoa_middleware_devs *amw_d = file->private_data;
+	struct notify_rkdma *n_rkdma;
 	struct notify_ns n_ns_user;
+
+	if (IS_ERR_OR_NULL(amw_d))
+		return -EINVAL;
+	if (IS_ERR_OR_NULL(amw_d->nty_rkdma))
+		return -EINVAL;
+	n_rkdma = amw_d->nty_rkdma;
 
 	switch (cmd) {
 	case NOTIFY_RKDMA_SET_PERIODS:
@@ -154,15 +202,10 @@ static long rk_dma_notifier_ioctl(struct file *file, unsigned int cmd, unsigned 
 
 static const struct file_operations rk_dma_notifier_fops = {
 	.owner   = THIS_MODULE,
+	.open    = rk_dma_notifier_open,
 	.fasync  = rk_dma_notifier_fasync,
 	.compat_ioctl  = rk_dma_notifier_ioctl,
 	.unlocked_ioctl = rk_dma_notifier_ioctl,
-};
-
-static struct miscdevice rk_dma_notifier_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name  = "rk-dma-notifier",
-	.fops  = &rk_dma_notifier_fops,
 };
 
 static int aoa_middleware_probe(struct platform_device *pdev)
@@ -175,6 +218,12 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 
 	amw_d = devm_kzalloc(&pdev->dev, sizeof(*amw_d), GFP_KERNEL);
 	if (!amw_d)
+		return -ENOMEM;
+	amw_d->nty_rkdma = devm_kzalloc(&pdev->dev, sizeof(*amw_d->nty_rkdma), GFP_KERNEL);
+	if (!amw_d->nty_rkdma)
+		return -ENOMEM;
+	amw_d->nty_ns = devm_kzalloc(&pdev->dev, sizeof(*amw_d->nty_ns), GFP_KERNEL);
+	if (!amw_d->nty_ns)
 		return -ENOMEM;
 	amw_d->dev = &pdev->dev;
 	amw_d->pdev_aoa = NULL;
@@ -197,7 +246,7 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	ret = rockchip_aoa_probe(pdev_slave);
+	ret = rockchip_aoa_probe(pdev_slave, (void *)amw_d);
 	if (ret) {
 		dev_err(&pdev->dev, "probe rockchip aoa failed: %d\n", ret);
 		goto err_put_aoa;
@@ -221,7 +270,7 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 		goto err_unprobe_aoa;
 	}
 
-	ret = lp_rkdma_probe(pdev_slave);
+	ret = lp_rkdma_probe(pdev_slave, (void *)amw_d);
 	if (ret) {
 		dev_err(&pdev->dev, "probe rockchip dma failed: %d\n", ret);
 		goto err_put_dma;
@@ -240,13 +289,20 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 	}
 	amw_d->am_d = am_map;
 
-	ret = misc_register(&rk_aoa_notifier_misc);
+	/* prepare aoa/dma notifiers */
+	amw_d->misc_notifier_aoa.minor = MISC_DYNAMIC_MINOR;
+	amw_d->misc_notifier_aoa.name  = "rk-aoa-notifier";
+	amw_d->misc_notifier_aoa.fops  = &rk_aoa_notifier_fops;
+	ret = misc_register(&amw_d->misc_notifier_aoa);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: aoa notifier misc register failed (%d)\n", __func__, ret);
 		goto err_mmap_remove;
 	}
 
-	ret = misc_register(&rk_dma_notifier_misc);
+	amw_d->misc_notifier_dma.minor = MISC_DYNAMIC_MINOR;
+	amw_d->misc_notifier_dma.name  = "rk-dma-notifier";
+	amw_d->misc_notifier_dma.fops  = &rk_dma_notifier_fops;
+	ret = misc_register(&amw_d->misc_notifier_dma);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: dma notifier misc register failed (%d)\n", __func__, ret);
 		goto err_unregister_aoa_misc;
@@ -257,7 +313,7 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 	return 0;
 
 err_unregister_aoa_misc:
-	misc_deregister(&rk_aoa_notifier_misc);
+	misc_deregister(&amw_d->misc_notifier_aoa);
 err_mmap_remove:
 	if (amw_d->am_d) {
 		aoa_mmap_remove(pdev, amw_d->am_d);
@@ -306,8 +362,8 @@ static int aoa_middleware_remove(struct platform_device *pdev)
 
 	aoa_mmap_remove(pdev, amw_d->am_d);
 
-	misc_deregister(&rk_dma_notifier_misc);
-	misc_deregister(&rk_aoa_notifier_misc);
+	misc_deregister(&amw_d->misc_notifier_aoa);
+	misc_deregister(&amw_d->misc_notifier_dma);
 
 	dev_info(&pdev->dev, "%s: all aoa middlewares are unregistered\n", __func__);
 	return 0;

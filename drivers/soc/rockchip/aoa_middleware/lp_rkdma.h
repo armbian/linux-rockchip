@@ -9,7 +9,7 @@
 #ifndef __LP_RKDMA_H__
 #define __LP_RKDMA_H__
 
-int lp_rkdma_probe(struct platform_device *pdev);
+int lp_rkdma_probe(struct platform_device *pdev, void *data);
 int lp_rkdma_remove(struct platform_device *pdev);
 
 #endif /* __LP_RKDMA_H__ */
