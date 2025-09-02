@@ -107,6 +107,7 @@ obj-$(CONFIG_SPI_QUP)			+= spi-qup.o
 obj-$(CONFIG_SPI_ROCKCHIP)		+= spi-rockchip.o
 obj-$(CONFIG_SPI_ROCKCHIP_FLEXBUS_FSPI)	+= spi-rockchip-flexbus-fspi.o
 obj-$(CONFIG_SPI_ROCKCHIP_FLEXBUS_SPI)	+= spi-rockchip-flexbus-spi.o
+obj-$(CONFIG_SPI_ROCKCHIP_FSPI_NM)	+= spi-rockchip-fspi-nm.o
 obj-$(CONFIG_SPI_ROCKCHIP_SFC)		+= spi-rockchip-sfc.o
 obj-$(CONFIG_SPI_ROCKCHIP_SLAVE)	+= spi-rockchip-slave.o
 obj-$(CONFIG_SPI_RB4XX)			+= spi-rb4xx.o

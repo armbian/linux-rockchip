@@ -792,6 +792,24 @@ config SPI_ROCKCHIP_FLEXBUS_SPI
 	  transmission protocol. This is a specialized controller used to transfer
 	  data on some Rockchip SOCs.
 
+config SPI_ROCKCHIP_FSPI_NM
+	tristate "Rockchip FSPI controller normal mode driver"
+	help
+	  This enables support for Rockchip Flexible Serial Peripheral Interface
+	  controller. This is a specialized controller used to access SPI flash
+	  on some Rockchip SOCs and usually use the spi-mem interface registered
+	  by spi-rockchip-sfc.c.
+
+	  However, for some FPGA development users, they are more accustomed to
+	  registering FSPI as a general SPI and using the spidev device to access
+	  it. So this drivers support FSPI work as spidev but still follow the spi
+	  memory protocol by adding redundancy command, e.g. spi_write(data) will
+	  actually send cmd(0x3C) firstly then send the data; spi_read(data) will
+	  send cmd(0x6B) firstly then receive the data.
+
+	  For latter FSPI version which higher than V12, it's possible to support
+	  raw data with any spi memory protocol.
+
 config SPI_ROCKCHIP_SFC
 	tristate "Rockchip Serial Flash Controller (SFC)"
 	imply ROCKCHIP_MTD_VENDOR_STORAGE
