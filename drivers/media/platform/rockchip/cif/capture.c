@@ -5240,7 +5240,7 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 		val |= (0x2 << 20);
 	if (stream->rounding_bit)
 		val |= stream->rounding_bit;
-	if (!dev->terminal_sensor.hdmi_input_en)
+	if (!dev->terminal_sensor.hdmi_input_en && !stream->sw_dbg_en)
 		val |= DMA_ADAPT_EN_RV1126B;
 
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
