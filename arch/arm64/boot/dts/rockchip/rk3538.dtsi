@@ -274,6 +274,15 @@
 			      <0xfdf16000 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		};
+
+		dmac: dma-controller@fdfd0000 {
+			compatible = "rockchip,rk3538-dma", "rockchip,dma";
+			reg = <0xfdfd0000 0x2000>;
+			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_RKDMA>, <&cru PCLK_RKDMA>;
+			clock-names = "aclk", "pclk";
+			#dma-cells = <1>;
+		};
 	};
 };
 
