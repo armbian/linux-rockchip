@@ -947,11 +947,11 @@ static int flexbus_cif_update_sensor_info(struct flexbus_cif_stream *stream)
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
-		ret = v4l2_subdev_call(terminal_sensor->sd, video,
-				       g_frame_interval, &terminal_sensor->fi);
+		ret = v4l2_subdev_call_state_active(terminal_sensor->sd, pad,
+				       get_frame_interval, &terminal_sensor->fi);
 		if (ret) {
 			v4l2_err(&stream->cif_dev->v4l2_dev,
-				 "%s: get terminal %s g_frame_interval failed!\n",
+				 "%s: get terminal %s get_frame_interval failed!\n",
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
@@ -1100,8 +1100,8 @@ static int flexbus_cif_start_streaming(struct vb2_queue *queue, unsigned int cou
 
 	if (terminal_sensor->sd) {
 
-		ret = v4l2_subdev_call(terminal_sensor->sd,
-				       video, g_frame_interval, &terminal_sensor->fi);
+		ret = v4l2_subdev_call_state_active(terminal_sensor->sd,
+				       pad, get_frame_interval, &terminal_sensor->fi);
 		if (ret)
 			terminal_sensor->fi.interval = (struct v4l2_fract) {1, 30};
 
@@ -1492,7 +1492,7 @@ static int flexbus_cif_enum_frameintervals(struct file *file, void *fh,
 		return -ENODEV;
 	}
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	ret = v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &fi);
 	if (ret && ret != -ENOIOCTLCMD) {
 		return ret;
 	} else if (ret == -ENOIOCTLCMD) {
