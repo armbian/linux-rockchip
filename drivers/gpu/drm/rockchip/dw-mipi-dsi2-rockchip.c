@@ -172,7 +172,7 @@
 #define DSI2_INT_FORCE_CRI		0x0468
 #define DSI2_MAX_REGISGER		DSI2_INT_FORCE_CRI
 
-#define MODE_STATUS_TIMEOUT_US		10000
+#define MODE_STATUS_TIMEOUT_US		20000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
 #define PSEC_PER_SEC			1000000000000LL
 
@@ -435,7 +435,7 @@ static void dw_mipi_dsi2_set_vid_mode(struct dw_mipi_dsi2 *dsi2)
 
 	regmap_write(dsi2->regmap, DSI2_MODE_CTRL, VIDEO_MODE);
 	ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_MODE_STATUS,
-				       mode, mode & VIDEO_MODE,
+				       mode, mode == VIDEO_MODE,
 				       1000, MODE_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(dsi2->dev, "failed to enter video mode\n");
@@ -448,7 +448,7 @@ static void dw_mipi_dsi2_set_data_stream_mode(struct dw_mipi_dsi2 *dsi2)
 
 	regmap_write(dsi2->regmap, DSI2_MODE_CTRL, DATA_STREAM_MODE);
 	ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_MODE_STATUS,
-				       mode, mode & DATA_STREAM_MODE,
+				       mode, mode == DATA_STREAM_MODE,
 				       1000, MODE_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(dsi2->dev, "failed to enter data stream mode\n");
@@ -461,7 +461,7 @@ static void dw_mipi_dsi2_set_cmd_mode(struct dw_mipi_dsi2 *dsi2)
 
 	regmap_write(dsi2->regmap, DSI2_MODE_CTRL, COMMAND_MODE);
 	ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_MODE_STATUS,
-				       mode, mode & COMMAND_MODE,
+				       mode, mode == COMMAND_MODE,
 				       1000, MODE_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(dsi2->dev, "failed to enter command mode\n");
