@@ -466,6 +466,41 @@
 			status = "disabled";
 		};
 
+		sai3: sai@fdb30000 {
+			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
+			reg = <0xfdb30000 0x1000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI3>, <&cru HCLK_SAI3_HDMI_TX>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 27>;
+			dma-names = "tx";
+			resets = <&cru SRST_MRESETN_SAI3_HDMI_TX>, <&cru SRST_HRESETN_SAI3_HDMI_TX>;
+			reset-names = "m", "h";
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI3";
+			status = "disabled";
+		};
+
+		sai2: sai@fdb40000 {
+			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
+			reg = <0xfdb40000 0x1000>;
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI2>, <&cru HCLK_SAI2>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 21>, <&dmac 20>;
+			dma-names = "tx", "rx";
+			resets = <&cru SRST_MRESETN_SAI2>, <&cru SRST_HRESETN_SAI2>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai2m0_lrck_pins
+				     &sai2m0_sclk_pins
+				     &sai2m0_sdi_pins
+				     &sai2m0_sdo_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI2";
+			status = "disabled";
+		};
+
 		acodec: acodec@fdb90000 {
 			compatible = "rockchip,rk3538-codec", "rockchip,rk3528-codec";
 			reg = <0xfdb90000 0x1000>;
@@ -624,6 +659,26 @@
 			status = "disabled";
 		};
 
+		sai0: sai@fdd20000 {
+			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
+			reg = <0xfdd20000 0x1000>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI0>, <&cru HCLK_SAI0>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 17>, <&dmac 16>;
+			dma-names = "tx", "rx";
+			resets = <&cru SRST_MRESETN_SAI0>, <&cru SRST_HRESETN_SAI0>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai0m0_lrck_pins
+				     &sai0m0_sclk_pins
+				     &sai0m0_sdi_pins
+				     &sai0m0_sdo_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI0";
+			status = "disabled";
+		};
+
 		spi1: spi@fddb0000 {
 			compatible = "rockchip,rk3538-spi", "rockchip,rk3066-spi";
 			reg = <0xfddb0000 0x1000>;
@@ -687,6 +742,32 @@
 			      <0xfdf14000 0x2000>,
 			      <0xfdf16000 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		};
+
+		sai1: sai@fdf30000 {
+			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
+			reg = <0xfdf30000 0x1000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SAI1>, <&cru HCLK_SAI1>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 19>, <&dmac 18>;
+			dma-names = "tx", "rx";
+			resets = <&cru SRST_MRESETN_SAI1>, <&cru SRST_HRESETN_SAI1>;
+			reset-names = "m", "h";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai1m0_lrck_pins
+				     &sai1m0_sclk_pins
+				     &sai1m0_sdi0_pins
+				     &sai1m0_sdi1_pins
+				     &sai1m0_sdi2_pins
+				     &sai1m0_sdi3_pins
+				     &sai1m0_sdo0_pins
+				     &sai1m0_sdo1_pins
+				     &sai1m0_sdo2_pins
+				     &sai1m0_sdo3_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "SAI1";
+			status = "disabled";
 		};
 
 		pdm: pdm@fdf70000 {
