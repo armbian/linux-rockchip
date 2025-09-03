@@ -21,6 +21,7 @@
 			 <&cru DCLK_VICAP>, <&cru ISP0CLK_VICAP>,
 			 <&cru PCLK_CSI2HOST0>,
 			 <&cru DCLK_CSI2HOST0>,
+			 <&cru CLK_I2C3>, <&cru PCLK_I2C3>,
 			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
 		clock-names = "clk_hpmcu",
 			      "pclk_hpmcu_intmux", "pclk_hpmcu_mailbox",
@@ -32,6 +33,7 @@
 			      "dclk_cif", "isp0clk_cif",
 			      "pclk_csi2host0",
 			      "dclk_csi2host0",
+			      "clk_i2c3", "pclk_i2c3",
 			      "clk_i2c4", "pclk_i2c4";
 	};
 
