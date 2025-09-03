@@ -184,6 +184,16 @@ struct rockit_rkvpss_cfg {
 	int (*rkvpss_rockit_mpibuf_done)(struct rockit_rkvpss_cfg *rockit_vpss_cfg);
 };
 
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+void *rkcif_rockit_function_register(void *function, int cmd);
+int rkcif_rockit_get_cifdev(char **name);
+int rkcif_rockit_buf_queue(struct rockit_rkcif_cfg *input_rockit_cfg);
+int rkcif_rockit_config_stream(struct rockit_rkcif_cfg *input_rockit_cfg,
+				int width, int height, int v4l2_fmt);
+int rkcif_rockit_resume_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
+int rkcif_rockit_pause_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
+#endif
+
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32) || \
 IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V33) || \
 IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35)
@@ -200,14 +210,6 @@ int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
 				    struct rkisp_tb_stream_info *info);
 int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_free_stream_buf(struct rockit_cfg *input_rockit_cfg);
-
-void *rkcif_rockit_function_register(void *function, int cmd);
-int rkcif_rockit_get_cifdev(char **name);
-int rkcif_rockit_buf_queue(struct rockit_rkcif_cfg *input_rockit_cfg);
-int rkcif_rockit_config_stream(struct rockit_rkcif_cfg *input_rockit_cfg,
-				int width, int height, int v4l2_fmt);
-int rkcif_rockit_resume_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
-int rkcif_rockit_pause_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
 
 #else
 
