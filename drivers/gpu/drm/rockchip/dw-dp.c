@@ -614,6 +614,33 @@ static const struct dw_dp_output_format possible_output_fmts[] = {
 	  DPTX_VM_RGB_6BIT, 6, 18 },
 };
 
+struct dw_dp_vm_format_list {
+	int type;
+	const char *name;
+};
+
+static const struct dw_dp_vm_format_list vm_format_list[] = {
+	{ DPTX_VM_RGB_6BIT, "RGB_6BIT" },
+	{ DPTX_VM_RGB_8BIT, "RGB_8BIT" },
+	{ DPTX_VM_RGB_10BIT, "RGB_10BIT" },
+	{ DPTX_VM_RGB_12BIT, "RGB_12BIT" },
+	{ DPTX_VM_RGB_16BIT, "RGB_16BIT" },
+	{ DPTX_VM_YCBCR444_8BIT, "YCBCR444_8BIT" },
+	{ DPTX_VM_YCBCR444_10BIT, "YCBCR444_10BIT" },
+	{ DPTX_VM_YCBCR444_12BIT, "YCBCR444_12BIT" },
+	{ DPTX_VM_YCBCR444_16BIT, "YCBCR444_16BIT" },
+	{ DPTX_VM_YCBCR422_8BIT, "YCBCR422_8BIT" },
+	{ DPTX_VM_YCBCR422_10BIT, "YCBCR422_10BIT" },
+	{ DPTX_VM_YCBCR422_12BIT, "YCBCR422_12BIT" },
+	{ DPTX_VM_YCBCR422_16BIT, "YCBCR422_16BIT" },
+	{ DPTX_VM_YCBCR420_8BIT, "YCBCR420_8BIT" },
+	{ DPTX_VM_YCBCR420_10BIT, "YCBCR420_10BIT" },
+	{ DPTX_VM_YCBCR420_12BIT, "YCBCR420_12BIT" },
+	{ DPTX_VM_YCBCR420_16BIT, "YCBCR420_16BIT" },
+};
+
+static DRM_ENUM_NAME_FN(dw_dp_get_vm_format_name, vm_format_list)
+
 static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
 {
 	u32 val;
@@ -1385,8 +1412,197 @@ static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int dw_dp_dump_video_info(struct seq_file *s, struct dw_dp *dp, int stream_id)
+{
+	u32 hactive, hblank, h_sync_width, h_front_porch;
+	u32 vactive, vblank, v_sync_width, v_front_porch;
+	u32 hsync_pol, vsync_pol, interlace;
+	u32 video_mapping, stream_enable;
+	u32 misc0, misc1, misc_format;
+	u32 sdp_ver_ctrl, sdp_hor_ctrl;
+	u32 val, reg;
+	u8 header[4];
+	u8 payload[32];
+	int i, j;
+
+	seq_printf(s, "DP Stream%d: active\n", stream_id);
+	regmap_read(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), &val);
+	video_mapping = FIELD_GET(VIDEO_MAPPING, val);
+	stream_enable = FIELD_GET(VIDEO_STREAM_ENABLE, val);
+
+	regmap_read(dp->regmap, DPTX_VINPUT_POLARITY_CTRL_N(stream_id), &val);
+	hsync_pol = FIELD_GET(HSYNC_IN_POLARITY, val);
+	vsync_pol = FIELD_GET(VSYNC_IN_POLARITY, val);
+
+	regmap_read(dp->regmap, DPTX_VIDEO_CONFIG1_N(stream_id), &val);
+	hactive = FIELD_GET(HACTIVE, val);
+	hblank = FIELD_GET(HBLANK, val);
+	interlace = FIELD_GET(I_P, val);
+
+	regmap_read(dp->regmap, DPTX_VIDEO_CONFIG2_N(stream_id), &val);
+	vactive = FIELD_GET(VACTIVE, val);
+	vblank = FIELD_GET(VBLANK, val);
+
+	regmap_read(dp->regmap, DPTX_VIDEO_CONFIG3_N(stream_id), &val);
+	h_sync_width = FIELD_GET(H_SYNC_WIDTH, val);
+	h_front_porch = FIELD_GET(H_FRONT_PORCH, val);
+
+	regmap_read(dp->regmap, DPTX_VIDEO_CONFIG4_N(stream_id), &val);
+	v_sync_width = FIELD_GET(V_SYNC_WIDTH, val);
+	v_front_porch = FIELD_GET(V_FRONT_PORCH, val);
+
+	seq_puts(s, "\tVideo Info:\n");
+	seq_printf(s, "\t\tvideo enable: %s\n", str_yes_no(stream_enable));
+	seq_printf(s, "\t\tvideo format: %s\n", dw_dp_get_vm_format_name(video_mapping));
+	seq_printf(s, "\t\tscan mode: %s\n", interlace ? "interlace" : "process");
+	seq_printf(s, "\t\thactive: %-10uhfp: %-10uhsync: %-10uhblank: %-10uhsync pol: %u\n",
+		   hactive, h_front_porch, h_sync_width, hblank, hsync_pol);
+	seq_printf(s, "\t\tvactive: %-10uvfp: %-10uvsync: %-10uvblank: %-10uvsync pol: %u\n",
+		   vactive, v_front_porch, v_sync_width, vblank, vsync_pol);
+
+	regmap_read(dp->regmap, DPTX_VIDEO_MSA2_N(stream_id), &val);
+	misc0 = FIELD_GET(MISC0, val);
+	regmap_read(dp->regmap, DPTX_VIDEO_MSA3_N(stream_id), &val);
+	misc1 = FIELD_GET(MISC1, val);
+	seq_puts(s, "\tMSA Info:\n");
+	seq_printf(s, "\t\tmisc0 : 0x%02x\n", misc0);
+	seq_printf(s, "\t\tmisc1 : 0x%02x\n", misc1);
+	if ((misc1 << 8) & DP_MSA_MISC_COLOR_VSC_SDP) {
+		seq_puts(s, "\t\tPixel Encoding/Colorimetry format: use VSC SDP\n");
+		seq_puts(s, "\t\tColor Depth: use VSC SDP\n");
+	} else {
+		misc_format = ((misc1 & 0x80) << 8) | (misc0 & 0x1e);
+		switch (misc_format) {
+		case DP_MSA_MISC_COLOR_RGB:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: RGB\n");
+			break;
+		case DP_MSA_MISC_COLOR_CEA_RGB:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: CEA RGB\n");
+			break;
+		case DP_MSA_MISC_COLOR_YCBCR_422_BT601:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: YCBCR 422 BT601\n");
+			break;
+		case DP_MSA_MISC_COLOR_YCBCR_422_BT709:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: YCBCR 422 BT709\n");
+			break;
+		case DP_MSA_MISC_COLOR_YCBCR_444_BT601:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: YCBCR 444 BT601\n");
+			break;
+		case DP_MSA_MISC_COLOR_YCBCR_444_BT709:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: YCBCR 444 BT709\n");
+			break;
+		default:
+			seq_puts(s, "\t\tPixel Encoding/Colorimetry format: Unknown\n");
+			break;
+		}
+		switch (misc0 & 0xe0) {
+		case DP_MSA_MISC_6_BPC:
+			seq_puts(s, "\t\tColor Depth: 6 bpc\n");
+			break;
+		case DP_MSA_MISC_8_BPC:
+			seq_puts(s, "\t\tColor Depth: 8 bpc\n");
+			break;
+		case DP_MSA_MISC_10_BPC:
+			seq_puts(s, "\t\tColor Depth: 10 bpc\n");
+			break;
+		case DP_MSA_MISC_12_BPC:
+			seq_puts(s, "\t\tColor Depth: 12 bpc\n");
+			break;
+		case DP_MSA_MISC_16_BPC:
+			seq_puts(s, "\t\tColor Depth: 16 bpc\n");
+			break;
+		default:
+			seq_puts(s, "\t\tColor Depth: Unknown\n");
+			break;
+		}
+	}
+
+	regmap_read(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(stream_id), &sdp_ver_ctrl);
+	regmap_read(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(stream_id), &sdp_hor_ctrl);
+	for (i = 0; i < SDP_REG_BANK_SIZE; i++) {
+		seq_printf(s, "\tSDP Bank%02d Info:\n", i);
+		seq_printf(s, "\t\tvertical ctrl: %s\n", str_yes_no(sdp_ver_ctrl & (0x4 << i)));
+		seq_printf(s, "\t\thorizontal ctrl: %s\n", str_yes_no(sdp_hor_ctrl & (0x4 << i)));
+		if (!(sdp_ver_ctrl & (0x4 << i)) && !(sdp_hor_ctrl & (0x4 << i)))
+			continue;
+		reg = DPTX_SDP_REGISTER_BANK_N(stream_id) + i * 9 * 4;
+		regmap_read(dp->regmap, reg, &val);
+		memcpy(header, &val, 4);
+		seq_printf(s, "\t\theader: %*ph\n", 4, header);
+		for (j = 0; j < 8; j++) {
+			reg = DPTX_SDP_REGISTER_BANK_N(stream_id) + (i * 9 + j + 1) * 4;
+			regmap_read(dp->regmap, reg, &val);
+			memcpy(&payload[j * 4], &val, 4);
+		}
+		seq_printf(s, "\t\tpayload: %*ph\n", 32, payload);
+	}
+
+	return 0;
+}
+
+static int dw_dp_status_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct dw_dp *dp = node->info_ent->data;
+	struct drm_device *drm = dp->encoder.dev;
+	bool hpd_status;
+	int ret = 0, i;
+	u8 dpcd_ver;
+
+	ret = drm_modeset_lock_single_interruptible(&drm->mode_config.connection_mutex);
+	if (ret)
+		return ret;
+
+	seq_puts(s, "HPD:\n");
+	seq_printf(s, "\tforce hpd: %s\n", str_yes_no(dp->force_hpd));
+	seq_printf(s, "\tgpio hpd: %s\n", str_yes_no(dp->hpd_gpio));
+	seq_printf(s, "\tusbdp hpd: %s\n", str_yes_no(dp->usbdp_hpd));
+	hpd_status = dw_dp_detect(dp);
+	seq_printf(s, "\thpd status: %s\n", hpd_status ? "plug" : "unplug");
+	if (!hpd_status)
+		goto out;
+
+	phy_power_on(dp->phy);
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPCD_REV, &dpcd_ver);
+	if (ret < 0) {
+		seq_puts(s, "AUX: wrong\n");
+		phy_power_off(dp->phy);
+		goto out;
+	}
+	phy_power_off(dp->phy);
+
+	seq_puts(s, "AUX: normal\n");
+	seq_puts(s, "LINK:\n");
+	seq_printf(s, "\tlink lanes: %d\n", dp->link.lanes);
+	seq_printf(s, "\tlink rate: %u MHz\n", dp->link.rate / 100);
+	seq_printf(s, "\tssc: %s\n", str_enable_disable(dp->link.caps.ssc));
+	seq_printf(s, "\tcr done:%s\n", str_yes_no(dp->link.train.clock_recovered));
+	seq_printf(s, "\teq done:%s\n", str_yes_no(dp->link.train.channel_equalized));
+	seq_printf(s, "DP mode: %s\n", dp->is_mst ? "MST" : "SST");
+	if (dp->is_mst) {
+		for (i = 0; i < dp->mst_port_num; i++) {
+			if (!dp->mst_enc[i].active)
+				seq_printf(s, "DP Stream%d: inactive\n", i);
+			else
+				dw_dp_dump_video_info(s, dp, 0);
+		}
+	} else {
+		if (!dp->bridge.encoder->crtc) {
+			seq_puts(s, "DP Stream0: inactive\n");
+			goto out;
+		}
+		dw_dp_dump_video_info(s, dp, 0);
+	}
+
+out:
+	drm_modeset_unlock(&drm->mode_config.connection_mutex);
+
+	return 0;
+}
+
 static struct drm_info_list dw_dp_debugfs_files[] = {
 	{ "dp_mst_info", dw_dp_mst_info_dump, 0, NULL },
+	{ "dp_status", dw_dp_status_show, 0, NULL },
 };
 
 static int dw_dp_debugfs_init(struct dw_dp *dp)
