@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+ifdef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
+CFLAGS_panel-simple.o += $(call cc-option, -Wno-unused-const-variable)
+endif
 obj-$(CONFIG_DRM_PANEL_ABT_Y030XX067A) += panel-abt-y030xx067a.o
 obj-$(CONFIG_DRM_PANEL_ARM_VERSATILE) += panel-arm-versatile.o
 obj-$(CONFIG_DRM_PANEL_ASUS_Z00T_TM5P5_NT35596) += panel-asus-z00t-tm5p5-n35596.o
