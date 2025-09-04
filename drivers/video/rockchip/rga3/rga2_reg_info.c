@@ -304,6 +304,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN)) |
 	       (s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(msg->yin_yout_en)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN)) |
+	       (s_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN(msg->cfa_enable)));
+
 	if (msg->src.rd_mode == RGA_TILE4x4_MODE)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(1)));
@@ -1019,15 +1022,29 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			*bRGA_SRC_BASE2 = (u32)(msg->src.v_addr + v_offset);
 		}
 
-		//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
-		mask_stride = msg->rop_mask_stride;
-		*bRGA_SRC_VIR_INFO = (stride >> 2) | (mask_stride << 16);
+		if (msg->cfa_enable &&
+		    msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) {
+			switch (msg->src1.format) {
+			case RGA_FORMAT_Y1:
+				mask_stride = ALIGN((msg->src1.vir_w >> 3), 16);
+				break;
+			case RGA_FORMAT_Y8:
+				mask_stride = ALIGN((msg->src1.vir_w), 16);
+				break;
+			}
+			*bRGA_MASK_ADDR = (u32) msg->src1.yrgb_addr;
+		} else {
+			//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
+			mask_stride = msg->rop_mask_stride;
+
+			*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
+		}
+
+		*bRGA_SRC_VIR_INFO = (stride >> 2) | ((mask_stride >> 2) << 16);
 
 		*bRGA_SRC_ACT_INFO =
 			(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
 			tile_x_offset << 14 | tile_y_offset << 30;
-
-		*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
 	}
 
 	RGA2_reg_get_param(base, msg);
@@ -1045,6 +1062,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		*bRGA_SRC_BASE3;
 	u32 *bRGA_TILE4x4_OUT_BASE;
 	u32 *bRGA_DST_VIR_INFO;
+	u32 *bRGA_UV_VIR_INFO;
 	u32 *bRGA_DST_ACT_INFO;
 
 	u32 *RGA_DST_Y4MAP_LUT0;	//Y4 LUT0
@@ -1087,7 +1105,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u8 spw, dpw;
 	u8 plane_width = 0;
 	u8 bbp_shift = 0;
-	u32 s_stride = 0, d_stride = 0;
+	u32 s_stride = 0, d_stride = 0, d1_stride = 0;
 	u32 s_yrgb_offset = 0;
 	u32 s_head_base_addr = 0, s_payload_base_addr = 0;
 	u32 x_mirr, y_mirr, rot_90_flag;
@@ -1130,6 +1148,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	bRGA_SRC_BASE3 = (u32 *) (base + RGA2_SRC_BASE3_OFFSET);
 
 	bRGA_DST_VIR_INFO = (u32 *) (base + RGA2_DST_VIR_INFO_OFFSET);
+	bRGA_UV_VIR_INFO = (u32 *) (base + RGA2_UV_VIR_INFO);
 	bRGA_DST_ACT_INFO = (u32 *) (base + RGA2_DST_ACT_INFO_OFFSET);
 
 	RGA_DST_Y4MAP_LUT0 = (u32 *) (base + RGA2_DST_Y4MAP_LUT0_OFFSET);
@@ -1511,6 +1530,15 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		y_div = 1;
 		break;
 
+	case RGA_FORMAT_Y1:
+		dst_format = 0x8;
+		dst_fmt_y4_en = 1;
+		dst_fmt_y4_lut_en = 1;
+		dst_fmt_yuv400_en = 1;
+		x_div = 1;
+		y_div = 1;
+		break;
+
 	case RGA_FORMAT_YUYV_422:
 		dst_format = 0xe;
 		dpw = 2;
@@ -1655,9 +1683,22 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	switch (msg->dst.rd_mode) {
 	case RGA_RASTER_MODE:
 		d_stride = ALIGN(msg->dst.vir_w * dpw, 4);
-		/* Y4 output will HALF */
-		if (dst_fmt_y4_en)
-			d_stride = ALIGN(d_stride, 2) >> 1;
+
+		switch (msg->dst.format) {
+		case RGA_FORMAT_Y1:
+			d_stride = ALIGN((msg->dst.vir_w >> 3), 16);
+			d1_stride = ALIGN((msg->dst.vir_w >> 3), 16);
+			break;
+		case RGA_FORMAT_Y4:
+			d_stride = ALIGN((msg->dst.vir_w >> 1), 16);
+			d1_stride = ALIGN((msg->dst.vir_w), 16);
+			break;
+		case RGA_FORMAT_Y8:
+			d_stride = ALIGN((msg->dst.vir_w), 16);
+			d1_stride = ALIGN((msg->dst.vir_w), 16);
+			break;
+		}
+
 		d_uv_stride = ALIGN(d_stride / x_div * plane_width, 4);
 
 		if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
@@ -1937,6 +1978,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	*bRGA_DST_INFO = reg;
 
 	*bRGA_DST_VIR_INFO = (d_stride >> 2) | ((s_stride >> 2) << 16);
+	if (msg->cfa_enable &&
+	    ((msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) ||
+	     (msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN))) {
+		*bRGA_UV_VIR_INFO = (*bRGA_UV_VIR_INFO & 0xffff) | ((d1_stride >> 2) << 16);
+	}
 
 	if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
 	    msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
@@ -2008,7 +2054,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	switch (msg->dst.rd_mode) {
 	case RGA_RASTER_MODE:
-		if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P) ||
+		if (msg->cfa_enable &&
+		    (msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN)) {
+			*bRGA_DST_BASE1 = msg->pat.yrgb_addr;
+			*bRGA_DST_BASE2 = 0;
+		} else if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P) ||
 		    (msg->dst.format == RGA_FORMAT_YCrCb_420_P)) {
 			if (dst_cbcr_swp == 0) {
 				*bRGA_DST_BASE1 = (u32) v_addr;
@@ -2514,6 +2564,27 @@ static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
 	}
 }
 
+static void RGA2_set_reg_cfa(u8 *base, struct rga2_req *msg)
+{
+	u32 *bRGA_CFA_CTRL0;
+	u32 *bRGA_CFA_CTRL1;
+	u32 *bRGA_CFA_APATTERN;
+	u32 *bRGA_CFA_COE05;
+	u32 *bRGA_CFA_COE6B;
+
+	bRGA_CFA_CTRL0 = (u32 *) (base + RGA2_CFA_CTRL0_OFFSET);
+	bRGA_CFA_CTRL1 = (u32 *) (base + RGA2_CFA_CTRL1_OFFSET);
+	bRGA_CFA_APATTERN = (u32 *) (base + RGA2_CFA_APATTERN_OFFSET);
+	bRGA_CFA_COE05 = (u32 *) (base + RGA2_CFA_EDCOEF05_OFFSET);
+	bRGA_CFA_COE6B = (u32 *) (base + RGA2_CFA_EDCOEF6B_OFFSET);
+
+	*bRGA_CFA_CTRL0 = msg->cfa_ctrl0;
+	*bRGA_CFA_CTRL1 = msg->cfa_ctrl1;
+	*bRGA_CFA_APATTERN = msg->cfa_apattern;
+	*bRGA_CFA_COE05 = msg->cfa_dither_coe05;
+	*bRGA_CFA_COE6B = msg->cfa_dither_coe6b;
+}
+
 static void RGA2_set_reg_color_palette(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA_SRC_BASE0, *bRGA_SRC_INFO, *bRGA_SRC_VIR_INFO,
@@ -2742,7 +2813,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
 		if (dst_nn_quantize_en != 1) {
 			if ((msg->dst.format != RGA_FORMAT_Y4) &&
-			    (msg->dst.format != RGA_FORMAT_Y8)) {
+			    (msg->dst.format != RGA_FORMAT_Y8) &&
+			    (msg->dst.format != RGA_FORMAT_Y1)) {
 				RGA2_set_reg_alpha_info(base, msg);
 				if (msg->rgba5551_alpha.flags != 1 && msg->alpha_rop_flag & 0x2)
 					RGA2_set_reg_rop_info(base, msg);
@@ -2757,6 +2829,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			if (ret < 0)
 				return ret;
 		}
+		if (msg->cfa_enable)
+			RGA2_set_reg_cfa(base, msg);
 
 		break;
 	case COLOR_FILL_MODE:
@@ -2810,15 +2884,29 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	memcpy(&req->src, &req_rga->src, sizeof(req_rga->src));
 	memcpy(&req->dst, &req_rga->dst, sizeof(req_rga->dst));
-	/* The application will only import pat or src1. */
-	if (req->render_mode == UPDATE_PALETTE_TABLE_MODE)
-		memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
-	else
-		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+	if (req_rga->cfa_enable) {
+		if (req_rga->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) {
+			memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+			req->src1.yrgb_addr = req_rga->comps_addr;
 
-	req->src.format = req_rga->src.format;
-	req->dst.format = req_rga->dst.format;
-	req->src1.format = req_rga->pat.format;
+			req->src1.vir_w = req->src.vir_w;
+			req->src1.vir_h = req->src.vir_h;
+			req->src1.format = req->dst.format;
+		}
+
+		if (req_rga->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN) {
+			memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
+			req->pat.yrgb_addr = req_rga->pattern_addr;
+
+			req->pat.vir_w = req->dst.vir_w;
+			req->pat.vir_h = req->dst.vir_h;
+			req->pat.format = req_rga->dst.format;
+		}
+	} else if (req->render_mode == UPDATE_PALETTE_TABLE_MODE) {
+		memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
+	} else {
+		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+	}
 
 	switch (req_rga->rotate_mode & 0x0F) {
 	case 1:
@@ -3025,6 +3113,14 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	}
 
 	req->secure_access = req_rga->secure_access;
+
+	/* cfa */
+	req->cfa_enable = req_rga->cfa_enable;
+	req->cfa_ctrl0 = req_rga->cfa_ctrl0;
+	req->cfa_ctrl1 = req_rga->cfa_ctrl1;
+	req->cfa_apattern = req_rga->cfa_apattern;
+	req->cfa_dither_coe05 = req_rga->cfa_dither_coe05;
+	req->cfa_dither_coe6b = req_rga->cfa_dither_coe6b;
 
 	if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
 		req->mmu_info.src0_mmu_flag = 1;

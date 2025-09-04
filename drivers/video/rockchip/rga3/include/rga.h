@@ -653,10 +653,23 @@ struct rga_req {
 	struct rga_img_info_t dst;
 	struct rga_img_info_t pat;
 
-	/* rop4 mask addr */
-	uint64_t rop_mask_addr;
-	/* LUT addr */
-	uint64_t LUT_addr;
+	union {
+		struct {
+			uint32_t comps_handle;
+			uint32_t pattern_handle;
+		};
+		/* rop4 mask addr */
+		uint64_t rop_mask_addr;
+	};
+
+	union {
+		struct {
+			uint32_t comps_addr;
+			uint32_t pattern_addr;
+		};
+		/* LUT addr */
+		uint64_t LUT_addr;
+	};
 
 	/* dst clip window default value is dst_vir */
 	/* value from [0, w-1] / [0, h-1]*/
@@ -680,6 +693,7 @@ struct rga_req {
 			uint16_t nn_quantize:1;
 			uint16_t real_color_mode:1;
 			uint16_t secure_access:1;
+			uint16_t cfa_enable:1;
 		};
 		/* legacy alpha rop process flag	 */
 		/* ([0] = 1 alpha_rop_enable)		 */
@@ -793,7 +807,14 @@ struct rga_req {
 
 	struct rga_gauss_config gauss_config;
 
-	uint8_t reservr[24];
+	/* cfa reg */
+	uint32_t cfa_ctrl0;
+	uint32_t cfa_ctrl1;
+	uint32_t cfa_apattern;
+	uint32_t cfa_dither_coe05;
+	uint32_t cfa_dither_coe6b;
+
+	uint8_t reservr[4];
 };
 
 struct rga_alpha_config {
@@ -930,6 +951,14 @@ struct rga2_req {
 	struct rga_gauss_config gauss_config;
 
 	uint8_t secure_access;
+
+	/* cfa reg */
+	uint8_t cfa_enable;
+	uint32_t cfa_ctrl0;
+	uint32_t cfa_ctrl1;
+	uint32_t cfa_apattern;
+	uint32_t cfa_dither_coe05;
+	uint32_t cfa_dither_coe6b;
 };
 
 struct rga3_req {
