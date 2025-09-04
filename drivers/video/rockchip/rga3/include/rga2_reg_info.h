@@ -66,19 +66,24 @@
 #define RGA2_SRC_ACT_INFO_OFFSET		0x01c
 #define RGA2_SRC_X_FACTOR_OFFSET		0x020
 #define RGA2_OSD_CTRL0_OFFSET			0x020 // repeat
+#define RGA2_CFA_CTRL0_OFFSET			0x020 // repeat
 #define RGA2_SRC_Y_FACTOR_OFFSET		0x024
 #define RGA2_OSD_CTRL1_OFFSET			0x024 // repeat
+#define RGA2_CFA_APATTERN_OFFSET		0x024 // repeat
 #define RGA2_SRC_BG_COLOR_OFFSET		0x028
 #define RGA2_OSD_COLOR0_OFFSET			0x028 // repeat
 #define RGA2_GAUSS_COE_OFFSET			0x028 // repeat
 #define RGA2_FBCIN1_PAYL_BASE_OFFSET		0x028 // repeat
+#define RGA2_CFA_EDCOEF05_OFFSET		0x028 // repeat
 #define RGA2_SRC_FG_COLOR_OFFSET		0x02c
 #define RGA2_OSD_COLOR1_OFFSET			0x02c // repeat
 #define RGA2_FBCIN1_OFF_OFFSET			0x02c // repeat
+#define RGA2_CFA_EDCOEF6B_OFFSET		0x02c // repeat
 #define RGA2_SRC_TR_COLOR0_OFFSET		0x030
 #define RGA2_CF_GR_A_OFFSET			0x030 // repeat
 #define RGA2_OSD_LAST_FLAGS0_OFFSET		0x030 // repeat
 #define RGA2_MOSAIC_MODE_OFFSET			0x030 // repeat
+#define RGA2_CFA_CTRL1_OFFSET			0x030 // repeat
 #define RGA2_SRC_TR_COLOR1_OFFSET		0x034
 #define RGA2_CF_GR_B_OFFSET			0x034 // repeat
 #define RGA2_OSD_LAST_FLAGS1_OFFSET		0x034 // repeat
@@ -267,6 +272,7 @@
 #define m_RGA2_MODE_CTRL_SW_OSD_E			(0x1<<8)
 #define m_RGA2_MODE_CTRL_SW_MOSAIC_EN			(0x1<<9)
 #define m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN			(0x1<<10)
+#define m_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN		(0x1<<11)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN		(0x1 << 12)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN		(0x1 << 13)
 #define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE	(0x3 << 14)
@@ -291,6 +297,7 @@
 #define s_RGA2_MODE_CTRL_SW_OSD_E(x)			((x & 0x1) << 8)
 #define s_RGA2_MODE_CTRL_SW_MOSAIC_EN(x)		((x & 0x1) << 9)
 #define s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(x)		((x & 0x1) << 10)
+#define s_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN(x)		((x & 0x1) << 11)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(x)		((x & 0x1) << 12)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(x)		((x & 0x1) << 13)
 #define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_MODE(x)	((x & 0x3) << 14)
@@ -391,6 +398,30 @@
 #define s_RGA2_OSD_CTRL0_SW_OSD_FIX_WIDTH(x)		((x & 0x3ff) << 20)
 #define s_RGA2_OSD_CTRL0_SW_OSD_2BPP_MODE(x)		((x & 0x1) << 30)
 
+/* RGA2_CFA_CTRL0 */
+#define m_RGA2_CFA_CTRL0_SW_CFA_BCSH_LUT_EN		(0x1 << 1)
+#define m_RGA2_CFA_CTRL0_SW_CFA_MIDFLT_EN		(0x1 << 2)
+#define m_RGA2_CFA_CTRL0_SW_CFA_HIGHPASS_EN		(0x1 << 3)
+#define m_RGA2_CFA_CTRL0_SW_CFA_PANEL_MODE		(0x1 << 4)
+#define m_RGA2_CFA_CTRL0_SW_CFA_C2P_ID			(0x7 << 5)
+#define m_RGA2_CFA_CTRL0_SW_CFA_R2Y_MODE		(0x3 << 8)
+#define m_RGA2_CFA_CTRL0_SW_CFA_R2Y_CLIP		(0x1 << 10)
+#define m_RGA2_CFA_CTRL0_SW_CFA_SAT_GAIN		(0xff << 12)
+
+#define s_RGA2_CFA_CTRL0_SW_CFA_BCSH_LUT_EN(x)		((x & 0x1) << 1)
+#define s_RGA2_CFA_CTRL0_SW_CFA_MIDFLT_EN(x)		((x & 0x1) << 2)
+#define s_RGA2_CFA_CTRL0_SW_CFA_HIGHPASS_EN(x)		((x & 0x1) << 3)
+#define s_RGA2_CFA_CTRL0_SW_CFA_PANEL_MODE(x)		((x & 0x1) << 4)
+#define s_RGA2_CFA_CTRL0_SW_CFA_C2P_ID(x)		((x & 0x7) << 5)
+#define s_RGA2_CFA_CTRL0_SW_CFA_R2Y_MODE(x)		((x & 0x3) << 8)
+#define s_RGA2_CFA_CTRL0_SW_CFA_R2Y_CLIP(x)		((x & 0x1) << 10)
+#define s_RGA2_CFA_CTRL0_SW_CFA_SAT_GAIN(x)		((x & 0xff) << 12)
+
+/* RGA2_CFA+APATTERN */
+#define m_RGA2_CFA_APATTERN_SW_CFA_C2P_APATTERN		(0xffffffff << 0)
+
+#define s_RGA2_CFA_APATTERN_SW_CFA_C2P_APATTERN(x)	((x & 0xffffffff) << 0)
+
 /* RGA2_GAUSS_COE */
 #define m_RGA2_GAUSS_COE_SW_COE0			(0x3f << 0)
 #define m_RGA2_GAUSS_COE_SW_COE1			(0x3f << 8)
@@ -420,6 +451,31 @@
 #define s_RGA2_OSD_CTRL1_SW_OSD_INVERT_Y_DIS(x)		((x & 0x1) << 13)
 #define s_RGA2_OSD_CTRL1_SW_OSD_INVERT_C_DIS(x)		((x & 0x1) << 14)
 #define s_RGA2_OSD_CTRL1_SW_OSD_UNFIX_INDEX(x)		((x & 0xf) << 16)
+
+/* RGA2_CFA_CTRL1 */
+#define m_RGA2_CFA_CTRL1_SW_CFA_DITHER_EN		(0x1 << 0)
+#define m_RGA2_CFA_CTRL1_SW_CFA_MODULATE_LPS_EN		(0x1 << 1)
+#define m_RGA2_CFA_CTRL1_SW_CFA_MODULATE_HPS_EN		(0x1 << 2)
+#define m_RGA2_CFA_CTRL1_SW_CFA_MODULATE_ERR_EN		(0x1 << 3)
+#define m_RGA2_CFA_CTRL1_SW_CFA_CFA_MODE		(0x3 << 4)
+#define m_RGA2_CFA_CTRL1_SW_CFA_CLR_LOW4BIT_EN		(0x1 << 6)
+#define m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN		(0x1 << 7)
+#define m_RGA2_CFA_CTRL1_SW_CFA_OUT_FMT			(0x3 << 8)
+#define m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN		(0x1 << 10)
+#define m_RGA2_CFA_CTRL1_SW_CFA_SHARP_LEVEL		(0x7f << 16)
+#define m_RGA2_CFA_CTRL1_SW_CFA_COMPS_LEVEL		(0x7f << 24)
+
+#define s_RGA2_CFA_CTRL1_SW_CFA_DITHER_EN(x)		((x & 0x1) << 0)
+#define s_RGA2_CFA_CTRL1_SW_CFA_MODULATE_LPS_EN(x)	((x & 0x1) << 1)
+#define s_RGA2_CFA_CTRL1_SW_CFA_MODULATE_HPS_EN(x)	((x & 0 & 0x1) << 2)
+#define s_RGA2_CFA_CTRL1_SW_CFA_MODULATE_ERR_EN(x)	((x & 0x1) << 3)
+#define s_RGA2_CFA_CTRL1_SW_CFA_CFA_MODE(x)		((x & 0x3) << 4)
+#define s_RGA2_CFA_CTRL1_SW_CFA_CLR_LOW4BIT_EN(x)	((x & 0x1) << 6)
+#define s_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN(x)		((x & 0x1) << 7)
+#define s_RGA2_CFA_CTRL1_SW_CFA_OUT_FMT(x)		((x & 0x3) << 8)
+#define s_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN(x)		((x & 0x1) << 10)
+#define s_RGA2_CFA_CTRL1_SW_CFA_SHARP_LEVEL(x)		((x & 0x7f) << 16)
+#define s_RGA2_CFA_CTRL1_SW_CFA_COMPS_LEVEL(x)		((x & 0x7f) << 24)
 
 /* RGA_DST_INFO */
 #define m_RGA2_DST_INFO_SW_DST_FMT			(0xf << 0)

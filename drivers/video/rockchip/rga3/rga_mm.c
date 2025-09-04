@@ -1756,8 +1756,47 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 		}
 	}
 
-	if (likely(req->pat.yrgb_addr > 0)) {
+	if (req->cfa_enable) {
+		if (req->comps_handle > 0) {
+			req->pat.yrgb_addr = req->comps_handle;
+			req->pat.uv_addr = 0;
+			req->pat.v_addr = 0;
+			req->pat.vir_w = req->dst.vir_w;
+			req->pat.vir_h = req->dst.vir_h;
+			req->pat.format = req->dst.format;
 
+			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
+							     &job->src1_buffer,
+							     DMA_TO_DEVICE);
+			if (ret < 0) {
+				rga_job_err(job, "Can't get comps(t-1) buffer info from handle!\n");
+				return ret;
+			}
+
+			req->comps_addr = req->pat.yrgb_addr;
+			memset(&req->pat, 0, sizeof(req->pat));
+		}
+
+		if (req->pattern_handle > 0) {
+			req->pat.yrgb_addr = req->pattern_handle;
+			req->pat.uv_addr = 0;
+			req->pat.v_addr = 0;
+			req->pat.vir_w = req->dst.vir_w;
+			req->pat.vir_h = req->dst.vir_h;
+			req->pat.format = req->dst.format;
+
+			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
+							     &job->els_buffer,
+							     DMA_BIDIRECTIONAL);
+			if (ret < 0) {
+				rga_job_err(job, "Can't get pattern/comps(t) buffer info from handle!\n");
+				return ret;
+			}
+
+			req->pattern_addr = req->pat.yrgb_addr;
+			memset(&req->pat, 0, sizeof(req->pat));
+		}
+	} else if (likely(req->pat.yrgb_addr > 0)) {
 		if (req->render_mode != UPDATE_PALETTE_TABLE_MODE) {
 			if (req->bsfilter_flag)
 				dir = DMA_BIDIRECTIONAL;
@@ -1786,11 +1825,15 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 static void rga_mm_put_handle_info(struct rga_job *job)
 {
 	struct rga_mm *mm = rga_drvdata->mm;
+	struct rga_req *req = &job->rga_command_base;
 
 	rga_mm_put_channel_handle_info(mm, job, &job->src_buffer, DMA_NONE);
 	rga_mm_put_channel_handle_info(mm, job, &job->dst_buffer, DMA_FROM_DEVICE);
 	rga_mm_put_channel_handle_info(mm, job, &job->src1_buffer, DMA_NONE);
-	rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_NONE);
+	if (req->cfa_enable)
+		rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_FROM_DEVICE);
+	else
+		rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_NONE);
 }
 
 static void rga_mm_put_channel_external_buffer(struct rga_job_buffer *job_buffer)
