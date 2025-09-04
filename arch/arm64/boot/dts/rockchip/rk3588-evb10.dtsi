@@ -635,6 +635,12 @@
 	status = "okay";
 	pinctrl-0 = <&i2c8m4_xfer>;
 
+	ti_ina226: ti_ina226@40 {
+		compatible = "ti,ina226";
+		reg = <0x40>;
+		status = "okay";
+	};
+
 	ls_stk3332: light@47 {
 		compatible = "ls_stk3332";
 		status = "disabled";
