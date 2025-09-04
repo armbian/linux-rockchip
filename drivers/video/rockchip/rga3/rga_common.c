@@ -48,6 +48,7 @@ bool rga_is_rgb_format(uint32_t format)
 bool rga_is_yuv_format(uint32_t format)
 {
 	switch (format) {
+	case RGA_FORMAT_Y1:
 	case RGA_FORMAT_Y4:
 	case RGA_FORMAT_Y8:
 	case RGA_FORMAT_YCbCr_400:
@@ -189,6 +190,7 @@ bool rga_is_yuv422_semi_planar_format(uint32_t format)
 bool rga_is_yuv8bit_format(uint32_t format)
 {
 	switch (format) {
+	case RGA_FORMAT_Y1:
 	case RGA_FORMAT_Y4:
 	case RGA_FORMAT_Y8:
 	case RGA_FORMAT_YCbCr_400:
@@ -250,6 +252,7 @@ bool rga_is_only_y_format(uint32_t format)
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_Y4:
 	case RGA_FORMAT_Y8:
+	case RGA_FORMAT_Y1:
 		return true;
 	default:
 		return false;
@@ -369,6 +372,9 @@ const char *rga_get_format_name(uint32_t format)
 	case RGA_FORMAT_Y8:
 		return "Y8";
 
+	case RGA_FORMAT_Y1:
+		return "Y1";
+
 	case RGA_FORMAT_RGBA_1010102:
 		return "RGBA1010102";
 	case RGA_FORMAT_BGRA_1010102:
@@ -479,6 +485,7 @@ int rga_get_format_bits(uint32_t format)
 		bits = 2;
 		break;
 	case RGA_FORMAT_BPP1:
+	case RGA_FORMAT_Y1:
 		bits = 1;
 		break;
 	default:
@@ -569,6 +576,7 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 		pixel_stride = 2;
 		break;
 	case RGA_FORMAT_BPP1:
+	case RGA_FORMAT_Y1:
 		pixel_stride = 1;
 		break;
 	default:
@@ -912,6 +920,7 @@ int rga_image_size_cal(int w, int h, int format,
 		yrgb = (w * h) >> 2;
 		break;
 	case RGA_FORMAT_BPP1:
+	case RGA_FORMAT_Y1:
 		yrgb = (w * h) >> 3;
 		break;
 	default:
