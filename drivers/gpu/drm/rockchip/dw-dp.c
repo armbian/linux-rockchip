@@ -5663,6 +5663,8 @@ static const struct regmap_range dw_dp_readable_ranges[] = {
 	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(0), DPTX_VIDEO_HBLANK_INTERVAL_N(0)),
 	regmap_reg_range(DPTX_AUD_CONFIG1_N(0), DPTX_AUD_CONFIG1_N(0)),
 	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(0), DPTX_SDP_STATUS_EN_N(0)),
+	regmap_reg_range(DPTX_SDP_REGISTER_BANK_N(0),
+			 DPTX_SDP_REGISTER_BANK_N(0) + SDP_REG_BANK_SIZE * 36),
 	regmap_reg_range(DPTX_PHYIF_CTRL, DPTX_PHYIF_PWRDOWN_CTRL),
 	regmap_reg_range(DPTX_AUX_CMD, DPTX_AUX_DATA3),
 	regmap_reg_range(DPTX_GENERAL_INTERRUPT, DPTX_HPD_INTERRUPT_ENABLE),
@@ -5671,12 +5673,18 @@ static const struct regmap_range dw_dp_readable_ranges[] = {
 	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(1), DPTX_VIDEO_HBLANK_INTERVAL_N(1)),
 	regmap_reg_range(DPTX_AUD_CONFIG1_N(1), DPTX_AUD_CONFIG1_N(1)),
 	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(1), DPTX_SDP_STATUS_EN_N(1)),
+	regmap_reg_range(DPTX_SDP_REGISTER_BANK_N(1),
+			 DPTX_SDP_REGISTER_BANK_N(1) + SDP_REG_BANK_SIZE * 36),
 	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(2), DPTX_VIDEO_HBLANK_INTERVAL_N(2)),
 	regmap_reg_range(DPTX_AUD_CONFIG1_N(2), DPTX_AUD_CONFIG1_N(2)),
 	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(2), DPTX_SDP_STATUS_EN_N(2)),
+	regmap_reg_range(DPTX_SDP_REGISTER_BANK_N(2),
+			 DPTX_SDP_REGISTER_BANK_N(2) + SDP_REG_BANK_SIZE * 36),
 	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(3), DPTX_VIDEO_HBLANK_INTERVAL_N(3)),
 	regmap_reg_range(DPTX_AUD_CONFIG1_N(3), DPTX_AUD_CONFIG1_N(3)),
 	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(3), DPTX_SDP_STATUS_EN_N(3)),
+	regmap_reg_range(DPTX_SDP_REGISTER_BANK_N(3),
+			 DPTX_SDP_REGISTER_BANK_N(3) + SDP_REG_BANK_SIZE * 36),
 };
 
 static const struct regmap_access_table dw_dp_readable_table = {
