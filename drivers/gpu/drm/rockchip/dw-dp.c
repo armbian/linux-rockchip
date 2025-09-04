@@ -3857,6 +3857,12 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 	link->train.channel_equalized = false;
 }
 
+static void dw_dp_sdp_disalbe(struct dw_dp *dp, int stream_id)
+{
+	regmap_write(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(stream_id), 0);
+	regmap_write(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(stream_id), 0);
+}
+
 static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 					     struct drm_atomic_state *state)
 {
@@ -3909,6 +3915,7 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
 
 	dw_dp_video_disable(dp, mst_enc->stream_id);
+	dw_dp_sdp_disalbe(dp, mst_enc->stream_id);
 	if (!dp->active_mst_links)
 		dw_dp_link_disable(dp);
 
@@ -4490,6 +4497,7 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	dw_dp_hdcp_disable(dp);
 	dw_dp_video_disable(dp, 0);
+	dw_dp_sdp_disalbe(dp, 0);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
 
