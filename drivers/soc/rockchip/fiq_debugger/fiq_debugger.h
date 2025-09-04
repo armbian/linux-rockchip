@@ -72,10 +72,5 @@ struct fiq_debugger_pdata {
 #endif
 };
 
-#ifdef CONFIG_FIQ_GLUE
-void gic_set_irq_secure(struct irq_data *d);
-void gic_set_irq_priority(struct irq_data *d, u8 pri);
-#endif
-
 void fiq_tty_wake_up(struct platform_device *pdev);
 #endif

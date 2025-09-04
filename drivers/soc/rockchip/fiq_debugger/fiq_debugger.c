@@ -42,6 +42,7 @@
 #endif
 
 #ifdef CONFIG_FIQ_GLUE
+#include <linux/irqchip/arm-gic.h>
 #include <asm/fiq_glue.h>
 #endif
 
