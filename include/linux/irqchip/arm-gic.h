@@ -157,5 +157,10 @@ int gic_get_cpu_id(unsigned int cpu);
 void gic_migrate_target(unsigned int new_cpu_id);
 unsigned long gic_get_sgir_physaddr(void);
 
+#ifdef CONFIG_FIQ_GLUE
+void gic_set_irq_secure(struct irq_data *d);
+void gic_set_irq_priority(struct irq_data *d, u8 pri);
+#endif
+
 #endif /* __ASSEMBLY */
 #endif
