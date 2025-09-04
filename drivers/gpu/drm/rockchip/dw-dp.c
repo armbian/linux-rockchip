@@ -509,6 +509,7 @@ struct dw_dp {
 	struct list_head mst_conn_list;
 	struct rockchip_dp_aux_client *aux_client;
 
+	struct dentry *debugfs_dir;
 	struct drm_info_list *debugfs_files;
 	struct typec_mux_dev *mux;
 };
@@ -1346,7 +1347,6 @@ static int dw_dp_atomic_connector_set_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_NO_GKI)
 static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
@@ -1389,11 +1389,21 @@ static struct drm_info_list dw_dp_debugfs_files[] = {
 	{ "dp_mst_info", dw_dp_mst_info_dump, 0, NULL },
 };
 
-static int dw_dp_connector_late_register(struct drm_connector *connector)
+static int dw_dp_debugfs_init(struct dw_dp *dp)
 {
-	struct dw_dp *dp = connector_to_dp(connector);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_minor *minor = dp->encoder.dev->primary;
+	u8 buf[11];
 	int i;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
+	snprintf(buf, sizeof(buf), "dw-dp%d", dp->id);
+	dp->debugfs_dir = debugfs_create_dir(buf, minor->debugfs_root);
+	if (IS_ERR(dp->debugfs_dir)) {
+		dev_err(dp->dev, "failed to create debugfs dir!\n");
+		return PTR_ERR(dp->debugfs_dir);
+	}
 
 	dp->debugfs_files = kmemdup(dw_dp_debugfs_files, sizeof(dw_dp_debugfs_files), GFP_KERNEL);
 	if (!dp->debugfs_files)
@@ -1403,20 +1413,10 @@ static int dw_dp_connector_late_register(struct drm_connector *connector)
 		dp->debugfs_files[i].data = dp;
 
 	drm_debugfs_create_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files),
-				 connector->debugfs_entry, minor);
+				 dp->debugfs_dir, minor);
 
 	return 0;
 }
-
-static void dw_dp_connector_early_unregister(struct drm_connector *connector)
-{
-	struct dw_dp *dp = connector_to_dp(connector);
-	struct drm_minor *minor = connector->dev->primary;
-
-	drm_debugfs_remove_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files), minor);
-	kfree(dp->debugfs_files);
-}
-#endif
 
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
@@ -1428,10 +1428,6 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.atomic_destroy_state	= dw_dp_atomic_connector_destroy_state,
 	.atomic_get_property	= dw_dp_atomic_connector_get_property,
 	.atomic_set_property	= dw_dp_atomic_connector_set_property,
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_NO_GKI)
-	.late_register		= dw_dp_connector_late_register,
-	.early_unregister	= dw_dp_connector_early_unregister,
-#endif
 };
 
 static int dw_dp_update_hdr_property(struct drm_connector *connector)
@@ -5551,12 +5547,28 @@ static int dw_dp_encoder_late_register(struct drm_encoder *encoder)
 	if (ret)
 		dev_warn(dp->dev, "audio init failed\n");
 
+	ret = dw_dp_debugfs_init(dp);
+	if (ret)
+		return ret;
+
 	return 0;
+}
+
+static void dw_dp_encoder_early_unregister(struct drm_encoder *encoder)
+{
+	struct dw_dp *dp = encoder_to_dp(encoder);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
+	debugfs_remove_recursive(dp->debugfs_dir);
+	kfree(dp->debugfs_files);
 }
 
 static const struct drm_encoder_funcs dw_dp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 	.late_register = dw_dp_encoder_late_register,
+	.early_unregister = dw_dp_encoder_early_unregister,
 };
 
 static void dw_dp_mst_poll_hpd_irq(void *data)
