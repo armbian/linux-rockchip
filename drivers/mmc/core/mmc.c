@@ -671,6 +671,7 @@ out:
 }
 
 #ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
+#include <linux/vmalloc.h>
 static void *mmc_tb_map_ecsd(phys_addr_t start, size_t len)
 {
 	int i;
