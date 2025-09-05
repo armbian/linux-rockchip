@@ -425,7 +425,7 @@ static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
 		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt.reserved[0] = 0;
 		fmt.format.field = V4L2_FIELD_NONE;
-		fmt->stream = 0;
+		fmt.stream = 0;
 		ret = v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_fmt, &fmt);
 		if (!ret) {
 			if (dev->rdbk_debug)
@@ -449,7 +449,7 @@ static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
 			fmt.format.height = height;
 			fmt.stream = 0;
 			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, set_fmt, &fmt);
-			fi.witch = V4L2_SUBDEV_FORMAT_ACTIVE;
+			fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 			fi.stream = 0;
 			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_frame_interval, &fi);
 			fi.interval.numerator = 1;
