@@ -1747,6 +1747,7 @@ static void rkcif_enable_capture(struct rkcif_stream *stream)
 	rkcif_write_register_or(stream->cifdev,
 				get_reg_index_of_id_ctrl0(stream->id),
 				ENABLE_CAPTURE);
+	stream->is_pause_stream = false;
 }
 
 static void rkcif_disable_capture(struct rkcif_stream *stream)
@@ -1754,6 +1755,7 @@ static void rkcif_disable_capture(struct rkcif_stream *stream)
 	rkcif_write_register_and(stream->cifdev,
 				 get_reg_index_of_id_ctrl0(stream->id),
 				 ~ENABLE_CAPTURE);
+	stream->is_pause_stream = true;
 }
 
 int rkcif_get_linetime(struct rkcif_stream *stream)
@@ -6941,7 +6943,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		stream->id, stream->cur_stream_mode, mode);
 
 	if (mode == stream->cur_stream_mode) {
-		if (stream->dma_en) {
+		if (!stream->is_pause_stream) {
 			if (!dev->sensor_linetime)
 				dev->sensor_linetime = rkcif_get_linetime(stream);
 			vblank = rkcif_get_sensor_vblank(dev);
@@ -10048,7 +10050,6 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 	if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 		for (i = 0; i < stream_num; i++) {
 			stream = &dev->stream[i];
-			stream->is_pause_stream = false;
 			if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
 			    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
 			    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
@@ -10078,7 +10079,6 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 						       RKISP_VICAP_CMD_MODE, &dev->sditf[0]->mode);
 		}
 		for (i = 0; i < stream_num; i++) {
-			dev->stream[i].is_pause_stream = false;
 			if (dev->sditf[0]->mode.rdbk_mode != RKISP_VICAP_RDBK_AIQ)
 				dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
 			else
@@ -10131,7 +10131,6 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 	if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 		for (i = 0; i < stream_num; i++) {
 			cur_stream = &dev->stream[i];
-			cur_stream->is_pause_stream = false;
 			if (dev->hdr.hdr_mode == NO_HDR ||
 			    (dev->hdr.hdr_mode == HDR_X2 && cur_stream->id == 1) ||
 			    (dev->hdr.hdr_mode == HDR_X3 && cur_stream->id == 2)) {
@@ -10149,7 +10148,6 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 	} else {
 		for (i = 0; i < stream_num; i++) {
 			cur_stream = &dev->stream[i];
-			cur_stream->is_pause_stream = false;
 			if (dev->sditf[0]->mode.rdbk_mode != RKISP_VICAP_RDBK_AIQ)
 				cur_stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 			else
@@ -10325,6 +10323,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				wait_for_completion_timeout(&last_stream->start_complete,
 							    msecs_to_jiffies(RKCIF_STOP_MAX_WAIT_TIME_MS));
 			}
+			stream->is_pause_stream = false;
 		} else {
 			if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 				stream->cifdev->sensor_state = stream_param->on;
@@ -13490,6 +13489,7 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 	}
 
 	stream->to_en_dma = 0;
+	stream->is_pause_stream = false;
 }
 
 static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
@@ -13549,6 +13549,7 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 		}
 	}
 	stream->to_stop_dma = 0;
+	stream->is_pause_stream = true;
 	v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
 		 "stream[%d] replace_cnt %d, y_addr 0x%x, 0x%x\n",
 		 stream->id, stream->buf_replace_cnt,
@@ -14102,7 +14103,6 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					}
 				}
 				stream->is_wait_stop_complete = false;
-				stream->is_pause_stream = true;
 				complete(&stream->stop_complete);
 			}
 			if (stream->cifdev->sensor_state_change &&
@@ -14135,6 +14135,7 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					stream->cifdev->sensor_work.on = 0;
 					atomic_inc(&stream->cifdev->sensor_off);
 					schedule_work(&stream->cifdev->sensor_work.work);
+					stream->is_pause_stream = true;
 				} else {
 					stream->is_single_cap = false;
 					stream->is_wait_single_cap = false;
@@ -14844,7 +14845,7 @@ int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode)
 			suspend_cnt++;
 			v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 				 "stream[%d] stopping\n", stream->id);
-			if (atomic_read(&cif_dev->sensor_off) == 0) {
+			if (!stream->is_pause_stream) {
 				stream->stopping = true;
 				ret = wait_event_timeout(stream->wq_stopped,
 							 stream->state != RKCIF_STATE_STREAMING,
@@ -15104,6 +15105,7 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 		if (ret)
 			v4l2_err(&cif_dev->v4l2_dev, "%s:resume stream[%d] failed\n",
 				 __func__, stream->id);
+		stream->is_pause_stream = false;
 
 		resume_cnt++;
 		stream->cur_skip_frame = stream->skip_frame;
@@ -15616,7 +15618,6 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 
 			if (stream->is_finish_stop_dma && stream->is_wait_stop_complete) {
 				stream->is_wait_stop_complete = false;
-				stream->is_pause_stream = true;
 				complete(&stream->stop_complete);
 			}
 
@@ -15680,6 +15681,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
 						stream->dma_en &= ~RKCIF_DMAEN_BY_ROCKIT;
 					atomic_inc(&stream->cifdev->streamoff_cnt);
+					stream->is_pause_stream = true;
 					v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
 						 "%s %d, switch stream %d\n", __func__, __LINE__,
 						 atomic_read(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]));
@@ -15794,11 +15796,8 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						stream->is_finish_stop_dma = true;
 					} else {
 						ret = rkcif_stop_dma_capture(stream);
-						if (!ret) {
+						if (!ret)
 							stream->is_finish_stop_dma = true;
-							if (stream->is_wait_stop_complete)
-								stream->is_pause_stream = true;
-						}
 					}
 				}
 				spin_unlock_irqrestore(&stream->vbq_lock, flags);
