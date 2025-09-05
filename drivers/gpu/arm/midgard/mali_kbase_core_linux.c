@@ -2254,8 +2254,8 @@ static unsigned long kbase_get_unmapped_area(struct file *filp,
 			}
 #ifndef CONFIG_64BIT
 	} else {
-		return current->mm->get_unmapped_area(filp, addr, len, pgoff,
-						      flags);
+		return kbase_mm_get_unmapped_area_helper(current->mm, filp, addr, len, pgoff,
+							 flags);
 #endif
 	}
 
