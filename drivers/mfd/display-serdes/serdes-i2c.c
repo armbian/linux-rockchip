@@ -17,6 +17,9 @@ int serdes_i2c_set_sequence(struct serdes *serdes)
 	int i, num = 0, ret = 0;
 	unsigned int def = 0;
 
+	if (!serdes->serdes_init_seq)
+		return 0;
+
 	for (i = 0; i < serdes->serdes_init_seq->reg_seq_cnt; i++) {
 		if (serdes->serdes_init_seq->reg_sequence[i].reg == 0xffff) {
 			SERDES_DBG_MFD("%s: delay 0x%04x us\n", __func__,
@@ -195,10 +198,13 @@ static void serdes_reg_check_work(struct kthread_work *work)
 	}
 
 	serdes_i2c_check_register(serdes, &flag);
+
 	if (flag) {
+
 		if (serdes->chip_data->chip_init)
 			serdes->chip_data->chip_init(serdes);
 		serdes_i2c_set_sequence_backup(serdes);
+
 		msleep(500);
 		SERDES_DBG_MFD("%s %s\n", __func__, serdes->chip_data->name);
 	}
@@ -208,6 +214,9 @@ static void serdes_reg_check_work(struct kthread_work *work)
 
 static int serdes_reg_check_work_setup(struct serdes *serdes)
 {
+	if (!serdes->serdes_backup_seq || !serdes->serdes_backup_seq->reg_seq_cnt)
+		return 0;
+
 	kthread_init_delayed_work(&serdes->reg_check_work,
 				  serdes_reg_check_work);
 
@@ -219,6 +228,8 @@ static int serdes_reg_check_work_setup(struct serdes *serdes)
 	atomic_set(&serdes->flag_early_suspend, 0);
 	kthread_queue_delayed_work(serdes->kworker, &serdes->reg_check_work,
 				   msecs_to_jiffies(20000));
+
+	SERDES_DBG_MFD("serdes %s use_reg_check_work\n", serdes->chip_data->name);
 
 	return 0;
 }
@@ -285,7 +296,7 @@ static int serdes_get_init_seq(struct serdes *serdes)
 	data = of_get_property(np, "serdes-init-sequence", &len);
 	if (!data) {
 		dev_err(dev, "failed to get serdes-init-sequence\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	serdes->serdes_init_seq = devm_kzalloc(dev, sizeof(*serdes->serdes_init_seq),
@@ -309,8 +320,6 @@ static int serdes_get_init_seq(struct serdes *serdes)
 		dev_err(dev, "failed to parse serdes-init-sequence\n");
 		return err;
 	}
-
-	serdes->dual_link = of_property_read_bool(dev->of_node, "dual-link");
 
 	/* init ser register(not des register) more early if uboot logo disabled */
 	serdes->route_enable = of_property_read_bool(dev->of_node, "route-enable");
@@ -373,6 +382,8 @@ static int serdes_i2c_probe(struct i2c_client *client,
 			return ret;
 		}
 	}
+
+	serdes->dual_link = of_property_read_bool(dev->of_node, "dual-link");
 
 	serdes->extcon = devm_extcon_dev_allocate(dev, serdes_cable);
 	if (IS_ERR(serdes->extcon))
@@ -442,11 +453,8 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	}
 
 	serdes->use_reg_check_work = of_property_read_bool(dev->of_node, "use-reg-check-work");
-	if (serdes->use_reg_check_work) {
+	if (serdes->use_reg_check_work)
 		serdes_reg_check_work_setup(serdes);
-
-		SERDES_DBG_MFD("%s: use_reg_check_work=%d\n", __func__, serdes->use_reg_check_work);
-	}
 
 	serdes_create_debugfs(serdes);
 
@@ -469,7 +477,7 @@ static void serdes_i2c_remove(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct serdes *serdes = dev_get_drvdata(dev);
 
-	if (serdes->use_reg_check_work)
+	if (!IS_ERR_OR_NULL(serdes->kworker))
 		serdes_reg_check_work_free(serdes);
 
 	if (serdes->use_delay_work) {
