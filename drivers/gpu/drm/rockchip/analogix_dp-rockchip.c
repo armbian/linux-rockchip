@@ -684,13 +684,13 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		}
 
 		dp->plat_data.encoder = &dp->encoder.encoder;
+
+		rockchip_dp_drm_self_refresh_helper_init(dp);
 	}
 
 	ret = analogix_dp_bind(dp->adp, drm_dev);
 	if (ret)
 		goto err_unregister_audio_pdev;
-
-	rockchip_dp_drm_self_refresh_helper_init(dp);
 
 	return 0;
 
@@ -707,7 +707,8 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 
 	if (dp->audio_pdev)
 		platform_device_unregister(dp->audio_pdev);
-	rockchip_dp_drm_self_refresh_helper_cleanup(dp);
+	if (!dp->plat_data.left)
+		rockchip_dp_drm_self_refresh_helper_cleanup(dp);
 	analogix_dp_unbind(dp->adp);
 	dp->encoder.encoder.funcs->destroy(&dp->encoder.encoder);
 }
