@@ -2631,6 +2631,9 @@ long rkvpss_ofl_action(struct rkvpss_offline_dev *ofl,
 	case RKVPSS_CMD_BUF_DEL:
 		rkvpss_ofl_buf_del(ofl, file_id, arg);
 		break;
+	case RKVPSS_CMD_BUF_DEL_BY_FILE:
+		rkvpss_ofl_buf_del_by_file(ofl, file_id);
+		break;
 	case RKVPSS_CMD_CHECKPARAMS:
 		ret = rkvpss_check_params(ofl, arg, &unite);
 		break;
@@ -2662,9 +2665,15 @@ static long rkvpss_ofl_ioctl(struct file *file, void *fh,
 	long ret = 0;
 	int file_id = 0;
 
-	if (!arg) {
-		ret = -EINVAL;
-		goto out;
+	switch (cmd) {
+	case RKVPSS_CMD_BUF_DEL_BY_FILE:
+		break;
+	default:
+		if (!arg) {
+			ret = -EINVAL;
+			goto out;
+		}
+		break;
 	}
 
 	file_id = ofl_get_file_id(ofl, file);

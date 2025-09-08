@@ -91,6 +91,7 @@ long vpss_rockit_action(int *file_id, unsigned int cmd, void *arg)
 	case RKVPSS_CMD_MODULE_GET:
 	case RKVPSS_CMD_BUF_ADD:
 	case RKVPSS_CMD_BUF_DEL:
+	case RKVPSS_CMD_BUF_DEL_BY_FILE:
 	case RKVPSS_CMD_FRAME_HANDLE:
 	case RKVPSS_CMD_CHECKPARAMS:
 	case RKVPSS_CMD_WRAP_DVBM_INIT:

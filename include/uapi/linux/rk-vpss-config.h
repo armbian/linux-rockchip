@@ -88,6 +88,9 @@
 #define RKVPSS_CMD_STREAM_ATTACH_INFO \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 56, int)
 
+#define RKVPSS_CMD_BUF_DEL_BY_FILE \
+	_IO('V', BASE_VIDIOC_PRIVATE + 57)
+
 /****** vpss(offline mode rockit) independent ioctl*************/
 #define RKVPSS_CMD_OPEN \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 101, int *)
