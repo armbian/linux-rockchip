@@ -5429,19 +5429,24 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 		}
 		if (stream->cifdev->chip_id < CHIP_RK3588_CIF) {
 			rkcif_csi_channel_set(stream, channel, mbus_type);
-		} else if (stream->cifdev->chip_id < CHIP_RV1126B_CIF) {
+		} else {
 			if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
 				for (i = 0; i < channel->capture_info.multi_dev.dev_num; i++) {
 					dev->csi_host_idx = channel->capture_info.multi_dev.dev_idx[i];
-					rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode, i);
+					if (stream->cifdev->chip_id < CHIP_RV1126B_CIF)
+						rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode, i);
+					else
+						rkcif_csi_channel_set_rv1126b(stream, channel, mbus_type, mode, i);
 				}
 			} else {
 				if (!dev->switch_info.is_use_switch ||
-				    atomic_inc_return(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]) == 1)
-					rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode, 0);
+				    atomic_inc_return(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]) == 1) {
+					if (stream->cifdev->chip_id < CHIP_RV1126B_CIF)
+						rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode, 0);
+					else
+						rkcif_csi_channel_set_rv1126b(stream, channel, mbus_type, mode, 0);
+				}
 			}
-		} else {
-			rkcif_csi_channel_set_rv1126b(stream, channel, mbus_type, mode, 0);
 		}
 	} else {
 		if (stream->cifdev->chip_id >= CHIP_RK3588_CIF) {
