@@ -3,8 +3,10 @@
  * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/clock/rockchip,rk3538-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/reset/rockchip,rk3538-cru.h>
 
 / {
 	compatible = "rockchip,rk3538";
@@ -22,6 +24,13 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		spll: spll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <900000000>;
+			clock-output-names = "spll";
+		};
 
 		xin24m: xin24m {
 			compatible = "fixed-clock";
@@ -92,11 +101,37 @@
 		#size-cells = <1>;
 		ranges;
 
+		cru: clock-controller@fd000000 {
+			compatible = "rockchip,rk3538-cru";
+			reg = <0xfd000000 0x91000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+
+			assigned-clocks =
+				<&cru PLL_GPLL>,
+				<&cru CLK_UART_FRAC_0_SRC>, <&cru CLK_UART_FRAC_1_SRC>,
+				<&cru CLK_AUDIO_FRAC_0_SRC>, <&cru CLK_AUDIO_FRAC_1_SRC>,
+				<&cru CLK_CM_FRAC_0_SRC>, <&cru CLK_CM_FRAC_1_SRC>,
+				<&cru CLK_UART_FRAC_0>, <&cru CLK_UART_FRAC_1>,
+				<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
+				<&cru CLK_CM_FRAC_0>, <&cru CLK_CM_FRAC_1>,
+				<&cru CLK_CPLL_DIV10>, <&cru PMU_100M_CLK>;
+			assigned-clock-rates =
+				<1188000000>,
+				<1188000000>, <1188000000>,
+				<1188000000>, <1188000000>,
+				<1188000000>, <1188000000>,
+				<18432000>, <128000000>,
+				<45158400>, <49152000>,
+				<96000000>, <25000000>,
+				<100000000>, <100000000>;
+		};
+
 		uart0: serial@fdc50000 {
 			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
 			reg = <0xfdc50000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&xin24m>, <&xin24m>;
+			clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
