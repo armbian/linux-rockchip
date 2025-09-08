@@ -101,7 +101,7 @@ static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
 	if (dp->plat_data->skip_connector)
 		return true;
 
-	req_bw = mode->crtc_clock * bpp / 8;
+	req_bw = mode->clock * bpp / 8;
 	max_bw = lanes * rate;
 	if (req_bw > max_bw)
 		return false;
