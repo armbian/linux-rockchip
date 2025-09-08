@@ -1161,6 +1161,7 @@ static int rockchip_csi2_dphy_get_inno_phy_hw(struct csi2_dphy *dphy)
 				dphy->phy_index);
 			return -EINVAL;
 		}
+		dphy_hw->hw_idx = i;
 		dphy->dphy_hw_group[i] = dphy_hw;
 	}
 	return 0;

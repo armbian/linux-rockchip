@@ -128,6 +128,7 @@ struct csi2_dphy_hw {
 	int dphy_dev_num;
 	enum csi2_dphy_lane_mode lane_mode;
 	struct resource *res;
+	int hw_idx;
 
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
