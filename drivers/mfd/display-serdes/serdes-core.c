@@ -282,9 +282,10 @@ int serdes_set_bits(struct serdes *serdes, unsigned int reg,
 	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
 		return 0;
 
-	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x) mask=%04x\n", __func__,
-		       dev_name(serdes->dev), serdes->chip_data->name, reg, val, mask);
 	ret = regmap_update_bits(serdes->regmap, reg, mask, val);
+
+	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x) mask=%04x ret=%d\n", __func__,
+		       dev_name(serdes->dev), serdes->chip_data->name, reg, val, mask, ret);
 
 	return ret;
 }
