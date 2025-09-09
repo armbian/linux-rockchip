@@ -361,7 +361,9 @@ static int rkep_mem_continuous_buffer_alloc(struct pcie_file *pcie_file,
 		goto unlock;
 	}
 
+	buffer_req->vir_addr = vir_addr;
 	buffer_req->dma_addr = dma_addr;
+	buffer_req->size = param->size;
 
 	param->dma_addr = dma_addr;
 
