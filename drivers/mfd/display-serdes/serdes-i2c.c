@@ -59,48 +59,6 @@ int serdes_i2c_set_sequence(struct serdes *serdes)
 }
 EXPORT_SYMBOL_GPL(serdes_i2c_set_sequence);
 
-static int serdes_set_i2c_address(struct serdes *serdes, u32 reg_hw, u32 reg_use, int link)
-{
-	int ret = 0;
-	struct i2c_client *client_split;
-	struct serdes *serdes_split = serdes->g_serdes_bridge_split;
-	unsigned int def = 0;
-
-	if (!serdes_split) {
-		dev_info(serdes->dev, "%s serdes_split is null\n", __func__);
-		return -EPROBE_DEFER;
-	}
-
-	client_split = to_i2c_client(serdes->regmap->dev);
-	SERDES_DBG_MFD("%s: %s-%s addr=0x%x reg_hw=0x%x, reg_use=0x%x serdes_split=0x%p\n",
-		       __func__, dev_name(serdes_split->dev), client_split->name,
-		       client_split->addr, serdes->reg_hw, serdes->reg_use, serdes_split);
-
-	client_split->addr = serdes->reg_use;
-	ret = serdes_reg_read(serdes, serdes->serdes_init_seq->reg_sequence[0].reg, &def);
-	if (ret) {
-		client_split->addr = serdes->reg_hw;
-		dev_info(serdes->dev, "%s try to use addr 0x%x\n", __func__, serdes->reg_hw);
-	}
-
-	if (serdes_split && serdes_split->chip_data->split_ops &&
-	    serdes_split->chip_data->split_ops->select)
-		ret = serdes_split->chip_data->split_ops->select(serdes_split, link);
-
-	if (serdes->chip_data->split_ops && serdes->chip_data->split_ops->set_i2c_addr)
-		serdes->chip_data->split_ops->set_i2c_addr(serdes, reg_use, link);
-
-	if (serdes_split && serdes_split->chip_data->split_ops &&
-	    serdes_split->chip_data->split_ops->select)
-		ret = serdes_split->chip_data->split_ops->select(serdes_split, SER_SPLITTER_MODE);
-
-	client_split->addr = serdes->reg_use;
-
-	serdes_i2c_set_sequence(serdes);
-
-	return ret;
-}
-
 static int serdes_i2c_set_sequence_backup(struct serdes *serdes)
 {
 	struct device *dev = serdes->dev;
@@ -424,18 +382,6 @@ static int serdes_i2c_probe(struct i2c_client *client,
 		serdes->g_serdes_bridge_split = g_serdes_ser_split[serdes->id_serdes_panel_split];
 		SERDES_DBG_MFD("%s: id=%d p=0x%p\n", __func__,
 			       serdes->id_serdes_panel_split, serdes->g_serdes_bridge_split);
-	}
-
-	if (serdes->reg_hw) {
-		SERDES_DBG_MFD("%s: %s start change i2c address from 0x%x to 0x%x\n",
-			       __func__, dev->of_node->name, serdes->reg_hw, serdes->reg_use);
-
-		if (!serdes->route_enable) {
-			ret = serdes_set_i2c_address(serdes, serdes->reg_hw,
-						     serdes->reg_use, serdes->link_use);
-			if (ret)
-				dev_err(dev, "%s failed to set addr\n", serdes->chip_data->name);
-		}
 	}
 
 	serdes->use_delay_work = of_property_read_bool(dev->of_node, "use-delay-work");

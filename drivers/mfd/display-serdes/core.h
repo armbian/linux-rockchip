@@ -455,6 +455,7 @@ void serdes_debugfs_init(void);
 void serdes_debugfs_exit(void);
 void serdes_create_debugfs(struct serdes *serdes);
 void serdes_destroy_debugfs(struct serdes *serdes);
+int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link);
 
 extern struct serdes_chip_data serdes_bu18tl82_data;
 extern struct serdes_chip_data serdes_bu18rl82_data;

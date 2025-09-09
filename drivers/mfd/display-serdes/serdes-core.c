@@ -581,6 +581,31 @@ void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...)
 }
 EXPORT_SYMBOL(serdes_dev_dbg);
 
+int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link)
+{
+	int ret = 0;
+	struct serdes *serdes_split = serdes->g_serdes_bridge_split;
+
+	if (!serdes_split) {
+		dev_info(serdes->dev, "%s serdes_split is null\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	if (serdes_split && serdes_split->chip_data->split_ops &&
+	    serdes_split->chip_data->split_ops->select)
+		ret = serdes_split->chip_data->split_ops->select(serdes_split, link);
+
+	if (serdes->chip_data->split_ops && serdes->chip_data->split_ops->set_i2c_addr)
+		ret = serdes->chip_data->split_ops->set_i2c_addr(serdes, reg_use, link);
+
+	if (serdes_split && serdes_split->chip_data->split_ops &&
+	    serdes_split->chip_data->split_ops->select)
+		ret = serdes_split->chip_data->split_ops->select(serdes_split, SER_SPLITTER_MODE);
+
+	return ret;
+}
+EXPORT_SYMBOL(serdes_set_i2c_address);
+
 int serdes_set_pinctrl_default(struct serdes *serdes)
 {
 	int ret = 0;

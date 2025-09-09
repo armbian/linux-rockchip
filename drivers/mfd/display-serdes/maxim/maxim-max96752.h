@@ -15,6 +15,16 @@
 #define GPIO_B_REG(gpio)	(0x0201 + ((gpio) * 3))
 #define GPIO_C_REG(gpio)	(0x0202 + ((gpio) * 3))
 
+#define DEV_REG0		0x00
+
+#define AUDIO_TR3		0x5b
+#define INFOFR_TR3		0x63
+#define SPI_TR3			0x6b
+#define CC_TR3			0x73
+#define GPIO_TR3		0x7b
+#define AHDCP_TR3		0x8b
+#define IIC_X_TR3		0xa3
+#define IIC_Y_TR3		0xab
 
 /* 0200h */
 #define RES_CFG			BIT(7)

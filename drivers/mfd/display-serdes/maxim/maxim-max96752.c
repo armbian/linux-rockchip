@@ -266,6 +266,31 @@ static struct serdes_chip_pinctrl_info max96752_pinctrl_info = {
 	.num_functions = ARRAY_SIZE(max96752_functions_desc),
 };
 
+static const struct reg_sequence max96752_tx_src_id[] = {
+	{ 0x48, 0x30 },
+	{ 0x4a, 0x31 },
+	{ 0x4c, 0x32 },
+	{ 0x68, 0x33 },
+	{ 0x6a, 0x34 },
+	{ 0x6c, 0x35 },
+	{ 0x28, 0x36 },
+	{ 0x2a, 0x37 },
+};
+
+static int max96752_panel_init(struct serdes *serdes)
+{
+	int ret = 0;
+
+	if (serdes->reg_hw) {
+		ret = serdes_set_i2c_address(serdes, serdes->reg_use,
+					     serdes->link_use);
+		if (ret)
+			dev_err(serdes->dev, "%s failed to set addr\n", serdes->chip_data->name);
+	}
+
+	return ret;
+}
+
 static int max96752_panel_prepare(struct serdes *serdes)
 {
 	return 0;
@@ -273,8 +298,6 @@ static int max96752_panel_prepare(struct serdes *serdes)
 
 static int max96752_panel_unprepare(struct serdes *serdes)
 {
-	//serdes_reg_write(serdes, 0x0215, 0x80);	/* lcd_en */
-
 	return 0;
 }
 
@@ -289,6 +312,7 @@ static int max96752_panel_disable(struct serdes *serdes)
 }
 
 static struct serdes_chip_panel_ops max96752_panel_ops = {
+	.init = max96752_panel_init,
 	.prepare = max96752_panel_prepare,
 	.unprepare = max96752_panel_unprepare,
 	.enable = max96752_panel_enable,
@@ -572,29 +596,56 @@ static struct serdes_chip_gpio_ops max96752_gpio_ops = {
 
 static int max96752_set_i2c_addr(struct serdes *serdes, int address, int link)
 {
-	int ret;
+	int ret = 0;
+	int addr = address << 1;
+	struct device *dev = serdes->dev;
+	unsigned int i, value, index, def = 0;
+	const char *name = serdes->chip_data->name;
+	struct i2c_client *client_split = to_i2c_client(serdes->regmap->dev);
 
-	if (link == LINKA) {
-		/* TX_SRC_ID[1] = 0 */
-		ret = serdes_reg_write(serdes, 0x73, 0x31);
-		/* Receive packets with this stream ID = 0 */
-		ret = serdes_reg_write(serdes, 0x50, 0x00);
-		ret = serdes_reg_write(serdes, 0x00, address << 1);
-	} else if (link == LINKB) {
-		/* TX_SRC_ID[1] = 1 */
-		ret = serdes_reg_write(serdes, 0x73, 0x32);
-		/* Receive packets with this stream ID = 1 */
-		ret = serdes_reg_write(serdes, 0x50, 0x01);
-		ret = serdes_reg_write(serdes, 0x00, address << 1);
-	} else {
-		dev_info(serdes->dev, "link %d is error\n", link);
-		ret = -1;
+	for (i = 0; i < ARRAY_SIZE(max96752_tx_src_id); i++) {
+		if (max96752_tx_src_id[i].reg == serdes->reg_hw) {
+			index = i + link;
+			if (index >= ARRAY_SIZE(max96752_tx_src_id))
+				index -= ARRAY_SIZE(max96752_tx_src_id);
+
+			def = max96752_tx_src_id[index].def;
+			break;
+		}
 	}
 
-	SERDES_DBG_CHIP("%s: set serdes chip %s i2c 7bit address to 0x%x\n", __func__,
-			serdes->chip_data->name, address);
+	if (i == ARRAY_SIZE(max96752_tx_src_id)) {
+		dev_err(dev, "serdes %s invalid hardware i2c addr 0x%x\n", name, address);
+		return -EINVAL;
+	}
 
-	return ret;
+	ret = serdes_reg_read(serdes, DEV_REG0, &value);
+	if (ret) {
+		client_split->addr = serdes->reg_hw;
+		dev_info(serdes->dev, "%s try to use addr 0x%x\n", __func__, serdes->reg_hw);
+	}
+
+	ret = serdes_reg_write(serdes, DEV_REG0, addr);
+	client_split->addr = address;
+
+	if (ret) {
+		dev_err(dev, "serdes %s set dev addr 0x%x fail\n", name, addr);
+		return -EINVAL;
+	}
+
+	serdes_reg_write(serdes, AUDIO_TR3, def);
+	serdes_reg_write(serdes, INFOFR_TR3, def);
+	serdes_reg_write(serdes, SPI_TR3, def);
+	serdes_reg_write(serdes, CC_TR3, def);
+	serdes_reg_write(serdes, GPIO_TR3, def);
+	serdes_reg_write(serdes, AHDCP_TR3, def);
+	serdes_reg_write(serdes, IIC_X_TR3, def);
+	serdes_reg_write(serdes, IIC_Y_TR3, def);
+
+	dev_info(dev, "set serdes chip %s i2c 7bit address to 0x%x\n",
+		 name, address);
+
+	return 0;
 }
 
 static struct serdes_chip_split_ops max96752_split_ops = {
