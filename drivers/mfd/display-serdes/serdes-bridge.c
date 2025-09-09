@@ -66,10 +66,21 @@ static int serdes_bridge_attach(struct drm_bridge *bridge,
 	struct serdes *serdes = serdes_bridge->parent;
 	int ret = 0;
 
+	if (serdes_bridge->split_mode) {
+		ret = drm_of_find_panel_or_bridge(bridge->of_node, 2, -1,
+						  &serdes_bridge->split_panel, NULL);
+		if (ret) {
+			dev_err(serdes_bridge->dev->parent,
+				"failed to find serdes split bridge or panel, ret=%d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1,
 					  &serdes_bridge->panel, &serdes_bridge->next_bridge);
 	if (ret) {
-		dev_err(serdes_bridge->dev->parent, "failed to find serdes bridge, ret=%d\n", ret);
+		dev_err(serdes_bridge->dev->parent,
+			"failed to find serdes bridge or panel, ret=%d\n", ret);
 		return ret;
 	}
 
@@ -110,6 +121,9 @@ static void serdes_bridge_disable(struct drm_bridge *bridge)
 	if (serdes_bridge->panel)
 		drm_panel_disable(serdes_bridge->panel);
 
+	if (serdes_bridge->split_panel)
+		drm_panel_disable(serdes_bridge->split_panel);
+
 	if (serdes->chip_data->bridge_ops->disable)
 		ret = serdes->chip_data->bridge_ops->disable(serdes);
 
@@ -128,6 +142,9 @@ static void serdes_bridge_post_disable(struct drm_bridge *bridge)
 
 	if (serdes_bridge->panel)
 		ret = drm_panel_unprepare(serdes_bridge->panel);
+
+	if (serdes_bridge->split_panel)
+		ret = drm_panel_unprepare(serdes_bridge->split_panel);
 
 	if (serdes->chip_data->bridge_ops->post_disable)
 		ret = serdes->chip_data->bridge_ops->post_disable(serdes);
@@ -156,6 +173,9 @@ static void serdes_bridge_pre_enable(struct drm_bridge *bridge)
 	if (serdes_bridge->panel)
 		ret = drm_panel_prepare(serdes_bridge->panel);
 
+	if (serdes_bridge->split_panel)
+		ret = drm_panel_prepare(serdes_bridge->split_panel);
+
 	serdes_set_pinctrl_default(serdes);
 
 	SERDES_DBG_MFD("%s: %s ret=%d\n", __func__, dev_name(serdes->dev), ret);
@@ -169,6 +189,9 @@ static void serdes_bridge_enable(struct drm_bridge *bridge)
 
 	if (serdes_bridge->panel)
 		ret = drm_panel_enable(serdes_bridge->panel);
+
+	if (serdes_bridge->split_panel)
+		ret = drm_panel_enable(serdes_bridge->split_panel);
 
 	if (serdes->chip_data->bridge_ops->enable)
 		ret = serdes->chip_data->bridge_ops->enable(serdes);
@@ -239,11 +262,44 @@ static const struct drm_bridge_funcs serdes_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 };
 
+static int serdes_bridge_parse_dt(struct serdes_bridge *serdes_bridge)
+{
+	unsigned int nr = 0;
+	struct device_node *ports, *port;
+	struct device *dev = serdes_bridge->dev;
+	struct device_node *node = serdes_bridge->base_bridge.of_node;
+
+	serdes_bridge->sel_mipi = of_property_read_bool(dev->parent->of_node, "sel-mipi");
+
+	ports = of_get_child_by_name(node, "ports");
+	if (!ports)
+		return -EINVAL;
+
+	for_each_available_child_of_node(ports, port) {
+		if (!of_find_property(port, "reg", NULL))
+			continue;
+
+		nr++;
+	}
+
+	if (nr == 3)
+		serdes_bridge->split_mode = true;
+
+	if (serdes_bridge->split_mode)
+		dev_info(dev->parent, "serdes bridge %s work split mode\n", node->name);
+
+	of_node_put(ports);
+
+	return 0;
+}
+
 static int serdes_bridge_probe(struct platform_device *pdev)
 {
 	struct serdes *serdes = dev_get_drvdata(pdev->dev.parent);
+	struct device_node *remote_node;
 	struct device *dev = &pdev->dev;
 	struct serdes_bridge *serdes_bridge;
+	int ret = 0;
 
 	if (!serdes->dev || !serdes->chip_data)
 		return -1;
@@ -260,21 +316,22 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 	if (!serdes_bridge->regmap)
 		return dev_err_probe(dev, -ENODEV, "failed to get serdes regmap\n");
 
-	serdes_bridge->sel_mipi = of_property_read_bool(dev->parent->of_node, "sel-mipi");
-	SERDES_DBG_MFD("%s: sel_mipi=%d\n", __func__, serdes_bridge->sel_mipi);
-
 	serdes_bridge->base_bridge.of_node = dev->parent->of_node;
-	serdes_bridge->remote_node = of_graph_get_remote_node(dev->parent->of_node, 0, -1);
-	if (!serdes_bridge->remote_node) {
+	remote_node = of_graph_get_remote_node(dev->parent->of_node, 0, -1);
+	if (!remote_node) {
 		serdes_bridge->base_bridge.of_node = dev->of_node;
 		SERDES_DBG_MFD("warning: failed to get remote node for serdes on %s\n",
 			       dev_name(dev->parent));
-		serdes_bridge->remote_node = of_graph_get_remote_node(dev->of_node, 0, -1);
-		if (!serdes_bridge->remote_node) {
+		remote_node = of_graph_get_remote_node(dev->of_node, 0, -1);
+		if (!remote_node) {
 			return dev_err_probe(dev, -ENODEV,
 				     "failed to get remote node for serdes dsi\n");
 		}
 	}
+
+	ret = serdes_bridge_parse_dt(serdes_bridge);
+	if (ret)
+		goto err_free_node;
 
 	serdes_bridge->base_bridge.funcs = &serdes_bridge_funcs;
 	serdes_bridge->base_bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_MODES;
@@ -287,7 +344,7 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 		SERDES_DBG_MFD("%s: type %d\n", __func__, serdes_bridge->base_bridge.type);
 	} else {
 		serdes_bridge->base_bridge.type = DRM_MODE_CONNECTOR_eDP;
-		SERDES_DBG_MFD("%s: type DRM_MODE_CONNECTOR_LVDS\n", __func__);
+		SERDES_DBG_MFD("%s: type DRM_MODE_CONNECTOR_eDP\n", __func__);
 	}
 
 	drm_bridge_add(&serdes_bridge->base_bridge);
@@ -296,18 +353,25 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 		dev_info(serdes_bridge->dev->parent, "serdes sel_mipi %d\n",
 			 serdes_bridge->sel_mipi);
 		/* Attach primary DSI */
-		serdes_bridge->dsi = serdes_attach_dsi(serdes_bridge, serdes_bridge->remote_node);
+		serdes_bridge->dsi = serdes_attach_dsi(serdes_bridge, remote_node);
 		if (IS_ERR(serdes_bridge->dsi)) {
 			drm_bridge_remove(&serdes_bridge->base_bridge);
-			return PTR_ERR(serdes_bridge->dsi);
+			ret = PTR_ERR(serdes_bridge->dsi);
+			goto err_free_node;
 		}
 	}
+
+	of_node_put(remote_node);
 
 	dev_info(dev, "serdes %s, serdes_bridge_probe successful mipi=%d, of_node=%s\n",
 		 serdes->chip_data->name, serdes_bridge->sel_mipi,
 		 serdes_bridge->base_bridge.of_node->name);
 
 	return 0;
+
+err_free_node:
+	of_node_put(remote_node);
+	return ret;
 }
 
 static int serdes_bridge_remove(struct platform_device *pdev)

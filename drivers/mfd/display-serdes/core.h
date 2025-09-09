@@ -323,12 +323,12 @@ struct serdes_bridge {
 	atomic_t triggered;
 	struct drm_connector connector;
 	struct drm_panel *panel;
+	struct drm_panel *split_panel;
 
 	struct device *dev;
 	struct serdes *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
-	struct device_node *remote_node;
 	struct drm_display_mode mode;
 	struct backlight_device *backlight;
 
@@ -352,7 +352,6 @@ struct serdes_bridge_split {
 	struct serdes *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
-	struct device_node *remote_node;
 	struct drm_display_mode mode;
 	struct backlight_device *backlight;
 
