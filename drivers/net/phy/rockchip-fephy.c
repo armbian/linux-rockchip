@@ -124,7 +124,7 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 		sel = rockchip_fephy_group_read(phydev, GROUP_AFE, 0x3);
 		if (sel < 0)
 			return sel;
-		ret = rockchip_fephy_group_write(phydev, GROUP_AFE, 0x3, sel | 0x2);
+		ret = rockchip_fephy_group_write(phydev, GROUP_AFE, 0x3, sel | 0x1);
 		if (ret)
 			return ret;
 
