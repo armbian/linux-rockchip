@@ -41,6 +41,7 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
+#include <linux/rk_hdmirx_config.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
@@ -74,37 +75,42 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define I2C_ENABLE		0x1
 #define I2C_DISABLE		0x0
 
-#define HTOTAL_H		0xe088
-#define HTOTAL_L		0xe089
-#define HACT_H			0xe08c
-#define HACT_L			0xe08d
-
-#define VTOTAL_H		0xe08a
-#define VTOTAL_L		0xe08b
-#define VACT_H			0xe08e
-#define VACT_L			0xe08f
-
-#define HS_HALF			0xe080
-#define HFP_HALF_H		0xe081
-#define HFP_HALF_L		0xe082
-
-#define VS			0xe083
-#define VFP_H			0xe097
-#define VFP_L			0xe098
-
+#define INT_TYPE		0xe084
 #define PCLK_H			0xe085
 #define PCLK_M			0xe086
 #define PCLK_L			0xe087
-
+#define HTOTAL_H		0xe088
+#define HTOTAL_L		0xe089
+#define VTOTAL_H		0xe08a
+#define VTOTAL_L		0xe08b
+#define HACT_H			0xe08c
+#define HACT_L			0xe08d
+#define VACT_H			0xe08e
+#define VACT_L			0xe08f
+#define AUDIO_FS_VALUE_H	0xe090
+#define AUDIO_FS_VALUE_L	0xe091
 #define BYTE_PCLK_H		0xe092
 #define BYTE_PCLK_M		0xe093
 #define BYTE_PCLK_L		0xe094
-
-#define AUDIO_FS_VALUE_H	0xe090
-#define AUDIO_FS_VALUE_L	0xe091
-
 #define LNAE_NUM		0xe095
 #define BUS_FMT			0xe096
+
+#define HS_HALF_H		0xe098
+#define HS_HALF_L		0xe099
+#define HFP_HALF_H		0xe09a
+#define HFP_HALF_L		0xe09b
+#define HBP_HALF_H		0xe09c
+#define HBP_HALF_L		0xe09d
+
+#define VS_H			0xe09e
+#define VS_L			0xe09f
+#define VFP_H			0xe0a1
+#define VFP_L			0xe0a2
+#define VBP_H			0xe0a3
+#define VBP_L			0xe0a4
+
+#define HS_POLARITY		0xe0a5
+#define VS_POLARITY		0xe0a6
 
 #define STREAM_CTL		0xe0b0
 #define ENABLE_STREAM		0x01
@@ -856,20 +862,29 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	val_l = i2c_rd8(sd, VACT_L);
 	vact = (val_h << 8) | val_l;
 
-	hs = i2c_rd8(sd, HS_HALF) * 2;
+	val_h = i2c_rd8(sd, HS_HALF_H);
+	val_l = i2c_rd8(sd, HS_HALF_L);
+	hs = ((val_h << 8) | val_l) * 2;
 
 	val_h = i2c_rd8(sd, HFP_HALF_H);
 	val_l = i2c_rd8(sd, HFP_HALF_L);
 	hfp = ((val_h << 8) | val_l) * 2;
 
-	hbp = htotal - hact - hs - hfp;
+	val_h = i2c_rd8(sd, HBP_HALF_H);
+	val_l = i2c_rd8(sd, HBP_HALF_L);
+	hbp = ((val_h << 8) | val_l) * 2;
 
-	vs = i2c_rd8(sd, VS);
+	val_h = i2c_rd8(sd, VS_H);
+	val_l = i2c_rd8(sd, VS_L);
+	vs = ((val_h << 8) | val_l);
+
 	val_h = i2c_rd8(sd, VFP_H);
 	val_l = i2c_rd8(sd, VFP_L);
-	vfp = (val_h << 8) | val_l;
+	vfp = ((val_h << 8) | val_l);
 
-	vbp = vtotal - vact - vs - vfp;
+	val_h = i2c_rd8(sd, VBP_H);
+	val_l = i2c_rd8(sd, VBP_L);
+	vbp = ((val_h << 8) | val_l);
 
 	lt6911uxe->bus_fmt = i2c_rd8(sd, BUS_FMT);
 	if (lt6911uxe->bus_fmt == YUV420_8Bit) {
@@ -947,8 +962,25 @@ static void lt6911uxe_delayed_work_res_change(struct work_struct *work)
 	struct lt6911uxe *lt6911uxe = container_of(dwork,
 			struct lt6911uxe, delayed_work_res_change);
 	struct v4l2_subdev *sd = &lt6911uxe->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
+	u32 int_type;
 
-	lt6911uxe_format_change(sd);
+	int_type = i2c_rd8(sd, INT_TYPE);
+	v4l2_dbg(1, debug, sd, "%s: int type: 0x%x\n", __func__, int_type);
+	switch (int_type) {
+	case 0:
+		lt6911uxe->nosignal = true;
+		v4l2_event_queue(sd->devnode, &evt_signal_lost);
+		break;
+	case 1:
+		lt6911uxe_format_change(sd);
+		break;
+	default:
+		v4l2_dbg(1, debug, sd, "%s: unsupported handle int type\n", __func__);
+		break;
+	}
 }
 
 static int lt6911uxe_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd)
@@ -1051,10 +1083,16 @@ static irqreturn_t lt6911uxe_res_change_irq_handler(int irq, void *dev_id)
 static irqreturn_t plugin_detect_irq_handler(int irq, void *dev_id)
 {
 	struct lt6911uxe *lt6911uxe = dev_id;
+	struct v4l2_subdev *sd = &lt6911uxe->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
 
 	/* control hpd output level after 25ms */
 	schedule_delayed_work(&lt6911uxe->delayed_work_hotplug,
 			HZ / 40);
+	if (!tx_5v_power_present(sd))
+		v4l2_event_queue(sd->devnode, &evt_signal_lost);
 
 	return IRQ_HANDLED;
 }
@@ -1084,6 +1122,8 @@ static int lt6911uxe_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
