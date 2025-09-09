@@ -33,6 +33,7 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
+#include <linux/rk_hdmirx_config.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
 
@@ -78,6 +79,11 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define FRAMERATE		0xe094
 #define AUDIO_FS_VALUE		0xe098
 #define INTERLACED		0xe099
+
+#define SIGNAL_STABLE		0xe080
+#define STREAM_CTL		0xe0b8
+#define ENABLE_STREAM		0x01
+#define DISABLE_STREAM		0x00
 
 #define LT8668SX_NAME			"LT8668SX"
 
@@ -661,8 +667,19 @@ static void lt8668sx_delayed_work_res_change(struct work_struct *work)
 	struct lt8668sx *lt8668sx = container_of(dwork,
 			struct lt8668sx, delayed_work_res_change);
 	struct v4l2_subdev *sd = &lt8668sx->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
+	u8 val;
 
-	lt8668sx_format_change(sd);
+	val = i2c_rd8(sd, SIGNAL_STABLE);
+	v4l2_dbg(1, debug, sd, "%s: signal stable: 0x%x\n", __func__, val);
+	if (val) {
+		lt8668sx_format_change(sd);
+	} else {
+		lt8668sx->nosignal = true;
+		v4l2_event_queue(sd->devnode, &evt_signal_lost);
+	}
 }
 
 static int lt8668sx_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd)
@@ -829,8 +846,14 @@ static irqreturn_t lt8668sx_res_change_irq_handler(int irq, void *dev_id)
 static irqreturn_t plugin_detect_irq_handler(int irq, void *dev_id)
 {
 	struct lt8668sx *lt8668sx = dev_id;
+	struct v4l2_subdev *sd = &lt8668sx->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
 
 	schedule_delayed_work(&lt8668sx->delayed_work_hotplug, 100);
+	if (!tx_5v_power_present(sd))
+		v4l2_event_queue(sd->devnode, &evt_signal_lost);
 
 	return IRQ_HANDLED;
 }
@@ -975,6 +998,10 @@ static int lt8668sx_s_stream(struct v4l2_subdev *sd, int on)
 		DIV_ROUND_CLOSEST(lt8668sx->cur_mode->max_fps.denominator,
 				  lt8668sx->cur_mode->max_fps.numerator));
 
+	if (on)
+		i2c_wr8(&lt8668sx->sd, STREAM_CTL, ENABLE_STREAM);
+	else
+		i2c_wr8(&lt8668sx->sd, STREAM_CTL, DISABLE_STREAM);
 	msleep(100);
 
 	return 0;
