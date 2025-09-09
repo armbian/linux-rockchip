@@ -499,8 +499,8 @@
 			03A5 00C8
 			//VBP_H
 			03A7 0000
-			//VFP_H/VBP_L VBP=8
-			03A6 0008
+			//VBP_L/VFP_H VBP=8
+			03A6 0080
 			//VRES_L VRES=0X02D0=720
 			03A8 00D0
 			//VRES_H
@@ -509,14 +509,14 @@
 			03AA 0038
 			//HBP_H
 			03AC 0003
-			//HFP_H/HBP_L(4bit)	HBP=56
-			03AB 0008
+			//HBP_L/HFP_H(4bit)	HBP=56
+			03AB 0080
 			//HRES_L HRES=0X0780=1920
 			03AD 0080
 			//HRES_H
 			03AE 0007
 			//Disable FIFO/DESKEW_EN
-			03A4 00C0
+			03A4 00C1
 			//HSYNC_WIDTH_L	HSYNC=40
 			0395 0028
 			//VSYNC_WIDTH_L	VSYNC=20
@@ -527,8 +527,8 @@
 			03B1 000F
 			//VBP_H
 			03B3 0000
-			//VFP_H/VBP_L	VBP=10
-			03B2 000A
+			//VBP_L/VFP_H	VBP=10
+			03B2 00A0
 			//VRES_L VRES=0X0438=1080
 			03B4 0038
 			//VRES_H
@@ -537,14 +537,14 @@
 			03B6 008C
 			//HBP_H
 			03B8 0006
-			//HFP_H/HBP_L	HBP=100
-			03B7 0004
+			//HBP_L/HFP_H	HBP=100
+			03B7 0040
 			//HRES_L HRES=0X0780=1920
 			03B9 0080
 			//HRES_H
 			03BA 0007
 			//Disable FIFO/DESKEW_EN
-			03B0 00C0
+			03B0 00C1
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot
@@ -740,7 +740,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -1422,7 +1422,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <230400000>;	//4128*930@60
+				clock-frequency = <230000000>;	//3840*720@60
 				hactive = <3840>;
 				vactive = <720>;
 				hfront-porch = <112>;
@@ -1550,7 +1550,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -2101,7 +2101,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <230400000>;	//4128*930@60
+				clock-frequency = <230000000>;	//3840*720@60
 				hactive = <3840>;
 				vactive = <720>;
 				hfront-porch = <112>;
@@ -2230,7 +2230,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -2413,8 +2413,7 @@
 };
 
 &vop {
-	assigned-clocks = <&cru PLL_V0PLL>;
-	assigned-clock-rates = <2304000000>;
+	status = "okay";
 };
 
 &vp0 {

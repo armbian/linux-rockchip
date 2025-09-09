@@ -499,8 +499,8 @@
 			03A5 00C8
 			//VBP_H
 			03A7 0000
-			//VFP_H/VBP_L VBP=8
-			03A6 0008
+			//VBP_L/VFP_H VBP=8
+			03A6 0080
 			//VRES_L VRES=0X02D0=720
 			03A8 00D0
 			//VRES_H
@@ -509,42 +509,42 @@
 			03AA 0038
 			//HBP_H
 			03AC 0003
-			//HFP_H/HBP_L(4bit)	HBP=56
-			03AB 0008
+			//HBP_L/HFP_H(4bit)	HBP=56
+			03AB 0080
 			//HRES_L HRES=0X0780=1920
 			03AD 0080
 			//HRES_H
 			03AE 0007
 			//Disable FIFO/DESKEW_EN
-			03A4 00C0
-			//HSYNC_WIDTH_L	HSYNC=40
-			0395 0028
-			//VSYNC_WIDTH_L	VSYNC=20
-			0396 0014
+			03A4 00C1
+			//HSYNC_WIDTH_L	HSYNC=32
+			0395 0020
+			//VSYNC_WIDTH_L	VSYNC=2
+			0396 0002
 			//HSYNC_WIDTH_H/VSYNC_WIDTH_H
 			0397 0000
-			//VFP_L	 VFP=15
-			03B1 000F
+			//VFP_L	VFP=200
+			03B1 00C8
 			//VBP_H
 			03B3 0000
-			//VFP_H/VBP_L	VBP=10
-			03B2 000A
-			//VRES_L VRES=0X0438=1080
-			03B4 0038
+			//VBP_L/VFP_H VBP=8
+			03B2 0080
+			//VRES_L VRES=0X02D0=720
+			03B4 00D0
 			//VRES_H
-			03B5 0004
-			//HFP_L	 HFP=140
-			03B6 008C
+			03B5 0002
+			//HFP_L	 HFP=56
+			03B6 0038
 			//HBP_H
-			03B8 0006
-			//HFP_H/HBP_L	HBP=100
-			03B7 0004
+			03B8 0003
+			//HBP_L/HFP_H	HBP=56
+			03B7 0080
 			//HRES_L HRES=0X0780=1920
 			03B9 0080
 			//HRES_H
 			03BA 0007
 			//Disable FIFO/DESKEW_EN
-			03B0 00C0
+			03B0 00C1
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot
@@ -2103,8 +2103,7 @@
 };
 
 &vop {
-	assigned-clocks = <&cru PLL_V0PLL>;
-	assigned-clock-rates = <1150000000>;
+	status = "okay";
 };
 //dp
 &vp0 {
