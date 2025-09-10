@@ -445,7 +445,6 @@
 };
 
 &sai2 {
-	rockchip,sai-rx-route = <1 0 2 3>;
 	status = "okay";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
