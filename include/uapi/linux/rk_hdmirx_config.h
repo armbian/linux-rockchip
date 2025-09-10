@@ -7,6 +7,7 @@
 #ifndef _UAPI_RK_HDMIRX_CONFIG_H
 #define _UAPI_RK_HDMIRX_CONFIG_H
 
+#include <drm/drm_mode.h>
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
@@ -118,6 +119,9 @@ enum user_color_range {
 
 #define RK_HDMIRX_CMD_SET_EDID_VERSION  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 17, int)
+
+#define RK_HDMIRX_CMD_GET_HDR_METADATA  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 18, struct hdr_metadata_infoframe)
 
 /* Private v4l2 event */
 #define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \
