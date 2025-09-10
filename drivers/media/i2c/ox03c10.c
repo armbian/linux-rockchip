@@ -4955,6 +4955,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_lenc_gain *lenc_gain;
 	struct rkmodule_reg_setting *reg_setting;
 	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
+	struct rkmodule_hdr_compr *compr_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5067,6 +5068,11 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		single_frame_info = (struct rkmodule_hdr_compr_single_frame_info *)arg;
 		single_frame_info->single_bitwidth = 10;
 		break;
+	case RKMODULE_GET_HDR_COMPR_PARAM:
+		compr_param = (struct rkmodule_hdr_compr *)arg;
+		if (ox03c10->cur_mode->hdr_mode == HDR_CIS_MERGE)
+			*compr_param = *ox03c10->cur_mode->hdr_compr;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5099,6 +5105,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_lenc_gain *lenc_gain;
 	struct rkmodule_reg_setting *reg_setting;
 	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
+	struct rkmodule_hdr_compr *compr_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5371,6 +5378,22 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 			}
 		}
 		kfree(single_frame_info);
+		break;
+	case RKMODULE_GET_HDR_COMPR_PARAM:
+		compr_param = kzalloc(sizeof(*compr_param), GFP_KERNEL);
+		if (!compr_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, compr_param);
+		if (!ret) {
+			if (copy_to_user(up, compr_param, sizeof(*compr_param))) {
+				kfree(compr_param);
+				return -EFAULT;
+			}
+		}
+		kfree(compr_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

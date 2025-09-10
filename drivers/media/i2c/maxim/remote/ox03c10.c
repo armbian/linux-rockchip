@@ -4647,6 +4647,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_wb_gain_group *wb_gain_group = NULL;
 	struct rkmodule_blc_group *blc_group = NULL;
 	struct rkmodule_channel_info *ch_info = NULL;
+	struct rkmodule_hdr_compr *compr_param = NULL;
 	u32 *exp_mode = NULL;
 	u32 i, h, w;
 	long ret = 0;
@@ -4720,6 +4721,11 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_EXP_MODE:
 		ret = ox03c10_select_exp_mode(ox03c10, *(u32 *)arg);
 		break;
+	case RKMODULE_GET_HDR_COMPR_PARAM:
+		compr_param = (struct rkmodule_hdr_compr *)arg;
+		if (ox03c10->cur_mode->hdr_mode == HDR_CIS_MERGE)
+			*compr_param = *ox03c10->cur_mode->hdr_compr;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -4741,6 +4747,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	struct rkmodule_wb_gain_group *wb_gain_group = NULL;
 	struct rkmodule_blc_group *blc_group = NULL;
 	struct rkmodule_channel_info *ch_info = NULL;
+	struct rkmodule_hdr_compr *compr_param = NULL;
 	u32 exp_mode = 0;
 	long ret = 0;
 
@@ -4906,6 +4913,22 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 		if (copy_from_user(&exp_mode, up, sizeof(u32)))
 			return -EFAULT;
 		ret = ox03c10_ioctl(sd, cmd, &exp_mode);
+		break;
+	case RKMODULE_GET_HDR_COMPR_PARAM:
+		compr_param = kzalloc(sizeof(*compr_param), GFP_KERNEL);
+		if (!compr_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, compr_param);
+		if (!ret) {
+			if (copy_to_user(up, compr_param, sizeof(*compr_param))) {
+				kfree(compr_param);
+				return -EFAULT;
+			}
+		}
+		kfree(compr_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
