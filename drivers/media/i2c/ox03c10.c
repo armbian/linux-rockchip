@@ -4033,7 +4033,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.hts_def = 0x10fe,
 		.vts_def = 0x02ae * 2,
 		.reg_list = ox03c10_1920x1080_30fps_HDR3_VS_PWL12_mipi600,
-		.hdr_mode = HDR_COMPR,
+		.hdr_mode = HDR_CIS_MERGE,
 		.hdr_compr = &ox03c10_hdr_compr_12,
 		.bpp = 12,
 		.mipi_freq_idx = 0,
@@ -4054,7 +4054,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.hts_def = 0x10FE,
 		.vts_def = 0x02AE * 2,
 		.reg_list = ox03c10_1920x1080_30fps_HDR3_LFM_PWL16_mipi996,
-		.hdr_mode = HDR_COMPR,
+		.hdr_mode = HDR_CIS_MERGE,
 		.hdr_compr = &ox03c10_hdr_compr_16,
 		.bpp = 16,
 		.mipi_freq_idx = 1,
@@ -4078,7 +4078,7 @@ static const struct ox03c10_mode supported_modes[] = {
 		.hts_def = 0x10fe,
 		.vts_def = 0x02ae * 2,
 		.reg_list = ox03c10_1920x1080_30fps_HDR3_SPD_PWL12_mipi600,
-		.hdr_mode = HDR_COMPR,
+		.hdr_mode = HDR_CIS_MERGE,
 		.hdr_compr = &ox03c10_hdr_compr_12,
 		.bpp = 12,
 		.mipi_freq_idx = 0,
@@ -4964,12 +4964,12 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr = (struct rkmodule_hdr_cfg *)arg;
 		hdr->esp.mode = HDR_NORMAL_VC;
 		hdr->hdr_mode = ox03c10->cur_mode->hdr_mode;
-		if (hdr->hdr_mode == HDR_COMPR)
+		if (hdr->hdr_mode == HDR_CIS_MERGE)
 			hdr->compr = *ox03c10->cur_mode->hdr_compr;
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
-		if (ox03c10->cur_mode->hdr_mode == HDR_COMPR)
+		if (ox03c10->cur_mode->hdr_mode == HDR_CIS_MERGE)
 			hdr->hdr_mode = ox03c10->cur_mode->hdr_mode;
 		w = ox03c10->cur_mode->width;
 		h = ox03c10->cur_mode->height;
