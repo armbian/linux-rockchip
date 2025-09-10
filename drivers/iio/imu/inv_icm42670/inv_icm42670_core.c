@@ -1070,10 +1070,13 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 	if (ret)
 		return ret;
 
-	dev_info(dev, "i am: %x, icm42670: %0x\n", regval, BIT_I_AM_ICM42670);
+	dev_info(dev, "i am: %x, icm42670: %0x, icm42607: %0x\n",
+		regval, BIT_I_AM_ICM42670, BIT_I_AM_ICM42607);
 
-	if (regval != BIT_I_AM_ICM42670)
-		return -EINVAL;
+	if (!WHOAMI_MASK_VALID(regval)) {
+		dev_err(dev, "unknown WHO_AM_I 0x%02x\n", regval);
+		return -ENODEV;
+	}
 
 	// reset
 	ret = regmap_write(data->regmap, REG_SIGNAL_PATH_RESET, BIT_SOFT_RESET_CHIP_CONFIG);
@@ -1181,7 +1184,7 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 	if (ret < 0)
 		return ret;
 
-	dev_info(dev, "icm42670_init success!\r\n");
+	dev_info(dev, "icm42670/icm42067 init success!\r\n");
 
 	return ret;
 }
@@ -1215,7 +1218,7 @@ int icm42670_core_probe(struct regmap *regmap,
 	data->regmap = regmap;
 
 	/* get the node */
-	data->node = of_find_node_by_name(NULL, "icm42670");
+	data->node = dev->of_node;
 	if (data->node == NULL)
 		dev_err(dev, "ic2 node not find!\n");
 

@@ -53,12 +53,14 @@ static void icm42670_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id icm42670_spi_id[] = {
+	{"icm42607", 0},
 	{"icm42670", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, icm42670_spi_id);
 
 static const struct acpi_device_id icm42670_acpi_match[] = {
+	{"ICM42607", 0},
 	{"ICM42670", 0},
 	{ }
 };
@@ -66,6 +68,7 @@ MODULE_DEVICE_TABLE(acpi, icm42670_acpi_match);
 
 #ifdef CONFIG_OF
 static const struct of_device_id icm42670_of_match[] = {
+	{ .compatible = "invensense,icm42607" },
 	{ .compatible = "invensense,icm42670" },
 	{ },
 };

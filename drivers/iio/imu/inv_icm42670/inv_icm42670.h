@@ -380,7 +380,10 @@
 #define BIT_DMP_SMD_EN				0x40
 
 /* Bank0 REG_WHO_AM_I */
+#define BIT_I_AM_ICM42607			0x61
 #define BIT_I_AM_ICM42670			0x67
+#define WHOAMI_MASK_VALID(chip) \
+	((chip) == BIT_I_AM_ICM42670 || (chip) == BIT_I_AM_ICM42607)
 
 /* REG_OTP_CONFIG_MREG_TOP1 */
 #define BIT_OTP_COPY_NORMAL			0x04
