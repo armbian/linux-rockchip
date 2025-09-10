@@ -265,6 +265,9 @@
 #define RKMODULE_GET_IRFPA_INFO	\
 	_IOR('x', 3, struct rkmodule_irfpa_info)
 
+#define RKMODULE_GET_HDR_COMPR_PARAM	\
+	_IOR('x', 4, struct rkmodule_hdr_compr)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
