@@ -3983,7 +3983,7 @@ static int rkisp_get_info(struct rkisp_device *dev, struct rkisp_isp_info *info)
 		if (ret)
 			return ret;
 		rd_mode = cfg.hdr_mode;
-		if (rd_mode == HDR_COMPR)
+		if (rd_mode == HDR_CIS_MERGE)
 			bit = cfg.compr.src_bit > 20 ? 20 : cfg.compr.src_bit;
 	} else {
 		rd_mode = dev->rd_mode;

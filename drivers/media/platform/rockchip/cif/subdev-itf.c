@@ -244,7 +244,7 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 			"%s, width %d, height %d, hdr mode %d\n",
 			__func__, fmt->format.width, fmt->format.height, priv->hdr_cfg.hdr_mode);
 		if (priv->hdr_cfg.hdr_mode == NO_HDR ||
-		    priv->hdr_cfg.hdr_mode == HDR_COMPR)
+		    priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE)
 			stream_cnt = 1;
 		else if (priv->hdr_cfg.hdr_mode == HDR_X2)
 			stream_cnt = 2;
@@ -845,7 +845,7 @@ static int sditf_channel_enable_rv1103b(struct sditf_priv *priv, int user)
 	}
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
-	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
+	    priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
 			ch0 = csi_idx * 4;
 		else
@@ -915,7 +915,7 @@ static int sditf_channel_enable_rv1103b(struct sditf_priv *priv, int user)
 		rkcif_write_register(cif_dev, CIF_REG_TOISP0_SIZE,
 			width | (height << 16));
 		if (priv->hdr_cfg.hdr_mode != NO_HDR &&
-		    priv->hdr_cfg.hdr_mode != HDR_COMPR) {
+		    priv->hdr_cfg.hdr_mode != HDR_CIS_MERGE) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP0_CH1_CTRL, ctrl_ch1);
 			rkcif_write_register(cif_dev, CIF_REG_TOISP0_CH1_CROP,
 				offset_x | (offset_y << 16));
@@ -973,7 +973,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	}
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
-	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
+	    priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
 			ch0 = csi_idx * 4;
 		else
@@ -1247,7 +1247,7 @@ static int sditf_start_stream(struct sditf_priv *priv)
 	}
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
-	    priv->hdr_cfg.hdr_mode == HDR_COMPR)
+	    priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE)
 		stream_cnt = 1;
 	else if (priv->hdr_cfg.hdr_mode == HDR_X2)
 		stream_cnt = 2;
@@ -1276,7 +1276,7 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 		mode = RKCIF_STREAM_MODE_TOISP_RDBK;
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
-	    priv->hdr_cfg.hdr_mode == HDR_COMPR)
+	    priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE)
 		stream_cnt = 1;
 	else if (priv->hdr_cfg.hdr_mode == HDR_X2)
 		stream_cnt = 2;

@@ -4003,7 +4003,7 @@ static void rkcif_csi_set_lvds_sav_eav(struct rkcif_stream *stream,
 	struct rkmodule_lvds_frm_sync_code *odd_sync_code = NULL;
 	struct rkmodule_lvds_frm_sync_code *even_sync_code = NULL;
 
-	if (dev->hdr.hdr_mode == NO_HDR || dev->hdr.hdr_mode == HDR_COMPR) {
+	if (dev->hdr.hdr_mode == NO_HDR || dev->hdr.hdr_mode == HDR_CIS_MERGE) {
 		frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_LINEAR];
 		odd_sync_code = &frm_sync_code->odd_sync_code;
 		even_sync_code = odd_sync_code;
@@ -4142,7 +4142,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 
 	if (dev->sditf[0] && dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE &&
 	    (dev->hdr.hdr_mode == NO_HDR ||
-	     dev->hdr.hdr_mode == HDR_COMPR ||
+	     dev->hdr.hdr_mode == HDR_CIS_MERGE ||
 	     (dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
 	     (dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
 		channel->crop_st_x += channel->width / 2;
@@ -4224,7 +4224,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 					       &dev->channels[stream->id]);
 
 	if (dev->hdr.hdr_mode == NO_HDR ||
-	    dev->hdr.hdr_mode == HDR_COMPR ||
+	    dev->hdr.hdr_mode == HDR_CIS_MERGE ||
 	    (dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
 	    (dev->hdr.hdr_mode == HDR_X3 && stream->id > 2))
 		channel->vc = vc < 4 ? vc : channel->id;
@@ -5118,7 +5118,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			val = channel->vc | channel->data_type << 2;
 
 			if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-			    stream->cifdev->hdr.hdr_mode == HDR_COMPR)
+			    stream->cifdev->hdr.hdr_mode == HDR_CIS_MERGE)
 				val |= CSI_NO_HDR >> 12;
 			else if (stream->cifdev->hdr.hdr_mode == HDR_X2)
 				val |= CSI_HDR2 >> 12;
@@ -5153,7 +5153,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			val |= stream->cif_fmt_in->csi_yuv_order;
 			val |= rkcif_csi_get_output_type_mask(stream);
 			if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-			    stream->cifdev->hdr.hdr_mode == HDR_COMPR)
+			    stream->cifdev->hdr.hdr_mode == HDR_CIS_MERGE)
 				val |= CSI_NO_HDR;
 			else if (stream->cifdev->hdr.hdr_mode == HDR_X2)
 				val |= CSI_HDR2;
@@ -5383,7 +5383,7 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 	val = channel->vc | channel->data_type << 4;
 
 	if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-	    stream->cifdev->hdr.hdr_mode == HDR_COMPR)
+	    stream->cifdev->hdr.hdr_mode == HDR_CIS_MERGE)
 		val |= CSI_NO_HDR >> 10;
 	else if (stream->cifdev->hdr.hdr_mode == HDR_X2)
 		val |= CSI_HDR2 >> 10;
@@ -6500,7 +6500,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		memset(buf, 0, sizeof(*buf));
 		dummy = &buf->dummy;
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE &&
-		    (priv->hdr_cfg.hdr_mode == NO_HDR || priv->hdr_cfg.hdr_mode == HDR_COMPR ||
+		    (priv->hdr_cfg.hdr_mode == NO_HDR || priv->hdr_cfg.hdr_mode == HDR_CIS_MERGE ||
 		     (priv->hdr_cfg.hdr_mode == HDR_X2 && stream->id == 1) ||
 		     (priv->hdr_cfg.hdr_mode == HDR_X3 && stream->id == 2)))
 			dummy->size = rkcif_get_right_half_buf_size(stream);
@@ -11923,7 +11923,7 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 		cif_dev->rdbk_buf[stream->id]->fe_timestamp = rkcif_time_get_ns(cif_dev);
 	}
 
-	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR ||
+	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_CIS_MERGE ||
 	    (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
 	    (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id > 2)) {
 		if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT ||
@@ -12239,7 +12239,7 @@ static void rkcif_deal_readout_time(struct rkcif_stream *stream)
 	if (stream->id == RKCIF_STREAM_MIPI_ID0)
 		detect_stream->readout.readout_time = stream->readout.fe_timestamp - stream->readout.fs_timestamp;
 
-	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) &&
+	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_CIS_MERGE) &&
 	    (stream->id == RKCIF_STREAM_MIPI_ID0)) {
 		detect_stream->readout.early_time = stream->readout.fe_timestamp - stream->readout.wk_timestamp;
 
@@ -13212,7 +13212,7 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 	if (!priv || priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
 		return;
 
-	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) &&
+	if ((cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_CIS_MERGE) &&
 	    stream->id == RKCIF_STREAM_MIPI_ID0) {
 		if (cif_dev->wait_line != cif_dev->wait_line_cache)
 			cif_dev->wait_line = cif_dev->wait_line_cache;

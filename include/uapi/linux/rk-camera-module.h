@@ -490,13 +490,13 @@ struct rkmodule_lsc_cfg {
  * NO_HDR: linear mode
  * HDR_X2: hdr two frame or line mode
  * HDR_X3: hdr three or line mode
- * HDR_COMPR: linearised and compressed data for hdr
+ * HDR_CIS_MERGE: HDR merge by CIS,both compressed and uncompressed
  */
 enum rkmodule_hdr_mode {
 	NO_HDR = 0,
 	HDR_X2 = 5,
 	HDR_X3 = 6,
-	HDR_COMPR,
+	HDR_CIS_MERGE,
 };
 
 #define HDR_COMPR_POINT_MAX 32
