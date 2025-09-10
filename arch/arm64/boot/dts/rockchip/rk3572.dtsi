@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rockchip,rk3572-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/power/rockchip,rk3572-power-controller.h>
 #include <dt-bindings/reset/rockchip,rk3572-cru.h>
 
 / {
@@ -315,6 +316,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		sys_grf: syscon@26010000 {
+			compatible = "rockchip,rk3572-sys-grf", "syscon";
+			reg = <0x0 0x26010000 0x0 0x2000>;
+		};
+
 		ioc_grf: syscon@26072000 {
 			compatible = "rockchip,rk3572-ioc-grf", "syscon";
 			reg = <0x0 0x26072000 0x0 0x16000>;
@@ -341,6 +347,72 @@
 				<45158400>, <49152000>,
 				<49152000>, <24576000>,
 				<200000000>;
+		};
+
+		pmu: power-management@26550000 {
+			compatible = "rockchip,rk3572-pmu", "syscon", "simple-mfd";
+			reg = <0x0 0x26550000 0x0 0x1000>;
+			rockchip,grf = <&sys_grf>;
+
+			power: power-controller {
+				compatible = "rockchip,rk3572-power-controller";
+				#power-domain-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "okay";
+
+				/* These power domains are grouped by VD_NPU */
+				power-domain@RK3572_PD_NPU {
+					reg = <RK3572_PD_NPU>;
+				};
+				/* These power domains are grouped by VD_GPU */
+				power-domain@RK3572_PD_GPU {
+					reg = <RK3572_PD_GPU>;
+				};
+				/* These power domains are grouped by VD_LOGIC */
+				power-domain@RK3572_PD_NVM1 {
+					reg = <RK3572_PD_NVM1>;
+				};
+				power-domain@RK3572_PD_DSMC {
+					reg = <RK3572_PD_DSMC>;
+				};
+				power-domain@RK3572_PD_PHP {
+					reg = <RK3572_PD_PHP>;
+				};
+				power-domain@RK3572_PD_AUDIO {
+					reg = <RK3572_PD_AUDIO>;
+				};
+				power-domain@RK3572_PD_IMG {
+					reg = <RK3572_PD_IMG>;
+				};
+				power-domain@RK3572_PD_VDEC {
+					reg = <RK3572_PD_VDEC>;
+				};
+				power-domain@RK3572_PD_VI {
+					reg = <RK3572_PD_VI>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					power-domain@RK3572_PD_VENC {
+						reg = <RK3572_PD_VENC>;
+					};
+				};
+				power-domain@RK3572_PD_VOP {
+					reg = <RK3572_PD_VOP>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					power-domain@RK3572_PD_VOP_PRE {
+						reg = <RK3572_PD_VOP_PRE>;
+					};
+					power-domain@RK3572_PD_VO {
+						reg = <RK3572_PD_VO>;
+					};
+					power-domain@RK3572_PD_NVM0 {
+						reg = <RK3572_PD_NVM0>;
+					};
+				};
+			};
 		};
 
 		vop: vop@27500000 {
