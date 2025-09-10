@@ -6035,7 +6035,7 @@ static int ox03c10_configure_regulators(struct ox03c10 *ox03c10)
 
 //#define OX03C10_SETTING_CRC_CHECK
 #ifdef OX03C10_SETTING_CRC_CHECK
-u8 *generate_byte_stream(const struct regval *regs, size_t *stream_len)
+static u8 *generate_byte_stream(const struct regval *regs, size_t *stream_len)
 {
 	size_t count = 0;
 	const struct regval *p = regs;
