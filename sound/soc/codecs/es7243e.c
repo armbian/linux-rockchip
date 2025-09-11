@@ -2391,7 +2391,7 @@ es7243e_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i2c_id)
 	return ret;
 }
 
-static void __exit es7243e_i2c_remove(struct i2c_client *i2c)
+static void es7243e_i2c_remove(struct i2c_client *i2c)
 {
 	sysfs_remove_group(&i2c->dev.kobj, &es7243e_debug_attr_group);
 }
@@ -2613,7 +2613,7 @@ static struct i2c_driver es7243e_i2c_driver = {
 #endif
 		   },
 	.probe = es7243e_i2c_probe,
-	.remove = __exit_p(es7243e_i2c_remove),
+	.remove = es7243e_i2c_remove,
 	.class = I2C_CLASS_HWMON,
 	.id_table = es7243e_i2c_id,
 
