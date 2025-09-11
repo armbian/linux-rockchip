@@ -22,7 +22,6 @@
 #endif
 #include <dt-bindings/display/rockchip_vop.h>
 
-#include <linux/debugfs.h>
 #include <linux/fixp-arith.h>
 #include <linux/jiffies.h>
 #include <linux/iopoll.h>

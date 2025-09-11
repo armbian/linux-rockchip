@@ -21,6 +21,7 @@
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/component.h>
+#include <linux/debugfs.h>
 
 #include <soc/rockchip/rockchip_dmc.h>
 
