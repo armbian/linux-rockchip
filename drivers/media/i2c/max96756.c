@@ -1093,27 +1093,6 @@ static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	return 0;
 }
-#elif KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
-static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
-				  struct v4l2_mbus_config *config)
-{
-	struct max96756 *max96756 = to_max96756(sd);
-	u32 val = 0;
-	const struct max96756_mode *mode = max96756->cur_mode;
-	u8 data_lanes = max96756->bus_cfg.bus.mipi_csi2.num_data_lanes;
-	int i = 0;
-
-	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	val |= (1 << (data_lanes - 1));
-
-	for (i = 0; i < PAD_MAX; i++)
-		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
-
-	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
-
-	return 0;
-}
 #else
 static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				  struct v4l2_mbus_config *config)
