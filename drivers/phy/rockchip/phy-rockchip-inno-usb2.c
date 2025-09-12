@@ -1091,6 +1091,7 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		}
 
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, true);
+		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
 		/* For vbus always on, deinit EXTCON_USB to false. */
 		if (rport->vbus_always_on)
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
