@@ -90,11 +90,7 @@ int aoa_middleware_dma_notifier(s32 dma_count, void *data)
 	kill_fasync(&amw_d->rk_dma_fasync_queue, SIGRTMIN + 0, POLL_IN);
 
 	/* ns_id: start from 1, range: 0 ~ (periods-1) */
-	if (dma_count < 0 || dma_count >= n_rkdma->periods) {
-		pr_err("Invalid dma_count: %d >= periods: %d\n", dma_count, n_rkdma->periods);
-		return -EINVAL;
-	}
-	dma_count = array_index_nospec(dma_count, n_rkdma->periods);
+	dma_count = array_index_nospec(dma_count % n_rkdma->periods, n_rkdma->periods);
 	n_ns->ns_id = dma_count;
 	n_rkdma->ns_tbl[n_ns->ns_id] = n_ns->ns;
 	if (n_ns->ns_id < n_rkdma->last_ns_id)
