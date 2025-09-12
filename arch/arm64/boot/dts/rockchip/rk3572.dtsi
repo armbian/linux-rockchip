@@ -3,8 +3,10 @@
  * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/clock/rockchip,rk3572-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/reset/rockchip,rk3572-cru.h>
 
 / {
 	compatible = "rockchip,rk3572";
@@ -22,6 +24,20 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		clk_rcosc: clk_rcosc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+			clock-output-names = "clk_rcosc";
+		};
+
+		spll: spll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <702000000>;
+			clock-output-names = "spll";
+		};
 
 		xin24m: xin24m {
 			compatible = "fixed-clock";
@@ -163,6 +179,29 @@
 		#size-cells = <2>;
 		ranges;
 
+		cru: clock-controller@26090000 {
+			compatible = "rockchip,rk3572-cru";
+			reg = <0x0 0x26090000 0x0 0x60000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+
+			assigned-clocks =
+				<&cru CLK_AUDIO_FRAC_1_SRC>, <&cru PLL_CPLL>,
+				<&cru PLL_AUPLL>, <&cru CLK_UART_FRAC_0>,
+				<&cru CLK_UART_FRAC_1>, <&cru CLK_UART_FRAC_2>,
+				<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
+				<&cru CLK_AUDIO_INT_0>, <&cru CLK_AUDIO_INT_1>,
+				<&cru CLK_GPU>;
+			assigned-clock-parents = <&cru PLL_AUPLL>;
+			assigned-clock-rates =
+				<0>, <1000000000>,
+				<786432000>, <18432000>,
+				<96000000>, <128000000>,
+				<45158400>, <49152000>,
+				<49152000>, <24576000>,
+				<200000000>;
+		};
+
 		gic: interrupt-controller@2a601000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
@@ -180,7 +219,7 @@
 			compatible = "rockchip,rk3572-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x2c130000 0x0 0x100>;
 			interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&xin24m>, <&xin24m>;
+			clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
