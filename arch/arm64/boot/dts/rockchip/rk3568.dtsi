@@ -297,6 +297,38 @@
 		clock-latency-ns = <40000>;
 	};
 
+	/*
+	 * The Max frequency is 1416MHz in default normal mode.
+	 * The Max frequency is 1800MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime, especially in high
+	 * temperature condition. Disable overdrive opps by default
+	 * and you can enable them in dts file.
+	 */
+	cpu_opp_j_od_1608000000: opp-j-od-1608000000 {
+		opp-supported-hw = <0x04 0xffff>;
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <1100000 1100000 1150000>;
+		opp-microvolt-L0 = <1100000 1100000 1150000>;
+		opp-microvolt-L1 = <1050000 1050000 1150000>;
+		opp-microvolt-L2 = <1025000 1025000 1150000>;
+		opp-microvolt-L3 = <1000000 1000000 1150000>;
+		clock-latency-ns = <40000>;
+		status = "disabled";
+	};
+
+	cpu_opp_j_od_1800000000: opp-j-od-1800000000 {
+		opp-supported-hw = <0x04 0xffff>;
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1150000 1150000 1150000>;
+		opp-microvolt-L0 = <1150000 1150000 1150000>;
+		opp-microvolt-L1 = <1100000 1100000 1150000>;
+		opp-microvolt-L2 = <1075000 1075000 1150000>;
+		opp-microvolt-L3 = <1050000 1050000 1150000>;
+		clock-latency-ns = <40000>;
+		status = "disabled";
+	};
+
 	/* RK3568M cpu OPPs */
 	opp-m-1608000000 {
 		opp-supported-hw = <0x02 0xffff>;
@@ -321,6 +353,24 @@
 		opp-supported-hw = <0x04 0xffff>;
 		opp-hz = /bits/ 64 <600000000>;
 		opp-microvolt = <900000 900000 1000000>;
+	};
+
+	/* The Max frequency is 600MHz in default normal mode.
+	 * The Max frequency is 800MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime, especially in high
+	 * temperature condition. Disable overdrive opps by default
+	 * and you can enable them in dts file.
+	 */
+	gpu_opp_j_od_800000000: opp-j-od-800000000 {
+		opp-supported-hw = <0x04 0xffff>;
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <1000000 1000000 1000000>;
+		opp-microvolt-L0 = <1000000 1000000 1000000>;
+		opp-microvolt-L1 = <975000 975000 1000000>;
+		opp-microvolt-L2 = <950000 950000 1000000>;
+		opp-microvolt-L3 = <925000 925000 1000000>;
+		status = "disabled";
 	};
 
 	/* RK3568M gpu OPPs */
@@ -369,6 +419,24 @@
 		opp-supported-hw = <0x04 0xffff>;
 		opp-hz = /bits/ 64 <600000000>;
 		opp-microvolt = <900000 900000 1000000>;
+	};
+
+	/* The Max frequency is 600MHz in default normal mode.
+	 * The Max frequency is 800MHz in overdrive mode,
+	 * but under the overdrive mode for a long time,
+	 * the chipset may shorten the lifetime, especially in high
+	 * temperature condition. Disable overdrive opps by default
+	 * and you can enable them in dts file.
+	 */
+	npu_opp_j_od_800000000: opp-j-od-800000000 {
+		opp-supported-hw = <0x04 0xffff>;
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <925000 925000 1000000>;
+		opp-microvolt-L0 = <925000 925000 1000000>;
+		opp-microvolt-L1 = <900000 900000 1000000>;
+		opp-microvolt-L2 = <900000 900000 1000000>;
+		opp-microvolt-L3 = <900000 900000 1000000>;
+		status = "disabled";
 	};
 
 	/* RK3568M npu OPPs */
