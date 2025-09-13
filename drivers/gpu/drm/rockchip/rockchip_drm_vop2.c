@@ -3351,7 +3351,9 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	uint32_t val;
 
 	if (is_vop3(vop2)) {
-		if (vop2->version == VOP_VERSION_RK3576 && vop2_cluster_window(win)) {
+		if (vop2_cluster_window(win) &&
+		    (vop2->version == VOP_VERSION_RK3538 ||
+		     vop2->version == VOP_VERSION_RK3576)) {
 			if (src_w >= (8 * dst_w)) {
 				xgt4 = 1;
 				src_w >>= 2;
@@ -3456,7 +3458,8 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		else
 			xgt_en = xgt2 || xgt4;
 
-		if (vop2->version == VOP_VERSION_RK3576) {
+		if (vop2->version == VOP_VERSION_RK3538 ||
+		    vop2->version == VOP_VERSION_RK3576) {
 			bool zme_dering_en = false;
 
 			if ((yrgb_hor_scl_mode == SCALE_UP && hscl_filter_mode == VOP2_SCALE_UP_ZME) ||
@@ -11073,7 +11076,9 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 		}
 
 		return 0;
-	} else if (vop2->version == VOP_VERSION_RK3576 || vop2->version == VOP_VERSION_RK3572) {
+	} else if (vop2->version == VOP_VERSION_RK3538 ||
+		   vop2->version == VOP_VERSION_RK3572 ||
+		   vop2->version == VOP_VERSION_RK3576) {
 		rk3576_calc_cru_cfg(crtc);
 
 		return 0;
@@ -15397,6 +15402,17 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	if (vp->sharp_disabled)
 		return;
 
+	/*
+	 * rk3538 must disable sharp when all win is disabled, Otherwise
+	 * will display unexpected horizontal stripes.
+	 */
+	if (!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) {
+		writel(0x0, vop2->sharp_res.regs);
+		vcstate->sharp_en = false;
+
+		return;
+	}
+
 	if (vop2_is_left_right_or_odd_even_mode(vcstate)) {
 		if (post_sharp_enabled(crtc))
 			DRM_WARN("split is enabled, can't enable sharp\n");
@@ -16911,6 +16927,12 @@ static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 			return true;
 		else
 			return false;
+	case VOP_VERSION_RK3538:
+		if (vop2->esmart_lb_mode == VOP3_ESMART_4K_4K_MODE &&
+		    win->phys_id == ROCKCHIP_VOP2_ESMART2)
+			return true;
+		else
+			return false;
 	case VOP_VERSION_RK3568:
 	case VOP_VERSION_RK3572:
 	case VOP_VERSION_RK3588:
@@ -16934,6 +16956,12 @@ static int vop2_get_max_output_width(struct vop2 *vop2, struct vop2_win *win)
 		else if (vop2->esmart_lb_mode == VOP3_ESMART_4K_2K_2K_MODE &&
 			 (win->phys_id == ROCKCHIP_VOP2_ESMART2 ||
 			  win->phys_id == ROCKCHIP_VOP2_ESMART3))
+			return width / 2;
+		else
+			return width;
+	case VOP_VERSION_RK3538:
+		if (vop2->esmart_lb_mode == VOP3_ESMART_4K_2K_2K_MODE &&
+		    win->phys_id == ROCKCHIP_VOP2_ESMART1)
 			return width / 2;
 		else
 			return width;
