@@ -333,6 +333,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-vehicle-evb-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-vehicle-evb-v20.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-vehicle-evb-v20-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-r76s.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-m5.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576s-evb1-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576s-evb1-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576s-tablet-v10.dtb
