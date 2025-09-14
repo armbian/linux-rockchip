@@ -568,5 +568,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-rock-4d.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-rock-4d-spi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-r76s.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-radxa-cm4-io.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-bananapi-m5-pro.dtb
 
 subdir-y := $(dts-dirs) overlay
