@@ -222,9 +222,9 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 
 	/* If the client id isn't known, default to 0. It will appear in traces. */
 	r = drm_sched_job_init(&job->base, entity,
-						   1, /* credits */
-						   owner,
-						   0);
+				  1, /* credits */
+				  owner,
+				  0);
 	if (r)
 		return r;
 
