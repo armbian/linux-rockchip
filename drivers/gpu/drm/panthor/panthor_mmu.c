@@ -769,6 +769,7 @@ out_enable_as:
 	if (ptdev->mmu->as.faulty_mask & panthor_mmu_as_fault_mask(ptdev, as)) {
 		gpu_write(ptdev, MMU_INT_CLEAR, panthor_mmu_as_fault_mask(ptdev, as));
 		ptdev->mmu->as.faulty_mask &= ~panthor_mmu_as_fault_mask(ptdev, as);
+		ptdev->mmu->irq.mask |= panthor_mmu_as_fault_mask(ptdev, as);
 		gpu_write(ptdev, MMU_INT_MASK, ~ptdev->mmu->as.faulty_mask);
 	}
 
@@ -1685,11 +1686,17 @@ static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
 			access_type, access_type_name(ptdev, fault_status),
 			source_id);
 
+		/* We don't handle VM faults at the moment, so let's just clear the
+		 * interrupt and let the writer/reader crash.
+		 * Note that COMPLETED irqs are never cleared, but this is fine
+		 * because they are always masked.
+		 */
+		gpu_write(ptdev, MMU_INT_CLEAR, mask);
+
 		/* Ignore MMU interrupts on this AS until it's been
 		 * re-enabled.
 		 */
 		ptdev->mmu->irq.mask = new_int_mask;
-		gpu_write(ptdev, MMU_INT_MASK, new_int_mask);
 
 		if (ptdev->mmu->as.slots[as].vm)
 			ptdev->mmu->as.slots[as].vm->unhandled_fault = true;
