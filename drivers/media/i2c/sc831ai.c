@@ -199,7 +199,7 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x320d, 0x68},
 	{0x320e, 0x08},
 	{0x320f, 0xca},
-	{0x3301, 0x28},
+	{0x3301, 0x0a},
 	{0x3302, 0x10},
 	{0x3303, 0x10},
 	{0x3304, 0x68},
@@ -212,7 +212,7 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x330b, 0xf8},
 	{0x330c, 0x10},
 	{0x330d, 0x08},
-	{0x330e, 0x36},
+	{0x330e, 0x3c},
 	{0x331e, 0x41},
 	{0x331f, 0x71},
 	{0x3333, 0x10},
@@ -220,7 +220,9 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x334c, 0x10},
 	{0x335d, 0x60},
 	{0x3364, 0x5e},
+	{0x3366, 0x01},
 	{0x3367, 0x04},
+	{0x338f, 0x80},
 	{0x3390, 0x01},
 	{0x3391, 0x03},
 	{0x3392, 0x07},
@@ -230,19 +232,19 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x3396, 0x01},
 	{0x3397, 0x03},
 	{0x3398, 0x07},
-	{0x3399, 0x28},
-	{0x339a, 0x4c},
+	{0x3399, 0x0e},
+	{0x339a, 0x12},
 	{0x339b, 0x4c},
 	{0x339c, 0x4c},
 	{0x33ad, 0x24},
-	{0x33ae, 0x4e},
-	{0x33af, 0x80},
+	{0x33ae, 0x58},
+	{0x33af, 0x88},
 	{0x33b2, 0x50},
 	{0x33b3, 0x20},
 	{0x33f8, 0x00},
 	{0x33f9, 0x88},
 	{0x33fa, 0x00},
-	{0x33fb, 0x98},
+	{0x33fb, 0xa0},
 	{0x33fc, 0x43},
 	{0x33fd, 0x47},
 	{0x349f, 0x03},
@@ -253,30 +255,30 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x34aa, 0x01},
 	{0x34ab, 0x10},
 	{0x34ac, 0x01},
-	{0x34ad, 0x20},
+	{0x34ad, 0x28},
 	{0x34f8, 0x43},
 	{0x34f9, 0x08},
 	{0x3632, 0x64},
-	{0x363b, 0x18},
+	{0x363b, 0x16},
 	{0x363c, 0x0e},
 	{0x363d, 0x8e},
 	{0x363e, 0x6c},
 	{0x3654, 0x00},
-	{0x3674, 0xb2},
-	{0x3675, 0xa4},
-	{0x3676, 0x88},
+	{0x3674, 0x94},
+	{0x3675, 0x84},
+	{0x3676, 0x68},
 	{0x367c, 0x41},
 	{0x367d, 0x43},
 	{0x3690, 0x35},
-	{0x3691, 0x36},
-	{0x3692, 0x66},
+	{0x3691, 0x35},
+	{0x3692, 0x45},
 	{0x3693, 0x40},
 	{0x3694, 0x41},
-	{0x3696, 0x85},
-	{0x3697, 0x85},
-	{0x3698, 0x83},
-	{0x3699, 0x92},
-	{0x369a, 0x99},
+	{0x3696, 0x81},
+	{0x3697, 0x80},
+	{0x3698, 0x80},
+	{0x3699, 0x83},
+	{0x369a, 0x81},
 	{0x369b, 0xff},
 	{0x369c, 0xff},
 	{0x369d, 0xff},
@@ -293,40 +295,60 @@ static __maybe_unused const struct regval sc831ai_2lane_linear10bit_3840x2160_re
 	{0x36ec, 0x43},
 	{0x36ed, 0x3a},
 	{0x370f, 0x01},
+	{0x3721, 0x6c},
+	{0x3724, 0xe5},
+	{0x3725, 0xa8},
 	{0x3727, 0x14},
-	{0x37b0, 0x03},
-	{0x37b1, 0x8b},
-	{0x37b2, 0x8b},
+	{0x37b0, 0x17},
+	{0x37b1, 0x9b},
+	{0x37b2, 0xfb},
 	{0x37b3, 0x41},
 	{0x37b4, 0x43},
 	{0x37fa, 0xc7},
 	{0x37fb, 0x31},
-	{0x37fc, 0x10},
+	{0x37fc, 0x00},
 	{0x37fd, 0x36},
-	{0x3905, 0xad},
+	{0x3905, 0x0f},
 	{0x391f, 0x41},
+	{0x3933, 0x80},
+	{0x3934, 0xd3},
+	{0x3937, 0x70},
+	{0x3939, 0x0f},
+	{0x393a, 0xf8},
 	{0x3e00, 0x01},
 	{0x3e01, 0x17},
 	{0x3e02, 0x00},
+	{0x3e16, 0x00},
+	{0x3e17, 0xbc},
+	{0x3e18, 0x00},
+	{0x3e19, 0xbc},
+	{0x4424, 0x02},
 	{0x4509, 0x1a},
-	{0x450d, 0x0a},
-	{0x5780, 0x66},
-	{0x5784, 0x08},
-	{0x5785, 0x04},
+	{0x450d, 0x0b},
+	{0x4800, 0x24},
+	{0x5000, 0x0e},
+	{0x550e, 0x02},
+	{0x550f, 0x1c},
+	{0x5510, 0x28},
+	{0x575c, 0x10},
+	{0x575d, 0x08},
+	{0x5780, 0x76},
+	{0x5784, 0x10},
+	{0x5785, 0x08},
 	{0x5787, 0x0a},
 	{0x5788, 0x0a},
 	{0x5789, 0x08},
 	{0x578a, 0x0a},
 	{0x578b, 0x0a},
 	{0x578c, 0x08},
-	{0x578d, 0x40},
+	{0x578d, 0x41},
 	{0x5790, 0x08},
 	{0x5791, 0x04},
 	{0x5792, 0x04},
 	{0x5793, 0x08},
 	{0x5794, 0x04},
 	{0x5795, 0x04},
-	{0x57a8, 0xd0},
+	{0x57a8, 0xd2},
 	{0x57aa, 0x2a},
 	{0x57ab, 0x7f},
 	{0x57ac, 0x00},
@@ -365,7 +387,7 @@ static const struct sc831ai_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 0,
 		.bpp = 10,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD0] = 0,
 	},
 };
 
@@ -498,7 +520,7 @@ static void sc831ai_change_mode(struct sc831ai *sc831ai,
 }
 
 static int sc831ai_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -515,7 +537,7 @@ static int sc831ai_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&sc831ai->mutex);
 		return -ENOTTY;
@@ -543,7 +565,7 @@ static int sc831ai_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int sc831ai_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -552,7 +574,7 @@ static int sc831ai_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sc831ai->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&sc831ai->mutex);
 		return -ENOTTY;
@@ -573,7 +595,7 @@ static int sc831ai_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int sc831ai_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -586,7 +608,7 @@ static int sc831ai_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int sc831ai_enum_frame_sizes(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -639,20 +661,8 @@ static int sc831ai_g_frame_interval(struct v4l2_subdev *sd,
 static int sc831ai_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *config)
 {
-	struct sc831ai *sc831ai = to_sc831ai(sd);
-	const struct sc831ai_mode *mode = sc831ai->cur_mode;
-	u32 val = 0;
-
-	if (mode->hdr_mode == NO_HDR)
-		val = 1 << (SC831AI_2LANES - 1) | V4L2_MBUS_CSI2_CHANNEL_0 |
-		      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	if (mode->hdr_mode == HDR_X2)
-		val = 1 << (SC831AI_2LANES - 1) | V4L2_MBUS_CSI2_CHANNEL_0 |
-		      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
-		      V4L2_MBUS_CSI2_CHANNEL_1;
-
 	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
+	config->bus.mipi_csi2.num_data_lanes = SC831AI_2LANES;
 
 	return 0;
 }
@@ -1283,7 +1293,7 @@ static int sc831ai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_state_get_format(fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 	const struct sc831ai_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&sc831ai->mutex);
@@ -1302,7 +1312,7 @@ static int sc831ai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int
 sc831ai_enum_frame_interval(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -1325,7 +1335,7 @@ sc831ai_enum_frame_interval(struct v4l2_subdev *sd,
 #define DST_HEIGHT_1080 1080
 
 static int sc831ai_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -1771,7 +1781,7 @@ static int sc831ai_probe(struct i2c_client *client)
 		 sc831ai->module_index, facing, SC831AI_NAME,
 		 dev_name(sd->dev));
 
-	ret = v4l2_async_register_subdev_sensor_common(sd);
+	ret = v4l2_async_register_subdev_sensor(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1800,7 +1810,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int sc831ai_remove(struct i2c_client *client)
+static void sc831ai_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct sc831ai *sc831ai = to_sc831ai(sd);
@@ -1818,8 +1828,6 @@ static int sc831ai_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__sc831ai_power_off(sc831ai);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
@@ -1841,8 +1849,8 @@ static struct i2c_driver sc831ai_i2c_driver = {
 		.pm = &sc831ai_pm_ops,
 		.of_match_table = of_match_ptr(sc831ai_of_match),
 	},
-	.probe		= &sc831ai_probe,
-	.remove		= &sc831ai_remove,
+	.probe		= sc831ai_probe,
+	.remove		= sc831ai_remove,
 	.id_table	= sc831ai_match_id,
 };
 

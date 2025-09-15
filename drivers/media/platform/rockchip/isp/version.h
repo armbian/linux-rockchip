@@ -601,6 +601,30 @@
  * 33.fix bls2/bls3
  * 34.reduce rockit buf vmap
  * 35.fix mipi overflow for isp21
+ *
+ * v3.1.0 (AIQ v6.31.0)
+ * 1.add ioctl RKISP_VPSS_GET_ISP_WORKING
+ * 2.support wrap stream latter for isp35
+ * 3.fix sequence error correction
+ * 4.boottime for isp35
+ * 5.fix enh for isp35
+ * 6.support attach thunderboot buffer when iommu enable
+ * 7.extended pixel for differ isp
+ * 8.fix lsc no update for isp30
+ * 9.fix resource release if user crashes
+ * 10.support unite mode for isp35
+ * 11.support aiisp yuv mode
+ * 12.aiisp switch for isp35
+ * 13.aiisp switch for offline mode
+ * 14.mp output buf notice to aiisp
+ * 15.fix unite div calculation
+ * 16.add iommu fault handler
+ * 17.aiisp switch for isp35 multi sensor
+ * 18.optimize memory for isp35 aiisp
+ * 19.support aibnr l2 for isp35
+ * 20.fix b3dldc for isp35
+ * 21.fix fast with vpss for isp35
+ * 22.clear aiisp l2 stop status
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

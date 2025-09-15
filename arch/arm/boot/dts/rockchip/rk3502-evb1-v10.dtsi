@@ -119,6 +119,15 @@
 		};
 	};
 
+	sai_dais: sai-dais {
+		status = "disabled";
+		compatible = "rockchip,multi-dais";
+		dais = <&sai1>, <&sai4>;
+		capture,channel-mapping = <2 2>;
+		playback,channel-mapping = <2 0>;
+		mclk-fs-mapping = <256 1024>;
+	};
+
 	es8388_sound: es8388-sound {
 		status = "disabled";
 		compatible = "rockchip,multicodecs-card";
@@ -141,6 +150,32 @@
 			"RINPUT2", "Main Mic";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spk_ctrl>;
+	};
+
+	rk730_sound: rk730-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk730";
+		/* There is no hp-det and hp-con on evb1 */
+		spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,mclk-fs-mapping = <256 1024>;
+		rockchip,cpu = <&sai_dais>;
+		rockchip,codec = <&rk730>, <&audio_codec>;
+		rockchip,audio-routing =
+			"Headphone", "LOUT2",
+			"Headphone", "ROUT2",
+			"Speaker", "LOUT1",
+			"Speaker", "ROUT1",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"MIC2", "Main Mic",
+			"MIC1", "Headset Mic";
 	};
 
 	fiq_debugger: fiq-debugger {
@@ -318,6 +353,19 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&rm_io8_sai1_mclk>;
 	};
+
+	rk730: rk730@17 {
+		status = "disabled";
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rk730";
+		reg = <0x17>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai1_mclk_pins>;
+	};
 };
 
 &mmc {
@@ -432,7 +480,12 @@
 	>;
 };
 
+&sai_dais {
+	status = "okay";
+};
+
 &sai1 {
+	rockchip,mclk-no-set;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&rm_io9_sai1_sclk
 		     &rm_io10_sai1_lrck
@@ -446,6 +499,7 @@
 
 &sai4 {
 	status = "okay";
+	rockchip,mclk-no-set;
 };
 
 &saradc {

@@ -347,10 +347,15 @@ static void sditf_free_buf(struct sditf_priv *priv)
 	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
+		cif_dev->rdbk_rx_buf[RDBK_L] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_M] = NULL;
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
 		rkcif_free_rx_buf(&cif_dev->stream[2], cif_dev->stream[2].rx_buf_num);
+		cif_dev->rdbk_rx_buf[RDBK_L] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_M] = NULL;
+		cif_dev->rdbk_rx_buf[RDBK_S] = NULL;
 	} else {
 		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 	}
@@ -1181,7 +1186,6 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 				sditf_channel_disable(priv, 1);
 		}
 	}
-	priv->is_toisp_off = true;
 	if (priv->cif_dev->switch_info.is_use_switch)
 		priv->cif_dev->switch_info.is_active = false;
 }
@@ -1283,6 +1287,7 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
 	priv->toisp_inf.ch_info[2].is_valid = false;
+	priv->is_toisp_off = true;
 	return 0;
 }
 
@@ -1330,6 +1335,8 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on && atomic_inc_return(&priv->power_cnt) > 1)
 		return 0;
+
+	rkcif_update_sensor_info(&cif_dev->stream[0]);
 
 	if (on)
 		rkcif_update_unite_extend_pixel(cif_dev);

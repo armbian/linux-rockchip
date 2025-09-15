@@ -40,6 +40,7 @@
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
+#include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched/mm.h>
@@ -370,6 +371,8 @@ struct rga_scheduler_t {
 	int core;
 
 	struct rga_timer timer;
+
+	struct rga_dma_buf_pool *cmd_buf_pool;
 };
 
 struct rga_request {

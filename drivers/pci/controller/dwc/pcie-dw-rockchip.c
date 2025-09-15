@@ -577,13 +577,13 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	if (!rk_pcie_udma_enabled(rk_pcie))
 		return 0;
 
-#ifdef PCIE_DW_ROCKCHIP_RC_DMATEST
-	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci->dev, true);
-	if (IS_ERR(rk_pcie->dma_obj)) {
-		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
-		return -EINVAL;
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST)) {
+		rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci->dev, true);
+		if (IS_ERR(rk_pcie->dma_obj)) {
+			dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
+			return -EINVAL;
+		}
 	}
-#endif
 
 	if (!rk_pcie->dma_obj)
 		return 0;
@@ -1704,7 +1704,7 @@ static int rk_pcie_really_probe(void *p)
 	if (ret && !rk_pcie->slot_pluggable)
 		goto deinit_irq_and_wq;
 
-	if (rk_pcie->slot_pluggable) {
+	if (IS_BUILTIN(CONFIG_PCIE_DW_ROCKCHIP) && rk_pcie->slot_pluggable) {
 		rk_pcie->hp_slot.plat_ops = &rk_pcie_gpio_hp_plat_ops;
 		rk_pcie->hp_slot.np = rk_pcie->pci->dev->of_node;
 		rk_pcie->hp_slot.slot_nr = rk_pcie->pci->pp.bridge->busnr;
@@ -1806,7 +1806,8 @@ static void rk_pcie_remove(struct platform_device *pdev)
 	dw_pcie_host_deinit(&rk_pcie->pci->pp);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
 	destroy_workqueue(rk_pcie->hot_rst_wq);
-	pcie_dw_dmatest_unregister(rk_pcie->dma_obj);
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST))
+		pcie_dw_dmatest_unregister(rk_pcie->dma_obj);
 	rockchip_pcie_debugfs_exit(rk_pcie);
 	if (rk_pcie->irq_domain) {
 		int virq, j;
@@ -1819,6 +1820,9 @@ static void rk_pcie_remove(struct platform_device *pdev)
 		irq_set_chained_handler_and_data(rk_pcie->irq, NULL, NULL);
 		irq_domain_remove(rk_pcie->irq_domain);
 	}
+
+	if (IS_BUILTIN(CONFIG_PCIE_DW_ROCKCHIP) && rk_pcie->slot_pluggable)
+		unregister_gpio_hotplug_slot(&rk_pcie->hp_slot);
 
 	device_init_wakeup(dev, false);
 

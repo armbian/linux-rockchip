@@ -1189,23 +1189,28 @@ static void isp35_show(struct rkisp_device *dev, struct seq_file *p)
 		   val, dev->hdr_wrap_line);
 	val = rkisp_read(dev, ISP33_BAY3D_CTRL0, false);
 	tmp = rkisp_read(dev, ISP33_BAY3D_CTRL2, false);
-	seq_printf(p, "%-10s %s(0x%x) bypass:%d iir_rw_fmt:%d b3dldch:0x%x b3dldcv:0x%x\n"
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d iir_rw_fmt:%d\n"
+		   "\t   b3dldch:0x%x map_err:%d b3dldcv:0x%x map_err:%d\n"
 		   "\t   lp_en(me_off:%d gic:%d bf:%d avg:%d) size(iir:%d ds:%d wgt:%d)\n",
 		   "BAY3D", (val & 1) ? "ON" : "OFF", val, !!(val & BIT(1)), (val >> 13) & 0x7,
 		   rkisp_read(dev, ISP35_B3DLDC_ADR_STS, false),
+		   !!(rkisp_read(dev, ISP35_B3DLDC_ADR_STS, true) & BIT(29)),
 		   rkisp_read(dev, ISP35_B3DLDC_CTRL, false),
+		   !!(rkisp_read(dev, ISP35_B3DLDC_CTRL, true) & BIT(12)),
 		   !(val & BIT(8)), !!(tmp & BIT(20)), !!(tmp & BIT(21)), !!(tmp & BIT(22)),
 		   priv->buf_bay3d_iir[0].size, priv->buf_bay3d_ds[0].size, priv->buf_bay3d_wgt[0].size);
 	val = rkisp_read(dev, ISP35_AI_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x) vpsl(ctrl:0x%x chn:0x%x), aiisp(idx:%d cnt:%d)\n"
-		   "\t   iir(idx:%d cnt:%d) gain(idx:%d cnt:%d) aipre(idx:%d cnt:%d) vpsl(idx:%d cnt:%d)\n",
+	seq_printf(p, "%-10s %s(0x%x) vpsl(ctrl:0x%x chn:0x%x), l2(%d cnt:%d)\n"
+		   "\t   aiisp_output(idx:%d cnt:%d size:%d) iir(idx:%d cnt:%d size:%d)\n"
+		   "\t   gain(idx:%d cnt:%d size:%d) aipre(idx:%d cnt:%d size:%d) vpsl(idx:%d cnt:%d size:%d)\n",
 		   "AINR", (val & 1) ? "ON" : "OFF", val,
 		   vpsl_read(dev, VPSL_PYR_CTRL, false), vpsl_read(dev, VPSL_PYR_CHN, false),
-		   priv->aiisp_cur_idx, priv->aiisp_cnt,
-		   priv->bay3d_iir_cur_idx, priv->bay3d_iir_cnt,
-		   priv->gain_cur_idx, priv->gain_cnt,
-		   priv->aipre_gain_cur_idx, priv->aipre_gain_cnt,
-		   priv->vpsl_cur_idx, priv->vpsl_cnt);
+		   dev->is_aiisp_l2, priv->is_aiisp_l2_buf,
+		   priv->aiisp_cur_idx, priv->aiisp_cnt, priv->buf_aiisp[0].size,
+		   priv->bay3d_iir_cur_idx, priv->bay3d_iir_cnt, priv->buf_bay3d_iir[0].size,
+		   priv->gain_cur_idx, priv->gain_cnt, priv->buf_gain[0].size,
+		   priv->aipre_gain_cur_idx, priv->aipre_gain_cnt, priv->buf_aipre_gain[0].size,
+		   priv->vpsl_cur_idx, priv->vpsl_cnt, priv->buf_vpsl[0].size);
 	val = rkisp_read(dev, ISP3X_YNR_GLOBAL_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x) bypass(hi:%d mi:%d lo:%d) lp_en:%d\n", "YNR",
 		   (val & 1) ? "ON" : "OFF", val,
@@ -1362,9 +1367,14 @@ static int isp_show(struct seq_file *p, void *v)
 
 	if (!dev->is_aiisp_en)
 		snprintf(info, sizeof(info), "time:%dms", sdev->dbg.interval / 1000 / 1000);
-	else
+	else if (!dev->is_aiisp_l2)
 		snprintf(info, sizeof(info), "time(fe:%dms be:%dms)",
-			 sdev->dbg.interval / 1000 / 1000, sdev->dbg.interval_be / 1000 / 1000);
+			 sdev->dbg.interval / 1000 / 1000, sdev->dbg_be.interval / 1000 / 1000);
+	else
+		snprintf(info, sizeof(info), "time(fe:%dms fe_l2:%dms be:%dms)",
+			 sdev->dbg.interval / 1000 / 1000,
+			 sdev->dbg_l2.interval / 1000 / 1000,
+			 sdev->dbg_be.interval / 1000 / 1000);
 	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
 		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms state:%s %s frameloss:%d)"

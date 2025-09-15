@@ -598,6 +598,7 @@ struct rk817_battery_device {
 	int				dbg_calc_dsoc;
 	int				dbg_calc_rsoc;
 	int				is_charging;
+	unsigned long			charge_count;
 	u8				plugin_trigger;
 	u8				plugout_trigger;
 	int				chip_id;
@@ -2559,6 +2560,7 @@ static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
@@ -2658,6 +2660,9 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
 		val->intval = rk817_battery_time_to_full(battery);
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = battery->charge_count;
 		break;
 	default:
 		return -EINVAL;
@@ -2788,6 +2793,19 @@ static void rk817_battery_debug_info(struct rk817_battery_device *battery)
 	DBG("capactiy = %d\n", rk817_bat_get_capacity_mah(battery));
 }
 
+static void rk817_bat_update_charging_status(struct rk817_battery_device *battery)
+{
+	int is_charging;
+
+	is_charging = rk817_bat_get_charge_status(battery) == CHRG_OFF ? 0 : 1;
+	if (is_charging == battery->is_charging)
+		return;
+
+	battery->is_charging = is_charging;
+	if (is_charging)
+		battery->charge_count++;
+}
+
 static void rk817_bat_update_fg_info(struct rk817_battery_device *battery)
 {
 	battery->voltage_avg = rk817_bat_get_battery_voltage(battery);
@@ -2798,6 +2816,7 @@ static void rk817_bat_update_fg_info(struct rk817_battery_device *battery)
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 	battery->voltage_usb = rk817_bat_get_USB_voltage(battery);
 	battery->chrg_status = rk817_bat_get_charge_status(battery);
+	rk817_bat_update_charging_status(battery);
 	DBG("valtage usb: %d\n", battery->voltage_usb);
 	DBG("UPDATE: voltage_avg = %d\n"
 	    "voltage_sys = %d\n"

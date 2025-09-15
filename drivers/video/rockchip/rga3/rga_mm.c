@@ -160,6 +160,23 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 	return ret;
 }
 
+static int rga_get_phys_addr_pages(struct page **pages, phys_addr_t phys_addr, uint32_t page_count)
+{
+	int i;
+	phys_addr_t addr;
+
+	if (WARN_ON_ONCE(!pfn_valid(PHYS_PFN(phys_addr))))
+		return -EINVAL;
+
+	addr = phys_addr;
+	for (i = 0; i < page_count; i++) {
+		pages[i] = phys_to_page(addr);
+		addr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
 static void rga_free_sgt(struct sg_table **sgt_ptr)
 {
 	if (sgt_ptr == NULL || *sgt_ptr == NULL)
@@ -170,24 +187,21 @@ static void rga_free_sgt(struct sg_table **sgt_ptr)
 	*sgt_ptr = NULL;
 }
 
-static struct sg_table *rga_alloc_sgt(struct rga_virt_addr *virt_addr)
+static struct sg_table *rga_alloc_sgt(struct page **pages,
+				      int page_count, size_t offset,
+				      size_t size, gfp_t gfp_mask)
 {
 	int ret;
 	struct sg_table *sgt = NULL;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc(sizeof(*sgt), gfp_mask);
 	if (sgt == NULL) {
 		rga_err("%s alloc sgt error!\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	/* get sg form pages. */
-	ret = sg_alloc_table_from_pages(sgt,
-					virt_addr->pages,
-					virt_addr->page_count,
-					virt_addr->offset,
-					virt_addr->size,
-					GFP_KERNEL);
+	ret = sg_alloc_table_from_pages(sgt, pages, page_count, offset, size, gfp_mask);
 	if (ret) {
 		rga_err("sg_alloc_table_from_pages failed");
 		goto out_free_sgt;
@@ -541,7 +555,10 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		goto put_current_mm;
 	}
 
-	sgt = rga_alloc_sgt(virt_addr);
+	sgt = rga_alloc_sgt(virt_addr->pages,
+			    virt_addr->page_count,
+			    virt_addr->offset,
+			    virt_addr->size, GFP_KERNEL);
 	if (IS_ERR(sgt)) {
 		rga_err("alloc sgt error!\n");
 		ret = PTR_ERR(sgt);
@@ -630,7 +647,8 @@ put_current_mm:
 static void rga_mm_unmap_phys_addr(struct rga_internal_buffer *internal_buffer)
 {
 	if (internal_buffer->dma_buffer != NULL) {
-		rga_dma_unmap_phys_addr(internal_buffer->dma_buffer);
+		rga_dma_unmap_sgt(internal_buffer->dma_buffer);
+		rga_free_sgt(&internal_buffer->dma_buffer->sgt);
 		kfree(internal_buffer->dma_buffer);
 		internal_buffer->dma_buffer = NULL;
 	}
@@ -644,9 +662,13 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 				struct rga_job *job)
 {
 	int ret;
-	phys_addr_t phys_addr;
 	int buffer_size;
+	size_t offset;
 	uint32_t mm_flag = 0;
+	uint32_t page_count;
+	phys_addr_t phys_addr, phys_addr_aligned;
+	struct page **pages = NULL;
+	struct sg_table *sgt = NULL;
 	struct rga_dma_buffer *buffer = NULL;
 	struct device *map_dev;
 	struct rga_scheduler_t *scheduler;
@@ -658,16 +680,16 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 		return -EINVAL;
 	}
 
-	if (internal_buffer->memory_parm.size)
-		buffer_size = internal_buffer->memory_parm.size;
+	if (external_buffer->memory_parm.size)
+		buffer_size = external_buffer->memory_parm.size;
 	else
-		buffer_size = rga_image_size_cal(internal_buffer->memory_parm.width,
-						 internal_buffer->memory_parm.height,
-						 internal_buffer->memory_parm.format,
+		buffer_size = rga_image_size_cal(external_buffer->memory_parm.width,
+						 external_buffer->memory_parm.height,
+						 external_buffer->memory_parm.format,
 						 NULL, NULL, NULL);
 	if (buffer_size <= 0) {
-		rga_err("Failed to get phys addr size!\n");
-		rga_dump_memory_parm(&internal_buffer->memory_parm);
+		rga_err("failed to calculating buffer size!\n");
+		rga_dump_memory_parm(&external_buffer->memory_parm);
 		return buffer_size == 0 ? -EINVAL : buffer_size;
 	}
 
@@ -683,10 +705,35 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 	}
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
+		phys_addr_aligned = phys_addr & PAGE_MASK;
+		offset = phys_addr & (~PAGE_MASK);
+		page_count = RGA_GET_PAGE_COUNT(buffer_size + offset);
+
+		pages = vzalloc(sizeof(struct page *) * page_count);
+		if (pages == NULL) {
+			rga_err("%s can not alloc pages for phys_addr pages\n", __func__);
+			return -ENOMEM;
+		}
+
+		ret = rga_get_phys_addr_pages(pages, phys_addr_aligned, page_count);
+		if (ret < 0) {
+			rga_err("failed to get pages from physical address: 0x%llx\n",
+				(unsigned long long)phys_addr);
+			goto free_pages;
+		}
+
+		sgt = rga_alloc_sgt(pages, page_count, offset, buffer_size, GFP_KERNEL);
+		if (IS_ERR(sgt)) {
+			rga_err("failed to alloc sgt\n");
+			ret = PTR_ERR(sgt);
+			goto free_pages;
+		}
+
 		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 		if (buffer == NULL) {
 			rga_err("%s alloc internal dma buffer error!\n", __func__);
-			return  -ENOMEM;
+			ret =  -ENOMEM;
+			goto free_sgt;
 		}
 
 		/*
@@ -695,14 +742,16 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 		 */
 		map_dev = scheduler->iommu_info ?
 			scheduler->iommu_info->default_dev : scheduler->dev;
-		ret = rga_dma_map_phys_addr(phys_addr, buffer_size, buffer,
-					    DMA_BIDIRECTIONAL, map_dev);
+		ret = rga_dma_map_sgt(sgt, buffer, DMA_BIDIRECTIONAL, map_dev);
 		if (ret < 0) {
-			rga_err("%s core[%d] map phys_addr error!\n", __func__, scheduler->core);
+			rga_err("%s core[%d] map phys_addr error!, phys_addr = 0x%llx\n",
+				 __func__, scheduler->core,
+				(unsigned long long)phys_addr);
 			goto free_dma_buffer;
 		}
 
 		buffer->iova = buffer->dma_addr;
+		vfree(pages);
 	}
 
 	internal_buffer->dma_buffer = buffer;
@@ -715,6 +764,10 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 
 free_dma_buffer:
 	kfree(buffer);
+free_sgt:
+	rga_free_sgt(&sgt);
+free_pages:
+	vfree(pages);
 
 	return ret;
 }
@@ -2332,8 +2385,6 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	internal_buffer = kzalloc(sizeof(struct rga_internal_buffer), GFP_KERNEL);
 	if (internal_buffer == NULL) {
 		rga_err("%s alloc internal_buffer error!\n", __func__);
-
-		mutex_unlock(&mm->lock);
 		return -ENOMEM;
 	}
 

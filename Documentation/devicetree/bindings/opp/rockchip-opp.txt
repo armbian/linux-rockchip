@@ -87,7 +87,7 @@ In 'operating-points-v2' table:
                        get frequency count of pvtm.
 - rockchip,pvtm-ch: An array of two integers containing pvtm channel and clock
                        oscillation ring.
-- rockchip,pvtm-sample-time: The number of milliseconds to wait for pvtm to
+- rockchip,pvtm-sample-time: The number of microseconds to wait for pvtm to
                        finish counting.
 - rockchip,pvtm-number: An integer indicating the number of sampling points.
 - rockchip,pvtm-error: An integer indicating the error between the sample

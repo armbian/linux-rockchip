@@ -303,6 +303,10 @@ int rkvpss_rockit_buf_done(struct rkvpss_stream *stream, int cmd, struct rkvpss_
 	} else {
 		if (!(stream->dev->stream_vdev.wrap_line && stream->id == RKVPSS_OUTPUT_CH0))
 			return 0;
+		if (stream->skip_frame) {
+			stream->skip_frame--;
+			return 0;
+		}
 
 		rockit_vpss_cfg->frame.u64PTS = vpss_dev->vpss_sdev.frame_timestamp;
 		rockit_vpss_cfg->frame.u32TimeRef = vpss_dev->vpss_sdev.frame_seq;

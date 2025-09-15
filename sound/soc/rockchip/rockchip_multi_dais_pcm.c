@@ -126,10 +126,12 @@ static void snd_dmaengine_mpcm_set_config_from_dai_data(
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config->dst_addr = dma_data->addr;
+		slave_config->dst_maxburst = dma_data->maxburst;
 		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
 			slave_config->dst_addr_width = dma_data->addr_width;
 	} else {
 		slave_config->src_addr = dma_data->addr;
+		slave_config->src_maxburst = dma_data->maxburst;
 		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
 			slave_config->src_addr_width = dma_data->addr_width;
 	}
@@ -628,7 +630,6 @@ static int dmaengine_mpcm_hw_params(struct snd_soc_component *component,
 	struct dma_slave_config slave_config;
 	snd_pcm_format_t format;
 	unsigned int *maps;
-	int frame_bytes;
 	int ret, num, i, sz;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -636,7 +637,6 @@ static int dmaengine_mpcm_hw_params(struct snd_soc_component *component,
 	else
 		maps = pcm->mdais->capture_channel_maps;
 	format = params_format(params);
-	frame_bytes = snd_pcm_format_size(format, params_channels(params));
 	num = pcm->mdais->num_dais;
 
 	for (i = 0; i < num; i++) {
@@ -659,11 +659,11 @@ static int dmaengine_mpcm_hw_params(struct snd_soc_component *component,
 		sz = snd_pcm_format_size(format, maps[i]);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			chan = pcm->tx_chans[i];
-			if (sz && (frame_bytes - sz) > 0)
+			if (sz)
 				slave_config.dst_maxburst = sz / slave_config.dst_addr_width;
 		} else {
 			chan = pcm->rx_chans[i];
-			if (sz && (frame_bytes - sz) > 0)
+			if (sz)
 				slave_config.src_maxburst = sz / slave_config.src_addr_width;
 		}
 		if (!chan)

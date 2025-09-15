@@ -1303,6 +1303,10 @@ static const struct cif_reg rv1126b_cif_regs[] = {
 	[CIF_REG_MIPI_SET_SIZE_ID1] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID1_RV1126B),
 	[CIF_REG_MIPI_SET_SIZE_ID2] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID2_RV1126B),
 	[CIF_REG_MIPI_SET_SIZE_ID3] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID3_RV1126B),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
 
 	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
 	[CIF_REG_GLB_INTEN] = CIF_REG(GLB_INTEN),
@@ -1593,7 +1597,8 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 		}
 		if (cif_hw->chip_id >= CHIP_RK3588_CIF && intstat_glb) {
 			rkcif_irq_handle_toisp(cif_hw->cif_dev[i], intstat_glb);
-			rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
+			if (cif_hw->chip_id != CHIP_RV1103B_CIF)
+				rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
 		}
 	}
 	irq_stop = ktime_get_ns();
@@ -1762,8 +1767,15 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (data->chip_id == CHIP_RV1106_CIF ||
-	    data->chip_id == CHIP_RV1103B_CIF) {
+	if (data->chip_id == CHIP_PX30_CIF ||
+	    data->chip_id == CHIP_RK1808_CIF ||
+	    data->chip_id == CHIP_RV1126_CIF ||
+	    data->chip_id == CHIP_RV1126_CIF_LITE ||
+	    data->chip_id == CHIP_RK3568_CIF)
+		cif_hw->is_irq_share = true;
+	else
+		cif_hw->is_irq_share = false;
+	if (!cif_hw->is_irq_share) {
 		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(dev, irq, rkcif_irq_handler,
 				       0,
@@ -1963,8 +1975,7 @@ static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 		return 0;
 	rkcif_disable_sys_clk(cif_hw);
 
-	if (cif_hw->chip_id == CHIP_RV1106_CIF ||
-	    cif_hw->chip_id == CHIP_RV1103B_CIF)
+	if (!cif_hw->is_irq_share)
 		disable_irq(cif_hw->irq);
 
 	return pinctrl_pm_select_sleep_state(dev);
@@ -1983,8 +1994,7 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	rkcif_enable_sys_clk(cif_hw);
 	rkcif_hw_soft_reset(cif_hw, true);
 
-	if (cif_hw->chip_id == CHIP_RV1106_CIF ||
-	    cif_hw->chip_id == CHIP_RV1103B_CIF)
+	if (!cif_hw->is_irq_share)
 		enable_irq(cif_hw->irq);
 
 	return 0;

@@ -42,12 +42,15 @@ struct vb2_cma_sg_buf {
 	struct dma_buf_attachment	*db_attach;
 
 	struct vb2_buffer		*vb;
+
+	struct rk_dma_heap		*contig_heap;
+	struct rk_dma_heap		*heap;
 };
 
 static void vb2_cma_sg_put(void *buf_priv);
 
-static int vb2_cma_sg_alloc_compacted(struct vb2_cma_sg_buf *buf,
-				      gfp_t gfp_flags)
+static int vb2_cma_sg_alloc_pages(struct vb2_cma_sg_buf *buf,
+				  gfp_t gfp_flags)
 {
 	unsigned int last_page = 0;
 	unsigned long size = buf->size;
@@ -59,7 +62,7 @@ static int vb2_cma_sg_alloc_compacted(struct vb2_cma_sg_buf *buf,
 
 		order = get_order(size);
 		/* Don't over allocate*/
-		if ((PAGE_SIZE << order) > size)
+		if ((PAGE_SIZE << order) > size && order > 0)
 			order--;
 
 		pages = NULL;
@@ -87,7 +90,7 @@ static int vb2_cma_sg_alloc_compacted(struct vb2_cma_sg_buf *buf,
 	return 0;
 }
 
-static void vb2_cma_sg_free_compacted(struct vb2_cma_sg_buf *buf)
+static void vb2_cma_sg_free_pages(struct vb2_cma_sg_buf *buf)
 {
 	int num_pages = buf->num_pages;
 
@@ -95,6 +98,32 @@ static void vb2_cma_sg_free_compacted(struct vb2_cma_sg_buf *buf)
 		__free_page(buf->pages[num_pages]);
 		buf->pages[num_pages] = NULL;
 	}
+}
+
+static int vb2_cma_sg_alloc_compacted(struct vb2_cma_sg_buf *buf,
+				      gfp_t gfp_flags)
+{
+	struct rk_dma_heap *heap = rk_dma_heap_find("rk-system-heap");
+
+	if (!heap)
+		return vb2_cma_sg_alloc_pages(buf, gfp_flags);
+
+	buf->heap = heap;
+
+	return rk_dma_heap_alloc_pages(heap, buf->pages, buf->size, gfp_flags,
+				       dev_name(buf->dev));
+}
+
+static void vb2_cma_sg_free_compacted(struct vb2_cma_sg_buf *buf)
+{
+	if (!buf->heap) {
+		vb2_cma_sg_free_pages(buf);
+		return;
+	}
+
+	rk_dma_heap_free_pages(buf->heap, buf->pages, buf->num_pages);
+	rk_dma_heap_put(buf->heap);
+	buf->heap = NULL;
 }
 
 static int vb2_cma_sg_alloc_contiguous(struct vb2_cma_sg_buf *buf)
@@ -108,12 +137,14 @@ static int vb2_cma_sg_alloc_contiguous(struct vb2_cma_sg_buf *buf)
 		struct rk_dma_heap *heap = rk_dma_heap_find("rk-dma-heap-cma");
 
 		cma_en = true;
-		if (heap)
+		if (heap) {
 			page = rk_dma_heap_alloc_contig_pages(heap, buf->size,
 							      dev_name(buf->dev));
-		else
+			buf->contig_heap = heap;
+		} else {
 			page = cma_alloc(dev_get_cma_area(buf->dev), buf->num_pages,
 					 get_order(buf->size), GFP_KERNEL);
+		}
 	}
 	if (IS_ERR_OR_NULL(page)) {
 		pr_err("%s: cma_en:%d alloc pages fail\n", __func__, cma_en);
@@ -128,14 +159,15 @@ static int vb2_cma_sg_alloc_contiguous(struct vb2_cma_sg_buf *buf)
 static void vb2_cma_sg_free_contiguous(struct vb2_cma_sg_buf *buf)
 {
 	if (IS_ENABLED(CONFIG_CMA)) {
-		struct rk_dma_heap *heap = rk_dma_heap_find("rk-dma-heap-cma");
-
-		if (heap)
-			rk_dma_heap_free_contig_pages(heap, buf->pages[0],
+		if (buf->contig_heap) {
+			rk_dma_heap_free_contig_pages(buf->contig_heap, buf->pages[0],
 						      buf->size, dev_name(buf->dev));
-		else
+			rk_dma_heap_put(buf->contig_heap);
+			buf->contig_heap = NULL;
+		} else {
 			cma_release(dev_get_cma_area(buf->dev),
 				    buf->pages[0], buf->num_pages);
+		}
 	}
 }
 

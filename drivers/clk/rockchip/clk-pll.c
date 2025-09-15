@@ -95,6 +95,13 @@ static inline void rockchip_boost_disable_low(struct rockchip_clk_pll *pll) {}
 #define MIN_FOUTVCO_FREQ	(800 * MHZ)
 #define MAX_FOUTVCO_FREQ	(2000 * MHZ)
 
+/* CLK_PLL_TYPE_RK3588/3576_AUTO type ops */
+#define RK3588_PLL_FVCO_MIN	(2250ULL * MHZ)
+#define RK3588_PLL_FVCO_MAX	(4500ULL * MHZ)
+
+#define RK3588_PLL_FOUT_MIN	(37ULL * MHZ)
+#define RK3588_PLL_FOUT_MAX	(4500ULL * MHZ)
+
 static struct rockchip_pll_rate_table auto_table;
 
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
@@ -335,18 +342,22 @@ rockchip_rk3066_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 static u32
 rockchip_rk3588_pll_frac_get(u32 m, u32 p, u32 s, u64 fin_hz, u64 fvco)
 {
-	u64 fref, fout, ffrac;
-	u32 k = 0;
+	u64 fref, fout, ffrac, k = 0;
 
-	fref = fin_hz / p;
+	fref = fin_hz;
+	do_div(fref, p);
 	ffrac = fvco - (m * fref);
 	fout = ffrac * 65536;
-	k = fout / fref;
+	k = fout;
+	do_div(k, fref);
 	if (k > 32767) {
-		fref = fin_hz / p;
+		fref = fin_hz;
+		do_div(fref, p);
 		ffrac = ((m + 1) * fref) - fvco;
-		fout = ffrac * 65536;
-		k = ((fout * 10 / fref) + 7) / 10;
+		fout = ffrac * 655360;
+		do_div(fout, fref);
+		k = fout + 7;
+		do_div(k, 10);
 		if (k > 32767)
 			k = 0;
 		else
@@ -359,7 +370,7 @@ static struct rockchip_pll_rate_table *
 rockchip_rk3588_pll_frac_by_auto(unsigned long fin_hz,  unsigned long fout_hz)
 {
 	struct rockchip_pll_rate_table *rate_table = rk_pll_rate_table_get();
-	u64 fvco_min = 2250 * MHZ, fvco_max = 4500 * MHZ;
+	u64 fvco_min = RK3588_PLL_FVCO_MIN, fvco_max = RK3588_PLL_FVCO_MAX;
 	u32 p, m, s, k;
 	u64 fvco;
 
@@ -396,8 +407,8 @@ rockchip_rk3588_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 				    unsigned long fout_hz)
 {
 	struct rockchip_pll_rate_table *rate_table = rk_pll_rate_table_get();
-	u64 fvco_min = 2250 * MHZ, fvco_max = 4500 * MHZ;
-	u64 fout_min = 37 * MHZ, fout_max = 4500 * MHZ;
+	u64 fvco_min = RK3588_PLL_FVCO_MIN, fvco_max = RK3588_PLL_FVCO_MAX;
+	u64 fout_min = RK3588_PLL_FOUT_MIN, fout_max = RK3588_PLL_FOUT_MAX;
 	u32 p, m, s;
 	u64 fvco;
 
@@ -1345,7 +1356,7 @@ static int rockchip_rk3588_pll_wait_lock(struct rockchip_clk_pll *pll)
 static long rockchip_rk3588_pll_round_rate(struct clk_hw *hw,
 			    unsigned long drate, unsigned long *prate)
 {
-	if ((drate < 37 * MHZ) || (drate > 4500 * MHZ))
+	if ((drate < RK3588_PLL_FOUT_MIN) || (drate > RK3588_PLL_FOUT_MAX))
 		return -EINVAL;
 	else
 		return drate;

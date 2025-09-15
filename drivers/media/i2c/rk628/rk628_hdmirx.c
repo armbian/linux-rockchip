@@ -1373,6 +1373,7 @@ void rk628_hdmirx_cec_unregister(struct rk628_hdmirx_cec *cec)
 	if (!cec)
 		return;
 
+	cancel_delayed_work_sync(&cec->delayed_work_cec);
 	cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
 	cec_unregister_adapter(cec->adap);
 }

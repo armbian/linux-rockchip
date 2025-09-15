@@ -60,10 +60,12 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 		ret = dev->pipe.open(&dev->pipe, &isp_sdev->sd.entity, true);
 		if (ret < 0)
 			goto refcnt_dec;
-		ret = dev->pipe.set_stream(&dev->pipe, true);
-		if (ret < 0)
-			goto pipe_close;
 		sditf->is_on = true;
+		ret = dev->pipe.set_stream(&dev->pipe, true);
+		if (ret < 0) {
+			sditf->is_on = false;
+			goto pipe_close;
+		}
 		if (!dev->is_aiisp_sync)
 			dev->irq_ends_mask |= ISP_FRAME_VPSS;
 		goto unlock;
@@ -164,6 +166,7 @@ void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 	info.unite_index = dev->unite_index;
 	if (dev->isp_ver == ISP_V35)
 		info.grey = !!(rkisp_read(dev, ISP3X_CNR_CTRL, false) & ISP35_CNR_UV_DIS);
+	info.skip_frame = dev->skip_frame;
 	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_CMD_SOF, &info);
 
 	rkisp_config_frame_info(dev, &frame_info);

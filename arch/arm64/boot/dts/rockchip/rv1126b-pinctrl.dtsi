@@ -110,28 +110,28 @@
 		dsm_aud_ln_pins: dsm-aud-ln-pins {
 			rockchip,pins =
 				/* dsm_aud_ln */
-				<7 RK_PA3 4 &pcfg_pull_none>;
+				<7 RK_PA3 4 &pcfg_pull_down>;
 		};
 
 		/omit-if-no-ref/
 		dsm_aud_lp_pins: dsm-aud-lp-pins {
 			rockchip,pins =
 				/* dsm_aud_lp */
-				<7 RK_PA5 4 &pcfg_pull_none>;
+				<7 RK_PA5 4 &pcfg_pull_down>;
 		};
 
 		/omit-if-no-ref/
 		dsm_aud_rn_pins: dsm-aud-rn-pins {
 			rockchip,pins =
 				/* dsm_aud_rn */
-				<7 RK_PB0 4 &pcfg_pull_none>;
+				<7 RK_PB0 4 &pcfg_pull_down>;
 		};
 
 		/omit-if-no-ref/
 		dsm_aud_rp_pins: dsm-aud-rp-pins {
 			rockchip,pins =
 				/* dsm_aud_rp */
-				<7 RK_PB1 4 &pcfg_pull_none>;
+				<7 RK_PB1 4 &pcfg_pull_down>;
 		};
 	};
 

@@ -333,6 +333,7 @@ config RK_ZONEINFO_PROCFS
 	help
 	  Dump all zone information.
 
+source "drivers/soc/rockchip/aoa_middleware/Kconfig"
 source "drivers/soc/rockchip/minidump/Kconfig"
 
 endmenu

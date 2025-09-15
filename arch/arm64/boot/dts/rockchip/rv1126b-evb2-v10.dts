@@ -14,6 +14,18 @@
 	compatible = "rockchip,rv1126b-evb2-v10", "rockchip,rv1126b";
 };
 
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vop {
+	status = "disabled";
+};
+
+&gmac {
+	status = "disabled";
+};
+
 &imx415 {
 	reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 };

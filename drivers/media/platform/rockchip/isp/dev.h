@@ -315,9 +315,16 @@ struct rkisp_device {
 	bool is_aiisp_stop;
 	bool is_aiisp_sync;
 	bool is_aiisp_yuv;
+	bool is_aiisp_first_frame;
+	bool is_aiisp_l2;
+	bool is_aiisp_l2_st;
+	bool is_aiisp_l2_first_cfg;
+	bool is_aiisp_l2_init;
+	bool is_aiisp_l2_waiting;
 	bool is_frm_rd;
 	bool is_multi_one_sync;
 	bool is_wait_aiq;
+	bool is_wait_aiq_isp_end;
 	bool is_first_frame;
 
 	struct rkisp_vicap_input vicap_in;
@@ -325,6 +332,7 @@ struct rkisp_device {
 	u32 hdr_wrap_line;
 
 	u32 aiisp_stop_seq;
+	u32 aiisp_fe_seq;
 
 	u8 multi_mode;
 	u8 multi_index;

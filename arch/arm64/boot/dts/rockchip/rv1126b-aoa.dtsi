@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	aoa_middleware {
+		compatible = "rockchip,aoa-middleware";
+		memory-region = <&aoa_sram>;
+		rockchip,aoa = <&aoa>;
+		rockchip,dma = <&dmac_lp>;
+	};
+};
+
+&dmac_lp {
+	/* Avoid being mapped by standard DMA drivers */
+	compatible = "rockchip,rv1126b-dma-lp";
+	status = "okay";
+};
+
+&aoa {
+	status = "okay";
+};
+
+&aoa_sram {
+	status = "okay";
+};

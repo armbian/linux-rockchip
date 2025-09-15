@@ -35,6 +35,14 @@ config DMABUF_HEAPS_ROCKCHIP_CMA_ALIGNMENT
 
 	  If unsure, leave the default value "8".
 
+config DMABUF_HEAPS_ROCKCHIP_SYSTEM_HEAP
+	tristate "DMA-BUF RockChip system Heap"
+	depends on DMABUF_HEAPS_ROCKCHIP
+	help
+	  Choose this option to enable dma-buf RockChip SYSTEM heap. This heap is backed
+	  by the system pages. If your system has these
+	  regions, you should say Y here.
+
 config DMABUF_RK_HEAPS_DEBUG
 	bool "DMA-BUF RockChip Heap Debug"
 	depends on DMABUF_HEAPS_ROCKCHIP

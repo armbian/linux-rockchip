@@ -29,6 +29,16 @@
 				remote-endpoint = <&sc450ai_2_out>;
 				data-lanes = <1 2>;
 			};
+			csi_dphy1_input2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&sc635hai_2_out>;
+				data-lanes = <1 2>;
+			};
+			csi_dphy1_input4: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&sc200ai_2_out>;
+				data-lanes = <1 2>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -59,6 +69,16 @@
 				remote-endpoint = <&sc450ai_1_out>;
 				data-lanes = <1 2>;
 			};
+			csi_dphy2_input3: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&sc635hai_1_out>;
+				data-lanes = <1 2>;
+			};
+			csi_dphy2_input5: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&sc200ai_1_out>;
+				data-lanes = <1 2>;
+			};
 
 		};
 		port@1 {
@@ -77,6 +97,29 @@
 &i2c3 {
 	status = "okay";
 	pinctrl-0 = <&i2c3m1_pins>;
+
+	sc200ai_1: sc200ai-1@30 {
+		compatible = "smartsens,sc200ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		// rockchip,camera-module-sync-mode = "internal_master";
+		port {
+			sc200ai_1_out: endpoint {
+				remote-endpoint = <&csi_dphy2_input5>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 
 	sc450ai_1: sc450ai-1@30 {
 		compatible = "smartsens,sc450ai";
@@ -101,6 +144,52 @@
 		};
 	};
 
+	sc635hai_1: sc635hai-1@30 {
+		compatible = "smartsens,sc635hai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "internal_master";
+		port {
+			sc635hai_1_out: endpoint {
+				remote-endpoint = <&csi_dphy2_input3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc200ai_2: sc200ai-2@32 {
+		compatible = "smartsens,sc200ai";
+		status = "okay";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		// rockchip,camera-module-sync-mode = "external_master";
+		port {
+			sc200ai_2_out: endpoint {
+				remote-endpoint = <&csi_dphy1_input4>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	sc450ai_2: sc450ai-2@32 {
 		compatible = "smartsens,sc450ai";
 		status = "okay";
@@ -119,6 +208,29 @@
 		port {
 			sc450ai_2_out: endpoint {
 				remote-endpoint = <&csi_dphy1_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc635hai_2: sc635hai-2@32 {
+		compatible = "smartsens,sc635hai";
+		status = "okay";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "external_master";
+		port {
+			sc635hai_2_out: endpoint {
+				remote-endpoint = <&csi_dphy1_input2>;
 				data-lanes = <1 2>;
 			};
 		};

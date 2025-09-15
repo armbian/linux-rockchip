@@ -31,6 +31,20 @@ config VIDEO_ROCKCHIP_PREISP
 	help
 	  Support for Pre-isp on the rockchip SoC.
 
+config VIDEO_MS41908
+	tristate "Relmon MS41908 motor driver"
+	depends on SPI && VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support motor driver By MS41908 for camera Lens.
+
+config VIDEO_MS41968
+	tristate "Relmon MS41968 motor driver"
+	depends on SPI && VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support motor driver By MS41968 for camera Lens.
+
 endmenu
 
 endif

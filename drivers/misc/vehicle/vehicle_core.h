@@ -339,6 +339,8 @@ struct hw_prop_ops {
  */
 #define kMixedTypePropertyForTest 568332561
 
+#define NLMSG_SIZE  1024
+
 /*vehicle_event_type: stateType in command VSTATE*/
 enum vehicle_event_type {
 	VEHICLE_AC = 0,

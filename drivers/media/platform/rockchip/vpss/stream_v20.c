@@ -967,8 +967,13 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 
 	if (fmt->fmt_type == FMT_FBC)
 		val = 0;
-	else
-		val = out_fmt->plane_fmt[0].bytesperline;
+	else {
+		/* If 16-aligned, use stride; otherwise set to 0 */
+		if (IS_ALIGNED(out_fmt->plane_fmt[0].bytesperline, 16))
+			val = out_fmt->plane_fmt[0].bytesperline;
+		else
+			val = 0;
+	}
 	reg = stream->config->mi.stride;
 	rkvpss_unite_write(dev, reg, val);
 
@@ -1243,6 +1248,14 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 		u64 ns = sdev->frame_timestamp;
 		int i;
 
+		if (stream->skip_frame) {
+			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+			list_add_tail(&buf->queue, &stream->buf_queue);
+			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			stream->skip_frame--;
+			goto end;
+		}
+
 		for (i = 0; i < fmt->mplanes; i++) {
 			u32 payload_size = stream->out_fmt.plane_fmt[i].sizeimage;
 
@@ -1275,7 +1288,7 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 			rkvpss_dvbm_event(dev, ROCKIT_DVBM_END);
 		}
 	}
-
+end:
 	rkvpss_stream_mf(stream);
 	stream->ops->update_mi(stream);
 }
@@ -2252,6 +2265,34 @@ static int rkvpss_set_fmt(struct rkvpss_stream *stream,
 		     dev->stream_vdev.stream[0].out_cap_fmt.fourcc == V4L2_PIX_FMT_TILE422)) {
 			v4l2_err(&dev->v4l2_dev,
 				 "Tile4x4 writing of Ch0 and Cl1 only supports either one\n");
+			return -EINVAL;
+		}
+	}
+
+	/* Add format alignment checks */
+	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
+		 "format alignment check: width=%d, height=%d, fourcc=0x%x\n",
+		 pixm->width, pixm->height, fmt->fourcc);
+	if (fmt->fourcc == V4L2_PIX_FMT_FBC0 ||
+	    fmt->fourcc == V4L2_PIX_FMT_FBC2) {
+		if (!IS_ALIGNED(pixm->width, 64)) {
+			v4l2_err(&dev->v4l2_dev,
+				 "stream:%d fbc output width %d is not 64 aligned\n",
+				 stream->id, pixm->width);
+			return -EINVAL;
+		}
+		if (!IS_ALIGNED(pixm->height, 4)) {
+			v4l2_err(&dev->v4l2_dev,
+				 "stream:%d fbc output height %d is not 4 aligned\n",
+				 stream->id, pixm->height);
+			return -EINVAL;
+		}
+	} else {
+		/* Check width alignment for non-FBC formats */
+		if (!IS_ALIGNED(pixm->width, 4)) {
+			v4l2_err(&dev->v4l2_dev,
+				 "stream:%d output width %d is not 4 aligned\n",
+				 stream->id, pixm->width);
 			return -EINVAL;
 		}
 	}

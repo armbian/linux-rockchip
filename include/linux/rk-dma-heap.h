@@ -14,9 +14,16 @@
 
 struct rk_dma_heap;
 
-#if defined(CONFIG_DMABUF_HEAPS_ROCKCHIP)
+#if IS_REACHABLE(CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_HEAP)
 int rk_dma_heap_cma_setup(void);
+#else
+static inline int rk_dma_heap_cma_setup(void)
+{
+	return -ENODEV;
+}
+#endif
 
+#if defined(CONFIG_DMABUF_HEAPS_ROCKCHIP)
 /**
  * rk_dma_heap_set_dev - set heap dev dma param
  * @heap: DMA-Heap to retrieve private data for
@@ -25,6 +32,12 @@ int rk_dma_heap_cma_setup(void);
  * Zero on success, ERR_PTR(-errno) on error
  */
 int rk_dma_heap_set_dev(struct device *heap_dev);
+
+/**
+ * rk_dma_heap_put - drops a reference to a dmabuf heaps, potentially freeing it
+ * @heap:		heap pointer
+ */
+void rk_dma_heap_put(struct rk_dma_heap *heap);
 
 /**
  * rk_dma_heap_find - Returns the registered dma_heap with the specified name
@@ -87,15 +100,34 @@ struct page *rk_dma_heap_alloc_contig_pages(struct rk_dma_heap *heap,
 void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap, struct page *pages,
 				   size_t len, const char *name);
 
+/**
+ * rk_dma_heap_alloc_pages - Allocate pages from system
+ * @heap:	dma_heap for debug
+ * @pages:	pages where to store
+ * @len:	size to allocate
+ * @flags:	flags used to alloc page
+ * @name:	the name who allocate
+ */
+int rk_dma_heap_alloc_pages(struct rk_dma_heap *heap,
+			    struct page **pages, size_t len, gfp_t flags,
+			    const char *name);
+
+/**
+ * rk_dma_heap_free_pages - Free pages to system
+ * @heap:	dma_heap for debug
+ * @pages:	pages to free to system
+ * @count:	page count to free
+ */
+void rk_dma_heap_free_pages(struct rk_dma_heap *heap,
+			    struct page **pages, unsigned int count);
 #else
-static inline int rk_dma_heap_cma_setup(void)
+static inline int rk_dma_heap_set_dev(struct device *heap_dev)
 {
 	return -ENODEV;
 }
 
-static inline int rk_dma_heap_set_dev(struct device *heap_dev)
+static inline void rk_dma_heap_put(struct rk_dma_heap *heap)
 {
-	return -ENODEV;
 }
 
 static inline struct rk_dma_heap *rk_dma_heap_find(const char *name)
@@ -131,6 +163,18 @@ static inline struct page *rk_dma_heap_alloc_contig_pages(struct rk_dma_heap *he
 
 static inline void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap, struct page *pages,
 						 size_t len, const char *name)
+{
+}
+
+static inline int rk_dma_heap_alloc_pages(struct rk_dma_heap *heap,
+					struct page **pages, size_t len,
+					gfp_t flags, const char *name)
+{
+	return -ENODEV;
+}
+
+static inline void rk_dma_heap_free_pages(struct rk_dma_heap *heap,
+					struct page **pages, unsigned int count)
 {
 }
 #endif

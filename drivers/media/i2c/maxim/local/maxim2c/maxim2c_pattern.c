@@ -253,6 +253,7 @@ int maxim2c_pattern_data_init(maxim2c_t *maxim2c)
 	struct maxim2c_mode *supported_mode = NULL;
 	struct maxim2c_pattern *pattern = NULL;
 	maxim2c_mipi_txphy_t *mipi_txphy = &maxim2c->mipi_txphy;
+	u32 value = 0;
 	int ret = 0;
 
 	// maxim serdes local
@@ -268,6 +269,12 @@ int maxim2c_pattern_data_init(maxim2c_t *maxim2c)
 
 		of_node_put(node);
 		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(node, "local-power-off-enable", &value);
+	if (ret == 0) {
+		dev_info(dev, "local-power-off-enable property: %d\n", value);
+		maxim2c->local_power_off_enable = value;
 	}
 
 	maxim2c_mipi_txphy_data_init(maxim2c);

@@ -71,6 +71,7 @@ enum pcie_ep_mmap_resource {
 	PCIE_EP_MMAP_RESOURCE_RK3588_RC_DBI,
 	PCIE_EP_MMAP_RESOURCE_BAR1,
 	PCIE_EP_MMAP_RESOURCE_BAR5,
+	PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER,
 	PCIE_EP_MMAP_RESOURCE_MAX,
 };
 
@@ -109,18 +110,28 @@ struct pcie_ep_obj_poll_virtual_id_cfg {
 	__u32 poll_status;
 };
 
+struct pcie_ep_continuous_buffer_param {
+	__u64 dma_addr;
+	__u32 size;
+};
+
 #define PCIE_BASE	'P'
-#define PCIE_EP_GET_FUNC_DRV_VERSION	_IOR(PCIE_BASE, 0, unsigned int)
-#define PCIE_DMA_CACHE_INVALIDE		_IOW(PCIE_BASE, 1, struct pcie_ep_dma_cache_cfg)
-#define PCIE_DMA_CACHE_FLUSH		_IOW(PCIE_BASE, 2, struct pcie_ep_dma_cache_cfg)
-#define PCIE_DMA_IRQ_MASK_ALL		_IOW(PCIE_BASE, 3, int)
-#define PCIE_EP_RAISE_MSI		_IOW(PCIE_BASE, 4, int)
-#define PCIE_EP_SET_MMAP_RESOURCE	_IOW(PCIE_BASE, 6, int)
-#define PCIE_EP_RAISE_ELBI		_IOW(PCIE_BASE, 7, int)
-#define PCIE_EP_REQUEST_VIRTUAL_ID	_IOR(PCIE_BASE, 16, int)
-#define PCIE_EP_RELEASE_VIRTUAL_ID	_IOW(PCIE_BASE, 17, int)
-#define PCIE_EP_RAISE_IRQ_USER		_IOW(PCIE_BASE, 18, int)
-#define PCIE_EP_POLL_IRQ_USER		_IOW(PCIE_BASE, 19, struct pcie_ep_obj_poll_virtual_id_cfg)
-#define PCIE_EP_DMA_XFER_BLOCK		_IOW(PCIE_BASE, 32, struct pcie_ep_dma_block_req)
+#define PCIE_EP_GET_FUNC_DRV_VERSION				_IOR(PCIE_BASE, 0x00, unsigned int)
+#define PCIE_DMA_CACHE_INVALIDE					_IOW(PCIE_BASE, 0x01, struct pcie_ep_dma_cache_cfg)
+#define PCIE_DMA_CACHE_FLUSH					_IOW(PCIE_BASE, 0x02, struct pcie_ep_dma_cache_cfg)
+#define PCIE_DMA_IRQ_MASK_ALL					_IOW(PCIE_BASE, 0x03, int)
+#define PCIE_EP_RAISE_MSI					_IOW(PCIE_BASE, 0x04, int)
+#define PCIE_EP_SET_MMAP_RESOURCE				_IOW(PCIE_BASE, 0x06, int)
+#define PCIE_EP_RAISE_ELBI					_IOW(PCIE_BASE, 0x07, int)
+#define PCIE_EP_RESET_CTRL					_IOW(PCIE_BASE, 0x08, int)
+#define PCIE_EP_REQUEST_VIRTUAL_ID				_IOR(PCIE_BASE, 0x10, int)
+#define PCIE_EP_RELEASE_VIRTUAL_ID				_IOW(PCIE_BASE, 0x11, int)
+#define PCIE_EP_RAISE_IRQ_USER					_IOW(PCIE_BASE, 0x12, int)
+#define PCIE_EP_POLL_IRQ_USER					_IOW(PCIE_BASE, 0x13, struct pcie_ep_obj_poll_virtual_id_cfg)
+#define PCIE_EP_DMA_XFER_BLOCK					_IOW(PCIE_BASE, 0x20, struct pcie_ep_dma_block_req)
+
+#define PCIE_EP_CONTINUOUS_BUFFER_ALLOC				_IOWR(PCIE_BASE, 0x30, struct pcie_ep_continuous_buffer_param)
+#define PCIE_EP_CONTINUOUS_BUFFER_FREE				_IOW(PCIE_BASE, 0x31, struct pcie_ep_continuous_buffer_param)
+#define PCIE_EP_SET_MMAP_RESOURCE_CONTINUOUS_BUFFER		_IOW(PCIE_BASE, 0x32, struct pcie_ep_continuous_buffer_param)
 
 #endif

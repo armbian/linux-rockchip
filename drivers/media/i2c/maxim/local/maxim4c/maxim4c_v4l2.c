@@ -635,21 +635,21 @@ static int __maxim4c_start_stream(maxim4c_t *maxim4c)
 	u8 link_mask = 0, link_freq_idx = 0;
 	u8 video_pipe_mask = 0;
 
-#if MAXIM4C_LOCAL_DES_ON_OFF_EN
+	if (maxim4c->local_power_off_enable != 0) {
 #if MAXIM4C_TEST_PATTERN
-	ret = maxim4c_pattern_hw_init(maxim4c);
-	if (ret) {
-		dev_err(dev, "test pattern hw init error\n");
-		return ret;
-	}
+		ret = maxim4c_pattern_hw_init(maxim4c);
+		if (ret) {
+			dev_err(dev, "test pattern hw init error\n");
+			return ret;
+		}
 #else
-	ret = maxim4c_module_hw_init(maxim4c);
-	if (ret) {
-		dev_err(dev, "maxim4c module hw init error\n");
-		return ret;
-	}
+		ret = maxim4c_module_hw_init(maxim4c);
+		if (ret) {
+			dev_err(dev, "maxim4c module hw init error\n");
+			return ret;
+		}
 #endif /* MAXIM4C_TEST_PATTERN */
-#endif /* MAXIM4C_LOCAL_DES_ON_OFF_EN */
+	}
 
 	link_mask = maxim4c->gmsl_link.link_enable_mask;
 	video_pipe_mask = maxim4c->video_pipe.pipe_enable_mask;

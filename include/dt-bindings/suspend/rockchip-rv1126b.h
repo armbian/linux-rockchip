@@ -24,6 +24,7 @@
 #define RKPM_SLP_CLK_GT			BIT(16)
 #define RKPM_SLP_PMIC_LP		BIT(17)
 
+#define RKPM_SLP_32K_IO			BIT(23)
 #define RKPM_SLP_32K_EXT		BIT(24)
 #define RKPM_SLP_TIME_OUT_WKUP		BIT(25)
 #define RKPM_SLP_PMU_DBG		BIT(26)

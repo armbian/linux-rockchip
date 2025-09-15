@@ -6,6 +6,8 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/input/input.h>
 
+#include "rv1126b-aoa.dtsi"
+
 / {
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
@@ -18,7 +20,7 @@
 		rockchip,format = "i2s";
 		rockchip,mclk-fs-mapping = <256 1024>;
 		rockchip,cpu = <&sai2>;
-		rockchip,codec = <&audio_codec>, <&acdcdig_dsm>;
+		rockchip,codec = <&audio_codec_pmu>, <&audio_codec>, <&acdcdig_dsm>;
 	};
 
 	adc-keys {

@@ -235,7 +235,7 @@ static int gsl3678_config_data_id[] =
 	0,0,0,0,0,0,0,
 };
 
-unsigned int gsl1686_config_data_id[] = {
+static unsigned int gsl1686_config_data_id[] = {
 	0xc9259d,
 	0x200,
 	0,0,

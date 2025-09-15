@@ -24,9 +24,6 @@
 /* Maxim Deserializer Test Pattern */
 #define MAXIM4C_TEST_PATTERN		0
 
-/* Maxim Deserializer pwdn on/off enable */
-#define MAXIM4C_LOCAL_DES_ON_OFF_EN	0
-
 /* maxim4c i2c mux api */
 int maxim4c_i2c_mux_enable(maxim4c_t *maxim4c, u8 def_mask);
 int maxim4c_i2c_mux_disable(maxim4c_t *maxim4c);

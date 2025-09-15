@@ -13,8 +13,6 @@
 
 #include "rga_drv.h"
 
-#define RGA_CMD_REG_SIZE 256 /* 32 * 8 bit */
-
 enum job_flags {
 	RGA_JOB_DONE			= 1 << 0,
 	RGA_JOB_ASYNC			= 1 << 1,

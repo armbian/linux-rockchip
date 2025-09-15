@@ -335,6 +335,17 @@ static int mpp_show_device_load(struct seq_file *file, void *v)
 
 			if (!mpp)
 				continue;
+
+			if (mpp->load_info.load_time) {
+				s64 time_diff_us;
+
+				time_diff_us = ktime_us_delta(ktime_get(),
+							      mpp->load_info.load_time);
+				if ((time_diff_us > 2 * srv->load_interval * 1000) ||
+				    list_empty(&queue->session_attach))
+					mpp_dev_load_clear(mpp);
+			}
+
 			seq_printf(file, "%-25s load: %3d.%02d%% utilization: %3d.%02d%%\n",
 				   dev_name(mpp->dev),
 				   mpp->load_info.load, mpp->load_info.load_frac,

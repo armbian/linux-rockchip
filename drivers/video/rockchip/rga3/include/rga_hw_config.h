@@ -71,6 +71,8 @@ struct rga_hw_data {
 	unsigned int win_size;
 
 	enum rga_mmu mmu;
+
+	uint32_t cmd_reg_size;
 };
 
 extern const struct rga_hw_data rga3_data;

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config ROCKCHIP_AOA_MIDDLEWARE
+	tristate "Rockchip AOA Middleware Driver"
+	help
+	  Enable this configuration option to enable notify (AOA/DMA) events
+	  on driver for user applications.

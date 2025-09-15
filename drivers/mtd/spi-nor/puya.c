@@ -35,6 +35,11 @@ static const struct flash_info puya_parts[] = {
 		.flags = SPI_NOR_4B_OPCODES,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
 	}, {
+		.id = SNOR_ID(0x85, 0x65, 0x17),
+		.name = "PY25Q64LB",
+		.size = SZ_8M,
+		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+	}, {
 		.id = SNOR_ID(0x85, 0x65, 0x18),
 		.name = "PY25Q128LA",
 		.size = SZ_16M,

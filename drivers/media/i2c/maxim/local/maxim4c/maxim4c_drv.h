@@ -104,6 +104,7 @@ typedef struct maxim4c {
 
 	u32 chipid;
 
+	bool local_power_off_enable;
 	bool remote_routing_to_isp;
 
 	bool streaming;

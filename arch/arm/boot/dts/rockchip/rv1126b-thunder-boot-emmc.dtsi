@@ -23,8 +23,8 @@
 };
 
 &reserved_memory {
-	mmc_ecsd: mmc@47fffe00 {
-		reg = <0x47fffe00 0x00001000>;
+	mmc_ecsd: mmc@47fff000 {
+		reg = <0x47fff000 0x00001000>;
 	};
 
 	mmc_idmac: mmc@48000000 {

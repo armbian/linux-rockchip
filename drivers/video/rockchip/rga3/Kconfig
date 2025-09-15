@@ -34,4 +34,27 @@ config ROCKCHIP_RGA_DEBUGGER
 	help
 	  Enabling the debugger of multi RGA, you can use procfs and debugfs for debugging.
 
+config ROCKCHIP_RGA_GENPOOL
+	bool "Use genpool to manage cmd_buf"
+	default n
+	help
+	  Use genpool to manage cmd_buf on each scheduler, default use dmapool.
+
+	  When using genpool to manage cmd_buf, the total cmd_buf count is
+	  ROCKCHIP_RGA_CMD_BUF_COUNT. which represents the maximum number of
+	  jobs that can be allocated. If the number of active jobs exceeds
+	  this number, new jobs cannot be allocated.
+
+	  Therefore, this config should be used with caution, and using the default
+	  dmapool will not cause jobs cannot be allocated.
+
+config ROCKCHIP_RGA_CMD_BUF_COUNT
+	int "Number of pre-allocated command buffers for RGA"
+	depends on ROCKCHIP_RGA_GENPOOL
+	range 4 256
+	default 32
+	help
+	  This option configures the number of command buffers (cmd_buf) that are
+	  pre-allocated by the RGA driver during initialization.
+
 endif

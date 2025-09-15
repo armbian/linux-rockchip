@@ -8,7 +8,11 @@
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
+		pinctrl-0 = <&wifi_enable_h &rtc_32k_pins>;
+
+		//32.768k
+		clocks = <&xin32k>;
+		clock-names = "ext_clock";
 
 		/*
 		 * On the module itself this is one of these (depending
@@ -129,6 +133,10 @@
 };
 
 &acodec_sound {
+	status = "okay";
+};
+
+&audio_codec_pmu {
 	status = "okay";
 };
 
@@ -467,6 +475,10 @@
 
 &rknpu {
 	rknpu-supply = <&vdd_npu>;
+};
+
+&rkvenc {
+	venc-supply = <&vdd_logic>;
 };
 
 &route_dsi {

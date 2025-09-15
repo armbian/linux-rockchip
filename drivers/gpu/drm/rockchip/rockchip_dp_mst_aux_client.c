@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <drm/drm_edid.h>

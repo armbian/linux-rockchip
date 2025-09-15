@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "arm64/rockchip/rv1126b.dtsi"
+#include "arm64/rockchip/rv1126b-evb.dtsi"
+#include "arm64/rockchip/rv1126b-evb2-v10.dtsi"
+#include "rv1126b-thunder-boot-cam.dtsi"
+#include "rv1126b-thunder-boot-emmc.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V10 TB 800W eMMC Board";
+	compatible = "rockchip,rv1126b-evb2-v10-tb-800w-emmc", "rockchip,rv1126b";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	no-sdio;
+	no-sd;
+	status = "okay";
+};
+
+&fspi0 {
+	status = "disabled";
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc850sl: sc850sl@30 {
+		compatible = "smartsens,sc850sl";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&ramdisk_r {
+	reg = <0x48c40000 (60 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x4c840000 (30 * 0x00100000)>;
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * e.g. 2688x1520: 0x14c8000 + 0x9000
+	 * e.g. 3840x2160: 0x2814000 + 0x9000
+	 */
+	reg = <0x41320000 0x281d000>;
+};

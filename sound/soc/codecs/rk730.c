@@ -777,7 +777,7 @@ static int rk730_dai_hw_params(struct snd_pcm_substream *substream,
 				params_rate(params));
 			return -EINVAL;
 		}
-		dev_info(component->dev, "%s: Lookup mclk:%d for rate:%d\n",
+		dev_dbg(component->dev, "%s: Lookup mclk:%d for rate:%d\n",
 			 __func__, rk730->sysclk, params_rate(params));
 
 		if (clk_set_rate(rk730->mclk, rk730->sysclk) < 0) {
@@ -798,7 +798,7 @@ static int rk730_dai_hw_params(struct snd_pcm_substream *substream,
 			params_rate(params), rk730->sysclk);
 		return coeff;
 	}
-	dev_info(component->dev, "%s:index %d  mclk=%d rate=%d\n",
+	dev_dbg(component->dev, "%s:index %d  mclk=%d rate=%d\n",
 		 __func__, coeff, coeff_div[coeff].mclk, coeff_div[coeff].rate);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {

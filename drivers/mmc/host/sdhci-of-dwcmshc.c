@@ -654,6 +654,11 @@ static void rk35xx_sdhci_cqe_enable(struct mmc_host *mmc)
 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
+	/* Set Send Status Command Idle Timer to 10.66us (256 * 1 / 24) */
+	reg = sdhci_readl(host, dwc_priv->vendor_specific_area2 + CQHCI_SSC1);
+	reg = (reg & ~CQHCI_SSC1_CIT_MASK) | 0x0100;
+	sdhci_writel(host, reg, dwc_priv->vendor_specific_area2 + CQHCI_SSC1);
+
 	reg = sdhci_readl(host, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
 	reg |= CQHCI_ENABLE;
 	sdhci_writel(host, reg, dwc_priv->vendor_specific_area2 + CQHCI_CFG);
@@ -765,10 +770,11 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 
 	sdhci_set_clock(host, clock);
 
-	/* Disable cmd conflict check */
+	/* Disable cmd conflict check and disable internal clock gate */
 	reg = dwc_priv->vendor_specific_area1 + DWCMSHC_HOST_CTRL3;
 	extra = sdhci_readl(host, reg);
 	extra &= ~BIT(0);
+	extra |= BIT(4);
 	sdhci_writel(host, extra, reg);
 
 	/* Disable output clock while config DLL */

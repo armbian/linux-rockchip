@@ -53,13 +53,14 @@ extern int rkavsp_log_level;
 
 #define AVSP_NAME                "rockchip_avsp"
 #define AVSP_MAX_BUS_CLK          3
+#define RKAVSP_API_VERSION        KERNEL_VERSION(0, 1, 0)
+#define RKAVSP_PRY_MAX            6
 
 struct rkavsp_buf {
 	int fd;
 	struct file *file;
 	struct list_head list;
 	struct vb2_buffer vb;
-	struct vb2_queue vb2_queue;
 	struct dma_buf *dbuf;
 	struct dma_buf_attachment *dba;
 	void *mem;
@@ -75,6 +76,45 @@ struct avsp_match_data {
 	int num_irqs;
 };
 
+struct rkavsp_pix_format {
+	u32 bandnum;
+	u32 width;
+	u32 height;
+	u32 mode;
+	u32 offset;
+	u32 stride_y;
+	u32 stride_c;
+};
+
+struct rkavsp_pix_format_pry {
+	u32 width[RKAVSP_PRY_MAX];
+	u32 height[RKAVSP_PRY_MAX];
+	u32 mode;
+	u32 offset;
+	u32 bytesperline;
+};
+
+struct rkavsp_frame_info {
+	u32 fs_seq;
+	u64 fs_timestamp;
+};
+
+struct rkavsp_debug_info {
+	u32 interval;
+	u32 frame_timeout_cnt;
+};
+
+enum rkfavsp_state {
+	RKAVSP_DCP_FRAME_END = BIT(1),
+	RKAVSP_DCP_STOP = BIT(16),
+	RKAVSP_DCP_START = BIT(17),
+	RKAVSP_DCP_ERROR = BIT(18),
+	RKAVSP_RCS_FRAME_END = BIT(1),
+	RKAVSP_RCS_STOP = BIT(16),
+	RKAVSP_RCS_START = BIT(17),
+	RKAVSP_RCS_ERROR = BIT(18),
+};
+
 struct rkavsp_dev {
 	struct device *dev;
 	struct regmap *grf;
@@ -82,6 +122,7 @@ struct rkavsp_dev {
 	struct completion rcs_cmpl;
 	struct list_head list;
 	const struct vb2_mem_ops *mem_ops;
+	struct vb2_queue vb2_queue;
 	void __iomem *base;
 	struct reset_control *reset;
 	const struct avsp_match_data *match_data;
@@ -90,13 +131,30 @@ struct rkavsp_dev {
 	int clk_rate_tbl_num;
 	int clks_num;
 
-	spinlock_t dcp_irq_lock;
-	spinlock_t rcs_irq_lock;
 	struct mutex dev_lock;
 	struct mutex dcp_lock;
 	struct mutex rcs_lock;
 	struct miscdevice mdev;
 	bool is_dma_config;
+	struct proc_dir_entry *procfs;
+	unsigned int dcp_isr_cnt;
+	unsigned int dcp_err_cnt;
+	unsigned int rcs_isr_cnt;
+	unsigned int rcs_err_cnt;
+	unsigned int in_seq;
+	unsigned int out_seq;
+	unsigned int dcp_state;
+	unsigned int rcs_state;
+	struct rkavsp_frame_info dcp_prev_frame;
+	struct rkavsp_frame_info dcp_curr_frame;
+	struct rkavsp_debug_info dcp_debug;
+	struct rkavsp_pix_format dcp_in_fmt;
+	struct rkavsp_pix_format_pry dcp_out_fmt;
+	struct rkavsp_frame_info rcs_prev_frame;
+	struct rkavsp_frame_info rcs_curr_frame;
+	struct rkavsp_debug_info rcs_debug;
+	struct rkavsp_pix_format rcs_in_fmt;
+	struct rkavsp_pix_format rcs_out_fmt;
 
 };
 

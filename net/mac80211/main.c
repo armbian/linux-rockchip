@@ -1598,6 +1598,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				   "Failed to add default virtual iface\n");
 	}
 
+	/* add one default AP interface if supported */
+	if (local->hw.wiphy->interface_modes & (BIT(NL80211_IFTYPE_P2P_GO) |
+	    BIT(NL80211_IFTYPE_P2P_CLIENT)) && !ieee80211_hw_check(hw, NO_AUTO_VIF)) {
+		struct vif_params params = {0};
+
+		result = ieee80211_if_add(local, "p2p%d", NET_NAME_ENUM, NULL,
+					  NL80211_IFTYPE_STATION, &params);
+		if (result)
+			wiphy_warn(local->hw.wiphy,
+				   "Failed to add p2p virtual iface\n");
+	}
+
 	wiphy_unlock(hw->wiphy);
 	rtnl_unlock();
 

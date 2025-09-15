@@ -147,6 +147,8 @@ struct rkisp_isp_subdev {
 	enum v4l2_quantization quantization;
 	enum v4l2_colorspace colorspace;
 	struct frame_debug_info dbg;
+	struct frame_debug_info dbg_be;
+	struct frame_debug_info dbg_l2;
 };
 
 struct rkisp_emd_data {

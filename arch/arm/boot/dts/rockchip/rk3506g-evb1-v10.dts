@@ -20,15 +20,6 @@
 		status = "okay";
 	};
 
-	sai_dais: sai-dais {
-		status = "okay";
-		compatible = "rockchip,multi-dais";
-		dais = <&sai1>, <&sai4>;
-		capture,channel-mapping = <2 2>;
-		playback,channel-mapping = <2 0>;
-		mclk-fs-mapping = <256 1024>;
-	};
-
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -121,6 +112,14 @@
 			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&rk730 {
+	status = "okay";
+};
+
+&rk730_sound {
+	status = "okay";
 };
 
 &route_dsi {

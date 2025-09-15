@@ -39,19 +39,70 @@
 
 #define RK_PCIE_DBG			0
 
+/* PCIe CLIENT Registers */
+#define PCIE_CLIENT_GENERAL_CONTROL	0x0
+#define  PCIE_CLIENT_ENABLE_LTSSM	HIWORD_UPDATE_BIT(0xc)
+
+#define PCIE_CLIENT_INTR_STATUS_ERR	0xC
+#define PCIE_CLIENT_INTR_STATUS_MISC	0x10
+
+#define PCIE_CLIENT_INTR_MASK		0x24
+#define  PCIE_LTSSM_APP_DLY1_EN		BIT(0)
+#define  PCIE_LTSSM_APP_DLY2_EN		BIT(1)
+#define  PCIE_LTSSM_APP_DLY1_DONE	BIT(2)
+#define  PCIE_LTSSM_APP_DLY2_DONE	BIT(3)
+#define  PCIE_LTSSM_ENABLE_ENHANCE      BIT(4)
+
+#define PCIE_CLIENT_MSI_GEN_CON		0x38
+#define  PCIe_CLIENT_MSI_OBJ_IRQ	0	/* rockchip ep object special irq */
+
+#define PCIE_CLIENT_GENERAL_DEBUG	0x104
+#define PCIE_CLIENT_CDM_RASDES_TBA_INFO_CMN 0x154
+#define PCIE_CLIENT_HOT_RESET_CTRL      0x180
+
+#define PCIE_CLIENT_LTSSM_STATUS	0x300
+#define  PCIE_SMLH_LINKUP		BIT(16)
+#define  PCIE_RDLH_LINKUP		BIT(17)
+
 #define PCIE_CLIENT_DBG_FIFO_MODE_CON	0x310
+#define  PCIE_CLIENT_DBF_EN		0xffff0007
 #define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0 0x320
 #define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1 0x324
 #define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0 0x328
 #define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1 0x32c
 #define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
-#define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
-#define PCIE_CLIENT_DBF_EN		0xffff0007
+#define  PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
+
+/* PCIe DBI Registers */
+#define PCIE_TYPE0_STATUS_COMMAND_REG	0x4
+
+#define PCIE_TYPE0_HDR_DBI2_OFFSET	0x100000
+
+#define PCIE_ELBI_LOCAL_BASE		0x200e00
+#define  PCIE_ELBI_REG_NUM		0x2
+#define PCIE_ELBI_APP_ELBI_INT_GEN0	0x0
+#define  PCIE_ELBI_APP_ELBI_INT_GEN0_IRQ_USER	BIT(0)
+#define PCIE_ELBI_APP_ELBI_INT_GEN1	0x4
+#define PCIE_ELBI_LOCAL_ENABLE_OFF	0x8
+#define PCIE_ELBI_USER_DATA_OFF		0x10
 
 #define PCIE_DMA_OFFSET			0x380000
-
+#define  PCIE_DMA_CHANEL_MAX_NUM	2
 #define PCIE_DMA_CTRL_OFF		0x8
 #define PCIE_DMA_WR_ENB			0xc
+#define PCIE_DMA_WR_WEILO		0x18
+#define PCIE_DMA_WR_WEIHI		0x1c
+#define PCIE_DMA_WR_DOORBELL		0x10
+#define PCIE_DMA_RD_ENB			0x2c
+#define PCIE_DMA_RD_DOORBELL		0x30
+#define PCIE_DMA_RD_WEILO		0x38
+#define PCIE_DMA_RD_WEIHI		0x3c
+#define PCIE_DMA_WR_INT_STATUS		0x4c
+#define PCIE_DMA_WR_INT_MASK		0x54
+#define PCIE_DMA_WR_INT_CLEAR		0x58
+#define PCIE_DMA_RD_INT_STATUS		0xa0
+#define PCIE_DMA_RD_INT_MASK		0xa8
+#define PCIE_DMA_RD_INT_CLEAR		0xac
 #define PCIE_DMA_WR_CTRL_LO		0x200
 #define PCIE_DMA_WR_CTRL_HI		0x204
 #define PCIE_DMA_WR_XFERSIZE		0x208
@@ -59,14 +110,6 @@
 #define PCIE_DMA_WR_SAR_PTR_HI		0x210
 #define PCIE_DMA_WR_DAR_PTR_LO		0x214
 #define PCIE_DMA_WR_DAR_PTR_HI		0x218
-#define PCIE_DMA_WR_WEILO		0x18
-#define PCIE_DMA_WR_WEIHI		0x1c
-#define PCIE_DMA_WR_DOORBELL		0x10
-#define PCIE_DMA_WR_INT_STATUS		0x4c
-#define PCIE_DMA_WR_INT_MASK		0x54
-#define PCIE_DMA_WR_INT_CLEAR		0x58
-
-#define PCIE_DMA_RD_ENB			0x2c
 #define PCIE_DMA_RD_CTRL_LO		0x300
 #define PCIE_DMA_RD_CTRL_HI		0x304
 #define PCIE_DMA_RD_XFERSIZE		0x308
@@ -74,54 +117,10 @@
 #define PCIE_DMA_RD_SAR_PTR_HI		0x310
 #define PCIE_DMA_RD_DAR_PTR_LO		0x314
 #define PCIE_DMA_RD_DAR_PTR_HI		0x318
-#define PCIE_DMA_RD_WEILO		0x38
-#define PCIE_DMA_RD_WEIHI		0x3c
-#define PCIE_DMA_RD_DOORBELL		0x30
-#define PCIE_DMA_RD_INT_STATUS		0xa0
-#define PCIE_DMA_RD_INT_MASK		0xa8
-#define PCIE_DMA_RD_INT_CLEAR		0xac
-
-#define PCIE_DMA_CHANEL_MAX_NUM		2
-
-#define PCIE_CLIENT_RC_MODE		HIWORD_UPDATE_BIT(0x40)
-#define PCIE_CLIENT_ENABLE_LTSSM	HIWORD_UPDATE_BIT(0xc)
-#define PCIE_CLIENT_INTR_STATUS_MISC	0x10
-#define PCIE_SMLH_LINKUP		BIT(16)
-#define PCIE_RDLH_LINKUP		BIT(17)
-#define PCIE_L0S_ENTRY			0x11
-#define PCIE_CLIENT_GENERAL_CONTROL	0x0
-#define PCIE_CLIENT_GENERAL_DEBUG	0x104
-#define PCIE_CLIENT_HOT_RESET_CTRL      0x180
-#define PCIE_CLIENT_LTSSM_STATUS	0x300
-#define PCIE_CLIENT_INTR_MASK		0x24
-#define PCIE_LTSSM_APP_DLY1_EN		BIT(0)
-#define PCIE_LTSSM_APP_DLY2_EN		BIT(1)
-#define PCIE_LTSSM_APP_DLY1_DONE	BIT(2)
-#define PCIE_LTSSM_APP_DLY2_DONE	BIT(3)
-#define PCIE_LTSSM_ENABLE_ENHANCE       BIT(4)
-#define PCIE_CLIENT_MSI_GEN_CON		0x38
-
-#define PCIe_CLIENT_MSI_OBJ_IRQ		0	/* rockchip ep object special irq */
-
-#define PCIE_ELBI_REG_NUM		0x2
-#define PCIE_ELBI_LOCAL_BASE		0x200e00
-
-#define PCIE_ELBI_APP_ELBI_INT_GEN0		0x0
-#define PCIE_ELBI_APP_ELBI_INT_GEN0_IRQ_USER	BIT(0)
-
-#define PCIE_ELBI_APP_ELBI_INT_GEN1		0x4
-
-#define PCIE_ELBI_LOCAL_ENABLE_OFF	0x8
-
-#define PCIE_ELBI_USER_DATA_OFF	0x10
-
-#define PCIE_DIRECT_SPEED_CHANGE	BIT(17)
-
-#define PCIE_TYPE0_STATUS_COMMAND_REG	0x4
-#define PCIE_TYPE0_HDR_DBI2_OFFSET	0x100000
 
 #define PCIE_DBI_SIZE			0x400000
 
+/* PCIe EP object */
 #define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00000001
 
 #define PCIE_BAR_MAX_NUM		6
@@ -131,6 +130,7 @@
 
 struct rockchip_pcie {
 	struct dw_pcie			pci;
+
 	void __iomem			*apb_base;
 	struct phy			*phy;
 	struct clk_bulk_data		*clks;
@@ -150,16 +150,25 @@ struct rockchip_pcie {
 	dma_addr_t			ib_target_address[PCIE_BAR_MAX_NUM];
 	u32				ib_target_size[PCIE_BAR_MAX_NUM];
 	void				*ib_target_base[PCIE_BAR_MAX_NUM];
+
+	/* object */
 	struct dma_trx_obj		*dma_obj;
 	phys_addr_t			dbi_base_physical;
 	struct pcie_ep_obj_info		*obj_info;
 	enum pcie_ep_mmap_resource	cur_mmap_res;
-	int				irq;
-	struct workqueue_struct		*hot_rst_wq;
-	struct work_struct		hot_rst_work;
 	struct mutex			file_mutex;
 	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	wait_queue_head_t wq_head;
+	struct rockchip_pcie_misc_dev	*pcie_dev;
+
+	/* interrupt */
+	int				irq;
+	struct workqueue_struct		*hot_rst_wq;
+	struct work_struct		hot_rst_work;
+
+	/* debugfs */
+	struct dentry			*debugfs;
+	u32				rasdes_off;
 };
 
 struct rockchip_pcie_misc_dev {
@@ -221,6 +230,11 @@ static void *rockchip_pcie_map_kernel(phys_addr_t start, size_t len)
 	vfree(p);
 
 	return vaddr;
+}
+
+static void rockchip_pcie_unmap_kernel(void *vaddr)
+{
+	vunmap(vaddr);
 }
 
 static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
@@ -352,6 +366,15 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	return 0;
 }
 
+static void rockchip_pcie_release_io_resource(struct rockchip_pcie *rockchip)
+{
+	int i;
+
+	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
+		if (rockchip->ib_target_base[i])
+			rockchip_pcie_unmap_kernel(rockchip->ib_target_base[i]);
+}
+
 static int rockchip_pcie_get_resource(struct platform_device *pdev,
 				      struct rockchip_pcie *rockchip)
 {
@@ -401,6 +424,11 @@ static int rockchip_pcie_get_resource(struct platform_device *pdev,
 	return ret;
 }
 
+static void rockchip_pcie_release_resource(struct rockchip_pcie *rockchip)
+{
+	rockchip_pcie_release_io_resource(rockchip);
+}
+
 static int rockchip_pci_find_ext_capability(struct rockchip_pcie *rockchip, int cap)
 {
 	u32 header;
@@ -434,6 +462,40 @@ static int rockchip_pci_find_ext_capability(struct rockchip_pcie *rockchip, int 
 	}
 
 	return 0;
+}
+
+static int rockchip_pcie_prog_inbound_atu_unroll(struct rockchip_pcie *rockchip, u8 func_no,
+						 int index, int bar, u64 cpu_addr,
+						 int type)
+{
+	u32 retries, val;
+	struct dw_pcie *pci = &rockchip->pci;
+	u32 offset = DEFAULT_DBI_ATU_OFFSET + PCIE_ATU_UNROLL_BASE(PCIE_ATU_REGION_DIR_IB, index);
+
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_LOWER_TARGET, lower_32_bits(cpu_addr));
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_UPPER_TARGET, upper_32_bits(cpu_addr));
+
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL1, type |
+				 PCIE_ATU_FUNC_NUM(func_no));
+	dw_pcie_writel_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL2,
+				 PCIE_ATU_FUNC_NUM_MATCH_EN |
+				 PCIE_ATU_ENABLE |
+				 PCIE_ATU_BAR_MODE_ENABLE | (bar << 8));
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_dbi(pci, offset + PCIE_ATU_UNR_REGION_CTRL2);
+		if (val & PCIE_ATU_ENABLE)
+			return 0;
+
+		msleep(LINK_WAIT_IATU);
+	}
+	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+
+	return -EBUSY;
 }
 
 static int rockchip_pcie_ep_set_bar_flag(struct rockchip_pcie *rockchip, enum pci_barno barno,
@@ -516,7 +578,7 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip, enum pci_bar
 		return -EINVAL;
 	}
 
-	ret = dw_pcie_prog_ep_inbound_atu(pci, 0, free_win, PCIE_ATU_TYPE_MEM, cpu_addr, bar);
+	ret = rockchip_pcie_prog_inbound_atu_unroll(rockchip, 0, free_win, bar, cpu_addr, PCIE_ATU_TYPE_MEM);
 	if (ret < 0) {
 		dev_err(pci->dev, "Failed to program IB window\n");
 		return ret;
@@ -877,15 +939,16 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	u32 reg, val;
 	int ret, retries, i;
 
-	/* Detecting ATU features to achieve DWC ATU interface development */
-	dw_pcie_iatu_detect(&rockchip->pci);
-
 	if (dw_pcie_link_up(&rockchip->pci))
 		goto already_linkup;
 	else
 		dev_info(dev, "Configure complete registers\n");
 
-	dw_pcie_setup(&rockchip->pci);
+	ret = dw_pcie_ep_init_registers(&rockchip->pci.ep);
+	if (ret) {
+		dev_err(dev, "Failed to complete initialization: %d\n", ret);
+		return ret;
+	}
 
 	rockchip_pcie_hide_broken_ats_cap(pci);
 
@@ -909,15 +972,6 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	dw_pcie_dbi_ro_wr_dis(&rockchip->pci);
 
 	rockchip_pcie_resize_bar_nsticky(rockchip);
-
-	/* Enable rasdes */
-	reg = rockchip_pci_find_ext_capability(rockchip, PCI_EXT_CAP_ID_VNDR);
-	if (!reg) {
-		dev_err(dev, "Not able to find RASDES CAP!\n");
-		return reg;
-	}
-	dw_pcie_writel_dbi(&rockchip->pci, reg + 8, 0x1c);
-	dw_pcie_writel_dbi(&rockchip->pci, reg + 8, 0x3);
 
 	/* Setting EP mode */
 	rockchip_pcie_writel_apb(rockchip, 0xf00000, 0x0);
@@ -990,6 +1044,16 @@ already_linkup:
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
 	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
 
+	/* Enable RASDES Error event by default */
+	rockchip->rasdes_off = dw_pcie_find_ext_capability(&rockchip->pci, PCI_EXT_CAP_ID_VNDR);
+	if (!rockchip->rasdes_off) {
+		dev_err(dev, "Unable to find RASDES CAP!\n");
+		return -ENODEV;
+	} else {
+		dw_pcie_writel_dbi(&rockchip->pci, rockchip->rasdes_off + 8, 0x1c);
+		dw_pcie_writel_dbi(&rockchip->pci, rockchip->rasdes_off + 8, 0x3);
+	}
+
 	memset(rockchip->ib_window_map, 0, BITS_TO_LONGS(rockchip->num_ib_windows) * sizeof(long));
 	memset(rockchip->ob_window_map, 0, BITS_TO_LONGS(rockchip->num_ob_windows) * sizeof(long));
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
@@ -1022,6 +1086,11 @@ static int rockchip_pcie_config_irq_and_works(struct rockchip_pcie *rockchip)
 	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKUP);
 
 	return 0;
+}
+
+static void rockchip_pcie_deinit_irq_and_works(struct rockchip_pcie *rockchip)
+{
+	destroy_workqueue(rockchip->hot_rst_wq);
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
@@ -1169,19 +1238,26 @@ static int rockchip_pcie_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dm
 
 static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 {
-	struct dw_pcie *pci = &rockchip->pci;
-
-	rockchip->dma_obj = pcie_dw_dmatest_register(pci->dev, true);
-	if (IS_ERR(rockchip->dma_obj)) {
-		dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
-		return -EINVAL;
-	} else if (rockchip->dma_obj) {
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST)) {
+		rockchip->dma_obj = pcie_dw_dmatest_register(rockchip->pci.dev, true);
+		if (IS_ERR(rockchip->dma_obj)) {
+			dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
+			return -EINVAL;
+		}
+	}
+	if (rockchip->dma_obj) {
 		rockchip->dma_obj->start_dma_func = rockchip_pcie_start_dma_dwc;
 		rockchip->dma_obj->config_dma_func = rockchip_pcie_config_dma_dwc;
 		rockchip->dma_obj->get_dma_status = rockchip_pcie_get_dma_status;
 	}
 
 	return 0;
+}
+
+static void rockchip_pcie_deinit_dma_trx(struct rockchip_pcie *rockchip)
+{
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST) && rockchip->dma_obj)
+		pcie_dw_dmatest_unregister(rockchip->dma_obj);
 }
 
 static int pcie_ep_open(struct inode *inode, struct file *file)
@@ -1369,10 +1445,167 @@ static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 	}
 
 	pcie_dev->pcie = rockchip;
+	rockchip->pcie_dev = pcie_dev;
 
 	dev_info(rockchip->pci.dev, "register misc device pcie_ep\n");
 
 	return 0;
+}
+
+static void rockchip_pcie_delete_misc(struct rockchip_pcie *rockchip)
+{
+	misc_deregister(&rockchip->pcie_dev->dev);
+}
+
+#define RAS_DES_EVENT(ss, v) \
+do { \
+	dw_pcie_writel_dbi(&rockchip->pci, cap_base + 8, v); \
+	seq_printf(s, ss "0x%x\n", dw_pcie_readl_dbi(&rockchip->pci, cap_base + 0xc)); \
+} while (0)
+
+static int rockchip_pcie_rasdes_show(struct seq_file *s, void *unused)
+{
+	struct rockchip_pcie *rockchip = s->private;
+	int cap_base;
+	u32 val = rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_CDM_RASDES_TBA_INFO_CMN);
+	char *pm;
+
+	if (val & BIT(6))
+		pm = "In training";
+	else if (val & BIT(5))
+		pm = "L1.2";
+	else if (val & BIT(4))
+		pm = "L1.1";
+	else if (val & BIT(3))
+		pm = "L1";
+	else if (val & BIT(2))
+		pm = "L0";
+	else if (val & 0x3)
+		pm = (val == 0x3) ? "L0s" : (val & BIT(1) ? "RX L0s" : "TX L0s");
+	else
+		pm = "Invalid";
+
+	seq_printf(s, "INTR_ERR: 0x%x\n", rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_INTR_STATUS_ERR));
+
+	seq_printf(s, "Common event signal status: 0x%s\n", pm);
+
+	cap_base = rockchip->rasdes_off;
+
+	seq_printf(s, "CTRL: 0x%x\n", dw_pcie_readl_dbi(&rockchip->pci, cap_base + 8));
+	RAS_DES_EVENT("EBUF Overflow: ", 0);
+	RAS_DES_EVENT("EBUF Under-run: ", 0x0010000);
+	RAS_DES_EVENT("Decode Error: ", 0x0020000);
+	RAS_DES_EVENT("Running Disparity Error: ", 0x0030000);
+	RAS_DES_EVENT("SKP OS Parity Error: ", 0x0040000);
+	RAS_DES_EVENT("SYNC Header Error: ", 0x0050000);
+	RAS_DES_EVENT("CTL SKP OS Parity Error: ", 0x0060000);
+	RAS_DES_EVENT("Detect EI Infer: ", 0x1050000);
+	RAS_DES_EVENT("Receiver Error: ", 0x1060000);
+	RAS_DES_EVENT("Rx Recovery Request: ", 0x1070000);
+	RAS_DES_EVENT("N_FTS Timeout: ", 0x1080000);
+	RAS_DES_EVENT("Framing Error: ", 0x1090000);
+	RAS_DES_EVENT("Deskew Error: ", 0x10a0000);
+	RAS_DES_EVENT("BAD TLP: ", 0x2000000);
+	RAS_DES_EVENT("LCRC Error: ", 0x2010000);
+	RAS_DES_EVENT("BAD DLLP: ", 0x2020000);
+	RAS_DES_EVENT("Replay Number Rollover: ", 0x2030000);
+	RAS_DES_EVENT("Replay Timeout: ", 0x2040000);
+	RAS_DES_EVENT("Rx Nak DLLP: ", 0x2050000);
+	RAS_DES_EVENT("Tx Nak DLLP: ", 0x2060000);
+	RAS_DES_EVENT("Retry TLP: ", 0x2070000);
+	RAS_DES_EVENT("FC Timeout: ", 0x3000000);
+	RAS_DES_EVENT("Poisoned TLP: ", 0x3010000);
+	RAS_DES_EVENT("ECRC Error: ", 0x3020000);
+	RAS_DES_EVENT("Unsupported Request: ", 0x3030000);
+	RAS_DES_EVENT("Completer Abort: ", 0x3040000);
+	RAS_DES_EVENT("Completion Timeout: ", 0x3050000);
+
+	return 0;
+}
+static int rockchip_pcie_rasdes_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rockchip_pcie_rasdes_show,
+					   inode->i_private);
+}
+
+static ssize_t rockchip_pcie_rasdes_write(struct file *file,
+					  const char __user *ubuf,
+					  size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct rockchip_pcie *pcie = s->private;
+	char buf[32];
+	int cap_base;
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	cap_base = pcie->rasdes_off;
+
+	if (!strncmp(buf, "enable", 6)) {
+		dev_info(pcie->pci.dev, "RAS DES Event: Enable ALL!\n");
+		dw_pcie_writel_dbi(&pcie->pci, cap_base + 8, 0x1c);
+		dw_pcie_writel_dbi(&pcie->pci, cap_base + 8, 0x3);
+	} else if (!strncmp(buf, "disable", 7)) {
+		dev_info(pcie->pci.dev, "RAS DES Event: disable ALL!\n");
+		dw_pcie_writel_dbi(&pcie->pci, cap_base + 8, 0x14);
+	} else if (!strncmp(buf, "clear", 5)) {
+		dev_info(pcie->pci.dev, "RAS DES Event: Clear ALL!\n");
+		dw_pcie_writel_dbi(&pcie->pci, cap_base + 8, 0x3);
+	} else {
+		dev_info(pcie->pci.dev, "Not support command!\n");
+	}
+
+	return count;
+}
+
+static const struct file_operations rockchip_pcie_rasdes_ops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_pcie_rasdes_open,
+	.read = seq_read,
+	.write = rockchip_pcie_rasdes_write,
+};
+
+static int rockchip_pcie_fifo_show(struct seq_file *s, void *data)
+{
+	struct rockchip_pcie *pcie = (struct rockchip_pcie *)dev_get_drvdata(s->private);
+	u32 loop;
+
+	seq_printf(s, "ltssm = 0x%x\n",
+		   rockchip_pcie_readl_apb(pcie, PCIE_CLIENT_LTSSM_STATUS));
+	for (loop = 0; loop < 64; loop++)
+		seq_printf(s, "fifo_status = 0x%x\n",
+			   rockchip_pcie_readl_apb(pcie, PCIE_CLIENT_DBG_FIFO_STATUS));
+
+	return 0;
+}
+
+static void rockchip_pcie_debugfs_exit(struct rockchip_pcie *pcie)
+{
+	debugfs_remove_recursive(pcie->debugfs);
+	pcie->debugfs = NULL;
+}
+
+static int rockchip_pcie_debugfs_init(struct rockchip_pcie *pcie)
+{
+	struct dentry *file;
+
+	pcie->debugfs = debugfs_create_dir(dev_name(pcie->pci.dev), NULL);
+
+	debugfs_create_devm_seqfile(pcie->pci.dev, "dumpfifo",
+				    pcie->debugfs,
+				    rockchip_pcie_fifo_show);
+	file = debugfs_create_file("err_event", 0644, pcie->debugfs,
+				   pcie, &rockchip_pcie_rasdes_ops);
+	if (!file)
+		goto remove;
+
+	return 0;
+
+remove:
+	rockchip_pcie_debugfs_exit(pcie);
+
+	return -ENOMEM;
 }
 
 static int rockchip_pcie_ep_probe(struct platform_device *pdev)
@@ -1399,7 +1632,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	ret = rockchip_pcie_init_host(rockchip);
 	if (ret) {
 		dev_err(dev, "Failed to init host!\n");
-		return ret;
+		goto release_res;
 	}
 
 	ret = rockchip_pcie_config_host(rockchip);
@@ -1417,16 +1650,38 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	ret = rockchip_pcie_init_dma_trx(rockchip);
 	if (ret) {
 		dev_err(dev, "Failed to initial dma trx!\n");
-		goto deinit_host;
+		goto deinit_irq_and_works;
 	}
 
 	rockchip_pcie_add_misc(rockchip);
 
+	if (IS_ENABLED(CONFIG_DEBUG_FS) && rockchip->rasdes_off) {
+		ret = rockchip_pcie_debugfs_init(rockchip);
+		if (ret < 0)
+			dev_err(dev, "failed to setup debugfs: %d\n", ret);
+	}
+
 	return 0;
 
+deinit_irq_and_works:
+	rockchip_pcie_deinit_irq_and_works(rockchip);
 deinit_host:
 	rockchip_pcie_deinit_host(rockchip);
+release_res:
+	rockchip_pcie_release_resource(rockchip);
 	return ret;
+}
+
+static void rockchip_pcie_ep_remove(struct platform_device *pdev)
+{
+	struct rockchip_pcie *rockchip = platform_get_drvdata(pdev);
+
+	rockchip_pcie_debugfs_exit(rockchip);
+	rockchip_pcie_delete_misc(rockchip);
+	rockchip_pcie_deinit_dma_trx(rockchip);
+	rockchip_pcie_deinit_irq_and_works(rockchip);
+	rockchip_pcie_deinit_host(rockchip);
+	rockchip_pcie_release_resource(rockchip);
 }
 
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
@@ -1479,6 +1734,7 @@ static struct platform_driver rk_plat_pcie_driver = {
 		.pm = &rockchip_dw_pcie_pm_ops,
 	},
 	.probe = rockchip_pcie_ep_probe,
+	.remove = rockchip_pcie_ep_remove,
 };
 
 module_platform_driver(rk_plat_pcie_driver);

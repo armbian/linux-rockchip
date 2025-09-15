@@ -93,6 +93,8 @@ int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size)
 	union SFCCMD_DATA cmd;
 	int reg;
 	int timeout = 0;
+	u32 *p_data = (u32 *)data;
+	u32 temp = 0;
 
 	reg = readl(g_sfc_reg + SFC_FSR);
 
@@ -101,6 +103,20 @@ int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size)
 		sfc_reset();
 
 	cmd.d32 = op->sfcmd.d32;
+
+	if (size && size < 4 && cmd.b.rw == SFC_WRITE) {
+		if (size == 1)
+			temp = *((u8 *)data);
+		else if (size == 2)
+			temp = *((u16 *)data);
+		else
+			temp = ((u8 *)data)[0] | ((u8 *)data)[1] << 8 | ((u8 *)data)[2] << 16;
+		p_data = &temp;
+	} else if (size >= 4 && ((uintptr_t)data & 0x3)) {
+		pr_err("%s data addr unaligned access\n", __func__);
+	} else if (size & 0x3 && cmd.b.rw == SFC_WRITE) {
+		pr_err("%s data size unaligned access\n", __func__);
+	}
 
 	if (cmd.b.addrbits == SFC_ADDR_XBITS) {
 		union SFCCTRL_DATA ctrl;
@@ -158,7 +174,6 @@ int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size)
 	} else {
 		u32 i, words, count, bytes;
 		union SFCFSR_DATA    fifostat;
-		u32 *p_data = (u32 *)data;
 
 		if (cmd.b.rw == SFC_WRITE) {
 			words  = (size + 3) >> 2;

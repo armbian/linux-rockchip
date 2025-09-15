@@ -65,6 +65,45 @@ static int rk3566_soc_init(struct device *dev)
 	return 0;
 }
 
+static int rockchip_set_spec_sn(struct device *dev)
+{
+	struct nvmem_cell *cell;
+	u8 *val;
+
+	cell = nvmem_cell_get(dev, "spec-sn1");
+	if (!IS_ERR(cell)) {
+		val = nvmem_cell_read(cell, NULL);
+		nvmem_cell_put(cell);
+		if (IS_ERR(val))
+			return PTR_ERR(val);
+
+		if (*val) {
+			rockchip_soc_id &= ~ROCKCHIP_SOC_SSN_MASK;
+			rockchip_soc_id |= *val;
+			kfree(val);
+
+			return 0;
+		}
+
+		kfree(val);
+	}
+
+	cell = nvmem_cell_get(dev, "spec-sn");
+	if (!IS_ERR(cell)) {
+		val = nvmem_cell_read(cell, NULL);
+		nvmem_cell_put(cell);
+		if (IS_ERR(val))
+			return PTR_ERR(val);
+
+		rockchip_soc_id &= ~ROCKCHIP_SOC_SSN_MASK;
+		rockchip_soc_id |= *val;
+
+		kfree(val);
+	}
+
+	return 0;
+}
+
 static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -79,6 +118,8 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 		if (soc_is_rk3566pro())
 			goto skip_cpu_code;
 	}
+
+	rockchip_set_spec_sn(dev);
 
 	cell = nvmem_cell_get(dev, "cpu-code1");
 	if (!IS_ERR(cell)) {

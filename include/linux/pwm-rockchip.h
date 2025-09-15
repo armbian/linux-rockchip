@@ -241,6 +241,13 @@ int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphas
  * @biphasic_res: biphasic counter result
  */
 int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biphasic_res);
+
+/**
+ * rockchip_pwm_set_filter() - setup filter configuration
+ * @pwm: PWM device
+ * @filter_window_ns: filter window time in nanosecond
+ */
+int rockchip_pwm_set_filter(struct pwm_device *pwm, u64 filter_window_ns);
 #else
 static inline int rockchip_pwm_set_counter(struct pwm_device *pwm,
 					   enum rockchip_pwm_counter_input_sel input_sel,
@@ -283,6 +290,11 @@ static inline int rockchip_pwm_set_biphasic(struct pwm_device *pwm,
 
 static inline int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm,
 						   unsigned long *biphasic_res)
+{
+	return 0;
+}
+
+static inline int rockchip_pwm_set_filter(struct pwm_device *pwm, u64 filter_window_ns)
 {
 	return 0;
 }

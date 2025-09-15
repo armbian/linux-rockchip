@@ -512,9 +512,10 @@ void rk628_debugfs_create(struct rk628 *rk628)
 	struct dentry *debugfs, *debugfs_tmp = debugfs_lookup("rk628", NULL);
 
 	debugfs = debugfs_tmp;
-	if (!debugfs)
+	if (IS_ERR_OR_NULL(debugfs))
 		debugfs = debugfs_create_dir("rk628", NULL);
-	dput(debugfs_tmp);
+	if (!IS_ERR_OR_NULL(debugfs_tmp))
+		dput(debugfs_tmp);
 	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs);
 	if (IS_ERR(rk628->debug_dir))
 		return;

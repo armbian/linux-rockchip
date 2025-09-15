@@ -101,7 +101,7 @@ static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
 	if (dp->plat_data->skip_connector)
 		return true;
 
-	req_bw = mode->crtc_clock * bpp / 8;
+	req_bw = mode->clock * bpp / 8;
 	max_bw = lanes * rate;
 	if (req_bw > max_bw)
 		return false;
@@ -453,11 +453,7 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	if (retval < 0)
 		return retval;
 
-	for (lane = 0; lane < lane_count; lane++)
-		buf[lane] = DP_TRAIN_PRE_EMPH_LEVEL_0 |
-			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
-
-	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET, buf,
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET, dp->link_train.training_lane,
 				   lane_count);
 	if (retval < 0)
 		return retval;
@@ -1515,6 +1511,7 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 	const struct drm_edid *drm_edid;
+	struct drm_display_info *di = &connector->display_info;
 	int ret, num_modes = 0;
 
 	if (dp->plat_data->right && dp->plat_data->right->plat_data->bridge) {
@@ -1551,6 +1548,12 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 
 		analogix_dp_phy_power_off(dp);
 	}
+
+	if (!di->color_formats)
+		di->color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	if (!di->bpc)
+		di->bpc = 8;
 
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);

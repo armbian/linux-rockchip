@@ -9,7 +9,7 @@
 #include <linux/rk-isp2-config.h>
 
 #define ROCKIT_BUF_NUM_MAX	20
-#define ROCKIT_ISP_NUM_MAX	3
+#define ROCKIT_ISP_NUM_MAX	5
 #define ROCKIT_STREAM_NUM_MAX	12
 
 #define ROCKIT_VICAP_NUM_MAX	6

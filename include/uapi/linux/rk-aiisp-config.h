@@ -38,6 +38,9 @@
 #define RKAIISP_CMD_SET_MEMORY_MODE		\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 6, enum rkaiisp_mem_mode)
 
+#define RKAIISP_CMD_CLEAR_IQPARAMS		\
+	_IO('V', BASE_VIDIOC_PRIVATE + 7)
+
 /**********************EVENT_PRIVATE***************************/
 #define RKAIISP_V4L2_EVENT_AIISP_DONE		(V4L2_EVENT_PRIVATE_START + 1)
 

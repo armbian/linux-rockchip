@@ -157,9 +157,11 @@ static struct pvtpll_table rv1126b_aisp_pvtpll_table[] = {
 
 static struct pvtpll_table rv1126b_core_pvtpll_table[] = {
 	/* rate_hz, ring_sel, length */
-	ROCKCHIP_PVTPLL_VOLT_SEL(1900000000, 0, 30, 0),
-	ROCKCHIP_PVTPLL_VOLT_SEL(1800000000, 0, 30, 0),
-	ROCKCHIP_PVTPLL_VOLT_SEL(1700000000, 0, 30, 0),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1900000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1850000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1800000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1750000000, 0, 30, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1700000000, 0, 30, 6),
 	ROCKCHIP_PVTPLL_VOLT_SEL(1608000000, 0, 30, 5),
 	ROCKCHIP_PVTPLL_VOLT_SEL(1512000000, 0, 30, 3),
 	ROCKCHIP_PVTPLL_VOLT_SEL(1416000000, 0, 34, 3),
@@ -169,9 +171,27 @@ static struct pvtpll_table rv1126b_core_pvtpll_table[] = {
 	ROCKCHIP_PVTPLL_VOLT_SEL(816000000, 0, 84, 3),
 };
 
+static struct pvtpll_table rv1126bj_core_pvtpll_table[] = {
+	/* rate_hz, ring_sel, length */
+	ROCKCHIP_PVTPLL_VOLT_SEL(1900000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1850000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1800000000, 0, 30, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1750000000, 0, 30, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1700000000, 0, 30, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1608000000, 0, 30, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1512000000, 0, 30, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1416000000, 0, 34, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1296000000, 0, 38, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1200000000, 0, 38, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1008000000, 0, 56, 1),
+	ROCKCHIP_PVTPLL_VOLT_SEL(816000000, 0, 92, 1),
+};
+
 static struct pvtpll_table rv1126b_enc_pvtpll_table[] = {
 	/* rate_hz, ring_se, length */
-	ROCKCHIP_PVTPLL(550000000, 0, 80),
+	ROCKCHIP_PVTPLL(600000000, 0, 80),
+	ROCKCHIP_PVTPLL(555000000, 0, 80),
+	ROCKCHIP_PVTPLL(550000000, 0, 88),
 	ROCKCHIP_PVTPLL(520000000, 0, 88),
 	ROCKCHIP_PVTPLL(500000000, 0, 88),
 	ROCKCHIP_PVTPLL(480000000, 0, 88),
@@ -186,15 +206,28 @@ static struct pvtpll_table rv1126b_isp_pvtpll_table[] = {
 
 static struct pvtpll_table rv1126b_npu_pvtpll_table[] = {
 	/* rate_hz, ring_se, length, volt_sel_thr */
-	ROCKCHIP_PVTPLL_VOLT_SEL(1100000000, 0, 12, 0),
-	ROCKCHIP_PVTPLL_VOLT_SEL(1050000000, 0, 12, 0),
-	ROCKCHIP_PVTPLL_VOLT_SEL(1000000000, 0, 12, 0),
-	ROCKCHIP_PVTPLL_VOLT_SEL(950000000, 0, 12, 2),
-	ROCKCHIP_PVTPLL_VOLT_SEL(900000000, 0, 14, 1),
-	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 18, 1),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1100000000, 0, 12, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1050000000, 0, 12, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1000000000, 0, 12, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(950000000, 0, 12, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(900000000, 0, 14, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 18, 2),
 	ROCKCHIP_PVTPLL_VOLT_SEL(700000000, 0, 36, 3),
 	ROCKCHIP_PVTPLL_VOLT_SEL(600000000, 0, 60, 3),
 	ROCKCHIP_PVTPLL_VOLT_SEL(510000000, 0, 108, 3),
+};
+
+static struct pvtpll_table rv1126bj_npu_pvtpll_table[] = {
+	/* rate_hz, ring_se, length, volt_sel_thr */
+	ROCKCHIP_PVTPLL_VOLT_SEL(1100000000, 0, 12, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1050000000, 0, 12, 6),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1000000000, 0, 12, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(950000000, 0, 12, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(900000000, 0, 14, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 18, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(700000000, 0, 36, 1),
+	ROCKCHIP_PVTPLL_VOLT_SEL(600000000, 0, 68, 1),
+	ROCKCHIP_PVTPLL_VOLT_SEL(510000000, 0, 116, 1),
 };
 
 static struct pvtpll_table rk3506_core_pvtpll_table[] = {
@@ -731,6 +764,8 @@ static const struct rockchip_clock_pvtpll_info rv1126b_core_pvtpll_data = {
 	.config = rv1126b_pvtpll_configs,
 	.table_size = ARRAY_SIZE(rv1126b_core_pvtpll_table),
 	.table = rv1126b_core_pvtpll_table,
+	.jm_table_size = ARRAY_SIZE(rv1126bj_core_pvtpll_table),
+	.jm_table = rv1126bj_core_pvtpll_table,
 	.pvtpll_adjust_factor = 4,
 	.pvtpll_volt_sel_adjust = pvtpll_volt_sel_adjust_linear,
 	.mode_offset = 0x30300,
@@ -764,6 +799,8 @@ static const struct rockchip_clock_pvtpll_info rv1126b_npu_pvtpll_data = {
 	.config = rv1126b_pvtpll_configs,
 	.table_size = ARRAY_SIZE(rv1126b_npu_pvtpll_table),
 	.table = rv1126b_npu_pvtpll_table,
+	.jm_table_size = ARRAY_SIZE(rv1126bj_npu_pvtpll_table),
+	.jm_table = rv1126bj_npu_pvtpll_table,
 	.pvtpll_adjust_factor = 6,
 	.pvtpll_volt_sel_adjust = pvtpll_volt_sel_adjust_linear,
 	.mode_offset = 0x90300,

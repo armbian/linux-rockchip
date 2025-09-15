@@ -167,6 +167,7 @@ struct rkcif_hw {
 	u64				irq_time;
 	bool				is_rk3588s2;
 	bool				is_in_reset;
+	bool				is_irq_share;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
