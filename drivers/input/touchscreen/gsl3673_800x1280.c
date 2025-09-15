@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/async.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -202,8 +202,8 @@ struct gsl_ts {
 	struct gsl_ts_data *dd;
 	u8 *touch_data;
 	u8 device_id;
-	int irq;
-	int rst;
+	struct gpio_desc *irq;
+	struct gpio_desc *rst;
 	int flag_irq_is_disable;
 	spinlock_t irq_lock;
 	struct tp_device  tp;
@@ -231,34 +231,36 @@ static u16 y_new;
 
 static int gsl3673_init(void)
 {
-	struct device_node *np = gsl_client->dev.of_node;
-	enum of_gpio_flags rst_flags;
-	unsigned long irq_flags;
+	struct device *dev = &gsl_client->dev;
 
-	this_ts->irq = of_get_named_gpio_flags(np, "irq_gpio_number", 0,
-				(enum of_gpio_flags *)&irq_flags);
-	this_ts->rst = of_get_named_gpio_flags(np, "rst_gpio_number", 0,
-				&rst_flags);
-	if (devm_gpio_request(&this_ts->client->dev, this_ts->rst, NULL) != 0) {
-		dev_err(&this_ts->client->dev, "gpio_request this_ts->rst error\n");
-		return -EIO;
+	this_ts->irq = devm_gpiod_get(dev, "irq", GPIOD_IN);
+	if (IS_ERR(this_ts->irq)) {
+		dev_err(dev, "Failed to get IRQ GPIO\n");
+		return PTR_ERR(this_ts->irq);
 	}
-	gpio_direction_output(this_ts->rst, 0);
-	gpio_set_value(this_ts->rst, 1);
+
+	this_ts->rst = devm_gpiod_get(dev, "rst", GPIOD_OUT_LOW);
+	if (IS_ERR(this_ts->rst)) {
+		dev_err(dev, "Failed to get reset GPIO\n");
+		return PTR_ERR(this_ts->rst);
+	}
+	gpiod_set_value(this_ts->rst, 0);
+	gpiod_set_value(this_ts->rst, 1);
+
 	return 0;
 }
 
 static int gsl3673_shutdown_low(void)
 {
-	if (this_ts->rst > 1)
-		gpio_set_value(this_ts->rst, 0);
+	if (!IS_ERR_OR_NULL(this_ts->rst))
+		gpiod_set_value(this_ts->rst, 0);
 	return 0;
 }
 
 static int gsl3673_shutdown_high(void)
 {
-	if (this_ts->rst > 1)
-		gpio_set_value(this_ts->rst, 1);
+	if (!IS_ERR_OR_NULL(this_ts->rst))
+		gpiod_set_value(this_ts->rst, 1);
 	return 0;
 }
 
@@ -1202,7 +1204,7 @@ static int gsl_ts_probe(struct i2c_client *client)
 	INIT_DELAYED_WORK(&ts->delayed_work_init, gsl_delayed_work_init);
 
 	spin_lock_init(&ts->irq_lock);
-	client->irq = gpio_to_irq(ts->irq);
+	client->irq = gpiod_to_irq(ts->irq);
 	rc = devm_request_irq(&client->dev, client->irq, gsl_ts_irq,
 				IRQF_TRIGGER_RISING, client->name, ts);
 	if (rc < 0) {
