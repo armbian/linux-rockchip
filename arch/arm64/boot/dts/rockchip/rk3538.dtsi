@@ -275,6 +275,29 @@
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
+		pdm: pdm@fdf70000 {
+			compatible = "rockchip,rk3538-pdm", "rockchip,rk3576-pdm";
+			reg = <0xfdf70000 0x1000>;
+			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>, <&cru CLKOUT_PDM>;
+			clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_out";
+			dmas = <&dmac 31>;
+			dma-names = "rx";
+			rockchip,pdm-data-shift = <5 5 5 5 5 5 5 5>;
+			pinctrl-names = "default", "idle", "clk";
+			pinctrl-0 = <&pdmm0_sdi0_pins
+				     &pdmm0_sdi1_pins
+				     &pdmm0_sdi2_pins
+				     &pdmm0_sdi3_pins>;
+			pinctrl-1 = <&pdmm0_clk0_idle
+				     &pdmm0_clk1_idle>;
+			pinctrl-2 = <&pdmm0_clk0_pins
+				     &pdmm0_clk1_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "PDM0";
+			status = "disabled";
+		};
+
 		dmac: dma-controller@fdfd0000 {
 			compatible = "rockchip,rk3538-dma", "rockchip,dma";
 			reg = <0xfdfd0000 0x2000>;
