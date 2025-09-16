@@ -213,7 +213,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 }
 
 int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
-		  void *owner, struct dma_fence **f)
+		      void *owner, struct dma_fence **f)
 {
 	int r;
 
