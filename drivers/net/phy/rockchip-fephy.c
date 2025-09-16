@@ -7,14 +7,18 @@
  * David Wu <david.wu@rock-chips.com>
  */
 
+#include <linux/clk.h>
 #include <linux/ethtool.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/netdevice.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/phy.h>
+#include <linux/regmap.h>
 
 #define INTERNAL_FEPHY_ID			0x06808101
 
@@ -48,6 +52,10 @@
 #define GAIN_PRE				GENMASK(5, 2)
 #define WR_ADDR_A7CFG				0x18
 
+#define MDIX_OFFSET_MIN				-5
+#define MDI_OFFSET_MAX				3
+#define OFFSET_TIMES_MAX			5
+
 enum {
 	GROUP_CFG0 = 0,
 	GROUP_WOL,
@@ -60,9 +68,13 @@ enum {
 struct rockchip_fephy_priv {
 	struct phy_device *phydev;
 	unsigned int clk_rate;
+	struct clk *pclk;
 	int old_link;
 	int wol_irq;
+	int mdi_offset;
+	int mdix_offset;
 	int current_group;
+	struct regmap *regs;
 };
 
 static int rockchip_fephy_group_read(struct phy_device *phydev, u8 group, u32 reg)
@@ -90,6 +102,83 @@ static int rockchip_fephy_group_write(struct phy_device *phydev, u8 group,
 		return ret;
 
 	return phy_write(phydev, SMI_ADDR_CFGCNTL, CFGCNTL_WRITE(group, reg));
+}
+
+static int rockchip_fephy_get_adc_offset_from_nvmem(struct phy_device *phydev)
+{
+	struct rockchip_fephy_priv *priv = phydev->priv;
+	unsigned char *buf;
+	struct nvmem_cell *cell;
+	size_t len;
+
+	cell = nvmem_cell_get(&phydev->mdio.dev, "adc_offset");
+	if (IS_ERR(cell)) {
+		phydev_err(phydev, "failed to get offset cell: %ld, use default\n",
+			   PTR_ERR(cell));
+	} else {
+		buf = nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+		if (!IS_ERR(buf)) {
+			if (len == 2) {
+				priv->mdi_offset = buf[0] & 0x7f;
+				priv->mdix_offset = buf[1] & 0x7f;
+			}
+			kfree(buf);
+			return 0;
+		}
+		phydev_err(phydev, "failed to get nvmem buf, use default\n");
+	}
+
+	return -EINVAL;
+}
+
+static int rockchip_fephy_fix_offset(struct phy_device *phydev)
+{
+	struct rockchip_fephy_priv *priv = phydev->priv;
+	int offset, mdi_offset, mdix_offset, sum;
+	int mdi_fix, mdix_fix;
+	int ret = 0;
+
+	mdi_offset = (priv->mdi_offset < 0x40) ? priv->mdi_offset : (priv->mdi_offset - 0x80);
+	mdix_offset = (priv->mdix_offset < 0x40) ? priv->mdix_offset : (priv->mdix_offset - 0x80);
+
+	sum = mdi_offset + mdix_offset;
+	/* Balance to smaller side */
+	offset = ((sum >= 0) ? (sum + 1) : sum) / 2;
+	offset -= (MDI_OFFSET_MAX + MDIX_OFFSET_MIN) / 2;
+	mdi_fix = mdi_offset - offset;
+	mdix_fix = mdix_offset - offset;
+	if (mdi_fix > MDI_OFFSET_MAX || mdix_fix < MDIX_OFFSET_MIN) {
+		int reg;
+
+		reg = phy_read(priv->phydev, MII_INTERNAL_CTRL_STATUS);
+		if (reg < 0)
+			return reg;
+
+		if ((abs(mdi_offset)) <= abs(mdix_offset)) {
+			offset = mdi_offset;
+			/* Force MDI */
+			reg &= ~(MII_MDIX_EN | MII_AUTO_MDIX_EN);
+		} else {
+			offset = mdix_offset;
+			/* Force MDIX */
+			reg &= ~MII_AUTO_MDIX_EN;
+			reg |= MII_MDIX_EN;
+		}
+
+		ret = phy_write(phydev, MII_INTERNAL_CTRL_STATUS, reg);
+		if (ret)
+			return ret;
+	}
+
+	offset = (offset >= 0) ? offset : (offset + 0x80);
+	offset &= 0x7f;
+	clk_enable(priv->pclk);
+	regmap_write(priv->regs, 0xC0, offset);
+	regmap_write(priv->regs, 0xA0, 0xFFFF0008);
+	clk_disable(priv->pclk);
+
+	return ret;
 }
 
 static int rockchip_fephy_config_init(struct phy_device *phydev)
@@ -134,7 +223,7 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	return ret;
+	return rockchip_fephy_fix_offset(phydev);
 }
 
 static int rockchip_fephy_config_aneg(struct phy_device *phydev)
@@ -584,6 +673,12 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->regs = syscon_regmap_lookup_by_phandle(phydev->mdio.dev.of_node, "rockchip,macphy");
+	if (IS_ERR_OR_NULL(priv->regs)) {
+		phydev_err(phydev, "no macphy regmap found\n");
+		return -EINVAL;
+	}
+
 	phydev->priv = priv;
 	if (device_property_read_u32(&phydev->mdio.dev, "clock-frequency", &priv->clk_rate))
 		priv->clk_rate = 24000000;
@@ -600,26 +695,41 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 						"rockchip_fephy_wol_irq", priv);
 		if (ret) {
 			phydev_err(phydev, "request wol_irq failed: %d\n", ret);
-			goto irq_err;
+			return ret;
 		}
 		enable_irq_wake(priv->wol_irq);
 	}
 
 	priv->phydev = phydev;
 
-	ret = device_create_file(&phydev->mdio.dev, &dev_attr_phy_param);
+	priv->pclk = devm_clk_get(&phydev->mdio.dev, "pclk");
+	if (IS_ERR(priv->pclk))
+		return PTR_ERR(priv->pclk);
+
+	ret = clk_prepare(priv->pclk);
 	if (ret)
-		goto irq_err;
+		return ret;
+
+	ret = rockchip_fephy_get_adc_offset_from_nvmem(phydev);
+	if (ret) {
+		priv->mdi_offset = 0;
+		priv->mdix_offset = 0;
+	}
+
+	ret = device_create_file(&phydev->mdio.dev, &dev_attr_phy_param);
+	if (ret) {
+		clk_unprepare(priv->pclk);
+		return ret;
+	}
 
 	return 0;
-
-irq_err:
-
-	return ret;
 }
 
 static void rockchip_fephy_remove(struct phy_device *phydev)
 {
+	struct rockchip_fephy_priv *priv = phydev->priv;
+
+	clk_unprepare(priv->pclk);
 	device_remove_file(&phydev->mdio.dev, &dev_attr_phy_param);
 }
 
