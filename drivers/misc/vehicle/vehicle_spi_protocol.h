@@ -31,11 +31,18 @@
 #define VERSION             0x0
 #define VERSION_ID          0x21
 
-#define ERROR     0X00
-#define SUCCEED   0X01
+#define CMD_LOG             0xd2
+#define LOG_SIZE            32
+#define CMD_SPI_FLASH       0xd1
+#define SPI_FLASH_OFFSET    1024
+#define FLASH_DATA_SIZE     (120*1024)
+
+#define ERROR               0x00
+#define SUCCEED             0x01
 
 int vehicle_analyze_write_data(struct vehicle *device, unsigned char cmd,
 					 unsigned char *data, size_t len);
 int vehicle_analyze_read_data(struct vehicle *device, unsigned char *rxbuf, size_t len);
 int vehicle_analyze_read_reg(struct vehicle *device, unsigned int reg, unsigned int *val);
+void vehicle_update_firmware(struct vehicle *device);
 #endif

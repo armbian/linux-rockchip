@@ -36,6 +36,7 @@ struct vehicle *g_vehicle_hw;
 EXPORT_SYMBOL(g_vehicle_hw);
 static struct sock *nlsk;
 static int g_user_pid;
+unsigned int g_vehicle_debug_cnt;
 
 struct vehicle_core_drvdata {
 	const struct hw_prop_ops *prop_ops;
@@ -365,6 +366,7 @@ static int vehicle_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	platform_set_drvdata(pdev, g_vehicle_hw);
 
+	g_vehicle_debug_cnt = 0;
 	create_netlink_vehicle();
 	return 0;
 }

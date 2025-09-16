@@ -10,6 +10,7 @@
 #include "core.h"
 #ifdef CONFIG_VEHICLE_SPI_PROTOCOL
 #include "vehicle_spi_protocol.h"
+#include "vehicle-mcu-bin.h"
 #endif
 
 static struct completion spi_complete;
@@ -22,73 +23,74 @@ static void spi_complete_callback(void *arg)
 
 int vehicle_spi_write_slt(struct vehicle *vehicle, const void *txbuf, size_t n)
 {
+	unsigned long flags;
 	int ret = -1;
-	struct spi_device *spi = NULL;
-	struct spi_transfer     t = {
-			.tx_buf         = txbuf,
-			.len            = n,
-			.bits_per_word = 8,
-		};
-	struct spi_message      m;
+	struct spi_device *spi = vehicle->vehicle_spi->spi;
+	struct spi_message *m = &vehicle->vehicle_spi->tx_m;
+	struct spi_transfer *t = &vehicle->vehicle_spi->tx_t;
 
-	mutex_lock(&vehicle->vehicle_spi->wq_lock);
-	spi = vehicle->vehicle_spi->spi;
+	spin_lock_irqsave(&vehicle->vehicle_spi->msg_lock, flags);
+	memset(t, 0, sizeof(*t));
+	t->tx_buf = txbuf;
+	t->len = n;
+	t->bits_per_word = 8;
+
 	reinit_completion(&spi_complete);
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	m.complete = spi_complete_callback;
-	ret = spi_async(spi, &m);
-
+	spi_message_init(m);
+	spi_message_add_tail(t, m);
+	m->complete = spi_complete_callback;
+	m->context = vehicle;
+	ret = spi_async(spi, m);
 	if (ret) {
 		dev_err(&spi->dev, "SPI write async error: %d\n", ret);
-		goto unlock;
 	}
+	spin_unlock_irqrestore(&vehicle->vehicle_spi->msg_lock, flags);
 
 	if (!wait_for_completion_timeout(&spi_complete, msecs_to_jiffies(SPI_TIMEOUT_MS))) {
 		dev_err(&spi->dev, "SPI write operation timed out\n");
-		goto unlock;
+		ret = -EINVAL;
 	}
-unlock:
-	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
+
 	return ret;
 }
 
 int vehicle_spi_read_slt(struct vehicle *vehicle, void *rxbuf, size_t n)
 {
+	unsigned long flags;
 	int ret = -1;
-	struct spi_device *spi = NULL;
-	struct spi_transfer     t = {
-			.rx_buf         = rxbuf,
-			.len            = n,
-			.bits_per_word = 8,
-		};
-	struct spi_message      m;
+	struct spi_device *spi = vehicle->vehicle_spi->spi;
+	struct spi_message *m = &vehicle->vehicle_spi->rx_m;
+	struct spi_transfer *t = &vehicle->vehicle_spi->rx_t;
 
-	mutex_lock(&vehicle->vehicle_spi->wq_lock);
-	spi = vehicle->vehicle_spi->spi;
+	spin_lock_irqsave(&vehicle->vehicle_spi->msg_lock, flags);
+	memset(t, 0, sizeof(*t));
+	t->rx_buf = rxbuf;
+	t->len = n;
+	t->bits_per_word = 8;
+
 	reinit_completion(&spi_complete);
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	m.complete = spi_complete_callback;
-	ret = spi_async(spi, &m);
+	spi_message_init(m);
+	spi_message_add_tail(t, m);
+	m->complete = spi_complete_callback;
+	m->context = vehicle;
+	ret = spi_async(spi, m);
 	if (ret) {
 		dev_err(&spi->dev, "SPI read async error: %d\n", ret);
-		goto unlock;
 	}
+	spin_unlock_irqrestore(&vehicle->vehicle_spi->msg_lock, flags);
 
 	if (!wait_for_completion_timeout(&spi_complete, msecs_to_jiffies(SPI_TIMEOUT_MS))) {
 		dev_err(&spi->dev, "SPI read operation timed out\n");
-		goto unlock;
+		ret = -EINVAL;
 	}
-unlock:
-	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
+
 	return ret;
 }
 
 static int vehicle_spi_update_data(struct vehicle *vehicle)
 {
 	int i = 0;
-	unsigned int times = 1, size = 12;
+	unsigned int times = 1, size = 32;
 	unsigned long us = 0, bytes = 0;
 	unsigned char *rxbuf = NULL;
 	ktime_t start_time;
@@ -97,7 +99,6 @@ static int vehicle_spi_update_data(struct vehicle *vehicle)
 	struct device *dev = vehicle->vehicle_spi->dev;
 
 	rxbuf = kzalloc(size, GFP_KERNEL);
-
 	if (!rxbuf)
 		return -ENOMEM;
 
@@ -139,22 +140,25 @@ static void vehicle_spi_delay_work_func(struct work_struct *work)
 	struct vehicle_spi *vehicle_spi = container_of(work, struct vehicle_spi,
 						       vehicle_delay_work.work);
 	struct device *dev = vehicle_spi->dev;
+	struct vehicle *vehicle = g_vehicle_hw;
 
-	vehicle_spi_update_data(g_vehicle_hw);
-
+	mutex_lock(&vehicle->vehicle_spi->wq_lock);
+	vehicle_spi_update_data(vehicle);
 	if (vehicle_spi->use_delay_work)
 		queue_delayed_work(vehicle_spi->vehicle_wq, &vehicle_spi->vehicle_delay_work,
 				   msecs_to_jiffies(1000));
+	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
 
-	dev_info(dev, "%s end\n", __func__);
+	dev_info(dev, "%s SPI_TIMEOUT_MS=%d\n", __func__, SPI_TIMEOUT_MS);
 }
 
 static irqreturn_t vehicle_spi_irq_handle(int irq, void *_data)
 {
-	struct vehicle_spi *vehicle_spi = _data;
+	struct vehicle *vehicle = g_vehicle_hw;
 
-	queue_delayed_work(vehicle_spi->vehicle_wq, &vehicle_spi->vehicle_delay_work,
-			   msecs_to_jiffies(0));
+	mutex_lock(&vehicle->vehicle_spi->wq_lock);
+	vehicle_spi_update_data(vehicle);
+	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
 
 	return IRQ_HANDLED;
 }
@@ -164,16 +168,29 @@ static int vehicle_spi_write_data(void *context, unsigned int reg,
 				   unsigned int val)
 {
 	unsigned char value = 0;
+	int ret = 0;
+	struct vehicle *vehicle = g_vehicle_hw;
 
+	mutex_lock(&vehicle->vehicle_spi->wq_lock);
 	value = val & 0x0f;
-	return vehicle_analyze_write_data(g_vehicle_hw, (unsigned char)reg, &value, sizeof(value));
+	ret = vehicle_analyze_write_data(vehicle, (unsigned char)reg, &value, sizeof(value));
+	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
+
+	return ret;
 
 }
 
 static int vehicle_spi_read_data(void *context, unsigned int reg,
 				  unsigned int *val)
 {
-	return vehicle_analyze_read_reg(g_vehicle_hw, reg, val);
+	int ret = 0;
+	struct vehicle *vehicle = g_vehicle_hw;
+
+	mutex_lock(&vehicle->vehicle_spi->wq_lock);
+	ret = vehicle_analyze_read_reg(vehicle, reg, val);
+	mutex_unlock(&vehicle->vehicle_spi->wq_lock);
+
+	return ret;
 }
 
 static int vehicle_analyze_update_bits(void *context, unsigned int reg,
@@ -201,8 +218,8 @@ static int vehicle_spi_irq_init(struct vehicle_spi *vehicle_spi)
 	else {
 		vehicle_spi->irq = gpiod_to_irq(irq_gpio_desc);
 		ret = devm_request_threaded_irq(dev, vehicle_spi->irq,
-				vehicle_spi_irq_handle, NULL,
-				IRQF_TRIGGER_FALLING,
+				NULL, vehicle_spi_irq_handle,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				dev_name(dev), vehicle_spi);
 
 		if (ret < 0) {
@@ -217,29 +234,35 @@ static int vehicle_spi_irq_init(struct vehicle_spi *vehicle_spi)
 
 static int spi_hw_init(struct vehicle *vehicle)
 {
-	vehicle->vehicle_spi->vehicle_wq = alloc_ordered_workqueue("%s",
-							 WQ_MEM_RECLAIM | WQ_FREEZABLE,
-							 "vehicle-spi-wq");
-	mutex_init(&vehicle->vehicle_spi->wq_lock);
-	INIT_DELAYED_WORK(&vehicle->vehicle_spi->vehicle_delay_work,
-			  vehicle_spi_delay_work_func);
+	int ret = 0;
 
+	mutex_init(&vehicle->vehicle_spi->spi_lock);
+	mutex_init(&vehicle->vehicle_spi->wq_lock);
+	spin_lock_init(&vehicle->vehicle_spi->msg_lock);
 	vehicle->vehicle_spi->use_delay_work =
 		of_property_read_bool(vehicle->vehicle_spi->dev->of_node, "use-delay-work");
 
 	if (vehicle->vehicle_spi->use_delay_work) {
+		vehicle->vehicle_spi->vehicle_wq =
+			alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM | WQ_FREEZABLE,
+						"vehicle-spi-wq");
+		if (!vehicle->vehicle_spi->vehicle_wq)
+			return -ENOMEM;
+
+		INIT_DELAYED_WORK(&vehicle->vehicle_spi->vehicle_delay_work,
+				  vehicle_spi_delay_work_func);
 		queue_delayed_work(vehicle->vehicle_spi->vehicle_wq,
 				   &vehicle->vehicle_spi->vehicle_delay_work,
 				   msecs_to_jiffies(100));
 		VEHICLE_DBG("%s: vehicle_spi->use_delay_work=%d\n", __func__,
 			    vehicle->vehicle_spi->use_delay_work);
 	} else {
-		vehicle_spi_irq_init(vehicle->vehicle_spi);
+		ret = vehicle_spi_irq_init(vehicle->vehicle_spi);
 		VEHICLE_DBG("%s: vehicle_spi->use_delay_work=%d\n", __func__,
 			    vehicle->vehicle_spi->use_delay_work);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int spi_pm_suspend(struct vehicle *vehicle)
@@ -341,6 +364,14 @@ static ssize_t spi_test_write(struct file *file,
 		pr_info("spi write %d*%d cost %ldus speed:%ldKB/S\n", size, times, us, bytes);
 		kfree(txbuf);
 	}
+#ifdef CONFIG_VEHICLE_SPI_PROTOCOL
+	if (!strcmp(cmd, "update")) {
+		vehicle_analyze_read_reg(g_vehicle_hw, VERSION, &id);
+		if (id < mcu_bin[mcu_bin_len - 1])
+			vehicle_update_firmware(g_vehicle_hw);
+	}
+
+#endif
 	return n;
 }
 static const struct file_operations spi_test_fops = {
@@ -390,11 +421,15 @@ static int vehicle_spi_probe(struct spi_device *spi)
 	}
 
 	init_completion(&spi_complete);
-	spi_hw_init(g_vehicle_hw);
+	ret = spi_hw_init(g_vehicle_hw);
+	if (ret) {
+		dev_err(dev, "ERR: fail to init spi hw\n");
+		return ret;
+	}
 
 #if defined(CONFIG_VEHICLE_GPIO_MCU_EXPANDER) && defined(CONFIG_VEHICLE_SPI_PROTOCOL)
 	ret = vehicle_analyze_read_reg(g_vehicle_hw, VERSION, &id);
-	if (ret == 0 && id == VERSION_ID)
+	if (ret == 0 && id != 0)
 		gpio_mcu_register(spi);
 #endif
 
@@ -405,7 +440,10 @@ static void vehicle_spi_remove(struct spi_device *spi)
 {
 	struct vehicle_spi *vehicle_spi = spi_get_drvdata(spi);
 
-	destroy_workqueue(vehicle_spi->vehicle_wq);
+	if (vehicle_spi->use_delay_work) {
+		cancel_delayed_work_sync(&vehicle_spi->vehicle_delay_work);
+		destroy_workqueue(vehicle_spi->vehicle_wq);
+	}
 }
 
 #ifdef CONFIG_OF
