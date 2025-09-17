@@ -1741,12 +1741,10 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	if (err)
 		goto err_setup_host;
 
-	if (dev->pm_domain) {
-		struct generic_pm_domain *genpd;
-
-		genpd = pd_to_genpd(dev->pm_domain);
-		genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
-	}
+	err = dev_pm_genpd_rpm_always_on(dev, true);
+	if (err && err != -EOPNOTSUPP)
+		dev_warn(dev, "failed to set PD rpm always on, SoC may hang later: %pe\n",
+			 ERR_PTR(err));
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
