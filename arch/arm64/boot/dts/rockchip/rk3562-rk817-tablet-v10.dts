@@ -822,8 +822,8 @@
 	ts@40 {
 		compatible = "GSL,GSL3673_800X1280";
 		reg = <0x40>;
-		irq_gpio_number = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
-		rst_gpio_number = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+		rst-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tp_gpio>;
 	};

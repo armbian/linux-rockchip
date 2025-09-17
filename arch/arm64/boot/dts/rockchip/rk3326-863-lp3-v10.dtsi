@@ -606,8 +606,8 @@
 		status = "okay";
 		compatible = "GSL,GSL3673_800X1280";
 		reg = <0x40>;
-		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 	};
 
 	sensor@19 {
