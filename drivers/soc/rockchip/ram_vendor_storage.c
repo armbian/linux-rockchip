@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 #include <misc/rkflash_vendor_storage.h>
 
 static struct vendor_info *g_vendor;
@@ -31,7 +32,7 @@ static int ram_vendor_read(u32 id, void *pbuf, u32 size)
 	u32 i;
 
 	if (!g_vendor)
-		return -ENOMEM;
+		return -1;
 
 	for (i = 0; i < g_vendor->item_num; i++) {
 		if (g_vendor->item[i].id == id) {
