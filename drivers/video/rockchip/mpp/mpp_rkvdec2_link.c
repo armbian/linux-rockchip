@@ -330,6 +330,66 @@ struct rkvdec_link_info rkvdec_link_vdpu384a_hw_info = {
 	.ip_en_val = 0x01000000,
 };
 
+/* vdpu384b link hw info */
+struct rkvdec_link_info rkvdec_link_vdpu384b_hw_info = {
+	.tb_reg_num = 320,
+	.tb_reg_next = 0,
+	.tb_reg_r = 1,
+	.tb_reg_second_en = -1,
+	.tb_reg_debug = 2,
+	.tb_reg_seg0 = 3,
+	.tb_reg_seg1 = 4,
+	.tb_reg_seg2 = 5,
+
+	.part_w_num = 3,
+	.part_r_num = 2,
+	.part_w[0] = {
+		.tb_reg_off = 80,
+		.reg_start = 8,
+		.reg_num = 36,
+	},
+	.part_w[1] = {
+		.tb_reg_off = 128,
+		.reg_start = 64,
+		.reg_num = 44,
+	},
+	.part_w[2] = {
+		.tb_reg_off = 176,
+		.reg_start = 128,
+		.reg_num = 108,
+	},
+	.part_r[0] = {
+		.tb_reg_off = 16,
+		.reg_start = 15,
+		.reg_num = 1,
+	},
+	.part_r[1] = {
+		.tb_reg_off = 20,
+		.reg_start = 256,
+		.reg_num = 40,
+	},
+	.tb_reg_int = 16,
+	.tb_reg_cycle = 27,
+	.reg_status = {
+		.dec_num_mask = 0x3fffffff,
+		.err_flag_base = 0x04c,
+		.err_flag_bit = 0x3fe,
+	},
+	.next_addr_base = 0x20,
+	.ip_reset_base = 0x44,
+	.ip_reset_en = BIT(0),
+	.irq_base = 0x48,
+	.irq_mask = 0x30000,
+	.status_base = 0x4c,
+	.status_mask = 0x3ff0000,
+	.err_mask = 0x3fe,
+	.ip_reset_mask = 0x8000000,
+	.ip_time_base = 0x54,
+	.en_base = 0x40,
+	.ip_en_base = 0x58,
+	.ip_en_val = 0x81000000,
+};
+
 static void rkvdec2_link_free_task(struct kref *ref);
 static void rkvdec2_link_timeout_proc(struct work_struct *work_s);
 static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
@@ -699,7 +759,7 @@ static int rkvdec2_link_irq(struct mpp_dev *mpp)
 	return 0;
 }
 
-int rkvdec_vdpu383_link_irq(struct mpp_dev *mpp)
+int rkvdec_vdpu38x_link_irq(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link = dec->link_dec;
