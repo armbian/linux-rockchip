@@ -3101,7 +3101,7 @@
 			     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&sys_grf>;
-		rockchip,php_grf = <&ioc_grf>;
+		rockchip,php-grf = <&ioc_grf>;
 		clocks = <&cru CLK_GMAC_125M_CRU_I>, <&cru CLK_GMAC_50M_CRU_I>,
 			 <&cru PCLK_GMAC>, <&cru ACLK_GMAC>;
 		clock-names = "stmmaceth", "clk_mac_ref",
@@ -3221,7 +3221,7 @@
 			     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&sys_grf>;
-		rockchip,php_grf = <&ioc_grf>;
+		rockchip,php-grf = <&ioc_grf>;
 		clocks = <&cru CLK_MAC100_50M_MATRIX>, <&cru CLK_MAC100_50M_MATRIX>,
 			 <&cru PCLK_MAC100>, <&cru ACLK_MAC100>;
 		clock-names = "stmmaceth", "clk_mac_ref",

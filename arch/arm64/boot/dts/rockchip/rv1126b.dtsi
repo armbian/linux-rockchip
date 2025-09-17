@@ -2886,7 +2886,7 @@
 			     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&grf>;
-		rockchip,php_grf = <&ioc_grf>;
+		rockchip,php-grf = <&ioc_grf>;
 		clocks = <&cru CLK_GMAC_125M>, <&cru CLK_50M_GMAC_IOBUF_VI>,
 			 <&cru PCLK_GMAC>, <&cru ACLK_GMAC>,
 			 <&cru CLK_GMAC_PTP_REF>;
