@@ -41,6 +41,7 @@ struct rk_gmac_ops {
 	void (*set_clock_selection)(struct rk_priv_data *bsp_priv, bool input,
 				    bool enable);
 	void (*integrated_phy_power)(struct rk_priv_data *bsp_priv, bool up);
+	bool php_grf_required;
 	bool regs_valid;
 	u32 regs[];
 };
@@ -1702,7 +1703,7 @@ static void rk3562_set_to_rgmii(struct rk_priv_data *bsp_priv,
 	struct device *dev = &bsp_priv->pdev->dev;
 
 	if (IS_ERR(bsp_priv->grf) || IS_ERR(bsp_priv->php_grf)) {
-		dev_err(dev, "Missing rockchip,grf or rockchip,php_grf property\n");
+		dev_err(dev, "Missing rockchip,grf or rockchip,php-grf property\n");
 		return;
 	}
 
@@ -1795,7 +1796,7 @@ static void rk3562_set_clock_selection(struct rk_priv_data *bsp_priv, bool input
 	unsigned int value;
 
 	if (IS_ERR(bsp_priv->grf) || IS_ERR(bsp_priv->php_grf)) {
-		dev_err(dev, "Missing rockchip,grf or rockchip,php_grf property\n");
+		dev_err(dev, "Missing rockchip,grf or rockchip,php-grf property\n");
 		return;
 	}
 
@@ -1829,6 +1830,7 @@ static const struct rk_gmac_ops rk3562_ops = {
 	.set_rgmii_speed = rk3562_set_gmac_speed,
 	.set_rmii_speed = rk3562_set_gmac_speed,
 	.set_clock_selection = rk3562_set_clock_selection,
+	.php_grf_required = true,
 	.regs_valid = true,
 	.regs = {
 		0xffa80000, /* gmac0 */
@@ -2126,6 +2128,7 @@ static const struct rk_gmac_ops rk3576_ops = {
 	.set_rgmii_speed = rk3576_set_gmac_speed,
 	.set_rmii_speed = rk3576_set_gmac_speed,
 	.set_clock_selection = rk3576_set_clock_selection,
+	.php_grf_required = true,
 	.regs_valid = true,
 	.regs = {
 		0x2a220000, /* gmac0 */
@@ -2182,7 +2185,7 @@ static void rk3588_set_to_rgmii(struct rk_priv_data *bsp_priv,
 	u32 offset_con, id = bsp_priv->id;
 
 	if (IS_ERR(bsp_priv->grf) || IS_ERR(bsp_priv->php_grf)) {
-		dev_err(dev, "Missing rockchip,grf or rockchip,php_grf property\n");
+		dev_err(dev, "Missing rockchip,grf or rockchip,php-grf property\n");
 		return;
 	}
 
@@ -2207,7 +2210,7 @@ static void rk3588_set_to_rmii(struct rk_priv_data *bsp_priv)
 	struct device *dev = &bsp_priv->pdev->dev;
 
 	if (IS_ERR(bsp_priv->php_grf)) {
-		dev_err(dev, "%s: Missing rockchip,php_grf property\n", __func__);
+		dev_err(dev, "%s: Missing rockchip,php-grf property\n", __func__);
 		return;
 	}
 
@@ -2271,6 +2274,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 	.set_rgmii_speed = rk3588_set_gmac_speed,
 	.set_rmii_speed = rk3588_set_gmac_speed,
 	.set_clock_selection = rk3588_set_clock_selection,
+	.php_grf_required = true,
 	.regs_valid = true,
 	.regs = {
 		0xfe1b0000, /* gmac0 */
@@ -2567,7 +2571,7 @@ static void rv1126b_set_to_rgmii(struct rk_priv_data *bsp_priv,
 	struct device *dev = &bsp_priv->pdev->dev;
 
 	if (IS_ERR(bsp_priv->grf) || IS_ERR(bsp_priv->php_grf)) {
-		dev_err(dev, "Missing rockchip,grf or rockchip,php_grf property\n");
+		dev_err(dev, "Missing rockchip,grf or rockchip,php-grf property\n");
 		return;
 	}
 
@@ -2709,6 +2713,7 @@ static const struct rk_gmac_ops rv1126b_ops = {
 	.set_rmii_speed = rv1126b_set_rmii_speed,
 	.set_clock_selection = rv1126b_set_clock_selection,
 	.integrated_phy_power = rv1126b_integrated_phy_power,
+	.php_grf_required = true,
 };
 
 static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
@@ -3008,8 +3013,23 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 
 	bsp_priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
 							"rockchip,grf");
-	bsp_priv->php_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-							    "rockchip,php_grf");
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err_probe(dev, PTR_ERR(bsp_priv->grf),
+			      "failed to lookup rockchip,grf\n");
+		return ERR_CAST(bsp_priv->grf);
+	}
+
+	if (ops->php_grf_required) {
+		bsp_priv->php_grf =
+			syscon_regmap_lookup_by_phandle(dev->of_node,
+							"rockchip,php-grf");
+		if (IS_ERR(bsp_priv->php_grf)) {
+			dev_err_probe(dev, PTR_ERR(bsp_priv->php_grf),
+				      "failed to lookup rockchip,php-grf\n");
+			return ERR_CAST(bsp_priv->php_grf);
+		}
+	}
+
 	bsp_priv->xpcs = syscon_regmap_lookup_by_phandle(dev->of_node,
 							 "rockchip,xpcs");
 	if (!IS_ERR(bsp_priv->xpcs)) {

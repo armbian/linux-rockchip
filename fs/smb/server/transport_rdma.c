@@ -158,7 +158,8 @@ struct smb_direct_transport {
 };
 
 #define KSMBD_TRANS(t) ((struct ksmbd_transport *)&((t)->transport))
-
+#define SMBD_TRANS(t)	((struct smb_direct_transport *)container_of(t, \
+				struct smb_direct_transport, transport))
 enum {
 	SMB_DIRECT_MSG_NEGOTIATE_REQ = 0,
 	SMB_DIRECT_MSG_DATA_TRANSFER
@@ -362,7 +363,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	struct smb_direct_transport *t;
 	struct ksmbd_conn *conn;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), KSMBD_DEFAULT_GFP);
 	if (!t)
 		return NULL;
 
@@ -407,6 +408,11 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 err:
 	kfree(t);
 	return NULL;
+}
+
+static void smb_direct_free_transport(struct ksmbd_transport *kt)
+{
+	kfree(SMBD_TRANS(kt));
 }
 
 static void free_transport(struct smb_direct_transport *t)
@@ -454,7 +460,6 @@ static void free_transport(struct smb_direct_transport *t)
 
 	smb_direct_destroy_pools(t);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
-	kfree(t);
 }
 
 static struct smb_direct_sendmsg
@@ -462,7 +467,7 @@ static struct smb_direct_sendmsg
 {
 	struct smb_direct_sendmsg *msg;
 
-	msg = mempool_alloc(t->sendmsg_mempool, GFP_KERNEL);
+	msg = mempool_alloc(t->sendmsg_mempool, KSMBD_DEFAULT_GFP);
 	if (!msg)
 		return ERR_PTR(-ENOMEM);
 	msg->transport = t;
@@ -1406,7 +1411,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 	desc_buf = buf;
 	for (i = 0; i < desc_num; i++) {
 		msg = kzalloc(struct_size(msg, sg_list, SG_CHUNK_SIZE),
-			      GFP_KERNEL);
+			      KSMBD_DEFAULT_GFP);
 		if (!msg) {
 			ret = -ENOMEM;
 			goto out;
@@ -1852,7 +1857,7 @@ static int smb_direct_create_pools(struct smb_direct_transport *t)
 	INIT_LIST_HEAD(&t->recvmsg_queue);
 
 	for (i = 0; i < t->recv_credit_max; i++) {
-		recvmsg = mempool_alloc(t->recvmsg_mempool, GFP_KERNEL);
+		recvmsg = mempool_alloc(t->recvmsg_mempool, KSMBD_DEFAULT_GFP);
 		if (!recvmsg)
 			goto err;
 		recvmsg->transport = t;
@@ -2144,7 +2149,7 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 	if (!rdma_frwr_is_supported(&ib_dev->attrs))
 		return 0;
 
-	smb_dev = kzalloc(sizeof(*smb_dev), GFP_KERNEL);
+	smb_dev = kzalloc(sizeof(*smb_dev), KSMBD_DEFAULT_GFP);
 	if (!smb_dev)
 		return -ENOMEM;
 	smb_dev->ib_dev = ib_dev;
@@ -2300,4 +2305,5 @@ static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.read		= smb_direct_read,
 	.rdma_read	= smb_direct_rdma_read,
 	.rdma_write	= smb_direct_rdma_write,
+	.free_transport = smb_direct_free_transport,
 };

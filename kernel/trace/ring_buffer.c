@@ -1832,10 +1832,12 @@ static void rb_meta_validate_events(struct ring_buffer_per_cpu *cpu_buffer)
 
 	head_page = cpu_buffer->head_page;
 
-	/* If both the head and commit are on the reader_page then we are done. */
-	if (head_page == cpu_buffer->reader_page &&
-	    head_page == cpu_buffer->commit_page)
+	/* If the commit_buffer is the reader page, update the commit page */
+	if (meta->commit_buffer == (unsigned long)cpu_buffer->reader_page->page) {
+		cpu_buffer->commit_page = cpu_buffer->reader_page;
+		/* Nothing more to do, the only page is the reader page */
 		goto done;
+	}
 
 	/* Iterate until finding the commit page */
 	for (i = 0; i < meta->nr_subbufs + 1; i++, rb_inc_page(&head_page)) {
@@ -2794,6 +2796,12 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 	if (nr_pages < 2)
 		nr_pages = 2;
 
+	/*
+	 * Keep CPUs from coming online while resizing to synchronize
+	 * with new per CPU buffers being created.
+	 */
+	guard(cpus_read_lock)();
+
 	/* prevent another thread from changing buffer sizes */
 	mutex_lock(&buffer->mutex);
 	atomic_inc(&buffer->resizing);
@@ -2838,7 +2846,6 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			cond_resched();
 		}
 
-		cpus_read_lock();
 		/*
 		 * Fire off all the required work handlers
 		 * We can't schedule on offline CPUs, but it's not necessary
@@ -2878,7 +2885,6 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			cpu_buffer->nr_pages_to_update = 0;
 		}
 
-		cpus_read_unlock();
 	} else {
 		cpu_buffer = buffer->buffers[cpu_id];
 
@@ -2906,8 +2912,6 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 			goto out_err;
 		}
 
-		cpus_read_lock();
-
 		/* Can't run something on an offline CPU. */
 		if (!cpu_online(cpu_id))
 			rb_update_pages(cpu_buffer);
@@ -2926,7 +2930,6 @@ int ring_buffer_resize(struct trace_buffer *buffer, unsigned long size,
 		}
 
 		cpu_buffer->nr_pages_to_update = 0;
-		cpus_read_unlock();
 	}
 
  out:
@@ -5994,7 +5997,7 @@ static void rb_update_meta_page(struct ring_buffer_per_cpu *cpu_buffer)
 	meta->read = cpu_buffer->read;
 
 	/* Some archs do not have data cache coherency between kernel and user-space */
-	flush_dcache_folio(virt_to_folio(cpu_buffer->meta_page));
+	flush_kernel_vmap_range(cpu_buffer->meta_page, PAGE_SIZE);
 }
 
 static void
@@ -6752,7 +6755,7 @@ int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 	old_size = buffer->subbuf_size;
 
 	/* prevent another thread from changing buffer sizes */
-	mutex_lock(&buffer->mutex);
+	guard(mutex)(&buffer->mutex);
 	atomic_inc(&buffer->record_disabled);
 
 	/* Make sure all commits have finished */
@@ -6857,7 +6860,6 @@ int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 	}
 
 	atomic_dec(&buffer->record_disabled);
-	mutex_unlock(&buffer->mutex);
 
 	return 0;
 
@@ -6866,7 +6868,6 @@ error:
 	buffer->subbuf_size = old_size;
 
 	atomic_dec(&buffer->record_disabled);
-	mutex_unlock(&buffer->mutex);
 
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
@@ -7272,8 +7273,8 @@ consume:
 	/* Check if any events were dropped */
 	missed_events = cpu_buffer->lost_events;
 
-	if (cpu_buffer->reader_page != cpu_buffer->commit_page) {
-		if (missed_events) {
+	if (missed_events) {
+		if (cpu_buffer->reader_page != cpu_buffer->commit_page) {
 			struct buffer_data_page *bpage = reader->page;
 			unsigned int commit;
 			/*
@@ -7294,13 +7295,23 @@ consume:
 				local_add(RB_MISSED_STORED, &bpage->commit);
 			}
 			local_add(RB_MISSED_EVENTS, &bpage->commit);
+		} else if (!WARN_ONCE(cpu_buffer->reader_page == cpu_buffer->tail_page,
+				      "Reader on commit with %ld missed events",
+				      missed_events)) {
+			/*
+			 * There shouldn't be any missed events if the tail_page
+			 * is on the reader page. But if the tail page is not on the
+			 * reader page and the commit_page is, that would mean that
+			 * there's a commit_overrun (an interrupt preempted an
+			 * addition of an event and then filled the buffer
+			 * with new events). In this case it's not an
+			 * error, but it should still be reported.
+			 *
+			 * TODO: Add missed events to the page for user space to know.
+			 */
+			pr_info("Ring buffer [%d] commit overrun lost %ld events at timestamp:%lld\n",
+				cpu, missed_events, cpu_buffer->reader_page->page->time_stamp);
 		}
-	} else {
-		/*
-		 * There really shouldn't be any missed events if the commit
-		 * is on the reader page.
-		 */
-		WARN_ON_ONCE(missed_events);
 	}
 
 	cpu_buffer->lost_events = 0;
@@ -7309,7 +7320,8 @@ consume:
 
 out:
 	/* Some archs do not have data cache coherency between kernel and user-space */
-	flush_dcache_folio(virt_to_folio(cpu_buffer->reader_page->page));
+	flush_kernel_vmap_range(cpu_buffer->reader_page->page,
+				buffer->subbuf_size + BUF_PAGE_HDR_SIZE);
 
 	rb_update_meta_page(cpu_buffer);
 
@@ -7442,9 +7454,9 @@ static __init int rb_write_something(struct rb_test_data *data, bool nested)
 		/* Ignore dropped events before test starts. */
 		if (started) {
 			if (nested)
-				data->bytes_dropped += len;
-			else
 				data->bytes_dropped_nested += len;
+			else
+				data->bytes_dropped += len;
 		}
 		return len;
 	}
