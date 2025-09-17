@@ -680,6 +680,7 @@ struct rkcif_stream {
 	bool				is_m_online_fb_res;
 	bool				is_fb_first_frame;
 	bool				is_pause_stream;
+	bool				is_force_update;
 };
 
 struct rkcif_lvds_subdev {
@@ -1057,6 +1058,7 @@ struct rkcif_device {
 	u32				early_line;
 	int				isp_runtime_max;
 	int				sensor_linetime;
+	u64				readout_ns;
 	u32				err_state;
 	struct rkcif_err_state_work	err_state_work;
 	struct rkcif_sensor_work	sensor_work;

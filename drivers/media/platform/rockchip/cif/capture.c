@@ -2568,6 +2568,23 @@ out_get_buf:
 			rkcif_write_register(dev, frm_addr_y, buff_addr_y);
 		}
 	}
+	if (buf_stream->is_force_update) {
+		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
+		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
+			if (dev->chip_id < CHIP_RK3562_CIF)
+				rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_CTRL, 0x00010000);
+			else
+				rkcif_write_register_or(dev, get_reg_index_of_frm0_y_vlw(stream->id), BIT(31));
+		} else {
+			if (dev->chip_id < CHIP_RK3562_CIF)
+				rkcif_write_register_or(dev, CIF_REG_DVP_CTRL, 0x00010000);
+			else if (dev->chip_id < CHIP_RK3576_CIF)
+				rkcif_write_register_or(dev, CIF_REG_DVP_VIR_LINE_WIDTH, BIT(28) << stream->id);
+			else
+				rkcif_write_register_or(dev, CIF_REG_DVP_VIR_LINE_WIDTH, BIT(31));
+		}
+		buf_stream->is_force_update = false;
+	}
 	spin_unlock_irqrestore(&buf_stream->vbq_lock, flags);
 	return 0;
 }
@@ -2582,6 +2599,19 @@ static int rkcif_assign_new_buffer_pingpong_toisp(struct rkcif_stream *stream,
 	else
 		ret = rkcif_assign_new_buffer_update_toisp(stream, channel_id);
 	return ret;
+}
+
+static void rkcif_check_force_update_buf(struct rkcif_stream *stream)
+{
+	u64 cur_time = 0;
+	u64 offset = 0;
+
+	offset = stream->cifdev->readout_ns - 2000000;
+	cur_time = rkcif_time_get_ns(stream->cifdev);
+	if (stream->dma_en &&
+	    (cur_time - stream->readout.fs_timestamp) > offset &&
+	    !stream->is_in_vblank)
+		stream->is_force_update = true;
 }
 
 void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
@@ -2633,6 +2663,11 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 	if (buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_LOSS &&
 	    buf_stream->toisp_buf_state.check_cnt == 0)
 		is_dual_update = true;
+
+	if ((buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_LOSS ||
+	     buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_THESAME) &&
+	    buf_stream->toisp_buf_state.check_cnt == 0)
+		rkcif_check_force_update_buf(buf_stream);
 
 	if ((dev->rdbk_debug > 2 &&
 	     stream->frame_idx < 15) ||
@@ -6982,6 +7017,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		stream->crop_mask = 0;
 		stream->frame_loss = 0;
 		stream->is_fb_first_frame = true;
+		stream->is_force_update = false;
 	}
 	if (mode == RKCIF_STREAM_MODE_CAPTURE) {
 		tasklet_disable(&stream->vb_done_tasklet);
@@ -8601,6 +8637,8 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		tasklet_enable(&stream->vb_done_tasklet);
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
+		dev->sensor_linetime = rkcif_get_linetime(stream);
+		dev->readout_ns = dev->terminal_sensor.raw_rect.height * dev->sensor_linetime;
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
@@ -9095,6 +9133,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	memset(&stream->sensor_exp_info, 0, sizeof(stream->sensor_exp_info));
 	stream->frame_loss = 0;
 	stream->is_pause_stream = false;
+	stream->is_force_update = false;
 }
 
 int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
@@ -13179,8 +13218,10 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 	} else {
 		if (cif_dev->chip_id < CHIP_RK3562_CIF)
 			rkcif_write_register_or(cif_dev, CIF_REG_DVP_CTRL, 0x00010000);
-		else
+		else if (cif_dev->chip_id < CHIP_RK3576_CIF)
 			rkcif_write_register_or(cif_dev, CIF_REG_DVP_VIR_LINE_WIDTH, BIT(28) << stream->id);
+		else
+			rkcif_write_register_or(cif_dev, CIF_REG_DVP_VIR_LINE_WIDTH, BIT(31));
 	}
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
