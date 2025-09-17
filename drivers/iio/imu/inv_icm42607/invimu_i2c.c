@@ -41,7 +41,7 @@ static bool invimu_volatile_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
-static int invimu_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int invimu_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 
