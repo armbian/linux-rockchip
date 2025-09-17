@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config IIO_INV_ICM42607
+	tristate "INV ICM42607 driver for 6-axis IMU MEMS sensors"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select IIO_INV_ICM42607_I2C if (I2C)
+	help
+	  Say yes here to build support for INV icm42607 sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called inv_icm42607.
+
+config IIO_INV_ICM42607_I2C
+	tristate
+	depends on IIO_INV_ICM42607
+	select REGMAP_I2C
