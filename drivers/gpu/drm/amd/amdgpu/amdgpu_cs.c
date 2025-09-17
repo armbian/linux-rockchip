@@ -289,8 +289,11 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		if (ret)
 			goto free_all_kdata;
 
-		ret = drm_sched_job_init(&p->jobs[i]->base, p->entities[i],
-					 &fpriv->vm);
+		ret = drm_sched_job_init(&p->jobs[i]->base,
+					 p->entities[i],
+					 1, /* credits */
+					 &fpriv->vm, /* owner */
+					 p->filp->client_id);
 		if (ret)
 			goto free_all_kdata;
 	}
