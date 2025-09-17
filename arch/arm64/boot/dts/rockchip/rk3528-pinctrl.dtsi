@@ -543,22 +543,14 @@
 		pciem0_pins: pciem0-pins {
 			rockchip,pins =
 				/* pcie_clkreqn_m0 */
-				<3 RK_PA6 5 &pcfg_pull_none>,
-				/* pcie_perstn_m0 */
-				<3 RK_PB0 5 &pcfg_pull_none>,
-				/* pcie_waken_m0 */
-				<3 RK_PA7 5 &pcfg_pull_none>;
+				<3 RK_PA6 5 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
 		pciem1_pins: pciem1-pins {
 			rockchip,pins =
 				/* pcie_clkreqn_m1 */
-				<1 RK_PA0 4 &pcfg_pull_none>,
-				/* pcie_perstn_m1 */
-				<1 RK_PA2 4 &pcfg_pull_none>,
-				/* pcie_waken_m1 */
-				<1 RK_PA1 4 &pcfg_pull_none>;
+				<1 RK_PA0 4 &pcfg_pull_none>;
 		};
 	};
 

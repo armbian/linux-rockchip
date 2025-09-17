@@ -796,22 +796,14 @@
 		pcie20m0_pins: pcie20m0-pins {
 			rockchip,pins =
 				/* pcie20_clkreqn_m0 */
-				<0 RK_PA6 1 &pcfg_pull_none>,
-				/* pcie20_perstn_m0 */
-				<0 RK_PB5 2 &pcfg_pull_none>,
-				/* pcie20_waken_m0 */
-				<0 RK_PB6 2 &pcfg_pull_none>;
+				<0 RK_PA6 1 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
 		pcie20m1_pins: pcie20m1-pins {
 			rockchip,pins =
 				/* pcie20_clkreqn_m1 */
-				<3 RK_PA6 4 &pcfg_pull_none>,
-				/* pcie20_perstn_m1 */
-				<3 RK_PB0 4 &pcfg_pull_none>,
-				/* pcie20_waken_m1 */
-				<3 RK_PA7 4 &pcfg_pull_none>;
+				<3 RK_PA6 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
