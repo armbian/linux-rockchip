@@ -377,7 +377,7 @@ static unsigned long kbase_csf_tiler_heap_reclaim_scan_free_pages(struct kbase_d
 		sc->nr_scanned = freed;
 #endif /* (KERNEL_VERSION(4, 14, 0) <= LINUX_VERSION_CODE) */
 
-	dev_info(kbdev->dev, "Tiler heap reclaim scan freed pages: %lu (unused: %lu)", freed,
+	dev_dbg(kbdev->dev, "Tiler heap reclaim scan freed pages: %lu (unused: %lu)", freed,
 		 avail);
 
 	/* On estimate suggesting available, yet actual free failed, return STOP */
