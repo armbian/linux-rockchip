@@ -83,8 +83,8 @@
 		power-supply = <&vcc_emr>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		t_irq_gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-		t_rst_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		t_irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		t_rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
 		focaltech,display-coords =  <0 0 1404 1872>;
 		focaltech,have-key;
 		focaltech,key-number = <1>;
