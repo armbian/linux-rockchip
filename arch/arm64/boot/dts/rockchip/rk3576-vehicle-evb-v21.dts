@@ -569,6 +569,10 @@
 	status = "okay";
 };
 
+&usbdp_phy_u3 {
+	status = "disabled";
+};
+
 &usb_drd1_dwc3 {
 	snps,dis_u2_susphy_quirk;
 	snps,usb2-lpm-disable;
