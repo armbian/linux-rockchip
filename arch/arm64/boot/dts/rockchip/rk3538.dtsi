@@ -89,6 +89,31 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+
+		route {
+			route_hdmi: route-hdmi {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp0_out_hdmi>;
+			};
+
+			route_tve: route-tve {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp0_out_tve>;
+			};
+		};
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3538-pinctrl";
 		rockchip,grf = <&ioc_grf>;
@@ -290,6 +315,70 @@
 		ioc_grf: syscon@fd1b0000 {
 			compatible = "rockchip,rk3538-ioc-grf", "syscon";
 			reg = <0xfd1b0000 0x80000>;
+		};
+
+		vop: vop@fdbe0000 {
+			compatible = "rockchip,rk3538-vop";
+			reg = <0xfdbe0000 0x3c00>,
+			      <0xfdbe6400 0x800>,
+			      <0xfdbe6c00 0x300>;
+			reg-names = "regs",
+				    "acm_regs",
+				    "sharp_regs";
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "vop-sys",
+					  "vop-vp0";
+			clocks = <&cru ACLK_VOP>,
+				 <&cru HCLK_VOP>,
+				 <&cru DCLK_VP0>,
+				 <&cru DCLK_VP0_SRC>;
+			clock-names = "aclk_vop",
+				      "hclk_vop",
+				      "dclk_vp0",
+				      "dclk_src_vp0";
+			resets = <&cru SRST_DRESETN_VP0>;
+			reset-names = "dclk_vp0";
+			rockchip,aclk-normal-mode-rates = <500000000>;
+			rockchip,aclk-reset-mode-rates = <400000000>;
+			rockchip,aclk-advanced-mode-rates = <500000000>;
+			iommus = <&vop_mmu>;
+			status = "disabled";
+
+			vop_out: ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vp0: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					vp0_out_hdmi: endpoint@0 {
+						reg = <0>;
+						//remote-endpoint = <&hdmi_in_vp0>;
+					};
+
+					vp0_out_tve: endpoint@1 {
+						reg = <1>;
+						//remote-endpoint = <&tve_in_vp0>;
+					};
+				};
+			};
+		};
+
+		vop_mmu: iommu@fdbe7e00 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0xfdbe7e00 0x100>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "vop_mmu";
+			clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,disable-device-link-resume;
+			rockchip,shootdown-entire;
+			rockchip,enable-pagefault-fake-mode;
+			status = "disabled";
 		};
 
 		uart0: serial@fdc50000 {
