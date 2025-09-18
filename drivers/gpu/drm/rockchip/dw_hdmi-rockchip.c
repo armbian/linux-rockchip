@@ -94,6 +94,20 @@
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
+#define RK3572_VO0_GRF_SOC_CON0		0x0000
+#define RK3572_VO0_GRF_SOC_CON8		0x0020
+#define RK3572_VO0_GRF_SOC_CON12	0x0030
+#define RK3572_VO0_GRF_SOC_CON13	0x0034
+
+#define RK3572_SYS_GRF_CON1		0x4
+#define RK3572_HDMITX_HPD_INT_MSK	BIT(15)
+#define RK3572_HDMITX_HPD_INT_CLR	BIT(14)
+#define RK3572_SYS_GRF_CON2		0x8
+#define RK3572_SET_DLY_EN_MASK		(0x3f << 8)
+#define RK3572_SET_DLY_EN		BIT(8)
+#define RK3572_SET_LNUM_MS_MASK		0xff
+#define RK3572_HDMITX_HPD_STATUS	0x140
+
 #define RK3576_IOC_MISC_CON0		0xa400
 #define RK3576_HDMITX_HPD_INT_MSK	BIT(2)
 #define RK3576_HDMITX_HPD_INT_CLR	BIT(1)
@@ -1526,6 +1540,26 @@ static void repo_hpd_event(struct work_struct *p_work)
 	}
 }
 
+static irqreturn_t rk3572_hdmi_hardirq(int irq, void *dev_id)
+{
+	struct rockchip_hdmi *hdmi = dev_id;
+	u32 intr_stat, val;
+
+	regmap_read(hdmi->regmap, RK3572_HDMITX_HPD_STATUS, &intr_stat);
+
+	if (intr_stat & RK3576_HDMITX_OHPD_INT) {
+		dev_dbg(hdmi->dev, "hpd irq %#x\n", intr_stat);
+
+		val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_MSK,
+				    RK3572_HDMITX_HPD_INT_MSK);
+
+		regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+		return IRQ_WAKE_THREAD;
+	}
+
+	return IRQ_NONE;
+}
+
 static irqreturn_t rk3576_hdmi_hardirq(int irq, void *dev_id)
 {
 	struct rockchip_hdmi *hdmi = dev_id;
@@ -1572,6 +1606,42 @@ static irqreturn_t rk3588_hdmi_hardirq(int irq, void *dev_id)
 	}
 
 	return IRQ_NONE;
+}
+
+static irqreturn_t rk3572_hdmi_thread(int irq, void *dev_id)
+{
+	struct rockchip_hdmi *hdmi = dev_id;
+	u32 intr_stat, val;
+	int msecs;
+	bool stat;
+
+	regmap_read(hdmi->regmap, RK3572_HDMITX_HPD_STATUS, &intr_stat);
+
+	val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_CLR,
+			    RK3572_HDMITX_HPD_INT_CLR);
+	if (intr_stat & RK3576_HDMITX_LEVEL_INT)
+		stat = true;
+	else
+		stat = false;
+
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	if (stat) {
+		hdmi->hpd_stat = true;
+		msecs = 150;
+	} else {
+		hdmi->hpd_stat = false;
+		msecs = 20;
+	}
+	mod_delayed_work(hdmi->workqueue, &hdmi->hpd_work, msecs_to_jiffies(msecs));
+
+	val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_CLR,
+			    RK3572_HDMITX_HPD_INT_CLR) |
+	      HIWORD_UPDATE(0, RK3572_HDMITX_HPD_INT_MSK);
+
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t rk3576_hdmi_thread(int irq, void *dev_id)
@@ -2445,6 +2515,24 @@ static int dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_drm_sub_dev *
 	return 0;
 }
 
+static void rk3572_set_link_mode(struct rockchip_hdmi *hdmi)
+{
+	int val;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	if (!hdmi->link_cfg.frl_mode) {
+		val = HIWORD_UPDATE(0, RK3576_HDMITX_FRL_MOD);
+		regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON1, val);
+
+		return;
+	}
+
+	val = HIWORD_UPDATE(RK3576_HDMITX_FRL_MOD, RK3576_HDMITX_FRL_MOD);
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON0, val);
+}
+
 static void rk3576_set_link_mode(struct rockchip_hdmi *hdmi)
 {
 	int val;
@@ -2512,6 +2600,44 @@ static void rk3588_set_link_mode(struct rockchip_hdmi *hdmi)
 		else
 			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON6, val);
 	}
+}
+
+static void rk3572_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
+				    u32 depth)
+{
+	u32 val = 0;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		val = HIWORD_UPDATE(0, RK3576_COLOR_FORMAT_MASK);
+		break;
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		val = HIWORD_UPDATE(RK3576_YUV420, RK3576_COLOR_FORMAT_MASK);
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		val = HIWORD_UPDATE(RK3576_YUV444, RK3576_COLOR_FORMAT_MASK);
+		break;
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		val = HIWORD_UPDATE(RK3576_YUV422, RK3576_COLOR_FORMAT_MASK);
+		break;
+	default:
+		dev_err(hdmi->dev, "can't set correct color format\n");
+		return;
+	}
+
+	if (depth == 8 || bus_format == MEDIA_BUS_FMT_YUYV10_1X20)
+		val |= HIWORD_UPDATE(RK3576_8BPC, RK3576_COLOR_DEPTH_MASK);
+	else
+		val |= HIWORD_UPDATE(RK3576_10BPC, RK3576_COLOR_DEPTH_MASK);
+
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON13, val);
 }
 
 static void rk3576_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
@@ -2603,6 +2729,21 @@ static void rockchip_set_hdcp_status(void *data, u8 status)
 	hdmi->hdcp_status = status;
 }
 
+static void rk3572_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
+{
+	u32 val;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	if (enable)
+		val = HIWORD_UPDATE(HDCP0_P1_GPIO_IN, HDCP0_P1_GPIO_IN);
+	else
+		val = HIWORD_UPDATE(0, HDCP0_P1_GPIO_IN);
+
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON12, val);
+}
+
 static void rk3576_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
 {
 	u32 val;
@@ -2650,6 +2791,17 @@ static void rockchip_set_grf_cfg(void *data)
 	color_depth = hdmi_bus_fmt_color_depth(hdmi->bus_format);
 
 	hdmi->chip_data->ops->set_color_format(hdmi, hdmi->bus_format, color_depth);
+}
+
+static void rk3572_get_grf_color_fmt(struct rockchip_hdmi *hdmi, u32 *fmt, u32 *depth)
+{
+	if (!hdmi->vo0_regmap)
+		return;
+
+	regmap_read(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON13, fmt);
+
+	*depth = (*fmt & RK3576_COLOR_DEPTH_MASK) >> 8;
+	*fmt = (*fmt & RK3576_COLOR_FORMAT_MASK) >> 4;
 }
 
 static void rk3576_get_grf_color_fmt(struct rockchip_hdmi *hdmi, u32 *fmt, u32 *depth)
@@ -3560,6 +3712,18 @@ static void dw_hdmi_rockchip_set_ddc_io(void *data, bool enable)
 			dev_err(hdmi->dev, "could not select default state\n");
 	}
 }
+
+static void rk3572_set_hdcp14_mem(struct rockchip_hdmi *hdmi, bool enable)
+{
+	u32 val;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	val = HIWORD_UPDATE(enable << 15, RK3576_HDMI_HDCP14_MEM_EN);
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON0, val);
+}
+
 
 static void rk3576_set_hdcp14_mem(struct rockchip_hdmi *hdmi, bool enable)
 {
@@ -4638,6 +4802,35 @@ void dw_hdmi_qp_rockchip_sda_delay_cal(struct rockchip_hdmi *hdmi, u8 *sda_dlyn,
 	*sda_dlyn = val;
 }
 
+static void rk3572_io_path_init(struct rockchip_hdmi *hdmi)
+{
+	u32 val;
+	u8 sda_dlyn = 0, sda_div = 0;
+
+	if (!hdmi->vo0_regmap || !hdmi->regmap)
+		return;
+
+	val = HIWORD_UPDATE(RK3576_SCLIN_MASK, RK3576_SCLIN_MASK) |
+	      HIWORD_UPDATE(RK3576_SDAIN_MASK, RK3576_SDAIN_MASK) |
+	      HIWORD_UPDATE(RK3576_HDMITX_GRANT_SEL, RK3576_HDMITX_GRANT_SEL) |
+	      HIWORD_UPDATE(RK3576_I2S_SEL_MASK, RK3576_I2S_SEL_MASK);
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON12, val);
+
+	val = HIWORD_UPDATE(0, RK3576_HDMITX_HPD_INT_MSK);
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	if (hdmi->sda_falling_delay_ns) {
+		dw_hdmi_qp_rockchip_sda_delay_cal(hdmi, &sda_dlyn, &sda_div);
+		if (sda_dlyn) {
+			val = HIWORD_UPDATE(sda_dlyn << 12, RK3576_GRF_OSDA_DLYN) |
+			      HIWORD_UPDATE(sda_div << 1, RK3576_GRF_OSDA_DIV) |
+			      HIWORD_UPDATE(1, RK3576_GRF_OSDA_DLY_EN);
+
+			regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON8, val);
+		}
+	}
+}
+
 static void rk3576_io_path_init(struct rockchip_hdmi *hdmi)
 {
 	u32 val;
@@ -4668,6 +4861,26 @@ static void rk3576_io_path_init(struct rockchip_hdmi *hdmi)
 }
 
 static enum drm_connector_status
+dw_hdmi_rk3572_read_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+	int ret;
+
+	regmap_read(hdmi->regmap, RK3572_HDMITX_HPD_STATUS, &val);
+
+	if (val & RK3576_HDMITX_LEVEL_INT) {
+		hdmi->hpd_stat = true;
+		ret = connector_status_connected;
+	} else {
+		hdmi->hpd_stat = false;
+		ret = connector_status_disconnected;
+	}
+
+	return ret;
+}
+
+static enum drm_connector_status
 dw_hdmi_rk3576_read_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -4685,6 +4898,22 @@ dw_hdmi_rk3576_read_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 	}
 
 	return ret;
+}
+
+static void dw_hdmi_rk3572_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+
+	val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_CLR, RK3572_HDMITX_HPD_INT_CLR) |
+	      HIWORD_UPDATE(0, RK3572_HDMITX_HPD_INT_MSK);
+
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	val = HIWORD_UPDATE(RK3572_SET_DLY_EN, RK3572_SET_DLY_EN_MASK) |
+	      HIWORD_UPDATE(2, RK3572_SET_LNUM_MS_MASK);
+
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON2, val);
 }
 
 static void dw_hdmi_rk3576_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
@@ -5012,6 +5241,43 @@ static const struct dw_hdmi_plat_data rk3576_hdmi_drv_data = {
 	.use_drm_infoframe = true,
 };
 
+static const struct dw_hdmi_qp_phy_ops rk3572_hdmi_phy_ops = {
+	.init		= dw_hdmi_qp_rockchip_genphy_init,
+	.disable	= dw_hdmi_qp_rockchip_phy_disable,
+	.read_hpd	= dw_hdmi_rk3572_read_hpd,
+	.setup_hpd	= dw_hdmi_rk3572_setup_hpd,
+	.set_mode       = dw_hdmi_rk3588_phy_set_mode,
+	.set_ffe        = dw_hdmi_qp_rockchip_phy_set_ffe,
+};
+
+static const struct rockchip_hdmi_chip_ops rk3572_hdmi_chip_ops = {
+	.set_link_mode = rk3572_set_link_mode,
+	.set_color_format = rk3572_set_color_format,
+	.get_grf_color_fmt = rk3572_get_grf_color_fmt,
+	.io_path_init = rk3572_io_path_init,
+	.hdmi_hardirq = rk3572_hdmi_hardirq,
+	.hdmi_thread = rk3572_hdmi_thread,
+	.set_hdcp14_mem = rk3572_set_hdcp14_mem,
+	.set_hdcp2_enable = rk3572_set_hdcp2_enable,
+};
+
+struct rockchip_hdmi_chip_data rk3572_hdmi_chip_data = {
+	.lcdsel_grf_reg = -1,
+	.ddc_en_reg = RK3572_VO0_GRF_SOC_CON12,
+	.ops = &rk3572_hdmi_chip_ops,
+};
+
+static const struct dw_hdmi_plat_data rk3572_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.phy_data = &rk3572_hdmi_chip_data,
+	.qp_phy_ops = &rk3572_hdmi_phy_ops,
+	.phy_name = "samsung_hdptx_phy",
+	.phy_force_vendor = true,
+	.ycbcr_420_allowed = true,
+	.is_hdmi_qp = true,
+	.use_drm_infoframe = true,
+};
+
 static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
 	.init		= dw_hdmi_qp_rockchip_genphy_init,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
@@ -5072,6 +5338,9 @@ static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
 	},
 	{ .compatible = "rockchip,rk3568-dw-hdmi",
 	  .data = &rk3568_hdmi_drv_data
+	},
+	{ .compatible = "rockchip,rk3572-dw-hdmi",
+	  .data = &rk3572_hdmi_drv_data
 	},
 	{ .compatible = "rockchip,rk3576-dw-hdmi",
 	  .data = &rk3576_hdmi_drv_data
