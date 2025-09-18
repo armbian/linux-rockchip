@@ -2767,7 +2767,7 @@ static int cts_fw_class_init(void *_data, bool create)
         }
 
         cts_info("Create class 'touchscreen'");
-        touchscreen_class = class_create(THIS_MODULE, "touchscreen");
+        touchscreen_class = class_create("touchscreen");
         if (IS_ERR(touchscreen_class)) {
             cts_err("Create class 'touchscreen' failed %ld",
                 PTR_ERR(touchscreen_class));
