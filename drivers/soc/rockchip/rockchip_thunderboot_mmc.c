@@ -93,10 +93,9 @@ static int rk_tb_mmc_thread(void *p)
 
 	if (readl_poll_timeout(regs + SDMMC_RINTSTS, status,
 			       !(status & BIT(2)), 100,
-			       11 * USEC_PER_MSEC)) {
-		dev_err(dev, "Send CMD12 timeout!\n");
-		goto out;
-	}
+			       11 * USEC_PER_MSEC))
+		dev_warn(dev, "Send CMD12 timeout!\n");
+
 
 	/* Parse ramdisk addr and help start decompressing */
 	if (rds && rdd) {
