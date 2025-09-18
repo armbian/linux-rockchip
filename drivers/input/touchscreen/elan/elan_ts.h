@@ -37,7 +37,6 @@
 /*define elan device name*/
 #define ELAN_TS_NAME "elan_ts"
 
-#define MIN(x,y) ((((x) - (y)) < 0) ? (x) : (y))
 #define FLASH_PAGE_PER_TIMES	(30)
 #define FW_PAGE_SIZE			(132)
 #define IAP_CMD_HEADER_LEN		(9)
@@ -59,8 +58,8 @@
 #define FINGERS_NUM 10
 
 struct ts_chip_hw_info {
-	int intr_gpio;
-	int rst_gpio;
+	struct gpio_desc *intr_gpio;
+	struct gpio_desc *rst_gpio;
 	int irq_num;
 	uint16_t screen_x;
 	uint16_t screen_y;

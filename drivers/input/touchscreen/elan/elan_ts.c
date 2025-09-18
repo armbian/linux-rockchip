@@ -23,7 +23,7 @@
 #include <linux/of.h>
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 //#include <linux/wakelock.h>
 #include <linux/pm_wakeup.h>
@@ -50,11 +50,11 @@ static const int key_value[] = {KEY_MENU, KEY_HOMEPAGE, KEY_BACK};
 
 void elan_ts_hw_reset(struct ts_chip_hw_info *hw_info)
 {
-	gpio_set_value(hw_info->rst_gpio, 1);
+	gpiod_set_value(hw_info->rst_gpio, 1);
 	msleep(10);
-	gpio_set_value(hw_info->rst_gpio, 0);
+	gpiod_set_value(hw_info->rst_gpio, 0);
 	msleep(100);
-	gpio_set_value(hw_info->rst_gpio, 1);
+	gpiod_set_value(hw_info->rst_gpio, 1);
         printk("[elan] elan_ts_hw_reset()\n");
 }
 
@@ -85,7 +85,7 @@ static int elan_poll_int(void)
 	int status = 0, retry = 50;//20;
 
 	do {
-		status = gpio_get_value(private_ts->hw_info.intr_gpio);
+		status = gpiod_get_value(private_ts->hw_info.intr_gpio);
 		if (status == 0)
 			break;
 		retry--;
@@ -1057,7 +1057,7 @@ static void  elan_ts_work_func(struct work_struct *work)
 	uint8_t buf[HID_REPORT_MAX_LEN] = {0x00};	
 	int rc = 0;
 
-	if(gpio_get_value(ts->hw_info.intr_gpio)) {
+	if(gpiod_get_value(ts->hw_info.intr_gpio)) {
 		dev_err(&ts->client->dev,"[elan]interrupt jitter\n.");
 		return;
 	}
@@ -1461,7 +1461,7 @@ static long elan_iap_ioctl( struct file *filp, unsigned int cmd, unsigned long a
 	case IOCTL_ROUGH_CALIBRATE:
 		return elan_ts_calibrate(ts->client);
 	case IOCTL_I2C_INT:
-		put_user(gpio_get_value(ts->hw_info.intr_gpio), ip);
+		put_user(gpiod_get_value(ts->hw_info.intr_gpio), ip);
 		break;
 	case IOCTL_USER_HANDLE_IRQ:
 		ts->user_handle_irq = 1;
@@ -1684,37 +1684,33 @@ Output:
 static int elan_ts_gpio_initial(struct ts_chip_hw_info *hw_info)
 {
 	int ret = 0;
+	struct device *dev = &private_ts->client->dev;
 	
 	printk("[elan] request reset gpio\n");
-	ret = gpio_request(hw_info->rst_gpio, "tp_reset");
-	if (ret < 0) {
-		pr_err("%s: request rst_gpio pin failed\n", __func__);
+	hw_info->rst_gpio = devm_gpiod_get(dev, "elan,rst", GPIOD_OUT_HIGH);
+	if (IS_ERR(hw_info->rst_gpio)) {
+		ret = PTR_ERR(hw_info->rst_gpio);
+		dev_err(dev, "Failed to get reset GPIO: %d\n", ret);
 		goto free_rst_gpio;
 	}
-	
-	gpio_direction_output(hw_info->rst_gpio, 1);
 
 	printk("[elan] request interrupt gpio\n");
 	/*set int pin input*/
-	ret = gpio_request(hw_info->intr_gpio, "tp_irq");
-	if (ret < 0) {
-		pr_err("%s: request intr_gpio pin failed\n", __func__);
+	hw_info->intr_gpio = devm_gpiod_get(dev, "elan,irq", GPIOD_IN);
+	if (IS_ERR(hw_info->intr_gpio)) {
+		ret = PTR_ERR(hw_info->intr_gpio);
+		dev_err(dev, "Failed to get interrupt GPIO: %d\n", ret);
 		goto free_irq_gpio;
 	}
-	gpio_direction_input(hw_info->intr_gpio);
 	
-	hw_info->irq_num = gpio_to_irq(hw_info->intr_gpio);
+	hw_info->irq_num = gpiod_to_irq(hw_info->intr_gpio);
 	
 	
 
 	return ret;
 		
 free_irq_gpio:
-	if (gpio_is_valid(hw_info->intr_gpio)) 
-		gpio_free(hw_info->intr_gpio);
 free_rst_gpio:
-	if (gpio_is_valid(hw_info->rst_gpio))
-		gpio_free(hw_info->rst_gpio);
 	return ret;
 }
 
@@ -1746,24 +1742,6 @@ static int elan_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 */
-	/*get irq gpio from dts*/
-	chip_hw_info->intr_gpio = of_get_named_gpio_flags(np,
-		"elan,irq-gpio", 0, NULL);
-	if (!gpio_is_valid(chip_hw_info->intr_gpio)) {
-		dev_err(&ts->client->dev, "[elan] hw_info->intr_gpio invalid\n");
-		ret =  -EINVAL;
-		goto request_intr_gpio_failed;
-	}
-		
-	/*get reset gpio from dts*/
-	chip_hw_info->rst_gpio = of_get_named_gpio_flags(np,
-		"elan,rst-gpio", 0, NULL);
-	if (!gpio_is_valid(chip_hw_info->rst_gpio)) {
-		dev_err(&ts->client->dev, "[elan] hw_info->rst_gpio invalid\n");
-		ret = -EINVAL;
-		goto request_rst_gpio_failed;
-	}
-	
 	/*get ic communicate protocol*/
 	ret = of_property_read_u32(np, "chip_type", &data);
 	if (ret == 0) {
@@ -1802,12 +1780,6 @@ static int elan_parse_dt(struct device *dev,
 //read_lcm_res_failed:
 read_report_type_failed:
 read_chip_type_failed:
-	if (gpio_is_valid(chip_hw_info->rst_gpio)) 
-		gpio_free(chip_hw_info->rst_gpio);
-request_rst_gpio_failed:
-	if (gpio_is_valid(chip_hw_info->intr_gpio)) 
-		gpio_free(chip_hw_info->intr_gpio);
-request_intr_gpio_failed:	
 	return ret;
 }
 
@@ -1863,7 +1835,7 @@ static int elan_ts_hw_initial(struct elan_ts_data *ts)
 	if (ret) 
 	dev_err(&client->dev, "gpio initial failed ret = %d\n",ret);
 
-	dev_err(&client->dev, "[elan] rst = %d, int = %d, irq=%d\n",hw_info->rst_gpio, hw_info->intr_gpio,hw_info->irq_num);
+	dev_err(&client->dev, "[elan] irq=%d\n",hw_info->irq_num);
 	dev_err(&client->dev, "[elan] lcm_x = %d, lcm_y = %d\n",hw_info->screen_x, hw_info->screen_y);
     
 	return ret;
@@ -1874,11 +1846,6 @@ static void elan_ts_hw_deinit(struct elan_ts_data *ts)
 
 	regulator_put(ts->vdd);
 	regulator_put(ts->vcc_i2c);	
-	if (gpio_is_valid(ts->hw_info.intr_gpio)) 
-		gpio_free(ts->hw_info.intr_gpio);
-	
-	if (gpio_is_valid(ts->hw_info.rst_gpio))
-		gpio_free(ts->hw_info.rst_gpio);
 }
 
 /*******************************************************
@@ -2040,11 +2007,6 @@ free_power_set:
 	regulator_put(ts->vcc_i2c);
 #if 1	
 free_io_port:
-	if (gpio_is_valid(ts->hw_info.intr_gpio)) 
-		gpio_free(ts->hw_info.intr_gpio);
-	
-	if (gpio_is_valid(ts->hw_info.rst_gpio))
-		gpio_free(ts->hw_info.rst_gpio);
 #endif
 free_client_data:
 	i2c_set_clientdata(client,NULL);

@@ -74,7 +74,7 @@ static ssize_t show_gpio_int(struct device *dev,
 	struct elan_ts_data *ts = i2c_get_clientdata(client);
 	
 	return sprintf(buf, "%d\n",
-			gpio_get_value(ts->hw_info.intr_gpio));
+			gpiod_get_value(ts->hw_info.intr_gpio));
 }
 static DEVICE_ATTR(gpio_int, S_IRUGO, show_gpio_int, NULL);
 
