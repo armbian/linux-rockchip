@@ -149,9 +149,9 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 int fts_reset_proc(int hdelayms)
 {
     FTS_DEBUG("tp reset");
-    gpio_direction_output(fts_data->pdata->reset_gpio, 0);
+    gpiod_set_value(fts_data->reset_gpio, 0);
     msleep(10);
-    gpio_direction_output(fts_data->pdata->reset_gpio, 1);
+    gpiod_set_value(fts_data->reset_gpio, 1);
     if (hdelayms) {
         msleep(hdelayms);
     }
@@ -859,7 +859,7 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
     int ret = 0;
     struct fts_ts_platform_data *pdata = ts_data->pdata;
 
-    ts_data->irq = gpio_to_irq(pdata->irq_gpio);
+    ts_data->irq = gpiod_to_irq(ts_data->irq_gpio);
     pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_NO_SUSPEND;
     FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
     ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
@@ -1071,7 +1071,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
     if (enable) {
         if (ts_data->power_disabled) {
             FTS_DEBUG("regulator enable !");
-            gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+            gpiod_set_value(ts_data->reset_gpio, 0);
             msleep(1);
             ret = regulator_enable(ts_data->vdd);
             if (ret) {
@@ -1089,7 +1089,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
     } else {
         if (!ts_data->power_disabled) {
             FTS_DEBUG("regulator disable !");
-            gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+            gpiod_set_value(ts_data->reset_gpio, 0);
             msleep(1);
             ret = regulator_disable(ts_data->vdd);
             if (ret) {
@@ -1261,14 +1261,16 @@ static int fts_gpio_configure(struct fts_ts_data *data)
         }
     }
     #endif
-    ret = gpio_direction_input(data->pdata->irq_gpio);
-    if (ret) {
-        FTS_ERROR("[GPIO]set_direction for irq gpio failed");
+    data->irq_gpio = devm_gpiod_get(data->dev, "t_irq", GPIOD_IN);
+    if (IS_ERR(data->irq_gpio)) {
+        ret = PTR_ERR(data->irq_gpio);
+        FTS_ERROR("Failed to get irq GPIO: %d", ret);
         goto err_irq_gpio_dir;
     }
-    ret = gpio_direction_output(data->pdata->reset_gpio, 1);
-    if (ret) {
-        FTS_ERROR("[GPIO]set_direction for reset gpio failed");
+    data->reset_gpio = devm_gpiod_get(data->dev, "t_rst", GPIOD_OUT_HIGH);
+    if (IS_ERR(data->reset_gpio)) {
+        ret = PTR_ERR(data->reset_gpio);
+        FTS_ERROR("Failed to get reset GPIO: %d", ret);
         goto err_reset_gpio_dir;
     }
     FTS_FUNC_EXIT();
@@ -1276,11 +1278,7 @@ static int fts_gpio_configure(struct fts_ts_data *data)
     return 0;
 
 err_reset_gpio_dir:
-    if (gpio_is_valid(data->pdata->reset_gpio))
-        gpio_free(data->pdata->reset_gpio);
 err_irq_gpio_dir:
-    if (gpio_is_valid(data->pdata->irq_gpio))
-        gpio_free(data->pdata->irq_gpio);
 /*err_irq_gpio_req:*/
     FTS_FUNC_EXIT();
     return ret;
@@ -1374,27 +1372,6 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
                  pdata->key_x_coords[2], pdata->key_y_coords[2]);
     }
 
-    /* reset, irq gpio info */
-    pdata->reset_gpio = of_get_named_gpio_flags(np, "t_rst_gpio",
-                        0, &pdata->reset_gpio_flags);
-    if (pdata->reset_gpio < 0)
-        FTS_ERROR("Unable to get reset_gpio");
-
-    pdata->irq_gpio = of_get_named_gpio_flags(np, "t_irq_gpio",
-                      0, &pdata->irq_gpio_flags);
-    if (pdata->irq_gpio < 0)
-        FTS_ERROR("Unable to get irq_gpio");
-
-   pdata->power_gpio = of_get_named_gpio_flags(np, "t_power_gpio",
-                      0, &pdata->power_gpio_flags);
-    if (pdata->power_gpio < 0)
-        FTS_ERROR("Unable to get power_gpio");
-    else
-    {
-	if(gpio_is_valid(pdata->power_gpio))
-         gpio_direction_output(pdata->power_gpio,1);
-	msleep(50);
-    }
 	 power_supply = devm_regulator_get(dev, "power");
 	if (power_supply) {
 		dev_info(dev, "fts power supply = %dmv\n", regulator_get_voltage(power_supply));
@@ -1416,8 +1393,8 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
             pdata->max_touch_number = temp_val;
     }
 
-    FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d",
-             pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio);
+    FTS_INFO("max touch number:%d",
+             pdata->max_touch_number);
 
     FTS_FUNC_EXIT();
     return 0;
@@ -1796,10 +1773,6 @@ err_irq_req:
 err_power_init:
     fts_power_source_exit(ts_data);
 #endif
-    if (gpio_is_valid(ts_data->pdata->reset_gpio))
-        gpio_free(ts_data->pdata->reset_gpio);
-    if (gpio_is_valid(ts_data->pdata->irq_gpio))
-        gpio_free(ts_data->pdata->irq_gpio);
 err_gpio_config:
     kfree_safe(ts_data->point_buf);
     kfree_safe(ts_data->events);
@@ -1859,12 +1832,6 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
     unregister_early_suspend(&ts_data->early_suspend);
 #endif
-
-    if (gpio_is_valid(ts_data->pdata->reset_gpio))
-        gpio_free(ts_data->pdata->reset_gpio);
-
-    if (gpio_is_valid(ts_data->pdata->irq_gpio))
-        gpio_free(ts_data->pdata->irq_gpio);
 
 #if FTS_POWER_SOURCE_CUST_EN
     fts_power_source_exit(ts_data);

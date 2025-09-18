@@ -44,7 +44,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
@@ -130,12 +130,8 @@ struct ftxxxx_proc {
 };
 
 struct fts_ts_platform_data {
-    u32 irq_gpio;
     u32 irq_gpio_flags;
-    u32 reset_gpio;
     u32 reset_gpio_flags;
-    u32 power_gpio;
-    u32 power_gpio_flags;
     bool have_key;
     u32 key_number;
     u32 keys[FTS_MAX_KEYS];
@@ -214,6 +210,8 @@ struct fts_ts_data {
     struct early_suspend early_suspend;
 #endif
     struct tp_device tp;
+    struct gpio_desc *reset_gpio;
+    struct gpio_desc *irq_gpio;
 };
 
 enum _FTS_BUS_TYPE {

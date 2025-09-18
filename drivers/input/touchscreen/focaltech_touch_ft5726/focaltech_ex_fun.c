@@ -980,7 +980,7 @@ static ssize_t fts_driverinfo_show(
 
     count += snprintf(buf + count, PAGE_SIZE,
                       "reset gpio:%d,int gpio:%d,irq:%d\n",
-                      pdata->reset_gpio, pdata->irq_gpio, ts_data->irq);
+                      desc_to_gpio(ts_data->reset_gpio), desc_to_gpio(ts_data->irq_gpio), ts_data->irq);
 
     count += snprintf(buf + count, PAGE_SIZE, "IC ID:0x%02x%02x\n",
                       ts_data->ic_info.ids.chip_idh,
