@@ -604,22 +604,6 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
-#ifdef MODULE
-void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
-{
-	int ret;
-
-	if (pci->ops && pci->ops->write_dbi2) {
-		pci->ops->write_dbi2(pci, pci->dbi_base2, reg, size, val);
-		return;
-	}
-
-	ret = dw_pcie_write(pci->dbi_base2 + reg, size, val);
-	if (ret)
-		dev_err(pci->dev, "write DBI address failed\n");
-}
-#endif
-
 static struct dw_pcie_host_ops rk_pcie_host_ops;
 
 static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pdev)
