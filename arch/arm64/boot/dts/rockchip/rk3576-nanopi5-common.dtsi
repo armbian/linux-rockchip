@@ -26,10 +26,6 @@
 		mmc0 = &sdmmc;
 		mmc1 = &sdio;
 		mmc2 = &sdhci;
-		scsi0 = &lun0;
-		scsi1 = &lun1;
-		scsi2 = &lun2;
-		scsi3 = &lun3;
 	};
 
 
@@ -719,27 +715,6 @@
 &ufs {
 	status = "okay";
 	reset-gpios = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
-
-	scsi {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		lun0: lun@0 {
-			reg = <0>;
-		};
-
-		lun1: lun@1 {
-			reg = <1>;
-		};
-
-		lun2: lun@2 {
-			reg = <2>;
-		};
-
-		lun3: lun@3 {
-			reg = <3>;
-		};
-	};
 };
 
 &usbdp_phy {
