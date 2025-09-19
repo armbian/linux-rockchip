@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config DTOF_NDS03
+	tristate "NDS03 I2C DEVICE"
+	depends on I2C && SYSFS
+	help
+	  Using I2C
