@@ -1177,6 +1177,38 @@
 			status = "disabled";
 		};
 
+		vdpu: vdpu@fd800400 {
+			compatible = "rockchip,vpu-decoder-v2";
+			reg = <0xfd800400 0x400>;
+			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpu";
+			clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+			clock-names = "aclk_vcodec", "hclk_vcodec";
+			rockchip,normal-rates = <394000000>, <148000000>;
+			assigned-clocks = <&cru ACLK_VPU>;
+			assigned-clock-rates = <394000000>;
+			resets = <&cru SRST_ARESETN_VPU>, <&cru SRST_HRESETN_VPU>;
+			reset-names = "shared_video_a", "shared_video_h";
+			rockchip,skip-pmu-idle-request;
+			rockchip,disable-auto-freq;
+			iommus = <&vdpu_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <3>;
+			rockchip,resetgroup-node = <3>;
+			status = "disabled";
+		};
+
+		vdpu_mmu: iommu@fd800800 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0xfd800800 0x40>;
+			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpu_mmu";
+			clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			status = "disabled";
+		};
+
 		rga2_core0: rga@fd810000 {
 			compatible = "rockchip,rga2";
 			reg = <0xfd810000 0x1000>;
@@ -1340,6 +1372,45 @@
 			log_leakage: log-leakage@33 {
 				reg = <0x33 0x1>;
 			};
+		};
+
+		rkvdec: rkvdec@fda10100 {
+			compatible = "rockchip,rkv-decoder-rk3538", "rockchip,rkv-decoder-v384";
+			reg = <0xfda10100 0x600>, <0xfda10000 0x100>;
+			reg-names = "regs", "link";
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_rkvdec";
+			clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>, <&cru CLK_HEVC_CA_RKVDEC>;
+			clock-names = "aclk_vcodec", "hclk_vcodec", "clk_hevc_cabac";
+			resets = <&cru SRST_ARESETN_RKVDEC_BIU>, <&cru SRST_HRESETN_RKVDEC_BIU>,
+				 <&cru SRST_RESETN_HEVC_CA_RKVDEC>;
+			reset-names = "video_a", "video_h", "video_hevc_cabac";
+			rockchip,normal-rates = <333000000>, <148500000>, <594000000>;
+			assigned-clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>, <&cru CLK_HEVC_CA_RKVDEC>;
+			assigned-clock-rates = <333000000>, <148500000>, <594000000>;
+			iommus = <&rkvdec_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,task-capacity = <8>;
+			rockchip,taskqueue-node = <2>;
+			rockchip,resetgroup-node = <2>;
+			rockchip,sram = <&rkvdec_sram>;
+			rockchip,rcb-iova = <0x10000000 0x19000>;
+			rockchip,rcb-min-width = <512>;
+			status = "disabled";
+		};
+
+		rkvdec_mmu: iommu@fda10800 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0xfda10a00 0x100>;
+			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_rkvdec_mmu";
+			clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
+			clock-names = "aclk", "iface";
+			rockchip,disable-mmu-reset;
+			rockchip,enable-cmd-retry;
+			rockchip,shootdown-entire;
+			#iommu-cells = <0>;
+			status = "disabled";
 		};
 
 		hdmi: hdmi@fdb00000 {
