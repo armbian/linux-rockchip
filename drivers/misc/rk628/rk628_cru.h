@@ -40,6 +40,18 @@
 #define PLL_FRAC(x)		((x) << 0)
 #define PLL_FRAC_SHIFT		0
 #define CRU_CPLL_CON3		CRU_REG(0x000c)
+#define SSMOD_SPREAD_MASK	GENMASK(12, 8)
+#define SSMOD_SPREAD(x)		HIWORD_UPDATE(x, 12, 8)
+#define SSMOD_SPREAD_SHIFT	8
+#define SSMOD_DIVVAL_MASK	GENMASK(7, 4)
+#define SSMOD_DIVVAL(x)		HIWORD_UPDATE(x, 7, 4)
+#define SSMOD_DIVVAL_SHIFT	4
+#define SSMOD_DOWNSPREAD_MASK	GENMASK(3, 3)
+#define SSMOD_DOWNSPREAD(x)	HIWORD_UPDATE(x, 3, 3)
+#define SSMOD_DOWNSPREAD_SHIFT	3
+#define SSMOD_RESET(x)		HIWORD_UPDATE(x, 2, 2)
+#define SSMOD_DISABLE_SSCG(x)	HIWORD_UPDATE(x, 1, 1)
+#define SSMOD_BP(x)		HIWORD_UPDATE(x, 0, 0)
 #define CRU_CPLL_CON4		CRU_REG(0x0010)
 #define CRU_GPLL_CON0		CRU_REG(0x0020)
 #define CRU_GPLL_CON1		CRU_REG(0x0024)
@@ -175,11 +187,17 @@
 #define CGU_CLK_APLL		39
 #define CGU_CLK_UART_SRC	40
 
+#define SSC_CPLL		BIT(0)
+#define SSC_GPLL		BIT(1)
+#define SSC_APLL		BIT(2)
+
 unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id);
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate);
 void rk628_cru_init(struct rk628 *rk628);
 void rk628_cru_create_debugfs_file(struct rk628 *rk628);
 void rk628_cru_clk_adjust(struct rk628 *rk628);
+void rk628_cru_clk_pll_enable_ssc(struct rk628 *rk628, unsigned int id);
+void rk628_cru_clk_pll_disable_ssc(struct rk628 *rk628, unsigned int id);
 
 #endif

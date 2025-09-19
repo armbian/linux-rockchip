@@ -179,10 +179,18 @@ void rk628_combtxphy_power_on(struct rk628 *rk628)
 	default:
 		break;
 	}
+
+	if ((rk628->version == RK628F_VERSION || rk628->version == RK628D_VERSION) &&
+	    rk628->ssc.enable)
+		rk628_cru_clk_pll_enable_ssc(rk628, CGU_CLK_CPLL);
 }
 
 void rk628_combtxphy_power_off(struct rk628 *rk628)
 {
+	if ((rk628->version == RK628F_VERSION || rk628->version == RK628D_VERSION) &&
+	    rk628->ssc.enable)
+		rk628_cru_clk_pll_disable_ssc(rk628, CGU_CLK_CPLL);
+
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON0, SW_TX_IDLE_MASK |
 			      SW_TX_PD_MASK | SW_PD_PLL_MASK |
 			      SW_MODULEB_EN_MASK | SW_MODULEA_EN_MASK,

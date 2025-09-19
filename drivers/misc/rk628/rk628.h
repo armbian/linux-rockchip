@@ -562,6 +562,13 @@ struct rk628_pwm {
 	int irq;
 };
 
+struct rk628_ssc {
+	u32 enable;
+	bool down_spread;
+	u32 mod_depth;
+	u32 mod_freq;
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
@@ -603,6 +610,7 @@ struct rk628 {
 	struct workqueue_struct *pwm_wq;
 	struct delayed_work pwm_delay_work;
 	bool pwm_bl_en;
+	struct rk628_ssc ssc;
 };
 
 static inline bool rk628_input_is_hdmi(struct rk628 *rk628)
