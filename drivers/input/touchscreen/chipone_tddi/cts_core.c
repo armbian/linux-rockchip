@@ -1031,14 +1031,14 @@ static int icnl9916_set_access_ddi_reg(struct cts_device *cts_dev, bool enable)
     return 0;
 }
 
-const static struct cts_sfctrl icnl9951_sfctrl = {
+static const struct cts_sfctrl icnl9951_sfctrl = {
     .reg_base = 0x74000,
     .xchg_sram_base = 160 * 1024,
     .xchg_sram_size = 64 * 1024,    /* For non firmware programming */
     .ops = &cts_sfctrlv2_ops
 };
 
-const static struct cts_sfctrl icnl9951r_sfctrl = {
+static const struct cts_sfctrl icnl9951r_sfctrl = {
     .reg_base = 0x74000,
     .xchg_sram_base = 160 * 1024,
     .xchg_sram_size = 64 * 1024,    /* For non firmware programming */
@@ -1046,7 +1046,7 @@ const static struct cts_sfctrl icnl9951r_sfctrl = {
 };
 
 
-const static struct cts_device_hwdata cts_device_hwdatas[] = {
+static const struct cts_device_hwdata cts_device_hwdatas[] = {
     {
         .name = "ICNL9951",
         .hwid = CTS_DEV_HWID_ICNL9951,
@@ -1683,7 +1683,7 @@ static int cts_disable_drw(struct cts_device *cts_dev)
 
 int cts_enter_program_mode(struct cts_device *cts_dev)
 {
-    const static u8 magic_num[] = { 0xCC, 0x33, 0x55, 0x5A };
+    static const u8 magic_num[] = { 0xCC, 0x33, 0x55, 0x5A };
     u8 boot_mode;
     int ret;
 
