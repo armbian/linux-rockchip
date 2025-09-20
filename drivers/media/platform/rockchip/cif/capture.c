@@ -15765,7 +15765,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			    cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ)
 				stream->buf_wake_up_cnt++;
 
-			if (stream->stopping) {
+			if (stream->stopping && (!stream->dma_en)) {
 				rkcif_stream_stop(stream);
 				stream->stopping = false;
 				wake_up(&stream->wq_stopped);
@@ -15830,6 +15830,23 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					spin_unlock_irqrestore(&stream->fps_lock, flags);
 				}
 				stream->is_in_vblank = false;
+				spin_lock_irqsave(&stream->vbq_lock, flags);
+				if (stream->stopping && stream->dma_en) {
+					if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+					stream->is_stop_capture = true;
+				}
+				if (stream->to_stop_dma) {
+					ret = rkcif_stop_dma_capture(stream);
+					if (!ret) {
+						stream->is_finish_stop_dma = true;
+						if (stream->is_wait_stop_complete)
+							stream->is_pause_stream = true;
+					}
+				}
+				spin_unlock_irqrestore(&stream->vbq_lock, flags);
 			}
 		}
 
