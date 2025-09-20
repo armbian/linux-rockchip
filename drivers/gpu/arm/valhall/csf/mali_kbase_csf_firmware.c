@@ -2536,20 +2536,7 @@ int kbase_csf_firmware_late_init(struct kbase_device *kbdev)
 }
 
 #ifdef CONFIG_MALI_CSF_INCLUDE_FW
-asm (
-"	.pushsection .rodata, \"a\"		\n"
-"	.ascii \"CSFFW_ST\"			\n"
-"	.global mali_csffw			\n"
-"mali_csffw:					\n"
-"	.incbin \"drivers/gpu/arm/valhall/mali_csffw.bin\"	\n"
-"	.global mali_csffw_end			\n"
-"mali_csffw_end:				\n"
-"	.ascii \"CSFFW_ED\"			\n"
-"	.popsection				\n"
-);
-
-extern char mali_csffw;
-extern char mali_csffw_end;
+#include "mali_csffw.h"
 #endif
 
 int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
@@ -2590,10 +2577,10 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	}
 
 #ifdef CONFIG_MALI_CSF_INCLUDE_FW
-	mcu_fw->size = &mali_csffw_end - &mali_csffw;
+	mcu_fw->size = sizeof(mali_csffw);
 
 	dev_info(kbdev->dev, "use 'driver built-in firmware' directly\n");
-	mcu_fw->data = (u8 *)(&mali_csffw);
+	mcu_fw->data = mali_csffw;
 	dev_dbg(kbdev->dev, "Firmware image (%zu-bytes) retained in csf.fw\n",
 			mcu_fw->size);
 #else
