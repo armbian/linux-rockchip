@@ -5640,7 +5640,12 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 		}
 
 	} else {
-		if (atomic_read(&cif_dev->pipe.stream_cnt) == 1) {
+		if (stream->cifdev->chip_id >= CHIP_RV1126B_CIF) {
+			val = rkcif_read_register(cif_dev, get_dvp_reg_index_of_id_ctrl0(stream->id));
+			val &= ~(CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE_RK3576);
+			rkcif_write_register(cif_dev, get_dvp_reg_index_of_id_ctrl0(stream->id), val);
+		}
+		if (atomic_read(&stream->cifdev->id_use_cnt) == 0) {
 			val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 			rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
 					     val & (~ENABLE_CAPTURE));
@@ -7897,6 +7902,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	if (dma_state)
 		return 0;
 
+	atomic_inc(&stream->cifdev->id_use_cnt);
 	mbus_flags = mbus->bus.parallel.flags;
 	if ((mbus_flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE) {
 		bt1120_edge_mode = (dev->chip_id < CHIP_RK3588_CIF ?
@@ -8264,6 +8270,7 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 	if (dma_state)
 		return 0;
 
+	atomic_inc(&stream->cifdev->id_use_cnt);
 	mbus_flags = mbus->bus.parallel.flags;
 	if ((mbus_flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE) {
 		bt1120_edge_mode = BT1120_CLOCK_DOUBLE_EDGES_RV1126B;
@@ -13445,16 +13452,22 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 		}
 		rkcif_write_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id), val);
 	}  else {
-		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
-		if (cif_dev->chip_id == CHIP_RK3588_CIF)
-			val &= ~DVP_DMA_EN;
-		else if (cif_dev->chip_id == CHIP_RV1106_CIF)
-			val &= ~(DVP_SW_DMA_EN(stream->id));
-		if (stream->is_stop_capture) {
-			val &= ~ENABLE_CAPTURE;
-			stream->is_stop_capture = false;
+		if (stream->cifdev->chip_id >= CHIP_RV1126B_CIF) {
+			val = rkcif_read_register(cif_dev, get_dvp_reg_index_of_id_ctrl0(stream->id));
+			val &= ~(CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE_RK3576);
+			rkcif_write_register(cif_dev, get_dvp_reg_index_of_id_ctrl0(stream->id), val);
+		} else {
+			val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
+			if (cif_dev->chip_id == CHIP_RK3588_CIF)
+				val &= ~DVP_DMA_EN;
+			else if (cif_dev->chip_id == CHIP_RV1106_CIF)
+				val &= ~(DVP_SW_DMA_EN(stream->id));
+			if (stream->is_stop_capture) {
+				val &= ~ENABLE_CAPTURE;
+				stream->is_stop_capture = false;
+			}
+			rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL, val);
 		}
-		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL, val);
 	}
 	stream->to_stop_dma = 0;
 	v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
@@ -14249,6 +14262,7 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	detect_stream->fs_cnt_in_single_frame++;
 	if ((!cif_dev->sditf[0] ||
 	     cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ) &&
+	     cif_dev->inf_id == RKCIF_MIPI_LVDS &&
 	    detect_stream->fs_cnt_in_single_frame > 1 &&
 	    cif_dev->chip_id < CHIP_RK3588_CIF)
 		return;
