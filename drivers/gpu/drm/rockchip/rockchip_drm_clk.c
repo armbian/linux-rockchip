@@ -403,6 +403,7 @@ long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long r
 		round_rate = rockchip_rk3568_drm_dclk_round_rate(dclk, rate);
 		break;
 	case VOP_VERSION_RK3576:
+	case VOP_VERSION_RK3572:
 		round_rate = rockchip_rk3576_drm_dclk_round_rate(dclk, rate);
 		break;
 	case VOP_VERSION_RK3576_LITE:
@@ -434,6 +435,7 @@ int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate
 		ret = rockchip_rk3568_drm_dclk_set_rate(dclk, rate);
 		break;
 	case VOP_VERSION_RK3576:
+	case VOP_VERSION_RK3572:
 		ret = rockchip_rk3576_drm_dclk_set_rate(dclk, rate);
 		break;
 	case VOP_VERSION_RK3576_LITE:

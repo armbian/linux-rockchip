@@ -52,6 +52,7 @@
 #define VOP_VERSION_RK3528	VOP2_VERSION(0x50, 0x17, 0x1263)
 #define VOP_VERSION_RK3562	VOP2_VERSION(0x50, 0x17, 0x4350)
 #define VOP_VERSION_RK3576	VOP2_VERSION(0x50, 0x19, 0x9765)
+#define VOP_VERSION_RK3572	VOP2_VERSION(0x50, 0x20, 0x9372)
 
 /* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
@@ -81,6 +82,7 @@
 #define VOP_FEATURE_POST_FRC_V2		BIT(10)
 #define VOP_FEATURE_POST_SHARP		BIT(11)
 #define VOP_FEATURE_HW_CURSOR		BIT(12)
+#define VOP_FEATURE_CGC			BIT(13)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -105,8 +107,9 @@
 #define WIN_FEATURE_Y2R_13BIT_DEPTH	BIT(8)
 #define WIN_FEATURE_DCI			BIT(9)
 #define WIN_FEATURE_HW_CURSOR		BIT(10)
+#define WIN_FEATURE_MSMART		BIT(11)
 
-
+#define VOP2_CSC_COE_NUM		8
 #define VOP2_SOC_VARIANT		4
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
@@ -284,6 +287,7 @@ struct vop_afbc {
 	struct vop_reg pld_ptr_offset;
 	struct vop_reg pld_range_en;
 	struct vop_reg pld_ptr_range;
+	struct vop_reg compress_mode;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg rotate_270;
@@ -893,6 +897,10 @@ struct vop2_win_regs {
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;
+	struct vop_reg region0_act_info; /* for msmart layer */
+	struct vop_reg multi_region_en; /* for msmart layer */
+	struct vop_reg multi_region_num; /* for msmart layer */
+	struct vop_reg multi_region_mst; /* for msmart layer */
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;
@@ -902,6 +910,7 @@ struct vop2_win_regs {
 	struct vop_reg y2r_en;
 	struct vop_reg csc_y2r_path_sel;
 	struct vop_reg r2y_en;
+	struct vop_reg csc_coe;
 	struct vop_reg channel;
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
@@ -918,6 +927,9 @@ struct vop2_win_regs {
 	struct vop_reg scale_engine_num;
 	struct vop_reg alpha_map_en;
 	struct vop_reg alpha_map_val;
+	struct vop_reg win_cfg_done;
+	struct vop_reg crc_check_en;
+	struct vop_reg crc_check_val;
 };
 
 struct vop2_video_port_regs {
@@ -1041,6 +1053,7 @@ struct vop2_video_port_regs {
 	struct vop_reg edpi_wms_hold_en;
 	struct vop_reg edpi_te_en;
 	struct vop_reg edpi_wms_fs;
+	struct vop_reg gamma_ahb_en;
 	struct vop_reg gamma_update_en;
 	struct vop_reg lut_dma_rid;
 
@@ -1260,6 +1273,8 @@ struct vop2_win_data {
 	const struct vop2_win_regs *regs;
 	const struct vop2_win_regs **area;
 	unsigned int area_size;
+	const uint32_t csc_coe_offset;
+	const uint8_t csc_coe_bits;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 
@@ -1336,6 +1351,7 @@ struct vop3_ovl_regs {
 	const struct vop3_ovl_mix_regs *hdr_mix_regs;
 	const struct vop3_ovl_mix_regs *extra_mix_regs;
 	const struct vop3_ovl_mix_regs *cursor_mix_regs;
+	const struct vop3_ovl_mix_regs *cgc_mix_regs;
 };
 
 struct vop2_video_port_data {
@@ -1497,6 +1513,7 @@ struct vop2_ctrl {
 	struct vop_reg dma_stop;
 	struct vop_reg rkmmu_v2_en;
 	struct vop_reg rkmmu_v2_sel_axi;
+	struct vop_reg rkmmu1_v2_en;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
 	struct vop_reg lut_use_axi1;
@@ -1740,6 +1757,8 @@ struct vop2_data {
 #define DOLBY_CORE1_INTR		BIT(21)
 #define DOLBY_CORE2_INTR		BIT(22)
 #define DOLBY_CORE3_INTR		BIT(23)
+#define WB_RESP_ERR			BIT(24)
+#define WB_TIME_OUT			BIT(25)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -1750,7 +1769,8 @@ struct vop2_data {
 					 POST_BUF_EMPTY_INTR | \
 					 DMA_FINISH_INTR | FS_FIELD_INTR | \
 					 FE_INTR | WB_COMPLETE_INTR | MMU_EN_INTR | \
-					 DOLBY_CORE1_INTR | DOLBY_CORE2_INTR | DOLBY_CORE3_INTR)
+					 DOLBY_CORE1_INTR | DOLBY_CORE2_INTR | DOLBY_CORE3_INTR | \
+					 WB_RESP_ERR | WB_TIME_OUT)
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
 #define LINE_FLAG_INTR_EN(x)		((x) << 6)
@@ -1919,6 +1939,11 @@ enum vop_pol {
 	VSYNC_POSITIVE = 1,
 	DEN_NEGATIVE   = 2,
 	DCLK_INVERT    = 3
+};
+
+enum vop_fbc_compress_mode {
+	AFBC_32X8 = 0,
+	RFBC_64X4 = 1,
 };
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
