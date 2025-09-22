@@ -35,6 +35,9 @@ enum dlp_mode {
 	DLP_MODE_16CH_8MIC_8LP,		/* replace cap-ch-8~f with play-ch-8~f */
 };
 
+typedef snd_pcm_uframes_t (*dma_pointer_f)(struct snd_soc_component *component,
+					   struct snd_pcm_substream *substream);
+
 struct dlp;
 
 struct dlp_runtime_data {
@@ -49,9 +52,11 @@ struct dlp_runtime_data {
 	int64_t hw_ptr_delta; /* play-ptr - cap-ptr */
 	atomic64_t period_elapsed;
 	atomic_t stop;
+	snd_pcm_uframes_t dma_ofs;
 	unsigned int frame_bytes;
 	unsigned int channels;
 	unsigned int buf_ofs;
+	unsigned int periods;
 	int stream;
 };
 
@@ -68,10 +73,8 @@ struct dlp {
 	int drd_avl_count;
 	atomic_t active;
 	spinlock_t lock;
+	dma_pointer_f dma_pointer;
 };
-
-typedef snd_pcm_uframes_t (*dma_pointer_f)(struct snd_soc_component *component,
-					   struct snd_pcm_substream *substream);
 
 static inline struct dlp *soc_component_to_dlp(struct snd_soc_component *p)
 {
@@ -105,7 +108,8 @@ static inline snd_pcm_sframes_t dlp_bytes_to_frames(struct dlp_runtime_data *drd
 	return size / drd->frame_bytes;
 }
 
-void dlp_dma_complete(struct dlp *dlp, struct dlp_runtime_data *drd);
+void dlp_dma_complete(struct dlp *dlp, struct dlp_runtime_data *drd,
+		      struct snd_pcm_substream *substream);
 int dlp_open(struct dlp *dlp, struct dlp_runtime_data *drd,
 	     struct snd_pcm_substream *substream);
 int dlp_close(struct dlp *dlp, struct dlp_runtime_data *drd,

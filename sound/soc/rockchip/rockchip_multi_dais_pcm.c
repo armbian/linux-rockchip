@@ -172,7 +172,7 @@ static void dmaengine_mpcm_dma_complete(void *arg)
 	drd = substream_to_drd(substream);
 	dlp = drd->parent;
 
-	dlp_dma_complete(dlp, drd);
+	dlp_dma_complete(dlp, drd, substream);
 	snd_pcm_stream_unlock_irq(substream);
 
 	snd_pcm_period_elapsed(substream);

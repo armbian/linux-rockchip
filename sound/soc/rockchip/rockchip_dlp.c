@@ -42,6 +42,19 @@ static const char *const dlp_text[] = {
 	"16CH: 8 Mics + 8 Loopbacks",
 };
 
+static inline uint64_t drd_buffer_elapsed_frames(struct dlp_runtime_data *drd)
+{
+	uint64_t frames;
+
+	if (!drd)
+		return 0;
+
+	frames = DIV_ROUND_DOWN_ULL(atomic64_read(&drd->period_elapsed), drd->periods);
+	frames *= drd->periods * drd->period_sz;
+
+	return frames;
+}
+
 static inline void drd_buf_free(struct dlp_runtime_data *drd)
 {
 	if (drd && drd->buf) {
@@ -503,6 +516,7 @@ int dlp_hw_params(struct snd_soc_component *component,
 	drd->period_sz = params_period_size(params);
 	drd->buf_sz = params_buffer_size(params);
 	drd->channels = params_channels(params);
+	drd->periods = params_periods(params);
 
 	if (is_playback)
 		drd->buf_sz *= PBUF_CNT;
@@ -551,11 +565,14 @@ int dlp_close(struct dlp *dlp, struct dlp_runtime_data *drd,
 }
 EXPORT_SYMBOL_GPL(dlp_close);
 
-void dlp_dma_complete(struct dlp *dlp, struct dlp_runtime_data *drd)
+void dlp_dma_complete(struct dlp *dlp, struct dlp_runtime_data *drd,
+		      struct snd_pcm_substream *substream)
 {
 	if (unlikely(!dlp || !drd))
 		return;
 
+	if (dlp->dma_pointer)
+		drd->dma_ofs = dlp->dma_pointer(NULL, substream);
 	atomic64_inc(&drd->period_elapsed);
 }
 EXPORT_SYMBOL_GPL(dlp_dma_complete);
@@ -573,8 +590,8 @@ int dlp_start(struct snd_soc_component *component,
 	struct dlp_runtime_data *bdrd = substream_to_drd(bsubstream);
 	struct dlp_runtime_data *drd_ref;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	uint64_t a = 0, b = 0;
-	snd_pcm_uframes_t fifo_a = 0, fifo_b = 0;
+	uint64_t a = 0, b = 0, a_irq = 0, b_irq = 0;
+	snd_pcm_uframes_t fifo_a = 0, fifo_b = 0, buf_sz = 0;
 	snd_pcm_sframes_t delta = 0;
 
 	if (unlikely(!dlp || !adrd || !dma_pointer))
@@ -583,15 +600,17 @@ int dlp_start(struct snd_soc_component *component,
 	if (dlp->mode == DLP_MODE_DISABLED)
 		return -EINVAL;
 
+	dlp->dma_pointer = dma_pointer;
+
 	fifo_a = dlp->config->get_fifo_count(dev, substream);
-	a = dma_pointer(component, substream) % adrd->period_sz;
+	a = dma_pointer(component, substream);
 
 	if (bsubstream->runtime && snd_pcm_running(bsubstream)) {
 		if (unlikely(!bdrd))
 			return -EINVAL;
 
 		fifo_b = dlp->config->get_fifo_count(dev, bsubstream);
-		b = dma_pointer(component, bsubstream) % bdrd->period_sz;
+		b = dma_pointer(component, bsubstream);
 
 		drd_ref = drd_rdy_list_get(dlp);
 		if (unlikely(!drd_ref)) {
@@ -599,8 +618,23 @@ int dlp_start(struct snd_soc_component *component,
 			return -EINVAL;
 		}
 
-		a += (atomic64_read(&adrd->period_elapsed) * adrd->period_sz);
-		b += (atomic64_read(&bdrd->period_elapsed) * bdrd->period_sz);
+		a += drd_buffer_elapsed_frames(adrd);
+		b += drd_buffer_elapsed_frames(bdrd);
+		a_irq = drd_buffer_elapsed_frames(adrd) + adrd->dma_ofs;
+		b_irq = drd_buffer_elapsed_frames(bdrd) + bdrd->dma_ofs;
+
+		if (a < a_irq) {
+			buf_sz = adrd->period_sz * adrd->periods;
+			delta = DIV_ROUND_UP_ULL(a_irq - a, buf_sz) * buf_sz;
+			a += delta;
+			dev_dbg(dev, "a_irq: %llu, delta: %ld\n", a_irq, delta);
+		}
+		if (b < b_irq) {
+			buf_sz = bdrd->period_sz * bdrd->periods;
+			delta = DIV_ROUND_UP_ULL(b_irq - b, buf_sz) * buf_sz;
+			b += delta;
+			dev_dbg(dev, "b_irq: %llu, delta: %ld\n", b_irq, delta);
+		}
 
 		fifo_a = dlp_bytes_to_frames(adrd, fifo_a * 4);
 		fifo_b = dlp_bytes_to_frames(bdrd, fifo_b * 4);
@@ -613,11 +647,11 @@ int dlp_start(struct snd_soc_component *component,
 	}
 
 	if (is_playback)
-		dev_dbg(dev, "START-P: DMA-P: %llu, DMA-C: %llu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
-			a, b, fifo_a, fifo_b, delta);
+		dev_dbg(dev, "START-P: DMA-P: %llu (%llu IRQ), DMA-C: %llu (%llu IRQ), FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
+			a, a_irq, b, b_irq, fifo_a, fifo_b, delta);
 	else
-		dev_dbg(dev, "START-C: DMA-P: %llu, DMA-C: %llu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
-			b, a, fifo_b, fifo_a, delta);
+		dev_dbg(dev, "START-C: DMA-P: %llu (%llu IRQ), DMA-C: %llu (%llu IRQ), FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
+			b, b_irq, a, a_irq, fifo_b, fifo_a, delta);
 
 	return 0;
 }
@@ -640,8 +674,8 @@ void dlp_stop(struct snd_soc_component *component,
 
 	/* any data in FIFOs will be gone ,so don't care */
 	appl_ptr = READ_ONCE(runtime->control->appl_ptr);
-	hw_ptr = dma_pointer(component, substream) % drd->period_sz;
-	hw_ptr += (atomic64_read(&drd->period_elapsed) * drd->period_sz);
+	hw_ptr = dma_pointer(component, substream);
+	hw_ptr += drd_buffer_elapsed_frames(drd);
 
 	/*
 	 * playback:
