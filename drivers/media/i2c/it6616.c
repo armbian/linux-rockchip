@@ -21,6 +21,7 @@
 #include <linux/of_graph.h>
 #include <linux/rk-camera-module.h>
 #include <linux/rk_hdmirx_class.h>
+#include <linux/rk_hdmirx_config.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/v4l2-dv-timings.h>
@@ -265,7 +266,7 @@ enum av_mute_state {
 };
 
 enum {
-	AUDIO_OFF = 0x00,
+	AUDIO_OFF_MODE = 0x00,
 	AUDIO_I2S = 0x01,
 	AUDIO_SPDIF = 0x02,
 };
@@ -2659,7 +2660,7 @@ static void it6616_hdmi_tx_audio_output_enable(struct it6616 *it6616, u8 output_
 	it6616_hdmi_chgbank(hdmi, 1);
 
 	switch (output_interface) {
-	case AUDIO_OFF:
+	case AUDIO_OFF_MODE:
 		dev_info(dev, "audio off");
 		it6616_hdmi_write(hdmi, 0xC7, 0x7F); // SPDIF/I2S tri-state on
 		break;
@@ -2685,7 +2686,7 @@ static void it6616_hdmi_audio_mute_clear(struct it6616 *it6616)
 
 static void it6616_hdmi_rx_audio_process(struct it6616 *it6616)
 {
-	it6616_hdmi_tx_audio_output_enable(it6616, AUDIO_OFF);
+	it6616_hdmi_tx_audio_output_enable(it6616, AUDIO_OFF_MODE);
 	it6616_hdmi_rx_reset_audio_logic(it6616);
 	it6616_hdmi_tx_audio_setup(it6616);
 	it6616_hdmi_audio_mute_clear(it6616);
@@ -3052,6 +3053,7 @@ static int it6616_initial(struct it6616 *it6616)
 	/* get device id */
 	if (it6616_get_chip_id(it6616)) {
 		dev_err(dev, "can not find it6616");
+		mutex_unlock(&it6616->confctl_mutex);
 		return -ENODEV;
 	}
 
@@ -3277,7 +3279,7 @@ static ssize_t mipi_reg_store(struct device *dev,
 	if (ret) {
 		dev_info(dev, "addr= %2.2X\n", addr);
 		dev_info(dev, "val = %2.2X\n", val);
-		if (((addr <= 0xFF) && (addr >= 0x00)) && ((val <= 0xFF) && (val >= 0x00)))
+		if (addr <= 0xFF && val <= 0xFF)
 			regmap_write(mipi, addr, val);
 	} else {
 		dev_info(dev, "it6616_fwrite_mipi_reg , error[%s]\n", buf);
@@ -3409,7 +3411,7 @@ static int it6616_get_detected_timings(struct v4l2_subdev *sd,
 		bt->il_vsync = bt->vsync + 1;
 	}
 
-	v4l2_dbg(1, debug, sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
+	v4l2_dbg(1, debug, sd, "act:%dx%d, total:%dx%d, pixclk:%llu, fps:%d\n",
 			bt->width, bt->height, htotal, vtotal, bt->pixelclock, fps);
 	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d\n",
 			bt->hfrontporch, bt->hsync, bt->hbackporch,
@@ -3871,6 +3873,9 @@ static long it6616_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_HDMI_MODE:
 		*(int *)arg = RKMODULE_HDMIIN_MODE;
 		break;
+	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		*(int *)arg = !it6616->nosignal;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3932,6 +3937,20 @@ static long it6616_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
+		ret = it6616_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
+	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
 		ret = it6616_ioctl(sd, cmd, seq);
 		if (!ret) {
 			ret = copy_to_user(up, seq, sizeof(*seq));
@@ -4257,8 +4276,10 @@ static int it6616_probe(struct i2c_client *client,
 	it6616->edid_i2c = i2c_new_dummy_device(client->adapter,
 						I2C_ADR_EDID >> 1);
 
-	if (!it6616->edid_i2c)
+	if (!it6616->edid_i2c) {
+		err = -EIO;
 		goto unregister_mipi_i2c;
+	}
 
 	it6616->hdmi_regmap = devm_regmap_init_i2c(client,
 				&it6616_hdmi_regmap_config);
