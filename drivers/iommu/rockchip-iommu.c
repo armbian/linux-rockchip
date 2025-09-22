@@ -669,9 +669,9 @@ static void log_iova(struct rk_iommu *iommu, int index, dma_addr_t iova)
 	page_flags = pte & RK_PTE_PAGE_FLAGS_MASK;
 
 print_it:
-	dev_err(iommu->dev, "iova = %pad: dte_index: %#03x pte_index: %#03x page_offset: %#03x\n",
+	dev_err_ratelimited(iommu->dev, "iova = %pad: dte_index: %#03x pte_index: %#03x page_offset: %#03x\n",
 		&iova, dte_index, pte_index, page_offset);
-	dev_err(iommu->dev, "mmu_dte_addr: %pa dte@%pa: %#08x valid: %u pte@%pa: %#08x valid: %u page@%pa flags: %#03x\n",
+	dev_err_ratelimited(iommu->dev, "mmu_dte_addr: %pa dte@%pa: %#08x valid: %u pte@%pa: %#08x valid: %u page@%pa flags: %#03x\n",
 		&mmu_dte_addr_phys, &dte_addr_phys, dte,
 		rk_dte_is_pt_valid(dte), &pte_addr_phys, pte,
 		rk_pte_is_page_valid(pte), &page_addr_phys, page_flags);
@@ -703,7 +703,7 @@ static int rk_pagefault_done(struct rk_iommu *iommu)
 			flags = (status & RK_MMU_STATUS_PAGE_FAULT_IS_WRITE) ?
 					IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
 
-			dev_err(iommu->dev, "Page fault at %pad of type %s\n",
+			dev_err_ratelimited(iommu->dev, "Page fault at %pad of type %s\n",
 				&iova,
 				(flags == IOMMU_FAULT_WRITE) ? "write" : "read");
 
@@ -743,7 +743,7 @@ static int rk_pagefault_done(struct rk_iommu *iommu)
 			val = rk_iommu_read(iommu->bases[i], RK_MMU_PAGE_FAULT);
 			val |= RK_MMU_PAGEFAULT_MST0_DONE;
 			rk_iommu_write(iommu->bases[i], RK_MMU_PAGE_FAULT, val);
-			dev_err(iommu->dev, "PF_FAKE_MST0 occurred at %pad\n", &iova);
+			dev_err_ratelimited(iommu->dev, "PF_FAKE_MST0 occurred at %pad\n", &iova);
 		}
 
 		if ((int_status & ~RK_MMU_IRQ_MASK) && (!iommu->pf_fake_mode_en))
