@@ -451,6 +451,30 @@
 			status = "disabled";
 		};
 
+		rga2_core0: rga@27120000 {
+			compatible = "rockchip,rga2";
+			reg = <0x0 0x27120000 0x0 0x1000>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rga2_core0_irq";
+			clocks = <&cru ACLK_RGA2E_0>, <&cru HCLK_RGA2E_0>, <&cru CLK_CORE_RGA2E_0>;
+			clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+			power-domains = <&power RK3572_PD_IMG>;
+			iommus = <&rga2_core0_mmu>;
+			status = "disabled";
+		};
+
+		rga2_core0_mmu: iommu@27120f00 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x27120f00 0x0 0x100>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rga2_0_mmu";
+			clocks = <&cru ACLK_RGA2E_0>, <&cru HCLK_RGA2E_0>;
+			clock-names = "aclk", "iface";
+			power-domains = <&power RK3572_PD_IMG>;
+			#iommu-cells = <0>;
+			status = "disabled";
+		};
+
 		vop: vop@27500000 {
 			compatible = "rockchip,rk3572-vop";
 			reg = <0x0 0x27500000 0x0 0x3c00>,
