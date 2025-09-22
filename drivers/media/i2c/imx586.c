@@ -44,6 +44,7 @@
 
 #define IMX586_LINK_FREQ_400		400000000	// 800Mbps per lane
 #define IMX586_LINK_FREQ_625		625000000	// 1250Mbps per lane
+#define IMX586_LINK_FREQ_850		850000000	// 1700Mbps per lane
 
 #define IMX586_LANES			4
 
@@ -1198,6 +1199,7 @@ static const struct imx586_mode supported_modes[] = {
 static const s64 link_freq_items[] = {
 	IMX586_LINK_FREQ_400,
 	IMX586_LINK_FREQ_625,
+	IMX586_LINK_FREQ_850,
 };
 
 static const char * const imx586_test_pattern_menu[] = {
