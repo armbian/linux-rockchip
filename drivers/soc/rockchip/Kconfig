@@ -44,7 +44,7 @@ config ROCKCHIP_ARM64_ALIGN_FAULT_FIX
 
 config ROCKCHIP_CPUINFO
 	tristate "Rockchip cpuinfo support"
-	depends on (NVMEM_ROCKCHIP_EFUSE || NVMEM_ROCKCHIP_OTP) && (ARM64 || ARM)
+	depends on (NVMEM_ROCKCHIP_EFUSE || NVMEM_ROCKCHIP_OTP) && ARCH_ROCKCHIP
 	help
 	  Say y here to enable Rockchip cpuinfo support.
 	  Set system_serial_low/high from eFuse ID.
