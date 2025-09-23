@@ -1436,7 +1436,6 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	struct rockchip_usb2phy *rphy;
 	const struct rockchip_usb2phy_cfg *phy_cfgs;
-	const struct of_device_id *match;
 	unsigned int reg;
 	unsigned int index;
 	struct resource *res;
@@ -1478,12 +1477,6 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	udelay(1);
 	reset_control_deassert(rphy->reset);
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data) {
-		dev_err(dev, "phy configs are not assigned!\n");
-		return -EINVAL;
-	}
-
 	if (of_property_read_u32(np, "reg", &reg)) {
 		dev_err(dev, "the reg property is not assigned in %s node\n",
 			np->name);
@@ -1491,7 +1484,11 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	}
 
 	rphy->dev = dev;
-	phy_cfgs = match->data;
+	phy_cfgs = device_get_match_data(dev);
+	if (!phy_cfgs) {
+		dev_err(dev, "phy configs are not assigned!\n");
+		return -EINVAL;
+	}
 
 	/* find out a proper config which can be matched with dt. */
 	index = 0;
