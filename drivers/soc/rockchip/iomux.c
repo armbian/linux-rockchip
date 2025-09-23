@@ -86,3 +86,5 @@ static __init int rk_iomux_device_create(void)
 	return 0;
 }
 late_initcall(rk_iomux_device_create);
+
+MODULE_LICENSE("GPL");
