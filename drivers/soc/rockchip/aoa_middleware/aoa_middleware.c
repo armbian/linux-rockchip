@@ -341,12 +341,12 @@ err_out:
 	return ret;
 }
 
-static int aoa_middleware_remove(struct platform_device *pdev)
+static void aoa_middleware_remove(struct platform_device *pdev)
 {
 	struct aoa_middleware_devs *amw_d = platform_get_drvdata(pdev);
 
 	if (IS_ERR_OR_NULL(amw_d))
-		return -EINVAL;
+		return;
 
 	if (amw_d->pdev_aoa) {
 		rockchip_aoa_remove(amw_d->pdev_aoa);
@@ -366,7 +366,6 @@ static int aoa_middleware_remove(struct platform_device *pdev)
 	misc_deregister(&amw_d->misc_notifier_dma);
 
 	dev_info(&pdev->dev, "%s: all aoa middlewares are unregistered\n", __func__);
-	return 0;
 }
 
 static const struct of_device_id aoa_middleware_of_match[] = {
