@@ -5,7 +5,7 @@
 #ifndef __ROCKCHIP_CPUFREQ_H
 #define __ROCKCHIP_CPUFREQ_H
 
-#if IS_ENABLED(CONFIG_ARM_ROCKCHIP_CPUFREQ)
+#if IS_REACHABLE(CONFIG_ARM_ROCKCHIP_CPUFREQ)
 int rockchip_cpufreq_online(int cpu);
 int rockchip_cpufreq_offline(int cpu);
 int rockchip_cpufreq_adjust_table(struct device *dev);
