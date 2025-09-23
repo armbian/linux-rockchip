@@ -70,6 +70,7 @@ enum adc_sort_mode {
 
 struct phy_config {
 	unsigned int bias;
+	unsigned int offset;
 };
 
 /**
@@ -337,6 +338,7 @@ struct rockchip_thermal_data {
 
 #define RV1126B_GRF_TSADC_CON0			0x50
 #define RV1126B_GRF_TSADC_CON1			0x54
+#define RV1126B_GRF_TSADC_CON4			0x60
 #define RV1126B_GRF_TSADC_CON6			0x68
 #define RV1126B_GRF_TSADC_ST1			0x114
 #define RV1126B_UNLOCK_VALUE			0xa5
@@ -345,6 +347,8 @@ struct rockchip_thermal_data {
 #define RV1126B_UNLOCK_TRIGGER_MASK		(BIT(8) << 16)
 #define RV1126B_MAX_BIAS			0x7f
 #define RV1126B_BIAS_MASK			(0x7f << 16)
+#define RV1126B_MAX_OFFSET			0xffff
+#define RV1126B_OFFSET_MASK			(0xffff << 16)
 #define RV1126B_CTRL_MASK			(0x8078 << 16)
 
 #define GRF_SARADC_TESTBIT_ON			(0x10001 << 2)
@@ -1719,8 +1723,16 @@ static void rv1126b_tsadc_phy_init(struct device *dev, struct regmap *grf,
 		regmap_write(grf, RV1126B_GRF_TSADC_CON6,
 			     phy_cfg->bias | RV1126B_BIAS_MASK);
 	}
+	if (!phy_cfg->offset) {
+		regmap_read(grf, RV1126B_GRF_TSADC_CON4, &val);
+		phy_cfg->offset = val & RV1126B_MAX_OFFSET;
+	} else {
+		regmap_write(grf, RV1126B_GRF_TSADC_CON4,
+			     phy_cfg->offset | RV1126B_OFFSET_MASK);
+	}
 	regmap_read(grf, RV1126B_GRF_TSADC_ST1, &val);
-	dev_info(dev, "width=0x%x, bias=0x%x\n", val, phy_cfg->bias);
+	dev_info(dev, "width=0x%x, bias=0x%x, offset=0x%x\n", val, phy_cfg->bias,
+		 phy_cfg->offset);
 	regmap_write(grf, RV1126B_GRF_TSADC_CON0, RV1126B_CTRL_MASK);
 	regmap_write(grf, RV1126B_GRF_TSADC_CON1,
 		     RV1126B_UNLOCK_VALUE | RV1126B_UNLOCK_VALUE_MASK);
