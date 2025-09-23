@@ -850,7 +850,7 @@ static struct spi_driver rockchip_dimming_panel_driver = {
 
 static int __init rockchip_dimming_panel_init(void)
 {
-	rockchip_dimming_class = class_create(THIS_MODULE, "dimming");
+	rockchip_dimming_class = class_create("dimming");
 	if (IS_ERR(rockchip_dimming_class)) {
 		pr_err("Failed to create rockchip dimming class\n");
 		return PTR_ERR(rockchip_dimming_class);
