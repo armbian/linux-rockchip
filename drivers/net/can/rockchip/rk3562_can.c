@@ -1063,5 +1063,6 @@ static struct platform_driver rk3562_can_driver = {
 };
 module_platform_driver(rk3562_can_driver);
 
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Elaine Zhang <zhangqing@rock-chips.com>");
 MODULE_DESCRIPTION("RK3562 CAN Drivers");
