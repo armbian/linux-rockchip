@@ -92,7 +92,9 @@ static unsigned long ref_count[32] = {0};
 
 static DEFINE_MUTEX(system_status_mutex);
 static DEFINE_MUTEX(video_info_mutex);
+#ifdef CONFIG_HOTPLUG_CPU
 static DEFINE_MUTEX(cpu_on_off_mutex);
+#endif
 
 static DECLARE_RWSEM(mdev_list_sem);
 
