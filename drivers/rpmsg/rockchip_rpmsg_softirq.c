@@ -186,9 +186,7 @@ static void rk_rpmsg_del_vqs(struct virtio_device *vdev)
 
 static int rk_rpmsg_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 			     struct virtqueue *vqs[],
-			     vq_callback_t *callbacks[],
-			     const char * const names[],
-			     const bool *ctx,
+			     struct virtqueue_info vqs_info[],
 			     struct irq_affinity *desc)
 {
 	struct rk_virtio_dev *rpvdev = to_rk_rpvdev(vdev);
@@ -199,8 +197,10 @@ static int rk_rpmsg_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		return -EINVAL;
 
 	for (i = 0; i < nvqs; ++i) {
-		vqs[i] = rk_rpmsg_find_vq(vdev, i, callbacks[i], names[i],
-					  ctx ? ctx[i] : false);
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		vqs[i] = rk_rpmsg_find_vq(vdev, i, vqi->callback, vqi->name,
+					  vqi->ctx);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			goto error;
