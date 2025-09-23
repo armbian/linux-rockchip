@@ -45,41 +45,54 @@ config CPU_RV1126
 
 config CPU_RV1126B
 	bool "RV1126B"
+	depends on ARM || ARM64
 
 config CPU_PX30
 	bool "PX30"
+	depends on ARM || ARM64
 
 config CPU_RK1808
 	bool "RK1808"
+	depends on ARM || ARM64
 
 config CPU_RK3308
 	bool "RK3308"
+	depends on ARM || ARM64
 
 config CPU_RK3328
 	bool "RK3328"
+	depends on ARM || ARM64
 
 config CPU_RK3368
 	bool "RK3368"
+	depends on ARM || ARM64
 
 config CPU_RK3399
 	bool "RK3399"
+	depends on ARM || ARM64
 
 config CPU_RK3506
 	bool "RK3506"
+	depends on ARM || ARM64
 
 config CPU_RK3528
 	bool "RK3528"
+	depends on ARM || ARM64
 
 config CPU_RK3562
 	bool "RK3562"
+	depends on ARM || ARM64
 
 config CPU_RK3568
 	bool "RK3566/8"
+	depends on ARM || ARM64
 
 config CPU_RK3576
 	bool "RK3576"
+	depends on ARM || ARM64
 
 config CPU_RK3588
 	bool "RK3588"
+	depends on ARM || ARM64
 
 endmenu
