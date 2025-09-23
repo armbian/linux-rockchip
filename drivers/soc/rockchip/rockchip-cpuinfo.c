@@ -18,7 +18,9 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 #include <asm/system_info.h>
+#endif
 #include <linux/rockchip/cpu.h>
 
 unsigned long rockchip_soc_id;
@@ -184,7 +186,7 @@ skip_cpu_code:
 
 	dev_info(dev, "SoC\t\t: %lx\n", rockchip_soc_id);
 
-#ifdef CONFIG_NO_GKI
+#if defined(CONFIG_NO_GKI) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 	system_serial_low = crc32(0, buf, 8);
 	system_serial_high = crc32(system_serial_low, buf + 8, 8);
 
