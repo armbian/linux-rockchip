@@ -5,6 +5,7 @@
  * Copyright (c) 2016 Heiko Stuebner <heiko@sntech.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
