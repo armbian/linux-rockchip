@@ -1195,6 +1195,20 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 		for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
 			rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_PWRCTRL1);
 	} else {
+		for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++) {
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL1) {
+				chip_ver = rk806_field_read(rk806, CHIP_VER);
+				if (chip_ver & 0x08)
+					rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
+				else
+					rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
+			}
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL2)
+				rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_DVS_FUN);
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL3)
+				rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_DVS_FUN);
+		}
+
 		for (i = 0; i <= RK806_ID_PLDO6 - RK806_ID_PLDO1; i++) {
 			value = rk806_field_read(rk806, PLDO1_ON_VSEL + i);
 			rk806_field_write(rk806, PLDO1_SLP_VSEL + i, value);
@@ -1209,18 +1223,6 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 		rk806_field_write(rk806, PLDO4_VSEL_CTR_SEL, pdata->dvs_control_suspend[RK806_ID_PLDO3]);
 		rk806_field_write(rk806, PLDO5_VSEL_CTR_SEL, pdata->dvs_control_suspend[RK806_ID_PLDO4]);
 		rk806_field_write(rk806, PLDO6_VSEL_CTR_SEL, pdata->dvs_control_suspend[RK806_ID_PLDO5]);
-
-		for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++) {
-			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL2)
-				rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_DVS_FUN);
-			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL3)
-				rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_DVS_FUN);
-		}
-		chip_ver = rk806_field_read(rk806, CHIP_VER);
-		if (chip_ver & 0x08)
-			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
-		else
-			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
 	}
 
 	return 0;
