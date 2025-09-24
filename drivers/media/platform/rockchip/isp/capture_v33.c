@@ -636,6 +636,13 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	if (dev->cap_dev.wrap_line) {
 		height = dev->cap_dev.wrap_line;
 		rkisp_unite_clear_bits(dev, ISP32_MI_WR_WRAP_CTRL, BIT(0), false);
+
+		val = ISP33_SW_ISP2ENC_PATH_EN;
+		if (IS_HDR_RDBK(dev->hdr.op_mode))
+			val |= ISP33_PP_ENC_PIPE_EN;
+		if (rkisp_wrap_no_dvbm)
+			val |= ISP32L_ISP2ENC_CNT_MUX;
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, ISP32L_ISP2ENC_CNT_MUX, val, false);
 	}
 	val = out_fmt->plane_fmt[0].bytesperline;
 	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
