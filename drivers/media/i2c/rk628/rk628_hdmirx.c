@@ -1931,9 +1931,9 @@ u8 rk628_hdmirx_get_range(struct rk628 *rk628)
 		if (dvi)
 			color_range = HDMIRX_FULL_RANGE;
 		if (color_range == HDMIRX_DEFAULT_RANGE)
-			vic ?
-			(color_range = HDMIRX_FULL_RANGE) :
-			(color_range = HDMIRX_LIMIT_RANGE);
+			((vic >= 2) && (vic <= 127)) ?
+			(color_range = HDMIRX_LIMIT_RANGE) :
+			(color_range = HDMIRX_FULL_RANGE);
 	}
 
 	return color_range;
