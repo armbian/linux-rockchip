@@ -1479,7 +1479,6 @@ static int __sc850sl_stop_stream(struct sc850sl *sc850sl)
 	sc850sl->has_init_exp = false;
 	if (sc850sl->is_thunderboot) {
 		sc850sl->is_first_streamoff = true;
-		pm_runtime_put(&sc850sl->client->dev);
 	}
 	return sc850sl_write_reg(sc850sl->client, SC850SL_REG_CTRL_MODE,
 				 SC850SL_REG_VALUE_08BIT, SC850SL_MODE_SW_STANDBY);
