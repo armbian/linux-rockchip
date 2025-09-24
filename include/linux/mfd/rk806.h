@@ -505,6 +505,7 @@ struct rk806_platform_data {
 	int hotdie_temperture_threshold;
 	int vdc_wakeup_enable;
 
+	int shutown_by_pwrctrln;
 	int *shutdown_sequence;
 	int *vb_shutdown_sequence;
 	int *dvs_control_suspend;

@@ -1252,9 +1252,19 @@ static void rk806_regulator_shutdown(struct platform_device *pdev)
 
 	if (system_state == SYSTEM_POWER_OFF) {
 		rk806_shutdown_requence_config(rk806);
-		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
-		rk806_field_write(rk806, PWRCTRL1_POL, POL_HIGH);
-		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_POWOFF_FUN);
+		if (rk806->pdata->shutown_by_pwrctrln == 2) {
+			rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
+			rk806_field_write(rk806, PWRCTRL2_POL, POL_HIGH);
+			rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_POWOFF_FUN);
+		} else if (rk806->pdata->shutown_by_pwrctrln == 3) {
+			rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
+			rk806_field_write(rk806, PWRCTRL3_POL, POL_HIGH);
+			rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_POWOFF_FUN);
+		} else {
+			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+			rk806_field_write(rk806, PWRCTRL1_POL, POL_HIGH);
+			rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_POWOFF_FUN);
+		}
 	}
 }
 
