@@ -42,7 +42,6 @@
 
 #define MISC_DEV_NAME_MAX_LENGTH	0x80
 
-static DEFINE_MUTEX(rkep_mutex);
 #define BAR_0_SZ			SZ_4M
 #define RKEP_NUM_IRQ_VECTORS		4
 
