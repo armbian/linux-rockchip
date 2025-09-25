@@ -245,6 +245,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-maizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v14-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-r58-hd3-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-mizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-evb-camera-csi-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-evb-camera-dvp-v10.dtb
@@ -449,3 +450,5 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-luckfox-core3566.dtb
 
 subdir-y := $(dts-dirs) overlay
+
+# Armbian: Incremental: assuming overlay targets are already in the Makefile

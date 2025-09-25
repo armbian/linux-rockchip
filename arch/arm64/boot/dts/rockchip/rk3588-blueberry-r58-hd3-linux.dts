@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-blueberry-r58-hd3.dtsi"
+#include "rk3588-linux.dtsi"
+#include "rk3588-blueberry-r58-hd3-rk628-hdmi2csi.dtsi"
+/ {
+	model = "RK3588 R58-HD Board";
+	compatible = "rockchip,rk3588-R58-HD-v10-linux", "rockchip,rk3588";
+	/delete-node/ chosen;
+
+	fan{
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm5 0 50000 0>;
+		cooling-levels = <0 50 100 150 200 255>;
+		rockchip,temp-trips = <
+				60000	1
+				65000	2
+				70000	3
+				75000	4
+				80000	5
+		>;
+		enable-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan_enable_gpio>;
+	};	
+
+//软件保留
+	backlight_mipi0: backlight_mipi0 {
+		compatible = "pwm-backlight";
+		pwms = <&pwm9 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+		>;
+		default-brightness-level = <2>;
+	};
+
+//软件保留
+	backlight_mipi1: backlight_mipi1 {
+		compatible = "pwm-backlight";
+		pwms = <&pwm15 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+		>;
+		default-brightness-level = <2>;
+	};
+
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1m1_pins>;
+	status = "okay";
+};
+
+//风扇
+&pwm4 {
+	pinctrl-0 = <&pwm4m0_pins>;
+	status = "disabled";
+};
+
+&pwm5 {
+	pinctrl-0 = <&pwm5m1_pins>;
+	status = "okay";
+};
+
+
+//mipi0
+&pwm9 {
+	pinctrl-0 = <&pwm9m0_pins>;
+	status = "okay";
+};
+
+//mipi1
+&pwm15 {
+	pinctrl-0 = <&pwm15m2_pins>;
+	status = "okay";
+};
+
+#if 1
+&dsi0 {
+	status = "okay";
+	//rockchip,lane-rate = <120>;
+	dsi0_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight_mipi0>;
+		//power-supply = <&vcc3v3_mipi_lcd_power>;
+		reset-gpios =  <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>; 
+		//enable-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-delay-ms = <100>;
+		enable-delay-ms = <10>;
+		init-delay-ms = <100>;
+		prepare-delay-ms = <100>;
+		unprepare-delay-ms = <10>;
+		disable-delay-ms = <60>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <4>;
+		panel-init-sequence = [
+			05 78 01 11
+			05 78 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <148500000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hback-porch = <148>;
+				hfront-porch = <88>;
+				hsync-len = <44>;
+				vback-porch = <36>;
+				vfront-porch = <4>;
+				vsync-len = <5>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi0: endpoint {
+					remote-endpoint = <&dsi0_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi0>;
+			};
+		};
+	};
+
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&dsi0_in_vp2 {
+	status = "okay";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&route_dsi0 {
+	status = "disabled";
+	connect = <&vp2_out_dsi0>;
+};
+
+#endif
+
+#if 1
+&dsi1 {
+	status = "okay";
+	//rockchip,lane-rate = <120>;
+	dsi1_panel: panel@1 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight_mipi1>;
+		//power-supply = <&vcc3v3_mipi_lcd_power>;
+		reset-gpios =  <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>; 
+		//enable-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-delay-ms = <100>;
+		enable-delay-ms = <10>;
+		init-delay-ms = <100>;
+		prepare-delay-ms = <100>;
+		unprepare-delay-ms = <10>;
+		disable-delay-ms = <60>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <4>;
+		panel-init-sequence = [
+			05 78 01 11
+			05 78 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing1>;
+			timing1: timing1 {
+				clock-frequency = <148500000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hback-porch = <148>;
+				hfront-porch = <88>;
+				hsync-len = <44>;
+				vback-porch = <36>;
+				vfront-porch = <4>;
+				vsync-len = <5>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+		
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi1: endpoint {
+					remote-endpoint = <&dsi0_out_panel1>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi0_out_panel1: endpoint {
+				remote-endpoint = <&panel_in_dsi1>;
+			};
+		};
+	};
+
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+};
+
+#endif
+
+
+&pinctrl {
+
+	lt9611 {
+		lt9611_reset_gpios: lt9611reset-gpios {
+			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	fan_enable_gpio {  //v10-1  V09 GPIO0_A0 控制风扇
+		fan_enable_gpio: fan_enable_gpio{
+			rockchip,pins =
+				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>; 
+		};
+	};
+};
+
+
+&sdmmc_pwr {
+	rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+};
+
+&vcc_sd {
+	compatible = "regulator-fixed";
+	gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_pwr>;
+	regulator-always-on;
+	regulator-boot-on;
+	enable-active-high;
+	regulator-name = "vcc_sd";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	startup-delay-us = <100000>;
+	vin-supply = <&vcc12v_dcin>;
+};
+
+
+&gmac0 {
+	snps,reset-gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+};
+
+//v10-2   V09版本 GPIO0_C5 作为4G 唤醒口
+&DP0_HPDIN_gpio{
+	rockchip,pins =
+		<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+};
+&dp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&DP0_HPDIN_gpio>;
+	hpd-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	split-mode;
+	status = "okay";
+};
+
+&lt6911_sound {
+	compatible;
+	simple-audio-card,format = "i2s";
+	simple-audio-card,name = "rockchip,lt6911";
+	simple-audio-card,bitclock-master ;
+	simple-audio-card,frame-master ;
+	status = "disabled";
+	simple-audio-card,cpu {
+	sound-dai ;
+	};
+	dailink1_master: simple-audio-card,codec {
+	sound-dai ;
+	};
+};	
