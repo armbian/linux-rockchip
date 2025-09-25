@@ -2766,7 +2766,9 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (edid_blob_ptr && edid_blob_ptr->length)
 		drm_edid = drm_edid_alloc(edid_blob_ptr->data, edid_blob_ptr->length);
 	else
-		drm_edid = drm_edid_read_ddc(connector, hdmi->ddc);
+	{
+		drm_edid = NULL;//@caco 20250623  drm_edid_read_ddc(connector, hdmi->ddc);
+	}
 
 	if (drm_edid)
 		edid = drm_edid_raw(drm_edid);
@@ -4727,8 +4729,8 @@ void dw_hdmi_qp_suspend(struct device *dev, struct dw_hdmi_qp *hdmi)
 		disable_irq(hdmi->earc_irq);
 
 	pinctrl_pm_select_sleep_state(dev);
-	if (!hdmi->next_bridge)
-		drm_connector_update_edid_property(&hdmi->connector, NULL);
+	//if (!hdmi->next_bridge)
+		//drm_connector_update_edid_property(&hdmi->connector, NULL);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_suspend);
 

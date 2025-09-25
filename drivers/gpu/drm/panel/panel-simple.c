@@ -612,12 +612,12 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->desc->delay.prepare)
 		panel_simple_msleep(p->desc->delay.prepare);
 
-	gpiod_direction_output(p->reset_gpio, 1);
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.reset)
 		panel_simple_msleep(p->desc->delay.reset);
 
-	gpiod_direction_output(p->reset_gpio, 0);
+	gpiod_direction_output(p->reset_gpio, 1);
 
 	if (p->desc->delay.init)
 		panel_simple_msleep(p->desc->delay.init);
