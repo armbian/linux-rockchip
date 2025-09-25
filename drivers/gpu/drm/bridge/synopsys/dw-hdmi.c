@@ -3229,7 +3229,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
 	void *data = hdmi->plat_data->phy_data;
-	int i,  ret = 0;
+	int i, ret = 0;
 
 	if (hdmi->force_kernel_output) {
 		mode = hdmi->plat_data->get_force_timing(data);
@@ -3256,9 +3256,13 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
 			edid->width_cm, edid->height_cm);
+		hdmi->support_hdmi = drm_detect_hdmi_monitor(edid);
+		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		drm_connector_update_edid_property(connector, edid);
 		cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		ret = drm_edid_connector_update(connector, drm_edid);
+		if (!ret)
+			ret = drm_edid_connector_add_modes(connector);
 		if (hdmi->plat_data->get_color_changed)
 			hdmi->plat_data->get_yuv422_format(connector, edid);
 		if (hdmi->plat_data->get_colorimetry)
@@ -3274,8 +3278,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 					mode->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 			}
 		}
-
-		kfree(edid);
 	} else {
 		hdmi->support_hdmi = true;
 		hdmi->sink_has_audio = true;
@@ -3298,6 +3300,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		dev_info(hdmi->dev, "failed to get edid\n");
 	}
+	drm_edid_free(drm_edid);
 	dw_hdmi_update_hdr_property(connector);
 	dw_hdmi_check_output_type_changed(hdmi);
 
