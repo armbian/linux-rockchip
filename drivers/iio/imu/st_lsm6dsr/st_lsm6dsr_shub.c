@@ -680,14 +680,11 @@ static int st_lsm6dsr_shub_read_raw(struct iio_dev *iio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&iio_dev->mlock);
-		if (iio_buffer_enabled(iio_dev)) {
-			ret = -EBUSY;
-			mutex_unlock(&iio_dev->mlock);
+		ret = iio_device_claim_direct_mode(iio_dev);
+		if (ret)
 			break;
-		}
 		ret = st_lsm6dsr_shub_read_oneshot(sensor, ch, val);
-		mutex_unlock(&iio_dev->mlock);
+		iio_device_release_direct_mode(iio_dev);
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = sensor->odr;
@@ -723,7 +720,7 @@ static int st_lsm6dsr_shub_write_raw(struct iio_dev *iio_dev,
 	struct st_lsm6dsr_sensor *sensor = iio_priv(iio_dev);
 	int err;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ: {
@@ -742,7 +739,7 @@ static int st_lsm6dsr_shub_write_raw(struct iio_dev *iio_dev,
 		break;
 	}
 
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	return err;
 }

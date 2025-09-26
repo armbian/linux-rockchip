@@ -527,7 +527,7 @@ static int st_lsm6dsr_report_events(struct st_lsm6dsr_hw *hw)
 
 			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_ORIENTATION];
 			sensor = iio_priv(iio_dev);
-			iio_trigger_poll_chained(sensor->trig);
+			iio_trigger_poll_nested(sensor->trig);
 		}
 		if (status[1] & ST_LSM6DSR_REG_INT_WRIST_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSR_ID_WRIST_TILT];
@@ -595,7 +595,7 @@ ssize_t st_lsm6dsr_set_watermark(struct device *dev,
 	struct st_lsm6dsr_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	err = kstrtoint(buf, 10, &val);
 	if (err < 0)
@@ -608,7 +608,7 @@ ssize_t st_lsm6dsr_set_watermark(struct device *dev,
 	sensor->watermark = val;
 
 out:
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	return err < 0 ? err : size;
 }

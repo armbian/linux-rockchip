@@ -1027,14 +1027,11 @@ static int st_lsm6dsr_read_raw(struct iio_dev *iio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&iio_dev->mlock);
-		if (iio_buffer_enabled(iio_dev)) {
-			ret = -EBUSY;
-			mutex_unlock(&iio_dev->mlock);
+		ret = iio_device_claim_direct_mode(iio_dev);
+		if (ret)
 			break;
-		}
 		ret = st_lsm6dsr_read_oneshot(sensor, ch->address, val);
-		mutex_unlock(&iio_dev->mlock);
+		iio_device_release_direct_mode(iio_dev);
 		break;
 	case IIO_CHAN_INFO_OFFSET:
 		switch (ch->type) {
@@ -1094,7 +1091,7 @@ static int st_lsm6dsr_write_raw(struct iio_dev *iio_dev,
 	struct st_lsm6dsr_sensor *sensor = iio_priv(iio_dev);
 	int err;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -1138,7 +1135,7 @@ static int st_lsm6dsr_write_raw(struct iio_dev *iio_dev,
 		break;
 	}
 
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	return err;
 }
@@ -1150,7 +1147,7 @@ static int st_lsm6dsr_reg_access(struct iio_dev *iio_dev, unsigned int reg,
 	struct st_lsm6dsr_sensor *sensor = iio_priv(iio_dev);
 	int ret;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&to_iio_dev_opaque(iio_dev)->mlock);
 	if (readval == NULL) {
 		ret = sensor->hw->tf->write(sensor->hw->dev, reg, 1,
 					    (u8 *)&writeval);
@@ -1159,7 +1156,7 @@ static int st_lsm6dsr_reg_access(struct iio_dev *iio_dev, unsigned int reg,
 				     (u8 *)readval);
 		ret = 0;
 	}
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	return ret;
 }
@@ -1204,9 +1201,9 @@ static int st_lsm6dsr_write_event_config(struct iio_dev *iio_dev,
 	struct st_lsm6dsr_sensor *sensor = iio_priv(iio_dev);
 	int err;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&to_iio_dev_opaque(iio_dev)->mlock);
 	err = st_lsm6dsr_embfunc_sensor_set_enable(sensor, state);
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(iio_dev)->mlock);
 
 	return err;
 }

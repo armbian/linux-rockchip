@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/iio-opaque.h>
 #include <linux/delay.h>
 
 #define ST_LSM6DSR_MAX_ODR			833
