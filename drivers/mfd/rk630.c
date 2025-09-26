@@ -217,23 +217,13 @@ int rk630_core_probe(struct rk630 *rk630)
 		return -EINVAL;
 	}
 
-	ref_clk = devm_clk_get(rk630->dev, "ref");
+	ref_clk = devm_clk_get_enabled(rk630->dev, "ref");
 	if (IS_ERR(ref_clk)) {
 		dev_err(rk630->dev, "failed to get ref clk source\n");
 		return PTR_ERR(ref_clk);
 	}
 
-	ret = clk_prepare_enable(ref_clk);
-	if (ret < 0) {
-		dev_err(rk630->dev, "failed to enable ref clk - %d\n", ret);
-		return ret;
-	}
 	rate = clk_get_rate(ref_clk);
-
-	ret = devm_add_action_or_reset(rk630->dev, (void (*) (void *))clk_disable_unprepare,
-				       ref_clk);
-	if (ret)
-		return ret;
 
 	rk630->reset_gpio = devm_gpiod_get(rk630->dev, "reset", 0);
 	if (IS_ERR(rk630->reset_gpio)) {
