@@ -160,7 +160,7 @@ struct ts_ic_info {
     printk("[FTS_TS]%s: Exit(%d)\n", __func__, __LINE__); \
 } while (0)
 #else /* #if FTS_DEBUG_EN*/
-#define FTS_DEBUG(fmt, args...)
+#define FTS_DEBUG(fmt, args...)	no_printk("[FTS_TS]%s:"fmt"\n", __func__, ##args)
 #define FTS_FUNC_ENTER()
 #define FTS_FUNC_EXIT()
 #endif
