@@ -88,12 +88,12 @@ static int rgb13h_set_output(struct rgb13h_led *led, bool on)
 				div_u64(led->intensity * led->pwm_state.period, led->max_flash_current);
 		if (on) {
 			led->pwm_state.enabled = true;
-			pwm_apply_state(led->pwm, &led->pwm_state);
+			pwm_apply_might_sleep(led->pwm, &led->pwm_state);
 			dev_dbg(&led->pdev->dev, "led pwm duty=%llu, period=%llu, polarity=%d\n",
 				led->pwm_state.duty_cycle, led->pwm_state.period, led->pwm_state.polarity);
 		} else {
 			led->pwm_state.enabled = false;
-			pwm_apply_state(led->pwm, &led->pwm_state);
+			pwm_apply_might_sleep(led->pwm, &led->pwm_state);
 		}
 	}
 	if (!on) {
