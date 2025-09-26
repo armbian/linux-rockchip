@@ -552,6 +552,7 @@ static int thcv244_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int thcv244_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct thcv244 *thcv244 = to_thcv244(sd);
@@ -1059,7 +1060,6 @@ static const struct v4l2_subdev_core_ops thcv244_core_ops = {
 
 static const struct v4l2_subdev_video_ops thcv244_video_ops = {
 	.s_stream = thcv244_s_stream,
-	.g_frame_interval = thcv244_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops thcv244_pad_ops = {
@@ -1070,6 +1070,7 @@ static const struct v4l2_subdev_pad_ops thcv244_pad_ops = {
 	.set_fmt = thcv244_set_fmt,
 	.get_selection = thcv244_get_selection,
 	.get_mbus_config = thcv244_g_mbus_config,
+	.get_frame_interval = thcv244_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops thcv244_subdev_ops = {
