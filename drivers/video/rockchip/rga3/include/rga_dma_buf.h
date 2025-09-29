@@ -37,10 +37,6 @@ struct rga_dma_buf_pool {
 	for_each_sg((sgt)->sgl, sg, (sgt)->orig_nents, i)
 #endif
 
-int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
-		      unsigned long v_addr, int format, uint32_t w,
-		      uint32_t h, unsigned long *StartAddr, unsigned long *size);
-
 int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd);
 int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_info_t *img);
 
