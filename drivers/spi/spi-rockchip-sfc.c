@@ -1010,12 +1010,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (sfc->max_dll_cells > SFC_DLL_CTRL0_DLL_MAX_VER5)
 		sfc->max_dll_cells = SFC_DLL_CTRL0_DLL_MAX_VER5;
 
-	ret = rockchip_sfc_get_gpio_descs(master, sfc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get gpio_descs\n");
-		return ret;
-	}
-
 	ret = clk_prepare_enable(sfc->hclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable ahb clk\n");
@@ -1061,6 +1055,12 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 				       !(status & SFC_SR_IS_BUSY), 10,
 				       5000 * USEC_PER_MSEC))
 			dev_err(dev, "Wait for SFC idle timeout!\n");
+	}
+
+	ret = rockchip_sfc_get_gpio_descs(master, sfc);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to get gpio_descs\n");
+		goto err_irq;
 	}
 
 	ret = rockchip_sfc_init(sfc);
