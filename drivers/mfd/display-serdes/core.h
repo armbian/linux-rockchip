@@ -271,6 +271,7 @@ struct serdes_panel {
 	u32 link_rate;
 	u32 lane_count;
 	bool ssc;
+	u32 bus_format;
 
 	struct device *dev;
 	struct serdes *parent;
@@ -299,6 +300,7 @@ struct serdes_panel_split {
 	u32 link_rate;
 	u32 lane_count;
 	bool ssc;
+	u32 bus_format;
 
 	struct device *dev;
 	struct serdes *parent;
@@ -336,7 +338,9 @@ struct serdes_bridge {
 	bool dv_swp_ab;
 	bool dpi_deskew_en;
 	bool split_mode;
-	u32 num_lanes;
+	unsigned long flags;
+	enum mipi_dsi_pixel_format format;
+	u32 lanes;
 	u32 dsi_lane_map[4];
 };
 
@@ -358,7 +362,9 @@ struct serdes_bridge_split {
 	bool sel_mipi;
 	bool dv_swp_ab;
 	bool dpi_deskew_en;
-	u32 num_lanes;
+	unsigned long flags;
+	enum mipi_dsi_pixel_format format;
+	u32 lanes;
 	u32 dsi_lane_map[4];
 };
 

@@ -91,7 +91,7 @@ static int serdes_panel_get_modes(struct drm_panel *panel,
 	struct serdes_panel *serdes_panel = to_serdes_panel(panel);
 	struct serdes *serdes = serdes_panel->parent;
 	struct drm_display_mode *mode;
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	u32 bus_format = serdes_panel->bus_format;
 	int ret = 1;
 
 	connector->display_info.width_mm = serdes_panel->width_mm;	//323; //346;
@@ -139,10 +139,9 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 	struct display_timing dt;
 	struct videomode vm;
 	int ret, len;
+	unsigned int val = 0;
 	unsigned int panel_size[2] = {320, 180};
-	unsigned int link_rate_count_ssc[3] = {DP_LINK_BW_2_7, 4, 0};
-
-	//pr_info("%s: node=%s\n", __func__, dev->of_node->name);
+	unsigned int link_rate_count_ssc[3] = {0};
 
 	serdes_panel->width_mm = panel_size[0];
 	serdes_panel->height_mm = panel_size[1];
@@ -160,6 +159,11 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 			serdes_panel->height_mm = panel_size[1];
 		}
 	}
+
+	if (!of_property_read_u32(dev->of_node, "bus-format", &val))
+		serdes_panel->bus_format = val;
+	else
+		serdes_panel->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
 	if (of_find_property(dev->of_node, "rate-count-ssc", &len)) {
 		len /= sizeof(unsigned int);
