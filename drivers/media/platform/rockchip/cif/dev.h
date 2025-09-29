@@ -364,6 +364,7 @@ struct rkcif_fps_stats {
  * @readout_time: one frame of readout time
  * @early_time: early time of buf send to user
  * @total_time: totaltime of readout time in hdr
+ * @rate_time: single frame interval
  */
 struct rkcif_readout_stats {
 	u64 fs_timestamp;
@@ -372,6 +373,7 @@ struct rkcif_readout_stats {
 	u64 readout_time;
 	u64 early_time;
 	u64 total_time;
+	u64 rate_time;
 };
 
 /* struct rkcif_irq_stats - take notes on irq number

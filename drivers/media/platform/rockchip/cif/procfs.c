@@ -604,7 +604,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		timestamp1 = stream->fps_stats.frm1_timestamp;
 		spin_unlock_irqrestore(&stream->fps_lock, flags);
 		if (dev->sditf[0] && dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
-			fps = dev->stream[0].readout.total_time;
+			fps = dev->stream[0].readout.rate_time;
 		else
 			fps = timestamp0 > timestamp1 ?
 			      timestamp0 - timestamp1 : timestamp1 - timestamp0;
@@ -638,8 +638,9 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		}
 		time_val = div_u64_rem(fps, 1000, &remainder);
 		seq_printf(f, "\trate:%u.%u ms\n", time_val, remainder);
-		fps = div_u64(1000000, fps);
-		seq_printf(f, "\tfps:%llu\n", fps);
+		fps = div_u64(1000000000, fps);
+		time_val = div_u64_rem(fps, 1000, &remainder);
+		seq_printf(f, "\tfps:%u.%u \n", time_val, remainder);
 		seq_puts(f, "\tirq statistics:\n");
 		seq_printf(f, "\t\t\ttotal:%llu\n",
 			   dev->irq_stats.frm_end_cnt[0] +
