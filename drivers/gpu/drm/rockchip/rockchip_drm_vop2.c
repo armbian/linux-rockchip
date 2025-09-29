@@ -5142,7 +5142,8 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 * After vop initialization, keep sw_sharp_enable always on.
 		 * Only enable/disable sharp submodule to avoid black screen.
 		 */
-		if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled)
+		if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled &&
+		    (vop2->version == VOP_VERSION_RK3576))
 			writel(0x1, vop2->sharp_res.regs);
 
 		/* disable immediately enable bit for dp */
@@ -14765,6 +14766,10 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	struct post_sharp *post_sharp;
+	struct sharp_regs_v1 *regs_v1;
+	struct sharp_regs_v2 *regs_v2;
+	u32 *regs;
+	u32 sharp_regs_len;
 	int i;
 
 	if (vp->sharp_disabled)
@@ -14778,22 +14783,41 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 		return;
 	}
 
-	/* sharp work in yuv color space, if it is rgb overlay sharp shouldn't be enabled */
-	if (!vcstate->yuv_overlay || !post_sharp_enabled(crtc)) {
+	if (vop2->version == VOP_VERSION_RK3576) {
 		/*
-		 * Only disable all submodule when sharp turn off,
-		 * keep sw_sharp_enable always on
+		 * sharp work in yuv color space, if it is rgb
+		 * overlay sharp shouldn't be enabled
 		 */
+		if (!vcstate->yuv_overlay || !post_sharp_enabled(crtc)) {
+			/*
+			 * Only disable all submodule when sharp turn off,
+			 * keep sw_sharp_enable always on
+			 */
+			if (vop2->sharp_res.regs)
+				writel(0x1, vop2->sharp_res.regs);
+			vcstate->sharp_en = false;
+			return;
+		}
+	} else if (!post_sharp_enabled(crtc)) {
 		if (vop2->sharp_res.regs)
-			writel(0x1, vop2->sharp_res.regs);
+			writel(0, vop2->sharp_res.regs);
 		vcstate->sharp_en = false;
 		return;
 	}
 
 	post_sharp = (struct post_sharp *)vcstate->post_sharp_data->data;
+	if (post_sharp->plat == VOP_VERSION_RK3576) {
+		regs_v1 = &post_sharp->regs_v1;
+		sharp_regs_len = ARRAY_SIZE(regs_v1->regs);
+		regs = regs_v1->regs;
+	} else {
+		regs_v2 = &post_sharp->regs_v2;
+		sharp_regs_len = ARRAY_SIZE(regs_v2->regs);
+		regs = regs_v2->regs;
+	}
 
-	for (i = 0; i < SHARP_REG_LENGTH / 4; i++)
-		writel(post_sharp->regs[i], vop2->sharp_res.regs + i * 4);
+	for (i = 0; i < sharp_regs_len; i++)
+		writel(regs[i], vop2->sharp_res.regs + i * 4);
 
 	vcstate->sharp_en = true;
 }

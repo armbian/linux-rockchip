@@ -316,11 +316,23 @@ struct msmart_data {
 	struct rockchip_vop_msmart_grid grid[ROCKCHIP_VOP_MSMART_MAX_GRIDS_NUM];
 };
 
-#define SHARP_REG_LENGTH 692
+#define SHARP_REG_LENGTH_V1 173
+#define SHARP_REG_LENGTH_V2 14
+
+struct sharp_regs_v1 {
+	u32 regs[SHARP_REG_LENGTH_V1];
+};
+
+struct sharp_regs_v2 {
+	u32 regs[SHARP_REG_LENGTH_V2];
+};
 
 struct post_sharp {
 	u32 plat; /* Reserved to distinguish later platform */
-	u32 regs[SHARP_REG_LENGTH / 4];
+	union {
+		struct sharp_regs_v1 regs_v1;
+		struct sharp_regs_v2 regs_v2;
+	};
 };
 
 struct rockchip_hdmi_vrr_state {
