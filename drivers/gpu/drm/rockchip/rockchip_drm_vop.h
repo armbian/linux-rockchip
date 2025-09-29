@@ -1528,6 +1528,10 @@ struct vop2_ctrl {
 	struct vop_reg rkmmu_v2_en;
 	struct vop_reg rkmmu_v2_sel_axi;
 	struct vop_reg rkmmu1_v2_en;
+	struct vop_reg mmu0_qos_en;
+	struct vop_reg mmu0_qos_val;
+	struct vop_reg mmu1_qos_en;
+	struct vop_reg mmu1_qos_val;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
 	struct vop_reg lut_use_axi1;

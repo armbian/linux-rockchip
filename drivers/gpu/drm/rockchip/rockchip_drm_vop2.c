@@ -5128,6 +5128,14 @@ static void vop2_initial(struct drm_crtc *crtc)
 		} else if (vop2->version >= VOP_VERSION_RK3572) {
 			VOP_CTRL_SET(vop2, rkmmu_v2_en, 1);
 			VOP_CTRL_SET(vop2, rkmmu1_v2_en, 1);
+			VOP_CTRL_SET(vop2, mmu0_qos_en, 1);
+			VOP_CTRL_SET(vop2, mmu0_qos_val, 7);
+			VOP_CTRL_SET(vop2, mmu1_qos_en, 1);
+			VOP_CTRL_SET(vop2, mmu1_qos_val, 7);
+
+			if (vop2->merge_irq == true)
+				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
+			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
 
 		/*
@@ -15944,6 +15952,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		active_irqs = axi_irqs[i];
 
 		ERROR_HANDLER(BUS_ERROR);
+		ERROR_HANDLER(MMU_EN);
 
 		/* Unhandled irqs are spurious. */
 		if (active_irqs)

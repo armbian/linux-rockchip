@@ -3741,6 +3741,7 @@ static const struct vop2_win_regs rk3572_cluster0_win_data = {
 	.color_key = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x1, 31),
 	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
+	.win_cfg_done = VOP_REG_MASK(RK3572_CLUSTER0_CFG_DONE, 0x1, 0),
 };
 
 static const struct vop2_win_regs rk3572_cluster1_win_data = {
@@ -3772,6 +3773,7 @@ static const struct vop2_win_regs rk3572_cluster1_win_data = {
 	.color_key = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x1, 31),
 	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
+	.win_cfg_done = VOP_REG_MASK(RK3572_CLUSTER1_CFG_DONE, 0x1, 0),
 };
 
 static const struct vop2_win_regs rk3568_cluster1_win_data = {
@@ -3908,6 +3910,7 @@ static const struct vop2_win_regs rk3572_esmart_win_data = {
 	.background = VOP_REG(RK3568_ESMART0_BG_EN, 0xffffffff, 0),
 	.alpha_map_en = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0x1, 31),
 	.alpha_map_val = VOP_REG(RK3576_ESMART0_ALPHA_MAP, 0xffff, 0),
+	.win_cfg_done = VOP_REG_MASK(RK3572_ESMART0_CFG_DONE, 0x1, 0),
 };
 
 static const struct vop2_win_regs rk3572_msmart_win_data = {
@@ -4741,7 +4744,6 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_output = { 4096, 4096 },
 	  .crc_enable = VOP_REG(RK3572_ESMART0_CRC_EN, 0x1, 0),
 	  .crc_value_offset = RK3572_ESMART0_CRC_STATUS,
-	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 0,
 	  .axi_yrgb_id = 0x10,
@@ -4776,7 +4778,6 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_output = { 2048, 4096 },
 	  .crc_enable = VOP_REG(RK3572_ESMART1_CRC_EN, 0x1, 0),
 	  .crc_value_offset = RK3572_ESMART1_CRC_STATUS,
-	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 1,
 	  .axi_yrgb_id = 0x10,
@@ -4981,7 +4982,6 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_output = { 4096, 4096 },
 	  .crc_enable = VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 25),
 	  .crc_value_offset = RK3572_MSMART0_CRC_CHK_STATUS,
-	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .axi_id = 0,
 	  .axi_yrgb_id = 0x12,
@@ -5016,7 +5016,6 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_output = { 2048, 4096 },
 	  .crc_enable = VOP_REG(RK3572_MSMART1_CTRL0, 0x1, 25),
 	  .crc_value_offset = RK3572_MSMART1_CRC_CHKOU_STATUS,
-	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .axi_id = 1,
 	  .axi_yrgb_id = 0x12,
@@ -6114,6 +6113,10 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.rkmmu1_v2_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL, 0x1, 1),
+	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
+	.mmu0_qos_val = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x7, 1),
+	.mmu1_qos_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x1, 0),
+	.mmu1_qos_val = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x7, 1),
 
 	/* MIPI DSI0 */
 	.mipi0_en = VOP_REG(RK3572_MIPI0_IF_CTRL, 0x1, 0),
