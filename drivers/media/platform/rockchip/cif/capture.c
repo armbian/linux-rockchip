@@ -8844,6 +8844,11 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 				stream->exp_delay.dcg_delay = 1;
 			}
 		}
+		if (dev->switch_info.is_use_switch && dev->sync_cfg.type == INTERNAL_MASTER_MODE) {
+			dev->switch_info.is_active = true;
+			dev->switch_info.switch_dev->switch_info.is_active = false;
+			rkcif_switch_change(dev, !!dev->switch_info.gpio_val);
+		}
 	}
 	if (dev->chip_id >= CHIP_RK1808_CIF) {
 		if (dev->active_sensor &&
