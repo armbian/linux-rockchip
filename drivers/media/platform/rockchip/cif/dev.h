@@ -657,6 +657,7 @@ struct rkcif_stream {
 	struct kfifo			dcg_kfifo;
 	struct rkmodule_exp_delay	exp_delay;
 	struct rkmodule_exp_info	sensor_exp_info;
+	int				real_skip_num;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
