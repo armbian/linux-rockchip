@@ -6919,7 +6919,10 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	u64 fs_time = 0;
 	int on = 0;
 
-	mutex_lock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_lock(&dev->hw_dev->dev_lock);
+	else
+		mutex_lock(&dev->stream_lock);
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start stopping, total mode 0x%x, cur 0x%x\n",
 		stream->id, stream->cur_stream_mode, mode);
@@ -7060,7 +7063,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 		if (atomic_read(&dev->pipe.stream_cnt) == 0)
 			dev->can_be_reset = true;
-		mutex_lock(&hw_dev->dev_lock);
+		if (dev->chip_id >= CHIP_RK3588_CIF)
+			mutex_lock(&hw_dev->dev_lock);
 		for (i = 0; i < hw_dev->dev_num; i++) {
 			if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
 				can_reset = false;
@@ -7069,7 +7073,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 		if (can_reset && hw_dev->dummy_buf.vaddr)
 			rkcif_destroy_dummy_buf(stream);
-		mutex_unlock(&hw_dev->dev_lock);
+		if (dev->chip_id >= CHIP_RK3588_CIF)
+			mutex_unlock(&hw_dev->dev_lock);
 		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF) {
 			rkcif_do_soft_reset(dev);
 			atomic_set(&dev->streamoff_cnt, 0);
@@ -7112,14 +7117,19 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		INIT_LIST_HEAD(&stream->vb_done_list);
 	}
 
-	if (mode == stream->cur_stream_mode)
-		rkcif_detach_sync_mode(dev);
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->is_alloc_buf_user)
 		rkcif_free_buf_by_user_require(dev);
 	rkcif_free_fence(stream);
 	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
-	mutex_unlock(&dev->stream_lock);
+
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_unlock(&dev->hw_dev->dev_lock);
+	else
+		mutex_unlock(&dev->stream_lock);
+
+	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE)
+		rkcif_detach_sync_mode(dev);
 }
 
 static void rkcif_stop_streaming(struct vb2_queue *queue)
@@ -8639,7 +8649,10 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
 	rkcif_attach_sync_mode(dev);
-	mutex_lock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_lock(&hw_dev->dev_lock);
+	else
+		mutex_lock(&dev->stream_lock);
 
 	if ((stream->cur_stream_mode & RKCIF_STREAM_MODE_CAPTURE) == mode) {
 		ret = -EBUSY;
@@ -8698,7 +8711,6 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	if (ret < 0)
 		goto destroy_buf;
 
-	mutex_lock(&hw_dev->dev_lock);
 	if (atomic_read(&dev->pipe.stream_cnt) == 0 &&
 	    dev->active_sensor &&
 	    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
@@ -8734,18 +8746,22 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 
 	}
 
+	if (dev->chip_id >= CHIP_RK3588_CIF)
+		mutex_lock(&hw_dev->dev_lock);
 	if (((dev->active_sensor && dev->active_sensor->mbus.type == V4L2_MBUS_BT656) ||
 	     dev->is_use_dummybuf) &&
 	    (!dev->hw_dev->dummy_buf.vaddr) &&
 	    mode == RKCIF_STREAM_MODE_CAPTURE) {
 		ret = rkcif_create_dummy_buf(stream);
 		if (ret < 0) {
-			mutex_unlock(&hw_dev->dev_lock);
+			if (dev->chip_id >= CHIP_RK3588_CIF)
+				mutex_unlock(&hw_dev->dev_lock);
 			v4l2_err(v4l2_dev, "Failed to create dummy_buf, %d\n", ret);
 			goto destroy_buf;
 		}
 	}
-	mutex_unlock(&hw_dev->dev_lock);
+	if (dev->chip_id >= CHIP_RK3588_CIF)
+		mutex_unlock(&hw_dev->dev_lock);
 
 	if (mode == RKCIF_STREAM_MODE_CAPTURE)
 		tasklet_enable(&stream->vb_done_tasklet);
@@ -8912,7 +8928,10 @@ destroy_buf:
 	}
 
 out:
-	mutex_unlock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_unlock(&hw_dev->dev_lock);
+	else
+		mutex_unlock(&dev->stream_lock);
 	return ret;
 }
 
