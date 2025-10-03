@@ -2018,7 +2018,9 @@ static void rkcif_rdbk_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && active_buf) {
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    active_buf &&
+	    !stream->tools_vdev->is_cap_scale) {
 		list_add_tail(&active_buf->list_tool, &stream->tools_vdev->buf_done_head);
 		active_buf->use_cnt = 2;
 		if (!work_busy(&stream->tools_vdev->work))
@@ -6198,7 +6200,9 @@ void rkcif_buf_queue(struct vb2_buffer *vb)
 	int i;
 	bool is_find_tools_buf = false;
 
-	if (tools_vdev) {
+	if (tools_vdev &&
+	    tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    !tools_vdev->is_cap_scale) {
 		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
 		if (!list_empty(&tools_vdev->src_buf_head)) {
 			list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
@@ -11820,7 +11824,7 @@ static void rkcif_buf_done_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && !stream->tools_vdev->is_cap_scale) {
 		list_add_tail(&active_buf->queue, &stream->tools_vdev->buf_done_head);
 		if (!work_busy(&stream->tools_vdev->work))
 			schedule_work(&stream->tools_vdev->work);
