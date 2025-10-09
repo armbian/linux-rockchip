@@ -415,17 +415,17 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 		dev_dbg(hsotg->dev, "DSTS=0x%0x\n",
 			dwc2_readl(hsotg, DSTS));
 		if (hsotg->lx_state == DWC2_L2) {
+			u32 dctl = dwc2_readl(hsotg, DCTL);
+			/* Clear Remote Wakeup Signaling */
+			dctl &= ~DCTL_RMTWKUPSIG;
+			dwc2_writel(hsotg, dctl, DCTL);
+
 			if (hsotg->in_ppd) {
-				u32 dctl = dwc2_readl(hsotg, DCTL);
-				/* Clear Remote Wakeup Signaling */
-				dctl &= ~DCTL_RMTWKUPSIG;
-				dwc2_writel(hsotg, dctl, DCTL);
 				ret = dwc2_exit_partial_power_down(hsotg, 1,
 								   true);
 				if (ret)
 					dev_err(hsotg->dev,
 						"exit partial_power_down failed\n");
-				call_gadget(hsotg, resume);
 			}
 
 			/* Exit gadget mode clock gating. */
@@ -433,6 +433,11 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 			    DWC2_POWER_DOWN_PARAM_NONE && hsotg->bus_suspended &&
 			    !hsotg->params.no_clock_gating)
 				dwc2_gadget_exit_clock_gating(hsotg, 0);
+
+			/* Change to L0 state */
+			hsotg->lx_state = DWC2_L0;
+			/* Call gadget resume callback */
+			call_gadget(hsotg, resume);
 		} else {
 			/* Change to L0 state */
 			hsotg->lx_state = DWC2_L0;
