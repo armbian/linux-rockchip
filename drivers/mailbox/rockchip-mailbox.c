@@ -12,6 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/string_helpers.h>
 #include <soc/rockchip/rockchip-mailbox.h>
 
 #define MAILBOX_A2B_INTEN		0x00
@@ -28,11 +29,16 @@
 #define MAILBOX_V2_A2B_STATUS		MAILBOX_A2B_STATUS
 #define MAILBOX_V2_A2B_CMD		0x08
 #define MAILBOX_V2_A2B_DAT		0x0c
+#define MAILBOX_V2_A2B_LOCK		0x20
 
 #define MAILBOX_V2_B2A_INTEN		0x10
 #define MAILBOX_V2_B2A_STATUS		0x14
 #define MAILBOX_V2_B2A_CMD		0x18
 #define MAILBOX_V2_B2A_DAT		0x1c
+#define MAILBOX_V2_B2A_LOCK		0x30
+
+#define MAILBOX_V2_VERSION		0x40
+#define MAILBOX_V2_VERSION_MASK		GENMASK(31, 16)
 
 #define MAILBOX_V2_TRIGGER_SHIFT	8
 #define MAILBOX_V2_TRIGGER_MASK		BIT(8)
@@ -45,6 +51,11 @@
 #define MAILBOX_V2_STATUS_RX_DONE	BIT(1)
 #define MAILBOX_V2_STATUS_MASK		GENMASK(1, 0)
 
+#define MAILBOX_VERSION_1_0_0		0x100U
+#define MAILBOX_VERSION_2_0_0		0x200U
+#define MAILBOX_VERSION_2_1_0		0x210U
+#define MAILBOX_VERSION_2_2_0		0x220U
+
 #define MAILBOX_POLLING_MS		5 /* default polling interval 5ms */
 #define BIT_WRITEABLE_SHIFT		16
 
@@ -53,14 +64,17 @@ struct rockchip_mbox_reg {
 	u32 tx_sts;
 	u32 tx_cmd;
 	u32 tx_dat;
+	u32 tx_lock;
 	u32 rx_int;
 	u32 rx_sts;
 	u32 rx_cmd;
 	u32 rx_dat;
+	u32 rx_lock;
 };
 
 struct rockchip_mbox_data {
 	int num_chans;
+	u32 version;
 	struct rockchip_mbox_reg reg_a2b;
 	struct rockchip_mbox_reg reg_b2a;
 	const struct mbox_chan_ops *ops;
@@ -78,6 +92,7 @@ struct rockchip_mbox {
 	void __iomem *mbox_base;
 	spinlock_t cfg_lock; /* Serialise access to the register */
 	unsigned char trigger_method; /* 0 = write cmd, 1 = write cmd first, then write data */
+	u32 version;
 	struct rockchip_mbox_msg *msg;
 	const struct rockchip_mbox_reg *reg;
 
@@ -181,17 +196,27 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static bool rockchip_mbox_v2_is_busy(struct rockchip_mbox *mb)
+{
+	u32 status;
+
+	if (mb->version < MAILBOX_VERSION_2_2_0)
+		status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts) & MAILBOX_V2_STATUS_TX_DONE;
+	else
+		status = readl_relaxed(mb->mbox_base + mb->reg->tx_lock);
+
+	return !!status;
+}
+
 static int rockchip_mbox_v2_send_data(struct mbox_chan *chan, void *data)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	struct rockchip_mbox_msg *msg = data;
-	u32 status;
 
 	if (!msg)
 		return -EINVAL;
 
-	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
-	if (status & MAILBOX_V2_STATUS_TX_DONE) {
+	if (rockchip_mbox_v2_is_busy(mb)) {
 		dev_err(mb->mbox.dev, "The mailbox is busy\n");
 		return -EBUSY;
 	}
@@ -325,20 +350,26 @@ EXPORT_SYMBOL_GPL(rockchip_mbox_read_msg);
 
 static const struct rockchip_mbox_data rk3368_drv_data = {
 	.num_chans = 4,
+	.version = MAILBOX_VERSION_1_0_0,
 	.ops = &rockchip_mbox_chan_ops,
 	.irq_func = rockchip_mbox_irq,
 };
 
 static const struct rockchip_mbox_data rk3576_drv_data = {
 	.num_chans = 1,
+	.version = MAILBOX_VERSION_2_0_0,
 	.reg_a2b = { MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
 		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_A2B_LOCK,
 		     MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
-		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT },
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_B2A_LOCK },
 	.reg_b2a = { MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
 		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_B2A_LOCK,
 		     MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
-		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT },
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_A2B_LOCK },
 	.ops = &rockchip_mbox_v2_chan_ops,
 	.irq_func = rockchip_mbox_v2_irq,
 };
@@ -447,6 +478,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	if (IS_ERR(mb->mbox_base))
 		return PTR_ERR(mb->mbox_base);
 
+	if (drv_data->version != MAILBOX_VERSION_1_0_0)
+		mb->version = FIELD_GET(MAILBOX_V2_VERSION_MASK,
+					readl_relaxed(mb->mbox_base + MAILBOX_V2_VERSION));
+
+	if (!mb->version)
+		mb->version = drv_data->version;
+
 	mb->pclk = devm_clk_get(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(mb->pclk)) {
 		ret = PTR_ERR(mb->pclk);
@@ -502,6 +540,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		if (device_property_present(&pdev->dev, "wakeup-source"))
 			enable_irq_wake(mb->chans[i].irq);
 	}
+
+	dev_info(&pdev->dev, "version: 0x%04x, tx_dir: %s, tx_done: %s, poll_period: %u, fast_mode: %s\n",
+		 mb->version,
+		 mb->reg == &drv_data->reg_b2a ? "B2A" : "A2B",
+		 mb->mbox.txdone_irq ? "irq" : mb->mbox.txdone_poll ? "poll" : "ack",
+		 mb->mbox.txpoll_period,
+		 str_yes_no(!mb->trigger_method));
 
 	return 0;
 
