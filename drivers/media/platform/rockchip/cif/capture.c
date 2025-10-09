@@ -6466,6 +6466,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 	int j = 0;
 	int ret = 0;
 	bool is_match_pre = false;
+	bool is_switch = false;
 
 	if (!priv)
 		return -EINVAL;
@@ -6516,13 +6517,21 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			if (i == 0)
 				rkcif_get_resmem_head(dev);
 			buf->buf_idx = i;
-			ret = rkcif_alloc_reserved_mem_buf(dev, buf);
+			if (!is_switch)
+				ret = rkcif_alloc_reserved_mem_buf(dev, buf);
+			else
+				ret = rkcif_alloc_reserved_mem_buf(dev->switch_info.switch_dev, buf);
 			if (ret) {
-				stream->rx_buf_num = i;
-				v4l2_info(&dev->v4l2_dev,
-					 "reserved mem support alloc buf num %d, require buf num %d\n",
-					 i, buf_num);
-				break;
+				if (!is_switch && dev->switch_info.is_use_switch) {
+					is_switch = true;
+					continue;
+				} else {
+					stream->rx_buf_num = i;
+					v4l2_info(&dev->v4l2_dev,
+						 "reserved mem support alloc buf num %d, require buf num %d\n",
+						 i, buf_num);
+					break;
+				}
 			}
 			if (dev->rdbk_debug)
 				v4l2_info(&dev->v4l2_dev,
