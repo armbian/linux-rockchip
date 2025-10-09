@@ -1,0 +1,434 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+/ {
+	flash_rgb13h: flash-rgb13h {
+		status = "okay";
+		compatible = "led,rgb13h";
+		label = "gpio-flash";
+		pinctrl-names = "default";
+		pinctrl-0 = <&flash_led_gpios>;
+		led-max-microamp = <20000>;
+		flash-max-microamp = <20000>;
+		flash-max-timeout-us = <1000000>;
+		enable-gpio = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		//mode-gpio = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>; //EN
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	vcc_mipipwr: vcc-mipipwr-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicam_pwr>;
+		regulator-name = "vcc_mipipwr";
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_gc05a2: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc05a2_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_gc02m1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc02m1_out>;
+				data-lanes = <1>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ov13850: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov13850_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi3_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	gc02m1: gc02m1@37 {
+		status = "okay";
+		compatible = "galaxycore,gc02m1";
+		reg = <0x37>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1m0_clk1>;
+		pwdn-gpios = <&gpio3 RK_PD3 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		avdd-supply = <&vcc_mipipwr>;
+		//dovdd-supply = <&vcc_1v8_cam>;
+		//dvdd-supply = <&vcc1v2_dvp>;
+		dvdd-supply = <&vcc_1v2_cam>;
+		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "KYT-8789-V10";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			gc02m1_out: endpoint {
+				remote-endpoint = <&mipi_in_gc02m1>;
+				data-lanes = <1>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m3_xfer>;
+
+	dw9714: dw9714@c {
+		compatible = "dongwoon,dw9714";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,vcm-start-current = <5>;
+		rockchip,vcm-rated-current = <65>;
+		rockchip,vcm-step-mode = <5>;
+		rockchip,camera-module-facing = "back";
+		avdd-supply = <&vcc_mipipwr>;
+		xsd-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	};
+
+	gc05a2: gc05a2@37 {
+		compatible = "galaxycore,gc05a2";
+		status = "okay";
+		reg = <0x37>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		pwdn-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		avdd-supply = <&vcc_mipipwr>;
+		//dovdd-supply = <&vcc_1v8_cam>;
+		dvdd-supply = <&vcc_1v2_cam>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "KYT-11210-V2";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			gc05a2_out0: endpoint {
+				remote-endpoint = <&mipi_in_gc05a2>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	ov13850: ov13850@10 {
+		status = "okay";
+		compatible = "ovti,ov13850";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M2>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2m0_clk2>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		dvdd-supply = <&vcc_1v2_cam>;
+		avdd-supply = <&vcc_mipipwr>;
+		//dovdd-supply = <&vcc_1v8_cam>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "G1-T-B-s5k";
+		rockchip,camera-module-lens-name = "XA-0806B";
+		flash-leds = <&flash_rgb13h>;
+		lens-focus = <&dw9714>;
+		port {
+			ov13850_out: endpoint {
+				remote-endpoint = <&mipi_in_ov13850>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&mipi3_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi3_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi3_in0>;
+			};
+		};
+	};
+};
+
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi1_in0>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	cam {
+		mipicam_pwr: mipicam-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		flash_led_gpios: flash-led {
+			rockchip,pins =
+				/* flash led enable */
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir0_in0>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi1_in0: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds1_sditf: endpoint {
+			remote-endpoint = <&isp_vir0_in2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds3 {
+	status = "okay";
+
+	port {
+		cif_mipi3_in0: endpoint {
+			remote-endpoint = <&mipi3_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds3_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds3_sditf: endpoint {
+			remote-endpoint = <&isp_vir0_in1>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0_in0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+
+		isp_vir0_in1: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&mipi_lvds3_sditf>;
+		};
+
+		isp_vir0_in2: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&mipi_lvds1_sditf>;
+		};
+	};
+};
