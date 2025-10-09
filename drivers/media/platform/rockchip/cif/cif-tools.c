@@ -689,7 +689,7 @@ retry_done_buf:
 		}
 		rkcif_buf_queue(&tools_buf->vb->vb2_buf);
 		tools_vdev->curr_buf->vb.sequence = tools_buf->frame_idx;
-		tools_vdev->curr_buf->vb.vb2_buf.timestamp = tools_buf->frame_idx;
+		tools_vdev->curr_buf->vb.vb2_buf.timestamp = tools_buf->timestamp;
 		vb2_buffer_done(&tools_vdev->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		tools_vdev->curr_buf = NULL;
 	} else {
