@@ -415,6 +415,42 @@
 			};
 		};
 
+		cci_hwlock0: hwspinlock@26900000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x26900000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		cci_hwlock1: hwspinlock@26910000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x26910000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		cci_hwlock2: hwspinlock@26920000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x26920000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		cci_hwlock3: hwspinlock@26930000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x26930000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
 		vop: vop@27500000 {
 			compatible = "rockchip,rk3572-vop";
 			reg = <0x0 0x27500000 0x0 0x3c00>,
@@ -529,6 +565,182 @@
 			      <0x0 0x2a604000 0 0x2000>,
 			      <0x0 0x2a606000 0 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+		};
+
+		hwlock0: hwspinlock@2ac00000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x2ac00000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		hwlock1: hwspinlock@2ac10000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x2ac10000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		hwlock2: hwspinlock@2ac20000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x2ac20000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		hwlock3: hwspinlock@2ac30000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0x0 0x2ac30000 0x0 0x20>;
+			#hwlock-cells = <1>;
+			rockchip,hwlock-num-locks = <8>;
+			rockchip,hwlock-max-user = <0x3f>;
+			status = "disabled";
+		};
+
+		mailbox0: mailbox@2b100000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b100000 0x0 0x40>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox1: mailbox@2b110000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b110000 0x0 0x40>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox2: mailbox@2b120000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b120000 0x0 0x40>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox3: mailbox@2b130000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b130000 0x0 0x40>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox4: mailbox@2b140000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b140000 0x0 0x40>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox5: mailbox@2b150000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b150000 0x0 0x40>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox6: mailbox@2b160000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b160000 0x0 0x40>;
+			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox7: mailbox@2b170000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b170000 0x0 0x40>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox8: mailbox@2b180000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b180000 0x0 0x40>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox9: mailbox@2b190000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b190000 0x0 0x40>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox10: mailbox@2b1a0000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b1a0000 0x0 0x40>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox11: mailbox@2b1b0000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b1b0000 0x0 0x40>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox12: mailbox@2b1c0000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b1c0000 0x0 0x40>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox13: mailbox@2b1d0000 {
+			compatible = "rockchip,rk3572-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0x0 0x2b1d0000 0x0 0x40>;
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX0>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
 		};
 
 		uart0: serial@2c130000 {
