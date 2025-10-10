@@ -1247,6 +1247,8 @@ static int rkisp_resume(struct device *dev)
 			if (isp_dev->dev_id && !(IS_HDR_RDBK(isp_tmp->rd_mode)))
 				hw->is_idle = false;
 		}
+		if (hw->is_single && isp_dev->params_vdev.ops->vpsl_update_regs)
+			isp_dev->params_vdev.ops->vpsl_update_regs(&isp_dev->params_vdev);
 		rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
 	}
 	if (rkisp_link_sensor(isp_dev->isp_inp)) {

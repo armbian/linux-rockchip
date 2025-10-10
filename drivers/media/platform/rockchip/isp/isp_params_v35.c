@@ -445,6 +445,39 @@ isp_bls_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	isp3_param_write(params_vdev, val, ISP3X_BLS_CTRL, id);
 }
 
+static void isp_lsc_timing_for_table(struct rkisp_isp_params_vdev *params_vdev, u32 id)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	u32 path_sel, val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, 0);
+
+	if (!dev->hw_dev->is_single ||
+	    !(val & ISP35_MODULE_EN) ||
+	    (!dev->is_aiisp_en && !dev->is_aiisp_stop))
+		return;
+	/* lsc table share for mainLSC awbLSC and drcLSC
+	 * drcLSC default frame end read table
+	 * awbLSC default frame end read table
+	 * mainLSC default frame start read table, and need change to frame end if isp_fe isp_be async
+	 */
+	val &= ~ISP3X_LSC_PRE_RD_ST_MODE;
+	path_sel = isp3_param_read_cache(params_vdev, ISP3X_VI_ISP_PATH, id);
+	/* drcLSC read table */
+	path_sel |= ISP3X_LSC_CFG_SEL(3);
+	isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
+	isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
+	/* awbLSC read table */
+	path_sel &= ~ISP3X_LSC_CFG_SEL(3);
+	path_sel |= ISP3X_LSC_CFG_SEL(2);
+	isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
+	isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
+	/* mainLSC read table */
+	path_sel &= ~ISP3X_LSC_CFG_SEL(3);
+	path_sel |= ISP3X_LSC_CFG_SEL(1);
+	isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
+	val |= ISP3X_LSC_PRE_RD_ST_MODE;
+	isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
+}
+
 static void
 isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp3x_lsc_cfg *pconfig,
@@ -550,9 +583,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
-	struct rkisp_device *dev = params_vdev->dev;
 	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
-	u32 path_sel;
 
 	if (en == !!(val & ISP35_MODULE_EN))
 		return;
@@ -561,28 +592,9 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		val |= ISP35_MODULE_EN;
 	else
 		val &= ~(ISP35_MODULE_EN | ISP35_SELF_FORCE_UPD);
-
-	if ((dev->is_aiisp_en || dev->is_aiisp_stop) && dev->hw_dev->is_single) {
-		val &= ~ISP3X_LSC_PRE_RD_ST_MODE;
-
-		path_sel = isp3_param_read_cache(params_vdev, ISP3X_VI_ISP_PATH, id);
-		/* drcLSC default frame end read table */
-		path_sel |= ISP3X_LSC_CFG_SEL(3);
-		isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
-		isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
-		/* awbLSC default frame end read table */
-		path_sel &= ~ISP3X_LSC_CFG_SEL(3);
-		path_sel |= ISP3X_LSC_CFG_SEL(2);
-		isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
-		isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
-		/* mainLSC default frame start read table and change to frame end */
-		path_sel &= ~ISP3X_LSC_CFG_SEL(3);
-		path_sel |= ISP3X_LSC_CFG_SEL(1);
-		isp3_param_write(params_vdev, path_sel, ISP3X_VI_ISP_PATH, id);
-
-		val |= ISP3X_LSC_PRE_RD_ST_MODE;
-	}
 	isp3_param_write(params_vdev, val, ISP3X_LSC_CTRL, id);
+	if (en)
+		isp_lsc_timing_for_table(params_vdev, id);
 }
 
 static void
@@ -4842,6 +4854,8 @@ void rkisp_params_cfgsram_v35(struct rkisp_isp_params_vdev *params_vdev, bool is
 	params->others.hist_cfg.iir_wr = false;
 
 	isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, id);
+	if (is_reset)
+		isp_lsc_timing_for_table(params_vdev, id);
 	isp_hsv_cfg_sram(params_vdev, &params->others.hsv_cfg, true, id);
 	isp_rawawb_cfg_sram(params_vdev, &params->meas.rawawb, true, id);
 	isp_rawhist_cfg_sram(params_vdev, &params->meas.rawhist0,
@@ -6363,9 +6377,11 @@ rkisp_vpsl_update_regs_v35(struct rkisp_isp_params_vdev *params_vdev)
 		writel(0, base + VPSL_PYR_CHN);
 	} else {
 		for (i = VPSL_CTRL; i < VPSL_SW_REG_SIZE; i += 4) {
+			if (i == VPSL_UPDATE || i == VPSL_MI_WR_INIT || i == VPSL_PYR_SIGMA_LUT)
+				continue;
 			val = dev->sw_vpsl_base_addr + i;
 			flag = dev->sw_vpsl_base_addr + i + VPSL_SW_REG_SIZE;
-			if (*flag == SW_REG_CACHE)
+			if (*flag)
 				writel(*val, base + i);
 		}
 		vpsl_cfg_sram(params_vdev, &params->others.ai_cfg);
