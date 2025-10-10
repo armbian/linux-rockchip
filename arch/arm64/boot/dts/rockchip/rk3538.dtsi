@@ -221,6 +221,46 @@
 		#size-cells = <1>;
 		ranges;
 
+		mailbox0: mailbox@fcc00000 {
+			compatible = "rockchip,rk3538-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0xfcc00000 0x40>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox1: mailbox@fcc10000 {
+			compatible = "rockchip,rk3538-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0xfcc10000 0x40>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox2: mailbox@fcc20000 {
+			compatible = "rockchip,rk3538-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0xfcc20000 0x40>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
+		mailbox3: mailbox@fcc30000 {
+			compatible = "rockchip,rk3538-mailbox", "rockchip,rk3576-mailbox";
+			reg = <0xfcc30000 0x40>;
+			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_MAILBOX>;
+			clock-names = "pclk_mailbox";
+			#mbox-cells = <1>;
+			status = "disabled";
+		};
+
 		cru: clock-controller@fd000000 {
 			compatible = "rockchip,rk3538-cru";
 			reg = <0xfd000000 0x91000>;
@@ -260,6 +300,13 @@
 			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		hwlock: hwspinlock@fdf00000 {
+			compatible = "rockchip,hwspinlock";
+			reg = <0xfdf00000 0x100>;
+			#hwlock-cells = <1>;
 			status = "disabled";
 		};
 
