@@ -3655,6 +3655,7 @@ static int rga2_read_status(struct rga_job *job, struct rga_scheduler_t *schedul
 	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
 	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
 	job->work_cycle = rga_read(RGA2_WORK_CNT, scheduler);
+	job->intr_status2 = rga_read(RGA2_INTR_STATUS2, scheduler);
 
 	return 0;
 }
@@ -3739,6 +3740,17 @@ static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			job->ret = -EACCES;
 		} else if (job->intr_status & m_RGA2_INT_FBCIN_DEC_ERROR) {
 			rga_job_err(job, "FBC decode failed, please check if the source data is FBC data.\n");
+			job->ret = -EACCES;
+		} else if (job->intr_status & m_RGA2_INT_CONFIG_ERR) {
+			rga_job_err(job, "reg config error. status[%#x]\n", job->intr_status2);
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC_DST_RECT_NOT_EQUAL)
+				rga_job_err(job, "reg config error: src_rect != dst_rect.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_HORI_BND_ERR)
+				rga_job_err(job, "reg config error: src1 horizontal beyond the boundary in overlay.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_VERT_BND_ERR)
+				rga_job_err(job, "reg config error: src1 vertical beyond the boundary in overlay.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_ODD_VIOLATION)
+				rga_job_err(job, "reg config error: src1 odd violation in overlay.\n");
 			job->ret = -EACCES;
 		}
 
