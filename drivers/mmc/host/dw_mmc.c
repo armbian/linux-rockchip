@@ -1538,6 +1538,10 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
+		/* Clear FIFO to avoid errors when reading small data during initialization. */
+		dw_mci_ctrl_reset(slot->host, SDMMC_CTRL_FIFO_RESET);
+#endif
 		if (dw_mci_get_cd(mmc) && !IS_ERR_OR_NULL(slot->host->pinctrl)) {
 			if (!pinctrl_select_state(slot->host->pinctrl, slot->host->idle_state)) {
 				if (device_property_read_u32(slot->host->dev, "power-off-delay-ms",
