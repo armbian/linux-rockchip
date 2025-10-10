@@ -325,6 +325,7 @@ struct rga_job {
 	uint32_t intr_status;
 	uint32_t hw_status;
 	uint32_t cmd_status;
+	uint32_t intr_status2;
 
 	uint32_t work_cycle;
 };
