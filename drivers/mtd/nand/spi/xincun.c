@@ -102,6 +102,15 @@ static const struct spinand_info xincun_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&xcsp2aapk_ooblayout, xcsp2aapk_ecc_get_status)),
+	SPINAND_INFO("XCSP4AAPK-IT",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0xB1),
+		     NAND_MEMORG(1, 2048, 128, 128, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&xcsp2aapk_ooblayout, xcsp2aapk_ecc_get_status)),
 };
 
 static const struct spinand_info xincun_6c_spinand_table[] = {
