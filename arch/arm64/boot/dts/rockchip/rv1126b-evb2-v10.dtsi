@@ -179,6 +179,7 @@
 		regulator-init-microvolt = <905000>;
 		regulator-min-microvolt = <810000>;
 		regulator-max-microvolt = <1006000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -192,6 +193,7 @@
 		regulator-init-microvolt = <950000>;
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1150000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -205,6 +207,7 @@
 		regulator-init-microvolt = <950000>;
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1100000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
