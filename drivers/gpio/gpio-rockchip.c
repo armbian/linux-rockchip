@@ -751,7 +751,10 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 	bank->gpio_chip = rockchip_gpiolib_chip;
 
 	gc = &bank->gpio_chip;
-	gc->base = bank->pin_base;
+	if (IS_ENABLED(CONFIG_GPIO_SYSFS))
+		gc->base = bank->pin_base;
+	else
+		gc->base = -1; /* Dynamic allocation */
 	gc->ngpio = bank->nr_pins;
 	gc->label = bank->name;
 	gc->parent = bank->dev;
