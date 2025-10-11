@@ -564,6 +564,7 @@
 
 &u2phy1_otg {
 	phy-supply = <&vcc5v0_host_usb30>;
+	rockchip,sel-pipe-phystatus;
 };
 
 &u2phy2_host {
@@ -578,8 +579,27 @@
 	status = "disabled";
 };
 
+&usbdp_phy1 {
+	status = "disabled";
+};
+
+&usbdp_phy1_dp {
+	status = "disabled";
+};
+
 &usbdp_phy1_u3 {
 	status = "disabled";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+	extcon = <&u2phy1>;
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
 };
 
 &vdd_log_s0 {
