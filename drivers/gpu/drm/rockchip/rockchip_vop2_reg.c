@@ -4443,6 +4443,8 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .csc_coe_bits = 13,
 	  .max_input = { 4096, 4096 },
 	  .max_output = { 4096, 4096 },
+	  .crc_enable = VOP_REG(RK3572_ESMART0_CRC_EN, 0x1, 0),
+	  .crc_value_offset = RK3572_ESMART0_CRC_STATUS,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 0,
 	  .axi_yrgb_id = 0x8,
@@ -4475,6 +4477,8 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .csc_coe_bits = 10,
 	  .max_input = { 4096, 4096 },
 	  .max_output = { 4096, 4096 },
+	  .crc_enable = VOP_REG(RK3572_ESMART1_CRC_EN, 0x1, 0),
+	  .crc_value_offset = RK3572_ESMART1_CRC_STATUS,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .axi_id = 0,
 	  .axi_yrgb_id = 0xa,
@@ -4507,6 +4511,8 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .csc_coe_bits = 10,
 	  .max_input = { 4096, 4096 },
 	  .max_output = { 2048, 4096 },
+	  .crc_enable = VOP_REG(RK3538_ESMART2_CRC_EN, 0x1, 0),
+	  .crc_value_offset = RK3538_ESMART2_CRC_STATUS,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .axi_id = 0,
 	  .axi_yrgb_id = 0xc,
@@ -4538,6 +4544,8 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .csc_coe_bits = 13,
 	  .max_input = { 4096, 4096 },
 	  .max_output = { 4096, 4096 },
+	  .crc_enable = VOP_REG(RK3572_CLUSTER0_WIN0_CRC_EN, 0x1, 0),
+	  .crc_value_offset = RK3572_CLUSTER0_WIN0_CRC_STATUS,
 	  .axi_yrgb_id = 0x4,
 	  .axi_uv_id = 0x5,
 	  .dci_rid_id = 0x2,/* dci axi id length is 4 bits */
@@ -4569,6 +4577,8 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .csc_coe_bits = 10,
 	  .max_input = { 2048, 4096 },
 	  .max_output = { 2048, 4096 },
+	  .crc_enable = VOP_REG(RK3572_CLUSTER0_WIN1_CRC_EN, 0x1, 0),
+	  .crc_value_offset = RK3572_CLUSTER0_WIN1_CRC_STATUS,
 	  .axi_yrgb_id = 0x6,
 	  .axi_uv_id = 0x7,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
@@ -7254,6 +7264,18 @@ static const struct vop2_data rk3528_vop = {
 	.plane_mask_base = RK3528_PLANE_MASK_BASE,
 };
 
+static const char * const rk3538_crc_sources[] = {
+	"auto",
+	"plane",
+	"crtc",
+	"encoder",
+	"Esmart0-win0",
+	"Esmart1-win0",
+	"Esmart2-win0",
+	"Cluster0-win0",
+	"Cluster0-win1",
+};
+
 static const struct vop2_data rk3538_vop = {
 	.version = VOP_VERSION_RK3538,
 	.nr_vps = 1,
@@ -7274,8 +7296,8 @@ static const struct vop2_data rk3538_vop = {
 	.dump_regs = rk3538_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3538_dump_regs),
 	.plane_mask_base = RK3538_PLANE_MASK_BASE,
-	.crc_sources = rk3572_crc_sources,
-	.crc_sources_num = ARRAY_SIZE(rk3572_crc_sources),
+	.crc_sources = rk3538_crc_sources,
+	.crc_sources_num = ARRAY_SIZE(rk3538_crc_sources),
 };
 
 static const struct vop2_data rk3562_vop = {
