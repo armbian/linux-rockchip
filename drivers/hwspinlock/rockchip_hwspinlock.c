@@ -14,6 +14,8 @@
 
 struct rockchip_hwspinlock {
 	void __iomem *io_base;
+	u32 user_id;
+	u32 user_id_mask;
 	struct hwspinlock_device bank;
 };
 
@@ -22,35 +24,35 @@ struct rockchip_hwspinlock {
 
 /* Hardware spinlock register offsets */
 #define HWSPINLOCK_OFFSET(x)	(0x4 * (x))
-#define HWSPINLOCK_ID_MASK	0x0F
 
-#define HWLOCK_DEFAULT_USER	0x01
-
-static u32 hwlock_user_id;
+#define HWLOCK_DEFAULT_USER		0x01
+#define HWLOCK_DEFAULT_USER_ID_MASK	0x0F
 
 static int rockchip_hwspinlock_trylock(struct hwspinlock *lock)
 {
+	struct rockchip_hwspinlock *hwlock = dev_get_drvdata(lock->bank->dev);
 	void __iomem *lock_addr = lock->priv;
 
-	writel(hwlock_user_id, lock_addr);
+	writel(hwlock->user_id, lock_addr);
 
 	/*
 	 * Get only first 4 bits and compare to HWSPINLOCK_OWNER_ID,
 	 * if equal, we attempt to acquire the lock, otherwise,
 	 * someone else has it.
 	 */
-	return (hwlock_user_id == (readl(lock_addr) & HWSPINLOCK_ID_MASK));
+	return (hwlock->user_id == (readl(lock_addr) & hwlock->user_id_mask));
 }
 
 static void rockchip_hwspinlock_unlock(struct hwspinlock *lock)
 {
+	struct rockchip_hwspinlock *hwlock = dev_get_drvdata(lock->bank->dev);
 	void __iomem *lock_addr = lock->priv;
-	u32 lock_owner = readl(lock_addr) & HWSPINLOCK_ID_MASK;
+	u32 lock_owner = readl(lock_addr) & hwlock->user_id_mask;
 
-	if (lock_owner != hwlock_user_id) {
+	if (lock_owner != hwlock->user_id) {
 		dev_warn(lock->bank->dev,
 			 "WARNING: against user %u release a lock held by %u\n",
-			 hwlock_user_id, lock_owner);
+			 hwlock->user_id, lock_owner);
 		return;
 	}
 
@@ -85,11 +87,18 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 	if (IS_ERR(hwspin->io_base))
 		return PTR_ERR(hwspin->io_base);
 
+	ret = device_property_read_u32(&pdev->dev, "rockchip,hwlock-max-user",
+				       &hwspin->user_id_mask);
+	if (ret || !hwspin->user_id_mask)
+		hwspin->user_id_mask = HWLOCK_DEFAULT_USER_ID_MASK;
+
 	ret = device_property_read_u32(&pdev->dev, "rockchip,hwlock-user-id",
-				       &hwlock_user_id);
-	if (ret || !hwlock_user_id || hwlock_user_id > HWSPINLOCK_ID_MASK)
-		hwlock_user_id = HWLOCK_DEFAULT_USER;
-	dev_info(&pdev->dev, "hwlock user id %u, locks %u\n", hwlock_user_id, num_locks);
+				       &hwspin->user_id);
+	if (ret || !hwspin->user_id || hwspin->user_id > hwspin->user_id_mask)
+		hwspin->user_id = HWLOCK_DEFAULT_USER;
+
+	dev_info(&pdev->dev, "hwlock user id %u, locks %u, maximum user %u\n",
+		 hwspin->user_id, num_locks, hwspin->user_id_mask);
 
 	for (idx = 0; idx < num_locks; idx++) {
 		hwlock = &hwspin->bank.lock[idx];
