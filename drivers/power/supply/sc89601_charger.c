@@ -106,7 +106,7 @@ static const struct regmap_access_table sc89601_writeable_regs = {
 static const struct regmap_range sc89601_volatile_reg_ranges[] = {
 	regmap_reg_range(0x00, 0x00),
 	regmap_reg_range(0x02, 0x02),
-	regmap_reg_range(0x09, 0x09),
+	regmap_reg_range(0x08, 0x09),
 	regmap_reg_range(0x0b, 0x0b),
 	regmap_reg_range(0x0c, 0x0c),
 	regmap_reg_range(0x0d, 0x14),
