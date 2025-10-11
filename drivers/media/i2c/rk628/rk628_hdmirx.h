@@ -472,11 +472,13 @@
 
 #define POLL_INTERVAL_MS		1000
 #define RXPHY_CFG_MAX_TIMES		5
+#define RXPHY_CFG_MAX_TIMES_DYNAMIC_EQ	10
 #define CSITX_ERR_RETRY_TIMES		3
 
 #define USE_4_LANES			4
 
-#define SCDC_CED_ERR_CNT		0xfff
+#define SCDC_CED_ERR_CNT		20
+#define SCDC_CED_FULL_CNT		0xfff
 
 enum bus_format {
 	BUS_FMT_RGB = 0,
@@ -490,6 +492,12 @@ enum lock_status {
 	LOCK_OK = 0,
 	LOCK_FAIL = 1,
 	LOCK_RESET = 2,
+};
+
+enum ced_status {
+	CED_OK = 0,
+	CED_ERR = 1,
+	CED_FULL = 2,
 };
 
 struct hdcp_keys {
@@ -547,6 +555,7 @@ bool rk628_audio_ctsnints_enabled(HAUDINFO info);
 void rk628_csi_isr_ctsn(HAUDINFO info, u32 pdec_ints);
 void rk628_csi_isr_fifoints(HAUDINFO info, u32 fifo_ints);
 int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy);
+void rk628_hdmirx_set_preset_eq(struct rk628 *rk628);
 void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628);
 void rk628_hdmirx_verisyno_phy_power_off(struct rk628 *rk628);
 void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
@@ -563,8 +572,7 @@ int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628);
 int rk628_hdmirx_get_hdr_matedata(struct rk628 *rk628,
 				  struct hdr_metadata_infoframe *hdmi_metadata);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
-bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
-bool rk628_hdmirx_is_locked(struct rk628 *rk628);
+int  rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pdec_ints);
 
 void rk628_hdmirx_cec_irq(struct rk628 *rk628, struct rk628_hdmirx_cec *cec);
