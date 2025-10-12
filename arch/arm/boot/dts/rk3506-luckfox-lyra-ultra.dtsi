@@ -1,0 +1,1283 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
+#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/suspend/rockchip-rk3506.h>
+#include "rk3506.dtsi"
+
+/ {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm0_4ch_2 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+		status = "disabled";
+	};
+
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <0>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	leds: leds {
+		compatible = "gpio-leds";
+		work_led: work-led {
+			gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_3v3>;
+	};
+
+	//1.8V
+	vcc_ddr: vcc-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_0v9: vdd-0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_0v9";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_cpu";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <500000>;
+		regulator-max-microvolt = <1500000>;
+		vin-supply = <&vdd_cpu>;
+	};
+};
+
+/**********cpu**********/
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+	status = "okay";
+};
+
+/**********display**********/
+&cma {
+	size = <0x2000000>;
+};
+
+&display_subsystem {
+	logo-memory-region = <&drm_logo>;
+	status = "okay";
+};
+
+&route_dsi{
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&rga2 {
+	status = "okay";
+};
+
+&pwm0_4ch_2 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io15_pwm0_ch2>;
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+
+	dsi_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		//backlight = <&backlight>;
+
+		//reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <120>;
+		reset-delay-ms = <120>;
+		init-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET )>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <2>;
+		//dsi,lanes  = <1>; // for 800x480
+
+		// 10inch1
+		width-mm = <216>;
+		height-mm = <135>;
+
+		// 10inch1
+		panel-init-sequence = [
+			15 00 02 E0 00
+			15 00 02 E1 93
+			15 00 02 E2 65
+			15 00 02 E3 F8
+			15 00 02 80 01
+			15 00 02 E0 01
+			15 00 02 00 00
+			15 00 02 01 38
+			15 00 02 03 10
+			15 00 02 04 38
+			15 00 02 0C 74
+			15 00 02 17 00
+			15 00 02 18 AF
+			15 00 02 19 00
+			15 00 02 1A 00
+			15 00 02 1B AF
+			15 00 02 1C 00
+			15 00 02 35 26
+			15 00 02 37 09
+			15 00 02 38 04
+			15 00 02 39 00
+			15 00 02 3A 01
+			15 00 02 3C 78
+			15 00 02 3D FF
+			15 00 02 3E FF
+			15 00 02 3F 7F
+			15 00 02 40 06
+			15 00 02 41 A0
+			15 00 02 42 81
+			15 00 02 43 1E
+			15 00 02 44 0D
+			15 00 02 45 28
+			15 00 02 55 02
+			15 00 02 57 69
+			15 00 02 59 0A
+			15 00 02 5A 2A
+			15 00 02 5B 17
+			15 00 02 5D 7F
+			15 00 02 5E 6A
+			15 00 02 5F 5B
+			15 00 02 60 4F
+			15 00 02 61 4A
+			15 00 02 62 3D
+			15 00 02 63 41
+			15 00 02 64 2A
+			15 00 02 65 44
+			15 00 02 66 43
+			15 00 02 67 44
+			15 00 02 68 62
+			15 00 02 69 52
+			15 00 02 6A 59
+			15 00 02 6B 4C
+			15 00 02 6C 48
+			15 00 02 6D 3A
+			15 00 02 6E 26
+			15 00 02 6F 00
+			15 00 02 70 7F
+			15 00 02 71 6A
+			15 00 02 72 5B
+			15 00 02 73 4F
+			15 00 02 74 4A
+			15 00 02 75 3D
+			15 00 02 76 41
+			15 00 02 77 2A
+			15 00 02 78 44
+			15 00 02 79 43
+			15 00 02 7A 44
+			15 00 02 7B 62
+			15 00 02 7C 52
+			15 00 02 7D 59
+			15 00 02 7E 4C
+			15 00 02 7F 48
+			15 00 02 80 3A
+			15 00 02 81 26
+			15 00 02 82 00
+			15 00 02 E0 02
+			15 00 02 00 42
+			15 00 02 01 42
+			15 00 02 02 40
+			15 00 02 03 40
+			15 00 02 04 5E
+			15 00 02 05 5E
+			15 00 02 06 5F
+			15 00 02 07 5F
+			15 00 02 08 5F
+			15 00 02 09 57
+			15 00 02 0A 57
+			15 00 02 0B 77
+			15 00 02 0C 77
+			15 00 02 0D 47
+			15 00 02 0E 47
+			15 00 02 0F 45
+			15 00 02 10 45
+			15 00 02 11 4B
+			15 00 02 12 4B
+			15 00 02 13 49
+			15 00 02 14 49
+			15 00 02 15 5F
+			15 00 02 16 41
+			15 00 02 17 41
+			15 00 02 18 40
+			15 00 02 19 40
+			15 00 02 1A 5E
+			15 00 02 1B 5E
+			15 00 02 1C 5F
+			15 00 02 1D 5F
+			15 00 02 1E 5F
+			15 00 02 1F 57
+			15 00 02 20 57
+			15 00 02 21 77
+			15 00 02 22 77
+			15 00 02 23 46
+			15 00 02 24 46
+			15 00 02 25 44
+			15 00 02 26 44
+			15 00 02 27 4A
+			15 00 02 28 4A
+			15 00 02 29 48
+			15 00 02 2A 48
+			15 00 02 2B 5F
+			15 00 02 2C 01
+			15 00 02 2D 01
+			15 00 02 2E 00
+			15 00 02 2F 00
+			15 00 02 30 1F
+			15 00 02 31 1F
+			15 00 02 32 1E
+			15 00 02 33 1E
+			15 00 02 34 1F
+			15 00 02 35 17
+			15 00 02 36 17
+			15 00 02 37 37
+			15 00 02 38 37
+			15 00 02 39 08
+			15 00 02 3A 08
+			15 00 02 3B 0A
+			15 00 02 3C 0A
+			15 00 02 3D 04
+			15 00 02 3E 04
+			15 00 02 3F 06
+			15 00 02 40 06
+			15 00 02 41 1F
+			15 00 02 42 02
+			15 00 02 43 02
+			15 00 02 44 00
+			15 00 02 45 00
+			15 00 02 46 1F
+			15 00 02 47 1F
+			15 00 02 48 1E
+			15 00 02 49 1E
+			15 00 02 4A 1F
+			15 00 02 4B 17
+			15 00 02 4C 17
+			15 00 02 4D 37
+			15 00 02 4E 37
+			15 00 02 4F 09
+			15 00 02 50 09
+			15 00 02 51 0B
+			15 00 02 52 0B
+			15 00 02 53 05
+			15 00 02 54 05
+			15 00 02 55 07
+			15 00 02 56 07
+			15 00 02 57 1F
+			15 00 02 58 40
+			15 00 02 5B 30
+			15 00 02 5C 00
+			15 00 02 5D 34
+			15 00 02 5E 05
+			15 00 02 5F 02
+			15 00 02 63 00
+			15 00 02 64 6A
+			15 00 02 67 73
+			15 00 02 68 07
+			15 00 02 69 08
+			15 00 02 6A 6A
+			15 00 02 6B 08
+			15 00 02 6C 00
+			15 00 02 6D 00
+			15 00 02 6E 00
+			15 00 02 6F 88
+			15 00 02 75 FF
+			15 00 02 77 DD
+			15 00 02 78 2C
+			15 00 02 79 15
+			15 00 02 7A 17
+			15 00 02 7D 14
+			15 00 02 7E 82
+			15 00 02 E0 04
+			15 00 02 00 0E
+			15 00 02 02 B3
+			15 00 02 09 61
+			15 00 02 0E 48
+			15 00 02 E0 00
+			15 00 02 E6 02
+			15 00 02 E7 0C
+			05 78 01 11
+			05 00 01 E0
+			05 05 01 29
+		];
+
+
+		// 7inch
+		/*
+		panel-init-sequence = [
+			39 00 04 FF 98 81 03
+			15 00 02 01 00
+			15 00 02 02 00
+			15 00 02 03 73
+			15 00 02 04 00
+			15 00 02 05 00
+			15 00 02 06 0A
+			15 00 02 07 00
+			15 00 02 08 00
+			15 00 02 09 61
+			15 00 02 0A 00
+			15 00 02 0B 00
+			15 00 02 0C 01
+			15 00 02 0D 00
+			15 00 02 0E 00
+			15 00 02 0F 61
+			15 00 02 10 61
+			15 00 02 11 00
+			15 00 02 12 00
+			15 00 02 13 00
+			15 00 02 14 00
+			15 00 02 15 00
+			15 00 02 16 00
+			15 00 02 17 00
+			15 00 02 18 00
+			15 00 02 19 00
+			15 00 02 1A 00
+			15 00 02 1B 00
+			15 00 02 1C 00
+			15 00 02 1D 00
+			15 00 02 1E 40
+			15 00 02 1F 80
+			15 00 02 20 06
+			15 00 02 21 01
+			15 00 02 22 00
+			15 00 02 23 00
+			15 00 02 24 00
+			15 00 02 25 00
+			15 00 02 26 00
+			15 00 02 27 00
+			15 00 02 28 33
+			15 00 02 29 03
+			15 00 02 2A 00
+			15 00 02 2B 00
+			15 00 02 2C 00
+			15 00 02 2D 00
+			15 00 02 2E 00
+			15 00 02 2F 00
+			15 00 02 30 00
+			15 00 02 31 00
+			15 00 02 32 00
+			15 00 02 33 00
+			15 00 02 34 04
+			15 00 02 35 00
+			15 00 02 36 00
+			15 00 02 37 00
+			15 00 02 38 3C
+			15 00 02 39 00
+			15 00 02 3A 00
+			15 00 02 3B 00
+			15 00 02 3C 00
+			15 00 02 3D 00
+			15 00 02 3E 00
+			15 00 02 3F 00
+			15 00 02 40 00
+			15 00 02 41 00
+			15 00 02 42 00
+			15 00 02 43 00
+			15 00 02 44 00
+			15 00 02 50 10
+			15 00 02 51 32
+			15 00 02 52 54
+			15 00 02 53 76
+			15 00 02 54 98
+			15 00 02 55 BA
+			15 00 02 56 10
+			15 00 02 57 32
+			15 00 02 58 54
+			15 00 02 59 76
+			15 00 02 5A 98
+			15 00 02 5B BA
+			15 00 02 5C DC
+			15 00 02 5D FE
+			15 00 02 5E 00
+			15 00 02 5F 0E
+			15 00 02 60 0F
+			15 00 02 61 0C
+			15 00 02 62 0D
+			15 00 02 63 06
+			15 00 02 64 07
+			15 00 02 65 02
+			15 00 02 66 02
+			15 00 02 67 02
+			15 00 02 68 02
+			15 00 02 69 01
+			15 00 02 6A 00
+			15 00 02 6B 02
+			15 00 02 6C 15
+			15 00 02 6D 14
+			15 00 02 6E 02
+			15 00 02 6F 02
+			15 00 02 70 02
+			15 00 02 71 02
+			15 00 02 72 02
+			15 00 02 73 02
+			15 00 02 74 02
+			15 00 02 75 0E
+			15 00 02 76 0F
+			15 00 02 77 0C
+			15 00 02 78 0D
+			15 00 02 79 06
+			15 00 02 7A 07
+			15 00 02 7B 02
+			15 00 02 7C 02
+			15 00 02 7D 02
+			15 00 02 7E 02
+			15 00 02 7F 01
+			15 00 02 80 00
+			15 00 02 81 02
+			15 00 02 82 14
+			15 00 02 83 15
+			15 00 02 84 02
+			15 00 02 85 02
+			15 00 02 86 02
+			15 00 02 87 02
+			15 00 02 88 02
+			15 00 02 89 02
+			15 00 02 8A 02
+			39 00 04 FF 98 81 04
+			15 00 02 6C 15
+			15 00 02 6E 2A
+			15 00 02 6F 33
+			15 00 02 3B 98
+			15 00 02 3A 94
+			15 00 02 8D 14
+			15 00 02 87 BA
+			15 00 02 26 76
+			15 00 02 B2 D1
+			15 00 02 B5 06
+			15 00 02 38 01
+			15 00 02 39 00
+			39 00 04 FF 98 81 01
+			15 00 02 22 0A
+			15 00 02 31 00
+			15 00 02 53 7d
+			15 00 02 55 8F
+			15 00 02 40 33
+			15 00 02 50 96
+			15 00 02 51 96
+			15 00 02 60 23
+			15 00 02 A0 08
+			15 00 02 A1 1D
+			15 00 02 A2 2A
+			15 00 02 A3 10
+			15 00 02 A4 15
+			15 00 02 A5 28
+			15 00 02 A6 1C
+			15 00 02 A7 1D
+			15 00 02 A8 7E
+			15 00 02 A9 1D
+			15 00 02 AA 29
+			15 00 02 AB 6B
+			15 00 02 AC 1A
+			15 00 02 AD 18
+			15 00 02 AE 4B
+			15 00 02 AF 20
+			15 00 02 B0 27
+			15 00 02 B1 50
+			15 00 02 B2 64
+			15 00 02 B3 39
+			15 00 02 C0 08
+			15 00 02 C1 1D
+			15 00 02 C2 2A
+			15 00 02 C3 10
+			15 00 02 C4 15
+			15 00 02 C5 28
+			15 00 02 C6 1C
+			15 00 02 C7 1D
+			15 00 02 C8 7E
+			15 00 02 C9 1D
+			15 00 02 CA 29
+			15 00 02 CB 6B
+			15 00 02 CC 1A
+			15 00 02 CD 18
+			15 00 02 CE 4B
+			15 00 02 CF 20
+			15 00 02 D0 27
+			15 00 02 D1 50
+			15 00 02 D2 64
+			15 00 02 D3 39
+			39 00 04 FF 98 81 00
+			15 00 02 35 00
+			05 78 01 11
+			05 14 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+		*/
+
+
+		// 5inch
+		/*
+		panel-init-sequence = [
+			39 00 04 B9 FF 83 94
+			39 00 0B B1 48 0A 6A 09 33 54 71 71 2E 45
+			39 00 07 BA 61 03 68 6B B2 C0
+			39 00 07 B2 00 80 64 0C 06 2F
+			39 00 16 B4 1C 78 1C 78 1C 78 01 0C 86
+				 75 00 3F 1C 78 1C 78 1C 78 01
+				 0C 86
+			39 00 22 D3 00 00 00 00 00 00 08 08 32
+				 10 05 00 05 32 13 C1 00 01 32
+				 10 08 00 00 37 03 07 07 37 05
+				 05 37 0C 40
+			39 00 2D D5 18 18 18 18 22 23 20 21 04
+				 05 06 07 00 01 02 03 18 18 18
+				 18 18 18 18 18 18 18 18 18 18
+				 18 18 18 18 18 18 18 18 18 18
+				 18 19 19 19 19
+			39 00 2D D6 18 18 19 19 21 20 23 22 03
+				 02 01 00 07 06 05 04 18 18 18
+				 18 18 18 18 18 18 18 18 18 18
+				 18 18 18 18 18 18 18 18 18 18
+				 18 19 19 18 18
+			39 00 3B E0 07 08 09 0D 10 14 16 13 24
+				 36 48 4A 58 6F 76 80 97 A5 A8
+				 B5 C6 62 63 68 6F 72 78 7F 7F
+				 00 02 08 0D 0C 0E 0F 10 24 36
+				 48 4A 58 6F 78 82 99 A4 A0 B1
+				 C0 5E 5E 64 6B 6C 73 7F 7F
+			15 00 02 CC 08
+			39 00 03 C0 1F 73
+			39 00 03 B6 6B 6B
+			15 00 02 D4 02
+			15 00 02 BD 01
+			15 00 02 B1 00
+			15 00 02 BD 00
+			15 00 02 13 01
+			15 00 02 20 01
+			15 00 02 21 00
+			15 00 02 36 08
+			39 00 08 BF 40 81 50 00 1A FC 01
+			05 C8 01 11
+			39 00 0D B2 00 80 64 0C 06 2F 00 00 00 00 C0 18
+			05 50 01 29
+		];
+		*/
+
+
+		// for 800x480
+		/*
+		panel-init-sequence = [
+			29 00 06 10 02 03 00 00 00
+			29 00 06 64 01 0c 00 00 00
+			29 00 06 68 01 0c 00 00 00
+			29 00 06 44 01 00 00 00 49
+			29 00 06 48 01 00 00 00 00
+			29 00 06 14 01 15 00 00 00
+			29 00 06 50 04 60 00 00 00
+			29 00 06 20 04 52 01 10 00
+			29 00 06 24 04 14 00 1a 00
+			29 00 06 28 04 20 03 69 00
+			29 00 06 2c 04 02 00 15 00
+			29 00 06 30 04 e0 01 07 00
+			29 00 06 34 04 01 00 00 00
+			29 00 06 64 04 0f 04 00 00
+			29 00 06 01 01 01 00 00 00
+			29 00 06 02 02 01 00 00 00
+		];
+		*/
+
+		disp_timings0: display-timings {
+			native-mode = <&dsi_timing0>;
+
+			// 10inch1
+			dsi_timing0: timing0 {
+				clock-frequency = <70000000>;//60fps
+				//clock-frequency = <69907200>;
+
+				hactive = <800>;
+				vactive = <1280>;
+
+				vsync-len = <4>;
+				vback-porch = <10>;
+				vfront-porch = <30>;
+
+				hsync-len = <20>;
+				hback-porch = <20>;
+				hfront-porch = <40>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			// 7inch
+			dsi_timing1: timing1 {
+				clock-frequency = <84000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				vsync-len = <30>;
+				vback-porch = <20>;
+				vfront-porch = <2>;
+				hsync-len = <50>;
+				hback-porch = <239>;
+				hfront-porch = <33>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			// 5inch
+			dsi_timing2: timing2 {
+				clock-frequency = <63000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				vsync-len = <4>;
+				vback-porch = <10>;
+				vfront-porch = <30>;
+				hsync-len = <20>;
+				hback-porch = <20>;
+				hfront-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 2.8inch 480x640
+			 * https://www.waveshare.com/product/raspberry-pi/displays/2.8inch-dsi-lcd.htm
+			 */
+			ws_2inch8: ws-2inch8 {
+				clock-frequency = <50000000>;
+
+				hactive = <480>;
+				vactive = <640>;
+
+				vsync-len = <150>;
+				vback-porch = <50>;
+				vfront-porch = <150>;
+
+				hsync-len = <150>;
+				hback-porch = <150>;
+				hfront-porch = <50>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 3.4inch 800x800 Round
+			 * https://www.waveshare.com/product/displays/lcd-oled/3.4inch-dsi-lcd-c.htm
+			 */
+			ws_3inch4: ws-3inch4 {
+				clock-frequency = <50000000>;
+
+				hactive = <800>;
+				vactive = <800>;
+
+				vsync-len = <16>;
+				vback-porch = <4>;
+				vfront-porch = <8>;
+
+				hsync-len = <120>;
+				hback-porch = <32>;
+				hfront-porch = <6>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 4.0inch 480x800
+			 * https://www.waveshare.com/product/raspberry-pi/displays/4inch-dsi-lcd.htm
+			 */
+			ws_4inch: ws-4inch {
+				clock-frequency = <50000000>;
+
+				hactive = <480>;
+				vactive = <800>;
+
+				vsync-len = <20>;
+				vback-porch = <100>;
+				vfront-porch = <20>;
+
+				hsync-len = <150>;
+				hback-porch = <150>;
+				hfront-porch = <100>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 7.0inch C / 5.0inch C 1024x600
+			 * https://www.waveshare.com/product/raspberry-pi/displays/lcd-oled/7inch-dsi-lcd-c-with-case-a.htm
+			 * https://www.waveshare.com/product/raspberry-pi/displays/lcd-oled/5inch-dsi-lcd-c.htm
+			 */
+			ws_7inch_5inch_c: ws-7inch-5inch-c {
+				clock-frequency = <50000000>;
+
+				hactive = <1024>;
+				vactive = <600>;
+
+				vsync-len = <10>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+
+				hsync-len = <100>;
+				hback-porch = <100>;
+				hfront-porch = <100>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 7.9inch 400x1280
+			 * https://www.waveshare.com/product/raspberry-pi/displays/7.9inch-dsi-lcd.htm
+			 */
+			ws_7inch9: ws-7inch9 {
+				clock-frequency = <50000000>;
+
+				hactive = <400>;
+				vactive = <1280>;
+
+				vsync-len = <20>;
+				vback-porch = <10>;
+				vfront-porch = <20>;
+
+				hsync-len = <40>;
+				hback-porch = <40>;
+				hfront-porch = <30>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 10.1inch / 8.0inch 1280x800
+			 * https://www.waveshare.com/product/raspberry-pi/displays/10.1inch-dsi-lcd-c.htm
+			 * https://www.waveshare.com/product/raspberry-pi/displays/8inch-dsi-lcd-c.htm
+			 */
+			ws_8inch_10inch1: ws-8inch-10inch1 {
+				clock-frequency = <83333000>;
+
+				hactive = <1280>;
+				vactive = <800>;
+
+				vsync-len = <40>;
+				vback-porch = <48>;
+				vfront-porch = <40>;
+
+				hsync-len = <40>;
+				hback-porch = <156>;
+				hfront-porch = <20>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 11.9inch 320x1480
+			 * https://www.waveshare.com/product/raspberry-pi/displays/11.9inch-dsi-lcd.htm
+			 */
+			ws_11inch9: ws-11inch9 {
+				clock-frequency = <50000000>;
+
+				hactive = <320>;
+				vactive = <1480>;
+
+				vsync-len = <60>;
+				vback-porch = <60>;
+				vfront-porch = <60>;
+
+				hsync-len = <60>;
+				hback-porch = <60>;
+				hfront-porch = <60>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 4inch C 720x720
+			 * https://www.waveshare.com/product/raspberry-pi/displays/4inch-dsi-lcd-c.htm
+			 */
+			ws_4inch_c: ws-4inch-c {
+				clock-frequency = <50000000>;
+
+				hactive = <720>;
+				vactive = <720>;
+
+				vsync-len = <16>;
+				vback-porch = <4>;
+				vfront-porch = <8>;
+
+				hsync-len = <120>;
+				hback-porch = <32>;
+				hfront-porch = <200>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 5.0inch D 720x1280
+			 * https://www.waveshare.com/5inch-dsi-lcd-d.htm
+			 */
+			ws_5inch_d: ws-5inch-d {
+				clock-frequency = <83333000>;
+
+				hactive = <720>;
+				vactive = <1280>;
+
+				vsync-len = <20>;
+				vback-porch = <20>;
+				vfront-porch = <20>;
+
+				hsync-len = <100>;
+				hback-porch = <100>;
+				hfront-porch = <80>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 6.25inch 720x1560
+			 * https://www.waveshare.com/6.25inch-dsi-lcd.htm
+			 */
+			ws_6inch25: ws-6inch25 {
+				clock-frequency = <83333000>;
+
+				hactive = <720>;
+				vactive = <1560>;
+
+				vsync-len = <20>;
+				vback-porch = <20>;
+				vfront-porch = <20>;
+
+				hsync-len = <50>;
+				hback-porch = <50>;
+				hfront-porch = <50>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 8.8inch 480x1920
+			 * https://www.waveshare.com/8.8inch-dsi-lcd.htm
+			 */
+			ws_8inch8: ws-8inch8 {
+				clock-frequency = <83333000>;
+
+				hactive = <480>;
+				vactive = <1920>;
+
+				vsync-len = <20>;
+				vback-porch = <20>;
+				vfront-porch = <20>;
+
+				hsync-len = <50>;
+				hback-porch = <50>;
+				hfront-porch = <50>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 7.0inch H 1280x720
+			 * https://www.waveshare.com/7inch-dsi-lcd-h.htm
+			 */
+			ws_7inch_h: ws-7inch-h {
+				clock-frequency = <83333000>;
+
+				hactive = <1280>;
+				vactive = <720>;
+
+				vsync-len = <64>;
+				vback-porch = <64>;
+				vfront-porch = <64>;
+
+				hsync-len = <64>;
+				hback-porch = <64>;
+				hfront-porch = <64>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			/* 800 x 480
+			 * https://www.waveshare.com/4.3inch-dsi-lcd.htm
+			 * https://www.waveshare.com/5inch-dsi-lcd-b.htm
+			 * https://www.waveshare.com/7inch-dsi-lcd-with-cam.htm
+			 * https://www.waveshare.com/8inch-dsi-lcd.htm
+			 */
+			ws_800_480: ws-800-480 {
+				clock-frequency = <30000000>;
+
+				hactive = <800>;
+				vactive = <480>;
+
+				vsync-len = <22>;
+				vback-porch = <2>;
+				vfront-porch = <7>;
+
+				hsync-len = <45>;
+				hback-porch = <2>;
+				hfront-porch = <131>;
+
+				vsync-active = <0>;
+				hsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active =<0>;
+			};
+
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc_3v3>;
+};
+
+/**********TP**********/
+&i2c2{
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io1_i2c2_scl &rm_io0_i2c2_sda>;
+
+	gt9271: gt9271@5d {
+		status = "okay";
+		compatible = "goodix,gt9271";
+		reg = <0x5d>;
+		pinctrl-names = "default";
+	};
+
+	gt911: gt911@14 {
+		status = "okay";
+		compatible = "goodix,gt911";
+		reg = <0x14>;
+
+		/*
+		// 2.8inch
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <640>;
+		touchscreen-inverted-y;
+		touchscreen-swapped-x-y;
+		*/
+
+		/*
+		// 3.4inch
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <800>;
+		*/
+
+		/*
+		// 4.0inch
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		*/
+
+		/*
+		// 7.0inch C / 5.0inch C
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+		*/
+
+		/*
+		// 7inch9
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		*/
+
+		/*
+		// 10.1inch / 8.0inch
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <1280>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		*/
+
+		/*
+		// 11.9inch
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		*/
+
+		/*
+		// 4inch C
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <720>;
+		*/
+
+		/*
+		// 5inch D
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		*/
+
+		/*
+		// 6inch25
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		*/
+
+		/*
+		// 8.8inch
+		*/
+
+		/*
+		// 7inch H
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		*/
+
+	};
+
+	ft5406: ft5406@38 {
+		status = "okay";
+		compatible = "edt,edt-ft5506";
+		reg = <0x38>;
+
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		//touchscreen-swapped-x-y;
+
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+	};
+
+	ws_bl: ws-bl@45 {
+		status = "okay";
+		compatible = "waveshare,dsi-backlight";
+		reg = <0x45>;
+		default-brightness-level = <200>;
+		max-brightness-level = <255>;
+		min-brightness-level = <5>;
+	};
+
+};
+
+&pinctrl {
+	rm_io0 {
+		rm_io0_i2c2_sda: rm-io0-i2c2-sda {
+			rockchip,pins =
+				<0 RK_PA0 35 &pcfg_pull_up>;
+		};
+	};
+
+	rm_io1 {
+		rm_io1_i2c2_scl: rm-io1-i2c2-scl {
+			rockchip,pins =
+				<0 RK_PA1 34 &pcfg_pull_up>;
+		};
+	};
+};
+
+/**********adc**********/
+&saradc {
+	vref-supply = <&vcc_1v8>;
+	status = "okay";
+};
+
+&tsadc {
+	pinctrl-names = "gpio", "otpout";
+	pinctrl-0 = <&wdt_tsadc_gpio>;
+	pinctrl-1 = <&rm_io21_wdt_tsadc_shut>;
+
+	status = "okay";
+};
+
+/**********usb**********/
+&usb20_otg0 {
+	dr_mode = "peripheral";
+	/* vbus-supply = <&vcc5v0_otg0>;
+	rockchip,gpio-vbus-det; */
+	status = "okay";
+};
+
+&usb20_otg1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb2phy {
+	/* extcon = <&extcon_usb>; */
+	status = "okay";
+};
+
+&u2phy_otg0 {
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	status = "okay";
+};
+
+/**********pinctrl**********/
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <1 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		sdmmc_det: sdmmc-det {
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	tsadc {
+		wdt_tsadc_gpio: wdt-tsadc-gpio {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
