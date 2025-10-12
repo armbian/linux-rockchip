@@ -1315,7 +1315,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3562-evb2-ddr4-v10.dtb
 # Armbian
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
-	rk3506-armsom-forge1.dtb
+	rk3506-armsom-forge1.dtb \
+	rk3506b-luckfox-lyra-zero-w-sd.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
