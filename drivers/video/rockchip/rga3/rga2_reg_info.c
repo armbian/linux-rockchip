@@ -2735,8 +2735,6 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 
 	RGA2_set_mode_ctrl(base, msg);
 
-	RGA2_set_pat_info(base, msg);
-
 	switch (msg->render_mode) {
 	case BITBLT_MODE:
 		RGA2_set_reg_src_info(base, msg);
@@ -2746,7 +2744,7 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			if ((msg->dst.format != RGA_FORMAT_Y4) &&
 			    (msg->dst.format != RGA_FORMAT_Y8)) {
 				RGA2_set_reg_alpha_info(base, msg);
-				if (msg->rgba5551_alpha.flags != 1)
+				if (msg->rgba5551_alpha.flags != 1 && msg->alpha_rop_flag & 0x2)
 					RGA2_set_reg_rop_info(base, msg);
 			}
 		}
@@ -2783,6 +2781,7 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		break;
 	case UPDATE_PALETTE_TABLE_MODE:
 		RGA2_set_reg_update_palette_table(base, msg);
+		RGA2_set_pat_info(base, msg);
 		break;
 	case UPDATE_PATTEN_BUF_MODE:
 		RGA2_set_reg_update_patten_buff(base, msg);
@@ -3118,7 +3117,8 @@ static void rga2_soft_reset_print(struct rga_scheduler_t *scheduler)
 static int rga2_check_param(struct rga_job *job,
 			    const struct rga_hw_data *data, const struct rga2_req *req)
 {
-	if (!((req->render_mode == COLOR_FILL_MODE))) {
+	if (!((req->render_mode == COLOR_FILL_MODE) ||
+	      (req->render_mode == UPDATE_PALETTE_TABLE_MODE))) {
 		if (unlikely(rga_hw_out_of_range(&data->input_range,
 						 req->src.act_w, req->src.act_h))) {
 			rga_job_err(job, "invalid src resolution act_w = %d, act_h = %d\n",
@@ -3140,24 +3140,27 @@ static int rga2_check_param(struct rga_job *job,
 		}
 	}
 
-	if (unlikely(rga_hw_out_of_range(&data->output_range, req->dst.act_w, req->dst.act_h))) {
-		rga_job_err(job, "invalid dst resolution act_w = %d, act_h = %d\n",
-		       req->dst.act_w, req->dst.act_h);
-		return -EINVAL;
-	}
-
-	if (unlikely(req->dst.vir_w * rga_get_pixel_stride_from_format(req->dst.format) >
-		     data->max_byte_stride * 8)) {
-		rga_err("invalid dst stride, stride = %d, max_byte_stride = %d\n",
-		       req->dst.vir_w, data->max_byte_stride);
-		return -EINVAL;
-	}
-
-	if (unlikely(req->dst.vir_w < req->dst.act_w)) {
-		if (req->rotate_mode != 1) {
-			rga_err("invalid dst_vir_w act_h = %d, vir_h = %d\n",
-			       req->dst.act_w, req->dst.vir_w);
+	if (!(req->render_mode == UPDATE_PALETTE_TABLE_MODE)) {
+		if (unlikely(rga_hw_out_of_range(&data->output_range,
+						 req->dst.act_w, req->dst.act_h))) {
+			rga_job_err(job, "invalid dst resolution act_w = %d, act_h = %d\n",
+			       req->dst.act_w, req->dst.act_h);
 			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.vir_w * rga_get_pixel_stride_from_format(req->dst.format) >
+			     data->max_byte_stride * 8)) {
+			rga_err("invalid dst stride, stride = %d, max_byte_stride = %d\n",
+			       req->dst.vir_w, data->max_byte_stride);
+			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.vir_w < req->dst.act_w)) {
+			if (req->rotate_mode != 1) {
+				rga_err("invalid dst_vir_w act_h = %d, vir_h = %d\n",
+				       req->dst.act_w, req->dst.vir_w);
+				return -EINVAL;
+			}
 		}
 	}
 
