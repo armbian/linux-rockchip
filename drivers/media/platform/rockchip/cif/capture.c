@@ -8817,6 +8817,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	} else {
 		ret = rkcif_stream_start(stream, mode);
 	}
+	stream->is_pause_stream = false;
 	if (ret < 0)
 		goto disable_tasklet;
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE &&
