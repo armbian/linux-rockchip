@@ -6346,27 +6346,23 @@ static void
 rkisp_vpsl_update_regs_v35(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct isp35_isp_params_cfg *params = params_vdev->isp35_params;
-	struct rkisp_device *isp, *dev = params_vdev->dev;
+	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 	void __iomem *base = hw->vpsl_base_addr;
 	u32 i, *val, *flag;
 
-	for (i = 0; i < hw->dev_link_num; i++) {
-		isp = hw->isp[i];
-		if (isp && isp->is_aiisp_en)
-			break;
+	if (!dev->is_aiisp_en) {
+		writel(0, base + VPSL_PYR_CTRL);
+		writel(0, base + VPSL_PYR_CHN);
+	} else {
+		for (i = VPSL_CTRL; i < VPSL_SW_REG_SIZE; i += 4) {
+			val = dev->sw_vpsl_base_addr + i;
+			flag = dev->sw_vpsl_base_addr + i + VPSL_SW_REG_SIZE;
+			if (*flag == SW_REG_CACHE)
+				writel(*val, base + i);
+		}
+		vpsl_cfg_sram(params_vdev, &params->others.ai_cfg);
 	}
-	if (i == hw->dev_link_num)
-		return;
-
-	for (i = VPSL_CTRL; i < VPSL_SW_REG_SIZE; i += 4) {
-		val = dev->sw_vpsl_base_addr + i;
-		flag = dev->sw_vpsl_base_addr + i + VPSL_SW_REG_SIZE;
-
-		if (*flag == SW_REG_CACHE)
-			writel(*val, base + i);
-	}
-	vpsl_cfg_sram(params_vdev, &params->others.ai_cfg);
 	writel(VPSL_CFG_GEN_UPD | VPSL_CFG_FORCE_UPD, base + VPSL_UPDATE);
 	writel(VPSL_MI_FORCE_UPD, base + VPSL_MI_WR_INIT);
 }
@@ -6404,9 +6400,11 @@ rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on
 			 ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN |
 			 ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN);
 		val |= ISP35_AIPRE_ITS_FORCE_UPD;
-		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+		rkisp_write(dev, ISP35_AI_CTRL, val, true);
 		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
-		rkisp_write(dev, ISP35_AI_CTRL, val, false);
+		rkisp_write(dev, ISP35_AI_CTRL, val, true);
+		if (!dev->hw_dev->is_single)
+			rkisp_write(dev, ISP35_AI_CTRL, val, false);
 
 		if (dev->hw_dev->is_single) {
 			val = rkisp_read(dev, ISP3X_MI_BAY3D_IIR_RD_BASE_SHD, true);
