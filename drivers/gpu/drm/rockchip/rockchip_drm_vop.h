@@ -819,7 +819,6 @@ struct vop2_cluster_regs {
 	struct vop_reg afbc_enable;
 	struct vop_reg lb_mode;
 	struct vop_reg scl_lb_mode;
-	struct vop_reg frm_reset_en;
 	struct vop_reg dma_stride_4k_disable;
 
 	struct vop_reg blk_size_h;
@@ -901,6 +900,7 @@ struct vop2_win_regs {
 	struct vop_reg multi_region_en; /* for msmart layer */
 	struct vop_reg multi_region_num; /* for msmart layer */
 	struct vop_reg multi_region_mst; /* for msmart layer */
+	struct vop_reg frm_reset_en;
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;

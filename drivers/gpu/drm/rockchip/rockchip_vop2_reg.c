@@ -3070,7 +3070,6 @@ static const struct vop2_cluster_regs rk3528_vop_cluster0 = {
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0xf, 4),
 	.scl_lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0x3, 9),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3528_CLUSTER0_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3528_CLUSTER0_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3528_CLUSTER0_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3081,7 +3080,6 @@ static const struct vop2_cluster_regs rk3568_vop_cluster0 = {
 	.afbc_enable = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0xf, 4),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3092,7 +3090,6 @@ static const struct vop2_cluster_regs rk3568_vop_cluster1 = {
 	.afbc_enable = VOP_REG(RK3568_CLUSTER1_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER1_CTRL, 0xf, 4),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3568_CLUSTER1_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3568_CLUSTER1_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3568_CLUSTER1_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3104,7 +3101,6 @@ static const struct vop2_cluster_regs rk3572_vop_cluster0 = {
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0xf, 4),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 29),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 	.blk_size_h = VOP_REG(RK3576_CLUSTER0_DCI_BLK_SIZE, 0x1ff, 0),
 	.blk_size_v = VOP_REG(RK3576_CLUSTER0_DCI_BLK_SIZE, 0x1ff, 16),
 	.blk_offset_h = VOP_REG(RK3576_CLUSTER0_DCI_BLK_OFFSET, 0x1ff, 0),
@@ -3137,7 +3133,6 @@ static const struct vop2_cluster_regs rk3572_vop_cluster1 = {
 	.enable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER1_CTRL, 0xf, 4),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 29),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3572_CLUSTER1_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3572_CLUSTER1_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3572_CLUSTER1_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3149,7 +3144,6 @@ static const struct vop2_cluster_regs rk3576_vop_cluster0 = {
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0xf, 4),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 29),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 	.blk_size_h = VOP_REG(RK3576_CLUSTER0_DCI_BLK_SIZE, 0x1ff, 0),
 	.blk_size_v = VOP_REG(RK3576_CLUSTER0_DCI_BLK_SIZE, 0x1ff, 16),
 	.blk_offset_h = VOP_REG(RK3576_CLUSTER0_DCI_BLK_OFFSET, 0x1ff, 0),
@@ -3182,7 +3176,6 @@ static const struct vop2_cluster_regs rk3576_vop_cluster1 = {
 	.enable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER1_CTRL, 0xf, 4),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 29),
-	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3576_CLUSTER1_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3576_CLUSTER1_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3576_CLUSTER1_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3193,7 +3186,6 @@ static const struct vop2_cluster_regs rk3588_vop_cluster2 = {
 	.afbc_enable = VOP_REG(RK3588_CLUSTER2_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3588_CLUSTER2_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3588_CLUSTER2_CTRL, 0xf, 4),
-	.frm_reset_en = VOP_REG(RK3588_CLUSTER2_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3588_CLUSTER2_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3588_CLUSTER2_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3588_CLUSTER2_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3204,7 +3196,6 @@ static const struct vop2_cluster_regs rk3588_vop_cluster3 =  {
 	.afbc_enable = VOP_REG(RK3588_CLUSTER3_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3588_CLUSTER3_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3588_CLUSTER3_CTRL, 0xf, 4),
-	.frm_reset_en = VOP_REG(RK3588_CLUSTER3_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3588_CLUSTER3_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3588_CLUSTER3_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.src_alpha_ctrl = VOP_REG(RK3588_CLUSTER3_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),
@@ -3680,6 +3671,7 @@ static const struct vop2_win_regs rk3528_cluster0_win_data = {
 	.axi_yrgb_id = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL2, 0x1f, 0),
 	.axi_uv_id = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
 	.background = VOP_REG(RK3568_CLUSTER0_WIN0_DSP_BG, 0xffffffff, 0),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3568_cluster0_win_data = {
@@ -3705,6 +3697,7 @@ static const struct vop2_win_regs rk3568_cluster0_win_data = {
 	.axi_uv_id = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 13),
 	.background = VOP_REG(RK3568_CLUSTER0_WIN0_DSP_BG, 0xffffffff, 0),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3572_cluster0_win_data = {
@@ -3735,6 +3728,7 @@ static const struct vop2_win_regs rk3572_cluster0_win_data = {
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 24),
 	.color_key = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x1, 31),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3572_cluster1_win_data = {
@@ -3765,6 +3759,7 @@ static const struct vop2_win_regs rk3572_cluster1_win_data = {
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 24),
 	.color_key = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x1, 31),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3568_cluster1_win_data = {
@@ -3790,6 +3785,7 @@ static const struct vop2_win_regs rk3568_cluster1_win_data = {
 	.axi_uv_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3568_CLUSTER1_CTRL, 0x1, 13),
 	.background = VOP_REG(RK3568_CLUSTER1_WIN0_DSP_BG, 0xffffffff, 0),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3588_cluster2_win_data = {
@@ -3813,6 +3809,7 @@ static const struct vop2_win_regs rk3588_cluster2_win_data = {
 	.axi_uv_id = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3588_CLUSTER2_CTRL, 0x1, 13),
 	.background = VOP_REG(RK3588_CLUSTER2_WIN0_DSP_BG, 0xffffffff, 0),
+	.frm_reset_en = VOP_REG(RK3588_CLUSTER2_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3588_cluster3_win_data = {
@@ -3836,6 +3833,7 @@ static const struct vop2_win_regs rk3588_cluster3_win_data = {
 	.axi_uv_id = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3588_CLUSTER3_CTRL, 0x1, 13),
 	.background = VOP_REG(RK3588_CLUSTER3_WIN0_DSP_BG, 0xffffffff, 0),
+	.frm_reset_en = VOP_REG(RK3588_CLUSTER3_CTRL, 1, 31),
 };
 
 static const struct vop2_win_regs rk3568_esmart_win_data = {
@@ -4595,6 +4593,7 @@ static const struct vop2_win_regs rk3576_cluster0_win_data = {
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 24),
 	.color_key = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x1, 31),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 };
 
 static const struct vop2_scl_regs rk3576_cluster1_win_scl = {
@@ -4650,6 +4649,7 @@ static const struct vop2_win_regs rk3576_cluster1_win_data = {
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 24),
 	.color_key = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x3fffffff, 0),
 	.color_key_en = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x1, 31),
+	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 };
 
 /*
