@@ -1762,6 +1762,7 @@ static int protect_clocks[] = {
 	DCLK_VP0,
 	DCLK_VP1,
 	DCLK_VP2,
+	CLK_DSIHOST0,
 };
 
 static void __init rk3576_clk_init(struct device_node *np)
