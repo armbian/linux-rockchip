@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/* socb mcu io definition*/
+#define MCU_CTRL_SOCB_VSYS          0x00
+#define MCU_eDP_12V_EN_B            0x01
+#define MCU_LCD_HUD_12V_EN_B        0x02
+#define MCU_LCD_Cluster_12V_EN_B    0x03
+#define MCU_LCD_PAS_12V_EN_B        0x04
+#define MCU_USB3_HOST_PWREN_H_B     0x05
+#define MCU_USB2_HOST_PWREN_H_B     0x06
+#define MCU_CTRL_DSP_MASKROM        0x07
+#define MCU_DSP_3V3_EN_H            0x08
+#define MCU_DSP_1V8_EN_H            0x09
+#define MCU_DSP0_PWREN_H            0x0a
+#define MCU_DSPCORE_PWREN_H         0x0b
+#define MCU_FM_PWR_EN_H             0x0c
+#define MCU_ADC_PWDN_L              0x0d
+#define MCU_A2B_PWR_EN_H            0x0e
+#define MCU_MICBIAS_EN              0x0f
+#define MCU_STANDBY_AMP_L           0x10
+#define MCU_MUTE_AMP_L              0x11
+#define MCU_RESET_DSP               0x12
+#define VCC12V0_USS0                0x15
+#define VCC12V0_USS1                0x16
+#define VCC12V0_USS2                0x17
+#define VCC12V_CAM_RSV1             0x18
+#define VCC12V_CAM_RSV2             0x19
+#define VCC12V_CAM_RSV3             0x1a
+#define VCC12V_CAM_RSV4             0x1b
+#define VCC12V_SIDE1                0x1c
+#define VCC12V_SIDE2                0x1d
+#define VCC12V_SIDE3                0x1e
+#define VCC12V_SIDE4                0x1f
+
+/ {
+	gpio_mcu_rockchip_socb: gpio-mcu-rockchip-socb {
+		compatible = "rockchip,mcu-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		status = "okay";
+	};
+};
+
+&spi4 {
+	compatible = "rockchip,spi-slave";
+	status = "okay";
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi4m2_cs0 &spi4m2_pins>;
+	//ready-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+	slave@0 {
+		compatible = "rockchip,vehicle-spi";
+		status = "okay";
+		id  = <0x0>;
+		reg = <0x0>;
+		spi-max-frequency = <1000000>;
+		spi-lsb-first;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi_irq_mcu>;
+		irq-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	slave-external-mcu {
+		spi_irq_mcu: spi-irq-mcu {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
