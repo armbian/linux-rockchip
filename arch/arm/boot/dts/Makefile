@@ -1317,7 +1317,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506b-armsom-forge1.dtb \
 	rk3506b-luckfox-lyra-zero-w-sd.dtb \
-	rk3506g-luckfox-lyra-plus-sd.dtb
+	rk3506g-luckfox-lyra-plus-sd.dtb \
+	rv1103g-luckfox-pico-mini.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \

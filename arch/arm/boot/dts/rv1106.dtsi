@@ -20,6 +20,18 @@
 
 	interrupt-parent = <&gic>;
 
+	reserved-memory {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+		/* OP-TEE secure RAM */
+		optee@3d00000 {
+			reg = <0x03d00000 0x00300000>; /* 3 MiB: 0x03D00000..0x04000000 */
+			no-map; /* prevent the kernel from using this memory region */
+		};
+	};
+
 	aliases {
 		csi2dphy0 = &csi2_dphy0;
 		csi2dphy1 = &csi2_dphy1;
