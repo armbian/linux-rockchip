@@ -6678,6 +6678,9 @@ static void vop2_plane_setup_background(struct drm_plane *plane)
 	r = (vpstate->background & 0xff0000) >> 16;
 	g = (vpstate->background & 0xff00) >> 8;
 	b = (vpstate->background & 0xff);
+	r <<= 2;
+	g <<= 2;
+	b <<= 2;
 
 	bg_val = BIT(31) | (r << 20) | (g << 10) | b;
 
