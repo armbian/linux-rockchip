@@ -15569,14 +15569,16 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					 atomic_read(&cif_dev->sensor_off));
 				if (cif_dev->switch_info.is_active) {
 					stream = &cif_dev->stream[mipi_id];
-					if (atomic_read(&cif_dev->switch_info.switch_dev->sensor_off) == 0) {
+					if (atomic_read(&cif_dev->switch_info.switch_dev->sensor_off) == 0 ||
+					    cif_dev->resume_mode == RKISP_RTT_MODE_ONE_FRAME) {
 						cif_dev->switch_info.is_active = false;
 						cif_dev->switch_info.switch_dev->switch_info.is_active = true;
 						rkcif_switch_change(cif_dev, !!cif_dev->switch_info.switch_dev->switch_info.gpio_val);
 					}
 				} else {
 					stream = &cif_dev->switch_info.switch_dev->stream[mipi_id];
-					if (atomic_read(&cif_dev->sensor_off) == 0) {
+					if (atomic_read(&cif_dev->sensor_off) == 0 ||
+					    cif_dev->resume_mode == RKISP_RTT_MODE_ONE_FRAME) {
 						cif_dev->switch_info.is_active = true;
 						cif_dev->switch_info.switch_dev->switch_info.is_active = false;
 						rkcif_switch_change(cif_dev, !!cif_dev->switch_info.gpio_val);
