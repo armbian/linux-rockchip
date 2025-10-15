@@ -1075,6 +1075,8 @@ void rkisp_vicap_hw_link(struct rkisp_device *dev, int on)
 {
 	struct v4l2_subdev *sd = dev->active_sensor->sd;
 
+	if (IS_HDR_RDBK(dev->rd_mode))
+		return;
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "%s on:%d\n", __func__, on);
 	v4l2_subdev_call(sd, core, ioctl, RKISP_VICAP_CMD_HW_LINK, &on);
@@ -1427,7 +1429,8 @@ static void rkisp_front_end_idle(struct rkisp_device *dev)
 		break;
 	}
 	rkisp2_rawrd_isr(val, dev);
-	rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
+	if (!dev->is_aiisp_en || !dev->is_aiisp_stopping)
+		rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
 	if (dev->isp_state == ISP_STOP && dev->hw_dev->is_idle)
 		wake_up(&dev->sync_onoff);
 }
@@ -1462,7 +1465,10 @@ static void rkisp_back_end_idle(struct rkisp_device *dev)
 			rkisp_params_aiisp_start(&dev->params_vdev, &st);
 		if (dev->params_vdev.ops->aiisp_switch)
 			dev->params_vdev.ops->aiisp_switch(&dev->params_vdev, false);
-		rkisp_vicap_hw_link(dev, true);
+		if (!IS_HDR_RDBK(dev->rd_mode))
+			rkisp_vicap_hw_link(dev, true);
+		else
+			rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
 	}
 }
 
@@ -1500,12 +1506,13 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 	spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
 
 	if (isp_front_end) {
-		if (hw->is_single && !IS_HDR_RDBK(dev->rd_mode)) {
+		if (hw->is_single) {
 			if (!dev->is_aiisp_l2_st)
 				rkisp_config_aiisp(dev);
 			if (dev->is_aiisp_l2)
 				rkisp_aiisp_l2(dev, true, true);
-			return;
+			if (!IS_HDR_RDBK(dev->rd_mode))
+				return;
 		}
 		rkisp_front_end_idle(dev);
 	}
@@ -4077,7 +4084,7 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 		goto unlock;
 
 	if (dev->is_aiisp_en && !dev->aiisp_cfg.mode) {
-		if (!IS_HDR_RDBK(dev->rd_mode)) {
+		if (dev->hw_dev->is_single) {
 			dev->is_aiisp_stopping = true;
 			dev->aiisp_stop_seq = dev->dmarx_dev.cur_frame.id;
 			goto unlock;
@@ -4099,7 +4106,7 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 		}
 		if (dev->params_vdev.ops->aiisp_switch)
 			dev->params_vdev.ops->aiisp_switch(&dev->params_vdev, true);
-		if (!dev->hw_dev->is_single || IS_HDR_RDBK(dev->rd_mode))
+		if (!dev->hw_dev->is_single)
 			dev->is_aiisp_sync = true;
 	}
 
@@ -4119,8 +4126,8 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 		rd_line = h - 1;
 	else
 		rd_line = dev->aiisp_cfg.rd_linecnt;
-	if (dev->aiisp_cfg.wr_linecnt >= (h - 10))
-		wr_line = (h - 10) << 16;
+	if (dev->aiisp_cfg.wr_linecnt >= (h - 100))
+		wr_line = (h - 100) << 16;
 	else
 		wr_line = dev->aiisp_cfg.wr_linecnt << 16;
 
