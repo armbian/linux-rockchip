@@ -928,6 +928,22 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dp_chip_data rk3572_edp[] = {
+	{
+		.chip_type = RK3576_EDP,
+		.spdif_sel = GRF_REG_FIELD(0x002c, 5, 5),
+		.i2s_sel = GRF_REG_FIELD(0x002c, 4, 4),
+		.mem_clk_auto_gating = GRF_REG_FIELD(0x0034, 1, 1),
+		.ssc = true,
+		.audio = true,
+		.split_mode = true,
+		.format_yuv = true,
+		.support_dp_mode = true,
+		.max_bpc = 10,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_dp_chip_data rk3576_edp[] = {
 	{
 		.chip_type = RK3576_EDP,
@@ -976,6 +992,7 @@ static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{.compatible = "rockchip,rk3568-edp", .data = &rk3568_edp },
+	{.compatible = "rockchip,rk3572-edp", .data = &rk3572_edp },
 	{.compatible = "rockchip,rk3576-edp", .data = &rk3576_edp },
 	{.compatible = "rockchip,rk3588-edp", .data = &rk3588_edp },
 	{}
