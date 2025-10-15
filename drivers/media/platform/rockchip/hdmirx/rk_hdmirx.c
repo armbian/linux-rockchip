@@ -1726,6 +1726,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 
 	hdmirx_reset_dma(hdmirx_dev);
 	usleep_range(500*1000, 500*1010);
+	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 	hdmirx_format_change(hdmirx_dev);
 
 	return 0;
