@@ -8,6 +8,7 @@
 
 #include "rk3588-nvr-demo1-v21.dtsi"
 #include "rk3588-android.dtsi"
+#include "rk-stb-ir-keymap.dtsi"
 
 / {
 	model = "Rockchip RK3588 NVR DEMO1 LP4 V21 Android Board";
