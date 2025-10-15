@@ -364,7 +364,7 @@
 
 						rgb_in_vopl: endpoint@2 {
 							reg = <2>;
-							// remote-endpoint = <&vopl_out_rgb>;
+							remote-endpoint = <&vopl_out_rgb>;
 							status = "disabled";
 						};
 					};
@@ -523,6 +523,45 @@
 			rockchip,hwlock-num-locks = <8>;
 			rockchip,hwlock-max-user = <0x3f>;
 			status = "disabled";
+		};
+
+		vopl: vop@27100000 {
+			compatible = "rockchip,rk3572-vop-lit";
+			reg = <0x0 0x27100000 0x0 0x200>;
+			reg-names = "regs";
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_EBC>, <&cru DCLK_EBC>, <&cru HCLK_EBC>;
+			clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+			power-domains = <&power RK3572_PD_IMG>, <&power RK3572_PD_VO>;
+			power-domain-names = "pd0", "pd1";
+			rockchip,grf = <&ioc_grf>;
+			rockchip,vo0-grf = <&vo_grf>;
+			status = "disabled";
+
+			vopl_out: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vopl_out_rgb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&rgb_in_vopl>;
+				};
+
+				vopl_out_dsi: endpoint@1 {
+					reg = <1>;
+					//remote-endpoint = <&dsi_in_vopl>;
+				};
+
+				vopl_out_edp: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&edp_in_vopl>;
+				};
+
+				vopl_out_hdmi: endpoint@3 {
+					reg = <3>;
+					//remote-endpoint = <&hdmi_in_vopl>;
+				};
+			};
 		};
 
 		rga2_core0: rga@27120000 {
@@ -695,7 +734,7 @@
 
 					edp_in_vopl: endpoint@2 {
 						reg = <2>;
-						// remote-endpoint = <&vopl_out_edp>;
+						remote-endpoint = <&vopl_out_edp>;
 						status = "disabled";
 					};
 				};
