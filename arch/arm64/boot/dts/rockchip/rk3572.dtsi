@@ -321,6 +321,17 @@
 			reg = <0x0 0x26010000 0x0 0x2000>;
 		};
 
+		vo_grf: syscon@26022000 {
+			compatible = "rockchip,rk3572-vo-grf", "syscon";
+			reg = <0x0 0x26022000 0x0 0x2000>;
+			clocks = <&cru PCLK_VO_ROOT>;
+		};
+
+		hdptxphy_grf: syscon@26060000 {
+			compatible = "rockchip,rk3572-hdptxphy-grf", "syscon";
+			reg = <0x0 0x26060000 0x0 0x2000>;
+		};
+
 		ioc_grf: syscon@26072000 {
 			compatible = "rockchip,rk3572-ioc-grf", "syscon";
 			reg = <0x0 0x26072000 0x0 0x16000>;
@@ -533,6 +544,7 @@
 
 					vp0_out_edp: endpoint@2 {
 						reg = <2>;
+						remote-endpoint = <&edp_in_vp0>;
 					};
 
 					vp0_out_hdmi: endpoint@3 {
@@ -555,6 +567,7 @@
 
 					vp1_out_edp: endpoint@2 {
 						reg = <2>;
+						remote-endpoint = <&edp_in_vp1>;
 					};
 
 					vp1_out_hdmi: endpoint@3 {
@@ -576,6 +589,52 @@
 			rockchip,shootdown-entire;
 			rockchip,enable-pagefault-fake-mode;
 			status = "disabled";
+		};
+
+		edp: edp@276b0000 {
+			compatible = "rockchip,rk3572-edp";
+			reg = <0x0 0x276b0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_EDP0_24M>, <&cru PCLK_EDP0>,
+				 <&cru CLK_EDP0_200M>, <&cru HCLK_VO_ROOT>;
+			clock-names = "dp", "pclk", "spdif", "hclk";
+			resets = <&cru SRST_RESETN_EDP0_24M>, <&cru SRST_PRESETN_EDP0>;
+			reset-names = "dp", "apb";
+			phys = <&hdptxphy>;
+			phy-names = "dp";
+			power-domains = <&power RK3572_PD_VO>;
+			rockchip,grf = <&vo_grf>;
+			#sound-dai-cells = <1>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					edp_in_vp0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp0_out_edp>;
+						status = "disabled";
+					};
+
+					edp_in_vp1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vp1_out_edp>;
+						status = "disabled";
+					};
+
+					edp_in_vopl: endpoint@2 {
+						reg = <2>;
+						// remote-endpoint = <&vopl_out_edp>;
+						status = "disabled";
+					};
+				};
+			};
 		};
 
 		gic: interrupt-controller@2a601000 {
@@ -775,6 +834,19 @@
 			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		hdptxphy: phy@2c310000 {
+			compatible = "rockchip,rk3572-hdptx-phy", "rockchip,rk3588-hdptx-phy";
+			reg = <0x0 0x2c310000 0x0 0x10000>;
+			clocks = <&xin24m>, <&cru PCLK_HDPTXPHY>;
+			clock-names = "ref", "apb";
+			resets = <&cru SRST_PRESETN_HDPTXPHY>, <&cru SRST_RESETN_HDPTX_INIT>,
+				 <&cru SRST_RESETN_HDPTX_CMN>, <&cru SRST_RESETN_HDPTX_LANE>;
+			reset-names = "apb", "init", "cmn", "lane";
+			rockchip,grf = <&hdptxphy_grf>;
+			#phy-cells = <0>;
 			status = "disabled";
 		};
 	};
