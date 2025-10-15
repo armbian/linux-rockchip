@@ -3752,8 +3752,11 @@ static int rk628_csi_probe(struct i2c_client *client,
 						  csi,
 						  rk628_groups,
 						  "rk628");
-	if (IS_ERR(csi->classdev))
+	if (IS_ERR(csi->classdev)) {
+		err = PTR_ERR(csi->classdev);
+		v4l2_err(sd, "create device class failed\n");
 		goto err_hdl;
+	}
 
 	csi->extcon = devm_extcon_dev_allocate(dev, rk628_csi_extcon_cable);
 	if (IS_ERR(csi->extcon)) {
