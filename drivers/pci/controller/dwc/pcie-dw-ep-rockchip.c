@@ -206,6 +206,17 @@ static void rockchip_pcie_writel_apb(struct rockchip_pcie *rockchip, u32 val, u3
 	writel(val, rockchip->apb_base + reg);
 }
 
+static void rockchip_pcie_reg_updatel(struct rockchip_pcie *rockchip, u32 reg, u32 mask, u32 val)
+{
+	u32 temp;
+
+	temp = dw_pcie_readl_dbi(&rockchip->pci, reg);
+	temp &= ~mask;
+	temp |= val;
+	dev_dbg(rockchip->pci.dev, "reg: 0x%08x, temp: 0x%08x\n", reg, temp);
+	dw_pcie_writew_dbi(&rockchip->pci, reg, temp);
+}
+
 static void *rockchip_pcie_map_kernel(phys_addr_t start, size_t len)
 {
 	int i;
@@ -362,6 +373,16 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 	}
 
 	rockchip->pci.max_link_speed = of_pci_get_max_link_speed(np);
+	if (rockchip->pci.max_link_speed < 0) {
+		dev_err(dev, "missing max-link-speed property\n");
+		return -EINVAL;
+	}
+
+	of_property_read_u32(np, "num-lanes", &rockchip->pci.num_lanes);
+	if ((rockchip->pci.num_lanes > 4) || (rockchip->pci.num_lanes == 0)) {
+		dev_err(dev, "Invalid *num-lanes*, num=%d\n", rockchip->pci.num_lanes);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -944,12 +965,6 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	else
 		dev_info(dev, "Configure complete registers\n");
 
-	ret = dw_pcie_ep_init_registers(&rockchip->pci.ep);
-	if (ret) {
-		dev_err(dev, "Failed to complete initialization: %d\n", ret);
-		return ret;
-	}
-
 	rockchip_pcie_hide_broken_ats_cap(pci);
 
 	dw_pcie_dbi_ro_wr_en(&rockchip->pci);
@@ -960,15 +975,34 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	dw_pcie_writew_dbi(&rockchip->pci, PCI_DEVICE_ID, 0x356a);
 	dw_pcie_writew_dbi(&rockchip->pci, PCI_CLASS_DEVICE, 0x0580);
 
-	/* Disable ASPM */
 	reg = dw_pcie_find_capability(&rockchip->pci, PCI_CAP_ID_EXP);
 	if (!reg) {
 		dev_err(dev, "Not able to find PCIE CAP!\n");
 		return reg;
 	}
-	val = dw_pcie_readl_dbi(&rockchip->pci, reg + PCI_EXP_LNKCAP);
-	val &= ~(PCI_EXP_LNKCAP_ASPMS);
-	dw_pcie_writew_dbi(&rockchip->pci, reg + PCI_EXP_LNKCAP, val);
+
+	/* Disable ASPM */
+	rockchip_pcie_reg_updatel(rockchip, reg + PCI_EXP_LNKCAP, PCI_EXP_LNKCAP_ASPMS, 0);
+
+	/* Setup max speed */
+	rockchip_pcie_reg_updatel(rockchip, reg + PCI_EXP_LNKCAP,
+				  PCI_EXP_LNKCAP_SLS,
+				  rockchip->pci.max_link_speed);
+	rockchip_pcie_reg_updatel(rockchip, reg + PCI_EXP_LNKCTL2,
+				  PCI_EXP_LNKCTL2_TLS,
+				  rockchip->pci.max_link_speed);
+
+	/* Set the number of lanes */
+	rockchip_pcie_reg_updatel(rockchip, reg + PCI_EXP_LNKCAP,
+				  PCI_EXP_LNKCAP_MLW,
+				  rockchip->pci.num_lanes << 4);
+	rockchip_pcie_reg_updatel(rockchip, PCIE_PORT_LINK_CONTROL,
+				  PORT_LINK_FAST_LINK_MODE | PORT_LINK_MODE_MASK,
+				  (rockchip->pci.num_lanes * 2 - 1) << 16);
+	rockchip_pcie_reg_updatel(rockchip, PCIE_LINK_WIDTH_SPEED_CONTROL,
+				  PORT_LOGIC_LINK_WIDTH_MASK,
+				  rockchip->pci.num_lanes << 8);
+
 	dw_pcie_dbi_ro_wr_dis(&rockchip->pci);
 
 	rockchip_pcie_resize_bar_nsticky(rockchip);
