@@ -72,6 +72,11 @@
 #define RK3568_GRF_VO_CON1		0X0364
 #define RK3568_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
 
+#define RK3572_GRF_IOC_MISC2		0x14638
+#define RK3572_VOP_MCU_SEL(v)		HIWORD_UPDATE(v, 10, 10)
+#define RK3572_VOP_DCLK_DELAYLINE(v)	HIWORD_UPDATE(v, 3, 9)
+#define RK3572_VOP_DLL_SEL(v)		HIWORD_UPDATE(v, 2, 2)
+
 #define RK3576_IOC_GRF_MISC_CON8	0x6420
 #define RK3576_VOP_MCU_SEL(v)		HIWORD_UPDATE(v, 10, 10)
 #define RK3576_VOP_DLL_SEL(v)		HIWORD_UPDATE(v, 8, 8)
@@ -1274,6 +1279,20 @@ static const struct rockchip_rgb_data rk3568_rgb = {
 	.funcs = &rk3568_rgb_funcs,
 };
 
+static void rk3572_rgb_enable(struct rockchip_rgb *rgb)
+{
+	regmap_write(rgb->grf, RK3572_GRF_IOC_MISC2,
+		     RK3572_VOP_MCU_SEL(rgb->data_sync_bypass));
+}
+
+static const struct rockchip_rgb_funcs rk3572_rgb_funcs = {
+	.enable = rk3572_rgb_enable,
+};
+
+static const struct rockchip_rgb_data rk3572_rgb = {
+	.funcs = &rk3572_rgb_funcs,
+};
+
 static void rk3576_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8,
@@ -1363,6 +1382,7 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 	{ .compatible = "rockchip,rk3506-rgb", .data = &rk3506_rgb },
 	{ .compatible = "rockchip,rk3562-rgb", .data = &rk3562_rgb },
 	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb },
+	{ .compatible = "rockchip,rk3572-rgb", .data = &rk3572_rgb },
 	{ .compatible = "rockchip,rk3576-rgb", .data = &rk3576_rgb },
 	{ .compatible = "rockchip,rk3588-rgb", },
 	{ .compatible = "rockchip,rv1106-rgb", .data = &rv1106_rgb},
