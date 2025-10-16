@@ -108,7 +108,7 @@ enum serdes_debug_mode {
 	SERDES_CLOSE_I2C_WRITE,
 	SERDES_SET_SEQUENCE,
 	SERDES_SET_PINCTRL_SLEEP,
-	SERDES_SET_PINCTRL_DEFAULT,
+	SERDES_SET_PINCTRL_INIT,
 };
 
 #define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-241025"
@@ -441,7 +441,7 @@ int serdes_multi_reg_write(struct serdes *serdes, const struct reg_sequence *reg
 int serdes_i2c_set_sequence(struct serdes *serdes);
 
 int serdes_device_init(struct serdes *serdes);
-int serdes_set_pinctrl_default(struct serdes *serdes);
+int serdes_set_pinctrl_init(struct serdes *serdes);
 int serdes_set_pinctrl_sleep(struct serdes *serdes);
 int serdes_device_suspend(struct serdes *serdes);
 int serdes_device_resume(struct serdes *serdes);

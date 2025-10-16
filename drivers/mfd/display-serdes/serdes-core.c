@@ -497,9 +497,9 @@ static ssize_t debug_write(struct file *file, const char __user *ubuf,
 		serdes->debug = SERDES_OPEN_I2C_WRITE;
 	else if (sysfs_streq(buf, "off"))
 		serdes->debug = SERDES_CLOSE_I2C_WRITE;
-	else if (sysfs_streq(buf, "default")) {
-		serdes->debug = SERDES_SET_PINCTRL_DEFAULT;
-		serdes_set_pinctrl_default(serdes);
+	else if (sysfs_streq(buf, "init")) {
+		serdes->debug = SERDES_SET_PINCTRL_INIT;
+		serdes_set_pinctrl_init(serdes);
 	} else if (sysfs_streq(buf, "sleep")) {
 		serdes->debug = SERDES_SET_PINCTRL_SLEEP;
 		serdes_set_pinctrl_sleep(serdes);
@@ -606,7 +606,7 @@ int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link)
 }
 EXPORT_SYMBOL(serdes_set_i2c_address);
 
-int serdes_set_pinctrl_default(struct serdes *serdes)
+int serdes_set_pinctrl_init(struct serdes *serdes)
 {
 	int ret = 0;
 
@@ -619,7 +619,7 @@ int serdes_set_pinctrl_default(struct serdes *serdes)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(serdes_set_pinctrl_default);
+EXPORT_SYMBOL_GPL(serdes_set_pinctrl_init);
 
 int serdes_set_pinctrl_sleep(struct serdes *serdes)
 {
