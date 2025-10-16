@@ -333,8 +333,43 @@
 		};
 
 		ioc_grf: syscon@26072000 {
-			compatible = "rockchip,rk3572-ioc-grf", "syscon";
+			compatible = "rockchip,rk3572-ioc-grf", "syscon", "simple-mfd";
 			reg = <0x0 0x26072000 0x0 0x16000>;
+
+			rgb: rgb {
+				compatible = "rockchip,rk3572-rgb";
+				pinctrl-names = "default";
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						rgb_in_vp0: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&vp0_out_rgb>;
+							status = "disabled";
+						};
+
+						rgb_in_vp1: endpoint@1 {
+							reg = <1>;
+							remote-endpoint = <&vp1_out_rgb>;
+							status = "disabled";
+						};
+
+						rgb_in_vopl: endpoint@2 {
+							reg = <2>;
+							// remote-endpoint = <&vopl_out_rgb>;
+							status = "disabled";
+						};
+					};
+				};
+			};
 		};
 
 		cru: clock-controller@26090000 {
@@ -536,6 +571,7 @@
 
 					vp0_out_rgb: endpoint@0 {
 						reg = <0>;
+						remote-endpoint = <&rgb_in_vp0>;
 					};
 
 					vp0_out_dsi: endpoint@1 {
@@ -559,6 +595,7 @@
 
 					vp1_out_rgb: endpoint@0 {
 						reg = <0>;
+						remote-endpoint = <&rgb_in_vp1>;
 					};
 
 					vp1_out_dsi: endpoint@1 {
