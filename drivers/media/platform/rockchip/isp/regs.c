@@ -509,7 +509,14 @@ void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 {
 	rkisp_unite_write(stream->ispdev, stream->config->rsz.ctrl, 0, false);
 	if (stream->ispdev->isp_ver >= ISP_V33 ||
-	    (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP))
+	    (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP)) {
+		u32 reg = stream->config->rsz.update;
+		u32 val = ISP32_SCALE_FORCE_UPD | ISP32_SCALE_GEN_UPD;
+
+		if (async && stream->ispdev->hw_dev->is_single)
+			val = ISP32_SCALE_GEN_UPD;
+		rkisp_write(stream->ispdev, reg, val, false);
 		return;
+	}
 	update_rsz_shadow(stream, async);
 }
