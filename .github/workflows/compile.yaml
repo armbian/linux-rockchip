@@ -29,8 +29,8 @@ jobs:
           fetch-depth: 1
           clean: false
 
-      - name: Build kernel at ${{ github.event.pull_request.head.sha }}
-        id: kernel
+      - name: Build arm64 kernel at ${{ github.event.pull_request.head.sha }}
+        id: kernel-arm64
         run: |
 
           rm -rf output/debs/*
@@ -43,6 +43,23 @@ jobs:
           bash ./compile.sh kernel \
           SHARE_LOG=yes \
           BOARD=orangepi5 \
+          BRANCH=vendor \
+          ENABLE_EXTENSIONS="pull-request"
+
+      - name: Build armhf kernel at ${{ github.event.pull_request.head.sha }}
+        id: kernel-armhf
+        run: |
+
+          rm -rf output/debs/*
+          mkdir -p userpatches/extensions/
+          cat <<- EOF > userpatches/extensions/pull-request.sh
+          function post_family_config__force_commit_for_rk3588() {
+              KERNELBRANCH="commit:${{ github.event.pull_request.head.sha }}"
+          }
+          EOF
+          bash ./compile.sh kernel \
+          SHARE_LOG=yes \
+          BOARD=armsom-forge1 \
           BRANCH=vendor \
           ENABLE_EXTENSIONS="pull-request"
 
