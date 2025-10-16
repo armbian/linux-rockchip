@@ -6017,6 +6017,10 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	VOP_MODULE_SET(vop2, vp, dual_channel_en, 0);
 	VOP_MODULE_SET(vop2, vp, dual_channel_swap, 0);
 
+	/* Make sure reg config take effect before enter standby. */
+	vop2_cfg_done(crtc);
+	vop2_wait_for_fs_by_done_bit_status(vp);
+
 	vp->output_if = 0;
 
 	vop2_clk_set_parent_extend(vp, vcstate, false);
