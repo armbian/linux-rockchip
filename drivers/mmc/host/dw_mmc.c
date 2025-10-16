@@ -1976,7 +1976,6 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 	if (host->need_xfer_timer)
 		del_timer(&host->xfer_timer);
 
-	host->slot->mrq = NULL;
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
 		slot = list_entry(host->queue.next,
@@ -1988,6 +1987,7 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 		dw_mci_start_request(host, slot);
 	} else {
 		dev_vdbg(host->dev, "list empty\n");
+		host->slot->mrq = NULL;
 
 		if (host->state == STATE_SENDING_CMD11)
 			host->state = STATE_WAITING_CMD11_DONE;
