@@ -506,6 +506,7 @@ struct dw_dp {
 	struct drm_property *hdcp_state_property;
 	struct drm_property *hdr_panel_metadata_property;
 	struct drm_property_blob *hdr_panel_blob_ptr;
+	struct drm_property_blob *mode_infos_blob_ptr;
 
 	struct rockchip_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
@@ -1287,6 +1288,68 @@ static bool dw_dp_get_vrr_capable(struct dw_dp *dp)
 	return true;
 }
 
+static void dw_dp_config_mode_info(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_display_info *di = &connector->display_info;
+	struct drm_display_mode *mode;
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct rockchip_drm_modes_info *modes_info;
+	struct rockchip_drm_mode_info *mode_info;
+	u32 size, mode_count = 0;
+	int refresh_rate;
+	int i = 0;
+
+	if (list_empty(&connector->modes)) {
+		drm_property_replace_global_blob(connector->dev, &dp->mode_infos_blob_ptr, 0,
+						 0, &connector->base, private->mode_info_prop);
+		return;
+	}
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode_count++;
+
+	size = struct_size(modes_info, mode_info, mode_count);
+	modes_info = kzalloc(size, GFP_KERNEL);
+	if (!modes_info)
+		return;
+
+	modes_info->version = ROCKCHIP_MODE_INFO_V1;
+	modes_info->mode_count = mode_count;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		mode_info = &modes_info->mode_info[i];
+		drm_mode_convert_to_umode(&mode_info->umode, mode);
+
+		if (dw_dp_get_vrr_capable(dp)) {
+			refresh_rate = drm_mode_vrefresh(mode);
+			mode_info->vrr_support = 1;
+			mode_info->vrr_min_fps = di->monitor_range.min_vfreq * 1000;
+			mode_info->vrr_max_fps =
+				min_t(u32, di->monitor_range.max_vfreq, refresh_rate) * 1000;
+			mode_info->vrr_fps_step = 1000;
+
+		}
+		i++;
+	}
+
+	drm_property_replace_global_blob(connector->dev, &dp->mode_infos_blob_ptr, size,
+					 modes_info, &connector->base,
+					 private->mode_info_prop);
+	kfree(modes_info);
+}
+
+static int dw_dp_helper_probe_single_connector_modes(struct drm_connector *connector,
+						     uint32_t maxX, uint32_t maxY)
+{
+	int ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
+	dw_dp_config_mode_info(connector);
+
+	return ret;
+}
+
 static int dw_dp_atomic_connector_get_property(struct drm_connector *connector,
 					       const struct drm_connector_state *state,
 					       struct drm_property *property,
@@ -1631,7 +1694,7 @@ static int dw_dp_debugfs_init(struct dw_dp *dp)
 
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
-	.fill_modes		= drm_helper_probe_single_connector_modes,
+	.fill_modes		= dw_dp_helper_probe_single_connector_modes,
 	.destroy		= drm_connector_cleanup,
 	.force			= dw_dp_connector_force,
 	.reset			= dw_dp_atomic_connector_reset,
@@ -4625,6 +4688,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 				   dev->mode_config.hdr_output_metadata_property,
 				   0);
 	drm_object_attach_property(&dp->connector.base, private->connector_id_prop, dp->id);
+	drm_object_attach_property(&connector->base, private->mode_info_prop, 0);
 
 	return 0;
 }
