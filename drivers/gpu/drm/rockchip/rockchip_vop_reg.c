@@ -2418,8 +2418,8 @@ static const struct vop_grf_ctrl rk3576_lit_vo0_grf_ctrl = {
 };
 
 static const struct vop_grf_ctrl rk3576_lit_grf_ctrl = {
-	.grf_dclk_inv = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 9),
-	.grf_vopl_sel = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 11),
+	.grf_dclk_inv = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 9),
+	.grf_vopl_sel = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 11),
 };
 
 static const struct vop_mcu_bypass_cfg rk3576_lit_mcu_bypass_cfg = {
