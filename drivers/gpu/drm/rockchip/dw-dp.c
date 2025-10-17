@@ -2027,8 +2027,6 @@ static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigne
 		phy_cfg.dp.pre[i] = pe[i];
 	}
 
-	phy_cfg.dp.lanes = lanes;
-	phy_cfg.dp.link_rate = rate / 100;
 	phy_cfg.dp.set_lanes = false;
 	phy_cfg.dp.set_rate = false;
 	phy_cfg.dp.set_voltages = true;
