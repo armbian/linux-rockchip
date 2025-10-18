@@ -63,20 +63,20 @@ static int max96755f_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	if (func->data) {
 		struct max96755f_function_data *fdata = func->data;
 
-		for (i = 0; i < grp->num_pins; i++) {
-			regmap_update_bits(mpctl->regmap, GPIO_A_REG(grp->pins[i]),
+		for (i = 0; i < grp->grp.npins; i++) {
+			regmap_update_bits(mpctl->regmap, GPIO_A_REG(grp->grp.pins[i]),
 					   GPIO_OUT_DIS | GPIO_RX_EN | GPIO_TX_EN,
 					   FIELD_PREP(GPIO_OUT_DIS, fdata->gpio_out_dis) |
 					   FIELD_PREP(GPIO_RX_EN, fdata->gpio_rx_en) |
 					   FIELD_PREP(GPIO_TX_EN, fdata->gpio_tx_en));
 
 			if (fdata->gpio_tx_en)
-				regmap_update_bits(mpctl->regmap, GPIO_B_REG(grp->pins[i]),
+				regmap_update_bits(mpctl->regmap, GPIO_B_REG(grp->grp.pins[i]),
 						   GPIO_TX_ID,
 						   FIELD_PREP(GPIO_TX_ID, fdata->gpio_tx_id));
 
 			if (fdata->gpio_rx_en)
-				regmap_update_bits(mpctl->regmap, GPIO_C_REG(grp->pins[i]),
+				regmap_update_bits(mpctl->regmap, GPIO_C_REG(grp->grp.pins[i]),
 						   GPIO_RX_ID,
 						   FIELD_PREP(GPIO_RX_ID, fdata->gpio_rx_id));
 		}
@@ -307,16 +307,20 @@ static int UART_pins[] = {19, 20};
 
 #define GROUP_DESC(nm) \
 { \
-	.name = #nm, \
-	.pins = nm ## _pins, \
-	.num_pins = ARRAY_SIZE(nm ## _pins), \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
 }
 
 #define GROUP_DESC_CONFIG(nm) \
 { \
-	.name = #nm, \
-	.pins = nm ## _pins, \
-	.num_pins = ARRAY_SIZE(nm ## _pins), \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
 	.data = (void *)(const struct max96755f_group_data []) { \
 		{ \
 			.configs = nm ## _configs, \
@@ -436,16 +440,20 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC(nm) \
 { \
-	.name = #nm, \
-	.group_names = nm##_groups, \
-	.num_group_names = ARRAY_SIZE(nm##_groups), \
+	.func = { \
+		.name = #nm, \
+		.groups = nm##_groups, \
+		.ngroups = ARRAY_SIZE(nm##_groups), \
+	}, \
 } \
 
 #define FUNCTION_DESC_GPIO() \
 { \
-	.name = "GPIO", \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO", \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96755f_function_data []) { \
 		{ } \
 	}, \
@@ -453,9 +461,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_RX(id) \
 { \
-	.name = "GPIO_RX_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_RX_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96755f_function_data []) { \
 		{ .gpio_rx_en = 1, .gpio_rx_id = id } \
 	}, \
@@ -463,9 +473,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_TX(id) \
 { \
-	.name = "GPIO_TX_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_TX_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96755f_function_data []) { \
 		{ .gpio_out_dis = 1, .gpio_tx_en = 1, .gpio_tx_id = id } \
 	}, \
@@ -555,11 +567,11 @@ static int max96755f_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to register pinctrl\n");
 
 	for (i = 0; i < ARRAY_SIZE(max96755f_groups); i++) {
-		const struct group_desc *group = &max96755f_groups[i];
+		const struct pingroup *group = &max96755f_groups[i].grp;
 
 		ret = pinctrl_generic_add_group(mpctl->pctl, group->name,
-						group->pins, group->num_pins,
-						group->data);
+						group->pins, group->npins,
+						max96755f_groups[i].data);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "failed to register group %s\n",
@@ -567,12 +579,12 @@ static int max96755f_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96755f_functions); i++) {
-		const struct function_desc *func = &max96755f_functions[i];
+		const struct pinfunction *func = &max96755f_functions[i].func;
 
 		ret = pinmux_generic_add_function(mpctl->pctl, func->name,
-						  func->group_names,
-						  func->num_group_names,
-						  func->data);
+						  func->groups,
+						  func->ngroups,
+						  max96755f_functions[i].data);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "failed to register function %s\n",
