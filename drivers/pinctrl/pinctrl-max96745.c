@@ -55,22 +55,22 @@ static int max96745_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	if (func->data) {
 		struct max96745_function_data *data = func->data;
 
-		for (i = 0; i < grp->num_pins; i++) {
+		for (i = 0; i < grp->grp.npins; i++) {
 			regmap_update_bits(mpctl->regmap,
-					   GPIO_A_REG(grp->pins[i]), GPIO_OUT_DIS,
+					   GPIO_A_REG(grp->grp.pins[i]), GPIO_OUT_DIS,
 					   FIELD_PREP(GPIO_OUT_DIS, data->gpio_out_dis));
 			if (data->gpio_tx_en_a || data->gpio_tx_en_b)
 				regmap_update_bits(mpctl->regmap,
-						   GPIO_B_REG(grp->pins[i]),
+						   GPIO_B_REG(grp->grp.pins[i]),
 						   GPIO_TX_ID,
 						   FIELD_PREP(GPIO_TX_ID, data->gpio_tx_id));
 			if (data->gpio_rx_en_a || data->gpio_rx_en_b)
 				regmap_update_bits(mpctl->regmap,
-						   GPIO_C_REG(grp->pins[i]),
+						   GPIO_C_REG(grp->grp.pins[i]),
 						   GPIO_RX_ID,
 						   FIELD_PREP(GPIO_RX_ID, data->gpio_rx_id));
 			regmap_update_bits(mpctl->regmap,
-					   GPIO_D_REG(grp->pins[i]),
+					   GPIO_D_REG(grp->grp.pins[i]),
 					   GPIO_TX_EN_A | GPIO_TX_EN_B | GPIO_IO_RX_EN |
 					   GPIO_RX_EN_A | GPIO_RX_EN_B,
 					   FIELD_PREP(GPIO_TX_EN_A, data->gpio_tx_en_a) |
@@ -159,9 +159,11 @@ static int UART_pins[] = {3, 7};
 
 #define GROUP_DESC(nm) \
 { \
-	.name = #nm, \
-	.pins = nm ## _pins, \
-	.num_pins = ARRAY_SIZE(nm ## _pins), \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
 }
 
 static const struct group_desc max96745_groups[] = {
@@ -208,9 +210,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_TX_A(id) \
 { \
-	.name = "GPIO_TX_A_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_TX_A_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_out_dis = 1, .gpio_tx_en_a = 1, \
 		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
@@ -219,9 +223,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_TX_B(id) \
 { \
-	.name = "GPIO_TX_B_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_TX_B_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_out_dis = 1, .gpio_tx_en_b = 1, \
 		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
@@ -230,9 +236,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_RX_A(id) \
 { \
-	.name = "GPIO_RX_A_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_RX_A_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_rx_en_a = 1, .gpio_rx_id = id } \
 	}, \
@@ -240,9 +248,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO_RX_B(id) \
 { \
-	.name = "GPIO_RX_B_"#id, \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO_RX_B_"#id, \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ .gpio_rx_en_b = 1, .gpio_rx_id = id } \
 	}, \
@@ -250,9 +260,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC_GPIO() \
 { \
-	.name = "GPIO", \
-	.group_names = MFP_groups, \
-	.num_group_names = ARRAY_SIZE(MFP_groups), \
+	.func = { \
+		.name = "GPIO", \
+		.groups = MFP_groups, \
+		.ngroups = ARRAY_SIZE(MFP_groups), \
+	}, \
 	.data = (void *)(const struct max96745_function_data []) { \
 		{ } \
 	}, \
@@ -260,9 +272,11 @@ static const char *UART_groups[] = { "UART" };
 
 #define FUNCTION_DESC(nm) \
 { \
-	.name = #nm, \
-	.group_names = nm##_groups, \
-	.num_group_names = ARRAY_SIZE(nm##_groups), \
+	.func = { \
+		.name = #nm, \
+		.groups = nm##_groups, \
+		.ngroups = ARRAY_SIZE(nm##_groups), \
+	}, \
 } \
 
 static const struct function_desc max96745_functions[] = {
@@ -434,24 +448,24 @@ static int max96745_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to register pinctrl\n");
 
 	for (i = 0; i < ARRAY_SIZE(max96745_groups); i++) {
-		const struct group_desc *group = &max96745_groups[i];
+		const struct pingroup *grp = &max96745_groups[i].grp;
 
-		ret = pinctrl_generic_add_group(mpctl->pctl, group->name,
-						group->pins, group->num_pins,
-						group->data);
+		ret = pinctrl_generic_add_group(mpctl->pctl, grp->name,
+						grp->pins, grp->npins,
+						max96745_groups[i].data);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "failed to register group %s\n",
-					     group->name);
+					     grp->name);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96745_functions); i++) {
-		const struct function_desc *func = &max96745_functions[i];
+		const struct pinfunction *func = &max96745_functions[i].func;
 
 		ret = pinmux_generic_add_function(mpctl->pctl, func->name,
-						  func->group_names,
-						  func->num_group_names,
-						  func->data);
+						  func->groups,
+						  func->ngroups,
+						  max96745_functions[i].data);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "failed to register function %s\n",
