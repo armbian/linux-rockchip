@@ -187,14 +187,14 @@ static void serdes_bridge_enable(struct drm_bridge *bridge)
 	struct serdes *serdes = serdes_bridge->parent;
 	int ret = 0;
 
+	if (serdes->chip_data->bridge_ops->enable)
+		ret = serdes->chip_data->bridge_ops->enable(serdes);
+
 	if (serdes_bridge->panel)
 		ret = drm_panel_enable(serdes_bridge->panel);
 
 	if (serdes_bridge->split_panel)
 		ret = drm_panel_enable(serdes_bridge->split_panel);
-
-	if (serdes->chip_data->bridge_ops->enable)
-		ret = serdes->chip_data->bridge_ops->enable(serdes);
 
 	if (!ret) {
 		extcon_set_state_sync(serdes->extcon, EXTCON_JACK_VIDEO_OUT, true);
