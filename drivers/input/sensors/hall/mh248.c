@@ -145,7 +145,7 @@ static int hall_mh248_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mh248_para *mh248;
-	enum of_gpio_flags irq_flags;
+	unsigned long irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
 	int hallactive = 0;
 	int ret = 0;
 
@@ -188,8 +188,7 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	dev_info(mh248->dev, "pmu_gpio_pmic_int_mask = 0x%x\n", mh248->pmu_gpio_pmic_int_mask);
 #endif
 
-	mh248->gpio_pin = of_get_named_gpio_flags(np, "irq-gpio",
-						  0, &irq_flags);
+	mh248->gpio_pin = of_get_named_gpio(np, "irq-gpio", 0);
 	if (!gpio_is_valid(mh248->gpio_pin)) {
 		dev_err(mh248->dev, "Can not read property irq-gpio\n");
 		return mh248->gpio_pin;
@@ -202,7 +201,7 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	mutex_init(&mh248->ops_lock);
 
 	ret = devm_gpio_request_one(mh248->dev, mh248->gpio_pin,
-				    GPIOF_DIR_IN, "hall_mh248");
+				    GPIOF_IN, "hall_mh248");
 	if (ret < 0) {
 		dev_err(mh248->dev, "fail to request gpio:%d\n", mh248->gpio_pin);
 		return ret;
