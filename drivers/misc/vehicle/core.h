@@ -71,8 +71,10 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/completion.h>
-
-
+#include <linux/wakelock.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/of_platform.h>
+#include <linux/of_address.h>
 
 #include "vehicle_core.h"
 
@@ -92,6 +94,51 @@
 #endif
 
 #define MCU_MAX_REGS 64
+
+struct vehicle_bug_report {
+	const char *name;
+	struct device *dev;
+	struct kobject kobj;
+	char alias[16];
+	struct wake_lock wake_lock;
+	struct platform_device *pdev;
+
+	spinlock_t lock_m0bus;
+	spinlock_t lock_m0pmu;
+	spinlock_t lock_cluster;
+	spinlock_t lock_mcu;
+	spinlock_t lock_dsp;
+
+	dma_addr_t m0bus_addr;
+	unsigned int m0bus_size;
+	void __iomem *m0bus_ioaddr;
+
+	dma_addr_t cluster_addr;
+	unsigned int cluster_size;
+	void __iomem *cluster_ioaddr;
+
+	dma_addr_t mcu_addr;
+	unsigned int mcu_size;
+	void __iomem *mcu_ioaddr;
+
+	dma_addr_t dsp_addr;
+	unsigned int dsp_size;
+	void __iomem *dsp_ioaddr;
+
+	dma_addr_t m0pmu_addr;
+	unsigned int m0pmu_size;
+	void __iomem *m0pmu_ioaddr;
+
+	struct mutex ops_mutex;
+	struct delayed_work gpio_work;
+};
+
+struct vehicle_bug_report_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct vehicle_bug_report *report, char *buf);
+	ssize_t	(*store)(struct vehicle_bug_report *report, const char *buf, size_t size);
+};
+
 struct mcu_gpio_chip {
 	const char *name;
 	struct platform_device *pdev;
@@ -231,11 +278,18 @@ struct vehicle_chip_mcu {
 };
 
 struct vehicle_spi {
+	struct mutex spi_lock;
 	struct mutex wq_lock;
+	spinlock_t msg_lock;
 	int use_delay_work;
 	struct delayed_work irq_work;
 	struct workqueue_struct *vehicle_wq;
 	struct delayed_work vehicle_delay_work;
+
+	struct spi_transfer rx_t;
+	struct spi_message rx_m;
+	struct spi_transfer tx_t;
+	struct spi_message tx_m;
 
 	enum vehicle_hw_type hw_type;
 	struct device *dev;
@@ -356,6 +410,7 @@ struct vehicle {
 	struct vehicle_uart *vehicle_uart;
 	struct vehicle_dummy *vehicle_dummy;
 	struct vehicle_chip_mcu *vehicle_chip_mcu;
+	struct vehicle_bug_report *vehicle_bug_report;
 };
 
 extern struct vehicle_hw_data vehicle_adc_data;
@@ -366,6 +421,7 @@ extern struct vehicle_hw_data vehicle_uart_data;
 extern struct vehicle_hw_data vehicle_chip_mcu_data;
 
 extern struct vehicle *g_vehicle_hw;
+extern unsigned int g_vehicle_debug_cnt;
 extern const struct regmap_bus vehicle_regmap_spi;
 extern void vehicle_set_property(u16 prop, u8 index, u32 value, u32 param);
 extern int gpio_mcu_register(struct spi_device *spi);

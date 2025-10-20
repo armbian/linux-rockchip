@@ -179,6 +179,7 @@
 		regulator-init-microvolt = <905000>;
 		regulator-min-microvolt = <810000>;
 		regulator-max-microvolt = <1006000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -192,6 +193,7 @@
 		regulator-init-microvolt = <950000>;
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1150000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -205,6 +207,7 @@
 		regulator-init-microvolt = <950000>;
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1100000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 		pwm-supply = <&vccsys_stb>;
@@ -228,6 +231,13 @@
 		pinctrl-0 = <&wifi_wake_host>;
 		wifi_chip_type = "rk96x";
 		WIFI,host_wake-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	rk96x_wake_aov_irq: rk96x-wake-aov-irq {
+		compatible = "rockchip,rk96x-wake-aov-irq";
+		rk96x-wake-irq-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 		status = "okay";
 	};
 };
@@ -445,7 +455,6 @@
 };
 
 &sai2 {
-	rockchip,sai-rx-route = <1 0 2 3>;
 	status = "okay";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;

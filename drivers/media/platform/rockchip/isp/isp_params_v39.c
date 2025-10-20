@@ -2553,6 +2553,11 @@ isp_3dlut_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value, buf_idx, i;
 	u32 *data;
 
+	if (arg->actual_size != ISP39_3DLUT_DATA_NUM) {
+		dev_err(dev->dev, " 3dlut inval size:%d\n", arg->actual_size);
+		return;
+	}
+
 	priv_val = (struct rkisp_isp_params_val_v39 *)params_vdev->priv_val;
 	buf_idx = (priv_val->buf_3dlut_idx[id]++) % ISP39_3DLUT_BUF_NUM;
 
@@ -2571,12 +2576,14 @@ isp_3dlut_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, arg->actual_size, ISP3X_MI_LUT_3D_RD_WSIZE, id);
 
 	value = isp3_param_read(params_vdev, ISP3X_3DLUT_CTRL, id);
-	value &= ISP3X_3DLUT_EN;
-
-	if (value)
-		isp3_param_set_bits(params_vdev, ISP3X_3DLUT_UPDATE, 0x01, id);
-
-	isp3_param_write(params_vdev, value, ISP3X_3DLUT_CTRL, id);
+	if (value & ISP3X_3DLUT_EN) {
+		isp3_param_write(params_vdev, 0x1, ISP3X_3DLUT_UPDATE, id);
+		/* disable frame end to load lut for offline mode */
+		if (IS_HDR_RDBK(dev->rd_mode)) {
+			value |= ISP3X_3DLUT_LUT_MODE(3) | ISP39_SELF_FORCE_UPD;
+			isp3_param_write(params_vdev, value, ISP3X_3DLUT_CTRL, id);
+		}
+	}
 }
 
 static void
@@ -2594,10 +2601,14 @@ isp_3dlut_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 
 	priv_val = (struct rkisp_isp_params_val_v39 *)params_vdev->priv_val;
 	if (en && priv_val->buf_3dlut[id][0].vaddr) {
-		isp3_param_set_bits(params_vdev, ISP3X_3DLUT_CTRL, 0x01, id);
-		isp3_param_set_bits(params_vdev, ISP3X_3DLUT_UPDATE, 0x01, id);
+		isp3_param_write(params_vdev, 0x1, ISP3X_3DLUT_UPDATE, id);
+		value = ISP3X_3DLUT_EN;
+		if (IS_HDR_RDBK(params_vdev->dev->rd_mode))
+			value |= ISP3X_3DLUT_LUT_MODE(3) | ISP39_SELF_FORCE_UPD;
+		isp3_param_write(params_vdev, value, ISP3X_3DLUT_CTRL, id);
 	} else {
-		isp3_param_clear_bits(params_vdev, ISP3X_3DLUT_CTRL, 0x01, id);
+		value = ISP3X_3DLUT_EN | ISP39_SELF_FORCE_UPD;
+		isp3_param_clear_bits(params_vdev, ISP3X_3DLUT_CTRL, value, id);
 		isp3_param_clear_bits(params_vdev, ISP3X_3DLUT_UPDATE, 0x01, id);
 	}
 }

@@ -88,11 +88,6 @@ static void mipi_dphy_power_on_dsi(struct rk628_dsi *dsi, uint8_t mipi_id)
 	rk628_testif_testclr_deassert(dsi->rk628, mipi_id);
 	rk628_mipi_dphy_init_hsfreqrange(dsi->rk628, dsi->lane_mbps, mipi_id);
 
-	if (dsi->lane_mbps > 1100)
-		rk628_mipi_dphy_init_hsmanual(dsi->rk628, true, mipi_id);
-	else
-		rk628_mipi_dphy_init_hsmanual(dsi->rk628, false, mipi_id);
-
 	dsi_update_bits(rk628, mipi_id, DSI_PHY_RSTZ,
 			PHY_ENABLECLK, PHY_ENABLECLK);
 	dsi_update_bits(rk628, mipi_id, DSI_PHY_RSTZ,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -183,6 +183,18 @@ struct kbase_csf_global_iface {
  * @doorbell_nr: Index of the HW doorbell page
  */
 void kbase_csf_ring_doorbell(struct kbase_device *kbdev, int doorbell_nr);
+
+/**
+ * kbase_csf_global_request_complete() - Indicate whether a global request has
+ *                                       completed.
+ *
+ * @kbdev:    An instance of the GPU platform device
+ * @req_mask: Bits in the GLB_REQ register to check
+ *
+ * Return: true if all bits in the req_mask are set in the GLB_ACK register,
+ *         false otherwise.
+ */
+bool kbase_csf_global_request_complete(struct kbase_device *kbdev, u32 const req_mask);
 
 /**
  * kbase_csf_read_firmware_memory - Read a value in a GPU address
@@ -497,6 +509,23 @@ void kbase_csf_firmware_trigger_mcu_sleep(struct kbase_device *kbdev);
  */
 bool kbase_csf_firmware_is_mcu_in_sleep(struct kbase_device *kbdev);
 
+
+/**
+ * kbase_csf_firmware_trigger_gpu_suspend - Send global GPU_SUSPEND request
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ */
+void kbase_csf_firmware_trigger_gpu_suspend(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_wait_for_gpu_suspend -	Wait for global GPU_SUSPEND
+ *					to be acknowledged by FW.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: true if GPU_SUSPEND request has completed, otherwise false.
+ */
+int kbase_csf_firmware_wait_for_gpu_suspend(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_firmware_trigger_reload() - Trigger the reboot of MCU firmware, for

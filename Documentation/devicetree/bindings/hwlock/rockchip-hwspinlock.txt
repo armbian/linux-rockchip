@@ -13,7 +13,9 @@ Required properties :
 - rockchip,hwlock-num-locks ：number of hwlocks provided by this device.
 
 Optional properties :
-- rockchip,hwlock-user-id : Set hwlock user id (4 bit, default is 0x01).
+- rockchip,hwlock-user-id : Set hwlock user id (default is 0x01).
+- rockchip,hwlock-max-user : Set the maximum hwlock user count supported
+	by the IP (default is 0x0F).
 
 Please look at the generic hwlock binding for usage information for consumers,
 "Documentation/devicetree/bindings/hwlock/hwlock.txt"

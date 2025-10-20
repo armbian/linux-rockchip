@@ -789,6 +789,18 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	if (device_property_read_bool(dev, "vdc-wakeup-enable"))
 		pdata->vdc_wakeup_enable = 1;
 
+	ret = device_property_read_u32(dev,
+				       "shutown_by_pwrctrln",
+				       &pdata->shutown_by_pwrctrln);
+	if (ret < 0) {
+		dev_info(dev, "shutown_by_pwrctrln missing!\n");
+		pdata->shutown_by_pwrctrln = 1;
+	}
+	if ((pdata->shutown_by_pwrctrln < 1) || (pdata->shutown_by_pwrctrln > 3)) {
+		dev_err(dev, "shutown_by_pwrctrln out [1 3]!\n");
+		pdata->shutown_by_pwrctrln = 1;
+	}
+
 	pdata->shutdown_sequence = devm_kzalloc(dev,
 						RK806_ID_END * sizeof(int),
 						GFP_KERNEL);

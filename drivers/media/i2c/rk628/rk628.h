@@ -314,6 +314,8 @@ struct rk628 {
 	struct gpio_desc *hdmirx_det_gpio;
 	bool last_mipi_status;
 	bool is_suspend;
+	bool is_10bit;
+	bool enable_csi1;
 };
 
 #define rk628_dbg(rk628, format, ...)	\

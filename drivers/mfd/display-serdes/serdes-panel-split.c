@@ -30,7 +30,7 @@ static int serdes_panel_split_prepare(struct drm_panel *panel)
 		ret = serdes->chip_data->panel_ops->prepare(serdes);
 
 	serdes_set_pinctrl_sleep(serdes);
-	serdes_set_pinctrl_default(serdes);
+	serdes_set_pinctrl_init(serdes);
 
 	SERDES_DBG_MFD("%s: %s\n", __func__, serdes->chip_data->name);
 

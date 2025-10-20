@@ -108,7 +108,7 @@ enum serdes_debug_mode {
 	SERDES_CLOSE_I2C_WRITE,
 	SERDES_SET_SEQUENCE,
 	SERDES_SET_PINCTRL_SLEEP,
-	SERDES_SET_PINCTRL_DEFAULT,
+	SERDES_SET_PINCTRL_INIT,
 };
 
 #define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-241025"
@@ -323,12 +323,12 @@ struct serdes_bridge {
 	atomic_t triggered;
 	struct drm_connector connector;
 	struct drm_panel *panel;
+	struct drm_panel *split_panel;
 
 	struct device *dev;
 	struct serdes *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
-	struct device_node *remote_node;
 	struct drm_display_mode mode;
 	struct backlight_device *backlight;
 
@@ -352,7 +352,6 @@ struct serdes_bridge_split {
 	struct serdes *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
-	struct device_node *remote_node;
 	struct drm_display_mode mode;
 	struct backlight_device *backlight;
 
@@ -442,7 +441,7 @@ int serdes_multi_reg_write(struct serdes *serdes, const struct reg_sequence *reg
 int serdes_i2c_set_sequence(struct serdes *serdes);
 
 int serdes_device_init(struct serdes *serdes);
-int serdes_set_pinctrl_default(struct serdes *serdes);
+int serdes_set_pinctrl_init(struct serdes *serdes);
 int serdes_set_pinctrl_sleep(struct serdes *serdes);
 int serdes_device_suspend(struct serdes *serdes);
 int serdes_device_resume(struct serdes *serdes);
@@ -456,6 +455,7 @@ void serdes_debugfs_init(void);
 void serdes_debugfs_exit(void);
 void serdes_create_debugfs(struct serdes *serdes);
 void serdes_destroy_debugfs(struct serdes *serdes);
+int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link);
 
 extern struct serdes_chip_data serdes_bu18tl82_data;
 extern struct serdes_chip_data serdes_bu18rl82_data;

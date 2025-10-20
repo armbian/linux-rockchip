@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b-evb2-v12.dts"
+#include "rv1126b-evb-dual-cam-4k.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V12 Board";
+	compatible = "rockchip,rv1126b-evb2-v12", "rockchip,rv1126b";
+};
+
+&sc850sl_0 {
+	reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+	rockchip,camera-module-stb = <1>;
+};
+
+&sc850sl_1 {
+	reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+	rockchip,camera-module-stb = <1>;
+};

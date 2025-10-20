@@ -282,62 +282,34 @@
 			0322 0024
 			//Init Default
 			0326 00E4
-			//HSYNC_WIDTH_L
-			0385 0038
-			//VSYNC_WIDTH_L
-			0386 0008
+			//HSYNC_WIDTH_L	 HSYNC=32
+			0385 0020
+			//VSYNC_WIDTH_L	 VSYNC=2
+			0386 0002
 			//HSYNC_WIDTH_H/VSYNC_WIDTH_H
 			0387 0000
-			//VFP_L
+			//VFP_L	VFP=200
 			03A5 00C8
 			//VBP_H
 			03A7 0000
-			//VFP_H/VBP_L
-			03A6 0020
-			//VRES_L
+			//VBP_L/VFP_H VBP=8
+			03A6 0080
+			//VRES_L VRES=0X02D0=720
 			03A8 00D0
 			//VRES_H
 			03A9 0002
-			//HFP_L
+			//HFP_L	 HFP=56
 			03AA 0038
 			//HBP_H
-			03AC 0002
-			//HFP_H/HBP_L
-			03AB 0000
-			//HRES_L
+			03AC 0003
+			//HBP_L/HFP_H(4bit)	HBP=56
+			03AB 0080
+			//HRES_L HRES=0X0780=1920
 			03AD 0080
 			//HRES_H
 			03AE 0007
 			//Disable FIFO/DESKEW_EN
-			03A4 00C0
-			//HSYNC_WIDTH_L
-			0395 0038
-			//VSYNC_WIDTH_L
-			0396 0008
-			//HSYNC_WIDTH_H/VSYNC_WIDTH_H
-			0397 0000
-			//VFP_L
-			03B1 00C8
-			//VBP_H
-			03B3 0000
-			//VFP_H/VBP_L
-			03B2 0020
-			//VRES_L
-			03B4 00D0
-			//VRES_H
-			03B5 0002
-			//HFP_L
-			03B6 0038
-			//HBP_H
-			03B8 0002
-			//HFP_H/HBP_L
-			03B7 0000
-			//HRES_L
-			03B9 0080
-			//HRES_H
-			03BA 0007
-			//Disable FIFO/DESKEW_EN
-			03B0 00C0
+			03A4 00C1
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot

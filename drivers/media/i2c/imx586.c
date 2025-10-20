@@ -44,6 +44,7 @@
 
 #define IMX586_LINK_FREQ_400		400000000	// 800Mbps per lane
 #define IMX586_LINK_FREQ_625		625000000	// 1250Mbps per lane
+#define IMX586_LINK_FREQ_850		850000000	// 1700Mbps per lane
 
 #define IMX586_LANES			4
 
@@ -1198,6 +1199,7 @@ static const struct imx586_mode supported_modes[] = {
 static const s64 link_freq_items[] = {
 	IMX586_LINK_FREQ_400,
 	IMX586_LINK_FREQ_625,
+	IMX586_LINK_FREQ_850,
 };
 
 static const char * const imx586_test_pattern_menu[] = {
@@ -2310,7 +2312,7 @@ static int imx586_check_sensor_id(struct imx586 *imx586,
 	ret |= imx586_read_reg(client, IMX586_REG_CHIP_ID_L,
 			       IMX586_REG_VALUE_08BIT, &reg_L);
 	id = ((reg_H << 8) & 0xff00) | (reg_L & 0xff);
-	if (!(reg_H == (CHIP_ID >> 8) || reg_L == (CHIP_ID & 0xff))) {
+	if (!(reg_H == (CHIP_ID >> 8) && reg_L == (CHIP_ID & 0xff))) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
 	}

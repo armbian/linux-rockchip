@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -234,6 +234,21 @@ union kbase_pm_policy_data {
 	struct kbasep_pm_policy_coarse_demand coarse_demand;
 };
 
+/*
+ * struct kbase_pm_core_masks - Storage for desired shader masks
+ *
+ * @pm_core_mask_debug: Core mask set on sysfs
+ * @pm_core_mask_devfreq: Core mask set from devfreq
+ * @pm_core_mask_desired: Core mask calculated from sysfs and devfreq
+ * @pm_core_mask_alloc_en: Core mask to be written to GLB_ALLOC_EN register
+ */
+struct kbase_pm_core_masks {
+	u64 pm_core_mask_debug;
+	u64 pm_core_mask_devfreq;
+	u64 pm_core_mask_desired;
+	u64 pm_core_mask_alloc_en;
+};
+
 /**
  * struct kbase_pm_backend_data - Data stored per device for power management.
  *
@@ -254,10 +269,6 @@ union kbase_pm_policy_data {
  *                     machine needs to wait before making changes to the GPU
  *                     power policy, DevFreq or core_mask, so as to avoid these
  *                     changing while implicit GPU resets are ongoing.
- * @pm_shaders_core_mask: Shader PM state synchronised shaders core mask. It
- *                     holds the cores enabled in a hardware counters dump,
- *                     and may differ from @shaders_avail when under different
- *                     states and transitions.
  * @cg1_disabled:      Set if the policy wants to keep the second core group
  *                     powered off
  * @metrics:           Structure to hold metrics for the GPU
@@ -298,9 +309,7 @@ union kbase_pm_policy_data {
  *                                     @callback_power_runtime_gpu_idle was
  *                                     called previously.
  *                                     See &struct kbase_pm_callback_conf.
- * @ca_cores_enabled: Cores that are currently available
- * @ca_gov_cores_enabled: Final value used for setting GOV_CORE_MASK register.
- *                        Depends on sysfs-core-mask and devfreq-core-mask.
+ * @ca_cores_enabled: Cores that are currently available from devfreq framework
  * @apply_hw_issue_TITANHW_2938_wa: Indicates if the workaround for KBASE_HW_ISSUE_TITANHW_2938
  *                                  needs to be applied when unmapping memory from GPU.
  * @mcu_state: The current state of the micro-control unit, only applicable
@@ -314,15 +323,11 @@ union kbase_pm_policy_data {
  * @shaders_avail: This is updated by the state machine when it is in a state
  *                 where it can write to the SHADER_PWRON or PWROFF registers
  *                 to have the same set of available cores as specified by
- *                 @shaders_desired_mask. So would precisely indicate the cores
+ *                 kbase_pm_core_masks.pm_core_mask_alloc_en returned from
+ *                 kbase_pm_ca_get_core_masks(). So would precisely indicate the cores
  *                 that are currently available. This is internal to shader
  *                 state machine of JM GPUs and should *not* be modified
  *                 elsewhere.
- * @shaders_desired_mask: This is updated by the state machine when it is in
- *                        a state where it can handle changes to the core
- *                        availability (either by DVFS or sysfs). This is
- *                        internal to the shader state machine and should
- *                        *not* be modified elsewhere.
  * @shaders_desired: True if the PM active count or power policy requires the
  *                   shader cores to be on. This is used as an input to the
  *                   shader power state machine.  The current state of the
@@ -431,8 +436,6 @@ struct kbase_pm_backend_data {
 
 	bool gpu_ready;
 
-	u64 pm_shaders_core_mask;
-
 	bool cg1_disabled;
 
 	struct kbasep_pm_metrics_state metrics;
@@ -460,14 +463,12 @@ struct kbase_pm_backend_data {
 	void (*callback_power_runtime_gpu_active)(struct kbase_device *kbdev);
 
 	u64 ca_cores_enabled;
-	u64 ca_gov_cores_enabled;
 
 	bool apply_hw_issue_TITANHW_2938_wa;
 	enum kbase_mcu_state mcu_state;
 	enum kbase_l2_core_state l2_state;
 	enum kbase_shader_core_state shaders_state;
 	u64 shaders_avail;
-	u64 shaders_desired_mask;
 	bool mcu_desired;
 	bool policy_change_clamp_state_to_off;
 	bool waiting_for_mmu_fault_handling;

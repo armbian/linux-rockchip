@@ -499,8 +499,8 @@
 			03A5 00C8
 			//VBP_H
 			03A7 0000
-			//VFP_H/VBP_L VBP=8
-			03A6 0008
+			//VBP_L/VFP_H VBP=8
+			03A6 0080
 			//VRES_L VRES=0X02D0=720
 			03A8 00D0
 			//VRES_H
@@ -509,14 +509,14 @@
 			03AA 0038
 			//HBP_H
 			03AC 0003
-			//HFP_H/HBP_L(4bit)	HBP=56
-			03AB 0008
+			//HBP_L/HFP_H(4bit)	HBP=56
+			03AB 0080
 			//HRES_L HRES=0X0780=1920
 			03AD 0080
 			//HRES_H
 			03AE 0007
 			//Disable FIFO/DESKEW_EN
-			03A4 00C0
+			03A4 00C1
 			//HSYNC_WIDTH_L	HSYNC=40
 			0395 0028
 			//VSYNC_WIDTH_L	VSYNC=20
@@ -527,8 +527,8 @@
 			03B1 000F
 			//VBP_H
 			03B3 0000
-			//VFP_H/VBP_L	VBP=10
-			03B2 000A
+			//VBP_L/VFP_H	VBP=10
+			03B2 00A0
 			//VRES_L VRES=0X0438=1080
 			03B4 0038
 			//VRES_H
@@ -537,14 +537,14 @@
 			03B6 008C
 			//HBP_H
 			03B8 0006
-			//HFP_H/HBP_L	HBP=100
-			03B7 0004
+			//HBP_L/HFP_H	HBP=100
+			03B7 0040
 			//HRES_L HRES=0X0780=1920
 			03B9 0080
 			//HRES_H
 			03BA 0007
 			//Disable FIFO/DESKEW_EN
-			03B0 00C0
+			03B0 00C1
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot
@@ -640,10 +640,10 @@
 		};
 	};
 
-	i2c2_max96752: i2c2-max96752@4a {
+	i2c2_max96752: i2c2-max96752@4b {
 		compatible = "maxim,max96752";
-		reg = <0x4a>;
-		//reg-hw = <0x4a>;
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
 		id-serdes-panel-split = <0x01>;
 		link = <0x01>;
 		status = "okay";
@@ -651,8 +651,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -740,7 +738,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -769,10 +767,9 @@
 		};
 	};
 
-	i2c2_max96752_split: i2c2-max96752-split@4b {
+	i2c2_max96752_split: i2c2-max96752-split@4a {
 		compatible = "maxim,max96752";
-		reg = <0x4b>;
-		reg-hw = <0x4a>;
+		reg = <0x4a>;
 		id-serdes-panel-split = <0x01>;
 		link = <0x02>;
 		status = "okay";
@@ -780,10 +777,7 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0032
-			007b 0032
 			007d 0038
-
 			//Address Value of I2C SRC_A
 			0042 008c
 			//Address Value of I2C DST_A
@@ -1293,36 +1287,37 @@
 		i2c4_max96745_bridge: i2c4-max96745-bridge {
 			compatible = "maxim,max96745-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
-				i2c4_max96745_from_dp0: endpoint {
-					remote-endpoint = <&dp0_out_i2c4_max96745>;
+				port@0 {
+					reg = <0>;
+					i2c4_max96745_from_dp0: endpoint {
+						remote-endpoint = <&dp0_out_i2c4_max96745>;
+					};
 				};
-			};
-			port@1 {
-				reg = <1>;
-				i2c4_max96745_out_i2c4_max96752: endpoint {
-					remote-endpoint = <&i2c4_max96752_from_i2c4_max96745>;
+				port@1 {
+					reg = <1>;
+					i2c4_max96745_out_i2c4_max96752: endpoint {
+						remote-endpoint = <&i2c4_max96752_from_i2c4_max96745>;
+					};
 				};
-			};
-			port@2 {
-				reg = <2>;
-				i2c4_max96745_out_i2c4_max96752_split: endpoint {
-					remote-endpoint = <&i2c4_max96752_split_from_i2c4_max96745>;
+				port@2 {
+					reg = <2>;
+					i2c4_max96745_out_i2c4_max96752_split: endpoint {
+						remote-endpoint = <&i2c4_max96752_split_from_i2c4_max96745>;
+					};
 				};
 			};
 		};
 	};
 
-	i2c4_max96752: i2c4-max96752@4a {
+	i2c4_max96752: i2c4-max96752@4b {
 		compatible = "maxim,max96752";
-		reg = <0x4a>;
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-panel-split = <0x02>;
@@ -1332,8 +1327,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -1422,7 +1415,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <230400000>;	//4128*930@60
+				clock-frequency = <230000000>;	//3840*720@60
 				hactive = <3840>;
 				vactive = <720>;
 				hfront-porch = <112>;
@@ -1446,10 +1439,9 @@
 
 	};
 
-	i2c4_max96752_split: i2c4-max96752-split@4b {
+	i2c4_max96752_split: i2c4-max96752-split@4a {
 		compatible = "maxim,max96752";
-		reg = <0x4b>;
-		reg-hw = <0x4a>;
+		reg = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-panel-split = <0x02>;
@@ -1459,8 +1451,6 @@
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0032
-			007b 0032
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008c
@@ -1550,7 +1540,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -1614,7 +1604,7 @@
 		lock-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		id-serdes-bridge-split = <0x02>;
+		id-serdes-bridge-split = <0x03>;
 		status = "disabled";
 
 		serdes-init-sequence = [
@@ -1965,52 +1955,51 @@
 		i2c5_max96745_bridge: i2c5-max96745-bridge {
 			compatible = "maxim,max96745-bridge";
 			status = "disabled";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_max96745_from_edp0: endpoint {
-					remote-endpoint = <&edp0_out_i2c5_max96745>;
+					i2c5_max96745_from_edp0: endpoint {
+						remote-endpoint = <&edp0_out_i2c5_max96745>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_max96745_out_i2c5_max96752: endpoint {
-					remote-endpoint = <&i2c5_max96752_from_i2c5_max96745>;
+					i2c5_max96745_out_i2c5_max96752: endpoint {
+						remote-endpoint = <&i2c5_max96752_from_i2c5_max96745>;
+					};
 				};
-			};
 
-			port@2 {
-				reg = <2>;
+				port@2 {
+					reg = <2>;
 
-				i2c5_max96745_out_i2c5_max96752_split: endpoint {
-					remote-endpoint = <&i2c5_max96752_split_from_i2c5_max96745>;
+					i2c5_max96745_out_i2c5_max96752_split: endpoint {
+						remote-endpoint = <&i2c5_max96752_split_from_i2c5_max96745>;
+					};
 				};
 			};
 		};
 	};
 
-	i2c5_max96752: i2c5-max96752@4a {
+	i2c5_max96752: i2c5-max96752@4b {
 		compatible = "maxim,max96752";
-		reg = <0x4a>;
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		id-serdes-panel-split = <0x02>;
+		id-serdes-panel-split = <0x03>;
 		link = <0x01>;
 		status = "disabled";
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0031
-			007b 0031
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008a
@@ -2101,7 +2090,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <230400000>;	//4128*930@60
+				clock-frequency = <230000000>;	//3840*720@60
 				hactive = <3840>;
 				vactive = <720>;
 				hfront-porch = <112>;
@@ -2124,21 +2113,18 @@
 		};
 	};
 
-	i2c5_max96752_split: i2c5-max96752-split@4b {
+	i2c5_max96752_split: i2c5-max96752-split@4a {
 		compatible = "maxim,max96752";
-		reg = <0x4b>;
-		reg-hw = <0x4a>;
+		reg = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		id-serdes-panel-split = <0x02>;
+		id-serdes-panel-split = <0x03>;
 		link = <0x02>;
 		status = "disabled";
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
 			0002 0043
-			0073 0032
-			007b 0032
 			007d 0038
 			//Address Value of I2C SRC_A
 			0042 008c
@@ -2230,7 +2216,7 @@
 			panel-size= <346 194>;
 
 			panel-timing {
-				clock-frequency = <115200000>;
+				clock-frequency = <115000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -2413,8 +2399,7 @@
 };
 
 &vop {
-	assigned-clocks = <&cru PLL_V0PLL>;
-	assigned-clock-rates = <2304000000>;
+	status = "okay";
 };
 
 &vp0 {

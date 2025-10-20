@@ -104,6 +104,15 @@ u8 rk628_testif_write(struct rk628 *rk628, u8 test_code, u8 test_data, uint8_t m
 }
 EXPORT_SYMBOL(rk628_testif_write);
 
+static void rk628_testif_set_timing(struct rk628 *rk628, u8 addr,
+			      u8 max, u8 val, uint8_t mipi_id)
+{
+	if (val > max)
+		return;
+
+	rk628_testif_write(rk628, addr, (max + 1) | val, mipi_id);
+}
+
 u8 rk628_testif_read(struct rk628 *rk628, u8 test_code, uint8_t mipi_id)
 {
 	u8 test_data;
@@ -170,6 +179,56 @@ static inline void mipi_dphy_rstz_deassert(struct rk628 *rk628)
 	udelay(1);
 }
 
+static void rk628_mipi_dphy_set_timing(struct rk628 *rk628, int lane_mbps, uint8_t mipi_id)
+{
+	const struct {
+		unsigned int min_lane_mbps;
+		unsigned int max_lane_mbps;
+		u8 clk_lp;
+		u8 clk_hs_prepare;
+		u8 clk_hs_zero;
+		u8 clk_hs_trail;
+		u8 clk_post;
+		u8 data_lp;
+		u8 data_hs_prepare;
+		u8 data_hs_zero;
+		u8 data_hs_trail;
+	} timing_table[] = {
+		{800, 899, 0x07, 0x30, 0x25, 0x3c, 0x0f, 0x07, 0x40, 0x09, 0x40},
+		{1100, 1249, 0x0a, 0x43, 0x2c, 0x50, 0x0f, 0x0a, 0x43, 0x10, 0x55},
+		{1250, 1349, 0x0b, 0x43, 0x2c, 0x50, 0x0f, 0x0b, 0x53, 0x10, 0x5b},
+		{1350, 1449, 0x0c, 0x43, 0x36, 0x60, 0x0f, 0x0c, 0x53, 0x10, 0x65},
+		{1450, 1500, 0x0f, 0x60, 0x31, 0x60, 0x0f, 0x0e, 0x60, 0x11, 0x6a},
+		{1750, 2050, 0x10, 0x70, 0x3f, 0x7f, 0x1f, 0x10, 0x70, 0x1c, 0x7f},
+	};
+	unsigned int index;
+
+	// These ranges use the controller's internal automatically calculated timing.
+	if (lane_mbps < 800 || (lane_mbps >= 900 && lane_mbps < 1100))
+		return;
+
+	if (lane_mbps < timing_table[0].min_lane_mbps)
+		return;
+
+	for (index = 0; index < ARRAY_SIZE(timing_table); index++)
+		if (lane_mbps >= timing_table[index].min_lane_mbps &&
+		    lane_mbps < timing_table[index].max_lane_mbps)
+			break;
+
+	if (index == ARRAY_SIZE(timing_table))
+		--index;
+
+	rk628_testif_set_timing(rk628, 0x60, 0x3f, timing_table[index].clk_lp, mipi_id);
+	rk628_testif_set_timing(rk628, 0x61, 0x7f, timing_table[index].clk_hs_prepare, mipi_id);
+	rk628_testif_set_timing(rk628, 0x62, 0x3f, timing_table[index].clk_hs_zero, mipi_id);
+	rk628_testif_set_timing(rk628, 0x63, 0x7f, timing_table[index].clk_hs_trail, mipi_id);
+	rk628_testif_set_timing(rk628, 0x65, 0x0f, timing_table[index].clk_post, mipi_id);
+	rk628_testif_set_timing(rk628, 0x70, 0x3f, timing_table[index].data_lp, mipi_id);
+	rk628_testif_set_timing(rk628, 0x71, 0x7f, timing_table[index].data_hs_prepare, mipi_id);
+	rk628_testif_set_timing(rk628, 0x72, 0x3f, timing_table[index].data_hs_zero, mipi_id);
+	rk628_testif_set_timing(rk628, 0x73, 0x7f, timing_table[index].data_hs_trail, mipi_id);
+}
+
 void rk628_mipi_dphy_init_hsfreqrange(struct rk628 *rk628, int lane_mbps, uint8_t mipi_id)
 {
 	const struct {
@@ -199,42 +258,9 @@ void rk628_mipi_dphy_init_hsfreqrange(struct rk628 *rk628, int lane_mbps, uint8_
 
 	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
 	rk628_testif_write(rk628, 0x44, HSFREQRANGE(hsfreqrange), mipi_id);
+	rk628_mipi_dphy_set_timing(rk628, lane_mbps, mipi_id);
 }
 EXPORT_SYMBOL(rk628_mipi_dphy_init_hsfreqrange);
-
-void rk628_mipi_dphy_init_hsmanual(struct rk628 *rk628, bool manual, uint8_t mipi_id)
-{
-	dev_info(rk628->dev,
-		"mipi dphy%d hs config, manual: %s\n", mipi_id, manual ? "true" : "false");
-	//config mipi timing when mipi freq is 1250Mbps
-	rk628_testif_write(rk628, 0x70,
-		manual ? (HSZERO(rk628->mipi_timing[mipi_id].data_lp) | BIT(6)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x71,
-		manual ? (HSTX(rk628->mipi_timing[mipi_id].data_prepare) | BIT(7)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x72,
-		manual ? (HSZERO(rk628->mipi_timing[mipi_id].data_zero) | BIT(6)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x73,
-		manual ? (HSTX(rk628->mipi_timing[mipi_id].data_trail) | BIT(7)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x60,
-		manual ? (HSZERO(rk628->mipi_timing[mipi_id].clk_lp) | BIT(6)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x61,
-		manual ? (HSTX(rk628->mipi_timing[mipi_id].clk_prepare) | BIT(7)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x62,
-		manual ? (HSZERO(rk628->mipi_timing[mipi_id].clk_zero) | BIT(6)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x63,
-		manual ? (HSTX(rk628->mipi_timing[mipi_id].clk_trail) | BIT(7)) : 0, mipi_id);
-	usleep_range(1500, 2000);
-	rk628_testif_write(rk628, 0x65,
-		manual ? (HSPOST(rk628->mipi_timing[mipi_id].clk_post) | BIT(4)) : 0, mipi_id);
-}
-EXPORT_SYMBOL(rk628_mipi_dphy_init_hsmanual);
 
 int rk628_mipi_dphy_reset_assert(struct rk628 *rk628)
 {

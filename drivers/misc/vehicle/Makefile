@@ -31,3 +31,6 @@ obj-$(CONFIG_VEHICLE_SPI_PROTOCOL) += \
 
 obj-$(CONFIG_VEHICLE_GPIO_MCU_EXPANDER) += \
 	vehicle-gpio-mcu.o
+
+obj-$(CONFIG_VEHICLE_BUG_REPORT) += \
+	vehicle-bug-report.o

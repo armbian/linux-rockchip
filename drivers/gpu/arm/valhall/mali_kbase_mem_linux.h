@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -176,7 +176,7 @@ void kbase_mem_evictable_deinit(struct kbase_context *kctx);
  *
  * Return: 0 on success, -errno on error.
  *
- * Expand the GPU mapping to encompass the new psychical pages which have
+ * Expand the GPU mapping to encompass the new physical pages which have
  * been added to the allocation.
  *
  * Note: Caller must be holding the region lock.

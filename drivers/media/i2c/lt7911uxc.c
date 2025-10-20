@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/rk-camera-module.h>
+#include <linux/rk_hdmirx_config.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/v4l2-dv-timings.h>
@@ -91,6 +92,10 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 
 #define AUDIO_FS_VALUE_H	0xe090
 #define AUDIO_FS_VALUE_L	0xe091
+
+#define INT_TYPE		0xe084
+#define PORT_NUM		0xe0a0
+#define BUS_FMT			0xe0a1
 
 //CPHY timing
 #define CLK_ZERO_REG		0xf9a7
@@ -663,9 +668,20 @@ static void lt7911uxc_delayed_work_res_change(struct work_struct *work)
 	struct lt7911uxc *lt7911uxc = container_of(dwork,
 			struct lt7911uxc, delayed_work_res_change);
 	struct v4l2_subdev *sd = &lt7911uxc->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
+	u8 val;
 
+	val = i2c_rd8(sd, INT_TYPE);
+	v4l2_dbg(1, debug, sd, "%s: int type: 0x%x\n", __func__, val);
 	lt7911uxc_s_ctrl_detect_event(sd);
-	lt7911uxc_format_change(sd);
+	if (!val) {
+		lt7911uxc->nosignal = true;
+		v4l2_event_queue(sd->devnode, &evt_signal_lost);
+	}
+	if (val & BIT(0))
+		lt7911uxc_format_change(sd);
 }
 
 static int lt7911uxc_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd)
@@ -893,6 +909,8 @@ static int lt7911uxc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
@@ -1176,6 +1194,9 @@ static long lt7911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev_dbg(&lt7911uxc->i2c_client->dev,
 			"sensor get dphy param\n");
 		break;
+	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		*(int *)arg = !lt7911uxc->nosignal;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1274,6 +1295,20 @@ static long lt7911uxc_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(dphy_param);
+		break;
+	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = lt7911uxc_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

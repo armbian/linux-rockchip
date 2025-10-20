@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/string_helpers.h>
 #include <soc/rockchip/rockchip-mailbox.h>
 
 #define MAILBOX_A2B_INTEN		0x00
@@ -28,11 +29,16 @@
 #define MAILBOX_V2_A2B_STATUS		MAILBOX_A2B_STATUS
 #define MAILBOX_V2_A2B_CMD		0x08
 #define MAILBOX_V2_A2B_DAT		0x0c
+#define MAILBOX_V2_A2B_LOCK		0x20
 
 #define MAILBOX_V2_B2A_INTEN		0x10
 #define MAILBOX_V2_B2A_STATUS		0x14
 #define MAILBOX_V2_B2A_CMD		0x18
 #define MAILBOX_V2_B2A_DAT		0x1c
+#define MAILBOX_V2_B2A_LOCK		0x30
+
+#define MAILBOX_V2_VERSION		0x40
+#define MAILBOX_V2_VERSION_MASK		GENMASK(31, 16)
 
 #define MAILBOX_V2_TRIGGER_SHIFT	8
 #define MAILBOX_V2_TRIGGER_MASK		BIT(8)
@@ -45,6 +51,11 @@
 #define MAILBOX_V2_STATUS_RX_DONE	BIT(1)
 #define MAILBOX_V2_STATUS_MASK		GENMASK(1, 0)
 
+#define MAILBOX_VERSION_1_0_0		0x100U
+#define MAILBOX_VERSION_2_0_0		0x200U
+#define MAILBOX_VERSION_2_1_0		0x210U
+#define MAILBOX_VERSION_2_2_0		0x220U
+
 #define MAILBOX_POLLING_MS		5 /* default polling interval 5ms */
 #define BIT_WRITEABLE_SHIFT		16
 
@@ -53,14 +64,17 @@ struct rockchip_mbox_reg {
 	u32 tx_sts;
 	u32 tx_cmd;
 	u32 tx_dat;
+	u32 tx_lock;
 	u32 rx_int;
 	u32 rx_sts;
 	u32 rx_cmd;
 	u32 rx_dat;
+	u32 rx_lock;
 };
 
 struct rockchip_mbox_data {
 	int num_chans;
+	u32 version;
 	struct rockchip_mbox_reg reg_a2b;
 	struct rockchip_mbox_reg reg_b2a;
 	const struct mbox_chan_ops *ops;
@@ -78,6 +92,7 @@ struct rockchip_mbox {
 	void __iomem *mbox_base;
 	spinlock_t cfg_lock; /* Serialise access to the register */
 	unsigned char trigger_method; /* 0 = write cmd, 1 = write cmd first, then write data */
+	u32 version;
 	struct rockchip_mbox_msg *msg;
 	const struct rockchip_mbox_reg *reg;
 
@@ -181,17 +196,27 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static bool rockchip_mbox_v2_is_busy(struct rockchip_mbox *mb)
+{
+	u32 status;
+
+	if (mb->version < MAILBOX_VERSION_2_2_0)
+		status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts) & MAILBOX_V2_STATUS_TX_DONE;
+	else
+		status = readl_relaxed(mb->mbox_base + mb->reg->tx_lock);
+
+	return !!status;
+}
+
 static int rockchip_mbox_v2_send_data(struct mbox_chan *chan, void *data)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	struct rockchip_mbox_msg *msg = data;
-	u32 status;
 
 	if (!msg)
 		return -EINVAL;
 
-	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
-	if (status & MAILBOX_V2_STATUS_TX_DONE) {
+	if (rockchip_mbox_v2_is_busy(mb)) {
 		dev_err(mb->mbox.dev, "The mailbox is busy\n");
 		return -EBUSY;
 	}
@@ -325,20 +350,26 @@ EXPORT_SYMBOL_GPL(rockchip_mbox_read_msg);
 
 static const struct rockchip_mbox_data rk3368_drv_data = {
 	.num_chans = 4,
+	.version = MAILBOX_VERSION_1_0_0,
 	.ops = &rockchip_mbox_chan_ops,
 	.irq_func = rockchip_mbox_irq,
 };
 
 static const struct rockchip_mbox_data rk3576_drv_data = {
 	.num_chans = 1,
+	.version = MAILBOX_VERSION_2_0_0,
 	.reg_a2b = { MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
 		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_A2B_LOCK,
 		     MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
-		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT },
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_B2A_LOCK },
 	.reg_b2a = { MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
 		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_B2A_LOCK,
 		     MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
-		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT },
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_A2B_LOCK },
 	.ops = &rockchip_mbox_v2_chan_ops,
 	.irq_func = rockchip_mbox_v2_irq,
 };
@@ -350,13 +381,75 @@ static const struct of_device_id rockchip_mbox_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_mbox_of_match);
 
+static void rockchip_mbox_get_properties(struct rockchip_mbox *mb,
+					 const struct rockchip_mbox_data *drv_data)
+{
+	struct device *dev = mb->mbox.dev;
+	u32 txpoll_period;
+	int ret;
+
+	if (device_property_present(dev, "rockchip,tx-direction-b2a"))
+		mb->reg = &drv_data->reg_b2a;
+	else
+		mb->reg = &drv_data->reg_a2b;
+
+	/*
+	 * rockchip,txdone-ack: the mailbox client uses its own ACK to check
+	 *     TX_DONE, and call mbox_client_txdone() API to schedule tx_tick.
+	 * rockchip,txdone-irq: the feature only support from RK3506, the ISR
+	 *     function call mbox_chan_txdone() API to schedule tx_tick.
+	 * txdone_poll is default for all the platform, it cooperates with
+	 *     "rockchip,txpoll-period-ms" or "rockchip,txpoll-period-us"
+	 *     periodically call last_tx_done() to check TX_DONE by the hrtimer
+	 *     in mailbox framework.
+	 */
+	if (device_property_present(dev, "rockchip,txdone-ack")) {
+		mb->mbox.txdone_irq = false;
+		mb->mbox.txdone_poll = false;
+	} else if (device_property_present(dev, "rockchip,txdone-irq")) {
+		mb->mbox.txdone_irq = true;
+	} else {
+		mb->mbox.txdone_poll = true;
+		if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US)) {
+			ret = device_property_read_u32(dev,
+						       "rockchip,txpoll-period-us",
+						       &txpoll_period);
+			if (!ret) {
+				mb->mbox.txpoll_period = txpoll_period;
+			} else {
+				ret = device_property_read_u32(dev,
+							       "rockchip,txpoll-period-ms",
+							       &txpoll_period);
+				mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+				mb->mbox.txpoll_period *= 1000U; /* Convert to us */
+			}
+		} else {
+			ret = device_property_read_u32(dev,
+						       "rockchip,txpoll-period-ms",
+						       &txpoll_period);
+			mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+		}
+	}
+
+	if (device_property_present(dev, "rockchip,enable-cmd-trigger"))
+		mb->trigger_method = 0;
+	else
+		mb->trigger_method = 1;
+
+	if (drv_data->version != MAILBOX_VERSION_1_0_0)
+		mb->version = FIELD_GET(MAILBOX_V2_VERSION_MASK,
+					readl_relaxed(mb->mbox_base + MAILBOX_V2_VERSION));
+
+	if (!mb->version)
+		mb->version = drv_data->version;
+}
+
 static int rockchip_mbox_probe(struct platform_device *pdev)
 {
 	struct rockchip_mbox *mb;
 	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
 	int ret, irq, i;
-	u32 txpoll_period;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
@@ -389,57 +482,11 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	mb->mbox.ops = drv_data->ops;
 	spin_lock_init(&mb->cfg_lock);
 
-	if (device_property_present(&pdev->dev, "rockchip,tx-direction-b2a"))
-		mb->reg = &drv_data->reg_b2a;
-	else
-		mb->reg = &drv_data->reg_a2b;
-
-	/*
-	 * rockchip,txdone-ack: the mailbox client uses its own ACK to check
-	 *     TX_DONE, and call mbox_client_txdone() API to schedule tx_tick.
-	 * rockchip,txdone-irq: the feature only support from RK3506, the ISR
-	 *     function call mbox_chan_txdone() API to schedule tx_tick.
-	 * txdone_poll is default for all the platform, it cooperates with
-	 *     "rockchip,txpoll-period-ms" or "rockchip,txpoll-period-us"
-	 *     periodically call last_tx_done() to check TX_DONE by the hrtimer
-	 *     in mailbox framework.
-	 */
-	if (device_property_present(&pdev->dev, "rockchip,txdone-ack")) {
-		mb->mbox.txdone_irq = false;
-		mb->mbox.txdone_poll = false;
-	} else if (device_property_present(&pdev->dev, "rockchip,txdone-irq")) {
-		mb->mbox.txdone_irq = true;
-	} else {
-		mb->mbox.txdone_poll = true;
-		if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US)) {
-			ret = device_property_read_u32(&pdev->dev,
-						       "rockchip,txpoll-period-us",
-						       &txpoll_period);
-			if (!ret) {
-				mb->mbox.txpoll_period = txpoll_period;
-			} else {
-				ret = device_property_read_u32(&pdev->dev,
-							       "rockchip,txpoll-period-ms",
-							       &txpoll_period);
-				mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
-				mb->mbox.txpoll_period *= 1000U; /* Convert to us */
-			}
-		} else {
-			ret = device_property_read_u32(&pdev->dev,
-						       "rockchip,txpoll-period-ms",
-						       &txpoll_period);
-			mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
-		}
-	}
-
-	if (device_property_present(&pdev->dev, "rockchip,enable-cmd-trigger"))
-		mb->trigger_method = 0;
-	else
-		mb->trigger_method = 1;
-
 	mb->mbox_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mb->mbox_base))
 		return PTR_ERR(mb->mbox_base);
+
+	rockchip_mbox_get_properties(mb, drv_data);
 
 	mb->pclk = devm_clk_get(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(mb->pclk)) {
@@ -496,6 +543,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		if (device_property_present(&pdev->dev, "wakeup-source"))
 			enable_irq_wake(mb->chans[i].irq);
 	}
+
+	dev_info(&pdev->dev, "version: 0x%04x, tx_dir: %s, tx_done: %s, poll_period: %u, fast_mode: %s\n",
+		 mb->version,
+		 mb->reg == &drv_data->reg_b2a ? "B2A" : "A2B",
+		 mb->mbox.txdone_irq ? "irq" : mb->mbox.txdone_poll ? "poll" : "ack",
+		 mb->mbox.txpoll_period,
+		 str_yes_no(!mb->trigger_method));
 
 	return 0;
 

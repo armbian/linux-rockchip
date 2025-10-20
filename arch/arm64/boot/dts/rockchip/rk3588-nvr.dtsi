@@ -305,6 +305,7 @@
 	assigned-clock-rates = <800000000>;
 	status = "okay";
 	vop-supply = <&vdd_log_s0>;
+	rockchip,extend-phy-pll-shared-mode;
 };
 
 &vop_mmu {

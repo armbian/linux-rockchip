@@ -1220,6 +1220,9 @@ static int hdmirx_write_edid(struct rk_hdmirx_dev *hdmirx_dev,
 			EDID_SLAVE_ADDR(0x50));
 	for (i = 0; i < edid_len; i++)
 		hdmirx_writel(hdmirx_dev, DMA_CONFIG10, edid->edid[i]);
+	/* write block3_4 */
+	for (i = 0; i < edid_len; i++)
+		hdmirx_writel(hdmirx_dev, DMA_CONFIG10, edid->edid[i]);
 
 	/* read out for debug */
 	if (debug >= 2) {
@@ -1723,6 +1726,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 
 	hdmirx_reset_dma(hdmirx_dev);
 	usleep_range(500*1000, 500*1010);
+	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 	hdmirx_format_change(hdmirx_dev);
 
 	return 0;

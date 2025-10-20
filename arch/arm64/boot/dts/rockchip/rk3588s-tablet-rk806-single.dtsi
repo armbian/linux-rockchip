@@ -1071,7 +1071,7 @@
 		native-mode = <&dsi1_timing0>;
 		dsi1_timing0: timing0 {
 			clock-frequency = <280000000>;
-			hactive = <1140>;
+			hactive = <1440>;
 			vactive = <3120>;
 			hfront-porch = <16>;
 			hsync-len = <8>;

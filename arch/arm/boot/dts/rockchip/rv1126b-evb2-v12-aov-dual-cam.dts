@@ -3,4 +3,4 @@
  * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
  */
 
-#include "arm64/rockchip/rv1126b-evb2-v10-aov-dual-cam.dts"
+#include "arm64/rockchip/rv1126b-evb2-v12-aov-dual-cam.dts"

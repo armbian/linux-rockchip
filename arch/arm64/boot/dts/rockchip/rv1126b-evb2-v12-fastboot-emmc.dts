@@ -4,7 +4,7 @@
  */
 
 #include "rv1126b-evb2-v12.dts"
-#include "rv1126b-fastboot-emmc.dtsi""
+#include "rv1126b-fastboot-emmc.dtsi"
 
 / {
 	model = "Rockchip RV1126B EVB2 V12 Arm64 Fastboot Board";

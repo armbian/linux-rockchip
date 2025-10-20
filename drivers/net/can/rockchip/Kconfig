@@ -26,11 +26,11 @@ config CAN_RK3562
 	To compile this driver as a module, choose M here: the module will
 	be called rk3562_can.
 
-config CANFD_RK3576
-	tristate "RK3576 CANFD controller"
+config CAN_RK3576
+	tristate "RK3576 CAN controller"
 	depends on ARCH_ROCKCHIP
 	help
-	Say Y here if you want to use CANFD controller found on RK3576 SoCs.
+	Say Y here if you want to use CAN controller found on RK3576 SoCs.
 
 	To compile this driver as a module, choose M here: the module will
-	be called rk3576_canfd.
+	be called rk3576_can.

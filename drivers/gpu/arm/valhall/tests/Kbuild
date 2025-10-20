@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017-2025 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -17,7 +17,24 @@
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
 #
-src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
+
+
+# make $(src) as absolute path if it is not already, by prefixing $(srctree) or $(srcroot)
+# depending on Kernel Version (use srctree for < 6.13). This is to prevent any build issue
+# due to wrong path.
+ifeq ($(shell expr $(VERSION) \>= 6), 1)
+    ifeq ($(VERSION), 6)
+        ifeq ($(shell expr $(PATCHLEVEL) \< 13), 1)
+            src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
+        else
+            src:=$(if $(patsubst /%,,$(src)),$(realpath $(srcroot))/$(src),$(src))
+        endif
+    else
+        src:=$(if $(patsubst /%,,$(src)),$(realpath $(srcroot))/$(src),$(src))
+    endif
+else
+    src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
+endif
 
 ccflags-y += -I$(src)/include \
              -I$(src)

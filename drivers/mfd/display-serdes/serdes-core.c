@@ -282,9 +282,10 @@ int serdes_set_bits(struct serdes *serdes, unsigned int reg,
 	if (serdes->debug == SERDES_CLOSE_I2C_WRITE)
 		return 0;
 
-	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x) mask=%04x\n", __func__,
-		       dev_name(serdes->dev), serdes->chip_data->name, reg, val, mask);
 	ret = regmap_update_bits(serdes->regmap, reg, mask, val);
+
+	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x) mask=%04x ret=%d\n", __func__,
+		       dev_name(serdes->dev), serdes->chip_data->name, reg, val, mask, ret);
 
 	return ret;
 }
@@ -496,9 +497,9 @@ static ssize_t debug_write(struct file *file, const char __user *ubuf,
 		serdes->debug = SERDES_OPEN_I2C_WRITE;
 	else if (sysfs_streq(buf, "off"))
 		serdes->debug = SERDES_CLOSE_I2C_WRITE;
-	else if (sysfs_streq(buf, "default")) {
-		serdes->debug = SERDES_SET_PINCTRL_DEFAULT;
-		serdes_set_pinctrl_default(serdes);
+	else if (sysfs_streq(buf, "init")) {
+		serdes->debug = SERDES_SET_PINCTRL_INIT;
+		serdes_set_pinctrl_init(serdes);
 	} else if (sysfs_streq(buf, "sleep")) {
 		serdes->debug = SERDES_SET_PINCTRL_SLEEP;
 		serdes_set_pinctrl_sleep(serdes);
@@ -580,7 +581,32 @@ void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...)
 }
 EXPORT_SYMBOL(serdes_dev_dbg);
 
-int serdes_set_pinctrl_default(struct serdes *serdes)
+int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link)
+{
+	int ret = 0;
+	struct serdes *serdes_split = serdes->g_serdes_bridge_split;
+
+	if (!serdes_split) {
+		dev_info(serdes->dev, "%s serdes_split is null\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	if (serdes_split && serdes_split->chip_data->split_ops &&
+	    serdes_split->chip_data->split_ops->select)
+		ret = serdes_split->chip_data->split_ops->select(serdes_split, link);
+
+	if (serdes->chip_data->split_ops && serdes->chip_data->split_ops->set_i2c_addr)
+		ret = serdes->chip_data->split_ops->set_i2c_addr(serdes, reg_use, link);
+
+	if (serdes_split && serdes_split->chip_data->split_ops &&
+	    serdes_split->chip_data->split_ops->select)
+		ret = serdes_split->chip_data->split_ops->select(serdes_split, SER_SPLITTER_MODE);
+
+	return ret;
+}
+EXPORT_SYMBOL(serdes_set_i2c_address);
+
+int serdes_set_pinctrl_init(struct serdes *serdes)
 {
 	int ret = 0;
 
@@ -593,7 +619,7 @@ int serdes_set_pinctrl_default(struct serdes *serdes)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(serdes_set_pinctrl_default);
+EXPORT_SYMBOL_GPL(serdes_set_pinctrl_init);
 
 int serdes_set_pinctrl_sleep(struct serdes *serdes)
 {

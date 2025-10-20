@@ -309,7 +309,7 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
-	if (dev->is_pre_on) {
+	if (dev->is_pre_on && (dev->isp_state & ISP_START)) {
 		params_vdev->first_cfg_params = true;
 		return;
 	}

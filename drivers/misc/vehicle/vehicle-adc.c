@@ -77,9 +77,11 @@ static int vehicle_adc_update_data(struct vehicle *vehicle)
 	vehicle_set_property(VEHICLE_GEAR, 0, vehicle->vehicle_data.gear, 0);
 	vehicle_set_property(VEHICLE_TURN_SIGNAL, 0, vehicle->vehicle_data.turn, 0);
 
-	dev_info(dev, "gear %u turn %u\n", vehicle->vehicle_data.gear,
-		 vehicle->vehicle_data.turn);
-
+	if (g_vehicle_debug_cnt++ > 100) {
+		dev_info(dev, "gear %u turn %u\n", vehicle->vehicle_data.gear,
+			 vehicle->vehicle_data.turn);
+		g_vehicle_debug_cnt = 0;
+	}
 	/* to do others adc */
 	return 0;
 }
@@ -88,15 +90,12 @@ static void vehicle_adc_delay_work_func(struct work_struct *work)
 {
 	struct vehicle_adc *vehicle_adc = container_of(work, struct vehicle_adc,
 						       vehicle_delay_work.work);
-	struct device *dev = vehicle_adc->dev;
 
 	vehicle_adc_update_data(g_vehicle_hw);
 
 	if (vehicle_adc->use_delay_work)
 		queue_delayed_work(vehicle_adc->vehicle_wq, &vehicle_adc->vehicle_delay_work,
 				   msecs_to_jiffies(1000));
-
-	dev_info(dev, "%s\n", __func__);
 }
 
 static irqreturn_t vehicle_adc_irq_handle(int irq, void *_data)

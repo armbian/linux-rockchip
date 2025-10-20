@@ -42,8 +42,6 @@ static int vehicle_gpio_update_data(struct vehicle *vehicle)
 	if (vehicle->vehicle_gpio->gear_gpio_reverse)
 		reverse_value = !!gpiod_get_value(vehicle->vehicle_gpio->gear_gpio_reverse);
 
-	dev_info(dev, "vehicle gpio %d %d\n", park_value, reverse_value);
-
 	if (park_value && reverse_value)
 		vehicle->vehicle_data.gear = GEAR_2;
 	else if (!park_value && reverse_value)
@@ -56,8 +54,12 @@ static int vehicle_gpio_update_data(struct vehicle *vehicle)
 	vehicle_set_property(VEHICLE_GEAR, 0, vehicle->vehicle_data.gear, 0);
 	vehicle_set_property(VEHICLE_TURN_SIGNAL, 0, vehicle->vehicle_data.turn, 0);
 
-	dev_info(dev, "gear %u turn %u\n", vehicle->vehicle_data.gear,
-		 vehicle->vehicle_data.turn);
+	if (g_vehicle_debug_cnt++ > 100) {
+		dev_info(dev, "vehicle gpio %d %d\n", park_value, reverse_value);
+		dev_info(dev, "gear %u turn %u\n", vehicle->vehicle_data.gear,
+			 vehicle->vehicle_data.turn);
+		g_vehicle_debug_cnt = 0;
+	}
 
 	/* to do others gpio*/
 
@@ -68,15 +70,12 @@ static void vehicle_gpio_delay_work_func(struct work_struct *work)
 {
 	struct vehicle_gpio *vehicle_gpio = container_of(work, struct vehicle_gpio,
 							 vehicle_delay_work.work);
-	struct device *dev = vehicle_gpio->dev;
 
 	vehicle_gpio_update_data(g_vehicle_hw);
 
 	if (vehicle_gpio->use_delay_work)
 		queue_delayed_work(vehicle_gpio->vehicle_wq, &vehicle_gpio->vehicle_delay_work,
 				   msecs_to_jiffies(1000));
-
-	dev_info(dev, "%s\n", __func__);
 }
 
 static irqreturn_t vehicle_gpio_irq_handle(int irq, void *_data)

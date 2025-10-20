@@ -519,6 +519,18 @@
 	};
 };
 
+&pmic_pins {
+	rockchip,pins =
+		/* pmic_int_l */
+		<0 RK_PA7 0 &pcfg_pull_up>,
+		/* pmic_sleep1 */
+		<0 RK_PA2 1 &pcfg_pull_none>,
+		/* pmic_sleep2 */
+		<0 RK_PA3 1 &pcfg_pull_none>,
+		/* pmic_sleep3 */
+		<0 RK_PC1 1 &pcfg_pull_none>;
+};
+
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
@@ -552,6 +564,7 @@
 
 &u2phy1_otg {
 	phy-supply = <&vcc5v0_host_usb30>;
+	rockchip,sel-pipe-phystatus;
 };
 
 &u2phy2_host {
@@ -560,6 +573,21 @@
 
 &u2phy3_host {
 	phy-supply = <&vcc5v0_host_usb30>;
+};
+
+&usbdp_phy1 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+	extcon = <&u2phy1>;
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
 };
 
 &vdd_log_s0 {
@@ -591,4 +619,3 @@
 &vcc5v0_host {
 	status = "disabled";
 };
-

@@ -8,6 +8,7 @@
  *
  */
 #include "vehicle_spi_protocol.h"
+#include "vehicle-mcu-bin.h"
 
 static unsigned char GetChkSum_CRC8(unsigned char *dptr, unsigned short len)
 {
@@ -112,6 +113,37 @@ static int HandleCanMSG(struct vehicle *device, unsigned char *rxbuf)
 
 }
 
+static int HandleLogMSG(struct vehicle *device, unsigned char *rxbuf)
+{
+#if defined(CONFIG_VEHICLE_BUG_REPORT)
+	int len = 0, i;
+	unsigned char *logbuf = NULL;
+	static int offset;
+
+	logbuf = kzalloc(LOG_SIZE, GFP_KERNEL);
+	if (logbuf == NULL)
+		return ERROR;
+
+	len = rxbuf[1] - 4;
+	if (len > LOG_SIZE)
+		return ERROR;
+
+	for (i = 0; i < len ; i++)
+		logbuf[i] = rxbuf[3+i];
+
+	if (device->vehicle_bug_report != NULL) {
+		if (offset + len > device->vehicle_bug_report->mcu_size)
+			offset = 0;
+		memcpy_toio(device->vehicle_bug_report->mcu_ioaddr + offset, logbuf, len);
+		offset += len;
+	}
+
+	kfree(logbuf);
+#endif
+	return SUCCEED;
+
+}
+
 static int HandleOtherMsg(struct vehicle *device, unsigned char *rxbuf)
 {
 	int ret = -1;
@@ -127,6 +159,9 @@ static int HandleOtherMsg(struct vehicle *device, unsigned char *rxbuf)
 		ret = HandleCanMSG(device, rxbuf);
 		break;
 
+	case CMD_LOG:
+		ret = HandleLogMSG(device, rxbuf);
+		break;
 	default:
 		break;
 	}
@@ -147,6 +182,38 @@ int vehicle_analyze_read_data(struct vehicle *device, unsigned char *rxbuf, size
 	}
 
 	return ret;
+}
+
+void vehicle_update_firmware(struct vehicle *device)
+{
+	u32 malloc_size = FLASH_DATA_SIZE;
+	u32 i = 0;
+	int ret = -1;
+	unsigned char data = 0;
+	unsigned char *tmp_buf = NULL;
+	int copy_len = mcu_bin_len;
+
+	if (mcu_bin_len > FLASH_DATA_SIZE)
+		return;
+	tmp_buf = kzalloc(malloc_size, GFP_KERNEL);
+	if (!tmp_buf)
+		return;
+
+	memset(tmp_buf, 0xff, malloc_size);
+
+	memcpy(tmp_buf, mcu_bin, copy_len);
+
+	ret = vehicle_analyze_write_data(device, CMD_SPI_FLASH, &data, 1);
+	if (ret < 0)
+		goto err_free_tmp_buf;
+	msleep(100);
+	for (i = 0; i < malloc_size; i += SPI_FLASH_OFFSET) {
+		vehicle_spi_write_slt(device, &tmp_buf[i], SPI_FLASH_OFFSET);
+		msleep(100);
+	}
+
+err_free_tmp_buf:
+	kfree(tmp_buf);
 }
 
 int vehicle_analyze_read_reg(struct vehicle *device, unsigned int reg, unsigned int *val)
@@ -170,7 +237,7 @@ int vehicle_analyze_read_reg(struct vehicle *device, unsigned int reg, unsigned 
 	if (!rxbuf)
 		goto err_free_txbuf;
 
-	disable_irq(device->vehicle_spi->irq);
+	disable_irq_nosync(device->vehicle_spi->irq);
 	ret = vehicle_spi_write_slt(device, txbuf, WRITE_RET_LEN);
 	if (ret < 0)
 		goto err_irq;
@@ -219,7 +286,7 @@ int vehicle_analyze_write_data(struct vehicle *device, unsigned char cmd,
 	if (!rxbuf)
 		goto err_free_txbuf;
 
-	disable_irq(device->vehicle_spi->irq);
+	disable_irq_nosync(device->vehicle_spi->irq);
 	ret = vehicle_spi_write_slt(device, txbuf, len);
 	if (ret < 0)
 		goto err_irq;

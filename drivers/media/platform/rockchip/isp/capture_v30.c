@@ -922,6 +922,11 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 
 	/* readback start to update stream buf if null */
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (stream->streaming && !mis && stream->is_crop_upd) {
+		rkisp_stream_config_dcrop(stream, false);
+		rkisp_stream_config_rsz(stream, false);
+		stream->is_crop_upd = false;
+	}
 	if (stream->streaming && !mis && !stream->curr_buf) {
 		if (!stream->next_buf && !list_empty(&stream->buf_queue)) {
 			stream->next_buf = list_first_entry(&stream->buf_queue,

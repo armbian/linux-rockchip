@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -114,5 +114,18 @@ void kbase_mem_migrate_init(struct kbase_device *kbdev);
  * and destroy workqueue associated.
  */
 void kbase_mem_migrate_term(struct kbase_device *kbdev);
+
+#if MALI_UNIT_TEST
+/*
+ * kbase_migrate_page_allocated_mapped - Expose private function to migrate
+ *                                       allocated mapped page for testing purposes.
+ *
+ * @old_page: Existing allocated mapped page to migrate.
+ * @new_page: New page the existing page has to migrate to.
+ *
+ * Return: 0 if successful, otherwise error code.
+ */
+int kbase_migrate_page_allocated_mapped(struct page *old_page, struct page *new_page);
+#endif
 
 #endif /* _KBASE_migrate_H */

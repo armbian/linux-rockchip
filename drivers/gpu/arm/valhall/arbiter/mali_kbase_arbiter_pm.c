@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -146,88 +146,6 @@ static void kbase_arbiter_pm_vm_set_state(struct kbase_device *kbdev, enum kbase
 	wake_up(&arb_vm_state->vm_state_wait);
 }
 
-/**
- * kbase_arbiter_pm_suspend_wq() - suspend work queue of the driver.
- * @data: work queue
- *
- * Suspends work queue of the driver, when VM is in SUSPEND_PENDING or
- * STOPPING_IDLE or STOPPING_ACTIVE state
- */
-static void kbase_arbiter_pm_suspend_wq(struct work_struct *data)
-{
-	struct kbase_arbiter_vm_state *arb_vm_state =
-		container_of(data, struct kbase_arbiter_vm_state, vm_suspend_work);
-	struct kbase_device *kbdev = arb_vm_state->kbdev;
-
-	mutex_lock(&arb_vm_state->vm_state_lock);
-	dev_dbg(kbdev->dev, ">%s\n", __func__);
-	if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPING_IDLE ||
-	    arb_vm_state->vm_state == KBASE_VM_STATE_STOPPING_ACTIVE ||
-	    arb_vm_state->vm_state == KBASE_VM_STATE_SUSPEND_PENDING) {
-		mutex_unlock(&arb_vm_state->vm_state_lock);
-		dev_dbg(kbdev->dev, ">kbase_pm_driver_suspend\n");
-		WARN_ON_ONCE(kbase_pm_driver_suspend(kbdev));
-		dev_dbg(kbdev->dev, "<kbase_pm_driver_suspend\n");
-		mutex_lock(&arb_vm_state->vm_state_lock);
-	}
-	mutex_unlock(&arb_vm_state->vm_state_lock);
-	dev_dbg(kbdev->dev, "<%s\n", __func__);
-}
-
-/**
- * kbase_arbiter_pm_resume_wq() -Kbase resume work queue.
- * @data: work item
- *
- * Resume work queue of the driver when VM is in STARTING state,
- * else if its in STOPPING_ACTIVE will request a stop event.
- */
-static void kbase_arbiter_pm_resume_wq(struct work_struct *data)
-{
-	struct kbase_arbiter_vm_state *arb_vm_state =
-		container_of(data, struct kbase_arbiter_vm_state, vm_resume_work);
-	struct kbase_device *kbdev = arb_vm_state->kbdev;
-
-	mutex_lock(&arb_vm_state->vm_state_lock);
-	dev_dbg(kbdev->dev, ">%s\n", __func__);
-	arb_vm_state->vm_arb_starting = true;
-	if (arb_vm_state->vm_state == KBASE_VM_STATE_STARTING) {
-		mutex_unlock(&arb_vm_state->vm_state_lock);
-		dev_dbg(kbdev->dev, ">kbase_pm_driver_resume\n");
-		kbase_pm_driver_resume(kbdev, true);
-		dev_dbg(kbdev->dev, "<kbase_pm_driver_resume\n");
-		mutex_lock(&arb_vm_state->vm_state_lock);
-	} else if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPING_ACTIVE) {
-		kbase_arbiter_pm_vm_stopped(kbdev);
-	}
-	arb_vm_state->vm_arb_starting = false;
-	mutex_unlock(&arb_vm_state->vm_state_lock);
-	KBASE_TLSTREAM_TL_ARBITER_STARTED(kbdev, kbdev);
-	KBASE_KTRACE_ADD(kbdev, ARB_GPU_STARTED, NULL, 0);
-	dev_dbg(kbdev->dev, "<%s\n", __func__);
-}
-
-/**
- * request_timer_callback() - Issue warning on request timer expiration
- * @timer: Request hr timer data
- *
- * Called when the Arbiter takes too long to grant the GPU after a
- * request has been made.  Issues a warning in dmesg.
- *
- * Return: Always returns HRTIMER_NORESTART
- */
-static enum hrtimer_restart request_timer_callback(struct hrtimer *timer)
-{
-	struct kbase_arbiter_vm_state *arb_vm_state =
-		container_of(timer, struct kbase_arbiter_vm_state, vm_request_timer);
-
-	KBASE_DEBUG_ASSERT(arb_vm_state);
-	KBASE_DEBUG_ASSERT(arb_vm_state->kbdev);
-
-	dev_warn(arb_vm_state->kbdev->dev,
-		 "Still waiting for GPU to be granted from Arbiter after %d ms\n",
-		 GPU_REQUEST_TIMEOUT);
-	return HRTIMER_NORESTART;
-}
 
 /**
  * start_request_timer() - Start a timer after requesting GPU
@@ -271,73 +189,8 @@ static void cancel_request_timer(struct kbase_device *kbdev)
  */
 int kbase_arbiter_pm_early_init(struct kbase_device *kbdev)
 {
-	int err;
-	struct kbase_arbiter_vm_state *arb_vm_state = NULL;
-
-	arb_vm_state = kzalloc(sizeof(struct kbase_arbiter_vm_state), GFP_KERNEL);
-	if (arb_vm_state == NULL)
-		return -ENOMEM;
-
-	arb_vm_state->kbdev = kbdev;
-	arb_vm_state->vm_state = KBASE_VM_STATE_INITIALIZING;
-
-	mutex_init(&arb_vm_state->vm_state_lock);
-	init_waitqueue_head(&arb_vm_state->vm_state_wait);
-	arb_vm_state->vm_arb_wq = alloc_ordered_workqueue("kbase_vm_arb_wq", WQ_HIGHPRI);
-	if (!arb_vm_state->vm_arb_wq) {
-		dev_err(kbdev->dev, "Failed to allocate vm_arb workqueue\n");
-		kfree(arb_vm_state);
-		return -ENOMEM;
-	}
-	INIT_WORK(&arb_vm_state->vm_suspend_work, kbase_arbiter_pm_suspend_wq);
-	INIT_WORK(&arb_vm_state->vm_resume_work, kbase_arbiter_pm_resume_wq);
-	arb_vm_state->vm_arb_starting = false;
-	atomic_set(&kbdev->pm.gpu_users_waiting, 0);
-	hrtimer_init(&arb_vm_state->vm_request_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	arb_vm_state->vm_request_timer.function = request_timer_callback;
-	kbdev->pm.arb_vm_state = arb_vm_state;
-
 	/* platform does not support arbitration */
-	err = -EPERM;
-
-	if (err) {
-		if (err != -EPERM)
-			dev_err(kbdev->dev, "Failed to initialise arbif module. (err = %d)", err);
-
-		goto arbif_init_fail;
-	}
-
-	if (kbase_has_arbiter(kbdev)) {
-		kbase_arbif_gpu_request(kbdev);
-		dev_dbg(kbdev->dev, "Waiting for initial GPU assignment...\n");
-
-		err = wait_event_timeout(arb_vm_state->vm_state_wait,
-					 arb_vm_state->vm_state ==
-						 KBASE_VM_STATE_INITIALIZING_WITH_GPU,
-					 msecs_to_jiffies((unsigned int)gpu_req_timeout));
-
-		if (!err) {
-			dev_err(kbdev->dev,
-				"Kbase probe Deferred after waiting %d ms to receive GPU_GRANT\n",
-				gpu_req_timeout);
-
-			err = -ENODEV;
-			goto arbif_timeout;
-		}
-
-		dev_dbg(kbdev->dev, "Waiting for initial GPU assignment - done\n");
-	}
-	return 0;
-
-arbif_timeout:
-	kbase_arbiter_pm_early_term(kbdev);
-	return err;
-
-arbif_init_fail:
-	destroy_workqueue(arb_vm_state->vm_arb_wq);
-	kfree(arb_vm_state);
-	kbdev->pm.arb_vm_state = NULL;
-	return err;
+	return -EPERM;
 }
 
 /**
@@ -844,7 +697,7 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev, enum kbase_arbif_evt 
 		switch (arb_vm_state->vm_state) {
 		case KBASE_VM_STATE_INITIALIZING_WITH_GPU:
 			lockdep_assert_held(&kbdev->pm.lock);
-			if (kbdev->pm.active_count > 0) {
+			if (atomic_read(&kbdev->pm.active_count) > 0) {
 				kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_ACTIVE);
 				kbase_arbif_gpu_active(kbdev);
 			} else {
@@ -955,10 +808,13 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 				res = 1;
 				break;
 			case KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE:
-				if (kbdev->pm.active_count == 0)
+				if (atomic_read(&kbdev->pm.active_count) == 0)
 					res = 1;
 				break;
 			case KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED:
+				/* Unconditionally increment the active_count in this case. */
+				fallthrough;
+			case KBASE_PM_SUSPEND_HANDLER_ALWAYS_INCREASE:
 				break;
 			default:
 				WARN(1, "Unknown suspend_handler\n");

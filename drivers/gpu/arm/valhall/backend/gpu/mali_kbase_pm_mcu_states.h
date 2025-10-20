@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -84,7 +84,6 @@ KBASEP_MCU_STATE(ON_HWCNT_DISABLE)
 KBASEP_MCU_STATE(ON_HALT)
 KBASEP_MCU_STATE(ON_PEND_HALT)
 KBASEP_MCU_STATE(POWER_DOWN)
-KBASEP_MCU_STATE(PEND_OFF)
 KBASEP_MCU_STATE(RESET_WAIT)
 /* Additional MCU states with HOST_CONTROL_SHADERS */
 KBASEP_MCU_STATE(HCTL_STACK_PEND_ON)

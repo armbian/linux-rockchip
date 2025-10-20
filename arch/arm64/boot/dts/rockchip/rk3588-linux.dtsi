@@ -134,3 +134,7 @@
 &rng {
 	status = "okay";
 };
+
+&vop {
+	disable-win-move;
+};

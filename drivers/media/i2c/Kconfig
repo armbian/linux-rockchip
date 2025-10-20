@@ -503,6 +503,17 @@ config VIDEO_GC8613
 	  To compile this driver as a module, choose M here: the
 	  module will be called GC8613.
 
+config VIDEO_GH2DPK
+	tristate "clx gh2dpk a0 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the clx gh2dpk camera.
+	  2-megapixel HDR sensor and a professional ISP (Image Signal Processor) image processing chip.
+	  It outputs a 30fps HDR high-quality video stream via a 2-lane MIPI interface.
+
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
 	help
@@ -828,6 +839,19 @@ config VIDEO_IMX577
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx577.
+
+config VIDEO_IMX582
+	tristate "Sony IMX582 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX582 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx582.
 
 config VIDEO_IMX586
 	tristate "Sony IMX586 sensor support"

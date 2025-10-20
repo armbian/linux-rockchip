@@ -364,6 +364,7 @@ struct rkcif_fps_stats {
  * @readout_time: one frame of readout time
  * @early_time: early time of buf send to user
  * @total_time: totaltime of readout time in hdr
+ * @rate_time: single frame interval
  */
 struct rkcif_readout_stats {
 	u64 fs_timestamp;
@@ -372,6 +373,7 @@ struct rkcif_readout_stats {
 	u64 readout_time;
 	u64 early_time;
 	u64 total_time;
+	u64 rate_time;
 };
 
 /* struct rkcif_irq_stats - take notes on irq number
@@ -680,6 +682,7 @@ struct rkcif_stream {
 	bool				is_m_online_fb_res;
 	bool				is_fb_first_frame;
 	bool				is_pause_stream;
+	bool				is_force_update;
 };
 
 struct rkcif_lvds_subdev {
@@ -1057,6 +1060,7 @@ struct rkcif_device {
 	u32				early_line;
 	int				isp_runtime_max;
 	int				sensor_linetime;
+	u64				readout_ns;
 	u32				err_state;
 	struct rkcif_err_state_work	err_state_work;
 	struct rkcif_sensor_work	sensor_work;

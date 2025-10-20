@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -177,13 +177,13 @@ void kbasep_printer_buffer_flush(struct kbasep_printer *kbpr)
 
 		switch (kbpr->type) {
 		case KBASEP_PRINT_TYPE_DEV_INFO:
-			dev_info(kbpr->kbdev->dev, buffer);
+			dev_info(kbpr->kbdev->dev, "%s", buffer);
 			break;
 		case KBASEP_PRINT_TYPE_DEV_WARN:
-			dev_warn(kbpr->kbdev->dev, buffer);
+			dev_warn(kbpr->kbdev->dev, "%s", buffer);
 			break;
 		case KBASEP_PRINT_TYPE_DEV_ERR:
-			dev_err(kbpr->kbdev->dev, buffer);
+			dev_err(kbpr->kbdev->dev, "%s", buffer);
 			break;
 		default:
 			pr_err("printer not supported");
@@ -209,7 +209,7 @@ void kbasep_puts(struct kbasep_printer *kbpr, const char *str)
 			kfifo_in(&kbpr->fifo, str, len);
 		break;
 	case KBASEP_PRINT_TYPE_SEQ_FILE:
-		seq_printf(kbpr->file, str);
+		seq_printf(kbpr->file, "%s", str);
 		break;
 	default:
 		pr_err("printer not supported");
@@ -234,7 +234,7 @@ __attribute__((format(__printf__, 2, 3))) void kbasep_print(struct kbasep_printe
 		pr_warn("%s", buffer);
 
 	if (kbpr->type == KBASEP_PRINT_TYPE_SEQ_FILE)
-		seq_printf(kbpr->file, buffer);
+		seq_printf(kbpr->file, "%s", buffer);
 	else if (len <= kfifo_avail(&kbpr->fifo))
 		kfifo_in(&kbpr->fifo, buffer, len);
 exit:

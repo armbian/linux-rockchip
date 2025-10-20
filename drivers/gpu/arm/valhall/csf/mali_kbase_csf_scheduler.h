@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -515,8 +515,8 @@ void kbase_csf_scheduler_enqueue_sync_update_work(struct kbase_context *kctx);
 void kbase_csf_scheduler_enqueue_protm_event_work(struct kbase_queue_group *group);
 
 /**
- * kbase_csf_scheduler_enqueue_kcpuq_work() - Wake up kbase_csf_scheduler_kthread() to process
- *                                            pending commands for a KCPU queue.
+ * kbase_csf_scheduler_enqueue_kcpuq_work() - Wake up kbase_csf_scheduler_kcpuq_kthread() to
+ *                                            process pending commands for a KCPU queue.
  *
  * @queue: The queue to process pending commands for
  */
@@ -609,6 +609,144 @@ static inline bool kbase_csf_scheduler_queue_has_trace(struct kbase_queue *queue
 	 */
 	return (queue->trace_buffer_size && queue->trace_buffer_base);
 }
+
+/**
+ * kbase_csf_scheduler_append_protm_flag() - append the given flag(s) to the control
+ *                                         data internally managed protm_event_id.
+ *
+ * @kbdev: Pointer to the device.
+ * @flag:  Flag(s) to append, restricted in accordance to CSF_SCHED_PROTM_EVENT_FLAGS_MASK.
+ */
+static inline void kbase_csf_scheduler_append_protm_flag(struct kbase_device *kbdev, u8 flag)
+{
+	struct kbase_csf_protm_mem_pages_defer_ctrl *pages_defer_ctrl =
+		&kbdev->csf.scheduler.pages_defer_ctrl;
+	int event_id = atomic_read(&pages_defer_ctrl->protm_event_id) |
+		       (flag & CSF_SCHED_PROTM_EVENT_FLAGS_MASK);
+
+	lockdep_assert_held(&kbdev->csf.scheduler.interrupt_lock);
+	atomic_set(&pages_defer_ctrl->protm_event_id, event_id);
+}
+
+/**
+ * kbase_csf_scheduler_complete_protm_event() - notify to the control data that the
+ *                                         current active p.mode session has completed.
+ *
+ * @kbdev: Pointer to the device.
+ *
+ * The function increase the protm_event's sequence number by one, and manages its wrap-over.
+ * The p.mode active flags are cleared, marking the completion of the present p.mode window.
+ * Additionally, kthread(s) waiting for the completion is waked-up and a bottom-half worker
+ * thread is enqueued for processing any deferred release of pages in pools.
+ */
+static inline void kbase_csf_scheduler_complete_protm_event(struct kbase_device *kbdev)
+{
+	struct kbase_csf_protm_mem_pages_defer_ctrl *pages_defer_ctrl =
+		&kbdev->csf.scheduler.pages_defer_ctrl;
+	int cur_seq_nr;
+
+	lockdep_assert_held(&kbdev->csf.scheduler.interrupt_lock);
+
+	cur_seq_nr = GET_PROTM_EVENT_ID_SEQ(atomic_read(&pages_defer_ctrl->protm_event_id));
+	cur_seq_nr = (cur_seq_nr == MAX_PROTM_EVENT_SEQ_NR) ? 0 : (cur_seq_nr + 1);
+
+	atomic_set(&pages_defer_ctrl->protm_event_id, cur_seq_nr << CSF_SCHED_PROTM_EVENT_NR_FLAGS);
+	if (pages_defer_ctrl->do_defer) {
+		wake_up_all(&pages_defer_ctrl->pools_term_wq);
+		queue_work(pages_defer_ctrl->mem_pools_op_workq,
+			   &pages_defer_ctrl->mem_pools_op_work);
+	}
+}
+
+/**
+ * is_csf_scheduler_protm_seq_completed() - helper to check a given protm session reflected by
+ *                                          the input sequence number is completed or not
+ *
+ * @kbdev: Pointer to the device.
+ * @seq_nr: P.mode session sequence number to check for its completion.
+ *
+ * Return: true on the given session is completed, otherwise false.
+ */
+static inline bool is_csf_scheduler_protm_seq_completed(struct kbase_device *kbdev, int seq_nr)
+{
+	struct kbase_csf_protm_mem_pages_defer_ctrl *pages_defer_ctrl =
+		&kbdev->csf.scheduler.pages_defer_ctrl;
+	int cur_seq_nr;
+
+	/* By design, seq_nr >= 0, and is always <= MAX_PROTM_EVENT_SEQ_NR */
+	WARN_ONCE(seq_nr > MAX_PROTM_EVENT_SEQ_NR || seq_nr < 0,
+		  "Unexpected 'event_seq_number > MAX_PROTM_EVENT_SEQ_NR || event_seq_number < 0'");
+
+	cur_seq_nr = GET_PROTM_EVENT_ID_SEQ(atomic_read(&pages_defer_ctrl->protm_event_id));
+	/* protm event sequence number is ever increasing, but could wrap back to 0 */
+	if (cur_seq_nr < seq_nr)
+		cur_seq_nr += MAX_PROTM_EVENT_SEQ_NR + 1;
+
+	return cur_seq_nr > seq_nr;
+}
+
+/**
+ * kbase_csf_scheduler_get_protm_seq_num() - get protected mode sqeuence number
+ *
+ * @kbdev: Pointer to the device.
+ *
+ * Return: Protected mode sequence number
+ */
+static inline int kbase_csf_scheduler_get_protm_seq_num(struct kbase_device *kbdev)
+{
+	struct kbase_csf_protm_mem_pages_defer_ctrl *pages_defer_ctrl =
+		&kbdev->csf.scheduler.pages_defer_ctrl;
+	int event_id = atomic_read(&pages_defer_ctrl->protm_event_id);
+
+	return GET_PROTM_EVENT_ID_SEQ(event_id);
+}
+
+/**
+ * kbase_csf_scheduler_delegate_imported_buf_alloc_free() - delegate an imported buf
+ *                                                 alloc object to scheduler's pages
+ *                                                 deferral control for managing its
+ *                                                 final clean-up and free, after a
+ *                                                 pmode session completes.
+ *
+ * @alloc: Pointer to an alloc object of imported buffer, to be freed later.
+ *
+ * This function delegates the alloc object to scheduler's pages_defer_ctrl for its
+ * last stage deferred free operation. The caller is restricted to kbase's kref
+ * free handler: kbase_mem_kref_free().
+ *
+ * Return: true when delegation is required and done. Otherwise, the caller should
+ *         proceed to handle its clean-up and free the alloc object directly.
+ */
+bool kbase_csf_scheduler_delegate_imported_buf_alloc_free(struct kbase_mem_phy_alloc *alloc);
+
+/**
+ * kbase_csf_scheduler_pages_defer_ctrl_add_pool() - add a pool to scheduler's pages
+ *                                                   deferral list for managing their
+ *                                                   release from pages_defer_ctrl
+ *
+ * @pool: Pointer to the memory pool.
+ *
+ * This function adds the given pool to scheduler's pages_defer_ctrl list for handling
+ * the deferred pages. If pool already linked (i.e. added before), do nothing.
+ *
+ * Note, the caller must own the pool by locking on its mutex lock.
+ */
+void kbase_csf_scheduler_pages_defer_ctrl_add_pool(struct kbase_mem_pool *pool);
+
+/**
+ * kbase_csf_scheduler_pages_defer_ctrl_drop_pool() - Remove pool from pages_defer_ctrl
+ *                                                    lists
+ *
+ * @pool: Pointer to the memory pool.
+ * @from_defer_ctrl: Indicating the caller is defer_controller.
+ *
+ * During operation a pool with deferred pages can be on one of the scheduler-owned
+ * pages_defer_ctrl lists. This function removes the given pool from the managed lists.
+ *
+ * Note, the caller must own the pool by locking on its lock.
+ */
+void kbase_csf_scheduler_pages_defer_ctrl_drop_pool(struct kbase_mem_pool *pool,
+						    bool from_defer_ctrl);
 
 /**
  * kbase_csf_scheduler_reval_idleness_post_sleep() - Check GPU's idleness after
@@ -707,6 +845,80 @@ void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
  * This function is only used for testing purpose.
  */
 void kbase_csf_scheduler_force_sleep(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_revert_all_csg_suspension_preparation() - Revert the maintenance steps
+ *                                                               done before suspending all CSGs.
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function should be called if suspension of all CSGs must be aborted
+ * after calling prepare_all_csg_suspension(). This requirement does not apply
+ * in case of suspension failure, because the driver would trigger a GPU reset.
+ *
+ * Return: 0 on success, otherwise error.
+ */
+int kbase_csf_scheduler_revert_all_csg_suspension_preparation(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_check_gls_success() - Save CSG slots state after suspend
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function saves the state of the CSG slots after the GPU has been
+ * suspended using GPU-level suspension. This must always be called after the
+ * MCU has powered down during the runtime suspension process.
+ *
+ * Return: true if all slots have stopped, false otherwise
+ */
+bool kbase_csf_scheduler_check_gls_success(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_finalize_gpu_suspend() - Transition the scheduler to
+ *                                              SUSPENDED state
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function performs the final maintenance steps after the GPU has been
+ * successfully suspended.
+ *
+ * Return: true if the scheduler should be woken up again due to activities
+ */
+bool kbase_csf_scheduler_finalize_gpu_suspend(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_pm_single_refcount() - Informs scheduler that there is
+ *                                            only 1 refcount for the PM
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function is called by the Power Manager when the active_count value
+ * drops to 1. This is used by the scheduler to detect if it should re-execute
+ * a missed GPU idle event. This can happen if, at the point the GPU becomes
+ * idle, the GPU could not be powered down if the GPU was used by something
+ * else.
+ *
+ * This is only relevant to GPU-level suspension when autosuspend_delay_ms is
+ * set to 0, which is a special case that forces the scheduler to suspend
+ * immediately rather than allowing the MCU to go to sleep.
+ */
+void kbase_csf_scheduler_pm_single_refcount(struct kbase_device *kbdev);
+
+/**
+ * is_gpu_level_suspend_supported() - Whether GPU-level suspend is supported
+ *
+ * @kbdev: Pointer to the device
+ *
+ * Return: true if GPU-level suspend is supported
+ */
+bool is_gpu_level_suspend_supported(struct kbase_device *const kbdev);
+
+/**
+ * kbase_csf_scheduler_wakeup() - Wake up scheduler
+ *
+ * @kbdev: Pointer to the device
+ */
+void kbase_csf_scheduler_wakeup(struct kbase_device *kbdev);
 
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

@@ -67,6 +67,7 @@ struct rockchip_p3phy_priv {
 	int num_clks;
 	u32 rx_cmn_refclk_mode[4];
 	bool is_bifurcation;
+	bool is_initialized;
 };
 
 struct rockchip_p3phy_ops {
@@ -236,6 +237,9 @@ static int rockchip_p3phy_init(struct phy *phy)
 		return ret;
 	}
 
+	if (priv->is_initialized)
+		return 0;
+
 	reset_control_assert(priv->p30phy);
 	udelay(1);
 
@@ -254,6 +258,7 @@ static int rockchip_p3phy_exit(struct phy *phy)
 
 	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 	reset_control_assert(priv->p30phy);
+	priv->is_initialized = false;
 	return 0;
 }
 
@@ -304,33 +309,38 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->pipe_grf))
 		dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
 
-	/* Configuring grf with clk enabled. */
-	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
-	if (ret) {
-		pr_err("failed to enable PCIe bulk clks %d\n", ret);
-		return ret;
-	}
+	priv->is_initialized = device_property_read_bool(dev, "rockchip,skip-init");
 
 	ret = device_property_read_u32(dev, "rockchip,pcie30-phymode", &val);
 	if (!ret) {
 		priv->pcie30_phymode = val;
 		if (priv->pcie30_phymode > 4)
 			priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
-		regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
-			     (0x7<<16) | priv->pcie30_phymode);
 	} else {
 		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
 	}
 
-	/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
-	if (!IS_ERR(priv->pipe_grf)) {
-		reg = priv->pcie30_phymode & 3;
-		if (reg)
-			regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
-				     (reg << 16) | reg);
-	};
+	if (!priv->is_initialized) {
+		ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
+		if (ret) {
+			pr_err("failed to enable PCIe bulk clks %d\n", ret);
+			return ret;
+		}
 
-	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+		if (priv->pcie30_phymode != PHY_MODE_PCIE_AGGREGATION)
+			regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+				     (0x7 << 16) | priv->pcie30_phymode);
+
+		/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
+		if (!IS_ERR(priv->pipe_grf)) {
+			reg = priv->pcie30_phymode & 3;
+			if (reg)
+				regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
+					     (reg << 16) | reg);
+		};
+
+		clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	}
 
 	ret = of_property_read_variable_u32_array(dev->of_node,
 						  "rockchip,rx-common-refclk-mode",
