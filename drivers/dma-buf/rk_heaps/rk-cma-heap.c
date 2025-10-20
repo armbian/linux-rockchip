@@ -610,8 +610,8 @@ static void rk_cma_heap_free_pages(struct rk_dma_heap *heap,
 
 static const struct rk_dma_heap_ops rk_cma_heap_ops = {
 	.allocate = rk_cma_heap_allocate,
-	.alloc_contig_pages = rk_cma_heap_allocate_pages,
-	.free_contig_pages = rk_cma_heap_free_pages,
+	.alloc_cont_pages = rk_cma_heap_allocate_pages,
+	.free_cont_pages = rk_cma_heap_free_pages,
 };
 
 static int cma_procfs_show(struct seq_file *s, void *private);

@@ -168,14 +168,12 @@ static void rk_system_heap_free_pages(struct rk_dma_heap *heap,
 }
 
 static const struct rk_dma_heap_ops rk_system_heap_ops = {
-	.alloc_pages = rk_system_heap_allocate_pages,
-	.free_pages = rk_system_heap_free_pages,
+	.heap_alloc_pages = rk_system_heap_allocate_pages,
+	.heap_free_pages = rk_system_heap_free_pages,
 };
 
 static int set_heap_dev_dma(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -188,12 +186,7 @@ static int set_heap_dev_dma(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;

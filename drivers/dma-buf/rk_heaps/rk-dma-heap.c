@@ -175,7 +175,7 @@ struct page *rk_dma_heap_alloc_contig_pages(struct rk_dma_heap *heap,
 	if (!len)
 		return ERR_PTR(-EINVAL);
 
-	return heap->ops->alloc_contig_pages(heap, len, name);
+	return heap->ops->alloc_cont_pages(heap, len, name);
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_alloc_contig_pages);
 
@@ -188,7 +188,7 @@ void rk_dma_heap_free_contig_pages(struct rk_dma_heap *heap,
 		return;
 	}
 
-	return heap->ops->free_contig_pages(heap, pages, len, name);
+	return heap->ops->free_cont_pages(heap, pages, len, name);
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_free_contig_pages);
 
@@ -217,14 +217,14 @@ int rk_dma_heap_alloc_pages(struct rk_dma_heap *heap,
 	if (!len)
 		return -EINVAL;
 
-	return heap->ops->alloc_pages(heap, pages, len, flags, name);
+	return heap->ops->heap_alloc_pages(heap, pages, len, flags, name);
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_alloc_pages);
 
 void rk_dma_heap_free_pages(struct rk_dma_heap *heap,
 			    struct page **pages, unsigned int count)
 {
-	return heap->ops->free_pages(heap, pages, count);
+	return heap->ops->heap_free_pages(heap, pages, count);
 }
 EXPORT_SYMBOL_GPL(rk_dma_heap_free_pages);
 

@@ -48,15 +48,15 @@ struct rk_dma_heap_ops {
 			unsigned long heap_flags,
 			const char *name);
 	long (*get_pool_size)(struct rk_dma_heap *heap);
-	struct page *(*alloc_contig_pages)(struct rk_dma_heap *heap,
-					   size_t len, const char *name);
-	void (*free_contig_pages)(struct rk_dma_heap *heap,
-				  struct page *pages, size_t len,
-				  const char *name);
-	int (*alloc_pages)(struct rk_dma_heap *heap, struct page **pages,
-			   size_t len, gfp_t flags, const char *name);
-	void (*free_pages)(struct rk_dma_heap *heap,
-			   struct page **pages, unsigned int count);
+	struct page *(*alloc_cont_pages)(struct rk_dma_heap *heap,
+					 size_t len, const char *name);
+	void (*free_cont_pages)(struct rk_dma_heap *heap,
+				struct page *pages, size_t len,
+				const char *name);
+	int (*heap_alloc_pages)(struct rk_dma_heap *heap, struct page **pages,
+				size_t len, gfp_t flags, const char *name);
+	void (*heap_free_pages)(struct rk_dma_heap *heap,
+				struct page **pages, unsigned int count);
 };
 
 /**
