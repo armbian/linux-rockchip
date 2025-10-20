@@ -3773,6 +3773,21 @@
 		status = "disabled";
 	};
 
+	rkooc0: rkooc-tx@22160000 {
+		compatible = "rockchip,rkooc-tx";
+		reg = <0x22160000 0x100>;
+		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ooc-irq";
+		clocks = <&cru DCLK_OOC_SRC>, <&cru ACLK_OOC>, <&cru HCLK_OOC>;
+		clock-names = "pmclk", "aclk", "hclk";
+		assigned-clocks = <&cru DCLK_OOC_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+		assigned-clock-rates = <13500000>;
+		pinctrl-0 = <&ir_fpa_pins>;
+		pinctrl-names = "default";
+		status = "disabled";
+	};
+
 	jpegd: jpegd@22170000 {
 		compatible = "rockchip,rkv-jpeg-decoder-v1";
 		reg = <0x22170000 0x330>;
