@@ -27,8 +27,6 @@ struct f_uvc_opts {
 	unsigned int					streaming_maxpacket;
 	unsigned int					streaming_maxburst;
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	bool						device_name_allocated;
-	const char					*device_name;
 	unsigned int					uvc_num_request;
 	unsigned int					uvc_zero_copy;
 #endif
