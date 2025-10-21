@@ -297,8 +297,10 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	struct uvc_device *uvc = to_uvc(f);
 	struct v4l2_event v4l2_event;
 	struct uvc_event *uvc_event = (void *)&v4l2_event.u.data;
+#ifndef CONFIG_ARCH_ROCKCHIP
 	unsigned int interface = le16_to_cpu(ctrl->wIndex) & 0xff;
 	struct usb_ctrlrequest *mctrl;
+#endif
 
 	uvc_trace(UVC_TRACE_CONTROL,
 		  "setup request %02x %02x value %04x index %04x %04x\n",
@@ -325,6 +327,7 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	v4l2_event.type = UVC_EVENT_SETUP;
 	memcpy(&uvc_event->req, ctrl, sizeof(uvc_event->req));
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	/* check for the interface number, fixup the interface number in
 	 * the ctrl request so the userspace doesn't have to bother with
 	 * offset and configfs parsing
@@ -333,6 +336,7 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	mctrl->wIndex &= ~cpu_to_le16(0xff);
 	if (interface == uvc->streaming_intf)
 		mctrl->wIndex = cpu_to_le16(UVC_STRING_STREAMING_IDX);
+#endif
 
 	v4l2_event_queue(&uvc->vdev, &v4l2_event);
 
