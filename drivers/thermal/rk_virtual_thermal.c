@@ -30,6 +30,12 @@
 #include <linux/clk-provider.h>
 #include <dt-bindings/clock/rk3128-cru.h>
 
+#include "thermal_core.h"
+
+#ifndef CLK_NR_CLKS
+#define CLK_NR_CLKS		(HCLK_PERI + 1)
+#endif
+
 #define GPU_TEMP_COMPENSION			(6000)
 #define VPU_TEMP_COMPENSION			(3000)
 
