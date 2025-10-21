@@ -6268,6 +6268,13 @@ void rkcif_buf_queue(struct vb2_buffer *vb)
 			cifbuf->buff_addr[i + 1] = cifbuf->buff_addr[i] +
 				pixm->plane_fmt[i].bytesperline * pixm->height;
 	}
+	if (stream->is_single_buf_mode && stream->state == RKCIF_STATE_STREAMING) {
+		spin_lock_irqsave(&stream->vbq_lock, flags);
+		stream->curr_buf = cifbuf;
+		stream->next_buf = cifbuf;
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+		return;
+	}
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	list_add_tail(&cifbuf->queue, &stream->buf_head);
 	cifbuf->id = stream->id;
@@ -9345,6 +9352,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->is_pause_stream = false;
 	stream->is_force_update = false;
 	stream->is_hold_stream_off = false;
+	stream->is_single_buf_mode = false;
 }
 
 int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
@@ -10601,6 +10609,12 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	case RKMODULE_GET_ERROR_INFO:
 		err_info = (struct rkmodule_error_info *)arg;
 		ret = rkcif_get_error_info(dev, err_info);
+		break;
+	case RKCIF_CMD_SINGLE_BUF_MODE:
+		if (*(int *)arg)
+			stream->is_single_buf_mode = true;
+		else
+			stream->is_single_buf_mode = false;
 		break;
 	default:
 		return -EINVAL;
@@ -15773,7 +15787,8 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					if (cif_dev->switch_info.is_use_switch)
 						atomic_inc(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]);
 				}
-			} else if (buf_stream->lack_buf_cnt == 2 && !stream->cur_skip_frame) {
+			} else if (buf_stream->lack_buf_cnt == 2 && !stream->cur_skip_frame &&
+				   !buf_stream->is_single_buf_mode) {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 				if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
 					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
