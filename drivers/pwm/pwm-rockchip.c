@@ -313,6 +313,15 @@
 /* WAVE_MEM */
 #define WAVE_MEM			0x400
 
+enum rockchip_pwm_soc_type {
+	RK2928_PWM,
+	RK3288_PWM,
+	VOP_PWM,
+	RK3328_PWM,
+	RK3576_PWM,
+	RK3506_PWM,
+};
+
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
@@ -398,6 +407,7 @@ struct rockchip_pwm_funcs {
 struct rockchip_pwm_data {
 	struct rockchip_pwm_regs regs;
 	struct rockchip_pwm_funcs funcs;
+	enum rockchip_pwm_soc_type soc_type;
 	unsigned int prescaler;
 	bool supports_polarity;
 	bool supports_lock;
@@ -1165,6 +1175,11 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
+	if (pc->data->soc_type == RK3576_PWM && input_sel == PWM_COUNTER_INPUT_FROM_IO) {
+		dev_err(chip->dev, "Unsupported external IO as counter input source for RK3576\n");
+		return -EINVAL;
+	}
+
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
 		dev_err(chip->dev, "Failed to enable counter mode because PWM%d is busy\n",
@@ -1344,6 +1359,12 @@ int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
 	if (!pc->freq_meter_support ||
 	    !pc->data->funcs.set_freq_meter || !pc->data->funcs.get_freq_meter_result) {
 		dev_err(chip->dev, "Unsupported frequency meter mode\n");
+		return -EINVAL;
+	}
+
+	if (pc->data->soc_type == RK3576_PWM && input_sel == PWM_FREQ_METER_INPUT_FROM_IO) {
+		dev_err(chip->dev,
+			"Unsupported external IO as frequency meter input source for RK3576\n");
 		return -EINVAL;
 	}
 
@@ -2223,6 +2244,7 @@ static const struct pwm_ops rockchip_pwm_ops = {
 };
 
 static const struct rockchip_pwm_data pwm_data_v1 = {
+	.soc_type = RK2928_PWM,
 	.main_version = 0x01,
 	.regs = {
 		.version = 0x5c,
@@ -2244,6 +2266,7 @@ static const struct rockchip_pwm_data pwm_data_v1 = {
 };
 
 static const struct rockchip_pwm_data pwm_data_v2 = {
+	.soc_type = RK3288_PWM,
 	.main_version = 0x02,
 	.regs = {
 		.version = 0x5c,
@@ -2266,6 +2289,7 @@ static const struct rockchip_pwm_data pwm_data_v2 = {
 };
 
 static const struct rockchip_pwm_data pwm_data_vop = {
+	.soc_type = VOP_PWM,
 	.main_version = 0x02,
 	.regs = {
 		.version = 0x5c,
@@ -2288,6 +2312,7 @@ static const struct rockchip_pwm_data pwm_data_vop = {
 };
 
 static const struct rockchip_pwm_data pwm_data_v3 = {
+	.soc_type = RK3328_PWM,
 	.main_version = 0x03,
 	.regs = {
 		.version = 0x5c,
@@ -2313,7 +2338,46 @@ static const struct rockchip_pwm_data pwm_data_v3 = {
 	},
 };
 
-static const struct rockchip_pwm_data pwm_data_v4 = {
+static const struct rockchip_pwm_data pwm_data_v4_rk3576 = {
+	.soc_type = RK3576_PWM,
+	.main_version = 0x04,
+	.regs = {
+		.version = 0x0,
+		.enable = 0x4,
+		.ctrl = 0xc,
+		.period = 0x10,
+		.duty = 0x14,
+	},
+	.prescaler = 1,
+	.supports_polarity = true,
+	.supports_lock = true,
+	.vop_pwm = false,
+	.oneshot_cnt_max = 0x10000,
+	.oneshot_rpt_max = 0x10000,
+	.wave_table_max = 0x300,
+	.enable_conf = PWM_ENABLE_V4,
+	.funcs = {
+		.enable = rockchip_pwm_enable_v4,
+		.config = rockchip_pwm_config_v4,
+		.set_capture = rockchip_pwm_set_capture_v4,
+		.get_capture_result = rockchip_pwm_get_capture_result_v4,
+		.set_counter = rockchip_pwm_set_counter_v4,
+		.get_counter_result = rockchip_pwm_get_counter_result_v4,
+		.set_freq_meter = rockchip_pwm_set_freq_meter_v4,
+		.get_freq_meter_result = rockchip_pwm_get_freq_meter_result_v4,
+		.global_ctrl = rockchip_pwm_global_ctrl_v4,
+		.set_wave_table = rockchip_pwm_set_wave_table_v4,
+		.set_wave = rockchip_pwm_set_wave_v4,
+		.set_biphasic = rockchip_pwm_set_biphasic_v4,
+		.get_biphasic_result = rockchip_pwm_get_biphasic_result_v4,
+		.ir_transmit = rockchip_pwm_ir_transmit_v4,
+		.irq_handler = rockchip_pwm_irq_v4,
+		.set_filter = rockchip_pwm_set_filter_v4,
+	},
+};
+
+static const struct rockchip_pwm_data pwm_data_v4_rk3506 = {
+	.soc_type = RK3506_PWM,
 	.main_version = 0x04,
 	.regs = {
 		.version = 0x0,
@@ -2355,7 +2419,8 @@ static const struct of_device_id rockchip_pwm_dt_ids[] = {
 	{ .compatible = "rockchip,rk3288-pwm", .data = &pwm_data_v2},
 	{ .compatible = "rockchip,vop-pwm", .data = &pwm_data_vop},
 	{ .compatible = "rockchip,rk3328-pwm", .data = &pwm_data_v3},
-	{ .compatible = "rockchip,rk3576-pwm", .data = &pwm_data_v4},
+	{ .compatible = "rockchip,rk3576-pwm", .data = &pwm_data_v4_rk3576},
+	{ .compatible = "rockchip,rk3506-pwm", .data = &pwm_data_v4_rk3506},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_pwm_dt_ids);
