@@ -507,7 +507,11 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 		kbase_gpu_vm_unlock(kctx);
 #ifndef CONFIG_64BIT
 	} else {
+#if (KERNEL_VERSION(6, 10, 0) <= LINUX_VERSION_CODE)
+		return mm_get_unmapped_area(mm, kctx->filp, addr, len, pgoff, flags);
+#else
 		return current->mm->get_unmapped_area(kctx->filp, addr, len, pgoff, flags);
+#endif
 #endif
 	}
 
