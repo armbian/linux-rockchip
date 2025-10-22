@@ -95,10 +95,12 @@ static ssize_t kbase_private_gpu_mem_show(struct kobject *kobj, struct kobj_attr
 	struct kbase_context *tmp_kctx;
 	size_t total_pages = 0;
 
+	mutex_lock(&kprcs->kprcs_lock);
 	/* Sum up used_pages from all contexts in the process */
 	list_for_each_entry(tmp_kctx, &kprcs->kctx_list, kprcs_link) {
 		total_pages += atomic_read(&tmp_kctx->used_pages);
 	}
+	mutex_unlock(&kprcs->kprcs_lock);
 
 	return scnprintf(buf, PAGE_SIZE, "%zu\n", total_pages << PAGE_SHIFT);
 }
@@ -176,6 +178,7 @@ static int kbase_insert_kctx_to_process(struct kbase_context *kctx)
 			return -ENOMEM;
 		kprcs->tgid = tgid;
 		INIT_LIST_HEAD(&kprcs->kctx_list);
+		mutex_init(&kprcs->kprcs_lock);
 		kprcs->dma_buf_root = RB_ROOT;
 		kprcs->total_gpu_pages = 0;
 
@@ -203,7 +206,9 @@ static int kbase_insert_kctx_to_process(struct kbase_context *kctx)
 	}
 
 	kctx->kprcs = kprcs;
+	mutex_lock(&kprcs->kprcs_lock);
 	list_add(&kctx->kprcs_link, &kprcs->kctx_list);
+	mutex_unlock(&kprcs->kprcs_lock);
 
 	return 0;
 }
@@ -334,7 +339,9 @@ static void kbase_remove_kctx_from_process(struct kbase_context *kctx)
 	struct kbase_process *kprcs = kctx->kprcs;
 
 	lockdep_assert_held(&kctx->kbdev->kctx_list_lock);
+	mutex_lock(&kprcs->kprcs_lock);
 	list_del(&kctx->kprcs_link);
+	mutex_unlock(&kprcs->kprcs_lock);
 
 	/* if there are no outstanding contexts in current process node,
 	 * we can remove it from the process rb_tree.
