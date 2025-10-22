@@ -7518,6 +7518,8 @@ static void vop2_atomic_plane_reset(struct drm_plane *plane)
 	__drm_atomic_helper_plane_reset(plane, &vpstate->base);
 	vpstate->base.zpos = win->zpos;
 	vpstate->alpha_map = 0x8000ff00;
+	vpstate->base.color_encoding = DRM_COLOR_YCBCR_BT709;
+	vpstate->base.color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 }
 
 static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plane *plane)
