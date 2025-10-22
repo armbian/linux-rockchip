@@ -316,9 +316,8 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		if (priv->pcie30_phymode != PHY_MODE_PCIE_AGGREGATION)
-			regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
-				     (0x7 << 16) | priv->pcie30_phymode);
+		regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+			     (0x7 << 16) | priv->pcie30_phymode);
 
 		/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
 		if (!IS_ERR(priv->pipe_grf)) {
