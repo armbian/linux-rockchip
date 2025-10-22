@@ -89,22 +89,6 @@
 		vin-supply = <&vcc_3v3_s0>;
 	};
 
-	vcc5v0_host_usb30: vcc5v0-host-usb30 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_host_usb30";
-		//regulator-boot-on;
-		//regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb_host3_pwren>;
-		startup-delay-us = <2000>;
-		off-on-delay-us = <16000>;
-		vin-supply = <&vcc5v0_buck>;
-	};
-
 	vcc5v0_otg_usb20: vcc5v0-otg-usb20 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_otg_usb20";
@@ -391,7 +375,6 @@
 };
 
 &u2phy1_otg {
-	phy-supply = <&vcc5v0_host_usb30>;
 	status = "okay";
 };
 

@@ -14,8 +14,6 @@
 #include "rk3576-vehicle-evb-v20-maxim-max96712-dphy3-sc233at.dtsi"
 #include "rk3576-android.dtsi"
 
-/delete-node/ &vcc5v0_host_usb30;
-
 / {
 	model = "Rockchip RK3576 VEHICLE EVB V21 Board";
 	compatible = "rockchip,rk3576-vehicle-evb-v21", "rockchip,rk3576";
