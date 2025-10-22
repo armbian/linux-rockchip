@@ -490,6 +490,10 @@
 	gpio = <&gpio_mcu_rockchip MCU_CAM2_PWREN GPIO_ACTIVE_HIGH>;
 };
 
+&max96712_dphy3_poc_regulator {
+	gpio = <&gpio_mcu_rockchip MCU_CAM3_PWREN GPIO_ACTIVE_HIGH>;
+};
+
 /* edp->serdes->lvds_panel */
 &pwm0_2ch_0 {
 	pinctrl-0 = <&pwm0m3_ch0>;
