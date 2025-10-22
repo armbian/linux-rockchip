@@ -1692,7 +1692,11 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 			vs = pre_timing[i].vsync;
 			vbp = pre_timing[i].vbp;
 			vtotal = pre_timing[i].vtotal;
-			tmds_clk = pre_timing[i].clock;
+			tmdsclk_cnt = rk628_hdmirx_get_tmdsclk_cnt(rk628);
+			tmp_data = tmdsclk_cnt;
+			tmp_data = ((tmp_data * HDMIRX_MODETCLK_HZ) + HDMIRX_MODETCLK_CNT_NUM / 2);
+			do_div(tmp_data, HDMIRX_MODETCLK_CNT_NUM);
+			tmds_clk = tmp_data;
 			match = 1;
 			break;
 		}
