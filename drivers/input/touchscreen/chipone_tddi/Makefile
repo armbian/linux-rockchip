@@ -3,6 +3,7 @@
 obj-$(CONFIG_TOUCHSCREEN_CHIPONE_9551R) += chipone-ts.o
 chipone-ts-y += cts_driver.o
 chipone-ts-y += cts_core.o
+CFLAGS_cts_core.o += $(call cc-option, -Wno-error=restrict)
 chipone-ts-y += cts_sfctrlv2.o
 chipone-ts-y += cts_spi_flash.o
 chipone-ts-y += cts_firmware.o
