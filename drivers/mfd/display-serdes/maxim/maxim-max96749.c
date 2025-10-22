@@ -492,8 +492,8 @@ static int max96749_select(struct serdes *serdes, int link)
 				serdes->chip_data->name);
 	}
 
-	for (i = 0; i < 80; i++) {
-		mdelay(5);
+	for (i = 0; i < 20; i++) {
+		msleep(20);
 		ret = serdes_reg_read(serdes, 0x0021, &status);
 		if (ret)
 			continue;
@@ -687,6 +687,16 @@ static struct serdes_chip_bridge_ops max96749_bridge_ops = {
 	.disable = max96749_bridge_disable,
 	.post_disable = max96749_bridge_post_disable,
 };
+
+static int max96749_chip_init(struct serdes *serdes)
+{
+	if (serdes->enable_gpio) {
+		gpiod_direction_output(serdes->enable_gpio, 1);
+		msleep(50);
+	}
+
+	return 0;
+}
 
 static int max96749_pinctrl_set_mux(struct serdes *serdes,
 				    unsigned int function, unsigned int group)
@@ -1013,6 +1023,7 @@ struct serdes_chip_data serdes_max96749_data = {
 	.serdes_type	= TYPE_SER,
 	.serdes_id	= MAXIM_ID_MAX96749,
 	.connector_type	= DRM_MODE_CONNECTOR_eDP,
+	.chip_init	= max96749_chip_init,
 	.regmap_config	= &max96749_regmap_config,
 	.pinctrl_info	= &max96749_pinctrl_info,
 	.bridge_ops	= &max96749_bridge_ops,

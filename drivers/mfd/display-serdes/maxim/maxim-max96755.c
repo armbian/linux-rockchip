@@ -442,6 +442,16 @@ static struct serdes_chip_bridge_ops max96755_bridge_ops = {
 	.disable = max96755_bridge_disable,
 };
 
+static int max96755_chip_init(struct serdes *serdes)
+{
+	if (serdes->enable_gpio) {
+		gpiod_direction_output(serdes->enable_gpio, 1);
+		msleep(50);
+	}
+
+	return 0;
+}
+
 static int max96755_pinctrl_set_mux(struct serdes *serdes,
 				    unsigned int function, unsigned int group)
 {
@@ -725,6 +735,7 @@ struct serdes_chip_data serdes_max96755_data = {
 	.serdes_type	= TYPE_SER,
 	.serdes_id	= MAXIM_ID_MAX96755,
 	.connector_type	= DRM_MODE_CONNECTOR_LVDS,
+	.chip_init	= max96755_chip_init,
 	.regmap_config	= &max96755_regmap_config,
 	.pinctrl_info	= &max96755_pinctrl_info,
 	.bridge_ops	= &max96755_bridge_ops,

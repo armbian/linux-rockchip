@@ -441,6 +441,16 @@ static struct serdes_chip_bridge_ops max96789_bridge_ops = {
 	.disable = max96789_bridge_disable,
 };
 
+static int max96789_chip_init(struct serdes *serdes)
+{
+	if (serdes->enable_gpio) {
+		gpiod_direction_output(serdes->enable_gpio, 1);
+		msleep(50);
+	}
+
+	return 0;
+}
+
 static int max96789_pinctrl_set_mux(struct serdes *serdes,
 				    unsigned int function, unsigned int group)
 {
@@ -753,7 +763,7 @@ static int max96789_select(struct serdes *serdes, int chan)
 		SERDES_DBG_CHIP("%s: change to use split mode\n", __func__);
 	}
 
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 20; i++) {
 		serdes_reg_read(serdes, 0x001f, &link_status);
 		switch (link_mode) {
 		case DUAL_LINK:
@@ -772,17 +782,16 @@ static int max96789_select(struct serdes *serdes, int chan)
 		break;
 		}
 
-		mdelay(5);
+		msleep(20);
 	}
 
-out:
-	if (i > 49)
-		dev_info(serdes->dev, "link lock timeout, mode=%d val=0x%x\n",
-			link_mode, link_status);
-	else
-		dev_info(serdes->dev, "link locked, mode=%d, val=0x%x\n",
-			link_mode, link_status);
+	dev_info(serdes->dev, "link lock timeout, mode=%d val=0x%x\n",
+		link_mode, link_status);
+	return -1;
 
+out:
+	dev_info(serdes->dev, "link locked, mode=%d, val=0x%x\n",
+		link_mode, link_status);
 	return 0;
 }
 
@@ -871,6 +880,7 @@ struct serdes_chip_data serdes_max96789_data = {
 	.serdes_type	= TYPE_SER,
 	.serdes_id	= MAXIM_ID_MAX96789,
 	.connector_type	= DRM_MODE_CONNECTOR_DSI,
+	.chip_init	= max96789_chip_init,
 	.regmap_config	= &max96789_regmap_config,
 	.pinctrl_info	= &max96789_pinctrl_info,
 	.bridge_ops	= &max96789_bridge_ops,
