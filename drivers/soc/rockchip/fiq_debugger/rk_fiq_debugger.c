@@ -466,7 +466,7 @@ static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 }
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
-#ifdef CONFIG_ARM_SDE_INTERFACE
+#if defined(CONFIG_ARM_SDE_INTERFACE) && !defined(MODULE)
 #include <linux/arm_sdei.h>
 #include <asm/smp_plat.h>
 #include <linux/suspend.h>
