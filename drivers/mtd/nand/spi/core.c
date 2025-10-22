@@ -571,7 +571,7 @@ static int spinand_read_page(struct spinand_device *spinand,
 			     const struct nand_page_io_req *req)
 {
 	struct nand_device *nand = spinand_to_nand(spinand);
-	u8 status = 0;
+	u8 status;
 	int ret;
 
 	ret = nand_ecc_prepare_io_req(nand, (struct nand_page_io_req *)req);
@@ -586,16 +586,6 @@ static int spinand_read_page(struct spinand_device *spinand,
 			   SPINAND_READ_INITIAL_DELAY_US,
 			   SPINAND_READ_POLL_DELAY_US,
 			   &status);
-	/*
-	 * When there is data outside of OIP in the status, the status data is
-	 * inaccurate and needs to be reconfirmed
-	 */
-	if (spinand->id.data[0] == 0x01 && status && !ret) {
-		ret = spinand_wait(spinand,
-				   SPINAND_READ_INITIAL_DELAY_US,
-				   SPINAND_READ_POLL_DELAY_US,
-				   &status);
-	}
 	if (ret < 0)
 		return ret;
 
