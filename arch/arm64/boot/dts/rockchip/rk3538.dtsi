@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/rockchip,rk3538-cru.h>
+#include <dt-bindings/display/rockchip-tve.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/reset/rockchip,rk3538-cru.h>
@@ -432,6 +433,12 @@
 				<100000000>, <100000000>;
 		};
 
+		vo_grf: syscon@fd170000 {
+			compatible = "rockchip,rk3538-vo-grf", "syscon";
+			reg = <0xfd170000 0x10000>;
+			clocks = <&cru PCLK_VO_ROOT>;
+		};
+
 		ioc_grf: syscon@fd1b0000 {
 			compatible = "rockchip,rk3538-ioc-grf", "syscon";
 			reg = <0xfd1b0000 0x80000>;
@@ -503,7 +510,7 @@
 
 					vp0_out_tve: endpoint@1 {
 						reg = <1>;
-						//remote-endpoint = <&tve_in_vp0>;
+						remote-endpoint = <&tve_in_vp0>;
 					};
 				};
 			};
@@ -521,6 +528,49 @@
 			rockchip,shootdown-entire;
 			rockchip,enable-pagefault-fake-mode;
 			status = "disabled";
+		};
+
+		tve: tve@fdbf0000 {
+			compatible = "rockchip,rk3538-tve", "rockchip,rk3528-tve";
+			reg = <0xfdbf0000 0x4000>,
+			      <0xfdbb0000 0x300>;
+			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_CVBS>,
+				 <&cru PCLK_VDACPHY>,
+				 <&cru DCLK_CVBS>,
+				 <&cru DCLK_4X_CVBS>;
+			clock-names = "hclk",
+				      "pclk_vdac",
+				      "dclk",
+				      "dclk_4x";
+			rockchip,lumafilter0 = <0x0ff80006>;
+			rockchip,lumafilter1 = <0x00090010>;
+			rockchip,lumafilter2 = <0x0ffb0fd8>;
+			rockchip,lumafilter3 = <0x00080057>;
+			rockchip,lumafilter4 = <0x0fef0f64>;
+			rockchip,lumafilter5 = <0x0016010a>;
+			rockchip,lumafilter6 = <0x0f830df7>;
+			rockchip,lumafilter7 = <0x08de055f>;
+			rockchip,tve-upsample = <DCLK_UPSAMPLEx4>;
+			rockchip,grf = <&vo_grf>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					tve_in_vp0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp0_out_tve>;
+						status = "disabled";
+					};
+				};
+			};
 		};
 
 		uart0: serial@fdc50000 {
