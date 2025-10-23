@@ -207,6 +207,7 @@ struct analogix_dp_device {
 	struct analogix_dp_plat_data *plat_data;
 	struct extcon_dev *extcon;
 	struct analogix_dp_compliance compliance;
+	struct drm_property_blob *mode_infos_blob_ptr;
 
 	u32 split_area;
 

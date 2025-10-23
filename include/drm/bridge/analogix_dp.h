@@ -56,6 +56,8 @@ struct analogix_dp_plat_data {
 	bool disable_psr;
 
 	u8 max_bpc;
+	unsigned int min_refresh_rate;
+	unsigned int max_refresh_rate;
 
 	struct analogix_dp_device *left;
 	struct analogix_dp_device *right;
