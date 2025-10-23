@@ -356,7 +356,8 @@ void dw_hdmi_set_output_type(struct dw_hdmi *hdmi, u64 val);
 bool dw_hdmi_get_output_whether_hdmi(struct dw_hdmi *hdmi);
 int dw_hdmi_get_output_type_cap(struct dw_hdmi *hdmi);
 void dw_hdmi_set_cec_adap(struct dw_hdmi *hdmi, struct cec_adapter *adap);
-void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
+void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi_qp, struct drm_connector *conn,
+				bool enable);
 void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable);
 void dw_hdmi_qp_set_gaming_vrr_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
 void dw_hdmi_qp_set_qms(struct dw_hdmi_qp *hdmi, u8 next_tfr, u8 m_const);
@@ -386,7 +387,7 @@ void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
 			      struct device *codec_dev);
-void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi);
+void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi, struct drm_connector *conn);
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val);
 bool dw_hdmi_qp_get_output_whether_hdmi(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_get_output_type_cap(struct dw_hdmi_qp *hdmi);

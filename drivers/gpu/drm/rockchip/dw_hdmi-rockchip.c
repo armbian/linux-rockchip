@@ -4251,7 +4251,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		hdmi->hdmi_quant_range = val;
 		if (quant_range != hdmi->hdmi_quant_range) {
 			if (hdmi->is_hdmi_qp)
-				dw_hdmi_qp_set_quant_range(hdmi->hdmi_qp);
+				dw_hdmi_qp_set_quant_range(hdmi->hdmi_qp, connector);
 			else
 				dw_hdmi_set_quant_range(hdmi->hdmi);
 		}
@@ -4282,7 +4282,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 
 		hdmi->enable_allm = val;
 		if (allm_enable != hdmi->enable_allm)
-			dw_hdmi_qp_set_allm_enable(hdmi->hdmi_qp, hdmi->enable_allm);
+			dw_hdmi_qp_set_allm_enable(hdmi->hdmi_qp, connector, hdmi->enable_allm);
 		return 0;
 	} else if (property == hdmi->hdcp_state_property) {
 		return 0;

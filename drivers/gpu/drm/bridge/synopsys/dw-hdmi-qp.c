@@ -318,7 +318,6 @@ struct dw_hdmi_qp {
 	int old_vp_id;
 
 	struct mutex mutex;		/* for state below and previous_mode */
-	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
 	enum drm_connector_force force;	/* mutex-protected force state */
 	bool disabled;			/* DRM has disabled our bridge */
 	bool bridge_is_on;		/* indicates the bridge is on */
@@ -387,6 +386,23 @@ static inline u32 hdmi_readl(struct dw_hdmi_qp *hdmi, int offset)
 	regmap_read(hdmi->regm, offset, &val);
 
 	return val;
+}
+
+static struct drm_connector *dw_hdmi_qp_get_connector_for_encoder(struct drm_encoder *encoder)
+{
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+
+	drm_connector_list_iter_begin(encoder->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->possible_encoders & drm_encoder_mask(encoder)) {
+			drm_connector_list_iter_end(&conn_iter);
+			return connector;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return NULL;
 }
 
 static void handle_plugged_change(struct dw_hdmi_qp *hdmi, bool plugged)
@@ -3026,12 +3042,12 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi, bool enable)
+void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi, struct drm_connector *conn, bool enable)
 {
 	struct dw_hdmi_link_config *link_cfg = NULL;
 	void *data;
 
-	if (!hdmi || !hdmi->curr_conn)
+	if (!hdmi || !conn)
 		return;
 
 	data = hdmi->plat_data->phy_data;
@@ -3053,7 +3069,7 @@ void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi, bool enable)
 		return;
 	}
 
-	hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn);
+	hdmi_config_vendor_specific_infoframe(hdmi, conn);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_allm_enable);
 
@@ -3406,7 +3422,7 @@ static void dw_hdmi_qp_hdcp_disable(struct dw_hdmi_qp *hdmi,
 	hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 
 	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
-		drm_hdcp_update_content_protection(hdmi->curr_conn,
+		drm_hdcp_update_content_protection(conn_state->connector,
 						   DRM_MODE_CONTENT_PROTECTION_DESIRED);
 
 	hdmi->hdcp_status = 0;
@@ -3553,9 +3569,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			secondary = hdmi->plat_data->left;
 		else if (hdmi->plat_data->right)
 			secondary = hdmi->plat_data->right;
-		hdmi->curr_conn = connector;
-		if (secondary)
-			secondary->curr_conn = connector;
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -3594,7 +3607,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 				hdmi->plat_data->dclk_set(data, true, hdmi->vp_id);
 			hdmi->dclk_en = true;
 			mutex_unlock(&hdmi->audio_mutex);
-			hdmi->curr_conn = connector;
 			extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
 		}
 
@@ -3664,11 +3676,11 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 	if (!hdmi->disabled) {
 		set_dw_hdmi_hdcp_enable(hdmi, connector, state);
 		if (hdmi->hdmi_changed_status & HDMI_VSIF_CHANGED)
-			hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn);
+			hdmi_config_vendor_specific_infoframe(hdmi, connector);
 	}
 }
 
-void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi)
+void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi, struct drm_connector *conn)
 {
 	void *data = hdmi->plat_data->phy_data;
 
@@ -3679,7 +3691,7 @@ void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi)
 		hdmi->hdmi_data.quant_range =
 			hdmi->plat_data->get_quant_range(data);
 
-	hdmi_config_AVI(hdmi, hdmi->curr_conn);
+	hdmi_config_AVI(hdmi, conn);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_quant_range);
 
@@ -3857,7 +3869,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 	void *data = hdmi->plat_data->phy_data;
-	const struct drm_connector_state *conn_state = hdmi->curr_conn->state;
+	struct drm_connector *conn;
 	struct dw_hdmi_link_config *link_cfg = NULL;
 
 	if (hdmi->panel)
@@ -3875,7 +3887,9 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	hdmi_writel(hdmi, 1, PKTSCHED_PKT_CONTROL0);
 	mdelay(50);
 
-	dw_hdmi_qp_hdcp_disable(hdmi, conn_state);
+	conn = dw_hdmi_qp_get_connector_for_encoder(bridge->encoder);
+	if (conn && conn->state)
+		dw_hdmi_qp_hdcp_disable(hdmi, conn->state);
 	dw_hdmi_qp_set_qms(hdmi, 0, 0);
 
 	if (hdmi->plat_data->crtc_pre_disable)
@@ -3903,7 +3917,6 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 			hdmi->plat_data->link_clk_set(data, false);
 	}
 
-	hdmi->curr_conn = NULL;
 	hdmi->update = false;
 	mutex_unlock(&hdmi->mutex);
 
@@ -3934,9 +3947,8 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 							     bridge->encoder);
 
 	mutex_lock(&hdmi->mutex);
-	hdmi->curr_conn = connector;
 
-	dw_hdmi_qp_setup(hdmi, hdmi->curr_conn, state);
+	dw_hdmi_qp_setup(hdmi, connector, state);
 
 	if (link_cfg && !link_cfg->frl_mode) {
 		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);
@@ -3964,7 +3976,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (hdmi->panel)
 		drm_panel_enable(hdmi->panel);
 
-	dw_hdmi_qp_hdcp_enable(hdmi, hdmi->curr_conn->state);
+	dw_hdmi_qp_hdcp_enable(hdmi, connector->state);
 }
 
 static bool dw_hdmi_qp_bridge_mode_fixup(struct drm_bridge *bridge,
@@ -4091,6 +4103,7 @@ static irqreturn_t dw_hdmi_qp_avp_hardirq(int irq, void *dev_id)
 static irqreturn_t dw_hdmi_qp_avp_irq(int irq, void *dev_id)
 {
 	struct dw_hdmi_qp *hdmi = dev_id;
+	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	void *data = hdmi->plat_data->phy_data;
 	u32 stat1, stat3, val;
@@ -4101,10 +4114,12 @@ static irqreturn_t dw_hdmi_qp_avp_irq(int irq, void *dev_id)
 	hdmi_writel(hdmi, stat1, AVP_1_INT_CLEAR);
 	hdmi_writel(hdmi, stat3, AVP_3_INT_CLEAR);
 
-	if (!hdmi->curr_conn || !hdmi->curr_conn->state)
+
+	conn = dw_hdmi_qp_get_connector_for_encoder(hdmi->bridge.encoder);
+	if (!conn || !conn->state)
 		return IRQ_HANDLED;
 
-	conn_state = hdmi->curr_conn->state;
+	conn_state = conn->state;
 	val = conn_state->content_protection;
 
 	dev_dbg(hdmi->dev, "AVP_1_INT_STATUS:%x AVP_3_INT_STATUS:%x\n", stat1, stat3);
