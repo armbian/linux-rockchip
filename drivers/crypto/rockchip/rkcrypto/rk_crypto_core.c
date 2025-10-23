@@ -356,7 +356,7 @@ static void rk_complete_op(struct rk_crypto_dev *rk_dev, int err)
 {
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
-	disable_irq(rk_dev->irq);
+	disable_irq_nosync(rk_dev->irq);
 	del_timer(&rk_dev->timer);
 
 	rk_dev->stat.complete_cnt++;
