@@ -262,6 +262,9 @@
 #define RKMODULE_GET_MATCH_ID	\
 	_IOR('x', 2, __u32)
 
+#define RKMODULE_GET_IRFPA_INFO	\
+	_IOR('x', 3, struct rkmodule_irfpa_info)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1106,6 +1109,19 @@ struct rkmodule_channel_power {
 struct rkmodule_channel_stream {
 	__u32 channel;
 	__u32 enable;
+};
+
+enum rkmodule_irfpa_raw_mode {
+	IRFPA_RAW_14BITS_IO,
+	IRFPA_RAW_8BITS_IO,
+	IRFPA_RAW_7BITS_IO,
+};
+
+struct rkmodule_irfpa_info {
+	__u32 irfpa_en;
+	__u32 gray_dec_en;
+	__u32 raw14_mode;
+	__u32 reserved[8];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
