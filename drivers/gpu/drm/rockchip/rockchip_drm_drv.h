@@ -427,6 +427,7 @@ struct rockchip_crtc_state {
 	struct drm_property_blob *acm_lut_data;
 	struct drm_property_blob *post_csc_data;
 	struct drm_property_blob *post_sharp_data;
+	struct drm_property_blob *cgc_s2h_data;
 	struct drm_property_blob *cubic_lut_data;
 	struct drm_property_blob *dimming_data;
 

@@ -109,6 +109,7 @@
 #define WIN_FEATURE_DCI			BIT(9)
 #define WIN_FEATURE_HW_CURSOR		BIT(10)
 #define WIN_FEATURE_MSMART		BIT(11)
+#define WIN_FEATURE_CGC			BIT(12)
 
 #define VOP2_CSC_COE_NUM		8
 #define VOP2_SOC_VARIANT		4
@@ -600,6 +601,7 @@ struct vop_hdr_table {
 #define RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH	6
 #define RK_SDR2HDR_SMGAIN_LENGTH		64
 #define RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH	264
+#define RK_VIVID_DYNAMIC_METADATA_LENGTH	24
 
 struct hdrvivid_regs {
 	uint32_t sdr2hdr_ctrl;
@@ -632,7 +634,7 @@ struct hdrvivid_regs {
 };
 
 #define RK_HDR_TYPE_MASK 0xff
-#define RK_HDR_PLAT_MASK (0xff << 8)
+#define RK_HDR_CGC_S2H_MASK BIT(8)
 
 /* byte unit */
 #define VOP2_DOVI_CORE1_LUT_SIZE		5120
@@ -662,12 +664,39 @@ struct dovi_regs {
 	uint32_t core3[DOVI_CORE3_SIZE];
 };
 
+#define INV_GAMMA_START_IDX_LENGTH	6
+#define INV_GAMMA_CHANGE_IDX_LENGTH	6
+#define INV_GAMMA_DIFF_SHIFT_LENGTH	69
+#define CGC_S2H_OETF_LENGTH		117
+#define RK_HDR_CGC_AXI_TAB_LENGTH	(RK_HDRVIVID_TONE_SCA_TAB_LENGTH + CGC_S2H_OETF_LENGTH * 2)
+
+struct cgc_s2h_data {
+	uint32_t cgc_mode;			/* cgc or hdr type */
+	uint32_t cgc_s2h_ctrl;			/* en, gating_en, bypass_en */
+	uint32_t cgc_s2h_coe0;			/* s_fix, r_fix */
+	uint32_t cgc_s2h_coe1;			/* t_fix */
+	uint32_t cgc_s2h_csc_coe00_01;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe02_10;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe11_12;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe20_21;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe22;		/* r2r mat */
+
+	/* eotf */
+	uint32_t cgc_s2h_inv_gamma_start_idx[INV_GAMMA_START_IDX_LENGTH];
+	uint32_t cgc_s2h_inv_gamma_change_idx[INV_GAMMA_CHANGE_IDX_LENGTH];
+	uint32_t cgc_s2h_inv_gamma_diff_shift[INV_GAMMA_DIFF_SHIFT_LENGTH];
+
+	/* oetf by axi */
+	uint32_t cgc_s2h_oetf[CGC_S2H_OETF_LENGTH];
+};
+
 struct hdr_extend {
 	uint32_t hdr_type;
 	uint32_t length;
 	union {
 		struct hdrvivid_regs hdrvivid_data;
 		struct dovi_regs dovi_data;
+		struct cgc_s2h_data cgc_s2h_data;
 	};
 };
 
@@ -682,6 +711,7 @@ enum _vop_hdrvivid_mode {
 	HDR102SDR,
 	SDR2HDR10,
 	SDR2HLG,
+	CGC,
 	SDR2HDR10_USERSPACE = 100,
 	SDR2HLG_USERSPACE = 101,
 };
@@ -702,6 +732,42 @@ enum vop_hdr_format {
 	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
 	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
 	HDR_FORMAT_MAX,
+};
+
+struct hdr_data {
+	uint32_t hdr_input_type;
+	uint32_t hdrvivid_ctrl;
+	uint32_t hdr_pq_gamma;
+	uint32_t hlg_rfix_scalefac;
+	uint32_t hlg_maxluma;
+	uint32_t hlg_r_tm_lin2non;
+	uint32_t hdr_csc_coe00_01;
+	uint32_t hdr_csc_coe02_10;
+	uint32_t hdr_csc_coe11_12;
+	uint32_t hdr_csc_coe20_21;
+	uint32_t hdr_csc_coe22;
+	uint32_t hdr_tone_sca[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
+	uint32_t hdrgamma_curve[RK_HDRVIVID_GAMMA_CURVE_LENGTH];
+	uint32_t hdrgamma_mdfvalue[RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH];
+	uint32_t hdr_mode;
+	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
+	uint32_t hdr_dynamic_metadata[RK_VIVID_DYNAMIC_METADATA_LENGTH];
+};
+
+enum rk_plane_extend_data_type {
+	RK_PLANE_EXTEND_DATA_NONE          = 0,
+	RK_PLANE_EXTEND_DATA_HDR           = 1,
+	RK_PLANE_EXTEND_DATA_CGC           = 2,
+	RK_PLANE_EXTEND_DATA_UNSPECIFIED
+};
+
+struct rk_plane_extend_data {
+	enum rk_plane_extend_data_type type;
+	uint32_t length;
+	union {
+		struct cgc_s2h_data cgc_s2h_data;
+		struct hdr_data hdr_data;
+	};
 };
 
 struct post_csc_convert_mode {
@@ -985,7 +1051,7 @@ struct vop2_video_port_regs {
 	struct vop_reg dclk_div2;		/* dclk out */
 
 	struct vop_reg dclk_div2_phase_lock;	/* used to adjust phase when yuv420 output */
-
+	struct vop_reg hdr10_layer_sel;
 	struct vop_reg hdr10_en;
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
@@ -1004,6 +1070,8 @@ struct vop2_video_port_regs {
 	struct vop_reg sdr2hdr_bypass_en;
 	struct vop_reg sdr2hdr_auto_gating_en;
 	struct vop_reg sdr2hdr_path_en;
+	struct vop_reg cgc_path_en;
+	struct vop_reg cgc_layer_sel;
 	struct vop_reg hdr2sdr_en;
 	struct vop_reg hdr2sdr_bypass_en;
 	struct vop_reg hdr2sdr_auto_gating_en;
@@ -1382,11 +1450,14 @@ struct vop2_video_port_data {
 	const u8 pre_scan_max_dly[4];
 	const u8 hdrvivid_dly[10];
 	const u8 sdr2hdr_dly;
+	const u8 cgc_dly;
+	const u8 cgc_mix_dly;
 	const u8 layer_mix_dly;
 	const u8 hdr_mix_dly;
 	const u8 win_dly;
 	const u8 pixel_rate;
 	const u8 cursor_dly;
+	const u8 hdr_cgc_layer_num;
 	const struct vop_intr *intr;
 	const struct vop_urgency *urgency;
 	const struct vop_hdr_table *hdr_table;

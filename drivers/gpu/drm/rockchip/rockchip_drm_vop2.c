@@ -362,6 +362,7 @@ struct vop2_plane_state {
 	bool hdr2sdr_en;
 	bool r2y_en;
 	bool y2r_en;
+	bool cgc_en;
 	uint32_t csc_mode;
 	struct post_csc_coef csc_coef;
 	uint8_t xmirror_en;
@@ -383,6 +384,7 @@ struct vop2_plane_state {
 
 	struct drm_property_blob *dci_data;
 	struct drm_property_blob *msmart_data;
+	struct drm_property_blob *ext_data;
 };
 
 struct vop2_win {
@@ -526,6 +528,10 @@ struct vop2_win {
 	 * @msmart_reg_gem_obj: gem obj to store msmart reg
 	 */
 	struct rockchip_gem_object *msmart_reg_gem_obj[2];
+	/**
+	 * @rk_plane_extend_data_prop: plane extend data interaction with userspace
+	 */
+	struct drm_property *rk_plane_extend_data_prop;
 };
 
 struct vop2_cluster {
@@ -8496,6 +8502,8 @@ static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plan
 		drm_property_blob_get(vpstate->dci_data);
 	if (vpstate->msmart_data)
 		drm_property_blob_get(vpstate->msmart_data);
+	if (vpstate->ext_data)
+		drm_property_blob_get(vpstate->ext_data);
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vpstate->base);
 
@@ -8509,6 +8517,7 @@ static void vop2_atomic_plane_destroy_state(struct drm_plane *plane,
 
 	drm_property_blob_put(vpstate->dci_data);
 	drm_property_blob_put(vpstate->msmart_data);
+	drm_property_blob_put(vpstate->ext_data);
 	__drm_atomic_helper_plane_destroy_state(state);
 
 	kfree(vpstate);
@@ -8602,6 +8611,16 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 		return ret;
 	}
 
+	if (property == win->rk_plane_extend_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vpstate->ext_data,
+								val,
+								sizeof(struct rk_plane_extend_data),
+								-1,
+								&replaced);
+		return ret;
+	}
+
 	if (property == private->dovi_input_type_prop) {
 		vpstate->dovi_input_type = val;
 		return 0;
@@ -8666,6 +8685,11 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->msmart_data_prop) {
 		*val = vpstate->msmart_data ? vpstate->msmart_data->base.id : 0;
+		return 0;
+	}
+
+	if (property == win->rk_plane_extend_data_prop) {
+		*val = vpstate->ext_data ? vpstate->ext_data->base.id : 0;
 		return 0;
 	}
 
@@ -11369,8 +11393,10 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	int dly = 0x0;
 	int hdr_win_dly;
 	int sdr_win_dly;
-	int sdr2hdr_dly;
+	int cgc_win_dly;
 	int pre_scan_dly;
+	int max_sdr_dly = 0, max_hdrvivid_dly = 0, max_cgc_dly = 0;
+	int sdr2hdr_dly = 0, hdrvivid_dly = 0, cgc_dly = 0;
 	int i;
 
 	/**
@@ -11378,29 +11404,45 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	 * as the increase value of bg delay num. If hdrvivid and sdr2hdr is not
 	 * work, the default bg_dly is 0x10. and the default win delay num is 0.
 	 */
-	if ((vp->hdr_en || vp->sdr2hdr_en) &&
-	    (vp->hdrvivid_mode >= 0 && vp->hdrvivid_mode <= SDR2HLG)) {
-		/* set sdr2hdr_dly to 0 if sdr2hdr is disable */
-		sdr2hdr_dly = vp->sdr2hdr_en ? vp_data->sdr2hdr_dly : 0;
+	hdrvivid_dly = vp->hdr_en ? vp_data->hdrvivid_dly[vp->hdrvivid_mode] : 0;
+	max_hdrvivid_dly =
+		vp_data->win_dly + hdrvivid_dly + vp_data->cgc_mix_dly + vp_data->hdr_mix_dly;
 
-		/* set the max delay pipe's config_win_dly as 0 */
-		if (vp_data->hdrvivid_dly[vp->hdrvivid_mode] >=
-		    sdr2hdr_dly + vp_data->layer_mix_dly) {
-			bg_dly = vp_data->win_dly + vp_data->hdrvivid_dly[vp->hdrvivid_mode] +
-				 vp_data->hdr_mix_dly;
-			hdr_win_dly = 0;
-			sdr_win_dly = vp_data->hdrvivid_dly[vp->hdrvivid_mode] -
-				      vp_data->layer_mix_dly - sdr2hdr_dly;
-		} else {
-			bg_dly = vp_data->win_dly + vp_data->layer_mix_dly + sdr2hdr_dly +
-				 vp_data->hdr_mix_dly;
-			hdr_win_dly = sdr2hdr_dly + vp_data->layer_mix_dly -
-				      vp_data->hdrvivid_dly[vp->hdrvivid_mode];
-			sdr_win_dly = 0;
+	if (vop2_zpos) {
+		for (i = 0; i < vp->nr_layers; i++) {
+			zpos = &vop2_zpos[i];
+			win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+			plane = &win->base;
+			vpstate = to_vop2_plane_state(plane->state);
+
+			if (vpstate->cgc_en) {
+				cgc_dly = vp_data->cgc_dly;
+				break;
+			}
 		}
+	}
+
+	max_cgc_dly = vp_data->win_dly + cgc_dly + vp_data->cgc_mix_dly + vp_data->hdr_mix_dly;
+
+	sdr2hdr_dly = vp->sdr2hdr_en ? vp_data->sdr2hdr_dly : 0;
+	max_sdr_dly = vp_data->win_dly + vp_data->layer_mix_dly + sdr2hdr_dly +
+		vp_data->hdr_mix_dly;
+
+	if (max_hdrvivid_dly >= max_cgc_dly && max_hdrvivid_dly >= max_sdr_dly) {
+		hdr_win_dly = 0;
+		cgc_win_dly = max_hdrvivid_dly - max_cgc_dly;
+		sdr_win_dly = max_hdrvivid_dly - max_sdr_dly;
+		bg_dly = max_hdrvivid_dly;
+	} else if (max_cgc_dly >= max_hdrvivid_dly && max_cgc_dly >= max_sdr_dly) {
+		hdr_win_dly = max_cgc_dly - max_hdrvivid_dly;
+		cgc_win_dly = 0;
+		sdr_win_dly = max_cgc_dly - max_sdr_dly;
+		bg_dly = max_cgc_dly;
 	} else {
-		bg_dly = vp_data->win_dly + vp_data->layer_mix_dly + vp_data->hdr_mix_dly;
+		hdr_win_dly = max_sdr_dly - max_hdrvivid_dly;
+		cgc_win_dly = max_sdr_dly - max_cgc_dly;
 		sdr_win_dly = 0;
+		bg_dly = max_sdr_dly;
 	}
 
 	/* hdisplay must roundup as 2 pixel */
@@ -11425,7 +11467,9 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 		plane = &win->base;
 		vpstate = to_vop2_plane_state(plane->state);
 
-		if ((vp->hdr_en || vp->sdr2hdr_en) &&
+		if (vpstate->cgc_en) {
+			dly = cgc_win_dly;
+		} else if ((vp->hdr_en || vp->sdr2hdr_en) &&
 		    (vp->hdrvivid_mode >= 0 && vp->hdrvivid_mode <= SDR2HLG)) {
 			dly = vpstate->hdr_in ? hdr_win_dly : sdr_win_dly;
 		}
@@ -14200,6 +14244,330 @@ static void vop2_crtc_update_zpos_for_dovi(struct drm_crtc *crtc, struct vop2_zp
 	}
 }
 
+static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
+	struct hdr_extend *hdr_extend = NULL;
+	struct cgc_s2h_data *s2h_data = NULL;
+	struct rockchip_gem_object *lut_gem_obj;
+	uint32_t sdr2hdr_coe0, sdr2hdr_coe1;
+	uint32_t sdr2hdr_csc_coe00_01, sdr2hdr_csc_coe02_10;
+	uint32_t sdr2hdr_csc_coe11_12, sdr2hdr_csc_coe20_21;
+	uint32_t sdr2hdr_csc_coe22;
+	int i;
+	uint32_t *tone_lut_kvaddr;
+	dma_addr_t tone_lut_mst;
+
+	vp->sdr2hdr_en = false;
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, 0);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, 0);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, 1);
+
+	if (vcstate && vcstate->hdr_ext_data)
+		hdr_extend = (struct hdr_extend *)vcstate->hdr_ext_data->data;
+
+	if (!hdr_extend)
+		return;
+
+	if (!(hdr_extend->hdr_type & RK_HDR_CGC_S2H_MASK)) {
+		DRM_ERROR("invalid cgc s2h type\n");
+		return;
+	}
+
+	s2h_data = &hdr_extend->cgc_s2h_data;
+
+	if (s2h_data->cgc_mode < HDR102SDR || s2h_data->cgc_mode > CGC) {
+		DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", s2h_data->cgc_mode);
+		return;
+	}
+
+	sdr2hdr_coe0 = s2h_data->cgc_s2h_coe0;
+	sdr2hdr_coe1 = s2h_data->cgc_s2h_coe1;
+	sdr2hdr_csc_coe00_01 = s2h_data->cgc_s2h_csc_coe00_01;
+	sdr2hdr_csc_coe02_10 = s2h_data->cgc_s2h_csc_coe02_10;
+	sdr2hdr_csc_coe11_12 = s2h_data->cgc_s2h_csc_coe11_12;
+	sdr2hdr_csc_coe20_21 = s2h_data->cgc_s2h_csc_coe20_21;
+	sdr2hdr_csc_coe22 = s2h_data->cgc_s2h_csc_coe22;
+
+	vop2_writel(vop2, RK3528_SDR2HDR_CTRL, s2h_data->cgc_s2h_ctrl);
+	vop2_writel(vop2, RK3528_SDR_CFG_COE0, sdr2hdr_coe0);
+	vop2_writel(vop2, RK3528_SDR_CFG_COE1, sdr2hdr_coe1);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE00_01, sdr2hdr_csc_coe00_01);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE02_10, sdr2hdr_csc_coe02_10);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE11_12, sdr2hdr_csc_coe11_12);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE20_21, sdr2hdr_csc_coe20_21);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE22, sdr2hdr_csc_coe22);
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
+
+	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
+
+	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
+	/* cgc s2h axi offset is 0x408 */
+	tone_lut_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + 1);
+
+	for (i = 0; i < CGC_S2H_OETF_LENGTH; i++)
+		*tone_lut_kvaddr++ = s2h_data->cgc_s2h_oetf[i];
+
+	for (i = 0; i < INV_GAMMA_DIFF_SHIFT_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_CURVE + i * 4,
+			    s2h_data->cgc_s2h_inv_gamma_diff_shift[i]);
+
+	for (i = 0; i < INV_GAMMA_START_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_STARTIDX + i * 4,
+			    s2h_data->cgc_s2h_inv_gamma_start_idx[i]);
+
+	for (i = 0; i < INV_GAMMA_CHANGE_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_CHANGEIDX + i * 4,
+			    s2h_data->cgc_s2h_inv_gamma_change_idx[i]);
+
+	vp->sdr2hdr_en = true;
+
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, 1);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, 1);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, 0);
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+}
+
+static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
+			   struct cgc_s2h_data *cgc_data, u8 layer)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct rockchip_gem_object *lut_gem_obj;
+	struct drm_plane *plane = &win->base;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(plane->state);
+	u32 *cgc_oetf_kvaddr;
+	dma_addr_t lut_mst;
+	u32 i;
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
+
+	lut_mst = vp->hdr_lut_gem_obj->dma_addr;
+	cgc_oetf_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
+	/* cgc axi offset is 0x5e0 */
+	cgc_oetf_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + CGC_S2H_OETF_LENGTH + 2);
+
+	for (i = 0; i < CGC_S2H_OETF_LENGTH; i++)
+		*cgc_oetf_kvaddr++ = cgc_data->cgc_s2h_oetf[i];
+
+	for (i = 0; i < INV_GAMMA_DIFF_SHIFT_LENGTH; i++)
+		vop2_writel(vop2, RK3572_CGCINVGAMMA_CURVE + i * 4,
+			    cgc_data->cgc_s2h_inv_gamma_diff_shift[i]);
+	for (i = 0; i < INV_GAMMA_START_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3572_CGCINVGAMMA_STARTIDX + i * 4,
+			    cgc_data->cgc_s2h_inv_gamma_start_idx[i]);
+	for (i = 0; i < INV_GAMMA_CHANGE_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3572_CGCINVGAMMA_CHANGEIDX + i * 4,
+			    cgc_data->cgc_s2h_inv_gamma_change_idx[i]);
+
+	vop2_writel(vop2, RK3572_CGC_CTRL, cgc_data->cgc_s2h_ctrl);
+	vop2_writel(vop2, RK3572_CGC_CFG_COE0, cgc_data->cgc_s2h_coe0);
+	vop2_writel(vop2, RK3572_CGC_CFG_COE1, cgc_data->cgc_s2h_coe1);
+	vop2_writel(vop2, RK3572_CGC_CSC_COE00_01, cgc_data->cgc_s2h_csc_coe00_01);
+	vop2_writel(vop2, RK3572_CGC_CSC_COE02_10, cgc_data->cgc_s2h_csc_coe02_10);
+	vop2_writel(vop2, RK3572_CGC_CSC_COE11_12, cgc_data->cgc_s2h_csc_coe11_12);
+	vop2_writel(vop2, RK3572_CGC_CSC_COE20_21, cgc_data->cgc_s2h_csc_coe20_21);
+	vop2_writel(vop2, RK3572_CGC_CSC_COE22, cgc_data->cgc_s2h_csc_coe22);
+
+	VOP_MODULE_SET(vop2, vp, cgc_path_en, 1);
+	VOP_MODULE_SET(vop2, vp, cgc_layer_sel, layer);
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, lut_mst);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+
+	vpstate->cgc_en = true;
+}
+
+static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win,
+				struct hdr_data *hdr_data, u8 layer)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_plane *plane = &win->base;
+	struct drm_plane_state *pstate = plane->state;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
+	struct rockchip_gem_object *lut_gem_obj;
+	uint32_t hdr_mode;
+	int i;
+	u32 *tone_lut_kvaddr;
+	dma_addr_t tone_lut_mst;
+
+	hdr_mode = hdr_data->hdr_mode;
+
+	if (hdr_mode > HDR102SDR) {
+		DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", hdr_mode);
+		return;
+	}
+
+	if (hdr_mode <= HDR102SDR && vpstate->eotf != HDMI_EOTF_SMPTE_ST2084 &&
+	    vpstate->eotf != HDMI_EOTF_BT_2100_HLG) {
+		DRM_ERROR("Invalid HDR mode:%d, mismatch plane eotf:%d\n", hdr_mode,
+			  vpstate->eotf);
+		return;
+	}
+
+	vp->hdrvivid_mode = hdr_mode;
+	vcstate->yuv_overlay = false;
+
+	if (hdr_mode <= HDR102SDR) {
+		vp->hdr_en = true;
+		vp->hdr_in = true;
+		vpstate->hdr_in = true;
+	}
+
+	if (hdr_mode == PQHDR2SDR_WITH_DYNAMIC || hdr_mode == HLG2SDR_WITH_DYNAMIC ||
+	    hdr_mode == HLG2SDR_WITHOUT_DYNAMIC || hdr_mode == HDR102SDR)
+		vpstate->hdr2sdr_en = true;
+	else
+		vp->hdr_out = true;
+
+	/**
+	 * Config hdr ctrl registers
+	 */
+	vop2_writel(vop2, RK3528_HDRVIVID_CTRL, hdr_data->hdrvivid_ctrl);
+
+	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
+	if (vp->hdr_en) {
+		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
+		VOP_MODULE_SET(vop2, vp, hdr_vivid_path_mode,
+			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
+		VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
+	} else {
+		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
+	}
+
+	vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdr_data->hdr_pq_gamma);
+	vop2_writel(vop2, RK3528_HLG_RFIX_SCALEFAC, hdr_data->hlg_rfix_scalefac);
+	vop2_writel(vop2, RK3528_HLG_MAXLUMA, hdr_data->hlg_maxluma);
+	vop2_writel(vop2, RK3528_HLG_R_TM_LIN2NON, hdr_data->hlg_r_tm_lin2non);
+
+	vop2_writel(vop2, RK3528_HDR_CSC_COE00_01, hdr_data->hdr_csc_coe00_01);
+	vop2_writel(vop2, RK3528_HDR_CSC_COE02_10, hdr_data->hdr_csc_coe02_10);
+	vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdr_data->hdr_csc_coe11_12);
+	vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdr_data->hdr_csc_coe20_21);
+	vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdr_data->hdr_csc_coe22);
+
+	for (i = 0; i < RK_HDRVIVID_GAMMA_CURVE_LENGTH; i++)
+		vop2_writel(vop2, RK3528_HDRGAMMA_CURVE + i * 4, hdr_data->hdrgamma_curve[i]);
+
+	for (i = 0; i < RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH; i++)
+		vop2_writel(vop2, RK3528_HDRGAMMA_MDFVALUE + i * 4,
+			    hdr_data->hdrgamma_mdfvalue[i]);
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
+
+	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
+	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
+
+	for (i = 0; i < RK_HDRVIVID_TONE_SCA_TAB_LENGTH; i++)
+		*tone_lut_kvaddr++ = hdr_data->tone_sca_axi_tab[i];
+
+	VOP_MODULE_SET(vop2, vp, hdr10_layer_sel, layer);
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
+	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+}
+
+static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
+				      const struct vop2_zpos *vop2_zpos)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+	const struct vop2_zpos *zpos;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct vop2_plane_state *vpstate;
+	struct vop2_win *win;
+	struct cgc_s2h_data *cgc_data = NULL;
+	struct hdr_data *hdr_data = NULL;
+	struct rk_plane_extend_data *extend_data = NULL;
+	u32 i;
+
+	VOP_MODULE_SET(vop2, vp, cgc_path_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdr10_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, 0);
+	if (!vp->sdr2hdr_en)
+		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
+
+	vp->hdr_en = false;
+	vp->hdr_in = false;
+
+	for (i = 0; i < vp->nr_layers; i++) {
+		zpos = &vop2_zpos[i];
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+
+		plane = &win->base;
+		pstate = plane->state;
+		vpstate = to_vop2_plane_state(plane->state);
+		vpstate->hdr_in = false;
+		vpstate->hdr2sdr_en = false;
+		vpstate->cgc_en = false;
+		extend_data = NULL;
+
+		/* skip inactive plane */
+		if (!vop2_plane_active(pstate))
+			continue;
+
+		if (vpstate->ext_data)
+			extend_data = (struct rk_plane_extend_data *)vpstate->ext_data->data;
+
+		if (!extend_data)
+			continue;
+
+		if (extend_data->type == RK_PLANE_EXTEND_DATA_CGC) {
+			if (i >= vp_data->hdr_cgc_layer_num) {
+				DRM_ERROR("plane cgc layer is %d, out of range\n", i);
+			} else {
+				cgc_data = &extend_data->cgc_s2h_data;
+				vop3_setup_cgc(vp, win, cgc_data, i);
+			}
+		} else if (extend_data->type == RK_PLANE_EXTEND_DATA_HDR) {
+			if (i >= vp_data->hdr_cgc_layer_num) {
+				DRM_ERROR("plane hdr layer is %d, out of range\n", i);
+			} else {
+				hdr_data = &extend_data->hdr_data;
+				vop3_setup_hdr_data(vp, win, hdr_data, i);
+			}
+		}
+	}
+}
+
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -14357,8 +14725,16 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		}
 
 		if (is_vop3(vop2)) {
-			if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
-				vop3_setup_dynamic_hdr(vp, vop2_zpos[0].win_phys_id);
+			if (vp_data->feature & VOP_FEATURE_VIVID_HDR) {
+				if (vp_data->feature & VOP_FEATURE_CGC)
+					vop3_setup_vp_cgc_s2h(vp);
+				else
+					vop3_setup_dynamic_hdr(vp, vop2_zpos[0].win_phys_id);
+			}
+
+			if (vp_data->feature & VOP_FEATURE_CGC)
+				vop3_setup_plane_ext_data(vp, vop2_zpos);
+
 			vop3_setup_alpha(vp, vop2_zpos);
 			vop3_setup_pipe_dly(vp, vop2_zpos);
 		} else {
@@ -16252,6 +16628,22 @@ static int vop2_plane_create_msmart_property(struct vop2 *vop2, struct vop2_win 
 	return 0;
 }
 
+static int vop2_plane_create_cgc_property(struct vop2 *vop2, struct vop2_win *win)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "EXT_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create cgc data prop for win%d failed\n",
+			      win->win_id);
+		return -ENOMEM;
+	}
+	win->rk_plane_extend_data_prop = prop;
+	drm_object_attach_property(&win->base.base, win->rk_plane_extend_data_prop, 0);
+
+	return 0;
+}
+
 static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 {
 	switch (vop2->version) {
@@ -16422,6 +16814,8 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 		vop2_plane_create_dci_property(vop2, win);
 	if (win->feature & WIN_FEATURE_MSMART)
 		vop2_plane_create_msmart_property(vop2, win);
+	if (win->feature & WIN_FEATURE_CGC)
+		vop2_plane_create_cgc_property(vop2, win);
 
 	max_width = vop2->data->win[win->win_id].max_input.width;
 	max_height = vop2->data->win[win->win_id].max_input.height;

@@ -1898,11 +1898,14 @@ static const struct vop2_video_port_regs rk3572_vop_vp0_regs = {
 	.hdr_lut_mst = VOP_REG(RK3568_HDR_LUT_MST, 0xffffffff, 0),
 	.hdr_lut_fetch_done = VOP_REG(RK3528_HDR_LUT_STATUS, 0x1, 0),
 	.hdr10_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 4),
+	.hdr10_layer_sel = VOP_REG(RK3568_OVL_CTRL, 0x1, 19),
 	.sdr2hdr_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 5),
 	.sdr2hdr_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 0),
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 1),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
+	.cgc_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 17),
+	.cgc_layer_sel = VOP_REG(RK3568_OVL_CTRL, 0x1, 18),
 	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
 	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
 	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
@@ -2080,7 +2083,9 @@ static const struct vop2_video_port_data rk3572_vop_video_ports[] = {
 	 .max_output = { 4096, 4096 },
 	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},
 	 .sdr2hdr_dly = 18,
-	 .layer_mix_dly = 10,
+	 .cgc_dly = 18,
+	 .cgc_mix_dly = 2,
+	 .layer_mix_dly = 8,
 	 .hdr_mix_dly = 2,
 	 .win_dly = 10,
 	 .cursor_dly = 13, /* win_dly[10] - cursor_win_dly[5] + 4 * mix_dly[2] */
@@ -2089,6 +2094,7 @@ static const struct vop2_video_port_data rk3572_vop_video_ports[] = {
 	 .urgency = &rk3572_vp0_urgency,
 	 .regs = &rk3572_vop_vp0_regs,
 	 .ovl_regs = &rk3572_vop_vp0_ovl_regs,
+	 .hdr_cgc_layer_num = 2,
 	},
 	{
 	 .id = 1,
@@ -4751,7 +4757,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
-	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_Y2R_13BIT_DEPTH,
+	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4785,7 +4791,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
-	  .feature = WIN_FEATURE_MULTI_AREA,
+	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4818,7 +4824,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN |
-			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI,
+			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4880,7 +4886,8 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
-	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_Y2R_13BIT_DEPTH,
+	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_Y2R_13BIT_DEPTH |
+		WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4991,7 +4998,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .max_grids = 64,
 	  .max_grids_per_row = 8,
-	  .feature = WIN_FEATURE_MSMART,
+	  .feature = WIN_FEATURE_MSMART | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -5025,7 +5032,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .max_grids = 36,
 	  .max_grids_per_row = 6,
-	  .feature = WIN_FEATURE_MSMART,
+	  .feature = WIN_FEATURE_MSMART | WIN_FEATURE_CGC,
 	},
 };
 
@@ -6479,7 +6486,7 @@ static const struct vop_dump_regs rk3572_dump_regs[] = {
 	{ RK3568_ESMART1_CTRL0, "Esmart1", VOP_REG(RK3568_ESMART1_REGION0_CTRL, 0x1, 0), 1, 0x200 },
 	{ RK3572_MSMART0_CTRL0, "MSMART0", VOP_REG(RK3572_MSMART0_CTRL0, 0x1, 0), 1, 0x200 },
 	{ RK3572_MSMART1_CTRL0, "MSMART1", VOP_REG(RK3572_MSMART1_CTRL0, 0x1, 0), 1, 0x200 },
-	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0x240 },
+	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0xf00 },
 	{ RK3572_CURSOR0_CTRL0, "CURSOR0", VOP_REG(RK3572_CURSOR0_MST_CTL, 0x1, 0), 1, 0x100 },
 	{ RK3572_CURSOR1_CTRL0, "CURSOR1", VOP_REG(RK3572_CURSOR1_MST_CTL, 0x1, 0), 1, 0x100 },
 	{ RK3528_ACM_CTRL, "ACM", VOP_REG(RK3528_ACM_CTRL, 0x1, 0), 1, 0x7d8 },
