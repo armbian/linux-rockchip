@@ -1670,15 +1670,15 @@ static int rk_pcie_really_probe(void *p)
 		goto release_driver;
 	}
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(pci->dev);
+
 	/* 4. hardware io settings */
 	ret = rk_pcie_hardware_io_config(rk_pcie);
 	if (ret) {
 		dev_err_probe(dev, ret, "setting hardware io failed\n");
 		goto release_driver;
 	}
-
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(pci->dev);
 
 	/* 5. host registers manipulation */
 	ret = rk_pcie_host_config(rk_pcie);
@@ -1740,9 +1740,13 @@ deinit_irq_and_wq:
 unconfig_host:
 	rk_pcie_host_unconfig(rk_pcie);
 unconfig_hardware_io:
+	/*
+	 * Put the IP into reset state to avoid potentional memory access on background
+	 * which may hung the system because of unable to disable its genpd attached.
+	 */
+	rk_pcie_hardware_io_unconfig(rk_pcie);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-	rk_pcie_hardware_io_unconfig(rk_pcie);
 release_driver:
 	if (rk_pcie)
 		rk_pcie->finish_probe = true;
@@ -1823,10 +1827,13 @@ static int rk_pcie_remove(struct platform_device *pdev)
 	device_init_wakeup(dev, false);
 
 	rk_pcie_host_unconfig(rk_pcie);
-
+	/*
+	 * Put the IP into reset state to avoid potentional memory access on background
+	 * which may hung the system because of unable to disable its genpd attached.
+	 */
+	rk_pcie_hardware_io_unconfig(rk_pcie);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-	rk_pcie_hardware_io_unconfig(rk_pcie);
 
 	return 0;
 }
