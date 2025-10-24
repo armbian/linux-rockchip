@@ -278,6 +278,9 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 			&base, &alignment);
 		goto err;
 	}
+#else
+	if (alignment == 0x0)
+		alignment = PAGE_SIZE;
 #endif
 	base = ALIGN(base, alignment);
 	size = ALIGN(size, alignment);
