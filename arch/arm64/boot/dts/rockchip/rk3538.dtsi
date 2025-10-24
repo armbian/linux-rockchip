@@ -24,6 +24,11 @@
 		gpio5 = &gpio5;
 		gpio6 = &gpio6;
 		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
 	};
 
 	clocks {
@@ -505,6 +510,9 @@
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 1>, <&dmac 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0m0_xfer_pins>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
@@ -559,6 +567,76 @@
 			clocks = <&cru ACLK_RKDMA>, <&cru PCLK_RKDMA>;
 			clock-names = "aclk", "pclk";
 			#dma-cells = <1>;
+		};
+
+		uart1: serial@fe050000 {
+			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
+			reg = <0xfe050000 0x100>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
+			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 3>, <&dmac 2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1m0_xfer_pins>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart2: serial@fe060000 {
+			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
+			reg = <0xfe060000 0x100>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
+			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 5>, <&dmac 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2m0_xfer_pins>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart3: serial@fe070000 {
+			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
+			reg = <0xfe070000 0x100>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
+			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 7>, <&dmac 6>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart3m0_xfer_pins>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart4: serial@fe080000 {
+			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
+			reg = <0xfe080000 0x100>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
+			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 9>, <&dmac 8>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart4m0_xfer_pins>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart5: serial@fe090000 {
+			compatible = "rockchip,rk3538-uart", "snps,dw-apb-uart";
+			reg = <0xfe090000 0x100>;
+			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
+			clock-names = "baudclk", "apb_pclk";
+			dmas = <&dmac 11>, <&dmac 10>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart5m0_xfer_pins>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
 		};
 	};
 };
