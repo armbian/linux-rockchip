@@ -518,6 +518,62 @@
 			status = "disabled";
 		};
 
+		sdio: mmc@fdd00000 {
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			reg = <0xfdd00000 0x10000>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_SDIO>, <&cru CCLK_SDIO>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x100>;
+			max-frequency = <200000000>;
+			resets = <&cru SRST_HRESETN_SDIO>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
+		sdmmc1: mmc@fdd10000 {
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			reg = <0xfdd10000 0x10000>;
+			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_SDMMC1>, <&cru CCLK_SDMMC1>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x100>;
+			max-frequency = <200000000>;
+			resets = <&cru SRST_HRESETN_SDMMC1>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
+		sdmmc0: mmc@fde00000 {
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			reg = <0xfde00000 0x10000>;
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_SDMMC0>, <&cru CCLK_SDMMC0>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x100>;
+			max-frequency = <200000000>;
+			resets = <&cru SRST_HRESETN_SDMMC0>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
+		sdhci: mmc@fde10000 {
+			compatible = "rockchip,rk3538-dwcmshc", "rockchip,rk3528-dwcmshc";
+			reg = <0xfde10000 0x10000>;
+			interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
+			assigned-clocks = <&cru BCLK_EMMC>, <&cru CCLK_EMMC>;
+			assigned-clock-rates = <200000000>, <200000000>;
+			clocks = <&cru CCLK_EMMC>, <&cru HCLK_EMMC>,
+				 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>;
+			clock-names = "core", "bus", "axi", "block";
+			max-frequency = <200000000>;
+			resets = <&cru SRST_CRESETN_EMMC>, <&cru SRST_HRESETN_EMMC>,
+				 <&cru SRST_ARESETN_EMMC>, <&cru SRST_BRESETN_EMMC>,
+				 <&cru SRST_TRESETN_EMMC>;
+			reset-names = "core", "bus", "axi", "block", "timer";
+			status = "disabled";
+		};
+
 		hwlock: hwspinlock@fdf00000 {
 			compatible = "rockchip,hwspinlock";
 			reg = <0xfdf00000 0x100>;
