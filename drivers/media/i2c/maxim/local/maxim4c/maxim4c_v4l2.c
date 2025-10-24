@@ -243,8 +243,8 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 	/* vc info */
 	array_size = of_property_count_u32_elems(node, "vc-info");
 	if ((array_size > 0) &&
-			(array_size % sizeof(struct maxim4c_vc_info) == 0) &&
-			(array_size <= sizeof(struct maxim4c_vc_info) * PAD_MAX)) {
+			((array_size * sizeof(u32)) % sizeof(struct maxim4c_vc_info) == 0) &&
+			((array_size * sizeof(u32)) <= sizeof(struct maxim4c_vc_info) * PAD_MAX)) {
 
 		memset((char *)vc_info, 0, sizeof(vc_info));
 
@@ -270,7 +270,6 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 
 				mode->vc_info[i].data_type = vc_info[i].data_type;
 				mode->vc_info[i].data_bit = vc_info[i].data_bit;
-
 			}
 		}
 	}
