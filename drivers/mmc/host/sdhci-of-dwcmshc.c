@@ -809,6 +809,10 @@ static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 		.data = &rk3528_drvdata,
 	},
 	{
+		.compatible = "rockchip,rk3538-dwcmshc",
+		.data = &rk3528_drvdata,
+	},
+	{
 		.compatible = "rockchip,rk3562-dwcmshc",
 		.data = &rk3562_drvdata,
 	},
