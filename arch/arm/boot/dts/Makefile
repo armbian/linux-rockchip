@@ -1238,6 +1238,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
 	rk3506g-evb1-v10-sii9022-rgb2hdmi.dtb \
 	rk3506g-evb2-v10.dtb \
+	rk3506g-luckfox-lyra-plus-sd.dtb \
 	rk3506g-iotest-v10.dtb \
 	rk3506g-iotest-v10-pdm.dtb \
 	rk3506g-test1-v10-audio.dtb \
