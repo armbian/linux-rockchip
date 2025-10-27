@@ -100,6 +100,9 @@
 #define RKISP_CMD_AIAWB_BUF \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 29, struct rkisp_aiawb_buffd)
 
+#define RKISP_CMD_BTNR_WGT_READY \
+	_IO('V', BASE_VIDIOC_PRIVATE + 30)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -459,7 +462,9 @@ struct rkisp_aiisp_st {
 } __attribute__ ((packed));
 
 /* struct rkisp_aiisp_cfg
- * mode: 0:isp whole  1:isp divided into isp_fe and isp_be 2:isp divided into isp_fe and (isp_fe isp_be)
+ * mode: 0:isp whole
+ *       1:isp divided into isp_fe and isp_be
+ *       2:isp divided into isp_fe isp_fe and isp_be
  * wr_linecnt: btnr iir write irq line
  * rd_linecnt: isp_be read irq line
  * wr_mode: 0:frame with only one RKISP_AIISP_WR_LINECNT_ID event, else event per wr_linecnt

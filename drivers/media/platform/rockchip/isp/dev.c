@@ -304,6 +304,8 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 		dev->is_rdbk_auto = rkisp_rdbk_auto;
 		if (dev->is_aiisp_en && !hw->is_single)
 			dev->is_rdbk_auto = true;
+		if (hw->isp_ver == ISP_V35 && dev->is_aiisp_l2_buf)
+			dev->is_rdbk_auto = true;
 		if (rkisp_vicap_buf[dev->dev_id] > RKISP_VICAP_BUF_CNT_MAX)
 			rkisp_vicap_buf[dev->dev_id] = RKISP_VICAP_BUF_CNT_MAX;
 		dev->vicap_buf_cnt = rkisp_vicap_buf[dev->dev_id];

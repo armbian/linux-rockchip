@@ -1200,12 +1200,11 @@ static void isp35_show(struct rkisp_device *dev, struct seq_file *p)
 		   !(val & BIT(8)), !!(tmp & BIT(20)), !!(tmp & BIT(21)), !!(tmp & BIT(22)),
 		   priv->buf_bay3d_iir[0].size, priv->buf_bay3d_ds[0].size, priv->buf_bay3d_wgt[0].size);
 	val = rkisp_read(dev, ISP35_AI_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x) vpsl(ctrl:0x%x chn:0x%x), l2(%d cnt:%d)\n"
+	seq_printf(p, "%-10s %s(0x%x) l2:%d vpsl(ctrl:0x%x chn:0x%x)\n"
 		   "\t   aiisp_output(idx:%d cnt:%d size:%d) iir(idx:%d cnt:%d size:%d)\n"
 		   "\t   gain(idx:%d cnt:%d size:%d) aipre(idx:%d cnt:%d size:%d) vpsl(idx:%d cnt:%d size:%d)\n",
-		   "AINR", (val & 1) ? "ON" : "OFF", val,
+		   "AINR", (val & 1) ? "ON" : "OFF", val, dev->is_aiisp_l2,
 		   vpsl_read(dev, VPSL_PYR_CTRL, false), vpsl_read(dev, VPSL_PYR_CHN, false),
-		   dev->is_aiisp_l2, priv->is_aiisp_l2_buf,
 		   priv->aiisp_cur_idx, priv->aiisp_cnt, priv->buf_aiisp[0].size,
 		   priv->bay3d_iir_cur_idx, priv->bay3d_iir_cnt, priv->buf_bay3d_iir[0].size,
 		   priv->gain_cur_idx, priv->gain_cnt, priv->buf_gain[0].size,
@@ -1367,18 +1366,14 @@ static int isp_show(struct seq_file *p, void *v)
 
 	if (!dev->is_aiisp_en)
 		snprintf(info, sizeof(info), "time:%dms", sdev->dbg.interval / 1000 / 1000);
-	else if (!dev->is_aiisp_l2)
-		snprintf(info, sizeof(info), "time(fe:%dms be:%dms)",
-			 sdev->dbg.interval / 1000 / 1000, sdev->dbg_be.interval / 1000 / 1000);
 	else
-		snprintf(info, sizeof(info), "time(fe:%dms fe_l2:%dms be:%dms)",
+		snprintf(info, sizeof(info), "time(fe:%dms be:%dms) be_seq:%d",
 			 sdev->dbg.interval / 1000 / 1000,
-			 sdev->dbg_l2.interval / 1000 / 1000,
-			 sdev->dbg_be.interval / 1000 / 1000);
+			 sdev->dbg_be.interval / 1000 / 1000, dev->dmarx_dev.cur_be_frame.id);
 	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
-		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms state:%s %s frameloss:%d)"
-			   " cnt(total:%d X1:%d X2:%d X3:%d) rd_bufcnt:%d\n",
+		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms state:%s %s frameloss:%d)\n"
+			   "\t   cnt(total:%d X1:%d X2:%d X3:%d) rd_bufcnt:%d\n",
 			   "Isp offline",
 			   dev->rd_mode - 3,
 			   dev->dmarx_dev.cur_frame.id,
@@ -1393,7 +1388,7 @@ static int isp_show(struct seq_file *p, void *v)
 			   dev->hw_dev->unite_extend_pixel);
 	} else {
 		seq_printf(p, "%-10s frame:%d state:%s %s v-blank:%dus div:%d extend:%d\n",
-			   "Isp online", sdev->dbg.id,
+			   "Isp online", dev->dmarx_dev.cur_frame.id,
 			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
 			   info, sdev->dbg.delay / 1000,
 			   dev->unite_div, dev->hw_dev->unite_extend_pixel);

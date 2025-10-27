@@ -318,9 +318,7 @@ struct rkisp_device {
 	bool is_aiisp_first_frame;
 	bool is_aiisp_l2;
 	bool is_aiisp_l2_st;
-	bool is_aiisp_l2_first_cfg;
-	bool is_aiisp_l2_init;
-	bool is_aiisp_l2_waiting;
+	bool is_aiisp_l2_buf;
 	bool is_frm_rd;
 	bool is_multi_one_sync;
 	bool is_wait_aiq;
