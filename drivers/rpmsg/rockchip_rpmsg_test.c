@@ -14,8 +14,7 @@
 #include <linux/time.h>
 #include <linux/virtio.h>
 
-#define LINUX_TEST_MSG_1 "Announce master ept id!"
-#define LINUX_TEST_MSG_2 "Rockchip rpmsg linux test pingpong!"
+#define LINUX_TEST_MSG "Rockchip rpmsg linux test pingpong!"
 #define MSG_LIMIT       10000
 
 /* different processor cores may need to adjust the value of this definition */
@@ -23,6 +22,9 @@
 
 struct rpmsg_info_t {
 	int rx_count;
+	struct delayed_work send_work;
+	struct rpmsg_device *rp;
+	uint32_t remote_ept_id;
 };
 
 static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
@@ -44,22 +46,28 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
 
 	mdelay(LINUX_RPMSG_COMPENSATION);
 	/* send a new message now */
-	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG_2, strlen(LINUX_TEST_MSG_2), remote_ept_id);
+	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG, strlen(LINUX_TEST_MSG), remote_ept_id);
 	if (ret)
 		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
 
 	return ret;
 }
 
-static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
+static void rockchip_rpmsg_send_work_handler(struct work_struct *work)
 {
 	int ret;
-	uint32_t master_ept_id, remote_ept_id;
+	struct rpmsg_info_t *info = container_of(work, struct rpmsg_info_t, send_work.work);
+
+	ret = rpmsg_sendto(info->rp->ept, LINUX_TEST_MSG, strlen(LINUX_TEST_MSG), info->remote_ept_id);
+	if (ret)
+		dev_err(&info->rp->dev, "rpmsg_send failed: %d\n", ret);
+}
+
+static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
+{
 	struct rpmsg_info_t *info;
 
-	master_ept_id = rp->src;
-	remote_ept_id = rp->dst;
-	dev_info(&rp->dev, "new channel: 0x%x -> 0x%x!\n", master_ept_id, remote_ept_id);
+	dev_info(&rp->dev, "new channel: 0x%x -> 0x%x!\n", rp->src, rp->dst);
 
 	info = devm_kzalloc(&rp->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -67,21 +75,15 @@ static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
 
 	dev_set_drvdata(&rp->dev, info);
 
-	/*
-	 * send a message to our remote processor, and tell remote
-	 * processor about this channel
-	 */
-	ret = rpmsg_send(rp->ept, LINUX_TEST_MSG_1, strlen(LINUX_TEST_MSG_1));
-	if (ret) {
-		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
-		return ret;
-	}
-	mdelay(LINUX_RPMSG_COMPENSATION);
-	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG_2, strlen(LINUX_TEST_MSG_2), remote_ept_id);
-	if (ret) {
-		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
-		return ret;
-	}
+	/* wo need to announce the new ept to remote */
+	rp->announce = rp->src != RPMSG_ADDR_ANY;
+
+	/* Initialize delayed work */
+	info->rp = rp;
+	info->remote_ept_id = rp->dst;
+	INIT_DELAYED_WORK(&info->send_work, rockchip_rpmsg_send_work_handler);
+
+	schedule_delayed_work(&info->send_work, msecs_to_jiffies(10));
 
 	return 0;
 }
