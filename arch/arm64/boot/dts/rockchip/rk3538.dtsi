@@ -253,6 +253,23 @@
 		#size-cells = <1>;
 		ranges;
 
+		gpu: gpu@fb000000 {
+			compatible = "arm,mali-valhall";
+			reg = <0xfb000000 0x200000>;
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "GPU", "MMU", "JOB";
+
+			clocks = <&cru CLK_GPU_CORE>;
+			clock-names = "clk_gpu";
+
+			upthreshold = <30>;
+			downdifferential = <10>;
+
+			status = "disabled";
+		};
+
 		pwm0_4ch_0: pwm@fca00000 {
 			compatible = "rockchip,rk3538-pwm";
 			reg = <0xfca00000 0x1000>;
