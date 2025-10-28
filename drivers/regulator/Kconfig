@@ -884,6 +884,12 @@ config REGULATOR_MTK_DVFSRC
 	  of Mediatek. It allows for voting on regulator state
 	  between multiple users.
 
+config REGULATOR_ONXQ000
+	tristate "OMNIVISION ONXQ000 regulator support"
+	depends on I2C
+	help
+	  Support ONXQ000 power switch chip
+
 config REGULATOR_PALMAS
 	tristate "TI Palmas PMIC Regulators"
 	depends on MFD_PALMAS
