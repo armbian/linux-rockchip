@@ -9701,11 +9701,67 @@ static int vop2_pixel_shift_sysfs_fini(struct device *dev, struct drm_crtc *crtc
 	return 0;
 }
 
+static ssize_t luma_avg_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct drm_crtc *crtc = dev_get_drvdata(dev);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int enable;
+	int ret;
+
+	ret = kstrtoint(buf, 10, &enable);
+	if (ret) {
+		drm_err(vop2, "Invalid input");
+		return count;
+	}
+
+	if (!crtc->state->active) {
+		drm_info(vop2, "Video port%d disabled\n", vp->id);
+		return count;
+	}
+
+	if (enable) {
+		VOP_CTRL_SET(vop2, yavg_regdone_imd, 1);
+		VOP_CTRL_SET(vop2, yavg_port_sel, vp->id);
+		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, !vcstate->yuv_overlay);
+		VOP_CTRL_SET(vop2, yavg_div_width, 0x100000 / crtc->state->mode.hdisplay);
+		VOP_CTRL_SET(vop2, yavg_div_height, 0x100000 / crtc->state->mode.vdisplay);
+		VOP_CTRL_SET(vop2, yavg_en, 1);
+	} else {
+		VOP_CTRL_SET(vop2, yavg_en, 0);
+	}
+
+	return count;
+}
+
+static ssize_t luma_avg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_crtc *crtc = dev_get_drvdata(dev);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int val = -1;
+
+	if (crtc->state->active)
+		val = VOP_CTRL_GET(vop2, yavg_frame_out);
+
+	return sysfs_emit(buf, "%d\n", val);
+}
+
+static DEVICE_ATTR_RW(luma_avg);
+
 static int vop2_crtc_sysfs_init(struct device *dev, struct drm_crtc *crtc)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	int ret;
 
 	ret = vop2_pixel_shift_sysfs_init(dev, crtc);
+	if (ret)
+		drm_err(vp->vop2, "Failed to create pixle shift node\n");
+	ret = device_create_file(dev, &dev_attr_luma_avg);
+	if (ret)
+		drm_err(vp->vop2, "Failed to create luma avg node\n");
 
 	return ret;
 }
@@ -9714,6 +9770,7 @@ static int vop2_crtc_sysfs_fini(struct device *dev, struct drm_crtc *crtc)
 {
 	int ret;
 
+	device_remove_file(dev, &dev_attr_luma_avg);
 	ret = vop2_pixel_shift_sysfs_fini(dev, crtc);
 
 	return ret;

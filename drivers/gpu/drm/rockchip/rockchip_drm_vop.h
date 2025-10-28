@@ -1667,6 +1667,14 @@ struct vop2_ctrl {
 	struct vop_reg dovi_core1_en;
 	struct vop_reg dovi_core2_en;
 	struct vop_reg dovi_core3_en;
+
+	struct vop_reg yavg_en;
+	struct vop_reg yavg_yuv_mode_en;
+	struct vop_reg yavg_port_sel;
+	struct vop_reg yavg_regdone_imd;
+	struct vop_reg yavg_div_width;
+	struct vop_reg yavg_div_height;
+	struct vop_reg yavg_frame_out;
 };
 
 struct vop_dump_regs {
