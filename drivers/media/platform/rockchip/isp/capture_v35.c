@@ -994,7 +994,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 irq)
 
 	/* readback start to update stream buf if null */
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	if (stream->streaming) {
+	if (stream->streaming && !stream->stopping) {
 		/* only dynamic clipping and scaling at readback */
 		if (!irq && stream->is_crop_upd) {
 			rkisp_stream_config_dcrop(stream, false);
@@ -1526,11 +1526,7 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 	bool async = (dev->isp_state & ISP_STOP) ? false : true;
 	int ret;
 
-	/*
-	 * can't be async now, otherwise the latter started stream fails to
-	 * produce mi interrupt.
-	 */
-	ret = rkisp_stream_config_dcrop(stream, false);
+	ret = rkisp_stream_config_dcrop(stream, async);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "config dcrop failed with error %d\n", ret);
 		return ret;

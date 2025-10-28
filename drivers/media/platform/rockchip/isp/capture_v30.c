@@ -927,7 +927,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 		rkisp_stream_config_rsz(stream, false);
 		stream->is_crop_upd = false;
 	}
-	if (stream->streaming && !mis && !stream->curr_buf) {
+	if (stream->streaming && !mis && !stream->curr_buf && !stream->stopping) {
 		if (!stream->next_buf && !list_empty(&stream->buf_queue)) {
 			stream->next_buf = list_first_entry(&stream->buf_queue,
 							    struct rkisp_buffer, queue);
@@ -937,6 +937,10 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 		if (dev->hw_dev->is_single && stream->next_buf) {
 			stream->curr_buf = stream->next_buf;
 			stream->next_buf = NULL;
+			if (stream->is_en_latter) {
+				stream->is_en_latter = false;
+				stream->ops->enable_mi(stream);
+			}
 			stream_self_update(stream);
 		}
 	}
@@ -1114,9 +1118,11 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	stream->stopping = false;
 	stream->streaming = false;
 	stream->ops->disable_mi(stream);
-	rkisp_disable_dcrop(stream, true);
-	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
-		rkisp_disable_rsz(stream, true);
+	if (!dev->hw_dev->is_single || !IS_HDR_RDBK(dev->rd_mode)) {
+		rkisp_disable_dcrop(stream, true);
+		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
+			rkisp_disable_rsz(stream, true);
+	}
 	ret = get_stream_irq_mask(stream);
 	dev->irq_ends_mask &= ~ret;
 
@@ -1124,6 +1130,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		CIF_MI_CTRL_BURST_LEN_LUM_16 |
 		CIF_MI_CTRL_BURST_LEN_CHROM_16;
 	stream->interlaced = false;
+	stream->is_en_latter = false;
 }
 
 /*
@@ -1142,7 +1149,8 @@ static int rkisp_start(struct rkisp_stream *stream)
 	if (ret)
 		return ret;
 
-	stream->ops->enable_mi(stream);
+	if (!stream->is_en_latter)
+		stream->ops->enable_mi(stream);
 	stream->streaming = true;
 	stream->skip_frame = 0;
 	return 0;
@@ -1346,13 +1354,15 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 {
 	struct v4l2_device *v4l2_dev = &stream->ispdev->v4l2_dev;
 	struct rkisp_device *dev = stream->ispdev;
-	bool async = false;
+	bool async = (dev->isp_state & ISP_STOP) ? false : true;
 	int ret;
 
-	async = (stream->id == RKISP_STREAM_MP) ?
-		dev->cap_dev.stream[RKISP_STREAM_SP].streaming :
-		dev->cap_dev.stream[RKISP_STREAM_MP].streaming;
-
+	stream->is_en_latter = false;
+	if (dev->hw_dev->is_single &&
+	    IS_HDR_RDBK(dev->rd_mode) && async) {
+		stream->is_en_latter = true;
+		goto end;
+	}
 	/*
 	 * can't be async now, otherwise the latter started stream fails to
 	 * produce mi interrupt.
