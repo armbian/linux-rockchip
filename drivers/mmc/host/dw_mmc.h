@@ -247,6 +247,8 @@ struct dw_mci {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*normal_state;
 	struct pinctrl_state	*idle_state;
+
+	bool			no_low_pwr;
 };
 
 /* DMA ops for Internal/External DMAC interface */

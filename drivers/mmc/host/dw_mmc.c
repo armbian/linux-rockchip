@@ -1733,7 +1733,7 @@ static void dw_mci_prepare_sdio_irq(struct dw_mci_slot *slot, bool prepare)
 	 */
 
 	clk_en_a_old = mci_readl(host, CLKENA);
-	if (prepare) {
+	if (prepare || host->no_low_pwr) {
 		set_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
 		clk_en_a = clk_en_a_old & ~clken_low_pwr;
 	} else {
@@ -3176,6 +3176,9 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	if (ret)
 		goto err_host_allocated;
 
+	if (host->no_low_pwr)
+		set_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
+
 	/* Useful defaults if platform data is unset. */
 	if (host->use_dma == TRANS_MODE_IDMAC) {
 		/* Reserve last desc for dirty data */
@@ -3499,6 +3502,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (device_property_present(dev, "fifo-watermark-aligned"))
 		host->wm_aligned = true;
+
+	host->no_low_pwr = device_property_present(dev, "no-low-pwr");
 
 	if (!device_property_read_u32(dev, "clock-frequency", &clock_frequency))
 		pdata->bus_hz = clock_frequency;
