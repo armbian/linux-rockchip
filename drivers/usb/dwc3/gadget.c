@@ -835,11 +835,13 @@ static int __dwc3_gadget_resize_tx_fifos(struct dwc3_ep *dep)
 		}
 	} else if (usb_endpoint_xfer_int(dep->endpoint.desc)) {
 		/*
-		 * REVIST: we assume that the maxpacket of interrupt
-		 * endpoint is 64 Bytes for MTP and the other functions.
+		 * Set one maxpacket size for Interrupt endpoints,
+		 * and at least 64 Bytes for MTP functions.
 		 */
 		mult = 1;
-		maxpacket = 64;
+		maxpacket = dep->endpoint.maxpacket;
+		if (maxpacket < 64)
+			maxpacket = 64;
 	} else {
 		goto out;
 	}
