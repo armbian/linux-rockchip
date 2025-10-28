@@ -6163,6 +6163,14 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.rgb_regdone_imd_en = VOP_REG(RK3572_RGB_IF_CTRL, 0x1, 31),
 	.rgb_dclk_sel = VOP_REG(RK3572_RGB_IF_CTRL, 0x1, 21),
 
+	.yavg_en = VOP_REG(RK3572_VP_YAVG_CTRL, 0x1, 0),
+	.yavg_yuv_mode_en = VOP_REG(RK3572_VP_YAVG_CTRL, 0x1, 2),
+	.yavg_port_sel = VOP_REG(RK3572_VP_YAVG_CTRL, 0x3, 4),
+	.yavg_regdone_imd = VOP_REG(RK3572_VP_YAVG_CTRL, 0x1, 31),
+	.yavg_div_width = VOP_REG(RK3572_VP_YAVG_DIV_WIDTH, 0xfffff, 0),
+	.yavg_div_height = VOP_REG(RK3572_VP_YAVG_DIV_HEIGHT, 0xfffff, 0),
+	.yavg_frame_out = VOP_REG(RK3572_VP_YAVG_STATUS, 0xff, 0),
+
 	.esmart_lb_mode = VOP_REG_MASK(RK3572_SYS_ESMART_CTRL_IMD, 0x3, 6),
 	.vp_intr_merge_en = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 14),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER0] = VOP_REG(RK3576_CLUSTER0_PORT_SEL_IMD, 0x3, 0),
