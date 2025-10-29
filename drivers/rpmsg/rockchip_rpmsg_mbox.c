@@ -35,19 +35,26 @@ struct rk_virtio_dev {
 	struct rk_rpmsg_dev *rpdev;
 };
 
+enum rpmsg_handshake {
+	RPMSG_HANDSHARK_NONE,
+	RPMSG_HANDSHARK_SENDING,
+	RPMSG_HANDSHARK_DONE
+};
+
 #define to_rk_rpvdev(vd)	container_of(vd, struct rk_virtio_dev, vdev)
 
 struct rk_rpmsg_dev {
 	struct platform_device *pdev;
 	int vdev_nums;
 	unsigned int link_id;
-	bool need_notify;
+	enum rpmsg_handshake handshake;
 	u32 flags;
 	struct mbox_client mbox_rx_cl;
 	struct mbox_client mbox_tx_cl;
 	struct mbox_chan *mbox_rx_chan;
 	struct mbox_chan *mbox_tx_chan;
 	struct rk_virtio_dev *rpvdev[RPMSG_MAX_INSTANCE_NUM];
+	struct delayed_work connect_work;
 };
 
 struct rk_rpmsg_vq_info {
@@ -110,6 +117,50 @@ static void rk_rpmsg_xfer_done(struct mbox_client *cl, void *mssg, int r)
 		kfree(mssg);
 }
 
+static struct rockchip_mbox_msg *rk_rpmsg_create_mbox_msg(u32 cmd, u32 data)
+{
+	struct rockchip_mbox_msg *msg;
+
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return NULL;
+
+	msg->cmd = cmd;
+	msg->data = data;
+	return msg;
+}
+
+static bool rk_rpmsg_handshake_notify(struct virtqueue *vq,
+				      struct rk_rpmsg_dev *rpdev)
+{
+	struct rockchip_mbox_msg *tx_msg;
+	bool busy;
+	struct device *dev = &rpdev->pdev->dev;
+	int ret;
+
+	busy = !rpdev->mbox_tx_chan->mbox->ops->last_tx_done(rpdev->mbox_tx_chan);
+
+	tx_msg = rk_rpmsg_create_mbox_msg(rpdev->link_id & 0xFFU,
+					  RPMSG_MBOX_MAGIC);
+	if (!tx_msg) {
+		dev_err(dev, "Can not get memory for tx_msg\n");
+		return false;
+	}
+
+	ret = mbox_send_message(rpdev->mbox_tx_chan, tx_msg);
+	if (ret < 0) {
+		dev_err(dev, "mbox send failed!\n");
+		return false;
+	}
+
+	if (busy)
+		schedule_delayed_work(&rpdev->connect_work, msecs_to_jiffies(100));
+	else
+		rpdev->handshake = RPMSG_HANDSHARK_DONE;
+
+	return true;
+}
+
 static bool rk_rpmsg_notify(struct virtqueue *vq)
 {
 	struct rk_rpmsg_vq_info *rpvq = vq->priv;
@@ -125,9 +176,10 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 
 	link_id = rpdev->link_id;
 
-	if ((!rpdev->need_notify) && (rpvq->queue_id % 2 == 0)) {
+	if ((rpdev->handshake != RPMSG_HANDSHARK_DONE) &&
+	    (rpvq->queue_id % 2 == 0)) {
 		/* first notify is used in the master init handshake phase. */
-		dev_dbg(dev, "rpmsg handshake notify\n");
+		return rk_rpmsg_handshake_notify(vq, rpdev);
 	} else if (rpvq->queue_id % 2 == 0) {
 		/* tx done is not supported, so ignored */
 		return true;
@@ -142,18 +194,13 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 		return true;
 	}
 
-	if (rpdev->need_notify)
-		mbox_client_txdone(rpdev->mbox_tx_chan, 0);
-	else
-		rpdev->need_notify = true;
+	mbox_client_txdone(rpdev->mbox_tx_chan, 0);
 
-	tx_msg = kzalloc(sizeof(*tx_msg), GFP_KERNEL);
+	tx_msg = rk_rpmsg_create_mbox_msg(link_id & 0xFFU, RPMSG_MBOX_MAGIC);
 	if (!tx_msg) {
 		dev_err(dev, "Can not get memory for tx_msg\n");
 		return false;
 	}
-	tx_msg->cmd = link_id & 0xFFU;
-	tx_msg->data = RPMSG_MBOX_MAGIC;
 
 	ret = mbox_send_message(rpdev->mbox_tx_chan, tx_msg);
 	if (ret < 0) {
@@ -340,6 +387,19 @@ static int rk_set_vring_phy_buf(struct platform_device *pdev,
 	return ret;
 }
 
+static void rk_rpmsg_connected_work(struct work_struct *work)
+{
+	struct rk_rpmsg_dev *rpdev = container_of(work, struct rk_rpmsg_dev,
+						  connect_work.work);
+
+	if (rpdev->mbox_tx_chan->mbox->ops->last_tx_done(rpdev->mbox_tx_chan)) {
+		mbox_client_txdone(rpdev->mbox_tx_chan, 0);
+		rpdev->handshake = RPMSG_HANDSHARK_DONE;
+	} else {
+		schedule_delayed_work(&rpdev->connect_work, msecs_to_jiffies(100));
+	}
+}
+
 static int rockchip_rpmsg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -354,7 +414,7 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 	dev_info(dev, "rockchip rpmsg platform probe.\n");
 
 	rpdev->pdev = pdev;
-	rpdev->need_notify = false;
+	rpdev->handshake = RPMSG_HANDSHARK_NONE;
 	cl = &rpdev->mbox_rx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_rx_callback;
@@ -409,6 +469,8 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 		rpdev->flags |= RPMSG_SHARED_DMA_POOL;
 	}
 
+	INIT_DELAYED_WORK(&rpdev->connect_work, rk_rpmsg_connected_work);
+
 	for (i = 0; i < rpdev->vdev_nums; i++) {
 		dev_info(dev, "rpdev vdev%d: vring0 0x%x, vring1 0x%x\n",
 			 i, rpdev->rpvdev[i]->vring[0], rpdev->rpvdev[i]->vring[1]);
@@ -445,11 +507,21 @@ static int rockchip_rpmsg_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_rpmsg_dev *rpdev = platform_get_drvdata(pdev);
-
+	struct rockchip_mbox_msg *tx_msg;
 	int i;
 
 	for (i = 0; i < rpdev->vdev_nums; i++)
 		unregister_virtio_device(&rpdev->rpvdev[i]->vdev);
+
+	if (rpdev->handshake != RPMSG_HANDSHARK_NONE)
+		mbox_client_txdone(rpdev->mbox_tx_chan, 0);
+
+	tx_msg = rk_rpmsg_create_mbox_msg(0, 0);
+	if (tx_msg)
+		mbox_send_message(rpdev->mbox_tx_chan, tx_msg);
+	else
+		dev_warn(dev, "Can not get memory for tx_msg\n");
+	mbox_client_txdone(rpdev->mbox_tx_chan, 0);
 
 	of_reserved_mem_device_release(dev);
 
