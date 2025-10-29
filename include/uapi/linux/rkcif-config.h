@@ -86,6 +86,9 @@
 #define RKCIF_CMD_SUPPORT_GET_EXP \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 22, int)
 
+#define RKCIF_CMD_SINGLE_BUF_MODE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 23, int)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel
