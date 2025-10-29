@@ -5017,6 +5017,13 @@ void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 		break;
 	}
 
+	if (head->rkisp_tb_resmem_head_size != size) {
+		v4l2_err(&isp_dev->v4l2_dev, "The size of thunderboot resmem structure in mcu and kernel is not equal mcu: %#x kernel: %#x\n",
+			 head->rkisp_tb_resmem_head_size,
+			 size);
+		head->complete = 0;
+	}
+
 	if (size && size < isp_dev->resmem_size) {
 		dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr + offset,
 					size, DMA_FROM_DEVICE);
