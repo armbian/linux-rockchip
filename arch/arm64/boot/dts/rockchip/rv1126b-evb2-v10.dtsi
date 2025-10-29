@@ -113,14 +113,6 @@
 		vin-supply = <&vcc1v8_pmu>;
 	};
 
-	vcc_mipi: vcc-mipi{
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_mipi";
-		regulator-always-on;
-		regulator-boot-on;
-		vin-supply = <&vcc1v8_pmu>;
-	};
-
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -141,11 +133,12 @@
 		vin-supply = <&vccsys_stb>;
 	};
 
-	vcc_lcd: vcc-lcd {
+	vcc_mipi: vcc-mipi {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 RK_PA7 GPIO_ACTIVE_HIGH>;
-		regulator-name = "vcc_lcd";
+		regulator-name = "vcc_mipi";
 		enable-active-high;
+		regulator-boot-on;
 	};
 
 	vcc_sd: vcc-sd {
@@ -283,7 +276,7 @@
 };
 
 &dsi_panel {
-	power-supply = <&vcc_lcd>;
+	power-supply = <&vcc_mipi>;
 };
 
 &fspi0 {
@@ -314,7 +307,7 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		vdd_ana-supply = <&vcc_lcd>;
+		vdd_ana-supply = <&vcc_mipi>;
 		goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio3 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
 	};
@@ -322,7 +315,7 @@
 	hynitron: hynitron@5a {
 		compatible = "hyn,3240";
 		reg = <0x5a>;
-		power-supply = <&vcc_lcd>;
+		power-supply = <&vcc_mipi>;
 
 		pinctrl-names = "ts_active","ts_suspend";
 		pinctrl-0 = <&ts_int_active &ts_reset_active>;
