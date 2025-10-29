@@ -372,7 +372,7 @@ struct rockchip_hdmi {
 	struct rockchip_drm_sub_dev sub_dev;
 
 	u64 force_frl_rate;
-	u8 edid_colorimetry;
+	u32 edid_colorimetry;
 	u8 hdcp_status;
 	u8 dovi_vsdb[DOVI_VSDB_LEN];
 	struct hdr10_plus_vsdb hdr10_plus_data;

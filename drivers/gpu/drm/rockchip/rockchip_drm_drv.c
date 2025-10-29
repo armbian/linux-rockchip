@@ -6,6 +6,7 @@
  * based on exynos_drm_drv.c
  */
 
+#include <linux/bitops.h>
 #include <linux/dma-buf-cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/genalloc.h>
@@ -1570,7 +1571,7 @@ static bool cea_db_is_hdmi_colorimetry_data_block(const u8 *db)
 }
 
 int
-rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *edid)
+rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *edid)
 {
 	const u8 *edid_ext;
 	int i, start, end;
@@ -1593,6 +1594,19 @@ rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *ed
 		if (cea_db_is_hdmi_colorimetry_data_block(db))
 			/* As per CEA 861-G spec */
 			*colorimetry = ((db[3] & (0x1 << 7)) << 1) | db[2];
+
+		*colorimetry = *colorimetry << 3;
+		*colorimetry |= DRM_MODE_COLORIMETRY_DEFAULT | DRM_MODE_COLORIMETRY_BT709_YCC |
+			DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
+		/*
+		 * The macro definitions of BT2020_RGB and BT2020_YCC in
+		 * DRM are in the opposite order to that in EDID.
+		 * so the values of two bits need to be exchanged.
+		 */
+		if ((*colorimetry & DRM_MODE_COLORIMETRY_BT2020_RGB) !=
+		    ((*colorimetry & DRM_MODE_COLORIMETRY_BT2020_YCC) >> 1))
+			*colorimetry ^= (DRM_MODE_COLORIMETRY_BT2020_RGB |
+					 DRM_MODE_COLORIMETRY_BT2020_YCC);
 	}
 
 	return 0;
