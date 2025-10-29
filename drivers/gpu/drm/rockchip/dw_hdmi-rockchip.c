@@ -206,6 +206,14 @@
 #define HDMI_MAX_VRR_REFRESH_RATE	120
 #define HDMI_MIN_VRR_REFRESH_RATE	24
 
+#define HDMI_COLORSPACE_CAPS_V1		(DRM_MODE_COLORIMETRY_DEFAULT | \
+					DRM_MODE_COLORIMETRY_SMPTE_170M_YCC | \
+					DRM_MODE_COLORIMETRY_BT709_YCC | \
+					DRM_MODE_COLORIMETRY_BT2020_RGB)
+
+#define HDMI_COLORSPACE_CAPS_V2		(HDMI_COLORSPACE_CAPS_V1 | \
+					DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65)
+
 struct rockchip_hdmi;
 
 struct rockchip_hdmi_chip_ops {
@@ -2684,6 +2692,8 @@ rockchip_hdmi_colorspace_to_color_encoding(u32 colorimetry, u32 edid_colorimetry
 		return DRM_COLOR_YCBCR_BT601;
 	case DRM_MODE_COLORIMETRY_BT709_YCC:
 		return DRM_COLOR_YCBCR_BT709;
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+		return DRM_COLOR_DCI_P3;
 	/*
 	 * according to cea spec, sd resolution is set to output
 	 * in BT601 format by default. hd and higher resolutions

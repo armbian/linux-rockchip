@@ -216,6 +216,11 @@ enum frl_mask {
 	FRL_12GBPS_4LANE,
 };
 
+enum hdmi_additional_colorimetry_extension {
+	HDMI_ADDITIONAL_COLORIMETRY_DCI_P3_RGB_D65 = 0,
+	HDMI_ADDITIONAL_COLORIMETRY_DCI_P3_RGB_THEATER,
+};
+
 struct hdmi_vmode_qp {
 	bool mdataenablepolarity;
 
@@ -1478,15 +1483,27 @@ bool hdmi_quirk_vsi(const struct drm_connector *connector, u8 *vendor_info)
 	return true;
 }
 
+#define HDMI_AVI_V3_PAYLOAD_LEN		HDMI_AVI_INFOFRAME_SIZE
+/*
+ * avi version4 has 14-byte and 15-byte modes,
+ * current driver version only supports 14-byte mode.
+ */
+#define HDMI_AVI_V4_PAYLOAD_LEN		14
+#define HDMI_AVI_HEADER_LEN		HDMI_INFOFRAME_HEADER_SIZE
+#define HDMI_AVI_INFO_V3_LEN		(HDMI_AVI_V3_PAYLOAD_LEN + HDMI_AVI_HEADER_LEN)
+#define HDMI_AVI_INFO_V4_LEN		(HDMI_AVI_V4_PAYLOAD_LEN + HDMI_AVI_HEADER_LEN)
+#define AVI_BUF_SIZE			HDMI_AVI_INFO_V4_LEN
+
 static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 			    const struct drm_connector *connector)
 {
 	struct hdmi_avi_infoframe frame;
 	const struct drm_display_mode *mode = dw_hdmi_qp_connector_get_mode(connector);
 	u32 val, i, j;
-	u8 buff[17];
+	u8 buff[AVI_BUF_SIZE];
 	enum hdmi_quantization_range rgb_quant_range =
 		hdmi->hdmi_data.quant_range;
+	enum hdmi_additional_colorimetry_extension additional_colorimetry = 0;
 
 	/* Initialise info frame from DRM mode */
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
@@ -1526,6 +1543,11 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 		frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
 		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_BT2020;
 		break;
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+		frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
+		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_RESERVED;
+		additional_colorimetry = HDMI_ADDITIONAL_COLORIMETRY_DCI_P3_RGB_D65;
+		break;
 	default: /* Carries no data */
 		frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
 		frame.extended_colorimetry =
@@ -1545,19 +1567,30 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
 
-	hdmi_avi_infoframe_pack_only(&frame, buff, 17);
+	hdmi_avi_infoframe_pack_only(&frame, buff, AVI_BUF_SIZE);
 
-	/* mode which vic >= 128 must use avi version 3 */
-	if (hdmi->vic >= 128) {
+	/* only avi version 4 support DCI-P3 */
+	if (frame.extended_colorimetry == HDMI_EXTENDED_COLORIMETRY_RESERVED) {
+		frame.version = 4;
+		frame.length = HDMI_AVI_V4_PAYLOAD_LEN;
+		buff[1] = frame.version;
+		buff[2] = frame.length;
+		buff[4] &= 0x1f;
+		buff[4] |= ((frame.colorspace & 0x7) << 5);
+		buff[7] = hdmi->vic;
+		buff[17] = (additional_colorimetry << 4);
+		hdmi_infoframe_set_checksum(buff, HDMI_AVI_INFO_V4_LEN);
+	/* mode which vic >= 128 must use avi version 3 or 4 */
+	} else if (hdmi->vic >= 128) {
 		frame.version = 3;
 		buff[1] = frame.version;
 		buff[4] &= 0x1f;
 		buff[4] |= ((frame.colorspace & 0x7) << 5);
 		buff[7] = hdmi->vic;
-		hdmi_infoframe_set_checksum(buff, 17);
+		hdmi_infoframe_set_checksum(buff, HDMI_AVI_INFO_V3_LEN);
 	} else if (is_hdmi2_sink(connector) && hdmi_quirk_vsi(connector, hdmi->vendor_info)) {
 		buff[7] = hdmi->vic;
-		hdmi_infoframe_set_checksum(buff, 17);
+		hdmi_infoframe_set_checksum(buff, HDMI_AVI_INFO_V3_LEN);
 	}
 
 	/*

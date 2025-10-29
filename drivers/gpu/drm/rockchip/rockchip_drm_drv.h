@@ -76,6 +76,18 @@ struct iommu_domain;
 #define HDMI_EOTF_DOVI		0x12
 #define DOVI_VSDB_LEN		26
 
+/*
+ * This is extend by rockchip, the other color encoding is defined at drm_color_mgmt.h
+ *
+ * enum drm_color_encoding {
+ *      DRM_COLOR_YCBCR_BT601,
+ *      DRM_COLOR_YCBCR_BT709,
+ *      DRM_COLOR_YCBCR_BT2020,
+ *      DRM_COLOR_ENCODING_MAX,
+ *};
+ */
+#define DRM_COLOR_DCI_P3	0x10
+
 enum rockchip_drm_debug_category {
 	VOP_DEBUG_PLANE		= BIT(0),
 	VOP_DEBUG_OVERLAY	= BIT(1),
