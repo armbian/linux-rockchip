@@ -2668,6 +2668,41 @@ static void rk3588_get_grf_color_fmt(struct rockchip_hdmi *hdmi, u32 *fmt, u32 *
 	*fmt = *fmt & RK3588_COLOR_FORMAT_MASK;
 }
 
+static unsigned long
+rockchip_hdmi_colorspace_to_color_encoding(u32 colorimetry, u32 edid_colorimetry, u8 vic)
+{
+	if (!(colorimetry & edid_colorimetry)) {
+		DRM_ERROR("colorimetry %d is not supported in edid\n", colorimetry);
+		return DRM_COLOR_YCBCR_BT601;
+	}
+
+	switch (colorimetry) {
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+		return DRM_COLOR_YCBCR_BT2020;
+	case DRM_MODE_COLORIMETRY_SMPTE_170M_YCC:
+		return DRM_COLOR_YCBCR_BT601;
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
+		return DRM_COLOR_YCBCR_BT709;
+	/*
+	 * according to cea spec, sd resolution is set to output
+	 * in BT601 format by default. hd and higher resolutions
+	 * output bt709 by default
+	 */
+	case DRM_MODE_COLORIMETRY_DEFAULT:
+		if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
+		    (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18)) {
+			return DRM_COLOR_YCBCR_BT601;
+		}
+		return DRM_COLOR_YCBCR_BT709;
+	default:
+		DRM_ERROR("colorimetry %d is out of range\n", colorimetry);
+		break;
+	}
+
+	return DRM_COLOR_YCBCR_BT709;
+}
+
 static void
 dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       struct drm_crtc_state *crtc_state,
@@ -2689,6 +2724,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	bool sink_is_hdmi = true;
 	bool yuv422_out = false;
 	bool dsc_rate_supported;
+	bool hdr_no_bt2020 = false;
 	u32 max_tmds_clock = info->max_tmds_clock;
 	int output_eotf;
 
@@ -2771,27 +2807,20 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			*eotf = output_eotf;
 	}
 
-	hdmi->colorimetry = conn_state->colorspace;
+	*enc_out_encoding = conn_state->colorspace;
+
+	hdmi->colorimetry =
+		rockchip_hdmi_colorspace_to_color_encoding(conn_state->colorspace,
+							   hdmi->edid_colorimetry, vic);
+
+	if ((conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
+	     *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR) &&
+	    (hdmi->colorimetry != DRM_COLOR_YCBCR_BT2020))
+		hdr_no_bt2020 = true;
 
 	/* bt2020 sdr/hdr output */
-	if ((hdmi->colorimetry >= DRM_MODE_COLORIMETRY_BT2020_CYCC) &&
-	    (hdmi->colorimetry <= DRM_MODE_COLORIMETRY_BT2020_YCC) &&
-	    hdmi->edid_colorimetry & (BIT(6) | BIT(7))) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
+	if ((hdmi->colorimetry == DRM_COLOR_YCBCR_BT2020) || hdr_no_bt2020)
 		yuv422_out = true;
-	/* bt709 hdr output */
-	} else if (((hdmi->colorimetry <= DRM_MODE_COLORIMETRY_BT2020_CYCC) ||
-		    (hdmi->colorimetry >= DRM_MODE_COLORIMETRY_BT2020_YCC)) &&
-		   (conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
-		    *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR)) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_709;
-		yuv422_out = true;
-	} else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
-		   (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18)) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_601;
-	} else {
-		*enc_out_encoding = V4L2_YCBCR_ENC_709;
-	}
 
 	if ((yuv422_out || hdmi->hdmi_output == RK_IF_FORMAT_YCBCR_HQ) && color_depth == 10 &&
 	    (hdmi_bus_fmt_color_depth(hdmi->prev_bus_format) == 8 ||
@@ -3124,14 +3153,7 @@ secondary:
 	if (hdmi->is_hdmi_qp && hdmi->link_cfg.dsc_mode)
 		dw_hdmi_qp_dsc_configure(hdmi, s, crtc_state);
 
-	if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_BT2020)
-		s->color_encoding = DRM_COLOR_YCBCR_BT2020;
-	else if (colorformat == RK_IF_FORMAT_RGB)/* sRGB color space is almost equal to bt.709 */
-		s->color_encoding = DRM_COLOR_YCBCR_BT709;
-	else if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_709)
-		s->color_encoding = DRM_COLOR_YCBCR_BT709;
-	else
-		s->color_encoding = DRM_COLOR_YCBCR_BT601;
+	s->color_encoding = hdmi->colorimetry;
 
 	if (colorformat == RK_IF_FORMAT_RGB)
 		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ?
