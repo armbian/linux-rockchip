@@ -3,6 +3,7 @@
  * Copyright (c) 2024, Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
