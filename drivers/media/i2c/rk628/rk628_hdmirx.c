@@ -1930,14 +1930,12 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 		bt->il_vsync = bt->vsync + 1;
 		bt->pixelclock /= 2;
 	}
-	if (!match) {
-		if (video_fmt == BUS_FMT_YUV420) {
-			if (format == 5) {
-				bt->pixelclock = bt->pixelclock * 8 * 2;
-				do_div(bt->pixelclock, 10);
-			} else {
-				bt->pixelclock *= 2;
-			}
+	if (video_fmt == BUS_FMT_YUV420) {
+		if (format == 5) {
+			bt->pixelclock = bt->pixelclock * 8 * 2;
+			do_div(bt->pixelclock, 10);
+		} else {
+			bt->pixelclock *= 2;
 		}
 	}
 
