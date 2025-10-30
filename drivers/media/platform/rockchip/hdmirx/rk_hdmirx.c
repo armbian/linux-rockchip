@@ -2695,6 +2695,8 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	hdmirx_dev->get_timing = false;
+	if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
+		hdmirx_cec_state_reconfiguration(hdmirx_dev, false);
 	sip_hdmirx_config(HDMIRX_INFO_NOTIFY, 0, DMA_CONFIG6, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6, HDMIRX_DMA_EN, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG4,
