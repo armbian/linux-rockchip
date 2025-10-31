@@ -1228,6 +1228,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506b-armsom-forge1.dtb \
 	rk3506b-evb1-v10.dtb \
 	rk3506b-test2-v10.dtb \
+	rk3506b-luckfox-lyra-ultra-w.dtb \
 	rk3506b-luckfox-lyra-zero-w-sd.dtb \
 	rk3506g-demo-display-control.dtb \
 	rk3506g-evb1-v10.dtb \
