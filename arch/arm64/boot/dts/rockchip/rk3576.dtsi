@@ -3838,8 +3838,10 @@
 		interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_HDCP0>, <&cru PCLK_HDCP0>,
 			 <&cru HCLK_HDCP0>, <&scmi_clk HCLK_HDCP_KEY0>,
-			 <&scmi_clk PCLK_HDCP0_TRNG>;
-		clock-names = "aclk", "pclk", "hclk", "hclk_key", "pclk_trng";
+			 <&scmi_clk PCLK_HDCP0_TRNG>, <&cru HCLK_VO0_ROOT>,
+			 <&cru CLK_TRNG0_SKP>;
+		clock-names = "aclk", "pclk", "hclk", "hclk_key", "pclk_trng", "hclk_vo",
+			      "trng_skp";
 		resets = <&cru SRST_HDCP0>, <&cru SRST_H_HDCP0>,
 			 <&cru SRST_A_HDCP0>;
 		reset-names = "hdcp", "h_hdcp", "a_hdcp";
@@ -4101,8 +4103,8 @@
 		interrupts = <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_HDCP1>, <&cru PCLK_HDCP1>,
 			 <&cru HCLK_HDCP1>, <&scmi_clk HCLK_HDCP_KEY1>,
-			 <&scmi_clk PCLK_HDCP1_TRNG>;
-		clock-names = "aclk", "pclk", "hclk", "hclk_key", "pclk_trng";
+			 <&scmi_clk PCLK_HDCP1_TRNG>, <&cru CLK_TRNG1_SKP>;
+		clock-names = "aclk", "pclk", "hclk", "hclk_key", "pclk_trng", "trng_skp";
 		resets = <&cru SRST_HDCP1>, <&cru SRST_H_HDCP1>,
 			 <&cru SRST_A_HDCP1>;
 		reset-names = "hdcp", "h_hdcp", "a_hdcp";
