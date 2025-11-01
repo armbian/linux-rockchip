@@ -363,6 +363,7 @@ struct vop2_plane_state {
 	bool r2y_en;
 	bool y2r_en;
 	bool cgc_en;
+	bool dci_en;
 	uint32_t csc_mode;
 	struct post_csc_coef csc_coef;
 	uint8_t xmirror_en;
@@ -7760,6 +7761,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 
 	if (!vpstate->dci_data || !vpstate->dci_data->data) {
 		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
+		vpstate->dci_en = false;
 		return;
 	}
 
@@ -7777,6 +7779,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 
 	if (!dci_data->dci_en) {
 		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
+		vpstate->dci_en = false;
 		return;
 	}
 
@@ -7855,6 +7858,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 
 	VOP_CLUSTER_SET(vop2, win, uv_adjust_en, dci_data->uv_adj);
 	VOP_CLUSTER_SET(vop2, win, dci_en, 1);
+	vpstate->dci_en = true;
 
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 }
@@ -9300,6 +9304,28 @@ static const char *hdr_to_string(int eotf)
 	}
 }
 
+static const char *csc_mode_to_string(int csc_mode)
+{
+	switch (csc_mode) {
+	case CSC_BT601L:
+		return "BT.601_L";
+	case CSC_BT601F:
+		return "BT.601_F";
+	case CSC_BT709L:
+	case CSC_BT709L_13BIT:
+		return "BT.709_L";
+	case CSC_BT709F_13BIT:
+		return "BT.709_F";
+	case CSC_BT2020L:
+	case CSC_BT2020L_13BIT:
+		return "BT.2020_L";
+	case CSC_BT2020F_13BIT:
+		return "BT.2020_F";
+	default:
+		return "Unknown";
+	}
+}
+
 #define DEBUG_PRINT(args...) \
 		do { \
 			if (s) \
@@ -9372,9 +9398,10 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
 		    vpstate->xmirror_en, vpstate->ymirror_en, vpstate->rotate_90_en,
 		    vpstate->rotate_270_en);
-	DEBUG_PRINT("\tcsc: y2r[%d] r2y[%d] csc mode[%d]\n",
+	DEBUG_PRINT("\tcsc: y2r[%d] r2y[%d] csc mode[%s] dci[%d] cgc[%d] hdr2sdr[%d]\n",
 		    vpstate->y2r_en, vpstate->r2y_en,
-		    vpstate->csc_mode);
+		    csc_mode_to_string(vpstate->csc_mode), vpstate->dci_en,
+		    vpstate->cgc_en, vpstate->hdr2sdr_en);
 	DEBUG_PRINT("\tzpos: %d\n", vpstate->zpos);
 	DEBUG_PRINT("\tsrc: pos[%d, %d] rect[%d x %d]\n", src->x1 >> 16,
 		    src->y1 >> 16, drm_rect_width(src) >> 16,
@@ -9490,12 +9517,14 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	vop2_dump_connector_on_crtc(crtc, s);
 	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
 		    drm_get_bus_format_name(state->bus_format));
-	DEBUG_PRINT("\toverlay_mode[%d] output_mode[%x] ",
-		    state->yuv_overlay, state->output_mode);
+	DEBUG_PRINT("\toverlay_mode[%s] output_mode[%x] ",
+		    state->yuv_overlay ? "YUV" : "RGB", state->output_mode);
 	DEBUG_PRINT("%s[%d] color-encoding[%s] color-range[%s]\n",
 		    hdr_to_string(state->eotf), state->eotf,
 		    rockchip_drm_get_color_encoding_name(state->color_encoding),
 		    rockchip_drm_get_color_range_name(state->color_range));
+	DEBUG_PRINT("\tr2y[%d] sharp[%d] acm[%d] y2r[%d]\n",
+		    state->post_r2y_en, state->sharp_en, state->acm_en, state->post_y2r_en);
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
@@ -15348,6 +15377,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	s16 *lut_y;
@@ -15359,8 +15389,10 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	writel(0, vop2->acm_res.regs + RK3528_ACM_CTRL);
 	VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
 
-	if (!acm || !acm->acm_enable)
+	if (!acm || !acm->acm_enable) {
+		vcstate->acm_en = false;
 		return;
+	}
 
 	if (vop2->version == VOP_VERSION_RK3528) {
 		/*
@@ -15411,6 +15443,7 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	}
 
 	writel(1, vop2->acm_res.regs + RK3528_ACM_FETCH_DONE);
+	vcstate->acm_en = true;
 }
 
 static void vop2_post_sharp_config(struct drm_crtc *crtc)

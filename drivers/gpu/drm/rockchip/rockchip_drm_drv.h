@@ -377,6 +377,8 @@ struct rockchip_crtc_state {
 	 */
 	bool sharp_en;
 
+	bool acm_en;
+
 	bool dimming_changed;
 
 	struct drm_tv_connector_state *tv_state;
