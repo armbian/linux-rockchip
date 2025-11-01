@@ -24,6 +24,32 @@
 	
 	/delete-node/ chosen;
 	
+	rk628f_dc: rk628f-dc {
+			compatible = "rockchip,dummy-codec";
+			#sound-dai-cells = <0>;
+			/*status = "okay";*/
+	};
+
+	rkvtunnel: rkvtunnel {
+			compatible = "rockchip,video-tunnel";
+			status = "okay";
+	};
+
+	hdmiin-sound {
+			compatible = "simple-audio-card";
+			simple-audio-card,format = "i2s";
+			simple-audio-card,name = "rockchip,hdmiin";
+			simple-audio-card,bitclock-master = <&dailink0_master>;
+			simple-audio-card,frame-master = <&dailink0_master>;
+			status = "okay";
+			simple-audio-card,cpu {
+					sound-dai = <&sai4>;
+			};
+			dailink0_master: simple-audio-card,codec {
+					sound-dai = <&rk628f_dc>;
+			};
+	};
+
 	fan: pwm-fan {
 		status = "okay";
 		compatible = "pwm-fan";
@@ -98,8 +124,6 @@
 		io-channel-names = "adc-detect";
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
-		//spk-con-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		//hp-con-gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
 		rockchip,pre-power-on-delay-ms = <30>;
 		rockchip,post-power-down-delay-ms = <40>;
 		rockchip,format = "i2s";
@@ -107,17 +131,13 @@
 		rockchip,cpu = <&sai2>;
 		rockchip,codec = <&es8388>;
 		rockchip,audio-routing =
-			"Headphone", "LOUT1",
-			"Headphone", "ROUT1",
+			"Speaker", "LOUT1",
+			"Speaker", "ROUT1",
 			"Speaker", "LOUT2",
 			"Speaker", "ROUT2",
-			"Headphone", "Headphone Power",
-			"Headphone", "Headphone Power",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
 			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
 			"RINPUT1", "Headset Mic",
+			"LINPUT2", "Main Mic",
 			"RINPUT2", "Headset Mic";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
@@ -148,8 +168,8 @@
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_poweren_gpio>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&wifi_poweren_gpio>;
 
 		/*
 		 * On the module itself this is one of these (depending
@@ -281,7 +301,7 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1_6ch_1 0 25000 0>;
+		pwms = <&pwm0_2ch_0 0 25000 0>;
 		brightness-levels = <
 			  0  20  20  21  21  22  22  23
 			 23  24  24  25  25  26  26  27
@@ -538,9 +558,88 @@
 	status = "okay";
 };
 
-&i2c9 {
+&uart7 {
 	status = "okay";
+	pinctrl-names = "default";
+    pinctrl-0 = <&uart7m0_xfer &uart7m0_ctsn &uart7m0_rtsn>;
+};
+
+&uart4 {
+	status = "okay";
+	pinctrl-names = "default";
+    pinctrl-0 = <&uart4m1_xfer>;
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi_mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&hdmiin_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c9 {
+	clock-frequency = <100000>;
+	status = "okay";
+	pinctrl-names = "default";
 	pinctrl-0 = <&i2c9m1_xfer>;
+
+	rk628_csi: rk628_csi@51 {
+		compatible = "rockchip,rk628-csi-v4l2";
+		status = "okay";
+		reg = <0x51>;
+		i2s-enable-default;
+		power-domains = <&power RK3576_PD_VI>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PB4 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
+		continues-clk = <1>;
+		cec-enable;
+		/*#sound-dai-cells = <0>;*/
+		
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628_pin &ref_clk2_clk2>;
+		assigned-clocks = <&cru REF_CLK2_OUT_PLL>;
+		assigned-clock-rates = <24000000>;
+		clocks = <&cru REF_CLK2_OUT_PLL>;
+		clock-names = "soc_24M";
+		
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI1";
+		rockchip,camera-module-lens-name = "RK628-CSI";
+		
+		port {
+			hdmiin_out: endpoint {
+				remote-endpoint = <&hdmi_mipi_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+    };
 
 	usbc0: husb311@4e {
 		compatible = "hynetek,husb311";
@@ -608,7 +707,7 @@
 &i2c4 {
 	status = "okay";
 	pinctrl-names = "default";
-        pinctrl-0 = <&i2c4m0_xfer>;
+    	pinctrl-0 = <&i2c4m0_xfer &tp_rst &tp_irq>;
 
 	es8388: es8388@11 {
 		status = "okay";
@@ -622,34 +721,21 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sai2m0_mclk>;
 	};
+
+	gt911@5d {
+		compatible = "goodix,gt911";
+		reg = <0x5d>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC6 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+	};
 };
 
-
-&i2c7 {
+&i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c7m1_xfer>;
-
-
-	icm42607_acc: icm_acc@68 {
-		status = "okay";
-		compatible = "icm42607_acc";
-		reg = <0x68>;
-		irq-gpio = <&gpio1 RK_PD5 IRQ_TYPE_EDGE_RISING>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_ACCEL>;
-		layout = <4>;
-	};
-
-	icm42607_gyro: icm_gyro@68 {
-		status = "okay";
-		compatible = "icm42607_gyro";
-		reg = <0x68>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <4>;
-	};
+	pinctrl-0 = <&i2c5m3_xfer>;
 };
 
 &mdio0 {
@@ -722,33 +808,28 @@
 		};
 	};
 
-	wireless-bluetooth {
-		uart4_gpios: uart4-gpios {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wireless-wlan {
-		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
-		wifi_poweren_gpio: wifi-poweren-gpio {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-	
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
-	touch {
-		touch_gpio: touch-gpio {
-			rockchip,pins =
-				<0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+	touchscreen {
+		tp_rst:tp-rst {
+				rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		tp_irq:tp-irq {
+				rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hdmiin {
+		rk628_pin: rk628-pin {
+			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -1017,16 +1098,19 @@
 };
 
 &sdmmc {
-	max-frequency = <200000000>;
-	no-sdio;
-	no-mmc;
-	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	disable-wp;
-	sd-uhs-sdr104;
-	vqmmc-supply = <&vccio_sd_s0>;
-	status = "okay";
+        max-frequency = <200000000>;
+        pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+        pinctrl-names = "default";
+        no-sdio;
+        no-mmc;
+        bus-width = <4>;
+        cap-mmc-highspeed;
+        cap-sd-highspeed;
+        disable-wp;
+        sd-uhs-sdr104;
+        vqmmc-supply = <&vccio_sd_s0>;
+        vmmc-supply = <&vcc_3v3_s0>;
+        status = "okay";
 };
 
 &tsadc {
@@ -1047,12 +1131,6 @@
 
 &u2phy1_otg {
 	status = "okay";
-};
-
-&uart4 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn>;
 };
 
 &ufs {
@@ -1106,3 +1184,189 @@
 	pinctrl-0 = <&pwm1m0_ch0>;
 };
 
+&pwm0_2ch_0 {
+        status = "okay";
+        pinctrl-0 = <&pwm0m0_ch0>;
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&sai4 {
+	pinctrl-0 = <&sai4m0_lrck
+		      &sai4m0_sclk
+		      &sai4m0_sdi>;
+	/*rockchip,sai-rx-wait-time-ms = <50>;*/
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+	rockchip,lane-rate = <480>;
+
+	dsi_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		power-supply = <&vcc3v3_lcd_n>;
+		reg = <0>;
+		backlight = <&backlight>;
+
+		prepare-delay-ms = <10>;
+		reset-delay-ms = <40>;
+		init-delay-ms = <40>;
+		enable-delay-ms = <40>;
+		disable-delay-ms = <50>;
+		unprepare-delay-ms = <40>;
+
+		reset-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+
+		width-mm = <41>;
+		height-mm = <31>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+                              MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <2>;
+
+		panel-init-sequence = [
+			39 00 06 FF 77 01 00 00 13
+			15 00 02 EF 08
+			39 00 06 FF 77 01 00 00 10
+			39 00 03 C0 2C 00
+    			39 00 03 C1 10 0C
+    			39 00 03 C2 21 0A
+    			15 00 02 CC 10
+			39 00 11 B0 00 12 9A 0E 12 07 0B 08 09 26 05 51 0F 69 30 1C
+			39 00 11 B1 00 12 9B 0D 10 06 0B 09 08 25 03 50 0F 68 30 1C
+    			39 00 06 FF 77 01 00 00 11
+    			15 00 02 B0 5D
+    			15 00 02 B1 66
+    			15 00 02 B2 84
+    			15 00 02 B3 80
+    			15 00 02 B5 4E
+    			15 00 02 B7 85
+    			15 00 02 B8 20
+    			15 00 02 C1 78
+    			15 00 02 C2 78
+    			15 00 02 D0 88
+			39 00 04 E0 00 00 02
+			39 00 0C E1 06 A0 08 A0 05 A0 07 A0 00 44 44
+    			39 00 0D E2 00 00 44 44 01 A0 00 00 01 A0 00 00
+    			39 00 05 E3 00 00 11 11
+    			39 00 03 E4 44 44
+    			39 00 11 E5 0D 79 0A A0 0F 7B 0A A0 09 75 0A A0 0B 77 0A A0
+    			39 00 05 E6 00 00 11 11
+    			39 00 03 E7 44 44
+    			39 00 11 E8 0C 78 0A A0 0E 7A 0A A0 08 74 0A A0 0A 76 0A A0
+    			39 00 03 E9 36 00
+    			39 00 08 EB 00 01 E4 E4 44 88 40
+    			39 00 11 ED FF 45 67 FA 01 2B AB FF FF BA B2 10 AF 76 54 FF
+    			39 00 07 EF 10 0D 04 08 3F 1F
+    			39 00 06 FF 77 01 00 00 00
+    			39 00 06 FF 77 01 00 00 13
+    			39 00 03 E8 00 0E
+    			05 78 01 11     /* Sleep Out + 120 ms (0x78 = 120 ms) */
+    			39 0A 03 E8 00 0C
+    			39 00 03 E8 00 00
+    			39 00 06 FF 77 01 00 00 00
+    			05 14 01 29     /* Display ON + 20 ms (0x14 = 20 ms) */
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 78 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <11760000>;
+				hactive = <480>;
+				vactive = <360>;
+				hfront-porch = <10>;
+				hsync-len = <5>;
+				hback-porch = <20>;
+				vfront-porch = <5>;
+				vsync-len = <5>;
+				vback-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+};
