@@ -1910,6 +1910,9 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 		goto out_dp_init;
 	}
 
+	if (dp->plat_data->panel)
+		drm_panel_enable(dp->plat_data->panel);
+
 	return 0;
 
 out_dp_init:
