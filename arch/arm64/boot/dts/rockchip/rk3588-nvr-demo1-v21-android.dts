@@ -15,6 +15,10 @@
 	compatible = "rockchip,rk3588-nvr-demo1-v21", "rockchip,rk3588";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &dp0_in_vp0 {
 	status = "disabled";
 };
