@@ -609,12 +609,10 @@ static int wlan_platdata_parse_dt(struct device *dev,
 		data->mregulator.power_ctrl_by_pmu = false;
 		LOG("%s: wifi power controled by gpio.\n", __func__);
 
-		ret = rkwlangpiod_request(dev, "WIFI,poweren", GPIOD_OUT_HIGH, &data->power_n);
-		if (!ret) {
-			rkwlangpiod_request(dev, "WIFI,vbat", GPIOD_OUT_HIGH, &data->vbat_n);
-			rkwlangpiod_request(dev, "WIFI,reset", GPIOD_OUT_HIGH, &data->reset_n);
-			rkwlangpiod_request(dev, "WIFI,host_wake", GPIOD_ASIS, &data->wifi_int_b);
-		}
+		rkwlangpiod_request(dev, "WIFI,poweren", GPIOD_OUT_HIGH, &data->power_n);
+		rkwlangpiod_request(dev, "WIFI,vbat", GPIOD_OUT_HIGH, &data->vbat_n);
+		rkwlangpiod_request(dev, "WIFI,reset", GPIOD_OUT_HIGH, &data->reset_n);
+		rkwlangpiod_request(dev, "WIFI,host_wake", GPIOD_ASIS, &data->wifi_int_b);
 	}
 
 	data->ext_clk = devm_clk_get(dev, "clk_wifi");
