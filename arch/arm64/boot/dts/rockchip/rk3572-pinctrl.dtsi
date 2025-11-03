@@ -4433,3 +4433,80 @@
 		};
 	};
 };
+
+/*
+ * This part is edited handly.
+ */
+&pinctrl {
+	pdm {
+		/omit-if-no-ref/
+		pdmm0_clk0_idle: pdmm0-clk0-idle {
+			rockchip,pins =
+				/* pdm_clk0_m0 */
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm0_clk1_idle: pdmm0-clk1-idle {
+			rockchip,pins =
+				/* pdm_clk1_m0 */
+				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm1_clk0_idle: pdmm1-clk0-idle {
+			rockchip,pins =
+				/* pdm_clk0_m1 */
+				<2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm1_clk1_idle: pdmm1-clk1-idle {
+			rockchip,pins =
+				/* pdm_clk1_m1 */
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm2_clk0_idle: pdmm1-clk0-idle {
+			rockchip,pins =
+				/* pdm_clk0_m1 */
+				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm2_clk1_idle: pdmm1-clk1-idle {
+			rockchip,pins =
+				/* pdm_clk1_m1 */
+				<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm3_clk0_idle: pdmm1-clk0-idle {
+			rockchip,pins =
+				/* pdm_clk0_m1 */
+				<2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm3_clk1_idle: pdmm1-clk1-idle {
+			rockchip,pins =
+				/* pdm_clk1_m1 */
+				<2 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm4_clk0_idle: pdmm1-clk0-idle {
+			rockchip,pins =
+				/* pdm_clk0_m1 */
+				<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pdmm4_clk1_idle: pdmm1-clk1-idle {
+			rockchip,pins =
+				/* pdm_clk1_m1 */
+				<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
