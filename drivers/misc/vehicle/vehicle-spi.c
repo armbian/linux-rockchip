@@ -13,12 +13,20 @@
 #include "vehicle-mcu-bin.h"
 #endif
 
-static struct completion spi_complete;
-#define SPI_TIMEOUT_MS 20
+#define SPI_TIMEOUT_MS 100
 
-static void spi_complete_callback(void *arg)
+static void spi_write_complete_callback(void *arg)
 {
-	complete(&spi_complete);
+	struct vehicle *vehicle = (struct vehicle *)arg;
+
+	complete(&vehicle->vehicle_spi->write_complete);
+}
+
+static void spi_read_complete_callback(void *arg)
+{
+	struct vehicle *vehicle = (struct vehicle *)arg;
+
+	complete(&vehicle->vehicle_spi->read_complete);
 }
 
 int vehicle_spi_write_slt(struct vehicle *vehicle, const void *txbuf, size_t n)
@@ -35,10 +43,10 @@ int vehicle_spi_write_slt(struct vehicle *vehicle, const void *txbuf, size_t n)
 	t->len = n;
 	t->bits_per_word = 8;
 
-	reinit_completion(&spi_complete);
+	reinit_completion(&vehicle->vehicle_spi->write_complete);
 	spi_message_init(m);
 	spi_message_add_tail(t, m);
-	m->complete = spi_complete_callback;
+	m->complete = spi_write_complete_callback;
 	m->context = vehicle;
 	ret = spi_async(spi, m);
 	if (ret) {
@@ -46,7 +54,8 @@ int vehicle_spi_write_slt(struct vehicle *vehicle, const void *txbuf, size_t n)
 	}
 	spin_unlock_irqrestore(&vehicle->vehicle_spi->msg_lock, flags);
 
-	if (!wait_for_completion_timeout(&spi_complete, msecs_to_jiffies(SPI_TIMEOUT_MS))) {
+	if (!wait_for_completion_timeout(&vehicle->vehicle_spi->write_complete,
+			msecs_to_jiffies(SPI_TIMEOUT_MS))) {
 		dev_err(&spi->dev, "SPI write operation timed out\n");
 		ret = -EINVAL;
 	}
@@ -68,10 +77,10 @@ int vehicle_spi_read_slt(struct vehicle *vehicle, void *rxbuf, size_t n)
 	t->len = n;
 	t->bits_per_word = 8;
 
-	reinit_completion(&spi_complete);
+	reinit_completion(&vehicle->vehicle_spi->read_complete);
 	spi_message_init(m);
 	spi_message_add_tail(t, m);
-	m->complete = spi_complete_callback;
+	m->complete = spi_read_complete_callback;
 	m->context = vehicle;
 	ret = spi_async(spi, m);
 	if (ret) {
@@ -79,7 +88,8 @@ int vehicle_spi_read_slt(struct vehicle *vehicle, void *rxbuf, size_t n)
 	}
 	spin_unlock_irqrestore(&vehicle->vehicle_spi->msg_lock, flags);
 
-	if (!wait_for_completion_timeout(&spi_complete, msecs_to_jiffies(SPI_TIMEOUT_MS))) {
+	if (!wait_for_completion_timeout(&vehicle->vehicle_spi->read_complete,
+			msecs_to_jiffies(SPI_TIMEOUT_MS))) {
 		dev_err(&spi->dev, "SPI read operation timed out\n");
 		ret = -EINVAL;
 	}
@@ -420,7 +430,8 @@ static int vehicle_spi_probe(struct spi_device *spi)
 		id = 0;
 	}
 
-	init_completion(&spi_complete);
+	init_completion(&g_vehicle_hw->vehicle_spi->write_complete);
+	init_completion(&g_vehicle_hw->vehicle_spi->read_complete);
 	ret = spi_hw_init(g_vehicle_hw);
 	if (ret) {
 		dev_err(dev, "ERR: fail to init spi hw\n");
