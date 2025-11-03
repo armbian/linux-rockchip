@@ -466,6 +466,17 @@
 			status = "disabled";
 		};
 
+		acodec: acodec@fdb90000 {
+			compatible = "rockchip,rk3538-codec", "rockchip,rk3528-codec";
+			reg = <0xfdb90000 0x1000>;
+			#sound-dai-cells = <0>;
+			clocks = <&cru PCLK_ACODEC>, <&cru MCLK_ACODEC>;
+			clock-names = "pclk", "mclk";
+			resets = <&cru SRST_PRESETN_ACODEC>;
+			reset-names = "acodec";
+			status = "disabled";
+		};
+
 		vop: vop@fdbe0000 {
 			compatible = "rockchip,rk3538-vop";
 			reg = <0xfdbe0000 0x3c00>,
