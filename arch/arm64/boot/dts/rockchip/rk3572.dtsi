@@ -338,6 +338,12 @@
 			clocks = <&cru PCLK_VO_ROOT>;
 		};
 
+		audio_grf: syscon@2602c000 {
+			compatible = "rockchip,rk3572-audio-grf", "syscon";
+			reg = <0x0 0x2602c000 0x0 0x1000>;
+			clocks = <&cru PCLK_AUDIO_ROOT>;
+		};
+
 		hdptxphy_grf: syscon@26060000 {
 			compatible = "rockchip,rk3572-hdptxphy-grf", "syscon";
 			reg = <0x0 0x26060000 0x0 0x2000>;
@@ -512,6 +518,29 @@
 					};
 				};
 			};
+		};
+
+		pdm0: pdm@26600000 {
+			compatible = "rockchip,rk3572-pdm", "rockchip,rk3576-pdm";
+			reg = <0x0 0x26600000 0x0 0x1000>;
+			interrupts = <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_PDM0>, <&cru HCLK_PDM0>, <&cru CLK_PDM0_OUT>;
+			clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_out";
+			dmas = <&dmac0 16>;
+			dma-names = "rx";
+			rockchip,pdm-data-shift = <5 5 5 5 5 5 5 5>;
+			pinctrl-names = "default", "idle", "clk";
+			pinctrl-0 = <&pdmm0_sdi0_pins
+				     &pdmm0_sdi1_pins
+				     &pdmm0_sdi2_pins
+				     &pdmm0_sdi3_pins>;
+			pinctrl-1 = <&pdmm0_clk0_idle
+				     &pdmm0_clk1_idle>;
+			pinctrl-2 = <&pdmm0_clk0_pins
+				     &pdmm0_clk1_pins>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "PDM0";
+			status = "disabled";
 		};
 
 		cci_hwlock0: hwspinlock@26900000 {
@@ -896,6 +925,61 @@
 				     &sai3m0_sdo_pins>;
 			#sound-dai-cells = <0>;
 			sound-name-prefix = "SAI3";
+			status = "disabled";
+		};
+
+		asrc0: asrc@2a590000 {
+			compatible = "rockchip,rk3572-asrc", "rockchip,rk3506-asrc";
+			reg = <0x0 0x2a590000 0x0 0x1000>;
+			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_ASRC_2CH_0>, <&cru HCLK_ASRC_2CH_0>,
+				 <&cru LRCK_ASRC_2CH0_SRC>, <&cru LRCK_ASRC_2CH0_DST>;
+			clock-names = "mclk", "hclk",
+				      "src_lrck", "dst_lrck";
+			dmas = <&dmac0 17>, <&dmac0 18>;
+			dma-names = "rx", "tx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_RESETN_ASRC_2CH_0>, <&cru SRST_HRESETN_ASRC_2CH_0>;
+			reset-names = "m", "h";
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "ASRC0";
+			status = "disabled";
+		};
+
+		asrc1: asrc@2a5a0000 {
+			compatible = "rockchip,rk3572-asrc", "rockchip,rk3506-asrc";
+			reg = <0x0 0x2a5a0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_ASRC_2CH_1>, <&cru HCLK_ASRC_2CH_1>,
+				 <&cru LRCK_ASRC_2CH1_SRC>, <&cru LRCK_ASRC_2CH1_DST>;
+			clock-names = "mclk", "hclk",
+				      "src_lrck", "dst_lrck";
+			dmas = <&dmac0 19>, <&dmac0 20>;
+			dma-names = "rx", "tx";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_RESETN_ASRC_2CH_1>, <&cru SRST_HRESETN_ASRC_2CH_1>;
+			reset-names = "m", "h";
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "ASRC1";
+			status = "disabled";
+		};
+
+		acdcdig_dsm: acdcdig-dsm@2a5b0000 {
+			compatible = "rockchip,rk3572-dsm", "rockchip,rv1126b-dsm";
+			reg = <0x0 0x2a5b0000 0x0 0x1000>;
+			clocks = <&cru MCLK_ACDCDIG_DSM>, <&cru HCLK_ACDCDIG_DSM>;
+			clock-names = "dac", "pclk";
+			power-domains = <&power RK3572_PD_AUDIO>;
+			resets = <&cru SRST_MRESETN_ACDCDIG_DSM>;
+			reset-names = "reset" ;
+			rockchip,grf = <&audio_grf>;
+			rockchip,ioc-grf = <&ioc_grf>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&dsm_audm0_ln_pins
+				     &dsm_audm0_lp_pins
+				     &dsm_audm0_rn_pins
+				     &dsm_audm0_rp_pins>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
