@@ -77,6 +77,7 @@
 };
 
 &i2c3 {
+	clock-frequency = <400000>;
 	status = "okay";
 	pinctrl-0 = <&i2c3m1_pins>;
 
