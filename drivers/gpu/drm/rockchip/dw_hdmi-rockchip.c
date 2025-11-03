@@ -356,6 +356,7 @@ struct rockchip_hdmi {
 	struct drm_property *next_tfr;
 	struct drm_property *fva_factor_m1;
 	struct drm_property *hdmi_vrr_cap;
+	struct drm_property *hdmi_colorspace_caps;
 
 	struct drm_property_blob *mode_color_caps_ptr;
 	struct drm_property_blob *hdr_panel_blob_ptr;
@@ -3803,6 +3804,33 @@ static const struct drm_prop_enum_list allm_enable_list[] = {
 	{ 1, "enable" },
 };
 
+static const struct drm_prop_enum_list hdmi_colorspace_caps_list[] = {
+	/* For Default case, driver will set the colorspace */
+	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
+	/* Standard Definition Colorimetry based on CEA 861 */
+	{ DRM_MODE_COLORIMETRY_SMPTE_170M_YCC, "SMPTE_170M_YCC" },
+	{ DRM_MODE_COLORIMETRY_BT709_YCC, "BT709_YCC" },
+	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
+	/* High Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
+	/* Colorimetry based on IEC 61966-2-1/Amendment 1 */
+	{ DRM_MODE_COLORIMETRY_SYCC_601, "SYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 [33] */
+	{ DRM_MODE_COLORIMETRY_OPYCC_601, "opYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 */
+	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_CYCC, "BT2020_CYCC" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
+	/* Added as part of Additional Colorimetry Extension in 861.G */
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
+};
+
 static int
 hdmi_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					  struct drm_property_blob **blob,
@@ -4071,6 +4099,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		hdmi->mode_color_capacity = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
+
+	prop = drm_property_create_enum(connector->dev, 0,
+					"colorspace_caps",
+					hdmi_colorspace_caps_list,
+					ARRAY_SIZE(hdmi_colorspace_caps_list));
+	if (prop) {
+		hdmi->hdmi_colorspace_caps = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
 }
 
 static void
@@ -4185,6 +4222,11 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev, hdmi->hdmi_vrr_cap);
 		hdmi->hdmi_vrr_cap = NULL;
 	}
+
+	if (hdmi->hdmi_colorspace_caps) {
+		drm_property_destroy(connector->dev, hdmi->hdmi_colorspace_caps);
+		hdmi->hdmi_colorspace_caps = NULL;
+	}
 }
 
 static int
@@ -4274,6 +4316,8 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		dw_hdmi_qp_set_fva_factor_m1(hdmi->hdmi_qp, hdmi->fva_factor_m1_val);
 		return 0;
 	} else if (property == hdmi->hdmi_vrr_cap) {
+		return 0;
+	} else if (property == hdmi->hdmi_colorspace_caps) {
 		return 0;
 	}
 
@@ -4382,6 +4426,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 	} else if (property == hdmi->hdmi_vrr_cap) {
 		*val = hdmi->hdmi_vrr_cap_ptr ?
 			hdmi->hdmi_vrr_cap_ptr->base.id : 0;
+		return 0;
+	} else if (property == hdmi->hdmi_colorspace_caps) {
+		*val = hdmi->edid_colorimetry;
 		return 0;
 	}
 
