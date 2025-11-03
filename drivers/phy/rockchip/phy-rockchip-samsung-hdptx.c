@@ -1094,6 +1094,15 @@ static void rk_hdptx_dp_reset(struct rk_hdptx_phy *hdptx)
 		     HDPTX_I_BGR_EN << 16 | FIELD_PREP(HDPTX_I_BGR_EN, 0x0));
 }
 
+static bool rk_hdptx_phy_enabled(struct rk_hdptx_phy *hdptx)
+{
+	u32 status;
+
+	regmap_read(hdptx->grf, GRF_HDPTX_STATUS, &status);
+
+	return FIELD_GET(HDPTX_O_SB_RDY, status);
+}
+
 static int rk_hdptx_phy_consumer_get(struct rk_hdptx_phy *hdptx,
 				     unsigned long long rate)
 {
@@ -1102,6 +1111,9 @@ static int rk_hdptx_phy_consumer_get(struct rk_hdptx_phy *hdptx,
 	int ret;
 
 	if (atomic_inc_return(&hdptx->usage_count) > 1)
+		return 0;
+
+	if (rk_hdptx_phy_enabled(hdptx))
 		return 0;
 
 	ret = regmap_read(hdptx->grf, GRF_HDPTX_STATUS, &status);
@@ -1432,6 +1444,9 @@ static int rk_hdptx_phy_power_on(struct phy *phy)
 		return ret;
 
 	if (mode == PHY_MODE_DP) {
+		if (rk_hdptx_phy_enabled(hdptx))
+			return 0;
+
 		regmap_write(hdptx->grf, GRF_HDPTX_CON0,
 			     HDPTX_MODE_SEL << 16 | FIELD_PREP(HDPTX_MODE_SEL, 0x1));
 
