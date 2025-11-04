@@ -453,19 +453,33 @@ static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
 	0, 1, 0,
 };
 
+static const struct rk_pq_csc_coef swap_mat = {
+	0, 0, 1,
+	1, 0, 0,
+	0, 1, 0,
+};
+
+static const struct rk_pq_csc_coef inv_swap_mat = {
+	0, 1, 0,
+	0, 0, 1,
+	1, 0, 0,
+};
+
 static enum rk_pq_csc_version get_csc_version(u32 plat)
 {
 	switch (plat) {
 	case VOP_VERSION_RK3528:
 	case VOP_VERSION_RK3576:
 		return RK_PQ_CSC_V1;
+	case VOP_VERSION_RK3572:
+		return RK_PQ_CSC_V2;
 	default:
 		return RK_PQ_CSC_UNKNOWN;
 	}
 }
 
 static
-enum color_space_type get_color_space_type(enum drm_color_encoding color_encoding, bool is_yuv)
+enum color_space_type get_color_space_type(u32 color_encoding, bool is_yuv)
 {
 	enum color_space_type color_space_type;
 
@@ -487,6 +501,12 @@ enum color_space_type get_color_space_type(enum drm_color_encoding color_encodin
 			color_space_type = OPTM_CS_E_XV_YCC_2020;
 		else
 			color_space_type = OPTM_CS_E_RGB_2020;
+		break;
+	case DRM_COLOR_DCI_P3:
+		if (is_yuv)
+			color_space_type = OPTM_CS_E_XV_YCC_709;
+		else
+			color_space_type = OPTM_CS_E_RGB;
 		break;
 	default:
 		if (is_yuv)
@@ -999,21 +1019,48 @@ static void rockchip_swap_color_channel(const struct post_csc_convert_mode *mode
 					struct rk_pq_csc_coef *out_matrix,
 					struct rk_pq_csc_ventor *out_dc)
 {
-	struct rk_pq_csc_coef tmp_matrix;
-	struct rk_pq_csc_ventor tmp_v;
+	struct rk_pq_csc_coef tmp_mat;
+	struct rk_pq_csc_ventor tmp_vec;
 
-	if (mode->swap_channels) {
+	switch (mode->swap_channels) {
+	case RK_PQ_CSC_SWAP_NONE:
+		return;
+	case RK_PQ_CSC_V1_SWAP:
 		if (!mode->is_input_yuv) {
-			memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
-			csc_matrix_multiply(out_matrix, &tmp_matrix, &rgb_input_swap_matrix);
+			memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+			csc_matrix_multiply(out_matrix, &tmp_mat, &rgb_input_swap_matrix);
 		}
 
 		if (mode->is_output_yuv) {
-			memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
-			memcpy(&tmp_v, out_dc, sizeof(struct rk_pq_csc_ventor));
-			csc_matrix_multiply(out_matrix, &yuv_output_swap_matrix, &tmp_matrix);
-			csc_matrix_ventor_multiply(out_dc, &yuv_output_swap_matrix, &tmp_v);
+			memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+			memcpy(&tmp_vec, out_dc, sizeof(struct rk_pq_csc_ventor));
+			csc_matrix_multiply(out_matrix, &yuv_output_swap_matrix, &tmp_mat);
+			csc_matrix_ventor_multiply(out_dc, &yuv_output_swap_matrix, &tmp_vec);
 		}
+		return;
+	case RK_PQ_CSC_V2_VP_Y2R_R2R:
+		memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+		csc_matrix_multiply(out_matrix, &tmp_mat, &swap_mat);
+		return;
+	case RK_PQ_CSC_V2_R2Y_R2R:
+		memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+		memcpy(&tmp_vec, out_dc, sizeof(struct rk_pq_csc_ventor));
+		csc_matrix_multiply(out_matrix, &inv_swap_mat, &tmp_mat);
+		csc_matrix_ventor_multiply(out_dc, &inv_swap_mat, &tmp_vec);
+		return;
+	case RK_PQ_CSC_V2_Y2R_Y2Y:
+		memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+		memcpy(&tmp_vec, out_dc, sizeof(struct rk_pq_csc_ventor));
+		csc_matrix_multiply(out_matrix, &swap_mat, &tmp_mat);
+		csc_matrix_ventor_multiply(out_dc, &swap_mat, &tmp_vec);
+		return;
+	case RK_PQ_CSC_V2_VP_R2Y_Y2Y:
+		memcpy(&tmp_mat, out_matrix, sizeof(struct rk_pq_csc_coef));
+		csc_matrix_multiply(out_matrix, &tmp_mat, &inv_swap_mat);
+		return;
+	default:
+		DRM_ERROR("Invalid type of swap_channels: %d\n", mode->swap_channels);
+		return;
 	}
 }
 

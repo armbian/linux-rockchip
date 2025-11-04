@@ -770,6 +770,15 @@ struct rk_plane_extend_data {
 	};
 };
 
+enum rk_pq_csc_swap_type {
+	RK_PQ_CSC_SWAP_NONE = 0,
+	RK_PQ_CSC_V1_SWAP,		/* for rk3576 csc */
+	RK_PQ_CSC_V2_VP_Y2R_R2R,
+	RK_PQ_CSC_V2_R2Y_R2R,
+	RK_PQ_CSC_V2_Y2R_Y2Y,
+	RK_PQ_CSC_V2_VP_R2Y_Y2Y,
+};
+
 struct post_csc_convert_mode {
 	enum drm_color_encoding intput_color_encoding;
 	enum drm_color_encoding output_color_encoding;
@@ -1151,6 +1160,18 @@ struct vop2_video_port_regs {
 	struct vop_reg acm_r2y_en;
 	struct vop_reg csc_mode;
 	struct vop_reg acm_r2y_mode;
+	struct vop_reg acm_r2y_coe00;
+	struct vop_reg acm_r2y_coe01;
+	struct vop_reg acm_r2y_coe02;
+	struct vop_reg acm_r2y_coe10;
+	struct vop_reg acm_r2y_coe11;
+	struct vop_reg acm_r2y_coe12;
+	struct vop_reg acm_r2y_coe20;
+	struct vop_reg acm_r2y_coe21;
+	struct vop_reg acm_r2y_coe22;
+	struct vop_reg acm_r2y_offset0;
+	struct vop_reg acm_r2y_offset1;
+	struct vop_reg acm_r2y_offset2;
 	struct vop_reg csc_coe00;
 	struct vop_reg csc_coe01;
 	struct vop_reg csc_coe02;
@@ -1348,6 +1369,7 @@ struct vop2_win_data {
 	const struct vop2_win_regs **area;
 	unsigned int area_size;
 	const uint32_t csc_coe_offset;
+	const uint32_t dci_csc_coe_offset;
 	const uint8_t csc_coe_bits;
 	struct vop_rect max_input;
 	struct vop_rect max_output;

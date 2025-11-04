@@ -488,6 +488,7 @@ struct vop2_win {
 
 	uint8_t csc_coe_bits;
 	uint32_t csc_coe_offset;
+	uint32_t dci_csc_coe_offset;
 
 	/* capacity of msmart layer */
 	uint32_t max_grids;
@@ -1726,6 +1727,24 @@ static void vop2_load_sdr2hdr_table(struct vop2_video_port *vp, int sdr2hdr_tf)
 	for (i = 0; i < 63; i++)
 		vop2_writel(vop2, regs->sdr2hdr_oetf_xn1_offset + i * 4,
 			    table->sdr2hdr_st2084oetf_xn[i]);
+}
+
+static void vop2_load_csc_coe(struct vop2 *vop2, uint32_t offset, struct post_csc_coef *csc_coef)
+{
+	int i = 0;
+	u32 val[VOP2_CSC_COE_NUM] = {0};
+
+	val[0] = (u32)csc_coef->csc_coef01 << 16 | ((u32)csc_coef->csc_coef00 & 0xffff);
+	val[1] = (u32)csc_coef->csc_coef10 << 16 | ((u32)csc_coef->csc_coef02 & 0xffff);
+	val[2] = (u32)csc_coef->csc_coef12 << 16 | ((u32)csc_coef->csc_coef11 & 0xffff);
+	val[3] = (u32)csc_coef->csc_coef21 << 16 | ((u32)csc_coef->csc_coef20 & 0xffff);
+	val[4] = (u32)csc_coef->csc_coef22;
+	val[5] = (u32)csc_coef->csc_dc0;
+	val[6] = (u32)csc_coef->csc_dc1;
+	val[7] = (u32)csc_coef->csc_dc2;
+
+	for (i = 0; i < VOP2_CSC_COE_NUM; i++)
+		vop2_writel(vop2, offset + i * 4, val[i]);
 }
 
 static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
@@ -3636,6 +3655,27 @@ static void vop2_disable_all_planes_for_crtc(struct drm_crtc *crtc)
 	}
 }
 
+static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
+				     struct post_csc *csc_cfg)
+{
+	if (convert_mode.is_input_yuv != convert_mode.is_output_yuv)
+		return false;
+
+	if (csc_cfg && csc_cfg->csc_enable)
+		return true;
+
+	if (convert_mode.is_input_full_range != convert_mode.is_output_full_range)
+		return true;
+
+	if (convert_mode.intput_color_encoding != convert_mode.output_color_encoding)
+		return true;
+
+	if (convert_mode.coef_precision != convert_mode.pixel_depth)
+		return true;
+
+	return false;
+}
+
 /*
  * colorspace path:
  *      Input        Win csc                     Output
@@ -3678,6 +3718,8 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 	int is_input_yuv = pstate->fb->format->is_yuv;
 	int is_output_yuv = vcstate->yuv_overlay;
 	struct vop2_win *win = to_vop2_win(pstate->plane);
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
 	int csc_y2r_bit_depth = CSC_10BIT_DEPTH;
 	int input_color_range = pstate->color_range;
 
@@ -3755,27 +3797,68 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 		}
 	}
 
-	if (is_input_yuv && !is_output_yuv) {
-		vpstate->y2r_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
-							  input_color_range,
-							  csc_y2r_bit_depth);
-	} else if (!is_input_yuv && is_output_yuv) {
-		vpstate->r2y_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
-							  vcstate->color_range,
-							  CSC_10BIT_DEPTH);
+	if (win->csc_coe_offset) {
+		struct post_csc_convert_mode convert_mode = {};
 
-		/**
-		 * VOP YUV overlay only can support YUV limit range, so force
-		 * select BT601L todo R2Y.
-		 */
-		if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
-		    (vop2->version == VOP_VERSION_RK3528 ||
-		     vop2->version == VOP_VERSION_RK3568 ||
-		     vop2->version == VOP_VERSION_RK3576 ||
-		     vop2->version == VOP_VERSION_RK3588))
-			vpstate->csc_mode = CSC_BT601L;
+		convert_mode.is_input_yuv = is_input_yuv;
+		convert_mode.intput_color_encoding = pstate->color_encoding;
+		convert_mode.is_input_full_range = pstate->color_range;
+		convert_mode.pixel_depth = 10;
+		convert_mode.coef_precision = win_data->csc_coe_bits;
+		convert_mode.plat = vop2->version;
+		convert_mode.swap_channels = 0;
+
+		convert_mode.is_output_yuv = is_output_yuv;
+		/* apart from bt2020, vop process recommends using bt709. */
+		if (convert_mode.intput_color_encoding != DRM_COLOR_YCBCR_BT2020)
+			convert_mode.output_color_encoding = DRM_COLOR_YCBCR_BT709;
+		else
+			convert_mode.output_color_encoding = DRM_COLOR_YCBCR_BT2020;
+
+		/* prefer full range for vop process */
+		convert_mode.is_output_full_range = true;
+
+		if (is_input_yuv && !is_output_yuv)
+			vpstate->y2r_en = 1;
+		else if (!is_input_yuv && is_output_yuv)
+			vpstate->r2y_en = 1;
+
+		if (vop3_csc_is_r2r_y2y_mode(convert_mode, NULL)) {
+			if (!convert_mode.is_input_yuv) {
+				convert_mode.swap_channels = RK_PQ_CSC_V2_R2Y_R2R;
+				vpstate->r2y_en = 1;
+			} else {
+				convert_mode.swap_channels = RK_PQ_CSC_V2_Y2R_Y2Y;
+				vpstate->y2r_en = 1;
+			}
+		} else {
+			convert_mode.swap_channels = 0;
+		}
+
+		rockchip_calc_post_csc(NULL, &vpstate->csc_coef, &convert_mode);
+	} else {
+		if (is_input_yuv && !is_output_yuv) {
+			vpstate->y2r_en = 1;
+			vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
+								  input_color_range,
+								  csc_y2r_bit_depth);
+		} else if (!is_input_yuv && is_output_yuv) {
+			vpstate->r2y_en = 1;
+			vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+								  vcstate->color_range,
+								  CSC_10BIT_DEPTH);
+
+			/**
+			 * VOP YUV overlay only can support YUV limit range, so force
+			 * select BT601L todo R2Y.
+			 */
+			if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
+			    (vop2->version == VOP_VERSION_RK3528 ||
+			     vop2->version == VOP_VERSION_RK3568 ||
+			     vop2->version == VOP_VERSION_RK3576 ||
+			     vop2->version == VOP_VERSION_RK3588))
+				vpstate->csc_mode = CSC_BT601L;
+		}
 	}
 }
 
@@ -7650,6 +7733,8 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	struct rockchip_gem_object *dci_gem_obj;
 	struct dci_data *dci_data;
 	struct drm_rect *src = &vpstate->src;
+	struct post_csc_convert_mode convert_mode = {};
+	struct post_csc_coef csc_coef = {};
 	u32 *dci_lut_kvaddr;
 	dma_addr_t dci_lut_mst;
 	u16 blk_size_h, blk_size_v;
@@ -7732,11 +7817,30 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	VOP_CLUSTER_SET(vop2, win, sat_adj_k, dci_data->adj1 & 0xffff);
 	VOP_CLUSTER_SET(vop2, win, sat_w, (dci_data->adj1 >> 16) & 0x7f);
 
-	plane_csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range,
-					       CSC_10BIT_DEPTH);
+	if (!win->dci_csc_coe_offset) {
+		plane_csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range,
+						       CSC_10BIT_DEPTH);
+
+		VOP_CLUSTER_SET(vop2, win, csc_range, vop2_is_full_range_csc_mode(plane_csc_mode));
+	} else {
+		convert_mode.is_input_full_range =
+			pstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? true : false;
+		convert_mode.is_output_full_range = true;
+		convert_mode.intput_color_encoding = pstate->color_encoding;
+		convert_mode.output_color_encoding = convert_mode.intput_color_encoding;
+		convert_mode.is_input_yuv = pstate->fb->format->is_yuv;
+		convert_mode.is_output_yuv = true;
+		convert_mode.pixel_depth = 10;
+		convert_mode.coef_precision = 10;
+		convert_mode.plat = vop2->version;
+		convert_mode.swap_channels = 0;
+
+		rockchip_calc_post_csc(NULL, &csc_coef, &convert_mode);
+
+		vop2_load_csc_coe(vop2, win->dci_csc_coe_offset, &csc_coef);
+	}
 
 	VOP_CLUSTER_SET(vop2, win, uv_adjust_en, dci_data->uv_adj);
-	VOP_CLUSTER_SET(vop2, win, csc_range, vop2_is_full_range_csc_mode(plane_csc_mode));
 	VOP_CLUSTER_SET(vop2, win, dci_en, 1);
 
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
@@ -8209,6 +8313,9 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_WIN_SET(vop2, win, y2r_en, vpstate->y2r_en);
 	VOP_WIN_SET(vop2, win, r2y_en, vpstate->r2y_en);
 	VOP_WIN_SET(vop2, win, csc_mode, vpstate->csc_mode);
+
+	if (win->csc_coe_offset && (vpstate->y2r_en || vpstate->r2y_en))
+		vop2_load_csc_coe(vop2, win->csc_coe_offset, &vpstate->csc_coef);
 
 	if (win->feature & WIN_FEATURE_Y2R_13BIT_DEPTH && !vop2_cluster_window(win))
 		VOP_WIN_SET(vop2, win, csc_13bit_en, !!(vpstate->csc_mode & CSC_BT709L_13BIT));
@@ -14934,14 +15041,30 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	struct vop2_plane_state *vpstate;
 	struct post_csc_coef csc_coef = {};
 	struct post_csc_convert_mode convert_mode = {};
+	struct post_csc_convert_mode r2y_convert_mode = {};
 	struct drm_rect *dest;
+	struct hdr_extend *extend_data;
+	struct rk_plane_extend_data *win_ext_data;
 	bool acm_enable;
 	bool post_r2y_en = false;
 	bool post_csc_en = false;
+	bool post_r2r_en = false;
 	bool rgb_limited_plane = false;
+	bool r2y_csc_supported = false;
+	bool has_bt2020_plane = false;
+	bool cgc_enabled = false;
 	int range_type;
 	u64 max_yuv_plane = 0, plane_area;
 	enum drm_color_encoding max_yuv_plane_color_encoding = DRM_COLOR_YCBCR_BT601;
+
+	if (!vp->regs->acm_r2y_mode.mask)
+		r2y_csc_supported = true;
+
+	if (vcstate->hdr_ext_data) {
+		extend_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
+		if ((extend_data->hdr_type & RK_HDR_CGC_S2H_MASK))
+			cgc_enabled = true;
+	}
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
@@ -14949,6 +15072,19 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		pstate = win->base.state;
 		vpstate = to_vop2_plane_state(pstate);
 		dest = &vpstate->dest;
+
+		if (pstate->color_encoding == DRM_COLOR_YCBCR_BT2020)
+			has_bt2020_plane = true;
+
+		if (vpstate->ext_data) {
+			win_ext_data = (struct rk_plane_extend_data *)vpstate->ext_data->data;
+			if (win_ext_data->type == RK_PLANE_EXTEND_DATA_CGC ||
+			    win_ext_data->type == RK_PLANE_EXTEND_DATA_HDR)
+				cgc_enabled = true;
+			else
+				DRM_ERROR("rk plane extend_data type %d is unsupported\n",
+					  win_ext_data->type);
+		}
 
 		if (!pstate->fb->format->is_yuv &&
 		    pstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE)
@@ -14989,13 +15125,110 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	if (csc && csc->csc_enable)
 		post_csc_en = true;
 
+	if (r2y_csc_supported) {
+		if (!vcstate->yuv_overlay) {
+			r2y_convert_mode.is_input_yuv = false;
+			if (!post_r2y_en) {
+				/* do rgb full/limited range convert in r2y */
+				if (vcstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE)
+					post_r2r_en = true;
+			}
+		} else {
+			r2y_convert_mode.is_input_yuv = true;
+		}
+
+		r2y_convert_mode.is_input_full_range = true;
+
+		/*
+		 * If cgc is enabled, cgc will convert colorspace to the
+		 * output colorspace of interface, that is, the input colorspace
+		 * of the acm is equal to the colorspace of interface.
+		 * If cgc is not enabled and the plane colorspace is bt2020(hdr bypass scenario),
+		 * the acm input colorspace is bt2020.
+		 * In all other scenarios, the csc of the layer is output in bt709 colorspace.
+		 */
+		if (cgc_enabled)
+			r2y_convert_mode.intput_color_encoding = vcstate->color_encoding;
+		else if (has_bt2020_plane)
+			r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT2020;
+		else
+			r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT709;
+
+		if (post_r2y_en)
+			r2y_convert_mode.is_output_yuv = true;
+		else
+			r2y_convert_mode.is_output_yuv = r2y_convert_mode.is_input_yuv;
+
+		/*
+		 * If input is rgb, output range of r2y csc is
+		 * euqual to the display interface. If input is
+		 * yuv, range convert is done in y2r csc.
+		 */
+		if (post_r2r_en || post_r2y_en)
+			r2y_convert_mode.is_output_full_range = vcstate->color_range;
+		else
+			r2y_convert_mode.is_output_full_range =
+				r2y_convert_mode.is_input_full_range;
+
+		/* r2y csc do r2r, colorspace will not be changed */
+		if (post_r2y_en)
+			r2y_convert_mode.output_color_encoding = vcstate->color_encoding;
+		else
+			r2y_convert_mode.output_color_encoding =
+				r2y_convert_mode.intput_color_encoding;
+
+		r2y_convert_mode.pixel_depth = 10;
+		r2y_convert_mode.coef_precision = 10;
+		r2y_convert_mode.plat = vop2->version;
+
+		if (vop3_csc_is_r2r_y2y_mode(r2y_convert_mode, NULL)) {
+			/* r2y csc supports y2y, but in practice it will not be used. */
+			if (!r2y_convert_mode.is_input_yuv)
+				r2y_convert_mode.swap_channels = RK_PQ_CSC_V2_R2Y_R2R;
+			else
+				r2y_convert_mode.swap_channels = RK_PQ_CSC_V2_VP_R2Y_Y2Y;
+		} else {
+			r2y_convert_mode.swap_channels = 0;
+		}
+	}
+
+	if (r2y_csc_supported) {
+		if (post_r2y_en || post_r2r_en) {
+			rockchip_calc_post_csc(NULL, &csc_coef, &r2y_convert_mode);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe00, csc_coef.csc_coef00);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe01, csc_coef.csc_coef01);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe02, csc_coef.csc_coef02);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe10, csc_coef.csc_coef10);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe11, csc_coef.csc_coef11);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe12, csc_coef.csc_coef12);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe20, csc_coef.csc_coef20);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe21, csc_coef.csc_coef21);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_coe22, csc_coef.csc_coef22);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_offset0, csc_coef.csc_dc0);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_offset1, csc_coef.csc_dc1);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_offset2, csc_coef.csc_dc2);
+			VOP_MODULE_SET(vop2, vp, acm_r2y_en, 1);
+		} else {
+			VOP_MODULE_SET(vop2, vp, acm_r2y_en, 0);
+		}
+	} else {
+		vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+							       vcstate->color_range,
+							       CSC_13BIT_DEPTH);
+		VOP_MODULE_SET(vop2, vp, acm_r2y_mode, vcstate->post_csc_mode);
+		VOP_MODULE_SET(vop2, vp, acm_r2y_en, post_r2y_en ? 1 : 0);
+	}
+
+	/* ready to config post y2r csc */
 	if (vcstate->yuv_overlay || post_r2y_en)
 		convert_mode.is_input_yuv = true;
 
 	if (is_yuv_output(vcstate->bus_format))
 		convert_mode.is_output_yuv = true;
 
-	if (vp->has_dci_enabled_win) {
+	if (r2y_csc_supported) {
+		convert_mode.is_input_full_range = r2y_convert_mode.is_output_full_range;
+	} else if (vp->has_dci_enabled_win) {
 		convert_mode.is_input_full_range = true;
 	} else if (!vcstate->yuv_overlay) {
 		/* if there are yuv planes, choose max plane's range */
@@ -15013,11 +15246,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		convert_mode.is_input_full_range = false;
 	}
 
-	convert_mode.is_output_full_range =
-		vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
-
-	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_13BIT_DEPTH);
-
+	convert_mode.is_output_full_range = vcstate->color_range;
 	convert_mode.output_color_encoding = vcstate->color_encoding;
 	/*
 	 * When all layers are rgb, the value of input_color_encoding
@@ -15028,14 +15257,33 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	 * If there are any yuv planes, value of post-csc input_color_encoding
 	 * selects the value of the yuv plane with the largest area.
 	 */
-	if (!max_yuv_pstate)
+	if (r2y_csc_supported)
+		convert_mode.intput_color_encoding = r2y_convert_mode.output_color_encoding;
+	else if (!max_yuv_pstate)
 		convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT601;
 	else
 		convert_mode.intput_color_encoding = max_yuv_plane_color_encoding;
 
-	if (convert_mode.intput_color_encoding != convert_mode.output_color_encoding ||
-	    convert_mode.is_input_full_range != convert_mode.is_output_full_range)
+	convert_mode.pixel_depth = 10;
+	convert_mode.coef_precision = 10;
+	convert_mode.plat = vop2->version;
+
+	if (vop3_csc_is_r2r_y2y_mode(convert_mode, csc)) {
+		if (vop2->version >= VOP_VERSION_RK3572) {
+			/* If input/output are rgb and bcsh is enabled, y2r csc do r2r */
+			if (!convert_mode.is_input_yuv)
+				convert_mode.swap_channels = RK_PQ_CSC_V2_VP_Y2R_R2R;
+			else
+				convert_mode.swap_channels = RK_PQ_CSC_V2_Y2R_Y2Y;
+		} else {
+			convert_mode.swap_channels = RK_PQ_CSC_V1_SWAP;
+
+		}
+
 		post_csc_en = true;
+	} else {
+		convert_mode.swap_channels = RK_PQ_CSC_SWAP_NONE;
+	}
 
 	convert_mode.pixel_depth = 10;
 	convert_mode.coef_precision = 10;
@@ -15063,9 +15311,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		VOP_MODULE_SET(vop2, vp, csc_mode, range_type);
 	}
 
-	VOP_MODULE_SET(vop2, vp, acm_r2y_en, post_r2y_en ? 1 : 0);
 	VOP_MODULE_SET(vop2, vp, csc_en, post_csc_en ? 1 : 0);
-	VOP_MODULE_SET(vop2, vp, acm_r2y_mode, vcstate->post_csc_mode);
 }
 
 static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
@@ -17699,6 +17945,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->possible_vp_mask = win_data->possible_vp_mask;
 		win->reg_done_bit = win_data->reg_done_bit;
 		win->csc_coe_offset = win_data->csc_coe_offset;
+		win->dci_csc_coe_offset = win_data->dci_csc_coe_offset;
 		win->csc_coe_bits = win_data->csc_coe_bits;
 		win->crc_enable = win_data->crc_enable;
 		win->crc_value_offset = win_data->crc_value_offset;
