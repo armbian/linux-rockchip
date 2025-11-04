@@ -488,6 +488,20 @@
 			status = "disabled";
 		};
 
+		spdif_rx: spdif-rx@fdb20000 {
+			compatible = "rockchip,rk3538-spdifrx", "rockchip,rk3308-spdifrx";
+			reg = <0xfdb20000 0x1000>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SPDIF_ARC_RX_SRC>, <&cru HCLK_SPDIF_ARC_RX>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 29>;
+			dma-names = "rx";
+			resets = <&cru SRST_MRESETN_SPDIF_ARC_RX>;
+			reset-names = "spdifrx-m";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
 		sai3: sai@fdb30000 {
 			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
 			reg = <0xfdb30000 0x1000>;
@@ -789,6 +803,20 @@
 				     &sai1m0_sdo3_pins>;
 			#sound-dai-cells = <0>;
 			sound-name-prefix = "SAI1";
+			status = "disabled";
+		};
+
+		spdif_tx: spdif-tx@fdf50000 {
+			compatible = "rockchip,rk3538-spdif";
+			reg = <0xfdf50000 0x1000>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru MCLK_SPDIF_TX>, <&cru HCLK_SPDIF_TX>;
+			clock-names = "mclk", "hclk";
+			dmas = <&dmac 30>;
+			dma-names = "tx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spdifm0_pins>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
