@@ -65,6 +65,18 @@
 #define SPDIF_XFER_TXS_STOP	(0 << SPDIF_XFER_TXS_SHIFT)
 #define SPDIF_XFER_TXS_START	(1 << SPDIF_XFER_TXS_SHIFT)
 
+/*
+ * GAINCTRL
+ * Gain control register
+ */
+#define SPDIF_GAINCTRL_EN_MASK	BIT(0)
+#define SPDIF_GAINCTRL_EN	BIT(0)
+#define SPDIF_GAINCTRL_DIS	0
+
+#define SPDIF_GAINCTRL_CTRL_MASK	GENMASK(8, 1)
+#define SPDIF_GAINCTRL_CTRL(x)		((x) << 1)
+
+/* SPDIF Registers */
 #define SPDIF_CFGR	(0x0000)
 #define SPDIF_SDBLR	(0x0004)
 #define SPDIF_DMACR	(0x0008)
@@ -75,6 +87,7 @@
 #define SPDIF_VLDFRn(x)	(0x0060 + (x) * 4)
 #define SPDIF_USRDRn(x)	(0x0090 + (x) * 4)
 #define SPDIF_CHNSRn(x)	(0x00c0 + (x) * 4)
+#define SPDIF_GAINCTRL	(0x0118)
 #define SPDIF_VERSION	(0x01c0)
 
 #endif /* _ROCKCHIP_SPDIF_H */

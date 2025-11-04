@@ -20,6 +20,7 @@
 #include <sound/pcm_params.h>
 #include <sound/pcm_iec958.h>
 #include <sound/dmaengine_pcm.h>
+#include <sound/tlv.h>
 
 #include "rockchip_spdif.h"
 
@@ -28,6 +29,7 @@ enum rk_spdif_type {
 	RK_SPDIF_RK3188,
 	RK_SPDIF_RK3288,
 	RK_SPDIF_RK3366,
+	RK_SPDIF_RK3538,
 };
 
 /*
@@ -60,6 +62,7 @@ struct rk_spdif_dev {
 
 	struct regmap *regmap;
 	bool non_pcm;
+	enum rk_spdif_type type;
 };
 
 static const struct of_device_id rk_spdif_match[] __maybe_unused = {
@@ -83,6 +86,8 @@ static const struct of_device_id rk_spdif_match[] __maybe_unused = {
 	  .data = (void *)RK_SPDIF_RK3366 },
 	{ .compatible = "rockchip,rk3588-spdif",
 	  .data = (void *)RK_SPDIF_RK3366 },
+	{ .compatible = "rockchip,rk3538-spdif",
+	  .data = (void *)RK_SPDIF_RK3538 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rk_spdif_match);
@@ -245,11 +250,23 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static DECLARE_TLV_DB_MINMAX(gain_tlv, -6562, 3000);
+static const struct snd_kcontrol_new rk_spdif_volume_controls[] = {
+	SOC_SINGLE("MUTE ENABLE", SPDIF_XFER, 2, 1, 0),
+	SOC_SINGLE("GAIN ENABLE", SPDIF_GAINCTRL, 0, 1, 0),
+	SOC_SINGLE_TLV("GAIN VALUE", SPDIF_GAINCTRL, 1, 255, 0, gain_tlv),
+};
+
 static int rk_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
 
 	dai->playback_dma_data = &spdif->playback_dma_data;
+
+	if (spdif->type >= RK_SPDIF_RK3538)
+		snd_soc_add_component_controls(dai->component,
+					       rk_spdif_volume_controls,
+					       ARRAY_SIZE(rk_spdif_volume_controls));
 
 	return 0;
 }
@@ -345,6 +362,7 @@ static bool rk_spdif_wr_reg(struct device *dev, unsigned int reg)
 	case SPDIF_VLDFRn(0) ... SPDIF_VLDFRn(11):
 	case SPDIF_USRDRn(0) ... SPDIF_USRDRn(11):
 	case SPDIF_CHNSRn(0) ... SPDIF_CHNSRn(11):
+	case SPDIF_GAINCTRL:
 		return true;
 	default:
 		return false;
@@ -363,6 +381,7 @@ static bool rk_spdif_rd_reg(struct device *dev, unsigned int reg)
 	case SPDIF_VLDFRn(0) ... SPDIF_VLDFRn(11):
 	case SPDIF_USRDRn(0) ... SPDIF_USRDRn(11):
 	case SPDIF_CHNSRn(0) ... SPDIF_CHNSRn(11):
+	case SPDIF_GAINCTRL:
 		return true;
 	default:
 		return false;
@@ -445,6 +464,20 @@ static int rk_spdif_probe(struct platform_device *pdev)
 
 	spdif->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, spdif);
+
+	spdif->type = (enum rk_spdif_type)match->data;
+	if (spdif->type >= RK_SPDIF_RK3538) {
+		ret = clk_prepare_enable(spdif->hclk);
+		if (ret)
+			return ret;
+
+		/* set default gain 0db */
+		regmap_update_bits(spdif->regmap, SPDIF_GAINCTRL,
+				   SPDIF_GAINCTRL_CTRL_MASK,
+				   SPDIF_GAINCTRL_CTRL(175));
+
+		clk_disable_unprepare(spdif->hclk);
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
