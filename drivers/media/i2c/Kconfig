@@ -393,6 +393,19 @@ config VIDEO_GC4663
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc4663.
 
+config VIDEO_GC4683
+	tristate "GalaxyCore GC4683 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC4683 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc4683.
+
 config VIDEO_GC4C33
 	tristate "GalaxyCore GC4C33 sensor support"
 	depends on I2C && VIDEO_DEV
