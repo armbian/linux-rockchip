@@ -132,6 +132,7 @@ static struct rkce_algt *g_rkce_algs[] = {
 	&rkce_asym_ecc_p192,
 	&rkce_asym_ecc_p224,
 	&rkce_asym_ecc_p256,
+	&rkce_asym_ecc_p384,
 };
 
 static int rkce_crypto_register(struct rkce_dev *rk_dev, struct rkce_algt **algts, int algt_num)

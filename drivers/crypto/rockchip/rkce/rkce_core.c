@@ -166,14 +166,21 @@ static bool rk_is_hash_support(struct RKCE_REG *rkce_reg, uint32_t algo, uint32_
 
 static bool rk_is_asym_support(struct RKCE_REG *rkce_reg, uint32_t algo)
 {
+	uint32_t max_curve_wide = RKCE_READ(rkce_reg->ECC_MAX_CURVE_WIDE);
+
 	switch (algo) {
 	case RKCE_ASYM_ALGO_RSA:
 		return !!RKCE_READ(rkce_reg->PKA_VER);
 	case RKCE_ASYM_ALGO_ECC_P192:
+		return max_curve_wide >= 192;
 	case RKCE_ASYM_ALGO_ECC_P224:
+		return max_curve_wide >= 224;
 	case RKCE_ASYM_ALGO_ECC_P256:
+		return max_curve_wide >= 256;
+	case RKCE_ASYM_ALGO_ECC_P384:
+		return max_curve_wide >= 384;
 	case RKCE_ASYM_ALGO_SM2:
-		return !!RKCE_READ(rkce_reg->ECC_MAX_CURVE_WIDE);
+		return max_curve_wide >= 256;
 	default:
 		return false;
 	}
