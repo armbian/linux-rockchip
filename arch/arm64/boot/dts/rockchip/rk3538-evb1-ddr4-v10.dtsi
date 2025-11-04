@@ -10,6 +10,33 @@
 #include "rk3538-evb.dtsi"
 
 /{
+	rk730_sound: rk730-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk730";
+		hp-det-gpio = <&gpio6 RK_PC6 GPIO_ACTIVE_LOW>;
+		hp-con-gpio = <&gpio6 RK_PC5 GPIO_ACTIVE_HIGH>;
+		spk-con-gpio = <&gpio6 RK_PC4 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai1>;
+		rockchip,codec = <&rk730>;
+		rockchip,audio-routing =
+				"Headphone", "LOUT1",
+				"Headphone", "ROUT1",
+				"Speaker", "LOUT2",
+				"Speaker", "ROUT2",
+				"Headphone", "Headphone Power",
+				"Headphone", "Headphone Power",
+				"Speaker", "Speaker Power",
+				"Speaker", "Speaker Power",
+				"MIC2", "Main Mic",
+				"MIC1", "Headset Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_con_h &hp_det_l &spk_con_h>;
+	};
+
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -140,8 +167,45 @@
 	mali-supply = <&vdd_logic>;
 };
 
+&i2c2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m2_pins>;
+
+	rk730: rk730@16 {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rk730";
+		reg = <0x16>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai1m0_mclk_pins>;
+	};
+};
+
 &mac {
 	status = "okay";
+};
+
+&pinctrl {
+	audio-amplifier {
+		spk_con_h: spk-con-h {
+			rockchip,pins = <6 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	headphone-jack {
+		hp_con_h: hp-con-h {
+			rockchip,pins = <6 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		hp_det_l: hp-det-l {
+			rockchip,pins = <6 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
 
 &pwm0_4ch_2 {
@@ -151,6 +215,15 @@
 &pwm0_4ch_3 {
 	pinctrl-0 = <&pwm0m1_ch3_pins>;
 	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai1m0_lrck_pins
+		     &sai1m0_sclk_pins
+		     &sai1m0_sdi0_pins
+		     &sai1m0_sdo0_pins>;
 };
 
 &sdmmc0 {
