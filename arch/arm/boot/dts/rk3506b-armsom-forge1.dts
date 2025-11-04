@@ -236,6 +236,12 @@
 	status = "okay";
 };
 
+&pwm0_4ch_0 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io21_pwm0_ch0>;
+	status = "okay";
+};
+
 &pinctrl {
     ethernet {
 		rmii0_rstn: rmii0-rstn {
