@@ -53,9 +53,11 @@ struct rk_spdifrx_dev {
 	struct timer_list fifo_timer;
 	struct work_struct xrun_work;
 	unsigned int mclk_rate;
+	unsigned int version;
 	int irq;
 	bool cdr_count_avg;
 	bool need_reset;
+	bool fs_monitor;
 };
 
 static const struct spdifrx_of_quirks {
@@ -134,6 +136,22 @@ static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
 	spdifrx->info.liner_pcm_last = 1;
 	spdifrx->substream = substream;
 
+	if (spdifrx->version >= SPDIFRX_VER_2312) {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			regmap_update_bits(spdifrx->regmap, SPDIFRX_CFGR,
+					   SPDIFRX_CFGR_DAT_MASK, SPDIFRX_CFGR_DAT_JOIN);
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+		case SNDRV_PCM_FORMAT_S32_LE:
+			regmap_update_bits(spdifrx->regmap, SPDIFRX_CFGR,
+					   SPDIFRX_CFGR_DAT_MASK, SPDIFRX_CFGR_DAT_JOIN_DIS);
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (params_rate(params) >= 44100)
 		spdifrx->cdr_count_avg = true;
 	else
@@ -170,9 +188,10 @@ static int rk_spdifrx_trigger(struct snd_pcm_substream *substream,
 		ret = regmap_update_bits(spdifrx->regmap, SPDIFRX_CFGR,
 					 SPDIFRX_EN_MASK,
 					 SPDIFRX_EN);
-
-		mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(1000));
-		dev_dbg(spdifrx->dev, "start fifo timer\n");
+		if (!spdifrx->fs_monitor) {
+			mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(1000));
+			dev_dbg(spdifrx->dev, "start fifo timer\n");
+		}
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -233,8 +252,8 @@ static int rk_spdifrx_parse_quirks(struct rk_spdifrx_dev *spdifrx)
 static int rk_spdifrx_sync_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sync;
 	return 0;
@@ -243,8 +262,8 @@ static int rk_spdifrx_sync_get(struct snd_kcontrol *kcontrol,
 static int rk_spdifrx_sample_rate_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sample_rate_src;
 	ucontrol->value.integer.value[1] = spdifrx->info.sample_rate_cal;
@@ -254,8 +273,8 @@ static int rk_spdifrx_sample_rate_get(struct snd_kcontrol *kcontrol,
 static int rk_spdifrx_debounce_time_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.debounce_time_ms;
 	return 0;
@@ -264,8 +283,8 @@ static int rk_spdifrx_debounce_time_get(struct snd_kcontrol *kcontrol,
 static int rk_spdifrx_debounce_time_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	spdifrx->info.debounce_time_ms = ucontrol->value.integer.value[0];
 	return 0;
@@ -274,8 +293,8 @@ static int rk_spdifrx_debounce_time_put(struct snd_kcontrol *kcontrol,
 static int rk_spdifrx_sample_width_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sample_width;
 	return 0;
@@ -284,8 +303,8 @@ static int rk_spdifrx_sample_width_get(struct snd_kcontrol *kcontrol,
 static int rk_spdifrx_liner_pcm_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.liner_pcm;
 	return 0;
@@ -364,7 +383,7 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.get = rk_spdifrx_sample_rate_get,
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RK SPDIFRX DEBOUNCE TIME",
 		.info = rk_spdifrx_debounce_time_info,
 		.get = rk_spdifrx_debounce_time_get,
@@ -386,6 +405,20 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.info = rk_spdifrx_liner_pcm_info,
 		.get = rk_spdifrx_liner_pcm_get,
 	},
+	SOC_SINGLE("RK SPDIFRX USYNC THRESHOLD CNT", SPDIFRX_CDRST, 16, 0xffff, 0),
+};
+
+static struct snd_kcontrol_new rk_spdifrx_v2312_controls[] = {
+	SOC_SINGLE("RK SPDIFRX CDR WAIT TIME", SPDIFRX_CDRTIME, 0, 0xffff, 0),
+	SOC_SINGLE("RK SPDIFRX CDR COUNT TIME", SPDIFRX_CDRTIME, 16, 0xffff, 0),
+};
+
+static struct snd_kcontrol_new rk_spdifrx_v2505_controls[] = {
+	SOC_SINGLE("RK SPDIFRX NON-LINER PCM MUTE", SPDIFRX_CFGR, 3, 1, 0),
+};
+
+static struct snd_kcontrol_new rk_spdifrx_v2508_controls[] = {
+	SOC_SINGLE("RK SPDIFRX USYNC THRESHOLD STEP", SPDIFRX_CFGR, 10, 0xf, 0),
 };
 
 static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
@@ -394,8 +427,21 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 
 	dai->capture_dma_data = &spdifrx->capture_dma_data;
 	spdifrx->dai = dai;
-	snd_soc_add_dai_controls(dai, rk_spdifrx_controls,
-				 ARRAY_SIZE(rk_spdifrx_controls));
+
+	if (spdifrx->version >= SPDIFRX_VER_2312)
+		snd_soc_add_component_controls(dai->component,
+					       rk_spdifrx_v2312_controls,
+					       ARRAY_SIZE(rk_spdifrx_v2312_controls));
+
+	if (spdifrx->version >= SPDIFRX_VER_2505)
+		snd_soc_add_component_controls(dai->component,
+					       rk_spdifrx_v2505_controls,
+					       ARRAY_SIZE(rk_spdifrx_v2505_controls));
+
+	if (spdifrx->version >= SPDIFRX_VER_2508)
+		snd_soc_add_component_controls(dai->component,
+					       rk_spdifrx_v2508_controls,
+					       ARRAY_SIZE(rk_spdifrx_v2508_controls));
 
 	rk_spdifrx_parse_quirks(spdifrx);
 	spdifrx->need_reset = true;
@@ -425,6 +471,8 @@ static struct snd_soc_dai_driver rk_spdifrx_dai = {
 
 static const struct snd_soc_component_driver rk_spdifrx_component = {
 	.name = "rockchip-spdifrx",
+	.controls = rk_spdifrx_controls,
+	.num_controls = ARRAY_SIZE(rk_spdifrx_controls),
 	.legacy_dai_naming = 1,
 };
 
@@ -444,6 +492,7 @@ static bool rk_spdifrx_wr_reg(struct device *dev, unsigned int reg)
 	case SPDIFRX_SMPDR:
 	case SPDIFRX_CHNSR1:
 	case SPDIFRX_CHNSR2:
+	case SPDIFRX_CDRTIME:
 	case SPDIFRX_BURSTINFO:
 		return true;
 	default:
@@ -454,6 +503,7 @@ static bool rk_spdifrx_wr_reg(struct device *dev, unsigned int reg)
 static bool rk_spdifrx_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case SPDIFRX_VERSION:
 	case SPDIFRX_CFGR:
 	case SPDIFRX_CLR:
 	case SPDIFRX_CDR:
@@ -467,6 +517,8 @@ static bool rk_spdifrx_rd_reg(struct device *dev, unsigned int reg)
 	case SPDIFRX_SMPDR:
 	case SPDIFRX_CHNSR1:
 	case SPDIFRX_CHNSR2:
+	case SPDIFRX_CDRTIME:
+	case SPDIFRX_CNTINFO:
 	case SPDIFRX_BURSTINFO:
 		return true;
 	default:
@@ -477,6 +529,7 @@ static bool rk_spdifrx_rd_reg(struct device *dev, unsigned int reg)
 static bool rk_spdifrx_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case SPDIFRX_VERSION:
 	case SPDIFRX_CLR:
 	case SPDIFRX_CDR:
 	case SPDIFRX_CDRST:
@@ -486,6 +539,7 @@ static bool rk_spdifrx_volatile_reg(struct device *dev, unsigned int reg)
 	case SPDIFRX_SMPDR:
 	case SPDIFRX_CHNSR1:
 	case SPDIFRX_CHNSR2:
+	case SPDIFRX_CNTINFO:
 	case SPDIFRX_BURSTINFO:
 		return true;
 	default:
@@ -656,21 +710,30 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 									"RK SPDIFRX LINER PCM");
 	u32 intsr;
 	u32 val;
-	u32 count;
+	u32 count, mincnt, maxcnt;
 
 	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
 		return IRQ_NONE;
 
 	regmap_read(spdifrx->regmap, SPDIFRX_INTSR, &intsr);
 
+	if (intsr & SPDIFRX_INTSR_FSCHGISR_ACTIVE) {
+		dev_dbg(spdifrx->dev, "FS Changed\n");
+		spdifrx->need_reset = true;
+		rk_spdifrx_disable_dma(spdifrx);
+		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_FSCHGICLR);
+	}
+
 	if (intsr & SPDIFRX_INTSR_NVLDISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "No Valid Error\n");
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NVLDICLR);
-		rk_spdifrx_reset(spdifrx);
-		spdifrx->need_reset = true;
-		rk_spdifrx_disable_dma(spdifrx);
-		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
-				   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
+		if (!spdifrx->fs_monitor) {
+			rk_spdifrx_reset(spdifrx);
+			spdifrx->need_reset = true;
+			rk_spdifrx_disable_dma(spdifrx);
+			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
+					   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
+		}
 	}
 
 	if (intsr & SPDIFRX_INTSR_CSCISR_ACTIVE) {
@@ -683,9 +746,11 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 	if (intsr & SPDIFRX_INTSR_PEISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "Parity Error\n");
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_PEICLR);
-		rk_spdifrx_reset(spdifrx);
-		spdifrx->need_reset = true;
-		rk_spdifrx_disable_dma(spdifrx);
+		if (!spdifrx->fs_monitor) {
+			rk_spdifrx_reset(spdifrx);
+			spdifrx->need_reset = true;
+			rk_spdifrx_disable_dma(spdifrx);
+		}
 	}
 
 	if (intsr & SPDIFRX_INTSR_NPSPISR_ACTIVE) {
@@ -705,9 +770,11 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 	if (intsr & SPDIFRX_INTSR_BMDEISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "BMD Error\n");
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_BMDEICLR);
-		rk_spdifrx_reset(spdifrx);
-		spdifrx->need_reset = true;
-		rk_spdifrx_disable_dma(spdifrx);
+		if (!spdifrx->fs_monitor) {
+			rk_spdifrx_reset(spdifrx);
+			spdifrx->need_reset = true;
+			rk_spdifrx_disable_dma(spdifrx);
+		}
 	}
 
 	if (intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) {
@@ -716,8 +783,10 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		mod_timer(&spdifrx->debounce_timer, jiffies +
 			  msecs_to_jiffies(spdifrx->info.debounce_time_ms));
 		dev_dbg(spdifrx->dev, "NSYNC\n");
-		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN, SPDIFRX_INTEN_NSYNCIE_MASK,
-				   SPDIFRX_INTEN_NSYNCIE_DIS);
+		if (spdifrx->version < SPDIFRX_VER_2505)
+			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
+					   SPDIFRX_INTEN_NSYNCIE_MASK,
+					   SPDIFRX_INTEN_NSYNCIE_DIS);
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NSYNCICLR);
 		regmap_write(spdifrx->regmap, SPDIFRX_CLR, SPDIFRX_CLR_RXSC);
 	}
@@ -727,12 +796,20 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		spdifrx->info.sample_rate_src =
 			rk_spdifrx_get_sample_rate((val & SPDIFRX_CHNSR1_SAMPLE_RATE_MASK) >> 8);
 
-		regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-		if (spdifrx->cdr_count_avg)
-			count = ((val & SPDIFRX_CDRST_MINCNT_MASK) + 1 +
-				((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1) / 4;
-		else
-			count = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+		if (spdifrx->version >= SPDIFRX_VER_2505) {
+			regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
+			mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
+			maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
+			count = (mincnt + maxcnt) / 4;
+		} else {
+			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
+			mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+			maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
+			if (spdifrx->cdr_count_avg)
+				count = (mincnt + maxcnt) / 4;
+			else
+				count = mincnt;
+		}
 
 		if (count > 0)
 			spdifrx->info.sample_rate_cal =
@@ -774,13 +851,20 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		spdifrx->info.sync = 1;
 		mod_timer(&spdifrx->debounce_timer, jiffies +
 			  msecs_to_jiffies(spdifrx->info.debounce_time_ms));
-		regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-		dev_dbg(spdifrx->dev, "MINCNT = %lu, MAXCNT = %lu\n",
-			val & SPDIFRX_CDRST_MINCNT_MASK, (val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8);
-		dev_dbg(spdifrx->dev, "SYNC\n");
+		if (spdifrx->version >= SPDIFRX_VER_2505) {
+			regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
+			mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
+			maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
+		} else {
+			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
+			mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+			maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
+			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
+					   SPDIFRX_INTEN_NSYNCIE_MASK, SPDIFRX_INTEN_NSYNCIE_EN);
+		}
+		dev_dbg(spdifrx->dev, "SYNC: MINCNT = %u, MAXCNT = %u\n", mincnt, maxcnt);
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
-				   SPDIFRX_INTEN_BTEIE_MASK | SPDIFRX_INTEN_NSYNCIE_MASK,
-				   SPDIFRX_INTEN_BTEIE_EN | SPDIFRX_INTEN_NSYNCIE_EN);
+				   SPDIFRX_INTEN_BTEIE_MASK, SPDIFRX_INTEN_BTEIE_EN);
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_SYNCICLR);
 	}
 
@@ -827,6 +911,11 @@ static void rk_spdifrx_fifo_timer_isr(struct timer_list *timer)
 	}
 
 	timeout_us = DIV_ROUND_UP(500000, spdifrx->info.sample_rate_src);
+	if (spdifrx->version >= SPDIFRX_VER_2312) {
+		regmap_read(spdifrx->regmap, SPDIFRX_CFGR, &val);
+		if (val & SPDIFRX_CFGR_DAT_JOIN)
+			timeout_us *= 2;
+	}
 
 	start = ktime_get();
 	regmap_read(spdifrx->regmap, SPDIFRX_FIFOCTRL, &val);
@@ -873,20 +962,33 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 	struct snd_kcontrol *sample_kctl = snd_soc_card_get_kcontrol(dai->component->card,
 								     "RK SPDIFRX SAMPLE RATE");
 	u32 val;
-	u32 count;
+	u32 count, mincnt, maxcnt;
 
 	if (spdifrx->info.sync == 1) {
-		if (spdifrx->need_reset) {
+		if (spdifrx->need_reset && !spdifrx->fs_monitor) {
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = false;
 			schedule_work(&spdifrx->xrun_work);
 		} else {
-			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-			if (spdifrx->cdr_count_avg)
-				count = ((val & SPDIFRX_CDRST_MINCNT_MASK) + 1 +
-					((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1) / 4;
-			else
-				count = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+			if (spdifrx->need_reset) {
+				spdifrx->need_reset = false;
+				schedule_work(&spdifrx->xrun_work);
+			}
+
+			if (spdifrx->version >= SPDIFRX_VER_2505) {
+				regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
+				mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
+				maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
+				count = (mincnt + maxcnt) / 4;
+			} else {
+				regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
+				mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+				maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
+				if (spdifrx->cdr_count_avg)
+					count = (mincnt + maxcnt) / 4;
+				else
+					count = mincnt;
+			}
 
 			if (count > 0)
 				spdifrx->info.sample_rate_cal =
@@ -994,6 +1096,22 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 
 	spdifrx->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, spdifrx);
+
+	ret = clk_prepare_enable(spdifrx->hclk);
+	if (ret)
+		return ret;
+
+	regmap_read(spdifrx->regmap, SPDIFRX_VERSION, &spdifrx->version);
+	if (spdifrx->version >= SPDIFRX_VER_2505) {
+		regmap_update_bits(spdifrx->regmap, SPDIFRX_CFGR,
+				   SPDIFRX_CFGR_MONITOR_THR_MASK |
+				   SPDIFRX_CFGR_MONITOR_EN_MASK,
+				   SPDIFRX_CFGR_MONITOR_THR(0xa) |
+				   SPDIFRX_CFGR_MONITOR_EN);
+		spdifrx->fs_monitor = true;
+	}
+
+	clk_disable_unprepare(spdifrx->hclk);
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
