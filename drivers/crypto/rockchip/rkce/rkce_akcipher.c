@@ -338,7 +338,7 @@ static int rkce_ec_verify(struct akcipher_request *req)
 	struct rkce_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
 	size_t keylen = ctx->nbits / 8;
 	struct rkce_ecp_point *sig_point = NULL;
-	uint8_t rawhash[RK_ECP_MAX_BYTES];
+	uint8_t rawhash[SHA512_DIGEST_SIZE];
 	unsigned char *buffer;
 	ssize_t diff;
 	int ret;
@@ -350,7 +350,7 @@ static int rkce_ec_verify(struct akcipher_request *req)
 	if (!buffer)
 		return -ENOMEM;
 
-	sig_point = rkce_ecc_alloc_point_zero(RK_ECP_MAX_BYTES);
+	sig_point = rkce_ecc_alloc_point_zero(RKCE_ECP_MAX_BYTES);
 	if (!sig_point) {
 		ret = -ENOMEM;
 		goto exit;
@@ -462,7 +462,7 @@ static int rkce_ec_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->group_id = rkce_ecc_get_group_id(algt->algo);
 	ctx->nbits    = rkce_ecc_get_curve_nbits(ctx->group_id);
-	ctx->point_Q  = rkce_ecc_alloc_point_zero(RK_ECP_MAX_BYTES);
+	ctx->point_Q  = rkce_ecc_alloc_point_zero(RKCE_ECP_MAX_BYTES);
 
 	rkce_enable_clk(ctx->algt->rk_dev);
 
@@ -494,6 +494,7 @@ static void rkce_ec_exit_tfm(struct crypto_akcipher *tfm)
 struct rkce_algt rkce_asym_ecc_p192 = RK_ASYM_ECC_INIT(192);
 struct rkce_algt rkce_asym_ecc_p224 = RK_ASYM_ECC_INIT(224);
 struct rkce_algt rkce_asym_ecc_p256 = RK_ASYM_ECC_INIT(256);
+struct rkce_algt rkce_asym_ecc_p384 = RK_ASYM_ECC_INIT(384);
 
 struct rkce_algt rkce_asym_sm2 = {
 	.name = "sm2",
