@@ -466,6 +466,28 @@
 			status = "disabled";
 		};
 
+		rng: rng@fd900000 {
+			compatible = "rockchip,rkrng";
+			reg = <0xfd900000 0x200>;
+			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_RKRNG_NS>, <&cru CLK_DRNG_NS>;
+			clock-names = "hclk_trng_ns", "clk_drng_ns";
+			resets = <&cru SRST_HRESETN_RKRNG_NS>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
+		crypto: crypto@fd910000 {
+			compatible = "rockchip,crypto-ce";
+			reg = <0xfd910000 0x2000>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_NSRKCE>, <&cru HCLK_NS_RKCE>, <&cru CLK_PKA_NSRKCE>;
+			clock-names = "aclk", "hclk", "pka";
+			resets = <&cru SRST_HRESETN_NS_RKCE>;
+			reset-names = "crypto-rst";
+			status = "disabled";
+		};
+
 		sai3: sai@fdb30000 {
 			compatible = "rockchip,rk3538-sai", "rockchip,sai-v1";
 			reg = <0xfdb30000 0x1000>;
