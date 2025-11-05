@@ -32,6 +32,7 @@
 		serial5 = &uart5;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		spi2 = &fspi;
 	};
 
 	clocks {
@@ -439,6 +440,11 @@
 			clocks = <&cru PCLK_VO_ROOT>;
 		};
 
+		pmu_grf: syscon@fd180000 {
+			compatible = "rockchip,rk3538-pmu-grf", "syscon";
+			reg = <0xfd180000 0x10000>;
+		};
+
 		ioc_grf: syscon@fd1b0000 {
 			compatible = "rockchip,rk3538-ioc-grf", "syscon";
 			reg = <0xfd1b0000 0x80000>;
@@ -770,6 +776,19 @@
 				 <&cru SRST_ARESETN_EMMC>, <&cru SRST_BRESETN_EMMC>,
 				 <&cru SRST_TRESETN_EMMC>;
 			reset-names = "core", "bus", "axi", "block", "timer";
+			status = "disabled";
+		};
+
+		fspi: spi@fde20000 {
+			compatible = "rockchip,rk3538-fspi", "rockchip,fspi";
+			reg = <0xfde20000 0x4000>;
+			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_2X_FSPI>, <&cru HCLK_FSPI>;
+			clock-names = "clk_sfc", "hclk_sfc";
+			rockchip,grf = <&pmu_grf>;
+			rockchip,max-dll = <0x17F>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
