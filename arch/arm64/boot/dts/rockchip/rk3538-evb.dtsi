@@ -3,3 +3,67 @@
  * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
  *
  */
+
+&crypto {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&rga2_core0 {
+	status = "okay";
+};
+
+&rga2_core0_mmu {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	no-sd;
+	no-sdio;
+	non-removable;
+	status = "okay";
+};
+
+&tve {
+	status = "okay";
+};
+
+&tve_in_vp0 {
+	status = "okay";
+};
+
+&usb_drd_dwc3 {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usb_host_ehci {
+	status = "okay";
+};
+
+&usb_host_ohci {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
