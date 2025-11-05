@@ -993,10 +993,6 @@
 	};
 };
 
-&usbdrd_dwc3_1 {
-	extcon = <&u2phy1>;
-};
-
 &usbhost3_0 {
 	status = "disabled";
 };
