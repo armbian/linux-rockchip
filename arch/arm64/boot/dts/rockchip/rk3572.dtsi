@@ -863,6 +863,60 @@
 			};
 		};
 
+		sdmmc1: mmc@2a000000 {
+			compatible = "rockchip,rk3572-dw-mshc", "rockchip,rk3576-dw-mshc";
+			reg = <0x0 0x2a000000 0x0 0x4000>;
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_SDMMC1>, <&cru CCLK_SRC_SDMMC1>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x100>;
+			max-frequency = <200000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdmmc1_bus4_pins &sdmmc1_clk_pins &sdmmc1_cmd_pins
+				     &sdmmc1_pwren_pins &sdmmc1m0_det_pins>;
+			power-domains = <&power RK3572_PD_NVM0>;
+			resets = <&cru SRST_HRESETN_SDMMC1>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
+		sdhci: mmc@2a010000 {
+			compatible = "rockchip,rk3572-dwcmshc", "rockchip,rk3576-dwcmshc";
+			reg = <0x0 0x2a010000 0x0 0x10000>;
+			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
+			assigned-clocks = <&cru BCLK_EMMC>, <&cru TCLK_EMMC>, <&cru CCLK_SRC_EMMC>;
+			assigned-clock-rates = <200000000>, <24000000>, <200000000>;
+			clocks = <&cru CCLK_SRC_EMMC>, <&cru HCLK_EMMC>,
+				 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>,
+				 <&cru TCLK_EMMC>;
+			clock-names = "core", "bus", "axi", "block", "timer";
+			max-frequency = <200000000>;
+			power-domains = <&power RK3572_PD_NVM0>;
+			resets = <&cru SRST_CRESETN_EMMC>, <&cru SRST_HRESETN_EMMC>,
+				 <&cru SRST_ARESETN_EMMC>, <&cru SRST_BRESETN_EMMC>,
+				 <&cru SRST_TRESETN_EMMC>;
+			reset-names = "core", "bus", "axi", "block", "timer";
+			supports-cqe;
+			status = "disabled";
+		};
+
+		sdmmc0: mmc@2a090000 {
+			compatible = "rockchip,rk3572-dw-mshc", "rockchip,rk3576-dw-mshc";
+			reg = <0x0 0x2a090000 0x0 0x4000>;
+			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_SDMMC0>, <&cru CCLK_SRC_SDMMC0>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x100>;
+			max-frequency = <200000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdmmc0m0_bus4_pins &sdmmc0m0_clk_pins &sdmmc0m0_cmd_pins
+				     &sdmmc0m0_det_pins>;
+			power-domains = <&power RK3572_PD_NVM1>;
+			resets = <&cru SRST_HRESETN_SDMMC0>;
+			reset-names = "reset";
+			status = "disabled";
+		};
+
 		crypto: crypto@2a100000 {
 			compatible = "rockchip,crypto-ce";
 			reg = <0x0 0x2a100000 0x0 0x2000>;
