@@ -2663,6 +2663,22 @@ EXPORT_SYMBOL_GPL(analogix_dp_probe);
 
 int analogix_dp_suspend(struct analogix_dp_device *dp)
 {
+	pm_runtime_force_suspend(dp->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_suspend);
+
+int analogix_dp_resume(struct analogix_dp_device *dp)
+{
+	pm_runtime_force_resume(dp->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_resume);
+
+int analogix_dp_runtime_suspend(struct analogix_dp_device *dp)
+{
 	analogix_dp_phy_power_off(dp);
 
 	if (dp->plat_data->power_off)
@@ -2672,9 +2688,9 @@ int analogix_dp_suspend(struct analogix_dp_device *dp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(analogix_dp_suspend);
+EXPORT_SYMBOL_GPL(analogix_dp_runtime_suspend);
 
-int analogix_dp_resume(struct analogix_dp_device *dp)
+int analogix_dp_runtime_resume(struct analogix_dp_device *dp)
 {
 	int ret;
 
@@ -2693,7 +2709,7 @@ int analogix_dp_resume(struct analogix_dp_device *dp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(analogix_dp_resume);
+EXPORT_SYMBOL_GPL(analogix_dp_runtime_resume);
 
 int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 {
