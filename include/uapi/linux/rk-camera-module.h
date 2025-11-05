@@ -268,6 +268,9 @@
 #define RKMODULE_GET_HDR_COMPR_PARAM	\
 	_IOR('x', 4, struct rkmodule_hdr_compr)
 
+#define RKMODULE_SET_REGISTER_GROUP       \
+	_IOW('x', 5, struct rkmodule_reg_group)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -311,6 +314,15 @@ struct rkmodule_reg {
 	__u64 preg_value;
 	__u64 preg_addr_bytes;
 	__u64 preg_value_bytes;
+} __attribute__ ((packed));
+
+enum rkmodule_reg_group_type {
+	RKMODULE_REG_GROUP_MERGE,
+};
+
+struct rkmodule_reg_group {
+	__u32 type;
+	struct rkmodule_reg reg_group;
 } __attribute__ ((packed));
 
 /**
