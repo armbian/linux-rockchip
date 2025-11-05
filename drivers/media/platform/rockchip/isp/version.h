@@ -625,6 +625,24 @@
  * 20.fix b3dldc for isp35
  * 21.fix fast with vpss for isp35
  * 22.clear aiisp l2 stop status
+ *
+ * v3.2.0 (AIQ v6.32.0)
+ * 1.fix 3a error for multi sensor only vpss output
+ * 2.fix isp fast stop no clean state
+ * 3.fix 3dlut error for isp39
+ * 4.dynamic cropping for isp30 offline
+ * 5.support raw14 format
+ * 6.fix aibnr error for multi sensor
+ * 7.fix rdbk_mode for pipeline link setup
+ * 8.update for bilinear scale disable
+ * 9.Check whether the size of the shared memory structure in the MCU and the kernel is properly equal
+ * 10.fix output on-off with crop
+ * 11.dither enable default
+ * 12.fix ae win1 for isp35
+ * 13.max hardware size change to 25M for isp30 isp39
+ * 14.support aibnr single buf
+ * 15.fix resume error if aibnr enable for isp35
+ * 16.aibnr l2 new flow for isp35
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
