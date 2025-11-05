@@ -792,6 +792,30 @@
 			status = "disabled";
 		};
 
+		nfc: nand-controller@fde30000 {
+			compatible = "rockchip,rk3538-nfc", "rockchip,rv1108-nfc";
+			reg = <0xfde30000 0x4000>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_NANDC>, <&cru NCLK_NANDC>;
+			clock-names = "ahb", "nfc";
+			assigned-clocks = <&cru NCLK_NANDC>;
+			assigned-clock-rates = <150000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			nand: nand@0 {
+				reg = <0>;
+				label = "rk-nand";
+				nand-bus-width = <8>;
+				nand-ecc-mode = "hw";
+				nand-ecc-step-size = <1024>;
+				nand-ecc-strength = <16>;
+				nand-is-boot-medium;
+				rockchip,boot-blks = <8>;
+				rockchip,boot-ecc-strength = <16>;
+			};
+		};
+
 		hwlock: hwspinlock@fdf00000 {
 			compatible = "rockchip,hwspinlock";
 			reg = <0xfdf00000 0x100>;
