@@ -715,6 +715,18 @@
 			status = "disabled";
 		};
 
+		saradc: adc@fdda0000 {
+			compatible = "rockchip,rk3538-saradc", "rockchip,rv1126b-saradc";
+			reg = <0xfdda0000 0x10000>;
+			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
+			#io-channel-cells = <1>;
+			clocks = <&cru CLK_SARADC>, <&cru PCLK_SARADC>;
+			clock-names = "saradc", "apb_pclk";
+			resets = <&cru SRST_PRESETN_SARADC>;
+			reset-names = "saradc-apb";
+			status = "disabled";
+		};
+
 		spi1: spi@fddb0000 {
 			compatible = "rockchip,rk3538-spi", "rockchip,rk3066-spi";
 			reg = <0xfddb0000 0x1000>;
@@ -935,6 +947,15 @@
 			pinctrl-0 = <&uart5m0_xfer_pins>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		wdt: watchdog@fe0b0000 {
+			compatible = "snps,dw-wdt";
+			reg = <0xfe0b0000 0x100>;
+			clocks = <&cru TCLK_WDT>, <&cru PCLK_WDT>;
+			clock-names = "tclk", "pclk";
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 	};
