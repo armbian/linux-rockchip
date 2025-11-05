@@ -15357,7 +15357,6 @@ static int vop2_gamma_init(struct vop2 *vop2)
 		if (!lut_len)
 			continue;
 		vp->gamma_lut_len = vp_data->gamma_lut_len;
-		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		if (!vp->gamma_lut_active) {
 			vp->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vp->lut), GFP_KERNEL);
 			if (!vp->lut)
@@ -15667,6 +15666,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		vp->vop2 = vop2;
 		vp->id = vp_data->id;
 		vp->regs = vp_data->regs;
+		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		vp->cursor_win_id = -1;
 		primary = NULL;
 		cursor = NULL;
