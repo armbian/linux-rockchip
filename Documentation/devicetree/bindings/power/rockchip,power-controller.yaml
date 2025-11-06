@@ -40,6 +40,7 @@ properties:
       - rockchip,rk3366-power-controller
       - rockchip,rk3368-power-controller
       - rockchip,rk3399-power-controller
+      - rockchip,rk3538-power-controller
       - rockchip,rk3562-power-controller
       - rockchip,rk3568-power-controller
       - rockchip,rk3588-power-controller
@@ -121,6 +122,7 @@ $defs:
           "include/dt-bindings/power/rk3366-power.h"
           "include/dt-bindings/power/rk3368-power.h"
           "include/dt-bindings/power/rk3399-power.h"
+          "include/dt-bindings/power/rk3538-power-controller.h"
           "include/dt-bindings/power/rk3562-power.h"
           "include/dt-bindings/power/rk3568-power.h"
           "include/dt-bindings/power/rk3588-power.h"
