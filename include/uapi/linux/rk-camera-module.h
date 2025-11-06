@@ -271,6 +271,9 @@
 #define RKMODULE_SET_REGISTER_GROUP       \
 	_IOW('x', 5, struct rkmodule_reg_group)
 
+#define RKMODULE_GET_MERGE_WGT_CURVE       \
+	_IOR('x', 6, struct rkmodule_mge_oewgt)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -1137,6 +1140,18 @@ struct rkmodule_irfpa_info {
 	__u32 gray_dec_en;
 	__u32 raw14_mode;
 	__u32 reserved[8];
+};
+
+#define RKMODULE_MAX_WGT_CURVE_NUM (2)
+
+struct rkmodule_mge_wgtcurve {
+	__u16 idx[17];
+	__u16 val[17];
+};
+
+struct rkmodule_mge_oewgt {
+	__u16 wgtcurve_num;
+	struct rkmodule_mge_wgtcurve wgtcurve[RKMODULE_MAX_WGT_CURVE_NUM];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
