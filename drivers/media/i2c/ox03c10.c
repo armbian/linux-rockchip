@@ -195,6 +195,15 @@ struct ox03c10_mode {
 	u32 reg_list_crc;
 };
 
+struct ox03c10_reg_merge {
+	bool is_init;
+	u32 num_regs;
+	u32 *preg_addr;
+	u32 *preg_value;
+	u32 *preg_addr_bytes;
+	u32 *preg_value_bytes;
+};
+
 struct ox03c10 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
@@ -237,6 +246,7 @@ struct ox03c10 {
 	struct rkmodule_dcg_ratio dcg_ratio;
 	struct rkmodule_dcg_ratio spd_ratio;
 	struct rkmodule_lenc_gain lenc_gain;
+	struct ox03c10_reg_merge reg_merge;
 };
 
 #define to_ox03c10(sd) container_of(sd, struct ox03c10, subdev)
@@ -4937,6 +4947,25 @@ static int ox03c10_set_reg_setting(struct ox03c10 *ox03c10,
 	return ret;
 }
 
+static void ox03c10_write_reg_merge_group(struct ox03c10 *ox03c10)
+{
+	int i, ret;
+
+	if (ox03c10->reg_merge.is_init) {
+		for (i = 0; i < ox03c10->reg_merge.num_regs; i++) {
+			dev_dbg(&ox03c10->client->dev, "ox03c10 reg 0x%x, reg_bytes %u, val 0x%x, val_bytes %u\n",
+				ox03c10->reg_merge.preg_addr[i], ox03c10->reg_merge.preg_addr_bytes[i],
+				ox03c10->reg_merge.preg_value[i], ox03c10->reg_merge.preg_value_bytes[i]);
+			ret = ox03c10_write_reg(ox03c10->client,
+					       (u32)ox03c10->reg_merge.preg_addr[i],
+					       (u32)ox03c10->reg_merge.preg_value_bytes[i],
+					       (u32)ox03c10->reg_merge.preg_value[i]);
+			if (ret)
+				dev_err(&ox03c10->client->dev, "failed to write reg by ox03c10_write_reg\n");
+		}
+	}
+}
+
 static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
@@ -4956,6 +4985,14 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_reg_setting *reg_setting;
 	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
 	struct rkmodule_hdr_compr *compr_param;
+	struct rkmodule_reg_group *reg_s;
+	u32 *preg_addr = NULL;
+	u32 *preg_value = NULL;
+	u32 *preg_addr_bytes = NULL;
+	u32 *preg_value_bytes = NULL;
+	int lens;
+	void __user *up;
+	uintptr_t user_ptr;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5073,6 +5110,93 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		if (ox03c10->cur_mode->hdr_mode == HDR_CIS_MERGE)
 			*compr_param = *ox03c10->cur_mode->hdr_compr;
 		break;
+	case RKMODULE_SET_REGISTER_GROUP:
+		reg_s = (struct rkmodule_reg_group *)arg;
+		if (reg_s->reg_group.num_regs == 0) {
+			dev_err(&ox03c10->client->dev, "sensor reg array num %llu\n", reg_s->reg_group.num_regs);
+			return -EINVAL;
+		}
+
+		if (reg_s->type == RKMODULE_REG_GROUP_MERGE) {
+			dev_dbg(&ox03c10->client->dev, "sensor reg array num %llu\n",
+				reg_s->reg_group.num_regs);
+			if (ox03c10->reg_merge.is_init) {
+				kfree(ox03c10->reg_merge.preg_addr);
+				ox03c10->reg_merge.preg_addr = NULL;
+				kfree(ox03c10->reg_merge.preg_value);
+				ox03c10->reg_merge.preg_value = NULL;
+				kfree(ox03c10->reg_merge.preg_addr_bytes);
+				ox03c10->reg_merge.preg_addr_bytes = NULL;
+				kfree(ox03c10->reg_merge.preg_value_bytes);
+				ox03c10->reg_merge.preg_value_bytes = NULL;
+				ox03c10->reg_merge.is_init = false;
+			}
+			lens = sizeof(u32) * reg_s->reg_group.num_regs;
+			preg_addr = kzalloc(lens, GFP_KERNEL);
+			if (!preg_addr)
+				return -EFAULT;
+			ox03c10->reg_merge.preg_addr = preg_addr;
+			user_ptr = (uintptr_t)reg_s->reg_group.preg_addr;
+			up = (void __user *)user_ptr;
+			ret = copy_from_user(preg_addr, up, lens);
+			if (ret) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			}
+			preg_value = kzalloc(lens, GFP_KERNEL);
+			if (!preg_value) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			} else {
+				ox03c10->reg_merge.preg_value = preg_value;
+			}
+			user_ptr = (uintptr_t)reg_s->reg_group.preg_value;
+			up = (void __user *)user_ptr;
+			ret = copy_from_user(preg_value, up, lens);
+			if (ret) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			}
+			preg_addr_bytes = kzalloc(lens, GFP_KERNEL);
+			if (!preg_addr_bytes) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			} else {
+				ox03c10->reg_merge.preg_addr_bytes = preg_addr_bytes;
+			}
+			user_ptr = (uintptr_t)reg_s->reg_group.preg_addr_bytes;
+			up = (void __user *)user_ptr;
+			ret = copy_from_user(preg_addr_bytes, up, lens);
+			if (ret) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			}
+			preg_value_bytes = kzalloc(lens, GFP_KERNEL);
+			if (!preg_value_bytes) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			} else {
+				ox03c10->reg_merge.preg_value_bytes = preg_value_bytes;
+			}
+			user_ptr = (uintptr_t)reg_s->reg_group.preg_value_bytes;
+			up = (void __user *)user_ptr;
+			ret = copy_from_user(preg_value_bytes, up, lens);
+			if (ret) {
+				ret = -EFAULT;
+				goto end_set_reg;
+			}
+			ox03c10->reg_merge.is_init = true;
+			ox03c10->reg_merge.num_regs = reg_s->reg_group.num_regs;
+			if (ox03c10->streaming)
+				ox03c10_write_reg_merge_group(ox03c10);
+		}
+		break;
+end_set_reg:
+		kfree(preg_addr);
+		kfree(preg_value);
+		kfree(preg_addr_bytes);
+		kfree(preg_value_bytes);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5106,6 +5230,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_reg_setting *reg_setting;
 	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
 	struct rkmodule_hdr_compr *compr_param;
+	struct rkmodule_reg_group *reg_s;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5395,6 +5520,22 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(compr_param);
 		break;
+	case RKMODULE_SET_REGISTER_GROUP:
+		reg_s = kzalloc(sizeof(*reg_s), GFP_KERNEL);
+		if (!reg_s) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(reg_s, up, sizeof(*reg_s));
+		if (!ret) {
+			ret = ox03c10_ioctl(sd, cmd, reg_s);
+			kfree(reg_s);
+		} else {
+			kfree(reg_s);
+			ret = -EFAULT;
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5514,6 +5655,8 @@ static int __ox03c10_start_stream(struct ox03c10 *ox03c10)
 	if (ret)
 		return -EINVAL;
 #endif
+	if (ox03c10->reg_merge.is_init)
+		ox03c10_write_reg_merge_group(ox03c10);
 	return ox03c10_write_reg(ox03c10->client, OX03C10_REG_CTRL_MODE,
 				OX03C10_REG_VALUE_08BIT, OX03C10_MODE_STREAMING);
 }
@@ -5524,6 +5667,7 @@ static int __ox03c10_stop_stream(struct ox03c10 *ox03c10)
 	ox03c10->has_init_wbgain = false;
 	ox03c10->has_init_blc = false;
 	ox03c10->has_init_lenc_gain = false;
+	ox03c10->reg_merge.is_init = false;
 	return ox03c10_write_reg(ox03c10->client, OX03C10_REG_CTRL_MODE,
 				OX03C10_REG_VALUE_08BIT, OX03C10_MODE_SW_STANDBY);
 }
@@ -6016,6 +6160,7 @@ static int ox03c10_initialize_controls(struct ox03c10 *ox03c10)
 	ox03c10->has_init_wbgain = false;
 	ox03c10->has_init_blc = false;
 	ox03c10->has_init_lenc_gain = false;
+	ox03c10->reg_merge.is_init = false;
 
 	return 0;
 
