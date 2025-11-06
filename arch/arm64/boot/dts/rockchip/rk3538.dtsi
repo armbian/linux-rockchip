@@ -7,6 +7,7 @@
 #include <dt-bindings/display/rockchip-tve.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/power/rockchip,rk3538-power-controller.h>
 #include <dt-bindings/reset/rockchip,rk3538-cru.h>
 
 / {
@@ -673,6 +674,45 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
+		};
+
+		pmu: power-management@fdc78000 {
+			compatible = "rockchip,rk3538-pmu", "syscon", "simple-mfd";
+			reg = <0xfdc78000 0x1000>;
+
+			power: power-controller {
+				compatible = "rockchip,rk3538-power-controller";
+				#power-domain-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "okay";
+
+				/* These power domains are grouped by VD_LOGIC */
+				pd_rkvdec@RK3538_PD_RKVDEC {
+					reg = <RK3538_PD_RKVDEC>;
+					rockchip,always-on;
+				};
+				pd_phpl@RK3538_PD_PHPL {
+					reg = <RK3538_PD_PHPL>;
+					rockchip,always-on;
+				};
+				pd_phpr@RK3538_PD_PHPR {
+					reg = <RK3538_PD_PHPR>;
+					rockchip,always-on;
+				};
+				pd_vpu@RK3538_PD_VPU {
+					reg = <RK3538_PD_VPU>;
+					rockchip,always-on;
+				};
+				pd_vo@RK3538_PD_VO {
+					reg = <RK3538_PD_VO>;
+					rockchip,always-on;
+				};
+				pd_gpu@RK3538_PD_GPU {
+					reg = <RK3538_PD_GPU>;
+					rockchip,always-on;
+				};
+			};
 		};
 
 		sdio: mmc@fdd00000 {
