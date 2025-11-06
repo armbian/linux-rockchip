@@ -40,6 +40,7 @@
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/power/rk3528-power.h>
+#include <dt-bindings/power/rockchip,rk3538-power-controller.h>
 #include <dt-bindings/power/rk3562-power.h>
 #include <dt-bindings/power/rk3568-power.h>
 #include <dt-bindings/power/rk3576-power.h>
@@ -424,6 +425,9 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 
 #define DOMAIN_RK3528(pwr, req, always, wakeup) \
 	DOMAIN_M_A(pwr, pwr, req, req, req, always, wakeup, false)
+
+#define DOMAIN_RK3538(name, req, wakeup)			\
+	DOMAIN_M_G(name, 0, 0, req, req, req, req, wakeup, false)
 
 #define DOMAIN_RK3562(name, pwr, req, g_mask, mem, wakeup)		\
 	DOMAIN_M_G_SD(name, pwr, pwr, req, req, req, g_mask, mem, wakeup, false)
@@ -2051,6 +2055,15 @@ static const struct rockchip_domain_info rk3528_pm_domains[] = {
 	[RK3528_PD_VPU]		= DOMAIN_RK3528(0, BIT(8), true, false),
 };
 
+static const struct rockchip_domain_info rk3538_pm_domains[] = {
+	[RK3538_PD_RKVDEC]	= DOMAIN_RK3538("rkvdec", BIT(2), false),
+	[RK3538_PD_PHPL]	= DOMAIN_RK3538("phpl",   BIT(4), false),
+	[RK3538_PD_PHPR]	= DOMAIN_RK3538("phpr",   BIT(5), false),
+	[RK3538_PD_VPU]		= DOMAIN_RK3538("vpu",    BIT(6), false),
+	[RK3538_PD_VO]		= DOMAIN_RK3538("vo",     BIT(7), false),
+	[RK3538_PD_GPU]		= DOMAIN_RK3538("gpu",    BIT(8), false),
+};
+
 static const struct rockchip_domain_info rk3562_pm_domains[] = {
 					     /* name           pwr     req     g_mask  mem wakeup */
 	[RK3562_PD_GPU]		= DOMAIN_RK3562("gpu",         BIT(0), BIT(1), BIT(1), 0, false),
@@ -2288,6 +2301,16 @@ static const struct rockchip_pmu_info rk3528_pmu = {
 	.domain_info = rk3528_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3538_pmu = {
+	.req_offset = 0x110,
+	.idle_offset = 0x130,
+	.ack_offset = 0x120,
+	.clk_ungate_offset = 0x150,
+
+	.num_domains = ARRAY_SIZE(rk3538_pm_domains),
+	.domain_info = rk3538_pm_domains,
+};
+
 static const struct rockchip_pmu_info rk3562_pmu = {
 	.pwr_offset = 0x210,
 	.status_offset = 0x230,
@@ -2443,6 +2466,12 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3528-power-controller",
 		.data = (void *)&rk3528_pmu,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3538
+	{
+		.compatible = "rockchip,rk3538-power-controller",
+		.data = (void *)&rk3538_pmu,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3562
