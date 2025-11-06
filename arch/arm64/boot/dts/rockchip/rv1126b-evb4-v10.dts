@@ -88,6 +88,7 @@
 		regulator-name = "vccio_sd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-init-microvolt = <3300000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_volt>;
 		gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
