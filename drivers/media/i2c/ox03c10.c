@@ -6,7 +6,7 @@
  *
  * V0.0X01.0X01 first version.
  */
-
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -4966,6 +4966,166 @@ static void ox03c10_write_reg_merge_group(struct ox03c10 *ox03c10)
 	}
 }
 
+static int find_segment(u16 value, u16 array[], int size)
+{
+	if (value < array[0])
+		return -1;
+	if (value > array[size - 1])
+		return size - 1;
+
+	for (int i = 0; i < size - 1; i++) {
+		if (value >= array[i] && value <= array[i + 1])
+			return i;
+	}
+
+	return size - 2;
+}
+
+static unsigned int linear_interpolate(u16 x, u16 x0, u16 y0, u16 x1, u16 y1)
+{
+	if (x1 == x0)
+		return y0;
+	return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+}
+
+
+static unsigned int bilinear_interpolate(u16 x, u16 y,
+					u16 x_values[], u16 y_values[],
+					u16 weights[5][5])
+{
+	int x_segment = find_segment(x, x_values, 5);
+	int y_segment = find_segment(y, y_values, 5);
+
+	if (x_segment < 0 || x_segment >= 4 || y_segment < 0 || y_segment >= 4) {
+		if (x_segment < 0)
+			x_segment = 0;
+		if (x_segment >= 4)
+			x_segment = 4;
+		if (y_segment < 0)
+			y_segment = 0;
+		if (y_segment >= 4)
+			y_segment = 4;
+		return weights[x_segment][y_segment];
+	}
+
+	unsigned int x0 = x_values[x_segment];
+	unsigned int x1 = x_values[x_segment + 1];
+	unsigned int y0 = y_values[y_segment];
+	unsigned int y1 = y_values[y_segment + 1];
+
+	unsigned int w00 = weights[x_segment][y_segment];
+	unsigned int w01 = weights[x_segment][y_segment + 1];
+	unsigned int w10 = weights[x_segment + 1][y_segment];
+	unsigned int w11 = weights[x_segment + 1][y_segment + 1];
+
+	// do linear_interpolate tiwce in y-axis
+	unsigned int w0 = linear_interpolate(y, y0, w00, y1, w01);
+	unsigned int w1 = linear_interpolate(y, y0, w10, y1, w11);
+
+	return linear_interpolate(x, x0, w0, x1, w1);
+}
+
+static void create17x17weight_table(u16 x_values[], u16 y_values[],
+				   u16 weights[5][5], u16 output[17][17])
+{
+	unsigned int target_x[17], target_y[17];
+
+	for (int i = 0; i < 17; i++) {
+		target_x[i] = i * 1024 / 16;
+		target_y[i] = i * 1024 / 16;
+	}
+
+	for (int i = 0; i < 17; i++) {
+		for (int j = 0; j < 17; j++)
+			output[i][j] = bilinear_interpolate(target_x[i], target_y[j],
+				x_values, y_values, weights);
+	}
+}
+
+static int ox03c10_get_merge_curve(struct ox03c10 *ox03c10,
+				   struct rkmodule_mge_oewgt *merge_curve)
+{
+	u32 val = 0, base_addr = 0, idx_lluma_base_addr = 0x5ba8;
+	u32 idx_sluma_base_addr = 0x5bae, weight_abase_addr = 0x5b8a;
+	u32 offset_addr[2] = {0x80, 0x100};
+	int ret = 0;
+	int i, j, curve_num;
+
+	merge_curve->wgtcurve_num = 2;
+	for (i = 0; i < 17; i++) {
+		merge_curve->wgtcurve[0].idx[i] = i * 1024 / 16;
+		merge_curve->wgtcurve[1].idx[i] = i * 1024 / 16;
+	}
+
+	for (curve_num = 0; curve_num < merge_curve->wgtcurve_num; curve_num++) {
+		//read original weight table between two frame
+		u16 ori_idx_lluma[5], ori_idx_sluma[5], ori_weights[5][5];
+
+		base_addr = idx_lluma_base_addr + offset_addr[curve_num];
+		ori_idx_lluma[0] = 0;
+		for (i = 1; i < 4; i++) {
+			ret |= ox03c10_read_reg(ox03c10->client, base_addr + 2 * (i - 1),
+						OX03C10_REG_VALUE_16BIT, &val);
+			ori_idx_lluma[i] = val & 0x3ff;
+		}
+		ori_idx_lluma[4] = 0x3ff;
+
+		base_addr = idx_sluma_base_addr + offset_addr[curve_num];
+		ori_idx_sluma[0] = 0;
+		for (i = 1; i < 4; i++) {
+			ret |= ox03c10_read_reg(ox03c10->client, base_addr + 2 * (i - 1),
+						OX03C10_REG_VALUE_16BIT, &val);
+			ori_idx_sluma[i] = val & 0x3ff;
+		}
+		ori_idx_sluma[4] = 0x3ff;
+
+		base_addr = weight_abase_addr + offset_addr[curve_num];
+		for (j = 0; j < 5; j++) {
+			for (i = 0; i < 5; i++) {
+				ret |= ox03c10_read_reg(ox03c10->client, base_addr + i + 5 * j,
+							OX03C10_REG_VALUE_08BIT, &val);
+				ori_weights[i][j] = val & 0xff;
+				ori_weights[i][j] = ori_weights[i][j] > 0x80 ? 0x80 : ori_weights[i][j];
+				ori_weights[i][j] = 0x80 - ori_weights[i][j];
+			}
+		}
+
+		//change original weight table to new weight table, and normalize
+		u16 new_weights[17][17];
+
+		create17x17weight_table(ori_idx_lluma, ori_idx_sluma, ori_weights, new_weights);
+		for (int i = 0; i < 17; i++)
+			merge_curve->wgtcurve[curve_num].val[i] = 8 * new_weights[i][i];
+
+#ifdef DEBUG
+		dev_info(&ox03c10->client->dev,
+			 "\n original weight %d\n", curve_num);
+		dev_info(&ox03c10->client->dev,
+			 "ori_idx_lluma: %d %d %d %d %d\n",
+			 ori_idx_lluma[0], ori_idx_lluma[1], ori_idx_lluma[2],
+			 ori_idx_lluma[3], ori_idx_lluma[4]);
+		dev_info(&ox03c10->client->dev,
+			 "ori_idx_sluma: %d %d %d %d %d\n",
+			 ori_idx_sluma[0], ori_idx_sluma[1], ori_idx_sluma[2],
+			 ori_idx_sluma[3], ori_idx_sluma[4]);
+		for (int i = 0; i < 5; i++)
+			dev_info(&ox03c10->client->dev,
+				 "%d %d %d %d %d\n",
+				 ori_weights[i][0], ori_weights[i][1],
+				 ori_weights[i][2], ori_weights[i][3], ori_weights[i][4]);
+
+		dev_info(&ox03c10->client->dev,
+			 "\n finnal weight %d (x=y):\n", curve_num);
+		for (int i = 0; i < 17; i++)
+			dev_info(&ox03c10->client->dev,
+				 "x=y=%d: weight=%d\n", i * 64,
+				 merge_curve->wgtcurve[curve_num].val[i]);
+#endif
+	}
+
+	return 0;
+}
+
 static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
@@ -4993,6 +5153,7 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	int lens;
 	void __user *up;
 	uintptr_t user_ptr;
+	struct rkmodule_mge_oewgt *merge_curve;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5197,6 +5358,10 @@ end_set_reg:
 		kfree(preg_addr_bytes);
 		kfree(preg_value_bytes);
 		break;
+	case RKMODULE_GET_MERGE_WGT_CURVE:
+		merge_curve = (struct rkmodule_mge_oewgt *)arg;
+		ret = ox03c10_get_merge_curve(ox03c10, merge_curve);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -5231,6 +5396,7 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_compr_single_frame_info *single_frame_info;
 	struct rkmodule_hdr_compr *compr_param;
 	struct rkmodule_reg_group *reg_s;
+	struct rkmodule_mge_oewgt *merge_curve;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -5535,6 +5701,22 @@ static long ox03c10_compat_ioctl32(struct v4l2_subdev *sd,
 			kfree(reg_s);
 			ret = -EFAULT;
 		}
+		break;
+	case RKMODULE_GET_MERGE_WGT_CURVE:
+		merge_curve = kzalloc(sizeof(*merge_curve), GFP_KERNEL);
+		if (!merge_curve) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ox03c10_ioctl(sd, cmd, merge_curve);
+		if (!ret) {
+			if (copy_to_user(up, merge_curve, sizeof(*merge_curve))) {
+				kfree(merge_curve);
+				return -EFAULT;
+			}
+		}
+		kfree(merge_curve);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
