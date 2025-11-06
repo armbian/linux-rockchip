@@ -1525,6 +1525,9 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 		num_modes += drm_bridge_get_modes(dp->plat_data->bridge, connector);
 
 	if (!num_modes) {
+		if (dp->plat_data->power_on)
+			dp->plat_data->power_on(dp->plat_data);
+
 		ret = analogix_dp_phy_power_on(dp);
 		if (ret)
 			return 0;
@@ -1542,6 +1545,9 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 		}
 
 		analogix_dp_phy_power_off(dp);
+
+		if (dp->plat_data->power_off)
+			dp->plat_data->power_off(dp->plat_data);
 	}
 
 	if (!di->color_formats)
@@ -1611,6 +1617,9 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 	enum drm_connector_status status = connector_status_disconnected;
 	int ret;
 
+	if (dp->plat_data->power_on)
+		dp->plat_data->power_on(dp->plat_data);
+
 	ret = analogix_dp_phy_power_on(dp);
 	if (ret) {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
@@ -1646,6 +1655,9 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 
 out:
 	analogix_dp_phy_power_off(dp);
+
+	if (dp->plat_data->power_off)
+		dp->plat_data->power_off(dp->plat_data);
 
 	if (status == connector_status_connected)
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
@@ -2487,6 +2499,9 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	int ret;
+
+	if (dp->plat_data->power_on)
+		dp->plat_data->power_on(dp->plat_data);
 
 	ret = analogix_dp_phy_power_on(dp);
 	if (ret)
