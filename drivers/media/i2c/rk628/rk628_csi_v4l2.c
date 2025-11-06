@@ -2339,44 +2339,32 @@ static int rk628_csi_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 	const struct rk628_csi_mode *mode;
-
-	u32 code = format->format.code; /* is overwritten by get_fmt */
-	int ret = rk628_csi_get_fmt(sd, sd_state, format);
-
-	format->format.code = code;
-
-	if (ret)
-		return ret;
-
-	switch (code) {
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_2X8)
-			break;
-		return -EINVAL;
-	case MEDIA_BUS_FMT_RGB888_1X24:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_RGB888_1X24)
-			break;
-		return -EINVAL;
-	case MEDIA_BUS_FMT_YUYV10_2X10:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_YUYV10_2X10)
-			break;
-		return -EINVAL;
-	default:
-		return -EINVAL;
-	}
+	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (csi->plat_data->bus_fmt == MEDIA_BUS_FMT_UYVY8_2X8)
-			return 0;
-
-		*v4l2_subdev_state_get_format(sd_state, format->pad) = format->format;
+		*v4l2_subdev_state_get_format(sd_state, format->pad) = *mbus_fmt;
+		return 0;
 	}
 
-	csi->mbus_fmt_code = format->format.code;
+	switch (mbus_fmt->code) {
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		break;
+	default:
+		dev_err(sd->dev, "Unsupported media bus format: 0x%x\n", mbus_fmt->code);
+		return -EINVAL;
+	}
+
+	if (mbus_fmt->code != csi->mbus_fmt_code)
+		dev_err(sd->dev, "Format mismatch: requested 0x%x, but CSI supports 0x%x\n",
+			mbus_fmt->code, csi->mbus_fmt_code);
+
 	mode = rk628_csi_find_best_fit(format);
 	csi->cur_mode = mode;
 
-	enable_stream(sd, false);
+	v4l2_dbg(1, debug, sd, "%s: Setting format 0x%x, %dx%d\n",
+		 __func__, mbus_fmt->code, mbus_fmt->width, mbus_fmt->height);
 
 	return 0;
 }
