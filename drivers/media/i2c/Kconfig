@@ -922,6 +922,19 @@ config VIDEO_IMX766
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx766.
 
+config VIDEO_IMX900
+	tristate "Sony IMX900 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX900 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx900.
+
 config VIDEO_JX_F37
 	tristate "Soi JX_F37 sensor support"
 	depends on I2C && VIDEO_DEV
