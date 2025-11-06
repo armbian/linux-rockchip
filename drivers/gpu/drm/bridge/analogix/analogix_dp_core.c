@@ -2700,7 +2700,7 @@ int analogix_dp_runtime_resume(struct analogix_dp_device *dp)
 		return ret;
 	}
 
-	if (dp->plat_data->power_on)
+	if (dp->plat_data->power_on && analogix_dp_is_video_stream_on(dp))
 		dp->plat_data->power_on(dp->plat_data);
 
 	analogix_dp_phy_power_on(dp);
