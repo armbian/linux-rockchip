@@ -1152,8 +1152,8 @@ isp_rawae_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, ISP_PACK_2SHORT(h_offs, v_offs),
 			 addr + ISP3X_RAWAE_BIG_WND1_OFFSET, id);
 
-	v_size = arg->win1_h_size;
-	h_size = arg->win1_v_size;
+	h_size = arg->win1_h_size;
+	v_size = arg->win1_v_size;
 	if (!h_size || h_size + h_offs > width)
 		h_size = width - h_offs;
 	if (!v_size || v_size + v_offs > height)
