@@ -617,6 +617,67 @@
 			status = "disabled";
 		};
 
+		hdmi: hdmi@fdb00000 {
+			compatible = "rockchip,rk3538-dw-hdmi";
+			reg = <0xfdb00000 0x20000>, <0xfdc80000 0x10000>;
+			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "avp", "cec", "earc", "main", "hpd", "cec_wakeup";
+			clocks = <&cru PCLK_HDMITX>,
+				 <&cru CLK_HDMITX_EARC>,
+				 <&cru CLK_IREFCLK_HDMITX>,
+				 <&cru MCLK_SAI3>,
+				 <&cru DCLK_VP0>,
+				 <&cru HCLK_VOP>,
+				 <&cru PCLK_CEC>,
+				 <&cru CLK_32K_CEC>,
+				 <&inno_hdmiphy_clk>;
+			clock-names = "pclk",
+				      "earc",
+				      "hdmitx_ref",
+				      "aud",
+				      "dclk_vp0",
+				      "hclk_vo1",
+				      "cec",
+				      "cec_wakeup",
+				      "link_clk";
+			resets = <&cru SRST_RESETN_IREFCLK_HDMITX>, <&cru SRST_RESETN_HDMIHPD>;
+			reset-names = "ref", "hdp";
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_tx_hpd_pins
+				     &hdmi_tx_cec_pins
+				     &hdmi_tx_scl_pins
+				     &hdmi_tx_sda_pins>;
+			reg-io-width = <4>;
+			rockchip,grf = <&pmu_grf>;
+			rockchip,vo0_grf = <&vo_grf>;
+			phys = <&hdmiphy>;
+			phy-names = "hdmi";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in: port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					hdmi_in_vp0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp0_out_hdmi>;
+						status = "disabled";
+					};
+				};
+			};
+		};
+
 		spdif_rx: spdif-rx@fdb20000 {
 			compatible = "rockchip,rk3538-spdifrx", "rockchip,rk3308-spdifrx";
 			reg = <0xfdb20000 0x1000>;
@@ -664,6 +725,22 @@
 			#sound-dai-cells = <0>;
 			sound-name-prefix = "SAI2";
 			status = "disabled";
+		};
+
+		hdmiphy: phy@fdb80000 {
+			compatible = "rockchip,rk3538-hdmi-phy";
+			reg = <0xfdb80000 0x10000>;
+			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+			#phy-cells = <0>;
+			clocks = <&cru PCLK_HDMITXPHY>, <&xin24m>;
+			clock-names = "sysclk", "refclk";
+			status = "disabled";
+
+			inno_hdmiphy_clk: clk-port {
+				#clock-cells = <0>;
+				clock-output-names = "clk_hdmiphy_pixel_io";
+				status = "okay";
+			};
 		};
 
 		acodec: acodec@fdb90000 {
@@ -716,7 +793,7 @@
 
 					vp0_out_hdmi: endpoint@0 {
 						reg = <0>;
-						//remote-endpoint = <&hdmi_in_vp0>;
+						remote-endpoint = <&hdmi_in_vp0>;
 					};
 
 					vp0_out_tve: endpoint@1 {
