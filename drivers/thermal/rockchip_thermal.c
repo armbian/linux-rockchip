@@ -318,6 +318,11 @@ struct rockchip_thermal_data {
 
 #define RK3528_GRF_TSADC_CON			0x40030
 
+#define RK3538_PHPL_GRF_TSADC_CON0		0x1c
+#define RK3538_PHPL_GRF_TSADC_CON1		0x20
+#define RK3538_PHPL_GRF_TSADC_CON4		0x2c
+#define RK3538_PHPL_GRF_TSADC_CON6		0x34
+
 #define RK3562_GRF_TSADC_CON			0x0580
 
 #define RK3568_GRF_TSADC_CON			0x0600
@@ -1455,6 +1460,24 @@ static int rk_tsadcv5_get_temp(const struct chip_tsadc_table *table,
 	return 0;
 }
 
+static int rk_tsadcv6_get_temp(const struct chip_tsadc_table *table,
+			       int chn, void __iomem *regs, int *temp)
+{
+	u32 val;
+
+	val = readl_relaxed(regs + TSADCV3_DATA(chn));
+	*temp = val & TSADCV6_DATA_MASK;
+	if (val & TSADC_DATA_SIGN_BIT)
+		*temp |= TSADC_DATA_NEGATIVE;
+	*temp *= 10;
+	if (*temp < MIN_TEMP)
+		*temp = MIN_TEMP;
+	else if (*temp > MAX_TEMP)
+		*temp = MAX_TEMP;
+
+	return 0;
+}
+
 static int rk_tsadcv2_alarm_temp(const struct chip_tsadc_table *table,
 				 int chn, void __iomem *regs, int temp)
 {
@@ -1740,6 +1763,36 @@ static void rv1126b_tsadc_phy_init(struct device *dev, struct regmap *grf,
 		     RV1126B_UNLOCK_TRIGGER | RV1126B_UNLOCK_TRIGGER_MASK);
 	regmap_write(grf, RV1126B_GRF_TSADC_CON1, RV1126B_UNLOCK_TRIGGER_MASK);
 	rk_tsadc_limit_amplitude(0, false);
+}
+
+static void rk3538_tsadc_phy_init(struct device *dev, struct regmap *grf,
+				   void __iomem *reg, struct phy_config *phy_cfg)
+{
+	u32 val = 0;
+
+	if (!phy_cfg->bias) {
+		regmap_read(grf, RK3538_PHPL_GRF_TSADC_CON6, &val);
+		phy_cfg->bias = val & RV1126B_MAX_BIAS;
+	} else {
+		regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON6,
+			     phy_cfg->bias | RV1126B_BIAS_MASK);
+	}
+	if (!phy_cfg->offset) {
+		regmap_read(grf, RK3538_PHPL_GRF_TSADC_CON4, &val);
+		phy_cfg->offset = val & RV1126B_MAX_OFFSET;
+	} else {
+		regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON4,
+			     phy_cfg->offset | RV1126B_OFFSET_MASK);
+	}
+	regmap_read(grf, RV1126B_GRF_TSADC_ST1, &val);
+	dev_info(dev, "width=0x%x, bias=0x%x, offset=0x%x\n", val, phy_cfg->bias,
+		 phy_cfg->offset);
+	regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON0, RV1126B_CTRL_MASK);
+	regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON1,
+		     RV1126B_UNLOCK_VALUE | RV1126B_UNLOCK_VALUE_MASK);
+	regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON1,
+		     RV1126B_UNLOCK_TRIGGER | RV1126B_UNLOCK_TRIGGER_MASK);
+	regmap_write(grf, RK3538_PHPL_GRF_TSADC_CON1, RV1126B_UNLOCK_TRIGGER_MASK);
 }
 
 static const struct rockchip_tsadc_chip px30_tsadc_data = {
@@ -2148,6 +2201,22 @@ static const struct rockchip_tsadc_chip rk3528_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rk3538_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+	.phy_init = rk3538_tsadc_phy_init,
+	.initialize = rk_tsadcv14_initialize,
+	.irq_ack = rk_tsadcv4_irq_ack,
+	.control = rk_tsadcv4_control,
+	.get_temp = rk_tsadcv6_get_temp,
+	.set_alarm_temp = rk_tsadcv4_alarm_temp,
+	.set_tshut_temp = rk_tsadcv4_tshut_temp,
+	.set_tshut_mode = rk_tsadcv4_tshut_mode,
+};
+
 static const struct rockchip_tsadc_chip rk3562_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channels for tsadc */
@@ -2342,6 +2411,12 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rk3528-tsadc",
 		.data = (void *)&rk3528_tsadc_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3538
+	{
+		.compatible = "rockchip,rk3538-tsadc",
+		.data = (void *)&rk3538_tsadc_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3562
