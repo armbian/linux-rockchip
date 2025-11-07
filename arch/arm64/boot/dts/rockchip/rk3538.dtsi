@@ -73,6 +73,8 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x0>;
 			enable-method = "psci";
+			clocks = <&scmi_clk ARMCLK01>;
+			operating-points-v2 = <&cpu01_opp_table>;
 		};
 
 		cpu1: cpu@100 {
@@ -80,6 +82,8 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x100>;
 			enable-method = "psci";
+			clocks = <&scmi_clk ARMCLK01>;
+			operating-points-v2 = <&cpu01_opp_table>;
 		};
 
 		cpu2: cpu@200 {
@@ -87,6 +91,8 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x200>;
 			enable-method = "psci";
+			clocks = <&scmi_clk ARMCLK23>;
+			operating-points-v2 = <&cpu23_opp_table>;
 		};
 
 		cpu3: cpu@300 {
@@ -94,6 +100,159 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x300>;
 			enable-method = "psci";
+			clocks = <&scmi_clk ARMCLK23>;
+			operating-points-v2 = <&cpu23_opp_table>;
+		};
+	};
+
+	cpu01_opp_table: cpu01-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,pvtm-voltage-sel = <
+			0	1394	0
+			1400	1535	1
+			1425	1555	2
+			1450	1555	3
+			1468	1555	4
+			1486	1555	5
+			1504	9999	6
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x54>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <1416000>;
+		rockchip,pvtm-volt = <950000>;
+		rockchip,pvtm-ref-temp = <35>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&core0_pvtpll>;
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <912500 912500 1100000>;
+			opp-microvolt-L1 = <900000 900000 1100000>;
+			opp-microvolt-L2 = <887500 887500 1100000>;
+			opp-microvolt-L3 = <887500 887500 1100000>;
+			opp-microvolt-L4 = <875000 875000 1100000>;
+			opp-microvolt-L5 = <875000 875000 1100000>;
+			opp-microvolt-L6 = <862500 862500 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <962500 962500 1100000>;
+			opp-microvolt-L1 = <950000 950000 1100000>;
+			opp-microvolt-L2 = <950000 950000 1100000>;
+			opp-microvolt-L3 = <937500 937500 1100000>;
+			opp-microvolt-L4 = <937500 937500 1100000>;
+			opp-microvolt-L5 = <925000 925000 1100000>;
+			opp-microvolt-L6 = <912500 912500 1100000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
+	cpu23_opp_table: cpu23-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,pvtm-voltage-sel = <
+			0	1394	0
+			1400	1535	1
+			1425	1555	2
+			1450	1555	3
+			1468	1555	4
+			1486	1555	5
+			1504	9999	6
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x54>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <1416000>;
+		rockchip,pvtm-volt = <950000>;
+		rockchip,pvtm-ref-temp = <35>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&core1_pvtpll>;
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <850000 850000 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <912500 912500 1100000>;
+			opp-microvolt-L1 = <900000 900000 1100000>;
+			opp-microvolt-L2 = <887500 887500 1100000>;
+			opp-microvolt-L3 = <887500 887500 1100000>;
+			opp-microvolt-L4 = <875000 875000 1100000>;
+			opp-microvolt-L5 = <875000 875000 1100000>;
+			opp-microvolt-L6 = <862500 862500 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <962500 962500 1100000>;
+			opp-microvolt-L1 = <950000 950000 1100000>;
+			opp-microvolt-L2 = <950000 950000 1100000>;
+			opp-microvolt-L3 = <937500 937500 1100000>;
+			opp-microvolt-L4 = <937500 937500 1100000>;
+			opp-microvolt-L5 = <925000 925000 1100000>;
+			opp-microvolt-L6 = <912500 912500 1100000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1512000000 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <1000000 1000000 1100000>;
+			opp-microvolt-L1 = <987500 987500 1100000>;
+			opp-microvolt-L2 = <975000 975000 1100000>;
+			opp-microvolt-L3 = <962500 962500 1100000>;
+			opp-microvolt-L4 = <950000 950000 1100000>;
+			opp-microvolt-L5 = <937500 937500 1100000>;
+			opp-microvolt-L6 = <937500 937500 1100000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -301,13 +460,54 @@
 				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "GPU", "MMU", "JOB";
 
-			clocks = <&cru CLK_GPU_CORE>;
+			clocks = <&scmi_clk CLK_GPU_CORE>, <&cru CLK_GPU_CORE>;
 			clock-names = "clk_gpu";
+			operating-points-v2 = <&gpu_opp_table>;
 
 			upthreshold = <30>;
 			downdifferential = <10>;
 
 			status = "disabled";
+		};
+
+		gpu_opp_table: gpu-opp-table {
+			compatible = "operating-points-v2";
+
+			nvmem-cells = <&log_leakage>;
+			nvmem-cell-names = "leakage";
+
+			rockchip,opp-clocks = <&cru CLK_GPU_CORE>;
+
+			rockchip,pvtm-voltage-sel = <
+				0	595	0
+				596	610	1
+				611	625	2
+				626	9999	3
+			>;
+			rockchip,pvtm-pvtpll;
+			rockchip,pvtm-offset = <0x54>;
+			rockchip,pvtm-sample-time = <1100>;
+			rockchip,pvtm-freq = <500000>;
+			rockchip,pvtm-volt = <950000>;
+			rockchip,pvtm-ref-temp = <35>;
+			rockchip,pvtm-temp-prop = <0 0>;
+			rockchip,pvtm-thermal-zone = "soc-thermal";
+			rockchip,grf = <&gpu_pvtpll>;
+
+			rockchip,temp-hysteresis = <5000>;
+			rockchip,low-temp = <10000>;
+			rockchip,low-temp-min-volt = <900000>;
+
+			opp-400000000 {
+				opp-hz = /bits/ 64 <400000000>;
+				opp-microvolt = <850000 850000 950000>;
+			};
+			opp-500000000 {
+				opp-hz = /bits/ 64 <500000000>;
+				opp-microvolt = <875000 875000 950000>;
+				opp-microvolt-L2 = <862500 862500 950000>;
+				opp-microvolt-L3 = <850000 850000 950000>;
+			};
 		};
 
 		usb_drd_dwc3: usb@fc000000 {
