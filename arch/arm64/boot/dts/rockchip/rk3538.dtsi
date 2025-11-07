@@ -502,6 +502,38 @@
 			status = "disabled";
 		};
 
+		jpegd: jpegd@fd820000 {
+			compatible = "rockchip,rkv-jpeg-decoder-v2";
+			reg = <0xfd820000 0x400>;
+			interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_jpegd";
+			clocks = <&cru ACLK_RKJPEG>, <&cru HCLK_RKJPEG>;
+			clock-names = "aclk_vcodec", "hclk_vcodec";
+			rockchip,normal-rates = <400000000>, <0>;
+			assigned-clocks = <&cru ACLK_RKJPEG>;
+			assigned-clock-rates = <400000000>;
+			resets = <&cru SRST_ARESETN_RKJPEG>, <&cru SRST_HRESETN_RKJPEG>;
+			reset-names = "video_a", "video_h";
+			rockchip,skip-pmu-idle-request;
+			iommus = <&jpeg_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <0>;
+			rockchip,resetgroup-node = <0>;
+			status = "disabled";
+		};
+
+		jpeg_mmu: iommu@fd820f00 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0xfd820f00 0xc8>;
+			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_jpeg_mmu";
+			clocks = <&cru ACLK_RKJPEG>, <&cru HCLK_RKJPEG>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,shootdown-entire;
+			status = "disabled";
+		};
+
 		rng: rng@fd900000 {
 			compatible = "rockchip,rkrng";
 			reg = <0xfd900000 0x200>;
