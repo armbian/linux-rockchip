@@ -242,6 +242,23 @@
 		method = "smc";
 	};
 
+	thermal_zones: thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <20>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			thermal-sensors = <&tsadc 0>;
+			trips {
+				soc_crit: soc-crit {
+					/* millicelsius */
+					temperature = <115000>;
+					/* millicelsius */
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
@@ -444,6 +461,11 @@
 		pmu_grf: syscon@fd180000 {
 			compatible = "rockchip,rk3538-pmu-grf", "syscon";
 			reg = <0xfd180000 0x10000>;
+		};
+
+		phpl_grf: syscon@fd190000 {
+			compatible = "rockchip,rk3538-phpl-grf", "syscon";
+			reg = <0xfd190000 0x10000>;
 		};
 
 		ioc_grf: syscon@fd1b0000 {
@@ -758,6 +780,23 @@
 				     &sai0m0_sdo_pins>;
 			#sound-dai-cells = <0>;
 			sound-name-prefix = "SAI0";
+			status = "disabled";
+		};
+
+		tsadc: tsadc@fdd90000 {
+			compatible = "rockchip,rk3538-tsadc";
+			reg = <0xfdd90000 0x400>;
+			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>,
+				 <&cru CLK_TSADC_PHYCTRL>;
+			clock-names = "tsadc", "apb_pclk", "tsadc_phyctrl";
+			resets = <&cru SRST_RESETN_TSADC>, <&cru SRST_PRESETN_TSADC>;
+			reset-names = "tsadc", "tsadc-apb";
+			#thermal-sensor-cells = <1>;
+			rockchip,grf = <&phpl_grf>;
+			rockchip,hw-tshut-temp = <120000>;
+			rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+			rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 			status = "disabled";
 		};
 
