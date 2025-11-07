@@ -911,6 +911,61 @@
 			};
 		};
 
+		jpegd: jpegd@27110000 {
+			compatible = "rockchip,rkv-jpeg-decoder-v2";
+			reg = <0x0 0x27110000 0x0 0x400>;
+			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_jpegd";
+			clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
+			clock-names = "aclk_jpeg", "hclk_jpeg";
+			rockchip,normal-rates = <600000000>, <0>;
+			assigned-clocks = <&cru ACLK_JPEG>;
+			assigned-clock-rates = <600000000>;
+			resets = <&cru SRST_ARESETN_JPEG>, <&cru SRST_HRESETN_JPEG>;
+			reset-names = "shared_video_a", "shared_video_h";
+			rockchip,skip-pmu-idle-request;
+			iommus = <&jpeg_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <3>;
+			rockchip,resetgroup-node = <3>;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
+		jpege: jpege@27110800 {
+			compatible = "rockchip,rkv-jpeg-encoder-v2";
+			reg = <0x0 0x27110800 0x0 0x3c4>;
+			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_jpege";
+			clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
+			clock-names = "aclk_jpeg", "hclk_jpeg";
+			rockchip,normal-rates = <600000000>, <0>;
+			assigned-clocks = <&cru ACLK_JPEG>;
+			assigned-clock-rates = <600000000>;
+			resets = <&cru SRST_ARESETN_JPEG>, <&cru SRST_HRESETN_JPEG>;
+			reset-names = "shared_video_a", "shared_video_h";
+			rockchip,skip-pmu-idle-request;
+			iommus = <&jpeg_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <3>;
+			rockchip,resetgroup-node = <3>;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
+		jpeg_mmu: iommu@27110f00 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x27110f00 0x0 0xc8>;
+			interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_jpeg_mmu";
+			clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,shootdown-entire;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
 		rga2_core0: rga@27120000 {
 			compatible = "rockchip,rga2";
 			reg = <0x0 0x27120000 0x0 0x1000>;
