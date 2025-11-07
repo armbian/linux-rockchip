@@ -148,6 +148,18 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&gpu {
+	mali-supply = <&vdd_logic>;
+};
+
 &pinctrl {
 	pmic {
 		pmic_int: pmic-int {
