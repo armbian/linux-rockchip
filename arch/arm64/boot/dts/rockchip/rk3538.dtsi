@@ -303,6 +303,54 @@
 			status = "disabled";
 		};
 
+		usb_drd_dwc3: usb@fc000000 {
+			compatible = "rockchip,rk3538-dwc3", "rockchip,rk3576-dwc3", "snps,dwc3";
+			reg = <0xfc000000 0x100000>;
+			clocks = <&cru CLK_REF_USB2OTG>,
+				 <&cru CLK_SUSPEND_USB2OTG>,
+				 <&cru ACLK_USB2OTG>;
+			clock-names = "ref", "suspend", "bus_clk";
+			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cru SRST_ARESETN_USB2OTG>;
+			reset-names = "usb3-otg";
+			dr_mode = "otg";
+			phys = <&u2phy_otg>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
+			maximum-speed = "high-speed";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,usb2-gadget-lpm-disable;
+			snps,usb2-lpm-disable;
+			status = "disabled";
+		};
+
+		usb_host_ehci: usb@fc100000 {
+			compatible = "generic-ehci";
+			reg = <0xfc100000 0x80000>;
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_USB2HOST>, <&cru HCLK_ARB_USB2HOST>, <&usb2phy>;
+			clock-names = "usbhost", "arbiter", "utmi";
+			phys = <&u2phy_host>;
+			phy-names = "usb2-phy";
+			status = "disabled";
+		};
+
+		usb_host_ohci: usb@fc180000 {
+			compatible = "generic-ohci";
+			reg = <0xfc180000 0x80000>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_USB2HOST>, <&cru HCLK_ARB_USB2HOST>, <&usb2phy>;
+			clock-names = "usbhost", "arbiter", "utmi";
+			phys = <&u2phy_host>;
+			phy-names = "usb2-phy";
+			status = "disabled";
+		};
+
 		pwm0_4ch_0: pwm@fca00000 {
 			compatible = "rockchip,rk3538-pwm";
 			reg = <0xfca00000 0x1000>;
