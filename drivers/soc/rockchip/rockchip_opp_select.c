@@ -663,19 +663,19 @@ static void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 		ret = rockchip_get_leakage_v1(dev, np, lkg_name, &leakage);
 		if (ret)
 			return;
-		dev_info(dev, "leakage=%d\n", leakage);
+		dev_info(dev, "idc=%d\n", leakage);
 		break;
 	case LEAKAGE_V2:
 		ret = rockchip_get_leakage_v2(dev, np, lkg_name, &leakage);
 		if (ret)
 			return;
-		dev_info(dev, "leakage=%d\n", leakage);
+		dev_info(dev, "idc=%d\n", leakage);
 		break;
 	case LEAKAGE_V3:
 		ret = rockchip_get_leakage_v3(dev, np, lkg_name, &leakage);
 		if (ret)
 			return;
-		dev_info(dev, "leakage=%d.%d\n", leakage / 1000,
+		dev_info(dev, "idc=%d.%d\n", leakage / 1000,
 			 leakage % 1000);
 		break;
 	default:
@@ -693,7 +693,7 @@ static void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 		sprintf(name, "rockchip,leakage-voltage-sel");
 	ret = rockchip_get_sel(np, name, leakage, volt_sel);
 	if (!ret)
-		dev_info(dev, "leakage-volt-sel=%d\n", *volt_sel);
+		dev_info(dev, "idc-volt-sel=%d\n", *volt_sel);
 
 next:
 	if (!scale_sel)
@@ -707,7 +707,7 @@ next:
 		sprintf(name, "rockchip,leakage-scaling-sel");
 	ret = rockchip_get_sel(np, name, leakage, scale_sel);
 	if (!ret)
-		dev_info(dev, "leakage-scale=%d\n", *scale_sel);
+		dev_info(dev, "idc-scale=%d\n", *scale_sel);
 }
 
 static unsigned long rockchip_pvtpll_get_rate(struct rockchip_opp_info *info)
