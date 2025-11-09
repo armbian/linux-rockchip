@@ -50,7 +50,6 @@ jobs:
         id: kernel-armhf
         run: |
 
-          rm -rf output/debs/*
           mkdir -p userpatches/extensions/
           cat <<- EOF > userpatches/extensions/pull-request.sh
           function post_family_config__force_commit_for_rk3588() {
