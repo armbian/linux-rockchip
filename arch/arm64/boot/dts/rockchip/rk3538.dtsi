@@ -1082,6 +1082,62 @@
 			status = "disabled";
 		};
 
+		iep: iep@fd830000 {
+			compatible = "rockchip,iep-v2";
+			reg = <0xfd830000 0x700>;
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpp";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			clock-names = "aclk", "hclk", "sclk";
+			rockchip,normal-rates = <600000000>, <0>, <600000000>;
+			assigned-clocks = <&cru ACLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			assigned-clock-rates = <400000000>, <600000000>;
+			resets = <&cru SRST_ARESETN_VDPP>, <&cru SRST_HRESETN_VDPP>,
+				 <&cru SRST_RESETN_CORE_VDPP>;
+			reset-names = "shared_rst_a", "shared_rst_h", "shared_rst_s";
+			rockchip,skip-pmu-idle-request;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <1>;
+			rockchip,resetgroup-node = <1>;
+			iommus = <&iep_mmu>;
+			status = "disabled";
+		};
+
+		iep_mmu: iommu@fd830800 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0xfd830800 0x100>;
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "iep_mmu";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,shootdown-entire;
+			status = "disabled";
+		};
+
+		vdpp: vdpp@fd831000 {
+			compatible = "rockchip,vdpp-rk3538";
+			reg = <0xfd831000 0x500>, <0xfd832800 0x50>;
+			reg-names = "vdpp_regs", "zme_regs";
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpp";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			clock-names = "aclk", "hclk", "sclk";
+			rockchip,normal-rates = <400000000>, <0>, <400000000>;
+			assigned-clocks = <&cru ACLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			assigned-clock-rates = <400000000>, <400000000>;
+			resets = <&cru SRST_ARESETN_VDPP>, <&cru SRST_HRESETN_VDPP>,
+				 <&cru SRST_RESETN_CORE_VDPP>;
+			reset-names = "shared_rst_a", "shared_rst_h", "shared_rst_s";
+			rockchip,skip-pmu-idle-request;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <1>;
+			rockchip,resetgroup-node = <1>;
+			rockchip,disable-auto-freq;
+			iommus = <&iep_mmu>;
+			status = "disabled";
+		};
+
 		rng: rng@fd900000 {
 			compatible = "rockchip,rkrng";
 			reg = <0xfd900000 0x200>;
