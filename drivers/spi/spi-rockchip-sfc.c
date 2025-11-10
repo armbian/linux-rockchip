@@ -333,7 +333,7 @@ static void rockchip_sfc_irq_mask(struct rockchip_sfc *sfc, u32 mask)
 
 static int rockchip_sfc_init(struct rockchip_sfc *sfc)
 {
-	u32 reg;
+	u32 reg, i;
 
 	writel(0, sfc->regbase + SFC_CTRL);
 	writel(0xFFFFFFFF, sfc->regbase + SFC_ICLR);
@@ -344,6 +344,10 @@ static int rockchip_sfc_init(struct rockchip_sfc *sfc)
 		reg = readl(sfc->regbase + SFC_EXT_CTRL);
 		reg |= SFC_SCLK_X2_BYPASS;
 		writel(reg, sfc->regbase + SFC_EXT_CTRL);
+	}
+	for (i = 0; i < SFC_MAX_CHIPSELECT_NUM; i++) {
+		if (sfc->dll_cells[i])
+			rockchip_sfc_set_delay_lines(sfc, (u16)sfc->dll_cells[i], i);
 	}
 
 	return 0;
@@ -1161,10 +1165,14 @@ static int __maybe_unused rockchip_sfc_runtime_resume(struct device *dev)
 		return ret;
 
 	ret = clk_prepare_enable(sfc->clk);
-	if (ret < 0)
+	if (ret < 0) {
 		clk_disable_unprepare(sfc->hclk);
+		return ret;
+	}
 
-	return ret;
+	rockchip_sfc_init(sfc);
+
+	return 0;
 }
 
 static int __maybe_unused rockchip_sfc_suspend(struct device *dev)
@@ -1176,8 +1184,7 @@ static int __maybe_unused rockchip_sfc_suspend(struct device *dev)
 
 static int __maybe_unused rockchip_sfc_resume(struct device *dev)
 {
-	struct rockchip_sfc *sfc = dev_get_drvdata(dev);
-	int ret, i;
+	int ret;
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret < 0)
@@ -1189,12 +1196,6 @@ static int __maybe_unused rockchip_sfc_resume(struct device *dev)
 	if (ret < 0) {
 		pm_runtime_put_noidle(dev);
 		return ret;
-	}
-
-	rockchip_sfc_init(sfc);
-	for (i = 0; i < SFC_MAX_CHIPSELECT_NUM; i++) {
-		if (sfc->dll_cells[i])
-			rockchip_sfc_set_delay_lines(sfc, (u16)sfc->dll_cells[i], i);
 	}
 
 	pm_runtime_mark_last_busy(dev);
