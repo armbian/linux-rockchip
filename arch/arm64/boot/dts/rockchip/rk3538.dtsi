@@ -534,6 +534,13 @@
 			reg = <0xfd1b0000 0x80000>;
 		};
 
+		dfi: dfi@fd710000 {
+			compatible = "rockchip,rk3538-dfi";
+			reg = <0xfd710000 0x10000>;
+			rockchip,grf = <&pmu_grf>;
+			status = "disabled";
+		};
+
 		rga2_core0: rga@fd810000 {
 			compatible = "rockchip,rga2";
 			reg = <0xfd810000 0x1000>;
