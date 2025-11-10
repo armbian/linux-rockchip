@@ -56,6 +56,9 @@
 #define RK3528_PMUGRF_OS_REG18		0x248
 #define RK3528_PMUGRF_OS_REG19		0x24c
 
+#define RK3538_PMUGRF_OS_REG2		0x1008
+#define RK3538_PMUGRF_OS_REG3		0x100c
+
 #define RV1126B_PMUGRF_OS_REG2		(0x208 + 0x30000)
 #define RV1126B_PMUGRF_OS_REG3		(0x20c + 0x30000)
 
@@ -916,6 +919,40 @@ static __maybe_unused __init int rk3528_dfi_init(struct platform_device *pdev,
 	return 0;
 }
 
+static __maybe_unused __init int rk3538_dfi_init(struct platform_device *pdev,
+						 struct rockchip_dfi *data,
+						 struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+	struct resource *res;
+	u32 val_2, val_3;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	if (node) {
+		data->regmap_grf = syscon_node_to_regmap(node);
+		if (IS_ERR(data->regmap_grf))
+			return PTR_ERR(data->regmap_grf);
+	}
+
+	regmap_read(data->regmap_grf, RK3538_PMUGRF_OS_REG2, &val_2);
+	regmap_read(data->regmap_grf, RK3538_PMUGRF_OS_REG3, &val_3);
+	if (READ_SYSREG_VERSION(val_3) >= 0x3)
+		data->dram_type = READ_DRAMTYPE_INFO_V3(val_2, val_3);
+	else
+		data->dram_type = READ_DRAMTYPE_INFO(val_2);
+	data->count_rate = 2;
+	data->ch_msk = 1;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
 static __maybe_unused __init int rk3562_dfi_init(struct platform_device *pdev,
 						 struct rockchip_dfi *data,
 						 struct devfreq_event_desc *desc)
@@ -955,6 +992,9 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3528
 	{ .compatible = "rockchip,rk3528-dfi", .data = rk3528_dfi_init },
+#endif
+#ifdef CONFIG_CPU_RK3538
+	{ .compatible = "rockchip,rk3538-dfi", .data = rk3538_dfi_init },
 #endif
 #ifdef CONFIG_CPU_RK3562
 	{ .compatible = "rockchip,rk3562-dfi", .data = rk3562_dfi_init },
