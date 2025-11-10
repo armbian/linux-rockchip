@@ -515,6 +515,22 @@ static int techpoint_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int techpoint_enum_frame_interval(struct v4l2_subdev *sd,
+					 struct v4l2_subdev_state *sd_state,
+					 struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct techpoint *techpoint = to_techpoint(sd);
+
+	if (fie->index >= techpoint->video_modes_num)
+		return -EINVAL;
+
+	fie->width = techpoint->video_modes[fie->index].width;
+	fie->height = techpoint->video_modes[fie->index].height;
+	fie->interval = techpoint->video_modes[fie->index].max_fps;
+
+	return 0;
+}
+
 static int techpoint_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct techpoint *techpoint = to_techpoint(sd);
@@ -824,6 +840,7 @@ static const struct v4l2_subdev_video_ops techpoint_video_ops = {
 static const struct v4l2_subdev_pad_ops techpoint_subdev_pad_ops = {
 	.enum_mbus_code = techpoint_enum_mbus_code,
 	.enum_frame_size = techpoint_enum_frame_sizes,
+	.enum_frame_interval = techpoint_enum_frame_interval,
 	.get_fmt = techpoint_get_fmt,
 	.set_fmt = techpoint_set_fmt,
 	.get_mbus_config = techpoint_g_mbus_config,
