@@ -34,7 +34,7 @@
 #endif
 
 #define DRV_NAME "pcie-rkep"
-#define DRV_VERSION 0x00030200
+#define DRV_VERSION 0x00030300
 
 #ifndef PCI_VENDOR_ID_ROCKCHIP
 #define PCI_VENDOR_ID_ROCKCHIP          0x1d87
@@ -91,6 +91,7 @@ static DEFINE_MUTEX(rkep_mutex);
 #define PCIE_DMA_RD_LL_ERR_EN		0xc4
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
+#define PCIE_DMA_IS_STOP(ctrl1)		((ctrl1 & 0x60) == 0x60)
 
 #define RKEP_USER_MEM_SIZE		SZ_4M
 
@@ -1004,7 +1005,7 @@ static void pcie_rkep_dma_debug(struct dma_trx_obj *obj, struct dma_table *table
 	}
 }
 
-static void pcie_rkep_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
+static void pcie_rkep_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cur, u32 ctr_off)
 {
 	struct pci_dev *pdev = container_of(obj->dev, struct pci_dev, dev);
 	struct pcie_rkep *pcie_rkep = pci_get_drvdata(pdev);
@@ -1045,7 +1046,7 @@ static void pcie_rkep_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cu
 	/* pcie_rkep_dma_debug(obj, cur); */
 }
 
-static void pcie_rkep_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
+static void pcie_rkep_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cur, u32 ctr_off)
 {
 	struct pci_dev *pdev = container_of(obj->dev, struct pci_dev, dev);
 	struct pcie_rkep *pcie_rkep = pci_get_drvdata(pdev);
@@ -1093,7 +1094,7 @@ static void pcie_rkep_start_dma_dwc(struct dma_trx_obj *obj, struct dma_table *t
 	int dir = table->dir;
 	int chn = table->chn;
 
-	int ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
+	u32 ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
 
 	if (dir == DMA_FROM_BUS)
 		pcie_rkep_start_dma_rd(obj, table, ctr_off);
@@ -1142,45 +1143,63 @@ static int pcie_rkep_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dma_di
 	union int_status status;
 	union int_clear clears;
 	int ret = 0;
+	u32 ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
+	u32 mask, left, ctrl1;
 
 	dev_dbg(&pdev->dev, "%s %x %x\n", __func__,
 		pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS),
 		pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS));
 
 	if (dir == DMA_TO_BUS) {
-		status.asdword =
-			pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS);
-		if (status.donesta & BIT(chn)) {
-			clears.doneclr = BIT(chn);
-			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_CLEAR,
-					     clears.asdword);
-			ret = 1;
-		}
+		mask = pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK);
+		if (mask & BIT(chn)) {
+			status.asdword =
+				pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS);
+			if (status.donesta & BIT(chn)) {
+				clears.doneclr = BIT(chn);
+				pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_CLEAR,
+						     clears.asdword);
+				ret = 1;
+			}
 
-		if (status.abortsta & BIT(chn)) {
-			dev_err(&pdev->dev, "%s, write abort %x\n", __func__, status.asdword);
-			clears.abortclr = BIT(chn);
-			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_CLEAR,
-					     clears.asdword);
-			ret = -1;
+			if (status.abortsta & BIT(chn)) {
+				dev_err(&pdev->dev, "%s, write abort %x\n", __func__, status.asdword);
+				clears.abortclr = BIT(chn);
+				pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_CLEAR,
+						     clears.asdword);
+				ret = -1;
+			}
+		} else {
+			ctrl1 = pcie_rkep_readl_dbi(pcie_rkep, ctr_off + PCIE_DMA_WR_CTRL_LO);
+			left = pcie_rkep_readl_dbi(pcie_rkep, ctr_off + PCIE_DMA_WR_XFERSIZE);
+			if (PCIE_DMA_IS_STOP(ctrl1) && left == 0)
+				ret = 1;
 		}
 	} else {
-		status.asdword =
-			pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS);
+		mask = pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK);
+		if (mask & BIT(chn)) {
+			status.asdword =
+				pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS);
 
-		if (status.donesta & BIT(chn)) {
-			clears.doneclr = BIT(chn);
-			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_CLEAR,
-					     clears.asdword);
-			ret = 1;
-		}
+			if (status.donesta & BIT(chn)) {
+				clears.doneclr = BIT(chn);
+				pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_CLEAR,
+						     clears.asdword);
+				ret = 1;
+			}
 
-		if (status.abortsta & BIT(chn)) {
-			dev_err(&pdev->dev, "%s, read abort %x\n", __func__, status.asdword);
-			clears.abortclr = BIT(chn);
-			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_CLEAR,
-					     clears.asdword);
-			ret = -1;
+			if (status.abortsta & BIT(chn)) {
+				dev_err(&pdev->dev, "%s, read abort %x\n", __func__, status.asdword);
+				clears.abortclr = BIT(chn);
+				pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_CLEAR,
+						     clears.asdword);
+				ret = -1;
+			}
+		} else {
+			ctrl1 = pcie_rkep_readl_dbi(pcie_rkep, ctr_off + PCIE_DMA_RD_CTRL_LO);
+			left = pcie_rkep_readl_dbi(pcie_rkep, ctr_off + PCIE_DMA_RD_XFERSIZE);
+			if (PCIE_DMA_IS_STOP(ctrl1) && left == 0)
+				ret = 1;
 		}
 	}
 
