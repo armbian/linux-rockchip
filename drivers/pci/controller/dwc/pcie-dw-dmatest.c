@@ -58,7 +58,8 @@ MODULE_PARM_DESC(is_wired, "Transfer is triggered by wired DMA(default false)");
 struct pcie_dw_dmatest_dev {
 	struct dma_trx_obj *obj;
 
-	bool irq_en;
+	bool wr_irq_en;
+	bool rd_irq_en;
 	struct completion rd_done[PCIE_DMA_CHANEL_MAX_NUM];
 	struct completion wr_done[PCIE_DMA_CHANEL_MAX_NUM];
 
@@ -134,7 +135,7 @@ static int rk_pcie_local_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
 	table = &dmatest_dev->rd_tbl_buf[chn];
 	memset(table, 0, sizeof(struct dma_table));
 
-	if (dmatest_dev->irq_en)
+	if (dmatest_dev->rd_irq_en)
 		reinit_completion(&dmatest_dev->rd_done[chn]);
 
 	table->buf_size = size;
@@ -146,12 +147,14 @@ static int rk_pcie_local_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
 	obj->config_dma_func(table);
 	obj->start_dma_func(obj, table);
 
-	if (dmatest_dev->irq_en) {
+	if (dmatest_dev->rd_irq_en) {
 		ret = wait_for_completion_interruptible_timeout(&dmatest_dev->rd_done[chn], HZ);
 		if (ret < 0)
 			dev_err(obj->dev, "%s interrupted\n", __func__);
 		else if (ret == 0)
 			dev_err(obj->dev, "%s timed out\n", __func__);
+		else
+			ret = 0;
 	} else {
 		ret = rk_pcie_dma_wait_for_finished(obj, table);
 	}
@@ -175,7 +178,7 @@ static int rk_pcie_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
 	table = &dmatest_dev->wr_tbl_buf[chn];
 	memset(table, 0, sizeof(struct dma_table));
 
-	if (dmatest_dev->irq_en)
+	if (dmatest_dev->wr_irq_en)
 		reinit_completion(&dmatest_dev->wr_done[chn]);
 
 	table->buf_size = size;
@@ -187,12 +190,14 @@ static int rk_pcie_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
 	obj->config_dma_func(table);
 	obj->start_dma_func(obj, table);
 
-	if (dmatest_dev->irq_en) {
+	if (dmatest_dev->wr_irq_en) {
 		ret = wait_for_completion_interruptible_timeout(&dmatest_dev->wr_done[chn], HZ);
 		if (ret < 0)
 			dev_err(obj->dev, "%s interrupted\n", __func__);
 		else if (ret == 0)
 			dev_err(obj->dev, "%s timed out\n", __func__);
+		else
+			ret = 0;
 	} else {
 		ret = rk_pcie_dma_wait_for_finished(obj, table);
 	}
@@ -244,7 +249,8 @@ struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 	}
 
 	/* Enable IRQ transfer as default */
-	dmatest_dev->irq_en = irq_en;
+	dmatest_dev->wr_irq_en = irq_en;
+	dmatest_dev->rd_irq_en = irq_en;
 
 	/* Record for dmatest module_param */
 	for (i = 0; i < PCIE_DW_MISC_DMATEST_DEV_MAX; i++) {
@@ -287,6 +293,27 @@ int pcie_dw_wired_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
 				  u64 bus_paddr, u64 local_paddr, u32 size)
 {
 	return rk_pcie_local_dma_frombus_block(obj, chn, bus_paddr, local_paddr, size);
+}
+
+int pcie_dw_dmatest_irq_en(struct dma_trx_obj *obj, bool wr_irq_en, bool rd_irq_en)
+{
+	struct pcie_dw_dmatest_dev *dmatest_dev = (struct pcie_dw_dmatest_dev *)obj->priv;
+	int chn;
+
+	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++)
+		mutex_lock(&dmatest_dev->wr_lock[chn]);
+	dmatest_dev->wr_irq_en = wr_irq_en;
+	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++)
+		mutex_unlock(&dmatest_dev->wr_lock[chn]);
+
+	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++)
+		mutex_lock(&dmatest_dev->rd_lock[chn]);
+	dmatest_dev->rd_irq_en = rd_irq_en;
+	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++)
+		mutex_unlock(&dmatest_dev->rd_lock[chn]);
+
+	dev_info(obj->dev, "update wr_irq_en=%d rd_irq_en=%d\n", wr_irq_en, rd_irq_en);
+	return 0;
 }
 
 static int dma_test(struct dma_trx_obj *obj, u32 chn, u64 bus_paddr, u64 local_paddr,
