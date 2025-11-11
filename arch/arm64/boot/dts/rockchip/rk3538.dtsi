@@ -618,6 +618,39 @@
 			status = "disabled";
 		};
 
+		otp: otp@fd9e0000 {
+			compatible = "rockchip,rk3538-otp";
+			reg = <0xfd9e0000 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&cru CLK_NS_USER_OTPC>, <&cru CLK_NS_SBPI_OTPC>,
+				 <&cru PCLK_NS_OTPC>, <&cru PCLK_NS_OTPC_MASK>,
+				 <&cru CLK_NS_OTPC_ARB>;
+			clock-names = "usr", "sbpi", "apb", "mask", "arb";
+			resets = <&cru SRST_RESETN_NS_USER_OTPC>,
+				 <&cru SRST_RESETN_NS_SBPI_OTPC>,
+				 <&cru SRST_PRESETN_NS_OTPC>;
+			reset-names = "usr", "sbpi", "apb";
+
+			/* Data cells */
+			cpu_code: cpu-code@2 {
+				reg = <0x02 0x2>;
+			};
+			otp_cpu_version: cpu-version@21 {
+				reg = <0x21 0x1>;
+				bits = <3 3>;
+			};
+			otp_id: id@22 {
+				reg = <0x22 0x10>;
+			};
+			cpu_leakage: cpu-leakage@32 {
+				reg = <0x32 0x1>;
+			};
+			log_leakage: log-leakage@33 {
+				reg = <0x33 0x1>;
+			};
+		};
+
 		hdmi: hdmi@fdb00000 {
 			compatible = "rockchip,rk3538-dw-hdmi";
 			reg = <0xfdb00000 0x20000>, <0xfdc80000 0x10000>;
