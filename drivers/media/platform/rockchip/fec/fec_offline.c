@@ -435,7 +435,7 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 	writel(c_base + out_uv_start, base + RKFEC_WR_C_BASE);
 
 	/* lut buf */
-	off_buf = buf_add(file, buf->buf_cfg.lut_fd, buf->buf_cfg.lut_size);
+	off_buf = buf_add(file, buf->buf_cfg.lut_fd, buf->buf_cfg.lut_size * BYTES_PER_LUT_POINT);
 	if (!off_buf)
 		goto free_buf;
 
