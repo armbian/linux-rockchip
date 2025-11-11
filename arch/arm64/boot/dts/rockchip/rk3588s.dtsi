@@ -3960,14 +3960,16 @@
 					clocks = <&cru HCLK_RKVDEC0>,
 						 <&cru HCLK_VDPU_ROOT>,
 						 <&cru ACLK_VDPU_ROOT>,
-						 <&cru ACLK_RKVDEC0>;
+						 <&cru ACLK_RKVDEC0>,
+						 <&cru ACLK_RKVDEC_CCU>;
 					pm_qos = <&qos_rkvdec0>;
 				};
 				power-domain@RK3588_PD_RKVDEC1 {
 					reg = <RK3588_PD_RKVDEC1>;
 					clocks = <&cru HCLK_RKVDEC1>,
 						 <&cru HCLK_VDPU_ROOT>,
-						 <&cru ACLK_VDPU_ROOT>;
+						 <&cru ACLK_VDPU_ROOT>,
+						 <&cru ACLK_RKVDEC1>;
 					pm_qos = <&qos_rkvdec1>;
 				};
 				power-domain@RK3588_PD_RGA30 {
