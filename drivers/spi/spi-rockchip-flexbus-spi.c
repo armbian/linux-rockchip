@@ -116,10 +116,9 @@ static int rk_flexbus_spi_recv_start(struct rk_flexbus_spi *flexbus, struct spi_
 static int rk_flexbus_spi_stop(struct rk_flexbus_spi *flexbus)
 {
 	rockchip_flexbus_writel(flexbus->fb, FLEXBUS_ENR, 0xFFFF0000);
-	if (flexbus->irq) {
-		rockchip_flexbus_writel(flexbus->fb, FLEXBUS_ICR, 0);
+	rockchip_flexbus_writel(flexbus->fb, FLEXBUS_ICR, 0xFFFFFFFF);
+	if (flexbus->irq)
 		rockchip_flexbus_writel(flexbus->fb, FLEXBUS_IMR, 0);
-	}
 
 	return 0;
 }
