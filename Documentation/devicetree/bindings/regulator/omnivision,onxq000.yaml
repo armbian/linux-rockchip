@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+title: Omnivision onxq000 power switch
+
+maintainers:
+  - Jing Wu <jing.wu@rock-chips.com>
+
+description:
+  4 channels power switch
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  $nodename:
+    pattern: "^onxq000-regulator@[0-9a-f]"
+  compatible:
+    const: omnivision,onxq000
+
+  reg:
+    maxItems: 1
+
+  vin-supply:
+    description: Input supply phandle
+
+  onxq000,control-by-gpio:
+    description: set onxq driver to work in gpio mode
+
+  ena-gpios:
+    description: if onxq000,control-by-gpio defined, this property list the gpio that connected to INx of onxq000
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        onxq000: onxq000-regulator@76 {
+            status = "okay";
+            reg = <0x76>;
+            vin-supply = <&vcc12v_dcin>;
+            compatible = "omnivision,onxq000";
+
+            /* If onxq000 is controlled by GPIO, the properties below must be defined */
+            onxq000,control-by-gpio;
+            pinctrl-names = "default";
+            pinctrl-0 = <&onxq000_gpio>;
+            ena-gpios = <&gpio_in1>, <&gpio_in2>, <&gpio_in3>, <&gpio_in4>;
+
+            regulators {
+                onxq000_ch1: out1 {
+                    regulator-name = "onxq000_ch1";
+                };
+
+                onxq000_ch2: out2 {
+                    regulator-name = "onxq000_ch2";
+                };
+
+                onxq000_ch3: out3 {
+                    regulator-name = "onxq000_ch3";
+                };
+
+                onxq000_ch4: out4 {
+                    regulator-name = "onxq000_ch4";
+                };
+            };
+        };
+    };

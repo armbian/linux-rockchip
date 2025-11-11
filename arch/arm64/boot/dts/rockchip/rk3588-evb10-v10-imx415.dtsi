@@ -4,17 +4,6 @@
  *
  */
 
-/ {
-	vcc_mipidphy0: vcc-mipidcphy0-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipidphy0_pwr>;
-		regulator-name = "vcc_mipidphy0";
-		enable-active-high;
-	};
-};
-
 &csi2_dphy0 {
 	status = "okay";
 
@@ -61,7 +50,7 @@
 		pinctrl-0 = <&mipim0_camera3_clk>;
 		power-domains = <&power RK3588_PD_VI>;
 		pwdn-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
-		avdd-supply = <&vcc_mipidphy0>;
+		avdd-supply = <&vcc_mipicsi1>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
@@ -102,16 +91,6 @@
 				reg = <0>;
 				remote-endpoint = <&cif_mipi2_in0>;
 			};
-		};
-	};
-};
-
-&pinctrl {
-	cam {
-		mipidphy0_pwr: mipidphy0-pwr {
-			rockchip,pins =
-				/* camera power en */
-				<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

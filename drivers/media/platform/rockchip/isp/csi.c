@@ -688,6 +688,8 @@ int rkisp_csi_config_patch(struct rkisp_device *dev, bool is_pre_cfg)
 	}
 	if (dev->isp_ver >= ISP_V30)
 		val |= ISP3X_SW_ACK_FRM_PRO_DIS;
+	if (dev->isp_ver >= ISP_V33)
+		val |= ISP33_SW_DITHER_EN;
 	if (val)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, val, false);
 	/* line counter from isp out, default from mp out */

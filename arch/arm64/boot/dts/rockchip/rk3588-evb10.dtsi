@@ -316,15 +316,6 @@
 &dp0_sound{
 	status = "okay";
 };
-&dp1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dp1m0_pins>;
-	status = "okay";
-};
-
-&dp1_in_vp2 {
-	status = "okay";
-};
 
 /*
  * mipi_dcphy0 needs to be enabled
@@ -987,6 +978,7 @@
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
 	usb-role-switch;
+
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;

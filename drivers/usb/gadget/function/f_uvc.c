@@ -297,8 +297,10 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	struct uvc_device *uvc = to_uvc(f);
 	struct v4l2_event v4l2_event;
 	struct uvc_event *uvc_event = (void *)&v4l2_event.u.data;
+#ifndef CONFIG_ARCH_ROCKCHIP
 	unsigned int interface = le16_to_cpu(ctrl->wIndex) & 0xff;
 	struct usb_ctrlrequest *mctrl;
+#endif
 
 	uvc_trace(UVC_TRACE_CONTROL,
 		  "setup request %02x %02x value %04x index %04x %04x\n",
@@ -325,6 +327,7 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	v4l2_event.type = UVC_EVENT_SETUP;
 	memcpy(&uvc_event->req, ctrl, sizeof(uvc_event->req));
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	/* check for the interface number, fixup the interface number in
 	 * the ctrl request so the userspace doesn't have to bother with
 	 * offset and configfs parsing
@@ -333,6 +336,7 @@ uvc_function_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	mctrl->wIndex &= ~cpu_to_le16(0xff);
 	if (interface == uvc->streaming_intf)
 		mctrl->wIndex = cpu_to_le16(UVC_STRING_STREAMING_IDX);
+#endif
 
 	v4l2_event_queue(&uvc->vdev, &v4l2_event);
 
@@ -987,11 +991,6 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_hs_bulk_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_ss_bulk_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	if (opts->device_name)
-		uvc_en_us_strings[UVC_STRING_CONTROL_IDX].s = opts->device_name;
-#endif
-
 	/*
 	 * XUs can have an arbitrary string descriptor describing them. If they
 	 * have one pick up the ID.
@@ -1125,15 +1124,6 @@ static void uvc_free_inst(struct usb_function_instance *f)
 	struct f_uvc_opts *opts = fi_to_f_uvc_opts(f);
 
 	mutex_destroy(&opts->lock);
-
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	if (opts->device_name_allocated) {
-		opts->device_name_allocated = false;
-		kfree(opts->device_name);
-		opts->device_name = NULL;
-	}
-#endif
-
 	kfree(opts);
 }
 

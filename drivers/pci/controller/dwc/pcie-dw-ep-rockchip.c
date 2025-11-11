@@ -150,6 +150,7 @@ struct rockchip_pcie {
 	dma_addr_t			ib_target_address[PCIE_BAR_MAX_NUM];
 	u32				ib_target_size[PCIE_BAR_MAX_NUM];
 	void				*ib_target_base[PCIE_BAR_MAX_NUM];
+	bool				ib_using_devm[PCIE_BAR_MAX_NUM];
 
 	/* object */
 	struct dma_trx_obj		*dma_obj;
@@ -356,7 +357,12 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		rockchip->ib_target_address[i] = reg.start;
 		rockchip->ib_target_size[i] = resource_size(&reg);
 		rockchip->ib_target_base[i] = rockchip_pcie_map_kernel(reg.start,
-							resource_size(&reg));
+								       resource_size(&reg));
+		if (!rockchip->ib_target_base[i]) {
+			rockchip->ib_using_devm[i] = true;
+			rockchip->ib_target_base[i] = devm_ioremap(dev, rockchip->ib_target_address[0],
+								   rockchip->ib_target_size[0]);
+		}
 		dev_info(dev, "%s: assigned [0x%llx-%llx]\n", name, rockchip->ib_target_address[i],
 			rockchip->ib_target_address[i] + rockchip->ib_target_size[i] - 1);
 	}
@@ -392,7 +398,7 @@ static void rockchip_pcie_release_io_resource(struct rockchip_pcie *rockchip)
 	int i;
 
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
-		if (rockchip->ib_target_base[i])
+		if (rockchip->ib_target_base[i] && !rockchip->ib_using_devm[i])
 			rockchip_pcie_unmap_kernel(rockchip->ib_target_base[i]);
 }
 

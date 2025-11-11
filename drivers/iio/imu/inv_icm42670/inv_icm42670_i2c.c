@@ -58,12 +58,14 @@ static void icm42670_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id icm42670_i2c_id[] = {
+	{"icm42607", 0},
 	{"icm42670", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, icm42670_i2c_id);
 
 static const struct acpi_device_id icm42670_acpi_match[] = {
+	{"ICM42607", 0},
 	{"ICM42670", 0},
 	{ }
 };
@@ -71,6 +73,7 @@ MODULE_DEVICE_TABLE(acpi, icm42670_acpi_match);
 
 #ifdef CONFIG_OF
 static const struct of_device_id icm42670_of_match[] = {
+	{ .compatible = "invensense,icm42607" },
 	{ .compatible = "invensense,icm42670" },
 	{ },
 };

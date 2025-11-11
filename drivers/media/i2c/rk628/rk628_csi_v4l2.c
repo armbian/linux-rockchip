@@ -547,6 +547,7 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	struct rk628_csi *csi = to_csi(sd);
 
 	enable_stream(sd, false);
+	csi->rk628->force_eq = false;
 	csi->nosignal = true;
 	csi->hdcp.hdcp_start = false;
 	rk628_csi_enable_interrupts(sd, false);
@@ -675,6 +676,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 				rk628_csi_hdmirx_reset(sd);
 				rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
+				csi->rk628->force_eq = false;
 				schedule_delayed_work(&csi->delayed_work_enable_hotplug,
 						      msecs_to_jiffies(100));
 			} else {
@@ -983,8 +985,7 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			return;
 		}
 
-		if (rk628_hdmirx_scdc_ced_err(csi->rk628) ||
-		    !rk628_hdmirx_is_locked(csi->rk628)) {
+		if (rk628_hdmirx_scdc_ced_err(csi->rk628) == CED_FULL) {
 			rk628_hdmirx_plugout(sd);
 			schedule_delayed_work(&csi->delayed_work_enable_hotplug,
 					      msecs_to_jiffies(800));
@@ -1394,39 +1395,23 @@ static bool rk628_rcv_supported_res(struct v4l2_subdev *sd, u32 width,
 	}
 }
 
-static int rk628_hdmirx_dvi_mode_reset(struct v4l2_subdev *sd)
-{
-	u32 val, avi_pb;
-	struct rk628_csi *csi = to_csi(sd);
-
-	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_STS, &val);
-	if (val & DVI_DET) {
-		rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_AVI_PB, &avi_pb);
-		if (avi_pb && !csi->dvi_mode) {
-			csi->dvi_mode = true;
-			v4l2_info(sd, "%s HDMI to DVI hdmirx ctrl reset!\n", __func__);
-			return -1;
-		}
-		csi->dvi_mode = true;
-	} else {
-		csi->dvi_mode = false;
-	}
-
-	return 0;
-}
-
 static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 {
 	u32 i, cnt, val;
 	u32 width, height, frame_width, frame_height, status;
 	struct rk628_csi *csi = to_csi(sd);
-	int ret = 0;
+	int ret = 0, ced_status, retry_cnt;
+	bool force_eq = csi->rk628->force_eq;
 
-	for (i = 0; i < RXPHY_CFG_MAX_TIMES; i++) {
-		if (csi->rk628->version < RK628F_VERSION)
+	retry_cnt = csi->rk628->dynamic_eq ? RXPHY_CFG_MAX_TIMES_DYNAMIC_EQ : RXPHY_CFG_MAX_TIMES;
+	for (i = 0; i < retry_cnt; i++) {
+		if (csi->rk628->version < RK628F_VERSION) {
 			ret = rk628_hdmirx_inno_phy_power_on(sd);
-		else
+		} else {
 			rk628_hdmirx_verisyno_phy_power_on(csi->rk628);
+			if (csi->rk628->dynamic_eq && (i > 3 || force_eq))
+				rk628_hdmirx_set_preset_eq(csi->rk628);
+		}
 		if (ret < 0) {
 			msleep(50);
 			continue;
@@ -1453,11 +1438,12 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 			if (csi->rk628->version < RK628F_VERSION && (val & DVI_DET))
 				dev_info(csi->dev, "DVI mode detected\n");
 
-			if ((status & 0xfff) >= 0xf00) {
-				msleep(50);
-				if (rk628_hdmirx_dvi_mode_reset(sd))
-					return LOCK_RESET;
-			}
+			ced_status = rk628_hdmirx_scdc_ced_err(csi->rk628);
+			if (ced_status == CED_FULL)
+				return LOCK_RESET;
+
+			if (ced_status == CED_ERR && csi->rk628->dynamic_eq)
+				force_eq = true;
 
 			if (!tx_5v_power_present(sd)) {
 				v4l2_info(sd, "HDMI pull out, return!\n");
@@ -1466,7 +1452,7 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 
 			if (cnt >= 15)
 				break;
-		} while (((status & 0xfff) < 0xf00) ||
+		} while (((status & 0xfff) < 0xd00) || force_eq ||
 				(!rk628_rcv_supported_res(sd, width, height)));
 
 		if (((status & 0xfff) < 0xf00) ||
@@ -1477,11 +1463,12 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 		} else {
 			if (csi->rk628->version >= RK628F_VERSION)
 				rk628_hdmirx_phy_prepclk_cfg(csi->rk628);
-			break;
+			if (rk628_hdmirx_scdc_ced_err(csi->rk628) == CED_OK)
+				break;
 		}
 	}
 
-	if (i == RXPHY_CFG_MAX_TIMES)
+	if (i == retry_cnt)
 		return LOCK_FAIL;
 
 	return LOCK_OK;
@@ -3353,6 +3340,32 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 
 	if (of_property_read_bool(dev->of_node, "hdr-support"))
 		csi->hdr_support = true;
+
+	if (of_property_read_bool(dev->of_node, "ced-enable"))
+		csi->rk628->ced_enable = true;
+
+	if (of_property_read_bool(dev->of_node, "dynamic-eq")) {
+		csi->rk628->ced_enable = true;
+		csi->rk628->dynamic_eq = true;
+	}
+
+	ret = device_property_read_u8_array(dev, "force-eq14", csi->rk628->eq_14, CHANNEL_NUM);
+	if (ret) {
+		csi->rk628->force_eq_14 = false;
+	} else {
+		csi->rk628->force_eq_14 = true;
+		dev_info(dev, "hdmi1.4 force EQ: %02x %02x %02x",
+			 csi->rk628->eq_14[0], csi->rk628->eq_14[1], csi->rk628->eq_14[2]);
+	}
+
+	ret = device_property_read_u8_array(dev, "force-eq20", csi->rk628->eq_20, CHANNEL_NUM);
+	if (ret) {
+		csi->rk628->force_eq_20 = false;
+	} else {
+		csi->rk628->force_eq_20 = true;
+		dev_info(dev, "hdmi2.0 force EQ: %02x %02x %02x",
+			 csi->rk628->eq_20[0], csi->rk628->eq_20[1], csi->rk628->eq_20[2]);
+	}
 
 	if (of_property_read_bool(dev->of_node, "i2s-enable-default"))
 		i2s_enable_default = true;

@@ -306,6 +306,8 @@ struct vehicle_spi {
 	char *tx_buf;
 	int tx_len;
 
+	struct completion write_complete;
+	struct completion read_complete;
 	struct vehicle_event_data spi_data;
 	struct vehicle_hw_data *hw_data;
 };

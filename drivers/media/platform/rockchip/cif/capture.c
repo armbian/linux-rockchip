@@ -6752,7 +6752,6 @@ void rkcif_do_soft_reset(struct rkcif_device *dev)
 			rkcif_write_register_and(dev, CIF_REG_DVP_CTRL, ~0x000f0000);
 
 	}
-	usleep_range(10, 20);
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 		"vicap do soft reset 0x%x\n", 0x000A0000);
 }

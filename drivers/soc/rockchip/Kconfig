@@ -261,6 +261,12 @@ config ROCKCHIP_THUNDER_BOOT
 	  Say y here to enable Rockchip thunder boot support.
 	  This option make the kernel boot faster.
 
+config ROCKCHIP_THUNDER_BOOT_CRYPTO
+	bool "Rockchip Thunder Boot support hardware crypto"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if boot need hardware crypto.
+
 config ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
 	bool "Defer free large memblock to Buddy allocator"
 	depends on SMP

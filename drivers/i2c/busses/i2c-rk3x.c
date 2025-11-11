@@ -561,6 +561,7 @@ static int rk3x_i2c_prepate_dma_sg(struct rk3x_i2c *i2c, void *dma_buf)
 static void rk3x_i2c_start_dma(struct rk3x_i2c *i2c, void *dma_buf)
 {
 	u32 con = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
+	unsigned long flags;
 	u32 con1 = 0;
 
 	i2c->xfer_mode = RK_I2C_DMA;
@@ -582,14 +583,20 @@ static void rk3x_i2c_start_dma(struct rk3x_i2c *i2c, void *dma_buf)
 	/* if we want to react to NACK, set ACTACK bit */
 	if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
 		con |= REG_CON_ACTACK;
-	i2c_writel(i2c, con, REG_CON);
 
+	/*
+	 * Ensure the I2C atomic start condition is not broken to avoid
+	 * an excessively long start setup time on the bus.​​
+	 */
+	spin_lock_irqsave(&i2c->lock, flags);
+	i2c_writel(i2c, con, REG_CON);
 	/* enable transition */
 	if (i2c->mode == REG_CON_MOD_TX)
 		/* Add one byte for device addr */
 		i2c_writel(i2c, i2c->msg->len + 1, REG_MTXCNT);
 	else
 		i2c_writel(i2c, i2c->msg->len, REG_MRXCNT);
+	spin_unlock_irqrestore(&i2c->lock, flags);
 }
 
 static u8 *rk3x_i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
@@ -620,6 +627,8 @@ static void rk3x_i2c_start_fifo(struct rk3x_i2c *i2c)
 {
 	u32 val = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
 	bool auto_stop = rk3x_i2c_auto_stop(i2c);
+	unsigned long flags;
+	unsigned int offset;
 	int length = 0;
 
 	i2c->xfer_mode = RK_I2C_FIFO;
@@ -649,13 +658,27 @@ static void rk3x_i2c_start_fifo(struct rk3x_i2c *i2c)
 	if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
 		val |= REG_CON_ACTACK;
 
-	i2c_writel(i2c, val, REG_CON);
+	if (i2c->mode == REG_CON_MOD_TX) {
+		offset = REG_MTXCNT;
+	} else {
+		if (i2c->msg->len > 32) {
+			length = 32;
+			val &= ~REG_CON_LASTACK;
+		} else {
+			length = i2c->msg->len;
+			val |= REG_CON_LASTACK;
+		}
+		offset = REG_MRXCNT;
+	}
 
-	/* enable transition */
-	if (i2c->mode == REG_CON_MOD_TX)
-		i2c_writel(i2c, length, REG_MTXCNT);
-	else
-		rk3x_i2c_prepare_read(i2c);
+	/*
+	 * Ensure the I2C atomic start condition is not broken to avoid
+	 * an excessively long start setup time on the bus.​​
+	 */
+	spin_lock_irqsave(&i2c->lock, flags);
+	i2c_writel(i2c, val, REG_CON);
+	i2c_writel(i2c, length, offset);
+	spin_unlock_irqrestore(&i2c->lock, flags);
 }
 
 /**

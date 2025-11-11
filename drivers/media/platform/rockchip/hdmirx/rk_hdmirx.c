@@ -1744,7 +1744,7 @@ static void hdmirx_dma_config(struct rk_hdmirx_dev *hdmirx_dev)
 
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG7,
 				LOCK_FRAME_NUM_MASK,
-				LOCK_FRAME_NUM(2));
+				LOCK_FRAME_NUM(0));
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG1,
 				UV_WID_MASK |
 				Y_WID_MASK |
@@ -1752,6 +1752,7 @@ static void hdmirx_dma_config(struct rk_hdmirx_dev *hdmirx_dev)
 				UV_WID(1) |
 				Y_WID(2) |
 				ABANDON_EN);
+	hdmirx_writel(hdmirx_dev, DMA_CONFIG9, hdmirx_dev->cur_vic);
 }
 
 static void hdmirx_submodule_init(struct rk_hdmirx_dev *hdmirx_dev)
@@ -2694,6 +2695,8 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	hdmirx_dev->get_timing = false;
+	if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
+		hdmirx_cec_state_reconfiguration(hdmirx_dev, false);
 	sip_hdmirx_config(HDMIRX_INFO_NOTIFY, 0, DMA_CONFIG6, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6, HDMIRX_DMA_EN, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG4,

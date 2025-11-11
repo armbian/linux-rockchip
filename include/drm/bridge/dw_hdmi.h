@@ -268,7 +268,8 @@ struct dw_hdmi_plat_data {
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
 				 const struct edid *edid);
-	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid);
+	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid,
+				    struct drm_connector *connector);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
 	int (*get_dovi_data)(void *data, const struct edid *edid,
@@ -360,6 +361,7 @@ void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable);
 void dw_hdmi_qp_set_gaming_vrr_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
 void dw_hdmi_qp_set_qms(struct dw_hdmi_qp *hdmi, u8 next_tfr, u8 m_const);
 u8 dw_hdmi_qp_get_next_tfr(struct dw_hdmi_qp *hdmi);
+void dw_hdmi_qp_set_fva_factor_m1(struct dw_hdmi_qp *hdmi, u8 fva_factor_m1);
 
 void dw_hdmi_qp_unbind(struct dw_hdmi_qp *hdmi);
 struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,

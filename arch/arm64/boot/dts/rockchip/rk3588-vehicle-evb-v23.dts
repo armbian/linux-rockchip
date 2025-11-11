@@ -8,7 +8,7 @@
 
 #include "rk3588-vehicle-evb-v21.dtsi"
 #include "rk3588-vehicle-evb-v23-nca9539-io-expander.dtsi"
-#include "rk3588-vehicle-evb-maxim-max96712-dphy3-isx021.dtsi"
+#include "rk3588-vehicle-evb-maxim-max96712-dphy3-ox03j10.dtsi"
 #include "rk3588-vehicle-evb-maxim-max96756-dphy0.dtsi"
 #include "rk3588-vehicle-serdes-mfd-display-maxim.dtsi"
 #include "rk3588-vehicle-evb-v23-audio.dtsi"
@@ -662,6 +662,8 @@
 };
 
 &i2c6 {
+	status = "okay";
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m1_xfer>;
 };

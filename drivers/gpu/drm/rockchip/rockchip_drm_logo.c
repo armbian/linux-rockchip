@@ -1172,9 +1172,15 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 			 */
 			if (unset->hdisplay && unset->vdisplay) {
 				crtc_state = drm_atomic_get_crtc_state(state, crtc);
-				if (crtc_state)
+				if (crtc_state) {
 					rockchip_drm_copy_mode_from_mode_set(&crtc_state->adjusted_mode,
 									     unset);
+					ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
+					if (ret)
+						dev_warn(drm_dev->dev,
+							 "CRTC:%s set null mode failed\n",
+							 crtc->name);
+				}
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
 					priv->crtc_funcs[pipe]->loader_protect(crtc, true,
@@ -1314,6 +1320,8 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"dclk_vp1",
 	"dclk_vp2",
 	"dclk_vp3",
+	"clk_dsihost0",
+	"clk_dsihost1",
 };
 
 static struct clk **loader_clocks;

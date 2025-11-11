@@ -412,6 +412,19 @@ config VIDEO_GC4663
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc4663.
 
+config VIDEO_GC4683
+	tristate "GalaxyCore GC4683 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC4683 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc4683.
+
 config VIDEO_GC4C33
 	tristate "GalaxyCore GC4C33 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -2015,6 +2028,16 @@ config VIDEO_SC450AI
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC450ai camera.
+
+config VIDEO_SC465SL
+	tristate "SmartSens SC465SL sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  sc465sl camera.
 
 config VIDEO_SC485SL
 	tristate "SmartSens SC485SL sensor support"

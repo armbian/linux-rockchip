@@ -2479,6 +2479,8 @@ static int protect_clocks[] = {
 	DCLK_VOP1,
 	DCLK_VOP2,
 	DCLK_VOP3,
+	CLK_DSIHOST0,
+	CLK_DSIHOST1,
 };
 
 static void __init rk3588_clk_init(struct device_node *np)

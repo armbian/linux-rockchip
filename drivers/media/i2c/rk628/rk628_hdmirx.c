@@ -247,7 +247,10 @@ EXPORT_SYMBOL(rk628_hdmirx_set_hdcp);
 
 void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 {
-	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000011);
+	if (rk628->ced_enable)
+		rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f11);
+	else
+		rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000011);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_MODE_RECOVER, 0x00000021);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_CTRL, 0xbfff8011);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ASP_CTRL, 0x00000040);
@@ -1096,8 +1099,119 @@ static __maybe_unused u32 hdmirxphy_read(struct rk628 *rk628, u32 offset)
 	return val;
 }
 
+static const u32 pre_eq_1_4[] = {0x02, 0x0c, 0x1f};
+static const u32 pre_eq_2_0[] = {0x21, 0x2d, 0x36, 0x39, 0x3a, 0x3f};
+
+static u32 rk628_hdmirx_select_eq(struct rk628 *rk628, int channel,
+				  const u32 *pre_eq, int pre_eq_size)
+{
+	int i;
+	u32 eq, calc_eq = 0;
+
+	if (channel > 2)
+		return 0;
+
+	eq = (hdmirxphy_read(rk628, channel * 0x20 + 0x34) & 0x3f0) >> 4;
+	for (i = pre_eq_size - 1; i >= 0; i--) {
+		if (eq >= pre_eq[i]) {
+			if (i == pre_eq_size - 1)
+				calc_eq = pre_eq[0];
+			else
+				calc_eq = pre_eq[i + 1];
+			break;
+		}
+	}
+	return calc_eq;
+}
+
+static u32 rk628_hdmirx_calc_eq(struct rk628 *rk628, int channel)
+{
+	if (rk628->is_hdmi2)
+		return rk628_hdmirx_select_eq(rk628, channel,  pre_eq_2_0, ARRAY_SIZE(pre_eq_2_0));
+	else
+		return rk628_hdmirx_select_eq(rk628, channel,  pre_eq_1_4, ARRAY_SIZE(pre_eq_1_4));
+}
+
+static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scramble_en);
+
+static bool rk628_hdmirx_try_preset_eq(struct rk628 *rk628)
+{
+	u32 status, val;
+	u32 ow_eq, pre_eq[CHANNEL_NUM], curr_eq[CHANNEL_NUM], eq = 0;
+	int i;
+	bool scramble;
+
+	for (i = 0; i < CHANNEL_NUM; i++) {
+		curr_eq[i] = (hdmirxphy_read(rk628, i * 0x20 + 0x34) & 0x3f0) >> 4;
+		pre_eq[i] = rk628_hdmirx_calc_eq(rk628, i);
+		if (pre_eq[i] > eq)
+			eq = pre_eq[i];
+	}
+
+	for (i = 0; i < CHANNEL_NUM; i++)
+		pre_eq[i] = eq;
+	rk628_dbg(rk628, "%s: Current EQ: %x, %x, %x\n",
+		  __func__, curr_eq[0], curr_eq[1], curr_eq[2]);
+	rk628_dbg(rk628, "%s: Try pre EQ: %x, %x, %x\n",
+		  __func__, pre_eq[0], pre_eq[1], pre_eq[2]);
+
+	rk628_i2c_read(rk628, HDMI_RX_HDMI20_STATUS, &val);
+	scramble = (val & SCRAMBDET_MASK) ? true : false;
+	if (!scramble && rk628->is_hdmi2)
+		scramble = true;
+	rk628_dbg(rk628, "%s: %s, %s\n", __func__, rk628->is_hdmi2 ? "hdmi2.0" : "hdmi1.4",
+		  scramble ? "Scramble" : "Descramble");
+	/* power down phy */
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x17);
+	usleep_range(20, 30);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x15);
+	/* init phy i2c */
+	rk628_i2c_write(rk628, HDMI_RX_SNPS_PHYG3_CTRL, 0);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_SS_CNTS, 0x018c01d2);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_FS_HCNT, 0x003c0081);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_MODE, 1);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x11);
+	/* enable rx phy */
+	rk628_hdmirxphy_enable(rk628, rk628->is_hdmi2, scramble);
+
+	for (i = 0; i < CHANNEL_NUM; i++) {
+		ow_eq = 0x400 | (pre_eq[i] << 4);
+		hdmirxphy_write(rk628, i * 0x20 + 0x3e, ow_eq);
+	}
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x14);
+	msleep(200);
+
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &status);
+	status &= 0xfff;
+	rk628_dbg(rk628, "%s: status: %x\n", __func__, status);
+	if (status < 0xd00)
+		return true;
+	return false;
+}
+
+void rk628_hdmirx_set_preset_eq(struct rk628 *rk628)
+{
+	int i, cnt;
+
+	if (rk628->force_eq)
+		return;
+
+	if (rk628->is_hdmi2)
+		cnt = ARRAY_SIZE(pre_eq_2_0) + 1;
+	else
+		cnt = ARRAY_SIZE(pre_eq_1_4) + 1;
+	for (i = 0; i < cnt; i++) {
+		if (!rk628_hdmirx_try_preset_eq(rk628))
+			break;
+	}
+}
+EXPORT_SYMBOL(rk628_hdmirx_set_preset_eq);
+
 static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scramble_en)
 {
+	u32 ow_eq;
+	int i;
+
 	hdmirxphy_write(rk628, 0x3e, 0x0);
 	hdmirxphy_write(rk628, 0x5e, 0x0);
 	hdmirxphy_write(rk628, 0x7e, 0x0);
@@ -1118,13 +1232,29 @@ static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scra
 
 	if (is_hdmi2) {
 		hdmirxphy_write(rk628, 0x0e, 0x0108);
-		hdmirxphy_write(rk628, 0x3e, 0x610);
-		hdmirxphy_write(rk628, 0x5e, 0x610);
-		hdmirxphy_write(rk628, 0x7e, 0x610);
+		if (rk628->force_eq_20) {
+			for (i = 0; i < CHANNEL_NUM; i++) {
+				ow_eq = 0x400 | (rk628->eq_20[i] << 4);
+				hdmirxphy_write(rk628, i * 0x20 + 0x3e, ow_eq);
+			}
+		}
 	} else {
 		hdmirxphy_write(rk628, 0x0e, 0x0008);
+		if (rk628->force_eq_14) {
+			for (i = 0; i < CHANNEL_NUM; i++) {
+				ow_eq = 0x400 | (rk628->eq_14[i] << 4);
+				hdmirxphy_write(rk628, i * 0x20 + 0x3e, ow_eq);
+			}
+		}
 	}
-
+	if (rk628->force_eq) {
+		for (i = 0; i < CHANNEL_NUM; i++) {
+			ow_eq = 0x400 | (rk628->feq[i] << 4);
+			hdmirxphy_write(rk628, i * 0x20 + 0x3e, ow_eq);
+		}
+		rk628_dbg(rk628, "%s: Force EQ: %x, %x, %x\n",
+			  __func__, rk628->feq[0], rk628->feq[1], rk628->feq[2]);
+	}
 }
 
 static void rk628_hdmirxphy_set_clrdpt(struct rk628 *rk628, bool is_8bit)
@@ -1438,8 +1568,11 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
 	if (val & SCDC_TMDSBITCLKRATIO)
 		is_hdmi2 = true;
 
+	rk628->is_hdmi2 = is_hdmi2;
 	rk628_i2c_read(rk628, HDMI_RX_HDMI20_STATUS, &val);
 	scramble = (val & SCRAMBDET_MASK) ? true : false;
+	if (!scramble && is_hdmi2)
+		scramble = true;
 
 	rk628_dbg(rk628, "%s: %s, %s\n", __func__, is_hdmi2 ? "hdmi2.0" : "hdmi1.4",
 		 scramble ? "Scramble" : "Descramble");
@@ -1692,7 +1825,11 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 			vs = pre_timing[i].vsync;
 			vbp = pre_timing[i].vbp;
 			vtotal = pre_timing[i].vtotal;
-			tmds_clk = pre_timing[i].clock;
+			tmdsclk_cnt = rk628_hdmirx_get_tmdsclk_cnt(rk628);
+			tmp_data = tmdsclk_cnt;
+			tmp_data = ((tmp_data * HDMIRX_MODETCLK_HZ) + HDMIRX_MODETCLK_CNT_NUM / 2);
+			do_div(tmp_data, HDMIRX_MODETCLK_CNT_NUM);
+			tmds_clk = tmp_data;
 			match = 1;
 			break;
 		}
@@ -1793,14 +1930,12 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 		bt->il_vsync = bt->vsync + 1;
 		bt->pixelclock /= 2;
 	}
-	if (!match) {
-		if (video_fmt == BUS_FMT_YUV420) {
-			if (format == 5) {
-				bt->pixelclock = bt->pixelclock * 8 * 2;
-				do_div(bt->pixelclock, 10);
-			} else {
-				bt->pixelclock *= 2;
-			}
+	if (video_fmt == BUS_FMT_YUV420) {
+		if (format == 5) {
+			bt->pixelclock = bt->pixelclock * 8 * 2;
+			do_div(bt->pixelclock, 10);
+		} else {
+			bt->pixelclock *= 2;
 		}
 	}
 
@@ -1990,45 +2125,97 @@ void rk628_hdmirx_controller_reset(struct rk628 *rk628)
 	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
 	rk628_hdmirx_write_nolock(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
 	mutex_unlock(&rk628->rst_lock);
+	rk628->ced_ch[0] = 0;
+	rk628->ced_ch[1] = 0;
+	rk628->ced_ch[2] = 0;
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_reset);
 
-bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
+static bool rk628_hdmirx_check_ced_err(struct rk628 *rk628, u32 *ced_ch, int ch_size)
 {
-	u32 val, val1;
+	int i, err_cnt[CHANNEL_NUM];
+	bool ret = false;
+	u32 r_eq = 0, ow_eq, currect_eq[CHANNEL_NUM];
 
-	if (rk628->version < RK628F_VERSION)
+	if (!ced_ch)
 		return false;
+
+	for (i = 0; i < ch_size; i++) {
+		currect_eq[i] = (hdmirxphy_read(rk628, i * 0x20 + 0x34) & 0x3f0) >> 4;
+		rk628->feq[i] = currect_eq[i];
+		err_cnt[i] = ced_ch[i] - rk628->ced_ch[i];
+		rk628_dbg(rk628, "%s: CH-%d CED ERR(%d - %d): %d\n",
+			 __func__, i, ced_ch[i], rk628->ced_ch[i], err_cnt[i]);
+		if (err_cnt[i] < 0)
+			err_cnt[i] = 0;
+		/* If no error, record the right EQ */
+		if (!err_cnt[i]) {
+			r_eq = currect_eq[i];
+			rk628_dbg(rk628, "%s: CH-%d CED NO-ERR: CH-EQ: %02x\n",
+				 __func__, i, r_eq);
+		} else if (err_cnt[i] >= SCDC_CED_ERR_CNT) {
+			/* If the number of errors is large, recalculate the EQ */
+			rk628->feq[i] = rk628_hdmirx_calc_eq(rk628, i);
+			ow_eq = 0x400 | (rk628->feq[i] << 4);
+			hdmirxphy_write(rk628, 0x3e + (i * 0x20), ow_eq);
+			rk628_dbg(rk628, "%s: CH-%d CED ERR: %d, c_eq: %x, f_eq: %x\n",
+				 __func__, i, err_cnt[i], currect_eq[i], rk628->feq[i]);
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
+int rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
+{
+	u32 val, max_eq = 0;
+	u32 ced_ch[CHANNEL_NUM];
+	int i, ced_status = CED_OK;
+
+	if (rk628->version < RK628F_VERSION || !rk628->ced_enable)
+		return CED_OK;
 
 	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
-	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS2, &val1);
-	if (((val >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
-	    ((val1 >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
-	    (val1 & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT)
-		return false;
+	ced_ch[0] = ((val >> 16) & SCDC_ERRDET_MASK);
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS2, &val);
+	ced_ch[1] = val & SCDC_ERRDET_MASK;
+	ced_ch[2] = ((val >> 16) & SCDC_ERRDET_MASK);
 
-	dev_info(rk628->dev, "%s: Character Error(0x%x  0x%x)!\n", __func__, val, val1);
-	return true;
+	rk628->force_eq = false;
+	if (rk628_hdmirx_check_ced_err(rk628, ced_ch, CHANNEL_NUM))
+		ced_status = CED_ERR;
+	rk628->ced_ch[0] = ced_ch[0];
+	rk628->ced_ch[1] = ced_ch[1];
+	rk628->ced_ch[2] = ced_ch[2];
+
+	for (i = 0; i < CHANNEL_NUM; i++) {
+		if (ced_ch[i] >= SCDC_CED_FULL_CNT) {
+			if (ced_status != CED_ERR)
+				rk628->feq[i] = rk628_hdmirx_calc_eq(rk628, i);
+			ced_status = CED_FULL;
+		}
+		rk628->ced_ch[i] = ced_ch[i];
+		if (rk628->feq[i] > max_eq)
+			max_eq = rk628->feq[i];
+	}
+
+	if (ced_status == CED_FULL || ced_status == CED_ERR) {
+		dev_info(rk628->dev, "%s: Character Error(0x%x  0x%x  0x%x)!\n",
+			 __func__, ced_ch[0], ced_ch[1], ced_ch[2]);
+		if (rk628->dynamic_eq)
+			rk628->force_eq = true;
+		msleep(50);
+		rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+		rk628->ced_ch[0] = ((val >> 16) & SCDC_ERRDET_MASK);
+		rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS2, &val);
+		rk628->ced_ch[1] = val & SCDC_ERRDET_MASK;
+		rk628->ced_ch[2] = ((val >> 16) & SCDC_ERRDET_MASK);
+	}
+
+	return ced_status;
 }
 EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);
-
-bool rk628_hdmirx_is_locked(struct rk628 *rk628)
-{
-	u32 val;
-
-	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
-	if (!(val & 0x100))
-		return false;
-	if (!(val & 0x200))
-		return false;
-	if (!(val & 0x400))
-		return false;
-	if (!(val & 0x800))
-		return false;
-
-	return true;
-}
-EXPORT_SYMBOL(rk628_hdmirx_is_locked);
 
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pdec_ints)
 {

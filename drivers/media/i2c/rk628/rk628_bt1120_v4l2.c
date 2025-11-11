@@ -643,8 +643,7 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 	if (en) {
 		if (bt1120->rk628->version >= RK628F_VERSION) {
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_SCDC_REGS2, &val);
-			if (rk628_hdmirx_scdc_ced_err(bt1120->rk628) ||
-			    !rk628_hdmirx_is_locked(bt1120->rk628)) {
+			if (rk628_hdmirx_scdc_ced_err(bt1120->rk628) == CED_FULL) {
 				rk628_hdmirx_plugout(sd);
 				schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
 						      msecs_to_jiffies(800));

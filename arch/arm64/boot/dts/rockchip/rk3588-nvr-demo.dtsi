@@ -236,6 +236,7 @@
 &hdmi0 {
 	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+	cec-enable;
 };
 
 &hdmi0_in_vp0 {
@@ -257,6 +258,7 @@
 &hdmi1 {
 	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+	cec-enable;
 };
 
 &hdmi1_in_vp0 {

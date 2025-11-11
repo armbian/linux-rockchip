@@ -773,6 +773,37 @@ static int dwc3_gadget_calc_ram_depth(struct dwc3 *dwc)
 }
 
 /**
+ * __dwc3_gadget_clear_tx_fifos - Clears txfifo allocation for Rockchip platform
+ *
+ * @dwc: pointer to the DWC3 context
+ *
+ * Iterates through all endpoint registers except ep0, identifies the IN endpoints,
+ * and clears the previous txfifo allocations.
+ */
+static void __dwc3_gadget_clear_tx_fifos(struct dwc3 *dwc)
+{
+	struct dwc3_ep *dep;
+	int num;
+	int size;
+
+	/* Clear existing TXFIFO for all IN eps except ep0 */
+	for (num = 3; num < min_t(int, dwc->num_eps, DWC3_ENDPOINTS_NUM); num += 1) {
+		dep = dwc->eps[num];
+		if (!dep->direction)
+			continue;
+
+		/* Don't change TXFRAMNUM on usb31 version */
+		size = DWC3_IP_IS(DWC3) ? 0 :
+			dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(dep->number >> 1)) &
+				   DWC31_GTXFIFOSIZ_TXFRAMNUM;
+
+		dwc3_writel(dwc->regs, DWC3_GTXFIFOSIZ(dep->number >> 1), size);
+		dep->flags &= ~DWC3_EP_TXFIFO_RESIZED;
+	}
+	dwc->num_ep_resized = 0;
+}
+
+/**
  * dwc3_gadget_clear_tx_fifos - Clears txfifo allocation
  * @dwc: pointer to the DWC3 context
  *
@@ -798,6 +829,12 @@ void dwc3_gadget_clear_tx_fifos(struct dwc3 *dwc)
 		fifo_depth = DWC31_GTXFIFOSIZ_TXFDEP(size);
 
 	dwc->last_fifo_depth = fifo_depth;
+
+	if (IS_REACHABLE(CONFIG_ARCH_ROCKCHIP)) {
+		__dwc3_gadget_clear_tx_fifos(dwc);
+		return;
+	}
+
 	/* Clear existing TXFIFO for all IN eps except ep0 */
 	for (num = 3; num < min_t(int, dwc->num_eps, DWC3_ENDPOINTS_NUM); num += 2) {
 		dep = dwc->eps[num];
@@ -864,11 +901,13 @@ static int __dwc3_gadget_resize_tx_fifos(struct dwc3_ep *dep)
 		}
 	} else if (usb_endpoint_xfer_int(dep->endpoint.desc)) {
 		/*
-		 * REVIST: we assume that the maxpacket of interrupt
-		 * endpoint is 64 Bytes for MTP and the other functions.
+		 * Set one maxpacket size for Interrupt endpoints,
+		 * and at least 64 Bytes for MTP functions.
 		 */
 		mult = 1;
-		maxpacket = 64;
+		maxpacket = dep->endpoint.maxpacket;
+		if (maxpacket < 64)
+			maxpacket = 64;
 	} else {
 		goto out;
 	}

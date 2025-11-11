@@ -1655,7 +1655,7 @@
 	};
 
 	pwm1_4ch_0: pwm@20700000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20700000 0x1000>;
 		interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
@@ -1667,7 +1667,7 @@
 	};
 
 	pwm1_4ch_1: pwm@20710000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20710000 0x1000>;
 		interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
@@ -1679,7 +1679,7 @@
 	};
 
 	pwm1_4ch_2: pwm@20720000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20720000 0x1000>;
 		interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
@@ -1691,7 +1691,7 @@
 	};
 
 	pwm1_4ch_3: pwm@20730000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20730000 0x1000>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
@@ -2161,7 +2161,7 @@
 	};
 
 	pwm0_8ch_0: pwm@20e00000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e00000 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2173,7 +2173,7 @@
 	};
 
 	pwm0_8ch_1: pwm@20e10000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e10000 0x1000>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2185,7 +2185,7 @@
 	};
 
 	pwm0_8ch_2: pwm@20e20000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e20000 0x1000>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2197,7 +2197,7 @@
 	};
 
 	pwm0_8ch_3: pwm@20e30000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e30000 0x1000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2209,7 +2209,7 @@
 	};
 
 	pwm0_8ch_4: pwm@20e40000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e40000 0x1000>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2221,7 +2221,7 @@
 	};
 
 	pwm0_8ch_5: pwm@20e50000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e50000 0x1000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2233,7 +2233,7 @@
 	};
 
 	pwm0_8ch_6: pwm@20e60000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e60000 0x1000>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2245,7 +2245,7 @@
 	};
 
 	pwm0_8ch_7: pwm@20e70000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e70000 0x1000>;
 		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
@@ -2257,7 +2257,7 @@
 	};
 
 	pwm2_8ch_0: pwm@20f00000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f00000 0x1000>;
 		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2269,7 +2269,7 @@
 	};
 
 	pwm2_8ch_1: pwm@20f10000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f10000 0x1000>;
 		interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2281,7 +2281,7 @@
 	};
 
 	pwm2_8ch_2: pwm@20f20000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f20000 0x1000>;
 		interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2293,7 +2293,7 @@
 	};
 
 	pwm2_8ch_3: pwm@20f30000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f30000 0x1000>;
 		interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2305,7 +2305,7 @@
 	};
 
 	pwm2_8ch_4: pwm@20f40000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f40000 0x1000>;
 		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2317,7 +2317,7 @@
 	};
 
 	pwm2_8ch_5: pwm@20f50000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f50000 0x1000>;
 		interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2329,7 +2329,7 @@
 	};
 
 	pwm2_8ch_6: pwm@20f60000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f60000 0x1000>;
 		interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2341,7 +2341,7 @@
 	};
 
 	pwm2_8ch_7: pwm@20f70000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f70000 0x1000>;
 		interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
@@ -2353,7 +2353,7 @@
 	};
 
 	pwm3_8ch_0: pwm@21000000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21000000 0x1000>;
 		interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2365,7 +2365,7 @@
 	};
 
 	pwm3_8ch_1: pwm@21010000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21010000 0x1000>;
 		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2377,7 +2377,7 @@
 	};
 
 	pwm3_8ch_2: pwm@21020000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21020000 0x1000>;
 		interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2389,7 +2389,7 @@
 	};
 
 	pwm3_8ch_3: pwm@21030000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21030000 0x1000>;
 		interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2401,7 +2401,7 @@
 	};
 
 	pwm3_8ch_4: pwm@21040000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21040000 0x1000>;
 		interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2413,7 +2413,7 @@
 	};
 
 	pwm3_8ch_5: pwm@21050000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21050000 0x1000>;
 		interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2425,7 +2425,7 @@
 	};
 
 	pwm3_8ch_6: pwm@21060000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21060000 0x1000>;
 		interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
@@ -2437,7 +2437,7 @@
 	};
 
 	pwm3_8ch_7: pwm@21070000 {
-		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3576-pwm";
+		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21070000 0x1000>;
 		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;

@@ -3078,6 +3078,8 @@ static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 	u32 max_size, max_w, max_h;
 
 	dev->unite_div = ISP_UNITE_DIV1;
+	if (hw->unite == ISP_UNITE_NONE)
+		return 0;
 	if (hw->unite == ISP_UNITE_TWO && hw->isp_ver == ISP_V30) {
 		dev->unite_div = ISP_UNITE_DIV2;
 		return 0;
@@ -3122,7 +3124,7 @@ static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 		max_h = CIF_ISP_INPUT_H_MAX_V35;
 		break;
 	case ISP_V39:
-		max_size = CIF_ISP_INPUT_W_MAX_V39_UNITE / 2 * CIF_ISP_INPUT_H_MAX_V39_UNITE;
+		max_size = CIF_ISP_INPUT_W_MAX_V39 * CIF_ISP_INPUT_H_MAX_V39;
 		max_w = CIF_ISP_INPUT_W_MAX_V39;
 		if (w > max_w)
 			max_h = max_size * 2 / w;
@@ -5015,6 +5017,13 @@ void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 		size = sizeof(struct rkisp_thunderboot_resmem_head);
 		offset = size * isp_dev->dev_id;
 		break;
+	}
+
+	if (head->rkisp_tb_resmem_head_size != size) {
+		v4l2_err(&isp_dev->v4l2_dev, "The size of thunderboot resmem structure in mcu and kernel is not equal mcu: %#x kernel: %#x\n",
+			 head->rkisp_tb_resmem_head_size,
+			 size);
+		head->complete = 0;
 	}
 
 	if (size && size < isp_dev->resmem_size) {

@@ -701,6 +701,7 @@ struct kbase_devfreq_queue_info {
  *                      of this process, it accounts for both native allocations
  *                      and dma_buf imported allocations.
  * @kctx_list:          List of kbase contexts created for the process.
+ * @kprcs_lock:         Lock to protect access to kbase_process kctx_list.
  * @kprcs_node:         Node to a rb_tree, kbase_device will maintain a rb_tree
  *                      based on key tgid, kprcs_node is the node link to
  *                      &struct_kbase_device.process_root.
@@ -715,6 +716,7 @@ struct kbase_process {
 	pid_t tgid;
 	size_t total_gpu_pages;
 	struct list_head kctx_list;
+	struct mutex kprcs_lock;
 
 	struct rb_node kprcs_node;
 	struct rb_root dma_buf_root;
