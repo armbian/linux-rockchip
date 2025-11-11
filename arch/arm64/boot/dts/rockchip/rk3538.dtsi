@@ -727,6 +727,19 @@
 			status = "disabled";
 		};
 
+		hdcp: hdcp@fdb60000 {
+			compatible = "rockchip,rk3538-hdcp";
+			reg = <0xfdb60000 0x80>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_HDCP>, <&cru PCLK_HDCP>, <&cru HCLK_HDCP>;
+			clock-names = "aclk", "pclk", "hclk";
+			resets = <&cru SRST_PRESETN_HDCP>, <&cru SRST_HRESETN_HDCP>,
+				 <&cru SRST_ARESETN_HDCP>;
+			reset-names = "hdcp", "h_hdcp", "a_hdcp";
+			rockchip,vo-grf = <&vo_grf>;
+			status = "disabled";
+		};
+
 		hdmiphy: phy@fdb80000 {
 			compatible = "rockchip,rk3538-hdmi-phy";
 			reg = <0xfdb80000 0x10000>;
