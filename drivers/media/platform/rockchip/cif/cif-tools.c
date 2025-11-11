@@ -770,10 +770,9 @@ retry_done_rdbk_buf:
 
 			if (!src || !dst)
 				break;
-			dma_sync_single_for_device(dev->dev,
-						   buf->dummy.dma_addr,
-						   buf->dummy.size,
-						   DMA_FROM_DEVICE);
+			dma_sync_sgtable_for_cpu(dev->hw_dev->dev,
+						 buf->dummy.sgt,
+						 DMA_FROM_DEVICE);
 			vb2_set_plane_payload(&tools_vdev->curr_buf->vb.vb2_buf, i,
 					      payload_size);
 			memcpy(dst, src, payload_size);

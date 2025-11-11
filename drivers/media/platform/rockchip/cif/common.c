@@ -49,6 +49,7 @@ int rkcif_alloc_buffer(struct rkcif_device *dev,
 		sg_tbl = (struct sg_table *)g_ops->cookie(&buf->vb, mem_priv);
 		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
 		g_ops->prepare(mem_priv);
+		buf->sgt = sg_tbl;
 	} else {
 		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(&buf->vb, mem_priv));
 	}
