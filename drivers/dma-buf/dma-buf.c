@@ -104,14 +104,15 @@ int dma_buf_get_each(int (*callback)(const struct dma_buf *dmabuf,
 EXPORT_SYMBOL_NS_GPL(dma_buf_get_each, MINIDUMP);
 
 #if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
+static DEFINE_MUTEX(rk_dmabuf_mutex);
 static size_t db_total_size;
 static size_t db_peak_size;
 
 void dma_buf_reset_peak_size(void)
 {
-	mutex_lock(&debugfs_list_mutex);
+	mutex_lock(&rk_dmabuf_mutex);
 	db_peak_size = 0;
-	mutex_unlock(&debugfs_list_mutex);
+	mutex_unlock(&rk_dmabuf_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_buf_reset_peak_size);
 
@@ -119,9 +120,9 @@ size_t dma_buf_get_peak_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&debugfs_list_mutex);
+	mutex_lock(&rk_dmabuf_mutex);
 	sz = db_peak_size;
-	mutex_unlock(&debugfs_list_mutex);
+	mutex_unlock(&rk_dmabuf_mutex);
 
 	return sz;
 }
@@ -131,9 +132,9 @@ size_t dma_buf_get_total_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&debugfs_list_mutex);
+	mutex_lock(&rk_dmabuf_mutex);
 	sz = db_total_size;
-	mutex_unlock(&debugfs_list_mutex);
+	mutex_unlock(&rk_dmabuf_mutex);
 
 	return sz;
 }
@@ -204,8 +205,11 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 	{
 		struct dma_buf *dmabuf = file->private_data;
 
-		if (dmabuf)
+		if (dmabuf) {
+			mutex_lock(&rk_dmabuf_mutex);
 			db_total_size -= dmabuf->size;
+			mutex_unlock(&rk_dmabuf_mutex);
+		}
 	}
 #endif
 
@@ -865,8 +869,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	__dma_buf_debugfs_list_add(dmabuf);
 #if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
+	mutex_lock(&rk_dmabuf_mutex);
 	db_total_size += dmabuf->size;
 	db_peak_size = max(db_total_size, db_peak_size);
+	mutex_unlock(&rk_dmabuf_mutex);
 #endif
 
 	if (IS_ENABLED(CONFIG_RK_DMABUF_DEBUG))
