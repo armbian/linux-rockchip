@@ -15633,6 +15633,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 	char clk_name[16];
 	int i = 0, j = 0, k = 0;
 	int ret = 0;
+	int overlay_plane_index = 0;
 	bool be_used_for_primary_plane = false;
 	bool find_primary_plane = false;
 	bool bootloader_initialized = false;
@@ -15931,7 +15932,8 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		 * zpos of overlay plane is higher than primary
 		 * and lower than cursor
 		 */
-		win->zpos = registered_num_crtcs + j;
+		win->zpos = registered_num_crtcs + overlay_plane_index;
+		overlay_plane_index++;
 
 		possible_crtcs = vop2_win_get_possible_crtcs(vop2, win, enabled_vp_mask);
 		if (vop2->disable_win_move) {
