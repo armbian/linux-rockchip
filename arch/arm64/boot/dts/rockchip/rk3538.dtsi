@@ -741,6 +741,286 @@
 			reg = <0xfd1b0000 0x80000>;
 		};
 
+		/omit-if-no-ref/
+		qos_rkdma: qos@fd400100 {
+			compatible = "syscon";
+			reg = <0xfd400100 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_rkdma: shaping@fd400188 {
+			compatible = "syscon";
+			reg = <0xfd400188 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_rksp: qos@fd400200 {
+			compatible = "syscon";
+			reg = <0xfd400200 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_rksp: shaping@fd400288 {
+			compatible = "syscon";
+			reg = <0xfd400288 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_cpu: qos@fd410000 {
+			compatible = "syscon";
+			reg = <0xfd410000 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_cpu: shaping@fd410088 {
+			compatible = "syscon";
+			reg = <0xfd410088 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_daplite: qos@fd410100 {
+			compatible = "syscon";
+			reg = <0xfd410100 0x20>;
+		};
+
+		/omit-if-no-ref/
+		qos_dft2apb: qos@fd410200 {
+			compatible = "syscon";
+			reg = <0xfd410200 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_dft2apb: shaping@fd410288 {
+			compatible = "syscon";
+			reg = <0xfd410288 0x4>;
+		};
+
+		qos_gpu: qos@fd420000 {
+			compatible = "syscon";
+			reg = <0xfd420000 0x20>;
+		};
+
+		shaping_gpu: shaping@fd420088 {
+			compatible = "syscon";
+			reg = <0xfd420088 0x4>;
+		};
+
+		qos_rga: qos@fd440000 {
+			compatible = "syscon";
+			reg = <0xfd440000 0x20>;
+		};
+
+		shaping_rga: shaping@fd440088 {
+			compatible = "syscon";
+			reg = <0xfd440088 0x4>;
+		};
+
+		qos_rkjpeg: qos@fd440100 {
+			compatible = "syscon";
+			reg = <0xfd440100 0x20>;
+		};
+
+		shaping_rkjpeg: shaping@fd440188 {
+			compatible = "syscon";
+			reg = <0xfd440188 0x4>;
+		};
+
+		qos_vdpp: qos@fd440200 {
+			compatible = "syscon";
+			reg = <0xfd440200 0x20>;
+		};
+
+		shaping_vdpp: shaping@fd440288 {
+			compatible = "syscon";
+			reg = <0xfd440288 0x4>;
+		};
+
+		qos_vpu: qos@fd440300 {
+			compatible = "syscon";
+			reg = <0xfd440300 0x20>;
+		};
+
+		shaping_vpu: shaping@fd440388 {
+			compatible = "syscon";
+			reg = <0xfd440388 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_rkce_apb: qos@fd450000 {
+			compatible = "syscon";
+			reg = <0xfd450000 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_rkce_apb: shaping@fd450088 {
+			compatible = "syscon";
+			reg = <0xfd450088 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_rkce: qos@fd450100 {
+			compatible = "syscon";
+			reg = <0xfd450100 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_rkce: shaping@fd450188 {
+			compatible = "syscon";
+			reg = <0xfd450188 0x4>;
+		};
+
+		qos_rkvdec: qos@fd460000 {
+			compatible = "syscon";
+			reg = <0xfd460000 0x20>;
+		};
+
+		shaping_rkvdec: shaping@fd460088 {
+			compatible = "syscon";
+			reg = <0xfd460088 0x4>;
+		};
+
+		qos_hdcp: qos@fd470000 {
+			compatible = "syscon";
+			reg = <0xfd470000 0x20>;
+		};
+
+		shaping_hdcp: shaping@fd470088 {
+			compatible = "syscon";
+			reg = <0xfd470088 0x4>;
+		};
+
+		qos_mac: qos@fd470100 {
+			compatible = "syscon";
+			reg = <0xfd470100 0x20>;
+		};
+
+		shaping_mac: shaping@fd470188 {
+			compatible = "syscon";
+			reg = <0xfd470188 0x4>;
+		};
+
+		qos_usb2host: qos@fd470200 {
+			compatible = "syscon";
+			reg = <0xfd470200 0x20>;
+		};
+
+		shaping_usb2host: shaping@fd470288 {
+			compatible = "syscon";
+			reg = <0xfd470288 0x4>;
+		};
+
+		qos_usb3otg: qos@fd470300 {
+			compatible = "syscon";
+			reg = <0xfd470300 0x20>;
+		};
+
+		shaping_usb3otg: shaping@fd470388 {
+			compatible = "syscon";
+			reg = <0xfd470388 0x4>;
+		};
+
+		qos_vop: qos@fd470400 {
+			compatible = "syscon";
+			reg = <0xfd470400 0x20>;
+		};
+
+		shaping_vop: shaping@fd470488 {
+			compatible = "syscon";
+			reg = <0xfd470488 0x4>;
+		};
+
+		/omit-if-no-ref/
+		qos_lpmcu: qos@fd480000 {
+			compatible = "syscon";
+			reg = <0xfd480000 0x20>;
+		};
+
+		/omit-if-no-ref/
+		shaping_lpmcu: shaping@fd480088 {
+			compatible = "syscon";
+			reg = <0xfd480088 0x4>;
+		};
+
+		qos_gmac: qos@fd490000 {
+			compatible = "syscon";
+			reg = <0xfd490000 0x20>;
+		};
+
+		shaping_gmac: shaping@fd490088 {
+			compatible = "syscon";
+			reg = <0xfd490088 0x4>;
+		};
+
+		qos_saradc_apb: qos@fd490100 {
+			compatible = "syscon";
+			reg = <0xfd490100 0x20>;
+		};
+
+		shaping_saradc_apb: shaping@fd490188 {
+			compatible = "syscon";
+			reg = <0xfd490188 0x4>;
+		};
+
+		qos_sdio: qos@fd490200 {
+			compatible = "syscon";
+			reg = <0xfd490200 0x20>;
+		};
+
+		shaping_sdio: shaping@fd490288 {
+			compatible = "syscon";
+			reg = <0xfd490288 0x4>;
+		};
+
+		qos_sdmmc1: qos@fd490300 {
+			compatible = "syscon";
+			reg = <0xfd490300 0x20>;
+		};
+
+		shaping_sdmmc1: shaping@fd490388 {
+			compatible = "syscon";
+			reg = <0xfd490388 0x4>;
+		};
+
+		qos_emmc: qos@fd4a0000 {
+			compatible = "syscon";
+			reg = <0xfd4a0000 0x20>;
+		};
+
+		shaping_emmc: shaping@fd4a0088 {
+			compatible = "syscon";
+			reg = <0xfd4a0088 0x4>;
+		};
+
+		qos_fspi: qos@fd4a0100 {
+			compatible = "syscon";
+			reg = <0xfd4a0100 0x20>;
+		};
+
+		shaping_fspi: shaping@fd4a0188 {
+			compatible = "syscon";
+			reg = <0xfd4a0188 0x4>;
+		};
+
+		qos_nand: qos@fd4a0200 {
+			compatible = "syscon";
+			reg = <0xfd4a0200 0x20>;
+		};
+
+		shaping_nand: shaping@fd4a0288 {
+			compatible = "syscon";
+			reg = <0xfd4a0288 0x4>;
+		};
+
+		qos_sdmmc0: qos@fd4a0300 {
+			compatible = "syscon";
+			reg = <0xfd4a0300 0x20>;
+		};
+
+		shaping_sdmmc0: shaping@fd4a0388 {
+			compatible = "syscon";
+			reg = <0xfd4a0388 0x4>;
+		};
+
 		dfi: dfi@fd710000 {
 			compatible = "rockchip,rk3538-dfi";
 			reg = <0xfd710000 0x10000>;
@@ -1156,26 +1436,64 @@
 				pd_rkvdec@RK3538_PD_RKVDEC {
 					reg = <RK3538_PD_RKVDEC>;
 					rockchip,always-on;
+					pm_qos = <&qos_rkvdec>;
+					pm_shaping = <&shaping_rkvdec>;
 				};
 				pd_phpl@RK3538_PD_PHPL {
 					reg = <RK3538_PD_PHPL>;
 					rockchip,always-on;
+					pm_qos = <&qos_gmac>,
+						 <&qos_saradc_apb>,
+						 <&qos_sdio>,
+						 <&qos_sdmmc1>;
+					pm_shaping = <&shaping_gmac>,
+						     <&shaping_saradc_apb>,
+						     <&shaping_sdio>,
+						     <&shaping_sdmmc1>;
 				};
 				pd_phpr@RK3538_PD_PHPR {
 					reg = <RK3538_PD_PHPR>;
 					rockchip,always-on;
+					pm_qos = <&qos_emmc>,
+						 <&qos_fspi>,
+						 <&qos_nand>,
+						 <&qos_sdmmc0>;
+					pm_shaping = <&shaping_emmc>,
+						     <&shaping_fspi>,
+						     <&shaping_nand>,
+						     <&shaping_sdmmc0>;
 				};
 				pd_vpu@RK3538_PD_VPU {
 					reg = <RK3538_PD_VPU>;
 					rockchip,always-on;
+					pm_qos = <&qos_rga>,
+						 <&qos_rkjpeg>,
+						 <&qos_vdpp>,
+						 <&qos_vpu>;
+					pm_shaping = <&shaping_rga>,
+						     <&shaping_rkjpeg>,
+						     <&shaping_vdpp>,
+						     <&shaping_vpu>;
 				};
 				pd_vo@RK3538_PD_VO {
 					reg = <RK3538_PD_VO>;
 					rockchip,always-on;
+					pm_qos = <&qos_mac>,
+						 <&qos_usb2host>,
+						 <&qos_usb3otg>,
+						 <&qos_hdcp>,
+						 <&qos_vop>;
+					pm_shaping = <&shaping_mac>,
+						     <&shaping_usb2host>,
+						     <&shaping_usb3otg>,
+						     <&shaping_hdcp>,
+						     <&shaping_vop>;
 				};
 				pd_gpu@RK3538_PD_GPU {
 					reg = <RK3538_PD_GPU>;
 					rockchip,always-on;
+					pm_qos = <&qos_gpu>;
+					pm_shaping = <&shaping_gpu>;
 				};
 			};
 		};
