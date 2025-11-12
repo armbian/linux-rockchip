@@ -16,6 +16,34 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdmiphy {
+	status = "okay";
+};
+
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
+&jpegd {
+	status = "okay";
+};
+
+&jpeg_mmu {
+	status = "okay";
+};
+
 &rga2_core0 {
 	status = "okay";
 };
@@ -39,6 +67,10 @@
 	status = "okay";
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &tve {
 	status = "okay";
 };
@@ -57,6 +89,10 @@
 };
 
 &usb_host_ohci {
+	status = "okay";
+};
+
+&vdpp {
 	status = "okay";
 };
 
