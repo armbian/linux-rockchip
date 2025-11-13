@@ -143,6 +143,12 @@ struct rk_csc_colorspace_info {
 	bool out_full_range;
 };
 
+struct rk_csc_mode_coef {
+	u8 pixel_depth;
+	u8 coef_precision;
+	const struct rk_pq_csc_coef *csc_coef;
+};
+
 static const struct rk_csc_colorspace_info g_csc_color_info[] = {
 	{ OPTM_CS_E_RGB, OPTM_CS_E_RGB, false, true },                 /* RGBL_TO_RGBF */
 	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, false },         /* RGBL_TO_YUV601L */
@@ -188,7 +194,55 @@ static const struct rk_csc_colorspace_info g_csc_color_info[] = {
 	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, false, true },       /* RGB2020L_TO_RGB2020F */
 };
 
-static const struct rk_pq_csc_coef g_mode_csc_coefs[] = {
+/* for 8bit pixel depth + 8bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_8bit_pix_8bit_precision[] = {
+	{ 298,   0,   0,   0,  298,    0,   0,    0, 298 }, /* RGBL_TO_RGBF */
+	{  77, 150,  29, -44,  -87,  131, 131, -110, -21 }, /* RGBL_TO_YUV601L */
+	{  89, 175,  34, -50,  -99,  149, 149, -125, -24 }, /* RGBL_TO_YUV601F */
+	{  54, 183,  19, -30, -101,  131, 131, -119, -12 }, /* RGBL_TO_YUV709L */
+	{  63, 213,  22, -34, -115,  149, 149, -135, -14 }, /* RGBL_TO_YUV709F */
+	{  67, 174,  15, -37,  -94,  131, 131, -120, -11 }, /* RGBL_TO_YUV2020L */
+	{  78, 202,  18, -42, -107,  149, 149, -137, -12 }, /* RGBL_TO_YUV2020F */
+	{ 220,   0,   0,   0,  220,    0,   0,    0, 220 }, /* RGBF_TO_RGBL */
+	{  66, 129,  25, -38,  -74,  112, 112,  -94, -18 }, /* RGBF_TO_YUV601L */
+	{  77, 150,  29, -43,  -85,  128, 128, -107, -21 }, /* RGBF_TO_YUV601F */
+	{  47, 157,  16, -26,  -87,  113, 112, -102, -10 }, /* RGBF_TO_YUV709L */
+	{  54, 183,  19, -29,  -99,  128, 128, -116, -12 }, /* RGBF_TO_YUV709F */
+	{  58, 149,  13, -31,  -81,  112, 112, -103,  -9 }, /* RGBF_TO_YUV2020L */
+	{  67, 174,  15, -36,  -92,  128, 128, -118, -10 }, /* RGBF_TO_YUV2020F */
+	{ 256,   0, 351, 256,  -86, -179, 256,  444,   0 }, /* YUV601L_TO_RGBL */
+	{ 298,   0, 409, 298, -100, -208, 298,  516,   0 }, /* YUV601L_TO_RGBF */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV601L_TO_YUV601F */
+	{ 256, -30, -53,   0,  261,   29,   0,   19, 262 }, /* YUV601L_TO_YUV709L */
+	{ 298, -34, -62,   0,  297,   33,   0,   22, 299 }, /* YUV601L_TO_YUV709F */
+	{ 220,   0, 308, 220,  -76, -157, 220,  390,   0 }, /* YUV601F_TO_RGBL */
+	{ 256,   0, 359, 256,  -88, -183, 256,  454,   0 }, /* YUV601F_TO_RGBF */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV601F_TO_YUV601L */
+	{ 220, -26, -47,   0,  229,   26,   0,   17, 231 }, /* YUV601F_TO_YUV709L */
+	{ 256, -30, -54,   0,  261,   29,   0,   19, 262 }, /* YUV601F_TO_YUV709F */
+	{ 256,   0, 394, 256,  -47, -117, 256,  464,   0 }, /* YUV709L_TO_RGBL */
+	{ 298,   0, 459, 298,  -55, -136, 298,  541,   0 }, /* YUV709L_TO_RGBF */
+	{ 256,  25,  49,   0,  253,  -28,   0,  -19, 252 }, /* YUV709L_TO_YUV601L */
+	{ 298,  30,  57,   0,  288,  -32,   0,  -21, 287 }, /* YUV709L_TO_YUV601F */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV709L_TO_YUV709F */
+	{ 220,   0, 346, 220,  -41, -103, 220,  408,   0 }, /* YUV709F_TO_RGBL */
+	{ 256,   0, 403, 256,  -48, -120, 256,  475,   0 }, /* YUV709F_TO_RGBF */
+	{ 220,  22,  43,   0,  223,  -25,   0,  -16, 221 }, /* YUV709F_TO_YUV601L */
+	{ 256,  26,  50,   0,  253,  -28,   0,  -19, 252 }, /* YUV709F_TO_YUV601F */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV709F_TO_YUV709L */
+	{ 256,   0, 369, 256,  -41, -143, 256,  471,   0 }, /* YUV2020L_TO_RGBL */
+	{ 298,   0, 430, 298,  -48, -167, 298,  548,   0 }, /* YUV2020L_TO_RGBF */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV2020L_TO_YUV2020F */
+	{ 220,   0, 324, 220,  -36, -126, 220,  414,   0 }, /* YUV2020F_TO_RGBL */
+	{ 256,   0, 377, 256,  -42, -146, 256,  482,   0 }, /* YUV2020F_TO_RGBF */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV2020F_TO_YUV2020L */
+	{ 220,   0,   0,   0,  220,    0,   0,    0, 220 }, /* RGB2020F_TO_RGB2020L */
+	{ 298,   0,   0,   0,  298,    0,   0,    0, 298 }, /* RGB2020L_TO_RGB2020F */
+	{ 256,   0,   0,   0,  256,    0,   0,    0, 256 }, /* IDENTITY_MODE */
+};
+
+/* for 10bit pixel depth + 10bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_10bit_pix_10bit_precision[] = {
 	{ 1196,    0,    0,    0, 1196,    0,    0,    0, 1196 }, /* RGBL_TO_RGBF */
 	{  306,  601,  117, -177, -347,  524,  524, -439,  -85 }, /* RGBL_TO_YUV601L */
 	{  358,  702,  136, -202, -396,  598,  598, -501,  -97 }, /* RGBL_TO_YUV601F */
@@ -232,6 +286,59 @@ static const struct rk_pq_csc_coef g_mode_csc_coefs[] = {
 	{  877,    0,    0,    0,  877,    0,    0,    0,  877 }, /* RGB2020F_TO_RGB2020L */
 	{ 1196,    0,    0,    0, 1196,    0,    0,    0, 1196 }, /* RGB2020L_TO_RGB2020F */
 	{ 1024,    0,    0,    0, 1024,    0,    0,    0, 1024 }, /* IDENTITY_MODE */
+};
+
+/* for 10bit pixel depth + 13bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_10bit_pix_13bit_precision[] = {
+	{ 9567,     0,     0,     0,  9567,     0,    0,     0, 9567 }, /* RGBL_TO_RGBF */
+	{ 2449,  4809,   934, -1414, -2776,  4190, 4189, -3508, -681 }, /* RGBL_TO_YUV601L */
+	{ 2860,  5616,  1091, -1614, -3169,  4783, 4783, -4005, -778 }, /* RGBL_TO_YUV601F */
+	{ 1742,  5859,   591,  -960, -3230,  4190, 4189, -3805, -384 }, /* RGBL_TO_YUV709L */
+	{ 2034,  6842,   691, -1096, -3687,  4783, 4783, -4345, -438 }, /* RGBL_TO_YUV709F */
+	{ 2152,  5554,   486, -1170, -3020,  4190, 4190, -3853, -337 }, /* RGBL_TO_YUV2020L */
+	{ 2513,  6486,   568, -1336, -3447,  4783, 4783, -4398, -385 }, /* RGBL_TO_YUV2020F */
+	{ 7015,     0,     0,     0,  7015,     0,    0,     0, 7015 }, /* RGBF_TO_RGBL */
+	{ 2097,  4118,   800, -1211, -2377,  3588, 3587, -3004, -583 }, /* RGBF_TO_YUV601L */
+	{ 2449,  4809,   934, -1382, -2714,  4096, 4096, -3430, -666 }, /* RGBF_TO_YUV601F */
+	{ 1491,  5017,   507,  -822, -2765,  3587, 3588, -3259, -329 }, /* RGBF_TO_YUV709L */
+	{ 1742,  5859,   591,  -939, -3157,  4096, 4096, -3720, -376 }, /* RGBF_TO_YUV709F */
+	{ 1843,  4756,   416, -1002, -2586,  3588, 3588, -3299, -289 }, /* RGBF_TO_YUV2020L */
+	{ 2152,  5554,   486, -1144, -2952,  4096, 4096, -3767, -329 }, /* RGBF_TO_YUV2020F */
+	{ 8192,     0, 11229,  8192, -2756, -5720, 8192, 14192,    0 }, /* YUV601L_TO_RGBL */
+	{ 9567,     0, 13113,  9567, -3219, -6679, 9567, 16574,    0 }, /* YUV601L_TO_RGBF */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV601L_TO_YUV601F */
+	{ 8192,  -947, -1703,     0,  8345,   939,    0,   615, 8399 }, /* YUV601L_TO_YUV709L */
+	{ 9567, -1105, -1989,     0,  9527,  1072,    0,   702, 9590 }, /* YUV601L_TO_YUV709F */
+	{ 7015,     0,  9835,  7015, -2414, -5010, 7015, 12430,    0 }, /* YUV601F_TO_RGBL */
+	{ 8192,     0, 11485,  8192, -2819, -5850, 8192, 14516,    0 }, /* YUV601F_TO_RGBF */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV601F_TO_YUV601L */
+	{ 7015,  -829, -1492,     0,  7309,   822,    0,   538, 7357 }, /* YUV601F_TO_YUV709L */
+	{ 8192,  -968, -1742,     0,  8345,   939,    0,   615, 8399 }, /* YUV601F_TO_YUV709F */
+	{ 8192,     0, 12613,  8192, -1500, -3749, 8192, 14862,    0 }, /* YUV709L_TO_RGBL */
+	{ 9567,     0, 14729,  9567, -1752, -4378, 9567, 17356,    0 }, /* YUV709L_TO_RGBF */
+	{ 8192,   814,  1570,     0,  8109,  -906,    0,  -594, 8056 }, /* YUV709L_TO_YUV601L */
+	{ 9567,   950,  1834,     0,  9258, -1035,    0,  -678, 9198 }, /* YUV709L_TO_YUV601F */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV709L_TO_YUV709F */
+	{ 7015,     0, 11047,  7015, -1314, -3284, 7015, 13017,    0 }, /* YUV709F_TO_RGBL */
+	{ 8192,     0, 12901,  8192, -1535, -3835, 8192, 15201,    0 }, /* YUV709F_TO_RGBF */
+	{ 7015,   713,  1375,     0,  7102,  -794,    0,  -520, 7056 }, /* YUV709F_TO_YUV601L */
+	{ 8192,   832,  1606,     0,  8109,  -906,    0,  -594, 8056 }, /* YUV709F_TO_YUV601F */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV709F_TO_YUV709L */
+	{ 8192,     0, 11810,  8192, -1318, -4576, 8192, 15068,    0 }, /* YUV2020L_TO_RGBL */
+	{ 9567,     0, 13792,  9567, -1539, -5344, 9567, 17597,    0 }, /* YUV2020L_TO_RGBF */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV2020L_TO_YUV2020F */
+	{ 7015,     0, 10344,  7015, -1154, -4008, 7015, 13198,    0 }, /* YUV2020F_TO_RGBL */
+	{ 8192,     0, 12080,  8192, -1348, -4681, 8192, 15412,    0 }, /* YUV2020F_TO_RGBF */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV2020F_TO_YUV2020L */
+	{ 7015,     0,     0,     0,  7015,     0,    0,     0, 7015 }, /* RGB2020F_TO_RGB2020L */
+	{ 9567,     0,     0,     0,  9567,     0,    0,     0, 9567 }, /* RGB2020L_TO_RGB2020F */
+	{ 8192,     0,     0,     0,  8192,     0,    0,     0, 8192 }, /* IDENTITY_MODE */
+};
+
+static const struct rk_csc_mode_coef g_csc_mode_coefs[] = {
+	{8, 8, g_mode_csc_coefs_8bit_pix_8bit_precision},
+	{10, 10, g_mode_csc_coefs_10bit_pix_10bit_precision},
+	{10, 13, g_mode_csc_coefs_10bit_pix_13bit_precision},
 };
 
 /* 10bit Hue Sin Look Up Table -> range[-30, 30] */
@@ -387,19 +494,34 @@ enum color_space_type get_color_space_type(enum drm_color_encoding color_encodin
 	return color_space_type;
 }
 
-static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
+static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mode *convert_mode)
 {
+	const struct rk_csc_mode_coef  *csc_mode_coef = NULL;
 	int i, j;
 	enum color_space_type input_color_space, output_color_space;
 	bool is_input_full_range = convert_mode->is_input_full_range;
 	bool is_output_full_range = convert_mode->is_output_full_range;
 	bool is_input_yuv = convert_mode->is_input_yuv;
 	bool is_output_yuv = convert_mode->is_output_yuv;
+	u8 pixel_depth = convert_mode->pixel_depth;
+	u8 coef_precision = convert_mode->coef_precision;
+
+	/* Search for coef table at different csc precision */
+	for (i = 0; i < ARRAY_SIZE(g_csc_mode_coefs); i++) {
+		if ((g_csc_mode_coefs[i].pixel_depth == pixel_depth) &&
+		    (g_csc_mode_coefs[i].coef_precision == coef_precision)) {
+			csc_mode_coef = &g_csc_mode_coefs[i];
+			break;
+		}
+	}
+
+	if (!csc_mode_coef)
+		return NULL;
 
 	/* csc input and output format is equal */
 	if ((is_input_full_range == is_output_full_range) && (is_input_yuv == is_output_yuv) &&
 	    (convert_mode->intput_color_encoding == convert_mode->output_color_encoding))
-		return RK_PQ_CSC_IDENTITY_MODE;
+		return &csc_mode_coef->csc_coef[RK_PQ_CSC_IDENTITY_MODE];
 
 	for (i = 0; i < 2; i++) {
 		input_color_space = get_color_space_type(convert_mode->intput_color_encoding,
@@ -407,12 +529,13 @@ static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
 		output_color_space = get_color_space_type(convert_mode->output_color_encoding,
 							  is_output_yuv);
 
+		/* Search for csc coef at different csc input/output format */
 		for (j = 0; j < ARRAY_SIZE(g_csc_color_info); j++) {
 			if (g_csc_color_info[j].input_color_space == input_color_space &&
 			    g_csc_color_info[j].output_color_space == output_color_space &&
 			    g_csc_color_info[j].in_full_range == is_input_full_range &&
 			    g_csc_color_info[j].out_full_range == is_output_full_range)
-				return j;
+				return &csc_mode_coef->csc_coef[j];
 		}
 
 		/*
@@ -423,7 +546,7 @@ static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
 		convert_mode->intput_color_encoding = convert_mode->output_color_encoding;
 	}
 
-	return -EINVAL;
+	return NULL;
 }
 
 static void csc_matrix_multiply(struct rk_pq_csc_coef *dst, const struct rk_pq_csc_coef *m0,
@@ -623,6 +746,7 @@ static int csc_calc_adjust_output_coef(struct post_csc_convert_mode *convert_mod
 	s32 r_gain, g_gain, b_gain;
 	s32 r_offset, g_offset, b_offset;
 	s32 dc_in_offset, dc_out_offset;
+	s32 offset_shift_bits;
 
 	contrast = csc_input_cfg->contrast * PQ_CSC_PARAM_FIX_NUM / PQ_CSC_IN_PARAM_NORM_COEF;
 	saturation = csc_input_cfg->saturation  * PQ_CSC_PARAM_FIX_NUM / PQ_CSC_IN_PARAM_NORM_COEF;
@@ -764,13 +888,31 @@ static int csc_calc_adjust_output_coef(struct post_csc_convert_mode *convert_mod
 		dc_out_ventor.csc_offset2 = brightness + dc_out_offset + b_offset;
 	}
 
+	if (convert_mode->pixel_depth < 10) {
+		offset_shift_bits = 10 - convert_mode->pixel_depth; // [1, 2]
+		dc_in_ventor.csc_offset0 >>= offset_shift_bits;
+		dc_in_ventor.csc_offset1 >>= offset_shift_bits;
+		dc_in_ventor.csc_offset2 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset0 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset1 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset2 >>= offset_shift_bits;
+	} else {
+		offset_shift_bits = convert_mode->pixel_depth - 10; // [0, 3]
+		dc_in_ventor.csc_offset0 <<= offset_shift_bits;
+		dc_in_ventor.csc_offset1 <<= offset_shift_bits;
+		dc_in_ventor.csc_offset2 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset0 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset1 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset2 <<= offset_shift_bits;
+	}
+
 	csc_matrix_ventor_multiply(&v, out_matrix, &dc_in_ventor);
-	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset0 = v.csc_offset0 +
+		(dc_out_ventor.csc_offset0 << convert_mode->coef_precision);
+	out_dc->csc_offset1 = v.csc_offset1 +
+		(dc_out_ventor.csc_offset1 << convert_mode->coef_precision);
+	out_dc->csc_offset2 = v.csc_offset2 +
+		(dc_out_ventor.csc_offset2 << convert_mode->coef_precision);
 
 	return 0;
 }
@@ -780,16 +922,17 @@ static void csc_get_range_offset(const struct post_csc_convert_mode *convert_mod
 {
 	int offset_y = convert_mode->is_input_full_range ? 0 : 16;
 	int offset_c = convert_mode->is_input_yuv ? 128 : offset_y;
+	int offset_shift_bits = convert_mode->pixel_depth - 8;
 
-	csc_dc_coef->csc_in_dc0 = -offset_y * 4;
-	csc_dc_coef->csc_in_dc1 = -offset_c * 4;
-	csc_dc_coef->csc_in_dc2 = -offset_c * 4;
+	csc_dc_coef->csc_in_dc0 = -offset_y << offset_shift_bits;
+	csc_dc_coef->csc_in_dc1 = -offset_c << offset_shift_bits;
+	csc_dc_coef->csc_in_dc2 = -offset_c << offset_shift_bits;
 
 	offset_y = convert_mode->is_output_full_range ? 0 : 16;
 	offset_c = convert_mode->is_output_yuv ? 128 : offset_y;
-	csc_dc_coef->csc_out_dc0 = offset_y * 4;
-	csc_dc_coef->csc_out_dc1 = offset_c * 4;
-	csc_dc_coef->csc_out_dc2 = offset_c * 4;
+	csc_dc_coef->csc_out_dc0 = offset_y << offset_shift_bits;
+	csc_dc_coef->csc_out_dc1 = offset_c << offset_shift_bits;
+	csc_dc_coef->csc_out_dc2 = offset_c << offset_shift_bits;
 }
 
 static int csc_calc_default_output_coef(const struct post_csc_convert_mode *convert_mode,
@@ -822,12 +965,12 @@ static int csc_calc_default_output_coef(const struct post_csc_convert_mode *conv
 	dc_out_ventor.csc_offset2 = csc_dc_coef.csc_out_dc2;
 
 	csc_matrix_ventor_multiply(&v, csc_coef, &dc_in_ventor);
-	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset0 = v.csc_offset0 +
+		(dc_out_ventor.csc_offset0 << convert_mode->coef_precision);
+	out_dc->csc_offset1 = v.csc_offset1 +
+		(dc_out_ventor.csc_offset1 << convert_mode->coef_precision);
+	out_dc->csc_offset2 = v.csc_offset2 +
+		(dc_out_ventor.csc_offset2 << convert_mode->coef_precision);
 
 	return 0;
 }
@@ -875,19 +1018,20 @@ int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_s
 	const struct rk_pq_csc_coef *csc_coef;
 	int bit_num = PQ_CSC_SIMPLE_MAT_PARAM_FIX_BIT_WIDTH;
 
-	ret = csc_get_mode_index(convert_mode);
-	if (ret < 0) {
+	csc_coef = csc_get_csc_coef(convert_mode);
+	if (!csc_coef) {
 		DRM_ERROR("get csc index err:\n");
+		DRM_ERROR("pixel_depth=%d, coef_precision=%d\n",
+			  convert_mode->pixel_depth, convert_mode->coef_precision);
 		DRM_ERROR("input: colorspace=%d, yuv=%d, full_range=%d\n",
 			  convert_mode->intput_color_encoding, convert_mode->is_input_yuv,
 			  convert_mode->is_input_full_range);
 		DRM_ERROR("output: colorspace=%d, yuv=%d, full_range=%d\n",
 			  convert_mode->output_color_encoding, convert_mode->is_output_yuv,
 			  convert_mode->is_output_full_range);
-		return ret;
+		return -EINVAL;
 	}
 
-	csc_coef = &g_mode_csc_coefs[ret];
 	if (csc_cfg)
 		ret = csc_calc_adjust_output_coef(convert_mode, csc_cfg,
 						  csc_coef, &out_matrix, &out_dc);
