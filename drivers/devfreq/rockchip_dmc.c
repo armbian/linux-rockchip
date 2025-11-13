@@ -2137,6 +2137,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3528)
 	{ .compatible = "rockchip,rk3528-dmc", .data = rk3528_dmc_init },
 #endif
+#if IS_ENABLED(CONFIG_CPU_RK3538)
+	{ .compatible = "rockchip,rk3538-dmc", .data = rk3568_dmc_init },
+#endif
 #if IS_ENABLED(CONFIG_CPU_RK3562)
 	{ .compatible = "rockchip,rk3562-dmc", .data = rk3568_dmc_init },
 #endif
