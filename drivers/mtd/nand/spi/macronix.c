@@ -421,6 +421,13 @@ static int macronix_spinand_init(struct spinand_device *spinand)
 
 	spinand->priv = priv;
 
+	/* Enable buf read */
+	if (spinand->id.data[1] == 0x91 || spinand->id.data[1] == 0x96 ||
+	    spinand->id.data[1] == 0xa6 || spinand->id.data[1] == 0xb7) {
+		spinand_upd_cfg(spinand, BIT(2), 0);
+		dev_info(&spinand->spimem->spi->dev, "Enable buf_read\n");
+	}
+
 	return 0;
 }
 
