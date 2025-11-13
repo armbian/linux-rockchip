@@ -224,5 +224,4 @@ else
 endif
 	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
 
-CLEAN_DIRS += out
-CLEAN_FILES += boot.img kernel.img resource.img zboot.img
+CLEAN_FILES += out boot.img kernel.img resource.img zboot.img
