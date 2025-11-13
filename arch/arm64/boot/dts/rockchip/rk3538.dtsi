@@ -11,6 +11,7 @@
 #include <dt-bindings/power/rockchip,rk3538-power-controller.h>
 #include <dt-bindings/reset/rockchip,rk3538-cru.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 
 / {
 	compatible = "rockchip,rk3538";
@@ -362,6 +363,50 @@
 				charge_logo,mode = "center";
 				connect = <&vp0_out_tve>;
 			};
+		};
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3538-dmc";
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete";
+		devfreq-events = <&dfi>;
+		clocks = <&scmi_clk SCLK_DDR>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-level = <
+			/* system status	freq level */
+			SYS_STATUS_NORMAL	DMC_FREQ_LEVEL_HIGH
+		>;
+		auto-min-freq = <324000>;
+		auto-freq-en = <0>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
+
+		opp-324000000 {
+			opp-hz = /bits/ 64 <324000000>;
+			opp-microvolt = <900000 900000 1000000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <900000 900000 1000000>;
+		};
+		opp-780000000 {
+			opp-hz = /bits/ 64 <780000000>;
+			opp-microvolt = <900000 900000 1000000>;
+		};
+		opp-1184000000 {
+			opp-hz = /bits/ 64 <1184000000>;
+			opp-microvolt = <900000 900000 1000000>;
 		};
 	};
 
