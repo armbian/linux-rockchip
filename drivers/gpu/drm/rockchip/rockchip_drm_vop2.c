@@ -15446,7 +15446,7 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	}
 
 	post_sharp = (struct post_sharp *)vcstate->post_sharp_data->data;
-	if (post_sharp->plat == VOP_VERSION_RK3576) {
+	if (post_sharp->plat == VOP_VERSION_RK3576 || post_sharp->plat == VOP_VERSION_RK3538) {
 		regs_v1 = &post_sharp->regs_v1;
 		sharp_regs_len = ARRAY_SIZE(regs_v1->regs);
 		regs = regs_v1->regs;
