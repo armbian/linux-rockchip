@@ -94,7 +94,7 @@
 #define RK3538_8BPC			0x0
 #define RK3538_10BPC			0x6
 #define RK3538_VO_GRF_HDMI_SWITCH	0x6c
-#define RK3538_PMU_GRF_SOC_CON2		0x6
+#define RK3538_PMU_GRF_SOC_CON2		0x8
 #define RK3538_HDMI_CEC_DET_SEL		BIT(15)
 #define RK3538_HDMI_HPD_INT_CON		0x400
 #define RK3538_HDMITX_HPD_INT_MSK	BIT(2)
@@ -340,6 +340,8 @@ struct rockchip_hdmi {
 	struct clk *earc_clk;
 	struct clk *hdmitx_ref;
 	struct clk *link_clk;
+	struct clk *cec_clk;
+	struct clk *cec_wakeup;
 	struct dw_hdmi *hdmi;
 	struct regulator *avdd_0v9;
 	struct regulator *avdd_1v8;
@@ -357,6 +359,7 @@ struct rockchip_hdmi {
 	bool hpd_stat;
 	enum dw_hdmi_qp_version dw_hdmi_qp_version;
 	bool force_disable_dsc;
+	bool cec_wakeup_supported;
 
 	unsigned long bus_format;
 	unsigned long output_bus_format;
@@ -2188,6 +2191,22 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->link_clk),
 			      "failed to get link_clk clock\n");
 		return PTR_ERR(hdmi->link_clk);
+	}
+
+	if (hdmi->cec_wakeup_supported) {
+		hdmi->cec_clk = devm_clk_get(hdmi->dev, "cec");
+		if (IS_ERR(hdmi->cec_clk)) {
+			dev_err_probe(hdmi->dev, PTR_ERR(hdmi->cec_clk),
+				"failed to get cec clock\n");
+			return PTR_ERR(hdmi->cec_clk);
+		}
+
+		hdmi->cec_wakeup = devm_clk_get(hdmi->dev, "cec_wakeup");
+		if (IS_ERR(hdmi->cec_wakeup)) {
+			dev_err_probe(hdmi->dev, PTR_ERR(hdmi->cec_wakeup),
+				"failed to get cec_wakeup clock\n");
+			return PTR_ERR(hdmi->cec_wakeup);
+		}
 	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
@@ -4062,6 +4081,20 @@ static void dw_hdmi_rockchip_crtc_pre_disable(void *data, struct drm_crtc *crtc)
 	rockchip_drm_crtc_output_pre_disable(crtc, output_if);
 }
 
+static void dw_hdmi_rockchip_set_cec_wakeup(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+
+	if (enable) {
+		val = HIWORD_UPDATE(RK3538_HDMI_CEC_DET_SEL, RK3538_HDMI_CEC_DET_SEL);
+		regmap_write(hdmi->regmap, RK3538_PMU_GRF_SOC_CON2, val);
+	} else {
+		val = HIWORD_UPDATE(0, RK3538_HDMI_CEC_DET_SEL);
+		regmap_write(hdmi->regmap, RK3538_PMU_GRF_SOC_CON2, val);
+	}
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -5405,6 +5438,7 @@ static const struct dw_hdmi_plat_data rk3538_hdmi_drv_data = {
 	.ycbcr_420_allowed = true,
 	.dw_hdmi_qp_version = DW_HDMI_QP_V2,
 	.use_drm_infoframe = true,
+	.cec_wakeup_supported = true,
 };
 
 static struct rockchip_hdmi_chip_data rk3568_chip_data = {
@@ -5655,6 +5689,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_crtc_pre_disable;
 	plat_data->crtc_post_enable =
 		dw_hdmi_rockchip_crtc_post_enable;
+	plat_data->set_cec_wakeup =
+		dw_hdmi_rockchip_set_cec_wakeup;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
@@ -5712,6 +5748,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	hdmi->unsupported_yuv_input = plat_data->unsupported_yuv_input;
 	hdmi->unsupported_deep_color = plat_data->unsupported_deep_color;
+	hdmi->cec_wakeup_supported = plat_data->cec_wakeup_supported;
 
 	ret = rockchip_hdmi_parse_dt(hdmi);
 	if (ret) {
@@ -5755,6 +5792,20 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI pclk: %d\n", ret);
 		return ret;
+	}
+
+	if (hdmi->cec_wakeup_supported) {
+		ret = clk_prepare_enable(hdmi->cec_clk);
+		if (ret) {
+			dev_err(hdmi->dev, "Failed to enable HDMI cec_clk: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(hdmi->cec_wakeup);
+		if (ret) {
+			dev_err(hdmi->dev, "Failed to enable HDMI cec_wakeup: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (hdmi->avdd_0v9) {
@@ -5905,6 +5956,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		clk_disable_unprepare(hdmi->earc_clk);
 		clk_disable_unprepare(hdmi->hdmitx_ref);
 		clk_disable_unprepare(hdmi->pclk);
+		if (hdmi->cec_wakeup_supported) {
+			clk_disable_unprepare(hdmi->cec_clk);
+			clk_disable_unprepare(hdmi->cec_wakeup);
+		}
 	}
 
 	if (plat_data->connector) {

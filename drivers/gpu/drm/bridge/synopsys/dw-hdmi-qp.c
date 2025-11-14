@@ -4289,11 +4289,19 @@ static void dw_hdmi_qp_cec_disable(struct dw_hdmi_qp *hdmi)
 	mutex_unlock(&hdmi->mutex);
 }
 
+static void dw_hdmi_qp_set_wakeup(struct dw_hdmi_qp *hdmi, bool enable)
+{
+	void *data = hdmi->plat_data->phy_data;
+
+	hdmi->plat_data->set_cec_wakeup(data, enable);
+}
+
 static const struct dw_hdmi_qp_cec_ops dw_hdmi_qp_cec_ops = {
 	.enable = dw_hdmi_qp_cec_enable,
 	.disable = dw_hdmi_qp_cec_disable,
 	.write = hdmi_writel,
 	.read = hdmi_readl,
+	.set_wakeup = dw_hdmi_qp_set_wakeup,
 };
 
 static const struct regmap_config hdmi_regmap_config = {
@@ -4989,6 +4997,23 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 		}
 
 		hdmi->cec_data.irq  = irq;
+
+		if (plat_data->cec_wakeup_supported) {
+			irq = platform_get_irq_byname(pdev, "cec_wakeup");
+			if (irq < 0) {
+				ret = irq;
+				goto err_ddc;
+			}
+
+			hdmi->cec_data.wake_irq = irq;
+			iores = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			hdmi->cec_data.cec_wakeup_mem = devm_ioremap_resource(dev, iores);
+			if (IS_ERR(hdmi->cec_data.cec_wakeup_mem)) {
+				ret = PTR_ERR(hdmi->cec_data.cec_wakeup_mem);
+				goto err_ddc;
+			}
+		}
+
 		hdmi->cec_data.hdmi = hdmi;
 		hdmi->cec_data.ops = &dw_hdmi_qp_cec_ops;
 	};

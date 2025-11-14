@@ -225,6 +225,8 @@ struct dw_hdmi_plat_data {
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
 	enum dw_hdmi_qp_version dw_hdmi_qp_version;
+	/* Support cec wakeup module */
+	bool cec_wakeup_supported;
 
 	/*
 	 * Private data passed to all the .mode_valid() and .configure_phy()
@@ -308,6 +310,7 @@ struct dw_hdmi_plat_data {
 	int (*get_hdr10_plus_vsdb)(void *data, const struct edid *edid,
 				   struct drm_connector *connector);
 	void (*sda_delay_cal)(void *data, u8 *sda_dlyn, u8 *sda_div);
+	void (*set_cec_wakeup)(void *data, bool enable);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
