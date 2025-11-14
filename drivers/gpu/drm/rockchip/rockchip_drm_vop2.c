@@ -11458,7 +11458,8 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 
 	if ((vop2->version == VOP_VERSION_RK3588 ||
 	     vop2->version == VOP_VERSION_RK3576 ||
-	     vop2->version == VOP_VERSION_RK3572) &&
+	     vop2->version == VOP_VERSION_RK3572 ||
+	     vop2->version == VOP_VERSION_RK3538) &&
 	    (output_if_is_hdmi(output_if) || output_if_is_dp(output_if)) &&
 	    vop2_output_rg_swap(vcstate))
 		data_swap |= DSP_RG_SWAP;
