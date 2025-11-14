@@ -3244,7 +3244,7 @@ static void rk817_battery_work(struct work_struct *work)
 	if (rk817_bat_field_read(battery, CUR_CALIB_UPD)) {
 		rk817_bat_current_calibration(battery);
 		rk817_bat_init_voltage_kb(battery);
-		rk817_bat_field_write(battery, CUR_CALIB_UPD, 0x01);
+		rk817_bat_field_force_write(battery, CUR_CALIB_UPD, 0x01);
 	}
 
 	queue_delayed_work(battery->bat_monitor_wq, &battery->bat_delay_work,
