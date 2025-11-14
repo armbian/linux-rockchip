@@ -472,6 +472,7 @@ static enum rk_pq_csc_version get_csc_version(u32 plat)
 	case VOP_VERSION_RK3576:
 		return RK_PQ_CSC_V1;
 	case VOP_VERSION_RK3572:
+	case VOP_VERSION_RK3538:
 		return RK_PQ_CSC_V2;
 	default:
 		return RK_PQ_CSC_UNKNOWN;
