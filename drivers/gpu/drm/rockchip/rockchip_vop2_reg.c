@@ -1576,8 +1576,11 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 	.hdr_lut_mst = VOP_REG(RK3568_HDR_LUT_MST, 0xffffffff, 0),
 	.hdr_lut_fetch_done = VOP_REG(RK3528_HDR_LUT_STATUS, 0x1, 0),
 	.hdr10_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 4),
+	.hdr10_layer_sel = VOP_REG(RK3568_OVL_CTRL, 0x1, 19),
 	.sdr2hdr_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 5),
 	.sdr2hdr_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 0),
+	.cgc_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 17),
+	.cgc_layer_sel = VOP_REG(RK3568_OVL_CTRL, 0x1, 18),
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 1),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
@@ -1647,7 +1650,10 @@ static const struct vop2_video_port_data rk3538_vop_video_ports[] = {
 	 .hdr_mix_dly = 2,
 	 .win_dly = 10,
 	 .cursor_dly = 11, /* win_dly[10] - cursor_win_dly[5] + 3 * mix_dly[2] */
+	 .cgc_mix_dly = 2,
+	 .cgc_dly = 18,
 	 .pixel_rate = 1,
+	 .hdr_cgc_layer_num = 2,
 	 .intr = &rk3572_vp0_intr,
 	 .urgency = &rk3538_vp0_urgency,
 	 .regs = &rk3538_vop_vp0_regs,
@@ -4432,7 +4438,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
-	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_Y2R_13BIT_DEPTH,
+	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4464,7 +4470,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
-	  .feature = WIN_FEATURE_MULTI_AREA,
+	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4496,7 +4502,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
-	  .feature = WIN_FEATURE_MULTI_AREA,
+	  .feature = WIN_FEATURE_MULTI_AREA | WIN_FEATURE_CGC,
 	},
 
 	{
@@ -4527,7 +4533,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN |
-			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI,
+			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI | WIN_FEATURE_CGC,
 	},
 
 	{
