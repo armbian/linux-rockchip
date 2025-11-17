@@ -911,6 +911,10 @@
 	vmmc-supply = <&vcc_3v3_sd_s0>;
 };
 
+&spdif_tx2 {
+	status = "okay";
+};
+
 &uart9 {
 	status = "okay";
 	pinctrl-names = "default";
