@@ -19,6 +19,7 @@
 	#size-cells = <1>;
 
 	aliases {
+		ethernet1 = &mac;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -1301,6 +1302,68 @@
 			#sound-dai-cells = <0>;
 			sound-name-prefix = "SAI2";
 			status = "disabled";
+		};
+
+		mac: ethernet@fdb50000 {
+			compatible = "rockchip,rk3538-gmac", "snps,dwmac-4.20a";
+			reg = <0xfdb50000 0x10000>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq";
+			rockchip,grf = <&vo_grf>;
+			clocks = <&cru CLK_RMII_MACPHY_CRU>, <&cru CLK_RMII_MACPHY_CRU>,
+				 <&cru PCLK_MAC>, <&cru ACLK_MAC>,
+				 <&cru CLK_MAC_PTP_REF>;
+			clock-names = "stmmaceth", "clk_mac_ref",
+				      "pclk_mac", "aclk_mac",
+				      "ptp_ref";
+			resets = <&cru SRST_ARESETN_MAC>;
+			reset-names = "stmmaceth";
+
+			snps,mixed-burst;
+			snps,tso;
+
+			snps,axi-config = <&mac_stmmac_axi_setup>;
+			snps,mtl-rx-config = <&mac_mtl_rx_setup>;
+			snps,mtl-tx-config = <&mac_mtl_tx_setup>;
+
+			phy-mode = "rmii";
+			clock_in_out = "input";
+			phy-handle = <&rmii_fephy>;
+
+			status = "disabled";
+
+			mdio1: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				rmii_fephy: ethernet-phy@2 {
+					compatible = "ethernet-phy-id0680.8101", "ethernet-phy-ieee802.3-c22";
+					reg = <2>;
+					clocks = <&cru CLK_IN_MACPHY>;
+					clock-frequency = <24000000>;
+					resets = <&cru SRST_RESETN_MACPHY>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&fephy_ledm0_pins>;
+					phy-is-integrated;
+				};
+			};
+
+			mac_stmmac_axi_setup: stmmac-axi-config {
+				snps,wr_osr_lmt = <4>;
+				snps,rd_osr_lmt = <8>;
+				snps,blen = <0 0 0 0 16 8 4>;
+			};
+
+			mac_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <1>;
+				queue0 {};
+			};
+
+			mac_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <1>;
+				queue0 {};
+			};
 		};
 
 		hdcp: hdcp@fdb60000 {
