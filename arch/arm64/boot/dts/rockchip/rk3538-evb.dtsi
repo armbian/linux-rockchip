@@ -5,6 +5,15 @@
  */
 
 / {
+	hdmi_sound: hdmi-sound {
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip,hdmi";
+		rockchip,cpu = <&sai3>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
+	};
+
 	spdif_tx_dc: spdif-tx-dc {
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
@@ -73,6 +82,10 @@
 };
 
 &rng {
+	status = "okay";
+};
+
+&sai3 {
 	status = "okay";
 };
 
