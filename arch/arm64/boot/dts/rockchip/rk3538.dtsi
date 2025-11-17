@@ -1625,6 +1625,34 @@
 			status = "disabled";
 		};
 
+		usb2phy: usb2-phy@fdba0000 {
+			compatible = "rockchip,rk3538-usb2phy";
+			reg = <0xfdba0000 0x10000>;
+			clocks = <&cru PCLK_USB2PHY>;
+			clock-names = "pclk";
+			#clock-cells = <0>;
+			rockchip,usbgrf = <&vo_grf>;
+			status = "disabled";
+
+			u2phy_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-id",
+						  "otg-bvalid",
+						  "linestate";
+				status = "disabled";
+			};
+
+			u2phy_host: host-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "linestate";
+				status = "disabled";
+			};
+		};
+
 		vop: vop@fdbe0000 {
 			compatible = "rockchip,rk3538-vop";
 			reg = <0xfdbe0000 0x3c00>,
