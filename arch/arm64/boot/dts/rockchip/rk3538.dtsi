@@ -50,6 +50,27 @@
 		#size-cells = <1>;
 		ranges;
 
+		mclkin_sai0: mclkin-sai0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "mclk_sai0_from_io";
+		};
+
+		mclkin_sai1: mclkin-sai1 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "mclk_sai1_from_io";
+		};
+
+		mclkin_sai2: mclkin-sai2 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "mclk_sai2_from_io";
+		};
+
 		spll: spll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -62,6 +83,36 @@
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 			clock-output-names = "xin24m";
+		};
+
+		mclkout_sai0: mclkout-sai0@fd190000 {
+			compatible = "rockchip,clk-out";
+			reg = <0xfd190000 0x4>;
+			clocks = <&cru MCLK_SAI0_OUT2IO>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai0_to_io";
+			rockchip,bit-shift = <9>;
+			rockchip,bit-set-to-disable;
+		};
+
+		mclkout_sai1: mclkout-sai1@fd100040 {
+			compatible = "rockchip,clk-out";
+			reg = <0xfd100040 0x4>;
+			clocks = <&cru MCLK_SAI1_OUT2IO>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai1_to_io";
+			rockchip,bit-shift = <1>;
+			rockchip,bit-set-to-disable;
+		};
+
+		mclkout_sai2: mclkout-sai2@fd170008 {
+			compatible = "rockchip,clk-out";
+			reg = <0xfd170008 0x4>;
+			clocks = <&cru MCLK_SAI2_OUT2IO>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai2_to_io";
+			rockchip,bit-shift = <15>;
+			rockchip,bit-set-to-disable;
 		};
 	};
 
