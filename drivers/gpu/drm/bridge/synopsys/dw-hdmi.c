@@ -1542,12 +1542,12 @@ static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 	is_output_rgb = hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format);
 
 	if (!is_input_rgb && is_output_rgb) {
-		if (hdmi->hdmi_data.enc_out_encoding == V4L2_YCBCR_ENC_601)
+		if (hdmi->hdmi_data.enc_out_encoding == DRM_MODE_COLORIMETRY_SMPTE_170M_YCC)
 			csc_coeff = &csc_coeff_rgb_out_eitu601;
 		else
 			csc_coeff = &csc_coeff_rgb_out_eitu709;
 	} else if (is_input_rgb && !is_output_rgb) {
-		if (hdmi->hdmi_data.enc_out_encoding == V4L2_YCBCR_ENC_601)
+		if (hdmi->hdmi_data.enc_out_encoding == DRM_MODE_COLORIMETRY_SMPTE_170M_YCC)
 			csc_coeff = &csc_coeff_rgb_in_eitu601;
 		else
 			csc_coeff = &csc_coeff_rgb_in_eitu709;
@@ -2271,50 +2271,36 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 		frame.colorspace = HDMI_COLORSPACE_RGB;
 
 	/* Set up colorimetry */
-	if (!hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
-		switch (hdmi->hdmi_data.enc_out_encoding) {
-		case V4L2_YCBCR_ENC_601:
-			if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_XV601)
-				frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
-			else
-				frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
-			frame.extended_colorimetry =
-					HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-			break;
-		case V4L2_YCBCR_ENC_709:
-			if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_XV709)
-				frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
-			else
-				frame.colorimetry = HDMI_COLORIMETRY_ITU_709;
-			frame.extended_colorimetry =
-					HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
-			break;
-		case V4L2_YCBCR_ENC_BT2020:
-			if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_BT2020)
-				frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
-			else
-				frame.colorimetry = HDMI_COLORIMETRY_ITU_709;
-			frame.extended_colorimetry =
-				HDMI_EXTENDED_COLORIMETRY_BT2020;
+	switch (hdmi->hdmi_data.enc_out_encoding) {
+	/*
+	 * When outputting the BT601 or BT709 colorimetry, only the values
+	 * of frame.colorimetry will actually take effect. The value of
+	 * frame.extended_colorimetry will not take effect in reality.
+	 * Any value can be configured.
+	 */
+	case DRM_MODE_COLORIMETRY_SMPTE_170M_YCC:
+		frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
+		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
 		break;
-		default: /* Carries no data */
-			frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
-			frame.extended_colorimetry =
-					HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-			break;
-		}
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
+		frame.colorimetry = HDMI_COLORIMETRY_ITU_709;
+		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
+		break;
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+		frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
+		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_BT2020;
+		break;
+	default: /* Carries no data */
+		frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
+		frame.extended_colorimetry =
+				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
+	}
+
+	if (!hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
 		frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	} else {
-		if (hdmi->hdmi_data.enc_out_encoding == V4L2_YCBCR_ENC_BT2020) {
-			frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
-			frame.extended_colorimetry =
-				HDMI_EXTENDED_COLORIMETRY_BT2020;
-		} else {
-			frame.colorimetry = HDMI_COLORIMETRY_NONE;
-			frame.extended_colorimetry =
-				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-		}
-
 		if (is_hdmi2 && frame.quantization_range == HDMI_QUANTIZATION_RANGE_FULL)
 			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_FULL;
 		else
@@ -2865,9 +2851,9 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 		 (hdmi->vic == 21) || (hdmi->vic == 22) ||
 		 (hdmi->vic == 2) || (hdmi->vic == 3) ||
 		 (hdmi->vic == 17) || (hdmi->vic == 18))
-		hdmi->hdmi_data.enc_out_encoding = V4L2_YCBCR_ENC_601;
+		hdmi->hdmi_data.enc_out_encoding = DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
 	else
-		hdmi->hdmi_data.enc_out_encoding = V4L2_YCBCR_ENC_709;
+		hdmi->hdmi_data.enc_out_encoding = DRM_MODE_COLORIMETRY_BT709_YCC;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
 		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 1;

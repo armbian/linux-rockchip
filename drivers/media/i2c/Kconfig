@@ -527,6 +527,15 @@ config VIDEO_GH2DPK
 	  2-megapixel HDR sensor and a professional ISP (Image Signal Processor) image processing chip.
 	  It outputs a 30fps HDR high-quality video stream via a 2-lane MIPI interface.
 
+config VIDEO_GST412C
+	tristate "Global Sensor GST412C sensor support"
+	depends on VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for gst412c.
+
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
 	help
@@ -1998,6 +2007,16 @@ config VIDEO_SC430CS
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC430CS camera.
+
+config VIDEO_SC431HAI
+	tristate "SmartSens SC431HAI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC431HAI camera.
 
 config VIDEO_SC4336
 	tristate "SmartSens SC4336 sensor support"

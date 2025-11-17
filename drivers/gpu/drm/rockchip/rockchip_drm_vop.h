@@ -706,6 +706,10 @@ struct post_csc_convert_mode {
 	bool is_output_yuv;
 	bool is_input_full_range;
 	bool is_output_full_range;
+	u8 swap_channels;	/* For now, only rg swap in DCI mode is required */
+	u32 plat;		/* To distinguish platform */
+	u8 pixel_depth;         /* {8, 10} */
+	u8 coef_precision;      /* {8, 10, 13}, NOTE: coef_precision should be >= pixel_depth */
 };
 
 struct post_csc_coef {

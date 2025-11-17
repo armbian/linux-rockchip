@@ -100,6 +100,18 @@ struct iommu_domain;
 #define HDMI_EOTF_DOVI		0x12
 #define DOVI_VSDB_LEN		26
 
+/*
+ * This is extend by rockchip, the other color encoding is defined at drm_color_mgmt.h
+ *
+ * enum drm_color_encoding {
+ *      DRM_COLOR_YCBCR_BT601,
+ *      DRM_COLOR_YCBCR_BT709,
+ *      DRM_COLOR_YCBCR_BT2020,
+ *      DRM_COLOR_ENCODING_MAX,
+ *};
+ */
+#define DRM_COLOR_DCI_P3	0x10
+
 enum rockchip_drm_debug_category {
 	VOP_DEBUG_PLANE		= BIT(0),
 	VOP_DEBUG_OVERLAY	= BIT(1),
@@ -777,7 +789,7 @@ int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_hdmi21_data *hdmi21_data,
 			       const struct edid *edid);
 int rockchip_drm_parse_dovi(u8 *sink_data, const struct edid *edid);
-int rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *edid);
+int rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *edid);
 u8 rockchip_drm_parse_hdr10_plus_vsdb(const struct edid *edid);
 struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj, int flags);
 long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long rate);

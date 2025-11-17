@@ -41,43 +41,49 @@
 #define	CLIP(x, min_v, max_v)			MIN(MAX(x, min_v), max_v)
 
 enum rk_pq_csc_mode {
-	RK_PQ_CSC_YUV2RGB_601 = 0,             /* YCbCr_601 LIMIT-> RGB FULL */
-	RK_PQ_CSC_YUV2RGB_709,                 /* YCbCr_709 LIMIT-> RGB FULL */
-	RK_PQ_CSC_RGB2YUV_601,                 /* RGB FULL->YCbCr_601 LIMIT */
-	RK_PQ_CSC_RGB2YUV_709,                 /* RGB FULL->YCbCr_709 LIMIT */
-	RK_PQ_CSC_YUV2YUV_709_601,             /* YCbCr_709 LIMIT->YCbCr_601 LIMIT */
-	RK_PQ_CSC_YUV2YUV_601_709,             /* YCbCr_601 LIMIT->YCbCr_709 LIMIT */
-	RK_PQ_CSC_YUV2YUV,                     /* YCbCr LIMIT->YCbCr LIMIT */
-	RK_PQ_CSC_YUV2RGB_601_FULL,            /* YCbCr_601 FULL-> RGB FULL */
-	RK_PQ_CSC_YUV2RGB_709_FULL,            /* YCbCr_709 FULL-> RGB FULL */
-	RK_PQ_CSC_RGB2YUV_601_FULL,            /* RGB FULL->YCbCr_601 FULL */
-	RK_PQ_CSC_RGB2YUV_709_FULL,            /* RGB FULL->YCbCr_709 FULL */
-	RK_PQ_CSC_YUV2YUV_709_601_FULL,        /* YCbCr_709 FULL->YCbCr_601 FULL */
-	RK_PQ_CSC_YUV2YUV_601_709_FULL,        /* YCbCr_601 FULL->YCbCr_709 FULL */
-	RK_PQ_CSC_YUV2YUV_FULL,                /* YCbCr FULL->YCbCr FULL */
-	RK_PQ_CSC_YUV2YUV_LIMIT2FULL,          /* YCbCr  LIMIT->YCbCr  FULL */
-	RK_PQ_CSC_YUV2YUV_601_709_LIMIT2FULL,  /* YCbCr 601 LIMIT->YCbCr 709 FULL */
-	RK_PQ_CSC_YUV2YUV_709_601_LIMIT2FULL,  /* YCbCr 709 LIMIT->YCbCr 601 FULL */
-	RK_PQ_CSC_YUV2YUV_FULL2LIMIT,          /* YCbCr  FULL->YCbCr  LIMIT */
-	RK_PQ_CSC_YUV2YUV_601_709_FULL2LIMIT,  /* YCbCr 601 FULL->YCbCr 709 LIMIT */
-	RK_PQ_CSC_YUV2YUV_709_601_FULL2LIMIT,  /* YCbCr 709 FULL->YCbCr 601 LIMIT */
-	RK_PQ_CSC_YUV2RGBL_601,                /* YCbCr_601 LIMIT-> RGB LIMIT */
-	RK_PQ_CSC_YUV2RGBL_709,                /* YCbCr_709 LIMIT-> RGB LIMIT */
-	RK_PQ_CSC_RGBL2YUV_601,                /* RGB LIMIT->YCbCr_601 LIMIT */
-	RK_PQ_CSC_RGBL2YUV_709,                /* RGB LIMIT->YCbCr_709 LIMIT */
-	RK_PQ_CSC_YUV2RGBL_601_FULL,           /* YCbCr_601 FULL-> RGB LIMIT */
-	RK_PQ_CSC_YUV2RGBL_709_FULL,           /* YCbCr_709 FULL-> RGB LIMIT */
-	RK_PQ_CSC_RGBL2YUV_601_FULL,           /* RGB LIMIT->YCbCr_601 FULL */
-	RK_PQ_CSC_RGBL2YUV_709_FULL,           /* RGB LIMIT->YCbCr_709 FULL */
-	RK_PQ_CSC_RGB2RGBL,                    /* RGB FULL->RGB LIMIT */
-	RK_PQ_CSC_RGBL2RGB,                    /* RGB LIMIT->RGB FULL */
-	RK_PQ_CSC_RGBL2RGBL,                   /* RGB LIMIT->RGB LIMIT */
-	RK_PQ_CSC_RGB2RGB,                     /* RGB FULL->RGB FULL */
-	RK_PQ_CSC_YUV2RGB_2020,                /* YUV 2020 FULL->RGB  2020 FULL */
-	RK_PQ_CSC_RGB2YUV2020_LIMIT2FULL,      /* BT2020RGBLIMIT -> BT2020YUVFULL */
-	RK_PQ_CSC_RGB2YUV2020_LIMIT,           /* BT2020RGBLIMIT -> BT2020YUVLIMIT */
-	RK_PQ_CSC_RGB2YUV2020_FULL2LIMIT,      /* BT2020RGBFULL -> BT2020YUVLIMIT */
-	RK_PQ_CSC_RGB2YUV2020_FULL,            /* BT2020RGBFULL -> BT2020YUVFULL */
+	RK_PQ_CSC_RGBL_TO_RGBF = 0,
+	RK_PQ_CSC_RGBL_TO_YUV601L,
+	RK_PQ_CSC_RGBL_TO_YUV601F,
+	RK_PQ_CSC_RGBL_TO_YUV709L,
+	RK_PQ_CSC_RGBL_TO_YUV709F,
+	RK_PQ_CSC_RGBL_TO_YUV2020L,
+	RK_PQ_CSC_RGBL_TO_YUV2020F,
+	RK_PQ_CSC_RGBF_TO_RGBL,
+	RK_PQ_CSC_RGBF_TO_YUV601L,
+	RK_PQ_CSC_RGBF_TO_YUV601F,
+	RK_PQ_CSC_RGBF_TO_YUV709L,
+	RK_PQ_CSC_RGBF_TO_YUV709F,
+	RK_PQ_CSC_RGBF_TO_YUV2020L,
+	RK_PQ_CSC_RGBF_TO_YUV2020F,
+	RK_PQ_CSC_YUV601L_TO_RGBL,
+	RK_PQ_CSC_YUV601L_TO_RGBF,
+	RK_PQ_CSC_YUV601L_TO_YUV601F,
+	RK_PQ_CSC_YUV601L_TO_YUV709L,
+	RK_PQ_CSC_YUV601L_TO_YUV709F,
+	RK_PQ_CSC_YUV601F_TO_RGBL,
+	RK_PQ_CSC_YUV601F_TO_RGBF,
+	RK_PQ_CSC_YUV601F_TO_YUV601L,
+	RK_PQ_CSC_YUV601F_TO_YUV709L,
+	RK_PQ_CSC_YUV601F_TO_YUV709F,
+	RK_PQ_CSC_YUV709L_TO_RGBL,
+	RK_PQ_CSC_YUV709L_TO_RGBF,
+	RK_PQ_CSC_YUV709L_TO_YUV601L,
+	RK_PQ_CSC_YUV709L_TO_YUV601F,
+	RK_PQ_CSC_YUV709L_TO_YUV709F,
+	RK_PQ_CSC_YUV709F_TO_RGBL,
+	RK_PQ_CSC_YUV709F_TO_RGBF,
+	RK_PQ_CSC_YUV709F_TO_YUV601L,
+	RK_PQ_CSC_YUV709F_TO_YUV601F,
+	RK_PQ_CSC_YUV709F_TO_YUV709L,
+	RK_PQ_CSC_YUV2020L_TO_RGBL,
+	RK_PQ_CSC_YUV2020L_TO_RGBF,
+	RK_PQ_CSC_YUV2020L_TO_YUV2020F,
+	RK_PQ_CSC_YUV2020F_TO_RGBL,
+	RK_PQ_CSC_YUV2020F_TO_RGBF,
+	RK_PQ_CSC_YUV2020F_TO_YUV2020L,
+	RK_PQ_CSC_RGB2020F_TO_RGB2020L,
+	RK_PQ_CSC_RGB2020L_TO_RGB2020F,
+	RK_PQ_CSC_IDENTITY_MODE, /* for csc input and output is equal */
 };
 
 enum color_space_type {
@@ -92,6 +98,12 @@ enum color_space_type {
 	OPTM_CS_E_RGB = 9,
 	OPTM_CS_E_XV_YCC_2020 = 10,
 	OPTM_CS_E_RGB_2020 = 11,
+};
+
+enum rk_pq_csc_version {
+	RK_PQ_CSC_UNKNOWN = 0,
+	RK_PQ_CSC_V1,
+	RK_PQ_CSC_V2,
 };
 
 struct rk_pq_csc_coef {
@@ -130,395 +142,201 @@ struct rk_csc_colorspace_info {
 };
 
 struct rk_csc_mode_coef {
-	enum rk_pq_csc_mode csc_mode;
-	char c_csc_comment[PQ_CSC_MODE_COEF_COMMENT_LEN];
-	const struct rk_pq_csc_coef *pst_csc_coef;
-	const struct rk_pq_csc_dc_coef *pst_csc_dc_coef;
-	struct rk_csc_colorspace_info st_csc_color_info;
+	u8 pixel_depth;
+	u8 coef_precision;
+	const struct rk_pq_csc_coef *csc_coef;
 };
 
-/*
- *CSC matrix
- */
-/* xv_ycc BT.601 limit(i.e. SD) -> RGB full */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_full = {
-	1196, 0, 1639,
-	1196, -402, -835,
-	1196, 2072, 0
+static const struct rk_csc_colorspace_info g_csc_color_info[] = {
+	{ OPTM_CS_E_RGB, OPTM_CS_E_RGB, false, true },                 /* RGBL_TO_RGBF */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, false },         /* RGBL_TO_YUV601L */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, true },          /* RGBL_TO_YUV601F */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_709, false, false },         /* RGBL_TO_YUV709L */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_709, false, true },          /* RGBL_TO_YUV709F */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, false, false },   /* RGBL_TO_YUV2020L */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, false, true },    /* RGBL_TO_YUV2020F */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_RGB, true, false },                 /* RGBF_TO_RGBL */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, true, false },          /* RGBF_TO_YUV601L */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, true, true },           /* RGBF_TO_YUV601F */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_709, true, false },          /* RGBF_TO_YUV709L */
+	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_709, true, true },           /* RGBF_TO_YUV709F */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, true, false },    /* RGBF_TO_YUV2020L */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, true, true },     /* RGBF_TO_YUV2020F */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, false, false },         /* YUV601L_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, false, true },          /* YUV601L_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601, false, true },   /* YUV601L_TO_YUV601F */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_709, false, false },  /* YUV601L_TO_YUV709L */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_709, false, true },   /* YUV601L_TO_YUV709F */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, true, false },          /* YUV601F_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, true, true },           /* YUV601F_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601, true, false },   /* YUV601F_TO_YUV601L */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_709, true, false },   /* YUV601F_TO_YUV709L */
+	{ OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_709, true, true },    /* YUV601F_TO_YUV709F */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_RGB, false, false },         /* YUV709L_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_RGB, false, true },          /* YUV709L_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_601, false, false },  /* YUV709L_TO_YUV601L */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_601, false, true },   /* YUV709L_TO_YUV601F */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_709, false, true },   /* YUV709L_TO_YUV709F */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_RGB, true, false },          /* YUV709F_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_RGB, true, true },           /* YUV709F_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_601, true, false },   /* YUV709F_TO_YUV601L */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_601, true, true },    /* YUV709F_TO_YUV601F */
+	{ OPTM_CS_E_XV_YCC_709, OPTM_CS_E_XV_YCC_709, true, false },   /* YUV709F_TO_YUV709L */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_RGB_2020, false, false },   /* YUV2020L_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_RGB_2020, false, true },    /* YUV2020L_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, false, true }, /* YUV2020L_TO_YUV2020F */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_RGB_2020, true, false },    /* YUV2020F_TO_RGBL */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_RGB_2020, true, true },     /* YUV2020F_TO_RGBF */
+	{ OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, true, false }, /* YUV2020F_TO_YUV2020L */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, true, false },       /* RGB2020F_TO_RGB2020L */
+	{ OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, false, true },       /* RGB2020L_TO_RGB2020F */
 };
 
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_full = {
-	-64, -512, -512,
-	0, 0, 0
+/* for 8bit pixel depth + 8bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_8bit_pix_8bit_precision[] = {
+	{ 298,   0,   0,   0,  298,    0,   0,    0, 298 }, /* RGBL_TO_RGBF */
+	{  77, 150,  29, -44,  -87,  131, 131, -110, -21 }, /* RGBL_TO_YUV601L */
+	{  89, 175,  34, -50,  -99,  149, 149, -125, -24 }, /* RGBL_TO_YUV601F */
+	{  54, 183,  19, -30, -101,  131, 131, -119, -12 }, /* RGBL_TO_YUV709L */
+	{  63, 213,  22, -34, -115,  149, 149, -135, -14 }, /* RGBL_TO_YUV709F */
+	{  67, 174,  15, -37,  -94,  131, 131, -120, -11 }, /* RGBL_TO_YUV2020L */
+	{  78, 202,  18, -42, -107,  149, 149, -137, -12 }, /* RGBL_TO_YUV2020F */
+	{ 220,   0,   0,   0,  220,    0,   0,    0, 220 }, /* RGBF_TO_RGBL */
+	{  66, 129,  25, -38,  -74,  112, 112,  -94, -18 }, /* RGBF_TO_YUV601L */
+	{  77, 150,  29, -43,  -85,  128, 128, -107, -21 }, /* RGBF_TO_YUV601F */
+	{  47, 157,  16, -26,  -87,  113, 112, -102, -10 }, /* RGBF_TO_YUV709L */
+	{  54, 183,  19, -29,  -99,  128, 128, -116, -12 }, /* RGBF_TO_YUV709F */
+	{  58, 149,  13, -31,  -81,  112, 112, -103,  -9 }, /* RGBF_TO_YUV2020L */
+	{  67, 174,  15, -36,  -92,  128, 128, -118, -10 }, /* RGBF_TO_YUV2020F */
+	{ 256,   0, 351, 256,  -86, -179, 256,  444,   0 }, /* YUV601L_TO_RGBL */
+	{ 298,   0, 409, 298, -100, -208, 298,  516,   0 }, /* YUV601L_TO_RGBF */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV601L_TO_YUV601F */
+	{ 256, -30, -53,   0,  261,   29,   0,   19, 262 }, /* YUV601L_TO_YUV709L */
+	{ 298, -34, -62,   0,  297,   33,   0,   22, 299 }, /* YUV601L_TO_YUV709F */
+	{ 220,   0, 308, 220,  -76, -157, 220,  390,   0 }, /* YUV601F_TO_RGBL */
+	{ 256,   0, 359, 256,  -88, -183, 256,  454,   0 }, /* YUV601F_TO_RGBF */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV601F_TO_YUV601L */
+	{ 220, -26, -47,   0,  229,   26,   0,   17, 231 }, /* YUV601F_TO_YUV709L */
+	{ 256, -30, -54,   0,  261,   29,   0,   19, 262 }, /* YUV601F_TO_YUV709F */
+	{ 256,   0, 394, 256,  -47, -117, 256,  464,   0 }, /* YUV709L_TO_RGBL */
+	{ 298,   0, 459, 298,  -55, -136, 298,  541,   0 }, /* YUV709L_TO_RGBF */
+	{ 256,  25,  49,   0,  253,  -28,   0,  -19, 252 }, /* YUV709L_TO_YUV601L */
+	{ 298,  30,  57,   0,  288,  -32,   0,  -21, 287 }, /* YUV709L_TO_YUV601F */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV709L_TO_YUV709F */
+	{ 220,   0, 346, 220,  -41, -103, 220,  408,   0 }, /* YUV709F_TO_RGBL */
+	{ 256,   0, 403, 256,  -48, -120, 256,  475,   0 }, /* YUV709F_TO_RGBF */
+	{ 220,  22,  43,   0,  223,  -25,   0,  -16, 221 }, /* YUV709F_TO_YUV601L */
+	{ 256,  26,  50,   0,  253,  -28,   0,  -19, 252 }, /* YUV709F_TO_YUV601F */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV709F_TO_YUV709L */
+	{ 256,   0, 369, 256,  -41, -143, 256,  471,   0 }, /* YUV2020L_TO_RGBL */
+	{ 298,   0, 430, 298,  -48, -167, 298,  548,   0 }, /* YUV2020L_TO_RGBF */
+	{ 298,   0,   0,   0,  291,    0,   0,    0, 291 }, /* YUV2020L_TO_YUV2020F */
+	{ 220,   0, 324, 220,  -36, -126, 220,  414,   0 }, /* YUV2020F_TO_RGBL */
+	{ 256,   0, 377, 256,  -42, -146, 256,  482,   0 }, /* YUV2020F_TO_RGBF */
+	{ 220,   0,   0,   0,  225,    0,   0,    0, 225 }, /* YUV2020F_TO_YUV2020L */
+	{ 220,   0,   0,   0,  220,    0,   0,    0, 220 }, /* RGB2020F_TO_RGB2020L */
+	{ 298,   0,   0,   0,  298,    0,   0,    0, 298 }, /* RGB2020L_TO_RGB2020F */
+	{ 256,   0,   0,   0,  256,    0,   0,    0, 256 }, /* IDENTITY_MODE */
 };
 
-/* BT.709 limit(i.e. HD) -> RGB full */
-static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_limit_to_rgb_full = {
-	1196, 0, 1841,
-	1196, -219, -547,
-	1196, 2169, 0
+/* for 10bit pixel depth + 10bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_10bit_pix_10bit_precision[] = {
+	{ 1196,    0,    0,    0, 1196,    0,    0,    0, 1196 }, /* RGBL_TO_RGBF */
+	{  306,  601,  117, -177, -347,  524,  524, -439,  -85 }, /* RGBL_TO_YUV601L */
+	{  358,  702,  136, -202, -396,  598,  598, -501,  -97 }, /* RGBL_TO_YUV601F */
+	{  218,  732,   74, -120, -404,  524,  524, -476,  -48 }, /* RGBL_TO_YUV709L */
+	{  254,  855,   86, -137, -461,  598,  598, -543,  -55 }, /* RGBL_TO_YUV709F */
+	{  269,  694,   61, -146, -377,  524,  524, -482,  -42 }, /* RGBL_TO_YUV2020L */
+	{  314,  811,   71, -167, -431,  598,  598, -550,  -48 }, /* RGBL_TO_YUV2020F */
+	{  877,    0,    0,    0,  877,    0,    0,    0,  877 }, /* RGBF_TO_RGBL */
+	{  262,  515,  100, -151, -297,  448,  448, -376,  -73 }, /* RGBF_TO_YUV601L */
+	{  306,  601,  117, -173, -339,  512,  512, -429,  -83 }, /* RGBF_TO_YUV601F */
+	{  186,  627,   63, -103, -346,  448,  448, -407,  -41 }, /* RGBF_TO_YUV709L */
+	{  218,  732,   74, -117, -395,  512,  512, -465,  -47 }, /* RGBF_TO_YUV709F */
+	{  230,  595,   52, -125, -323,  448,  448, -412,  -36 }, /* RGBF_TO_YUV2020L */
+	{  269,  694,   61, -143, -369,  512,  512, -471,  -41 }, /* RGBF_TO_YUV2020F */
+	{ 1024,    0, 1404, 1024, -344, -715, 1024, 1774,    0 }, /* YUV601L_TO_RGBL */
+	{ 1196,    0, 1639, 1196, -402, -835, 1196, 2072,    0 }, /* YUV601L_TO_RGBF */
+	{ 1196,    0,    0,    0, 1169,    0,    0,    0, 1169 }, /* YUV601L_TO_YUV601F */
+	{ 1024, -118, -213,    0, 1043,  117,    0,   77, 1050 }, /* YUV601L_TO_YUV709L */
+	{ 1196, -138, -249,    0, 1191,  134,    0,   88, 1199 }, /* YUV601L_TO_YUV709F */
+	{  877,    0, 1229,  877, -302, -626,  877, 1554,    0 }, /* YUV601F_TO_RGBL */
+	{ 1024,    0, 1436, 1024, -352, -731, 1024, 1815,    0 }, /* YUV601F_TO_RGBF */
+	{  877,    0,    0,    0,  897,    0,    0,    0,  897 }, /* YUV601F_TO_YUV601L */
+	{  877, -106, -191,    0,  914,  103,    0,   67,  920 }, /* YUV601F_TO_YUV709L */
+	{ 1024, -121, -218,    0, 1043,  117,    0,   77, 1050 }, /* YUV601F_TO_YUV709F */
+	{ 1024,    0, 1577, 1024, -188, -469, 1024, 1858,    0 }, /* YUV709L_TO_RGBL */
+	{ 1196,    0, 1841, 1196, -219, -547, 1196, 2169,    0 }, /* YUV709L_TO_RGBF */
+	{ 1024,  104,  201,    0, 1014, -113,    0,  -74, 1007 }, /* YUV709L_TO_YUV601L */
+	{ 1196,  119,  229,    0, 1157, -129,    0,  -85, 1150 }, /* YUV709L_TO_YUV601F */
+	{ 1196,    0,    0,    0, 1169,    0,    0,    0, 1169 }, /* YUV709L_TO_YUV709F */
+	{  877,    0, 1381,  877, -164, -410,  877, 1627,    0 }, /* YUV709F_TO_RGBL */
+	{ 1024,    0, 1613, 1024, -192, -479, 1024, 1900,    0 }, /* YUV709F_TO_RGBF */
+	{  877,   91,  176,    0,  888,  -99,    0,  -65,  882 }, /* YUV709F_TO_YUV601L */
+	{ 1024,  104,  201,    0, 1014, -113,    0,  -74, 1007 }, /* YUV709F_TO_YUV601F */
+	{  877,    0,    0,    0,  897,    0,    0,    0,  897 }, /* YUV709F_TO_YUV709L */
+	{ 1024,    0, 1476, 1024, -165, -572, 1024, 1884,    0 }, /* YUV2020L_TO_RGBL */
+	{ 1196,    0, 1724, 1196, -192, -668, 1196, 2200,    0 }, /* YUV2020L_TO_RGBF */
+	{ 1196,    0,    0,    0, 1169,    0,    0,    0, 1169 }, /* YUV2020L_TO_YUV2020F */
+	{  877,    0, 1293,  877, -144, -501,  877, 1650,    0 }, /* YUV2020F_TO_RGBL */
+	{ 1024,    0, 1510, 1024, -169, -585, 1024, 1927,    0 }, /* YUV2020F_TO_RGBF */
+	{  877,    0,    0,    0,  897,    0,    0,    0,  897 }, /* YUV2020F_TO_YUV2020L */
+	{  877,    0,    0,    0,  877,    0,    0,    0,  877 }, /* RGB2020F_TO_RGB2020L */
+	{ 1196,    0,    0,    0, 1196,    0,    0,    0, 1196 }, /* RGB2020L_TO_RGB2020F */
+	{ 1024,    0,    0,    0, 1024,    0,    0,    0, 1024 }, /* IDENTITY_MODE */
 };
 
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_limit_to_rgb_full = {
-	-64, -512, -512,
-	0, 0, 0
+/* for 10bit pixel depth + 13bit coef precision case */
+static const struct rk_pq_csc_coef g_mode_csc_coefs_10bit_pix_13bit_precision[] = {
+	{ 9567,     0,     0,     0,  9567,     0,    0,     0, 9567 }, /* RGBL_TO_RGBF */
+	{ 2449,  4809,   934, -1414, -2776,  4190, 4189, -3508, -681 }, /* RGBL_TO_YUV601L */
+	{ 2860,  5616,  1091, -1614, -3169,  4783, 4783, -4005, -778 }, /* RGBL_TO_YUV601F */
+	{ 1742,  5859,   591,  -960, -3230,  4190, 4189, -3805, -384 }, /* RGBL_TO_YUV709L */
+	{ 2034,  6842,   691, -1096, -3687,  4783, 4783, -4345, -438 }, /* RGBL_TO_YUV709F */
+	{ 2152,  5554,   486, -1170, -3020,  4190, 4190, -3853, -337 }, /* RGBL_TO_YUV2020L */
+	{ 2513,  6486,   568, -1336, -3447,  4783, 4783, -4398, -385 }, /* RGBL_TO_YUV2020F */
+	{ 7015,     0,     0,     0,  7015,     0,    0,     0, 7015 }, /* RGBF_TO_RGBL */
+	{ 2097,  4118,   800, -1211, -2377,  3588, 3587, -3004, -583 }, /* RGBF_TO_YUV601L */
+	{ 2449,  4809,   934, -1382, -2714,  4096, 4096, -3430, -666 }, /* RGBF_TO_YUV601F */
+	{ 1491,  5017,   507,  -822, -2765,  3587, 3588, -3259, -329 }, /* RGBF_TO_YUV709L */
+	{ 1742,  5859,   591,  -939, -3157,  4096, 4096, -3720, -376 }, /* RGBF_TO_YUV709F */
+	{ 1843,  4756,   416, -1002, -2586,  3588, 3588, -3299, -289 }, /* RGBF_TO_YUV2020L */
+	{ 2152,  5554,   486, -1144, -2952,  4096, 4096, -3767, -329 }, /* RGBF_TO_YUV2020F */
+	{ 8192,     0, 11229,  8192, -2756, -5720, 8192, 14192,    0 }, /* YUV601L_TO_RGBL */
+	{ 9567,     0, 13113,  9567, -3219, -6679, 9567, 16574,    0 }, /* YUV601L_TO_RGBF */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV601L_TO_YUV601F */
+	{ 8192,  -947, -1703,     0,  8345,   939,    0,   615, 8399 }, /* YUV601L_TO_YUV709L */
+	{ 9567, -1105, -1989,     0,  9527,  1072,    0,   702, 9590 }, /* YUV601L_TO_YUV709F */
+	{ 7015,     0,  9835,  7015, -2414, -5010, 7015, 12430,    0 }, /* YUV601F_TO_RGBL */
+	{ 8192,     0, 11485,  8192, -2819, -5850, 8192, 14516,    0 }, /* YUV601F_TO_RGBF */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV601F_TO_YUV601L */
+	{ 7015,  -829, -1492,     0,  7309,   822,    0,   538, 7357 }, /* YUV601F_TO_YUV709L */
+	{ 8192,  -968, -1742,     0,  8345,   939,    0,   615, 8399 }, /* YUV601F_TO_YUV709F */
+	{ 8192,     0, 12613,  8192, -1500, -3749, 8192, 14862,    0 }, /* YUV709L_TO_RGBL */
+	{ 9567,     0, 14729,  9567, -1752, -4378, 9567, 17356,    0 }, /* YUV709L_TO_RGBF */
+	{ 8192,   814,  1570,     0,  8109,  -906,    0,  -594, 8056 }, /* YUV709L_TO_YUV601L */
+	{ 9567,   950,  1834,     0,  9258, -1035,    0,  -678, 9198 }, /* YUV709L_TO_YUV601F */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV709L_TO_YUV709F */
+	{ 7015,     0, 11047,  7015, -1314, -3284, 7015, 13017,    0 }, /* YUV709F_TO_RGBL */
+	{ 8192,     0, 12901,  8192, -1535, -3835, 8192, 15201,    0 }, /* YUV709F_TO_RGBF */
+	{ 7015,   713,  1375,     0,  7102,  -794,    0,  -520, 7056 }, /* YUV709F_TO_YUV601L */
+	{ 8192,   832,  1606,     0,  8109,  -906,    0,  -594, 8056 }, /* YUV709F_TO_YUV601F */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV709F_TO_YUV709L */
+	{ 8192,     0, 11810,  8192, -1318, -4576, 8192, 15068,    0 }, /* YUV2020L_TO_RGBL */
+	{ 9567,     0, 13792,  9567, -1539, -5344, 9567, 17597,    0 }, /* YUV2020L_TO_RGBF */
+	{ 9567,     0,     0,     0,  9353,     0,    0,     0, 9353 }, /* YUV2020L_TO_YUV2020F */
+	{ 7015,     0, 10344,  7015, -1154, -4008, 7015, 13198,    0 }, /* YUV2020F_TO_RGBL */
+	{ 8192,     0, 12080,  8192, -1348, -4681, 8192, 15412,    0 }, /* YUV2020F_TO_RGBF */
+	{ 7015,     0,     0,     0,  7175,     0,    0,     0, 7175 }, /* YUV2020F_TO_YUV2020L */
+	{ 7015,     0,     0,     0,  7015,     0,    0,     0, 7015 }, /* RGB2020F_TO_RGB2020L */
+	{ 9567,     0,     0,     0,  9567,     0,    0,     0, 9567 }, /* RGB2020L_TO_RGB2020F */
+	{ 8192,     0,     0,     0,  8192,     0,    0,     0, 8192 }, /* IDENTITY_MODE */
 };
 
-/* RGB full-> YUV601 (i.e. SD) limit */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_to_xv_yccsdy_cb_cr = {
-	262, 515, 100,
-	-151, -297, 448,
-	448, -376, -73
-};
-
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr = {
-	0, 0, 0,
-	64, 512, 512
-};
-
-/* RGB full-> YUV709 (i.e. SD) limit */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_to_hdy_cb_cr = {
-	186, 627, 63,
-	-103, -346, 448,
-	448, -407, -41
-};
-
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_hdy_cb_cr = {
-	0, 0, 0,
-	64, 512, 512
-};
-
-/* BT.709 (i.e. HD) -> to xv_ycc BT.601 (i.e. SD) */
-static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr = {
-	1024, 104, 201,
-	0, 1014, -113,
-	0, -74, 1007
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr = {
-	-64, -512, -512,
-	64, 512, 512
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full = {
-	0, -512, -512,
-	0, 512, 512
-};
-
-/* xv_ycc BT.601 (i.e. SD) -> to BT.709 (i.e. HD) */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr = {
-	1024, -118, -213,
-	0, 1043, 117,
-	0, 77, 1050
-};
-
-/* xv_ycc BT.601 full(i.e. SD) -> to BT.709 full(i.e. HD) */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_full_to_hdy_cb_cr_full = {
-	1024, -121, -218,
-	0, 1043, 117,
-	0, 77, 1050
-};
-
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr = {
-	-64, -512, -512,
-	64, 512, 512
-};
-
-/* xv_ycc BT.601 full(i.e. SD) -> RGB full */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_to_rgb_full = {
-	1024, 0, 1436,
-	1024, -352, -731,
-	1024, 1815, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_full = {
-	0, -512, -512,
-	0, 0, 0
-};
-
-/* BT.709 full(i.e. HD) -> RGB full */
-static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_rgb_full = {
-	1024, 0, 1613,
-	1024, -192, -479,
-	1024, 1900, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_rgb_full = {
-	0, -512, -512,
-	0, 0, 0
-};
-
-/* RGB full-> YUV601 full(i.e. SD) */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_to_xv_yccsdy_cb_cr_full = {
-	306, 601, 117,
-	-173, -339, 512,
-	512, -429, -83
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr_full = {
-	0, 0, 0,
-	0, 512, 512
-};
-
-/* RGB full-> YUV709 full (i.e. SD) */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_to_hdy_cb_cr_full = {
-	218, 732, 74,
-	-117, -395, 512,
-	512, -465, -47
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_hdy_cb_cr_full = {
-	0, 0, 0,
-	0, 512, 512
-};
-
-/* limit -> full */
-static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full = {
-	1196, 0, 0,
-	0, 1169, 0,
-	0, 0, 1169
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full = {
-	-64, -512, -512,
-	0, 512, 512
-};
-
-/* 601 limit -> 709 full */
-static const struct rk_pq_csc_coef rk_csc_table_identity_601_limit_to_709_full = {
-	1196, -138, -249,
-	0, 1191, 134,
-	0, 88, 1199
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_601_limit_to_709_full = {
-	-64, -512, -512,
-	0, 512, 512
-};
-
-/* 709 limit -> 601 full */
-static const struct rk_pq_csc_coef rk_csc_table_identity_709_limit_to_601_full = {
-	1196, 119, 229,
-	0, 1157, -129,
-	0, -85, 1150
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_709_limit_to_601_full = {
-	-64, -512, -512,
-	0, 512, 512
-};
-
-/* full ->   limit */
-static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit = {
-	877, 0, 0,
-	0, 897, 0,
-	0, 0, 897
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit = {
-	0, -512, -512,
-	64, 512, 512
-};
-
-/* 601 full ->  709 limit */
-static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_601_full_to_y_cb_cr_709_limit = {
-	877, -106, -191,
-	0, 914, 103,
-	0, 67, 920
-};
-static const struct rk_pq_csc_dc_coef
-rk_dc_csc_table_identity_y_cb_cr_601_full_to_y_cb_cr_709_limit = {
-	0, -512, -512,
-	64, 512, 512
-};
-
-/* 709 full ->  601 limit */
-static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_709_full_to_y_cb_cr_601_limit = {
-	877, 91, 176,
-	0, 888, -99,
-	0, -65, 882
-};
-static const struct rk_pq_csc_dc_coef
-rk_dc_csc_table_identity_y_cb_cr_709_full_to_y_cb_cr_601_limit = {
-	0, -512, -512,
-	64, 512, 512
-};
-
-/* xv_ycc BT.601 limit(i.e. SD) -> RGB limit */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_limit = {
-	1024, 0, 1404,
-	1024, -344, -715,
-	1024, 1774, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_limit = {
-	-64, -512, -512,
-	64, 64, 64
-};
-
-/* BT.709 limit(i.e. HD) -> RGB limit */
-static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_limit_to_rgb_limit = {
-	1024, 0, 1577,
-	1024, -188, -469,
-	1024, 1858, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_limit_to_rgb_limit = {
-	-64, -512, -512,
-	64, 64, 64
-};
-
-/* RGB limit-> YUV601 (i.e. SD) limit */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr = {
-	306, 601, 117,
-	-177, -347, 524,
-	524, -439, -85
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr = {
-	-64, -64, -64,
-	64, 512, 512
-};
-
-/* RGB limit -> YUV709 (i.e. SD) limit */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_hdy_cb_cr = {
-	218, 732, 74,
-	-120, -404, 524,
-	524, -476, -48
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_hdy_cb_cr = {
-	-64, -64, -64,
-	64, 512, 512
-};
-
-/* xv_ycc BT.601 full(i.e. SD) -> RGB limit */
-static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_to_rgb_limit = {
-	877, 0, 1229,
-	877, -302, -626,
-	877, 1554, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_limit = {
-	0, -512, -512,
-	64, 64, 64
-};
-
-/* BT.709 full(i.e. HD) -> RGB limit */
-static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_rgb_limit = {
-	877, 0, 1381,
-	877, -164, -410,
-	877, 1627, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_rgb_limit = {
-	0, -512, -512,
-	64, 64, 64
-};
-
-/* RGB limit-> YUV601 full(i.e. SD) */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_full = {
-	358, 702, 136,
-	-202, -396, 598,
-	598, -501, -97
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_full = {
-	-64, -64, -64,
-	0, 512, 512
-};
-
-/* RGB limit-> YUV709 full (i.e. SD) */
-static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_hdy_cb_cr_full = {
-	254, 855, 86,
-	-137, -461, 598,
-	598, -543, -55
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_hdy_cb_cr_full = {
-	-64, -64, -64,
-	0, 512, 512
-};
-
-/* RGB full -> RGB limit */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_to_rgb_limit = {
-	877, 0, 0,
-	0, 877, 0,
-	0, 0, 877
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_to_rgb_limit = {
-	0, 0, 0,
-	64, 64, 64
-};
-
-/* RGB limit -> RGB full */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_rgb = {
-	1196, 0, 0,
-	0, 1196, 0,
-	0, 0, 1196
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_rgb = {
-	-64, -64, -64,
-	0, 0, 0
-};
-
-/* RGB limit/full -> RGB limit/full */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_to_rgb = {
-	1024, 0, 0,
-	0, 1024, 0,
-	0, 0, 1024
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_to_rgb1 = {
-	-64, -64, -64,
-	64, 64, 64
-};
-
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_to_rgb2 = {
-	0, 0, 0,
-	0, 0, 0
-};
-
-static const struct rk_pq_csc_coef rk_csc_table_identity_yuv_to_rgb_2020 = {
-	1024, 0, 1510,
-	1024, -169, -585,
-	1024, 1927, 0
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_yuv_to_rgb_2020 = {
-	0, -512, -512,
-	0, 0, 0
-};
-
-/* 2020 RGB LIMIT ->YUV LIMIT */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_yuv_limit_2020 = {
-	269, 694, 61,
-	-146, -377, 524,
-	524, -482, -42
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_yuv_limit_2020 = {
-	-64, -64, -64,
-	64, 512, 512
-};
-
-/* 2020 RGB LIMIT ->YUV FULL */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_yuv_full_2020 = {
-	314, 811, 71,
-	-167, -431, 598,
-	598, -550, -48
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_yuv_full_2020 = {
-	-64, -64, -64,
-	0, 512, 512
-};
-
-/* 2020 RGB FULL ->YUV LIMIT */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_full_to_yuv_limit_2020 = {
-	230, 595, 52,
-	-125, -323, 448,
-	448, -412, -36
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_full_to_yuv_limit_2020 = {
-	0, 0, 0,
-	64, 512, 512
-};
-
-/* 2020 RGB FULL ->YUV FULL */
-static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_full_to_yuv_full_2020 = {
-	269, 694, 61,
-	-143, -369, 512,
-	512, -471, -41
-};
-static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_full_to_yuv_full_2020 = {
-	0, 0, 0,
-	0, 512, 512
-};
-
-/* identity matrix */
-static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_to_y_cb_cr = {
-	1024, 0, 0,
-	0, 1024, 0,
-	0, 0, 1024
+static const struct rk_csc_mode_coef g_csc_mode_coefs[] = {
+	{8, 8, g_mode_csc_coefs_8bit_pix_8bit_precision},
+	{10, 10, g_mode_csc_coefs_10bit_pix_10bit_precision},
+	{10, 13, g_mode_csc_coefs_10bit_pix_13bit_precision},
 };
 
 /* 10bit Hue Sin Look Up Table -> range[-30, 30] */
@@ -593,404 +411,6 @@ static const s32 g_hue_cos_table[PQ_CSC_HUE_TABLE_NUM] = {
 	901, 899, 897, 895, 893, 891, 889, 887
 };
 
-/*
- *CSC Param Struct
- */
-static const struct rk_csc_mode_coef g_mode_csc_coef[] = {
-	{
-		RK_PQ_CSC_YUV2RGB_601, "YUV601 L->RGB F",
-		&rk_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_full,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGB_709, "YUV709 L->RGB F",
-		&rk_csc_table_hdy_cb_cr_limit_to_rgb_full,
-		&rk_dc_csc_table_hdy_cb_cr_limit_to_rgb_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_RGB, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV_601, "RGB F->YUV601 L",
-		&rk_csc_table_rgb_to_xv_yccsdy_cb_cr,
-		&rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV_709, "RGB F->YUV709 L",
-		&rk_csc_table_rgb_to_hdy_cb_cr,
-		&rk_dc_csc_table_rgb_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_ITU_R_BT_709, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_709_601, "YUV709 L->YUV601 L",
-		&rk_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr,
-		&rk_dc_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_XV_YCC_601, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_601_709, "YUV601 L->YUV709 L",
-		&rk_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_ITU_R_BT_709, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV, "YUV L->YUV L",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_ITU_R_BT_709, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGB_601_FULL, "YUV601 F->RGB F",
-		&rk_csc_table_xv_yccsdy_cb_cr_to_rgb_full,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, true, true
-		}
-	},
-		{
-		RK_PQ_CSC_YUV2RGB_709_FULL, "YUV709 F->RGB F",
-		&rk_csc_table_hdy_cb_cr_to_rgb_full,
-		&rk_dc_csc_table_hdy_cb_cr_to_rgb_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_RGB, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV_601_FULL, "RGB F->YUV601 F",
-		&rk_csc_table_rgb_to_xv_yccsdy_cb_cr_full,
-		&rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV_709_FULL, "RGB F->YUV709 F",
-		&rk_csc_table_rgb_to_hdy_cb_cr_full,
-		&rk_dc_csc_table_rgb_to_hdy_cb_cr_full,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_ITU_R_BT_709, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_709_601_FULL, "YUV709 F->YUV601 F",
-		&rk_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr,
-		&rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_XV_YCC_601, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_601_709_FULL, "YUV601 F->YUV709 F",
-		&rk_csc_table_xv_yccsdy_cb_cr_full_to_hdy_cb_cr_full,
-		&rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_ITU_R_BT_709, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL, "YUV F->YUV F",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_ITU_R_BT_709, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_LIMIT2FULL, "YUV L->YUV F",
-		&rk_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		&rk_dc_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_ITU_R_BT_709, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_601_709_LIMIT2FULL, "YUV601 L->YUV709 F",
-		&rk_csc_table_identity_601_limit_to_709_full,
-		&rk_dc_csc_table_identity_601_limit_to_709_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_ITU_R_BT_709, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_709_601_LIMIT2FULL, "YUV709 L->YUV601 F",
-		&rk_csc_table_identity_709_limit_to_601_full,
-		&rk_dc_csc_table_identity_709_limit_to_601_full,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_XV_YCC_601, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL2LIMIT, "YUV F->YUV L",
-		&rk_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		&rk_dc_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_ITU_R_BT_709, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_601_709_FULL2LIMIT, "YUV601 F->YUV709 L",
-		&rk_csc_table_identity_y_cb_cr_601_full_to_y_cb_cr_709_limit,
-		&rk_dc_csc_table_identity_y_cb_cr_601_full_to_y_cb_cr_709_limit,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_ITU_R_BT_709, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_709_601_FULL2LIMIT, "YUV709 F->YUV601 L",
-		&rk_csc_table_identity_y_cb_cr_709_full_to_y_cb_cr_601_limit,
-		&rk_dc_csc_table_identity_y_cb_cr_709_full_to_y_cb_cr_601_limit,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_XV_YCC_601, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGBL_601, "YUV601 L->RGB L",
-		&rk_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_limit,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_limit,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGBL_709, "YUV709 L->RGB L",
-		&rk_csc_table_hdy_cb_cr_limit_to_rgb_limit,
-		&rk_dc_csc_table_hdy_cb_cr_limit_to_rgb_limit,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_RGB, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2YUV_601, "RGB L->YUV601 L",
-		&rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr,
-		&rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2YUV_709, "RGB L->YUV709 L",
-		&rk_csc_table_rgb_limit_to_hdy_cb_cr,
-		&rk_dc_csc_table_rgb_limit_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_ITU_R_BT_709, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGBL_601_FULL, "YUV601 F->RGB L",
-		&rk_csc_table_xv_yccsdy_cb_cr_to_rgb_limit,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_limit,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGBL_709_FULL, "YUV709 F->RGB L",
-		&rk_csc_table_hdy_cb_cr_to_rgb_limit,
-		&rk_dc_csc_table_hdy_cb_cr_to_rgb_limit,
-		{
-			OPTM_CS_E_ITU_R_BT_709, OPTM_CS_E_RGB, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2YUV_601_FULL, "RGB L->YUV601 F",
-		&rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_full,
-		&rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2YUV_709_FULL, "RGB L->YUV709 F",
-		&rk_csc_table_rgb_limit_to_hdy_cb_cr_full,
-		&rk_dc_csc_table_rgb_limit_to_hdy_cb_cr_full,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_ITU_R_BT_709, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2RGBL, "RGB F->RGB L",
-		&rk_csc_table_identity_rgb_to_rgb_limit,
-		&rk_dc_csc_table_identity_rgb_to_rgb_limit,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_RGB, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2RGB, "RGB L->RGB F",
-		&rk_csc_table_identity_rgb_limit_to_rgb,
-		&rk_dc_csc_table_identity_rgb_limit_to_rgb,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_RGB, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2RGBL, "RGB L->RGB L",
-		&rk_csc_table_identity_rgb_to_rgb,
-		&rk_dc_csc_table_identity_rgb_to_rgb1,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_RGB, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2RGB, "RGB F->RGB F",
-		&rk_csc_table_identity_rgb_to_rgb,
-		&rk_dc_csc_table_identity_rgb_to_rgb2,
-		{
-			OPTM_CS_E_RGB, OPTM_CS_E_RGB, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2RGB_2020, "YUV2020 F->RGB2020 F",
-		&rk_csc_table_identity_yuv_to_rgb_2020,
-		&rk_dc_csc_table_identity_yuv_to_rgb_2020,
-		{
-			OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_RGB_2020, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV2020_LIMIT2FULL, "RGB2020 L->YUV2020 F",
-		&rk_csc_table_identity_rgb_limit_to_yuv_full_2020,
-		&rk_dc_csc_table_identity_rgb_limit_to_yuv_full_2020,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV2020_LIMIT, "RGB2020 L->YUV2020 L",
-		&rk_csc_table_identity_rgb_limit_to_yuv_limit_2020,
-		&rk_dc_csc_table_identity_rgb_limit_to_yuv_limit_2020,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV2020_FULL2LIMIT, "RGB2020 F->YUV2020 L",
-		&rk_csc_table_identity_rgb_full_to_yuv_limit_2020,
-		&rk_dc_csc_table_identity_rgb_full_to_yuv_limit_2020,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2YUV2020_FULL, "RGB2020 F->YUV2020 F",
-		&rk_csc_table_identity_rgb_full_to_yuv_full_2020,
-		&rk_dc_csc_table_identity_rgb_full_to_yuv_full_2020,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_XV_YCC_2020, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV, "YUV 601 L->YUV 601 L",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL, "YUV 601 F->YUV 601 F",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_LIMIT2FULL, "YUV 601 L->YUV 601 F",
-		&rk_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		&rk_dc_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601,  false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL2LIMIT, "YUV 601 F->YUV 601 L",
-		&rk_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		&rk_dc_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_XV_YCC_601, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV, "YUV 2020 L->YUV 2020 L",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_xv_yccsdy_cb_cr_to_hdy_cb_cr,
-		{
-			OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL, "YUV 2020 F->YUV 2020 F",
-		&rk_csc_table_identity_y_cb_cr_to_y_cb_cr,
-		&rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full,
-		{
-			OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, true, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_LIMIT2FULL, "YUV 2020 L->YUV 2020 F",
-		&rk_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		&rk_dc_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full,
-		{
-			OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_YUV2YUV_FULL2LIMIT, "YUV 2020 F->YUV 2020 L",
-		&rk_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		&rk_dc_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit,
-		{
-			OPTM_CS_E_XV_YCC_2020, OPTM_CS_E_XV_YCC_2020, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2RGBL, "RGB 2020 F->RGB 2020 L",
-		&rk_csc_table_identity_rgb_to_rgb_limit,
-		&rk_dc_csc_table_identity_rgb_to_rgb_limit,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, true, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2RGB, "RGB 2020 L->RGB 2020 F",
-		&rk_csc_table_identity_rgb_limit_to_rgb,
-		&rk_dc_csc_table_identity_rgb_limit_to_rgb,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, false, true
-		}
-	},
-	{
-		RK_PQ_CSC_RGBL2RGBL, "RGB 2020 L->RGB 2020 L",
-		&rk_csc_table_identity_rgb_to_rgb,
-		&rk_dc_csc_table_identity_rgb_to_rgb1,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, false, false
-		}
-	},
-	{
-		RK_PQ_CSC_RGB2RGB, "RGB 2020 F->RGB 2020 F",
-		&rk_csc_table_identity_rgb_to_rgb,
-		&rk_dc_csc_table_identity_rgb_to_rgb2,
-		{
-			OPTM_CS_E_RGB_2020, OPTM_CS_E_RGB_2020, true, true
-		}
-	},
-};
-
 static const struct rk_pq_csc_coef r2y_for_y2y = {
 	306, 601, 117,
 	-173, -339, 512,
@@ -1027,6 +447,17 @@ static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
 	0, 1, 0,
 };
 
+static enum rk_pq_csc_version get_csc_version(u32 plat)
+{
+	switch (plat) {
+	case VOP_VERSION_RK3528:
+	case VOP_VERSION_RK3576:
+		return RK_PQ_CSC_V1;
+	default:
+		return RK_PQ_CSC_UNKNOWN;
+	}
+}
+
 static
 enum color_space_type get_color_space_type(enum drm_color_encoding color_encoding, bool is_yuv)
 {
@@ -1061,15 +492,34 @@ enum color_space_type get_color_space_type(enum drm_color_encoding color_encodin
 	return color_space_type;
 }
 
-static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
+static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mode *convert_mode)
 {
-	const struct rk_csc_colorspace_info *colorspace_info;
+	const struct rk_csc_mode_coef  *csc_mode_coef = NULL;
 	int i, j;
 	enum color_space_type input_color_space, output_color_space;
 	bool is_input_full_range = convert_mode->is_input_full_range;
 	bool is_output_full_range = convert_mode->is_output_full_range;
 	bool is_input_yuv = convert_mode->is_input_yuv;
 	bool is_output_yuv = convert_mode->is_output_yuv;
+	u8 pixel_depth = convert_mode->pixel_depth;
+	u8 coef_precision = convert_mode->coef_precision;
+
+	/* Search for coef table at different csc precision */
+	for (i = 0; i < ARRAY_SIZE(g_csc_mode_coefs); i++) {
+		if ((g_csc_mode_coefs[i].pixel_depth == pixel_depth) &&
+		    (g_csc_mode_coefs[i].coef_precision == coef_precision)) {
+			csc_mode_coef = &g_csc_mode_coefs[i];
+			break;
+		}
+	}
+
+	if (!csc_mode_coef)
+		return NULL;
+
+	/* csc input and output format is equal */
+	if ((is_input_full_range == is_output_full_range) && (is_input_yuv == is_output_yuv) &&
+	    (convert_mode->intput_color_encoding == convert_mode->output_color_encoding))
+		return &csc_mode_coef->csc_coef[RK_PQ_CSC_IDENTITY_MODE];
 
 	for (i = 0; i < 2; i++) {
 		input_color_space = get_color_space_type(convert_mode->intput_color_encoding,
@@ -1077,13 +527,13 @@ static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
 		output_color_space = get_color_space_type(convert_mode->output_color_encoding,
 							  is_output_yuv);
 
-		for (j = 0; j < ARRAY_SIZE(g_mode_csc_coef); j++) {
-			colorspace_info = &g_mode_csc_coef[j].st_csc_color_info;
-			if (colorspace_info->input_color_space == input_color_space &&
-			    colorspace_info->output_color_space == output_color_space &&
-			    colorspace_info->in_full_range == is_input_full_range &&
-			    colorspace_info->out_full_range == is_output_full_range)
-				return j;
+		/* Search for csc coef at different csc input/output format */
+		for (j = 0; j < ARRAY_SIZE(g_csc_color_info); j++) {
+			if (g_csc_color_info[j].input_color_space == input_color_space &&
+			    g_csc_color_info[j].output_color_space == output_color_space &&
+			    g_csc_color_info[j].in_full_range == is_input_full_range &&
+			    g_csc_color_info[j].out_full_range == is_output_full_range)
+				return &csc_mode_coef->csc_coef[j];
 		}
 
 		/*
@@ -1094,7 +544,7 @@ static int csc_get_mode_index(struct post_csc_convert_mode *convert_mode)
 		convert_mode->intput_color_encoding = convert_mode->output_color_encoding;
 	}
 
-	return -EINVAL;
+	return NULL;
 }
 
 static void csc_matrix_multiply(struct rk_pq_csc_coef *dst, const struct rk_pq_csc_coef *m0,
@@ -1274,9 +724,9 @@ static struct rk_pq_csc_coef create_saturation_matrix(s32 saturation)
 	return m;
 }
 
-static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
+static int csc_calc_adjust_output_coef(struct post_csc_convert_mode *convert_mode,
 				       struct post_csc *csc_input_cfg,
-				       const struct rk_csc_mode_coef *csc_mode_cfg,
+				       const struct rk_pq_csc_coef *csc_coef,
 				       struct rk_pq_csc_coef *out_matrix,
 				       struct rk_pq_csc_ventor *out_dc)
 {
@@ -1290,11 +740,11 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 	struct rk_pq_csc_ventor dc_in_ventor;
 	struct rk_pq_csc_ventor dc_out_ventor;
 	struct rk_pq_csc_ventor v;
-	const struct rk_csc_colorspace_info *color_info;
 	s32 contrast, saturation, brightness;
 	s32 r_gain, g_gain, b_gain;
 	s32 r_offset, g_offset, b_offset;
 	s32 dc_in_offset, dc_out_offset;
+	s32 offset_shift_bits;
 
 	contrast = csc_input_cfg->contrast * PQ_CSC_PARAM_FIX_NUM / PQ_CSC_IN_PARAM_NORM_COEF;
 	saturation = csc_input_cfg->saturation  * PQ_CSC_PARAM_FIX_NUM / PQ_CSC_IN_PARAM_NORM_COEF;
@@ -1313,17 +763,16 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 	hue_matrix = create_hue_matrix(csc_input_cfg->hue);
 	saturation_matrix = create_saturation_matrix(saturation);
 
-	color_info = &csc_mode_cfg->st_csc_color_info;
 	brightness = (s32)csc_input_cfg->brightness - PQ_CSC_BRIGHTNESS_OFFSET;
-	dc_in_offset = color_info->in_full_range ? 0 : -PQ_CSC_DC_IN_OFFSET;
-	dc_out_offset = color_info->out_full_range ? 0 : PQ_CSC_DC_IN_OFFSET;
+	dc_in_offset = convert_mode->is_input_full_range ? 0 : -PQ_CSC_DC_IN_OFFSET;
+	dc_out_offset = convert_mode->is_output_full_range ? 0 : PQ_CSC_DC_IN_OFFSET;
 
 	/*
 	 * M0 = hue_matrix * saturation_matrix,
 	 * M1 = gain_matrix * constrast_matrix,
 	 */
 
-	if (is_input_yuv && is_output_yuv) {
+	if (convert_mode->is_input_yuv && convert_mode->is_output_yuv) {
 		/*
 		 * yuv2yuv: output = T * M0 * N_r2y * M1 * N_y2r,
 		 * so output = T * hue_matrix * saturation_matrix *
@@ -1331,7 +780,7 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		 */
 		r2y_matrix = &r2y_for_y2y;
 		y2r_matrix = &y2r_for_y2y;
-		csc_matrix_multiply(&temp0, csc_mode_cfg->pst_csc_coef, &hue_matrix);
+		csc_matrix_multiply(&temp0, csc_coef, &hue_matrix);
 		/*
 		 * The value bits width is 32 bit, so every time 2 matirx multifly,
 		 * right shift is necessary to avoid overflow. For enhancing the
@@ -1358,13 +807,13 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		dc_out_ventor.csc_offset0 = brightness + dc_out_offset;
 		dc_out_ventor.csc_offset1 = PQ_CSC_DC_IN_OUT_DEFAULT;
 		dc_out_ventor.csc_offset2 = PQ_CSC_DC_IN_OUT_DEFAULT;
-	} else if (is_input_yuv && !is_output_yuv) {
+	} else if (convert_mode->is_input_yuv && !convert_mode->is_output_yuv) {
 		/*
 		 * yuv2rgb: output = M1 * T * M0,
 		 * so output = gain_matrix * contrast_matrix * T *
 		 * hue_matrix * saturation_matrix
 		 */
-		csc_matrix_multiply(&temp0, csc_mode_cfg->pst_csc_coef, &hue_matrix);
+		csc_matrix_multiply(&temp0, csc_coef, &hue_matrix);
 		csc_matrix_element_right_shift(&temp0, PQ_CSC_PARAM_FIX_BIT_WIDTH -
 					       PQ_CALC_ENHANCE_BIT);
 		csc_matrix_multiply(&temp1, &temp0, &saturation_matrix);
@@ -1381,13 +830,13 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		dc_out_ventor.csc_offset0 = brightness + dc_out_offset + r_offset;
 		dc_out_ventor.csc_offset1 = brightness + dc_out_offset + g_offset;
 		dc_out_ventor.csc_offset2 = brightness + dc_out_offset + b_offset;
-	} else if (!is_input_yuv && is_output_yuv) {
+	} else if (!convert_mode->is_input_yuv && convert_mode->is_output_yuv) {
 		/*
 		 * rgb2yuv: output = M0 * T * M1,
 		 * so output = hue_matrix * saturation_matrix * T *
 		 * gain_matrix * contrast_matrix
 		 */
-		csc_matrix_multiply(&temp0, csc_mode_cfg->pst_csc_coef, &gain_matrix);
+		csc_matrix_multiply(&temp0, csc_coef, &gain_matrix);
 		csc_matrix_element_right_shift(&temp0, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH -
 					       PQ_CALC_ENHANCE_BIT);
 		csc_matrix_multiply(&temp1, &temp0, &contrast_matrix);
@@ -1424,7 +873,7 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_right_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp0, &temp1, r2y_matrix);
 		csc_matrix_element_right_shift(&temp0, PQ_CSC_PARAM_FIX_BIT_WIDTH);
-		csc_matrix_multiply(out_matrix, csc_mode_cfg->pst_csc_coef, &temp0);
+		csc_matrix_multiply(out_matrix, csc_coef, &temp0);
 		csc_matrix_element_right_shift_with_simple_round(out_matrix,
 								 PQ_CSC_PARAM_FIX_BIT_WIDTH +
 								 PQ_CALC_ENHANCE_BIT);
@@ -1437,29 +886,64 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		dc_out_ventor.csc_offset2 = brightness + dc_out_offset + b_offset;
 	}
 
+	if (convert_mode->pixel_depth < 10) {
+		offset_shift_bits = 10 - convert_mode->pixel_depth; // [1, 2]
+		dc_in_ventor.csc_offset0 >>= offset_shift_bits;
+		dc_in_ventor.csc_offset1 >>= offset_shift_bits;
+		dc_in_ventor.csc_offset2 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset0 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset1 >>= offset_shift_bits;
+		dc_out_ventor.csc_offset2 >>= offset_shift_bits;
+	} else {
+		offset_shift_bits = convert_mode->pixel_depth - 10; // [0, 3]
+		dc_in_ventor.csc_offset0 <<= offset_shift_bits;
+		dc_in_ventor.csc_offset1 <<= offset_shift_bits;
+		dc_in_ventor.csc_offset2 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset0 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset1 <<= offset_shift_bits;
+		dc_out_ventor.csc_offset2 <<= offset_shift_bits;
+	}
+
 	csc_matrix_ventor_multiply(&v, out_matrix, &dc_in_ventor);
-	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
-			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset0 = v.csc_offset0 +
+		(dc_out_ventor.csc_offset0 << convert_mode->coef_precision);
+	out_dc->csc_offset1 = v.csc_offset1 +
+		(dc_out_ventor.csc_offset1 << convert_mode->coef_precision);
+	out_dc->csc_offset2 = v.csc_offset2 +
+		(dc_out_ventor.csc_offset2 << convert_mode->coef_precision);
 
 	return 0;
 }
 
-static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_cfg,
+static void csc_get_range_offset(const struct post_csc_convert_mode *convert_mode,
+				 struct rk_pq_csc_dc_coef *csc_dc_coef)
+{
+	int offset_y = convert_mode->is_input_full_range ? 0 : 16;
+	int offset_c = convert_mode->is_input_yuv ? 128 : offset_y;
+	int offset_shift_bits = convert_mode->pixel_depth - 8;
+
+	csc_dc_coef->csc_in_dc0 = -offset_y << offset_shift_bits;
+	csc_dc_coef->csc_in_dc1 = -offset_c << offset_shift_bits;
+	csc_dc_coef->csc_in_dc2 = -offset_c << offset_shift_bits;
+
+	offset_y = convert_mode->is_output_full_range ? 0 : 16;
+	offset_c = convert_mode->is_output_yuv ? 128 : offset_y;
+	csc_dc_coef->csc_out_dc0 = offset_y << offset_shift_bits;
+	csc_dc_coef->csc_out_dc1 = offset_c << offset_shift_bits;
+	csc_dc_coef->csc_out_dc2 = offset_c << offset_shift_bits;
+}
+
+static int csc_calc_default_output_coef(const struct post_csc_convert_mode *convert_mode,
+					const struct rk_pq_csc_coef *csc_coef,
 					struct rk_pq_csc_coef *out_matrix,
 					struct rk_pq_csc_ventor *out_dc)
 {
-	const struct rk_pq_csc_coef *csc_coef;
-	const struct rk_pq_csc_dc_coef *csc_dc_coef;
 	struct rk_pq_csc_ventor dc_in_ventor;
 	struct rk_pq_csc_ventor dc_out_ventor;
 	struct rk_pq_csc_ventor v;
+	struct rk_pq_csc_dc_coef csc_dc_coef = {0};
 
-	csc_coef = csc_mode_cfg->pst_csc_coef;
-	csc_dc_coef = csc_mode_cfg->pst_csc_dc_coef;
+	csc_get_range_offset(convert_mode, &csc_dc_coef);
 
 	out_matrix->csc_coef00 = csc_coef->csc_coef00;
 	out_matrix->csc_coef01 = csc_coef->csc_coef01;
@@ -1471,20 +955,20 @@ static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_
 	out_matrix->csc_coef21 = csc_coef->csc_coef21;
 	out_matrix->csc_coef22 = csc_coef->csc_coef22;
 
-	dc_in_ventor.csc_offset0 = csc_dc_coef->csc_in_dc0;
-	dc_in_ventor.csc_offset1 = csc_dc_coef->csc_in_dc1;
-	dc_in_ventor.csc_offset2 = csc_dc_coef->csc_in_dc2;
-	dc_out_ventor.csc_offset0 = csc_dc_coef->csc_out_dc0;
-	dc_out_ventor.csc_offset1 = csc_dc_coef->csc_out_dc1;
-	dc_out_ventor.csc_offset2 = csc_dc_coef->csc_out_dc2;
+	dc_in_ventor.csc_offset0 = csc_dc_coef.csc_in_dc0;
+	dc_in_ventor.csc_offset1 = csc_dc_coef.csc_in_dc1;
+	dc_in_ventor.csc_offset2 = csc_dc_coef.csc_in_dc2;
+	dc_out_ventor.csc_offset0 = csc_dc_coef.csc_out_dc0;
+	dc_out_ventor.csc_offset1 = csc_dc_coef.csc_out_dc1;
+	dc_out_ventor.csc_offset2 = csc_dc_coef.csc_out_dc2;
 
 	csc_matrix_ventor_multiply(&v, csc_coef, &dc_in_ventor);
-	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset0 = v.csc_offset0 +
+		(dc_out_ventor.csc_offset0 << convert_mode->coef_precision);
+	out_dc->csc_offset1 = v.csc_offset1 +
+		(dc_out_ventor.csc_offset1 << convert_mode->coef_precision);
+	out_dc->csc_offset2 = v.csc_offset2 +
+		(dc_out_ventor.csc_offset2 << convert_mode->coef_precision);
 
 	return 0;
 }
@@ -1500,7 +984,7 @@ static inline s32 pq_csc_simple_round(s32 x, s32 n)
 	return (((x) >= 0) ? value : -value);
 }
 
-static void rockchip_swap_color_channel(bool is_input_yuv, bool is_output_yuv,
+static void rockchip_swap_color_channel(const struct post_csc_convert_mode *mode,
 					struct post_csc_coef *csc_simple_coef,
 					struct rk_pq_csc_coef *out_matrix,
 					struct rk_pq_csc_ventor *out_dc)
@@ -1508,30 +992,19 @@ static void rockchip_swap_color_channel(bool is_input_yuv, bool is_output_yuv,
 	struct rk_pq_csc_coef tmp_matrix;
 	struct rk_pq_csc_ventor tmp_v;
 
-	if (!is_input_yuv) {
-		memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
-		csc_matrix_multiply(out_matrix, &tmp_matrix, &rgb_input_swap_matrix);
-	}
+	if (mode->swap_channels) {
+		if (!mode->is_input_yuv) {
+			memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
+			csc_matrix_multiply(out_matrix, &tmp_matrix, &rgb_input_swap_matrix);
+		}
 
-	if (is_output_yuv) {
-		memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
-		memcpy(&tmp_v, out_dc, sizeof(struct rk_pq_csc_ventor));
-		csc_matrix_multiply(out_matrix, &yuv_output_swap_matrix, &tmp_matrix);
-		csc_matrix_ventor_multiply(out_dc, &yuv_output_swap_matrix, &tmp_v);
+		if (mode->is_output_yuv) {
+			memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
+			memcpy(&tmp_v, out_dc, sizeof(struct rk_pq_csc_ventor));
+			csc_matrix_multiply(out_matrix, &yuv_output_swap_matrix, &tmp_matrix);
+			csc_matrix_ventor_multiply(out_dc, &yuv_output_swap_matrix, &tmp_v);
+		}
 	}
-
-	csc_simple_coef->csc_coef00 = out_matrix->csc_coef00;
-	csc_simple_coef->csc_coef01 = out_matrix->csc_coef01;
-	csc_simple_coef->csc_coef02 = out_matrix->csc_coef02;
-	csc_simple_coef->csc_coef10 = out_matrix->csc_coef10;
-	csc_simple_coef->csc_coef11 = out_matrix->csc_coef11;
-	csc_simple_coef->csc_coef12 = out_matrix->csc_coef12;
-	csc_simple_coef->csc_coef20 = out_matrix->csc_coef20;
-	csc_simple_coef->csc_coef21 = out_matrix->csc_coef21;
-	csc_simple_coef->csc_coef22 = out_matrix->csc_coef22;
-	csc_simple_coef->csc_dc0 = out_dc->csc_offset0;
-	csc_simple_coef->csc_dc1 = out_dc->csc_offset1;
-	csc_simple_coef->csc_dc2 = out_dc->csc_offset2;
 }
 
 int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_simple_coef,
@@ -1540,33 +1013,51 @@ int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_s
 	int ret = 0;
 	struct rk_pq_csc_coef out_matrix;
 	struct rk_pq_csc_ventor out_dc;
-	const struct rk_csc_mode_coef *csc_mode_cfg;
+	const struct rk_pq_csc_coef *csc_coef;
 	int bit_num = PQ_CSC_SIMPLE_MAT_PARAM_FIX_BIT_WIDTH;
 
-	ret = csc_get_mode_index(convert_mode);
-	if (ret < 0) {
+	csc_coef = csc_get_csc_coef(convert_mode);
+	if (!csc_coef) {
 		DRM_ERROR("get csc index err:\n");
-		DRM_ERROR("input yuv %d full_range %d,output yuv %d full_range %d\n",
-			  convert_mode->is_input_yuv, convert_mode->is_input_full_range,
-			  convert_mode->is_output_yuv, convert_mode->is_output_full_range);
-		return ret;
+		DRM_ERROR("pixel_depth=%d, coef_precision=%d\n",
+			  convert_mode->pixel_depth, convert_mode->coef_precision);
+		DRM_ERROR("input: colorspace=%d, yuv=%d, full_range=%d\n",
+			  convert_mode->intput_color_encoding, convert_mode->is_input_yuv,
+			  convert_mode->is_input_full_range);
+		DRM_ERROR("output: colorspace=%d, yuv=%d, full_range=%d\n",
+			  convert_mode->output_color_encoding, convert_mode->is_output_yuv,
+			  convert_mode->is_output_full_range);
+		return -EINVAL;
 	}
 
-	csc_mode_cfg = &g_mode_csc_coef[ret];
 	if (csc_cfg)
-		ret = csc_calc_adjust_output_coef(convert_mode->is_input_yuv,
-						  convert_mode->is_output_yuv, csc_cfg,
-						  csc_mode_cfg, &out_matrix, &out_dc);
+		ret = csc_calc_adjust_output_coef(convert_mode, csc_cfg,
+						  csc_coef, &out_matrix, &out_dc);
 	else
-		ret = csc_calc_default_output_coef(csc_mode_cfg, &out_matrix, &out_dc);
+		ret = csc_calc_default_output_coef(convert_mode, csc_coef, &out_matrix,
+					   &out_dc);
 
-	rockchip_swap_color_channel(convert_mode->is_input_yuv, convert_mode->is_output_yuv,
-				    csc_simple_coef, &out_matrix, &out_dc);
+	rockchip_swap_color_channel(convert_mode, csc_simple_coef, &out_matrix, &out_dc);
 
-	csc_simple_coef->csc_dc0 = csc_simple_round(csc_simple_coef->csc_dc0, bit_num);
-	csc_simple_coef->csc_dc1 = csc_simple_round(csc_simple_coef->csc_dc1, bit_num);
-	csc_simple_coef->csc_dc2 = csc_simple_round(csc_simple_coef->csc_dc2, bit_num);
-	csc_simple_coef->range_type = csc_mode_cfg->st_csc_color_info.out_full_range;
+	csc_simple_coef->csc_coef00 = out_matrix.csc_coef00;
+	csc_simple_coef->csc_coef01 = out_matrix.csc_coef01;
+	csc_simple_coef->csc_coef02 = out_matrix.csc_coef02;
+	csc_simple_coef->csc_coef10 = out_matrix.csc_coef10;
+	csc_simple_coef->csc_coef11 = out_matrix.csc_coef11;
+	csc_simple_coef->csc_coef12 = out_matrix.csc_coef12;
+	csc_simple_coef->csc_coef20 = out_matrix.csc_coef20;
+	csc_simple_coef->csc_coef21 = out_matrix.csc_coef21;
+	csc_simple_coef->csc_coef22 = out_matrix.csc_coef22;
+	csc_simple_coef->csc_dc0 = out_dc.csc_offset0;
+	csc_simple_coef->csc_dc1 = out_dc.csc_offset1;
+	csc_simple_coef->csc_dc2 = out_dc.csc_offset2;
+
+	if (get_csc_version(convert_mode->plat) == RK_PQ_CSC_V1) {
+		csc_simple_coef->csc_dc0 = csc_simple_round(csc_simple_coef->csc_dc0, bit_num);
+		csc_simple_coef->csc_dc1 = csc_simple_round(csc_simple_coef->csc_dc1, bit_num);
+		csc_simple_coef->csc_dc2 = csc_simple_round(csc_simple_coef->csc_dc2, bit_num);
+	}
+	csc_simple_coef->range_type = convert_mode->is_output_full_range;
 
 	return ret;
 }

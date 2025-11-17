@@ -8283,6 +8283,7 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 	u32 parse_type = 0;
 	u32 output_type = 0;
 	struct csi_channel_info *channel = &dev->channels[stream->id];
+	struct rkmodule_irfpa_info irfpa_info = {0};
 
 	if (stream->state < RKCIF_STATE_STREAMING) {
 		stream->frame_idx = 0;
@@ -8296,6 +8297,10 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 	sensor_info = dev->active_sensor;
 	mbus = &sensor_info->mbus;
 
+	v4l2_subdev_call(sensor_info->sd,
+			 core, ioctl,
+			 RKMODULE_GET_IRFPA_INFO,
+			 &irfpa_info);
 	dma_state = stream->dma_en;
 	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE)
 		stream->dma_en |= RKCIF_DMAEN_BY_VICAP;
@@ -8416,6 +8421,10 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 		| DVP_SW_WATER_LINE_25_RV1126B;
 	if (stream->sw_dbg_en)
 		val |= BIT(31);
+	if (irfpa_info.irfpa_en) {
+		val |= (!!irfpa_info.gray_dec_en) << 10;
+		val |= (irfpa_info.raw14_mode & 0x3) << 8;
+	}
 	rkcif_write_register(dev, CIF_REG_DVP_CTRL, val);
 
 	channel->csi_fmt_val = stream->cif_fmt_in->csi_fmt_val;

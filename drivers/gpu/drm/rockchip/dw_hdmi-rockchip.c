@@ -206,6 +206,14 @@
 #define HDMI_MAX_VRR_REFRESH_RATE	120
 #define HDMI_MIN_VRR_REFRESH_RATE	24
 
+#define HDMI_COLORSPACE_CAPS_V1		(DRM_MODE_COLORIMETRY_DEFAULT | \
+					DRM_MODE_COLORIMETRY_SMPTE_170M_YCC | \
+					DRM_MODE_COLORIMETRY_BT709_YCC | \
+					DRM_MODE_COLORIMETRY_BT2020_RGB)
+
+#define HDMI_COLORSPACE_CAPS_V2		(HDMI_COLORSPACE_CAPS_V1 | \
+					DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65)
+
 struct rockchip_hdmi;
 
 struct rockchip_hdmi_chip_ops {
@@ -348,6 +356,7 @@ struct rockchip_hdmi {
 	struct drm_property *next_tfr;
 	struct drm_property *fva_factor_m1;
 	struct drm_property *hdmi_vrr_cap;
+	struct drm_property *hdmi_colorspace_caps;
 
 	struct drm_property_blob *mode_color_caps_ptr;
 	struct drm_property_blob *hdr_panel_blob_ptr;
@@ -372,7 +381,7 @@ struct rockchip_hdmi {
 	struct rockchip_drm_sub_dev sub_dev;
 
 	u64 force_frl_rate;
-	u8 edid_colorimetry;
+	u32 edid_colorimetry;
 	u8 hdcp_status;
 	u8 dovi_vsdb[DOVI_VSDB_LEN];
 	struct hdr10_plus_vsdb hdr10_plus_data;
@@ -2665,6 +2674,43 @@ static void rk3588_get_grf_color_fmt(struct rockchip_hdmi *hdmi, u32 *fmt, u32 *
 	*fmt = *fmt & RK3588_COLOR_FORMAT_MASK;
 }
 
+static unsigned long
+rockchip_hdmi_colorspace_to_color_encoding(u32 colorimetry, u32 edid_colorimetry, u8 vic)
+{
+	if (!(colorimetry & edid_colorimetry)) {
+		DRM_ERROR("colorimetry %d is not supported in edid\n", colorimetry);
+		return DRM_COLOR_YCBCR_BT601;
+	}
+
+	switch (colorimetry) {
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+		return DRM_COLOR_YCBCR_BT2020;
+	case DRM_MODE_COLORIMETRY_SMPTE_170M_YCC:
+		return DRM_COLOR_YCBCR_BT601;
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
+		return DRM_COLOR_YCBCR_BT709;
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+		return DRM_COLOR_DCI_P3;
+	/*
+	 * according to cea spec, sd resolution is set to output
+	 * in BT601 format by default. hd and higher resolutions
+	 * output bt709 by default
+	 */
+	case DRM_MODE_COLORIMETRY_DEFAULT:
+		if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
+		    (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18)) {
+			return DRM_COLOR_YCBCR_BT601;
+		}
+		return DRM_COLOR_YCBCR_BT709;
+	default:
+		DRM_ERROR("colorimetry %d is out of range\n", colorimetry);
+		break;
+	}
+
+	return DRM_COLOR_YCBCR_BT709;
+}
+
 static void
 dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       struct drm_crtc_state *crtc_state,
@@ -2686,6 +2732,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	bool sink_is_hdmi = true;
 	bool yuv422_out = false;
 	bool dsc_rate_supported;
+	bool hdr_no_bt2020 = false;
 	u32 max_tmds_clock = info->max_tmds_clock;
 	int output_eotf;
 
@@ -2768,27 +2815,20 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			*eotf = output_eotf;
 	}
 
-	hdmi->colorimetry = conn_state->colorspace;
+	*enc_out_encoding = conn_state->colorspace;
+
+	hdmi->colorimetry =
+		rockchip_hdmi_colorspace_to_color_encoding(conn_state->colorspace,
+							   hdmi->edid_colorimetry, vic);
+
+	if ((conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
+	     *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR) &&
+	    (hdmi->colorimetry != DRM_COLOR_YCBCR_BT2020))
+		hdr_no_bt2020 = true;
 
 	/* bt2020 sdr/hdr output */
-	if ((hdmi->colorimetry >= DRM_MODE_COLORIMETRY_BT2020_CYCC) &&
-	    (hdmi->colorimetry <= DRM_MODE_COLORIMETRY_BT2020_YCC) &&
-	    hdmi->edid_colorimetry & (BIT(6) | BIT(7))) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
+	if ((hdmi->colorimetry == DRM_COLOR_YCBCR_BT2020) || hdr_no_bt2020)
 		yuv422_out = true;
-	/* bt709 hdr output */
-	} else if (((hdmi->colorimetry <= DRM_MODE_COLORIMETRY_BT2020_CYCC) ||
-		    (hdmi->colorimetry >= DRM_MODE_COLORIMETRY_BT2020_YCC)) &&
-		   (conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
-		    *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR)) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_709;
-		yuv422_out = true;
-	} else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
-		   (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18)) {
-		*enc_out_encoding = V4L2_YCBCR_ENC_601;
-	} else {
-		*enc_out_encoding = V4L2_YCBCR_ENC_709;
-	}
 
 	if ((yuv422_out || hdmi->hdmi_output == RK_IF_FORMAT_YCBCR_HQ) && color_depth == 10 &&
 	    (hdmi_bus_fmt_color_depth(hdmi->prev_bus_format) == 8 ||
@@ -3121,14 +3161,7 @@ secondary:
 	if (hdmi->is_hdmi_qp && hdmi->link_cfg.dsc_mode)
 		dw_hdmi_qp_dsc_configure(hdmi, s, crtc_state);
 
-	if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_BT2020)
-		s->color_encoding = DRM_COLOR_YCBCR_BT2020;
-	else if (colorformat == RK_IF_FORMAT_RGB)/* sRGB color space is almost equal to bt.709 */
-		s->color_encoding = DRM_COLOR_YCBCR_BT709;
-	else if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_709)
-		s->color_encoding = DRM_COLOR_YCBCR_BT709;
-	else
-		s->color_encoding = DRM_COLOR_YCBCR_BT601;
+	s->color_encoding = hdmi->colorimetry;
 
 	if (colorformat == RK_IF_FORMAT_RGB)
 		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ?
@@ -3768,6 +3801,33 @@ static const struct drm_prop_enum_list allm_enable_list[] = {
 	{ 1, "enable" },
 };
 
+static const struct drm_prop_enum_list hdmi_colorspace_caps_list[] = {
+	/* For Default case, driver will set the colorspace */
+	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
+	/* Standard Definition Colorimetry based on CEA 861 */
+	{ DRM_MODE_COLORIMETRY_SMPTE_170M_YCC, "SMPTE_170M_YCC" },
+	{ DRM_MODE_COLORIMETRY_BT709_YCC, "BT709_YCC" },
+	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
+	/* High Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
+	/* Colorimetry based on IEC 61966-2-1/Amendment 1 */
+	{ DRM_MODE_COLORIMETRY_SYCC_601, "SYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 [33] */
+	{ DRM_MODE_COLORIMETRY_OPYCC_601, "opYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 */
+	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_CYCC, "BT2020_CYCC" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
+	/* Added as part of Additional Colorimetry Extension in 861.G */
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
+};
+
 static int
 hdmi_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					  struct drm_property_blob **blob,
@@ -4036,6 +4096,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		hdmi->mode_color_capacity = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
+
+	prop = drm_property_create_enum(connector->dev, 0,
+					"colorspace_caps",
+					hdmi_colorspace_caps_list,
+					ARRAY_SIZE(hdmi_colorspace_caps_list));
+	if (prop) {
+		hdmi->hdmi_colorspace_caps = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
 }
 
 static void
@@ -4150,6 +4219,11 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev, hdmi->hdmi_vrr_cap);
 		hdmi->hdmi_vrr_cap = NULL;
 	}
+
+	if (hdmi->hdmi_colorspace_caps) {
+		drm_property_destroy(connector->dev, hdmi->hdmi_colorspace_caps);
+		hdmi->hdmi_colorspace_caps = NULL;
+	}
 }
 
 static int
@@ -4239,6 +4313,8 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		dw_hdmi_qp_set_fva_factor_m1(hdmi->hdmi_qp, hdmi->fva_factor_m1_val);
 		return 0;
 	} else if (property == hdmi->hdmi_vrr_cap) {
+		return 0;
+	} else if (property == hdmi->hdmi_colorspace_caps) {
 		return 0;
 	}
 
@@ -4347,6 +4423,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 	} else if (property == hdmi->hdmi_vrr_cap) {
 		*val = hdmi->hdmi_vrr_cap_ptr ?
 			hdmi->hdmi_vrr_cap_ptr->base.id : 0;
+		return 0;
+	} else if (property == hdmi->hdmi_colorspace_caps) {
+		*val = hdmi->edid_colorimetry;
 		return 0;
 	}
 
