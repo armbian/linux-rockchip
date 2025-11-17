@@ -25,6 +25,7 @@ select:
           - rockchip,rk3368-gmac
           - rockchip,rk3399-gmac
           - rockchip,rk3528-gmac
+          - rockchip,rk3538-gmac
           - rockchip,rk3562-gmac
           - rockchip,rk3568-gmac
           - rockchip,rk3576-gmac
@@ -58,6 +59,7 @@ properties:
       - items:
           - enum:
               - rockchip,rk3528-gmac
+              - rockchip,rk3538-gmac
               - rockchip,rk3562-gmac
               - rockchip,rk3568-gmac
               - rockchip,rk3576-gmac
