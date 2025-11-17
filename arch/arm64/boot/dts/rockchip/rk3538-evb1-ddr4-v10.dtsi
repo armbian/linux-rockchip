@@ -184,3 +184,7 @@
 	vqmmc-supply = <&vccio_sd1_s0>;
 	status = "okay";
 };
+
+&spdif_tx_sound {
+	status = "okay";
+};

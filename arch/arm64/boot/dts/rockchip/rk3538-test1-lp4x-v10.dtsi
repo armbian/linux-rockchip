@@ -171,3 +171,7 @@
 		};
 	};
 };
+
+&spdif_tx_sound {
+	status = "okay";
+};

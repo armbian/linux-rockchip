@@ -126,3 +126,7 @@
 	pinctrl-0 = <&pwm0m1_ch3_pins>;
 	status = "okay";
 };
+
+&spdif_tx_sound {
+	status = "okay";
+};

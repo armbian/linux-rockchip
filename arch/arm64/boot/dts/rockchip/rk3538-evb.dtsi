@@ -4,6 +4,26 @@
  *
  */
 
+/ {
+	spdif_tx_dc: spdif-tx-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx_sound: spdif-tx-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "spdif-tx-sound";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx_dc>;
+		};
+	};
+};
+
 &crypto {
 	status = "okay";
 };
@@ -64,6 +84,10 @@
 	no-sd;
 	no-sdio;
 	non-removable;
+	status = "okay";
+};
+
+&spdif_tx {
 	status = "okay";
 };
 
