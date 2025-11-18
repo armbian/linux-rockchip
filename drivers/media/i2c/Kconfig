@@ -2268,6 +2268,16 @@ config VIDEO_SC635HAI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC635HAI camera.
 
+config VIDEO_SC8238
+	tristate "SmartSens SC8238 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC8238 camera.
+
 config VIDEO_SC830AI
 	tristate "SmartSens SC830AI sensor support"
 	depends on I2C && VIDEO_DEV
