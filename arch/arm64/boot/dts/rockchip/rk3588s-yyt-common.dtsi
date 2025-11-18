@@ -588,7 +588,7 @@
 /* CAN */
 &can2 {
     pinctrl-names = "default";
-    pinctrl-0 = <&can2m0_pins>;
+    pinctrl-0 = <&can2m1_pins>; /* GPIO0_PD4/PD5 (pins 20,22) to avoid conflict with UART5 */
     status = "okay";
 };
 
