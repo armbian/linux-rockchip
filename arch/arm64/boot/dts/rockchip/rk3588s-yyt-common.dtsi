@@ -273,10 +273,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m0_xfer>;
 
-	es8388: es8388@11 {
+	/* Audio codec: ES8388 chip, but only works with ES8323 driver */
+	es8323: es8323@11 {
 		status = "okay";
 		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
+		compatible = "everest,es8323";
 		reg = <0x11>;
 		clocks = <&mclkout_i2s0>;
 		clock-names = "mclk";

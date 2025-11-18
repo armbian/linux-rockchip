@@ -12,12 +12,12 @@
     model = "Youyeetoo R1";
     compatible = "youyeetoo,r1", "rockchip,rk3588";
 
-    /* AUDIO */
+    /* AUDIO - ES8388 chip, but only works with ES8323 driver */
 
-	es8388_sound: es8388-sound {
+	es8323_sound: es8323-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
+		rockchip,card-name = "rockchip-es8323";
         hp-det-gpio = <&gpio1 RK_PC0 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 3>;
 		io-channel-names = "adc-detect";
@@ -26,7 +26,7 @@
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
 		rockchip,cpu = <&i2s0_8ch>;
-		rockchip,codec = <&es8388>;
+		rockchip,codec = <&es8323>;
         rockchip,audio-routing =
             "Headphone", "LOUT1",
             "Headphone", "ROUT1",
