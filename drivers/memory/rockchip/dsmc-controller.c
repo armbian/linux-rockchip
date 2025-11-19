@@ -287,10 +287,10 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		if (!slv_rgn->status)
 			continue;
 
-		if (slv_rgn->dummy_clk_num >= 2)
+		if (slv_rgn->dummy_clk_num == 1)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x1 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
-		else if (slv_rgn->dummy_clk_num >= 1)
+		else if (slv_rgn->dummy_clk_num == 0)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x0 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
 		else
@@ -325,7 +325,7 @@ static int dsmc_slv_cmn_rgn_config(struct rockchip_dsmc *dsmc,
 {
 	uint32_t tmp;
 	struct device *dev = dsmc->dev;
-	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[0];
+	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[rgn];
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
 	tmp = lb_read_cmn(region_map, RGN_CMN_CON(rgn, 0));
@@ -363,11 +363,12 @@ static int dsmc_slv_cmn_rgn_config(struct rockchip_dsmc *dsmc,
 }
 
 static int dsmc_slv_cmn_config(struct rockchip_dsmc *dsmc,
-			       struct regions_config *slv_rgn, uint32_t cs)
+			       struct regions_config *slv_rgn,
+			       uint32_t rgn, uint32_t cs)
 {
 	uint32_t tmp;
 	struct device *dev = dsmc->dev;
-	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[0];
+	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[rgn];
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
 	tmp = lb_read_cmn(region_map, CMN_CON(3));
@@ -421,10 +422,10 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 		ret = dsmc_slv_cmn_rgn_config(dsmc, slv_rgn, i, cs);
 		if (ret)
 			break;
+		ret = dsmc_slv_cmn_config(dsmc, slv_rgn, i, cs);
+		if (ret)
+			break;
 	}
-
-	slv_rgn = &cfg->slv_rgn[0];
-	ret = dsmc_slv_cmn_config(dsmc, slv_rgn, cs);
 
 	for (i = 0; i < DSMC_MAX_SLAVE_NUM; i++)
 		/* config to memory space */
@@ -443,10 +444,27 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 	return ret;
 }
 
-static void dsmc_lb_csr_config(struct rockchip_dsmc *dsmc, uint32_t cs)
+static int dsmc_lb_csr_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
+	uint32_t i;
 	uint32_t mcr_tmp, rgn_attr_tmp;
-	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[0];
+	struct dsmc_map *region_map = NULL;
+	struct regions_config *slv_rgn;
+	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
+	struct device *dev = dsmc->dev;
+
+	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
+		slv_rgn = &cfg->slv_rgn[i];
+		if (slv_rgn->status) {
+			region_map = &dsmc->cs_map[cs].region_map[i];
+			break;
+		}
+	}
+
+	if (region_map == NULL) {
+		dev_err(dev, "Cannot find an enable region.\n");
+		return -ENODEV;
+	}
 
 	mcr_tmp = readl(dsmc->regs + DSMC_MCR(cs));
 	rgn_attr_tmp = readl(dsmc->regs + DSMC_RGN0_ATTR(cs));
@@ -469,6 +487,8 @@ static void dsmc_lb_csr_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 	/* config to normal memory space */
 	writel(mcr_tmp, dsmc->regs + DSMC_MCR(cs));
 	writel(rgn_attr_tmp, dsmc->regs + DSMC_RGN0_ATTR(cs));
+
+	return 0;
 }
 
 static void dsmc_cfg_latency(uint32_t rd_ltcy, uint32_t wr_ltcy,
@@ -772,14 +792,28 @@ static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint3
 				    uint32_t byte, uint32_t dll_num)
 {
 	uint32_t i, j;
-	uint32_t data;
+	uint32_t data, rgn;
 	uint32_t size = 0x100;
+	struct dsmc_map *map = NULL;
+	struct regions_config *slv_rgn;
 	const struct dsmc_ops *ops = dsmc_dev->ops;
 	struct dsmc_config_cs *cfg = &dsmc_dev->dsmc.cfg.cs_cfg[cs];
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
-	struct dsmc_map *map = &dsmc_dev->dsmc.cs_map[cs].region_map[0];
+	struct device *dev = dsmc->dev;
 	uint32_t pattern[] = {0x5aa5f00f, 0xffff0000};
 	uint32_t mask;
+
+	for (rgn = 0; rgn < DSMC_LB_MAX_RGN; rgn++) {
+		slv_rgn = &cfg->slv_rgn[rgn];
+		if (slv_rgn->status) {
+			map = &dsmc->cs_map[cs].region_map[rgn];
+			break;
+		}
+	}
+	if (map == NULL) {
+		dev_err(dev, "Cannot find an enable region.\n");
+		return -ENODEV;
+	}
 
 	if (cfg->io_width == MCR_IOWIDTH_X8) {
 		mask = 0xffffffff;
@@ -796,7 +830,7 @@ static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint3
 	for (j = 0; j < ARRAY_SIZE(pattern); j++) {
 		data_cpu_to_dsmc_io(&pattern[j]);
 		for (i = 0; i < size; i += 4)
-			ops->write(dsmc_dev, cs, 0, i, (pattern[j] + i) & mask);
+			ops->write(dsmc_dev, cs, rgn, i, (pattern[j] + i) & mask);
 
 #ifdef CONFIG_ARM64
 		dcache_clean_inval_poc((unsigned long)map->virt, (unsigned long)(map->virt + size));
@@ -805,7 +839,7 @@ static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint3
 #endif
 
 		for (i = 0; i < size; i += 4) {
-			ops->read(dsmc_dev, cs, 0, i, &data);
+			ops->read(dsmc_dev, cs, rgn, i, &data);
 			if (data != ((pattern[j] + i) & mask))
 				return -EINVAL;
 		}
@@ -1022,7 +1056,7 @@ int rockchip_dsmc_lb_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 	ret = dsmc_lb_cmn_config(dsmc, cs);
 	if (ret)
 		return ret;
-	dsmc_lb_csr_config(dsmc, cs);
+	ret = dsmc_lb_csr_config(dsmc, cs);
 
 	return ret;
 }
