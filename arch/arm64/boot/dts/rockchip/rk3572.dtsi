@@ -1734,6 +1734,7 @@
 				 <&cru CLK_GPU>;
 			clock-names = "clk_gpu_coregroup", "clk_gpu_stacks",
 				      "clk_gpu";
+			power-domains = <&power RK3572_PD_GPU>;
 
 			upthreshold = <30>;
 			downdifferential = <10>;
