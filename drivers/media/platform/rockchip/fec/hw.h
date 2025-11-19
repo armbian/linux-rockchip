@@ -59,6 +59,7 @@ struct rkfec_hw_dev {
 	struct rkfec_offline_dev ofl_dev;
 	int clk_rate_tbl_num;
 	int clks_num;
+	unsigned long curr_clk_rate;
 	/* lock for hw */
 	struct mutex dev_lock;
 	/* lock for irq */

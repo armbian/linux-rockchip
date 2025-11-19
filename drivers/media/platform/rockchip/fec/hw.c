@@ -261,6 +261,7 @@ static int rkfec_hw_probe(struct platform_device *pdev)
 	hw_dev->clks_num = match_data->clks_num;
 	hw_dev->clk_rate_tbl = match_data->clk_rate_tbl;
 	hw_dev->clk_rate_tbl_num = match_data->clk_rate_tbl_num;
+	hw_dev->curr_clk_rate = 0;
 
 	hw_dev->reset = devm_reset_control_array_get(dev, false, false);
 	if (IS_ERR(hw_dev->reset)) {
@@ -351,6 +352,7 @@ static int __maybe_unused rkfec_hw_runtime_resume(struct device *dev)
 
 	enable_sys_clk(hw_dev);
 	rkfec_soft_reset(hw_dev);
+	hw_dev->curr_clk_rate = 0;
 
 	if (dev->power.runtime_status) {
 		//toto
