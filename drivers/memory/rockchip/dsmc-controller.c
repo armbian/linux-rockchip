@@ -252,11 +252,6 @@ static int dsmc_psram_dectect(struct rockchip_dsmc *dsmc, uint32_t cs)
 		dsmc_psram_bw_detect(dsmc, cs);
 	}
 
-	/* recovery axi read response */
-	REG_CLRSETBITS(dsmc, DSMC_AXICTL,
-		       (AXICTL_RD_NO_ERR_MASK << AXICTL_RD_NO_ERR_SHIFT),
-		       (0x0 << AXICTL_RD_NO_ERR_SHIFT));
-
 	return ret;
 }
 
@@ -282,6 +277,11 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 	       dsmc->regs + DSMC_MTR(cs));
 	writel(cfg->rgn_num / 2,
 	       dsmc->regs + DSMC_SLV_RGN_DIV(cs));
+
+	/* axi read do not response error */
+	REG_CLRSETBITS(dsmc, DSMC_AXICTL,
+		       (AXICTL_RD_NO_ERR_MASK << AXICTL_RD_NO_ERR_SHIFT),
+		       (0x1 << AXICTL_RD_NO_ERR_SHIFT));
 	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
 		slv_rgn = &cfg->slv_rgn[i];
 		if (!slv_rgn->status)
@@ -1027,6 +1027,22 @@ int rockchip_dsmc_lb_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 	return ret;
 }
 EXPORT_SYMBOL(rockchip_dsmc_lb_init);
+
+int rockchip_dsmc_status_check(struct rockchip_dsmc_device *priv)
+{
+	uint32_t csr;
+	struct rockchip_dsmc *dsmc = &priv->dsmc;
+	struct device *dev = dsmc->dev;
+
+	csr = readl(dsmc->regs + DSMC_CSR);
+	if (csr) {
+		dev_err(dev, "DSMC: csr status error(0x%x)!\n", csr);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_dsmc_status_check);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Zhihuan He <huan.he@rock-chips.com>");

@@ -1078,6 +1078,12 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 		goto err_release_dma;
 	}
 
+	if (rockchip_dsmc_status_check(priv)) {
+		ret = -ENODEV;
+		dev_err(dev, "DSMC status error, please check hardware matched(io, slave etc.)\n");
+		goto err_release_dma;
+	}
+
 	return 0;
 
 err_release_dma:
