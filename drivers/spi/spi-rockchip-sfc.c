@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/of_gpio.h>
+#include <linux/soc/rockchip/rockchip_thunderboot.h>
 
 /* System control */
 #define SFC_CTRL			0x0
@@ -1052,14 +1053,10 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sfc);
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT)) {
-		u32 status;
-
-		if (readl_poll_timeout(sfc->regbase + SFC_SR, status,
-				       !(status & SFC_SR_IS_BUSY), 10,
-				       5000 * USEC_PER_MSEC))
-			dev_err(dev, "Wait for SFC idle timeout!\n");
-	}
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_SFC
+	if (rk_tb_wait_ramdisk_compress_done(5000) == 0)
+		dev_err(&pdev->dev, "Wait ramdisk_c complete timeout!\n");
+#endif
 
 	ret = rockchip_sfc_get_gpio_descs(master, sfc);
 	if (ret) {
