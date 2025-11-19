@@ -12,8 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/soc/rockchip/rockchip_decompress.h>
-#include <linux/soc/rockchip/rockchip_thunderboot_crypto.h>
+#include <linux/soc/rockchip/rockchip_thunderboot.h>
 
 #define SFC_ICLR	0x08
 #define SFC_SR		0x24
@@ -31,7 +30,6 @@ static int rk_tb_sfc_thread(void *p)
 	struct platform_device *pdev = p;
 	void __iomem *regs;
 	struct resource *res;
-	struct device_node *rds, *rdd;
 	struct device *dev = &pdev->dev;
 	u32 status;
 
@@ -41,9 +39,6 @@ static int rk_tb_sfc_thread(void *p)
 		dev_err(dev, "ioremap failed for resource %pR\n", res);
 		return -ENOMEM;
 	}
-
-	rds = of_parse_phandle(dev->of_node, "memory-region-src", 0);
-	rdd = of_parse_phandle(dev->of_node, "memory-region-dst", 0);
 
 #ifdef SFC_DEBUG
 	print_hex_dump(KERN_WARNING, "tb_sfc", DUMP_PREFIX_OFFSET, 4, 4, regs, 0x60, 0);
@@ -62,36 +57,10 @@ static int rk_tb_sfc_thread(void *p)
 			dev_err(dev, "Last transfer non DMA!\n");
 	}
 
-	/* Parse ramdisk addr and help start decompressing */
-	if (rds && rdd) {
-		struct resource src, dst;
-		u32 rdk_size = 0;
-		const u32 *digest_org;
-
-		if (of_address_to_resource(rds, 0, &src) >= 0 &&
-		    of_address_to_resource(rdd, 0, &dst) >= 0) {
-			if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_CRYPTO)) {
-				of_property_read_u32(rds, "size", &rdk_size);
-				digest_org = of_get_property(rds->child, "value", NULL);
-				if (digest_org && rdk_size)
-					rk_tb_sha256((dma_addr_t)src.start, rdk_size,
-						     (void *)digest_org);
-			}
-			/*
-			 * Decompress HW driver will free reserved area of
-			 * memory-region-src.
-			 */
-			ret = rk_decom_start(GZIP_MOD, src.start,
-					     dst.start,
-					     resource_size(&dst));
-			if (ret < 0)
-				dev_err(dev, "failed to start decom\n");
-		}
-	}
+	rk_tb_ramdisk_compress_done();
+	rk_tb_prepare_ramdisk_decompress(dev);
 
 out:
-	of_node_put(rds);
-	of_node_put(rdd);
 	iounmap(regs);
 
 	return 0;
