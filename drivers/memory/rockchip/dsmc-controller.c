@@ -847,11 +847,74 @@ static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint3
 	return 0;
 }
 
+static int dsmc_dll_full_range_training(struct rockchip_dsmc_device *dsmc_dev,
+				       uint32_t cs, uint32_t byte)
+{
+	uint32_t dll;
+	int result, best_dll;
+	int start = -1, best_start = -1, best_end = -1;
+	int max_length = 0, current_length = 0;
+	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	struct device *dev = dsmc->dev;
+	struct dsmc_config_cs *cfg = &dsmc_dev->dsmc.cfg.cs_cfg[cs];
+
+	for (dll = 0; dll <= 0xff; dll++) {
+		result = dsmc_dll_training_method(dsmc_dev, cs, byte, dll);
+
+		if (result == 0) {
+			if (start == -1)
+				start = dll;
+			current_length++;
+		} else {
+			if (start != -1) {
+				if (current_length > max_length) {
+					max_length = current_length;
+					best_start = start;
+					best_end = dll - 1;
+				}
+				start = -1;
+				current_length = 0;
+			}
+		}
+	}
+
+	/* Check if the last window extends to the end */
+	if (start != -1 && current_length > max_length) {
+		max_length = current_length;
+		best_start = start;
+		best_end = 0xff;
+	}
+
+	if (best_start == -1) {
+		/* No passing window found */
+		dev_err(dev, "DSMC: cs%d byte%d no valid DLL window found\n", cs, byte);
+		return -EINVAL;
+	}
+
+	best_dll = (best_start + best_end) / 2;
+
+	dev_info(dev, "cs%d byte%d: DLL window [0x%x-0x%x] length=0x%x, current=0x%x\n",
+		 cs, byte, best_start, best_end, max_length, best_dll);
+
+	REG_CLRSETBITS(dsmc, DSMC_RDS_DLL_CTL(cs, byte),
+		       RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK,
+		       best_dll << RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_SHIFT);
+
+	/* Verify the selected value */
+	if (dsmc_dll_training_method(dsmc_dev, cs, byte, best_dll) != 0) {
+		dev_err(dev, "DSMC: cs%d byte%d current DLL 0x%x verification failed\n",
+			cs, byte, best_dll);
+		return -EIO;
+	}
+
+	cfg->dll_num[byte] = best_dll;
+
+	return 0;
+}
+
 int rockchip_dsmc_dll_training(struct rockchip_dsmc_device *priv)
 {
-	uint32_t cs, byte, dir;
-	uint32_t dll_max = 0xff, dll_min = 0;
-	int dll, dll_step = 10;
+	uint32_t cs, byte;
 	struct dsmc_config_cs *cfg;
 	struct rockchip_dsmc *dsmc = &priv->dsmc;
 	struct device *dev = dsmc->dev;
@@ -861,43 +924,13 @@ int rockchip_dsmc_dll_training(struct rockchip_dsmc_device *priv)
 		cfg = &priv->dsmc.cfg.cs_cfg[cs];
 		if (cfg->device_type == DSMC_UNKNOWN_DEVICE)
 			continue;
+
 		for (byte = MCR_IOWIDTH_X8; byte <= cfg->io_width; byte++) {
-			dir = 0;
-			dll = cfg->dll_num[byte];
-			while ((dll >= 0x0 && dll <= 0xff)) {
-				ret = dsmc_dll_training_method(priv, cs, byte, dll);
-				if (ret) {
-					if (dir)
-						dll_max = dll - dll_step;
-					else
-						dll_min = dll + dll_step;
-					dll = cfg->dll_num[byte];
-					dir++;
-				} else if (((dll + dll_step) > 0xff) || ((dll - dll_step) < 0)) {
-					if (dir)
-						dll_max = dll;
-					else
-						dll_min = dll;
-					dll = cfg->dll_num[byte];
-					dir++;
-				}
-				if (dir > 1)
-					break;
-				if (dir)
-					dll += dll_step;
-				else
-					dll -= dll_step;
+			ret = dsmc_dll_full_range_training(priv, cs, byte);
+			if (ret) {
+				dev_err(dev, "DSMC: cs%d byte%d dll training failed\n", cs, byte);
+				return ret;
 			}
-			dll = (dll_max + dll_min) / 2;
-			if ((dll >= 0xff) || (dll <= 0)) {
-				dev_err(dev, "DSMC: cs%d byte%d dll training error(0x%x)\n",
-				       cs, byte, dll);
-				return -1;
-			}
-			dev_info(dev, "cs%d byte%d dll delay line result 0x%x\n", cs, byte, dll);
-			REG_CLRSETBITS(dsmc, DSMC_RDS_DLL_CTL(cs, byte),
-				       RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK,
-				       dll << RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_SHIFT);
 		}
 	}
 
