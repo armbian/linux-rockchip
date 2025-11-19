@@ -3765,6 +3765,8 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
 		} else {
+			stream->curr_buf_rockit = NULL;
+			stream->next_buf_rockit = NULL;
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
 		}
