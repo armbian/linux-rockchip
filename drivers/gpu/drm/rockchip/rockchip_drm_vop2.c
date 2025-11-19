@@ -8,7 +8,6 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
@@ -1121,6 +1120,7 @@ static inline void rk3588_vop2_dsc_cfg_done(struct drm_crtc *crtc);
 static inline void vop2_cfg_done(struct drm_crtc *crtc);
 static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp);
 static int vop2_clk_reset(struct reset_control *rstc);
+static inline bool vop2_cluster_window(struct vop2_win *win);
 static inline bool vop2_cluster_sub_window(struct vop2_win *win);
 static inline bool vop2_multi_area_sub_window(struct vop2_win *win);
 static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_port *vp,
@@ -2689,7 +2689,18 @@ static bool vop2_output_uv_swap(struct rockchip_crtc_state *vcstate)
 		return false;
 }
 
-static bool vop3_output_rb_swap(struct rockchip_crtc_state *vcstate)
+static bool vop2_output_rg_swap(struct rockchip_crtc_state *vcstate)
+{
+	u32 bus_format = vcstate->bus_format;
+
+	if (bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
+	    bus_format == MEDIA_BUS_FMT_YUV10_1X30)
+		return true;
+
+	return false;
+}
+
+static bool vop2_output_rb_swap(struct rockchip_crtc_state *vcstate)
 {
 	u32 bus_format = vcstate->bus_format;
 
@@ -2784,8 +2795,30 @@ static inline bool rockchip_rfbc(struct drm_plane *plane, u64 modifier)
 
 static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64 modifier)
 {
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+
 	if (modifier == DRM_FORMAT_MOD_INVALID)
 		return false;
+
+	if (vop2->version == VOP_VERSION_RK3568) {
+		if (vop2_cluster_window(win)) {
+			if (modifier == DRM_FORMAT_MOD_LINEAR) {
+				drm_dbg_kms(vop2,
+					    "Cluster window only supports format with afbc\n");
+				return false;
+			}
+		}
+	}
+
+	if (format == DRM_FORMAT_XRGB2101010 || format == DRM_FORMAT_XBGR2101010) {
+		if (vop2->version == VOP_VERSION_RK3588) {
+			if (!rockchip_afbc(plane, modifier)) {
+				drm_dbg_kms(vop2, "Only support 32 bpp format with afbc\n");
+				return false;
+			}
+		}
+	}
 
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
@@ -2793,7 +2826,8 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 	if (!rockchip_afbc(plane, modifier) &&
 	    !rockchip_rfbc(plane, modifier) &&
 	    !rockchip_tiled(plane, modifier)) {
-		DRM_ERROR("%s unsupported format modifier 0x%llx\n", plane->name, modifier);
+		drm_dbg_kms(vop2->drm_dev, "%s unsupported format modifier 0x%llx\n", plane->name,
+			    modifier);
 
 		return false;
 	}
@@ -4470,7 +4504,7 @@ static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
 
 	ret = clk_prepare_enable(vop2->pclk);
 	if (ret < 0) {
-		dev_err(vop2->dev, "failed to enable pclk - %d\n", ret);
+		drm_err(vop2, "failed to enable pclk - %d\n", ret);
 		goto err1;
 	}
 
@@ -7498,11 +7532,6 @@ fail:
 	return ret;
 }
 
-static void vop2_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-}
-
 static void vop2_atomic_plane_reset(struct drm_plane *plane)
 {
 	struct vop2_plane_state *vpstate;
@@ -7716,7 +7745,7 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 static const struct drm_plane_funcs vop2_plane_funcs = {
 	.update_plane	= rockchip_atomic_helper_update_plane,
 	.disable_plane	= rockchip_atomic_helper_disable_plane,
-	.destroy = vop2_plane_destroy,
+	.destroy = drm_plane_cleanup,
 	.reset = vop2_atomic_plane_reset,
 	.atomic_duplicate_state = vop2_atomic_plane_duplicate_state,
 	.atomic_destroy_state = vop2_atomic_plane_destroy_state,
@@ -10246,13 +10275,12 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 	u32 output_if = vcstate->output_if;
 	u32 data_swap = 0;
 
-	if (vop2_output_uv_swap(vcstate) || vop3_output_rb_swap(vcstate))
+	if (vop2_output_uv_swap(vcstate) || vop2_output_rb_swap(vcstate))
 		data_swap = DSP_RB_SWAP;
 
 	if ((vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576) &&
 	    (output_if_is_hdmi(output_if) || output_if_is_dp(output_if)) &&
-	    (vcstate->bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
-	     vcstate->bus_format == MEDIA_BUS_FMT_YUV10_1X30))
+	    vop2_output_rg_swap(vcstate))
 		data_swap |= DSP_RG_SWAP;
 
 	VOP_MODULE_SET(vop2, vp, dsp_data_swap, data_swap);
@@ -16776,7 +16804,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	/* Allocate vop2 struct and its vop2_win array */
-	alloc_size = sizeof(*vop2) + sizeof(*vop2->win) * num_wins;
+	alloc_size = struct_size(vop2, win, num_wins);
 	vop2 = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!vop2)
 		return -ENOMEM;
