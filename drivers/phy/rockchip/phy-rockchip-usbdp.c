@@ -78,6 +78,8 @@
 #define TRSV_LN2_MON_RX_CDR_LOCK_DONE		BIT(0)
 
 #define BIT_WRITEABLE_SHIFT			16
+#define TUNE_SEQ_PROP_NAME			"rockchip,udphy-tune-sequence"
+
 #define PHY_AUX_DP_DATA_POL_NORMAL		0
 #define PHY_AUX_DP_DATA_POL_INVERT		1
 #define PHY_LANE_MUX_USB			0
@@ -188,6 +190,10 @@ struct rockchip_udphy {
 
 	/* PHY const config */
 	const struct rockchip_udphy_cfg *cfgs;
+
+	/* PHY tune sequence from DT */
+	struct reg_sequence *tune_seqs;
+	unsigned int tune_seqs_cnt;
 };
 
 static const struct dp_tx_drv_ctrl rk3588_dp_tx_drv_ctrl_rbr_hbr[4][4] = {
@@ -820,6 +826,16 @@ static int udphy_init(struct rockchip_udphy *udphy)
 		goto assert_apb;
 	}
 
+	/* Set udphy tune sequence */
+	if (udphy->tune_seqs) {
+		ret = regmap_multi_reg_write(udphy->pma_regmap, udphy->tune_seqs,
+					     udphy->tune_seqs_cnt);
+		if (ret) {
+			dev_err(udphy->dev, "tune sequence set error %d\n", ret);
+			goto assert_apb;
+		}
+	}
+
 	/* Step 3: configure lane mux */
 	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
 			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
@@ -896,6 +912,59 @@ static int udphy_disable(struct rockchip_udphy *udphy)
 		reset_control_assert(udphy->rsts[i]);
 
 	return 0;
+}
+
+static int rk_udphy_get_tune_sequence(struct rockchip_udphy *udphy)
+{
+	struct device *dev = udphy->dev;
+	struct device_node *np = dev_of_node(dev);
+	u32 *tune_data;
+	int i, count;
+	int ret;
+
+	count = of_property_count_u32_elems(np, TUNE_SEQ_PROP_NAME);
+	if (count <= 0) {
+		dev_dbg(dev, "No tune sequence found\n");
+		return 0;
+	}
+
+	if (count % 3 != 0) {
+		dev_err(dev, "Invalid udphy-tune-sequence count %d\n", count);
+		return -EINVAL;
+	}
+
+	tune_data = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	if (!tune_data)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, TUNE_SEQ_PROP_NAME, tune_data, count);
+	if (ret) {
+		dev_err(dev, "Failed to read tune sequence: %d\n", ret);
+		goto out;
+	}
+
+	udphy->tune_seqs_cnt = count / 3;
+	udphy->tune_seqs = devm_kcalloc(dev, udphy->tune_seqs_cnt,
+					sizeof(*udphy->tune_seqs), GFP_KERNEL);
+	if (!udphy->tune_seqs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < udphy->tune_seqs_cnt; i++) {
+		udphy->tune_seqs[i].reg = tune_data[i * 3];
+		udphy->tune_seqs[i].def = tune_data[i * 3 + 1];
+		udphy->tune_seqs[i].delay_us = tune_data[i * 3 + 2];
+
+		dev_dbg(dev, "tune_seqs[%d]: 0x%04x, 0x%02x, %d\n", i,
+			udphy->tune_seqs[i].reg,
+			udphy->tune_seqs[i].def,
+			udphy->tune_seqs[i].delay_us);
+	}
+
+out:
+	kfree(tune_data);
+	return ret;
 }
 
 static int udphy_parse_lane_mux_data(struct rockchip_udphy *udphy, struct device *dev)
@@ -1043,6 +1112,10 @@ static int udphy_parse_dt(struct rockchip_udphy *udphy, struct device *dev)
 		maximum_speed = usb_get_maximum_speed(dev);
 		udphy->hs = maximum_speed <= USB_SPEED_HIGH ? true : false;
 	}
+
+	ret = rk_udphy_get_tune_sequence(udphy);
+	if (ret)
+		return ret;
 
 	ret = udphy_clk_init(udphy, dev);
 	if (ret)
