@@ -160,6 +160,14 @@
 	mali-supply = <&vdd_logic>;
 };
 
+&pdm {
+	status = "okay";
+};
+
+&pdm_mic_array {
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		pmic_int: pmic-int {

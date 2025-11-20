@@ -14,6 +14,23 @@
 		rockchip,jack-det;
 	};
 
+	pdmics: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	pdm_mic_array: pdm-mic-array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&pdmics>;
+		};
+	};
+
 	spdif_tx_dc: spdif-tx-dc {
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;

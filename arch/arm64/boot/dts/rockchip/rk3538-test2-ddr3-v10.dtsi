@@ -118,6 +118,18 @@
 	mali-supply = <&vdd_logic>;
 };
 
+&pdm {
+	pinctrl-0 = <&pdmm0_sdi1_pins>;
+	pinctrl-1 = <&pdmm0_clk0_idle>;
+	pinctrl-2 = <&pdmm0_clk0_pins>;
+	rockchip,path-map = <1 0 2 3>;
+	status = "okay";
+};
+
+&pdm_mic_array {
+	status = "okay";
+};
+
 &pwm0_4ch_2 {
 	status = "okay";
 };
