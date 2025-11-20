@@ -2699,8 +2699,8 @@ static bool vop2_output_rg_swap(struct rockchip_crtc_state *vcstate)
 	u32 bus_format = vcstate->bus_format;
 
 	if (bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
-		bus_format == MEDIA_BUS_FMT_YUV10_1X30)
-			return true;
+	    bus_format == MEDIA_BUS_FMT_YUV10_1X30)
+		return true;
 
 	return false;
 }
