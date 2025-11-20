@@ -986,6 +986,42 @@
 			status = "disabled";
 		};
 
+		rkvenc: rkvenc@27200000 {
+			compatible = "rockchip,rkv-encoder-rk3572", "rockchip,rkv-encoder-v2";
+			reg = <0x0 0x27200000 0x0 0x10000>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_rkvenc";
+			clocks = <&cru ACLK_RKVENC>, <&cru HCLK_RKVENC>, <&cru CLK_RKVENC_CORE>;
+			clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+			rockchip,normal-rates = <400000000>, <0>, <702000000>;
+			resets = <&cru SRST_ARESETN_RKVENC>, <&cru SRST_HRESETN_RKVENC>,
+				 <&cru SRST_RESETN_RKVENC_CORE>;
+			reset-names = "video_a", "video_h", "video_core";
+			assigned-clocks = <&cru ACLK_RKVENC>, <&cru CLK_RKVENC_CORE>;
+			assigned-clock-rates = <400000000>, <702000000>;
+			iommus = <&rkvenc_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <2>;
+			rockchip,resetgroup-node = <0>;
+			rockchip,skip-pmu-idle-request;
+			power-domains = <&power RK3572_PD_VENC>;
+			status = "disabled";
+		};
+
+		rkvenc_mmu: iommu@2720f000 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x2720f000 0x0 0x100>;
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rkvenc_mmu";
+			clocks = <&cru ACLK_RKVENC>, <&cru HCLK_RKVENC>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,shootdown-entire;
+			rockchip,enable-cmd-retry;
+			power-domains = <&power RK3572_PD_VENC>;
+			status = "disabled";
+		};
+
 		rkvdec: rkvdec@27300100 {
 			compatible = "rockchip,rkv-decoder-rk3572", "rockchip,rkv-decoder-v384";
 			reg = <0x0 0x27300100 0x0 0x600>, <0x0 0x27300000 0x0 0x100>;
