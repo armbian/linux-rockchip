@@ -1785,10 +1785,10 @@ mvrr_const_val *rockchip_hdmi_vrr_get_vrrconf_mconst(enum hdmi_brr_vic brr_vic, 
 	const struct mvrr_const_st **table_vic = NULL;
 	const struct mvrr_const_val *const *table_val = NULL;
 
-	for (table_vic = qms_const; table_vic; table_vic++) {
+	for (table_vic = qms_const; *table_vic; table_vic++) {
 		if ((*table_vic)->brr_vic == brr_vic) {
 			table_val = (*table_vic)->val;
-			for (; table_val; table_val++) {
+			for (; *table_val; table_val++) {
 				if ((*table_val)->vrefresh_khz == vrefresh_khz)
 					break;
 			}
