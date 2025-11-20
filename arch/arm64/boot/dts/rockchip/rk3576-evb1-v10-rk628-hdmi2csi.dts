@@ -191,7 +191,6 @@
 	hdmiin {
 		rk628_pin: rk628-pin {
 			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
-					<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,
 					<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,
 					<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
