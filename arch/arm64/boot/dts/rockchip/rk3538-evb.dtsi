@@ -5,6 +5,20 @@
  */
 
 / {
+	acodec_sound: acodec-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,rk3538-acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
 	hdmi_sound: hdmi-sound {
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
@@ -48,6 +62,11 @@
 			sound-dai = <&spdif_tx_dc>;
 		};
 	};
+};
+
+&acodec {
+	pa-ctl-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &crypto {
@@ -100,6 +119,12 @@
 
 &rng {
 	status = "okay";
+};
+
+&sai2 {
+	status = "okay";
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 };
 
 &sai3 {
