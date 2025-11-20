@@ -141,6 +141,7 @@ enum rk3576_can_reg {
 
 enum {
 	ROCKCHIP_RK3576_CAN = 0,
+	ROCKCHIP_RK3572_CAN,
 	ROCKCHIP_RV1126B_CAN,
 };
 
@@ -155,6 +156,8 @@ enum {
 #define CAN_TX0_REQ		BIT(0)
 #define CAN_TX1_REQ		BIT(1)
 #define CAN_TX_REQ_FULL		((CAN_TX0_REQ) | (CAN_TX1_REQ))
+#define CAN_TX0_REQ_MASK	BIT(16)
+#define CAN_TX1_REQ_MASK	BIT(17)
 
 #define MODE_PASS_ERR		BIT(10)
 #define MODE_DIS_PEE		BIT(9)
@@ -667,12 +670,20 @@ static netdev_tx_t rk3576_can_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(ndev);
 
+	if (rcan->mode == ROCKCHIP_RK3572_CAN)
+		cmd = CAN_TX0_REQ | CAN_TX0_REQ_MASK;
+
 	if (rk3576_can_read(rcan, CAN_CMD) & CAN_TX0_REQ) {
 		cmd = CAN_TX1_REQ;
 		if (rcan->mode == ROCKCHIP_RV1126B_CAN) {
 			tx_fifo = CAN_BUF1_TXFIC;
 			tx_id = CAN_BUF1_TXID;
 			tx_data = CAN_BUF1_TXDAT0;
+		} else if (rcan->mode == ROCKCHIP_RK3572_CAN) {
+			tx_fifo = CAN_BUF1_TXFIC;
+			tx_id = CAN_BUF1_TXID;
+			tx_data = CAN_BUF1_TXDAT0;
+			cmd = CAN_TX1_REQ | CAN_TX1_REQ_MASK;
 		}
 	}
 
@@ -1111,6 +1122,10 @@ static const struct of_device_id rk3576_can_of_match[] = {
 	{
 		.compatible = "rockchip,rk3576-can",
 		.data = (void *)ROCKCHIP_RK3576_CAN
+	},
+	{
+		.compatible = "rockchip,rk3572-can",
+		.data = (void *)ROCKCHIP_RK3572_CAN
 	},
 	{
 		.compatible = "rockchip,rv1126b-can",
