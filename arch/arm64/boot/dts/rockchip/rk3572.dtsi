@@ -1149,6 +1149,50 @@
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
+		can0: can@2ab00000 {
+			compatible = "rockchip,rk3572-can";
+			reg = <0x0 0x2ab00000 0x0 0x1000>;
+			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_CAN0>, <&cru HCLK_CAN0>;
+			clock-names = "baudclk", "apb_pclk";
+			resets = <&cru SRST_RESETN_CAN0>, <&cru SRST_HRESETN_CAN0>;
+			reset-names = "can", "can-apb";
+			status = "disabled";
+		};
+
+		can1: can@2ab10000 {
+			compatible = "rockchip,rk3572-can";
+			reg = <0x0 0x2ab10000 0x0 0x1000>;
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_CAN1>, <&cru HCLK_CAN1>;
+			clock-names = "baudclk", "apb_pclk";
+			resets = <&cru SRST_RESETN_CAN1>, <&cru SRST_HRESETN_CAN1>;
+			reset-names = "can", "can-apb";
+			status = "disabled";
+		};
+
+		can2: can@2ab20000 {
+			compatible = "rockchip,rk3572-can";
+			reg = <0x0 0x2ab20000 0x0 0x1000>;
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_CAN2>, <&cru HCLK_CAN2>;
+			clock-names = "baudclk", "apb_pclk";
+			resets = <&cru SRST_RESETN_CAN2>, <&cru SRST_HRESETN_CAN2>;
+			reset-names = "can", "can-apb";
+			status = "disabled";
+		};
+
+		can3: can@2ab30000 {
+			compatible = "rockchip,rk3572-can";
+			reg = <0x0 0x2ab30000 0x0 0x1000>;
+			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_CAN3>, <&cru HCLK_CAN3>;
+			clock-names = "baudclk", "apb_pclk";
+			resets = <&cru SRST_RESETN_CAN3>, <&cru SRST_HRESETN_CAN3>;
+			reset-names = "can", "can-apb";
+			status = "disabled";
+		};
+
 		hwlock0: hwspinlock@2ac00000 {
 			compatible = "rockchip,hwspinlock";
 			reg = <0x0 0x2ac00000 0x0 0x20>;
