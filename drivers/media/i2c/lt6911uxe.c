@@ -1367,6 +1367,8 @@ static u64 lt6911uxe_get_lane_rate_bps(struct v4l2_subdev *sd)
 	lane_rate = pixelclock * bpp;
 	lane_rate = div_u64(lane_rate, lanes);
 	lane_rate = DIV_ROUND_UP(lane_rate * 10, 9);
+	if (lt6911uxe->dual_mipi_port)
+		lane_rate = lane_rate / 2;
 
 	if (lane_rate > max_lane_rate)
 		lane_rate = max_lane_rate;
