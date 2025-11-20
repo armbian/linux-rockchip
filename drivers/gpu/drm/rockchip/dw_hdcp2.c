@@ -784,6 +784,25 @@ static const struct dw_hdcp_cfg rk3538_hdcp_cfgs[] = {
 };
 
 /*
+ * rk3572 hdcp connect as follow:
+ * HDMITX --> HDCP0 PORT1
+ */
+static const struct dw_hdcp_cfg rk3572_hdcp_cfgs[] = {
+	{
+		.port_num = 1,
+		.boot_reg = {0xd0, 16},
+		.protocol_type = HL_HDCP_PROTOCOL_HDMI,
+		.port_cfg = {
+			{
+				.connect_reg = {0xd0, 20},
+				.port_id = 1,
+				.port_type = HL_HDCP_TX,
+			},
+		},
+	},
+};
+
+/*
  * rk3576 hdcp connect as follow:
  * HDMITX --> HDCP0 PORT1
  * DPTX --> HDCP1 PORT0
@@ -869,6 +888,10 @@ static const struct of_device_id dw_hdcp_of_match[] = {
 	{
 		.compatible = "rockchip,rk3538-hdcp",
 		.data = &rk3538_hdcp_cfgs,
+	},
+	{
+		.compatible = "rockchip,rk3572-hdcp",
+		.data = &rk3572_hdcp_cfgs,
 	},
 	{
 		.compatible = "rockchip,rk3576-hdcp",
