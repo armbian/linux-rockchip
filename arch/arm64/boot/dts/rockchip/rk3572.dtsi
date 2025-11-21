@@ -213,6 +213,13 @@
 		};
 	};
 
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <4>;
+		rockchip,resetgroup-count = <4>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3572-pinctrl";
 		rockchip,grf = <&ioc_grf>;
