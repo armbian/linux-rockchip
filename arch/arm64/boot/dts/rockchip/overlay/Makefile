@@ -55,6 +55,8 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rock-5b-rpi-camera-v2.dtbo \
 	rock-5b-radxa-camera-4k.dtbo \
 	rock-5b-sata.dtbo \
+	rock-5b-plus-cam0-radxa-camera-4k.dtbo \
+	rock-5b-plus-radxa-display-8hd.dtbo \
 	rock-5t-radxa-display-10fhd.dtbo \
 	rock-5-itx-radxa-camera-4k-on-cam0.dtbo \
 	rock-5-itx-radxa-camera-4k-on-cam1.dtbo \
