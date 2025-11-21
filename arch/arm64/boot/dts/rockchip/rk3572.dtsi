@@ -1985,6 +1985,23 @@
 			status = "disabled";
 		};
 
+		tsadc: tsadc@2c1f0000 {
+			compatible = "rockchip,rk3572-tsadc";
+			reg = <0x0 0x2c1f0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru CLK_TSADC>, <&cru PCLK_TSADC>;
+			clock-names = "tsadc", "apb_pclk";
+			assigned-clocks = <&cru CLK_TSADC>;
+			assigned-clock-rates = <2000000>;
+			resets = <&cru SRST_RESETN_TSADC>, <&cru SRST_PRESETN_TSADC>;
+			reset-names = "tsadc", "tsadc-apb";
+			#thermal-sensor-cells = <1>;
+			rockchip,hw-tshut-temp = <120000>;
+			rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+			rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+			status = "disabled";
+		};
+
 		hdptxphy: phy@2c310000 {
 			compatible = "rockchip,rk3572-hdptx-phy", "rockchip,rk3588-hdptx-phy";
 			reg = <0x0 0x2c310000 0x0 0x10000>;
