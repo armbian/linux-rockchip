@@ -792,6 +792,12 @@ static const struct of_device_id mpp_vdpp_dt_match[] = {
 		.data = &vdpp3_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3572
+	{
+		.compatible = "rockchip,vdpp-rk3572",
+		.data = &vdpp3_data,
+	},
+#endif
 	{},
 };
 
