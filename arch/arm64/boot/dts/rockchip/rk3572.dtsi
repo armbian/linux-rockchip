@@ -706,6 +706,65 @@
 			status = "disabled";
 		};
 
+		iep: iep@27130000 {
+			compatible = "rockchip,iep-v2";
+			reg = <0x0 0x27130000 0x0 0x700>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpp";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			clock-names = "aclk", "hclk", "sclk";
+			rockchip,normal-rates = <600000000>, <0>, <600000000>;
+			assigned-clocks = <&cru ACLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			assigned-clock-rates = <600000000>, <600000000>;
+			resets = <&cru SRST_ARESETN_VDPP>, <&cru SRST_HRESETN_VDPP>,
+				 <&cru SRST_RESETN_CORE_VDPP>;
+			reset-names = "shared_rst_a", "shared_rst_h", "shared_rst_s";
+			rockchip,skip-pmu-idle-request;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <1>;
+			rockchip,resetgroup-node = <1>;
+			iommus = <&iep_mmu>;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
+		iep_mmu: iommu@27130800 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x27130800 0x0 0x100>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "iep_mmu";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			rockchip,shootdown-entire;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
+		vdpp: vdpp@27131000 {
+			compatible = "rockchip,vdpp-rk3572";
+			reg = <0x0 0x27131000 0x0 0x500>, <0x0 0x27132800 0x0 0x50>;
+			reg-names = "vdpp_regs", "zme_regs";
+			interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_vdpp";
+			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			clock-names = "aclk", "hclk", "sclk";
+			rockchip,normal-rates = <600000000>, <0>, <600000000>;
+			assigned-clocks = <&cru ACLK_VDPP>, <&cru CLK_CORE_VDPP>;
+			assigned-clock-rates = <600000000>, <600000000>;
+			resets = <&cru SRST_ARESETN_VDPP>, <&cru SRST_HRESETN_VDPP>,
+				 <&cru SRST_RESETN_CORE_VDPP>;
+			reset-names = "shared_rst_a", "shared_rst_h", "shared_rst_s";
+			rockchip,skip-pmu-idle-request;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,taskqueue-node = <1>;
+			rockchip,resetgroup-node = <1>;
+			rockchip,disable-auto-freq;
+			iommus = <&iep_mmu>;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
 		rkisp: isp@27420000 {
 			compatible = "rockchip,rk3572-rkisp";
 			reg = <0x0 0x27420000 0x0 0x7f00>;
