@@ -3560,8 +3560,7 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 	u32 value;
 
 	if (on) {
-		if (dp->dynamic_pd_ctrl)
-			pm_runtime_get_sync(dp->dev);
+		pm_runtime_get_sync(dp->dev);
 		di->color_formats = DRM_COLOR_FORMAT_RGB444;
 		di->bpc = 8;
 
@@ -3615,10 +3614,8 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 		extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
 		dw_dp_audio_handle_plugged_change(dp->audio, false);
 
-		if (dp->dynamic_pd_ctrl) {
-			pm_runtime_mark_last_busy(dp->dev);
-			pm_runtime_put_autosuspend(dp->dev);
-		}
+		pm_runtime_mark_last_busy(dp->dev);
+		pm_runtime_put_autosuspend(dp->dev);
 	}
 }
 
