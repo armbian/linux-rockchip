@@ -3584,6 +3584,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 	const struct of_device_id *match;
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;
+	char device_name[16];
 
 	dev_info(dev, "RK628 I2C driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -3748,11 +3749,16 @@ static int rk628_csi_probe(struct i2c_client *client,
 		goto err_hdl;
 	}
 
+	if (csi->module_index)
+		snprintf(device_name, sizeof(device_name), "rk628-%d", csi->module_index);
+	else
+		strscpy(device_name, "rk628", sizeof(device_name));
+
 	csi->classdev = device_create_with_groups(rk_hdmirx_class(),
 						  dev, MKDEV(0, 0),
 						  csi,
 						  rk628_groups,
-						  "rk628");
+						  "%s", device_name);
 	if (IS_ERR(csi->classdev)) {
 		err = PTR_ERR(csi->classdev);
 		v4l2_err(sd, "create device class failed\n");
