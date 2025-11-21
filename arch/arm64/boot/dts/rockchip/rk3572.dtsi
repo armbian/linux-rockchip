@@ -22,6 +22,16 @@
 		gpio2 = &gpio2;
 		gpio3 = &gpio3;
 		gpio4 = &gpio4;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
+		i2c9 = &i2c9;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -453,6 +463,21 @@
 			pinctrl-0 = <&uart1m0_xfer_pins>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@26520000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x26520000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C0>, <&cru PCLK_I2C0>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C0>, <&cru SRST_PRESETN_I2C0>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1599,6 +1624,141 @@
 			clocks = <&cru ACLK_RKDMA3>, <&cru PCLK_RKDMA3>;
 			clock-names = "aclk", "pclk";
 			#dma-cells = <1>;
+		};
+
+		i2c1: i2c@2c030000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c030000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C1>, <&cru PCLK_I2C1>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C1>, <&cru SRST_PRESETN_I2C1>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@2c040000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c040000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C2>, <&cru PCLK_I2C2>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C2>, <&cru SRST_PRESETN_I2C2>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@2c050000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c050000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C3>, <&cru PCLK_I2C3>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C3>, <&cru SRST_PRESETN_I2C3>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@2c060000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c060000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C4>, <&cru SRST_PRESETN_I2C4>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c5: i2c@2c070000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c070000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C5>, <&cru PCLK_I2C5>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C5>, <&cru SRST_PRESETN_I2C5>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c6: i2c@2c080000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c080000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C6>, <&cru PCLK_I2C6>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c6m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C6>, <&cru SRST_PRESETN_I2C6>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c7: i2c@2c090000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c090000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C7>, <&cru PCLK_I2C7>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C7>, <&cru SRST_PRESETN_I2C7>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c8: i2c@2c0a0000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c0a0000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C8>, <&cru PCLK_I2C8>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C8>, <&cru SRST_PRESETN_I2C8>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c9: i2c@2c0b0000 {
+			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
+			reg = <0x0 0x2c0b0000 0x0 0x1000>;
+			clocks = <&cru CLK_I2C9>, <&cru PCLK_I2C9>;
+			clock-names = "i2c", "pclk";
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c9m0_xfer_pins>;
+			resets = <&cru SRST_RESETN_I2C9>, <&cru SRST_PRESETN_I2C9>;
+			reset-names = "i2c", "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		spi0: spi@2c0e0000 {
