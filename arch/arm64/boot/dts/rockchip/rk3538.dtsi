@@ -127,6 +127,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk ARMCLK01>;
 			operating-points-v2 = <&cpu01_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu1: cpu@100 {
@@ -136,6 +137,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk ARMCLK01>;
 			operating-points-v2 = <&cpu01_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu2: cpu@200 {
@@ -145,6 +147,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk ARMCLK23>;
 			operating-points-v2 = <&cpu23_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu3: cpu@300 {
@@ -154,6 +157,19 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk ARMCLK23>;
 			operating-points-v2 = <&cpu23_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			CPU_SLEEP: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <100>;
+				exit-latency-us = <120>;
+				min-residency-us = <1000>;
+			};
 		};
 	};
 
@@ -744,6 +760,14 @@
 			clock-names = "pclk_mailbox";
 			#mbox-cells = <1>;
 			status = "disabled";
+		};
+
+		rktimer: timer@fce00000 {
+			compatible = "rockchip,rk3538-timer", "rockchip,rk3288-timer";
+			reg = <0xfce00000 0x1000>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_TIMER>, <&cru CLK_TIMER0>;
+			clock-names = "pclk", "timer";
 		};
 
 		cru: clock-controller@fd000000 {
