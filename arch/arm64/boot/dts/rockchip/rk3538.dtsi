@@ -489,6 +489,12 @@
 		method = "smc";
 	};
 
+	reserved_memory: reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+	};
+
 	thermal_zones: thermal-zones {
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
@@ -519,6 +525,25 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		scmi_shmem: scmi-shmem@10f000 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0010f000 0x100>;
+		};
+
+		sram: sram@fafd0000 {
+			compatible = "mmio-sram";
+			reg = <0xfafd0000 0x19000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xfafd0000 0x19000>;
+
+			/* start address and size should be 4k align */
+			rkvdec_sram: rkvdec-sram@0 {
+				reg = <0x0 0x19000>;
+			};
+		};
 
 		gpu: gpu@fb000000 {
 			compatible = "arm,mali-valhall";
