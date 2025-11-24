@@ -620,27 +620,30 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
 			time_val = div_u64(stream->readout.early_time, 1000);
 			time_val = div_u64_rem(time_val, 1000, &remainder);
-			seq_printf(f, "\tearly:%u.%u ms\n", time_val, remainder);
+			seq_printf(f, "\tearly:%u.%03u ms\n", time_val, remainder);
 			if (dev->hdr.hdr_mode == NO_HDR ||
 			    dev->hdr.hdr_mode == HDR_COMPR) {
 				time_val = div_u64(stream->readout.readout_time, 1000);
 				time_val = div_u64_rem(time_val, 1000, &remainder);
-				seq_printf(f, "\tsingle readout:%u.%u ms\n", time_val, remainder);
+				seq_printf(f, "\tsingle readout:%u.%03u ms\n", time_val, remainder);
 			} else {
 				time_val = div_u64(stream->readout.readout_time, 1000);
 				time_val = div_u64_rem(time_val, 1000, &remainder);
-				seq_printf(f, "\tsingle readout:%u.%u ms\n", time_val, remainder);
+				seq_printf(f, "\tsingle readout:%u.%03u ms\n", time_val, remainder);
 				time_val = div_u64(stream->readout.total_time, 1000);
 				time_val = div_u64_rem(time_val, 1000, &remainder);
-				seq_printf(f, "\ttotal readout:%u.%u ms\n", time_val, remainder);
+				seq_printf(f, "\ttotal readout:%u.%03u ms\n", time_val, remainder);
 
 			}
 		}
 		time_val = div_u64_rem(fps, 1000, &remainder);
-		seq_printf(f, "\trate:%u.%u ms\n", time_val, remainder);
+		seq_printf(f, "\trate:%u.%03u ms\n", time_val, remainder);
+		time_val = div_u64(stream->readout.readout_time, 1000);
+		time_val = div_u64_rem(fps - time_val, 1000, &remainder);
+		seq_printf(f, "\tvblank:%u.%03u ms\n", time_val, remainder);
 		fps = div_u64(1000000000, fps);
 		time_val = div_u64_rem(fps, 1000, &remainder);
-		seq_printf(f, "\tfps:%u.%u \n", time_val, remainder);
+		seq_printf(f, "\tfps:%u.%03u \n", time_val, remainder);
 		seq_puts(f, "\tirq statistics:\n");
 		seq_printf(f, "\t\t\ttotal:%llu\n",
 			   dev->irq_stats.frm_end_cnt[0] +
