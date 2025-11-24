@@ -37,7 +37,7 @@ struct aoa_middleware_devs {
 	struct device *dev;
 	struct platform_device *pdev_aoa;
 	struct platform_device *pdev_dma;
-	void *am_d;
+	void *am_map;
 	struct notify_rkdma *nty_rkdma;
 	struct notify_ns *nty_ns;
 	struct miscdevice misc_notifier_aoa;
@@ -224,7 +224,7 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 	amw_d->dev = &pdev->dev;
 	amw_d->pdev_aoa = NULL;
 	amw_d->pdev_dma = NULL;
-	amw_d->am_d = NULL;
+	amw_d->am_map = NULL;
 
 	/* prepare rockchip aoa control driver */
 	np = of_parse_phandle(pdev->dev.of_node, "rockchip,aoa", 0);
@@ -283,7 +283,7 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: aoa mmap probe failed (%d)\n", __func__, ret);
 		goto err_unprobe_dma;
 	}
-	amw_d->am_d = am_map;
+	amw_d->am_map = am_map;
 
 	/* prepare aoa/dma notifiers */
 	amw_d->misc_notifier_aoa.minor = MISC_DYNAMIC_MINOR;
@@ -311,9 +311,9 @@ static int aoa_middleware_probe(struct platform_device *pdev)
 err_unregister_aoa_misc:
 	misc_deregister(&amw_d->misc_notifier_aoa);
 err_mmap_remove:
-	if (amw_d->am_d) {
-		aoa_mmap_remove(pdev, amw_d->am_d);
-		amw_d->am_d = NULL;
+	if (amw_d->am_map) {
+		aoa_mmap_remove(pdev, amw_d->am_map);
+		amw_d->am_map = NULL;
 	}
 err_unprobe_dma:
 	if (amw_d->pdev_dma)
@@ -356,7 +356,7 @@ static int aoa_middleware_remove(struct platform_device *pdev)
 		amw_d->pdev_dma = NULL;
 	}
 
-	aoa_mmap_remove(pdev, amw_d->am_d);
+	aoa_mmap_remove(pdev, amw_d->am_map);
 
 	misc_deregister(&amw_d->misc_notifier_aoa);
 	misc_deregister(&amw_d->misc_notifier_dma);
