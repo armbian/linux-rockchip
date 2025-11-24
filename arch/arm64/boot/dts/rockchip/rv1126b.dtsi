@@ -1106,7 +1106,7 @@
 			<&cru CLK_CM_FRAC0>, <&cru CLK_CM_FRAC1>,
 			<&cru CLK_CM_FRAC2>, <&cru CLK_AUDIO_FRAC0>,
 			<&cru CLK_AUDIO_FRAC1>, <&cru CLK_AISP_PLL_SRC>,
-			<&cru CLK_CPLL_DIV10>;
+			<&cru CLK_CPLL_DIV10>, <&cru ACLK_VI_ROOT>;
 		assigned-clock-rates =
 			<1188000000>, <1000000000>,
 			<786432000>, <786432000>,
@@ -1117,7 +1117,7 @@
 			<18432000>, <500000000>,
 			<32768000>, <45158400>,
 			<49152000>, <786432000>,
-			<98304000>;
+			<98304000>, <500000000>;
 	};
 
 	grf: syscon@20100000 {
