@@ -1073,6 +1073,21 @@
 			reg = <0xfd4a0388 0x4>;
 		};
 
+		core0_pvtpll: syscon@fd500000 {
+			compatible = "rockchip,rk3538-core0-pvtpll", "syscon";
+			reg = <0xfd500000 0x100>;
+		};
+
+		core1_pvtpll: syscon@fd510000 {
+			compatible = "rockchip,rk3538-core1-pvtpll", "syscon";
+			reg = <0xfd510000 0x100>;
+		};
+
+		gpu_pvtpll: syscon@fd600000 {
+			compatible = "rockchip,rk3538-gpu-pvtpll", "syscon";
+			reg = <0xfd600000 0x100>;
+		};
+
 		dfi: dfi@fd710000 {
 			compatible = "rockchip,rk3538-dfi";
 			reg = <0xfd710000 0x10000>;
