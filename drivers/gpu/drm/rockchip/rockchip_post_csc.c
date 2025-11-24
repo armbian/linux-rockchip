@@ -523,12 +523,12 @@ static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mod
 	output_color_space = get_color_space_type(convert_mode->output_color_encoding,
 						  is_output_yuv);
 
-	/* csc input and output format is equal */
-	if ((is_input_full_range == is_output_full_range) && (is_input_yuv == is_output_yuv) &&
-	    (input_color_space == output_color_space))
-		return &csc_mode_coef->csc_coef[RK_PQ_CSC_IDENTITY_MODE];
-
 	for (i = 0; i < 2; i++) {
+		/* csc input and output format is equal */
+		if ((is_input_full_range == is_output_full_range) &&
+		    (is_input_yuv == is_output_yuv) && (input_color_space == output_color_space))
+			return &csc_mode_coef->csc_coef[RK_PQ_CSC_IDENTITY_MODE];
+
 		/* Search for csc coef at different csc input/output format */
 		for (j = 0; j < ARRAY_SIZE(g_csc_color_info); j++) {
 			if (g_csc_color_info[j].input_color_space == input_color_space &&
