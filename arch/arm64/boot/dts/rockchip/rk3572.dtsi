@@ -325,6 +325,36 @@
 		method = "smc";
 	};
 
+	rkisp_vir0: rkisp-vir0 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	rkisp_vir1: rkisp-vir1 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	rkisp_vir2: rkisp-vir2 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	rkisp_vir3: rkisp-vir3 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	rkisp_vir4: rkisp-vir4 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
@@ -666,6 +696,37 @@
 			clock-names = "aclk", "iface";
 			power-domains = <&power RK3572_PD_IMG>;
 			#iommu-cells = <0>;
+			status = "disabled";
+		};
+
+		rkisp: isp@27420000 {
+			compatible = "rockchip,rk3572-rkisp";
+			reg = <0x0 0x27420000 0x0 0x7f00>;
+			interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mipi_irq", "mi_irq", "isp_irq";
+			clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+				 <&cru CLK_ISP_CORE>, <&cru CLK_ISP_CORE_MARVIN>,
+				 <&cru CLK_ISP_CORE_VICAP>;
+			clock-names = "aclk_isp", "hclk_isp",
+				      "clk_isp_core", "clk_isp_core_marvin",
+				      "clk_isp_core_vicap";
+			power-domains = <&power RK3572_PD_VI>;
+			iommus = <&rkisp_mmu>;
+			status = "disabled";
+		};
+
+		rkisp_mmu: iommu@27427f00 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x27427f00 0x0 0x100>;
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "isp_mmu";
+			clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+			clock-names = "aclk", "iface";
+			power-domains = <&power RK3572_PD_VI>;
+			#iommu-cells = <0>;
+			rockchip,disable-mmu-reset;
 			status = "disabled";
 		};
 
