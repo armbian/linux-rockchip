@@ -2097,12 +2097,6 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
-void analogix_dp_disable(struct analogix_dp_device *dp)
-{
-	analogix_dp_bridge_disable(&dp->bridge);
-}
-EXPORT_SYMBOL_GPL(analogix_dp_disable);
-
 static void
 analogix_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
@@ -2578,48 +2572,52 @@ static void analogix_dp_link_train_restore(struct analogix_dp_device *dp)
 				analogix_dp_get_lane_link_training(dp, lane);
 }
 
-int analogix_dp_loader_protect(struct analogix_dp_device *dp)
+int analogix_dp_loader_protect(struct analogix_dp_device *dp, bool on)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	int ret;
 
-	if (dp->plat_data->power_on)
-		dp->plat_data->power_on(dp->plat_data);
+	if (on) {
+		if (dp->plat_data->power_on)
+			dp->plat_data->power_on(dp->plat_data);
 
-	ret = analogix_dp_phy_power_on(dp);
-	if (ret)
-		return ret;
+		ret = analogix_dp_phy_power_on(dp);
+		if (ret)
+			return ret;
 
-	dp->dpms_mode = DRM_MODE_DPMS_ON;
+		dp->dpms_mode = DRM_MODE_DPMS_ON;
 
-	analogix_dp_link_train_restore(dp);
+		analogix_dp_link_train_restore(dp);
 
-	ret = analogix_dp_fast_link_train_detection(dp);
-	if (ret)
-		goto err_disable;
-
-	if (analogix_dp_detect_sink_psr(dp)) {
-		ret = analogix_dp_enable_sink_psr(dp);
+		ret = analogix_dp_fast_link_train_detection(dp);
 		if (ret)
 			goto err_disable;
-	}
 
-	ret = drm_dp_dpcd_read_link_status(&dp->aux, link_status);
-	if (ret < 0) {
-		dev_err(dp->dev, "Failed to read link status\n");
-		goto err_disable;
-	}
+		if (analogix_dp_detect_sink_psr(dp)) {
+			ret = analogix_dp_enable_sink_psr(dp);
+			if (ret)
+				goto err_disable;
+		}
 
-	if (!drm_dp_channel_eq_ok(link_status, dp->link_train.lane_count)) {
-		dev_err(dp->dev, "Channel EQ or CR not ok\n");
-		ret = -EINVAL;
-		goto err_disable;
+		ret = drm_dp_dpcd_read_link_status(&dp->aux, link_status);
+		if (ret < 0) {
+			dev_err(dp->dev, "Failed to read link status\n");
+			goto err_disable;
+		}
+
+		if (!drm_dp_channel_eq_ok(link_status, dp->link_train.lane_count)) {
+			dev_err(dp->dev, "Channel EQ or CR not ok\n");
+			ret = -EINVAL;
+			goto err_disable;
+		}
+	} else {
+		analogix_dp_bridge_disable(&dp->bridge);
 	}
 
 	return 0;
 
 err_disable:
-	analogix_dp_disable(dp);
+	analogix_dp_bridge_disable(&dp->bridge);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(analogix_dp_loader_protect);

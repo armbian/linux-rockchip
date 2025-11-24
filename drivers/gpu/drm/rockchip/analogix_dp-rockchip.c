@@ -264,16 +264,13 @@ static int rockchip_dp_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool
 			return ret;
 	}
 
-	if (!on)
-		return 0;
-
 	if (plat_data->panel)
 		rockchip_drm_panel_loader_protect(plat_data->panel, on);
 
-	ret = analogix_dp_loader_protect(dp->adp);
+	ret = analogix_dp_loader_protect(dp->adp, on);
 	if (ret) {
 		if (secondary)
-			analogix_dp_disable(secondary->adp);
+			analogix_dp_loader_protect(secondary->adp, false);
 		return ret;
 	}
 
