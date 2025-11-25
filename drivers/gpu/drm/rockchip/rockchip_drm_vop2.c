@@ -175,6 +175,21 @@
 #define VOP2_MAX_VP_OUTPUT_WIDTH	4096
 /* KHZ */
 #define VOP2_MAX_DCLK_RATE		600000
+/* VFP seamless switch: safe margin before VOP scan line overtakes new vtotal */
+#define VOP2_VFP_SAFE_MARGIN		5
+/* VFP seamless switch: extra lines to extend vtotal when scan line too close */
+#define VOP2_VFP_EXTEND_MARGIN		20
+/*
+ * When HDMI Gaming VRR is enabled, EMP packet must be sent at least
+ * one frame before the actual refresh rate switch to notify the TV
+ * to enter Gaming VRR mode. When HDMI Gaming VRR is disabled, the system
+ * must first switch back to the base refresh rate, and then stop sending the EMP
+ * packet. Considering that when the HDMI controller first enables EMP packet
+ * transmission, it takes 2 vsync to take effect, and to prevent some TVs from
+ * switching VRR mode too slowly in the future, the gap between the HDMI EMP packet
+ * transmission switch and the actual VOP timing switch is set to 3 frames.
+ */
+#define VOP2_HDMI_EMP_FRAME_GAP		3
 
 enum vop2_data_format {
 	VOP2_FMT_ARGB8888 = 0,
@@ -6646,6 +6661,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
 	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 	bool dual_channel = !!(vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE);
+	unsigned long flags;
 	int ret;
 
 	WARN_ON(vp->event);
@@ -6811,7 +6827,11 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vcstate->output_type = 0;
 	vcstate->hdmi_vrr.m_const = 0;
 	vcstate->hdmi_vrr.next_tfr_val = 0;
+	spin_lock_irqsave(&vop2->irq_lock, flags);
 	vcstate->hdmi_vrr.refresh_rate_ready_to_change = false;
+	vcstate->hdmi_vrr.emp_frame_gap = 0;
+	vcstate->hdmi_vrr.vrr_type = HDMI_VRR_OFF;
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	vp->enabled_win_mask = 0;
@@ -12589,14 +12609,24 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
 	/*
 	 * when display interface support vrr, config vtotal
-	 * valid immediately except HDMI QMS-VRR. HDMI QMS-VRR
-	 * requires cfg done to accurately handle the vrr process.
-	 * Fixme: HDMI GAMING-VRR needs to config vtotal valid immediately,
-	 * the next version will be implemented.
+	 * valid immediately except HDMI QMS-VRR and TFRSYNC-VRR.
+	 * HDMI QMS-VRR and TFRSYNC-VRR require cfg done to accurately
+	 * handle the vrr process.
 	 */
 	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate &&
-	    !output_if_is_hdmi(vcstate->output_if))
+	    vcstate->hdmi_vrr.vrr_type != HDMI_QMS_VRR &&
+	    vcstate->hdmi_vrr.vrr_type != HDMI_TFRSYNC_VRR)
 		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
+
+	/*
+	 * After HDMI HPD or when waking up from standby, if the
+	 * Gaming VRR mode is not exited, VOP timing dynamic changes
+	 * will occur immediately.
+	 */
+	if (vcstate->hdmi_vrr.vrr_type == HDMI_GAMING_VRR) {
+		vcstate->hdmi_vrr.emp_frame_gap = VOP2_HDMI_EMP_FRAME_GAP;
+		vcstate->hdmi_vrr.refresh_rate_ready_to_change = false;
+	}
 
 	snprintf(clk_name, sizeof(clk_name), "dclk_out%d", vp->id);
 	dclk_out = vop2_clk_get(vop2, clk_name);
@@ -12883,6 +12913,7 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(new_crtc_state);
 	struct rockchip_crtc_state *old_vcstate = to_rockchip_crtc_state(old_crtc_state);
 	struct drm_display_mode *adjusted_mode = &new_crtc_state->adjusted_mode;
+	unsigned long flags;
 
 	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
 		if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
@@ -12914,14 +12945,27 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 		new_crtc_state->mode_changed |=
 			vop2_dovi_mode_changed(crtc, state);
 
-	if (new_vcstate->hdmi_vrr.next_tfr_val)
-		new_vcstate->hdmi_vrr.vrr_type = HDMI_QMS_VRR;
-	else if (output_if_is_hdmi(new_vcstate->output_if) && new_vcstate->request_refresh_rate &&
-		 (new_vcstate->request_refresh_rate >= new_vcstate->min_refresh_rate &&
-		  new_vcstate->request_refresh_rate <= new_vcstate->max_refresh_rate))
-		new_vcstate->hdmi_vrr.vrr_type = HDMI_TFRSYNC_VRR;
-	else
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	if (output_if_is_hdmi(new_vcstate->output_if)) {
+		if (new_crtc_state->vrr_enabled != old_crtc_state->vrr_enabled) {
+			new_vcstate->hdmi_vrr.emp_frame_gap = VOP2_HDMI_EMP_FRAME_GAP;
+			new_vcstate->hdmi_vrr.refresh_rate_ready_to_change = false;
+		}
+
+		if (new_crtc_state->vrr_enabled)
+			new_vcstate->hdmi_vrr.vrr_type = HDMI_GAMING_VRR;
+		else if (new_vcstate->hdmi_vrr.next_tfr_val)
+			new_vcstate->hdmi_vrr.vrr_type = HDMI_QMS_VRR;
+		else if (new_vcstate->request_refresh_rate &&
+			(new_vcstate->request_refresh_rate >= new_vcstate->min_refresh_rate &&
+			new_vcstate->request_refresh_rate <= new_vcstate->max_refresh_rate))
+			new_vcstate->hdmi_vrr.vrr_type = HDMI_TFRSYNC_VRR;
+		else
+			new_vcstate->hdmi_vrr.vrr_type = HDMI_VRR_OFF;
+	} else {
 		new_vcstate->hdmi_vrr.vrr_type = HDMI_VRR_OFF;
+	}
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 
 	return 0;
 }
@@ -14836,8 +14880,15 @@ vop2_crtc_update_vrr_timing(struct drm_crtc *crtc, unsigned int new_vtotal, unsi
 		}
 	}
 
-	/* config all connectors attach to this crtc */
-	rockchip_connector_update_vfp_for_vrr(crtc, adjust_mode, new_vfp);
+	/*
+	 * Config all connectors attached to this crtc except HDMI. HDMI does not
+	 * require VFP configuration. HDMI_GAMING_VRR calls this function from the
+	 * vsync interrupt handler, and the mutex lock rockchip_drm_sub_dev_lock
+	 * in rockchip_connector_update_vfp_for_vrr() is not allowed to be used in
+	 * an interrupt handler.
+	 */
+	if (!output_if_is_hdmi(vcstate->output_if))
+		rockchip_connector_update_vfp_for_vrr(crtc, adjust_mode, new_vfp);
 }
 
 static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
@@ -14847,9 +14898,10 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_display_mode *adjust_mode = &crtc->state->adjusted_mode;
 	struct rockchip_hdmi_vrr_state *hdmi_vrr = &vcstate->hdmi_vrr;
-	unsigned int vrefresh, vrefresh_khz;
-	unsigned int new_vtotal, vfp, new_vfp;
+	unsigned int vrefresh = 0, vrefresh_khz = 0;
+	unsigned int new_vtotal = 0, vfp = 0, new_vfp = 0, max_vtotal = 0;
 	u8 brr_vic;
+	u32 current_line = 0;
 
 	DRM_DEV_DEBUG(vop2->dev, "change refresh rate by changing vfp\n");
 	/*
@@ -14888,6 +14940,46 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 		vfp = adjust_mode->vsync_start - adjust_mode->vdisplay;
 		new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
 		hdmi_vrr->refresh_rate_ready_to_change = false;
+	} else if (vcstate->hdmi_vrr.vrr_type == HDMI_GAMING_VRR) {
+		vrefresh = drm_mode_vrefresh(adjust_mode);
+		if (!vrefresh)
+			return;
+
+		new_vtotal = adjust_mode->crtc_vtotal * vrefresh / vcstate->max_refresh_rate;
+		max_vtotal = adjust_mode->crtc_vtotal * vrefresh / vcstate->min_refresh_rate;
+
+		/*
+		 * Clamp new_vtotal to the lower bound. The vtotal must not be less than
+		 * the BRR (Base Refresh Rate) vtotal, which corresponds to the highest
+		 * refresh rate (minimum vtotal).
+		 */
+		if (new_vtotal < adjust_mode->crtc_vtotal)
+			new_vtotal = adjust_mode->crtc_vtotal;
+
+		/* Get the current number of lines scanned by VOP  */
+		current_line = vop2_read_vcnt(vp);
+
+		/*
+		 * If the current VOP scan line is too close to the max vtotal, because vtotal
+		 * register value has already been set to max vtotal in the interrupt
+		 * handler when the previous vsync interrupt was triggered, and a new
+		 * vsync interrupt is about to occur. At this point, setting the vtotal
+		 * register close to max vtotal is of little significance.
+		 */
+		if (current_line + VOP2_VFP_EXTEND_MARGIN > max_vtotal)
+			return;
+
+		/*
+		 * If the current VOP scan line is too close to the new vtotal (within
+		 * VOP2_VFP_SAFE_MARGIN lines), the frame timing would be violated.
+		 * Extend the vtotal by VOP2_VFP_EXTEND_MARGIN lines beyond the current
+		 * scan position to keep the VOP from overtaking the vertical total.
+		 */
+		if (current_line + VOP2_VFP_SAFE_MARGIN >= new_vtotal)
+			new_vtotal = current_line + VOP2_VFP_EXTEND_MARGIN;
+
+		vfp = adjust_mode->crtc_vsync_start - adjust_mode->crtc_vdisplay;
+		new_vfp = vfp + new_vtotal - adjust_mode->crtc_vtotal;
 	} else {
 		vrefresh = drm_mode_vrefresh(adjust_mode);
 
@@ -14896,6 +14988,7 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 		vfp = adjust_mode->crtc_vsync_start - adjust_mode->crtc_vdisplay;
 		new_vfp = vfp + new_vtotal - adjust_mode->crtc_vtotal;
 	}
+
 	vop2_crtc_update_vrr_timing(crtc, new_vtotal, new_vfp);
 }
 
@@ -14903,26 +14996,68 @@ static void vop2_crtc_update_vrr(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
+	unsigned long flags;
+	bool set_vrr_enable = false;
+	bool timing_switch = false;
 
-	/*
-	 * In hdmi qms vrr scenarios, it is possible to switch
-	 * timing several frames after refresh rate is configured
-	 */
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
 	if (output_if_is_hdmi(vcstate->output_if)) {
-		if (!vcstate->hdmi_vrr.refresh_rate_ready_to_change)
-			return;
-	} else {
-		if (!vp->refresh_rate_change)
-			return;
+		/*
+		 * Enabling Gaming VRR: first commit after vrr_enabled
+		 * instructs HDMI to start sending EMP packets. VOP timing
+		 * switch happens after the gap expires in the vsync irq.
+		 */
+		if (vcstate->hdmi_vrr.vrr_type == HDMI_GAMING_VRR &&
+		    vcstate->hdmi_vrr.emp_frame_gap) {
+			set_vrr_enable = true;
+		} else if (vcstate->hdmi_vrr.vrr_type == HDMI_VRR_OFF &&
+			   vcstate->hdmi_vrr.emp_frame_gap == 0) {
+			/*
+			 * Disabling Gaming VRR: after the vsync irq has restored the base
+			 * refresh rate timing and the gap has expired, tell HDMI to
+			 * stop sending EMP packets. Set emp_frame_gap to a sentinel
+			 * value (GAP + 1) to prevent re-triggering.
+			 * FIXME: When emp_frame_gap reaches zero during VRR disable, HDMI EMP
+			 * stop depends on the next atomic_flush. If userspace submits no new
+			 * frames (fully static), EMP packets continue indefinitely, leaving
+			 * the TV in VRR mode. This is harmless for static content but needs
+			 * further investigation with more VRR TV models.
+			 */
+			vcstate->hdmi_vrr.emp_frame_gap = VOP2_HDMI_EMP_FRAME_GAP + 1;
+			set_vrr_enable = true;
+		} else if (vcstate->hdmi_vrr.refresh_rate_ready_to_change) {
+			timing_switch = true;
+		}
+	} else if (vp->refresh_rate_change) {
+		timing_switch = true;
 	}
+
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	if (set_vrr_enable)
+		rockchip_connector_vrr_enable(crtc, cstate);
+
+	if (!timing_switch)
+		return;
 
 	if (!vcstate->min_refresh_rate || !vcstate->max_refresh_rate)
 		return;
 
-	if (vcstate->request_refresh_rate < vcstate->min_refresh_rate ||
-	    vcstate->request_refresh_rate > vcstate->max_refresh_rate) {
-		DRM_ERROR("invalid rate:%d\n", vcstate->request_refresh_rate);
-		return;
+	/*
+	 * In Gaming VRR, the refresh rate is dynamically derived from the rate
+	 * at which userspace submits new frames so it does not rely on the
+	 * request_refresh_rate configured via the DRM "variable refresh rate"
+	 * property to specify the refresh rate.
+	 */
+	if (vcstate->hdmi_vrr.vrr_type != HDMI_GAMING_VRR) {
+		if (vcstate->request_refresh_rate < vcstate->min_refresh_rate ||
+		    vcstate->request_refresh_rate > vcstate->max_refresh_rate) {
+			DRM_ERROR("invalid rate:%d\n", vcstate->request_refresh_rate);
+			return;
+		}
 	}
 
 	switch (vcstate->vrr_mode) {
@@ -17291,6 +17426,100 @@ static void vop2_frac_mvrr_update(struct drm_crtc *crtc, struct vop2_video_port 
 	}
 }
 
+static void vop2_vrr_set_vtotal_max(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
+	struct drm_crtc_state *cstate = crtc->state;
+	struct rockchip_crtc_state *vcstate;
+	struct drm_display_mode *adjust_mode;
+	u32 max_vtotal, vtotal, vfp, max_vfp, vrefresh;
+	unsigned long flags;
+	u8 imd_mode;
+	bool in_gap, set_vrr_timing = false;
+
+	if (!cstate)
+		return;
+
+	vcstate = to_rockchip_crtc_state(cstate);
+
+	/*
+	 * In the current version, only the HDMI interface supports
+	 * dynamically changing the frame rate based on the speed at
+	 * which userspace commits a new frame (i.e., HDMI_GAMING_VRR).
+	 */
+	if (!output_if_is_hdmi(vcstate->output_if))
+		return;
+
+	adjust_mode = &cstate->adjusted_mode;
+
+	vrefresh = drm_mode_vrefresh(&cstate->adjusted_mode);
+	if (!vrefresh || vrefresh < vcstate->min_refresh_rate ||
+	    vrefresh > vcstate->max_refresh_rate)
+		return;
+
+	max_vtotal = adjust_mode->crtc_vtotal * vrefresh / vcstate->min_refresh_rate;
+	vfp = adjust_mode->crtc_vsync_start - adjust_mode->crtc_vdisplay;
+	max_vfp = vfp + max_vtotal - adjust_mode->crtc_vtotal;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	/* Only handle GAMING VRR and VRR_OFF */
+	if (vcstate->hdmi_vrr.vrr_type != HDMI_GAMING_VRR &&
+	    vcstate->hdmi_vrr.vrr_type != HDMI_VRR_OFF)
+		goto out;
+
+	/*
+	 * emp_frame_gap counts down from VOP2_HDMI_EMP_FRAME_GAP to 0
+	 * during VRR enable/disable transitions.  Values outside this
+	 * range indicate the transition has completed.
+	 */
+	in_gap = (vcstate->hdmi_vrr.emp_frame_gap > 0 &&
+		  vcstate->hdmi_vrr.emp_frame_gap <= VOP2_HDMI_EMP_FRAME_GAP);
+
+	if (vcstate->hdmi_vrr.vrr_type == HDMI_VRR_OFF) {
+		/*
+		 * Disabling Gaming VRR: during the gap period, restore
+		 * the base refresh rate timing each vsync. After the
+		 * gap expires, vop2_crtc_update_vrr() in atomic_flush
+		 * will tell HDMI to stop sending EMP packets.
+		 */
+		if (in_gap) {
+			vcstate->hdmi_vrr.emp_frame_gap--;
+			vtotal = adjust_mode->crtc_vtotal;
+			vfp = adjust_mode->crtc_vsync_start - adjust_mode->crtc_vdisplay;
+			imd_mode = 0;
+			set_vrr_timing = true;
+		}
+	} else {
+		if (in_gap) {
+			/*
+			 * Enabling Gaming VRR: wait for the EMP packet gap before
+			 * allowing VOP timing changes. EMP was already enabled by
+			 * vop2_crtc_update_vrr() in atomic_flush on the first commit.
+			 */
+			vcstate->hdmi_vrr.emp_frame_gap--;
+			if (vcstate->hdmi_vrr.emp_frame_gap == 0)
+				vcstate->hdmi_vrr.refresh_rate_ready_to_change = true;
+		} else if (vcstate->hdmi_vrr.refresh_rate_ready_to_change &&
+			vcstate->min_refresh_rate && vcstate->max_refresh_rate) {
+			/* Normal Gaming VRR operation: extend vtotal to max */
+			imd_mode = 1;
+			vtotal = max_vtotal;
+			vfp = max_vfp;
+			set_vrr_timing = true;
+		}
+	}
+
+out:
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	if (set_vrr_timing) {
+		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, imd_mode);
+		vop2_crtc_update_vrr_timing(crtc, vtotal, vfp);
+	}
+}
+
 static irqreturn_t vop2_isr(int irq, void *data)
 {
 	struct vop2 *vop2 = data;
@@ -17402,6 +17631,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 				drm_crtc_handle_vblank(crtc);
 				vop2_handle_vblank(vop2, crtc);
 			}
+			vop2_vrr_set_vtotal_max(vp);
 			vop2_frac_mvrr_update(crtc, vp);
 			active_irqs &= ~FS_FIELD_INTR;
 			ret = IRQ_HANDLED;
@@ -17631,6 +17861,7 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 		}
 		drm_crtc_handle_vblank(crtc);
 		vop2_handle_vblank(vop2, crtc);
+		vop2_vrr_set_vtotal_max(vp);
 		vop2_frac_mvrr_update(crtc, vp);
 		active_irqs &= ~FS_FIELD_INTR;
 		ret = IRQ_HANDLED;

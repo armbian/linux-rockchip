@@ -466,6 +466,23 @@ struct rockchip_hdmi_vrr_state {
 	bool m_const;
 	u8 next_tfr_val;
 	u8 fva_factor_m1_val;
+	/*
+	 * HDMI Gaming VRR requires a gap between EMP (Emitted Metadata Packet)
+	 * transmission and VOP timing changes:
+	 *
+	 *   Enable:  start EMP first  → wait gap frames → start VOP timing changes
+	 *   Disable: restore BRR timing first → wait gap frames → stop EMP
+	 *
+	 * This field tracks the remaining gap frames during transitions:
+	 *
+	 *   (0, VOP2_HDMI_EMP_FRAME_GAP]  - transition in progress, counting down
+	 *                                    each vsync; reaches 0 when gap expires
+	 *   0, vrr_type == HDMI_VRR_OFF   - gap expired, pending HDMI EMP stop
+	 *                                    (handled in next atomic_flush)
+	 *   VOP2_HDMI_EMP_FRAME_GAP + 1   - transition complete, EMP already stopped
+	 *   0, vrr_type == HDMI_GAMING_VRR - normal VRR operation (no transition)
+	 */
+	u8 emp_frame_gap;
 	unsigned int vrr_frame_cnt;
 	enum rockchip_hdmi_vrr_type vrr_type;
 	const struct mvrr_const_val *mconst_val;
