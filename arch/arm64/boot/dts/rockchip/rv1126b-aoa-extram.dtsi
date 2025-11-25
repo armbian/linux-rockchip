@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126b-aoa.dtsi"
+
+/ {
+	aoa_middleware {
+		compatible = "rockchip,aoa-middleware";
+		memory-region = <&aoa_sram>, <&aoa_extram>;
+		rockchip,aoa = <&aoa>;
+		rockchip,dma = <&dmac_lp>;
+	};
+};
+
+&aoa_extram {
+	/**
+	 * Different ext-RAM chips have different capacities,
+	 * the EVBs uses 8MB by default.
+	 */
+	reg = <0x24000000 0x800000>;
+	ranges = <0 0x24000000 0x800000>;
+	status = "okay";
+};
