@@ -25,6 +25,7 @@
 
 #include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rk3399_grf.h>
+#include <soc/rockchip/rk3562_grf.h>
 #include <soc/rockchip/rk3568_grf.h>
 #include <soc/rockchip/rk3576_grf.h>
 #include <soc/rockchip/rk3588_grf.h>
@@ -943,6 +944,23 @@ static int rk3399_dfi_init(struct rockchip_dfi *dfi)
 	return rockchip_dfi_init_clocks(dfi);
 };
 
+static int rk3562_dfi_init(struct rockchip_dfi *dfi)
+{
+	dfi->max_channels = 1;
+	if (rockchip_dfi_get_dram_info(dfi, RK3562_PMUGRF_OS_REG2))
+		return -EINVAL;
+
+	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
+	dfi->ddrmon_ctrl_single = true;
+
+	dfi->count_rate = 2;
+
+	/* no clk management */
+	dfi->num_clks = 0;
+
+	return 0;
+};
+
 static int rk3568_dfi_init(struct rockchip_dfi *dfi)
 {
 	dfi->max_channels = 1;
@@ -1002,6 +1020,7 @@ static int rk3576_dfi_init(struct rockchip_dfi *dfi)
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,rk3399-dfi", .data = rk3399_dfi_init },
+	{ .compatible = "rockchip,rk3562-dfi", .data = rk3562_dfi_init },
 	{ .compatible = "rockchip,rk3568-dfi", .data = rk3568_dfi_init },
 	{ .compatible = "rockchip,rk3588-dfi", .data = rk3588_dfi_init },
 	{ .compatible = "rockchip,rk3576-dfi", .data = rk3576_dfi_init },
