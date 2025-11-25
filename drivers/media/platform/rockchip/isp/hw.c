@@ -1619,7 +1619,6 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
 	void __iomem *base = hw_dev->base_addr;
 	struct rkisp_device *isp;
-	int mult = hw_dev->unite ? 2 : 1;
 	int ret, i, j;
 	void *buf;
 
@@ -1641,7 +1640,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 			if (!isp || !isp->sw_base_addr)
 				continue;
 			buf = isp->sw_base_addr;
-			memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
+			memset(buf, 0, isp->sw_base_size);
 			memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
 			for (j = 1; j < ISP_UNITE_MAX && hw_dev->unite; j++) {
 				buf += RKISP_ISP_SW_MAX_SIZE;
@@ -1652,7 +1651,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 				u32 *flag;
 
 				buf = isp->sw_vpsl_base_addr;
-				memset(buf, 0, VPSL_SW_MAX_SIZE * mult);
+				memset(buf, 0, isp->sw_vpsl_base_size);
 				flag = buf + VPSL_SW_REG_SIZE + VPSL_PYR_CTRL;
 				*flag = SW_REG_CACHE;
 				flag = buf + VPSL_PYR_CHN + VPSL_PYR_CTRL;

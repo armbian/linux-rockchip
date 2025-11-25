@@ -52,11 +52,11 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 			struct v4l2_rect *rect, bool async)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	u32 val = stream->config->dual_crop.yuvmode_mask;
+	u32 ctrl = stream->config->dual_crop.yuvmode_mask;
 	struct v4l2_rect tmp = *rect;
 	u32 reg;
 
-	if (dev->unite_div > ISP_UNITE_DIV1) {
+	if (dev->unite.h_div == 2 && dev->unite.v_div == 1) {
 		tmp.width /= 2;
 		if (stream->id == RKISP_STREAM_FBC)
 			tmp.width &= ~0xf;
@@ -66,19 +66,17 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 	reg = stream->config->dual_crop.h_size;
 	rkisp_write(dev, reg, tmp.width, false);
 
-	if (dev->unite_div == ISP_UNITE_DIV4)
-		tmp.height /= 2;
 	reg = stream->config->dual_crop.v_offset;
 	rkisp_unite_write(dev, reg, tmp.top, false);
 	reg = stream->config->dual_crop.v_size;
 	rkisp_unite_write(dev, reg, tmp.height, false);
 
 	if (async && dev->hw_dev->is_single)
-		val |= CIF_DUAL_CROP_GEN_CFG_UPD;
+		ctrl |= CIF_DUAL_CROP_GEN_CFG_UPD;
 	else
-		val |= CIF_DUAL_CROP_CFG_UPD;
+		ctrl |= CIF_DUAL_CROP_CFG_UPD;
 
-	if (dev->unite_div > ISP_UNITE_DIV1) {
+	if (dev->unite.h_div == 2 && dev->unite.v_div == 1) {
 		u32 right_w, left_w = tmp.width;
 
 		reg = stream->config->dual_crop.h_offset;
@@ -88,7 +86,7 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		rkisp_idx_write(dev, reg, right_w, ISP_UNITE_RIGHT, false);
 
 		reg = stream->config->dual_crop.ctrl;
-		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_RIGHT, false);
+		rkisp_idx_set_bits(dev, reg, 0, ctrl, ISP_UNITE_RIGHT, false);
 		/* output with scale */
 		if (stream->out_fmt.width < rect->width) {
 			left_w += dev->hw_dev->unite_extend_pixel;
@@ -101,27 +99,39 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "right dcrop (%d, %d) %dx%d\n",
 			 dev->hw_dev->unite_extend_pixel, tmp.top, right_w, tmp.height);
+	} else if (dev->unite_div > ISP_UNITE_DIV1) {
+		struct rkisp_unite_window *win;
+		u32 i, j, idx, v0, v1, v2, v3;
+
+		for (i = 0; i < dev->unite.v_div; i++) {
+			for (j = 0; j < dev->unite.h_div; j++) {
+				idx = i * dev->unite.h_div + j;
+				win = &dev->unite.win[idx];
+
+				reg = stream->config->dual_crop.h_offset;
+				v0 = win->left_extend;
+				rkisp_idx_write(dev, reg, v0, idx, false);
+
+				reg = stream->config->dual_crop.h_size;
+				v1 = win->act_width - win->left_extend - win->right_extend;
+				rkisp_idx_write(dev, reg, v1, idx, false);
+
+				reg = stream->config->dual_crop.v_offset;
+				v2 = win->up_extend;
+				rkisp_idx_write(dev, reg, v2, idx, false);
+
+				reg = stream->config->dual_crop.v_size;
+				v3 = win->act_height - win->up_extend - win->down_extend;
+				rkisp_idx_write(dev, reg, v3, idx, false);
+
+				reg = stream->config->dual_crop.ctrl;
+				rkisp_idx_set_bits(dev, reg, 0, ctrl, idx, false);
+			}
+		}
 	}
-	if (dev->unite_div == ISP_UNITE_DIV4) {
-		reg = stream->config->dual_crop.h_offset;
-		rkisp_idx_write(dev, reg, tmp.left, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_RIGHT_B, false);
-
-		reg = stream->config->dual_crop.h_size;
-		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_RIGHT_B, false);
-
-		reg = stream->config->dual_crop.v_offset;
-		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_write(dev, reg, dev->hw_dev->unite_extend_pixel, ISP_UNITE_RIGHT_B, false);
-
+	if (ctrl) {
 		reg = stream->config->dual_crop.ctrl;
-		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_LEFT_B, false);
-		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_RIGHT_B, false);
-	}
-	if (val) {
-		reg = stream->config->dual_crop.ctrl;
-		rkisp_set_bits(dev, reg, 0, val, false);
+		rkisp_set_bits(dev, reg, 0, ctrl, false);
 	}
 }
 

@@ -103,6 +103,9 @@
 #define RKISP_CMD_BTNR_WGT_READY \
 	_IO('V', BASE_VIDIOC_PRIVATE + 30)
 
+#define RKISP_CMD_GET_UNITE_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 31, struct rkisp_unite_info)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -375,6 +378,34 @@ struct rkisp_isp_info {
 	__u32 act_width;
 	__u32 act_height;
 	__u8 compr_bit;
+} __attribute__ ((packed));
+
+#define RKISP_UNITE_WIN_MAX 9
+/* struct rkisp_unite_window
+ * act_width: actual width of isp, include extend pixel.
+ * act_height: actual height of isp, include extend pixel.
+ * up_extend: up extend pixel.
+ * down_extend: down extend pixel.
+ * left_extend: left extend pixel.
+ * right_extend: right extend pixel
+ */
+struct rkisp_unite_window {
+	__u32 act_width;
+	__u32 act_height;
+	__u32 up_extend;
+	__u32 down_extend;
+	__u32 left_extend;
+	__u32 right_extend;
+} __attribute__ ((packed));
+
+/* struct rkisp_unite_info
+ * h_div: number of horizontal blocks
+ * v_div: number of vertical blocks
+ */
+struct rkisp_unite_info {
+	__u32 h_div;
+	__u32 v_div;
+	struct rkisp_unite_window win[RKISP_UNITE_WIN_MAX];
 } __attribute__ ((packed));
 
 enum isp2x_mesh_buf_stat {

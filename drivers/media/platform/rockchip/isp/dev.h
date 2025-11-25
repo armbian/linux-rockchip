@@ -130,13 +130,17 @@ enum {
 	ISP_UNITE_RIGHT,
 	ISP_UNITE_LEFT_B,
 	ISP_UNITE_RIGHT_B,
-	ISP_UNITE_MAX,
+
+	ISP_UNITE_MAX = RKISP_UNITE_WIN_MAX,
 };
 
 enum {
 	ISP_UNITE_DIV1 = 1,
 	ISP_UNITE_DIV2 = 2,
+	ISP_UNITE_DIV3 = 3,
 	ISP_UNITE_DIV4 = 4,
+	ISP_UNITE_DIV6 = 6,
+	ISP_UNITE_DIV9 = 9,
 };
 
 /*
@@ -215,6 +219,8 @@ struct rkisp_device {
 	char name[128];
 	void *sw_base_addr;
 	void *sw_vpsl_base_addr;
+	u32 sw_base_size;
+	u32 sw_vpsl_base_size;
 	struct rkisp_hw_dev *hw_dev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -296,6 +302,8 @@ struct rkisp_device {
 	struct rkisp_cmsk_cfg cmsk_cfg;
 	struct rkisp_aiisp_cfg aiisp_cfg;
 	struct rkisp_fpn_cfg fpn_cfg;
+
+	struct rkisp_unite_info unite;
 
 	bool is_cmsk_upd;
 	bool is_hw_link;

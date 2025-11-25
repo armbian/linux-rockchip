@@ -134,7 +134,7 @@ rkisp_stats_get_hist_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 		val = isp3_stats_read(stats_vdev, ISP33_HIST_STAB);
 		arg_rec->stab_frame_cnt0 = val & 0xf;
 		arg_rec->stab_frame_cnt1 = (val & 0xf0) >> 4;
-		for (i = 0; i < priv_val->hist_blk_num; i++) {
+		for (i = 0; i < priv_val->hist_blk_num[dev->unite_index]; i++) {
 			val = ISP33_IIR_RD_ID(i) | ISP33_IIR_RD_P;
 			isp3_stats_write(stats_vdev, ISP33_HIST_RW, val);
 			timeout = 5;
@@ -182,7 +182,7 @@ rkisp_stats_get_enh_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 		val = isp3_stats_read(stats_vdev, ISP33_ENH_PRE_FRAME);
 		arg_rec->pre_wet_frame_cnt0 = val & 0xf;
 		arg_rec->pre_wet_frame_cnt1 = (val & 0xf0) >> 4;
-		for (i = 0; i < priv_val->enh_row; i++) {
+		for (i = 0; i < priv_val->enh_row[dev->unite_index]; i++) {
 			val = ISP33_IIR_RD_ID(i) | ISP33_IIR_RD_P;
 			isp3_stats_write(stats_vdev, ISP33_ENH_IIR_RW, val);
 			timeout = 5;
@@ -196,7 +196,7 @@ rkisp_stats_get_enh_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 				v4l2_warn(&dev->v4l2_dev, "%s enh read:%d timeout\n", __func__, i);
 				return 0;
 			}
-			for (j = 0; j < priv_val->enh_col / 4; j++) {
+			for (j = 0; j < priv_val->enh_col[dev->unite_index] / 4; j++) {
 				val = isp3_stats_read(stats_vdev, ISP33_ENH_IIR0 + 4 * j);
 				arg_rec->iir[i][4 * j] = val & 0xFF;
 				arg_rec->iir[i][4 * j + 1] = (val & 0xff00) >> 8;
@@ -650,15 +650,13 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev, u32 w3a_ris)
 
 		if (dev->unite_index > ISP_UNITE_LEFT && cur_stat_buf)
 			cur_stat_buf = (void *)cur_stat_buf + size / dev->unite_div * dev->unite_index;
-		if ((dev->unite_div == ISP_UNITE_DIV2 && dev->unite_index != ISP_UNITE_RIGHT) ||
-		    (dev->unite_div == ISP_UNITE_DIV4 && dev->unite_index != ISP_UNITE_RIGHT_B)) {
+		if (dev->unite_div > ISP_UNITE_DIV1 && dev->unite_index != dev->unite_div - 1) {
 			cur_buf = NULL;
 			is_dummy = false;
 		}
 
 		if (dev->unite_div < ISP_UNITE_DIV2 ||
-		    (dev->unite_div == ISP_UNITE_DIV2 && dev->unite_index == ISP_UNITE_RIGHT) ||
-		    (dev->unite_div == ISP_UNITE_DIV4 && dev->unite_index == ISP_UNITE_RIGHT_B)) {
+		    (dev->unite_div > ISP_UNITE_DIV1 && dev->unite_index == dev->unite_div - 1)) {
 			/* config buf for next frame */
 			stats_vdev->cur_buf = NULL;
 			if (stats_vdev->nxt_buf) {

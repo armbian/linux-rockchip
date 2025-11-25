@@ -814,10 +814,9 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		return -EINVAL;
 	}
 
-	if ((dev->unite_div == ISP_UNITE_DIV4 ||
-	    (dev->isp_ver == ISP_V32_L &&
-	     stream->id == RKISP_STREAM_SP &&
-	     dev->unite_div == ISP_UNITE_DIV2)) &&
+	if (((dev->unite.v_div > 1 || dev->unite.h_div > 2) ||
+	     (dev->isp_ver == ISP_V32_L &&
+	      stream->id == RKISP_STREAM_SP && dev->unite.h_div > 1)) &&
 	    (pixm->width != dev->isp_sdev.out_crop.width ||
 	     pixm->height != dev->isp_sdev.out_crop.height)) {
 		pixm->width = dev->isp_sdev.out_crop.width;
@@ -1701,14 +1700,14 @@ static struct v4l2_rect *rkisp_update_crop(struct rkisp_stream *stream,
 			     in->width - sel->left);
 	sel->height = clamp_t(u32, sel->height, STREAM_MIN_MP_SP_INPUT_HEIGHT,
 			      in->height - sel->top);
-	if (dev->unite_div > ISP_UNITE_DIV1 &&
+	if (dev->unite.h_div > 1 &&
 	    (sel->width + 2 * sel->left) != in->width) {
 		sel->left = ALIGN_DOWN((in->width - sel->width) / 2, 2);
 		v4l2_warn(&dev->v4l2_dev,
 			  "try horizontal center left:%d width:%d for unite mode\n",
 			  sel->left, sel->width);
 	}
-	if (dev->unite_div == ISP_UNITE_DIV4 &&
+	if (dev->unite.v_div > 1 &&
 	    (sel->height + 2 * sel->top) != in->height) {
 		sel->top = ALIGN_DOWN((in->height - sel->height) / 2, 2);
 		v4l2_warn(&dev->v4l2_dev,

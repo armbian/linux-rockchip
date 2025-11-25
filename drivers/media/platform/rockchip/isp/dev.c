@@ -937,11 +937,13 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 
 	if (isp_dev->hw_dev->unite)
 		mult = ISP_UNITE_MAX;
-	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE * mult, GFP_KERNEL);
+	isp_dev->sw_base_size = RKISP_ISP_SW_MAX_SIZE * mult;
+	isp_dev->sw_base_addr = devm_kzalloc(dev, isp_dev->sw_base_size, GFP_KERNEL);
 	if (!isp_dev->sw_base_addr)
 		return -ENOMEM;
 	if (isp_dev->hw_dev->isp_ver == ISP_V35) {
-		isp_dev->sw_vpsl_base_addr = devm_kzalloc(dev, VPSL_SW_MAX_SIZE * mult, GFP_KERNEL);
+		isp_dev->sw_vpsl_base_size = VPSL_SW_MAX_SIZE * mult;
+		isp_dev->sw_vpsl_base_addr = devm_kzalloc(dev, isp_dev->sw_vpsl_base_size, GFP_KERNEL);
 		if (!isp_dev->sw_vpsl_base_addr)
 			return -ENOMEM;
 	}
