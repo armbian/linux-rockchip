@@ -1463,6 +1463,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 			   scheduler->version.minor == 0x1 &&
 			   scheduler->version.revision == 0x34669) {
 			scheduler->data = &rga2p_iommu_non_fbc_data;
+		} else if (!strcmp(scheduler->version.str, "5.2.48482")) {
+			scheduler->data = &rga2p_iommu_rk3538_data;
 		} else {
 			scheduler->data = &rga2e_data;
 		}
