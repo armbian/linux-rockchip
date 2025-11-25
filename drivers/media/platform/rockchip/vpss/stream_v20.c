@@ -752,18 +752,59 @@ static struct stream_config scl5_config = {
 	},
 };
 
-//1126b todo
-static void calc_unite_scl_params(struct rkvpss_stream *stream)
+static void calc_unite_scl_params_avg(struct rkvpss_stream *stream,
+				      u32 *right_scl_need_size_y,
+				      u32 *right_scl_need_size_c)
 {
 	struct rkvpss_online_unite_params *params = &stream->unite_params;
-	u32 right_scl_need_size_y, right_scl_need_size_c;
+	u32 left_in_used_size_y, left_in_used_size_c;
+	u32 scl_h_size = stream->out_fmt.width / 2;
+	u64 left_used_q16_y, left_used_q16_c;
+	u64 phase_left_y_val, phase_left_c_val;
+	u32 phase_left_y, phase_left_c;
+
+	/* Average downscaling calculation */
+	params->y_w_fac = ((stream->out_fmt.width - 1) * 65536 /
+			  (stream->crop.width - 1)) + 1;
+	params->c_w_fac = ((stream->out_fmt.width / 2 - 1) * 65536 /
+			  (stream->crop.width / 2 - 1)) + 1;
+	params->y_h_fac = ((stream->out_fmt.height - 1) * 65536 /
+			  (stream->crop.height - 1)) + 1;
+	params->c_h_fac = ((stream->out_fmt.height - 1) * 65536 /
+			  (stream->crop.height - 1)) + 1;
+
+	left_used_q16_y = (u64)scl_h_size * 65536;
+	left_used_q16_c = (u64)(scl_h_size / 2) * 65536;
+
+	left_in_used_size_y = div64_u64(left_used_q16_y + params->y_w_fac - 1, params->y_w_fac);
+	left_in_used_size_c = div64_u64(left_used_q16_c + params->c_w_fac - 1, params->c_w_fac);
+
+	phase_left_y_val = (u64)left_in_used_size_y * params->y_w_fac;
+	phase_left_c_val = (u64)left_in_used_size_c * params->c_w_fac;
+
+	phase_left_y = params->y_w_fac - (u32)(phase_left_y_val - left_used_q16_y);
+	phase_left_c = params->c_w_fac - (u32)(phase_left_c_val - left_used_q16_c);
+
+	*right_scl_need_size_y = stream->crop.width - (left_in_used_size_y - 1);
+	*right_scl_need_size_c = stream->crop.width - ((left_in_used_size_c - 1)*2);
+
+	params->y_w_phase = phase_left_y;
+	params->c_w_phase = phase_left_c;
+	params->right_scl_need_size_y = *right_scl_need_size_y;
+	params->right_scl_need_size_c = *right_scl_need_size_c;
+}
+
+static void calc_unite_scl_params_bilinear(struct rkvpss_stream *stream,
+					   u32 *right_scl_need_size_y,
+					   u32 *right_scl_need_size_c)
+{
+	struct rkvpss_online_unite_params *params = &stream->unite_params;
 	u32 left_in_used_size_y, left_in_used_size_c;
 	u32 right_fst_position_y, right_fst_position_c;
-	u32 right_y_crop_total;
-	u32 right_c_crop_total;
 
+	/* Bilinear scale calculation */
 	params->y_w_fac = (stream->crop.width - 1) * 4096 /
-			  (stream->out_fmt.width  - 1);
+			  (stream->out_fmt.width - 1);
 	params->c_w_fac = (stream->crop.width / 2 - 1) * 4096 /
 			  (stream->out_fmt.width / 2 - 1);
 	params->y_h_fac = (stream->crop.height - 1) * 4096 /
@@ -771,10 +812,8 @@ static void calc_unite_scl_params(struct rkvpss_stream *stream)
 	params->c_h_fac = (stream->crop.height - 1) * 4096 /
 			  (stream->out_fmt.height - 1);
 
-	right_fst_position_y = stream->out_fmt.width / 2 *
-			       params->y_w_fac;
-	right_fst_position_c = stream->out_fmt.width / 2 / 2 *
-			       params->c_w_fac;
+	right_fst_position_y = stream->out_fmt.width / 2 * params->y_w_fac;
+	right_fst_position_c = stream->out_fmt.width / 2 / 2 * params->c_w_fac;
 
 	left_in_used_size_y = right_fst_position_y >> 12;
 	left_in_used_size_c = (right_fst_position_c >> 12) * 2;
@@ -782,49 +821,49 @@ static void calc_unite_scl_params(struct rkvpss_stream *stream)
 	params->y_w_phase = right_fst_position_y & 0xfff;
 	params->c_w_phase = right_fst_position_c & 0xfff;
 
-	right_scl_need_size_y = stream->crop.width -
-				left_in_used_size_y;
-	params->right_scl_need_size_y = right_scl_need_size_y;
-	right_scl_need_size_c = stream->crop.width -
-				left_in_used_size_c;
-	params->right_scl_need_size_c = right_scl_need_size_c;
+	*right_scl_need_size_y = stream->crop.width - left_in_used_size_y;
+	*right_scl_need_size_c = stream->crop.width - left_in_used_size_c;
 
-	if (stream->id == 0 && stream->crop.width != stream->out_fmt.width) {
-		right_y_crop_total = stream->crop.width / 2 +
-				     stream->dev->unite_extend_pixel -
-				     right_scl_need_size_y - 3;
-		right_c_crop_total = stream->crop.width / 2 +
-				     stream->dev->unite_extend_pixel -
-				     right_scl_need_size_c - 6;
-	} else {
-		right_y_crop_total = stream->crop.width / 2 +
-				     stream->dev->unite_extend_pixel -
-				     right_scl_need_size_y;
-		right_c_crop_total = stream->crop.width / 2 +
-				     stream->dev->unite_extend_pixel -
-				     right_scl_need_size_c;
-	}
+	params->right_scl_need_size_y = *right_scl_need_size_y;
+	params->right_scl_need_size_c = *right_scl_need_size_c;
+}
+
+static void calc_unite_crop_params(struct rkvpss_stream *stream,
+				   u32 right_scl_need_size_y,
+				   u32 right_scl_need_size_c,
+				   bool use_average)
+{
+	struct rkvpss_online_unite_params *params = &stream->unite_params;
+	u32 right_y_crop_total, right_c_crop_total;
+
+	right_y_crop_total = stream->crop.width / 2
+				+ stream->dev->unite_extend_pixel - right_scl_need_size_y;
+	right_c_crop_total = stream->crop.width / 2
+				+ stream->dev->unite_extend_pixel - right_scl_need_size_c;
+
+	if ((s32)right_y_crop_total < 0)
+		right_y_crop_total = 0;
+	if ((s32)right_c_crop_total < 0)
+		right_c_crop_total = 0;
 
 	params->quad_crop_w = ALIGN_DOWN(min(right_y_crop_total, right_c_crop_total), 2);
 
 	params->scl_in_crop_w_y = right_y_crop_total - params->quad_crop_w;
 	params->scl_in_crop_w_c = right_c_crop_total - params->quad_crop_w;
+}
 
-	if (rkvpss_debug >= 2) {
-		v4l2_info(&stream->dev->v4l2_dev,
-			  "%s ch:%d y_w_fac:%u c_w_fac:%u y_h_fac:%u c_h_fac:%u\n",
-			  __func__, stream->id, params->y_w_fac,
-			  params->c_w_fac, params->y_h_fac, params->c_h_fac);
-		v4l2_info(&stream->dev->v4l2_dev,
-			  "\t%s y_w_phase:%u c_w_phase:%u quad_crop_w:%u scl_in_crop_w_y:%u scl_in_crop_w_c:%u\n",
-			  __func__, params->y_w_phase, params->c_w_phase,
-			  params->quad_crop_w,
-			  params->scl_in_crop_w_y, params->scl_in_crop_w_c);
-		v4l2_info(&stream->dev->v4l2_dev,
-			  "\t%s right_scl_need_size_y:%u right_scl_need_size_c:%u\n",
-			  __func__, params->right_scl_need_size_y,
-			  params->right_scl_need_size_c);
-	}
+static void calc_unite_scl_params(struct rkvpss_stream *stream)
+{
+	u32 right_scl_need_size_y, right_scl_need_size_c;
+	bool use_average = (stream->id == RKVPSS_OUTPUT_CH0 || stream->id == RKVPSS_OUTPUT_CH2)
+			   && stream->avg_scl_down;
+
+	if (use_average)
+		calc_unite_scl_params_avg(stream, &right_scl_need_size_y, &right_scl_need_size_c);
+	else
+		calc_unite_scl_params_bilinear(stream, &right_scl_need_size_y, &right_scl_need_size_c);
+
+	calc_unite_crop_params(stream, right_scl_need_size_y, right_scl_need_size_c, use_average);
 }
 
 int rkvpss_stream_buf_cnt_v20(struct rkvpss_stream *stream)
@@ -851,8 +890,8 @@ static void stream_frame_start(struct rkvpss_stream *stream, u32 irq)
 	if (stream->is_crop_upd) {
 		if (dev->unite_mode)
 			calc_unite_scl_params(stream);
-		rkvpss_stream_scale(stream, true, !irq);
 		rkvpss_stream_crop(stream, true, !irq);
+		rkvpss_stream_scale(stream, true, !irq);
 	}
 	if (stream->is_pause)
 		stream->ops->update_mi(stream);
@@ -914,24 +953,64 @@ static void scl_update_mi(struct rkvpss_stream *stream)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	if (buf) {
-		if (fmt->fmt_type == FMT_FBC) {
-			/* uv for head at buf top */
-			uv_base = buf->dma[0];
-			/* y for payload after head */
-			y_base = buf->dma[1];
-		} else {
+		if (dev->unite_mode) {
+			/* Unite mode: calculate offsets for left/right banks */
+			u32 bytes_per_pixel_y, bytes_per_pixel_uv;
+			u32 right_y_offset, right_uv_offset;
+
+			/* Determine bytes per pixel based on format */
+			switch (fmt->fourcc) {
+			case V4L2_PIX_FMT_RGB565:
+			case V4L2_PIX_FMT_RGB565X:
+				bytes_per_pixel_y = 2;
+				bytes_per_pixel_uv = 0; /* RGB has no UV plane */
+				break;
+			case V4L2_PIX_FMT_XBGR32:
+			case V4L2_PIX_FMT_XRGB32:
+				bytes_per_pixel_y = 4;
+				bytes_per_pixel_uv = 0; /* RGB has no UV plane */
+				break;
+			case V4L2_PIX_FMT_NV12:
+			case V4L2_PIX_FMT_NV21:
+			case V4L2_PIX_FMT_NV16:
+			case V4L2_PIX_FMT_NV61:
+			default:
+				bytes_per_pixel_y = 1;
+				bytes_per_pixel_uv = 1;
+				break;
+			}
+
+			/* Calculate right bank offset for each channel's right half */
+			right_y_offset = (stream->out_fmt.width / 2) * bytes_per_pixel_y;
+			right_uv_offset = (stream->out_fmt.width / 2) * bytes_per_pixel_uv;
+
+			/* Configure left bank (no offset) - writes to left half */
 			y_base = buf->dma[0];
 			uv_base = buf->dma[1];
-		}
-		rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, VPSS_UNITE_LEFT);
-		rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, VPSS_UNITE_LEFT);
-		if (dev->unite_mode) {
-			y_base = buf->dma[0] + stream->out_fmt.width / 2;
-			uv_base = buf->dma[1] + stream->out_fmt.width / 2;
-			rkvpss_idx_write(dev,
-					 stream->config->mi.y_base, y_base, VPSS_UNITE_RIGHT);
-			rkvpss_idx_write(dev,
-					 stream->config->mi.uv_base, uv_base, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, VPSS_UNITE_LEFT);
+
+			/* Configure right bank (with offset) - writes to right half */
+			y_base = buf->dma[0] + right_y_offset;
+			if (bytes_per_pixel_uv > 0)
+				uv_base = buf->dma[1] + right_uv_offset;
+			else
+				uv_base = buf->dma[1]; /* RGB formats don't use UV */
+
+			rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, VPSS_UNITE_RIGHT);
+		} else {
+			if (fmt->fmt_type == FMT_FBC) {
+				/* uv for head at buf top */
+				uv_base = buf->dma[0];
+				/* y for payload after head */
+				y_base = buf->dma[1];
+			} else {
+				y_base = buf->dma[0];
+				uv_base = buf->dma[1];
+			}
+			rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, dev->unite_index);
+			rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, dev->unite_index);
 		}
 
 		scl_force_update(stream);
@@ -1433,70 +1512,56 @@ static int rkvpss_stream_crop_ch4_5(struct rkvpss_stream *stream, bool on, bool 
 	if (!dev->unite_mode) {
 		if (on) {
 			rkvpss_unite_set_bits(dev, reg_ctrl, 0, val);
-			rkvpss_unite_write(dev,
-					   reg_ch4_5_offs,
-					   RKVPSS2X_CROP_OFFS(crop->top, crop->left));
-			rkvpss_unite_write(dev,
-					   reg_ch4_5_size,
-					   RKVPSS2X_CROP_SIZE(crop->height, crop->width));
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "crop left:%d top:%d w:%d h:%d\n",
-				 crop->left, crop->top, crop->width, crop->height);
+			rkvpss_unite_write(dev, reg_ch4_5_offs,
+				 RKVPSS2X_CROP_OFFS(crop->top, crop->left));
+			rkvpss_unite_write(dev, reg_ch4_5_size,
+				 RKVPSS2X_CROP_SIZE(crop->height, crop->width));
 		} else {
 			rkvpss_unite_clear_bits(dev, reg_ctrl, val);
 		}
 		if (sync) {
 			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
 			val |= RKVPSS_CROP_GEN_UPD;
-			rkvpss_unite_write(dev, reg_upd, val);
-			rkvpss_unite_write(dev, reg_upd, val);
+			rkvpss_unite_set_bits(dev, reg_upd, 0, val);
 		}
 	} else {
 		if (on) {
-			if (crop->left + crop->width / 2 != dev->vpss_sdev.in_fmt.width / 2) {
+			if (crop->left + crop->width / 2 !=
+			    dev->vpss_sdev.in_fmt.width / 2) {
 				v4l2_err(&dev->v4l2_dev,
 					 "unite need centered crop left:%d top:%d w:%d h:%d\n",
-					 crop->left, crop->top, crop->width, crop->height);
+					 crop->left, crop->top, crop->width,
+					 crop->height);
 				return -EINVAL;
 			}
-			/* unite left */
+
 			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_LEFT);
 			rkvpss_idx_write(dev, reg_ch4_5_offs,
-					 RKVPSS2X_CROP_OFFS(crop->top, crop->left),
-					 VPSS_UNITE_LEFT);
-			/* if no scale left don't enlarge */
+				RKVPSS2X_CROP_OFFS(crop->top, crop->left), VPSS_UNITE_LEFT);
 			if (crop->width == stream->out_fmt.width)
-				h_size =  crop->width / 2;
+				h_size = crop->width / 2;
 			else
 				h_size = crop->width / 2 + dev->unite_extend_pixel;
-
 			v_size = crop->height;
 			rkvpss_idx_write(dev, reg_ch4_5_size,
-					 RKVPSS2X_CROP_SIZE(v_size, h_size), VPSS_UNITE_LEFT);
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "right crop left:%d top:%d w:%d h:%d\n",
-				 rkvpss_idx_read(dev, reg_ch4_5_offs, VPSS_UNITE_LEFT) & 0x3fff,
-				 rkvpss_idx_read(dev, reg_ch4_5_offs, VPSS_UNITE_LEFT) >> 16,
-				 rkvpss_idx_read(dev, reg_ch4_5_size, VPSS_UNITE_LEFT) & 0x3fff,
-				 rkvpss_idx_read(dev, reg_ch4_5_size, VPSS_UNITE_LEFT) >> 16);
+				RKVPSS2X_CROP_SIZE(v_size, h_size), VPSS_UNITE_LEFT);
 
-			/* unite right */
 			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_RIGHT);
-			h_offs = stream->unite_params.quad_crop_w;
 			v_offs = crop->top;
-			h_size = crop->width / 2 + dev->unite_extend_pixel -
-				 stream->unite_params.quad_crop_w;
 			v_size = crop->height;
+			if (crop->width == stream->out_fmt.width) {
+				h_offs = dev->unite_extend_pixel;
+				h_size = crop->width / 2;
+			} else {
+				h_offs = stream->unite_params.quad_crop_w;
+				h_size = crop->width / 2
+					+ dev->unite_extend_pixel
+					- stream->unite_params.quad_crop_w;
+			}
 			rkvpss_idx_write(dev, reg_ch4_5_offs,
-					 RKVPSS2X_CROP_OFFS(v_offs, h_offs), VPSS_UNITE_RIGHT);
-			rkvpss_idx_write(dev, reg_ch4_5_offs,
-					 RKVPSS2X_CROP_SIZE(v_size, h_size), VPSS_UNITE_RIGHT);
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "right crop left:%d top:%d w:%d h:%d\n",
-				 rkvpss_idx_read(dev, reg_ch4_5_offs, VPSS_UNITE_RIGHT) & 0x3fff,
-				 rkvpss_idx_read(dev, reg_ch4_5_offs, VPSS_UNITE_RIGHT) >> 16,
-				 rkvpss_idx_read(dev, reg_ch4_5_size, VPSS_UNITE_RIGHT) & 0x3fff,
-				 rkvpss_idx_read(dev, reg_ch4_5_size, VPSS_UNITE_RIGHT) >> 16);
+				RKVPSS2X_CROP_OFFS(v_offs, h_offs), VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_ch4_5_size,
+				RKVPSS2X_CROP_SIZE(v_size, h_size), VPSS_UNITE_RIGHT);
 		} else {
 			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_LEFT);
 			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_RIGHT);
@@ -1504,13 +1569,11 @@ static int rkvpss_stream_crop_ch4_5(struct rkvpss_stream *stream, bool on, bool 
 		if (sync) {
 			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
 			val |= RKVPSS_CROP_GEN_UPD;
-			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_LEFT);
-			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_RIGHT);
+			rkvpss_unite_set_bits(dev, reg_upd, 0, val);
 		}
 	}
 	stream->is_crop_upd = false;
 	return 0;
-
 }
 
 static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
@@ -1523,7 +1586,7 @@ static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
 	u32 reg_v_offs = stream->config->crop.v_offs;
 	u32 reg_h_size = stream->config->crop.h_size;
 	u32 reg_v_size = stream->config->crop.v_size;
-	u32 val;
+	u32 val, h_size;
 
 	if (stream->id > RKVPSS_OUTPUT_CH3)
 		return rkvpss_stream_crop_ch4_5(stream, on, sync);
@@ -1536,61 +1599,48 @@ static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
 			rkvpss_unite_write(dev, reg_v_offs, crop->top);
 			rkvpss_unite_write(dev, reg_h_size, crop->width);
 			rkvpss_unite_write(dev, reg_v_size, crop->height);
-
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "crop left:%d top:%d w:%d h:%d\n",
-				 crop->left, crop->top, crop->width, crop->height);
 		} else {
 			rkvpss_unite_clear_bits(dev, reg_ctrl, val);
 		}
 		if (sync) {
 			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
 			val |= RKVPSS_CROP_GEN_UPD;
-			rkvpss_unite_write(dev, reg_upd, val);
-			rkvpss_unite_write(dev, reg_upd, val);
+			rkvpss_unite_set_bits(dev, reg_upd, 0, val);
 		}
 	} else {
 		if (on) {
-			if (crop->left + crop->width / 2 != dev->vpss_sdev.in_fmt.width / 2) {
+			if (crop->left + crop->width / 2 !=
+			    dev->vpss_sdev.in_fmt.width / 2) {
 				v4l2_err(&dev->v4l2_dev,
 					 "unite need centered crop left:%d top:%d w:%d h:%d\n",
-					 crop->left, crop->top, crop->width, crop->height);
+					 crop->left, crop->top, crop->width,
+					 crop->height);
 				return -EINVAL;
 			}
-			/* unite left */
+
 			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_LEFT);
 			rkvpss_idx_write(dev, reg_h_offs, crop->left, VPSS_UNITE_LEFT);
 			rkvpss_idx_write(dev, reg_v_offs, crop->top, VPSS_UNITE_LEFT);
-			/* if no scale left don't enlarge */
 			if (crop->width == stream->out_fmt.width)
-				rkvpss_idx_write(dev, reg_h_size, crop->width / 2,
-						 VPSS_UNITE_LEFT);
+				h_size = crop->width / 2;
 			else
-				rkvpss_idx_write(dev, reg_h_size, crop->width / 2 +
-						 dev->unite_extend_pixel, VPSS_UNITE_LEFT);
+				h_size = crop->width / 2 + dev->unite_extend_pixel;
+			rkvpss_idx_write(dev, reg_h_size, h_size, VPSS_UNITE_LEFT);
 			rkvpss_idx_write(dev, reg_v_size, crop->height, VPSS_UNITE_LEFT);
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "left crop left:%d top:%d w:%d h:%d\n",
-				 rkvpss_idx_read(dev, reg_h_offs, VPSS_UNITE_LEFT),
-				 rkvpss_idx_read(dev, reg_v_offs, VPSS_UNITE_LEFT),
-				 rkvpss_idx_read(dev, reg_h_size, VPSS_UNITE_LEFT),
-				 rkvpss_idx_read(dev, reg_v_size, VPSS_UNITE_LEFT));
 
-			/* unite right */
 			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_RIGHT);
-			rkvpss_idx_write(dev, reg_h_offs, stream->unite_params.quad_crop_w,
-					 VPSS_UNITE_RIGHT);
+			if (crop->width == stream->out_fmt.width) {
+				rkvpss_idx_write(dev, reg_h_offs, dev->unite_extend_pixel,
+					VPSS_UNITE_RIGHT);
+				h_size = crop->width / 2;
+			} else {
+				rkvpss_idx_write(dev, reg_h_offs, stream->unite_params.quad_crop_w,
+					VPSS_UNITE_RIGHT);
+				h_size = crop->width / 2;
+			}
 			rkvpss_idx_write(dev, reg_v_offs, crop->top, VPSS_UNITE_RIGHT);
-			rkvpss_idx_write(dev, reg_h_size, crop->width / 2 +
-					 dev->unite_extend_pixel -
-					 stream->unite_params.quad_crop_w, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_h_size, h_size, VPSS_UNITE_RIGHT);
 			rkvpss_idx_write(dev, reg_v_size, crop->height, VPSS_UNITE_RIGHT);
-			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-				 "right crop left:%d top:%d w:%d h:%d\n",
-				 rkvpss_idx_read(dev, reg_h_offs, VPSS_UNITE_RIGHT),
-				 rkvpss_idx_read(dev, reg_v_offs, VPSS_UNITE_RIGHT),
-				 rkvpss_idx_read(dev, reg_h_size, VPSS_UNITE_RIGHT),
-				 rkvpss_idx_read(dev, reg_v_size, VPSS_UNITE_RIGHT));
 		} else {
 			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_LEFT);
 			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_RIGHT);
@@ -1598,8 +1648,7 @@ static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
 		if (sync) {
 			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
 			val |= RKVPSS_CROP_GEN_UPD;
-			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_LEFT);
-			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_RIGHT);
+			rkvpss_unite_set_bits(dev, reg_upd, 0, val);
 		}
 	}
 	stream->is_crop_upd = false;
@@ -1609,13 +1658,22 @@ static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
 static void average_scale_down(struct rkvpss_stream *stream, bool on, bool sync)
 {
 	struct rkvpss_device *dev = stream->dev;
-	u32 out_w = stream->out_fmt.width;
-	u32 out_h = stream->out_fmt.height;
 	u32 in_w = stream->crop.width;
 	u32 in_h = stream->crop.height;
-	u32 reg, val, ctrl = 0, clk_mask = 0;
+	u32 out_w = stream->out_fmt.width;
+	u32 out_h = stream->out_fmt.height;
+	u32 val, ctrl = 0;
+	u32 clk_mask, reg;
+	u32 left_src_w, right_src_w;
+	bool need_scale = false;
 
-	/*config scl clk gate*/
+	if (!on) {
+		reg = stream->config->scale.ctrl;
+		rkvpss_unite_write(dev, reg, 0);
+		return;
+	}
+
+	/* Get clock gate mask for this channel */
 	switch (stream->id) {
 	case RKVPSS_OUTPUT_CH0:
 		clk_mask = RKVPSS_SCL0_CKG_DIS;
@@ -1680,8 +1738,137 @@ static void average_scale_down(struct rkvpss_stream *stream, bool on, bool sync)
 			val |= RKVPSS_SCL_FORCE_UPD;
 		reg = stream->config->scale.update;
 		rkvpss_unite_write(dev, reg, val);
+	} else {
+		/* skip when no scaling */
+		need_scale = (in_w != out_w) || (in_h != out_h);
+
+		if (!need_scale) {
+			rkvpss_idx_write(dev, stream->config->scale.ctrl, 0, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, stream->config->scale.ctrl, 0, VPSS_UNITE_RIGHT);
+			val = RKVPSS_SCL_GEN_UPD;
+			if (sync)
+				val |= RKVPSS_SCL_FORCE_UPD;
+			rkvpss_unite_write(dev, stream->config->scale.update, val);
+			return;
+		}
+
+		/* left side setup */
+
+		/* reset left regs */
+		rkvpss_idx_write(dev, stream->config->scale.in_crop_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.hy_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.hc_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.vy_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.vc_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.hy_offs_mi, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.hc_offs_mi, 0, VPSS_UNITE_LEFT);
+
+		left_src_w = (in_w == out_w) ? (in_w / 2) :
+			(in_w / 2 + dev->unite_extend_pixel);
+		val = left_src_w | (in_h << 16);
+		rkvpss_idx_write(dev, stream->config->scale.src_size, val,
+			 VPSS_UNITE_LEFT);
+
+		val = (out_w / 2) | (out_h << 16);
+		rkvpss_idx_write(dev, stream->config->scale.dst_size, val,
+			 VPSS_UNITE_LEFT);
+
+		ctrl |= RKVPSS_SCL_CLIP_EN;
+
+		/* left horizontal scale */
+		if (in_w != out_w || !sync) {
+			rkvpss_idx_write(dev, stream->config->scale.hy_fac,
+				 stream->unite_params.y_w_fac,
+				 VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, stream->config->scale.hc_fac,
+				 stream->unite_params.c_w_fac,
+				 VPSS_UNITE_LEFT);
+			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN | RKVPSS2X_SW_AVG_SCALE_H_EN;
+		}
+
+		if (stream->out_fmt.height != stream->crop.height) {
+			rkvpss_idx_write(dev, stream->config->scale.vy_fac,
+				 stream->unite_params.y_h_fac,
+				 VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, stream->config->scale.vc_fac,
+				 stream->unite_params.c_h_fac,
+				 VPSS_UNITE_LEFT);
+			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN | RKVPSS2X_SW_AVG_SCALE_V_EN;
+		}
+
+		/* write left ctrl */
+		rkvpss_idx_write(dev, stream->config->scale.ctrl, ctrl, VPSS_UNITE_LEFT);
+
+		/* update left */
+		val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+		rkvpss_idx_write(dev, stream->config->scale.update, val, VPSS_UNITE_LEFT);
+
+		/* right side setup */
+
+		/* reset right ctrl */
+		ctrl = 0;
+
+		/* right crop offsets */
+		val = stream->unite_params.scl_in_crop_w_y
+			| (stream->unite_params.scl_in_crop_w_c << 4);
+		rkvpss_idx_write(dev, stream->config->scale.in_crop_offs, val, VPSS_UNITE_RIGHT);
+
+		/* right phase offsets */
+		rkvpss_idx_write(dev, stream->config->scale.hy_offs,
+			 stream->unite_params.y_w_phase,
+			 VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.hc_offs,
+			 stream->unite_params.c_w_phase,
+			 VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.vy_offs, 0, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.vc_offs, 0, VPSS_UNITE_RIGHT);
+
+		/* right MI align */
+		val = out_w / 2 - ALIGN_DOWN(out_w / 2, 16);
+		rkvpss_idx_write(dev, stream->config->scale.hy_offs_mi, val, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.hc_offs_mi, val, VPSS_UNITE_RIGHT);
+		/* right src matches crop */
+		if (in_w == out_w) {
+			right_src_w = in_w / 2;
+		} else {
+			/* with scaling include extra pixels */
+			right_src_w = in_w / 2 + dev->unite_extend_pixel;
+		}
+		val = right_src_w | (in_h << 16);
+		rkvpss_idx_write(dev, stream->config->scale.src_size, val, VPSS_UNITE_RIGHT);
+
+		/* right dst = left */
+		val = (out_w / 2) | (out_h << 16);
+		rkvpss_idx_write(dev, stream->config->scale.dst_size, val, VPSS_UNITE_RIGHT);
+
+		/* enable clip/hphase */
+		ctrl |= RKVPSS_SCL_CLIP_EN | RKVPSS2X_SW_SCL_HPHASE_EN;
+
+		/* right horizontal scale */
+		if (in_w != out_w || !sync) {
+			rkvpss_idx_write(dev, stream->config->scale.hy_fac,
+				stream->unite_params.y_w_fac, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, stream->config->scale.hc_fac,
+				stream->unite_params.c_w_fac, VPSS_UNITE_RIGHT);
+			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN | RKVPSS2X_SW_AVG_SCALE_H_EN;
+		}
+
+		/* right vertical scale */
+		if (in_h != out_h || !sync) {
+			rkvpss_idx_write(dev, stream->config->scale.vy_fac,
+				stream->unite_params.y_h_fac, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, stream->config->scale.vc_fac,
+				stream->unite_params.c_h_fac, VPSS_UNITE_RIGHT);
+			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN | RKVPSS2X_SW_AVG_SCALE_V_EN;
+		}
+
+		/* write right ctrl */
+		rkvpss_idx_write(dev, stream->config->scale.ctrl, ctrl, VPSS_UNITE_RIGHT);
+
+		/* update right */
+		val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+		rkvpss_idx_write(dev, stream->config->scale.update, val, VPSS_UNITE_RIGHT);
 	}
-	//unite todo
 }
 
 static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
@@ -1701,16 +1888,14 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		return;
 	}
 
-	v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
-		 "%s id:%d in_w:%d in_h:%d out_w:%d out_h:%d\n", __func__,
-		 stream->id, in_w, in_h, out_w, out_h);
-
 	/* constraints */
 	if (((out_w >= in_w) && (in_w * 32 < out_w)) ||
 	    ((in_w > out_w) && (out_w * 32 < in_w)) ||
 	    ((out_h >= in_h) && (in_h * 32 < out_h)) ||
 	    ((in_h > out_h) && (out_h * 32 < in_h))) {
-		v4l2_err(&dev->v4l2_dev, "stream:%d scale size error\n", stream->id);
+		v4l2_err(&dev->v4l2_dev,
+			 "stream:%d scale size error: in(%dx%d) out(%dx%d)\n",
+			 stream->id, in_w, in_h, out_w, out_h);
 		return;
 	}
 
@@ -1769,11 +1954,9 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		rkvpss_unite_write(dev, reg, val);
 
 		/* ch2 ch3 ch4 ch5 scale out width exceed 1920 */
-		if ((stream->id >= RKVPSS_OUTPUT_CH2) &&
-		    (in_w != out_w) && (out_w > 1920))
+		if ((stream->id >= RKVPSS_OUTPUT_CH2) && (in_w != out_w) && (out_w > 1920))
 			v4l2_err(&dev->v4l2_dev,
-				 "stream:%d scale out width exceed 1920\n", stream->id);
-
+				"stream:%d scale out width exceed 1920\n", stream->id);
 
 		val = out_w | (out_h << 16);
 		reg = stream->config->scale.dst_size;
@@ -1811,10 +1994,8 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		reg = stream->config->scale.update;
 		rkvpss_unite_write(dev, reg, val);
 	} else {
-		/* unite left */
 		reg = stream->config->scale.in_crop_offs;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
-
 		reg = stream->config->scale.hy_offs;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
 		reg = stream->config->scale.hc_offs;
@@ -1823,24 +2004,23 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
 		reg = stream->config->scale.vc_offs;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
-
 		reg = stream->config->scale.hy_offs_mi;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
 		reg = stream->config->scale.hc_offs_mi;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
 
 		if (in_w == out_w)
-			val = (in_w / 2) | (in_h << 16);
+			val = stream->crop.width / 2 | (in_h << 16);
 		else
-			val = (in_w / 2 + dev->unite_extend_pixel) | (in_h << 16);
+			val = (stream->crop.width / 2 + dev->unite_extend_pixel) | (in_h << 16);
+
 		reg = stream->config->scale.src_size;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
 
-		/* ch2 ch3 ch4 ch5 scale out width exceed 1920 */
-		if ((stream->id >= RKVPSS_OUTPUT_CH2) &&
-		    (in_w != out_w) && (out_w / 2 > 1920))
+		/* warn if half-width > 1920 */
+		if ((stream->id >= RKVPSS_OUTPUT_CH2) && (in_w != out_w) && (out_w / 2 > 1920))
 			v4l2_err(&dev->v4l2_dev,
-				 "stream:%d scale out width exceed 1920\n", stream->id);
+				"stream:%d scale out width exceed 1920\n", stream->id);
 
 		val = (out_w / 2) | (out_h << 16);
 		reg = stream->config->scale.dst_size;
@@ -1848,19 +2028,21 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 
 		ctrl |= RKVPSS_SCL_CLIP_EN;
 
-		if (in_w != out_w || !sync) {
+		if (stream->out_fmt.width != stream->crop.width) {
 			reg = stream->config->scale.hy_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.y_w_fac, VPSS_UNITE_LEFT);
 			reg = stream->config->scale.hc_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.c_w_fac, VPSS_UNITE_LEFT);
+
 			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
 		}
 
-		if (in_h != out_h || !sync) {
+		if (stream->out_fmt.height != stream->crop.height) {
 			reg = stream->config->scale.vy_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.y_h_fac, VPSS_UNITE_LEFT);
 			reg = stream->config->scale.vc_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.c_h_fac, VPSS_UNITE_LEFT);
+
 			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
 		}
 
@@ -1874,46 +2056,55 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
 
 		/* unite right */
+
 		ctrl = 0;
-		val = stream->unite_params.scl_in_crop_w_y |
-		      (stream->unite_params.scl_in_crop_w_c << 4);
+
+		/* right crop offsets */
+		val = stream->unite_params.scl_in_crop_w_y
+			| (stream->unite_params.scl_in_crop_w_c << 4);
 		reg = stream->config->scale.in_crop_offs;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 
+		/* right phase offsets */
 		val = stream->unite_params.y_w_phase;
 		reg = stream->config->scale.hy_offs;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 		val = stream->unite_params.c_w_phase;
 		reg = stream->config->scale.hc_offs;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+
+		/* right vertical offsets */
 		reg = stream->config->scale.vy_offs;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_RIGHT);
 		reg = stream->config->scale.vc_offs;
 		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_RIGHT);
 
+		/* right MI alignment */
 		val = out_w / 2 - ALIGN_DOWN(out_w / 2, 16);
 		reg = stream->config->scale.hy_offs_mi;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 		reg = stream->config->scale.hc_offs_mi;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 
-		val = (in_w / 2 + dev->unite_extend_pixel) | (in_h << 16);
+		/* right src size */
+		val = (stream->crop.width / 2 + dev->unite_extend_pixel) | (in_h << 16);
 		reg = stream->config->scale.src_size;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 
-		/* ch2 ch3 ch4 ch5 scale out width exceed 1920 */
-		if ((stream->id >= RKVPSS_OUTPUT_CH2) &&
-		    (in_w != out_w) && (out_w / 2 > 1920))
+		/* warn if half-width > 1920 */
+		if ((stream->id >= RKVPSS_OUTPUT_CH2) && (in_w != out_w) && (out_w / 2 > 1920))
 			v4l2_err(&dev->v4l2_dev,
-				 "stream:%d scale out width exceed 1920\n", stream->id);
+				"stream:%d scale out width exceed 1920\n", stream->id);
 
+		/* right dst = left */
 		val = (out_w / 2) | (out_h << 16);
 		reg = stream->config->scale.dst_size;
 		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 
 		ctrl |= RKVPSS_SCL_CLIP_EN | RKVPSS_SCL_IN_CLIP_EN;
 
-		if (in_w != out_w || !sync) {
+		/* right horizontal scale */
+		if (stream->out_fmt.width != stream->crop.width) {
 			reg = stream->config->scale.hy_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.y_w_fac, VPSS_UNITE_RIGHT);
 			reg = stream->config->scale.hc_fac;
@@ -1921,7 +2112,8 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
 		}
 
-		if (in_h != out_h || !sync) {
+		/* right vertical scale */
+		if (stream->out_fmt.height != stream->crop.height) {
 			reg = stream->config->scale.vy_fac;
 			rkvpss_idx_write(dev, reg, stream->unite_params.y_h_fac, VPSS_UNITE_RIGHT);
 			reg = stream->config->scale.vc_fac;
@@ -1929,9 +2121,11 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
 		}
 
+		/* write right ctrl */
 		reg = stream->config->scale.ctrl;
 		rkvpss_idx_write(dev, reg, ctrl, VPSS_UNITE_RIGHT);
 
+		/* update right */
 		val = RKVPSS_SCL_GEN_UPD;
 		if (sync)
 			val |= RKVPSS_SCL_FORCE_UPD;
@@ -1944,19 +2138,17 @@ static int rkvpss_stream_scale(struct rkvpss_stream *stream, bool on, bool sync)
 {
 	bool use_avg_scale = (stream->id == 0 || stream->id == 2) && stream->avg_scl_down;
 
-	if (stream->avg_scl_down && !use_avg_scale) {
+	if (stream->avg_scl_down && !use_avg_scale)
 		v4l2_warn(&stream->dev->v4l2_dev,
-			  "CH%d: average_scale_down not supported (only CH0/CH2)\n",
-			  stream->id);
-	}
+			 "CH%d: average_scale_down not supported (only CH0/CH2)\n", stream->id);
 
 	if (use_avg_scale) {
 		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
-			 "CH%d: average_scale_down, on:%d sync:%d\n", stream->id, on, sync);
+			"CH%d: average_scale_down, on:%d sync:%d\n", stream->id, on, sync);
 		average_scale_down(stream, on, sync);
 	} else {
 		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
-			 "CH%d: bilinear_scale, on:%d sync:%d\n", stream->id, on, sync);
+			"CH%d: bilinear_scale, on:%d sync:%d\n", stream->id, on, sync);
 		bilinear_scale(stream, on, sync);
 	}
 
@@ -1979,9 +2171,7 @@ static void rkvpss_stream_stop(struct rkvpss_stream *stream)
 		stream->ops->disable_mi(stream);
 	rkvpss_stream_crop(stream, false, true);
 	rkvpss_stream_scale(stream, false, true);
-	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
-		 "%s id:%d\n", __func__,
-		 stream->id);
+	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev, "%s id:%d\n", __func__, stream->id);
 }
 
 static void rkvpss_stop_streaming(struct vb2_queue *queue)
@@ -2068,6 +2258,10 @@ static int rkvpss_stream_start(struct rkvpss_stream *stream)
 {
 	struct rkvpss_device *dev = stream->dev;
 	int ret = 0;
+
+	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
+		 "%s stream:%d enter, unite_mode:%d unite_extend_pixel:%d\n",
+		 __func__, stream->id, dev->unite_mode, dev->unite_extend_pixel);
 
 	if (dev->unite_mode)
 		calc_unite_scl_params(stream);
@@ -2354,13 +2548,14 @@ static int rkvpss_set_fmt(struct rkvpss_stream *stream,
 					stream->fbc_head_size = virtual_width * ((h + 3) / 4);
 				} else {
 					// Case where virtual_width <= w
-					stream->fbc_head_size = ((w + 63) / 64) * ((h + 3) / 4) * 16;
+					stream->fbc_head_size = ((w + 63) / 64)
+								* ((h + 3) / 4) * 16;
 				}
 				plane_fmt->sizeimage = stream->fbc_head_size;
 			} else {//FBC Payload
 				plane_fmt->sizeimage = ((w + 63) / 64) *
-					((fmt->output_fmt == RKVPSS_MI_CHN_WR_OUTPUT_YUV420) ? 384 : 512) *
-					((h + 3) / 4);
+					((fmt->output_fmt == RKVPSS_MI_CHN_WR_OUTPUT_YUV420)
+					? 384 : 512) * ((h + 3) / 4);
 			}
 			break;
 		default:
