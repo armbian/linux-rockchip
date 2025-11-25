@@ -376,6 +376,58 @@
 		#size-cells = <2>;
 		ranges;
 
+		usb_drd0_dwc3: usb@24000000 {
+			compatible = "rockchip,rk3572-dwc3", "rockchip,rk3576-dwc3", "snps,dwc3";
+			reg = <0x0 0x24000000 0x0 0x400000>;
+			clocks = <&cru CLK_REF_USB3OTG0>,
+				 <&cru CLK_SUSPEND_USB3OTG0>,
+				 <&cru ACLK_USB3OTG0>;
+			clock-names = "ref", "suspend", "bus_clk";
+			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&power RK3572_PD_PHP>;
+			resets = <&cru SRST_ARESETN_USB3OTG0>;
+			reset-names = "usb3-otg";
+			dr_mode = "otg";
+			phys = <&u2phy0_otg>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,parkmode-disable-ss-quirk;
+			status = "disabled";
+		};
+
+		usb_drd1_dwc3: usb@24400000 {
+			compatible = "rockchip,rk3572-dwc3", "rockchip,rk3576-dwc3", "snps,dwc3";
+			reg = <0x0 0x24400000 0x0 0x400000>;
+			clocks = <&cru CLK_REF_USB3OTG1>,
+				 <&cru CLK_SUSPEND_USB3OTG1>,
+				 <&cru ACLK_USB3OTG1>;
+			clock-names = "ref", "suspend", "bus_clk";
+			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&power RK3572_PD_PHP>;
+			resets = <&cru SRST_ARESETN_USB3OTG1>;
+			reset-names = "usb3-otg";
+			dr_mode = "otg";
+			phys = <&u2phy1_otg>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,parkmode-disable-ss-quirk;
+			status = "disabled";
+		};
+
 		sys_grf: syscon@26010000 {
 			compatible = "rockchip,rk3572-sys-grf", "syscon";
 			reg = <0x0 0x26010000 0x0 0x2000>;
@@ -387,10 +439,68 @@
 			clocks = <&cru PCLK_VO_ROOT>;
 		};
 
+		php_grf: syscon@26026000 {
+			compatible = "rockchip,rk3572-php-grf", "syscon";
+			reg = <0x0 0x26026000 0x0 0x1000>;
+			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
+		};
+
 		audio_grf: syscon@2602c000 {
 			compatible = "rockchip,rk3572-audio-grf", "syscon";
 			reg = <0x0 0x2602c000 0x0 0x1000>;
 			clocks = <&cru PCLK_AUDIO_ROOT>;
+		};
+
+		usb2phy_grf: syscon@26054000 {
+			compatible = "rockchip,rk3572-usb2phy-grf", "syscon", "simple-mfd";
+			reg = <0x0 0x26054000 0x0 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
+
+			u2phy0: usb2-phy@0 {
+				compatible = "rockchip,rk3572-usb2phy";
+				reg = <0x0 0x10>;
+				resets = <&cru SRST_RESETN_OTGPHY_0>, <&cru SRST_PRESETN_USBPHY_GRF_0>;
+				reset-names = "phy", "apb";
+				clocks = <&xin24m>;
+				clock-names = "phyclk";
+				clock-output-names = "usb480m_phy0";
+				#clock-cells = <0>;
+				rockchip,usbctrl-grf = <&php_grf>;
+				status = "disabled";
+
+				u2phy0_otg: otg-port {
+					#phy-cells = <0>;
+					interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "otg-bvalid", "otg-id", "linestate";
+					status = "disabled";
+				};
+			};
+
+			u2phy1: usb2-phy@2000 {
+				compatible = "rockchip,rk3572-usb2phy";
+				reg = <0x2000 0x10>;
+				resets = <&cru SRST_RESETN_OTGPHY_1>, <&cru SRST_PRESETN_USBPHY_GRF_1>;
+				reset-names = "phy", "apb";
+				clocks = <&xin24m>;
+				clock-names = "phyclk";
+				clock-output-names = "usb480m_phy1";
+				#clock-cells = <0>;
+				rockchip,usbctrl-grf = <&php_grf>;
+				status = "disabled";
+
+				u2phy1_otg: otg-port {
+					#phy-cells = <0>;
+					interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "otg-bvalid", "otg-id", "linestate";
+					status = "disabled";
+				};
+			};
 		};
 
 		hdptxphy_grf: syscon@26060000 {
