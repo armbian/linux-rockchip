@@ -86,6 +86,9 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	yy3568-sata2.dtbo \
 	youyeetoo-r1-display-dsi0.dtbo \
 	youyeetoo-r1-display-dsi1.dtbo \
+	youyeetoo-yy3588-camera0-gc8034.dtbo \
+	youyeetoo-yy3588-camera1-gc8034.dtbo \
+	youyeetoo-yy3588-display-dsi1.dtbo \
 	khadas-edge2-display-dsi0.dtbo \
 	khadas-edge2-display-dsi1.dtbo \
 	khadas-edge2-cam1.dtbo \
