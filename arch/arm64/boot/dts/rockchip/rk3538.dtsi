@@ -1645,6 +1645,8 @@
 				      "hclk_vop",
 				      "dclk_vp0",
 				      "dclk_src_vp0";
+			assigned-clocks = <&cru DCLK_VP0>;
+			assigned-clock-parents = <&inno_hdmiphy_clk>;
 			resets = <&cru SRST_DRESETN_VP0>;
 			reset-names = "dclk_vp0";
 			rockchip,aclk-normal-mode-rates = <500000000>;
