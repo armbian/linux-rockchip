@@ -574,7 +574,8 @@ int rkisp_csi_config_patch(struct rkisp_device *dev, bool is_pre_cfg)
 				/* read back mode default if more sensor link to isp */
 				if (!dev->hw_dev->is_single && !dev->is_m_online)
 					dev->is_rdbk_auto = true;
-				if (dev->is_m_online && dev->unite_div == ISP_UNITE_DIV2)
+				if (dev->is_m_online &&
+				    dev->unite.h_div == 2 && dev->unite.v_div == 1)
 					mode.rdbk_mode = RKISP_VICAP_ONLINE_UNITE;
 				else if (dev->is_m_online)
 					mode.rdbk_mode = RKISP_VICAP_ONLINE_MULTI;

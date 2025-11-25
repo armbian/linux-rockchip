@@ -827,7 +827,6 @@ static void update_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
-	u32 div = stream->out_isp_fmt.fourcc == V4L2_PIX_FMT_UYVY ? 1 : 2;
 	u32 val, reg;
 
 	if (stream->next_buf) {
@@ -845,8 +844,10 @@ static void update_mi(struct rkisp_stream *stream)
 			rkisp_write(dev, reg, val, false);
 		}
 
-		if (dev->unite_div > ISP_UNITE_DIV1) {
-			/* right of image, or right top of image */
+		if (dev->unite.h_div == 2 && dev->unite.v_div == 1) {
+			u32 div = stream->out_isp_fmt.fourcc == V4L2_PIX_FMT_UYVY ? 1 : 2;
+
+			/* unite output can with scale */
 			reg = stream->config->mi.y_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
 			val += ((out_fmt->width / div) & ~0xf);
@@ -856,39 +857,38 @@ static void update_mi(struct rkisp_stream *stream)
 			val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
 			val += ((out_fmt->width / div) & ~0xf);
 			rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
+		} else if (dev->unite_div > ISP_UNITE_DIV1) {
+			struct rkisp_unite_window *win;
+			u32 bpl = out_fmt->plane_fmt[0].bytesperline;
+			u32 i, j, idx, offs, offs_h, y_offs_v = 0, cb_offs_v = 0;
 
-			if (stream->id != RKISP_STREAM_LDC) {
-				reg = stream->config->mi.cr_base_ad_init;
-				val = stream->next_buf->buff_addr[RKISP_PLANE_CR];
-				val += ((out_fmt->width / div) & ~0xf);
-				rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
+			for (i = 0; i < dev->unite.v_div; i++) {
+				offs_h = 0;
+				for (j = 0; j < dev->unite.h_div; j++) {
+					idx = i * dev->unite.h_div + j;
+					reg = stream->config->mi.y_base_ad_init;
+					val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
+					val += (y_offs_v + offs_h);
+					rkisp_idx_write(dev, reg, val, idx, false);
+
+					reg = stream->config->mi.cb_base_ad_init;
+					val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
+					val += (cb_offs_v + offs_h);
+					rkisp_idx_write(dev, reg, val, idx, false);
+
+					win = &dev->unite.win[idx];
+					offs = win->act_width - win->right_extend - win->left_extend;
+					offs_h += (offs * stream->out_isp_fmt.bpp[0] / 8);
+				}
+				idx = i * dev->unite.h_div;
+				win = &dev->unite.win[idx];
+				offs = (win->act_height - win->down_extend - win->up_extend) * bpl;
+				y_offs_v += offs;
+				if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
+					cb_offs_v += (offs / 2);
+				else
+					cb_offs_v += offs;
 			}
-		}
-
-		if (dev->unite_div == ISP_UNITE_DIV4) {
-			/* left bottom of image */
-			reg = stream->config->mi.y_base_ad_init;
-			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
-			val += (out_fmt->plane_fmt[0].bytesperline * out_fmt->height / 2);
-			rkisp_idx_write(dev, reg, val, ISP_UNITE_LEFT_B, false);
-
-			reg = stream->config->mi.cb_base_ad_init;
-			val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
-			val += (out_fmt->plane_fmt[1].sizeimage / 2);
-			rkisp_idx_write(dev, reg, val, ISP_UNITE_LEFT_B, false);
-
-			/* right bottom of image */
-			reg = stream->config->mi.y_base_ad_init;
-			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
-			val += (out_fmt->plane_fmt[0].bytesperline * out_fmt->height / 2) +
-			       ((out_fmt->width / div) & ~0xf);
-			rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT_B, false);
-
-			reg = stream->config->mi.cb_base_ad_init;
-			val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
-			val += (out_fmt->plane_fmt[1].sizeimage / 2) +
-			       ((out_fmt->width / div) & ~0xf);
-			rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT_B, false);
 		}
 
 		if (stream->is_pause) {
@@ -1703,8 +1703,8 @@ void rkisp_mi_v351s_isr(u32 mis_val, struct rkisp_device *dev)
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "mi isr:0x%x\n", mis_val);
 
-	if ((dev->unite_div == ISP_UNITE_DIV2 && dev->unite_index != ISP_UNITE_RIGHT) ||
-	    (dev->unite_div == ISP_UNITE_DIV4 && dev->unite_index != ISP_UNITE_RIGHT_B)) {
+	if (dev->unite_div > ISP_UNITE_DIV1 &&
+	    dev->unite_index != dev->unite_div - 1) {
 		rkisp_write(dev, ISP3X_MI_ICR, mis_val, true);
 		goto end;
 	}

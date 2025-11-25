@@ -1578,9 +1578,9 @@ static int isp_show(struct seq_file *p, void *v)
 			   info,  sdev->dbg.frameloss,
 			   dev->rdbk_cnt, dev->rdbk_cnt_x1, dev->rdbk_cnt_x2, dev->rdbk_cnt_x3,
 			   rkisp_stream_buf_cnt(stream));
-		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d) div:%d extend:%d\n",
+		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d) div(h:%d v:%d) extend:%d\n",
 			   dev->hw_dev->dev_link_num, dev->hw_dev->is_idle,
-			   dev->multi_mode, dev->multi_index, dev->unite_div,
+			   dev->multi_mode, dev->multi_index, dev->unite.h_div, dev->unite.v_div,
 			   dev->hw_dev->unite_extend_pixel);
 	} else {
 		seq_printf(p, "%-10s frame:%d state:%s %s v-blank:%dus div:%d extend:%d\n",

@@ -459,7 +459,6 @@ static void update_rawrd(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
 	struct capture_fmt *fmt = &stream->out_isp_fmt;
-	u32 offs, offs_h = stream->out_fmt.width / 2 - dev->hw_dev->unite_extend_pixel;
 	u32 val = 0, y_reg;
 
 	if (stream->curr_buf) {
@@ -481,18 +480,40 @@ static void update_rawrd(struct rkisp_stream *stream)
 		val += stream->curr_buf->buff_addr[RKISP_PLANE_Y];
 		rkisp_write(dev, y_reg, val, false);
 
-		if (stream->memory)
-			offs_h *= DIV_ROUND_UP(fmt->bpp[0], 8);
-		else
-			offs_h = offs_h * fmt->bpp[0] / 8;
-		if (dev->unite_div > ISP_UNITE_DIV1)
-			rkisp_idx_write(dev, y_reg, val + offs_h, ISP_UNITE_RIGHT, false);
-		if (dev->unite_div == ISP_UNITE_DIV4) {
-			offs = stream->out_fmt.plane_fmt[0].bytesperline *
-			       (stream->out_fmt.height / 2 - dev->hw_dev->unite_extend_pixel);
-			rkisp_idx_write(dev, y_reg, val + offs, ISP_UNITE_LEFT_B, false);
-			offs += offs_h;
-			rkisp_idx_write(dev, y_reg, val + offs, ISP_UNITE_RIGHT_B, false);
+		if (dev->unite_div > ISP_UNITE_DIV1) {
+			struct rkisp_unite_window *win;
+			u32 bpl = stream->out_fmt.plane_fmt[0].bytesperline;
+			u32 i, j, idx, offs, offs_h, offs_v = 0;
+
+			for (i = 0; i < dev->unite.v_div; i++) {
+				offs_h = 0;
+				for (j = 0; j < dev->unite.h_div; j++) {
+					idx = i * dev->unite.h_div + j;
+					rkisp_idx_write(dev, y_reg, val + offs_v + offs_h, idx, false);
+					/* read offs_h for next window */
+					win = &dev->unite.win[idx];
+					offs = win->act_width - win->right_extend;
+					if (j + 1 < dev->unite.h_div) {
+						win = &dev->unite.win[idx + 1];
+						offs -= win->left_extend;
+					}
+					if (stream->memory)
+						offs *= DIV_ROUND_UP(fmt->bpp[0], 8);
+					else
+						offs = offs * fmt->bpp[0] / 8;
+					offs_h += offs;
+				}
+				idx = i * dev->unite.h_div;
+				win = &dev->unite.win[idx];
+				offs = win->act_height - win->down_extend;
+				if (i + 1 < dev->unite.v_div) {
+					idx = (i + 1) * dev->unite.h_div;
+					win = &dev->unite.win[idx];
+					offs -= win->up_extend;
+				}
+				offs *= bpl;
+				offs_v += offs;
+			}
 		}
 		stream->frame_end = false;
 		if (stream->id == RKISP_STREAM_RAWRD2 && dev->is_rdbk_no_trigger) {
@@ -1309,10 +1330,6 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 
 	w = width;
 	h = height;
-	if (dev->unite_div > ISP_UNITE_DIV1)
-		w = width / 2 + dev->hw_dev->unite_extend_pixel;
-	if (dev->unite_div == ISP_UNITE_DIV4)
-		h = height / 2 + dev->hw_dev->unite_extend_pixel;
 
 	/* isp20 extend line for normal read back mode to fix internal bug */
 	if (dev->isp_ver == ISP_V20 &&
@@ -1323,6 +1340,19 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 
 	w *= mult;
 	rkisp_unite_write(dev, CSI2RX_RAW_RD_PIC_SIZE, h << 16 | w, false);
+
+	if (dev->unite_div > ISP_UNITE_DIV1) {
+		u32 i, j, idx;
+
+		for (i = 0; i < dev->unite.v_div; i++) {
+			for (j = 0; j < dev->unite.h_div; j++) {
+				idx = i * dev->unite.h_div + j;
+				w = dev->unite.win[idx].act_width;
+				h = dev->unite.win[idx].act_height;
+				rkisp_idx_write(dev, CSI2RX_RAW_RD_PIC_SIZE, h << 16 | w, idx, false);
+			}
+		}
+	}
 }
 
 void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,

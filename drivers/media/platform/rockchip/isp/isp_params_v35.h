@@ -58,20 +58,23 @@ struct rkisp_isp_params_val_v35 {
 	struct rkisp_dummy_buffer *pbuf_y_src;
 
 	u32 bay3d_iir_rw_fmt;
-	u32 bay3d_iir_pk_offs;
-	u32 bay3d_iir_pk_stride;
-	u32 bay3d_iir_stride;
-	u32 bay3d_iir_size;
+	u32 bay3d_iir_pk_offs[ISP_UNITE_MAX];
+	u32 bay3d_iir_pk_stride[ISP_UNITE_MAX];
+	u32 bay3d_iir_stride[ISP_UNITE_MAX];
+	u32 bay3d_iir_size[ISP_UNITE_MAX];
+	u32 bay3d_iir_offs[ISP_UNITE_MAX];
 	int bay3d_iir_cnt;
 	int bay3d_iir_idx;
 	int bay3d_iir_cur_idx;
 
-	u32 bay3d_ds_size;
+	u32 bay3d_ds_size[ISP_UNITE_MAX];
+	u32 bay3d_ds_offs[ISP_UNITE_MAX];
 	int bay3d_ds_cnt;
 	int bay3d_ds_idx;
 	int bay3d_ds_cur_idx;
 
-	u32 bay3d_wgt_size;
+	u32 bay3d_wgt_size[ISP_UNITE_MAX];
+	u32 bay3d_wgt_offs[ISP_UNITE_MAX];
 	int bay3d_wgt_cnt;
 	int bay3d_wgt_idx;
 	int bay3d_wgt_cur_idx;
@@ -101,9 +104,9 @@ struct rkisp_isp_params_val_v35 {
 	u32 vpsl_sig_offs[VPSL_SIG_CHN_MAX];
 	u32 vpsl_sig_stride[VPSL_SIG_CHN_MAX];
 
-	u32 hist_blk_num;
-	u32 enh_row;
-	u32 enh_col;
+	u32 hist_blk_num[ISP_UNITE_MAX];
+	u32 enh_row[ISP_UNITE_MAX];
+	u32 enh_col[ISP_UNITE_MAX];
 
 	bool yraw_sel;
 	bool is_ae0_fe;

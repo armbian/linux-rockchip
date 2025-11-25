@@ -1576,29 +1576,28 @@ static void rkisp_set_state(u32 *state, u32 val)
 static void rkisp_config_ism(struct rkisp_device *dev)
 {
 	struct v4l2_rect *out_crop = &dev->isp_sdev.out_crop;
-	u32 width = out_crop->width, mult = 1;
-	u32 height = out_crop->height;
+	u32 i, j, idx, width, height;
 
 	/* isp2.0 no ism */
 	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21 ||
 	    dev->isp_ver == ISP_V32_L || dev->isp_ver == ISP_V39)
 		return;
 
-	if (dev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + dev->hw_dev->unite_extend_pixel;
-	if (dev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + dev->hw_dev->unite_extend_pixel;
 	rkisp_unite_write(dev, CIF_ISP_IS_RECENTER, 0, false);
 	rkisp_unite_write(dev, CIF_ISP_IS_MAX_DX, 0, false);
 	rkisp_unite_write(dev, CIF_ISP_IS_MAX_DY, 0, false);
 	rkisp_unite_write(dev, CIF_ISP_IS_DISPLACE, 0, false);
 	rkisp_unite_write(dev, CIF_ISP_IS_H_OFFS, out_crop->left, false);
 	rkisp_unite_write(dev, CIF_ISP_IS_V_OFFS, out_crop->top, false);
-	rkisp_unite_write(dev, CIF_ISP_IS_H_SIZE, width, false);
-	if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced)
-		mult = 2;
-	rkisp_unite_write(dev, CIF_ISP_IS_V_SIZE, height / mult, false);
-
+	for (i = 0; i < dev->unite.v_div; i++) {
+		for (j = 0; j < dev->unite.h_div; j++) {
+			idx = i * dev->unite.h_div + j;
+			width = dev->unite.win[idx].act_width;
+			height = dev->unite.win[idx].act_height;
+			rkisp_idx_write(dev, CIF_ISP_IS_H_SIZE, width, idx, false);
+			rkisp_idx_write(dev, CIF_ISP_IS_V_SIZE, height, idx, false);
+		}
+	}
 	if (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32 ||
 	    dev->isp_ver >= ISP_V33)
 		return;
@@ -2053,15 +2052,12 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	u32 signal = 0;
 	u32 acq_mult = 0;
 	u32 acq_prop = 0;
-	u32 extend_line = 0;
-	u32 width, height;
+	u32 i, j, width, height;
 
 	sensor = dev->active_sensor;
 	in_fmt = &dev->isp_sdev.in_fmt;
 	out_fmt = &dev->isp_sdev.out_fmt;
 	in_crop = &dev->isp_sdev.in_crop;
-	width = in_crop->width;
-	height = in_crop->height;
 
 	if (in_fmt->fmt_type == FMT_BAYER) {
 		acq_mult = 1;
@@ -2098,10 +2094,6 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 				isp_ctrl = CIF_ISP_CTRL_ISP_MODE_BAYER_ITU656;
 			else
 				isp_ctrl = CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601;
-
-			if (dev->isp_ver == ISP_V20 &&
-			    dev->rd_mode == HDR_RDBK_FRAME1)
-				extend_line = RKMODULE_EXTEND_LINE;
 		}
 
 		if (dev->isp_inp == INP_DMARX_ISP)
@@ -2154,26 +2146,27 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	rkisp_unite_write(dev, CIF_ISP_ACQ_PROP, acq_prop, false);
 	rkisp_unite_write(dev, CIF_ISP_ACQ_NR_FRAMES, 0, true);
 
-	if (dev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + dev->hw_dev->unite_extend_pixel;
-	if (dev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + dev->hw_dev->unite_extend_pixel;
 	/* Acquisition Size */
 	rkisp_unite_write(dev, CIF_ISP_ACQ_H_OFFS, acq_mult * in_crop->left, false);
 	rkisp_unite_write(dev, CIF_ISP_ACQ_V_OFFS, in_crop->top, false);
-	rkisp_unite_write(dev, CIF_ISP_ACQ_H_SIZE, acq_mult * width, false);
 
 	/* ISP Out Area differ with ACQ is only FIFO, so don't crop in this */
 	rkisp_unite_write(dev, CIF_ISP_OUT_H_OFFS, 0, true);
 	rkisp_unite_write(dev, CIF_ISP_OUT_V_OFFS, 0, true);
-	rkisp_unite_write(dev, CIF_ISP_OUT_H_SIZE, width, false);
 
-	if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
-		rkisp_unite_write(dev, CIF_ISP_ACQ_V_SIZE, height / 2, false);
-		rkisp_unite_write(dev, CIF_ISP_OUT_V_SIZE, height / 2, false);
-	} else {
-		rkisp_unite_write(dev, CIF_ISP_ACQ_V_SIZE, height + extend_line, false);
-		rkisp_unite_write(dev, CIF_ISP_OUT_V_SIZE, height + extend_line, false);
+	for (i = 0; i < dev->unite.v_div; i++) {
+		for (j = 0; j < dev->unite.h_div; j++) {
+			u32 idx = i * dev->unite.h_div + j;
+
+			width = dev->unite.win[idx].act_width;
+			height = dev->unite.win[idx].act_height;
+
+			rkisp_idx_write(dev, CIF_ISP_ACQ_H_SIZE, acq_mult * width, idx, false);
+			rkisp_idx_write(dev, CIF_ISP_OUT_H_SIZE, width, idx, false);
+
+			rkisp_idx_write(dev, CIF_ISP_ACQ_V_SIZE, height, idx, false);
+			rkisp_idx_write(dev, CIF_ISP_OUT_V_SIZE, height, idx, false);
+		}
 	}
 
 	/* interrupt mask */
@@ -3108,87 +3101,428 @@ err:
 static int rkisp_unite_div(struct rkisp_device *dev, u32 w, u32 h)
 {
 	struct rkisp_hw_dev *hw = dev->hw_dev;
-	u32 max_size, max_w, max_h;
+	u32 extend = hw->unite_extend_pixel;
+	u32 i, j, v0, v1, max_size, max_w, max_h;
 
-	dev->unite_div = ISP_UNITE_DIV1;
+	dev->unite.h_div = 1;
+	dev->unite.v_div = 1;
 	if (hw->unite == ISP_UNITE_NONE)
-		return 0;
+		goto end;
 	if (hw->unite == ISP_UNITE_TWO && hw->isp_ver == ISP_V30) {
-		dev->unite_div = ISP_UNITE_DIV2;
-		return 0;
+		dev->unite.h_div = 2;
+		goto end;
 	}
 
 	switch (dev->isp_ver) {
 	case ISP_V30:
 		max_size = CIF_ISP_INPUT_W_MAX_V30 * CIF_ISP_INPUT_H_MAX_V30;
 		max_w = CIF_ISP_INPUT_W_MAX_V30;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size)
+			dev->unite.h_div = 2;
 		break;
 	case ISP_V32:
 		max_size = CIF_ISP_INPUT_W_MAX_V32 * CIF_ISP_INPUT_H_MAX_V32;
 		max_w = CIF_ISP_INPUT_W_MAX_V32;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size)
+			dev->unite.h_div = 2;
 		break;
 	case ISP_V32_L:
 		max_size = CIF_ISP_INPUT_W_MAX_V32_L * CIF_ISP_INPUT_H_MAX_V32_L;
 		max_w = CIF_ISP_INPUT_W_MAX_V32_L;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size) {
+			dev->unite.h_div = 2;
+			max_size -= (extend * CIF_ISP_INPUT_H_MAX_V32_L);
+			if (w * h > max_size * 2)
+				dev->unite.v_div = 2;
+		}
 		break;
 	case ISP_V33:
 		max_size = CIF_ISP_INPUT_W_MAX_V33 * CIF_ISP_INPUT_H_MAX_V33;
 		max_w = CIF_ISP_INPUT_W_MAX_V33;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size)
+			dev->unite.h_div = 2;
 		break;
 	case ISP_V35:
-		max_size = CIF_ISP_INPUT_W_MAX_V35 * CIF_ISP_INPUT_H_MAX_V35;
 		max_w = CIF_ISP_INPUT_W_MAX_V35;
 		max_h = CIF_ISP_INPUT_H_MAX_V35;
+		if (w > max_w)
+			dev->unite.h_div = DIV_ROUND_UP(w, max_w - extend);
+		if (h > max_h)
+			dev->unite.v_div = DIV_ROUND_UP(h, max_h - extend);
 		break;
 	case ISP_V35_1:
 		max_size = CIF_ISP_INPUT_W_MAX_V35 * CIF_ISP_INPUT_H_MAX_V35;
 		max_w = CIF_ISP_INPUT_W_MAX_V35;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size) {
+			if (w / 2 + extend < max_w) {
+				dev->unite.h_div = 2;
+				v0 = (w / 2 + extend) * h;
+				dev->unite.v_div = DIV_ROUND_UP(v0, max_size);
+				if (dev->unite.v_div > 3) {
+					dev->unite.h_div = 3;
+					dev->unite.v_div = 3;
+				}
+			} else {
+				dev->unite.h_div = 3;
+				v0 = (w / 3 + extend) * h;
+				dev->unite.v_div = DIV_ROUND_UP(v0, max_size);
+			}
+		}
 		break;
 	case ISP_V39:
 		max_size = CIF_ISP_INPUT_W_MAX_V39 * CIF_ISP_INPUT_H_MAX_V39;
 		max_w = CIF_ISP_INPUT_W_MAX_V39;
-		if (w > max_w)
-			max_h = max_size * 2 / w;
-		else
-			max_h = max_size / w;
+		if (w > max_w || w * h > max_size)
+			dev->unite.h_div = 2;
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-	if (w * h > max_size * 2 || h > max_h)
-		dev->unite_div = ISP_UNITE_DIV4;
-	else if (w * h > max_size || w > max_w)
-		dev->unite_div = ISP_UNITE_DIV2;
+
+end:
+	dev->unite_div = dev->unite.h_div * dev->unite.v_div;
+	if (dev->unite_div > ISP_UNITE_MAX) {
+		dev_err(dev->dev, "%s error for %dx%d div(h:%d v:%d)\n",
+			__func__, w, h, dev->unite.h_div, dev->unite.v_div);
+		goto err;
+	}
+	if (dev->unite.h_div == 1 && dev->unite.v_div == 1) {
+		dev->unite.win[0].act_width = w;
+		dev->unite.win[0].act_height = h;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = 0;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = 0;
+	} else if (dev->unite.h_div == 2 && dev->unite.v_div == 1) {
+		dev->unite.win[0].act_width = w / 2 + extend;
+		dev->unite.win[0].act_height = h;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = 0;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = w / 2 + extend;
+		dev->unite.win[1].act_height = h;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = 0;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = 0;
+	} else if (dev->unite.h_div == 1 && dev->unite.v_div == 2) {
+		dev->unite.win[0].act_width = w;
+		dev->unite.win[0].act_height = h / 2 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = 0;
+
+		dev->unite.win[1].act_width = w;
+		dev->unite.win[1].act_height = h / 2 + extend;
+		dev->unite.win[1].up_extend = extend;
+		dev->unite.win[1].down_extend = 0;
+		dev->unite.win[1].left_extend = 0;
+		dev->unite.win[1].right_extend = 0;
+	} else if (dev->unite.h_div == 2 && dev->unite.v_div == 2) {
+		dev->unite.win[0].act_width = w / 2 + extend;
+		dev->unite.win[0].act_height = h / 2 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = w / 2 + extend;
+		dev->unite.win[1].act_height = h / 2 + extend;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = extend;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = 0;
+
+		dev->unite.win[2].act_width = w / 2 + extend;
+		dev->unite.win[2].act_height = h / 2 + extend;
+		dev->unite.win[2].up_extend = extend;
+		dev->unite.win[2].down_extend = 0;
+		dev->unite.win[2].left_extend = 0;
+		dev->unite.win[2].right_extend = extend;
+
+		dev->unite.win[3].act_width = w / 2 + extend;
+		dev->unite.win[3].act_height = h / 2 + extend;
+		dev->unite.win[3].up_extend = extend;
+		dev->unite.win[3].down_extend = 0;
+		dev->unite.win[3].left_extend = extend;
+		dev->unite.win[3].right_extend = 0;
+	} else if (dev->unite.h_div == 3 && dev->unite.v_div == 1) {
+		v0 = ALIGN_DOWN(w / 3, 128);
+		if (!IS_ALIGNED(w - 2 * v0, 4)) {
+			v0 = w - 2 * v0;
+			dev_err(dev->dev, "%s error, input need crop to %dx%d\n",
+				__func__, w - (v0 & 3), h);
+			goto err;
+		}
+
+		dev->unite.win[0].act_width = v0 + extend;
+		dev->unite.win[0].act_height = h;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = 0;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = v0 + 2 * extend;
+		dev->unite.win[1].act_height = h;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = 0;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = extend;
+
+		dev->unite.win[2].act_width = w - 2 * v0 + extend;
+		dev->unite.win[2].act_height = h;
+		dev->unite.win[2].up_extend = 0;
+		dev->unite.win[2].down_extend = 0;
+		dev->unite.win[2].left_extend = extend;
+		dev->unite.win[2].right_extend = 0;
+	} else if (dev->unite.h_div == 1 && dev->unite.v_div == 3) {
+		v0 = ALIGN_DOWN(h / 3, 4);
+		if (!IS_ALIGNED(h - 2 * v0, 4)) {
+			v0 = h - 2 * v0;
+			dev_err(dev->dev, "%s error, input need crop to %dx%d\n",
+				__func__, w, h - (v0 & 3));
+			goto err;
+		}
+
+		dev->unite.win[0].act_width = w;
+		dev->unite.win[0].act_height = v0 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = 0;
+
+		dev->unite.win[1].act_width = w;
+		dev->unite.win[1].act_height = v0 + 2 * extend;
+		dev->unite.win[1].up_extend = extend;
+		dev->unite.win[1].down_extend = extend;
+		dev->unite.win[1].left_extend = 0;
+		dev->unite.win[1].right_extend = 0;
+
+		dev->unite.win[2].act_width = w;
+		dev->unite.win[2].act_height = h - 2 * v0 + extend;
+		dev->unite.win[2].up_extend = extend;
+		dev->unite.win[2].down_extend = 0;
+		dev->unite.win[2].left_extend = 0;
+		dev->unite.win[2].right_extend = 0;
+	} else if (dev->unite.h_div == 3 && dev->unite.v_div == 2) {
+		v0 = ALIGN_DOWN(w / 3, 128);
+		v1 = ALIGN_DOWN(h / 2, 4);
+		if (!IS_ALIGNED(w - 2 * v0, 4) ||
+		    !IS_ALIGNED(h - v1, 4)) {
+			v0 = w - 2 * v0;
+			v1 = h - v1;
+			dev_err(dev->dev, "%s error, input need crop to %dx%d\n",
+				__func__, w - (v0 & 3), h - (v1 & 3));
+			goto err;
+		}
+
+		dev->unite.win[0].act_width = v0 + extend;
+		dev->unite.win[0].act_height = v1 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = v0 + 2 * extend;
+		dev->unite.win[1].act_height = v1 + extend;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = extend;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = extend;
+
+		dev->unite.win[2].act_width = w - 2 * v0 + extend;
+		dev->unite.win[2].act_height = v1 + extend;
+		dev->unite.win[2].up_extend = 0;
+		dev->unite.win[2].down_extend = extend;
+		dev->unite.win[2].left_extend = extend;
+		dev->unite.win[2].right_extend = 0;
+
+		dev->unite.win[3].act_width = v0 + extend;
+		dev->unite.win[3].act_height = h - v1 + extend;
+		dev->unite.win[3].up_extend = extend;
+		dev->unite.win[3].down_extend = 0;
+		dev->unite.win[3].left_extend = 0;
+		dev->unite.win[3].right_extend = extend;
+
+		dev->unite.win[4].act_width = v0 + 2 * extend;
+		dev->unite.win[4].act_height = h - v1 + extend;
+		dev->unite.win[4].up_extend = extend;
+		dev->unite.win[4].down_extend = 0;
+		dev->unite.win[4].left_extend = extend;
+		dev->unite.win[4].right_extend = extend;
+
+		dev->unite.win[5].act_width = w - 2 * v0 + extend;
+		dev->unite.win[5].act_height = h - v1 + extend;
+		dev->unite.win[5].up_extend = extend;
+		dev->unite.win[5].down_extend = 0;
+		dev->unite.win[5].left_extend = extend;
+		dev->unite.win[5].right_extend = 0;
+	} else if (dev->unite.h_div == 2 && dev->unite.v_div == 3) {
+		v0 = ALIGN_DOWN(w / 2, 128);
+		v1 = ALIGN_DOWN(h / 3, 4);
+		if (!IS_ALIGNED(w - v0, 4) ||
+		    !IS_ALIGNED(h - 2 * v1, 4)) {
+			v0 = w - v0;
+			v1 = h - 2 * v1;
+			dev_err(dev->dev, "%s error, input need crop to %dx%d\n",
+				__func__, w - (v0 & 3), h - (v1 & 3));
+			goto err;
+		}
+
+		dev->unite.win[0].act_width = v0 + extend;
+		dev->unite.win[0].act_height = v1 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = w - v0 + extend;
+		dev->unite.win[1].act_height = v1 + extend;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = extend;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = 0;
+
+		dev->unite.win[2].act_width = v0 + extend;
+		dev->unite.win[2].act_height = v1 + 2 * extend;
+		dev->unite.win[2].up_extend = extend;
+		dev->unite.win[2].down_extend = extend;
+		dev->unite.win[2].left_extend = 0;
+		dev->unite.win[2].right_extend = extend;
+
+		dev->unite.win[3].act_width = w - v0 + extend;
+		dev->unite.win[3].act_height = v1 + 2 * extend;
+		dev->unite.win[3].up_extend = extend;
+		dev->unite.win[3].down_extend = extend;
+		dev->unite.win[3].left_extend = extend;
+		dev->unite.win[3].right_extend = 0;
+
+		dev->unite.win[4].act_width = v0 + extend;
+		dev->unite.win[4].act_height = h - 2 * v1 + extend;
+		dev->unite.win[4].up_extend = extend;
+		dev->unite.win[4].down_extend = 0;
+		dev->unite.win[4].left_extend = 0;
+		dev->unite.win[4].right_extend = extend;
+
+		dev->unite.win[5].act_width = w - v0 + extend;
+		dev->unite.win[5].act_height = h - 2 * v1 + extend;
+		dev->unite.win[5].up_extend = extend;
+		dev->unite.win[5].down_extend = 0;
+		dev->unite.win[5].left_extend = extend;
+		dev->unite.win[5].right_extend = 0;
+	} else if (dev->unite.h_div == 3 && dev->unite.v_div == 3) {
+		v0 = ALIGN_DOWN(w / 3, 128);
+		v1 = ALIGN_DOWN(h / 3, 4);
+		if (!IS_ALIGNED(w - 2 * v0, 4) ||
+		    !IS_ALIGNED(h - 2 * v1, 4)) {
+			v0 = w - 2 * v0;
+			v1 = h - 2 * v1;
+			dev_err(dev->dev, "%s error, input need crop to %dx%d\n",
+				__func__, w - (v0 & 3), h - (v1 & 3));
+			goto err;
+		}
+
+		dev->unite.win[0].act_width = v0 + extend;
+		dev->unite.win[0].act_height = v1 + extend;
+		dev->unite.win[0].up_extend = 0;
+		dev->unite.win[0].down_extend = extend;
+		dev->unite.win[0].left_extend = 0;
+		dev->unite.win[0].right_extend = extend;
+
+		dev->unite.win[1].act_width = v0 + 2 * extend;
+		dev->unite.win[1].act_height = v1 + extend;
+		dev->unite.win[1].up_extend = 0;
+		dev->unite.win[1].down_extend = extend;
+		dev->unite.win[1].left_extend = extend;
+		dev->unite.win[1].right_extend = extend;
+
+		dev->unite.win[2].act_width = w - 2 * v0 + extend;
+		dev->unite.win[2].act_height = v1 + extend;
+		dev->unite.win[2].up_extend = 0;
+		dev->unite.win[2].down_extend = extend;
+		dev->unite.win[2].left_extend = extend;
+		dev->unite.win[2].right_extend = 0;
+
+		dev->unite.win[3].act_width = v0 + extend;
+		dev->unite.win[3].act_height = v1 + 2 * extend;
+		dev->unite.win[3].up_extend = extend;
+		dev->unite.win[3].down_extend = extend;
+		dev->unite.win[3].left_extend = 0;
+		dev->unite.win[3].right_extend = extend;
+
+		dev->unite.win[4].act_width = v0 + 2 * extend;
+		dev->unite.win[4].act_height = v1 + 2 * extend;
+		dev->unite.win[4].up_extend = extend;
+		dev->unite.win[4].down_extend = extend;
+		dev->unite.win[4].left_extend = extend;
+		dev->unite.win[4].right_extend = extend;
+
+		dev->unite.win[5].act_width = w - 2 * v0 + extend;
+		dev->unite.win[5].act_height = v1 + 2 * extend;
+		dev->unite.win[5].up_extend = extend;
+		dev->unite.win[5].down_extend = extend;
+		dev->unite.win[5].left_extend = extend;
+		dev->unite.win[5].right_extend = 0;
+
+		dev->unite.win[6].act_width = v0 + extend;
+		dev->unite.win[6].act_height = h - 2 * v1 + extend;
+		dev->unite.win[6].up_extend = extend;
+		dev->unite.win[6].down_extend = 0;
+		dev->unite.win[6].left_extend = 0;
+		dev->unite.win[6].right_extend = extend;
+
+		dev->unite.win[7].act_width = v0 + 2 * extend;
+		dev->unite.win[7].act_height = h - 2 * v1 + extend;
+		dev->unite.win[7].up_extend = extend;
+		dev->unite.win[7].down_extend = 0;
+		dev->unite.win[7].left_extend = extend;
+		dev->unite.win[7].right_extend = extend;
+
+		dev->unite.win[8].act_width = w - 2 * v0 + extend;
+		dev->unite.win[8].act_height = h - 2 * v1 + extend;
+		dev->unite.win[8].up_extend = extend;
+		dev->unite.win[8].down_extend = 0;
+		dev->unite.win[8].left_extend = extend;
+		dev->unite.win[8].right_extend = 0;
+	} else {
+		dev_err(dev->dev, "%s error, %dx%d no support div(h:%d v:%d)\n",
+			__func__, w, h, dev->unite.h_div, dev->unite.v_div);
+		goto err;
+	}
+	dev_info(dev->dev, "input:%dx%d div(h:%d v:%d) extend:%d\n",
+		 w, h, dev->unite.h_div, dev->unite.v_div, dev->hw_dev->unite_extend_pixel);
+	for (i = 0; i < dev->unite.v_div; i++) {
+		for (j = 0; j < dev->unite.h_div; j++) {
+			v0 = i * dev->unite.h_div + j;
+			dev_info(dev->dev, "win%d %dx%d extend(up:%d down:%d left:%d right:%d)\n",
+				 v0,
+				 dev->unite.win[v0].act_width,
+				 dev->unite.win[v0].act_height,
+				 dev->unite.win[v0].up_extend,
+				 dev->unite.win[v0].down_extend,
+				 dev->unite.win[v0].left_extend,
+				 dev->unite.win[v0].right_extend);
+		}
+	}
 	return 0;
+err:
+	dev->unite_div = ISP_UNITE_DIV1;
+	dev->unite.h_div = 1;
+	dev->unite.v_div = 1;
+	return -EINVAL;
 }
 
-static void rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
-				  struct v4l2_rect *crop,
-				  u32 pad)
+static int rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
+				 struct v4l2_rect *crop,
+				 u32 pad)
 {
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
 	struct rkisp_device *dev = sd_to_isp_dev(sd);
 	struct v4l2_rect in_crop = isp_sd->in_crop;
+	int ret = 0;
 
 	crop->left = ALIGN(crop->left, 2);
 	crop->width = ALIGN(crop->width, 2);
@@ -3197,7 +3531,7 @@ static void rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
 		/* update sensor info if sensor link be changed */
 		rkisp_update_sensor_info(dev);
 		rkisp_align_sensor_resolution(dev, crop, true);
-		rkisp_unite_div(dev, crop->width, crop->height);
+		ret = rkisp_unite_div(dev, crop->width, crop->height);
 	} else if (pad == RKISP_ISP_PAD_SOURCE_PATH) {
 		crop->left = clamp_t(u32, crop->left, 0, in_crop.width);
 		crop->top = clamp_t(u32, crop->top, 0, in_crop.height);
@@ -3206,6 +3540,7 @@ static void rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
 		crop->height = clamp_t(u32, crop->height, CIF_ISP_OUTPUT_H_MIN,
 				in_crop.height - crop->top);
 	}
+	return ret;
 }
 
 static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
@@ -3351,6 +3686,7 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
 	struct rkisp_device *dev = sd_to_isp_dev(sd);
 	struct v4l2_rect *crop;
+	int ret;
 
 	if (!sel)
 		goto err;
@@ -3367,7 +3703,9 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 		crop = v4l2_subdev_state_get_crop(sd_state, sel->pad);
 	}
 
-	rkisp_isp_sd_try_crop(sd, crop, sel->pad);
+	ret = rkisp_isp_sd_try_crop(sd, crop, sel->pad);
+	if (ret)
+		return ret;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__, sel->pad,
@@ -4724,6 +5062,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_CMD_BTNR_WGT_READY:
 		ret = rkisp_btnr_wgt_ready(isp_dev);
 		break;
+	case RKISP_CMD_GET_UNITE_INFO:
+		memcpy(arg, &isp_dev->unite, sizeof(struct rkisp_unite_info));
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -4839,6 +5180,11 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKISP_CMD_AIAWB_BUF:
 		size = sizeof(struct rkisp_aiawb_buffd);
 		cp_f_us = true;
+		cp_t_us = true;
+		break;
+	case RKISP_CMD_GET_UNITE_INFO:
+		size = sizeof(struct rkisp_unite_info);
+		cp_f_us = false;
 		cp_t_us = true;
 		break;
 	default:
@@ -5085,7 +5431,8 @@ void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 		if (param && (isp_dev->isp_state & ISP_STOP)) {
 			params_vdev->ops->get_param_size(params_vdev,
 				&params_vdev->vdev_fmt.fmt.meta.buffersize);
-			params_vdev->ops->save_first_param(params_vdev, param);
+			if (isp_dev->isp_ver < ISP_V35)
+				params_vdev->ops->save_first_param(params_vdev, param);
 		}
 	} else if (size > isp_dev->resmem_size) {
 		v4l2_err(&isp_dev->v4l2_dev,
