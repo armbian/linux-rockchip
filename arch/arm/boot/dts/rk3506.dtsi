@@ -323,6 +323,7 @@
 		};
 
 		lb-slave {
+			rockchip,io-width = <16>;
 			dsmc_lb_slave0: lb-slave0 {
 				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
 				rockchip,int-en = <0x0>;
