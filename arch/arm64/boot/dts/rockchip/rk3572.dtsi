@@ -1687,6 +1687,17 @@
 			#dma-cells = <1>;
 		};
 
+		hw_decompress: decompress@2c020000 {
+			compatible = "rockchip,hw-decompress";
+			reg = <0x0 0x2c020000 0x0 0x1000>;
+			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>;
+			clock-names = "aclk", "dclk", "pclk";
+			resets = <&cru SRST_DRESETN_DECOM>;
+			reset-names = "dresetn";
+			status = "disabled";
+		};
+
 		i2c1: i2c@2c030000 {
 			compatible = "rockchip,rk3572-i2c", "rockchip,rk3399-i2c";
 			reg = <0x0 0x2c030000 0x0 0x1000>;
@@ -1819,6 +1830,15 @@
 			reset-names = "i2c", "apb";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		wdt: watchdog@2c0c0000 {
+			compatible = "snps,dw-wdt";
+			reg = <0x0 0x2c0c0000 0x0 0x100>;
+			clocks = <&cru TCLK_WDT0>, <&cru PCLK_WDT0>;
+			clock-names = "tclk", "pclk";
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -2043,6 +2063,18 @@
 			pinctrl-0 = <&uart11m0_xfer_pins>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		saradc: adc@2c1e0000 {
+			compatible = "rockchip,rk3572-saradc", "rockchip,rk3588-saradc";
+			reg = <0x0 0x2c1e0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+			#io-channel-cells = <1>;
+			clocks = <&cru CLK_SARADC>, <&cru PCLK_SARADC>;
+			clock-names = "saradc", "apb_pclk";
+			resets = <&cru SRST_PRESETN_SARADC>, <&cru SRST_RESETN_SARADC>;
+			reset-names = "saradc-apb", "saradc";
 			status = "disabled";
 		};
 
