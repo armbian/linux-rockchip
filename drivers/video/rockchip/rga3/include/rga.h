@@ -172,6 +172,7 @@ enum {
 	RGA_FULL_CSC			= 0x1 << 13,
 	RGA_GAUSS			= 0x1 << 14,
 	RGA_SECURE_ACCESS		= 0x1 << 15,
+	RGA_CFA				= 0x1 << 16,
 };
 
 enum rga_surf_format {
