@@ -599,20 +599,20 @@ static void scale_config(struct rkvpss_offline_dev *ofl,
 			 struct rkvpss_frame_cfg *cfg, bool unite, bool left)
 {
 	int i;
-	bool is_downscale_w;
-	bool is_downscale_h;
-	bool use_average;
 
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (!cfg->output[i].enable)
 			continue;
 
-		is_downscale_w = cfg->output[i].scl_width <= cfg->output[i].crop_width;
-		is_downscale_h = cfg->output[i].scl_height <= cfg->output[i].crop_height;
-		use_average = is_downscale_w && is_downscale_h;
+		bool use_avg_scale = (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
+				     cfg->output[i].avg_scl_down;
 
-		if ((i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
-		    (use_average || cfg->output[i].avg_scl_down)) {
+		if (cfg->output[i].avg_scl_down && !use_avg_scale) {
+			v4l2_warn(&ofl->v4l2_dev,
+				  "CH%d: average_scale_down not supported (only CH0/CH2)\n", i);
+		}
+
+		if (use_avg_scale) {
 			v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
 				 "CH%d: average_scale_down, unite:%d left:%d\n", i, unite, left);
 			average_scale_down(cfg, ofl, &cfg->output[i], i, unite, left);

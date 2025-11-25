@@ -1942,11 +1942,23 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 
 static int rkvpss_stream_scale(struct rkvpss_stream *stream, bool on, bool sync)
 {
+	bool use_avg_scale = (stream->id == 0 || stream->id == 2) && stream->avg_scl_down;
 
-	if ((stream->id == 0 || stream->id == 2) && stream->avg_scl_down)
+	if (stream->avg_scl_down && !use_avg_scale) {
+		v4l2_warn(&stream->dev->v4l2_dev,
+			  "CH%d: average_scale_down not supported (only CH0/CH2)\n",
+			  stream->id);
+	}
+
+	if (use_avg_scale) {
+		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
+			 "CH%d: average_scale_down, on:%d sync:%d\n", stream->id, on, sync);
 		average_scale_down(stream, on, sync);
-	else
+	} else {
+		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
+			 "CH%d: bilinear_scale, on:%d sync:%d\n", stream->id, on, sync);
 		bilinear_scale(stream, on, sync);
+	}
 
 	return 0;
 }
