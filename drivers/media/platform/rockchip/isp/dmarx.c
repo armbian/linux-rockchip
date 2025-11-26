@@ -535,7 +535,7 @@ static void dmarx_buf_to_vicap(struct rkisp_stream *stream, struct rkisp_buffer 
 		val = ISP21_MIPI_DROP_FRM;
 		rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT, 0, val, false);
 		rkisp_unite_clear_bits(dev, CIF_ISP_IMSC, CIF_ISP_FRAME_IN, false);
-		if (dev->isp_ver == ISP_V33) {
+		if (dev->isp_ver >= ISP_V33) {
 			val = ISP33_PP_ENC_PIPE_EN;
 			rkisp_unite_clear_bits(dev, CTRL_SWS_CFG, val, false);
 			if (dev->hdr_wrap_line) {
