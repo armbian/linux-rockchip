@@ -1575,7 +1575,7 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 		if (!gear_table[next_index].is_high_current || battery->is_rk817b) {
 			new_gear = gear_table[next_index].gear;
 
-			if (battery->is_rk817b && gear_table[next_index].sel_switch)
+			if (battery->is_rk817b)
 				rk817_bat_field_force_write(battery,
 							    VOL_ADC_TSCUR_SEL_SWITCH,
 							    gear_table[next_index].sel_switch);
@@ -1587,7 +1587,7 @@ static int rk817_bat_tscure_sel_switch(struct rk817_battery_device *battery, int
 		prev_index = index - 1;
 		if (!gear_table[prev_index].is_high_current || battery->is_rk817b) {
 			new_gear = gear_table[prev_index].gear;
-			if (battery->is_rk817b && gear_table[prev_index].sel_switch)
+			if (battery->is_rk817b)
 				rk817_bat_field_force_write(battery,
 							    VOL_ADC_TSCUR_SEL_SWITCH,
 							    gear_table[prev_index].sel_switch);
