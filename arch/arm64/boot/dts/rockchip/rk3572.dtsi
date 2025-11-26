@@ -986,6 +986,51 @@
 			status = "disabled";
 		};
 
+		rkvdec: rkvdec@27300100 {
+			compatible = "rockchip,rkv-decoder-rk3572", "rockchip,rkv-decoder-v384";
+			reg = <0x0 0x27300100 0x0 0x600>, <0x0 0x27300000 0x0 0x100>;
+			reg-names = "regs", "link";
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_rkvdec";
+			clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru HCLK_RKVDEC>,
+				 <&cru CLK_RKVDEC_CORE>, <&cru CLK_RKVDEC_HEVC_CA>;
+			clock-names = "aclk_vcodec", "hclk_vcodec",
+				      "clk_core", "clk_hevc_cabac";
+			resets = <&cru SRST_ARESETN_RKVDEC_BIU>, <&cru SRST_HRESETN_RKVDEC_BIU>,
+				 <&cru SRST_RESETN_RKVDEC_CORE>, <&cru SRST_RESETN_RKVDEC_HEVC_CA>;
+			reset-names = "video_a", "video_h", "video_core", "video_hevc_cabac";
+			rockchip,normal-rates = <600000000>, <200000000>, <600000000>, <1000000000>;
+			assigned-clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru HCLK_RKVDEC>,
+					  <&cru CLK_RKVDEC_CORE>, <&cru CLK_RKVDEC_HEVC_CA>;
+			assigned-clock-rates = <600000000>, <200000000>, <600000000>, <1000000000>;
+			iommus = <&rkvdec_mmu>;
+			rockchip,srv = <&mpp_srv>;
+			rockchip,task-capacity = <8>;
+			rockchip,taskqueue-node = <0>;
+			rockchip,resetgroup-node = <0>;
+			rockchip,sram = <&rkvdec_sram>;
+			rockchip,rcb-iova = <0x10000000 0x78000>;
+			rockchip,rcb-min-width = <512>;
+			power-domains = <&power RK3572_PD_VDEC>;
+			status = "disabled";
+		};
+
+		rkvdec_mmu: iommu@27300800 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x27300800 0x0 0x40>, <0x0 0x27300900 0x0 0x40>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_rkvdec_mmu";
+			clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru HCLK_RKVDEC>,
+				 <&cru CLK_RKVDEC_CORE>;
+			clock-names = "aclk", "iface", "iface_c";
+			rockchip,disable-mmu-reset;
+			rockchip,enable-cmd-retry;
+			rockchip,shootdown-entire;
+			#iommu-cells = <0>;
+			power-domains = <&power RK3572_PD_VDEC>;
+			status = "disabled";
+		};
+
 		rkisp: isp@27420000 {
 			compatible = "rockchip,rk3572-rkisp";
 			reg = <0x0 0x27420000 0x0 0x7f00>;
