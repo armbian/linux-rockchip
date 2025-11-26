@@ -2627,7 +2627,8 @@ static void rkcif_deal_err_intr(struct work_struct *work)
 						    work_deal_err);
 
 	cif_dev->intr_mask |= CSI_BANDWIDTH_LACK_V1;
-	rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN, CSI_BANDWIDTH_LACK_V1);
+	if (atomic_read(&cif_dev->pipe.stream_cnt) != 0)
+		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN, CSI_BANDWIDTH_LACK_V1);
 }
 
 static void rkcif_exposure_effect_sequeue_match(struct rkcif_device *dev,
