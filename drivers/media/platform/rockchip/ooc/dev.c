@@ -199,7 +199,7 @@ err_unreg_v4l2_dev:
 	return ret;
 }
 
-static int rkooc_drv_remove(struct platform_device *pdev)
+static void rkooc_drv_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *ooc_sd = platform_get_drvdata(pdev);
 	struct rkooc_dev *dev = container_of(ooc_sd, struct rkooc_dev, ooc_sd);
@@ -215,7 +215,6 @@ static int rkooc_drv_remove(struct platform_device *pdev)
 	rkooc_remove_rx_dev(dev);
 	rkooc_unregister_ooc_subdev(dev);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	return 0;
 }
 
 static const struct of_device_id rkooc_of_table[] = {
