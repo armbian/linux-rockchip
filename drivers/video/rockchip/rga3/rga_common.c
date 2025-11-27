@@ -413,9 +413,11 @@ int rga_get_format_bits(uint32_t format)
 		break;
 	case RGA_FORMAT_YCbCr_420_SP_10B:
 	case RGA_FORMAT_YCrCb_420_SP_10B:
+		bits = 15;
+		break;
 	case RGA_FORMAT_YCbCr_422_SP_10B:
 	case RGA_FORMAT_YCrCb_422_SP_10B:
-		bits = 15;
+		bits = 20;
 		break;
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_BPP8:

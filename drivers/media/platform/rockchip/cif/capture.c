@@ -1073,12 +1073,10 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_stream *stream, struct v4l2_rect
 			csi_info->vc = pad_id;
 		if (ch_info.data_type > 0)
 			csi_info->data_type = ch_info.data_type;
-		else
-			csi_info->data_type = 0;
 		if (ch_info.data_bit > 0)
 			csi_info->data_bit = ch_info.data_bit;
 		if (ch_info.field == 0)
-			fmt.format.field = V4L2_FIELD_NONE;
+			fmt.format.field = fmt.format.field;
 		else
 			fmt.format.field = ch_info.field;
 	} else {
@@ -3774,6 +3772,8 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
 		} else {
+			stream->curr_buf_rockit = NULL;
+			stream->next_buf_rockit = NULL;
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
 		}

@@ -777,7 +777,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 		}
 	}
 
-	if (wr_status.asdword || rd_status.asdword) {
+	if (rockchip->obj_info->irq_rc_msi_en && (wr_status.asdword || rd_status.asdword)) {
 		rockchip->obj_info->irq_type_rc = OBJ_IRQ_DMA;
 		rockchip->obj_info->dma_status_rc.wr |= wr_status.asdword;
 		rockchip->obj_info->dma_status_rc.rd |= rd_status.asdword;

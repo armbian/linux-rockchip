@@ -96,6 +96,7 @@
 
 #define PCIE_CFG_ELBI_APP_OFFSET	0xe00
 #define PCIE_CFG_ELBI_USER_DATA_OFF	0x10
+#define PCIE_CFG_USER5_DATA_OFF		0x14
 
 #define PCIE_ELBI_REG_NUM		0x2
 
@@ -145,6 +146,16 @@ struct pcie_file {
 	/* memory manager */
 	struct list_head cont_buffer_list;
 };
+
+static inline void pcie_rkep_writel_dbi(struct pcie_rkep *pcie_rkep, u32 reg, u32 val)
+{
+	writel(val, pcie_rkep->bar4 + reg);
+}
+
+static inline u32 pcie_rkep_readl_dbi(struct pcie_rkep *pcie_rkep, u32 reg)
+{
+	return readl(pcie_rkep->bar4 + reg);
+}
 
 static bool pcie_rkep_wait_for_link_up(struct pci_dev *pdev)
 {
@@ -742,7 +753,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	struct pcie_ep_continuous_buffer_param cont_buf_pram;
 	int mmap_res;
 	int ret;
-	int index;
+	int index, wr_mask, rd_mask;
 	u64 addr;
 	u32 val;
 
@@ -788,6 +799,17 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			dev_err(&pcie_rkep->pdev->dev, "failed to transfer dma, ret=%d\n", ret);
 			return -EFAULT;
 		}
+		break;
+	case PCIE_EP_DMA_MSI_DETECT:
+		/*
+		 * Enabling the corresponding interrupt via EP will enable the corresponding MSI
+		 * behavior notification RC.
+		 */
+		wr_mask = pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK);
+		rd_mask = pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK);
+		pcie_dw_dmatest_irq_en(pcie_rkep->dma_obj, !wr_mask, !rd_mask);
+		if (!wr_mask && !rd_mask)
+			pcie_rkep->obj_info->irq_rc_msi_en = 1;
 		break;
 	case PCIE_EP_REQUEST_VIRTUAL_ID:
 		index = rkep_ep_request_virtual_id(pcie_file);
@@ -877,6 +899,20 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (copy_to_user(uarg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
+	case PCIE_EP_OBJ_INFO_SYNC:
+		/*
+		 * For memory-trimmed versions of the application, elbi userdata register5 is used
+		 * to pass offset information.
+		 */
+		pci_read_config_dword(pcie_rkep->pdev,
+				      PCIE_CFG_ELBI_APP_OFFSET + PCIE_CFG_USER5_DATA_OFF,
+				      &val);
+		if (val) {
+			pcie_rkep->obj_info = (struct pcie_ep_obj_info *)(pcie_rkep->bar0 + val);
+			dev_info(&pcie_rkep->pdev->dev, "update magic=%x, ver=%x\n", pcie_rkep->obj_info->magic,
+										     pcie_rkep->obj_info->version);
+		}
+		break;
 	case PCIE_EP_RESET_CTRL:
 #ifdef CONFIG_PCIEASPM_EXT
 		dev_info(&pcie_rkep->pdev->dev, "reset controller\n");
@@ -923,16 +959,6 @@ static const struct file_operations pcie_rkep_fops = {
 	.release	= pcie_rkep_release,
 	.llseek		= default_llseek,
 };
-
-static inline void pcie_rkep_writel_dbi(struct pcie_rkep *pcie_rkep, u32 reg, u32 val)
-{
-	writel(val, pcie_rkep->bar4 + reg);
-}
-
-static inline u32 pcie_rkep_readl_dbi(struct pcie_rkep *pcie_rkep, u32 reg)
-{
-	return readl(pcie_rkep->bar4 + reg);
-}
 
 static void pcie_rkep_dma_debug(struct dma_trx_obj *obj, struct dma_table *table)
 {
@@ -1470,11 +1496,18 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pcie_rkep->dma_obj->config_dma_func = pcie_rkep_config_dma_dwc;
 		pcie_rkep->dma_obj->get_dma_status = pcie_rkep_get_dma_status;
 		pcie_rkep->dma_obj->dma_debug = pcie_rkep_dma_debug;
-		if (!dmatest_irq) {
+		if (dmatest_irq) {
+			/* Enable EP DMA completion interrupt */
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_LL_ERR_EN, 0x0);
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_LL_ERR_EN, 0x0);
+
+			/* Enable the MSI notification upon DMA completion interrupt */
+			pcie_rkep->obj_info->irq_rc_msi_en = 1;
+		} else {
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0xffffffff);
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0xffffffff);
-
-			/* Enable linked list err en */
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_LL_ERR_EN, 0xffffffff);
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_LL_ERR_EN, 0xffffffff);
 		}

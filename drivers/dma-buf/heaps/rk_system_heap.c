@@ -71,8 +71,8 @@ static gfp_t order_flags[] = {HIGH_ORDER_GFP, HIGH_ORDER_GFP, LOW_ORDER_GFP};
  */
 static unsigned int orders[] = {8, 4, 0};
 #define NUM_ORDERS ARRAY_SIZE(orders)
-struct dmabuf_page_pool *pools[NUM_ORDERS];
-struct dmabuf_page_pool *dma32_pools[NUM_ORDERS];
+static struct dmabuf_page_pool *pools[NUM_ORDERS];
+static struct dmabuf_page_pool *dma32_pools[NUM_ORDERS];
 
 static struct sg_table *dup_sg_table(struct sg_table *table)
 {
