@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2025 Rockchip Electronics Co., Ltd.
  */
+#include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/soc/rockchip/rockchip_decompress.h>
