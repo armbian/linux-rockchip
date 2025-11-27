@@ -191,7 +191,7 @@ static int rkooc_rx_init_queue(struct rkooc_dev *dev)
 	q->ops = &irfpa_rx_qops;
 	q->mem_ops = dev->mem_ops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 1;
+	q->min_queued_buffers = 1;
 	q->lock = &dev->mutex;
 	q->dev = dev->v4l2_dev.dev;
 	q->allow_cache_hints = true;
