@@ -1628,6 +1628,19 @@ static void rk628_csi_reset_rkcif(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s, get remote rkcif failed\n", __func__);
 	}
 }
+
+static void rk628_csi_signal_rkcif_fence(struct v4l2_subdev *sd)
+{
+	struct video_device *vdev = NULL;
+
+	rk628_get_remote_dev(&sd->entity, &vdev);
+	if (vdev != NULL) {
+		rkcif_external_fence_signal(vdev);
+		v4l2_dbg(1, debug, sd, "%s, signal fence\n", __func__);
+	} else {
+		v4l2_dbg(1, debug, sd, "%s, signal fence failed\n", __func__);
+	}
+}
 #endif
 
 static void rk628_csi_enable_csi_interrupts(struct v4l2_subdev *sd, bool en)
@@ -1883,6 +1896,9 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 			enable_stream(sd, false);
 		csi->nosignal = true;
 		v4l2_event_queue(sd->devnode, &evt_signal_lost);
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+		rk628_csi_signal_rkcif_fence(sd);
+#endif
 		schedule_delayed_work(&csi->delayed_work_res_change, msecs_to_jiffies(100));
 
 		v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
@@ -3167,6 +3183,11 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 	schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	v4l2_event_queue(sd->devnode, &evt_signal_lost);
 
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+	if (!tx_5v_power_present(sd))
+		rk628_csi_signal_rkcif_fence(sd);
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -3235,6 +3256,7 @@ static int rk628_csi_resume(struct device *dev)
 
 	rk628_csi_power_on(csi);
 	rk628_cru_initialize(csi->rk628);
+	rk628_clk_set_rate(csi->rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 	rk628_csi_initial(sd);
 	rk628_hdmirx_plugout(sd);
 	enable_irq(csi->plugin_irq);
@@ -3587,6 +3609,7 @@ static int rk628_csi_probe(struct i2c_client *client)
 	const struct of_device_id *match;
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;
+	char device_name[16];
 
 	dev_info(dev, "RK628 I2C driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -3751,11 +3774,16 @@ static int rk628_csi_probe(struct i2c_client *client)
 		goto err_hdl;
 	}
 
+	if (csi->module_index)
+		snprintf(device_name, sizeof(device_name), "rk628-%d", csi->module_index);
+	else
+		strscpy(device_name, "rk628", sizeof(device_name));
+
 	csi->classdev = device_create_with_groups(rk_hdmirx_class(),
 						  dev, MKDEV(0, 0),
 						  csi,
 						  rk628_groups,
-						  "rk628");
+						  "%s", device_name);
 	if (IS_ERR(csi->classdev)) {
 		err = PTR_ERR(csi->classdev);
 		v4l2_err(sd, "create device class failed\n");

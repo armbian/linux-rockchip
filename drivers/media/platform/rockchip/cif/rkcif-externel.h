@@ -10,5 +10,6 @@
 
 int rkcif_sditf_disconnect(struct video_device *vdev);
 void rkcif_external_soft_reset(struct video_device *vdev);
+void rkcif_external_fence_signal(struct video_device *vdev);
 
 #endif

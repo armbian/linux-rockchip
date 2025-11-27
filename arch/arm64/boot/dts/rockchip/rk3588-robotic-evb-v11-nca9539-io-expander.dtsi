@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	i2c4_nca9539_vdd: i2c4-nca9539-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "i2c4_nca9539_vdd";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		startup-delay-us = <20>; // NCA9539 POR
+		vin-supply = <&vcc_1v8_s0>;
+	};
+
+	i2c6_nca9539_vdd: i2c6-nca9539-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "i2c6_nca9539_vdd";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20>; // NCA9539 POR
+		vin-supply = <&vcc_3v3_s3>;
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer>;
+	status = "okay";
+
+	i2c4_nca9539_gpio: gpio-exp@24 {
+		compatible = "novo,nca9539-gpio";
+		reg = <0x24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <16>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		vdd-supply = <&i2c4_nca9539_vdd>;
+		status = "okay";
+	};
+};
+
+&i2c6 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6m0_xfer>;
+	status = "okay";
+
+	i2c6_nca9539_gpio: gpio-exp@24 {
+		compatible = "novo,nca9539-gpio";
+		reg = <0x24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <16>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		vdd-supply = <&i2c6_nca9539_vdd>;
+		status = "okay";
+	};
+};

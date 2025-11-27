@@ -374,6 +374,7 @@ static int dsmc_mem_remap(struct device *dev, struct rockchip_dsmc *dsmc)
 static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsmc)
 {
 	int ret = 0;
+	uint32_t io_width_val;
 	uint32_t cs;
 	uint32_t psram = 0, lb_slave = 0;
 	uint64_t mem_ranges[2];
@@ -486,6 +487,24 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 				goto release_dsmc_slave_node;
 			}
 			of_node_put(child_node);
+
+			ret = of_property_read_u32(lb_slave_np,
+						   "rockchip,io-width",
+						   &io_width_val);
+			if (ret) {
+				dev_warn(dev, "used default rockchip,io-width(x16 mode)\n");
+					 cfg->cs_cfg[cs].io_width = MCR_IOWIDTH_X16;
+			} else {
+				if (io_width_val == 16) {
+					cfg->cs_cfg[cs].io_width = MCR_IOWIDTH_X16;
+				} else if (io_width_val == 8) {
+					cfg->cs_cfg[cs].io_width = MCR_IOWIDTH_X8;
+				} else {
+					dev_warn(dev, "invalid rockchip,io-width %u, use x16\n",
+						 io_width_val);
+					cfg->cs_cfg[cs].io_width = MCR_IOWIDTH_X16;
+				}
+			}
 		}
 	}
 
@@ -782,7 +801,6 @@ static void dsmc_data_init(struct rockchip_dsmc *dsmc)
 			cs_cfg->rd_bdr_xfer_en = 1;
 			cs_cfg->wr_bdr_xfer_en = 1;
 		} else {
-			cs_cfg->io_width = MCR_IOWIDTH_X16;
 			cs_cfg->wrap_size = DSMC_BURST_WRAPSIZE_16CLK;
 			cs_cfg->wrap2incr_en = 1;
 			cs_cfg->acs = 1;
@@ -1075,6 +1093,12 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 	if (rockchip_dsmc_dll_training(priv)) {
 		ret = -ENODEV;
 		dev_err(dev, "DSMC dll training fail!\n");
+		goto err_release_dma;
+	}
+
+	if (rockchip_dsmc_status_check(priv)) {
+		ret = -ENODEV;
+		dev_err(dev, "DSMC status error, please check hardware matched(io, slave etc.)\n");
 		goto err_release_dma;
 	}
 

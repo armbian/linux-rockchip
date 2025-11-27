@@ -28,6 +28,7 @@
 &dsmc_slave {
 	status = "okay";
 	lb-slave {
+		rockchip,io-width = <8>;
 		dsmc_lb_slave0: lb-slave0 {
 			rockchip,int-en = <0x2>;
 			status = "okay";

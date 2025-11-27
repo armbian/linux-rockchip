@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-robotic-evb-v11.dtsi"
+#include "rk3588-robotic-evb-v11-cam-3x.dtsi"
+#include "rk3588-robotic-evb-v11-maxim-max96712-dphy0-ox03j10.dtsi"
+#include "rk3588-robotic-evb-v11-nca9539-io-expander.dtsi"
+#include "rk3588-robotic-evb-v11-pdm-mic-array.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 ROBOTIC EVB V11 Board";
+	compatible = "rockchip,rk3588-robotic-evb-v11", "rockchip,rk3588";
+};
