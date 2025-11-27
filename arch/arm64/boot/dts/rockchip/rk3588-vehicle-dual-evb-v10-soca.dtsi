@@ -76,6 +76,18 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		bar0_region: bar0-region@3c000000 {
+			reg = <0x0 0x3c000000 0x0 0x00400000>;
+		};
+		bar2_region: bar2-region@40000000 {
+			reg = <0x0 0x40000000 0x0 0x04000000>;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&hym8563>;
@@ -275,6 +287,17 @@
 &pcie2x1l2 {
 	reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 	status = "disabled";
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x4 {
+	compatible = "rockchip,rk3588-pcie-std-ep";
+	memory-region = <&bar0_region>, <&bar2_region>;
+	memory-region-names = "bar0", "bar2";
+	status = "okay";
 };
 
 &pinctrl {
