@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b-evb2-v12.dts"
+
+/ {
+	model = "Rockchip RV1126B EVB2 V12 SPI NAND Board";
+	compatible = "rockchip,rv1126b-evb2-v12-spi-nand", "rockchip,rv1126b";
+
+	chosen {
+		/*
+		 * Select ubifs as default
+		 * squashfs:
+		 * ubi.mtd=rootfs ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs
+		 */
+		bootargs = "earlycon=uart8250,mmio32,0x20810000 console=ttyFIQ0 rw ubi.mtd=rootfs root=ubi0:rootfs rootfstype=ubifs rootwait snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};

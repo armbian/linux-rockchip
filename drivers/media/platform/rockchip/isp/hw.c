@@ -442,7 +442,7 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 			reg = reg_buf + ISP3X_SWS_CFG;
 			*reg &= ~ISP3X_3A_DDR_WRITE_EN;
 			reg = reg_buf + ISP39_W3A_CTRL0;
-			*reg &= ~ISP39_W3A_FORCE_UPD;
+			*reg &= ~(ISP39_W3A_FORCE_UPD | ISP35_W3A_FORCE_UPD_F);
 			reg = reg_buf + ISP35_AIAWB_CTRL0;
 			*reg &= ~ISP35_AIAWB_SELF_UPD;
 			reg = reg_buf + ISP33_BAY3D_CTRL0;
@@ -596,6 +596,13 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 				*reg |= ISP35_AIAWB_SELF_UPD;
 				writel(*reg, base + ISP35_AIAWB_CTRL0);
 			}
+			reg = reg_buf + ISP35_AI_CTRL;
+			if (*reg & ISP35_AIISP_EN) {
+				*reg |= ISP35_AIPRE_ITS_FORCE_UPD;
+				writel(*reg, base + ISP35_AI_CTRL);
+				*reg &= ~ISP35_AIPRE_ITS_FORCE_UPD;
+				writel(*reg, base + ISP35_AI_CTRL);
+			}
 		}
 	}
 
@@ -631,6 +638,9 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 			if (dev->isp_ver == ISP_V35) {
 				reg = reg_buf + ISP39_W3A_CTRL0;
 				if (*reg & ISP39_W3A_EN) {
+					reg1 = reg_buf + ISP3X_ISP_CTRL1;
+					if (*reg1 & ISP35_BAYER_UPD_FE_EN)
+						*reg |= ISP35_W3A_FORCE_UPD_F;
 					*reg |= ISP39_W3A_FORCE_UPD;
 					writel(*reg, dev->base_addr + ISP39_W3A_CTRL0);
 				}
@@ -641,6 +651,11 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		*reg |= CIF_ISP_CTRL_ISP_ENABLE |
 			CIF_ISP_CTRL_ISP_CFG_UPD |
 			CIF_ISP_CTRL_ISP_INFORM_ENABLE;
+		if (dev->isp_ver == ISP_V35) {
+			reg1 = reg_buf + ISP3X_ISP_CTRL1;
+			if (*reg1 & ISP35_BAYER_UPD_FE_EN)
+				*reg |= ISP35_ISP_CFG_UPD_FE;
+		}
 		writel(*reg, dev->base_addr + ISP_CTRL);
 		if (dev->unite == ISP_UNITE_TWO)
 			writel(*reg, dev->base_next_addr + ISP_CTRL);

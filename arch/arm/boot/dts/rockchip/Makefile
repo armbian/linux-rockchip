@@ -74,6 +74,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v11-spi-nor.dtb \
 	rv1126b-evb1-v11-5x-cam.dtb \
 	rv1126b-evb1-v12.dtb \
+	rv1126b-evb1-v12-spi-nand.dtb \
 	rv1126b-evb2-v10.dtb \
 	rv1126b-evb2-v10-dv.dtb \
 	rv1126b-evb2-v10-mcu-k350c4516t.dtb \
@@ -89,6 +90,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb2-v12-fastboot-emmc.dtb \
 	rv1126b-evb2-v12-fastboot-spi-nand.dtb \
 	rv1126b-evb2-v12-fastboot-spi-nor.dtb \
+	rv1126b-evb2-v12-spi-nand.dtb \
 	rv1126b-evb3-v10.dtb \
 	rv1126b-evb4-v10.dtb \
 	rv1126b-iotest-v10.dtb \
