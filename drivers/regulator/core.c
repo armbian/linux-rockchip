@@ -42,8 +42,10 @@ static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
 static LIST_HEAD(regulator_supply_alias_list);
 static LIST_HEAD(regulator_coupler_list);
+#ifdef CONFIG_DEBUG_FS
 static DEFINE_MUTEX(regulator_debug_mutex);
 static LIST_HEAD(regulator_debug_list);
+#endif
 static bool has_full_constraints;
 
 static struct dentry *debugfs_root;

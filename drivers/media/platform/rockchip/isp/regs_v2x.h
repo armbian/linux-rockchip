@@ -2684,7 +2684,7 @@ static inline void mi_raw_length(struct rkisp_stream *stream)
 	    stream->config->mi.length == MI_RAW1_RD_LENGTH ||
 	    stream->config->mi.length == MI_RAW2_RD_LENGTH) {
 		is_direct = false;
-		if (stream->ispdev->isp_ver == ISP_V33 &&
+		if (stream->ispdev->isp_ver >= ISP_V33 &&
 		    !IS_HDR_RDBK(stream->ispdev->rd_mode) &&
 		    stream->config->mi.length == MI_RAW2_RD_LENGTH &&
 		    stream->ispdev->unite_div == ISP_UNITE_DIV2) {

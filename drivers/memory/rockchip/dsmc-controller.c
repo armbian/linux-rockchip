@@ -803,12 +803,17 @@ static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint3
 	uint32_t pattern[] = {0x5aa5f00f, 0xffff0000};
 	uint32_t mask;
 
-	for (rgn = 0; rgn < DSMC_LB_MAX_RGN; rgn++) {
-		slv_rgn = &cfg->slv_rgn[rgn];
-		if (slv_rgn->status) {
-			map = &dsmc->cs_map[cs].region_map[rgn];
-			break;
+	if (cfg->device_type == DSMC_LB_DEVICE) {
+		for (rgn = 0; rgn < DSMC_LB_MAX_RGN; rgn++) {
+			slv_rgn = &cfg->slv_rgn[rgn];
+			if (slv_rgn->status) {
+				map = &dsmc->cs_map[cs].region_map[rgn];
+				break;
+			}
 		}
+	} else {
+		rgn = 0;
+		map = &dsmc->cs_map[cs].region_map[rgn];
 	}
 	if (map == NULL) {
 		dev_err(dev, "Cannot find an enable region.\n");
@@ -861,7 +866,9 @@ static int dsmc_dll_full_range_training(struct rockchip_dsmc_device *dsmc_dev,
 	for (dll = 0; dll <= 0xff; dll++) {
 		result = dsmc_dll_training_method(dsmc_dev, cs, byte, dll);
 
-		if (result == 0) {
+		if (result == -ENODEV) {
+			return -ENODEV;
+		} else if (result == 0) {
 			if (start == -1)
 				start = dll;
 			current_length++;

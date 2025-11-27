@@ -39,7 +39,7 @@
 #include <linux/of.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/soc/rockchip/rk_sdmmc.h>
-#include <linux/soc/rockchip/rockchip_decompress.h>
+#include <linux/soc/rockchip/rockchip_thunderboot.h>
 
 #include "dw_mmc.h"
 
@@ -3596,20 +3596,9 @@ int dw_mci_probe(struct dw_mci *host)
 
 #ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 	if (device_property_read_bool(host->dev, "no-sd") &&
-	    device_property_read_bool(host->dev, "no-sdio")) {
-		if (readl_poll_timeout(host->regs + SDMMC_STATUS,
-				fifo_size,
-				!(fifo_size & (BIT(10) | GENMASK(7, 4))),
-				0, 500 * USEC_PER_MSEC))
-			dev_err(host->dev, "Controller is occupied!\n");
-
-		if (readl_poll_timeout(host->regs + SDMMC_IDSTS,
-				fifo_size, !(fifo_size & GENMASK(16, 13)),
-				0, 500 * USEC_PER_MSEC))
-			dev_err(host->dev, "DMA is still running!\n");
-
-		BUG_ON(mci_readl(host, RINTSTS) & DW_MCI_ERROR_FLAGS);
-	}
+	    device_property_read_bool(host->dev, "no-sdio"))
+		if (rk_tb_wait_ramdisk_compress_done(500) == 0)
+			dev_err(host->dev, "Wait ramdisk_c complete timeout!\n");
 #endif
 
 	host->ciu_clk = devm_clk_get(host->dev, "ciu");

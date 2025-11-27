@@ -13,6 +13,8 @@
 #define RKFEC_API_VERSION		KERNEL_VERSION(0, 1, 0)
 
 #define FEC_BUF_CNT		3
+/* Number of bytes per point in the LUT */
+#define BYTES_PER_LUT_POINT	6
 
 /*************VIDIOC_PRIVATE*************/
 #define RKFEC_CMD_IN_OUT \

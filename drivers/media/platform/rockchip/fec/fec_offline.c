@@ -52,16 +52,26 @@ static void rkfec_dvfs(struct rkfec_offline_dev *ofl, int width)
 
 	target_rate = rate_info->clk_rate * 1000000;
 
-	ret = hw->set_clk(hw->clks[0], target_rate);
-	if (ret < 0)
-		v4l2_err(&ofl->v4l2_dev, "failed to set aclk rate: %d\n", ret);
+	mutex_lock(&hw->dev_lock);
+	if (target_rate <= hw->curr_clk_rate) {
+		v4l2_dbg(4, rkfec_debug, &ofl->v4l2_dev,
+			 "skip clk rate change %lu <= current %lu\n",
+			 target_rate, hw->curr_clk_rate);
+		goto out;
+	}
 
 	ret = hw->set_clk(hw->clks[2], target_rate);
-	if (ret < 0)
+	if (ret < 0) {
 		v4l2_err(&ofl->v4l2_dev, "failed to set core clk rate: %d\n", ret);
+		goto out;
+	}
 
-	v4l2_dbg(4, rkfec_debug, &ofl->v4l2_dev, "set clk rate: %ld\n",
+	hw->curr_clk_rate = target_rate;
+
+	v4l2_dbg(4, rkfec_debug, &ofl->v4l2_dev, "set clk rate: %lu\n",
 		 target_rate);
+out:
+	mutex_unlock(&hw->dev_lock);
 }
 
 #if IS_LINUX_VERSION_AT_LEAST_6_1
@@ -435,7 +445,7 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 	writel(c_base + out_uv_start, base + RKFEC_WR_C_BASE);
 
 	/* lut buf */
-	off_buf = buf_add(file, buf->buf_cfg.lut_fd, buf->buf_cfg.lut_size);
+	off_buf = buf_add(file, buf->buf_cfg.lut_fd, buf->buf_cfg.lut_size * BYTES_PER_LUT_POINT);
 	if (!off_buf)
 		goto free_buf;
 
