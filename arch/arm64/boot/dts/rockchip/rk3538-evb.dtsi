@@ -19,6 +19,27 @@
 		};
 	};
 
+	bt_sco: bt-sco {
+		status = "okay";
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+	};
+
+	bt_sound: bt-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&sai0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco 1>;
+		};
+	};
+
 	hdmi_sound: hdmi-sound {
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
@@ -121,6 +142,10 @@
 	status = "okay";
 };
 
+&sai0 {
+	status = "okay";
+};
+
 &sai2 {
 	status = "okay";
 	/delete-property/ pinctrl-names;
@@ -140,6 +165,21 @@
 	no-sdio;
 	non-removable;
 	status = "okay";
+};
+
+&sdio {
+	max-frequency = <200000000>;
+	no-sd;
+	no-mmc;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_bus4_pins &sdio_cmd_pins &sdio_clk_pins>;
+	sd-uhs-sdr104;
+	status = "disabled";
 };
 
 &spdif_tx {
