@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&i2c3 {
+	status = "okay";
+	pinctrl-0 = <&i2c3m1_pins>;
+
+	gst412c: gst412c@42 {
+		compatible = "globalsensor,gst412c";
+		status = "okay";
+		reg = <0x42>;
+		reset-gpios = <&gpio5 RK_PB4 GPIO_ACTIVE_HIGH>;
+		shutter_p-gpios = <&gpio5 RK_PD2 GPIO_ACTIVE_HIGH>;
+		shutter_m-gpios = <&gpio5 RK_PD3 GPIO_ACTIVE_HIGH>;
+
+		rkooc = <&rkooc0>;
+
+		port {
+			gst412c_out: endpoint {
+				remote-endpoint = <&cif_para_in_1>;
+			};
+		};
+	};
+
+	tmp117: tmp117@49 {
+		 compatible = "ti,tmp117";
+		 reg = <0x49>;
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&vi_cifm0_pins>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Parallel bus endpoint */
+		cif_para_in_1: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&gst412c_out>;
+		};
+	};
+};
+
+&rkcif_dvp_sditf {
+	status = "okay";
+
+	port {
+		dvp_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dvp_sditf>;
+		};
+	};
+};
+
+&rkooc0 {
+	status = "okay";
+};
