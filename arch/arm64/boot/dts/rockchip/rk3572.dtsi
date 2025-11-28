@@ -171,6 +171,12 @@
 		};
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+	};
+
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
@@ -1224,6 +1230,44 @@
 			resets = <&cru SRST_HRESETN_TRNG_NS>;
 			reset-names = "reset";
 			status = "disabled";
+		};
+
+		otp: otp@2a480000 {
+			compatible = "rockchip,rk3572-otp";
+			reg = <0x0 0x2a480000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&cru CLK_OTPC_NS>, <&cru PCLK_OTPC_NS>;
+			clock-names = "otpc", "apb";
+			resets = <&cru SRST_RESETN_OTPC_NS>, <&cru SRST_PRESETN_OTPC_NS>;
+			reset-names = "otpc", "apb";
+
+			/* Data cells */
+			cpu_code: cpu-code@2 {
+				reg = <0x02 0x2>;
+			};
+			otp_cpu_version: cpu-version@21 {
+				reg = <0x21 0x1>;
+				bits = <3 3>;
+			};
+			otp_id: id@22 {
+				reg = <0x22 0x10>;
+			};
+			cpub_leakage: cpub-leakage@32 {
+				reg = <0x32 0x1>;
+			};
+			cpul_leakage: cpul-leakage@33 {
+				reg = <0x33 0x1>;
+			};
+			gpu_leakage: npu-leakage@34 {
+				reg = <0x34 0x1>;
+			};
+			npu_leakage: npu-leakage@35 {
+				reg = <0x35 0x1>;
+			};
+			logic_leakage: logic-leakage@36 {
+				reg = <0x36 0x1>;
+			};
 		};
 
 		sai0: sai@2a500000 {
