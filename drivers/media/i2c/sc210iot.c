@@ -1181,7 +1181,11 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&sc210iot_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
+#endif
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("Smartsens sc210iot Image Sensor driver");
