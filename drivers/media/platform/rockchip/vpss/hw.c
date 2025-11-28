@@ -736,8 +736,7 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	writel(val, base + RKVPSS_CMSC_UPDATE);
 
 	/* crop1 */
-	range = is_vpss_v10(dev) ? RKVPSS_CROP1_3_V_SIZE :
-				   RKVPSS2X_CROP1_5_SIZE;
+	range = is_vpss_v20(dev) ? RKVPSS2X_CROP1_5_SIZE : RKVPSS_CROP1_3_V_SIZE;
 	for (i = RKVPSS_CROP1_CTRL; i <= range; i += 4) {
 		if (i == RKVPSS_CROP1_UPDATE)
 			continue;
@@ -749,15 +748,16 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	writel(val, base + RKVPSS_CROP1_UPDATE);
 
 	/* scale */
-	for (i = RKVPSS_ZME_BASE; i <= RKVPSS_ZME_UV_YSCL_FACTOR; i += 4) {
-		if (i == RKVPSS_ZME_UPDATE)
-			continue;
-		reg = reg_buf + i;
-		writel(*reg, base + i);
+	if (is_vpss_v10(dev)) {
+		for (i = RKVPSS_ZME_BASE; i <= RKVPSS_ZME_UV_YSCL_FACTOR; i += 4) {
+			if (i == RKVPSS_ZME_UPDATE)
+				continue;
+			reg = reg_buf + i;
+			writel(*reg, base + i);
+		}
+		val = RKVPSS_ZME_GEN_UPD | RKVPSS_ZME_FORCE_UPD;
+		writel(val, base + RKVPSS_ZME_UPDATE);
 	}
-	val = RKVPSS_ZME_GEN_UPD | RKVPSS_ZME_FORCE_UPD;
-	writel(val, base + RKVPSS_ZME_UPDATE);
-
 	for (i = RKVPSS_SCALE1_BASE; i <= RKVPSS_SCALE1_IN_CROP_OFFSET; i += 4) {
 		if (i == RKVPSS_SCALE1_UPDATE)
 			continue;
@@ -786,6 +786,15 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	writel(val, base + RKVPSS_SCALE3_UPDATE);
 
 	if (is_vpss_v20(dev)) {
+		for (i = RKVPSS2X_SCALE0_BASE; i <= RKVPSS2X_SCALE0_IN_CROP_OFFSET; i += 4) {
+			if (i == RKVPSS2X_SCALE0_UPDATE)
+				continue;
+			reg = reg_buf + i;
+			writel(*reg, base + i);
+		}
+		val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+		writel(val, base + RKVPSS2X_SCALE0_UPDATE);
+
 		for (i = RKVPSS2X_SCALE4_BASE; i <= RKVPSS2X_SCALE4_IN_CROP_OFFSET; i += 4) {
 			if (i == RKVPSS2X_SCALE4_UPDATE)
 				continue;
@@ -806,8 +815,7 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	}
 
 	/* mi */
-	range = is_vpss_v10(dev) ? RKVPSS_MI_CHN3_WR_LINE_CNT :
-				   RKVPSS2X_MI_CHN5_WR_LINE_CNT;
+	range = is_vpss_v20(dev) ? RKVPSS2X_MI_CHN5_WR_LINE_CNT : RKVPSS_MI_CHN3_WR_LINE_CNT;
 	for (i = RKVPSS_MI_BASE; i <= range; i += 4) {
 		if (i >= RKVPSS_MI_RD_CTRL && i <= RKVPSS_MI_RD_Y_HEIGHT_SHD)
 			continue;
