@@ -537,6 +537,11 @@
 			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
 		};
 
+		vop_grf: syscon@26028000 {
+			compatible = "rockchip,rk3572-vop-grf", "syscon";
+			reg = <0x0 0x26028000 0x0 0x2000>;
+		};
+
 		audio_grf: syscon@2602c000 {
 			compatible = "rockchip,rk3572-audio-grf", "syscon";
 			reg = <0x0 0x2602c000 0x0 0x1000>;
@@ -891,7 +896,7 @@
 
 				vopl_out_dsi: endpoint@1 {
 					reg = <1>;
-					//remote-endpoint = <&dsi_in_vopl>;
+					remote-endpoint = <&dsi_in_vopl>;
 				};
 
 				vopl_out_edp: endpoint@2 {
@@ -1156,6 +1161,7 @@
 
 					vp0_out_dsi: endpoint@1 {
 						reg = <1>;
+						remote-endpoint = <&dsi_in_vp0>;
 					};
 
 					vp0_out_edp: endpoint@2 {
@@ -1181,6 +1187,7 @@
 
 					vp1_out_dsi: endpoint@1 {
 						reg = <1>;
+						remote-endpoint = <&dsi_in_vp1>;
 					};
 
 					vp1_out_edp: endpoint@2 {
@@ -1397,6 +1404,53 @@
 					edp_in_vopl: endpoint@2 {
 						reg = <2>;
 						remote-endpoint = <&vopl_out_edp>;
+						status = "disabled";
+					};
+				};
+			};
+		};
+
+		dsi: dsi@276d0000 {
+			compatible = "rockchip,rk3572-mipi-dsi";
+			reg = <0x0 0x276d0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_DSIHOST0>, <&cru HCLK_VO_ROOT>;
+			clock-names = "pclk", "hclk";
+			resets = <&cru SRST_PRESETN_DSIHOST0>;
+			reset-names = "apb";
+			phys = <&mipitx_dphy>;
+			phy-names = "dphy";
+			power-domains = <&power RK3572_PD_VO>;
+			rockchip,grf = <&ioc_grf>;
+			rockchip,vop-grf = <&vop_grf>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dsi0_in: port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					dsi_in_vp0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp0_out_dsi>;
+						status = "disabled";
+					};
+
+					dsi_in_vp1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vp1_out_dsi>;
+						status = "disabled";
+					};
+
+					dsi_in_vopl: endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&vopl_out_dsi>;
 						status = "disabled";
 					};
 				};
@@ -2582,6 +2636,20 @@
 			rockchip,hw-tshut-temp = <120000>;
 			rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 			rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+			status = "disabled";
+		};
+
+		mipitx_dphy: phy@2c300000 {
+			compatible = "rockchip,rk3572-dsi-dphy", "rockchip,rk3572-video-phy";
+			reg = <0x0 0x2c300000 0x0 0x10000>,
+			      <0x0 0x276d0000 0x0 0x10000>;
+			reg-names = "phy", "host";
+			clocks = <&xin24m>, <&cru PCLK_MIPI_DPHY0>, <&cru PCLK_DSIHOST0>;
+			clock-names = "ref", "pclk", "pclk_host";
+			#clock-cells = <0>;
+			resets = <&cru SRST_PRESETN_MIPI_DPHY0>;
+			reset-names = "apb";
+			#phy-cells = <0>;
 			status = "disabled";
 		};
 
