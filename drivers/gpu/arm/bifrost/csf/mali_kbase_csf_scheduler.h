@@ -693,6 +693,4 @@ void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
 void kbase_csf_scheduler_force_sleep(struct kbase_device *kbdev);
 #endif
 
-bool is_gpu_level_suspend_supported(struct kbase_device *const kbdev);
-
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

@@ -26,6 +26,10 @@
 #include <linux/types.h>
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define GPU_ID2_VERSION_STATUS_SHIFT 0
 #define GPU_ID2_VERSION_MINOR_SHIFT 4
 #define GPU_ID2_VERSION_MAJOR_SHIFT 12
@@ -173,5 +177,9 @@
 #define GPU_ID_PRODUCT_LTIX GPU_ID_MODEL_MAKE(12, 1)
 #define GPU_ID_PRODUCT_TKRX GPU_ID_MODEL_MAKE(13, 0)
 #define GPU_ID_PRODUCT_LKRX GPU_ID_MODEL_MAKE(13, 1)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_KBASE_GPU_ID_H_ */

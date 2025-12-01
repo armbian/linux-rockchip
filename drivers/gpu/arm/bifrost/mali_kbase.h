@@ -481,7 +481,9 @@ void kbasep_as_do_poke(struct work_struct *work);
  * or a dmb was executed recently (to ensure the value is most up-to-date).
  * However, without a lock the value could change afterwards.
  *
- * Return: False if a suspend is not in progress, true otherwise,
+ * Return:
+ * * false if a suspend is not in progress
+ * * !=false otherwise
  */
 static inline bool kbase_pm_is_suspending(struct kbase_device *kbdev)
 {
@@ -504,20 +506,21 @@ static inline bool kbase_pm_is_resuming(struct kbase_device *kbdev)
 	return kbdev->pm.resuming;
 }
 
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 /*
  * Check whether a gpu lost is in progress
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * Indicates whether a gpu lost has been received and jobs are no longer
- * being scheduled.
+ * being scheduled
  *
- * Return: false if GPU is already lost or if no Arbiter is present (as GPU will
- *         always be present in this case), true otherwise.
+ * Return: false if gpu is lost
+ * Return: != false otherwise
  */
 static inline bool kbase_pm_is_gpu_lost(struct kbase_device *kbdev)
 {
-	return (kbdev->arb.arb_if && ((bool)atomic_read(&kbdev->pm.gpu_lost)));
+	return (atomic_read(&kbdev->pm.gpu_lost) == 0 ? false : true);
 }
 
 /*
@@ -538,6 +541,7 @@ static inline void kbase_pm_set_gpu_lost(struct kbase_device *kbdev, bool gpu_lo
 	if (new_val != cur_val)
 		KBASE_KTRACE_ADD(kbdev, ARB_GPU_LOST, NULL, (u64)new_val);
 }
+#endif
 
 /**
  * kbase_pm_is_active - Determine whether the GPU is active

@@ -59,9 +59,6 @@ bob_defaults {
     mali_dma_buf_legacy_compat: {
         kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
     },
-    page_migration_support: {
-        kbuild_options: ["CONFIG_PAGE_MIGRATION_SUPPORT=y"],
-    },
     large_page_support: {
         kbuild_options: ["CONFIG_LARGE_PAGE_SUPPORT=y"],
     },
@@ -161,9 +158,6 @@ bob_kernel_module {
         "*.c",
         "*.h",
         "Kbuild",
-        "arbiter/*.c",
-        "arbiter/*.h",
-        "arbiter/Kbuild",
         "backend/gpu/*.c",
         "backend/gpu/*.h",
         "backend/gpu/Kbuild",
@@ -257,6 +251,13 @@ bob_kernel_module {
             "mmu/backend/*_csf.h",
             "ipa/backend/*_csf.c",
             "ipa/backend/*_csf.h",
+        ],
+    },
+    mali_arbiter_support: {
+        srcs: [
+            "arbiter/*.c",
+            "arbiter/*.h",
+            "arbiter/Kbuild",
         ],
     },
     kbuild_options: [

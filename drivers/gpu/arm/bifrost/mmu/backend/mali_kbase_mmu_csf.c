@@ -239,14 +239,6 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx, struct kbase_as
 	 * will abort all jobs and stop any hw counter dumping
 	 */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	/* Update the page fault counter value in firmware visible memory, just before disabling
-	 * the MMU which would in turn unblock the MCU firmware.
-	 */
-	if (kbdev->csf.page_fault_cnt_ptr) {
-		spin_lock(&kbdev->mmu_mask_change);
-		*kbdev->csf.page_fault_cnt_ptr = ++kbdev->csf.page_fault_cnt;
-		spin_unlock(&kbdev->mmu_mask_change);
-	}
 	kbase_mmu_disable(kctx);
 	kbase_ctx_flag_set(kctx, KCTX_AS_DISABLED_ON_FAULT);
 	kbase_debug_csf_fault_notify(kbdev, kctx, DF_GPU_PAGE_FAULT);

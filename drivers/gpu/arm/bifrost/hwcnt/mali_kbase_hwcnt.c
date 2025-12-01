@@ -276,7 +276,7 @@ static void kbasep_hwcnt_accumulator_disable(struct kbase_hwcnt_context *hctx, b
 		goto disable;
 
 	/* Try and accumulate before disabling */
-	errcode = hctx->iface->dump_request(accum->backend, &dump_time_ns);
+	errcode = hctx->iface->dump_request(accum->backend);
 	if (errcode)
 		goto disable;
 
@@ -285,7 +285,7 @@ static void kbasep_hwcnt_accumulator_disable(struct kbase_hwcnt_context *hctx, b
 		goto disable;
 
 	errcode = hctx->iface->dump_get(accum->backend, &accum->accum_buf, &accum->enable_map,
-					accum->accumulated);
+					accum->accumulated, &dump_time_ns);
 	if (errcode)
 		goto disable;
 
@@ -422,7 +422,7 @@ static int kbasep_hwcnt_accumulator_dump(struct kbase_hwcnt_context *hctx, u64 *
 	/* Initiate the dump if the backend is enabled. */
 	if ((state == ACCUM_STATE_ENABLED) && cur_map_any_enabled) {
 		if (dump_buf) {
-			errcode = hctx->iface->dump_request(accum->backend, &dump_time_ns);
+			errcode = hctx->iface->dump_request(accum->backend);
 			dump_requested = true;
 		} else {
 			dump_time_ns = hctx->iface->timestamp_ns(accum->backend);
@@ -486,7 +486,7 @@ static int kbasep_hwcnt_accumulator_dump(struct kbase_hwcnt_context *hctx, u64 *
 		if (dump_requested) {
 			WARN_ON(state != ACCUM_STATE_ENABLED);
 			errcode = hctx->iface->dump_get(accum->backend, dump_buf, cur_map,
-							dump_written);
+							dump_written, &dump_time_ns);
 			if (errcode)
 				goto error;
 			dump_written = true;

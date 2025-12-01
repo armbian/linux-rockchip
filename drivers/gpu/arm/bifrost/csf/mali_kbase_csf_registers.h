@@ -1950,5 +1950,13 @@ enum glb_fatal_status {
 #define GLB_DEBUG_RUN_MODE_TYPE_CORE_DUMP 0x1
 /* End of RUN_MODE values */
 
+/* MCU_STATUS register */
+#define MCU_STATUS_VALUE_SHIFT GPU_U(0)
+#define MCU_STATUS_VALUE_MASK (GPU_U(0x3) << MCU_STATUS_VALUE_SHIFT)
+#define MCU_STATUS_VALUE_GET(reg_val) (((reg_val)&MCU_STATUS_VALUE_MASK) >> MCU_STATUS_VALUE_SHIFT)
+#define MCU_STATUS_VALUE_SET(reg_val, value)     \
+	(~(~(reg_val) | MCU_STATUS_VALUE_MASK) | \
+	 (((value) << MCU_STATUS_VALUE_SHIFT) & MCU_STATUS_VALUE_MASK))
+
 
 #endif /* _KBASE_CSF_REGISTERS_H_ */

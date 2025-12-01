@@ -1310,6 +1310,12 @@ int kbase_csf_queue_group_create(struct kbase_context *const kctx,
 	const u32 tiler_count = hweight64(create->in.tiler_mask);
 	const u32 fragment_count = hweight64(create->in.fragment_mask);
 	const u32 compute_count = hweight64(create->in.compute_mask);
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(create->in.padding); i++) {
+		if (create->in.padding[i] != 0)
+			return -EINVAL;
+	}
 
 	mutex_lock(&kctx->csf.lock);
 
@@ -2344,14 +2350,14 @@ static void handle_fault_event(struct kbase_queue *const queue, const u32 cs_ack
 	const u8 cs_fault_exception_type = CS_FAULT_EXCEPTION_TYPE_GET(cs_fault);
 	const u32 cs_fault_exception_data = CS_FAULT_EXCEPTION_DATA_GET(cs_fault);
 	const u64 cs_fault_info_exception_data = CS_FAULT_INFO_EXCEPTION_DATA_GET(cs_fault_info);
-	bool has_trace_info = false;
+	bool use_old_log_format = true;
 	bool skip_fault_report = kbase_ctx_flag(queue->kctx, KCTX_PAGE_FAULT_REPORT_SKIP);
 
 
 	kbase_csf_scheduler_spin_lock_assert_held(kbdev);
 
 
-	if (!has_trace_info && !skip_fault_report)
+	if (use_old_log_format && !skip_fault_report)
 		dev_warn(kbdev->dev,
 			 "Ctx %d_%d Group %d CSG %d CSI: %d\n"
 			 "CS_FAULT.EXCEPTION_TYPE: 0x%x (%s)\n"
@@ -2531,13 +2537,13 @@ static void handle_fatal_event(struct kbase_queue *const queue,
 	const u32 cs_fatal_exception_type = CS_FATAL_EXCEPTION_TYPE_GET(cs_fatal);
 	const u32 cs_fatal_exception_data = CS_FATAL_EXCEPTION_DATA_GET(cs_fatal);
 	const u64 cs_fatal_info_exception_data = CS_FATAL_INFO_EXCEPTION_DATA_GET(cs_fatal_info);
-	bool has_trace_info = false;
+	bool use_old_log_format = true;
 	bool skip_fault_report = kbase_ctx_flag(queue->kctx, KCTX_PAGE_FAULT_REPORT_SKIP);
 
 
 	kbase_csf_scheduler_spin_lock_assert_held(kbdev);
 
-	if (!has_trace_info && !skip_fault_report)
+	if (use_old_log_format && !skip_fault_report)
 		dev_warn(kbdev->dev,
 			 "Ctx %d_%d Group %d CSG %d CSI: %d\n"
 			 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
@@ -2915,7 +2921,6 @@ static inline void check_protm_enter_req_complete(struct kbase_device *kbdev, u3
 	dev_dbg(kbdev->dev, "Protected mode entry interrupt received");
 
 	kbdev->protected_mode = true;
-
 	kbase_ipa_protection_mode_switch_event(kbdev);
 	kbase_ipa_control_protm_entered(kbdev);
 	kbase_hwcnt_backend_csf_protm_entered(&kbdev->hwcnt_gpu_iface);
@@ -3147,17 +3152,11 @@ void kbase_csf_interrupt(struct kbase_device *kbdev, u32 val)
 
 				/* Handle IDLE Hysteresis notification event */
 				if ((glb_req ^ glb_ack) & GLB_REQ_IDLE_EVENT_MASK) {
-					u32 const glb_idle_timer_cfg =
-						kbase_csf_firmware_global_input_read(
-							global_iface, GLB_IDLE_TIMER_CONFIG);
-
 					dev_dbg(kbdev->dev, "Idle-hysteresis event flagged");
 					kbase_csf_firmware_global_input_mask(
 						global_iface, GLB_REQ, glb_ack,
 						GLB_REQ_IDLE_EVENT_MASK);
-
-					if (glb_idle_timer_cfg &
-					    GLB_IDLE_TIMER_CONFIG_SLEEP_ON_IDLE_MASK) {
+					if (atomic_read(&kbdev->csf.scheduler.fw_soi_enabled)) {
 						/* The FW is going to sleep, we shall:
 						 * - Enable fast GPU idle handling to avoid
 						 *   confirming CSGs status in gpu_idle_worker().

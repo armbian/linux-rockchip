@@ -260,9 +260,8 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 							  u64 chunk_size)
 {
 	u64 nr_pages = PFN_UP(chunk_size);
-	base_mem_alloc_flags flags = BASE_MEM_PROT_GPU_RD | BASE_MEM_PROT_GPU_WR |
-				     BASE_MEM_PROT_CPU_WR | BASEP_MEM_NO_USER_FREE |
-				     BASE_MEM_COHERENT_LOCAL | BASE_MEM_PROT_CPU_RD;
+	u64 flags = BASE_MEM_PROT_GPU_RD | BASE_MEM_PROT_GPU_WR | BASE_MEM_PROT_CPU_WR |
+		    BASEP_MEM_NO_USER_FREE | BASE_MEM_COHERENT_LOCAL | BASE_MEM_PROT_CPU_RD;
 	struct kbase_csf_tiler_heap_chunk *chunk = NULL;
 	/* The chunk kernel mapping needs to be large enough to:
 	 * - initially zero the CHUNK_HDR_SIZE area
@@ -338,7 +337,7 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 		goto unroll_region;
 	}
 
-	if (WARN(atomic_read(&chunk->region->cpu_alloc->gpu_mappings) > 1,
+	if (WARN(atomic64_read(&chunk->region->cpu_alloc->gpu_mappings) > 1,
 		 "NO_USER_FREE chunks should not have been aliased")) {
 		goto unroll_region;
 	}
@@ -642,7 +641,7 @@ static bool kbasep_is_buffer_descriptor_region_suitable(struct kbase_context *co
 
 	if (!(reg->flags & KBASE_REG_CPU_RD) || kbase_is_region_shrinkable(reg) ||
 	    (reg->flags & KBASE_REG_PF_GROW)) {
-		dev_err(kctx->kbdev->dev, "Region has invalid flags: 0x%llX!\n", reg->flags);
+		dev_err(kctx->kbdev->dev, "Region has invalid flags: 0x%lX!\n", reg->flags);
 		return false;
 	}
 

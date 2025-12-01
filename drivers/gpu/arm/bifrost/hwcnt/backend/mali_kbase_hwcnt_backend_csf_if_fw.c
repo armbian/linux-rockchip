@@ -749,6 +749,17 @@ kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count(struct kbase_hwcnt_backend_cs
 	}
 }
 
+static u64
+kbasep_hwcnt_backend_csf_if_fw_time_convert_gpu_to_cpu(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
+						       u64 gpu_ts)
+{
+	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
+		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+
+	WARN_ON(!ctx);
+
+	return kbase_backend_time_convert_gpu_to_cpu(fw_ctx->kbdev, gpu_ts);
+}
 /**
  * kbasep_hwcnt_backend_csf_if_fw_ctx_destroy() - Destroy a CSF FW interface context.
  *
@@ -846,6 +857,7 @@ int kbase_hwcnt_backend_csf_if_fw_create(struct kbase_device *kbdev,
 	if_fw->get_gpu_cycle_count = kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count;
 	if_fw->get_indexes = kbasep_hwcnt_backend_csf_if_fw_get_indexes;
 	if_fw->set_extract_index = kbasep_hwcnt_backend_csf_if_fw_set_extract_index;
+	if_fw->time_convert_gpu_to_cpu = kbasep_hwcnt_backend_csf_if_fw_time_convert_gpu_to_cpu;
 
 	return 0;
 }

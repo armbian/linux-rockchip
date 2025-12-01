@@ -32,6 +32,12 @@
 #include "gpu/mali_kbase_gpu_id.h"
 #include "gpu/mali_kbase_gpu_coherency.h"
 
+#if MALI_USE_CSF
+#include "csf/mali_base_csf_kernel.h"
+#else
+#include "jm/mali_base_jm_kernel.h"
+#endif
+
 #ifdef __KERNEL__
 #include <linux/mm.h>
 
@@ -44,14 +50,14 @@
 
 #else
 
-#if defined(MALI_PAGE_SIZE_AGNOSTIC)
 #define LOCAL_PAGE_SHIFT (__builtin_ctz((unsigned int)sysconf(_SC_PAGESIZE)))
-#else
-#define LOCAL_PAGE_SHIFT 12
-#endif
 
 #define LOCAL_PAGE_LSB ((1ul << LOCAL_PAGE_SHIFT) - 1)
 
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /* Physical memory group ID for normal usage.
@@ -74,7 +80,7 @@
  * More flags can be added to this list, as long as they don't clash
  * (see BASE_MEM_FLAGS_NR_BITS for the number of the first free bit).
  */
-typedef __u64 base_mem_alloc_flags;
+typedef __u32 base_mem_alloc_flags;
 
 #define BASE_MEM_FLAGS_MODIFIABLE_NATIVE (BASE_MEM_DONT_NEED)
 
@@ -89,10 +95,9 @@ typedef __u64 base_mem_alloc_flags;
 /* A mask of all the flags that can be returned via the base_mem_get_flags()
  * interface.
  */
-#define BASE_MEM_FLAGS_QUERYABLE                                                               \
-	(BASE_MEM_FLAGS_INPUT_MASK &                                                           \
-	 ~(BASE_MEM_FLAGS_RESERVED | BASE_MEM_FLAGS_UNUSED | BASE_MEM_FLAGS_ACTION_MODIFIERS | \
-	   BASEP_MEM_FLAGS_KERNEL_ONLY))
+#define BASE_MEM_FLAGS_QUERYABLE                                                       \
+	(BASE_MEM_FLAGS_INPUT_MASK & ~(BASE_MEM_DONT_QUERY | BASE_MEM_FLAGS_RESERVED | \
+				       BASE_MEM_FLAGS_UNUSED | BASEP_MEM_FLAGS_KERNEL_ONLY))
 
 /**
  * enum base_mem_import_type - Memory types supported by @a base_mem_import
@@ -489,12 +494,6 @@ struct mali_base_gpu_coherent_group_info {
 	struct mali_base_gpu_coherent_group group[BASE_MAX_COHERENT_GROUPS];
 };
 
-#if MALI_USE_CSF
-#include "csf/mali_base_csf_kernel.h"
-#else
-#include "jm/mali_base_jm_kernel.h"
-#endif
-
 /**
  * struct gpu_raw_gpu_props - A complete description of the GPU's Hardware
  *                            Configuration Discovery registers.
@@ -634,5 +633,9 @@ struct base_gpu_props {
  * layers, since each cube map in the array will have 6 faces.
  */
 #define BASE_MEM_ALIAS_MAX_ENTS ((size_t)24576)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_BASE_KERNEL_H_ */

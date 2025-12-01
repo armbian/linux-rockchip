@@ -32,7 +32,7 @@
 
 bool kbase_is_gpu_removed(struct kbase_device *kbdev)
 {
-	if (!kbase_has_arbiter(kbdev))
+	if (!IS_ENABLED(CONFIG_MALI_ARBITER_SUPPORT))
 		return false;
 
 
@@ -163,11 +163,37 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		kbase_pm_disable_db_mirror_interrupt(kbdev);
 
 		if (likely(kbdev->pm.backend.mcu_state == KBASE_MCU_IN_SLEEP)) {
+			if (IS_ENABLED(CONFIG_MALI_BIFROST_DEBUG)) {
+				u32 const mcu_status =
+					kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(MCU_STATUS));
+				WARN_ON_ONCE(MCU_STATUS_VALUE_GET(mcu_status) !=
+					     MCU_STATUS_VALUE_HALT);
+			}
+
 			kbdev->pm.backend.exit_gpu_sleep_mode = true;
 			kbase_csf_scheduler_invoke_tick(kbdev);
-		} else if (likely(test_bit(KBASE_GPU_SUPPORTS_FW_SLEEP_ON_IDLE,
-					   &kbdev->pm.backend.gpu_sleep_allowed)) &&
+		} else if (atomic_read(&kbdev->csf.scheduler.fw_soi_enabled) &&
 			   (kbdev->pm.backend.mcu_state != KBASE_MCU_ON_PEND_SLEEP)) {
+			/* Ensure that the MCU has become halted/not enabled
+			 * before re-enabling DB notification, otherwise FW
+			 * might not have had a chance to go to sleep after
+			 * having issued a HALT request. This could cause
+			 * issues if the MCU becomes halted later unexpectedly.
+			 * This wait is expected to complete instantly in all
+			 * cases so timeouts are tolerable.
+			 */
+			u32 mcu_status;
+			const u32 timeout_us =
+				kbase_get_timeout_ms(kbdev, CSF_FIRMWARE_SOI_HALT_TIMEOUT) *
+				USEC_PER_MSEC;
+
+			int err = kbase_reg_poll32_timeout(
+				kbdev, GPU_CONTROL_ENUM(MCU_STATUS), mcu_status,
+				MCU_STATUS_VALUE_GET(mcu_status) != MCU_STATUS_VALUE_ENABLED, 1,
+				timeout_us, false);
+			if (unlikely(err))
+				dev_warn(kbdev->dev, "MCU hasn't halted after automatic sleep");
+
 			/* The firmware is going to sleep on its own but new
 			 * doorbells were rung before we manage to handle
 			 * the GLB_IDLE IRQ in the bottom half. We shall enable
@@ -202,7 +228,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		 * cores.
 		 */
 		if (kbdev->pm.backend.l2_always_on ||
-		    kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_TTRX_921))
+		    kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TTRX_921))
 			kbase_pm_power_changed(kbdev);
 	}
 

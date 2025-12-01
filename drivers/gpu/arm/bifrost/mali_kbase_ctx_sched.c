@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -209,6 +209,17 @@ void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx)
 
 	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_ctx_sched_remove_ctx_nolock(kctx);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kbdev->mmu_hw_mutex);
+}
+
+void kbase_ctx_sched_remove_ctx_nolock(struct kbase_context *kctx)
+{
+	struct kbase_device *const kbdev = kctx->kbdev;
+
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	WARN_ON(atomic_read(&kctx->refcount) != 0);
 
@@ -220,9 +231,6 @@ void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx)
 		kbdev->as_to_kctx[kctx->as_nr] = NULL;
 		kctx->as_nr = KBASEP_AS_NR_INVALID;
 	}
-
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-	mutex_unlock(&kbdev->mmu_hw_mutex);
 }
 
 void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)

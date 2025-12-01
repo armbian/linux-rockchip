@@ -30,7 +30,6 @@
 #include "mali_kbase_csf_firmware.h"
 #include "mali_kbase_csf_event.h"
 #include <uapi/gpu/arm/bifrost/csf/mali_kbase_csf_errors_dumpfault.h>
-#include "mali_kbase_csf_fw_io.h"
 
 #include <linux/version_compat_defs.h>
 
@@ -270,6 +269,9 @@ enum kbase_queue_group_priority {
  * @CSF_GPU_RESET_TIMEOUT: Waiting timeout for GPU reset to complete.
  * @CSF_CSG_TERM_TIMEOUT: Timeout given for a CSG to be terminated.
  * @CSF_FIRMWARE_BOOT_TIMEOUT: Maximum time to wait for firmware to boot.
+ * @CSF_FIRMWARE_WAKE_UP_TIMEOUT: Maximum time to wait for firmware to wake up from sleep.
+ * @CSF_FIRMWARE_SOI_HALT_TIMEOUT: Maximum time to wait for the MCU to become halted after FW has
+ *                                 raised the GLB_IDLE IRQ in preparation for automatic sleeping.
  * @CSF_FIRMWARE_PING_TIMEOUT: Maximum time to wait for firmware to respond
  *                             to a ping from KBase.
  * @CSF_SCHED_PROTM_PROGRESS_TIMEOUT: Timeout used to prevent protected mode execution hang.
@@ -292,6 +294,8 @@ enum kbase_timeout_selector {
 	CSF_GPU_RESET_TIMEOUT,
 	CSF_CSG_TERM_TIMEOUT,
 	CSF_FIRMWARE_BOOT_TIMEOUT,
+	CSF_FIRMWARE_WAKE_UP_TIMEOUT,
+	CSF_FIRMWARE_SOI_HALT_TIMEOUT,
 	CSF_FIRMWARE_PING_TIMEOUT,
 	CSF_SCHED_PROTM_PROGRESS_TIMEOUT,
 	MMU_AS_INACTIVE_WAIT_TIMEOUT,
@@ -933,11 +937,13 @@ struct kbase_csf_reset_gpu {
  *                             of CSG slots.
  * @resident_group:   pointer to the queue group that is resident on the CSG slot.
  * @state:            state of the slot as per enum @kbase_csf_csg_slot_state.
+ * @trigger_jiffies:  value of jiffies when change in slot state is recorded.
  * @priority:         dynamic priority assigned to CSG slot.
  */
 struct kbase_csf_csg_slot {
 	struct kbase_queue_group *resident_group;
 	atomic_t state;
+	unsigned long trigger_jiffies;
 	u8 priority;
 };
 
@@ -1702,17 +1708,6 @@ struct kbase_csf_user_reg {
  *                          workarounds configuration.
  * @mmu_sync_sem:           RW Semaphore to defer MMU operations till the P.Mode entrance
  *                          or DCS request has been completed.
- * @pmode_sync_sem:         RW Semaphore to prevent MMU operations during P.Mode entrance.
- * @page_fault_cnt_ptr_address: GPU VA of the location in FW data memory, extracted from the
- *                              FW image header, that will store the GPU VA of FW visible
- *                              memory location where the @page_fault_cnt value will be written to.
- * @page_fault_cnt_ptr:         CPU VA of the FW visible memory location where the @page_fault_cnt
- *                              value will be written to.
- * @page_fault_cnt:             Counter that is incremented on every GPU page fault, just before the
- *                              MMU is unblocked to retry the memory transaction that caused the GPU
- *                              page fault. The access to counter is serialized appropriately.
- * @mcu_halted:             Flag to inform MCU FSM that the MCU has already halted.
- * @fw_io:                  Firmware I/O interface.
  * @compute_progress_timeout_cc: Value of GPU cycle count register when progress
  *                               timer timeout is reported for the compute iterator.
  */
@@ -1772,12 +1767,6 @@ struct kbase_csf_device {
 	spinlock_t pending_gpuq_kick_queues_lock;
 	u32 *quirks_ext;
 	struct rw_semaphore mmu_sync_sem;
-	struct rw_semaphore pmode_sync_sem;
-	u32 page_fault_cnt_ptr_address;
-	u32 *page_fault_cnt_ptr;
-	u32 page_fault_cnt;
-	bool mcu_halted;
-	struct kbase_csf_fw_io fw_io;
 	u64 compute_progress_timeout_cc;
 };
 

@@ -325,7 +325,7 @@ union kbase_pm_policy_data {
  *                                     called previously.
  *                                     See &struct kbase_pm_callback_conf.
  * @ca_cores_enabled: Cores that are currently available
- * @apply_hw_issue_TITANHW_2938_wa: Indicates if the workaround for KBASE_HW_ISSUE_TITANHW_2938
+ * @apply_hw_issue_TITANHW_2938_wa: Indicates if the workaround for BASE_HW_ISSUE_TITANHW_2938
  *                                  needs to be applied when unmapping memory from GPU.
  * @mcu_state: The current state of the micro-control unit, only applicable
  *             to GPUs that have such a component

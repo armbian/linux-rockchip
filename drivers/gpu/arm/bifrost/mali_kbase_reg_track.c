@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -648,7 +648,7 @@ int kbase_add_va_region_rbtree(struct kbase_device *kbdev, struct kbase_va_regio
 		} else if (!kbase_is_region_free(tmp)) {
 			dev_warn(
 				dev,
-				"!(tmp->flags & KBASE_REG_FREE): tmp->start_pfn=0x%llx tmp->flags=0x%llx tmp->nr_pages=0x%zx gpu_pfn=0x%llx nr_pages=0x%zx\n",
+				"!(tmp->flags & KBASE_REG_FREE): tmp->start_pfn=0x%llx tmp->flags=0x%lx tmp->nr_pages=0x%zx gpu_pfn=0x%llx nr_pages=0x%zx\n",
 				tmp->start_pfn, tmp->flags, tmp->nr_pages, gpu_pfn, nr_pages);
 			err = -ENOMEM;
 			goto exit;
@@ -1217,7 +1217,6 @@ KBASE_EXPORT_TEST_API(kbase_region_tracker_init_jit);
 
 int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages)
 {
-#if !MALI_USE_CSF
 	struct kbase_reg_zone *exec_va_zone;
 	struct kbase_reg_zone *target_zone;
 	struct kbase_va_region *target_reg;
@@ -1225,7 +1224,6 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 	enum kbase_memory_zone target_zone_id;
 	u64 exec_va_start;
 	int err;
-#endif
 
 	/* The EXEC_VA zone shall be created by making space either:
 	 * - for 64-bit clients, at the end of the process's address space
@@ -1239,13 +1237,6 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 	if (exec_va_pages == 0 || exec_va_pages > KBASE_REG_ZONE_EXEC_VA_MAX_PAGES)
 		return -EINVAL;
 
-#if MALI_USE_CSF
-	/* For CSF GPUs we now setup the EXEC_VA zone during initialization,
-	 * so this request is a null-op.
-	 */
-	CSTD_UNUSED(kctx);
-	return 0;
-#else
 	kbase_gpu_vm_lock(kctx);
 
 	/* Verify that we've not already created a EXEC_VA zone, and that the
@@ -1302,8 +1293,10 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 	exec_va_start = kbase_reg_zone_end_pfn(target_zone) - exec_va_pages;
 	exec_va_zone = kbase_ctx_reg_zone_get(kctx, EXEC_VA_ZONE);
 	if (kbase_reg_zone_init(kctx->kbdev, exec_va_zone, EXEC_VA_ZONE, exec_va_start,
-				exec_va_pages))
-		return -ENOMEM;
+				exec_va_pages)) {
+		err = -ENOMEM;
+		goto exit_unlock;
+	}
 
 	/* Update target zone and corresponding region */
 	target_reg->nr_pages -= exec_va_pages;
@@ -1313,7 +1306,6 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 exit_unlock:
 	kbase_gpu_vm_unlock(kctx);
 	return err;
-#endif /* MALI_USE_CSF */
 }
 KBASE_EXPORT_TEST_API(kbase_region_tracker_init_exec);
 

@@ -156,6 +156,7 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
         CONFIG_MALI_BIFROST \
         CONFIG_MALI_CSF_SUPPORT \
         CONFIG_MALI_BIFROST_GATOR_SUPPORT \
+        CONFIG_MALI_ARBITER_SUPPORT \
         CONFIG_MALI_ARBITRATION \
         CONFIG_MALI_PARTITION_MANAGER \
         CONFIG_MALI_REAL_HW \
@@ -255,6 +256,8 @@ CFLAGS_MODULE += -Wno-sign-compare
 CFLAGS_MODULE += -Wno-shift-negative-value
 # This flag is needed to avoid build errors on older kernels
 CFLAGS_MODULE += $(call cc-option, -Wno-cast-function-type)
+# This flag was added on v6.6 kernel
+CFLAGS_MODULE += $(call cc-option,-Werror=designated-init)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 

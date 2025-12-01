@@ -401,6 +401,10 @@ static int kbase_csf_reset_gpu_now(struct kbase_device *kbdev, bool firmware_ini
 	if (likely(firmware_inited))
 		kbase_csf_scheduler_reset(kbdev);
 
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbdev->csf.firmware_reload_needed = false;
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
 	cancel_work_sync(&kbdev->csf.firmware_reload_work);
 
 	dev_dbg(kbdev->dev, "Disable GPU hardware counters.\n");
@@ -496,10 +500,12 @@ static void kbase_csf_reset_gpu_worker(struct work_struct *data)
 
 bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev, unsigned int flags)
 {
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 	if (kbase_pm_is_gpu_lost(kbdev)) {
 		/* GPU access has been removed, reset will be done by Arbiter instead */
 		return false;
 	}
+#endif
 
 	if (flags & RESET_FLAGS_HWC_UNRECOVERABLE_ERROR)
 		kbase_hwcnt_backend_csf_on_unrecoverable_error(&kbdev->hwcnt_gpu_iface);

@@ -58,7 +58,7 @@ void kbase_devfreq_set_core_mask(struct kbase_device *kbdev, u64 core_mask)
 	bool mmu_sync_needed = false;
 
 	if (!IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) &&
-	    kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_GPU2019_3901)) {
+	    kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_GPU2019_3901)) {
 		mmu_sync_needed = true;
 		down_write(&kbdev->csf.mmu_sync_sem);
 	}
@@ -66,7 +66,6 @@ void kbase_devfreq_set_core_mask(struct kbase_device *kbdev, u64 core_mask)
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 #if MALI_USE_CSF
-
 	if (!(core_mask & kbdev->pm.debug_core_mask)) {
 		dev_err(kbdev->dev,
 			"OPP core mask 0x%llX does not intersect with debug mask 0x%llX\n",

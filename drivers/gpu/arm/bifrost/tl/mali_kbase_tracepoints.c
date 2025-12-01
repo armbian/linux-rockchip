@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -62,7 +62,6 @@ enum tl_msg_id_obj {
 	KBASE_TL_EVENT_ATOM_SOFTJOB_START,
 	KBASE_TL_EVENT_ATOM_SOFTJOB_END,
 	KBASE_TL_ARBITER_GRANTED,
-	KBASE_TL_ARBITER_LOST,
 	KBASE_TL_ARBITER_STARTED,
 	KBASE_TL_ARBITER_STOP_REQUESTED,
 	KBASE_TL_ARBITER_STOPPED,
@@ -271,10 +270,6 @@ enum tl_msg_id_obj {
 		"atom") \
 	TRACEPOINT_DESC(KBASE_TL_ARBITER_GRANTED, \
 		"Arbiter has granted gpu access", \
-		"@p", \
-		"gpu") \
-	TRACEPOINT_DESC(KBASE_TL_ARBITER_LOST, \
-		"Received a gpu lost event from the arbiter", \
 		"@p", \
 		"gpu") \
 	TRACEPOINT_DESC(KBASE_TL_ARBITER_STARTED, \
@@ -1534,29 +1529,6 @@ void __kbase_tlstream_tl_arbiter_granted(
 )
 {
 	const u32 msg_id = KBASE_TL_ARBITER_GRANTED;
-	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
-		+ sizeof(gpu)
-		;
-	char *buffer;
-	unsigned long acq_flags;
-	size_t pos = 0;
-
-	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
-
-	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_serialize_timestamp(buffer, pos);
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &gpu, sizeof(gpu));
-
-	kbase_tlstream_msgbuf_release(stream, acq_flags);
-}
-
-void __kbase_tlstream_tl_arbiter_lost(
-	struct kbase_tlstream *stream,
-	const void *gpu
-)
-{
-	const u32 msg_id = KBASE_TL_ARBITER_LOST;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
 		+ sizeof(gpu)
 		;

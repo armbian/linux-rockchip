@@ -591,19 +591,12 @@ void kbase_csf_firmware_enable_mcu(struct kbase_device *kbdev);
 void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev);
 
 /**
- * kbase_csf_firmware_disable_mcu_wait - Wait for the MCU to reach disabled status.
+ * kbase_csf_firmware_disable_mcu_wait - Wait for the MCU to reach disabled
+ *                                       status.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev);
-
-/**
- * kbase_csf_stop_firmware_and_wait - Disable firmware and wait for the MCU to reach
- *                                    disabled status.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- */
-void kbase_csf_stop_firmware_and_wait(struct kbase_device *kbdev);
 
 #ifdef KBASE_PM_RUNTIME
 /**
@@ -944,6 +937,15 @@ int kbase_csf_firmware_req_core_dump(struct kbase_device *const kbdev);
  * This function reconfigures the FW Sleep-on-Idle configuration if necessary.
  */
 void kbase_csf_firmware_soi_update(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_glb_idle_timer_update - Update GLB_IDLE timer config
+ *
+ * @kbdev: Device pointer
+ *
+ * This function reconfigures the GLB_IDLE timer configuration if necessary.
+ */
+void kbase_csf_firmware_glb_idle_timer_update(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_firmware_soi_disable_on_scheduler_suspend - Disable FW Sleep-on-Idle config

@@ -45,6 +45,7 @@
 #include <linux/set_memory.h>
 #endif
 #include <asm/arch_timer.h>
+#include <mali_kbase_config_defaults.h>
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 /* Makes Driver wait indefinitely for an acknowledgment for the different
@@ -685,6 +686,7 @@ static inline void set_gpu_idle_timer_glb_req(struct kbase_device *const kbdev, 
 	}
 
 	atomic_set(&kbdev->csf.scheduler.gpu_idle_timer_enabled, set);
+	KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_GLB_IDLE_TIMER_CHANGED, NULL, set);
 }
 
 static void enable_gpu_idle_timer(struct kbase_device *const kbdev)
@@ -895,7 +897,6 @@ void kbase_csf_firmware_trigger_reload(struct kbase_device *kbdev)
 		kbdev->csf.firmware_reloaded = true;
 	}
 }
-KBASE_EXPORT_TEST_API(kbase_csf_firmware_trigger_reload);
 
 void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev)
 {
@@ -903,7 +904,6 @@ void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev)
 
 	if (unlikely(!kbdev->csf.firmware_inited))
 		return;
-
 
 	/* Tell MCU state machine to transit to next state */
 	kbdev->csf.firmware_reloaded = true;
@@ -1165,6 +1165,8 @@ int kbase_csf_firmware_late_init(struct kbase_device *kbdev)
 		convert_dur_to_idle_count(kbdev, kbdev->csf.gpu_idle_hysteresis_ns, &no_modifier);
 	kbdev->csf.gpu_idle_dur_count_no_modifier = no_modifier;
 
+	kbdev->csf.csg_suspend_timeout_ms = CSG_SUSPEND_TIMEOUT_MS;
+
 	return 0;
 }
 
@@ -1205,7 +1207,6 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	/* NO_MALI: Don't init trace buffers */
 
 	/* NO_MALI: Don't load the MMU tables or boot CSF firmware */
-
 
 	ret = invent_capabilities(kbdev);
 	if (ret != 0)
@@ -1537,12 +1538,6 @@ void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev)
 	kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(MCU_CONTROL), MCU_CONTROL_REQ_DISABLE);
 }
 
-void kbase_csf_stop_firmware_and_wait(struct kbase_device *kbdev)
-{
-	/* Stop the MCU firmware, no wait required on NO_MALI instance */
-	kbase_csf_firmware_disable_mcu(kbdev);
-}
-
 void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev)
 {
 	/* NO_MALI: Nothing to do here */
@@ -1669,6 +1664,10 @@ void kbase_csf_firmware_mcu_shared_mapping_term(struct kbase_device *kbdev,
 #ifdef KBASE_PM_RUNTIME
 
 void kbase_csf_firmware_soi_update(struct kbase_device *kbdev)
+{
+}
+
+void kbase_csf_firmware_glb_idle_timer_update(struct kbase_device *kbdev)
 {
 }
 

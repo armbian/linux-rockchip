@@ -104,8 +104,8 @@ static inline void kbase_process_page_usage_inc(struct kbase_context *kctx, int 
 
 /* Index of chosen MEMATTR for this region (0..7) */
 #define KBASE_REG_MEMATTR_MASK (7ul << 16)
-#define KBASE_REG_MEMATTR_INDEX(x) (((x) & 7) << 16)
-#define KBASE_REG_MEMATTR_VALUE(x) (((x) & KBASE_REG_MEMATTR_MASK) >> 16)
+#define KBASE_REG_MEMATTR_INDEX(x) (((x)&7) << 16)
+#define KBASE_REG_MEMATTR_VALUE(x) (((x)&KBASE_REG_MEMATTR_MASK) >> 16)
 
 /* AS<n>_MEMATTR values from MMU_MEMATTR_STAGE1: */
 /* Use GPU implementation-defined caching policy. */
@@ -347,7 +347,7 @@ enum kbase_user_buf_state {
  */
 struct kbase_mem_phy_alloc {
 	struct kref kref;
-	atomic_t gpu_mappings;
+	atomic64_t gpu_mappings;
 	atomic_t kernel_mappings;
 	size_t nents;
 	struct tagged_addr *pages;
@@ -446,7 +446,6 @@ enum kbase_page_status {
 /**
  * struct kbase_page_metadata - Metadata for each page in kbase
  *
- * @kbdev:         Pointer to kbase device.
  * @dma_addr:      DMA address mapped to page.
  * @migrate_lock:  A spinlock to protect the private metadata.
  * @data:          Member in union valid based on @status.
@@ -466,9 +465,12 @@ struct kbase_page_metadata {
 
 	union {
 		struct {
-			struct kbase_mem_pool *pool;
 			/* Pool could be terminated after page is isolated and therefore
 			 * won't be able to get reference to kbase device.
+			 */
+			struct kbase_mem_pool *pool;
+			/**
+			 * @data.mem_pool.kbdev: Pointer to kbase device.
 			 */
 			struct kbase_device *kbdev;
 		} mem_pool;
@@ -481,15 +483,15 @@ struct kbase_page_metadata {
 		struct {
 			struct kbase_mmu_table *mmut;
 			/* GPU virtual page frame number info is in GPU_PAGE_SIZE units */
-			u64 pgd_vpfn_level;
+			u64 pgd_vpfn_level[GPU_PAGES_PER_CPU_PAGE];
 #if GPU_PAGES_PER_CPU_PAGE > 1
 			/**
-			 * @pgd_link: Link to the &kbase_mmu_table.pgd_pages_list
+			 * @data.pt_mapped.pgd_link: Link to the &kbase_mmu_table.pgd_pages_list
 			 */
 			struct list_head pgd_link;
 			/**
-			 * @pgd_page: Back pointer to the PGD page that the metadata is
-			 *            associated with
+			 * @data.pt_mapped.pgd_page: Back pointer to the PGD page that
+			 *                           the metadata is associated with
 			 */
 			struct page *pgd_page;
 			/**
@@ -498,7 +500,8 @@ struct kbase_page_metadata {
 			 */
 			DECLARE_BITMAP(allocated_sub_pages, GPU_PAGES_PER_CPU_PAGE);
 			/**
-			 * @num_allocated_sub_pages: The number of allocated sub pages in @pgd_page
+			 * @data.pt_mapped.num_allocated_sub_pages: The number of allocated
+			 *                                          sub pages in @pgd_page
 			 */
 			s8 num_allocated_sub_pages;
 #endif
@@ -547,7 +550,7 @@ static inline void kbase_mem_phy_alloc_gpu_mapped(struct kbase_mem_phy_alloc *al
 	KBASE_DEBUG_ASSERT(alloc);
 	/* we only track mappings of NATIVE buffers */
 	if (alloc->type == KBASE_MEM_TYPE_NATIVE)
-		atomic_inc(&alloc->gpu_mappings);
+		atomic64_inc(&alloc->gpu_mappings);
 }
 
 static inline void kbase_mem_phy_alloc_gpu_unmapped(struct kbase_mem_phy_alloc *alloc)
@@ -555,7 +558,7 @@ static inline void kbase_mem_phy_alloc_gpu_unmapped(struct kbase_mem_phy_alloc *
 	KBASE_DEBUG_ASSERT(alloc);
 	/* we only track mappings of NATIVE buffers */
 	if (alloc->type == KBASE_MEM_TYPE_NATIVE)
-		if (atomic_dec_return(&alloc->gpu_mappings) < 0) {
+		if (atomic64_dec_return(&alloc->gpu_mappings) < 0) {
 			pr_err("Mismatched %s:\n", __func__);
 			dump_stack();
 		}
@@ -609,11 +612,6 @@ void kbase_mem_kref_free(struct kref *kref);
 int kbase_mem_init(struct kbase_device *kbdev);
 void kbase_mem_halt(struct kbase_device *kbdev);
 void kbase_mem_term(struct kbase_device *kbdev);
-
-static inline unsigned int kbase_mem_phy_alloc_ref_read(struct kbase_mem_phy_alloc *alloc)
-{
-	return kref_read(&alloc->kref);
-}
 
 static inline struct kbase_mem_phy_alloc *kbase_mem_phy_alloc_get(struct kbase_mem_phy_alloc *alloc)
 {
@@ -677,7 +675,7 @@ struct kbase_va_region {
 	void *user_data;
 	size_t nr_pages;
 	size_t initial_commit;
-	base_mem_alloc_flags flags;
+	unsigned long flags;
 	size_t extension;
 	struct kbase_mem_phy_alloc *cpu_alloc;
 	struct kbase_mem_phy_alloc *gpu_alloc;
@@ -862,6 +860,7 @@ static inline struct tagged_addr *kbase_get_gpu_phy_pages(struct kbase_va_region
 	KBASE_DEBUG_ASSERT(reg->cpu_alloc);
 	KBASE_DEBUG_ASSERT(reg->gpu_alloc);
 	KBASE_DEBUG_ASSERT(reg->cpu_alloc->nents == reg->gpu_alloc->nents);
+	KBASE_DEBUG_ASSERT(reg->gpu_alloc->pages);
 
 	return reg->gpu_alloc->pages;
 }
@@ -928,7 +927,7 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(struct kbase_contex
 		alloc->properties |= KBASE_MEM_PHY_ALLOC_LARGE;
 
 	kref_init(&alloc->kref);
-	atomic_set(&alloc->gpu_mappings, 0);
+	atomic64_set(&alloc->gpu_mappings, 0);
 	atomic_set(&alloc->kernel_mappings, 0);
 	alloc->nents = 0;
 	if (type != KBASE_MEM_TYPE_ALIAS) {
@@ -1307,14 +1306,13 @@ void kbase_mem_pool_mark_dying(struct kbase_mem_pool *pool);
 /**
  * kbase_mem_alloc_page - Allocate a new page for a device
  * @pool:  Memory pool to allocate a page from
- * @alloc_from_kthread:  Flag indicating that the current thread is a kernel thread.
  *
  * Most uses should use kbase_mem_pool_alloc to allocate a page. However that
  * function can fail in the event the pool is empty.
  *
  * Return: A new page or NULL if no memory
  */
-struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool, const bool alloc_from_kthread);
+struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool);
 
 /**
  * kbase_mem_pool_free_page - Free a page from a memory pool.
@@ -1326,7 +1324,7 @@ struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool, const bool alloc_
  */
 void kbase_mem_pool_free_page(struct kbase_mem_pool *pool, struct page *p);
 
-bool kbase_check_alloc_flags(struct kbase_context *kctx, unsigned long flags);
+bool kbase_check_alloc_flags(unsigned long flags);
 bool kbase_check_import_flags(unsigned long flags);
 
 static inline bool kbase_import_size_is_valid(struct kbase_device *kbdev, u64 va_pages)
@@ -1818,8 +1816,8 @@ static inline dma_addr_t kbase_dma_addr_from_tagged(struct tagged_addr tagged_pa
 	phys_addr_t pa = as_phys_addr_t(tagged_pa);
 	struct page *page = pfn_to_page(PFN_DOWN(pa));
 	dma_addr_t dma_addr = (is_huge(tagged_pa) || is_partial(tagged_pa)) ?
-				      kbase_dma_addr_as_priv(page) :
-				      kbase_dma_addr(page);
+					    kbase_dma_addr_as_priv(page) :
+					    kbase_dma_addr(page);
 
 	return dma_addr;
 }
@@ -2262,17 +2260,6 @@ int kbase_user_buf_from_empty_to_gpu_mapped(struct kbase_context *kctx,
 					    struct kbase_va_region *reg);
 
 /**
- * kbase_user_buf_from_pinned_to_empty - Transition user buffer from "pinned" to "empty".
- * @kctx: kbase context.
- * @reg:  The region associated with the imported user buffer.
- *
- * This function transitions a user buffer from the "pinned" state, in which physical pages
- * have been acquired and pinned but no mappings are present, to the "empty" state, in which
- * physical pages have been unpinned.
- */
-void kbase_user_buf_from_pinned_to_empty(struct kbase_context *kctx, struct kbase_va_region *reg);
-
-/**
  * kbase_user_buf_from_pinned_to_gpu_mapped - Transition user buffer from "pinned" to "GPU mapped".
  * @kctx: kbase context.
  * @reg:  The region associated with the imported user buffer.
@@ -2302,18 +2289,6 @@ int kbase_user_buf_from_pinned_to_gpu_mapped(struct kbase_context *kctx,
  */
 void kbase_user_buf_from_dma_mapped_to_pinned(struct kbase_context *kctx,
 					      struct kbase_va_region *reg);
-
-/**
- * kbase_user_buf_from_dma_mapped_to_empty - Transition user buffer from "DMA mapped" to "empty".
- * @kctx: kbase context.
- * @reg:  The region associated with the imported user buffer.
- *
- * This function transitions a user buffer from the "DMA mapped" state, in which physical pages
- * have been acquired and pinned and DMA mappings have been obtained, to the "empty" state,
- * in which DMA mappings have been released and physical pages have been unpinned.
- */
-void kbase_user_buf_from_dma_mapped_to_empty(struct kbase_context *kctx,
-					     struct kbase_va_region *reg);
 
 /**
  * kbase_user_buf_from_dma_mapped_to_gpu_mapped - Transition user buffer from "DMA mapped" to "GPU mapped".
@@ -2349,22 +2324,6 @@ int kbase_user_buf_from_dma_mapped_to_gpu_mapped(struct kbase_context *kctx,
  */
 void kbase_user_buf_from_gpu_mapped_to_pinned(struct kbase_context *kctx,
 					      struct kbase_va_region *reg);
-
-/**
- * kbase_user_buf_from_gpu_mapped_to_empty - Transition user buffer from "GPU mapped" to "empty".
- * @kctx: kbase context.
- * @reg:  The region associated with the imported user buffer.
- *
- * This function transitions a user buffer from the "GPU mapped" state, in which physical pages
- * have been acquired and pinned, DMA mappings have been obtained, and GPU mappings have been
- * created, to the "empty" state, in which all mappings have been torn down and physical pages
- * have been unpinned.
- *
- * However, the function does not update the counter of GPU mappings in usage, because different
- * policies may be applied in different points of the driver.
- */
-void kbase_user_buf_from_gpu_mapped_to_empty(struct kbase_context *kctx,
-					     struct kbase_va_region *reg);
 
 /**
  * kbase_sticky_resource_init - Initialize sticky resource management.

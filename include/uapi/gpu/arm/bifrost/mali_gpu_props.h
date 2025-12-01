@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,6 +24,10 @@
 
 #include <linux/types.h>
 #include "mali_base_common_kernel.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define BASE_MAX_COHERENT_GROUPS 16
 #define GPU_MAX_JOB_SLOTS 16
@@ -107,5 +111,9 @@ struct gpu_props_user_data {
 		} group[BASE_MAX_COHERENT_GROUPS];
 	} coherency_info;
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_MALI_GPUPROPS_H_ */
