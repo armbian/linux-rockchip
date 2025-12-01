@@ -216,6 +216,12 @@
 #define RK3568_DSI1_TURNDISABLE		BIT(2)
 #define RK3568_DSI1_FORCERXMODE		BIT(0)
 
+#define RK3572_GRF_VO_IOC_CON2		0x1060c
+#define RK3572_DSI0_SKEWCALHS		(0x1f << 5)
+#define RK3572_DSI0_TURNDISABLE		BIT(4)
+#define RK3572_DSI0_FORCETXSTOPMODE	BIT(3)
+#define RK3572_DSI0_FORCERXMODE		BIT(2)
+
 #define RV1126_GRF_DSIPHY_CON		0x10220
 #define RV1126B_GRF_DSIPHY_CON		0x80010
 #define RV1126_DSI_FORCETXSTOPMODE	(0xf << 4)
@@ -260,6 +266,7 @@ enum soc_type {
 	RK3506,
 	RK3562,
 	RK3568,
+	RK3572,
 	RV1126,
 	RV1126B,
 };
@@ -1560,7 +1567,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	dsi->pdata.host_ops = &dw_mipi_dsi_rockchip_host_ops;
 	dsi->pdata.priv_data = dsi;
 
-	if (dsi->cdata->soc_type == RK3568)
+	if (dsi->cdata->soc_type == RK3568 || dsi->cdata->soc_type == RK3572)
 		dsi->pdata.stream_standby = dw_mipi_dsi_rockchip_stream_standby;
 
 	platform_set_drvdata(pdev, dsi);
@@ -1886,6 +1893,22 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3568_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3572_chip_data[] = {
+	{
+		.reg = 0x276d0000,
+		.lanecfg1_grf_reg = RK3572_GRF_VO_IOC_CON2,
+		.lanecfg1 = HIWORD_UPDATE(0, RK3572_DSI0_SKEWCALHS |
+					  RK3572_DSI0_TURNDISABLE |
+					  RK3572_DSI0_FORCETXSTOPMODE |
+					  RK3572_DSI0_FORCERXMODE),
+		.flags = DW_MIPI_NEEDS_HCLK,
+		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1800000000UL,
+		.soc_type = RK3572,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126_chip_data[] = {
 	{
 		.reg = 0xffb30000,
@@ -1959,6 +1982,12 @@ static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 	{
 	 .compatible = "rockchip,rk3568-mipi-dsi",
 	 .data = &rk3568_chip_data,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3572)
+	{
+	 .compatible = "rockchip,rk3572-mipi-dsi",
+	 .data = &rk3572_chip_data,
 	},
 #endif
 #if IS_ENABLED(CONFIG_CPU_RV1126)
