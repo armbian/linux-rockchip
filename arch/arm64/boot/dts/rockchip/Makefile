@@ -450,6 +450,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-rk806-single-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-luckfox-core3566.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-roc-pc.dtb
 
 subdir-y := $(dts-dirs) overlay
 
