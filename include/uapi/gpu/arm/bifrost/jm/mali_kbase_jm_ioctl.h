@@ -166,14 +166,10 @@
  *   from the parent process.
  * 11.46:
  * - Remove renderpass_id from base_jd_atom_v2 to deprecate support for JM Incremental Rendering
- * 11.47:
- * - Reject non-protected allocations containing the BASE_MEM_PROTECTED memory flag.
- * - Reject allocations containing the BASE_MEM_DONT_NEED memory flag (it is only settable).
- * - Reject allocations containing the BASE_MEM_UNUSED_BIT_xx memory flags.
-  */
+ */
 
 #define BASE_UK_VERSION_MAJOR 11
-#define BASE_UK_VERSION_MINOR 47
+#define BASE_UK_VERSION_MINOR 46
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between

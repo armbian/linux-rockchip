@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,6 +37,23 @@
  * kernel UTF, messages longer then this will be truncated.
  */
 #define KUTF_MAX_DSPRINTF_LEN 1024
+
+/**
+ * kutf_dvsprintf() - dynamic vsprintf
+ * @pool:	memory pool to allocate from
+ * @fmt:	The format string describing the string to document.
+ * @args:	The parameters from a variadic function to feed into the format string.
+ *
+ * This function implements vsprintf which dynamically allocates memory to store
+ * the string. The library will free the memory containing the string when the
+ * result set is cleared or destroyed.
+ *
+ * Note The returned string may be truncated to fit an internal temporary
+ * buffer, which is KUTF_MAX_DSPRINTF_LEN bytes in length.
+ *
+ * Return: Returns pointer to allocated string, or NULL on error.
+ */
+const char *kutf_dvsprintf(struct kutf_mempool *pool, const char *fmt, va_list args) __printf(2, 0);
 
 /**
  * kutf_dsprintf() - dynamic sprintf

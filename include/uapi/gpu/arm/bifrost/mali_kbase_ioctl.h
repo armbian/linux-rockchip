@@ -22,10 +22,6 @@
 #ifndef _UAPI_KBASE_IOCTL_H_
 #define _UAPI_KBASE_IOCTL_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <asm-generic/ioctl.h>
 #include <linux/types.h>
 
@@ -34,6 +30,10 @@ extern "C" {
 #else
 #include "jm/mali_kbase_jm_ioctl.h"
 #endif /* MALI_USE_CSF */
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define KBASE_IOCTL_TYPE 0x80
 
@@ -169,7 +169,7 @@ struct kbase_ioctl_hwcnt_reader_setup {
  * struct kbase_ioctl_hwcnt_values - Values to set dummy the dummy counters to.
  * @data:    Counter samples for the dummy model.
  * @size:    Size of the counter sample data.
- * @padding: Currently unused, must be zero
+ * @padding: Padding.
  */
 struct kbase_ioctl_hwcnt_values {
 	__u64 data;
@@ -193,7 +193,7 @@ struct kbase_ioctl_disjoint_query {
  * struct kbase_ioctl_get_ddk_version - Query the kernel version
  * @version_buffer: Buffer to receive the kernel version string
  * @size: Size of the buffer
- * @padding: Currently unused, must be zero
+ * @padding: Padding
  *
  * The ioctl will return the number of bytes written into version_buffer
  * (which includes a NULL byte) or a negative error code
@@ -782,7 +782,8 @@ struct kbase_ioctl_tlstream_stats {
 #define KBASE_GPUPROP_RAW_THREAD_TLS_ALLOC 83
 #define KBASE_GPUPROP_TLS_ALLOC 84
 #define KBASE_GPUPROP_RAW_GPU_FEATURES 85
-#ifdef __cplusplus
+
+#if defined(__cplusplus)
 }
 #endif
 

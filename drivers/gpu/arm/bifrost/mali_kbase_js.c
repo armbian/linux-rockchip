@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -783,7 +783,55 @@ void kbasep_js_kctx_term(struct kbase_context *kctx)
 		mutex_unlock(&kbdev->js_data.runpool_mutex);
 	}
 
-	kbase_ctx_sched_remove_ctx(kctx);
+	/* A work item to handle page_fault/bus_fault/gpu_fault could be
+	 * pending for the outgoing context which we no longer care about.
+	 * Ensure that the context won't be accessed anymore by the fault
+	 * workers.
+	 */
+	while (true) {
+		unsigned long flags;
+		int refcount;
+
+		mutex_lock(&kbdev->mmu_hw_mutex);
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		refcount = atomic_read(&kctx->refcount);
+		if ((refcount != 0) && !WARN_ON_ONCE(kctx->as_nr == KBASEP_AS_NR_INVALID)) {
+			struct kbase_as *as = &kctx->kbdev->as[kctx->as_nr];
+			int new_refcount;
+
+			dev_dbg(kbdev->dev,
+				"Waiting for pending fault worker to complete when terminating context (%d_%d)",
+				kctx->tgid, kctx->id);
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+			mutex_unlock(&kbdev->mmu_hw_mutex);
+			flush_workqueue(as->pf_wq);
+			new_refcount = atomic_read(&kctx->refcount);
+			if (refcount != new_refcount) {
+				/* Fault workers executed and released some references, re-check */
+				continue;
+			} else {
+				/* Waiting for pending fault workers to execute was not effective,
+				 * we're going to forcefully de-assign the AS from this context
+				 * because nothing else should still be accessing the context at
+				 * this point.
+				 *
+				 * This should never happen and a WARN_ON() would be printed by
+				 * kbase_ctx_sched_remove_ctx() if the refcount is non-zero.
+				 */
+				dev_warn(
+					kbdev->dev,
+					"No fault workers executed, %d refs remain for terminating context (%d_%d)",
+					new_refcount, kctx->tgid, kctx->id);
+				kbase_ctx_sched_remove_ctx(kctx);
+			}
+		} else {
+			kbase_ctx_sched_remove_ctx_nolock(kctx);
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+			mutex_unlock(&kbdev->mmu_hw_mutex);
+		}
+		break;
+	}
+
 #if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
 	gpu_metrics_ctx_term(kctx);
 #endif
@@ -1735,7 +1783,10 @@ kbasep_js_runpool_release_ctx_internal(struct kbase_device *kbdev, struct kbase_
 			kbasep_js_ctx_attr_ctx_release_atom(kbdev, kctx, katom_retained_state);
 
 	if (new_ref_count == 2 && kbase_ctx_flag(kctx, KCTX_PRIVILEGED) &&
-	    !kbase_pm_is_gpu_lost(kbdev) && !kbase_pm_is_suspending(kbdev)) {
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+	    !kbase_pm_is_gpu_lost(kbdev) &&
+#endif
+	    !kbase_pm_is_suspending(kbdev)) {
 		/* Context is kept scheduled into an address space even when
 		 * there are no jobs, in this case we have to handle the
 		 * situation where all jobs have been evicted from the GPU and
@@ -1752,7 +1803,10 @@ kbasep_js_runpool_release_ctx_internal(struct kbase_device *kbdev, struct kbase_
 	 * which was previously acquired by kbasep_js_schedule_ctx().
 	 */
 	if (new_ref_count == 1 && (!kbasep_js_is_submit_allowed(js_devdata, kctx) ||
-				   kbase_pm_is_gpu_lost(kbdev) || kbase_pm_is_suspending(kbdev))) {
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+				   kbase_pm_is_gpu_lost(kbdev) ||
+#endif
+				   kbase_pm_is_suspending(kbdev))) {
 		int num_slots = kbdev->gpu_props.num_job_slots;
 		unsigned int slot;
 
@@ -2058,7 +2112,11 @@ static bool kbasep_js_schedule_ctx(struct kbase_device *kbdev, struct kbase_cont
 	 * of it being called strictly after the suspend flag is set, and will
 	 * wait for this lock to drop)
 	 */
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 	if (kbase_pm_is_suspending(kbdev) || kbase_pm_is_gpu_lost(kbdev)) {
+#else
+	if (kbase_pm_is_suspending(kbdev)) {
+#endif
 		/* Cause it to leave at some later point */
 		bool retained;
 		CSTD_UNUSED(retained);
@@ -2132,6 +2190,7 @@ void kbasep_js_schedule_privileged_ctx(struct kbase_device *kbdev, struct kbase_
 	js_devdata = &kbdev->js_data;
 	js_kctx_info = &kctx->jctx.sched_info;
 
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 	/* This should only happen in response to a system call
 	 * from a user-space thread.
 	 * In a non-arbitrated environment this can never happen
@@ -2143,10 +2202,18 @@ void kbasep_js_schedule_privileged_ctx(struct kbase_device *kbdev, struct kbase_
 	 * the wait event for KCTX_SCHEDULED, since no context
 	 * can be scheduled until we have the GPU again.
 	 */
-	if (!kbase_has_arbiter(kbdev)) {
+	if (kbdev->arb.arb_if == NULL)
 		if (WARN_ON(kbase_pm_is_suspending(kbdev)))
 			return;
-	}
+#else
+	/* This should only happen in response to a system call
+	 * from a user-space thread.
+	 * In a non-arbitrated environment this can never happen
+	 * whilst suspending.
+	 */
+	if (WARN_ON(kbase_pm_is_suspending(kbdev)))
+		return;
+#endif
 
 	mutex_lock(&js_devdata->queue_mutex);
 	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
@@ -2272,63 +2339,63 @@ void kbasep_js_resume(struct kbase_device *kbdev)
 			struct kbase_context *kctx, *n;
 			unsigned long flags;
 
-			if (kbase_has_arbiter(kbdev)) {
-				spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+#ifndef CONFIG_MALI_ARBITER_SUPPORT
+			spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-				list_for_each_entry_safe(
-					kctx, n, &kbdev->js_data.ctx_list_unpullable[js][prio],
-					jctx.sched_info.ctx.ctx_list_entry[js]) {
-					struct kbasep_js_kctx_info *js_kctx_info;
-					bool timer_sync = false;
-
-					/* Drop lock so we can take kctx mutexes */
-					spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-					js_kctx_info = &kctx->jctx.sched_info;
-
-					mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
-					mutex_lock(&js_devdata->runpool_mutex);
-					spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-					if (!kbase_ctx_flag(kctx, KCTX_SCHEDULED) &&
-					    kbase_js_ctx_pullable(kctx, js, false))
-						timer_sync = kbase_js_ctx_list_add_pullable_nolock(
-							kbdev, kctx, js);
-
-					spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-					if (timer_sync)
-						kbase_backend_ctx_count_changed(kbdev);
-
-					mutex_unlock(&js_devdata->runpool_mutex);
-					mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
-
-					/* Take lock before accessing list again */
-					spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-				}
-				spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-			} else {
+			list_for_each_entry_safe(kctx, n,
+						 &kbdev->js_data.ctx_list_unpullable[js][prio],
+						 jctx.sched_info.ctx.ctx_list_entry[js]) {
+				struct kbasep_js_kctx_info *js_kctx_info;
 				bool timer_sync = false;
 
+				/* Drop lock so we can take kctx mutexes */
+				spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+				js_kctx_info = &kctx->jctx.sched_info;
+
+				mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
+				mutex_lock(&js_devdata->runpool_mutex);
 				spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-				list_for_each_entry_safe(
-					kctx, n, &kbdev->js_data.ctx_list_unpullable[js][prio],
-					jctx.sched_info.ctx.ctx_list_entry[js]) {
-					if (!kbase_ctx_flag(kctx, KCTX_SCHEDULED) &&
-					    kbase_js_ctx_pullable(kctx, js, false))
-						timer_sync |= kbase_js_ctx_list_add_pullable_nolock(
-							kbdev, kctx, js);
-				}
+				if (!kbase_ctx_flag(kctx, KCTX_SCHEDULED) &&
+				    kbase_js_ctx_pullable(kctx, js, false))
+					timer_sync = kbase_js_ctx_list_add_pullable_nolock(
+						kbdev, kctx, js);
 
 				spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-				if (timer_sync) {
-					mutex_lock(&js_devdata->runpool_mutex);
+				if (timer_sync)
 					kbase_backend_ctx_count_changed(kbdev);
-					mutex_unlock(&js_devdata->runpool_mutex);
-				}
+
+				mutex_unlock(&js_devdata->runpool_mutex);
+				mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
+
+				/* Take lock before accessing list again */
+				spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 			}
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+#else
+			bool timer_sync = false;
+
+			spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+			list_for_each_entry_safe(kctx, n,
+						 &kbdev->js_data.ctx_list_unpullable[js][prio],
+						 jctx.sched_info.ctx.ctx_list_entry[js]) {
+				if (!kbase_ctx_flag(kctx, KCTX_SCHEDULED) &&
+				    kbase_js_ctx_pullable(kctx, js, false))
+					timer_sync |= kbase_js_ctx_list_add_pullable_nolock(
+						kbdev, kctx, js);
+			}
+
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+			if (timer_sync) {
+				mutex_lock(&js_devdata->runpool_mutex);
+				kbase_backend_ctx_count_changed(kbdev);
+				mutex_unlock(&js_devdata->runpool_mutex);
+			}
+#endif
 		}
 	}
 	mutex_unlock(&js_devdata->queue_mutex);
@@ -2510,7 +2577,11 @@ struct kbase_jd_atom *kbase_js_pull(struct kbase_context *kctx, unsigned int js)
 		dev_dbg(kbdev->dev, "JS: No submit allowed for kctx %pK\n", (void *)kctx);
 		return NULL;
 	}
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 	if (kbase_pm_is_suspending(kbdev) || kbase_pm_is_gpu_lost(kbdev))
+#else
+	if (kbase_pm_is_suspending(kbdev))
+#endif
 		return NULL;
 
 	katom = jsctx_rb_peek(kctx, js);

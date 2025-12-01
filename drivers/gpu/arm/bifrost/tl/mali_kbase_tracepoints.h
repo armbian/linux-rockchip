@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -267,11 +267,6 @@ void __kbase_tlstream_tl_event_atom_softjob_end(
 );
 
 void __kbase_tlstream_tl_arbiter_granted(
-	struct kbase_tlstream *stream,
-	const void *gpu
-);
-
-void __kbase_tlstream_tl_arbiter_lost(
 	struct kbase_tlstream *stream,
 	const void *gpu
 );
@@ -1550,25 +1545,6 @@ struct kbase_tlstream;
 		u32 enabled = (u32)atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_arbiter_granted(	\
-				__TL_DISPATCH_STREAM(kbdev, obj),	\
-				gpu	\
-				);	\
-	} while (0)
-
-/**
- * KBASE_TLSTREAM_TL_ARBITER_LOST - Received a gpu lost event from the arbiter
- *
- * @kbdev: Kbase device
- * @gpu: Name of the GPU object
- */
-#define KBASE_TLSTREAM_TL_ARBITER_LOST(	\
-	kbdev,	\
-	gpu	\
-	)	\
-	do {	\
-		u32 enabled = (u32)atomic_read(&kbdev->timeline_flags);	\
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_arbiter_lost(	\
 				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				gpu	\
 				);	\

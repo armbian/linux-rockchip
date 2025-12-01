@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,6 +24,10 @@
 
 #include <linux/types.h>
 #include "mali_base_common_kernel.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define BASE_SYNCSET_OP_MSYNC (1U << 0)
 #define BASE_SYNCSET_OP_CSYNC (1U << 1)
@@ -53,5 +57,9 @@ struct basep_syncset {
 	__u8 type;
 	__u8 padding[7];
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_BASE_MEM_PRIV_H_ */

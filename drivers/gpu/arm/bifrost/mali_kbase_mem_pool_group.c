@@ -23,7 +23,7 @@
 #include <mali_kbase_mem.h>
 #include <mali_kbase_mem_pool_group.h>
 
-#include <linux/memory_group_manager.h>
+#include <linux/memory_group_manager_for_bifrost.h>
 
 void kbase_mem_pool_group_config_set_max_size(struct kbase_mem_pool_group_config *const configs,
 					      size_t const max_size)

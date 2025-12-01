@@ -221,6 +221,8 @@ struct kbase_hwcnt_csf_physical_layout {
  *                              metadata.dump_buf_bytes.
  * @accum_buf:                  HWC sample buffer used as an internal
  *                              accumulator, size metadata.dump_buf_bytes.
+ * @accumulated:                Flag to indicate if there are accumulated samples
+ *                              in the buffer to be to provided to userspace.
  * @old_sample_buf:             HWC sample buffer to save the previous values
  *                              for delta calculation, size
  *                              prfcnt_info.dump_bytes.
@@ -257,6 +259,13 @@ struct kbase_hwcnt_csf_physical_layout {
  * @num_l2_slices:              Current number of L2 slices allocated to the GPU.
  * @powered_shader_core_mask:   The common mask between the debug_core_mask
  *                              and the shader_present_bitmap.
+ * @dump_time_ns:               It holds the CPU timestamp captured at dump request.
+ *                              After the completion of the dump request, it is used to
+ *                              adjust the GPU cycle count attributed to a dump. After the
+ *                              adjustment is completed, it's replaced by the value which
+ *                              is converted from the TIMESTAMP of a dump to CPU MONOTONIC
+ *                              time. Then it's returned to the caller via 'dump_time_ns'
+ *                              parameter of dump_get function.
  */
 struct kbase_hwcnt_backend_csf {
 	struct kbase_hwcnt_backend_csf_info *info;
@@ -266,6 +275,7 @@ struct kbase_hwcnt_backend_csf {
 	wait_queue_head_t enable_state_waitq;
 	u64 *to_user_buf;
 	u64 *accum_buf;
+	bool accumulated;
 	u32 *old_sample_buf;
 	blk_stt_t *block_states;
 	blk_stt_t *to_user_block_states;
@@ -285,6 +295,7 @@ struct kbase_hwcnt_backend_csf {
 	struct work_struct hwc_threshold_work;
 	size_t num_l2_slices;
 	u64 powered_shader_core_mask;
+	u64 dump_time_ns;
 };
 
 static bool kbasep_hwcnt_backend_csf_backend_exists(struct kbase_hwcnt_backend_csf_info *csf_info)
@@ -466,6 +477,7 @@ kbasep_hwcnt_backend_csf_reset_internal_buffers(struct kbase_hwcnt_backend_csf *
 				   KBASE_HWCNT_BLOCK_STATE_BYTES * KBASE_HWCNT_BLOCK_STATE_STRIDE;
 
 	memset(backend_csf->accum_buf, 0, user_buf_bytes);
+	backend_csf->accumulated = false;
 	memset(backend_csf->old_sample_buf, 0, backend_csf->info->prfcnt_info.dump_bytes);
 	memset(backend_csf->block_states, 0, block_state_bytes);
 	if (user_bufs) {
@@ -521,6 +533,7 @@ static void kbasep_hwcnt_backend_csf_update_user_sample(struct kbase_hwcnt_backe
 	 * threshold.
 	 */
 	memset(backend_csf->accum_buf, 0, user_buf_bytes);
+	backend_csf->accumulated = false;
 	memset(backend_csf->block_states, 0, block_state_bytes);
 }
 
@@ -702,6 +715,7 @@ static void kbasep_hwcnt_backend_csf_accumulate_sample(struct kbase_hwcnt_backen
 					acc_block[ctr_idx] += new_block[ctr_idx];
 				}
 			}
+			backend->accumulated = true;
 		}
 
 		old_block += values_per_block;
@@ -875,6 +889,8 @@ static void kbasep_hwcnt_backend_csf_dump_worker(struct work_struct *work)
 	u32 insert_index_to_acc;
 	u32 extract_index = 0U;
 	u32 insert_index = 0U;
+	u64 ts_gpu, ts_dump_raw, ts_dump, ts_dump_request, ts_now;
+	bool sample_accumulated;
 
 	WARN_ON(!work);
 	backend_csf = container_of(work, struct kbase_hwcnt_backend_csf, hwc_dump_work);
@@ -908,6 +924,7 @@ static void kbasep_hwcnt_backend_csf_dump_worker(struct work_struct *work)
 	 */
 	kbasep_hwcnt_backend_csf_accumulate_samples(backend_csf, extract_index,
 						    insert_index_to_acc);
+	sample_accumulated = backend_csf->accumulated;
 
 	/* Copy to the user buffer so if a threshold interrupt fires
 	 * between now and get(), the accumulations are untouched.
@@ -919,8 +936,62 @@ static void kbasep_hwcnt_backend_csf_dump_worker(struct work_struct *work)
 	/* Assert the backend is not destroyed. */
 	WARN_ON(backend_csf != backend_csf->info->backend);
 
-	/* The backend was disabled or had an error while we were accumulating.
+	/* TIMESTAMP_LO/HI of the newest dump */
+	ts_gpu = *(u64 *)backend_csf->old_sample_buf;
+
+	/* Convert TIMESTAMP_LO/HI of a newest dump into a CPU timestamp. */
+	ts_dump_raw = backend_csf->info->csf_if->time_convert_gpu_to_cpu(
+		backend_csf->info->csf_if->ctx, ts_gpu);
+	ts_dump_request = backend_csf->dump_time_ns;
+	ts_now = kbasep_hwcnt_backend_csf_timestamp_ns((struct kbase_hwcnt_backend *)backend_csf);
+
+	/* Shift the timestamps to handle wrap around cases */
+	ts_dump = ts_dump_raw + (U64_MAX - ts_now);
+	ts_dump_request += (U64_MAX - ts_now);
+	ts_now = U64_MAX;
+
+	/* In this case the timestamp returned to userspace can be updated with the one from the
+	 * dump itself and the cycle counts linearly interpolated to be more accurate.
+	 * If ts_dump_request == ts_now we would get a divide by zero error.
 	 */
+	if ((ts_dump_request <= ts_dump) && (ts_dump <= ts_now) && (ts_dump_request != ts_now)) {
+		u64 cycle_counts[BASE_MAX_NR_CLOCKS_REGULATORS] = { 0 };
+		size_t clk;
+
+		/* Update with timestamp from the dump */
+		backend_csf->dump_time_ns = ts_dump_raw;
+
+		backend_csf->info->csf_if->get_gpu_cycle_count(
+			backend_csf->info->csf_if->ctx, cycle_counts, backend_csf->clk_enable_map);
+
+		kbase_hwcnt_metadata_for_each_clock(backend_csf->info->metadata, clk) {
+			if (kbase_hwcnt_clk_enable_map_enabled(backend_csf->clk_enable_map, clk)) {
+				u64 cycle1, adjusted_cycle_count, cycle2, multiplier;
+
+				cycle1 = backend_csf->prev_cycle_count[clk];
+				cycle2 = cycle_counts[clk];
+				/* Perform linear interpolation on the cycle count based on:
+				 * ts_dump_request, ts_dump, ts_now.
+				 */
+				multiplier = ts_dump - ts_dump_request;
+				adjusted_cycle_count = (cycle2 - cycle1) * multiplier;
+				/* To reduduce rounding errors the u64 division is performed
+				 * on the large numerator instead of (cycle2 - cycle1).
+				 */
+				adjusted_cycle_count =
+					div64_u64(adjusted_cycle_count, (ts_now - ts_dump_request));
+				backend_csf->cycle_count_elapsed[clk] += adjusted_cycle_count;
+				backend_csf->prev_cycle_count[clk] += adjusted_cycle_count;
+			}
+		}
+	} else if ((ts_dump < ts_dump_request) && (ts_dump < ts_now) && sample_accumulated) {
+		/* In this case dumps have been disabled but there is a dump available in the buffer
+		 * Update with timestamp from the dump but don't update the cycle count.
+		 */
+		backend_csf->dump_time_ns = ts_dump_raw;
+	}
+
+	/* The backend was disabled or had an error while we were accumulating. */
 	if (backend_csf->enable_state != KBASE_HWCNT_BACKEND_CSF_ENABLED) {
 		WARN_ON(backend_csf->dump_state != KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE);
 		WARN_ON(!completion_done(&backend_csf->dump_completed));
@@ -1273,8 +1344,7 @@ static void kbasep_hwcnt_backend_csf_dump_disable(struct kbase_hwcnt_backend *ba
 }
 
 /* CSF backend implementation of kbase_hwcnt_backend_dump_request_fn */
-static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
-						 u64 *dump_time_ns)
+static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend)
 {
 	unsigned long flags = 0UL;
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
@@ -1292,7 +1362,7 @@ static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *bac
 	 */
 	if (backend_csf->enable_state == KBASE_HWCNT_BACKEND_CSF_TRANSITIONING_TO_ENABLED) {
 		backend_csf->dump_state = KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED;
-		*dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
+		backend_csf->dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
 		kbasep_hwcnt_backend_csf_cc_update(backend_csf);
 		/* There is a possibility that the transition to enabled state will remain
 		 * during multiple dumps, hence append the OFF state.
@@ -1359,8 +1429,7 @@ static int kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *bac
 	 * but we can ignore it if we are not in the REQUESTED state and process
 	 * it in next round dumping worker.
 	 */
-
-	*dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
+	backend_csf->dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
 	kbasep_hwcnt_backend_csf_cc_update(backend_csf);
 	backend_csf->user_requested = true;
 
@@ -1428,13 +1497,12 @@ static int kbasep_hwcnt_backend_csf_dump_clear(struct kbase_hwcnt_backend *backe
 {
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 	int errcode;
-	u64 ts;
 
 	if (!backend_csf)
 		return -EINVAL;
 
 	/* Request a dump so we can clear all current counters. */
-	errcode = kbasep_hwcnt_backend_csf_dump_request(backend, &ts);
+	errcode = kbasep_hwcnt_backend_csf_dump_request(backend);
 	if (!errcode)
 		/* Wait for the manual dump or auto dump to be done and
 		 * accumulator to be updated.
@@ -1448,13 +1516,13 @@ static int kbasep_hwcnt_backend_csf_dump_clear(struct kbase_hwcnt_backend *backe
 static int kbasep_hwcnt_backend_csf_dump_get(struct kbase_hwcnt_backend *backend,
 					     struct kbase_hwcnt_dump_buffer *dst,
 					     const struct kbase_hwcnt_enable_map *dst_enable_map,
-					     bool accumulate)
+					     bool accumulate, u64 *dump_time_ns)
 {
 	struct kbase_hwcnt_backend_csf *backend_csf = (struct kbase_hwcnt_backend_csf *)backend;
 	int ret;
 	size_t clk;
 
-	if (!backend_csf || !dst || !dst_enable_map ||
+	if (!backend_csf || !dst || !dst_enable_map || !dump_time_ns ||
 	    (backend_csf->info->metadata != dst->metadata) ||
 	    (dst_enable_map->metadata != dst->metadata))
 		return -EINVAL;
@@ -1483,6 +1551,7 @@ static int kbasep_hwcnt_backend_csf_dump_get(struct kbase_hwcnt_backend *backend
 	 * accumulation with the current sample's block state.
 	 */
 	if (!ret) {
+		*dump_time_ns = backend_csf->dump_time_ns;
 		kbase_hwcnt_dump_buffer_block_state_update(dst, dst_enable_map,
 							   backend_csf->sampled_all_blk_stt);
 		kbase_hwcnt_block_state_set(&backend_csf->sampled_all_blk_stt,
@@ -1517,6 +1586,7 @@ static void kbasep_hwcnt_backend_csf_destroy(struct kbase_hwcnt_backend_csf *bac
 
 	kfree(backend_csf->accum_buf);
 	backend_csf->accum_buf = NULL;
+	backend_csf->accumulated = false;
 
 	kfree(backend_csf->old_sample_buf);
 	backend_csf->old_sample_buf = NULL;
@@ -1561,6 +1631,7 @@ static int kbasep_hwcnt_backend_csf_create(struct kbase_hwcnt_backend_csf_info *
 	backend_csf->accum_buf = kzalloc(csf_info->metadata->dump_buf_bytes, GFP_KERNEL);
 	if (!backend_csf->accum_buf)
 		goto err_alloc_acc_buf;
+	backend_csf->accumulated = false;
 
 	backend_csf->old_sample_buf = kzalloc(csf_info->prfcnt_info.dump_bytes, GFP_KERNEL);
 	if (!backend_csf->old_sample_buf)

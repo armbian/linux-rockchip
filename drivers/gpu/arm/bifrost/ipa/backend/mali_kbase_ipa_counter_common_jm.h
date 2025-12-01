@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -66,6 +66,8 @@ typedef u32 kbase_ipa_get_active_cycles_callback(struct kbase_ipa_model_vinstr_d
  *                       the cached simple model results instead. This may be
  *                       more accurate than extrapolating  using a very small
  *                       counter dump.
+ * @total_active_cycles: Total number of active cycles since this IPA context
+ *                       was created.
  */
 struct kbase_ipa_model_vinstr_data {
 	struct kbase_device *kbdev;
@@ -78,6 +80,7 @@ struct kbase_ipa_model_vinstr_data {
 	s32 reference_voltage;
 	s32 scaling_factor;
 	s32 min_sample_cycles;
+	u64 total_active_cycles;
 };
 
 /**

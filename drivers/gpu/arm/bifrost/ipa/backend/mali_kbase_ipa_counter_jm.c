@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -152,10 +152,22 @@ static s64 kbase_g7x_sum_all_shader_cores(struct kbase_ipa_model_vinstr_data *mo
 static s64 kbase_g7x_jm_single_counter(struct kbase_ipa_model_vinstr_data *model_data, s32 coeff,
 				       u32 counter_block_offset)
 {
-	u32 counter;
+	u32 counter = kbase_g7x_power_model_get_jm_counter(model_data, counter_block_offset);
+	s64 counter_value = kbase_ipa_single_counter(model_data, coeff, counter);
 
-	counter = kbase_g7x_power_model_get_jm_counter(model_data, counter_block_offset);
-	return kbase_ipa_single_counter(model_data, coeff, counter);
+	if (counter_block_offset == JM_GPU_ACTIVE) {
+		if (coeff < 0) {
+			dev_warn_once(model_data->kbdev->dev,
+				      "Unexpected negative coefficient when sampling GPU_ACTIVE");
+			return counter_value;
+		}
+
+		model_data->total_active_cycles += (u64)counter_value;
+		trace_mali_gpu_active_cycle_counter(model_data->kbdev->id, ktime_get_raw_ns(),
+						    model_data->total_active_cycles);
+	}
+
+	return counter_value;
 }
 
 /**
@@ -168,11 +180,16 @@ static s64 kbase_g7x_jm_single_counter(struct kbase_ipa_model_vinstr_data *model
 static u32 kbase_g7x_get_active_cycles(struct kbase_ipa_model_vinstr_data *model_data)
 {
 	u32 counter = kbase_g7x_power_model_get_jm_counter(model_data, JM_GPU_ACTIVE);
-
 	/* Counters are only 32-bit, so we can safely multiply by 1 then cast
 	 * the 64-bit result back to a u32.
 	 */
-	return kbase_ipa_single_counter(model_data, 1, counter);
+	u32 counter_value = (u32)kbase_ipa_single_counter(model_data, 1, counter);
+
+	model_data->total_active_cycles += counter_value;
+	trace_mali_gpu_active_cycle_counter(model_data->kbdev->id, ktime_get_raw_ns(),
+					    model_data->total_active_cycles);
+
+	return counter_value;
 }
 
 /* Table of IPA group definitions.

@@ -285,7 +285,7 @@ static void validate_protected_page_fault(struct kbase_device *kbdev)
 	 */
 	u32 protected_debug_mode = 0;
 
-	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
 		protected_debug_mode = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(GPU_STATUS)) &
 				       GPU_STATUS_GPU_DBG_ENABLED;
 	}

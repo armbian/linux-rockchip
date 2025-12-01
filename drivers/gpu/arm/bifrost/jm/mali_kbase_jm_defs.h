@@ -308,11 +308,11 @@ enum kbase_atom_gpu_rb_state {
  *                      powered down and GPU shall come out of fully
  *                      coherent mode before entering protected mode.
  * @KBASE_ATOM_ENTER_PROTECTED_SET_COHERENCY: Prepare coherency change;
- *                      for KBASE_HW_ISSUE_TGOX_R1_1234 also request L2 power on
+ *                      for BASE_HW_ISSUE_TGOX_R1_1234 also request L2 power on
  *                      so that coherency register contains correct value when
  *                      GPU enters protected mode.
  * @KBASE_ATOM_ENTER_PROTECTED_FINISHED: End state; for
- *                      KBASE_HW_ISSUE_TGOX_R1_1234 check
+ *                      BASE_HW_ISSUE_TGOX_R1_1234 check
  *                      that L2 is powered up and switch GPU to protected mode.
  */
 enum kbase_atom_enter_protected_state {

@@ -50,7 +50,6 @@ enum kbase_arbif_evt {
 	KBASE_VM_OS_RESUME_EVENT,
 };
 
-
 /**
  * kbase_arbif_init() - Initialize the arbiter interface functionality.
  * @kbdev: The kbase device structure for the device (must be a valid pointer)

@@ -28,6 +28,7 @@
  *                     the input has already been properly aligned with info contained fields.
  * @info:              vm_unmapped_area_info structure passed, containing alignment, length
  *                     and limits for the allocation
+ *
  * The function only undertakes the shader code alignment adjustment. It's the caller's
  * responsibility that the input value provided via gap_end has already been properly aligned
  * in compliance to the fields specified in the info structure. Irrespective the return result,
@@ -373,6 +374,7 @@ check_current:
 		if (gap_end < info->low_limit)
 			return -ENOMEM;
 
+
 		/* Adjust next search high limit */
 		high_limit = gap_end + length;
 
@@ -505,14 +507,8 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 			is_same_4gb_page = true;
 		}
 		kbase_gpu_vm_unlock(kctx);
-#ifndef CONFIG_64BIT
-	} else {
-#if (KERNEL_VERSION(6, 10, 0) <= LINUX_VERSION_CODE)
-		return mm_get_unmapped_area(mm, kctx->filp, addr, len, pgoff, flags);
-#else
-		return current->mm->get_unmapped_area(kctx->filp, addr, len, pgoff, flags);
-#endif
-#endif
+	} else if (!IS_ENABLED(CONFIG_64BIT)) {
+		return kbase_mm_get_unmapped_area_helper(mm, kctx->filp, addr, len, pgoff, flags);
 	}
 
 	info.flags = 0;

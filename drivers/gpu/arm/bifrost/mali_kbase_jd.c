@@ -187,6 +187,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom,
 	int err = -EINVAL;
 	u32 res_no;
 	struct base_external_resource *input_extres;
+	size_t copy_size;
 
 	KBASE_DEBUG_ASSERT(katom);
 	KBASE_DEBUG_ASSERT(katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES);
@@ -205,8 +206,13 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom,
 		goto failed_input_alloc;
 	}
 
+	if (check_mul_overflow(sizeof(*input_extres), (size_t)katom->nr_extres, &copy_size)) {
+		err = -EINVAL;
+		goto failed_input_copy;
+	}
+
 	if (copy_from_user(input_extres, get_compat_pointer(katom->kctx, user_atom->extres_list),
-			   size_mul(sizeof(*input_extres), katom->nr_extres)) != 0) {
+			   copy_size) != 0) {
 		err = -EINVAL;
 		goto failed_input_copy;
 	}
@@ -1197,7 +1203,11 @@ void kbase_jd_done_worker(struct work_struct *data)
 	}
 
 	if ((katom->event_code != BASE_JD_EVENT_DONE) && !kbase_ctx_flag(katom->kctx, KCTX_DYING) &&
-	    !kbase_ctx_flag(katom->kctx, KCTX_PAGE_FAULT_REPORT_SKIP))
+	    !kbase_ctx_flag(katom->kctx, KCTX_PAGE_FAULT_REPORT_SKIP)
+#ifdef MALI_ARBITER_SUPPORT
+	    && !kbase_pm_is_gpu_lost(kbdev)
+#endif
+	    )
 		if (!kbase_is_quick_reset_enabled(kbdev))
 			dev_err(kbdev->dev, "t6xx: GPU fault 0x%02lx from job slot %d\n",
 				(unsigned long)katom->event_code, katom->slot_nr);

@@ -199,7 +199,6 @@ static void kbase_arbiter_pm_resume_wq(struct work_struct *data)
 	arb_vm_state->vm_arb_starting = false;
 	mutex_unlock(&arb_vm_state->vm_state_lock);
 	KBASE_TLSTREAM_TL_ARBITER_STARTED(kbdev, kbdev);
-	KBASE_KTRACE_ADD(kbdev, ARB_GPU_STARTED, NULL, 0);
 	dev_dbg(kbdev->dev, "<%s\n", __func__);
 }
 
@@ -302,7 +301,7 @@ int kbase_arbiter_pm_early_init(struct kbase_device *kbdev)
 		goto arbif_init_fail;
 	}
 
-	if (kbase_has_arbiter(kbdev)) {
+	if (kbdev->arb.arb_if) {
 		kbase_arbif_gpu_request(kbdev);
 		dev_dbg(kbdev->dev, "Waiting for initial GPU assignment...\n");
 
@@ -346,9 +345,6 @@ void kbase_arbiter_pm_early_term(struct kbase_device *kbdev)
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
 
 	if (arb_vm_state == NULL)
-		return;
-
-	if (!kbase_has_arbiter(kbdev))
 		return;
 
 	kbase_arbiter_pm_release_interrupts(kbdev);
@@ -416,12 +412,11 @@ void kbase_arbiter_pm_vm_stopped(struct kbase_device *kbdev)
 		kbase_arbiter_pm_vm_state_str(arb_vm_state->vm_state));
 
 	/*
-	 * Release the interrupts on external arb_if to address Xen requirements.
-	 * Interrupts are not released with internal arb_if as the IRQs are required
-	 * to handle messaging to/from Arbiter/Resource Group.
+	 * Release the interrupts to address Xen requirements.
+	 * Interrupts are not released for PTM as it has dedicated IRQs per VM.
 	 */
-	if (arb_vm_state->interrupts_installed
-	) {
+	if (arb_vm_state->interrupts_installed &&
+	    kbdev->gpu_props.gpu_id.product_model != GPU_ID_PRODUCT_TBAX) {
 		arb_vm_state->interrupts_installed = false;
 		kbase_release_interrupts(kbdev);
 	}
@@ -481,12 +476,6 @@ int kbase_arbiter_pm_gpu_assigned(struct kbase_device *kbdev)
 	if (!kbdev)
 		return result;
 
-	/* If there is no Arbiter, then there is no virtualization
-	 * and current VM always has access to GPU.
-	 */
-	if (!kbase_has_arbiter(kbdev))
-		return 1;
-
 	/* First check the GPU_LOST state */
 	kbase_pm_lock(kbdev);
 	if (kbase_pm_is_gpu_lost(kbdev)) {
@@ -542,14 +531,14 @@ static void kbase_arbiter_pm_vm_gpu_start(struct kbase_device *kbdev)
 		break;
 	case KBASE_VM_STATE_STOPPED_GPU_REQUESTED:
 		kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_STARTING);
-		arb_vm_state->interrupts_installed = true;
+
 		/*
-		 * Re-install interrupts that were released for external arb_if to
-		 * address Xen requirements. Interrupts are not released with internal
-		 * arb_if as the IRQs are required to handle messaging to/from
-		 * Arbiter/Resource Group.
+		 * Re-install interrupts that were released on VM_STOP to address
+		 * Xen requirements. Interrupts are not released on VM_STOP for
+		 * PTM as it has dedicated IRQs per VM.
 		 */
-		{
+		if (kbdev->gpu_props.gpu_id.product_model != GPU_ID_PRODUCT_TBAX) {
+			arb_vm_state->interrupts_installed = true;
 			kbase_install_interrupts(kbdev);
 		}
 		/*
@@ -700,7 +689,7 @@ static inline bool kbase_arbiter_pm_vm_os_suspend_ready_state(struct kbase_devic
  * @kbdev: The kbase device structure for the device
  *
  * Prepares OS to be in suspend state until it receives GRANT message
- * from Arbiter asynchronously. This function assumes there is an active Arbiter.
+ * from Arbiter asynchronously.
  */
 static void kbase_arbiter_pm_vm_os_prepare_suspend(struct kbase_device *kbdev)
 {
@@ -708,8 +697,10 @@ static void kbase_arbiter_pm_vm_os_prepare_suspend(struct kbase_device *kbdev)
 	enum kbase_vm_state prev_state;
 
 	lockdep_assert_held(&arb_vm_state->vm_state_lock);
-	if (kbdev->pm.arb_vm_state->vm_state == KBASE_VM_STATE_SUSPENDED)
-		return;
+	if (kbdev->arb.arb_if) {
+		if (kbdev->pm.arb_vm_state->vm_state == KBASE_VM_STATE_SUSPENDED)
+			return;
+	}
 	/* Block suspend OS function until we are in a stable state
 	 * with vm_state_lock
 	 */
@@ -801,7 +792,7 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev, enum kbase_arbif_evt 
 {
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
 
-	if (!kbase_has_arbiter(kbdev))
+	if (!kbdev->arb.arb_if)
 		return;
 
 	mutex_lock(&arb_vm_state->vm_state_lock);
@@ -921,8 +912,7 @@ static inline bool kbase_arbiter_pm_vm_gpu_assigned_locked(struct kbase_device *
  *
  * This function handles a suspend event from the driver,
  * communicating with the arbiter and waiting synchronously for the GPU
- * to be granted again depending on the VM state. Returns immediately
- * with success if there is no Arbiter.
+ * to be granted again depending on the VM state.
  *
  * Return: 0 on success else 1 suspend handler isn not possible.
  */
@@ -932,58 +922,58 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
 	int res = 0;
 
-	if (!kbase_has_arbiter(kbdev))
-		return res;
-
-	mutex_lock(&arb_vm_state->vm_state_lock);
-	while (!kbase_arbiter_pm_vm_gpu_assigned_locked(kbdev)) {
-		/* Update VM state since we have GPU work to do */
-		if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPING_IDLE)
-			kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_STOPPING_ACTIVE);
-		else if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPED) {
-			kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_STOPPED_GPU_REQUESTED);
-			kbase_arbif_gpu_request(kbdev);
-			start_request_timer(kbdev);
-		} else if (arb_vm_state->vm_state == KBASE_VM_STATE_INITIALIZING_WITH_GPU)
-			break;
-
-		if (suspend_handler != KBASE_PM_SUSPEND_HANDLER_NOT_POSSIBLE) {
-			/* In case of GPU lost, even if
-			 * active_count > 0, we no longer have GPU
-			 * access
-			 */
-			if (kbase_pm_is_gpu_lost(kbdev))
-				res = 1;
-
-			switch (suspend_handler) {
-			case KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE:
-				res = 1;
+	if (kbdev->arb.arb_if) {
+		mutex_lock(&arb_vm_state->vm_state_lock);
+		while (!kbase_arbiter_pm_vm_gpu_assigned_locked(kbdev)) {
+			/* Update VM state since we have GPU work to do */
+			if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPING_IDLE)
+				kbase_arbiter_pm_vm_set_state(kbdev,
+							      KBASE_VM_STATE_STOPPING_ACTIVE);
+			else if (arb_vm_state->vm_state == KBASE_VM_STATE_STOPPED) {
+				kbase_arbiter_pm_vm_set_state(kbdev,
+							      KBASE_VM_STATE_STOPPED_GPU_REQUESTED);
+				kbase_arbif_gpu_request(kbdev);
+				start_request_timer(kbdev);
+			} else if (arb_vm_state->vm_state == KBASE_VM_STATE_INITIALIZING_WITH_GPU)
 				break;
-			case KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE:
-				if (kbdev->pm.active_count == 0)
+
+			if (suspend_handler != KBASE_PM_SUSPEND_HANDLER_NOT_POSSIBLE) {
+				/* In case of GPU lost, even if
+				 * active_count > 0, we no longer have GPU
+				 * access
+				 */
+				if (kbase_pm_is_gpu_lost(kbdev))
 					res = 1;
-				break;
-			case KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED:
-				break;
-			default:
-				WARN(1, "Unknown suspend_handler\n");
-				res = 1;
+
+				switch (suspend_handler) {
+				case KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE:
+					res = 1;
+					break;
+				case KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE:
+					if (kbdev->pm.active_count == 0)
+						res = 1;
+					break;
+				case KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED:
+					break;
+				default:
+					WARN(1, "Unknown suspend_handler\n");
+					res = 1;
+					break;
+				}
 				break;
 			}
-			break;
+
+			/* Need to synchronously wait for GPU assignment */
+			atomic_inc(&kbdev->pm.gpu_users_waiting);
+			mutex_unlock(&arb_vm_state->vm_state_lock);
+			kbase_pm_unlock(kbdev);
+			kbase_arbiter_pm_vm_wait_gpu_assignment(kbdev);
+			kbase_pm_lock(kbdev);
+			mutex_lock(&arb_vm_state->vm_state_lock);
+			atomic_dec(&kbdev->pm.gpu_users_waiting);
 		}
-
-		/* Need to synchronously wait for GPU assignment */
-		atomic_inc(&kbdev->pm.gpu_users_waiting);
 		mutex_unlock(&arb_vm_state->vm_state_lock);
-		kbase_pm_unlock(kbdev);
-		kbase_arbiter_pm_vm_wait_gpu_assignment(kbdev);
-		kbase_pm_lock(kbdev);
-		mutex_lock(&arb_vm_state->vm_state_lock);
-		atomic_dec(&kbdev->pm.gpu_users_waiting);
 	}
-	mutex_unlock(&arb_vm_state->vm_state_lock);
-
 	return res;
 }
 

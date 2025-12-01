@@ -1953,8 +1953,7 @@ void midgard_model_read_reg(void *h, u32 addr, u32 *const value)
 		*value = dummy->control_reg_values->gpu_features_lo;
 	} else if (addr == GPU_CONTROL_REG(GPU_FEATURES_HI)) {
 		*value = dummy->control_reg_values->gpu_features_hi;
-	}
-	else {
+	} else {
 		model_error_log(
 			KBASE_CORE,
 			"Dummy model register access: Reading unsupported register 0x%x. Returning 0\n",
