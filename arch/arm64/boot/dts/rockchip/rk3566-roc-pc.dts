@@ -1542,8 +1542,9 @@
     /* Reset time is 20ms, 100ms for rtl8211f */
     snps,reset-delays-us = <0 20000 100000>;
 
-    assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
-    assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&gmac1_clkin>;
+    assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>;
+    assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>, <&gmac1_clkin>;
+    phy-supply = <&vcc_3v3>;
 
     pinctrl-names = "default";
     pinctrl-0 = <&gmac1m0_miim
@@ -1553,8 +1554,8 @@
              &gmac1m0_rgmii_bus
              &gmac1m0_clkinout>;
 
-    tx_delay = <0x4e>;
-    rx_delay = <0x2c>;
+    tx_delay = <0x4f>;
+    rx_delay = <0x24>;
 
     phy-handle = <&rgmii_phy1>;
     status = "okay";
@@ -1594,4 +1595,8 @@
 &route_hdmi {
 	status = "okay";
 	connect = <&vp0_out_hdmi>;
+};
+
+&vp0 {
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART0>;
 };
