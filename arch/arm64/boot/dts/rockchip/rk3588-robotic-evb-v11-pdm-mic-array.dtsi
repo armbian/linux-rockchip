@@ -68,6 +68,7 @@
 		reg = <0x3f>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		reset-gpios = <&i2c4_nca9539_gpio 12 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 
 		led1: led@1 {
