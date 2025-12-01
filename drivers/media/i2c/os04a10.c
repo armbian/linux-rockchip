@@ -2867,9 +2867,6 @@ static struct i2c_driver os04a10_i2c_driver = {
 	.id_table	= os04a10_match_id,
 };
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-module_i2c_driver(os04a10_i2c_driver);
-#else
 static int __init sensor_mod_init(void)
 {
 	return i2c_add_driver(&os04a10_i2c_driver);
@@ -2880,9 +2877,12 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&os04a10_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
-module_exit(sensor_mod_exit);
 #endif
+module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("OmniVision os04a10 sensor driver");
 MODULE_LICENSE("GPL v2");

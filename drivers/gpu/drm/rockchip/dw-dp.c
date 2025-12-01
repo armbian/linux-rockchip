@@ -214,6 +214,10 @@
 #define HDCP22_STATE				GENMASK(26, 24)
 #define HDCP22_BOOTED				BIT(23)
 #define HDCP13_BSTATUS				GENMASK(22, 19)
+#define HDCP13_REAUTHENTICATION_REQUEST		BIT(22)
+#define HDCP13_LINK_INTEGRITY_FAILURE		BIT(21)
+#define HDCP13_R0AVAILABLE			BIT(20)
+#define HDCP13_READY				BIT(19)
 #define REPEATER				BIT(18)
 #define HDCP_CAPABLE				BIT(17)
 #define STATEE					GENMASK(16, 14)
@@ -285,7 +289,7 @@ enum {
 };
 
 struct dw_dp_hdcp {
-	struct delayed_work check_work;
+	struct work_struct check_work;
 	struct work_struct prop_work;
 	struct mutex mutex;
 	u64 value;
@@ -901,7 +905,6 @@ static int dw_dp_hdcp_enable(struct dw_dp *dp, u8 content_type)
 	dp->hdcp.hdcp_content_type = content_type;
 	dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_ENABLED;
 	schedule_work(&dp->hdcp.prop_work);
-	schedule_delayed_work(&dp->hdcp.check_work, dp->hdcp.check_link_interval);
 
 out:
 	mutex_unlock(&dp->hdcp.mutex);
@@ -919,85 +922,46 @@ static int dw_dp_hdcp_disable(struct dw_dp *dp)
 		ret = _dw_dp_hdcp_disable(dp);
 	}
 	mutex_unlock(&dp->hdcp.mutex);
-	cancel_delayed_work_sync(&dp->hdcp.check_work);
 
-	return ret;
-}
-
-static int _dw_dp_hdcp_check_link(struct dw_dp *dp)
-{
-	u8 bstatus;
-	int ret;
-
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_AUX_HDCP_BSTATUS, &bstatus);
-	if (ret < 0)
-		return ret;
-
-	if (bstatus & (DP_BSTATUS_LINK_FAILURE | DP_BSTATUS_REAUTH_REQ))
-		return -EINVAL;
-
-	return 0;
-}
-
-static int dw_dp_hdcp_check_link(struct dw_dp *dp)
-{
-	int ret = 0;
-
-	mutex_lock(&dp->hdcp.mutex);
-
-	if (dp->hdcp.value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
-		goto out;
-
-	ret = _dw_dp_hdcp_check_link(dp);
-	if (!ret)
-		goto out;
-
-	dev_info(dp->dev, "HDCP link failed, retrying authentication\n");
-
-	if (dp->hdcp.status == HDCP_TX_2) {
-		ret = _dw_dp_hdcp2_disable(dp);
-		if (ret) {
-			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-			schedule_work(&dp->hdcp.prop_work);
-			goto out;
-		}
-
-		ret = _dw_dp_hdcp2_enable(dp);
-		if (ret) {
-			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-			schedule_work(&dp->hdcp.prop_work);
-		}
-	} else if (dp->hdcp.status == HDCP_TX_1) {
-		ret = _dw_dp_hdcp_disable(dp);
-		if (ret) {
-			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-			schedule_work(&dp->hdcp.prop_work);
-			goto out;
-		}
-
-		ret = _dw_dp_hdcp_enable(dp);
-		if (ret) {
-			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-			schedule_work(&dp->hdcp.prop_work);
-		}
-	}
-
-out:
-	mutex_unlock(&dp->hdcp.mutex);
 	return ret;
 }
 
 static void dw_dp_hdcp_check_work(struct work_struct *work)
 {
-	struct delayed_work *d_work = to_delayed_work(work);
 	struct dw_dp_hdcp *hdcp =
-		container_of(d_work, struct dw_dp_hdcp, check_work);
+		container_of(work, struct dw_dp_hdcp, check_work);
 	struct dw_dp *dp =
 		container_of(hdcp, struct dw_dp, hdcp);
+	u32 value;
+	int ret;
 
-	if (!dw_dp_hdcp_check_link(dp))
-		schedule_delayed_work(&hdcp->check_work,
-				      hdcp->check_link_interval);
+	mutex_lock(&dp->hdcp.mutex);
+	regmap_read(dp->regmap, DPTX_HDCPOBS, &value);
+
+	if (!(value & (HDCP13_REAUTHENTICATION_REQUEST | HDCP13_LINK_INTEGRITY_FAILURE)))
+		goto out;
+
+	if (dp->hdcp.value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		goto out;
+
+	if (dp->hdcp.status != HDCP_TX_1)
+		goto out;
+
+	dev_info(dp->dev, "HDCP link failed or reauth request, retrying authentication\n");
+	ret = _dw_dp_hdcp_disable(dp);
+	if (ret) {
+		dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&dp->hdcp.prop_work);
+		goto out;
+	}
+
+	ret = _dw_dp_hdcp_enable(dp);
+	if (ret) {
+		dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&dp->hdcp.prop_work);
+	}
+out:
+	mutex_unlock(&dp->hdcp.mutex);
 }
 
 static void dp_dp_hdcp_prop_work(struct work_struct *work)
@@ -1018,7 +982,7 @@ static void dp_dp_hdcp_prop_work(struct work_struct *work)
 
 static void dw_dp_hdcp_init(struct dw_dp *dp)
 {
-	INIT_DELAYED_WORK(&dp->hdcp.check_work, dw_dp_hdcp_check_work);
+	INIT_WORK(&dp->hdcp.check_work, dw_dp_hdcp_check_work);
 	INIT_WORK(&dp->hdcp.prop_work, dp_dp_hdcp_prop_work);
 	mutex_init(&dp->hdcp.mutex);
 }
@@ -1051,8 +1015,10 @@ static void dw_dp_handle_hdcp_event(struct dw_dp *dp)
 	if (value & HDCP22_GPIOINT)
 		dev_info(dp->dev, "A change in HDCP22 GPIO Output status\n");
 
-	if (value & HDCP_FAILED)
+	if (value & HDCP_FAILED) {
+		schedule_work(&dp->hdcp.check_work);
 		dev_err(dp->dev, " HDCP authentication process failed\n");
+	}
 
 	if (value & HDCP_ENGAGED) {
 		complete(&dp->hdcp_complete);
@@ -3592,8 +3558,7 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 	u32 value;
 
 	if (on) {
-		if (dp->dynamic_pd_ctrl)
-			pm_runtime_get_sync(dp->dev);
+		pm_runtime_get_sync(dp->dev);
 		di->color_formats = DRM_COLOR_FORMAT_RGB444;
 		di->bpc = 8;
 
@@ -3647,10 +3612,8 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 		extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
 		dw_dp_audio_handle_plugged_change(dp->audio, false);
 
-		if (dp->dynamic_pd_ctrl) {
-			pm_runtime_mark_last_busy(dp->dev);
-			pm_runtime_put_autosuspend(dp->dev);
-		}
+		pm_runtime_mark_last_busy(dp->dev);
+		pm_runtime_put_autosuspend(dp->dev);
 	}
 }
 
@@ -4048,6 +4011,9 @@ static void dw_dp_enable_vop_gate(struct dw_dp *dp, struct drm_crtc *crtc,
 				  int stream_id, bool enable)
 {
 	int output_if;
+
+	if (!crtc)
+		return;
 
 	switch (stream_id) {
 	case 0:

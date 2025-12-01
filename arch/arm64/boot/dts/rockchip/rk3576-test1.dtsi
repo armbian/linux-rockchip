@@ -49,6 +49,45 @@
 		};
 	};
 
+	es8390_sound: es8390-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8390";
+		hp-det-gpio = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 3>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		spk-con-gpio = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		hp-con-gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai4>;
+		rockchip,codec = <&es8390>;
+		rockchip,audio-routing =
+			"Headphone", "HPOL",
+			"Headphone", "HPOR",
+			"Speaker", "HPOL",
+			"Speaker", "HPOR",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"INPUT1", "Main Mic",
+			"INPUT1", "Main Mic",
+			"INPUT2", "Headset Mic",
+			"INPUT2", "Headset Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
+		};
+	};
+
 	vcc_1v8_s0: vcc-1v8-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8_s0";
@@ -422,6 +461,19 @@
 		status = "okay";
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x10>;
+		clocks = <&mclkout_sai4>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai4>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai4m3_mclk>;
+	};
+
+	es8390: es8390@10 {
+		status = "disabled";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8390", "everest,es8389";
 		reg = <0x10>;
 		clocks = <&mclkout_sai4>;
 		clock-names = "mclk";

@@ -938,6 +938,14 @@ static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 	return NULL;
 }
 
+static bool is_deserializer_name(const char *name)
+{
+	if (!name)
+		return false;
+
+	return strstr(name, "-des");
+}
+
 static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input)
 {
 	switch (pixelformat) {
@@ -2025,7 +2033,9 @@ static void rkcif_rdbk_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && active_buf) {
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    active_buf &&
+	    !stream->tools_vdev->is_cap_scale) {
 		list_add_tail(&active_buf->list_tool, &stream->tools_vdev->buf_done_head);
 		active_buf->use_cnt = 2;
 		if (!work_busy(&stream->tools_vdev->work))
@@ -6207,7 +6217,9 @@ void rkcif_buf_queue(struct vb2_buffer *vb)
 	int i;
 	bool is_find_tools_buf = false;
 
-	if (tools_vdev) {
+	if (tools_vdev &&
+	    tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    !tools_vdev->is_cap_scale) {
 		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
 		if (!list_empty(&tools_vdev->src_buf_head)) {
 			list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
@@ -6931,8 +6943,12 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	u64 cur_time = 0;
 	u64 fs_time = 0;
 	int on = 0;
+	struct rkmodule_channel_stream ch_stream;
 
-	mutex_lock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_lock(&dev->hw_dev->dev_lock);
+	else
+		mutex_lock(&dev->stream_lock);
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start stopping, total mode 0x%x, cur 0x%x\n",
 		stream->id, stream->cur_stream_mode, mode);
@@ -6977,6 +6993,13 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 
 		video_device_pipeline_stop(&node->vdev);
+		if (is_deserializer_name(dev->terminal_sensor.sd->name)) {
+			ch_stream.channel = stream->id;
+			ch_stream.enable = 0;
+			if (v4l2_subdev_call(dev->terminal_sensor.sd,
+			    core, ioctl, RKMODULE_SET_CHANNEL_STREAM, &ch_stream))
+				v4l2_info(&dev->v4l2_dev, "stream[%d] serdes failed to stream off single channel\n", stream->id);
+		}
 		if (dev->is_camera_over_bridge) {
 			ret = v4l2_subdev_call(dev->sditf[stream->id]->sensor_sd,
 					       video,
@@ -7073,7 +7096,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 		if (atomic_read(&dev->pipe.stream_cnt) == 0)
 			dev->can_be_reset = true;
-		mutex_lock(&hw_dev->dev_lock);
+		if (dev->chip_id >= CHIP_RK3588_CIF)
+			mutex_lock(&hw_dev->dev_lock);
 		for (i = 0; i < hw_dev->dev_num; i++) {
 			if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
 				can_reset = false;
@@ -7082,7 +7106,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 		if (can_reset && hw_dev->dummy_buf.vaddr)
 			rkcif_destroy_dummy_buf(stream);
-		mutex_unlock(&hw_dev->dev_lock);
+		if (dev->chip_id >= CHIP_RK3588_CIF)
+			mutex_unlock(&hw_dev->dev_lock);
 		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF) {
 			rkcif_do_soft_reset(dev);
 			atomic_set(&dev->streamoff_cnt, 0);
@@ -7125,14 +7150,19 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		INIT_LIST_HEAD(&stream->vb_done_list);
 	}
 
-	if (mode == stream->cur_stream_mode)
-		rkcif_detach_sync_mode(dev);
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->is_alloc_buf_user)
 		rkcif_free_buf_by_user_require(dev);
 	rkcif_free_fence(stream);
 	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
-	mutex_unlock(&dev->stream_lock);
+
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_unlock(&dev->hw_dev->dev_lock);
+	else
+		mutex_unlock(&dev->stream_lock);
+
+	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE)
+		rkcif_detach_sync_mode(dev);
 }
 
 static void rkcif_stop_streaming(struct vb2_queue *queue)
@@ -8666,11 +8696,15 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	int i = 0;
 	u32 skip_frame = 0;
 	int on = 1;
+	struct rkmodule_channel_stream ch_stream;
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
 	rkcif_attach_sync_mode(dev);
-	mutex_lock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_lock(&hw_dev->dev_lock);
+	else
+		mutex_lock(&dev->stream_lock);
 
 	if ((stream->cur_stream_mode & RKCIF_STREAM_MODE_CAPTURE) == mode) {
 		ret = -EBUSY;
@@ -8734,7 +8768,6 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	if (ret < 0)
 		goto destroy_buf;
 
-	mutex_lock(&hw_dev->dev_lock);
 	if (atomic_read(&dev->pipe.stream_cnt) == 0 &&
 	    dev->active_sensor &&
 	    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
@@ -8770,18 +8803,22 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 
 	}
 
+	if (dev->chip_id >= CHIP_RK3588_CIF)
+		mutex_lock(&hw_dev->dev_lock);
 	if (((dev->active_sensor && dev->active_sensor->mbus.type == V4L2_MBUS_BT656) ||
 	     dev->is_use_dummybuf) &&
 	    (!dev->hw_dev->dummy_buf.vaddr) &&
 	    mode == RKCIF_STREAM_MODE_CAPTURE) {
 		ret = rkcif_create_dummy_buf(stream);
 		if (ret < 0) {
-			mutex_unlock(&hw_dev->dev_lock);
+			if (dev->chip_id >= CHIP_RK3588_CIF)
+				mutex_unlock(&hw_dev->dev_lock);
 			v4l2_err(v4l2_dev, "Failed to create dummy_buf, %d\n", ret);
 			goto destroy_buf;
 		}
 	}
-	mutex_unlock(&hw_dev->dev_lock);
+	if (dev->chip_id >= CHIP_RK3588_CIF)
+		mutex_unlock(&hw_dev->dev_lock);
 
 	if (mode == RKCIF_STREAM_MODE_CAPTURE)
 		tasklet_enable(&stream->vb_done_tasklet);
@@ -8894,6 +8931,13 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 			if (ret < 0)
 				goto stop_stream;
 		}
+		if (is_deserializer_name(dev->terminal_sensor.sd->name)) {
+			ch_stream.channel = stream->id;
+			ch_stream.enable = 1;
+			if (v4l2_subdev_call(dev->terminal_sensor.sd,
+			    core, ioctl, RKMODULE_SET_CHANNEL_STREAM, &ch_stream))
+				v4l2_info(&dev->v4l2_dev, "stream[%d] serdes failed to stream on single channel\n", stream->id);
+		}
 	}
 	if (dev->chip_id == CHIP_RV1126_CIF ||
 	    dev->chip_id == CHIP_RV1126_CIF_LITE ||
@@ -8948,7 +8992,10 @@ destroy_buf:
 	}
 
 out:
-	mutex_unlock(&dev->stream_lock);
+	if (dev->chip_id < CHIP_RK3588_CIF)
+		mutex_unlock(&hw_dev->dev_lock);
+	else
+		mutex_unlock(&dev->stream_lock);
 	return ret;
 }
 
@@ -9320,6 +9367,7 @@ int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct sditf_priv *priv = cif_dev->sditf[0];
 	int i = 0;
+	struct rkmodule_channel_power ch_power;
 
 	if (!on && atomic_dec_if_positive(&cif_dev->sd_power_cnt))
 		return 0;
@@ -9342,6 +9390,14 @@ int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 				v4l2_subdev_call(cif_dev->sditf[stream->id]->sensor_sd, core,
 						 s_power, on);
 		}
+	}
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+		ch_power.channel = stream->id;
+		ch_power.enable = on;
+		if (v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+		    core, ioctl, RKMODULE_SET_CHANNEL_POWER, &ch_power))
+			v4l2_info(&cif_dev->v4l2_dev, "stream[%d] serdes failed to power %s single channel\n",
+				  stream->id, on ? "on" : "off");
 	}
 	return 0;
 }
@@ -11869,7 +11925,7 @@ static void rkcif_buf_done_with_tools(struct rkcif_stream *stream,
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING && !stream->tools_vdev->is_cap_scale) {
 		list_add_tail(&active_buf->queue, &stream->tools_vdev->buf_done_head);
 		if (!work_busy(&stream->tools_vdev->work))
 			schedule_work(&stream->tools_vdev->work);
@@ -14627,6 +14683,7 @@ static int rkcif_subdevs_set_power(struct rkcif_device *cif_dev, int on)
 	struct sditf_priv *priv = cif_dev->sditf[0];
 	int ret = 0;
 	int i = 0;
+	struct rkmodule_channel_power ch_power;
 
 	if (cif_dev->terminal_sensor.sd)
 		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
@@ -14645,6 +14702,19 @@ static int rkcif_subdevs_set_power(struct rkcif_device *cif_dev, int on)
 				     cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING))
 					v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core,
 							 s_power, on);
+			}
+		}
+	}
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+		for (i = 0; i < cif_dev->num_channels; i++) {
+			if (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+			    cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING) {
+				ch_power.channel = cif_dev->stream[i].id;
+				ch_power.enable = on;
+				if (v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				    core, ioctl, RKMODULE_SET_CHANNEL_POWER, &ch_power))
+					v4l2_info(&cif_dev->v4l2_dev, "stream[%d] serdes failed to power %s single channel\n",
+						  cif_dev->stream[i].id, on ? "on" : "off");
 			}
 		}
 	}
@@ -14709,6 +14779,7 @@ static int rkcif_sditf_sensor_set_stream(struct rkcif_device *cif_dev, int on)
 	struct sditf_priv *priv = cif_dev->sditf[0];
 	int i = 0;
 	int ret = 0;
+	struct rkmodule_channel_stream ch_stream;
 
 	if (priv && cif_dev->sditf_cnt > 1) {
 		if (cif_dev->is_camera_over_bridge) {
@@ -14738,6 +14809,19 @@ static int rkcif_sditf_sensor_set_stream(struct rkcif_device *cif_dev, int on)
 		}
 	}
 
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+		for (i = 0; i < cif_dev->num_channels; i++) {
+			if (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+			    cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING) {
+				ch_stream.channel = cif_dev->stream[i].id;
+				ch_stream.enable = on;
+				if (v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				    core, ioctl, RKMODULE_SET_CHANNEL_STREAM, &ch_stream))
+					v4l2_info(&cif_dev->v4l2_dev, "stream[%d] serdes failed to stream %s single channel\n",
+						  cif_dev->stream[i].id, on ? "on" : "off");
+			}
+		}
+	}
 	return ret;
 }
 

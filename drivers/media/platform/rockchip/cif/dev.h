@@ -131,7 +131,8 @@ enum rkcif_stream_mode {
 	RKCIF_STREAM_MODE_TOISP      = 0x02,
 	RKCIF_STREAM_MODE_TOSCALE    = 0x04,
 	RKCIF_STREAM_MODE_TOISP_RDBK = 0x08,
-	RKCIF_STREAM_MODE_ROCKIT     = 0x10
+	RKCIF_STREAM_MODE_ROCKIT     = 0x10,
+	RKCIF_STREAM_MODE_TOOL       = 0x20,
 };
 
 enum rkcif_yuvaddr_state {
@@ -826,6 +827,7 @@ struct rkcif_scale_vdev {
 	unsigned int frame_idx;
 	int scl_mode;
 	int extrac_pattern;
+	int cur_stream_mode;
 	bool stopping;
 };
 
@@ -878,6 +880,7 @@ struct rkcif_tools_vdev {
 	int frame_phase;
 	unsigned int frame_idx;
 	bool stopping;
+	bool is_cap_scale;
 };
 
 static inline
@@ -1213,4 +1216,13 @@ int rkcif_sensor_set_power(struct rkcif_stream *stream, int on);
 void rkcif_switch_change(struct rkcif_device *cif_dev, bool is_switch);
 
 void rkcif_update_unite_extend_pixel(struct rkcif_device *cif_dev);
+
+int rkcif_scale_do_start_stream(struct rkcif_scale_vdev *scale_vdev, enum rkcif_stream_mode mode);
+void rkcif_scale_do_stop_stream(struct rkcif_scale_vdev *scale_vdev, enum rkcif_stream_mode mode);
+int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
+			struct v4l2_pix_format_mplane *pixm, bool try);
+void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb);
+void rkcif_scale_vb_done_oneframe(struct rkcif_scale_vdev *scale_vdev,
+				  struct vb2_v4l2_buffer *vb_done);
+
 #endif

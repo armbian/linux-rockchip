@@ -1387,7 +1387,8 @@ static int sditf_check_toolbuf_return(struct rkcif_stream *stream, struct rkcif_
 	struct rkcif_tools_vdev *tools_vdev = stream->tools_vdev;
 	unsigned long flags;
 
-	if (tools_vdev) {
+	if (tools_vdev && tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    !tools_vdev->is_cap_scale) {
 		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
 
 		if (rx_buf->use_cnt)

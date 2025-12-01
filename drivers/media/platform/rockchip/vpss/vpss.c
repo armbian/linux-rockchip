@@ -294,8 +294,18 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 		rkvpss_update_regs(dev, RKVPSS_VPSS_Y2R_COE00, RKVPSS_VPSS_Y2R_OFF2);
 		rkvpss_update_regs(dev, RKVPSS_CMSC_INTSCT_CORR, RKVPSS_CMSC_WIN7_L3_SLP);
 		rkvpss_update_regs(dev, RKVPSS_CROP1_0_H_OFFS, RKVPSS_CROP1_3_V_SIZE);
-		rkvpss_update_regs(dev, RKVPSS_ZME_Y_HOR_COE0_10, RKVPSS_ZME_UV_VER_COE16_76);
-		rkvpss_update_regs(dev, RKVPSS_ZME_H_SIZE, RKVPSS_ZME_UV_YSCL_FACTOR);
+		if (is_vpss_v10(hw)) {
+			rkvpss_update_regs(dev, RKVPSS_ZME_Y_HOR_COE0_10, RKVPSS_ZME_UV_VER_COE16_76);
+			rkvpss_update_regs(dev, RKVPSS_ZME_H_SIZE, RKVPSS_ZME_UV_YSCL_FACTOR);
+		}
+		if (is_vpss_v20(hw)) {
+			rkvpss_update_regs(dev, RKVPSS_VPSS_CLK_GATE, RKVPSS_VPSS_CLK_GATE);
+			rkvpss_update_regs(dev, RKVPSS2X_CROP1_4_OFFS, RKVPSS2X_CROP1_5_SIZE);
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE0_SRC_SIZE, RKVPSS2X_SCALE0_IN_CROP_OFFSET);
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE4_SRC_SIZE, RKVPSS2X_SCALE4_IN_CROP_OFFSET);
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE5_SRC_SIZE, RKVPSS2X_SCALE5_IN_CROP_OFFSET);
+			rkvpss_update_regs(dev, RKVPSS2X_MI_CHN4_WR_CTRL, RKVPSS2X_MI_CHN5_WR_LINE_CNT);
+		}
 		rkvpss_update_regs(dev, RKVPSS_SCALE1_SRC_SIZE, RKVPSS_SCALE1_IN_CROP_OFFSET);
 		rkvpss_update_regs(dev, RKVPSS_SCALE2_SRC_SIZE, RKVPSS_SCALE2_IN_CROP_OFFSET);
 		rkvpss_update_regs(dev, RKVPSS_SCALE3_SRC_SIZE, RKVPSS_SCALE3_IN_CROP_OFFSET);
@@ -306,7 +316,13 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 		rkvpss_update_regs(dev, RKVPSS_SCALE3_CTRL, RKVPSS_SCALE3_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_SCALE2_CTRL, RKVPSS_SCALE2_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_SCALE1_CTRL, RKVPSS_SCALE1_UPDATE);
-		rkvpss_update_regs(dev, RKVPSS_ZME_CTRL, RKVPSS_ZME_UPDATE);
+		if (is_vpss_v20(hw)) {
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE0_CTRL, RKVPSS2X_SCALE0_UPDATE);
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE4_CTRL, RKVPSS2X_SCALE4_UPDATE);
+			rkvpss_update_regs(dev, RKVPSS2X_SCALE5_CTRL, RKVPSS2X_SCALE5_UPDATE);
+		}
+		if (is_vpss_v10(hw))
+			rkvpss_update_regs(dev, RKVPSS_ZME_CTRL, RKVPSS_ZME_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_CROP1_CTRL, RKVPSS_CROP1_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_CMSC_CTRL, RKVPSS_CMSC_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_VPSS_UPDATE, RKVPSS_VPSS_UPDATE);

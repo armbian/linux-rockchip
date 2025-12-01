@@ -731,12 +731,19 @@ static void rockchip_drm_mode_fixup(struct drm_crtc_state *crtc_state,
 	struct drm_encoder *encoder = conn_state->best_encoder;
 	struct drm_crtc *crtc = crtc_state->crtc;
 	struct drm_bridge *bridge;
+	struct drm_display_info *di;
 	int ret;
 
 	ret = drm_atomic_set_mode_for_crtc(crtc_state, adj_mode);
 	if (ret)
 		return;
 
+	if (!conn_state->connector) {
+		conn_state->max_bpc = 8;
+	} else {
+		di = &conn_state->connector->display_info;
+		conn_state->max_bpc = di->bpc ? di->bpc : 8;
+	}
 	bridge = drm_bridge_chain_get_first_bridge(encoder);
 	if (bridge) {
 		/*

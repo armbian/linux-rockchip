@@ -258,9 +258,9 @@ cif_output_fmt *rkcif_scale_find_output_fmt(u32 pixelfmt)
 	return NULL;
 }
 
-static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
-			       struct v4l2_pix_format_mplane *pixm,
-			       bool try)
+int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
+			struct v4l2_pix_format_mplane *pixm,
+			bool try)
 {
 	struct rkcif_stream *stream = scale_vdev->stream;
 	struct rkcif_device *cif_dev = scale_vdev->cifdev;
@@ -671,7 +671,7 @@ static int rkcif_scale_vb2_queue_setup(struct vb2_queue *queue,
 
 }
 
-static void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb)
+void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rkcif_buffer *cifbuf = to_rkcif_buffer(vbuf);
@@ -682,7 +682,32 @@ static void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkcif_hw *hw_dev = scale_vdev->cifdev->hw_dev;
 	unsigned long lock_flags = 0;
 	int i;
+	struct rkcif_tools_buffer *tools_buf;
+	struct rkcif_tools_vdev *tools_vdev = scale_vdev->stream->tools_vdev;
+	bool is_find_tools_buf = false;
 
+	if (tools_vdev &&
+	    tools_vdev->state == RKCIF_STATE_STREAMING &&
+	    tools_vdev->is_cap_scale) {
+		spin_lock_irqsave(&tools_vdev->vbq_lock, lock_flags);
+		if (!list_empty(&tools_vdev->src_buf_head)) {
+			list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
+				if (tools_buf->vb == vbuf) {
+					is_find_tools_buf = true;
+					break;
+				}
+			}
+			if (is_find_tools_buf) {
+				if (tools_buf->use_cnt)
+					tools_buf->use_cnt--;
+				if (tools_buf->use_cnt) {
+					spin_unlock_irqrestore(&tools_vdev->vbq_lock, lock_flags);
+					return;
+				}
+			}
+		}
+		spin_unlock_irqrestore(&tools_vdev->vbq_lock, lock_flags);
+	}
 	memset(cifbuf->buff_addr, 0, sizeof(cifbuf->buff_addr));
 	/* If mplanes > 1, every c-plane has its own m-plane,
 	 * otherwise, multiple c-planes are in the same m-plane
@@ -739,15 +764,20 @@ static int rkcif_scale_stop(struct rkcif_scale_vdev *scale_vdev)
 	return 0;
 }
 
-static void rkcif_scale_vb2_stop_streaming(struct vb2_queue *vq)
+void rkcif_scale_do_stop_stream(struct rkcif_scale_vdev *scale_vdev,
+				enum rkcif_stream_mode mode)
 {
-	struct rkcif_scale_vdev *scale_vdev = vq->drv_priv;
 	struct rkcif_device *dev = scale_vdev->cifdev;
 	struct rkcif_stream *stream = scale_vdev->stream;
 	struct rkcif_buffer *buf = NULL;
 	int ret = 0;
 
 	mutex_lock(&dev->scale_lock);
+	if (scale_vdev->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
+		v4l2_err(&scale_vdev->cifdev->v4l2_dev,
+			 "scale stream already stop, pls check logic\n");
+		goto end_stop_scale;
+	}
 	/* Make sure no new work queued in isr before draining wq */
 	scale_vdev->stopping = true;
 	ret = wait_event_timeout(scale_vdev->wq_stopped,
@@ -774,7 +804,18 @@ static void rkcif_scale_vb2_stop_streaming(struct vb2_queue *vq)
 	}
 	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE)
 		rkcif_do_stop_stream(stream, RKCIF_STREAM_MODE_TOSCALE);
+
+	scale_vdev->cur_stream_mode &= ~mode;
+end_stop_scale:
+
 	mutex_unlock(&dev->scale_lock);
+}
+
+static void rkcif_scale_vb2_stop_streaming(struct vb2_queue *vq)
+{
+	struct rkcif_scale_vdev *scale_vdev = vq->drv_priv;
+
+	rkcif_scale_do_stop_stream(scale_vdev, RKCIF_STREAM_MODE_TOSCALE);
 }
 
 static int rkcif_scale_channel_init(struct rkcif_scale_vdev *scale_vdev)
@@ -881,15 +922,25 @@ static void rkcif_assign_scale_buffer_init(struct rkcif_scale_vdev *scale_vdev,
 	u32 frm0_addr;
 	u32 frm1_addr;
 	unsigned long flags;
+	struct list_head *buf_head;
+	spinlock_t *vbq_lock;
+
+	if (scale_vdev->cur_stream_mode == RKCIF_STREAM_MODE_TOSCALE) {
+		buf_head = &scale_vdev->buf_head;
+		vbq_lock = &scale_vdev->vbq_lock;
+	} else {
+		buf_head = &scale_vdev->stream->tools_vdev->buf_head;
+		vbq_lock = &scale_vdev->stream->tools_vdev->vbq_lock;
+	}
 
 	frm0_addr = get_reg_index_of_scale_frm0_addr(ch);
 	frm1_addr = get_reg_index_of_scale_frm1_addr(ch);
 
-	spin_lock_irqsave(&scale_vdev->vbq_lock, flags);
+	spin_lock_irqsave(vbq_lock, flags);
 
 	if (!scale_vdev->curr_buf) {
-		if (!list_empty(&scale_vdev->buf_head)) {
-			scale_vdev->curr_buf = list_first_entry(&scale_vdev->buf_head,
+		if (!list_empty(buf_head)) {
+			scale_vdev->curr_buf = list_first_entry(buf_head,
 							    struct rkcif_buffer,
 							    queue);
 			list_del(&scale_vdev->curr_buf->queue);
@@ -901,8 +952,8 @@ static void rkcif_assign_scale_buffer_init(struct rkcif_scale_vdev *scale_vdev,
 				     scale_vdev->curr_buf->buff_addr[RKCIF_PLANE_Y]);
 
 	if (!scale_vdev->next_buf) {
-		if (!list_empty(&scale_vdev->buf_head)) {
-			scale_vdev->next_buf = list_first_entry(&scale_vdev->buf_head,
+		if (!list_empty(buf_head)) {
+			scale_vdev->next_buf = list_first_entry(buf_head,
 							    struct rkcif_buffer, queue);
 			list_del(&scale_vdev->next_buf->queue);
 		}
@@ -912,7 +963,7 @@ static void rkcif_assign_scale_buffer_init(struct rkcif_scale_vdev *scale_vdev,
 		rkcif_write_register(dev, frm1_addr,
 				     scale_vdev->next_buf->buff_addr[RKCIF_PLANE_Y]);
 
-	spin_unlock_irqrestore(&scale_vdev->vbq_lock, flags);
+	spin_unlock_irqrestore(vbq_lock, flags);
 }
 
 static int rkcif_assign_scale_buffer_update(struct rkcif_scale_vdev *scale_vdev,
@@ -923,22 +974,32 @@ static int rkcif_assign_scale_buffer_update(struct rkcif_scale_vdev *scale_vdev,
 	u32 frm_addr;
 	int ret = 0;
 	unsigned long flags;
+	struct list_head *buf_head;
+	spinlock_t *vbq_lock;
+
+	if (scale_vdev->cur_stream_mode == RKCIF_STREAM_MODE_TOSCALE) {
+		buf_head = &scale_vdev->buf_head;
+		vbq_lock = &scale_vdev->vbq_lock;
+	} else {
+		buf_head = &scale_vdev->stream->tools_vdev->buf_head;
+		vbq_lock = &scale_vdev->stream->tools_vdev->vbq_lock;
+	}
 
 	frm_addr = scale_vdev->frame_phase & CIF_CSI_FRAME0_READY ?
 		   get_reg_index_of_scale_frm0_addr(channel_id) :
 		   get_reg_index_of_scale_frm1_addr(channel_id);
 
-	spin_lock_irqsave(&scale_vdev->vbq_lock, flags);
-	if (!list_empty(&scale_vdev->buf_head)) {
+	spin_lock_irqsave(vbq_lock, flags);
+	if (!list_empty(buf_head)) {
 		if (scale_vdev->frame_phase == CIF_CSI_FRAME0_READY) {
-			scale_vdev->curr_buf = list_first_entry(&scale_vdev->buf_head,
+			scale_vdev->curr_buf = list_first_entry(buf_head,
 							    struct rkcif_buffer, queue);
 			if (scale_vdev->curr_buf) {
 				list_del(&scale_vdev->curr_buf->queue);
 				buffer = scale_vdev->curr_buf;
 			}
 		} else if (scale_vdev->frame_phase == CIF_CSI_FRAME1_READY) {
-			scale_vdev->next_buf = list_first_entry(&scale_vdev->buf_head,
+			scale_vdev->next_buf = list_first_entry(buf_head,
 							    struct rkcif_buffer, queue);
 			if (scale_vdev->next_buf) {
 				list_del(&scale_vdev->next_buf->queue);
@@ -948,7 +1009,7 @@ static int rkcif_assign_scale_buffer_update(struct rkcif_scale_vdev *scale_vdev,
 	} else {
 		buffer = NULL;
 	}
-	spin_unlock_irqrestore(&scale_vdev->vbq_lock, flags);
+	spin_unlock_irqrestore(vbq_lock, flags);
 
 	if (buffer) {
 		rkcif_write_register(dev, frm_addr,
@@ -1122,16 +1183,8 @@ static int rkcif_scale_channel_set_rv1126b(struct rkcif_scale_vdev *scale_vdev)
 
 int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
 {
-	int ret = 0;
 	struct rkcif_device *dev = scale_vdev->cifdev;
-	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-
-	mutex_lock(&dev->scale_lock);
-	if (scale_vdev->state == RKCIF_STATE_STREAMING) {
-		ret = -EBUSY;
-		v4l2_err(v4l2_dev, "stream in busy state\n");
-		goto destroy_buf;
-	}
+	int ret = 0;
 
 	rkcif_scale_channel_init(scale_vdev);
 	if (dev->chip_id >= CHIP_RV1126B_CIF)
@@ -1140,10 +1193,35 @@ int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
 		ret = rkcif_scale_channel_set_rk3576(scale_vdev);
 	else
 		ret = rkcif_scale_channel_set(scale_vdev);
-	if (ret)
-		goto destroy_buf;
+
 	scale_vdev->frame_idx = 0;
 	scale_vdev->state = RKCIF_STATE_STREAMING;
+
+	return ret;
+}
+
+int rkcif_scale_do_start_stream(struct rkcif_scale_vdev *scale_vdev, enum rkcif_stream_mode mode)
+{
+	struct rkcif_device *dev = scale_vdev->cifdev;
+	struct rkcif_stream *stream = scale_vdev->stream;
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	int ret = 0;
+
+	mutex_lock(&dev->scale_lock);
+	if (scale_vdev->state == RKCIF_STATE_STREAMING) {
+		ret = -EBUSY;
+		v4l2_err(v4l2_dev, "scale stream in busy state\n");
+		goto destroy_buf;
+	}
+
+	scale_vdev->cur_stream_mode = mode;
+	ret = rkcif_scale_start(scale_vdev);
+	if (ret)
+		goto destroy_buf;
+
+	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE)
+		rkcif_do_start_stream(stream, RKCIF_STREAM_MODE_TOSCALE);
+
 	mutex_unlock(&dev->scale_lock);
 	return 0;
 
@@ -1171,16 +1249,8 @@ rkcif_scale_vb2_start_streaming(struct vb2_queue *queue,
 				unsigned int count)
 {
 	struct rkcif_scale_vdev *scale_vdev = queue->drv_priv;
-	struct rkcif_stream *stream = scale_vdev->stream;
-	int ret = 0;
 
-	ret = rkcif_scale_start(scale_vdev);
-	if (ret)
-		return ret;
-	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE)
-		rkcif_do_start_stream(stream, RKCIF_STREAM_MODE_TOSCALE);
-
-	return 0;
+	return rkcif_scale_do_start_stream(scale_vdev, RKCIF_STREAM_MODE_TOSCALE);
 }
 
 static struct vb2_ops rkcif_scale_vb2_ops = {
@@ -1257,8 +1327,8 @@ static int rkcif_scale_g_ch(struct rkcif_device *dev,
 	return -EINVAL;
 }
 
-static void rkcif_scale_vb_done_oneframe(struct rkcif_scale_vdev *scale_vdev,
-					 struct vb2_v4l2_buffer *vb_done)
+void rkcif_scale_vb_done_oneframe(struct rkcif_scale_vdev *scale_vdev,
+				  struct vb2_v4l2_buffer *vb_done)
 {
 	const struct cif_output_fmt *fmt = scale_vdev->scale_out_fmt;
 	u32 i;
@@ -1281,6 +1351,7 @@ static void rkcif_scale_update_stream(struct rkcif_scale_vdev *scale_vdev, int c
 {
 	struct rkcif_buffer *active_buf = NULL;
 	struct vb2_v4l2_buffer *vb_done = NULL;
+	struct rkcif_stream *stream = scale_vdev->stream;
 	int ret = 0;
 
 	if (scale_vdev->frame_phase & CIF_CSI_FRAME0_READY) {
@@ -1299,11 +1370,20 @@ static void rkcif_scale_update_stream(struct rkcif_scale_vdev *scale_vdev, int c
 		scale_vdev->frame_idx++;
 	else
 		scale_vdev->frame_idx = scale_vdev->stream->frame_idx;
+
 	if (active_buf && (!ret)) {
 		vb_done = &active_buf->vb;
 		vb_done->vb2_buf.timestamp = ktime_get_ns();
 		vb_done->sequence = scale_vdev->frame_idx - 1;
-		rkcif_scale_vb_done_oneframe(scale_vdev, vb_done);
+		if (stream->tools_vdev->state == RKCIF_STATE_STREAMING &&
+		    stream->tools_vdev->is_cap_scale &&
+		    scale_vdev->cur_stream_mode == RKCIF_STREAM_MODE_TOSCALE) {
+			list_add_tail(&active_buf->queue, &stream->tools_vdev->buf_done_head);
+			if (!work_busy(&stream->tools_vdev->work))
+				schedule_work(&stream->tools_vdev->work);
+		} else {
+			rkcif_scale_vb_done_oneframe(scale_vdev, vb_done);
+		}
 	}
 }
 
