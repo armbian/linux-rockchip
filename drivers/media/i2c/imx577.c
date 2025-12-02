@@ -142,8 +142,6 @@
 #define IMX577_GROUP_HOLD_START		0x01
 #define IMX577_GROUP_HOLD_END		0x00
 
-/* Basic Readout Lines. Number of necessary readout lines in sensor */
-#define BRL_FULL			3077
 #define CIT_MARGIN			22
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
@@ -1392,7 +1390,7 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	u32 l_d_gain, s_d_gain;
 	int ret = 0;
-	u32 fll, dol_cit1, dol_cit2, dol_off2;
+	u32 fll, dol_cit1, dol_cit2, dol_off2, brl_lines;
 
 	if (!imx577->has_init_exp && !imx577->streaming) {
 		imx577->init_hdrae_exp = *ae;
@@ -1400,6 +1398,7 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 		dev_dbg(&imx577->client->dev, "imx577 is not streaming, save hdr ae!\n");
 		return ret;
 	}
+	brl_lines = imx577->cur_mode->height + 37;
 	l_exp_time = ae->long_exp_reg;
 	m_exp_time = ae->middle_exp_reg;
 	s_exp_time = ae->short_exp_reg;
@@ -1455,27 +1454,33 @@ static int imx577_set_hdrae(struct imx577 *imx577,
 	}
 
 	fll = imx577->cur_vts;
-	dol_cit1 = l_exp_time >> 1;
-	dol_cit2 = s_exp_time >> 1;
+	dol_cit1 = l_exp_time;
+	dol_cit2 = s_exp_time;
 
 	/*dol_cit1 dol_cit2 dol_off2 should be even*/
-	if (dol_cit1 < 2)
+	if (dol_cit1 < 2) {
 		dol_cit1 = 2;
-	else if (dol_cit1 > fll - 2 * CIT_MARGIN - 2)
+		dev_info(&client->dev, "too small lfe\n");
+	} else if (dol_cit1 > fll - 2 * CIT_MARGIN - 2) {
 		dol_cit1 = fll - 2 * CIT_MARGIN - 2;
+		dev_info(&client->dev, "too big lfe, change from %d to %d\n", l_exp_time, dol_cit1);
+	}
 	dol_cit1 &= (~0x1);
 
-	if (dol_cit2 < 2)
+	if (dol_cit2 < 2) {
 		dol_cit2 = 2;
-	else if (dol_cit2 > fll - BRL_FULL - CIT_MARGIN)
-		dol_cit2 = fll - BRL_FULL - CIT_MARGIN;
+		dev_info(&client->dev, "too small sfe\n");
+	} else if (dol_cit2 > fll - brl_lines - CIT_MARGIN) {
+		dol_cit2 = fll - brl_lines - CIT_MARGIN;
+		dev_info(&client->dev, "too big sfe, change from %d to %d\n", s_exp_time, dol_cit2);
+	}
 	dol_cit2 &= (~0x1);
 
 	dol_off2 = (dol_cit2 + CIT_MARGIN) & (~0x1);
 	if (dol_off2 < dol_cit2 + CIT_MARGIN)
 		dol_off2 = (dol_cit2 + CIT_MARGIN) & (~0x1);
-	else if (dol_off2 > fll - BRL_FULL)
-		dol_off2 = (fll - BRL_FULL) & (~0x1);
+	else if (dol_off2 > fll - brl_lines)
+		dol_off2 = (fll - brl_lines) & (~0x1);
 
 	dev_dbg(&client->dev,
 		"l_exp_time=%d,s_exp_time=%d,fll=%d,rhs1=%d,l_a_gain=%d,s_a_gain=%d\n",
@@ -2113,6 +2118,8 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 					 imx577->exposure->step,
 					 imx577->exposure->default_value);
 		}
+		imx577->cur_vts = ctrl->val + imx577->cur_mode->height;
+		dev_dbg(&client->dev, "set vblank val %#x, real vts %#x", ctrl->val, imx577->cur_vts);
 		break;
 	}
 
