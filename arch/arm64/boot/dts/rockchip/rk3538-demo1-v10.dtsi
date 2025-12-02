@@ -1,0 +1,222 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3538.dtsi"
+#include <dt-bindings/input/rk-input.h>
+#include "rk3538-demo.dtsi"
+
+/{
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work-led {
+			gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "timer";
+		};
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_2 0 25000 1>;
+		regulator-name = "vdd_logic";
+		regulator-init-microvolt = <901000>;
+		regulator-min-microvolt = <703000>;
+		regulator-max-microvolt = <1006000>;
+		regulator-settling-time-up-us = <250>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_3 0 25000 1>;
+		regulator-name = "vdd_cpu";
+		regulator-init-microvolt = <953000>;
+		regulator-min-microvolt = <746000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-settling-time-up-us = <250>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_ddr: vcc-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v3_pmu: vcc3v3-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pmu";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_3v3: vcc_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc3v3_pmu>;
+	};
+
+	vcc1v8_pmu: vcc1v8-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v8_pmu";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc3v3_pmu>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc1v8_pmu>;
+	};
+
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		BT,reset_gpio    = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "rtl8733u";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake_irq = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&gpu {
+	mali-supply = <&vdd_logic>;
+};
+
+&nfc {
+	status = "okay";
+	nand: nand@0 {
+		reg = <0>;
+		label = "roku_nand";
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-step-size = <1024>;
+		nand-ecc-strength = <16>;
+		nand-is-boot-medium;
+		rockchip,boot-blks = <8>;
+		rockchip,boot-ecc-strength = <16>;
+	};
+};
+
+&pinctrl {
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&pwm0_4ch_0 {
+	compatible = "rockchip,remotectl-pwm-v4";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0m1_ch0_pins>;
+	remote_pwm_id = <0>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <0>;
+	status = "okay";
+
+	ir_key1 {
+		rockchip,usercode = <0xc7ea>;
+		rockchip,key_table =
+			<0xd5   0x2a>,	//ok
+			<0x99   0x66>,	//back
+			<0xfc   0x03>,	//home
+			<0xe6   0x19>,	//up
+			<0xcc   0x33>,	//down
+			<0xe1   0x1e>,	//left
+			<0xd2   0x2d>,	//right
+			<0xe8   0x17>,	//power
+			<0x70	0x09>,	//volumeup
+			<0xef	0x0a>,	//volumedown
+			<0xdf	0x0b>,	//mute
+			<0x87	0x78>,	//replay
+			<0x9d	0x62>,
+			<0x9e	0x61>,	//info
+			<0xcb	0x34>,	//backward
+			<0xaa	0x55>,	//forward
+			<0xb3	0x4c>,	//play/pause
+			<0xad	0x52>,	//netflix
+			<0xf3	0x0c>,	//disney
+			<0x88	0x77>,	//atv
+			<0xb2	0x4d>;	//hulu
+	};
+
+	ir_key2 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xb1	0x03>,	//home
+			<0xbf	0x66>,	//back
+			<0xaa	0x2a>,	//ok
+			<0xb9	0x19>,	//up
+			<0xe9	0x33>,	//down
+			<0xb8	0x1e>,	//left
+			<0xea	0x2d>,	//right
+			<0xeb	0x0a>,	//volumedown
+			<0xef	0x09>,	//volumeup
+			<0xf7	0x0b>,	//mute
+			<0xe7	0x17>;	//power
+	};
+};
+
+&pwm0_4ch_2 {
+	status = "okay";
+};
+
+&pwm0_4ch_3 {
+	pinctrl-0 = <&pwm0m1_ch3_pins>;
+	status = "okay";
+};
+
