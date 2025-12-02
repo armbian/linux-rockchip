@@ -64,10 +64,19 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 	sizes[0] = video->imagesize;
 
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	if (opts && opts->uvc_num_request > 0) {
+	/* set bulk max_payload_size to actual imagesize */
+	if (video->max_payload_size)
+		uvc->video.max_payload_size = video->imagesize;
+
+	if (opts && opts->uvc_num_request > 0)
 		video->uvc_num_requests = opts->uvc_num_request;
-		return 0;
-	}
+	else
+		video->uvc_num_requests = 4;
+
+	uvcg_info(&uvc->func, "set uvc_num_requests to %d\n",
+		  video->uvc_num_requests);
+
+	return 0;
 #endif
 
 	req_size = video->ep->maxpacket
@@ -236,7 +245,8 @@ int uvcg_queue_init(struct uvc_video_queue *queue, struct device *dev, enum v4l2
 	queue->queue.ops = &uvc_queue_qops;
 	queue->queue.lock = lock;
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	if (cdev->gadget->sg_supported && !opts->uvc_zero_copy) {
+	if (cdev->gadget->sg_supported && !opts->uvc_zero_copy &&
+	    !opts->streaming_bulk) {
 #else
 	if (cdev->gadget->sg_supported) {
 #endif

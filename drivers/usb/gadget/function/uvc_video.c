@@ -128,6 +128,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 	void *mem = req->buf;
 	struct uvc_request *ureq = req->context;
 	int len = video->req_size;
+	int encode_len = 0;
 	int ret;
 
 	/* Add a header at the beginning of the payload. */
@@ -136,16 +137,18 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 		video->payload_size += ret;
 		mem += ret;
 		len -= ret;
+		encode_len += ret;
 	}
 
 	/* Process video data. */
 	len = min((int)(video->max_payload_size - video->payload_size), len);
+	encode_len += len;
 	ret = uvc_video_encode_data(video, buf, mem, len);
 
 	video->payload_size += ret;
 	len -= ret;
 
-	req->length = video->req_size - len;
+	req->length = encode_len - len;
 	req->zero = video->payload_size == video->max_payload_size;
 
 	if (buf->bytesused == video->queue.buf_used) {
@@ -517,6 +520,8 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 			 * There is a new free request - wake up the pump.
 			 */
 			queue_work(video->async_wq, &video->pump);
+		} else if (is_bulk) {
+			queue_work(video->async_wq, &video->pump);
 		}
 	} else {
 		uvc_video_free_request(ureq, ep);
@@ -557,8 +562,22 @@ uvc_video_alloc_requests(struct uvc_video *video)
 			 * max_t(unsigned int, video->ep->maxburst, 1)
 			 * (video->ep->mult);
 	} else {
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		/*
+		 * Set req size 256KB for Super-Speed and 128KB for High-speed.
+		 * The larger value of the req size, the better transmission
+		 * performance of the USB controller. And the req size should
+		 * not exceed the max_payload_size which equals to image size.
+		 */
+		req_size = min_t(unsigned int, video->ep->maxpacket * 256,
+				 video->max_payload_size);
+		uvcg_info(&video->uvc->func,
+			  "req_size (%d)B max_payload_size (%d)B\n",
+			  req_size, video->max_payload_size);
+#else
 		req_size = video->ep->maxpacket
 			 * max_t(unsigned int, video->ep->maxburst, 1);
+#endif
 	}
 
 	for (i = 0; i < video->uvc_num_requests; i++) {
