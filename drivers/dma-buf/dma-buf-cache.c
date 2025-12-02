@@ -88,6 +88,7 @@ struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 	struct dma_buf_attachment *attach;
 	struct dma_buf_cache_list *data;
 	struct dma_buf_cache *cache;
+	bool need_cleanup = false;
 
 	mutex_lock(&dmabuf->cache_lock);
 
@@ -99,6 +100,7 @@ struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 		}
 		INIT_LIST_HEAD(&data->head);
 		dma_buf_set_destructor(dmabuf, dma_buf_cache_destructor, data);
+		need_cleanup = true;
 	}
 
 	if (dmabuf->dtor && dmabuf->dtor != dma_buf_cache_destructor) {
@@ -123,7 +125,7 @@ struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 	}
 	/* Cache attachment */
 	attach = dma_buf_attach(dmabuf, dev);
-	if (IS_ERR_OR_NULL(attach))
+	if (IS_ERR(attach))
 		goto err_attach;
 
 	cache->attach = attach;
@@ -136,8 +138,10 @@ attach_done:
 err_attach:
 	kfree(cache);
 err_cache:
-	kfree(data);
-	dma_buf_set_destructor(dmabuf, NULL, NULL);
+	if (need_cleanup) {
+		dma_buf_set_destructor(dmabuf, NULL, NULL);
+		kfree(data);
+	}
 err_data:
 	mutex_unlock(&dmabuf->cache_lock);
 	return attach;
