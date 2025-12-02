@@ -3815,7 +3815,7 @@
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpeg_mmu";
 		clocks = <&cru ACLK_RKJPEG>, <&cru HCLK_RKJPEG>;
-		clock-name = "aclk", "iface";
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		rockchip,shootdown-entire;
 		power-domains = <&power RV1126B_PD_VDO>;
