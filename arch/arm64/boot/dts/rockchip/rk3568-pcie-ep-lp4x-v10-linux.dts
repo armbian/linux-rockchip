@@ -77,10 +77,10 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		bar0_region: bar0-region@0x3c000000 {
+		bar0_region: bar0-region@3c000000 {
 			reg = <0x0 0x3c000000 0x0 0x00400000>;
 		};
-		bar2_region: bar2-region@0x40000000 {
+		bar2_region: bar2-region@40000000 {
 			reg = <0x0 0x40000000 0x0 0x04000000>;
 		};
 	};
