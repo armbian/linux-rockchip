@@ -1162,6 +1162,7 @@
 
 					vp0_out_hdmi: endpoint@3 {
 						reg = <3>;
+						remote-endpoint = <&hdmi_in_vp0>;
 					};
 				};
 
@@ -1186,6 +1187,7 @@
 
 					vp1_out_hdmi: endpoint@3 {
 						reg = <3>;
+						remote-endpoint = <&hdmi_in_vp1>;
 					};
 				};
 			};
@@ -1270,6 +1272,85 @@
 			resets = <&cru SRST_MRESETN_SPDIF_RX1>;
 			reset-names = "spdifrx-m";
 			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		hdmi: hdmi@27680000 {
+			compatible = "rockchip,rk3572-dw-hdmi";
+			reg = <0x0 0x27680000 0x0 0x10000>, <0x0 0x27690000 0x0 0x10000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "avp", "cec", "earc", "main", "hpd";
+			clocks = <&cru PCLK_HDMITX0>,
+				 <&cru CLK_HDMITXHPD>,
+				 <&cru CLK_HDMITX0_EARC>,
+				 <&cru CLK_HDMITX0_REF>,
+				 <&cru MCLK_SAI4>,
+				 <&cru DCLK_VP0>,
+				 <&cru DCLK_VP1>,
+				 <&cru HCLK_VO_ROOT>,
+				 <&hdptxphy_hdmi>;
+			clock-names = "pclk",
+				      "hpd",
+				      "earc",
+				      "hdmitx_ref",
+				      "aud",
+				      "dclk_vp0",
+				      "dclk_vp1",
+				      "hclk_vo1",
+				      "link_clk";
+			resets = <&cru SRST_RESETN_HDMITX0_REF>, <&cru SRST_RESETN_HDMITXHPD>;
+			reset-names = "ref", "hdp";
+			power-domains = <&power RK3572_PD_VO>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_txm0_pins>;
+			reg-io-width = <4>;
+			rockchip,grf = <&sys_grf>;
+			rockchip,vo0_grf = <&vo_grf>;
+			phys = <&hdptxphy_hdmi>;
+			phy-names = "hdmi";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in: port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					hdmi_in_vp0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp0_out_hdmi>;
+						status = "disabled";
+					};
+
+					hdmi_in_vp1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vp1_out_hdmi>;
+						status = "disabled";
+					};
+				};
+			};
+		};
+
+		hdcp: hdcp@276a0000 {
+			compatible = "rockchip,rk3572-hdcp";
+			reg = <0x0 0x276a0000 0x0 0x80>;
+			interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru ACLK_HDCP0>, <&cru PCLK_HDCP0>, <&cru HCLK_HDCP0>,
+				 <&cru HCLK_VO_ROOT>, <&cru CLK_TRNG0_SKP>;
+			clock-names = "aclk", "pclk", "hclk", "hclk_vo", "trng_skp";
+			resets = <&cru SRST_RESETN_HDCP0>, <&cru SRST_HRESETN_HDCP0>,
+				 <&cru SRST_ARESETN_HDCP0>;
+			reset-names = "hdcp", "h_hdcp", "a_hdcp";
+			power-domains = <&power RK3572_PD_VO>;
+			rockchip,vo-grf = <&vo_grf>;
 			status = "disabled";
 		};
 
@@ -2506,6 +2587,22 @@
 			reg = <0x0 0x2c310000 0x0 0x10000>;
 			clocks = <&xin24m>, <&cru PCLK_HDPTXPHY>;
 			clock-names = "ref", "apb";
+			resets = <&cru SRST_PRESETN_HDPTXPHY>, <&cru SRST_RESETN_HDPTX_INIT>,
+				 <&cru SRST_RESETN_HDPTX_CMN>, <&cru SRST_RESETN_HDPTX_LANE>;
+			reset-names = "apb", "init", "cmn", "lane";
+			rockchip,grf = <&hdptxphy_grf>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		hdptxphy_hdmi: hdmiphy@2c310000 {
+			compatible = "rockchip,rk3572-hdptx-phy-hdmi",
+				     "rockchip,rk3588-hdptx-phy-hdmi";
+			reg = <0x0 0x2c310000 0x0 0x2000>;
+			clocks = <&xin24m>, <&cru PCLK_HDPTXPHY>;
+			clock-names = "ref", "apb";
+			clock-output-names = "clk_hdmiphy_pixel0";
+			#clock-cells = <0>;
 			resets = <&cru SRST_PRESETN_HDPTXPHY>, <&cru SRST_RESETN_HDPTX_INIT>,
 				 <&cru SRST_RESETN_HDPTX_CMN>, <&cru SRST_RESETN_HDPTX_LANE>;
 			reset-names = "apb", "init", "cmn", "lane";
