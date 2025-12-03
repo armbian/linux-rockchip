@@ -3252,7 +3252,7 @@
 		status = "disabled";
 	};
 
-	rkvdec: rkvdec@27b00000 {
+	rkvdec: rkvdec@27b00100 {
 		compatible = "rockchip,rkv-decoder-rk3576", "rockchip,rkv-decoder-v383";
 		reg = <0x0 0x27b00100 0x0 0x600>, <0x0 0x27b00000 0x0 0x100>;
 		reg-names = "regs", "link";
