@@ -3381,9 +3381,8 @@ static int vop_crtc_late_register(struct drm_crtc *crtc)
 	if (!vop->debugfs)
 		return -ENOMEM;
 
-	vop->debugfs_files = kmemdup(vop_debugfs_files,
-				     sizeof(vop_debugfs_files),
-				     GFP_KERNEL);
+	vop->debugfs_files = devm_kmemdup(vop->dev, vop_debugfs_files, sizeof(vop_debugfs_files),
+					  GFP_KERNEL);
 	if (!vop->debugfs_files) {
 		ret = -ENOMEM;
 		goto remove;
@@ -3409,8 +3408,10 @@ remove:
 
 static void vop_crtc_early_unregister(struct drm_crtc *crtc)
 {
+	struct drm_minor *minor = crtc->dev->primary;
 	struct vop *vop = to_vop(crtc);
 
+	drm_debugfs_remove_files(vop->debugfs_files, ARRAY_SIZE(vop_debugfs_files), minor);
 	debugfs_remove_recursive(vop->debugfs);
 }
 
