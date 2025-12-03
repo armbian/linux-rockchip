@@ -344,7 +344,12 @@ EXPORT_SYMBOL(mipi_dsi_host_register);
 
 static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	struct mipi_dsi_device *dsi;
+
+	if (dev->type != &mipi_dsi_device_type)
+		return 0;
+
+	dsi = to_mipi_dsi_device(dev);
 
 	if (dsi->attached)
 		mipi_dsi_detach(dsi);
