@@ -6515,7 +6515,7 @@
 	};
 
 	/omit-if-no-ref/
-	shaping_npu1: shaping@0xfdf70088 {
+	shaping_npu1: shaping@fdf70088 {
 		compatible = "syscon";
 		reg = <0x0 0xfdf70088 0x0 0x4>;
 	};

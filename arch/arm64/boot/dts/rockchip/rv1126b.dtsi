@@ -3703,9 +3703,9 @@
 		interrupt-names = "irq_rkvdec";
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>, <&cru CLK_HEVC_CA_RKVDEC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_hevc_cabac";
-		resets = <&cru SRST_ARESETN_VDO_BIU >, <&cru SRST_HRESETN_VDO_BIU>,
+		resets = <&cru SRST_ARESETN_VDO_BIU>, <&cru SRST_HRESETN_VDO_BIU>,
 			 <&cru SRST_RESETN_HEVC_CA_RKVDEC>;
-		reset-names = "video_a","video_h", "video_hevc_cabac";
+		reset-names = "video_a", "video_h", "video_hevc_cabac";
 		rockchip,normal-rates = <300000000>, <0>, <300000000>;
 		assigned-clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>, <&cru CLK_HEVC_CA_RKVDEC>;
 		assigned-clock-rates = <300000000>, <0>, <300000000>;
@@ -3815,7 +3815,7 @@
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpeg_mmu";
 		clocks = <&cru ACLK_RKJPEG>, <&cru HCLK_RKJPEG>;
-		clock-name = "aclk", "iface";
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		rockchip,shootdown-entire;
 		power-domains = <&power RV1126B_PD_VDO>;

@@ -3066,7 +3066,7 @@
 		interrupts = <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpeg_mmu";
 		clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
-		clock-name = "aclk", "iface";
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		rockchip,shootdown-entire;
 		power-domains = <&power RK3576_PD_VPU>;
@@ -3157,7 +3157,7 @@
 
 	vdpp: vdpp@27961000 {
 		compatible = "rockchip,vdpp-rk3576";
-		reg = <0x0 0x27961000 0x0 0x500>,  <0x0 0x27962000 0x0 0x900>;
+		reg = <0x0 0x27961000 0x0 0x500>, <0x0 0x27962000 0x0 0x900>;
 		reg-names = "vdpp_regs", "zme_regs";
 		interrupts = <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_vdpp";
@@ -3252,7 +3252,7 @@
 		status = "disabled";
 	};
 
-	rkvdec: rkvdec@27b00000 {
+	rkvdec: rkvdec@27b00100 {
 		compatible = "rockchip,rkv-decoder-rk3576", "rockchip,rkv-decoder-v383";
 		reg = <0x0 0x27b00100 0x0 0x600>, <0x0 0x27b00000 0x0 0x100>;
 		reg-names = "regs", "link";
@@ -3264,13 +3264,13 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec",
 			      "clk_core", "clk_cabac",
 			      "clk_hevc_cabac";
-		resets = <&cru SRST_A_RKVDEC_BIU >, <&cru SRST_H_RKVDEC_BIU>,
+		resets = <&cru SRST_A_RKVDEC_BIU>, <&cru SRST_H_RKVDEC_BIU>,
 			 <&cru SRST_RKVDEC_CORE>, <&cru SRST_RKVDEC_HEVC_CA>;
-		reset-names = "video_a","video_h", "video_core", "video_hevc_cabac";
+		reset-names = "video_a", "video_h", "video_core", "video_hevc_cabac";
 		rockchip,normal-rates = <600000000>, <0>, <600000000>, <500000000>, <1000000000>;
 		assigned-clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru CLK_RKVDEC_CORE>,
 				  <&cru ACLK_RKVDEC_ROOT_BAK>, <&cru CLK_RKVDEC_HEVC_CA>;
-		assigned-clock-rates = <600000000>,<600000000>, <500000000>, <1000000000>;
+		assigned-clock-rates = <600000000>, <600000000>, <500000000>, <1000000000>;
 		iommus = <&rkvdec_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,task-capacity = <8>;
@@ -5657,7 +5657,6 @@
 		status = "disabled";
 	};
 
-
 	i2c6: i2c@2ac90000 {
 		compatible = "rockchip,rk3576-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0x2ac90000 0x0 0x1000>;
@@ -6375,7 +6374,7 @@
 		rockchip,usb-grf = <&usb_grf>;
 		rockchip,usbdpphy-grf = <&usbdpphy_grf>;
 		rockchip,vo-grf = <&vo1_grf>;
-		clocks = <&cru CLK_PHY_REF_SRC >,
+		clocks = <&cru CLK_PHY_REF_SRC>,
 			 <&cru CLK_USBDP_COMBO_PHY_IMMORTAL>,
 			 <&cru PCLK_USBDPPHY>;
 		clock-names = "refclk", "immortal", "pclk";

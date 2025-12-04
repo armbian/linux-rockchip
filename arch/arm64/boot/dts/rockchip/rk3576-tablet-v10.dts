@@ -14,3 +14,12 @@
 	model = "Rockchip RK3576 TABLET V10 Board";
 	compatible = "rockchip,rk3576-tablet-v10", "rockchip,rk3576";
 };
+
+&usbdp_phy {
+	rockchip,udphy-tune-sequence = <
+		0x091c 0x13 0
+		0x191c 0x13 0
+		0x0c2c 0x0c 0
+		0x1c2c 0x0c 0
+	>;
+};

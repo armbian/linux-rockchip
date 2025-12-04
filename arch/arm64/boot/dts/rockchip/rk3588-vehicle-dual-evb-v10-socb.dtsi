@@ -241,6 +241,16 @@
 	status = "disabled";
 };
 
+&pcie30phy {
+	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
+	status = "okay";
+};
+
+&pcie3x4 {
+	reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
 &pinctrl {
 	gmac0 {
 		phydisb: phydisb {

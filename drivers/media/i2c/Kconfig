@@ -2051,6 +2051,16 @@ config VIDEO_SC4336P
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC4336P camera.
 
+config VIDEO_SC438HAI
+	tristate "SmartSens SC438HAI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  sc438hai camera.
+
 config VIDEO_SC450AI
 	tristate "SmartSens SC450AI sensor support"
 	depends on I2C && VIDEO_DEV

@@ -599,13 +599,14 @@ static void scale_config(struct rkvpss_offline_dev *ofl,
 			 struct rkvpss_frame_cfg *cfg, bool unite, bool left)
 {
 	int i;
+	bool use_avg_scale;
 
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (!cfg->output[i].enable)
 			continue;
 
-		bool use_avg_scale = (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
-				     cfg->output[i].avg_scl_down;
+		use_avg_scale = (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
+				 cfg->output[i].avg_scl_down;
 
 		if (cfg->output[i].avg_scl_down && !use_avg_scale) {
 			v4l2_warn(&ofl->v4l2_dev,
@@ -1687,18 +1688,17 @@ static void calc_unite_scl_params(struct rkvpss_offline_dev *ofl,
 	u32 right_fst_position_y, right_fst_position_c;
 	u32 right_y_crop_total;
 	u32 right_c_crop_total;
-	bool is_downscale_w, is_downscale_h, use_average;
+	bool use_average;
 
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++) {
 		if (cfg->output[i].enable == 0)
 			continue;
 		params = &ofl->unite_params[i];
 
-		is_downscale_w = cfg->output[i].scl_width <= cfg->output[i].crop_width;
-		is_downscale_h = cfg->output[i].scl_height <= cfg->output[i].crop_height;
-		use_average = is_downscale_w && is_downscale_h;
+		use_average = (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2) &&
+			      cfg->output[i].avg_scl_down;
 
-		if (use_average && (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2)) {
+		if (use_average) {
 			params->y_w_fac = (cfg->output[i].scl_width - 1) * 65536 /
 					  (cfg->output[i].crop_width - 1) + 1;
 			params->c_w_fac = (cfg->output[i].scl_width / 2 - 1) * 65536 /
