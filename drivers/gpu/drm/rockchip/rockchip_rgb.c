@@ -148,6 +148,7 @@ struct rockchip_rgb {
 	u32 max_dclk_rate;
 	u32 mcu_pix_total;
 	int data_map_mode;
+	int delayline_num;
 	struct device *dev;
 	struct device_node *np_mcu_panel;
 	struct drm_panel *panel;
@@ -1111,6 +1112,9 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 		rgb->support_psr = of_property_read_bool(dev->of_node, "support-psr");
 	}
 
+	if (of_property_read_u32(dev->of_node, "rockchip,delayline-num", &rgb->delayline_num))
+		rgb->delayline_num = -1;
+
 	rgb_data = of_device_get_match_data(dev);
 	if (rgb_data) {
 		rgb->funcs = rgb_data->funcs;
@@ -1219,6 +1223,11 @@ static void rk3506_rgb_enable(struct rockchip_rgb *rgb)
 		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DLL_SEL(0x20));
 	else
 		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DLL_SEL(0x10));
+
+	if (rgb->delayline_num >= 0) {
+		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2,
+			     RK3506_GRF_VOP_DLL_SEL(rgb->delayline_num));
+	}
 }
 
 static const struct rockchip_rgb_funcs rk3506_rgb_funcs = {
@@ -1264,7 +1273,9 @@ static void rk3576_rgb_enable(struct rockchip_rgb *rgb)
 	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8,
 		     RK3576_VOP_MCU_SEL(rgb->data_sync_bypass));
 	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8, RK3576_VOP_DLL_SEL(true));
-	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8, RK3576_VOP_DCLK_DELAYLINE(0x5));
+	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8,
+		     RK3576_VOP_DCLK_DELAYLINE(rgb->delayline_num >= 0 ?
+					       rgb->delayline_num : 0x5));
 }
 
 static const struct rockchip_rgb_funcs rk3576_rgb_funcs = {
@@ -1301,6 +1312,12 @@ static void rv1126b_rgb_enable(struct rockchip_rgb *rgb)
 
 	regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON,
 		     RV1126B_VOP_MCU_SEL(rgb->data_sync_bypass));
+
+	if (rgb->delayline_num >= 0) {
+		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_SEL(1));
+		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON,
+			     RV1126B_VOP_DCLK_DLL_NUM(rgb->delayline_num));
+	}
 }
 
 static const struct rockchip_rgb_funcs rv1126b_rgb_funcs = {
