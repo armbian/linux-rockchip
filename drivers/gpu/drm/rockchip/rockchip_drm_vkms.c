@@ -32,11 +32,16 @@
 
 static struct platform_device *vkms_pdev;
 
+struct rockchip_vkms_connector {
+	struct drm_connector connector;
+	bool disconnected;
+};
+
 struct rockchip_vkms_crtc {
 	struct drm_crtc crtc;
 	struct drm_plane plane;
 	struct drm_encoder encoder;
-	struct drm_connector connector;
+	struct rockchip_vkms_connector vconn;
 	struct hrtimer vblank_hrtimer;
 	ktime_t period_ns;
 	struct drm_pending_vblank_event *event;
@@ -51,8 +56,10 @@ struct rockchip_vkms {
 	struct platform_device *pdev;
 
 	struct rockchip_vkms_crtc vcrtc[VKMS_MAX_CRTC];
+	u8 vconn_disconnected[VKMS_MAX_CRTC];
 
 	uint32_t crtc_mask;
+	uint32_t crtc_num;
 };
 
 static const u32 rockchip_vkms_formats[] = {
@@ -142,8 +149,22 @@ static void rockchip_vkms_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static enum drm_connector_status
+rockchip_vkms_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct rockchip_vkms_connector *vconn = container_of(connector,
+							     struct rockchip_vkms_connector,
+							     connector);
+
+	if (vconn->disconnected)
+		return connector_status_disconnected;
+	else
+		return connector_status_connected;
+}
+
 static const struct drm_connector_funcs rockchip_vkms_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = rockchip_vkms_connector_detect,
 	.destroy = rockchip_vkms_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -416,7 +437,6 @@ static void rockchip_vkms_crtc_atomic_disable(struct drm_crtc *crtc, struct drm_
 
 		crtc->state->event = NULL;
 	}
-
 }
 
 static void rockchip_vkms_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
@@ -447,6 +467,8 @@ static u64 rockchip_vkms_get_soc_id(void)
 {
 	if (of_machine_is_compatible("rockchip,rk3588"))
 		return 0x3588;
+	else if (of_machine_is_compatible("rockchip,rk3576"))
+		return 0x3576;
 	else if (of_machine_is_compatible("rockchip,rk3568"))
 		return 0x3568;
 	else if (of_machine_is_compatible("rockchip,rk3566"))
@@ -503,7 +525,8 @@ static int rockchip_vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc
 static int rockchip_vkms_create_crtc(struct rockchip_vkms *rockchip_vkms, int index)
 {
 	struct drm_crtc *crtc = &rockchip_vkms->vcrtc[index].crtc;
-	struct drm_connector *connector = &rockchip_vkms->vcrtc[index].connector;
+	struct rockchip_vkms_connector *vconn = &rockchip_vkms->vcrtc[index].vconn;
+	struct drm_connector *connector = &vconn->connector;
 	struct drm_encoder *encoder = &rockchip_vkms->vcrtc[index].encoder;
 	struct drm_plane *primary = &rockchip_vkms->vcrtc[index].plane;
 	int ret;
@@ -519,6 +542,8 @@ static int rockchip_vkms_create_crtc(struct rockchip_vkms *rockchip_vkms, int in
 		DRM_ERROR("Failed to init crtc-%d\n", index);
 		goto err_crtc;
 	}
+
+	vconn->disconnected = rockchip_vkms->vconn_disconnected[index];
 
 	ret = drm_connector_init(rockchip_vkms->drm_dev, connector, &rockchip_vkms_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
@@ -571,15 +596,14 @@ static int rockchip_vkms_create_crtcs(struct rockchip_vkms *rockchip_vkms)
 	int ret;
 	int i;
 
-	for (i = 0; i < VKMS_MAX_CRTC; i++) {
+	for (i = 0; i < rockchip_vkms->crtc_num; i++) {
 		ret = rockchip_vkms_create_crtc(rockchip_vkms, i);
 		if (ret) {
 			DRM_WARN("Failed to create virtual crtc, index = %d\n", i);
 			break;
 		}
+		DRM_INFO("Create %d(total: %d) virtual crtcs\n", i, rockchip_vkms->crtc_num);
 	}
-
-	DRM_INFO("Create %d(total: %d) virtual crtcs\n", i, VKMS_MAX_CRTC);
 
 	return 0;
 }
@@ -588,10 +612,37 @@ static int rockchip_vkms_bind(struct device *dev, struct device *master, void *d
 {
 	struct drm_device *drm_dev = data;
 	struct rockchip_vkms *rockchip_vkms;
+	struct device_node *np = NULL;
+	u32 disconnected[VKMS_MAX_CRTC];
+	int len, i;
 
 	rockchip_vkms = devm_kzalloc(dev, sizeof(*rockchip_vkms), GFP_KERNEL);
 	if (!rockchip_vkms)
 		return -ENOMEM;
+
+	rockchip_vkms->crtc_num = VKMS_MAX_CRTC;
+
+	np = of_find_compatible_node(NULL, NULL, "rockchip,vkms");
+	if (np) {
+		of_node_put(np);
+
+		of_property_read_u32(np, "rockchip,vkms-crtc-num", &rockchip_vkms->crtc_num);
+		if (rockchip_vkms->crtc_num > VKMS_MAX_CRTC) {
+			DRM_ERROR("rockchip,vkms-crtc-num = %d in dts exceeds VKMS_MAX_CRTC(%d)\n",
+				  rockchip_vkms->crtc_num, VKMS_MAX_CRTC);
+			rockchip_vkms->crtc_num = VKMS_MAX_CRTC;
+		}
+
+		len = of_property_read_variable_u32_array(np, "rockchip,vkms-conn-disconnected",
+							  disconnected, 1, VKMS_MAX_CRTC);
+		for (i = 0; i < len; i++) {
+			if (disconnected[i] < rockchip_vkms->crtc_num)
+				rockchip_vkms->vconn_disconnected[disconnected[i]] = 1;
+			else
+				DRM_ERROR("vkms-conn-disconnected index %d exceeds crtc_num(%d)\n",
+					  i, rockchip_vkms->crtc_num);
+		}
+	}
 
 	rockchip_vkms->dev = dev;
 	rockchip_vkms->drm_dev = drm_dev;
@@ -615,8 +666,8 @@ static void rockchip_vkms_unbind(struct device *dev, struct device *master, void
 			vcrtc = drm_crtc_to_rockchip_vkms_crtc(crtc);
 
 			drm_encoder_cleanup(&vcrtc->encoder);
-			drm_connector_unregister(&vcrtc->connector);
-			drm_connector_cleanup(&vcrtc->connector);
+			drm_connector_unregister(&vcrtc->vconn.connector);
+			drm_connector_cleanup(&vcrtc->vconn.connector);
 			drm_plane_cleanup(&vcrtc->plane);
 			rockchip_vkms->crtc_mask &= ~(drm_crtc_mask(crtc));
 			rockchip_vkms_crtc_deinit(crtc);
@@ -644,7 +695,6 @@ static int rockchip_vkms_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
 
 struct platform_driver rockchip_vkms_platform_driver = {
 	.probe = rockchip_vkms_probe,
