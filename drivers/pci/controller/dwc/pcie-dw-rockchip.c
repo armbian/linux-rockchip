@@ -1838,12 +1838,28 @@ static int rk_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int rk_pcie_dev_set_current_state(struct pci_dev *dev, void *data)
+{
+	pci_power_t state = *(pci_power_t *)data;
+
+	dev->current_state = state;
+	return 0;
+}
+
+static void rk_pcie_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
+{
+	if (bus)
+		pci_walk_bus(bus, rk_pcie_dev_set_current_state, &state);
+}
+
 static void rk_pcie_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
 
 	dev_dbg(rk_pcie->pci->dev, "shutdown...\n");
+	/* Prevent any configure space access by claiming we're in D3cold */
+	rk_pcie_bus_set_current_state(rk_pcie->pci->pp.bridge->bus, PCI_D3cold);
 	rk_pcie_disable_ltssm(rk_pcie);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
 }
