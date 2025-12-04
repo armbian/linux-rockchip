@@ -20,3 +20,11 @@
 	regulator-always-on;
 };
 
+&usbdp_phy {
+	rockchip,udphy-tune-sequence = <
+		0x091c 0x13 0
+		0x191c 0x13 0
+		0x0c2c 0x0c 0
+		0x1c2c 0x0c 0
+	>;
+};
