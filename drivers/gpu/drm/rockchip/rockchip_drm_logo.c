@@ -1106,6 +1106,23 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 	unsigned int plane_mask = 0;
 	struct drm_crtc *crtc;
 	int ret, i;
+	static bool is_first_show_logo = true;
+
+	/*
+	 * The rockchip_drm_bind() and rockchip_drm_unbind() may be invoked
+	 * manually by the user multiple times.
+	 *
+	 * During the first call to rockchip_drm_bind(),
+	 * rockchip_drm_show_logo() attempts to parse the buffer passed in
+	 * by U-Boot and releases those resources immediately after their
+	 * initial use.
+	 *
+	 * When rockchip_drm_bind() is executed a second time, those resources
+	 * are no longer available, so we skip the logo display.
+	 */
+	if (!is_first_show_logo)
+		return;
+	is_first_show_logo = false;
 
 	root = of_get_child_by_name(np, "route");
 	if (!root) {
