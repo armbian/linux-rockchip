@@ -2756,6 +2756,20 @@
 
 			status = "disabled";
 		};
+
+		sram: sram@3ff88000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x3ff88000 0x0 0x78000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x3ff88000 0x78000>;
+
+			/* start address and size should be 4k align */
+			rkvdec_sram: rkvdec-sram@0 {
+				reg = <0x0 0x78000>;
+			};
+		};
 	};
 };
 
