@@ -56,6 +56,8 @@
 #define MDI_OFFSET_MAX				3
 #define OFFSET_TIMES_MAX			5
 
+#define DEFAULT_TXAMP				0x9
+
 enum {
 	GROUP_CFG0 = 0,
 	GROUP_WOL,
@@ -71,6 +73,7 @@ struct rockchip_fephy_priv {
 	struct clk *pclk;
 	int old_link;
 	int wol_irq;
+	int txamp;
 	int mdi_offset;
 	int mdix_offset;
 	int current_group;
@@ -102,6 +105,38 @@ static int rockchip_fephy_group_write(struct phy_device *phydev, u8 group,
 		return ret;
 
 	return phy_write(phydev, SMI_ADDR_CFGCNTL, CFGCNTL_WRITE(group, reg));
+}
+
+static int rockchip_fephy_get_txamp_from_nvmem(struct phy_device *phydev)
+{
+	struct rockchip_fephy_priv *priv = phydev->priv;
+	unsigned char *buf;
+	struct nvmem_cell *cell;
+	int txamp_type;
+	size_t len;
+
+	cell = nvmem_cell_get(&phydev->mdio.dev, "txamp");
+	if (IS_ERR(cell)) {
+		phydev_err(phydev, "failed to get txamp cell: %ld, use default\n",
+			   PTR_ERR(cell));
+	} else {
+		buf = nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+		if (!IS_ERR(buf)) {
+			if (len == 2) {
+				priv->txamp = buf[0] & 0x1f;
+				txamp_type =  buf[1];
+				/* For some cases, if it's an odd number, add 3 */
+				if (txamp_type == 0x8 && (priv->txamp & 1))
+					priv->txamp += 3;
+			}
+			kfree(buf);
+			return 0;
+		}
+		phydev_err(phydev, "failed to get nvmem buf, use default\n");
+	}
+
+	return -EINVAL;
 }
 
 static int rockchip_fephy_get_adc_offset_from_nvmem(struct phy_device *phydev)
@@ -197,7 +232,7 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 		return ret;
 
 	/* 100M amplitude control */
-	ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0x18, 0x9);
+	ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0x18, priv->txamp);
 	if (ret)
 		return ret;
 
@@ -709,6 +744,10 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 	ret = clk_prepare(priv->pclk);
 	if (ret)
 		return ret;
+
+	ret = rockchip_fephy_get_txamp_from_nvmem(phydev);
+	if (ret)
+		priv->txamp = DEFAULT_TXAMP;
 
 	ret = rockchip_fephy_get_adc_offset_from_nvmem(phydev);
 	if (ret) {
