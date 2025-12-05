@@ -35,9 +35,7 @@
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #define gst412C_BITS_PER_SAMPLE		14
-#define GST412C_LINK_FREQ_125		12500000
-
-#define GST412C_PMCLK_FREQ		12500000
+#define GST412C_PMCLK_FREQ		13500000
 
 #define GST412C_CHIP_ID			0x19
 #define GST412C_REG_CHIP_ID		0x30
@@ -483,7 +481,7 @@ static void gst412c_get_irfpa_info(struct gst412c *gst412c,
 {
 	inf->irfpa_en = 1;
 	inf->gray_dec_en = 0;
-	inf->raw14_mode = IRFPA_RAW_7BITS_IO;
+	inf->raw14_mode = 1;
 }
 
 static long gst412c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -1154,7 +1152,6 @@ static int gst412c_probe(struct i2c_client *client,
 	int ret = 0;
 	struct device_node *rkooc_node = NULL;
 	struct platform_device *rkooc_pdev = NULL;
-	struct rkooc_config_datamode ooc_cfg = { 0 };
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -1212,12 +1209,8 @@ static int gst412c_probe(struct i2c_client *client,
 		goto err_power_off;
 	}
 
-	ooc_cfg.image_width = 400;
-	ooc_cfg.image_height = 300;
-	ooc_cfg.ooc_width = 400;
-	ooc_cfg.ooc_height = 308;
 	v4l2_subdev_call(gst412c->rkooc_sd, core, ioctl,
-			 RKOOC_CMD_CONFIG_DATAMODE, &ooc_cfg);
+			 RKOOC_CMD_CONFIG_SENSOR, (void *)RKOOC_SENSOR_GST412C);
 
 	mutex_init(&gst412c->mutex);
 
