@@ -275,6 +275,15 @@ static const struct spinand_info unim_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19a9xisw_ecc_get_status)),
+	SPINAND_INFO("UM19B2HISW",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x34),
+		     NAND_MEMORG(1, 4096, 256, 128, 1024, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19axxisw_ecc_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops unim_spinand_manuf_ops = {
