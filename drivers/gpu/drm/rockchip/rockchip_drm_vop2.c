@@ -13571,6 +13571,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	convert_mode.pixel_depth = 10;
 	convert_mode.coef_precision = 10;
 	convert_mode.swap_channels = 1;
+	convert_mode.plat = vop2->version;
 
 	if (post_csc_en) {
 		rockchip_calc_post_csc(csc, &csc_coef, &convert_mode);
