@@ -223,6 +223,21 @@
 		};
 	};
 
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0x82000010>;
+			shmem = <&scmi_shmem>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+	};
+
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <4>;
@@ -2769,6 +2784,11 @@
 			rkvdec_sram: rkvdec-sram@0 {
 				reg = <0x0 0x78000>;
 			};
+		};
+
+		scmi_shmem: scmi-shmem@4010f000 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0x4010f000 0x0 0x100>;
 		};
 	};
 };
