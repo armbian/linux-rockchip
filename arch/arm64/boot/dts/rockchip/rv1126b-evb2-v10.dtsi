@@ -344,8 +344,8 @@
 		resets = <&cru SRST_RESETN_MACPHY>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fephym2_pins>;
-		nvmem-cells = <&macphy_adc_offset>;
-		nvmem-cell-names = "adc_offset";
+		nvmem-cells = <&macphy_txamp>, <&macphy_adc_offset>;
+		nvmem-cell-names = "txamp", "adc_offset";
 		phy-is-integrated;
 	};
 };
