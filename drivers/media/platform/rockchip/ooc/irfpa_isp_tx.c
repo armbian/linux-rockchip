@@ -31,10 +31,10 @@ static int irfpatx_enum_fmt(struct file *file, void *priv,
 {
 	switch (f->index) {
 	case 0:
-		f->pixelformat = V4L2_PIX_FMT_GREY;
+		f->pixelformat = V4L2_PIX_FMT_NV12;
 		break;
 	case 1:
-		f->pixelformat = V4L2_PIX_FMT_NV12;
+		f->pixelformat = V4L2_PIX_FMT_GREY;
 		break;
 	default:
 		return -EINVAL;
@@ -54,8 +54,8 @@ static int irfpatx_g_selection(struct file *file, void *priv,
 		break;
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		sel->r.width = dev->image_width;
-		sel->r.height = dev->image_height;
+		sel->r.width = dev->win.image_width;
+		sel->r.height = dev->win.image_height;
 		break;
 	default:
 		return -EINVAL;
@@ -100,7 +100,8 @@ static int irfpatx_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct rkooc_dev *dev = video_drvdata(file);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect compose = { 0, 0, pix->width, pix->height };
-	struct v4l2_rect crop = { 0, 0, dev->image_width, dev->image_height };
+	struct v4l2_rect crop = {
+	    0, 0, dev->win.image_width, dev->win.image_height };
 
 	dev->irfpatx_width = pix->width;
 	dev->irfpatx_height = pix->height;
@@ -188,9 +189,9 @@ static void rkooc_cap_buf_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rkooc_buffer *buf = container_of(vbuf, struct rkooc_buffer, vb);
 
-	spin_lock(&dev->slock);
+	spin_lock(&dev->irfpa_lock);
 	list_add_tail(&buf->list, &dev->vid_cap_active);
-	spin_unlock(&dev->slock);
+	spin_unlock(&dev->irfpa_lock);
 }
 
 static int rkooc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)

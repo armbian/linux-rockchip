@@ -26,31 +26,45 @@
 
 static irqreturn_t rkooc_irq_handler(int irq, void *ctx)
 {
-	u32 value;
+	u32 value, status;
 	unsigned long flags;
 	struct v4l2_subdev *ooc_sd = dev_get_drvdata(ctx);
 	struct rkooc_dev *dev = container_of(ooc_sd, struct rkooc_dev, ooc_sd);
 
-	value = rkooc_read_reg(dev, OOC_INTR_STATUS);
-	value |= 0xffff0000;
-	rkooc_write_reg(dev, OOC_INTR_CLEAR, value);
+	status = rkooc_read_reg(dev, OOC_INTR_STATUS);
 
-	spin_lock_irqsave(&dev->slock, flags);
-	if (!list_empty(&dev->vid_out_active)) {
-		struct rkooc_buffer *buf =
-		    list_entry(dev->vid_out_active.next, struct rkooc_buffer,
-			       list);
+	if (status & (1 << WIN1_EMPTY_INTR_STS_OFF))
+		v4l2_err(&dev->v4l2_dev, "win1 empty!\n");
+	if (status & (1 << PDAF_EMPTY_INTR_STS_OFF))
+		v4l2_err(&dev->v4l2_dev, "pdaf empty!\n");
 
-		list_del(&buf->list);
-		if (dev->cur_buf) {
-			vb2_buffer_done(&dev->cur_buf->vb.vb2_buf,
-					VB2_BUF_STATE_DONE);
+	if (status & (1 << VP_INTR_STS_OFF)) {
+		dev->ooctx_num++;
+
+		spin_lock_irqsave(&dev->slock, flags);
+		if (!list_empty(&dev->vid_out_active)) {
+			struct rkooc_buffer *buf =
+			    list_entry(dev->vid_out_active.next,
+				       struct rkooc_buffer,
+				       list);
+
+			list_del(&buf->list);
+			spin_unlock_irqrestore(&dev->slock, flags);
+
+			if (dev->cur_buf) {
+				vb2_buffer_done(&dev->cur_buf->vb.vb2_buf,
+						VB2_BUF_STATE_DONE);
+			}
+
+			dev->cur_buf = buf;
+			rkooc_hw_update_win_addr(dev, (u32) buf->dma_addr);
+		} else {
+			spin_unlock_irqrestore(&dev->slock, flags);
 		}
-
-		dev->cur_buf = buf;
-		rkooc_hw_update_win_addr(dev, (u32) buf->dma_addr);
 	}
-	spin_unlock_irqrestore(&dev->slock, flags);
+
+	value = status | 0xffff0000;
+	rkooc_write_reg(dev, OOC_INTR_CLEAR, value);
 
 	return IRQ_HANDLED;
 }
@@ -80,6 +94,7 @@ static int rkooc_drv_probe(struct platform_device *pdev)
 
 	/* use rk cma for buffer memory alloc */
 	dev->mem_ops = &vb2_cma_sg_memops;
+	dev->have_dummy = false;
 
 	/* set drvdata to struct rkooc_dev */
 	platform_set_drvdata(pdev, &dev->ooc_sd);
@@ -101,10 +116,11 @@ static int rkooc_drv_probe(struct platform_device *pdev)
 
 	/* initialize locks */
 	spin_lock_init(&dev->slock);
+	spin_lock_init(&dev->irfpa_lock);
 	mutex_init(&dev->mutex);
 
 	/* setup initial size */
-	dev->irfpatx_fourcc = V4L2_PIX_FMT_GREY;
+	dev->irfpatx_fourcc = V4L2_PIX_FMT_NV12;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	dev->v4l2_dev.mdev = &dev->mdev;
