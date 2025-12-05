@@ -50,6 +50,8 @@
 		spi2 = &spi2;
 		spi3 = &spi3;
 		spi4 = &spi4;
+		spi5 = &fspi0;
+		spi6 = &fspi1;
 	};
 
 	clocks {
@@ -1561,6 +1563,32 @@
 				 <&cru SRST_TRESETN_EMMC>;
 			reset-names = "core", "bus", "axi", "block", "timer";
 			supports-cqe;
+			status = "disabled";
+		};
+
+		fspi0: spi@2a020000 {
+			compatible = "rockchip,rk3572-fspi", "rockchip,fspi";
+			reg = <0x0 0x2a020000 0x0 0x4000>;
+			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_FSPI0_X2>, <&cru HCLK_FSPI0>;
+			clock-names = "clk_sfc", "hclk_sfc";
+			power-domains = <&power RK3572_PD_NVM0>;
+			rockchip,max-dll = <0xFF>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		fspi1: spi@2a080000 {
+			compatible = "rockchip,rk3572-fspi", "rockchip,fspi";
+			reg = <0x0 0x2a080000 0x0 0x4000>;
+			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru SCLK_FSPI1_X2>, <&cru HCLK_FSPI1>;
+			clock-names = "clk_sfc", "hclk_sfc";
+			power-domains = <&power RK3572_PD_NVM1>;
+			rockchip,max-dll = <0xFF>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
