@@ -7204,7 +7204,9 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			    core, ioctl, RKMODULE_SET_CHANNEL_STREAM, &ch_stream))
 				v4l2_info(&dev->v4l2_dev, "stream[%d] serdes failed to stream off single channel\n", stream->id);
 		}
-		if (dev->is_camera_over_bridge) {
+		if (dev->is_camera_over_bridge &&
+		    dev->sditf[stream->id] &&
+		    dev->sditf[stream->id]->sensor_sd) {
 			ret = v4l2_subdev_call(dev->sditf[stream->id]->sensor_sd,
 					       video,
 					       s_stream,
@@ -9166,7 +9168,9 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 			if (ret < 0)
 				goto stop_stream;
 		}
-		if (dev->is_camera_over_bridge) {
+		if (dev->is_camera_over_bridge &&
+		    dev->sditf[stream->id] &&
+		    dev->sditf[stream->id]->sensor_sd) {
 			ret = v4l2_subdev_call(dev->sditf[stream->id]->sensor_sd,
 					       video,
 					       s_stream,
