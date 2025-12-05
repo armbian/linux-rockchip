@@ -1084,6 +1084,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	u8 lane_num, yc_swap;
 	u32 wc_usrdef, val, data_type, pixfmt;
 	int avi_rdy;
+	u32 adv_read_pld_en = 0, adv_read_pld_num = 0;
 
 	lane_num = lanes - 1;
 	csi->rk628->dphy_lane_en = (1 << (lanes + 1)) - 1;
@@ -1096,6 +1097,15 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 		wc_usrdef = div_u64(csi->timings.bt.width * 2 * 10, 8);
 	else
 		wc_usrdef = csi->timings.bt.width * 2;
+
+	/*
+	 * max payload memory is 8192 byte, so we need to enable advanced read payload.
+	 * payload memory = wc_usrdef - 16 * adv_read_pld_num.
+	 */
+	if (wc_usrdef >= 8192) {
+		adv_read_pld_en = 1;
+		adv_read_pld_num = 256;
+	}
 
 	if (csi->rk628->is_10bit) {
 		pixfmt = CSI_RAW10;
@@ -1168,7 +1178,8 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	}
 
 	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
-	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE);
+	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE |
+			ADV_READ_PLD_EN(adv_read_pld_en) | ADV_READ_PLD_NUM(adv_read_pld_num));
 	if (csi->continues_clk)
 		rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
 			CONT_MODE_CLK_CLR_MASK |
@@ -1224,7 +1235,9 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 				BYPASS_SELECT_MASK,
 				BYPASS_SELECT(0));
 		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
-		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE);
+		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE |
+				ADV_READ_PLD_EN(adv_read_pld_en) |
+				ADV_READ_PLD_NUM(adv_read_pld_num));
 		if (csi->continues_clk)
 			rk628_i2c_update_bits(csi->rk628, CSITX1_SYS_CTRL3_IMD,
 				CONT_MODE_CLK_CLR_MASK |
