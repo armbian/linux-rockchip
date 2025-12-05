@@ -2680,7 +2680,7 @@ static void rk3588_get_grf_color_fmt(struct rockchip_hdmi *hdmi, u32 *fmt, u32 *
 static unsigned long
 rockchip_hdmi_colorspace_to_color_encoding(u32 colorimetry, u32 edid_colorimetry, u8 vic)
 {
-	if (colorimetry && !(colorimetry & edid_colorimetry)) {
+	if (colorimetry && !(BIT(colorimetry) & edid_colorimetry)) {
 		DRM_ERROR("colorimetry %d is not supported in edid\n", colorimetry);
 		return DRM_COLOR_YCBCR_BT601;
 	}
