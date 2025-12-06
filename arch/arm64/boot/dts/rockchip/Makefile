@@ -401,6 +401,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-spi-nor.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-spi-nor.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-5x-cam.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v12.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v12-dv.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v12-irfpa.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v12-spi-nand.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb2-v10.dtb
