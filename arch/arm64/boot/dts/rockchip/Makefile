@@ -574,6 +574,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-r58-hd3-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-radxa-e54c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-youyeetoo-yy3588.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-roc-pc.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c-spi.dtb
 
 subdir-y := $(dts-dirs) overlay
 
