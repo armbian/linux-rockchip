@@ -18,6 +18,12 @@
 	#size-cells = <2>;
 
 	aliases {
+		csi2dphy0 = &csi2_dphy0;
+		csi2dphy1 = &csi2_dphy1;
+		csi2dphy2 = &csi2_dphy2;
+		csi2dphy3 = &csi2_dphy3;
+		csi2dphy4 = &csi2_dphy4;
+		csi2dphy5 = &csi2_dphy5;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -184,6 +190,48 @@
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
 		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+	};
+
+	/* dphy0 full mode */
+	csi2_dphy0: csi2-dphy0 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy0 split mode 01 */
+	csi2_dphy1: csi2-dphy1 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy0 split mode 23 */
+	csi2_dphy2: csi2-dphy2 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 full mode */
+	csi2_dphy3: csi2-dphy3 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 split mode 01 */
+	csi2_dphy4: csi2-dphy4 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
+	};
+
+	/* dphy1 split mode 23 */
+	csi2_dphy5: csi2-dphy5 {
+		compatible = "rockchip,rk3572-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		status = "disabled";
 	};
 
 	display_subsystem: display-subsystem {
@@ -712,6 +760,11 @@
 			clocks = <&cru PCLK_VO_ROOT>;
 		};
 
+		vi_grf: syscon@26024000 {
+			compatible = "rockchip,rk3572-vi-grf", "syscon";
+			reg = <0x0 0x26024000 0x0 0x2000>;
+		};
+
 		php_grf: syscon@26026000 {
 			compatible = "rockchip,rk3572-php-grf", "syscon";
 			reg = <0x0 0x26026000 0x0 0x1000>;
@@ -806,6 +859,16 @@
 		hdptxphy_grf: syscon@26060000 {
 			compatible = "rockchip,rk3572-hdptxphy-grf", "syscon";
 			reg = <0x0 0x26060000 0x0 0x2000>;
+		};
+
+		mipidphyrx0_grf: syscon@26066000 {
+			compatible = "rockchip,rk3572-mipidphyrx-grf", "syscon";
+			reg = <0x0 0x26066000 0x0 0x2000>;
+		};
+
+		mipidphyrx1_grf: syscon@26068000 {
+			compatible = "rockchip,rk3572-mipidphyrx-grf", "syscon";
+			reg = <0x0 0x26068000 0x0 0x2000>;
 		};
 
 		ioc_grf: syscon@26072000 {
@@ -3031,6 +3094,30 @@
 			rockchip,grf = <&hdptxphy_grf>;
 			#phy-cells = <0>;
 			status = "disabled";
+		};
+
+		csi2_dphy0_hw: csi2-dphy0-hw@2c330000 {
+			compatible = "rockchip,rk3572-csi2-dphy-hw";
+			reg = <0x0 0x2c330000 0x0 0x10000>;
+			clocks = <&cru PCLK_CSIPHY0>;
+			clock-names = "pclk";
+			resets = <&cru SRST_PRESETN_CSIPHY0>;
+			reset-names = "srst_p_csiphy0";
+			rockchip,grf = <&mipidphyrx0_grf>;
+			rockchip,sys_grf = <&vi_grf>;
+			status = "okay";
+		};
+
+		csi2_dphy1_hw: csi2-dphy1-hw@2c340000 {
+			compatible = "rockchip,rk3572-csi2-dphy-hw";
+			reg = <0x0 0x2c340000 0x0 0x10000>;
+			clocks = <&cru PCLK_CSIPHY1>;
+			clock-names = "pclk";
+			resets = <&cru SRST_PRESETN_CSIPHY1>;
+			reset-names = "srst_p_csiphy1";
+			rockchip,grf = <&mipidphyrx1_grf>;
+			rockchip,sys_grf = <&vi_grf>;
+			status = "okay";
 		};
 
 		gpu: gpu@2d000000 {
