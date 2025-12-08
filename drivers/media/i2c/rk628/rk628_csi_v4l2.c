@@ -3949,6 +3949,29 @@ static int rk628_csi_remove(struct i2c_client *client)
 #endif
 }
 
+static void rk628_csi_shutdown(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_csi *csi = to_csi(sd);
+
+	v4l2_info(sd, "%s: shutdown!\n", __func__);
+
+	if (csi->is_streaming)
+		enable_stream(sd, false);
+	rk628_hdmirx_plugout(sd);
+	if (csi->hdmirx_irq)
+		disable_irq(csi->hdmirx_irq);
+	if (csi->plugin_irq)
+		disable_irq(csi->plugin_irq);
+
+	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);
+	cancel_delayed_work_sync(&csi->delayed_work_res_change);
+	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
+	rk628_csi_power_off(csi);
+
+	csi->rk628->is_suspend = true;
+}
+
 static struct i2c_driver rk628_csi_i2c_driver = {
 	.driver = {
 		.name = "rk628-csi-v4l2",
@@ -3958,6 +3981,7 @@ static struct i2c_driver rk628_csi_i2c_driver = {
 	.id_table = rk628_csi_i2c_id,
 	.probe	= rk628_csi_probe,
 	.remove = rk628_csi_remove,
+	.shutdown = rk628_csi_shutdown,
 };
 
 module_i2c_driver(rk628_csi_i2c_driver);
