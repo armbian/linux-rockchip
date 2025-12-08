@@ -624,7 +624,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	internal_buffer->virt_addr = virt_addr;
 	internal_buffer->dma_buffer = buffer;
 	internal_buffer->mm_flag = mm_flag;
-	internal_buffer->phys_addr = phys_addr ? phys_addr + virt_addr->offset : 0;
+	internal_buffer->phys_addr = phys_addr;
 	internal_buffer->size = buffer->size - buffer->offset;
 	internal_buffer->scheduler = scheduler;
 
