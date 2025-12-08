@@ -804,6 +804,24 @@
 			};
 		};
 
+		pipe_phy0_grf: syscon@2604e000 {
+			compatible = "rockchip,rk3572-pipe-phy-grf", "syscon";
+			reg = <0x0 0x2604e000 0x0 0x2000>;
+			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
+		};
+
+		pipe_phy1_grf: syscon@26050000 {
+			compatible = "rockchip,rk3572-pipe-phy-grf", "syscon";
+			reg = <0x0 0x26050000 0x0 0x2000>;
+			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
+		};
+
+		pipe_phy2_grf: syscon@26052000 {
+			compatible = "rockchip,rk3572-pipe-phy-grf", "syscon";
+			reg = <0x0 0x26052000 0x0 0x2000>;
+			clocks = <&cru PCLK_PHPSUBSYS_ROOT>;
+		};
+
 		usb2phy_grf: syscon@26054000 {
 			compatible = "rockchip,rk3572-usb2phy-grf", "syscon", "simple-mfd";
 			reg = <0x0 0x26054000 0x0 0x4000>;
@@ -3118,6 +3136,51 @@
 			rockchip,grf = <&mipidphyrx1_grf>;
 			rockchip,sys_grf = <&vi_grf>;
 			status = "okay";
+		};
+
+		combphy0_psu: phy@2c410000 {
+			compatible = "rockchip,rk3572-pipe-combphy";
+			reg = <0x0 0x2c410000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&cru CLK_REF_PCIE0_INNER_PHY>, <&cru PCLK_PCIE2_COMBOPHY0>;
+			clock-names = "refclk", "apbclk";
+			assigned-clocks = <&cru CLK_REF_PCIE0_INNER_PHY>;
+			assigned-clock-rates = <100000000>;
+			resets = <&cru SRST_PRESETN_PCIE2_COMBOPHY0>, <&cru SRST_RESETN_PCIE0_PIPE_PHY>;
+			reset-names = "combphy-apb", "combphy";
+			rockchip,pipe-grf = <&php_grf>;
+			rockchip,pipe-phy-grf = <&pipe_phy0_grf>;
+			status = "disabled";
+		};
+
+		combphy1_psu: phy@2c420000 {
+			compatible = "rockchip,rk3572-pipe-combphy";
+			reg = <0x0 0x2c420000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&cru CLK_REF_PCIE1_INNER_PHY>, <&cru PCLK_PCIE2_COMBOPHY1>;
+			clock-names = "refclk", "apbclk";
+			assigned-clocks = <&cru CLK_REF_PCIE1_INNER_PHY>;
+			assigned-clock-rates = <100000000>;
+			resets = <&cru SRST_PRESETN_PCIE2_COMBOPHY1>, <&cru SRST_RESETN_PCIE1_PIPE_PHY>;
+			reset-names = "combphy-apb", "combphy";
+			rockchip,pipe-grf = <&php_grf>;
+			rockchip,pipe-phy-grf = <&pipe_phy1_grf>;
+			status = "disabled";
+		};
+
+		combphy2_ps: phy@2c430000 {
+			compatible = "rockchip,rk3572-pipe-combphy";
+			reg = <0x0 0x2c430000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&cru CLK_REF_PCIEPHY2>, <&cru PCLK_PCIEPHY2>;
+			clock-names ="refclk", "apbclk";
+			assigned-clocks = <&cru CLK_REF_PCIEPHY2>;
+			assigned-clock-rates = <100000000>;
+			resets = <&cru SRST_PRESETN_PCIEPHY2>, <&cru SRST_RESETN_PCIEPHY2>;
+			reset-names = "combphy-apb", "combphy";
+			rockchip,pipe-grf = <&php_grf>;
+			rockchip,pipe-phy-grf = <&pipe_phy2_grf>;
+			status = "disabled";
 		};
 
 		gpu: gpu@2d000000 {
