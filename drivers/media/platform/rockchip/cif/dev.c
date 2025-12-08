@@ -1100,7 +1100,8 @@ void rkcif_write_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+		} else if (dev->chip_id == CHIP_RV1126B_CIF ||
+			   dev->chip_id == CHIP_RK3572_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
@@ -1144,7 +1145,8 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+		} else if (dev->chip_id == CHIP_RV1126B_CIF ||
+			   dev->chip_id == CHIP_RK3572_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
@@ -1191,7 +1193,8 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+		} else if (dev->chip_id == CHIP_RV1126B_CIF ||
+			   dev->chip_id == CHIP_RK3572_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
@@ -1239,7 +1242,8 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+		} else if (dev->chip_id == CHIP_RV1126B_CIF ||
+			   dev->chip_id == CHIP_RK3572_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
@@ -1344,6 +1348,12 @@ void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on)
 				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 			else
 				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
+		} else if (dev->chip_id == CHIP_RK3572_CIF) {
+			if (on)
+				val = RK3572_CIF_PCLK_DUAL_EDGE;
+			else
+				val = RK3572_CIF_PCLK_SINGLE_EDGE;
+			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 		}
 	}
 
@@ -1402,6 +1412,11 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 			else
 				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
 			return;
+		} else if (dev->chip_id == CHIP_RK3572_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = RK3572_CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = RK3572_CIF_PCLK_SAMPLING_EDGE_FALLING;
 		}
 		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 	}

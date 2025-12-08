@@ -115,6 +115,7 @@ enum rkcif_chip_id {
 	CHIP_RK3576_CIF,
 	CHIP_RV1103B_CIF,
 	CHIP_RV1126B_CIF,
+	CHIP_RK3572_CIF,
 };
 
 struct rkcif_hw_match_data {
