@@ -77,6 +77,13 @@ config TYPEC_FUSB302
 	  Type-C Port Controller Manager to provide USB PD and USB
 	  Type-C functionalities.
 
+config TYPEC_ROCKCHIP_PMIC
+	tristate "Rockchip PMIC Type-C Port Controller driver"
+	depends on I2C
+	help
+	  The Rockchip PMIC Type-C Port Controller driver that works with
+	  Type-C Port Manager to provide USB PD and USB Type-C functionalities.
+
 config TYPEC_WCOVE
 	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
 	depends on ACPI
