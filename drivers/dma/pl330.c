@@ -1469,7 +1469,8 @@ static int _period(struct pl330_dmac *pl330, unsigned int dry_run, u8 buf[],
 		}
 	}
 
-	off += _emit_SEV(dry_run, &buf[off], ev);
+	if (pxs->desc->txd.flags & DMA_PREP_INTERRUPT)
+		off += _emit_SEV(dry_run, &buf[off], ev);
 
 	return off;
 }
@@ -1607,7 +1608,8 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 
 		if (pxs->desc->last) {
 			/* DMASEV peripheral/event */
-			off += _emit_SEV(dry_run, &buf[off], thrd->ev);
+			if (pxs->desc->txd.flags & DMA_PREP_INTERRUPT)
+				off += _emit_SEV(dry_run, &buf[off], thrd->ev);
 
 			/* DMAEND */
 			off += _emit_END(dry_run, &buf[off]);
@@ -2867,6 +2869,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 	/* Initialize the descriptor */
 	desc->pchan = pch;
 	desc->txd.cookie = 0;
+	desc->txd.flags = 0;
 	async_tx_ack(&desc->txd);
 
 	desc->peri = peri_id ? pch->chan.chan_id : 0;
@@ -2993,6 +2996,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 
 	desc->cyclic = true;
 	desc->num_periods = len / period_len;
+	desc->txd.flags = flags;
 
 	return &desc->txd;
 }
@@ -3056,6 +3060,7 @@ static struct dma_async_tx_descriptor *pl330_prep_interleaved_dma(
 	desc->sgl.size = size;
 	desc->sgl.src_icg = src_icg;
 	desc->sgl.dst_icg = dst_icg;
+	desc->txd.flags = flags;
 
 	if (flags & DMA_PREP_REPEAT) {
 		desc->cyclic = true;
@@ -3117,6 +3122,8 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		desc->rqcfg.brst_len = 1;
 
 	desc->bytes_requested = len;
+
+	desc->txd.flags = flags;
 
 	return &desc->txd;
 }
@@ -3201,6 +3208,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	}
 
 	/* Return the last desc in the chain */
+	desc->txd.flags = flg;
 	return &desc->txd;
 }
 
