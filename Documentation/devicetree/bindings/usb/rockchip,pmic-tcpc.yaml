@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/usb/rockchip,pmic-tcpc.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Rockchip PMIC based USB Type-C and Power Delivery block
+
+maintainers:
+  - Frank Wang <frank.wang@rock-chips.com>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk817b2-tcpc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: A port node to link the TCPC to a USB controller for the
+                 purpose of supporting dual-role switch.
+
+  connector:
+    type: object
+    $ref: /schemas/connector/usb-connector.yaml#
+    description:
+      Properties for USB-C connector that attached to the TCPC.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - connector
+
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/usb/pd.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        usbc: rk817b2-tcpc@21 {
+            compatible = "rockchip,rk817b2-tcpc";
+            reg = <0x21>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+            pinctrl-names = "default"
+            pinctrl-0 = <&usbc_int>;
+            vbus-supply = <&vcc5v0_typec>;
+
+            port {
+                usbc_role_sw: endpoint {
+                    remote-endpoint = <&usb_drd0_role_switch>;
+                };
+            };
+
+            usb_con: connector {
+                compatible = "usb-c-connector";
+                label = "USB-C";
+                data-role = "dual";
+                power-role = "dual";
+                try-power-role = "sink";
+                pd-revision = /bits/ 8 <0x3 0x1 0x1 0x8>; /* PD Rev 3.1 Ver 1.8 */
+                op-sink-microwatt = <1000000>;
+                sink-pdos = <PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP |
+                                                   PDO_FIXED_USB_COMM |
+                                                   PDO_FIXED_EXTPOWER |
+                                                   PDO_FIXED_DUAL_ROLE)>;
+                source-pdos = <PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP |
+                                                     PDO_FIXED_USB_COMM |
+                                                     PDO_FIXED_EXTPOWER |
+                                                     PDO_FIXED_DUAL_ROLEPDO_FIXED_DUAL_ROLE)>;
+            };
+        };
+    };
+...
