@@ -6,6 +6,7 @@
 #include "rk3572.dtsi"
 #include "rk3572-evb.dtsi"
 #include "rk3572-rk806.dtsi"
+#include "rk3572-evb-input-keymap.dtsi"
 
 / {
 	vcc_3v3_s0: vcc-3v3-s0 {
