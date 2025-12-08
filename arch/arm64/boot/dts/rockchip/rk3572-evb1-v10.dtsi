@@ -18,6 +18,15 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc_mipicsi0: vcc-mipicsi0-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi0_pwr>;
+		regulator-name = "vcc_mipicsi0";
+		enable-active-high;
+	};
+
 	vdd2l_0v9_ddr_s3: vdd2l-0v9-ddr-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd2l_0v9_ddr_s3";
@@ -26,5 +35,15 @@
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <900000>;
 		vin-supply = <&vcc5v0_sys_s5>;
+	};
+};
+
+&pinctrl {
+	cam {
+		mipicsi0_pwr: mipicsi0-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 };
