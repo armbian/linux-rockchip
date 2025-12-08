@@ -1804,6 +1804,8 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 	rk628->vic = vic;
 	rk628_i2c_read(rk628, HDMI_RX_PDEC_GCP_AVMUTE, &format);
 	format = (format & PKTDEC_GCP_CD_MASK) >> 4;
+	if (format == 5 && rk628->hdr_support)
+		rk628->is_10bit = true;
 	video_fmt = rk628_hdmirx_get_format(rk628);
 	rk628->color_format = video_fmt;
 	color_range = rk628_hdmirx_get_range(rk628);
@@ -1890,7 +1892,6 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 				hfp = hfp * 2 * 8 / 10;
 				hbp = hbp * 2 * 8 / 10;
 				hs = hs * 2 * 8 / 10;
-				rk628->is_10bit = true;
 			} else {
 				htotal *= 2;
 				hact *= 2;
