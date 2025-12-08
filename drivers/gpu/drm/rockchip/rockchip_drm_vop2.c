@@ -10507,11 +10507,12 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 		adj_mode->crtc_clock *= 2;
 
 	/*
-	 * For RK3528, the path of CVBS output is like:
+	 * For RK3528 and RK3538, the path of CVBS output is like:
 	 * VOP BT656 ENCODER -> CVBS BT656 DECODER -> CVBS ENCODER -> CVBS VDAC
 	 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
 	 */
-	if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
+	if ((vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3538) &&
+	    vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 4;
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_RGB)
