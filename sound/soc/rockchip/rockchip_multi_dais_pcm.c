@@ -550,7 +550,7 @@ static int dmaengine_mpcm_trcm_dma_guard_ctrl(struct snd_soc_component *componen
 
 		desc = dmaengine_prep_dma_cyclic(chans[i], guards[i].dma_addr,
 						 buf_sz, buf_sz, direction,
-						 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+						 DMA_CTRL_ACK);
 		if (!desc)
 			return -ENOMEM;
 
