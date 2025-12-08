@@ -2087,6 +2087,9 @@
 		npu_pvtpll: npu-pvtpll@3c {
 			reg = <0x3c 0x2>;
 		};
+		macphy_txamp: macphy-txamp@40 {
+			reg = <0x40 0x2>;
+		};
 		macphy_adc_offset: macphy-adc-offset@46 {
 			reg = <0x46 0x2>;
 		};
