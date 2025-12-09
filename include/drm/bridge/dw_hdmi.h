@@ -293,7 +293,7 @@ struct dw_hdmi_plat_data {
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 	int (*dclk_set)(void *data, bool enable, int vp_id);
-	int (*link_clk_set)(void *data, bool enable);
+	int (*link_clk_set)(void *data, u32 rate, bool enable);
 	int (*get_vp_id)(struct drm_crtc_state *crtc_state);
 	void (*update_color_format)(struct drm_connector_state *conn_state, void *data);
 	void (*set_prev_bus_format)(void *data, unsigned long bus_format);

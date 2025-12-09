@@ -3377,7 +3377,7 @@ secondary:
 				       &hdmi->enc_out_encoding, &s->eotf);
 
 	s->bus_format = bus_format;
-	if (hdmi->dw_hdmi_qp_version) {
+	if (hdmi->dw_hdmi_qp_version && !strcmp(hdmi->plat_data->phy_name, "samsung_hdptx_phy")) {
 		if (hdmi->vrr_cap.vrr_mode) {
 			s->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
 			s->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
@@ -3807,7 +3807,7 @@ static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 	return 0;
 }
 
-static int dw_hdmi_link_clk_set(void *data, bool enable)
+static int dw_hdmi_link_clk_set(void *data, u32 rate, bool enable)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	u64 phy_clk = hdmi->phy_bus_width;
@@ -3820,19 +3820,24 @@ static int dw_hdmi_link_clk_set(void *data, bool enable)
 			return ret;
 		}
 
-		if (((phy_clk & DATA_RATE_MASK) <= 6000000) &&
-		    (phy_clk & COLOR_DEPTH_10BIT))
-			phy_clk = (phy_clk & DATA_RATE_MASK) * 10 * 8;
-		else
-			phy_clk = (phy_clk & DATA_RATE_MASK) * 100;
+		if (hdmi->dw_hdmi_qp_version &&
+		    !strcmp(hdmi->plat_data->phy_name, "samsung_hdptx_phy"))  {
+			if (((phy_clk & DATA_RATE_MASK) <= 6000000) &&
+			    (phy_clk & COLOR_DEPTH_10BIT))
+				phy_clk = (phy_clk & DATA_RATE_MASK) * 10 * 8;
+			else
+				phy_clk = (phy_clk & DATA_RATE_MASK) * 100;
+		} else {
+			phy_clk = rate;
+		}
 
 		/*
-		 * To be compatible with vop dclk usage scenarios, hdmi phy pll clk
-		 * is set according to dclk rate.
-		 * But phy pll actual frequency will varies according to the color depth.
-		 * So we should get the actual frequency or clk_set_rate may not change
-		 * pll frequency when 8/10 bit switch.
-		 */
+		* To be compatible with vop dclk usage scenarios, hdmi phy pll clk
+		* is set according to dclk rate.
+		* But phy pll actual frequency will varies according to the color depth.
+		* So we should get the actual frequency or clk_set_rate may not change
+		* pll frequency when 8/10 bit switch.
+		*/
 		clk_get_rate(hdmi->link_clk);
 		clk_set_rate(hdmi->link_clk, phy_clk);
 	} else {

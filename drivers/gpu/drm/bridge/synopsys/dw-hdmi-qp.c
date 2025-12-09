@@ -2312,7 +2312,7 @@ static int dw_hdmi_qp_flt_lts4(struct dw_hdmi_qp *hdmi, u8 *rate)
 	/* disable phy */
 	hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	if (hdmi->plat_data->link_clk_set)
-		hdmi->plat_data->link_clk_set(data, false);
+		hdmi->plat_data->link_clk_set(data, 0, false);
 
 	/* set lower frl rate */
 	flt_rate--;
@@ -2321,7 +2321,7 @@ static int dw_hdmi_qp_flt_lts4(struct dw_hdmi_qp *hdmi, u8 *rate)
 		hdmi->plat_data->force_frl_rate(data, actual_rate);
 
 	if (hdmi->plat_data->link_clk_set)
-		hdmi->plat_data->link_clk_set(data, true);
+		hdmi->plat_data->link_clk_set(data, 0, true);
 
 	/* enable phy */
 	hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
@@ -2707,7 +2707,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 					link_cfg->frl_mode);
 
 	if (!hdmi->update && hdmi->plat_data->link_clk_set)
-		hdmi->plat_data->link_clk_set(data, true);
+		hdmi->plat_data->link_clk_set(data, hdmi->previous_mode.crtc_clock * 1000, true);
 
 	/*
 	 * According to the dw-hdmi specification 6.4.2
@@ -3938,7 +3938,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 		hdmi->disabled = true;
 		if (hdmi->plat_data->link_clk_set)
-			hdmi->plat_data->link_clk_set(data, false);
+			hdmi->plat_data->link_clk_set(data, 0, false);
 	}
 
 	hdmi->update = false;
