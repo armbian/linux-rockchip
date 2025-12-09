@@ -285,4 +285,9 @@
 #define HCLK_PMU_SRAM				271
 
 #define CLK_NR_CLKS				(HCLK_PMU_SRAM + 1)
+
+/* secure clk */
+#define SCLK_DSU				300
+#define SCLK_DDR				301
+
 #endif
