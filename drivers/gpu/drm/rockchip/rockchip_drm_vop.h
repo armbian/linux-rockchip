@@ -1013,6 +1013,7 @@ struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
 	struct vop_reg sys_cfg_done;
 	struct vop_reg overlay_mode;
+	struct vop_reg yuv_full_range_overlay_mode;
 	struct vop_reg dsp_background;
 	struct vop_reg port_mux;
 	struct vop_reg out_mode;

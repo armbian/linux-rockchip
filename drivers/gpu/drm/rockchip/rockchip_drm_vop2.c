@@ -15510,6 +15510,10 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 		vop2_dither_setup(vcstate, &splice_vp->rockchip_crtc.crtc);
 
 	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
+	/* From rk3538/rk3572, the WIN CSC will convert the data to YUV full range
+	 * when at yuv overlay mode.
+	 */
+	VOP_MODULE_SET(vop2, vp, yuv_full_range_overlay_mode, 1);
 
 	/*
 	 * userspace specified background.
@@ -15523,10 +15527,17 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 		b <<= 2;
 		val = (r << 20) | (g << 10) | b;
 	} else {
-		if (vcstate->yuv_overlay)
-			val = 0x20010200;
-		else
+		if (vcstate->yuv_overlay) {
+			/* From rk3538/rk3572, the background should be set to
+			 * full range when at yuv overlay mode.
+			 */
+			if (vp->regs->yuv_full_range_overlay_mode.mask)
+				val = 0x20000200;
+			else
+				val = 0x20010200;
+		} else {
 			val = 0;
+		}
 	}
 
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
