@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rockchip,rk3572-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rockchip,rk3572-power-controller.h>
 #include <dt-bindings/reset/rockchip,rk3572-cru.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
@@ -709,8 +710,8 @@
 			resets = <&cru SRST_ARESETN_USB3OTG0>;
 			reset-names = "usb3-otg";
 			dr_mode = "otg";
-			phys = <&u2phy0_otg>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy0_otg>, <&combphy0_psu PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u1-entry-quirk;
@@ -735,8 +736,8 @@
 			resets = <&cru SRST_ARESETN_USB3OTG1>;
 			reset-names = "usb3-otg";
 			dr_mode = "otg";
-			phys = <&u2phy1_otg>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy1_otg>, <&combphy1_psu PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u1-entry-quirk;
