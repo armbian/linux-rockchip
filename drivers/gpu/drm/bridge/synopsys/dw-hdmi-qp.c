@@ -4878,8 +4878,6 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 0, AVP_1_INT_MASK_N);
-	hdmi_writel(hdmi, 0, AVP_3_INT_MASK_N);
 	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 	hdmi->logo_plug_out = false;
 	if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) == connector_status_connected &&
