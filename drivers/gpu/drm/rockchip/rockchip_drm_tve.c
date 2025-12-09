@@ -488,6 +488,26 @@ static void rockchip_tve_encoder_disable(struct drm_encoder *encoder)
 	mutex_unlock(&tve->suspend_lock);
 }
 
+static void rockchip_tve_encoder_atomic_disable(struct drm_encoder *encoder,
+						struct drm_atomic_state *state)
+{
+	struct rockchip_tve *tve = encoder_to_tve(encoder);
+	struct drm_crtc *old_crtc, *new_crtc;
+	struct rockchip_crtc_state *s;
+
+	if (tve->soc_type == SOC_RK3528 || tve->soc_type == SOC_RK3538) {
+		old_crtc = drm_atomic_get_old_crtc_for_encoder(state, encoder);
+		new_crtc = drm_atomic_get_new_crtc_for_encoder(state, encoder);
+
+		if (old_crtc && old_crtc != new_crtc) {
+			s = to_rockchip_crtc_state(old_crtc->state);
+			s->output_if &= ~VOP_OUTPUT_IF_BT656;
+		}
+	}
+
+	rockchip_tve_encoder_disable(encoder);
+}
+
 static void rockchip_tve_encoder_mode_set(struct drm_encoder *encoder,
 					  struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -652,7 +672,7 @@ rockchip_tve_encoder_helper_funcs = {
 	.mode_fixup = rockchip_tve_encoder_mode_fixup,
 	.mode_set = rockchip_tve_encoder_mode_set,
 	.enable = rockchip_tve_encoder_enable,
-	.disable = rockchip_tve_encoder_disable,
+	.atomic_disable = rockchip_tve_encoder_atomic_disable,
 	.atomic_check = rockchip_tve_encoder_atomic_check,
 };
 
