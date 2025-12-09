@@ -594,12 +594,75 @@ static int rockchip_fifo_cfg(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/*
+ * SAI DMA_NUM
+ * Dependency: Enabled by XFER.fpc. Used for pointer integrity update of FPC.
+ *
+ * DMA_ACK_NUM: Number of ACKs required to form a complete frame.
+ * DMA_ACK_TIMES: Updates pointers for NFRAMES.
+ *
+ * Calculation formulas:
+ *   DMA_ACK_NUM = FRAME_WORD / DMA_ACK_WORD  (DMA_ACK_NUM >= 1)
+ *   DMA_TIMES   = (DMA_ACK_WORD * DMA_ACK_NUM) / FRAME_WORD  (DMA_TIMES >= 1)
+ *
+ * CASE SAI-2CH 32BITS: FRAME_WORD=2, DMA_ACK_WORD=8
+ *   DMA_ACK_NUM = (2 / 8) = 0 => 1  (minimum enforced to 1)
+ *   DMA_TIMES   = (8 * 1) / 2 = 4
+ *
+ * CASE SAI-16CH 32BITS: FRAME_WORD=16, DMA_ACK_WORD=8
+ *   DMA_ACK_NUM = 16 / 8 = 2
+ *   DMA_TIMES   = (8 * 2) / 16 = 1
+ */
+static int rockchip_sai_dma_cfg(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
+{
+	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	struct snd_dmaengine_dai_dma_data *dma_data;
+	unsigned int reg, val, frame_word, dma_ack_word, ack, times;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	frame_word = snd_pcm_format_size(params_format(params),
+					 params_channels(params)) / 4;
+	dma_ack_word = MAXBURST_PER_FIFO * params_channels(params) / 2;
+
+	reg = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? SAI_TXCR : SAI_RXCR;
+	regmap_read(sai->regmap, reg, &val);
+
+	if ((val & SAI_XCR_FPC_EN) == 0) {
+		dma_data->maxburst = dma_ack_word;
+
+		return 0;
+	}
+
+	if (frame_word < dma_ack_word) {
+		dma_ack_word = (dma_ack_word / frame_word) * frame_word;
+		ack = 1;
+	} else {
+		ack = frame_word / dma_ack_word;
+		dma_ack_word = ack * dma_ack_word;
+	}
+
+	dma_data->maxburst = dma_ack_word;
+
+	times = dma_ack_word / frame_word;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		regmap_update_bits(sai->regmap, SAI_DMA_NUM,
+				   SAI_DMA_TX_ACK_NUM_MASK | SAI_DMA_TX_TIMES_MASK,
+				   SAI_DMA_TX_ACK_NUM(ack) | SAI_DMA_TX_TIMES(times));
+	else
+		regmap_update_bits(sai->regmap, SAI_DMA_NUM,
+				   SAI_DMA_RX_ACK_NUM_MASK | SAI_DMA_RX_TIMES_MASK,
+				   SAI_DMA_RX_ACK_NUM(ack) | SAI_DMA_RX_TIMES(times));
+	return 0;
+}
+
 static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
-	struct snd_dmaengine_dai_dma_data *dma_data;
 	unsigned int mclk_rate, mclk_req_rate, bclk_rate, div_bclk;
 	unsigned int ch_per_lane, lanes, slot_width, mask_slots;
 	unsigned int val, fscr, reg, fifo;
@@ -607,8 +670,7 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 	if (!rockchip_sai_stream_valid(substream, dai))
 		return 0;
 
-	dma_data = snd_soc_dai_get_dma_data(dai, substream);
-	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
+	rockchip_sai_dma_cfg(substream, params, dai);
 
 	lanes = rockchip_sai_lanes_auto(params, dai);
 
@@ -1150,6 +1212,7 @@ static bool rockchip_sai_wr_reg(struct device *dev, unsigned int reg)
 	case SAI_TXFL_TIMEOUT:
 	case SAI_RXFL_TIMEOUT:
 	case SAI_DEBUG:
+	case SAI_DMA_NUM:
 		return true;
 	default:
 		return false;
@@ -1198,6 +1261,7 @@ static bool rockchip_sai_rd_reg(struct device *dev, unsigned int reg)
 	case SAI_RXFL_TIMEOUT:
 	case SAI_DEBUG:
 	case SAI_TXDATA0 ... SAI_RXDATA3:
+	case SAI_DMA_NUM:
 		return true;
 	default:
 		return false;
