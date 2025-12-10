@@ -874,7 +874,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 	count = of_property_count_strings(np, "clock-names");
-	if (count == 2) {
+	if (count >= 2) {
 		clk = devm_clk_get(&pdev->dev, "pwm");
 		p_clk = devm_clk_get(&pdev->dev, "pclk");
 	} else {
