@@ -17,11 +17,6 @@
 	};
 };
 
-/ {
-	model = "Rockchip RV1126B EVB2 V12 Board";
-	compatible = "rockchip,rv1126b-evb2-v12-dv", "rockchip,rv1126b";
-};
-
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
