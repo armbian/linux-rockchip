@@ -368,7 +368,7 @@
 		hdmi_tx_cec_pins: hdmi-tx-cec-pins {
 			rockchip,pins =
 				/* hdmi_tx_cec_3v3 */
-				<0 RK_PA7 1 &pcfg_pull_none>;
+				<0 RK_PA7 1 &pcfg_pull_up>;
 		};
 	};
 
@@ -386,7 +386,7 @@
 		hdmi_tx_scl_pins: hdmi-tx-scl-pins {
 			rockchip,pins =
 				/* hdmi_tx_scl_5v */
-				<0 RK_PB0 1 &pcfg_pull_none>;
+				<0 RK_PB0 1 &pcfg_pull_none_smt>;
 		};
 	};
 
@@ -395,7 +395,7 @@
 		hdmi_tx_sda_pins: hdmi-tx-sda-pins {
 			rockchip,pins =
 				/* hdmi_tx_sda_5v */
-				<0 RK_PB1 1 &pcfg_pull_none>;
+				<0 RK_PB1 1 &pcfg_pull_none_smt>;
 		};
 	};
 
