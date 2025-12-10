@@ -6402,6 +6402,14 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 			VOP_CTRL_SET(vop2, hdmi_dual_en, 0);
 	}
 
+	if (output_if_is_dpi(vp->output_if)) {
+		VOP_CTRL_SET(vop2, rgb_en, 0);
+		if (vp->output_if & VOP_OUTPUT_IF_BT656)
+			VOP_CTRL_SET(vop2, bt656_en, 0);
+		if (vp->output_if & VOP_OUTPUT_IF_BT1120)
+			VOP_CTRL_SET(vop2, bt1120_en, 0);
+	}
+
 	if (vcstate->output_if & VOP_OUTPUT_IF_DP0)
 		VOP_CTRL_SET(vop2, dp0_data1_sel, 0);
 
