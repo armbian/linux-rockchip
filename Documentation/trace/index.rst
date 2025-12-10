@@ -21,6 +21,7 @@ Linux Tracing Technologies
    events-nmi
    events-msr
    mmiotrace
+   events-pci
    histogram
    histogram-design
    boottime-trace
