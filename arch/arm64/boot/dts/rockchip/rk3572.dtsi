@@ -1864,6 +1864,116 @@
 			};
 		};
 
+		pcie0: pcie@29d00000 {
+			compatible = "rockchip,rk3572-pcie", "snps,dw-pcie";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			bus-range = <0x0 0xf>;
+			clocks = <&cru ACLK_PCIE0_MSTR>, <&cru ACLK_PCIE0_SLV>,
+				 <&cru ACLK_PCIE0_DBI>, <&cru PCLK_PCIE0>,
+				 <&cru CLK_PCIE0_AUX>;
+			clock-names = "aclk_mstr", "aclk_slv", "aclk_dbi", "pclk", "aux";
+			device_type = "pci";
+			interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi", "pmc", "sys", "legacy", "msg", "err", "ptm";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie0_intc 0>,
+					<0 0 0 2 &pcie0_intc 1>,
+					<0 0 0 3 &pcie0_intc 2>,
+					<0 0 0 4 &pcie0_intc 3>;
+			linux,pci-domain = <0>;
+			num-ib-windows = <8>;
+			num-viewport = <8>;
+			num-ob-windows = <2>;
+			max-link-speed = <2>;
+			num-lanes = <1>;
+			phys = <&combphy0_psu PHY_TYPE_PCIE>;
+			phy-names = "pcie-phy";
+			power-domains = <&power RK3572_PD_PHP>;
+			ranges = <0x00000800 0x0 0x20000000 0x0 0x20000000 0x0 0x00100000
+				  0x81000000 0x0 0x20100000 0x0 0x20100000 0x0 0x00100000
+				  0x82000000 0x0 0x20200000 0x0 0x20200000 0x0 0x00e00000
+				  0xc3000000 0xc 0x00000000 0xc 0x00000000 0x2 0x00000000>;
+			reg = <0x0 0x29d00000 0x0 0x00010000>,
+			      <0x0 0x22000000 0x0 0x00400000>,
+			      <0x0 0x20000000 0x0 0x00100000>;
+			reg-names = "pcie-apb", "pcie-dbi", "config";
+			resets = <&cru SRST_RESETN_PCIE0_POWER_UP>, <&cru SRST_PRESETN_PCIE0>;
+			reset-names = "pipe", "p_pcie0";
+			dma-coherent;
+			status = "disabled";
+
+			pcie0_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 260 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		pcie1: pcie@29d10000 {
+			compatible = "rockchip,rk3572-pcie", "snps,dw-pcie";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			bus-range = <0x10 0x1f>;
+			clocks = <&cru ACLK_PCIE1_MSTR>, <&cru ACLK_PCIE1_SLV>,
+				 <&cru ACLK_PCIE1_DBI>, <&cru PCLK_PCIE1>,
+				 <&cru CLK_PCIE1_AUX>;
+			clock-names = "aclk_mstr", "aclk_slv", "aclk_dbi", "pclk", "aux";
+			device_type = "pci";
+			interrupts = <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi", "pmc", "sys", "legacy", "msg", "err", "ptm";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie1_intc 0>,
+					<0 0 0 2 &pcie1_intc 1>,
+					<0 0 0 3 &pcie1_intc 2>,
+					<0 0 0 4 &pcie1_intc 3>;
+			linux,pci-domain = <1>;
+			num-ib-windows = <8>;
+			num-viewport = <8>;
+			num-ob-windows = <2>;
+			max-link-speed = <2>;
+			num-lanes = <1>;
+			phys = <&combphy2_ps PHY_TYPE_PCIE>;
+			phy-names = "pcie-phy";
+			power-domains = <&power RK3572_PD_PHP>;
+			ranges = <0x00000800 0x0 0x21000000 0x0 0x21000000 0x0 0x00100000
+				  0x81000000 0x0 0x21100000 0x0 0x21100000 0x0 0x00100000
+				  0x82000000 0x0 0x21200000 0x0 0x21200000 0x0 0x00e00000
+				  0xc3000000 0xe 0x00000000 0xe 0x00000000 0x2 0x00000000>;
+			reg = <0x0 0x29d10000 0x0 0x00010000>,
+			      <0x0 0x22400000 0x0 0x00400000>,
+			      <0x0 0x21000000 0x0 0x00100000>;
+			reg-names = "pcie-apb", "pcie-dbi", "config";
+			resets = <&cru SRST_RESETN_PCIE1_POWER_UP>, <&cru SRST_PRESETN_PCIE1>;
+			reset-names = "pipe", "p_pcie1";
+			dma-coherent;
+			status = "disabled";
+
+			pcie1_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 275 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
 		ufs: ufs@29e00000 {
 			compatible = "rockchip,rk3572-ufs", "rockchip,rk3576-ufs";
 			reg = <0x0 0x29e00000 0 0x10000>, /* 0: HCI standard */
