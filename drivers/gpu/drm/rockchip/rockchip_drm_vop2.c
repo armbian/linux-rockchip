@@ -15808,7 +15808,13 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	else
 		acm_enable = acm->acm_enable;
 
-	if (acm_enable) {
+	/*
+	 * RK3576:
+	 * overlay -> sharp -> r2y -> acm -> y2r
+	 * RK3538/RK3572:
+	 * overlay -> r2y -> sharp -> acm -> y2r
+	 */
+	if (acm_enable || (vop2->version != VOP_VERSION_RK3576 && post_sharp_enabled(crtc))) {
 		if (!vcstate->yuv_overlay)
 			post_r2y_en = true;
 
