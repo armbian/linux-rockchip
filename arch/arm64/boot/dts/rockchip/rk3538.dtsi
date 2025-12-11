@@ -667,6 +667,22 @@
 			status = "disabled";
 		};
 
+		debug: debug@fc204000 {
+			compatible = "rockchip,debug";
+			reg = <0xfc204000 0x1000>,
+			      <0xfc205000 0x1000>,
+			      <0xfc206000 0x1000>,
+			      <0xfc207000 0x1000>;
+		};
+
+		cspmu: cspmu@fc20c000 {
+			compatible = "rockchip,cspmu";
+			reg = <0xfc20c000 0x1000>,
+			      <0xfc20d000 0x1000>,
+			      <0xfc20e000 0x1000>,
+			      <0xfc20f000 0x1000>;
+		};
+
 		pwm0_4ch_0: pwm@fca00000 {
 			compatible = "rockchip,rk3538-pwm";
 			reg = <0xfca00000 0x1000>;
