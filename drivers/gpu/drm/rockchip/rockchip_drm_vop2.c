@@ -13348,6 +13348,16 @@ static void rk3572_cursor_alpha(struct vop2_video_port *vp,
 	struct drm_framebuffer *fb;
 	int premulti_en = 1;
 	int pixel_alpha_en = 1;
+	int i = 0;
+
+	for (i = 0; i < vp->nr_layers; i++) {
+		zpos = &vop2_zpos[i];
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+		if (win && vop2_cursor_window(win) && (i != vp->nr_layers - 1)) {
+			DRM_ERROR("Cursor must at the top layer\n");
+			return;
+		}
+	}
 
 	zpos = &vop2_zpos[vp->nr_layers - 1];/* top layer */
 	win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
