@@ -118,6 +118,10 @@
 	mali-supply = <&vdd_logic>;
 };
 
+&mac {
+	status = "okay";
+};
+
 &pwm0_4ch_2 {
 	status = "okay";
 };
