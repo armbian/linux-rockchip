@@ -595,16 +595,7 @@ static int rockchip_pdm_v2_pinctrl_select_clk_state(struct device *dev)
 	 */
 	udelay(10);
 
-	/*
-	 * Must disable the clk to avoid clk glitch
-	 * when pinctrl switch from gpio to pdm clk.
-	 */
-
-	rockchip_utils_clk_gate_endisable(pdm->dev, pdm->clk_out, 0);
-	udelay(10);
 	pinctrl_select_state(pdm->pinctrl, pdm->clk_state);
-	udelay(10);
-	rockchip_utils_clk_gate_endisable(pdm->dev, pdm->clk_out, 1);
 
 	return 0;
 }
@@ -628,6 +619,7 @@ static int rockchip_pdm_v2_runtime_resume(struct device *dev)
 	struct rk_pdm_v2_dev *pdm = dev_get_drvdata(dev);
 	int ret;
 
+	rockchip_pdm_v2_pinctrl_select_clk_state(dev);
 	ret = clk_prepare_enable(pdm->clk_out);
 	if (ret)
 		goto err_clk_out;
@@ -647,8 +639,6 @@ static int rockchip_pdm_v2_runtime_resume(struct device *dev)
 		goto err_regmap;
 
 	rockchip_pdm_v2_rxctrl(pdm, 0);
-
-	rockchip_pdm_v2_pinctrl_select_clk_state(dev);
 
 	return 0;
 
