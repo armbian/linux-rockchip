@@ -742,7 +742,6 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	non-removable;
 	sd-uhs-sdr104;
 	vqmmc-supply = <&vccio_sd_s0>;
 	status = "okay";
