@@ -3759,7 +3759,8 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 									  input_color_range,
 									  CSC_13BIT_DEPTH);
 			}
-			return;
+			if (!win->csc_coe_offset)
+				return;
 		} else if (vp->sdr2hdr_en) {
 			if (is_input_yuv) {
 				vpstate->y2r_en = 1;
@@ -3767,7 +3768,8 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 									  input_color_range,
 									  csc_y2r_bit_depth);
 			}
-			return;
+			if (!win->csc_coe_offset)
+				return;
 		}
 	} else {
 		/* hdr2sdr and sdr2hdr will do csc itself */
