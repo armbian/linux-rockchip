@@ -1372,6 +1372,12 @@
 			log_leakage: log-leakage@33 {
 				reg = <0x33 0x1>;
 			};
+			macphy_txamp: macphy-txamp@5a {
+				reg = <0x5a 0x2>;
+			};
+			macphy_adc_offset: macphy-adc-offset@60 {
+				reg = <0x60 0x2>;
+			};
 		};
 
 		rkvdec: rkvdec@fda10100 {
@@ -1559,11 +1565,15 @@
 				rmii_fephy: ethernet-phy@2 {
 					compatible = "ethernet-phy-id0680.8101", "ethernet-phy-ieee802.3-c22";
 					reg = <2>;
-					clocks = <&cru CLK_IN_MACPHY>;
+					rockchip,macphy = <&macphy>;
+					clocks = <&cru CLK_IN_MACPHY>, <&cru PCLK_MACPHY>;
+					clock-names = "clk", "pclk";
 					clock-frequency = <24000000>;
 					resets = <&cru SRST_RESETN_MACPHY>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&fephy_ledm0_pins>;
+					nvmem-cells = <&macphy_txamp>, <&macphy_adc_offset>;
+					nvmem-cell-names = "txamp", "adc_offset";
 					phy-is-integrated;
 				};
 			};
@@ -1651,6 +1661,11 @@
 				interrupt-names = "linestate";
 				status = "disabled";
 			};
+		};
+
+		macphy: syscon@fdbc0000 {
+			compatible = "rockchip,rk3538-macphy", "syscon";
+			reg = <0xfdbc0000 0x1000>;
 		};
 
 		vop: vop@fdbe0000 {
