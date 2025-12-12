@@ -13,11 +13,6 @@
 #include "dev.h"
 #include "regs.h"
 
-static int rkooc_g_buffer_size(struct rkooc_dev *dev)
-{
-	return dev->ooc_width * dev->ooc_height;
-}
-
 static int rkooc_querycap(struct file *file, void *priv,
 			  struct v4l2_capability *cap)
 {
@@ -45,8 +40,8 @@ static int rkooc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct rkooc_dev *dev = video_drvdata(file);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width = dev->ooc_width;
-	pix->height = dev->ooc_height;
+	pix->width = dev->win.ooc_width;
+	pix->height = dev->win.ooc_height;
 	pix->pixelformat = V4L2_PIX_FMT_GREY;
 	pix->field = V4L2_FIELD_NONE;
 	pix->bytesperline = pix->width;
@@ -87,7 +82,7 @@ static int rkooc_out_queue_setup(struct vb2_queue *vq,
 	if (*nplanes == 0) {
 		*nplanes = 1;
 		*nbuffers = 2;
-		sizes[0] = rkooc_g_buffer_size(dev);
+		sizes[0] = dev->win.ooc_width * dev->win.ooc_height;
 		return 0;
 	}
 

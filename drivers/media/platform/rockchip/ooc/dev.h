@@ -13,6 +13,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-ioctl.h>
 #include <media/media-device.h>
+#include "rkooc-externel.h"
 
 /* buffer for one video frame */
 struct rkooc_buffer {
@@ -73,18 +74,20 @@ struct rkooc_dev {
 	struct list_head irfpa_rx_buffers;
 
 	spinlock_t slock;
+	spinlock_t irfpa_lock;
 	struct mutex mutex;
 
 	u32 vid_cap_seq_count;
 	u32 vid_out_seq_count;
 	u32 irfpa_rx_seq;
+	bool have_dummy;
 	struct rkooc_dummy_buffer dummy;
+	struct rkooc_dummy_buffer reglist;
 	struct rkooc_buffer *cur_buf;
 
-	u16 ooc_width;
-	u16 ooc_height;
-	u16 image_width;
-	u16 image_height;
+	u8 sensor;
+	struct rkooc_config_win win;
+	u16 reg_bits;
 
 	struct v4l2_rect irfpatx_crop;
 	struct v4l2_rect irfpatx_compose;
@@ -92,6 +95,9 @@ struct rkooc_dev {
 	u16 irfpatx_height;
 	u32 irfpatx_fourcc;
 	u32 irfpatx_sizeimage;
+
+	u32 ooctx_num;
+	bool full_mode;
 };
 
 static inline u32 rkooc_read_reg(struct rkooc_dev *dev, u32 offset)
@@ -107,14 +113,13 @@ static inline void rkooc_write_reg(struct rkooc_dev *dev, u32 offset, u32 value)
 // form hw.c
 void rkooc_hw_init(struct rkooc_dev *dev);
 void rkooc_hw_deinit(struct rkooc_dev *dev);
-int rkooc_hw_pmclk_enable(struct rkooc_dev *dev);
+void rkooc_hw_pmclk_enable(struct rkooc_dev *dev);
 void rkooc_hw_pmclk_disable(struct rkooc_dev *dev);
 void rkooc_hw_enable_irq(struct rkooc_dev *dev);
 void rkooc_hw_disable_irq(struct rkooc_dev *dev);
 
-void rkooc_hw_win1_config(struct rkooc_dev *dev);
-void rkooc_hw_win1_disable(struct rkooc_dev *dev);
-void rkooc_hw_sys_config(struct rkooc_dev *dev);
+void rkooc_hw_start(struct rkooc_dev *dev);
+void rkooc_hw_stop(struct rkooc_dev *dev);
 void rkooc_hw_update_win_addr(struct rkooc_dev *dev, u32 addr);
 
 // from capture.c

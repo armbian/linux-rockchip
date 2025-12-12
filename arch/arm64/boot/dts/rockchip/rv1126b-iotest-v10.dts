@@ -128,9 +128,13 @@
 	rmii_phy: ethernet-phy@2 {
 		compatible = "ethernet-phy-id0680.8101", "ethernet-phy-ieee802.3-c22";
 		reg = <2>;
-		clocks = <&cru CLK_MACPHY>;
+		rockchip,macphy = <&macphy>;
+		clocks = <&cru CLK_MACPHY>, <&cru PCLK_MACPHY>;
+		clock-names = "clk", "pclk";
 		clock-frequency = <24000000>;
 		resets = <&cru SRST_RESETN_MACPHY>;
+		nvmem-cells = <&macphy_txamp>, <&macphy_adc_offset>;
+		nvmem-cell-names = "txamp", "adc_offset";
 		phy-is-integrated;
 	};
 };

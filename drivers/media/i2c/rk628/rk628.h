@@ -327,6 +327,7 @@ struct rk628 {
 	bool is_suspend;
 	bool is_10bit;
 	bool enable_csi1;
+	bool hdr_support;
 };
 
 #define rk628_dbg(rk628, format, ...)	\

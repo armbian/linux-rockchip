@@ -2087,6 +2087,12 @@
 		npu_pvtpll: npu-pvtpll@3c {
 			reg = <0x3c 0x2>;
 		};
+		macphy_txamp: macphy-txamp@40 {
+			reg = <0x40 0x2>;
+		};
+		macphy_adc_offset: macphy-adc-offset@46 {
+			reg = <0x46 0x2>;
+		};
 		cpu_opp_info: cpu-opp-info@48 {
 			reg = <0x48 0x6>;
 		};
@@ -2957,6 +2963,11 @@
 				status = "okay";
 			};
 		};
+	};
+
+	macphy: syscon@21c90000 {
+		compatible = "rockchip,rv1126b-macphy", "syscon";
+		reg = <0x21c90000 0x1000>;
 	};
 
 	dsmc: dsmc@21ca0000 {

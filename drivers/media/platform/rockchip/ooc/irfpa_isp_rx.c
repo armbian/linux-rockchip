@@ -42,26 +42,9 @@ static int irfparx_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
-static int irfparx_g_selection(struct file *file, void *priv,
-			       struct v4l2_selection *sel)
-{
-	struct rkooc_dev *dev = video_drvdata(file);
-
-	sel->r.left = sel->r.top = 0;
-	switch (sel->target) {
-	case V4L2_SEL_TGT_CROP:
-		sel->r = dev->irfpatx_crop;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static const struct v4l2_ioctl_ops irfpa_rx_ioctl_ops = {
 	.vidioc_querycap = irfparx_querycap,
 	.vidioc_g_fmt_vid_out = irfparx_g_fmt,
-	.vidioc_g_selection = irfparx_g_selection,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs = vb2_ioctl_create_bufs,
@@ -116,27 +99,30 @@ static int rkooc_rx_buf_prepare(struct vb2_buffer *vb)
 
 static void rkooc_rx_buf_queue(struct vb2_buffer *vb)
 {
-	unsigned long flags;
 	struct rkooc_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rkooc_buffer *buf = container_of(vbuf, struct rkooc_buffer, vb);
 
 	vbuf->sequence = dev->irfpa_rx_seq++;
 
-	spin_lock_irqsave(&dev->slock, flags);
+	spin_lock(&dev->irfpa_lock);
 	if (!list_empty(&dev->vid_cap_active)) {
 		struct rkooc_buffer *outbuf =
 		    list_entry(dev->vid_cap_active.next,
 			       struct rkooc_buffer, list);
 
 		list_del(&outbuf->list);
+		spin_unlock(&dev->irfpa_lock);
+
 		memcpy(outbuf->vaddr, buf->vaddr, buf->size);
 		outbuf->vb.sequence = vbuf->sequence;
+		outbuf->vb.vb2_buf.timestamp = ktime_get_boottime_ns();
 		vb2_buffer_done(&outbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	} else {
+		spin_unlock(&dev->irfpa_lock);
 	}
 	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 static int rkooc_rx_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -149,10 +135,9 @@ static int rkooc_rx_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 static void rkooc_rx_stop_streaming(struct vb2_queue *vq)
 {
-	unsigned long flags;
 	struct rkooc_dev *dev = vb2_get_drv_priv(vq);
 
-	spin_lock_irqsave(&dev->slock, flags);
+	spin_lock(&dev->irfpa_lock);
 	while (!list_empty(&dev->irfpa_rx_buffers)) {
 		struct rkooc_buffer *buf;
 
@@ -163,7 +148,7 @@ static void rkooc_rx_stop_streaming(struct vb2_queue *vq)
 	}
 
 	INIT_LIST_HEAD(&dev->irfpa_rx_buffers);
-	spin_unlock_irqrestore(&dev->slock, flags);
+	spin_unlock(&dev->irfpa_lock);
 
 	dev->irfpa_rx_seq = 0;
 	dev->cur_buf = NULL;

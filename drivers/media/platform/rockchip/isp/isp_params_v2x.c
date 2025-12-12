@@ -4292,7 +4292,8 @@ ldch_data_abandon(struct rkisp_isp_params_vdev *params_vdev,
 		if (arg->buf_fd == priv_val->buf_ldch[i].dma_fd &&
 		    priv_val->buf_ldch[i].vaddr) {
 			ldch_head = (struct isp2x_ldch_head *)priv_val->buf_ldch[i].vaddr;
-			ldch_head->stat = LDCH_BUF_CHIPINUSE;
+			if (ldch_head->stat == LDCH_BUF_WAIT2CHIP)
+				ldch_head->stat = LDCH_BUF_INIT;
 			break;
 		}
 	}

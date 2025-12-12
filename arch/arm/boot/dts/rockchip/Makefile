@@ -88,6 +88,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb2-v12.dtb \
 	rv1126b-evb2-v12-aov-dual-cam.dtb \
 	rv1126b-evb2-v12-aov-dual-cam-spi-nor.dtb \
+	rv1126b-evb2-v12-cvr.dtb \
 	rv1126b-evb2-v12-fastboot-emmc.dtb \
 	rv1126b-evb2-v12-fastboot-spi-nand.dtb \
 	rv1126b-evb2-v12-fastboot-spi-nor.dtb \

@@ -8313,7 +8313,7 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 	u32 parse_type = 0;
 	u32 output_type = 0;
 	struct csi_channel_info *channel = &dev->channels[stream->id];
-	struct rkmodule_irfpa_info irfpa_info = {0};
+	struct rkmodule_irfpa_info irfpa_info = dev->irfpa_info;
 
 	if (stream->state < RKCIF_STATE_STREAMING) {
 		stream->frame_idx = 0;
@@ -8327,10 +8327,6 @@ static int rkcif_stream_start_rv1126b(struct rkcif_stream *stream, unsigned int 
 	sensor_info = dev->active_sensor;
 	mbus = &sensor_info->mbus;
 
-	v4l2_subdev_call(sensor_info->sd,
-			 core, ioctl,
-			 RKMODULE_GET_IRFPA_INFO,
-			 &irfpa_info);
 	dma_state = stream->dma_en;
 	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE)
 		stream->dma_en |= RKCIF_DMAEN_BY_VICAP;
@@ -9060,6 +9056,7 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	struct csi_channel_info *channel_info = &dev->channels[stream->id];
 	int ret;
 	u32 raw_bpp = 0;
+	struct rkmodule_irfpa_info irfpa_info = {0};
 
 	for (i = 0; i < RKCIF_MAX_PLANE; i++)
 		memset(&pixm->plane_fmt[i], 0, sizeof(struct v4l2_plane_pix_format));
@@ -9110,6 +9107,16 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 					 "%s: get terminal %s get_frame_interval failed!\n",
 					 __func__, dev->terminal_sensor.sd->name);
 				return ret;
+			}
+		}
+		if (dev->chip_id == CHIP_RV1126B_CIF && dev->inf_id == RKCIF_DVP) {
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKMODULE_GET_IRFPA_INFO,
+					       &irfpa_info);
+			if (!ret && irfpa_info.irfpa_en) {
+				dev->irfpa_info = irfpa_info;
+				stream->is_compact = false;
 			}
 		}
 	}

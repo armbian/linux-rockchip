@@ -133,7 +133,6 @@ struct rk628_csi {
 	bool is_streaming;
 	bool csi_ints_en;
 	bool dual_mipi_use;
-	bool hdr_support;
 	enum user_color_range user_color_range;
 };
 
@@ -488,7 +487,6 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	int ret;
 	u32 val, eotf;
 
-	csi->rk628->is_10bit = false;
 	ret = rk628_hdmirx_get_timings(csi->rk628, timings);
 	if (ret)
 		return ret;
@@ -496,7 +494,7 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_DRM_HB, &val);
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_DRM_PAYLOAD0, &val);
 	eotf = (val >> 8) & 0xff;
-	if (eotf == 0x02 && csi->rk628->color_format == BUS_FMT_YUV422)
+	if (eotf == 0x02 && csi->rk628->color_format == BUS_FMT_YUV422 && csi->rk628->hdr_support)
 		csi->rk628->is_10bit = true;
 
 	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, interlace:%d\n",
@@ -986,6 +984,11 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			v4l2_err(sd, "%s: hdmi no signal or unplug!\n", __func__);
 			return;
 		}
+		if (csi->rk628->is_10bit && (csi->rk628->color_format == BUS_FMT_YUV444 ||
+		   csi->rk628->color_format == BUS_FMT_RGB)) {
+			v4l2_err(sd, "%s: unsupported 10bit YUV444 or RGB format!\n", __func__);
+			return;
+		}
 
 		if (rk628_hdmirx_scdc_ced_err(csi->rk628) == CED_FULL) {
 			rk628_hdmirx_plugout(sd);
@@ -1084,18 +1087,22 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	u8 lane_num, yc_swap;
 	u32 wc_usrdef, val, data_type, pixfmt;
 	int avi_rdy;
+	u32 adv_read_pld_en = 0, adv_read_pld_num = 0;
 
 	lane_num = lanes - 1;
 	csi->rk628->dphy_lane_en = (1 << (lanes + 1)) - 1;
 
-	if (csi->rk628->dual_mipi && !csi->rk628->is_10bit)
-		wc_usrdef = csi->timings.bt.width;
-	else if (csi->rk628->dual_mipi && csi->rk628->is_10bit)
-		wc_usrdef = div_u64(csi->timings.bt.width * 10, 8);
-	else if (!csi->rk628->dual_mipi && csi->rk628->is_10bit)
-		wc_usrdef = div_u64(csi->timings.bt.width * 2 * 10, 8);
-	else
-		wc_usrdef = csi->timings.bt.width * 2;
+	wc_usrdef = csi->rk628->dual_mipi ? csi->timings.bt.width : csi->timings.bt.width * 2;
+	if (csi->rk628->is_10bit)
+		wc_usrdef = (wc_usrdef * 5) >> 2;
+	/*
+	 * max payload memory is 8192 byte, so we need to enable advanced read payload.
+	 * payload memory = wc_usrdef - 16 * adv_read_pld_num.
+	 */
+	if (wc_usrdef >= 8192) {
+		adv_read_pld_en = 1;
+		adv_read_pld_num = 256;
+	}
 
 	if (csi->rk628->is_10bit) {
 		pixfmt = CSI_RAW10;
@@ -1106,8 +1113,9 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 		data_type = YUV422_8BIT;
 		yc_swap = 0;
 	}
-	v4l2_info(sd, "%s mipi mode, word count user define: %d\n",
-			csi->rk628->dual_mipi ? "dual" : "single", wc_usrdef);
+	v4l2_info(sd, "%s mipi mode, word count user define: %d, is_10bit: %d, hdr_support: %d\n",
+		  csi->rk628->dual_mipi ? "dual" : "single",
+		  wc_usrdef, csi->rk628->is_10bit, csi->rk628->hdr_support);
 	rk628_csi_disable_stream(sd);
 	usleep_range(5000, 5500);
 	rk628_csi0_cru_reset(sd);
@@ -1168,7 +1176,8 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	}
 
 	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
-	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE);
+	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE |
+			ADV_READ_PLD_EN(adv_read_pld_en) | ADV_READ_PLD_NUM(adv_read_pld_num));
 	if (csi->continues_clk)
 		rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
 			CONT_MODE_CLK_CLR_MASK |
@@ -1224,7 +1233,9 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 				BYPASS_SELECT_MASK,
 				BYPASS_SELECT(0));
 		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
-		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE);
+		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE |
+				ADV_READ_PLD_EN(adv_read_pld_en) |
+				ADV_READ_PLD_NUM(adv_read_pld_num));
 		if (csi->continues_clk)
 			rk628_i2c_update_bits(csi->rk628, CSITX1_SYS_CTRL3_IMD,
 				CONT_MODE_CLK_CLR_MASK |
@@ -1540,7 +1551,7 @@ static void rk628_csi_initial(struct v4l2_subdev *sd)
 		def_edid.edid = edid_init_data;
 		csi->edid_version = 1;
 	}
-	if (csi->hdr_support && csi->rk628->version >= RK628F_VERSION) {
+	if (csi->rk628->hdr_support && csi->rk628->version >= RK628F_VERSION) {
 		def_edid.edid = rk628f_hdr_edid_init_data;
 		csi->edid_version = 3;
 	}
@@ -1569,6 +1580,7 @@ static int rk628_csi_format_change(struct v4l2_subdev *sd)
 	};
 	int ret;
 
+	csi->rk628->is_10bit = false;
 	ret = rk628_csi_get_detected_timings(sd, &timings);
 	if (ret) {
 		v4l2_dbg(1, debug, sd, "%s: get timing fail\n", __func__);
@@ -3351,7 +3363,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 		csi->cec_enable = true;
 
 	if (of_property_read_bool(dev->of_node, "hdr-support"))
-		csi->hdr_support = true;
+		csi->rk628->hdr_support = true;
 
 	if (of_property_read_bool(dev->of_node, "ced-enable"))
 		csi->rk628->ced_enable = true;
@@ -3940,6 +3952,29 @@ static int rk628_csi_remove(struct i2c_client *client)
 #endif
 }
 
+static void rk628_csi_shutdown(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_csi *csi = to_csi(sd);
+
+	v4l2_info(sd, "%s: shutdown!\n", __func__);
+
+	if (csi->is_streaming)
+		enable_stream(sd, false);
+	rk628_hdmirx_plugout(sd);
+	if (csi->hdmirx_irq)
+		disable_irq(csi->hdmirx_irq);
+	if (csi->plugin_irq)
+		disable_irq(csi->plugin_irq);
+
+	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);
+	cancel_delayed_work_sync(&csi->delayed_work_res_change);
+	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
+	rk628_csi_power_off(csi);
+
+	csi->rk628->is_suspend = true;
+}
+
 static struct i2c_driver rk628_csi_i2c_driver = {
 	.driver = {
 		.name = "rk628-csi-v4l2",
@@ -3949,6 +3984,7 @@ static struct i2c_driver rk628_csi_i2c_driver = {
 	.id_table = rk628_csi_i2c_id,
 	.probe	= rk628_csi_probe,
 	.remove = rk628_csi_remove,
+	.shutdown = rk628_csi_shutdown,
 };
 
 module_i2c_driver(rk628_csi_i2c_driver);

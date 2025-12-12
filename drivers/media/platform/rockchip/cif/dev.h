@@ -1087,6 +1087,7 @@ struct rkcif_device {
 	u32				dvp_pin_group;
 	u32				unite_extend_pixel;
 	struct rkcif_switch_info	switch_info;
+	struct rkmodule_irfpa_info	irfpa_info;
 };
 
 extern struct platform_driver rkcif_plat_drv;

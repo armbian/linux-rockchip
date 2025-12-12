@@ -69,12 +69,13 @@
 
 #define IMX586_REG_GAIN_H		0x0204
 #define IMX586_REG_GAIN_L		0x0205
-#define IMX586_GAIN_MIN			0x10
-#define IMX586_GAIN_MAX			0x400
+#define IMX586_GAIN_MIN			112
+#define IMX586_GAIN_MAX			5103
 #define IMX586_GAIN_STEP		1
-#define IMX586_GAIN_DEFAULT		0x80
+#define IMX586_GAIN_DEFAULT		112
 
-#define IMX586_REG_DGAIN		0x3130
+#define IMX586_DGAIN_GLOBAL
+#define IMX586_REG_DGAIN_MODE		0x3130
 #define IMX586_DGAIN_MODE		BIT(0)
 #define IMX586_REG_DGAINGR_H		0x020e
 #define IMX586_REG_DGAINGR_L		0x020f
@@ -1823,6 +1824,7 @@ static int imx586_set_flip(struct imx586 *imx586)
 static int __imx586_start_stream(struct imx586 *imx586)
 {
 	int ret;
+	u32 val;
 
 	ret = imx586_write_array(imx586->client, imx586->cur_mode->global_reg_list);
 	if (ret)
@@ -1832,6 +1834,20 @@ static int __imx586_start_stream(struct imx586 *imx586)
 	if (ret)
 		return ret;
 	imx586->cur_vts = imx586->cur_mode->vts_def;
+
+	ret = imx586_read_reg(imx586->client, IMX586_REG_DGAIN_MODE,
+			      IMX586_REG_VALUE_08BIT, &val);
+	if (ret)
+		return ret;
+#if defined(IMX586_DGAIN_GLOBAL)
+	val &= ~IMX586_DGAIN_MODE;
+#else
+	val |= IMX586_DGAIN_MODE;
+#endif
+	ret = imx586_write_reg(imx586->client, IMX586_REG_DGAIN_MODE,
+			       IMX586_REG_VALUE_08BIT, val);
+	if (ret)
+		return ret;
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&imx586->ctrl_handler);
 	if (ret)
@@ -2103,7 +2119,7 @@ static int imx586_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = imx586->client;
 	s64 max;
 	int ret = 0;
-	u32 again = 0;
+	u32 again, dgain;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -2135,26 +2151,60 @@ static int imx586_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		/* gain_reg = 1024 - 1024 / gain_ana
-		 * manual multiple 16 to add accuracy:
-		 * then formula change to:
-		 * gain_reg = 1024 - 1024 * 16 / (gain_ana * 16)
+		/* again_reg = 1024 - 1024 / gain_ana
+		 * dgain 1x = 256
+		 * gain range
+		 * [1.123, 64, -1024, -1024, -1, 112, 1008,
+		 *  64, 1023.75, 4, -1008, 1, 1264, 5103]
 		 */
-		if (ctrl->val > 0x400)
-			ctrl->val = 0x400;
-		if (ctrl->val < 0x10)
-			ctrl->val = 0x10;
-
-		again = 1024 - 1024 * 16 / ctrl->val;
+		if (ctrl->val < 1008) {
+			again = ctrl->val;
+			dgain = 256;
+		} else {
+			again = 1008;
+			dgain = ctrl->val - 1008;
+		}
 		ret = imx586_write_reg(imx586->client, IMX586_REG_GAIN_H,
 				       IMX586_REG_VALUE_08BIT,
 				       IMX586_FETCH_AGAIN_H(again));
 		ret |= imx586_write_reg(imx586->client, IMX586_REG_GAIN_L,
 					IMX586_REG_VALUE_08BIT,
 					IMX586_FETCH_AGAIN_L(again));
-
-		dev_dbg(&client->dev, "set analog gain 0x%x\n",
-			ctrl->val);
+#if defined(IMX586_DGAIN_GLOBAL)
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_GAIN_GLOBAL_H,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_H(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_GAIN_GLOBAL_L,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_L(dgain));
+#else
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINGR_H,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_H(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINGR_L,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_L(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINR_H,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_H(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINR_L,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_L(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINB_H,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_H(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINB_L,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_L(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINGB_H,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_H(dgain));
+		ret |= imx586_write_reg(imx586->client, IMX586_REG_DGAINGB_L,
+				IMX586_REG_VALUE_08BIT,
+				IMX586_FETCH_DGAIN_L(dgain));
+#endif
+		dev_dbg(&client->dev, "set gain 0x%x again 0x%x, dgain 0x%x\n",
+			ctrl->val, again, dgain);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = imx586_write_reg(imx586->client,

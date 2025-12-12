@@ -1567,16 +1567,18 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 
 	mutex_init(&dsi->usage_mutex);
 
-	dsi->dphy = devm_phy_create(dev, NULL, &dw_mipi_dsi_dphy_ops);
-	if (IS_ERR(dsi->dphy)) {
-		DRM_DEV_ERROR(&pdev->dev, "failed to create PHY\n");
-		return PTR_ERR(dsi->dphy);
-	}
+	if (!dsi->dphy && (dsi->cdata->soc_type == RK3399 || dsi->cdata->soc_type == RK3288)) {
+		dsi->dphy = devm_phy_create(dev, NULL, &dw_mipi_dsi_dphy_ops);
+		if (IS_ERR(dsi->dphy)) {
+			DRM_DEV_ERROR(&pdev->dev, "failed to create PHY\n");
+			return PTR_ERR(dsi->dphy);
+		}
 
-	phy_set_drvdata(dsi->dphy, dsi);
-	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
+		phy_set_drvdata(dsi->dphy, dsi);
+		phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
+		if (IS_ERR(phy_provider))
+			return PTR_ERR(phy_provider);
+	}
 
 	dsi->dmd = dw_mipi_dsi_probe(pdev, &dsi->pdata);
 	if (IS_ERR(dsi->dmd)) {

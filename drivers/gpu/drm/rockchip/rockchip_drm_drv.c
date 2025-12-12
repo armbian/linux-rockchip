@@ -1557,19 +1557,22 @@ rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *e
 		if (cea_db_is_hdmi_colorimetry_data_block(db))
 			/* As per CEA 861-G spec */
 			*colorimetry = ((db[3] & (0x1 << 7)) << 1) | db[2];
+		else
+			continue;
 
 		*colorimetry = *colorimetry << 3;
-		*colorimetry |= DRM_MODE_COLORIMETRY_DEFAULT | DRM_MODE_COLORIMETRY_BT709_YCC |
-			DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
+		*colorimetry |= BIT(DRM_MODE_COLORIMETRY_DEFAULT) |
+			BIT(DRM_MODE_COLORIMETRY_BT709_YCC) |
+			BIT(DRM_MODE_COLORIMETRY_SMPTE_170M_YCC);
 		/*
 		 * The macro definitions of BT2020_RGB and BT2020_YCC in
 		 * DRM are in the opposite order to that in EDID.
 		 * so the values of two bits need to be exchanged.
 		 */
-		if ((*colorimetry & DRM_MODE_COLORIMETRY_BT2020_RGB) !=
-		    ((*colorimetry & DRM_MODE_COLORIMETRY_BT2020_YCC) >> 1))
-			*colorimetry ^= (DRM_MODE_COLORIMETRY_BT2020_RGB |
-					 DRM_MODE_COLORIMETRY_BT2020_YCC);
+		if ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_RGB)) !=
+		    ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_YCC)) >> 1))
+			*colorimetry ^= (BIT(DRM_MODE_COLORIMETRY_BT2020_RGB) |
+					 BIT(DRM_MODE_COLORIMETRY_BT2020_YCC));
 	}
 
 	return 0;
