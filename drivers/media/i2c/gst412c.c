@@ -385,7 +385,7 @@ static int gst412c_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		fmt->format =
-		    *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		    *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&gst412c->mutex);
 		return -ENOTTY;
@@ -787,7 +787,7 @@ static int gst412c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct gst412c *gst412c = to_gst412c(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-	    v4l2_subdev_get_try_format(sd, fh->state, 0);
+	    v4l2_subdev_state_get_format(fh->state, 0);
 	const struct gst412c_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&gst412c->mutex);
