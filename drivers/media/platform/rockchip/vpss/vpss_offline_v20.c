@@ -46,7 +46,7 @@ struct rkvpss_offline_buf {
  * @ofl: Pointer to the offline device
  * @dev: Pointer to the VPSS device (used to check ISP status)
  *
- * Sets the CLK_CORE_VPSS to 500MHz when ISP is not working to improve offline processing performance.
+ * Sets the CLK_CORE_VPSS to 400MHz when ISP is not working to improve offline processing performance.
  * Clock setting failure will not prevent offline mode from running, only a warning is printed.
  */
 static void rkvpss_offline_set_core_clk(struct rkvpss_offline_dev *ofl,
@@ -55,7 +55,7 @@ static void rkvpss_offline_set_core_clk(struct rkvpss_offline_dev *ofl,
 	struct rkvpss_hw_dev *hw = ofl->hw;
 	int isp_working = 0;
 	struct clk *core_clk;
-	unsigned long target_rate = 500 * 1000000UL; /* 500MHz */
+	unsigned long target_rate = 400 * 1000000UL; /* 400MHz */
 	unsigned long actual_rate;
 	int ret;
 
