@@ -17,7 +17,6 @@
 #include "vpss_offline.h"
 #include "hw.h"
 #include "regs.h"
-
 #include "procfs.h"
 
 #include "vpss_offline_v20.h"
@@ -41,6 +40,64 @@ struct rkvpss_offline_buf {
 	int fd;
 	bool alloc;
 };
+
+/**
+ * rkvpss_offline_set_core_clk - Set core clock frequency for offline mode
+ * @ofl: Pointer to the offline device
+ * @dev: Pointer to the VPSS device (used to check ISP status)
+ *
+ * Sets the CLK_CORE_VPSS to 500MHz when ISP is not working to improve offline processing performance.
+ * Clock setting failure will not prevent offline mode from running, only a warning is printed.
+ */
+static void rkvpss_offline_set_core_clk(struct rkvpss_offline_dev *ofl,
+					struct rkvpss_device *dev)
+{
+	struct rkvpss_hw_dev *hw = ofl->hw;
+	int isp_working = 0;
+	struct clk *core_clk;
+	unsigned long target_rate = 500 * 1000000UL; /* 500MHz */
+	unsigned long actual_rate;
+	int ret;
+
+	/* Check if core clock exists */
+	if (hw->clks_num < 3 || !hw->clks[2]) {
+		v4l2_warn(&ofl->v4l2_dev,
+			  "CLK_CORE_VPSS not available, skip frequency setting\n");
+		return;
+	}
+
+	core_clk = hw->clks[0]; /* CLK_CORE_VPSS */
+
+	/* Check ISP working status */
+	if (dev && dev->remote_sd) {
+		ret = v4l2_subdev_call(dev->remote_sd, core, ioctl,
+				       RKISP_VPSS_GET_ISP_WORKING, &isp_working);
+		if (ret < 0) {
+			v4l2_warn(&ofl->v4l2_dev,
+				  "Failed to get ISP working status: %d\n", ret);
+			/* Continue to try setting clock */
+		} else if (isp_working) {
+			v4l2_info(&ofl->v4l2_dev,
+				  "ISP is working, skip core clock adjustment\n");
+			return;
+		}
+	}
+
+	/* Set core clock frequency */
+	rkvpss_set_clk_rate(core_clk, target_rate);
+
+	/* Verify the actual set frequency */
+	actual_rate = clk_get_rate(core_clk);
+	if (actual_rate != target_rate) {
+		v4l2_warn(&ofl->v4l2_dev,
+			  "CLK_CORE_VPSS set to %lu Hz (requested %lu Hz)\n",
+			  actual_rate, target_rate);
+	} else {
+		v4l2_info(&ofl->v4l2_dev,
+			  "CLK_CORE_VPSS successfully set to %lu Hz for offline mode\n",
+			  actual_rate);
+	}
+}
 
 static void init_vb2(struct rkvpss_offline_dev *ofl,
 		     struct rkvpss_offline_buf *buf)
@@ -2757,6 +2814,11 @@ static int ofl_open(struct file *file)
 	if (ret < 0) {
 		v4l2_fh_release(file);
 		goto end;
+	}
+
+	/* Set core clock frequency for offline mode after power domain is ready */
+	if (ofl->hw->dev_num > 0 && ofl->hw->vpss[0]) {
+		rkvpss_offline_set_core_clk(ofl, ofl->hw->vpss[0]);
 	}
 
 	ret = rkvpss_ofl_add_file_id(ofl, (void *)file);
