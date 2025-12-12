@@ -576,6 +576,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-youyeetoo-yy3588.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-roc-pc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c-spi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-nanopi-rev01.dtb
 
 subdir-y := $(dts-dirs) overlay
 
