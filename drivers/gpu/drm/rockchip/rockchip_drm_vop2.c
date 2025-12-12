@@ -9948,7 +9948,7 @@ static ssize_t luma_avg_store(struct device *dev, struct device_attribute *attr,
 	if (enable) {
 		VOP_CTRL_SET(vop2, yavg_regdone_imd, 1);
 		VOP_CTRL_SET(vop2, yavg_port_sel, vp->id);
-		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, !vcstate->yuv_overlay);
+		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, is_yuv_output(vcstate->bus_format));
 		VOP_CTRL_SET(vop2, yavg_div_width, 0x100000 / crtc->state->mode.hdisplay);
 		VOP_CTRL_SET(vop2, yavg_div_height, 0x100000 / crtc->state->mode.vdisplay);
 		VOP_CTRL_SET(vop2, yavg_en, 1);
