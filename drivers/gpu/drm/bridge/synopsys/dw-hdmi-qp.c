@@ -3859,7 +3859,7 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 	if (hdmi->force_kernel_output)
 		return MODE_OK;
 
-	if (mode->clock <= 25000)
+	if (mode->clock <= 25000 && !hdmi->plat_data->pr_supported)
 		return MODE_CLOCK_RANGE;
 
 	if (!hdmi->sink_is_hdmi && mode->clock > 340000)

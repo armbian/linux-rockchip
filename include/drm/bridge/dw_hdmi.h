@@ -227,6 +227,8 @@ struct dw_hdmi_plat_data {
 	enum dw_hdmi_qp_version dw_hdmi_qp_version;
 	/* Support cec wakeup module */
 	bool cec_wakeup_supported;
+	/* Support hdmi pixel repetition */
+	bool pr_supported;
 
 	/*
 	 * Private data passed to all the .mode_valid() and .configure_phy()

@@ -5444,6 +5444,7 @@ static const struct dw_hdmi_plat_data rk3538_hdmi_drv_data = {
 	.dw_hdmi_qp_version = DW_HDMI_QP_V2,
 	.use_drm_infoframe = true,
 	.cec_wakeup_supported = true,
+	.pr_supported = true,
 };
 
 static struct rockchip_hdmi_chip_data rk3568_chip_data = {
