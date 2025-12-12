@@ -15117,6 +15117,8 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	bool post_r2y_en = false;
 	bool post_csc_en = false;
 	bool post_r2r_en = false;
+	bool post_y2y_en = false;
+	bool post_scl_enabled = false;
 	bool rgb_limited_plane = false;
 	bool r2y_csc_supported = false;
 	bool has_bt2020_plane = false;
@@ -15124,6 +15126,10 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	int range_type;
 	u64 max_yuv_plane = 0, plane_area;
 	enum drm_color_encoding max_yuv_plane_color_encoding = DRM_COLOR_YCBCR_BT601;
+
+	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
+	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100)
+		post_scl_enabled = true;
 
 	if (!vp->regs->acm_r2y_mode.mask)
 		r2y_csc_supported = true;
@@ -15203,6 +15209,9 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 			}
 		} else {
 			r2y_convert_mode.is_input_yuv = true;
+			if (vcstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE &&
+			    is_yuv_output(vcstate->bus_format) && post_scl_enabled)
+				post_y2y_en = true;
 		}
 
 		r2y_convert_mode.is_input_full_range = true;
@@ -15232,7 +15241,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		 * euqual to the display interface. If input is
 		 * yuv, range convert is done in y2r csc.
 		 */
-		if (post_r2r_en || post_r2y_en)
+		if (post_r2r_en || post_r2y_en || post_y2y_en)
 			r2y_convert_mode.is_output_full_range = vcstate->color_range;
 		else
 			r2y_convert_mode.is_output_full_range =
