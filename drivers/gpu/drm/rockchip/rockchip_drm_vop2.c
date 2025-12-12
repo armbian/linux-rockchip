@@ -8243,7 +8243,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			VOP_WIN_SET(vop2, win, multi_grid_num, 0);
 		}
 		VOP_WIN_SET(vop2, win, grid0_act_info, act_info);
-		VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+		if (!win->parent && !vop2_cluster_sub_window(win))
+			VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
@@ -8347,10 +8348,12 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 				DRM_WARN_ONCE("CRC can not work with msmart in multi mode!\n");
 				VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 			} else {
-				VOP_WIN_SET(vop2, win, frm_reset_en, 0);
+				if (!win->parent && !vop2_cluster_sub_window(win))
+					VOP_WIN_SET(vop2, win, frm_reset_en, 0);
 			}
 		} else {
-			VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+			if (!win->parent && !vop2_cluster_sub_window(win))
+				VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 		}
 		VOP_CLUSTER_SET(vop2, win, dma_stride_4k_disable, 1);
 	}
