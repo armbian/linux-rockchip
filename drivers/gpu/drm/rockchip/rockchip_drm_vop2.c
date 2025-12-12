@@ -11046,6 +11046,14 @@ static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 	} else if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		interface_pix_clk_sel = port_pix_rate == 2 ? 1 : 0;
+	} else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+		if (vop2->version != VOP_VERSION_RK3576) {
+			if (double_pixel)
+				pix_half_rate = 1;
+		}
+
+		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
+		interface_pix_clk_sel = port_pix_rate == 1 ? 1 : 0;
 	} else {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		interface_pix_clk_sel = port_pix_rate == 1 ? 1 : 0;
