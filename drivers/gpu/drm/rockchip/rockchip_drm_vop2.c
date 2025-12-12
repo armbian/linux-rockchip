@@ -3674,9 +3674,6 @@ static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
 	if (convert_mode.intput_color_encoding != convert_mode.output_color_encoding)
 		return true;
 
-	if (convert_mode.coef_precision != convert_mode.pixel_depth)
-		return true;
-
 	return false;
 }
 
