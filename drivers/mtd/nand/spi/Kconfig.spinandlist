@@ -78,6 +78,12 @@ config MTD_SPI_NAND_HYF
 	help
 	  Add support for various HYF SPI Nand flash chips
 
+config MTD_SPI_NAND_ISSI
+	bool "ISSI SPI flash support"
+	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
+	help
+	  Add support for various ISSI SPI Nand flash chips
+
 config MTD_SPI_NAND_JSC
 	bool "JSC SPI flash support"
 	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
