@@ -2765,6 +2765,35 @@ isp_gic_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 }
 
 static void
+isp_dhaz_hist_restore(struct rkisp_isp_params_vdev *params_vdev,
+		      const struct isp3x_dhaz_cfg *arg,
+		      bool is_check, u32 id)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	u32 i, val = isp3_param_read(params_vdev, ISP3X_DHAZ_CTRL, id);
+
+	if (!(val & ISP3X_MODULE_EN) || !(val & BIT(8)) || !arg->soft_wr_en ||
+	    dev->hw_dev->unite == ISP_UNITE_TWO)
+		return;
+	val = ISP_PACK_2SHORT(arg->adp_wt_wr, arg->adp_air_wr);
+	isp3_param_write_direct(params_vdev, val, ISP3X_DHAZ_ADT_WR0, id);
+	val = ISP_PACK_2SHORT(arg->adp_tmax_wr, arg->adp_gratio_wr);
+	isp3_param_write_direct(params_vdev, val, ISP3X_DHAZ_ADT_WR1, id);
+	for (i = 0; i < ISP3X_DHAZ_HIST_WR_NUM / 3; i++) {
+		val = (arg->hist_wr[i * 3] & 0x3ff) |
+		      (arg->hist_wr[i * 3 + 1] & 0x3ff) << 10 |
+		      (arg->hist_wr[i * 3 + 2] & 0x3ff) << 20;
+		isp3_param_write_direct(params_vdev, val, ISP3X_DHAZ_HIST_WR0 + i * 4, id);
+	}
+	val = arg->hist_wr[i * 3] & 0x3ff;
+	isp3_param_write_direct(params_vdev, val, ISP3X_DHAZ_HIST_WR0 + i * 4, id);
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_CTRL, id);
+	val |= BIT(25) | BIT(31);
+	writel(val, dev->hw_dev->base_addr + ISP3X_DHAZ_CTRL);
+}
+
+static void
 isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		const struct isp3x_dhaz_cfg *arg, u32 id)
 {
@@ -4107,6 +4136,7 @@ void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev, bool is
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true, 0);
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true, 0);
 	isp_rawawb_cfg_sram(params_vdev, &params->meas.rawawb, true, 0);
+	isp_dhaz_hist_restore(params_vdev, &params->others.dhaz_cfg, true, 0);
 	if (params_vdev->dev->hw_dev->unite) {
 		params++;
 		isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 1);
@@ -4318,7 +4348,7 @@ multi_overflow:
 		 * case1:      bigmode              special reg cfg
 		 *  _________  max width:4672
 		 * | sensor0 | max size:            mode=0 index=0
-		 * |         | 3840*2160+2560*2160
+		 * |         | 3840*2160+2560*1536
 		 * |_________|
 		 * |_sensor1_| max size:2560*1536   mode=2 index=3
 		 *             max width:2560
