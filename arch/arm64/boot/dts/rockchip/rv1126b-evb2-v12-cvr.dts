@@ -17,3 +17,7 @@
 &gmac {
 	status = "okay";
 };
+
+&uart2 {
+	status = "disabled";
+};
