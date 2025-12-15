@@ -4,10 +4,7 @@
  */
 
 /dts-v1/;
-#include "rv1126b.dtsi"
-#include "rv1126b-evb.dtsi"
-#include "rv1126b-evb2-v10.dtsi"
-#include "rv1126b-evb-cam-csi0.dtsi"
+#include "rv1126b-evb2-v12.dts"
 
 / {
 	model = "Rockchip RV1126B EVB2 V12 DV Board";
@@ -17,27 +14,16 @@
 	};
 };
 
-&emmc {
-	bus-width = <8>;
-	cap-mmc-highspeed;
-	non-removable;
-	mmc-hs200-1_8v;
-	rockchip,default-sample-phase = <90>;
-	no-sdio;
-	no-sd;
+&dsi {
 	status = "okay";
 };
 
-&fspi0 {
+&dsi_in_vop {
 	status = "okay";
+};
 
-	flash@0 {
-		compatible = "spi-nand";
-		reg = <0>;
-		spi-max-frequency = <75000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <1>;
-	};
+&gmac {
+	status = "okay";
 };
 
 &gpio4 {
@@ -46,11 +32,6 @@
 			 <0>,
 			 <0>,
 			 <RK_PIN_TO_BIT(RK_PA3)>;
-};
-
-&gt1x {
-	goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
-	goodix,irq-gpio = <&gpio3 RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &imx586 {
@@ -92,12 +73,6 @@
 
 &rkfec_mmu {
 	status = "okay";
-};
-
-&touch_gpio {
-	rockchip,pins =
-		<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,
-		<5 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 };
 
 &uart2 {
