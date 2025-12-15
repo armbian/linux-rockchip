@@ -355,6 +355,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-pcie-ep-demo-v11-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-robotic-evb-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-robotic-evb-v11-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-robotic-evb-v11-linux-amp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-toybrick-x0-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-toybrick-x0-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-vehicle-dual-evb-v10-soca-android.dtb
