@@ -5200,6 +5200,9 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, esmart_lb_mode, vop3_get_esmart_lb_mode(vop2));
 		}
 
+		VOP_CTRL_SET(vop2, auto_cs_en, 1);
+		VOP_CTRL_SET(vop2, auto_cs_mode, 1);
+
 		/*
 		 * This is unused and error init value for rk3528/rk3562 vp1, if less of this config,
 		 * vp1 can't display normally.

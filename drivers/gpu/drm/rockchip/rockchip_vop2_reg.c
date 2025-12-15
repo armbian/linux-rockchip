@@ -1641,6 +1641,11 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
 };
 
+/*
+ * RK3538 VP0 has 8 lines post linebuffer, If the number of post line buffers in a
+ * full state is less 4, the urgency signal will be set to 1, If the number of post
+ * line buffers in a full state is over 6, the urgency signal will be set to 0.
+ */
 static const struct vop_urgency rk3538_vp0_urgency = {
 	.urgen_thl = 4,
 	.urgen_thh = 6,
@@ -6417,6 +6422,9 @@ static const struct vop2_ctrl rk3538_vop_ctrl = {
 	.lut_dma_en = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 0),
 	.lut_use_axi1 = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 9),
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
+	.auto_cs_en = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 5),
+	.auto_cs_mode = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 15),
+
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
 	.mmu0_qos_val = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x7, 1),
@@ -6594,6 +6602,8 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.lut_dma_en = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 0),
 	.lut_use_axi1 = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 9),
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
+	.auto_cs_en = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 5),
+	.auto_cs_mode = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 15),
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.rkmmu1_v2_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL, 0x1, 1),
 	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
