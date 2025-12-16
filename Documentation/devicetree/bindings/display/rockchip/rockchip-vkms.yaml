@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/rockchip/rockchip-vkms.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip virtual KMS driver
+
+description:
+  Rockchip Virtual KMS Driver providing a complete software-emulated
+  display pipeline for headless and virtualized environments,
+  implementing virtual CRTCs, planes, encoders, and connectors.
+
+maintainers:
+  - Andy Yan <rock-chips@.com>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,vkms
+
+  rockchip,vkms-crtc-num:
+    maxItems: 1
+    description:
+      The number of virtual ctrc devices.
+
+  rockchip,vkms-conn-disconnected:
+    minItems: 1
+    maxItems: 8
+    description:
+      Add index to set specified virtual connector to disconnected.
+      The index should be less than rockchip,vkms-crtc-num.
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    vkms {
+      compatible = "rockchip,vkms";
+      rockchip,vkms-crtc-num = <6>;
+      rockchip,vkms-conn-disconnected = <0 3 5>;
+    };
