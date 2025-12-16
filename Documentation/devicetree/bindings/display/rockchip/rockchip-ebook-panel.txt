@@ -1,7 +1,7 @@
-Rockchip EINK panel
+Rockchip EBOOK panel
 ================================
 
-EINK panel timing:
+EBOOK panel timing:
 
        │                            │FBL+FSL
        │                            │
