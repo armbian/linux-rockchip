@@ -31,6 +31,8 @@
 
 #define VKMS_MAX_CRTC	8
 
+static struct platform_device *vkms_pdev;
+
 struct rockchip_vkms_connector {
 	struct drm_connector connector;
 	bool disconnected;
@@ -611,7 +613,7 @@ static int rockchip_vkms_bind(struct device *dev, struct device *master, void *d
 {
 	struct drm_device *drm_dev = data;
 	struct rockchip_vkms *rockchip_vkms;
-	struct device_node *np = dev->of_node;
+	struct device_node *np = NULL;
 	u32 disconnected[VKMS_MAX_CRTC];
 	int len, i;
 
@@ -619,21 +621,28 @@ static int rockchip_vkms_bind(struct device *dev, struct device *master, void *d
 	if (!rockchip_vkms)
 		return -ENOMEM;
 
-	of_property_read_u32(dev->of_node, "rockchip,vkms-crtc-num", &rockchip_vkms->crtc_num);
-	if (rockchip_vkms->crtc_num > VKMS_MAX_CRTC) {
-		DRM_ERROR("rockchip,vkms-crtc-num = %d in dts exceeds VKMS_MAX_CRTC(%d)\n",
-			  rockchip_vkms->crtc_num, VKMS_MAX_CRTC);
-		rockchip_vkms->crtc_num = VKMS_MAX_CRTC;
-	}
+	rockchip_vkms->crtc_num = VKMS_MAX_CRTC;
 
-	len = of_property_read_variable_u32_array(np, "rockchip,vkms-conn-disconnected",
-						  disconnected, 1, VKMS_MAX_CRTC);
-	for (i = 0; i < len; i++) {
-		if (disconnected[i] < rockchip_vkms->crtc_num)
-			rockchip_vkms->vconn_disconnected[disconnected[i]] = 1;
-		else
-			DRM_ERROR("vkms-conn-disconnected index %d in dts exceeds crtc_num(%d)\n",
-				  i, rockchip_vkms->crtc_num);
+	np = of_find_compatible_node(NULL, NULL, "rockchip,vkms");
+	if (np) {
+		of_node_put(np);
+
+		of_property_read_u32(np, "rockchip,vkms-crtc-num", &rockchip_vkms->crtc_num);
+		if (rockchip_vkms->crtc_num > VKMS_MAX_CRTC) {
+			DRM_ERROR("rockchip,vkms-crtc-num = %d in dts exceeds VKMS_MAX_CRTC(%d)\n",
+				  rockchip_vkms->crtc_num, VKMS_MAX_CRTC);
+			rockchip_vkms->crtc_num = VKMS_MAX_CRTC;
+		}
+
+		len = of_property_read_variable_u32_array(np, "rockchip,vkms-conn-disconnected",
+							  disconnected, 1, VKMS_MAX_CRTC);
+		for (i = 0; i < len; i++) {
+			if (disconnected[i] < rockchip_vkms->crtc_num)
+				rockchip_vkms->vconn_disconnected[disconnected[i]] = 1;
+			else
+				DRM_ERROR("vkms-conn-disconnected index %d exceeds crtc_num(%d)\n",
+					  i, rockchip_vkms->crtc_num);
+		}
 	}
 
 	rockchip_vkms->dev = dev;
@@ -686,20 +695,32 @@ static void rockchip_vkms_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &rockchip_vkms_component_ops);
 }
 
-static const struct of_device_id rockchip_vkms_match[] = {
-	{ .compatible = "rockchip,vkms", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rockchip_vkms_match);
-
 struct platform_driver rockchip_vkms_platform_driver = {
 	.probe = rockchip_vkms_probe,
 	.remove = rockchip_vkms_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = rockchip_vkms_match,
 	},
 };
+
+static int __init rockchip_vkms_init(void)
+{
+	vkms_pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
+	if (IS_ERR(vkms_pdev)) {
+		DRM_ERROR("failed to register platform device %s\n", DRIVER_NAME);
+		return PTR_ERR(vkms_pdev);
+	}
+
+	return 0;
+}
+
+static void __exit rockchip_vkms_exit(void)
+{
+	platform_device_unregister(vkms_pdev);
+}
+
+rootfs_initcall(rockchip_vkms_init);
+module_exit(rockchip_vkms_exit);
 
 MODULE_AUTHOR("Andy Yan <rock-chips@.com>");
 MODULE_LICENSE("GPL");
