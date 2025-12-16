@@ -526,7 +526,7 @@
 			rockchip,pins =
 				/* EN/EBC_PMIC_ON */
 				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
-				/* VCC_EINK_PWREN */
+				/* VCC_EBOOK_PWREN */
 				<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

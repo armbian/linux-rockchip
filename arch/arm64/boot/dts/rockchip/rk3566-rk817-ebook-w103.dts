@@ -13,11 +13,11 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include "rk3566.dtsi"
 #include "rk3568-android.dtsi"
-#include "rk3566-eink.dtsi"
+#include "rk3566-ebook.dtsi"
 
 / {
-	model = "Rockchip RK3566 RK817 EINK LP4X Board";
-	compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
+	model = "Rockchip RK3566 RK817 EBOOK LP4X Board";
+	compatible = "rockchip,rk3566-rk817-ebook", "rockchip,rk3566";
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
@@ -30,7 +30,7 @@
 	};
 
 	adc_keys: adc-keys {
-		status = "disabled";
+		status = "okay";
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
 		io-channel-names = "buttons";
@@ -40,13 +40,68 @@
 		vol-up-key {
 			label = "volume up";
 			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
+			press-threshold-microvolt = <9000>;
 		};
 
 		vol-down-key {
 			label = "volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <297500>;
+			press-threshold-microvolt = <235000>;
+		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm0 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	gpio_keys: gpio-keys {
+		status = "disabled";
+		compatible = "gpio-keys";
+		autorepeat;
+
+		BACK {
+			label = "GPIO Key Home";
+			debounce-interval = <10>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_BACK>;
 		};
 	};
 
@@ -65,6 +120,24 @@
 		};
 	};
 
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+
+		led@2 {
+			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "battery-charging";
+			label = "battery_charging";
+			retain-state-suspended;
+		};
+	};
+
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		irq-gpio = <&gpio0 RK_PC7 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
+
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
@@ -74,20 +147,34 @@
 		regulator-max-microvolt = <3800000>;
 	};
 
-	rk817-sound {
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-rk817";
-		hp-det-gpio = <&gpio4 RK_PC4 GPIO_ACTIVE_LOW>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s1_8ch>;
-		rockchip,codec = <&rk817_codec>;
+	vcc_tp: vcc-tp-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
+		pinctrl-0 = <&vcc_tp_en>;
+		regulator-name = "vcc_tp";
+		regulator-boot-on;
+		startup-delay-us = <10000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	rk817-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk817-codec";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rk817_codec>;
+		};
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
-		status = "disabled";
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk817 1>;
 		clock-names = "ext_clock";
@@ -101,20 +188,7 @@
 		 * - PDN (power down when low)
 		 */
 		post-power-on-delay-ms = <200>;
-		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
-	};
-
-	vcc_sd: vcc-sd {
-		compatible = "regulator-gpio";
-		enable-active-low;
-		enable-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&vcc_sd_h>;
-		regulator-name = "vcc_sd";
-		states = <3300000 0x0
-			3300000 0x1>;
+		reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
 	};
 
 	wireless-wlan {
@@ -122,31 +196,35 @@
 		rockchip,grf = <&grf>;
 		wifi_chip_type = "ap6255";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
+		pinctrl-0 = <&wifi_vbat &wifi_host_wake_irq>;
+		WIFI,vbat_gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		clocks = <&rk817 1>;
 		clock-names = "ext_clock";
-		//wifi-bt-power-toggle;
+		wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart1m0_rtsn>;
+		pinctrl-0 = <&uart1m0_rtsn>,
+			    <&bt_reset_gpio>,
+			    <&bt_wake_gpio>,
+			    <&bt_irq_gpio>;
 		pinctrl-1 = <&uart1_gpios>;
-		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
+		BT,reset_gpio    = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
 &ebc {
 	/* clock rate 1000M/n, (n=1~32) */
 	assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
-	assigned-clock-rates = <250000000>, <250000000>;
+	assigned-clock-rates = <34000000>, <34000000>;
 	status = "okay";
 };
 
@@ -175,13 +253,14 @@
 	panel,panel_color = <0>;
 	panel,width-mm = <203>;
 	panel,height-mm = <140>;
-#else
+#endif
+#if 1
 	/* ES103TC1 */
 	panel,width = <1872>;
 	panel,height = <1404>;
 	panel,vir_width = <1872>;
 	panel,vir_height = <1404>;
-	panel,sdck = <33300000>;
+	panel,sdck = <34000000>;
 	panel,lsl = <18>;
 	panel,lbl = <17>;
 	panel,ldl = <234>;
@@ -198,10 +277,67 @@
 	panel,width-mm = <157>;
 	panel,height-mm = <210>;
 #endif
+#if 0
+	/* ES133TC1 */
+	panel,width = <2200>;
+	panel,height = <1650>;
+	panel,vir_width = <2208>;
+	panel,vir_height = <1650>;
+	panel,sdck = <37500000>;
+	panel,lsl = <4>;
+	panel,lbl = <8>;
+	panel,ldl = <275>;
+	panel,lel = <14>;
+	panel,gdck-sta = <34>;
+	panel,lgonl = <217>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1650>;
+	panel,fel = <6>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <1>;
+	panel,panel_color = <0>;
+	panel,width-mm = <157>;
+	panel,height-mm = <210>;
+#endif
 };
 
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@0 {
+				reg = <0>;
+				/*remote-endpoint = <&ov5648_out>;*/
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
 };
 
 &gpu {
@@ -238,11 +374,14 @@
 		regulator-max-microvolt = <1390000>;
 		regulator-init-microvolt = <900000>;
 		regulator-ramp-delay = <2300>;
-		fcs,suspend-voltage-selector = <1>;
+		fcs,suspend-voltage-selector = <0>;
+		regulator-initial-mode = <0x2>;
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-state-mem {
-			regulator-off-in-suspend;
+			regulator-on-in-suspend;
+			regulator-suspend-microvolt = <1100000>;
+			regulator-changeable-in-suspend;
 		};
 	};
 
@@ -252,12 +391,13 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
-		pinctrl-names = "default", "pmic-sleep",
-				"pmic-power-off", "pmic-reset";
+		pinctrl-names = "default";
+//		pinctrl-names = "default", "pmic-sleep",
+//				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
-		pinctrl-1 = <&soc_slppin_slp>;
-		pinctrl-2 = <&soc_slppin_gpio>;
-		pinctrl-3 = <&soc_slppin_gpio>;
+//		pinctrl-1 = <&soc_slppin_slp>;
+//		pinctrl-2 = <&soc_slppin_gpio>;
+//		pinctrl-3 = <&soc_slppin_gpio>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -319,6 +459,7 @@
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <900000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -333,6 +474,7 @@
 				regulator-name = "vdd_gpu";
 					regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -355,6 +497,7 @@
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -367,6 +510,7 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -378,6 +522,7 @@
 				regulator-name = "vdda_0v9";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -390,6 +535,7 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -401,17 +547,17 @@
 				regulator-name = "vccio_acodec";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
 			vccio_sd: LDO_REG5 {
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -423,7 +569,8 @@
 				regulator-name = "vcc3v3_pmu";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-suspend-microvolt = <3000000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -435,28 +582,26 @@
 				regulator-name = "vcc_1v8";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
 			vcc1v8_dvp: LDO_REG8 {
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc1v8_dvp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
-			vcc2v8_dvp: LDO_REG9 {
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-name = "vcc2v8_dvp";
+			sleep_sta_ctl: LDO_REG9 {
+				regulator-name = "sleep_sta_ctl";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -468,6 +613,7 @@
 				regulator-name = "boost";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -475,6 +621,7 @@
 				regulator-name = "otg_switch";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 		};
@@ -484,8 +631,8 @@
 			ocv_table = <3400 3513 3578 3687 3734 3752 3763
 				     3766 3771 3784 3804 3836 3885 3925
 				     3962 4005 4063 4114 4169 4227 4303>;
-			design_capacity = <5000>;
-			design_qmax = <5500>;
+			design_capacity = <4150>;
+			design_qmax = <4565>;
 			bat_res = <100>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
@@ -496,6 +643,7 @@
 			monitor_sec = <5>;
 			sample_res = <10>;
 			virtual_power = <0>;
+			low_power_sleep = <1>;
 		};
 
 		charger {
@@ -504,7 +652,7 @@
 			max_input_current = <1500>;
 			max_chrg_current = <2000>;
 			max_chrg_voltage = <4300>;
-			chrg_term_mode = <0>;
+			chrg_term_mode = <1>;
 			chrg_finish_cur = <300>;
 			virtual_power = <0>;
 			dc_det_adc = <0>;
@@ -525,7 +673,7 @@
 			hp-volume = <20>;
 			spk-volume = <3>;
 			out-l2spk-r2hp;
-			spk-ctl-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+			spk-ctl-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 		};
 	};
@@ -533,29 +681,17 @@
 
 &i2c1 {
 	status = "okay";
-	tps65185: tps65185@68 {
-		status = "okay";
-		compatible = "ti,tps65185";
-		reg = <0x68>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tps65185_gpio>;
-		int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
-		wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
-		vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-		powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
-	};
-};
+	clock-frequency = <400000>;
 
-&i2c2 {
-	status = "okay";
 	wacom: wacom@9 {
 		compatible = "wacom,w9013";
 		reg = <0x09>;
+		pwr-supply = <&vcc_tp>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wacom_gpio>;
-		gpio_detect = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
-		gpio_intr = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		gpio_rst = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		gpio_detect = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		gpio_rst = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		revert_x = <0>;
 		revert_y = <0>;
 		xy_exchange = <0>;
@@ -567,20 +703,36 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m1_xfer>;
 
-	ts@40 {
-		compatible = "gslX680-pad";
-		reg = <0x40>;
-		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_HIGH>;
-		reset-gpio = <&gpio3 RK_PB1 IRQ_TYPE_LEVEL_HIGH>;
+	tps65185: tps65185@68 {
+		status = "okay";
+		compatible = "ti,tps65185";
+		reg = <0x68>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&tp_gpio>;
-		screen_max_x = <1200>;
-		screen_max_y = <1920>;
-		revert_x = <0>;
-		revert_y = <1>;
-		revert_xy = <0>;
-		chip_id = <1>;
-		status = "disabled";
+		pinctrl-0 = <&tps65185_gpio>;
+		wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+		vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		poweren-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c4 {
+	//camera
+};
+
+&i2c5 {
+	status = "okay";
+
+	sensor@4c {
+		status = "okay";
+		compatible = "gs_mma7660";
+		reg = <0x4c>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <6>;
+		reprobe_en = <1>;
 	};
 
 	tsc@24 {
@@ -588,15 +740,13 @@
 		compatible = "cy,cyttsp5_i2c_adapter";
 		reg = <0x24>;
 		cy,adapter_id = "cyttsp5_i2c_adapter";
-		//cytp-supply = <&vcc_sd>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc_gpio>;
+		cytp-supply = <&vcc_tp>;
 		cy,core {
 			cy,name = "cyttsp5_core";
-			pinctrl-names = "default";
-			pinctrl-0 = <&tsc_gpio>;
-			cy,irq_gpio =  <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-			cy,rst_gpio =  <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
-			cy,1v8_gpio =  <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
-			cy,2v8_gpio =  <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			cy,irq_gpio =  <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+			cy,rst_gpio =  <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 			cy,hid_desc_register = <1>;
 			/* CY_CORE_FLAG_RESTORE_PARAMETERS */
 			cy,flags = <6>;
@@ -615,12 +765,12 @@
 			cy,mt {
 				cy,name = "cyttsp5_mt";
 				cy,inp_dev_name = "cyttsp5_mt";
-				cy,flags = <0>;
+				cy,flags = <0xA8>;
 				cy,abs =
 					/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
-					<0x35 0 1872 0 0
+					<0x35 0 1404 0 0
 					/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
-					0x36 0 1404 0 0
+					0x36 0 1872 0 0
 					/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
 					0x3a 0 255 0 0
 					/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
@@ -638,10 +788,12 @@
 					/* ABS_DISTANCE, 0, 255, 0, 0 */
 					0x19 0 255 0 0>;
 
-					cy,vkeys_x = <1872>;
-					cy,vkeys_y = <1404>;
+					cy,vkeys_x = <1404>;
+					cy,vkeys_y = <1872>;
+					cy,max_x = <1872>;
+					cy,max_y = <1404>;
 					cy,revert_x = <0>;
-					cy,revert_y = <1>;
+					cy,revert_y = <0>;
 					cy,xy_exchange = <0>;
 
 					cy,virtual_keys =
@@ -669,24 +821,6 @@
 					<0x19 0 1 0 0>;
 			};
 		};
-	};
-};
-
-&i2c5 {
-	status = "disabled";
-
-	kxtj: kxtj3@e {
-		status = "disabled";
-		compatible = "gs_kxtj9";
-		pinctrl-names = "default";
-		pinctrl-0 = <&kxtj3_irq_gpio>;
-		reg = <0x0e>;
-		irq-gpio = <&gpio4 RK_PC6 IRQ_TYPE_EDGE_RISING>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		power-off-in-suspend = <1>;
-		layout = <5>;
 	};
 };
 
@@ -728,18 +862,18 @@
 	wacom {
 		wacom_gpio: wacom-gpio {
 			rockchip,pins =
-					<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+					<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>,
+					<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>,
+					<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
 	tsc {
 		tsc_gpio: tsc-gpio {
 			rockchip,pins =
-					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+					<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>, //touch q gpio
+					<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -749,27 +883,8 @@
 					<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 					<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
 					<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
-					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	tp {
-		tp_gpio: tp-gpio {
-			rockchip,pins =
-				<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
-				<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	sensor {
-		kxtj3_irq_gpio: kxtj3-irq-gpio {
-			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -781,12 +896,12 @@
 
 		soc_slppin_gpio: soc_slppin_gpio {
 			rockchip,pins =
-				<0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low>;
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
 		};
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA2 1 &pcfg_pull_none>;
+				<0 RK_PA2 1 &pcfg_pull_up>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
@@ -797,19 +912,17 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	vcc_sd {
-		vcc_sd_h: vcc-sd-h {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-wlan {
+		wifi_vbat: wifi-vbat {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -817,6 +930,24 @@
 	wireless-bluetooth {
 		uart1_gpios: uart1-gpios {
 			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_reset_gpio: bt-reset-gpio {
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_gpio: bt-wake-gpio {
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	vcc-tp {
+		vcc_tp_en: vcc-tp-en {
+			rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -826,19 +957,41 @@
 	pmuio1-supply = <&vcc3v3_pmu>;
 	pmuio2-supply = <&vcc3v3_pmu>;
 	vccio1-supply = <&vccio_acodec>;
-	vccio3-supply = <&vccio_sd>;
-	vccio4-supply = <&vcc_3v3>;
+	vccio3-supply = <&vcc_1v8>;
+	vccio4-supply = <&vcca1v8_pmu>;
 	vccio5-supply = <&vcc_3v3>;
 	vccio6-supply = <&vcc_3v3>;
-	vccio7-supply = <&vcc_3v3>;
+	vccio7-supply = <&vcc_1v8>;
 };
 
-&pwm4 {
-	status = "disabled";
+&pwm0 {
+	status = "okay";
 };
 
 &rk_rga {
 	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csidphy0_out>;
+		};
+	};
 };
 
 &rkvdec {
@@ -857,8 +1010,32 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,regulator-off-in-mem-lite =
+		<&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vccio_acodec>, <&vccio_sd>, <&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>,
+		<&sleep_sta_ctl>;
+	rockchip,regulator-on-in-mem-lite =
+		<&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
+
+	rockchip,regulator-off-in-mem =
+		<&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vccio_acodec>, <&vccio_sd>, <&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>,
+		<&sleep_sta_ctl>;
+	rockchip,regulator-on-in-mem =
+		<&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
+
+	rockchip,regulator-off-in-mem-ultra =
+		<&vdd_logic>, <&vdd_gpu>, <&vcc_ddr>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>, <&vccio_acodec>, <&vccio_sd>,
+		<&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>;
+	rockchip,regulator-on-in-mem-ultra = <&vdd_cpu>, <&sleep_sta_ctl>;
+};
+
 &saradc {
-	status = "disabled";
+	status = "okay";
 	vref-supply = <&vcc_1v8>;
 };
 
@@ -869,22 +1046,6 @@
 	non-removable;
 	keep-power-in-suspend;
 	max-frequency = <200000000>;
-	status = "okay";
-};
-
-&sdmmc0 {
-	max-frequency = <50000000>;
-	no-sdio;
-	no-mmc;
-	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	disable-wp;
-	sd-uhs-sdr104;
-	vmmc-supply = <&vcc_sd>;
-	vqmmc-supply = <&vccio_sd>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
 	status = "okay";
 };
 
@@ -902,7 +1063,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	sd-uhs-sdr104;
-	status = "disabled";
+	rockchip,default-sample-phase = <90>;
+	status = "okay";
 };
 
 &tsadc {
@@ -910,7 +1072,7 @@
 };
 
 &uart1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
 };
