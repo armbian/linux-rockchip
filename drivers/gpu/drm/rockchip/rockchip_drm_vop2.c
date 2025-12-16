@@ -13441,12 +13441,36 @@ static void rk3572_cgc_alpha(struct vop2_video_port *vp,
 	uint32_t dst_alpha_ctrl_offset = ovl_regs->cgc_mix_regs->dst_alpha_ctrl.offset;
 	struct vop2_alpha_config alpha_config;
 	struct vop2_alpha alpha;
+	bool alpha_en = false, premulti_en = true;
+	uint32_t global_alpha = 0xff;
 
-	alpha_config.src_premulti_en = true;
+	if (vp->hdr_en && vp->cgc_en) {
+		const struct vop2_zpos *zpos;
+		struct vop2_win *win;
+		struct drm_plane_state *pstate;
+		struct drm_framebuffer *fb;
+		struct vop2_plane_state *vpstate;
+
+		zpos = &vop2_zpos[1];
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+		pstate = win->base.state;
+		vpstate = to_vop2_plane_state(pstate);
+		fb = pstate->fb;
+		if (pstate->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
+		    pstate->pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE)
+			premulti_en = true;
+		else
+			premulti_en = false;
+
+		alpha_en = fb->format->has_alpha || vop2_cluster_window(win);
+		global_alpha = vpstate->global_alpha;
+	}
+
+	alpha_config.src_premulti_en = premulti_en;
 	alpha_config.dst_premulti_en = true;
-	alpha_config.src_pixel_alpha_en = true;
+	alpha_config.src_pixel_alpha_en = alpha_en;
 	alpha_config.dst_pixel_alpha_en = false;
-	alpha_config.src_glb_alpha_value = 0xff;
+	alpha_config.src_glb_alpha_value = global_alpha;
 	alpha_config.dst_glb_alpha_value = 0xff;
 	vop2_parse_alpha(&alpha_config, &alpha);
 
@@ -14572,6 +14596,7 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 
 	vpstate->cgc_en = true;
+	vp->cgc_en = true;
 }
 
 static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win,
@@ -14699,6 +14724,7 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 
 	vp->hdr_en = false;
 	vp->hdr_in = false;
+	vp->cgc_en = false;
 
 	for (i = 0; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
