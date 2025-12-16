@@ -450,7 +450,8 @@ static void analogix_dp_handle_hpd_event(struct analogix_dp_device *dp)
 
 void analogix_dp_irq_handler(struct analogix_dp_device *dp)
 {
-	analogix_dp_handle_hpd_event(dp);
+	if (!dp->force_hpd)
+		analogix_dp_handle_hpd_event(dp);
 }
 
 void analogix_dp_reset_aux(struct analogix_dp_device *dp)
