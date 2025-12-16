@@ -321,6 +321,7 @@ static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct uac_rtd_params *prm;
 	struct g_audio *audio_dev;
 	struct uac_params *params;
+	unsigned int max_psize;
 	int err = 0;
 
 	audio_dev = uac->audio_dev;
@@ -348,8 +349,10 @@ static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	/* Clear buffer after Play stops */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !prm->ss)
-		memset(prm->rbuf, 0, prm->max_psize * params->req_number);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !prm->ss) {
+		max_psize = ALIGN(prm->max_psize, cache_line_size());
+		memset(prm->rbuf, 0, max_psize * params->req_number);
+	}
 
 	return err;
 }
@@ -601,6 +604,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	struct uac_rtd_params *prm;
 	struct uac_params *params = &audio_dev->params;
 	int req_len, i, ret;
+	unsigned int maxpacket;
 
 	/*
 	 * For better compatibility on some PC Hosts which
@@ -625,6 +629,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	}
 
 	req_len = ep->maxpacket;
+	maxpacket = ALIGN((unsigned int)ep->maxpacket, cache_line_size());
 
 	prm->ep_enabled = true;
 	ret = usb_ep_enable(ep);
@@ -645,7 +650,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 			req->context = prm;
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * ep->maxpacket;
+			req->buf = prm->rbuf + i * maxpacket;
 		}
 
 		if (usb_ep_queue(ep, prm->reqs[i], GFP_ATOMIC))
@@ -731,7 +736,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	unsigned int factor;
 	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i, ret;
-	unsigned int p_pktsize;
+	unsigned int p_pktsize, maxpacket;
 
 	/*
 	 * For better compatibility on some PC Hosts which
@@ -756,6 +761,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	}
 
 	ep_desc = ep->desc;
+	maxpacket = ALIGN((unsigned int)ep->maxpacket, cache_line_size());
 	/*
 	 * Always start with original frequency
 	 */
@@ -798,7 +804,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 			req->context = prm;
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * ep->maxpacket;
+			req->buf = prm->rbuf + i * maxpacket;
 		}
 
 		if (usb_ep_queue(ep, prm->reqs[i], GFP_ATOMIC))
@@ -1433,6 +1439,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	struct uac_params *params;
 	int p_chmask, c_chmask;
 	int i, err;
+	unsigned int max_psize;
 
 	if (!g_audio)
 		return -EINVAL;
@@ -1469,7 +1476,8 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 			goto fail;
 		}
 
-		prm->rbuf = kcalloc(params->req_number, prm->max_psize,
+		max_psize = ALIGN(prm->max_psize, cache_line_size());
+		prm->rbuf = kcalloc(params->req_number, max_psize,
 				GFP_KERNEL);
 		if (!prm->rbuf) {
 			prm->max_psize = 0;
@@ -1494,7 +1502,8 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 			goto fail;
 		}
 
-		prm->rbuf = kcalloc(params->req_number, prm->max_psize,
+		max_psize = ALIGN(prm->max_psize, cache_line_size());
+		prm->rbuf = kcalloc(params->req_number, max_psize,
 				GFP_KERNEL);
 		if (!prm->rbuf) {
 			prm->max_psize = 0;

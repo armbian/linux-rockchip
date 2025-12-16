@@ -33,3 +33,14 @@
 		spi-tx-bus-width = <1>;
 	};
 };
+
+&gt1x {
+	goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
+	goodix,irq-gpio = <&gpio3 RK_PA7 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&touch_gpio {
+	rockchip,pins =
+		<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,
+		<5 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+};

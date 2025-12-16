@@ -3852,6 +3852,15 @@
 		      <0x22710000 0x1000>;
 	};
 
+	aoa_extram: fspi1_xip@24000000 {
+		compatible = "mmio-sram";
+		reg = <0x24000000 0x2000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x24000000 0x2000000>;
+		status = "disabled";
+	};
+
 	aoa_sram: sram@3ff20000 {
 		compatible = "mmio-sram";
 		reg = <0x3ff20000 0x10000>;

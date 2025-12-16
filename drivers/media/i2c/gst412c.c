@@ -35,7 +35,7 @@
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #define gst412C_BITS_PER_SAMPLE		14
-#define GST412C_PMCLK_FREQ		13500000
+#define GST412C_PMCLK_FREQ		27000000
 
 #define GST412C_CHIP_ID			0x19
 #define GST412C_REG_CHIP_ID		0x30
@@ -128,9 +128,9 @@ static const struct regval gst412c_400x300_25fps_12M5_regs[] = {
 	// reg_y_blank_pixel = 10
 	{ 0x0a, 0x0a },
 	{ 0x0b, 0x00 },
-	// reg_frame_rate = 1/400=25hz
-	{ 0x0c, 0x90 },
-	{ 0x0d, 0x01 },
+	// reg_frame_rate = 1/200=50hz
+	{ 0x0c, 0xc8 },
+	{ 0x0d, 0x00 },
 
 	{ 0x10, 0x01 },
 
@@ -1186,13 +1186,13 @@ static int gst412c_probe(struct i2c_client *client)
 	}
 
 	gst412c->vdet = devm_regulator_get(dev, "irfpa_vdet");
-	if (IS_ERR(gst412c->vdet)) {
+	if (IS_ERR_OR_NULL(gst412c->vdet)) {
 		dev_err(dev, "Failed to get regulator vdet\n");
 		return -EINVAL;
 	}
 
 	gst412c->avdd = devm_regulator_get(dev, "irfpa_avdd");
-	if (IS_ERR(gst412c->avdd)) {
+	if (IS_ERR_OR_NULL(gst412c->avdd)) {
 		dev_err(dev, "Failed to get regulator avdd\n");
 		return -EINVAL;
 	}

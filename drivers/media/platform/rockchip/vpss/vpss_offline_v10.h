@@ -3,9 +3,8 @@
 
 #ifndef _RKVPSS_OFFLINE_V10_H
 #define _RKVPSS_OFFLINE_V10_H
-#define DEV_NUM_MAX 256
-#define UNITE_ENLARGE 16
-#define UNITE_LEFT_ENLARGE 16
+
+#include "vpss_offline.h"
 
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_VPSS_V10)

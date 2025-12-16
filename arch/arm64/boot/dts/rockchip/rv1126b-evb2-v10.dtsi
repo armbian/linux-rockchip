@@ -308,7 +308,6 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		vdd_ana-supply = <&vcc_mipi>;
 		goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio3 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
 	};
@@ -316,7 +315,6 @@
 	hynitron: hynitron@5a {
 		compatible = "hyn,3240";
 		reg = <0x5a>;
-		power-supply = <&vcc_mipi>;
 
 		pinctrl-names = "ts_active","ts_suspend";
 		pinctrl-0 = <&ts_int_active &ts_reset_active>;

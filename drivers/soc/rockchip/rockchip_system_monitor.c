@@ -1884,7 +1884,7 @@ static struct early_suspend monitor_early_suspend_handler = {
 };
 #endif
 
-static int rockchip_eink_devfs_notifier(struct notifier_block *nb,
+static int rockchip_ebook_devfs_notifier(struct notifier_block *nb,
 					unsigned long action, void *ptr)
 {
 	switch (action) {
@@ -1902,7 +1902,7 @@ static int rockchip_eink_devfs_notifier(struct notifier_block *nb,
 }
 
 static struct notifier_block rockchip_monitor_ebc_nb = {
-	.notifier_call = rockchip_eink_devfs_notifier,
+	.notifier_call = rockchip_ebook_devfs_notifier,
 };
 
 static void system_monitor_early_min_volt_function(struct work_struct *work)
