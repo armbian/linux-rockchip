@@ -3017,6 +3017,26 @@ rockchip_hdmi_colorspace_to_color_encoding(u32 colorimetry, u32 edid_colorimetry
 	return DRM_COLOR_YCBCR_BT709;
 }
 
+static u32
+rockchip_hdmi_color_encoding_to_colorspace(unsigned long color_encoding)
+{
+	switch (color_encoding) {
+	case DRM_COLOR_YCBCR_BT2020:
+		return DRM_MODE_COLORIMETRY_BT2020_RGB;
+	case DRM_COLOR_YCBCR_BT601:
+		return DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
+	case DRM_COLOR_YCBCR_BT709:
+		return DRM_MODE_COLORIMETRY_BT709_YCC;
+	case DRM_COLOR_DCI_P3:
+		return DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65;
+	default:
+		DRM_ERROR("color_encoding %lx is out of range\n", color_encoding);
+		break;
+	}
+
+	return DRM_MODE_COLORIMETRY_BT709_YCC;
+}
+
 static void
 dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       struct drm_crtc_state *crtc_state,
@@ -3127,6 +3147,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		rockchip_hdmi_colorspace_to_color_encoding(conn_state->colorspace,
 							   hdmi->edid_colorimetry, vic);
 
+	*enc_out_encoding = rockchip_hdmi_color_encoding_to_colorspace(hdmi->colorimetry);
 	if ((conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
 	     *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR) &&
 	    (hdmi->colorimetry != DRM_COLOR_YCBCR_BT2020))
