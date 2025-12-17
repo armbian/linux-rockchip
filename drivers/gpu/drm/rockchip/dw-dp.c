@@ -1841,17 +1841,31 @@ mode_changed:
 	return 0;
 }
 
+static inline bool dw_dp_blob_is_all_zeros(struct drm_property_blob *blob)
+{
+	if (!blob)
+		return true;
+
+	return !memchr_inv(blob->data, 0, blob->length);
+}
+
 static bool dw_dp_hdr_metadata_equal(const struct drm_connector_state *old_state,
 				     const struct drm_connector_state *new_state)
 {
 	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
 	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
 
-	if (!old_blob || !new_blob)
-		return old_blob == new_blob;
+	if (!old_blob && !new_blob)
+		return true;
+
+	if (!old_blob)
+		return dw_dp_blob_is_all_zeros(new_blob);
+
+	if (!new_blob)
+		return dw_dp_blob_is_all_zeros(old_blob);
 
 	if (old_blob->length != new_blob->length)
-		return false;
+		return dw_dp_blob_is_all_zeros(old_blob) && dw_dp_blob_is_all_zeros(new_blob);
 
 	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
 }
