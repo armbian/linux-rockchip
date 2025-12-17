@@ -197,6 +197,7 @@ static const struct drm_display_mode dw_hdmi_default_modes[] = {
 enum quirk_case {
 	VSI_SEND,
 	DELAY,
+	INFO_ORDER,
 };
 
 static const struct hdmi_quirk {
@@ -207,6 +208,9 @@ static const struct hdmi_quirk {
 	/* XMD-004A-00000001-46-2019 */
 	{ { 0x61, 0xA4, 0x4A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2E, 0x1D, },
 	  BIT(VSI_SEND), 0, },
+	/* QA55QN700BJXXZ */
+	{ { 0x4C, 0x2D, 0x22, 0x72, 0x00, 0x0E, 0x00, 0x01, 0x01, 0x20, },
+	  BIT(INFO_ORDER), 0, },
 };
 
 enum frl_mask {
@@ -1514,6 +1518,19 @@ bool hdmi_quirk_vsi(const struct drm_connector *connector, u8 *vendor_info)
 	return true;
 }
 
+static bool hdmi_quirk_info_order(const struct drm_connector *connector, u8 *vendor_info)
+{
+	const struct hdmi_quirk *quirk = get_hdmi_quirk(vendor_info);
+
+	if (!quirk)
+		return false;
+
+	if (!(quirk->quirk_case & BIT(INFO_ORDER)))
+		return false;
+
+	return true;
+}
+
 #define HDMI_AVI_V3_PAYLOAD_LEN		HDMI_AVI_INFOFRAME_SIZE
 /*
  * avi version4 has 14-byte and 15-byte modes,
@@ -2750,6 +2767,12 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 		hdmi_modb(hdmi, KEEPOUT_REKEY_ALWAYS, KEEPOUT_REKEY_CFG, FRAME_COMPOSER_CONFIG9);
 
+		if (hdmi_quirk_info_order(connector, hdmi->vendor_info)) {
+			/* Change the sending order of infoframe to VSI -> GCP -> AVI -> DRMI */
+			hdmi_writel(hdmi, 0x3020a, PKTSCHED_PRQUEUE0_CONFIG0);
+			hdmi_writel(hdmi, 0x9070b08, PKTSCHED_PRQUEUE1_CONFIG0);
+			hdmi_writel(hdmi, 0xe0f0d01, PKTSCHED_PRQUEUE2_CONFIG1);
+		}
 		if (!link_cfg->frl_mode && dw_hdmi_support_scdc(hdmi, &connector->display_info) &&
 		    !hdmi->update) {
 			if (vmode->mtmdsclock > HDMI14_MAX_TMDSCLK) {
