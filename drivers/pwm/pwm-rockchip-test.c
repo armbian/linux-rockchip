@@ -131,8 +131,9 @@ static void pwm_rockchip_test_help_info(void)
 	pr_info("echo capture 1 0 1000 > /dev/pwm_rockchip_misc_test\n");
 	pr_info("\n");
 	pr_info("counter mode demo:\n");
-	pr_info("echo counter 1 0 io 1000 > /dev/pwm_rockchip_misc_test\n");
-	pr_info("echo counter 1 1 cru 1000 > /dev/pwm_rockchip_misc_test\n");
+	pr_info("echo counter 1 0 io continuous 1000 > /dev/pwm_rockchip_misc_test\n");
+	pr_info("echo counter 1 1 cru continuous 1000 > /dev/pwm_rockchip_misc_test\n");
+	pr_info("echo counter 1 2 io discontinuous 5000 > /dev/pwm_rockchip_misc_test\n");
 	pr_info("\n");
 	pr_info("frequency meter mode demo:\n");
 	pr_info("echo frequency 1 2 io 1000 > /dev/pwm_rockchip_misc_test\n");
@@ -217,6 +218,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 	struct rockchip_pwm_biphasic_config biphasic_config;
 	enum rockchip_pwm_freq_meter_input_sel freq_input_sel;
 	enum rockchip_pwm_counter_input_sel counter_input_sel;
+	enum rockchip_pwm_counter_mode counter_mode;
 	enum rockchip_pwm_biphasic_mode biphasic_mode;
 	enum pwm_cmd_type cmd_type;
 	enum pwm_polarity polarity;
@@ -486,7 +488,24 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 			ret = -EINVAL;
 			goto exit;
 		}
-		ret = kstrtoul(argv[3], 10, &timeout_ms);
+		if (argv[3]) {
+			if (!strcmp(argv[3], "continuous")) {
+				counter_mode = PWM_COUNTER_CONTINUOUS;
+			} else if (!strcmp(argv[3], "discontinuous")) {
+				counter_mode = PWM_COUNTER_DISCONTINUOUS;
+			} else {
+				pr_err("counter mode should be continuous or discontinuous\n");
+				ret = -EINVAL;
+				goto exit;
+			}
+		} else {
+			pr_err("failed to parse counter mode for pwm%d_%d in %s mode\n",
+			       controller_id, channel_id, cmd);
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		ret = kstrtoul(argv[4], 10, &timeout_ms);
 		if (ret) {
 			pr_err("failed to parse timeout_ms for pwm%d_%d in %s mode\n",
 			       controller_id, channel_id, cmd);
@@ -494,7 +513,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 			goto exit;
 		}
 
-		ret = rockchip_pwm_set_counter(pdev, counter_input_sel, true);
+		ret = rockchip_pwm_set_counter(pdev, counter_input_sel, counter_mode, true);
 		if (ret) {
 			pr_err("failed to enable %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
@@ -510,7 +529,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 			return -EINVAL;
 		}
 
-		ret = rockchip_pwm_set_counter(pdev, 0, false);
+		ret = rockchip_pwm_set_counter(pdev, 0, 0, false);
 		if (ret) {
 			pr_err("failed to disable %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
