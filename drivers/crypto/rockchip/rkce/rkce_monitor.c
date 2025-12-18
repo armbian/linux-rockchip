@@ -26,6 +26,7 @@
 
 struct rkce_monitor_data {
 	void			*td;
+	void			*hardware;
 	request_cb_func		callback;
 	unsigned long		timeout;
 
@@ -51,8 +52,10 @@ static void timeout_work_handler(struct work_struct *work)
 		if (monitor_data &&
 		    monitor_data->callback &&
 		    time_after(jiffies, monitor_data->timeout)) {
-			rk_debug("!!!!!!!!!!!!!!!!!! trigger timeout for (%p)\n", monitor_data->td);
-			monitor_data->callback(-ETIMEDOUT, 0, monitor_data->td);
+			rk_err("!!!!!!!!!!!!!!!!!! trigger timeout for (%p), hardware = %p\n",
+			       monitor_data->td, monitor_data->hardware);
+			monitor_data->callback(monitor_data->hardware,
+					       -ETIMEDOUT, 0, monitor_data->td);
 			list_del(&monitor_data->list);
 		}
 	}
@@ -100,7 +103,7 @@ static void stop_timer(void)
 	rk_trace("exit.\n");
 }
 
-int rkce_monitor_add(void *td, request_cb_func callback)
+int rkce_monitor_add(void *hardware, void *td, uint32_t timeout_ms, request_cb_func callback)
 {
 	struct rkce_monitor_data *monitor_data;
 
@@ -113,12 +116,13 @@ int rkce_monitor_add(void *td, request_cb_func callback)
 	if (!monitor_data)
 		return -ENOMEM;
 
+	monitor_data->hardware = hardware;
 	monitor_data->td       = td;
 	monitor_data->callback = callback;
-	monitor_data->timeout  = jiffies + 3 * HZ;
+	monitor_data->timeout  = jiffies + timeout_ms * HZ / 1000;
 
-	rk_debug("add %p to monitor, timeout = %u.\n",
-		 td, jiffies_to_msecs(monitor_data->timeout));
+	rk_debug("add %p phys(%08x) to monitor, timeout = %u.\n",
+		 td, rkce_cma_virt2phys(td), jiffies_to_msecs(monitor_data->timeout));
 
 	mutex_lock(&g_monitor_lock);
 
@@ -138,7 +142,7 @@ void rkce_monitor_del(void *td)
 	struct rkce_monitor_data *monitor_data = NULL;
 	struct list_head *pos = NULL, *q = NULL;
 
-	rk_trace("enter.\n");
+	rk_trace("enter delete td phys(%08x).\n", rkce_cma_virt2phys(td));
 
 	mutex_lock(&g_monitor_lock);
 

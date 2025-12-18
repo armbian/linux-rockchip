@@ -19,6 +19,8 @@
 #include "rkce_monitor.h"
 #include "rkce_hash.h"
 
+#define RKCE_HASH_TIMEOUT_MS		3000
+
 static inline struct rkce_ahash_ctx *hash_req2ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -160,32 +162,57 @@ error:
 	return -1;
 }
 
-int rkce_hash_request_callback(int result, uint32_t td_id, void *td_addr)
+int rkce_hash_request_callback(void *rkce_hw, int result, uint32_t td_id, void *td_addr)
 {
 	struct rkce_hash_td *td = (struct rkce_hash_td *)td_addr;
-	struct rkce_hash_td_buf *td_buf =
-		container_of(rkce_cma_phys2virt(td->hash_ctx_addr), struct rkce_hash_td_buf, ctx);
-	struct rkce_ahash_ctx *ctx = (struct rkce_ahash_ctx *)td_buf->user_data;
-	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(ctx->req);
+	struct rkce_hash_td_buf *td_buf = NULL;
+	struct rkce_ahash_ctx *ctx = NULL;
+	struct rkce_ahash_request_ctx *rctx = NULL;
 
 	rk_trace("enter.\n");
 
-	ctx->calculated += ctx->req->nbytes;
+	if (rkce_done_xchg(rkce_hw, RKCE_TD_TYPE_HASH)) {
+		rk_err("Symm td already done.\n");
+		return 0;
+	}
 
+	if (!td || !td->hash_ctx_addr || !rkce_cma_phys2virt(td->hash_ctx_addr)) {
+		rk_err("td = %p, td->hash_ctx_addr = %08x invalid.\n",
+		       td, td ? td->hash_ctx_addr : 0);
+		return -EFAULT;
+	}
+
+	td_buf = container_of(rkce_cma_phys2virt(td->hash_ctx_addr), struct rkce_hash_td_buf, ctx);
+
+	ctx = (struct rkce_ahash_ctx *)td_buf->user_data;
+	if (!ctx || !ctx->req) {
+		rk_err("ctx = %p, ctx->req = %p invalid.\n", ctx, ctx ? ctx->req : NULL);
+		return -EFAULT;
+	}
+
+	rctx = ahash_request_ctx(ctx->req);
+	if (!rctx) {
+		rk_err("rctx is NULL.\n");
+		return -EFAULT;
+	}
 	if (result != -ETIMEDOUT)
 		rkce_monitor_del(rctx->td_head);
 
 	if (result) {
-		rkce_dump_reginfo(ctx->algt->rk_dev->hardware);
-		rkce_soft_reset(ctx->algt->rk_dev->hardware, RKCE_RESET_HASH);
-	} else {
-		if (ctx->is_final && ctx->req->result) {
-			memcpy(ctx->req->result, td_buf->hash, ctx->algt->alg.hash.halg.digestsize);
-			rkce_dumphex("req->result",
-				     ctx->req->result, ctx->algt->alg.hash.halg.digestsize);
-		}
+		rkce_dump_reginfo(rkce_hw);
+		rkce_soft_reset(rkce_hw, RKCE_RESET_HASH);
+		goto exit;
 	}
 
+	ctx->calculated += ctx->req->nbytes;
+
+	if (ctx->is_final && ctx->req->result) {
+		memcpy(ctx->req->result, td_buf->hash, ctx->algt->alg.hash.halg.digestsize);
+		rkce_dumphex("req->result",
+				ctx->req->result, ctx->algt->alg.hash.halg.digestsize);
+	}
+
+exit:
 	crypto_finalize_hash_request(ctx->algt->rk_dev->hash_engine, ctx->req, result);
 
 	rk_trace("exit.\n");
@@ -294,12 +321,19 @@ static int rkce_hash_run(struct crypto_engine *engine, void *breq)
 	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
+	uint32_t timeout_ms = RKCE_HASH_TIMEOUT_MS;
+	int ret;
 
 	rk_trace("enter.\n");
 
-	rkce_monitor_add(rctx->td_head, rkce_hash_request_callback);
+	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
 
-	return rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	timeout_ms = ret ? 100 : RKCE_HASH_TIMEOUT_MS;
+
+	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
+			 timeout_ms, rkce_hash_request_callback);
+
+	return 0;
 }
 
 static int rkce_ahash_hmac_setkey(struct crypto_ahash *tfm, const uint8_t *key, unsigned int keylen)

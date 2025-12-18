@@ -9,7 +9,7 @@
 
 #include "rkce_core.h"
 
-int rkce_monitor_add(void *td, request_cb_func callback);
+int rkce_monitor_add(void *hardware, void *td, uint32_t timeout_ms, request_cb_func callback);
 
 void rkce_monitor_del(void *td);
 

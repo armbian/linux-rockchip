@@ -35,6 +35,6 @@ extern struct rkce_algt rkce_cbc_des3_ede_alg;
 extern struct rkce_algt rkce_cfb_des3_ede_alg;
 extern struct rkce_algt rkce_ofb_des3_ede_alg;
 
-int rkce_cipher_request_callback(int result, uint32_t td_id, void *td_addr);
+int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void *td_addr);
 
 #endif
