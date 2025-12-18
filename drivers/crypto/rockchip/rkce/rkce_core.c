@@ -107,7 +107,7 @@ static bool rk_is_cipher_support(struct RKCE_REG *rkce_reg,
 	switch (algo) {
 	case RKCE_SYMM_ALGO_DES:
 	case RKCE_SYMM_ALGO_TDES:
-		version = rkce_reg->DES_VER;
+		version = RKCE_READ(rkce_reg->DES_VER);
 
 		if (key_len == RKCE_DES_BLOCK_SIZE)
 			key_len_valid = true;
@@ -118,7 +118,7 @@ static bool rk_is_cipher_support(struct RKCE_REG *rkce_reg,
 			key_len_valid = false;
 		break;
 	case RKCE_SYMM_ALGO_AES:
-		version = rkce_reg->AES_VER;
+		version = RKCE_READ(rkce_reg->AES_VER);
 
 		if (key_len == RKCE_AES_KEYSIZE_128)
 			key_len_valid = version & RKCE_AES_VER_AES128_FLAG_MASK;
@@ -130,7 +130,7 @@ static bool rk_is_cipher_support(struct RKCE_REG *rkce_reg,
 			key_len_valid = false;
 		break;
 	case RKCE_SYMM_ALGO_SM4:
-		version = rkce_reg->SM4_VER;
+		version = RKCE_READ(rkce_reg->SM4_VER);
 
 		key_len_valid = (key_len == RKCE_SM4_KEYSIZE) ? true : false;
 		break;
@@ -152,10 +152,10 @@ static bool rk_is_hash_support(struct RKCE_REG *rkce_reg, uint32_t algo, uint32_
 	uint32_t mask = 0;
 
 	if (type == RKCE_ALGO_TYPE_HMAC) {
-		version = rkce_reg->HMAC_VER;
+		version = RKCE_READ(rkce_reg->HMAC_VER);
 		mask    = hmac_algo2bit_mask[algo];
 	} else if (type == RKCE_ALGO_TYPE_HASH) {
-		version = rkce_reg->HASH_VER;
+		version = RKCE_READ(rkce_reg->HASH_VER);
 		mask    = hash_algo2bit_mask[algo];
 	} else {
 		return false;
@@ -168,12 +168,12 @@ static bool rk_is_asym_support(struct RKCE_REG *rkce_reg, uint32_t algo)
 {
 	switch (algo) {
 	case RKCE_ASYM_ALGO_RSA:
-		return !!rkce_reg->PKA_VER;
+		return !!RKCE_READ(rkce_reg->PKA_VER);
 	case RKCE_ASYM_ALGO_ECC_P192:
 	case RKCE_ASYM_ALGO_ECC_P224:
 	case RKCE_ASYM_ALGO_ECC_P256:
 	case RKCE_ASYM_ALGO_SM2:
-		return !!rkce_reg->ECC_MAX_CURVE_WIDE;
+		return !!RKCE_READ(rkce_reg->ECC_MAX_CURVE_WIDE);
 	default:
 		return false;
 	}
@@ -228,17 +228,17 @@ int rkce_soft_reset(void *rkce_hw, uint32_t reset_sel)
 	if (reset_sel & RKCE_RESET_PKA)
 		value |= RKCE_RST_CTL_SW_PKA_RESET_SHIFT;
 
-	rkce_reg->RST_CTL = value | RKCE_WRITE_MASK_ALL;
+	RKCE_WRITE(rkce_reg->RST_CTL, value | RKCE_WRITE_MASK_ALL);
 
-	return WHILE_TIMEOUT(rkce_reg->RST_CTL, RST_TIMEOUT_MS);
+	return WHILE_TIMEOUT(RKCE_READ(rkce_reg->RST_CTL), RST_TIMEOUT_MS);
 }
 
 static int rkce_check_version(struct RKCE_REG *rkce_reg)
 {
-	rk_debug("rkce_reg->CE_VER = %08x\n", rkce_reg->CE_VER);
+	rk_debug("rkce_reg->CE_VER = %08x\n", RKCE_READ(rkce_reg->CE_VER));
 
-	if (GET_IP_VERSION(rkce_reg->CE_VER) != IP_VERSION_RKCE) {
-		rk_err("IP version is %08x not a RKCE module.\n", rkce_reg->CE_VER);
+	if (GET_IP_VERSION(RKCE_READ(rkce_reg->CE_VER)) != IP_VERSION_RKCE) {
+		rk_err("IP version is %08x not a RKCE module.\n", RKCE_READ(rkce_reg->CE_VER));
 		return -RKCE_FAULT;
 	}
 
@@ -258,32 +258,32 @@ static int rkce_init(void *rkce_hw)
 	rkce_soft_reset(rkce_hw, RKCE_RESET_SYMM | RKCE_RESET_HASH | RKCE_RESET_PKA);
 
 	/* clear symm interrupt register */
-	rkce_reg->SYMM_INT_EN = 0;
-	value = rkce_reg->SYMM_INT_ST;
-	rkce_reg->SYMM_INT_ST = value;
+	RKCE_WRITE(rkce_reg->SYMM_INT_EN, 0);
+	value = RKCE_READ(rkce_reg->SYMM_INT_ST);
+	RKCE_WRITE(rkce_reg->SYMM_INT_ST, value);
 
-	ret = WHILE_TIMEOUT(rkce_reg->SYMM_INT_ST, RST_TIMEOUT_MS);
+	ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->SYMM_INT_ST), RST_TIMEOUT_MS);
 	if (ret)
 		goto exit;
 
 	/* clear hash interrupt register */
-	rkce_reg->HASH_INT_EN = 0;
-	value = rkce_reg->HASH_INT_ST;
-	rkce_reg->HASH_INT_ST = value;
+	RKCE_WRITE(rkce_reg->HASH_INT_EN, 0);
+	value = RKCE_READ(rkce_reg->HASH_INT_ST);
+	RKCE_WRITE(rkce_reg->HASH_INT_ST, value);
 
-	ret = WHILE_TIMEOUT(rkce_reg->HASH_INT_ST, RST_TIMEOUT_MS);
+	ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->HASH_INT_ST), RST_TIMEOUT_MS);
 	if (ret)
 		goto exit;
 
-	if (rkce_reg->SYMM_CONTEXT_SIZE != RKCE_TD_SYMM_CTX_SIZE) {
+	if (RKCE_READ(rkce_reg->SYMM_CONTEXT_SIZE) != RKCE_TD_SYMM_CTX_SIZE) {
 		rk_err("rkce symm context size (%u) != %u\n",
-		       rkce_reg->SYMM_CONTEXT_SIZE, RKCE_TD_SYMM_CTX_SIZE);
+		       RKCE_READ(rkce_reg->SYMM_CONTEXT_SIZE), RKCE_TD_SYMM_CTX_SIZE);
 		return -RKCE_INVAL;
 	}
 
-	if (rkce_reg->HASH_CONTEXT_SIZE != RKCE_TD_HASH_CTX_SIZE) {
+	if (RKCE_READ(rkce_reg->HASH_CONTEXT_SIZE) != RKCE_TD_HASH_CTX_SIZE) {
 		rk_err("rkce hash context size (%u) != %u\n",
-		       rkce_reg->HASH_CONTEXT_SIZE, RKCE_TD_HASH_CTX_SIZE);
+		       RKCE_READ(rkce_reg->HASH_CONTEXT_SIZE), RKCE_TD_HASH_CTX_SIZE);
 		return -RKCE_INVAL;
 	}
 
@@ -333,23 +333,23 @@ void rkce_dump_reginfo(void *rkce_hw)
 	rkce_reg = GET_RKCE_REG(rkce_hw);
 
 	rk_info("\n============================== reg info ===========================\n");
-	rk_info("FIFO_ST           = %08x\n", rkce_reg->FIFO_ST);
+	rk_info("FIFO_ST           = %08x\n", RKCE_READ(rkce_reg->FIFO_ST));
 	rk_info("\n");
-	rk_info("SYMM_INT_EN       = %08x\n", rkce_reg->SYMM_INT_EN);
-	rk_info("SYMM_INT_ST       = %08x\n", rkce_reg->SYMM_INT_ST);
-	rk_info("SYMM_TD_ST        = %08x\n", rkce_reg->SYMM_TD_ST);
-	rk_info("SYMM_TD_ID        = %08x\n", rkce_reg->SYMM_TD_ID);
-	rk_info("SYMM_ST_DBG       = %08x\n", rkce_reg->SYMM_ST_DBG);
-	rk_info("SYMM_TD_ADDR_DBG  = %08x\n", rkce_reg->SYMM_TD_ADDR_DBG);
-	rk_info("SYMM_TD_GRANT_DBG = %08x\n", rkce_reg->SYMM_TD_GRANT_DBG);
+	rk_info("SYMM_INT_EN       = %08x\n", RKCE_READ(rkce_reg->SYMM_INT_EN));
+	rk_info("SYMM_INT_ST       = %08x\n", RKCE_READ(rkce_reg->SYMM_INT_ST));
+	rk_info("SYMM_TD_ST        = %08x\n", RKCE_READ(rkce_reg->SYMM_TD_ST));
+	rk_info("SYMM_TD_ID        = %08x\n", RKCE_READ(rkce_reg->SYMM_TD_ID));
+	rk_info("SYMM_ST_DBG       = %08x\n", RKCE_READ(rkce_reg->SYMM_ST_DBG));
+	rk_info("SYMM_TD_ADDR_DBG  = %08x\n", RKCE_READ(rkce_reg->SYMM_TD_ADDR_DBG));
+	rk_info("SYMM_TD_GRANT_DBG = %08x\n", RKCE_READ(rkce_reg->SYMM_TD_GRANT_DBG));
 	rk_info("\n");
-	rk_info("HASH_INT_EN       = %08x\n", rkce_reg->HASH_INT_EN);
-	rk_info("HASH_INT_ST       = %08x\n", rkce_reg->HASH_INT_ST);
-	rk_info("HASH_TD_ST        = %08x\n", rkce_reg->HASH_TD_ST);
-	rk_info("HASH_TD_ID        = %08x\n", rkce_reg->HASH_TD_ID);
-	rk_info("HASH_ST_DBG       = %08x\n", rkce_reg->HASH_ST_DBG);
-	rk_info("HASH_TD_ADDR_DBG  = %08x\n", rkce_reg->HASH_TD_ADDR_DBG);
-	rk_info("HASH_TD_GRANT_DBG = %08x\n", rkce_reg->HASH_TD_GRANT_DBG);
+	rk_info("HASH_INT_EN       = %08x\n", RKCE_READ(rkce_reg->HASH_INT_EN));
+	rk_info("HASH_INT_ST       = %08x\n", RKCE_READ(rkce_reg->HASH_INT_ST));
+	rk_info("HASH_TD_ST        = %08x\n", RKCE_READ(rkce_reg->HASH_TD_ST));
+	rk_info("HASH_TD_ID        = %08x\n", RKCE_READ(rkce_reg->HASH_TD_ID));
+	rk_info("HASH_ST_DBG       = %08x\n", RKCE_READ(rkce_reg->HASH_ST_DBG));
+	rk_info("HASH_TD_ADDR_DBG  = %08x\n", RKCE_READ(rkce_reg->HASH_TD_ADDR_DBG));
+	rk_info("HASH_TD_GRANT_DBG = %08x\n", RKCE_READ(rkce_reg->HASH_TD_GRANT_DBG));
 	rk_info("===================================================================\n");
 }
 
@@ -377,19 +377,20 @@ int rkce_push_td(void *rkce_hw, void *td)
 		atomic_set(&hardware->chn[RKCE_TD_TYPE_SYMM].irq_done, 0);
 
 		/* wait symm fifo valid */
-		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK,
+		ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->TD_LOAD_CTRL) &
+				    RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK,
 				    TD_PUSH_TIMEOUT_MS);
 		if (ret)
 			goto exit;
 
-		WRITE_ONCE(rkce_reg->SYMM_INT_EN, 0x3f);
+		RKCE_WRITE(rkce_reg->SYMM_INT_EN, 0x3f);
 
 		/* set task desc address */
-		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
+		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
 		hardware->chn[RKCE_TD_TYPE_SYMM].td_virt = td;
 
 		/* tell rkce to load task desc address as symm td */
-		rkce_reg->TD_LOAD_CTRL = 0xffff0000 | RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK;
+		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK);
 	} else if (IS_HASH_TD(td_type)) {
 		rk_debug("rkce hash push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
@@ -397,19 +398,20 @@ int rkce_push_td(void *rkce_hw, void *td)
 		atomic_set(&hardware->chn[RKCE_TD_TYPE_HASH].irq_done, 0);
 
 		/* wait hash fifo valid */
-		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_HASH_TLR_MASK,
+		ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->TD_LOAD_CTRL) &
+				    RKCE_TD_LOAD_CTRL_HASH_TLR_MASK,
 				    TD_PUSH_TIMEOUT_MS);
 		if (ret)
 			goto exit;
 
-		WRITE_ONCE(rkce_reg->HASH_INT_EN, 0x3f);
+		RKCE_WRITE(rkce_reg->HASH_INT_EN, 0x3f);
 
 		/* set task desc address */
-		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
+		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
 		hardware->chn[RKCE_TD_TYPE_HASH].td_virt = td;
 
 		/* tell rkce to load task desc address as hash td */
-		rkce_reg->TD_LOAD_CTRL = 0xffff0000 | RKCE_TD_LOAD_CTRL_HASH_TLR_MASK;
+		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_HASH_TLR_MASK);
 	} else {
 		return -RKCE_INVAL;
 	}
@@ -475,52 +477,54 @@ int rkce_push_td_sync(void *rkce_hw, void *td, uint32_t timeout_ms)
 		rk_debug("rkce symm push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
 
-		WRITE_ONCE(rkce_reg->SYMM_INT_EN, 0x00);
+		RKCE_WRITE(rkce_reg->SYMM_INT_EN, 0x00);
 
 		/* wait symm fifo valid */
-		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK,
+		ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->TD_LOAD_CTRL) &
+				    RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK,
 				    timeout_ms);
 		if (ret)
 			goto exit;
 
 		/* set task desc address */
-		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
+		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
 
 		/* tell rkce to load task desc address as symm td */
-		rkce_reg->TD_LOAD_CTRL = 0xffff0000 | RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK;
+		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK);
 
 		/* wait symm done */
-		ret = WHILE_TIMEOUT(!(rkce_reg->SYMM_INT_ST), timeout_ms);
+		ret = WHILE_TIMEOUT(!RKCE_READ(rkce_reg->SYMM_INT_ST), timeout_ms);
 		mask  = RKCE_SYMM_INT_ST_TD_DONE_MASK;
-		value = READ_ONCE(rkce_reg->SYMM_INT_ST);
-		WRITE_ONCE(rkce_reg->SYMM_INT_ST, value);
+		value = RKCE_READ(rkce_reg->SYMM_INT_ST);
+		RKCE_WRITE(rkce_reg->SYMM_INT_ST, value);
 		rk_debug("symm ret = %d, value = %08x, IN_ST = %08x\n",
-			 ret, value, READ_ONCE(rkce_reg->SYMM_INT_ST));
+			 ret, value, RKCE_READ(rkce_reg->SYMM_INT_ST));
 	} else if (IS_HASH_TD(td_type)) {
 		rk_debug("rkce hash push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
 
-		WRITE_ONCE(rkce_reg->HASH_INT_EN, 0x00);
+		RKCE_WRITE(rkce_reg->HASH_INT_EN, 0x00);
 
 		/* wait hash fifo valid */
-		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_HASH_TLR_MASK,
+		ret = WHILE_TIMEOUT(RKCE_READ(rkce_reg->TD_LOAD_CTRL) &
+				    RKCE_TD_LOAD_CTRL_HASH_TLR_MASK,
 				    timeout_ms);
 		if (ret)
 			goto exit;
 
 		/* set task desc address */
-		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
+		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
 
 		/* tell rkce to load task desc address as hash td */
-		rkce_reg->TD_LOAD_CTRL = 0xffff0000 | RKCE_TD_LOAD_CTRL_HASH_TLR_MASK;
+		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_HASH_TLR_MASK);
 
 		/* wait hash done */
-		ret = WHILE_TIMEOUT(!(rkce_reg->HASH_INT_ST), timeout_ms);
+		ret = WHILE_TIMEOUT(!RKCE_READ(rkce_reg->HASH_INT_ST), timeout_ms);
 		mask  = RKCE_HASH_INT_ST_TD_DONE_MASK;
-		value = READ_ONCE(rkce_reg->HASH_INT_ST);
-		WRITE_ONCE(rkce_reg->HASH_INT_ST, value);
+		value = RKCE_READ(rkce_reg->HASH_INT_ST);
+		RKCE_WRITE(rkce_reg->HASH_INT_ST, value);
 		rk_debug("hash ret = %d, value = %08x, INT_ST = %08x\n",
-			 ret, value, READ_ONCE(rkce_reg->HASH_INT_ST));
+			 ret, value, RKCE_READ(rkce_reg->HASH_INT_ST));
 	} else {
 		rk_debug("unknown td_type = %u\n", td_type);
 		return -RKCE_INVAL;
@@ -607,25 +611,25 @@ void rkce_irq_handler(void *rkce_hw)
 
 	rkce_reg = GET_RKCE_REG(rkce_hw);
 
-	if (rkce_reg->SYMM_INT_ST) {
+	if (RKCE_READ(rkce_reg->SYMM_INT_ST)) {
 		cur_chn = &(hardware->chn[RKCE_TD_TYPE_SYMM]);
-		cur_chn->int_st =  READ_ONCE(rkce_reg->SYMM_INT_ST);
-		cur_chn->td_id  = rkce_reg->SYMM_TD_ID;
+		cur_chn->int_st = RKCE_READ(rkce_reg->SYMM_INT_ST);
+		cur_chn->td_id  = RKCE_READ(rkce_reg->SYMM_TD_ID);
 
 		/* clear symm int */
-		WRITE_ONCE(rkce_reg->SYMM_INT_ST, cur_chn->int_st);
+		RKCE_WRITE(rkce_reg->SYMM_INT_ST, cur_chn->int_st);
 
 		cur_chn->result = (cur_chn->int_st == RKCE_SYMM_INT_ST_TD_DONE_MASK) ?
 				  RKCE_SUCCESS : cur_chn->int_st;
 	}
 
-	if (rkce_reg->HASH_INT_ST) {
+	if (RKCE_READ(rkce_reg->HASH_INT_ST)) {
 		cur_chn = &(hardware->chn[RKCE_TD_TYPE_HASH]);
-		cur_chn->int_st = READ_ONCE(rkce_reg->HASH_INT_ST);
-		cur_chn->td_id  = rkce_reg->HASH_TD_ID;
+		cur_chn->int_st = RKCE_READ(rkce_reg->HASH_INT_ST);
+		cur_chn->td_id  = RKCE_READ(rkce_reg->HASH_TD_ID);
 
 		/* clear hash int */
-		WRITE_ONCE(rkce_reg->HASH_INT_ST, cur_chn->int_st);
+		RKCE_WRITE(rkce_reg->HASH_INT_ST, cur_chn->int_st);
 
 		cur_chn->result = (cur_chn->int_st == RKCE_HASH_INT_ST_TD_DONE_MASK) ?
 				  RKCE_SUCCESS : cur_chn->int_st;

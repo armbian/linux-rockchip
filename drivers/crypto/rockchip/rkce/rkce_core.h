@@ -8,6 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/version.h>
+#include <linux/io.h>
 
 #include "rkce_buf.h"
 #include "rkce_error.h"
@@ -44,6 +45,10 @@
 
 #define RKCE_WRITE_MASK_SHIFT		(16)
 #define RKCE_WRITE_MASK_ALL		((0xffffu << RKCE_WRITE_MASK_SHIFT))
+
+#define RKCE_READ(reg) readl(&(reg))
+
+#define RKCE_WRITE(reg, val) writel((val), &(reg))
 
 enum rkce_expand_bit {
 	RKCE_EXPAND_BIT_4G = 0,
