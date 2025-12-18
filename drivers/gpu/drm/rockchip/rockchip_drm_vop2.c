@@ -1355,7 +1355,7 @@ static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
 	if (vcstate->dsc_enable)
 		rk3588_vop2_dsc_cfg_done(crtc);
 
-	drm_info(vop2, "vop enable intf:%x\n", intf);
+	drm_info(vop2, "vp%d post enable for intf:%x\n", vp->id, intf);
 }
 
 static void vop2_crtc_output_pre_disable(struct drm_crtc *crtc, int intf)
