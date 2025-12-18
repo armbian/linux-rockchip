@@ -22,8 +22,8 @@ config CRYPTO_DEV_ROCKCHIP_CRYPTO
 	default y
 
 config CRYPTO_DEV_ROCKCHIP_CE
-	bool "crypto engine for RV1126B"
-	depends on CPU_RV1126B
+	bool "crypto engine for RV1126B/RK3538"
+	depends on CPU_RV1126B || CPU_RK3538
 	default y
 
 endif
