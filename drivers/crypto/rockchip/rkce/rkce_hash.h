@@ -23,6 +23,6 @@ extern struct rkce_algt rkce_hmac_sha256;
 extern struct rkce_algt rkce_hmac_sha512;
 extern struct rkce_algt rkce_hmac_sm3;
 
-int rkce_hash_request_callback(int result, uint32_t td_id, void *td_addr);
+int rkce_hash_request_callback(void *rkce_hw, int result, uint32_t td_id, void *td_addr);
 
 #endif

@@ -26,6 +26,7 @@ struct rkce_chn_info {
 	uint32_t	int_st;
 	uint32_t	td_id;
 	int		result;
+	atomic_t	irq_done;
 
 	request_cb_func cb_func;
 };
@@ -37,7 +38,7 @@ struct rkce_hardware {
 };
 
 #define RST_TIMEOUT_MS		100
-#define TD_PUSH_TIMEOUT_MS	3000
+#define TD_PUSH_TIMEOUT_MS	1000
 
 #define IP_VERSION_MASK		(0xfU >> 28)
 #define IP_VERSION_RKCE		(0x1U >> 28)
@@ -373,13 +374,15 @@ int rkce_push_td(void *rkce_hw, void *td)
 		rk_debug("rkce symm push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
 
-		WRITE_ONCE(rkce_reg->SYMM_INT_EN, 0x3f);
+		atomic_set(&hardware->chn[RKCE_TD_TYPE_SYMM].irq_done, 0);
 
 		/* wait symm fifo valid */
 		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK,
 				    TD_PUSH_TIMEOUT_MS);
 		if (ret)
 			goto exit;
+
+		WRITE_ONCE(rkce_reg->SYMM_INT_EN, 0x3f);
 
 		/* set task desc address */
 		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
@@ -391,13 +394,15 @@ int rkce_push_td(void *rkce_hw, void *td)
 		rk_debug("rkce hash push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
 
-		WRITE_ONCE(rkce_reg->HASH_INT_EN, 0x3f);
+		atomic_set(&hardware->chn[RKCE_TD_TYPE_HASH].irq_done, 0);
 
 		/* wait hash fifo valid */
 		ret = WHILE_TIMEOUT(rkce_reg->TD_LOAD_CTRL & RKCE_TD_LOAD_CTRL_HASH_TLR_MASK,
 				    TD_PUSH_TIMEOUT_MS);
 		if (ret)
 			goto exit;
+
+		WRITE_ONCE(rkce_reg->HASH_INT_EN, 0x3f);
 
 		/* set task desc address */
 		rkce_reg->TD_ADDR = rkce_cma_virt2phys(td);
@@ -411,6 +416,42 @@ int rkce_push_td(void *rkce_hw, void *td)
 
 exit:
 	return ret;
+}
+
+/**
+ * rkce_done_xchg() - Atomically mark a TD as done and return previous state
+ * @rkce_hw:   RKCE hardware context
+ * @td_type:   TD type (symmetric or hash)
+ *
+ * This helper atomically exchanges the irq_done flag of the specified
+ * TD channel with value 1, indicating that the TD completion has been
+ * observed.
+ *
+ * The return value is the previous value of @irq_done:
+ *   0 - First time observing the completion
+ *   1 - Completion was already handled
+ *
+ * This function is typically used in IRQ or threaded IRQ context to
+ * ensure the completion is processed only once across concurrent
+ * contexts.
+ *
+ * Return:
+ *   Previous irq_done value on success (0 or 1),
+ *   -RKCE_INVAL if @td_type is invalid.
+ */
+int rkce_done_xchg(void *rkce_hw, enum rkce_td_type td_type)
+{
+	struct rkce_chn_info *cur_chn = NULL;
+	struct rkce_hardware *hardware = rkce_hw;
+
+	CHECK_RKCE_INITED(rkce_hw);
+
+	if (!IS_SYMM_TD(td_type) && !IS_HASH_TD(td_type))
+		return -RKCE_INVAL;
+
+	cur_chn = &(hardware->chn[td_type]);
+
+	return atomic_xchg(&cur_chn->irq_done, 1);
 }
 
 int rkce_push_td_sync(void *rkce_hw, void *td, uint32_t timeout_ms)
@@ -615,7 +656,8 @@ void rkce_irq_thread(void *rkce_hw)
 			 cur_chn->td_virt, cur_chn->result);
 
 		if (cur_chn->cb_func && cur_chn->td_virt)
-			cur_chn->cb_func(cur_chn->result, cur_chn->td_id, cur_chn->td_virt);
+			cur_chn->cb_func(rkce_hw, cur_chn->result,
+					 cur_chn->td_id, cur_chn->td_virt);
 
 		cur_chn->result  = 0;
 		cur_chn->int_st  = 0;

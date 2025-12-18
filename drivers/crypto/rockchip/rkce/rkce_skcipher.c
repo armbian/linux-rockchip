@@ -22,6 +22,7 @@
 #include "rkce_skcipher.h"
 
 #define TD_SYNC_TIMEOUT_MS		3000
+#define RKCE_SYMM_TIMEOUT_MS		3000
 
 static int rkce_cipher_prepare_req(struct crypto_engine *engine, struct skcipher_request *req);
 static int rkce_cipher_unprepare_req(struct crypto_engine *engine, struct skcipher_request *req);
@@ -179,15 +180,54 @@ static void rkce_update_iv(struct rkce_cipher_ctx *ctx, uint8_t *iv)
 	memset(td_buf->ctx, 0x00, sizeof(td_buf->ctx));
 }
 
-int rkce_cipher_request_callback(int result, uint32_t td_id, void *td_addr)
+int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void *td_addr)
 {
 	struct rkce_symm_td *td = (struct rkce_symm_td *)td_addr;
-	struct rkce_symm_td_buf *td_buf =
-		container_of(rkce_cma_phys2virt(td->symm_ctx_addr), struct rkce_symm_td_buf, ctx);
-	struct rkce_cipher_ctx *ctx = (struct rkce_cipher_ctx *)td_buf->user_data;
-	struct crypto_engine *engine = ctx->algt->rk_dev->symm_engine;
+	struct rkce_symm_td_buf *td_buf = NULL;
+	struct rkce_cipher_ctx *ctx = NULL;
+	struct crypto_engine *engine = NULL;
 
-	rk_trace("enter.\n");
+	rk_trace("cipher request callback called, td_id = %u, td_addr = %p, result = %d\n",
+	       td_id, td_addr, result);
+
+	if (rkce_done_xchg(rkce_hw, RKCE_TD_TYPE_SYMM)) {
+		rk_err("Symm td already done.\n");
+		return 0;
+	}
+
+	if (!td || !td->symm_ctx_addr || !rkce_cma_phys2virt(td->symm_ctx_addr)) {
+		rk_err("Invalid cipher request td address.\n");
+		return -EINVAL;
+	}
+
+	td_buf = container_of(rkce_cma_phys2virt(td->symm_ctx_addr), struct rkce_symm_td_buf, ctx);
+
+	ctx = (struct rkce_cipher_ctx *)td_buf->user_data;
+	if (!ctx) {
+		rk_err("Invalid cipher request context.\n");
+		return -EINVAL;
+	}
+
+	if (!ctx->req || !ctx->algt || !ctx->algt->rk_dev) {
+		rk_err("Invalid cipher request algorithm or device.\n");
+		return -EINVAL;
+	}
+
+	engine = ctx->algt->rk_dev->symm_engine;
+	if (!engine) {
+		rk_err("Invalid cipher request crypto engine.\n");
+		return -EINVAL;
+	}
+
+	if (!ctx || !ctx->algt || !ctx->req) {
+		rk_err("Invalid cipher request callback context.\n");
+		return -EINVAL;
+	}
+
+	if (result) {
+		rkce_dump_reginfo(rkce_hw);
+		rkce_soft_reset(rkce_hw, RKCE_RESET_SYMM);
+	}
 
 	if (is_algt_aead(ctx->algt)) {
 		struct aead_request *tmp_req = (struct aead_request *)ctx->req;
@@ -196,33 +236,32 @@ int rkce_cipher_request_callback(int result, uint32_t td_id, void *td_addr)
 		if (result != -ETIMEDOUT)
 			rkce_monitor_del(rctx->td_head);
 
-		if (result)
-			crypto_finalize_aead_request(engine, ctx->req, result);
+		if (!result) {
+			rk_debug("dst = %p, nents %u, tag = %p, authsize = %u,offset = %u\n",
+				tmp_req->dst,
+				sg_nents(tmp_req->dst),
+				td_buf->tag,
+				ctx->authsize,
+				rctx->assoclen + rctx->cryptlen);
 
-		rk_debug("dst = %p, nents %u, tag = %p, authsize = %u,offset = %u\n",
-			tmp_req->dst,
-			sg_nents(tmp_req->dst),
-			td_buf->tag,
-			ctx->authsize,
-			rctx->assoclen + rctx->cryptlen);
+			if (rctx->is_enc) {
+				if (!sg_pcopy_from_buffer(tmp_req->dst,
+							sg_nents(tmp_req->dst),
+							td_buf->tag,
+							ctx->authsize,
+							rctx->assoclen + rctx->cryptlen))
+					result = -EBADMSG;
 
-		if (rctx->is_enc) {
-			if (!sg_pcopy_from_buffer(tmp_req->dst,
-						  sg_nents(tmp_req->dst),
-						  td_buf->tag,
-						  ctx->authsize,
-						  rctx->assoclen + rctx->cryptlen))
-				result = -EBADMSG;
+			} else {
+				uint8_t auth_data[RKCE_TD_TAG_SIZE];
 
-		} else {
-			uint8_t auth_data[RKCE_TD_TAG_SIZE];
-
-			if (!sg_pcopy_to_buffer(tmp_req->src,
-						sg_nents(tmp_req->src),
-						auth_data, ctx->authsize,
-						rctx->assoclen + rctx->cryptlen) ||
-			    crypto_memneq(auth_data, td_buf->tag, ctx->authsize))
-				result = -EBADMSG;
+				if (!sg_pcopy_to_buffer(tmp_req->src,
+							sg_nents(tmp_req->src),
+							auth_data, ctx->authsize,
+							rctx->assoclen + rctx->cryptlen) ||
+				crypto_memneq(auth_data, td_buf->tag, ctx->authsize))
+					result = -EBADMSG;
+			}
 		}
 
 		rkce_aead_unprepare_req(engine, ctx->req);
@@ -235,20 +274,14 @@ int rkce_cipher_request_callback(int result, uint32_t td_id, void *td_addr)
 		if (result != -ETIMEDOUT)
 			rkce_monitor_del(rctx->td_head);
 
-		if (result)
-			crypto_finalize_skcipher_request(engine, tmp_req, result);
-
-		/* update iv */
-		rkce_update_iv(ctx, tmp_req->iv);
+		if (!result) {
+			/* update iv */
+			rkce_update_iv(ctx, tmp_req->iv);
+		}
 
 		rkce_cipher_unprepare_req(engine, ctx->req);
 
 		crypto_finalize_skcipher_request(engine, tmp_req, result);
-	}
-
-	if (result) {
-		rkce_dump_reginfo(ctx->algt->rk_dev->hardware);
-		rkce_soft_reset(ctx->algt->rk_dev->hardware, RKCE_RESET_SYMM);
 	}
 
 	rk_trace("exit.\n");
@@ -690,28 +723,28 @@ static int rkce_cipher_run_req(struct crypto_engine *engine, void *async_req)
 	struct rkce_cipher_request_ctx *rctx = skcipher_request_ctx(req);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct rkce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
-	int ret = 0;
+	int ret;
 
 	rk_trace("enter.\n");
 
 	ret = rkce_cipher_prepare_req(engine, req);
 	if (ret) {
 		rk_err("rkce_cipher_prepare_req failed ret = %d\n", ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
 	if (ret) {
-		rkce_cipher_unprepare_req(engine, req);
-		rk_err("rkce_push_td failed ret = %d\n", ret);
-		goto error;
+		rk_err("rkce_push_td failed, ret = %d\n", ret);
+		goto exit;
 	}
 
-	rkce_monitor_add(rctx->td_head, rkce_cipher_request_callback);
+	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
+			 RKCE_SYMM_TIMEOUT_MS, rkce_cipher_request_callback);
 
-	return 0;
-error:
-	crypto_finalize_skcipher_request(engine, req, ret);
+exit:
+	if (ret)
+		rkce_cipher_unprepare_req(engine, req);
 
 	return ret;
 }
@@ -922,23 +955,21 @@ static int rkce_aead_run_req(struct crypto_engine *engine, void *async_req)
 
 	ret = rkce_push_td_sync(ctx->algt->rk_dev->hardware, rctx->td_aad_head, TD_SYNC_TIMEOUT_MS);
 	if (ret) {
-		rkce_aead_unprepare_req(engine, req);
 		rk_debug("calc aad data error.\n");
 		goto exit;
 	}
 
 	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
 	if (ret) {
-		rkce_aead_unprepare_req(engine, req);
 		rk_debug("calc data error.\n");
 		goto exit;
 	}
 
-	rkce_monitor_add(rctx->td_head, rkce_cipher_request_callback);
-
-	return 0;
+	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
+			 RKCE_SYMM_TIMEOUT_MS, rkce_cipher_request_callback);
 exit:
-	crypto_finalize_aead_request(engine, req, ret);
+	if (ret)
+		rkce_aead_unprepare_req(engine, req);
 
 	return ret;
 }
