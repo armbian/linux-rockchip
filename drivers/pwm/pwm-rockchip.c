@@ -306,10 +306,17 @@
 #define COUNTER_CLK_SEL(v)		HIWORD_UPDATE(v, 1, 2)
 #define COUNTER_CHANNEL_SEL(v)		HIWORD_UPDATE(v, 3, 5)
 #define COUNTER_CLR(v)			HIWORD_UPDATE(v, 6, 6)
+#define COUNTER_SYNC_BYPASS_EN(v)	HIWORD_UPDATE(v, 7, 7)
+#define COUNTER_SYNC_BYPASS_EN_SHIFT	7
+#define COUNTER_SYNC_BYPASS_MODE	BIT(COUNTER_SYNC_BYPASS_EN_SHIFT)
 /* COUNTER_LOW */
 #define COUNTER_LOW			0x208
 /* COUNTER_HIGH */
 #define COUNTER_HIGH			0x20c
+/* COUNTER_LOW_RAW */
+#define COUNTER_LOW_RAW			0x210
+/* COUNTER_HIGH_RAW */
+#define COUNTER_HIGH_RAW		0x214
 /* WAVE_MEM */
 #define WAVE_MEM			0x400
 
@@ -320,6 +327,7 @@ enum rockchip_pwm_soc_type {
 	RK3328_PWM,
 	RK3576_PWM,
 	RK3506_PWM,
+	RK3538_PWM,
 };
 
 struct rockchip_pwm_chip {
@@ -379,7 +387,8 @@ struct rockchip_pwm_funcs {
 	int (*get_capture_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				  struct pwm_capture *catpure_res);
 	int (*set_counter)(struct pwm_chip *chip, struct pwm_device *pwm,
-			   enum rockchip_pwm_counter_input_sel input_sel, bool enable);
+			   enum rockchip_pwm_counter_input_sel input_sel,
+			   enum rockchip_pwm_counter_mode mode, bool enable);
 	int (*get_counter_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				  unsigned long *counter_res, bool is_clear);
 	int (*set_freq_meter)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -1117,7 +1126,7 @@ err_disable_pclk:
 
 static int rockchip_pwm_set_counter_v4(struct pwm_chip *chip, struct pwm_device *pwm,
 				       enum rockchip_pwm_counter_input_sel input_sel,
-				       bool enable)
+				       enum rockchip_pwm_counter_mode mode, bool enable)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 arbiter = 0;
@@ -1145,7 +1154,7 @@ static int rockchip_pwm_set_counter_v4(struct pwm_chip *chip, struct pwm_device 
 	}
 
 	writel_relaxed(COUNTER_EN(enable) | COUNTER_CLK_SEL(input_sel) |
-		       COUNTER_CHANNEL_SEL(channel_sel),
+		       COUNTER_CHANNEL_SEL(channel_sel) | COUNTER_SYNC_BYPASS_EN(mode),
 		       pc->base + COUNTER_CTRL);
 
 	if (!enable)
@@ -1156,6 +1165,7 @@ static int rockchip_pwm_set_counter_v4(struct pwm_chip *chip, struct pwm_device 
 
 int rockchip_pwm_set_counter(struct pwm_device *pwm,
 			     enum rockchip_pwm_counter_input_sel input_sel,
+			     enum rockchip_pwm_counter_mode mode,
 			     bool enable)
 {
 	struct pwm_chip *chip;
@@ -1180,6 +1190,11 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
+	if (pc->data->soc_type < RK3538_PWM && mode == PWM_COUNTER_DISCONTINUOUS) {
+		dev_err(chip->dev, "Unsupported discontinuous counter mode\n");
+		return -EINVAL;
+	}
+
 	pwm_get_state(pwm, &curstate);
 	if (curstate.enabled) {
 		dev_err(chip->dev, "Failed to enable counter mode because PWM%d is busy\n",
@@ -1199,7 +1214,7 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 		goto err_disable_pclk;
 	}
 
-	ret = pc->data->funcs->set_counter(chip, pwm, input_sel, enable);
+	ret = pc->data->funcs->set_counter(chip, pwm, input_sel, mode, enable);
 	if (ret) {
 		dev_err(chip->dev, "Failed to abtain counter arbitration for PWM%d\n",
 			pc->channel_id);
@@ -1224,9 +1239,16 @@ static int rockchip_pwm_get_counter_result_v4(struct pwm_chip *chip, struct pwm_
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u64 low, high;
+	u32 ctrl;
 
-	low = readl_relaxed(pc->base + COUNTER_LOW);
-	high = readl_relaxed(pc->base + COUNTER_HIGH);
+	ctrl = readl_relaxed(pc->base + COUNTER_CTRL);
+	if (ctrl & COUNTER_SYNC_BYPASS_MODE) {
+		low = readl_relaxed(pc->base + COUNTER_LOW_RAW);
+		high = readl_relaxed(pc->base + COUNTER_HIGH_RAW);
+	} else {
+		low = readl_relaxed(pc->base + COUNTER_LOW);
+		high = readl_relaxed(pc->base + COUNTER_HIGH);
+	}
 
 	*counter_res = (high << 32) | low;
 	if (!*counter_res)
@@ -2387,6 +2409,21 @@ static const struct rockchip_pwm_data pwm_data_v4_rk3506 = {
 	.funcs = &pwm_funcs_v4,
 };
 
+static const struct rockchip_pwm_data pwm_data_v4_rk3538 = {
+	.soc_type = RK3538_PWM,
+	.main_version = 0x04,
+	.regs = &pwm_regs_v4,
+	.prescaler = 1,
+	.supports_polarity = true,
+	.supports_lock = true,
+	.vop_pwm = false,
+	.oneshot_cnt_max = 0x10000,
+	.oneshot_rpt_max = 0x10000,
+	.wave_table_max = 0x200,
+	.enable_conf = PWM_ENABLE_V4,
+	.funcs = &pwm_funcs_v4,
+};
+
 static const struct of_device_id rockchip_pwm_dt_ids[] = {
 	{ .compatible = "rockchip,rk2928-pwm", .data = &pwm_data_v1 },
 	{ .compatible = "rockchip,rk3288-pwm", .data = &pwm_data_v2 },
@@ -2394,6 +2431,7 @@ static const struct of_device_id rockchip_pwm_dt_ids[] = {
 	{ .compatible = "rockchip,rk3328-pwm", .data = &pwm_data_v3 },
 	{ .compatible = "rockchip,rk3576-pwm", .data = &pwm_data_v4_rk3576 },
 	{ .compatible = "rockchip,rk3506-pwm", .data = &pwm_data_v4_rk3506 },
+	{ .compatible = "rockchip,rk3538-pwm", .data = &pwm_data_v4_rk3538 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_pwm_dt_ids);
