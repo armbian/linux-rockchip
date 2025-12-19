@@ -4317,6 +4317,9 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 	struct drm_property *wb_source_prop;
 	int ret;
 
+	if (!vop2_data->wb)
+		return 0;
+
 	vop2->wb.regs = vop2_data->wb->regs;
 	vop2->wb.conn.encoder.possible_crtcs = (1 << nr_crtcs) - 1;
 	spin_lock_init(&vop2->wb.job_lock);
