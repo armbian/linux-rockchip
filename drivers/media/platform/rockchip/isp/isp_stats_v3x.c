@@ -490,6 +490,7 @@ static int
 rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 			   struct rkisp3x_isp_stat_buffer *pbuf, u32 id)
 {
+	struct rkisp_device *dev = stats_vdev->dev;
 	struct isp3x_dhaz_stat *dhaz;
 	u32 value, i;
 
@@ -516,6 +517,20 @@ rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 			value = isp3_stats_read(stats_vdev, ISP3X_DHAZ_HIST_REG0 + 4 * i, id);
 			dhaz->h_rgb_iir[2 * i] = value & 0xFFFF;
 			dhaz->h_rgb_iir[2 * i + 1] = value >> 16;
+		}
+		/* hist need to soft read/write if multi sensor and mode equal to 0 */
+		if (!dev->hw_dev->is_multi_overflow &&
+		    dev->hw_dev->unite != ISP_UNITE_TWO &&
+		    dev->hw_dev->dev_link_num > 1 && dev->multi_mode == 0) {
+			struct isp3x_dhaz_cfg *dhaz_cfg;
+
+			dhaz_cfg = &stats_vdev->dev->params_vdev.isp3x_params->others.dhaz_cfg;
+			memcpy(dhaz_cfg->hist_wr, dhaz->h_rgb_iir, sizeof(dhaz->h_rgb_iir));
+			dhaz_cfg->adp_wt_wr = dhaz->dhaz_adp_wt;
+			dhaz_cfg->adp_air_wr = dhaz->dhaz_adp_air_base;
+			dhaz_cfg->adp_tmax_wr = dhaz->dhaz_adp_tmax;
+			dhaz_cfg->adp_gratio_wr = dhaz->dhaz_adp_gratio;
+			dhaz_cfg->soft_wr_en = 1;
 		}
 	}
 	return 0;

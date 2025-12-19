@@ -21,7 +21,6 @@
 	ebc_dev: ebc-dev {
 		compatible = "rockchip,ebc-dev";
 		ebc_tcon = <&ebc>;
-		eink_tcon = <&eink>;
 		memory-region = <&display_reserved>;
 		waveform-region = <&waveform_reserved>;
 		nvmem-cells = <&cpu_code>;
@@ -60,10 +59,6 @@
 };
 
 &ebc {
-	status = "okay";
-};
-
-&eink {
 	status = "okay";
 };
 

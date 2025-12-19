@@ -16,7 +16,7 @@
 #include <dt-bindings/usb/pd.h>
 #include "rk3576.dtsi"
 #include "rk3576-android.dtsi"
-#include "rk3576-eink.dtsi"
+#include "rk3576-ebook.dtsi"
 
 / {
 	model = "Rockchip RK3576 EBOOK X3 V10 Board";

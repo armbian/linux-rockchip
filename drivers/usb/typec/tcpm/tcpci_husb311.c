@@ -279,7 +279,7 @@ static int husb311_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ret = devm_add_action_or_reset(chip->dev, husb311_wakeup_source_destroy,
-				       &chip->ws);
+				       chip->ws);
 	if (ret)
 		return ret;
 

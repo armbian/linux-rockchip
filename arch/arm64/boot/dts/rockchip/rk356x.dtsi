@@ -1501,15 +1501,6 @@
 		status = "disabled";
 	};
 
-	eink: eink@fdf00000 {
-		compatible = "rockchip,rk3568-eink-tcon";
-		reg = <0x0 0xfdf00000 0x0 0x74>;
-		interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_EINK>, <&cru HCLK_EINK>;
-		clock-names = "pclk", "hclk";
-		status = "disabled";
-	};
-
 	rkvenc: rkvenc@fdf40000 {
 		compatible = "rockchip,rkv-encoder-v1";
 		reg = <0x0 0xfdf40000 0x0 0x400>;
