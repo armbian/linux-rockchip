@@ -96,6 +96,7 @@ struct dw_hdmi_qp_cec {
 	bool rx_done;
 	bool wake_en;
 	bool standby_en;
+	bool cec_enable;
 	struct cec_notifier *notify;
 	int irq;
 	int wake_irq;
@@ -139,6 +140,9 @@ static int dw_hdmi_qp_cec_log_addr(struct cec_adapter *adap, u8 logical_addr)
 {
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
 
+	if (!cec->cec_enable)
+		return 0;
+
 	if (logical_addr == CEC_LOG_ADDR_INVALID)
 		cec->addresses = 0;
 	else
@@ -155,6 +159,9 @@ static int dw_hdmi_qp_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
 	unsigned int i;
 	u32 val;
+
+	if (!cec->cec_enable)
+		return 0;
 
 	for (i = 0; i < msg->len; i++) {
 		if (!(i % 4))
@@ -251,6 +258,8 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
 
 	if (!enable) {
+		if (!cec->cec_enable)
+			return 0;
 		dw_hdmi_qp_write(cec, 0, CEC_INT_MASK_N);
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		if (cec->wake_irq > 0 && cec->wake_en && cec->standby_en) {
@@ -267,11 +276,16 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 			dw_hdmi_qp_wakeup_write(cec, 0x8004800d, CEC_PAT3);
 			dw_hdmi_qp_wakeup_mod(cec, WAKEUP_EN, WAKEUP_EN, CEC_CTRL);
 		} else {
+			cec->addresses = 0;
+			dw_hdmi_qp_write(cec, cec->addresses, CEC_ADDR);
 			cec->ops->disable(cec->hdmi);
+			cec->cec_enable = false;
 		}
 	} else {
 		unsigned int irqs;
 
+		if (cec->cec_enable)
+			return 0;
 		if (cec->wake_irq > 0) {
 			cec->ops->set_wakeup(cec->hdmi, false);
 			dw_hdmi_qp_wakeup_write(cec, 0xffff0000, CEC_IE);
@@ -280,6 +294,7 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 		}
 
 		cec->ops->enable(cec->hdmi);
+		cec->cec_enable = true;
 
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		dw_hdmi_qp_write(cec, 1, CEC_LOCK_CONTROL);
