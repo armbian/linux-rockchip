@@ -1060,7 +1060,6 @@ run_next:
 				val |= ISP39_AIISP_ST;
 				writel(val, hw->base_addr + ISP3X_MI_RD_CTRL2);
 			} else {
-				dev->irq_ends_mask |= ISP_FRAME_VPSL;
 				val = rkisp_read(dev, ISP35_AI_CTRL, false);
 				val |= ISP35_AIISP_ST;
 				writel(val, hw->base_addr + ISP35_AI_CTRL);
@@ -4459,9 +4458,13 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 	}
 
 	if (dev->is_aiisp_en) {
+		if (dev->aiisp_cfg.mode == 2)
+			dev->is_aiisp_l2 = true;
+		else
+			dev->is_aiisp_l2 = false;
 		irq |= ISP3X_BAY3D_FRM_END;
 		if (!dev->is_aiisp_sync)
-			dev->irq_f_ends_mask |= ISP_FRAME_BNR | ISP_FRAME_VPSL;
+			dev->irq_f_ends_mask |= ISP_FRAME_BNR;
 		en = (dev->isp_ver == ISP_V39) ? ISP39_AIISP_EN : ISP35_AIISP_EN;
 	}
 	irq_mask = ISP39_AIISP_LINECNT_DONE | ISP3X_OUT_FRM_QUARTER | ISP3X_BAY3D_FRM_END;
@@ -4474,8 +4477,8 @@ static void rkisp_config_aiisp(struct rkisp_device *dev)
 		rd_line = h - 1;
 	else
 		rd_line = dev->aiisp_cfg.rd_linecnt;
-	if (dev->aiisp_cfg.wr_linecnt >= (h - 100))
-		wr_line = (h - 100) << 16;
+	if (dev->aiisp_cfg.wr_linecnt >= (h - 50))
+		wr_line = (h - 50) << 16;
 	else
 		wr_line = dev->aiisp_cfg.wr_linecnt << 16;
 

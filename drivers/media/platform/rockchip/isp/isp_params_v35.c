@@ -4886,10 +4886,11 @@ isp_ai_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_ai_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
+	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_isp_params_val_v35 *priv = params_vdev->priv_val;
 	u32 val, ctrl = isp3_param_read(params_vdev, ISP35_AI_CTRL, id);
 
-	if (en == !!(ctrl & ISP35_MODULE_EN))
+	if ((dev->isp_state & ISP_START) && en == !!(ctrl & ISP35_MODULE_EN))
 		return;
 	ctrl &= ~(ISP35_AIISP_ST | ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN |
 		  ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN);
@@ -4908,17 +4909,23 @@ isp_ai_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 				ctrl |= ISP35_AIPRE_IIR_EN;
 			vpsl_update_buf(params_vdev, priv->pbuf_vpsl, true);
 			priv->vpsl_cur_idx = priv->vpsl_idx;
-			if (params_vdev->dev->is_aiisp_sync)
-				params_vdev->dev->irq_ends_mask |= ISP_FRAME_VPSL;
 		}
 		ctrl |= ISP35_AIPRE_ITS_FORCE_UPD;
-		if (params_vdev->dev->is_aiisp_en)
+		if (dev->is_aiisp_en) {
 			ctrl |= ISP35_AIISP_EN;
-		else if (params_vdev->dev->is_aiisp_stop)
+			if (ctrl & ISP35_AIPRE_IIR_EN) {
+				if (dev->hw_dev->is_single)
+					dev->irq_f_ends_mask |= ISP_FRAME_VPSL;
+				else
+					dev->irq_ends_mask |= ISP_FRAME_VPSL;
+			}
+		} else if (dev->is_aiisp_stop) {
 			ctrl &= ~(ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIPRE_GAIN_EN | ISP35_AIPRE_IIR_EN);
+		}
 	} else {
 		ctrl &= ~ISP35_AIISP_EN;
-		params_vdev->dev->irq_ends_mask &= ~ISP_FRAME_VPSL;
+		dev->irq_ends_mask &= ~ISP_FRAME_VPSL;
+		dev->irq_f_ends_mask &= ~ISP_FRAME_VPSL;
 	}
 	isp3_param_write(params_vdev, ctrl, ISP35_AI_CTRL, id);
 	if (en) {
@@ -6555,7 +6562,9 @@ rkisp_params_aiisp_update_buf(struct rkisp_isp_params_vdev *params_vdev)
 		 priv->pbuf_bay3d_iir ? (u32)priv->pbuf_bay3d_iir->dma_addr : 0,
 		 priv->pbuf_gain_wr ? (u32)priv->pbuf_gain_wr->dma_addr : 0,
 		 priv->pbuf_aipre_gain ? (u32)priv->pbuf_aipre_gain->dma_addr : 0);
-	if (!priv->pbuf_gain_wr || !priv->pbuf_aipre_gain || !priv->pbuf_bay3d_iir) {
+	if ((priv->gain_cnt && !priv->pbuf_gain_wr) ||
+	    (priv->aipre_gain_cnt && !priv->pbuf_aipre_gain) ||
+	    (priv->bay3d_iir_cnt && !priv->pbuf_bay3d_iir)) {
 		if (priv->pbuf_bay3d_iir && priv->bay3d_iir_cnt > 1) {
 			list_add_tail(&priv->pbuf_bay3d_iir->queue, &priv->iir_list);
 			priv->pbuf_bay3d_iir = NULL;
@@ -6640,8 +6649,10 @@ rkisp_params_aiisp_event_v35(struct rkisp_isp_params_vdev *params_vdev, u32 irq)
 		}
 		spin_lock_irqsave(&priv->buf_lock, lock_flags);
 		if (dev->is_aiisp_en &&
-		    (!priv->pbuf_bay3d_iir || !priv->pbuf_vpsl ||
-		     !priv->pbuf_gain_wr || !priv->pbuf_aipre_gain)) {
+		    ((priv->bay3d_iir_cnt && !priv->pbuf_bay3d_iir) ||
+		     (priv->vpsl_cnt && !priv->pbuf_vpsl) ||
+		     (priv->gain_cnt && !priv->pbuf_gain_wr) ||
+		     (priv->aipre_gain_cnt && !priv->pbuf_aipre_gain))) {
 			if (priv->pbuf_bay3d_iir && priv->bay3d_iir_cnt > 1) {
 				list_add_tail(&priv->pbuf_bay3d_iir->queue, &priv->iir_list);
 				priv->pbuf_bay3d_iir = NULL;
@@ -6890,8 +6901,10 @@ rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on
 		val = ISP39_AIISP_LINECNT_DONE | ISP3X_OUT_FRM_QUARTER | ISP3X_BAY3D_FRM_END;
 		rkisp_clear_bits(dev, CIF_ISP_IMSC, val, false);
 
-		if (IS_HDR_RDBK(dev->rd_mode))
+		if (!dev->hw_dev->is_single)
 			dev->irq_ends_mask &= ~(ISP_FRAME_BNR | ISP_FRAME_VPSL);
+		else
+			dev->irq_f_ends_mask &= ~(ISP_FRAME_BNR | ISP_FRAME_VPSL);
 	} else {
 		val = rkisp_read(dev, ISP3X_ISP_CTRL1, false);
 		val |= ISP35_BAYER_PAT_FE(params_vdev->raw_type) | ISP35_BAYER_UPD_FE_EN;
@@ -6921,16 +6934,23 @@ rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on
 
 		val = rkisp_read(dev, ISP35_AI_CTRL, false);
 		val &= ~ISP35_AIISP_ST;
-		val |= ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIISP_EN |
-		       ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN |
-		       ISP35_AIISP_RAW12_MSB | ISP35_AIPRE_ITS_FORCE_UPD;
+		val |= ISP35_AIISP_EN | ISP35_AIISP_RAW12_MSB | ISP35_AIPRE_ITS_FORCE_UPD;
+		if (priv->yraw_sel)
+			val |= ISP35_AIPRE_GIAN2DDR_EN | ISP35_AIPRE_GAIN_EN | ISP35_AIPRE_IIR_EN;
 		rkisp_write(dev, ISP35_AI_CTRL, val, false);
 		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
 		rkisp_write(dev, ISP35_AI_CTRL, val, false);
 
 		params_vdev->cur_fe_frame_id = params_vdev->cur_frame_id;
-		if (!dev->hw_dev->is_single)
-			dev->irq_ends_mask = ISP_FRAME_BNR | ISP_FRAME_VPSL;
+		if (!dev->hw_dev->is_single) {
+			dev->irq_ends_mask = ISP_FRAME_BNR;
+			if (priv->yraw_sel)
+				dev->irq_ends_mask |= ISP_FRAME_VPSL;
+		} else {
+			dev->irq_f_ends_mask = ISP_FRAME_BNR;
+			if (priv->yraw_sel)
+				dev->irq_f_ends_mask |= ISP_FRAME_VPSL;
+		}
 		dev->is_aiisp_first_frame = true;
 	}
 }
