@@ -12,6 +12,7 @@
 #include <dt-bindings/reset/rockchip,rk3538-cru.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/suspend/rockchip-rk3538.h>
 
 / {
 	compatible = "rockchip,rk3538";
@@ -568,6 +569,31 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3538";
+		status = "disabled";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_DEEP1_MODE
+			| RKPM_SLP_PMIC_LP
+			| RKPM_SLP_HW_PLLS_OFF
+			| RKPM_SLP_PMUALIVE_32K
+			| RKPM_SLP_OSC_DIS
+			| RKPM_SLP_32K_EXT
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| WAKEUP_PWM0_CH0_INT
+			| WAKEUP_PWM0_CH1_INT
+			| WAKEUP_PWM0_CH2_INT
+			| WAKEUP_PWM0_CH3_INT
+			| WAKEUP_GPIO0_INT
+			)
+		>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
