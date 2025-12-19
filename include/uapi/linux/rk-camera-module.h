@@ -918,9 +918,16 @@ struct rkmodule_multi_dev_info {
 	__u32 reserved[8];
 };
 
+enum rkmodule_one_to_multi_exp_mode {
+	RKMODULE_ONE_TO_MULT_EXP_SWITCH,
+	RKMODULE_ONE_TO_MULT_EXP_SINGLE,
+};
+
 struct rkmodule_one_to_multi_info {
 	__u32 isp_num;
 	__u32 frame_pattern[RKMODULE_MULTI_DEV_NUM];
+	__u32 exp_mode;
+	__u32 exp_main_id;
 };
 
 struct rkmodule_multi_combine_info {
