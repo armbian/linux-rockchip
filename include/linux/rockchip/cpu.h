@@ -32,6 +32,8 @@
 #define ROCKCHIP_CPU_RK3308		0x33080000
 #define ROCKCHIP_CPU_RK3518		0x35180000
 #define ROCKCHIP_CPU_RK3528		0x35280000
+#define ROCKCHIP_CPU_RK3538		0x35380000
+#define ROCKCHIP_CPU_RK3539		0x35390000
 #define ROCKCHIP_CPU_RK3566		0x35660000
 #define ROCKCHIP_CPU_RK3567		0x35670000
 #define ROCKCHIP_CPU_RK3568		0x35680000
@@ -219,6 +221,25 @@ static inline bool cpu_is_rk3518(void)
 #else
 static inline bool cpu_is_rk3528(void) { return false; }
 static inline bool cpu_is_rk3518(void) { return false; }
+#endif
+
+#if defined(CONFIG_CPU_RK3538)
+static inline bool cpu_is_rk3538(void)
+{
+	if (rockchip_soc_id)
+		return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3538;
+	return of_machine_is_compatible("rockchip,rk3538");
+}
+
+static inline bool cpu_is_rk3539(void)
+{
+	if (rockchip_soc_id)
+		return (rockchip_soc_id & ROCKCHIP_CPU_MASK) == ROCKCHIP_CPU_RK3539;
+	return of_machine_is_compatible("rockchip,rk3539");
+}
+#else
+static inline bool cpu_is_rk3538(void) { return false; }
+static inline bool cpu_is_rk3539(void) { return false; }
 #endif
 
 #if defined(CONFIG_CPU_RK3568)
