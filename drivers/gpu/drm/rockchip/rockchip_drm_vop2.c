@@ -633,6 +633,8 @@ struct vop2_video_port {
 	bool xmirror_en;
 	bool need_reset_p2i_flag;
 	atomic_t post_buf_empty_flag;
+	unsigned long dclk_max;
+	struct vop_rect max_output;
 	const struct vop2_video_port_regs *regs;
 
 	struct completion dsp_hold_completion;
@@ -10026,8 +10028,6 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	int request_clock = mode->clock;
 	int clock;
 	uint8_t active_vp_mask = vop2->active_vp_mask;
@@ -10049,9 +10049,9 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 		return MODE_BAD;
 	}
 
-	if (mode->hdisplay > vp_data->max_output.width) {
+	if (mode->hdisplay > vp->max_output.width) {
 		DRM_DEV_DEBUG(vop2->dev, "hdisplay:%d is out of max_output width:%d\n",
-			      mode->hdisplay, vp_data->max_output.width);
+			      mode->hdisplay, vp->max_output.width);
 		return MODE_BAD_HVALUE;
 	}
 
@@ -10059,9 +10059,9 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 		request_clock *= 2;
 
 	/* Pixel rate verify */
-	if (request_clock > vp_data->dclk_max / 1000) {
+	if (request_clock > vp->dclk_max / 1000) {
 		DRM_DEV_DEBUG(vop2->dev, "request_clock:%d is out of dclk_max:%ld\n",
-			      request_clock, vp_data->dclk_max / 1000);
+			      request_clock, vp->dclk_max / 1000);
 		return MODE_CLOCK_HIGH;
 	}
 
@@ -17660,6 +17660,12 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		vp->regs = vp_data->regs;
 		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		vp->cursor_win_id = -1;
+		vp->dclk_max = vp_data->dclk_max;
+		vp->max_output = vp_data->max_output;
+		if (cpu_is_rk3538()) { /* RK3538 max support 1920x1080P60 */
+			vp->dclk_max = 148500000;
+			vp->max_output.width = 1920;
+		}
 		primary = NULL;
 		cursor = NULL;
 
