@@ -563,8 +563,8 @@ static int max96772_panel_prepare(struct serdes *serdes)
 
 	/* HWORDS = ((HRES x bits / pixel) / 16) - LANE_COUNT */
 	hwords = DIV_ROUND_CLOSEST_ULL(hact * 24, 16) - serdes->serdes_panel->lane_count;
-	serdes_reg_write(serdes, 0xe7a4, hwords);
-	serdes_reg_write(serdes, 0xe7a5, hwords >> 8);
+	serdes_reg_write(serdes, 0xe7a4, hwords & 0xff);
+	serdes_reg_write(serdes, 0xe7a5, (hwords >> 8) & 0xff);
 
 	/* MVID = (PCLK_in_MHz x NVID)/(Link_Rate_in_GBs * 100) */
 	link_rate = drm_dp_bw_code_to_link_rate(serdes->serdes_panel->link_rate);
