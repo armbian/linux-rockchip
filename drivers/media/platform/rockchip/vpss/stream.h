@@ -62,6 +62,10 @@ struct stream_config {
 		u32 hc_offs;
 		u32 vy_offs;
 		u32 vc_offs;
+		u32 phase_hy;
+		u32 phase_hc;
+		u32 phase_vy;
+		u32 phase_vc;
 		u32 hy_size;
 		u32 hc_size;
 		u32 hy_offs_mi;
@@ -78,6 +82,10 @@ struct stream_config {
 		u32 hc_offs_shd;
 		u32 vy_offs_shd;
 		u32 vc_offs_shd;
+		u32 phase_hy_shd;
+		u32 phase_hc_shd;
+		u32 phase_vy_shd;
+		u32 phase_vc_shd;
 		u32 hy_size_shd;
 		u32 hc_size_shd;
 		u32 hy_offs_mi_shd;

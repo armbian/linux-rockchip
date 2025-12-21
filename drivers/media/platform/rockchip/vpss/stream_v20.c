@@ -374,6 +374,10 @@ static struct stream_config scl0_config = {
 		.hc_offs = RKVPSS2X_SCALE0_HC_OFFS,
 		.vy_offs = RKVPSS2X_SCALE0_VY_OFFS,
 		.vc_offs = RKVPSS2X_SCALE0_VC_OFFS,
+		.phase_hy = RKVPSS2X_SCALE0_PHASE_HY,
+		.phase_hc = RKVPSS2X_SCALE0_PHASE_HC,
+		.phase_vy = RKVPSS2X_SCALE0_PHASE_VY,
+		.phase_vc = RKVPSS2X_SCALE0_PHASE_VC,
 		.hy_size = RKVPSS2X_SCALE0_HY_SIZE,
 		.hc_size = RKVPSS2X_SCALE0_HC_SIZE,
 		.hy_offs_mi = RKVPSS2X_SCALE0_HY_OFFS_MI,
@@ -390,6 +394,10 @@ static struct stream_config scl0_config = {
 		.hc_offs_shd = RKVPSS2X_SCALE0_HC_OFFS_SHD,
 		.vy_offs_shd = RKVPSS2X_SCALE0_VY_OFFS_SHD,
 		.vc_offs_shd = RKVPSS2X_SCALE0_VC_OFFS_SHD,
+		.phase_hy_shd = RKVPSS2X_SCALE0_PHASE_HY_SHD,
+		.phase_hc_shd = RKVPSS2X_SCALE0_PHASE_HC_SHD,
+		.phase_vy_shd = RKVPSS2X_SCALE0_PHASE_VY_SHD,
+		.phase_vc_shd = RKVPSS2X_SCALE0_PHASE_VC_SHD,
 		.hy_size_shd = RKVPSS2X_SCALE0_HY_SIZE_SHD,
 		.hc_size_shd = RKVPSS2X_SCALE0_HC_SIZE_SHD,
 		.hy_offs_mi_shd = RKVPSS2X_SCALE0_HY_OFFS_MI_SHD,
@@ -514,6 +522,10 @@ static struct stream_config scl2_config = {
 		.hc_offs = RKVPSS_SCALE2_HC_OFFS,
 		.vy_offs = RKVPSS_SCALE2_VY_OFFS,
 		.vc_offs = RKVPSS_SCALE2_VC_OFFS,
+		.phase_hy = RKVPSS_SCALE2_PHASE_HY,
+		.phase_hc = RKVPSS_SCALE2_PHASE_HC,
+		.phase_vy = RKVPSS_SCALE2_PHASE_VY,
+		.phase_vc = RKVPSS_SCALE2_PHASE_VC,
 		.hy_size = RKVPSS_SCALE2_HY_SIZE,
 		.hc_size = RKVPSS_SCALE2_HC_SIZE,
 		.hy_offs_mi = RKVPSS_SCALE2_HY_OFFS_MI,
@@ -530,6 +542,10 @@ static struct stream_config scl2_config = {
 		.hc_offs_shd = RKVPSS_SCALE2_HC_OFFS_SHD,
 		.vy_offs_shd = RKVPSS_SCALE2_VY_OFFS_SHD,
 		.vc_offs_shd = RKVPSS_SCALE2_VC_OFFS_SHD,
+		.phase_hy_shd = RKVPSS_SCALE2_PHASE_HY_SHD,
+		.phase_hc_shd = RKVPSS_SCALE2_PHASE_HC_SHD,
+		.phase_vy_shd = RKVPSS_SCALE2_PHASE_VY_SHD,
+		.phase_vc_shd = RKVPSS_SCALE2_PHASE_VC_SHD,
 		.hy_size_shd = RKVPSS_SCALE2_HY_SIZE_SHD,
 		.hc_size_shd = RKVPSS_SCALE2_HC_SIZE_SHD,
 		.hy_offs_mi_shd = RKVPSS_SCALE2_HY_OFFS_MI_SHD,
@@ -788,8 +804,8 @@ static void calc_unite_scl_params_avg(struct rkvpss_stream *stream,
 	*right_scl_need_size_y = stream->crop.width - (left_in_used_size_y - 1);
 	*right_scl_need_size_c = stream->crop.width - ((left_in_used_size_c - 1)*2);
 
-	params->y_w_phase = phase_left_y;
-	params->c_w_phase = phase_left_c;
+	params->y_w_phase = phase_left_y & 0xffff;
+	params->c_w_phase = phase_left_c & 0xffff;
 	params->right_scl_need_size_y = *right_scl_need_size_y;
 	params->right_scl_need_size_c = *right_scl_need_size_c;
 }
@@ -854,6 +870,8 @@ static void calc_unite_crop_params(struct rkvpss_stream *stream,
 
 static void calc_unite_scl_params(struct rkvpss_stream *stream)
 {
+	struct rkvpss_online_unite_params *params = &stream->unite_params;
+	struct rkvpss_device *dev = stream->dev;
 	u32 right_scl_need_size_y, right_scl_need_size_c;
 	bool use_average = (stream->id == RKVPSS_OUTPUT_CH0 || stream->id == RKVPSS_OUTPUT_CH2)
 			   && stream->avg_scl_down;
@@ -864,6 +882,21 @@ static void calc_unite_scl_params(struct rkvpss_stream *stream)
 		calc_unite_scl_params_bilinear(stream, &right_scl_need_size_y, &right_scl_need_size_c);
 
 	calc_unite_crop_params(stream, right_scl_need_size_y, right_scl_need_size_c, use_average);
+
+	v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+		 "%s ch:%d y_w_fac:%d c_w_fac:%d y_h_fac:%d c_h_fac:%d\n",
+		 __func__, stream->id,
+		 params->y_w_fac, params->c_w_fac, params->y_h_fac, params->c_h_fac);
+	v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+		 "\t\t\t\t\t unite_extend_pixel:%d\n",
+		 dev->unite_extend_pixel);
+	v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+		 "\t\t\t\t\t y_w_phase:%d c_w_phase:%d quad_crop_w:%d scl_in_crop_w_y:%d scl_in_crop_w_c:%d\n",
+		 params->y_w_phase, params->c_w_phase, params->quad_crop_w,
+		 params->scl_in_crop_w_y, params->scl_in_crop_w_c);
+	v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+		 "\t\t\t\t\t right_scl_need_size_y:%d right_scl_need_size_c:%d\n",
+		 params->right_scl_need_size_y, params->right_scl_need_size_c);
 }
 
 int rkvpss_stream_buf_cnt_v20(struct rkvpss_stream *stream)
@@ -1690,13 +1723,19 @@ static void average_scale_down(struct rkvpss_stream *stream, bool on, bool sync)
 		rkvpss_unite_set_bits(dev, RKVPSS_VPSS_CLK_GATE, clk_mask, clk_mask);
 
 	if (!dev->unite_mode) {
-		reg = stream->config->scale.hy_offs;
+		reg = stream->config->scale.in_crop_offs;
 		rkvpss_unite_write(dev, reg, 0);
-		reg = stream->config->scale.hc_offs;
+		reg = stream->config->scale.phase_hy;
 		rkvpss_unite_write(dev, reg, 0);
-		reg = stream->config->scale.vy_offs;
+		reg = stream->config->scale.phase_hc;
 		rkvpss_unite_write(dev, reg, 0);
-		reg = stream->config->scale.vc_offs;
+		reg = stream->config->scale.phase_vy;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.phase_vc;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.hy_offs_mi;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.hc_offs_mi;
 		rkvpss_unite_write(dev, reg, 0);
 
 		val = in_w | (in_h << 16);
@@ -1756,10 +1795,10 @@ static void average_scale_down(struct rkvpss_stream *stream, bool on, bool sync)
 
 		/* reset left regs */
 		rkvpss_idx_write(dev, stream->config->scale.in_crop_offs, 0, VPSS_UNITE_LEFT);
-		rkvpss_idx_write(dev, stream->config->scale.hy_offs, 0, VPSS_UNITE_LEFT);
-		rkvpss_idx_write(dev, stream->config->scale.hc_offs, 0, VPSS_UNITE_LEFT);
-		rkvpss_idx_write(dev, stream->config->scale.vy_offs, 0, VPSS_UNITE_LEFT);
-		rkvpss_idx_write(dev, stream->config->scale.vc_offs, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_hy, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_hc, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_vy, 0, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_vc, 0, VPSS_UNITE_LEFT);
 		rkvpss_idx_write(dev, stream->config->scale.hy_offs_mi, 0, VPSS_UNITE_LEFT);
 		rkvpss_idx_write(dev, stream->config->scale.hc_offs_mi, 0, VPSS_UNITE_LEFT);
 
@@ -1813,15 +1852,15 @@ static void average_scale_down(struct rkvpss_stream *stream, bool on, bool sync)
 			| (stream->unite_params.scl_in_crop_w_c << 4);
 		rkvpss_idx_write(dev, stream->config->scale.in_crop_offs, val, VPSS_UNITE_RIGHT);
 
-		/* right phase offsets */
-		rkvpss_idx_write(dev, stream->config->scale.hy_offs,
+		/* right phase offsets for average mode */
+		rkvpss_idx_write(dev, stream->config->scale.phase_hy,
 			 stream->unite_params.y_w_phase,
 			 VPSS_UNITE_RIGHT);
-		rkvpss_idx_write(dev, stream->config->scale.hc_offs,
+		rkvpss_idx_write(dev, stream->config->scale.phase_hc,
 			 stream->unite_params.c_w_phase,
 			 VPSS_UNITE_RIGHT);
-		rkvpss_idx_write(dev, stream->config->scale.vy_offs, 0, VPSS_UNITE_RIGHT);
-		rkvpss_idx_write(dev, stream->config->scale.vc_offs, 0, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_vy, 0, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, stream->config->scale.phase_vc, 0, VPSS_UNITE_RIGHT);
 
 		/* right MI align */
 		val = out_w / 2 - ALIGN_DOWN(out_w / 2, 16);
@@ -1940,6 +1979,8 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 			out_div = 1;
 		}
 
+		reg = stream->config->scale.in_crop_offs;
+		rkvpss_unite_write(dev, reg, 0);
 		reg = stream->config->scale.hy_offs;
 		rkvpss_unite_write(dev, reg, 0);
 		reg = stream->config->scale.hc_offs;
@@ -1947,6 +1988,10 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		reg = stream->config->scale.vy_offs;
 		rkvpss_unite_write(dev, reg, 0);
 		reg = stream->config->scale.vc_offs;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.hy_offs_mi;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.hc_offs_mi;
 		rkvpss_unite_write(dev, reg, 0);
 
 		val = in_w | (in_h << 16);
