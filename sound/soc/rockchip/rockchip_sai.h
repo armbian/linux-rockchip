@@ -12,6 +12,7 @@
 #define SAI_XCR_FLE_MASK		BIT(26)
 #define SAI_XCR_FLE(x)			((x) << 26)
 #define SAI_XCR_FPC_MASK		BIT(25)
+#define SAI_XCR_FPC(x)			((x) << 25)
 #define SAI_XCR_FPC_EN			BIT(25)
 #define SAI_XCR_FPC_DIS			0
 #define SAI_XCR_SFC_MASK		BIT(24)
