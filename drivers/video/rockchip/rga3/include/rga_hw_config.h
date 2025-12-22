@@ -28,6 +28,7 @@ enum rga_hw_support_format_index {
 
 enum rga_hw_issue {
 	RGA_HW_ISSUE_DIS_AUTO_RST,
+	RGA_HW_ISSUE_NO_NEED_AUTO_RST,
 };
 
 struct rga_win_data {

@@ -1465,6 +1465,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 			scheduler->data = &rga2p_iommu_non_fbc_data;
 		} else if (!strcmp(scheduler->version.str, "5.2.48482")) {
 			scheduler->data = &rga2p_iommu_rk3538_data;
+			rga_hw_set_issue_mask(scheduler, RGA_HW_ISSUE_NO_NEED_AUTO_RST);
 		} else {
 			scheduler->data = &rga2e_data;
 		}

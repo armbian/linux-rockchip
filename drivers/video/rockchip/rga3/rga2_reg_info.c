@@ -3417,7 +3417,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga_write(0, RGA2_CMD_REG_BASE + RGA2_MODE_CTRL_OFFSET, scheduler);
 		/* replace auto_rst */
 		rga2_soft_reset(scheduler);
-	} else {
+	} else if (!rga_hw_has_issue(scheduler, RGA_HW_ISSUE_NO_NEED_AUTO_RST)) {
 		sys_ctrl |= m_RGA2_SYS_CTRL_AUTO_RST;
 	}
 
