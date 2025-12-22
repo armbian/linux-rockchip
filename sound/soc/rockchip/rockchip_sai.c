@@ -1143,8 +1143,10 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 
-	tx_mask ^= (BIT(slots) - 1);
-	rx_mask ^= (BIT(slots) - 1);
+	if (tx_mask)
+		tx_mask ^= (BIT(slots) - 1);
+	if (rx_mask)
+		rx_mask ^= (BIT(slots) - 1);
 
 	pm_runtime_get_sync(dai->dev);
 	regmap_update_bits(sai->regmap, SAI_TXCR, SAI_XCR_SBW_MASK,
