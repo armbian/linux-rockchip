@@ -57,6 +57,7 @@ union rkvt_ioc_arg {
 	struct rkvt_alloc_id_data alloc_data;
 	struct rkvt_ctrl_data ctrl_data;
 	struct rkvt_buf_data buffer_data;
+	struct rkvt_clock_data clock_data;
 };
 
 struct rkvt_dev {
@@ -72,6 +73,10 @@ struct rkvt_dev {
 	char *dev_name;
 	int inst_id_generator;
 	atomic64_t cid_generator;
+	u64 audio_pts;
+	u64 video_pts;
+	struct mutex pts_lock; /* protect audio_pts and video_pts */
+
 	struct dentry *debug_root;
 };
 
@@ -771,6 +776,74 @@ rkvt_has_consumer_proc(struct rkvt_ctrl_data *data, struct rkvt_session *session
 	return 0;
 }
 
+/**
+ * rkvt_set_clock_proc() - Set audio and video PTS clock values
+ * @data: Pointer to structure containing audio_pts and video_pts to set
+ * @session: Pointer to the session structure
+ *
+ * This function sets the global audio and video PTS clock values.
+ * Only producer sessions are allowed to set the clock to prevent
+ * unauthorized modification.
+ *
+ * Return: 0 on success, -EINVAL on null parameters, -EPERM on permission denied
+ */
+static int
+rkvt_set_clock_proc(struct rkvt_clock_data *data, struct rkvt_session *session)
+{
+	struct rkvt_dev *vt_dev;
+
+	if (!data || !session)
+		return -EINVAL;
+
+	vt_dev = session->vt_dev;
+	if (!vt_dev)
+		return -EINVAL;
+
+	/* Only producer can set the clock */
+	if (session->caller != RKVT_CALLER_PRODUCER)
+		return -EPERM;
+
+	/* Use lock to ensure atomic pair update of audio_pts and video_pts */
+	mutex_lock(&vt_dev->pts_lock);
+	vt_dev->audio_pts = data->audio_pts;
+	vt_dev->video_pts = data->video_pts;
+	mutex_unlock(&vt_dev->pts_lock);
+
+	return 0;
+}
+
+/**
+ * rkvt_get_clock_proc() - Get audio and video PTS clock values
+ * @data: Pointer to structure to store audio_pts and video_pts
+ * @session: Pointer to the session structure
+ *
+ * This function retrieves the current audio and video PTS clock values.
+ * The lock ensures that the returned audio_pts and video_pts are from
+ * the same update cycle, maintaining consistency for AV sync.
+ *
+ * Return: 0 on success, -EINVAL on null parameters
+ */
+static int
+rkvt_get_clock_proc(struct rkvt_clock_data *data, struct rkvt_session *session)
+{
+	struct rkvt_dev *vt_dev;
+
+	if (!data || !session)
+		return -EINVAL;
+
+	vt_dev = session->vt_dev;
+	if (!vt_dev)
+		return -EINVAL;
+
+	/* Use lock to ensure atomic pair read of audio_pts and video_pts */
+	mutex_lock(&vt_dev->pts_lock);
+	data->audio_pts = vt_dev->audio_pts;
+	data->video_pts = vt_dev->video_pts;
+	mutex_unlock(&vt_dev->pts_lock);
+
+	return 0;
+}
+
 static int
 rkvt_ctrl_proc(struct rkvt_ctrl_data *data, struct rkvt_session *session)
 {
@@ -1338,11 +1411,13 @@ static unsigned int rkvt_ioctl_dir(unsigned int cmd)
 	case RKVT_IOC_DEQUE_BUF:
 	case RKVT_IOC_ACQUIRE_BUF:
 	case RKVT_IOC_CTRL:
+	case RKVT_IOC_GET_CLOCK:
 		return _IOC_READ;
 	case RKVT_IOC_QUEUE_BUF:
 	case RKVT_IOC_RELEASE_BUF:
 	case RKVT_IOC_CANCEL_BUF:
 	case RKVT_IOC_FREE_ID:
+	case RKVT_IOC_SET_CLOCK:
 		return _IOC_WRITE;
 	default:
 		return _IOC_DIR(cmd);
@@ -1359,6 +1434,10 @@ static long rkvt_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	struct rkvt_instance *inst = NULL;
 
 	rkvt_dbg(RKVT_DBG_CMD, "rkvt ioctl cmd 0x%x size %d in\n", cmd, _IOC_SIZE(cmd));
+
+	/* Validate ioctl magic type */
+	if (_IOC_TYPE(cmd) != RKVT_IOC_MAGIC)
+		return -ENOTTY;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -1438,6 +1517,12 @@ static long rkvt_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case RKVT_IOC_CANCEL_BUF:
 		ret = rkvt_cancel_buf(&data.buffer_data, session);
 		break;
+	case RKVT_IOC_GET_CLOCK:
+		ret = rkvt_get_clock_proc(&data.clock_data, session);
+		break;
+	case RKVT_IOC_SET_CLOCK:
+		ret = rkvt_set_clock_proc(&data.clock_data, session);
+		break;
 	default:
 		dev_err(vt_dev->dev, "%s: cmd 0x%x not found.\n", __func__, cmd);
 		return -ENOTTY;
@@ -1487,8 +1572,11 @@ static int rkvt_probe(struct platform_device *pdev)
 
 	mutex_init(&vdev->inst_lock);
 	mutex_init(&vdev->session_lock);
+	mutex_init(&vdev->pts_lock);
 	idr_init(&vdev->inst_idr);
 	atomic64_set(&vdev->cid_generator, 0);
+	vdev->audio_pts = 0;
+	vdev->video_pts = 0;
 	INIT_LIST_HEAD(&vdev->list_inst);
 	INIT_LIST_HEAD(&vdev->list_session);
 	vdev->debug_root = debugfs_create_dir(DEVICE_NAME, NULL);
@@ -1510,6 +1598,9 @@ static int rkvt_remove(struct platform_device *pdev)
 	idr_destroy(&vdev->inst_idr);
 	debugfs_remove_recursive(vdev->debug_root);
 	misc_deregister(&vdev->mdev);
+	mutex_destroy(&vdev->inst_lock);
+	mutex_destroy(&vdev->session_lock);
+	mutex_destroy(&vdev->pts_lock);
 
 	return 0;
 }

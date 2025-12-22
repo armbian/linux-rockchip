@@ -12,6 +12,8 @@
 #define MAX_BUF_HANDLE_INTS		128
 
 #define RKVT_IOC_MAGIC			'V'
+#define RKVT_IOR(nr, type)		_IOR(RKVT_IOC_MAGIC, nr, type)
+#define RKVT_IOW(nr, type)		_IOW(RKVT_IOC_MAGIC, nr, type)
 #define RKVT_IOWR(nr, type)		_IOWR(RKVT_IOC_MAGIC, nr, type)
 
 #define RKVT_IOC_ALLOC_ID		RKVT_IOWR(0x0, struct rkvt_alloc_id_data)
@@ -22,6 +24,8 @@
 #define RKVT_IOC_CANCEL_BUF		RKVT_IOWR(0x5, struct rkvt_buf_data)
 #define RKVT_IOC_ACQUIRE_BUF		RKVT_IOWR(0x6, struct rkvt_buf_data)
 #define RKVT_IOC_RELEASE_BUF		RKVT_IOWR(0x7, struct rkvt_buf_data)
+#define RKVT_IOC_GET_CLOCK		RKVT_IOR(0x8, struct rkvt_clock_data)
+#define RKVT_IOC_SET_CLOCK		RKVT_IOW(0x9, struct rkvt_clock_data)
 
 // caller type
 enum rkvt_caller_e {
@@ -48,6 +52,11 @@ struct rkvt_ctrl_data {
 	enum rkvt_caller_e caller;
 	enum rkvt_ctrl_cmd_e ctrl_cmd;
 	int ctrl_data;
+};
+
+struct rkvt_clock_data {
+	__u64 audio_pts;
+	__u64 video_pts;
 };
 
 struct rkvt_rect {
