@@ -6233,9 +6233,9 @@ static int ox03c10_set_ctrl(struct v4l2_ctrl *ctrl)
 				       OX03C10_REG_VALUE_08BIT,
 				       &val);
 		if (ctrl->val)
-			val |= MIRROR_BIT_MASK;
-		else
 			val &= ~MIRROR_BIT_MASK;
+		else
+			val |= MIRROR_BIT_MASK;
 		ret |= ox03c10_write_reg(ox03c10->client, OX03C10_VFLIP_REG,
 					 OX03C10_REG_VALUE_08BIT,
 					 val);
