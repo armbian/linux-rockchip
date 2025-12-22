@@ -14531,6 +14531,8 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 			    s2h_data->cgc_s2h_inv_gamma_change_idx[i]);
 
 	vp->sdr2hdr_en = true;
+	/* s2h needs to operate in the rgb domain */
+	vcstate->yuv_overlay = false;
 
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, 1);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, 1);
@@ -14549,6 +14551,8 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 	struct rockchip_gem_object *lut_gem_obj;
 	struct drm_plane *plane = &win->base;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(plane->state);
+	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	u32 *cgc_oetf_kvaddr;
 	dma_addr_t lut_mst;
 	u32 i;
@@ -14600,6 +14604,8 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 
 	vpstate->cgc_en = true;
 	vp->cgc_en = true;
+	/* cgc needs to operate in the rgb domain */
+	vcstate->yuv_overlay = false;
 }
 
 static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win,
