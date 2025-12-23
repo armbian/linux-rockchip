@@ -24,11 +24,11 @@ enum {
 };
 
 /********************* Private MACRO Definition ******************************/
-#define PKA_POLL_PERIOD_US	1000
+#define PKA_POLL_PERIOD_US	200
 #define PKA_POLL_TIMEOUT_US	50000
 
 /* for private key EXP_MOD operation */
-#define PKA_MAX_POLL_PERIOD_US	20000
+#define PKA_MAX_POLL_PERIOD_US	2000
 #define PKA_MAX_POLL_TIMEOUT_US	2000000
 
 #define PKA_MAX_CALC_BITS	4096

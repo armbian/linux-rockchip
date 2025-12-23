@@ -17,7 +17,7 @@ static void __iomem *ecc_base;
 
 #define WORDS2BYTES(words)		((words) * 4)
 
-#define RK_ECP_POLL_PERIOD_US		10000
+#define RK_ECP_POLL_PERIOD_US		200
 #define RK_ECP_POLL_TIMEOUT_US		500000
 
 #define RK_LOAD_GROUP_A(G)  do { \
