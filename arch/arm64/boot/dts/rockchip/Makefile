@@ -249,6 +249,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v12-maizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-edge-v14-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-r58-hd3-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-r58-4x4.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-minipc-mizhuo-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-evb-camera-csi-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-evb-camera-dvp-v10.dtb
