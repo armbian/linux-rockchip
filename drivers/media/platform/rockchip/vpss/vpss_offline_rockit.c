@@ -33,6 +33,9 @@ static long rkvpss_ofl_rockit_open(int *file_id)
 	}
 
 	mutex_lock(&global_ofl->hw->dev_lock);
+	global_ofl->ref_cnt++;
+	v4l2_dbg(3, rkvpss_debug, &global_ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, global_ofl->ref_cnt);
 	pm_runtime_get_sync(global_ofl->hw->dev);
 	mutex_unlock(&global_ofl->hw->dev_lock);
 
@@ -44,6 +47,7 @@ out:
 
 static long rkvpss_ofl_rockit_release(int *file_id)
 {
+	struct rkvpss_hw_dev *hw = global_ofl->hw;
 	void *idr_entity = NULL;
 	long ret = 0;
 
@@ -54,9 +58,19 @@ static long rkvpss_ofl_rockit_release(int *file_id)
 
 	kfree(idr_entity);
 
-	mutex_lock(&global_ofl->hw->dev_lock);
-	pm_runtime_put_sync(global_ofl->hw->dev);
-	mutex_unlock(&global_ofl->hw->dev_lock);
+	mutex_lock(&hw->dev_lock);
+	global_ofl->ref_cnt--;
+	v4l2_dbg(3, rkvpss_debug, &global_ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, global_ofl->ref_cnt);
+	if (global_ofl->ref_cnt == 0) {
+		v4l2_dbg(2, rkvpss_debug, &global_ofl->v4l2_dev,
+			 "%s ref_cnt=0, clearing is_ofl_cmsc and is_ofl_ch\n",
+			 __func__);
+		hw->is_ofl_cmsc = false;
+		memset(hw->is_ofl_ch, 0, sizeof(hw->is_ofl_ch));
+	}
+	pm_runtime_put_sync(hw->dev);
+	mutex_unlock(&hw->dev_lock);
 
 	v4l2_dbg(1, rkvpss_debug, &global_ofl->v4l2_dev,
 		 "%s file_id:%d\n", __func__, *file_id);

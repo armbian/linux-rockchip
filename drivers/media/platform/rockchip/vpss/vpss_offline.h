@@ -90,7 +90,7 @@ struct rkvpss_offline_dev {
 	struct idr file_idr;
 	struct mutex idr_lock;
 	struct mutex handle_lock;
-	bool mode_sel_en;
+	int ref_cnt;
 	bool pm_need_wait;
 };
 
