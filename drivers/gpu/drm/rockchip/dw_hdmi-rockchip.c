@@ -4553,10 +4553,9 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					"colorspace_caps",
-					hdmi_colorspace_caps_list,
-					ARRAY_SIZE(hdmi_colorspace_caps_list));
+	prop = drm_property_create_bitmask(connector->dev, 0, "colorspace_caps",
+					   hdmi_colorspace_caps_list,
+					   ARRAY_SIZE(hdmi_colorspace_caps_list), 0x1fff);
 	if (prop) {
 		hdmi->hdmi_colorspace_caps = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
