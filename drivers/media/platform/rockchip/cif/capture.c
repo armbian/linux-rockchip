@@ -7138,6 +7138,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			dev->is_in_flip = false;
 			dev->pre_buf_num = 0;
 			dev->hw_dev->is_in_reset = false;
+			dev->prev_id = 0;
 		}
 		if (atomic_read(&dev->pipe.stream_cnt) == 0)
 			atomic_set(&stream->sub_stream_buf_cnt, 0);
@@ -15491,6 +15492,38 @@ void rkcif_update_unite_extend_pixel(struct rkcif_device *cif_dev)
 			 &cif_dev->unite_extend_pixel);
 }
 
+static int rkcif_get_next_effect_stream_id(struct rkcif_device *dev, u32 effect_frame, bool *is_change)
+{
+	u32 i = 0, pattern_cnt = 0, tmp = 0;
+	int id = 0;
+
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++)
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+
+	if (pattern_cnt == 0)
+		return -EINVAL;
+	tmp = effect_frame % pattern_cnt;
+	pattern_cnt = 0;
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++) {
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+		if (tmp < pattern_cnt) {
+			id = i;
+			break;
+		}
+		if (tmp == pattern_cnt) {
+			id = (i + 1) % dev->channels[0].capture_info.one_to_multi.isp_num;
+			break;
+		}
+	}
+	if (id != dev->prev_id)
+		*is_change = true;
+	else
+		*is_change = false;
+	dev->prev_id = id;
+	return id;
+}
+
+
 /* pingpong irq for rk3588 and next */
 void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 {
@@ -15505,6 +15538,8 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 	int tmp_csi_host_idx = 0;
 	struct rkcif_stream *last_stream = NULL;
 	struct rkcif_stream *buf_stream = NULL;
+	int next_effect_id;
+	bool is_id_change;
 
 	if (!cif_dev->active_sensor)
 		return;
@@ -15661,6 +15696,11 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				stream->frame_phase = SW_FRM_END_ID3(intstat);
 				intstat &= ~CSI_FRAME_END_ID3;
 				break;
+			}
+			if (cif_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP &&
+			    cif_dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE) {
+				next_effect_id = rkcif_get_next_effect_stream_id(cif_dev, stream->frame_idx, &is_id_change);
+				//custom todo
 			}
 			if (stream->low_latency)
 				rkcif_fence_signal(stream);

@@ -3008,6 +3008,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->reg_dbg = 0;
 	cif_dev->is_support_get_exp = false;
 	memset(&cif_dev->irfpa_info, 0, sizeof(cif_dev->irfpa_info));
+	cif_dev->prev_id = 0;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
