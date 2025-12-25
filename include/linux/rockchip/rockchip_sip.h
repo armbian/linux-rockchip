@@ -157,6 +157,8 @@ enum {
 #define CONFIG_MCU_EXPERI_START_ADDR	0x02
 #define CONFIG_MCU_SRAM_START_ADDR	0x03
 #define CONFIG_MCU_EXSRAM_START_ADDR	0x04
+#define CONFIG_MCU_CACHE_START_ADDR	0x05
+#define CONFIG_MCU_CACHE_END_ADDR	0x06
 
 struct dram_addrmap_info {
 	u64 ch_mask[2];
