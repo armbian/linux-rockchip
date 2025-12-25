@@ -385,6 +385,14 @@ static void average_scale_down(struct rkvpss_frame_cfg *frame_cfg,
 		if (in_w == out_w && in_h == out_h)
 			goto end;
 
+		rkvpss_hw_write(hw, reg_base + 0x50, 0);
+		rkvpss_hw_write(hw, reg_base + 0x30, 0);
+		rkvpss_hw_write(hw, reg_base + 0x34, 0);
+		rkvpss_hw_write(hw, reg_base + 0x38, 0);
+		rkvpss_hw_write(hw, reg_base + 0x3c, 0);
+		rkvpss_hw_write(hw, reg_base + 0x48, 0);
+		rkvpss_hw_write(hw, reg_base + 0x4c, 0);
+
 		val = in_w | (in_h << 16);
 		rkvpss_hw_write(hw, reg_base + 0x8, val);
 		val = out_w | (out_h << 16);
@@ -411,10 +419,10 @@ static void average_scale_down(struct rkvpss_frame_cfg *frame_cfg,
 		/* Unite mode: use pre-calculated parameters */
 		if (left) {
 			rkvpss_hw_write(hw, reg_base + 0x50, 0);
-			rkvpss_hw_write(hw, reg_base + 0x20, 0);
-			rkvpss_hw_write(hw, reg_base + 0x24, 0);
-			rkvpss_hw_write(hw, reg_base + 0x28, 0);
-			rkvpss_hw_write(hw, reg_base + 0x2c, 0);
+			rkvpss_hw_write(hw, reg_base + 0x30, 0);
+			rkvpss_hw_write(hw, reg_base + 0x34, 0);
+			rkvpss_hw_write(hw, reg_base + 0x38, 0);
+			rkvpss_hw_write(hw, reg_base + 0x3c, 0);
 			rkvpss_hw_write(hw, reg_base + 0x48, 0);
 			rkvpss_hw_write(hw, reg_base + 0x4c, 0);
 
@@ -436,10 +444,10 @@ static void average_scale_down(struct rkvpss_frame_cfg *frame_cfg,
 
 			val = scl_in_crop_y | (scl_in_crop_c << 4);
 			rkvpss_hw_write(hw, reg_base + 0x50, val);
-			rkvpss_hw_write(hw, reg_base + 0x20, ofl->unite_params[idx].y_w_phase);
-			rkvpss_hw_write(hw, reg_base + 0x24, ofl->unite_params[idx].c_w_phase);
-			rkvpss_hw_write(hw, reg_base + 0x28, 0);
-			rkvpss_hw_write(hw, reg_base + 0x2c, 0);
+			rkvpss_hw_write(hw, reg_base + 0x30, ofl->unite_params[idx].y_w_phase);
+			rkvpss_hw_write(hw, reg_base + 0x34, ofl->unite_params[idx].c_w_phase);
+			rkvpss_hw_write(hw, reg_base + 0x38, 0);
+			rkvpss_hw_write(hw, reg_base + 0x3c, 0);
 
 			val = cfg->scl_width / 2 - ALIGN_DOWN(cfg->scl_width / 2, 16);
 			rkvpss_hw_write(hw, reg_base + 0x48, val);
@@ -451,7 +459,8 @@ static void average_scale_down(struct rkvpss_frame_cfg *frame_cfg,
 
 			val = cfg->scl_width / 2 | (cfg->scl_height << 16);
 			rkvpss_hw_write(hw, reg_base + 0xc, val);
-			ctrl |= RKVPSS2X_SW_SCL_CLIP_EN | RKVPSS2X_SW_SCL_IN_CLIP_EN;
+			ctrl |= RKVPSS2X_SW_SCL_CLIP_EN | RKVPSS2X_SW_SCL_IN_CLIP_EN
+			     | RKVPSS2X_SW_SCL_HPHASE_EN;
 		}
 
 		if (cfg->scl_width != cfg->crop_width) {
@@ -525,6 +534,12 @@ static void bilinear_scale(struct rkvpss_frame_cfg *frame_cfg,
 	if (!unite) {
 		if (in_w == out_w && in_h == out_h)
 			goto end;
+
+		rkvpss_hw_write(hw, reg_base + 0x50, 0);
+		rkvpss_hw_write(hw, reg_base + 0x20, 0);
+		rkvpss_hw_write(hw, reg_base + 0x24, 0);
+		rkvpss_hw_write(hw, reg_base + 0x48, 0);
+		rkvpss_hw_write(hw, reg_base + 0x4c, 0);
 
 		if (yuv420_in) {
 			in_div = 2;
@@ -1294,7 +1309,7 @@ static void crop_config(struct rkvpss_offline_dev *ofl,
 					continue;
 
 				reg = RKVPSS_CROP0_0_H_OFFS;
-				val = ofl->unite_params[i].quad_crop_w;
+				val = 0;
 				rkvpss_hw_write(hw, reg + i * 0x10, val);
 				reg = RKVPSS_CROP0_0_V_OFFS;
 				val = cfg->output[i].crop_v_offs;
@@ -1745,8 +1760,8 @@ static void calc_unite_scl_params_avg(struct rkvpss_offline_dev *ofl,
 	*right_scl_need_size_y = out_cfg->crop_width - (left_in_used_size_y - 1);
 	*right_scl_need_size_c = out_cfg->crop_width - ((left_in_used_size_c - 1) * 2);
 
-	params->y_w_phase = phase_left_y;
-	params->c_w_phase = phase_left_c;
+	params->y_w_phase = phase_left_y & 0xffff;
+	params->c_w_phase = phase_left_c & 0xffff;
 	params->right_scl_need_size_y = *right_scl_need_size_y;
 	params->right_scl_need_size_c = *right_scl_need_size_c;
 }
@@ -1835,6 +1850,21 @@ static void calc_unite_scl_params(struct rkvpss_offline_dev *ofl, struct rkvpss_
 
 		calc_unite_crop_params(ofl, &cfg->output[i], params,
 				      right_scl_need_size_y, right_scl_need_size_c, use_average);
+
+		v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
+			  "%s dev_id:%d seq:%d ch:%d y_w_fac:%d c_w_fac:%d y_h_fac:%d c_h_fac:%d\n",
+			  __func__, cfg->dev_id, cfg->sequence, i,
+			  params->y_w_fac, params->c_w_fac, params->y_h_fac, params->c_h_fac);
+		v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
+			  "\t\t\t\t\t unite_right_enlarge:%d\n",
+			  ofl->unite_right_enlarge);
+		v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
+			  "\t\t\t\t\t y_w_phase:%d c_w_phase:%d quad_crop_w:%d scl_in_crop_w_y:%d scl_in_crop_w_c:%d\n",
+			  params->y_w_phase, params->c_w_phase, params->quad_crop_w,
+			  params->scl_in_crop_w_y, params->scl_in_crop_w_c);
+		v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
+			  "\t\t\t\t\t right_scl_need_size_y:%d right_scl_need_size_c:%d\n",
+			  params->right_scl_need_size_y, params->right_scl_need_size_c);
 	}
 }
 

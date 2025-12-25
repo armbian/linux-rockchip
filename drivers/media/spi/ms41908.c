@@ -1229,7 +1229,7 @@ static void motor_op_work(struct work_struct *work)
 			motor->dev0->run_data = motor->dev0->reback_data;
 			motor->dev0->is_need_reback = false;
 			motor->dev0->move_status = motor->dev0->reback_status;
-			motor->dev0->last_dir = motor->dev1->reback_status;
+			motor->dev0->last_dir = motor->dev0->reback_status;
 			motor->dev0->cur_back_delay = 0;
 		}
 	}
