@@ -338,13 +338,18 @@ static int rkce_ec_verify(struct akcipher_request *req)
 	struct rkce_ecp_point *sig_point = NULL;
 	uint8_t rawhash[SHA512_DIGEST_SIZE];
 	unsigned char *buffer;
+	size_t buf_len;
 	ssize_t diff;
+	int nents;
 	int ret;
 
 	if (unlikely(!ctx->pub_key_set))
 		return -EINVAL;
 
-	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
+	if (check_add_overflow(req->src_len, req->dst_len, &buf_len))
+		return -EINVAL;
+
+	buffer = kmalloc(buf_len, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -354,12 +359,20 @@ static int rkce_ec_verify(struct akcipher_request *req)
 		goto exit;
 	}
 
-	sg_pcopy_to_buffer(req->src, sg_nents_for_len(req->src, req->src_len + req->dst_len),
-			   buffer, req->src_len + req->dst_len, 0);
+	nents = sg_nents_for_len(req->src, buf_len);
+	if (nents < 0) {
+		ret = nents;
+		goto exit;
+	}
+
+	ret = sg_pcopy_to_buffer(req->src, nents, buffer, req->src_len + req->dst_len, 0);
+	if (ret != buf_len) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	if (ctx->group_id == RK_ECP_DP_SM2P256V1)
-		ret = asn1_ber_decoder(&rkce_sm2signature_decoder,
-				       sig_point, buffer, req->src_len);
+		ret = asn1_ber_decoder(&rkce_sm2signature_decoder, sig_point, buffer, req->src_len);
 	else
 		ret = asn1_ber_decoder(&rkce_ecdsasignature_decoder,
 				       sig_point, buffer, req->src_len);
@@ -371,11 +384,17 @@ static int rkce_ec_verify(struct akcipher_request *req)
 
 	diff = keylen - req->dst_len;
 	if (diff >= 0) {
+		if (diff > sizeof(rawhash) || diff + req->dst_len > sizeof(rawhash))
+			return -ENOMEM;
+
 		if (diff)
 			memset(rawhash, 0, diff);
 
 		memcpy(&rawhash[diff], buffer + req->src_len, req->dst_len);
 	} else if (diff < 0) {
+		if (keylen > sizeof(rawhash))
+			return -ENOMEM;
+
 		/* given hash is longer, we take the left-most bytes */
 		memcpy(&rawhash, buffer + req->src_len, keylen);
 	}
