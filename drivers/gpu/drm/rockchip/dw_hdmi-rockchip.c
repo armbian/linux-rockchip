@@ -3592,12 +3592,12 @@ dw_hdmi_rockchip_get_color_changed(void *data)
 
 static int
 dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
-				   const struct edid *edid)
+				   const struct edid *edid, int ext_block_num)
 {
 	if (!connector || !edid)
 		return -EINVAL;
 
-	return rockchip_drm_get_yuv422_format(connector, edid);
+	return rockchip_drm_get_yuv422_format(connector, edid, ext_block_num);
 }
 
 static void dw_hdmi_rockchip_get_vrr_range(struct rockchip_hdmi *hdmi)
@@ -3681,7 +3681,7 @@ static void dw_hdmi_rockchip_get_vrr_range(struct rockchip_hdmi *hdmi)
 
 static int
 dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
-				      struct drm_connector *connector)
+				      struct drm_connector *connector, int ext_block_num)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	struct drm_property *property = hdmi->hdmi_vrr_cap;
@@ -3695,7 +3695,7 @@ dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
 	memset(&hdmi->hdmi21_data, 0, sizeof(hdmi->hdmi21_data));
 	memset(&hdmi->vrr_cap, 0, size);
 
-	ret = rockchip_drm_parse_cea_ext(&hdmi->hdmi21_data, edid);
+	ret = rockchip_drm_parse_cea_ext(&hdmi->hdmi21_data, edid, ext_block_num);
 	if (ret)
 		return ret;
 
@@ -3709,7 +3709,7 @@ dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
 
 static int
 dw_hdmi_rockchip_get_hdr10_plus_vsdb(void *data, const struct edid *edid,
-				     struct drm_connector *connector)
+				     struct drm_connector *connector, int ext_block_num)
 {
 	int ret;
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -3719,7 +3719,7 @@ dw_hdmi_rockchip_get_hdr10_plus_vsdb(void *data, const struct edid *edid,
 	if (!edid || !connector)
 		return -ENOMEM;
 
-	hdr10_plus = rockchip_drm_parse_hdr10_plus_vsdb(edid);
+	hdr10_plus = rockchip_drm_parse_hdr10_plus_vsdb(edid, ext_block_num);
 
 	hdmi->hdr10_plus_data.application_version = hdr10_plus & 0x3;
 	hdmi->hdr10_plus_data.full_frame_peak_luminance_index = hdr10_plus & 0xc;
@@ -3734,7 +3734,7 @@ dw_hdmi_rockchip_get_hdr10_plus_vsdb(void *data, const struct edid *edid,
 
 static int
 dw_hdmi_rockchip_get_dovi_data(void *data, const struct edid *edid,
-			       struct drm_connector *connector)
+			       struct drm_connector *connector, int ext_block_num)
 {
 	int ret;
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -3744,7 +3744,7 @@ dw_hdmi_rockchip_get_dovi_data(void *data, const struct edid *edid,
 	if (!edid || !connector)
 		return -ENOMEM;
 
-	rockchip_drm_parse_dovi(sink_data, edid);
+	rockchip_drm_parse_dovi(sink_data, edid, ext_block_num);
 
 	ret = drm_property_replace_global_blob(connector->dev, &hdmi->hdr_panel_dovi_vsdb_ptr,
 					       DOVI_VSDB_LEN, sink_data, &connector->base,
@@ -3753,11 +3753,12 @@ dw_hdmi_rockchip_get_dovi_data(void *data, const struct edid *edid,
 	return ret;
 }
 
-static int dw_hdmi_rockchip_get_colorimetry(void *data, const struct edid *edid)
+static int dw_hdmi_rockchip_get_colorimetry(void *data, const struct edid *edid, int ext_block_num)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
-	return rockchip_drm_parse_colorimetry_data_block(&hdmi->edid_colorimetry, edid);
+	return rockchip_drm_parse_colorimetry_data_block(&hdmi->edid_colorimetry, edid,
+							 ext_block_num);
 }
 
 static void dw_hdmi_rockchip_get_vsif_data(void *data, u32 *buf)
@@ -4169,7 +4170,7 @@ err_created:
 
 static int
 dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
-				   struct drm_connector *connector)
+				   struct drm_connector *connector, int ext_block_num)
 {
 	int ret;
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -4180,7 +4181,7 @@ dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
 	if (!edid || !connector)
 		return -ENOMEM;
 
-	rockchip_drm_parse_hdrvivid(sink_data, edid);
+	rockchip_drm_parse_hdrvivid(sink_data, edid, ext_block_num);
 
 	ret = drm_property_replace_hdmi_blob(connector->dev, &blob, 28, sink_data,
 					     &connector->base, property);

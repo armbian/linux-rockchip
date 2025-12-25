@@ -280,13 +280,13 @@ struct dw_hdmi_plat_data {
 	struct drm_property_blob *(*get_hdr_blob)(void *data);
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
-				 const struct edid *edid);
+				 const struct edid *edid, int ext_block_num);
 	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid,
-				    struct drm_connector *connector);
+				    struct drm_connector *connector, int ext_block_num);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
-				 struct drm_connector *connector);
+				 struct drm_connector *connector, int ext_block_num);
 	int (*get_dovi_data)(void *data, const struct edid *edid,
-			     struct drm_connector *connector);
+			     struct drm_connector *connector, int ext_block_num);
 	void (*get_dovi_vsif)(void *data, u32 *buf);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
 	void (*set_hdcp_status)(void *data, u8 status);
@@ -299,7 +299,7 @@ struct dw_hdmi_plat_data {
 	int (*get_vp_id)(struct drm_crtc_state *crtc_state);
 	void (*update_color_format)(struct drm_connector_state *conn_state, void *data);
 	void (*set_prev_bus_format)(void *data, unsigned long bus_format);
-	int (*get_colorimetry)(void *data, const struct edid *edid);
+	int (*get_colorimetry)(void *data, const struct edid *edid, int ext_block_num);
 	void (*set_ddc_io)(void *data, bool enable);
 	void (*set_hdcp14_mem)(void *data, bool enable);
 	struct drm_display_mode *(*get_force_timing)(void *data);
@@ -310,12 +310,12 @@ struct dw_hdmi_plat_data {
 	void (*crtc_pre_disable)(void *data, struct drm_crtc *crtc);
 	void (*crtc_post_enable)(void *data, struct drm_crtc *crtc);
 	int (*get_hdr10_plus_vsdb)(void *data, const struct edid *edid,
-				   struct drm_connector *connector);
+				   struct drm_connector *connector, int ext_block_num);
 	void (*sda_delay_cal)(void *data, u8 *sda_dlyn, u8 *sda_div);
 	void (*set_cec_wakeup)(void *data, bool enable);
 	bool (*get_emp_status)(void *data);
 	int (*get_hdrvivid_vsdb)(void *data, const struct edid *edid,
-				 struct drm_connector *connector);
+				  struct drm_connector *connector, int ext_block_num);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

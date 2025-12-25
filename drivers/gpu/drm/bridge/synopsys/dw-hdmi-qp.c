@@ -2931,6 +2931,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	void *data = hdmi->plat_data->phy_data;
 	struct drm_property_blob *edid_blob_ptr = connector->edid_blob_ptr;
 	int i, ret = 0;
+	int ext_block_num;
 
 	if (hdmi->force_kernel_output) {
 		mode = hdmi->plat_data->get_force_timing(data);
@@ -2990,25 +2991,29 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
 			edid->width_cm, edid->height_cm);
 
+		ret = drm_edid_connector_update(connector, drm_edid);
+
+		edid_blob_ptr = connector->edid_blob_ptr;
+		ext_block_num = edid_blob_ptr->length / HDMI_EDID_BLOCK_LEN - 1;
 		hdmi->support_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		if (hdmi->cec_notifier)
 			cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		if (hdmi->plat_data->get_edid_hdmi21_info)
-			hdmi->plat_data->get_edid_hdmi21_info(data, edid, connector);
+			hdmi->plat_data->get_edid_hdmi21_info(data, edid, connector,
+							      ext_block_num);
 		memcpy(hdmi->vendor_info, &raw_edid[8], VENDOR_INFO_LEN);
-		ret = drm_edid_connector_update(connector, drm_edid);
 		if (hdmi->plat_data->get_dovi_data)
-			hdmi->plat_data->get_dovi_data(data, edid, connector);
+			hdmi->plat_data->get_dovi_data(data, edid, connector, ext_block_num);
 		if (hdmi->plat_data->get_colorimetry)
-			hdmi->plat_data->get_colorimetry(data, edid);
+			hdmi->plat_data->get_colorimetry(data, edid, ext_block_num);
 		if (hdmi->plat_data->get_yuv422_format)
-			hdmi->plat_data->get_yuv422_format(connector, edid);
+			hdmi->plat_data->get_yuv422_format(connector, edid, ext_block_num);
 		if (hdmi->plat_data->get_hdr10_plus_vsdb)
-			hdmi->plat_data->get_hdr10_plus_vsdb(data, edid, connector);
+			hdmi->plat_data->get_hdr10_plus_vsdb(data, edid, connector, ext_block_num);
 		dw_hdmi_update_hdr_property(connector);
 		if (hdmi->plat_data->get_hdrvivid_vsdb)
-			hdmi->plat_data->get_hdrvivid_vsdb(data, edid, connector);
+			hdmi->plat_data->get_hdrvivid_vsdb(data, edid, connector, ext_block_num);
 		if (ret > 0 && hdmi->plat_data->split_mode) {
 			struct dw_hdmi_qp *secondary = NULL;
 			void *secondary_data;
@@ -3032,7 +3037,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 								     edid);
 			if (secondary->plat_data->get_edid_hdmi21_info)
 				secondary->plat_data->get_edid_hdmi21_info(secondary_data, edid,
-									   connector);
+									   connector,
+									   ext_block_num);
 		}
 		kfree(edid);
 		kfree(drm_edid);
