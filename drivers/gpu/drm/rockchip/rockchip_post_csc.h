@@ -14,5 +14,6 @@
 
 int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_simple_coef,
 			   struct post_csc_convert_mode *convert_mode);
+const char *rockchip_full_func_csc_get_mode_name(u8 csc_mode);
 
 #endif

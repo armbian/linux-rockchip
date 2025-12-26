@@ -800,6 +800,7 @@ struct post_csc_convert_mode {
 	u32 plat;		/* To distinguish platform */
 	u8 pixel_depth;         /* {8, 10} */
 	u8 coef_precision;      /* {8, 10, 13}, NOTE: coef_precision should be >= pixel_depth */
+	u8 csc_mode;
 };
 
 struct post_csc_coef {
