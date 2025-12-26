@@ -227,10 +227,8 @@ static int rk730_sdin_event(struct snd_soc_dapm_widget *w,
 					      RK730_DI2S_RXCMD_TSD_RXS_MASK,
 					      RK730_DI2S_RXCMD_TSD_RXS_EN);
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_MASK |
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN_MASK,
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_EN |
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN);
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_EN);
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
 					      RK730_DTOP_DIGEN_CLKE_DAC_CKE_MASK |
 					      RK730_DTOP_DIGEN_CLKE_DAC_EN_MASK,
@@ -245,10 +243,8 @@ static int rk730_sdin_event(struct snd_soc_dapm_widget *w,
 					      RK730_DTOP_DIGEN_CLKE_DAC_CKE_DIS |
 					      RK730_DTOP_DIGEN_CLKE_DAC_DIS);
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_MASK |
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN_MASK,
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_DIS |
-					      RK730_DTOP_DIGEN_CLKE_I2SRX_DIS);
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_CKE_DIS);
 		snd_soc_component_update_bits(component, RK730_DI2S_RXCMD_TSD,
 					      RK730_DI2S_RXCMD_TSD_RXS_MASK,
 					      RK730_DI2S_RXCMD_TSD_RXS_DIS);
@@ -276,18 +272,14 @@ static int rk730_sdout_event(struct snd_soc_dapm_widget *w,
 					      RK730_DTOP_DIGEN_CLKE_I2STX_CKE_EN);
 		usleep_range(20000, 21000);
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
-					      RK730_DTOP_DIGEN_CLKE_ADC_EN_MASK |
-					      RK730_DTOP_DIGEN_CLKE_I2STX_EN_MASK,
-					      RK730_DTOP_DIGEN_CLKE_ADC_EN |
-					      RK730_DTOP_DIGEN_CLKE_I2STX_EN);
+					      RK730_DTOP_DIGEN_CLKE_ADC_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_ADC_EN);
 	} else {
 		dev_dbg(component->dev, "%s off\n", __func__);
 
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
-					      RK730_DTOP_DIGEN_CLKE_ADC_EN_MASK |
-					      RK730_DTOP_DIGEN_CLKE_I2STX_EN_MASK,
-					      RK730_DTOP_DIGEN_CLKE_ADC_DIS |
-					      RK730_DTOP_DIGEN_CLKE_I2STX_DIS);
+					      RK730_DTOP_DIGEN_CLKE_ADC_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_ADC_DIS);
 		usleep_range(50, 60);
 		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
 					      RK730_DTOP_DIGEN_CLKE_ADC_CKE_MASK |
@@ -924,36 +916,59 @@ static int rk730_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return ret;
 }
 
-static int rk730_dai_mute(struct snd_soc_dai *codec_dai, int mute, int stream)
+static int rk730_digital_mute_dac(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_component *component = dai->component;
 
-	dev_dbg(component->dev, "%s %d stream %d\n", __func__, mute, stream);
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (mute) {
-			snd_soc_component_update_bits(component, RK730_DADC_SEL,
-						      RK730_DADC_DAC_MUTE_MASK,
-						      RK730_DADC_DAC_MUTE);
-		} else {
-			snd_soc_component_update_bits(component, RK730_DADC_SEL,
-						      RK730_DADC_DAC_MUTE_MASK,
-						      RK730_DADC_DAC_UNMUTE);
-		}
+	if (mute) {
+		snd_soc_component_update_bits(component, RK730_DADC_SEL,
+					      RK730_DADC_DAC_MUTE_MASK,
+					      RK730_DADC_DAC_MUTE);
+		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_DIS);
 	} else {
-		if (mute) {
-			snd_soc_component_update_bits(component, RK730_DADC_SEL,
-						      RK730_DADC_ADC_MUTE_MASK,
-						      RK730_DADC_ADC_L_MUTE |
-						      RK730_DADC_ADC_R_MUTE);
-		} else {
-			snd_soc_component_update_bits(component, RK730_DADC_SEL,
-						      RK730_DADC_ADC_MUTE_MASK,
-						      RK730_DADC_ADC_L_UNMUTE |
-						      RK730_DADC_ADC_R_UNMUTE);
-		}
+		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2SRX_EN);
+		snd_soc_component_update_bits(component, RK730_DADC_SEL,
+					      RK730_DADC_DAC_MUTE_MASK,
+					      RK730_DADC_DAC_UNMUTE);
 	}
-
 	return 0;
+}
+
+static int rk730_digital_mute_adc(struct snd_soc_dai *dai, int mute, int stream)
+{
+	struct snd_soc_component *component = dai->component;
+
+	if (mute) {
+		snd_soc_component_update_bits(component, RK730_DADC_SEL,
+					      RK730_DADC_ADC_MUTE_MASK,
+					      RK730_DADC_ADC_L_MUTE |
+					      RK730_DADC_ADC_R_MUTE);
+		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
+					      RK730_DTOP_DIGEN_CLKE_I2STX_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2STX_DIS);
+	} else {
+
+		snd_soc_component_update_bits(component, RK730_DTOP_DIGEN_CLKE,
+					      RK730_DTOP_DIGEN_CLKE_I2STX_EN_MASK,
+					      RK730_DTOP_DIGEN_CLKE_I2STX_EN);
+		snd_soc_component_update_bits(component, RK730_DADC_SEL,
+					      RK730_DADC_ADC_MUTE_MASK,
+					      RK730_DADC_ADC_L_UNMUTE |
+					      RK730_DADC_ADC_R_UNMUTE);
+	}
+	return 0;
+}
+
+static int rk730_dai_mute(struct snd_soc_dai *dai, int mute, int stream)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return rk730_digital_mute_dac(dai, mute, stream);
+	else
+		return rk730_digital_mute_adc(dai, mute, stream);
 }
 
 static int rk730_set_bias_level(struct snd_soc_component *component,
