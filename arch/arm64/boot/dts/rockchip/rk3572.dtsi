@@ -40,6 +40,7 @@
 		i2c7 = &i2c7;
 		i2c8 = &i2c8;
 		i2c9 = &i2c9;
+		i3c0 = &i3c;
 		rkcif_mipi_lvds0 = &rkcif_mipi_lvds;
 		rkcif_mipi_lvds1 = &rkcif_mipi_lvds1;
 		rkcif_mipi_lvds2 = &rkcif_mipi_lvds2;
@@ -2417,6 +2418,23 @@
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&cru SRST_RESETN_CAN3>, <&cru SRST_HRESETN_CAN3>;
 			reset-names = "can", "can-apb";
+			status = "disabled";
+		};
+
+		i3c: i3c-master@2ab40000 {
+			compatible = "rockchip,i3c-master";
+			reg = <0x0 0x2ab40000 0x0 0x1000>;
+			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <3>;
+			#size-cells = <0>;
+			clocks = <&cru HCLK_I3C>, <&cru CLK_I3C>;
+			clock-names = "hclk", "i3c";
+			dmas = <&dmac0 61>, <&dmac0 63>;
+			dma-names = "rx", "tx";
+			resets = <&cru SRST_RESETN_I3C>, <&cru SRST_HRESETN_I3C>;
+			reset-names = "i3c", "ahb";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i3c0m0_xfer_pins &i3c0_sdam0_pu_pins>;
 			status = "disabled";
 		};
 
