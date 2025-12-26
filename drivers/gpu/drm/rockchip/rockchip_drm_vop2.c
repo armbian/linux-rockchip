@@ -17210,7 +17210,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 		vop2_plane_create_dci_property(vop2, win);
 	if (win->feature & WIN_FEATURE_MSMART)
 		vop2_plane_create_msmart_property(vop2, win);
-	if (win->feature & WIN_FEATURE_CGC)
+	if (!win->parent && win->feature & WIN_FEATURE_CGC)
 		vop2_plane_create_cgc_property(vop2, win);
 
 	max_width = vop2->data->win[win->win_id].max_input.width;
