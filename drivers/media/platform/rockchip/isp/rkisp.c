@@ -449,7 +449,7 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 
 u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 {
-	u32 pixelformat;
+	u32 pixelformat = 0;
 
 	switch (pixelcode) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
@@ -509,6 +509,33 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		pixelformat = V4L2_PIX_FMT_SRGGB12;
 		break;
+	case MEDIA_BUS_FMT_Y14_1X14:
+		pixelformat = V4L2_PIX_FMT_Y14;
+		break;
+	case MEDIA_BUS_FMT_SRGGB14_1X14:
+		pixelformat = V4L2_PIX_FMT_SRGGB14;
+		break;
+	case MEDIA_BUS_FMT_SBGGR14_1X14:
+		pixelformat = V4L2_PIX_FMT_SBGGR14;
+		break;
+	case MEDIA_BUS_FMT_SGBRG14_1X14:
+		pixelformat = V4L2_PIX_FMT_SGBRG14;
+		break;
+	case MEDIA_BUS_FMT_SGRBG14_1X14:
+		pixelformat = V4L2_PIX_FMT_SGRBG14;
+		break;
+	case MEDIA_BUS_FMT_SRGGB16_1X16:
+		pixelformat = V4L2_PIX_FMT_SRGGB16;
+		break;
+	case MEDIA_BUS_FMT_SBGGR16_1X16:
+		pixelformat = V4L2_PIX_FMT_SBGGR16;
+		break;
+	case MEDIA_BUS_FMT_SGBRG16_1X16:
+		pixelformat = V4L2_PIX_FMT_SGBRG16;
+		break;
+	case MEDIA_BUS_FMT_SGRBG16_1X16:
+		pixelformat = V4L2_PIX_FMT_SGRBG16;
+		break;
 	case MEDIA_BUS_FMT_EBD_1X8:
 		pixelformat = V4l2_PIX_FMT_EBD8;
 		break;
@@ -516,7 +543,8 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 		pixelformat = V4l2_PIX_FMT_SPD16;
 		break;
 	default:
-		pixelformat = V4L2_PIX_FMT_SRGGB10;
+		pr_err("%s media bus:0x%x no v4l2 pixel format\n",
+		       __func__, pixelcode);
 	}
 
 	return pixelformat;
