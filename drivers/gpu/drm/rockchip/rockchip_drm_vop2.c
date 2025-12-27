@@ -11634,12 +11634,12 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 		plane = &win->base;
 		vpstate = to_vop2_plane_state(plane->state);
 
-		if (vpstate->cgc_en) {
+		if (vpstate->cgc_en)
 			dly = cgc_win_dly;
-		} else if ((vp->hdr_en || vp->sdr2hdr_en) &&
-		    (vp->hdrvivid_mode >= 0 && vp->hdrvivid_mode <= SDR2HLG)) {
-			dly = vpstate->hdr_in ? hdr_win_dly : sdr_win_dly;
-		}
+		else if (vpstate->hdr_in)
+			dly = hdr_win_dly;
+		else
+			dly = sdr_win_dly;
 		if (vop2_cluster_window(win))
 			dly |= dly << 8;
 
