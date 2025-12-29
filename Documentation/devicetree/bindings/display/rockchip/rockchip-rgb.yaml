@@ -27,6 +27,7 @@ properties:
       - rockchip,rv1106-rgb
       - rockchip,rv1108-rgb
       - rockchip,rv1126-rgb
+      - rockchip,rv1126b-rgb
 
   phys:
     description: phandle for the PHY device
