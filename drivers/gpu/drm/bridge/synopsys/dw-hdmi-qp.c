@@ -3634,6 +3634,14 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		if (hdmi->hdmi_data.video_mode.mpixelclock == (mode.clock * 1000) &&
 		    hdmi->hdmi_data.video_mode.mtmdsclock == (mtmdsclk * 1000) &&
 		    !hdmi->disabled && !hdmi->logo_plug_out) {
+
+			/*
+			 * If only vsif changes (such as hdr10+/hdr vivid),
+			 * there is no need to set avmute
+			 */
+			if (hdmi->hdmi_changed_status == HDMI_VSIF_CHANGED)
+				return 0;
+
 			hdmi->update = true;
 			hdmi_writel(hdmi, 1, PKTSCHED_PKT_CONTROL0);
 			hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
