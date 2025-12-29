@@ -414,25 +414,36 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,leakage-voltage-sel = <
+			1   15   0
+			16  25   1
+			21  254  2
+		>;
+
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <900000>;
 
 		opp-324000000 {
 			opp-hz = /bits/ 64 <324000000>;
-			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt = <850000 850000 950000>;
 		};
 		opp-528000000 {
 			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt = <850000 850000 950000>;
 		};
 		opp-780000000 {
 			opp-hz = /bits/ 64 <780000000>;
-			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt = <850000 850000 950000>;
 		};
 		opp-1184000000 {
 			opp-hz = /bits/ 64 <1184000000>;
-			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt = <900000 900000 950000>;
+			opp-microvolt-L1 = <887500 887500 950000>;
+			opp-microvolt-L2 = <875000 875000 950000>;
 		};
 	};
 
