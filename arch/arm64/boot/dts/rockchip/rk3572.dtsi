@@ -25,6 +25,8 @@
 		csi2dphy3 = &csi2_dphy3;
 		csi2dphy4 = &csi2_dphy4;
 		csi2dphy5 = &csi2_dphy5;
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -806,6 +808,12 @@
 		vop_grf: syscon@26028000 {
 			compatible = "rockchip,rk3572-vop-grf", "syscon";
 			reg = <0x0 0x26028000 0x0 0x2000>;
+		};
+
+		nvm0_grf: syscon@2602a000 {
+			compatible = "rockchip,rk3572-nvm0-grf", "syscon";
+			reg = <0x0 0x2602a000 0x0 0x1000>;
+			clocks = <&cru PCLK_NVM0_ROOT>;
 		};
 
 		audio_grf: syscon@2602c000 {
@@ -2005,6 +2013,56 @@
 			};
 		};
 
+		gmac0: ethernet@29d20000 {
+			compatible = "rockchip,rk3572-gmac", "snps,dwmac-4.20a";
+			reg = <0x0 0x29d20000 0x0 0x10000>;
+			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq";
+			rockchip,grf = <&php_grf>;
+			rockchip,php-grf = <&ioc_grf>;
+			clocks = <&cru CLK_GMAC0_125M_SRC>, <&cru CLK_GMAC0_RMII_CRU>,
+				 <&cru PCLK_GMAC0>, <&cru ACLK_GMAC0>,
+				 <&cru CLK_GMAC0_PTP_REF_SRC>;
+			clock-names = "stmmaceth", "clk_mac_ref",
+				      "pclk_mac", "aclk_mac",
+				      "ptp_ref";
+			resets = <&cru SRST_ARESETN_GMAC0>;
+			reset-names = "stmmaceth";
+			power-domains = <&power RK3572_PD_PHP>;
+
+			dma-coherent;
+			snps,mixed-burst;
+			snps,tso;
+
+			snps,axi-config = <&gmac0_stmmac_axi_setup>;
+			snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+			snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+			status = "disabled";
+
+			mdio0: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <0x1>;
+				#size-cells = <0x0>;
+			};
+
+			gmac0_stmmac_axi_setup: stmmac-axi-config {
+				snps,wr_osr_lmt = <4>;
+				snps,rd_osr_lmt = <8>;
+				snps,blen = <0 0 0 0 16 8 4>;
+			};
+
+			gmac0_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <1>;
+				queue0 {};
+			};
+
+			gmac0_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <1>;
+				queue0 {};
+			};
+		};
+
 		ufs: ufs@29e00000 {
 			compatible = "rockchip,rk3572-ufs", "rockchip,rk3576-ufs";
 			reg = <0x0 0x29e00000 0 0x10000>, /* 0: HCI standard */
@@ -2077,6 +2135,56 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		gmac1: ethernet@2a040000 {
+			compatible = "rockchip,rk3572-gmac", "snps,dwmac-4.20a";
+			reg = <0x0 0x2a040000 0x0 0x10000>;
+			interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq";
+			rockchip,grf = <&nvm0_grf>;
+			rockchip,php-grf = <&ioc_grf>;
+			clocks = <&cru CLK_GMAC1_125M_SRC>, <&cru CLK_GMAC1_RMII_CRU>,
+				 <&cru PCLK_GMAC1>, <&cru ACLK_GMAC1>,
+				 <&cru CLK_GMAC1_PTP_REF_SRC>;
+			clock-names = "stmmaceth", "clk_mac_ref",
+				      "pclk_mac", "aclk_mac",
+				      "ptp_ref";
+			resets = <&cru SRST_ARESETN_GMAC1>;
+			reset-names = "stmmaceth";
+			power-domains = <&power RK3572_PD_NVM0>;
+
+			dma-coherent;
+			snps,mixed-burst;
+			snps,tso;
+
+			snps,axi-config = <&gmac1_stmmac_axi_setup>;
+			snps,mtl-rx-config = <&gmac1_mtl_rx_setup>;
+			snps,mtl-tx-config = <&gmac1_mtl_tx_setup>;
+			status = "disabled";
+
+			mdio1: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <0x1>;
+				#size-cells = <0x0>;
+			};
+
+			gmac1_stmmac_axi_setup: stmmac-axi-config {
+				snps,wr_osr_lmt = <4>;
+				snps,rd_osr_lmt = <8>;
+				snps,blen = <0 0 0 0 16 8 4>;
+			};
+
+			gmac1_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <1>;
+				queue0 {};
+			};
+
+			gmac1_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <1>;
+				queue0 {};
+			};
 		};
 
 		fspi1: spi@2a080000 {
