@@ -2203,6 +2203,146 @@ static const struct rk_gmac_ops rk3568_ops = {
 	},
 };
 
+#define RK3572_VCCIO0_3_VO_IOC_CON1		0x10608
+#define RK3572_VCCIO1_2_4_VI_IOC_CON1		0x12604
+#define RK3572_VCCIO5_6_IOC_MISC0		0x14630
+
+#define RK3572_GMAC_RXCLK_DLY_ENABLE		GRF_BIT(15)
+#define RK3572_GMAC_RXCLK_DLY_DISABLE		GRF_CLR_BIT(15)
+#define RK3572_GMAC_TXCLK_DLY_ENABLE		GRF_BIT(7)
+#define RK3572_GMAC_TXCLK_DLY_DISABLE		GRF_CLR_BIT(7)
+
+#define RK3572_GMAC_CLK_RX_DL_CFG(val)		HIWORD_UPDATE(val, 0x7F, 8)
+#define RK3572_GMAC_CLK_TX_DL_CFG(val)		HIWORD_UPDATE(val, 0x7F, 0)
+
+#define RK3572_PHP_GRF_GMAC0_CON		0x0070
+#define RK3572_NVM0_GRF_GMAC1_CON		0x0020
+
+#define RK3572_GMAC_RMII_MODE			\
+	(GRF_BIT(3) | GRF_CLR_BIT(9) | GRF_CLR_BIT(10) | GRF_BIT(11))
+#define RK3572_GMAC_RGMII_MODE			\
+	(GRF_CLR_BIT(3) | GRF_BIT(9) | GRF_CLR_BIT(10) | GRF_CLR_BIT(11))
+
+#define RK3572_GMAC_CLK_SELECT_IO		GRF_BIT(7)
+#define RK3572_GMAC_CLK_SELECT_CRU		GRF_CLR_BIT(7)
+
+#define RK3572_GMAC_CLK_RMII_DIV2		GRF_BIT(5)
+#define RK3572_GMAC_CLK_RMII_DIV20		GRF_CLR_BIT(5)
+
+#define RK3572_GMAC_CLK_RGMII_DIV1		\
+			(GRF_CLR_BIT(6) | GRF_CLR_BIT(5))
+#define RK3572_GMAC_CLK_RGMII_DIV5		\
+			(GRF_BIT(6) | GRF_BIT(5))
+#define RK3572_GMAC_CLK_RGMII_DIV50		\
+			(GRF_BIT(6) | GRF_CLR_BIT(5))
+
+#define RK3572_GMAC_CLK_RMII_GATE		GRF_BIT(4)
+#define RK3572_GMAC_CLK_RMII_NOGATE		GRF_CLR_BIT(4)
+
+static void rk3572_set_to_rgmii(struct rk_priv_data *bsp_priv,
+				int tx_delay, int rx_delay)
+{
+	unsigned int offset_con;
+
+	offset_con = bsp_priv->id == 1 ? RK3572_NVM0_GRF_GMAC1_CON :
+					 RK3572_PHP_GRF_GMAC0_CON;
+
+	regmap_write(bsp_priv->grf, offset_con, RK3572_GMAC_RGMII_MODE);
+
+	if (bsp_priv->id == 1) {
+		/* m0 && m1 */
+		regmap_write(bsp_priv->php_grf, RK3572_VCCIO0_3_VO_IOC_CON1,
+			     DELAY_VALUE(RK3572, tx_delay, rx_delay) |
+			     DELAY_ENABLE(RK3572, tx_delay, rx_delay));
+		regmap_write(bsp_priv->php_grf, RK3572_VCCIO5_6_IOC_MISC0,
+			     DELAY_VALUE(RK3572, tx_delay, rx_delay) |
+			     DELAY_ENABLE(RK3572, tx_delay, rx_delay));
+	} else {
+		regmap_write(bsp_priv->php_grf, RK3572_VCCIO1_2_4_VI_IOC_CON1,
+			     DELAY_VALUE(RK3572, tx_delay, rx_delay) |
+			     DELAY_ENABLE(RK3572, tx_delay, rx_delay));
+	}
+}
+
+static void rk3572_set_to_rmii(struct rk_priv_data *bsp_priv)
+{
+	unsigned int offset_con;
+
+	offset_con = bsp_priv->id == 1 ? RK3572_NVM0_GRF_GMAC1_CON :
+					 RK3572_PHP_GRF_GMAC0_CON;
+
+	regmap_write(bsp_priv->grf, offset_con, RK3572_GMAC_RMII_MODE);
+}
+
+static void rk3572_set_gmac_speed(struct rk_priv_data *bsp_priv, int speed)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int val = 0, offset_con;
+
+	switch (speed) {
+	case 10:
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII)
+			val = RK3572_GMAC_CLK_RMII_DIV20;
+		else
+			val = RK3572_GMAC_CLK_RGMII_DIV50;
+		break;
+	case 100:
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII)
+			val = RK3572_GMAC_CLK_RMII_DIV2;
+		else
+			val = RK3572_GMAC_CLK_RGMII_DIV5;
+		break;
+	case 1000:
+		if (bsp_priv->phy_iface != PHY_INTERFACE_MODE_RMII)
+			val = RK3572_GMAC_CLK_RGMII_DIV1;
+		else
+			goto err;
+		break;
+	default:
+		goto err;
+	}
+
+	offset_con = bsp_priv->id == 1 ? RK3572_NVM0_GRF_GMAC1_CON :
+					 RK3572_PHP_GRF_GMAC0_CON;
+
+	regmap_write(bsp_priv->grf, offset_con, val);
+
+	return;
+err:
+	dev_err(dev, "unknown speed value for GMAC speed=%d", speed);
+}
+
+static void rk3572_set_clock_selection(struct rk_priv_data *bsp_priv, bool input,
+				       bool enable)
+{
+	unsigned int val = input ? RK3572_GMAC_CLK_SELECT_IO :
+				   RK3572_GMAC_CLK_SELECT_CRU;
+	unsigned int offset_con;
+
+	val |= enable ? RK3572_GMAC_CLK_RMII_NOGATE :
+			RK3572_GMAC_CLK_RMII_GATE;
+
+	offset_con = bsp_priv->id == 1 ? RK3572_NVM0_GRF_GMAC1_CON :
+					 RK3572_PHP_GRF_GMAC0_CON;
+
+	regmap_write(bsp_priv->grf, offset_con, val);
+}
+
+static const struct rk_gmac_ops rk3572_ops = {
+	.set_to_rgmii = rk3572_set_to_rgmii,
+	.set_to_rmii = rk3572_set_to_rmii,
+	.set_rgmii_speed = rk3572_set_gmac_speed,
+	.set_rmii_speed = rk3572_set_gmac_speed,
+	.set_clock_selection = rk3572_set_clock_selection,
+	.php_grf_required = true,
+	.regs_valid = true,
+	.regs = {
+		0x29d20000, /* gmac0 */
+		0x2a040000, /* gmac1 */
+		0x0, /* sentinel */
+	},
+};
+
 /* VCCIO0_1_3_IOC */
 #define RK3576_VCCIO0_1_3_IOC_CON2		0X6408
 #define RK3576_VCCIO0_1_3_IOC_CON3		0X640c
@@ -3684,6 +3824,9 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-gmac", .data = &rk3568_ops },
+#endif
+#ifdef CONFIG_CPU_RK3572
+	{ .compatible = "rockchip,rk3572-gmac", .data = &rk3572_ops },
 #endif
 #ifdef CONFIG_CPU_RK3576
 	{ .compatible = "rockchip,rk3576-gmac", .data = &rk3576_ops },
