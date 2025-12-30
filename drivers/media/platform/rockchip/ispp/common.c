@@ -287,13 +287,13 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 			if (buf->vaddr[j]) {
 				struct iosys_map map = IOSYS_MAP_INIT_VADDR(buf->vaddr[j]);
 
-				dma_buf_vunmap(buf->dbufs->dbuf[j], &map);
+				dma_buf_vunmap_unlocked(buf->dbufs->dbuf[j], &map);
 				buf->vaddr[j] = NULL;
 			}
 			if (buf->sgt[j]) {
-				dma_buf_unmap_attachment(buf->dba[j],
-							 buf->sgt[j],
-							 DMA_BIDIRECTIONAL);
+				dma_buf_unmap_attachment_unlocked(buf->dba[j],
+								  buf->sgt[j],
+								  DMA_BIDIRECTIONAL);
 				buf->sgt[j] = NULL;
 			}
 			dma_buf_detach(buf->dbufs->dbuf[j], buf->dba[j]);
@@ -334,7 +334,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 			goto err;
 		}
 		pool->dba[i] = dba;
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			ret = PTR_ERR(sgt);
 			goto err;
@@ -342,7 +342,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		pool->sgt[i] = sgt;
 		pool->dma[i] = sg_dma_address(sgt->sgl);
 		get_dma_buf(dbufs->dbuf[i]);
-		ret = dma_buf_vmap(dbufs->dbuf[i], &map);
+		ret = dma_buf_vmap_unlocked(dbufs->dbuf[i], &map);
 		pool->vaddr[i] = ret ? NULL : map.vaddr;
 		if (rkispp_debug)
 			dev_info(hw->dev, "%s dma[%d]:0x%x\n",

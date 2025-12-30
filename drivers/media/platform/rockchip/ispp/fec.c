@@ -69,7 +69,7 @@ static struct sg_table *fec_buf_add(struct file *file, int fd, int size)
 			dma_buf_put(dbuf);
 			goto end;
 		}
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			v4l2_err(&fec->v4l2_dev, "failed to map, fd:%d\n", fd);
 			dma_buf_detach(dbuf, dba);
@@ -78,7 +78,7 @@ static struct sg_table *fec_buf_add(struct file *file, int fd, int size)
 		}
 		buf = kzalloc(sizeof(struct rkispp_fec_buf), GFP_KERNEL);
 		if (!buf) {
-			dma_buf_unmap_attachment(dba, sgt, DMA_BIDIRECTIONAL);
+			dma_buf_unmap_attachment_unlocked(dba, sgt, DMA_BIDIRECTIONAL);
 			dma_buf_detach(dbuf, dba);
 			dma_buf_put(dbuf);
 			goto end;
@@ -109,7 +109,7 @@ static void fec_buf_del(struct file *file, int fd, bool is_all)
 			v4l2_dbg(4, rkispp_debug, &fec->v4l2_dev,
 				 "%s file:%p fd:%d dbuf:%p\n",
 				 __func__, file, buf->fd, buf->dbuf);
-			dma_buf_unmap_attachment(buf->dba, buf->sgt, DMA_BIDIRECTIONAL);
+			dma_buf_unmap_attachment_unlocked(buf->dba, buf->sgt, DMA_BIDIRECTIONAL);
 			dma_buf_detach(buf->dbuf, buf->dba);
 			dma_buf_put(buf->dbuf);
 			buf->file = NULL;
