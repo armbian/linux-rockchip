@@ -164,8 +164,8 @@ static void iep_drm_clear_map(struct kref *ref)
 	}
 
 	if (drm_buffer->attach) {
-		dma_buf_unmap_attachment(drm_buffer->attach, drm_buffer->sgt,
-					 DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(drm_buffer->attach, drm_buffer->sgt,
+						  DMA_BIDIRECTIONAL);
 		dma_buf_detach(drm_buffer->dma_buf, drm_buffer->attach);
 		dma_buf_put(drm_buffer->dma_buf);
 		drm_buffer->attach = NULL;
@@ -368,7 +368,7 @@ static int iep_drm_import(struct iep_iommu_session_info *session_info,
 
 	get_dma_buf(drm_buffer->dma_buf);
 
-	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto fail_detach;
