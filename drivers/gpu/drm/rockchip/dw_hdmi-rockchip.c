@@ -3440,6 +3440,13 @@ secondary:
 			s->min_refresh_rate = 0;
 		}
 
+		if (hdmi->enable_gaming_vrr) {
+			s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+			s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
+			s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
+			s->hdmi_vrr.refresh_rate_ready_to_change = true;
+		}
+
 		s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
 
 		if (hdmi->vrr_state != hdmi->old_vrr_state) {
