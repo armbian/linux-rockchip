@@ -146,7 +146,7 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 			return PTR_ERR(dba);
 		}
 
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			dma_buf_detach(input_rockit_cfg->buf, dba);
 			kfree(isprk_buf);
@@ -156,7 +156,7 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		isprk_buf->vaddr = NULL;
 		/* default vmap two for iqtool to get image, rkisp_buf_dbg to vmap all */
 		if (i < 2 || rkisp_buf_dbg)
-			if (dma_buf_vmap(input_rockit_cfg->buf, &map) == 0)
+			if (dma_buf_vmap_unlocked(input_rockit_cfg->buf, &map) == 0)
 				isprk_buf->vaddr = map.vaddr;
 		if (rkisp_buf_dbg) {
 			u64 *data = isprk_buf->vaddr;
@@ -626,13 +626,13 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 				if (isprk_buf->vaddr) {
 					struct iosys_map map = IOSYS_MAP_INIT_VADDR(isprk_buf->vaddr);
 
-					dma_buf_vunmap(isprk_buf->dmabuf, &map);
+					dma_buf_vunmap_unlocked(isprk_buf->dmabuf, &map);
 					isprk_buf->vaddr = NULL;
 				}
 				if (isprk_buf->sgt) {
-					dma_buf_unmap_attachment(isprk_buf->dba,
-								 isprk_buf->sgt,
-								 DMA_BIDIRECTIONAL);
+					dma_buf_unmap_attachment_unlocked(isprk_buf->dba,
+									  isprk_buf->sgt,
+									  DMA_BIDIRECTIONAL);
 					isprk_buf->sgt = NULL;
 				}
 				dma_buf_detach(isprk_buf->dmabuf, isprk_buf->dba);

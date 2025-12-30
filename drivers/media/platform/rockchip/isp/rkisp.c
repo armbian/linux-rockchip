@@ -3447,8 +3447,8 @@ static void rkisp_rx_buf_free(struct rkisp_device *dev, struct rkisp_rx_buf *dbu
 			continue;
 		if (pool->dba) {
 			if (pool->sgt) {
-				dma_buf_unmap_attachment(pool->dba, pool->sgt,
-							 DMA_BIDIRECTIONAL);
+				dma_buf_unmap_attachment_unlocked(pool->dba, pool->sgt,
+								  DMA_BIDIRECTIONAL);
 				pool->sgt = NULL;
 			}
 			dma_buf_detach(pool->dbufs->dbuf, pool->dba);
@@ -3577,8 +3577,8 @@ void rkisp_rx_buf_pool_free(struct rkisp_device *dev)
 			break;
 		if (pool->dba) {
 			if (pool->sgt) {
-				dma_buf_unmap_attachment(pool->dba, pool->sgt,
-							 DMA_BIDIRECTIONAL);
+				dma_buf_unmap_attachment_unlocked(pool->dba, pool->sgt,
+								  DMA_BIDIRECTIONAL);
 				pool->sgt = NULL;
 			}
 			dma_buf_detach(pool->dbufs->dbuf, pool->dba);
@@ -3620,7 +3620,7 @@ static int rkisp_rx_buf_pool_init(struct rkisp_device *dev,
 		goto err;
 	}
 	pool->dba = dba;
-	sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto err;
