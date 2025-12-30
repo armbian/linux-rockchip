@@ -1170,8 +1170,11 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	int ret = 0;
 	bool is_wait = dev->hw_dev->is_shutdown ? false : true;
 
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	stream->stopping = true;
 	stream->is_pause = false;
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
 	if (stream->ops->disable_mi && dev->hw_dev->is_single)
 		stream->ops->disable_mi(stream);
 	if (IS_HDR_RDBK(dev->rd_mode)) {
