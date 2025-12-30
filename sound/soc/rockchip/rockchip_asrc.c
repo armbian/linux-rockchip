@@ -427,7 +427,8 @@ static int rockchip_asrc_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_update_bits(asrc->regmap, ASRC_DATA_FMT,
 			   ASRC_OWL_MSK | ASRC_IWL_MSK |
-			   ASRC_OFMT_MSK | ASRC_IFMT_MSK,
+			   ASRC_OFMT_MSK | ASRC_IFMT_MSK |
+			   ASRC_ISJM_MSK | ASRC_OSJM_MSK,
 			   val);
 
 	return 0;
