@@ -822,6 +822,11 @@
 			clocks = <&cru PCLK_AUDIO_ROOT>;
 		};
 
+		dsmc_grf: syscon@2602e000 {
+			compatible = "rockchip,rk3572-dsmc-grf", "syscon";
+			reg = <0x0 0x2602e000 0x0 0x2000>;
+		};
+
 		pmu1_grf: syscon@26042000 {
 			compatible = "rockchip,rk3572-pmu1-grf", "syscon", "simple-mfd";
 			reg = <0x0 0x26042000 0x0 0x2000>;
@@ -2085,6 +2090,211 @@
 				 <&cru SRST_ARESETN_UFS>, <&cru SRST_PRESETN_UFS_GRF>;
 			reset-names = "biu", "sys", "ufs", "grf";
 			status = "disabled";
+		};
+
+		dsmc: dsmc@29f00000 {
+			compatible = "rockchip,rk3572-dsmc";
+			reg = <0x0 0x29f00000 0x0 0x10000>;
+			rockchip,grf = <&dsmc_grf>;
+			interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "dsmc";
+			resets = <&cru SRST_ARESETN_DSMC>, <&cru SRST_PRESETN_DSMC>;
+			reset-names = "dsmc", "apb";
+			clocks = <&cru CLK_DSMC_SYS>, <&cru ACLK_DSMC>, <&cru PCLK_DSMC>,
+				 <&cru ACLK_DSMC_ROOT>, <&cru HCLK_DSMC_ROOT>,
+				 <&cru PCLK_DSMC_ROOT>, <&cru PCLK_DSMCSUBSYS_ROOT>;
+			clock-names = "clk_sys", "aclk_dsmc", "pclk",
+				      "aclk_root", "hclk_root",
+				      "pclk_root", "pclk_subsys_root";
+			clock-frequency = <100000000>;
+			dmas = <&dmac0 59>, <&dmac0 60>;
+			dma-names = "req0", "req1";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dsmc_bus16_pins>;
+			status = "disabled";
+			slave {
+				rockchip,dqs-dll = <0x40 0x40
+						0x40 0x40
+						0x40 0x40
+						0x40 0x40>;
+				rockchip,ranges = <0x0 0x10000000 0x0 0x2000000>;
+				rockchip,slave-dev = <&dsmc_slave>;
+			};
+		};
+
+		dsmc_slave: dsmc-slave {
+			compatible = "rockchip,dsmc-slave";
+			rockchip,clk-mode = <0>;
+			status = "disabled";
+			psram {
+				dsmc_psram0: psram0 {
+					status = "disabled";
+				};
+				dsmc_psram1: psram1 {
+					status = "disabled";
+				};
+				dsmc_psram2: psram2 {
+					status = "disabled";
+				};
+				dsmc_psram3: psram3 {
+					status = "disabled";
+				};
+			};
+
+			lb-slave {
+				dsmc_lb_slave0: lb-slave0 {
+					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					status = "disabled";
+					dsmc_p0_region: region {
+						dsmc_p0_region0: region0 {
+							rockchip,attribute = "Merged FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p0_region1: region1 {
+							rockchip,attribute = "No-Merge FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p0_region2: region2 {
+							rockchip,attribute = "DPRA";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p0_region3: region3 {
+							rockchip,attribute = "Register";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+					};
+				};
+				dsmc_lb_slave1: lb-slave1 {
+					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					status = "disabled";
+					dsmc_p1_region: region {
+						dsmc_p1_region0: region0 {
+							rockchip,attribute = "Merged FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p1_region1: region1 {
+							rockchip,attribute = "No-Merge FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p1_region2: region2 {
+							rockchip,attribute = "DPRA";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p1_region3: region3 {
+							rockchip,attribute = "Register";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+					};
+				};
+				dsmc_lb_slave2: lb-slave2 {
+					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					status = "disabled";
+					dsmc_p2_region: region {
+						dsmc_p2_region0: region0 {
+							rockchip,attribute = "Merged FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p2_region1: region1 {
+							rockchip,attribute = "No-Merge FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p2_region2: region2 {
+							rockchip,attribute = "DPRA";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p2_region3: region3 {
+							rockchip,attribute = "Register";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+					};
+				};
+				dsmc_lb_slave3: lb-slave3 {
+					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					status = "disabled";
+					dsmc_p3_region: region {
+						dsmc_p3_region0: region0 {
+							rockchip,attribute = "Merged FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p3_region1: region1 {
+							rockchip,attribute = "No-Merge FIFO";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p3_region2: region2 {
+							rockchip,attribute = "DPRA";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+						dsmc_p3_region3: region3 {
+							rockchip,attribute = "Register";
+							rockchip,ca-addr-width = <0>;
+							rockchip,dummy-clk-num = <1>;
+							rockchip,cs0-be-ctrled = <0>;
+							rockchip,cs0-ctrl = <0>;
+							status = "disabled";
+						};
+					};
+				};
+			};
 		};
 
 		sdmmc1: mmc@2a000000 {
