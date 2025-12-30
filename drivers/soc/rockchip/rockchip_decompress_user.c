@@ -96,7 +96,7 @@ static int get_dmafd_sgtbl(struct device *dev, int dma_fd, enum dma_data_directi
 		goto error;
 	}
 
-	*sg_tbl = dma_buf_map_attachment(*dma_attach, dir);
+	*sg_tbl = dma_buf_map_attachment_unlocked(*dma_attach, dir);
 	if (IS_ERR(*sg_tbl)) {
 		ret = PTR_ERR(*sg_tbl);
 		goto error;
@@ -105,7 +105,7 @@ static int get_dmafd_sgtbl(struct device *dev, int dma_fd, enum dma_data_directi
 	return 0;
 error:
 	if (*sg_tbl)
-		dma_buf_unmap_attachment(*dma_attach, *sg_tbl, dir);
+		dma_buf_unmap_attachment_unlocked(*dma_attach, *sg_tbl, dir);
 
 	if (*dma_attach)
 		dma_buf_detach(*dmabuf, *dma_attach);
@@ -130,7 +130,7 @@ static int put_dmafd_sgtbl(struct device *dev, int dma_fd, enum dma_data_directi
 	if (!sg_tbl || !dma_attach || !dmabuf)
 		return -EINVAL;
 
-	dma_buf_unmap_attachment(dma_attach, sg_tbl, dir);
+	dma_buf_unmap_attachment_unlocked(dma_attach, sg_tbl, dir);
 	dma_buf_detach(dmabuf, dma_attach);
 	dma_buf_put(dmabuf);
 
