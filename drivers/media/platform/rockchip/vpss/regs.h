@@ -6,5 +6,6 @@
 
 #include "regs_v10.h"
 #include "regs_v20.h"
+#include "regs_v21.h"
 
 #endif

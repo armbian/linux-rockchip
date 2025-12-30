@@ -79,6 +79,7 @@ struct rkvpss_device {
 	spinlock_t cmsc_lock;
 	spinlock_t idle_lock;
 	struct rkvpss_cmsc_cfg cmsc_cfg;
+	struct rkvpss_sharp_cfg sharp_cfg;
 
 	enum rkvpss_ver	vpss_ver;
 	/* mutex to serialize the calls from user */

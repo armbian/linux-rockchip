@@ -28,6 +28,8 @@
 #define RKVPSS_MAX_HEIGHT	3504
 #define RKVPSS_MAX_WIDTH_V20	4096
 #define RKVPSS_MAX_HEIGHT_V20	3072
+#define RKVPSS_MAX_WIDTH_V21	4096
+#define RKVPSS_MAX_HEIGHT_V21	3072
 #define RKVPSS_MIN_WIDTH	32
 #define RKVPSS_MIN_HEIGHT	32
 #define RKVPSS_UNITE_MAX_WIDTH        8192
@@ -44,6 +46,7 @@ struct rkvpss_device;
 enum rkvpss_ver {
 	VPSS_V10 = 0x00,
 	VPSS_V20 = 0x20,
+	VPSS_V21 = 0x21,
 };
 
 enum {
@@ -113,6 +116,8 @@ static inline int vpss_outchn_max(int version)
 		return 4;
 	else if (version == VPSS_V20)
 		return 6;
+	else if (version == VPSS_V21)
+		return 4;
 
 	return 0;
 }

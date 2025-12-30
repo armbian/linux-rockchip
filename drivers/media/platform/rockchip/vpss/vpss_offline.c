@@ -15,6 +15,7 @@
 
 #include "vpss_offline_v10.h"
 #include "vpss_offline_v20.h"
+#include "vpss_offline_v21.h"
 
 void rkvpss_dump_reg(struct rkvpss_offline_dev *ofl, int sequence, int size)
 {
@@ -75,6 +76,8 @@ void rkvpss_offline_irq(struct rkvpss_hw_dev *hw, u32 irq)
 		rkvpss_offline_irq_v10(hw, irq);
 	else if (is_vpss_v20(hw))
 		rkvpss_offline_irq_v20(hw, irq);
+	else if (is_vpss_v21(hw))
+		rkvpss_offline_irq_v21(hw, irq);
 }
 
 int rkvpss_register_offline(struct rkvpss_hw_dev *hw)
@@ -85,6 +88,8 @@ int rkvpss_register_offline(struct rkvpss_hw_dev *hw)
 		ret = rkvpss_register_offline_v10(hw);
 	else if (is_vpss_v20(hw))
 		ret = rkvpss_register_offline_v20(hw);
+	else if (is_vpss_v21(hw))
+		ret = rkvpss_register_offline_v21(hw);
 
 	return ret;
 }
@@ -95,5 +100,7 @@ void rkvpss_unregister_offline(struct rkvpss_hw_dev *hw)
 		rkvpss_unregister_offline_v10(hw);
 	else if (is_vpss_v20(hw))
 		rkvpss_unregister_offline_v20(hw);
+	else if (is_vpss_v21(hw))
+		rkvpss_unregister_offline_v21(hw);
 }
 

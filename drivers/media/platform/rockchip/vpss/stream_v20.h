@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2025 Rockchip Electronics Co., Ltd. */
 
-
 #ifndef _RKVPSS_STREAM_V20_H
 #define _RKVPSS_STREAM_V20_H
 
@@ -19,6 +18,7 @@
 #include <media/videobuf2-dma-sg.h>
 #include <uapi/linux/rk-video-format.h>
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_VPSS_V20)
 struct rockit_vpss_ops {
 	int (*rkvpss_stream_start)(struct rkvpss_stream *stream);
 	void (*rkvpss_stream_stop)(struct rkvpss_stream *stream);
@@ -31,7 +31,7 @@ int rkvpss_rockit_buf_done(struct rkvpss_stream *stream, int cmd, struct rkvpss_
 int rkvpss_rockit_buf_free(struct rkvpss_stream *stream);
 void rkvpss_rockit_buf_state_clear(struct rkvpss_stream *stream);
 void rkvpss_rockit_frame_start(struct rkvpss_device *dev);
-
+#endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_VPSS_V20)
 int rkvpss_register_stream_vdevs_v20(struct rkvpss_device *dev);

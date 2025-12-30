@@ -15,4 +15,8 @@
 
 #define RKVPSS_DRIVER_VERSION VPSS_API_VERSION
 
+#ifndef GIT_LOG
+#define GIT_LOG "git log unavailable"
+#endif
+
 #endif

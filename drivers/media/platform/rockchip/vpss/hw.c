@@ -693,6 +693,14 @@ static const struct vpss_match_data rv1126b_vpss_match_data = {
 	.vpss_ver = VPSS_V20,
 };
 
+static const struct vpss_match_data rk3572_vpss_match_data = {
+	.irqs = vpss_irqs,
+	.num_irqs = ARRAY_SIZE(vpss_irqs),
+	.clks = vpss_clks,
+	.clks_num = ARRAY_SIZE(vpss_clks),
+	.vpss_ver = VPSS_V21,
+};
+
 static const struct of_device_id rkvpss_hw_of_match[] = {
 #ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V10
 	{
@@ -704,6 +712,12 @@ static const struct of_device_id rkvpss_hw_of_match[] = {
 	{
 		.compatible = "rockchip,rv1126b-rkvpss",
 		.data = &rv1126b_vpss_match_data,
+	},
+#endif
+#ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V21
+	{
+		.compatible = "rockchip,rk3572-rkvpss",
+		.data = &rk3572_vpss_match_data,
 	},
 #endif
 	{},
@@ -748,7 +762,7 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	writel(val, base + RKVPSS_CROP1_UPDATE);
 
 	/* scale */
-	if (is_vpss_v10(dev)) {
+	if (is_vpss_v10(dev) || is_vpss_v21(dev)) {
 		for (i = RKVPSS_ZME_BASE; i <= RKVPSS_ZME_UV_YSCL_FACTOR; i += 4) {
 			if (i == RKVPSS_ZME_UPDATE)
 				continue;
@@ -837,9 +851,7 @@ void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
 	}
 	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD |
 	      RKVPSS_ONLINE2_CHN_FORCE_UPD;
-	if (is_vpss_v20(dev))
-		val |= RKVPSS_MIR_FORCE_UPD;
-	if (!dev->is_ofl_cmsc)
+	if (is_vpss_v20(dev) || is_vpss_v21(dev) || !dev->is_ofl_cmsc)
 		val |= RKVPSS_MIR_FORCE_UPD;
 	writel(val, base + RKVPSS_VPSS_UPDATE);
 }

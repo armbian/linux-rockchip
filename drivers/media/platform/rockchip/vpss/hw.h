@@ -86,6 +86,12 @@ static inline bool is_vpss_v20(const struct rkvpss_hw_dev *hw_dev) { return hw_d
 static inline bool is_vpss_v20(const struct rkvpss_hw_dev *hw_dev) { return false; }
 #endif
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V21
+static inline bool is_vpss_v21(const struct rkvpss_hw_dev *hw_dev) { return hw_dev->vpss_ver == VPSS_V21; }
+#else
+static inline bool is_vpss_v21(const struct rkvpss_hw_dev *hw_dev) { return false; }
+#endif
+
 #define RKVPSS_ZME_TAP_COE(x, y) (((x) & 0x3ff) | (((y) & 0x3ff) << 16))
 extern const s16 rkvpss_zme_tap8_coe[11][17][8];
 extern const s16 rkvpss_zme_tap6_coe[11][17][8];

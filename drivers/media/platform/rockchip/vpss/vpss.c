@@ -4,6 +4,7 @@
 #include "vpss.h"
 #include "common.h"
 #include "stream.h"
+#include "stream_v21.h"
 #include "dev.h"
 #include "vpss_offline.h"
 #include "hw.h"
@@ -183,15 +184,18 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 	dev->cmsc_upd = true;
 	rkvpss_cmsc_config(dev, true);
 
+	/* v2.1: configure sharp if enabled */
+	if (dev->hw_dev->vpss_ver == VPSS_V21 && dev->sharp_cfg.enable)
+		rkvpss_sharp_config_v21(dev, &dev->sharp_cfg, true);
+
 	if (dev->unite_mode)
 		w = w / 2 + dev->unite_extend_pixel;
 
 	rkvpss_unite_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
 
 	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD;
-	if (dev->hw_dev->vpss_ver == VPSS_V20)
-		val |= RKVPSS_MIR_FORCE_UPD;
-	if (!dev->hw_dev->is_ofl_cmsc)
+	if (dev->hw_dev->vpss_ver == VPSS_V20 || dev->hw_dev->vpss_ver == VPSS_V21 ||
+	    !dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_MIR_FORCE_UPD;
 
 	rkvpss_unite_write(dev, RKVPSS_VPSS_UPDATE, val);
@@ -294,7 +298,7 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 		rkvpss_update_regs(dev, RKVPSS_VPSS_Y2R_COE00, RKVPSS_VPSS_Y2R_OFF2);
 		rkvpss_update_regs(dev, RKVPSS_CMSC_INTSCT_CORR, RKVPSS_CMSC_WIN7_L3_SLP);
 		rkvpss_update_regs(dev, RKVPSS_CROP1_0_H_OFFS, RKVPSS_CROP1_3_V_SIZE);
-		if (is_vpss_v10(hw)) {
+		if (is_vpss_v10(hw) || is_vpss_v21(hw)) {
 			rkvpss_update_regs(dev, RKVPSS_ZME_Y_HOR_COE0_10, RKVPSS_ZME_UV_VER_COE16_76);
 			rkvpss_update_regs(dev, RKVPSS_ZME_H_SIZE, RKVPSS_ZME_UV_YSCL_FACTOR);
 		}
@@ -321,7 +325,7 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 			rkvpss_update_regs(dev, RKVPSS2X_SCALE4_CTRL, RKVPSS2X_SCALE4_UPDATE);
 			rkvpss_update_regs(dev, RKVPSS2X_SCALE5_CTRL, RKVPSS2X_SCALE5_UPDATE);
 		}
-		if (is_vpss_v10(hw))
+		if (is_vpss_v10(hw) || is_vpss_v21(hw))
 			rkvpss_update_regs(dev, RKVPSS_ZME_CTRL, RKVPSS_ZME_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_CROP1_CTRL, RKVPSS_CROP1_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_CMSC_CTRL, RKVPSS_CMSC_UPDATE);

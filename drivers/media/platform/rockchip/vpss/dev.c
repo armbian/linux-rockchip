@@ -308,7 +308,8 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 		(RKVPSS_DRIVER_VERSION & 0xff00) >> 8,
 		RKVPSS_DRIVER_VERSION & 0x00ff);
 
-	dev_info(dev, "rkvpss driver version: %s\n", rkvpss_version);
+	dev_info(dev, "rkvpss driver version: %s [Header: %s] Git: %s\n",
+		 rkvpss_version, GIT_LOG_VPSS_CFG, GIT_LOG);
 
 	vpss_dev = devm_kzalloc(dev, sizeof(*vpss_dev), GFP_KERNEL);
 	if (!vpss_dev)

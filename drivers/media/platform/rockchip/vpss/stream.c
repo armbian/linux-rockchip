@@ -12,6 +12,7 @@
 
 #include "stream_v10.h"
 #include "stream_v20.h"
+#include "stream_v21.h"
 
 void rkvpss_cmsc_config(struct rkvpss_device *dev, bool sync)
 {
@@ -19,6 +20,8 @@ void rkvpss_cmsc_config(struct rkvpss_device *dev, bool sync)
 		rkvpss_cmsc_config_v10(dev, sync);
 	else if (is_vpss_v20(dev->hw_dev))
 		rkvpss_cmsc_config_v20(dev, sync);
+	else if (is_vpss_v21(dev->hw_dev))
+		rkvpss_cmsc_config_v21(dev, sync);
 }
 
 int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream)
@@ -30,6 +33,8 @@ int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream)
 		ret = rkvpss_stream_buf_cnt_v10(stream);
 	else if (is_vpss_v20(vpss->hw_dev))
 		ret = rkvpss_stream_buf_cnt_v20(stream);
+	else if (is_vpss_v21(vpss->hw_dev))
+		ret = rkvpss_stream_buf_cnt_v21(stream);
 
 	return ret;
 }
@@ -42,6 +47,8 @@ int rkvpss_register_stream_vdevs(struct rkvpss_device *dev)
 		ret = rkvpss_register_stream_vdevs_v10(dev);
 	else if (is_vpss_v20(dev->hw_dev))
 		ret = rkvpss_register_stream_vdevs_v20(dev);
+	else if (is_vpss_v21(dev->hw_dev))
+		ret = rkvpss_register_stream_vdevs_v21(dev);
 
 	return ret;
 }
@@ -52,6 +59,8 @@ void rkvpss_unregister_stream_vdevs(struct rkvpss_device *dev)
 		rkvpss_unregister_stream_vdevs_v10(dev);
 	else if (is_vpss_v20(dev->hw_dev))
 		rkvpss_unregister_stream_vdevs_v20(dev);
+	else if (is_vpss_v21(dev->hw_dev))
+		rkvpss_unregister_stream_vdevs_v21(dev);
 }
 
 void rkvpss_stream_default_fmt(struct rkvpss_device *dev, u32 id,
@@ -61,6 +70,8 @@ void rkvpss_stream_default_fmt(struct rkvpss_device *dev, u32 id,
 		rkvpss_stream_default_fmt_v10(dev, id, width, height, pixelformat);
 	else if (is_vpss_v20(dev->hw_dev))
 		rkvpss_stream_default_fmt_v20(dev, id, width, height, pixelformat);
+	else if (is_vpss_v21(dev->hw_dev))
+		rkvpss_stream_default_fmt_v21(dev, id, width, height, pixelformat);
 }
 
 void rkvpss_isr(struct rkvpss_device *dev, u32 mis_val)
@@ -69,6 +80,8 @@ void rkvpss_isr(struct rkvpss_device *dev, u32 mis_val)
 		rkvpss_isr_v10(dev, mis_val);
 	else if (is_vpss_v20(dev->hw_dev))
 		rkvpss_isr_v20(dev, mis_val);
+	else if (is_vpss_v21(dev->hw_dev))
+		rkvpss_isr_v21(dev, mis_val);
 }
 
 void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val)
@@ -77,4 +90,6 @@ void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val)
 		rkvpss_mi_isr_v10(dev, mis_val);
 	else if (is_vpss_v20(dev->hw_dev))
 		rkvpss_mi_isr_v20(dev, mis_val);
+	else if (is_vpss_v21(dev->hw_dev))
+		rkvpss_mi_isr_v21(dev, mis_val);
 }
