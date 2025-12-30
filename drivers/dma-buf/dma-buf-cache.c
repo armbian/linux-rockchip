@@ -32,9 +32,9 @@ static int dma_buf_cache_destructor(struct dma_buf *dmabuf, void *dtor_data)
 
 	list_for_each_entry_safe(cache, tmp, &data->head, list) {
 		if (!IS_ERR_OR_NULL(cache->sg_table))
-			dma_buf_unmap_attachment(cache->attach,
-						 cache->sg_table,
-						 cache->direction);
+			dma_buf_unmap_attachment_unlocked(cache->attach,
+							  cache->sg_table,
+							  cache->direction);
 
 		dma_buf_detach(dmabuf, cache->attach);
 		list_del(&cache->list);
