@@ -141,18 +141,18 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 		goto err_free_dma_buf;
 	}
 
-	table = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+	table = dma_buf_map_attachment_unlocked(attachment, DMA_BIDIRECTIONAL);
 	if (IS_ERR(table)) {
-		LOG_ERROR("dma_buf_map_attachment failed\n");
+		LOG_ERROR("dma_buf_map_attachment_unlocked failed\n");
 		dma_buf_detach(dmabuf, attachment);
 		ret = PTR_ERR(table);
 		goto err_free_dma_buf;
 	}
 
 	if (args.flags & RKNPU_MEM_KERNEL_MAPPING) {
-		ret = dma_buf_vmap(dmabuf, &map);
+		ret = dma_buf_vmap_unlocked(dmabuf, &map);
 		if (ret) {
-			LOG_ERROR("dma_buf_vmap failed\n");
+			LOG_ERROR("dma_buf_vmap_unlocked failed\n");
 			goto err_detach_dma_buf;
 		}
 		rknpu_obj->kv_addr = map.vaddr;
@@ -195,11 +195,11 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 	return 0;
 
 err_unmap_kv_addr:
-	dma_buf_vunmap(rknpu_obj->dmabuf, &map);
+	dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
 	rknpu_obj->kv_addr = NULL;
 
 err_detach_dma_buf:
-	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(attachment, table, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 
 err_free_dma_buf:
@@ -261,12 +261,12 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 		if (rknpu_obj->kv_addr) {
 			struct iosys_map map =
 				IOSYS_MAP_INIT_VADDR(rknpu_obj->kv_addr);
-			dma_buf_vunmap(rknpu_obj->dmabuf, &map);
+			dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
 			rknpu_obj->kv_addr = NULL;
 		}
 
-		dma_buf_unmap_attachment(rknpu_obj->attachment, rknpu_obj->sgt,
-					 DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(rknpu_obj->attachment, rknpu_obj->sgt,
+						  DMA_BIDIRECTIONAL);
 		dma_buf_detach(rknpu_obj->dmabuf, rknpu_obj->attachment);
 
 		if (!rknpu_obj->owner)

@@ -569,12 +569,12 @@ static int rknpu_release(struct inode *inode, struct file *file)
 		if (entry->kv_addr) {
 			struct iosys_map map =
 				IOSYS_MAP_INIT_VADDR(entry->kv_addr);
-			dma_buf_vunmap(entry->dmabuf, &map);
+			dma_buf_vunmap_unlocked(entry->dmabuf, &map);
 			entry->kv_addr = NULL;
 		}
 
-		dma_buf_unmap_attachment(entry->attachment, entry->sgt,
-					 DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(entry->attachment, entry->sgt,
+						  DMA_BIDIRECTIONAL);
 		dma_buf_detach(entry->dmabuf, entry->attachment);
 
 		if (!entry->owner)
