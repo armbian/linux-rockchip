@@ -724,8 +724,6 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	/* ELBI helper, only check the valid bits, and discard the rest interrupts */
 	elbi_reg = dw_pcie_readl_dbi(pci, PCIE_ELBI_LOCAL_BASE + PCIE_ELBI_APP_ELBI_INT_GEN0);
 	if (elbi_reg & PCIE_ELBI_APP_ELBI_INT_GEN0_IRQ_USER) {
-		rockchip_pcie_elbi_clear(rockchip);
-
 		if (rockchip->obj_info->irq_type_ep == OBJ_IRQ_USER) {
 			reg = rockchip->obj_info->irq_user_data_ep;
 			if (reg < RKEP_EP_VIRTUAL_ID_MAX) {
@@ -733,6 +731,10 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 				wake_up_interruptible(&rockchip->wq_head);
 			}
 		}
+	}
+
+	if (elbi_reg) {
+		rockchip_pcie_elbi_clear(rockchip);
 		goto out;
 	}
 
