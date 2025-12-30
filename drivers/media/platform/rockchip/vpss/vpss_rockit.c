@@ -207,7 +207,7 @@ int rkvpss_rockit_buf_queue(struct rockit_rkvpss_cfg *input_cfg)
 			return PTR_ERR(dba);
 		}
 
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			dma_buf_detach(input_cfg->buf, dba);
 			kfree(vpssrk_buf);
@@ -220,7 +220,7 @@ int rkvpss_rockit_buf_queue(struct rockit_rkvpss_cfg *input_cfg)
 		if (i < 2 || rkvpss_buf_dbg > 0) {
 			v4l2_dbg(3, rkvpss_debug, &vpss_dev->v4l2_dev,
 				 "stream:%d rockit vmap buf:%p\n", stream->id, input_cfg->buf);
-			if (dma_buf_vmap(input_cfg->buf, &map) == 0)
+			if (dma_buf_vmap_unlocked(input_cfg->buf, &map) == 0)
 				vpssrk_buf->vaddr = map.vaddr;
 		}
 
@@ -506,12 +506,13 @@ int rkvpss_rockit_buf_free(struct rkvpss_stream *stream)
 			if (vpssrk_buf->vaddr) {
 				struct iosys_map map = IOSYS_MAP_INIT_VADDR(vpssrk_buf->vaddr);
 
-				dma_buf_vunmap(vpssrk_buf->dmabuf, &map);
+				dma_buf_vunmap_unlocked(vpssrk_buf->dmabuf, &map);
 				vpssrk_buf->vaddr = NULL;
 			}
 			if (vpssrk_buf->sgt) {
-				dma_buf_unmap_attachment(vpssrk_buf->dba,
-							 vpssrk_buf->sgt, DMA_BIDIRECTIONAL);
+				dma_buf_unmap_attachment_unlocked(vpssrk_buf->dba,
+								  vpssrk_buf->sgt,
+								  DMA_BIDIRECTIONAL);
 				vpssrk_buf->sgt = NULL;
 			}
 			dma_buf_detach(vpssrk_buf->dmabuf, vpssrk_buf->dba);
