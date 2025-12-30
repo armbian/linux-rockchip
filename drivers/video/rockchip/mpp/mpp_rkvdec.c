@@ -477,7 +477,7 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 		goto access_failed;
 	}
 
-	ret = dma_buf_vmap(dmabuf, &map);
+	ret = dma_buf_vmap_unlocked(dmabuf, &map);
 	if (ret) {
 		mpp_err("can't access the pps buffer\n");
 		goto vmap_failed;
@@ -511,7 +511,7 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 	}
 
 task_fd_failed:
-	dma_buf_vunmap(dmabuf, &map);
+	dma_buf_vunmap_unlocked(dmabuf, &map);
 vmap_failed:
 	dma_buf_end_cpu_access(dmabuf, DMA_FROM_DEVICE);
 access_failed:

@@ -84,7 +84,7 @@ static void mpp_dma_release_buffer(struct kref *ref)
 	buffer->dma->buffer_count--;
 	list_move_tail(&buffer->link, &buffer->dma->unused_list);
 
-	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
+	dma_buf_unmap_attachment_unlocked(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
 	dma_buf_put(buffer->dmabuf);
 	buffer->dma = NULL;
@@ -247,10 +247,10 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 		goto fail_attach;
 	}
 
-	sgt = dma_buf_map_attachment(attach, buffer->dir);
+	sgt = dma_buf_map_attachment_unlocked(attach, buffer->dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
-		mpp_err("dma_buf_map_attachment fd %d failed(%d)\n", fd, ret);
+		mpp_err("dma_buf_map_attachment_unlocked fd %d failed(%d)\n", fd, ret);
 		goto fail_map;
 	}
 	buffer->iova = sg_dma_address(sgt->sgl);
@@ -296,7 +296,7 @@ int mpp_dma_unmap_kernel(struct mpp_dma_session *dma,
 	    IS_ERR_OR_NULL(dmabuf))
 		return -EINVAL;
 
-	dma_buf_vunmap(dmabuf, &map);
+	dma_buf_vunmap_unlocked(dmabuf, &map);
 	buffer->vaddr = NULL;
 
 	dma_buf_end_cpu_access(dmabuf, DMA_FROM_DEVICE);
@@ -320,7 +320,7 @@ int mpp_dma_map_kernel(struct mpp_dma_session *dma,
 		goto failed_access;
 	}
 
-	ret = dma_buf_vmap(dmabuf, &map);
+	ret = dma_buf_vmap_unlocked(dmabuf, &map);
 	if (ret) {
 		dev_dbg(dma->dev, "can't vmap the dma buffer\n");
 		goto failed_vmap;
