@@ -369,7 +369,7 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 			goto err_alloc;
 		}
 		dummy->dba = dba;
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			ret = PTR_ERR(sgt);
 			goto err_alloc;
@@ -431,8 +431,8 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	if (dev->hw_dev->iommu_en) {
 		if (dummy->dba) {
 			if (dummy->sgt) {
-				dma_buf_unmap_attachment(dummy->dba, dummy->sgt,
-							 DMA_BIDIRECTIONAL);
+				dma_buf_unmap_attachment_unlocked(dummy->dba, dummy->sgt,
+								  DMA_BIDIRECTIONAL);
 				dummy->sgt = NULL;
 			}
 			dma_buf_detach(dummy->dbuf, dummy->dba);
