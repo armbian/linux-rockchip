@@ -695,7 +695,7 @@ err_free_rk_obj:
 /*
  * rockchip_gem_destroy - destroy gem object
  *
- * The dma_buf_unmap_attachment and dma_buf_detach will be re-defined if
+ * The dma_buf_unmap_attachment_unlocked and dma_buf_detach will be re-defined if
  * CONFIG_DMABUF_CACHE is enabled.
  *
  * Same as drm_prime_gem_destroy
@@ -707,7 +707,7 @@ static void rockchip_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg
 
 	attach = obj->import_attach;
 	if (sg)
-		dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(attach, sg, DMA_BIDIRECTIONAL);
 	dma_buf = attach->dmabuf;
 	dma_buf_detach(attach->dmabuf, attach);
 	/* remove the reference */
