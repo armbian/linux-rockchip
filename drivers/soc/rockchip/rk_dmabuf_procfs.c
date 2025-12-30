@@ -28,7 +28,7 @@ static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 	if (IS_ERR(a))
 		return;
 
-	sgt = dma_buf_map_attachment(a, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(a, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		dma_buf_detach(dmabuf, a);
 		return;
@@ -48,7 +48,7 @@ static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 			   (len >> 10) ? (K(len)) : (unsigned long)len,
 			   (len >> 10) ? "KiB" : "Bytes");
 	}
-	dma_buf_unmap_attachment(a, sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(a, sgt, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, a);
 }
 
