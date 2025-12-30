@@ -891,7 +891,7 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 		}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		ret = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf, &map);
+		ret = dma_buf_vmap_unlocked(dump_buffer->dma_buffer->dma_buf, &map);
 		kvaddr = ret ? NULL : map.vaddr;
 #else
 		kvaddr = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf);
@@ -966,7 +966,7 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 	case RGA_DMA_BUFFER:
 	case RGA_DMA_BUFFER_PTR:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, &map);
+		dma_buf_vunmap_unlocked(dump_buffer->dma_buffer->dma_buf, &map);
 #else
 		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, kvaddr_origin);
 #endif

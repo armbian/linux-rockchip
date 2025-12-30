@@ -56,7 +56,7 @@ int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_i
 
 	if (!IS_ERR_OR_NULL(dma_buf)) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		ret = dma_buf_vmap(dma_buf, &map);
+		ret = dma_buf_vmap_unlocked(dma_buf, &map);
 		vaddr = ret ? NULL : map.vaddr;
 #else
 		vaddr = dma_buf_vmap(dma_buf);
@@ -69,7 +69,7 @@ int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_i
 			return -EINVAL;
 		}
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		dma_buf_vunmap(dma_buf, &map);
+		dma_buf_vunmap_unlocked(dma_buf, &map);
 #else
 		dma_buf_vunmap(dma_buf, vaddr);
 #endif
@@ -135,7 +135,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 		goto err_get_attach;
 	}
 
-	sgt = dma_buf_map_attachment(attach, dir);
+	sgt = dma_buf_map_attachment_unlocked(attach, dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		rga_err("Failed to map attachment, ret[%d]\n", ret);
@@ -187,7 +187,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 		goto err_get_attach;
 	}
 
-	sgt = dma_buf_map_attachment(attach, dir);
+	sgt = dma_buf_map_attachment_unlocked(attach, dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		rga_err("Failed to map attachment, ret[%d]\n", ret);
@@ -219,9 +219,9 @@ err_get_attach:
 void rga_dma_unmap_buf(struct rga_dma_buffer *rga_dma_buffer)
 {
 	if (rga_dma_buffer->attach && rga_dma_buffer->sgt)
-		dma_buf_unmap_attachment(rga_dma_buffer->attach,
-					 rga_dma_buffer->sgt,
-					 rga_dma_buffer->dir);
+		dma_buf_unmap_attachment_unlocked(rga_dma_buffer->attach,
+						  rga_dma_buffer->sgt,
+						  rga_dma_buffer->dir);
 
 	if (rga_dma_buffer->attach) {
 		dma_buf_detach(rga_dma_buffer->dma_buf, rga_dma_buffer->attach);
