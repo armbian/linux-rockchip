@@ -268,7 +268,7 @@ static int get_dmafd_sgtbl(int dma_fd, unsigned int dma_len, enum dma_data_direc
 	 * DMA_TO_DEVICE  : cache clean for input data
 	 * DMA_FROM_DEVICE: cache invalidate for output data
 	 */
-	*sg_tbl = dma_buf_map_attachment(*dma_attach, dir);
+	*sg_tbl = dma_buf_map_attachment_unlocked(*dma_attach, dir);
 	if (IS_ERR(*sg_tbl)) {
 		derr(1, "sg_tbl error! ret = %d", (int)PTR_ERR(*sg_tbl));
 		*sg_tbl = NULL;
@@ -282,7 +282,7 @@ static int get_dmafd_sgtbl(int dma_fd, unsigned int dma_len, enum dma_data_direc
 	return 0;
 error:
 	if (*sg_tbl)
-		dma_buf_unmap_attachment(*dma_attach, *sg_tbl, dir);
+		dma_buf_unmap_attachment_unlocked(*dma_attach, *sg_tbl, dir);
 
 	if (*dma_attach)
 		dma_buf_detach(*dmabuf, *dma_attach);
@@ -313,7 +313,7 @@ static int put_dmafd_sgtbl(int dma_fd, enum dma_data_direction dir,
 	 * DMA_TO_DEVICE  : do nothing for input data
 	 * DMA_FROM_DEVICE: cache invalidate for output data
 	 */
-	dma_buf_unmap_attachment(dma_attach, sg_tbl, dir);
+	dma_buf_unmap_attachment_unlocked(dma_attach, sg_tbl, dir);
 	dma_buf_detach(dmabuf, dma_attach);
 	dma_buf_put(dmabuf);
 
@@ -516,7 +516,7 @@ static int dma_fd_map_for_user(struct fcrypt *fcr, struct kernel_crypt_fd_map_op
 		goto error;
 	}
 
-	map_node->sgtbl = dma_buf_map_attachment(map_node->dma_attach, DMA_BIDIRECTIONAL);
+	map_node->sgtbl = dma_buf_map_attachment_unlocked(map_node->dma_attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(map_node->sgtbl)) {
 		derr(1, "sg_tbl error! ret = %d", (int)PTR_ERR(map_node->sgtbl));
 		map_node->sgtbl = NULL;
@@ -535,7 +535,9 @@ static int dma_fd_map_for_user(struct fcrypt *fcr, struct kernel_crypt_fd_map_op
 	return 0;
 error:
 	if (map_node->sgtbl)
-		dma_buf_unmap_attachment(map_node->dma_attach, map_node->sgtbl, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(map_node->dma_attach,
+						  map_node->sgtbl,
+						  DMA_BIDIRECTIONAL);
 
 	if (map_node->dma_attach)
 		dma_buf_detach(map_node->dmabuf, map_node->dma_attach);
@@ -558,8 +560,9 @@ static int dma_fd_unmap_for_user(struct fcrypt *fcr, struct kernel_crypt_fd_map_
 	list_for_each_entry_safe(map_node, tmp, &fcr->dma_map_list, list) {
 		if (map_node->fd_map.mop.dma_fd == kmop->mop.dma_fd &&
 		    map_node->fd_map.mop.phys_addr == kmop->mop.phys_addr) {
-			dma_buf_unmap_attachment(map_node->dma_attach, map_node->sgtbl,
-						 DMA_BIDIRECTIONAL);
+			dma_buf_unmap_attachment_unlocked(map_node->dma_attach,
+							  map_node->sgtbl,
+							  DMA_BIDIRECTIONAL);
 			dma_buf_detach(map_node->dmabuf, map_node->dma_attach);
 			dma_buf_put(map_node->dmabuf);
 			list_del(&map_node->list);
