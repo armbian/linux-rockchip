@@ -274,7 +274,7 @@ static int rga2_dma_memory_check(struct rga_dma_buffer_t *buffer,
 
 	if (!IS_ERR_OR_NULL(dma_buffer)) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		ret = dma_buf_vmap(dma_buffer, &map);
+		ret = dma_buf_vmap_unlocked(dma_buffer, &map);
 		vaddr = ret ? NULL : map.vaddr;
 #else
 		vaddr = dma_buf_vmap(dma_buffer);
@@ -288,7 +288,7 @@ static int rga2_dma_memory_check(struct rga_dma_buffer_t *buffer,
 		}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		dma_buf_vunmap(dma_buffer, &map);
+		dma_buf_vunmap_unlocked(dma_buffer, &map);
 #else
 		dma_buf_vunmap(dma_buffer, vaddr);
 #endif
@@ -325,7 +325,7 @@ static int rga2_map_dma_buffer(int fd,
 		goto err_get_attach;
 	}
 
-	sgt = dma_buf_map_attachment(attach, dir);
+	sgt = dma_buf_map_attachment_unlocked(attach, dir);
 	if (IS_ERR(sgt)) {
 		ret = -EINVAL;
 		pr_err("Failed to map src attachment\n");
@@ -353,9 +353,9 @@ err_get_attach:
 static void rga2_unmap_dma_buffer(struct rga_dma_buffer_t *rga_dma_buffer)
 {
 	if (rga_dma_buffer->attach && rga_dma_buffer->sgt)
-		dma_buf_unmap_attachment(rga_dma_buffer->attach,
-					 rga_dma_buffer->sgt,
-					 rga_dma_buffer->dir);
+		dma_buf_unmap_attachment_unlocked(rga_dma_buffer->attach,
+						  rga_dma_buffer->sgt,
+						  rga_dma_buffer->dir);
 	if (rga_dma_buffer->attach) {
 		dma_buf_detach(rga_dma_buffer->dma_buf, rga_dma_buffer->attach);
 		dma_buf_put(rga_dma_buffer->dma_buf);
