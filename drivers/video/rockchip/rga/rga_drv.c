@@ -889,7 +889,7 @@ static int rga_put_dma_buf(struct rga_req *req, struct rga_reg *reg)
 	attach = (!reg) ? req->attach_src : reg->attach_src;
 	sgt = (!reg) ? req->sg_src : reg->sg_src;
 	if (attach && sgt)
-		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {
 		dma_buf = attach->dmabuf;
 		dma_buf_detach(dma_buf, attach);
@@ -899,7 +899,7 @@ static int rga_put_dma_buf(struct rga_req *req, struct rga_reg *reg)
 	attach = (!reg) ? req->attach_dst : reg->attach_dst;
 	sgt = (!reg) ? req->sg_dst : reg->sg_dst;
 	if (attach && sgt)
-		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {
 		dma_buf = attach->dmabuf;
 		dma_buf_detach(dma_buf, attach);
@@ -1141,7 +1141,7 @@ static int rga_get_img_info(rga_img_info_t *img,
 #if RGA_DEBUGFS
 	if (RGA_CHECK_MODE) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		ret = dma_buf_vmap(dma_buf, &map);
+		ret = dma_buf_vmap_unlocked(dma_buf, &map);
 		vaddr = ret ? NULL : map.vaddr;
 #else
 		vaddr = dma_buf_vmap(dma_buf);
@@ -1150,14 +1150,14 @@ static int rga_get_img_info(rga_img_info_t *img,
 			rga_memory_check(vaddr, img->vir_w, img->vir_h,
 					 img->format, img->yrgb_addr);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-		dma_buf_vunmap(dma_buf, &map);
+		dma_buf_vunmap_unlocked(dma_buf, &map);
 #else
 		dma_buf_vunmap(dma_buf, vaddr);
 #endif
 	}
 #endif
 		*pattach = attach;
-		sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			ret = -EINVAL;
 			pr_err("Failed to map src attachment\n");
@@ -1185,7 +1185,7 @@ static int rga_get_img_info(rga_img_info_t *img,
 
 err_get_sg:
 	if (sgt)
-		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {
 		dma_buf = attach->dmabuf;
 		dma_buf_detach(dma_buf, attach);
@@ -1225,8 +1225,8 @@ static int rga_get_dma_buf(struct rga_req *req)
 
 err_dst:
 	if (req->sg_src && req->attach_src) {
-		dma_buf_unmap_attachment(req->attach_src,
-					 req->sg_src, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(req->attach_src,
+						  req->sg_src, DMA_BIDIRECTIONAL);
 		dma_buf = req->attach_src->dmabuf;
 		dma_buf_detach(dma_buf, req->attach_src);
 		dma_buf_put(dma_buf);
