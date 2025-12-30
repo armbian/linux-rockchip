@@ -766,14 +766,20 @@ void rkcif_scale_do_stop_stream(struct rkcif_scale_vdev *scale_vdev,
 		goto end_stop_scale;
 	}
 	/* Make sure no new work queued in isr before draining wq */
-	scale_vdev->stopping = true;
-	ret = wait_event_timeout(scale_vdev->wq_stopped,
-				 scale_vdev->state != RKCIF_STATE_STREAMING,
-				 msecs_to_jiffies(1000));
-	if (!ret) {
+	mutex_lock(&dev->stream_lock);
+	if (stream->cur_stream_mode != RKCIF_STREAM_MODE_NONE) {
+		scale_vdev->stopping = true;
+		ret = wait_event_timeout(scale_vdev->wq_stopped,
+					 scale_vdev->state != RKCIF_STATE_STREAMING,
+					 msecs_to_jiffies(1000));
+		if (!ret) {
+			rkcif_scale_stop(scale_vdev);
+			scale_vdev->stopping = false;
+		}
+	} else {
 		rkcif_scale_stop(scale_vdev);
-		scale_vdev->stopping = false;
 	}
+	mutex_unlock(&dev->stream_lock);
 	/* release buffers */
 	if (scale_vdev->curr_buf)
 		list_add_tail(&scale_vdev->curr_buf->queue, &scale_vdev->buf_head);
