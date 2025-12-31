@@ -820,14 +820,6 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 {
 	bool filled;
 
-	/*
-	 * If multishot has already posted deferred completions, ensure that
-	 * those are flushed first before posting this one. If not, CQEs
-	 * could get reordered.
-	 */
-	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
-		__io_submit_flush_completions(ctx);
-
 	io_cq_lock(ctx);
 	filled = io_fill_cqe_aux(ctx, user_data, res, cflags, allow_overflow);
 	io_cq_unlock_post(ctx);
@@ -1256,9 +1248,10 @@ static void io_req_task_cancel(struct io_kiocb *req, bool *locked)
 
 void io_req_task_submit(struct io_kiocb *req, bool *locked)
 {
-	io_tw_lock(req->ctx, locked);
-	/* req->task == current here, checking PF_EXITING is safe */
-	if (likely(!(req->task->flags & PF_EXITING)))
+	struct io_ring_ctx *ctx = req->ctx;
+
+	io_tw_lock(ctx, locked);
+	if (likely(!io_should_terminate_tw(ctx)))
 		io_queue_sqe(req);
 	else
 		io_req_complete_failed(req, -EFAULT);
@@ -1662,7 +1655,7 @@ queue:
 	spin_unlock(&ctx->completion_lock);
 
 	io_prep_async_link(req);
-	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	de = kmalloc(sizeof(*de), GFP_KERNEL_ACCOUNT);
 	if (!de) {
 		ret = -ENOMEM;
 		io_req_complete_failed(req, ret);
@@ -1780,8 +1773,10 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_poll_issue(struct io_kiocb *req, bool *locked)
 {
-	io_tw_lock(req->ctx, locked);
-	if (unlikely(req->task->flags & PF_EXITING))
+	struct io_ring_ctx *ctx = req->ctx;
+
+	io_tw_lock(ctx, locked);
+	if (unlikely(io_should_terminate_tw(ctx)))
 		return -EFAULT;
 	return io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_MULTISHOT);
 }
