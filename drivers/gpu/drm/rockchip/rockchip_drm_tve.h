@@ -280,6 +280,7 @@ struct rockchip_tve {
 	u32 dac1level;
 	u32 preferred_mode;
 	u8 vdac_out_current;
+	u8 default_out_current;
 	struct mutex suspend_lock;	/* mutex for tve resume operation*/
 	struct rockchip_drm_sub_dev sub_dev;
 };
