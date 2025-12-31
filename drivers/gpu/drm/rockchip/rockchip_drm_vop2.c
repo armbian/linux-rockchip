@@ -6541,6 +6541,13 @@ static int vop2_cluster_two_win_mode_check(struct drm_plane_state *pstate)
 		return -EINVAL;
 	}
 
+	if (vop2->version >= VOP_VERSION_RK3572) {
+		if (rockchip_afbc(plane, fb->modifier) && fb->format->is_yuv) {
+			DRM_ERROR("Can't support yuv format with afbc in two win mode\n");
+			return -EINVAL;
+		}
+	}
+
 	if (main_pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		xoffset = 0;
 	else
