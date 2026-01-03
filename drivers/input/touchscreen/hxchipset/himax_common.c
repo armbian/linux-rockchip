@@ -2069,7 +2069,9 @@ found_hx_chip:
 		goto err_creat_proc_file_failed;
 	}
 
-	himax_ts_register_interrupt(ts);
+	err = himax_ts_register_interrupt(ts);
+	if (err)
+		goto err_register_interrupt_failed;
 
 	himax_fail_det_register_interrupt(ts);
 
@@ -2085,6 +2087,8 @@ found_hx_chip:
 	ts->hx_chip_inited = true;
 	return 0;
 
+err_register_interrupt_failed:
+	himax_common_proc_deinit(ts);
 err_creat_proc_file_failed:
 #if defined(HIMAX_I2C_PLATFORM)
 	himax_sysfs_deinit(ts);

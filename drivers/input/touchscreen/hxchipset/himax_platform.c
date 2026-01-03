@@ -806,11 +806,17 @@ int himax_ts_register_interrupt(struct himax_ts_data *ts)
 	/*if use polling mode need to disable HX_ESD_RECOVERY function*/
 	if (!ts->use_irq) {
 		ts->himax_wq = create_singlethread_workqueue("himax_touch");
+		if (!ts->himax_wq) {
+			I("%s: failed to create himax_touch workqueue\n", __func__);
+			return -ENOMEM;
+		}
+
 		INIT_WORK(&ts->work, himax_ts_work_func);
 		hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ts->timer.function = himax_ts_timer_func;
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 		I("%s: polling mode enabled\n", __func__);
+		return 0;
 	}
 
 	return ret;
@@ -1090,7 +1096,9 @@ static int himax_chip_common_probe(struct i2c_client *client, const struct i2c_d
 	ts->initialized = false;
 	ts->touch_num = 50;
 
-	himax_2nd_probe(ts);
+	ret = himax_2nd_probe(ts);
+	if (ret)
+		goto err_himax_2nd_probe_failed;
 
 	/*ts->edev = extcon_find_edev_by_node(node->parent->parent);
 	if (IS_ERR(ts->edev)) {
@@ -1121,6 +1129,8 @@ static int himax_chip_common_probe(struct i2c_client *client, const struct i2c_d
 	// tp_client = client;
 	return 0;
 
+err_himax_2nd_probe_failed:
+	kfree(ts->rw_buf);
 err_alloc_rw_buf_failed:
 	kfree(ts);
 err_alloc_data_failed:
