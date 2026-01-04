@@ -2293,7 +2293,7 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 
 	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM);
 	KBASE_DEBUG_ASSERT(NULL == alloc->imported.umm.sgt);
-	sgt = dma_buf_map_attachment(alloc->imported.umm.dma_attachment,
+	sgt = dma_buf_map_attachment_unlocked(alloc->imported.umm.dma_attachment,
 			DMA_BIDIRECTIONAL);
 
 	if (IS_ERR_OR_NULL(sgt))
@@ -2321,13 +2321,13 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 				count++)
 			*pa++ = sg_dma_address(s) + (j << PAGE_SHIFT);
 		WARN_ONCE(j < pages,
-		"sg list from dma_buf_map_attachment > dma_buf->size=%zu\n",
+		"sg list from dma_buf_map_attachment_unlocked > dma_buf->size=%zu\n",
 		alloc->imported.umm.dma_buf->size);
 	}
 
 	if (!(reg->flags & KBASE_REG_IMPORT_PAD) &&
 			WARN_ONCE(count < reg->nr_pages,
-			"sg list from dma_buf_map_attachment < dma_buf->size=%zu\n",
+			"sg list from dma_buf_map_attachment_unlocked < dma_buf->size=%zu\n",
 			alloc->imported.umm.dma_buf->size)) {
 		err = -EINVAL;
 		goto err_unmap_attachment;
@@ -2359,7 +2359,7 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 err_teardown_orig_pages:
 	kbase_mmu_teardown_pages(kctx, reg->start_pfn, count);
 err_unmap_attachment:
-	dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment,
+	dma_buf_unmap_attachment_unlocked(alloc->imported.umm.dma_attachment,
 			alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
 	alloc->imported.umm.sgt = NULL;
 
@@ -2373,7 +2373,7 @@ static void kbase_jd_umm_unmap(struct kbase_context *kctx,
 	KBASE_DEBUG_ASSERT(alloc);
 	KBASE_DEBUG_ASSERT(alloc->imported.umm.dma_attachment);
 	KBASE_DEBUG_ASSERT(alloc->imported.umm.sgt);
-	dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment,
+	dma_buf_unmap_attachment_unlocked(alloc->imported.umm.dma_attachment,
 	    alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
 	alloc->imported.umm.sgt = NULL;
 	alloc->nents = 0;
