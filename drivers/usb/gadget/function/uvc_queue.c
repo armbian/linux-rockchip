@@ -111,7 +111,7 @@ static void *uvc_dma_buf_phys_to_virt(struct uvc_device *uvc,
 	if (IS_ERR(attachment))
 		return ERR_PTR(-ENOMEM);
 
-	table = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+	table = dma_buf_map_attachment_unlocked(attachment, DMA_BIDIRECTIONAL);
 	if (IS_ERR(table)) {
 		dma_buf_detach(dbuf, attachment);
 		return ERR_PTR(-ENOMEM);
@@ -120,7 +120,7 @@ static void *uvc_dma_buf_phys_to_virt(struct uvc_device *uvc,
 	for_each_sgtable_sg(table, sgl, i)
 		phys = sg_phys(sgl);
 
-	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(attachment, table, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dbuf, attachment);
 
 	if (i > 1) {
