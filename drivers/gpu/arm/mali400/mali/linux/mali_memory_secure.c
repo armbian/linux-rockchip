@@ -41,7 +41,7 @@ _mali_osk_errcode_t mali_mem_secure_attach_dma_buf(mali_mem_secure *secure_mem, 
 		goto failed_dma_attach;
 	}
 
-	secure_mem->sgt = dma_buf_map_attachment(secure_mem->attachment, DMA_BIDIRECTIONAL);
+	secure_mem->sgt = dma_buf_map_attachment_unlocked(secure_mem->attachment, DMA_BIDIRECTIONAL);
 	if (IS_ERR_OR_NULL(secure_mem->sgt)) {
 		MALI_DEBUG_PRINT_ERROR(("Failed to map dma buf attachment\n"));
 		goto  failed_dma_map;
@@ -157,7 +157,7 @@ u32 mali_mem_secure_release(mali_mem_backend *mem_bkend)
 	/* Unmap the memory from the mali virtual address space. */
 	mali_mem_secure_mali_unmap(alloc);
 	mutex_lock(&mem_bkend->mutex);
-	dma_buf_unmap_attachment(mem->attachment, mem->sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(mem->attachment, mem->sgt, DMA_BIDIRECTIONAL);
 	dma_buf_detach(mem->buf, mem->attachment);
 	dma_buf_put(mem->buf);
 	mutex_unlock(&mem_bkend->mutex);

@@ -68,7 +68,7 @@ static int mali_dma_buf_map(mali_mem_backend *mem_backend)
 		/* First reference taken, so we need to map the dma buf */
 		MALI_DEBUG_ASSERT(!mem->is_mapped);
 
-		mem->sgt = dma_buf_map_attachment(mem->attachment, DMA_BIDIRECTIONAL);
+		mem->sgt = dma_buf_map_attachment_unlocked(mem->attachment, DMA_BIDIRECTIONAL);
 		if (IS_ERR_OR_NULL(mem->sgt)) {
 			MALI_DEBUG_PRINT_ERROR(("Failed to map dma-buf attachment\n"));
 			mem->map_ref--;
@@ -134,7 +134,7 @@ static void mali_dma_buf_unmap(mali_mem_allocation *alloc, struct mali_dma_buf_a
 	MALI_DEBUG_PRINT(5, ("Mali DMA-buf: unmap attachment %p, new map_ref = %d\n", mem, mem->map_ref));
 
 	if (0 == mem->map_ref) {
-		dma_buf_unmap_attachment(mem->attachment, mem->sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(mem->attachment, mem->sgt, DMA_BIDIRECTIONAL);
 		if (MALI_TRUE == mem->is_mapped) {
 			mali_mem_mali_map_free(alloc->session, alloc->psize, alloc->mali_vma_node.vm_node.start,
 					       alloc->flags);
