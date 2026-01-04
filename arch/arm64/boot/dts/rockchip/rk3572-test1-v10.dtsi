@@ -5,3 +5,48 @@
 
 #include "rk3572.dtsi"
 #include "rk3572-evb.dtsi"
+
+&dsmc {
+	clock-frequency = <10000000>;
+	status = "disabled";
+	slave {
+		rockchip,dqs-dll = <0x80 0x80
+				    0x80 0x80
+				    0x80 0x80
+				    0x80 0x80>;
+		rockchip,ranges = <0x0 0x10000000 0x0 0x2000000>;
+	};
+};
+
+&dsmc_slave {
+	status = "disabled";
+	psram {
+		dsmc_psram0: psram0 {
+			status = "disabled";
+		};
+		dsmc_psram1: psram1 {
+			status = "disabled";
+		};
+		dsmc_psram2: psram2 {
+			status = "disabled";
+		};
+		dsmc_psram3: psram3 {
+			status = "disabled";
+		};
+	};
+
+	lb-slave {
+		dsmc_lb_slave0: lb-slave0 {
+			rockchip,int-en = <0x0>;
+			status = "okay";
+			dsmc_p0_region: region {
+				dsmc_p0_region0: region0 {
+					status = "okay";
+				};
+				dsmc_p0_region3: region3 {
+					status = "okay";
+				};
+			};
+		};
+	};
+};
