@@ -3318,6 +3318,8 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev,
 		value = priv_val->buf_3dnr.dma_addr;
 		rkisp_iowrite32(params_vdev, value, ISP21_MI_BAY3D_WR_BASE);
 		rkisp_iowrite32(params_vdev, value, ISP21_MI_BAY3D_RD_BASE);
+		rkisp_iowrite32(params_vdev, 0, ISP21_MI_BAY3D_WR_LENGTH);
+		rkisp_iowrite32(params_vdev, 0, ISP21_MI_BAY3D_RD_LENGTH);
 
 		rkisp_set_bits(params_vdev->dev, MI_RD_CTRL2,
 			       BAY3D_RW_ONEADDR_EN, BAY3D_RW_ONEADDR_EN, false);
