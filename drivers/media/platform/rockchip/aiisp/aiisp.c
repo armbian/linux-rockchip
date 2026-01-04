@@ -375,7 +375,7 @@ static void rkaiisp_detach_dmabuf(struct rkaiisp_device *aidev,
 		v4l2_dbg(1, rkaiisp_debug, &aidev->v4l2_dev,
 			 "%s dma_fd:%d, buf:%pad size:%d\n", __func__,
 			 buffer->dma_fd, &buffer->dma_addr, buffer->size);
-		dma_buf_unmap_attachment(buffer->dba, buffer->sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(buffer->dba, buffer->sgt, DMA_BIDIRECTIONAL);
 		dma_buf_detach(buffer->dmabuf, buffer->dba);
 		dma_buf_put(buffer->dmabuf);
 		memset(buffer, 0, sizeof(struct rkaiisp_dummy_buffer));
@@ -397,7 +397,7 @@ static void rkaiisp_free_aiynr_ybuf(struct rkaiisp_device *aidev)
 				buf_cfg->buf[i]);
 			if (ynroutbuf[i].dba) {
 				if (ynroutbuf[i].sgt) {
-					dma_buf_unmap_attachment(ynroutbuf[i].dba,
+					dma_buf_unmap_attachment_unlocked(ynroutbuf[i].dba,
 								 ynroutbuf[i].sgt,
 								 DMA_BIDIRECTIONAL);
 					ynroutbuf[i].sgt = NULL;
@@ -475,7 +475,7 @@ static int rkaiisp_attach_dmabuf(struct rkaiisp_device *aidev,
 		return ret;
 	}
 	buffer->dba = dba;
-	sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		dma_buf_detach(dmabuf, dba);
@@ -2296,7 +2296,7 @@ int rkaiisp_set_aiynr_ybuf(struct rkaiisp_device *aidev, struct aiisp_aiynr_ybuf
 			return PTR_ERR(dba);
 		}
 
-		sgt = dma_buf_map_attachment(dba, DMA_BIDIRECTIONAL);
+		sgt = dma_buf_map_attachment_unlocked(dba, DMA_BIDIRECTIONAL);
 		if (IS_ERR(sgt)) {
 			dma_buf_detach(buf_cfg->buf[i], dba);
 			mutex_unlock(&aidev->apilock);
