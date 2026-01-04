@@ -21,12 +21,20 @@ extern struct sg_table *
 dma_buf_cache_map_attachment(struct dma_buf_attachment *attach,
 			     enum dma_data_direction direction);
 
+extern void dma_buf_cache_unmap_attachment_unlocked(struct dma_buf_attachment *attach,
+						    struct sg_table *sg_table,
+						    enum dma_data_direction direction);
+
+extern struct sg_table *dma_buf_cache_map_attachment_unlocked(struct dma_buf_attachment *attach,
+							      enum dma_data_direction direction);
 #ifdef CONFIG_DMABUF_CACHE
 /* Replace dma-buf apis to cached apis */
 #define dma_buf_attach dma_buf_cache_attach
 #define dma_buf_detach dma_buf_cache_detach
 #define dma_buf_map_attachment dma_buf_cache_map_attachment
 #define dma_buf_unmap_attachment dma_buf_cache_unmap_attachment
+#define dma_buf_map_attachment_unlocked dma_buf_cache_map_attachment_unlocked
+#define dma_buf_unmap_attachment_unlocked dma_buf_cache_unmap_attachment_unlocked
 #endif
 
 #endif /* _LINUX_DMA_BUF_CACHE_H */

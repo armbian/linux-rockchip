@@ -5,6 +5,7 @@
 
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #undef CONFIG_DMABUF_CACHE
 #include <linux/dma-buf-cache.h>
 
@@ -200,3 +201,36 @@ map_done:
 	return sg_table;
 }
 EXPORT_SYMBOL(dma_buf_cache_map_attachment);
+
+void dma_buf_cache_unmap_attachment_unlocked(struct dma_buf_attachment *attach,
+					     struct sg_table *sg_table,
+					     enum dma_data_direction direction)
+{
+	might_sleep();
+
+	if (WARN_ON(!attach || !attach->dmabuf || !sg_table))
+		return;
+
+	dma_resv_lock(attach->dmabuf->resv, NULL);
+	dma_buf_cache_unmap_attachment(attach, sg_table, direction);
+	dma_resv_unlock(attach->dmabuf->resv);
+}
+EXPORT_SYMBOL(dma_buf_cache_unmap_attachment_unlocked);
+
+struct sg_table *dma_buf_cache_map_attachment_unlocked(struct dma_buf_attachment *attach,
+						       enum dma_data_direction direction)
+{
+	struct sg_table *sg_table;
+
+	might_sleep();
+
+	if (WARN_ON(!attach || !attach->dmabuf))
+		return ERR_PTR(-EINVAL);
+
+	dma_resv_lock(attach->dmabuf->resv, NULL);
+	sg_table = dma_buf_cache_map_attachment(attach, direction);
+	dma_resv_unlock(attach->dmabuf->resv);
+
+	return sg_table;
+}
+EXPORT_SYMBOL(dma_buf_cache_map_attachment_unlocked);
