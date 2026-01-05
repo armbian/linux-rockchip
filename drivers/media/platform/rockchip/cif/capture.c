@@ -4730,6 +4730,7 @@ static void rkcif_modify_frame_skip_config(struct rkcif_stream *stream)
 		stream->skip_info.skip_to_en = false;
 	} else if (stream->skip_info.skip_to_dis) {
 		rkcif_disable_skip_frame(stream);
+		stream->skip_info.skip_to_dis = false;
 	}
 }
 
