@@ -31,36 +31,36 @@
 		#size-cells = <2>;
 		ranges;
 
-		mcu_reserved: mcu@47800000 {
-			reg = <0x0 0x47800000 0x0 0x100000>;
+		rpmsg_reserved: rpmsg@47800000 {
+			reg = <0x0 0x47800000 0x0 0x200000>;
 			no-map;
 		};
 
-		amp_shmem_reserved: amp-shmem@47900000 {
-			reg = <0x0 0x47900000 0x0 0x400000>;
-			no-map;
-		};
-
-		rpmsg_reserved: rpmsg@47d00000 {
-			reg = <0x0 0x47d00000 0x0 0x200000>;
-			no-map;
-		};
-
-		rpmsg_dma_reserved: rpmsg-dma@47f00000 {
+		rpmsg_dma_reserved: rpmsg-dma@47a00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x47f00000 0x0 0x200000>;
+			reg = <0x0 0x47a00000 0x0 0x200000>;
+			no-map;
+		};
+
+		amp_shmem_reserved: amp-shmem@47c00000 {
+			reg = <0x0 0x47c00000 0x0 0x400000>;
+			no-map;
+		};
+
+		mcu_reserved: mcu@48000000 {
+			reg = <0x0 0x48000000 0x0 0x200000>;
 			no-map;
 		};
 	};
 
-	rpmsg: rpmsg@47d00000 {
+	rpmsg: rpmsg@47800000 {
 		compatible = "rockchip,rpmsg";
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
 		mboxes = <&mailbox0 0 &mailbox3 0>;
 		rockchip,vdev-nums = <1>;
 		/* CPU3: link-id 0x03; MCU: link-id 0x04; */
 		rockchip,link-id = <0x03>;
-		reg = <0x0 0x47d00000 0x0 0x20000>;
+		reg = <0x0 0x47800000 0x0 0x20000>;
 		memory-region = <&rpmsg_dma_reserved>;
 
 		status = "okay";

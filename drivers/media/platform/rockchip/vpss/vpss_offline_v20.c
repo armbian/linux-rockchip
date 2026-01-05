@@ -1897,11 +1897,13 @@ static int rkvpss_ofl_run(struct rkvpss_offline_dev *ofl,
 		add_cfginfo(ofl, cfg);
 
 	init_completion(&ofl->cmpl);
-	ofl->mode_sel_en = false;
 
 	ret = read_config(ofl, file_id, cfg, unite, left);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s read_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 
 	if (unite && left)
 		calc_unite_scl_params(ofl, cfg);
@@ -1912,16 +1914,22 @@ static int rkvpss_ofl_run(struct rkvpss_offline_dev *ofl,
 		left_tmp = left;
 
 	ret = cmsc_config(ofl, cfg, unite, left_tmp);
-	if (ret)
+	if (ret) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s cmsc_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 
 	crop_config(ofl, cfg, unite, left_tmp);
 	scale_config(ofl, cfg, unite, left_tmp);
 	if (!unite)
 		aspt_config(ofl, cfg);
 	ret = write_config(ofl, file_id, cfg, unite, left_tmp);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s write_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 
 	mask = 0;
 	val = 0;
@@ -2021,13 +2029,11 @@ int rkvpss_module_sel(struct rkvpss_offline_dev *ofl,
 	struct rkvpss_device *vpss;
 	int i, ret = 0;
 
-	mutex_lock(&hw->dev_lock);
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s mirror_cmsc_en=%d\n",
+		 __func__, sel->mirror_cmsc_en);
 
-	if (!ofl->mode_sel_en) {
-		v4l2_err(&ofl->v4l2_dev, "already set module_sel\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
+	mutex_lock(&hw->dev_lock);
 
 	for (i = 0; i < hw->dev_num; i++) {
 		vpss = hw->vpss[i];
@@ -2041,6 +2047,11 @@ int rkvpss_module_sel(struct rkvpss_offline_dev *ofl,
 	hw->is_ofl_cmsc = !!sel->mirror_cmsc_en;
 	for (i = 0; i < RKVPSS_OUT_V20_MAX; i++)
 		hw->is_ofl_ch[i] = !!sel->ch_en[i];
+
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s result: is_ofl_cmsc=%d\n",
+		 __func__, hw->is_ofl_cmsc);
+
 unlock:
 	mutex_unlock(&hw->dev_lock);
 	return ret;
@@ -2612,14 +2623,14 @@ end:
 static int ofl_get_file_id(struct rkvpss_offline_dev *ofl,
 			   struct file *file)
 {
-	void *idr_entity_temp;
+	void *idr_entity;
 	int file_id = 0;
 	bool in_idr = false;
 	int ret;
 
 	mutex_lock(&ofl->idr_lock);
-	idr_for_each_entry(&ofl->file_idr, idr_entity_temp, file_id) {
-		if ((void *)file == idr_entity_temp) {
+	idr_for_each_entry(&ofl->file_idr, idr_entity, file_id) {
+		if (idr_entity == (void *)file) {
 			in_idr = true;
 			break;
 		}
@@ -2802,20 +2813,25 @@ static const struct v4l2_ioctl_ops offline_ioctl_ops = {
 
 int rkvpss_ofl_add_file_id(struct rkvpss_offline_dev *ofl, void *idr_entity)
 {
-	void *idr_entity_temp;
+	void *idr_entity_tmp;
 	int idr_id = 0, ret = 0;
 	bool in_idr = false;
 
 	mutex_lock(&ofl->idr_lock);
 
-	idr_for_each_entry(&ofl->file_idr, idr_entity_temp, idr_id) {
-		if (idr_entity == idr_entity_temp) {
+	idr_for_each_entry(&ofl->file_idr, idr_entity_tmp, idr_id) {
+		if (idr_entity_tmp == idr_entity) {
 			in_idr = true;
 			break;
 		}
 	}
-	if (!in_idr)
+	if (!in_idr) {
 		ret = idr_alloc(&ofl->file_idr, idr_entity, 1, 0, GFP_KERNEL);
+		if (ret > 0) {
+			v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+				 "%s new file_id=%d\n", __func__, ret);
+		}
+	}
 
 	mutex_unlock(&ofl->idr_lock);
 
@@ -2825,15 +2841,18 @@ int rkvpss_ofl_add_file_id(struct rkvpss_offline_dev *ofl, void *idr_entity)
 void *rkvpss_ofl_del_file_id(struct rkvpss_offline_dev *ofl, struct file *file)
 {
 	void *ret = NULL;
+	void *idr_entity;
 	int idr_id = 0;
 
-	idr_id = ofl_get_file_id(ofl, file);
-
 	mutex_lock(&ofl->idr_lock);
-
-	if (idr_id)
-		ret = idr_remove(&ofl->file_idr, idr_id);
-
+	idr_for_each_entry(&ofl->file_idr, idr_entity, idr_id) {
+		if (idr_entity == (void *)file) {
+			ret = idr_remove(&ofl->file_idr, idr_id);
+			v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+				 "%s file_id=%d\n", __func__, idr_id);
+			break;
+		}
+	}
 	mutex_unlock(&ofl->idr_lock);
 
 	return ret;
@@ -2854,13 +2873,19 @@ static int ofl_open(struct file *file)
 		goto end;
 
 	mutex_lock(&ofl->hw->dev_lock);
-	ret = pm_runtime_get_sync(ofl->hw->dev);
-	mutex_unlock(&ofl->hw->dev_lock);
-
+	ret = pm_runtime_resume_and_get(ofl->hw->dev);
 	if (ret < 0) {
+		mutex_unlock(&ofl->hw->dev_lock);
+		v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s pm_runtime_resume_and_get failed, ret=%d\n",
+			 __func__, ret);
 		v4l2_fh_release(file);
 		goto end;
 	}
+	ofl->ref_cnt++;
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, ofl->ref_cnt);
+	mutex_unlock(&ofl->hw->dev_lock);
 
 	/* Set core clock frequency for offline mode after power domain is ready */
 	if (ofl->hw->dev_num > 0 && ofl->hw->vpss[0]) {
@@ -2879,6 +2904,7 @@ end:
 static int ofl_release(struct file *file)
 {
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
+	struct rkvpss_hw_dev *hw = ofl->hw;
 	int ret = 0;
 	int file_id = 0;
 
@@ -2890,9 +2916,19 @@ static int ofl_release(struct file *file)
 	if (file_id)
 		buf_del(ofl, NULL, file_id, 0, 0, true, false);
 
-	mutex_lock(&ofl->hw->dev_lock);
-	pm_runtime_put_sync(ofl->hw->dev);
-	mutex_unlock(&ofl->hw->dev_lock);
+	mutex_lock(&hw->dev_lock);
+	ofl->ref_cnt--;
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, ofl->ref_cnt);
+	if (ofl->ref_cnt == 0) {
+		v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s ref_cnt=0, clearing is_ofl_cmsc and is_ofl_ch\n",
+			 __func__);
+		hw->is_ofl_cmsc = false;
+		memset(hw->is_ofl_ch, 0, sizeof(hw->is_ofl_ch));
+	}
+	pm_runtime_put_sync(hw->dev);
+	mutex_unlock(&hw->dev_lock);
 
 	if (rkvpss_ofl_del_file_id(ofl, file) != (void *)file)
 		ret = -EINVAL;
@@ -2946,7 +2982,7 @@ int rkvpss_register_offline_v20(struct rkvpss_hw_dev *hw)
 
 	mutex_init(&ofl->apilock);
 	ofl->vfd = offline_videodev;
-	ofl->mode_sel_en = true;
+	ofl->ref_cnt = 0;
 	vfd = &ofl->vfd;
 	vfd->device_caps = V4L2_CAP_STREAMING;
 	vfd->v4l2_dev = v4l2_dev;

@@ -1592,11 +1592,13 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 		add_cfginfo(ofl, cfg);
 
 	init_completion(&ofl->cmpl);
-	ofl->mode_sel_en = false;
 
 	ret = read_config(file, cfg, unite, left);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s read_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 
 	if (unite && left)
 		calc_unite_scl_params(file, cfg);
@@ -1607,15 +1609,21 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 		left_tmp = left;
 
 	ret = cmsc_config(ofl, cfg, unite, left_tmp);
-	if (ret)
+	if (ret) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s cmsc_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 	crop_config(file, cfg, unite, left_tmp);
 	scale_config(file, cfg, unite, left_tmp);
 	if (!unite)
 		aspt_config(file, cfg);
 	ret = write_config(file, cfg, unite, left_tmp);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s write_config failed, ret=%d\n", __func__, ret);
 		return ret;
+	}
 
 	mask = 0;
 	val = 0;
@@ -1689,13 +1697,11 @@ static int rkvpss_module_sel(struct file *file,
 	struct rkvpss_device *vpss;
 	int i, ret = 0;
 
-	mutex_lock(&hw->dev_lock);
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s mirror_cmsc_en=%d\n",
+		 __func__, sel->mirror_cmsc_en);
 
-	if (!ofl->mode_sel_en) {
-		v4l2_err(&ofl->v4l2_dev, "already set module_sel\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
+	mutex_lock(&hw->dev_lock);
 
 	for (i = 0; i < hw->dev_num; i++) {
 		vpss = hw->vpss[i];
@@ -1709,6 +1715,11 @@ static int rkvpss_module_sel(struct file *file,
 	hw->is_ofl_cmsc = !!sel->mirror_cmsc_en;
 	for (i = 0; i < RKVPSS_OUT_V10_MAX; i++)
 		hw->is_ofl_ch[i] = !!sel->ch_en[i];
+
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s result: is_ofl_cmsc=%d\n",
+		 __func__, hw->is_ofl_cmsc);
+
 unlock:
 	mutex_unlock(&hw->dev_lock);
 	return ret;
@@ -2169,10 +2180,19 @@ static int ofl_open(struct file *file)
 		goto end;
 
 	mutex_lock(&ofl->hw->dev_lock);
-	ret = pm_runtime_get_sync(ofl->hw->dev);
-	mutex_unlock(&ofl->hw->dev_lock);
-	if (ret < 0)
+	ret = pm_runtime_resume_and_get(ofl->hw->dev);
+	if (ret < 0) {
+		mutex_unlock(&ofl->hw->dev_lock);
+		v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s pm_runtime_resume_and_get failed, ret=%d\n",
+			 __func__, ret);
 		v4l2_fh_release(file);
+		goto end;
+	}
+	ofl->ref_cnt++;
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, ofl->ref_cnt);
+	mutex_unlock(&ofl->hw->dev_lock);
 end:
 	v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
 		 "%s file:%p ret:%d\n", __func__, file, ret);
@@ -2182,15 +2202,26 @@ end:
 static int ofl_release(struct file *file)
 {
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
+	struct rkvpss_hw_dev *hw = ofl->hw;
 
 	v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
 		 "%s file:%p\n", __func__, file);
 
 	v4l2_fh_release(file);
 	buf_del(file, 0, 0, true, false);
-	mutex_lock(&ofl->hw->dev_lock);
-	pm_runtime_put_sync(ofl->hw->dev);
-	mutex_unlock(&ofl->hw->dev_lock);
+	mutex_lock(&hw->dev_lock);
+	ofl->ref_cnt--;
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s ref_cnt=%d\n", __func__, ofl->ref_cnt);
+	if (ofl->ref_cnt == 0) {
+		v4l2_dbg(2, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s ref_cnt=0, clearing is_ofl_cmsc and is_ofl_ch\n",
+			 __func__);
+		hw->is_ofl_cmsc = false;
+		memset(hw->is_ofl_ch, 0, sizeof(hw->is_ofl_ch));
+	}
+	pm_runtime_put_sync(hw->dev);
+	mutex_unlock(&hw->dev_lock);
 	return 0;
 }
 
@@ -2240,7 +2271,7 @@ int rkvpss_register_offline_v10(struct rkvpss_hw_dev *hw)
 
 	mutex_init(&ofl->apilock);
 	ofl->vfd = offline_videodev;
-	ofl->mode_sel_en = true;
+	ofl->ref_cnt = 0;
 	vfd = &ofl->vfd;
 	vfd->device_caps = V4L2_CAP_STREAMING;
 	vfd->lock = &ofl->apilock;

@@ -41,11 +41,12 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge_split *ser
 		return dsi;
 	}
 
-	dsi->lanes = 4;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-	SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-		       __func__, serdes->chip_data->name, dsi->mode_flags);
+	dsi->lanes = serdes_bridge_split->lanes;
+	dsi->format = serdes_bridge_split->format;
+	dsi->mode_flags = serdes_bridge_split->flags;
+
+	SERDES_DBG_MFD("%s: %s lanes=0x%lx format=0x%lx mode_flags=0x%lx\n",
+		__func__, serdes->chip_data->name, dsi->lanes, dsi->format, dsi->mode_flags);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
@@ -167,11 +168,11 @@ static void serdes_bridge_split_enable(struct drm_bridge *bridge)
 	struct serdes *serdes = serdes_bridge_split->parent;
 	int ret = 0;
 
-	if (serdes_bridge_split->panel)
-		ret = drm_panel_enable(serdes_bridge_split->panel);
-
 	if (serdes->chip_data->bridge_ops->enable)
 		ret = serdes->chip_data->bridge_ops->enable(serdes);
+
+	if (serdes_bridge_split->panel)
+		ret = drm_panel_enable(serdes_bridge_split->panel);
 
 	if (!ret) {
 		extcon_set_state_sync(serdes->extcon, EXTCON_JACK_VIDEO_OUT, true);
@@ -240,9 +241,29 @@ static const struct drm_bridge_funcs serdes_bridge_split_funcs = {
 
 static int serdes_bridge_split_parse_dt(struct serdes_bridge_split *serdes_bridge_split)
 {
+	unsigned int val = 0;
 	struct device *dev = serdes_bridge_split->dev;
+	struct device_node *node = serdes_bridge_split->base_bridge.of_node;
 
 	serdes_bridge_split->sel_mipi = of_property_read_bool(dev->parent->of_node, "sel-mipi");
+
+	if (serdes_bridge_split->sel_mipi) {
+		if (!of_property_read_u32(node, "dsi,lanes", &val))
+			serdes_bridge_split->lanes = val;
+		else
+			serdes_bridge_split->lanes = 4;
+
+		if (!of_property_read_u32(node, "dsi,format", &val))
+			serdes_bridge_split->format = val;
+		else
+			serdes_bridge_split->format = MIPI_DSI_FMT_RGB888;
+
+		if (!of_property_read_u32(node, "dsi,flags", &val))
+			serdes_bridge_split->flags = val;
+		else
+			serdes_bridge_split->flags = MIPI_DSI_MODE_VIDEO |
+						     MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	}
 
 	return 0;
 }

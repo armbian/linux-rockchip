@@ -171,8 +171,9 @@ static int rkcif_tools_set_fmt(struct rkcif_tools_vdev *tools_vdev,
 	struct rkcif_stream *stream = tools_vdev->stream;
 
 	if (!try) {
-		if (pixm->width != stream->pixm.width ||
-		    pixm->height != stream->pixm.height) {
+		if ((pixm->width != stream->pixm.width ||
+		     pixm->height != stream->pixm.height) &&
+		    stream->scale_vdev) {
 			if (stream->scale_vdev->state != RKCIF_STATE_STREAMING)
 				rkcif_scale_set_fmt(stream->scale_vdev, pixm, try);
 			*pixm = stream->scale_vdev->pixm;

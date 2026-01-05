@@ -23,15 +23,18 @@
 #define AOA_MMAP_IOC_MAGIC	'a'
 #define AOA_MMAP_IOC_GET_INFO	_IOR(AOA_MMAP_IOC_MAGIC, 1, struct aoa_mmap_info)
 
+/**
+ * Use generic types that are as compatible as possible with user-space information.
+ */
 struct aoa_mmap_info {
-	__u32 phys_addr;
-	__u32 size;
+	u32 phys_addr;
+	u32 size;
 };
 
 struct aoa_mmap_dev {
 	void __iomem     *kvirt;	/* kernel virtual address, obtained by memremap */
 	phys_addr_t       phys;		/* physical start */
-	u32               size;		/* the size of ram */
+	resource_size_t   size;		/* the size of ram */
 	struct miscdevice misc;
 };
 
@@ -85,8 +88,8 @@ static long aoa_mmap_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 
 	switch (cmd) {
 	case AOA_MMAP_IOC_GET_INFO:
-		info.phys_addr = am_d->phys;
-		info.size = am_d->size;
+		info.phys_addr = (u32)am_d->phys;
+		info.size = (u32)am_d->size;
 		if (copy_to_user((struct aoa_mmap_info __user *)arg, &info, sizeof(info)))
 			return -EFAULT;
 		return 0;
@@ -165,7 +168,7 @@ void *aoa_mmap_probe(struct platform_device *pdev)
 		am_ds->am_d[n] = am_d;
 
 		dev_info(&pdev->dev, "am_d[%d] mapped phys=%pa size=%u\n",
-			 n, &am_d->phys, am_d->size);
+			 n, &am_d->phys, (unsigned int)am_d->size);
 	}
 
 	/* If no entry was registered, return an error */

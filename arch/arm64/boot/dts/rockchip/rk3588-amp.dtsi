@@ -39,9 +39,9 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* remote amp core address */
-		amp_shmem_reserved: amp-shmem@7800000 {
-			reg = <0x0 0x7800000 0x0 0x400000>;
+		/* mcu address */
+		mcu_reserved: mcu@7a00000 {
+			reg = <0x0 0x7a00000 0x0 0x200000>;
 			no-map;
 		};
 
@@ -52,13 +52,13 @@
 
 		rpmsg_dma_reserved: rpmsg-dma@8000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x08000000 0x0 0x100000>;
+			reg = <0x0 0x08000000 0x0 0x200000>;
 			no-map;
 		};
 
-		/* mcu address */
-		mcu_reserved: mcu@8200000 {
-			reg = <0x0 0x8200000 0x0 0x100000>;
+		/* remote amp core address */
+		amp_shmem_reserved: amp-shmem@8200000 {
+			reg = <0x0 0x8200000 0x0 0x400000>;
 			no-map;
 		};
 	};

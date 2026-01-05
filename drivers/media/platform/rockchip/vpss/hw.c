@@ -995,7 +995,6 @@ static int __maybe_unused rkvpss_hw_runtime_suspend(struct device *dev)
 	if (dev->power.runtime_status) {
 		rkvpss_hw_write(hw_dev, RKVPSS_MI_IMSC, 0);
 		rkvpss_hw_write(hw_dev, RKVPSS_VPSS_IMSC, 0);
-		hw_dev->ofl_dev.mode_sel_en = true;
 	} else {
 		rkvpss_hw_reg_save(hw_dev);
 		hw_dev->is_suspend = true;

@@ -585,37 +585,35 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev, u32 w3a_ris)
 	}
 	if (ris & mask) {
 		isp3_stats_write(stats_vdev, ISP3X_ISP_3A_ICR, ris & mask);
-		if (dev->is_aiisp_en) {
-			if (ris & (mask & ISP3X_3A_RAWAWB)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWAWB_CTRL);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWAWB_CTRL, val);
-			}
-			if (ris & (mask & ISP3X_3A_RAWAF)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWAF_CTRL);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, val);
-			}
-			if (ris & (mask & ISP3X_3A_RAWAE_CH0)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWAE_LITE_BASE);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWAE_LITE_BASE, val);
-			}
-			if (ris & (mask & ISP3X_3A_RAWHIST_CH0)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWHIST_LITE_BASE);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWHIST_LITE_BASE, val);
-			}
-			if (ris & (mask & ISP3X_3A_RAWAE_BIG)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWAE_BIG1_BASE);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWAE_BIG1_BASE, val);
-			}
-			if (ris & (mask & ISP3X_3A_RAWHIST_BIG)) {
-				val = isp3_stats_read(stats_vdev, ISP3X_RAWHIST_BIG1_BASE);
-				if (val & ISP35_3A_MEAS_DONE)
-					isp3_module_done(stats_vdev, ISP3X_RAWHIST_BIG1_BASE, val);
-			}
+		if (ris & (mask & ISP3X_3A_RAWAWB)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWAWB_CTRL);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWAWB_CTRL, val);
+		}
+		if (ris & (mask & ISP3X_3A_RAWAF)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWAF_CTRL);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, val);
+		}
+		if (ris & (mask & ISP3X_3A_RAWAE_CH0)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWAE_LITE_BASE);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWAE_LITE_BASE, val);
+		}
+		if (ris & (mask & ISP3X_3A_RAWHIST_CH0)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWHIST_LITE_BASE);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWHIST_LITE_BASE, val);
+		}
+		if (ris & (mask & ISP3X_3A_RAWAE_BIG)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWAE_BIG1_BASE);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWAE_BIG1_BASE, val);
+		}
+		if (ris & (mask & ISP3X_3A_RAWHIST_BIG)) {
+			val = isp3_stats_read(stats_vdev, ISP3X_RAWHIST_BIG1_BASE);
+			if (val & ISP35_3A_MEAS_DONE)
+				isp3_module_done(stats_vdev, ISP3X_RAWHIST_BIG1_BASE, val);
 		}
 	}
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, &ns, !dev->is_aiisp_en);

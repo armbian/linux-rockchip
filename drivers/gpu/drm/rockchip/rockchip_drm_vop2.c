@@ -11179,7 +11179,7 @@ static bool vop2_dovi_mode_changed(struct drm_crtc *crtc,
 			mode_changed = true;
 		} else if (old_hdr_data->hdr_type == new_hdr_data->hdr_type &&
 			   old_hdr_data->hdr_type == HDR_DOVI &&
-+			   private->dovi_mode == 0) {
+			   private->dovi_mode == 0) {
 			old_dovi_reg_data = &old_hdr_data->dovi_data;
 			new_dovi_reg_data = &new_hdr_data->dovi_data;
 
