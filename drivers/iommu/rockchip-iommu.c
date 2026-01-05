@@ -28,6 +28,8 @@
 #include <linux/spinlock.h>
 #include <soc/rockchip/rockchip_iommu.h>
 
+#include "dma-iommu.h"
+
 /** MMU register offsets */
 #define RK_MMU_DTE_ADDR		0x00	/* Directory table address */
 #define RK_MMU_STATUS		0x04
@@ -1532,6 +1534,11 @@ static int rk_iommu_of_xlate(struct device *dev,
 	return 0;
 }
 
+static void rk_iommu_get_resv_regions(struct device *dev, struct list_head *head)
+{
+	iommu_dma_get_resv_regions(dev, head);
+}
+
 void rockchip_iommu_mask_irq(struct device *dev)
 {
 	struct rk_iommu *iommu = rk_iommu_from_dev(dev);
@@ -1575,6 +1582,7 @@ static const struct iommu_ops rk_iommu_ops = {
 	.device_group = rk_iommu_device_group,
 	.pgsize_bitmap = RK_IOMMU_PGSIZE_BITMAP,
 	.of_xlate = rk_iommu_of_xlate,
+	.get_resv_regions = rk_iommu_get_resv_regions,
 	.owner = THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= rk_iommu_attach_device,
