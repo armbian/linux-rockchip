@@ -118,6 +118,13 @@ struct pcie_ep_continuous_buffer_param {
 	__u32 size;
 };
 
+struct pcie_ep_elbi_data_compare_and_swap_param {
+	__u32 offset;
+	__u32 old_val;
+	__u32 new_val;
+	int result;
+};
+
 #define PCIE_BASE	'P'
 #define PCIE_EP_GET_FUNC_DRV_VERSION				_IOR(PCIE_BASE, 0x00, unsigned int)
 #define PCIE_DMA_CACHE_INVALIDE					_IOW(PCIE_BASE, 0x01, struct pcie_ep_dma_cache_cfg)
@@ -133,6 +140,7 @@ struct pcie_ep_continuous_buffer_param {
 #define PCIE_EP_POLL_IRQ_USER					_IOW(PCIE_BASE, 0x13, struct pcie_ep_obj_poll_virtual_id_cfg)
 #define PCIE_EP_OBJ_INFO_SYNC					_IOW(PCIE_BASE, 0x14, int)
 #define PCIE_EP_DMA_MSI_DETECT					_IOW(PCIE_BASE, 0x15, int)
+#define PCIE_EP_ELBI_DATA_COMPARE_AND_SWAP			_IOWR(PCIE_BASE, 0x16, struct pcie_ep_elbi_data_compare_and_swap_param)
 #define PCIE_EP_DMA_XFER_BLOCK					_IOW(PCIE_BASE, 0x20, struct pcie_ep_dma_block_req)
 
 #define PCIE_EP_CONTINUOUS_BUFFER_ALLOC				_IOWR(PCIE_BASE, 0x30, struct pcie_ep_continuous_buffer_param)
