@@ -27,6 +27,7 @@ properties:
       - rockchip,rv1106-rgb
       - rockchip,rv1108-rgb
       - rockchip,rv1126-rgb
+      - rockchip,rv1126b-rgb
 
   phys:
     description: phandle for the PHY device
@@ -40,6 +41,8 @@ properties:
     description: the "sleep" pinctrl state
   rockchip,data-sync-bypass:
     description: bypass the vop data-sync logic from io
+  rockchip,delayline-num:
+    description: the delayline configuration for adjustment of the data and clk phases
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports

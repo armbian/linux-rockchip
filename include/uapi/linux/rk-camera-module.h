@@ -265,6 +265,15 @@
 #define RKMODULE_GET_IRFPA_INFO	\
 	_IOR('x', 3, struct rkmodule_irfpa_info)
 
+#define RKMODULE_GET_HDR_COMPR_PARAM	\
+	_IOR('x', 4, struct rkmodule_hdr_compr)
+
+#define RKMODULE_SET_REGISTER_GROUP       \
+	_IOW('x', 5, struct rkmodule_reg_group)
+
+#define RKMODULE_GET_MERGE_WGT_CURVE       \
+	_IOR('x', 6, struct rkmodule_mge_oewgt)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
@@ -308,6 +317,15 @@ struct rkmodule_reg {
 	__u64 preg_value;
 	__u64 preg_addr_bytes;
 	__u64 preg_value_bytes;
+} __attribute__ ((packed));
+
+enum rkmodule_reg_group_type {
+	RKMODULE_REG_GROUP_MERGE,
+};
+
+struct rkmodule_reg_group {
+	__u32 type;
+	struct rkmodule_reg reg_group;
 } __attribute__ ((packed));
 
 /**
@@ -490,13 +508,13 @@ struct rkmodule_lsc_cfg {
  * NO_HDR: linear mode
  * HDR_X2: hdr two frame or line mode
  * HDR_X3: hdr three or line mode
- * HDR_COMPR: linearised and compressed data for hdr
+ * HDR_CIS_MERGE: HDR merge by CIS,both compressed and uncompressed
  */
 enum rkmodule_hdr_mode {
 	NO_HDR = 0,
 	HDR_X2 = 5,
 	HDR_X3 = 6,
-	HDR_COMPR,
+	HDR_CIS_MERGE,
 };
 
 #define HDR_COMPR_POINT_MAX 32
@@ -1122,6 +1140,18 @@ struct rkmodule_irfpa_info {
 	__u32 gray_dec_en;
 	__u32 raw14_mode;
 	__u32 reserved[8];
+};
+
+#define RKMODULE_MAX_WGT_CURVE_NUM (2)
+
+struct rkmodule_mge_wgtcurve {
+	__u16 idx[17];
+	__u16 val[17];
+};
+
+struct rkmodule_mge_oewgt {
+	__u16 wgtcurve_num;
+	struct rkmodule_mge_wgtcurve wgtcurve[RKMODULE_MAX_WGT_CURVE_NUM];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

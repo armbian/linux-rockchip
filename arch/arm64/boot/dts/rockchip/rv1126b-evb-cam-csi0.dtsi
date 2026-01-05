@@ -62,6 +62,12 @@
 				remote-endpoint = <&imx586_out>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			csi_dphy_input8: endpoint@9 {
+				reg = <9>;
+				remote-endpoint = <&ox03c10_out>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -224,6 +230,27 @@
 		port {
 			gc8613_out: endpoint {
 				remote-endpoint = <&csi_dphy_input5>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	ox03c10: ox03c10@36 {
+		compatible = "ovti,ox03c10";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			ox03c10_out: endpoint {
+				remote-endpoint = <&csi_dphy_input8>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
