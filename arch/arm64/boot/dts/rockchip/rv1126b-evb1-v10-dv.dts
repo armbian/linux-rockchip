@@ -34,6 +34,16 @@
 			 <RK_PIN_TO_BIT(RK_PA3)>;
 };
 
+&spi0m2_clk_pins {
+	rockchip,pins =
+		/* spi0_clk_m2 */
+		<5 RK_PA6 2 &pcfg_pull_down>,
+		/* spi0_miso_m2 */
+		<5 RK_PA5 2 &pcfg_pull_down>,
+		/* spi0_mosi_m2 */
+		<5 RK_PA4 2 &pcfg_pull_down>;
+};
+
 &spi0 {
 	status = "okay";
 	max-freq = <20000000>;
@@ -43,9 +53,6 @@
 		compatible = "invensense,icm42670";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;
-		spi-cpha;
-		spi-cpol;
-		//vdd-supply = <&vcc_3v3_s0>;
 		int1-gpio = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
