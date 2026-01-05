@@ -75,7 +75,7 @@
 		vcc5-supply = <&vcc_2v3_s3>;
 		vcc6-supply = <&vcc_2v3_s3>;
 		vcc7-supply = <&vcc_2v3_s3>;
-		vcc8-supply = <&vcc_2v3_s3>;
+		vcc8-supply = <&vcc_3v3_s3>;
 		vcc9-supply = <&vcc_sys>;
 
 		wakeup-source;
@@ -89,8 +89,8 @@
 		};
 
 		regulators {
-			vdd_cpu_big_s0: DCDC_REG1 {
-				regulator-name = "vdd_cpu_big_s0";
+			vdd_cpu_lit_s0: DCDC_REG1 {
+				regulator-name = "vdd_cpu_lit_s0";
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <500000>;
@@ -103,8 +103,8 @@
 				};
 			};
 
-			vdd_gpu_s0: DCDC_REG2 {
-				regulator-name = "vdd_gpu_s0";
+			vdd_cpu_big_s0: DCDC_REG2 {
+				regulator-name = "vdd_cpu_big_s0";
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <500000>;
@@ -259,6 +259,43 @@
 				};
 			};
 		};
+
+		bat: battery {
+			compatible = "rk817,battery";
+			ocv_table = <3400 3671 3686 3712 3738 3756 3773
+				     3787 3802 3819 3840 3868 3916 3959
+				     3998 4041 4087 4138 4191 4247 4313>;
+			design_capacity = <8000>;
+			design_qmax = <7600>;
+			bat_res = <100>;
+			sleep_enter_current = <150>;
+			sleep_exit_current = <180>;
+			sleep_filter_current = <100>;
+			power_off_thresd = <3400>;
+			max_soc_offset = <60>;
+			monitor_sec = <5>;
+			sample_res = <10>;
+			virtual_power = <0>;
+			bat_res_up = <60>;
+			bat_res_down = <20>;
+		};
+
+		rk809_codec: codec {
+			#sound-dai-cells = <1>;
+			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+			clocks = <&mclkout_sai1>;
+			clock-names = "mclk";
+			assigned-clocks = <&mclkout_sai1>;
+			assigned-clock-rates = <12288000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sai1m0_mclk_pins>;
+			hp-volume = <20>;
+			spk-volume = <25>;
+			use-ext-amplifier;
+			spk-ctl-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+			mic-swap-non-differential;
+			status = "okay";
+		};
 	};
 
 	rk805b: rk805b@18 {
@@ -279,7 +316,7 @@
 		vcc2-supply = <&vcc_sys>;
 		vcc3-supply = <&vcc_sys>;
 		vcc4-supply = <&vcc_sys>;
-		vcc5-supply = <&vcc_io>;
+		vcc5-supply = <&vcc_sys>;
 		vcc6-supply = <&vcc_sys>;
 
 		rtc {
@@ -302,8 +339,8 @@
 				};
 			};
 
-			vdd_cpu_lit_s0: DCDC_REG2 {
-				regulator-name = "vdd_cpu_lit_s0";
+			vdd_gpu_s0: DCDC_REG2 {
+				regulator-name = "vdd_gpu_s0";
 				regulator-min-microvolt = <712500>;
 				regulator-max-microvolt = <1050000>;
 				regulator-always-on;
@@ -355,10 +392,10 @@
 				};
 			};
 
-			vcc_2v8_cam: LDO_REG3 {
-				regulator-name = "vcc_2v8_cam";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
+			vcc_3v3_micbias: LDO_REG3 {
+				regulator-name = "vcc_3v3_micbias";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
