@@ -5503,6 +5503,7 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 	rkcif_csi_channel_init(stream, channel);
 
 	if (dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP) {
+		stream = &dev->stream[isp_num - atomic_read(&p->stream_cnt) - 1];
 		if (atomic_read(&p->stream_cnt) < isp_num - 1)
 			goto one_to_multi_skip;
 		else
