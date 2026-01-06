@@ -2298,6 +2298,15 @@
 			reg = <0x0 0x27813388 0x0 0x4>;
 		};
 
+		dfi: dfi@29b20000 {
+			compatible = "rockchip,rk3572-dfi";
+			reg = <0x0 0x29b20000 0x0 0x10000>;
+			rockchip,pmu = <&pmu1_grf>;
+			clocks = <&cru PCLK_DDR_MON>;
+			clock-names = "pclk_ddr_mon";
+			status = "disabled";
+		};
+
 		pcie0: pcie@29d00000 {
 			compatible = "rockchip,rk3572-pcie", "snps,dw-pcie";
 			#address-cells = <3>;
