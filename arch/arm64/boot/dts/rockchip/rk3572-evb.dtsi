@@ -714,8 +714,20 @@
 	status = "okay";
 };
 
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
 &ufs {
 	reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&usb_drd0_dwc3 {
 	status = "okay";
 };
 
