@@ -23,7 +23,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/rk-camera-module.h>
 #include "common.h"
-#include "../../../i2c/cam-tb-setup.h"
 
 static inline struct sditf_priv *to_sditf_priv(struct v4l2_subdev *subdev)
 {
@@ -418,83 +417,6 @@ static void sditf_reinit_mode(struct sditf_priv *priv, struct rkisp_vicap_mode *
 		 __func__, mode->rdbk_mode, mode->name, priv->toisp_inf.link_mode);
 }
 
-#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
-static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
-{
-	struct rkcif_device *dev = priv->cif_dev;
-	struct v4l2_subdev_format fmt;
-	struct rk_sensor_setting sensor_setting = {0};
-	struct v4l2_subdev_frame_interval fi = {0};
-	struct rkmodule_hdr_cfg hdr_cfg;
-	int width = 0;
-	int height = 0;
-	int hdr_mode = 0;
-	int max_fps = 0;
-	int ret = 0;
-	bool is_match = false;
-
-	if (!dev->terminal_sensor.sd)
-		rkcif_update_sensor_info(&dev->stream[0]);
-	if (dev->terminal_sensor.sd) {
-		if (priv->mode.dev_id == 0) {
-			width = get_rk_cam_w();
-			height = get_rk_cam_h();
-			hdr_mode = get_rk_cam_hdr();
-			max_fps = get_rk_cam1_max_fps();
-		} else {
-			width = get_rk_cam2_w();
-			height = get_rk_cam2_h();
-			hdr_mode = get_rk_cam2_hdr();
-			max_fps = get_rk_cam2_max_fps();
-		}
-		fmt.pad = 0;
-		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		fmt.reserved[0] = 0;
-		fmt.format.field = V4L2_FIELD_NONE;
-		fmt.stream = 0;
-		ret = v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_fmt, &fmt);
-		if (!ret) {
-			if (dev->rdbk_debug)
-				v4l2_info(&dev->v4l2_dev,
-					  "cmdline get %dx%d@%dfps, hdr_mode %d\n",
-					  width, height, max_fps, hdr_mode);
-			sensor_setting.fmt = fmt.format.code;
-			sensor_setting.width = width;
-			sensor_setting.height = height;
-			sensor_setting.mode = hdr_mode;
-			sensor_setting.fps = max_fps;
-			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
-			       core, ioctl,
-			       RKCIS_CMD_SELECT_SETTING,
-			       &sensor_setting);
-			if (!ret)
-				is_match = true;
-		}
-		if (!is_match) {
-			fmt.format.width = width;
-			fmt.format.height = height;
-			fmt.stream = 0;
-			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, set_fmt, &fmt);
-			fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			fi.stream = 0;
-			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_frame_interval, &fi);
-			fi.interval.numerator = 1;
-			fi.interval.denominator = max_fps;
-			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, set_frame_interval, &fi);
-			v4l2_subdev_call(dev->terminal_sensor.sd,
-					 core, ioctl,
-					 RKMODULE_GET_HDR_CFG,
-					 &hdr_cfg);
-			hdr_cfg.hdr_mode = hdr_mode;
-			v4l2_subdev_call(dev->terminal_sensor.sd,
-					 core, ioctl,
-					 RKMODULE_SET_HDR_CFG,
-					 &hdr_cfg);
-		}
-	}
-}
-#endif
-
 static struct rkcif_device *rkcif_get_switch_dev(struct rkcif_device *cif_dev)
 {
 	int i = 0;
@@ -592,10 +514,6 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			mode->input.merge_num = 1;
 		mode->input.index = priv->combine_index;
-#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
-		if (cif_dev->is_thunderboot)
-			sditf_select_sensor_setting_for_thunderboot(priv);
-#endif
 		return 0;
 	case RKISP_VICAP_CMD_INIT_BUF:
 		pisp_buf_info = (struct rkisp_init_buf *)arg;

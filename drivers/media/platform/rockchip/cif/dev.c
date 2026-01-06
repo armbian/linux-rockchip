@@ -29,6 +29,7 @@
 #include "../../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 #include <linux/of_reserved_mem.h>
 #include <linux/of_address.h>
+#include "../../../i2c/cam-tb-setup.h"
 
 #define RKCIF_VERNO_LEN		10
 
@@ -2087,6 +2088,83 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
+{
+	struct rkcif_device *dev = priv->cif_dev;
+	struct v4l2_subdev_format fmt;
+	struct rk_sensor_setting sensor_setting = {0};
+	struct v4l2_subdev_frame_interval fi = {0};
+	struct rkmodule_hdr_cfg hdr_cfg;
+	int width = 0;
+	int height = 0;
+	int hdr_mode = 0;
+	int max_fps = 0;
+	int ret = 0;
+	bool is_match = false;
+
+	if (!dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&dev->stream[0]);
+	if (dev->terminal_sensor.sd) {
+		if (priv->mode.dev_id == 0) {
+			width = get_rk_cam_w();
+			height = get_rk_cam_h();
+			hdr_mode = get_rk_cam_hdr();
+			max_fps = get_rk_cam1_max_fps();
+		} else {
+			width = get_rk_cam2_w();
+			height = get_rk_cam2_h();
+			hdr_mode = get_rk_cam2_hdr();
+			max_fps = get_rk_cam2_max_fps();
+		}
+		fmt.pad = 0;
+		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt.reserved[0] = 0;
+		fmt.format.field = V4L2_FIELD_NONE;
+		fmt.stream = 0;
+		ret = v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_fmt, &fmt);
+		if (!ret) {
+			if (dev->rdbk_debug)
+				v4l2_info(&dev->v4l2_dev,
+					  "cmdline get %dx%d@%dfps, hdr_mode %d\n",
+					  width, height, max_fps, hdr_mode);
+			sensor_setting.fmt = fmt.format.code;
+			sensor_setting.width = width;
+			sensor_setting.height = height;
+			sensor_setting.mode = hdr_mode;
+			sensor_setting.fps = max_fps;
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+			       core, ioctl,
+			       RKCIS_CMD_SELECT_SETTING,
+			       &sensor_setting);
+			if (!ret)
+				is_match = true;
+		}
+		if (!is_match) {
+			fmt.format.width = width;
+			fmt.format.height = height;
+			fmt.stream = 0;
+			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, set_fmt, &fmt);
+			fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+			fi.stream = 0;
+			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, get_frame_interval, &fi);
+			fi.interval.numerator = 1;
+			fi.interval.denominator = max_fps;
+			v4l2_subdev_call_state_active(dev->terminal_sensor.sd, pad, set_frame_interval, &fi);
+			v4l2_subdev_call(dev->terminal_sensor.sd,
+					 core, ioctl,
+					 RKMODULE_GET_HDR_CFG,
+					 &hdr_cfg);
+			hdr_cfg.hdr_mode = hdr_mode;
+			v4l2_subdev_call(dev->terminal_sensor.sd,
+					 core, ioctl,
+					 RKMODULE_SET_HDR_CFG,
+					 &hdr_cfg);
+		}
+	}
+}
+#endif
+
 static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
 	struct sditf_priv *sditf = NULL;
@@ -2105,6 +2183,10 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 	if (!dev->is_notifier_isp) {
 		for (i = 0; i < dev->sditf_cnt; i++) {
 			sditf = dev->sditf[i];
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+			if (dev->is_thunderboot)
+				sditf_select_sensor_setting_for_thunderboot(sditf);
+#endif
 			if (sditf && (!sditf->is_combine_mode))
 				ret = v4l2_async_register_subdev_sensor(&sditf->sd);
 		}
