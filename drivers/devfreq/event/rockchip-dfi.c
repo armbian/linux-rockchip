@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2026, Rockchip Electronics Co., Ltd.
  * Author: Lin Huang <hl@rock-chips.com>
  */
 
@@ -28,6 +28,7 @@
 #include <soc/rockchip/rk3562_grf.h>
 #include <soc/rockchip/rk3568_grf.h>
 #include <soc/rockchip/rk3576_grf.h>
+#include <soc/rockchip/rk3572_grf.h>
 #include <soc/rockchip/rk3588_grf.h>
 
 #define DMC_MAX_CHANNELS	4
@@ -1003,6 +1004,35 @@ static int rk3588_dfi_init(struct rockchip_dfi *dfi)
 	return rockchip_dfi_init_clocks(dfi);
 };
 
+static int rk3572_dfi_init(struct rockchip_dfi *dfi)
+{
+	struct regmap *regmap_pmu = dfi->regmap_pmu;
+	u32 reg2, reg3;
+
+	regmap_read(regmap_pmu, RK3572_PMU1_GRF_OS_REG2, &reg2);
+	regmap_read(regmap_pmu, RK3572_PMU1_GRF_OS_REG3, &reg3);
+
+	/* lower 3 bits of the DDR type */
+	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
+
+	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
+		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
+
+	dfi->channel_mask = BIT(0);
+	dfi->max_channels = 1;
+
+	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+
+	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
+	dfi->ddrmon_ctrl_single = true;
+
+	dfi->count_rate = 1;
+
+	dfi->num_clks = 1;
+
+	return rockchip_dfi_init_clocks(dfi);
+};
+
 static int rk3576_dfi_init(struct rockchip_dfi *dfi)
 {
 	dfi->dram_dynamic_info_reg = RK3576_PMUGRF_OS_REG6;
@@ -1028,6 +1058,7 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,rk3562-dfi", .data = rk3562_dfi_init },
 	{ .compatible = "rockchip,rk3568-dfi", .data = rk3568_dfi_init },
 	{ .compatible = "rockchip,rk3588-dfi", .data = rk3588_dfi_init },
+	{ .compatible = "rockchip,rk3572-dfi", .data = rk3572_dfi_init },
 	{ .compatible = "rockchip,rk3576-dfi", .data = rk3576_dfi_init },
 	{ },
 };
