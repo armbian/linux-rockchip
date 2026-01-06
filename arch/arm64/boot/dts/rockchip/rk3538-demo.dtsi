@@ -78,6 +78,7 @@
 
 &hdmi {
 	status = "okay";
+	cec-enable;
 	rockchip,sda-falling-delay-ns = <360>;
 };
 
