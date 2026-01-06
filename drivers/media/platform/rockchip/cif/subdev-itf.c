@@ -1689,14 +1689,14 @@ void sditf_get_default_exp(struct sditf_priv *sditf)
 	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
 			      V4L2_CID_EXPOSURE);
 	if (ctrl)
-		sditf->cur_time = ctrl->default_value;
+		sditf->cur_time = ctrl->val;
 	else
 		sditf->cur_time = 16;
 
 	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
 			      V4L2_CID_ANALOGUE_GAIN);
 	if (ctrl)
-		sditf->cur_gain = ctrl->default_value;
+		sditf->cur_gain = ctrl->val;
 	else
 		sditf->cur_gain = 16;
 
