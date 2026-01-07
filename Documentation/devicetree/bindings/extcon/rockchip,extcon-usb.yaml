@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/extcon/rockchip,extcon-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip USB Extcon device
+
+maintainers:
+  - Frank Wang <frank.wang@rock-chips.com>
+
+description:
+  This is a virtual device designed to forward Type-C cable state
+  information from the TCPM to the USB Controller.
+
+  This device supports up to two USB ports (extcon-usb-port0 and
+  extcon-usb-port1). At least extcon-usb-port0 must be present.
+
+properties:
+  compatible:
+    const: rockchip,extcon-usb
+
+  orientation-switch:
+    type: boolean
+    description: Indicates the Type-C flip status of a given USB connector.
+
+  usb-role-switch:
+    type: boolean
+    description: Indicates the USB data role of a given USB connector.
+
+patternProperties:
+  '^extcon-usb-port[0-1]$':
+    type: object
+    description: The extcon device forwards USB data role to a USB Controller.
+
+    properties:
+      rockchip,usbc-orientation:
+        description: |
+          Specify which Type-C side's USB data role to forward:
+          - 1 indicates the normal side.
+          - 2 indicates the reverse side;
+          - If this property is absent, it represents both sides.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+        maximum: 2
+
+      extcon:
+        description: Phandle to the extcon device of USB2-PHY.
+        $ref: /schemas/types.yaml#/definitions/phandle
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - orientation-switch
+  - usb-role-switch
+
+additionalProperties: false
+
+examples:
+  - |
+    extcon_usb: extcon-usb {
+        compatible = "rockchip,extcon-usb";
+        orientation-switch;
+        usb-role-switch;
+
+        extcon_usb_port0: extcon-usb-port0 {
+            rockchip,usbc-orientation = <1>;
+        };
+
+        extcon_usb_port1: extcon-usb-port1 {
+            rockchip,usbc-orientation = <2>;
+        };
+    };
