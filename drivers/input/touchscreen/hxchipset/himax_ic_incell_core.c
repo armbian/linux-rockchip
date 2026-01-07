@@ -726,6 +726,8 @@ static int himax_mcu_read_ic_trigger_type(struct himax_ts_data *ts)
 
 static void himax_mcu_read_FW_ver(struct himax_ts_data *ts)
 {
+	int err[2];
+	uint8_t err_times = 0;
 	uint8_t addr[DATA_LEN_4] = { 0 };
 	uint8_t data[12] = { 0 };
 	uint8_t data_2[DATA_LEN_4] = { 0 };
@@ -736,16 +738,21 @@ static void himax_mcu_read_FW_ver(struct himax_ts_data *ts)
 
 	while (reload_status == 0) {
 		himax_parse_assign_cmd(addr_fw_define_flash_reload, addr, sizeof(addr));
-		himax_mcu_register_read(ts, addr, DATA_LEN_4, data, 0);
+		err[0] = himax_mcu_register_read(ts, addr, DATA_LEN_4, data, 0);
 		himax_parse_assign_cmd(addr_fw_define_2nd_flash_reload, addr, sizeof(addr));
-		himax_mcu_register_read(ts, addr, DATA_LEN_4, data_2, 0);
+		err[1] = himax_mcu_register_read(ts, addr, DATA_LEN_4, data_2, 0);
+
+		if ((err[0] == I2C_FAIL) && (err[1] == I2C_FAIL))
+			err_times++;
+		else
+			err_times = 0;
 
 		if ((data[2] == 0x9A && data[3] == 0xA9) ||
 		    (data_2[1] == 0x72 && data_2[0] == 0xC0)) {
 			I("%s: FW finish reload done\n", __func__);
 			reload_status = 1;
 			break;
-		} else if (retry == 200) {
+		} else if ((err_times == 8) || (retry == 200)) {
 			E("%s: FW fail reload done !!!!!\n", __func__);
 			ts->core_fp.fp_read_FW_status(ts);
 			ts->ic_data->vendor_panel_ver = 0;
