@@ -1684,8 +1684,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20700000 0x1000>;
 		interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>,
+			 <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_ch0_pins>;
 		#pwm-cells = <3>;
@@ -1696,8 +1698,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20710000 0x1000>;
 		interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>,
+			 <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_ch1_pins>;
 		#pwm-cells = <3>;
@@ -1708,8 +1712,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20720000 0x1000>;
 		interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>,
+			 <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_ch2_pins>;
 		#pwm-cells = <3>;
@@ -1720,8 +1726,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20730000 0x1000>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>,
+			 <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_ch3_pins>;
 		#pwm-cells = <3>;
@@ -2196,8 +2204,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e00000 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch0_pins>;
 		#pwm-cells = <3>;
@@ -2208,8 +2218,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e10000 0x1000>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch1_pins>;
 		#pwm-cells = <3>;
@@ -2220,8 +2232,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e20000 0x1000>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch2_pins>;
 		#pwm-cells = <3>;
@@ -2232,8 +2246,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e30000 0x1000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch3_pins>;
 		#pwm-cells = <3>;
@@ -2244,8 +2260,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e40000 0x1000>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch4_pins>;
 		#pwm-cells = <3>;
@@ -2256,8 +2274,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e50000 0x1000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch5_pins>;
 		#pwm-cells = <3>;
@@ -2268,8 +2288,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e60000 0x1000>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch6_pins>;
 		#pwm-cells = <3>;
@@ -2280,8 +2302,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20e70000 0x1000>;
 		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>,
+			 <&cru CLK_OSC_PWM0>, <&cru CLK_RC_PWM0>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_ch7_pins>;
 		#pwm-cells = <3>;
@@ -2292,8 +2316,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f00000 0x1000>;
 		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch0_pins>;
 		#pwm-cells = <3>;
@@ -2304,8 +2330,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f10000 0x1000>;
 		interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch1_pins>;
 		#pwm-cells = <3>;
@@ -2316,8 +2344,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f20000 0x1000>;
 		interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch2_pins>;
 		#pwm-cells = <3>;
@@ -2328,8 +2358,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f30000 0x1000>;
 		interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch3_pins>;
 		#pwm-cells = <3>;
@@ -2340,8 +2372,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f40000 0x1000>;
 		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch4_pins>;
 		#pwm-cells = <3>;
@@ -2352,8 +2386,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f50000 0x1000>;
 		interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch5_pins>;
 		#pwm-cells = <3>;
@@ -2364,8 +2400,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f60000 0x1000>;
 		interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch6_pins>;
 		#pwm-cells = <3>;
@@ -2376,8 +2414,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x20f70000 0x1000>;
 		interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_OSC_PWM2>;
-		clock-names = "pwm", "pclk", "osc";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>,
+			 <&cru CLK_OSC_PWM2>, <&cru CLK_RC_PWM2>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_ch7_pins>;
 		#pwm-cells = <3>;
@@ -2388,8 +2428,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21000000 0x1000>;
 		interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch0_pins>;
 		#pwm-cells = <3>;
@@ -2400,8 +2442,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21010000 0x1000>;
 		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch1_pins>;
 		#pwm-cells = <3>;
@@ -2412,8 +2456,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21020000 0x1000>;
 		interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch2_pins>;
 		#pwm-cells = <3>;
@@ -2424,8 +2470,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21030000 0x1000>;
 		interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch3_pins>;
 		#pwm-cells = <3>;
@@ -2436,8 +2484,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21040000 0x1000>;
 		interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch4_pins>;
 		#pwm-cells = <3>;
@@ -2448,8 +2498,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21050000 0x1000>;
 		interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch5_pins>;
 		#pwm-cells = <3>;
@@ -2460,8 +2512,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21060000 0x1000>;
 		interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch6_pins>;
 		#pwm-cells = <3>;
@@ -2472,8 +2526,10 @@
 		compatible = "rockchip,rv1126b-pwm", "rockchip,rk3506-pwm";
 		reg = <0x21070000 0x1000>;
 		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>,
+			 <&cru CLK_OSC_PWM3>, <&cru CLK_RC_PWM3>;
+		clock-names = "pwm", "pclk",
+			      "osc", "rc";
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_ch7_pins>;
 		#pwm-cells = <3>;
