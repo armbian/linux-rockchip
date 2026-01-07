@@ -3863,14 +3863,11 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 								  CSC_10BIT_DEPTH);
 
 			/**
-			 * VOP YUV overlay only can support YUV limit range, so force
-			 * select BT601L todo R2Y.
+			 * VOP YUV overlay only can support YUV limit range input for Soc before RK3572,
+			 * so force select BT601L todo R2Y.
 			 */
 			if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
-			    (vop2->version == VOP_VERSION_RK3528 ||
-			     vop2->version == VOP_VERSION_RK3568 ||
-			     vop2->version == VOP_VERSION_RK3576 ||
-			     vop2->version == VOP_VERSION_RK3588))
+			    vop2->version < VOP_VERSION_RK3572)
 				vpstate->csc_mode = CSC_BT601L;
 		}
 	}
