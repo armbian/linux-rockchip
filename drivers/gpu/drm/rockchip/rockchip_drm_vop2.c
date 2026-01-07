@@ -3720,8 +3720,8 @@ static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
  * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
  */
 
-static void vop2_setup_csc_mode(struct vop2_video_port *vp,
-				struct vop2_plane_state *vpstate)
+static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
+				      struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
@@ -8140,7 +8140,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			format = vop2_convert_format(fb->format->format);
 	}
 
-	vop2_setup_csc_mode(vp, vpstate);
+	vop2_plane_setup_csc_mode(vp, vpstate);
 	if (win->feature & WIN_FEATURE_DCI)
 		vop3_dci_config(win, vpstate);
 
