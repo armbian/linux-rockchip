@@ -157,6 +157,13 @@ config EXTCON_QCOM_SPMI_MISC
 	  Say Y here to enable SPMI PMIC based USB cable detection
 	  support on Qualcomm PMICs such as PM8941.
 
+config EXTCON_ROCKCHIP_USB
+	tristate "Rockchip USB extcon support"
+	depends on TYPEC_TCPM && USB_ROLE_SWITCH
+	help
+	  Say Y here to enable USB mode switching via extcon support,
+	  which is based on TCPM orientation and role switch messages.
+
 config EXTCON_RT8973A
 	tristate "Richtek RT8973A EXTCON support"
 	depends on I2C
