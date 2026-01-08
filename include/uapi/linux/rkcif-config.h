@@ -178,4 +178,29 @@ struct rkcif_buffer_info {
 	int dma_fd[VIDEO_MAX_FRAME];
 };
 
+/*
+ * enum vicap_output_path - VICAP output path selection
+ *
+ * This enum describes the selectable output paths of VICAP.
+ *
+ * FULL_IDx:
+ *   Full-resolution output paths. Image data is output without scaling.
+ *
+ * SCLx:
+ *   Scaler output paths. Image data is output from the scaler.
+ *
+ * Note:
+ *   DVP, MIPI/LVDS, and SCL are all considered output path selections
+ *   within VICAP. This enum only represents which output path is selected.
+ */
+enum vicap_output_path {
+	VICAP_OUT_PATH_FULL_ID0,
+	VICAP_OUT_PATH_FULL_ID1,
+	VICAP_OUT_PATH_FULL_ID2,
+	VICAP_OUT_PATH_FULL_ID3,
+	VICAP_OUT_PATH_SCL0,
+	VICAP_OUT_PATH_SCL1,
+	VICAP_OUT_PATH_SCL2,
+};
+
 #endif
