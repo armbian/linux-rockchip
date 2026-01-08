@@ -908,6 +908,7 @@ enum rkmodule_capture_mode {
 	RKMODULE_ONE_CH_TO_MULTI_ISP,
 	RKMODULE_MULTI_CH_TO_MULTI_ISP,
 	RKMODULE_MULTI_CH_COMBINE_SQUARE,
+	RKMODULE_QUADBAYER_TO_DUAL_PIPE,
 };
 
 struct rkmodule_multi_dev_info {
