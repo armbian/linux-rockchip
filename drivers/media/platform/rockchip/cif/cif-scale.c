@@ -424,6 +424,8 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 	struct rkcif_scale_vdev *scale_vdev = video_drvdata(file);
 	struct rkcif_device *dev = scale_vdev->cifdev;
 	struct bayer_blc *pblc;
+	int *scl_mode;
+	int *extrac_pattern;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_SCALE_BLC:
@@ -437,6 +439,39 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 		scale_vdev->blc = *pblc;
 		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "set scale blc %d %d %d %d\n",
 			 pblc->pattern00, pblc->pattern01, pblc->pattern02, pblc->pattern03);
+		break;
+	case RKCIF_CMD_GET_SCL_MODE:
+		scl_mode = (int *)arg;
+		*scl_mode = scale_vdev->scl_mode;
+		break;
+	case RKCIF_CMD_SET_SCL_MODE:
+		scl_mode = (int *)arg;
+		if (*scl_mode >= 0 && *scl_mode <= RKCIF_SCL_MODE_EXTRACTION) {
+			scale_vdev->scl_mode = *scl_mode;
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "set scl_mode %d\n",
+				 *scl_mode);
+		} else {
+			v4l2_err(&dev->v4l2_dev, "set invalid scl_mode %d\n",
+				 *scl_mode);
+			return -EINVAL;
+		}
+		break;
+	case RKCIF_CMD_GET_EXTRACTION_PATTERN:
+		extrac_pattern = (int *)arg;
+		*extrac_pattern = scale_vdev->extrac_pattern;
+		break;
+	case RKCIF_CMD_SET_EXTRACTION_PATTERN:
+		extrac_pattern = (int *)arg;
+		if (*extrac_pattern >= 0 &&
+		    *extrac_pattern <= RKCIF_EXTRACTION_PATTERN_BOTTOM_RIGHT) {
+			scale_vdev->extrac_pattern = *extrac_pattern;
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "set extrac_pattern %d\n",
+				 *extrac_pattern);
+		} else {
+			v4l2_err(&dev->v4l2_dev, "set invalid extrac_pattern %d\n",
+				 *extrac_pattern);
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
