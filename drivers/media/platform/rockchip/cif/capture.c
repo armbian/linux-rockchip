@@ -7011,6 +7011,18 @@ static void rkcif_clean_state_one_to_multi_mode(struct rkcif_device *dev)
 	}
 }
 
+static void rkcif_clean_state_quadbayer_to_dual_pipe_mode(struct rkcif_device *dev)
+{
+	struct sditf_priv *priv = NULL;
+	int i = 0;
+
+	for (i = 0; i < dev->sditf_cnt; i++) {
+		priv = dev->sditf[i];
+		if (priv)
+			atomic_set(&priv->frm_sync_seq, 0);
+	}
+}
+
 void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			  enum rkcif_stream_mode mode)
 {
@@ -7137,6 +7149,9 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	if (!atomic_read(&dev->pipe.stream_cnt) &&
 	    dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
 		rkcif_clean_state_one_to_multi_mode(dev);
+	if (!atomic_read(&dev->pipe.stream_cnt) &&
+	    dev->channels[0].capture_info.mode == RKMODULE_QUADBAYER_TO_DUAL_PIPE)
+		rkcif_clean_state_quadbayer_to_dual_pipe_mode(dev);
 	if (dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
 	    dev->sditf[stream->id])
 		atomic_set(&dev->sditf[stream->id]->frm_sync_seq, 0);
@@ -10408,6 +10423,8 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	struct rkisp_vicap_mode vicap_mode;
 	struct v4l2_subdev *sd = NULL;
 	struct rkmodule_error_info *err_info;
+	struct video_device *vdev;
+	struct rkcif_vdev_node *node;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -10643,6 +10660,10 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				    capture_info->one_to_multi.frame_pattern[i] > 32)
 					return -EINVAL;
 			}
+		} else if (capture_info->mode == RKMODULE_QUADBAYER_TO_DUAL_PIPE) {
+			vdev = video_devdata(file);
+			node = vdev_to_node(vdev);
+			node->buf_queue.quirk_poll_must_check_waiting_for_buffers = 0;
 		}
 		mutex_lock(&dev->stream_lock);
 		stream->channel_info.capture_info = *capture_info;
@@ -14569,6 +14590,17 @@ static int rkcif_check_group_sync_state(struct rkcif_device *cif_dev)
 	return ret;
 }
 
+static void rkcif_quadbayer_dual_pipe_send_sof(struct rkcif_device *cif_dev)
+{
+	int i;
+
+	for (i = 0; i < cif_dev->sditf_cnt; i++) {
+		if (cif_dev->sditf[i])
+			sditf_event_inc_sof(cif_dev->sditf[i]);
+	}
+	cif_dev->stream[0].frame_idx = atomic_read(&cif_dev->sditf[0]->frm_sync_seq);
+}
+
 static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
@@ -14647,6 +14679,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 							sditf_event_inc_sof(tmp_dev->sditf[tmp_dev->stream[0].id]);
 						else if (tmp_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
 							schedule_work(&tmp_dev->exp_work);
+						else if (cif_dev->channels[0].capture_info.mode == RKMODULE_QUADBAYER_TO_DUAL_PIPE)
+							rkcif_quadbayer_dual_pipe_send_sof(cif_dev);
 						else
 							rkcif_send_sof(tmp_dev);
 						if (tmp_dev->stream[0].cifdev->rdbk_debug &&
@@ -14680,6 +14714,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 				sditf_event_inc_sof(cif_dev->sditf[detect_stream->id]);
 			else if (cif_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
 				schedule_work(&cif_dev->exp_work);
+			else if (cif_dev->channels[0].capture_info.mode == RKMODULE_QUADBAYER_TO_DUAL_PIPE)
+				rkcif_quadbayer_dual_pipe_send_sof(cif_dev);
 			else
 				rkcif_send_sof(cif_dev);
 			if ((detect_stream->cifdev->rdbk_debug &&
@@ -14690,7 +14726,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 					  detect_stream->id,
 					  rkcif_get_sof(cif_dev),
 					  detect_stream->frame_idx);
-			if (rkcif_check_frame_active(cif_dev))
+			if (rkcif_check_frame_active(cif_dev) &&
+			    cif_dev->channels[0].capture_info.mode != RKMODULE_QUADBAYER_TO_DUAL_PIPE)
 				detect_stream->frame_idx++;
 		}
 		spin_unlock_irqrestore(&detect_stream->vbq_lock, flags);

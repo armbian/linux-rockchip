@@ -37,7 +37,11 @@ void sditf_event_inc_sof(struct sditf_priv *priv)
 			.u.frame_sync.frame_sequence =
 				atomic_inc_return(&priv->frm_sync_seq) - 1,
 		};
-		v4l2_event_queue(priv->sd.devnode, &event);
+		if (priv->cif_dev->channels[0].capture_info.mode != RKMODULE_QUADBAYER_TO_DUAL_PIPE ||
+		    (priv->connect_id > VICAP_OUT_PATH_FULL_ID3 &&
+		     priv->cif_dev->stream[0].cur_stream_mode & RKCIF_STREAM_MODE_TOSCALE) ||
+		    priv->cif_dev->stream[priv->connect_id].dma_en)
+			v4l2_event_queue(priv->sd.devnode, &event);
 		if (priv->cif_dev->exp_dbg)
 			dev_info(priv->dev, "sof %d\n", atomic_read(&priv->frm_sync_seq) - 1);
 	}
@@ -227,11 +231,9 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 				break;
 			}
 		}
-		priv->cap_info.width = fmt->format.width;
-		priv->cap_info.height = fmt->format.height;
 		pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt->format.code);
-		pixm.width = priv->cap_info.width;
-		pixm.height = priv->cap_info.height;
+		pixm.width = fmt->format.width;
+		pixm.height = fmt->format.height;
 
 		out_fmt = rkcif_find_output_fmt(NULL, pixm.pixelformat);
 		if (priv->toisp_inf.link_mode == TOISP_UNITE &&
@@ -259,6 +261,14 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 			}
 			rkcif_set_fmt(&cif_dev->stream[i], &pixm, false);
 		}
+		if (priv->connect_id == VICAP_OUT_PATH_SCL0 ||
+		    priv->connect_id == VICAP_OUT_PATH_SCL1 ||
+		    priv->connect_id == VICAP_OUT_PATH_SCL2) {
+			fmt->format.width /= 2;
+			fmt->format.height /= 2;
+		}
+		priv->cap_info.width = fmt->format.width;
+		priv->cap_info.height = fmt->format.height;
 	} else {
 		if (priv->sensor_sd) {
 			fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -1803,6 +1813,7 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 	struct sditf_priv *priv;
 	struct device_node *node = dev->of_node;
 	int ret;
+	int connect_id;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1831,6 +1842,11 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 	} else {
 		priv->is_combine_mode = true;
 	}
+	ret = of_property_read_u32(node,
+				   "rockchip,connect-id",
+				   &connect_id);
+	if (!ret)
+		priv->connect_id = connect_id;
 	ret = rkcif_subdev_media_init(priv);
 	if (ret < 0)
 		return ret;
