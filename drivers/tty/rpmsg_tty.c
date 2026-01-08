@@ -193,6 +193,10 @@ static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 
 	dev_set_drvdata(dev, cport);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rpdev->announce = rpdev->src != RPMSG_ADDR_ANY;
+#endif
+
 	dev_dbg(dev, "New channel: 0x%x -> 0x%x: " RPMSG_TTY_NAME "%d\n",
 		rpdev->src, rpdev->dst, cport->id);
 
