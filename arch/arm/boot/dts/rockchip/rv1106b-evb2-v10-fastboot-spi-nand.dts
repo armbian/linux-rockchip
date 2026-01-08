@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-evb2-cam.dtsi"
+#include "rv1106b-fastboot-spi-nand.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board";
+	compatible = "rockchip,rv1106b-evb2-v10-fastboot-spi-nand", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&ramdisk_r {
+	reg = <0x800000 (20 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x1c00000 (8 * 0x00100000)>;
+};

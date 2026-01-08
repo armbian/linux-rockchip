@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-thunder-boot-cam.dtsi"
+#include "rv1106b-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board for 4K Unite";
+	compatible = "rockchip,rv1106b-evb2-v10-4k", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_input0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cam0_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc850sl: sc850sl@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&rkisp {
+	rockchip,unite-en;
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 3840x2160: 0x1e0f000 (3 buffs)
+	 */
+	reg = <0x00860000 0x1e0f000>;
+};
+
+&ramdisk_r {
+	reg = <0x266f000 (12 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x326f000 (5 * 0x00100000)>;
+};

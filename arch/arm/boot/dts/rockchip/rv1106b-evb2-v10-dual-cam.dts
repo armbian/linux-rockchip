@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-thunder-boot-dual-cam.dtsi"
+#include "rv1106b-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board";
+	compatible = "rockchip,rv1106b-evb2-v10-dual-cam", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc200ai: sc200ai@30 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		// reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc200ai_1: sc200ai_1@32 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+		// reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			cam1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&meta {
+	/* reg's offset MUST match with RTOS */
+	reg = <0x00800000 0xb0000>;
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num)
+	 * e.g. 1920x1080: 0xa8c000
+	 * e.g. 1920x1080: 0xa8c000
+	 * 0x008b0000 = (meta's reg offset) + (meta's reg size)
+	 *            = 0x00800000 + 0xb0000
+	 */
+	reg = <0x008b0000 0x546000>;
+};
+
+&ramdisk_r {
+	reg = <0xdf6000 (8 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x15f6000 (4 * 0x00100000)>;
+};
+
+&rkisp1_thunderboot {
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num)
+	 * e.g. 1920x1080: 0xa8c0000
+	 * 0x26b0000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
+	 *            = 0x21b0000 + (5 * 0x00100000)
+	 */
+	reg = <0x19f6000 0x546000>;
+};

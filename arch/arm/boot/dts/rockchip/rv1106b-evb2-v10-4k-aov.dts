@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b-evb2-v10-4k.dts"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board, 4K AOV";
+	compatible = "rockchip,rv1106b-evb2-v10-4k-aov", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+		power-key {
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label ="GPIO Key Power";
+			debounce-interval = <100>;
+			wakeup-source;
+			/* gpio-key,wakeup; */
+		};
+	};
+};
+
+&pinctrl {
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,sleep-io-config = <
+		/* pmic_sleep */
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(0)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(1)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(2)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX(1)
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(3)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_UP
+		| RKPM_IO_CFG_ID(4)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(5)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(6)
+		)
+	>;
+};
+
+&rtc {
+	rockchip,rtc-suspend-bypass;
+	status = "okay";
+};

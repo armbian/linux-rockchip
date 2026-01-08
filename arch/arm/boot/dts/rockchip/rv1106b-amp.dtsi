@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru CLK_HPMCU>, <&cru HCLK_HPMCU>,
+			 <&cru PCLK_HPMCU_INTMUX>, <&cru PCLK_HPMCU_MAILBOX>,
+			 <&cru PCLK_WDT_HPMCU>, <&cru HCLK_CACHE>;
+		status = "okay";
+	};
+};

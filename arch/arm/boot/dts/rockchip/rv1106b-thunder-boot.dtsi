@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/*
+		 * reserved memory layout
+		 *
+		 *  H		 _______________________
+		 *		|			|
+		 *		|	ramdisk_c	|
+		 *		|_______________________|
+		 *		|			|
+		 *		|	ramdisk_r	|
+		 *		|_______________________|
+		 *		|			|
+		 *		|   rkisp1_thunderboot	|
+		 *		|_______________________|
+		 *		|			|
+		 *		|   rkisp_thunderboot	|
+		 *		|_______________________|
+		 *		|			|
+		 *		|	   meta		|
+		 *		|_______________________|
+		 *		|			|
+		 *		|	mcu ram log	|
+		 *		|_______________________|
+		 *		|			|
+		 *		|	   mcu		|
+		 * L	0x40000	|_______________________|
+		 *
+		 */
+
+		rtos: rtos@40000 {
+			reg = <0x40000 0x3c000>;
+		};
+
+		ramoops: ramoops@7c000 {
+			compatible = "ramoops";
+			reg = <0x7c000 0x4000>;
+			record-size = <0x0>;
+			console-size = <0x0>;
+			ftrace-size = <0x0>;
+			pmsg-size = <0x0>;
+			mcu-log-size = <0x4000>;
+			mcu-log-count = <0x1>;
+		};
+
+		meta: meta@800000 {
+			/* reg's offset MUST match with RTOS */
+			reg = <0x00800000 0x60000>;
+		};
+
+		rkisp_thunderboot: rkisp@860000 {
+			/* reg's offset MUST match with RTOS */
+			/*
+			 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+			 * e.g. 1920x1080: 0xa8c000
+			 */
+			reg = <0x00860000 0xa8c000>;
+		};
+
+		rkisp1_thunderboot: rkisp1_thunderboot {
+			/* vicap capture for a second camera */
+		};
+
+		ramdisk_r: ramdisk_r {
+			reg = <0x012ec000 (10 * 0x00100000)>;
+		};
+
+		ramdisk_c: ramdisk_c {
+			reg = <0x01cec000 (5 * 0x00100000)>;
+		};
+	};
+
+	thunder_boot_rkisp: thunder-boot-rkisp {
+		compatible = "rockchip,thunder-boot-rkisp";
+		clocks = <&cru CLK_HPMCU>, <&cru HCLK_HPMCU>,
+			 <&cru PCLK_HPMCU_INTMUX>, <&cru PCLK_HPMCU_MAILBOX>,
+			 <&cru PCLK_WDT_HPMCU>, <&cru HCLK_CACHE>,
+			 <&cru PCLK_TIMER>, <&cru CLK_TIMER5>,
+			 <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru CLK_CORE_ISP>, <&cru ISP0CLK_VICAP>,
+			 <&cru ACLK_VICAP>, <&cru HCLK_VICAP>,
+			 <&cru DCLK_VICAP>, <&cru ISP0CLK_VICAP>,
+			 <&cru PCLK_CSI2HOST0>, <&cru PCLK_CSI2HOST1>,
+			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
+		clock-names = "clk_hpmcu", "hclk_hpmcu",
+			      "pclk_hpmcu_intmux", "pclk_hpmcu_mailbox",
+			      "pclk_wdt_hpmcu", "hclk_cache",
+			      "pclk_timer", "clk_timer5",
+			      "aclk_isp", "hclk_isp",
+			      "clk_isp_core", "clk_isp_core_vicap",
+			      "aclk_cif","hclk_cif",
+			      "dclk_cif", "isp0clk_cif",
+			      "pclk_csi2host0", "pclk_csi2host1",
+			      "clk_i2c4", "pclk_i2c4";
+	};
+
+	thunder_boot_service: thunder-boot-service {
+		compatible = "rockchip,thunder-boot-service";
+		mbox-names = "amp-rx";
+		mboxes = <&hpmcu_mbox0 0>;
+		resets = <&cru SRST_RESETN_HPMCU_FULL_CLUSTER>;
+		reset-names = "hpmcu_full_cluster";
+		memory-region = <&rtos>;
+	};
+};
+
+&hpmcu_mbox0 {
+	status = "okay";
+};
+
+&hw_decompress {
+	memory-region = <&ramdisk_c>;
+	status = "okay";
+};

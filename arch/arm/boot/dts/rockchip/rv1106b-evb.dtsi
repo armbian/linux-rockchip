@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+#include <dt-bindings/input/input.h>
+
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/mmcblk0p5 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+
+	acodec_sound: acodec-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rv1103b-acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		key_volumeup-key {
+			label = "key_volumeup";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <0>;
+		};
+
+		key_volumedown-key {
+			label = "key_volumedown";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <400781>;
+		};
+	};
+
+	restart-poweroff {
+		compatible = "restart-poweroff";
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
+&acodec {
+	status = "okay";
+};
+
+&fiq_debugger {
+	rockchip,irq-mode-enable = <1>;
+	rockchip,baudrate = <1500000>;
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&mpp_vcodec {
+	status = "okay";
+};
+
+&npu {
+	status = "okay";
+};
+
+&rga2 {
+	status = "okay";
+};
+
+&rkdvbm {
+	status = "okay";
+};
+
+&rkvenc {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&sai {
+	status = "okay";
+};
+
+&tsadc {
+	status = "okay";
+};
+
+&u2phy {
+	status = "okay";
+};
+
+&u2phy_otg {
+	rockchip,vbus-always-on;
+	status = "okay";
+};
+
+&usbdrd {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	extcon = <&u2phy>;
+	status = "okay";
+};

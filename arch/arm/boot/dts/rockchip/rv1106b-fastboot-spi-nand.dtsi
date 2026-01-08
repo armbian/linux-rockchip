@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramdisk_r: ramdisk_r {
+			reg = <0x800000 (10 * 0x00100000)>;
+		};
+
+		ramdisk_c: ramdisk_c {
+			reg = <0x1200000 (5 * 0x00100000)>;
+		};
+	};
+};
+
+&hw_decompress {
+	memory-region = <&ramdisk_c>;
+	status = "okay";
+};

@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rv1103b-evb-cam.dtsi"
+
+&imx415 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&jx_k17 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&os04a10 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc200ai {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc3336 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc3338 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc4336 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc4336p {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc401ai {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc450ai {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc530ai {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc850sl {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};

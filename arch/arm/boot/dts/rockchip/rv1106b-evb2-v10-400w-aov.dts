@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b-evb2-v10-400w.dts"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board";
+	compatible = "rockchip,rv1106b-evb2-v10-400w-aov", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+		power-key {
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label ="GPIO Key Power";
+			debounce-interval = <100>;
+			wakeup-source;
+			/* gpio-key,wakeup; */
+		};
+	};
+};
+
+&pinctrl {
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+	 * e.g. 2688x1520: 0xa64000(raw picture size) + 0x9000 = 0xa6d000
+	 */
+	reg = <0x00860000 0xa6d000>;
+};
+
+&ramdisk_r {
+	reg = <0x12cd000 (8 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x1acd000 (4 * 0x00100000)>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,sleep-io-config = <
+		/* pmic_sleep */
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(0)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(1)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(2)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX(1)
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(3)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_UP
+		| RKPM_IO_CFG_ID(4)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(5)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(6)
+		)
+	>;
+};
+
+&rtc {
+	rockchip,rtc-suspend-bypass;
+	status = "okay";
+};
+
+&sc450ai {
+	rockchip,camera-module-stb = <1>;
+};

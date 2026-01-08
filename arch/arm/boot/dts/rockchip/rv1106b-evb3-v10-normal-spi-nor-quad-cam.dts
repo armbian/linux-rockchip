@@ -1,0 +1,213 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+/dts-v1/;
+#include "rv1106b.dtsi"
+#include "rv1106b-amp.dtsi"
+#include "rv1106b-evb3-v10.dtsi"
+#include "rv1106b-evb3-quad-cam.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB3 V10 Board";
+	compatible = "rockchip,rv1106b-evb3-v10-normal-spi-nor-quad-cam", "rockchip,rv1106b";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+		power-key {
+			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label ="GPIO Key Power";
+			debounce-interval = <100>;
+			wakeup-source;
+			/* gpio-key,wakeup; */
+		};
+	};
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc200ai_0: sc200ai_0@30 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		//pwren-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "internal_master";
+		rockchip,camera-module-group-id = <0>;
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc200ai_1: sc200ai_1@32 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		/* pwren-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>; */
+		/* reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>; */
+		/* pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>; */
+		/* pinctrl-names = "default"; */
+		/* pinctrl-0 = <&cam_clk0_pins>; */
+		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "slave";
+		rockchip,camera-module-group-id = <0>;
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam2_out: endpoint {
+				remote-endpoint = <&csi_dphy_input2>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1m0_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+	sc200ai_2: sc200ai_2@30 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		pwren-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "internal_master";
+		rockchip,camera-module-group-id = <1>;
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+	sc200ai_3: sc200ai_3@32 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		//pwren-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_LOW>;
+		//pwdn-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <3>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sync-mode = "slave";
+		rockchip,camera-module-group-id = <1>;
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam3_out: endpoint {
+				remote-endpoint = <&csi_dphy_input3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,sleep-io-config = <
+		/* pmic_sleep */
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(0)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(1)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(2)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_PULL_UP
+		| RKPM_IO_CFG_ID(3)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(4)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(5)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(6)
+		)
+	>;
+};
+
+&rtc {
+	rockchip,rtc-suspend-bypass;
+	status = "okay";
+};

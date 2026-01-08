@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103b-evb1-v10.dts"
+
+/ {
+	model = "Rockchip RV1103B EVB1 V10 Board";
+	compatible = "rockchip,rv1103b-evb1-v10-external-codec", "rockchip,rv1103b";
+
+	es8388_sound: es8388-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8388";
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai>;
+		rockchip,codec = <&es8388>, <&acodec>;
+	};
+};
+
+/*
+ * The codec of acodec_sound and es8388_sound are multiplexed
+ */
+&acodec_sound {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1m1_xfer_pins>;
+
+	es8388: es8388@11 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
+		clocks = <&mclkout_sai>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai>;
+		assigned-clock-rates = <12288000>;
+	};
+};
+
+&mclkout_sai {
+	status = "okay";
+};
+
+/*
+ * The pins of rmii_phy, sai, sdmmc1 and wireless are multiplexed
+ */
+&rmii_phy {
+	status = "disabled";
+};
+
+&sai {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai_pins>;
+};
+
+&sdio_pwrseq {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};

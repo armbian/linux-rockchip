@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mmc_ecsd: mmc@3f000 {
+			reg = <0x3f000 0x00001000>;
+		};
+
+		mmc_idmac: mmc@80000 {
+			reg = <0x0080000 0x17e000>;
+		};
+
+		ramdisk_r: ramdisk_r {
+			reg = <0x800000 (10 * 0x00100000)>;
+		};
+
+		ramdisk_c: ramdisk_c {
+			reg = <0x1200000 (5 * 0x00100000)>;
+		};
+	};
+
+	thunder_boot_mmc: thunder-boot-mmc {
+		compatible = "rockchip,thunder-boot-mmc";
+		reg = <0x20d30000 0x4000>;
+		clocks = <&cru HCLK_EMMC>, <&cru CCLK_EMMC>;
+		clock-names = "biu", "ciu";
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+		memory-region-idmac = <&mmc_idmac>;
+	};
+};
+
+&emmc {
+	memory-region-ecsd = <&mmc_ecsd>;
+	post-power-on-delay-ms = <0>;
+};
+
+&hw_decompress {
+	memory-region = <&ramdisk_c>;
+	status = "okay";
+};

@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b-evb2-v10-dual-cam.dts"
+#include "rv1106b-amp.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board";
+	compatible = "rockchip,rv1106b-evb2-v10-aov-dual-cam", "rockchip,rv1106b";
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+		power-key {
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label ="GPIO Key Power";
+			debounce-interval = <100>;
+			wakeup-source;
+			/* gpio-key,wakeup; */
+		};
+	};
+};
+
+&pinctrl {
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&meta {
+	/* reg's offset MUST match with RTOS */
+	reg = <0x00800000 0xb0000>;
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *1(buf num)
+	 * e.g. 1920x1080: 0xa8c000
+	 * e.g. 1920x1080: 0xa8c000
+	 * 0x008b0000 = (meta's reg offset) + (meta's reg size)
+	 *            = 0x00800000 + 0xb0000
+	 */
+	reg = <0x08b0000 (2 * 0x2a3000)>;
+};
+
+&ramdisk_r {
+	reg = <0x0df6000 (7 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x14f6000 (4 * 0x00100000)>;
+};
+
+&rkisp1_thunderboot {
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *1(buf num)
+	 * e.g. 1920x1080: 0xa8c0000
+	 * 0x26b0000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
+	 *            = 0x21b0000 + (5 * 0x00100000)
+	 */
+	reg = <0x18f6000 (2 * 0x2a3000)>;
+};
+
+&rkcif_mipi_lvds {
+	fastboot-reserved-bufs = <1>;
+};
+
+&rkcif_mipi_lvds1 {
+	fastboot-reserved-bufs = <1>;
+};
+
+&rtc {
+	rockchip,rtc-suspend-bypass;
+	status = "okay";
+};
+
+&sc200ai {
+	rockchip,camera-module-stb = <1>;
+	rockchip,camera-module-sync-mode = "soft_sync";
+};
+
+&sc200ai_1 {
+	rockchip,camera-module-stb = <1>;
+	rockchip,camera-module-sync-mode = "soft_sync";
+};
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,sleep-io-config = <
+		/* pmic_sleep */
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(0)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(1)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(2)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX(1)
+		| RKPM_IO_CFG_PULL_NONE
+		| RKPM_IO_CFG_ID(3)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_UP
+		| RKPM_IO_CFG_ID(4)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(5)
+		)
+		(0
+		| RKPM_IO_CFG_IOMUX_GPIO
+		| RKPM_IO_CFG_GPIO_DIR_INPUT
+		| RKPM_IO_CFG_PULL_DOWN
+		| RKPM_IO_CFG_ID(6)
+		)
+	>;
+};

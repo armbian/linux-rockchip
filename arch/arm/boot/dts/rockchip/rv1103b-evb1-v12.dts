@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103b-evb1-v10.dts"
+
+/ {
+	model = "Rockchip RV1103B EVB1 V12 Board";
+	compatible = "rockchip,rv1103b-evb1-v12", "rockchip,rv1103b";
+};
+
+&rmii_phy {
+	pinctrl-0 = <&eth_led_spd_pins>;
+};
+
+&sdmmc1 {
+	bus-width = <1>;
+	pinctrl-0 = <&sdmmc1_cmd_pins &sdmmc1_clk_pins &sdmmc1_bus1_pins>;
+	status = "okay";
+};
+
+&vdd_logic {
+	compatible = "regulator-fixed";
+	regulator-name = "logic_0v9";
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+	vin-supply = <&vcc_sys>;
+	/delete-property/ pwms;
+	/delete-property/ pwm-supply;
+	/delete-property/ regulator-settling-time-up-us;
+};

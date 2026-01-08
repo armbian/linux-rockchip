@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rv1103b-dual-cam.dtsi"
+
+&gc2053 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&gc2053_1 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&os04a10 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc200ai {
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc200ai_1 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc301iot {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc301iot_1 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc4336 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc530ai {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+};
+
+&sc530ai_1 {
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};

@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-thunder-boot-cam.dtsi"
+#include "rv1106b-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 Board";
+	compatible = "rockchip,rv1106b-evb2-v10-400w-sc4336p", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=8 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	sc4336p: sc4336p@30 {
+		compatible = "smartsens,sc4336p";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 2560x1440: 0x1248000
+	 */
+	reg = <0x00860000 0x1248000>;
+};
+
+&ramdisk_r {
+	reg = <0x1aa8000 (16 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x2aa8000 (6 * 0x00100000)>;
+};

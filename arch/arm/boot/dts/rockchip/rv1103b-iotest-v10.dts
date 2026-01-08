@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103b.dtsi"
+#include "rv1103b-evb.dtsi"
+
+/ {
+	model = "Rockchip RV1103B/C IOTEST V10 Board";
+	compatible = "rockchip,rv1103b-iotest-v10", "rockchip,rv1103b";
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};

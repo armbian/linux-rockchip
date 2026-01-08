@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103b-evb1-v10.dts"
+
+/ {
+	model = "Rockchip RV1103B EVB1 V10 Board 4K Unite";
+	compatible = "rockchip,rv1103b-evb1-v10-4k", "rockchip,rv1103b";
+};
+
+&rkisp {
+	rockchip,unite-en;
+};
