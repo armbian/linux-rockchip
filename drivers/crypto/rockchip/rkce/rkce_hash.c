@@ -19,6 +19,9 @@
 #include "rkce_monitor.h"
 #include "rkce_hash.h"
 
+static int rkce_hash_prepare(struct crypto_engine *engine, struct ahash_request *req);
+static int rkce_hash_unprepare(struct crypto_engine *engine, struct ahash_request *req);
+
 #define RKCE_HASH_TIMEOUT_MS		3000
 
 static inline struct rkce_ahash_ctx *hash_req2ctx(struct ahash_request *req)
@@ -207,12 +210,15 @@ int rkce_hash_request_callback(void *rkce_hw, int result, uint32_t td_id, void *
 	ctx->calculated += ctx->req->nbytes;
 
 	if (ctx->is_final && ctx->req->result) {
-		memcpy(ctx->req->result, td_buf->hash, ctx->algt->alg.hash.halg.digestsize);
+		memcpy(ctx->req->result, td_buf->hash,
+		       GET_AHASH_ALG(ctx->algt)->halg.digestsize);
 		rkce_dumphex("req->result",
-				ctx->req->result, ctx->algt->alg.hash.halg.digestsize);
+			     ctx->req->result, GET_AHASH_ALG(ctx->algt)->halg.digestsize);
 	}
 
 exit:
+	rkce_hash_unprepare(ctx->algt->rk_dev->hash_engine, ctx->req);
+
 	crypto_finalize_hash_request(ctx->algt->rk_dev->hash_engine, ctx->req, result);
 
 	rk_trace("exit.\n");
@@ -220,9 +226,8 @@ exit:
 	return 0;
 }
 
-static int rkce_hash_prepare(struct crypto_engine *engine, void *breq)
+static int rkce_hash_prepare(struct crypto_engine *engine, struct ahash_request *req)
 {
-	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
 	struct device *dev = ctx->algt->rk_dev->dev;
@@ -281,9 +286,8 @@ exit:
 	return ret;
 }
 
-static int rkce_hash_unprepare(struct crypto_engine *engine, void *breq)
+static int rkce_hash_unprepare(struct crypto_engine *engine, struct ahash_request *req)
 {
-	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
 	struct device *dev = ctx->algt->rk_dev->dev;
@@ -321,19 +325,30 @@ static int rkce_hash_run(struct crypto_engine *engine, void *breq)
 	struct ahash_request *req = container_of(breq, struct ahash_request, base);
 	struct rkce_ahash_request_ctx *rctx = ahash_request_ctx(req);
 	struct rkce_ahash_ctx *ctx = hash_req2ctx(req);
-	uint32_t timeout_ms = RKCE_HASH_TIMEOUT_MS;
 	int ret;
 
 	rk_trace("enter.\n");
 
-	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	ret = rkce_hash_prepare(engine, req);
+	if (ret) {
+		rk_err("rkce_hash_prepare failed ret = %d\n", ret);
+		goto exit;
+	}
 
-	timeout_ms = ret ? 100 : RKCE_HASH_TIMEOUT_MS;
+	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	if (ret) {
+		rk_err("rkce_push_td failed ret = %d\n", ret);
+		goto exit;
+	}
 
 	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
-			 timeout_ms, rkce_hash_request_callback);
+			 RKCE_HASH_TIMEOUT_MS, rkce_hash_request_callback);
 
-	return 0;
+exit:
+	if (ret)
+		rkce_hash_unprepare(engine, req);
+
+	return ret;
 }
 
 static int rkce_ahash_hmac_setkey(struct crypto_ahash *tfm, const uint8_t *key, unsigned int keylen)
@@ -489,10 +504,11 @@ static int rkce_cra_hash_init(struct crypto_tfm *tfm)
 	struct rkce_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct rkce_algt *algt;
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
-	algt = container_of(alg, struct rkce_algt, alg.hash);
+	algt = GET_AHASH_ALGT(alg);
 
 	rk_debug("alloc %s\n", algt->name);
 
@@ -500,9 +516,13 @@ static int rkce_cra_hash_init(struct crypto_tfm *tfm)
 
 	ctx->algt = algt;
 
-	ctx->enginectx.op.do_one_request    = rkce_hash_run;
-	ctx->enginectx.op.prepare_request   = rkce_hash_prepare;
-	ctx->enginectx.op.unprepare_request = rkce_hash_unprepare;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request    = rkce_hash_run;
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {

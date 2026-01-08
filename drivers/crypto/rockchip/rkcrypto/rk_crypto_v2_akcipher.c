@@ -255,7 +255,7 @@ static int rk_rsa_crypto_rx(struct rk_crypto_dev *rk_dev)
 static void rk_rsa_complete(struct crypto_async_request *base, int err)
 {
 	if (base->complete)
-		base->complete(base, err);
+		base->complete(COMPLETE_PARAM(base), err);
 }
 
 static int rk_rsa_init_tfm(struct crypto_akcipher *tfm)
@@ -317,7 +317,6 @@ struct rk_crypto_algt rk_v2_asym_rsa = {
 		.max_size = rk_rsa_max_size,
 		.init = rk_rsa_init_tfm,
 		.exit = rk_rsa_exit_tfm,
-		.reqsize = 64,
 		.base = {
 			.cra_name = "rsa",
 			.cra_driver_name = "rsa-rk",
@@ -578,7 +577,6 @@ struct rk_crypto_algt rk_asym_sm2 = {
 		.max_size = rk_ecc_max_size,
 		.init = rk_ecc_init_tfm,
 		.exit = rk_ecc_exit_tfm,
-		.reqsize = 64,
 		.base = {
 			.cra_name = "sm2",
 			.cra_driver_name = "sm2-rk",

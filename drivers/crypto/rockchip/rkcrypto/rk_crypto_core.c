@@ -906,7 +906,7 @@ err_crypto:
 	return err;
 }
 
-static int rk_crypto_remove(struct platform_device *pdev)
+static void rk_crypto_remove(struct platform_device *pdev)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
 
@@ -927,13 +927,25 @@ static int rk_crypto_remove(struct platform_device *pdev)
 		free_page((unsigned long)rk_dev->addr_aad);
 
 	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
+}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+static int rk_crypto_remove_wrap(struct platform_device *pdev)
+{
+	rk_crypto_remove(pdev);
 
 	return 0;
 }
+#else
+static void rk_crypto_remove_wrap(struct platform_device *pdev)
+{
+	rk_crypto_remove(pdev);
+}
+#endif
 
 static struct platform_driver crypto_driver = {
 	.probe		= rk_crypto_probe,
-	.remove		= rk_crypto_remove,
+	.remove		= rk_crypto_remove_wrap,
 	.driver		= {
 		.name	= "rk-crypto",
 		.of_match_table	= crypto_of_id_table,

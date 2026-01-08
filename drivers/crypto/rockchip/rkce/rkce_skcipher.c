@@ -24,6 +24,11 @@
 #define TD_SYNC_TIMEOUT_MS		3000
 #define RKCE_SYMM_TIMEOUT_MS		3000
 
+static int rkce_cipher_prepare_req(struct crypto_engine *engine, struct skcipher_request *req);
+static int rkce_cipher_unprepare_req(struct crypto_engine *engine, struct skcipher_request *req);
+static int rkce_aead_prepare_req(struct crypto_engine *engine, struct aead_request *req);
+static int rkce_aead_unprepare_req(struct crypto_engine *engine, struct aead_request *req);
+
 static void rkce_set_symm_td_sg(struct rkce_symm_td *td_head,
 				uint32_t index, uint32_t len,
 				const dma_addr_t in,
@@ -259,6 +264,8 @@ int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void
 			}
 		}
 
+		rkce_aead_unprepare_req(engine, ctx->req);
+
 		crypto_finalize_aead_request(engine, ctx->req, result);
 	} else {
 		struct skcipher_request *tmp_req = (struct skcipher_request *)ctx->req;
@@ -271,6 +278,8 @@ int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void
 			/* update iv */
 			rkce_update_iv(ctx, tmp_req->iv);
 		}
+
+		rkce_cipher_unprepare_req(engine, ctx->req);
 
 		crypto_finalize_skcipher_request(engine, tmp_req, result);
 	}
@@ -673,9 +682,8 @@ static int  rkce_common_unprepare_req(struct rkce_cipher_request_ctx *rctx)
 	return 0;
 }
 
-static int rkce_cipher_prepare_req(struct crypto_engine *engine, void *areq)
+static int rkce_cipher_prepare_req(struct crypto_engine *engine, struct skcipher_request *req)
 {
-	struct skcipher_request *req = container_of(areq, struct skcipher_request, base);
 	struct rkce_cipher_request_ctx *rctx = skcipher_request_ctx(req);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct rkce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -700,9 +708,8 @@ static int rkce_cipher_prepare_req(struct crypto_engine *engine, void *areq)
 	return rkce_common_prepare_req(ctx, rctx, req);
 }
 
-static int rkce_cipher_unprepare_req(struct crypto_engine *engine, void *areq)
+static int rkce_cipher_unprepare_req(struct crypto_engine *engine, struct skcipher_request *req)
 {
-	struct skcipher_request *req = container_of(areq, struct skcipher_request, base);
 	struct rkce_cipher_request_ctx *rctx = skcipher_request_ctx(req);
 
 	rk_trace("enter.\n");
@@ -716,26 +723,38 @@ static int rkce_cipher_run_req(struct crypto_engine *engine, void *async_req)
 	struct rkce_cipher_request_ctx *rctx = skcipher_request_ctx(req);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct rkce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
-	uint32_t timeout_ms = RKCE_SYMM_TIMEOUT_MS;
 	int ret;
 
 	rk_trace("enter.\n");
 
-	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	ret = rkce_cipher_prepare_req(engine, req);
+	if (ret) {
+		rk_err("rkce_cipher_prepare_req failed ret = %d\n", ret);
+		goto exit;
+	}
 
-	timeout_ms = ret ? 100 : RKCE_SYMM_TIMEOUT_MS;
+	ret = rkce_push_td(ctx->algt->rk_dev->hardware, rctx->td_head);
+	if (ret) {
+		rk_err("rkce_push_td failed, ret = %d\n", ret);
+		goto exit;
+	}
 
 	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
-			 timeout_ms, rkce_cipher_request_callback);
+			 RKCE_SYMM_TIMEOUT_MS, rkce_cipher_request_callback);
 
-	return 0;
+exit:
+	if (ret)
+		rkce_cipher_unprepare_req(engine, req);
+
+	return ret;
 }
 
 static int rkce_ablk_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct rkce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rkce_algt *algt = container_of(alg, struct rkce_algt, alg.cipher);
+	struct rkce_algt *algt = GET_SKCIPHER_ALGT(alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
@@ -746,9 +765,14 @@ static int rkce_ablk_init_tfm(struct crypto_skcipher *tfm)
 	ctx->algt = algt;
 	ctx->ivlen = algt->mode == RKCE_SYMM_MODE_ECB ? 0 : crypto_skcipher_ivsize(tfm);
 
-	ctx->enginectx.op.prepare_request   = rkce_cipher_prepare_req;
-	ctx->enginectx.op.do_one_request    = rkce_cipher_run_req;
-	ctx->enginectx.op.unprepare_request = rkce_cipher_unprepare_req;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request    = rkce_cipher_run_req;
+
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {
@@ -866,9 +890,8 @@ static int rkce_cipher_decrypt(struct skcipher_request *req)
 	return rkce_cipher_handle_req(req, false);
 }
 
-static int rkce_aead_prepare_req(struct crypto_engine *engine, void *areq)
+static int rkce_aead_prepare_req(struct crypto_engine *engine, struct aead_request *req)
 {
-	struct aead_request *req = container_of(areq, struct aead_request, base);
 	struct rkce_cipher_request_ctx *rctx = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct rkce_cipher_ctx *ctx = crypto_aead_ctx(tfm);
@@ -905,9 +928,8 @@ static int rkce_aead_prepare_req(struct crypto_engine *engine, void *areq)
 	return rkce_common_prepare_req(ctx, rctx, req);
 }
 
-static int rkce_aead_unprepare_req(struct crypto_engine *engine, void *areq)
+static int rkce_aead_unprepare_req(struct crypto_engine *engine, struct aead_request *req)
 {
-	struct aead_request *req = container_of(areq, struct aead_request, base);
 	struct rkce_cipher_request_ctx *rctx = aead_request_ctx(req);
 
 	rk_trace("enter.\n");
@@ -922,9 +944,14 @@ static int rkce_aead_run_req(struct crypto_engine *engine, void *async_req)
 	struct rkce_cipher_request_ctx *rctx = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct rkce_cipher_ctx *ctx = crypto_aead_ctx(tfm);
-	uint32_t timeout_ms = RKCE_SYMM_TIMEOUT_MS;
 
 	rk_trace("enter.\n");
+
+	ret = rkce_aead_prepare_req(engine, req);
+	if (ret) {
+		rk_err("rkce_aead_prepare_req failed ret = %d\n", ret);
+		goto exit;
+	}
 
 	ret = rkce_push_td_sync(ctx->algt->rk_dev->hardware, rctx->td_aad_head, TD_SYNC_TIMEOUT_MS);
 	if (ret) {
@@ -938,12 +965,13 @@ static int rkce_aead_run_req(struct crypto_engine *engine, void *async_req)
 		goto exit;
 	}
 
-exit:
-	timeout_ms = ret ? 100 : RKCE_SYMM_TIMEOUT_MS;
 	rkce_monitor_add(ctx->algt->rk_dev->hardware, rctx->td_head,
-			 timeout_ms, rkce_cipher_request_callback);
+			 RKCE_SYMM_TIMEOUT_MS, rkce_cipher_request_callback);
+exit:
+	if (ret)
+		rkce_aead_unprepare_req(engine, req);
 
-	return 0;
+	return ret;
 }
 
 static int rkce_aead_handle_req(struct aead_request *req, bool is_enc)
@@ -972,7 +1000,8 @@ static int rkce_aead_init_tfm(struct crypto_aead *tfm)
 {
 	struct rkce_cipher_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_alg *alg = crypto_aead_alg(tfm);
-	struct rkce_algt *algt = container_of(alg, struct rkce_algt, alg.aead);
+	struct rkce_algt *algt = GET_AEAD_ALGT(alg);
+	struct crypto_engine_op *engine_ops;
 
 	rk_trace("enter.\n");
 
@@ -983,9 +1012,13 @@ static int rkce_aead_init_tfm(struct crypto_aead *tfm)
 	ctx->algt  = algt;
 	ctx->ivlen = crypto_aead_ivsize(tfm);
 
-	ctx->enginectx.op.prepare_request   = rkce_aead_prepare_req;
-	ctx->enginectx.op.do_one_request    = rkce_aead_run_req;
-	ctx->enginectx.op.unprepare_request = rkce_aead_unprepare_req;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+	engine_ops = &ctx->enginectx.op;
+#else
+	engine_ops = &algt->alg.hash.op;
+#endif
+
+	engine_ops->do_one_request = rkce_aead_run_req;
 
 	ctx->td_buf = rkce_cma_alloc(sizeof(*(ctx->td_buf)));
 	if (!ctx->td_buf) {
