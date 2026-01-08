@@ -1372,14 +1372,18 @@ static void rkcif_scale_update_stream(struct rkcif_scale_vdev *scale_vdev, int c
 					 RKCIF_YUV_ADDR_STATE_UPDATE,
 					 ch);
 
-	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE)
+	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE &&
+	    stream->cifdev->chip_id < CHIP_RK3576_CIF)
 		scale_vdev->frame_idx++;
 	else
 		scale_vdev->frame_idx = scale_vdev->stream->frame_idx;
 
 	if (active_buf && (!ret)) {
 		vb_done = &active_buf->vb;
-		vb_done->vb2_buf.timestamp = ktime_get_ns();
+		if (stream->cifdev->chip_id < CHIP_RK3576_CIF)
+			vb_done->vb2_buf.timestamp = ktime_get_ns();
+		else
+			vb_done->vb2_buf.timestamp = stream->readout.fs_timestamp;
 		vb_done->sequence = scale_vdev->frame_idx - 1;
 		if (stream->tools_vdev->state == RKCIF_STATE_STREAMING &&
 		    stream->tools_vdev->is_cap_scale &&
