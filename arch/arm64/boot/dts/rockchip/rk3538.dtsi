@@ -864,6 +864,8 @@
 			pinctrl-0 = <&pwm1m0_ch0_pins>;
 			clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
 			clock-names = "pwm", "pclk", "osc", "rc";
+			dmas = <&dmac 33>;
+			dma-names = "ledc-tx";
 			status = "disabled";
 		};
 
@@ -876,6 +878,8 @@
 			pinctrl-0 = <&pwm1m0_ch1_pins>;
 			clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
 			clock-names = "pwm", "pclk", "osc", "rc";
+			dmas = <&dmac 34>;
+			dma-names = "ledc-tx";
 			status = "disabled";
 		};
 
@@ -888,6 +892,8 @@
 			pinctrl-0 = <&pwm1m0_ch2_pins>;
 			clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_OSC_PWM1>, <&cru CLK_RC_PWM1>;
 			clock-names = "pwm", "pclk", "osc", "rc";
+			dmas = <&dmac 35>;
+			dma-names = "ledc-tx";
 			status = "disabled";
 		};
 
