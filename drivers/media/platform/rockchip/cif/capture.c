@@ -3105,13 +3105,22 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP &&
-	    (buf_stream->state != RKCIF_STATE_STREAMING || buf_stream->stopping)) {
-		buffer = NULL;
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
-			stream->curr_buf = NULL;
-		else
-			stream->next_buf = NULL;
-	} else if (!list_empty(&buf_stream->buf_head)) {
+	    (buf_stream->state != RKCIF_STATE_STREAMING || buf_stream->stopping) &&
+	    buf_stream->id != 0) {
+		buf_stream = &dev->stream[0];
+		if (buf_stream->state == RKCIF_STATE_STREAMING) {
+			if (buf_stream->buf_replace_cnt < 2)
+				buf_stream->buf_replace_cnt++;
+			if (buf_stream->buf_replace_cnt == 2) {
+				buf_stream->stopping = false;
+				wake_up(&buf_stream->wq_stopped);
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "stream[%d] buffer replace_cnt %d\n",
+				 buf_stream->id, buf_stream->buf_replace_cnt);
+		}
+	}
+	if (!list_empty(&buf_stream->buf_head)) {
 
 		if (!dummy_buf->vaddr &&
 		    stream->curr_buf == stream->next_buf &&
@@ -5485,6 +5494,8 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 		stream->is_wait_single_cap = false;
 		stream->last_frame_idx = 0;
 		stream->frame_phase_cache = CIF_CSI_FRAME1_READY;
+		stream->buf_replace_cnt = 0;
+		stream->to_stop_dma = 0;
 	}
 	stream->interlaced_bad_frame = false;
 	stream->last_fs_interlaced_phase = 0;
@@ -6965,6 +6976,14 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	else
 		mutex_lock(&dev->stream_lock);
 
+	if (stream->cifdev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP) {
+		stream = &stream->cifdev->stream[atomic_read(&stream->cifdev->pipe.stream_cnt) - 1];
+		node = &stream->vnode;
+		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+			 "stream[%d] pipe stream_cnt %d\n",
+			 stream->id, atomic_read(&stream->cifdev->pipe.stream_cnt));
+	}
+
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start stopping, total mode 0x%x, cur 0x%x\n",
 		stream->id, stream->cur_stream_mode, mode);
 
@@ -6989,12 +7008,16 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			} else {
 				stream->stopping = true;
 			}
-		} else if (dev->sditf[0] && (!dev->sditf[0]->is_toisp_off)) {
+		} else if ((dev->sditf[0] && (!dev->sditf[0]->is_toisp_off)) ||
+			(stream->cifdev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP && stream->id != 0)) {
 			stream->stopping = true;
 		} else {
 			rkcif_stream_stop(stream);
 		}
 		if (stream->stopping == true) {
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "stream[%d] need wait stream stop\n",
+				 stream->id);
 			if (mode == RKCIF_STREAM_MODE_TOISP && dev->sditf[0]->is_toisp_off)
 				ret = 0;
 			else
@@ -15801,6 +15824,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_ROCKIT;
 					rkcif_stop_dma_capture(stream);
+					v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+						 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+						 stream->id);
 					stream->is_pause_stream = true;
 					stream->is_hold_stream_off = true;
 				}
@@ -15841,6 +15867,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
 					stream->to_stop_dma = RKCIF_DMAEN_BY_ROCKIT;
 				rkcif_stop_dma_capture(stream);
+				v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+					 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+					 stream->id);
 			} else {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 			}
@@ -15899,6 +15928,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
 					stream->is_stop_capture = true;
+					v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+						 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+						 stream->id);
 				}
 				if (stream->to_stop_dma) {
 					if (cif_dev->switch_info.is_use_switch &&
