@@ -29,6 +29,7 @@
 #define TOISP_CH_MAX 3
 
 #define SDITF_PIXEL_RATE_MAX (1000000000)
+#define SDITF_MAX_EFFEC_EXPOSURE_CNT (1)
 
 struct capture_info {
 	unsigned int offset_x;
@@ -125,6 +126,7 @@ struct sditf_priv {
 	u32 cur_gain;
 	int one_to_multi_id;
 	u32 hdr_wrap_line;
+	u32 effect_exp_cnt;
 	bool is_toisp_off;
 	bool is_buf_init;
 	bool is_multi_online;

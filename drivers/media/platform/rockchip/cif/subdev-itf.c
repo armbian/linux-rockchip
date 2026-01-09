@@ -581,15 +581,15 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			dev_info(priv->dev, "RKCIF_CMD_SET_EXPOSURE %d\n", ret);
 		return ret;
 	case RKCIF_CMD_GET_EFFECT_EXPOSURE:
+		mutex_lock(&priv->mutex);
 		if (!list_empty(&priv->effect_exp_head)) {
 			effect_exp = list_first_entry(&priv->effect_exp_head,
 						      struct sditf_effect_exp,
 						      list);
 			if (effect_exp) {
 				effect_exposure = (struct rkcif_effect_exp *)arg;
-				mutex_lock(&priv->mutex);
 				list_del(&effect_exp->list);
-				mutex_unlock(&priv->mutex);
+				priv->effect_exp_cnt--;
 				*effect_exposure = effect_exp->exp;
 				kfree(effect_exp);
 				effect_exp = NULL;
@@ -600,6 +600,7 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		} else {
 			ret = -EINVAL;
 		}
+		mutex_unlock(&priv->mutex);
 		return ret;
 	case RKCIF_CMD_GET_CONNECT_ID:
 		connect_id = (int *)arg;
@@ -1792,6 +1793,7 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	priv->hdr_wrap_line = 0;
 	priv->is_buf_init = false;
 	priv->is_multi_online = false;
+	priv->effect_exp_cnt = 0;
 	return 0;
 }
 

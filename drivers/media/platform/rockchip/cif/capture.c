@@ -6935,6 +6935,7 @@ static void rkcif_clean_state_one_to_multi_mode(struct rkcif_device *dev)
 					gain = NULL;
 				}
 			}
+			priv->effect_exp_cnt = 0;
 		}
 	}
 	while (!list_empty(&dev->effect_time_head)) {
