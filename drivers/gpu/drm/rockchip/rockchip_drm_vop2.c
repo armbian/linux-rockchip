@@ -821,6 +821,24 @@ struct vop2_video_port {
 	u8 dclk_div;
 
 	/**
+	 * @sharp_disabled: Sharp is mutually exclusive with post-scaler and split,
+	 * we configure whether sharp is disabled in dts
+	 */
+	bool sharp_disabled;
+
+	/**
+	 * @bypass_mode: help ensure the output data is consistent with the input data.
+	 * The features acm/cgc/dci/dither/dovi/hdr/overscan/post csc/sharp that may change
+	 * the raw data will be disabled.
+	 *
+	 * Only the plane csc is retained to ensure the basic display function works well.
+	 * Therefore, in order to achieve complete consistency of input and output data, the
+	 * userspace needs to make the color encoding and color range of plane consistent with
+	 * those of connector.
+	 */
+	bool bypass_mode;
+
+	/**
 	 * @plane_mask: show the plane attach to this vp,
 	 * it maybe init at dts file or uboot driver
 	 */
@@ -927,11 +945,6 @@ struct vop2_video_port {
 	 * @irq: independent irq for each vp
 	 */
 	int irq;
-	/**
-	 * @sharp_disabled: Sharp is mutually exclusive with post-scaler and split,
-	 * we configure whether sharp is disabled in dts
-	 */
-	bool sharp_disabled;
 
 	/**
 	 * @win_cfg_done_bits: control reg done bit for each win
@@ -5515,7 +5528,7 @@ static void vop2_dovi_enable(struct drm_crtc *crtc)
 	struct hdr_extend *hdr_data;
 	int i = 0;
 
-	if (!vcstate->hdr_ext_data)
+	if (!vcstate->hdr_ext_data || vp->bypass_mode)
 		goto DISABLE_DOVI;
 
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
@@ -7771,6 +7784,8 @@ static void rk3588_vop2_win_cfg_axi(struct vop2_win *win)
 static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
+	struct drm_crtc *crtc = pstate->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = win->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
@@ -7789,7 +7804,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	u8 dw, dh;
 	enum vop_csc_format plane_csc_mode;
 
-	if (!vpstate->dci_data || !vpstate->dci_data->data) {
+	if (!vpstate->dci_data || !vpstate->dci_data->data || vp->bypass_mode) {
 		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
 		vpstate->dci_en = false;
 		return;
@@ -10625,6 +10640,9 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	bool pre_dither_down_en = false;
 
+	if (vp->bypass_mode)
+		return;
+
 	switch (vcstate->bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);
@@ -10703,6 +10721,15 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	u16 vsize = vdisplay * (vcstate->top_margin + vcstate->bottom_margin) / 200;
 	u16 hact_end, vact_end;
 	u32 val;
+
+	if (vp->bypass_mode) {
+		vcstate->left_margin = 100;
+		vcstate->right_margin = 100;
+		vcstate->top_margin = 100;
+		vcstate->bottom_margin = 100;
+		hsize = hdisplay;
+		vsize = vdisplay;
+	}
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vsize = rounddown(vsize, 2);
@@ -12790,7 +12817,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	/* If hdr extend data is null, exit hdr mode */
-	if (!vcstate->hdr_ext_data) {
+	if (!vcstate->hdr_ext_data || vp->bypass_mode) {
 		vop3_disable_dynamic_hdr(vp, win_phys_id);
 		return;
 	}
@@ -14561,7 +14588,7 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 	if (vcstate && vcstate->hdr_ext_data)
 		hdr_extend = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 
-	if (!hdr_extend)
+	if (!hdr_extend || vp->bypass_mode)
 		return;
 
 	if (!(hdr_extend->hdr_type & RK_HDR_CGC_S2H_MASK)) {
@@ -14858,7 +14885,7 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 		if (vpstate->ext_data)
 			extend_data = (struct rk_plane_extend_data *)vpstate->ext_data->data;
 
-		if (!extend_data)
+		if (!extend_data || vp->bypass_mode)
 			continue;
 
 		if (extend_data->type == RK_PLANE_EXTEND_DATA_CGC) {
@@ -15152,7 +15179,7 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
 	struct rockchip_bcsh_state bcsh_state;
 
-	if (!vcstate->tv_state)
+	if (!vcstate->tv_state || vp->bypass_mode)
 		return;
 
 	/* post BCSH CSC */
@@ -15266,6 +15293,9 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 
 	vcstate->post_r2y_en = false;
 	vcstate->post_y2r_en = false;
+
+	if (vp->bypass_mode)
+		return;
 
 	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
 	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100)
@@ -15550,7 +15580,7 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	writel(0, vop2->acm_res.regs + RK3528_ACM_CTRL);
 	VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
 
-	if (!acm || !acm->acm_enable) {
+	if (!acm || !acm->acm_enable || vp->bypass_mode) {
 		vcstate->acm_en = false;
 		return;
 	}
@@ -15626,7 +15656,7 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	 * rk3538 must disable sharp when all win is disabled, Otherwise
 	 * will display unexpected horizontal stripes.
 	 */
-	if (!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) {
+	if ((!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) || vp->bypass_mode) {
 		writel(0x0, vop2->sharp_res.regs);
 		vcstate->sharp_en = false;
 
@@ -19112,6 +19142,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 			vop2->vps[vp_id].pixel_shift.enable =
 				of_property_read_bool(child, "rockchip,pixel-shift-enable");
+
+			vop2->vps[vp_id].bypass_mode = of_property_read_bool(child,
+									     "rockchip,bypass-mode");
 		}
 
 		if (!vop2_plane_mask_check(vop2)) {
