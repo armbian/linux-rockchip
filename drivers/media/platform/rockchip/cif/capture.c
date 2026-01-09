@@ -2543,8 +2543,10 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 		if (dev->hw_dev->dummy_buf.vaddr) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				active_buf = buf_stream->curr_buf_toisp;
+				buf_stream->curr_buf_toisp = NULL;
 			} else {
 				active_buf = buf_stream->next_buf_toisp;
+				buf_stream->next_buf_toisp = NULL;
 			}
 		} else if (buf_stream->curr_buf_toisp && buf_stream->next_buf_toisp &&
 			   buf_stream->curr_buf_toisp != buf_stream->next_buf_toisp) {
