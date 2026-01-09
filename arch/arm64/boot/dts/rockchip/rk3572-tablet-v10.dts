@@ -16,6 +16,7 @@
 #include "rk3572.dtsi"
 #include "rk3572-android.dtsi"
 #include "rk3572-rk809-rk805.dtsi"
+#include "rk3572-tablet-camera.dtsi"
 
 / {
 	model = "Rockchip RK3572 TABLET V10 Board";
