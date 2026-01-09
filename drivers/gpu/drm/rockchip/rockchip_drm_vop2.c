@@ -4328,7 +4328,6 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 	if (!vop2_data->wb)
 		return 0;
 
-	vop2->wb.regs = vop2_data->wb->regs;
 	vop2->wb.conn.encoder.possible_crtcs = (1 << nr_crtcs) - 1;
 	spin_lock_init(&vop2->wb.job_lock);
 	drm_connector_helper_add(&vop2->wb.conn.base, &vop2_wb_connector_helper_funcs);
@@ -4343,6 +4342,7 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 		DRM_DEV_ERROR(vop2->dev, "writeback connector init failed\n");
 		return ret;
 	}
+	vop2->wb.regs = vop2_data->wb->regs;
 
 	/* output from VP by default */
 	vop2->wb.wb_source = ROCKCHIP_VOP2_PHY_ID_INVALID;
@@ -4366,8 +4366,12 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 
 static void vop2_wb_connector_destory(struct vop2 *vop2)
 {
+	if (!vop2->wb.regs)
+		return;
+
 	drm_encoder_cleanup(&vop2->wb.conn.encoder);
 	drm_connector_cleanup(&vop2->wb.conn.base);
+	vop2->wb.regs = NULL;
 }
 
 static void vop2_wb_irqs_enable(struct vop2 *vop2)
