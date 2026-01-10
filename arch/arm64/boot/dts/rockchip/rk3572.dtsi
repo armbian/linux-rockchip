@@ -1346,6 +1346,35 @@
 			status = "disabled";
 		};
 
+		rknpu: npu@26b00000 {
+			compatible = "rockchip,rk3572-rknpu";
+			reg = <0x0 0x26b00000 0x0 0x10000>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "npu0_irq";
+			clocks = <&cru ACLK_RKNN>, <&cru PCLK_RKNN_ROOT>;
+			clock-names = "aclk", "pclk_root";
+			assigned-clocks = <&cru ACLK_RKNN>;
+			assigned-clock-rates = <198000000>;
+			resets = <&cru SRST_ARESETN_RKNN>, <&cru SRST_ARESETN_RKNN_RV>;
+			reset-names = "srst_a_npu", "srst_a_nrv";
+			power-domains = <&power RK3572_PD_NPU>;
+			iommus = <&rknpu_mmu>;
+			rockchip,grf = <&npu_grf>;
+			status = "disabled";
+		};
+
+		rknpu_mmu: iommu@26b02000 {
+			compatible = "rockchip,iommu-v2";
+			reg = <0x0 0x26b02000 0x0 0x100>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "npu0_mmu";
+			clocks = <&cru ACLK_RKNN>, <&cru PCLK_RKNN_ROOT>;
+			clock-names = "aclk", "iface";
+			#iommu-cells = <0>;
+			power-domains = <&power RK3572_PD_NPU>;
+			status = "disabled";
+		};
+
 		vopl: vop@27100000 {
 			compatible = "rockchip,rk3572-vop-lit";
 			reg = <0x0 0x27100000 0x0 0x200>;
