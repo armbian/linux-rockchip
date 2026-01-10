@@ -9,6 +9,10 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 fix default output 3840x2160 issue
+ * V0.0X01.0X06
+ * 1. default pd not output.
+ * 2. add stream/power debug info.
+ * 3. add write reg failed log.
  */
 
 #include <linux/clk.h>
@@ -567,8 +571,8 @@ static const struct regval ov13b10_4208x3120_regs[] = {
 	{0x4837, 0x0e},
 	{0x484b, 0x01},
 	{0x4883, 0x02},
-	{0x5000, 0xff},
-	{0x5001, 0x0f},
+	{0x5000, 0xfd},
+	{0x5001, 0x0d},
 	{0x5045, 0x20},
 	{0x5046, 0x20},
 	{0x5047, 0xa4},
@@ -631,8 +635,11 @@ static int ov13b10_write_reg(struct i2c_client *client, u16 reg,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
+	if (i2c_master_send(client, buf, len + 2) != len + 2) {
+		dev_err(&client->dev,
+			"ov13b10 write reg(0x%x val:0x%x) failed !\n", reg, val);
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -1150,6 +1157,12 @@ static int ov13b10_s_stream(struct v4l2_subdev *sd, int on)
 	struct ov13b10 *ov13b10 = to_ov13b10(sd);
 	struct i2c_client *client = ov13b10->client;
 
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+		 ov13b10->cur_mode->width,
+		 ov13b10->cur_mode->height,
+		 DIV_ROUND_CLOSEST(ov13b10->cur_mode->max_fps.denominator,
+				   ov13b10->cur_mode->max_fps.numerator));
+
 	mutex_lock(&ov13b10->mutex);
 	on = !!on;
 	if (on == ov13b10->streaming)
@@ -1186,6 +1199,8 @@ static int ov13b10_s_power(struct v4l2_subdev *sd, int on)
 	int ret = 0;
 	struct ov13b10 *ov13b10 = to_ov13b10(sd);
 	struct i2c_client *client = ov13b10->client;
+
+	dev_info(&client->dev, "%s on(%d)\n", __func__, on);
 
 	mutex_lock(&ov13b10->mutex);
 
