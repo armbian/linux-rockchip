@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3538-demo1-v10.dtsi"
+#include "rk3538-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3538 Demo1 V10 Board";
+	compatible = "rockchip,rk3538-demo1-v10", "rockchip,rk3538";
+};

@@ -538,10 +538,19 @@ static int rockchip_pwm_set_pwrmatch_v4(struct rkxx_remotectl_drvdata *pd)
 	int version;
 	int channel_id;
 	int val;
+	int minor_version;
+	int feature;
 
 	version = readl_relaxed(pd->base + PWM_REG_VERSION_V4);
 	DBG("remote pwm version is 0x%x\n", version);
-	channel_id = (version & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+	minor_version = (version & MINOR_VERSION_MASK) >> MINOR_VERSION_SHIFT;
+	if (minor_version < 1) {
+		DBG("pwm minor version is less v1.0\n");
+		feature = readl_relaxed(pd->base + PWM_REG_VERSION_V4);
+	} else {
+		feature = readl_relaxed(pd->base + PWM_REG_FEATURE);
+	}
+	channel_id = (feature & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
 	val = BIT(channel_id) << PWRMATCH_READ_LOCK_SHIFT |
 			BIT(channel_id) << PWRMATCH_GRANT_SHIFT;
 	writel_relaxed(val, pd->base + PWM_REG_MATCH_ARBITER_V4);
@@ -874,7 +883,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 	count = of_property_count_strings(np, "clock-names");
-	if (count == 2) {
+	if (count >= 2) {
 		clk = devm_clk_get(&pdev->dev, "pwm");
 		p_clk = devm_clk_get(&pdev->dev, "pclk");
 	} else {

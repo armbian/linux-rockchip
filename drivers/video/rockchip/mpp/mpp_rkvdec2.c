@@ -87,6 +87,18 @@ static struct mpp_hw_info rkvdec_vdpu384a_hw_info = {
 	.link_info = &rkvdec_link_vdpu384a_hw_info,
 };
 
+static struct mpp_hw_info rkvdec_vdpu384b_hw_info = {
+	.reg_num = 320,
+	.reg_id = 0,
+	.reg_start = 0,
+	.reg_end = 316,
+	.reg_en = 16,
+	.reg_fmt = 8,
+	.reg_ret_status = 15,
+	.magic_base = 0x100,
+	.link_info = &rkvdec_link_vdpu384b_hw_info,
+};
+
 /*
  * file handle translate information
  */
@@ -240,6 +252,45 @@ static struct mpp_trans_info rkvdec_vdpu384a_trans[] = {
 		.count = ARRAY_SIZE(trans_vdpu384a_tbl_h264d),
 		.table = trans_vdpu384a_tbl_h264d,
 	},
+};
+
+/*
+ * file handle translate information
+ */
+static const u16 trans_vdpu384b_tbl_gen[] = {
+	/* 128-134 general in/out */
+	/* 140-160 rcb base */
+	/* 168-185 dpb base */
+	/* 192-210 payload */
+	/* 216-232 colmv */
+	128, 129, 130, 131, 132, 133, 134, 140, 142, 144, 146, 148, 150, 152, 156,
+	158, 160, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180,
+	181, 182, 183, 184, 185, 191, 192, 194, 195, 196, 197, 198, 199, 200, 201,
+	202, 203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221,
+	222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static struct mpp_trans_info rkvdec_vdpu384b_trans[] = {
+	[RKVDEC_FMT_H265D] = {
+		.count = ARRAY_SIZE(trans_vdpu384b_tbl_gen),
+		.table = trans_vdpu384b_tbl_gen,
+	},
+	[RKVDEC_FMT_H264D] = {
+		.count = ARRAY_SIZE(trans_vdpu384b_tbl_gen),
+		.table = trans_vdpu384b_tbl_gen,
+	},
+	[RKVDEC_FMT_VP9D] = {
+		.count = ARRAY_SIZE(trans_vdpu384b_tbl_gen),
+		.table = trans_vdpu384b_tbl_gen,
+	},
+	[RKVDEC_FMT_AVS2] = {
+		.count = ARRAY_SIZE(trans_vdpu384b_tbl_gen),
+		.table = trans_vdpu384b_tbl_gen,
+	},
+	[RKVDEC_FMT_AV1D] = {
+		.count = ARRAY_SIZE(trans_vdpu384b_tbl_gen),
+		.table = trans_vdpu384b_tbl_gen,
+	}
 };
 
 static int mpp_extract_rcb_info(struct rkvdec2_rcb_info *rcb_inf,
@@ -537,7 +588,7 @@ static int rkvdec2_rk3568_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return ret;
 }
 
-static int rkvdec_vdpu383_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+static int rkvdec_vdpu38x_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
@@ -607,7 +658,7 @@ static int rkvdec2_irq(struct mpp_dev *mpp)
 	return IRQ_WAKE_THREAD;
 }
 
-static int rkvdec_vdpu383_irq(struct mpp_dev *mpp)
+static int rkvdec_vdpu38x_irq(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link = dec->link_dec;
@@ -669,7 +720,7 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 	return IRQ_HANDLED;
 }
 
-static int rkvdec_vdpu383_isr(struct mpp_dev *mpp)
+static int rkvdec_vdpu38x_isr(struct mpp_dev *mpp)
 {
 	u32 err_mask;
 	struct rkvdec2_task *task = NULL;
@@ -1285,7 +1336,8 @@ static int rkvdec2_rk3568_init(struct mpp_dev *mpp)
 	return ret;
 }
 
-static int rkvdec2_rk3576_init(struct mpp_dev *mpp)
+/* RK3576/RK3572/RK3538 */
+static int rkvdec2_vdpu38x_init(struct mpp_dev *mpp)
 {
 	int ret;
 
@@ -1308,7 +1360,8 @@ static int rkvdec2_rk3568_exit(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvdec2_rk3576_exit(struct mpp_dev *mpp)
+/* RK3576/RK3572/RK3538 */
+static int rkvdec2_vdpu38x_exit(struct mpp_dev *mpp)
 {
 	rkvdec2_devfreq_remove(mpp);
 
@@ -1563,8 +1616,8 @@ static struct mpp_hw_ops rkvdec_rk3562_hw_ops = {
 };
 
 static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
-	.init = rkvdec2_rk3576_init,
-	.exit = rkvdec2_rk3576_exit,
+	.init = rkvdec2_vdpu38x_init,
+	.exit = rkvdec2_vdpu38x_exit,
 	.clk_on = rkvdec2_clk_on,
 	.clk_off = rkvdec2_clk_off,
 	.get_freq = rkvdec2_get_freq,
@@ -1573,9 +1626,9 @@ static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
 	.hack_run = rk3576_workaround_run,
 };
 
-static struct mpp_hw_ops rkvdec_rv1126b_hw_ops = {
-	.init = rkvdec2_rk3576_init,
-	.exit = rkvdec2_rk3576_exit,
+static struct mpp_hw_ops rkvdec_vdpu384_hw_ops = {
+	.init = rkvdec2_vdpu38x_init,
+	.exit = rkvdec2_vdpu38x_exit,
 	.clk_on = rkvdec2_clk_on,
 	.clk_off = rkvdec2_clk_off,
 	.get_freq = rkvdec2_get_freq,
@@ -1610,18 +1663,18 @@ static struct mpp_dev_ops rkvdec_rk3568_dev_ops = {
 	.dump_dev = rkvdec_link_dump,
 };
 
-static struct mpp_dev_ops rkvdec_vdpu383_dev_ops = {
+static struct mpp_dev_ops rkvdec_vdpu38x_dev_ops = {
 	.alloc_task = rkvdec2_alloc_task,
-	.run = rkvdec_vdpu383_run,
-	.irq = rkvdec_vdpu383_irq,
-	.isr = rkvdec_vdpu383_isr,
+	.run = rkvdec_vdpu38x_run,
+	.irq = rkvdec_vdpu38x_irq,
+	.isr = rkvdec_vdpu38x_isr,
 	.finish = rkvdec2_finish,
 	.result = rkvdec2_result,
 	.free_task = rkvdec2_free_task,
 	.ioctl = rkvdec2_control,
 	.init_session = rkvdec2_init_session,
 	.free_session = rkvdec2_free_session,
-	.link_irq = rkvdec_vdpu383_link_irq,
+	.link_irq = rkvdec_vdpu38x_link_irq,
 };
 
 static const struct mpp_dev_var rkvdec_v2_data = {
@@ -1669,15 +1722,24 @@ static const struct mpp_dev_var rkvdec_rk3576_data = {
 	.hw_info = &rkvdec_vdpu383_hw_info,
 	.trans_info = rkvdec_vdpu383_trans,
 	.hw_ops = &rkvdec_rk3576_hw_ops,
-	.dev_ops = &rkvdec_vdpu383_dev_ops,
+	.dev_ops = &rkvdec_vdpu38x_dev_ops,
 };
 
 static const struct mpp_dev_var rkvdec_rv1126b_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_vdpu384a_hw_info,
 	.trans_info = rkvdec_vdpu384a_trans,
-	.hw_ops = &rkvdec_rv1126b_hw_ops,
-	.dev_ops = &rkvdec_vdpu383_dev_ops,
+	.hw_ops = &rkvdec_vdpu384_hw_ops,
+	.dev_ops = &rkvdec_vdpu38x_dev_ops,
+};
+
+/* rk3572/rk3538 */
+static const struct mpp_dev_var rkvdec_vdpu384b_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_vdpu384b_hw_info,
+	.trans_info = rkvdec_vdpu384b_trans,
+	.hw_ops = &rkvdec_vdpu384_hw_ops,
+	.dev_ops = &rkvdec_vdpu38x_dev_ops,
 };
 
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
@@ -1719,6 +1781,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-rv1126b",
 		.data = &rkvdec_rv1126b_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3538
+	{
+		.compatible = "rockchip,rkv-decoder-rk3538",
+		.data = &rkvdec_vdpu384b_data,
 	},
 #endif
 	{},

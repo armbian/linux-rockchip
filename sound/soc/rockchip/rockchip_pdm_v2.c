@@ -124,7 +124,7 @@ static void rockchip_pdm_v2_rxctrl(struct rk_pdm_v2_dev *pdm, int on)
 		regmap_update_bits(pdm->regmap, PDM_V2_SYSCONFIG,
 				   PDM_V2_RX_MSK | PDM_V2_RX_CLR_MSK | PDM_V2_NUM_MSK,
 				   PDM_V2_RX_STOP | PDM_V2_RX_CLR_WR | PDM_V2_NUM_STOP);
-		if (pdm->version == RV1126B_PDM) {
+		if (pdm->version >= RV1126B_PDM) {
 			regmap_update_bits(pdm->regmap, PDM_V2_DATA_SHIFT0,
 					   0xffffffff, 0x0);
 			regmap_update_bits(pdm->regmap, PDM_V2_DATA_SHIFT1,
@@ -152,7 +152,7 @@ static int rockchip_pdm_v2_set_samplerate(struct rk_pdm_v2_dev *pdm, unsigned in
 	if (ret)
 		return ret;
 
-	if (pdm->version == RV1126B_PDM) {
+	if (pdm->version >= RV1126B_PDM) {
 		/* calculate the data shift if not set by dts.
 		 * Set default phase offset of 180 degrees.
 		 */
@@ -243,7 +243,7 @@ static int rockchip_pdm_v2_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL,
 				   PDM_V2_HPF_R_MSK | PDM_V2_HPF_L_MSK | PDM_V2_HPF_FREQ_MSK,
 				   PDM_V2_HPF_R_EN | PDM_V2_HPF_L_EN | PDM_V2_HPF_FREQ_60);
-	} else if (pdm->version == RV1126B_PDM) {
+	} else if (pdm->version >= RV1126B_PDM) {
 		/* Move the hpf after cic filter */
 		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL1,
 				   PDM_V2_FILT1_HPF_V2_R_MSK | PDM_V2_FILT1_HPF_V2_L_MSK |
@@ -253,7 +253,7 @@ static int rockchip_pdm_v2_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	rockchip_pdm_v2_set_samplerate(pdm, params_rate(params));
-	if (pdm->version == RV1126B_PDM) {
+	if (pdm->version >= RV1126B_PDM) {
 		/* PDM data shift */
 		n = params_channels(params);
 
@@ -401,7 +401,7 @@ static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
 		snd_soc_add_component_controls(dai->component, rk3506_controls, 1);
 	else if (pdm->version == RK3576_PDM)
 		snd_soc_add_component_controls(dai->component, rk3576_controls, 1);
-	else if (pdm->version == RV1126B_PDM)
+	else if (pdm->version >= RV1126B_PDM)
 		snd_soc_add_component_controls(dai->component, rv1126b_controls, 1);
 
 	return 0;
@@ -595,16 +595,7 @@ static int rockchip_pdm_v2_pinctrl_select_clk_state(struct device *dev)
 	 */
 	udelay(10);
 
-	/*
-	 * Must disable the clk to avoid clk glitch
-	 * when pinctrl switch from gpio to pdm clk.
-	 */
-
-	rockchip_utils_clk_gate_endisable(pdm->dev, pdm->clk_out, 0);
-	udelay(10);
 	pinctrl_select_state(pdm->pinctrl, pdm->clk_state);
-	udelay(10);
-	rockchip_utils_clk_gate_endisable(pdm->dev, pdm->clk_out, 1);
 
 	return 0;
 }
@@ -628,6 +619,7 @@ static int rockchip_pdm_v2_runtime_resume(struct device *dev)
 	struct rk_pdm_v2_dev *pdm = dev_get_drvdata(dev);
 	int ret;
 
+	rockchip_pdm_v2_pinctrl_select_clk_state(dev);
 	ret = clk_prepare_enable(pdm->clk_out);
 	if (ret)
 		goto err_clk_out;
@@ -647,8 +639,6 @@ static int rockchip_pdm_v2_runtime_resume(struct device *dev)
 		goto err_regmap;
 
 	rockchip_pdm_v2_rxctrl(pdm, 0);
-
-	rockchip_pdm_v2_pinctrl_select_clk_state(dev);
 
 	return 0;
 
@@ -965,7 +955,7 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	} else if (pdm->version == RK3576_PDM) {
 		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL, PDM_V2_GAIN_MSK,
 				   PDM_V2_GAIN_0DB);
-	} else if (pdm->version == RV1126B_PDM) {
+	} else if (pdm->version >= RV1126B_PDM) {
 		regmap_update_bits(pdm->regmap, PDM_V2_GAIN_CTRL,
 				   PDM_V2_GAIN_CTRL_MSK |
 				   PDM_V2_GAIN_CTRL_MSK << 8 |
@@ -985,7 +975,7 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_hclk;
 
-	if (pdm->version == RV1126B_PDM) {
+	if (pdm->version >= RV1126B_PDM) {
 		ret = rockchip_pdm_v2_data_shift(pdm, node);
 		if (ret)
 			goto err_hclk;

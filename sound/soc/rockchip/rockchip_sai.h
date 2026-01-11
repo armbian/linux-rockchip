@@ -244,6 +244,16 @@
 #define SAI_FIFO_CHG_EN			BIT(0)
 #define SAI_FIFO_CHG_DIS		0
 
+/* DMA_NUM: DMA NUM Register */
+#define SAI_DMA_RX_TIMES_MASK		GENMASK(31, 24)
+#define SAI_DMA_RX_TIMES(x)		((x) << 24)
+#define SAI_DMA_RX_ACK_NUM_MASK		GENMASK(23, 16)
+#define SAI_DMA_RX_ACK_NUM(x)		((x) << 16)
+#define SAI_DMA_TX_TIMES_MASK		GENMASK(15, 8)
+#define SAI_DMA_TX_TIMES(x)		((x) << 8)
+#define SAI_DMA_TX_ACK_NUM_MASK		GENMASK(7, 0)
+#define SAI_DMA_TX_ACK_NUM(x)		((x) << 0)
+
 /* SAI Registers */
 #define SAI_TXCR			(0x0000)
 #define SAI_FSCR			(0x0004)
@@ -289,6 +299,7 @@
 #define SAI_RXDATA1			(0x00a4)
 #define SAI_RXDATA2			(0x00a8)
 #define SAI_RXDATA3			(0x00ac)
+#define SAI_DMA_NUM			(0x00bc)
 #define SAI_TXDR2			(0x0100)
 #define SAI_RXDR2			(0x0104)
 

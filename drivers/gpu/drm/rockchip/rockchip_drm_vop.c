@@ -1427,6 +1427,12 @@ static void vop_enable_debug_irq(struct drm_crtc *crtc)
 		WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | HWC_EMPTY_INTR |
 		POST_BUF_EMPTY_INTR;
 	VOP_INTR_SET_TYPE(vop, clear, irqs, 1);
+	/*
+	 * rk3572 vop lite can't auto clear the rdata fifo
+	 * empty intr clr bit. it need manual reset this bit.
+	 */
+	if (vop->version == VOP_VERSION_RK3572_LITE)
+		VOP_INTR_SET_TYPE(vop, clear, POST_BUF_EMPTY_INTR, 0);
 	VOP_INTR_SET_TYPE(vop, enable, irqs, 1);
 }
 
@@ -2127,7 +2133,8 @@ static void vop_initial(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, afbdc_en, 0);
 	vop_enable_debug_irq(crtc);
 
-	if (vop->version == VOP_VERSION_RK3576_LITE) {
+	if (vop->version == VOP_VERSION_RK3572_LITE ||
+	    vop->version == VOP_VERSION_RK3576_LITE) {
 		VOP_GRF_SET(vop, grf, grf_vopl_sel, 1);
 		VOP_CTRL_SET(vop, enable, 1);
 	}
@@ -2601,6 +2608,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	}
 	if ((vop->version == VOP_VERSION_RK3036 ||
 	     vop->version == VOP_VERSION_RK3506 ||
+	     vop->version == VOP_VERSION_RK3572_LITE ||
 	     vop->version == VOP_VERSION_RK3576_LITE ||
 	     vop->version == VOP_VERSION_RV1126B) &&
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
@@ -2619,6 +2627,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_sty = dest->y1 + mode->crtc_vtotal - mode->crtc_vsync_start;
 	if ((vop->version == VOP_VERSION_RK3036 ||
 	     vop->version == VOP_VERSION_RK3506 ||
+	     vop->version == VOP_VERSION_RK3572_LITE ||
 	     vop->version == VOP_VERSION_RK3576_LITE ||
 	     vop->version == VOP_VERSION_RV1126B) &&
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
@@ -3428,7 +3437,7 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 
 	/*
 	 * Dclk need to be double if BT656 interface and vop version >= 2.12.
-	 * That is RV1126/RV1106/RK3576_LITE/RK3506/RV1126B
+	 * That is RV1126/RV1106/RK3572_LITE/RK3576_LITE/RK3506/RV1126B
 	 */
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK ||
 	    (vop->version >= VOP_VERSION_RV1106 && vop->version <= VOP_VERSION_RK3288 &&
@@ -3902,7 +3911,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 
 	/*
 	 * Dclk need to be double if BT656 interface and vop version >= 2.12.
-	 * That is RV1126/RV1106/RK3576_LITE/RK3506/RV1126B
+	 * That is RV1126/RV1106/RK3572_LITE/RK3576_LITE/RK3506/RV1126B
 	 */
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK ||
 	    (vop->version >= VOP_VERSION_RV1106 && vop->version <= VOP_VERSION_RK3288 &&
@@ -4009,7 +4018,7 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	u32 val;
 
 	/*
-	 * When using BT656, set RV1126/RV1106/RK3576_LITE/RK3506/RV1126B to P8888 mode.
+	 * When using BT656, set RV1126/RV1106/RK3572_LITE/RK3576_LITE/RK3506/RV1126B to P8888 mode.
 	 */
 	if ((s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	     !(vop->data->feature & VOP_FEATURE_OUTPUT_10BIT)) ||
@@ -4027,7 +4036,9 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	 * For RK3576 vopl, rg_swap and rb_swap need to be enabled in
 	 * YUV444 bus_format.
 	 */
-	if (vop->version == VOP_VERSION_RK3576_LITE && s->bus_format == MEDIA_BUS_FMT_YUV8_1X24)
+	if ((vop->version == VOP_VERSION_RK3572_LITE ||
+	     vop->version == VOP_VERSION_RK3576_LITE) &&
+	    s->bus_format == MEDIA_BUS_FMT_YUV8_1X24)
 		VOP_CTRL_SET(vop, dsp_data_swap, DSP_RG_SWAP | DSP_RB_SWAP);
 
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
@@ -4047,7 +4058,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	 */
 	if (!is_yuv_output(s->bus_format))
 		val = 0;
-	else if (vop->version == VOP_VERSION_RK3576_LITE)
+	else if (vop->version == VOP_VERSION_RK3572_LITE ||
+		 vop->version == VOP_VERSION_RK3576_LITE)
 		val = 0;
 	else if (vop->version == VOP_VERSION_RK3328 && s->hdr.pre_overlay)
 		val = 0;
@@ -4160,7 +4172,14 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	if (vop->mcu_timing.mcu_pix_total) {
 		/*
-		 * For RK3576_LITE/RK3506/RV1126B
+		 * For RK3572_LITE, in order to ensure MCU interface works well,
+		 * set inf_out_en before mcu_hold_mode enabled.
+		 */
+		if (vop->version == VOP_VERSION_RK3572_LITE)
+			VOP_CTRL_SET(vop, inf_out_en, 1);
+
+		/*
+		 * For RK3572_LITE/RK3576_LITE/RK3506/RV1126B
 		 */
 		if (vop->version >= VOP_VERSION_RK3576_LITE && vop->version <= VOP_VERSION_RK3288)
 			vop_set_out_mode(vop, s->output_mode);
@@ -4193,6 +4212,9 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		 */
 		if (vop->version == VOP_VERSION_RV1106 || vop->version == VOP_VERSION_RK3506)
 			dclk_inv = !dclk_inv;
+
+		if (vop->version == VOP_VERSION_RK3572_LITE)
+			VOP_CTRL_SET(vop, inf_out_en, 1);
 		fallthrough;
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
@@ -5324,8 +5346,15 @@ static irqreturn_t vop_isr(int irq, void *data)
 
 	active_irqs = VOP_INTR_GET_TYPE(vop, status, INTR_MASK);
 	/* Clear all active interrupt sources */
-	if (active_irqs)
+	if (active_irqs) {
 		VOP_INTR_SET_TYPE(vop, clear, active_irqs, 1);
+		/*
+		 * rk3572 vop lite can't auto clear the rdata fifo
+		 * empty intr clr bit. it need manual reset this bit.
+		 */
+		if (vop->version == VOP_VERSION_RK3572_LITE && (active_irqs & POST_BUF_EMPTY_INTR))
+			VOP_INTR_SET_TYPE(vop, clear, POST_BUF_EMPTY_INTR, 0);
+	}
 	wb_irqs = vop_read_and_clear_wb_irqs(vop);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);

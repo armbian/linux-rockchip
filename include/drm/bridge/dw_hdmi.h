@@ -104,6 +104,15 @@ enum dw_hdmi_phy_type {
 	DW_HDMI_PHY_VENDOR_PHY = 0xfe,
 };
 
+enum dw_hdmi_qp_version {
+	DW_HDMI_QP_V1 = 1,
+	/*
+	 * Some registers originally in rk grf
+	 * are incorporated into hdmi controller
+	 */
+	DW_HDMI_QP_V2,
+};
+
 struct dw_hdmi_audio_frl_n {
 	unsigned int r_bit;
 	unsigned int n_32k;
@@ -215,7 +224,11 @@ struct dw_hdmi_plat_data {
 	bool ycbcr_420_allowed;
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
-	bool is_hdmi_qp;
+	enum dw_hdmi_qp_version dw_hdmi_qp_version;
+	/* Support cec wakeup module */
+	bool cec_wakeup_supported;
+	/* Support hdmi pixel repetition */
+	bool pr_supported;
 
 	/*
 	 * Private data passed to all the .mode_valid() and .configure_phy()
@@ -282,7 +295,7 @@ struct dw_hdmi_plat_data {
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 	int (*dclk_set)(void *data, bool enable, int vp_id);
-	int (*link_clk_set)(void *data, bool enable);
+	int (*link_clk_set)(void *data, u32 rate, bool enable);
 	int (*get_vp_id)(struct drm_crtc_state *crtc_state);
 	void (*update_color_format)(struct drm_connector_state *conn_state, void *data);
 	void (*set_prev_bus_format)(void *data, unsigned long bus_format);
@@ -298,6 +311,8 @@ struct dw_hdmi_plat_data {
 	void (*crtc_post_enable)(void *data, struct drm_crtc *crtc);
 	int (*get_hdr10_plus_vsdb)(void *data, const struct edid *edid,
 				   struct drm_connector *connector);
+	void (*sda_delay_cal)(void *data, u8 *sda_dlyn, u8 *sda_div);
+	void (*set_cec_wakeup)(void *data, bool enable);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

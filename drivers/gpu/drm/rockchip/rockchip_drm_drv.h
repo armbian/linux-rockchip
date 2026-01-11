@@ -301,11 +301,62 @@ struct dci_data {
 	u32 dci_en;
 };
 
-#define SHARP_REG_LENGTH 692
+#define ROCKCHIP_VOP_MSMART_MAX_GRIDS_NUM	100
+#define ROCKCHIP_VOP_MSMART_LUT_LENGTH		1536
+
+/* msmart layer grid info */
+struct rockchip_vop_msmart_grid {
+	u32 fb_id; /* fb object contains grid format type */
+
+	/* dest location which should not exceed the main layer */
+	u32 dst_x;
+	u32 dst_y;
+	u32 dst_w;
+	u32 dst_h;
+
+	/* Source values are 16.16 fixed point */
+	u32 src_x;
+	u32 src_y;
+	u32 src_h;
+	u32 src_w;
+
+	u32 reserved[20];
+};
+
+struct msmart_data {
+	u32 version;
+
+	/* Source values are 16.16 fixed point */
+	u32 src_w;
+	u32 src_h;
+
+	u32 crtc_x;
+	u32 crtc_y;
+	u32 crtc_w;
+	u32 crtc_h;
+
+	u32 active_grid_num;
+	u32 reserved[30];
+	struct rockchip_vop_msmart_grid grid[ROCKCHIP_VOP_MSMART_MAX_GRIDS_NUM];
+};
+
+#define SHARP_REG_LENGTH_V1 173
+#define SHARP_REG_LENGTH_V2 14
+
+struct sharp_regs_v1 {
+	u32 regs[SHARP_REG_LENGTH_V1];
+};
+
+struct sharp_regs_v2 {
+	u32 regs[SHARP_REG_LENGTH_V2];
+};
 
 struct post_sharp {
 	u32 plat; /* Reserved to distinguish later platform */
-	u32 regs[SHARP_REG_LENGTH / 4];
+	union {
+		struct sharp_regs_v1 regs_v1;
+		struct sharp_regs_v2 regs_v2;
+	};
 };
 
 struct rockchip_hdmi_vrr_state {
@@ -349,6 +400,8 @@ struct rockchip_crtc_state {
 	 * So they are mutually exclusive.
 	 */
 	bool sharp_en;
+
+	bool acm_en;
 
 	bool dimming_changed;
 
@@ -400,6 +453,7 @@ struct rockchip_crtc_state {
 	struct drm_property_blob *acm_lut_data;
 	struct drm_property_blob *post_csc_data;
 	struct drm_property_blob *post_sharp_data;
+	struct drm_property_blob *cgc_s2h_data;
 	struct drm_property_blob *cubic_lut_data;
 	struct drm_property_blob *dimming_data;
 

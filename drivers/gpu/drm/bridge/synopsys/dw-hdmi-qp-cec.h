@@ -14,12 +14,15 @@ struct dw_hdmi_qp_cec_ops {
 	void (*disable)(struct dw_hdmi_qp *hdmi);
 	void (*write)(struct dw_hdmi_qp *hdmi, u32 val, int offset);
 	u32 (*read)(struct dw_hdmi_qp *hdmi, int offset);
+	void (*set_wakeup)(struct dw_hdmi_qp *hdmi, bool enable);
 };
 
 struct dw_hdmi_qp_cec_data {
 	struct dw_hdmi_qp *hdmi;
 	const struct dw_hdmi_qp_cec_ops *ops;
+	void __iomem *cec_wakeup_mem;
 	int irq;
+	int wake_irq;
 };
 
 #endif

@@ -32,6 +32,7 @@
 #define VOP_VERSION_RK3576_LITE		VOP_VERSION(2, 0xd)
 #define VOP_VERSION_RK3506		VOP_VERSION(2, 0xe)
 #define VOP_VERSION_RV1126B		VOP_VERSION(2, 0xf)
+#define VOP_VERSION_RK3572_LITE		VOP_VERSION(2, 0x10)
 #define VOP_VERSION_RK3288		VOP_VERSION(3, 0)
 #define VOP_VERSION_RK3288W		VOP_VERSION(3, 1)
 #define VOP_VERSION_RK3368		VOP_VERSION(3, 2)
@@ -52,6 +53,8 @@
 #define VOP_VERSION_RK3528	VOP2_VERSION(0x50, 0x17, 0x1263)
 #define VOP_VERSION_RK3562	VOP2_VERSION(0x50, 0x17, 0x4350)
 #define VOP_VERSION_RK3576	VOP2_VERSION(0x50, 0x19, 0x9765)
+#define VOP_VERSION_RK3572	VOP2_VERSION(0x50, 0x20, 0x9372)
+#define VOP_VERSION_RK3538	VOP2_VERSION(0x50, 0x30, 0x9328)
 
 /* register one connector */
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
@@ -81,6 +84,7 @@
 #define VOP_FEATURE_POST_FRC_V2		BIT(10)
 #define VOP_FEATURE_POST_SHARP		BIT(11)
 #define VOP_FEATURE_HW_CURSOR		BIT(12)
+#define VOP_FEATURE_CGC			BIT(13)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -105,8 +109,10 @@
 #define WIN_FEATURE_Y2R_13BIT_DEPTH	BIT(8)
 #define WIN_FEATURE_DCI			BIT(9)
 #define WIN_FEATURE_HW_CURSOR		BIT(10)
+#define WIN_FEATURE_MSMART		BIT(11)
+#define WIN_FEATURE_CGC			BIT(12)
 
-
+#define VOP2_CSC_COE_NUM		8
 #define VOP2_SOC_VARIANT		4
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
@@ -284,6 +290,7 @@ struct vop_afbc {
 	struct vop_reg pld_ptr_offset;
 	struct vop_reg pld_range_en;
 	struct vop_reg pld_ptr_range;
+	struct vop_reg compress_mode;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg rotate_270;
@@ -595,6 +602,7 @@ struct vop_hdr_table {
 #define RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH	6
 #define RK_SDR2HDR_SMGAIN_LENGTH		64
 #define RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH	264
+#define RK_VIVID_DYNAMIC_METADATA_LENGTH	24
 
 struct hdrvivid_regs {
 	uint32_t sdr2hdr_ctrl;
@@ -627,7 +635,7 @@ struct hdrvivid_regs {
 };
 
 #define RK_HDR_TYPE_MASK 0xff
-#define RK_HDR_PLAT_MASK (0xff << 8)
+#define RK_HDR_CGC_S2H_MASK BIT(8)
 
 /* byte unit */
 #define VOP2_DOVI_CORE1_LUT_SIZE		5120
@@ -657,12 +665,39 @@ struct dovi_regs {
 	uint32_t core3[DOVI_CORE3_SIZE];
 };
 
+#define INV_GAMMA_START_IDX_LENGTH	6
+#define INV_GAMMA_CHANGE_IDX_LENGTH	6
+#define INV_GAMMA_DIFF_SHIFT_LENGTH	69
+#define CGC_S2H_OETF_LENGTH		117
+#define RK_HDR_CGC_AXI_TAB_LENGTH	(RK_HDRVIVID_TONE_SCA_TAB_LENGTH + CGC_S2H_OETF_LENGTH * 2)
+
+struct cgc_s2h_data {
+	uint32_t cgc_mode;			/* cgc or hdr type */
+	uint32_t cgc_s2h_ctrl;			/* en, gating_en, bypass_en */
+	uint32_t cgc_s2h_coe0;			/* s_fix, r_fix */
+	uint32_t cgc_s2h_coe1;			/* t_fix */
+	uint32_t cgc_s2h_csc_coe00_01;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe02_10;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe11_12;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe20_21;		/* r2r mat */
+	uint32_t cgc_s2h_csc_coe22;		/* r2r mat */
+
+	/* eotf */
+	uint32_t cgc_s2h_inv_gamma_start_idx[INV_GAMMA_START_IDX_LENGTH];
+	uint32_t cgc_s2h_inv_gamma_change_idx[INV_GAMMA_CHANGE_IDX_LENGTH];
+	uint32_t cgc_s2h_inv_gamma_diff_shift[INV_GAMMA_DIFF_SHIFT_LENGTH];
+
+	/* oetf by axi */
+	uint32_t cgc_s2h_oetf[CGC_S2H_OETF_LENGTH];
+};
+
 struct hdr_extend {
 	uint32_t hdr_type;
 	uint32_t length;
 	union {
 		struct hdrvivid_regs hdrvivid_data;
 		struct dovi_regs dovi_data;
+		struct cgc_s2h_data cgc_s2h_data;
 	};
 };
 
@@ -677,6 +712,7 @@ enum _vop_hdrvivid_mode {
 	HDR102SDR,
 	SDR2HDR10,
 	SDR2HLG,
+	CGC,
 	SDR2HDR10_USERSPACE = 100,
 	SDR2HLG_USERSPACE = 101,
 };
@@ -697,6 +733,51 @@ enum vop_hdr_format {
 	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
 	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
 	HDR_FORMAT_MAX,
+};
+
+struct hdr_data {
+	uint32_t hdr_input_type;
+	uint32_t hdrvivid_ctrl;
+	uint32_t hdr_pq_gamma;
+	uint32_t hlg_rfix_scalefac;
+	uint32_t hlg_maxluma;
+	uint32_t hlg_r_tm_lin2non;
+	uint32_t hdr_csc_coe00_01;
+	uint32_t hdr_csc_coe02_10;
+	uint32_t hdr_csc_coe11_12;
+	uint32_t hdr_csc_coe20_21;
+	uint32_t hdr_csc_coe22;
+	uint32_t hdr_tone_sca[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
+	uint32_t hdrgamma_curve[RK_HDRVIVID_GAMMA_CURVE_LENGTH];
+	uint32_t hdrgamma_mdfvalue[RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH];
+	uint32_t hdr_mode;
+	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
+	uint32_t hdr_dynamic_metadata[RK_VIVID_DYNAMIC_METADATA_LENGTH];
+};
+
+enum rk_plane_extend_data_type {
+	RK_PLANE_EXTEND_DATA_NONE          = 0,
+	RK_PLANE_EXTEND_DATA_HDR           = 1,
+	RK_PLANE_EXTEND_DATA_CGC           = 2,
+	RK_PLANE_EXTEND_DATA_UNSPECIFIED
+};
+
+struct rk_plane_extend_data {
+	enum rk_plane_extend_data_type type;
+	uint32_t length;
+	union {
+		struct cgc_s2h_data cgc_s2h_data;
+		struct hdr_data hdr_data;
+	};
+};
+
+enum rk_pq_csc_swap_type {
+	RK_PQ_CSC_SWAP_NONE = 0,
+	RK_PQ_CSC_V1_SWAP,		/* for rk3576 csc */
+	RK_PQ_CSC_V2_VP_Y2R_R2R,
+	RK_PQ_CSC_V2_R2Y_R2R,
+	RK_PQ_CSC_V2_Y2R_Y2Y,
+	RK_PQ_CSC_V2_VP_R2Y_Y2Y,
 };
 
 struct post_csc_convert_mode {
@@ -815,7 +896,6 @@ struct vop2_cluster_regs {
 	struct vop_reg afbc_enable;
 	struct vop_reg lb_mode;
 	struct vop_reg scl_lb_mode;
-	struct vop_reg frm_reset_en;
 	struct vop_reg dma_stride_4k_disable;
 
 	struct vop_reg blk_size_h;
@@ -893,6 +973,11 @@ struct vop2_win_regs {
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;
+	struct vop_reg grid0_act_info; /* for msmart layer */
+	struct vop_reg multi_grid_en; /* for msmart layer */
+	struct vop_reg multi_grid_num; /* for msmart layer */
+	struct vop_reg multi_grid_mst; /* for msmart layer */
+	struct vop_reg frm_reset_en;
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;
@@ -902,6 +987,7 @@ struct vop2_win_regs {
 	struct vop_reg y2r_en;
 	struct vop_reg csc_y2r_path_sel;
 	struct vop_reg r2y_en;
+	struct vop_reg csc_coe;
 	struct vop_reg channel;
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
@@ -918,12 +1004,16 @@ struct vop2_win_regs {
 	struct vop_reg scale_engine_num;
 	struct vop_reg alpha_map_en;
 	struct vop_reg alpha_map_val;
+	struct vop_reg win_cfg_done;
+	struct vop_reg crc_check_en;
+	struct vop_reg crc_check_val;
 };
 
 struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
 	struct vop_reg sys_cfg_done;
 	struct vop_reg overlay_mode;
+	struct vop_reg yuv_full_range_overlay_mode;
 	struct vop_reg dsp_background;
 	struct vop_reg port_mux;
 	struct vop_reg out_mode;
@@ -972,7 +1062,7 @@ struct vop2_video_port_regs {
 	struct vop_reg dclk_div2;		/* dclk out */
 
 	struct vop_reg dclk_div2_phase_lock;	/* used to adjust phase when yuv420 output */
-
+	struct vop_reg hdr10_layer_sel;
 	struct vop_reg hdr10_en;
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
@@ -991,6 +1081,8 @@ struct vop2_video_port_regs {
 	struct vop_reg sdr2hdr_bypass_en;
 	struct vop_reg sdr2hdr_auto_gating_en;
 	struct vop_reg sdr2hdr_path_en;
+	struct vop_reg cgc_path_en;
+	struct vop_reg cgc_layer_sel;
 	struct vop_reg hdr2sdr_en;
 	struct vop_reg hdr2sdr_bypass_en;
 	struct vop_reg hdr2sdr_auto_gating_en;
@@ -1041,6 +1133,7 @@ struct vop2_video_port_regs {
 	struct vop_reg edpi_wms_hold_en;
 	struct vop_reg edpi_te_en;
 	struct vop_reg edpi_wms_fs;
+	struct vop_reg gamma_ahb_en;
 	struct vop_reg gamma_update_en;
 	struct vop_reg lut_dma_rid;
 
@@ -1069,6 +1162,18 @@ struct vop2_video_port_regs {
 	struct vop_reg acm_r2y_en;
 	struct vop_reg csc_mode;
 	struct vop_reg acm_r2y_mode;
+	struct vop_reg acm_r2y_coe00;
+	struct vop_reg acm_r2y_coe01;
+	struct vop_reg acm_r2y_coe02;
+	struct vop_reg acm_r2y_coe10;
+	struct vop_reg acm_r2y_coe11;
+	struct vop_reg acm_r2y_coe12;
+	struct vop_reg acm_r2y_coe20;
+	struct vop_reg acm_r2y_coe21;
+	struct vop_reg acm_r2y_coe22;
+	struct vop_reg acm_r2y_offset0;
+	struct vop_reg acm_r2y_offset1;
+	struct vop_reg acm_r2y_offset2;
 	struct vop_reg csc_coe00;
 	struct vop_reg csc_coe01;
 	struct vop_reg csc_coe02;
@@ -1192,6 +1297,7 @@ struct vop2_wb_regs {
 	struct vop_reg format;
 	struct vop_reg dither_en;
 	struct vop_reg r2y_en;
+	struct vop_reg y2r_en;
 	struct vop_reg yrgb_mst;
 	struct vop_reg uv_mst;
 	struct vop_reg vp_id;
@@ -1207,6 +1313,10 @@ struct vop2_wb_regs {
 	struct vop_reg post_empty_stop_en;
 	struct vop_reg one_frame_mode;
 	struct vop_reg auto_gating;
+	/* writeback from win */
+	struct vop_reg win_en;
+	struct vop_reg win_sel;
+	struct vop_reg win_src_height;
 };
 
 struct vop2_power_domain_data {
@@ -1260,8 +1370,13 @@ struct vop2_win_data {
 	const struct vop2_win_regs *regs;
 	const struct vop2_win_regs **area;
 	unsigned int area_size;
+	const uint32_t csc_coe_offset;
+	const uint32_t dci_csc_coe_offset;
+	const uint8_t csc_coe_bits;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
+	const struct vop_reg crc_enable;
+	const uint32_t crc_value_offset;
 
 	/*
 	 * vertical/horizontal scale up/down filter mode
@@ -1281,6 +1396,10 @@ struct vop2_win_data {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
+
+	/* capacity of msmart layer */
+	const uint32_t max_grids;
+	const uint32_t max_grids_per_row;
 };
 
 struct vop2_dovi_core_data {
@@ -1321,6 +1440,8 @@ struct vop2_wb_data {
 	const uint32_t *formats;
 	struct vop_rect max_output;
 	const struct vop2_wb_regs *regs;
+	uint32_t num_plane_source;
+	const struct drm_prop_enum_list *plane_source;
 	uint32_t fifo_depth;
 };
 
@@ -1336,6 +1457,7 @@ struct vop3_ovl_regs {
 	const struct vop3_ovl_mix_regs *hdr_mix_regs;
 	const struct vop3_ovl_mix_regs *extra_mix_regs;
 	const struct vop3_ovl_mix_regs *cursor_mix_regs;
+	const struct vop3_ovl_mix_regs *cgc_mix_regs;
 };
 
 struct vop2_video_port_data {
@@ -1352,11 +1474,14 @@ struct vop2_video_port_data {
 	const u8 pre_scan_max_dly[4];
 	const u8 hdrvivid_dly[10];
 	const u8 sdr2hdr_dly;
+	const u8 cgc_dly;
+	const u8 cgc_mix_dly;
 	const u8 layer_mix_dly;
 	const u8 hdr_mix_dly;
 	const u8 win_dly;
 	const u8 pixel_rate;
 	const u8 cursor_dly;
+	const u8 hdr_cgc_layer_num;
 	const struct vop_intr *intr;
 	const struct vop_urgency *urgency;
 	const struct vop_hdr_table *hdr_table;
@@ -1497,7 +1622,14 @@ struct vop2_ctrl {
 	struct vop_reg dma_stop;
 	struct vop_reg rkmmu_v2_en;
 	struct vop_reg rkmmu_v2_sel_axi;
+	struct vop_reg rkmmu1_v2_en;
+	struct vop_reg mmu0_qos_en;
+	struct vop_reg mmu0_qos_val;
+	struct vop_reg mmu1_qos_en;
+	struct vop_reg mmu1_qos_val;
 	struct vop_reg dsp_vs_t_sel;
+	struct vop_reg auto_cs_en;
+	struct vop_reg auto_cs_mode;
 	struct vop_reg lut_dma_en;
 	struct vop_reg lut_use_axi1;
 	struct vop_reg axi_outstanding_max_num;
@@ -1636,6 +1768,14 @@ struct vop2_ctrl {
 	struct vop_reg dovi_core1_en;
 	struct vop_reg dovi_core2_en;
 	struct vop_reg dovi_core3_en;
+
+	struct vop_reg yavg_en;
+	struct vop_reg yavg_yuv_mode_en;
+	struct vop_reg yavg_port_sel;
+	struct vop_reg yavg_regdone_imd;
+	struct vop_reg yavg_div_width;
+	struct vop_reg yavg_div_height;
+	struct vop_reg yavg_frame_out;
 };
 
 struct vop_dump_regs {
@@ -1740,6 +1880,8 @@ struct vop2_data {
 #define DOLBY_CORE1_INTR		BIT(21)
 #define DOLBY_CORE2_INTR		BIT(22)
 #define DOLBY_CORE3_INTR		BIT(23)
+#define WB_RESP_ERR			BIT(24)
+#define WB_TIME_OUT			BIT(25)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -1750,7 +1892,8 @@ struct vop2_data {
 					 POST_BUF_EMPTY_INTR | \
 					 DMA_FINISH_INTR | FS_FIELD_INTR | \
 					 FE_INTR | WB_COMPLETE_INTR | MMU_EN_INTR | \
-					 DOLBY_CORE1_INTR | DOLBY_CORE2_INTR | DOLBY_CORE3_INTR)
+					 DOLBY_CORE1_INTR | DOLBY_CORE2_INTR | DOLBY_CORE3_INTR | \
+					 WB_RESP_ERR | WB_TIME_OUT)
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
 #define LINE_FLAG_INTR_EN(x)		((x) << 6)
@@ -1894,6 +2037,11 @@ enum vop_pol {
 	VSYNC_POSITIVE = 1,
 	DEN_NEGATIVE   = 2,
 	DCLK_INVERT    = 3
+};
+
+enum vop_fbc_compress_mode {
+	AFBC_32X8 = 0,
+	RFBC_64X4 = 1,
 };
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))

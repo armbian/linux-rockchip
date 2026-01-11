@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3538-test1-lp4x-v10.dtsi"
+#include "rk3538-android.dtsi"
+
+/ {
+	model = "Rockchip RK3539 TEST1 LPDDR4X V10 Board";
+	compatible = "rockchip,rk3539-test1-lp4x-v10", "rockchip,rk3539";
+};

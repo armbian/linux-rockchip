@@ -157,7 +157,8 @@
 enum inno_hdmi_phy_type {
 	INNO_HDMI_PHY_RK3228,
 	INNO_HDMI_PHY_RK3328,
-	INNO_HDMI_PHY_RK3528
+	INNO_HDMI_PHY_RK3528,
+	INNO_HDMI_PHY_RK3538,
 };
 
 struct phy_config {
@@ -743,7 +744,8 @@ static int inno_hdmi_phy_power_on(struct phy *phy)
 	else if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228 &&
 		 tmdsclock <= 33750000 && inno->efuse_flag)
 		chipversion = 4;
-	else if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3528)
+	else if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3528 ||
+		 inno->plat_data->dev_type == INNO_HDMI_PHY_RK3538)
 		chipversion = 8;
 
 	for (; cfg->tmdsclock != ~0UL; cfg++)
@@ -914,7 +916,8 @@ static int inno_hdmi_phy_clk_register(struct inno_hdmi_phy *inno)
 	const char *parent_name;
 	int ret;
 
-	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3528)
+	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3528 ||
+	    inno->plat_data->dev_type == INNO_HDMI_PHY_RK3538)
 		clk_np = of_get_child_by_name(np, "clk-port");
 
 	if (!clk_np)
@@ -1790,6 +1793,12 @@ static const struct inno_hdmi_phy_drv_data rk3528_hdmi_phy_drv_data = {
 	.phy_cfg_table = rk3528_phy_cfg,
 };
 
+static const struct inno_hdmi_phy_drv_data rk3538_hdmi_phy_drv_data = {
+	.dev_type = INNO_HDMI_PHY_RK3538,
+	.ops = &rk3528_hdmi_phy_ops,
+	.phy_cfg_table = rk3528_phy_cfg,
+};
+
 static const struct of_device_id inno_hdmi_phy_of_match[] = {
 	{ .compatible = "rockchip,rk3228-hdmi-phy",
 	  .data = &rk3228_hdmi_phy_drv_data
@@ -1799,6 +1808,9 @@ static const struct of_device_id inno_hdmi_phy_of_match[] = {
 	},
 	{ .compatible = "rockchip,rk3528-hdmi-phy",
 	  .data = &rk3528_hdmi_phy_drv_data
+	},
+	{ .compatible = "rockchip,rk3538-hdmi-phy",
+	  .data = &rk3538_hdmi_phy_drv_data
 	},
 	{}
 };

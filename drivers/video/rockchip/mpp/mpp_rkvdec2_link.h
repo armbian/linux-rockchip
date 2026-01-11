@@ -218,6 +218,7 @@ extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
 extern struct rkvdec_link_info rkvdec_link_vdpu382_hw_info;
 extern struct rkvdec_link_info rkvdec_link_vdpu383_hw_info;
 extern struct rkvdec_link_info rkvdec_link_vdpu384a_hw_info;
+extern struct rkvdec_link_info rkvdec_link_vdpu384b_hw_info;
 
 int rkvdec_link_dump(struct mpp_dev *mpp);
 
@@ -252,6 +253,6 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 					unsigned long iova, int status, void *arg);
 
 /* for special handle */
-int rkvdec_vdpu383_link_irq(struct mpp_dev *mpp);
+int rkvdec_vdpu38x_link_irq(struct mpp_dev *mpp);
 
 #endif

@@ -469,10 +469,7 @@ static int rk3528_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct rk3528_codec_priv *rk3528 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	if (!freq)
-		return 0;
-
-	ret = clk_set_rate(rk3528->mclk, freq);
+	ret = clk_set_rate(rk3528->mclk, 12288000);
 	if (ret)
 		dev_err(rk3528->plat_dev, "Failed to set mclk %d\n", ret);
 

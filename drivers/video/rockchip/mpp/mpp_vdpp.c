@@ -95,7 +95,7 @@ struct vdpp_dev {
 };
 
 // RK3528
-static struct vdpp_hw_info vdpp_v1_hw_info = {
+static struct vdpp_hw_info vdpp1_hw_info = {
 	.hw = {
 		.reg_num = 53,
 		.reg_id = 21,
@@ -120,7 +120,7 @@ static struct vdpp_hw_info vdpp_v1_hw_info = {
 };
 
 // RK3576
-static struct vdpp_hw_info vdpp_rk3576_hw_info = {
+static struct vdpp_hw_info vdpp2_hw_info = {
 	.hw = {
 		.reg_num = 300,
 		.reg_id = 21,
@@ -144,28 +144,64 @@ static struct vdpp_hw_info vdpp_rk3576_hw_info = {
 	.bit_rst_done = BIT(0),
 };
 
+/* RK3538 */
+static struct vdpp_hw_info vdpp3_hw_info = {
+	.hw = {
+		.reg_num = 300,
+		.reg_id = 21,
+		.reg_en = 0,
+		.reg_start = 0,
+		.reg_end = 299,
+	},
+	.start_base = 0x0000,
+	.cfg_base = 0x0004,
+	.work_mode_base = 0x0008,
+	.gate_base = 0x0010,
+	.rst_sta_base = 0x0014,
+	.int_en_base = 0x0020,
+	.int_clr_base = 0x0024,
+	.int_sta_base = 0x0028,
+	.int_mask = 0x0073,
+	.err_mask = 0x0070,
+	.zme_reg_off = 0x1800,
+	.zme_reg_num = 20,
+	.bit_rst_en = BIT(21),
+	.bit_rst_done = BIT(0),
+};
+
 /*
  * file handle translate information
  */
-static const u16 trans_tbl_vdpp_v1[] = {
+static const u16 trans_tbl_vdpp1[] = {
 	24, 25, 26, 27,
 };
 
-static const u16 trans_tbl_vdpp_rk3576[] = {
+static const u16 trans_tbl_vdpp2[] = {
 	24, 25, 26, 27, 56, 60,
 };
 
-static struct mpp_trans_info vdpp_v1_trans[] = {
+static const u16 trans_tbl_vdpp3[] = {
+	24, 25, 26, 27, 56, 60, 101, 103, 105,
+};
+
+static struct mpp_trans_info vdpp1_trans[] = {
 	[VDPP_FMT_DEFAULT] = {
-		.count = ARRAY_SIZE(trans_tbl_vdpp_v1),
-		.table = trans_tbl_vdpp_v1,
+		.count = ARRAY_SIZE(trans_tbl_vdpp1),
+		.table = trans_tbl_vdpp1,
 	},
 };
 
-static struct mpp_trans_info vdpp_rk3576_trans[] = {
+static struct mpp_trans_info vdpp2_trans[] = {
 	[VDPP_FMT_DEFAULT] = {
-		.count = ARRAY_SIZE(trans_tbl_vdpp_rk3576),
-		.table = trans_tbl_vdpp_rk3576,
+		.count = ARRAY_SIZE(trans_tbl_vdpp2),
+		.table = trans_tbl_vdpp2,
+	},
+};
+
+static struct mpp_trans_info vdpp3_trans[] = {
+	[VDPP_FMT_DEFAULT] = {
+		.count = ARRAY_SIZE(trans_tbl_vdpp3),
+		.table = trans_tbl_vdpp3,
 	},
 };
 
@@ -696,7 +732,7 @@ static int vdpp_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
-static struct mpp_hw_ops vdpp_v1_hw_ops = {
+static struct mpp_hw_ops vdpp1_hw_ops = {
 	.init = vdpp_init,
 	.clk_on = vdpp_clk_on,
 	.clk_off = vdpp_clk_off,
@@ -705,7 +741,7 @@ static struct mpp_hw_ops vdpp_v1_hw_ops = {
 	.reset = vdpp_reset,
 };
 
-static struct mpp_dev_ops vdpp_v1_dev_ops = {
+static struct mpp_dev_ops vdpp1_dev_ops = {
 	.alloc_task = vdpp_alloc_task,
 	.run = vdpp_run,
 	.irq = vdpp_irq,
@@ -715,31 +751,45 @@ static struct mpp_dev_ops vdpp_v1_dev_ops = {
 	.free_task = vdpp_free_task,
 };
 
-static const struct mpp_dev_var vdpp_v1_data = {
+static const struct mpp_dev_var vdpp1_data = {
 	.device_type = MPP_DEVICE_VDPP,
-	.hw_info = &vdpp_v1_hw_info.hw,
-	.trans_info = vdpp_v1_trans,
-	.hw_ops = &vdpp_v1_hw_ops,
-	.dev_ops = &vdpp_v1_dev_ops,
+	.hw_info = &vdpp1_hw_info.hw,
+	.trans_info = vdpp1_trans,
+	.hw_ops = &vdpp1_hw_ops,
+	.dev_ops = &vdpp1_dev_ops,
 };
 
-static const struct mpp_dev_var vdpp_rk3576_data = {
+static const struct mpp_dev_var vdpp2_data = {
 	.device_type = MPP_DEVICE_VDPP,
-	.hw_info = &vdpp_rk3576_hw_info.hw,
-	.trans_info = vdpp_rk3576_trans,
-	.hw_ops = &vdpp_v1_hw_ops,
-	.dev_ops = &vdpp_v1_dev_ops,
+	.hw_info = &vdpp2_hw_info.hw,
+	.trans_info = vdpp2_trans,
+	.hw_ops = &vdpp1_hw_ops,
+	.dev_ops = &vdpp1_dev_ops,
+};
+
+static const struct mpp_dev_var vdpp3_data = {
+	.device_type = MPP_DEVICE_VDPP,
+	.hw_info = &vdpp3_hw_info.hw,
+	.trans_info = vdpp3_trans,
+	.hw_ops = &vdpp1_hw_ops,
+	.dev_ops = &vdpp1_dev_ops,
 };
 
 static const struct of_device_id mpp_vdpp_dt_match[] = {
 	{
 		.compatible = "rockchip,vdpp-v1",
-		.data = &vdpp_v1_data,
+		.data = &vdpp1_data,
 	},
 #ifdef CONFIG_CPU_RK3576
 	{
 		.compatible = "rockchip,vdpp-rk3576",
-		.data = &vdpp_rk3576_data,
+		.data = &vdpp2_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3538
+	{
+		.compatible = "rockchip,vdpp-rk3538",
+		.data = &vdpp3_data,
 	},
 #endif
 	{},

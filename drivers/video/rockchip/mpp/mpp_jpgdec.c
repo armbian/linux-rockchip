@@ -28,6 +28,7 @@
 #define JPGDEC_DRIVER_NAME		"mpp_jpgdec"
 
 #define JPGDEC_HWID_VPU720		0xdb1f0006
+#define JPGDEC_HWID_VPU730		0xdb1f0100
 
 #define	JPGDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
@@ -78,10 +79,38 @@
 #define to_jpgdec_dev(dev)	\
 		container_of(dev, struct jpgdec_dev, mpp)
 
+#define JPGDEC_VPU730_REG_NUM		70
+#define JPGDEC_VPU730_REG_END_IDX	69
+#define JPGDEC_VPU730_START_EN_BASE	0x4
+#define JPGDEC_VPU730_START_EN_INDEX	1
+
+#define JPGDEC_VPU730_REG_INT_EN_BASE	0x108
+#define JPGDEC_VPU730_REG_INT_EN_IDX	66
+#define JPGDEC_VPU730_REG_INT_MASK_BASE	0x10c
+#define JPGDEC_VPU730_REG_INT_MASK_IDX	67
+#define JPGDEC_VPU730_REG_INT_CLR_BASE	0x110
+#define JPGDEC_VPU730_REG_INT_CLR_IDX	68
+#define JPGDEC_VPU730_REG_INT_STA_BASE	0x114
+#define JPGDEC_VPU730_REG_INT_STA_IDX	69
+
+#define JPGDEC_VPU730_INT_ST_DEC_DONE		BIT(0)
+#define JPGDEC_VPU730_INT_ST_SAFE_RST_DONE	BIT(1)
+
+enum VPU730_CMD {
+	VPU730_CMD_NONE = 0,
+	VPU730_CMD_ONE_FRAME,
+	VPU730_CMD_MULTI_FRAME_START,
+	VPU730_CMD_MULTI_FRAME_UPDATE,
+	VPU730_CMD_LINK_TABLE_FORCE_PAUSE,
+	VPU730_CMD_LINK_TABLE_RESUME,
+	VPU730_CMD_SAFE_RESET,
+	VPU730_CMD_RELOAD,
+};
+
 struct jpgdec_task {
 	struct mpp_task mpp_task;
 	enum MPP_CLOCK_MODE clk_mode;
-	u32 reg[JPGDEC_REG_NUM];
+	u32 reg[JPGDEC_VPU730_REG_NUM];
 
 	struct reg_offset_info off_inf;
 	u32 strm_addr;
@@ -111,6 +140,14 @@ static struct mpp_hw_info jpgdec_v1_hw_info = {
 	.reg_start = JPGDEC_REG_START_INDEX,
 	.reg_end = JPGDEC_REG_END_INDEX,
 	.reg_en = JPGDEC_REG_INT_EN_INDEX,
+};
+
+static struct mpp_hw_info jpgdec_v2_hw_info = {
+	.reg_num = JPGDEC_VPU730_REG_NUM,
+	.reg_id = JPGDEC_REG_HW_ID_INDEX,
+	.reg_start = JPGDEC_REG_START_INDEX,
+	.reg_end = JPGDEC_VPU730_REG_END_IDX,
+	.reg_en = JPGDEC_VPU730_START_EN_INDEX,
 };
 
 /*
@@ -303,6 +340,44 @@ static int jpgdec_run(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int jpgdec_vpu730_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	u32 i;
+	u32 reg_en;
+	struct jpgdec_task *task = to_jpgdec_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
+
+	mpp_debug_enter();
+
+	/* set registers for hardware */
+	reg_en = mpp_task->hw_info->reg_en;
+	for (i = 0; i < task->w_req_cnt; i++) {
+		struct mpp_request *req = &task->w_reqs[i];
+		int s = req->offset / sizeof(u32);
+		int e = s + req->size / sizeof(u32);
+
+		mpp_write_req(mpp, task->reg, s, e, reg_en);
+	}
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
+	/* init current task */
+	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
+	/* Flush the register before the start the device */
+	wmb();
+
+	mpp_write(mpp, JPGDEC_VPU730_START_EN_BASE, VPU730_CMD_ONE_FRAME << 8);
+
+	mpp_task_run_end(mpp_task, timing_en);
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
 static int jpgdec_reset(struct mpp_dev *mpp);
 
 static int jpgdec_finish(struct mpp_dev *mpp,
@@ -342,6 +417,38 @@ static int jpgdec_finish(struct mpp_dev *mpp,
 
 	mpp_debug(DEBUG_REGISTER,
 		  "dec_get %08x dec_length %d\n", dec_get, dec_length);
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
+static int jpgdec_vpu730_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	u32 i;
+	u32 s, e;
+	u32 dec_get;
+	s32 dec_length;
+	struct mpp_request *req;
+	struct jpgdec_task *task = to_jpgdec_task(mpp_task);
+
+	mpp_debug_enter();
+
+	for (i = 0; i < task->r_req_cnt; i++) {
+		req = &task->r_reqs[i];
+		s = req->offset / sizeof(u32);
+		e = s + req->size / sizeof(u32);
+		mpp_read_req(mpp, task->reg, s, e);
+	}
+
+	/* revert hack for irq status */
+	task->reg[JPGDEC_REG_INT_EN_INDEX] = task->irq_status;
+	/* revert hack for decoded length */
+	dec_get = mpp_read_relaxed(mpp, JPGDEC_REG_STREAM_RLC_BASE);
+	dec_length = dec_get - task->strm_addr;
+	task->reg[JPGDEC_REG_STREAM_RLC_BASE_INDEX] = dec_length << 10;
+
+	task->reg[JPGDEC_VPU730_REG_INT_STA_IDX] = task->irq_status;
 
 	mpp_debug_leave();
 
@@ -505,6 +612,19 @@ static int jpgdec_irq(struct mpp_dev *mpp)
 	return IRQ_WAKE_THREAD;
 }
 
+static int jpgdec_vpu730_irq(struct mpp_dev *mpp)
+{
+	mpp->irq_status = mpp_read(mpp, JPGDEC_VPU730_REG_INT_STA_BASE);
+	mpp_write(mpp, JPGDEC_VPU730_REG_INT_CLR_BASE, mpp->irq_status);
+
+	if (!(mpp->irq_status & JPGDEC_VPU730_INT_ST_DEC_DONE))
+		return IRQ_HANDLED;
+
+	mpp_write(mpp, JPGDEC_VPU730_START_EN_BASE, 0);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static int jpgdec_isr(struct mpp_dev *mpp)
 {
 	int error_mask;
@@ -529,6 +649,37 @@ static int jpgdec_isr(struct mpp_dev *mpp)
 		     JPGDEC_TIMEOUT_STA | JPGDEC_BUF_EMPTY_STA;
 
 	if (error_mask & task->irq_status)
+		atomic_inc(&mpp->reset_request);
+
+	mpp_task_finish(mpp_task->session, mpp_task);
+
+	mpp_debug_leave();
+
+	return IRQ_HANDLED;
+}
+
+static int jpgdec_vpu730_isr(struct mpp_dev *mpp)
+{
+	int err_mask = 0x3c;
+	struct jpgdec_task *task = NULL;
+	struct mpp_task *mpp_task = mpp->cur_task;
+	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
+
+	mpp_debug_enter();
+
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
+		return IRQ_HANDLED;
+	}
+
+	mpp_task->hw_cycles = mpp_read(mpp, JPGDEC_REG_PERF_WORKING_CNT);
+	mpp_time_diff_with_hw_time(mpp_task, dec->aclk_info.real_rate_hz);
+	mpp->cur_task = NULL;
+	task = to_jpgdec_task(mpp_task);
+	task->irq_status = mpp->irq_status;
+	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
+
+	if (err_mask & task->irq_status)
 		atomic_inc(&mpp->reset_request);
 
 	mpp_task_finish(mpp_task->session, mpp_task);
@@ -564,6 +715,31 @@ static int jpgdec_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int jpgdec_vpu730_reset(struct mpp_dev *mpp)
+{
+	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
+
+	mpp_debug_enter();
+
+	if (dec->rst_a && dec->rst_h) {
+		mpp_debug(DEBUG_RESET, "reset in\n");
+
+		/* Don't skip this or iommu won't work after reset */
+		mpp_pmu_idle_request(mpp, true);
+		mpp_safe_reset(dec->rst_a);
+		mpp_safe_reset(dec->rst_h);
+		udelay(5);
+		mpp_safe_unreset(dec->rst_a);
+		mpp_safe_unreset(dec->rst_h);
+		mpp_pmu_idle_request(mpp, false);
+
+		mpp_debug(DEBUG_RESET, "reset out\n");
+	}
+
+	mpp_debug_leave();
+	return 0;
+}
+
 static struct mpp_hw_ops jpgdec_v1_hw_ops = {
 	.init = jpgdec_init,
 	.clk_on = jpgdec_clk_on,
@@ -571,6 +747,15 @@ static struct mpp_hw_ops jpgdec_v1_hw_ops = {
 	.set_freq = jpgdec_set_freq,
 	.reduce_freq = NULL,
 	.reset = jpgdec_reset,
+};
+
+static struct mpp_hw_ops jpgdec_v2_hw_ops = {
+	.init = jpgdec_init,
+	.clk_on = jpgdec_clk_on,
+	.clk_off = jpgdec_clk_off,
+	.set_freq = jpgdec_set_freq,
+	.reduce_freq = NULL,
+	.reset = jpgdec_vpu730_reset,
 };
 
 static struct mpp_dev_ops jpgdec_v1_dev_ops = {
@@ -583,6 +768,16 @@ static struct mpp_dev_ops jpgdec_v1_dev_ops = {
 	.free_task = jpgdec_free_task,
 };
 
+static struct mpp_dev_ops jpgdec_v2_dev_ops = {
+	.alloc_task = jpgdec_alloc_task,
+	.run = jpgdec_vpu730_run,
+	.irq = jpgdec_vpu730_irq,
+	.isr = jpgdec_vpu730_isr,
+	.finish = jpgdec_vpu730_finish,
+	.result = jpgdec_result,
+	.free_task = jpgdec_free_task,
+};
+
 static const struct mpp_dev_var jpgdec_v1_data = {
 	.device_type = MPP_DEVICE_RKJPEGD,
 	.hw_info = &jpgdec_v1_hw_info,
@@ -591,10 +786,22 @@ static const struct mpp_dev_var jpgdec_v1_data = {
 	.dev_ops = &jpgdec_v1_dev_ops,
 };
 
+static const struct mpp_dev_var jpgdec_v2_data = {
+	.device_type = MPP_DEVICE_RKJPEGD,
+	.hw_info = &jpgdec_v2_hw_info,
+	.trans_info = jpgdec_v1_trans,
+	.hw_ops = &jpgdec_v2_hw_ops,
+	.dev_ops = &jpgdec_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_jpgdec_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-jpeg-decoder-v1",
 		.data = &jpgdec_v1_data,
+	},
+	{
+		.compatible = "rockchip,rkv-jpeg-decoder-v2",
+		.data = &jpgdec_v2_data,
 	},
 	{},
 };

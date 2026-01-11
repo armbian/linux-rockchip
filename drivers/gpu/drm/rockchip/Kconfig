@@ -49,7 +49,8 @@ config ROCKCHIP_VOP
 		   CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
 		   CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
 		   CPU_RK3399 || CPU_RK322X || CPU_RK3328 || \
-		   CPU_RK3576 || CPU_RK3506 || CPU_RV1126B
+		   CPU_RK3576 || CPU_RK3506 || CPU_RV1126B || \
+		   CPU_RK3572
 	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects support for the VOP driver. You should enable it
@@ -57,7 +58,8 @@ config ROCKCHIP_VOP
 
 config ROCKCHIP_VOP2
 	bool "Rockchip VOP2 driver"
-	depends on CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588 || CPU_RK3576
+	depends on CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588 || \
+		   CPU_RK3576 || CPU_RK3572 || CPU_RK3538
 	default y
 	help
 	  This selects support for the VOP2 driver. The VOP2 hardware is

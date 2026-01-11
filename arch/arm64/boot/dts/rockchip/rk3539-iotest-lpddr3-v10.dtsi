@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3539.dtsi"
+#include "rk3538-evb.dtsi"
+
+/{
+	vcc12v_dcin: vcc12v-dcin {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vdd_logic: vdd-logc {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_2 0 25000 1>;
+		regulator-name = "vdd_logic";
+		regulator-init-microvolt = <901000>;
+		regulator-min-microvolt = <703000>;
+		regulator-max-microvolt = <1006000>;
+		regulator-settling-time-up-us = <250>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc5v0_sys>;
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_3 0 25000 1>;
+		regulator-name = "vdd_cpu";
+		regulator-init-microvolt = <953000>;
+		regulator-min-microvolt = <746000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-settling-time-up-us = <250>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_ddr: vcc-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-min-microvolt = <1250000>;
+		regulator-max-microvolt = <1250000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v3_pmu: vcc3v3-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pmu";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_3v3: vcc_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc3v3_pmu>;
+	};
+
+	vcc1v8_pmu: vcc1v8-pmu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v8_pmu";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc3v3_pmu>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-low;
+		regulator-boot-on;
+		vin-supply = <&vcc1v8_pmu>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&gmac {
+	phy-mode = "rmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio5 RK_PC2 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth0_miim_pins
+		     &eth0_tx_bus2_pins
+		     &eth0_rx_bus2_pins
+		     &eth0_mclk_pins
+		     &eth0m0_clk_25m_out_pins>;
+
+	phy-handle = <&rmii_phy>;
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_logic>;
+};
+
+&mac {
+	status = "okay";
+};
+
+&mdio0 {
+	rmii_phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+		clocks = <&cru ETH0_CLK_25M_OUT>;
+	};
+};
+
+&pwm0_4ch_2 {
+	status = "okay";
+};
+
+&pwm0_4ch_3 {
+	pinctrl-0 = <&pwm0m1_ch3_pins>;
+	status = "okay";
+};

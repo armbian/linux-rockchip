@@ -205,6 +205,7 @@ enum rockchip_pinctrl_type {
 	RK3399,
 	RK3506,
 	RK3528,
+	RK3538,
 	RK3562,
 	RK3568,
 	RK3576,

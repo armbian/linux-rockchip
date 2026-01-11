@@ -171,6 +171,7 @@ enum {
 	RGA_PRE_INTR			= 0x1 << 12,
 	RGA_FULL_CSC			= 0x1 << 13,
 	RGA_GAUSS			= 0x1 << 14,
+	RGA_SECURE_ACCESS		= 0x1 << 15,
 };
 
 enum rga_surf_format {
@@ -237,6 +238,18 @@ enum rga_surf_format {
 	RGA_FORMAT_YCrCb_444_SP		= 0x33,
 
 	RGA_FORMAT_Y8			= 0x34,
+
+	RGA_FORMAT_RGBA_1010102		= 0x36,
+	RGA_FORMAT_BGRA_1010102		= 0x37,
+	RGA_FORMAT_ARGB_2101010		= 0x38,
+	RGA_FORMAT_ABGR_2101010		= 0x39,
+
+	RGA_FORMAT_RGBX_1010102		= 0x3a,
+	RGA_FORMAT_BGRX_1010102		= 0x3b,
+	RGA_FORMAT_XRGB_2101010		= 0x3c,
+	RGA_FORMAT_XBGR_2101010		= 0x3d,
+
+	RGA_FORMAT_YUV_101010		= 0x3e,
 
 	RGA_FORMAT_UNKNOWN		= 0x100,
 };
@@ -653,16 +666,31 @@ struct rga_req {
 	/* dst angle default value 0 16.16 scan from table */
 	int32_t cosa;
 
-	/* alpha rop process flag		 */
-	/* ([0] = 1 alpha_rop_enable)	 */
-	/* ([1] = 1 rop enable)			 */
-	/* ([2] = 1 fading_enable)		 */
-	/* ([3] = 1 PD_enable)			 */
-	/* ([4] = 1 alpha cal_mode_sel)	 */
-	/* ([5] = 1 dither_enable)		 */
-	/* ([6] = 1 gradient fill mode sel) */
-	/* ([7] = 1 AA_enable)			 */
-	uint16_t alpha_rop_flag;
+	union {
+		struct {
+			uint16_t alpha_rop_enable:1;
+			uint16_t rop_enable:1;
+			uint16_t fading_enable:1;
+			uint16_t PD_enable:1;
+			uint16_t alpha_cal_mode_sel:1;
+			uint16_t dither_enable:1;
+			uint16_t gradient_fill_mode_sel:1;
+			uint16_t AA_enable:1;
+			uint16_t nn_quantize:1;
+			uint16_t real_color_mode:1;
+			uint16_t secure_access:1;
+		};
+		/* legacy alpha rop process flag	 */
+		/* ([0] = 1 alpha_rop_enable)		 */
+		/* ([1] = 1 rop enable)			 */
+		/* ([2] = 1 fading_enable)		 */
+		/* ([3] = 1 PD_enable)			 */
+		/* ([4] = 1 alpha cal_mode_sel)		 */
+		/* ([5] = 1 dither_enable)		 */
+		/* ([6] = 1 gradient fill mode sel)	 */
+		/* ([7] = 1 AA_enable)			 */
+		uint16_t alpha_rop_flag;
+	};
 
 	union {
 		struct rga_interp interp;
@@ -899,6 +927,8 @@ struct rga2_req {
 	struct rga_rgba5551_alpha rgba5551_alpha;
 
 	struct rga_gauss_config gauss_config;
+
+	uint8_t secure_access;
 };
 
 struct rga3_req {
