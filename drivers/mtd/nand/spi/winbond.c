@@ -13,6 +13,7 @@
 
 #define SPINAND_MFR_WINBOND		0xEF
 
+#define WINBOND_CFG_BRC_READ		BIT(1)
 #define WINBOND_CFG_BUF_READ		BIT(3)
 #define WINBOND_STATUS_ECC_HAS_BITFLIPS_T	(3 << 4)
 
@@ -326,6 +327,13 @@ static int winbond_spinand_init(struct spinand_device *spinand)
 	if (spinand->id.data[1] == 0xaa && spinand->id.data[2] == 0x21) {
 		spinand_upd_cfg(spinand, BIT(3), BIT(3));
 		dev_info(&spinand->spimem->spi->dev, "Enable buf_read\n");
+	}
+
+	/* W25N0xLV disable BRC in default */
+	if ((spinand->id.data[1] == 0x8b && spinand->id.data[2] == 0x23) ||
+	    (spinand->id.data[1] == 0x8a && spinand->id.data[2] == 0x22)) {
+		spinand_upd_cfg(spinand, WINBOND_CFG_BRC_READ, 0);
+		dev_info(&spinand->spimem->spi->dev, "Disable BRC in default\n");
 	}
 
 	return 0;
