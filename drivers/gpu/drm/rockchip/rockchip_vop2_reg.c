@@ -1305,10 +1305,10 @@ static const struct vop2_video_port_regs rk3528_vop_vp0_regs = {
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 1),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
-	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
-	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
-	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
-	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
+	.hdrvivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
+	.hdrvivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
+	.hdrvivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
+	.hdrvivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
 	.acm_bypass_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 0),
 	.csc_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 1),
 	.acm_r2y_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 2),
@@ -1585,10 +1585,10 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 1),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
-	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
-	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
-	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
-	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
+	.hdrvivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
+	.hdrvivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
+	.hdrvivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
+	.hdrvivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
 	.acm_bypass_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 0),
 	.acm_r2y_en = VOP_REG(RK3572_VP0_ACM_R2Y_CTRL, 0x1, 1),
 	.acm_r2y_coe00 = VOP_REG(RK3572_VP0_ACM_R2Y_CTRL, 0xffff, 16),
@@ -1656,10 +1656,11 @@ static const struct vop2_video_port_data rk3538_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3538, 0x3538 },
 	 .lut_dma_rid = 0x1,/* lut axi id length is 4 bits */
+	 .metadata_rid = 0x3,
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR |
 			VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC | VOP_FEATURE_OUTPUT_10BIT |
 			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP | VOP_FEATURE_HW_CURSOR |
-			VOP_FEATURE_CGC,
+			VOP_FEATURE_CGC | VOP_FEATURE_DYNAMIC_METADATA_EMP,
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 4096 },
 	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},
@@ -2079,10 +2080,10 @@ static const struct vop2_video_port_regs rk3572_vop_vp0_regs = {
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
 	.cgc_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 17),
 	.cgc_layer_sel = VOP_REG(RK3568_OVL_CTRL, 0x1, 18),
-	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
-	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
-	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
-	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
+	.hdrvivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
+	.hdrvivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
+	.hdrvivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
+	.hdrvivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
 	.acm_r2y_en = VOP_REG(RK3572_VP0_ACM_R2Y_CTRL, 0x1, 1),
 	.acm_r2y_coe00 = VOP_REG(RK3572_VP0_ACM_R2Y_CTRL, 0xffff, 16),
 	.acm_r2y_coe01 = VOP_REG(RK3572_VP0_POST_ACM_R2Y_COE01_02, 0xffff, 0),
@@ -2367,10 +2368,10 @@ static const struct vop2_video_port_regs rk3576_vop_vp0_regs = {
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 1),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
 	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
-	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
-	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
-	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
-	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
+	.hdrvivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
+	.hdrvivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
+	.hdrvivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
+	.hdrvivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
 	.acm_bypass_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 0),
 	.csc_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 1),
 	.acm_r2y_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 2),
@@ -2629,9 +2630,11 @@ static const struct vop2_video_port_data rk3576_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3576, 0x3576 },
 	 .lut_dma_rid = 0x1,/* lut axi id length is 4 bits */
+	 .metadata_rid = 0x5,
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR |
 			VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC | VOP_FEATURE_OUTPUT_10BIT |
-			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP,
+			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP |
+			VOP_FEATURE_DYNAMIC_METADATA_EMP,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 1200000000,
@@ -6428,6 +6431,10 @@ static const struct vop2_ctrl rk3538_vop_ctrl = {
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
 	.mmu0_qos_val = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x7, 1),
+	.metadata_lut_en = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x1, 0),
+	.metadata_rid = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0xf, 4),
+	.metadata_size = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x7ff, 16),
+	.metadata_mst = VOP_REG(RK3576_SYS_CTRL_METADATA_MST, 0xffffffff, 0),
 
 	/* HDMI0 */
 	.hdmi0_en = VOP_REG(RK3572_HDMI0_IF_CTRL, 0x1, 0),
@@ -6694,6 +6701,11 @@ static const struct vop_grf_ctrl rk3576_ioc_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 9),
 };
 
+static const struct vop_grf_ctrl rk3576_vo0_grf_ctrl = {
+	.grf_emp_mem_len_en = VOP_REG(RK3576_VO0_GRF_SOC_CON1, 0x1, 14),
+	.grf_emp_mem_len_bypass = VOP_REG(RK3576_VO0_GRF_SOC_CON1, 0x1, 13),
+};
+
 static const struct vop2_ctrl rk3576_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
 	.reg_done_frm = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x7, 0),
@@ -6707,6 +6719,10 @@ static const struct vop2_ctrl rk3576_vop_ctrl = {
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
 	.rkmmu_v2_en = VOP_REG_MASK(RK3576_SYS_MMU_CTRL_IMD, 0x1, 0),
 	.rkmmu_v2_sel_axi = VOP_REG_MASK(RK3576_SYS_MMU_CTRL_IMD, 0x1, 1),
+	.metadata_lut_en = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x1, 0),
+	.metadata_rid = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0xf, 4),
+	.metadata_size = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x7ff, 16),
+	.metadata_mst = VOP_REG(RK3576_SYS_CTRL_METADATA_MST, 0xffffffff, 0),
 
 	/* MIPI DSI0 */
 	.mipi0_en = VOP_REG(RK3576_MIPI0_IF_CTRL, 0x1, 0),
@@ -7404,6 +7420,7 @@ static const struct vop2_data rk3576_vop = {
 	.max_input = { 4096, 4096 },
 	.max_output = { 4096, 4096 },
 	.ioc_grf = &rk3576_ioc_grf_ctrl,
+	.vo0_grf = &rk3576_vo0_grf_ctrl,
 	.ctrl = &rk3576_vop_ctrl,
 	.axi_intr = rk3576_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3576_vop_axi_intr),

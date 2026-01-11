@@ -1108,6 +1108,9 @@ static int rk_nfc_attach_chip(struct nand_chip *chip)
 	chip->ecc.read_page = rk_nfc_read_page_hwecc;
 	chip->ecc.read_oob = rk_nfc_read_oob;
 
+	/* The controller does not support automatic chip-select. */
+	chip->legacy.select_chip = rk_nfc_select_chip;
+
 	return 0;
 }
 

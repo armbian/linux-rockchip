@@ -2362,14 +2362,20 @@
 						 <&qos_npu_nsp1>,
 						 <&qos_npu_m0ro>,
 						 <&qos_npu_m1ro>;
+					pm_shaping = <&shaping_npu_nsp0>,
+						     <&shaping_npu_nsp1>,
+						     <&shaping_npu_m0ro>,
+						     <&shaping_npu_m1ro>;
 
 					power-domain@RK3576_PD_NPU0 {
 						reg = <RK3576_PD_NPU0>;
 						pm_qos = <&qos_npu_m0>;
+						pm_shaping = <&shaping_npu_m0>;
 					};
 					power-domain@RK3576_PD_NPU1 {
 						reg = <RK3576_PD_NPU1>;
 						pm_qos = <&qos_npu_m1>;
+						pm_shaping = <&shaping_npu_m1>;
 					};
 				};
 			};
@@ -2377,6 +2383,7 @@
 			power-domain@RK3576_PD_GPU {
 				reg = <RK3576_PD_GPU>;
 				pm_qos = <&qos_gpu>;
+				pm_shaping = <&shaping_gpu>;
 			};
 			/* These power domains are grouped by VD_LOGIC */
 			power-domain@RK3576_PD_NVM {
@@ -2402,6 +2409,8 @@
 				#size-cells = <0>;
 				pm_qos = <&qos_mmu0>,
 					 <&qos_mmu1>;
+				pm_shaping = <&shaping_mmu0>,
+					     <&shaping_mmu1>;
 
 				power-domain@RK3576_PD_SUBPHP {
 					reg = <RK3576_PD_SUBPHP>;
@@ -2413,6 +2422,7 @@
 			power-domain@RK3576_PD_VEPU1 {
 				reg = <RK3576_PD_VEPU1>;
 				pm_qos = <&qos_vepu1>;
+				pm_shaping = <&shaping_vepu1>;
 			};
 			power-domain@RK3576_PD_VPU {
 				reg = <RK3576_PD_VPU>;
@@ -2421,10 +2431,15 @@
 					 <&qos_rga1>,
 					 <&qos_jpeg>,
 					 <&qos_vdpp>;
+				pm_shaping = <&shaping_rga0>,
+					     <&shaping_rga1>,
+					     <&shaping_jpeg>,
+					     <&shaping_vdpp>;
 			};
 			power-domain@RK3576_PD_VDEC {
 				reg = <RK3576_PD_VDEC>;
 				pm_qos = <&qos_rkvdec>;
+				pm_shaping = <&shaping_rkvdec>;
 			};
 			power-domain@RK3576_PD_VI {
 				reg = <RK3576_PD_VI>;
@@ -2435,10 +2450,16 @@
 					 <&qos_vicap_m0>,
 					 <&qos_vpss_mro>,
 					 <&qos_vpss_mwo>;
+				pm_shaping = <&shaping_isp_mro>,
+					     <&shaping_isp_mwo>,
+					     <&shaping_vicap_m0>,
+					     <&shaping_vpss_mro>,
+					     <&shaping_vpss_mwo>;
 
 				power-domain@RK3576_PD_VEPU0 {
 					reg = <RK3576_PD_VEPU0>;
 					pm_qos = <&qos_vepu0>;
+					pm_shaping = <&shaping_vepu0>;
 				};
 			};
 			power-domain@RK3576_PD_VOP {
@@ -2447,6 +2468,8 @@
 				#size-cells = <0>;
 				pm_qos = <&qos_vop_m0>,
 					 <&qos_vop_m1ro>;
+				pm_shaping = <&shaping_vop_m0>,
+					     <&shaping_vop_m1ro>;
 
 				power-domain@RK3576_PD_USB {
 					reg = <RK3576_PD_USB>;
@@ -4240,9 +4263,19 @@
 		reg = <0x0 0x27f05000 0x0 0x20>;
 	};
 
+	shaping_gpu: shaping@27f05088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f05088 0x0 0x4>;
+	};
+
 	qos_vepu1: qos@27f06000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f06000 0x0 0x20>;
+	};
+
+	shaping_vepu1: shaping@27f06088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f06088 0x0 0x4>;
 	};
 
 	qos_npu_mcu: qos@27f08000 {
@@ -4258,6 +4291,16 @@
 	qos_npu_nsp1: qos@27f08100 {
 		compatible = "syscon";
 		reg = <0x0 0x27f08100 0x0 0x20>;
+	};
+
+	shaping_npu_nsp0: shaping@27f08188 {
+		compatible = "syscon";
+		reg = <0x0 0x27f08188 0x0 0x4>;
+	};
+
+	shaping_npu_nsp1: shaping@27f08208 {
+		compatible = "syscon";
+		reg = <0x0 0x27f08208 0x0 0x4>;
 	};
 
 	qos_emmc: qos@27f09000 {
@@ -4280,9 +4323,24 @@
 		reg = <0x0 0x27f0a080 0x0 0x20>;
 	};
 
+	shaping_mmu0: shaping@27f0a108 {
+		compatible = "syscon";
+		reg = <0x0 0x27f0a108 0x0 0x4>;
+	};
+
+	shaping_mmu1: shaping@27f0a188 {
+		compatible = "syscon";
+		reg = <0x0 0x27f0a188 0x0 0x4>;
+	};
+
 	qos_rkvdec: qos@27f0c000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f0c000 0x0 0x20>;
+	};
+
+	shaping_rkvdec: shaping@27f0c088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f0c088 0x0 0x4>;
 	};
 
 	qos_crypto: qos@27f0d000 {
@@ -4303,6 +4361,11 @@
 	qos_vepu0: qos@27f0f000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f0f000 0x0 0x20>;
+	};
+
+	shaping_vepu0: shaping@27f0f088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f0f088 0x0 0x4>;
 	};
 
 	qos_isp_mro: qos@27f10000 {
@@ -4330,6 +4393,31 @@
 		reg = <0x0 0x27f10200 0x0 0x20>;
 	};
 
+	shaping_isp_mro: shaping@27f10288 {
+		compatible = "syscon";
+		reg = <0x0 0x27f10288 0x0 0x4>;
+	};
+
+	shaping_isp_mwo: shaping@27f10308 {
+		compatible = "syscon";
+		reg = <0x0 0x27f10308 0x0 0x4>;
+	};
+
+	shaping_vicap_m0: shaping@27f10388 {
+		compatible = "syscon";
+		reg = <0x0 0x27f10388 0x0 0x4>;
+	};
+
+	shaping_vpss_mro: shaping@27f10408 {
+		compatible = "syscon";
+		reg = <0x0 0x27f10408 0x0 0x4>;
+	};
+
+	shaping_vpss_mwo: shaping@27f10488 {
+		compatible = "syscon";
+		reg = <0x0 0x27f10488 0x0 0x4>;
+	};
+
 	qos_hdcp0: qos@27f11000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f11000 0x0 0x20>;
@@ -4343,6 +4431,16 @@
 	qos_vop_m1ro: qos@27f12880 {
 		compatible = "syscon";
 		reg = <0x0 0x27f12880 0x0 0x20>;
+	};
+
+	shaping_vop_m0: shaping@27f12908 {
+		compatible = "syscon";
+		reg = <0x0 0x27f12908 0x0 0x4>;
+	};
+
+	shaping_vop_m1ro: shaping@27f12988 {
+		compatible = "syscon";
+		reg = <0x0 0x27f12988 0x0 0x4>;
 	};
 
 	qos_ebc: qos@27f13000 {
@@ -4370,14 +4468,44 @@
 		reg = <0x0 0x27f13200 0x0 0x20>;
 	};
 
+	shaping_rga0: shaping@27f13288 {
+		compatible = "syscon";
+		reg = <0x0 0x27f13288 0x0 0x4>;
+	};
+
+	shaping_rga1: shaping@27f13308 {
+		compatible = "syscon";
+		reg = <0x0 0x27f13308 0x0 0x4>;
+	};
+
+	shaping_jpeg: shaping@27f13388 {
+		compatible = "syscon";
+		reg = <0x0 0x27f13388 0x0 0x4>;
+	};
+
+	shaping_vdpp: shaping@27f13408 {
+		compatible = "syscon";
+		reg = <0x0 0x27f13408 0x0 0x4>;
+	};
+
 	qos_npu_m0: qos@27f20000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f20000 0x0 0x20>;
 	};
 
+	shaping_npu_m0: shaping@27f20088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f20088 0x0 0x4>;
+	};
+
 	qos_npu_m1: qos@27f21000 {
 		compatible = "syscon";
 		reg = <0x0 0x27f21000 0x0 0x20>;
+	};
+
+	shaping_npu_m1: shaping@27f21088 {
+		compatible = "syscon";
+		reg = <0x0 0x27f21088 0x0 0x4>;
 	};
 
 	qos_npu_m0ro: qos@27f22080 {
@@ -4388,6 +4516,16 @@
 	qos_npu_m1ro: qos@27f22100 {
 		compatible = "syscon";
 		reg = <0x0 0x27f22100 0x0 0x20>;
+	};
+
+	shaping_npu_m0ro: shaping@27f22188 {
+		compatible = "syscon";
+		reg = <0x0 0x27f22188 0x0 0x4>;
+	};
+
+	shaping_npu_m1ro: shaping@27f22208 {
+		compatible = "syscon";
+		reg = <0x0 0x27f22208 0x0 0x4>;
 	};
 
 	dfi: dfi@2a000000 {

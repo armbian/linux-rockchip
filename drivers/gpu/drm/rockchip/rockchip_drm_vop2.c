@@ -801,6 +801,11 @@ struct vop2_video_port {
 	struct rockchip_gem_object *dovi_lut_gem_obj;
 
 	/**
+	 * @hdr_dynamic_metadata_gem_obj: gem obj to store dynamic metadata
+	 */
+	struct rockchip_gem_object *hdr_dynamic_metadata_gem_obj;
+
+	/**
 	 * @cubic_lut: cubic look up table
 	 */
 	struct drm_color_lut *cubic_lut;
@@ -1258,6 +1263,9 @@ static inline void vop2_write_reg_uncached(struct vop2 *vop2, const struct vop_r
 {
 	uint32_t offset = reg->offset;
 	uint32_t cached_val = vop2->regsbak[offset >> 2];
+
+	if (!reg->mask)
+		return;
 
 	v = (cached_val & ~(reg->mask << reg->shift)) | ((v & reg->mask) << reg->shift);
 	writel(v, vop2->base_res.regs + offset);
@@ -6356,6 +6364,12 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		VOP_MODULE_SET(vop2, vp, cubic_lut_en, 0);
 	}
 
+	if (vp_data->feature & VOP_FEATURE_DYNAMIC_METADATA_EMP) {
+		VOP_CTRL_SET(vop2, metadata_lut_en, 0);
+		VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
+		VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
+	}
+
 	if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
 		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
 	if (vp_data->feature & VOP_FEATURE_POST_SHARP) {
@@ -6536,6 +6550,13 @@ static int vop2_cluster_two_win_mode_check(struct drm_plane_state *pstate)
 		DRM_ERROR("%s(fb->modifier: 0x%llx) must use same data layout as %s(fb->modifier: 0x%llx)\n",
 				win->name, pstate->fb->modifier, main_win->name, main_pstate->fb->modifier);
 		return -EINVAL;
+	}
+
+	if (vop2->version >= VOP_VERSION_RK3572) {
+		if (rockchip_afbc(plane, fb->modifier) && fb->format->is_yuv) {
+			DRM_ERROR("Can't support yuv format with afbc in two win mode\n");
+			return -EINVAL;
+		}
 	}
 
 	if (main_pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
@@ -11522,10 +11543,10 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 }
 
 /*
- * For vop3 video port0, if hdr_vivid is not enable, the pipe delay time as follow:
+ * For vop3 video port0, if hdrvivid is not enable, the pipe delay time as follow:
  * win_dly + config_win_dly + layer_mix_dly + sdr2hdr_dly + hdr_mix_dly = config_bg_dly
  *
- * if hdr_vivid is enable, the hdr layer's pipe delay time as follow:
+ * if hdrvivid is enable, the hdr layer's pipe delay time as follow:
  * win_dly + config_win_dly +hdrvivid_dly + hdr_mix_dly = config_bg_dly
  *
  * If hdrvivid and sdr2hdr both enable, the time arrive hdr_mix should be the same:
@@ -12504,8 +12525,8 @@ static void vop3_disable_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phy
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
 
 	VOP_MODULE_SET(vop2, vp, hdr10_en, 0);
-	VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
-	VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, 0);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, 0);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, 0);
@@ -12519,7 +12540,55 @@ static void vop3_disable_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phy
 	vpstate->hdr2sdr_en = false;
 }
 
-static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
+static
+void vop3_setup_dynamic_metadata_for_emp(struct vop2_video_port *vp, uint32_t *data, uint32_t len)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_gem_object *metadata_gem_obj;
+	int i;
+	u32 *metadata_kvaddr;
+	dma_addr_t metadata_mst;
+	u32 offset = vp->rockchip_crtc.frame_count % 2 ? 0 : len;
+
+	if (!(vp_data->feature & VOP_FEATURE_DYNAMIC_METADATA_EMP)) {
+		DRM_ERROR("vp is not support dynamic metadata\n");
+		return;
+	}
+
+	if (!data) {
+		DRM_ERROR("dynamic metadata is null\n");
+		return;
+	}
+
+	if (!vp->hdr_dynamic_metadata_gem_obj) {
+		metadata_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+			len * 4 * 2, true, 0);
+		if (IS_ERR(metadata_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_dynamic_metadata_gem_obj = metadata_gem_obj;
+	}
+
+	metadata_kvaddr = (u32 *)vp->hdr_dynamic_metadata_gem_obj->kvaddr + offset;
+	metadata_mst = vp->hdr_dynamic_metadata_gem_obj->dma_addr;
+
+	for (i = 0; i < len; i++)
+		*metadata_kvaddr++ = data[i];
+
+	VOP_CTRL_SET(vop2, metadata_rid, vp_data->metadata_rid);
+	VOP_CTRL_SET(vop2, metadata_size, len * 4 - 1);
+	VOP_CTRL_SET(vop2, metadata_mst, metadata_mst);
+	VOP_CTRL_SET(vop2, metadata_lut_en, 1);
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 1);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 1);
+}
+
+static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
+				uint8_t adapt_mode)
 {
 	struct vop2 *vop2 = vp->vop2;
 	struct vop2_win *win = vop2_find_win_by_phys_id(vop2, win_phys_id);
@@ -12617,12 +12686,12 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 
 	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
 	if (vp->hdr_en) {
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_path_mode,
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
 			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
 	} else {
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
 	}
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, vp->sdr2hdr_en);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, vp->sdr2hdr_en);
@@ -12661,7 +12730,7 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
 
 	for (i = 0; i < RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH; i++)
-		*tone_lut_kvaddr++ =  hdrvivid_data->tone_sca_axi_tab[i];
+		*tone_lut_kvaddr++ = hdrvivid_data->tone_sca_axi_tab[i];
 
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
@@ -12690,14 +12759,24 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 
 	for (i = 0; i < RK_SDR2HDR_SMGAIN_LENGTH; i++)
 		vop2_writel(vop2, RK3528_SDR_SMGAIN + i * 4, hdrvivid_data->sdr_smgain[i]);
+
+	if (adapt_mode == HDRVIVID_RX_MODE)
+		vop3_setup_dynamic_metadata_for_emp(vp, hdrvivid_data->hdrvivid_dynamic_metadata,
+						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
 }
 
 static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_id)
 {
 	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
+	struct vop2 *vop2 = vp->vop2;
 	struct hdr_extend *hdr_data;
 	uint32_t hdr_format;
+	uint8_t adapt_mode;
+
+	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	/* If hdr extend data is null, exit hdr mode */
 	if (!vcstate->hdr_ext_data) {
@@ -12707,6 +12786,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 	hdr_format = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
+	adapt_mode = (hdr_data->hdr_type & RK_HDR_ADAPT_MODE_MASK) >> 16;
 
 	switch (hdr_format) {
 	case HDR_NONE:
@@ -12717,7 +12797,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 		 * hdr module support hdr10, hlg, vividhdr
 		 * sdr2hdr module support hdrnone for sdr2hdr
 		 */
-		vop3_setup_hdrvivid(vp, win_phys_id);
+		vop3_setup_hdrvivid(vp, win_phys_id, adapt_mode);
 		break;
 	default:
 		DRM_DEBUG("unsupprot hdr format:%u\n", hdr_format);
@@ -14625,6 +14705,7 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win
 	int i;
 	u32 *tone_lut_kvaddr;
 	dma_addr_t tone_lut_mst;
+	uint8_t adapt_mode;
 
 	hdr_mode = hdr_data->hdr_mode;
 
@@ -14662,12 +14743,12 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win
 
 	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
 	if (vp->hdr_en) {
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_path_mode,
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
 			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
 	} else {
-		VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
 	}
 
 	vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdr_data->hdr_pq_gamma);
@@ -14710,6 +14791,12 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+
+	adapt_mode = (hdr_data->hdr_input_type & RK_HDR_ADAPT_MODE_MASK) >> 16;
+
+	if (adapt_mode == HDRVIVID_RX_MODE)
+		vop3_setup_dynamic_metadata_for_emp(vp, hdr_data->hdrvivid_dynamic_metadata,
+						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
 }
 
 static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
@@ -14729,10 +14816,13 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 
 	VOP_MODULE_SET(vop2, vp, cgc_path_en, 0);
 	VOP_MODULE_SET(vop2, vp, hdr10_en, 0);
-	VOP_MODULE_SET(vop2, vp, hdr_vivid_en, 0);
-	VOP_MODULE_SET(vop2, vp, hdr_vivid_bypass_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
+	VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, 0);
 	if (!vp->sdr2hdr_en)
 		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
+	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
+	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	vp->hdr_en = false;
 	vp->hdr_in = false;
@@ -17966,6 +18056,9 @@ static void vop2_destroy_crtc(struct drm_crtc *crtc)
 	if (vp->hdr_lut_gem_obj)
 		rockchip_gem_free_object(&vp->hdr_lut_gem_obj->base);
 
+	if (vp->hdr_dynamic_metadata_gem_obj)
+		rockchip_gem_free_object(&vp->hdr_dynamic_metadata_gem_obj->base);
+
 	of_node_put(crtc->port);
 
 	/*
@@ -18879,6 +18972,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
+	vop2->vo0_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo0-grf");
 	vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
 	vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
 	vop2->ioc_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,ioc-grf");

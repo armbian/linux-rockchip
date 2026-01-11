@@ -1120,6 +1120,27 @@ static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
 		cea_db_payload_len(db) >= 7;
 }
 
+#define HDRVIVID_VSVDB_OUI		0x047503
+
+static bool cea_db_is_hdmi_hdrvivid_block(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
+		return false;
+
+	if (cea_db_payload_len(db) < 14)
+		return false;
+
+	/* check ext tag flag */
+	if (db[1] != 0x01)
+		return false;
+
+	oui = db[4] << 16 | db[3] << 8 | db[2];
+
+	return oui == HDRVIVID_VSVDB_OUI;
+}
+
 static int
 cea_db_offsets(const u8 *cea, int *start, int *end)
 {
@@ -1162,24 +1183,25 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 	return 0;
 }
 
-static u8 *find_edid_extension(const struct edid *edid,
-			       int ext_id, int *ext_index)
+static
+u8 *find_edid_extension(const struct edid *edid, int ext_id, int ext_block_num, int *ext_index)
 {
+	struct edid;
 	u8 *edid_ext = NULL;
 	int i;
 
 	/* No EDID or EDID extensions */
-	if (edid == NULL || edid->extensions == 0)
+	if (edid == NULL)
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = *ext_index; i < edid->extensions; i++) {
+	for (i = *ext_index; i < ext_block_num; i++) {
 		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
 		if (edid_ext[0] == ext_id)
 			break;
 	}
 
-	if (i >= edid->extensions)
+	if (i >= ext_block_num)
 		return NULL;
 
 	*ext_index = i + 1;
@@ -1213,11 +1235,10 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 	return 0;
 }
 
-static u8 *find_displayid_extension(const struct edid *edid,
-				    int *length, int *idx,
-				    int *ext_index)
+static u8 *find_displayid_extension(const struct edid *edid, int *length, int *idx,
+				    int ext_block_num, int *ext_index)
 {
-	u8 *displayid = find_edid_extension(edid, 0x70, ext_index);
+	u8 *displayid = find_edid_extension(edid, 0x70, ext_block_num, ext_index);
 	struct displayid_header *base;
 	int ret;
 
@@ -1238,26 +1259,26 @@ static u8 *find_displayid_extension(const struct edid *edid,
 	return displayid;
 }
 
-static u8 *find_cea_extension(const struct edid *edid)
+static u8 *find_cea_extension(const struct edid *edid, int ext_block_num, int ext_index)
 {
 	int length, idx;
 	struct displayid_block *block;
 	u8 *cea;
 	u8 *displayid;
-	int ext_index;
 
-	/* Look for a top level CEA extension block */
-	/* FIXME: make callers iterate through multiple CEA ext blocks? */
-	ext_index = 0;
-	cea = find_edid_extension(edid, 0x02, &ext_index);
+	cea = find_edid_extension(edid, 0x02, ext_block_num, &ext_index);
 	if (cea)
 		return cea;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	ext_index = 0;
+	if (ext_index >= ext_block_num)
+		ext_index = 0;
+	else
+		return NULL;
+
 	for (;;) {
-		displayid = find_displayid_extension(edid, &length, &idx,
-						     &ext_index);
+		displayid = find_displayid_extension(edid, &length, &idx, ext_block_num,
+					  &ext_index);
 		if (!displayid)
 			return NULL;
 
@@ -1273,27 +1294,62 @@ static u8 *find_cea_extension(const struct edid *edid)
 
 #define EDID_CEA_YCRCB422	(1 << 4)
 
-int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
-				   const struct edid *edid)
+int rockchip_drm_get_yuv422_format(struct drm_connector *connector, const struct edid *edid,
+				   int ext_block_num)
 {
 	struct drm_display_info *info;
 	const u8 *edid_ext;
+	int ext_index;
 
 	if (!connector || !edid)
 		return -EINVAL;
 
 	info = &connector->display_info;
 
-	edid_ext = find_cea_extension(edid);
-	if (!edid_ext)
-		return -EINVAL;
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
 
-	if (edid_ext[3] & EDID_CEA_YCRCB422)
-		info->color_formats |= DRM_COLOR_FORMAT_YCBCR422;
+		if (edid_ext[3] & EDID_CEA_YCRCB422)
+			info->color_formats |= DRM_COLOR_FORMAT_YCBCR422;
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_get_yuv422_format);
+
+int rockchip_drm_parse_hdrvivid(void *sink_data, const struct edid *edid, int ext_block_num)
+{
+	const u8 *edid_ext;
+	int i, start, end, ext_index;
+
+	if (!sink_data || !edid)
+		return -EINVAL;
+
+	memset(sink_data, 0, HDRVIVID_VSVDB_LEN);
+
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
+
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return -EINVAL;
+
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
+
+			if (cea_db_is_hdmi_hdrvivid_block(db)) {
+				memcpy(sink_data, db, HDRVIVID_VSVDB_LEN);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_parse_hdrvivid);
 
 static
 void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
@@ -1462,56 +1518,60 @@ int parse_dovi_block(u8 *sink_data, const u8 *dovi_db)
 }
 
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_hdmi21_data *hdmi21_data,
-			       const struct edid *edid)
+			       const struct edid *edid, int ext_block_num)
 {
 	const u8 *edid_ext;
-	int i, start, end;
+	int i, start, end, ext_index;
 
 	if (!hdmi21_data || !edid)
 		return -EINVAL;
 
-	edid_ext = find_cea_extension(edid);
-	if (!edid_ext)
-		return -EINVAL;
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
 
-	if (cea_db_offsets(edid_ext, &start, &end))
-		return -EINVAL;
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return -EINVAL;
 
-	for_each_cea_db(edid_ext, i, start, end) {
-		const u8 *db = &edid_ext[i];
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
 
-		if (cea_db_is_hdmi_forum_vsdb(db) || cea_db_is_hdmi_forum_scdb(db))
-			parse_hdmi_forum_scds(hdmi21_data, db);
+			if (cea_db_is_hdmi_forum_vsdb(db) || cea_db_is_hdmi_forum_scdb(db))
+				parse_hdmi_forum_scds(hdmi21_data, db);
+		}
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_parse_cea_ext);
 
-int rockchip_drm_parse_dovi(u8 *sink_data, const struct edid *edid)
+int rockchip_drm_parse_dovi(u8 *sink_data, const struct edid *edid, int ext_block_num)
 {
 	const u8 *edid_ext;
-	int i, start, end, ret;
+	int i, start, end, ret, ext_index;
 
 	if (!sink_data || !edid)
 		return -EINVAL;
 
 	memset(sink_data, 0, DOVI_VSDB_LEN);
 
-	edid_ext = find_cea_extension(edid);
-	if (!edid_ext)
-		return -EINVAL;
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
 
-	if (cea_db_offsets(edid_ext, &start, &end))
-		return -EINVAL;
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return -EINVAL;
 
-	for_each_cea_db(edid_ext, i, start, end) {
-		const u8 *db = &edid_ext[i];
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
 
-		if (cea_db_is_hdmi_dovi_block(db)) {
-			ret = parse_dovi_block(sink_data, db);
-			if (ret)
-				return ret;
+			if (cea_db_is_hdmi_dovi_block(db)) {
+				ret = parse_dovi_block(sink_data, db);
+				if (ret)
+					return ret;
+			}
 		}
 	}
 
@@ -1534,45 +1594,48 @@ static bool cea_db_is_hdmi_colorimetry_data_block(const u8 *db)
 }
 
 int
-rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *edid)
+rockchip_drm_parse_colorimetry_data_block(u32 *colorimetry, const struct edid *edid,
+					  int ext_block_num)
 {
 	const u8 *edid_ext;
-	int i, start, end;
+	int i, start, end, ext_index;
 
 	if (!colorimetry || !edid)
 		return -EINVAL;
 
 	*colorimetry = 0;
 
-	edid_ext = find_cea_extension(edid);
-	if (!edid_ext)
-		return -EINVAL;
-
-	if (cea_db_offsets(edid_ext, &start, &end))
-		return -EINVAL;
-
-	for_each_cea_db(edid_ext, i, start, end) {
-		const u8 *db = &edid_ext[i];
-
-		if (cea_db_is_hdmi_colorimetry_data_block(db))
-			/* As per CEA 861-G spec */
-			*colorimetry = ((db[3] & (0x1 << 7)) << 1) | db[2];
-		else
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
 			continue;
 
-		*colorimetry = *colorimetry << 3;
-		*colorimetry |= BIT(DRM_MODE_COLORIMETRY_DEFAULT) |
-			BIT(DRM_MODE_COLORIMETRY_BT709_YCC) |
-			BIT(DRM_MODE_COLORIMETRY_SMPTE_170M_YCC);
-		/*
-		 * The macro definitions of BT2020_RGB and BT2020_YCC in
-		 * DRM are in the opposite order to that in EDID.
-		 * so the values of two bits need to be exchanged.
-		 */
-		if ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_RGB)) !=
-		    ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_YCC)) >> 1))
-			*colorimetry ^= (BIT(DRM_MODE_COLORIMETRY_BT2020_RGB) |
-					 BIT(DRM_MODE_COLORIMETRY_BT2020_YCC));
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return -EINVAL;
+
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
+
+			if (cea_db_is_hdmi_colorimetry_data_block(db))
+				/* As per CEA 861-G spec */
+				*colorimetry = ((db[3] & (0x1 << 7)) << 1) | db[2];
+			else
+				continue;
+
+			*colorimetry = *colorimetry << 3;
+			*colorimetry |= BIT(DRM_MODE_COLORIMETRY_DEFAULT) |
+				BIT(DRM_MODE_COLORIMETRY_BT709_YCC) |
+				BIT(DRM_MODE_COLORIMETRY_SMPTE_170M_YCC);
+			/*
+			 * The macro definitions of BT2020_RGB and BT2020_YCC in
+			 * DRM are in the opposite order to that in EDID.
+			 * so the values of two bits need to be exchanged.
+			 */
+			if ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_RGB)) !=
+			    ((*colorimetry & BIT(DRM_MODE_COLORIMETRY_BT2020_YCC)) >> 1))
+				*colorimetry ^= (BIT(DRM_MODE_COLORIMETRY_BT2020_RGB) |
+						 BIT(DRM_MODE_COLORIMETRY_BT2020_YCC));
+		}
 	}
 
 	return 0;
@@ -1595,28 +1658,30 @@ static bool cea_db_is_hdr10_plus_block(const u8 *db)
 	return oui == HDR10_PLUS_OUI;
 }
 
-u8 rockchip_drm_parse_hdr10_plus_vsdb(const struct edid *edid)
+u8 rockchip_drm_parse_hdr10_plus_vsdb(const struct edid *edid, int ext_block_num)
 {
 	const u8 *edid_ext;
-	int i, start, end;
+	int i, ext_index, start, end;
 	u8 hdr10_plus = 0;
 
 	if (!edid)
 		return 0;
 
-	edid_ext = find_cea_extension(edid);
-	if (!edid_ext)
-		return 0;
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
 
-	if (cea_db_offsets(edid_ext, &start, &end))
-		return 0;
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return 0;
 
-	for_each_cea_db(edid_ext, i, start, end) {
-		const u8 *db = &edid_ext[i];
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
 
-		if (cea_db_is_hdr10_plus_block(db))
-			/* As per CEA 861-G spec */
-			hdr10_plus = db[5];
+			if (cea_db_is_hdr10_plus_block(db))
+				/* As per CEA 861-G spec */
+				hdr10_plus = db[5];
+		}
 	}
 
 	return hdr10_plus;

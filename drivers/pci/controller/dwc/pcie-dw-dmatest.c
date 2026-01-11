@@ -295,6 +295,18 @@ int pcie_dw_wired_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
 	return rk_pcie_local_dma_frombus_block(obj, chn, bus_paddr, local_paddr, size);
 }
 
+int pcie_dw_local_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
+				    u64 local_paddr, u64 bus_paddr, u32 size)
+{
+	return rk_pcie_local_dma_frombus_block(obj, chn, local_paddr, bus_paddr, size);
+}
+
+int pcie_dw_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
+				  u64 bus_paddr, u64 local_paddr, u32 size)
+{
+	return rk_pcie_local_dma_tobus_block(obj, chn, bus_paddr, local_paddr, size);
+}
+
 int pcie_dw_dmatest_irq_en(struct dma_trx_obj *obj, bool wr_irq_en, bool rd_irq_en)
 {
 	struct pcie_dw_dmatest_dev *dmatest_dev = (struct pcie_dw_dmatest_dev *)obj->priv;
