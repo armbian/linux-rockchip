@@ -144,7 +144,7 @@ static const struct spinand_info zbit_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&zb35q0xc_ooblayout, zb35q04byig_ecc_get_status)),
 	SPINAND_INFO("ZB35Q04CYIG",
-		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xC3),
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0xC3),
 		     NAND_MEMORG(1, 2048, 128, 128, 2048, 40, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
