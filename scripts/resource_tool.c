@@ -850,7 +850,7 @@ static bool get_entry(const char *file_path, index_tbl_entry *entry)
 {
 	bool ret = false;
 	char buf[BLOCK_SIZE];
-	resource_ptn_header header;
+	resource_ptn_header header = {};
 	if (!StorageReadLba(get_ptn_offset(), buf, 1)) {
 		LOGE("Failed to read header!");
 		goto end;
@@ -910,7 +910,7 @@ end:
 static bool get_content(resource_content *content)
 {
 	bool ret = false;
-	index_tbl_entry entry;
+	index_tbl_entry entry = {};
 	if (!get_entry(content->path, &entry))
 		goto end;
 	content->content_offset = entry.content_offset;
@@ -929,7 +929,7 @@ static int load_file(const char *file_path, int offset_block, int blocks)
 		printf("\n");
 	}
 	bool ret = false;
-	resource_content content;
+	resource_content content = {};
 	snprintf(content.path, sizeof(content.path), "%s", file_path);
 	content.load_addr = 0;
 	if (!get_content(&content)) {
@@ -1005,7 +1005,7 @@ static int test_charge(int argc, char **argv)
 		desc = DEF_CHARGE_DESC_PATH;
 	}
 
-	resource_content content;
+	resource_content content = {};
 	snprintf(content.path, sizeof(content.path), "%s", desc);
 	content.load_addr = 0;
 	if (!get_content(&content)) {
@@ -1130,7 +1130,7 @@ end:
 /**********************append file************************/
 
 static const char *PROG = NULL;
-static resource_ptn_header header;
+static resource_ptn_header header = {};
 static bool just_print = false;
 static char root_path[MAX_INDEX_ENTRY_PATH_LEN] = "\0";
 
@@ -1360,7 +1360,7 @@ static int unpack_image(const char *dir)
 	}
 
 	printf("Dump Index table:\n");
-	index_tbl_entry entry;
+	index_tbl_entry entry = {};
 	int i;
 	for (i = 0; i < header.tbl_entry_num; i++) {
 		/* TODO: support tbl_entry_size */
@@ -1477,7 +1477,7 @@ static bool write_index_tbl(const int file_num, const char **files)
 	bool foundFdt = false;
 	int offset =
 	        header.header_size + header.tbl_entry_size * header.tbl_entry_num;
-	index_tbl_entry entry;
+	index_tbl_entry entry = {};
 	char hash[20];	/* sha1 */
 	int i;
 
@@ -1492,6 +1492,7 @@ static bool write_index_tbl(const int file_num, const char **files)
 		if (write_file(offset, files[i], hash, sizeof(hash)) < 0)
 			goto end;
 
+		memset(entry.hash, 0, sizeof(entry.hash));
 		memcpy(entry.hash, hash, sizeof(hash));
 		entry.hash_size = sizeof(hash);
 

@@ -97,6 +97,7 @@
 #define PCIE_CFG_ELBI_APP_OFFSET	0xe00
 #define PCIE_CFG_ELBI_USER_DATA_OFF	0x10
 #define PCIE_CFG_USER5_DATA_OFF		0x14
+#define PCIE_CFG_USER15_DATA_OFF	0x3c
 
 #define PCIE_ELBI_REG_NUM		0x2
 
@@ -345,6 +346,33 @@ static int rkep_ep_poll_irq_user(struct pcie_file *pcie_file, struct pcie_ep_obj
 	dev_dbg(&pcie_rkep->pdev->dev, "poll virtual id %d, ret=%d\n", index, cfg->poll_status);
 
 	return 0;
+}
+
+static void rkep_ep_elbi_data_compare_and_swap(struct pcie_file *pcie_file,
+					       struct pcie_ep_elbi_data_compare_and_swap_param *cas)
+{
+	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
+	u32 val;
+
+	if (cas->offset > PCIE_CFG_USER15_DATA_OFF) {
+		cas->result = -EINVAL;
+		return;
+	}
+
+	mutex_lock(&pcie_rkep->dev_lock_mutex);
+
+	cas->result = 0;
+	pci_read_config_dword(pcie_rkep->pdev,
+			      PCIE_CFG_ELBI_APP_OFFSET + cas->offset,
+			      &val);
+	if (val == cas->old_val) {
+		pci_write_config_dword(pcie_rkep->pdev,
+				       PCIE_CFG_ELBI_APP_OFFSET + cas->offset,
+				       cas->new_val);
+		cas->result = 1;
+	}
+
+	mutex_unlock(&pcie_rkep->dev_lock_mutex);
 }
 
 static int rkep_mem_continuous_buffer_alloc(struct pcie_file *pcie_file,
@@ -751,6 +779,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	void __user *uarg = (void __user *)args;
 	struct pcie_ep_obj_poll_virtual_id_cfg poll_cfg;
 	struct pcie_ep_continuous_buffer_param cont_buf_pram;
+	struct pcie_ep_elbi_data_compare_and_swap_param elbi_cas_para;
 	int mmap_res;
 	int ret;
 	int index, wr_mask, rd_mask;
@@ -921,6 +950,17 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		dev_warn(&pcie_rkep->pdev->dev, "reset controller not support\n");
 		return -EINVAL;
 #endif
+	case PCIE_EP_ELBI_DATA_COMPARE_AND_SWAP:
+		if (copy_from_user(&elbi_cas_para, uarg, sizeof(elbi_cas_para))) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to get copy from user\n");
+			return -EFAULT;
+		}
+
+		rkep_ep_elbi_data_compare_and_swap(pcie_file, &elbi_cas_para);
+
+		if (copy_to_user(uarg, &elbi_cas_para, sizeof(elbi_cas_para)))
+			return -EFAULT;
+		break;
 	case PCIE_EP_CONTINUOUS_BUFFER_ALLOC:
 		if (copy_from_user(&cont_buf_pram, uarg, sizeof(cont_buf_pram)))
 			return -EFAULT;

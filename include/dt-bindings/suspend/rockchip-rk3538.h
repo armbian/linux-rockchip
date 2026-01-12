@@ -51,4 +51,16 @@
 #define WAKEUP_GMAC			BIT(21)
 #define WAKEUP_TIMEOUT			BIT(22)
 
+/* the pwm regulator */
+#define RKPM_PWM0_REGULATOR_EN		BIT(0)
+
+/* sleep pin */
+#define RKPM_SLEEP_PIN0_EN		BIT(0) /* GPIO0_A2 */
+#define RKPM_SLEEP_PIN1_EN		BIT(1) /* GPIO0_A3 */
+#define RKPM_SLEEP_PIN2_EN		BIT(2) /* GPIO0_A4 */
+
+#define RKPM_SLEEP_PIN0_ACT_LOW		BIT(0) /* GPIO0_A2 */
+#define RKPM_SLEEP_PIN1_ACT_LOW		BIT(1) /* GPIO0_A3 */
+#define RKPM_SLEEP_PIN2_ACT_LOW		BIT(2) /* GPIO0_A4 */
+
 #endif

@@ -1451,7 +1451,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&
-		    (!stream->is_pause_stream)) {
+		    (!stream->is_hold_stream_off)) {
 			if (!stream->dma_en) {
 				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(stream, true);
@@ -1712,14 +1712,14 @@ void sditf_get_default_exp(struct sditf_priv *sditf)
 	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
 			      V4L2_CID_EXPOSURE);
 	if (ctrl)
-		sditf->cur_time = ctrl->default_value;
+		sditf->cur_time = ctrl->val;
 	else
 		sditf->cur_time = 16;
 
 	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
 			      V4L2_CID_ANALOGUE_GAIN);
 	if (ctrl)
-		sditf->cur_gain = ctrl->default_value;
+		sditf->cur_gain = ctrl->val;
 	else
 		sditf->cur_gain = 16;
 

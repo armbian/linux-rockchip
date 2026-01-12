@@ -2991,7 +2991,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 #else
 	cif_dev->is_use_dummybuf = false;
 #endif
-	if (cif_dev->chip_id == CHIP_RV1106_CIF)
+	if (cif_dev->chip_id == CHIP_RV1106_CIF ||
+	    cif_dev->chip_id == CHIP_RV1126B_CIF)
 		cif_dev->is_use_dummybuf = false;
 
 	strscpy(cif_dev->media_dev.model, dev_name(dev),

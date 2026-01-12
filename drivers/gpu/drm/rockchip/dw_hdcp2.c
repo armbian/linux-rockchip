@@ -24,8 +24,6 @@
 #include <linux/rockchip/rockchip_sip.h>
 #include <uapi/misc/dw_hdcp2.h>
 
-#define HDCP_MAX_PORT			6
-
 /**
  * struct hl_device - hdcp host library device structure
  * each hdcp controller attach to a hl_device, it include
@@ -71,10 +69,12 @@ struct dw_hdcp_grf_reg {
 struct dw_hdcp_port_cfg {
 	struct dw_hdcp_grf_reg connect_reg;
 	int port_id;
+	int port_type;
 };
 
 struct dw_hdcp_cfg {
 	int port_num;
+	int protocol_type;
 	struct dw_hdcp_grf_reg boot_reg;
 	struct dw_hdcp_port_cfg port_cfg[HDCP_MAX_PORT];
 };
@@ -169,6 +169,31 @@ static int dw_hdcp_get_status(struct dw_hdcp *hdcp, void __user *arg)
 	status.booted_status = booted_status;
 
 	if (copy_to_user(arg, &status, sizeof(status)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int dw_hdcp_get_intf_info(struct dw_hdcp *hdcp, void __user *arg)
+{
+	const struct dw_hdcp_cfg *cfg = hdcp->cfgs;
+	const struct dw_hdcp_port_cfg *port_cfg;
+	struct hl_drv_ioc_intf_info info = {};
+	int i;
+
+	if (!arg)
+		return -EFAULT;
+
+	info.dev_addr = hdcp->hl_dev.hpi_resource->start;
+	info.protocol_type = cfg->protocol_type;
+	info.port_num = cfg->port_num;
+	for (i = 0; i < cfg->port_num; i++) {
+		port_cfg = &cfg->port_cfg[i];
+		info.port_id[i] = port_cfg->port_id;
+		info.port_type[i] = port_cfg->port_type;
+	}
+
+	if (copy_to_user(arg, &info, sizeof(info)))
 		return -EFAULT;
 
 	return 0;
@@ -461,6 +486,8 @@ static long dw_hdcp_hld_ioctl(struct file *f, unsigned int cmd, unsigned long ar
 		return dw_hdcp_get_status(hdcp, data);
 	case RK_DRV_IOC_RESET:
 		return dw_hdcp_set_reset(hdcp, data);
+	case RK_DRV_IOC_GET_INFO:
+		return dw_hdcp_get_intf_info(hdcp, data);
 	default:
 		return -EINVAL;
 	}
@@ -641,10 +668,12 @@ static const struct dw_hdcp_cfg rk3538_hdcp_cfgs[] = {
 	{
 		.port_num = 1,
 		.boot_reg = {0x11c, 20},
+		.protocol_type = HL_HDCP_PROTOCOL_HDMI,
 		.port_cfg = {
 			{
 				.connect_reg = {0x6c, 2},
 				.port_id = 1,
+				.port_type = HL_HDCP_TX,
 			},
 		},
 	},
@@ -659,20 +688,24 @@ static const struct dw_hdcp_cfg rk3576_hdcp_cfgs[] = {
 	{
 		.port_num = 1,
 		.boot_reg = {0xd4, 20},
+		.protocol_type = HL_HDCP_PROTOCOL_HDMI,
 		.port_cfg = {
 			{
 				.connect_reg = {0xd4, 16},
 				.port_id = 1,
+				.port_type = HL_HDCP_TX,
 			},
 		},
 	},
 	{
 		.port_num = 1,
+		.protocol_type = HL_HDCP_PROTOCOL_DP,
 		.boot_reg = {0xc8, 26},
 		.port_cfg = {
 			{
 				.connect_reg = {0xc0, 6},
 				.port_id = 0,
+				.port_type = HL_HDCP_TX,
 			},
 		},
 	},
@@ -689,33 +722,40 @@ static const struct dw_hdcp_cfg rk3576_hdcp_cfgs[] = {
 static const struct dw_hdcp_cfg rk3588_hdcp_cfgs[] = {
 	{
 		.port_num = 2,
+		.protocol_type = HL_HDCP_PROTOCOL_DP,
 		.boot_reg = {0x2c, 8},
 		.port_cfg = {
 			{
 				.connect_reg = {0x20, 8},
 				.port_id = 0,
+				.port_type = HL_HDCP_TX,
 			},
 			{
 				.connect_reg = {0x20, 24},
 				.port_id = 1,
+				.port_type = HL_HDCP_TX,
 			},
 		},
 	},
 	{
 		.port_num = 3,
+		.protocol_type = HL_HDCP_PROTOCOL_HDMI,
 		.boot_reg = {0x3c, 16},
 		.port_cfg = {
 			{
 				.connect_reg = {0x40, 8},
 				.port_id = 0,
+				.port_type = HL_HDCP_RX,
 			},
 			{
 				.connect_reg = {0x3c, 24},
 				.port_id = 1,
+				.port_type = HL_HDCP_TX,
 			},
 			{
 				.connect_reg = {0x40, 4},
 				.port_id = 2,
+				.port_type = HL_HDCP_TX,
 			},
 		},
 	},

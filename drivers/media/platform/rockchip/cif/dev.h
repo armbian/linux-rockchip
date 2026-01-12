@@ -657,6 +657,7 @@ struct rkcif_stream {
 	struct kfifo			dcg_kfifo;
 	struct rkmodule_exp_delay	exp_delay;
 	struct rkmodule_exp_info	sensor_exp_info;
+	int				real_skip_num;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -684,6 +685,8 @@ struct rkcif_stream {
 	bool				is_fb_first_frame;
 	bool				is_pause_stream;
 	bool				is_force_update;
+	bool				is_hold_stream_off;
+	bool				is_single_buf_mode;
 };
 
 struct rkcif_lvds_subdev {

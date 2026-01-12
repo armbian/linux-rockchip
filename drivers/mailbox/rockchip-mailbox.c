@@ -119,9 +119,7 @@ static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
 	dev_dbg(mb->mbox.dev, "Chan[%d]: A2B message, cmd 0x%08x, data 0x%08x\n",
 		chans->idx, msg->cmd, msg->data);
 
-	writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_A2B_CMD(chans->idx));
-	writel_relaxed(msg->data, mb->mbox_base +
-		       MAILBOX_A2B_DAT(chans->idx));
+	writeq_relaxed((u64)msg->data << 32UL | msg->cmd, mb->mbox_base + MAILBOX_A2B_CMD(chans->idx));
 
 	return 0;
 }
@@ -169,6 +167,7 @@ static bool rockchip_mbox_last_tx_done(struct mbox_chan *chan)
 static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 {
 	int idx;
+	u64 value;
 	struct rockchip_mbox_msg *msg;
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
 	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
@@ -176,21 +175,20 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
 		if ((status & (1U << idx)) && irq == mb->chans[idx].irq) {
 			/* Get cmd/data from the channel of B2A */
+			value = readq_relaxed(mb->mbox_base + MAILBOX_B2A_CMD(idx));
+
 			msg = &mb->msg[idx];
-			msg->cmd = readl_relaxed(mb->mbox_base +
-						 MAILBOX_B2A_CMD(idx));
-			msg->data = readl_relaxed(mb->mbox_base +
-						  MAILBOX_B2A_DAT(idx));
+			msg->cmd = value & 0xffffffffUL;
+			msg->data = value >> 32UL;
 
 			dev_dbg(mb->mbox.dev, "Chan[%d]: B2A message, cmd 0x%08x, data 0x%08x\n",
 				idx, msg->cmd, msg->data);
 
+			/* Clear mbox interrupt */
+			writel_relaxed(1U << idx, mb->mbox_base + MAILBOX_B2A_STATUS);
+
 			if (mb->mbox.chans[idx].cl)
 				mbox_chan_received_data(&mb->mbox.chans[idx], msg);
-
-			/* Clear mbox interrupt */
-			writel_relaxed(1U << idx,
-				       mb->mbox_base + MAILBOX_B2A_STATUS);
 		}
 	}
 
@@ -225,8 +223,7 @@ static int rockchip_mbox_v2_send_data(struct mbox_chan *chan, void *data)
 	dev_dbg(mb->mbox.dev, "TX: cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
 
 	if (mb->trigger_method) {
-		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
-		writel_relaxed(msg->data, mb->mbox_base + mb->reg->tx_dat);
+		writeq_relaxed((u64)msg->data << 32UL | msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
 	} else {
 		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
 	}
@@ -282,6 +279,7 @@ static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
 {
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
 	struct rockchip_mbox_msg *msg = mb->msg;
+	u64 value;
 	u32 status;
 
 	status = readl_relaxed(mb->mbox_base + mb->reg->rx_sts);
@@ -290,8 +288,9 @@ static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
 
 	if (status & MAILBOX_V2_STATUS_TX_DONE) {
 		/* Get cmd/data from the channel */
-		msg->cmd = readl_relaxed(mb->mbox_base + mb->reg->rx_cmd);
-		msg->data = readl_relaxed(mb->mbox_base + mb->reg->rx_dat);
+		value = readq_relaxed(mb->mbox_base + mb->reg->rx_cmd);
+		msg->cmd = value & 0xffffffffUL;
+		msg->data = value >> 32UL;
 
 		dev_dbg(mb->mbox.dev, "RX: cmd 0x%08x, data 0x%08x\n",
 			msg->cmd, msg->data);
