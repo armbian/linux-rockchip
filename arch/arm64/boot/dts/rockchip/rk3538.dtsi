@@ -1410,9 +1410,9 @@
 			interrupt-names = "irq_vdpp";
 			clocks = <&cru ACLK_VDPP>, <&cru HCLK_VDPP>, <&cru CLK_CORE_VDPP>;
 			clock-names = "aclk", "hclk", "sclk";
-			rockchip,normal-rates = <600000000>, <0>, <600000000>;
+			rockchip,normal-rates = <400000000>, <0>, <400000000>;
 			assigned-clocks = <&cru ACLK_VDPP>, <&cru CLK_CORE_VDPP>;
-			assigned-clock-rates = <400000000>, <600000000>;
+			assigned-clock-rates = <400000000>, <400000000>;
 			resets = <&cru SRST_ARESETN_VDPP>, <&cru SRST_HRESETN_VDPP>,
 				 <&cru SRST_RESETN_CORE_VDPP>;
 			reset-names = "shared_rst_a", "shared_rst_h", "shared_rst_s";

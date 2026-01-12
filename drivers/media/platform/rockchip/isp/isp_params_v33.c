@@ -3208,6 +3208,8 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			return;
 		}
 
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_IIR_WR_LENGTH, id);
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_IIR_RD_LENGTH, id);
 		value = priv_val->bay3d_iir_size;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_WR_SIZE, id);
 		value = priv_val->buf_3dnr_iir.dma_addr + value * id;
@@ -3227,12 +3229,16 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			isp3_param_write(params_vdev, value, ISP3X_GAIN_CTRL, id);
 		}
 
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_DS_WR_LENGTH, id);
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_DS_RD_LENGTH, id);
 		value = priv_val->bay3d_ds_size;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_WR_SIZE, id);
 		value = priv_val->buf_3dnr_ds.dma_addr + value * id;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_WR_BASE, id);
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_RD_BASE, id);
 
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_CUR_WR_LENGTH, id);
+		isp3_param_write(params_vdev, 0, ISP3X_MI_BAY3D_CUR_RD_LENGTH, id);
 		value = priv_val->bay3d_wgt_size;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_WR_SIZE, id);
 		isp3_param_write(params_vdev, value, ISP32_MI_BAY3D_CUR_RD_SIZE, id);

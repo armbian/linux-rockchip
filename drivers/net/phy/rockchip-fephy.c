@@ -166,7 +166,7 @@ static int rockchip_fephy_get_adc_offset_from_nvmem(struct phy_device *phydev)
 	return -EINVAL;
 }
 
-static int rockchip_fephy_fix_offset(struct phy_device *phydev)
+static int rockchip_fephy_fix_offset_v0(struct phy_device *phydev)
 {
 	struct rockchip_fephy_priv *priv = phydev->priv;
 	int offset, mdi_offset, mdix_offset, sum;
@@ -215,10 +215,26 @@ static int rockchip_fephy_fix_offset(struct phy_device *phydev)
 	return ret;
 }
 
+static int rockchip_fephy_fix_offset_v1(struct phy_device *phydev)
+{
+	struct rockchip_fephy_priv *priv = phydev->priv;
+	int ret = 0, val;
+
+	priv->mdi_offset &= 0x7f;
+	priv->mdix_offset &= 0x7f;
+	val = 0xFFFF0000 | (priv->mdi_offset | (priv->mdix_offset << 8));
+	clk_enable(priv->pclk);
+	regmap_write(priv->regs, 0xB4, val);
+	regmap_write(priv->regs, 0xA0, 0xFFFF0008);
+	clk_disable(priv->pclk);
+
+	return ret;
+}
+
 static int rockchip_fephy_config_init(struct phy_device *phydev)
 {
 	struct rockchip_fephy_priv *priv = phydev->priv;
-	int ret;
+	int ret, val = 0;
 
 	/* LED Control, default:0x7f */
 	ret = phy_write(phydev, MII_LED_CTRL, 0x7aa);
@@ -257,7 +273,16 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	return rockchip_fephy_fix_offset(phydev);
+	clk_enable(priv->pclk);
+	ret = regmap_read(priv->regs, 0xfc, &val);
+	clk_disable(priv->pclk);
+	if (ret)
+		return ret;
+
+	if (val == 0x100)
+		return rockchip_fephy_fix_offset_v1(phydev);
+	else
+		return rockchip_fephy_fix_offset_v0(phydev);
 }
 
 static int rockchip_fephy_config_aneg(struct phy_device *phydev)

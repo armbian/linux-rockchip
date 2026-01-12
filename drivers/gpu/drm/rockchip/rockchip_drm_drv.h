@@ -430,6 +430,7 @@ struct rockchip_crtc_state {
 	int post_r2y_en;
 	int post_y2r_en;
 	int post_csc_mode;
+	int post_csc_y2r_mode;
 	int bcsh_en;
 	enum drm_color_encoding color_encoding;
 	enum drm_color_range color_range;

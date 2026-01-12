@@ -1083,8 +1083,6 @@ already_linkup:
 
 	/* Enable client dma_write, dma_read and elbi interrupt */
 	rockchip_pcie_writel_apb(rockchip, 0x0c000000, PCIE_CLIENT_INTR_MASK);
-	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
-	dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
 
 	/* Enable RASDES Error event by default */
 	rockchip->rasdes_off = dw_pcie_find_ext_capability(&rockchip->pci, PCI_EXT_CAP_ID_VNDR);
@@ -1280,8 +1278,10 @@ static int rockchip_pcie_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dm
 
 static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 {
-	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST)) {
-		rockchip->dma_obj = pcie_dw_dmatest_register(rockchip->pci.dev, true);
+	bool dmatest_irq = IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_EP_DMATEST_IRQ_EN);
+
+	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_EP_DMATEST)) {
+		rockchip->dma_obj = pcie_dw_dmatest_register(rockchip->pci.dev, dmatest_irq);
 		if (IS_ERR(rockchip->dma_obj)) {
 			dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
 			return -EINVAL;
@@ -1291,6 +1291,11 @@ static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 		rockchip->dma_obj->start_dma_func = rockchip_pcie_start_dma_dwc;
 		rockchip->dma_obj->config_dma_func = rockchip_pcie_config_dma_dwc;
 		rockchip->dma_obj->get_dma_status = rockchip_pcie_get_dma_status;
+	}
+
+	if (dmatest_irq) {
+		dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0x0);
+		dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0x0);
 	}
 
 	return 0;

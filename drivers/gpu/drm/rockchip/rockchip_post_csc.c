@@ -147,6 +147,57 @@ struct rk_csc_mode_coef {
 	const struct rk_pq_csc_coef *csc_coef;
 };
 
+static const char * const csc_mode_name[] = {
+	/*
+	 * RGB BT601/BT709 using use the same csc mode and are not differentiated
+	 * However, RGB BT2020 and BT601/BT709 use different CSC modes, so they
+	 * need to be distinguished.
+	 */
+	"RGBL_TO_RGBF",
+	"RGBL_TO_YUV601L",
+	"RGBL_TO_YUV601F",
+	"RGBL_TO_YUV709L",
+	"RGBL_TO_YUV709F",
+	"RGB2020L_TO_YUV2020L",
+	"RGB2020L_TO_YUV2020F",
+	"RGBF_TO_RGBL",
+	"RGBF_TO_YUV601L",
+	"RGBF_TO_YUV601F",
+	"RGBF_TO_YUV709L",
+	"RGBF_TO_YUV709F",
+	"RGB2020F_TO_YUV2020L",
+	"RGB2020F_TO_YUV2020F",
+	"YUV601L_TO_RGBL",
+	"YUV601L_TO_RGBF",
+	"YUV601L_TO_YUV601F",
+	"YUV601L_TO_YUV709L",
+	"YUV601L_TO_YUV709F",
+	"YUV601F_TO_RGBL",
+	"YUV601F_TO_RGBF",
+	"YUV601F_TO_YUV601L",
+	"YUV601F_TO_YUV709L",
+	"YUV601F_TO_YUV709F",
+	"YUV709L_TO_RGBL",
+	"YUV709L_TO_RGBF",
+	"YUV709L_TO_YUV601L",
+	"YUV709L_TO_YUV601F",
+	"YUV709L_TO_YUV709F",
+	"YUV709F_TO_RGBL",
+	"YUV709F_TO_RGBF",
+	"YUV709F_TO_YUV601L",
+	"YUV709F_TO_YUV601F",
+	"YUV709F_TO_YUV709L",
+	"YUV2020L_TO_RGB2020L",
+	"YUV2020L_TO_RGB2020F",
+	"YUV2020L_TO_YUV2020F",
+	"YUV2020F_TO_RGB2020L",
+	"YUV2020F_TO_RGB2020F",
+	"YUV2020F_TO_YUV2020L",
+	"RGB2020F_TO_RGB2020L",
+	"RGB2020L_TO_RGB2020F",
+	"IDENTITY_MODE",
+};
+
 static const struct rk_csc_colorspace_info g_csc_color_info[] = {
 	{ OPTM_CS_E_RGB, OPTM_CS_E_RGB, false, true },                 /* RGBL_TO_RGBF */
 	{ OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, false },         /* RGBL_TO_YUV601L */
@@ -525,6 +576,8 @@ static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mod
 	u8 pixel_depth = convert_mode->pixel_depth;
 	u8 coef_precision = convert_mode->coef_precision;
 
+	convert_mode->csc_mode = RK_PQ_CSC_IDENTITY_MODE;
+
 	/* Search for coef table at different csc precision */
 	for (i = 0; i < ARRAY_SIZE(g_csc_mode_coefs); i++) {
 		if ((g_csc_mode_coefs[i].pixel_depth == pixel_depth) &&
@@ -553,8 +606,10 @@ static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mod
 			if (g_csc_color_info[j].input_color_space == input_color_space &&
 			    g_csc_color_info[j].output_color_space == output_color_space &&
 			    g_csc_color_info[j].in_full_range == is_input_full_range &&
-			    g_csc_color_info[j].out_full_range == is_output_full_range)
+			    g_csc_color_info[j].out_full_range == is_output_full_range) {
+				convert_mode->csc_mode = j;
 				return &csc_mode_coef->csc_coef[j];
+			}
 		}
 
 		/*
@@ -1112,4 +1167,12 @@ int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_s
 	csc_simple_coef->range_type = convert_mode->is_output_full_range;
 
 	return ret;
+}
+
+const char *rockchip_full_func_csc_get_mode_name(u8 csc_mode)
+{
+	if (csc_mode >= ARRAY_SIZE(csc_mode_name))
+		return "Unknown";
+
+	return csc_mode_name[csc_mode];
 }

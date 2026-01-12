@@ -3849,6 +3849,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 		}
 
 		rockchip_calc_post_csc(NULL, &vpstate->csc_coef, &convert_mode);
+		vpstate->csc_mode = convert_mode.csc_mode;
 	} else {
 		if (is_input_yuv && !is_output_yuv) {
 			vpstate->y2r_en = 1;
@@ -9330,7 +9331,7 @@ static const char *hdr_to_string(int eotf)
 	}
 }
 
-static const char *csc_mode_to_string(int csc_mode)
+static const char *csc_legacy_mode_to_string(int csc_mode)
 {
 	switch (csc_mode) {
 	case CSC_BT601L:
@@ -9350,6 +9351,14 @@ static const char *csc_mode_to_string(int csc_mode)
 	default:
 		return "Unknown";
 	}
+}
+
+static const char *csc_mode_to_string(struct vop2 *vop2, int csc_mode)
+{
+	if (vop2->version >= VOP_VERSION_RK3572)
+		return rockchip_full_func_csc_get_mode_name(csc_mode);
+
+	return csc_legacy_mode_to_string(csc_mode);
 }
 
 #define DEBUG_PRINT(args...) \
@@ -9395,6 +9404,7 @@ static void vop3_msmart_info_dump(struct seq_file *s, struct drm_plane *plane)
 static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 {
 	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
 	struct drm_plane_state *pstate = plane->state;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
 	struct drm_rect *src, *dest;
@@ -9424,10 +9434,10 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
 		    vpstate->xmirror_en, vpstate->ymirror_en, vpstate->rotate_90_en,
 		    vpstate->rotate_270_en);
-	DEBUG_PRINT("\tcsc: y2r[%d] r2y[%d] csc mode[%s] dci[%d] cgc[%d] hdr2sdr[%d]\n",
-		    vpstate->y2r_en, vpstate->r2y_en,
-		    csc_mode_to_string(vpstate->csc_mode), vpstate->dci_en,
-		    vpstate->cgc_en, vpstate->hdr2sdr_en);
+	DEBUG_PRINT("\tcsc: y2r[%s] r2y[%s] dci[%d] cgc[%d] hdr2sdr[%d]\n",
+		    vpstate->y2r_en ? csc_mode_to_string(vop2, vpstate->csc_mode) : "off",
+		    vpstate->r2y_en ? csc_mode_to_string(vop2, vpstate->csc_mode) : "off",
+		    vpstate->dci_en, vpstate->cgc_en, vpstate->hdr2sdr_en);
 	DEBUG_PRINT("\tzpos: %d\n", vpstate->zpos);
 	DEBUG_PRINT("\tsrc: pos[%d, %d] rect[%d x %d]\n", src->x1 >> 16,
 		    src->y1 >> 16, drm_rect_width(src) >> 16,
@@ -9549,8 +9559,10 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    hdr_to_string(state->eotf), state->eotf,
 		    rockchip_drm_get_color_encoding_name(state->color_encoding),
 		    rockchip_drm_get_color_range_name(state->color_range));
-	DEBUG_PRINT("\tr2y[%d] sharp[%d] acm[%d] y2r[%d]\n",
-		    state->post_r2y_en, state->sharp_en, state->acm_en, state->post_y2r_en);
+	DEBUG_PRINT("\tr2y[%s] sharp[%d] acm[%d] y2r[%s]\n",
+		    state->post_r2y_en ? csc_mode_to_string(vop2, state->post_csc_mode) : "off",
+		    state->sharp_en, state->acm_en, state->post_y2r_en ?
+		    csc_mode_to_string(vop2, state->post_csc_y2r_mode) : "off");
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
@@ -9936,7 +9948,7 @@ static ssize_t luma_avg_store(struct device *dev, struct device_attribute *attr,
 	if (enable) {
 		VOP_CTRL_SET(vop2, yavg_regdone_imd, 1);
 		VOP_CTRL_SET(vop2, yavg_port_sel, vp->id);
-		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, !vcstate->yuv_overlay);
+		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, is_yuv_output(vcstate->bus_format));
 		VOP_CTRL_SET(vop2, yavg_div_width, 0x100000 / crtc->state->mode.hdisplay);
 		VOP_CTRL_SET(vop2, yavg_div_height, 0x100000 / crtc->state->mode.vdisplay);
 		VOP_CTRL_SET(vop2, yavg_en, 1);
@@ -15186,7 +15198,8 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 			vcstate->post_y2r_en = 1;
 	}
 
-	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_10BIT_DEPTH);
+	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+						       vcstate->color_range, CSC_10BIT_DEPTH);
 
 	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
 		brightness = interpolate(0, -128, 100, 127,
@@ -15251,6 +15264,9 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	int range_type;
 	u64 max_yuv_plane = 0, plane_area;
 	enum drm_color_encoding max_yuv_plane_color_encoding = DRM_COLOR_YCBCR_BT601;
+
+	vcstate->post_r2y_en = false;
+	vcstate->post_y2r_en = false;
 
 	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
 	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100)
@@ -15397,6 +15413,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	if (r2y_csc_supported) {
 		if (post_r2y_en || post_r2r_en) {
 			rockchip_calc_post_csc(NULL, &csc_coef, &r2y_convert_mode);
+			vcstate->post_csc_mode = r2y_convert_mode.csc_mode;
 			VOP_MODULE_SET(vop2, vp, acm_r2y_coe00, csc_coef.csc_coef00);
 			VOP_MODULE_SET(vop2, vp, acm_r2y_coe01, csc_coef.csc_coef01);
 			VOP_MODULE_SET(vop2, vp, acm_r2y_coe02, csc_coef.csc_coef02);
@@ -15410,6 +15427,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 			VOP_MODULE_SET(vop2, vp, acm_r2y_offset1, csc_coef.csc_dc1);
 			VOP_MODULE_SET(vop2, vp, acm_r2y_offset2, csc_coef.csc_dc2);
 			VOP_MODULE_SET(vop2, vp, acm_r2y_en, 1);
+			vcstate->post_r2y_en = true;
 		} else {
 			VOP_MODULE_SET(vop2, vp, acm_r2y_en, 0);
 		}
@@ -15419,6 +15437,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 							       CSC_13BIT_DEPTH);
 		VOP_MODULE_SET(vop2, vp, acm_r2y_mode, vcstate->post_csc_mode);
 		VOP_MODULE_SET(vop2, vp, acm_r2y_en, post_r2y_en ? 1 : 0);
+		vcstate->post_r2y_en = post_r2y_en;
 	}
 
 	/* ready to config post y2r csc */
@@ -15494,7 +15513,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 
 	if (post_csc_en) {
 		rockchip_calc_post_csc(csc, &csc_coef, &convert_mode);
-
+		vcstate->post_csc_y2r_mode = convert_mode.csc_mode;
 		VOP_MODULE_SET(vop2, vp, csc_coe00, csc_coef.csc_coef00);
 		VOP_MODULE_SET(vop2, vp, csc_coe01, csc_coef.csc_coef01);
 		VOP_MODULE_SET(vop2, vp, csc_coe02, csc_coef.csc_coef02);
@@ -15513,6 +15532,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		VOP_MODULE_SET(vop2, vp, csc_mode, range_type);
 	}
 
+	vcstate->post_y2r_en = post_csc_en;
 	VOP_MODULE_SET(vop2, vp, csc_en, post_csc_en ? 1 : 0);
 }
 

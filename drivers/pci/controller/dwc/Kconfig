@@ -348,6 +348,18 @@ config PCIE_DW_DMATEST
 	help
 	  Enables support for the DW PCIe controller DMA test.
 
+config PCIE_DW_ROCKCHIP_EP_DMATEST
+	bool "DesignWare PCIe Rockchip EP Enable DMA test"
+	depends on PCIE_DW_DMATEST
+	help
+	  Enables support for the DW PCIe controller DMA test in the Rockchip SoC.
+
+config PCIE_DW_ROCKCHIP_EP_DMATEST_IRQ_EN
+	bool "DesignWare PCIe Rockchip EP Enable DMA test IRQ function"
+	depends on PCIE_DW_ROCKCHIP_EP_DMATEST
+	help
+	  Enables support for the DW PCIe controller DMA test IRQ function in the Rockchip SoC.
+
 config PCIE_DW_ROCKCHIP_RC_DMATEST
 	bool "DesignWare PCIe Rockchip RC Enable DMA test"
 	depends on PCIE_DW_DMATEST
