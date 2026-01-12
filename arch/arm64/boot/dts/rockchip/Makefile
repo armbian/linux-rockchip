@@ -130,6 +130,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3538-evb1-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3538-iotest-lpddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3538-test1-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3538-test2-ddr3-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3539-demo2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3539-evb1-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3539-iotest-lpddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3539-test1-lp4x-v10.dtb

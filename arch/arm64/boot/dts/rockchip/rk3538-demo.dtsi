@@ -129,6 +129,12 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,virtual-poweroff = <1>;
+};
+
 &sai3 {
 	status = "okay";
 };

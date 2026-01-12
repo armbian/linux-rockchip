@@ -95,6 +95,7 @@ struct rk_remote_pwm_data {
 struct rkxx_remotectl_drvdata {
 	void __iomem *base;
 	int pwm_version;
+	int minor_version;
 	int state;
 	int nbuttons;
 	int scandata;
@@ -535,16 +536,11 @@ end:
 
 static int rockchip_pwm_set_pwrmatch_v4(struct rkxx_remotectl_drvdata *pd)
 {
-	int version;
 	int channel_id;
 	int val;
-	int minor_version;
 	int feature;
 
-	version = readl_relaxed(pd->base + PWM_REG_VERSION_V4);
-	DBG("remote pwm version is 0x%x\n", version);
-	minor_version = (version & MINOR_VERSION_MASK) >> MINOR_VERSION_SHIFT;
-	if (minor_version < 1) {
+	if (pd->minor_version < 1) {
 		DBG("pwm minor version is less v1.0\n");
 		feature = readl_relaxed(pd->base + PWM_REG_VERSION_V4);
 	} else {
@@ -560,14 +556,13 @@ static int rockchip_pwm_set_pwrmatch_v4(struct rkxx_remotectl_drvdata *pd)
 	return 0;
 }
 
-static void rockchip_pwrmatch_set_nec_param(struct rkxx_remotectl_drvdata *pd)
+static void rockchip_pwrmatch_set_nec_param(struct rkxx_remotectl_drvdata *pd,
+					    int freq_nstime)
 {
 	unsigned int pwm_id = pd->remote_pwm_id;
 	void __iomem *reg;
-	int freq_nstime;
 	int val;
 
-	freq_nstime = pd->pwm_freq_nstime;
 	//preloader low min:8000us, max:10000us
 	val = rk_pwmkey_convert_val(RK_PWM_TIME_PRE_MIN_LOW,
 				    RK_PWM_TIME_PRE_MAX_LOW, freq_nstime);
@@ -651,7 +646,8 @@ static void rockchip_pwrmatch_set_pwrkey(struct rkxx_remotectl_drvdata *pd)
 static int rk_pwm_pwrkey_wakeup_init(struct platform_device *pdev)
 {
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
-	int ret = -1;
+	int ret = 0;
+	int nstime = ddata->pwm_freq_nstime;
 
 	ddata->pwm_pwrkey_capture = 0;
 	if (ddata->pwm_data->pwm_version < 4) {
@@ -660,8 +656,10 @@ static int rk_pwm_pwrkey_wakeup_init(struct platform_device *pdev)
 			goto end;
 	} else {
 		rockchip_pwm_set_pwrmatch_v4(ddata);
+		if (ddata->minor_version >= 1)
+			nstime = 1000000000 / 32768;
 	}
-	rockchip_pwrmatch_set_nec_param(ddata);
+	rockchip_pwrmatch_set_nec_param(ddata, nstime);
 	rockchip_pwrmatch_set_pwrkey(ddata);
 	ddata->pwm_pwrkey_capture = 1;
 end:
@@ -702,6 +700,26 @@ static void rk_pwm_int_ctrl_v4(struct platform_device *pdev, int work_mode)
 	}
 }
 
+static void rk_pwm_clk_ctrl_v4(struct platform_device *pdev, int work_mode)
+{
+	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
+	int val;
+
+	if (work_mode == IR_WORK_MODE) {
+		val = CLK_SCALE(32);
+		/* select clk_pwm as root clock source */
+		if (ddata->minor_version >= 1)
+			val |= CLK_SRC_SEL(CLK_SRC_PWM);
+	} else {
+		val = CLK_SCALE(0);
+		/* select rc as root clock source */
+		if (ddata->minor_version >= 1)
+			val |= CLK_SRC_SEL(CLK_SRC_RC);
+	}
+
+	writel_relaxed(val, ddata->base + PWM_REG_CLK_CTRL_V4);
+}
+
 static int rk_pwm_remotectl_hw_init(struct platform_device *pdev)
 {
 	int val;
@@ -736,7 +754,11 @@ static int rk_pwm_remotectl_hw_init(struct platform_device *pdev)
 static int rk_pwm_remotectl_hw_init_v4(struct platform_device *pdev)
 {
 	int val;
+	int version;
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
+
+	version = readl_relaxed(ddata->base + PWM_REG_VERSION_V4);
+	ddata->minor_version = (version & MINOR_VERSION_MASK) >> MINOR_VERSION_SHIFT;
 
 	//1. disabled pwm
 	val = PWM_EN(false) | PWM_CLK_EN(false);
@@ -747,8 +769,7 @@ static int rk_pwm_remotectl_hw_init_v4(struct platform_device *pdev)
 	writel_relaxed(val, ddata->base + PWM_REG_CTRL_V4);
 
 	//3. set clk div, clk div to 64
-	val = CLK_SCALE(32);
-	writel_relaxed(val, ddata->base + PWM_REG_CLK_CTRL_V4);
+	rk_pwm_clk_ctrl_v4(pdev, IR_WORK_MODE);
 
 	//4. enabled pwm int
 	ddata->pwm_data->funcs.int_ctrl(pdev, IR_WORK_MODE);
@@ -846,7 +867,6 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct input_dev *input;
 	struct clk *clk;
-	struct clk *p_clk;
 	struct cpumask cpumask;
 	unsigned long irq_flags = IRQF_NO_SUSPEND;
 	int num;
@@ -856,7 +876,6 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	int cpu_id;
 	int pwm_id;
 	int pwm_freq;
-	int count;
 
 	pr_err(".. rk pwm remotectl v2.0 init\n");
 	id = of_match_device(rk_pwm_of_match, &pdev->dev);
@@ -871,9 +890,8 @@ static int rk_pwm_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(struct rkxx_remotectl_drvdata),
 			     GFP_KERNEL);
-	if (!ddata) {
+	if (!ddata)
 		return -ENOMEM;
-	}
 
 	ddata->pwm_data = id->data;
 	ddata->state = RMC_PRELOAD;
@@ -882,42 +900,30 @@ static int rk_pwm_probe(struct platform_device *pdev)
 
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
-	count = of_property_count_strings(np, "clock-names");
-	if (count >= 2) {
-		clk = devm_clk_get(&pdev->dev, "pwm");
-		p_clk = devm_clk_get(&pdev->dev, "pclk");
-	} else {
-		clk = devm_clk_get(&pdev->dev, NULL);
-		p_clk = clk;
-	}
+	clk = devm_clk_get_enabled(&pdev->dev, "pwm");
 	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Can't get bus clk: %d\n", ret);
-		return ret;
+		clk = devm_clk_get_enabled(&pdev->dev, NULL);
+		if (IS_ERR(clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get bus clk\n");
 	}
-	if (IS_ERR(p_clk)) {
-		ret = PTR_ERR(p_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Can't get periph clk: %d\n", ret);
-		return ret;
-	}
-	ret = clk_prepare_enable(clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't enable bus clk: %d\n", ret);
-		return ret;
-	}
-	ret = clk_prepare_enable(p_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't enable bus periph clk: %d\n", ret);
-		goto error_clk;
-	}
+	pwm_freq = clk_get_rate(clk);
+
+	clk = devm_clk_get_optional_enabled(&pdev->dev, "pclk");
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get periph clk\n");
+
+	clk = devm_clk_get_optional_enabled(&pdev->dev, "rc");
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get rc clk\n");
+
+	clk = devm_clk_get_optional(&pdev->dev, "osc");
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get osc clk\n");
 	platform_set_drvdata(pdev, ddata);
 	num = rk_remotectl_get_irkeybd_count(pdev);
 	if (num == 0) {
 		pr_err("remotectl: no ir keyboard add in dts!!\n");
-		ret = -EINVAL;
-		goto error_pclk;
+		return -EINVAL;
 	}
 	ddata->maxkeybdnum = num;
 	remotectl_button = devm_kzalloc(&pdev->dev,
@@ -925,14 +931,12 @@ static int rk_pwm_probe(struct platform_device *pdev)
 					GFP_KERNEL);
 	if (!remotectl_button) {
 		pr_err("failed to malloc remote button memory\n");
-		ret = -ENOMEM;
-		goto error_pclk;
+		return -ENOMEM;
 	}
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		pr_err("failed to allocate input device\n");
-		ret = -ENOMEM;
-		goto error_pclk;
+		return -ENOMEM;
 	}
 	input->name = pdev->name;
 	input->phys = "gpio-keys/remotectl";
@@ -945,7 +949,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		goto error_pclk;
+		return irq;
 	}
 	ddata->irq = irq;
 	ddata->wakeup = 1;
@@ -957,7 +961,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		ddata->remote_pwm_id = pwm_id;
 		if (pwm_id > 3) {
 			dev_err(&pdev->dev, "pwm id error\n");
-			goto error_pclk;
+			return -EINVAL;
 		}
 		DBG("remotectl: remote pwm id=0x%x\n", pwm_id);
 	}
@@ -994,8 +998,11 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		goto error_irq;
 	}
-	pwm_freq = clk_get_rate(clk) / 64;
-	ddata->pwm_freq_nstime = 1000000000 / pwm_freq;
+	pwm_freq = pwm_freq / 64;
+	if (pwm_freq > 0)
+		ddata->pwm_freq_nstime = DIV_ROUND_CLOSEST(1000000000, pwm_freq);
+	else
+		ddata->pwm_freq_nstime = 1000000000;
 	ddata->pwm_data->funcs.init_hw(pdev);
 	ret = rk_pwm_pwrkey_wakeup_init(pdev);
 	if (!ret) {
@@ -1012,10 +1019,6 @@ end:
 	return 0;
 error_irq:
 	wake_lock_destroy(&ddata->remotectl_wake_lock);
-error_pclk:
-	clk_unprepare(p_clk);
-error_clk:
-	clk_unprepare(clk);
 	return ret;
 }
 
@@ -1033,6 +1036,7 @@ static int remotectl_suspend(struct device *dev)
 	if (ddata->pwm_pwrkey_capture) {
 		ddata->pwrkey_wakeup = 0;
 		ddata->pwm_data->funcs.int_ctrl(pdev, IR_SUSPEND_MODE);
+		rk_pwm_clk_ctrl_v4(pdev, IR_SUSPEND_MODE);
 	}
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu, &cpumask);
@@ -1061,6 +1065,7 @@ static int remotectl_resume(struct device *dev)
 			rk_pwm_wakeup(ddata->input);
 	}  else if (ddata->pwm_pwrkey_capture) {
 		ddata->pwm_data->funcs.int_ctrl(pdev, IR_WORK_MODE);
+		rk_pwm_clk_ctrl_v4(pdev, IR_WORK_MODE);
 		if (ddata->pwrkey_wakeup == 0)
 			return 0;
 		ddata->pwrkey_wakeup = 0;
