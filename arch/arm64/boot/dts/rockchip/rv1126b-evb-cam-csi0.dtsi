@@ -68,6 +68,12 @@
 				remote-endpoint = <&ox03c10_out>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			csi_dphy_input9: endpoint@10 {
+				reg = <10>;
+				remote-endpoint = <&imx766_out>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -86,6 +92,41 @@
 	clock-frequency = <400000>;
 	status = "okay";
 	pinctrl-0 = <&i2c3m1_pins>;
+
+	dw9800v: dw9800v@c {
+		compatible = "dongwoon,dw9800v";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-start-current = <356>;
+		rockchip,vcm-rated-current = <412>;
+		rockchip,vcm-step-mode = <0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	imx766: imx766@10 {
+		compatible = "sony,imx766";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		eeprom-ctrl = <&otp_eeprom>;
+		lens-focus = <&dw9800v>;
+		rockchip,spd-id = <3>;
+		port {
+			imx766_out: endpoint {
+				remote-endpoint = <&csi_dphy_input9>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
 
 	imx327: imx327@1a {
 		compatible = "sony,imx327";
@@ -277,6 +318,12 @@
 				data-lanes = <1 2 3 4>;
 			};
 		};
+	};
+
+	otp_eeprom: otp_eeprom@50 {
+		compatible = "rk,otp_eeprom";
+		status = "okay";
+		reg = <0x50>;
 	};
 };
 

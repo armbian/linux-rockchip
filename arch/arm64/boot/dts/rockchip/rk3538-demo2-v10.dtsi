@@ -309,6 +309,27 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_DEEP1_MODE
+		| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		| RKPM_SLP_OSC_DIS
+		| RKPM_SLP_32K_INNER
+		)
+	>;
+	rockchip,sleep-pin-config = <
+		(0
+		| RKPM_SLEEP_PIN0_EN
+		)
+		(0
+		)
+	>;
+};
+
 &sai0 {
 	status = "okay";
 };

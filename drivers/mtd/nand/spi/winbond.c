@@ -13,6 +13,7 @@
 
 #define SPINAND_MFR_WINBOND		0xEF
 
+#define WINBOND_CFG_BRC_READ		BIT(1)
 #define WINBOND_CFG_BUF_READ		BIT(3)
 #define WINBOND_STATUS_ECC_HAS_BITFLIPS_T	(3 << 4)
 
@@ -225,6 +226,35 @@ static const struct mtd_ooblayout_ops w25n04lw_ooblayout = {
 	.free = w25n04lw_ooblayout_free,
 };
 
+static int w25n08lw_ooblayout_ecc(struct mtd_info *mtd, int section,
+				  struct mtd_oob_region *region)
+{
+	if (section > 7)
+		return -ERANGE;
+
+	region->offset = 128 + (16 * section);
+	region->length = 13;
+
+	return 0;
+}
+
+static int w25n08lw_ooblayout_free(struct mtd_info *mtd, int section,
+				   struct mtd_oob_region *region)
+{
+	if (section > 7)
+		return -ERANGE;
+
+	region->offset = (16 * section) + 2;
+	region->length = 14;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops w25n08lw_ooblayout = {
+	.ecc = w25n08lw_ooblayout_ecc,
+	.free = w25n08lw_ooblayout_free,
+};
+
 static const struct spinand_info winbond_spinand_table[] = {
 	/* 512M-bit densities */
 	SPINAND_INFO("W25N512GW", /* 1.8V */
@@ -358,7 +388,7 @@ static const struct spinand_info winbond_spinand_table[] = {
 		     0,
 		     SPINAND_ECCINFO(&w25n04lw_ooblayout, w25n02kv_ecc_get_status)),
 	/* 8G-bit densities */
-	SPINAND_INFO("W25N08LW2EIG",
+	SPINAND_INFO("W25N08LWZEIG",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xB3, 0x24),
 		     NAND_MEMORG(1, 4096, 128, 64, 4096, 40, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
@@ -366,7 +396,7 @@ static const struct spinand_info winbond_spinand_table[] = {
 					      &write_cache_variants,
 					      &update_cache_variants),
 		     0,
-		     SPINAND_ECCINFO(&w25n02kv_ooblayout, w25n02kv_ecc_get_status)),
+		     SPINAND_ECCINFO(&w25n08lw_ooblayout, w25n02kv_ecc_get_status)),
 };
 
 static int winbond_spinand_init(struct spinand_device *spinand)
@@ -388,6 +418,13 @@ static int winbond_spinand_init(struct spinand_device *spinand)
 	if (spinand->id.data[1] == 0xaa && spinand->id.data[2] == 0x21) {
 		spinand_upd_cfg(spinand, BIT(3), BIT(3));
 		dev_info(&spinand->spimem->spi->dev, "Enable buf_read\n");
+	}
+
+	/* W25N0xLV disable BRC in default */
+	if ((spinand->id.data[1] == 0x8b && spinand->id.data[2] == 0x23) ||
+	    (spinand->id.data[1] == 0x8a && spinand->id.data[2] == 0x22)) {
+		spinand_upd_cfg(spinand, WINBOND_CFG_BRC_READ, 0);
+		dev_info(&spinand->spimem->spi->dev, "Disable BRC in default\n");
 	}
 
 	return 0;

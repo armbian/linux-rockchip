@@ -484,31 +484,6 @@
 			status = "okay";
 		};
 
-		pinctrl_rk8xx: pinctrl_rk8xx {
-			gpio-controller;
-			#gpio-cells = <2>;
-
-			rk809_slppin_null: rk809_slppin_null {
-				pins = "gpio_slp";
-				function = "pin_fun0";
-			};
-
-			rk809_slppin_slp: rk809_slppin_slp {
-				pins = "gpio_slp";
-				function = "pin_fun1";
-			};
-
-			rk809_slppin_pwrdn: rk809_slppin_pwrdn {
-				pins = "gpio_slp";
-				function = "pin_fun2";
-			};
-
-			rk809_slppin_rst: rk809_slppin_rst {
-				pins = "gpio_slp";
-				function = "pin_fun3";
-			};
-		};
-
 		regulators {
 			vdd_center: DCDC_REG1 {
 				regulator-always-on;

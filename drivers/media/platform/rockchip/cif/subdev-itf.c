@@ -557,6 +557,13 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		break;
 	case RKCIF_CMD_SET_EXPOSURE:
+		if (cif_dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+		    cif_dev->sditf[cif_dev->channels[0].capture_info.one_to_multi.exp_main_id] &&
+		    cif_dev->sditf[cif_dev->channels[0].capture_info.one_to_multi.exp_main_id] != priv) {
+			if (cif_dev->exp_dbg)
+				dev_info(priv->dev, "RKCIF_CMD_SET_EXPOSURE not main dev, skip set exp\n");
+			return 0;
+		}
 		exp = (struct rkcif_exp *)arg;
 		time = kzalloc(sizeof(*time), GFP_KERNEL);
 		if (!time) {

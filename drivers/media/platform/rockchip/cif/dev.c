@@ -2836,7 +2836,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 		sditf_event_inc_sof(priv);
 
 	if (stream->frame_idx == 0) {
-		cur_time = priv->cur_time;
+		if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+		    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+			cur_time = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_time;
+		} else {
+			cur_time = priv->cur_time;
+		}
 	} else {
 		effect_frame = stream->frame_idx + dev->exp_delay.time_delay - 1;
 		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
@@ -2858,7 +2863,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 				kfree(time);
 			}
 		} else {
-			cur_time = priv->cur_time;
+			if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+			    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+				cur_time = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_time;
+			} else {
+				cur_time = priv->cur_time;
+			}
 		}
 		if (dev->exp_dbg)
 			dev_info(priv->dev, "exp set id %d, val 0x%x\n",
@@ -2869,7 +2879,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 	v4l2_ctrl_s_ctrl(ctrl, cur_time);
 	priv->cur_time = cur_time;
 	if (stream->frame_idx == 0) {
-		cur_gain = priv->cur_gain;
+		if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+		    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+			cur_gain = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_gain;
+		} else {
+			cur_gain = priv->cur_gain;
+		}
 	} else {
 		effect_frame = stream->frame_idx + dev->exp_delay.gain_delay - 1;
 		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
@@ -2891,7 +2906,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 				kfree(gain);
 			}
 		} else {
-			cur_gain = priv->cur_gain;
+			if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+			    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+				cur_gain = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_gain;
+			} else {
+				cur_gain = priv->cur_gain;
+			}
 		}
 		if (dev->exp_dbg)
 			dev_info(priv->dev, "gain set id %d, val 0x%x\n",
@@ -3008,6 +3028,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->reg_dbg = 0;
 	cif_dev->is_support_get_exp = false;
 	memset(&cif_dev->irfpa_info, 0, sizeof(cif_dev->irfpa_info));
+	cif_dev->prev_id = 0;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));

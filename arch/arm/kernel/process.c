@@ -279,7 +279,7 @@ void __show_regs(struct pt_regs *regs)
 		printk("Control: %08x%s\n", ctrl, buf);
 	}
 #endif
-	if (!user_mode(regs))
+	if (!user_mode(regs) && oops_in_progress)
 		show_extra_register_data(regs, 512);
 }
 

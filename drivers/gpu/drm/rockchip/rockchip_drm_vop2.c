@@ -3720,8 +3720,8 @@ static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
  * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
  */
 
-static void vop2_setup_csc_mode(struct vop2_video_port *vp,
-				struct vop2_plane_state *vpstate)
+static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
+				      struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
@@ -3863,14 +3863,11 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 								  CSC_10BIT_DEPTH);
 
 			/**
-			 * VOP YUV overlay only can support YUV limit range, so force
-			 * select BT601L todo R2Y.
+			 * VOP YUV overlay only can support YUV limit range input for Soc before RK3572,
+			 * so force select BT601L todo R2Y.
 			 */
 			if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
-			    (vop2->version == VOP_VERSION_RK3528 ||
-			     vop2->version == VOP_VERSION_RK3568 ||
-			     vop2->version == VOP_VERSION_RK3576 ||
-			     vop2->version == VOP_VERSION_RK3588))
+			    vop2->version < VOP_VERSION_RK3572)
 				vpstate->csc_mode = CSC_BT601L;
 		}
 	}
@@ -4331,7 +4328,6 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 	if (!vop2_data->wb)
 		return 0;
 
-	vop2->wb.regs = vop2_data->wb->regs;
 	vop2->wb.conn.encoder.possible_crtcs = (1 << nr_crtcs) - 1;
 	spin_lock_init(&vop2->wb.job_lock);
 	drm_connector_helper_add(&vop2->wb.conn.base, &vop2_wb_connector_helper_funcs);
@@ -4346,6 +4342,7 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 		DRM_DEV_ERROR(vop2->dev, "writeback connector init failed\n");
 		return ret;
 	}
+	vop2->wb.regs = vop2_data->wb->regs;
 
 	/* output from VP by default */
 	vop2->wb.wb_source = ROCKCHIP_VOP2_PHY_ID_INVALID;
@@ -4369,8 +4366,12 @@ static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 
 static void vop2_wb_connector_destory(struct vop2 *vop2)
 {
+	if (!vop2->wb.regs)
+		return;
+
 	drm_encoder_cleanup(&vop2->wb.conn.encoder);
 	drm_connector_cleanup(&vop2->wb.conn.base);
+	vop2->wb.regs = NULL;
 }
 
 static void vop2_wb_irqs_enable(struct vop2 *vop2)
@@ -7519,7 +7520,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
 		if (vpstate->ymirror_en && !vpstate->afbc_en)
-			offset += fb->pitches[1] * ((pstate->src_h >> 16) - 2)  / vsub;
+			offset += fb->pitches[1] * ((pstate->src_h >> 16) - vsub) / vsub;
 		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
 		vpstate->uv_mst = dma_addr;
 		/* tile 4x4 m0 format, y and uv is packed together */
@@ -8140,7 +8141,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			format = vop2_convert_format(fb->format->format);
 	}
 
-	vop2_setup_csc_mode(vp, vpstate);
+	vop2_plane_setup_csc_mode(vp, vpstate);
 	if (win->feature & WIN_FEATURE_DCI)
 		vop3_dci_config(win, vpstate);
 

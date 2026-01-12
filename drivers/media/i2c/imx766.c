@@ -1933,7 +1933,7 @@ static int imx766_set_gain_reg(struct imx766 *imx766, u32 a_gain)
 	int ret = 0;
 	u32 gain_reg = 0;
 
-	gain_reg = (16384 - (16384*1024 / a_gain));
+	gain_reg = a_gain;
 
 	if (gain_reg > 16128) //960
 		gain_reg = 16128;
