@@ -2001,6 +2001,32 @@ static int rockchip_hdmi_qms_vrr_disable(struct rockchip_hdmi *hdmi, struct drm_
 	return 0;
 }
 
+static void dw_hdmi_wait_vblank(void *data)
+{
+	struct rockchip_hdmi *hdmi;
+	struct drm_encoder *encoder;
+	struct drm_crtc *crtc;
+	struct drm_vblank_crtc *vblank;
+	int pipe = 0;
+	u32 timeout;
+
+	if (!data)
+		return;
+
+	hdmi = (struct rockchip_hdmi *)data;
+	encoder = &hdmi->encoder;
+
+	if (!encoder || !encoder->crtc)
+		return;
+
+	crtc = encoder->crtc;
+	pipe = drm_crtc_index(crtc);
+	vblank = &crtc->dev->vblank[pipe];
+	timeout = DIV_ROUND_CLOSEST_ULL(1200, drm_mode_vrefresh(&crtc->state->adjusted_mode));
+
+	rockchip_hdmi_wait_vsync(hdmi, crtc, vblank, 1, timeout);
+}
+
 static void dw_hdmi_qms_vrr_work(struct work_struct *p_work)
 {
 	struct rockchip_hdmi *hdmi = container_of(p_work, struct rockchip_hdmi, qms_vrr_work);
@@ -5919,6 +5945,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_set_cec_wakeup;
 	plat_data->get_hdrvivid_vsdb =
 		dw_hdmi_rockchip_get_hdrvivid_vsdb;
+	plat_data->wait_vblank = dw_hdmi_wait_vblank;
 	plat_data->get_emp_status = dw_hdmi_rockchip_get_emp_status;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 

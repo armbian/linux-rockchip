@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/dw_hdcp_notify.h>
 #include <linux/err.h>
 #include <linux/extcon-provider.h>
 #include <linux/extcon.h>
@@ -37,6 +38,7 @@
 
 #include <uapi/linux/media-bus-format.h>
 #include <uapi/linux/videodev2.h>
+#include <uapi/misc/dw_hdcp2.h>
 
 #include "dw-hdmi-qp-audio.h"
 #include "dw-hdmi-qp.h"
@@ -379,6 +381,7 @@ struct dw_hdmi_qp {
 
 	struct work_struct flt_work;
 	struct workqueue_struct *workqueue;
+	struct notifier_block hdcp2_nb;
 };
 
 static inline void hdmi_writel(struct dw_hdmi_qp *hdmi, u32 val, int offset)
@@ -2585,7 +2588,7 @@ static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
 {
 	void *data = hdmi->plat_data->phy_data;
 
-	hdmi_writel(hdmi, 0, HDCP2LOGIC_ESM_GPIO_IN);
+	hdmi_writel(hdmi, ESM_GPIO_IN_CONNECT, HDCP2LOGIC_ESM_GPIO_IN);
 
 	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_DESIRED)
 		return;
@@ -2595,15 +2598,60 @@ static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
 		if (hdmi->plat_data->set_hdcp2_enable)
 			hdmi->plat_data->set_hdcp2_enable(data, true);
 
-		hdmi_modb(hdmi, 0, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 		hdmi_writel(hdmi, HDCP2_ESM_P0_GPIO_OUT_2_CHG_IRQ, AVP_3_INT_CLEAR);
 		hdmi_modb(hdmi, HDCP2_ESM_P0_GPIO_OUT_2_CHG_IRQ,
 			  HDCP2_ESM_P0_GPIO_OUT_2_CHG_IRQ, AVP_3_INT_MASK_N);
-		hdmi_writel(hdmi, 0x35, HDCP2LOGIC_ESM_GPIO_IN);
+		hdmi_writel(hdmi, ESM_GPIO_IN_CONNECT | ESM_GPIO_IN_BOOT, HDCP2LOGIC_ESM_GPIO_IN);
+
 	} else {
 		if (hdmi->hdcp && hdmi->hdcp->hdcp_start)
 			hdmi->hdcp->hdcp_start(hdmi->hdcp);
 	}
+}
+
+static void dw_hdmi_set_hdcp_bypass(struct dw_hdmi_qp *hdmi, u8 enable)
+{
+	if (hdmi->plat_data->wait_vblank)
+		hdmi->plat_data->wait_vblank(hdmi->plat_data->phy_data);
+	hdmi_writel(hdmi, enable, HDCP2LOGIC_CONFIG0);
+}
+
+static
+int dw_hdmi_hdcp2_notifier_callback(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct dw_hdmi_qp *hdmi = container_of(nb, struct dw_hdmi_qp, hdcp2_nb);
+	struct hdcp_event *hdcp_event;
+	u8 id;
+
+	if (!nb || !data) {
+		dev_err(hdmi->dev, "hdcp2 notifier: null pointer was passed\n");
+		return NOTIFY_BAD;
+	}
+
+	if (!hdmi->dclk_en) {
+		dev_err(hdmi->dev, "hdcp2 notifier: hdmi clk is disabled\n");
+		return NOTIFY_BAD;
+	}
+
+	hdcp_event = (struct hdcp_event *)data;
+	id = hdcp_event->port - 1;
+
+	if (hdmi->plat_data->id != id)
+		return NOTIFY_OK;
+
+	switch (event) {
+	case DW_HDCP_SET_HDMI_BYPASS_EVENT:
+		dw_hdmi_set_hdcp_bypass(hdmi, hdcp_event->bypass);
+		break;
+	case DW_HDCP_GET_HDMI_BYPASS_EVENT:
+		hdcp_event->bypass = hdmi_readl(hdmi, HDCP2LOGIC_CONFIG0);
+		break;
+	default:
+		dev_err(hdmi->dev, "hdcp2 notifier: unknown event %lu\n", event);
+		return NOTIFY_BAD;
+	}
+
+	return NOTIFY_OK;
 }
 
 static void dw_hdmi_qp_flt_work(struct work_struct *p_work)
@@ -3466,7 +3514,7 @@ static void dw_hdmi_qp_hdcp_disable(struct dw_hdmi_qp *hdmi,
 	if (hdmi->hdcp && hdmi->hdcp->hdcp_stop)
 		hdmi->hdcp->hdcp_stop(hdmi->hdcp);
 
-	hdmi_writel(hdmi, 0x34, HDCP2LOGIC_ESM_GPIO_IN);
+	hdmi_writel(hdmi, ESM_GPIO_IN_CONNECT, HDCP2LOGIC_ESM_GPIO_IN);
 	hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 
 	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
@@ -3975,8 +4023,6 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	mdelay(50);
 
 	conn = dw_hdmi_qp_get_connector_for_encoder(bridge->encoder);
-	if (conn && conn->state)
-		dw_hdmi_qp_hdcp_disable(hdmi, conn->state);
 	dw_hdmi_qp_set_qms(hdmi, 0, 0);
 
 	if (hdmi->plat_data->crtc_pre_disable)
@@ -3999,6 +4045,8 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 			hdmi->plat_data->force_frl_rate(data, 0);
 
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
+		if (conn && conn->state)
+			dw_hdmi_qp_hdcp_disable(hdmi, conn->state);
 		hdmi->disabled = true;
 		if (hdmi->plat_data->link_clk_set)
 			hdmi->plat_data->link_clk_set(data, 0, false);
@@ -4238,7 +4286,6 @@ static irqreturn_t dw_hdmi_qp_avp_irq(int irq, void *dev_id)
 			if (conn_state->content_protection !=
 			    DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
 				val = DRM_MODE_CONTENT_PROTECTION_ENABLED;
-			hdmi_modb(hdmi, 0, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 			dev_info(hdmi->dev, "HDCP2 authentication succeed\n");
 		} else if (stat3 & (HDCP2_AUTHENTICATION_SUCCESS | HDCP2_AUTHENTICATION_FAILED |
 				    HDCP2_AUTHENTICATION_LINK_ERR |
@@ -4518,6 +4565,7 @@ dw_hdmi_ctrl_write(struct file *file, const char __user *buf,
 		dev_err(hdmi->dev, "it is no a hdmi register\n");
 		return count;
 	}
+
 	dev_info(hdmi->dev, "/**********hdmi register config******/");
 	dev_info(hdmi->dev, "\n reg=%x val=%x\n", reg, val);
 	hdmi_writel(hdmi, val, reg);
@@ -4935,6 +4983,13 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	hdmi->hdcp2_nb.notifier_call = dw_hdmi_hdcp2_notifier_callback;
+	ret = dw_hdcp_register_notifier(&hdmi->hdcp2_nb);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register notifier: %d\n", ret);
+		return ERR_PTR(ret);
+	}
+
 	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
 		hdmi->force_kernel_output = true;
 
@@ -5165,6 +5220,7 @@ static void dw_hdmi_qp_remove(struct dw_hdmi_qp *hdmi)
 		hdmi->connector.funcs->destroy(&hdmi->connector);
 	}
 
+	dw_hdcp_unregister_notifier(&hdmi->hdcp2_nb);
 	if (hdmi->bridge.encoder && !hdmi->plat_data->first_screen)
 		hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
 	if (!IS_ERR(hdmi->cec))
