@@ -1508,7 +1508,7 @@ static struct platform_driver rk_pdma_driver = {
 	.remove		= rk_dma_remove,
 };
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#if !defined(MODULE) && defined(CONFIG_ROCKCHIP_THUNDER_BOOT)
 static int __init rk_pdma_driver_init(void)
 {
 	return platform_driver_register(&rk_pdma_driver);
