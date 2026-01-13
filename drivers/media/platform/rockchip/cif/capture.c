@@ -667,7 +667,7 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 				  const struct cif_output_fmt *output_fmt)
 {
 	const struct cif_input_fmt *input_fmt = stream->cif_fmt_in;
-	struct csi_channel_info *channel = &stream->cifdev->channels[stream->id];
+	struct csi_channel_info *channel = &stream->channel_info;
 	int ret = -EINVAL;
 
 	stream->rounding_bit = 0;
@@ -1074,8 +1074,12 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 			csi_info->vc = pad_id;
 		if (ch_info.data_type > 0)
 			csi_info->data_type = ch_info.data_type;
+		else
+			csi_info->data_type = 0;
 		if (ch_info.data_bit > 0)
 			csi_info->data_bit = ch_info.data_bit;
+		else
+			csi_info->data_bit = 0;
 		if (ch_info.field == 0)
 			fmt.format.field = fmt.format.field;
 		else
@@ -4105,7 +4109,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	struct sditf_priv *priv = dev->sditf[0];
 	const struct cif_output_fmt *fmt;
 	u32 fourcc;
-	int vc = dev->channels[stream->id].vc;
+	int vc = stream->channel_info.vc;
 	u32 raw_bpp = 0;
 
 	channel->enable = 1;
@@ -4226,13 +4230,15 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->virtual_width *= 2;
 		channel->height /= 2;
 	}
-	if (dev->channels[stream->id].data_type)
-		channel->data_type = dev->channels[stream->id].data_type;
+	if (stream->channel_info.data_type)
+		channel->data_type = stream->channel_info.data_type;
 	else
 		channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 						   channel->cmd_mode_en,
 						   channel->dsi_input);
 
+	if (stream->channel_info.data_bit)
+		channel->data_bit = stream->channel_info.data_bit;
 	channel->csi_fmt_val = get_csi_fmt_val(stream,
 					       &dev->channels[stream->id]);
 
@@ -7630,7 +7636,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	if (dev->terminal_sensor.sd) {
 		stream->cif_fmt_in = rkcif_get_input_fmt(dev,
 							 &input, stream->id,
-							 &dev->channels[stream->id]);
+							 &stream->channel_info);
 		if (!stream->cif_fmt_in) {
 			v4l2_err(v4l2_dev, "Input fmt is invalid\n");
 			return -EINVAL;
@@ -9074,7 +9080,7 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
 	struct rkcif_extend_info *extend_line = &stream->extend_line;
-	struct csi_channel_info *channel_info = &dev->channels[stream->id];
+	struct csi_channel_info *channel_info = &stream->channel_info;
 	int ret;
 	u32 raw_bpp = 0;
 	struct rkmodule_irfpa_info irfpa_info = {0};
@@ -9090,9 +9096,17 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd) {
+		if (dev->chip_id < CHIP_RK3588_CIF)
+			mutex_lock(&dev->hw_dev->dev_lock);
+		else
+			mutex_lock(&dev->stream_lock);
 		cif_fmt_in = rkcif_get_input_fmt(dev,
 						 &input_rect, stream->id,
 						 channel_info);
+		if (dev->chip_id < CHIP_RK3588_CIF)
+			mutex_unlock(&dev->hw_dev->dev_lock);
+		else
+			mutex_unlock(&dev->stream_lock);
 		stream->cif_fmt_in = cif_fmt_in;
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
@@ -9630,6 +9644,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 	int i = 0;
 	int ret = 0;
 	int fource_idx = 0;
+	struct csi_channel_info	csi_info = {0};
 
 	if (f->index >= ARRAY_SIZE(out_fmts))
 		return -EINVAL;
@@ -9637,7 +9652,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (dev->terminal_sensor.sd) {
 		cif_fmt_in = rkcif_get_input_fmt(dev,
 					   &input_rect, stream->id,
-					   &dev->channels[stream->id]);
+					   &csi_info);
 		stream->cif_fmt_in = cif_fmt_in;
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,

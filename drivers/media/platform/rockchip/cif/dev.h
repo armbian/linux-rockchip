@@ -659,6 +659,7 @@ struct rkcif_stream {
 	struct rkmodule_exp_info	sensor_exp_info;
 	int				real_skip_num;
 	bool				stopping;
+	struct csi_channel_info		channel_info;
 	bool				crop_enable;
 	bool				crop_dyn_en;
 	bool				is_compact;
