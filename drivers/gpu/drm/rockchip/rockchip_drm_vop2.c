@@ -8767,12 +8767,8 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 	}
 
 	if (property == win->rk_plane_extend_data_prop) {
-		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
-								&vpstate->ext_data,
-								val,
-								sizeof(struct rk_plane_extend_data),
-								-1,
-								&replaced);
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev, &vpstate->ext_data, val,
+								-1, -1, &replaced);
 		return ret;
 	}
 
