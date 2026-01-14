@@ -7,8 +7,8 @@
 
 #include <linux/bitops.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/io.h>
+#include <linux/version.h>
 
 #include "rkce_buf.h"
 #include "rkce_error.h"
