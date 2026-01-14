@@ -571,7 +571,6 @@ static void cryptask_routine(struct work_struct *work)
 }
 
 /* ====== /dev/crypto ====== */
-
 static int
 cryptodev_open(struct inode *inode, struct file *filp)
 {
@@ -1009,7 +1008,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 
 		return kcop_to_user(&kcop, fcr, arg);
 	case CIOCAUTHCRYPT:
-		if (unlikely(ret = kcaop_from_user(&kcaop, fcr, arg))) {
+		if (unlikely(ret = cryptodev_kcaop_from_user(&kcaop, fcr, arg))) {
 			dwarning(1, "Error copying from user");
 			return ret;
 		}
@@ -1019,7 +1018,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 			dwarning(1, "Error in crypto_auth_run");
 			return ret;
 		}
-		return kcaop_to_user(&kcaop, fcr, arg);
+		return cryptodev_kcaop_to_user(&kcaop, fcr, arg);
 #ifdef ENABLE_ASYNC
 	case CIOCASYNCCRYPT:
 		if (unlikely(ret = kcop_from_user(&kcop, fcr, arg)))
