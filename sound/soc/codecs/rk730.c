@@ -50,6 +50,13 @@ enum rk730_chop_freq {
 	RK730_CHOP_FREQ_800KHZ,
 };
 
+enum rk730_hpf_center_freq {
+	RK730_HPF_CENTER_FREQ_3_79HZ,
+	RK730_HPF_CENTER_FREQ_60HZ,
+	RK730_HPF_CENTER_FREQ_243KHZ,
+	RK730_HPF_CENTER_FREQ_493KHZ,
+};
+
 struct rk730_priv {
 	struct regmap *regmap;
 	struct clk *mclk;
@@ -151,6 +158,13 @@ static const char * const adc_sdo_sel_tx_text[] = {
 
 static SOC_ENUM_SINGLE_DECL(adc_sdo_sel_tx_enum, RK730_DI2S_TXCR2,
 			    5, adc_sdo_sel_tx_text);
+
+static const char *const hpf_cf_texts[] = {
+	"3.79Hz", "60Hz", "243Hz", "493Hz"
+};
+
+static const struct soc_enum hpf_cf_enum =
+	SOC_ENUM_SINGLE(RK730_DADC_FILTER, 4, 4, hpf_cf_texts);
 
 static int rk730_pll_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
@@ -489,6 +503,8 @@ static const struct snd_kcontrol_new rk730_snd_controls[] = {
 	SOC_SINGLE("DAC Zero Crossing Switch", RK730_DTOP_VUCTL, 0, 1, 0),
 	SOC_SINGLE("MIC1N / MIC2P Exchanged Switch", RK730_MIC_BOOST_2, 7, 1, 0),
 	SOC_SINGLE("ADC CHOP EN", RK730_ADC_2, 4, 1, 0),
+	SOC_ENUM("ADC HPF Cutoff Frequency", hpf_cf_enum),
+	SOC_DOUBLE("ADC HPF Switch", 0x004e, 7, 6, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget rk730_dapm_widgets[] = {
@@ -1045,7 +1061,7 @@ static struct snd_soc_dai_driver rk730_dai = {
 	.capture = {
 		 .stream_name = "HiFi Capture",
 		 .channels_min = 1,
-		 .channels_max = 2,
+		 .channels_max = 8,
 		 .rates = RK730_RATES,
 		 .formats = RK730_FORMATS,
 	},
@@ -1071,10 +1087,23 @@ static int rk730_reset(struct snd_soc_component *component)
 	/* PF: Use the chop 400kHz for better ADC noise performance */
 	snd_soc_component_update_bits(component, RK730_MIC_BOOST_3,
 				      RK730_MIC_BOOST_3_MIC_CHOP_MASK,
-				      RK730_MIC_BOOST_3_MIC_CHOP(RK730_CHOP_FREQ_400KHZ));
+				      RK730_MIC_BOOST_3_MIC_CHOP(RK730_CHOP_FREQ_200KHZ));
 	snd_soc_component_update_bits(component, RK730_ADC_PGA_BLOCK_1,
 				      RK730_ADC_PGA_BLOCK_1_PGA_CHOP_MASK,
-				      RK730_ADC_PGA_BLOCK_1_PGA_CHOP(RK730_CHOP_FREQ_400KHZ));
+				      RK730_ADC_PGA_BLOCK_1_PGA_CHOP(RK730_CHOP_FREQ_200KHZ));
+	snd_soc_component_update_bits(component, RK730_SYSPLL_2,
+				      RK730_SYSPLL_2_RVCO_ISEL_MASK,
+				      RK730_SYSPLL_2_RVCO_ISEL_ADD4UA);
+	snd_soc_component_update_bits(component, RK730_ADC_2, RK730_ADC_2_CHOP_EN_MASK,
+				      RK730_ADC_2_CHOP_EN);
+	snd_soc_component_update_bits(component, RK730_DAC_0, RK730_DAC_0_SCLK_EDGE_SEL_MASK,
+				      RK730_DAC_0_SCLK_EDGE_RISE);
+	snd_soc_component_update_bits(component, RK730_DADC_FILTER,
+				      RK730_DADC_FILTER_HPFL_EN_MASK |
+				      RK730_DADC_FILTER_HPFR_EN_MASK |
+				      RK730_DADC_FILTER_HPF_CF_MASK,
+				      RK730_DADC_FILTER_HPFL_EN | RK730_DADC_FILTER_HPFR_EN |
+				      RK730_DADC_FILTER_HPF_CF(RK730_HPF_CENTER_FREQ_60HZ));
 	clk_disable_unprepare(rk730->mclk);
 
 	return 0;
