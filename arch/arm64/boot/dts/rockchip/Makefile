@@ -408,6 +408,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-dual-cam-csi1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-dual-4k.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-emmc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-emmc-projector.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-emmc-uvc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-spi-nand.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-fastboot-spi-nor.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rv1126b-evb1-v11-spi-nor.dtb
