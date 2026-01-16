@@ -1052,6 +1052,18 @@ struct vop2 {
 
 	bool iommu_fault_in_progress;
 
+	/**
+	 * @sync_vp_mask: Bitmask of video ports with the display synchronization function;
+	 *
+	 * If the VP0 and VP1 are synchronized via DT configs:
+	 *   &vop {
+	 *       rockchip,sync-vp-mask = /bits/ 8 <3>;
+	 *   };
+	 *
+	 * The value of it should be the same with above DT property: 0x3.
+	 */
+	uint8_t sync_vp_mask;
+
 	unsigned long aclk_current_freq;
 	enum rockchip_drm_vop_aclk_mode aclk_mode;
 
@@ -1423,6 +1435,68 @@ static void vop2_crtc_standby(struct drm_crtc *crtc, bool standby)
 	}
 }
 
+static bool vop2_wait_vps_standby(struct vop2 *vop2)
+{
+	struct vop2_video_port *vp;
+	unsigned long crtc_mask = vop2->sync_vp_mask;
+	int vp_id;
+
+	/*
+	 * The edpi_wms_fs reg can help check whether the VP is in standby
+	 * state: 1 is in standby while 0 is not.
+	 */
+	for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
+		vp = &vop2->vps[vp_id];
+		if (!VOP_MODULE_GET(vop2, vp, edpi_wms_fs))
+			return false;
+	}
+
+	return true;
+}
+
+static int vop2_crtc_sync(struct drm_crtc *crtc, unsigned long crtc_mask)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc_state *state;
+	bool status;
+	unsigned long flags;
+	u32 timeout_ms = 0;
+	int vp_id;
+	int ret;
+
+	/* It it not allowed to operate on a vp which is not active yet */
+	crtc_mask &= vop2->active_vp_mask;
+	if (!crtc_mask)
+		return 0;
+
+	DRM_INFO("Sync crtc_mask: 0x%lx\n", crtc_mask);
+
+	for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
+		vp = &vop2->vps[vp_id];
+		VOP_MODULE_SET(vop2, vp, standby, 1);
+
+		state = vp->rockchip_crtc.crtc.state;
+		timeout_ms += DIV_ROUND_UP(1000, drm_mode_vrefresh(&state->adjusted_mode));
+	}
+
+	ret = readx_poll_timeout_atomic(vop2_wait_vps_standby, vop2, status,
+					status, 0, timeout_ms * 1000 * 3 / 2);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "Wait vps standby timeout\n");
+
+	local_irq_save(flags);
+
+	for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
+		vp = &vop2->vps[vp_id];
+		VOP_MODULE_SET(vop2, vp, standby, 0);
+	}
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
 static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -1443,6 +1517,11 @@ static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
 
 	if (!vp->loader_protect)
 		vop2_clk_reset(vp->dclk_rst);
+
+	if (vop2->sync_vp_mask) {
+		if ((vop2->active_vp_mask & vop2->sync_vp_mask) == vop2->sync_vp_mask)
+			vop2_crtc_sync(crtc, vop2->sync_vp_mask);
+	}
 
 	/*
 	 * DSC has strict constraint with timing output from VOP.
@@ -16869,6 +16948,10 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	uint32_t axi_irqs[VOP2_SYS_AXI_BUS_NUM] = {0};
 	uint32_t active_irqs;
 	uint32_t wb_irqs;
+	int vp_id;
+	int pos = 0, remaining, len;
+	char vcnt_info[128] = {};
+	unsigned long crtc_mask = vop2->sync_vp_mask;
 	unsigned long flags;
 	int ret = IRQ_NONE;
 	int i;
@@ -16942,7 +17025,23 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & FS_FIELD_INTR) {
-			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
+			if (vop2->sync_vp_mask) {
+				pos = scnprintf(vcnt_info, sizeof(vcnt_info),
+						"Handle VP%d vsync irq: ", vp->id);
+				for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
+					remaining = sizeof(vcnt_info) - pos;
+					/* reserve 1 byte for '\0' */
+					if (remaining <= 1)
+						break;
+
+					len = scnprintf(vcnt_info + pos, remaining, "vp%d-vcnt: %d ",
+							vp_id, vop2_read_vcnt(&vop2->vps[vp_id]));
+					pos += len;
+				}
+				rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "%s", vcnt_info);
+			} else {
+				rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
+			}
 			vop2_wb_handler(vp);
 			if (likely(!vp->skip_vsync) || (vp->layer_sel_update == false)) {
 				drm_crtc_handle_vblank(crtc);
@@ -17109,7 +17208,11 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
 	uint32_t vp_irqs, active_irqs;
 	int ret = IRQ_NONE;
+	int vp_id;
+	int pos = 0, remaining, len;
 	unsigned long flags;
+	unsigned long crtc_mask = vop2->sync_vp_mask;
+	char vcnt_info[128] = {};
 
 	/*
 	 * The irq is shared with the iommu. If the runtime-pm state of the
@@ -17151,7 +17254,23 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_FIELD_INTR) {
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
+		if (vop2->sync_vp_mask) {
+			pos = scnprintf(vcnt_info, sizeof(vcnt_info), "Handle VP%d vsync irq: ",
+					vp->id);
+			for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
+				remaining = sizeof(vcnt_info) - pos;
+				/* reserve 1 byte for '\0' */
+				if (remaining <= 1)
+					break;
+
+				len = scnprintf(vcnt_info + pos, remaining, "vp%d-vcnt: %d ",
+						vp_id, vop2_read_vcnt(&vop2->vps[vp_id]));
+				pos += len;
+			}
+			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "%s", vcnt_info);
+		} else {
+			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
+		}
 		drm_crtc_handle_vblank(crtc);
 		vop2_handle_vblank(vop2, crtc);
 		vop2_frac_mvrr_update(crtc, vp);
@@ -19271,6 +19390,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			kfree(plane_mask_string);
 		}
 	}
+
+	of_property_read_u8(dev->of_node, "rockchip,sync-vp-mask", &vop2->sync_vp_mask);
 
 	vop2_extend_clk_init(vop2);
 	spin_lock_init(&vop2->reg_lock);
