@@ -10,10 +10,6 @@
 	};
 };
 
-&rk806 {
-	pinctrl-1 = <&rk806_dvs1_slp>;
-};
-
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
