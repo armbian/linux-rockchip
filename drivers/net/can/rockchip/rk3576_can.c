@@ -834,7 +834,7 @@ static int rk3576_can_rx_dma(struct rk3576_can *rcan)
 	}
 
 	rxdesc = dmaengine_prep_slave_single(rcan->rxchan, rcan->rx_dma_dst_addr,
-					     rcan->dma_size * rcan->quota, DMA_DEV_TO_MEM, 0);
+					     rcan->dma_size * rcan->quota, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 	if (!rxdesc)
 		return -EBUSY;
 
