@@ -961,6 +961,7 @@ struct vop2_scl_regs {
 	struct vop_reg xgt_mode;
 	struct vop_reg vsd_avg2;
 	struct vop_reg vsd_avg4;
+	struct vop_reg yrgb_anei_en;/* alpha channel use best-neigh */
 };
 
 struct vop2_win_regs {

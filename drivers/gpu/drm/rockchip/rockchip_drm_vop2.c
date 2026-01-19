@@ -3510,6 +3510,8 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 
 	VOP_SCL_SET(vop2, win, yrgb_hscl_filter_mode, hscl_filter_mode);
 	VOP_SCL_SET(vop2, win, yrgb_vscl_filter_mode, vscl_filter_mode);
+	if (vop2->version >= VOP_VERSION_RK3572)
+		VOP_SCL_SET(vop2, win, yrgb_anei_en, 1);
 
 	if (info->is_yuv) {
 		ygt4 = ygt2 = 0;
