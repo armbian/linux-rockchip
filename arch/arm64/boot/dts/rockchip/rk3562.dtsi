@@ -277,6 +277,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <1050000>;
+		rockchip,high-temp = <95000>;
+		rockchip,high-temp-max-volt = <1100000>;
 
 		opp-408000000 {
 			opp-supported-hw = <0xf9 0xffff>;
