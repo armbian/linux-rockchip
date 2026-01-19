@@ -5,3 +5,26 @@
 
 #include "rk3572.dtsi"
 #include "rk3572-evb.dtsi"
+#include "rk3572-rk806.dtsi"
+
+/ {
+	vcc_3v3_s0: vcc-3v3-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	vdd2l_0v9_ddr_s3: vdd2l-0v9-ddr-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd2l_0v9_ddr_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc5v0_sys_s5>;
+	};
+};
