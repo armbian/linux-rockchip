@@ -1225,7 +1225,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126bp-evb-v14-dual-cam.dtb \
 	rv1126bp-evb1-v12.dtb \
 	rv1126bp-evb1-v12-fastboot-emmc.dtb \
-	rv1126bp-evb2-v11.dtb \
+	rv1126bp-evb2-v10.dtb \
 	rk3036-evb.dtb \
 	rk3036-evb1-ddr3-v10.dtb \
 	rk3036-kylin.dtb \
