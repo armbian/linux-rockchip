@@ -10,8 +10,8 @@
 #include "rv1126bp-evb-cam-csi0.dtsi"
 
 / {
-	model = "Rockchip RV1126B-P EVB2 V11 Board";
-	compatible = "rockchip,rv1126bp-evb2-v11", "rockchip,rv1126b";
+	model = "Rockchip RV1126B-P EVB2 V10 Board";
+	compatible = "rockchip,rv1126bp-evb2-v10", "rockchip,rv1126b";
 };
 
 &fspi0 {
