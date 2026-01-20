@@ -13167,7 +13167,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 	rkcif_do_soft_reset(cif_dev);
 
-	if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)
+	if (priv && priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
 		rkcif_toisp_set_stream(cif_dev, 1);
 
 	rkcif_streamon_in_reset(cif_dev,
@@ -13465,8 +13465,8 @@ static int rkcif_detect_reset_event(struct rkcif_stream *stream,
 		} else {
 
 			v4l2_info(&dev->v4l2_dev,
-				  "do reset work due to frame end is stopped, run_cnt:%d\n",
-				  timer->run_cnt);
+				  "do reset work due to frame end is stopped, run_cnt:%d, stream[%d]\n",
+				  timer->run_cnt, stream->id);
 
 			timer->reset_src = RKICF_RESET_SRC_ERR_CUTOFF;
 			rkcif_init_reset_work(timer);
