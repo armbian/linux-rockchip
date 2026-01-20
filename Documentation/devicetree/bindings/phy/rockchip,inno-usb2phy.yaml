@@ -157,38 +157,38 @@ properties:
           get vbus status. If not, it will use bvalid status bit to get vbus
           status by default.
 
-     rockchip,vbus-always-on:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, indicates that the otg vbus is always powered on.
+      rockchip,vbus-always-on:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, indicates that the otg vbus is always powered on.
 
-     rockchip,low-power-mode:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, the port will enter low power state when suspend.
+      rockchip,low-power-mode:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, the port will enter low power state when suspend.
 
-     rockchip,typec-vbus-det:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, check the vbus status from grf con for Type-C
-         interface. It's used when the vbusdet pin is always pulled up.
+      rockchip,typec-vbus-det:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, check the vbus status from grf con for Type-C
+          interface. It's used when the vbusdet pin is always pulled up.
 
-     rockchip,gpio-vbus-det:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, indicates that the otg port will use a gpio
-         for USB vbus detection.
+      rockchip,gpio-vbus-det:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, indicates that the otg port will use a gpio
+          for USB vbus detection.
 
-     rockchip,gpio-id-det:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, indicates that the otg port will use a gpio
-         for USB id detection.
+      rockchip,gpio-id-det:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, indicates that the otg port will use a gpio
+          for USB id detection.
 
-     rockchip,sel-pipe-phystatus:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, select the pipe phy status from grf for usb
-         controller. It's used when the usb3 phy is disabled, and it needs
-         to combine with the usbctrl-grf.
+      rockchip,sel-pipe-phystatus:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, select the pipe phy status from grf for usb
+          controller. It's used when the usb3 phy is disabled, and it needs
+          to combine with the usbctrl-grf.
 
-     rockchip,dis-u2-susphy:
-       $ref: /schemas/types.yaml#/definitions/flag
-       description: when set, disable the usb2 phy enter suspend automatically.
+      rockchip,dis-u2-susphy:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, disable the usb2 phy enter suspend automatically.
 
     required:
       - "#phy-cells"
