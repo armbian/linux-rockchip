@@ -83,6 +83,39 @@ struct dram_info {
 	/* Version 3, support 4 channel */
 	unsigned int ext_channel_num;
 	struct dram_cap_info ext_ch[2];
+	/* Version 4, support refresh rate */
+	unsigned int refresh_rate_ch[4];
+};
+
+static char * const refresh_rate_lpddr4[] = {
+	"SDRAM Low temperature operating limit exceeded",
+	"4x refresh",
+	"2x refresh",
+	"1x refresh",
+	"0.5x refresh",
+	"0.25x refresh, no de-rating",
+	"0.25x refresh, with de-rating",
+	"SDRAM High temperature operating limit exceeded",
+};
+
+static char * const refresh_rate_lpddr5[] = {
+	"SDRAM Low temperature operating limit exceeded",
+	"8x refresh",
+	"6x refresh",
+	"4x refresh",
+	"3.3x refresh",
+	"2.5 refresh",
+	"2.0x refresh",
+	"1.7x refresh",
+	"1.3x refresh",
+	"1x refresh",
+	"0.7x refresh",
+	"0.5x refresh",
+	"0.25x refresh, no de-rating",
+	"0.25x refresh, with de-rating",
+	"0.125x refresh, no de-rating",
+	"0.125x refresh, with de-rating",
+	"SDRAM High temperature operating limit exceeded",
 };
 
 static const char * const power_save_msg[] = {
@@ -198,9 +231,11 @@ static int dmcinfo_proc_show(struct seq_file *m, void *v)
 	struct arm_smccc_res res;
 	struct dram_info *p_dram_info;
 	struct file *fp = NULL;
+	char *refresh_rate_describe;
 	char cur_freq[20] = { 0 };
 	char governor[20] = { 0 };
 	loff_t pos;
+	u32 refresh_rate;
 	u32 i;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDRDBG, DDRDBG_FUNC_GET_DRAM_INFO,
@@ -285,6 +320,36 @@ static int dmcinfo_proc_show(struct seq_file *m, void *v)
 				p_dram_info->ext_ch[i].cs1_row,
 				p_dram_info->ext_ch[i].die_buswidth,
 				p_dram_info->ext_ch[i].size);
+		}
+	}
+
+	if (p_dram_info->version >= 0x4) {
+		for (i = 0; i < (p_dram_info->channel_num + p_dram_info->ext_channel_num); i++) {
+			if (i >= ARRAY_SIZE(p_dram_info->refresh_rate_ch))
+				break;
+
+			if (p_dram_info->refresh_rate_ch[i] != 0) {
+				if ((strcmp(p_dram_info->dramtype, "LPDDR4") == 0) ||
+				    (strcmp(p_dram_info->dramtype, "LPDDR4X") == 0)) {
+					refresh_rate = p_dram_info->refresh_rate_ch[i] & 0x7;
+					refresh_rate_describe = refresh_rate_lpddr4[refresh_rate];
+				} else if ((strcmp(p_dram_info->dramtype, "LPDDR5") == 0)) {
+					refresh_rate = p_dram_info->refresh_rate_ch[i] & 0x1f;
+					refresh_rate_describe =
+						refresh_rate_lpddr5[refresh_rate > 16 ? 16 : refresh_rate];
+				} else {
+					refresh_rate = p_dram_info->refresh_rate_ch[i] & 0x1f;
+					refresh_rate_describe = "Unknown";
+				}
+
+				if (i == 0)
+					seq_puts(m, "\nMR4 Refresh Rate: ");
+				if (p_dram_info->channel_num == 2)
+					seq_printf(m, "%sChannel [%d]:    ", (i == 0) ? "\n" : "", i);
+				seq_printf(m,
+					   "0x%x(%s)\n",
+					   refresh_rate, refresh_rate_describe);
+			}
 		}
 	}
 
