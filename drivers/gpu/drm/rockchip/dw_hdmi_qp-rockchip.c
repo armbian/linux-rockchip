@@ -226,6 +226,8 @@ struct rockchip_hdmi_chip_data {
 	int	ddc_en_reg;
 	bool	split_mode;
 	const struct rockchip_hdmi_chip_ops *ops;
+	const char * const *dclk_names;
+	int	dclk_count;
 };
 
 enum hdmi_vrr_state {
@@ -263,6 +265,7 @@ struct rockchip_dw_hdmi_qp {
 	struct clk *phyref_clk;
 	struct clk *hdmitx_ref;
 	struct clk *link_clk;
+	struct clk **dclk;
 	struct dw_hdmi_qp *hdmi_qp;
 
 	struct phy *phy;
@@ -1543,6 +1546,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_dw_hdmi_qp *hdmi)
 	struct display_timing timing;
 	struct videomode vm;
 	struct clk *hdmi_clk;
+	int i;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -1614,6 +1618,27 @@ static int rockchip_hdmi_parse_dt(struct rockchip_dw_hdmi_qp *hdmi)
 		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->link_clk),
 			      "failed to get link_clk clock\n");
 		return PTR_ERR(hdmi->link_clk);
+	}
+
+	if (hdmi->chip_data->dclk_names) {
+		const char * const *names = hdmi->chip_data->dclk_names;
+		int dclk_count = hdmi->chip_data->dclk_count;
+
+		hdmi->dclk = devm_kcalloc(hdmi->dev, dclk_count,
+					  sizeof(*hdmi->dclk), GFP_KERNEL);
+		if (!hdmi->dclk)
+			return -ENOMEM;
+
+		for (i = 0; i < dclk_count; i++) {
+			const char *name = names[i];
+
+			hdmi->dclk[i] = devm_clk_get_optional(hdmi->dev, name);
+			if (IS_ERR(hdmi->dclk[i])) {
+				dev_err_probe(hdmi->dev, PTR_ERR(hdmi->dclk[i]),
+					      "failed to get %s clock\n", name);
+				return PTR_ERR(hdmi->dclk[i]);
+			}
+		}
 	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable", GPIOD_ASIS);
@@ -3079,26 +3104,30 @@ static int dw_hdmi_rockchip_get_vp_id(struct drm_crtc_state *crtc_state)
 static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
-	char clk_name[16];
 	struct clk *dclk;
 	int ret;
 
-	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp_id);
+	if (!hdmi->chip_data->dclk_names)
+		return 0;
 
-	dclk = devm_clk_get_optional(hdmi->dev, clk_name);
-	if (IS_ERR(dclk)) {
-		DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
-		return PTR_ERR(dclk);
-	} else if (!dclk) {
-		DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
+	if (!hdmi->dclk || vp_id < 0 || vp_id >= hdmi->chip_data->dclk_count) {
+		DRM_DEV_ERROR(hdmi->dev, "invalid vp_id: %d (dclk not initialized)\n", vp_id);
+		return -EINVAL;
+	}
+
+	dclk = hdmi->dclk[vp_id];
+	if (!dclk) {
+		DRM_DEV_ERROR(hdmi->dev, "dclk_vp%d is not available\n", vp_id);
 		return -ENOENT;
 	}
 
 	if (enable) {
 		ret = clk_prepare_enable(dclk);
-		if (ret < 0)
+		if (ret < 0) {
 			DRM_DEV_ERROR(hdmi->dev, "failed to enable dclk for video port%d - %d\n",
 				      vp_id, ret);
+			return ret;
+		}
 	} else {
 		clk_disable_unprepare(dclk);
 	}
@@ -4615,9 +4644,13 @@ static const struct rockchip_hdmi_chip_ops rk3538_hdmi_chip_ops = {
 	.set_hdcp2_enable = rk3538_set_hdcp2_enable,
 };
 
+static const char * const rk3538_dclk_names[] = { "dclk_vp0" };
+
 struct rockchip_hdmi_chip_data rk3538_hdmi_chip_data = {
 	.ddc_en_reg = RK3538_VO_GRF_HDMI_SWITCH,
 	.ops = &rk3538_hdmi_chip_ops,
+	.dclk_names = rk3538_dclk_names,
+	.dclk_count = ARRAY_SIZE(rk3538_dclk_names),
 };
 
 static const struct dw_hdmi_plat_data rk3538_hdmi_drv_data = {
@@ -4654,9 +4687,13 @@ static const struct rockchip_hdmi_chip_ops rk3576_hdmi_chip_ops = {
 	.set_emp_bypass_enable = rk3576_set_emp_bypass_enable,
 };
 
+static const char * const rk3576_dclk_names[] = { "dclk_vp0", "dclk_vp1", "dclk_vp2" };
+
 struct rockchip_hdmi_chip_data rk3576_hdmi_chip_data = {
 	.ddc_en_reg = RK3576_VO0_GRF_SOC_CON14,
 	.ops = &rk3576_hdmi_chip_ops,
+	.dclk_names = rk3576_dclk_names,
+	.dclk_count = ARRAY_SIZE(rk3576_dclk_names),
 };
 
 static const struct dw_hdmi_plat_data rk3576_hdmi_drv_data = {
@@ -4691,9 +4728,13 @@ static const struct rockchip_hdmi_chip_ops rk3572_hdmi_chip_ops = {
 	.set_emp_bypass_enable = rk3572_set_emp_bypass_enable,
 };
 
+static const char * const rk3572_dclk_names[] = { "dclk_vp0", "dclk_vp1" };
+
 struct rockchip_hdmi_chip_data rk3572_hdmi_chip_data = {
 	.ddc_en_reg = RK3572_VO0_GRF_SOC_CON12,
 	.ops = &rk3572_hdmi_chip_ops,
+	.dclk_names = rk3572_dclk_names,
+	.dclk_count = ARRAY_SIZE(rk3572_dclk_names),
 };
 
 static const struct dw_hdmi_plat_data rk3572_hdmi_drv_data = {
@@ -4728,10 +4769,16 @@ static const struct rockchip_hdmi_chip_ops rk3588_hdmi_chip_ops = {
 	.set_hdcp2_enable = rk3588_set_hdcp2_enable,
 };
 
+static const char * const rk3588_dclk_names[] = {
+	"dclk_vp0", "dclk_vp1", "dclk_vp2", "dclk_vp3"
+};
+
 struct rockchip_hdmi_chip_data rk3588_hdmi_chip_data = {
 	.ddc_en_reg = RK3588_GRF_VO1_CON3,
 	.split_mode = true,
 	.ops = &rk3588_hdmi_chip_ops,
+	.dclk_names = rk3588_dclk_names,
+	.dclk_count = ARRAY_SIZE(rk3588_dclk_names),
 };
 
 static const struct dw_hdmi_plat_data rk3588_hdmi_drv_data = {

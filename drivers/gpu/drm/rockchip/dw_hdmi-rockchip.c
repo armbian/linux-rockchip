@@ -123,6 +123,8 @@ struct rockchip_hdmi_chip_data {
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
 	const struct rockchip_hdmi_chip_ops *ops;
+	const char * const *dclk_names;
+	int dclk_count;
 };
 
 struct rockchip_hdmi {
@@ -137,6 +139,7 @@ struct rockchip_hdmi {
 	struct clk *grf_clk;
 	struct clk *hclk_vio;
 	struct clk *hclk_vop;
+	struct clk **dclk;
 	struct dw_hdmi *hdmi;
 	struct regulator *avdd_0v9;
 	struct regulator *avdd_1v8;
@@ -502,6 +505,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	struct display_timing timing;
 	struct videomode vm;
 	struct clk *hdmi_clk;
+	int i;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -572,6 +576,26 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	if (IS_ERR(hdmi_clk)) {
 		dev_err_probe(hdmi->dev, PTR_ERR(hdmi_clk), "failed to get pclk clock\n");
 		return PTR_ERR(hdmi_clk);
+	}
+
+	if (hdmi->chip_data->dclk_count) {
+		const char * const *names = hdmi->chip_data->dclk_names;
+
+		hdmi->dclk = devm_kcalloc(hdmi->dev, hdmi->chip_data->dclk_count,
+					  sizeof(*hdmi->dclk), GFP_KERNEL);
+		if (!hdmi->dclk)
+			return -ENOMEM;
+
+		for (i = 0; i < hdmi->chip_data->dclk_count; i++) {
+			const char *name = names[i];
+
+			hdmi->dclk[i] = devm_clk_get_optional(hdmi->dev, name);
+			if (IS_ERR(hdmi->dclk[i])) {
+				dev_err_probe(hdmi->dev, PTR_ERR(hdmi->dclk[i]),
+					      "failed to get %s clock\n", name);
+				return PTR_ERR(hdmi->dclk[i]);
+			}
+		}
 	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
@@ -1423,25 +1447,30 @@ static void dw_hdmi_rockchip_get_vsif_data(void *data, u32 *buf)
 static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
-	char clk_name[16];
 	struct clk *dclk;
 	int ret;
 
-	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp_id);
-
-	dclk = devm_clk_get_optional(hdmi->dev, clk_name);
-	if (IS_ERR(dclk)) {
-		DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
-		return PTR_ERR(dclk);
-	} else if (!dclk) {
+	if (!hdmi->chip_data->dclk_count)
 		return 0;
+
+	if (!hdmi->dclk || vp_id < 0 || vp_id >= hdmi->chip_data->dclk_count) {
+		DRM_DEV_ERROR(hdmi->dev, "invalid vp_id: %d (dclk not initialized)\n", vp_id);
+		return -EINVAL;
+	}
+
+	dclk = hdmi->dclk[vp_id];
+	if (!dclk) {
+		DRM_DEV_ERROR(hdmi->dev, "dclk_vp%d is not available\n", vp_id);
+		return -ENOENT;
 	}
 
 	if (enable) {
 		ret = clk_prepare_enable(dclk);
-		if (ret < 0)
+		if (ret < 0) {
 			DRM_DEV_ERROR(hdmi->dev, "failed to enable dclk for video port%d - %d\n",
 				      vp_id, ret);
+			return ret;
+		}
 	} else {
 		clk_disable_unprepare(dclk);
 	}
@@ -2248,8 +2277,12 @@ static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
 	.ycbcr_420_allowed = true,
 };
 
+static const char * const rk3528_dclk_names[] = { "dclk_vp0" };
+
 static struct rockchip_hdmi_chip_data rk3528_chip_data = {
 	.lcdsel_grf_reg = -1,
+	.dclk_names = rk3528_dclk_names,
+	.dclk_count = ARRAY_SIZE(rk3528_dclk_names),
 };
 
 static const struct dw_hdmi_plat_data rk3528_hdmi_drv_data = {
