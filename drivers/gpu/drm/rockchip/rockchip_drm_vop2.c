@@ -365,6 +365,7 @@ struct vop2_plane_state {
 	bool cgc_en;
 	bool dci_en;
 	uint32_t csc_mode;
+	uint32_t hdr_type;
 	struct post_csc_coef csc_coef;
 	uint8_t xmirror_en;
 	uint8_t ymirror_en;
@@ -5517,6 +5518,24 @@ static int vop2_hdr_get_eotf_by_output_mode(int output_mode)
 	}
 }
 
+static enum vop_hdr_format vop2_eotf_to_hdr_type(int eotf)
+{
+	switch (eotf) {
+	case HDMI_EOTF_SMPTE_ST2084:
+		return HDR_HDR10;
+	case HDMI_EOTF_BT_2100_HLG:
+		return HDR_HLGSTATIC;
+	case HDMI_EOTF_HDR10PLUS:
+		return HDR_HDR10PLUS;
+	case HDMI_EOTF_HDRVIVID:
+		return HDR_HDRVIVID;
+	case HDMI_EOTF_DOVI:
+		return HDR_DOVI;
+	default:
+		return HDR_NONE;
+	}
+}
+
 static void vop2_dovi_enable(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5735,6 +5754,14 @@ static void vop2_load_dovi_coe_table(struct drm_crtc *crtc)
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 	dovi_reg_data = &hdr_data->dovi_data;
 	vcstate->eotf = vop2_hdr_get_eotf_by_output_mode(dovi_reg_data->output_mode);
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	vcstate->hdr_type = vop2_eotf_to_hdr_type(vcstate->eotf);
 
 	for (i = 0; i < vop2_data->dovi->nr_dovi_cores; i++) {
 		dovi_core = &vop2->dovi_cores[i];
@@ -9324,22 +9351,19 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 	return 0;
 }
 
-static const char *hdr_to_string(int eotf)
+static const char *hdr_to_string(enum vop_hdr_format hdr_format)
 {
-	switch (eotf) {
-	case HDMI_EOTF_TRADITIONAL_GAMMA_HDR:
-		return "GAMMA HDR";
-	case HDMI_EOTF_SMPTE_ST2084:
+	switch (hdr_format) {
+	case HDR_HDR10:
 		return "HDR10";
-	case HDMI_EOTF_BT_2100_HLG:
+	case HDR_HLGSTATIC:
 		return "HLG";
-	case HDMI_EOTF_HDR10PLUS:
+	case HDR_HDR10PLUS:
 		return "HDR10PLUS";
-	case HDMI_EOTF_HDRVIVID:
+	case HDR_HDRVIVID:
 		return "HDRVIVID";
-	case HDMI_EOTF_DOVI:
+	case HDR_DOVI:
 		return "DOVI";
-	case HDMI_EOTF_TRADITIONAL_GAMMA_SDR:
 	default:
 		return "SDR";
 	}
@@ -9441,8 +9465,8 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\tformat: %p4cc%s pixel_blend_mode[%d] glb_alpha[0x%x]\n",
 		    &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
 		    pstate->pixel_blend_mode, vpstate->global_alpha);
-	DEBUG_PRINT("\tcolor: %s[%d] color-encoding[%s] color-range[%s]\n",
-		    hdr_to_string(vpstate->eotf), vpstate->eotf,
+	DEBUG_PRINT("\tcolor: hdr_type[%s] eotf[%d] color-encoding[%s] color-range[%s]\n",
+		    hdr_to_string(vpstate->hdr_type), vpstate->eotf,
 		    rockchip_drm_get_color_encoding_name(pstate->color_encoding),
 		    rockchip_drm_get_color_range_name(pstate->color_range));
 	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
@@ -9569,8 +9593,8 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    drm_get_bus_format_name(state->bus_format));
 	DEBUG_PRINT("\toverlay_mode[%s] output_mode[%x] ",
 		    state->yuv_overlay ? "YUV" : "RGB", state->output_mode);
-	DEBUG_PRINT("%s[%d] color-encoding[%s] color-range[%s]\n",
-		    hdr_to_string(state->eotf), state->eotf,
+	DEBUG_PRINT("hdr_type[%s] eotf[%d] color-encoding[%s] color-range[%s]\n",
+		    hdr_to_string(state->hdr_type), state->eotf,
 		    rockchip_drm_get_color_encoding_name(state->color_encoding),
 		    rockchip_drm_get_color_range_name(state->color_range));
 	DEBUG_PRINT("\tr2y[%s] sharp[%d] acm[%d] y2r[%s]\n",
@@ -12801,6 +12825,21 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	if (adapt_mode == HDRVIVID_RX_MODE)
 		vop3_setup_dynamic_metadata_for_emp(vp, hdrvivid_data->hdrvivid_dynamic_metadata,
 						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
+
+	vpstate->hdr_type = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
+
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	if (adapt_mode)
+		vcstate->hdr_type = HDR_HDRVIVID;
+
+	if (((hdr_data->hdr_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) && (hdr_mode == HDR_BYPASS))
+		vcstate->hdr_type = HDR_HDR10PLUS;
 }
 
 static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_id)
@@ -14499,8 +14538,10 @@ static void vop2_crtc_update_zpos_for_dovi(struct drm_crtc *crtc, struct vop2_zp
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		vpstate = to_vop2_plane_state(plane->state);
-		if (vpstate->dovi_input_type == DOVI_BASE_LAYER)
+		if (vpstate->dovi_input_type == DOVI_BASE_LAYER) {
 			has_base_layer = true;
+			vpstate->hdr_type = HDR_DOVI;
+		}
 	}
 
 	/*
@@ -14835,6 +14876,22 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win
 	if (adapt_mode == HDRVIVID_RX_MODE)
 		vop3_setup_dynamic_metadata_for_emp(vp, hdr_data->hdrvivid_dynamic_metadata,
 						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
+
+	vpstate->hdr_type = hdr_data->hdr_input_type & RK_HDR_TYPE_MASK;
+
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	if (adapt_mode)
+		vcstate->hdr_type = HDR_HDRVIVID;
+
+	if (((hdr_data->hdr_input_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) &&
+	    (hdr_mode == HDR_BYPASS))
+		vcstate->hdr_type = HDR_HDR10PLUS;
 }
 
 static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
@@ -15006,6 +15063,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		vop2_zpos[nr_layers].win_phys_id = win->phys_id;
 		vop2_zpos[nr_layers].zpos = vpstate->zpos;
 		vop2_zpos[nr_layers].plane = plane;
+		/* plane hdr type init */
+		vpstate->hdr_type = vop2_eotf_to_hdr_type(vpstate->eotf);
 
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "%s active zpos:%d for vp%d from vp%d",
 				 win->name, vpstate->zpos, vp->id, old_vp->id);
@@ -15042,6 +15101,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 	vp->hdr10_at_splice_mode = hdr10_at_splice_mode;
 
 	vp->has_scale_down_layer = false;
+
+	vcstate->hdr_type = vop2_eotf_to_hdr_type(vcstate->eotf);
 
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "vp%d: %d windows, active layers %d",
 			 vp->id, hweight32(vp->win_mask), nr_layers);

@@ -474,6 +474,7 @@ struct rockchip_crtc_state {
 	u32 output_if_left_panel;
 	u32 bus_format;
 	u32 bus_flags;
+	u32 hdr_type;
 	int post_r2y_en;
 	int post_y2r_en;
 	int post_csc_mode;
