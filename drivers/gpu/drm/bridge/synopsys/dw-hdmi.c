@@ -3252,7 +3252,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			hdmi->plat_data->get_yuv422_format(connector, edid, ext_block_num);
 		if (hdmi->plat_data->get_colorimetry)
 			hdmi->plat_data->get_colorimetry(data, edid, ext_block_num);
-
+		hdmi->support_hdmi = drm_detect_hdmi_monitor(edid);
+		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		list_for_each_entry(mode, &connector->probed_modes, head) {
 			vic = drm_match_cea_mode(mode);
 
