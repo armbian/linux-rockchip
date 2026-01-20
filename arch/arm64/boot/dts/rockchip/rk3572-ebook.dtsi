@@ -17,7 +17,18 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
 &display_subsystem {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_ddr_s0>;
+	mem-supply = <&vdd_logic_s0>;
+	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
 	status = "okay";
 };
 
