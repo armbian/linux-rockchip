@@ -281,7 +281,7 @@ int dmaengine_trcm_dma_guard_ctrl(struct snd_soc_component *component,
 					 DMA_GUARD_BUFFER_SIZE,
 					 DMA_GUARD_BUFFER_SIZE,
 					 direction,
-					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+					 DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(component->dev, "Failed to get dma desc\n");
 		return -ENOMEM;

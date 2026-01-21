@@ -7,6 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Rockchip Flexbus controller under SPI transmission protocol
 
 maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
   - Jon Lin <jon.lin@rock-chips.com>
 
 allOf:
@@ -20,6 +21,16 @@ properties:
       and the driver can handle all the feature difference inside the IP
       depending on the version register.
 
+  fspi-cs-gpios:
+    description:
+      Specifies the gpio pins to be used for chipselects. The gpios will be
+      referred to as reg = <index> in the SPI child nodes. If unspecified, a
+      single SPI device without a chip select can be used.
+
+  reset-gpios:
+    description:
+      Specifies the reset gpio pin to be used for resetting the devices.
+
 patternProperties:
   "^flash@[0-3]$":
     type: object
@@ -31,17 +42,14 @@ patternProperties:
 required:
   - compatible
 
-Optional properties:
-  - fspi-cs-gpios: specifies the gpio pins to be used for chipselects.
-    The gpios will be referred to as reg = <index> in the SPI child nodes.
-    If unspecified, a single SPI device without a chip select can be used.
-  - reset-gpios: specifies the reset gpio pin to be used for resetting the devices.
-
 unevaluatedProperties: false
 
 examples:
   - |
-    fspi: spi@ff3a0000 {
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/pinctrl/rockchip.h>
+
+    flexbus_fspi: spi {
         compatible = "rockchip,flexbus-fspi";
         fspi-cs-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>, <&gpio4 RK_PA5 GPIO_ACTIVE_LOW>;
         #address-cells = <1>;

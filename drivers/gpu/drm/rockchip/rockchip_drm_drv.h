@@ -183,6 +183,77 @@ enum rockchip_drm_vrr_type {
 	ROCKCHIP_VRR_DCLK_MODE = 2,
 };
 
+#define ROCKCHIP_MULTI_REFRESH_RATE_TABLE_COUNT 30
+#define ROCKCHIP_MODE_INFO_V1			0x1
+
+struct rockchip_drm_mode_info {
+	/**
+	 * @umode: display mode info
+	 */
+	struct drm_mode_modeinfo umode;
+	/**
+	 * @mrr_support: support multi refresh rate or hdmi qms-vrr
+	 */
+	u32 mrr_support;
+	/**
+	 * @mrr_table: the mulit refresh rate table or hdmi qms-vrr
+	 * refresh rate table, unit: 0.001Hz
+	 */
+	u32 mrr_table[ROCKCHIP_MULTI_REFRESH_RATE_TABLE_COUNT];
+	/**
+	 * @mrr_count: the count of refresh rate int table
+	 */
+	u32 mrr_count;
+	/**
+	 * @vrr_support: support variable refresh rate discrible as a range
+	 */
+	u32 vrr_support;
+	/**
+	 * @vrr_min_fps: the min refresh rate for variable refresh
+	 * rate or hdmi gaming vrr, unit: 0.001Hz
+	 */
+	u32 vrr_min_fps;
+	/**
+	 * @vrr_max_fps: the max refresh rate for variable refresh
+	 * rate or hdmi gaming vrr, unit: 0.001Hz
+	 */
+	u32 vrr_max_fps;
+	/**
+	 * @arr_fps_step: the refresh rate adjusting step for variable
+	 * refresh rate or hdmi gaming vrr, unit: 0.001Hz
+	 */
+	u32 vrr_fps_step;
+
+	/**
+	 * @fva_support: the hdmi fav function support
+	 */
+	u32 fva_support;
+
+	/**
+	 *@reserved: reserved for future version
+	 */
+	u32 reserved[10];
+};
+
+struct rockchip_drm_modes_info {
+	/**
+	 * @version: the modes info structure version
+	 */
+	u32 version;
+	/**
+	 * @mode_count: the count of mode
+	 */
+	u32 mode_count;
+	/**
+	 *@reserved: reserved for future version
+	 */
+	u32 reserved[10];
+	/**
+	 * @mode_info: a array of mode info
+	 */
+	struct rockchip_drm_mode_info mode_info[];
+};
+
 struct rockchip_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
@@ -731,6 +802,7 @@ struct rockchip_drm_private {
 	/* private connector prop */
 	struct drm_property *connector_id_prop;
 	struct drm_property *split_area_prop;
+	struct drm_property *mode_info_prop;
 
 	/* private local dimming prop */
 	struct drm_property *dimming_data_prop;

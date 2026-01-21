@@ -307,6 +307,8 @@ struct dw_hdmi_plat_data {
 	void (*force_frl_rate)(void *data, u8 rate);
 	void (*get_mode_color_caps)(struct drm_connector *connector, struct drm_display_info *info,
 				    void *data);
+	void (*get_mode_info)(struct drm_connector *connector, struct drm_display_info *info,
+			      void *data);
 	void (*crtc_pre_disable)(void *data, struct drm_crtc *crtc);
 	void (*crtc_post_enable)(void *data, struct drm_crtc *crtc);
 	int (*get_hdr10_plus_vsdb)(void *data, const struct edid *edid,

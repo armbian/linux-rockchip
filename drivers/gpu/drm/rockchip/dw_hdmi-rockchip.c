@@ -399,6 +399,7 @@ struct rockchip_hdmi {
 	struct drm_property_blob *hdr10_plus_vsdb_ptr;
 	struct drm_property_blob *hdmi_vrr_cap_ptr;
 	struct drm_property_blob *hdrvivid_vsdb_ptr;
+	struct drm_property_blob *mode_infos_blob_ptr;
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
@@ -4065,6 +4066,112 @@ static void dw_hdmi_rockchip_get_mode_color_caps(struct drm_connector *connector
 					 hdmi->mode_color_caps, &connector->base, property);
 }
 
+static bool dw_hdmi_rockchip_get_qms_vrr_support(u8 vic)
+{
+	u8 qms_vrr_vic[] = {16, 63, 4, 47, 97, 102};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(qms_vrr_vic); i++) {
+		if (vic == qms_vrr_vic[i])
+			return true;
+	}
+
+	return false;
+}
+
+static int dw_hdmi_mode_vrefresh(const struct drm_display_mode *mode)
+{
+	unsigned int num = 1, den = 1;
+
+	if (mode->htotal == 0 || mode->vtotal == 0)
+		return 0;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		num *= 2;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		den *= 2;
+	if (mode->vscan > 1)
+		den *= mode->vscan;
+
+	if (check_mul_overflow(mode->clock, num, &num))
+		return 0;
+
+	if (check_mul_overflow(mode->htotal * mode->vtotal, den, &den))
+		return 0;
+
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(num, 100000), den);
+}
+
+static void dw_hdmi_rockchip_get_mode_info(struct drm_connector *connector,
+					   struct drm_display_info *info,
+					   void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	struct drm_display_mode *mode;
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct rockchip_drm_modes_info *modes_info;
+	struct rockchip_drm_mode_info *mode_info;
+	u32 size, mode_count = 0;
+	u32 qms_vrr_rate[] = {23970, 24000, 25000, 29970, 30000, 47950, 48000, 50000, 59940,
+			      60000, 100000, 119880, 120000};
+	int refresh_rate;
+	int i = 0, j;
+
+	if (list_empty(&connector->modes)) {
+		drm_property_replace_global_blob(connector->dev, &hdmi->mode_infos_blob_ptr, 0,
+						 0, &connector->base, private->mode_info_prop);
+		return;
+	}
+
+	if (!(hdmi->vrr_cap.vrr_mode & (BIT(QMS_VRR_SUPPORTED) | BIT(GAMING_VRR_SUPPORTED))))
+		return;
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode_count++;
+
+	size = struct_size(modes_info, mode_info, mode_count);
+	modes_info = kzalloc(size, GFP_KERNEL);
+	if (!modes_info)
+		return;
+
+	modes_info->version = ROCKCHIP_MODE_INFO_V1;
+	modes_info->mode_count = mode_count;
+	list_for_each_entry(mode, &connector->modes, head) {
+		mode_info = &modes_info->mode_info[i];
+		drm_mode_convert_to_umode(&mode_info->umode, mode);
+		i++;
+
+		refresh_rate = dw_hdmi_mode_vrefresh(mode);
+		if (hdmi->vrr_cap.vrr_mode & BIT(QMS_VRR_SUPPORTED)) {
+			if (dw_hdmi_rockchip_get_qms_vrr_support(drm_match_cea_mode(mode))) {
+				mode_info->mrr_support = 1;
+				for (j = 0; j < ARRAY_SIZE(qms_vrr_rate); j++) {
+					if (refresh_rate * 10 < qms_vrr_rate[j])
+						break;
+					mode_info->mrr_table[j] = qms_vrr_rate[j];
+				}
+				mode_info->mrr_count = j;
+			}
+		}
+		if (hdmi->vrr_cap.vrr_mode & BIT(GAMING_VRR_SUPPORTED)) {
+			if (refresh_rate >= hdmi->vrr_cap.gaming_vrr_rate_min * 100 &&
+			    refresh_rate <= hdmi->vrr_cap.gaming_vrr_rate_max * 100) {
+				mode_info->vrr_support = 1;
+				mode_info->vrr_min_fps = hdmi->vrr_cap.gaming_vrr_rate_min * 1000;
+				mode_info->vrr_max_fps =
+					min(hdmi->vrr_cap.gaming_vrr_rate_max * 1000,
+					    refresh_rate * 10);
+				mode_info->vrr_fps_step = 1000;
+			}
+		}
+	}
+
+	drm_property_replace_global_blob(connector->dev, &hdmi->mode_infos_blob_ptr, size,
+					 modes_info, &connector->base,
+					 private->mode_info_prop);
+	kfree(modes_info);
+}
+
 static void dw_hdmi_rockchip_crtc_post_enable(void *data, struct drm_crtc *crtc)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -4528,6 +4635,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		hdmi->hdmi_colorspace_caps = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
+	drm_object_attach_property(&connector->base, private->mode_info_prop, 0);
 }
 
 static void
@@ -5798,6 +5906,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_force_frl_rate;
 	plat_data->get_mode_color_caps =
 		dw_hdmi_rockchip_get_mode_color_caps;
+	plat_data->get_mode_info =
+		dw_hdmi_rockchip_get_mode_info;
 	plat_data->crtc_pre_disable =
 		dw_hdmi_rockchip_crtc_pre_disable;
 	plat_data->crtc_post_enable =

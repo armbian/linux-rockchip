@@ -3832,6 +3832,9 @@ static int drm_hdmi_probe_single_connector_modes(struct drm_connector *connector
 	if (hdmi->plat_data->get_mode_color_caps)
 		hdmi->plat_data->get_mode_color_caps(connector, info, data);
 
+	if (hdmi->plat_data->get_mode_info)
+		hdmi->plat_data->get_mode_info(connector, info, data);
+
 	return ret;
 }
 

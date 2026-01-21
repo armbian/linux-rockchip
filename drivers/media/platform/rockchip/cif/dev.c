@@ -2728,6 +2728,7 @@ static void rkcif_update_effect_exposure(struct rkcif_device *dev)
 {
 	struct sditf_priv *priv = NULL;
 	struct sditf_effect_exp *effect_exp = NULL;
+	struct sditf_effect_exp *tmp_effect_exp = NULL;
 	struct sditf_effect_time *effect_time = NULL;
 	struct sditf_effect_gain *effect_gain = NULL;
 	u32 cur_sequeue = 0;
@@ -2757,7 +2758,24 @@ static void rkcif_update_effect_exposure(struct rkcif_device *dev)
 			effect_exp->exp.time = effect_time->time;
 			effect_exp->exp.gain = effect_gain->gain;
 			mutex_lock(&priv->mutex);
-			list_add_tail(&effect_exp->list, &priv->effect_exp_head);
+			if (priv->effect_exp_cnt >= SDITF_MAX_EFFEC_EXPOSURE_CNT) {
+				tmp_effect_exp = list_first_entry(&priv->effect_exp_head,
+								  struct sditf_effect_exp,
+								  list);
+				if (tmp_effect_exp) {
+					list_del(&tmp_effect_exp->list);
+					kfree(tmp_effect_exp);
+					tmp_effect_exp = NULL;
+					priv->effect_exp_cnt--;
+				}
+			}
+			if (priv->effect_exp_cnt < SDITF_MAX_EFFEC_EXPOSURE_CNT) {
+				list_add_tail(&effect_exp->list, &priv->effect_exp_head);
+				priv->effect_exp_cnt++;
+			} else {
+				kfree(effect_exp);
+				effect_exp = NULL;
+			}
 			mutex_unlock(&priv->mutex);
 			sditf_event_exposure_notifier(priv, effect_exp);
 		} else {

@@ -857,7 +857,7 @@
 	i2c5_max96752: i2c5-max96752@4b {
 		compatible = "maxim,max96752";
 		reg = <0x4b>;
-		reg-hw = <0x4a>
+		reg-hw = <0x4a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-panel-split = <0x02>;

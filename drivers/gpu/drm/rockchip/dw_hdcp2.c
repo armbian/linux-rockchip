@@ -671,7 +671,7 @@ static const struct dw_hdcp_cfg rk3538_hdcp_cfgs[] = {
 		.protocol_type = HL_HDCP_PROTOCOL_HDMI,
 		.port_cfg = {
 			{
-				.connect_reg = {0x6c, 2},
+				.connect_reg = {0x11c, 16},
 				.port_id = 1,
 				.port_type = HL_HDCP_TX,
 			},

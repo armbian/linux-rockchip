@@ -47,6 +47,10 @@ properties:
   power-domains:
     maxItems: 1
 
+  reset-gpios:
+    description:
+      Specifies the reset gpio pin to be used for resetting the devices.
+
   rockchip,sfc-no-dma:
     description: Disable DMA and utilize FIFO mode only
     type: boolean
@@ -60,6 +64,13 @@ properties:
   rockchip,max-dll:
     description:
       Setting maximum dll cell.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  sfc-cs-gpios:
+    description:
+      Specifies the gpio pins to be used for chipselects. The gpios will be
+      referred to as reg = <index> in the SPI child nodes. If unspecified, a
+      single SPI device without a chip select can be used.
 
 patternProperties:
   "^flash@[0-3]$":
@@ -78,18 +89,14 @@ required:
   - clocks
   - clock-names
 
-Optional properties:
-  - sfc-cs-gpios: specifies the gpio pins to be used for chipselects.
-    The gpios will be referred to as reg = <index> in the SPI child nodes.
-    If unspecified, a single SPI device without a chip select can be used.
-  - reset-gpios: specifies the reset gpio pin to be used for reseting the devices.
-
 unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/px30-cru.h>
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/rockchip.h>
     #include <dt-bindings/power/px30-power.h>
 
     sfc: spi@ff3a0000 {

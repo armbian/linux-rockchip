@@ -667,7 +667,7 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 				  const struct cif_output_fmt *output_fmt)
 {
 	const struct cif_input_fmt *input_fmt = stream->cif_fmt_in;
-	struct csi_channel_info *channel = &stream->cifdev->channels[stream->id];
+	struct csi_channel_info *channel = &stream->channel_info;
 	int ret = -EINVAL;
 
 	if (!input_fmt)
@@ -1081,8 +1081,12 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_stream *stream, struct v4l2_rect
 			csi_info->vc = pad_id;
 		if (ch_info.data_type > 0)
 			csi_info->data_type = ch_info.data_type;
+		else
+			csi_info->data_type = 0;
 		if (ch_info.data_bit > 0)
 			csi_info->data_bit = ch_info.data_bit;
+		else
+			csi_info->data_bit = 0;
 		if (ch_info.field == 0)
 			fmt.format.field = fmt.format.field;
 		else
@@ -2550,8 +2554,10 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 		if (dev->hw_dev->dummy_buf.vaddr) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				active_buf = buf_stream->curr_buf_toisp;
+				buf_stream->curr_buf_toisp = NULL;
 			} else {
 				active_buf = buf_stream->next_buf_toisp;
+				buf_stream->next_buf_toisp = NULL;
 			}
 		} else if (buf_stream->curr_buf_toisp && buf_stream->next_buf_toisp &&
 			   buf_stream->curr_buf_toisp != buf_stream->next_buf_toisp) {
@@ -3110,13 +3116,22 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP &&
-	    (buf_stream->state != RKCIF_STATE_STREAMING || buf_stream->stopping)) {
-		buffer = NULL;
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
-			stream->curr_buf = NULL;
-		else
-			stream->next_buf = NULL;
-	} else if (!list_empty(&buf_stream->buf_head)) {
+	    (buf_stream->state != RKCIF_STATE_STREAMING || buf_stream->stopping) &&
+	    buf_stream->id != 0) {
+		buf_stream = &dev->stream[0];
+		if (buf_stream->state == RKCIF_STATE_STREAMING) {
+			if (buf_stream->buf_replace_cnt < 2)
+				buf_stream->buf_replace_cnt++;
+			if (buf_stream->buf_replace_cnt == 2) {
+				buf_stream->stopping = false;
+				wake_up(&buf_stream->wq_stopped);
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "stream[%d] buffer replace_cnt %d\n",
+				 buf_stream->id, buf_stream->buf_replace_cnt);
+		}
+	}
+	if (!list_empty(&buf_stream->buf_head)) {
 
 		if (!dummy_buf->vaddr &&
 		    stream->curr_buf == stream->next_buf &&
@@ -4101,7 +4116,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	struct sditf_priv *priv = dev->sditf[0];
 	const struct cif_output_fmt *fmt;
 	u32 fourcc;
-	int vc = dev->channels[stream->id].vc;
+	int vc = stream->channel_info.vc;
 	u32 raw_bpp = 0;
 
 	channel->enable = 1;
@@ -4224,13 +4239,15 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->virtual_width *= 2;
 		channel->height /= 2;
 	}
-	if (dev->channels[stream->id].data_type)
-		channel->data_type = dev->channels[stream->id].data_type;
+	if (stream->channel_info.data_type)
+		channel->data_type = stream->channel_info.data_type;
 	else
 		channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 						   channel->cmd_mode_en,
 						   channel->dsi_input);
 
+	if (stream->channel_info.data_bit)
+		channel->data_bit = stream->channel_info.data_bit;
 	channel->csi_fmt_val = get_csi_fmt_val(stream,
 					       &dev->channels[stream->id]);
 
@@ -5492,6 +5509,8 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 		stream->is_wait_single_cap = false;
 		stream->last_frame_idx = 0;
 		stream->frame_phase_cache = CIF_CSI_FRAME1_READY;
+		stream->buf_replace_cnt = 0;
+		stream->to_stop_dma = 0;
 	}
 	stream->interlaced_bad_frame = false;
 	stream->last_fs_interlaced_phase = 0;
@@ -6929,6 +6948,7 @@ static void rkcif_clean_state_one_to_multi_mode(struct rkcif_device *dev)
 					gain = NULL;
 				}
 			}
+			priv->effect_exp_cnt = 0;
 		}
 	}
 	while (!list_empty(&dev->effect_time_head)) {
@@ -6976,6 +6996,14 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	else
 		mutex_lock(&dev->stream_lock);
 
+	if (stream->cifdev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP) {
+		stream = &stream->cifdev->stream[atomic_read(&stream->cifdev->pipe.stream_cnt) - 1];
+		node = &stream->vnode;
+		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+			 "stream[%d] pipe stream_cnt %d\n",
+			 stream->id, atomic_read(&stream->cifdev->pipe.stream_cnt));
+	}
+
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start stopping, total mode 0x%x, cur 0x%x\n",
 		stream->id, stream->cur_stream_mode, mode);
 
@@ -7000,12 +7028,16 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			} else {
 				stream->stopping = true;
 			}
-		} else if (dev->sditf[0] && (!dev->sditf[0]->is_toisp_off)) {
+		} else if ((dev->sditf[0] && (!dev->sditf[0]->is_toisp_off)) ||
+			(stream->cifdev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP && stream->id != 0)) {
 			stream->stopping = true;
 		} else {
 			rkcif_stream_stop(stream);
 		}
 		if (stream->stopping == true) {
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "stream[%d] need wait stream stop\n",
+				 stream->id);
 			if (mode == RKCIF_STREAM_MODE_TOISP && dev->sditf[0]->is_toisp_off)
 				ret = 0;
 			else
@@ -7623,7 +7655,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	if (dev->terminal_sensor.sd) {
 		stream->cif_fmt_in = rkcif_get_input_fmt(stream,
 							 &input, stream->id,
-							 &dev->channels[stream->id]);
+							 &stream->channel_info);
 		if (!stream->cif_fmt_in) {
 			v4l2_err(v4l2_dev, "Input fmt is invalid\n");
 			return -EINVAL;
@@ -9085,7 +9117,7 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
 	struct rkcif_extend_info *extend_line = &stream->extend_line;
-	struct csi_channel_info *channel_info = &dev->channels[stream->id];
+	struct csi_channel_info *channel_info = &stream->channel_info;
 	int ret;
 	u32 raw_bpp = 0;
 	struct rkmodule_irfpa_info irfpa_info = {0};
@@ -9101,9 +9133,17 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd) {
+		if (dev->chip_id < CHIP_RK3588_CIF)
+			mutex_lock(&dev->hw_dev->dev_lock);
+		else
+			mutex_lock(&dev->stream_lock);
 		cif_fmt_in = rkcif_get_input_fmt(stream,
 						 &input_rect, stream->id,
 						 channel_info);
+		if (dev->chip_id < CHIP_RK3588_CIF)
+			mutex_unlock(&dev->hw_dev->dev_lock);
+		else
+			mutex_unlock(&dev->stream_lock);
 		stream->cif_fmt_in = cif_fmt_in;
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
@@ -9655,6 +9695,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 	int i = 0;
 	int ret = 0;
 	int fource_idx = 0;
+	struct csi_channel_info	csi_info = {0};
 
 	if (f->index >= ARRAY_SIZE(out_fmts))
 		return -EINVAL;
@@ -9662,7 +9703,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (dev->terminal_sensor.sd) {
 		cif_fmt_in = rkcif_get_input_fmt(stream,
 					   &input_rect, stream->id,
-					   &dev->channels[stream->id]);
+					   &csi_info);
 		stream->cif_fmt_in = cif_fmt_in;
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
@@ -15875,6 +15916,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_ROCKIT;
 					rkcif_stop_dma_capture(stream);
+					v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+						 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+						 stream->id);
 					stream->is_pause_stream = true;
 					stream->is_hold_stream_off = true;
 				}
@@ -15915,6 +15959,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
 					stream->to_stop_dma = RKCIF_DMAEN_BY_ROCKIT;
 				rkcif_stop_dma_capture(stream);
+				v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+					 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+					 stream->id);
 			} else {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 			}
@@ -15973,6 +16020,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
 					stream->is_stop_capture = true;
+					v4l2_dbg(4, rkcif_debug, &cif_dev->v4l2_dev,
+						 "%s %d, stream[%d] dma stop\n", __func__, __LINE__,
+						 stream->id);
 				}
 				if (stream->to_stop_dma) {
 					if (cif_dev->switch_info.is_use_switch &&

@@ -3724,6 +3724,7 @@ static const struct vop2_scl_regs rk3568_esmart_win_scl = {
 	.cbcr_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION0_SCL_CTRL, 0x3, 12),
 	.cbcr_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION0_SCL_CTRL, 0x3, 14),
 	.bic_coe_sel = VOP_REG(RK3568_ESMART0_REGION0_SCL_CTRL, 0x3, 16),
+	.yrgb_anei_en = VOP_REG(RK3568_ESMART0_REGION0_SCL_CTRL, 0x1, 20),/* supported from rk3572 */
 	.vsd_yrgb_gt2 = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 8),
 	.vsd_yrgb_gt4 = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 9),
 	.vsd_cbcr_gt2 = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 10),

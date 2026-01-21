@@ -1698,8 +1698,75 @@ analogix_dp_atomic_connector_get_property(struct drm_connector *connector,
 	return 0;
 }
 
+static void analogix_dp_config_mode_info(struct drm_connector *connector)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+	struct drm_display_info *di = &connector->display_info;
+	struct drm_display_mode *mode;
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct rockchip_drm_modes_info *modes_info;
+	struct rockchip_drm_mode_info *mode_info;
+	u32 size, mode_count = 0;
+	int refresh_rate;
+	int i = 0;
+
+	if (list_empty(&connector->modes)) {
+		drm_property_replace_global_blob(connector->dev, &dp->mode_infos_blob_ptr, 0,
+						 0, &connector->base, private->mode_info_prop);
+		return;
+	}
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode_count++;
+
+	size = struct_size(modes_info, mode_info, mode_count);
+	modes_info = kzalloc(size, GFP_KERNEL);
+	if (!modes_info)
+		return;
+
+	modes_info->version = ROCKCHIP_MODE_INFO_V1;
+	modes_info->mode_count = mode_count;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		mode_info = &modes_info->mode_info[i];
+		drm_mode_convert_to_umode(&mode_info->umode, mode);
+
+		refresh_rate = drm_mode_vrefresh(mode);
+		if (dp->plat_data->max_refresh_rate && dp->plat_data->min_refresh_rate) {
+			mode_info->vrr_support = 1;
+			mode_info->vrr_min_fps = dp->plat_data->min_refresh_rate * 1000;
+			mode_info->vrr_max_fps =
+				min_t(u32, dp->plat_data->max_refresh_rate, refresh_rate) * 1000;
+			mode_info->vrr_fps_step = 1000;
+		} else if (di->monitor_range.min_vfreq && di->monitor_range.max_vfreq) {
+			mode_info->vrr_support = 1;
+			mode_info->vrr_min_fps = di->monitor_range.min_vfreq * 1000;
+			mode_info->vrr_max_fps =
+				min_t(u32, di->monitor_range.max_vfreq, refresh_rate) * 1000;
+			mode_info->vrr_fps_step = 1000;
+		}
+		i++;
+	}
+
+	drm_property_replace_global_blob(connector->dev, &dp->mode_infos_blob_ptr, size,
+					 modes_info, &connector->base,
+					 private->mode_info_prop);
+	kfree(modes_info);
+}
+
+static int analogix_dp_probe_single_connector_modes(struct drm_connector *connector,
+						    uint32_t maxX, uint32_t maxY)
+{
+	int ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
+	analogix_dp_config_mode_info(connector);
+
+	return ret;
+}
+
 static const struct drm_connector_funcs analogix_dp_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	.fill_modes = analogix_dp_probe_single_connector_modes,
 	.detect = analogix_dp_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -1779,6 +1846,7 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 			drm_object_attach_property(&connector->base,
 						   private->split_area_prop,
 						   dp->split_area);
+		drm_object_attach_property(&connector->base, private->mode_info_prop, 0);
 
 		drm_connector_helper_add(connector,
 					 &analogix_dp_connector_helper_funcs);

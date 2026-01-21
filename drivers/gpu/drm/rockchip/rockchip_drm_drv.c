@@ -2117,6 +2117,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 					ARRAY_SIZE(split_area));
 	private->split_area_prop = prop;
 
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB | DRM_MODE_PROP_IMMUTABLE,
+				   "MODE_INFO", 0);
+	if (!prop)
+		return -ENOMEM;
+	private->mode_info_prop = prop;
+
 	prop = drm_property_create_object(dev,
 					  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
 					  "SOC_ID", DRM_MODE_OBJECT_CRTC);

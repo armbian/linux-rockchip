@@ -294,8 +294,10 @@ struct dw_mipi_dsi2 {
 	bool support_psr;
 	bool enabled;
 
+	struct drm_property_blob *mode_infos_blob_ptr;
 	unsigned int min_refresh_rate;
 	unsigned int max_refresh_rate;
+	unsigned int refresh_rate_step;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -1348,6 +1350,67 @@ static struct drm_connector_helper_funcs dw_mipi_dsi2_connector_helper_funcs = {
 	.atomic_check = dw_mipi_dsi2_connector_atomic_check,
 };
 
+static void dw_mipi_dsi2_config_mode_info(struct drm_connector *connector)
+{
+	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
+	struct drm_display_mode *mode;
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct rockchip_drm_modes_info *modes_info;
+	struct rockchip_drm_mode_info *mode_info;
+	u32 size, mode_count = 0;
+	int refresh_rate;
+	int i = 0;
+
+	if (list_empty(&connector->modes)) {
+		drm_property_replace_global_blob(connector->dev, &dsi2->mode_infos_blob_ptr, 0,
+						 0, &connector->base, private->mode_info_prop);
+		return;
+	}
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode_count++;
+
+	size = struct_size(modes_info, mode_info, mode_count);
+	modes_info = kzalloc(size, GFP_KERNEL);
+	if (!modes_info)
+		return;
+
+	modes_info->version = ROCKCHIP_MODE_INFO_V1;
+	modes_info->mode_count = mode_count;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		mode_info = &modes_info->mode_info[i];
+		drm_mode_convert_to_umode(&mode_info->umode, mode);
+
+		if (dsi2->auto_calc_mode && dsi2->max_refresh_rate && dsi2->min_refresh_rate) {
+			refresh_rate = drm_mode_vrefresh(mode);
+			mode_info->vrr_support = 1;
+			mode_info->vrr_min_fps = dsi2->min_refresh_rate * 1000;
+			mode_info->vrr_max_fps =
+				min_t(u32, dsi2->max_refresh_rate, refresh_rate) * 1000;
+			mode_info->vrr_fps_step = dsi2->refresh_rate_step ?
+						  dsi2->refresh_rate_step * 1000 : 1000;
+		}
+		i++;
+	}
+
+	drm_property_replace_global_blob(connector->dev, &dsi2->mode_infos_blob_ptr, size,
+					 modes_info, &connector->base,
+					 private->mode_info_prop);
+	kfree(modes_info);
+}
+
+static int dw_mipi_dsi2_helper_probe_single_connector_modes(struct drm_connector *connector,
+							    uint32_t maxX, uint32_t maxY)
+{
+	int ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
+	dw_mipi_dsi2_config_mode_info(connector);
+
+	return ret;
+}
+
 static enum drm_connector_status
 dw_mipi_dsi2_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -1392,7 +1455,7 @@ dw_mipi_dsi2_atomic_connector_get_property(struct drm_connector *connector,
 }
 
 static const struct drm_connector_funcs dw_mipi_dsi2_atomic_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	.fill_modes = dw_mipi_dsi2_helper_probe_single_connector_modes,
 	.detect = dw_mipi_dsi2_connector_detect,
 	.destroy = dw_mipi_dsi2_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
@@ -1606,6 +1669,7 @@ static int dw_mipi_dsi2_connector_init(struct dw_mipi_dsi2 *dsi2)
 	struct drm_encoder *encoder = &dsi2->encoder;
 	struct drm_connector *connector = &dsi2->connector;
 	struct drm_device *drm_dev = dsi2->drm_dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct device *dev = dsi2->dev;
 	int ret;
 
@@ -1624,6 +1688,8 @@ static int dw_mipi_dsi2_connector_init(struct dw_mipi_dsi2 *dsi2)
 		DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
 		goto connector_cleanup;
 	}
+
+	drm_object_attach_property(&connector->base, private->mode_info_prop, 0);
 
 	return 0;
 
@@ -2011,6 +2077,7 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 
 		device_property_read_u32(dev, "min-refresh-rate", &dsi2->min_refresh_rate);
 		device_property_read_u32(dev, "max-refresh-rate", &dsi2->max_refresh_rate);
+		device_property_read_u32(dev, "refresh-rate-step", &dsi2->refresh_rate_step);
 
 		if (dsi2->max_refresh_rate <= dsi2->min_refresh_rate) {
 			dsi2->min_refresh_rate = 0;

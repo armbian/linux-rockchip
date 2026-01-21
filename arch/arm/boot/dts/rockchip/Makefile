@@ -69,6 +69,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v11-dual-4k.dtb \
 	rv1126b-evb1-v11-fastboot-emmc.dtb \
 	rv1126b-evb1-v11-fastboot-emmc-projector.dtb \
+	rv1126b-evb1-v11-fastboot-emmc-uvc.dtb \
 	rv1126b-evb1-v11-fastboot-spi-nand.dtb \
 	rv1126b-evb1-v11-fastboot-spi-nor.dtb \
 	rv1126b-evb1-v11-spi-nor.dtb \
@@ -76,6 +77,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v12.dtb \
 	rv1126b-evb1-v12-irfpa.dtb \
 	rv1126b-evb1-v12-spi-nand.dtb \
+	rv1126b-evb1-v12-uvc.dtb \
 	rv1126b-evb1-v12-4x-cam.dts \
 	rv1126b-evb2-v10.dtb \
 	rv1126b-evb2-v10-dv.dtb \
@@ -103,6 +105,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126bp-evb-v14-dual-cam.dtb \
 	rv1126bp-evb1-v12.dtb \
 	rv1126bp-evb1-v12-fastboot-emmc.dtb \
+	rv1126bp-evb2-v11.dtb \
 	rk3036-evb.dtb \
 	rk3036-evb1-ddr3-v10.dtb \
 	rk3036-kylin.dtb \
