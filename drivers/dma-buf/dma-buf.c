@@ -846,6 +846,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	spin_lock_init(&dmabuf->name_lock);
 #ifdef CONFIG_DMABUF_CACHE
 	mutex_init(&dmabuf->cache_lock);
+	mutex_init(&dmabuf->attach_lock);
 #endif
 	init_waitqueue_head(&dmabuf->poll);
 	dmabuf->cb_in.poll = dmabuf->cb_out.poll = &dmabuf->poll;

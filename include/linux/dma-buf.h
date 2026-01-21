@@ -526,6 +526,7 @@ struct dma_buf {
 	dma_buf_destructor dtor;
 	void *dtor_data;
 	struct mutex cache_lock;
+	struct mutex attach_lock;
 #endif
 };
 
