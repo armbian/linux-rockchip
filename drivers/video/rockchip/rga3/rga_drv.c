@@ -98,6 +98,32 @@ static void rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
 	}
 }
 
+static void rga_mpi_scale_protect(struct rga_req *msg)
+{
+	uint32_t rotate_mode;
+	uint32_t sw, sh;
+	uint32_t dw, dh;
+
+	rotate_mode = msg->rotate_mode & 0x3;
+
+	sw = msg->src.act_w;
+	sh = msg->src.act_h;
+
+	if ((rotate_mode == 1) | (rotate_mode == 3)) {
+		dw = msg->dst.act_h;
+		dh = msg->dst.act_w;
+	} else {
+		dw = msg->dst.act_w;
+		dh = msg->dst.act_h;
+	}
+
+	/* when scale-up, using default interpolation algorithm. */
+	if (sw < dw)
+		msg->interp.horiz = RGA_INTERP_DEFAULT;
+	if (sh < dh)
+		msg->interp.verti = RGA_INTERP_DEFAULT;
+}
+
 int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 {
 	int ret = 0;
@@ -207,6 +233,8 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 			goto err_put_request;
 		}
 	}
+
+	rga_mpi_scale_protect(&mpi_cmd);
 
 	mpi_cmd.handle_flag = 1;
 	mpi_cmd.mmu_info.mmu_en = 0;
