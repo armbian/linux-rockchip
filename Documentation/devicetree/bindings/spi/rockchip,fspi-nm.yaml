@@ -68,6 +68,10 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/px30-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/px30-power.h>
+
     fspi: spi@ff3a0000 {
         compatible = "rockchip,fspi-nm";
         reg = <0xff3a0000 0x4000>;
