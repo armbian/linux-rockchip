@@ -1161,4 +1161,42 @@ struct rkmodule_mge_oewgt {
 	struct rkmodule_mge_wgtcurve wgtcurve[RKMODULE_MAX_WGT_CURVE_NUM];
 };
 
+#define MAX_FLOAT_WINDOW       8
+enum rkmodule_pdaf_win_mode {
+	FIXED_GRID_WIN_16_12,
+	FIXED_GRID_WIN_8_6,
+	FLOAT_WINDOW,
+};
+
+struct rkmodule_pdaf_win_t {
+	__u16 x_sta;
+	__u16 y_sta;
+	__u16 x_end;
+	__u16 y_end;
+} __attribute__((packed));
+
+struct rkmodule_pdaf_float_win_t {
+	__u32 win_num;
+	struct rkmodule_pdaf_win_t win[MAX_FLOAT_WINDOW];
+} __attribute__((packed));
+
+struct rkmodule_pdaf_fixed_grid_win_t {
+	__u16 area_x_offset;
+	__u16 area_y_offset;
+	__u16 area_width;
+	__u16 area_height;
+} __attribute__((packed));
+
+struct rkmodule_pdaf_win_cfg_t {
+	__u32 win_mode;
+	struct rkmodule_pdaf_float_win_t float_win;
+	struct rkmodule_pdaf_fixed_grid_win_t fixed_win;
+} __attribute__((packed));
+
+#define RKMODULE_GET_PDAF_WIN_CFG  \
+	_IOR('P', BASE_VIDIOC_PRIVATE + 0, struct rkmodule_pdaf_win_cfg_t)
+
+#define RKMODULE_SET_PDAF_WIN_CFG      \
+	_IOW('P', BASE_VIDIOC_PRIVATE + 1, struct rkmodule_pdaf_win_cfg_t)
+
 #endif /* _UAPI_RKMODULE_CAMERA_H */
