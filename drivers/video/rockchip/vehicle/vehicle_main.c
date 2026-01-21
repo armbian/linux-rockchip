@@ -28,6 +28,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
 #include "vehicle_flinger.h"
