@@ -258,6 +258,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L0>;
+			operating-points-v2 = <&cluster0_opp_table>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -265,6 +267,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x1>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L0>;
+			operating-points-v2 = <&cluster0_opp_table>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -272,6 +276,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x2>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L0>;
+			operating-points-v2 = <&cluster0_opp_table>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -279,6 +285,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x3>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L0>;
+			operating-points-v2 = <&cluster0_opp_table>;
 		};
 
 		cpu_l4: cpu@100 {
@@ -286,6 +294,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L1>;
+			operating-points-v2 = <&cluster1_opp_table>;
 		};
 
 		cpu_l5: cpu@101 {
@@ -293,6 +303,8 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_L1>;
+			operating-points-v2 = <&cluster1_opp_table>;
 		};
 
 		cpu_b0: cpu@200 {
@@ -300,6 +312,8 @@
 			compatible = "arm,cortex-a73";
 			reg = <0x200>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_B>;
+			operating-points-v2 = <&cluster2_opp_table>;
 		};
 
 		cpu_b1: cpu@201 {
@@ -307,6 +321,118 @@
 			compatible = "arm,cortex-a73";
 			reg = <0x201>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK_B>;
+			operating-points-v2 = <&cluster2_opp_table>;
+		};
+	};
+
+	cluster0_opp_table: cluster0-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpul_leakage>;
+		nvmem-cell-names = "leakage";
+
+		opp-408000000 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
+	cluster1_opp_table: cluster1-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpul_leakage>;
+		nvmem-cell-names = "leakage";
+
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-594000000 {
+			opp-hz = /bits/ 64 <594000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1188000000 {
+			opp-hz = /bits/ 64 <1188000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
+	cluster2_opp_table: cluster2-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpub_leakage>;
+		nvmem-cell-names = "leakage";
+
+		opp-408000000 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1608000000 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -4381,11 +4507,36 @@
 			clock-names = "clk_gpu_coregroup", "clk_gpu_stacks",
 				      "clk_gpu";
 			power-domains = <&power RK3572_PD_GPU>;
+			operating-points-v2 = <&gpu_opp_table>;
 
 			upthreshold = <30>;
 			downdifferential = <10>;
 
 			status = "disabled";
+		};
+
+		gpu_opp_table: gpu-opp-table {
+			compatible = "operating-points-v2";
+
+			nvmem-cells = <&gpu_leakage>;
+			nvmem-cell-names = "leakage";
+
+			opp-300000000 {
+				opp-hz = /bits/ 64 <300000000>;
+				opp-microvolt = <850000 850000 850000>;
+			};
+			opp-400000000 {
+				opp-hz = /bits/ 64 <400000000>;
+				opp-microvolt = <850000 850000 850000>;
+			};
+			opp-500000000 {
+				opp-hz = /bits/ 64 <500000000>;
+				opp-microvolt = <850000 850000 850000>;
+			};
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				opp-microvolt = <850000 850000 850000>;
+			};
 		};
 
 		sram: sram@3ff88000 {
