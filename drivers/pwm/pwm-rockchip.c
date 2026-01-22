@@ -2479,9 +2479,9 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get(&pdev->dev, "pwm");
+	pc->clk = devm_clk_get_enabled(&pdev->dev, "pwm");
 	if (IS_ERR(pc->clk)) {
-		pc->clk = devm_clk_get(&pdev->dev, NULL);
+		pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 		if (IS_ERR(pc->clk))
 			return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
 					     "Can't get PWM clk\n");
@@ -2490,7 +2490,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	count = of_count_phandle_with_args(pdev->dev.of_node,
 					   "clocks", "#clock-cells");
 	if (count >= 2) {
-		pc->pclk = devm_clk_get(&pdev->dev, "pclk");
+		pc->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
 		pc->clk_osc = devm_clk_get_optional(&pdev->dev, "osc");
 	} else {
 		pc->pclk = pc->clk;
@@ -2499,28 +2499,16 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->pclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pc->pclk), "Can't get APB clk\n");
 
-	ret = clk_prepare_enable(pc->clk);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Can't prepare enable PWM clk\n");
-
-	ret = clk_prepare_enable(pc->pclk);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "Can't prepare enable APB clk\n");
-		goto err_clk;
-	}
-
 	pc->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(pc->pinctrl)) {
 		dev_err(&pdev->dev, "Get pinctrl failed!\n");
-		ret = PTR_ERR(pc->pinctrl);
-		goto err_pclk;
+		return PTR_ERR(pc->pinctrl);
 	}
 
 	pc->active_state = pinctrl_lookup_state(pc->pinctrl, "active");
 	if (IS_ERR(pc->active_state)) {
 		dev_err(&pdev->dev, "No active pinctrl state\n");
-		ret = PTR_ERR(pc->active_state);
-		goto err_pclk;
+		return PTR_ERR(pc->active_state);
 	}
 
 	platform_set_drvdata(pdev, pc);
@@ -2556,8 +2544,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	}
 	if (pc->channel_id < 0 || pc->channel_id >= PWM_MAX_CHANNEL_NUM) {
 		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
-		ret = -EINVAL;
-		goto err_pclk;
+		return -EINVAL;
 	}
 
 	if (pc->freq_meter_support)
@@ -2584,7 +2571,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 					       irq_flags, "rk_pwm_irq", pc);
 			if (ret) {
 				dev_err(&pdev->dev, "Claim IRQ failed\n");
-				goto err_pclk;
+				return ret;
 			}
 		}
 	}
@@ -2602,20 +2589,19 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0) {
 		dev_err_probe(&pdev->dev, ret, "pwmchip_add() failed\n");
-		goto err_pclk;
+		return ret;
 	}
 
 	if (pc->wave_support) {
 		if (!pc->clk_osc) {
 			dev_err(&pdev->dev, "Can't find OSC clk for wave generator mode\n");
-			ret = -EINVAL;
-			goto err_pclk;
+			return -EINVAL;
 		}
 
 		ret = clk_prepare(pc->clk_osc);
 		if (ret) {
 			dev_err(&pdev->dev, "Can't prepare OSC clk for wave generator mode\n");
-			goto err_pclk;
+			return ret;
 		}
 	}
 
@@ -2628,7 +2614,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 
 		rcdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW_TX);
 		if (!rcdev)
-			goto err_pclk;
+			return -ENOMEM;
 
 		rcdev->priv = pc;
 		rcdev->driver_name = "rockchip-pwm-ir-tx";
@@ -2636,7 +2622,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		rcdev->tx_ir = rockchip_pwm_ir_transmit;
 		ret = devm_rc_register_device(&pdev->dev, rcdev);
 		if (ret < 0)
-			goto err_pclk;
+			return ret;
 	}
 #endif
 
@@ -2649,13 +2635,6 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	clk_disable(pc->pclk);
 
 	return 0;
-
-err_pclk:
-	clk_disable_unprepare(pc->pclk);
-err_clk:
-	clk_disable_unprepare(pc->clk);
-
-	return ret;
 }
 
 static int rockchip_pwm_remove(struct platform_device *pdev)
