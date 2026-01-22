@@ -17,6 +17,7 @@ enum vehicle_rkcif_chip_id {
 	CHIP_RK3588_VEHICLE_CIF,
 	CHIP_RK3562_VEHICLE_CIF,
 	CHIP_RK3576_VEHICLE_CIF,
+	CHIP_RK3572_VEHICLE_CIF,
 };
 
 enum rkcif_csi_host_idx {
