@@ -12872,8 +12872,43 @@ void vop3_setup_dynamic_metadata_for_emp(struct vop2_video_port *vp, uint32_t *d
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 1);
 }
 
-static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
-				uint8_t adapt_mode)
+static void vop3_rk3528_s2h_config(struct vop2_video_port *vp, struct hdrvivid_regs *hdrvivid_data)
+{
+	struct vop2 *vop2 = vp->vop2;
+	int i;
+
+	vop2_writel(vop2, RK3528_SDR2HDR_CTRL, hdrvivid_data->sdr2hdr_ctrl);
+	vop2_writel(vop2, RK3528_HDRVIVID_CTRL, hdrvivid_data->hdrvivid_ctrl);
+
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, vp->sdr2hdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, vp->sdr2hdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, vp->sdr2hdr_en ? 0 : 1);
+
+	vop2_writel(vop2, RK3528_SDR_CFG_COE0, hdrvivid_data->sdr2hdr_coe0);
+	vop2_writel(vop2, RK3528_SDR_CFG_COE1, hdrvivid_data->sdr2hdr_coe1);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE00_01, hdrvivid_data->sdr2hdr_csc_coe00_01);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE02_10, hdrvivid_data->sdr2hdr_csc_coe02_10);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE11_12, hdrvivid_data->sdr2hdr_csc_coe11_12);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE20_21, hdrvivid_data->sdr2hdr_csc_coe20_21);
+	vop2_writel(vop2, RK3528_SDR_CSC_COE22, hdrvivid_data->sdr2hdr_csc_coe22);
+
+	for (i = 0; i < RK_SDR2HDR_INVGAMMA_CURVE_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_CURVE + i * 4,
+			hdrvivid_data->sdrinvgamma_curve[i]);
+
+	for (i = 0; i < RK_SDR2HDR_INVGAMMA_S_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_STARTIDX + i * 4,
+			hdrvivid_data->sdrinvgamma_startidx[i]);
+
+	for (i = 0; i < RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDRINVGAMMA_CHANGEIDX + i * 4,
+			hdrvivid_data->sdrinvgamma_changeidx[i]);
+
+	for (i = 0; i < RK_SDR2HDR_SMGAIN_LENGTH; i++)
+		vop2_writel(vop2, RK3528_SDR_SMGAIN + i * 4, hdrvivid_data->sdr_smgain[i]);
+}
+
+static void vop3_setup_hdr_data(struct vop2_video_port *vp, uint8_t win_phys_id, u8 layer)
 {
 	struct vop2 *vop2 = vp->vop2;
 	struct vop2_win *win = vop2_find_win_by_phys_id(vop2, win_phys_id);
@@ -12884,40 +12919,82 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	unsigned long win_mask = vp->win_mask;
 	int phys_id;
-	struct hdrvivid_regs *hdrvivid_data;
-	struct hdr_extend *hdr_data;
+	/* hdr data used by platforms prior to rk3572 */
+	struct hdrvivid_regs *hdrvivid_data = NULL;
+	struct hdr_extend *hdr_extend = NULL;
+	/* hdr data used by rk3572 and subsequent platforms. */
+	struct rk_plane_extend_data *extend_data = NULL;
+	struct hdr_data *hdr_data = NULL;
+	/* emp metadata */
+	uint32_t *hdrvivid_dynamic_metadata = NULL;
 	struct rockchip_gem_object *lut_gem_obj;
 	bool have_sdr_layer = false;
 	uint32_t hdr_mode;
 	int i;
 	u32 *tone_lut_kvaddr;
 	dma_addr_t tone_lut_mst;
+	uint32_t length;
+	enum vop_hdr_format hdr_format;
+	uint8_t adapt_mode = 0;
 
-	vp->hdr_en = false;
-	vp->hdr_in = false;
-	vp->hdr_out = false;
-	vp->sdr2hdr_en = false;
-	vpstate->hdr_in = false;
-	vpstate->hdr2sdr_en = false;
+	if (vop2->version < VOP_VERSION_RK3572) {
+		vpstate->hdr_in = false;
+		vpstate->hdr2sdr_en = false;
 
-	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
-	hdrvivid_data = &hdr_data->hdrvivid_data;
+		if (!vcstate->hdr_ext_data)
+			return;
 
-	hdr_mode = hdrvivid_data->hdr_mode;
+		hdr_extend = (struct hdr_extend *)vcstate->hdr_ext_data->data;
+		hdrvivid_data = &hdr_extend->hdrvivid_data;
 
-	if (hdr_mode > SDR2HLG && hdr_mode != SDR2HDR10_USERSPACE &&
-	    hdr_mode != SDR2HLG_USERSPACE) {
-		DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", hdr_mode);
-		return;
+		if (!hdrvivid_data)
+			return;
+
+		hdr_mode = hdrvivid_data->hdr_mode;
+		length = RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH;
+		hdr_format = hdr_extend->hdr_type & RK_HDR_TYPE_MASK;
+		hdrvivid_dynamic_metadata = hdrvivid_data->hdrvivid_dynamic_metadata;
+
+		if (hdr_mode > SDR2HLG && hdr_mode != SDR2HDR10_USERSPACE &&
+		    hdr_mode != SDR2HLG_USERSPACE) {
+			DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", hdr_mode);
+			return;
+		}
+
+		/* adjust userspace hdr mode value to kernel value */
+		if (hdr_mode == SDR2HDR10_USERSPACE)
+			hdr_mode = SDR2HDR10;
+		if (hdr_mode == SDR2HLG_USERSPACE)
+			hdr_mode = SDR2HLG;
+	} else {
+		/*
+		 * For rk3572 and later platforms, the s2h functionality is independently
+		 * implemented by the cgc-s2h module. Unlike platforms prior to the RK3572,
+		 * where s2h was handled by the hdr module.
+		 */
+		if (!vpstate->ext_data)
+			return;
+
+		extend_data = (struct rk_plane_extend_data *)vpstate->ext_data->data;
+		hdr_data = &extend_data->hdr_data;
+
+		if (!hdr_data)
+			return;
+
+		adapt_mode = (hdr_data->hdr_input_type & RK_HDR_ADAPT_MODE_MASK) >> 16;
+		hdr_mode = hdr_data->hdr_mode;
+		length = RK_HDR_CGC_AXI_TAB_LENGTH;
+		hdr_format = hdr_data->hdr_input_type & RK_HDR_TYPE_MASK;
+		hdrvivid_dynamic_metadata = hdr_data->hdrvivid_dynamic_metadata;
+
+		if (hdr_mode > HDR102SDR) {
+			DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", hdr_mode);
+			return;
+		}
 	}
 
-	/* adjust userspace hdr mode value to kernel value */
-	if (hdr_mode == SDR2HDR10_USERSPACE)
-		hdr_mode = SDR2HDR10;
-	if (hdr_mode == SDR2HLG_USERSPACE)
-		hdr_mode = SDR2HLG;
-
-	if (hdr_mode <= HDR102SDR && vpstate->eotf != HDMI_EOTF_SMPTE_ST2084 && vpstate->eotf != HDMI_EOTF_BT_2100_HLG) {
+	if (hdr_mode <= HDR102SDR && vpstate->eotf != HDMI_EOTF_SMPTE_ST2084 &&
+	    vpstate->eotf != HDMI_EOTF_BT_2100_HLG) {
 		DRM_ERROR("Invalid HDR mode:%d, mismatch plane eotf:%d\n", hdr_mode,
 			  vpstate->eotf);
 		return;
@@ -12963,47 +13040,8 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 			vp->sdr2hdr_en = true;
 	}
 
-	/**
-	 * Config hdr ctrl registers
-	 */
-	vop2_writel(vop2, RK3528_SDR2HDR_CTRL, hdrvivid_data->sdr2hdr_ctrl);
-	vop2_writel(vop2, RK3528_HDRVIVID_CTRL, hdrvivid_data->hdrvivid_ctrl);
-
-	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
-	if (vp->hdr_en) {
-		VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
-		VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
-			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
-		VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
-	} else {
-		VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
-	}
-	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, vp->sdr2hdr_en);
-	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, vp->sdr2hdr_en);
-	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, vp->sdr2hdr_en ? 0 : 1);
-
-	vop2_writel(vop2, RK3528_SDR_CFG_COE0, hdrvivid_data->sdr2hdr_coe0);
-	vop2_writel(vop2, RK3528_SDR_CFG_COE1, hdrvivid_data->sdr2hdr_coe1);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE00_01, hdrvivid_data->sdr2hdr_csc_coe00_01);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE02_10, hdrvivid_data->sdr2hdr_csc_coe02_10);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE11_12, hdrvivid_data->sdr2hdr_csc_coe11_12);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE20_21, hdrvivid_data->sdr2hdr_csc_coe20_21);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE22, hdrvivid_data->sdr2hdr_csc_coe22);
-
-	vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdrvivid_data->hdr_pq_gamma);
-	vop2_writel(vop2, RK3528_HLG_RFIX_SCALEFAC, hdrvivid_data->hlg_rfix_scalefac);
-	vop2_writel(vop2, RK3528_HLG_MAXLUMA, hdrvivid_data->hlg_maxluma);
-	vop2_writel(vop2, RK3528_HLG_R_TM_LIN2NON, hdrvivid_data->hlg_r_tm_lin2non);
-
-	vop2_writel(vop2, RK3528_HDR_CSC_COE00_01, hdrvivid_data->hdr_csc_coe00_01);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE02_10, hdrvivid_data->hdr_csc_coe02_10);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdrvivid_data->hdr_csc_coe11_12);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdrvivid_data->hdr_csc_coe20_21);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdrvivid_data->hdr_csc_coe22);
-
 	if (!vp->hdr_lut_gem_obj) {
-		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-			RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH * 4, true, 0);
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev, length * 4, true, 0);
 		if (IS_ERR(lut_gem_obj)) {
 			DRM_ERROR("create hdr lut obj failed\n");
 			return;
@@ -13014,8 +13052,84 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
 	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
 
-	for (i = 0; i < RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH; i++)
-		*tone_lut_kvaddr++ = hdrvivid_data->tone_sca_axi_tab[i];
+	/**
+	 * Config hdr ctrl registers
+	 */
+	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
+	if (vp->hdr_en) {
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
+			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
+		VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
+	} else {
+		VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
+	}
+
+	/* For rk3528/rk3576 */
+	if (hdrvivid_data) {
+		/* For rk3528/rk3576 sdr2hdr */
+		vop3_rk3528_s2h_config(vp, hdrvivid_data);
+
+		vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdrvivid_data->hdr_pq_gamma);
+		vop2_writel(vop2, RK3528_HLG_RFIX_SCALEFAC, hdrvivid_data->hlg_rfix_scalefac);
+		vop2_writel(vop2, RK3528_HLG_MAXLUMA, hdrvivid_data->hlg_maxluma);
+		vop2_writel(vop2, RK3528_HLG_R_TM_LIN2NON, hdrvivid_data->hlg_r_tm_lin2non);
+
+		vop2_writel(vop2, RK3528_HDR_CSC_COE00_01, hdrvivid_data->hdr_csc_coe00_01);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE02_10, hdrvivid_data->hdr_csc_coe02_10);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdrvivid_data->hdr_csc_coe11_12);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdrvivid_data->hdr_csc_coe20_21);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdrvivid_data->hdr_csc_coe22);
+
+		for (i = 0; i < RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH; i++)
+			*tone_lut_kvaddr++ = hdrvivid_data->tone_sca_axi_tab[i];
+
+		for (i = 0; i < RK_HDRVIVID_GAMMA_CURVE_LENGTH; i++)
+			vop2_writel(vop2, RK3528_HDRGAMMA_CURVE + i * 4,
+				    hdrvivid_data->hdrgamma_curve[i]);
+
+		for (i = 0; i < RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH; i++)
+			vop2_writel(vop2, RK3528_HDRGAMMA_MDFVALUE + i * 4,
+				    hdrvivid_data->hdrgamma_mdfvalue[i]);
+	} else if (hdr_data) {
+		/* For rk3538/rk3572 */
+		vop2_writel(vop2, RK3528_HDRVIVID_CTRL, hdr_data->hdrvivid_ctrl);
+
+		VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
+		if (vp->hdr_en) {
+			VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
+			VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
+				(hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
+			VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en,
+				       (hdr_mode == HDR_BYPASS) ? 1 : 0);
+		} else {
+			VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
+		}
+
+		vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdr_data->hdr_pq_gamma);
+		vop2_writel(vop2, RK3528_HLG_RFIX_SCALEFAC, hdr_data->hlg_rfix_scalefac);
+		vop2_writel(vop2, RK3528_HLG_MAXLUMA, hdr_data->hlg_maxluma);
+		vop2_writel(vop2, RK3528_HLG_R_TM_LIN2NON, hdr_data->hlg_r_tm_lin2non);
+
+		vop2_writel(vop2, RK3528_HDR_CSC_COE00_01, hdr_data->hdr_csc_coe00_01);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE02_10, hdr_data->hdr_csc_coe02_10);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdr_data->hdr_csc_coe11_12);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdr_data->hdr_csc_coe20_21);
+		vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdr_data->hdr_csc_coe22);
+
+		for (i = 0; i < RK_HDRVIVID_GAMMA_CURVE_LENGTH; i++)
+			vop2_writel(vop2, RK3528_HDRGAMMA_CURVE + i * 4,
+				    hdr_data->hdrgamma_curve[i]);
+
+		for (i = 0; i < RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH; i++)
+			vop2_writel(vop2, RK3528_HDRGAMMA_MDFVALUE + i * 4,
+				hdr_data->hdrgamma_mdfvalue[i]);
+
+		for (i = 0; i < RK_HDRVIVID_TONE_SCA_TAB_LENGTH; i++)
+			*tone_lut_kvaddr++ = hdr_data->tone_sca_axi_tab[i];
+
+		VOP_MODULE_SET(vop2, vp, hdr10_layer_sel, layer);
+	}
 
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
@@ -13023,33 +13137,9 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 
-	for (i = 0; i < RK_HDRVIVID_GAMMA_CURVE_LENGTH; i++)
-		vop2_writel(vop2, RK3528_HDRGAMMA_CURVE + i * 4, hdrvivid_data->hdrgamma_curve[i]);
-
-	for (i = 0; i < RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH; i++)
-		vop2_writel(vop2, RK3528_HDRGAMMA_MDFVALUE + i * 4,
-			    hdrvivid_data->hdrgamma_mdfvalue[i]);
-
-	for (i = 0; i < RK_SDR2HDR_INVGAMMA_CURVE_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_CURVE + i * 4,
-			    hdrvivid_data->sdrinvgamma_curve[i]);
-
-	for (i = 0; i < RK_SDR2HDR_INVGAMMA_S_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_STARTIDX + i * 4,
-			    hdrvivid_data->sdrinvgamma_startidx[i]);
-
-	for (i = 0; i < RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_CHANGEIDX + i * 4,
-			    hdrvivid_data->sdrinvgamma_changeidx[i]);
-
-	for (i = 0; i < RK_SDR2HDR_SMGAIN_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDR_SMGAIN + i * 4, hdrvivid_data->sdr_smgain[i]);
-
 	if (adapt_mode == HDRVIVID_RX_MODE)
-		vop3_setup_dynamic_metadata_for_emp(vp, hdrvivid_data->hdrvivid_dynamic_metadata,
+		vop3_setup_dynamic_metadata_for_emp(vp, hdrvivid_dynamic_metadata,
 						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
-
-	vpstate->hdr_type = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
 
 	/*
 	 * VP hdr type initial value is according to vcstate->eotf
@@ -13061,7 +13151,7 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	if (adapt_mode)
 		vcstate->hdr_type = HDR_HDRVIVID;
 
-	if (((hdr_data->hdr_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) && (hdr_mode == HDR_BYPASS))
+	if (hdr_format == HDR_HDR10PLUS && hdr_mode == HDR_BYPASS)
 		vcstate->hdr_type = HDR_HDR10PLUS;
 }
 
@@ -13072,7 +13162,6 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	struct vop2 *vop2 = vp->vop2;
 	struct hdr_extend *hdr_data;
 	uint32_t hdr_format;
-	uint8_t adapt_mode;
 
 	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
@@ -13086,7 +13175,6 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 	hdr_format = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
-	adapt_mode = (hdr_data->hdr_type & RK_HDR_ADAPT_MODE_MASK) >> 16;
 
 	switch (hdr_format) {
 	case HDR_NONE:
@@ -13097,7 +13185,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 		 * hdr module support hdr10, hlg, vividhdr
 		 * sdr2hdr module support hdrnone for sdr2hdr
 		 */
-		vop3_setup_hdrvivid(vp, win_phys_id, adapt_mode);
+		vop3_setup_hdr_data(vp, win_phys_id, 0);
 		break;
 	default:
 		DRM_DEBUG("unsupprot hdr format:%u\n", hdr_format);
@@ -14828,6 +14916,60 @@ static void vop2_crtc_update_zpos_for_dovi(struct drm_crtc *crtc, struct vop2_zp
 	}
 }
 
+static void vop3_cgc_s2h_data_config(struct vop2_video_port *vp, struct cgc_s2h_data *cgc_s2h_data,
+				     dma_addr_t *tone_lut_mst, u32 ctrl_offset, u32 invgamma_offset)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct rockchip_gem_object *lut_gem_obj;
+	int i;
+	uint32_t *tone_lut_kvaddr;
+	uint32_t *coe_data;
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
+
+	*tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
+
+	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
+
+	if (ctrl_offset == RK3528_SDR2HDR_CTRL)
+		/* s2h axi offset is 0x408 */
+		tone_lut_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + 1);
+	else
+		/* cgc axi offset is 0x5e0 */
+		tone_lut_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + CGC_S2H_OETF_LENGTH + 2);
+
+	for (i = 0; i < CGC_S2H_OETF_LENGTH; i++)
+		*tone_lut_kvaddr++ = cgc_s2h_data->cgc_s2h_oetf[i];
+
+	vop2_writel(vop2, ctrl_offset, cgc_s2h_data->cgc_s2h_ctrl);
+
+	coe_data = &cgc_s2h_data->cgc_s2h_coe0;
+
+	/* coe regs config */
+	for (i = 0; i < CGC_S2H_COE_LENGTH; i++)
+		vop2_writel(vop2, ctrl_offset + 4 * (i + 1), *coe_data++);
+
+	for (i = 0; i < INV_GAMMA_DIFF_SHIFT_LENGTH; i++)
+		vop2_writel(vop2, invgamma_offset + i * 4,
+			    cgc_s2h_data->cgc_s2h_inv_gamma_diff_shift[i]);
+
+	for (i = 0; i < INV_GAMMA_START_IDX_LENGTH; i++)
+		vop2_writel(vop2, invgamma_offset + 0x120 + i * 4,
+			    cgc_s2h_data->cgc_s2h_inv_gamma_start_idx[i]);
+
+	for (i = 0; i < INV_GAMMA_CHANGE_IDX_LENGTH; i++)
+		vop2_writel(vop2, invgamma_offset + 0x140 + i * 4,
+			    cgc_s2h_data->cgc_s2h_inv_gamma_change_idx[i]);
+}
+
 static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
@@ -14835,16 +14977,8 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	struct hdr_extend *hdr_extend = NULL;
 	struct cgc_s2h_data *s2h_data = NULL;
-	struct rockchip_gem_object *lut_gem_obj;
-	uint32_t sdr2hdr_coe0, sdr2hdr_coe1;
-	uint32_t sdr2hdr_csc_coe00_01, sdr2hdr_csc_coe02_10;
-	uint32_t sdr2hdr_csc_coe11_12, sdr2hdr_csc_coe20_21;
-	uint32_t sdr2hdr_csc_coe22;
-	int i;
-	uint32_t *tone_lut_kvaddr;
-	dma_addr_t tone_lut_mst;
+	dma_addr_t tone_lut_mst = 0;
 
-	vp->sdr2hdr_en = false;
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_en, 0);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, 0);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, 1);
@@ -14867,53 +15001,8 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 		return;
 	}
 
-	sdr2hdr_coe0 = s2h_data->cgc_s2h_coe0;
-	sdr2hdr_coe1 = s2h_data->cgc_s2h_coe1;
-	sdr2hdr_csc_coe00_01 = s2h_data->cgc_s2h_csc_coe00_01;
-	sdr2hdr_csc_coe02_10 = s2h_data->cgc_s2h_csc_coe02_10;
-	sdr2hdr_csc_coe11_12 = s2h_data->cgc_s2h_csc_coe11_12;
-	sdr2hdr_csc_coe20_21 = s2h_data->cgc_s2h_csc_coe20_21;
-	sdr2hdr_csc_coe22 = s2h_data->cgc_s2h_csc_coe22;
-
-	vop2_writel(vop2, RK3528_SDR2HDR_CTRL, s2h_data->cgc_s2h_ctrl);
-	vop2_writel(vop2, RK3528_SDR_CFG_COE0, sdr2hdr_coe0);
-	vop2_writel(vop2, RK3528_SDR_CFG_COE1, sdr2hdr_coe1);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE00_01, sdr2hdr_csc_coe00_01);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE02_10, sdr2hdr_csc_coe02_10);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE11_12, sdr2hdr_csc_coe11_12);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE20_21, sdr2hdr_csc_coe20_21);
-	vop2_writel(vop2, RK3528_SDR_CSC_COE22, sdr2hdr_csc_coe22);
-
-	if (!vp->hdr_lut_gem_obj) {
-		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
-		if (IS_ERR(lut_gem_obj)) {
-			DRM_ERROR("create hdr lut obj failed\n");
-			return;
-		}
-		vp->hdr_lut_gem_obj = lut_gem_obj;
-	}
-
-	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
-
-	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
-	/* cgc s2h axi offset is 0x408 */
-	tone_lut_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + 1);
-
-	for (i = 0; i < CGC_S2H_OETF_LENGTH; i++)
-		*tone_lut_kvaddr++ = s2h_data->cgc_s2h_oetf[i];
-
-	for (i = 0; i < INV_GAMMA_DIFF_SHIFT_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_CURVE + i * 4,
-			    s2h_data->cgc_s2h_inv_gamma_diff_shift[i]);
-
-	for (i = 0; i < INV_GAMMA_START_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_STARTIDX + i * 4,
-			    s2h_data->cgc_s2h_inv_gamma_start_idx[i]);
-
-	for (i = 0; i < INV_GAMMA_CHANGE_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3528_SDRINVGAMMA_CHANGEIDX + i * 4,
-			    s2h_data->cgc_s2h_inv_gamma_change_idx[i]);
+	vop3_cgc_s2h_data_config(vp, s2h_data, &tone_lut_mst, RK3528_SDR2HDR_CTRL,
+				 RK3528_SDRINVGAMMA_CURVE);
 
 	vp->sdr2hdr_en = true;
 	/* s2h needs to operate in the rgb domain */
@@ -14933,51 +15022,14 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 			   struct cgc_s2h_data *cgc_data, u8 layer)
 {
 	struct vop2 *vop2 = vp->vop2;
-	struct rockchip_gem_object *lut_gem_obj;
 	struct drm_plane *plane = &win->base;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(plane->state);
 	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
-	u32 *cgc_oetf_kvaddr;
-	dma_addr_t lut_mst;
-	u32 i;
+	dma_addr_t lut_mst = 0;
 
-	if (!vp->hdr_lut_gem_obj) {
-		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
-		if (IS_ERR(lut_gem_obj)) {
-			DRM_ERROR("create hdr lut obj failed\n");
-			return;
-		}
-		vp->hdr_lut_gem_obj = lut_gem_obj;
-	}
-
-	lut_mst = vp->hdr_lut_gem_obj->dma_addr;
-	cgc_oetf_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
-	/* cgc axi offset is 0x5e0 */
-	cgc_oetf_kvaddr += (RK_HDRVIVID_TONE_SCA_TAB_LENGTH + CGC_S2H_OETF_LENGTH + 2);
-
-	for (i = 0; i < CGC_S2H_OETF_LENGTH; i++)
-		*cgc_oetf_kvaddr++ = cgc_data->cgc_s2h_oetf[i];
-
-	for (i = 0; i < INV_GAMMA_DIFF_SHIFT_LENGTH; i++)
-		vop2_writel(vop2, RK3572_CGCINVGAMMA_CURVE + i * 4,
-			    cgc_data->cgc_s2h_inv_gamma_diff_shift[i]);
-	for (i = 0; i < INV_GAMMA_START_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3572_CGCINVGAMMA_STARTIDX + i * 4,
-			    cgc_data->cgc_s2h_inv_gamma_start_idx[i]);
-	for (i = 0; i < INV_GAMMA_CHANGE_IDX_LENGTH; i++)
-		vop2_writel(vop2, RK3572_CGCINVGAMMA_CHANGEIDX + i * 4,
-			    cgc_data->cgc_s2h_inv_gamma_change_idx[i]);
-
-	vop2_writel(vop2, RK3572_CGC_CTRL, cgc_data->cgc_s2h_ctrl);
-	vop2_writel(vop2, RK3572_CGC_CFG_COE0, cgc_data->cgc_s2h_coe0);
-	vop2_writel(vop2, RK3572_CGC_CFG_COE1, cgc_data->cgc_s2h_coe1);
-	vop2_writel(vop2, RK3572_CGC_CSC_COE00_01, cgc_data->cgc_s2h_csc_coe00_01);
-	vop2_writel(vop2, RK3572_CGC_CSC_COE02_10, cgc_data->cgc_s2h_csc_coe02_10);
-	vop2_writel(vop2, RK3572_CGC_CSC_COE11_12, cgc_data->cgc_s2h_csc_coe11_12);
-	vop2_writel(vop2, RK3572_CGC_CSC_COE20_21, cgc_data->cgc_s2h_csc_coe20_21);
-	vop2_writel(vop2, RK3572_CGC_CSC_COE22, cgc_data->cgc_s2h_csc_coe22);
+	vop3_cgc_s2h_data_config(vp, cgc_data, &lut_mst, RK3572_CGC_CTRL,
+				 RK3572_CGCINVGAMMA_CURVE);
 
 	VOP_MODULE_SET(vop2, vp, cgc_path_en, 1);
 	VOP_MODULE_SET(vop2, vp, cgc_layer_sel, layer);
@@ -14993,130 +15045,6 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 	vcstate->yuv_overlay = false;
 }
 
-static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win,
-				struct hdr_data *hdr_data, u8 layer)
-{
-	struct vop2 *vop2 = vp->vop2;
-	struct drm_plane *plane = &win->base;
-	struct drm_plane_state *pstate = plane->state;
-	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
-	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
-	struct rockchip_gem_object *lut_gem_obj;
-	uint32_t hdr_mode;
-	int i;
-	u32 *tone_lut_kvaddr;
-	dma_addr_t tone_lut_mst;
-	uint8_t adapt_mode;
-
-	hdr_mode = hdr_data->hdr_mode;
-
-	if (hdr_mode > HDR102SDR) {
-		DRM_ERROR("Invalid HDR mode:%d, beyond the mode range\n", hdr_mode);
-		return;
-	}
-
-	if (hdr_mode <= HDR102SDR && vpstate->eotf != HDMI_EOTF_SMPTE_ST2084 &&
-	    vpstate->eotf != HDMI_EOTF_BT_2100_HLG) {
-		DRM_ERROR("Invalid HDR mode:%d, mismatch plane eotf:%d\n", hdr_mode,
-			  vpstate->eotf);
-		return;
-	}
-
-	vp->hdrvivid_mode = hdr_mode;
-	vcstate->yuv_overlay = false;
-
-	if (hdr_mode <= HDR102SDR) {
-		vp->hdr_en = true;
-		vp->hdr_in = true;
-		vpstate->hdr_in = true;
-	}
-
-	if (hdr_mode == PQHDR2SDR_WITH_DYNAMIC || hdr_mode == HLG2SDR_WITH_DYNAMIC ||
-	    hdr_mode == HLG2SDR_WITHOUT_DYNAMIC || hdr_mode == HDR102SDR)
-		vpstate->hdr2sdr_en = true;
-	else
-		vp->hdr_out = true;
-
-	/**
-	 * Config hdr ctrl registers
-	 */
-	vop2_writel(vop2, RK3528_HDRVIVID_CTRL, hdr_data->hdrvivid_ctrl);
-
-	VOP_MODULE_SET(vop2, vp, hdr10_en, vp->hdr_en);
-	if (vp->hdr_en) {
-		VOP_MODULE_SET(vop2, vp, hdrvivid_en, (hdr_mode == HDR_BYPASS) ? 0 : 1);
-		VOP_MODULE_SET(vop2, vp, hdrvivid_path_mode,
-			       (hdr_mode == HDR102SDR) ? PQHDR2SDR_WITH_DYNAMIC : hdr_mode);
-		VOP_MODULE_SET(vop2, vp, hdrvivid_bypass_en, (hdr_mode == HDR_BYPASS) ? 1 : 0);
-	} else {
-		VOP_MODULE_SET(vop2, vp, hdrvivid_en, 0);
-	}
-
-	vop2_writel(vop2, RK3528_HDR_PQ_GAMMA, hdr_data->hdr_pq_gamma);
-	vop2_writel(vop2, RK3528_HLG_RFIX_SCALEFAC, hdr_data->hlg_rfix_scalefac);
-	vop2_writel(vop2, RK3528_HLG_MAXLUMA, hdr_data->hlg_maxluma);
-	vop2_writel(vop2, RK3528_HLG_R_TM_LIN2NON, hdr_data->hlg_r_tm_lin2non);
-
-	vop2_writel(vop2, RK3528_HDR_CSC_COE00_01, hdr_data->hdr_csc_coe00_01);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE02_10, hdr_data->hdr_csc_coe02_10);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdr_data->hdr_csc_coe11_12);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdr_data->hdr_csc_coe20_21);
-	vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdr_data->hdr_csc_coe22);
-
-	for (i = 0; i < RK_HDRVIVID_GAMMA_CURVE_LENGTH; i++)
-		vop2_writel(vop2, RK3528_HDRGAMMA_CURVE + i * 4, hdr_data->hdrgamma_curve[i]);
-
-	for (i = 0; i < RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH; i++)
-		vop2_writel(vop2, RK3528_HDRGAMMA_MDFVALUE + i * 4,
-			    hdr_data->hdrgamma_mdfvalue[i]);
-
-	if (!vp->hdr_lut_gem_obj) {
-		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-							 RK_HDR_CGC_AXI_TAB_LENGTH * 4, true, 0);
-		if (IS_ERR(lut_gem_obj)) {
-			DRM_ERROR("create hdr lut obj failed\n");
-			return;
-		}
-		vp->hdr_lut_gem_obj = lut_gem_obj;
-	}
-
-	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
-	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
-
-	for (i = 0; i < RK_HDRVIVID_TONE_SCA_TAB_LENGTH; i++)
-		*tone_lut_kvaddr++ = hdr_data->tone_sca_axi_tab[i];
-
-	VOP_MODULE_SET(vop2, vp, hdr10_layer_sel, layer);
-	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
-	VOP_CTRL_SET(vop2, lut_dma_en, 1);
-
-	adapt_mode = (hdr_data->hdr_input_type & RK_HDR_ADAPT_MODE_MASK) >> 16;
-
-	if (adapt_mode == HDRVIVID_RX_MODE)
-		vop3_setup_dynamic_metadata_for_emp(vp, hdr_data->hdrvivid_dynamic_metadata,
-						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
-
-	vpstate->hdr_type = hdr_data->hdr_input_type & RK_HDR_TYPE_MASK;
-
-	/*
-	 * VP hdr type initial value is according to vcstate->eotf
-	 * which comes from display interface. Different hdr types
-	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
-	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
-	 * assessment will be needed based on the actual situation.
-	 */
-	if (adapt_mode)
-		vcstate->hdr_type = HDR_HDRVIVID;
-
-	if (((hdr_data->hdr_input_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) &&
-	    (hdr_mode == HDR_BYPASS))
-		vcstate->hdr_type = HDR_HDR10PLUS;
-}
-
 static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 				      const struct vop2_zpos *vop2_zpos)
 {
@@ -15128,7 +15056,6 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 	struct vop2_plane_state *vpstate;
 	struct vop2_win *win;
 	struct cgc_s2h_data *cgc_data = NULL;
-	struct hdr_data *hdr_data = NULL;
 	struct rk_plane_extend_data *extend_data = NULL;
 	u32 i;
 
@@ -15141,10 +15068,6 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
-
-	vp->hdr_en = false;
-	vp->hdr_in = false;
-	vp->cgc_en = false;
 
 	for (i = 0; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
@@ -15173,15 +15096,15 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 				DRM_ERROR("plane cgc layer is %d, out of range\n", i);
 			} else {
 				cgc_data = &extend_data->cgc_s2h_data;
+				/* plane cgc config, use for colorspace convert */
 				vop3_setup_cgc(vp, win, cgc_data, i);
 			}
 		} else if (extend_data->type == RK_PLANE_EXTEND_DATA_HDR) {
-			if (i >= vp_data->hdr_cgc_layer_num) {
+			if (i >= vp_data->hdr_cgc_layer_num)
 				DRM_ERROR("plane hdr layer is %d, out of range\n", i);
-			} else {
-				hdr_data = &extend_data->hdr_data;
-				vop3_setup_hdr_data(vp, win, hdr_data, i);
-			}
+			else
+				/* plane hdr/hdr2sdr config */
+				vop3_setup_hdr_data(vp, zpos->win_phys_id, i);
 		}
 	}
 }
@@ -15346,14 +15269,33 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 			}
 		}
 
+		vp->hdr_en = false;
+		vp->hdr_in = false;
+		vp->hdr_out = false;
+		vp->cgc_en = false;
+		vp->sdr2hdr_en = false;
+
 		if (is_vop3(vop2)) {
 			if (vp_data->feature & VOP_FEATURE_VIVID_HDR) {
+				/*
+				 * For platforms after RK3572, sdr2hdr data is placed in
+				 * crtc property HDR_EXT_DATA
+				 */
 				if (vp_data->feature & VOP_FEATURE_CGC)
 					vop3_setup_vp_cgc_s2h(vp);
 				else
+					/*
+					 * For RK3528/RK3576 platforms, hdr/hdr2sdr/sdr2hdr data
+					 * is in crtc property HDR_EXT_DATA
+					 */
 					vop3_setup_dynamic_hdr(vp, vop2_zpos[0].win_phys_id);
 			}
 
+			/*
+			 * For platforms after RK3572, hdr/hdr2sdr/cgc data is placed in each
+			 * individual plane property EXT_DATA to support future hdr
+			 * capability for every layer.
+			 */
 			if (vp_data->feature & VOP_FEATURE_CGC)
 				vop3_setup_plane_ext_data(vp, vop2_zpos);
 
