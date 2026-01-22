@@ -98,6 +98,41 @@
 		};
 	};
 
+	spdif_rx0_dc: spdif-rx0-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_rx0_sound: spdif-rx0-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,spdif-rx0";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_rx0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_rx0_dc>;
+		};
+	};
+
+	spdif_tx0_dc: spdif-tx0-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx0_sound: spdif-tx0-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,spdif-tx0";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx0_dc>;
+		};
+	};
+
 	test-power {
 		status = "okay";
 	};
