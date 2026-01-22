@@ -89,6 +89,15 @@
 		cooling-levels = <0 80 170 255>;
 	};
 
+	hdmi_sound: hdmi-sound {
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-hdmi";
+		rockchip,cpu = <&sai4>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
+	};
+
 	leds: leds {
 		status = "disabled";
 		compatible = "gpio-leds";
@@ -665,6 +674,12 @@
 
 &rkvenc_mmu {
 	status = "okay";
+};
+
+&sai4 {
+	status = "okay";
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 };
 
 &sdhci {
