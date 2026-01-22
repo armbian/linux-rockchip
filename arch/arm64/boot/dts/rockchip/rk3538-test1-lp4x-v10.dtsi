@@ -8,9 +8,9 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-
 #include "rk3538.dtsi"
 #include "rk3538-evb.dtsi"
+#include "rk3538-evb-input-keymap.dtsi"
 
 / {
 	sdio_pwrseq: sdio-pwrseq {

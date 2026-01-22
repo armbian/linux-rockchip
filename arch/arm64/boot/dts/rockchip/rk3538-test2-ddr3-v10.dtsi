@@ -8,6 +8,7 @@
 
 #include "rk3538.dtsi"
 #include "rk3538-evb.dtsi"
+#include "rk3538-evb-input-keymap.dtsi"
 
 /{
 	sdio_pwrseq: sdio-pwrseq {
