@@ -217,6 +217,10 @@ static void csi2_enable(struct csi2_hw *csi2_hw,
 	} else {
 		csi2->is_detect_fs_fe = true;
 	}
+	if (csi2->is_switch_mode) {
+		mask1 |= CSIHOST_ERR1_ERR_BNDRY_MATCH;
+		mask1 |= CSIHOST_ERR1_ERR_SEQ;
+	}
 	if (host_type == RK_DSI_RXHOST) {
 		val |= SW_DSI_EN(1) | SW_DATATYPE_FS(0x01) |
 		       SW_DATATYPE_FE(0x11) | SW_DATATYPE_LS(0x21) |
@@ -435,6 +439,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->crop.width = RKCIF_DEFAULT_WIDTH;
 	csi2->crop.height = RKCIF_DEFAULT_HEIGHT;
 	csi2->mbus.bus.mipi_csi2.num_data_lanes = 4;
+	csi2->is_switch_mode = false;
 
 	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
@@ -710,6 +715,12 @@ static long rkcif_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		err_info = (struct rkmodule_error_info *)arg;
 		ret = csi2_get_error_info(csi2, err_info);
 		break;
+	case RKMODULE_SET_SWITCH_MODE:
+		if (*(int *)arg)
+			csi2->is_switch_mode = true;
+		else
+			csi2->is_switch_mode = false;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -727,6 +738,7 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 	int sw_dbg = 0;
 	long ret;
 	struct rkmodule_error_info *err_info;
+	int switch_mode;
 
 	switch (cmd) {
 	case RKCIF_CMD_SET_CSI_IDX:
@@ -756,6 +768,12 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 			}
 		}
 		kfree(err_info);
+		break;
+	case RKMODULE_SET_SWITCH_MODE:
+		if (copy_from_user(&switch_mode, up, sizeof(int)))
+			return -EFAULT;
+
+		ret = rkcif_csi2_ioctl(sd, cmd, &switch_mode);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

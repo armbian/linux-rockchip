@@ -9401,6 +9401,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	int i = 0;
 	u32 skip_frame = 0;
 	int on = 1;
+	int switch_mode;
 	struct rkmodule_channel_stream ch_stream;
 	u32 exp_mode;
 
@@ -9520,6 +9521,16 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 				       &csi_info);
 		if (ret)
 			v4l2_err(&dev->v4l2_dev, "set csi idx %d fail\n", dev->csi_host_idx);
+		if (dev->switch_info.is_use_switch)
+			switch_mode = 1;
+		else
+			switch_mode = 0;
+		ret = v4l2_subdev_call(dev->active_sensor->sd,
+				       core, ioctl,
+				       RKMODULE_SET_SWITCH_MODE,
+				       &switch_mode);
+		if (ret)
+			v4l2_err(&dev->v4l2_dev, "set csi switch mode fail\n");
 
 	}
 
