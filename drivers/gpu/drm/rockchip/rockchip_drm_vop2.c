@@ -3351,6 +3351,37 @@ static uint16_t vop3_scale_factor(enum scale_mode mode,
 	return fac;
 }
 
+static uint32_t rk3538_zme_scl_coe_sel(uint32_t src, uint32_t dst)
+{
+	uint32_t scale_fac = dst * 1000 / src;
+
+	if (dst < src) {
+		if (scale_fac >= 833)
+			return 4;
+		else if (scale_fac >= 700)
+			return 5;
+		else if (scale_fac >= 500)
+			return 6;
+		else if (scale_fac >= 330)
+			return 7;
+		else if (scale_fac >= 250)
+			return 8;
+		else
+			return 9;
+	} else if (dst > src) {
+		if (scale_fac >= 2667)
+			return 0;
+		else if (scale_fac >= 2000)
+			return 1;
+		else if (scale_fac >= 1500)
+			return 2;
+		else
+			return 3;
+	} else {
+		return 0;
+	}
+}
+
 static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
 			     uint32_t dst_h, struct drm_plane_state *pstate)
@@ -3373,7 +3404,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	uint16_t hscl_filter_mode, vscl_filter_mode;
 	uint8_t xgt2 = 0, xgt4 = 0;
 	uint8_t ygt2 = 0, ygt4 = 0;
-	uint32_t val;
+	uint32_t val, zme_coe_sel;
 
 	if (is_vop3(vop2)) {
 		if (vop2_cluster_window(win) &&
@@ -3494,6 +3525,17 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			VOP_SCL_SET(vop2, win, zme_dering_para, 0x04100d10);/* Recommended configuration from the algorithm */
 			VOP_SCL_SET(vop2, win, zme_dering_en, zme_dering_en);
 		}
+
+		if (win->regs->scl->zme_xscl_coe_sel.mask) {
+			zme_coe_sel = rk3538_zme_scl_coe_sel(src_w, dst_w);
+			VOP_SCL_SET(vop2, win, zme_xscl_coe_sel, zme_coe_sel);
+		}
+
+		if (win->regs->scl->zme_yscl_coe_sel.mask) {
+			zme_coe_sel = rk3538_zme_scl_coe_sel(src_h, dst_h);
+			VOP_SCL_SET(vop2, win, zme_yscl_coe_sel, zme_coe_sel);
+		}
+
 		VOP_SCL_SET(vop2, win, xgt_en, xgt_en);
 		VOP_SCL_SET(vop2, win, xavg_en, xavg_en);
 		VOP_SCL_SET(vop2, win, xgt_mode, xgt2 ? 0 : 1);

@@ -3518,6 +3518,8 @@ static const struct vop2_scl_regs rk3572_cluster0_win_scl = {
 	.xgt_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 24),
 	.xgt_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x3, 25),
 	.zme_dering_en = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0x1, 3),
+	.zme_xscl_coe_sel = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0xf, 12),
+	.zme_yscl_coe_sel = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0xf, 16),
 	.zme_dering_para = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_DERING_PARA, 0xffffffff, 0),
 };
 

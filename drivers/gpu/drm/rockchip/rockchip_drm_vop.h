@@ -951,6 +951,8 @@ struct vop2_scl_regs {
 	struct vop_reg cbcr_vscl_filter_mode;
 	struct vop_reg zme_dering_en;
 	struct vop_reg zme_dering_para;
+	struct vop_reg zme_xscl_coe_sel;
+	struct vop_reg zme_yscl_coe_sel;
 	struct vop_reg vsd_cbcr_gt2;
 	struct vop_reg vsd_cbcr_gt4;
 	struct vop_reg vsd_yrgb_gt2;
