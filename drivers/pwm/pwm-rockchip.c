@@ -2456,6 +2456,8 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long irq_flags;
 	u32 enable_conf, ctrl, feature;
+	u32 clk_src_sel = SRC_CLK_PWM;
+	const char *clk_src_name = "pwm";
 	bool enabled;
 	int ret, count;
 
@@ -2479,12 +2481,18 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get_enabled(&pdev->dev, "pwm");
+	if (!device_property_read_string(&pdev->dev, "rockchip,clk-src", &clk_src_name)) {
+		if (!strcmp(clk_src_name, "osc"))
+			clk_src_sel = SRC_CLK_PWM_OSC;
+		else if (!strcmp(clk_src_name, "rc"))
+			clk_src_sel = SRC_CLK_PWM_RC;
+	}
+	pc->clk = devm_clk_get_enabled(&pdev->dev, clk_src_name);
 	if (IS_ERR(pc->clk)) {
 		pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 		if (IS_ERR(pc->clk))
 			return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
-					     "Can't get PWM clk\n");
+					     "Can't get %s clk\n", clk_src_name);
 	}
 
 	count = of_count_phandle_with_args(pdev->dev.of_node,
@@ -2549,6 +2557,9 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
 		return -EINVAL;
 	}
+
+	if (pc->main_version == 4)
+		writel_relaxed(CLK_SRC_SEL(clk_src_sel), pc->base + CLK_CTRL);
 
 	if (pc->freq_meter_support)
 		init_completion(&pc->freq_meter_completion);
