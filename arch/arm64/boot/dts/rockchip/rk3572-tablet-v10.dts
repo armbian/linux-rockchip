@@ -235,6 +235,18 @@
 	};
 };
 
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+};
+
+&cpu_l4 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_big_s0>;
+};
+
 &display_subsystem {
 	status = "okay";
 };
@@ -387,6 +399,7 @@
 };
 
 &gpu {
+	mali-supply = <&vdd_gpu_s0>;
 	status = "okay";
 };
 
