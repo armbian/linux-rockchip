@@ -39,3 +39,17 @@
 		vin-supply = <&vcc5v0_sys_s5>;
 	};
 };
+
+&acdcdig_dsm {
+	status = "okay";
+};
+
+&dsm_sound {
+	status = "okay";
+};
+
+&sai3 {
+	status = "okay";
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+};

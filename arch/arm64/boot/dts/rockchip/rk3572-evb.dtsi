@@ -83,6 +83,22 @@
 		default-brightness-level = <200>;
 	};
 
+	dsm_sound: dsm-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,dsm-sound";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&acdcdig_dsm>;
+		};
+	};
+
 	fan1 {
 		compatible = "pwm-fan";
 		pwms = <&pwm2_8ch_2 0 40000 0>;
