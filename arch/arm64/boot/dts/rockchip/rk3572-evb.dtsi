@@ -99,6 +99,23 @@
 		};
 	};
 
+	es7202_sound_micarray: es7202-sound-micarray {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,sound-micarray";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,dai-link@0 {
+			format = "pdm";
+			cpu {
+				sound-dai = <&pdm0>;
+			};
+			codec {
+				sound-dai = <&es7202>;
+			};
+		};
+	};
+
 	fan1 {
 		compatible = "pwm-fan";
 		pwms = <&pwm2_8ch_2 0 40000 0>;
@@ -601,6 +618,18 @@
 		pos-swap = <0>;
 		posx-reverse = <0>;
 		posy-reverse = <0>;
+	};
+};
+
+&i2c3 {
+	status = "disabled";
+
+	es7202: es7202@30 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		power-supply = <&vccio_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
+		reg = <0x30>;
 	};
 };
 

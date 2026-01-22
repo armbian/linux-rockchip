@@ -48,6 +48,22 @@
 	status = "okay";
 };
 
+&es7202_sound_micarray {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&pdm0 {
+	pinctrl-0 = <&pdmm1_sdi2_pins>;
+	pinctrl-1 = <&pdmm1_clk1_idle>;
+	pinctrl-2 = <&pdmm1_clk1_pins>;
+	rockchip,path-map = <2 0 1 3>;
+	status = "okay";
+};
+
 &sai3 {
 	status = "okay";
 	/delete-property/ pinctrl-names;
