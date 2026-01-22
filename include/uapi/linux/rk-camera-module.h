@@ -280,6 +280,9 @@
 #define RKMODULE_GET_LOFIC_VS_RATIO \
 	_IOR('x', 8, struct rkmodule_dcg_ratio)
 
+#define RKMODULE_SET_SWITCH_MODE	\
+	_IOW('x', 9, __u32)
+
 #define RKMODULE_REG_LIST_MAX (16)
 struct rkmodule_reg_struct {
 	__u32 reg_addr;
