@@ -3518,6 +3518,8 @@ static const struct vop2_scl_regs rk3572_cluster0_win_scl = {
 	.xgt_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 24),
 	.xgt_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x3, 25),
 	.zme_dering_en = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0x1, 3),
+	.zme_xscl_coe_sel = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0xf, 12),
+	.zme_yscl_coe_sel = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_CTRL, 0xf, 16),
 	.zme_dering_para = VOP_REG(RK3576_CLUSTER0_WIN0_ZME_DERING_PARA, 0xffffffff, 0),
 };
 
@@ -4544,10 +4546,10 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .format_modifiers = format_modifiers_afbc_tiled_for_rk3572,
 	  .layer_sel_id = { 0, 0xff, 0xff, 0xff },
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
-	  .hsu_filter_mode = VOP2_SCALE_UP_BIL,
-	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
-	  .vsu_filter_mode = VOP2_SCALE_UP_BIL,
-	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
+	  .hsu_filter_mode = VOP2_SCALE_UP_ZME,
+	  .hsd_filter_mode = VOP2_SCALE_DOWN_ZME,
+	  .vsu_filter_mode = VOP2_SCALE_UP_ZME,
+	  .vsd_filter_mode = VOP2_SCALE_DOWN_ZME,
 	  .hsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .vsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .regs = &rk3572_cluster0_win_data,

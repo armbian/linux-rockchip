@@ -190,6 +190,8 @@
 			/* MHz    MHz    uV */
 			   0      1992   75000
 		>;
+		rockchip,high-temp = <95000>;
+		rockchip,high-temp-max-volt = <1100000>;
 
 		/* RK3568 && RK3568M cpu OPPs */
 		opp-408000000 {

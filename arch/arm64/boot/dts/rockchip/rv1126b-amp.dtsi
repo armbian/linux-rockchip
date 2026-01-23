@@ -20,32 +20,32 @@
 	};
 
 	reserved-memory {
-		/* hpmcu address */
-		hpmcu_reserved: hpmcu@48c02000 {
-			reg = <0x48c02000 0x3a000>;
+		rpmsg_reserved: rpmsg@48c02000 {
+			reg = <0x48c02000 0x10000>;
 			no-map;
 		};
 
-		rpmsg_reserved: rpmsg@48c3c000 {
-			reg = <0x48c3c000 0x10000>;
-			no-map;
-		};
-
-		rpmsg_dma_reserved: rpmsg-dma@48c4c000 {
+		rpmsg_dma_reserved: rpmsg-dma@48c12000 {
 			compatible = "shared-dma-pool";
-			reg = <0x48c4c000 0x10000>;
+			reg = <0x48c12000 0x10000>;
+			no-map;
+		};
+
+		/* hpmcu address */
+		hpmcu_reserved: hpmcu@48c22000 {
+			reg = <0x48c22000 0x3a000>;
 			no-map;
 		};
 	};
 
-	rpmsg: rpmsg@48c3c000 {
+	rpmsg: rpmsg@48c02000 {
 		compatible = "rockchip,rpmsg";
+		reg = <0x48c02000 0x10000>;
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
 		mboxes = <&hpmcu_mbox0 0 &hpmcu_mbox3 0>;
 		rockchip,vdev-nums = <1>;
 		/* hpmcu: link-id 0x03; */
 		rockchip,link-id = <0x03>;
-		reg = <0x48c3c000 0x10000>;
 		memory-region = <&rpmsg_dma_reserved>;
 
 		status = "okay";

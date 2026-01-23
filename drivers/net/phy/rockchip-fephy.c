@@ -207,10 +207,8 @@ static int rockchip_fephy_fix_offset_v0(struct phy_device *phydev)
 
 	offset = (offset >= 0) ? offset : (offset + 0x80);
 	offset &= 0x7f;
-	clk_enable(priv->pclk);
 	regmap_write(priv->regs, 0xC0, offset);
 	regmap_write(priv->regs, 0xA0, 0xFFFF0008);
-	clk_disable(priv->pclk);
 
 	return ret;
 }
@@ -223,10 +221,8 @@ static int rockchip_fephy_fix_offset_v1(struct phy_device *phydev)
 	priv->mdi_offset &= 0x7f;
 	priv->mdix_offset &= 0x7f;
 	val = 0xFFFF0000 | (priv->mdi_offset | (priv->mdix_offset << 8));
-	clk_enable(priv->pclk);
 	regmap_write(priv->regs, 0xB4, val);
 	regmap_write(priv->regs, 0xA0, 0xFFFF0008);
-	clk_disable(priv->pclk);
 
 	return ret;
 }
@@ -273,9 +269,11 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	clk_enable(priv->pclk);
+	/* Enable low-power mode when the network cable is unplugged */
+	regmap_write(priv->regs, 0xb0, 0xffff801f);
+
+	/* Get version */
 	ret = regmap_read(priv->regs, 0xfc, &val);
-	clk_disable(priv->pclk);
 	if (ret)
 		return ret;
 
@@ -700,13 +698,9 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 
 	priv->phydev = phydev;
 
-	priv->pclk = devm_clk_get(&phydev->mdio.dev, "pclk");
+	priv->pclk = devm_clk_get_enabled(&phydev->mdio.dev, "pclk");
 	if (IS_ERR(priv->pclk))
 		return PTR_ERR(priv->pclk);
-
-	ret = clk_prepare(priv->pclk);
-	if (ret)
-		return ret;
 
 	ret = rockchip_fephy_get_txamp_from_nvmem(phydev);
 	if (ret)
@@ -719,19 +713,14 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 	}
 
 	ret = device_create_file(&phydev->mdio.dev, &dev_attr_phy_param);
-	if (ret) {
-		clk_unprepare(priv->pclk);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
 
 static void rockchip_fephy_remove(struct phy_device *phydev)
 {
-	struct rockchip_fephy_priv *priv = phydev->priv;
-
-	clk_unprepare(priv->pclk);
 	device_remove_file(&phydev->mdio.dev, &dev_attr_phy_param);
 }
 

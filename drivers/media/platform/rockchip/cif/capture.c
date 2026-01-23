@@ -938,12 +938,12 @@ static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 	return NULL;
 }
 
-static bool is_deserializer_name(const char *name)
+static bool is_deserializer_name(const struct v4l2_subdev *sd)
 {
-	if (!name)
+	if (!sd)
 		return false;
 
-	return strstr(name, "-des");
+	return strstr(sd->name, "-des") != NULL;
 }
 
 static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input)
@@ -7051,7 +7051,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 
 		video_device_pipeline_stop(&node->vdev);
-		if (is_deserializer_name(dev->terminal_sensor.sd->name)) {
+		if (is_deserializer_name(dev->terminal_sensor.sd)) {
 			ch_stream.channel = stream->id;
 			ch_stream.enable = 0;
 			if (v4l2_subdev_call(dev->terminal_sensor.sd,
@@ -8991,7 +8991,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 			if (ret < 0)
 				goto stop_stream;
 		}
-		if (is_deserializer_name(dev->terminal_sensor.sd->name)) {
+		if (is_deserializer_name(dev->terminal_sensor.sd)) {
 			ch_stream.channel = stream->id;
 			ch_stream.enable = 1;
 			if (v4l2_subdev_call(dev->terminal_sensor.sd,
@@ -9472,7 +9472,7 @@ int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 						 s_power, on);
 		}
 	}
-	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd)) {
 		ch_power.channel = stream->id;
 		ch_power.enable = on;
 		if (v4l2_subdev_call(cif_dev->terminal_sensor.sd,
@@ -14868,7 +14868,7 @@ static int rkcif_subdevs_set_power(struct rkcif_device *cif_dev, int on)
 			}
 		}
 	}
-	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd)) {
 		for (i = 0; i < cif_dev->num_channels; i++) {
 			if (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
 			    cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING) {
@@ -14972,7 +14972,7 @@ static int rkcif_sditf_sensor_set_stream(struct rkcif_device *cif_dev, int on)
 		}
 	}
 
-	if (is_deserializer_name(cif_dev->terminal_sensor.sd->name)) {
+	if (is_deserializer_name(cif_dev->terminal_sensor.sd)) {
 		for (i = 0; i < cif_dev->num_channels; i++) {
 			if (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
 			    cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING) {

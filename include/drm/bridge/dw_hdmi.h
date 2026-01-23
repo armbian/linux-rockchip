@@ -318,6 +318,7 @@ struct dw_hdmi_plat_data {
 	bool (*get_emp_status)(void *data);
 	int (*get_hdrvivid_vsdb)(void *data, const struct edid *edid,
 				  struct drm_connector *connector, int ext_block_num);
+	void (*wait_vblank)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

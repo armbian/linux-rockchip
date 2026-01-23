@@ -365,6 +365,7 @@ struct vop2_plane_state {
 	bool cgc_en;
 	bool dci_en;
 	uint32_t csc_mode;
+	uint32_t hdr_type;
 	struct post_csc_coef csc_coef;
 	uint8_t xmirror_en;
 	uint8_t ymirror_en;
@@ -821,6 +822,24 @@ struct vop2_video_port {
 	u8 dclk_div;
 
 	/**
+	 * @sharp_disabled: Sharp is mutually exclusive with post-scaler and split,
+	 * we configure whether sharp is disabled in dts
+	 */
+	bool sharp_disabled;
+
+	/**
+	 * @bypass_mode: help ensure the output data is consistent with the input data.
+	 * The features acm/cgc/dci/dither/dovi/hdr/overscan/post csc/sharp that may change
+	 * the raw data will be disabled.
+	 *
+	 * Only the plane csc is retained to ensure the basic display function works well.
+	 * Therefore, in order to achieve complete consistency of input and output data, the
+	 * userspace needs to make the color encoding and color range of plane consistent with
+	 * those of connector.
+	 */
+	bool bypass_mode;
+
+	/**
 	 * @plane_mask: show the plane attach to this vp,
 	 * it maybe init at dts file or uboot driver
 	 */
@@ -927,11 +946,6 @@ struct vop2_video_port {
 	 * @irq: independent irq for each vp
 	 */
 	int irq;
-	/**
-	 * @sharp_disabled: Sharp is mutually exclusive with post-scaler and split,
-	 * we configure whether sharp is disabled in dts
-	 */
-	bool sharp_disabled;
 
 	/**
 	 * @win_cfg_done_bits: control reg done bit for each win
@@ -3337,6 +3351,37 @@ static uint16_t vop3_scale_factor(enum scale_mode mode,
 	return fac;
 }
 
+static uint32_t rk3538_zme_scl_coe_sel(uint32_t src, uint32_t dst)
+{
+	uint32_t scale_fac = dst * 1000 / src;
+
+	if (dst < src) {
+		if (scale_fac >= 833)
+			return 4;
+		else if (scale_fac >= 700)
+			return 5;
+		else if (scale_fac >= 500)
+			return 6;
+		else if (scale_fac >= 330)
+			return 7;
+		else if (scale_fac >= 250)
+			return 8;
+		else
+			return 9;
+	} else if (dst > src) {
+		if (scale_fac >= 2667)
+			return 0;
+		else if (scale_fac >= 2000)
+			return 1;
+		else if (scale_fac >= 1500)
+			return 2;
+		else
+			return 3;
+	} else {
+		return 0;
+	}
+}
+
 static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
 			     uint32_t dst_h, struct drm_plane_state *pstate)
@@ -3359,7 +3404,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	uint16_t hscl_filter_mode, vscl_filter_mode;
 	uint8_t xgt2 = 0, xgt4 = 0;
 	uint8_t ygt2 = 0, ygt4 = 0;
-	uint32_t val;
+	uint32_t val, zme_coe_sel;
 
 	if (is_vop3(vop2)) {
 		if (vop2_cluster_window(win) &&
@@ -3480,6 +3525,17 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			VOP_SCL_SET(vop2, win, zme_dering_para, 0x04100d10);/* Recommended configuration from the algorithm */
 			VOP_SCL_SET(vop2, win, zme_dering_en, zme_dering_en);
 		}
+
+		if (win->regs->scl->zme_xscl_coe_sel.mask) {
+			zme_coe_sel = rk3538_zme_scl_coe_sel(src_w, dst_w);
+			VOP_SCL_SET(vop2, win, zme_xscl_coe_sel, zme_coe_sel);
+		}
+
+		if (win->regs->scl->zme_yscl_coe_sel.mask) {
+			zme_coe_sel = rk3538_zme_scl_coe_sel(src_h, dst_h);
+			VOP_SCL_SET(vop2, win, zme_yscl_coe_sel, zme_coe_sel);
+		}
+
 		VOP_SCL_SET(vop2, win, xgt_en, xgt_en);
 		VOP_SCL_SET(vop2, win, xavg_en, xavg_en);
 		VOP_SCL_SET(vop2, win, xgt_mode, xgt2 ? 0 : 1);
@@ -5504,6 +5560,24 @@ static int vop2_hdr_get_eotf_by_output_mode(int output_mode)
 	}
 }
 
+static enum vop_hdr_format vop2_eotf_to_hdr_type(int eotf)
+{
+	switch (eotf) {
+	case HDMI_EOTF_SMPTE_ST2084:
+		return HDR_HDR10;
+	case HDMI_EOTF_BT_2100_HLG:
+		return HDR_HLGSTATIC;
+	case HDMI_EOTF_HDR10PLUS:
+		return HDR_HDR10PLUS;
+	case HDMI_EOTF_HDRVIVID:
+		return HDR_HDRVIVID;
+	case HDMI_EOTF_DOVI:
+		return HDR_DOVI;
+	default:
+		return HDR_NONE;
+	}
+}
+
 static void vop2_dovi_enable(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5515,7 +5589,7 @@ static void vop2_dovi_enable(struct drm_crtc *crtc)
 	struct hdr_extend *hdr_data;
 	int i = 0;
 
-	if (!vcstate->hdr_ext_data)
+	if (!vcstate->hdr_ext_data || vp->bypass_mode)
 		goto DISABLE_DOVI;
 
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
@@ -5722,6 +5796,14 @@ static void vop2_load_dovi_coe_table(struct drm_crtc *crtc)
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 	dovi_reg_data = &hdr_data->dovi_data;
 	vcstate->eotf = vop2_hdr_get_eotf_by_output_mode(dovi_reg_data->output_mode);
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	vcstate->hdr_type = vop2_eotf_to_hdr_type(vcstate->eotf);
 
 	for (i = 0; i < vop2_data->dovi->nr_dovi_cores; i++) {
 		dovi_core = &vop2->dovi_cores[i];
@@ -7771,6 +7853,8 @@ static void rk3588_vop2_win_cfg_axi(struct vop2_win *win)
 static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
+	struct drm_crtc *crtc = pstate->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = win->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
@@ -7789,7 +7873,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	u8 dw, dh;
 	enum vop_csc_format plane_csc_mode;
 
-	if (!vpstate->dci_data || !vpstate->dci_data->data) {
+	if (!vpstate->dci_data || !vpstate->dci_data->data || vp->bypass_mode) {
 		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
 		vpstate->dci_en = false;
 		return;
@@ -9309,22 +9393,19 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 	return 0;
 }
 
-static const char *hdr_to_string(int eotf)
+static const char *hdr_to_string(enum vop_hdr_format hdr_format)
 {
-	switch (eotf) {
-	case HDMI_EOTF_TRADITIONAL_GAMMA_HDR:
-		return "GAMMA HDR";
-	case HDMI_EOTF_SMPTE_ST2084:
+	switch (hdr_format) {
+	case HDR_HDR10:
 		return "HDR10";
-	case HDMI_EOTF_BT_2100_HLG:
+	case HDR_HLGSTATIC:
 		return "HLG";
-	case HDMI_EOTF_HDR10PLUS:
+	case HDR_HDR10PLUS:
 		return "HDR10PLUS";
-	case HDMI_EOTF_HDRVIVID:
+	case HDR_HDRVIVID:
 		return "HDRVIVID";
-	case HDMI_EOTF_DOVI:
+	case HDR_DOVI:
 		return "DOVI";
-	case HDMI_EOTF_TRADITIONAL_GAMMA_SDR:
 	default:
 		return "SDR";
 	}
@@ -9426,8 +9507,8 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\tformat: %p4cc%s pixel_blend_mode[%d] glb_alpha[0x%x]\n",
 		    &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
 		    pstate->pixel_blend_mode, vpstate->global_alpha);
-	DEBUG_PRINT("\tcolor: %s[%d] color-encoding[%s] color-range[%s]\n",
-		    hdr_to_string(vpstate->eotf), vpstate->eotf,
+	DEBUG_PRINT("\tcolor: hdr_type[%s] eotf[%d] color-encoding[%s] color-range[%s]\n",
+		    hdr_to_string(vpstate->hdr_type), vpstate->eotf,
 		    rockchip_drm_get_color_encoding_name(pstate->color_encoding),
 		    rockchip_drm_get_color_range_name(pstate->color_range));
 	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
@@ -9554,8 +9635,8 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    drm_get_bus_format_name(state->bus_format));
 	DEBUG_PRINT("\toverlay_mode[%s] output_mode[%x] ",
 		    state->yuv_overlay ? "YUV" : "RGB", state->output_mode);
-	DEBUG_PRINT("%s[%d] color-encoding[%s] color-range[%s]\n",
-		    hdr_to_string(state->eotf), state->eotf,
+	DEBUG_PRINT("hdr_type[%s] eotf[%d] color-encoding[%s] color-range[%s]\n",
+		    hdr_to_string(state->hdr_type), state->eotf,
 		    rockchip_drm_get_color_encoding_name(state->color_encoding),
 		    rockchip_drm_get_color_range_name(state->color_range));
 	DEBUG_PRINT("\tr2y[%s] sharp[%d] acm[%d] y2r[%s]\n",
@@ -10625,6 +10706,9 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	bool pre_dither_down_en = false;
 
+	if (vp->bypass_mode)
+		return;
+
 	switch (vcstate->bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);
@@ -10703,6 +10787,15 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	u16 vsize = vdisplay * (vcstate->top_margin + vcstate->bottom_margin) / 200;
 	u16 hact_end, vact_end;
 	u32 val;
+
+	if (vp->bypass_mode) {
+		vcstate->left_margin = 100;
+		vcstate->right_margin = 100;
+		vcstate->top_margin = 100;
+		vcstate->bottom_margin = 100;
+		hsize = hdisplay;
+		vsize = vdisplay;
+	}
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vsize = rounddown(vsize, 2);
@@ -12774,6 +12867,21 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
 	if (adapt_mode == HDRVIVID_RX_MODE)
 		vop3_setup_dynamic_metadata_for_emp(vp, hdrvivid_data->hdrvivid_dynamic_metadata,
 						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
+
+	vpstate->hdr_type = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
+
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	if (adapt_mode)
+		vcstate->hdr_type = HDR_HDRVIVID;
+
+	if (((hdr_data->hdr_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) && (hdr_mode == HDR_BYPASS))
+		vcstate->hdr_type = HDR_HDR10PLUS;
 }
 
 static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_id)
@@ -12790,7 +12898,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	/* If hdr extend data is null, exit hdr mode */
-	if (!vcstate->hdr_ext_data) {
+	if (!vcstate->hdr_ext_data || vp->bypass_mode) {
 		vop3_disable_dynamic_hdr(vp, win_phys_id);
 		return;
 	}
@@ -14472,8 +14580,10 @@ static void vop2_crtc_update_zpos_for_dovi(struct drm_crtc *crtc, struct vop2_zp
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		vpstate = to_vop2_plane_state(plane->state);
-		if (vpstate->dovi_input_type == DOVI_BASE_LAYER)
+		if (vpstate->dovi_input_type == DOVI_BASE_LAYER) {
 			has_base_layer = true;
+			vpstate->hdr_type = HDR_DOVI;
+		}
 	}
 
 	/*
@@ -14561,7 +14671,7 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 	if (vcstate && vcstate->hdr_ext_data)
 		hdr_extend = (struct hdr_extend *)vcstate->hdr_ext_data->data;
 
-	if (!hdr_extend)
+	if (!hdr_extend || vp->bypass_mode)
 		return;
 
 	if (!(hdr_extend->hdr_type & RK_HDR_CGC_S2H_MASK)) {
@@ -14808,6 +14918,22 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, struct vop2_win *win
 	if (adapt_mode == HDRVIVID_RX_MODE)
 		vop3_setup_dynamic_metadata_for_emp(vp, hdr_data->hdrvivid_dynamic_metadata,
 						    RK_HDRVIVID_DYNAMIC_METADATA_LENGTH);
+
+	vpstate->hdr_type = hdr_data->hdr_input_type & RK_HDR_TYPE_MASK;
+
+	/*
+	 * VP hdr type initial value is according to vcstate->eotf
+	 * which comes from display interface. Different hdr types
+	 * may use the same eotf such as hdr10+ bypass, hdr10 bypass
+	 * or hdr10+ to hdr10 are all use ST2084 eotf, so a more detailed
+	 * assessment will be needed based on the actual situation.
+	 */
+	if (adapt_mode)
+		vcstate->hdr_type = HDR_HDRVIVID;
+
+	if (((hdr_data->hdr_input_type & RK_HDR_TYPE_MASK) == HDR_HDR10PLUS) &&
+	    (hdr_mode == HDR_BYPASS))
+		vcstate->hdr_type = HDR_HDR10PLUS;
 }
 
 static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
@@ -14858,7 +14984,7 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 		if (vpstate->ext_data)
 			extend_data = (struct rk_plane_extend_data *)vpstate->ext_data->data;
 
-		if (!extend_data)
+		if (!extend_data || vp->bypass_mode)
 			continue;
 
 		if (extend_data->type == RK_PLANE_EXTEND_DATA_CGC) {
@@ -14979,6 +15105,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		vop2_zpos[nr_layers].win_phys_id = win->phys_id;
 		vop2_zpos[nr_layers].zpos = vpstate->zpos;
 		vop2_zpos[nr_layers].plane = plane;
+		/* plane hdr type init */
+		vpstate->hdr_type = vop2_eotf_to_hdr_type(vpstate->eotf);
 
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "%s active zpos:%d for vp%d from vp%d",
 				 win->name, vpstate->zpos, vp->id, old_vp->id);
@@ -15015,6 +15143,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 	vp->hdr10_at_splice_mode = hdr10_at_splice_mode;
 
 	vp->has_scale_down_layer = false;
+
+	vcstate->hdr_type = vop2_eotf_to_hdr_type(vcstate->eotf);
 
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "vp%d: %d windows, active layers %d",
 			 vp->id, hweight32(vp->win_mask), nr_layers);
@@ -15152,7 +15282,7 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
 	struct rockchip_bcsh_state bcsh_state;
 
-	if (!vcstate->tv_state)
+	if (!vcstate->tv_state || vp->bypass_mode)
 		return;
 
 	/* post BCSH CSC */
@@ -15266,6 +15396,9 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 
 	vcstate->post_r2y_en = false;
 	vcstate->post_y2r_en = false;
+
+	if (vp->bypass_mode)
+		return;
 
 	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
 	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100)
@@ -15550,7 +15683,7 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	writel(0, vop2->acm_res.regs + RK3528_ACM_CTRL);
 	VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
 
-	if (!acm || !acm->acm_enable) {
+	if (!acm || !acm->acm_enable || vp->bypass_mode) {
 		vcstate->acm_en = false;
 		return;
 	}
@@ -15626,7 +15759,7 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	 * rk3538 must disable sharp when all win is disabled, Otherwise
 	 * will display unexpected horizontal stripes.
 	 */
-	if (!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) {
+	if ((!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) || vp->bypass_mode) {
 		writel(0x0, vop2->sharp_res.regs);
 		vcstate->sharp_en = false;
 
@@ -19112,6 +19245,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 			vop2->vps[vp_id].pixel_shift.enable =
 				of_property_read_bool(child, "rockchip,pixel-shift-enable");
+
+			vop2->vps[vp_id].bypass_mode = of_property_read_bool(child,
+									     "rockchip,bypass-mode");
 		}
 
 		if (!vop2_plane_mask_check(vop2)) {

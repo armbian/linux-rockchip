@@ -36,6 +36,12 @@ config ROCKCHIP_AMP
 	  Say y here to enable Rockchip AMP support.
 	  This option protects resources used by AMP.
 
+config ROCKCHIP_AMP_RPMSG_FILE
+	tristate "Rockchip RPMsg File"
+	depends on ARCH_ROCKCHIP && RPMSG
+	help
+	  Say y here to enable Rockchip RPMsg File.
+
 config ROCKCHIP_AMP_RPMSG_SHAREDMEM
 	tristate "Rockchip AMP RPMsg Shared Memory"
 	depends on ARCH_ROCKCHIP && RPMSG
