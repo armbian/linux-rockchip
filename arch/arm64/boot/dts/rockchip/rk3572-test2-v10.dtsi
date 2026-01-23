@@ -3,11 +3,32 @@
  * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/usb/pd.h>
 #include "rk3572.dtsi"
 #include "rk3572-evb.dtsi"
 #include "rk3572-rk806.dtsi"
 
 / {
+	usb3_switch: usb3-switch {
+		compatible = "broadchip,bct4360", "gpio-sbu-mux";
+		select-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_switch_default>;
+		orientation-switch;
+	};
+
+	vbus5v0_typec: vbus5v0-typec {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus5v0_typec";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_device>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_drd1_pwren>;
+	};
+
 	vcc_3v3_s0: vcc-3v3-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_s0";
@@ -29,6 +50,20 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc5v0_usb2_host: vcc5v0-usb2-host {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb2_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_device>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_drd0_pwren>;
+	};
+
 	vdd2l_0v9_ddr_s3: vdd2l-0v9-ddr-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd2l_0v9_ddr_s3";
@@ -44,12 +79,52 @@
 	status = "okay";
 };
 
+&combphy0_psu {
+	rockchip,dis-u3otg0-port;
+	status = "okay";
+};
+
+&combphy1_psu {
+	status = "okay";
+};
+
 &dsm_sound {
 	status = "okay";
 };
 
 &es7202_sound_micarray {
 	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1m1_xfer_pins>;
+
+	usbc0: husb311@4e {
+		compatible = "hynetek,husb311";
+		reg = <0x4e>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vbus5v0_typec>;
+		status = "okay";
+
+		usb_con0: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			orientation-switch = <&usb3_switch &u2phy1>;
+			usb-role-switch = <&usb_drd1_dwc3>;
+
+			sink-pdos = <PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
+		};
+	};
 };
 
 &i2c3 {
@@ -64,8 +139,63 @@
 	status = "okay";
 };
 
+&pinctrl {
+	usb {
+		usb3_switch_default: usb3-switch-default {
+			rockchip,pins = <1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usb_drd0_pwren: usb-drd0-pwren {
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usb_drd1_pwren: usb-drd1-pwren {
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usbc0_int: usbc0-int {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
 &sai3 {
 	status = "okay";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	phy-supply = <&vcc5v0_usb2_host>;
+	status = "okay";
+};
+
+&u2phy1 {
+	orientation-switch;
+	status = "okay";
+};
+
+&u2phy1_otg {
+	rockchip,typec-vbus-det;
+	status = "okay";
+};
+
+&usb_drd0_dwc3 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "otg";
+	usb-role-switch;
+	status = "okay";
 };
