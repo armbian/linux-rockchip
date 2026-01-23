@@ -1430,6 +1430,32 @@ dw_mipi_dsi_rockchip_stream_standby(void *priv_data, bool standby)
 	rockchip_drm_crtc_standby(encoder->crtc, standby);
 }
 
+static void
+dw_mipi_dsi_rockchip_crtc_post_enable(void *priv_data, struct drm_crtc *crtc)
+{
+	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	int output_if;
+
+	if (dsi->slave)
+		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
+	else
+		output_if = dsi->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
+	rockchip_drm_crtc_output_post_enable(crtc, output_if);
+}
+
+static void
+dw_mipi_dsi_rockchip_crtc_pre_disable(void *priv_data, struct drm_crtc *crtc)
+{
+	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	int output_if;
+
+	if (dsi->slave)
+		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
+	else
+		output_if = dsi->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
+	rockchip_drm_crtc_output_pre_disable(crtc, output_if);
+}
+
 static int dw_mipi_dsi_rockchip_attach(void *priv_data, struct mipi_dsi_device *dsi)
 {
 	struct dw_mipi_dsi_rockchip *dsi_host = priv_data;
@@ -1573,6 +1599,8 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 
 	if (dsi->cdata->soc_type == RK3568)
 		dsi->pdata.stream_standby = dw_mipi_dsi_rockchip_stream_standby;
+	dsi->pdata.crtc_post_enable = dw_mipi_dsi_rockchip_crtc_post_enable;
+	dsi->pdata.crtc_pre_disable = dw_mipi_dsi_rockchip_crtc_pre_disable;
 
 	platform_set_drvdata(pdev, dsi);
 
