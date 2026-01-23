@@ -256,12 +256,15 @@ static void rockchip_rgb_encoder_atomic_enable(struct drm_encoder *encoder,
 					       struct drm_atomic_state *state)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	struct rockchip_crtc_state *s;
 	struct drm_crtc *new_crtc;
 	struct drm_crtc_state *old_crtc_state;
+	int output_if;
 
 	new_crtc = drm_atomic_get_new_crtc_for_encoder(state, encoder);
 	if (!new_crtc)
 		return;
+	s = to_rockchip_crtc_state(new_crtc->state);
 
 	old_crtc_state = drm_atomic_get_old_crtc_state(state, new_crtc);
 	/* Coming back from self refresh, nothing to do */
@@ -277,6 +280,9 @@ static void rockchip_rgb_encoder_atomic_enable(struct drm_encoder *encoder,
 		phy_power_on(rgb->phy);
 		rgb->phy_enabled = true;
 	}
+
+	output_if = s->output_if & (VOP_OUTPUT_IF_RGB | VOP_OUTPUT_IF_BT656 | VOP_OUTPUT_IF_BT1120);
+	rockchip_drm_crtc_output_post_enable(encoder->crtc, output_if);
 
 	if (rgb->panel) {
 		drm_panel_prepare(rgb->panel);
