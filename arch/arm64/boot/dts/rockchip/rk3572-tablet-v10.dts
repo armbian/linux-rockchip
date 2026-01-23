@@ -390,6 +390,39 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+
+	usbc0: rk809b2-tcpc@22 {
+		compatible = "rockchip,rk809b2-tcpc", "rockchip,rk817b2-tcpc";
+		reg = <0x22>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_pins>;
+		vbus-supply = <&vbus5v0_typec>;
+		status = "okay";
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			orientation-switch = <&u2phy0>;
+			usb-role-switch = <&usb_drd0_dwc3>;
+
+			sink-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)
+				 PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
+				 /*PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM)*/>;
+			source-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
+		};
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-0 = <&i2c1m1_xfer_pins>;
@@ -454,48 +487,6 @@
 		};
 	};
 
-	usbc0: husb311@4e {
-		compatible = "hynetek,husb311";
-		reg = <0x4e>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usbc0_int>;
-		vbus-supply = <&vbus5v0_typec>;
-		status = "okay";
-
-		port {
-			usbc0_role_sw: endpoint {
-				remote-endpoint = <&usb_drd0_role_switch>;
-			};
-		};
-
-		usb_con: connector {
-			compatible = "usb-c-connector";
-			label = "USB-C";
-			data-role = "dual";
-			power-role = "dual";
-			try-power-role = "sink";
-			op-sink-microwatt = <1000000>;
-			sink-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)
-				 PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
-				 /*PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM)*/>;
-			source-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
-
-			altmodes {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				altmode@0 {
-					reg = <0>;
-					svid = /bits/ 16 <0xff01>;
-					vdo = <0x00001c46>;
-				};
-			};
-		};
-	};
 };
 
 &iep {
@@ -577,12 +568,6 @@
 	sensor {
 		sensor_gpio: sensor-gpio {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	usb {
-		usbc0_int: usbc0-int {
-			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -691,23 +676,24 @@
 };
 
 &u2phy0 {
+	orientation-switch;
 	status = "okay";
 };
 
 &u2phy0_otg {
-	status = "okay";
 	rockchip,typec-vbus-det;
+	status = "okay";
 };
 
 &usb_drd0_dwc3 {
-	status = "okay";
 	dr_mode = "otg";
+	maximum-speed = "high-speed";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 	usb-role-switch;
-	port {
-		usb_drd0_role_switch: endpoint {
-			remote-endpoint = <&usbc0_role_sw>;
-		};
-	};
+	status = "okay";
 };
 
 &vdpp {
