@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/usb/rockchip,pmic-tcpc.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/usb/rockchip,pmic-tcpc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Rockchip PMIC based USB Type-C and Power Delivery block
 
@@ -41,6 +41,7 @@ additionalProperties: true
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/usb/pd.h>
 
@@ -53,7 +54,7 @@ examples:
             reg = <0x21>;
             interrupt-parent = <&gpio0>;
             interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
-            pinctrl-names = "default"
+            pinctrl-names = "default";
             pinctrl-0 = <&usbc_int>;
             vbus-supply = <&vcc5v0_typec>;
 
@@ -78,7 +79,7 @@ examples:
                 source-pdos = <PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP |
                                                      PDO_FIXED_USB_COMM |
                                                      PDO_FIXED_EXTPOWER |
-                                                     PDO_FIXED_DUAL_ROLEPDO_FIXED_DUAL_ROLE)>;
+                                                     PDO_FIXED_DUAL_ROLE)>;
             };
         };
     };
