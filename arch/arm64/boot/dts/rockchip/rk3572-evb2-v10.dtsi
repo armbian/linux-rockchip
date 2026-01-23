@@ -56,6 +56,16 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc3v3_pcie1: vcc3v3-pcie1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie1";
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
 	vcc_3v3_s0: vcc-3v3-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_s0";
@@ -205,6 +215,17 @@
 		type = <SENSOR_TYPE_GYROSCOPE>;
 		layout = <4>;
 	};
+};
+
+&pcie1 {
+	reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie1>;
+
+	/*
+	 * Solder R1851 and R1860 registers to make this slot
+	 * work according to the schematic of page 17.
+	 */
+	status = "okay";
 };
 
 &pdm0 {
