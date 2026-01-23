@@ -14,12 +14,12 @@
 int dw_hdcp_register_notifier(struct notifier_block *nb);
 int dw_hdcp_unregister_notifier(struct notifier_block *nb);
 #else
-int dw_hdcp_register_notifier(struct notifier_block *nb)
+static inline int dw_hdcp_register_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
 
-int dw_hdcp_unregister_notifier(struct notifier_block *nb)
+static inline int dw_hdcp_unregister_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
