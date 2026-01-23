@@ -161,6 +161,9 @@ void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 
 	if (!sditf || !sditf->is_on || !sditf->remote_sd)
 		return;
+	/* frame start irq no handle for unite or multi-sensor online mode */
+	if (!dev->hw_dev->is_single && irq)
+		return;
 	info.irq = irq;
 	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, !dev->is_aiisp_en);
 	info.unite_index = dev->unite_index;

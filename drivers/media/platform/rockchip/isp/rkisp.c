@@ -744,6 +744,7 @@ void rkisp_online_update_reg(struct rkisp_device *dev, bool is_init, bool is_res
 		rkisp_stream_frame_start(dev, 0);
 	rkisp_update_list_reg(dev);
 	rkisp_params_cfgsram(&dev->params_vdev, true, is_reset);
+	rkisp_sditf_sof(dev, 0);
 	val = rkisp_read(dev, ISP_CTRL, false);
 	val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 	writel(val, dev->hw_dev->base_addr + ISP_CTRL);
