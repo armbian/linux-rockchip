@@ -11374,7 +11374,7 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	return 0;
 }
 
-static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
+static int rk3576_calc_cru_cfg(struct drm_crtc *crtc, int conn_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -11407,13 +11407,13 @@ static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 		post_dclk_out_sel = 1;
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_RGB) {
+	if (conn_id & VOP_OUTPUT_IF_RGB) {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		/* RGB interface_pix_clk_sel will auto config according to rgb_en/bt1120_en/bt656_en */
-	} else if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
+	} else if (conn_id & VOP_OUTPUT_IF_eDP0) {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		interface_pix_clk_sel = port_pix_rate == 2 ? 1 : 0;
-	} else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+	} else if (conn_id & VOP_OUTPUT_IF_HDMI0) {
 		if (vop2->version != VOP_VERSION_RK3576) {
 			if (double_pixel)
 				pix_half_rate = 1;
@@ -11429,35 +11429,35 @@ static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 	VOP_MODULE_SET(vop2, vp, core_dclk_div, post_dclk_core_sel);/* dclk_core */
 	VOP_MODULE_SET(vop2, vp, dclk_div2, post_dclk_out_sel);/* dclk_out */
 
-	if (output_if_is_dpi(vcstate->output_if))
+	if (output_if_is_dpi(conn_id))
 		VOP_CTRL_SET(vop2, rgb_dclk_sel, interface_dclk_sel);/* 0: dclk_core, 1: dclk_out */
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0) {
+	if (conn_id & VOP_OUTPUT_IF_MIPI0) {
 		VOP_CTRL_SET(vop2, mipi0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, mipi0_pixclk_div, interface_pix_clk_sel);/* 0: div2, 1: div4 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
+	if (conn_id & VOP_OUTPUT_IF_eDP0) {
 		VOP_CTRL_SET(vop2, edp0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, edp0_pixclk_div, interface_pix_clk_sel);/* 0: dclk, 1: port0_dclk */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+	if (conn_id & VOP_OUTPUT_IF_HDMI0) {
 		VOP_CTRL_SET(vop2, hdmi0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, hdmi0_pixclk_div, interface_pix_clk_sel);/* 0: div2, 1: div4 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP0) {
+	if (conn_id & VOP_OUTPUT_IF_DP0) {
 		VOP_CTRL_SET(vop2, dp0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp0_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP1) {
+	if (conn_id & VOP_OUTPUT_IF_DP1) {
 		VOP_CTRL_SET(vop2, dp1_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp1_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP2) {
+	if (conn_id & VOP_OUTPUT_IF_DP2) {
 		VOP_CTRL_SET(vop2, dp2_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp2_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
@@ -11497,7 +11497,7 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 	} else if (vop2->version == VOP_VERSION_RK3538 ||
 		   vop2->version == VOP_VERSION_RK3572 ||
 		   vop2->version == VOP_VERSION_RK3576) {
-		rk3576_calc_cru_cfg(crtc);
+		rk3576_calc_cru_cfg(crtc, conn_id);
 
 		return 0;
 	}
