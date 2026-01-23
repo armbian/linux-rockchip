@@ -11,10 +11,12 @@
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -440,6 +442,12 @@ struct rk_dma_lch {
 	u32			id;
 };
 
+struct rk_dma_dev;
+
+struct rk_dma_soc {
+	int (*dma_mux_cfg)(struct rk_dma_dev *d, unsigned int request);
+};
+
 struct rk_dma_dev {
 	struct dma_device	slave;
 	struct list_head	chan_pending;
@@ -448,6 +456,8 @@ struct rk_dma_dev {
 	struct clk_bulk_data	*clks;
 	struct dma_pool		*pool;
 	struct gen_pool		*gpool;
+	struct regmap		*grf;
+	const struct rk_dma_soc	*soc;
 	void __iomem		*base;
 	int			irq;
 	int			num_clks;
@@ -1294,11 +1304,123 @@ static void rk_dma_free_desc(struct virt_dma_desc *vd)
 	kfree(ds);
 }
 
-static const struct of_device_id rk_dma_dt_ids[] = {
-	{ .compatible = "rockchip,dma", },
-	{}
+struct dma_id_name {
+	const char *name;
+	int id;
 };
-MODULE_DEVICE_TABLE(of, rk_dma_dt_ids);
+
+static const struct dma_id_name rk3572_id_name[] = {
+	{ "2bfe0000", 0 },
+	{ "2bff0000", 1 },
+	{ "2c000000", 2 },
+	{ "2c010000", 3 },
+};
+
+static int rk3572_dma_get_id_by_name(const char *name)
+{
+	int i, id = -1;
+
+	for (i = 0; i < ARRAY_SIZE(rk3572_id_name); i++) {
+		if (strstr(name, rk3572_id_name[i].name)) {
+			id = rk3572_id_name[i].id;
+			break;
+		}
+	}
+
+	return id;
+}
+
+#define RK3572_DMA_SEL_BASE		0x38
+#define RK3572_DMA_SEL_REG(x)		(RK3572_DMA_SEL_BASE + ((x) * 4))
+#define RK3572_DMA_SEL_VAL(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
+
+#define RK3572_DMA_SAI0_TX		0
+#define RK3572_DMA_SAI5_RX		10
+#define RK3572_DMA_SPDIFTX0		11
+#define RK3572_DMA_PDM			16
+#define RK3572_DMA_ASRC0_RX		17
+#define RK3572_DMA_SPI4_RX		54
+#define RK3572_DMA_CAN0_RX		55
+#define RK3572_DMA_CAN3_RX		58
+#define RK3572_DMA_DSMC_0		59
+#define RK3572_DMA_DSMC_1		60
+#define RK3572_DMA_I3C_RX		61
+#define RK3572_DMA_I3C_TX		63
+
+#define SHIFT(x, base, shift)		(((x - base) >> shift) + 1)
+
+static int rk3572_dma_get_shift_by_request(unsigned int req)
+{
+	int shift = 0;
+
+	switch (req) {
+	case RK3572_DMA_I3C_RX ... RK3572_DMA_I3C_TX:
+		shift++;
+		req = RK3572_DMA_DSMC_1;
+		fallthrough;
+	case RK3572_DMA_DSMC_0 ... RK3572_DMA_DSMC_1:
+		shift += SHIFT(req, RK3572_DMA_DSMC_0, 1);
+		req = RK3572_DMA_CAN3_RX;
+		fallthrough;
+	case RK3572_DMA_CAN0_RX ... RK3572_DMA_CAN3_RX:
+		shift += SHIFT(req, RK3572_DMA_CAN0_RX, 0);
+		req = RK3572_DMA_SPI4_RX;
+		fallthrough;
+	case RK3572_DMA_ASRC0_RX ... RK3572_DMA_SPI4_RX:
+		shift += SHIFT(req, RK3572_DMA_ASRC0_RX, 1);
+		req = RK3572_DMA_PDM;
+		fallthrough;
+	case RK3572_DMA_SPDIFTX0 ... RK3572_DMA_PDM:
+		shift += SHIFT(req, RK3572_DMA_SPDIFTX0, 0);
+		req = RK3572_DMA_SAI5_RX;
+		fallthrough;
+	case RK3572_DMA_SAI0_TX ... RK3572_DMA_SAI5_RX:
+		shift += SHIFT(req, RK3572_DMA_SAI0_TX, 1);
+		break;
+	default:
+		break;
+	}
+
+	return (shift - 1);
+}
+
+static int rk3572_dma_mux_cfg(struct rk_dma_dev *d, unsigned int request)
+{
+	int shift, dmaid, reg, ofs;
+
+	if (!d->grf)
+		return -EINVAL;
+
+	shift = rk3572_dma_get_shift_by_request(request);
+	dmaid = rk3572_dma_get_id_by_name(dev_name(d->slave.dev));
+
+	if (shift < 0 || dmaid < 0) {
+		dev_err(d->slave.dev, "Invalid req-%u\n", request);
+		return -EINVAL;
+	}
+
+	reg = shift / 8;
+	ofs = (shift % 8) * 2;
+
+	regmap_write(d->grf, RK3572_DMA_SEL_REG(reg), RK3572_DMA_SEL_VAL(dmaid, ofs + 1, ofs));
+
+	dev_dbg(d->slave.dev, "req: %u: reg: 0x%x, val: 0x%08lx\n",
+		request, RK3572_DMA_SEL_REG(reg), RK3572_DMA_SEL_VAL(dmaid, ofs + 1, ofs));
+
+	return 0;
+}
+
+static const struct rk_dma_soc rk3572_soc = {
+	.dma_mux_cfg = rk3572_dma_mux_cfg,
+};
+
+static int rk_dma_mux_cfg(struct rk_dma_dev *d, unsigned int request)
+{
+	if (d->soc && d->soc->dma_mux_cfg)
+		return d->soc->dma_mux_cfg(d, request);
+
+	return 0;
+}
 
 static struct dma_chan *rk_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 					       struct of_dma *ofdma)
@@ -1319,6 +1441,8 @@ static struct dma_chan *rk_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 
 	c = to_rk_chan(chan);
 	c->id = request;
+
+	rk_dma_mux_cfg(d, request);
 
 	dev_dbg(d->slave.dev, "Xlate lch-%u for req-%u\n", c->id, request);
 
@@ -1341,6 +1465,15 @@ static int rk_dma_pool_create(struct rk_dma_dev *d, struct device *dev)
 	return 0;
 }
 
+static const struct of_device_id rk_dma_dt_ids[] = {
+	{ .compatible = "rockchip,dma", },
+#ifdef CONFIG_CPU_RK3572
+	{ .compatible = "rockchip,rk3572-dma", .data = &rk3572_soc },
+#endif
+	{}
+};
+MODULE_DEVICE_TABLE(of, rk_dma_dt_ids);
+
 static int rk_dma_probe(struct platform_device *pdev)
 {
 	struct rk_dma_dev *d;
@@ -1349,6 +1482,12 @@ static int rk_dma_probe(struct platform_device *pdev)
 	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
+
+	d->soc = device_get_match_data(&pdev->dev);
+
+	d->grf = syscon_regmap_lookup_by_phandle_optional(pdev->dev.of_node, "rockchip,grf");
+	if (IS_ERR(d->grf))
+		return PTR_ERR(d->grf);
 
 	d->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(d->base))
