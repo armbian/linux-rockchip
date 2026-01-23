@@ -1045,10 +1045,15 @@ struct vop2 {
 	bool loader_protect;
 
 	bool aclk_rate_reset;
+
+	bool merge_irq;
+
+	bool enable_reserved_plane;
+
+	bool iommu_fault_in_progress;
+
 	unsigned long aclk_current_freq;
 	enum rockchip_drm_vop_aclk_mode aclk_mode;
-	bool merge_irq;
-	bool enable_reserved_plane;
 
 	const struct vop2_data *data;
 	/* Number of win that registered as plane,
@@ -1128,8 +1133,6 @@ struct vop2 {
 	unsigned long aclk_target_freq;
 	u32 aclk_mode_rate[ROCKCHIP_VOP_ACLK_MAX_MODE];
 #endif
-	bool iommu_fault_in_progress;
-
 	struct vop2_err_event post_buf_empty;
 
 	/* aclk auto cs div */
