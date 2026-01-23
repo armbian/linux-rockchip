@@ -431,6 +431,7 @@
 			reusable;
 			size = <0x0>;
 			linux,cma-default;
+			alignment = <0x00200000>;
 		};
 
 		drm_logo: drm-logo@0 {
