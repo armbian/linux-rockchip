@@ -41,6 +41,16 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc3v3_pcie0: vcc3v3-pcie0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie0";
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
 	vcc5v0_usb3_host: vcc5v0-usb3-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb3_host";
@@ -215,6 +225,18 @@
 		reg = <0x1>;
 		clocks = <&cru REFCLKO25M_GMAC1_OUT>;
 	};
+};
+
+&pcie0 {
+	phys = <&combphy1_psu PHY_TYPE_PCIE>;
+	reset-gpios = <&gpio4 RK_PB7 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie0>;
+
+	/*
+	 * Disable usb_drd1_dwc3 if enabling pcie0 and set U1800 and
+	 * U1801 to high state according to the schematic of page 18.
+	 */
+	status = "disabled";
 };
 
 &pinctrl {
