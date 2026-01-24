@@ -676,6 +676,11 @@ enum rk805_reg {
 #define RK805_OUT_REG			0x52
 #define RK805_ON_SOURCE_REG		0xAE
 #define RK805_OFF_SOURCE_REG		0xAF
+#define RK805B_VSELTABLE_REG		0x71
+
+#define RK805B_VSELTABLE_4OR8		0x80
+#define RK805B_CHIP_VER_MSK		0x0F
+#define RK805B_CHIP_VER_NUM		0x04
 
 #define RK805_NUM_REGULATORS		7
 
@@ -1363,6 +1368,7 @@ struct rk808 {
 	struct regmap_irq_chip_data	*battery_irq_data;
 	struct regmap			*regmap;
 	long				variant;
+	int				vsel_table;
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
 	void				(*pm_pwroff_prep_fn)(void);

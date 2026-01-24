@@ -1416,7 +1416,7 @@ static int rk808_probe(struct i2c_client *client,
 	u32 pmic_id_mask = RK8XX_ID_MSK;
 	int nr_pre_init_regs;
 	int nr_cells;
-	int pmic_id;
+	int pmic_id, voutsel_flag;
 	int msb, lsb;
 	unsigned char pmic_id_msb, pmic_id_lsb;
 	int ret;
@@ -1492,6 +1492,15 @@ static int rk808_probe(struct i2c_client *client,
 		resume_reg = rk805_resume_reg;
 		resume_reg_num = ARRAY_SIZE(rk805_resume_reg);
 		device_shutdown_fn = rk8xx_device_shutdown;
+		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
+			voutsel_flag = i2c_smbus_read_byte_data(client, RK805B_VSELTABLE_REG);
+			if (voutsel_flag < 0) {
+				dev_err(&client->dev, "failed to read the voutsel_flag at 0x%x\n",
+					RK805B_VSELTABLE_REG);
+				return voutsel_flag;
+			}
+			rk808->vsel_table = voutsel_flag & RK805B_VSELTABLE_4OR8;
+		}
 		break;
 	case RK808_ID:
 		rk808->regmap_cfg = &rk808_regmap_config;
