@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3576.dtsi"
+#include "rk3576-evb-aibox.dtsi"
+#include "rk3576-linux.dtsi"
+#include "rk3576-evb-aibox-audio.dtsi"
+#include "rk3576-evb-aibox-serdes-mfd-display-maxim.dtsi"
+#include "rk3576-evb-aibox-maxim-max96712-dphy0-ox03j10.dtsi"
+#include "rk3576-evb-aibox-maxim-max96712-dphy3-sc233at.dtsi"
+
+/ {
+	model = "Rockchip RK3576 AI BOX EVB V10 Board";
+	compatible = "rockchip,rk3576-evb-aibox-v10", "rockchip,rk3576";
+};
+
+&can0 {
+	status = "okay";
+	compatible = "rockchip,rk3576-can";
+	assigned-clocks = <&cru CLK_CAN0>;
+	assigned-clock-rates = <100000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0m2_pins>;
+	rockchip,rx-max-data = <18>;
+	dmas = <&dmac0 20>;
+	dma-names = "rx";
+};
+
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
+&i2c5_max96752 {
+	vpower-supply = <&lcd_vcc12v_buck>;
+};
+
+&max96712_dphy0_poc0_regulator {
+	vin-supply = <&i2c7_onxq000_ch4>;
+};
+
+&max96712_dphy0_poc1_regulator {
+	vin-supply = <&i2c7_onxq000_ch3>;
+};
+
+&max96712_dphy0_poc2_regulator {
+	vin-supply = <&i2c7_onxq000_ch2>;
+};
+
+&max96712_dphy0_poc3_regulator {
+	vin-supply = <&i2c7_onxq000_ch1>;
+};
+
+&max96712_dphy0_vcc1v2 {
+	vin-supply = <&vdd_1v2_des>;
+};
+
+&max96712_dphy0_vcc1v8 {
+	vin-supply = <&vcc_1v8_s0_des>;
+};
+
+&max96712_dphy3_poc0_regulator {
+	vin-supply = <&i2c8_onxq000_ch4>;
+};
+
+&max96712_dphy3_poc1_regulator {
+	vin-supply = <&i2c8_onxq000_ch3>;
+};
+
+&max96712_dphy3_poc2_regulator {
+	vin-supply = <&i2c8_onxq000_ch2>;
+};
+
+&max96712_dphy3_poc3_regulator {
+	vin-supply = <&i2c8_onxq000_ch1>;
+};
+
+&max96712_dphy3_vcc1v2 {
+	vin-supply = <&vdd_1v2_des>;
+};
+
+&max96712_dphy3_vcc1v8 {
+	vin-supply = <&vcc_1v8_s0_des>;
+};
+
+&route_dsi {
+	status = "okay";
+	connect = <&vp2_out_dsi>;
+	logo,uboot = "logo.bmp";
+	logo,kernel = "logo.bmp";
+};
