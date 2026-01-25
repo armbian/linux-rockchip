@@ -10,6 +10,13 @@
 #include "rk3572-evb-input-keymap.dtsi"
 
 / {
+	fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm2_8ch_2 0 40000 0>;
+		cooling-levels = <0 80 170 255>;
+		status = "disabled";
+	};
+
 	usb3_switch: usb3-switch {
 		compatible = "broadchip,bct4360", "gpio-sbu-mux";
 		select-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
@@ -265,6 +272,11 @@
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&pwm2_8ch_2 {
+	pinctrl-0 = <&pwm2m2_ch2_pins>;
+	status = "disabled";
 };
 
 &u2phy0 {

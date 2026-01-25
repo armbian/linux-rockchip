@@ -116,12 +116,6 @@
 		};
 	};
 
-	fan1 {
-		compatible = "pwm-fan";
-		pwms = <&pwm2_8ch_2 0 40000 0>;
-		cooling-levels = <0 80 170 255>;
-	};
-
 	hdmi_sound: hdmi-sound {
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
@@ -703,11 +697,6 @@
 &pwm1_6ch_5 {
 	status = "okay";
 	pinctrl-0 = <&pwm1m0_ch5_pins>;
-};
-
-&pwm2_8ch_2 {
-	status = "okay";
-	pinctrl-0 = <&pwm2m2_ch2_pins>;
 };
 
 &rga2_core0 {
