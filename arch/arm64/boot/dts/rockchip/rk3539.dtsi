@@ -135,3 +135,7 @@
 		opp-microvolt-L3 = <887500 887500 950000>;
 	};
 };
+
+&soc_thermal {
+	sustainable-power = <452>; /* milliwatts */
+};
