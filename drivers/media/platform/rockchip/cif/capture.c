@@ -14181,7 +14181,7 @@ static int rkcif_get_sof_and_exp_info(struct rkcif_device *cif_dev,
 	int idx_max = 0;
 
 	sof_info->timestamp = stream->readout.fs_timestamp;
-	sof_info->sequence = stream->frame_idx;
+	sof_info->sequence = rkcif_get_sof(cif_dev);
 
 	if (!cif_dev->is_support_get_exp)
 		return 0;
@@ -14788,8 +14788,6 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	unsigned long flags;
 	int i = 0;
 	int ret = 0;
-	struct v4l2_subdev *sd = NULL;
-	struct rkisp_vicap_sof sof = {0};
 
 	detect_stream->fs_cnt_in_single_frame++;
 	if ((!cif_dev->sditf[0] ||
@@ -14802,14 +14800,6 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	spin_lock_irqsave(&detect_stream->fps_lock, flags);
 	detect_stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
 	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
-
-	rkcif_add_sensor_exp_to_kfifo(&cif_dev->stream[0]);
-	sd = get_rkisp_sd(cif_dev->sditf[0]);
-	if (sd) {
-		rkcif_get_sof_and_exp_info(cif_dev, &sof);
-		v4l2_subdev_call(sd, core, ioctl,
-				 RKISP_VICAP_CMD_SOF, &sof);
-	}
 
 	if (cif_dev->sditf[0] &&
 	    cif_dev->sditf[0]->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ &&
@@ -15871,6 +15861,29 @@ static int rkcif_get_next_effect_stream_id(struct rkcif_device *dev, u32 effect_
 	return id;
 }
 
+static void rkcif_sync_sof_to_isp(struct rkcif_stream *stream)
+{
+	struct rkcif_device *cif_dev = stream->cifdev;
+	struct v4l2_subdev *sd = NULL;
+	struct rkisp_vicap_sof sof = {0};
+
+	if (!cif_dev->sditf[0])
+		return;
+	if ((cif_dev->hdr.hdr_mode == NO_HDR && stream->id != 0) ||
+	    (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id != 1) ||
+	    (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id != 2))
+		return;
+
+	if (cif_dev->chip_id >= CHIP_RK3576_CIF) {
+		rkcif_add_sensor_exp_to_kfifo(&cif_dev->stream[0]);
+		sd = get_rkisp_sd(cif_dev->sditf[0]);
+		if (sd) {
+			rkcif_get_sof_and_exp_info(cif_dev, &sof);
+			v4l2_subdev_call(sd, core, ioctl,
+					 RKISP_VICAP_CMD_SOF, &sof);
+		}
+	}
+}
 
 /* pingpong irq for rk3588 and next */
 void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
@@ -16315,6 +16328,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						if (!stream->cur_skip_frame && (!stream->cifdev->is_in_flip)) {
 							spin_unlock_irqrestore(&stream->vbq_lock, flags);
 							rkcif_deal_sof(stream->cifdev);
+							rkcif_sync_sof_to_isp(stream);
 						} else {
 							spin_unlock_irqrestore(&stream->vbq_lock, flags);
 						}
@@ -16325,6 +16339,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 							stream->frame_idx = cif_dev->stream[0].frame_idx;
 						else
 							stream->frame_idx++;
+						rkcif_sync_sof_to_isp(stream);
 						if (cif_dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
 						    cif_dev->sditf[stream->id])
 							sditf_event_inc_sof(cif_dev->sditf[stream->id]);
