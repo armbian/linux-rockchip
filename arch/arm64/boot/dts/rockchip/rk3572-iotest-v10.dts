@@ -12,3 +12,44 @@
 	model = "Rockchip RK3572 IOTEST V10 Board";
 	compatible = "rockchip,rk3572-iotest-v10", "rockchip,rk3572";
 };
+
+&combphy0_psu {
+	rockchip,dis-u3otg0-port;
+	status = "okay";
+};
+
+&combphy1_psu {
+	status = "okay";
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&usb_drd0_dwc3 {
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-gadget-lpm-disable;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	status = "okay";
+};
