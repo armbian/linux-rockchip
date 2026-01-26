@@ -5619,6 +5619,10 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 					else
 						rkcif_csi_channel_set_rv1126b(stream, channel, mbus_type, mode, 0);
 				}
+				if (dev->switch_info.is_use_switch)
+					v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev,
+						 "%s %d, switch inc cnt %d\n", __func__, __LINE__,
+						 atomic_read(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]));
 			}
 		}
 	} else {
@@ -5672,6 +5676,9 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 			stream->dma_en = 0;
 			return;
 		}
+		v4l2_dbg(5, rkcif_debug, &cif_dev->v4l2_dev,
+			 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+			 atomic_read(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]));
 	}
 
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
@@ -10272,8 +10279,12 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 	for (i = 0; i < stream_num; i++)
 		dev->stream[i].cur_skip_frame = dev->stream[i].skip_frame;
 	dev->sditf[0]->mode.rdbk_mode = dev->sditf[0]->mode_src.rdbk_mode;
-	if (dev->switch_info.is_use_switch)
+	if (dev->switch_info.is_use_switch) {
 		atomic_inc(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]);
+		v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev,
+			 "%s %d, switch inc cnt %d\n", __func__, __LINE__,
+			 atomic_read(&dev->hw_dev->switch_stream_cnt[dev->switch_info.host_idx]));
+	}
 	if (dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
 		for (i = 0; i < stream_num; i++) {
 			stream = &dev->stream[i];
@@ -14381,21 +14392,6 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 			}
 
 			spin_lock_irqsave(&stream->cifdev->stream_spinlock, flags);
-			if (stream->is_wait_stop_complete) {
-				if (!stream->cifdev->switch_info.is_use_switch ||
-				    atomic_dec_if_positive(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0) {
-					if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-					    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
-					    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
-						rkcif_disable_capture(stream);
-					} else {
-						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
-						rkcif_stop_dma_capture(stream);
-					}
-				}
-				stream->is_wait_stop_complete = false;
-				complete(&stream->stop_complete);
-			}
 			if (stream->cifdev->sensor_state_change &&
 			    (stream->cifdev->hdr.hdr_mode == NO_HDR ||
 			    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
@@ -14421,13 +14417,17 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					stream->is_single_cap = false;
 					spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 					if (!stream->cifdev->switch_info.is_use_switch ||
-					    atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0)
+					    atomic_dec_if_positive(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0)
 						rkcif_dphy_quick_stream(stream->cifdev, on);
 					stream->cifdev->sensor_work.on = 0;
 					atomic_inc(&stream->cifdev->sensor_off);
 					schedule_work(&stream->cifdev->sensor_work.work);
 					stream->is_pause_stream = true;
 					stream->is_hold_stream_off = true;
+					if (stream->cifdev->switch_info.is_use_switch)
+						v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
+							 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+							 atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]));
 				} else {
 					stream->is_single_cap = false;
 					stream->is_wait_single_cap = false;
@@ -14437,6 +14437,25 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				}
 			} else {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
+			}
+			if (stream->is_wait_stop_complete) {
+				if (!stream->cifdev->switch_info.is_use_switch ||
+				    atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0) {
+					if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
+					    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+					    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
+						rkcif_disable_capture(stream);
+					} else {
+						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+						rkcif_stop_dma_capture(stream);
+					}
+				}
+				if (stream->cifdev->switch_info.is_use_switch)
+					v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+						 atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]));
+				stream->is_wait_stop_complete = false;
+				complete(&stream->stop_complete);
 			}
 			if (stream->cur_skip_frame &&
 			    (stream->cifdev->hdr.hdr_mode == NO_HDR ||
@@ -16052,6 +16071,10 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					stream->is_pause_stream = true;
 					stream->is_hold_stream_off = true;
 				}
+				if (stream->cifdev->switch_info.is_use_switch)
+					v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+						 atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]));
 				if (cif_dev->hdr.hdr_mode == HDR_X2)
 					last_stream = &stream->cifdev->stream[1];
 				else if (cif_dev->hdr.hdr_mode == HDR_X3)
@@ -16070,14 +16093,16 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						stream->cifdev->sensor_work.on = 0;
 						atomic_inc(&stream->cifdev->sensor_off);
 						schedule_work(&stream->cifdev->sensor_work.work);
+						if (cif_dev->switch_info.is_use_switch)
+							v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
+								 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+								 atomic_read(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]));
 					}
 				} else {
 					last_stream->is_wait_single_cap = false;
 					cif_dev->resume_mode = RKISP_RTT_MODE_MULTI_FRAME;
 					complete(&stream->start_complete);
 					spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
-					if (cif_dev->switch_info.is_use_switch)
-						atomic_inc(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]);
 				}
 			} else if (buf_stream->lack_buf_cnt == 2 && !stream->cur_skip_frame &&
 				   !buf_stream->is_single_buf_mode) {
@@ -16164,6 +16189,10 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						if (!ret)
 							stream->is_finish_stop_dma = true;
 					}
+					if (cif_dev->switch_info.is_use_switch)
+						v4l2_dbg(5, rkcif_debug, &cif_dev->v4l2_dev,
+							 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+							 atomic_read(&cif_dev->hw_dev->switch_stream_cnt[cif_dev->switch_info.host_idx]));
 				}
 				spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
