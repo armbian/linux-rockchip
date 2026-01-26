@@ -3962,6 +3962,7 @@
 			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru ACLK_RKDMA0>, <&cru PCLK_RKDMA0>;
 			clock-names = "aclk", "pclk";
+			rockchip,grf = <&sys_grf>;
 			#dma-cells = <1>;
 		};
 
@@ -3971,6 +3972,7 @@
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru ACLK_RKDMA1>, <&cru PCLK_RKDMA1>;
 			clock-names = "aclk", "pclk";
+			rockchip,grf = <&sys_grf>;
 			#dma-cells = <1>;
 		};
 
@@ -3980,6 +3982,7 @@
 			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru ACLK_RKDMA2>, <&cru PCLK_RKDMA2>;
 			clock-names = "aclk", "pclk";
+			rockchip,grf = <&sys_grf>;
 			#dma-cells = <1>;
 		};
 
@@ -3989,6 +3992,7 @@
 			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru ACLK_RKDMA3>, <&cru PCLK_RKDMA3>;
 			clock-names = "aclk", "pclk";
+			rockchip,grf = <&sys_grf>;
 			#dma-cells = <1>;
 		};
 
