@@ -1098,6 +1098,7 @@ struct rkcif_device {
 	struct rkcif_switch_info	switch_info;
 	struct rkmodule_irfpa_info	irfpa_info;
 	int				prev_id;
+	u32				exp_mode;
 };
 
 extern struct platform_driver rkcif_plat_drv;
