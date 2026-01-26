@@ -1054,6 +1054,7 @@ void sditf_change_to_online(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct rkcif_stream *cur_stream = NULL;
+	 int stream_cnt, i;
 
 	priv->mode = priv->mode_src;
 	if (priv->mode.rdbk_mode != RKISP_VICAP_ONLINE_UNITE &&
@@ -1063,17 +1064,17 @@ void sditf_change_to_online(struct sditf_priv *priv)
 	if (cif_dev->is_thunderboot) {
 		if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 			cur_stream = &cif_dev->stream[1];
-			cif_dev->stream[0].is_line_wake_up = false;
-			cif_dev->stream[1].is_line_wake_up = false;
+			stream_cnt = 2;
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 			cur_stream = &cif_dev->stream[2];
-			cif_dev->stream[0].is_line_wake_up = false;
-			cif_dev->stream[1].is_line_wake_up = false;
-			cif_dev->stream[2].is_line_wake_up = false;
+			stream_cnt = 3;
 		} else {
 			cur_stream = &cif_dev->stream[0];
-			cif_dev->stream[0].is_line_wake_up = false;
+			stream_cnt = 1;
 		}
+
+		priv->is_free_thunderboot_buf = true;
+		priv->free_buf_delay_cnt = SDITF_FREE_BUF_DELAY;
 
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE)
 			cur_stream->is_m_online_fb_res = true;
@@ -1084,6 +1085,11 @@ void sditf_change_to_online(struct sditf_priv *priv)
 
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE)
 			rkcif_reinit_right_half_config(cur_stream);
+
+		for (i = 0; i < stream_cnt; i++) {
+			cur_stream = &cif_dev->stream[i];
+			cur_stream->cur_stream_mode = RKCIF_STREAM_MODE_TOISP;
+		}
 	}
 }
 

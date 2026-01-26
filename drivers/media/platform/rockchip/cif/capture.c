@@ -12523,8 +12523,6 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 		if (stream->cifdev->is_thunderboot &&
 		    (stream->frame_idx - 1) == stream->last_rx_buf_idx &&
 		     stream->cifdev->is_rdbk_to_online) {
-			stream->cur_stream_mode &= ~RKCIF_STREAM_MODE_TOISP_RDBK;
-			stream->cur_stream_mode |= RKCIF_STREAM_MODE_TOISP;
 			stream->cifdev->wait_line = 0;
 			v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
 				 "stream[%d] frame_idx %d, last_rx_buf_idx %d cur dma buf %x,  change to online\n",
@@ -14370,8 +14368,13 @@ static void rkcif_release_unnecessary_buf_for_online(struct rkcif_stream *stream
 	unsigned long flags;
 	int i = 0;
 
+	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (!buf)
 		buf = stream->last_buf_toisp;
+	stream->curr_buf_toisp = NULL;
+	stream->next_buf_toisp = NULL;
+	INIT_LIST_HEAD(&stream->rx_buf_head);
+	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 	spin_lock_irqsave(&priv->cif_dev->buffree_lock, flags);
 	for (i = 0; i < stream->rx_buf_num; i++) {
 		rx_buf = &stream->rx_buf[i];
@@ -14383,29 +14386,36 @@ static void rkcif_release_unnecessary_buf_for_online(struct rkcif_stream *stream
 	}
 	spin_unlock_irqrestore(&priv->cif_dev->buffree_lock, flags);
 	schedule_work(&priv->buffree_work.work);
+	v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+		 "stream[%d] free rx_buf\n", stream->id);
+	if (buf)
+		v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+			"stream[%d] reserved buf 0x%x\n", stream->id, (u32)buf->dummy.dma_addr);
 }
 
-static void rkcif_thunderboot_free_rx_buffer(struct sditf_priv *priv)
+static void rkcif_thunderboot_free_rx_buffer(struct rkcif_device *cif_dev)
 {
-	struct rkcif_device *cif_dev = priv->cif_dev;
-	struct rkcif_stream *cur_stream;
-	int stream_cnt, i;
+	struct rkcif_stream *stream;
+	int i, stream_cnt;
 
-	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		cur_stream = &cif_dev->stream[1];
-		stream_cnt = 1;
-	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		cur_stream = &cif_dev->stream[2];
+	if (cif_dev->hdr.hdr_mode == HDR_X2)
 		stream_cnt = 2;
-	} else {
-		cur_stream = &cif_dev->stream[0];
-		stream_cnt = 0;
+	else if (cif_dev->hdr.hdr_mode == HDR_X3)
+		stream_cnt = 3;
+	else
+		stream_cnt = 1;
+	for (i = 0; i < stream_cnt; i++) {
+		stream = &cif_dev->stream[i];
+		if (cif_dev->hdr.hdr_mode == NO_HDR ||
+		    (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+		    (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))
+			rkcif_free_rx_buf(stream, stream->rx_buf_num);
+		else
+			rkcif_release_unnecessary_buf_for_online(stream,
+								 stream->curr_buf_toisp);
+		rkcif_modify_line_int(stream, false);
+		stream->is_line_wake_up = false;
 	}
-	rkcif_free_rx_buf(cur_stream, cur_stream->rx_buf_num);
-	for (i = 0; i < stream_cnt; i++)
-		rkcif_release_unnecessary_buf_for_online(&cif_dev->stream[i],
-							 cif_dev->stream[i].curr_buf_toisp);
-	cif_dev->is_thunderboot = false;
 }
 
 static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
@@ -14441,6 +14451,19 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				stream = &priv->cif_dev->stream[0];
 			else
 				stream = &priv->cif_dev->stream[src_id % 4];
+
+			if (priv->is_free_thunderboot_buf &&
+			    (stream->cifdev->hdr.hdr_mode == NO_HDR ||
+			     (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+			     (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
+				if (priv->free_buf_delay_cnt) {
+					priv->free_buf_delay_cnt--;
+				} else {
+					rkcif_thunderboot_free_rx_buffer(stream->cifdev);
+					priv->is_free_thunderboot_buf = false;
+				}
+			}
+
 			if (stream->stopping) {
 				v4l2_dbg(3, rkcif_debug, &priv->cif_dev->v4l2_dev,
 					 "stream[%d] stop\n",
@@ -14616,8 +14639,6 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				if (priv->mode_src.rdbk_mode == RKISP_VICAP_ONLINE_MULTI ||
 				    priv->mode_src.rdbk_mode == RKISP_VICAP_ONLINE_UNITE)
 					sditf_disable_immediately(priv);
-				if (priv->cif_dev->is_thunderboot)
-					rkcif_thunderboot_free_rx_buffer(priv);
 			}
 			stream->buf_wake_up_cnt++;
 			if (stream->frame_idx % 2)
