@@ -99,6 +99,15 @@
 		};
 	};
 
+	edp_sound: edp-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-edp";
+		rockchip,cpu = <&sai4>;
+		rockchip,codec = <&edp 0>;
+	};
+
 	es7202_sound_micarray: es7202-sound-micarray {
 		status = "disabled";
 		compatible = "simple-audio-card";
