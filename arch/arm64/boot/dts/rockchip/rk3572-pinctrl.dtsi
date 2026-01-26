@@ -4509,4 +4509,13 @@
 				<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	ufs {
+		/omit-if-no-ref/
+		ufs_rstgpio: ufs-rstgpio {
+			rockchip,pins =
+				/* ufs_rstn */
+				<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
 };
