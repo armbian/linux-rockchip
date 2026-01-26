@@ -293,6 +293,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-test2-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-test3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-test3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10-edp2dp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10-pwm-test.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-ebook-color-v10.dtb

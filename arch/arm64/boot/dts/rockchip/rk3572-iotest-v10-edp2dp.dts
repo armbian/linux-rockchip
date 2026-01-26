@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-iotest-v10.dtsi"
+#include "rk3572-android.dtsi"
+
+/ {
+	model = "Rockchip RK3572 IOTEST V10 Board";
+	compatible = "rockchip,rk3572-iotest-v10-edp2dp", "rockchip,rk3572";
+};
+
+&edp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp_txm1_pins>;
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_sound {
+	status = "okay";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&route_edp {
+	status = "okay";
+	connect = <&vp0_out_edp>;
+};
+
+&sai4 {
+	status = "okay";
+};
