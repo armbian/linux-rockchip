@@ -1621,6 +1621,18 @@
 			status = "disabled";
 		};
 
+		ebc: ebc@27100000 {
+			compatible = "rockchip,rk3572-ebc-tcon";
+			reg = <0x0 0x27100000 0x0 0x8000>;
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru HCLK_EBC>, <&cru ACLK_EBC>, <&cru DCLK_EBC>;
+			clock-names = "hclk", "aclk", "dclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&ebc_24bit_pins>;
+			power-domains = <&power RK3572_PD_IMG>;
+			status = "disabled";
+		};
+
 		vopl: vop@27100000 {
 			compatible = "rockchip,rk3572-vop-lit";
 			reg = <0x0 0x27100000 0x0 0x200>;
