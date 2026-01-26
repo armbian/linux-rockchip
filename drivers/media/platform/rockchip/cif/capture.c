@@ -4110,7 +4110,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	const struct cif_output_fmt *fmt;
 	u32 fourcc;
 	int vc = stream->channel_info.vc;
-	u32 raw_bpp = 0;
+	u32 bpp = 0;
 
 	channel->enable = 1;
 	channel->width = stream->pixm.width;
@@ -4154,9 +4154,6 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		return -EINVAL;
 	}
 
-	if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE)
-		channel->width /=  channel->capture_info.multi_dev.dev_num;
-
 	if (dev->sditf[0] && dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE &&
 	    (dev->hdr.hdr_mode == NO_HDR ||
 	     dev->hdr.hdr_mode == HDR_CIS_MERGE ||
@@ -4182,23 +4179,23 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		     fmt->fourcc == V4L2_PIX_FMT_SGBRG14 ||
 		     fmt->fourcc == V4L2_PIX_FMT_SGRBG14 ||
 		     fmt->fourcc == V4L2_PIX_FMT_SRGGB14))
-			raw_bpp = 12;
+			bpp = 12;
 		else
-			raw_bpp = fmt->raw_bpp;
-		if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
-			channel->virtual_width = ALIGN(channel->width * 2 * raw_bpp / 8, 256);
-			channel->left_virtual_width = channel->width * raw_bpp / 8;
-		} else {
-			channel->virtual_width = ALIGN(channel->width * raw_bpp / 8, 256);
-		}
+			bpp = fmt->raw_bpp;
+		channel->virtual_width = ALIGN(channel->width * bpp / 8, 256);
 	} else {
-		if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
-			channel->virtual_width = ALIGN(channel->width * 2 * fmt->bpp[0] / 8, 8);
-			channel->left_virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
-		} else {
-			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
-		}
+		bpp = fmt->bpp[0];
+		if (fmt->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)
+			channel->virtual_width = ALIGN_ANY_SAFE(channel->width * bpp / 8, 24);
+		else
+			channel->virtual_width = ALIGN(channel->width * bpp / 8, 8);
 	}
+
+	if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
+		channel->width /= channel->capture_info.multi_dev.dev_num;
+		channel->left_virtual_width = ALIGN(channel->width * bpp / 8, 8);
+	}
+
 	if (dev->chip_id > CHIP_RK3562_CIF && stream->sw_dbg_en)
 		channel->virtual_width = (channel->virtual_width + 23) / 24 * 24;
 
@@ -7646,6 +7643,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 		v4l2_err(v4l2_dev, "terminal_sensor is invalid\n");
 		return -EINVAL;
 	}
+	dev->channels[stream->id] = stream->channel_info;
 
 	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
 		stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
@@ -9245,7 +9243,10 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 				bpl = ALIGN(width * raw_bpp / 8, 256);
 			} else {
 				bpp = rkcif_align_bits_per_pixel(stream, fmt, i);
-				bpl = ALIGN(width * bpp / CIF_YUV_STORED_BIT_WIDTH, 8);
+				if (fmt->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)
+					bpl = ALIGN_ANY_SAFE(width * bpp / CIF_YUV_STORED_BIT_WIDTH, 24);
+				else
+					bpl = ALIGN(width * bpp / CIF_YUV_STORED_BIT_WIDTH, 8);
 
 			}
 		}
