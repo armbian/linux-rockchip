@@ -690,6 +690,7 @@ struct rkcif_stream {
 	bool				is_force_update;
 	bool				is_hold_stream_off;
 	bool				is_single_buf_mode;
+	bool				is_detect_lack_buf;
 };
 
 struct rkcif_lvds_subdev {

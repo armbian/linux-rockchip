@@ -1376,8 +1376,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		is_free = true;
 	}
 
-	if (!is_free && (!dbufs->is_switch) && stream->state == RKCIF_STATE_STREAMING &&
+	if (!is_free &&
+	    (!dbufs->is_switch || (dbufs->is_switch && dbufs->type != BUF_SHORT)) &&
+	    stream->state == RKCIF_STATE_STREAMING &&
 	    sditf_check_toolbuf_return(stream, rx_buf)) {
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "+%d+ stream[%d] add 0x%x to list %p\n",
+			 __LINE__, stream->id, (u32)rx_buf->dummy.dma_addr, &stream->rx_buf_head);
 		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&
