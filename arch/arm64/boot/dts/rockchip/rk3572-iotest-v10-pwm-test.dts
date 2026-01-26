@@ -1,0 +1,179 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-iotest-v10.dtsi"
+#include "rk3572-android.dtsi"
+
+/ {
+	model = "Rockchip RK3572 IOTEST V10 Board";
+	compatible = "rockchip,rk3572-iotest-v10-pwm-test", "rockchip,rk3572";
+
+	pwm_rockchip_test: pwm-rockchip-test {
+		compatible = "pwm-rockchip-test";
+		pwms = <&pwm0_2ch_0 0 25000 0>,
+		       <&pwm0_2ch_1 0 25000 0>,
+		       <&pwm1_6ch_0 0 25000 0>,
+		       <&pwm1_6ch_1 0 25000 0>,
+		       <&pwm1_6ch_2 0 25000 0>,
+		       <&pwm1_6ch_3 0 25000 0>,
+		       <&pwm1_6ch_4 0 25000 0>,
+		       <&pwm1_6ch_5 0 25000 0>,
+		       <&pwm2_8ch_0 0 25000 0>,
+		       <&pwm2_8ch_1 0 25000 0>,
+		       <&pwm2_8ch_2 0 25000 0>,
+		       <&pwm2_8ch_3 0 25000 0>,
+		       <&pwm2_8ch_4 0 25000 0>,
+		       <&pwm2_8ch_5 0 25000 0>,
+		       <&pwm2_8ch_6 0 25000 0>,
+		       <&pwm2_8ch_7 0 25000 0>;
+		pwm-names = "pwm0_0",
+			    "pwm0_1",
+			    "pwm1_0",
+			    "pwm1_1",
+			    "pwm1_2",
+			    "pwm1_3",
+			    "pwm1_4",
+			    "pwm1_5",
+			    "pwm2_0",
+			    "pwm2_1",
+			    "pwm2_2",
+			    "pwm2_3",
+			    "pwm2_4",
+			    "pwm2_5",
+			    "pwm2_6",
+			    "pwm2_7";
+	};
+};
+
+/*
+ * The pins of backlight and pwm1_ch5 are multiplexed
+ */
+&backlight {
+	status = "disabled";
+};
+
+/*
+ * The pins of i2c1 and pwm1_ch0/pwm1_ch1 are multiplexed
+ */
+&i2c1 {
+	status = "disabled";
+};
+
+&pwm0_2ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm0_2ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM0>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_4 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch4_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm1_6ch_5 {
+	status = "okay";
+	pinctrl-0 = <&pwm1m0_ch5_pins>;
+	assigned-clocks = <&cru CLK_PWM1>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_0 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch0_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+/*
+ * The pins of pwm2_ch1 and emmc are multiplexed
+ */
+&pwm2_8ch_1 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m1_ch1_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch2_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_3 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch3_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_4 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch4_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_5 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch5_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_6 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch6_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
+
+&pwm2_8ch_7 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m0_ch7_pins>;
+	assigned-clocks = <&cru CLK_PWM2>;
+	assigned-clock-rates = <100000000>;
+};
