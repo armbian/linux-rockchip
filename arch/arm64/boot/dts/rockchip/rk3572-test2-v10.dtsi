@@ -92,7 +92,25 @@
 	status = "okay";
 };
 
+&edp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp_txm1_pins>;
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_sound {
+	status = "okay";
+};
+
 &es7202_sound_micarray {
+	status = "okay";
+};
+
+&hdptxphy {
 	status = "okay";
 };
 
@@ -163,6 +181,10 @@
 	status = "okay";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
+};
+
+&sai4 {
+	status = "okay";
 };
 
 &u2phy0 {
