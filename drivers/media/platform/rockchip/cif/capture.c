@@ -16141,6 +16141,35 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			rkcif_check_one_to_multi_sub_stream_stop_state(cif_dev);
 		}
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
+			if (intstat & CSI_LINE_INTSTAT_V1(i)) {
+				if (cif_dev->switch_info.is_use_switch) {
+					if (cif_dev->switch_info.is_active)
+						stream = &cif_dev->stream[i];
+					else
+						stream = &cif_dev->switch_info.switch_dev->stream[i];
+				} else {
+					stream = &cif_dev->stream[i];
+				}
+				if (stream->state != RKCIF_STATE_STREAMING)
+					continue;
+				if (stream->is_line_inten) {
+					stream->line_int_cnt++;
+					if (cif_dev->rdbk_debug > 1 &&
+					    stream->frame_idx < 15)
+						v4l2_info(&cif_dev->v4l2_dev,
+							  "stream[%d] line int %lld\n",
+							  stream->id, stream->line_int_cnt);
+					if (cif_dev->sditf[0] && (cif_dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO ||
+					    cif_dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME))
+						rkcif_line_wake_up_rdbk(stream, stream->id);
+					else if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
+						rkcif_line_wake_up_interlace(stream, stream->id);
+					else
+						rkcif_line_wake_up(stream, stream->id);
+				}
+				v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+					 "%s: id0 cur line:%d\n", __func__, lastline & 0x3fff);
+			}
 			if (intstat & (cif_dev->chip_id < CHIP_RK3576_CIF ?
 			    CSI_START_INTSTAT(i) : CSI_START_INTSTAT_RK3576(i))) {
 				if (cif_dev->switch_info.is_use_switch) {
@@ -16212,35 +16241,6 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					rkcif_enable_dma_capture(stream, false);
 				if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
 					rkcif_check_mipi_interlaced_frame_id(stream);
-			}
-			if (intstat & CSI_LINE_INTSTAT_V1(i)) {
-				if (cif_dev->switch_info.is_use_switch) {
-					if (cif_dev->switch_info.is_active)
-						stream = &cif_dev->stream[i];
-					else
-						stream = &cif_dev->switch_info.switch_dev->stream[i];
-				} else {
-					stream = &cif_dev->stream[i];
-				}
-				if (stream->state != RKCIF_STATE_STREAMING)
-					continue;
-				if (stream->is_line_inten) {
-					stream->line_int_cnt++;
-					if (cif_dev->rdbk_debug > 1 &&
-					    stream->frame_idx < 15)
-						v4l2_info(&cif_dev->v4l2_dev,
-							  "line int %lld\n",
-							  stream->line_int_cnt);
-					if (cif_dev->sditf[0] && (cif_dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO ||
-					    cif_dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME))
-						rkcif_line_wake_up_rdbk(stream, stream->id);
-					else if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
-						rkcif_line_wake_up_interlace(stream, stream->id);
-					else
-						rkcif_line_wake_up(stream, stream->id);
-				}
-				v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
-					 "%s: id0 cur line:%d\n", __func__, lastline & 0x3fff);
 			}
 		}
 	} else {
