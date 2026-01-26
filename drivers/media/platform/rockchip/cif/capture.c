@@ -14750,7 +14750,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 					  rkcif_get_sof(cif_dev),
 					  detect_stream->frame_idx);
 			if (rkcif_check_frame_active(cif_dev) &&
-			    cif_dev->channels[0].capture_info.mode != RKMODULE_QUADBAYER_TO_DUAL_PIPE)
+			    cif_dev->channels[0].capture_info.mode != RKMODULE_QUADBAYER_TO_DUAL_PIPE &&
+			    (!detect_stream->cifdev->is_in_flip))
 				detect_stream->frame_idx++;
 		}
 		spin_unlock_irqrestore(&detect_stream->vbq_lock, flags);
