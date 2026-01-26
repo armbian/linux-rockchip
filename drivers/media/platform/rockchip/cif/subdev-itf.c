@@ -1460,6 +1460,10 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (dbufs->runtime_us && cif_dev->early_line == 0) {
 		if (!cif_dev->sensor_linetime)
 			cif_dev->sensor_linetime = rkcif_get_linetime(stream);
+		if (cif_dev->hdr.hdr_mode == HDR_X2 && cif_dev->exp_mode == EXP_HDR2_STA)
+			cif_dev->sensor_linetime *= 2;
+		else if (cif_dev->hdr.hdr_mode == HDR_X3 && cif_dev->exp_mode == EXP_HDR3_STA)
+			cif_dev->sensor_linetime *= 3;
 		cif_dev->isp_runtime_max = dbufs->runtime_us;
 		if (cif_dev->is_thunderboot)
 			diff_time = 200000;

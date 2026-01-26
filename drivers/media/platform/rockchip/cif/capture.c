@@ -8900,6 +8900,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	u32 skip_frame = 0;
 	int on = 1;
 	struct rkmodule_channel_stream ch_stream;
+	u32 exp_mode;
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
@@ -8965,6 +8966,20 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 			rkmodule_stream_seq = RKMODULE_START_STREAM_DEFAULT;
 
 		rkcif_sync_crop_info(stream);
+		ret = v4l2_subdev_call(terminal_sensor->sd,
+				       core, ioctl,
+				       RKMODULE_GET_EXP_MODE,
+				       &exp_mode);
+		if (ret) {
+			if (dev->hdr.hdr_mode == HDR_X2)
+				dev->exp_mode = EXP_HDR2_STA;
+			else if (dev->hdr.hdr_mode == HDR_X3)
+				dev->exp_mode = EXP_HDR3_STA;
+			else
+				dev->exp_mode = EXP_NORMAL;
+		} else {
+			dev->exp_mode = exp_mode;
+		}
 	}
 
 	ret = rkcif_sanity_check_fmt(stream, NULL);
