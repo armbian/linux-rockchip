@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Rockchip RKNPU3"
+	depends on ARCH_ROCKCHIP
+
+config ROCKCHIP_RKNPU3
+	tristate "Rockchip RKNPU3 Support"
+	depends on OF
+	select DMA_SHARED_BUFFER
+	help
+	  This driver provides support for Rockchip RKNPU3 (Neural Processing Unit).
+	  RKNPU3 is a hardware accelerator for neural network inference on
+	  Rockchip RK3572 and similar SoCs.
+
+	  If you have a Rockchip SoC with NPU support and want to use the NPU
+	  for AI acceleration, say Y or M here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rknpu3.
+
+endmenu

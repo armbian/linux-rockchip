@@ -379,6 +379,7 @@ config RK_ZONEINFO_PROCFS
 
 source "drivers/soc/rockchip/aoa_middleware/Kconfig"
 source "drivers/soc/rockchip/minidump/Kconfig"
+source "drivers/soc/rockchip/rknpu3/Kconfig"
 
 endmenu
 
