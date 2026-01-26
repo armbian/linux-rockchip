@@ -85,6 +85,44 @@
 		regulator-max-microvolt = <900000>;
 		vin-supply = <&vcc5v0_sys_s5>;
 	};
+
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd>;
+		pinctrl-name = "default";
+		pinctrl-0 = <&edp_panel_reset>;
+		reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		width-mm = <120>;
+		height-mm = <160>;
+		status = "okay";
+
+		panel-timing {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			vactive = <2048>;
+			hfront-porch = <12>;
+			hsync-len = <16>;
+			hback-porch = <48>;
+			vfront-porch = <8>;
+			vsync-len = <4>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
 };
 
 &combphy0_psu {
@@ -136,6 +174,29 @@
 	};
 };
 
+&edp {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -168,6 +229,12 @@
 };
 
 &pinctrl {
+	display {
+		edp_panel_reset: edp-panel-reset {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb {
 		usb3_switch_default: usb3-switch-default {
 			rockchip,pins = <1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
