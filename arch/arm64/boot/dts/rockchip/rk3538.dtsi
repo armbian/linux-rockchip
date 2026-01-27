@@ -2022,7 +2022,7 @@
 		};
 
 		sdio: mmc@fdd00000 {
-			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3576-dw-mshc";
 			reg = <0xfdd00000 0x10000>;
 			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru HCLK_SDIO>, <&cru CCLK_SDIO>;
@@ -2035,7 +2035,7 @@
 		};
 
 		sdmmc1: mmc@fdd10000 {
-			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3576-dw-mshc";
 			reg = <0xfdd10000 0x10000>;
 			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru HCLK_SDMMC1>, <&cru CCLK_SDMMC1>;
@@ -2113,7 +2113,7 @@
 		};
 
 		sdmmc0: mmc@fde00000 {
-			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3288-dw-mshc";
+			compatible = "rockchip,rk3538-dw-mshc", "rockchip,rk3576-dw-mshc";
 			reg = <0xfde00000 0x10000>;
 			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru HCLK_SDMMC0>, <&cru CCLK_SDMMC0>;
