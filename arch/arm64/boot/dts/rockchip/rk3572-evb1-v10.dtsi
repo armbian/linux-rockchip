@@ -246,6 +246,19 @@
 	status = "disabled";
 };
 
+&pcie1 {
+	reset-gpios = <&gpio1 RK_PC0 GPIO_ACTIVE_HIGH>;
+	rockchip,skip-scan-in-resume;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_poweren_gpio>;
+
+	/*
+	 * Solder R1851 and R1860 registers to make this slot
+	 * work according to the schematic of page 17.
+	 */
+	status = "okay";
+};
+
 &pinctrl {
 	cam {
 		mipicsi0_pwr: mipicsi0-pwr {
