@@ -2001,6 +2001,13 @@ static const struct dev_pm_ops rk_hdptx_phy_pm_ops = {
 		       rk_hdptx_phy_runtime_resume, NULL)
 };
 
+static const struct rk_hdptx_phy_cfg rk3572_hdptx_phy_cfgs = {
+	.num_phys = 1,
+	.phy_ids = {
+		0x2c310000,
+	},
+};
+
 static const struct rk_hdptx_phy_cfg rk3576_hdptx_phy_cfgs = {
 	.num_phys = 1,
 	.phy_ids = {
@@ -2017,6 +2024,10 @@ static const struct rk_hdptx_phy_cfg rk3588_hdptx_phy_cfgs = {
 };
 
 static const struct of_device_id rk_hdptx_phy_of_match[] = {
+	{
+		.compatible = "rockchip,rk3572-hdptx-phy",
+		.data = &rk3572_hdptx_phy_cfgs
+	},
 	{
 		.compatible = "rockchip,rk3576-hdptx-phy",
 		.data = &rk3576_hdptx_phy_cfgs
