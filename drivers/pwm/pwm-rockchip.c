@@ -2492,6 +2492,9 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (count >= 2) {
 		pc->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
 		pc->clk_osc = devm_clk_get_optional(&pdev->dev, "osc");
+		if (IS_ERR(pc->clk_osc))
+			return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk_osc),
+					     "Can't get OSC clk\n");
 	} else {
 		pc->pclk = pc->clk;
 	}
