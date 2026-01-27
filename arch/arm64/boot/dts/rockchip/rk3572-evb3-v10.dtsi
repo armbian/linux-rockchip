@@ -65,7 +65,17 @@
 	status = "okay";
 };
 
+&combphy2_ps {
+	status = "okay";
+};
+
 &pinctrl {
+	sata {
+		satapm_pwren: satapm-pwren {
+			rockchip,pins = <4 RK_PB7 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
 	usb {
 		usb_drd0_pwren: usb-drd0-pwren {
 			rockchip,pins = <0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -79,6 +89,12 @@
 			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&sata1 {
+	status = "okay";
+	pinctrl-0 = <&satapm_pwren>;
+	pinctrl-names = "default";
 };
 
 &u2phy0 {
