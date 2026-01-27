@@ -275,6 +275,10 @@
 	connect = <&vp0_out_edp>;
 };
 
+&sdmmc0 {
+	status = "okay";
+};
+
 &u2phy0 {
 	orientation-switch;
 	status = "okay";
