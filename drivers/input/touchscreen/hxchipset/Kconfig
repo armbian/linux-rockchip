@@ -44,6 +44,12 @@ config TOUCHSCREEN_HIMAX_IC_HX83191
 		help
 		This enables support for HIMAX CHIPSET of HX83191.
 
+config TOUCHSCREEN_HIMAX_IC_HX83102
+        tristate "HIMAX chipset HX83102 function"
+		depends on TOUCHSCREEN_HIMAX_INCELL
+		help
+		This enables support for HIMAX CHIPSET of HX83102.
+
 # ***************** In-cell End *******************
 
 config TOUCHSCREEN_HIMAX_DEBUG

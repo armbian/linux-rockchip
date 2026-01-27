@@ -56,6 +56,11 @@ ifneq ($(filter y m, $(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83191)),)
   endif
 endif
 
+ifneq ($(filter y m, $(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83102)),)
+  ccflags-y += -D__HIMAX_HX83102_MOD__
+	himax_mmi-objs += himax_ic_HX83102.o
+endif
+
 ifneq ($(filter m, $(CONFIG_TOUCHSCREEN_HIMAX_COMMON)),)
   ccflags-y += -D__HIMAX_MOD__
 	himax_mmi-objs += himax_common.o

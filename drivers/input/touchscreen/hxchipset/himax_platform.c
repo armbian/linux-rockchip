@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/pinctrl/consumer.h>
 #include "himax.h"
 #include "himax_platform.h"
 #include "himax_common.h"
@@ -19,6 +20,10 @@
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83192)
 DECLARE_HIMAX_CHIP(hx83192_chip, hx83192_chip_detect);
+#endif
+
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83102)
+DECLARE_HIMAX_CHIP(hx83102_chip, hx83102_chip_detect);
 #endif
 
 /* FIXME */
@@ -367,6 +372,14 @@ int himax_parse_dt(struct himax_ts_data *ts, struct himax_i2c_platform_data *pda
 	} else {
 		pdata->criteria_file_name = name;
 		I("DT:himax,hx-criteria:%s\n", pdata->criteria_file_name);
+	}
+
+	if (of_property_read_u32(dt, "report_orientation", &data) == 0) {
+		pdata->report_orientation = data;
+		I(" DT:report_orientation=%d\n", pdata->report_orientation);
+	} else {
+		pdata->report_orientation = 0;
+		I(" DT:report_orientation not found, default to 0\n");
 	}
 
 	p = devm_pinctrl_get(&ts->client->dev);
@@ -1084,6 +1097,9 @@ static int himax_chip_common_probe(struct i2c_client *client)
 	INIT_LIST_HEAD(&ts->chips);
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83192)
 	list_add_tail(&hx83192_chip.list, &ts->chips);
+#endif
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83102)
+	list_add_tail(&hx83102_chip.list, &ts->chips);
 #endif
 
 	ts->rw_buf = kcalloc(BUS_RW_MAX_LEN, sizeof(uint8_t), GFP_KERNEL);

@@ -64,6 +64,7 @@ struct himax_i2c_platform_data {
 	int abs_width_max;
 	int screenWidth;
 	int screenHeight;
+	int report_orientation;
 	uint8_t fw_version;
 	uint8_t tw_id;
 	uint8_t powerOff3V3;
@@ -113,5 +114,8 @@ int himax_int_en_set(struct himax_ts_data *ts);
 int tp_diag_himax(void);
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83192)
 bool hx83192_chip_detect(struct himax_ts_data *ts);
+#endif
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83102)
+bool hx83102_chip_detect(struct himax_ts_data *ts);
 #endif
 #endif

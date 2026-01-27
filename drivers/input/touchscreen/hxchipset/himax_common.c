@@ -1516,10 +1516,28 @@ static void himax_finger_report(struct himax_ts_data *ts)
 #else
 			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, i);
 #endif
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X,
-					 ts->target_report_data->x[i]);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
-					 ts->target_report_data->y[i]);
+			if (ts->pdata->report_orientation == 90) {
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X,
+					ts->pdata->screenHeight - ts->target_report_data->y[i]);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
+					ts->target_report_data->x[i]);
+			} else if (ts->pdata->report_orientation == 180) {
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X,
+					ts->pdata->screenWidth - ts->target_report_data->x[i]);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
+					ts->pdata->screenHeight - ts->target_report_data->y[i]);
+			} else if (ts->pdata->report_orientation == 270) {
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X,
+					ts->target_report_data->y[i]);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
+					ts->pdata->screenWidth - ts->target_report_data->x[i]);
+			} else {
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X,
+					ts->target_report_data->x[i]);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
+					ts->target_report_data->y[i]);
+			}
+
 #if !defined(HX_PROTOCOL_A)
 			ts->last_slot = i;
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, 1);
