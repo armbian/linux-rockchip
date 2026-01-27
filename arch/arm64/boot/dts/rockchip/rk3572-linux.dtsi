@@ -30,6 +30,24 @@
 	};
 };
 
+&display_subsystem {
+	memory-region = <&drm_logo>, <&drm_cubic_lut>;
+	memory-region-names = "drm-logo", "drm-cubic-lut";
+	/* devfreq = <&dmc>; */
+};
+
+&reserved_memory {
+	drm_logo: drm-logo@0 {
+		compatible = "rockchip,drm-logo";
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+
+	drm_cubic_lut: drm-cubic-lut@0 {
+		compatible = "rockchip,drm-cubic-lut";
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+};
+
 &rng {
 	status = "okay";
 };
