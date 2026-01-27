@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		 * 256 MB DDR offset CMA start
+		 * 256 + 8 MB DDR offset waveform start
+		 */
+		waveform_reserved: waveform@50800000 {
+			reg = <0x0 0x50800000 0x0 0x100000>;
+		};
+
+		display_reserved: framebuffer@50900000 {
+			reg = <0x0 0x50900000 0x0 0x3800000>;
+		};
+	};
+
+	ebc_dev: ebc-dev {
+		compatible = "rockchip,ebc-dev";
+		ebc_tcon = <&ebc>;
+		memory-region = <&display_reserved>;
+		waveform-region = <&waveform_reserved>;
+		status = "okay";
+	};
+};
+
+&ebc {
+	status = "okay";
+};
