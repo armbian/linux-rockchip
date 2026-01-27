@@ -1031,7 +1031,7 @@
 	};
 
 	mmc: mmc@ff480000 {
-		compatible = "rockchip,rk3506-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rk3506-dw-mshc", "rockchip,rk3576-dw-mshc";
 		reg = <0xff480000 0x4000>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		max-frequency = <150000000>;
