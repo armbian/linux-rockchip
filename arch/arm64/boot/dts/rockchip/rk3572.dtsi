@@ -689,6 +689,12 @@
 		method = "smc";
 	};
 
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+
 	rkcif_dvp: rkcif-dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
