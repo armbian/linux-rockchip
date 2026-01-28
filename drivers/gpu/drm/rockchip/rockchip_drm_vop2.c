@@ -3529,12 +3529,12 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			VOP_SCL_SET(vop2, win, zme_dering_en, zme_dering_en);
 		}
 
-		if (win->regs->scl->zme_xscl_coe_sel.mask) {
+		if (win->regs->scl && win->regs->scl->zme_xscl_coe_sel.mask) {
 			zme_coe_sel = rk3538_zme_scl_coe_sel(src_w, dst_w);
 			VOP_SCL_SET(vop2, win, zme_xscl_coe_sel, zme_coe_sel);
 		}
 
-		if (win->regs->scl->zme_yscl_coe_sel.mask) {
+		if (win->regs->scl && win->regs->scl->zme_yscl_coe_sel.mask) {
 			zme_coe_sel = rk3538_zme_scl_coe_sel(src_h, dst_h);
 			VOP_SCL_SET(vop2, win, zme_yscl_coe_sel, zme_coe_sel);
 		}
