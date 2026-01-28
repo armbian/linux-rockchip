@@ -637,7 +637,6 @@
 };
 
 &i2c2 {
-	pinctrl-0 = <&i2c2m1_xfer_pins>;
 	status = "okay";
 
 	hynitron: hynitron@5a {
