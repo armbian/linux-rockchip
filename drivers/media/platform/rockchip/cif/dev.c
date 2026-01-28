@@ -3314,9 +3314,18 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 			 wasted);
 	}
 
+	if (cif_dev->resmem_size < SHARED_MEM_RESERVED_HEAD_SIZE) {
+		dev_err(dev,
+			"reserved memory too small: size 0x%zx < head 0x%x\n",
+			cif_dev->resmem_size, SHARED_MEM_RESERVED_HEAD_SIZE);
+		return -EINVAL;
+	}
+
 	cif_dev->resmem_addr = dma_map_single(dev, phys_to_virt(r.start),
 					      sizeof(struct rkisp_thunderboot_resmem_head),
 					      DMA_BIDIRECTIONAL);
+	cif_dev->resmem_buf_pa = cif_dev->resmem_pa + SHARED_MEM_RESERVED_HEAD_SIZE;
+	cif_dev->resmem_buf_size = cif_dev->resmem_size - SHARED_MEM_RESERVED_HEAD_SIZE;
 
 	if (device_property_read_bool(dev, "rtt-suspend"))
 		cif_dev->is_rtt_suspend = true;

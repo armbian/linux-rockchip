@@ -330,10 +330,10 @@ static int sditf_init_buf(struct sditf_priv *priv)
 	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 			if (cif_dev->is_thunderboot)
-				cif_dev->resmem_size /= 2;
+				cif_dev->resmem_buf_size /= 2;
 			ret = rkcif_init_rx_buf(&cif_dev->stream[0], priv->buf_num);
 			if (cif_dev->is_thunderboot)
-				cif_dev->resmem_pa += cif_dev->resmem_size;
+				cif_dev->resmem_buf_pa += cif_dev->resmem_buf_size;
 			ret |= rkcif_init_rx_buf(&cif_dev->stream[1], priv->buf_num);
 		} else {
 			ret = rkcif_init_rx_buf(&cif_dev->stream[0], priv->buf_num);
@@ -343,13 +343,13 @@ static int sditf_init_buf(struct sditf_priv *priv)
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 			if (cif_dev->is_thunderboot)
-				cif_dev->resmem_size /= 3;
+				cif_dev->resmem_buf_size /= 3;
 			ret = rkcif_init_rx_buf(&cif_dev->stream[0], priv->buf_num);
 			if (cif_dev->is_thunderboot)
-				cif_dev->resmem_pa += cif_dev->resmem_size;
+				cif_dev->resmem_buf_pa += cif_dev->resmem_buf_size;
 			ret |= rkcif_init_rx_buf(&cif_dev->stream[1], priv->buf_num);
 			if (cif_dev->is_thunderboot)
-				cif_dev->resmem_pa += cif_dev->resmem_size;
+				cif_dev->resmem_buf_pa += cif_dev->resmem_buf_size;
 			ret |= rkcif_init_rx_buf(&cif_dev->stream[2], priv->buf_num);
 		} else {
 			ret = rkcif_init_rx_buf(&cif_dev->stream[0], priv->buf_num);

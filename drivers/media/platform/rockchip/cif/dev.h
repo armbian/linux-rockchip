@@ -1043,8 +1043,10 @@ struct rkcif_device {
 	struct completion		cmpl_ntf;
 	struct csi2_dphy_hw		*dphy_hw;
 	phys_addr_t			resmem_pa;
+	phys_addr_t			resmem_buf_pa;
 	dma_addr_t			resmem_addr;
 	size_t				resmem_size;
+	size_t				resmem_buf_size;
 	struct rk_tb_client		tb_client;
 	struct rkcif_stream_info	cur_stream;
 	struct rkcif_exp_delay		exp_delay;

@@ -345,30 +345,25 @@ static struct dma_buf *rkcif_shm_alloc(struct rkisp_thunderboot_shmem *shmem)
 int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
 {
 	struct rkcif_dummy_buffer *dummy = &buf->dummy;
-	u32 reserved_mem = 0;
 	struct dma_buf_attachment *dba;
 	struct sg_table *sgt;
 	dma_addr_t dma;
 	int ret = 0;
-	u32 dma_addr = 0;
 
-	if (dev->pre_buf_num)
-		reserved_mem = SHARED_MEM_RESERVED_HEAD_SIZE;
 	/*
-	 * Calculate buffer start address. Use PAGE_ALIGN for dummy->size
-	 * to ensure each buffer starts at a page-aligned boundary.
-	 * resmem_pa is already page-aligned from dev.c initialization.
-	 * This is critical for free_reserved_area() which requires
-	 * page-aligned addresses to avoid memory leaks.
+	 * Calculate buffer start address from resmem_buf_pa (already skips
+	 * SHARED_MEM_RESERVED_HEAD_SIZE). Use PAGE_ALIGN for dummy->size so
+	 * each buffer starts on a page boundary; required by free_reserved_area().
 	 */
-	dummy->dma_addr = reserved_mem + dev->resmem_pa +
+	dummy->dma_addr = dev->resmem_buf_pa +
 			   PAGE_ALIGN(dummy->size) * buf->buf_idx;
 
-	if (dummy->dma_addr + PAGE_ALIGN(dummy->size) > dev->resmem_pa + dev->resmem_size) {
+	if (dummy->dma_addr + PAGE_ALIGN(dummy->size) >
+	    dev->resmem_buf_pa + dev->resmem_buf_size) {
 		v4l2_err(&dev->v4l2_dev,
-			 "reserved memory overflow: dma_addr=0x%pa size=0x%x resmem_pa=0x%pa resmem_size=0x%zx\n",
+			 "reserved memory overflow: dma_addr=0x%pa size=0x%x resmem_buf_pa=0x%pa resmem_buf_size=0x%zx\n",
 			 &dummy->dma_addr, dummy->size,
-			 &dev->resmem_pa, dev->resmem_size);
+			 &dev->resmem_buf_pa, dev->resmem_buf_size);
 		return -EINVAL;
 	}
 
@@ -400,8 +395,6 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 		dma = sg_dma_address(sgt->sgl);
 		get_dma_buf(dummy->dbuf);
 		dummy->dma_addr = dma;
-	} else {
-		dummy->dma_addr = dma_addr;
 	}
 	if (dummy->is_need_vaddr) {
 		struct iosys_map map;
