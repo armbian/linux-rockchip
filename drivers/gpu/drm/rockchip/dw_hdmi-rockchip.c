@@ -121,6 +121,9 @@
 #define RK3572_SET_DLY_EN		BIT(8)
 #define RK3572_SET_LNUM_MS_MASK		0xff
 #define RK3572_HDMITX_HPD_STATUS	0x140
+#define RK3572_HDMITX_OHPD_INT		BIT(5)
+#define RK3572_HDMITX_LEVEL_INT		BIT(4)
+#define RK3572_HDMITX_INTR_CHANGE_CNT	0xe
 
 #define RK3576_IOC_MISC_CON0		0xa400
 #define RK3576_HDMITX_HPD_INT_MSK	BIT(2)
@@ -1592,7 +1595,7 @@ static irqreturn_t rk3572_hdmi_hardirq(int irq, void *dev_id)
 
 	regmap_read(hdmi->regmap, RK3572_HDMITX_HPD_STATUS, &intr_stat);
 
-	if (intr_stat & RK3576_HDMITX_OHPD_INT) {
+	if (intr_stat & RK3572_HDMITX_OHPD_INT) {
 		dev_dbg(hdmi->dev, "hpd irq %#x\n", intr_stat);
 
 		val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_MSK,
@@ -1703,12 +1706,15 @@ static irqreturn_t rk3572_hdmi_thread(int irq, void *dev_id)
 
 	val = HIWORD_UPDATE(RK3572_HDMITX_HPD_INT_CLR,
 			    RK3572_HDMITX_HPD_INT_CLR);
-	if (intr_stat & RK3576_HDMITX_LEVEL_INT)
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	val = HIWORD_UPDATE(0, RK3572_HDMITX_HPD_INT_CLR);
+	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
+
+	if (intr_stat & RK3572_HDMITX_LEVEL_INT)
 		stat = true;
 	else
 		stat = false;
-
-	regmap_write(hdmi->regmap, RK3572_SYS_GRF_CON1, val);
 
 	if (stat) {
 		hdmi->hpd_stat = true;
@@ -5325,7 +5331,7 @@ dw_hdmi_rk3572_read_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 
 	regmap_read(hdmi->regmap, RK3572_HDMITX_HPD_STATUS, &val);
 
-	if (val & RK3576_HDMITX_LEVEL_INT) {
+	if (val & RK3572_HDMITX_LEVEL_INT) {
 		hdmi->hpd_stat = true;
 		ret = connector_status_connected;
 	} else {
