@@ -1090,6 +1090,7 @@
 			power-domains = <&power RK3572_PD_PHP>;
 			resets = <&cru SRST_ARESETN_USB3OTG0>;
 			reset-names = "usb3-otg";
+			dma-coherent;
 			dr_mode = "otg";
 			phys = <&u2phy0_otg>, <&combphy0_psu PHY_TYPE_USB3>;
 			phy-names = "usb2-phy", "usb3-phy";
@@ -1116,6 +1117,7 @@
 			power-domains = <&power RK3572_PD_PHP>;
 			resets = <&cru SRST_ARESETN_USB3OTG1>;
 			reset-names = "usb3-otg";
+			dma-coherent;
 			dr_mode = "otg";
 			phys = <&u2phy1_otg>, <&combphy1_psu PHY_TYPE_USB3>;
 			phy-names = "usb2-phy", "usb3-phy";
