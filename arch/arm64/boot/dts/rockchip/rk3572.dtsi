@@ -2251,7 +2251,9 @@
 			reset-names = "ref", "hdp";
 			power-domains = <&power RK3572_PD_VO>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&hdmi_txm0_pins>;
+			pinctrl-0 = <&hdmi_txm0_hpdin_pins
+				     &hdmi_txm0_ddc_pins
+				     &hdmi_txm0_cec_pins>;
 			reg-io-width = <4>;
 			rockchip,grf = <&sys_grf>;
 			rockchip,vo0_grf = <&vo_grf>;
