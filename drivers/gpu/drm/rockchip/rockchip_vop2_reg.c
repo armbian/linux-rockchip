@@ -2242,7 +2242,7 @@ static const struct vop2_video_port_regs rk3572_vop_vp1_regs = {
 	.calc_dclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x7fff, 0),
 	.calc_clk_en = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x1, 15),
 
-	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
+	.dsp_vcnt = VOP_REG(RK3572_VP1_STATUS, 0x1fff, 16),
 };
 
 /*
@@ -5333,7 +5333,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .hsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .vsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .regs = &rk3572_cluster1_win_data,
-	  .csc_coe_offset = RK3572_CLUSTER1_WIN0_CSC_COE01_00,
+	  .csc_coe_offset = RK3572_CLUSTER1_WIN1_CSC_COE01_00,
 	  .csc_coe_bits = 10,
 	  .max_input = { 2048, 4096 },
 	  .max_output = { 4096, 4096 },
