@@ -1288,9 +1288,9 @@ static inline void vop2_write_reg_uncached(struct vop2 *vop2, const struct vop_r
 	writel(v, vop2->base_res.regs + offset);
 }
 
-static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
-				   uint32_t mask, uint32_t shift, uint32_t v,
-				   bool write_mask, bool relaxed)
+static void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
+			    uint32_t mask, uint32_t shift, uint32_t v,
+			    bool write_mask, bool relaxed)
 {
 	uint32_t cached_val;
 
