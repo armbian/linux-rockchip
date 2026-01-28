@@ -185,7 +185,6 @@
 };
 
 &i2c1 {
-	pinctrl-0 = <&i2c1m1_xfer_pins>;
 	status = "okay";
 
 	usbc0: husb311@4e {
