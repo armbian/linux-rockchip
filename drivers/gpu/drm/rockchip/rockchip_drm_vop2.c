@@ -11889,6 +11889,7 @@ static void vop2_crtc_setup_output_mode(struct drm_crtc *crtc)
 			 output_if_is_edp(vcstate->output_if))
 			out_mode = RK3588_EDP_OUTPUT_MODE_YUV422;
 		else if ((vop2->version == VOP_VERSION_RK3576 ||
+			  vop2->version == VOP_VERSION_RK3572 ||
 			  vop2->version == VOP_VERSION_RK3538) &&
 			 output_if_is_hdmi(vcstate->output_if))
 			out_mode = RK3576_HDMI_OUT_MODE_YUV422;
