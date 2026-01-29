@@ -127,6 +127,15 @@
 		enable-active-high;
 	};
 
+	vcc_mipicsi1: vcc-mipicsi1-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi1_pwr>;
+		regulator-name = "vcc_mipicsi1";
+		enable-active-high;
+	};
+
 	vdd2l_0v9_ddr_s3: vdd2l-0v9-ddr-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd2l_0v9_ddr_s3";
@@ -402,6 +411,12 @@
 			rockchip,pins =
 				/* camera power en */
 				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		mipicsi1_pwr: mipicsi1-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
