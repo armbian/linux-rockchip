@@ -3461,6 +3461,8 @@ secondary:
 		tmdsclk = hdmi_get_tmdsclock(hdmi, mode.crtc_clock * fva_factor);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->output_bus_format))
 			tmdsclk /= 2;
+		if (mode.flags & DRM_MODE_FLAG_DBLCLK)
+			tmdsclk *= 2;
 		hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
 
 		if (hdmi->link_cfg.frl_mode) {
@@ -5789,6 +5791,7 @@ static const struct dw_hdmi_plat_data rk3572_hdmi_drv_data = {
 	.ycbcr_420_allowed = true,
 	.dw_hdmi_qp_version = DW_HDMI_QP_V1,
 	.use_drm_infoframe = true,
+	.pr_supported = true,
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
