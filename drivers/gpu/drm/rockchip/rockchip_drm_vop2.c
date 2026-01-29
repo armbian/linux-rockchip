@@ -6939,9 +6939,9 @@ static int vop3_msmart_grid_max_grid_per_row_check(struct drm_plane *plane,
 	int current_count = 0;
 	int current_py = 0;
 
-	scan_points = kmalloc_array(msmart_data->active_grid_num,
-				   sizeof(struct msmart_grid_scan_point),
-				   GFP_KERNEL);
+	scan_points = kmalloc_array(msmart_data->active_grid_num * 2,
+				    sizeof(struct msmart_grid_scan_point),
+				    GFP_KERNEL);
 	if (!scan_points)
 		return -ENOMEM;
 
@@ -6968,13 +6968,14 @@ static int vop3_msmart_grid_max_grid_per_row_check(struct drm_plane *plane,
 		if (current_count > max_grid_per_row) {
 			drm_err(plane->dev, "the grid exceed %d in row:%d\n", max_grid_per_row,
 				current_py);
-				return true;
+			kfree(scan_points);
+			return -EINVAL;
 		}
 	}
 
 	kfree(scan_points);
 
-	return false;
+	return 0;
 }
 
 static bool vop3_msmart_grid_overlap_check(struct drm_plane *plane,
