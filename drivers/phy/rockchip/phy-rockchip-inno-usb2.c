@@ -1100,7 +1100,7 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		vbus_det_en = false;
 		break;
 	default:
-		dev_info(&rport->phy->dev, "illegal mode\n");
+		dev_info(&rport->phy->dev, "set u2phy mode %d\n", mode);
 		return ret;
 	}
 
