@@ -195,6 +195,21 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+	rockchip,sda-falling-delay-ns = <360>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_txm0_cec_pins &hdmi_txm0_ddc_pins &hdmi_txm1_hpdin_pins>;
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "okay";
+};
+
 &hynitron {
 	power-supply = <&vcc3v3_lcd>;
 };
