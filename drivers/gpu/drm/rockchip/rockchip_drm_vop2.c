@@ -6996,7 +6996,7 @@ static bool vop3_msmart_grid_overlap_check(struct drm_plane *plane,
 			dst1.x2 = msmart_data->grid[j].dst_x + msmart_data->grid[j].dst_w;
 			dst1.y2 = msmart_data->grid[j].dst_y + msmart_data->grid[j].dst_h;
 
-			if (drm_rect_intersect(&dst0, &dst1)) {
+			if (drm_rect_intersect(&dst1, &dst0)) {
 				drm_err(plane->dev, "grid%d and grid%d overlap\n", i, j);
 				return true;
 			}
