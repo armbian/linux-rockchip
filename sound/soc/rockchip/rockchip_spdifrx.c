@@ -107,22 +107,16 @@ static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
 
 	regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
-			   SPDIFRX_INTEN_SYNCIE_MASK |
-			   SPDIFRX_INTEN_NSYNCIE_MASK |
-			   SPDIFRX_INTEN_BTEIE_MASK |
-			   SPDIFRX_INTEN_NPSPIE_MASK |
-			   SPDIFRX_INTEN_BMDEIE_MASK |
-			   SPDIFRX_INTEN_PEIE_MASK |
-			   SPDIFRX_INTEN_CSCIE_MASK |
-			   SPDIFRX_INTEN_NVLDIE_MASK,
-			   SPDIFRX_INTEN_SYNCIE_EN |
-			   SPDIFRX_INTEN_NSYNCIE_EN |
-			   SPDIFRX_INTEN_BTEIE_EN |
-			   SPDIFRX_INTEN_NPSPIE_EN |
-			   SPDIFRX_INTEN_BMDEIE_EN |
-			   SPDIFRX_INTEN_PEIE_EN |
-			   SPDIFRX_INTEN_CSCIE_EN |
-			   SPDIFRX_INTEN_NVLDIE_EN);
+			   SPDIFRX_INTEN_SYNCIE_MASK | SPDIFRX_INTEN_NSYNCIE_MASK |
+			   SPDIFRX_INTEN_BTEIE_MASK | SPDIFRX_INTEN_NPSPIE_MASK |
+			   SPDIFRX_INTEN_BMDEIE_MASK | SPDIFRX_INTEN_PEIE_MASK |
+			   SPDIFRX_INTEN_CSCIE_MASK | SPDIFRX_INTEN_NVLDIE_MASK |
+			   SPDIFRX_INTEN_FSCHGIE_MASK,
+			   SPDIFRX_INTEN_SYNCIE_EN | SPDIFRX_INTEN_NSYNCIE_EN |
+			   SPDIFRX_INTEN_BTEIE_EN | SPDIFRX_INTEN_NPSPIE_EN |
+			   SPDIFRX_INTEN_BMDEIE_EN | SPDIFRX_INTEN_PEIE_EN |
+			   SPDIFRX_INTEN_CSCIE_EN | SPDIFRX_INTEN_NVLDIE_EN |
+			   SPDIFRX_INTEN_FSCHGIE_EN);
 	regmap_update_bits(spdifrx->regmap, SPDIFRX_DMACR,
 			   SPDIFRX_DMACR_RDL_MASK, SPDIFRX_DMACR_RDL(8));
 	regmap_update_bits(spdifrx->regmap, SPDIFRX_CDR,
@@ -226,22 +220,16 @@ static int rk_spdifrx_parse_quirks(struct rk_spdifrx_dev *spdifrx)
 
 	if (quirks & QUIRK_ALWAYS_ON) {
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
-				   SPDIFRX_INTEN_SYNCIE_MASK |
-				   SPDIFRX_INTEN_NSYNCIE_MASK |
-				   SPDIFRX_INTEN_BTEIE_MASK |
-				   SPDIFRX_INTEN_NPSPIE_MASK |
-				   SPDIFRX_INTEN_BMDEIE_MASK |
-				   SPDIFRX_INTEN_PEIE_MASK |
-				   SPDIFRX_INTEN_CSCIE_MASK |
-				   SPDIFRX_INTEN_NVLDIE_MASK,
-				   SPDIFRX_INTEN_SYNCIE_EN |
-				   SPDIFRX_INTEN_NSYNCIE_EN |
-				   SPDIFRX_INTEN_BTEIE_EN |
-				   SPDIFRX_INTEN_NPSPIE_EN |
-				   SPDIFRX_INTEN_BMDEIE_EN |
-				   SPDIFRX_INTEN_PEIE_EN |
-				   SPDIFRX_INTEN_CSCIE_EN |
-				   SPDIFRX_INTEN_NVLDIE_EN);
+				   SPDIFRX_INTEN_SYNCIE_MASK | SPDIFRX_INTEN_NSYNCIE_MASK |
+				   SPDIFRX_INTEN_BTEIE_MASK | SPDIFRX_INTEN_NPSPIE_MASK |
+				   SPDIFRX_INTEN_BMDEIE_MASK | SPDIFRX_INTEN_PEIE_MASK |
+				   SPDIFRX_INTEN_CSCIE_MASK | SPDIFRX_INTEN_NVLDIE_MASK|
+				   SPDIFRX_INTEN_FSCHGIE_MASK,
+				   SPDIFRX_INTEN_SYNCIE_EN | SPDIFRX_INTEN_NSYNCIE_EN |
+				   SPDIFRX_INTEN_BTEIE_EN | SPDIFRX_INTEN_NPSPIE_EN |
+				   SPDIFRX_INTEN_BMDEIE_EN | SPDIFRX_INTEN_PEIE_EN |
+				   SPDIFRX_INTEN_CSCIE_EN | SPDIFRX_INTEN_NVLDIE_EN |
+				   SPDIFRX_INTEN_FSCHGIE_EN);
 
 		pm_runtime_forbid(spdifrx->dev);
 	}
@@ -779,16 +767,17 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 
 	if (intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) {
 		spdifrx->info.sync = 0;
-		spdifrx->need_reset = true;
 		mod_timer(&spdifrx->debounce_timer, jiffies +
 			  msecs_to_jiffies(spdifrx->info.debounce_time_ms));
 		dev_dbg(spdifrx->dev, "NSYNC\n");
-		if (spdifrx->version < SPDIFRX_VER_2505)
+		if (!spdifrx->fs_monitor) {
+			spdifrx->need_reset = true;
+			regmap_write(spdifrx->regmap, SPDIFRX_CLR, SPDIFRX_CLR_RXSC);
 			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 					   SPDIFRX_INTEN_NSYNCIE_MASK,
 					   SPDIFRX_INTEN_NSYNCIE_DIS);
+		}
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NSYNCICLR);
-		regmap_write(spdifrx->regmap, SPDIFRX_CLR, SPDIFRX_CLR_RXSC);
 	}
 
 	if (intsr & SPDIFRX_INTSR_BTEISR_ACTIVE) {
