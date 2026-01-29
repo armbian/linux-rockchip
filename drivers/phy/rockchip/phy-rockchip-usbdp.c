@@ -1044,8 +1044,9 @@ static int udphy_get_initial_status(struct rockchip_udphy *udphy)
 	return 0;
 }
 
-static int udphy_parse_dt(struct rockchip_udphy *udphy, struct device *dev)
+static int udphy_parse_dt(struct rockchip_udphy *udphy)
 {
+	struct device *dev = udphy->dev;
 	struct device_node *np = dev->of_node;
 	enum usb_device_speed maximum_speed;
 	int ret;
@@ -1619,7 +1620,8 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 	if (IS_ERR(udphy->pma_regmap))
 		return PTR_ERR(udphy->pma_regmap);
 
-	ret = udphy_parse_dt(udphy, dev);
+	udphy->dev = dev;
+	ret = udphy_parse_dt(udphy);
 	if (ret)
 		return ret;
 
@@ -1628,7 +1630,6 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 		return ret;
 
 	mutex_init(&udphy->mutex);
-	udphy->dev = dev;
 	platform_set_drvdata(pdev, udphy);
 
 	if (device_property_present(dev, "orientation-switch")) {
