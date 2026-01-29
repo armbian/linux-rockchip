@@ -116,6 +116,55 @@
 			clock-output-names = "sai4_mclk_in";
 		};
 
+		pdm0_clk: pdm0-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_pdm0_clk";
+		};
+
+		sai0_fs: sai0-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai0_fs_inter";
+		};
+
+		sai1_fs: sai1-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai1_fs_inter";
+		};
+
+		sai2_fs: sai2-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai2_fs_inter";
+		};
+
+		sai3_fs: sai3-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai3_fs_inter";
+		};
+
+		sai4_fs: sai4-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai4_fs_inter";
+		};
+
+		sai5_fs: sai5-fs {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_sai5_fs_inter";
+		};
+
 		sclkin_sai0: sclkin-sai0 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -149,6 +198,41 @@
 			#clock-cells = <0>;
 			clock-frequency = <0>;
 			clock-output-names = "sai4_sclk_in";
+		};
+
+		spdifrx0_clk: spdifrx0-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_spdifrx0_clk";
+		};
+
+		spdifrx1_clk: spdifrx1-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_spdifrx1_clk";
+		};
+
+		spdiftx0_clk: spdiftx0-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_spdiftx0_clk";
+		};
+
+		spdiftx1_clk: spdiftx1-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_spdiftx1_clk";
+		};
+
+		spdiftx2_clk: spdiftx2-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "asrc_spdiftx2_clk";
 		};
 
 		spll: spll {
