@@ -1330,6 +1330,9 @@ static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 	}
 
 	if (dst_lrck_div) {
+		if (asrc->version >= RV1126B_ASRC)
+			dst_lrck_div--;
+
 		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
 				   ASRC_DST_LRCK_DIV_MSK |
 				   ASRC_DST_LRCK_DIV_CON_MSK,
@@ -1338,6 +1341,9 @@ static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 	}
 
 	if (src_lrck_div) {
+		if (asrc->version >= RV1126B_ASRC)
+			src_lrck_div--;
+
 		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
 				   ASRC_SRC_LRCK_DIV_MSK |
 				   ASRC_SRC_LRCK_DIV_CON_MSK,
