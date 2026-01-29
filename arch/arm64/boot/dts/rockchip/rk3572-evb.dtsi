@@ -43,6 +43,28 @@
 		};
 	};
 
+	asrc_codec: asrc-codec {
+		status = "disabled";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	asrc_sound: asrc-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,asrc";
+		rockchip,mclk-fs = <256>;
+		simple-audio-card,format = "i2s";
+		rockchip,cpu = <&sai0>;
+		rockchip,asrc = <&asrc0>;
+		rockchip,codec = <&asrc_codec>;
+		rockchip,audio-routing =
+			"Dummy Playback", "SAI0 Playback",
+			"SAI0 Capture", "Dummy Capture",
+			"SAI0 Playback", "ASRC0 Playback",
+			"ASRC0 Capture", "SAI0 Capture";
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1_6ch_5 0 25000 0>;
