@@ -17,6 +17,42 @@
 		status = "disabled";
 	};
 
+	rk730_sound: rk730-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk730";
+		hp-det-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 3>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		hp-con-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+		spk-con-gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai1>;
+		rockchip,codec = <&rk730>, <&es7210>;
+		rockchip,audio-routing =
+				"Headphone", "LOUT1",
+				"Headphone", "ROUT1",
+				"Speaker", "LOUT2",
+				"Speaker", "ROUT2",
+				"Headphone", "Headphone Power",
+				"Headphone", "Headphone Power",
+				"Speaker", "Speaker Power",
+				"Speaker", "Speaker Power",
+				"MIC2", "Main Mic",
+				"MIC1", "Headset Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_con_h &hp_det_l &spk_con_h>;
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
+		};
+	};
+
 	usb3_switch: usb3-switch {
 		compatible = "broadchip,bct4360", "gpio-sbu-mux";
 		select-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
@@ -192,6 +228,35 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m0_xfer_pins>;
+
+	rk730: rk730@16 {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rk730";
+		reg = <0x16>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai1m0_mclk_pins>;
+	};
+
+	es7210: es7210@40 {
+		#sound-dai-cells = <0>;
+		compatible = "ES7210_MicArray_0";
+		reg = <0x40>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+	};
+};
+
 &i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -260,11 +325,27 @@
 };
 
 &pinctrl {
+	audio-amplifier {
+		spk_con_h: spk-con-h {
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	cam {
 		mipicsi0_pwr: mipicsi0-pwr {
 			rockchip,pins =
 				/* camera power en */
 				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	headphone-jack {
+		hp_con_h: hp-con-h {
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		hp_det_l: hp-det-l {
+			rockchip,pins = <0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -290,6 +371,22 @@
 &pwm2_8ch_2 {
 	pinctrl-0 = <&pwm2m2_ch2_pins>;
 	status = "disabled";
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai1m0_lrck_pins
+		     &sai1m0_sclk_pins
+		     &sai1m0_sdi0_pins
+		     &sai1m0_sdi1_pins
+		     &sai1m0_sdi2_pins
+		     &sai1m0_sdo0_pins>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vccio_1v8_s0>;
 };
 
 &sdmmc0 {
