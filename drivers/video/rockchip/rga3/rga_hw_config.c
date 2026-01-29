@@ -11,7 +11,7 @@
 /* RGA 1Word = 4Byte */
 #define WORD_TO_BYTE(w) ((w) * 4)
 
-const uint32_t rga3_input_raster_format[] = {
+static const uint32_t rga3_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -38,7 +38,7 @@ const uint32_t rga3_input_raster_format[] = {
 	RGA_FORMAT_XBGR_8888,
 };
 
-const uint32_t rga3_output_raster_format[] = {
+static const uint32_t rga3_output_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -61,7 +61,7 @@ const uint32_t rga3_output_raster_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga3_fbcd_format[] = {
+static const uint32_t rga3_fbcd_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -84,7 +84,7 @@ const uint32_t rga3_fbcd_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga3_fbce_format[] = {
+static const uint32_t rga3_fbce_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -103,7 +103,7 @@ const uint32_t rga3_fbce_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga3_tile_format[] = {
+static const uint32_t rga3_tile_format[] = {
 	RGA_FORMAT_YCbCr_422_SP,
 	RGA_FORMAT_YCbCr_420_SP,
 	RGA_FORMAT_YCrCb_422_SP,
@@ -114,7 +114,7 @@ const uint32_t rga3_tile_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga2e_input_raster_format[] = {
+static const uint32_t rga2e_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_RGBX_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -154,7 +154,7 @@ const uint32_t rga2e_input_raster_format[] = {
 	RGA_FORMAT_ABGR_4444,
 };
 
-const uint32_t rga2e_output_raster_format[] = {
+static const uint32_t rga2e_output_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_RGBX_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -195,7 +195,7 @@ const uint32_t rga2e_output_raster_format[] = {
 	RGA_FORMAT_ABGR_4444,
 };
 
-const uint32_t rga2p_input_raster_format[] = {
+static const uint32_t rga2p_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_RGBX_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -239,7 +239,7 @@ const uint32_t rga2p_input_raster_format[] = {
 	RGA_FORMAT_YCrCb_444_SP,
 };
 
-const uint32_t rga2p_v2_input_raster_format[] = {
+static const uint32_t rga2p_v2_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_RGBX_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -287,7 +287,7 @@ const uint32_t rga2p_v2_input_raster_format[] = {
 	RGA_FORMAT_YCrCb_444_SP,
 };
 
-const uint32_t rga2p_input1_raster_format[] = {
+static const uint32_t rga2p_input1_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -307,7 +307,7 @@ const uint32_t rga2p_input1_raster_format[] = {
 	RGA_FORMAT_A8,
 };
 
-const uint32_t rga2p_v2_input1_raster_format[] = {
+static const uint32_t rga2p_v2_input1_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -331,7 +331,7 @@ const uint32_t rga2p_v2_input1_raster_format[] = {
 	RGA_FORMAT_A8,
 };
 
-const uint32_t rga2p_output_raster_format[] = {
+static const uint32_t rga2p_output_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_RGBX_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -379,7 +379,7 @@ const uint32_t rga2p_output_raster_format[] = {
 	RGA_FORMAT_YCrCb_444_SP,
 };
 
-const uint32_t rga2p_tile4x4_format[] = {
+static const uint32_t rga2p_tile4x4_format[] = {
 	RGA_FORMAT_YCbCr_400,
 	RGA_FORMAT_YCbCr_420_SP,
 	RGA_FORMAT_YCrCb_420_SP,
@@ -393,7 +393,7 @@ const uint32_t rga2p_tile4x4_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga2p_rkfbc64x4_format[] = {
+static const uint32_t rga2p_rkfbc64x4_format[] = {
 	RGA_FORMAT_YCbCr_400,
 	RGA_FORMAT_YCbCr_420_SP,
 	RGA_FORMAT_YCrCb_420_SP,
@@ -407,7 +407,7 @@ const uint32_t rga2p_rkfbc64x4_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga2p_afbc32x8_format[] = {
+static const uint32_t rga2p_afbc32x8_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -420,7 +420,7 @@ const uint32_t rga2p_afbc32x8_format[] = {
 	RGA_FORMAT_BGR_888,
 };
 
-const uint32_t rga2p_v2_afbc32x8_input_format[] = {
+static const uint32_t rga2p_v2_afbc32x8_input_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -441,7 +441,7 @@ const uint32_t rga2p_v2_afbc32x8_input_format[] = {
 	RGA_FORMAT_YCrCb_422_SP_10B,
 };
 
-const uint32_t rga2p_v2_afbc32x8_output_format[] = {
+static const uint32_t rga2p_v2_afbc32x8_output_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
 	RGA_FORMAT_RGBX_8888,
@@ -473,7 +473,7 @@ const uint32_t rga2p_v2_afbc32x8_output_format[] = {
 	RGA_FORMAT_YUV_101010,
 };
 
-const struct rga_win_data rga3_win_data[] = {
+static const struct rga_win_data rga3_win_data[] = {
 	{
 		.name = "rga3-win0",
 		.formats[RGA_RASTER_INDEX] = rga3_input_raster_format,
@@ -520,7 +520,7 @@ const struct rga_win_data rga3_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2e_win_data[] = {
+static const struct rga_win_data rga2e_win_data[] = {
 	{
 		.name = "rga2e-src0",
 		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
@@ -555,7 +555,7 @@ const struct rga_win_data rga2e_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2e_3506_win_data[] = {
+static const struct rga_win_data rga2e_3506_win_data[] = {
 	{
 		.name = "rga2e-src0",
 		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
@@ -590,7 +590,7 @@ const struct rga_win_data rga2e_3506_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2p_win_data[] = {
+static const struct rga_win_data rga2p_win_data[] = {
 	{
 		.name = "rga2p-src0",
 		.formats[RGA_RASTER_INDEX] = rga2p_input_raster_format,
@@ -633,7 +633,7 @@ const struct rga_win_data rga2p_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2p_non_fbc_win_data[] = {
+static const struct rga_win_data rga2p_non_fbc_win_data[] = {
 	{
 		.name = "rga2p-src0",
 		.formats[RGA_RASTER_INDEX] = rga2p_input_raster_format,
@@ -713,7 +713,7 @@ static const struct rga_win_data rga2p_v2_3572_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2p_v2_win_data[] = {
+static const struct rga_win_data rga2p_v2_win_data[] = {
 	{
 		.name = "rga2p-src0",
 		.formats[RGA_RASTER_INDEX] = rga2p_v2_input_raster_format,
@@ -754,7 +754,7 @@ const struct rga_win_data rga2p_v2_win_data[] = {
 	},
 };
 
-const struct rga_win_data rga2p_lite_win_data[] = {
+static const struct rga_win_data rga2p_lite_win_data[] = {
 	{
 		.name = "rga2e-src0",
 		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
