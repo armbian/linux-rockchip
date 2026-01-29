@@ -3236,7 +3236,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	max_tmds_clock = min(max_tmds_clock, hdmi->max_tmdsclk);
 
-	if (hdmi->dw_hdmi_qp_version && hdmi->link_cfg.rate_per_lane && mode.clock > 600000)
+	if (hdmi->dw_hdmi_qp_version && hdmi->link_cfg.rate_per_lane && tmdsclock > 600000)
 		max_tmds_clock =
 			hdmi->link_cfg.frl_lanes * hdmi->link_cfg.rate_per_lane * 1000000;
 
