@@ -2082,6 +2082,7 @@
 			rockchip,aclk-reset-mode-rates = <594000000>;
 			rockchip,aclk-advanced-mode-rates = <702000000>;
 			iommus = <&vop_mmu>;
+			power-domains = <&power RK3572_PD_VOP_PRE>;
 			rockchip,ioc-grf = <&ioc_grf>;
 			status = "disabled";
 
