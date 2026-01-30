@@ -531,7 +531,10 @@ static const struct dev_pm_ops sensor_pm_ops = {
 static int sensor_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+				v4l2_subdev_state_get_format(fh->state, 0);
+#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	struct v4l2_mbus_framefmt *try_fmt =
 				v4l2_subdev_get_try_format(sd, fh->state, 0);
 #else
@@ -709,8 +712,14 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 }
 #endif /* CONFIG_COMPAT */
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int sensor_g_frame_interval(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *fi)
+#else
+static int sensor_g_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_frame_interval *fi)
+#endif
 {
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
 	const struct sensor_mode *mode = sensor->cur_mode;
@@ -842,7 +851,9 @@ static int sensor_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
@@ -898,7 +909,9 @@ static int sensor_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
@@ -1017,7 +1030,9 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
 	.s_stream = sensor_s_stream,
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 	.g_frame_interval = sensor_g_frame_interval,
+#endif
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = sensor_g_mbus_config,
 #endif
@@ -1032,6 +1047,9 @@ static const struct v4l2_subdev_pad_ops sensor_pad_ops = {
 	.get_selection = sensor_get_selection,
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = sensor_g_mbus_config,
+#endif
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	.get_frame_interval = sensor_g_frame_interval,
 #endif
 };
 
@@ -1281,8 +1299,12 @@ static maxim_remote_ser_t *sensor_get_serializer_by_phandle(struct device *cam_d
 	}
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int sensor_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
+#else
+static int sensor_probe(struct i2c_client *client)
+#endif
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

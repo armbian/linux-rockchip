@@ -558,7 +558,11 @@ int maxim2c_i2c_mux_init(maxim2c_t *maxim2c)
 	maxim2c->i2c_mux.muxc->priv = maxim2c;
 
 	for (i = 0; i < MAXIM2C_LINK_ID_MAX; i++) {
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 		ret = i2c_mux_add_adapter(maxim2c->i2c_mux.muxc, 0, i, 0);
+#else
+		ret = i2c_mux_add_adapter(maxim2c->i2c_mux.muxc, 0, i);
+#endif
 		if (ret) {
 			i2c_mux_del_adapters(maxim2c->i2c_mux.muxc);
 			return ret;
