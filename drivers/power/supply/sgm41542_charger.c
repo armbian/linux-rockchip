@@ -133,8 +133,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SGM4154x_ICHRG_CUR_MASK		GENMASK(5, 0)
 #define SGM4154x_ICHRG_I_STEP_uA	60000
 #define SGM4154x_ICHRG_I_MIN_uA		0
-#define SGM4154x_ICHRG_I_MAX_uA		3000000
+#define SGM4154x_ICHRG_I_MAX_uA		3780000
 #define SGM4154x_ICHRG_I_DEF_uA		2040000
+#define SGM4151x_ICHRG_I_MAX_uA		3000000
 
 /* charge voltage */
 #define SGM4154x_VREG_V_MASK		GENMASK(7, 3)
@@ -153,6 +154,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SGM4154x_IINDPM_I_MASK		GENMASK(4, 0)
 #define SGM4154x_IINDPM_I_MIN_uA	100000
 #define SGM4154x_IINDPM_I_MAX_uA	3800000
+#define SGM4151x_IINDPM_I_MAX_uA	3200000
 #define SGM4154x_IINDPM_STEP_uA		100000
 #define SGM4154x_IINDPM_DEF_uA		2400000
 
@@ -183,6 +185,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SGM4154x_BATFET_DLY_MSK		BIT(3)
 #define SGM4154x_BATFET_DLY_EN		BIT(3)
 
+#define SGM415xx_VENDOR_ID_MASK		GENMASK(6, 3)
+#define SGM415xx_VENDOR_ID_SHIFT	3
+
 #define DEFAULT_INPUT_CURRENT		(500 * 1000)
 
 struct sgm4154x_init_data {
@@ -193,6 +198,7 @@ struct sgm4154x_init_data {
 	int iprechg;	/* precharge current */
 	int vlim;	/* minimum system voltage limit */
 	int max_ichg;
+	int max_ilim;
 	int max_vreg;
 };
 
@@ -235,13 +241,44 @@ struct sgm4154x_device {
 	struct delayed_work sgm_delay_work;
 };
 
+enum sgm415xx_chip_id {
+	SGM41512S_PN_ID,
+	SGM41512SX_PN_ID,
+	SGM41513_PN_ID,
+	SGM41513X_PN_ID,
+	SGM41542_PN_ID,
+	SGM415XX_MAX_PN_ID,
+};
+
+enum sgm415xx_vendor_id {
+	SGM41513_CHIP_VENDOR_ID = 0x0,
+	SGM41513X_CHIP_VENDOR_ID = 0x1,
+	SGM41542_CHIP_VENDOR_ID = 0xD,
+	SGM41512SX_CHIP_VENDOR_ID = 0xE,
+	SGM41512S_CHIP_VENDOR_ID = 0xF
+};
+
 /* SGM4154x REG06 BOOST_LIM[5:4], uV */
 static const unsigned int BOOST_VOLT_LIMIT[] = {
 	4850000, 5000000, 5150000, 5300000
 };
 
-static const unsigned int BOOST_CURRENT_LIMIT[] = {
-	1200000, 2000000
+static const unsigned int BOOST_CURRENT_LIMIT[SGM415XX_MAX_PN_ID][2] = {
+	{500000, 1200000},
+	{500000, 1200000},
+	{500000, 1200000},
+	{500000, 1200000},
+	{1200000, 2000000},
+};
+
+static const unsigned int ITERM_CURRENT_STABLE[] = {
+	5000, 10000, 15000, 20000, 30000, 40000, 50000, 60000,
+	80000, 100000, 120000, 140000, 160000, 180000, 200000, 240000
+};
+
+static const unsigned int IPRECHG_CURRENT_STABLE[] = {
+	5000, 10000, 15000, 20000, 30000, 40000, 50000, 60000,
+	80000, 100000, 120000, 140000, 160000, 180000, 200000, 240000
 };
 
 enum SGM4154x_VINDPM_OS {
@@ -251,17 +288,49 @@ enum SGM4154x_VINDPM_OS {
 	VINDPM_OS_10500mV,
 };
 
+struct sgm_vendor_info {
+	char *name;
+	u8 part_id;
+};
+
+static struct sgm_vendor_info s_chg_vendor[] = {
+	[SGM41512S_PN_ID]  = { "sgm41512s", SGM41512S_CHIP_VENDOR_ID },
+	[SGM41512SX_PN_ID] = { "sgm41512sx", SGM41512SX_CHIP_VENDOR_ID },
+	[SGM41513_PN_ID]   = { "sgm41513", SGM41513_CHIP_VENDOR_ID },
+	[SGM41513X_PN_ID]  = { "sgm41513D", SGM41513X_CHIP_VENDOR_ID },
+	[SGM41542_PN_ID]   = { "sgm41542", SGM41542_CHIP_VENDOR_ID },
+};
+
+static const struct of_device_id sgm4154x_of_match[] = {
+	{ .compatible = "sgm,sgm41512s", .data = &s_chg_vendor[SGM41512S_PN_ID] },
+	{ .compatible = "sgm,sgm41512sx", .data = &s_chg_vendor[SGM41512SX_PN_ID] },
+	{ .compatible = "sgm,sgm41513", .data = &s_chg_vendor[SGM41513_PN_ID] },
+	{ .compatible = "sgm,sgm41513x", .data = &s_chg_vendor[SGM41513X_PN_ID] },
+	{ .compatible = "sgm,sgm41542", .data = &s_chg_vendor[SGM41542_PN_ID] },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sgm4154x_of_match);
+
 static int sgm4154x_set_term_curr(struct sgm4154x_device *sgm, int uA)
 {
 	int reg_val;
 	int ret;
 
-	if (uA < SGM4154x_TERMCHRG_I_MIN_uA)
-		uA = SGM4154x_TERMCHRG_I_MIN_uA;
-	else if (uA > SGM4154x_TERMCHRG_I_MAX_uA)
-		uA = SGM4154x_TERMCHRG_I_MAX_uA;
+	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
+	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
+		for (reg_val = 1; reg_val < 16; reg_val++) {
+			if (uA >= ITERM_CURRENT_STABLE[reg_val])
+				break;
+		}
+		reg_val -= 1;
+	} else {
+		if (uA < SGM4154x_TERMCHRG_I_MIN_uA)
+			uA = SGM4154x_TERMCHRG_I_MIN_uA;
+		else if (uA > SGM4154x_TERMCHRG_I_MAX_uA)
+			uA = SGM4154x_TERMCHRG_I_MAX_uA;
 
-	reg_val = (uA - SGM4154x_TERMCHRG_I_MIN_uA) / SGM4154x_TERMCHRG_CURRENT_STEP_uA;
+		reg_val = (uA - SGM4154x_TERMCHRG_I_MIN_uA) / SGM4154x_TERMCHRG_CURRENT_STEP_uA;
+	}
 
 	ret = regmap_update_bits(sgm->regmap,
 				 SGM4154x_CHRG_CTRL_3,
@@ -278,13 +347,21 @@ static int sgm4154x_set_prechrg_curr(struct sgm4154x_device *sgm, int uA)
 	int reg_val;
 	int ret;
 
-	if (uA < SGM4154x_PRECHRG_I_MIN_uA)
-		uA = SGM4154x_PRECHRG_I_MIN_uA;
-	else if (uA > SGM4154x_PRECHRG_I_MAX_uA)
-		uA = SGM4154x_PRECHRG_I_MAX_uA;
+	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
+	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
+		for (reg_val = 1; reg_val < 16; reg_val++) {
+			if (uA >= IPRECHG_CURRENT_STABLE[reg_val])
+				break;
+		}
+		reg_val -= 1;
+	} else {
+		if (uA < SGM4154x_PRECHRG_I_MIN_uA)
+			uA = SGM4154x_PRECHRG_I_MIN_uA;
+		else if (uA > SGM4154x_PRECHRG_I_MAX_uA)
+			uA = SGM4154x_PRECHRG_I_MAX_uA;
 
-	reg_val = (uA - SGM4154x_PRECHRG_I_MIN_uA) / SGM4154x_PRECHRG_CURRENT_STEP_uA;
-
+		reg_val = (uA - SGM4154x_PRECHRG_I_MIN_uA) / SGM4154x_PRECHRG_CURRENT_STEP_uA;
+	}
 	reg_val = reg_val << 4;
 	ret = regmap_update_bits(sgm->regmap,
 				 SGM4154x_CHRG_CTRL_3,
@@ -309,7 +386,25 @@ static int sgm4154x_set_ichrg_curr(struct sgm4154x_device *sgm, int uA)
 		uA = min(uA, SGM4154x_ICHRG_I_MAX_uA);
 	}
 
-	reg_val = uA / SGM4154x_ICHRG_I_STEP_uA;
+	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
+	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
+		if (uA <= 40000)
+			reg_val = uA / 5000;
+		else if (uA <= 110000)
+			reg_val = 0x08 + (uA - 40000) / 10000;
+		else if (uA <= 270000)
+			reg_val = 0x0F + (uA - 110000) / 20000;
+		else if (uA <= 540000)
+			reg_val = 0x17 + (uA - 270000) / 30000;
+		else if (uA <= 1500000)
+			reg_val = 0x20 + (uA - 540000) / 60000;
+		else if (uA <= 2940000)
+			reg_val = 0x30 + (uA - 1500000) / 120000;
+		else
+			reg_val = 0x3d;
+	} else {
+		reg_val = uA / SGM4154x_ICHRG_I_STEP_uA;
+	}
 
 	ret = regmap_update_bits(sgm->regmap,
 				 SGM4154x_CHRG_CTRL_2,
@@ -417,11 +512,11 @@ static int sgm4154x_set_input_curr_lim(struct sgm4154x_device *sgm, int iindpm)
 	if (iindpm < SGM4154x_IINDPM_I_MIN_uA)
 		return -EINVAL;
 
-	if ((iindpm > SGM4154x_IINDPM_I_MAX_uA) || (iindpm > sgm->init_data.ilim))
-		iindpm = min(SGM4154x_IINDPM_I_MAX_uA, sgm->init_data.ilim);
+	if ((iindpm > sgm->init_data.max_ilim) || (iindpm > sgm->init_data.ilim))
+		iindpm = min(sgm->init_data.max_ilim, sgm->init_data.ilim);
 
 	sgm->input_current = iindpm;
-	reg_val = (iindpm-SGM4154x_IINDPM_I_MIN_uA) / SGM4154x_IINDPM_STEP_uA;
+	reg_val = (iindpm - SGM4154x_IINDPM_I_MIN_uA) / SGM4154x_IINDPM_STEP_uA;
 
 	ret = regmap_update_bits(sgm->regmap,
 				 SGM4154x_CHRG_CTRL_0,
@@ -443,8 +538,11 @@ static int sgm4154x_get_input_curr_lim(struct sgm4154x_device *sgm)
 		dev_err(sgm->dev, "get input current limit error!\n");
 		return ret;
 	}
-	if (SGM4154x_IINDPM_I_MASK == (ilim & SGM4154x_IINDPM_I_MASK))
-		return SGM4154x_IINDPM_I_MAX_uA;
+	if (sgm->device_id != SGM41512S_PN_ID && sgm->device_id == SGM41512SX_PN_ID &&
+	    sgm->device_id != SGM41513_PN_ID && sgm->device_id != SGM41513X_PN_ID) {
+		if (SGM4154x_IINDPM_I_MASK == (ilim & SGM4154x_IINDPM_I_MASK))
+			return SGM4154x_IINDPM_I_MAX_uA;
+	}
 
 	ilim = (ilim & SGM4154x_IINDPM_I_MASK) * SGM4154x_IINDPM_STEP_uA + SGM4154x_IINDPM_I_MIN_uA;
 
@@ -739,7 +837,7 @@ static int sgm4154x_charger_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		val->strval = SGM4154x_NAME;
+		val->strval = s_chg_vendor[sgm->device_id].name;
 		break;
 
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -947,8 +1045,6 @@ static int sgm4154x_hw_init(struct sgm4154x_device *sgm)
 			SGM4154x_PRECHRG_I_DEF_uA;
 		bat_info->charge_term_current_ua =
 			SGM4154x_TERMCHRG_I_DEF_uA;
-		sgm->init_data.max_ichg =
-			SGM4154x_ICHRG_I_MAX_uA;
 		sgm->init_data.max_vreg = SGM4154x_VREG_V_DEF_uV;
 	}
 	if (!bat_info->constant_charge_current_max_ua)
@@ -1073,7 +1169,7 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 	if (ret)
 		sgm->init_data.ilim = SGM4154x_IINDPM_DEF_uA;
 
-	if (sgm->init_data.ilim > SGM4154x_IINDPM_I_MAX_uA ||
+	if (sgm->init_data.ilim > sgm->init_data.max_ilim ||
 	    sgm->init_data.ilim < SGM4154x_IINDPM_I_MIN_uA)
 		return -EINVAL;
 
@@ -1112,7 +1208,7 @@ static int sgm4154x_set_otg_current(struct sgm4154x_device *sgm, int ua)
 {
 	int ret = 0;
 
-	if (ua == BOOST_CURRENT_LIMIT[0]) {
+	if (ua == BOOST_CURRENT_LIMIT[sgm->device_id][0]) {
 		ret = regmap_update_bits(sgm->regmap,
 					 SGM4154x_CHRG_CTRL_2,
 					 SGM4154x_BOOST_LIM,
@@ -1121,7 +1217,7 @@ static int sgm4154x_set_otg_current(struct sgm4154x_device *sgm, int ua)
 			dev_err(sgm->dev, "set boost current limit error!\n");
 			return ret;
 		}
-	} else if (ua == BOOST_CURRENT_LIMIT[1]) {
+	} else if (ua == BOOST_CURRENT_LIMIT[sgm->device_id][1]) {
 		ret = regmap_update_bits(sgm->regmap,
 					 SGM4154x_CHRG_CTRL_2,
 					 SGM4154x_BOOST_LIM,
@@ -1248,6 +1344,8 @@ static int sgm4154x_suspend_notifier(struct notifier_block *nb,
 
 static int sgm4154x_hw_chipid_detect(struct sgm4154x_device *sgm)
 {
+	const struct sgm_vendor_info *vendor_info;
+	int index, vendor_id;
 	int ret = 0;
 	int val = 0;
 
@@ -1255,7 +1353,44 @@ static int sgm4154x_hw_chipid_detect(struct sgm4154x_device *sgm)
 	if (ret < 0)
 		return ret;
 
-	return val;
+	val &= SGM415xx_VENDOR_ID_MASK;
+	val >>= SGM415xx_VENDOR_ID_SHIFT;
+
+	for (index = 0; index < SGM415XX_MAX_PN_ID; index++) {
+		if (s_chg_vendor[index].part_id == val)
+			break;
+	}
+	if (index < SGM415XX_MAX_PN_ID) {
+		sgm->device_id = index;
+	} else {
+		dev_err(sgm->dev, "No valid device configuration available\n");
+		return -1;
+	}
+
+	vendor_info = device_get_match_data(sgm->dev);
+	if (!vendor_info) {
+		vendor_id = SGM41542_CHIP_VENDOR_ID;
+		dev_info(sgm->dev, "Can not get of_match data, vendor id: 0x%02x\n", vendor_id);
+	} else {
+		vendor_id = vendor_info->part_id;
+		dev_info(sgm->dev, "Match data succeed, vendor id: 0x%02x\n", vendor_id);
+	}
+
+	if (val != vendor_id) {
+		dev_err(sgm->dev, "The vendor id is 0x%x\n", val);
+		return -1;
+	}
+
+	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
+	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
+		sgm->init_data.max_ichg = SGM4151x_ICHRG_I_MAX_uA;
+		sgm->init_data.max_ilim = SGM4151x_IINDPM_I_MAX_uA;
+	} else {
+		sgm->init_data.max_ichg = SGM4154x_ICHRG_I_MAX_uA;
+		sgm->init_data.max_ilim = SGM4154x_IINDPM_I_MAX_uA;
+	}
+
+	return 0;
 }
 
 static void sgm_charger_work(struct work_struct *work)
@@ -1298,15 +1433,15 @@ static int sgm4154x_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, sgm);
 
-	ret = sgm4154x_parse_dt(sgm);
+	ret = sgm4154x_hw_chipid_detect(sgm);
 	if (ret) {
-		dev_err(dev, "Failed to read device tree properties%d\n", ret);
+		pr_info("[%s] device not found !\n", __func__);
 		return ret;
 	}
 
-	ret = sgm4154x_hw_chipid_detect(sgm);
-	if ((ret & SGM4154x_PN_MASK) != SGM4154x_PN_ID) {
-		pr_info("[%s] device not found !\n", __func__);
+	ret = sgm4154x_parse_dt(sgm);
+	if (ret) {
+		dev_err(dev, "Failed to read device tree properties%d\n", ret);
 		return ret;
 	}
 
@@ -1385,16 +1520,14 @@ static void sgm4154x_charger_shutdown(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sgm4154x_i2c_ids[] = {
+	{ "sgm41512s", 0 },
+	{ "sgm41512sx", 0 },
+	{ "sgm41513", 0 },
+	{ "sgm41513x", 0 },
 	{ "sgm41542", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, sgm4154x_i2c_ids);
-
-static const struct of_device_id sgm4154x_of_match[] = {
-	{ .compatible = "sgm,sgm41542", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, sgm4154x_of_match);
 
 static struct i2c_driver sgm4154x_driver = {
 	.driver = {
