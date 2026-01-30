@@ -291,7 +291,10 @@ static const struct dev_pm_ops ox03j10_pm_ops = {
 static int ox03j10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ox03j10 *ox03j10 = v4l2_get_subdevdata(sd);
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+				v4l2_subdev_state_get_format(fh->state, 0);
+#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	struct v4l2_mbus_framefmt *try_fmt =
 				v4l2_subdev_get_try_format(sd, fh->state, 0);
 #else
@@ -572,8 +575,14 @@ unlock_and_return:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int ox03j10_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_frame_interval *fi)
+#else
+static int ox03j10_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
+#endif
 {
 	struct ox03j10 *ox03j10 = v4l2_get_subdevdata(sd);
 	const struct ox03j10_mode *mode = ox03j10->cur_mode;
@@ -704,7 +713,9 @@ static int ox03j10_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
@@ -750,7 +761,9 @@ static int ox03j10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ox03j10->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
@@ -860,7 +873,9 @@ static const struct v4l2_subdev_core_ops ox03j10_core_ops = {
 
 static const struct v4l2_subdev_video_ops ox03j10_video_ops = {
 	.s_stream = ox03j10_s_stream,
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 	.g_frame_interval = ox03j10_g_frame_interval,
+#endif
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = ox03j10_g_mbus_config,
 #endif
@@ -875,6 +890,9 @@ static const struct v4l2_subdev_pad_ops ox03j10_pad_ops = {
 	.get_selection = ox03j10_get_selection,
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = ox03j10_g_mbus_config,
+#endif
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	.get_frame_interval = ox03j10_g_frame_interval,
 #endif
 };
 
@@ -984,8 +1002,12 @@ static int ox03j10_mipi_data_lanes_parse(struct ox03j10 *ox03j10)
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int ox03j10_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
+#else
+static int ox03j10_probe(struct i2c_client *client)
+#endif
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

@@ -305,7 +305,10 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 static int maxim4c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+		v4l2_subdev_state_get_format(fh->state, 0);
+#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->state, 0);
 #else
@@ -840,8 +843,14 @@ unlock_and_return:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int maxim4c_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_frame_interval *fi)
+#else
+static int maxim4c_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
+#endif
 {
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
@@ -936,7 +945,9 @@ static int maxim4c_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&maxim4c->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
@@ -983,7 +994,9 @@ static int maxim4c_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
+	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
@@ -1136,7 +1149,9 @@ static const struct v4l2_subdev_core_ops maxim4c_core_ops = {
 
 static const struct v4l2_subdev_video_ops maxim4c_video_ops = {
 	.s_stream = maxim4c_s_stream,
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 	.g_frame_interval = maxim4c_g_frame_interval,
+#endif
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
 	.g_mbus_config = maxim4c_g_mbus_config,
 #endif
@@ -1151,6 +1166,9 @@ static const struct v4l2_subdev_pad_ops maxim4c_pad_ops = {
 	.get_selection = maxim4c_get_selection,
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = maxim4c_g_mbus_config,
+#endif
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+	.get_frame_interval = maxim4c_g_frame_interval,
 #endif
 };
 

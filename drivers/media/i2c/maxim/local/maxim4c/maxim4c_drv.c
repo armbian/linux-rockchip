@@ -95,6 +95,9 @@
  * V3.10.00
  *     1. local pwdn on/off enable replace MAXIM4C_LOCAL_DES_ON_OFF_EN with local_power_off_enable
  *
+ * V3.11.00
+ *     1. compatible with kernel-6.12
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -122,7 +125,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x10, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x11, 0x00)
 
 #define MAXIM4C_NAME			"maxim4c"
 
@@ -776,8 +779,12 @@ static int maxim4c_configure_regulators(maxim4c_t *maxim4c)
 				       maxim4c->supplies);
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int maxim4c_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
+#else
+static int maxim4c_probe(struct i2c_client *client)
+#endif
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

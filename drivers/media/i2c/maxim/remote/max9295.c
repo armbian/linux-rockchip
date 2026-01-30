@@ -504,8 +504,12 @@ static int max9295_parse_dt(maxim_remote_ser_t *max9295)
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 static int max9295_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
+#else
+static int max9295_probe(struct i2c_client *client)
+#endif
 {
 	struct device *dev = &client->dev;
 	maxim_remote_ser_t *max9295 = NULL;
