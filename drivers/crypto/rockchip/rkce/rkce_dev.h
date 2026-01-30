@@ -45,6 +45,7 @@
 #define sha224_state			sha256_state
 
 #define RKCE_SYMM_ALGO_DES3_EDE		RKCE_SYMM_ALGO_TDES
+
 struct rkce_dev {
 	struct device			*dev;
 	struct reset_control		*rst;
@@ -369,6 +370,9 @@ static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
 	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
 	.mode = RKCE_SYMM_MODE_##cipher_mode,\
 	.alg.aead.base = RK_AEAD_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
+	.alg.aead.op = { \
+		.do_one_request = rkce_aead_run_req, \
+	}, \
 }
 
 #define  RK_CIPHER_ALGO_INIT(cipher_algo, cipher_mode, algo_name, driver_name) {\
@@ -377,6 +381,9 @@ static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
 	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
 	.mode = RKCE_SYMM_MODE_##cipher_mode,\
 	.alg.cipher.base = RK_CIPHER_ALGO_BASE_INIT(cipher_algo, algo_name, driver_name), \
+	.alg.cipher.op = { \
+		.do_one_request = rkce_cipher_run_req, \
+	}, \
 }
 
 #define  RK_CIPHER_ALGO_XTS_INIT(cipher_algo, algo_name, driver_name) {\
@@ -385,6 +392,9 @@ static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
 	.algo = RKCE_SYMM_ALGO_##cipher_algo,\
 	.mode = RKCE_SYMM_MODE_XTS,\
 	.alg.cipher.base = RK_CIPHER_ALGO_XTS_BASE_INIT(cipher_algo, algo_name, driver_name), \
+	.alg.cipher.op = { \
+		.do_one_request = rkce_cipher_run_req, \
+	}, \
 }
 
 #define RK_HASH_ALGO_INIT(hash_algo, algo_name) {\
@@ -392,6 +402,9 @@ static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
 	.type = RKCE_ALGO_TYPE_HASH,\
 	.algo = RKCE_HASH_ALGO_##hash_algo,\
 	.alg.hash.base = RK_HASH_ALGO_BASE_INIT(hash_algo, algo_name), \
+	.alg.hash.op = { \
+		.do_one_request = rkce_hash_run, \
+	}, \
 }
 
 #define RK_HMAC_ALGO_INIT(hash_algo, algo_name) {\
@@ -399,6 +412,9 @@ static inline struct rkce_algt *GET_AEAD_ALGT(struct aead_alg *alg)
 	.type = RKCE_ALGO_TYPE_HMAC,\
 	.algo = RKCE_HASH_ALGO_##hash_algo,\
 	.alg.hash.base = RK_HMAC_ALGO_BASE_INIT(hash_algo, algo_name), \
+	.alg.hash.op = { \
+		.do_one_request = rkce_hash_run, \
+	}, \
 }
 
 static inline struct skcipher_alg *GET_SKCIPHER_ALG(struct rkce_algt *algt)

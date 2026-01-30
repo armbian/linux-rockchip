@@ -37,6 +37,8 @@
 module_param_named(debug_level, rkce_debug_level, ulong, 0644);
 MODULE_PARM_DESC(rkce_debug_level, "debug level | DBEUG | CORE | DEV | CIPHER | HASH | BUF | (0-3)");
 
+static void rkce_remove(struct platform_device *pdev);
+
 static irqreturn_t rkce_dev_irq_handle(int irq, void *dev_id)
 {
 	struct rkce_dev *rk_dev = platform_get_drvdata(dev_id);
@@ -135,6 +137,80 @@ static struct rkce_algt *g_rkce_algs[] = {
 	&rkce_asym_ecc_p384,
 };
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+static int crypto_register_skcipher_wrap(struct skcipher_alg *alg)
+{
+	return crypto_register_skcipher(alg);
+}
+
+static void crypto_unregister_skcipher_wrap(struct skcipher_alg *alg)
+{
+	crypto_unregister_skcipher(alg);
+}
+
+static int crypto_regiseter_ahash_wrap(struct ahash_alg *alg)
+{
+	return crypto_register_ahash(alg);
+}
+
+static void crypto_unregister_ahash_wrap(struct ahash_alg *alg)
+{
+	crypto_unregister_ahash(alg);
+}
+
+static int crypto_register_aead_wrap(struct aead_alg *alg)
+{
+	return crypto_register_aead(alg);
+}
+
+static void crypto_unregister_aead_wrap(struct aead_alg *alg)
+{
+	crypto_unregister_aead(alg);
+}
+
+static int rkce_remove_wrap(struct platform_device *pdev)
+{
+	rkce_remove(pdev);
+
+	return 0;
+}
+#else
+static int crypto_register_skcipher_wrap(struct skcipher_engine_alg *alg)
+{
+	return crypto_engine_register_skcipher(alg);
+}
+
+static void crypto_unregister_skcipher_wrap(struct skcipher_engine_alg *alg)
+{
+	crypto_engine_unregister_skcipher(alg);
+}
+
+static int crypto_regiseter_ahash_wrap(struct ahash_engine_alg *alg)
+{
+	return crypto_engine_register_ahash(alg);
+}
+
+static void crypto_unregister_ahash_wrap(struct ahash_engine_alg *alg)
+{
+	crypto_engine_unregister_ahash(alg);
+}
+
+static int crypto_register_aead_wrap(struct aead_engine_alg *alg)
+{
+	return crypto_engine_register_aead(alg);
+}
+
+static void crypto_unregister_aead_wrap(struct aead_engine_alg *alg)
+{
+	crypto_engine_unregister_aead(alg);
+}
+
+static void rkce_remove_wrap(struct platform_device *pdev)
+{
+	rkce_remove(pdev);
+}
+#endif
+
 static int rkce_crypto_register(struct rkce_dev *rk_dev, struct rkce_algt **algts, int algt_num)
 {
 	unsigned int i, k;
@@ -161,12 +237,12 @@ static int rkce_crypto_register(struct rkce_dev *rk_dev, struct rkce_algt **algt
 			if (cur_algt->mode == RKCE_SYMM_MODE_ECB)
 				GET_SKCIPHER_ALG(cur_algt)->ivsize = 0;
 
-			err = crypto_register_skcipher(GET_SKCIPHER_ALG(cur_algt));
+			err = crypto_register_skcipher_wrap(&cur_algt->alg.cipher);
 		} else if (cur_algt->type == RKCE_ALGO_TYPE_HASH ||
 			   cur_algt->type == RKCE_ALGO_TYPE_HMAC) {
-			err = crypto_register_ahash(GET_AHASH_ALG(cur_algt));
+			err = crypto_regiseter_ahash_wrap(&cur_algt->alg.hash);
 		} else if (cur_algt->type == RKCE_ALGO_TYPE_AEAD) {
-			err = crypto_register_aead(GET_AEAD_ALG(cur_algt));
+			err = crypto_register_aead_wrap(&cur_algt->alg.aead);
 		} else if (cur_algt->type == RKCE_ALGO_TYPE_ASYM) {
 			err = crypto_register_akcipher(&cur_algt->alg.asym);
 		} else {
@@ -190,12 +266,12 @@ err_cipher_algs:
 		struct rkce_algt *cur_algt = algts[i];
 
 		if (cur_algt->type == RKCE_ALGO_TYPE_CIPHER)
-			crypto_unregister_skcipher(GET_SKCIPHER_ALG(cur_algt));
+			crypto_unregister_skcipher_wrap(&cur_algt->alg.cipher);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_HASH ||
 			 cur_algt->type == RKCE_ALGO_TYPE_HMAC)
-			crypto_unregister_ahash(GET_AHASH_ALG(cur_algt));
+			crypto_unregister_ahash_wrap(&cur_algt->alg.hash);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_AEAD)
-			crypto_unregister_aead(GET_AEAD_ALG(cur_algt));
+			crypto_unregister_aead_wrap(&cur_algt->alg.aead);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_ASYM)
 			crypto_unregister_akcipher(&cur_algt->alg.asym);
 		else
@@ -217,12 +293,12 @@ static void rkce_crypto_unregister(struct rkce_dev *rk_dev, struct rkce_algt **a
 		struct rkce_algt *cur_algt = algts[i];
 
 		if (cur_algt->type == RKCE_ALGO_TYPE_CIPHER)
-			crypto_unregister_skcipher(GET_SKCIPHER_ALG(cur_algt));
+			crypto_unregister_skcipher_wrap(&cur_algt->alg.cipher);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_HASH ||
 			 cur_algt->type == RKCE_ALGO_TYPE_HMAC)
-			crypto_unregister_ahash(GET_AHASH_ALG(cur_algt));
+			crypto_unregister_ahash_wrap(&cur_algt->alg.hash);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_AEAD)
-			crypto_unregister_aead(GET_AEAD_ALG(cur_algt));
+			crypto_unregister_aead_wrap(&cur_algt->alg.aead);
 		else if (cur_algt->type == RKCE_ALGO_TYPE_ASYM)
 			crypto_unregister_akcipher(&cur_algt->alg.asym);
 		else
@@ -359,20 +435,6 @@ static void rkce_remove(struct platform_device *pdev)
 
 	rkce_disable_clk(rk_dev);
 }
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
-static int rkce_remove_wrap(struct platform_device *pdev)
-{
-	rkce_remove(pdev);
-
-	return 0;
-}
-#else
-static void rkce_remove_wrap(struct platform_device *pdev)
-{
-	rkce_remove(pdev);
-}
-#endif
 
 static struct platform_driver rkce_driver = {
 	.probe		= rkce_probe,
