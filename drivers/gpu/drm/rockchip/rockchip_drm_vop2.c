@@ -8589,20 +8589,20 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_CLUSTER_SET(vop2, win, scl_lb_mode, lb_mode == 1 ? 3 : 0);
 		VOP_CLUSTER_SET(vop2, win, enable, 1);
 		if (crtc->crc.opened && vp->crc_source_win == win) {
-			if (vop2->version == VOP_VERSION_RK3572 && vop2_msmart_window(win) &&
-			    vpstate->msmart_data && vpstate->msmart_data->data) {
-				DRM_WARN_ONCE("CRC can not work with msmart in multi mode!\n");
-				VOP_WIN_SET(vop2, win, frm_reset_en, 1);
-			} else {
-				if (!win->parent && !vop2_cluster_sub_window(win))
-					VOP_WIN_SET(vop2, win, frm_reset_en, 0);
-			}
+			/* When cluster plane crc is used, frm_reset_en should set to 0 */
+			if (!vop2_cluster_sub_window(win))
+				VOP_WIN_SET(vop2, win, frm_reset_en, 0);
 		} else {
-			if (!win->parent && !vop2_cluster_sub_window(win))
+			if (!vop2_cluster_sub_window(win))
 				VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 		}
 		VOP_CLUSTER_SET(vop2, win, dma_stride_4k_disable, 1);
+	} else if (vop2_msmart_window(win)) {
+		if (crtc->crc.opened && vp->crc_source_win == win)
+			if (vpstate->msmart_data && vpstate->msmart_data->data)
+				DRM_WARN_ONCE("CRC can not work with msmart in multi mode!\n");
 	}
+
 	if (!vop2_cluster_sub_window(win) && !vop2_multi_area_sub_window(win)) {
 		if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID) {
 			if (vop2->version < VOP_VERSION_RK3572)
