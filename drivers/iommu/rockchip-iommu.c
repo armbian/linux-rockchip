@@ -723,6 +723,7 @@ static int rk_pagefault_done(struct rk_iommu *iommu)
 					if (!iommu->pf_fake_mode_en)
 						report_iommu_fault(iommu->domain, iommu->dev, iova,
 								   status);
+				} else {
 					dev_err(iommu->dev, "Page fault while iommu not attached to domain?\n");
 				}
 			}
