@@ -4504,7 +4504,7 @@
 			reg = <0x0 0x2c300000 0x0 0x10000>,
 			      <0x0 0x276d0000 0x0 0x10000>;
 			reg-names = "phy", "host";
-			clocks = <&xin24m>, <&cru PCLK_MIPI_DPHY0>, <&cru PCLK_DSIHOST0>;
+			clocks = <&cru CLK_VOSUBSYS_REF>, <&cru PCLK_MIPI_DPHY0>, <&cru PCLK_DSIHOST0>;
 			clock-names = "ref", "pclk", "pclk_host";
 			#clock-cells = <0>;
 			resets = <&cru SRST_PRESETN_MIPI_DPHY0>;
@@ -4516,7 +4516,7 @@
 		hdptxphy: phy@2c310000 {
 			compatible = "rockchip,rk3572-hdptx-phy", "rockchip,rk3588-hdptx-phy";
 			reg = <0x0 0x2c310000 0x0 0x10000>;
-			clocks = <&xin24m>, <&cru PCLK_HDPTXPHY>;
+			clocks = <&cru CLK_VOSUBSYS_REF>, <&cru PCLK_HDPTXPHY>;
 			clock-names = "ref", "apb";
 			resets = <&cru SRST_PRESETN_HDPTXPHY>, <&cru SRST_RESETN_HDPTX_INIT>,
 				 <&cru SRST_RESETN_HDPTX_CMN>, <&cru SRST_RESETN_HDPTX_LANE>;
@@ -4530,7 +4530,7 @@
 			compatible = "rockchip,rk3572-hdptx-phy-hdmi",
 				     "rockchip,rk3588-hdptx-phy-hdmi";
 			reg = <0x0 0x2c310000 0x0 0x2000>;
-			clocks = <&xin24m>, <&cru PCLK_HDPTXPHY>;
+			clocks = <&cru CLK_VOSUBSYS_REF>, <&cru PCLK_HDPTXPHY>;
 			clock-names = "ref", "apb";
 			clock-output-names = "clk_hdmiphy_pixel0";
 			#clock-cells = <0>;
