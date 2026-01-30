@@ -12,3 +12,33 @@
 	model = "Rockchip RK3572 EVB3 V10 Board";
 	compatible = "rockchip,rk3572-evb3-v10", "rockchip,rk3572";
 };
+
+/delete-node/ &vcc_ldo_s3;
+/delete-node/ &vdd_gpu_s0;
+
+&rk806 {
+	/delete-property/ buck5-feedback-disable;
+	regulators {
+		vdd_gpu_s0: vdd_npu_s0: DCDC_REG2 {
+			regulator-boot-on;
+			regulator-init-microvolt = <750000>;
+			regulator-min-microvolt = <550000>;
+			regulator-max-microvolt = <950000>;
+			regulator-ramp-delay = <12500>;
+			regulator-name = "vdd_npu_s0";
+			regulator-enable-ramp-delay = <400>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		vcc_ldo_s3: DCDC_REG5 {
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-name = "vcc_ldo_s3";
+			regulator-state-mem {
+				regulator-on-in-suspend;
+			};
+		};
+	};
+};
