@@ -8190,7 +8190,7 @@ static int vop3_msmart_grid_update(struct drm_plane *plane, struct drm_plane_sta
 			}
 			offset += ALIGN_DOWN(grid->src_y >> 16, 1) * fb->pitches[1] / vsub;
 			if (vpstate->ymirror_en && !vpstate->afbc_en)
-				offset += fb->pitches[1] * ((grid->src_h >> 16) - 2)  / vsub;
+				offset += fb->pitches[1] * ((grid->src_h >> 16) - vsub)  / vsub;
 			uv_obj = fb->obj[1];
 			rk_uv_obj = to_rockchip_obj(uv_obj);
 			msmart_lut_kvaddr[1] = rk_uv_obj->dma_addr + offset + fb->offsets[1];
