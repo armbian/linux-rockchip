@@ -24,6 +24,7 @@
 #include "rockchip_spdifrx.h"
 
 #define QUIRK_ALWAYS_ON		BIT(0)
+#define WAIT_TIME_MS_MAX	10000
 
 struct rk_spdifrx_info {
 	int sync;
@@ -54,6 +55,7 @@ struct rk_spdifrx_dev {
 	struct work_struct xrun_work;
 	unsigned int mclk_rate;
 	unsigned int version;
+	unsigned int wait_time;
 	int irq;
 	bool cdr_count_avg;
 	bool need_reset;
@@ -129,6 +131,9 @@ static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
 	spdifrx->info.sample_width_last = 0;
 	spdifrx->info.liner_pcm_last = 1;
 	spdifrx->substream = substream;
+
+	if (spdifrx->wait_time)
+		substream->wait_time = spdifrx->wait_time;
 
 	if (spdifrx->version >= SPDIFRX_VER_2312) {
 		switch (params_format(params)) {
@@ -244,6 +249,7 @@ static int rk_spdifrx_sync_get(struct snd_kcontrol *kcontrol,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sync;
+
 	return 0;
 }
 
@@ -255,6 +261,7 @@ static int rk_spdifrx_sample_rate_get(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sample_rate_src;
 	ucontrol->value.integer.value[1] = spdifrx->info.sample_rate_cal;
+
 	return 0;
 }
 
@@ -265,6 +272,7 @@ static int rk_spdifrx_debounce_time_get(struct snd_kcontrol *kcontrol,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.debounce_time_ms;
+
 	return 0;
 }
 
@@ -275,6 +283,7 @@ static int rk_spdifrx_debounce_time_put(struct snd_kcontrol *kcontrol,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	spdifrx->info.debounce_time_ms = ucontrol->value.integer.value[0];
+
 	return 0;
 }
 
@@ -285,6 +294,7 @@ static int rk_spdifrx_sample_width_get(struct snd_kcontrol *kcontrol,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.sample_width;
+
 	return 0;
 }
 
@@ -295,6 +305,32 @@ static int rk_spdifrx_liner_pcm_get(struct snd_kcontrol *kcontrol,
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 
 	ucontrol->value.integer.value[0] = spdifrx->info.liner_pcm;
+
+	return 0;
+}
+
+static int rk_spdifrx_wait_time_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+
+	ucontrol->value.integer.value[0] = spdifrx->wait_time;
+
+	return 0;
+}
+
+static int rk_spdifrx_wait_time_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	spdifrx->wait_time = ucontrol->value.integer.value[0];
+
 	return 0;
 }
 
@@ -353,9 +389,21 @@ static int rk_spdifrx_liner_pcm_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rk_spdifrx_wait_time_info(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = WAIT_TIME_MS_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
 static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RK SPDIFRX SYNC STATUS",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			  SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -363,7 +411,7 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.get = rk_spdifrx_sync_get,
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RK SPDIFRX SAMPLE RATE",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			  SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -378,7 +426,7 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.put = rk_spdifrx_debounce_time_put,
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RK SPDIFRX SAMPLE WIDTH",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			  SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -386,12 +434,19 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.get = rk_spdifrx_sample_width_get,
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RK SPDIFRX LINER PCM",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			  SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = rk_spdifrx_liner_pcm_info,
 		.get = rk_spdifrx_liner_pcm_get,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "RK SPDIFRX WAIT TIME MS",
+		.info = rk_spdifrx_wait_time_info,
+		.get = rk_spdifrx_wait_time_get,
+		.put = rk_spdifrx_wait_time_put,
 	},
 	SOC_SINGLE("RK SPDIFRX USYNC THRESHOLD CNT", SPDIFRX_CDRST, 16, 0xffff, 0),
 };
@@ -1022,6 +1077,22 @@ static void rk_spdifrx_xrun_work(struct work_struct *work)
 	}
 }
 
+static int rk_spdifrx_wait_time_init(struct rk_spdifrx_dev *spdifrx)
+{
+	unsigned int wait_time;
+
+	if (!device_property_read_u32(spdifrx->dev, "rockchip,wait-time-ms", &wait_time)) {
+		if (wait_time > WAIT_TIME_MS_MAX) {
+			dev_err(spdifrx->dev, "Failed to set init wait-time-ms: exceed max\n");
+			return -EINVAL;
+		}
+		dev_dbg(spdifrx->dev, "Init wait-time-ms: %u\n", wait_time);
+		spdifrx->wait_time = wait_time;
+	}
+
+	return 0;
+}
+
 static int rk_spdifrx_probe(struct platform_device *pdev)
 {
 	struct rk_spdifrx_dev *spdifrx;
@@ -1101,6 +1172,8 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 	}
 
 	clk_disable_unprepare(spdifrx->hclk);
+
+	rk_spdifrx_wait_time_init(spdifrx);
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
