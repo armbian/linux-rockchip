@@ -8489,8 +8489,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			VOP_WIN_SET(vop2, win, multi_grid_num, 0);
 		}
 		VOP_WIN_SET(vop2, win, grid0_act_info, act_info);
-		if (!win->parent && !vop2_cluster_sub_window(win))
-			VOP_WIN_SET(vop2, win, frm_reset_en, 1);
+		VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
