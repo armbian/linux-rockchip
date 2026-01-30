@@ -28,3 +28,18 @@
 		vin-supply = <&vcc5v0_sys_s5>;
 	};
 };
+
+&u2phy0_otg {
+	rockchip,vbus-always-on;
+	rockchip,sel-pipe-phystatus;
+};
+
+&usb_drd0_dwc3 {
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
