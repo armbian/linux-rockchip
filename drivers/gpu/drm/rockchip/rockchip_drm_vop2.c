@@ -5387,6 +5387,11 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, mmu1_qos_en, 1);
 			VOP_CTRL_SET(vop2, mmu1_qos_val, 7);
 
+			VOP_CTRL_SET(vop2, dma0_timeout_en, 1);
+			VOP_CTRL_SET(vop2, dma0_timeout_cnt, 0x80000);
+			VOP_CTRL_SET(vop2, dma1_timeout_en, 1);
+			VOP_CTRL_SET(vop2, dma1_timeout_cnt, 0x80000);
+
 			if (vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
