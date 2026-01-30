@@ -6620,6 +6620,10 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.mmu0_qos_val = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x7, 1),
 	.mmu1_qos_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x1, 0),
 	.mmu1_qos_val = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x7, 1),
+	.dma0_timeout_en = VOP_REG(RK3572_SYS0_AXI0_CTRL_IMD, 0x1, 2),
+	.dma0_timeout_cnt = VOP_REG(RK3572_SYS0_AXI0_CTRL_IMD, 0xfffff, 12),
+	.dma1_timeout_en = VOP_REG(RK3572_SYS1_AXI1_CTRL_IMD, 0x1, 2),
+	.dma1_timeout_cnt = VOP_REG(RK3572_SYS1_AXI1_CTRL_IMD, 0xfffff, 12),
 
 	/* MIPI DSI0 */
 	.mipi0_en = VOP_REG(RK3572_MIPI0_IF_CTRL, 0x1, 0),
