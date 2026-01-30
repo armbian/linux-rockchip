@@ -489,6 +489,10 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 	if (op->cmd.buswidth == 8)
 		ctrl |= (SFC_CTRL_DTR_MODE | SFC_CTRL_DTR_MODE_BY_DEVICE);
 
+	/* Workaround, cmd/addr 8bits is valid only when data is 8bits setting */
+	if (op->cmd.buswidth == 8 || op->addr.buswidth == 8)
+		ctrl |= (3 << SFC_CTRL_DATA_BITS_SHIFT);
+
 	cmd |= cs << SFC_CMD_CS_SHIFT;
 
 	dev_dbg(sfc->dev, "sfc cmd.nbytes=%x(x%d) addr.nbytes=%x(x%d) dummy.nbytes=%x(x%d)\n",
@@ -496,7 +500,7 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 		op->addr.nbytes, op->addr.buswidth,
 		op->dummy.nbytes, op->dummy.buswidth);
 	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x cmd_ext=%x addr=%llx dummy_ext=%x len=%x cs=%d\n",
-		ctrl, cmd, cmd_ext, op->addr.val, cmd_ext, len, cs);
+		ctrl, cmd, cmd_ext, op->addr.val, dummy_ext, len, cs);
 
 	if (sfc->data && sfc->data->powergood.valid) {
 		if (regmap_read_poll_timeout(sfc->grf, sfc->data->powergood.grf_offset,
