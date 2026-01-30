@@ -175,9 +175,9 @@
 /*
  * The maximum resolution supported by the HDMI bridge is 1080p@60Hz
  * and 1920x1200 requiring a pixel clock of 165MHz and the minimum
- * resolution supported is 480p@60Hz requiring a pixel clock of 25MHz
+ * clock resolution supported is 480i@60Hz with 13.5M read from EDID
  */
-#define SII902X_MIN_PIXEL_CLOCK_KHZ		25000
+#define SII902X_MIN_PIXEL_CLOCK_KHZ		13500
 #define SII902X_MAX_PIXEL_CLOCK_KHZ		165000
 
 struct sii902x {
