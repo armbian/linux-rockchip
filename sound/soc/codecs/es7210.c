@@ -691,10 +691,10 @@ static void pcm_pop_work_events(struct work_struct *work)
 }
 static int es7210_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
-        printk("enter into %s, mute = %d\n", __func__, mute);
         if (stream == SNDRV_PCM_STREAM_PLAYBACK)
                 return 0;
 
+        printk("enter into %s, mute = %d\n", __func__, mute);
         if (mute) {
                 es7210_multi_chips_update_bits(ES7210_ADC34_MUTE_REG14, 0x03, 0x03);
                 es7210_multi_chips_update_bits(ES7210_ADC12_MUTE_REG15, 0x03, 0x03);
