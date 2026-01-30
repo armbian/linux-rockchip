@@ -230,29 +230,6 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc5v0_sys_s5>;
 	};
-
-	wireless_bluetooth: wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		bt_port = "/dev/ttyS4";
-		uart_rts-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart4m1_rtsn_pins>;
-		pinctrl-1 = <&uart4_gpios>;
-		BT,reset-gpios    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		BT,wake-gpios     = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
-		BT,wake_host-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-
-	wireless_wlan: wireless-wlan {
-		compatible = "wlan-platdata";
-		wifi_chip_type = "ap6275p";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
 };
 
 &cpu_l0 {
@@ -681,22 +658,6 @@
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart4_gpios: uart4-gpios {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wireless-wlan {
-		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
-		wifi_poweren_gpio: wifi-poweren-gpio {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

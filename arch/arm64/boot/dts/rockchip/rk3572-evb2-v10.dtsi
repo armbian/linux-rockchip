@@ -33,6 +33,44 @@
 		status = "disabled";
 	};
 
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd>;
+		pinctrl-name = "default";
+		pinctrl-0 = <&edp_panel_reset>;
+		reset-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		width-mm = <120>;
+		height-mm = <160>;
+		status = "okay";
+
+		panel-timing {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			vactive = <2048>;
+			hfront-porch = <12>;
+			hsync-len = <16>;
+			hback-porch = <48>;
+			vfront-porch = <8>;
+			vsync-len = <4>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
 	rk730_sound: rk730-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
@@ -68,6 +106,21 @@
 			linux,code = <KEY_PLAYPAUSE>;
 			press-threshold-microvolt = <2000>;
 		};
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_poweren_gpio>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		post-power-on-delay-ms = <200>;
+		reset-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
 	};
 
 	usb2_switch: usb2-switch {
@@ -130,57 +183,27 @@
 		enable-active-high;
 	};
 
-	panel-edp {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		power-supply = <&vcc3v3_lcd>;
-		pinctrl-name = "default";
-		pinctrl-0 = <&edp_panel_reset>;
-		reset-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
-		prepare-delay-ms = <120>;
-		enable-delay-ms = <120>;
-		unprepare-delay-ms = <120>;
-		disable-delay-ms = <120>;
-		width-mm = <120>;
-		height-mm = <160>;
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		bt_port = "/dev/ttyS4";
+		uart_rts-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart4m1_rtsn_pins>;
+		pinctrl-1 = <&uart4_gpios>;
+		BT,reset-gpios    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-
-		panel-timing {
-			clock-frequency = <200000000>;
-			hactive = <1536>;
-			vactive = <2048>;
-			hfront-porch = <12>;
-			hsync-len = <16>;
-			hback-porch = <48>;
-			vfront-porch = <8>;
-			vsync-len = <4>;
-			vback-porch = <8>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <0>;
-			pixelclk-active = <0>;
-		};
-
-		port {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
-		};
 	};
 
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_poweren_gpio>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		post-power-on-delay-ms = <200>;
-		reset-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -392,6 +415,22 @@
 
 		usbc0_int: usbc0-int {
 			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart4_gpios: uart4-gpios {
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		wifi_poweren_gpio: wifi-poweren-gpio {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
