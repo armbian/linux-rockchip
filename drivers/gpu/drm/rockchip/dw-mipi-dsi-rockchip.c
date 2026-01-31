@@ -677,8 +677,11 @@ static unsigned int dw_mipi_dsi_calculate_lane_mpbs(struct dw_mipi_dsi_rockchip 
 	} else {
 		mpclk = DIV_ROUND_UP(mode->clock, MSEC_PER_SEC);
 		if (mpclk) {
+			tmp = mpclk * (bpp / lanes);
 			/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
-			tmp = mpclk * (bpp / lanes) * 10 / 9;
+			if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
+				tmp = tmp * 10 / 9;
+
 			if (tmp < max_mbps)
 				target_mbps = tmp;
 			else {
