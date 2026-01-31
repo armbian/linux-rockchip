@@ -2291,7 +2291,7 @@ static const struct vop2_video_port_data rk3572_vop_video_ports[] = {
 	 .soc_id = { 0x3572, 0x3572 },
 	 .lut_dma_rid = 0x3,/* lut axi id length is 4 bits */
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN |
-			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_HW_CURSOR,
+			VOP_FEATURE_HW_CURSOR,
 	 .gamma_lut_len = 1024,
 	 .dclk_max = 300000000,
 	 .max_output = { 2048, 2048 },
