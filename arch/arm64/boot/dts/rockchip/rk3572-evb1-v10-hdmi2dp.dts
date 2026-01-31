@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb1-v10.dtsi"
+#include "rk3572-android.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB1 V10 Board + RK HDMI to DP Ext Board";
+	compatible = "rockchip,rk3572-evb1-v10-hdmi2dp", "rockchip,rk3572";
+};
+
+&edp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp_txm1_pins>;
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_sound {
+	status = "okay";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "disabled";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "disabled";
+};
+
+&sai4 {
+	status = "okay";
+};

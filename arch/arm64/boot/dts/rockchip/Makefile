@@ -271,6 +271,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-co
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2lvds0-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-ebook-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-hdmi2dp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-linux.dtb
