@@ -2614,7 +2614,13 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_h = dsp_h / 2;
 
-	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
+	if (vop->version == VOP_VERSION_RK3572_LITE) {
+		actual_h = (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ?
+			   actual_h / 2 : actual_h;
+		act_info = actual_h << 16 | (actual_w & 0xffff);
+	} else {
+		act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
+	}
 
 	/*
 	 * For y-mirroring we need to move address
