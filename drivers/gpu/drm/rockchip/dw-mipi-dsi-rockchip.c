@@ -222,6 +222,9 @@
 #define RK3572_DSI0_FORCETXSTOPMODE	BIT(3)
 #define RK3572_DSI0_FORCERXMODE		BIT(2)
 
+#define RK3572_VOP_GRF_CON0		0x0
+#define RK3572_MIPI_EDPITE_SEL_IO	BIT(0)
+
 #define RV1126_GRF_DSIPHY_CON		0x10220
 #define RV1126B_GRF_DSIPHY_CON		0x80010
 #define RV1126_DSI_FORCETXSTOPMODE	(0xf << 4)
@@ -277,9 +280,7 @@ struct cmd_header {
 	u8 payload_length;
 };
 
-struct rockchip_dw_dsi_chip_data {
-	u32 reg;
-
+struct dsi_grf_ctrl {
 	u32 lcdsel_grf_reg;
 	u32 lcdsel_big;
 	u32 lcdsel_lit;
@@ -291,7 +292,18 @@ struct rockchip_dw_dsi_chip_data {
 	u32 lanecfg1;
 	u32 lanecfg2_grf_reg;
 	u32 lanecfg2;
+};
 
+struct dsi_vop_grf_ctrl {
+	u32 te_sel_grf_reg;
+	u32 te_sel;
+};
+
+struct rockchip_dw_dsi_chip_data {
+	u32 reg;
+
+	const struct dsi_grf_ctrl *grf;
+	const struct dsi_vop_grf_ctrl *vop_grf;
 	int (*dphy_rx_init)(struct phy *phy);
 	int (*dphy_rx_power_on)(struct phy *phy);
 	int (*dphy_rx_power_off)(struct phy *phy);
@@ -320,6 +332,7 @@ struct dw_mipi_dsi_rockchip {
 
 	struct drm_dsc_picture_parameter_set *pps;
 	struct regmap *grf_regmap;
+	struct regmap *vop_grf_regmap;
 	struct clk *pclk;
 	struct clk *pllref_clk;
 	struct clk *grf_clk;
@@ -469,19 +482,46 @@ static inline unsigned int ns2ui(struct dw_mipi_dsi_rockchip *dsi, int ns)
 	return DIV_ROUND_UP(ns * dsi->lane_mbps, 1000);
 }
 
+static inline void dsi_grf_writel(struct dw_mipi_dsi_rockchip *dsi)
+{
+	if (IS_ERR_OR_NULL(dsi->grf_regmap))
+		return;
+
+	if (dsi->cdata->grf->lanecfg1_grf_reg)
+		regmap_write(dsi->grf_regmap,
+			     dsi->cdata->grf->lanecfg1_grf_reg,
+			     dsi->cdata->grf->lanecfg1);
+
+	if (dsi->cdata->grf->lanecfg2_grf_reg)
+		regmap_write(dsi->grf_regmap,
+			     dsi->cdata->grf->lanecfg2_grf_reg,
+			     dsi->cdata->grf->lanecfg2);
+
+	if (dsi->cdata->grf->enable_grf_reg)
+		regmap_write(dsi->grf_regmap,
+			     dsi->cdata->grf->enable_grf_reg,
+			     dsi->cdata->grf->enable);
+}
+
+static inline void dsi_vop_grf_writel(struct dw_mipi_dsi_rockchip *dsi)
+{
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		return;
+
+	if (IS_ERR_OR_NULL(dsi->vop_grf_regmap))
+		return;
+
+	regmap_write(dsi->vop_grf_regmap, dsi->cdata->vop_grf->te_sel_grf_reg,
+		     dsi->cdata->vop_grf->te_sel);
+}
+
 static void dw_mipi_dsi_phy_tx_config(struct dw_mipi_dsi_rockchip *dsi)
 {
-	if (dsi->cdata->lanecfg1_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg1_grf_reg,
-					      dsi->cdata->lanecfg1);
+	if (dsi->cdata->grf)
+		dsi_grf_writel(dsi);
 
-	if (dsi->cdata->lanecfg2_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg2_grf_reg,
-					      dsi->cdata->lanecfg2);
-
-	if (dsi->cdata->enable_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->enable_grf_reg,
-					      dsi->cdata->enable);
+	if (dsi->cdata->vop_grf)
+		dsi_vop_grf_writel(dsi);
 }
 
 static int dw_mipi_dsi_phy_init(void *priv_data)
@@ -791,15 +831,15 @@ static void dw_mipi_dsi_rockchip_vop_routing(struct dw_mipi_dsi_rockchip *dsi)
 	if (mux < 0)
 		return;
 
-	if (dsi->cdata->lcdsel_grf_reg) {
-		regmap_write(dsi->grf_regmap, dsi->cdata->lcdsel_grf_reg,
-			mux ? dsi->cdata->lcdsel_lit : dsi->cdata->lcdsel_big);
+	if (dsi->cdata->grf && dsi->cdata->grf->lcdsel_grf_reg) {
+		regmap_write(dsi->grf_regmap, dsi->cdata->grf->lcdsel_grf_reg,
+			mux ? dsi->cdata->grf->lcdsel_lit : dsi->cdata->grf->lcdsel_big);
 
-		if (dsi->slave && dsi->slave->cdata->lcdsel_grf_reg)
+		if (dsi->slave && dsi->slave->cdata->grf && dsi->slave->cdata->grf->lcdsel_grf_reg)
 			regmap_write(dsi->slave->grf_regmap,
-				     dsi->slave->cdata->lcdsel_grf_reg,
-				     mux ? dsi->slave->cdata->lcdsel_lit :
-				     dsi->slave->cdata->lcdsel_big);
+				     dsi->slave->cdata->grf->lcdsel_grf_reg,
+				     mux ? dsi->slave->cdata->grf->lcdsel_lit :
+				     dsi->slave->cdata->grf->lcdsel_big);
 	}
 }
 
@@ -1538,10 +1578,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	}
 
 	dsi->grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(dsi->grf_regmap)) {
-		DRM_DEV_ERROR(dev, "Unable to get rockchip,grf\n");
-		return PTR_ERR(dsi->grf_regmap);
-	}
+	dsi->vop_grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,vop-grf");
 
 	if (device_property_read_bool(dev, "disable-hold-mode"))
 		dsi->disable_hold_mode = true;
@@ -1647,19 +1684,22 @@ static const struct dev_pm_ops dw_mipi_dsi_rockchip_pm_ops = {
 			   dw_mipi_dsi_runtime_resume, NULL)
 };
 
+static const struct dsi_grf_ctrl px30_dsi_grf_ctrl = {
+	.lcdsel_grf_reg = PX30_GRF_PD_VO_CON1,
+	.lcdsel_big = HIWORD_UPDATE(0, PX30_DSI_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(PX30_DSI_LCDC_SEL,
+				    PX30_DSI_LCDC_SEL),
+
+	.lanecfg1_grf_reg = PX30_GRF_PD_VO_CON1,
+	.lanecfg1 = HIWORD_UPDATE(0, PX30_DSI_TURNDISABLE |
+				     PX30_DSI_FORCERXMODE |
+				     PX30_DSI_FORCETXSTOPMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused px30_chip_data[] = {
 	{
 		.reg = 0xff450000,
-		.lcdsel_grf_reg = PX30_GRF_PD_VO_CON1,
-		.lcdsel_big = HIWORD_UPDATE(0, PX30_DSI_LCDC_SEL),
-		.lcdsel_lit = HIWORD_UPDATE(PX30_DSI_LCDC_SEL,
-					    PX30_DSI_LCDC_SEL),
-
-		.lanecfg1_grf_reg = PX30_GRF_PD_VO_CON1,
-		.lanecfg1 = HIWORD_UPDATE(0, PX30_DSI_TURNDISABLE |
-					     PX30_DSI_FORCERXMODE |
-					     PX30_DSI_FORCETXSTOPMODE),
-
+		.grf = &px30_dsi_grf_ctrl,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1000000000UL,
 		.soc_type = PX30,
@@ -1667,13 +1707,17 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused px30_chip_data[] = 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3128_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3128_GRF_LVDS_CON0,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3128_DSI_TURNDISABLE |
+				     RK3128_DSI_FORCETXSTOPMODE |
+				     RK3128_DSI_FORCERXMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3128_chip_data[] = {
 	{
 		.reg = 0x10110000,
-		.lanecfg1_grf_reg = RK3128_GRF_LVDS_CON0,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3128_DSI_TURNDISABLE |
-					     RK3128_DSI_FORCETXSTOPMODE |
-					     RK3128_DSI_FORCERXMODE),
+		.grf = &rk3128_dsi_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1000000000UL,
@@ -1682,22 +1726,29 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3128_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3288_dsi0_grf_ctrl = {
+	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
+	.lcdsel_big = HIWORD_UPDATE(0, RK3288_DSI0_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI0_LCDC_SEL, RK3288_DSI0_LCDC_SEL),
+};
+
+static const struct dsi_grf_ctrl rk3288_dsi1_grf_ctrl = {
+	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
+	.lcdsel_big = HIWORD_UPDATE(0, RK3288_DSI1_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI1_LCDC_SEL, RK3288_DSI1_LCDC_SEL),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3288_chip_data[] = {
 	{
 		.reg = 0xff960000,
-		.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
-		.lcdsel_big = HIWORD_UPDATE(0, RK3288_DSI0_LCDC_SEL),
-		.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI0_LCDC_SEL, RK3288_DSI0_LCDC_SEL),
-
+		.grf = &rk3288_dsi0_grf_ctrl,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3288,
 	},
 	{
 		.reg = 0xff964000,
-		.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
-		.lcdsel_big = HIWORD_UPDATE(0, RK3288_DSI1_LCDC_SEL),
-		.lcdsel_lit = HIWORD_UPDATE(RK3288_DSI1_LCDC_SEL, RK3288_DSI1_LCDC_SEL),
+		.grf = &rk3288_dsi1_grf_ctrl,
 
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1500000000UL,
@@ -1775,20 +1826,46 @@ static int rk3399_dphy_tx1rx1_power_off(struct phy *phy)
 	return 0;
 }
 
+static const struct dsi_grf_ctrl rk3399_dsi0_grf_ctrl = {
+	.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
+	.lcdsel_big = HIWORD_UPDATE(0, RK3399_DSI0_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(RK3399_DSI0_LCDC_SEL,
+				    RK3399_DSI0_LCDC_SEL),
+
+	.lanecfg1_grf_reg = RK3399_GRF_SOC_CON22,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3399_DSI0_TURNREQUEST |
+				     RK3399_DSI0_TURNDISABLE |
+				     RK3399_DSI0_FORCETXSTOPMODE |
+				     RK3399_DSI0_FORCERXMODE),
+};
+
+static const struct dsi_grf_ctrl rk3399_dsi1_grf_ctrl = {
+	.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
+	.lcdsel_big = HIWORD_UPDATE(0, RK3399_DSI1_LCDC_SEL),
+	.lcdsel_lit = HIWORD_UPDATE(RK3399_DSI1_LCDC_SEL,
+				    RK3399_DSI1_LCDC_SEL),
+
+	.lanecfg1_grf_reg = RK3399_GRF_SOC_CON23,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3399_DSI1_TURNDISABLE |
+				     RK3399_DSI1_FORCETXSTOPMODE |
+				     RK3399_DSI1_FORCERXMODE |
+				     RK3399_DSI1_ENABLE),
+
+	.lanecfg2_grf_reg = RK3399_GRF_SOC_CON24,
+	.lanecfg2 = HIWORD_UPDATE(RK3399_TXRX_MASTERSLAVEZ |
+				  RK3399_TXRX_ENABLECLK,
+				  RK3399_TXRX_MASTERSLAVEZ |
+				  RK3399_TXRX_ENABLECLK |
+				  RK3399_TXRX_BASEDIR),
+
+	.enable_grf_reg = RK3399_GRF_SOC_CON23,
+	.enable = HIWORD_UPDATE(RK3399_DSI1_ENABLE, RK3399_DSI1_ENABLE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3399_chip_data[] = {
 	{
 		.reg = 0xff960000,
-		.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
-		.lcdsel_big = HIWORD_UPDATE(0, RK3399_DSI0_LCDC_SEL),
-		.lcdsel_lit = HIWORD_UPDATE(RK3399_DSI0_LCDC_SEL,
-					    RK3399_DSI0_LCDC_SEL),
-
-		.lanecfg1_grf_reg = RK3399_GRF_SOC_CON22,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3399_DSI0_TURNREQUEST |
-					     RK3399_DSI0_TURNDISABLE |
-					     RK3399_DSI0_FORCETXSTOPMODE |
-					     RK3399_DSI0_FORCERXMODE),
-
+		.grf = &rk3399_dsi0_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_PHY_CFG_CLK | DW_MIPI_NEEDS_GRF_CLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1500000000UL,
@@ -1796,27 +1873,7 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3399_chip_data[] 
 	},
 	{
 		.reg = 0xff968000,
-		.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
-		.lcdsel_big = HIWORD_UPDATE(0, RK3399_DSI1_LCDC_SEL),
-		.lcdsel_lit = HIWORD_UPDATE(RK3399_DSI1_LCDC_SEL,
-					    RK3399_DSI1_LCDC_SEL),
-
-		.lanecfg1_grf_reg = RK3399_GRF_SOC_CON23,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3399_DSI1_TURNDISABLE |
-					     RK3399_DSI1_FORCETXSTOPMODE |
-					     RK3399_DSI1_FORCERXMODE |
-					     RK3399_DSI1_ENABLE),
-
-		.lanecfg2_grf_reg = RK3399_GRF_SOC_CON24,
-		.lanecfg2 = HIWORD_UPDATE(RK3399_TXRX_MASTERSLAVEZ |
-					  RK3399_TXRX_ENABLECLK,
-					  RK3399_TXRX_MASTERSLAVEZ |
-					  RK3399_TXRX_ENABLECLK |
-					  RK3399_TXRX_BASEDIR),
-
-		.enable_grf_reg = RK3399_GRF_SOC_CON23,
-		.enable = HIWORD_UPDATE(RK3399_DSI1_ENABLE, RK3399_DSI1_ENABLE),
-
+		.grf = &rk3399_dsi1_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_PHY_CFG_CLK | DW_MIPI_NEEDS_GRF_CLK,
 		.max_data_lanes = 4,
 
@@ -1830,18 +1887,21 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3399_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3506_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3506_SYS_GRF_SOC_CON6,
+	.lanecfg1 = HIWORD_UPDATE(RK3506_DSI_PHY_ENABLE_LANE0 |
+				  RK3506_DSI_PHY_ENABLE_LANE1,
+				  RK3506_DSI_TURNDISABLE |
+				  RK3506_DSI_FORCERXMODE |
+				  RK3506_DSI_FORCETXSTOPMODE |
+				  RK3506_DSI_PHY_ENABLE_LANE0 |
+				  RK3506_DSI_PHY_ENABLE_LANE1),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3506_chip_data[] = {
 	{
 		.reg = 0xff640000,
-		.lanecfg1_grf_reg = RK3506_SYS_GRF_SOC_CON6,
-		.lanecfg1 = HIWORD_UPDATE(RK3506_DSI_PHY_ENABLE_LANE0 |
-					  RK3506_DSI_PHY_ENABLE_LANE1,
-					  RK3506_DSI_TURNDISABLE |
-					  RK3506_DSI_FORCERXMODE |
-					  RK3506_DSI_FORCETXSTOPMODE |
-					  RK3506_DSI_PHY_ENABLE_LANE0 |
-					  RK3506_DSI_PHY_ENABLE_LANE1),
-
+		.grf = &rk3506_dsi_grf_ctrl,
 		.max_data_lanes = 2,
 		.max_bit_rate_per_lane = 1500000000UL,
 		.soc_type = RK3506,
@@ -1849,15 +1909,17 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3506_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3562_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3562_SYS_GRF_VO_CON1,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3562_DSI_TURNDISABLE |
+				     RK3562_DSI_FORCERXMODE |
+				     RK3562_DSI_FORCETXSTOPMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3562_chip_data[] = {
 	{
 		.reg = 0xffb10000,
-
-		.lanecfg1_grf_reg = RK3562_SYS_GRF_VO_CON1,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3562_DSI_TURNDISABLE |
-					     RK3562_DSI_FORCERXMODE |
-					     RK3562_DSI_FORCETXSTOPMODE),
-
+		.grf = &rk3562_dsi_grf_ctrl,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1200000000UL,
 		.soc_type = RK3562,
@@ -1865,14 +1927,26 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3562_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3568_dsi0_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3568_GRF_VO_CON2,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3568_DSI0_SKEWCALHS |
+				  RK3568_DSI0_FORCETXSTOPMODE |
+				  RK3568_DSI0_TURNDISABLE |
+				  RK3568_DSI0_FORCERXMODE),
+};
+
+static const struct dsi_grf_ctrl rk3568_dsi1_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3568_GRF_VO_CON3,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3568_DSI1_SKEWCALHS |
+				  RK3568_DSI1_FORCETXSTOPMODE |
+				  RK3568_DSI1_TURNDISABLE |
+				  RK3568_DSI1_FORCERXMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3568_chip_data[] = {
 	{
 		.reg = 0xfe060000,
-		.lanecfg1_grf_reg = RK3568_GRF_VO_CON2,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3568_DSI0_SKEWCALHS |
-					  RK3568_DSI0_FORCETXSTOPMODE |
-					  RK3568_DSI0_TURNDISABLE |
-					  RK3568_DSI0_FORCERXMODE),
+		.grf = &rk3568_dsi0_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1200000000UL,
@@ -1880,11 +1954,7 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3568_chip_data[] 
 	},
 	{
 		.reg = 0xfe070000,
-		.lanecfg1_grf_reg = RK3568_GRF_VO_CON3,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3568_DSI1_SKEWCALHS |
-					  RK3568_DSI1_FORCETXSTOPMODE |
-					  RK3568_DSI1_TURNDISABLE |
-					  RK3568_DSI1_FORCERXMODE),
+		.grf = &rk3568_dsi1_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1200000000UL,
@@ -1893,14 +1963,24 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3568_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rk3572_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RK3572_GRF_VO_IOC_CON2,
+	.lanecfg1 = HIWORD_UPDATE(0, RK3572_DSI0_SKEWCALHS |
+				  RK3572_DSI0_TURNDISABLE |
+				  RK3572_DSI0_FORCETXSTOPMODE |
+				  RK3572_DSI0_FORCERXMODE),
+};
+
+static const struct dsi_vop_grf_ctrl rk3572_dsi_vop_grf_ctrl = {
+	.te_sel_grf_reg = RK3572_VOP_GRF_CON0,
+	.te_sel = HIWORD_UPDATE(1, RK3572_MIPI_EDPITE_SEL_IO),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3572_chip_data[] = {
 	{
 		.reg = 0x276d0000,
-		.lanecfg1_grf_reg = RK3572_GRF_VO_IOC_CON2,
-		.lanecfg1 = HIWORD_UPDATE(0, RK3572_DSI0_SKEWCALHS |
-					  RK3572_DSI0_TURNDISABLE |
-					  RK3572_DSI0_FORCETXSTOPMODE |
-					  RK3572_DSI0_FORCERXMODE),
+		.grf = &rk3572_dsi_grf_ctrl,
+		.vop_grf = &rk3572_dsi_vop_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1800000000UL,
@@ -1909,14 +1989,17 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rk3572_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rv1126_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RV1126_GRF_DSIPHY_CON,
+	.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
+				     RV1126_DSI_FORCERXMODE |
+				     RV1126_DSI_FORCETXSTOPMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126_chip_data[] = {
 	{
 		.reg = 0xffb30000,
-
-		.lanecfg1_grf_reg = RV1126_GRF_DSIPHY_CON,
-		.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
-					     RV1126_DSI_FORCERXMODE |
-					     RV1126_DSI_FORCETXSTOPMODE),
+		.grf = &rv1126_dsi_grf_ctrl,
 		.flags = DW_MIPI_NEEDS_HCLK,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1000000000UL,
@@ -1925,14 +2008,17 @@ static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126_chip_data[] 
 	{ /* sentinel */ }
 };
 
+static const struct dsi_grf_ctrl rv1126b_dsi_grf_ctrl = {
+	.lanecfg1_grf_reg = RV1126B_GRF_DSIPHY_CON,
+	.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
+				     RV1126_DSI_FORCERXMODE |
+				     RV1126_DSI_FORCETXSTOPMODE),
+};
+
 static const struct rockchip_dw_dsi_chip_data __maybe_unused rv1126b_chip_data[] = {
 	{
 		.reg = 0x22120000,
-
-		.lanecfg1_grf_reg = RV1126B_GRF_DSIPHY_CON,
-		.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
-					     RV1126_DSI_FORCERXMODE |
-					     RV1126_DSI_FORCETXSTOPMODE),
+		.grf = &rv1126b_dsi_grf_ctrl,
 		.flags = 0,
 		.max_data_lanes = 4,
 		.max_bit_rate_per_lane = 1500000000UL,
