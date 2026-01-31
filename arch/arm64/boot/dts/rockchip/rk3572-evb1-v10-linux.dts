@@ -13,3 +13,22 @@
 	model = "Rockchip RK3572 EVB1 V10 Board";
 	compatible = "rockchip,rk3572-evb1-v10", "rockchip,rk3572";
 };
+
+&uart4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4m1_xfer_pins &uart4m1_ctsn_pins &uart4m1_rtsn_pins>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		device-wakeup-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
