@@ -220,18 +220,18 @@ static const struct resource rk817_pwrkey_resources[] = {
 static const struct mfd_cell rk801s[] = {
 	{ .name = "rk801-regulator", },
 	{
-		.name = "rk805-pwrkey",
+		.name = "rk801-pwrkey",
 		.num_resources = ARRAY_SIZE(rk801_key_resources),
 		.resources = &rk801_key_resources[0],
 	},
 };
 
 static const struct mfd_cell rk805s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
+	{ .name = "rk805-clkout", },
+	{ .name = "rk805-regulator", },
 	{ .name = "rk805-pinctrl", },
 	{
-		.name = "rk808-rtc",
+		.name = "rk805-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = &rtc_resources[0],
 	},
@@ -252,34 +252,34 @@ static const struct mfd_cell rk808s[] = {
 };
 
 static const struct mfd_cell rk816s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
+	{ .name = "rk816-clkout", },
+	{ .name = "rk816-regulator", },
 	{ .name = "rk805-pinctrl", },
 	{ .name = "rk816-battery", .of_compatible = "rk816-battery", },
 	{
-		.name = "rk805-pwrkey",
+		.name = "rk816-pwrkey",
 		.num_resources = ARRAY_SIZE(rk816_pwrkey_resources),
 		.resources = &rk816_pwrkey_resources[0],
 	},
 	{
-		.name = "rk808-rtc",
+		.name = "rk816-rtc",
 		.num_resources = ARRAY_SIZE(rk816_rtc_resources),
 		.resources = &rk816_rtc_resources[0],
 	},
 };
 
 static const struct mfd_cell rk817s[] = {
-	{ .name = "rk808-clkout",},
-	{ .name = "rk808-regulator",},
+	{ .name = "rk817-clkout",},
+	{ .name = "rk817-regulator",},
 	{ .name = "rk817-battery", .of_compatible = "rk817,battery", },
 	{ .name = "rk817-charger", .of_compatible = "rk817,charger", },
 	{
-		.name = "rk805-pwrkey",
+		.name = "rk817-pwrkey",
 		.num_resources = ARRAY_SIZE(rk817_pwrkey_resources),
 		.resources = &rk817_pwrkey_resources[0],
 	},
 	{
-		.name = "rk808-rtc",
+		.name = "rk817-rtc",
 		.num_resources = ARRAY_SIZE(rk817_rtc_resources),
 		.resources = &rk817_rtc_resources[0],
 	},
@@ -287,12 +287,12 @@ static const struct mfd_cell rk817s[] = {
 };
 
 static const struct mfd_cell rk818s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
+	{ .name = "rk818-clkout", },
+	{ .name = "rk818-regulator", },
 	{ .name = "rk818-battery", .of_compatible = "rk818-battery", },
 	{ .name = "rk818-charger", },
 	{
-		.name = "rk808-rtc",
+		.name = "rk818-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = rtc_resources,
 	},
@@ -1694,7 +1694,7 @@ static int rk808_probe(struct i2c_client *client,
 		}
 	}
 
-	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
+	rk8xx_kobj = kobject_create_and_add(np->name, NULL);
 	if (rk8xx_kobj) {
 		ret = sysfs_create_file(rk8xx_kobj, &rk8xx_attrs.attr);
 		if (ret)

@@ -1777,8 +1777,19 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id rk8xx_regulator_id_table[] = {
+	{ "rk805-regulator", 0 },
+	{ "rk809-regulator", 0 },
+	{ "rk816-regulator", 0 },
+	{ "rk817-regulator", 0 },
+	{ "rk818-regulator", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, rk8xx_regulator_id_table);
+
 static struct platform_driver rk808_regulator_driver = {
 	.probe = rk808_regulator_probe,
+	.id_table = rk8xx_regulator_id_table,
 	.driver = {
 		.name = "rk808-regulator"
 	},

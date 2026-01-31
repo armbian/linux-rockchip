@@ -200,8 +200,19 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 					   rk808_clkout);
 }
 
+static const struct platform_device_id rk8xx_clk_id_table[] = {
+	{ "rk805-clk", 0 },
+	{ "rk809-clk", 0 },
+	{ "rk816-clk", 0 },
+	{ "rk817-clk", 0 },
+	{ "rk818-clk", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, rk8xx_clk_id_table);
+
 static struct platform_driver rk808_clkout_driver = {
 	.probe = rk808_clkout_probe,
+	.id_table = rk8xx_clk_id_table,
 	.driver		= {
 		.name	= "rk808-clkout",
 	},
