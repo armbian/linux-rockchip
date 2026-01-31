@@ -345,6 +345,10 @@
 	};
 };
 
+&leds {
+	status = "okay";
+};
+
 &mdio0 {
 	rmii_phy: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
