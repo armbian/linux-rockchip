@@ -1468,6 +1468,8 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_enable_dev;
 	}
 
+	pci_set_master(pdev);
+
 	ret = pci_request_regions(pdev, DRV_NAME);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions failed %d\n", ret);
