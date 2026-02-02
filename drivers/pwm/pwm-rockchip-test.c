@@ -292,7 +292,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 		pwm_get_state(pdev, &state);
 		state.enabled = enable;
 
-		ret = pwm_apply_state(pdev, &state);
+		ret = pwm_apply_atomic(pdev, &state);
 		if (ret) {
 			pr_err("failed to %s pwm%d_%d\n",
 			       enable ? "enable" : "disable", controller_id, channel_id);
@@ -346,7 +346,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 		state.duty_cycle = duty;
 		state.polarity = polarity;
 
-		ret = pwm_apply_state(pdev, &state);
+		ret = pwm_apply_atomic(pdev, &state);
 		if (ret) {
 			pr_err("failed to set %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
@@ -426,7 +426,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 		state.oneshot_count = rpt_first;
 		state.oneshot_repeat = rpt_second;
 
-		ret = pwm_apply_state(pdev, &state);
+		ret = pwm_apply_atomic(pdev, &state);
 		if (ret) {
 			pr_err("failed to set %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
@@ -454,7 +454,7 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 			goto exit;
 		}
 
-		ret = pwm_capture(pdev, &cap_res, timeout_ms);
+		ret = pdev->chip->ops->capture(pdev->chip, pdev, &cap_res, timeout_ms);
 		if (ret) {
 			pr_err("failed to set %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
@@ -924,7 +924,7 @@ static int pwm_rockchip_test_probe(struct platform_device *pdev)
 			g_pwm_test_data[i][j]->pwm_dev = pwm_dev;
 			dev_warn(&pdev->dev, "%s bind %s\n",
 				 pwm_name,
-				 g_pwm_test_data[i][j]->pwm_dev->chip->dev->of_node->full_name);
+				 pwmchip_parent(g_pwm_test_data[i][j]->pwm_dev->chip)->of_node->full_name);
 		}
 	}
 
