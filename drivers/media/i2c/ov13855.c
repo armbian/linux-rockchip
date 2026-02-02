@@ -11,6 +11,7 @@
  * 1. 4224x3136@15fps & 2114x1568@60fps only enable for debug.
  * 2. fix some regs setting.
  * V0.0X01.0X04 fix power on sequence
+ * V0.0X01.0X05 add manual config crop wxh support.
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -103,6 +104,13 @@ struct regval {
 	u8 val;
 };
 
+struct camera_device_defrect {
+	unsigned int width;
+	unsigned int height;
+	unsigned int crop_width;
+	unsigned int crop_height;
+};
+
 struct ov13855_mode {
 	u32 width;
 	u32 height;
@@ -146,8 +154,9 @@ struct ov13855 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
-
 	struct otp_info		*otp;
+	bool			enable_defrect;
+	struct camera_device_defrect defrect;
 };
 
 #define to_ov13855(sd) container_of(sd, struct ov13855, subdev)
@@ -1664,17 +1673,36 @@ static int ov13855_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	return 0;
 }
 
+#define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
+
 static int ov13855_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct ov13855 *ov13855 = to_ov13855(sd);
+	u32 dst_width, dst_height;
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
-		sel->r.left = 0;
-		sel->r.width = ov13855->cur_mode->width;
-		sel->r.top = 0;
-		sel->r.height = ov13855->cur_mode->height;
+		if (ov13855->enable_defrect) {
+			if (ov13855->cur_mode->width == ov13855->defrect.width) {
+				dst_width = ov13855->defrect.crop_width;
+				dst_height = ov13855->defrect.crop_height;
+				sel->r.left = CROP_START(ov13855->cur_mode->width, dst_width);
+				sel->r.width = dst_width;
+				sel->r.top = CROP_START(ov13855->cur_mode->height, dst_height);
+				sel->r.height = dst_height;
+			} else {
+				sel->r.left = 0;
+				sel->r.width = ov13855->cur_mode->width;
+				sel->r.top = 0;
+				sel->r.height = ov13855->cur_mode->height;
+			}
+		} else {
+			sel->r.left = 0;
+			sel->r.width = ov13855->cur_mode->width;
+			sel->r.top = 0;
+			sel->r.height = ov13855->cur_mode->height;
+		}
 		return 0;
 	}
 
@@ -1934,6 +1962,18 @@ static int ov13855_probe(struct i2c_client *client)
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
+	}
+	ret = of_property_read_u32_array(node,
+			"rockchip,camera-module-defrect",
+			(unsigned int *)&ov13855->defrect, 4);
+	if (ret) {
+		ov13855->enable_defrect = false;
+		dev_err(dev, "could not get module-defrect!\n");
+	} else {
+		ov13855->enable_defrect = true;
+		dev_info(dev, "config rect: wxh(%dx%d->%dx%d)\n",
+				ov13855->defrect.width, ov13855->defrect.height,
+				ov13855->defrect.crop_width, ov13855->defrect.crop_height);
 	}
 
 	ov13855->client = client;
