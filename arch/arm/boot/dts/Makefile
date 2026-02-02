@@ -1194,6 +1194,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126b-evb1-v11-spi-nor.dtb \
 	rv1126b-evb1-v11-5x-cam.dtb \
 	rv1126b-evb1-v12.dtb \
+	rv1126b-evb1-v12-dual-cam-csi0.dtb \
 	rv1126b-evb1-v12-irfpa.dtb \
 	rv1126b-evb1-v12-spi-nand.dtb \
 	rv1126b-evb1-v12-uvc.dtb \
