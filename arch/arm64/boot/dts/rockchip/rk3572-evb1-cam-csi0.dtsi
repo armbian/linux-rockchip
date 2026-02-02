@@ -85,28 +85,6 @@
 		rockchip,camera-module-facing = "back";
 	};
 
-	imx415: imx415@1a {
-		compatible = "sony,imx415";
-		reg = <0x1a>;
-		clocks = <&cru CAM_CLK0_OUT_IOUT>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&cam_clk0m0_clk0_pins>;
-		power-domains = <&power RK3572_PD_VI>;
-		/* reset need connect to dovdd */
-		avdd-supply = <&vcc_mipicsi0>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-OT2022-PX1";
-		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		port {
-			imx415_out0: endpoint {
-				remote-endpoint = <&mipi_in_ucam0>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-
 	imx464_0: imx464-0@1a {
 		compatible = "sony,imx464";
 		status = "okay";
@@ -254,6 +232,32 @@
 		compatible = "rk,otp_eeprom";
 		status = "okay";
 		reg = <0x50>;
+	};
+};
+
+&i2c5 {
+	status = "okay";
+
+	imx415: imx415@1a {
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CAM_CLK0_OUT_IOUT>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0_pins>;
+		power-domains = <&power RK3572_PD_VI>;
+		/* reset need connect to dovdd */
+		avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		port {
+			imx415_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
 	};
 };
 
