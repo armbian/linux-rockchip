@@ -1836,6 +1836,25 @@ static void vop2_load_sdr2hdr_table(struct vop2_video_port *vp, int sdr2hdr_tf)
 			    table->sdr2hdr_st2084oetf_xn[i]);
 }
 
+static void vop2_load_bcsh_csc_coe(struct vop2 *vop2, uint32_t offset,
+				   struct post_csc_coef *csc_coef)
+{
+	int i = 0;
+	u32 val[VOP2_CSC_COE_NUM] = {0};
+
+	val[0] = (u32)csc_coef->csc_coef00 << 16;
+	val[1] = (u32)csc_coef->csc_coef02 << 16 | ((u32)csc_coef->csc_coef01 & 0xffff);
+	val[2] = (u32)csc_coef->csc_coef11 << 16 | ((u32)csc_coef->csc_coef10 & 0xffff);
+	val[3] = (u32)csc_coef->csc_coef20 << 16 | ((u32)csc_coef->csc_coef12 & 0xffff);
+	val[4] = (u32)csc_coef->csc_coef22 << 16 | ((u32)csc_coef->csc_coef21 & 0xffff);
+	val[5] = (u32)csc_coef->csc_dc0;
+	val[6] = (u32)csc_coef->csc_dc1;
+	val[7] = (u32)csc_coef->csc_dc2;
+
+	for (i = 0; i < VOP2_CSC_COE_NUM; i++)
+		vop2_writel(vop2, offset + i * 4, val[i]);
+}
+
 static void vop2_load_csc_coe(struct vop2 *vop2, uint32_t offset, struct post_csc_coef *csc_coef)
 {
 	int i = 0;
@@ -15376,14 +15395,28 @@ out:
 
 static void vop2_bcsh_reg_update(struct rockchip_crtc_state *vcstate,
 				 struct vop2_video_port *vp,
-				 struct rockchip_bcsh_state *bcsh_state)
+				 struct rockchip_bcsh_state *bcsh_state,
+				 struct post_csc_coef *r2y_csc_coef,
+				 struct post_csc_coef *y2r_csc_coef)
 {
 	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+
+	if (vp_data->bcsh_r2y_csc_coe_offset) {
+		if (vcstate->post_r2y_en)
+			vop2_load_bcsh_csc_coe(vop2, vp_data->bcsh_r2y_csc_coe_offset,
+					       r2y_csc_coef);
+		if (vcstate->post_y2r_en)
+			vop2_load_bcsh_csc_coe(vop2, vp_data->bcsh_y2r_csc_coe_offset,
+					       y2r_csc_coef);
+	} else {
+		VOP_MODULE_SET(vop2, vp, bcsh_r2y_csc_mode, vcstate->post_csc_mode);
+		VOP_MODULE_SET(vop2, vp, bcsh_y2r_csc_mode, vcstate->post_csc_mode);
+	}
 
 	VOP_MODULE_SET(vop2, vp, bcsh_r2y_en, vcstate->post_r2y_en);
 	VOP_MODULE_SET(vop2, vp, bcsh_y2r_en, vcstate->post_y2r_en);
-	VOP_MODULE_SET(vop2, vp, bcsh_r2y_csc_mode, vcstate->post_csc_mode);
-	VOP_MODULE_SET(vop2, vp, bcsh_y2r_csc_mode, vcstate->post_csc_mode);
 	if (!vcstate->bcsh_en) {
 		VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
 		return;
@@ -15410,6 +15443,13 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct post_csc_convert_mode r2y_convert_mode = {};
+	struct post_csc_convert_mode y2r_convert_mode = {};
+	struct post_csc_coef r2y_csc_coef = {};
+	struct post_csc_coef y2r_csc_coef = {};
+	bool has_bt2020_plane = false;
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
 	struct rockchip_bcsh_state bcsh_state;
 
@@ -15417,8 +15457,6 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 		return;
 
 	/* post BCSH CSC */
-	vcstate->post_r2y_en = 0;
-	vcstate->post_y2r_en = 0;
 	vcstate->bcsh_en = 0;
 	if (vcstate->tv_state->brightness != 50 ||
 	    vcstate->tv_state->contrast != 50 ||
@@ -15436,35 +15474,169 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	 * condition changed:
 	 *   1. tv_state: include brightness,contrast,saturation and hue;
 	 *   2. yuv_overlay: it is related to BCSH r2y module;
-	 *   4. bcsh_en: control the BCSH module enable or disable state;
-	 *   5. bus_format: it is related to BCSH y2r module;
+	 *   3. bcsh_en: control the BCSH module enable or disable state;
+	 *   4. bus_format: it is related to BCSH y2r module;
+	 *   5. color_encoding: vp colorspace output, it is related to BCSH r2y/y2r module;
+	 *   6. color_range: vp color range output, it is related to BCSH r2y/y2r module;
 	 */
 	if (!memcmp(vcstate->tv_state, &vp->active_tv_state, sizeof(*vcstate->tv_state)) &&
 	    vcstate->yuv_overlay == old_vcstate->yuv_overlay &&
 	    vcstate->bcsh_en == old_vcstate->bcsh_en &&
-	    vcstate->bus_format == old_vcstate->bus_format)
+	    vcstate->bus_format == old_vcstate->bus_format &&
+	    (vp_data->bcsh_r2y_csc_coe_offset &&
+	     vcstate->color_encoding == old_vcstate->color_encoding &&
+	     vcstate->color_range == old_vcstate->color_range))
 		return;
 
 	memcpy(&vp->active_tv_state, vcstate->tv_state, sizeof(*vcstate->tv_state));
+
+	vcstate->post_r2y_en = 0;
+	vcstate->post_y2r_en = 0;
+
+	/* The sequence of bcsh csc: r2y_csc --> bcsh --> y2r_csc */
 	if (vcstate->bcsh_en) {
-		if (!vcstate->yuv_overlay)
+		/*
+		 * BCSH operates in yuv limited range, input of r2y_csc is always
+		 * full range. Therefore, r2y_csc must always be enabled when BCSH
+		 * is enabled.
+		 */
+		if (!vcstate->yuv_overlay || vp_data->bcsh_r2y_csc_coe_offset)
 			vcstate->post_r2y_en = 1;
 		if (!is_yuv_output(vcstate->bus_format))
+			vcstate->post_y2r_en = 1;
+		if (vp_data->bcsh_r2y_csc_coe_offset &&
+		    (vcstate->color_encoding == DRM_COLOR_YCBCR_BT601 ||
+		     vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE))
 			vcstate->post_y2r_en = 1;
 	} else {
 		if (!vcstate->yuv_overlay && is_yuv_output(vcstate->bus_format))
 			vcstate->post_r2y_en = 1;
 		if (vcstate->yuv_overlay && !is_yuv_output(vcstate->bus_format))
 			vcstate->post_y2r_en = 1;
+		/*
+		 * The output of the plane csc will only be BT709 or BT2020 full range,
+		 * which means the input to vp post-csc will also only be BT709 or
+		 * BT2020 full range. If the output formats of display interfaces
+		 * differ, csc is required. RGB in BT601 and BT709 are actually the same,
+		 * csc is not required.
+		 */
+		if (vp_data->bcsh_r2y_csc_coe_offset &&
+		    (vcstate->yuv_overlay == is_yuv_output(vcstate->bus_format))) {
+			if (!vcstate->yuv_overlay &&
+			    (vcstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE))
+				vcstate->post_r2y_en = 1;
+
+			if (vcstate->yuv_overlay &&
+			    (vcstate->color_encoding == DRM_COLOR_YCBCR_BT601 ||
+			     vcstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE))
+				vcstate->post_y2r_en = 1;
+		}
 	}
 
-	/*
-	 * If use bt601 full range csc mode, the brightness will be attenuated
-	 * when do r2y and y2r without any brightness, contrast, saturation adjust.
-	 * So use DRM_COLOR_YCBCR_LIMITED_RANGE here.
-	 */
-	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
-						       DRM_COLOR_YCBCR_LIMITED_RANGE, CSC_10BIT_DEPTH);
+	if (vp_data->bcsh_r2y_csc_coe_offset) {
+		drm_atomic_crtc_for_each_plane(plane, crtc) {
+			struct vop2_win *win = to_vop2_win(plane);
+
+			pstate = win->base.state;
+			if (pstate->color_encoding == DRM_COLOR_YCBCR_BT2020) {
+				has_bt2020_plane = true;
+				break;
+			}
+		}
+
+		if ((has_bt2020_plane && vcstate->color_encoding != DRM_COLOR_YCBCR_BT2020) ||
+		    (!has_bt2020_plane && vcstate->color_encoding == DRM_COLOR_YCBCR_BT2020))
+			DRM_ERROR("vp%d csc does not support BT2020 colorspace conversion",
+				  vp->id);
+
+		if (vcstate->post_r2y_en) {
+			r2y_convert_mode.is_input_full_range = true;
+			if (vcstate->bcsh_en)
+				r2y_convert_mode.is_output_full_range = false;
+			else
+				r2y_convert_mode.is_output_full_range = vcstate->color_range;
+
+			if (has_bt2020_plane)
+				r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT2020;
+			else
+				r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT709;
+
+			r2y_convert_mode.output_color_encoding = vcstate->color_encoding;
+
+			r2y_convert_mode.is_input_yuv = vcstate->yuv_overlay;
+			if (vcstate->bcsh_en)
+				r2y_convert_mode.is_output_yuv = true;
+			else
+				r2y_convert_mode.is_output_yuv =
+					is_yuv_output(vcstate->bus_format);
+
+			r2y_convert_mode.pixel_depth = 8;
+			r2y_convert_mode.coef_precision = 10;
+			r2y_convert_mode.plat = vop2->version;
+			if (vop3_csc_is_r2r_y2y_mode(r2y_convert_mode, NULL)) {
+				/* r2y csc supports y2y, but in practice it will not be used. */
+				if (!r2y_convert_mode.is_input_yuv)
+					r2y_convert_mode.swap_channels = RK_PQ_CSC_V2_R2Y_R2R;
+				else
+					r2y_convert_mode.swap_channels = RK_PQ_CSC_V2_VP_R2Y_Y2Y;
+			} else {
+				r2y_convert_mode.swap_channels = 0;
+			}
+
+			rockchip_calc_post_csc(NULL, &r2y_csc_coef, &r2y_convert_mode);
+
+			vcstate->post_csc_mode = r2y_convert_mode.csc_mode;
+		}
+
+		if (vcstate->post_y2r_en) {
+			if (!vcstate->post_r2y_en)
+				y2r_convert_mode.is_input_full_range = true;
+			else
+				y2r_convert_mode.is_input_full_range =
+					r2y_convert_mode.is_output_full_range;
+
+			y2r_convert_mode.is_output_full_range = vcstate->color_range;
+			y2r_convert_mode.output_color_encoding = vcstate->color_encoding;
+
+			if (!vcstate->post_r2y_en) {
+				if (has_bt2020_plane)
+					y2r_convert_mode.intput_color_encoding =
+						DRM_COLOR_YCBCR_BT2020;
+				else
+					y2r_convert_mode.intput_color_encoding =
+						DRM_COLOR_YCBCR_BT709;
+			} else {
+				y2r_convert_mode.intput_color_encoding =
+					r2y_convert_mode.output_color_encoding;
+			}
+
+			y2r_convert_mode.is_input_yuv = true;
+			y2r_convert_mode.is_output_yuv = is_yuv_output(vcstate->bus_format);
+			y2r_convert_mode.pixel_depth = 8;
+			y2r_convert_mode.coef_precision = 10;
+			y2r_convert_mode.plat = vop2->version;
+			if (vop3_csc_is_r2r_y2y_mode(y2r_convert_mode, NULL)) {
+				/* If input/output are rgb and bcsh is enabled, y2r csc do r2r */
+				if (!y2r_convert_mode.is_input_yuv)
+					y2r_convert_mode.swap_channels = RK_PQ_CSC_V2_VP_Y2R_R2R;
+				else
+					y2r_convert_mode.swap_channels = RK_PQ_CSC_V2_Y2R_Y2Y;
+			} else {
+				y2r_convert_mode.swap_channels = RK_PQ_CSC_SWAP_NONE;
+			}
+
+			rockchip_calc_post_csc(NULL, &y2r_csc_coef, &y2r_convert_mode);
+			vcstate->post_csc_y2r_mode = y2r_convert_mode.csc_mode;
+		}
+	} else {
+		/*
+		 * If use bt601 full range csc mode, the brightness will be attenuated
+		 * when do r2y and y2r without any brightness, contrast, saturation adjust.
+		 * So use DRM_COLOR_YCBCR_LIMITED_RANGE here.
+		 */
+		vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+							       DRM_COLOR_YCBCR_LIMITED_RANGE, CSC_10BIT_DEPTH);
+	}
 
 	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
 		brightness = interpolate(0, -128, 100, 127,
@@ -15493,12 +15665,13 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	bcsh_state.sin_hue = sin_hue;
 	bcsh_state.cos_hue = cos_hue;
 
-	vop2_bcsh_reg_update(vcstate, vp, &bcsh_state);
+	vop2_bcsh_reg_update(vcstate, vp, &bcsh_state, &r2y_csc_coef, &y2r_csc_coef);
 	if (vcstate->splice_mode) {
 		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
 		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 
-		vop2_bcsh_reg_update(vcstate, splice_vp, &bcsh_state);
+		vop2_bcsh_reg_update(vcstate, splice_vp, &bcsh_state, &r2y_csc_coef,
+				     &y2r_csc_coef);
 	}
 }
 

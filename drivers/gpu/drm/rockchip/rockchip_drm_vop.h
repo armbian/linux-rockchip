@@ -1496,6 +1496,9 @@ struct vop2_video_port_data {
 	const u8 pixel_rate;
 	const u8 cursor_dly;
 	const u8 hdr_cgc_layer_num;
+	const uint8_t csc_coe_bits;
+	const uint32_t bcsh_r2y_csc_coe_offset;
+	const uint32_t bcsh_y2r_csc_coe_offset;
 	const struct vop_intr *intr;
 	const struct vop_urgency *urgency;
 	const struct vop_hdr_table *hdr_table;
