@@ -5314,7 +5314,8 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_START_INTEN_RK3576(channel->id));
 
-		if (priv && priv->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ && detect_stream->is_line_wake_up) {
+		if ((!priv || priv->mode.rdbk_mode >= RKISP_VICAP_RDBK_AIQ) &&
+		    detect_stream->is_line_wake_up) {
 			rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 						CSI_LINE_INTEN_RK3588(channel->id));
 			wait_line = dev->wait_line;
