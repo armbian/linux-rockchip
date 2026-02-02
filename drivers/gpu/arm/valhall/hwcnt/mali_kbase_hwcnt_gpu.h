@@ -80,9 +80,6 @@ struct kbase_hwcnt_dump_buffer;
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG2:   Secondary CSG block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG3:   Tertiary CSG block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG_UNDEFINED: Undefined CSG block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL:  Neural Endpoint block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL2: Neural Endpoint (2) block.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL_UNDEFINED: Undefined Neural block.
  */
 enum kbase_hwcnt_gpu_v5_block_type {
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE,
@@ -106,9 +103,6 @@ enum kbase_hwcnt_gpu_v5_block_type {
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG2,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG3,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG_UNDEFINED,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL2,
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL_UNDEFINED,
 };
 
 /**
@@ -134,7 +128,6 @@ enum kbase_hwcnt_set {
  * @mmu_l2_bm: MMU_L2 counters selection bitmask.
  * @fw_bm: CSF firmware counters selection bitmask.
  * @csg_bm: CSF CSG counters selection bitmask.
- * @neural_bm: Neural counters selection bitmask.
  */
 struct kbase_hwcnt_physical_enable_map {
 	u32 fe_bm;
@@ -143,7 +136,6 @@ struct kbase_hwcnt_physical_enable_map {
 	u32 mmu_l2_bm;
 	u32 fw_bm;
 	u32 csg_bm;
-	u32 neural_bm;
 };
 
 /**
@@ -154,7 +146,6 @@ struct kbase_hwcnt_physical_enable_map {
  * @mmu_l2_bm: MMU_L2 counters selection bitmask.
  * @fw_bm: CSF firmware counters selection bitmask.
  * @csg_bm: CSF CSG counters selection bitmask.
- * @neural_bm: Neural counters selection bitmask.
  */
 struct kbase_hwcnt_enable_cm {
 	u64 fe_bm[2];
@@ -163,7 +154,6 @@ struct kbase_hwcnt_enable_cm {
 	u64 mmu_l2_bm[2];
 	u64 fw_bm[2];
 	u64 csg_bm[2];
-	u64 neural_bm[2];
 };
 
 /*
@@ -179,14 +169,12 @@ enum kbase_hwcnt_physical_set {
 /**
  * struct kbase_hwcnt_gpu_info - Information about hwcnt blocks on the GPUs.
  * @l2_count:                L2 cache count.
- * @sc_core_mask:            Shader core mask. May be sparse.
+ * @sc_core_mask:               Shader core mask. May be sparse.
  * @clk_cnt:                 Number of clock domains available.
  * @csg_cnt:                 Number of CSGs available.
  * @prfcnt_values_per_block: Total entries (header + counters) of performance
  *                           counter per block.
  * @has_fw_counters:         Whether the GPU has FW counters available.
- * @has_ne:                  Indicates whether NE is present.
- * @ne_core_mask:            Neural Engine core mask.
  */
 struct kbase_hwcnt_gpu_info {
 	size_t l2_count;
@@ -195,8 +183,6 @@ struct kbase_hwcnt_gpu_info {
 	u8 csg_cnt;
 	size_t prfcnt_values_per_block;
 	bool has_fw_counters;
-	bool has_ne;
-	u64 ne_core_mask;
 };
 
 /**
@@ -255,7 +241,6 @@ static inline bool kbase_hwcnt_is_block_type_undefined(const uint64_t blk_type)
 	return (blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED ||
 		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED ||
 		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED ||
-		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL_UNDEFINED ||
 		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED);
 }
 
@@ -451,8 +436,6 @@ bool kbase_hwcnt_is_block_type_memsys(const enum kbase_hwcnt_gpu_v5_block_type b
 bool kbase_hwcnt_is_block_type_tiler(const enum kbase_hwcnt_gpu_v5_block_type blk_type);
 
 bool kbase_hwcnt_is_block_type_fe(const enum kbase_hwcnt_gpu_v5_block_type blk_type);
-
-bool kbase_hwcnt_is_block_type_neural(const enum kbase_hwcnt_gpu_v5_block_type blk_type);
 
 /**
  * kbase_hwcnt_gpu_enable_map_from_cm() - Builds enable map abstraction from

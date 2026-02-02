@@ -1194,6 +1194,9 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 #ifdef CONFIG_MTD_SPI_NAND_JSC
 	&jsc_spinand_manufacturer,
 #endif
+#ifdef CONFIG_MTD_SPI_NAND_KINGSTON
+	&kingston_spinand_manufacturer,
+#endif
 #ifdef CONFIG_MTD_SPI_NAND_MACRONIX
 	&macronix_spinand_manufacturer,
 #endif

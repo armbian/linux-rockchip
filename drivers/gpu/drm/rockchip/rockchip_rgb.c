@@ -348,37 +348,37 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	switch (s->bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 	case MEDIA_BUS_FMT_BGR565_2X8_LE:
 		s->output_mode = ROCKCHIP_OUT_MODE_S565;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB666_3X6:
 		s->output_mode = ROCKCHIP_OUT_MODE_S666;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB888_3X8:
 	case MEDIA_BUS_FMT_BGR888_3X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_S888;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB888_DUMMY_4X8:
 	case MEDIA_BUS_FMT_BGR888_DUMMY_4X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_S888_DUMMY;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT656;
-		s->output_if = VOP_OUTPUT_IF_BT656;
+		s->output_if |= VOP_OUTPUT_IF_BT656;
 		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 		s->color_encoding = DRM_COLOR_YCBCR_BT601;
 		break;
@@ -387,14 +387,14 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT1120;
-		s->output_if = VOP_OUTPUT_IF_BT1120;
+		s->output_if |= VOP_OUTPUT_IF_BT1120;
 		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 	default:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
-		s->output_if = VOP_OUTPUT_IF_RGB;
+		s->output_if |= VOP_OUTPUT_IF_RGB;
 		break;
 	}
 
@@ -1219,7 +1219,7 @@ static void rk3506_rgb_enable(struct rockchip_rgb *rgb)
 
 	regmap_write(rgb->grf, RK3506_GRF_SOC_CON2,
 		     RK3506_GRF_VOP_DATA_BYPASS(rgb->data_sync_bypass ? 0x3 : 0x0));
-	if (s->output_if == VOP_OUTPUT_IF_BT1120 || s->output_if == VOP_OUTPUT_IF_BT656)
+	if (s->output_if & VOP_OUTPUT_IF_BT1120 || s->output_if & VOP_OUTPUT_IF_BT656)
 		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DLL_SEL(0x20));
 	else
 		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DLL_SEL(0x10));
@@ -1305,7 +1305,7 @@ static void rv1126b_rgb_enable(struct rockchip_rgb *rgb)
 	struct drm_crtc *crtc = rgb->encoder.crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
-	if (s->output_if == VOP_OUTPUT_IF_BT1120 || s->output_if == VOP_OUTPUT_IF_BT656) {
+	if (s->output_if & VOP_OUTPUT_IF_BT1120 || s->output_if & VOP_OUTPUT_IF_BT656) {
 		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_SEL(1));
 		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_NUM(0x15));
 	}

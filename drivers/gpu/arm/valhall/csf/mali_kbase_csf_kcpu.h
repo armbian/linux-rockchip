@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -246,12 +246,12 @@ struct kbase_kcpu_command {
  *				part of kernel API for processing workqueues.
  *				This would be used if the context is not
  *				prioritised, otherwise it would be handled by
- *				kbase_csf_scheduler_kcpuq_kthread().
+ *				kbase_csf_scheduler_kthread().
  * @high_prio_work:		A counterpart to @work, this queue would be
  *				added to a list to be processed by
- *				kbase_csf_scheduler_kcpuq_kthread() if it is
+ *				kbase_csf_scheduler_kthread() if it is
  *				prioritised.
- * @pending_kick:		Indicates that kbase_csf_scheduler_kcpuq_kthread()
+ * @pending_kick:		Indicates that kbase_csf_scheduler_kthread()
  *				should re-evaluate pending commands for this
  *				queue. This would be set to false when the work
  *				is done. This is used mainly for

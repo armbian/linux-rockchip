@@ -18,10 +18,6 @@
 #
 #
 
-ifeq ($(MALI_CSF_SUPPORT),n)
-    $(error [GPUBUILD-2005] Only CSF builds are supported on this branch)
-endif
-
 # make $(src) as absolute path if it is not already, by prefixing $(srctree) or $(srcroot)
 # depending on Kernel Version (use srctree for < 6.13). This is to prevent any build issue
 # due to wrong path.

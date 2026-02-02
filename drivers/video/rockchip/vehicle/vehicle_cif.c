@@ -813,6 +813,8 @@ static const struct csi2dphy_reg rk3568_csi2dphy_regs[] = {
 	[CSI2PHY_LANE3_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_LANE3_CALIB_EN),
 	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
+	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
+	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
 };
 
 static const struct grf_reg rk3588_grf_dphy_regs[] = {
@@ -848,6 +850,8 @@ static const struct csi2dphy_reg rk3588_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
 	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
+	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
+	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
 };
 
 static const struct grf_reg rk3588_grf_dcphy_regs[] = {
@@ -952,6 +956,8 @@ static const struct csi2dphy_reg rk3562_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
 	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
+	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
+	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
 };
 
 static const struct grf_reg rk3576_grf_dphy_regs[] = {
@@ -1986,15 +1992,18 @@ static void csi2_dphy_config_dual_mode(struct vehicle_cif *cif)
 
 static int vehicle_csi2_dphy_stream_start(struct vehicle_cif *cif)
 {
+	struct vehicle_cfg *cfg = &cif->cif_cfg;
 	struct csi2_dphy_hw *hw = cif->dphy_hw;
 	const struct hsfreq_range *hsfreq_ranges = hw->hsfreq_ranges;
 	int num_hsfreq_ranges = hw->num_hsfreq_ranges;
 	int i, hsfreq = 0;
 	u32 val = 0, pre_val;
 
-
 	mutex_lock(&hw->mutex);
 
+	/* Reset dphy digital part */
+	write_csi2_dphy_reg(hw, CSI2PHY_DUAL_CLK_EN, 0x1e);
+	write_csi2_dphy_reg(hw, CSI2PHY_DUAL_CLK_EN, 0x1f);
 	/* set data lane num and enable clock lane */
 	/*
 	 * for rk356x: dphy0 is used just for full mode,
@@ -2005,6 +2014,10 @@ static int vehicle_csi2_dphy_stream_start(struct vehicle_cif *cif)
 	val |= (GENMASK(cif->cif_cfg.lanes - 1, 0) <<
 		CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
 		(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+
+	if (cfg->mbus_flags & V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+		write_csi2_dphy_reg_mask(hw, CSI2PHY_CLK_CONTINUE_MODE,
+					0x30, CSI2PHY_CLK_CONTINUE_MODE_MASK);
 
 	val |= pre_val;
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);

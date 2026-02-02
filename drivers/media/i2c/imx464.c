@@ -2795,7 +2795,7 @@ static int IMX464_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 #define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
-#define DST_WIDTH 2560
+#define DST_WIDTH 2688
 #define DST_HEIGHT 1520
 
 /*

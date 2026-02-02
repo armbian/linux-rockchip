@@ -77,13 +77,6 @@
 #include <linux/msm_drm_notify.h>
 #endif
 
-#if defined(__HIMAX_MOD__)
-#define HX_USE_KSYM
-#if !defined(HX_USE_KSYM) || !defined(__KERNEL_KALLSYMS_ALL_ENABLED__)
-#error Modulized driver must enable HX_USE_KSYM and CONFIG_KALLSYM_ALL
-#endif
-#endif
-
 /* WP GPIO setting, decided by which pin direct to OS side, WP need pin */
 /* high either GPIO0 or GPIO4 */
 /* #define WP_GPIO0 */

@@ -519,8 +519,16 @@
 
 &route_dsi {
 	status = "okay";
+	connect = <&vp2_out_dsi>;
+	logo,uboot = "logo.bmp";
+	logo,kernel = "logo.bmp";
 };
 
 &sdmmc {
 	status = "disabled";
 };
+
+&usbdp_phy {
+	status = "okay";
+};
+

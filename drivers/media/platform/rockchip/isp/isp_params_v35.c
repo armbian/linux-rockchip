@@ -2587,10 +2587,10 @@ isp_enh_config(struct rkisp_isp_params_vdev *params_vdev,
 		h = h / 2 + dev->hw_dev->unite_extend_pixel;
 	priv->enh_col = ALIGN((w + 127) / 128, 4);
 	if (priv->enh_col > ISP35_ENH_IIR_COL_MAX)
-		priv->enh_col = ISP33_ENH_IIR_COL_MAX;
+		priv->enh_col = ISP35_ENH_IIR_COL_MAX;
 	priv->enh_row = (h + 128) / 129;
 	if (priv->enh_row > ISP35_ENH_IIR_ROW_MAX)
-		priv->enh_row = ISP33_ENH_IIR_ROW_MAX;
+		priv->enh_row = ISP35_ENH_IIR_ROW_MAX;
 	het_aliquant = h % 3;
 
 	ctrl = isp3_param_read(params_vdev, ISP33_ENH_CTRL, id);

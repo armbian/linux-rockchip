@@ -1817,7 +1817,7 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 
 static int rockchip_hdmi_set_qms_next_tfr(struct rockchip_hdmi *hdmi, u64 val)
 {
-	if (hdmi->enable_gaming_vrr) {
+	if (val && hdmi->enable_gaming_vrr) {
 		DRM_WARN("vrr-gaming is enabled, can't set next_tfr\n");
 		return 0;
 	}
@@ -3437,6 +3437,13 @@ secondary:
 			s->min_refresh_rate = 0;
 		}
 
+		if (hdmi->enable_gaming_vrr) {
+			s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+			s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
+			s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
+			s->hdmi_vrr.refresh_rate_ready_to_change = true;
+		}
+
 		s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
 
 		if (hdmi->vrr_state != hdmi->old_vrr_state) {
@@ -4870,7 +4877,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		hdmi->dynamic_hdr_en = val;
 		return 0;
 	} else if (property == hdmi->gaming_vrr_enable) {
-		if (hdmi->next_tfr_val) {
+		if (val && hdmi->next_tfr_val) {
 			DRM_WARN("vrr-qms is enabled, can't set gaming vrr\n");
 			return 0;
 		}

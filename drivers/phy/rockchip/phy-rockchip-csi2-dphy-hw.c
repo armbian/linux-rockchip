@@ -60,8 +60,10 @@
 				CSI2_DPHY_CTRL_INVALID_OFFSET
 #define CSI2_DPHY_CTRL_LANE_ENABLE	(0x00)
 #define CSI2_DPHY_CLK1_LANE_EN		(0x2C)
+#define CSI2_DPHY_CLK_PHASE		(0x38)
 #define CSI2_DPHY_DUAL_CAL_EN		(0x80)
 #define CSI2_DPHY_CLK_INV		(0X84)
+#define CSI2_DPHY_CLK1_PHASE		(0xcc)
 
 #define CSI2_DPHY_CLK_CONTINUE_MODE	(0x128)
 #define CSI2_DPHY_CLK_WR_THS_SETTLE	(0x160)
@@ -234,6 +236,8 @@ enum csi2dphy_reg_id {
 	CSI2PHY_CLK_INV,
 	CSI2PHY_CLK_CONTINUE_MODE,
 	CSI2PHY_CLK1_CONTINUE_MODE,
+	CSI2PHY_CLK_PHASE,
+	CSI2PHY_CLK1_PHASE,
 };
 
 #define HIWORD_UPDATE(val, mask, shift) \
@@ -411,6 +415,8 @@ static const struct csi2dphy_reg rk3568_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
 	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
 	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
+	[CSI2PHY_CLK_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK_PHASE),
+	[CSI2PHY_CLK1_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK1_PHASE),
 };
 
 static const struct grf_reg rk3588_grf_dphy_regs[] = {
@@ -448,6 +454,8 @@ static const struct csi2dphy_reg rk3588_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
 	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
 	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
+	[CSI2PHY_CLK_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK_PHASE),
+	[CSI2PHY_CLK1_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK1_PHASE),
 };
 
 static const struct grf_reg rv1106_grf_dphy_regs[] = {
@@ -486,6 +494,8 @@ static const struct csi2dphy_reg rv1106_csi2dphy_regs[] = {
 	[CSI2PHY_CLK_INV] = CSI2PHY_REG(CSI2_DPHY_CLK_INV),
 	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
 	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
+	[CSI2PHY_CLK_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK_PHASE),
+	[CSI2PHY_CLK1_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK1_PHASE),
 };
 
 static const struct grf_reg rk3562_grf_dphy_regs[] = {
@@ -527,6 +537,8 @@ static const struct csi2dphy_reg rk3562_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
 	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
 	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
+	[CSI2PHY_CLK_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK_PHASE),
+	[CSI2PHY_CLK1_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK1_PHASE),
 };
 
 static const struct grf_reg rk3576_grf_dphy_regs[] = {
@@ -585,6 +597,8 @@ static const struct csi2dphy_reg rv1126b_csi2dphy_regs[] = {
 	[CSI2PHY_PATH1_LVDS_MODEL] = CSI2PHY_REG(RV1126B_CSI2_DPHY_PATH1_LVDS_MODE_SEL),
 	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
 	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
+	[CSI2PHY_CLK_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK_PHASE),
+	[CSI2PHY_CLK1_PHASE] = CSI2PHY_REG(CSI2_DPHY_CLK1_PHASE),
 };
 
 /* These tables must be sorted by .range_h ascending. */
@@ -1003,6 +1017,10 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 
 	if (hw->lane_mode == LANE_MODE_FULL) {
 		csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_CLOCK);
+		read_csi2_dphy_reg(hw, CSI2PHY_CLK_PHASE, &val);
+		val &= ~0x70;
+		val |= (dphy->clk_phase & 0x7) << 4;
+		write_csi2_dphy_reg(hw, CSI2PHY_CLK_PHASE, val);
 		if (sensor->lanes > 0x00)
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA0);
 		if (sensor->lanes > 0x01)
@@ -1013,12 +1031,20 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA3);
 	} else {
 		if (dphy->phy_index % 3 == DPHY1) {
+			read_csi2_dphy_reg(hw, CSI2PHY_CLK_PHASE, &val);
+			val &= ~0x70;
+			val |= (dphy->clk_phase & 0x7) << 4;
+			write_csi2_dphy_reg(hw, CSI2PHY_CLK_PHASE, val);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_CLOCK);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA0);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA1);
 		}
 
 		if (dphy->phy_index % 3 == DPHY2) {
+			read_csi2_dphy_reg(hw, CSI2PHY_CLK1_PHASE, &val);
+			val &= ~0x70;
+			val |= (dphy->clk_phase & 0x7) << 4;
+			write_csi2_dphy_reg(hw, CSI2PHY_CLK1_PHASE, val);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_CLOCK1);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA2);
 			csi_mipidphy_wr_ths_settle(hw, hsfreq, CSI2_DPHY_LANE_DATA3);

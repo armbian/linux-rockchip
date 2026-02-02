@@ -60,6 +60,8 @@
 #define RKCIF_PLANE_Y		0
 #define RKCIF_PLANE_CBCR	1
 
+#define ALIGN_ANY_SAFE(x, a) ((((x) - 1) / (a) + 1) * (a))
+
 /*
  * RK1808 support 5 channel inputs simultaneously:
  * dvp + 4 mipi virtual channels;

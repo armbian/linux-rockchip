@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,19 +36,11 @@
 #define STRLEN_MAX 64 /* bytes */
 
 /**
- * struct kbase_tlstream_buf - timeline stream buffer
- * @size:	Number of bytes in buffer
- * @data:	Buffer's data
- */
-struct kbase_tlstream_buf {
-	atomic_t size;
-	char data[PACKET_SIZE];
-};
-
-/**
  * struct kbase_tlstream - timeline stream structure
  * @lock:              Message order lock
  * @buffer:            Array of buffers
+ * @buffer.size:       Number of bytes in buffer
+ * @buffer.data:       Buffer's data
  * @wbi:               Write buffer index
  * @rbi:               Read buffer index
  * @numbered:          If non-zero stream's packets are sequentially numbered
@@ -80,7 +72,10 @@ struct kbase_tlstream_buf {
 struct kbase_tlstream {
 	spinlock_t lock;
 
-	struct kbase_tlstream_buf *buffer;
+	struct {
+		atomic_t size;
+		char data[PACKET_SIZE];
+	} buffer[PACKET_COUNT];
 
 	atomic_t wbi;
 	atomic_t rbi;
@@ -99,7 +94,9 @@ enum tl_stream_type {
 	TL_STREAM_TYPE_OBJ_SUMMARY = TL_STREAM_TYPE_FIRST,
 	TL_STREAM_TYPE_OBJ,
 	TL_STREAM_TYPE_AUX,
+#if MALI_USE_CSF
 	TL_STREAM_TYPE_CSFFW,
+#endif
 	TL_STREAM_TYPE_COUNT
 };
 

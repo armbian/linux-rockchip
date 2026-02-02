@@ -1573,7 +1573,7 @@ inno_hdmi_rk3528_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 		frac = inno_read(inno, 0xd3) |
 		       (inno_read(inno, 0xd2) << 8) |
 		       (inno_read(inno, 0xd1) << 16);
-		vco += DIV_ROUND_CLOSEST(parent_rate * frac, (1 << 24));
+		vco += DIV_ROUND_CLOSEST((u64)parent_rate * frac, (1 << 24));
 	}
 	if (inno_read(inno, 0xa0) & 2) {
 		do_div(vco, nd * 5);

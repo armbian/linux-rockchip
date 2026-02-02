@@ -299,8 +299,7 @@ static int example_mgm_get_import_memory_id(struct memory_group_manager_device *
 }
 
 static u64 example_mgm_update_gpu_pte(struct memory_group_manager_device *const mgm_dev,
-				      unsigned int const group_id, unsigned int const pbha_id,
-				      unsigned int pte_flags, int const mmu_level, u64 pte)
+				      unsigned int const group_id, int const mmu_level, u64 pte)
 {
 	struct mgm_groups *const data = mgm_dev->data;
 
@@ -310,22 +309,7 @@ static u64 example_mgm_update_gpu_pte(struct memory_group_manager_device *const 
 	if (WARN_ON(group_id >= MEMORY_GROUP_MANAGER_NR_GROUPS))
 		return pte;
 
-	/* If a page is mapped uncached on the CPU but cached on the GPU, it will be considered to
-	 * have Mismatched Memory Attributes (MMA), and the MMA_VIOLATION bit will be set in the
-	 * pte_flags argument.
-	 *
-	 * If the system requires consistent memory attributes external to the GPU, system
-	 * integrators must allocate one of the PBHA values (range 1-15) for this feature, and
-	 * specify the value either via the mma-wa-id devicetree property or via the mma_wa_id
-	 * module parameter, which is then passed into this function via the pbha_id parameter. The
-	 * GPU will continue to use cached transactions internally, but use non-cacheable
-	 * transactions externally. Note that system integrators may choose not to set the PBHA
-	 *  value here if their system does not require it.
-	 */
-	if (pte_flags & BIT(MMA_VIOLATION)) {
-		pr_warn_once("MMA violation! Applying PBHA override workaround to PTE\n");
-		pte |= ((u64)pbha_id << PTE_PBHA_SHIFT) & PTE_PBHA_MASK;
-	}
+	pte |= ((u64)group_id << PTE_PBHA_SHIFT) & PTE_PBHA_MASK;
 
 	/* Address could be translated into a different bus address here */
 	pte |= ((u64)1 << PTE_RES_BIT_MULTI_AS_SHIFT);
@@ -378,16 +362,6 @@ static vm_fault_t example_mgm_vmf_insert_pfn_prot(struct memory_group_manager_de
 	return fault;
 }
 
-static bool example_mgm_get_import_memory_cached_access_permitted(
-	struct memory_group_manager_device *mgm_dev,
-	struct memory_group_manager_import_data *import_data)
-{
-	CSTD_UNUSED(mgm_dev);
-	CSTD_UNUSED(import_data);
-
-	return true;
-}
-
 static int mgm_initialize_data(struct mgm_groups *mgm_data)
 {
 	int i;
@@ -434,8 +408,6 @@ static int memory_group_manager_probe(struct platform_device *pdev)
 	mgm_dev->ops.mgm_vmf_insert_pfn_prot = example_mgm_vmf_insert_pfn_prot;
 	mgm_dev->ops.mgm_update_gpu_pte = example_mgm_update_gpu_pte;
 	mgm_dev->ops.mgm_pte_to_original_pte = example_mgm_pte_to_original_pte;
-	mgm_dev->ops.mgm_get_import_memory_cached_access_permitted =
-		example_mgm_get_import_memory_cached_access_permitted;
 
 	mgm_data = kzalloc(sizeof(*mgm_data), GFP_KERNEL);
 	if (!mgm_data) {

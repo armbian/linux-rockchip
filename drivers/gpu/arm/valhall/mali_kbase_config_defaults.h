@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2013-2025 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -78,6 +78,7 @@ enum {
 	KBASE_3BIT_AID_4 = 0x7
 };
 
+#if MALI_USE_CSF
 /*
  * Default value for the TIMER register of the IPA Control interface,
  * expressed in milliseconds.
@@ -87,6 +88,7 @@ enum {
  * milliseconds, while keeping GPU overhead as limited as possible.
  */
 #define IPA_CONTROL_TIMER_DEFAULT_VALUE_MS ((u32)10) /* 10 milliseconds */
+#endif /* MALI_USE_CSF */
 
 /* Default period for DVFS sampling (can be overridden by platform header) */
 #ifndef DEFAULT_PM_DVFS_PERIOD
@@ -165,6 +167,7 @@ enum {
  */
 #define DEFAULT_REF_TIMEOUT_FREQ_KHZ (100000)
 
+#if MALI_USE_CSF
 /* Waiting timeout for status change acknowledgment, in clock cycles.
  *
  * This is also the default timeout to be used when an invalid timeout
@@ -232,18 +235,18 @@ enum {
  */
 #define CSF_FIRMWARE_PING_TIMEOUT_CYCLES (600000000ull)
 
-/* Waiting timeout for a KCPU queue's fence signal blocked too long, in milliseconds */
+/* Waiting timeout for a KCPU queue's fence signal blocked to long, in clock cycles.
+ *
+ * Based on 10s timeout at 100MHz, scaled from a 50MHz GPU system.
+ */
 #if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP)
 /* Set a large value to avoid timing out while vector dumping */
-#define KCPU_FENCE_SIGNAL_TIMEOUT_MS (1000000)
-#define KCPU_FENCE_SIGNAL_TIMEOUT_MS_FPGA (5000000)
+#define KCPU_FENCE_SIGNAL_TIMEOUT_CYCLES (250000000000ull)
+#elif IS_ENABLED(CONFIG_MALI_IS_FPGA)
+#define KCPU_FENCE_SIGNAL_TIMEOUT_CYCLES (2500000000ull)
 #else
-#define KCPU_FENCE_SIGNAL_TIMEOUT_MS (10000)
-#define KCPU_FENCE_SIGNAL_TIMEOUT_MS_FPGA (50000)
+#define KCPU_FENCE_SIGNAL_TIMEOUT_CYCLES (1000000000ull)
 #endif
-
-/* MAX allowed timeout value(ms) on host side for fence signal timeout*/
-#define MAX_FENCE_SIGNAL_TIMEOUT_MS (30000)
 
 /* Timeout for polling the GPU in clock cycles.
  *
@@ -257,17 +260,6 @@ enum {
  */
 #define CSF_FIRMWARE_STOP_TIMEOUT_CYCLES (12000000000ull)
 
-/* Waiting timeout to delegate or retract host power control in clock cycles.
- *
- * Based on 1ms timeout at 100MHz.
- */
-#define CSF_PWR_DELEGATE_TIMEOUT_CYCLES (1000000)
-
-/* Waiting timeout to inspect command to complete in clock cycles.
- *
- * Based on 1us timeout at 100MHz.
- */
-#define CSF_PWR_INSPECT_TIMEOUT_CYCLES (1000)
 
 /* Waiting timeout for task execution on an endpoint. Based on the
  * DEFAULT_PROGRESS_TIMEOUT.
@@ -291,10 +283,11 @@ enum {
 /* Firmware iterators' suspend timeout, default 4000ms. Customer can update this by
  * using debugfs -- csg_suspend_timeout
  */
+#if IS_ENABLED(CONFIG_MALI_VALHALL_REAL_HW) && !IS_ENABLED(CONFIG_MALI_IS_FPGA)
 #define CSG_SUSPEND_TIMEOUT_FIRMWARE_MS (4000)
-
-#define CSG_SUSPEND_TIMEOUT_FIRMWARE_FPGA_MS (31000)
-
+#else
+#define CSG_SUSPEND_TIMEOUT_FIRMWARE_MS (31000)
+#endif
 #if (CSG_SUSPEND_TIMEOUT_FIRMWARE_MS < CSG_SUSPEND_TIMEOUT_FIRMWARE_MS_MIN) || \
 	(CSG_SUSPEND_TIMEOUT_FIRMWARE_MS > CSG_SUSPEND_TIMEOUT_FIRMWARE_MS_MAX)
 #error "CSG_SUSPEND_TIMEOUT_FIRMWARE_MS is out of range"
@@ -308,11 +301,32 @@ enum {
 /* Host side CSG suspend timeout */
 #define CSG_SUSPEND_TIMEOUT_MS (CSG_SUSPEND_TIMEOUT_FIRMWARE_MS + CSG_SUSPEND_TIMEOUT_HOST_ADDED_MS)
 
-#define CSG_SUSPEND_TIMEOUT_FPGA_MS \
-	(CSG_SUSPEND_TIMEOUT_FIRMWARE_FPGA_MS + CSG_SUSPEND_TIMEOUT_HOST_ADDED_MS)
-
 /* MAX allowed timeout value(ms) on host side, should be less than ANR timeout */
 #define MAX_TIMEOUT_MS (4500)
+
+#else /* MALI_USE_CSF */
+
+/* A default timeout in clock cycles to be used when an invalid timeout
+ * selector is used to retrieve the timeout, on JM GPUs.
+ */
+#define JM_DEFAULT_TIMEOUT_CYCLES (150000000)
+
+/* Default number of milliseconds given for other jobs on the GPU to be
+ * soft-stopped when the GPU needs to be reset.
+ */
+#define JM_DEFAULT_RESET_TIMEOUT_MS (3000) /* 3s */
+
+/* Default timeout in clock cycles to be used when checking if JS_COMMAND_NEXT
+ * is updated on HW side so a Job Slot is considered free.
+ * This timeout will only take effect on GPUs with low value for the minimum
+ * GPU clock frequency (<= 100MHz).
+ *
+ * Based on 1ms timeout at 100MHz. Will default to 0ms on GPUs with higher
+ * value for minimum GPU clock frequency.
+ */
+#define JM_DEFAULT_JS_FREE_TIMEOUT_CYCLES (100000)
+
+#endif /* !MALI_USE_CSF */
 
 /* Timeout for polling the GPU PRFCNT_ACTIVE bit in clock cycles.
  *
@@ -375,9 +389,5 @@ enum {
 /* Default value of the time interval at which GPU metrics tracepoints are emitted. */
 #define DEFAULT_GPU_METRICS_TP_EMIT_INTERVAL_NS (500000000u) /* 500 ms */
 #endif
-
-#define HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS ((u32)1000)
-
-#define HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_FPGA_MS ((u32)18000)
 
 #endif /* _KBASE_CONFIG_DEFAULTS_H_ */

@@ -1045,10 +1045,15 @@ struct vop2 {
 	bool loader_protect;
 
 	bool aclk_rate_reset;
+
+	bool merge_irq;
+
+	bool enable_reserved_plane;
+
+	bool iommu_fault_in_progress;
+
 	unsigned long aclk_current_freq;
 	enum rockchip_drm_vop_aclk_mode aclk_mode;
-	bool merge_irq;
-	bool enable_reserved_plane;
 
 	const struct vop2_data *data;
 	/* Number of win that registered as plane,
@@ -1128,8 +1133,6 @@ struct vop2 {
 	unsigned long aclk_target_freq;
 	u32 aclk_mode_rate[ROCKCHIP_VOP_ACLK_MAX_MODE];
 #endif
-	bool iommu_fault_in_progress;
-
 	struct vop2_err_event post_buf_empty;
 
 	/* aclk auto cs div */
@@ -1285,9 +1288,9 @@ static inline void vop2_write_reg_uncached(struct vop2 *vop2, const struct vop_r
 	writel(v, vop2->base_res.regs + offset);
 }
 
-static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
-				   uint32_t mask, uint32_t shift, uint32_t v,
-				   bool write_mask, bool relaxed)
+static void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
+			    uint32_t mask, uint32_t shift, uint32_t v,
+			    bool write_mask, bool relaxed)
 {
 	uint32_t cached_val;
 
@@ -3526,12 +3529,12 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			VOP_SCL_SET(vop2, win, zme_dering_en, zme_dering_en);
 		}
 
-		if (win->regs->scl->zme_xscl_coe_sel.mask) {
+		if (win->regs->scl && win->regs->scl->zme_xscl_coe_sel.mask) {
 			zme_coe_sel = rk3538_zme_scl_coe_sel(src_w, dst_w);
 			VOP_SCL_SET(vop2, win, zme_xscl_coe_sel, zme_coe_sel);
 		}
 
-		if (win->regs->scl->zme_yscl_coe_sel.mask) {
+		if (win->regs->scl && win->regs->scl->zme_yscl_coe_sel.mask) {
 			zme_coe_sel = rk3538_zme_scl_coe_sel(src_h, dst_h);
 			VOP_SCL_SET(vop2, win, zme_yscl_coe_sel, zme_coe_sel);
 		}
@@ -3568,6 +3571,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	VOP_SCL_SET(vop2, win, yrgb_vscl_filter_mode, vscl_filter_mode);
 	if (vop2->version >= VOP_VERSION_RK3572)
 		VOP_SCL_SET(vop2, win, yrgb_anei_en, 1);
+	VOP_SCL_SET(vop2, win, bic_coe_sel, 0);
 
 	if (info->is_yuv) {
 		ygt4 = ygt2 = 0;
@@ -6935,9 +6939,9 @@ static int vop3_msmart_grid_max_grid_per_row_check(struct drm_plane *plane,
 	int current_count = 0;
 	int current_py = 0;
 
-	scan_points = kmalloc_array(msmart_data->active_grid_num,
-				   sizeof(struct msmart_grid_scan_point),
-				   GFP_KERNEL);
+	scan_points = kmalloc_array(msmart_data->active_grid_num * 2,
+				    sizeof(struct msmart_grid_scan_point),
+				    GFP_KERNEL);
 	if (!scan_points)
 		return -ENOMEM;
 
@@ -6964,13 +6968,14 @@ static int vop3_msmart_grid_max_grid_per_row_check(struct drm_plane *plane,
 		if (current_count > max_grid_per_row) {
 			drm_err(plane->dev, "the grid exceed %d in row:%d\n", max_grid_per_row,
 				current_py);
-				return true;
+			kfree(scan_points);
+			return -EINVAL;
 		}
 	}
 
 	kfree(scan_points);
 
-	return false;
+	return 0;
 }
 
 static bool vop3_msmart_grid_overlap_check(struct drm_plane *plane,
@@ -6991,7 +6996,7 @@ static bool vop3_msmart_grid_overlap_check(struct drm_plane *plane,
 			dst1.x2 = msmart_data->grid[j].dst_x + msmart_data->grid[j].dst_w;
 			dst1.y2 = msmart_data->grid[j].dst_y + msmart_data->grid[j].dst_h;
 
-			if (drm_rect_intersect(&dst0, &dst1)) {
+			if (drm_rect_intersect(&dst1, &dst0)) {
 				drm_err(plane->dev, "grid%d and grid%d overlap\n", i, j);
 				return true;
 			}
