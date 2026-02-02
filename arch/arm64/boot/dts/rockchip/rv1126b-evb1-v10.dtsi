@@ -489,6 +489,10 @@
 	status = "okay";
 };
 
+&rtc {
+	status = "okay";
+};
+
 &sai2 {
 	status = "okay";
 	/delete-property/ pinctrl-names;
