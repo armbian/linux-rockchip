@@ -1,0 +1,166 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb2-v10.dtsi"
+#include "rk3572-android.dtsi"
+#include "rk3572-evb2-v10-tp2855-ahd2mipi.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB2 V10 Board + Rockchip TP2855 Extboard";
+	compatible = "rockchip,rk3572-evb2-v10", "rockchip,rk3572";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_vehicle: drm-vehicle@0{
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			reg = <0x0 0x60000000 0x0 0x10000000>; //1.5G ~ 1.5G+256MB
+			linux,cma-default;
+		};
+	};
+
+	gpio_det: gpio-det {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vehicle_gpios>;
+
+		/*if use the reverse, please config this*/
+		car-reverse {
+			car-reverse-gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>;
+			linux,debounce-ms = <5>;
+			label = "car-reverse";
+			gpio,wakeup;
+		};
+	};
+
+	vehicle: vehicle {
+		compatible = "rockchip,vehicle";
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m1_clk0_pins>;
+		clocks = <&cru ACLK_VICAP>,
+			 <&cru HCLK_VICAP>,
+			 <&cru DCLK_VICAP>;
+		clock-names = "aclk_cif",
+			      "hclk_cif",
+			      "dclk_cif";
+		resets = <&cru SRST_ARESETN_VICAP>,
+			 <&cru SRST_HRESETN_VICAP>,
+			 <&cru SRST_DRESETN_VICAP>,
+			 <&cru SRST_RESETN_ISP_VICAP>;
+		reset-names = "rst_cif_a",
+			      "rst_cif_h",
+			      "rst_cif_d",
+			      "rst_cif_isp0";
+		power-domains = <&power RK3572_PD_VI>;
+		cif,drop-frames = <4>; //frames to drop
+		cif,chip-id = <4>; /*0:rk3568 1:rk3588 2:rk3562 3:rk3576 4:rk3572*/
+		rockchip,grf = <&ioc_grf>;
+		rockchip,cru = <&cru>;
+		rockchip,cif = <&rkcif>;
+		rockchip,gpio-det = <&gpio_det>;
+		rockchip,cif-sensor = <&cif_sensor>;
+		rockchip,cif-phy = <&cif_phy>;
+		ad,fix-format = <0>;//0:auto detect,1:pal;2:ntsc;3:720p50;4:720p30;5:720p25
+		/*0:no, 1:90; 2:180; 4:270; 0x10:mirror-y; 0x20:mirror-x*/
+		vehicle,rotate-mirror = <0x00>;
+		vehicle,crtc_name = "video_port1";
+		vehicle,plane_name = "Esmart1-win0";
+	};
+
+	cif_phy: cif_phy {
+		status = "okay";
+
+		csi2_dphy0 {
+			status = "okay";
+			clocks = <&cru PCLK_CSIPHY0>,
+				 <&cru PCLK_CSI_HOST_0>,
+				 <&cru DCLK_VICAP_CSIHOST0>;
+			clock-names = "pclk",
+				      "pclk_csi2host",
+				      "dclk_csi2host";
+			resets = <&cru SRST_PRESETN_CSIPHY0>,
+				 <&cru SRST_PRESETN_CSI_HOST_0>;
+			reset-names = "srst_p_csiphy",
+				      "srst_csihost_p";
+			csihost-idx = <0>;
+			rockchip,dphy-grf = <&mipidphyrx0_grf>;
+			rockchip,csi2-dphy = <&csi2_dphy0_hw>;
+			rockchip,csi2 = <&mipi0_csi2_hw>;
+		};
+		csi2_dphy3 {
+			status = "disabled";
+			clocks = <&cru PCLK_CSIPHY1>,
+				 <&cru PCLK_CSI_HOST_2>,
+				 <&cru DCLK_VICAP_CSIHOST2>;
+			clock-names = "pclk",
+				      "pclk_csi2host",
+				      "dclk_csi2host";
+			resets = <&cru SRST_PRESETN_CSIPHY1>,
+				 <&cru SRST_PRESETN_CSI_HOST_2>;
+			reset-names = "srst_p_csiphy",
+				      "srst_csihost_p";
+			csihost-idx = <2>;
+			rockchip,dphy-grf = <&mipidphyrx1_grf>;
+			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
+			rockchip,csi2 = <&mipi2_csi2_hw>;
+		};
+	};
+
+	cif_sensor: cif_sensor {
+		compatible = "rockchip,sensor";
+		status = "okay";
+
+		tp2855 {
+			status = "okay";
+			clocks = <&cru CAM_CLK0_OUT_IOUT>; //dphy0
+			// clocks = <&cru CAM_CLK1_OUT_IOUT>; // dphy3
+			clock-names = "xvclk";
+
+			orientation = <90>;
+			i2c_add = <0x88>;
+			i2c_chl = <7>;
+			cif_chl = <0>;
+			ad_chl = <0>;
+			mclk_rate = <27>;
+			rockchip,camera-module-defrect0 = <1920 1080 0 0 1920 1080>;
+		};
+	};
+};
+
+&display_subsystem {
+	memory-region = <&drm_vehicle>;
+	memory-region-names = "drm-vehicle";
+};
+
+&vcc_mipicsi0 {
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&i2c7 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m1_xfer_pins>;
+};
+
+&pinctrl {
+	vehicle {
+		vehicle_gpios: vehicle-pins {
+			/* gpios */
+			rockchip,pins =
+				/* car-reverse */
+				<2 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
