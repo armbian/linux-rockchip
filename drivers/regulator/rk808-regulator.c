@@ -24,6 +24,7 @@
 #include <linux/gpio/consumer.h>
 
 /* Field Definitions */
+#define RK805B_BUCK_VSEL_MASK	0x7f
 #define RK805B_LDO_VSEL_MASK	0x3f
 
 #define RK808_BUCK_VSEL_MASK	0x3f
@@ -191,7 +192,12 @@ static const struct linear_range rk805_buck4_voltage_ranges[] = {
 static const struct linear_range rk805b_cm_mode_1_buck_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0, 76, 12500),	/* 0.5V - 1.45V */
 	REGULATOR_LINEAR_RANGE(1800000, 77, 79, 200000),/* 1.8V - 2.2V */
-	REGULATOR_LINEAR_RANGE(2300000, 80, 80, 0),	/* 2.3V */
+	REGULATOR_LINEAR_RANGE(2300000, 80, 127, 0),	/* 2.3V */
+};
+
+static const struct linear_range rk805b_cm_mode_1_buck4_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000, 0, 58, 50000),	/* 0.5V - 3.4V */
+	REGULATOR_LINEAR_RANGE(3400000, 59, 63, 0),	/* 3.4V */
 };
 
 static const struct linear_range rk808_ldo3_voltage_ranges[] = {
@@ -961,11 +967,11 @@ static const struct regulator_desc rk805b_4_8_reg[] = {
 		.id = RK805_ID_DCDC1,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
-		.n_voltages = 64,
+		.n_voltages = 128,
 		.linear_ranges = rk805b_cm_mode_1_buck_ranges,
 		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck_ranges),
 		.vsel_reg = RK805_BUCK1_ON_VSEL_REG,
-		.vsel_mask = RK818_BUCK_VSEL_MASK,
+		.vsel_mask = RK805B_BUCK_VSEL_MASK,
 		.enable_reg = RK805_DCDC_EN_REG,
 		.enable_mask = ENABLE_MASK(RK805_ID_DCDC1),
 		.ramp_reg = RK808_BUCK1_CONFIG_REG,
@@ -984,11 +990,11 @@ static const struct regulator_desc rk805b_4_8_reg[] = {
 		.id = RK805_ID_DCDC2,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
-		.n_voltages = 64,
+		.n_voltages = 128,
 		.linear_ranges = rk805b_cm_mode_1_buck_ranges,
 		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck_ranges),
 		.vsel_reg = RK805_BUCK2_ON_VSEL_REG,
-		.vsel_mask = RK818_BUCK_VSEL_MASK,
+		.vsel_mask = RK805B_BUCK_VSEL_MASK,
 		.enable_reg = RK805_DCDC_EN_REG,
 		.enable_mask = ENABLE_MASK(RK805_ID_DCDC2),
 		.ramp_reg = RK808_BUCK1_CONFIG_REG,
@@ -1022,11 +1028,11 @@ static const struct regulator_desc rk805b_4_8_reg[] = {
 		.id = RK805_ID_DCDC4,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
-		.n_voltages = 32,
-		.linear_ranges = rk805b_cm_mode_1_buck_ranges,
-		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck_ranges),
+		.n_voltages = 64,
+		.linear_ranges = rk805b_cm_mode_1_buck4_ranges,
+		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck4_ranges),
 		.vsel_reg = RK805_BUCK4_ON_VSEL_REG,
-		.vsel_mask = RK818_BUCK4_VSEL_MASK,
+		.vsel_mask = RK818_BUCK_VSEL_MASK,
 		.enable_reg = RK805_DCDC_EN_REG,
 		.enable_mask = ENABLE_MASK(RK805_ID_DCDC4),
 		.enable_val = ENABLE_MASK(RK805_ID_DCDC4),
