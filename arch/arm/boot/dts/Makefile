@@ -1231,6 +1231,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506b-luckfox-lyra-ultra-w.dtb \
 	rk3506b-luckfox-lyra-zero-w-sd.dtb \
 	rk3506g-demo-display-control.dtb \
+	rk3506g-ebyte-ecb41-pge.dtb \
 	rk3506g-evb1-v10.dtb \
 	rk3506g-evb1-v10-amp.dtb \
 	rk3506g-evb1-v10-dsmc-lb-slave.dtb \
