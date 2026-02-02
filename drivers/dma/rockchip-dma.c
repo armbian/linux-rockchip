@@ -36,6 +36,7 @@
 
 #define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
 #define GENMASK_VAL(v, h, l)	(((v) & GENMASK(h, l)) >> l)
+#define RK_DMA_ADDR64(h, l)	((u64)(h) << 32 | (l))
 
 #define RK_DMA_CMN_GROUP_SIZE		0x100
 #define RK_DMA_LCH_GROUP_SIZE		0x40
@@ -492,7 +493,8 @@ static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds)
 	else
 		writel(LCH_IE_DMA_DONE_IE_EN, RK_DMA_LCH_IE);
 
-	writel(ds->desc_hw[0].lli_hw, RK_DMA_LCH_CMDBA);
+	writel(lower_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA);
+	writel(upper_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA_HIGH);
 	writel(LCH_TRF_CMD_DST_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_SRC_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_TT_FC(ds->dir) | LCH_TRF_CMD_DMA_START,
@@ -511,7 +513,7 @@ static u32 rk_dma_get_chan_stat(struct rk_dma_lch *l)
 static int rk_dma_init(struct rk_dma_dev *d)
 {
 	struct device *dev = d->slave.dev;
-	int i, lch, pch, buswidth, maxburst, dep, addrwidth;
+	int i, lch, pch, buswidth, maxburst, dep, addrwidth, ret;
 	u32 cap0, cap1, ver;
 
 	writel(CMN_CFG_EN | CMN_CFG_IE_EN, RK_DMA_CMN_CFG);
@@ -545,6 +547,12 @@ static int rk_dma_init(struct rk_dma_dev *d)
 
 	for (i = 0; i < pch; i++)
 		writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
+
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(addrwidth));
+	if (ret) {
+		dev_err(dev, "DMA mask error %d\n", ret);
+		return ret;
+	}
 
 	dev_info(dev, "NR_LCH-%d NR_PCH-%d PCH_BUF-%dx%dBytes AXI_LEN-%d ADDR-%dBits V%lu.%lu\n",
 		 lch, pch, dep, buswidth, maxburst, addrwidth,
@@ -691,16 +699,22 @@ static void rk_dma_free_chan_resources(struct dma_chan *chan)
 static int rk_dma_lch_get_bytes_xfered(struct rk_dma_lch *l)
 {
 	struct rk_dma_desc_sw *ds = l->ds_run;
+	u64 base, cur;
 	int bytes = 0;
 
 	if (!ds)
 		return 0;
 
 	/* cmd_entry holds the current LLI being processed */
-	if (ds->dir == DMA_MEM_TO_DEV)
-		bytes = ds->desc_hw[0].lli->sar - ds->desc_hw[1].lli->sar;
-	else
-		bytes = ds->desc_hw[0].lli->dar - ds->desc_hw[1].lli->dar;
+	if (ds->dir == DMA_MEM_TO_DEV) {
+		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->sar_high, ds->desc_hw[1].lli->sar);
+		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->sar_high, ds->desc_hw[0].lli->sar);
+	} else {
+		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->dar_high, ds->desc_hw[1].lli->dar);
+		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->dar_high, ds->desc_hw[0].lli->dar);
+	}
+
+	bytes = cur - base;
 
 	/*
 	 * The transferred bytes are calculated by subtracting first_lli.base from
@@ -787,17 +801,22 @@ static void rk_dma_fill_desc(struct rk_dma_desc_sw *ds, dma_addr_t dst,
 {
 	/* assign llp_nxt for cmd_entry */
 	if (num == 0) {
-		ds->desc_hw[0].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+		ds->desc_hw[0].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+		ds->desc_hw[0].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 		ds->desc_hw[0].lli->trf_cfg = ccfg;
 
 		return;
 	}
 
-	if ((num + 1) < ds->desc_num)
-		ds->desc_hw[num].lli->llp_nxt = ds->desc_hw[num + 1].lli_hw;
+	if ((num + 1) < ds->desc_num) {
+		ds->desc_hw[num].lli->llp_nxt = lower_32_bits(ds->desc_hw[num + 1].lli_hw);
+		ds->desc_hw[num].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[num + 1].lli_hw);
+	}
 
-	ds->desc_hw[num].lli->sar = src;
-	ds->desc_hw[num].lli->dar = dst;
+	ds->desc_hw[num].lli->sar = lower_32_bits(src);
+	ds->desc_hw[num].lli->sar_high = upper_32_bits(src);
+	ds->desc_hw[num].lli->dar = lower_32_bits(dst);
+	ds->desc_hw[num].lli->dar_high = upper_32_bits(dst);
 	ds->desc_hw[num].lli->block_ts = BLOCK_TS(len);
 	ds->desc_hw[num].lli->trf_ctl0 = cc0;
 	ds->desc_hw[num].lli->trf_ctl1 = cc1;
@@ -1016,6 +1035,7 @@ static struct dma_async_tx_descriptor *rk_dma_prep_memcpy(
 	} while (len);
 
 	ds->desc_hw[num - 1].lli->llp_nxt = 0;
+	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 
 	c->cyclic = 0;
@@ -1079,6 +1099,7 @@ rk_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, unsigned in
 	}
 
 	ds->desc_hw[num - 1].lli->llp_nxt = 0;	/* end of link */
+	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;	/* end of link */
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 	ds->size = total;
 	ds->dir = dir;
@@ -1126,7 +1147,8 @@ rk_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_le
 		buf += period_len;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = buf_len;
 	ds->dir = dir;
@@ -1213,7 +1235,8 @@ rk_dma_prep_interleaved_dma(struct dma_chan *chan, struct dma_interleaved_templa
 		dma_addr += full_period_bytes;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = full_buffer_bytes;
 	ds->dir = xt->dir;
