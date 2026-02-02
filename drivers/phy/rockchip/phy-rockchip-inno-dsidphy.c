@@ -77,7 +77,7 @@
 #define PRE_EMPHASIS_ENABLE			BIT(7)
 #define PRE_EMPHASIS_DISABLE			0
 #define PLL_POST_DIV_ENABLE_MASK		BIT(5)
-#define PLL_POST_DIV_ENABLE			BIT(5)
+#define PLL_POST_DIV_ENABLE(x)			UPDATE(x, 5, 5)
 #define PLL_POST_DIV_DISABLE			0
 #define DATA_LANE_VOD_RANGE_SET_MASK		GENMASK(3, 0)
 #define DATA_LANE_VOD_RANGE_SET(x)		UPDATE(x, 3, 0)
@@ -236,10 +236,10 @@ enum soc_type {
 };
 
 enum phy_max_rate {
-	MAX_1GHZ,
-	MAX_1_5GHZ,
-	MAX_2_5GHZ,
-	MAX_4_5GHZ,
+	MAX_1GHZ = 1000 * HZ_PER_MHZ,
+	MAX_1_5GHZ = 1500 * HZ_PER_MHZ,
+	MAX_2_5GHZ = 2500 * HZ_PER_MHZ,
+	MAX_4_5GHZ = 4500 * HZ_PER_MHZ,
 };
 
 struct inno_video_phy_reg {
@@ -275,6 +275,16 @@ struct inno_dsidphy {
 		struct clk_hw hw;
 		u8 prediv;
 		u16 fbdiv;
+
+		/*
+		 * lowfre_en only for mipi dphy max_rate >= 2.5Gbps.
+		 *
+		 * lowfre_en=1: PLL_Output_Frequency = FREF*FBDIV/(PREDIV*POSTDIV*2)
+		 * lowfre_en=0: PLL_Output_Frequency = FREF*FBDIV/(PREDIV)
+		 */
+		bool lowfre_en;
+		u8 postdiv;
+
 		unsigned long rate;
 	} pll;
 	u32 lvds_vcom;
@@ -430,34 +440,102 @@ static void host_update_bits(struct inno_dsidphy *inno,
 	writel(tmp, inno->host_base + reg);
 }
 
-static unsigned long long inno_dsidphy_get_pdata_max_rate(struct inno_dsidphy *inno)
-{
-	unsigned long long max_rate_hz;
-
-	switch (inno->pdata->max_rate) {
-	case MAX_4_5GHZ:
-		max_rate_hz = 4500 * HZ_PER_MHZ;
-		break;
-	case MAX_2_5GHZ:
-		max_rate_hz = 2500 * HZ_PER_MHZ;
-		break;
-	case MAX_1_5GHZ:
-		max_rate_hz = 1500 * HZ_PER_MHZ;
-		break;
-	case MAX_1GHZ:
-	default:
-		max_rate_hz = 1000 * HZ_PER_MHZ;
-		break;
-	}
-
-	return max_rate_hz;
-}
-
-static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
+static unsigned long
+inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 						unsigned long long rate)
 {
+	u64 prate = clk_get_rate(inno->ref_clk);
+	u64 max_rate = inno->pdata->max_rate;
+	u64 max_vco = (inno->pdata->max_rate == MAX_4_5GHZ ? 5000 : 3000) * HZ_PER_MHZ;
+	u64 min_vco = 1000 * HZ_PER_MHZ;
+	u64 fvco;
+	u64 best_freq = 0;
+	u64 fref, fout;
+	u8 min_prediv, max_prediv;
+	u8 _prediv, best_prediv = 1;
+	u16 _fbdiv, best_fbdiv = 1;
+	u16 _postdiv, best_postdiv = 1;
+	u32 min_delta = UINT_MAX;
+
+	/*
+	 * The PLL output frequency can be calculated using a simple formula:
+	 * PLL_Output_Frequency = FREF * FBDIV / (PREDIV * POSTDIV * 2) (reg08[5]=1)
+	 *
+	 * As the recommended VCO_Frequency range is (1~3GHz) or (1~5GHz), to make the
+	 * PHY work at high frequency such as 2.5Gbps in MIPI mode, set the reg08[5]=0:
+	 *
+	 * PLL_Output_Frequency = VCO_Frequency = FREF * FBDIV / PREDIV
+	 *
+	 * PLL_Output_Frequency: it is equal to DDR-Clock-Frequency * 2
+	 */
+	fref = prate;
+	if (!fref)
+		return 0;
+
+	if (rate > max_rate)
+		fout = max_rate;
+	else
+		fout = rate;
+
+	/* 10Mhz < Fref / prediv < 100MHz */
+	min_prediv = DIV64_U64_ROUND_UP(fref, 100 * HZ_PER_MHZ);
+	max_prediv = div64_ul(fref, 10 * HZ_PER_MHZ);
+
+	for (_postdiv = 0; _postdiv <= 31; _postdiv++) {
+		fvco = (u64)fout * (_postdiv ? _postdiv * 2 : 1);
+		if (fvco < min_vco || fvco > max_vco)
+			continue;
+
+		for (_prediv = min_prediv; _prediv <= max_prediv; _prediv++) {
+			u64 tmp;
+			u32 delta;
+
+			if (!_prediv)
+				continue;
+
+			tmp = fvco * _prediv;
+			_fbdiv = div64_ul(tmp, fref);
+
+			if (_fbdiv < 1 || _fbdiv > 511)
+				continue;
+
+			tmp = (u64)_fbdiv * fref;
+			tmp = div64_ul(tmp, _prediv * (_postdiv ? _postdiv * 2 : 1));
+
+			delta = abs(fout - tmp);
+			if (!delta) {
+				best_prediv = _prediv;
+				best_fbdiv = _fbdiv;
+				best_postdiv = _postdiv;
+				best_freq = tmp;
+				break;
+			} else if (delta < min_delta) {
+				best_prediv = _prediv;
+				best_fbdiv = _fbdiv;
+				best_postdiv = _postdiv;
+				best_freq = tmp;
+				min_delta = delta;
+			}
+		}
+	}
+
+	if (best_freq) {
+		inno->pll.prediv = best_prediv;
+		inno->pll.fbdiv = best_fbdiv;
+		inno->pll.postdiv = best_postdiv;
+		inno->pll.rate = best_freq;
+		inno->pll.lowfre_en = best_postdiv ? true : false;
+	}
+
+	return best_freq;
+}
+
+static unsigned long
+inno_dsidphy_max_1ghz_or_1_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
+					      unsigned long long rate)
+{
 	unsigned long prate = clk_get_rate(inno->ref_clk);
-	unsigned long long max_rate = inno_dsidphy_get_pdata_max_rate(inno);
+	unsigned long long max_rate = inno->pdata->max_rate;
 	unsigned long long best_freq = 0;
 	unsigned long long fref, fout;
 	u8 min_prediv, max_prediv;
@@ -561,7 +639,10 @@ static void inno_mipi_dphy_max_4_5ghz_pll_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
 			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE(inno->pll.lowfre_en));
+	if (inno->pll.lowfre_en)
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x2a,
+				REG_POSTDIV_MASK, REG_POSTDIV(inno->pll.postdiv));
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
 			CLOCK_LANE_VOD_RANGE_SET_MASK,
 			CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
@@ -580,7 +661,10 @@ static void inno_mipi_dphy_max_2_5ghz_pll_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
 			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE(inno->pll.lowfre_en));
+	if (inno->pll.lowfre_en)
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x2a,
+				REG_POSTDIV_MASK, REG_POSTDIV(inno->pll.postdiv));
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
 			CLOCK_LANE_VOD_RANGE_SET_MASK,
 			CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
@@ -1054,7 +1138,11 @@ static int inno_dsidphy_configure(struct phy *phy,
 
 	memcpy(&inno->dphy_cfg, &opts->mipi_dphy, sizeof(inno->dphy_cfg));
 
-	inno_dsidphy_pll_calc_rate(inno, cfg->hs_clk_rate);
+	if (inno->pdata->max_rate >= MAX_2_5GHZ)
+		inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(inno, cfg->hs_clk_rate);
+	else
+		inno_dsidphy_max_1ghz_or_1_5ghz_pll_calc_rate(inno, cfg->hs_clk_rate);
+
 	cfg->hs_clk_rate = inno->pll.rate;
 	opts->mipi_dphy.hs_clk_rate = inno->pll.rate;
 
