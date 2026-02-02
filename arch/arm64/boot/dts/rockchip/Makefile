@@ -276,6 +276,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-ebook.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-rk628-hdmi2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-sii9022-rgb2hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb3-v10-linux.dtb
