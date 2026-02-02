@@ -6,7 +6,7 @@
 /dts-v1/;
 #include "rv1126bp.dtsi"
 #include "rv1126bp-evb.dtsi"
-#include "rv1126bp-evb-v14.dtsi"
+#include "rv1126bp-evb2-v10.dtsi"
 #include "rv1126bp-evb-cam-csi0.dtsi"
 
 / {
@@ -186,4 +186,8 @@
 		| RKPM_IO_CFG_ID(25)
 		)
 	>;
+};
+
+&sc850sl {
+	rockchip,camera-module-stb = <1>;
 };
