@@ -3462,7 +3462,7 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	    (vop->version >= VOP_VERSION_RV1106 && vop->version <= VOP_VERSION_RK3288 &&
 	     s->output_if & VOP_OUTPUT_IF_BT656))
 		request_clock *= 2;
-	clock = clk_round_rate(vop->dclk, request_clock * 1000) / 1000;
+	clock = rockchip_drm_dclk_round_rate(vop->version, vop->dclk, request_clock * 1000) / 1000;
 
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
@@ -3969,10 +3969,10 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	 * 4. Store the rounded up rate so that we don't need to worry about
 	 *    this in the actual clk_set_rate().
 	 */
-	rate = clk_round_rate(vop->dclk, adj_mode->crtc_clock * 1000);
+	rate = rockchip_drm_dclk_round_rate(vop->version, vop->dclk, adj_mode->crtc_clock * 1000);
 	if (rate / 1000 != adj_mode->crtc_clock)
-		rate = clk_round_rate(vop->dclk,
-				      adj_mode->crtc_clock * 1000 + 999);
+		rate = rockchip_drm_dclk_round_rate(vop->version, vop->dclk,
+						    adj_mode->crtc_clock * 1000 + 999);
 	adj_mode->crtc_clock = DIV_ROUND_UP(rate, 1000);
 
 	return true;
