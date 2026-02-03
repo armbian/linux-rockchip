@@ -1320,7 +1320,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506g-luckfox-lyra-plus-sd.dtb \
 	rv1103g-luckfox-pico-mini.dtb \
 	rv1106g-luckfox-pico-pro-max.dtb \
-	rk3506b-luckfox-lyra-ultra-w.dtb
+	rk3506b-luckfox-lyra-ultra-w.dtb \
+	rk3506j-forlinx-OK3506-S12_nand-microsd.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
