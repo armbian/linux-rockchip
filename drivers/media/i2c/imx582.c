@@ -4,9 +4,10 @@
  *
  * Copyright (C) 2025 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X00 init version.
+ * V0.0X02.0X00 Add PDAF Type1/Type2 Support
  */
 
-//#define DEBUG
+// #define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -34,17 +35,21 @@
 #include <linux/rk-preisp.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x02, 0x00)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
 #define IMX582_LINK_FREQ_1098		1098000000	// 2196Mbps per lane
+#define IMX582_LINK_FREQ_432		432000000	// 864Mbps per lane
+#define IMX582_LINK_FREQ_1000		1000000000	// 2000Mbps per lane
 
 #define IMX582_LANES			4
 
 #define PIXEL_RATE_WITH_2196M_10BIT	(IMX582_LINK_FREQ_1098 / 10 * 2 * 4)
+#define PIXEL_RATE_WITH_864M_10BIT	(IMX582_LINK_FREQ_432 / 10 * 2 * 4)
+#define PIXEL_RATE_WITH_2000M_10BIT	(IMX582_LINK_FREQ_1000 / 10 * 2 * 4)
 
 #define IMX582_XVCLK_FREQ		24000000
 
@@ -88,6 +93,161 @@
 
 #define IMX582_REG_VTS_H		0x0340
 #define IMX582_REG_VTS_L		0x0341
+
+/* PDAF Window ROI Control Registers */
+/* Based on IMX582 Software Reference Manual for PDAF v1.0.0 */
+
+/* AREA_MODE: Type of AF detection area */
+/* 0: Fixed area (16x12) */
+/* 1: Fixed area (8x6)  */
+/* 2: Flexible/Free area */
+/* 3: Reserved */
+#define IMX582_REG_AREA_MODE            0x38A3
+#define IMX582_AREA_MODE_MASK           0x03
+#define IMX582_AREA_MODE_FIXED_16_12    0x00
+#define IMX582_AREA_MODE_FIXED_8_6      0x01
+#define IMX582_AREA_MODE_FLEXIBLE       0x02
+
+/* PDAF_CTRL1: Output setting from MIPI */
+/* 0: Phase Difference Data is not output */
+/* 1: Phase Difference Data is output */
+#define IMX582_REG_PDAF_CTRL1           0x3E37
+#define IMX582_PDAF_OUTPUT_DISABLE      0x00
+#define IMX582_PDAF_OUTPUT_ENABLE       0x01
+
+/* Fixed Window Mode Registers (16x12 or 8x6) */
+/* Top left X coordinates of the first division */
+#define IMX582_REG_PD_AREA_X_OFFSET_H   0x38A4
+#define IMX582_REG_PD_AREA_X_OFFSET_L   0x38A5
+#define IMX582_PD_AREA_X_OFFSET_MASK_H  0x1F
+
+/* Top left Y coordinates of the first division */
+#define IMX582_REG_PD_AREA_Y_OFFSET_H   0x38A6
+#define IMX582_REG_PD_AREA_Y_OFFSET_L   0x38A7
+#define IMX582_PD_AREA_Y_OFFSET_MASK_H  0x1F
+
+/* Horizontal direction pixels of one division */
+#define IMX582_REG_PD_AREA_WIDTH_H      0x38A8
+#define IMX582_REG_PD_AREA_WIDTH_L      0x38A9
+#define IMX582_PD_AREA_WIDTH_MASK_H     0x1F
+
+/* Vertical direction pixels of one division */
+#define IMX582_REG_PD_AREA_HEIGHT_H     0x38AA
+#define IMX582_REG_PD_AREA_HEIGHT_L     0x38AB
+#define IMX582_PD_AREA_HEIGHT_MASK_H    0x1F
+
+/* Flexible Window Mode Enable Registers (up to 8 windows) */
+#define IMX582_REG_AREA_EN_BASE         0x38AC
+#define IMX582_REG_AREA_EN_0            0x38AC
+#define IMX582_REG_AREA_EN_1            0x38AD
+#define IMX582_REG_AREA_EN_2            0x38AE
+#define IMX582_REG_AREA_EN_3            0x38AF
+#define IMX582_REG_AREA_EN_4            0x38B0
+#define IMX582_REG_AREA_EN_5            0x38B1
+#define IMX582_REG_AREA_EN_6            0x38B2
+#define IMX582_REG_AREA_EN_7            0x38B3
+#define IMX582_AREA_EN_MASK             0x01
+#define IMX582_AREA_EN_DISABLE          0x00
+#define IMX582_AREA_EN_ENABLE           0x01
+
+/* Flexible Window Registers Base Address */
+#define IMX582_REG_PD_AREA_FLEX_BASE    0x38B4
+#define IMX582_REG_PD_AREA_FLEX_STRIDE  0x08
+
+/* Flexible Window 0 Registers */
+#define IMX582_REG_PD_AREA_XSTA_0_H     0x38B4
+#define IMX582_REG_PD_AREA_XSTA_0_L     0x38B5
+#define IMX582_REG_PD_AREA_YSTA_0_H     0x38B6
+#define IMX582_REG_PD_AREA_YSTA_0_L     0x38B7
+#define IMX582_REG_PD_AREA_XEND_0_H     0x38B8
+#define IMX582_REG_PD_AREA_XEND_0_L     0x38B9
+#define IMX582_REG_PD_AREA_YEND_0_H     0x38BA
+#define IMX582_REG_PD_AREA_YEND_0_L     0x38BB
+
+/* Flexible Window 1 Registers */
+#define IMX582_REG_PD_AREA_XSTA_1_H     0x38BC
+#define IMX582_REG_PD_AREA_XSTA_1_L     0x38BD
+#define IMX582_REG_PD_AREA_YSTA_1_H     0x38BE
+#define IMX582_REG_PD_AREA_YSTA_1_L     0x38BF
+#define IMX582_REG_PD_AREA_XEND_1_H     0x38C0
+#define IMX582_REG_PD_AREA_XEND_1_L     0x38C1
+#define IMX582_REG_PD_AREA_YEND_1_H     0x38C2
+#define IMX582_REG_PD_AREA_YEND_1_L     0x38C3
+
+/* Flexible Window 2 Registers */
+#define IMX582_REG_PD_AREA_XSTA_2_H     0x38C4
+#define IMX582_REG_PD_AREA_XSTA_2_L     0x38C5
+#define IMX582_REG_PD_AREA_YSTA_2_H     0x38C6
+#define IMX582_REG_PD_AREA_YSTA_2_L     0x38C7
+#define IMX582_REG_PD_AREA_XEND_2_H     0x38C8
+#define IMX582_REG_PD_AREA_XEND_2_L     0x38C9
+#define IMX582_REG_PD_AREA_YEND_2_H     0x38CA
+#define IMX582_REG_PD_AREA_YEND_2_L     0x38CB
+
+/* Flexible Window 3 Registers */
+#define IMX582_REG_PD_AREA_XSTA_3_H     0x38CC
+#define IMX582_REG_PD_AREA_XSTA_3_L     0x38CD
+#define IMX582_REG_PD_AREA_YSTA_3_H     0x38CE
+#define IMX582_REG_PD_AREA_YSTA_3_L     0x38CF
+#define IMX582_REG_PD_AREA_XEND_3_H     0x38D0
+#define IMX582_REG_PD_AREA_XEND_3_L     0x38D1
+#define IMX582_REG_PD_AREA_YEND_3_H     0x38D2
+#define IMX582_REG_PD_AREA_YEND_3_L     0x38D3
+
+/* Flexible Window 4 Registers */
+#define IMX582_REG_PD_AREA_XSTA_4_H     0x38D4
+#define IMX582_REG_PD_AREA_XSTA_4_L     0x38D5
+#define IMX582_REG_PD_AREA_YSTA_4_H     0x38D6
+#define IMX582_REG_PD_AREA_YSTA_4_L     0x38D7
+#define IMX582_REG_PD_AREA_XEND_4_H     0x38D8
+#define IMX582_REG_PD_AREA_XEND_4_L     0x38D9
+#define IMX582_REG_PD_AREA_YEND_4_H     0x38DA
+#define IMX582_REG_PD_AREA_YEND_4_L     0x38DB
+
+/* Flexible Window 5 Registers */
+#define IMX582_REG_PD_AREA_XSTA_5_H     0x38DC
+#define IMX582_REG_PD_AREA_XSTA_5_L     0x38DD
+#define IMX582_REG_PD_AREA_YSTA_5_H     0x38DE
+#define IMX582_REG_PD_AREA_YSTA_5_L     0x38DF
+#define IMX582_REG_PD_AREA_XEND_5_H     0x38E0
+#define IMX582_REG_PD_AREA_XEND_5_L     0x38E1
+#define IMX582_REG_PD_AREA_YEND_5_H     0x38E2
+#define IMX582_REG_PD_AREA_YEND_5_L     0x38E3
+
+/* Flexible Window 6 Registers */
+#define IMX582_REG_PD_AREA_XSTA_6_H     0x38E4
+#define IMX582_REG_PD_AREA_XSTA_6_L     0x38E5
+#define IMX582_REG_PD_AREA_YSTA_6_H     0x38E6
+#define IMX582_REG_PD_AREA_YSTA_6_L     0x38E7
+#define IMX582_REG_PD_AREA_XEND_6_H     0x38E8
+#define IMX582_REG_PD_AREA_XEND_6_L     0x38E9
+#define IMX582_REG_PD_AREA_YEND_6_H     0x38EA
+#define IMX582_REG_PD_AREA_YEND_6_L     0x38EB
+
+/* Flexible Window 7 Registers */
+#define IMX582_REG_PD_AREA_XSTA_7_H     0x38EC
+#define IMX582_REG_PD_AREA_XSTA_7_L     0x38ED
+#define IMX582_REG_PD_AREA_YSTA_7_H     0x38EE
+#define IMX582_REG_PD_AREA_YSTA_7_L     0x38EF
+#define IMX582_REG_PD_AREA_XEND_7_H     0x38F0
+#define IMX582_REG_PD_AREA_XEND_7_L     0x38F1
+#define IMX582_REG_PD_AREA_YEND_7_H     0x38F2
+#define IMX582_REG_PD_AREA_YEND_7_L     0x38F3
+
+/* Coordinate mask for high byte (12-bit coordinate: 5-bit high + 8-bit low) */
+#define IMX582_PD_COORD_MASK_H          0x1F
+
+/* Maximum number of flexible windows */
+#define IMX582_MAX_FLEXIBLE_WINDOWS     8
+
+/* Phase Difference Data Hold Control for I2C read */
+#define IMX582_REG_PD_TABLE_HOLD        0xE24F
+#define IMX582_PD_TABLE_HOLD_MASK       0x01
+#define IMX582_PD_TABLE_HOLD_OFF        0x00
+#define IMX582_PD_TABLE_HOLD_ON         0x01
+
+/* Phase Difference Data Readout Base Address via I2C */
+#define IMX582_REG_PD_DATA_BASE         0x4408
 
 #define IMX582_FLIP_MIRROR_REG		0x0101
 #define IMX582_MIRROR_BIT_MASK		BIT(0)
@@ -150,7 +310,10 @@ struct imx582_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 mipi_freq_idx;
+	/* Shield Pix Data */
 	const struct other_data *spd;
+	/* embedded Data */
+	const struct other_data *ebd;
 	u32 vc[PAD_MAX];
 };
 
@@ -195,6 +358,7 @@ struct imx582 {
 	u8			flip;
 	struct otp_info		*otp;
 	u32			spd_id;
+	u32			ebd_id;
 };
 
 #define to_imx582(sd) container_of(sd, struct imx582, subdev)
@@ -331,7 +495,7 @@ static const struct regval imx582_linear_10bit_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx582_linear_10bit_4000x3000_30fps_pdaf_regs[] = {
+static const struct regval imx582_linear_10bit_4000x3000_30fps_nopd_regs[] = {
 	/* MIPI output setting */
 	{0x0112, 0x0A},
 	{0x0113, 0x0A},
@@ -464,9 +628,314 @@ static const struct regval imx582_linear_10bit_4000x3000_30fps_pdaf_regs[] = {
 	/* PDAF TYPE Setting */
 	{0x3E20, 0x01},
 	/* PDAF TYPE1 Setting */
-	{0x3E37, 0x01},
+	{0x3E37, 0x00},
 
 	{REG_NULL, 0x00},
+};
+
+static const struct regval imx582_linear_10bit_3840x2160_30fps_pd_regs[] = {
+	/* MIPI output setting */
+	{0x0112, 0x0A},
+	{0x0113, 0x0A},
+	{0x0114, 0x03},
+
+	/* Line Length PCK Setting */
+	{0x0342, 0x1E},  // 7872
+	{0x0343, 0xC0},
+
+	/* Frame Length Lines Setting */
+	{0x0340, 0x0E},  // 3658
+	{0x0341, 0x4A},
+
+	/* ROI Setting */
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+	{0x0346, 0x03},
+	{0x0347, 0x48},
+	{0x0348, 0x1F},
+	{0x0349, 0x3F},
+	{0x034A, 0x14},
+	{0x034B, 0x27},
+
+	/* Mode Setting */
+	{0x0900, 0x01},
+	{0x0901, 0x22},
+	{0x0902, 0x08},
+	{0x3246, 0x81},
+	{0x3247, 0x81},
+
+	/* Digital Crop & Scaling */
+	{0x0401, 0x00},
+	{0x0404, 0x00},
+	{0x0405, 0x10},
+	{0x0408, 0x00},
+	{0x0409, 0x50},
+	{0x040A, 0x00},
+	{0x040B, 0x00},
+	{0x040C, 0x0F},
+	{0x040D, 0x00},
+	{0x040E, 0x08},
+	{0x040F, 0x70},
+
+	/* Output Size Setting */
+	{0x034C, 0x0F},
+	{0x034D, 0x00},
+	{0x034E, 0x08},
+	{0x034F, 0x70},
+
+	/* Clock Setting */
+	{0x0301, 0x05},
+	{0x0303, 0x02},
+	{0x0305, 0x04},
+	{0x0306, 0x01},
+	{0x0307, 0x68},
+	{0x030B, 0x01},
+	{0x030D, 0x02},
+	{0x030E, 0x01},
+	{0x030F, 0x68},
+	{0x0310, 0x00},
+
+	/* Other Setting */
+	{0x3620, 0x00},
+	{0x3621, 0x00},
+	{0x380C, 0x80},
+	{0x3C13, 0x00},
+	{0x3C14, 0x28},
+	{0x3C15, 0x28},
+	{0x3C16, 0x32},
+	{0x3C17, 0x46},
+	{0x3C18, 0x67},
+	{0x3C19, 0x8F},
+	{0x3C1A, 0x8F},
+	{0x3C1B, 0x99},
+	{0x3C1C, 0xAD},
+	{0x3C1D, 0xCE},
+	{0x3C1E, 0x8F},
+	{0x3C1F, 0x8F},
+	{0x3C20, 0x99},
+	{0x3C21, 0xAD},
+	{0x3C22, 0xCE},
+	{0x3C25, 0x22},
+	{0x3C26, 0x23},
+	{0x3C27, 0xE6},
+	{0x3C28, 0xE6},
+	{0x3C29, 0x08},
+	{0x3C2A, 0x0F},
+	{0x3C2B, 0x14},
+	{0x3F0C, 0x01},
+	{0x3F14, 0x00},
+	{0x3F80, 0x06},
+	{0x3F81, 0xB7},
+	{0x3F82, 0x00},
+	{0x3F83, 0x00},
+	{0x3F8C, 0x07},
+	{0x3F8D, 0xD0},
+	{0x3FF4, 0x01},
+	{0x3FF5, 0x40},
+	{0x3FFC, 0x02},
+	{0x3FFD, 0x15},
+
+	/* Integration Setting */
+	{0x0202, 0x0E},
+	{0x0203, 0x1A},
+	{0x0224, 0x01},
+	{0x0225, 0xF4},
+	{0x3FE0, 0x01},
+	{0x3FE1, 0xF4},
+
+	/* Gain Setting */
+	{0x0204, 0x00},
+	{0x0205, 0x70},
+	{0x0216, 0x00},
+	{0x0217, 0x70},
+	{0x0218, 0x01},
+	{0x0219, 0x00},
+	{0x020E, 0x01},
+	{0x020F, 0x00},
+	{0x0210, 0x01},
+	{0x0211, 0x00},
+	{0x0212, 0x01},
+	{0x0213, 0x00},
+	{0x0214, 0x01},
+	{0x0215, 0x00},
+	{0x3FE2, 0x00},
+	{0x3FE3, 0x70},
+	{0x3FE4, 0x01},
+	{0x3FE5, 0x00},
+
+	/* MIPI Setting */
+	{0xE000, 0X00},
+
+	/* PDAF TYPE Setting */
+	{0x3E20, 0x02},
+	/* PDAF TYPE2 Setting */
+	{0x3E3B, 0x01},
+	{0x4034, 0x01},
+	{0x4035, 0xE0},
+	{REG_NULL, 0x00},
+};
+
+
+/* Add 3840x2160 PDAF 30fps register configuration */
+static const struct regval imx582_linear_10bit_3840x2160_30fps_pd_type1_regs[] = {
+	/* MIPI output setting */
+	{0x0112, 0x0A},  /* CSI_DT_FMT_H */
+	{0x0113, 0x0A},  /* CSI_DT_FMT_L */
+	{0x0114, 0x03},  /* CSI_LANE_MODE */
+
+	/* Line Length PCK Setting */
+	{0x0342, 0x1E},
+	{0x0343, 0xC0},
+
+	/* Frame Length Lines Setting */
+	{0x0340, 0x0E},
+	{0x0341, 0x4A},
+
+	/* ROI setting */
+	{0x0344, 0x00},  /* X_ADD_STA[12:8] */
+	{0x0345, 0x00},  /* X_ADD_STA[7:0] */
+	{0x0346, 0x00},  /* Y_ADD_STA[12:8] */
+	{0x0347, 0x00},  /* Y_ADD_STA[7:0] */
+	{0x0348, 0x1F},  /* X_ADD_END[12:8] */
+	{0x0349, 0x3F},  /* X_ADD_END[7:0] */
+	{0x034A, 0x17},  /* Y_ADD_END[12:8] */
+	{0x034B, 0x6F},  /* Y_ADD_END[7:0] */
+
+	/* Mode setting */
+	{0x0900, 0x01},  /* BINNING_MODE */
+	{0x0901, 0x22},  /* [7:4] BINNING_TYPE_H, [3:0] BINNING_TYPE_V */
+	{0x0902, 0x08},  /* BINNING_WEIGHTING */
+	{0x3246, 0x81},  /* BINNING_PRIORITY_H */
+	{0x3247, 0x81},  /* BINNING_PRIORITY_V */
+
+	/* Digital Crop & Scaling */
+	{0x0401, 0x00},  /* SCALE_MODE */
+	{0x0404, 0x00},  /* SCALE_M[8] */
+	{0x0405, 0x10},  /* SCALE_M[7:0] */
+	{0x0408, 0x00},  /* DIG_CROP_X_OFFSET[12:8] */
+	{0x0409, 0x50},  /* DIG_CROP_X_OFFSET[7:0] */
+	{0x040A, 0x01},  /* DIG_CROP_Y_OFFSET[12:8] */
+	{0x040B, 0xA4},  /* DIG_CROP_Y_OFFSET[7:0] */
+	{0x040C, 0x0F},  /* DIG_CROP_IMAGE_WIDTH[12:8] */
+	{0x040D, 0x00},  /* DIG_CROP_IMAGE_WIDTH[7:0] */
+	{0x040E, 0x08},  /* DIG_CROP_IMAGE_HEIGHT[12:8] */
+	{0x040F, 0x70},  /* DIG_CROP_IMAGE_HEIGHT[7:0] */
+
+	/* Output size setting */
+	{0x034C, 0x0F},  /* X_OUT_SIZE[12:8] */
+	{0x034D, 0x00},  /* X_OUT_SIZE[7:0] */
+	{0x034E, 0x08},  /* Y_OUT_SIZE[12:8] */
+	{0x034F, 0x70},  /* Y_OUT_SIZE[7:0] */
+
+	/* Clock setting */
+	{0x0301, 0x05},  /* IVT_PXCK_DIV */
+	{0x0303, 0x02},  /* IVT_SYCK_DIV */
+	{0x0305, 0x04},  /* IVT_PREPLLCK_DIV */
+	{0x0306, 0x01},  /* IVT_PLL_MPY[10:8] */
+	{0x0307, 0x68},  /* IVT_PLL_MPY[7:0] */
+	{0x030B, 0x01},  /* IOP_SYCK_DIV */
+	{0x030D, 0x04},  /* IOP_PREPLLCK_DIV */
+	{0x030E, 0x01},  /* IOP_PLL_MPY[10:8] */
+	{0x030F, 0x68},  /* IOP_PLL_MPY[7:0] */
+	{0x0310, 0x01},  /* PLL_MULT_DRIV */
+
+	/* Other setting */
+	{0x3620, 0x00},
+	{0x3621, 0x00},
+	{0x380C, 0x80},
+	{0x3C13, 0x00},
+	{0x3C14, 0x28},
+	{0x3C15, 0x28},
+	{0x3C16, 0x32},
+	{0x3C17, 0x46},
+	{0x3C18, 0x67},
+	{0x3C19, 0x8F},
+	{0x3C1A, 0x8F},
+	{0x3C1B, 0x99},
+	{0x3C1C, 0xAD},
+	{0x3C1D, 0xCE},
+	{0x3C1E, 0x8F},
+	{0x3C1F, 0x8F},
+	{0x3C20, 0x99},
+	{0x3C21, 0xAD},
+	{0x3C22, 0xCE},
+	{0x3C25, 0x22},
+	{0x3C26, 0x23},
+	{0x3C27, 0xE6},
+	{0x3C28, 0xE6},
+	{0x3C29, 0x08},
+	{0x3C2A, 0x0F},
+	{0x3C2B, 0x14},
+	{0x3F0C, 0x01},
+	{0x3F14, 0x00},
+	{0x3F80, 0x06},
+	{0x3F81, 0xB7},
+	{0x3F82, 0x00},
+	{0x3F83, 0x00},
+	{0x3F8C, 0x07},
+	{0x3F8D, 0xD0},
+	{0x3FF4, 0x01},
+	{0x3FF5, 0x40},
+	{0x3FFC, 0x02},
+	{0x3FFD, 0x15},
+
+	/* Integration setting */
+	{0x0202, 0x0E},  /* COARSE_INTEG_TIME[15:8] */
+	{0x0203, 0x1A},  /* COARSE_INTEG_TIME[7:0] */
+	{0x0224, 0x01},  /* ST_COARSE_INTEG_TIME[15:8] */
+	{0x0225, 0xF4},  /* ST_COARSE_INTEG_TIME[7:0] */
+	{0x3FE0, 0x01},
+	{0x3FE1, 0xF4},
+
+	/* Gain setting */
+	{0x0204, 0x00},  /* ANA_GAIN_GLOBAL[9:8] */
+	{0x0205, 0x70},  /* ANA_GAIN_GLOBAL[7:0] */
+	{0x0216, 0x00},  /* ST_ANA_GAIN_GLOBAL[9:8] */
+	{0x0217, 0x70},  /* ST_ANA_GAIN_GLOBAL[7:0] */
+	{0x0218, 0x01},  /* ST_DIG_GAIN_GLOBAL[15:8] */
+	{0x0219, 0x00},  /* ST_DIG_GAIN_GLOBAL[7:0] */
+	{0x020E, 0x01},  /* DIG_GAIN_GLOBAL[15:8] */
+	{0x020F, 0x00},  /* DIG_GAIN_GLOBAL[7:0] */
+	{0x0210, 0x01},  /* DIG_GAIN_R[15:8] */
+	{0x0211, 0x00},  /* DIG_GAIN_R[7:0] */
+	{0x0212, 0x01},  /* DIG_GAIN_B[15:8] */
+	{0x0213, 0x00},  /* DIG_GAIN_B[7:0] */
+	{0x0214, 0x01},  /* DIG_GAIN_GB[15:8] */
+	{0x0215, 0x00},  /* DIG_GAIN_GB[7:0] */
+	{0x3FE2, 0x00},
+	{0x3FE3, 0x70},
+	{0x3FE4, 0x01},
+	{0x3FE5, 0x00},
+
+	/* PDAF setting */
+	{0x3E20, 0x01},  /* PDAF TYPE setting */
+	{0x3E37, 0x01},  /* PDAF TYPE1 setting */
+	{0x3E3B, 0x00},  /* PDAF TYPE2 setting */
+	{0x4034, 0x01},
+	{0x4035, 0xF0},
+	{REG_NULL, 0x00},
+};
+
+static const struct other_data imx582_binning2x2_spd = {
+	.width = 960,
+	.height = 1072,
+	.bus_fmt = MEDIA_BUS_FMT_SPD_2X8,
+	.data_type = 0x34,
+	.data_bit = 10,
+};
+
+static const struct other_data imx582_binning2x2_spd_type1 = {
+	.width = 3840,
+	.height = 1,
+	.bus_fmt = MEDIA_BUS_FMT_SPD_2X8,
+	.data_type = 0x36,
+	.data_bit = 10,
+};
+
+static const struct other_data imx582_binning2x2_ebd = {
+	.width = 368,
+	.height = 2,
+	.bus_fmt = MEDIA_BUS_FMT_EBD_1X8,
 };
 
 static const struct imx582_mode supported_modes[] = {
@@ -477,20 +946,60 @@ static const struct imx582_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
-		.exp_def = 0x0B00,
+		.exp_def = 0x0080,
 		.hts_def = 0x1EC0,
 		.vts_def = 0x0BF6,
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.global_reg_list = imx582_linear_10bit_global_regs,
-		.reg_list = imx582_linear_10bit_4000x3000_30fps_pdaf_regs,
+		.reg_list = imx582_linear_10bit_4000x3000_30fps_nopd_regs,
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 0,
+		.vc[PAD0] = 0,
+	},
+	{
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0100,
+		.hts_def = 0x1EC0,
+		.vts_def = 0x0E4A,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.global_reg_list = imx582_linear_10bit_global_regs,
+		.reg_list = imx582_linear_10bit_3840x2160_30fps_pd_regs,
+		.hdr_mode = NO_HDR,
+		.mipi_freq_idx = 2,
+		.spd = &imx582_binning2x2_spd,
+		.ebd = &imx582_binning2x2_ebd,
+		.vc[PAD0] = 0,
+	},
+	{
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0100,
+		.hts_def = 0x1EC0,
+		.vts_def = 0x0E4A,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.global_reg_list = imx582_linear_10bit_global_regs,
+		.reg_list = imx582_linear_10bit_3840x2160_30fps_pd_type1_regs,
+		.hdr_mode = NO_HDR,
+		.mipi_freq_idx = 2,
+		.spd = &imx582_binning2x2_spd_type1,
+		.ebd = &imx582_binning2x2_ebd,
 		.vc[PAD0] = 0,
 	},
 };
 
 static const s64 link_freq_items[] = {
 	IMX582_LINK_FREQ_1098,
+	IMX582_LINK_FREQ_432,
+	IMX582_LINK_FREQ_1000,
 };
 
 static const char * const imx582_test_pattern_menu[] = {
@@ -694,6 +1203,21 @@ static int imx582_get_fmt(struct v4l2_subdev *sd,
 			fmt->reserved[0] = mode->vc[fmt->pad];
 		else
 			fmt->reserved[0] = mode->vc[PAD0];
+
+		/* to csi rawwr3, other rawwr also can use */
+		if (fmt->pad == imx582->spd_id && mode->spd) {
+			fmt->format.width = mode->spd->width;
+			fmt->format.height = mode->spd->height;
+			fmt->format.code = mode->spd->bus_fmt;
+			//Set the vc channel to be consistent with the valid data
+			fmt->reserved[0] = 0;
+		} else if (fmt->pad == imx582->ebd_id && mode->ebd) {
+			fmt->format.width = mode->ebd->width;
+			fmt->format.height = mode->ebd->height;
+			fmt->format.code = mode->ebd->bus_fmt;
+			//Set the vc channel to be consistent with the valid data
+			fmt->reserved[0] = 0;
+		}
 	}
 	mutex_unlock(&imx582->mutex);
 
@@ -894,6 +1418,7 @@ static long imx582_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	u32 i, h, w;
 	u32 stream = 0;
+	struct rkmodule_pdaf_win_cfg_t *pdaf_cfg;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -958,6 +1483,308 @@ static long imx582_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ch_info = (struct rkmodule_channel_info *)arg;
 		ret = imx582_get_channel_info(imx582, ch_info);
 		break;
+	case RKMODULE_SET_PDAF_WIN_CFG:
+	{
+		pdaf_cfg = (struct rkmodule_pdaf_win_cfg_t *)arg;
+		struct i2c_client *client = imx582->client;
+		u32 j;
+
+		dev_info(&client->dev, "%s: win_mode = %d\n",
+			__func__, pdaf_cfg->win_mode);
+
+		if (!imx582->streaming) {
+			dev_err(&client->dev, "sensor not streaming, cannot set pdaf win\n");
+			return -EINVAL;
+		}
+
+		switch (pdaf_cfg->win_mode) {
+		case FIXED_GRID_WIN_16_12:
+			/* Set fixed grid 16x12 mode */
+			ret = imx582_write_reg(client, IMX582_REG_AREA_MODE,
+				IMX582_REG_VALUE_08BIT, IMX582_AREA_MODE_FIXED_16_12);
+			if (ret) {
+				dev_err(&client->dev, "Failed to set fixed grid 16x12 mode\n");
+				break;
+			}
+
+			/* Set regional parameters */
+			ret = imx582_write_reg(client, IMX582_REG_PD_AREA_X_OFFSET_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_x_offset >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_X_OFFSET_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_x_offset & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_y_offset >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_y_offset & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_WIDTH_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_width >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_WIDTH_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_width & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_HEIGHT_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_height >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_HEIGHT_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_height & 0xFF);
+			if (ret) {
+				dev_err(&client->dev, "Failed to set fixed grid params\n");
+			} else {
+				dev_info(&client->dev, "Set fixed grid 16x12: x_off=%d, y_off=%d, w=%d, h=%d\n",
+					pdaf_cfg->fixed_win.area_x_offset,
+					pdaf_cfg->fixed_win.area_y_offset,
+					pdaf_cfg->fixed_win.area_width,
+					pdaf_cfg->fixed_win.area_height);
+			}
+			break;
+
+		case FIXED_GRID_WIN_8_6:
+			/* Set fixed grid 8x6 mode */
+			ret = imx582_write_reg(client, IMX582_REG_AREA_MODE,
+				IMX582_REG_VALUE_08BIT, IMX582_AREA_MODE_FIXED_8_6);
+			if (ret) {
+				dev_err(&client->dev, "Failed to set fixed grid 8x6 mode\n");
+				break;
+			}
+
+			/* Set regional parameters (same registers as 16x12) */
+			ret = imx582_write_reg(client, IMX582_REG_PD_AREA_X_OFFSET_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_x_offset >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_X_OFFSET_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_x_offset & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_y_offset >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_y_offset & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_WIDTH_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_width >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_WIDTH_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_width & 0xFF);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_HEIGHT_H,
+				IMX582_REG_VALUE_08BIT,
+				(pdaf_cfg->fixed_win.area_height >> 8) & IMX582_PD_COORD_MASK_H);
+			ret |= imx582_write_reg(client, IMX582_REG_PD_AREA_HEIGHT_L,
+				IMX582_REG_VALUE_08BIT,
+				pdaf_cfg->fixed_win.area_height & 0xFF);
+
+			if (ret) {
+				dev_err(&client->dev, "Failed to set fixed grid 8x6 params\n");
+			} else {
+				dev_info(&client->dev, "Set fixed grid 8x6: x_off=%d, y_off=%d, w=%d, h=%d\n",
+					pdaf_cfg->fixed_win.area_x_offset,
+					pdaf_cfg->fixed_win.area_y_offset,
+					pdaf_cfg->fixed_win.area_width,
+					pdaf_cfg->fixed_win.area_height);
+			}
+			break;
+
+		case FLOAT_WINDOW:
+			/* Set flexible window mode */
+			ret = imx582_write_reg(client, IMX582_REG_AREA_MODE,
+				IMX582_REG_VALUE_08BIT, IMX582_AREA_MODE_FLEXIBLE);
+			if (ret) {
+				dev_err(&client->dev, "Failed to set flexible window mode\n");
+				break;
+			}
+
+			/* Disable all windows first */
+			for (j = 0; j < IMX582_MAX_FLEXIBLE_WINDOWS; j++) {
+				ret |= imx582_write_reg(client, IMX582_REG_AREA_EN_0 + j,
+					IMX582_REG_VALUE_08BIT, IMX582_AREA_EN_DISABLE);
+			}
+
+			/* Configure each enabled window */
+			for (j = 0; j < pdaf_cfg->float_win.win_num && j < MAX_FLOAT_WINDOW; j++) {
+				u16 base_addr = IMX582_REG_PD_AREA_FLEX_BASE + j *
+						IMX582_REG_PD_AREA_FLEX_STRIDE;
+
+				/* Set window start X coordinate */
+				ret |= imx582_write_reg(client, base_addr,
+					IMX582_REG_VALUE_08BIT,
+					(pdaf_cfg->float_win.win[j].x_sta >> 8) & IMX582_PD_COORD_MASK_H);
+				ret |= imx582_write_reg(client, base_addr + 1,
+					IMX582_REG_VALUE_08BIT,
+					pdaf_cfg->float_win.win[j].x_sta & 0xFF);
+
+				/* Set window start Y coordinate */
+				ret |= imx582_write_reg(client, base_addr + 2,
+					IMX582_REG_VALUE_08BIT,
+					(pdaf_cfg->float_win.win[j].y_sta >> 8) & IMX582_PD_COORD_MASK_H);
+				ret |= imx582_write_reg(client, base_addr + 3,
+					IMX582_REG_VALUE_08BIT,
+					pdaf_cfg->float_win.win[j].y_sta & 0xFF);
+
+				/* Set window end X coordinate */
+				ret |= imx582_write_reg(client, base_addr + 4,
+					IMX582_REG_VALUE_08BIT,
+					(pdaf_cfg->float_win.win[j].x_end >> 8) & IMX582_PD_COORD_MASK_H);
+				ret |= imx582_write_reg(client, base_addr + 5,
+					IMX582_REG_VALUE_08BIT,
+					pdaf_cfg->float_win.win[j].x_end & 0xFF);
+
+				/* Set window end Y coordinate */
+				ret |= imx582_write_reg(client, base_addr + 6,
+					IMX582_REG_VALUE_08BIT,
+					(pdaf_cfg->float_win.win[j].y_end >> 8) & IMX582_PD_COORD_MASK_H);
+				ret |= imx582_write_reg(client, base_addr + 7,
+					IMX582_REG_VALUE_08BIT,
+					pdaf_cfg->float_win.win[j].y_end & 0xFF);
+
+				/* Enable this window */
+				ret |= imx582_write_reg(client, IMX582_REG_AREA_EN_0 + j,
+					IMX582_REG_VALUE_08BIT, IMX582_AREA_EN_ENABLE);
+
+				dev_info(&client->dev, "Set flexible window[%d]: x_sta=%d, y_sta=%d, x_end=%d, y_end=%d\n",
+					j, pdaf_cfg->float_win.win[j].x_sta,
+					pdaf_cfg->float_win.win[j].y_sta,
+					pdaf_cfg->float_win.win[j].x_end,
+					pdaf_cfg->float_win.win[j].y_end);
+			}
+
+			if (ret) {
+				dev_err(&client->dev, "Failed to set flexible window params\n");
+			} else {
+				dev_info(&client->dev, "Set flexible window mode with %d windows\n",
+					pdaf_cfg->float_win.win_num);
+			}
+			break;
+
+		default:
+			dev_err(&client->dev, "Invalid PDAF window mode: %d\n",
+				pdaf_cfg->win_mode);
+			ret = -EINVAL;
+			break;
+		}
+		break;
+	}
+
+	case RKMODULE_GET_PDAF_WIN_CFG:
+	{
+		pdaf_cfg = (struct rkmodule_pdaf_win_cfg_t *)arg;
+		struct i2c_client *client = imx582->client;
+		u32 val = 0;
+		u32 j;
+
+		/* Read current window mode */
+		ret = imx582_read_reg(client, IMX582_REG_AREA_MODE,
+			IMX582_REG_VALUE_08BIT, &val);
+		if (ret) {
+			dev_err(&client->dev, "Failed to read PDAF window mode\n");
+			break;
+		}
+
+		pdaf_cfg->win_mode = val & IMX582_AREA_MODE_MASK;
+		switch (pdaf_cfg->win_mode) {
+		case FIXED_GRID_WIN_16_12:
+		case FIXED_GRID_WIN_8_6:
+			/* Read fixed window parameters */
+			ret = imx582_read_reg(client, IMX582_REG_PD_AREA_X_OFFSET_H,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_x_offset = (val & IMX582_PD_COORD_MASK_H) << 8;
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_X_OFFSET_L,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_x_offset |= val;
+
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_H,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_y_offset = (val & IMX582_PD_COORD_MASK_H) << 8;
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_Y_OFFSET_L,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_y_offset |= val;
+
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_WIDTH_H,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_width = (val & IMX582_PD_COORD_MASK_H) << 8;
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_WIDTH_L,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_width |= val;
+
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_HEIGHT_H,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_height = (val & IMX582_PD_COORD_MASK_H) << 8;
+			ret |= imx582_read_reg(client, IMX582_REG_PD_AREA_HEIGHT_L,
+				IMX582_REG_VALUE_08BIT, &val);
+			pdaf_cfg->fixed_win.area_height |= val;
+
+			dev_info(&client->dev, "Get fixed grid: mode=%d, x_off=%d, y_off=%d, w=%d, h=%d\n",
+				pdaf_cfg->win_mode,
+				pdaf_cfg->fixed_win.area_x_offset,
+				pdaf_cfg->fixed_win.area_y_offset,
+				pdaf_cfg->fixed_win.area_width,
+				pdaf_cfg->fixed_win.area_height);
+			break;
+		case IMX582_AREA_MODE_FLEXIBLE:
+			/* Read flexible window parameters */
+			pdaf_cfg->float_win.win_num = 0;
+			for (j = 0; j < IMX582_MAX_FLEXIBLE_WINDOWS; j++) {
+				/* Check if window is enabled */
+				ret |= imx582_read_reg(client, IMX582_REG_AREA_EN_0 + j,
+					IMX582_REG_VALUE_08BIT, &val);
+				if (!(val & IMX582_AREA_EN_MASK))
+					continue;
+
+				u16 base_addr = IMX582_REG_PD_AREA_FLEX_BASE + j *
+						IMX582_REG_PD_AREA_FLEX_STRIDE;
+
+				/* Read window start X coordinate */
+				ret |= imx582_read_reg(client, base_addr,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].x_sta = (val & IMX582_PD_COORD_MASK_H) << 8;
+				ret |= imx582_read_reg(client, base_addr + 1,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].x_sta |= val;
+
+				/* Read window start Y coordinate */
+				ret |= imx582_read_reg(client, base_addr + 2,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].y_sta = (val & IMX582_PD_COORD_MASK_H) << 8;
+				ret |= imx582_read_reg(client, base_addr + 3,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].y_sta |= val;
+
+				/* Read window end X coordinate */
+				ret |= imx582_read_reg(client, base_addr + 4,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].x_end = (val & IMX582_PD_COORD_MASK_H) << 8;
+				ret |= imx582_read_reg(client, base_addr + 5,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].x_end |= val;
+
+				/* Read window end Y coordinate */
+				ret |= imx582_read_reg(client, base_addr + 6,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].y_end = (val & IMX582_PD_COORD_MASK_H) << 8;
+				ret |= imx582_read_reg(client, base_addr + 7,
+					IMX582_REG_VALUE_08BIT, &val);
+				pdaf_cfg->float_win.win[j].y_end |= val;
+
+				pdaf_cfg->float_win.win_num++;
+
+				dev_info(&client->dev, "Get flexible window[%d]: x_sta=%d, y_sta=%d, x_end=%d, y_end=%d\n",
+					j, pdaf_cfg->float_win.win[j].x_sta,
+					pdaf_cfg->float_win.win[j].y_sta,
+					pdaf_cfg->float_win.win[j].x_end,
+					pdaf_cfg->float_win.win[j].y_end);
+			}
+
+			dev_info(&client->dev, "Get flexible window mode with %d windows\n",
+				pdaf_cfg->float_win.win_num);
+			break;
+		}
+		break;
+	}
+
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -978,6 +1805,7 @@ static long imx582_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_channel_info *ch_info;
 	long ret;
 	u32 stream = 0;
+	struct rkmodule_pdaf_win_cfg_t *pdaf_cfg;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1071,6 +1899,33 @@ static long imx582_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(ch_info);
 		break;
+	case RKMODULE_GET_PDAF_WIN_CFG:
+		pdaf_cfg = kzalloc(sizeof(*pdaf_cfg), GFP_KERNEL);
+		if (!pdaf_cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = imx582_ioctl(sd, cmd, pdaf_cfg);
+		if (!ret) {
+			ret = copy_to_user(up, pdaf_cfg, sizeof(*pdaf_cfg));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(pdaf_cfg);
+		break;
+	case RKMODULE_SET_PDAF_WIN_CFG:
+		pdaf_cfg = kzalloc(sizeof(*pdaf_cfg), GFP_KERNEL);
+		if (!pdaf_cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = copy_from_user(pdaf_cfg, up, sizeof(*pdaf_cfg));
+		if (!ret)
+			ret = imx582_ioctl(sd, cmd, pdaf_cfg);
+		else
+			ret = -EFAULT;
+		kfree(pdaf_cfg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1079,27 +1934,6 @@ static long imx582_compat_ioctl32(struct v4l2_subdev *sd,
 	return ret;
 }
 #endif
-
-static int imx582_set_flip(struct imx582 *imx582)
-{
-	int ret = 0;
-	u32 val = 0;
-
-	ret = imx582_read_reg(imx582->client, IMX582_FLIP_MIRROR_REG,
-			      IMX582_REG_VALUE_08BIT, &val);
-	if (imx582->flip & IMX582_MIRROR_BIT_MASK)
-		val |= IMX582_MIRROR_BIT_MASK;
-	else
-		val &= ~IMX582_MIRROR_BIT_MASK;
-	if (imx582->flip & IMX582_FLIP_BIT_MASK)
-		val |= IMX582_FLIP_BIT_MASK;
-	else
-		val &= ~IMX582_FLIP_BIT_MASK;
-	ret |= imx582_write_reg(imx582->client, IMX582_FLIP_MIRROR_REG,
-				IMX582_REG_VALUE_08BIT, val);
-
-	return ret;
-}
 
 static int __imx582_start_stream(struct imx582 *imx582)
 {
@@ -1112,6 +1946,7 @@ static int __imx582_start_stream(struct imx582 *imx582)
 	ret = imx582_write_array(imx582->client, imx582->cur_mode->reg_list);
 	if (ret)
 		return ret;
+
 	imx582->cur_vts = imx582->cur_mode->vts_def;
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&imx582->ctrl_handler);
@@ -1126,8 +1961,6 @@ static int __imx582_start_stream(struct imx582 *imx582)
 			return ret;
 		}
 	}
-
-	imx582_set_flip(imx582);
 
 	return imx582_write_reg(imx582->client, IMX582_REG_CTRL_MODE,
 				IMX582_REG_VALUE_08BIT, IMX582_MODE_STREAMING);
@@ -1338,6 +2171,26 @@ static int imx582_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
+#define DST_WIDTH_3840 3840
+#define DST_HEIGHT_2160 2160
+
+static int imx582_get_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct imx582 *imx582 = to_imx582(sd);
+
+	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sel->r.left = CROP_START(imx582->cur_mode->width, DST_WIDTH_3840);
+		sel->r.width = DST_WIDTH_3840;
+		sel->r.top = CROP_START(imx582->cur_mode->height, DST_HEIGHT_2160);
+		sel->r.height = DST_HEIGHT_2160;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static const struct dev_pm_ops imx582_pm_ops = {
 	SET_RUNTIME_PM_OPS(imx582_runtime_suspend,
 			   imx582_runtime_resume, NULL)
@@ -1368,6 +2221,7 @@ static const struct v4l2_subdev_pad_ops imx582_pad_ops = {
 	.enum_frame_interval = imx582_enum_frame_interval,
 	.get_fmt = imx582_get_fmt,
 	.set_fmt = imx582_set_fmt,
+	.get_selection = imx582_get_selection,
 	.get_mbus_config = imx582_g_mbus_config,
 };
 
@@ -1384,7 +2238,6 @@ static int imx582_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = imx582->client;
 	s64 max;
 	int ret = 0;
-	u32 again = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1416,23 +2269,12 @@ static int imx582_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		/* gain_reg = 1024 - 1024 / gain_ana
-		 * manual multiple 16 to add accuracy:
-		 * then formula change to:
-		 * gain_reg = 1024 - 1024 * 16 / (gain_ana * 16)
-		 */
-		if (ctrl->val > 0x400)
-			ctrl->val = 0x400;
-		if (ctrl->val < 0x10)
-			ctrl->val = 0x10;
-
-		again = 1024 - 1024 * 16 / ctrl->val;
 		ret = imx582_write_reg(imx582->client, IMX582_REG_GAIN_H,
 				       IMX582_REG_VALUE_08BIT,
-				       IMX582_FETCH_AGAIN_H(again));
+				       IMX582_FETCH_AGAIN_H(ctrl->val));
 		ret |= imx582_write_reg(imx582->client, IMX582_REG_GAIN_L,
 					IMX582_REG_VALUE_08BIT,
-					IMX582_FETCH_AGAIN_L(again));
+					IMX582_FETCH_AGAIN_L(ctrl->val));
 
 		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
@@ -1509,8 +2351,9 @@ static int imx582_initialize_controls(struct imx582 *imx582)
 				ARRAY_SIZE(link_freq_items) - 1, 0,
 				link_freq_items);
 
-	imx582->cur_link_freq = 0;
-	imx582->cur_pixel_rate = PIXEL_RATE_WITH_2196M_10BIT;
+	imx582->cur_link_freq = imx582->cur_mode->mipi_freq_idx;
+	imx582->cur_pixel_rate = link_freq_items[imx582->cur_link_freq] /
+				 10 * 2 * 4;
 
 	imx582->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 					       V4L2_CID_PIXEL_RATE,
@@ -1645,6 +2488,31 @@ static int imx582_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	ret = of_property_read_u32(node,
+				   "rockchip,spd-id",
+				   &imx582->spd_id);
+	if (ret != 0) {
+		imx582->spd_id = PAD_MAX;
+		dev_err(dev,
+			"failed get spd_id, will not to use spd\n");
+	} else if (imx582->spd_id >= PAD_MAX) {
+		dev_err(dev, "invalid spd_id %d, must be < %d\n",
+			imx582->spd_id, PAD_MAX);
+		imx582->spd_id = PAD_MAX;
+	}
+	ret = of_property_read_u32(node,
+				   "rockchip,ebd-id",
+				   &imx582->ebd_id);
+	if (ret != 0) {
+		imx582->ebd_id = PAD_MAX;
+		dev_err(dev,
+			"failed get ebd_id, will not to use ebd\n");
+	} else if (imx582->ebd_id >= PAD_MAX) {
+		dev_err(dev, "invalid ebd_id %d, must be < %d\n",
+			imx582->ebd_id, PAD_MAX);
+		imx582->ebd_id = PAD_MAX;
+	}
+
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	if (ret) {
 		hdr_mode = NO_HDR;
@@ -1676,15 +2544,6 @@ static int imx582_probe(struct i2c_client *client,
 	imx582->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(imx582->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
-
-	ret = of_property_read_u32(node,
-				   "rockchip,spd-id",
-				   &imx582->spd_id);
-	if (ret != 0) {
-		imx582->spd_id = PAD_MAX;
-		dev_err(dev,
-			"failed get spd_id, will not to use spd\n");
-	}
 
 	ret = imx582_configure_regulators(imx582);
 	if (ret) {
