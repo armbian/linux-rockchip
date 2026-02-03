@@ -29,6 +29,10 @@
 #include <linux/sed-opal.h>
 #include <linux/pci-p2pdma.h>
 
+#ifdef CONFIG_NVME_HW_RESET
+#include <linux/aspm_ext.h>
+#endif
+
 #include "trace.h"
 #include "nvme.h"
 
@@ -133,6 +137,10 @@ struct nvme_dev {
 	u32 db_stride;
 	void __iomem *bar;
 	unsigned long bar_mapped_size;
+#ifdef CONFIG_NVME_HW_RESET
+	struct pci_saved_state *nvme_state;
+	struct pci_saved_state *rp_state;
+#endif
 	struct mutex shutdown_lock;
 	bool subsystem;
 	u64 cmb_size;
@@ -1410,6 +1418,41 @@ static void nvme_warn_reset(struct nvme_dev *dev, u32 csts)
 		 "Try \"nvme_core.default_ps_max_latency_us=0 pcie_aspm=off pcie_port_pm=off\" and report a bug\n");
 }
 
+#ifdef CONFIG_NVME_HW_RESET
+static struct pci_dev *nvme_dev_to_rp(struct nvme_dev *dev)
+{
+	struct pci_dev *rp = to_pci_dev(dev->dev);
+
+	/* Walk bus to get root port */
+	while (rp->bus->parent) {
+		rp = rp->bus->self;
+		if (!rp)
+			break;
+	}
+
+	return rp;
+}
+
+static void nvme_hw_reset(struct nvme_dev *dev)
+{
+	struct pci_dev *rp = nvme_dev_to_rp(dev);
+	int err;
+
+	rockchip_dw_pcie_pm_ctrl_for_user(rp, ROCKCHIP_PCIE_PM_CTRL_RESET);
+	err = pci_load_saved_state(rp, dev->rp_state);
+	if (!err)
+		pci_restore_state(rp);
+	else
+		dev_warn(dev->dev, "failed to load root port state %d\n", err);
+
+	err = pci_load_saved_state(to_pci_dev(dev->dev), dev->nvme_state);
+	if (!err)
+		pci_restore_state(to_pci_dev(dev->dev));
+	else
+		dev_warn(dev->dev, "failed to load nvme state %d\n", err);
+}
+#endif
+
 static enum blk_eh_timer_return nvme_timeout(struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
@@ -1445,6 +1488,9 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 * Reset immediately if the controller is failed
 	 */
 	if (nvme_should_reset(dev, csts)) {
+#ifdef CONFIG_NVME_HW_RESET
+		nvme_hw_reset(dev);
+#endif
 		nvme_warn_reset(dev, csts);
 		goto disable;
 	}
@@ -1929,6 +1975,13 @@ static int nvme_pci_configure_admin_queue(struct nvme_dev *dev)
 	lo_hi_writeq(nvmeq->cq_dma_addr, dev->bar + NVME_REG_ACQ);
 
 	result = nvme_enable_ctrl(&dev->ctrl);
+#ifdef CONFIG_NVME_HW_RESET
+	if (result) {
+		nvme_hw_reset(dev);
+		/* Try again */
+		result = nvme_enable_ctrl(&dev->ctrl);
+	}
+#endif
 	if (result)
 		return result;
 
@@ -3317,6 +3370,17 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	nvme_start_ctrl(&dev->ctrl);
 	nvme_put_ctrl(&dev->ctrl);
+#ifdef CONFIG_NVME_HW_RESET
+	result = pci_save_state(pdev);
+	if (result)
+		goto out_disable;
+	dev->nvme_state = pci_store_saved_state(pdev);
+
+	result = pci_save_state(nvme_dev_to_rp(dev));
+	if (result)
+		goto out_disable;
+	dev->rp_state = pci_store_saved_state(nvme_dev_to_rp(dev));
+#endif
 	flush_work(&dev->ctrl.scan_work);
 	return 0;
 

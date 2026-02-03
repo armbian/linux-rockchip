@@ -14,6 +14,15 @@ config BLK_DEV_NVME
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvme.
 
+config NVME_HW_RESET
+	bool "NVMe hardware reset support"
+	depends on BLK_DEV_NVME && NO_GKI
+	help
+	  This provides the hardware reset for NVMe device if fatal errors
+	  occurred during transfer. Most cases there is no way to bring the
+	  device back but to hardware reset it. So if you know you have a
+	  strong desire to keep NVMe work under any circumstances, just say Y.
+
 config NVME_MULTIPATH
 	bool "NVMe multipath support"
 	depends on NVME_CORE
