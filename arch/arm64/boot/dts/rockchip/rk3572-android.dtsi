@@ -46,6 +46,18 @@
 		compatible = "rockchip,drm-cubic-lut";
 		reg = <0x0 0x0 0x0 0x0>;
 	};
+
+	ramoops: ramoops@40110000 {
+		compatible = "ramoops";
+		/* 0x40110000 to 0x401f0000 is for ramoops */
+		reg = <0x0 0x40110000 0x0 0xe0000>;
+		boot-log-size = <0x8000>;	/* do not change */
+		boot-log-count = <0x1>;		/* do not change */
+		console-size = <0x80000>;
+		pmsg-size = <0x30000>;
+		ftrace-size = <0x00000>;
+		record-size = <0x14000>;
+	};
 };
 
 &rng {
