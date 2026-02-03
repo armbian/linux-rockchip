@@ -968,13 +968,27 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	rockchip_pwm_config(chip, pwm, state);
+
+	/*
+	 * For the oneshot mode, if the PWM is enabled first and then the pinctrl
+	 * is configured, it will result in the loss of the first few waveforms.
+	 * However, for the continuous output mode, this operation can avoid the
+	 * intermediate state problems caused by the initial configuration of
+	 * pinctrl, such as abnormal operation of the regulator, etc.
+	 */
+	if (pc->oneshot_valid && state->enabled) {
+		ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+		if (ret)
+			goto out;
+	}
+
 	if (state->enabled != enabled) {
 		ret = rockchip_pwm_enable(chip, pwm, state->enabled);
 		if (ret)
 			goto out;
 	}
 
-	if (state->enabled)
+	if (!pc->oneshot_valid && state->enabled)
 		ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 out:
 	if (!pc->oneshot_en)
