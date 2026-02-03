@@ -478,8 +478,48 @@ static struct rk_dma_chan *to_rk_chan(struct dma_chan *chan)
 	return container_of(chan, struct rk_dma_chan, vc.chan);
 }
 
+#ifdef RKDMA_DEBUG
+static void rk_dma_lch_dump_reg(struct rk_dma_lch *l, struct rk_dma_dev *d)
+{
+	dev_dbg(d->slave.dev, "LCH%u: CTL0: 0x%08x, CTL1: 0x%08x, TRF_CMD: 0x%08x\n",
+		l->id, readl(RK_DMA_LCH_CTL0), readl(RK_DMA_LCH_CTL1), readl(RK_DMA_LCH_TRF_CMD));
+	dev_dbg(d->slave.dev, "LCH%u: CMDBA: 0x%08x%08x\n",
+		l->id, readl(RK_DMA_LCH_CMDBA_HIGH), readl(RK_DMA_LCH_CMDBA));
+	dev_dbg(d->slave.dev, "LCH%u: IS: 0x%08x, IE: 0x%08x, DBGS0: 0x%08x\n",
+		l->id, readl(RK_DMA_LCH_IS), readl(RK_DMA_LCH_IE), readl(RK_DMA_LCH_DBGS0));
+}
+
+static void rk_dma_lch_dump_lli(struct rk_dma_lch *l, struct rk_dma_dev *d)
+{
+	struct rk_dma_desc_sw *ds = l->ds_run;
+	struct rk_lli *lli;
+	dma_addr_t lli_hw;
+	int i;
+
+	if (!ds)
+		return;
+
+	for (i = 0; i < ds->desc_num; i++) {
+		lli = ds->desc_hw[i].lli;
+		lli_hw = ds->desc_hw[i].lli_hw;
+
+		dev_dbg(d->slave.dev, "LCH%u-%u: LLI: %pad, NXT: 0x%08x%08x\n",
+			l->id, i, &lli_hw, lli->llp_nxt_high, lli->llp_nxt);
+		dev_dbg(d->slave.dev, "LCH%u-%u: CT0: 0x%08x, CT1: 0x%08x, CFG: 0x%08x\n",
+			l->id, i, lli->trf_ctl0, lli->trf_ctl1, lli->trf_cfg);
+		dev_dbg(d->slave.dev, "LCH%u-%u: SAR: 0x%08x%08x, DAR: 0x%08x%08x, LEN: 0x%08x\n",
+			l->id, i, lli->sar_high, lli->sar, lli->dar_high, lli->dar, lli->block_ts);
+	}
+}
+#else
+static inline void rk_dma_lch_dump_reg(struct rk_dma_lch *l, struct rk_dma_dev *d) {}
+static inline void rk_dma_lch_dump_lli(struct rk_dma_lch *l, struct rk_dma_dev *d) {}
+#endif
+
 static void rk_dma_terminate_chan(struct rk_dma_lch *l, struct rk_dma_dev *d)
 {
+	rk_dma_lch_dump_reg(l, d);
+
 	writel(LCH_CTL0_CH_DIS, RK_DMA_LCH_CTL0);
 	writel(0x0, RK_DMA_LCH_IE);
 	writel(readl(RK_DMA_LCH_IS), RK_DMA_LCH_IS);
@@ -567,7 +607,7 @@ static int rk_dma_init(struct rk_dma_dev *d)
 	return 0;
 }
 
-static int rk_dma_start_txd(struct rk_dma_chan *c)
+static int rk_dma_start_txd(struct rk_dma_chan *c, struct rk_dma_dev *d)
 {
 	struct virt_dma_desc *vd = vchan_next_desc(&c->vc);
 
@@ -588,6 +628,7 @@ static int rk_dma_start_txd(struct rk_dma_chan *c)
 		c->lch->ds_done = NULL;
 		/* start dma */
 		rk_dma_set_desc(c, ds);
+		rk_dma_lch_dump_lli(c->lch, d);
 		return 0;
 	}
 
@@ -609,7 +650,7 @@ static void rk_dma_task(struct rk_dma_dev *d)
 	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
 		spin_lock_irqsave(&c->vc.lock, flags);
 		l = c->lch;
-		if (l && l->ds_done && rk_dma_start_txd(c)) {
+		if (l && l->ds_done && rk_dma_start_txd(c, d)) {
 			dev_dbg(d->slave.dev, "lch-%u: free\n", l->id);
 			rk_dma_terminate_chan(l, d);
 			c->lch = NULL;
@@ -640,7 +681,7 @@ static void rk_dma_task(struct rk_dma_dev *d)
 			c = l->vchan;
 			if (c) {
 				spin_lock_irqsave(&c->vc.lock, flags);
-				rk_dma_start_txd(c);
+				rk_dma_start_txd(c, d);
 				spin_unlock_irqrestore(&c->vc.lock, flags);
 			}
 		}
