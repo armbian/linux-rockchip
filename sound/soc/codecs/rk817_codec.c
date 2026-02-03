@@ -76,6 +76,7 @@ struct rk817_codec_priv {
 	unsigned int capture_volume;
 
 	bool mic_in_differential;
+	bool mic_swap_non_differential;
 	bool pdmdata_out_enable;
 	bool use_ext_amplifier;
 	bool adc_for_loopback;
@@ -868,17 +869,31 @@ static int rk817_capture_path_config(struct snd_soc_component *component,
 			break;
 		}
 		if (!rk817->mic_in_differential) {
-			snd_soc_component_write(component,
-						RK817_CODEC_DADC_VOLR,
-						0xff);
-			snd_soc_component_update_bits(component,
-						      RK817_CODEC_AADC_CFG0,
-						      ADC_R_PWD_MASK,
-						      ADC_R_PWD_EN);
-			snd_soc_component_update_bits(component,
-						      RK817_CODEC_AMIC_CFG0,
-						      PWD_PGA_R_MASK,
-						      PWD_PGA_R_EN);
+			if (rk817->mic_swap_non_differential) {
+				snd_soc_component_write(component,
+							RK817_CODEC_DADC_VOLL,
+							0xff);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AADC_CFG0,
+							      ADC_L_PWD_MASK,
+							      ADC_L_PWD_EN);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AMIC_CFG0,
+							      PWD_PGA_L_MASK,
+							      PWD_PGA_L_EN);
+			} else {
+				snd_soc_component_write(component,
+							RK817_CODEC_DADC_VOLR,
+							0xff);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AADC_CFG0,
+							      ADC_R_PWD_MASK,
+							      ADC_R_PWD_EN);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AMIC_CFG0,
+							      PWD_PGA_R_MASK,
+							      PWD_PGA_R_EN);
+			}
 		}
 		break;
 	case HANDS_FREE_MIC:
@@ -903,17 +918,31 @@ static int rk817_capture_path_config(struct snd_soc_component *component,
 			break;
 		}
 		if (!rk817->mic_in_differential) {
-			snd_soc_component_write(component,
-						RK817_CODEC_DADC_VOLL,
-						0xff);
-			snd_soc_component_update_bits(component,
-						      RK817_CODEC_AADC_CFG0,
-						      ADC_L_PWD_MASK,
-						      ADC_L_PWD_EN);
-			snd_soc_component_update_bits(component,
-						      RK817_CODEC_AMIC_CFG0,
-						      PWD_PGA_L_MASK,
-						      PWD_PGA_L_EN);
+			if (rk817->mic_swap_non_differential) {
+				snd_soc_component_write(component,
+							RK817_CODEC_DADC_VOLR,
+							0xff);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AADC_CFG0,
+							      ADC_R_PWD_MASK,
+							      ADC_R_PWD_EN);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AMIC_CFG0,
+							      PWD_PGA_R_MASK,
+							      PWD_PGA_R_EN);
+			} else {
+				snd_soc_component_write(component,
+							RK817_CODEC_DADC_VOLL,
+							0xff);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AADC_CFG0,
+							      ADC_L_PWD_MASK,
+							      ADC_L_PWD_EN);
+				snd_soc_component_update_bits(component,
+							      RK817_CODEC_AMIC_CFG0,
+							      PWD_PGA_L_MASK,
+							      PWD_PGA_L_EN);
+			}
 		}
 		break;
 	case BT_SCO_MIC:
@@ -1514,6 +1543,9 @@ static int rk817_codec_parse_dt_property(struct device *dev,
 
 	rk817->mic_in_differential =
 			of_property_read_bool(node, "mic-in-differential");
+
+	rk817->mic_swap_non_differential =
+			of_property_read_bool(node, "mic-swap-non-differential");
 
 	rk817->pdmdata_out_enable =
 			of_property_read_bool(node, "pdmdata-out-enable");

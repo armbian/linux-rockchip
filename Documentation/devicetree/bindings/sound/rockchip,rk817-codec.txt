@@ -30,6 +30,8 @@ Required properties:
   *
 - mic-in-differential:
   Boolean. Indicate MIC input are differential, rather than single-ended.
+- mic-swap-non-differential:
+  Boolean. Indicate whether a swap between MIC1 and MIC2 is required when using single-ended input.
 - pdmdata-out-enable:
   Boolean. Indicate pdmdata output is enable or disable.
 - use-ext-amplifier:
