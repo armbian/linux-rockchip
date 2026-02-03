@@ -1636,6 +1636,7 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 	.post_urgency_thh = VOP_REG(RK3568_VP0_COLOR_BAR_CTRL, 0xf, 20),
 
 	.calc_dclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x7fff, 0),
+	.calc_aclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x1, 15),
 
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
@@ -2144,6 +2145,7 @@ static const struct vop2_video_port_regs rk3572_vop_vp0_regs = {
 	.post_urgency_thh = VOP_REG(RK3568_VP0_COLOR_BAR_CTRL, 0xf, 20),
 
 	.calc_dclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x7fff, 0),
+	.calc_aclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x1, 15),
 
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
@@ -2240,6 +2242,7 @@ static const struct vop2_video_port_regs rk3572_vop_vp1_regs = {
 	.post_urgency_thh = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0xf, 20),
 
 	.calc_dclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x7fff, 0),
+	.calc_aclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x1, 15),
 
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),

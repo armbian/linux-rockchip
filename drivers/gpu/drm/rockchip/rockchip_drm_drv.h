@@ -733,6 +733,7 @@ struct rockchip_crtc_funcs {
 	void (*crtc_output_post_enable)(struct drm_crtc *crtc, int intf);
 	void (*crtc_output_pre_disable)(struct drm_crtc *crtc, int intf);
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
+	unsigned long (*crtc_get_aclk_rate)(struct drm_crtc *crtc);
 	unsigned long (*crtc_get_dclk_rate)(struct drm_crtc *crtc);
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode, struct dmcfreq_vop_info *vop_bw_info);
 	int (*get_crc)(struct drm_crtc *crtc);

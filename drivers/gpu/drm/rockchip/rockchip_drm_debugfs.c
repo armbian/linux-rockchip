@@ -362,6 +362,52 @@ int rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *ro
 	return 0;
 }
 
+static int rockchip_drm_debugfs_aclk_rate_show(struct seq_file *s, void *data)
+{
+	struct drm_crtc *crtc = s->private;
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	unsigned long rate;
+
+	if (!priv->crtc_funcs[pipe]->crtc_get_aclk_rate) {
+		seq_puts(s, "Not support aet rate\n");
+		return 0;
+	}
+
+	rate = priv->crtc_funcs[pipe]->crtc_get_aclk_rate(crtc);
+
+	seq_printf(s, "%lu\n", rate);
+
+	return 0;
+}
+
+static int rockchip_drm_debugfs_aclk_rate_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, rockchip_drm_debugfs_aclk_rate_show, crtc);
+}
+
+static const struct file_operations rockchip_drm_debugfs_aclk_rate_ops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_drm_debugfs_aclk_rate_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+int rockchip_drm_debugfs_add_aclk_rate(struct drm_crtc *crtc, struct dentry *root)
+{
+	struct dentry *ent;
+
+	ent = debugfs_create_file("calculated_aclk_rate", 0644, root, crtc,
+				  &rockchip_drm_debugfs_aclk_rate_ops);
+	if (!ent)
+		DRM_ERROR("Failed to add aclk_rate for debugfs\n");
+
+	return 0;
+}
+
 static int rockchip_drm_debugfs_dclk_rate_show(struct seq_file *s, void *data)
 {
 	struct drm_crtc *crtc = s->private;
