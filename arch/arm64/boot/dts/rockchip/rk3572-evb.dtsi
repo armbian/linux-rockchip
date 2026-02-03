@@ -713,6 +713,11 @@
 	status = "okay";
 };
 
+&route_dsi {
+	status = "okay";
+	connect = <&vp1_out_dsi>;
+};
+
 &sai4 {
 	status = "okay";
 	/delete-property/ pinctrl-names;
