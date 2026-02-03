@@ -325,7 +325,7 @@
 
 		i2c8_max96789_pinctrl: i2c8-max96789-pinctrl {
 			compatible = "maxim,max96789-pinctrl";
-			pinctrl-names = "default","sleep";
+			pinctrl-names = "init","sleep";
 			pinctrl-0 = <&i2c8_max96789_pinctrl_pins>;
 			pinctrl-1 = <&i2c8_max96789_pinctrl_pins>;
 			status = "okay";
@@ -414,10 +414,9 @@
 
 		i2c8_max96752_pinctrl: i2c8-max96752-pinctrl {
 			compatible = "maxim,max96752-pinctrl";
-			pinctrl-names = "default","init","sleep";
+			pinctrl-names = "init","sleep";
 			pinctrl-0 = <&i2c8_max96752_panel_pins>;
-			pinctrl-1 = <&i2c8_max96752_panel_pins>;
-			pinctrl-2 = <&i2c8_max96752_panel_sleep_pins>;
+			pinctrl-1 = <&i2c8_max96752_panel_sleep_pins>;
 			status = "okay";
 
 			i2c8_max96752_panel_pins: panel-pins {
@@ -859,8 +858,9 @@
 
 		i2c5_max96745_pinctrl: i2c5-max96745-pinctrl {
 			compatible = "maxim,max96745-pinctrl";
-			pinctrl-names = "default";
+			pinctrl-names = "init","sleep";
 			pinctrl-0 = <&i2c5_max96745_pinctrl_pins>;
+			pinctrl-1 = <&i2c5_max96745_pinctrl_pins>;
 			status = "okay";
 
 			i2c5_max96745_pinctrl_pins: pinctrl-pins {
@@ -948,10 +948,9 @@
 			compatible = "maxim,max96752-pinctrl";
 			status = "okay";
 
-			pinctrl-names = "default","init","sleep";
+			pinctrl-names = "init","sleep";
 			pinctrl-0 = <&i2c5_max96752_panel_pins>;
-			pinctrl-1 = <&i2c5_max96752_panel_pins>;
-			pinctrl-2 = <&i2c5_max96752_panel_sleep_pins>;
+			pinctrl-1 = <&i2c5_max96752_panel_sleep_pins>;
 
 			i2c5_max96752_panel_pins: panel-pins {
 				lcd-rst-pin {
@@ -1381,11 +1380,12 @@
 
 		i2c3_max96745_pinctrl: i2c3-max96745-pinctrl {
 			compatible = "maxim,max96745-pinctrl";
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c45_max96745_pinctrl_pins>;
+			pinctrl-names = "init","sleep";
+			pinctrl-0 = <&i2c3_max96745_pinctrl_pins>;
+			pinctrl-1 = <&i2c3_max96745_pinctrl_pins>;
 			status = "okay";
 
-			i2c45_max96745_pinctrl_pins: pinctrl-pins {
+			i2c3_max96745_pinctrl_pins: pinctrl-pins {
 				i2c {
 					groups = "MAX96745_I2C";
 					function = "MAX96745_I2C";
@@ -1474,10 +1474,9 @@
 			compatible = "maxim,max96752-pinctrl";
 			status = "okay";
 
-			pinctrl-names = "default","init","sleep";
+			pinctrl-names = "init","sleep";
 			pinctrl-0 = <&i2c3_max96752_panel_pins>;
-			pinctrl-1 = <&i2c3_max96752_panel_pins>;
-			pinctrl-2 = <&i2c3_max96752_panel_sleep_pins>;
+			pinctrl-1 = <&i2c3_max96752_panel_sleep_pins>;
 
 			i2c3_max96752_panel_pins: panel-pins {
 				lcd-rst-pin {

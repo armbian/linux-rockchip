@@ -99,67 +99,64 @@
 		};
 	};
 
-	lcd1_vcc12v_buck: lcd1_vcc12v-buck {
+	lcd1_vcc12v_buck: lcd1-vcc12v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd1_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD1_12V_EN GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dcin>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <12000000>;
 		};
 	};
 
-	lcd2_vcc12v_buck: lcd2_vcc12v-buck {
+	lcd2_vcc12v_buck: lcd2-vcc12v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd2_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD2_12V_EN GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dcin>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <12000000>;
 		};
 	};
 
-	lcd1_ser_vcc5v_buck: lcd1_ser_vcc5v-buck {
+	lcd1_vcc5v_buck: lcd1-vcc5v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "lcd1_ser_vcc5v_buck";
+		regulator-name = "lcd1_vcc5v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD1_SER_EN GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_buck>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <5000000>;
 		};
 	};
 
-	lcd2_ser_vcc5v_buck: lcd2_ser_vcc5v-buck {
+	lcd2_vcc5v_buck: lcd2-vcc5v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "lcd2_ser_vcc5v_buck";
+		regulator-name = "lcd2_vcc5v_buck";
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD2_SER_EN GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_buck>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <5000000>;
 		};
 	};
 
@@ -180,35 +177,33 @@
 		};
 	};
 
-	lcd3_vcc12v_buck: lcd3_vcc12v-buck {
+	lcd3_vcc12v_buck: lcd3-vcc12v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd3_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD3_12V_EN GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dcin>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <12000000>;
 		};
 	};
 
-	lcd3_vcc5v_buck: lcd3_vcc5v-buck {
+	lcd3_vcc5v_buck: lcd3-vcc5v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd3_vcc5v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&gpio_mcu_rockchip MCU_LCD3_SER_EN GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc12v_dcin>;
+		vin-supply = <&vcc5v0_buck>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <12000000>;
 		};
 	};
 
@@ -440,6 +435,10 @@
 };
 
 /*edp*/
+&i2c3_max96745 {
+	vpower-supply = <&lcd1_vcc5v_buck>;
+};
+
 &i2c3_max96752 {
 	use-reg-check-work;
 	vpower-supply = <&lcd1_vcc12v_buck>;
@@ -453,6 +452,7 @@
 /*dp*/
 &i2c5_max96745 {
 	lock-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	vpower-supply = <&lcd2_vcc5v_buck>;
 };
 
 &i2c5_ilitek {
@@ -468,6 +468,7 @@
 
 &i2c8_max96789 {
 	route-enable;
+	vpower-supply = <&lcd3_vcc5v_buck>;
 };
 
 /*dsi*/
