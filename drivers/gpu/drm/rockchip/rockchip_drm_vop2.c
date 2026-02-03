@@ -10239,6 +10239,7 @@ static int vop2_crtc_late_register(struct drm_crtc *crtc)
 {
 	struct drm_minor *minor = crtc->dev->primary;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	const struct vop2_video_port_data *vp_data = NULL;
 	struct vop2 *vop2 = vp->vop2;
 	int ret, i;
 	char name[12];
@@ -10258,8 +10259,13 @@ static int vop2_crtc_late_register(struct drm_crtc *crtc)
 	rockchip_drm_add_dump_buffer(crtc, vp->debugfs);
 	rockchip_drm_debugfs_add_color_bar(crtc, vp->debugfs);
 	rockchip_drm_debugfs_add_regs_write(crtc, vp->debugfs);
-	rockchip_drm_debugfs_add_dclk_rate(crtc, vp->debugfs);
-	rockchip_drm_debugfs_add_dovi_mode(crtc, vp->debugfs);
+	if (vp->regs->calc_aclk_cnt.mask)
+		rockchip_drm_debugfs_add_aclk_rate(crtc, vp->debugfs);
+	if (vp->regs->calc_dclk_cnt.mask)
+		rockchip_drm_debugfs_add_dclk_rate(crtc, vp->debugfs);
+	vp_data = &vop2->data->vp[vp->id];
+	if (vp_data->feature & VOP_FEATURE_DOVI)
+		rockchip_drm_debugfs_add_dovi_mode(crtc, vp->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vp->debugfs_files[i].data = vop2;
@@ -10671,6 +10677,30 @@ static void vop2_iommu_fault_handler(struct drm_crtc *crtc, struct iommu_domain 
 }
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+static unsigned long vop2_crtc_get_aclk_rate(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	unsigned long rate, count;
+
+	/* not support */
+	if (!vp->regs->calc_aclk_cnt.mask)
+		return 0;
+
+	VOP_MODULE_SET(vop2, vp, calc_clk_en, 1);
+
+	usleep_range(500, 1000);
+	count = VOP_MODULE_GET(vop2, vp, calc_aclk_cnt);
+	rate = clk_get_rate(vop2->hclk);
+
+	/* calc_aclk_cnt is the count number when hclk counts to 5000 */
+	rate = rate / 5000 * count;
+
+	VOP_MODULE_SET(vop2, vp, calc_clk_en, 0);
+
+	return rate;
+}
+
 static unsigned long vop2_crtc_get_dclk_rate(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -10717,6 +10747,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.get_crc = vop2_crtc_get_crc,
 	.iommu_fault_handler = vop2_iommu_fault_handler,
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	.crtc_get_aclk_rate = vop2_crtc_get_aclk_rate,
 	.crtc_get_dclk_rate = vop2_crtc_get_dclk_rate,
 #endif
 };

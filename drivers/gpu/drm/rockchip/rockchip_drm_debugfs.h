@@ -37,6 +37,7 @@ rockchip_drm_crtc_dump_plane_buffer(struct drm_crtc *crtc)
 #endif
 int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root);
 int rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root);
+int rockchip_drm_debugfs_add_aclk_rate(struct drm_crtc *crtc, struct dentry *root);
 int rockchip_drm_debugfs_add_dclk_rate(struct drm_crtc *crtc, struct dentry *root);
 int rockchip_drm_debugfs_add_dovi_mode(struct drm_crtc *crtc, struct dentry *root);
 #else
@@ -60,6 +61,12 @@ rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root)
 
 static inline int
 rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root)
+{
+	return 0;
+}
+
+static inline int
+rockchip_drm_debugfs_add_aclk_rate(struct drm_crtc *crtc, struct dentry *root)
 {
 	return 0;
 }
