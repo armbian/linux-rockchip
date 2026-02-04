@@ -1136,13 +1136,13 @@ err_out:
 	return ret;
 }
 
-static int rk_ledc_remove(struct platform_device *pdev)
+static void rk_ledc_remove(struct platform_device *pdev)
 {
 	struct rk_ledc *ledc = platform_get_drvdata(pdev);
 	int ret;
 
 	if (!ledc)
-		return 0;
+		return;
 
 	misc_deregister(&ledc->miscdev);
 
@@ -1163,8 +1163,6 @@ static int rk_ledc_remove(struct platform_device *pdev)
 		dma_release_channel(ledc->dma_chan);
 		ledc->dma_chan = NULL;
 	}
-
-	return 0;
 }
 
 static struct platform_driver rk_ledc_driver = {
