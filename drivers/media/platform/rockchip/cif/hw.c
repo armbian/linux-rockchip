@@ -1910,6 +1910,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	notifier->priority = 1;
 	notifier->notifier_call = rkcif_reset_notifier;
 	rkcif_csi2_register_notifier(notifier);
+	memset(&cif_hw->dummy_buf, 0, sizeof(cif_hw->dummy_buf));
 
 	return 0;
 }

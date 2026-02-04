@@ -1872,7 +1872,7 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 			rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_UV,
 					     stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			if (dummy_buf->vaddr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_Y,
 						     dummy_buf->dma_addr);
 				rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_UV,
@@ -1894,7 +1894,7 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 			rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_UV,
 					     stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			if (dummy_buf->vaddr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_Y,
 						     dummy_buf->dma_addr);
 				rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_UV,
@@ -1915,9 +1915,9 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 				buffer = stream->next_buf;
 			}
 		} else {
-			if (dummy_buf->vaddr && stream->frame_phase == CIF_CSI_FRAME0_READY)
+			if (dummy_buf->is_allocated && stream->frame_phase == CIF_CSI_FRAME0_READY)
 				stream->curr_buf = NULL;
-			if (dummy_buf->vaddr && stream->frame_phase == CIF_CSI_FRAME1_READY)
+			if (dummy_buf->is_allocated && stream->frame_phase == CIF_CSI_FRAME1_READY)
 				stream->next_buf = NULL;
 			buffer = NULL;
 		}
@@ -1935,7 +1935,7 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 			rkcif_write_register(dev, frm_addr_uv,
 					     buffer->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			if (dummy_buf->vaddr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev, frm_addr_y,
 					     dummy_buf->dma_addr);
 				rkcif_write_register(dev, frm_addr_uv,
@@ -2584,7 +2584,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 			v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "%s %d, stream[%d] lack buf %d\n",
 				 __func__, __LINE__, buf_stream->id, buf_stream->lack_buf_cnt);
 		}
-		if (dev->hw_dev->dummy_buf.vaddr) {
+		if (dev->hw_dev->dummy_buf.is_allocated) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				active_buf = buf_stream->curr_buf_toisp;
 				buf_stream->curr_buf_toisp = NULL;
@@ -2639,7 +2639,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 				rkcif_rdbk_frame_end_toisp(stream, active_buf);
 			}
 		} else {
-			if (stream->cifdev->rdbk_debug && dev->hw_dev->dummy_buf.vaddr)
+			if (stream->cifdev->rdbk_debug && dev->hw_dev->dummy_buf.is_allocated)
 				v4l2_info(&stream->cifdev->v4l2_dev,
 					  "stream[%d] loss frame %d\n",
 					  stream->id,
@@ -2666,7 +2666,7 @@ out_get_buf:
 				  stream->id,
 				  stream->frame_idx - 1,
 				  frm_addr_y, (u32)buffer->dummy.dma_addr);
-	} else if (dev->hw_dev->dummy_buf.vaddr && priv &&
+	} else if (dev->hw_dev->dummy_buf.is_allocated && priv &&
 		   priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 		buff_addr_y = dev->hw_dev->dummy_buf.dma_addr;
 		if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
@@ -2944,7 +2944,7 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 						     stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		}
 	} else {
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			buff_addr_y = dummy_buf->dma_addr;
 			buff_addr_cbcr = dummy_buf->dma_addr;
 			if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
@@ -3000,7 +3000,7 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 			}
 		}
 
-		if (!stream->next_buf && dummy_buf->vaddr) {
+		if (!stream->next_buf && dummy_buf->is_allocated) {
 			buff_addr_y = dummy_buf->dma_addr;
 			buff_addr_cbcr = dummy_buf->dma_addr;
 			if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
@@ -3054,7 +3054,7 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 		for (ch_id = 0; ch_id < RKCIF_MAX_STREAM_DVP; ch_id++) {
 			if (dev->stream[ch_id].is_dvp_yuv_addr_init)
 				continue;
-			if (dummy_buf->dma_addr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm0_y_addr(ch_id),
 						     dummy_buf->dma_addr);
@@ -3166,7 +3166,7 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 	}
 	if (!list_empty(&buf_stream->buf_head)) {
 
-		if (!dummy_buf->vaddr &&
+		if (!dummy_buf->is_allocated &&
 		    stream->curr_buf == stream->next_buf &&
 		    rkcif_get_interlace_mode(stream) != RKCIF_INTERLACE_SOFT)
 			ret = -EINVAL;
@@ -3208,7 +3208,7 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 		}
 	} else {
 		buffer = NULL;
-		if (!(stream->cur_stream_mode & RKCIF_STREAM_MODE_TOISP) && dummy_buf->vaddr) {
+		if (!(stream->cur_stream_mode & RKCIF_STREAM_MODE_TOISP) && dummy_buf->is_allocated) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				stream->curr_buf  = NULL;
 			} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
@@ -3260,11 +3260,11 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 			if (dbufs)
 				rkcif_s_rx_buffer(stream, dbufs);
 		}
-	} else if (dummy_buf) {
+	} else if (dummy_buf->is_allocated) {
 		buff_addr_y = dummy_buf->dma_addr;
 		buff_addr_cbcr = dummy_buf->dma_addr;
 	}
-	if (buffer || dummy_buf) {
+	if (buffer || dummy_buf->is_allocated) {
 		if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT &&
 		    stream->frame_phase == CIF_CSI_FRAME1_READY) {
 			if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
@@ -3347,7 +3347,7 @@ static int rkcif_get_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (!list_empty(&stream->buf_head)) {
-		if (!dummy_buf->vaddr &&
+		if (!dummy_buf->is_allocated &&
 		    stream->curr_buf == stream->next_buf)
 			ret = -EINVAL;
 		if (stream->line_int_cnt % 2) {
@@ -3366,7 +3366,7 @@ static int rkcif_get_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 			stream->lack_buf_cnt--;
 	} else {
 		stream->is_buf_active = false;
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			if (stream->line_int_cnt % 2)
 				stream->curr_buf = NULL;
 			else
@@ -3449,7 +3449,7 @@ static int rkcif_update_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 				rkcif_write_register(dev, frm_addr_uv, buff_addr_cbcr);
 		}
 	} else {
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			buff_addr_y = dummy_buf->dma_addr;
 			buff_addr_cbcr = dummy_buf->dma_addr;
 			if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
@@ -3578,7 +3578,7 @@ static void rkcif_assign_dummy_buffer(struct rkcif_stream *stream)
 	/* for BT.656/BT.1120 multi channels function,
 	 * yuv addr of unused channel must be set
 	 */
-	if (mbus_cfg->type == V4L2_MBUS_BT656 && dummy_buf->vaddr) {
+	if (mbus_cfg->type == V4L2_MBUS_BT656 && dummy_buf->is_allocated) {
 		rkcif_write_register(dev,
 				     get_dvp_reg_index_of_frm0_y_addr(stream->id),
 				     dummy_buf->dma_addr);
@@ -3651,7 +3651,7 @@ static void rkcif_assign_new_buffer_init_rockit(struct rkcif_stream *stream,
 			rkcif_write_register(dev, frm0_addr_uv,
 					     stream->curr_buf_rockit->buff_addr[RKCIF_PLANE_CBCR]);
 	} else {
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			rkcif_write_register(dev, frm0_addr_y, dummy_buf->dma_addr);
 			if (stream->cif_fmt_out->fmt_type != CIF_FMT_TYPE_RAW)
 				rkcif_write_register(dev, frm0_addr_uv, dummy_buf->dma_addr);
@@ -3687,7 +3687,7 @@ static void rkcif_assign_new_buffer_init_rockit(struct rkcif_stream *stream,
 				rkcif_write_register(dev, frm1_addr_uv,
 						     stream->next_buf_rockit->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			if (dummy_buf->vaddr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev, frm1_addr_y, dummy_buf->dma_addr);
 				if (stream->cif_fmt_out->fmt_type != CIF_FMT_TYPE_RAW)
 					rkcif_write_register(dev, frm1_addr_uv, dummy_buf->dma_addr);
@@ -3718,7 +3718,7 @@ static void rkcif_assign_new_buffer_init_rockit(struct rkcif_stream *stream,
 		for (ch_id = 0; ch_id < RKCIF_MAX_STREAM_DVP; ch_id++) {
 			if (dev->stream[ch_id].is_dvp_yuv_addr_init)
 				continue;
-			if (dummy_buf->dma_addr) {
+			if (dummy_buf->is_allocated) {
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm0_y_addr(ch_id),
 						     dummy_buf->dma_addr);
@@ -3770,7 +3770,7 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (!list_empty(&stream->rockit_buf_head)) {
 
-		if (!dummy_buf->vaddr &&
+		if (!dummy_buf->is_allocated &&
 		    stream->curr_buf_rockit == stream->next_buf_rockit &&
 		    (rkcif_get_interlace_mode(stream) != RKCIF_INTERLACE_SOFT ||
 		     rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO))
@@ -3808,7 +3808,7 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 		}
 	} else {
 		buffer = NULL;
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				stream->curr_buf_rockit  = NULL;
 			} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
@@ -3857,7 +3857,7 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 						     buffer->buff_addr[RKCIF_PLANE_CBCR]);
 		}
 	} else {
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			rkcif_write_register(dev, frm_addr_y, dummy_buf->dma_addr);
 			if (stream->cif_fmt_out->fmt_type != CIF_FMT_TYPE_RAW)
 				rkcif_write_register(dev, frm_addr_uv, dummy_buf->dma_addr);
@@ -4320,7 +4320,7 @@ static void rkcif_write_buffer(struct rkcif_stream *stream, struct rkcif_buffer 
 			rkcif_write_register(dev, frm_addr_uv,
 				buffer->buff_addr[RKCIF_PLANE_CBCR] +
 				even_offset * (channel->virtual_width / 2));
-	} else if (dummy_buf->vaddr) {
+	} else if (dummy_buf->is_allocated) {
 		rkcif_write_register(dev, frm_addr_y, dummy_buf->dma_addr);
 		if (stream->cif_fmt_out->fmt_type != CIF_FMT_TYPE_RAW)
 			rkcif_write_register(dev, frm_addr_uv, dummy_buf->dma_addr);
@@ -4352,7 +4352,7 @@ static void rkcif_buf_init_interlace(struct rkcif_stream *stream, int channel_id
 		rkcif_write_buffer(stream, stream->curr_buf, CIF_CSI_FRAME0_READY, buf_offset);
 		rkcif_write_buffer(stream, stream->curr_buf, CIF_CSI_FRAME1_READY, buf_offset);
 	} else {
-		if (dummy_buf->vaddr) {
+		if (dummy_buf->is_allocated) {
 			rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME0_READY, 0);
 			rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME1_READY, 0);
 		} else {
@@ -6431,7 +6431,6 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 						 RKISP_VICAP_CMD_RX_BUFFER_FREE, &buf->dbufs);
 			rkcif_free_reserved_mem_buf(dev, buf);
 			memset(buf, 0, sizeof(*buf));
-			buf->dummy.is_free = true;
 		}
 
 		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
@@ -6476,7 +6475,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 	spin_lock_irqsave(&dev->buffree_lock, flags);
 	for (i = 0; i < buf_num; i++) {
 		buf = &stream->rx_buf[i];
-		if (buf->dummy.is_free)
+		if (!buf->dummy.is_allocated)
 			continue;
 		if (stream->is_m_online_fb_res && buf == stream->last_buf_toisp) {
 			/* todo, release left buf*/
@@ -6490,7 +6489,6 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		if (!dev->is_thunderboot) {
 			rkcif_free_buffer(dev, &buf->dummy);
 			memset(buf, 0, sizeof(*buf));
-			buf->dummy.is_free = true;
 		} else {
 			list_add_tail(&buf->list_free, &priv->buf_free_list);
 		}
@@ -6648,7 +6646,6 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		}
 		if (!is_match_pre)
 			list_add_tail(&buf->list, &stream->rx_buf_head);
-		dummy->is_free = false;
 		if (stream->is_compact)
 			buf->dbufs.is_uncompact = false;
 		else
@@ -6774,7 +6771,7 @@ static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 
-	if (dummy_buf->vaddr)
+	if (dummy_buf->is_allocated)
 		rkcif_free_buffer(dev, dummy_buf);
 	dummy_buf->dma_addr = 0;
 	dummy_buf->vaddr = NULL;
@@ -7205,7 +7202,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 				break;
 			}
 		}
-		if (can_reset && hw_dev->dummy_buf.vaddr)
+		if (can_reset && hw_dev->dummy_buf.is_allocated)
 			rkcif_destroy_dummy_buf(stream);
 		if (dev->chip_id >= CHIP_RK3588_CIF)
 			mutex_unlock(&hw_dev->dev_lock);
@@ -8900,7 +8897,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		mutex_lock(&hw_dev->dev_lock);
 	if (((dev->active_sensor && dev->active_sensor->mbus.type == V4L2_MBUS_BT656) ||
 	     dev->is_use_dummybuf) &&
-	    (!dev->hw_dev->dummy_buf.vaddr) &&
+	    (!dev->hw_dev->dummy_buf.is_allocated) &&
 	    mode == RKCIF_STREAM_MODE_CAPTURE) {
 		ret = rkcif_create_dummy_buf(stream);
 		if (ret < 0) {
@@ -12234,7 +12231,7 @@ static void rkcif_line_wake_up_interlace(struct rkcif_stream *stream,
 
 	if (fe_interlaced_phase == CIF_CSI_FRAME1_READY &&
 	    stream->last_fe_interlaced_phase == CIF_CSI_FRAME0_READY) {
-		if (dummy_buf->vaddr ||  stream->next_buf) {
+		if (dummy_buf->is_allocated ||  stream->next_buf) {
 			active_buf = stream->curr_buf;
 			if (active_buf) {
 				active_buf->vb.vb2_buf.timestamp = stream->readout.fs_timestamp;
@@ -12494,7 +12491,7 @@ static void rkcif_update_stream_interlace(struct rkcif_device *cif_dev,
 	if (!stream->is_line_wake_up) {
 		if (fe_interlaced_phase == CIF_CSI_FRAME1_READY &&
 		    stream->last_fe_interlaced_phase == CIF_CSI_FRAME0_READY) {
-			if (dummy_buf->vaddr ||  stream->next_buf) {
+			if (dummy_buf->is_allocated ||  stream->next_buf) {
 				active_buf = stream->curr_buf;
 				if (active_buf) {
 					active_buf->vb.vb2_buf.timestamp = stream->readout.fs_timestamp;
@@ -14205,7 +14202,7 @@ static void rkcif_release_unnecessary_buf_for_online(struct rkcif_stream *stream
 	spin_lock_irqsave(&priv->cif_dev->buffree_lock, flags);
 	for (i = 0; i < stream->rx_buf_num; i++) {
 		rx_buf = &stream->rx_buf[i];
-		if (rx_buf && (!rx_buf->dummy.is_free) && rx_buf != buf) {
+		if (rx_buf && rx_buf->dummy.is_allocated && rx_buf != buf) {
 			list_add_tail(&rx_buf->list_free, &priv->buf_free_list);
 			stream->total_buf_num--;
 			atomic_dec(&stream->buf_cnt);
@@ -15513,7 +15510,7 @@ static void rkcif_check_mipi_interlaced_frame_id(struct rkcif_stream *stream)
 				if (buffer) {
 					rkcif_write_buffer(stream, buffer, CIF_CSI_FRAME0_READY, buf_offset);
 					rkcif_write_buffer(stream, buffer, CIF_CSI_FRAME1_READY, buf_offset);
-				} else if (dummy_buf->vaddr) {
+				} else if (dummy_buf->is_allocated) {
 					stream->interlaced_bad_frame = true;
 					rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME0_READY, buf_offset);
 					rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME1_READY, buf_offset);
@@ -15545,7 +15542,7 @@ static void rkcif_check_mipi_interlaced_frame_id(struct rkcif_stream *stream)
 					buffer = stream->curr_buf;
 					rkcif_write_buffer(stream, buffer, CIF_CSI_FRAME0_READY, buf_offset);
 					rkcif_write_buffer(stream, buffer, CIF_CSI_FRAME1_READY, buf_offset);
-				} else if (dummy_buf->vaddr) {
+				} else if (dummy_buf->is_allocated) {
 					rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME0_READY, buf_offset);
 					rkcif_write_buffer(stream, NULL, CIF_CSI_FRAME1_READY, buf_offset);
 					stream->interlaced_bad_frame = true;
