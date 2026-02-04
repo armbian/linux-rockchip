@@ -59,6 +59,12 @@
 #define RK3506_GRF_SOC_CON0		(0x0)
 #define RK3506_DSM_SEL			(9)
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
+#define RK3572_AUDIO_GRF_CON0		(0x0010)
+#define RK3572_DSM_SEL			(0x1)
+#define RK3572_IOC_MISC3		(0x1463c)
+#define RK3572_DSM_FUNC			(0xffff0000)
+#define RK3572_DSM_GPIO			(0xfffff993)
+
 #define RK3576_SYS_GRF_SOC_CON2		(0x0008)
 #define RK3576_DSM_SEL			(0x0)
 #define RV1126B_AUDIO_CON0		(0x40)
@@ -367,7 +373,9 @@ static int rk_dsm_set_dai_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
+	pm_runtime_get_sync(dai->dev);
 	regmap_update_bits(rd->regmap, I2S_CKR1, mask, val);
+	pm_runtime_put(dai->dev);
 
 	return 0;
 }
@@ -379,7 +387,9 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 	struct rk_dsm_priv *rd =
 		snd_soc_component_get_drvdata(dai->component);
 	unsigned int srt = 0, val = 0;
+	int ret = 0;
 
+	pm_runtime_get_sync(dai->dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		rk_dsm_set_clk(rd, substream, params_rate(params));
 
@@ -410,7 +420,8 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 			srt = 4;
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_pm_put;
 		}
 
 		regmap_update_bits(rd->regmap, DACCFG1,
@@ -426,7 +437,8 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 			val = 24;
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_pm_put;
 		}
 
 		regmap_update_bits(rd->regmap, I2S_RXCR0,
@@ -451,7 +463,10 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 			rd->data->iomux_switch(rd->dev, RKDSM_ON_FUNC);
 	}
 
-	return 0;
+err_pm_put:
+	pm_runtime_put(dai->dev);
+
+	return ret;
 }
 
 static int rk_dsm_pcm_startup(struct snd_pcm_substream *substream,
@@ -464,9 +479,11 @@ static int rk_dsm_pcm_startup(struct snd_pcm_substream *substream,
 		return 0;
 
 	/* Recover DAC Volumes */
+	pm_runtime_get_sync(dai->dev);
 	regmap_write(rd->regmap, DACVOLL0, rd->vols.vol_l);
 	regmap_write(rd->regmap, DACVOLR0, rd->vols.vol_r);
 	regmap_write(rd->regmap, DACVOGP, rd->vols.polarity);
+	pm_runtime_put(dai->dev);
 
 	gpiod_set_value(rd->pa_ctl, 1);
 	if (rd->pa_ctl_delay_ms)
@@ -498,6 +515,7 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 	gpiod_set_value(rd->pa_ctl, 0);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		pm_runtime_get_sync(dai->dev);
 		regmap_update_bits(rd->regmap, DACDSM_CTRL,
 				   DSM_DACDSM_CTRL_DSM_MODE_CKE_MASK |
 				   DSM_DACDSM_CTRL_DSM_EN_MASK,
@@ -514,6 +532,7 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 				   DSM_DACDIGEN_DACEN_L0R1_MASK,
 				   DSM_DACDIGEN_DAC_GLBEN_DIS |
 				   DSM_DACDIGEN_DACEN_L0R1_DIS);
+		pm_runtime_put(dai->dev);
 	}
 
 	rk_dsm_reset(rd);
@@ -528,6 +547,7 @@ static int rk_dsm_pcm_trigger(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		return 0;
 
+	pm_runtime_get_sync(dai->dev);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -563,6 +583,8 @@ static int rk_dsm_pcm_trigger(struct snd_pcm_substream *substream,
 	default:
 		break;
 	}
+
+	pm_runtime_put(dai->dev);
 
 	return 0;
 }
@@ -808,6 +830,44 @@ static const struct rk_dsm_soc_data rk3562_data = {
 	.deinit = rk3562_soc_deinit,
 };
 
+static int rk3572_soc_init(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+	struct device_node *node = dev->of_node;
+
+	rd->ioc_grf = syscon_regmap_lookup_by_phandle(node, "rockchip,ioc-grf");
+	if (IS_ERR(rd->ioc_grf))
+		return PTR_ERR(rd->ioc_grf);
+	/* enable internal codec to sai3 */
+	return regmap_write(rd->grf, RK3572_AUDIO_GRF_CON0,
+			    BIT(RK3572_DSM_SEL) << 16 | BIT(RK3572_DSM_SEL));
+}
+
+static void rk3572_soc_deinit(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	regmap_write(rd->grf, RK3572_AUDIO_GRF_CON0, BIT(RK3572_DSM_SEL) << 16);
+}
+
+static int rk3572_soc_iomux_switch(struct device *dev, int type)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	if (type == RKDSM_ON_GPIO)
+		regmap_write(rd->ioc_grf, RK3572_IOC_MISC3, RK3572_DSM_GPIO);
+	else if (type == RKDSM_ON_FUNC)
+		regmap_write(rd->ioc_grf, RK3572_IOC_MISC3, RK3572_DSM_FUNC);
+
+	return 0;
+}
+
+static const struct rk_dsm_soc_data rk3572_data = {
+	.init = rk3572_soc_init,
+	.deinit = rk3572_soc_deinit,
+	.iomux_switch = rk3572_soc_iomux_switch,
+};
+
 static int rk3576_soc_init(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
@@ -871,6 +931,7 @@ static const struct rk_dsm_soc_data rv1126b_data = {
 static const struct of_device_id rd_of_match[] = {
 	{ .compatible = "rockchip,rk3506-dsm", .data = &rk3506_data },
 	{ .compatible = "rockchip,rk3562-dsm", .data = &rk3562_data },
+	{ .compatible = "rockchip,rk3572-dsm", .data = &rk3572_data },
 	{ .compatible = "rockchip,rk3576-dsm", .data = &rk3576_data },
 	{ .compatible = "rockchip,rv1126b-dsm", .data = &rv1126b_data },
 	{},
