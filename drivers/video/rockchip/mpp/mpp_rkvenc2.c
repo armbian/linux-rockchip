@@ -194,7 +194,7 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_EXT_LINE_BUF_BASE	(22)
 
 #define RKVENC2_REG_ENC_PIC		(32)
-#define RKVENC510_REG_ENC_PIC		(36)
+#define RKVENC51X_REG_ENC_PIC		(36)
 #define RKVENC2_BIT_ENC_STND		BIT(0)
 #define RKVENC2_BIT_VAL_H264		0
 #define RKVENC2_BIT_VAL_H265		1
@@ -202,7 +202,7 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_BIT_REC_FBC_DIS		BIT(31)
 
 #define RKVENC2_REG_SLI_SPLIT		(56)
-#define RKVENC510_REG_SLI_SPLIT		(60)
+#define RKVENC51X_REG_SLI_SPLIT		(60)
 #define RKVENC2_BIT_SLI_SPLIT		BIT(0)
 #define RKVENC2_BIT_SLI_FLUSH		BIT(15)
 
@@ -1217,9 +1217,11 @@ static void rkvenc2_check_split_task(struct mpp_dev *mpp, struct rkvenc_task *ta
 	u32 reg_enc_pic		= 0;
 	u32 reg_slt_split	= 0;
 
-	if (hw->vepu_type == RKVENC_VEPU_510) {
-		reg_enc_pic = RKVENC510_REG_ENC_PIC;
-		reg_slt_split = RKVENC510_REG_SLI_SPLIT;
+	if (hw->vepu_type == RKVENC_VEPU_510 ||
+	    hw->vepu_type == RKVENC_VEPU_511 ||
+	    hw->vepu_type == RKVENC_VEPU_511A) {
+		reg_enc_pic = RKVENC51X_REG_ENC_PIC;
+		reg_slt_split = RKVENC51X_REG_SLI_SPLIT;
 	} else {
 		reg_enc_pic = RKVENC2_REG_ENC_PIC;
 		reg_slt_split = RKVENC2_REG_SLI_SPLIT;
@@ -1334,8 +1336,8 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 		if (task->reg[RKVENC_CLASS_PIC].valid) {
 			u32 *reg = task->reg[RKVENC_CLASS_PIC].data;
 
-			task->rec_fbc_dis = reg[RKVENC510_REG_ENC_PIC] & RKVENC2_BIT_REC_FBC_DIS;
-			reg[RKVENC510_REG_ENC_PIC] &= ~(RKVENC2_BIT_REC_FBC_DIS);
+			task->rec_fbc_dis = reg[RKVENC51X_REG_ENC_PIC] & RKVENC2_BIT_REC_FBC_DIS;
+			reg[RKVENC51X_REG_ENC_PIC] &= ~(RKVENC2_BIT_REC_FBC_DIS);
 		}
 	}
 
