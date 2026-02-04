@@ -103,36 +103,6 @@
 		status = "okay";
 	};
 
-	charge-animation {
-		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
-		rockchip,android-charge-on = <1>;
-		rockchip,uboot-low-power-voltage = <3450>;
-		rockchip,screen-on-voltage = <3500>;
-		rockchip,auto-wakeup-interval = <5>;
-		rockchip,uboot-exit-charge-level = <2>;
-		rockchip,uboot-exit-charge-voltage = <3500>;
-		rockchip,uboot-exit-charge-auto = <1>;
-		status = "okay";
-	};
-
-	charger-manager {
-		compatible = "rockchip-charger-manager";
-		cm-name = "battery";
-		cm-poll-mode = <2>;
-		cm-poll-interval = <1000>;
-
-		cm-chargers = "sgm4154x-charger";//cx2560x-charger,sc89601-charger
-		cm-chargers-phandle = <&usbc0>;
-		cm-fuel-gauge = "battery";
-		/* monitored-battery = <&bat>; */
-		extcon = <&u2phy0>;
-		vbus-supply = <&vbus5v0_typec>;
-		//cm-jeita-temp-charge-table = <0 15 2400000 4350000>,
-		//				<15 45 2400000 4350000>,
-		//				<45 60 2400000 4200000>;
-	};
-
 	rk809-sound {
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip-rk809";

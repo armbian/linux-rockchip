@@ -8,6 +8,44 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 
 / {
+	bat: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <8000000>;
+		precharge-current-microamp = <180000>;
+		precharge-upper-limit-microvolt = <3600000>;
+		charge-term-current-microamp = <300000>;
+		constant-charge-current-max-microamp = <10000000>;
+		constant-charge-voltage-max-microvolt = <4400000>;
+		factory-internal-resistance-micro-ohms = <80>;
+		voltage-max-design-microvolt = <4400000>;
+		voltage-min-design-microvolt = <3000000>;
+	};
+
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <0>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <3450>;
+		rockchip,screen-on-voltage = <3500>;
+		rockchip,auto-wakeup-interval = <5>;
+		rockchip,uboot-exit-charge-level = <2>;
+		rockchip,uboot-exit-charge-voltage = <3500>;
+		rockchip,uboot-exit-charge-auto = <1>;
+	};
+
+	charger-manager {
+		compatible = "rockchip-charger-manager";
+		cm-name = "battery";
+		cm-poll-mode = <2>;
+		cm-poll-interval = <1000>;
+
+		cm-chargers = "sgm4154x-charger";
+		cm-chargers-phandle = <&usbc0>;
+		cm-fuel-gauge = "rk817-battery";
+		monitored-battery = <&bat>;
+		extcon = <&u2phy0>;
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -67,6 +105,9 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
 		rockchip,system-power-controller;
+		rockchip,shutdown-priority = <0>;
+		/* 1: rst regs (default in codes), 0: rst the pmic */
+		pmic-reset-func = <0>;
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -260,14 +301,13 @@
 			};
 		};
 
-		bat: battery {
+		rk817_battery: rk817-battery {
 			compatible = "rk817,battery";
-			ocv_table = <3400 3671 3686 3712 3738 3756 3773
-				     3787 3802 3819 3840 3868 3916 3959
-				     3998 4041 4087 4138 4191 4247 4313>;
-			design_capacity = <8000>;
-			design_qmax = <7600>;
-			bat_res = <100>;
+			ocv_table = <3400 3679 3692 3720 3746 3765 3783 3798 3817 3839 3867
+					3906 3961 3996 4063 4107 4161 4216 4274 4333 4379>;
+			design_capacity = <7200>;
+			design_qmax = <7500>;
+			bat_res = <83>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
 			sleep_filter_current = <100>;
@@ -276,8 +316,10 @@
 			monitor_sec = <5>;
 			sample_res = <10>;
 			virtual_power = <0>;
-			bat_res_up = <60>;
-			bat_res_down = <20>;
+			bat_res_up = <91>;
+			bat_res_down = <30>;
+			fake_full_soc = <95>;
+			nominal_voltage = <3850>;
 		};
 
 		rk809_codec: codec {
@@ -310,6 +352,11 @@
 
 		rockchip,system-power-controller;
 		wakeup-source;
+		rockchip,shutdown-priority = <0>;
+		/* 1: rst regs (default in codes), 0: rst the pmic */
+		pmic-reset-func = <0>;
+		/* 0: active low, 1:active high */
+		sleep-pin-polarity = <1>;
 		status = "okay";
 
 		vcc1-supply = <&vcc_sys>;
