@@ -1473,14 +1473,29 @@ dw_mipi_dsi_rockchip_stream_standby(void *priv_data, bool standby)
 static int dw_mipi_dsi_rockchip_attach(void *priv_data, struct mipi_dsi_device *dsi)
 {
 	struct dw_mipi_dsi_rockchip *dsi_host = priv_data;
+	int ret;
 
 	dsi_host->mode_flags = dsi->mode_flags;
+
+	ret = dw_mipi_dsi_rockchip_component_add(dsi_host);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int dw_mipi_dsi_rockchip_detach(void *priv_data, struct mipi_dsi_device *dsi)
+{
+	struct dw_mipi_dsi_rockchip *dsi_host = priv_data;
+
+	dw_mipi_dsi_rockchip_component_del(dsi_host);
 
 	return 0;
 }
 
 static const struct dw_mipi_dsi_host_ops dw_mipi_dsi_rockchip_host_ops = {
 	.attach = dw_mipi_dsi_rockchip_attach,
+	.detach = dw_mipi_dsi_rockchip_detach,
 };
 
 static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
@@ -1636,12 +1651,6 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 		goto err_clkdisable;
 	}
 
-	ret = dw_mipi_dsi_rockchip_component_add(dsi);
-	if (ret < 0) {
-		dw_mipi_dsi_remove(dsi->dmd);
-		goto err_clkdisable;
-	}
-
 	return 0;
 
 err_clkdisable:
@@ -1653,8 +1662,6 @@ static void dw_mipi_dsi_rockchip_remove(struct platform_device *pdev)
 {
 	struct dw_mipi_dsi_rockchip *dsi = platform_get_drvdata(pdev);
 
-
-	dw_mipi_dsi_rockchip_component_del(dsi);
 	dw_mipi_dsi_remove(dsi->dmd);
 }
 
