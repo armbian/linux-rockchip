@@ -1874,8 +1874,6 @@ struct vop2_data {
 	const struct vop_dump_regs *dump_regs;
 	const char * const *crc_sources;
 	uint32_t dump_regs_size;
-	struct vop_rect max_input;
-	struct vop_rect max_output;
 	const struct vop2_vp_plane_mask *plane_mask;
 	uint32_t plane_mask_base;
 
