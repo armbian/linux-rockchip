@@ -276,7 +276,7 @@ struct charger_desc {
 
 	struct power_supply_battery_info info;
 
-	const char *psy_charger_stat;
+	const char **psy_charger_stat;
 	const char *psy_charger_pump_stat;
 	const char *psy_fuel_gauge;
 	const char *thermal_zone;
@@ -293,6 +293,7 @@ struct charger_desc {
 	u32 discharging_max_duration_ms;
 
 	int support_mult_mode;
+	int support_mult_fastcharge;
 
 	struct gpio_desc *gpiod_dc_det;
 	bool support_dc_charger;
@@ -443,7 +444,7 @@ static int get_battery_temperature(struct charger_manager *cm,
 	if (!psy) {
 		cm->fc_config->fc_charge_error = true;
 		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
+			cm->desc->psy_fuel_gauge);
 		return -ENODEV;
 	}
 
@@ -482,7 +483,7 @@ static int get_battery_voltage(struct charger_manager *cm, int *uV)
 	if (!psy) {
 		cm->fc_config->fc_charge_error = true;
 		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
+			cm->desc->psy_fuel_gauge);
 		return -ENODEV;
 	}
 
@@ -520,7 +521,7 @@ static int get_battery_current(struct charger_manager *cm, int *uA)
 	if (!psy) {
 		cm->fc_config->fc_charge_error = true;
 		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
+			cm->desc->psy_fuel_gauge);
 		return -ENODEV;
 	}
 
@@ -552,28 +553,29 @@ static bool is_ext_pwr_online(struct charger_manager *cm)
 	union power_supply_propval val;
 	struct power_supply *psy;
 	bool online = false;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		return online;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			return online;
+		}
+
+		ret = power_supply_get_property(psy,
+						POWER_SUPPLY_PROP_ONLINE,
+						&val);
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_ONLINE\n",
+				cm->desc->psy_charger_stat[i]);
+			return ret;
+		}
+
+		if (val.intval)
+			return true;
 	}
-
-	ret = power_supply_get_property(psy,
-					POWER_SUPPLY_PROP_ONLINE,
-					&val);
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_ONLINE\n",
-			cm->desc->psy_charger_stat);
-		return ret;
-	}
-
-	if (val.intval)
-		online = true;
-
 	return online;
 }
 #endif
@@ -582,27 +584,31 @@ static int set_sw_charger_enable(struct charger_manager *cm)
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		return -ENODEV;
-	}
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			return -ENODEV;
+		}
 
-	val.intval = 0x01;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_ONLINE,
-					&val);
+		val.intval = 0x01;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_ONLINE,
+						&val);
 
-	power_supply_put(psy);
-	if (ret) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_ONLINE\n",
-			cm->desc->psy_charger_stat);
-		return ret;
+		power_supply_put(psy);
+		if (ret) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_ONLINE\n",
+				cm->desc->psy_charger_stat[i]);
+			return ret;
+		}
+		if (cm->is_normal_charge && !cm->is_pd_charge && !cm->is_pps_charge)
+			break;
 	}
 
 	cm->fc_config->sw_charge_status = 1;
@@ -613,27 +619,28 @@ static int set_sw_charger_disable(struct charger_manager *cm)
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		return -ENODEV;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			return -ENODEV;
+		}
+
+		val.intval = 0x00;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_ONLINE,
+						&val);
+
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_ONLINE\n",
+				cm->desc->psy_charger_stat[i]);
+			return ret;
+		}
 	}
-
-	val.intval = 0x00;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_ONLINE,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_ONLINE\n",
-			cm->desc->psy_charger_stat);
-		return ret;
-	}
-
 	cm->fc_config->sw_charge_status = 0;
 	return 0;
 }
@@ -643,66 +650,93 @@ static int set_sw_charger_input_limit_voltage(struct charger_manager *cm,
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev,
-			"Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		return -ENODEV;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev,
+				"Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			return -ENODEV;
+		}
+
+		val.intval = input_voltage_uv;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
+						&val);
+
+		power_supply_put(psy);
+		if (ret) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev,
+				"failed to set %s POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT\n",
+				cm->desc->psy_charger_stat[i]);
+			return ret;
+		}
 	}
-
-	val.intval = input_voltage_uv;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev,
-			"failed to set %s POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT\n",
-			cm->desc->psy_charger_stat);
-		return ret;
-	}
-
 	cm->fc_config->vbus_dcdc_lmt = input_voltage_uv;
 	return 0;
+}
+
+static int _set_sw_charger_input_limit_current(struct charger_manager *cm,
+					       int input_current_ua)
+{
+	union power_supply_propval val;
+	struct power_supply *psy;
+	int i, ret;
+
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			return -ENODEV;
+		}
+
+		val.intval = input_current_ua;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+						&val);
+
+		power_supply_put(psy);
+		CM_DBG("POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT: sw: %d\n", input_current_ua);
+		if (ret) {
+			cm->fc_config->fc_charge_error = true;
+			dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT\n",
+				cm->desc->psy_charger_stat[i]);
+			return ret;
+		}
+		if (cm->is_normal_charge)
+			break;
+	}
+	cm->fc_config->sw_input_current = input_current_ua;
+	cm->fc_config->ibus_dcdc_lmt = input_current_ua;
+	return 0;
+}
+
+static int cm_check_slave_charger(struct charger_manager *cm, int input_current)
+{
+	CM_DBG("%s, %d, %d, %d\n", __func__, cm->is_pps_charge, cm->is_pd_charge, cm->is_normal_charge);
+	CM_DBG("%s, %s\n", __func__, cm->desc->psy_charger_stat[1]);
+	if (cm->is_pps_charge || cm->is_pd_charge)
+		if (cm->desc->psy_charger_stat[1])
+			input_current /= 2;
+
+	return input_current;
 }
 
 static int set_sw_charger_input_limit_current(struct charger_manager *cm,
 					      int input_current_ua)
 {
-	union power_supply_propval val;
-	struct power_supply *psy;
-	int ret;
+	int input_cur;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		return -ENODEV;
-	}
+	input_cur = cm_check_slave_charger(cm, input_current_ua);
+	CM_DBG("%s, inpucurrent: %d\n", __func__, input_cur);
 
-	val.intval = input_current_ua;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		cm->fc_config->fc_charge_error = true;
-		dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT\n",
-			cm->desc->psy_charger_stat);
-		return ret;
-	}
-
-	cm->fc_config->sw_input_current = input_current_ua;
-	cm->fc_config->ibus_dcdc_lmt = input_current_ua;
-	return 0;
+	return _set_sw_charger_input_limit_current(cm, input_cur);
 }
 
 static int set_sw_charger_voltage(struct charger_manager *cm,
@@ -710,93 +744,108 @@ static int set_sw_charger_voltage(struct charger_manager *cm,
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	CM_DBG("POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE: sw: %d\n", voltage_uv);
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return -ENODEV;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		CM_DBG("POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE: sw: %d\n", voltage_uv);
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return -ENODEV;
+		}
+
+		val.intval = voltage_uv;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
+						&val);
+
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return ret;
+		}
 	}
-
-	val.intval = voltage_uv;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return ret;
-	}
-
 	cm->fc_config->sw_charge_voltage = voltage_uv;
 	return 0;
 }
 
-static int set_sw_charger_current(struct charger_manager *cm,
-				  int current_ua)
+static int _set_sw_charger_current(struct charger_manager *cm,
+				   int current_ua)
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	CM_DBG("POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT: sw: %d\n", current_ua);
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return -ENODEV;
-	}
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		CM_DBG("POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT: sw: %d\n", current_ua);
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return -ENODEV;
+		}
 
-	val.intval = current_ua;
-	ret = power_supply_set_property(psy,
-					POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
-					&val);
+		val.intval = current_ua;
+		ret = power_supply_set_property(psy,
+						POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+						&val);
 
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return ret;
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to set %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return ret;
+		}
 	}
 
 	return 0;
+}
+
+static int set_sw_charger_current(struct charger_manager *cm, int current_ua)
+{
+	int charge_cur;
+
+	CM_DBG("%s, current: %d\n", __func__, current_ua);
+	charge_cur = cm_check_slave_charger(cm, current_ua);
+
+	return _set_sw_charger_current(cm, charge_cur);
 }
 
 static int get_sw_charger_current_max(struct charger_manager *cm, int *uA)
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return -ENODEV;
+	*uA = 0;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return -ENODEV;
+		}
+
+		ret = power_supply_get_property(psy,
+						POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
+						&val);
+
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return ret;
+		}
+		*uA += val.intval;
 	}
-
-	ret = power_supply_get_property(psy,
-					POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return ret;
-	}
-
-	*uA = val.intval;
 	return 0;
 }
 
@@ -805,29 +854,32 @@ static int get_sw_charger_input_limit_current(struct charger_manager *cm, int *u
 {
 	union power_supply_propval val;
 	struct power_supply *psy;
-	int ret;
+	int i, ret;
 
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
-	if (!psy) {
-		dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return -ENODEV;
+	*uA = 0;
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return -ENODEV;
+		}
+
+		ret = power_supply_get_property(psy,
+						POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+						&val);
+
+		power_supply_put(psy);
+		if (ret) {
+			dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT\n",
+				cm->desc->psy_charger_stat[i]);
+			cm->fc_config->fc_charge_error = true;
+			return ret;
+		}
+
+		*uA += val.intval;
 	}
-
-	ret = power_supply_get_property(psy,
-					POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-					&val);
-
-	power_supply_put(psy);
-	if (ret) {
-		dev_err(cm->dev, "failed to get %s POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT\n",
-			cm->desc->psy_charger_stat);
-		cm->fc_config->fc_charge_error = true;
-		return ret;
-	}
-
-	*uA = val.intval;
 	return 0;
 }
 
@@ -2315,7 +2367,7 @@ static int cm_pd_adapter_det(struct charger_manager *cm)
 					POWER_SUPPLY_PROP_VOLTAGE_MAX,
 					&val);
 	if (ret) {
-		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
+		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_VOLTAGE_MAX\n", __LINE__);
 		return ret;
 	}
 	fc_config->adapter_volt_max_lmt = val.intval;
@@ -2323,11 +2375,12 @@ static int cm_pd_adapter_det(struct charger_manager *cm)
 					POWER_SUPPLY_PROP_CURRENT_MAX,
 					&val);
 	if (ret) {
-		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAXn", __LINE__);
+		dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
 		return ret;
 	}
 	fc_config->adapter_curr_max_lmt = val.intval;
-	CM_DBG("adapter_curr_max_lmt:%d\n", fc_config->adapter_curr_max_lmt);
+	dev_info(cm->dev, "%s, adapter_curr_max_lmt:%d\n",
+		 __func__, fc_config->adapter_curr_max_lmt);
 	set_sw_charger_input_limit_current(cm, fc_config->adapter_curr_max_lmt);
 	ret = set_sw_charger_enable(cm);
 	return ret;
@@ -2347,7 +2400,8 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 	if (desc->psy_charger_pump_stat != NULL) {
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 		fc_config->charge_type = CHARGE_TYPE_PPS;
-		CM_DBG("charge_type: %d, %d\n", cm->fc_config->charge_type, __LINE__);
+		dev_info(cm->dev, "%s, is PPS charge_type: %d\n",
+			 __func__, cm->fc_config->charge_type);
 		cm_charge_pump_move_state(cm, PPS_PM_STATE_ENTRY);
 		if (cm->fc_config->jeita_charge_support)
 			cancel_delayed_work(&cm->cm_jeita_work);
@@ -2380,7 +2434,7 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 						POWER_SUPPLY_PROP_VOLTAGE_MAX,
 						&val);
 		if (ret) {
-			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
+			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_VOLTAGE_MAX\n", __LINE__);
 			return ret;
 		}
 		fc_config->adapter_volt_max_lmt = val.intval;
@@ -2388,11 +2442,12 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 						POWER_SUPPLY_PROP_CURRENT_MAX,
 						&val);
 		if (ret) {
-			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAXn", __LINE__);
+			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
 			return ret;
 		}
 		fc_config->adapter_curr_max_lmt = val.intval;
-		CM_DBG("adapter_curr_max_lmt:%d\n", fc_config->adapter_curr_max_lmt);
+		dev_info(cm->dev, "%s, not support PPS, into POWER_SUPPLY_USB_TYPE_PD, adapter_curr_max_lmt:%d\n",
+			 __func__, fc_config->adapter_curr_max_lmt);
 		set_sw_charger_input_limit_current(cm, fc_config->adapter_curr_max_lmt);
 		ret = set_sw_charger_enable(cm);
 		return ret;
@@ -2409,7 +2464,6 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	fc_config->adaper_power_init_flag = 0;
-	cm->is_normal_charge = true;
 	cm->is_fast_charge = false;
 	cm->is_pps_charge = false;
 
@@ -2423,19 +2477,21 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 	if ((val.intval == 1500 * 1000) ||
 	    (val.intval == 3000 * 1000) ||
 	    (val.intval == 900 * 1000)) {
-		CM_DBG("POWER_SUPPLY_USB_TYPE_C\n");
 		fc_config->charge_type = CHARGE_TYPE_TYPE_C;
+		cm->is_normal_charge = true;
 		fc_config->adapter_curr_max_lmt = val.intval;
 		if (!cm->desc->dc_charger_status) {
-			ret = set_sw_charger_input_limit_current(cm, USB_TYPE_C_INPUT_CURRENT);
+			ret = set_sw_charger_input_limit_current(cm, fc_config->adapter_curr_max_lmt);
 			if (ret)
 				return ret;
 		}
-		CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_C\n");
+		CM_DBG("POWER_SUPPLY_USB_TYPE_C, adapter_curr_max_lmt:%d\n",
+		       fc_config->adapter_curr_max_lmt);
 	} else {
 		if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_SDP) > 0) {
 			CM_DBG("EXTCON_CHG_USB_SDP\n");
 			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			cm->is_normal_charge = true;
 			if (!cm->desc->dc_charger_status) {
 				ret = set_sw_charger_input_limit_current(cm, USB_SDP_INPUT_CURRENT);
 				if (ret)
@@ -2444,6 +2500,7 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 		} else if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_DCP) > 0) {
 			CM_DBG("EXTCON_CHG_USB_DCP\n");
 			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			cm->is_normal_charge = true;
 			if (!cm->desc->dc_charger_status) {
 				ret = set_sw_charger_input_limit_current(cm, USB_DCP_INPUT_CURRENT);
 				if (ret)
@@ -2453,6 +2510,7 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 			CM_DBG("EXTCON_CHG_USB_CDP:%duA dc_charger_status: %d\n",
 			       USB_CDP_INPUT_CURRENT, cm->desc->dc_charger_status);
 			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			cm->is_normal_charge = true;
 			if (!cm->desc->dc_charger_status) {
 				ret = set_sw_charger_input_limit_current(cm, USB_CDP_INPUT_CURRENT);
 				if (ret)
@@ -2473,6 +2531,10 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	cm->is_charge = 0;
 	cm->is_fast_charge = 0;
 	fc_config->charge_type = CHARGE_TYPE_DISCHARGE;
+	cm->is_normal_charge = false;
+	cm->is_pps_charge = false;
+	cm->is_pd_charge = false;
+
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cm_charge_limit_update(cm);
 #endif
@@ -2480,6 +2542,7 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 		set_sw_charger_input_limit_current(cm, USB_SDP_INPUT_CURRENT);
 		set_sw_charger_disable(cm);
 		set_sw_charger_voltage(cm, cm->fc_config->vbat_lmt);
+		cm->is_normal_charge = false;
 		pm_relax(cm->dev);
 	} else {
 		queue_delayed_work(cm->cm_wq, &cm->dc_work, msecs_to_jiffies(500));
@@ -2492,6 +2555,8 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	cm->fc_charger_enabled = 0;
 	cm->fc_config->sw_ovp_flag = 0;
 	cm->fc_config->fc_charge_error = false;
+	cm->is_fast_charge = false;
+	cm->is_pps_charge = false;
 
 	if (cm->desc->measure_battery_temp)
 		cm->fc_config->jeita_enable_charge = true;
@@ -2544,7 +2609,7 @@ static int charger_extcon_notifier(struct notifier_block *self,
 								POWER_SUPPLY_PROP_ONLINE,
 								&val);
 				if (ret) {
-					dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
+					dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_ONLINE\n", __LINE__);
 					return ret;
 				}
 				if (!val.intval)
@@ -2557,7 +2622,7 @@ static int charger_extcon_notifier(struct notifier_block *self,
 						POWER_SUPPLY_PROP_USB_TYPE,
 						&val);
 		if (ret) {
-			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
+			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_USB_TYPE\n", __LINE__);
 			return ret;
 		}
 		switch (val.intval) {
@@ -2725,6 +2790,12 @@ static ssize_t chg_en_store(struct device *dev,
 	int ret = 0;
 	bool en = 0;
 
+	if (!cm) {
+		pr_err("%s, can not get charger_manager\n", __func__);
+		return -EINVAL;
+	}
+	dev_info(cm->dev, "%s, enable: %s\n", __func__, buf);
+
 	ret = kstrtobool(buf, &en);
 	if (ret) {
 		pr_err("Unknown command\n");
@@ -2815,21 +2886,49 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	struct charger_desc *desc;
 	const __be32 *list;
 	int size, count, i;
+	int num_chgs = 0;
+	int ret;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
+
+	num_chgs = of_property_count_strings(np, "cm-chargers");
+	if (num_chgs > 0) {
+		desc->psy_charger_stat = devm_kcalloc(dev,
+						      num_chgs + 1,
+						      sizeof(char *),
+						      GFP_KERNEL);
+		if (!desc->psy_charger_stat)
+			return ERR_PTR(-ENOMEM);
+
+		for (i = 0; i < num_chgs; i++) {
+			ret = of_property_read_string_index(np, "cm-chargers", i,
+							    &desc->psy_charger_stat[i]);
+			if (ret < 0) {
+				dev_warn(dev, "Failed to read cm-chargers[%d]: %d\n", i, ret);
+				desc->psy_charger_stat[i] = NULL;
+				break;
+			}
+		}
+		if (!desc->psy_charger_stat[0]) {
+			dev_err(dev, "No valid charger specified in 'cm-chargers' property\n");
+			return ERR_PTR(-EINVAL);
+		}
+	} else {
+		dev_err(dev, "Failed to read 'cm-chargers' property\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	of_property_read_u32(np, "cm-poll-mode", &poll_mode);
 	desc->polling_mode = poll_mode;
 	of_property_read_u32(np, "cm-poll-interval", &desc->polling_interval_ms);
 
 	of_property_read_u32(np, "cm-cp-support-mult-mode", &desc->support_mult_mode);
-	of_property_read_string(np, "cm-chargers", &desc->psy_charger_stat);
 	of_property_read_string(np, "cm-charge-pump", &desc->psy_charger_pump_stat);
 	of_property_read_string(np, "cm-fuel-gauge", &desc->psy_fuel_gauge);
 
-	CM_DBG("cm-chargers: %s\n", desc->psy_charger_stat);
+	CM_DBG("cm-chargers: %s\n", desc->psy_charger_stat[0]);
 	CM_DBG("cm-charge-pumps: %s\n", desc->psy_charger_pump_stat);
 	CM_DBG("cm-fuel-gauge: %s\n", desc->psy_fuel_gauge);
 
@@ -3021,7 +3120,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	/* Basic Values. Unspecified are Null or 0 */
 	cm->dev = &pdev->dev;
 	cm->desc = desc;
-	if (!desc->psy_charger_stat) {
+	if (!desc->psy_charger_stat[0]) {
 		dev_err(&pdev->dev, "No power supply defined\n");
 		return -EINVAL;
 	}
@@ -3042,7 +3141,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, cm);
-	psy = power_supply_get_by_name(cm->desc->psy_charger_stat);
+	psy = power_supply_get_by_name(cm->desc->psy_charger_stat[0]);
 	ret = power_supply_get_battery_info(psy, &info);
 	if (ret < 0) {
 		info = &bat_default_info;
