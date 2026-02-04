@@ -68,6 +68,7 @@ int rkcif_alloc_buffer(struct rkcif_device *dev,
 			get_dma_buf(buf->dbuf);
 		}
 	}
+	buf->is_allocated = true;
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 		 "%s buf:0x%x~0x%x size:%d\n", __func__,
 		 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
@@ -96,7 +97,7 @@ void rkcif_free_buffer(struct rkcif_device *dev,
 		buf->is_need_dbuf = false;
 		buf->is_need_vaddr = false;
 		buf->is_need_dmafd = false;
-		buf->is_free = true;
+		buf->is_allocated = false;
 	}
 }
 
@@ -387,6 +388,7 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 		dummy->dbuf->ops->vmap(dummy->dbuf, &map);
 		dummy->vaddr = map.vaddr;
 	}
+	dummy->is_allocated = true;
 	return 0;
 err_alloc:
 	v4l2_info(&dev->v4l2_dev,
@@ -401,7 +403,7 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	struct media_pad *pad = NULL;
 	struct v4l2_subdev *sd;
 
-	if (buf->dummy.is_free)
+	if (!buf->dummy.is_allocated)
 		return;
 
 	if (dev->rdbk_debug)
@@ -443,7 +445,7 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	if (dummy->is_need_vaddr)
 		dummy->dbuf->ops->vunmap(dummy->dbuf, NULL);
 	dma_buf_put(dummy->dbuf);
-	buf->dummy.is_free = true;
+	buf->dummy.is_allocated = false;
 }
 
 void rkcif_free_reserved_mem(u32 start, u32 size)

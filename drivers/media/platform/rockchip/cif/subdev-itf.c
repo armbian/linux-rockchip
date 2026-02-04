@@ -99,7 +99,6 @@ static void sditf_buffree_work(struct work_struct *work)
 			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
 			rkcif_free_reserved_mem(rx_buf->shmem.shm_start, rx_buf->shmem.shm_size);
 			memset(rx_buf, 0, sizeof(*rx_buf));
-			rx_buf->dummy.is_free = true;
 		}
 	}
 	spin_unlock_irqrestore(&priv->cif_dev->buffree_lock, flags);

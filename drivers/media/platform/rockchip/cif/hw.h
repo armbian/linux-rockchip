@@ -92,7 +92,7 @@ struct rkcif_dummy_buffer {
 	bool is_need_vaddr;
 	bool is_need_dbuf;
 	bool is_need_dmafd;
-	bool is_free;
+	bool is_allocated;
 };
 
 /*
