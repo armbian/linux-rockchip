@@ -7519,7 +7519,6 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	struct drm_crtc_state *cstate;
 	struct rockchip_crtc_state *vcstate;
 	struct vop2_video_port *vp;
-	const struct vop2_data *vop2_data;
 	struct drm_rect *dest = &vpstate->dest;
 	struct drm_rect *src = &vpstate->src;
 	struct drm_gem_object *obj, *uv_obj;
@@ -7540,7 +7539,6 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	}
 
 	vp = to_vop2_video_port(crtc);
-	vop2_data = vp->vop2->data;
 
 	cstate = drm_atomic_get_existing_crtc_state(pstate->state, crtc);
 	if (WARN_ON(!cstate))
@@ -7549,8 +7547,9 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	mode = &cstate->mode;
 	vcstate = to_rockchip_crtc_state(cstate);
 
-	max_input_w = vop2_data->max_input.width;
-	max_input_h = vop2_data->max_input.height;
+	/* Need consider the processing result of esmart_lb_mode in vop2_get_max_output_width() */
+	max_input_w = win->input_width_prop->values[1];
+	max_input_h = win->input_height_prop->values[1];
 
 	if (vop2_has_feature(win->vop2, VOP_FEATURE_SPLICE)) {
 		if (mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
@@ -7614,20 +7613,22 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 
 	if (drm_rect_width(src) >> 16 < 4 || drm_rect_height(src) >> 16 < 4 ||
 	    drm_rect_width(dest) < 4 || drm_rect_height(dest) < 4) {
-		DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
+		DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4 at %s\n",
 			  drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
-			  drm_rect_width(dest), drm_rect_height(dest));
+			  drm_rect_width(dest), drm_rect_height(dest),
+			  win->name);
 		pstate->visible = false;
 		return 0;
 	}
 
 	if (drm_rect_width(src) >> 16 > max_input_w ||
 	    drm_rect_height(src) >> 16 > max_input_h) {
-		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
+		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d at %s\n",
 			  drm_rect_width(src) >> 16,
 			  drm_rect_height(src) >> 16,
 			  max_input_w,
-			  max_input_h);
+			  max_input_h,
+			  win->name);
 		return -EINVAL;
 	}
 
