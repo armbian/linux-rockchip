@@ -106,28 +106,43 @@ static void rga2_scale_down_bilinear_protect(u32 *param_fix, u32 *src_fix,
 {
 	int final_coor, final_diff, final_steps;
 
-	while (1) {
-		final_coor = offset + param * (dst - 1);
-		final_diff = (src - 1) * (1 << RGA2_BILINEAR_PREC) - final_coor;
+	final_steps = src - 1;
 
+	do {
 		/*
 		 *   The hardware requires that the last point of the dst map on
 		 * src must not exceed the range of src.
 		 */
-		if (final_diff <= 0)
+		do {
+			final_coor = offset + param * (dst - 1);
+			final_diff = final_steps * (1 << RGA2_BILINEAR_PREC) - final_coor;
+
+			if (final_diff <= 0 && param > 0)
+				param = param - 1;
+			else
+				break;
+		} while (1);
+
+		/*
+		 *   The hardware requires that the last point of dst mapping on
+		 * src be between the last two points of each row/column, so
+		 * actual width/height needs to be modified.
+		 */
+		final_steps = (final_coor & ((1 << RGA2_BILINEAR_PREC) - 1)) ?
+				((final_coor >> RGA2_BILINEAR_PREC) + 1) :
+				(final_coor >> RGA2_BILINEAR_PREC);
+
+		/*   After modifying final_steps, ensure once more that the last
+		 * point of the dst map on src must not exceed the range of src.
+		 */
+		final_diff = final_steps * (1 << RGA2_BILINEAR_PREC) - final_coor;
+		if (final_diff <= 0 && param > 0)
 			param = param - 1;
 		else
 			break;
-	}
+	} while (1);
 
-	/*
-	 *   The hardware requires that the last point of dst mapping on
-	 * src be between the last two points of each row/column, so
-	 * actual width/height needs to be modified.
-	 */
-	final_steps = (final_coor & ((1 << RGA2_BILINEAR_PREC) - 1)) ?
-		((final_coor >> RGA2_BILINEAR_PREC) + 1) :
-		(final_coor >> RGA2_BILINEAR_PREC);
+	WARN_ON(param == 0);
 
 	*param_fix = param;
 	*src_fix = final_steps + 1;

@@ -1051,7 +1051,7 @@ static int rk730_reset(struct snd_soc_component *component)
 	/* WA: Initial micbias default, ADC stopped with micbias(>2.5v) */
 	snd_soc_component_update_bits(component, RK730_MIC_BIAS,
 				      RK730_MIC_BIAS_VOLT_MASK,
-				      RK730_MIC_BIAS_VOLT_2_2V);
+				      RK730_MIC_BIAS_VOLT_2_8V);
 	/* PF: Use the chop 400kHz for better ADC noise performance */
 	snd_soc_component_update_bits(component, RK730_MIC_BOOST_3,
 				      RK730_MIC_BOOST_3_MIC_CHOP_MASK,

@@ -873,8 +873,25 @@ static void calc_unite_scl_params(struct rkvpss_stream *stream)
 	struct rkvpss_online_unite_params *params = &stream->unite_params;
 	struct rkvpss_device *dev = stream->dev;
 	u32 right_scl_need_size_y, right_scl_need_size_c;
-	bool use_average = (stream->id == RKVPSS_OUTPUT_CH0 || stream->id == RKVPSS_OUTPUT_CH2)
-			   && stream->avg_scl_down;
+	bool is_downscale_w;
+	bool is_downscale_h;
+	bool is_downscale;
+	bool use_average;
+
+	is_downscale_w = stream->out_fmt.width < stream->crop.width;
+	is_downscale_h = stream->out_fmt.height < stream->crop.height;
+	is_downscale = is_downscale_w && is_downscale_h;
+
+	use_average = (stream->id == RKVPSS_OUTPUT_CH0 || stream->id == RKVPSS_OUTPUT_CH2) &&
+		      is_downscale && stream->avg_scl_down;
+
+	/* Warn if user configured average but it cannot be used in unite mode */
+	if ((stream->id == RKVPSS_OUTPUT_CH0 || stream->id == RKVPSS_OUTPUT_CH2) &&
+	    stream->avg_scl_down && !is_downscale) {
+		v4l2_info(&dev->v4l2_dev,
+			 "%s CH%d: avg_scl_down configured but not downscaling, using bilinear instead (unite mode)\n",
+			 __func__, stream->id);
+	}
 
 	if (use_average)
 		calc_unite_scl_params_avg(stream, &right_scl_need_size_y, &right_scl_need_size_c);
@@ -2181,11 +2198,32 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 
 static int rkvpss_stream_scale(struct rkvpss_stream *stream, bool on, bool sync)
 {
-	bool use_avg_scale = (stream->id == 0 || stream->id == 2) && stream->avg_scl_down;
+	bool is_downscale_w;
+	bool is_downscale_h;
+	bool is_downscale;
+	bool use_avg_scale;
 
-	if (stream->avg_scl_down && !use_avg_scale)
-		v4l2_warn(&stream->dev->v4l2_dev,
-			 "CH%d: average_scale_down not supported (only CH0/CH2)\n", stream->id);
+	is_downscale_w = stream->out_fmt.width < stream->crop.width;
+	is_downscale_h = stream->out_fmt.height < stream->crop.height;
+	is_downscale = is_downscale_w && is_downscale_h;
+
+	/* Scale algorithm selection for CH0 and CH2:
+	 * - Average algorithm: ONLY supports downscaling (scl < crop)
+	 * - Bilinear algorithm: supports both upscaling and downscaling
+	 *
+	 * Strategy:
+	 * - If downscaling AND user configured avg_scl_down=1: use average algorithm
+	 * - Otherwise (upscaling or user set avg_scl_down=0): use bilinear algorithm
+	 */
+	use_avg_scale = (stream->id == 0 || stream->id == 2) &&
+			is_downscale && stream->avg_scl_down;
+
+	/* Warn if user configured average but it cannot be used */
+	if ((stream->id == 0 || stream->id == 2) && stream->avg_scl_down && !is_downscale) {
+		v4l2_info(&stream->dev->v4l2_dev,
+			 "CH%d: avg_scl_down configured but not downscaling, using bilinear instead\n",
+			 stream->id);
+	}
 
 	if (use_avg_scale) {
 		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
@@ -3346,6 +3384,9 @@ int rkvpss_register_stream_vdevs_v20(struct rkvpss_device *dev)
 		INIT_LIST_HEAD(&stream->buf_queue);
 		init_waitqueue_head(&stream->done);
 		spin_lock_init(&stream->vbq_lock);
+		/* Default: CH0 and CH2 use average scale down algorithm by default */
+		if (i == RKVPSS_OUTPUT_CH0 || i == RKVPSS_OUTPUT_CH2)
+			stream->avg_scl_down = true;
 		switch (i) {
 		case RKVPSS_OUTPUT_CH0:
 			vdev_name = S0_VDEV_NAME;

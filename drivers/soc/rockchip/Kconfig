@@ -137,6 +137,14 @@ config ROCKCHIP_IPA
 
 	  If unsure, say N.
 
+config ROCKCHIP_LEDC
+	tristate "Rockchip LEDC driver"
+	depends on OF
+	depends on HAS_IOMEM
+	depends on ARCH_ROCKCHIP
+	help
+	  This driver provides support for the Rockchip LEDC driver.
+
 config ROCKCHIP_OPP
 	tristate "Rockchip OPP select support"
 	depends on PM_DEVFREQ
