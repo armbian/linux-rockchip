@@ -2672,7 +2672,7 @@ static int rk817_battery_get_property(struct power_supply *psy,
 }
 
 static const struct power_supply_desc rk817_bat_desc = {
-	.name		= "battery",
+	.name		= "rk817-battery",
 	.type		= POWER_SUPPLY_TYPE_BATTERY,
 	.properties	= rk817_bat_props,
 	.num_properties	= ARRAY_SIZE(rk817_bat_props),
@@ -2730,7 +2730,7 @@ static int rk809_chg_get_property(struct power_supply *psy,
 }
 
 static const struct power_supply_desc rk809_chg_desc = {
-	.name		= "charger",
+	.name		= "rk809-charger",
 	.type		= POWER_SUPPLY_TYPE_USB,
 	.properties	= rk809_chg_props,
 	.num_properties	= ARRAY_SIZE(rk809_chg_props),
