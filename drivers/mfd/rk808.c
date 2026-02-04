@@ -1139,6 +1139,28 @@ out:
 	return count;
 }
 
+static void rk805_of_property_prepare(struct rk808 *rk808, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	int ret, func;
+
+	ret = of_property_read_u32(np, "sleep-pin-polarity", &func);
+	if (!ret) {
+		if (func == 0)
+			ret = regmap_update_bits(rk808->regmap, RK805_GPIO_IO_POL_REG,
+						 RK805_SLP_POL_MASK,
+						 func << RK805_SLP_POL_SHIFT);
+		else
+			ret = regmap_update_bits(rk808->regmap, RK805_GPIO_IO_POL_REG,
+						 RK805_SLP_POL_MASK,
+						 1 << RK805_SLP_POL_SHIFT);
+		if (ret)
+			dev_err(dev, "failed to update RK805_GPIO_IO_POL_REG!\n");
+	} else {
+		dev_info(dev, "failed to get sleep-pin-polarity\n");
+	}
+}
+
 struct rk817_reboot_data_t {
 	struct rk808 *rk808;
 	struct notifier_block reboot_notifier;
@@ -1363,6 +1385,7 @@ static int rk808_probe(struct i2c_client *client,
 		resume_reg = rk805_resume_reg;
 		resume_reg_num = ARRAY_SIZE(rk805_resume_reg);
 		device_shutdown_fn = rk8xx_device_shutdown;
+		of_property_prepare_fn = rk805_of_property_prepare;
 		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
 			voutsel_flag = i2c_smbus_read_byte_data(client, RK805B_VSELTABLE_REG);
 			if (voutsel_flag < 0) {
