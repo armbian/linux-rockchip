@@ -7714,7 +7714,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 		v4l2_err(v4l2_dev, "terminal_sensor is invalid\n");
 		return -EINVAL;
 	}
-	dev->channels[stream->id] = stream->channel_info;
+	dev->channels[0] = dev->stream[0].channel_info;
 
 	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
 		stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
@@ -10644,9 +10644,11 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 					return -EINVAL;
 			}
 		}
-		dev->channels[0].capture_info = *capture_info;
+		mutex_lock(&dev->stream_lock);
+		stream->channel_info.capture_info = *capture_info;
+		mutex_unlock(&dev->stream_lock);
 		v4l2_info(&dev->v4l2_dev,
-			  "set capture mode %d\n", dev->channels[0].capture_info.mode);
+			  "set capture mode %d\n", stream->channel_info.capture_info.mode);
 		break;
 	case RKCIF_CMD_SET_SENSOR_FLIP_START:
 		mutex_lock(&dev->stream_lock);
