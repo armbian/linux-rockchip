@@ -395,7 +395,7 @@ static struct i2c_driver nca9539_driver = {
 		.pm		= &nca9539_dev_pm_ops,
 #endif
 	},
-	.probe_new	= nca9539_probe,
+	.probe	        = nca9539_probe,
 	.remove		= nca9539_remove,
 	.id_table	= nca9539_gpio_id_table,
 };
