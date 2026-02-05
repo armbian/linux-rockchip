@@ -182,7 +182,11 @@ static int serdes_gpio_probe(struct platform_device *pdev)
 		serdes_gpio->gpio_chip.ngpio = 8;
 	}
 #ifdef CONFIG_OF_GPIO
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 	serdes_gpio->gpio_chip.of_node = serdes_gpio->dev->of_node;
+#else
+	serdes_gpio->gpio_chip.fwnode = dev_fwnode(serdes_gpio->dev);
+#endif
 #endif
 	serdes_gpio->gpio_chip.label = devm_kasprintf(serdes_gpio->dev, GFP_KERNEL,
 						      "%s-gpio", chip_data->name);

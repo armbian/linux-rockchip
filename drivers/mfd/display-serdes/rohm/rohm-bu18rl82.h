@@ -373,4 +373,166 @@ static const struct bu18rl82_isr_reg bu18rl82_reg_isr[18] = {
 	{BU18RL82_ISR_CLKDETECT_LVDSTX0_PLLREF_STOP, BIT(0) | BIT(1) | BIT(4) | BIT(5)},
 };
 
+static int BU18RL82_GPIO0_pins[] = {0};
+static int BU18RL82_GPIO1_pins[] = {1};
+static int BU18RL82_GPIO2_pins[] = {2};
+static int BU18RL82_GPIO3_pins[] = {3};
+static int BU18RL82_GPIO4_pins[] = {4};
+static int BU18RL82_GPIO5_pins[] = {5};
+static int BU18RL82_GPIO6_pins[] = {6};
+static int BU18RL82_GPIO7_pins[] = {7};
+
+struct serdes_function_data {
+	u8 gpio_rx_en:1;
+	u16 gpio_id;
+	u16 mdelay;
+};
+
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+static const char *serdes_gpio_groups[] = {
+	"BU18RL82_GPIO0", "BU18RL82_GPIO1", "BU18RL82_GPIO2", "BU18RL82_GPIO3",
+	"BU18RL82_GPIO4", "BU18RL82_GPIO5", "BU18RL82_GPIO6", "BU18RL82_GPIO7",
+};
+#else
+static const char * const serdes_gpio_groups[] = {
+	"BU18RL82_GPIO0", "BU18RL82_GPIO1", "BU18RL82_GPIO2", "BU18RL82_GPIO3",
+	"BU18RL82_GPIO4", "BU18RL82_GPIO5", "BU18RL82_GPIO6", "BU18RL82_GPIO7",
+};
+#endif
+
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
+#define GROUP_DESC(nm) \
+{ \
+	.name = #nm, \
+	.pins = nm ## _pins, \
+	.num_pins = ARRAY_SIZE(nm ## _pins), \
+} \
+
+/*des -> ser -> soc*/
+#define FUNCTION_DESC_GPIO_INPUT(id) \
+{ \
+	.name = "DES_TO_SER_GPIO"#id, \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 1, .gpio_id = id ? (id + 2) : 0x12 } \
+	}, \
+} \
+
+/*soc -> ser -> des*/
+#define FUNCTION_DESC_GPIO_OUTPUT(id) \
+{ \
+	.name = "SER_GPIO"#id"_TO_DES", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = id ? (id + 2) : 0x12 } \
+	}, \
+} \
+
+#define FUNCTION_DES_DELAY_MS(ms) \
+{ \
+	.name = "DELAY_"#ms"MS", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .mdelay = ms, } \
+	}, \
+} \
+
+/*des -> device*/
+#define FUNCTION_DESC_GPIO_OUTPUT_HIGH() \
+{ \
+	.name = "DES_GPIO_OUTPUT_HIGH", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = 1 } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_LOW() \
+{ \
+	.name = "DES_GPIO_OUTPUT_LOW", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = 0 } \
+	}, \
+} \
+
+#else
+#define GROUP_DESC(nm) \
+{ \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
+} \
+
+/*des -> ser -> soc*/
+#define FUNCTION_DESC_GPIO_INPUT(id) \
+{ \
+	.func = { \
+		.name = "DES_TO_SER_GPIO"#id, \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 1, .gpio_id = id ? (id + 2) : 0x12 } \
+	}, \
+} \
+
+/*soc -> ser -> des*/
+#define FUNCTION_DESC_GPIO_OUTPUT(id) \
+{ \
+	.func = { \
+		.name = "SER_GPIO"#id"_TO_DES", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = id ? (id + 2) : 0x12 } \
+	}, \
+} \
+
+#define FUNCTION_DES_DELAY_MS(ms) \
+{ \
+	.func = { \
+		.name = "DELAY_"#ms"MS", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .mdelay = ms, } \
+	}, \
+} \
+
+/*des -> device*/
+#define FUNCTION_DESC_GPIO_OUTPUT_HIGH() \
+{ \
+	.func = { \
+		.name = "DES_GPIO_OUTPUT_HIGH", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = 1 } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_LOW() \
+{ \
+	.func = { \
+		.name = "DES_GPIO_OUTPUT_LOW", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en = 0, .gpio_id = 0 } \
+	}, \
+} \
+
+#endif
 #endif

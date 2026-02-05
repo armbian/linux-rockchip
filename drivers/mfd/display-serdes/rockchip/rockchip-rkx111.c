@@ -34,16 +34,11 @@ static struct regmap_config rkx111_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-struct pinctrl_pin_desc rkx111_pins_desc[] = {
-};
+struct pinctrl_pin_desc rkx111_pins_desc[] = {};
 
-struct group_desc rkx111_groups_desc[] = {
-	{ "null", NULL, 1, },
-};
+struct group_desc rkx111_groups_desc[] = {};
 
-struct function_desc rkx111_functions_desc[] = {
-	{ "null", NULL, 1, },
-};
+struct function_desc rkx111_functions_desc[] = {};
 
 static struct serdes_chip_pinctrl_info rkx111_pinctrl_info = {
 	.pins = rkx111_pins_desc,

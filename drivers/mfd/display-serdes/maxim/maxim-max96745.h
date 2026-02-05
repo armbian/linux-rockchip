@@ -143,4 +143,256 @@ enum link_mode {
 	SPLITTER_MODE,
 };
 
+struct serdes_function_data {
+	u8 gpio_out_dis:1;
+	u8 gpio_io_rx_en:1;
+	u8 gpio_tx_en_a:1;
+	u8 gpio_tx_en_b:1;
+	u8 gpio_rx_en_a:1;
+	u8 gpio_rx_en_b:1;
+	u8 gpio_tx_id;
+	u8 gpio_rx_id;
+};
+
+struct config_desc {
+	u16 reg;
+	u8 mask;
+	u8 val;
+};
+
+struct serdes_group_data {
+	const struct config_desc *configs;
+	int num_configs;
+};
+
+static int MAX96745_MFP0_pins[] = {0};
+static int MAX96745_MFP1_pins[] = {1};
+static int MAX96745_MFP2_pins[] = {2};
+static int MAX96745_MFP3_pins[] = {3};
+static int MAX96745_MFP4_pins[] = {4};
+static int MAX96745_MFP5_pins[] = {5};
+static int MAX96745_MFP6_pins[] = {6};
+static int MAX96745_MFP7_pins[] = {7};
+
+static int MAX96745_MFP8_pins[] = {8};
+static int MAX96745_MFP9_pins[] = {9};
+static int MAX96745_MFP10_pins[] = {10};
+static int MAX96745_MFP11_pins[] = {11};
+static int MAX96745_MFP12_pins[] = {12};
+static int MAX96745_MFP13_pins[] = {13};
+static int MAX96745_MFP14_pins[] = {14};
+static int MAX96745_MFP15_pins[] = {15};
+
+static int MAX96745_MFP16_pins[] = {16};
+static int MAX96745_MFP17_pins[] = {17};
+static int MAX96745_MFP18_pins[] = {18};
+static int MAX96745_MFP19_pins[] = {19};
+static int MAX96745_MFP20_pins[] = {20};
+static int MAX96745_MFP21_pins[] = {21};
+static int MAX96745_MFP22_pins[] = {22};
+static int MAX96745_MFP23_pins[] = {23};
+
+static int MAX96745_MFP24_pins[] = {24};
+static int MAX96745_MFP25_pins[] = {25};
+static int MAX96745_I2C_pins[] = {3, 7};
+static int MAX96745_UART_pins[] = {3, 7};
+
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+static const char *serdes_gpio_groups[] = {
+	"MAX96745_MFP0", "MAX96745_MFP1", "MAX96745_MFP2", "MAX96745_MFP3",
+	"MAX96745_MFP4", "MAX96745_MFP5", "MAX96745_MFP6", "MAX96745_MFP7",
+
+	"MAX96745_MFP8", "MAX96745_MFP9", "MAX96745_MFP10", "MAX96745_MFP11",
+	"MAX96745_MFP12", "MAX96745_MFP13", "MAX96745_MFP14", "MAX96745_MFP15",
+
+	"MAX96745_MFP16", "MAX96745_MFP17", "MAX96745_MFP18", "MAX96745_MFP19",
+	"MAX96745_MFP20", "MAX96745_MFP21", "MAX96745_MFP22", "MAX96745_MFP23",
+
+	"MAX96745_MFP24", "MAX96745_MFP25",
+};
+
+static const char *MAX96745_I2C_groups[] = { "MAX96745_I2C" };
+static const char *MAX96745_UART_groups[] = { "MAX96745_UART" };
+#else
+static const char * const serdes_gpio_groups[] = {
+	"MAX96745_MFP0", "MAX96745_MFP1", "MAX96745_MFP2", "MAX96745_MFP3",
+	"MAX96745_MFP4", "MAX96745_MFP5", "MAX96745_MFP6", "MAX96745_MFP7",
+
+	"MAX96745_MFP8", "MAX96745_MFP9", "MAX96745_MFP10", "MAX96745_MFP11",
+	"MAX96745_MFP12", "MAX96745_MFP13", "MAX96745_MFP14", "MAX96745_MFP15",
+
+	"MAX96745_MFP16", "MAX96745_MFP17", "MAX96745_MFP18", "MAX96745_MFP19",
+	"MAX96745_MFP20", "MAX96745_MFP21", "MAX96745_MFP22", "MAX96745_MFP23",
+
+	"MAX96745_MFP24", "MAX96745_MFP25",
+};
+
+static const char * const MAX96745_I2C_groups[] = { "MAX96745_I2C" };
+static const char * const MAX96745_UART_groups[] = { "MAX96745_UART" };
+#endif
+
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
+#define GROUP_DESC(nm) \
+{ \
+	.name = #nm, \
+	.pins = nm ## _pins, \
+	.num_pins = ARRAY_SIZE(nm ## _pins), \
+} \
+
+#define FUNCTION_DESC(nm) \
+{ \
+	.name = #nm, \
+	.group_names = nm##_groups, \
+	.num_group_names = ARRAY_SIZE(nm##_groups), \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_A(id) \
+{ \
+	.name = "SER_TXID"#id"_TO_DES_LINKA", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_out_dis = 1, .gpio_tx_en_a = 1, \
+		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_B(id) \
+{ \
+	.name = "SER_TXID"#id"_TO_DES_LINKB", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_out_dis = 1, .gpio_tx_en_b = 1, \
+		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_INPUT_A(id) \
+{ \
+	.name = "DES_RXID"#id"_TO_SER_LINKA", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en_a = 1, .gpio_rx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_INPUT_B(id) \
+{ \
+	.name = "DES_RXID"#id"_TO_SER_LINKB", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en_b = 1, .gpio_rx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO() \
+{ \
+	.name = "MAX96745_GPIO", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ } \
+	}, \
+} \
+
+#else
+#define GROUP_DESC(nm) \
+{ \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
+} \
+
+#define GROUP_DESC_CONFIG(nm) \
+{ \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
+	.data = (void *)(const struct serdes_group_data []) { \
+		{ \
+			.configs = nm ## _configs, \
+			.num_configs = ARRAY_SIZE(nm ## _configs), \
+		} \
+	}, \
+} \
+
+#define FUNCTION_DESC(nm) \
+{ \
+	.func = { \
+		.name = #nm, \
+		.groups = nm##_groups, \
+		.ngroups = ARRAY_SIZE(nm##_groups), \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_A(id) \
+{ \
+	.func = { \
+		.name = "SER_TXID"#id"_TO_DES_LINKA", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_out_dis = 1, .gpio_tx_en_a = 1, \
+		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_OUTPUT_B(id) \
+{ \
+	.func = { \
+		.name = "SER_TXID"#id"_TO_DES_LINKB", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_out_dis = 1, .gpio_tx_en_b = 1, \
+		  .gpio_io_rx_en = 1, .gpio_tx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_INPUT_A(id) \
+{ \
+	.func = { \
+		.name = "DES_RXID"#id"_TO_SER_LINKA", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en_a = 1, .gpio_rx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO_INPUT_B(id) \
+{ \
+	.func = { \
+		.name = "DES_RXID"#id"_TO_SER_LINKB", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .gpio_rx_en_b = 1, .gpio_rx_id = id } \
+	}, \
+} \
+
+#define FUNCTION_DESC_GPIO() \
+{ \
+	.func = { \
+		.name = "MAX96745_GPIO", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ } \
+	}, \
+} \
+
+#endif
 #endif

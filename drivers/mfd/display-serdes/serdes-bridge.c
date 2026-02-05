@@ -394,7 +394,7 @@ err_free_node:
 	return ret;
 }
 
-static void serdes_bridge_remove(struct platform_device *pdev)
+static int serdes_bridge_remove(struct platform_device *pdev)
 {
 	struct serdes_bridge *serdes_bridge = platform_get_drvdata(pdev);
 
@@ -402,6 +402,8 @@ static void serdes_bridge_remove(struct platform_device *pdev)
 		serdes_detach_dsi(serdes_bridge);
 
 	drm_bridge_remove(&serdes_bridge->base_bridge);
+
+	return 0;
 }
 
 static const struct of_device_id serdes_bridge_of_match[] = {
@@ -422,7 +424,7 @@ static struct platform_driver serdes_bridge_driver = {
 		.of_match_table = of_match_ptr(serdes_bridge_of_match),
 	},
 	.probe = serdes_bridge_probe,
-	.remove = serdes_bridge_remove,
+	.remove = (void *)serdes_bridge_remove,
 };
 
 static int __init serdes_bridge_init(void)

@@ -239,7 +239,7 @@ static int serdes_panel_split_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void serdes_panel_split_remove(struct platform_device *pdev)
+static int serdes_panel_split_remove(struct platform_device *pdev)
 {
 	struct serdes_panel_split *serdes_panel_split = platform_get_drvdata(pdev);
 	struct backlight_device *backlight = serdes_panel_split->backlight;
@@ -248,6 +248,8 @@ static void serdes_panel_split_remove(struct platform_device *pdev)
 		put_device(&backlight->dev);
 
 	drm_panel_remove(&serdes_panel_split->panel);
+
+	return 0;
 }
 
 static const struct of_device_id serdes_panel_split_of_match[] = {
@@ -264,7 +266,7 @@ static struct platform_driver serdes_panel_split_driver = {
 		.of_match_table = of_match_ptr(serdes_panel_split_of_match),
 	},
 	.probe = serdes_panel_split_probe,
-	.remove = serdes_panel_split_remove,
+	.remove = (void *)serdes_panel_split_remove,
 };
 
 static int __init serdes_panel_split_init(void)

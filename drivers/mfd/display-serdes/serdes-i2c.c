@@ -290,7 +290,12 @@ static int serdes_get_init_seq(struct serdes *serdes)
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
 static int serdes_i2c_probe(struct i2c_client *client)
+#else
+static int serdes_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
+#endif
 {
 	struct device *dev = &client->dev;
 	struct serdes *serdes;
@@ -417,7 +422,7 @@ static void serdes_i2c_shutdown(struct i2c_client *client)
 	serdes_device_shutdown(serdes);
 }
 
-static void serdes_i2c_remove(struct i2c_client *client)
+static int serdes_i2c_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct serdes *serdes = dev_get_drvdata(dev);
@@ -431,6 +436,7 @@ static void serdes_i2c_remove(struct i2c_client *client)
 	}
 
 	serdes_destroy_debugfs(serdes);
+	return 0;
 }
 
 static int serdes_i2c_prepare(struct device *dev)

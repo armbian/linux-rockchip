@@ -50,20 +50,29 @@ static int NCA9539_GPIO13_pins[] = {13};
 static int NCA9539_GPIO14_pins[] = {14};
 static int NCA9539_GPIO15_pins[] = {15};
 
-
-#define GROUP_DESC(nm) \
-{ \
-	.name = #nm, \
-	.pins = nm ## _pins, \
-	.num_pins = ARRAY_SIZE(nm ## _pins), \
-}
-
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static const char *serdes_gpio_groups[] = {
 	"NCA9539_GPIO0", "NCA9539_GPIO1", "NCA9539_GPIO2", "NCA9539_GPIO3",
 	"NCA9539_GPIO4", "NCA9539_GPIO5", "NCA9539_GPIO6", "NCA9539_GPIO7",
 	"NCA9539_GPIO8", "NCA9539_GPIO9", "NCA9539_GPIO10", "NCA9539_GPIO11",
 	"NCA9539_GPIO12", "NCA9539_GPIO13", "NCA9539_GPIO14", "NCA9539_GPIO15",
 };
+#else
+static const char * const serdes_gpio_groups[] = {
+	"NCA9539_GPIO0", "NCA9539_GPIO1", "NCA9539_GPIO2", "NCA9539_GPIO3",
+	"NCA9539_GPIO4", "NCA9539_GPIO5", "NCA9539_GPIO6", "NCA9539_GPIO7",
+	"NCA9539_GPIO8", "NCA9539_GPIO9", "NCA9539_GPIO10", "NCA9539_GPIO11",
+	"NCA9539_GPIO12", "NCA9539_GPIO13", "NCA9539_GPIO14", "NCA9539_GPIO15",
+};
+#endif
+
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
+#define GROUP_DESC(nm) \
+{ \
+	.name = #nm, \
+	.pins = nm ## _pins, \
+	.num_pins = ARRAY_SIZE(nm ## _pins), \
+} \
 
 /*des -> ser -> soc*/
 #define FUNCTION_DESC_GPIO_INPUT(id) \
@@ -81,6 +90,37 @@ static const char *serdes_gpio_groups[] = {
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 } \
 
+#else
+#define GROUP_DESC(nm) \
+{ \
+	.grp = { \
+		.name = #nm, \
+		.pins = nm ## _pins, \
+		.npins = ARRAY_SIZE(nm ## _pins), \
+	}, \
+} \
+
+/*des -> ser -> soc*/
+#define FUNCTION_DESC_GPIO_INPUT(id) \
+{ \
+	.func = { \
+		.name = "GPIO"#id"_INPUT", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+} \
+
+/*soc -> ser -> des*/
+#define FUNCTION_DESC_GPIO_OUTPUT(id) \
+{ \
+	.func = { \
+		.name = "GPIO"#id"_OUTPUT", \
+		.groups = serdes_gpio_groups, \
+		.ngroups = ARRAY_SIZE(serdes_gpio_groups), \
+	}, \
+} \
+
+#endif
 
 static struct pinctrl_pin_desc nca9539_pins_desc[] = {
 	PINCTRL_PIN(NOVO_NCA9539_GPIO0, "NCA9539_GPIO0"),
