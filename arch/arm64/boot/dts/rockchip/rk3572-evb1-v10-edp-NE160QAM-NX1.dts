@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb1-v10.dtsi"
+#include "rk3572-android.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB1 V10 Board + RK Ext HDMImale to eDP V10";
+	compatible = "rockchip,rk3572-evb1-v10-edp-NE160QAM-NX1", "rockchip,rk3572";
+
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+
+		display-timings {
+			native-mode = <&timing_4kp60>;
+			timing_4kp60: timing0 {
+				clock-frequency = <587520000>;
+				hactive = <3840>;
+				vactive = <2400>;
+				hfront-porch = <48>;
+				hsync-len = <32>;
+				hback-porch = <80>;
+				vfront-porch = <3>;
+				vsync-len = <5>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+};
+
+&edp {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdptxphy {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "disabled";
+};
+
+&route_edp {
+	status = "okay";
+	connect = <&vp0_out_edp>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
