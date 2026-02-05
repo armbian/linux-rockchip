@@ -513,7 +513,7 @@ static int max96756_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
-		*v4l2_subdev_state_get_format(cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	#else
@@ -552,7 +552,7 @@ static int max96756_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
-		fmt->format = *v4l2_subdev_state_get_format(cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	#elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	#else
@@ -615,8 +615,14 @@ static int max96756_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+static int max96756_g_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *state,
+				     struct v4l2_subdev_frame_interval *fi)
+#else
 static int max96756_g_frame_interval(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_frame_interval *fi)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 	const struct max96756_mode *mode = max96756->cur_mode;
@@ -995,8 +1001,13 @@ static int max96756_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+static int max96756_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_dv_timings *timings)
+#else
 static int max96756_s_dv_timings(struct v4l2_subdev *sd,
 				 struct v4l2_dv_timings *timings)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 
@@ -1025,8 +1036,13 @@ static int max96756_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+static int max96756_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_dv_timings *timings)
+#else
 static int max96756_g_dv_timings(struct v4l2_subdev *sd,
 				 struct v4l2_dv_timings *timings)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 
@@ -1045,8 +1061,13 @@ static int max96756_enum_dv_timings(struct v4l2_subdev *sd,
 					NULL);
 }
 
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+static int max96756_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				     struct v4l2_dv_timings *timings)
+#else
 static int max96756_query_dv_timings(struct v4l2_subdev *sd,
 				     struct v4l2_dv_timings *timings)
+#endif
 {
 	struct max96756 *max96756 = to_max96756(sd);
 
@@ -1213,7 +1234,7 @@ static int max96756_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct max96756 *max96756 = to_max96756(sd);
 #if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_state_get_format(fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 #elif KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->state, 0);
@@ -1326,11 +1347,15 @@ static const struct v4l2_subdev_core_ops max96756_core_ops = {
 
 static const struct v4l2_subdev_video_ops max96756_video_ops = {
 	.g_input_status = max96756_g_input_status,
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+//	kernel 6.12 move to v4l2_subdev_pad_ops
+#else
 	.s_dv_timings = max96756_s_dv_timings,
 	.g_dv_timings = max96756_g_dv_timings,
 	.query_dv_timings = max96756_query_dv_timings,
-	.s_stream = max96756_s_stream,
 	.g_frame_interval = max96756_g_frame_interval,
+#endif
+	.s_stream = max96756_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops max96756_pad_ops = {
@@ -1343,6 +1368,12 @@ static const struct v4l2_subdev_pad_ops max96756_pad_ops = {
 	.get_mbus_config = max96756_g_mbus_config,
 	.enum_dv_timings = max96756_enum_dv_timings,
 	.dv_timings_cap = max96756_dv_timings_cap,
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+	.s_dv_timings = max96756_s_dv_timings,
+	.g_dv_timings = max96756_g_dv_timings,
+	.query_dv_timings = max96756_query_dv_timings,
+	.get_frame_interval = max96756_g_frame_interval,
+#endif
 };
 
 static const struct v4l2_subdev_ops max96756_subdev_ops = {
@@ -1670,7 +1701,11 @@ static struct i2c_driver max96756_i2c_driver = {
 		.pm = &max96756_pm_ops,
 		.of_match_table = of_match_ptr(max96756_of_match),
 	},
+#if KERNEL_VERSION(6, 8, 0) <= LINUX_VERSION_CODE
+	.probe		= &max96756_probe,
+#else
 	.probe_new	= &max96756_probe,
+#endif
 	.remove		= &max96756_remove,
 	.id_table	= max96756_match_id,
 };
