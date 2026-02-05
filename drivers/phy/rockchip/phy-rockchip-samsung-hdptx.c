@@ -2016,6 +2016,7 @@ static int rk_hdptx_phy_verify_dp_config(struct rk_hdptx_phy *hdptx,
 
 	if (dp->set_lanes) {
 		switch (dp->lanes) {
+		case 0:
 		case 1:
 		case 2:
 		case 4:
@@ -2209,10 +2210,33 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 	return 0;
 }
 
+static void rk_hdptx_phy_disable_lanes(struct rk_hdptx_phy *hdptx)
+{
+	reset_control_assert(hdptx->rsts[RST_LANE].rstc);
+
+	regmap_update_bits(hdptx->regmap, LNTOP_REG(0207), LANE_EN_MASK,
+			   FIELD_PREP(LANE_EN_MASK, 0x0));
+
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
+		     HDPTX_I_PLL_EN << 16 | FIELD_PREP(HDPTX_I_PLL_EN, 0x0));
+
+	regmap_update_bits(hdptx->regmap, CMN_REG(0008), OVRD_LCPLL_EN_MASK | LCPLL_EN_MASK,
+			   FIELD_PREP(OVRD_LCPLL_EN_MASK, 0x1) |
+			   FIELD_PREP(LCPLL_EN_MASK, 0x0));
+	regmap_update_bits(hdptx->regmap, CMN_REG(003d), OVRD_ROPLL_EN_MASK | ROPLL_EN_MASK,
+			   FIELD_PREP(OVRD_ROPLL_EN_MASK, 0x1) |
+			   FIELD_PREP(ROPLL_EN_MASK, 0x0));
+}
+
 static int rk_hdptx_phy_set_lanes(struct rk_hdptx_phy *hdptx,
 				  struct phy_configure_opts_dp *dp)
 {
 	hdptx->lanes = dp->lanes;
+
+	if (!hdptx->lanes) {
+		rk_hdptx_phy_disable_lanes(hdptx);
+		return 0;
+	}
 
 	regmap_update_bits(hdptx->regmap, LNTOP_REG(0207), LANE_EN_MASK,
 			   FIELD_PREP(LANE_EN_MASK, GENMASK(hdptx->lanes - 1, 0)));
