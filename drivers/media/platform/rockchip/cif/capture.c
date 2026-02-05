@@ -10313,6 +10313,8 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 				dev->is_in_flip = false;
 				spin_unlock_irqrestore(&cur_stream->vbq_lock, flags);
 			}
+			if (cur_stream->state != RKCIF_STATE_STREAMING)
+				continue;
 			if (dev->hdr.hdr_mode == NO_HDR ||
 			    (dev->hdr.hdr_mode == HDR_X2 && cur_stream->id == 1) ||
 			    (dev->hdr.hdr_mode == HDR_X3 && cur_stream->id == 2)) {
@@ -10331,6 +10333,8 @@ void rkcif_flip_end_wait_work(struct work_struct *work)
 				dev->is_in_flip = false;
 				spin_unlock_irqrestore(&cur_stream->vbq_lock, flags);
 			}
+			if (cur_stream->state != RKCIF_STATE_STREAMING)
+				continue;
 			if (dev->sditf[0]->mode.rdbk_mode != RKISP_VICAP_RDBK_AIQ)
 				cur_stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 			else
