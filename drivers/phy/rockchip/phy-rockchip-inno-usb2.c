@@ -2170,13 +2170,11 @@ static int rockchip_usb2phy_orien_sw_set(struct typec_switch_dev *sw,
 
 	dev_dbg(&rport->phy->dev, "type-c orientation: %d\n", orien);
 
-	mutex_lock(&rport->mutex);
 	rockchip_usb2phy_usb_bvalid_enable(rport, orien != TYPEC_ORIENTATION_NONE);
 
 	if (rphy->partner_port)
 		rockchip_usb2phy_usb_bvalid_enable(rphy->partner_port,
 						   orien != TYPEC_ORIENTATION_NONE);
-	mutex_unlock(&rport->mutex);
 
 	return 0;
 }
