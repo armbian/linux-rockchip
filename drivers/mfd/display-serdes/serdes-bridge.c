@@ -424,7 +424,7 @@ static struct platform_driver serdes_bridge_driver = {
 		.of_match_table = of_match_ptr(serdes_bridge_of_match),
 	},
 	.probe = serdes_bridge_probe,
-	.remove = serdes_bridge_remove,
+	.remove = (void *)serdes_bridge_remove,
 };
 
 static int __init serdes_bridge_init(void)

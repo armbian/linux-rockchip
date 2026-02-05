@@ -313,6 +313,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to register serdes pinctrl\n");
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 	for (i = 0; i < pinctrl_info->num_groups; i++) {
 		struct group_desc *group = &pinctrl_info->groups[i];
 		int *grp_pins = devm_kcalloc(dev,
@@ -345,6 +346,41 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+#else
+	for (i = 0; i < pinctrl_info->num_groups; i++) {
+		struct group_desc *group = &pinctrl_info->groups[i];
+		struct pingroup *grp = &group->grp;
+		int *grp_pins = devm_kcalloc(dev,
+					     grp->npins, sizeof(*grp->pins), GFP_KERNEL);
+
+		for (j = 0; j < grp->npins; j++) {
+			grp_pins[j] = grp->pins[j] + pin_base;
+			SERDES_DBG_MFD("%s group name %s pin=%d base=%d\n", __func__,
+				       grp->name, grp_pins[j], pin_base);
+		}
+
+		ret = pinctrl_generic_add_group(serdes_pinctrl->pctl, grp->name,
+						grp_pins, grp->npins, group->data);
+		if (ret < 0) {
+			dev_err(dev, "Failed to register serdes group %s\n",
+				grp->name);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < pinctrl_info->num_functions; i++) {
+		const struct function_desc *func = &pinctrl_info->functions[i];
+
+		ret = pinmux_generic_add_function(serdes_pinctrl->pctl, func->func.name,
+						  func->func.groups, func->func.ngroups,
+						  func->data);
+		if (ret < 0) {
+			dev_err(dev, "Failed to register serdes function %s\n",
+				func->func.name);
+			return ret;
+		}
+	}
+#endif
 
 	pinctrl_enable(serdes_pinctrl->pctl);
 

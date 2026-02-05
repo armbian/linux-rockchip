@@ -47,7 +47,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_probe_helper.h>
-#if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 #include <drm/display/drm_dp_helper.h>
 #else
 #include <drm/drm_dp_helper.h>
@@ -63,12 +63,17 @@
 #include <video/display_timing.h>
 #include <uapi/linux/media-bus-format.h>
 
+#include <linux/debugfs.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
-
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif
 #include "gpio.h"
 
 #include "../../../../drivers/pinctrl/core.h"

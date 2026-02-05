@@ -26,54 +26,6 @@ static struct regmap_config bu18tl82_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int BU18TL82_GPIO0_pins[] = {0};
-static int BU18TL82_GPIO1_pins[] = {1};
-static int BU18TL82_GPIO2_pins[] = {2};
-static int BU18TL82_GPIO3_pins[] = {3};
-static int BU18TL82_GPIO4_pins[] = {4};
-static int BU18TL82_GPIO5_pins[] = {5};
-static int BU18TL82_GPIO6_pins[] = {6};
-static int BU18TL82_GPIO7_pins[] = {7};
-
-#define GROUP_DESC(nm) \
-{ \
-	.name = #nm, \
-	.pins = nm ## _pins, \
-	.num_pins = ARRAY_SIZE(nm ## _pins), \
-}
-
-struct serdes_function_data {
-	u8 gpio_rx_en:1;
-	u16 gpio_id;
-};
-
-static const char *serdes_gpio_groups[] = {
-	"BU18TL82_GPIO0", "BU18TL82_GPIO1", "BU18TL82_GPIO2", "BU18TL82_GPIO3",
-	"BU18TL82_GPIO4", "BU18TL82_GPIO5", "BU18TL82_GPIO6", "BU18TL82_GPIO7",
-};
-
-/*des -> ser -> soc*/
-#define FUNCTION_DESC_GPIO_INPUT(id) \
-{ \
-	.name = "DES_GPIO"#id"_TO_SER", \
-	.group_names = serdes_gpio_groups, \
-	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
-	.data = (void *)(const struct serdes_function_data []) { \
-		{ .gpio_rx_en = 0, .gpio_id = (id < 8) ? (id + 2) : (id + 3) } \
-	}, \
-} \
-
-/*soc -> ser -> des*/
-#define FUNCTION_DESC_GPIO_OUTPUT(id) \
-{ \
-	.name = "SER_TO_DES_GPIO"#id, \
-	.group_names = serdes_gpio_groups, \
-	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
-	.data = (void *)(const struct serdes_function_data []) { \
-		{ .gpio_rx_en = 1, .gpio_id = (id < 8) ? (id + 2) : (id + 3) } \
-	}, \
-} \
-
 static struct pinctrl_pin_desc bu18tl82_pins_desc[] = {
 	PINCTRL_PIN(ROHM_BU18TL82_GPIO0, "BU18TL82_GPIO0"),
 	PINCTRL_PIN(ROHM_BU18TL82_GPIO1, "BU18TL82_GPIO1"),
@@ -319,7 +271,8 @@ static int bu18tl82_pinctrl_set_mux(struct serdes *serdes,
 	struct serdes_pinctrl *pinctrl = serdes->pinctrl;
 	struct function_desc *func;
 	struct group_desc *grp;
-	int i, offset;
+	unsigned int i, offset, npins;
+	const char *func_name, *grp_name;
 
 	func = pinmux_generic_get_function(pinctrl->pctl, function);
 	if (!func)
@@ -329,15 +282,29 @@ static int bu18tl82_pinctrl_set_mux(struct serdes *serdes,
 	if (!grp)
 		return -EINVAL;
 
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
+	npins = grp->num_pins;
+	func_name = func->name;
+	grp_name = grp->name;
+#else
+	npins = grp->grp.npins;
+	func_name = func->func.name;
+	grp_name = grp->grp.name;
+#endif
+
 	SERDES_DBG_CHIP("%s: serdes chip %s func=%s data=%p group=%s data=%p, num_pin=%d\n",
-			__func__, serdes->chip_data->name,
-			func->name, func->data, grp->name, grp->data, grp->num_pins);
+			__func__, serdes->chip_data->name, func_name,
+			func->data, grp_name, grp->data, npins);
 
 	if (func->data) {
 		struct serdes_function_data *fdata = func->data;
 
-		for (i = 0; i < grp->num_pins; i++) {
+		for (i = 0; i < npins; i++) {
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 			offset = grp->pins[i] - pinctrl->pin_base;
+#else
+			offset = grp->grp.pins[i] - pinctrl->pin_base;
+#endif
 			if (offset > 7)
 				dev_err(serdes->dev, "%s gpio offset=%d too large > 7\n",
 					serdes->chip_data->name, offset);

@@ -272,7 +272,7 @@ static struct platform_driver serdes_panel_driver = {
 		.of_match_table = of_match_ptr(serdes_panel_of_match),
 	},
 	.probe = serdes_panel_probe,
-	.remove = serdes_panel_remove,
+	.remove = (void *)serdes_panel_remove,
 };
 
 static int __init serdes_panel_init(void)
