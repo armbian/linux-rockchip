@@ -196,6 +196,8 @@
 #define LCH_IS_LLI_RD_ERR_IS		BIT(10)
 #define LCH_IS_LLI_INVALID_IS		BIT(11)
 #define LCH_IS_LLI_WAIT_IS		BIT(12)
+#define LCH_IS_ERR_SHIFT		6
+#define LCH_IS_ERR_ALL			GENMASK(11, 6)
 
 /* LCH_IE */
 #define LCH_IE_DMA_DONE_IE_MASK		BIT(0)
@@ -237,6 +239,7 @@
 #define LCH_IE_LLI_WAIT_IE_MASK		BIT(12)
 #define LCH_IE_LLI_WAIT_IE_EN		BIT(12)
 #define LCH_IE_LLI_WAIT_IE_DIS		0
+#define LCH_IE_ERR_ALL			GENMASK(11, 6)
 
 /* LCH_DBGS0 */
 #define LCH_DBGS0_DMA_CS(v)		GENMASK_VAL(v, 3, 0)
@@ -485,13 +488,16 @@ static void rk_dma_terminate_chan(struct rk_dma_lch *l, struct rk_dma_dev *d)
 static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds)
 {
 	struct rk_dma_lch *l = c->lch;
+	u32 ie = LCH_IE_ERR_ALL;
 
 	writel(LCH_CTL0_CH_EN, RK_DMA_LCH_CTL0);
 
 	if (c->cyclic)
-		writel(LCH_IE_BLOCK_DONE_IE_EN, RK_DMA_LCH_IE);
+		ie |= LCH_IE_BLOCK_DONE_IE_EN;
 	else
-		writel(LCH_IE_DMA_DONE_IE_EN, RK_DMA_LCH_IE);
+		ie |= LCH_IE_DMA_DONE_IE_EN;
+
+	writel(ie, RK_DMA_LCH_IE);
 
 	writel(lower_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA);
 	writel(upper_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA_HIGH);
@@ -641,13 +647,40 @@ static void rk_dma_task(struct rk_dma_dev *d)
 	}
 }
 
+static const char * const rk_dma_lch_err[] = {
+	"SRC Read Err",
+	"DST Write Err",
+	"CMD Read Err",
+	"CMD Write Err",
+	"LLI Read Err",
+	"LLI Invalid Err",
+};
+
+static int rk_dma_lch_err_handler(struct rk_dma_lch *l, struct rk_dma_dev *d, u32 is)
+{
+	unsigned long err_is;
+	int i;
+
+	if ((is & LCH_IS_ERR_ALL) == 0)
+		return 0;
+
+	rk_dma_terminate_chan(l, d);
+
+	err_is = is >> LCH_IS_ERR_SHIFT;
+
+	for_each_set_bit(i, &err_is, ARRAY_SIZE(rk_dma_lch_err))
+		dev_err(d->slave.dev, "%s\n", rk_dma_lch_err[i]);
+
+	return 0;
+}
+
 static irqreturn_t rk_dma_irq_handler(int irq, void *dev_id)
 {
 	struct rk_dma_dev *d = (struct rk_dma_dev *)dev_id;
 	struct rk_dma_lch *l;
 	struct rk_dma_chan *c;
 	u64 is = 0, is_raw = 0;
-	u32 i = 0, task = 0;
+	u32 i = 0, task = 0, l_is;
 
 	is = readq(RK_DMA_CMN_IS0);
 	is_raw = is;
@@ -668,7 +701,9 @@ static irqreturn_t rk_dma_irq_handler(int irq, void *dev_id)
 				}
 			}
 			spin_unlock(&c->vc.lock);
-			writel(readl(RK_DMA_LCH_IS), RK_DMA_LCH_IS);
+			l_is = readl(RK_DMA_LCH_IS);
+			writel(l_is, RK_DMA_LCH_IS);
+			rk_dma_lch_err_handler(l, d, l_is);
 		}
 	}
 
