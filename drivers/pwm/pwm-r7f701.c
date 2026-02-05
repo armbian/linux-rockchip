@@ -66,7 +66,6 @@ enum {
 };
 
 struct r7f701_pwm_chip {
-	struct pwm_chip	chip;
 	struct device	*dev;
 	struct regmap *regmap;
 
@@ -109,7 +108,7 @@ static const struct regmap_config r7f701_regmap_config = {
 
 static inline struct r7f701_pwm_chip *to_r7f701_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct r7f701_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static int r7f701_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -137,14 +136,15 @@ static int r7f701_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	data[6] = reg ^ data[0];
 	ret |= regmap_bulk_write(r7f701->regmap, reg, data, ARRAY_SIZE(data));
 
-	dev_dbg(chip->dev, "%s: pwm chip BRIGHTNESS_SET level 0x%x ret=%d\n", __func__, level, ret);
+	dev_dbg(pwmchip_parent(chip), "%s: pwm chip BRIGHTNESS_SET level 0x%x ret=%d\n",
+		__func__, level, ret);
 
 	return 0;
 }
 
 static int r7f701_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	dev_dbg(chip->dev, "%s: pwm chip\n", __func__);
+	dev_dbg(pwmchip_parent(chip), "%s: pwm chip\n", __func__);
 
 	return 0;
 }
@@ -161,7 +161,7 @@ static void r7f701_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	data[6] = reg ^ data[0];
 	ret = regmap_bulk_write(r7f701->regmap, reg, data, ARRAY_SIZE(data));
 
-	dev_dbg(chip->dev, "%s: pwm chip ret=%d\n", __func__, ret);
+	dev_dbg(pwmchip_parent(chip), "%s: pwm chip ret=%d\n", __func__, ret);
 }
 
 static int r7f701_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -195,7 +195,7 @@ static int r7f701_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->enabled = true;
 	state->polarity = PWM_POLARITY_NORMAL;
 
-	dev_dbg(chip->dev, "%s: pwm chip\n", __func__);
+	dev_dbg(pwmchip_parent(chip), "%s: pwm chip\n", __func__);
 
 	return 0;
 }
@@ -203,32 +203,30 @@ static int r7f701_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops r7f701_pwm_ops = {
 	.apply = r7f701_pwm_apply,
 	.get_state = r7f701_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id pwm_of_match[] = {
-	{ .compatible = "r7f701-pwm", .data = 0},
-	{ }
+	{ .compatible = "r7f701-pwm", },
+	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, r7f701_pwm_dt_ids);
 
-static int pwm_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int pwm_probe(struct i2c_client *client)
 {
+	struct pwm_chip *chip;
 	struct device *dev = &client->dev;
 	struct r7f701_pwm_chip *r7f701;
 	int ret = 0;
 
-	r7f701 = devm_kzalloc(dev, sizeof(*r7f701), GFP_KERNEL);
-	if (!r7f701)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(dev, 1, sizeof(*r7f701));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	r7f701 = to_r7f701_pwm_chip(chip);
 
 	r7f701->dev = dev;
-	r7f701->chip.dev = dev;
-	r7f701->chip.ops = &r7f701_pwm_ops;
-	r7f701->chip.npwm = 1;
+	chip->ops = &r7f701_pwm_ops;
 
 	i2c_set_clientdata(client, r7f701);
-	dev_set_drvdata(dev, r7f701);
 
 	r7f701->regmap = devm_regmap_init_i2c(client, &r7f701_regmap_config);
 	if (IS_ERR(r7f701->regmap)) {
@@ -236,7 +234,7 @@ static int pwm_probe(struct i2c_client *client,
 		return PTR_ERR(r7f701->regmap);
 	}
 
-	ret = devm_pwmchip_add(dev, &r7f701->chip);
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0) {
 		dev_err(dev, "%s: pwmchip_add() failed: %d\n", __func__, ret);
 		return ret;
@@ -250,7 +248,7 @@ static int pwm_probe(struct i2c_client *client,
 static struct i2c_driver r7f701_i2c_driver = {
 	.driver		= {
 		.name	= "r7f701-pwm",
-		.of_match_table = of_match_ptr(pwm_of_match),
+		.of_match_table = pwm_of_match,
 	},
 	.probe		= pwm_probe,
 };
