@@ -21,6 +21,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/pinctrl/consumer.h>
 
 #define HIMAX_I2C_PLATFORM
 #define HIMAX_I2C_RETRY_TIMES 3
