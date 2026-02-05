@@ -812,7 +812,7 @@ static int vehicle_dummy_hw_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vehicle_dummy);
 
-	vehicle_dummy_class = class_create(THIS_MODULE, "vehicle_dummy_hw");
+	vehicle_dummy_class = class_create("vehicle_dummy_hw");
 	if (IS_ERR(vehicle_dummy_class)) {
 		dev_err(dev, "failed to create class.\n");
 		return PTR_ERR(vehicle_dummy_class);
@@ -859,11 +859,9 @@ static int vehicle_dummy_hw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vehicle_dummy_hw_remove(struct platform_device *pdev)
+static void vehicle_dummy_hw_remove(struct platform_device *pdev)
 {
 	class_destroy(vehicle_dummy_class);
-
-	return 0;
 }
 
 static struct platform_driver vehicle_dummy_hw_driver = {

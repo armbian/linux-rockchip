@@ -227,12 +227,11 @@ static int vehicle_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vehicle_adc_remove(struct platform_device *pdev)
+static void vehicle_adc_remove(struct platform_device *pdev)
 {
 	struct vehicle_adc *vehicle_adc = platform_get_drvdata(pdev);
 
 	destroy_workqueue(vehicle_adc->vehicle_wq);
-	return 0;
 }
 
 static const struct of_device_id vehicle_adc_id[] = {

@@ -371,11 +371,10 @@ static int vehicle_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vehicle_remove(struct platform_device *pdev)
+static void vehicle_remove(struct platform_device *pdev)
 {
 	if (nlsk)
 		netlink_kernel_release(nlsk);
-	return 0;
 }
 
 static struct platform_driver vehicle_device_driver = {
