@@ -1299,6 +1299,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3528-evb3-lp4x-v10.dtb \
 	rk3528-evb4-ddr4-v10.dtb \
 	rk3538-demo2-v10.dtb \
+	rk3538-demo3-v10.dtb \
+	rk3538-demo4-v10.dtb \
 	rk3538-evb1-ddr4-v10.dtb \
 	rk3538-iotest-lpddr3-v10.dtb \
 	rk3538-test1-lp4x-v10.dtb \
