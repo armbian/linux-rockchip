@@ -20,6 +20,14 @@ properties:
   interrupts:
     maxItems: 1
 
+  io-channels:
+    items:
+      - description: ADC channel to measure the VSAFE0V voltage
+
+  io-channel-names:
+    items:
+      - const: vsafe0v-detect
+
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description: A port node to link the TCPC to a USB controller for the
