@@ -455,7 +455,7 @@ static int pcie_rkep_open(struct inode *inode, struct file *file)
 	struct pcie_rkep *pcie_rkep = container_of(miscdev, struct pcie_rkep, dev);
 	struct pcie_file *pcie_file = NULL;
 
-	pcie_file = devm_kzalloc(&pcie_rkep->pdev->dev, sizeof(struct pcie_file), GFP_KERNEL);
+	pcie_file = kzalloc(sizeof(struct pcie_file), GFP_KERNEL);
 	if (!pcie_file)
 		return -ENOMEM;
 
@@ -503,6 +503,9 @@ static int pcie_rkep_release(struct inode *inode, struct file *file)
 		kfree(buffer_req);
 	}
 	mutex_unlock(&pcie_file->file_lock_mutex);
+
+	kfree(pcie_file);
+	file->private_data = NULL;
 
 	return 0;
 }
