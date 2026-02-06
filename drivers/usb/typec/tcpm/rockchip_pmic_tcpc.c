@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/iio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -162,6 +163,7 @@ struct rk_tcpc_chip {
 	struct tcpc_dev tcpc_dev;
 	struct regulator *vbus;
 	struct delayed_work pm_work;
+	struct iio_channel *vsafe0v_chan;
 	int irq;
 
 	/* lock for sharing chip states */
@@ -789,6 +791,7 @@ done:
 static bool tcpm_is_vbus_vsafe0v(struct tcpc_dev *dev)
 {
 	struct rk_tcpc_chip *chip = container_of(dev, struct rk_tcpc_chip, tcpc_dev);
+	int vol;
 	u8 reg;
 	int ret;
 
@@ -796,6 +799,16 @@ static bool tcpm_is_vbus_vsafe0v(struct tcpc_dev *dev)
 	 * [TD.4.7.2.V.11] PUT remains in Attached.SNK
 	 * [TD.4.7.2.V.12 ~ V.14] PUT maintain USB communication
 	 */
+	if (chip->vsafe0v_chan) {
+		ret = iio_read_channel_processed(chip->vsafe0v_chan, &vol);
+		if (ret < 0)
+			return false;
+
+		rk_tcpc_log(chip, "vsafe0v vol: %d", vol);
+
+		return vol < 80; /* the resistance voltage division ratio is 10K / (10K + 100K) */
+	}
+
 	ret = rk_tcpc_read8(chip, RK_TCPC_STS1, &reg);
 	if (ret < 0)
 		return false;
@@ -1187,6 +1200,13 @@ static int rk_tcpc_probe(struct i2c_client *client)
 	chip->irq = client->irq;
 	mutex_init(&chip->lock);
 	INIT_DELAYED_WORK(&chip->pm_work, rk_tcpc_pm_work);
+
+	if (device_property_present(chip->dev, "io-channels")) {
+		chip->vsafe0v_chan = devm_iio_channel_get(chip->dev, "vsafe0v-detect");
+		if (IS_ERR(chip->vsafe0v_chan))
+			return dev_err_probe(chip->dev, PTR_ERR(chip->vsafe0v_chan),
+					     "cannot get vsafe0v_chan IIO channel\n");
+	}
 
 	chip->vbus = devm_regulator_get_optional(chip->dev, "vbus");
 	if (IS_ERR(chip->vbus)) {
