@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
@@ -1250,10 +1251,18 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 		goto err_dis_all_clk;
 	}
 
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "%s: pm_runtime_get failed(%d)\n", __func__, ret);
+		pm_runtime_disable(dev);
+		goto err_dis_all_clk;
+	}
+
 	ret = rockchip_dsmc_dma_request(dev, dsmc);
 	if (ret) {
 		dev_err(dev, "Failed to request dma channel\n");
-		goto err_dis_all_clk;
+		goto err_dis_pm;
 	}
 
 	dsmc->dev = dev;
@@ -1310,6 +1319,9 @@ err_release_dma:
 		dma_release_channel(dsmc->dma_req[0]);
 	if (dsmc->dma_req[1])
 		dma_release_channel(dsmc->dma_req[1]);
+err_dis_pm:
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 err_dis_all_clk:
 	clk_disable_unprepare(dsmc->clk_sys);
 err_dis_pclk:
@@ -1377,6 +1389,9 @@ static void rk_dsmc_remove(struct platform_device *pdev)
 		dma_release_channel(dsmc->dma_req[0]);
 	if (dsmc->dma_req[1])
 		dma_release_channel(dsmc->dma_req[1]);
+
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 }
 
 static struct platform_driver rk_dsmc_driver = {
