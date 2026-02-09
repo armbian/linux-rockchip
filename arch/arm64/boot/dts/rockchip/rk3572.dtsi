@@ -242,6 +242,20 @@
 			clock-output-names = "spll";
 		};
 
+		usb0_sof_clk: usb0-sof-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <4000>;
+			clock-output-names = "usb0_sof_clk";
+		};
+
+		usb1_sof_clk: usb1-sof-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <4000>;
+			clock-output-names = "usb1_sof_clk";
+		};
+
 		xin24m: xin24m {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -297,6 +311,36 @@
 			clock-output-names = "mclk_sai4_to_io";
 			rockchip,bit-shift = <10>;
 			rockchip,bit-set-to-disable;
+		};
+
+		clk_acc_audio_frac_0: clk-acc-audio-frac-0@26090000 {
+			compatible = "rockchip,rk3572-clock-acc";
+			reg = <0x0 0x26090000 0 0x1000>;
+			clocks = <&cru REF_PULSE_CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_0>;
+			clock-names = "ref_clk", "adjust_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_acc_audio_frac_0";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clk_acc_audio_frac_1: clk-acc-audio-frac-1@26090000 {
+			compatible = "rockchip,rk3572-clock-acc";
+			reg = <0x0 0x26090000 0 0x1000>;
+			clocks = <&cru REF_PULSE_CLK_AUDIO_FRAC_1>, <&cru CLK_AUDIO_FRAC_1>;
+			clock-names = "ref_clk", "adjust_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_acc_audio_frac_1";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clk_acc_audio_frac_2: clk-acc-audio-frac-2@26090000 {
+			compatible = "rockchip,rk3572-clock-acc";
+			reg = <0x0 0x26090000 0 0x1000>;
+			clocks = <&cru REF_PULSE_CLK_AUDIO_FRAC_2>, <&cru CLK_AUDIO_FRAC_2>;
+			clock-names = "ref_clk", "adjust_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_acc_audio_frac_2";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
@@ -1755,16 +1799,16 @@
 				<&cru PLL_AUPLL>, <&cru CLK_UART_FRAC_0>,
 				<&cru CLK_UART_FRAC_1>, <&cru CLK_UART_FRAC_2>,
 				<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
-				<&cru CLK_AUDIO_INT_0>, <&cru CLK_AUDIO_INT_1>,
-				<&cru CLK_GPU>;
+				<&cru CLK_AUDIO_FRAC_2>, <&cru CLK_AUDIO_INT_0>,
+				<&cru CLK_AUDIO_INT_1>, <&cru CLK_GPU>;
 			assigned-clock-parents = <&cru PLL_AUPLL>;
 			assigned-clock-rates =
 				<0>, <1000000000>,
 				<786432000>, <18432000>,
 				<96000000>, <128000000>,
 				<45158400>, <49152000>,
-				<49152000>, <24576000>,
-				<200000000>;
+				<49152000>, <49152000>,
+				<24576000>, <200000000>;
 		};
 
 		bigcore_pvtpll: syscon@260f8000 {
