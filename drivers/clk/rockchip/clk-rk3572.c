@@ -109,6 +109,10 @@ static struct rockchip_pll_rate_table rk3572_ppll_rates[] = {
 	{ /* sentinel */ },
 };
 
+static struct rockchip_pll_rate_table rk3572_aupll_rates[] = {
+	RK3588_PLL_RATE(786000000, 1, 121, 2, 64850),
+};
+
 #define RK3572_ACLK_M_BIGCORE_DIV_MASK		0x1f
 #define RK3572_ACLK_M_BIGCORE_DIV_SHIFT		9
 #define RK3572_PCLK_DBG_BIGCORE_DIV_MASK	0x1f
@@ -350,7 +354,9 @@ static struct rockchip_cpuclk_rate_table rk3572_cpul1clk_rates[] __initdata = {
 #define DFLAGS CLK_DIVIDER_HIWORD_MASK
 #define GFLAGS (CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE)
 
-PNAME(mux_pll_p)			= { "xin24m", "clk_32k" };
+PNAME(mux_aupll_ref_p)			= { "xin24m", "aupll_ref_io" };
+PNAME(mux_pll_p)			= { "xin24m", "xin32k" };
+PNAME(mux_aupll_p)			= { "aupll_ref", "xin32k" };
 PNAME(mux_24m_32k_p)			= { "xin24m", "clk_32k" };
 PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(gpll_cpll_24m_p)			= { "gpll", "cpll", "xin24m" };
@@ -428,9 +434,9 @@ static struct rockchip_pll_clock rk3572_pll_clks[] __initdata = {
 	[vpll] = PLL(pll_rk3588, PLL_VPLL, "vpll", mux_pll_p,
 		     0, RK3572_PLL_CON(88),
 		     RK3572_MODE_CON0, 4, 15, 0, rk3572_pll_rates),
-	[aupll] = PLL(pll_rk3588, PLL_AUPLL, "aupll", mux_pll_p,
+	[aupll] = PLL(pll_rk3588, PLL_AUPLL, "aupll", mux_aupll_p,
 		     0, RK3572_PLL_CON(96),
-		     RK3572_MODE_CON0, 6, 15, 0, rk3572_pll_rates),
+		     RK3572_MODE_CON0, 6, 15, 0, rk3572_aupll_rates),
 	[cpll] = PLL(pll_rk3588, PLL_CPLL, "cpll", mux_pll_p,
 		     0, RK3572_PLL_CON(104),
 		     RK3572_MODE_CON0, 8, 15, 0, rk3572_pll_rates),
@@ -1720,6 +1726,11 @@ static struct rockchip_clk_branch rk3572_armclkl1 __initdata =
 	COMPOSITE_NOGATE(ARMCLK_L1, "armclk_l1", mux_armclkl1_p, CLK_IS_CRITICAL,
 			RK3572_LITCORE1_CLKSEL_CON(0), 8, 2, MFLAGS, 3, 5, DFLAGS);
 
+static struct rockchip_clk_branch rk3572_aupll_ref_branches[] __initdata = {
+	MUXGRF(AUPLL_REF, "aupll_ref", mux_aupll_ref_p,  CLK_IS_CRITICAL,
+			RK3572_PMU0_GRF_OSC_CON6, 0, 1, MFLAGS),
+};
+
 static void __iomem *rk3572_cru_base;
 
 static void rk3572_dump_cru(void)
@@ -1773,6 +1784,9 @@ static void __init rk3572_clk_init(struct device_node *np)
 		return;
 	}
 	clks = ctx->clk_data.clks;
+
+	rockchip_clk_register_branches(ctx, rk3572_aupll_ref_branches,
+				       ARRAY_SIZE(rk3572_aupll_ref_branches));
 
 	rockchip_clk_register_plls(ctx, rk3572_pll_clks,
 				   ARRAY_SIZE(rk3572_pll_clks),

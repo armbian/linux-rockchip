@@ -122,6 +122,7 @@
 #define HCLK_CAN3				107
 #define CLK_CAN3				108
 #define ACLK_DECOM_ROOT				109
+#define AUPLL_REF				110
 #define PCLK_I2C1				111
 #define PCLK_I2C2				112
 #define PCLK_I2C3				113
