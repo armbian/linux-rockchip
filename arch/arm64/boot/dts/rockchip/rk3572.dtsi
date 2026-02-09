@@ -1264,6 +1264,36 @@
 			reg = <0x0 0x26010000 0x0 0x2000>;
 		};
 
+		bigcore_grf: syscon@26012000 {
+			compatible = "rockchip,rk3572-bigcore-grf", "syscon";
+			reg = <0x0 0x26012000 0x0 0x2000>;
+		};
+
+		litcore0_grf: syscon@26014000 {
+			compatible = "rockchip,rk3572-litcore0-grf", "syscon";
+			reg = <0x0 0x26014000 0x0 0x2000>;
+		};
+
+		litcore1_grf: syscon@26016000 {
+			compatible = "rockchip,rk3572-litcore1-grf", "syscon";
+			reg = <0x0 0x26016000 0x0 0x2000>;
+		};
+
+		cci_grf: syscon@26018000 {
+			compatible = "rockchip,rk3572-cci-grf", "syscon";
+			reg = <0x0 0x26018000 0x0 0x2000>;
+		};
+
+		gpu_grf: syscon@2601e000 {
+			compatible = "rockchip,rk3572-gpu-grf", "syscon";
+			reg = <0x0 0x2601e000 0x0 0x2000>;
+		};
+
+		npu_grf: syscon@26020000 {
+			compatible = "rockchip,rk3572-npu-grf", "syscon";
+			reg = <0x0 0x26020000 0x0 0x2000>;
+		};
+
 		vo_grf: syscon@26022000 {
 			compatible = "rockchip,rk3572-vo-grf", "syscon";
 			reg = <0x0 0x26022000 0x0 0x2000>;
