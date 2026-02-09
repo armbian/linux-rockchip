@@ -2260,10 +2260,11 @@ static const struct vop2_video_port_data rk3572_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3572, 0x3572 },
 	 .lut_dma_rid = 0x2,/* lut axi id length is 4 bits */
+	 .metadata_rid = 0x5,
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR |
 			VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC | VOP_FEATURE_OUTPUT_10BIT |
 			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP | VOP_FEATURE_HW_CURSOR |
-			VOP_FEATURE_CGC,
+			VOP_FEATURE_CGC | VOP_FEATURE_DYNAMIC_METADATA_EMP,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 600000000,
@@ -6603,6 +6604,11 @@ static const struct vop_grf_ctrl rk3572_ioc_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3572_IOC_GRF_GPIO3_IOC_MISC2, 0x1, 1),
 };
 
+static const struct vop_grf_ctrl rk3572_vo0_grf_ctrl = {
+	.grf_emp_mem_len_en = VOP_REG(RK3572_VO_GRF_SOC_CON0, 0x1, 14),
+	.grf_emp_mem_len_bypass = VOP_REG(RK3572_VO_GRF_SOC_CON0, 0x1, 13),
+};
+
 static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
 	.wb_cfg_done = VOP_REG_MASK(RK3572_WB_CFG_DONE, 0x1, 0),
@@ -6620,6 +6626,10 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.mmu0_qos_val = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x7, 1),
 	.mmu1_qos_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x1, 0),
 	.mmu1_qos_val = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL2_IMD, 0x7, 1),
+	.metadata_lut_en = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x1, 0),
+	.metadata_rid = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0xf, 4),
+	.metadata_size = VOP_REG(RK3576_SYS_CTRL_METADATA_CTRL, 0x7ff, 16),
+	.metadata_mst = VOP_REG(RK3576_SYS_CTRL_METADATA_MST, 0xffffffff, 0),
 	.dma0_timeout_en = VOP_REG(RK3572_SYS0_AXI0_CTRL_IMD, 0x1, 2),
 	.dma0_timeout_cnt = VOP_REG(RK3572_SYS0_AXI0_CTRL_IMD, 0xfffff, 12),
 	.dma1_timeout_en = VOP_REG(RK3572_SYS1_AXI1_CTRL_IMD, 0x1, 2),
@@ -7401,6 +7411,7 @@ static const struct vop2_data rk3572_vop = {
 	.max_input = { 4096, 4096 },
 	.max_output = { 4096, 4096 },
 	.ioc_grf = &rk3572_ioc_grf_ctrl,
+	.vo0_grf = &rk3572_vo0_grf_ctrl,
 	.ctrl = &rk3572_vop_ctrl,
 	.axi_intr = rk3572_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3572_vop_axi_intr),
