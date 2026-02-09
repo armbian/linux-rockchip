@@ -170,6 +170,11 @@ config CLK_RK3588
 	help
 	  Build the driver for RK3588 Clock Driver.
 
+config ROCKCHIP_CLK_ACC
+	tristate "Rockchip Adaptive Clock Calibration"
+	help
+	  Say y here to enable adaptive clock calibration.
+
 config ROCKCHIP_CLK_COMPENSATION
 	bool "Rockchip Clk Compensation"
 	help

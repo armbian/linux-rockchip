@@ -18,6 +18,7 @@ clk-rockchip-$(CONFIG_ROCKCHIP_CLK_INV)  += clk-inverter.o
 clk-rockchip-$(CONFIG_ROCKCHIP_CLK_PVTM) += clk-pvtm.o
 clk-rockchip-$(CONFIG_RESET_CONTROLLER) += softrst.o
 
+obj-$(CONFIG_ROCKCHIP_CLK_ACC)	+= clk-acc.o
 obj-$(CONFIG_ROCKCHIP_CLK_LINK)	+= clk-link.o
 obj-$(CONFIG_ROCKCHIP_CLK_OUT)  += clk-out.o
 obj-$(CONFIG_ROCKCHIP_CLK_PVTPLL) += clk-pvtpll.o
