@@ -74,6 +74,15 @@
 		#size-cells = <2>;
 		ranges;
 
+		aupll_ref_io: aupll-ref-io {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+			clock-output-names = "aupll_ref_io";
+			pinctrl-names = "default";
+			pinctrl-0 = <&aupll_clk_pins>;
+		};
+
 		clk_rcosc: clk_rcosc {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -340,6 +349,36 @@
 			clock-names = "ref_clk", "adjust_clk";
 			#clock-cells = <0>;
 			clock-output-names = "clk_acc_audio_frac_2";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clk_iodet_audio_0: clk-iodet-audio-0@26090000 {
+			compatible = "rockchip,rk3572-clock-iodet";
+			reg = <0x0 0x26090000 0x0 0x1000>;
+			clocks = <&cru AUPLL_REF>, <&cru PLL_AUPLL>, <&cru CLK_AUDIO_INT_0>, <&cru CLK_AUDIO_FRAC_0>;
+			clock-names = "ref_clk", "pll_clk", "int_clk", "frac_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_iodet_audio_0";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clk_iodet_audio_1: clk-iodet-audio-1@26090000 {
+			compatible = "rockchip,rk3572-clock-iodet";
+			reg = <0x0 0x26090000 0x0 0x1000>;
+			clocks = <&cru AUPLL_REF>, <&cru PLL_AUPLL>, <&cru CLK_AUDIO_INT_1>, <&cru CLK_AUDIO_FRAC_1>;
+			clock-names = "ref_clk", "pll_clk", "int_clk", "frac_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_iodet_audio_1";
+			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		clk_iodet_audio_2: clk-iodet-audio-2@26090000 {
+			compatible = "rockchip,rk3572-clock-iodet";
+			reg = <0x0 0x26090000 0x0 0x1000>;
+			clocks = <&cru AUPLL_REF>, <&cru PLL_AUPLL>, <&cru CLK_AUDIO_INT_2>, <&cru CLK_AUDIO_FRAC_2>;
+			clock-names = "ref_clk", "pll_clk", "int_clk", "frac_clk";
+			#clock-cells = <0>;
+			clock-output-names = "clk_iodet_audio_2";
 			interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -1647,6 +1686,11 @@
 			reg = <0x0 0x2602e000 0x0 0x2000>;
 		};
 
+		pmu0_grf: syscon@26040000 {
+			compatible = "rockchip,rk3572-pmu0-grf", "syscon";
+			reg = <0x0 0x26040000 0x0 0x1000>;
+		};
+
 		pmu1_grf: syscon@26042000 {
 			compatible = "rockchip,rk3572-pmu1-grf", "syscon", "simple-mfd";
 			reg = <0x0 0x26042000 0x0 0x2000>;
@@ -1793,6 +1837,7 @@
 			reg = <0x0 0x26090000 0x0 0x60000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			rockchip,grf = <&pmu0_grf>;
 
 			assigned-clocks =
 				<&cru CLK_AUDIO_FRAC_1_SRC>, <&cru PLL_CPLL>,
