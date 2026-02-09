@@ -14,7 +14,7 @@
 #include "clk.h"
 
 #define RK3572_GRF_SOC_STATUS0		0x600
-#define RK3572_PMU0_GRF_OSC_CON0	0x00
+#define RK3572_PMU0_GRF_OSC_CON6	0x18
 
 enum rk3572_plls {
 	bpll, lpll, vpll, aupll, cpll, gpll, ppll,
@@ -509,19 +509,19 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 
 	MUX(CLK_AUDIO_FRAC_0_SRC, "clk_audio_frac_0_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(13), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
-			RK3572_CLKSEL_CON(12), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 11, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
+			RK3572_CLKSEL_CON(12), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_0, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_1_SRC, "clk_audio_frac_1_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(15), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
-			RK3572_CLKSEL_CON(14), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 12, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
+			RK3572_CLKSEL_CON(14), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_1, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_2_SRC, "clk_audio_frac_2_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(17), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_2, "clk_audio_frac_2", "clk_audio_frac_2_src", 0,
-			RK3572_CLKSEL_CON(16), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 13, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_2, "clk_audio_frac_2", "clk_audio_frac_2_src", 0,
+			RK3572_CLKSEL_CON(16), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_2, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_3_SRC, "clk_audio_frac_3_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(19), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_3, "clk_audio_frac_3", "clk_audio_frac_3_src", 0,
