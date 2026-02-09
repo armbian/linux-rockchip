@@ -180,6 +180,11 @@ config ROCKCHIP_CLK_COMPENSATION
 	help
 	  Say y here to enable clk compensation(+/- 1000 ppm).
 
+config ROCKCHIP_CLK_IO_DET
+	tristate "Rockchip clock io det support"
+	help
+	  Say y here to enable clock io det for Rockchip.
+
 config ROCKCHIP_CLK_LINK
 	tristate "Rockchip clock link support"
 	default CLK_RK3562 || CLK_RK3588

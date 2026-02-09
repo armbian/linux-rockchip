@@ -32,4 +32,23 @@ static inline int rockchip_acc_set_callbacks(struct clk *acc_clk, void *data, in
 }
 #endif
 
+#if IS_REACHABLE(CONFIG_ROCKCHIP_CLK_IO_DET)
+int rockchip_iodet_enable(struct clk *clk, struct clk *ref_clk);
+int rockchip_iodet_set_callbacks(struct clk *clk, void *data,
+				 int (*lock_cb)(void *data),
+				 int (*unlock_cb)(void *data));
+#else
+static inline int rockchip_iodet_enable(struct clk *clk, struct clk *ref_clk)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int rockchip_iodet_set_callbacks(struct clk *clk, void *data,
+					       int (*lock_cb)(void *data),
+					       int (*unlock_cb)(void *data))
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 #endif /* __LINUX_CLK_ROCKCHIP_H_ */
