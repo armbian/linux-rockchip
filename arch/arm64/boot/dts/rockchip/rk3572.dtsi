@@ -3797,13 +3797,14 @@
 			rockchip,grf = <&dsmc_grf>;
 			interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "dsmc";
+			power-domains = <&power RK3572_PD_DSMC>;
 			resets = <&cru SRST_ARESETN_DSMC>, <&cru SRST_PRESETN_DSMC>;
 			reset-names = "dsmc", "apb";
-			clocks = <&cru CLK_DSMC_SYS>, <&cru ACLK_DSMC>, <&cru PCLK_DSMC>,
-				 <&cru ACLK_DSMC_ROOT>, <&cru HCLK_DSMC_ROOT>,
+			clocks = <&cru CLK_DSMC_SYS>, <&cru ACLK_DSMC>, <&cru HCLK_DSMC>,
+				 <&cru PCLK_DSMC>, <&cru ACLK_DSMC_ROOT>, <&cru HCLK_DSMC_ROOT>,
 				 <&cru PCLK_DSMC_ROOT>, <&cru PCLK_DSMCSUBSYS_ROOT>;
-			clock-names = "clk_sys", "aclk_dsmc", "pclk",
-				      "aclk_root", "hclk_root",
+			clock-names = "clk_sys", "aclk_dsmc", "hclk_dsmc",
+				      "pclk", "aclk_root", "hclk_root",
 				      "pclk_root", "pclk_subsys_root";
 			clock-frequency = <100000000>;
 			dmas = <&dmac0 59>, <&dmac0 60>;
@@ -3813,9 +3814,9 @@
 			status = "disabled";
 			slave {
 				rockchip,dqs-dll = <0x40 0x40
-						0x40 0x40
-						0x40 0x40
-						0x40 0x40>;
+						    0x40 0x40
+						    0x40 0x40
+						    0x40 0x40>;
 				rockchip,ranges = <0x0 0x10000000 0x0 0x2000000>;
 				rockchip,slave-dev = <&dsmc_slave>;
 			};
@@ -3842,7 +3843,7 @@
 
 			lb-slave {
 				dsmc_lb_slave0: lb-slave0 {
-					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					rockchip,mtr-timing = <1 1 0 0 0 0 2 2>;
 					status = "disabled";
 					dsmc_p0_region: region {
 						dsmc_p0_region0: region0 {
@@ -3880,7 +3881,7 @@
 					};
 				};
 				dsmc_lb_slave1: lb-slave1 {
-					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					rockchip,mtr-timing = <1 1 0 0 0 0 2 2>;
 					status = "disabled";
 					dsmc_p1_region: region {
 						dsmc_p1_region0: region0 {
@@ -3918,7 +3919,7 @@
 					};
 				};
 				dsmc_lb_slave2: lb-slave2 {
-					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					rockchip,mtr-timing = <1 1 0 0 0 0 2 2>;
 					status = "disabled";
 					dsmc_p2_region: region {
 						dsmc_p2_region0: region0 {
@@ -3956,7 +3957,7 @@
 					};
 				};
 				dsmc_lb_slave3: lb-slave3 {
-					rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
+					rockchip,mtr-timing = <1 1 0 0 0 0 2 2>;
 					status = "disabled";
 					dsmc_p3_region: region {
 						dsmc_p3_region0: region0 {
