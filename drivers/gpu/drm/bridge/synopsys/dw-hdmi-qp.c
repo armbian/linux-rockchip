@@ -3799,9 +3799,9 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 						    HDMTX_EMP_MEM_LEN_BYPASS |
 						    HDMTX_EMP_MEM_LEN_LEN);
 				hdmi_writel(hdmi, val, RK_PLUS_GRF_CON0);
+			}
 			hdmi_modb(hdmi, PKTSCHED_EMP_EXTMEM_TX_EN,
 				  PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
-			}
 		} else {
 			if (hdmi->plat_data->dw_hdmi_qp_version >= DW_HDMI_QP_V2) {
 				val = HIWORD_UPDATE(0, HDMTX_EMP_MEM_LEN_BYPASS |
