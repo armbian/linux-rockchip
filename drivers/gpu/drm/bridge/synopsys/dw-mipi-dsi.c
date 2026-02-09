@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <drm/drm_edid.h>
 
 #include <video/mipi_display.h>
 
@@ -1163,9 +1164,15 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
 	bridge->encoder->encoder_type = DRM_MODE_ENCODER_DSI;
 
 	/* Attach the next-bridge to the dsi bridge */
-	if (dsi->next_bridge)
+	if (dsi->next_bridge) {
+		enum drm_bridge_attach_flags flags = 0;
+
+		flags = dsi->next_bridge->ops & (DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_MODES) ?
+			DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0;
+
 		return drm_bridge_attach(bridge->encoder, dsi->next_bridge,
 					 bridge, flags);
+	}
 
 	return 0;
 }
@@ -1386,6 +1393,25 @@ static int dw_mipi_dsi_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
 
+	if (dsi->next_bridge && (dsi->next_bridge->ops & DRM_BRIDGE_OP_EDID)) {
+		const struct drm_edid *drm_edid;
+		int num_modes = 0;
+
+		drm_edid = drm_bridge_edid_read(dsi->next_bridge, connector);
+		if (!drm_edid_valid(drm_edid)) {
+			drm_edid_free(drm_edid);
+			drm_edid_connector_update(connector, NULL);
+
+			return 0;
+		}
+
+		drm_edid_connector_update(connector, drm_edid);
+		num_modes = drm_edid_connector_add_modes(connector);
+
+		drm_edid_free(drm_edid);
+		return num_modes;
+	}
+
 	if (dsi->next_bridge && (dsi->next_bridge->ops & DRM_BRIDGE_OP_MODES))
 		return drm_bridge_get_modes(dsi->next_bridge, connector);
 
@@ -1488,11 +1514,10 @@ struct drm_connector *dw_mipi_dsi_get_connector(struct dw_mipi_dsi *dsi)
 	int ret;
 
 	if (dsi->next_bridge) {
-		enum drm_bridge_attach_flags flags;
 		struct list_head *connector_list =
 			&dsi->next_bridge->dev->mode_config.connector_list;
 
-		flags = dsi->next_bridge->ops & DRM_BRIDGE_OP_MODES ?
+		flags = dsi->next_bridge->ops & (DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_MODES) ?
 			DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0;
 		if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 			list_for_each_entry(connector, connector_list, head)
