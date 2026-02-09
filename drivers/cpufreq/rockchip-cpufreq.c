@@ -53,8 +53,28 @@ struct cluster_info {
 	unsigned long volt, mem_volt;
 };
 static LIST_HEAD(cluster_info_list);
+static DEFINE_SPINLOCK(cci_rm_lock);
 
 static struct cluster_info *rockchip_cluster_info_lookup(int cpu);
+
+static int rockchip_get_cci_rm(struct rockchip_opp_info *opp_info)
+{
+	struct cluster_info *cluster;
+	int rm = opp_info->current_rm;
+
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		if (opp_info == &cluster->opp_info)
+			continue;
+		if (!cluster->opp_info.current_rm)
+			continue;
+		if (!cluster->opp_info.cci_grf)
+			continue;
+		if (cluster->opp_info.current_rm < rm)
+			rm = cluster->opp_info.current_rm;
+	}
+
+	return rm;
+}
 
 static int px30_get_soc_info(struct device *dev, struct device_node *np,
 			     int *bin, int *process)
@@ -187,6 +207,46 @@ out:
 		dev_info(dev, "bin=%d\n", *bin);
 
 	return ret;
+}
+
+static int rk3572_cpu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      u32 rm)
+{
+	if (!opp_info->volt_rm_tbl)
+		return 0;
+	if (rm == opp_info->current_rm || rm  == UINT_MAX)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+	if (opp_info->grf) {
+		regmap_write(opp_info->grf, 0x38, 0x00010001);
+		regmap_write(opp_info->grf, 0x40, 0x001c0000 | (rm << 2));
+		regmap_write(opp_info->grf, 0x44, 0x001c0000 | (rm << 2));
+	}
+	opp_info->current_rm = rm;
+
+	if (opp_info->cci_grf) {
+		/*
+		 * The cci_grf is shared between clusters. We must lock to ensure
+		 * atomicity of calculating the CCI RM and writing it to HW.
+		 *
+		 * Without locking, a TOCTOU (Time-of-check to time-of-use) race occurs:
+		 * 1. Cluster A calculates RM_old.
+		 * 2. Cluster B updates state, calculates RM_new, and writes RM_new to HW.
+		 * 3. Cluster A overwrites HW with the stale RM_old.
+		 *
+		 * This lock ensures the final written value is always derived from
+		 * the most up-to-date global state.
+		 */
+		spin_lock(&cci_rm_lock);
+		rm = rockchip_get_cci_rm(opp_info);
+		regmap_write(opp_info->cci_grf, 0, 0x40004000);
+		regmap_write(opp_info->cci_grf, 0x54, 0x001c0000 | (rm << 2));
+		spin_unlock(&cci_rm_lock);
+	}
+
+	return 0;
 }
 
 static int rk3576_cpu_get_soc_info(struct device *dev, struct device_node *np,
@@ -460,6 +520,11 @@ static const struct rockchip_opp_data rk3399_cpu_opp_data = {
 	.get_soc_info = rk3399_get_soc_info,
 };
 
+static const struct rockchip_opp_data rk3572_cpu_opp_data = {
+	.set_read_margin = rk3572_cpu_set_read_margin,
+	.config_regulators = cpu_opp_config_regulators,
+};
+
 static const struct rockchip_opp_data rk3588_cpu_opp_data = {
 	.get_soc_info = rk3588_get_soc_info,
 	.set_soc_info = rk3588_set_soc_info,
@@ -498,6 +563,10 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,rk3399",
 		.data = (void *)&rk3399_cpu_opp_data,
+	},
+	{
+		.compatible = "rockchip,rk3572",
+		.data = (void *)&rk3572_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3576",
