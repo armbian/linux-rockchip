@@ -846,6 +846,22 @@ struct rockchip_drm_hdmi21_data {
 	struct rockchip_drm_vrr_cap vrr_cap;
 };
 
+enum rockchip_drm_mode_color_caps_mask {
+	RGB_8BIT = 0,
+	RGB_10BIT,
+	YUV444_8BIT,
+	YUV444_10BIT,
+	YUV422_8BIT,
+	YUV422_10BIT,
+	YUV420_8BIT,
+	YUV420_10BIT,
+};
+
+struct rockchip_drm_mode_color_caps {
+	struct drm_mode_modeinfo umode;
+	u64 color_caps;
+};
+
 void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_display_mode *mode,
 					   int vfp);
 int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
@@ -927,9 +943,23 @@ u16 rockchip_hdmi_vrr_tfr_match_to_vrefresh(u8 tfr);
 const struct
 mvrr_const_val *rockchip_hdmi_vrr_get_vrrconf_mconst(enum hdmi_brr_vic brr_vic, u16 vrefresh_khz);
 u16 rockchip_hdmi_vrr_calc_new_vtotal(const struct mvrr_const_val *mvrr, u32 frame_cnt);
+int rockchip_drm_bus_fmt_color_depth(unsigned int bus_format);
+int rockchip_drm_bus_fmt_to_color_format(unsigned int bus_format);
+void rockchip_drm_parse_bus_format(u32 bus_format, u32 *format, u32 *colordepth);
+bool rockchip_drm_bus_fmt_is_rgb(unsigned int bus_format);
+bool rockchip_drm_bus_fmt_is_yuv444(unsigned int bus_format);
+bool rockchip_drm_bus_fmt_is_yuv422(unsigned int bus_format);
+bool rockchip_drm_bus_fmt_is_yuv420(unsigned int bus_format);
+unsigned int
+rockchip_drm_hdmi_get_tmdsclock(unsigned long output_bus_format, unsigned long pixelclock);
+int rockchip_drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
+						      struct drm_property_blob **blob,
+						      uint64_t blob_id, ssize_t expected_size,
+						      ssize_t expected_elem_size, bool *replaced);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
+extern struct platform_driver dw_hdmi_qp_rockchip_pltfm_driver;
 extern struct platform_driver dw_mipi_dsi_rockchip_driver;
 extern struct platform_driver dw_mipi_dsi2_rockchip_driver;
 extern struct platform_driver inno_hdmi_driver;

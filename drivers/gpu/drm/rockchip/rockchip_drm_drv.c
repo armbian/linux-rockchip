@@ -2483,6 +2483,235 @@ int rockchip_drm_panel_loader_protect(struct drm_panel *panel, bool on)
 }
 EXPORT_SYMBOL(rockchip_drm_panel_loader_protect);
 
+int rockchip_drm_bus_fmt_color_depth(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		return 8;
+
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		return 10;
+
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+		return 12;
+
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		return 16;
+
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_color_depth);
+
+int rockchip_drm_bus_fmt_to_color_format(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		return RK_IF_FORMAT_YCBCR420;
+
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+		return RK_IF_FORMAT_YCBCR444;
+
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YVYU12_1X24:
+		return RK_IF_FORMAT_YCBCR422;
+
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+	default:
+		return RK_IF_FORMAT_RGB;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_to_color_format);
+
+void rockchip_drm_parse_bus_format(u32 bus_format, u32 *format, u32 *colordepth)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 10;
+		break;
+	default:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 8;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_parse_bus_format);
+
+bool rockchip_drm_bus_fmt_is_rgb(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+		return true;
+
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_is_rgb);
+
+bool rockchip_drm_bus_fmt_is_yuv444(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+		return true;
+
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_is_yuv444);
+
+bool rockchip_drm_bus_fmt_is_yuv422(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+		return true;
+
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_is_yuv422);
+
+bool rockchip_drm_bus_fmt_is_yuv420(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		return true;
+
+	default:
+	return false;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_bus_fmt_is_yuv420);
+
+unsigned int rockchip_drm_hdmi_get_tmdsclock(unsigned long output_bus_format,
+					     unsigned long pixelclock)
+{
+	unsigned int tmdsclock = pixelclock;
+	unsigned int depth =
+		rockchip_drm_bus_fmt_color_depth(output_bus_format);
+
+	if (!rockchip_drm_bus_fmt_is_yuv422(output_bus_format)) {
+		switch (depth) {
+		case 16:
+			tmdsclock = pixelclock * 2;
+			break;
+		case 12:
+			tmdsclock = pixelclock * 3 / 2;
+			break;
+		case 10:
+			tmdsclock = pixelclock * 5 / 4;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return tmdsclock;
+}
+EXPORT_SYMBOL(rockchip_drm_hdmi_get_tmdsclock);
+
+int rockchip_drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
+						      struct drm_property_blob **blob,
+						      uint64_t blob_id, ssize_t expected_size,
+						      ssize_t expected_elem_size, bool *replaced)
+{
+	struct drm_property_blob *new_blob = NULL;
+
+	if (blob_id != 0) {
+		new_blob = drm_property_lookup_blob(dev, blob_id);
+		if (!new_blob)
+			goto out;
+
+		if (expected_size > 0 &&
+		    new_blob->length != expected_size) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+		if (expected_elem_size > 0 &&
+		    new_blob->length % expected_elem_size != 0) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+	}
+
+out:
+	*replaced |= drm_property_replace_blob(blob, new_blob);
+	drm_property_blob_put(new_blob);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_atomic_replace_property_blob_from_id);
+
 static void rockchip_drm_fix_encoder_possible_clones(struct drm_encoder *encoder)
 {
 	struct drm_device *drm_dev = encoder->dev;
@@ -3150,6 +3379,8 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(cdn_dp_driver, CONFIG_ROCKCHIP_CDN_DP);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_hdmi_rockchip_pltfm_driver,
 				CONFIG_ROCKCHIP_DW_HDMI);
+	ADD_ROCKCHIP_SUB_DRIVER(dw_hdmi_qp_rockchip_pltfm_driver,
+				CONFIG_ROCKCHIP_DW_HDMI_QP);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_rockchip_driver,
 				CONFIG_ROCKCHIP_DW_MIPI_DSI);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi2_rockchip_driver,
