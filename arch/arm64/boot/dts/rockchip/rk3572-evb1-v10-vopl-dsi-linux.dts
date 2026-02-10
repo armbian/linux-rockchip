@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb1-v10.dtsi"
+#include "rk3572-linux.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB1 V10 Board";
+	compatible = "rockchip,rk3572-evb1-v10", "rockchip,rk3572";
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "okay";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&reserved_memory {
+	cma {
+		compatible = "shared-dma-pool";
+		reusable;
+		reg = <0x0 0x60000000 0x0 0x10000000>; //1.5G ~ 1.5G+256MB
+		linux,cma-default;
+	};
+};
+
+&route_dsi {
+	status = "okay";
+	connect = <&vopl_out_dsi>;
+};
+
+&vop {
+	status = "disabled";
+};
+
+&vopl {
+	status = "okay";
+};
+

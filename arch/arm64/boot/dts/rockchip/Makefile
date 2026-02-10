@@ -276,6 +276,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-edp-NE160QAM-NX1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-hdmi2dp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-rk628-hdmi2csi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-vopl-dsi-linux.dts
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-ebook.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-image-reverse.dtb
