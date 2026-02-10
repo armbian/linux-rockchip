@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -344,6 +345,7 @@ struct rockchip_usb2phy_port {
  * @irq: IRQ number assigned for phy which combined irqs of
  *	 otg port and host port.
  * @phy_cfg: phy register configuration, assigned by driver data.
+ * @partner_port: Type-C partner port.
  * @ports: phy port instance.
  */
 struct rockchip_usb2phy {
@@ -366,6 +368,7 @@ struct rockchip_usb2phy {
 	struct extcon_dev	*edev;
 	int			irq;
 	const struct rockchip_usb2phy_cfg	*phy_cfg;
+	struct rockchip_usb2phy_port	*partner_port;
 	struct rockchip_usb2phy_port	ports[USB2PHY_NUM_PORTS];
 };
 
@@ -2163,11 +2166,16 @@ static int rockchip_usb2phy_orien_sw_set(struct typec_switch_dev *sw,
 					 enum typec_orientation orien)
 {
 	struct rockchip_usb2phy_port *rport = typec_switch_get_drvdata(sw);
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
 
 	dev_dbg(&rport->phy->dev, "type-c orientation: %d\n", orien);
 
 	mutex_lock(&rport->mutex);
 	rockchip_usb2phy_usb_bvalid_enable(rport, orien != TYPEC_ORIENTATION_NONE);
+
+	if (rphy->partner_port)
+		rockchip_usb2phy_usb_bvalid_enable(rphy->partner_port,
+						   orien != TYPEC_ORIENTATION_NONE);
 	mutex_unlock(&rport->mutex);
 
 	return 0;
@@ -2358,6 +2366,29 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					       rport);
 		if (ret)
 			return ret;
+	}
+
+	if (device_property_present(rphy->dev, "rockchip,partner-phy")) {
+		struct device_node *node, *np = dev_of_node(rphy->dev);
+		struct platform_device *pdev;
+		struct rockchip_usb2phy *partner_rphy;
+
+		node = of_parse_phandle(np, "rockchip,partner-phy", 0);
+		if (!node) {
+			dev_err(rphy->dev, "failed to get partner phy phandle\n");
+			return -EINVAL;
+		}
+
+		pdev = of_find_device_by_node(node);
+		if (!pdev) {
+			of_node_put(node);
+			return -EINVAL;
+		}
+
+		of_node_put(node);
+
+		partner_rphy = platform_get_drvdata(pdev);
+		partner_rphy->partner_port = rport;
 	}
 
 	/*
