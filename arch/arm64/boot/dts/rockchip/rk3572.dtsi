@@ -1497,6 +1497,31 @@
 				<200000000>;
 		};
 
+		bigcore_pvtpll: syscon@260f8000 {
+			compatible = "rockchip,rk3572-bigcore-pvtpll", "syscon";
+			reg = <0x0 0x260f8000 0x0 0x1000>;
+		};
+
+		litcore0_pvtpll: syscon@26100000 {
+			compatible = "rockchip,rk3572-litcore0-pvtpll", "syscon";
+			reg = <0x0 0x26100000 0x0 0x1000>;
+		};
+
+		litcore1_pvtpll: syscon@26108000 {
+			compatible = "rockchip,rk3572-litcore1-pvtpll", "syscon";
+			reg = <0x0 0x26108000 0x0 0x1000>;
+		};
+
+		gpu_pvtpll: syscon@26110000 {
+			compatible = "rockchip,rk3572-gpu-pvtpll", "syscon";
+			reg = <0x0 0x26110000 0x0 0x1000>;
+		};
+
+		npu_pvtpll: syscon@26118000 {
+			compatible = "rockchip,rk3572-npu-pvtpll", "syscon";
+			reg = <0x0 0x26118000 0x0 0x1000>;
+		};
+
 		pwm0_2ch_0: pwm@26200000 {
 			compatible = "rockchip,rk3572-pwm", "rockchip,rk3538-pwm";
 			reg = <0x0 0x26200000 0x0 0x1000>;
