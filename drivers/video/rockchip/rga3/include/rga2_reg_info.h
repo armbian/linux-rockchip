@@ -10,6 +10,13 @@
 #define RGA2_CMD_REG_BASE			0x100
 #define RGA2_IOMMU_REG_BASE			0xf00
 
+/* reg size, must be 4-aligned */
+#define RGA2_SYS_REG_SIZE			24
+#define RGA2_CSC_REG_SIZE			12
+#define RGA2_OTHER_REG_SIZE			4
+#define RGA2_CMD_REG_SIZE			32
+#define RGA2_IOMMU_REG_SIZE			12
+
 /* sys reg */
 #define RGA2_SYS_CTRL				0x000
 #define RGA2_CMD_CTRL				0x004
