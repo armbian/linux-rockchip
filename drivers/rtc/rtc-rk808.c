@@ -406,19 +406,10 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret;
 
-	switch (rk808->variant) {
-	case RK805_ID:
-	case RK808_ID:
-	case RK816_ID:
-	case RK818_ID:
-		np = of_get_child_by_name(pdev->dev.parent->of_node, "rtc");
-		if (np && !of_device_is_available(np)) {
-			dev_info(&pdev->dev, "device is disabled\n");
-			return -EINVAL;
-		}
-		break;
-	default:
-		break;
+	np = of_get_child_by_name(pdev->dev.parent->of_node, "rtc");
+	if (np && !of_device_is_available(np)) {
+		dev_info(&pdev->dev, "device is disabled\n");
+		return -EINVAL;
 	}
 
 	rk808_rtc = devm_kzalloc(&pdev->dev, sizeof(*rk808_rtc), GFP_KERNEL);
@@ -492,8 +483,19 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(rk808_rtc->rtc);
 }
 
+static const struct platform_device_id rk8xx_rtc_id_table[] = {
+	{ "rk805-rtc", 0 },
+	{ "rk809-rtc", 0 },
+	{ "rk816-rtc", 0 },
+	{ "rk817-rtc", 0 },
+	{ "rk818-rtc", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, rk8xx_rtc_id_table);
+
 static struct platform_driver rk808_rtc_driver = {
 	.probe = rk808_rtc_probe,
+	.id_table = rk8xx_rtc_id_table,
 	.driver = {
 		.name = "rk808-rtc",
 		.pm = &rk808_rtc_pm_ops,

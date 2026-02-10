@@ -1497,19 +1497,19 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 			break;
 		case V4L2_PIX_FMT_FBC0:
 			cfg->output[i].stride = 0;
-			header_size = ((cfg->input.width + 63) / 64) *
-				((cfg->input.height + 3) / 4) * 16;
-			payload_size = ((cfg->input.width + 63) / 64) * 384 *
-				((cfg->input.height + 3) / 4);
+			header_size = ((w + 63) / 64) *
+				((h + 3) / 4) * 16;
+			payload_size = ((w + 63) / 64) * 384 *
+				((h + 3) / 4);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
 			out_ch[i].size = header_size + payload_size;
 			break;
 		case V4L2_PIX_FMT_FBC2:
-			cfg->input.stride = 0;
-			header_size = ((cfg->input.width + 63) / 64) *
-				((cfg->input.height + 3) / 4) * 16;
-			payload_size = ((cfg->input.width + 63) / 64) * 512 *
-				((cfg->input.height + 3) / 4);
+			cfg->output[i].stride = 0;
+			header_size = ((w + 63) / 64) *
+				((h + 3) / 4) * 16;
+			payload_size = ((w + 63) / 64) * 512 *
+				((h + 3) / 4);
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
 			out_ch[i].size = header_size + payload_size;
 			break;
@@ -1562,13 +1562,19 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 
 		if (cfg->output[i].format == V4L2_PIX_FMT_FBC0 ||
 		    cfg->output[i].format == V4L2_PIX_FMT_FBC2) {
+			/* Recalculate w/h for this channel */
+			int fbc_w = cfg->output[i].aspt.enable ?
+			    cfg->output[i].aspt.width : cfg->output[i].scl_width;
+			int fbc_h = cfg->output[i].aspt.enable ?
+			    cfg->output[i].aspt.height : cfg->output[i].scl_height;
+
 			val = sg_dma_address(sg_tbl->sgl);
 
 			reg = RKVPSS_MI_CHN0_WR_CB_BASE;
 			rkvpss_hw_write(hw, reg + i * 0x100, val);
 
-			header_size = ((cfg->input.width + 63) / 64) *
-				((cfg->input.height + 3) / 4) * 16;
+			header_size = ((fbc_w + 63) / 64) *
+				((fbc_h + 3) / 4) * 16;
 			val += header_size;
 			reg = RKVPSS_MI_CHN0_WR_Y_BASE;
 			rkvpss_hw_write(hw, reg + i * 0x100, val);
@@ -1580,11 +1586,11 @@ static int write_config(struct rkvpss_offline_dev *ofl,
 
 			reg = RKVPSS_MI_CHN0_WR_Y_SIZE;
 			if (cfg->output[i].format == V4L2_PIX_FMT_FBC0)
-				payload_size = ((cfg->input.width + 63) / 64) * 384 *
-					((cfg->input.height + 3) / 4);
+				payload_size = ((fbc_w + 63) / 64) * 384 *
+					((fbc_h + 3) / 4);
 			else if (cfg->output[i].format == V4L2_PIX_FMT_FBC2)
-				payload_size = ((cfg->input.width + 63) / 64) * 512 *
-					((cfg->input.height + 3) / 4);
+				payload_size = ((fbc_w + 63) / 64) * 512 *
+					((fbc_h + 3) / 4);
 
 			val = payload_size;
 			rkvpss_hw_write(hw, reg + i * 0x100, val);

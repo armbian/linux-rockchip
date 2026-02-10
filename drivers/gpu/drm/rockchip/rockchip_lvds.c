@@ -414,10 +414,25 @@ static void rockchip_lvds_disable(struct rockchip_lvds *lvds)
 static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+	int output_if;
 
 	if (lvds->panel)
 		drm_panel_prepare(lvds->panel);
 	rockchip_lvds_enable(lvds);
+
+	switch (lvds->pixel_order) {
+	case ROCKCHIP_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
+	case ROCKCHIP_LVDS_DUAL_LINK_EVEN_ODD_PIXELS:
+	case ROCKCHIP_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS:
+	case ROCKCHIP_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS:
+		output_if = VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
+		break;
+	default:
+		output_if = lvds->id ? VOP_OUTPUT_IF_LVDS1 : VOP_OUTPUT_IF_LVDS0;
+		break;
+	}
+	rockchip_drm_crtc_output_post_enable(encoder->crtc, output_if);
+
 	if (lvds->panel)
 		drm_panel_enable(lvds->panel);
 }

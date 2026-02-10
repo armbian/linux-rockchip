@@ -278,6 +278,19 @@
 	status = "okay";
 };
 
+&pwm1_4ch_0 {
+	status = "okay";
+	compatible = "rockchip,rk3538-pwm-ledc";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm1m1_ch0_pins>;
+	rockchip,reset-ns = <80000>;
+	rockchip,t0l-ns = <900>;
+	rockchip,t0h-ns = <300>;
+	rockchip,t1l-ns = <300>;
+	rockchip,t1h-ns = <900>;
+	rockchip,pol-pattern = <0>;
+};
+
 &sai1 {
 	status = "okay";
 	pinctrl-names = "default";

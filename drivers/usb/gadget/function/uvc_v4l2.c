@@ -80,12 +80,40 @@ static int uvc_get_frame_size(struct uvcg_format *uformat,
 
 	if (uformat->type == UVCG_FRAMEBASED && !bpl) {
 		struct uvcg_framebased *u;
+		unsigned int size;
+		unsigned int dw_max_size;
+		unsigned int def_max_size = 460800;
 
+		/*
+		 * The default maximum video frame buffer size is 460800,
+		 * which is not enough for H264/HEVC 4K scenarios on the
+		 * Rockchip platforms. Allowing the UVC application layer
+		 * to reconfigure this value for more flexible memory
+		 * allocation.
+		 */
 		u = to_uvcg_framebased(&uformat->group.cg_item);
 		if (u) {
 			bpl = u->desc.bBitsPerPixel * uframe->frame.w_width / 8;
 			pr_info("%s: set bpl to %d for framebased format\n", __func__, bpl);
 		}
+
+		/*
+		 * Calculate the base frame buffer size, ensuring it is
+		 * not less than the default minimum value.
+		 */
+		size = bpl * uframe->frame.w_height / 4;
+		if (size < def_max_size)
+			size = def_max_size;
+
+		/*
+		 * If a larger maximum buffer size is configured, limit
+		 * the frame size so that it does not exceed this value.
+		 */
+		dw_max_size = uframe->frame.dw_max_video_frame_buffer_size;
+		if (dw_max_size > def_max_size && dw_max_size < size)
+			size = dw_max_size;
+
+		return size;
 	}
 
 	return bpl ? bpl * uframe->frame.w_height :

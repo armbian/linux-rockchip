@@ -25,6 +25,9 @@
 #include <linux/gpio/consumer.h>
 
 /* Field Definitions */
+#define RK805B_BUCK_VSEL_MASK	0x7f
+#define RK805B_LDO_VSEL_MASK	0x3f
+
 #define RK808_BUCK_VSEL_MASK	0x3f
 #define RK808_BUCK4_VSEL_MASK	0xf
 #define RK808_LDO_VSEL_MASK	0x1f
@@ -185,6 +188,17 @@ static const struct linear_range rk805_buck_1_2_voltage_ranges[] = {
 static const struct linear_range rk805_buck4_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0, 26, 100000),	/* 0.8v - 3.4v */
 	REGULATOR_LINEAR_RANGE(3500000, 27, 31, 0),	/* 3.5v */
+};
+
+static const struct linear_range rk805b_cm_mode_1_buck_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000, 0, 76, 12500),	/* 0.5V - 1.45V */
+	REGULATOR_LINEAR_RANGE(1800000, 77, 79, 200000),/* 1.8V - 2.2V */
+	REGULATOR_LINEAR_RANGE(2300000, 80, 127, 0),	/* 2.3V */
+};
+
+static const struct linear_range rk805b_cm_mode_1_buck4_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000, 0, 58, 50000),	/* 0.5V - 3.4V */
+	REGULATOR_LINEAR_RANGE(3400000, 59, 63, 0),	/* 3.4V */
 };
 
 static const struct linear_range rk808_ldo3_voltage_ranges[] = {
@@ -945,6 +959,100 @@ static const struct regulator_desc rk805_reg[] = {
 		ENABLE_MASK(2), DISABLE_VAL(2), 400),
 };
 
+static const struct regulator_desc rk805b_4_8_reg[] = {
+	{
+		.name = "DCDC_REG1",
+		.supply_name = "vcc1",
+		.of_match = of_match_ptr("DCDC_REG1"),
+		.regulators_node = of_match_ptr("regulators"),
+		.id = RK805_ID_DCDC1,
+		.ops = &rk808_reg_ops_ranges,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 128,
+		.linear_ranges = rk805b_cm_mode_1_buck_ranges,
+		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck_ranges),
+		.vsel_reg = RK805_BUCK1_ON_VSEL_REG,
+		.vsel_mask = RK805B_BUCK_VSEL_MASK,
+		.enable_reg = RK805_DCDC_EN_REG,
+		.enable_mask = ENABLE_MASK(RK805_ID_DCDC1),
+		.ramp_reg = RK808_BUCK1_CONFIG_REG,
+		.ramp_mask = RK808_RAMP_RATE_MASK,
+		.ramp_delay_table = rk817_buck1_4_ramp_table,
+		.n_ramp_values = ARRAY_SIZE(rk817_buck1_4_ramp_table),
+		.enable_val = ENABLE_MASK(RK805_ID_DCDC1),
+		.disable_val = DISABLE_VAL(RK805_ID_DCDC1),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
+		.owner = THIS_MODULE,
+	}, {
+		.name = "DCDC_REG2",
+		.supply_name = "vcc2",
+		.of_match = of_match_ptr("DCDC_REG2"),
+		.regulators_node = of_match_ptr("regulators"),
+		.id = RK805_ID_DCDC2,
+		.ops = &rk808_reg_ops_ranges,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 128,
+		.linear_ranges = rk805b_cm_mode_1_buck_ranges,
+		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck_ranges),
+		.vsel_reg = RK805_BUCK2_ON_VSEL_REG,
+		.vsel_mask = RK805B_BUCK_VSEL_MASK,
+		.enable_reg = RK805_DCDC_EN_REG,
+		.enable_mask = ENABLE_MASK(RK805_ID_DCDC2),
+		.ramp_reg = RK808_BUCK1_CONFIG_REG,
+		.ramp_mask = RK808_RAMP_RATE_MASK,
+		.ramp_delay_table = rk817_buck1_4_ramp_table,
+		.n_ramp_values = ARRAY_SIZE(rk817_buck1_4_ramp_table),
+		.enable_val = ENABLE_MASK(RK805_ID_DCDC2),
+		.disable_val = DISABLE_VAL(RK805_ID_DCDC2),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
+		.owner = THIS_MODULE,
+	}, {
+		.name = "DCDC_REG3",
+		.supply_name = "vcc3",
+		.of_match = of_match_ptr("DCDC_REG3"),
+		.regulators_node = of_match_ptr("regulators"),
+		.id = RK805_ID_DCDC3,
+		.ops = &rk808_switch_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 1,
+		.enable_reg = RK805_DCDC_EN_REG,
+		.enable_mask = ENABLE_MASK(RK805_ID_DCDC3),
+		.enable_val = ENABLE_MASK(RK805_ID_DCDC3),
+		.disable_val = DISABLE_VAL(RK805_ID_DCDC3),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
+		.owner = THIS_MODULE,
+	}, {
+		.name = "DCDC_REG4",
+		.supply_name = "vcc4",
+		.of_match = of_match_ptr("DCDC_REG4"),
+		.regulators_node = of_match_ptr("regulators"),
+		.id = RK805_ID_DCDC4,
+		.ops = &rk808_reg_ops_ranges,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 64,
+		.linear_ranges = rk805b_cm_mode_1_buck4_ranges,
+		.n_linear_ranges = ARRAY_SIZE(rk805b_cm_mode_1_buck4_ranges),
+		.vsel_reg = RK805_BUCK4_ON_VSEL_REG,
+		.vsel_mask = RK818_BUCK_VSEL_MASK,
+		.enable_reg = RK805_DCDC_EN_REG,
+		.enable_mask = ENABLE_MASK(RK805_ID_DCDC4),
+		.enable_val = ENABLE_MASK(RK805_ID_DCDC4),
+		.disable_val = DISABLE_VAL(RK805_ID_DCDC4),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
+		.owner = THIS_MODULE,
+	},
+
+	RK805_DESC(RK805_ID_LDO1, "LDO_REG1", "vcc5", 500, 3400, 50,
+		RK805_LDO1_ON_VSEL_REG, RK805B_LDO_VSEL_MASK, RK805_LDO_EN_REG,
+		ENABLE_MASK(0), DISABLE_VAL(0), 400),
+	RK805_DESC(RK805_ID_LDO2, "LDO_REG2", "vcc5", 500, 3400, 50,
+		RK805_LDO2_ON_VSEL_REG, RK805B_LDO_VSEL_MASK, RK805_LDO_EN_REG,
+		ENABLE_MASK(1), DISABLE_VAL(1), 400),
+	RK805_DESC(RK805_ID_LDO3, "LDO_REG3", "vcc6", 500, 3400, 50,
+		RK805_LDO3_ON_VSEL_REG, RK805B_LDO_VSEL_MASK, RK805_LDO_EN_REG,
+		ENABLE_MASK(2), DISABLE_VAL(2), 400),
+};
+
 static const struct regulator_desc rk808_reg[] = {
 	{
 		.name = "DCDC_REG1",
@@ -1618,7 +1726,10 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 
 	switch (rk808->variant) {
 	case RK805_ID:
-		regulators = rk805_reg;
+		if (rk808->vsel_table == RK805B_VSELTABLE_4OR8)
+			regulators = rk805b_4_8_reg;
+		else
+			regulators = rk805_reg;
 		nregulators = RK805_NUM_REGULATORS;
 		break;
 	case RK808_ID:
@@ -1663,8 +1774,19 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id rk8xx_regulator_id_table[] = {
+	{ "rk805-regulator", 0 },
+	{ "rk809-regulator", 0 },
+	{ "rk816-regulator", 0 },
+	{ "rk817-regulator", 0 },
+	{ "rk818-regulator", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, rk8xx_regulator_id_table);
+
 static struct platform_driver rk808_regulator_driver = {
 	.probe = rk808_regulator_probe,
+	.id_table = rk8xx_regulator_id_table,
 	.driver = {
 		.name = "rk808-regulator",
 	},

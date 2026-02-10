@@ -6,20 +6,86 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3538.dtsi"
-#include "rk3538-evb.dtsi"
 #include "rk3538-evb-input-keymap.dtsi"
+#include "rk3538-demo.dtsi"
 
-/ {
+/{
+	acodec_sound: acodec-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,rk3538-acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
+	bt_sco: bt-sco {
+		status = "okay";
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+	};
+
+	bt_sound: bt-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&sai0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco 1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work-led {
+			gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "timer";
+			default-state = "on";
+		};
+		net-led {
+			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			default-state = "off";
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h &clk_32km0_pins>;
+		pinctrl-0 = <&wifi_enable_h &sdio_reset>;
 		post-power-on-delay-ms = <200>;
 		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
 		status = "okay";
+	};
+
+	spdif_tx_dc: spdif-tx-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx_sound: spdif-tx-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "spdif-tx-sound";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx_dc>;
+		};
 	};
 
 	vcc12v_dc: vcc12v-dc {
@@ -55,12 +121,33 @@
 
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
-		wifi_chip_type = "ap6275s";
+		wifi_chip_type = "sw6621";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,host_wake-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&acodec {
+	pa-ctl-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&mac {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_logic>;
 };
 
 &i2c0 {
@@ -178,26 +265,6 @@
 	};
 };
 
-&cpu0 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu2 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&gpu {
-	mali-supply = <&vdd_logic>;
-};
-
-&pdm {
-	status = "okay";
-};
-
-&pdm_mic_array {
-	status = "okay";
-};
-
 &pinctrl {
 	pmic {
 		pmic_int: pmic-int {
@@ -225,10 +292,42 @@
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
+
+		sdio_reset: sdio-reset {
+			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_output_high>;
+		};
 	};
 };
 
-&sdmmc1 {
+&pwm0_4ch_2 {
+	status = "okay";
+};
+
+&pwm0_4ch_3 {
+	pinctrl-0 = <&pwm0m1_ch3_pins>;
+	status = "okay";
+};
+
+&sai0 {
+	status = "okay";
+};
+
+&sai2 {
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	no-sd;
+	no-sdio;
+	non-removable;
+	status = "okay";
+};
+
+&sdio {
 	max-frequency = <200000000>;
 	no-sd;
 	no-mmc;
@@ -237,14 +336,18 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	non-removable;
-	mmc-pwrseq = <&sdio_pwrseq>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc1_bus4_pins &sdmmc1_cmd_pins &sdmmc1_clk_pins>;
+	pinctrl-0 = <&sdio_bus4_pins &sdio_cmd_pins &sdio_clk_pins>;
 	sd-uhs-sdr104;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	status = "okay";
 };
 
-&spdif_tx_sound {
+&tve {
+	status = "okay";
+};
+
+&tve_in_vp0 {
 	status = "okay";
 };
 
@@ -252,4 +355,20 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2m0_xfer_pins &uart2m0_ctsn_pins>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_DEEP1_MODE
+		//| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		//| RKPM_SLP_OSC_DIS
+		//| RKPM_SLP_32K_EXT
+		)
+	>;
 };
