@@ -384,16 +384,20 @@ static int rkce_ec_verify(struct akcipher_request *req)
 
 	diff = keylen - req->dst_len;
 	if (diff >= 0) {
-		if (diff > sizeof(rawhash) || diff + req->dst_len > sizeof(rawhash))
-			return -ENOMEM;
+		if (diff > sizeof(rawhash) || diff + req->dst_len > sizeof(rawhash)) {
+			ret = -ENOMEM;
+			goto exit;
+		}
 
 		if (diff)
 			memset(rawhash, 0, diff);
 
 		memcpy(&rawhash[diff], buffer + req->src_len, req->dst_len);
 	} else if (diff < 0) {
-		if (keylen > sizeof(rawhash))
-			return -ENOMEM;
+		if (keylen > sizeof(rawhash)) {
+			ret = -ENOMEM;
+			goto exit;
+		}
 
 		/* given hash is longer, we take the left-most bytes */
 		memcpy(&rawhash, buffer + req->src_len, keylen);
