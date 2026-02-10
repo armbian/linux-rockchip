@@ -3546,6 +3546,7 @@
 		power-domains = <&power RK3576_PD_VOP>;
 		rockchip,grf = <&sys_grf>;
 		rockchip,ioc-grf = <&ioc_grf>;
+		rockchip,vo0-grf = <&vo0_grf>;
 		rockchip,pmu = <&pmu>;
 		status = "disabled";
 
