@@ -3681,7 +3681,8 @@ static void vop_mcu_bypass_mode_setup(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, mcu_rw_pst, mcu_timing->mcu_rw_pst);
 		VOP_CTRL_SET(vop, mcu_rw_pend, mcu_timing->mcu_rw_pend);
 
-		clk_set_rate(vop->dclk, vop->data->mcu_bypass_cfg->dclk_rate);
+		rockchip_drm_dclk_set_rate(vop->version, vop->dclk,
+					   vop->data->mcu_bypass_cfg->dclk_rate);
 	}
 }
 
@@ -3765,7 +3766,8 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
 		 */
 		if ((type == MCU_SETBYPASS) && !value) {
 			vop_mcu_mode_setup(crtc);
-			clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
+			rockchip_drm_dclk_set_rate(vop->version, vop->dclk,
+						   adjusted_mode->crtc_clock * 1000);
 		}
 	}
 }
