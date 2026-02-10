@@ -22,7 +22,7 @@
 
 		extcon_usb_port1: extcon-usb-port1 {
 			rockchip,usbc-orientation = <2>;
-			extcon = <&u2phy1>;
+			extcon = <&u2phy0>;
 		};
 	};
 
@@ -532,7 +532,8 @@
 };
 
 &u2phy1 {
-	orientation-switch;
+	rockchip,partner-phy = <&u2phy0>;
+	extcon = <&u2phy0>;
 	status = "okay";
 };
 
