@@ -2650,7 +2650,7 @@ static void rk3572_set_link_mode(struct rockchip_hdmi *hdmi)
 
 	if (!hdmi->link_cfg.frl_mode) {
 		val = HIWORD_UPDATE(0, RK3576_HDMITX_FRL_MOD);
-		regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON1, val);
+		regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON0, val);
 
 		return;
 	}
