@@ -677,10 +677,18 @@ enum rk805_reg {
 #define RK805_ON_SOURCE_REG		0xAE
 #define RK805_OFF_SOURCE_REG		0xAF
 #define RK805B_VSELTABLE_REG		0x71
+#define RK805B_SYS_CFG2			0xB1
+#define RK805B_SYS_CFG3			0xBF
 
 #define RK805B_VSELTABLE_4OR8		0x80
 #define RK805B_CHIP_VER_MSK		0x0F
 #define RK805B_CHIP_VER_NUM		0x04
+
+#define RK805B_RST_FUNC_MSK		(0x3 << 6)
+#define RK805B_RST_FUNC_SFT		(6)
+#define RK805B_RST_FUNC_CNT		(3)
+#define RK805B_RST_FUNC_DEV		(0) /* reset the dev */
+#define RK805B_RST_FUNC_REG		(0x1 << 6) /* reset the reg only */
 
 #define RK805_NUM_REGULATORS		7
 
@@ -1365,6 +1373,18 @@ struct rk808_pwrctrl {
 	bool act_low;
 };
 
+struct rk808_reboot_data_t {
+	struct rk808 *rk808;
+	struct notifier_block reboot_notifier;
+	struct list_head list;  /* Add this missing list head */
+};
+
+struct rk808_reg_data {
+	int addr;
+	int mask;
+	int value;
+};
+
 struct rk808 {
 	struct i2c_client		*i2c;
 	struct regmap_irq_chip_data	*irq_data;
@@ -1377,5 +1397,30 @@ struct rk808 {
 	void				(*pm_pwroff_prep_fn)(void);
 	struct rk808_pin_info *pins;
 	struct rk808_pwrctrl pwrctrl;
+
+	struct rk808_reboot_data_t	*reboot_data; /* New: reboot notifier data */
+	struct rk808_reg_data *suspend_reg;
+	struct rk808_reg_data *resume_reg;
+	int suspend_reg_num;
+	int resume_reg_num;
+
+	/* Add new parameters for PMIC registry mode */
+	struct rk808_pmic_entry *pmic_entry;           /* Pointer to PMIC registry entry */
+	int (*shutdown)(struct rk808 *rk808);          /* Shutdown function pointer */
+	int (*reboot)(struct rk808 *rk808);            /* Reboot function pointer */
+	/* Lower values are inserted earlier in the shutdown list and execute first
+	 * A priority of 0 causes the PMIC's shutdown function to be skipped.
+	 */
+	int priority;
+	bool is_primary;                               /* Whether this is the primary PMIC */
+	/* Syscore operations */
+	bool syscore_registered;                       /* Whether syscore is registered */
+};
+
+struct rk808_pmic_entry {
+	struct list_head list;
+	struct rk808 *rk808;
+	int priority;
+	bool is_primary;
 };
 #endif /* __LINUX_REGULATOR_RK808_H */
