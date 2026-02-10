@@ -341,11 +341,13 @@ err_exit:
 	return ret;
 }
 
-static void gpio_mcu_remove(struct platform_device *pdev)
+static int gpio_mcu_remove(struct platform_device *pdev)
 {
 	struct mcu_gpio_chip *chip = platform_get_drvdata(pdev);
 
 	pr_info("%s name=%s\n", __func__, chip->name);
+
+	return 0;
 }
 
 static const struct of_device_id mcu_gpio_of_match_table[] = {
@@ -366,7 +368,7 @@ static struct platform_driver gpio_mcu_driver = {
 #endif
 	},
 	.probe	= gpio_mcu_probe,
-	.remove	= gpio_mcu_remove,
+	.remove	= (void *)gpio_mcu_remove,
 };
 
 static int __init gpio_mcu_driver_init(void)

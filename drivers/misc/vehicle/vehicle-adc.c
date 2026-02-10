@@ -227,11 +227,12 @@ static int vehicle_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void vehicle_adc_remove(struct platform_device *pdev)
+static int vehicle_adc_remove(struct platform_device *pdev)
 {
 	struct vehicle_adc *vehicle_adc = platform_get_drvdata(pdev);
 
 	destroy_workqueue(vehicle_adc->vehicle_wq);
+	return 0;
 }
 
 static const struct of_device_id vehicle_adc_id[] = {
@@ -242,7 +243,7 @@ static const struct of_device_id vehicle_adc_id[] = {
 
 static struct platform_driver vehicle_adc_device_driver = {
 	.probe          = vehicle_adc_probe,
-	.remove         = vehicle_adc_remove,
+	.remove         = (void *)vehicle_adc_remove,
 	.driver         =  {
 		.name   = "vehicle-adc",
 		.of_match_table = vehicle_adc_id,

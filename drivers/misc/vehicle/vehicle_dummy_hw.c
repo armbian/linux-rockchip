@@ -811,8 +811,11 @@ static int vehicle_dummy_hw_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, vehicle_dummy);
-
+#if KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE
 	vehicle_dummy_class = class_create("vehicle_dummy_hw");
+#else
+	vehicle_dummy_class = class_create(THIS_MODULE, "vehicle_dummy_hw");
+#endif
 	if (IS_ERR(vehicle_dummy_class)) {
 		dev_err(dev, "failed to create class.\n");
 		return PTR_ERR(vehicle_dummy_class);
@@ -859,14 +862,16 @@ static int vehicle_dummy_hw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void vehicle_dummy_hw_remove(struct platform_device *pdev)
+static int vehicle_dummy_hw_remove(struct platform_device *pdev)
 {
 	class_destroy(vehicle_dummy_class);
+
+	return 0;
 }
 
 static struct platform_driver vehicle_dummy_hw_driver = {
 	.probe          = vehicle_dummy_hw_probe,
-	.remove         = vehicle_dummy_hw_remove,
+	.remove         = (void *)vehicle_dummy_hw_remove,
 	.driver         =  {
 		.name   = "vehicle-dummy-hw",
 	}

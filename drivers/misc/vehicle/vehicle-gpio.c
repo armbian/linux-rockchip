@@ -184,11 +184,12 @@ static int vehicle_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void vehicle_gpio_remove(struct platform_device *pdev)
+static int vehicle_gpio_remove(struct platform_device *pdev)
 {
 	struct vehicle_gpio *vehicle_gpio = platform_get_drvdata(pdev);
 
 	destroy_workqueue(vehicle_gpio->vehicle_wq);
+	return 0;
 }
 
 static const struct of_device_id vehicle_gpio_id[] = {
@@ -199,7 +200,7 @@ static const struct of_device_id vehicle_gpio_id[] = {
 
 static struct platform_driver vehicle_gpio_device_driver = {
 	.probe          = vehicle_gpio_probe,
-	.remove         = vehicle_gpio_remove,
+	.remove         = (void *)vehicle_gpio_remove,
 	.driver         =  {
 		.name   = "vehicle-gpio",
 		.of_match_table = vehicle_gpio_id,
