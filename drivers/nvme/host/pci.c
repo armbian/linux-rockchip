@@ -2977,6 +2977,13 @@ static void nvme_reset_work(struct work_struct *work)
 
 	mutex_lock(&dev->shutdown_lock);
 	result = nvme_pci_enable(dev);
+#ifdef CONFIG_NVME_HW_RESET
+	if (result) {
+		nvme_hw_reset(dev);
+		/* Try again */
+		result = nvme_pci_enable(dev);
+	}
+#endif
 	if (result)
 		goto out_unlock;
 	nvme_unquiesce_admin_queue(&dev->ctrl);
