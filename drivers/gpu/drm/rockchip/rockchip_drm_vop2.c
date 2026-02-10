@@ -15411,8 +15411,13 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 			vcstate->post_y2r_en = 1;
 	}
 
+	/*
+	 * If use bt601 full range csc mode, the brightness will be attenuated
+	 * when do r2y and y2r without any brightness, contrast, saturation adjust.
+	 * So use DRM_COLOR_YCBCR_LIMITED_RANGE here.
+	 */
 	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
-						       vcstate->color_range, CSC_10BIT_DEPTH);
+						       DRM_COLOR_YCBCR_LIMITED_RANGE, CSC_10BIT_DEPTH);
 
 	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
 		brightness = interpolate(0, -128, 100, 127,
