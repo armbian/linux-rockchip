@@ -119,6 +119,15 @@ config ROCKCHIP_DW_HDMI
 	  enable HDMI on RK3288 or RK3399 based SoC, you should select
 	  this option.
 
+config ROCKCHIP_DW_HDMI_QP
+	bool "Rockchip specific extensions for Synopsys DW HDMI QP"
+	select DRM_DISPLAY_HDCP_HELPER
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Synopsys DesignWare HDMI QP driver. If you want to
+	  enable HDMI on RK3576 or RK3588 based SoC, you should select
+	  this option.
+
 config ROCKCHIP_DW_MIPI_DSI
 	bool "Rockchip specific extensions for Synopsys DW MIPI DSI"
 	select GENERIC_PHY_MIPI_DPHY
