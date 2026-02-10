@@ -209,9 +209,15 @@ static int rockchip_saradc_read_v2(struct rockchip_saradc *info)
 {
 	int offset;
 	int channel;
+	int val;
 
 	/* Clear irq */
 	writel_relaxed(0x1, info->regs + SARADC2_END_INT_ST);
+
+	/* Disable the interrupt to prevent unexpected irq caused by reset */
+	val = FIELD_PREP(SARADC2_EN_END_INT, 0);
+	val |= SARADC2_EN_END_INT << 16;
+	writel_relaxed(val, info->regs + SARADC2_END_INT_EN);
 
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
 	if (info->test)
