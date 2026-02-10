@@ -8,6 +8,10 @@
 #define RGA3_CMD_REG_BASE			0x100
 #define RGA3_IOMMU_REG_BASE			0xf00
 
+/* reg size, must be 4-aligned */
+#define RGA3_SYS_REG_SIZE			20
+#define RGA3_CMD_REG_SIZE			48
+#define RGA3_IOMMU_REG_SIZE			12
 /* sys reg */
 #define RGA3_SYS_CTRL				0x000
 #define RGA3_CMD_CTRL				0x004
