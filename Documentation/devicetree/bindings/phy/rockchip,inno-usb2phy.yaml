@@ -94,6 +94,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: when set, tuning u2phy to improve usb2 SI.
 
+  rockchip,partner-phy:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the combined usb2 phy for Type-C interface.
+
   host-port:
     type: object
     additionalProperties: false
