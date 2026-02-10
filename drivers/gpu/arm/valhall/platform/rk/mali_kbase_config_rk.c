@@ -507,6 +507,25 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
+static int rk3572_gpu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      u32 rm)
+{
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+	if (rm == opp_info->current_rm || rm == UINT_MAX)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+	regmap_write(opp_info->grf, 0xc, 0x02000200);
+	regmap_write(opp_info->grf, 0, 0x001c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x4, 0x001c0000 | (rm << 2));
+
+	opp_info->current_rm = rm;
+
+	return 0;
+}
+
 static int rk3576_gpu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
 				      u32 rm)
@@ -637,6 +656,12 @@ static int gpu_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 					&kbdev->opp_info);
 }
 
+static const struct rockchip_opp_data rk3572_gpu_opp_data = {
+	.set_read_margin = rk3572_gpu_set_read_margin,
+	.config_regulators = gpu_opp_config_regulators,
+	.config_clks = gpu_opp_config_clks,
+};
+
 static const struct rockchip_opp_data rk3576_gpu_opp_data = {
 	.set_read_margin = rk3576_gpu_set_read_margin,
 	.set_soc_info = rockchip_opp_set_low_length,
@@ -657,6 +682,10 @@ static const struct rockchip_opp_data rockchip_gpu_opp_data = {
 };
 
 static const struct of_device_id rockchip_mali_of_match[] = {
+	{
+		.compatible = "rockchip,rk3572",
+		.data = (void *)&rk3572_gpu_opp_data,
+	},
 	{
 		.compatible = "rockchip,rk3576",
 		.data = (void *)&rk3576_gpu_opp_data,
