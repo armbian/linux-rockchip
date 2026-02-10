@@ -488,6 +488,11 @@
 	status = "disabled";
 };
 
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
+};
+
 &sai1 {
 	status = "okay";
 	pinctrl-names = "default";
