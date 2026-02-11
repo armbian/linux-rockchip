@@ -4565,7 +4565,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .dci_rid_id = 0x2,/* dci axi id length is 4 bits */
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN |
 			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI | WIN_FEATURE_CGC,
@@ -4597,7 +4597,7 @@ static const struct vop2_win_data rk3538_vop_win_data[] = {
 	  .axi_uv_id = 0x7,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0),
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
 	},
