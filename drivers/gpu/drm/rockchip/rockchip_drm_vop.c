@@ -4126,6 +4126,23 @@ static bool vop_crtc_mode_update(struct drm_crtc *crtc)
 	return false;
 }
 
+static bool vop_done_bit_status(struct vop *vop)
+{
+	return VOP_CTRL_GET(vop, cfg_done) == 0;
+}
+
+static void vop_wait_for_fs_by_done_bit_status(struct vop *vop, u32 vrefresh)
+{
+	u32 timeout_us = DIV_ROUND_UP(1000000, vrefresh);
+	bool done_bit;
+	int ret;
+
+	ret = readx_poll_timeout_atomic(vop_done_bit_status, vop, done_bit,
+					done_bit, 0, timeout_us * 3 / 2);
+	if (ret)
+		DRM_DEV_ERROR(vop->dev, "wait done bit status timeout\n");
+}
+
 static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 				   struct drm_atomic_state *state)
 {
@@ -4150,6 +4167,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	int act_end;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 	int for_ddr_freq = 0;
+	int vrefresh;
 	bool dclk_inv, yc_swap = false;
 
 	if (old_state && old_state->self_refresh_active) {
@@ -4192,10 +4210,27 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vop->mcu_timing.mcu_pix_total) {
 		/*
 		 * For RK3572_LITE, in order to ensure MCU interface works well,
-		 * set inf_out_en before mcu_hold_mode enabled.
+		 * set inf_out_en before mcu_hold_mode enabled. The inf_out_en
+		 * register take effect after two frames, so an additional config
+		 * done is required before setting the out mode, which needs one
+		 * frame to take effect.
+		 *
+		 * What's more, set the dclk to the maximum value. On the one hand,
+		 * this is to prevent the default dclk rate derived from the PLL
+		 * from exceeding the limit. On the other hand, it also aims to
+		 * minimize the time consumption of an additional frame, which
+		 * takes approximately 550us.
 		 */
-		if (vop->version == VOP_VERSION_RK3572_LITE)
+		if (vop->version == VOP_VERSION_RK3572_LITE) {
+			/* The default htotal is 330 and vtotal is 250. */
+			vrefresh = DIV_ROUND_CLOSEST_ULL(vop->data->mcu_bypass_cfg->dclk_rate,
+							 330 * 250);
+			rockchip_drm_dclk_set_rate(vop->version, vop->dclk,
+						   vop->data->mcu_bypass_cfg->dclk_rate);
 			VOP_CTRL_SET(vop, inf_out_en, 1);
+			vop_cfg_done(vop);
+			vop_wait_for_fs_by_done_bit_status(vop, vrefresh);
+		}
 
 		/*
 		 * For RK3572_LITE/RK3576_LITE/RK3506/RV1126B
