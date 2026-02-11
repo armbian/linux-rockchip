@@ -2697,6 +2697,7 @@ config SND_SOC_LPASS_TX_MACRO
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"
 
 source "sound/soc/codecs/aw87xxx/Kconfig"
+source "sound/soc/codecs/aw881xx/Kconfig"
 source "sound/soc/codecs/aw882xx/Kconfig"
 source "sound/soc/codecs/aw883xx/Kconfig"
 source "sound/soc/codecs/it6621/Kconfig"

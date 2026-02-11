@@ -845,6 +845,7 @@ obj-$(CONFIG_SND_SOC_ZL38060)	+= snd-soc-zl38060.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_AW87XXX)	+= aw87xxx/
+obj-$(CONFIG_SND_SOC_AW881XX)	+= aw881xx/
 obj-$(CONFIG_SND_SOC_AW882XX)	+= aw882xx/
 obj-$(CONFIG_SND_SOC_AW883XX)	+= aw883xx/
 obj-$(CONFIG_SND_SOC_IT6621)	+= it6621/
