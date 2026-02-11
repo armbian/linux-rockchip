@@ -5255,7 +5255,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .dci_rid_id = 0x4,/* dci axi id length is 4 bits */
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN |
 			WIN_FEATURE_Y2R_13BIT_DEPTH | WIN_FEATURE_DCI | WIN_FEATURE_CGC,
@@ -5287,7 +5287,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .axi_uv_id = 0x09,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
 	},
@@ -5318,7 +5318,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .axi_uv_id = 0x0b,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),/* vp0 or vp1 */
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_Y2R_13BIT_DEPTH |
 		WIN_FEATURE_CGC,
@@ -5350,7 +5350,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .axi_uv_id = 0x0d,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),/* vp0 or vp1 */
 	  .max_upscale_factor = 8,
-	  .max_downscale_factor = 8,
+	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
 	},
