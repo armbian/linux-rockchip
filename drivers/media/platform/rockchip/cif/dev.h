@@ -835,6 +835,8 @@ struct rkcif_scale_vdev {
 	int extrac_pattern;
 	int cur_stream_mode;
 	bool stopping;
+	bool is_compact;
+	bool is_high_align;
 };
 
 static inline
