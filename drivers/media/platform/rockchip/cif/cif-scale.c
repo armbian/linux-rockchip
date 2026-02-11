@@ -366,7 +366,7 @@ int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
 
 	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE &&
-	    stream->is_compact) {
+	    scale_vdev->is_compact) {
 		bpl = ALIGN(pixm->width * fmt->raw_bpp / 8, 256);
 	} else {
 		bpp = rkcif_scale_align_bits_per_pixel(cif_dev, fmt, 0);
@@ -434,6 +434,9 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 	struct bayer_blc *pblc;
 	int *scl_mode;
 	int *extrac_pattern;
+	const struct cif_input_fmt *in_fmt;
+	struct v4l2_rect rect;
+	struct csi_channel_info csi_info;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_SCALE_BLC:
@@ -479,6 +482,45 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 			v4l2_err(&dev->v4l2_dev, "set invalid extrac_pattern %d\n",
 				 *extrac_pattern);
 			return -EINVAL;
+		}
+		break;
+	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
+		if (scale_vdev->is_compact) {
+			*(int *)arg = CSI_LVDS_MEM_COMPACT;
+		} else {
+			if (scale_vdev->is_high_align)
+				*(int *)arg = CSI_LVDS_MEM_WORD_HIGH_ALIGN;
+			else
+				*(int *)arg = CSI_LVDS_MEM_WORD_LOW_ALIGN;
+		}
+		break;
+	case RKCIF_CMD_SET_CSI_MEMORY_MODE:
+		if (dev->terminal_sensor.sd) {
+			in_fmt = rkcif_get_input_fmt(scale_vdev->stream,
+						     &rect, 0, &csi_info);
+			if (in_fmt == NULL) {
+				v4l2_err(&dev->v4l2_dev, "can't get sensor input format\n");
+				return -EINVAL;
+			}
+		} else {
+			v4l2_err(&dev->v4l2_dev, "can't get sensor device\n");
+			return -EINVAL;
+		}
+		if (*(int *)arg == CSI_LVDS_MEM_COMPACT) {
+			if (((dev->inf_id == RKCIF_DVP && dev->chip_id <= CHIP_RK3568_CIF) ||
+			    (dev->inf_id == RKCIF_MIPI_LVDS && dev->chip_id < CHIP_RV1126_CIF)) &&
+			    in_fmt->csi_fmt_val != CSI_WRDDR_TYPE_RAW8) {
+				v4l2_err(&dev->v4l2_dev, "device not support compact\n");
+				return -EINVAL;
+			}
+			scale_vdev->is_compact = true;
+			scale_vdev->is_high_align = false;
+		} else if (*(int *)arg == CSI_LVDS_MEM_WORD_HIGH_ALIGN) {
+			scale_vdev->is_compact = false;
+			scale_vdev->is_high_align = true;
+		} else {
+			scale_vdev->is_compact = false;
+			scale_vdev->is_high_align = false;
 		}
 		break;
 	default:
@@ -873,7 +915,7 @@ static int rkcif_scale_channel_init(struct rkcif_scale_vdev *scale_vdev)
 	ch_info->width = pixm.width;
 	ch_info->height = pixm.height;
 	if (scale_vdev->scl_mode != RKCIF_SCL_MODE_SCALE &&
-	    scale_vdev->stream->is_compact) {
+	    scale_vdev->is_compact) {
 		ch_info->vir_width = ALIGN(ch_info->width * fmt->raw_bpp / 8, 256);
 	} else {
 		ch_info->vir_width = ALIGN(ch_info->width  * fmt->bpp[0] / 8, 8);
@@ -1168,7 +1210,7 @@ static int rkcif_scale_channel_set_rk3576(struct rkcif_scale_vdev *scale_vdev)
 		val |= CIF_SCALE_SW_MODE_RK3576(scale_vdev->scale_mode);
 	else if (scale_vdev->scl_mode == RKCIF_SCL_MODE_EXTRACTION)
 		val |= (scale_vdev->extrac_pattern << 10);
-	if (!scale_vdev->stream->is_compact)
+	if (!scale_vdev->is_compact)
 		val |= (1 << 12);
 	rkcif_write_register(dev, CIF_REG_SCL_CH_CTRL, val);
 	return 0;
@@ -1207,7 +1249,7 @@ static int rkcif_scale_channel_set_rv1126b(struct rkcif_scale_vdev *scale_vdev)
 		val |= CIF_SCALE_SW_MODE_RV1126B(scale_vdev->scale_mode);
 	else if (scale_vdev->scl_mode == RKCIF_SCL_MODE_EXTRACTION)
 		val |= (scale_vdev->extrac_pattern << 6);
-	if (!scale_vdev->stream->is_compact)
+	if (!scale_vdev->is_compact)
 		val |= (1 << 8);
 
 	rkcif_write_register(dev, CIF_REG_SCL_CTRL, val);
@@ -1517,6 +1559,8 @@ void rkcif_init_scale_vdev(struct rkcif_device *cif_dev, u32 ch)
 	INIT_LIST_HEAD(&scale_vdev->buf_head);
 	spin_lock_init(&scale_vdev->vbq_lock);
 	init_waitqueue_head(&scale_vdev->wq_stopped);
+	scale_vdev->is_compact = true;
+	scale_vdev->is_high_align = false;
 	rkcif_scale_set_fmt(scale_vdev, &pixm, false);
 }
 
