@@ -1,0 +1,256 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb2-v10.dtsi"
+#include "rk3572-android.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB2 V10 Board + Rockchip TP2815 AHD to MIPI Extboard";
+	compatible = "rockchip,rk3572-evb2-v10", "rockchip,rk3572";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy0_in_tp2815: endpoint@7 {
+				reg = <7>;
+				remote-endpoint = <&tp2815_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy3_in_tp2815: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&tp2815_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m1_xfer_pins>;
+
+	tp2815: tp2815@44 {
+		compatible = "techpoint,tp2815";
+		status = "okay";
+		reg = <0x44>;
+		clocks = <&cru CAM_CLK0_OUT_IOUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3572_PD_VI>;
+		avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			tp2815_out0: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_tp2815>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	tp2815b: tp2815b@45 {
+		compatible = "techpoint,tp2815";
+		status = "okay";
+		reg = <0x45>;
+		clocks = <&cru CAM_CLK0_OUT_IOUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3572_PD_VI>;
+		avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			tp2815_out1: endpoint {
+				remote-endpoint = <&mipi_dphy3_in_tp2815>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in2>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&cam_clk0m1_clk0_pins>;
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi_in2: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "disabled";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "disabled";
+};
+
+&rkisp_mmu {
+	status = "disabled";
+};
+
+&rkisp_vir0 {
+	status = "disabled";
+};
+
+&rkisp_vir0_sditf {
+	status = "disabled";
+};
+
+&rkvpss {
+	status = "disabled";
+};
+
+&rkvpss_mmu {
+	status = "disabled";
+};
+
+&rkvpss_vir0 {
+	status = "disabled";
+};
