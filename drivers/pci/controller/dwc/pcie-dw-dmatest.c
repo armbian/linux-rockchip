@@ -4,6 +4,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -57,6 +58,8 @@ MODULE_PARM_DESC(is_wired, "Transfer is triggered by wired DMA(default false)");
 
 struct pcie_dw_dmatest_dev {
 	struct dma_trx_obj *obj;
+	u8 gen;
+	u8 lanes;
 
 	bool wr_irq_en;
 	bool rd_irq_en;
@@ -94,29 +97,71 @@ static void pcie_dw_dmatest_show(void)
 
 static int rk_pcie_dma_wait_for_finished(struct dma_trx_obj *obj, struct dma_table *table)
 {
-	int ret = 0, timeout_us, i;
+	struct pcie_dw_dmatest_dev *dmatest_dev = (struct pcie_dw_dmatest_dev *)obj->priv;
+	int ret = 0, err;
+	u64 poll_size;
+	u32 theoretical_us;
+	u32 bandwidth_mbps;
+	u32 timeout_us;
+	unsigned long sleep_us;
 
-	timeout_us = table->buf_size / 100 + 1000; /* 100MB/s for redundant calculate */
-
-	for (i = 0; i < timeout_us; i++) {
-		ret = obj->get_dma_status(obj, table->chn, table->dir);
-		if (ret == 1) {
-			ret = 0;
-			break;
-		} else if (ret < 0) {
-			ret = -EFAULT;
-			break;
-		}
-		udelay(1);
+	/*
+	 * As each get_dma_status cost 2us, polling status for small data:
+	 *     Gen2x1 is abort 4KB/us;
+	 *     Gen3x4 is abort 24KB/us;
+	 * 16us is tolerant:
+	 *     Gen2x1 64KB 16us;
+	 *     Gen3x4 384KB 16us;
+	 */
+	switch (dmatest_dev->gen) {
+	case 1:
+		bandwidth_mbps = 250 * dmatest_dev->lanes;
+		poll_size = 0x8000 * dmatest_dev->lanes;
+		break;
+	case 2:
+		bandwidth_mbps = 500 * dmatest_dev->lanes;
+		poll_size = 0x10000 * dmatest_dev->lanes;
+		break;
+	case 3:
+	default:
+		bandwidth_mbps = 800 * dmatest_dev->lanes;
+		poll_size = 0x18000 * dmatest_dev->lanes;
+		break;
 	}
 
-	if (i >= timeout_us || ret) {
-		dev_err(obj->dev, "%s timeout\n", __func__);
-		if (obj->dma_debug)
-			obj->dma_debug(obj, table);
-		return -EFAULT;
+	theoretical_us = (u32)(table->buf_size / bandwidth_mbps);
+
+	if (table->buf_size > poll_size && theoretical_us > 20)
+		usleep_range(theoretical_us * 8 / 10, theoretical_us);
+
+	timeout_us = (theoretical_us * 2) + 100000;
+
+	sleep_us = (table->buf_size > poll_size) ? 20 : 0;
+
+	err = read_poll_timeout(obj->get_dma_status, ret,
+				(ret == 1 || ret < 0),
+				sleep_us, timeout_us, false,
+				obj, table->chn, table->dir);
+
+	if (err == -ETIMEDOUT) {
+		ret = -ETIMEDOUT;
+		goto err_out;
 	}
 
+	if (ret < 0) {
+		ret = -EFAULT;
+		goto err_out;
+	}
+
+	dev_dbg(obj->dev, "dma_wait size:%zu, gen:%d, lanes:%d\n",
+		table->buf_size, dmatest_dev->gen, dmatest_dev->lanes);
+	return 0;
+
+err_out:
+	dev_err(obj->dev, "DMA wait timeout/error! size:%zu, gen:%d, lanes:%d\n",
+		table->buf_size, dmatest_dev->gen, dmatest_dev->lanes);
+	if (obj->dma_debug)
+		obj->dma_debug(obj, table);
 	return ret;
 }
 
@@ -265,6 +310,10 @@ struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 		return NULL;
 	}
 
+	/* Define the high speed default gen/lanes to reach high poll_size */
+	dmatest_dev->gen = 3;
+	dmatest_dev->lanes = 4;
+
 	return obj;
 }
 
@@ -325,6 +374,16 @@ int pcie_dw_dmatest_irq_en(struct dma_trx_obj *obj, bool wr_irq_en, bool rd_irq_
 		mutex_unlock(&dmatest_dev->rd_lock[chn]);
 
 	dev_info(obj->dev, "update wr_irq_en=%d rd_irq_en=%d\n", wr_irq_en, rd_irq_en);
+	return 0;
+}
+
+int pcie_dw_dmatest_set_bandwidth(struct dma_trx_obj *obj, u8 gen, u8 lanes)
+{
+	struct pcie_dw_dmatest_dev *dmatest_dev = (struct pcie_dw_dmatest_dev *)obj->priv;
+
+	dmatest_dev->gen = gen;
+	dmatest_dev->lanes = lanes;
+
 	return 0;
 }
 

@@ -18,6 +18,7 @@ int pcie_dw_local_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
 				    u64 local_paddr, u64 bus_paddr, u32 size);
 int pcie_dw_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn,
 				  u64 bus_paddr, u64 local_paddr, u32 size);
+int pcie_dw_dmatest_set_bandwidth(struct dma_trx_obj *obj, u8 gen, u8 lanes);
 #else
 static inline struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 {
@@ -47,6 +48,11 @@ static inline int pcie_dw_local_dma_frombus_block(struct dma_trx_obj *obj, u32 c
 }
 
 static inline int pcie_dw_local_dma_tobus_block(struct dma_trx_obj *obj, u32 chn, u64 bus_paddr, u64 local_paddr, u32 size)
+{
+	return -ENODEV;
+}
+
+static inline int pcie_dw_dmatest_set_bandwidth(struct dma_trx_obj *obj, u8 gen, u8 lanes)
 {
 	return -ENODEV;
 }
