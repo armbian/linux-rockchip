@@ -50,10 +50,8 @@ static const char *scheduler_state_to_string(struct kbase_device *kbdev,
 		return "INACTIVE";
 	case SCHED_SUSPENDED:
 		return "SUSPENDED";
-#ifdef KBASE_PM_RUNTIME
 	case SCHED_SLEEPING:
 		return "SLEEPING";
-#endif
 	default:
 		dev_warn(kbdev->dev, "Unknown Scheduler state %d", sched_state);
 		return NULL;
@@ -249,10 +247,8 @@ static ssize_t kbase_csf_debugfs_scheduler_state_set(struct file *file, const ch
 
 	if (sysfs_streq(buf, "SUSPENDED"))
 		kbase_csf_scheduler_pm_suspend(kbdev);
-#ifdef KBASE_PM_RUNTIME
-	else if (sysfs_streq(buf, "SLEEPING"))
+	else if (IS_ENABLED(CONFIG_PM) && sysfs_streq(buf, "SLEEPING"))
 		kbase_csf_scheduler_force_sleep(kbdev);
-#endif
 	else if (sysfs_streq(buf, "INACTIVE"))
 		kbase_csf_scheduler_force_wakeup(kbdev);
 	else {

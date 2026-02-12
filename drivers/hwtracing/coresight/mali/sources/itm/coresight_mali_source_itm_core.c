@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,8 +31,6 @@
  */
 #define CS_MALI_TRACE_ID 0x00000010
 
-#define CS_SCS_BASE_ADDR 0xE000E000
-#define SCS_DEMCR 0xDFC
 #define CS_ITM_BASE_ADDR 0xE0000000
 #define ITM_TCR 0xE80
 #define ITM_TCR_BUSY_BIT (0x1 << 22)
@@ -56,14 +54,11 @@ struct cs_itm_state {
 static struct cs_itm_state itm_state = { 0 };
 
 static struct kbase_debug_coresight_csf_address_range dwt_itm_range[] = {
-	{ CS_SCS_BASE_ADDR, CS_SCS_BASE_ADDR + CORESIGHT_DEVTYPE },
 	{ CS_ITM_BASE_ADDR, CS_ITM_BASE_ADDR + CORESIGHT_DEVTYPE },
 	{ CS_DWT_BASE_ADDR, CS_DWT_BASE_ADDR + CORESIGHT_DEVTYPE }
 };
 
 static struct kbase_debug_coresight_csf_op dwt_itm_enable_ops[] = {
-	// enable ITM/DWT functionality via DEMCR register
-	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x01000000),
 	// Unlock DWT configuration
 	WRITE_IMM_OP(CS_DWT_BASE_ADDR + CORESIGHT_LAR, CS_MALI_UNLOCK_COMPONENT),
 	// prep DWT counter to immediately send sync packet ((1 << 24) - 1)
@@ -85,8 +80,6 @@ static struct kbase_debug_coresight_csf_op dwt_itm_enable_ops[] = {
 };
 
 static struct kbase_debug_coresight_csf_op dwt_itm_disable_ops[] = {
-	// Disable ITM/DWT functionality via DEMCR register
-	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x00000000),
 	// Unlock ITM configuration
 	WRITE_IMM_OP(CS_ITM_BASE_ADDR + CORESIGHT_LAR, CS_MALI_UNLOCK_COMPONENT),
 	// Check ITM is disabled
@@ -212,15 +205,21 @@ int coresight_mali_sources_init_drvdata(struct coresight_mali_source_drvdata *dr
 
 	set_default_regs();
 
-	drvdata->base.config = kbase_debug_coresight_csf_config_create(
-		drvdata->base.kbase_client, &drvdata->base.enable_seq, &drvdata->base.disable_seq);
+	drvdata->base.config = kbase_debug_coresight_csf_config_create(drvdata->base.kbase_client,
+								       &drvdata->base.enable_seq,
+								       &drvdata->base.disable_seq,
+								       false);
 	if (!drvdata->base.config) {
 		dev_err(drvdata->base.dev, "config create failed unexpectedly\n");
-		kbase_debug_coresight_csf_unregister(drvdata->base.kbase_client);
-		return -EINVAL;
+		goto kbase_client_unregister;
 	}
 
 	return 0;
+
+kbase_client_unregister:
+	kbase_debug_coresight_csf_unregister(drvdata->base.kbase_client);
+
+	return -EINVAL;
 }
 
 void coresight_mali_sources_deinit_drvdata(struct coresight_mali_source_drvdata *drvdata)

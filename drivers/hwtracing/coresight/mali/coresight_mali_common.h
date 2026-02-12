@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -90,23 +90,37 @@
 /**
  * struct coresight_mali_drvdata - Coresight mali driver data
  *
- * @csdev:        Coresight device pointer
- * @dev:          Device pointer
- * @kbase_client: Pointer to coresight mali client
- * @config:       Pointer to coresight mali config, used for enabling and
- *                disabling the coresight component
- * @enable_seq:   Enable sequence needed to enable coresight block
- * @disable_seq:  Disable sequence needed to enable coresight block
- * @gpu_dev:      Pointer to gpu device structure
- * @mode:         Mode in which the driver operates
+ * @csdev:                     Coresight device pointer
+ * @dev:                       Device pointer
+ * @kbase_pre_post_all_client: Pointer to coresight mali pre_post_client
+ * @kbase_client:              Pointer to coresight mali client
+ * @pre_post_all_config:       Pointer to coresight mali config, used for
+ *                             pre enabling and post disabling the coresight
+ *                             component
+ * @config:                    Pointer to coresight mali config, used for
+ *                             enabling and disabling the coresight component
+ * @enable_seq:                Enable sequence needed to enable coresight
+ *                             block
+ * @pre_enable_seq:            Sequence executed as the first sequence in
+ *                             enable procedure
+ * @disable_seq:               Disable sequence needed to enable coresight
+ *                             block
+ * @post_disable_seq:          Sequence executed as the last sequence in
+ *                             disable procedure
+ * @gpu_dev:                   Pointer to gpu device structure
+ * @mode:                      Mode in which the driver operates
  */
 struct coresight_mali_drvdata {
 	struct coresight_device *csdev;
 	struct device *dev;
 	void *kbase_client;
+	void *kbase_pre_post_all_client;
+	void *pre_post_all_config;
 	void *config;
 	struct kbase_debug_coresight_csf_sequence enable_seq;
+	struct kbase_debug_coresight_csf_sequence pre_enable_seq;
 	struct kbase_debug_coresight_csf_sequence disable_seq;
+	struct kbase_debug_coresight_csf_sequence post_disable_seq;
 	void *gpu_dev;
 	u32 mode;
 };

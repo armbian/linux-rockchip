@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -154,20 +154,6 @@ void kbase_reset_gpu_assert_failed_or_prevented(struct kbase_device *kbdev);
 #define RESET_FLAGS_HWC_UNRECOVERABLE_ERROR ((unsigned int)(1 << 0))
 
 /**
- * kbase_prepare_to_reset_gpu_locked - Prepare for resetting the GPU.
- * @kbdev: Device pointer
- * @flags: Bitfield indicating impact of reset (see flag defines)
- *
- * Caller is expected to hold the kbdev->hwaccess_lock.
- *
- * Return: a boolean which should be interpreted as follows:
- * - true  - Prepared for reset, kbase_reset_gpu should be called.
- * - false - Another thread is performing a reset, kbase_reset_gpu should
- *           not be called.
- */
-bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev, unsigned int flags);
-
-/**
  * kbase_prepare_to_reset_gpu - Prepare for resetting the GPU.
  * @kbdev: Device pointer
  * @flags: Bitfield indicating impact of reset (see flag defines)
@@ -191,20 +177,6 @@ bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev, unsigned int flags);
  * to know when the reset has completed.
  */
 void kbase_reset_gpu(struct kbase_device *kbdev);
-
-/**
- * kbase_reset_gpu_locked - Reset the GPU
- * @kbdev: Device pointer
- *
- * This function should be called after kbase_prepare_to_reset_gpu_locked if it
- * returns true. It should never be called without a corresponding call to
- * kbase_prepare_to_reset_gpu (only on Job Manager GPUs).
- * Caller is expected to hold the kbdev->hwaccess_lock.
- *
- * After this function is called, the caller should call kbase_reset_gpu_wait()
- * to know when the reset has completed.
- */
-void kbase_reset_gpu_locked(struct kbase_device *kbdev);
 
 /**
  * kbase_reset_gpu_silent - Reset the GPU silently

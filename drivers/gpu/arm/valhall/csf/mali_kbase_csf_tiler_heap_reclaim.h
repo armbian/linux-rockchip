@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -79,4 +79,26 @@ int kbase_csf_tiler_heap_reclaim_mgr_init(struct kbase_device *kbdev);
  */
 void kbase_csf_tiler_heap_reclaim_mgr_term(struct kbase_device *kbdev);
 
+/**
+ * enum heap_reclaim_scenario - heap reclaim scenario list.
+ *
+ * @HEAP_RECLAIM_SCENARIO_SHRINKER:  Reclaim through shrinker.
+ * @HEAP_RECLAIM_SCENARIO_SCHEDULER: Reclaim through scheduler.
+ * @HEAP_RECLAIM_SCENARIO_COUNT:     The number of reclaim scenarios.
+ */
+enum heap_reclaim_scenario {
+	HEAP_RECLAIM_SCENARIO_SHRINKER = 0,
+	HEAP_RECLAIM_SCENARIO_SCHEDULER,
+	HEAP_RECLAIM_SCENARIO_COUNT
+};
+
+/**
+ * kbase_csf_tiler_heap_reclaim_unused_pages - Reclaim unused heap pages.
+ * @kbdev:             Pointer to the device.
+ * @scenario:          Reclaim scenario.
+ *
+ * Return: total freed pages.
+ */
+unsigned long kbase_csf_tiler_heap_reclaim_unused_pages(struct kbase_device *kbdev,
+							enum heap_reclaim_scenario scenario);
 #endif

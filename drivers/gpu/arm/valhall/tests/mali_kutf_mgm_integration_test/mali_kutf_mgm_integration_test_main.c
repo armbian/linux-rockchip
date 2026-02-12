@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -95,7 +95,9 @@ static void mali_kutf_mgm_pte_translation_test(struct kutf_context *context)
 				data->group_id, mmu_level, original_pte);
 
 			translated_pte = mgm_dev->ops.mgm_update_gpu_pte(mgm_dev, data->group_id,
-									 mmu_level, original_pte);
+									 PBHA_ID_DEFAULT,
+									 PTE_FLAGS_NONE, mmu_level,
+									 original_pte);
 			if (translated_pte == original_pte) {
 				snprintf(
 					msg_buf, sizeof(msg_buf),

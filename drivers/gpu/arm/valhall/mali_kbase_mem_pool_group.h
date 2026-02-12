@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,52 +25,14 @@
 #include <mali_kbase_defs.h>
 
 /**
- * kbase_mem_pool_group_select() - Select the memory pool to use.
- *
- * @kbdev:         Device pointer.
- * @mem_group_id:  Physical memory group ID to use.
- * @is_small_page: Flag used to select between the small and
- *                 large memory pool.
- *
- * Return: A pointer to the selected memory pool.
- */
-static inline struct kbase_mem_pool *
-kbase_mem_pool_group_select(struct kbase_device *kbdev, u32 mem_group_id, bool is_small_page)
-{
-	if (WARN_ON(unlikely(kbdev == NULL)))
-		return NULL;
-
-	WARN_ON(mem_group_id > BASE_MEM_GROUP_COUNT);
-
-	if (is_small_page)
-		return &kbdev->mem_pools.small[mem_group_id];
-
-	return &kbdev->mem_pools.large[mem_group_id];
-}
-
-/**
- * kbase_mem_pool_group_config_set_max_size - Set the initial configuration for
- * a set of memory pools
- *
- * @configs:  Initial configuration for the set of memory pools
- * @max_size: Maximum number of free small pages each pool can hold
- *
- * This function sets the initial configuration for every memory pool so that
- * the maximum amount of free memory that each pool can hold is identical.
- * The equivalent number of 2 MiB pages is calculated automatically for the
- * purpose of configuring the large page pools.
- */
-void kbase_mem_pool_group_config_set_max_size(struct kbase_mem_pool_group_config *configs,
-					      size_t max_size);
-
-/**
  * kbase_mem_pool_group_init - Initialize a set of memory pools
  *
- * @mem_pools:  Set of memory pools to initialize
- * @kbdev:      Kbase device where memory is used
- * @configs:    Initial configuration for the set of memory pools
- * @next_pools: Set of memory pools from which to allocate memory if there
- *              is no free memory in one of the @mem_pools
+ * @mem_pools:      Set of memory pools to initialize
+ * @kbdev:          Kbase device where memory is used
+ * @small_max_size: Maximum size for small memory pools
+ * @large_max_size: Maximum size for large memory pools
+ * @next_pools:     Set of memory pools from which to allocate memory if there
+ *                  is no free memory in one of the @mem_pools
  *
  * Initializes a complete set of physical memory pools. Memory pools are used to
  * allow efficient reallocation of previously-freed physical pages. A pair of
@@ -87,7 +49,7 @@ void kbase_mem_pool_group_config_set_max_size(struct kbase_mem_pool_group_config
  * Return: 0 on success, otherwise a negative error code
  */
 int kbase_mem_pool_group_init(struct kbase_mem_pool_group *mem_pools, struct kbase_device *kbdev,
-			      const struct kbase_mem_pool_group_config *configs,
+			      size_t small_max_size, size_t large_max_size,
 			      struct kbase_mem_pool_group *next_pools);
 
 /**

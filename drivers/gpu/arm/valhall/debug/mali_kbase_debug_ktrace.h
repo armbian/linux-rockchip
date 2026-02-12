@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,11 +40,7 @@
 #include "mali_linux_trace.h"
 #endif
 
-#if MALI_USE_CSF
 #include "debug/backend/mali_kbase_debug_ktrace_csf.h"
-#else
-#include "debug/backend/mali_kbase_debug_ktrace_jm.h"
-#endif
 
 /**
  * kbase_ktrace_init - initialize kbase ktrace.

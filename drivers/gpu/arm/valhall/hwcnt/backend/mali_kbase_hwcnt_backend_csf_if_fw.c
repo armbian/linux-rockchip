@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -235,9 +235,58 @@ kbasep_hwcnt_backend_csf_if_fw_cc_disable(struct kbase_hwcnt_backend_csf_if_fw_c
  */
 static u64 kbasep_hwcnt_backend_csf_core_mask(struct kbase_gpu_props *gpu_props)
 {
+	/* Calculate according to Virtual Core IDs */
+	if (gpu_props->gpu_id.arch_id >= GPU_ID_ARCH_MAKE(14, 8, 4)) {
+		const u64 nr_cores = hweight64(gpu_props->coherency_info.group.core_mask);
+
+		if (nr_cores == 64)
+			return U64_MAX;
+
+		return (1ULL << nr_cores) - 1;
+	}
 	return gpu_props->coherency_info.group.core_mask;
 }
-#endif
+
+/**
+ * kbasep_hwcnt_backend_csf_physical_mask_to_vid() - Obtain Virtual Core Mask
+ *
+ * @shader_present:  core present bitmap
+ * @subset_mask: core subset mask
+ *
+ * Compute effective core mask for VID using core shader present bitmap and
+ * subset mask. virtual_core_mask is combination of shader present and subset mask in way:
+ * for each active shader core (bit set to "1"), coresponding bit from subset_mask is added to
+ * virtual_core_mask ("1" or "0")
+ * example: shader_present = 10111, subset_mask = 10011, virtual_core_mask = 1011
+ *
+ * Return:      calculated effective core mask
+ */
+static u64 kbasep_hwcnt_backend_csf_physical_mask_to_vid(u64 shader_present, u64 subset_mask)
+{
+	DECLARE_BITMAP(sc_mask, BITS_PER_TYPE(u64));
+	u64 virtual_core_mask = 0;
+	u64 curr_core;
+
+	/* Converting the u64 into a series of unsigned longs to
+	 * allow for use of kernel macros.
+	 */
+	bitmap_from_u64(sc_mask, shader_present);
+
+	/* To ensure the subset check below works with virtual core IDs,
+	 * we need to perform the conversion from the physical core
+	 * mask to the virtual one, re-creating the physical -> virtual mapping.
+	 */
+	for_each_set_bit(curr_core, sc_mask, BITS_PER_TYPE(u64)) {
+		if (subset_mask & BIT_MASK(curr_core)) {
+			u64 lower_mask = GENMASK(curr_core, 0);
+			u64 vid = hweight64(shader_present & lower_mask) - 1;
+
+			virtual_core_mask |= BIT_MASK(vid);
+		}
+	}
+	return virtual_core_mask;
+}
+#endif /*!IS_ENABLED(CONFIG_MALI_VALHALL_NO_MALI)*/
 
 static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
@@ -254,10 +303,12 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 			KBASE_DUMMY_MODEL_MAX_NUM_HARDWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
 		.prfcnt_fw_size =
 			KBASE_DUMMY_MODEL_MAX_FIRMWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
+		.metadata_size = 0,
 		.dump_bytes = KBASE_DUMMY_MODEL_MAX_SAMPLE_SIZE,
 		.prfcnt_block_size = KBASE_DUMMY_MODEL_BLOCK_SIZE,
 		.clk_cnt = 1,
 		.clearing_samples = true,
+		.ne_core_mask = 0,
 	};
 
 	fw_ctx->buf_bytes = prfcnt_info->dump_bytes;
@@ -267,10 +318,13 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	u32 prfcnt_size;
 	u32 prfcnt_hw_size;
 	u32 prfcnt_fw_size;
+	u32 prfcnt_features;
+	u32 metadata_size;
 	u32 csg_count;
 	u32 fw_block_count = 0;
 	u32 prfcnt_block_size =
 		KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK * KBASE_HWCNT_VALUE_HW_BYTES;
+	bool has_virtual_core_ids;
 
 	WARN_ON(!ctx);
 	WARN_ON(!prfcnt_info);
@@ -279,8 +333,11 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	kbdev = fw_ctx->kbdev;
 	csg_count = kbdev->csf.global_iface.group_num;
 	prfcnt_size = kbdev->csf.global_iface.prfcnt_size;
+	prfcnt_features = kbdev->csf.global_iface.prfcnt_features;
 	prfcnt_hw_size = GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET(prfcnt_size);
 	prfcnt_fw_size = GLB_PRFCNT_SIZE_FIRMWARE_SIZE_GET(prfcnt_size);
+	metadata_size = GLB_PRFCNT_FEATURES_METADATA_SIZE_GET(prfcnt_features);
+	has_virtual_core_ids = kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(14, 8, 4);
 
 	/* Read the block size if the GPU has the register PRFCNT_FEATURES
 	 * which was introduced in architecture version 11.x.7.
@@ -303,10 +360,11 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	else
 		WARN_ON_ONCE(true);
 
-	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size;
+	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size + metadata_size;
 	*prfcnt_info = (struct kbase_hwcnt_backend_csf_if_prfcnt_info){
 		.prfcnt_hw_size = prfcnt_hw_size,
 		.prfcnt_fw_size = prfcnt_fw_size,
+		.metadata_size = metadata_size,
 		.dump_bytes = fw_ctx->buf_bytes,
 		.prfcnt_block_size = prfcnt_block_size,
 		.l2_count = kbdev->gpu_props.num_l2_slices,
@@ -314,13 +372,31 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 		.csg_count = fw_block_count > 1 ? csg_count : 0,
 		.clk_cnt = fw_ctx->clk_cnt,
 		.clearing_samples = true,
+		.has_ne = kbdev->gpu_props.gpu_features.neural_engine,
+		.ne_core_mask = kbdev->gpu_props.gpu_features.neural_engine ?
+					      kbasep_hwcnt_backend_csf_physical_mask_to_vid(
+						kbdev->gpu_props.coherency_info.group.core_mask,
+						kbdev->gpu_props.neural_present) :
+					      0,
+		.has_virtual_ids = has_virtual_core_ids
 	};
 
+	if (prfcnt_info->has_ne)
+		WARN_ON(prfcnt_info->ne_core_mask == 0);
+	else
+		WARN_ON(prfcnt_info->ne_core_mask != 0);
 
+	WARN((metadata_size % prfcnt_info->prfcnt_block_size) != 0,
+	     "Metadata block size is not aligned to block size (metadata size %u, block size %zu)",
+	     metadata_size, prfcnt_info->prfcnt_block_size);
 	/* Block size must be multiple of counter size. */
-	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) != 0);
+	WARN((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) != 0,
+	     "Block size is not a multiple of counter size (block size %zu, counter size %lu)",
+	     prfcnt_info->prfcnt_block_size, (unsigned long)KBASE_HWCNT_VALUE_HW_BYTES);
 	/* Total size must be multiple of block size. */
-	WARN_ON((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) != 0);
+	WARN((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) != 0,
+	     "Total size should be a multiple of block size (total size %zu, block size %zu)",
+	     prfcnt_info->dump_bytes, prfcnt_info->prfcnt_block_size);
 #endif
 }
 
@@ -377,8 +453,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 		goto page_list_alloc_error;
 
 	/* Get physical page for the buffer */
-	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false, NULL);
+	ret = kbase_mem_pool_alloc_pages(&kbdev->fw_mem_pools.small, num_pages, phys, false, NULL);
 	if ((size_t)ret != num_pages)
 		goto phys_mem_pool_alloc_error;
 
@@ -421,8 +496,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 mmu_insert_failed:
 	vunmap(cpu_addr);
 vmap_error:
-	kbase_mem_pool_free_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages, phys,
-				  false, false);
+	kbase_mem_pool_free_pages(&kbdev->fw_mem_pools.small, num_pages, phys, false, false);
 phys_mem_pool_alloc_error:
 	kfree(page_list);
 page_list_alloc_error:
@@ -541,7 +615,7 @@ kbasep_hwcnt_backend_csf_if_fw_ring_buf_free(struct kbase_hwcnt_backend_csf_if_c
 		/* After zeroing, the ring_buf pages are dirty so need to pass the 'dirty' flag
 		 * as true when freeing the pages to the Global pool.
 		 */
-		kbase_mem_pool_free_pages(&fw_ctx->kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW],
+		kbase_mem_pool_free_pages(&fw_ctx->kbdev->fw_mem_pools.small,
 					  fw_ring_buf->num_pages, fw_ring_buf->phys, true, false);
 
 		kfree(fw_ring_buf->phys);
@@ -557,12 +631,12 @@ kbasep_hwcnt_backend_csf_if_fw_dump_enable(struct kbase_hwcnt_backend_csf_if_ctx
 {
 	u32 prfcnt_config;
 	struct kbase_device *kbdev;
-	struct kbase_csf_global_iface *global_iface;
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
 	struct kbase_hwcnt_backend_csf_if_fw_ring_buf *fw_ring_buf =
 		(struct kbase_hwcnt_backend_csf_if_fw_ring_buf *)ring_buf;
 	u32 csg_mask;
+	unsigned long fw_io_flags;
 
 	WARN_ON(!ctx);
 	WARN_ON(!ring_buf);
@@ -570,61 +644,66 @@ kbasep_hwcnt_backend_csf_if_fw_dump_enable(struct kbase_hwcnt_backend_csf_if_ctx
 	kbasep_hwcnt_backend_csf_if_fw_assert_lock_held(ctx);
 
 	kbdev = fw_ctx->kbdev;
-	global_iface = &kbdev->csf.global_iface;
 	csg_mask = (1 << kbdev->csf.global_iface.group_num) - 1;
+
+	kbase_csf_fw_io_open_force(&kbdev->csf.fw_io, &fw_io_flags);
 
 	/* Configure */
 	prfcnt_config = GLB_PRFCNT_CONFIG_SIZE_SET(0, fw_ring_buf->buf_count);
 	prfcnt_config = GLB_PRFCNT_CONFIG_SET_SELECT_SET(prfcnt_config, enable->counter_set);
+	prfcnt_config = GLB_PRFCNT_CONFIG_METADATA_ENABLE_SET(prfcnt_config, 1);
 
 	/* Configure the ring buffer base address */
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_JASID, fw_ring_buf->as_nr);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_BASE_LO,
-					fw_ring_buf->gpu_dump_base & U32_MAX);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_BASE_HI,
-					fw_ring_buf->gpu_dump_base >> 32);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_JASID, fw_ring_buf->as_nr);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_BASE_LO,
+				     fw_ring_buf->gpu_dump_base & U32_MAX);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_BASE_HI,
+				     fw_ring_buf->gpu_dump_base >> 32);
 
 	/* Set extract position to 0 */
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_EXTRACT, 0);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_EXTRACT, 0);
 
 	/* Configure the enable bitmap */
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_CSF_EN, enable->fe_bm);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_SHADER_EN, enable->shader_bm);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_MMU_L2_EN, enable->mmu_l2_bm);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_TILER_EN, enable->tiler_bm);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_FW_EN, enable->fw_bm);
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_CSG_EN, enable->csg_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_CSF_EN, enable->fe_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_SHADER_EN, enable->shader_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_MMU_L2_EN, enable->mmu_l2_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_TILER_EN, enable->tiler_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_FW_EN, enable->fw_bm);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_CSG_EN, enable->csg_bm);
 
 	/* Enable all of the CSGs by default. */
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_CSG_SELECT, csg_mask);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_CSG_SELECT, csg_mask);
 
+	if (kbdev->gpu_props.neural_present)
+		kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_NEURAL_EN,
+					     enable->neural_bm);
 
 	/* Configure the HWC set and buffer size */
-	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_CONFIG, prfcnt_config);
+	kbase_csf_fw_io_global_write(&kbdev->csf.fw_io, GLB_PRFCNT_CONFIG, prfcnt_config);
 
 	kbdev->csf.hwcnt.enable_pending = true;
 
 	/* Unmask the interrupts */
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK);
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK);
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK);
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_ENABLE_MASK,
-					     GLB_ACK_IRQ_MASK_PRFCNT_ENABLE_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_ENABLE_MASK,
+					  GLB_ACK_IRQ_MASK_PRFCNT_ENABLE_MASK);
 
 	/* Enable the HWC */
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_REQ,
-					     (1 << GLB_REQ_PRFCNT_ENABLE_SHIFT),
-					     GLB_REQ_PRFCNT_ENABLE_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_REQ,
+					  (1 << GLB_REQ_PRFCNT_ENABLE_SHIFT),
+					  GLB_REQ_PRFCNT_ENABLE_MASK);
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 
-	prfcnt_config = kbase_csf_firmware_global_input_read(global_iface, GLB_PRFCNT_CONFIG);
+	kbase_csf_fw_io_close(&kbdev->csf.fw_io, fw_io_flags);
 
 	kbasep_hwcnt_backend_csf_if_fw_cc_enable(fw_ctx, enable->clk_enable_map);
 }
@@ -632,28 +711,30 @@ kbasep_hwcnt_backend_csf_if_fw_dump_enable(struct kbase_hwcnt_backend_csf_if_ctx
 static void kbasep_hwcnt_backend_csf_if_fw_dump_disable(struct kbase_hwcnt_backend_csf_if_ctx *ctx)
 {
 	struct kbase_device *kbdev;
-	struct kbase_csf_global_iface *global_iface;
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+	unsigned long fw_io_flags;
 
 	WARN_ON(!ctx);
 	kbasep_hwcnt_backend_csf_if_fw_assert_lock_held(ctx);
 
 	kbdev = fw_ctx->kbdev;
-	global_iface = &kbdev->csf.global_iface;
 
 	/* Disable the HWC */
 	kbdev->csf.hwcnt.enable_pending = true;
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_REQ, 0, GLB_REQ_PRFCNT_ENABLE_MASK);
+	kbase_csf_fw_io_open_force(&kbdev->csf.fw_io, &fw_io_flags);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_REQ, 0,
+					  GLB_REQ_PRFCNT_ENABLE_MASK);
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 
 	/* mask the interrupts */
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK, 0,
-					     GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK);
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK, 0,
-					     GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK);
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_ACK_IRQ_MASK, 0,
-					     GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK, 0,
+					  GLB_ACK_IRQ_MASK_PRFCNT_SAMPLE_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK, 0,
+					  GLB_ACK_IRQ_MASK_PRFCNT_THRESHOLD_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_ACK_IRQ_MASK, 0,
+					  GLB_ACK_IRQ_MASK_PRFCNT_OVERFLOW_MASK);
+	kbase_csf_fw_io_close(&kbdev->csf.fw_io, fw_io_flags);
 
 	/* In case we have a previous request in flight when the disable
 	 * happens.
@@ -667,23 +748,24 @@ static void kbasep_hwcnt_backend_csf_if_fw_dump_request(struct kbase_hwcnt_backe
 {
 	u32 glb_req;
 	struct kbase_device *kbdev;
-	struct kbase_csf_global_iface *global_iface;
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+	unsigned long fw_io_flags;
 
 	WARN_ON(!ctx);
 	kbasep_hwcnt_backend_csf_if_fw_assert_lock_held(ctx);
 
 	kbdev = fw_ctx->kbdev;
-	global_iface = &kbdev->csf.global_iface;
 
 	/* Trigger dumping */
 	kbdev->csf.hwcnt.request_pending = true;
-	glb_req = kbase_csf_firmware_global_input_read(global_iface, GLB_REQ);
+	kbase_csf_fw_io_open_force(&kbdev->csf.fw_io, &fw_io_flags);
+	glb_req = kbase_csf_fw_io_global_input_read(&kbdev->csf.fw_io, GLB_REQ);
 	glb_req ^= GLB_REQ_PRFCNT_SAMPLE_MASK;
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_REQ, glb_req,
-					     GLB_REQ_PRFCNT_SAMPLE_MASK);
+	kbase_csf_fw_io_global_write_mask(&kbdev->csf.fw_io, GLB_REQ, glb_req,
+					  GLB_REQ_PRFCNT_SAMPLE_MASK);
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
+	kbase_csf_fw_io_close(&kbdev->csf.fw_io, fw_io_flags);
 }
 
 static void kbasep_hwcnt_backend_csf_if_fw_get_indexes(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
@@ -697,10 +779,9 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_indexes(struct kbase_hwcnt_backen
 	WARN_ON(!insert_index);
 	kbasep_hwcnt_backend_csf_if_fw_assert_lock_held(ctx);
 
-	*extract_index = kbase_csf_firmware_global_input_read(&fw_ctx->kbdev->csf.global_iface,
-							      GLB_PRFCNT_EXTRACT);
-	*insert_index = kbase_csf_firmware_global_output(&fw_ctx->kbdev->csf.global_iface,
-							 GLB_PRFCNT_INSERT);
+	*extract_index =
+		kbase_csf_fw_io_global_input_read(&fw_ctx->kbdev->csf.fw_io, GLB_PRFCNT_EXTRACT);
+	*insert_index = kbase_csf_fw_io_global_read(&fw_ctx->kbdev->csf.fw_io, GLB_PRFCNT_INSERT);
 }
 
 static void
@@ -709,15 +790,17 @@ kbasep_hwcnt_backend_csf_if_fw_set_extract_index(struct kbase_hwcnt_backend_csf_
 {
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+	unsigned long fw_io_flags;
 
 	WARN_ON(!ctx);
 	kbasep_hwcnt_backend_csf_if_fw_assert_lock_held(ctx);
 
+	kbase_csf_fw_io_open_force(&fw_ctx->kbdev->csf.fw_io, &fw_io_flags);
 	/* Set the raw extract index to release the buffer back to the ring
 	 * buffer.
 	 */
-	kbase_csf_firmware_global_input(&fw_ctx->kbdev->csf.global_iface, GLB_PRFCNT_EXTRACT,
-					extract_idx);
+	kbase_csf_fw_io_global_write(&fw_ctx->kbdev->csf.fw_io, GLB_PRFCNT_EXTRACT, extract_idx);
+	kbase_csf_fw_io_close(&fw_ctx->kbdev->csf.fw_io, fw_io_flags);
 }
 
 static void
@@ -737,15 +820,27 @@ kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count(struct kbase_hwcnt_backend_cs
 		if (!(clk_enable_map & (1ull << clk)))
 			continue;
 
-		if (clk == KBASE_CLOCK_DOMAIN_TOP) {
+		/* Collect cycle count from GPU register.
+		 * If GPU is unavailable, fall back to a SW estimation.
+		 */
+		if (clk == KBASE_CLOCK_DOMAIN_TOP && kbase_io_has_gpu(fw_ctx->kbdev)) {
 			/* Read cycle count for top clock domain. */
 			kbase_backend_get_gpu_time_norequest(fw_ctx->kbdev, &cycle_counts[clk],
 							     NULL, NULL);
-		} else {
-			/* Estimate cycle count for non-top clock domain. */
-			cycle_counts[clk] =
-				kbase_ccswe_cycle_at(&fw_ctx->ccswe_shader_cores, timestamp_ns);
+
+			/* Check again if the device is lost.
+			 * If we still have GPU, then the value is correct and we can continue with
+			 * the next loop iteration.
+			 * If it's lost, we can't guarantee we have read good data out
+			 * from CYCLE_COUNT, so fall back to the SW estimated cycle count.
+			 */
+			if (kbase_io_has_gpu(fw_ctx->kbdev))
+				continue;
 		}
+		/* Estimate cycle count for non-top clock domain or for the top clock domain while
+		 * the device is lost.
+		 */
+		cycle_counts[clk] = kbase_ccswe_cycle_at(&fw_ctx->ccswe_shader_cores, timestamp_ns);
 	}
 }
 
@@ -807,6 +902,7 @@ kbasep_hwcnt_backend_csf_if_fw_ctx_create(struct kbase_device *kbdev,
 
 	ctx->clk_enable_map = 0;
 	kbase_ccswe_init(&ctx->ccswe_shader_cores);
+	INIT_LIST_HEAD(&ctx->rate_listener.node);
 	ctx->rate_listener.notify = kbasep_hwcnt_backend_csf_if_fw_on_freq_change;
 
 	*out_ctx = ctx;

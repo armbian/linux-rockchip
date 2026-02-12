@@ -1,15 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
- * Foundation) and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU license.
  *
- * A copy of the licence is included with the program) and can also be obtained
- * from Free Software Foundation) Inc.) 51 Franklin Street) Fifth Floor)
- * Boston) MA  02110-1301) USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  */
 
@@ -33,16 +39,6 @@ Description:
 		This is used to set the DVFS sampling period to be used by the
 		driver, On reading it provides the current DVFS sampling period,
 		on writing a value we set the DVFS sampling period.
-
-What:		/sys/class/misc/mali%u/device/dummy_job_wa_info
-Description:
-		This attribute is available only with platform device that
-                supports a Job Manager based GPU that requires a GPU workaround
-		to execute the dummy fragment job on all shader cores to
-		workaround a hang issue.
-
-		Its a readonly attribute and on reading gives details on the
-		options used with the dummy workaround.
 
 What:		/sys/class/misc/mali%u/device/fw_timeout
 Description:
@@ -77,111 +73,6 @@ Description:
 		period, then it is put to sleep for GPUs where sleep feature
 		is supported or is powered down after suspending command
 		stream groups.
-
-What:		/sys/class/misc/mali%u/device/js_ctx_scheduling_mode
-Description:
-		This attribute is available only with platform device that
-		supports a Job Manager based GPU. This attribute is used to set
-		context scheduling priority for a job slot.
-
-		On Reading it provides the currently set job slot context
-		priority.
-
-		Writing 0 to this attribute sets it to the mode were
-		higher priority atoms will be scheduled first, regardless of
-		the context they belong to. Newly-runnable higher priority atoms
-		can preempt lower priority atoms currently running on the GPU,
-		even if they belong to a different context.
-
-		Writing 1 to this attribute set it to the mode were the
-		highest-priority atom will be chosen from each context in turn
-		using a round-robin algorithm, so priority only has an effect
-		within the context an atom belongs to. Newly-runnable higher
-		priority atoms can preempt the lower priority atoms currently
-		running on the GPU, but only if they belong to the same context.
-
-What:		/sys/class/misc/mali%u/device/js_scheduling_period
-Description:
-		This attribute is available only with platform device that
-                supports a Job Manager based GPU. Used to set the job scheduler
-		tick period in nano-seconds. The Job Scheduler determines the
-		jobs that are run on the GPU, and for how long, Job Scheduler
-		makes decisions at a regular time interval determined by value
-		in js_scheduling_period.
-
-What:		/sys/class/misc/mali%u/device/js_softstop_always
-Description:
-		This attribute is available only with platform device that
-                supports a Job Manager based GPU. Soft-stops are disabled when
-		only a single context is present, this attribute is used to
-		enable soft-stop when only a single context is present can be
-		used for debug and unit-testing purposes.
-
-What:		/sys/class/misc/mali%u/device/js_timeouts
-Description:
-		This attribute is available only with platform device that
-                supports a Job Manager based GPU. It used to set the soft stop
-		and hard stop times for the job scheduler.
-
-		Writing value 0 causes no change, or -1 to restore the
-		default timeout.
-
-		The format used to set js_timeouts is
-		"<soft_stop_ms> <soft_stop_ms_cl> <hard_stop_ms_ss>
-		<hard_stop_ms_cl> <hard_stop_ms_dumping> <reset_ms_ss>
-		<reset_ms_cl> <reset_ms_dumping>"
-
-
-What:		/sys/class/misc/mali%u/device/lp_mem_pool_max_size
-Description:
-		This attribute is used to set the maximum number of large pages
-		memory pools that the driver can contain. Large pages are of
-		size 2MB. On read it displays all the max size of all memory
-		pools and can be used to modify each individual pools as well.
-
-What:		/sys/class/misc/mali%u/device/lp_mem_pool_size
-Description:
-		This attribute is used to set the number of large memory pages
-		which should be	populated, changing this value may cause
-		existing pages to be removed from the pool, or new pages to be
-		created and then added to the pool. On read it will provide
-		pool size for all available pools and we can modify individual
-		pool.
-
-What:		/sys/class/misc/mali%u/device/mem_pool_max_size
-Description:
-		This attribute is used to set the maximum number of small pages
-		for memory pools that the driver can contain. Here small pages
-		are of size 4KB. On read it will display the max size for all
-		available pools and allows us to set max size of
-		individual pools.
-
-What:		/sys/class/misc/mali%u/device/mem_pool_size
-Description:
-		This attribute is used to set the number of small memory pages
-		which should be populated, changing this value may cause
-		existing pages to be removed from the pool, or new pages to
-		be created and then added to the pool. On read it will provide
-		pool size for all available pools and we can modify individual
-		pool.
-
-What:		/sys/class/misc/mali%u/device/device/mempool/ctx_default_max_size
-Description:
-		This attribute is used to set maximum memory pool size for
-		all the memory pool so that the maximum amount of free memory
-		that each pool can hold is identical.
-
-What:		/sys/class/misc/mali%u/device/device/mempool/lp_max_size
-Description:
-		This attribute is used to set the maximum number of large pages
-		for all memory pools that the driver can contain.
-		Large pages are of size 2MB.
-
-What:		/sys/class/misc/mali%u/device/device/mempool/max_size
-Description:
-		This attribute is used to set the maximum number of small pages
-		for all the memory pools that the driver can contain.
-		Here small pages are of size 4KB.
 
 What:		/sys/class/misc/mali%u/device/pm_poweroff
 Description:

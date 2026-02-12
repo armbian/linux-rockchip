@@ -91,6 +91,8 @@ static const struct kbase_context_init context_init[] = {
 	  "Common context initialization failed" },
 	{ kbase_context_mem_pool_group_init, kbase_context_mem_pool_group_term,
 	  "Memory pool group initialization failed" },
+	{ kbase_context_pgd_mem_pool_init, kbase_context_pgd_mem_pool_term,
+	  "pgd memory pool initialization failed" },
 	{ kbase_mem_evictable_init, kbase_mem_evictable_deinit,
 	  "Memory evictable initialization failed" },
 	{ kbase_ctx_sched_init_ctx, NULL, NULL },
@@ -186,17 +188,15 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	 * Customer side that a hang could occur if context termination is
 	 * not blocked until the resume of GPU device.
 	 */
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	atomic_inc(&kbdev->pm.gpu_users_waiting);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
+	if (kbase_has_arbiter(kbdev))
+		atomic_inc(&kbdev->pm.gpu_users_waiting);
 	while (kbase_pm_context_active_handle_suspend(kbdev,
 						      KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE)) {
 		dev_dbg(kbdev->dev, "Suspend in progress when destroying context");
 		wait_event(kbdev->pm.resume_wait, !kbase_pm_is_suspending(kbdev));
 	}
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	atomic_dec(&kbdev->pm.gpu_users_waiting);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
+	if (kbase_has_arbiter(kbdev))
+		atomic_dec(&kbdev->pm.gpu_users_waiting);
 
 	/* Have synchronized against the System suspend and incremented the
 	 * pm.active_count. So any subsequent invocation of System suspend
@@ -209,6 +209,7 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	wait_event(kbdev->pm.resume_wait, !kbase_pm_is_resuming(kbdev));
 
 	kbase_mem_pool_group_mark_dying(&kctx->mem_pools);
+	kbase_mem_pool_mark_dying(&kctx->pgd_mem_pool);
 
 	kbase_context_term_partial(kctx, ARRAY_SIZE(context_init));
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -17,65 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- */
-
-/*
- * Hardware counter types.
- * Contains structures for describing the physical layout of hardware counter
- * dump buffers and enable maps within a system.
- *
- * Also contains helper functions for manipulation of these dump buffers and
- * enable maps.
- *
- * Through use of these structures and functions, hardware counters can be
- * enabled, copied, accumulated, and generally manipulated in a generic way,
- * regardless of the physical counter dump layout.
- *
- * Terminology:
- *
- * Hardware Counter System:
- *   A collection of hardware counter blocks, making a full hardware counter
- *   system.
- * Hardware Counter Block:
- *   A block of hardware counters (e.g. shader block, tiler block).
- * Hardware Counter Block Instance:
- *   An instance of a Hardware Counter Block (e.g. an MP4 GPU might have
- *   4 shader block instances).
- *
- * Block Header:
- *   A header value inside a counter block. Headers don't count anything,
- *   so it is only valid to copy or zero them. Headers are always the first
- *   values in the block.
- * Block Counter:
- *   A counter value inside a counter block. Counters can be zeroed, copied,
- *   or accumulated. Counters are always immediately after the headers in the
- *   block.
- * Block Value:
- *   A catch-all term for block headers and block counters.
- *
- * Enable Map:
- *   An array of u64 bitfields, where each bit either enables exactly one
- *   block value, or is unused (padding). Note that this is derived from
- *   the client configuration, and is not obtained from the hardware.
- * Dump Buffer:
- *   An array of u64 values, where each u64 corresponds either to one block
- *   value, or is unused (padding).
- * Block State Buffer:
- *   An array of blk_stt_t values, where each blk_stt_t corresponds to one block
- *   instance and is used to track the on/off power state transitions, as well has
- *   hardware resource availability, and whether the block was operating
- *   in normal or protected mode.
- * Availability Mask:
- *   A bitfield, where each bit corresponds to whether a block instance is
- *   physically available (e.g. an MP3 GPU may have a sparse core mask of
- *   0b1011, meaning it only has 3 cores but for hardware counter dumps has the
- *   same dump buffer layout as an MP4 GPU with a core mask of 0b1111. In this
- *   case, the availability mask might be 0b1011111 (the exact layout will
- *   depend on the specific hardware architecture), with the 3 extra early bits
- *   corresponding to other block instances in the hardware counter system).
- * Metadata:
- *   Structure describing the physical layout of the enable map and dump buffers
- *   for a specific hardware counter system.
  */
 
 #ifndef _KBASE_HWCNT_TYPES_H_
@@ -1360,5 +1301,44 @@ static inline bool kbase_hwcnt_clk_enable_map_enabled(const u64 clk_enable_map, 
 void kbase_hwcnt_dump_buffer_block_state_update(struct kbase_hwcnt_dump_buffer *dst,
 						const struct kbase_hwcnt_enable_map *dst_enable_map,
 						blk_stt_t blk_stt_val);
+
+/**
+ * kbase_hwcnt_dump_buffer_append_block_states() - Update the enabled block instances' block states
+ *                                                 in dst. After the operation, all non-enabled or
+ *                                                 unavailable block instances will be unchanged.
+ * @dump_buf:     Non-NULL pointer to dump buffer.
+ * @enable_map:   Non-NULL pointer to enable map specifying enabled counters.
+ * @block_states: Array of block states to be appended to the dump buffer. Note
+ *                that it is the caller's responsability to ensure that the size of
+ *                this array is equivalent to the number of block instances specified
+ *                in the metadata.
+ */
+static inline void
+kbase_hwcnt_dump_buffer_append_block_states(struct kbase_hwcnt_dump_buffer *dump_buf,
+					    const struct kbase_hwcnt_enable_map *enable_map,
+					    blk_stt_t *block_states)
+{
+	const struct kbase_hwcnt_metadata *metadata;
+	size_t blk, blk_inst;
+	size_t blk_inst_count = 0;
+
+	if (WARN_ON(!dump_buf) || WARN_ON(!enable_map) || WARN_ON(!block_states) ||
+	    WARN_ON(dump_buf->metadata != enable_map->metadata))
+		return;
+
+	metadata = dump_buf->metadata;
+
+	kbase_hwcnt_metadata_for_each_block(metadata, blk, blk_inst) {
+		if (kbase_hwcnt_metadata_block_instance_avail(metadata, blk, blk_inst) &&
+		    kbase_hwcnt_enable_map_block_enabled(enable_map, blk, blk_inst)) {
+			blk_stt_t *dst_blk_stt = kbase_hwcnt_dump_buffer_block_state_instance(
+				dump_buf, blk, blk_inst);
+
+			kbase_hwcnt_block_state_append(dst_blk_stt, block_states[blk_inst_count]);
+		}
+
+		blk_inst_count++;
+	}
+}
 
 #endif /* _KBASE_HWCNT_TYPES_H_ */

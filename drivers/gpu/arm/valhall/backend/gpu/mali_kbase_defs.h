@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -98,12 +98,6 @@ struct slot_rb {
  * The hwaccess_lock (a spinlock) must be held when accessing this structure
  */
 struct kbase_backend_data {
-#if !MALI_USE_CSF
-	struct slot_rb slot_rb[BASE_JM_MAX_NR_SLOTS];
-	struct hrtimer scheduling_timer;
-
-	bool timer_running;
-#endif
 	bool suspend_timer;
 
 	atomic_t reset_gpu;

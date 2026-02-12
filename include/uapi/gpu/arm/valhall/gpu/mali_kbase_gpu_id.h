@@ -26,10 +26,6 @@
 #include <linux/types.h>
 #endif
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #define GPU_ID2_VERSION_STATUS_SHIFT 0
 #define GPU_ID2_VERSION_MINOR_SHIFT 4
 #define GPU_ID2_VERSION_MAJOR_SHIFT 12
@@ -130,7 +126,10 @@ extern "C" {
 #define GPU_ID2_PRODUCT_LTIX GPU_ID2_MODEL_MAKE(12, 1)
 #define GPU_ID2_PRODUCT_TKRX GPU_ID2_MODEL_MAKE(13, 0)
 #define GPU_ID2_PRODUCT_LKRX GPU_ID2_MODEL_MAKE(13, 1)
-
+/* Do not increase the size of this macros any more.
+ * ID2 macros are deprecated but keeping them for backward compatibility.
+ * New GPU_ID_PRODUCT_XXXX macros in current file replace these macros.
+ */
 
 
 #define GPU_ID_U8_COMP(val3, val2, val1, val0) \
@@ -177,9 +176,8 @@ extern "C" {
 #define GPU_ID_PRODUCT_LTIX GPU_ID_MODEL_MAKE(12, 1)
 #define GPU_ID_PRODUCT_TKRX GPU_ID_MODEL_MAKE(13, 0)
 #define GPU_ID_PRODUCT_LKRX GPU_ID_MODEL_MAKE(13, 1)
-
-#if defined(__cplusplus)
-}
-#endif
+#define GPU_ID_PRODUCT_IDRX GPU_ID_MODEL_MAKE(14, 0)
+#define GPU_ID_PRODUCT_TDRX GPU_ID_MODEL_MAKE(14, 1)
+#define GPU_ID_PRODUCT_LDRX GPU_ID_MODEL_MAKE(14, 3)
 
 #endif /* _UAPI_KBASE_GPU_ID_H_ */

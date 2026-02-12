@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,7 +38,12 @@ int coresight_mali_enable_component(struct coresight_device *csdev, u32 mode)
 
 	drvdata->mode = mode;
 
-	res = kbase_debug_coresight_csf_config_enable(drvdata->config);
+	if (drvdata->pre_post_all_config)
+		res = kbase_debug_coresight_csf_config_enable(drvdata->pre_post_all_config);
+
+	if (!res)
+		res = kbase_debug_coresight_csf_config_enable(drvdata->config);
+
 	if (res) {
 		dev_err(drvdata->dev, "Config failed to enable with error code %d\n", res);
 		drvdata->mode = CS_MODE_DISABLED;
