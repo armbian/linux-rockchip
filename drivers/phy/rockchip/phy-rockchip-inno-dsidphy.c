@@ -456,6 +456,7 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 	u16 _fbdiv, best_fbdiv = 1;
 	u16 _postdiv, best_postdiv = 1;
 	u32 min_delta = UINT_MAX;
+	bool found = false;
 
 	/*
 	 * The PLL output frequency can be calculated using a simple formula:
@@ -481,7 +482,7 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 	min_prediv = DIV64_U64_ROUND_UP(fref, 100 * HZ_PER_MHZ);
 	max_prediv = div64_ul(fref, 10 * HZ_PER_MHZ);
 
-	for (_postdiv = 0; _postdiv <= 31; _postdiv++) {
+	for (_postdiv = 0; _postdiv <= 31 && !found; _postdiv++) {
 		fvco = (u64)fout * (_postdiv ? _postdiv * 2 : 1);
 		if (fvco < min_vco || fvco > max_vco)
 			continue;
@@ -508,6 +509,7 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 				best_fbdiv = _fbdiv;
 				best_postdiv = _postdiv;
 				best_freq = tmp;
+				found = true;
 				break;
 			} else if (delta < min_delta) {
 				best_prediv = _prediv;
@@ -525,6 +527,8 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 		inno->pll.postdiv = best_postdiv;
 		inno->pll.rate = best_freq;
 		inno->pll.lowfre_en = best_postdiv ? true : false;
+		dev_dbg(inno->dev, "best_prediv:%d best_fbdiv:%d best_postdiv:%d fvco:%llu\n",
+			best_prediv, best_fbdiv, best_postdiv, fvco);
 	}
 
 	return best_freq;
