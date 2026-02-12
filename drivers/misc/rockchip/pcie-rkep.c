@@ -119,6 +119,8 @@ struct pcie_rkep {
 	void __iomem *bar4;
 	struct pcie_rkep_irq_context irq_ctx[RKEP_NUM_IRQ_VECTORS];
 	int irq_valid;
+	u8 gen;
+	u8 lanes;
 
 	struct miscdevice dev;
 	struct dma_trx_obj *dma_obj;
@@ -203,6 +205,41 @@ static bool pcie_rkep_is_link_lost(struct pci_dev *pdev)
 		return true;
 	else
 		return false;
+}
+
+static int pcie_rkep_get_pci_link_data(struct pcie_rkep *pcie_rkep, u16 link_status)
+{
+	switch (link_status & PCI_EXP_LNKSTA_NLW) {
+	case PCI_EXP_LNKSTA_NLW_X1:
+		pcie_rkep->lanes = 1;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X2:
+		pcie_rkep->lanes = 2;
+		break;
+	case PCI_EXP_LNKSTA_NLW_X4:
+		pcie_rkep->lanes = 4;
+		break;
+	default:
+		pcie_rkep->lanes = 4;
+		break;
+	}
+
+	switch (link_status & PCI_EXP_LNKSTA_CLS) {
+	case PCI_EXP_LNKSTA_CLS_2_5GB:
+		pcie_rkep->gen = 1;
+		break;
+	case PCI_EXP_LNKSTA_CLS_5_0GB:
+		pcie_rkep->gen = 2;
+		break;
+	case PCI_EXP_LNKSTA_CLS_8_0GB:
+		pcie_rkep->gen = 3;
+		break;
+	default:
+		pcie_rkep->gen = 3;
+		break;
+	}
+
+	return 0;
 }
 
 static int rkep_ep_dma_xfer(struct pcie_rkep *pcie_rkep, struct pcie_ep_dma_block_req *dma)
@@ -1454,6 +1491,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u8 *name;
 	u16 val;
 	bool dmatest_irq = false;
+	u16 link_status;
 
 	pcie_rkep = devm_kzalloc(&pdev->dev, sizeof(*pcie_rkep), GFP_KERNEL);
 	if (!pcie_rkep)
@@ -1504,6 +1542,9 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	dev_dbg(&pdev->dev, "get bar4 address is %p\n", pcie_rkep->bar4);
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &link_status);
+	pcie_rkep_get_pci_link_data(pcie_rkep, link_status);
 
 	sprintf(name, "%s-%s", DRV_NAME, dev_name(&pdev->dev));
 	pcie_rkep->dev.minor = MISC_DYNAMIC_MINOR;
@@ -1556,6 +1597,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_LL_ERR_EN, 0xffffffff);
 			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_LL_ERR_EN, 0xffffffff);
 		}
+		pcie_dw_dmatest_set_bandwidth(pcie_rkep->dma_obj, pcie_rkep->gen, pcie_rkep->lanes);
 	}
 
 	pcie_rkep->user_pages = alloc_pages(GFP_KERNEL, get_order(RKEP_USER_MEM_SIZE));
@@ -1575,6 +1617,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "obj_info magic=%x, ver=%x\n", pcie_rkep->obj_info->magic,
 		 pcie_rkep->obj_info->version);
 	dev_info(&pdev->dev, "func_ver=%x\n", DRV_VERSION);
+	dev_info(&pdev->dev, "gen%dx%d\n", pcie_rkep->gen, pcie_rkep->lanes);
 
 	pci_save_state(pdev);
 
