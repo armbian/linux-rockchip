@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,6 +23,7 @@
 #include <mali_kbase_config_defaults.h>
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 #include "mali_kbase_csf_ipa_control.h"
+#include <mali_kbase_io.h>
 
 /*
  * Status flags from the STATUS register of the IPA Control interface.
@@ -51,9 +52,15 @@
 #define IPA_CONTROL_SELECT_BITS_PER_CNT ((u64)8)
 
 /*
+ * Maximum number of bits of a performance counter.
+ */
+#define MAX_PRFCNT_BITS ((u64)48)
+
+/*
  * Maximum value of a performance counter.
  */
-#define MAX_PRFCNT_VALUE (((u64)1 << 48) - 1)
+#define MAX_PRFCNT_VALUE (((u64)1 << MAX_PRFCNT_BITS) - 1)
+#define MAX_PRFCNT_VALUE_WRAP (MAX_PRFCNT_VALUE + 1)
 
 /**
  * struct kbase_ipa_control_listener_data - Data for the GPU clock frequency
@@ -108,6 +115,9 @@ static int apply_select_config(struct kbase_device *kbdev, u64 *select)
 	kbase_reg_write64(kbdev, IPA_CONTROL_ENUM(SELECT_TILER), select[KBASE_IPA_CORE_TYPE_TILER]);
 	kbase_reg_write64(kbdev, IPA_CONTROL_ENUM(SELECT_SHADER),
 			  select[KBASE_IPA_CORE_TYPE_SHADER]);
+	if (kbase_csf_dev_has_ne(kbdev))
+		kbase_reg_write64(kbdev, GOV_IPA_CONTROL_ENUM(SELECT_NEURAL),
+				  select[KBASE_IPA_CORE_TYPE_NEURAL]);
 
 	ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
 
@@ -135,6 +145,11 @@ static u64 read_value_cnt(struct kbase_device *kbdev, u8 type, u8 select_idx)
 
 	case KBASE_IPA_CORE_TYPE_SHADER:
 		return kbase_reg_read64(kbdev, IPA_VALUE_SHADER_OFFSET(select_idx));
+	case KBASE_IPA_CORE_TYPE_NEURAL:
+		if (kbase_csf_dev_has_ne(kbdev))
+			return kbase_reg_read64(kbdev, IPA_VALUE_NEURAL_OFFSET(select_idx));
+		else
+			return 0;
 	default:
 		WARN(1, "Unknown core type: %u\n", type);
 		return 0;
@@ -176,6 +191,10 @@ static inline void calc_prfcnt_delta(struct kbase_device *kbdev,
 {
 	u64 delta_value, raw_value;
 
+	/* GPU_ACTIVE counter is always configured as counter idx 0 in SELECT_CSHW */
+	const bool gpu_active_counter =
+		(prfcnt->type == KBASE_IPA_CORE_TYPE_CSHW && prfcnt->select_idx == 0);
+
 	if (gpu_ready)
 		raw_value = read_value_cnt(kbdev, (u8)prfcnt->type, prfcnt->select_idx);
 	else
@@ -183,9 +202,16 @@ static inline void calc_prfcnt_delta(struct kbase_device *kbdev,
 
 	if (raw_value < prfcnt->latest_raw_value) {
 		delta_value = (MAX_PRFCNT_VALUE - prfcnt->latest_raw_value) + raw_value;
+
+		if (gpu_active_counter)
+			prfcnt->gpu_active_cycle_wrap += MAX_PRFCNT_VALUE_WRAP;
 	} else {
 		delta_value = raw_value - prfcnt->latest_raw_value;
 	}
+
+	if (gpu_active_counter)
+		trace_mali_gpu_active_cycle_counter(kbdev->id, ktime_get_raw_ns(),
+						    raw_value + prfcnt->gpu_active_cycle_wrap);
 
 	delta_value *= prfcnt->scaling_factor;
 
@@ -298,6 +324,7 @@ void kbase_ipa_control_init(struct kbase_device *kbdev)
 			alloc_workqueue("ipa_ctrl_wq", WQ_HIGHPRI | WQ_UNBOUND, 1);
 		if (listener_data->clk_chg_wq) {
 			INIT_WORK(&listener_data->clk_chg_work, kbase_ipa_ctrl_rate_change_worker);
+			INIT_LIST_HEAD(&listener_data->listener.node);
 			listener_data->listener.notify = kbase_ipa_control_rate_change_notify;
 			listener_data->kbdev = kbdev;
 			ipa_ctrl->rtm_listener_data = listener_data;
@@ -340,7 +367,7 @@ void kbase_ipa_control_term(struct kbase_device *kbdev)
 	kfree(ipa_ctrl->rtm_listener_data);
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	if (kbdev->pm.backend.gpu_powered)
+	if (kbase_io_is_gpu_powered(kbdev))
 		kbase_reg_write32(kbdev, IPA_CONTROL_ENUM(TIMER), 0);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
@@ -588,6 +615,7 @@ int kbase_ipa_control_register(struct kbase_device *kbdev,
 		session->prfcnts[i].select_idx = j;
 		session->prfcnts[i].scaling_factor = perf_counters[i].scaling_factor;
 		session->prfcnts[i].gpu_norm = perf_counters[i].gpu_norm;
+		session->prfcnts[i].gpu_active_cycle_wrap = 0;
 
 		/* Reports to this client for GPU time spent in protected mode
 		 * should begin from the point of registration.
@@ -888,7 +916,6 @@ void kbase_ipa_control_handle_gpu_reset_post(struct kbase_device *kbdev)
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_control_handle_gpu_reset_post);
 
-#ifdef KBASE_PM_RUNTIME
 void kbase_ipa_control_handle_gpu_sleep_enter(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
@@ -922,7 +949,6 @@ void kbase_ipa_control_handle_gpu_sleep_exit(struct kbase_device *kbdev)
 	}
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_control_handle_gpu_sleep_exit);
-#endif
 
 #if MALI_UNIT_TEST
 void kbase_ipa_control_rate_change_notify_test(struct kbase_device *kbdev, u32 clk_index,
@@ -943,6 +969,8 @@ void kbase_ipa_control_protm_entered(struct kbase_device *kbdev)
 	struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+
 	ipa_ctrl->protm_start = ktime_get_raw_ns();
 }
 
@@ -954,6 +982,7 @@ void kbase_ipa_control_protm_exited(struct kbase_device *kbdev)
 	u32 status;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+
 
 	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
 		struct kbase_ipa_control_session *session = &ipa_ctrl->sessions[i];

@@ -25,64 +25,6 @@
 #include <linux/types.h>
 #include "../mali_base_common_kernel.h"
 
-/* Memory allocation, access/hint flags & mask specific to CSF GPU.
- *
- * See base_mem_alloc_flags.
- */
-
-/* Must be FIXED memory. */
-#define BASE_MEM_FIXED ((base_mem_alloc_flags)1 << 8)
-
-/* CSF event memory
- *
- * If Outer shareable coherence is not specified or not available, then on
- * allocation kbase will automatically use the uncached GPU mapping.
- * There is no need for the client to specify BASE_MEM_UNCACHED_GPU
- * themselves when allocating memory with the BASE_MEM_CSF_EVENT flag.
- *
- * This memory requires a permanent mapping
- *
- * See also kbase_reg_needs_kernel_mapping()
- */
-#define BASE_MEM_CSF_EVENT ((base_mem_alloc_flags)1 << 19)
-
-/* Unused bit for CSF, only used in JM for BASE_MEM_TILER_ALIGN_TOP */
-#define BASE_MEM_UNUSED_BIT_20 ((base_mem_alloc_flags)1 << 20)
-
-/* Unused bit for CSF, only used in JM for BASE_MEM_FLAG_MAP_FIXED */
-#define BASE_MEM_UNUSED_BIT_27 ((base_mem_alloc_flags)1 << 27)
-
-/* Must be FIXABLE memory: its GPU VA will be determined at a later point,
- * at which time it will be at a fixed GPU VA.
- */
-#define BASE_MEM_FIXABLE ((base_mem_alloc_flags)1 << 29)
-
-/* Note that the number of bits used for base_mem_alloc_flags
- * must be less than BASE_MEM_FLAGS_NR_BITS !!!
- */
-
-/* A mask of all the flags which are only valid for allocations within kbase,
- * and may not be passed from user space.
- */
-#define BASEP_MEM_FLAGS_KERNEL_ONLY (BASEP_MEM_PERMANENT_KERNEL_MAPPING | BASEP_MEM_NO_USER_FREE)
-
-/* A mask of all flags that should not be queried */
-#define BASE_MEM_DONT_QUERY (BASE_MEM_COHERENT_SYSTEM_REQUIRED | BASE_MEM_IMPORT_SHARED)
-
-/* A mask of all currently reserved flags */
-#define BASE_MEM_FLAGS_RESERVED ((base_mem_alloc_flags)0)
-
-/* A mask of all bits that are not used by a flag on CSF */
-#define BASE_MEM_FLAGS_UNUSED (BASE_MEM_UNUSED_BIT_20 | BASE_MEM_UNUSED_BIT_27)
-
-/* Special base mem handles specific to CSF.
- */
-#define BASEP_MEM_CSF_USER_REG_PAGE_HANDLE (47ul << LOCAL_PAGE_SHIFT)
-#define BASEP_MEM_CSF_USER_IO_PAGES_HANDLE (48ul << LOCAL_PAGE_SHIFT)
-
-#define KBASE_CSF_NUM_USER_IO_PAGES_HANDLE \
-	((BASE_MEM_COOKIE_BASE - BASEP_MEM_CSF_USER_IO_PAGES_HANDLE) >> LOCAL_PAGE_SHIFT)
-
 /* Valid set of just-in-time memory allocation flags */
 #define BASE_JIT_ALLOC_VALID_FLAGS ((__u8)0)
 
@@ -144,6 +86,15 @@
  * field.
  */
 #define BASEP_KCPU_CQS_MAX_NUM_OBJS ((size_t)32)
+
+/* Minimum number of queue group supported by the GPU */
+#define BASEP_QUEUE_GROUP_MIN 1
+/* Maximum number of queue group supported by the GPU */
+#define BASEP_QUEUE_GROUP_MAX 31
+/* Minimum number of GPU queues per queue groups supported by the driver */
+#define BASEP_GPU_QUEUE_PER_QUEUE_GROUP_MIN 8
+/* Maximum number of GPU queues per queue groups supported by the driver */
+#define BASEP_GPU_QUEUE_PER_QUEUE_GROUP_MAX 32
 
 /* CSF CSI EXCEPTION_HANDLER_FLAGS */
 #define BASE_CSF_TILER_OOM_EXCEPTION_FLAG (1u << 0)
@@ -460,7 +411,7 @@ struct basep_cs_group_control {
 struct base_gpu_queue_group_error_fatal_payload {
 	__u64 sideband;
 	__u32 status;
-	__u32 padding;
+	__u8 padding[20];
 };
 
 /**
@@ -479,7 +430,18 @@ struct base_gpu_queue_error_fatal_payload {
 	__u64 sideband;
 	__u32 status;
 	__u8 csi_index;
-	__u8 padding[3];
+	__u8 padding[6];
+	/**
+	 * @has_extra: Set to 0x1 (true) when the extra trace data is filled,
+	 * otherwise 0 (false)
+	 */
+	__u8 has_extra;
+	/** @trace_id0: The extra EXCEPTION_TRACE_ID0 value */
+	__u32 trace_id0;
+	/** @trace_id1: The extra EXCEPTION_TRACE_ID1 value */
+	__u32 trace_id1;
+	/** @trace_task: The extra EXCEPTION_TRACE_TASK value */
+	__u32 trace_task;
 };
 
 /**
@@ -493,12 +455,21 @@ struct base_gpu_queue_error_fatal_payload {
  *                INSTR_INVALID_PC (0x50).
  * @csi_index:    Index of the CSF interface the queue is bound to.
  * @padding:      Padding to make multiple of 64bits
+ * @has_extra:    Set to 0x1 (true) when the extra trace data is filled,
+ *                otherwise 0 (false)
+ * @trace_id0:    The extra EXCEPTION_TRACE_ID0 value.
+ * @trace_id1:    The extra EXCEPTION_TRACE_ID1 value.
+ * @trace_task:   The extra EXCEPTION_TRACE_TASK value.
  */
 struct base_gpu_queue_error_fault_payload {
 	__u64 sideband;
 	__u32 status;
 	__u8 csi_index;
-	__u8 padding[3];
+	__u8 padding[6];
+	__u8 has_extra;
+	__u32 trace_id0;
+	__u32 trace_id1;
+	__u32 trace_task;
 };
 
 /**

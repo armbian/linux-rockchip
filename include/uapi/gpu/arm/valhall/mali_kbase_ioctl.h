@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,18 +22,14 @@
 #ifndef _UAPI_KBASE_IOCTL_H_
 #define _UAPI_KBASE_IOCTL_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <asm-generic/ioctl.h>
 #include <linux/types.h>
 
-#if MALI_USE_CSF
 #include "csf/mali_kbase_csf_ioctl.h"
-#else
-#include "jm/mali_kbase_jm_ioctl.h"
-#endif /* MALI_USE_CSF */
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 #define KBASE_IOCTL_TYPE 0x80
 
@@ -145,41 +141,6 @@ struct kbase_ioctl_mem_free {
 #define KBASE_IOCTL_MEM_FREE _IOW(KBASE_IOCTL_TYPE, 7, struct kbase_ioctl_mem_free)
 
 /**
- * struct kbase_ioctl_hwcnt_reader_setup - Setup HWC dumper/reader
- * @buffer_count: requested number of dumping buffers
- * @fe_bm:        counters selection bitmask (Front end)
- * @shader_bm:    counters selection bitmask (Shader)
- * @tiler_bm:     counters selection bitmask (Tiler)
- * @mmu_l2_bm:    counters selection bitmask (MMU_L2)
- *
- * A fd is returned from the ioctl if successful, or a negative value on error
- */
-struct kbase_ioctl_hwcnt_reader_setup {
-	__u32 buffer_count;
-	__u32 fe_bm;
-	__u32 shader_bm;
-	__u32 tiler_bm;
-	__u32 mmu_l2_bm;
-};
-
-#define KBASE_IOCTL_HWCNT_READER_SETUP \
-	_IOW(KBASE_IOCTL_TYPE, 8, struct kbase_ioctl_hwcnt_reader_setup)
-
-/**
- * struct kbase_ioctl_hwcnt_values - Values to set dummy the dummy counters to.
- * @data:    Counter samples for the dummy model.
- * @size:    Size of the counter sample data.
- * @padding: Padding.
- */
-struct kbase_ioctl_hwcnt_values {
-	__u64 data;
-	__u32 size;
-	__u32 padding;
-};
-
-#define KBASE_IOCTL_HWCNT_SET _IOW(KBASE_IOCTL_TYPE, 32, struct kbase_ioctl_hwcnt_values)
-
-/**
  * struct kbase_ioctl_disjoint_query - Query the disjoint counter
  * @counter:   A counter of disjoint events in the kernel
  */
@@ -193,7 +154,7 @@ struct kbase_ioctl_disjoint_query {
  * struct kbase_ioctl_get_ddk_version - Query the kernel version
  * @version_buffer: Buffer to receive the kernel version string
  * @size: Size of the buffer
- * @padding: Padding
+ * @padding: Currently unused, must be zero
  *
  * The ioctl will return the number of bytes written into version_buffer
  * (which includes a NULL byte) or a negative error code
@@ -236,9 +197,9 @@ struct kbase_ioctl_mem_jit_init {
 #define KBASE_IOCTL_MEM_JIT_INIT _IOW(KBASE_IOCTL_TYPE, 14, struct kbase_ioctl_mem_jit_init)
 
 /**
- * struct kbase_ioctl_mem_sync - Perform cache maintenance on memory
+ * struct kbase_ioctl_mem_sync - Perform CPU cache maintenance on GPU memory
  *
- * @handle: GPU memory handle (GPU VA)
+ * @gpu_va: GPU VA of the memory for which cache maintenance needs to be performed.
  * @user_addr: The address where it is mapped in user space
  * @size: The number of bytes to synchronise
  * @type: The direction to synchronise: 0 is sync to memory (clean),
@@ -246,7 +207,7 @@ struct kbase_ioctl_mem_jit_init {
  * @padding: Padding to round up to a multiple of 8 bytes, must be zero
  */
 struct kbase_ioctl_mem_sync {
-	__u64 handle;
+	__u64 gpu_va;
 	__u64 user_addr;
 	__u64 size;
 	__u8 type;
@@ -489,43 +450,6 @@ union kbase_ioctl_mem_find_gpu_start_and_offset {
 
 #define KBASE_IOCTL_MEM_FIND_GPU_START_AND_OFFSET \
 	_IOWR(KBASE_IOCTL_TYPE, 31, union kbase_ioctl_mem_find_gpu_start_and_offset)
-
-#define KBASE_IOCTL_CINSTR_GWT_START _IO(KBASE_IOCTL_TYPE, 33)
-
-#define KBASE_IOCTL_CINSTR_GWT_STOP _IO(KBASE_IOCTL_TYPE, 34)
-
-/**
- * union kbase_ioctl_cinstr_gwt_dump - Used to collect all GPU write fault
- *                                     addresses.
- * @in: Input parameters
- * @in.addr_buffer: Address of buffer to hold addresses of gpu modified areas.
- * @in.size_buffer: Address of buffer to hold size of modified areas (in pages)
- * @in.len: Number of addresses the buffers can hold.
- * @in.padding: padding
- * @out: Output parameters
- * @out.no_of_addr_collected: Number of addresses collected into addr_buffer.
- * @out.more_data_available: Status indicating if more addresses are available.
- * @out.padding: padding
- *
- * This structure is used when performing a call to dump GPU write fault
- * addresses.
- */
-union kbase_ioctl_cinstr_gwt_dump {
-	struct {
-		__u64 addr_buffer;
-		__u64 size_buffer;
-		__u32 len;
-		__u32 padding;
-
-	} in;
-	struct {
-		__u32 no_of_addr_collected;
-		__u8 more_data_available;
-		__u8 padding[27];
-	} out;
-};
-
-#define KBASE_IOCTL_CINSTR_GWT_DUMP _IOWR(KBASE_IOCTL_TYPE, 35, union kbase_ioctl_cinstr_gwt_dump)
 
 /**
  * struct kbase_ioctl_mem_exec_init - Initialise the EXEC_VA memory zone
@@ -782,8 +706,10 @@ struct kbase_ioctl_tlstream_stats {
 #define KBASE_GPUPROP_RAW_THREAD_TLS_ALLOC 83
 #define KBASE_GPUPROP_TLS_ALLOC 84
 #define KBASE_GPUPROP_RAW_GPU_FEATURES 85
+#define KBASE_GPUPROP_RAW_BASE_PRESENT 86
+#define KBASE_GPUPROP_RAW_NEURAL_PRESENT 87
 
-#if defined(__cplusplus)
+#ifdef __cplusplus
 }
 #endif
 

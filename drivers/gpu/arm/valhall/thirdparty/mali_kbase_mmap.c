@@ -400,7 +400,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 					      const unsigned long pgoff, const unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = { 0 };
 	unsigned long align_offset = 0;
 	unsigned long align_mask = 0;
 #if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
@@ -487,21 +487,6 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 				align_mask = align_offset - 1;
 				is_shader_code = true;
 			}
-#if !MALI_USE_CSF
-		} else if (reg->flags & KBASE_REG_TILER_ALIGN_TOP) {
-			unsigned long extension_bytes =
-				(unsigned long)(reg->extension << PAGE_SHIFT);
-			/* kbase_check_alloc_sizes() already satisfies
-			 * these checks, but they're here to avoid
-			 * maintenance hazards due to the assumptions
-			 * involved
-			 */
-			WARN_ON(reg->extension > (ULONG_MAX >> PAGE_SHIFT));
-			WARN_ON(reg->initial_commit > (ULONG_MAX >> PAGE_SHIFT));
-			WARN_ON(!is_power_of_2(extension_bytes));
-			align_mask = extension_bytes - 1;
-			align_offset = extension_bytes - (reg->initial_commit << PAGE_SHIFT);
-#endif /* !MALI_USE_CSF */
 		} else if (reg->flags & KBASE_REG_GPU_VA_SAME_4GB_PAGE) {
 			is_same_4gb_page = true;
 		}
@@ -510,7 +495,11 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 		return kbase_mm_get_unmapped_area_helper(mm, kctx->filp, addr, len, pgoff, flags);
 	}
 
-	info.flags = 0;
+	/* info was initialized as zero therefore only set
+	 * the fields that need a definite value.
+	 * By default, flags and all field that depend on flags
+	 * are set to zero.
+	 */
 	info.length = len;
 	info.low_limit = low_limit;
 	info.high_limit = high_limit;

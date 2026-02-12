@@ -22,11 +22,6 @@ valhall_kbase-y += \
     tl/mali_kbase_timeline.o \
     tl/mali_kbase_timeline_io.o \
     tl/mali_kbase_tlstream.o \
-    tl/mali_kbase_tracepoints.o
+    tl/mali_kbase_tracepoints.o \
+    tl/backend/mali_kbase_timeline_csf.o
 
-
-ifeq ($(CONFIG_MALI_VALHALL_CSF_SUPPORT),y)
-    valhall_kbase-y += tl/backend/mali_kbase_timeline_csf.o
-else
-    valhall_kbase-y += tl/backend/mali_kbase_timeline_jm.o
-endif

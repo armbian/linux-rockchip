@@ -25,11 +25,7 @@
 
 #include <mmu/mali_kbase_mmu_faults_decoder.h>
 #include <mmu/mali_kbase_mmu_faults_decoder_luts.h>
-#if MALI_USE_CSF
 #include <mmu/backend/mali_kbase_mmu_faults_decoder_luts_csf.h>
-#else
-#include <mmu/backend/mali_kbase_mmu_faults_decoder_luts_jm.h>
-#endif
 
 #include <hw_access/mali_kbase_hw_access_regmap.h>
 #include <mali_kbase.h>
@@ -76,7 +72,6 @@ const char *fault_source_id_internal_requester_get_str(struct kbase_device *kbde
 		} else
 			return "Load/store cache";
 	} else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "tiler")) {
-#if MALI_USE_CSF
 		if (utlb_id == 0) {
 			if (access_type == AS_FAULTSTATUS_ACCESS_TYPE_READ)
 				return decode_fault_source_tiler_r_t(
@@ -86,25 +81,14 @@ const char *fault_source_id_internal_requester_get_str(struct kbase_device *kbde
 					ir, kbdev->gpu_props.gpu_id.arch_id);
 		} else
 			return "The polygon list writer. No further details.";
-#else
-		return (utlb_id == 0) ? "Anything other than the polygon list writer" :
-					      "The polygon list writer";
-#endif
-	}
-#if MALI_USE_CSF
-	else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "csf")) {
+	} else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "csf")) {
 		if (access_type == AS_FAULTSTATUS_ACCESS_TYPE_READ)
 			return decode_fault_source_csf_r_t(ir, kbdev->gpu_props.gpu_id.arch_id);
 		else
 			return decode_fault_source_csf_w_t(ir, kbdev->gpu_props.gpu_id.arch_id);
-	}
-#else
-	else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "jm"))
-		return decode_fault_source_jm_t(ir, kbdev->gpu_props.gpu_id.arch_id);
-#endif
-	else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "I2c") ||
-		 !strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "memsys") ||
-		 !strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "mmu")) {
+	} else if (!strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "I2c") ||
+		   !strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "memsys") ||
+		   !strcmp(source_id_enc_core_type_get_str(kbdev, source_id), "mmu")) {
 		return "Not used";
 	}
 

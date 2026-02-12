@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,7 +34,6 @@
 #include <linux/list.h>
 #include <linux/version_compat_defs_for_valhall.h>
 
-#if MALI_USE_CSF
 /* Number of digits needed to express the max value of given unsigned type.
  *
  * Details: The number of digits needed to express the max value of given type is log10(t_max) + 1
@@ -91,12 +90,13 @@ struct kbase_kcpu_dma_fence_meta {
  *
  * @base:      Fence object itself.
  * @metadata:  Pointer to metadata structure.
+ * @module:    Pointer to the mali_kbase kernel module.
  */
 struct kbase_kcpu_dma_fence {
 	struct dma_fence base;
 	struct kbase_kcpu_dma_fence_meta *metadata;
+	struct module *module;
 };
-#endif
 
 extern const struct dma_fence_ops kbase_fence_ops;
 
@@ -123,86 +123,6 @@ struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 	} while (0)
 #endif
 
-#if !MALI_USE_CSF
-/**
- * kbase_fence_out_remove() - Removes the output fence from atom
- * @katom: Atom to remove output fence for
- *
- * This will also release the reference to this fence which the atom keeps
- */
-static inline void kbase_fence_out_remove(struct kbase_jd_atom *katom)
-{
-	if (katom->dma_fence.fence) {
-		dma_fence_put(katom->dma_fence.fence);
-		katom->dma_fence.fence = NULL;
-	}
-}
-
-#if IS_ENABLED(CONFIG_SYNC_FILE)
-/**
- * kbase_fence_in_remove() - Removes the input fence from atom
- * @katom: Atom to remove input fence for
- *
- * This will also release the reference to this fence which the atom keeps
- */
-static inline void kbase_fence_in_remove(struct kbase_jd_atom *katom)
-{
-	if (katom->dma_fence.fence_in) {
-		dma_fence_put(katom->dma_fence.fence_in);
-		katom->dma_fence.fence_in = NULL;
-	}
-}
-#endif
-
-/**
- * kbase_fence_out_is_ours() - Check if atom has a valid fence created by us
- * @katom: Atom to check output fence for
- *
- * Return: true if fence exists and is valid, otherwise false
- */
-static inline bool kbase_fence_out_is_ours(struct kbase_jd_atom *katom)
-{
-	return katom->dma_fence.fence && katom->dma_fence.fence->ops == &kbase_fence_ops;
-}
-
-/**
- * kbase_fence_out_signal() - Signal output fence of atom
- * @katom: Atom to signal output fence for
- * @status: Status to signal with (0 for success, < 0 for error)
- *
- * Return: 0 on success, < 0 on error
- */
-static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom, int status)
-{
-	if (status)
-		dma_fence_set_error_helper(katom->dma_fence.fence, status);
-	return dma_fence_signal(katom->dma_fence.fence);
-}
-
-#if IS_ENABLED(CONFIG_SYNC_FILE)
-/**
- * kbase_fence_in_get() - Retrieve input fence for atom.
- * @katom: Atom to get input fence from
- *
- * A ref will be taken for the fence, so use @kbase_fence_put() to release it
- *
- * Return: The fence, or NULL if there is no input fence for atom
- */
-#define kbase_fence_in_get(katom) dma_fence_get((katom)->dma_fence.fence_in)
-#endif
-
-/**
- * kbase_fence_out_get() - Retrieve output fence for atom.
- * @katom: Atom to get output fence from
- *
- * A ref will be taken for the fence, so use @kbase_fence_put() to release it
- *
- * Return: The fence, or NULL if there is no output fence for atom
- */
-#define kbase_fence_out_get(katom) dma_fence_get((katom)->dma_fence.fence)
-
-#endif /* !MALI_USE_CSF */
-
 /**
  * kbase_fence_get() - Retrieve fence for a KCPUQ fence command.
  * @fence_info: KCPUQ fence command
@@ -213,7 +133,6 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom, int status
  */
 #define kbase_fence_get(fence_info) dma_fence_get((fence_info)->fence)
 
-#if MALI_USE_CSF
 static inline struct kbase_kcpu_dma_fence *kbase_kcpu_dma_fence_get(struct dma_fence *fence)
 {
 	if (fence->ops == &kbase_fence_ops)
@@ -237,7 +156,6 @@ static inline void kbase_kcpu_dma_fence_put(struct dma_fence *fence)
 	if (kcpu_fence)
 		kbase_kcpu_dma_fence_meta_put(kcpu_fence->metadata);
 }
-#endif /* MALI_USE_CSF */
 
 /**
  * kbase_fence_put() - Releases a reference to a fence

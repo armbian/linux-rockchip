@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -189,18 +189,18 @@ void kbase_debug_coresight_csf_unregister(void *client_data);
  * kbase_debug_coresight_csf_config_create - Creates a configuration containing
  *                                           enable and disable sequence.
  *
- * @client_data:      Pointer to a coresight client.
+ * @client_data: Pointer to a coresight client.
  * @enable_seq:  Pointer to a struct containing the ops needed to enable coresight blocks.
  *               It's optional so could be NULL.
  * @disable_seq: Pointer to a struct containing ops to run to disable coresight blocks.
  *               It's optional so could be NULL.
+ * @pre_post:    Bool to indicate if provided sequences are pre-enabling/post-disabling
  *
  * Return: Valid pointer on success. NULL on failure.
  */
-void *
-kbase_debug_coresight_csf_config_create(void *client_data,
-					struct kbase_debug_coresight_csf_sequence *enable_seq,
-					struct kbase_debug_coresight_csf_sequence *disable_seq);
+void *kbase_debug_coresight_csf_config_create(
+	void *client_data, struct kbase_debug_coresight_csf_sequence *enable_seq,
+	struct kbase_debug_coresight_csf_sequence *disable_seq, bool pre_post);
 /**
  * kbase_debug_coresight_csf_config_free - Frees a configuration containing
  *                                         enable and disable sequence.

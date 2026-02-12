@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -39,6 +39,9 @@
 #include <linux/version_compat_defs_for_valhall.h>
 #include <linux/workqueue.h>
 
+#define CREATE_TRACE_POINTS
+#include "hwcnt/mali_kbase_hwcnt_trace.h"
+
 /* Explicitly include epoll header for old kernels. Not required from 4.16. */
 #if KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE
 #include <uapi/linux/eventpoll.h>
@@ -51,6 +54,18 @@
 
 /* The maximum allowed buffers per client */
 #define MAX_BUFFER_COUNT 32
+
+/**
+ * enum base_hwcnt_reader_event - hwcnt dumping events
+ * @BASE_HWCNT_READER_EVENT_MANUAL:   manual request for dump
+ * @BASE_HWCNT_READER_EVENT_PERIODIC: periodic dump
+ * @BASE_HWCNT_READER_EVENT_COUNT:    number of supported events
+ */
+enum base_hwcnt_reader_event {
+	BASE_HWCNT_READER_EVENT_MANUAL,
+	BASE_HWCNT_READER_EVENT_PERIODIC,
+	BASE_HWCNT_READER_EVENT_COUNT
+};
 
 /**
  * struct kbase_kinstr_prfcnt_context - IOCTL interface for userspace hardware
@@ -233,6 +248,8 @@ static struct prfcnt_enum_item kinstr_prfcnt_supported_requests[] = {
 	},
 };
 
+static enum hrtimer_restart kbasep_kinstr_prfcnt_dump_timer(struct hrtimer *timer);
+
 /**
  * kbasep_kinstr_prfcnt_hwcnt_reader_poll() - hwcnt reader's poll.
  * @filp: Non-NULL pointer to file structure.
@@ -313,6 +330,7 @@ static void kbasep_kinstr_prfcnt_reschedule_worker(struct kbase_kinstr_prfcnt_co
 {
 	u64 cur_ts_ns;
 	u64 shortest_period_ns = U64_MAX;
+	bool trigger_immediate = false;
 	struct kbase_kinstr_prfcnt_client *pos;
 
 	WARN_ON(!kinstr_ctx);
@@ -343,10 +361,17 @@ static void kbasep_kinstr_prfcnt_reschedule_worker(struct kbase_kinstr_prfcnt_co
 			 * period ago, compensate for that by scheduling next dump in the
 			 * immediate future.
 			 */
-			if (pos->next_dump_time_ns < cur_ts_ns)
-				pos->next_dump_time_ns =
-					MAX(cur_ts_ns + 1,
-					    pos->next_dump_time_ns + pos->dump_interval_ns);
+			if (pos->next_dump_time_ns < cur_ts_ns) {
+				const u64 next_dump =
+					pos->next_dump_time_ns + pos->dump_interval_ns;
+
+				if (cur_ts_ns + 1 > next_dump) {
+					pos->next_dump_time_ns = cur_ts_ns;
+					trigger_immediate = true;
+				} else {
+					pos->next_dump_time_ns = next_dump;
+				}
+			}
 		}
 	}
 
@@ -357,8 +382,22 @@ static void kbasep_kinstr_prfcnt_reschedule_worker(struct kbase_kinstr_prfcnt_co
 	 * suspended.
 	 */
 	if ((shortest_period_ns != U64_MAX) && (kinstr_ctx->suspend_count == 0)) {
-		u64 next_schedule_time_ns =
+		const u64 next_schedule_time_ns =
 			kbasep_kinstr_prfcnt_next_dump_time_ns(cur_ts_ns, shortest_period_ns);
+
+		/* If at least one sampler took more than a period then immediately
+		 * trigger the next dump. Don't rearm the timer, directly add the worker
+		 * to the queue.
+		 */
+		if (trigger_immediate) {
+			trace_hwcnt_skip_rearming(cur_ts_ns);
+			kbasep_kinstr_prfcnt_dump_timer(&kinstr_ctx->dump_timer);
+			return;
+		}
+
+		trace_hwcnt_schedule_next_sample(next_schedule_time_ns,
+						 next_schedule_time_ns - cur_ts_ns);
+
 		hrtimer_start(&kinstr_ctx->dump_timer,
 			      ns_to_ktime(next_schedule_time_ns - cur_ts_ns), HRTIMER_MODE_REL);
 	}
@@ -451,6 +490,10 @@ static enum prfcnt_block_type kbase_hwcnt_metadata_block_type_to_prfcnt_block_ty
 		block_type = PRFCNT_BLOCK_TYPE_CSG;
 		break;
 
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL2:
+		block_type = PRFCNT_BLOCK_TYPE_NE;
+		break;
 
 	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED:
 	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED:
@@ -458,6 +501,7 @@ static enum prfcnt_block_type kbase_hwcnt_metadata_block_type_to_prfcnt_block_ty
 	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_CSG_UNDEFINED:
 	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED:
 	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_NEURAL_UNDEFINED:
 	default:
 		block_type = PRFCNT_BLOCK_TYPE_RESERVED;
 		break;
@@ -1207,6 +1251,8 @@ static void kbasep_kinstr_prfcnt_dump_worker(struct work_struct *work)
 	cur_time_ns = kbasep_kinstr_prfcnt_timestamp_ns();
 
 	list_for_each_entry(pos, &kinstr_ctx->clients, node) {
+		trace_hwcnt_client_dump(cur_time_ns, pos->next_dump_time_ns,
+					pos->next_dump_time_ns < cur_time_ns);
 		if (pos->active && (pos->next_dump_time_ns != 0) &&
 		    (pos->next_dump_time_ns < cur_time_ns))
 			kbasep_kinstr_prfcnt_client_dump(pos, BASE_HWCNT_READER_EVENT_PERIODIC,
@@ -1576,6 +1622,10 @@ kbasep_kinstr_prfcnt_parse_request_enable(const struct prfcnt_request_enable *re
 		break;
 	case PRFCNT_BLOCK_TYPE_CSG:
 		kbasep_kinstr_prfcnt_block_enable_req_to_cfg(config->enable_cm.csg_bm,
+							     req_enable->enable_mask);
+		break;
+	case PRFCNT_BLOCK_TYPE_NE:
+		kbasep_kinstr_prfcnt_block_enable_req_to_cfg(config->enable_cm.neural_bm,
 							     req_enable->enable_mask);
 		break;
 	default:

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,6 +33,7 @@
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
 #include <linux/devfreq_cooling.h>
 #endif
+#include <linux/pm_domain.h>
 
 #include <linux/version.h>
 #include <linux/pm_opp.h>
@@ -130,6 +131,7 @@ static int kbase_devfreq_target(struct device *dev, unsigned long *freq, u32 fla
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
 	struct dev_pm_opp *opp;
+	int err;
 	int ret = 0;
 
 	if (!opp_info->is_rate_volt_checked)
@@ -139,6 +141,13 @@ static int kbase_devfreq_target(struct device *dev, unsigned long *freq, u32 fla
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 	dev_pm_opp_put(opp);
+
+	err = dev_pm_genpd_set_performance_state(kbdev->dev, *freq);
+	/* For ENODEV or EOPNOTSUPP do not return error code */
+	if (err && !((err == -ENODEV) || (err == -EOPNOTSUPP))) {
+		dev_err(dev, "Failed to set opp (%d) (target %lu)\n", err, *freq);
+		return err;
+	}
 
 	if (*freq == kbdev->current_nominal_freq)
 		return 0;
@@ -186,7 +195,7 @@ static int kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *s
 	stat->current_frequency = kbdev->current_nominal_freq;
 	stat->private_data = NULL;
 
-#if MALI_USE_CSF && defined CONFIG_DEVFREQ_THERMAL
+#if defined CONFIG_DEVFREQ_THERMAL
 	if (!kbdev->devfreq_profile.is_cooling_device)
 		kbase_ipa_reset_data(kbdev);
 #endif
@@ -390,7 +399,29 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 				opp_freq);
 			continue;
 		}
+		if (kbase_csf_dev_has_ne(kbdev)) {
+			u64 neural_present = kbdev->gpu_props.neural_present;
+			u64 sc_with_ne = shader_present & neural_present;
 
+			if (!sc_with_ne) {
+				dev_err(kbdev->dev,
+					"No shader cores with NE cores present in configuration with NE!");
+				continue;
+			}
+
+			if ((neural_present & shader_present) != neural_present) {
+				dev_err(kbdev->dev,
+					"Detected NE core without a corresponding shader core: NEURAL_PRESENT %llx SHADER_PRESENT %llx",
+					neural_present, shader_present);
+			}
+
+			if (!(core_mask & sc_with_ne)) {
+				dev_err(kbdev->dev,
+					"Ignoring OPP %d - No shader cores with NE cores present in the given core mask %llx",
+					i, core_mask);
+				continue;
+			}
+		}
 
 		core_count_p = of_get_property(node, "opp-core-count", NULL);
 		if (core_count_p) {

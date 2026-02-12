@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2013-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -35,9 +35,14 @@ Optional:
 
 - clocks : One or more pairs of phandle to clock and clock specifier
            for the Mali device. The order is important: the first clock
-           shall correspond to the "clk_mali" source, while the second clock
-           (that is optional) shall correspond to the "shadercores" source.
-- clock-names : Shall be set to: "clk_mali", "shadercores".
+           shall correspond to the "clk_mali" source. Other clocks are optional
+           and, if present, they shall correspond to domains like "shadercores",
+           which is available for all GPUs, or "coregroup" and "neuralengines"
+           which are available for newer GPUs. Also notice that the "neuralengines"
+           clock domain, if present, doesn't expect a corresponding regulator.
+- clock-names : Shall be set to values like: "clk_mali", "shadercores", "coregroup",
+                "neuralengines". Only the first one is mandatory. Most GPUs
+                support only the first two entries.
 - mali-supply : Phandle to the top level regulator for the Mali device.
                 Refer to
 Documentation/devicetree/bindings/regulator/regulator.txt for details.
@@ -132,6 +137,11 @@ for details.
 		   set and the setting coresponding to the SYSC_ALLOC register.
 - propagate-bits: Used to write to L2_CONFIG.PBHA_HWU. This bitset establishes which
 		   PBHA bits are propagated on the AXI bus.
+- mma-wa-id: Sets a GPU MMU PBHA value to be used as NONCACHEABLE. GPU Page Table Entries
+	     (PTEs) with this PBHA value set will have uncached transactions from the GPU.
+	     Valid values are from 1 to 15. See mgm_update_gpu_pte() in
+	     include/linux/memory_group_manager.h for the interface to configure the PTEs. Only
+	     supported by arch 14.8.x and later GPUs.
 
 
 Example for a Mali GPU with 1 clock and 1 regulator:
@@ -241,6 +251,7 @@ gpu@0xfc010000 {
     pbha {
         int-id-override = <2 0x32>, <9 0x05>, <16 0x32>;
         propagate-bits = /bits/ 8 <0x03>;
+        mma-wa-id = <2>;
     };
     ...
 };

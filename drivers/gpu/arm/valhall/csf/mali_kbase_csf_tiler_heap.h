@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -119,6 +119,20 @@ int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx, u64 gpu_hea
 					 u64 *new_chunk_ptr);
 
 /**
+ * kbase_csf_tiler_heap_free_chunk - Free the allocated chunk for tiler heap.
+ *
+ * @kctx:               Pointer to the kbase context in which the tiler heap was initialized.
+ * @gpu_heap_va:        GPU virtual address of the heap context.
+ * @chunk_hdr_val:      Header value containing GPU VA & size of the chunk to be freed.
+ *
+ * This function will free the chunk allocation and update the chunk link.
+ *
+ * Return: 0 on success,
+ *		   otherwise an appropriate negative error code.
+ */
+int kbase_csf_tiler_heap_free_chunk(struct kbase_context *kctx, u64 gpu_heap_va, u64 chunk_hdr_val);
+
+/**
  * kbase_csf_tiler_heap_scan_kctx_unused_pages - Performs the tiler heap shrinker calim's scan
  *                                               functionality.
  *
@@ -140,4 +154,20 @@ u32 kbase_csf_tiler_heap_scan_kctx_unused_pages(struct kbase_context *kctx, u32 
  * Return: a number of pages that could likely be freed on the subsequent scan method call.
  */
 u32 kbase_csf_tiler_heap_count_kctx_unused_pages(struct kbase_context *kctx);
+
+/**
+ * kbase_csf_tiler_heap_size - Query the current size of a tiler heap.
+ *
+ * @kctx:               Pointer to the kbase context in which the tiler heap was initialized.
+ * @gpu_heap_va:        The GPU virtual address of the context that was set up for the
+ *                      tiler heap.
+ * @size:               Where to store the current size of the tiler heap.
+ * @peak_size:          Where to store the peak size of the tiler heap.
+ *
+ * Return: 0 on success,
+ *		   otherwise an appropriate negative error code.
+ */
+int kbase_csf_tiler_heap_size(struct kbase_context *kctx, u64 gpu_heap_va, u64 *size,
+			      u64 *peak_size);
+
 #endif

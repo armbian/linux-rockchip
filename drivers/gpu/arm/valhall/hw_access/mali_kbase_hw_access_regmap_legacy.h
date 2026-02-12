@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,16 +22,17 @@
 #ifndef _MALI_KBASE_REGMAP_LEGACY_H_
 #define _MALI_KBASE_REGMAP_LEGACY_H_
 
-#if MALI_USE_CSF
 #include "regmap/mali_kbase_regmap_legacy_csf.h"
-#else
-#include "regmap/mali_kbase_regmap_legacy_jm.h"
-#endif
 
 /* Begin Register Offsets */
+
 /* GPU control registers */
+
 #define GPU_CONTROL_BASE 0x0000
+#define GPU_CONTROL_REG_PAGE_MASK 0xFFF
+
 #define GPU_CONTROL_REG(r) (GPU_CONTROL_BASE + (r))
+
 
 #define GPU_ID 0x000 /* (RO) GPU and revision identifier */
 #define L2_FEATURES 0x004 /* (RO) Level 2 cache features */
@@ -151,6 +152,8 @@
 #define ASN_HASH_0 L2_SLICE_HASH_0
 #define ASN_HASH(n) L2_SLICE_HASH(n)
 
+/* L2C_SLICE_HASH, L2_SLICE_HASH and ASN_HASH alias each other */
+#define L2C_SLICE_HASH(n) L2_SLICE_HASH(n)
 
 #define SYSC_ALLOC0 0x0340 /* (RW) System cache allocation hint from source ID */
 #define SYSC_ALLOC(n) (SYSC_ALLOC0 + (n)*4)
@@ -198,26 +201,13 @@
 #define MMU_IRQ_MASK 0x008 /* (RW) Interrupt mask register */
 #define MMU_IRQ_STATUS 0x00C /* (RO) Interrupt status register */
 
-#define MMU_AS0 0x400 /* Configuration registers for address space 0 */
-#define MMU_AS1 0x440 /* Configuration registers for address space 1 */
-#define MMU_AS2 0x480 /* Configuration registers for address space 2 */
-#define MMU_AS3 0x4C0 /* Configuration registers for address space 3 */
-#define MMU_AS4 0x500 /* Configuration registers for address space 4 */
-#define MMU_AS5 0x540 /* Configuration registers for address space 5 */
-#define MMU_AS6 0x580 /* Configuration registers for address space 6 */
-#define MMU_AS7 0x5C0 /* Configuration registers for address space 7 */
-#define MMU_AS8 0x600 /* Configuration registers for address space 8 */
-#define MMU_AS9 0x640 /* Configuration registers for address space 9 */
-#define MMU_AS10 0x680 /* Configuration registers for address space 10 */
-#define MMU_AS11 0x6C0 /* Configuration registers for address space 11 */
-#define MMU_AS12 0x700 /* Configuration registers for address space 12 */
-#define MMU_AS13 0x740 /* Configuration registers for address space 13 */
-#define MMU_AS14 0x780 /* Configuration registers for address space 14 */
-#define MMU_AS15 0x7C0 /* Configuration registers for address space 15 */
 
-#define MMU_STAGE1 0x2000
+#define MMU_STAGE1 MMU_CONTROL_BASE
 #define MMU_STAGE1_REG(r) (MMU_STAGE1 + (r))
-#define MMU_AS_REG(n, r) (MMU_AS0 + ((n) << 6) + (r))
+#define MMU_STAGE1_AS_OFFSET 0x400
+#define MMU_STAGE1_AS_SHIFT 6
+#define MMU_AS_REG(n, r) (MMU_STAGE1_AS_OFFSET + ((n) << MMU_STAGE1_AS_SHIFT) + (r))
+
 
 #define AS_TRANSTAB_LO 0x00 /* (RW) Translation Table Base Address for address space n, low word */
 #define AS_TRANSTAB_HI 0x04 /* (RW) Translation Table Base Address for address space n, high word */
@@ -236,5 +226,90 @@
 #define AS_FAULTEXTRA_LO 0x38 /* (RO) Secondary fault address for address space n, low word */
 #define AS_FAULTEXTRA_HI 0x3C /* (RO) Secondary fault address for address space n, high word */
 
+/* Definitions for HOST_POWER regmap in v14.8.4 arch spec */
+/* Host Power Control */
+#define HOST_POWER_BASE 0x800
+#define HOST_POWER_REG(r) (HOST_POWER_BASE + (r))
+
+#define PWR_IRQ_RAWSTAT 0x000
+#define PWR_IRQ_CLEAR 0x004
+#define PWR_IRQ_MASK 0x008
+#define PWR_IRQ_STATUS 0x00C
+
+#define PWR_STATUS_LO 0x020
+#define PWR_STATUS_HI 0x024
+#define PWR_COMMAND 0x028
+#define PWR_CMDARG_LO 0x030
+#define PWR_CMDARG_HI 0x034
+
+#define HOST_POWER_L2_PRESENT_LO 0x100 /* (RO) Level 2 cache present bitmap, low word */
+#define HOST_POWER_L2_PRESENT_HI 0x104 /* (RO) Level 2 cache present bitmap, high word */
+#define HOST_POWER_L2_READY_LO 0x108 /* (RO) Level 2 cache ready bitmap, low word */
+#define HOST_POWER_L2_READY_HI 0x10C /* (RO) Level 2 cache ready bitmap, high word */
+#define HOST_POWER_L2_PWRTRANS_LO 0x110 /* (RO) Level 2 cache power transition bitmap, low word */
+#define HOST_POWER_L2_PWRTRANS_HI 0x114 /* (RO) Level 2 cache power transition bitmap, high word */
+#define HOST_POWER_L2_PWRACTIVE_LO 0x118 /* (RO) Level 2 cache active bitmap, low word */
+#define HOST_POWER_L2_PWRACTIVE_HI 0x11C /* (RO) Level 2 cache active bitmap, high word */
+
+#define HOST_POWER_TILER_PRESENT_LO 0x140 /* (RO) Tiler core present bitmap, low word */
+#define HOST_POWER_TILER_PRESENT_HI 0x144 /* (RO) Tiler core present bitmap, high word */
+#define HOST_POWER_TILER_READY_LO 0x148 /* (RO) Tiler core ready bitmap, low word */
+#define HOST_POWER_TILER_READY_HI 0x14C /* (RO) Tiler core ready bitmap, high word */
+#define HOST_POWER_TILER_PWRTRANS_LO 0x150 /* (RO) Tiler core power transition bitmap, low word */
+#define HOST_POWER_TILER_PWRTRANS_HI 0x154 /* (RO) Tiler core power transition bitmap, high word */
+#define HOST_POWER_TILER_PWRACTIVE_LO 0x158 /* (RO) Tiler core active bitmap, low word */
+#define HOST_POWER_TILER_PWRACTIVE_HI 0x15C /* (RO) Tiler core active bitmap, high word */
+
+#define HOST_POWER_SHADER_PRESENT_LO 0x200 /* (RO) Shader core present bitmap, low word */
+#define HOST_POWER_SHADER_PRESENT_HI 0x204 /* (RO) Shader core present bitmap, high word */
+#define HOST_POWER_SHADER_READY_LO 0x208 /* (RO) Shader core ready bitmap, low word */
+#define HOST_POWER_SHADER_READY_HI 0x20C /* (RO) Shader core ready bitmap, high word */
+#define HOST_POWER_SHADER_PWRTRANS_LO 0x210 /* (RO) Shader core power transition bitmap, low word */
+#define HOST_POWER_SHADER_PWRTRANS_HI \
+	0x214 /* (RO) Shader core power transition bitmap, high word */
+#define HOST_POWER_SHADER_PWRACTIVE_LO 0x218 /* (RO) Shader core active bitmap, low word */
+#define HOST_POWER_SHADER_PWRACTIVE_HI 0x21C /* (RO) Shader core active bitmap, high word */
+
+#define HOST_POWER_NEURAL_PRESENT_LO 0x240 /* (RO) Neural Engine present bitmap, low word */
+#define HOST_POWER_NEURAL_PRESENT_HI 0x244 /* (RO) Neural Engine present bitmap, high word */
+#define HOST_POWER_NEURAL_READY_LO 0x248 /* (RO) Neural Engine ready bitmap, low word */
+#define HOST_POWER_NEURAL_READY_HI 0x24C /* (RO) Neural Engine ready bitmap, high word */
+#define HOST_POWER_NEURAL_PWRTRANS_LO \
+	0x250 /* (RO) Neural Engine power transition bitmap, low word */
+#define HOST_POWER_NEURAL_PWRTRANS_HI \
+	0x254 /* (RO) Neural Engine power transition bitmap, high word */
+#define HOST_POWER_NEURAL_PWRACTIVE_LO 0x258 /* (RO) Neural Engine active bitmap, low word */
+#define HOST_POWER_NEURAL_PWRACTIVE_HI 0x25C /* (RO) Neural Engine active bitmap, high word */
+
+#define HOST_POWER_BASE_PRESENT_LO 0x380 /* (RO) Shader core base present bitmap, low word */
+#define HOST_POWER_BASE_PRESENT_HI 0x384 /* (RO) Shader core base present bitmap, high word */
+#define HOST_POWER_BASE_READY_LO 0x388 /* (RO) Shader core base ready bitmap, low word */
+#define HOST_POWER_BASE_READY_HI 0x38C /* (RO) Shader core base ready bitmap, high word */
+#define HOST_POWER_BASE_PWRTRANS_LO \
+	0x390 /* (RO) Shader core base power transition bitmap, low word */
+#define HOST_POWER_BASE_PWRTRANS_HI \
+	0x394 /* (RO) Shader core base power transition bitmap, high word */
+#define HOST_POWER_BASE_PWRACTIVE_LO 0x398 /* (RO) Shader core base active bitmap, low word */
+#define HOST_POWER_BASE_PWRACTIVE_HI 0x39C /* (RO) Shader core base active bitmap, high word */
+
+#define HOST_POWER_STACK_PRESENT_LO 0x3C0 /* (RO) Core stack present bitmap, low word */
+#define HOST_POWER_STACK_PRESENT_HI 0x3C4 /* (RO) Core stack present bitmap, high word */
+#define HOST_POWER_STACK_READY_LO 0x3C8 /* (RO) Core stack ready bitmap, low word */
+#define HOST_POWER_STACK_READY_HI 0x3CC /* (RO) Core stack ready bitmap, high word */
+#define HOST_POWER_STACK_PWRTRANS_LO 0x3D0 /* (RO) Core stack power transition bitmap, low word */
+#define HOST_POWER_STACK_PWRTRANS_HI 0x3D4 /* (RO) Core stack power transition bitmap, high word */
+/* End of Host Power Control */
+
+#define GPU_GOV_IPA_CONTROL_OFFSET 0x1000
+#define SELECT_NEURAL_LO 0x030 /* (RW) Counter select for Neural cores, low word */
+#define SELECT_NEURAL_HI 0x034 /* (RW) Counter select for Neural cores, high word */
+#define VALUE_NEURAL_BASE 0x200
+#define VALUE_NEURAL_REG_LO(n) \
+	(VALUE_NEURAL_BASE + ((n) << 3)) /* (RO) Counter value #n, low word */
+#define VALUE_NEURAL_REG_HI(n) \
+	(VALUE_NEURAL_BASE + ((n) << 3) + 4) /* (RO) Counter value #n, high word */
+
+/* GOV CORE MASK */
+#define GPU_GOV_CORE_MASK_OFFSET 0x0120
 
 #endif /* _MALI_KBASE_REGMAP_LEGACY_H_ */

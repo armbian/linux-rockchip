@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2024 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2025 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,6 @@
 
 menuconfig MALI_VALHALL
 	tristate "Mali Valhall series support"
-	select GPU_TRACEPOINTS if ANDROID
 	select DMA_SHARED_BUFFER
 	select FW_LOADER
 	default n
@@ -72,15 +71,9 @@ config MALI_VALHALL_NO_MALI_DEFAULT_GPU
 	help
 	  This option sets the default GPU to identify as for No Mali builds.
 
-config MALI_IS_FPGA
-	bool "Enable build of Mali kernel driver for FPGA"
-	depends on MALI_VALHALL
-	default n
-	help
-	  This is the default HW backend.
-
 menu "Platform specific options"
 source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/valhall/platform/Kconfig"
+
 endmenu
 
 config MALI_VALHALL_CSF_SUPPORT
@@ -124,17 +117,6 @@ config MALI_VALHALL_ENABLE_TRACE
 	help
 	  Enables tracing in kbase. Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
-
-config MALI_ARBITER_SUPPORT
-	bool "Enable arbiter support for Mali"
-	depends on MALI_VALHALL
-	default n
-	help
-	  Enable support for the arbiter interface in the driver.
-	  This allows an external arbiter to manage driver access
-	  to GPU hardware in a virtualized environment
-
-	  If unsure, say N.
 
 config MALI_VALHALL_DMA_BUF_MAP_ON_DEMAND
 	bool "Enable map imported dma-bufs on demand"
@@ -318,20 +300,8 @@ config MALI_VALHALL_JOB_DUMP
 comment "Workarounds"
 	depends on MALI_VALHALL && MALI_VALHALL_EXPERT
 
-config MALI_PWRSOFT_765
-	bool "Enable workaround for PWRSOFT-765"
-	depends on MALI_VALHALL && MALI_VALHALL_EXPERT
-	default n
-	help
-	  PWRSOFT-765 fixes devfreq cooling devices issues. The fix was merged
-	  in kernel v4.10, however if backported into the kernel then this
-	  option must be manually selected.
-
-	  If using kernel >= v4.10 then say N, otherwise if devfreq cooling
-	  changes have been backported say Y to avoid compilation errors.
-
 config MALI_VALHALL_HW_ERRATA_1485982_NOT_AFFECTED
-	bool "Disable workaround for BASE_HW_ISSUE_GPU2017_1336"
+	bool "Disable workaround for KBASE_HW_ISSUE_GPU2017_1336"
 	depends on MALI_VALHALL && MALI_VALHALL_EXPERT
 	default n
 	help
@@ -343,7 +313,7 @@ config MALI_VALHALL_HW_ERRATA_1485982_NOT_AFFECTED
 	  coherency mode requires the L2 to be turned off.
 
 config MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
-	bool "Use alternative workaround for BASE_HW_ISSUE_GPU2017_1336"
+	bool "Use alternative workaround for KBASE_HW_ISSUE_GPU2017_1336"
 	depends on MALI_VALHALL && MALI_VALHALL_EXPERT && !MALI_VALHALL_HW_ERRATA_1485982_NOT_AFFECTED
 	default n
 	help
@@ -354,15 +324,6 @@ config MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 	  slowest clock will be selected.
 
 endif
-
-config MALI_VALHALL_ARBITRATION
-	tristate "Enable Virtualization reference code"
-	depends on MALI_VALHALL
-	default n
-	help
-	  Enables the build of several reference modules used in the reference
-	  virtualization setup for Mali
-	  If unsure, say N.
 
 config MALI_VALHALL_TRACE_POWER_GPU_WORK_PERIOD
 	bool "Enable per-application GPU metrics tracepoints"

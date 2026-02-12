@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -51,7 +51,7 @@ config MALI_MEMORY_GROUP_MANAGER
 
 config MALI_PROTECTED_MEMORY_ALLOCATOR
 	bool "Build Mali Protected Memory Allocator module"
-	depends on MALI_BASE_MODULES && MALI_CSF_SUPPORT
+	depends on MALI_BASE_MODULES
 	default y
 	help
 	  This option will build the protected memory allocator module.

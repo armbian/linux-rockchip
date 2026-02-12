@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -91,11 +91,7 @@ union kbase_ktrace_backend;
 
 #endif /* KBASE_KTRACE_TARGET_RBUF */
 
-#if MALI_USE_CSF
 #include "debug/backend/mali_kbase_debug_ktrace_defs_csf.h"
-#else
-#include "debug/backend/mali_kbase_debug_ktrace_defs_jm.h"
-#endif
 
 #if KBASE_KTRACE_TARGET_RBUF
 /* Indicates if the trace message has backend related info.

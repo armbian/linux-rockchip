@@ -99,12 +99,4 @@
  */
 #define CSTD_STR2(x) CSTD_STR1(x)
 
-#ifndef fallthrough
-#define fallthrough __fallthrough
-#endif /* fallthrough */
-
-#ifndef __fallthrough
-#define __fallthrough __attribute__((fallthrough))
-#endif /* __fallthrough */
-
 #endif /* _MALISW_H_ */

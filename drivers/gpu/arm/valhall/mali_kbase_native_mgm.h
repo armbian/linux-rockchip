@@ -22,7 +22,7 @@
 #ifndef _KBASE_NATIVE_MGM_H_
 #define _KBASE_NATIVE_MGM_H_
 
-#include <linux/memory_group_manager_for_valhall.h>
+#include <linux/memory_group_manager.h>
 
 /*
  * kbase_native_mgm_dev - Native memory group manager device

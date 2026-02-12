@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -197,7 +197,6 @@ void kbase_ipa_control_handle_gpu_reset_pre(struct kbase_device *kbdev);
  */
 void kbase_ipa_control_handle_gpu_reset_post(struct kbase_device *kbdev);
 
-#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_ipa_control_handle_gpu_sleep_enter - Handle the pre GPU Sleep event
  *
@@ -222,7 +221,6 @@ void kbase_ipa_control_handle_gpu_sleep_enter(struct kbase_device *kbdev);
  * was called previously.
  */
 void kbase_ipa_control_handle_gpu_sleep_exit(struct kbase_device *kbdev);
-#endif
 
 #if MALI_UNIT_TEST
 /**

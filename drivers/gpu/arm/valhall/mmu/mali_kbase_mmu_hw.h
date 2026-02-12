@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -42,7 +42,7 @@ struct kbase_context;
  * enum kbase_mmu_fault_type - MMU fault type descriptor.
  * @KBASE_MMU_FAULT_TYPE_UNKNOWN:         unknown fault
  * @KBASE_MMU_FAULT_TYPE_PAGE:            page fault
- * @KBASE_MMU_FAULT_TYPE_BUS:             nus fault
+ * @KBASE_MMU_FAULT_TYPE_BUS:             bus fault
  * @KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED: page_unexpected fault
  * @KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED:  bus_unexpected fault
  */
@@ -173,6 +173,8 @@ int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_a
  * @type:          The type of fault that needs to be cleared.
  *
  * Clear a bus error or page fault that has been reported by the MMU.
+ *
+ * L2 should not be OFF when this function gets called.
  */
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 			      enum kbase_mmu_fault_type type);
@@ -187,6 +189,8 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
  * After a page fault or bus error has been reported by the MMU these
  * will be disabled. After these are handled this function needs to be
  * called to enable the page fault or bus error fault again.
+ *
+ * L2 should not be OFF when this function gets called.
  */
 void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 			       enum kbase_mmu_fault_type type);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2021, 2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,14 +20,6 @@
 
 valhall_kbase-y += \
     device/mali_kbase_device.o \
-    device/mali_kbase_device_hw.o
-
-ifeq ($(CONFIG_MALI_VALHALL_CSF_SUPPORT),y)
-    valhall_kbase-y += \
-        device/backend/mali_kbase_device_csf.o \
-        device/backend/mali_kbase_device_hw_csf.o
-else
-    valhall_kbase-y += \
-        device/backend/mali_kbase_device_jm.o \
-        device/backend/mali_kbase_device_hw_jm.o
-endif
+    device/mali_kbase_device_hw.o \
+    device/backend/mali_kbase_device_csf.o \
+    device/backend/mali_kbase_device_hw_csf.o

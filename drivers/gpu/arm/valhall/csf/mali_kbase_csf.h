@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,9 +40,6 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
-/* Number of pages used for GPU command queue's User input & output data */
-#define KBASEP_NUM_CS_USER_IO_PAGES (2)
-
 /* Indicates an invalid value for the scan out sequence number, used to
  * signify there is no group that has protected mode execution pending.
  */
@@ -66,13 +63,18 @@ int kbase_csf_ctx_init(struct kbase_context *kctx);
  * kbase_csf_ctx_handle_fault - Terminate queue groups & notify fault upon
  *                              GPU bus fault, MMU page fault or similar.
  *
- * @kctx:       Pointer to faulty kbase context.
- * @fault:      Pointer to the fault.
+ * @kctx:            Pointer to faulty kbase context.
+ * @fault:           Pointer to the fault.
+ * @fw_unresponsive: Whether or not the FW is deemed unresponsive
  *
  * This function terminates all GPU command queue groups in the context and
- * notifies the event notification thread of the fault.
+ * notifies the event notification thread of the fault. If the FW is deemed
+ * unresponsive, e.g. when recovering from a GLB_FATAL, it will not wait
+ * for the groups to be terminated by the MCU, since in this case it will
+ * time-out anyway.
  */
-void kbase_csf_ctx_handle_fault(struct kbase_context *kctx, struct kbase_fault *fault);
+void kbase_csf_ctx_handle_fault(struct kbase_context *kctx, struct kbase_fault *fault,
+				bool fw_unresponsive);
 
 /**
  * kbase_csf_ctx_report_page_fault_for_active_groups - Notify Userspace about GPU page fault
@@ -137,35 +139,55 @@ void kbase_csf_queue_terminate(struct kbase_context *kctx,
 			       struct kbase_ioctl_cs_queue_terminate *term);
 
 /**
- * kbase_csf_free_command_stream_user_pages() - Free the resources allocated
- *				    for a queue at the time of bind.
+ * kbase_csf_free_command_stream_user_pages() - Free queue resources
+ *                                              from bind time.
  *
- * @kctx:	Address of the kbase context within which the queue was created.
- * @queue:	Pointer to the queue to be unlinked.
+ * @kctx: Address of the kbase context within which the queue was created.
+ * @queue: Pointer to the queue to be unlinked.
  *
- * This function will free the pair of physical pages allocated for a GPU
- * command queue, and also release the hardware doorbell page, that were mapped
- * into the process address space to enable direct submission of commands to
- * the hardware. Also releases the reference taken on the queue when the mapping
- * was created.
+ * This function releases the hardware doorbell page assigned to the queue
+ * and releases the reference taken on the queue.
  *
- * If an explicit or implicit unbind was missed by the userspace then the
- * mapping will persist. On process exit kernel itself will remove the mapping.
+ * When mali_kbase_supports_csg_cs_user_page_allocation() is false:
+ *  This function will free the pair of CS_USER IO physical pages allocated
+ *  for a GPU command queue, that were mapped into the process address space
+ *  to enable direct submission of commands to the hardware.
+ *
+ *  This function will be called only when the mapping is being removed and
+ *  so the resources for queue will not get freed up until the mapping is
+ *  removed even though userspace could have terminated the queue.
+ *  Kernel will ensure that the termination of Kbase context would only be
+ *  triggered after the mapping is removed.
+ *
+ *  If an explicit or implicit unbind was missed by the userspace then the
+ *  mapping will persist. On process exit kernel itself will remove the mapping.
+ *
+ * When mali_kbase_supports_csg_cs_user_page_allocation() is true:
+ *  No specific actions are required for CS_USER IO pages. CSG termination
+ *  will take care of it.
  */
 void kbase_csf_free_command_stream_user_pages(struct kbase_context *kctx,
 					      struct kbase_queue *queue);
 
 /**
- * kbase_csf_alloc_command_stream_user_pages - Allocate resources for a
- *                                             GPU command queue.
+ * kbase_csf_alloc_command_stream_user_pages() - Allocate queue resources
+ *                                               at bind time.
  *
- * @kctx:	Pointer to the kbase context within which the resources
- *		for the queue are being allocated.
- * @queue:	Pointer to the queue for which to allocate resources.
+ * @kctx: Pointer to the kbase context within which the resources
+ *        for the queue are being allocated.
+ * @queue: Pointer to the queue for which to allocate resources.
  *
- * This function allocates a pair of User mode input/output pages for a
- * GPU command queue and maps them in the shared interface segment of MCU
- * firmware address space. Also reserves a hardware doorbell page for the queue.
+ * This function reserves a hardware doorbell page for the queue and
+ * takes a reference on the queue.
+ *
+ * When mali_kbase_supports_csg_cs_user_page_allocation() is false:
+ *   The function allocates a pair of User mode input/output pages for a
+ *   GPU command queue and maps them in the shared interface segment of MCU
+ *   firmware address space.
+ *
+ * When mali_kbase_supports_csg_cs_user_page_allocation() is true:
+ *   A slot of size CS_USER_INPUT_BLOCK_SIZE is assigned to the queue in
+ *   the CS_USER IO page owned by the CSG.
  *
  * Return:	0 on success, or negative on failure.
  */
@@ -334,13 +356,12 @@ void kbase_csf_interrupt(struct kbase_device *kbdev, u32 val);
  * kbase_csf_handle_csg_sync_update - Handle SYNC_UPDATE notification for the group.
  *
  * @kbdev: The kbase device to handle the SYNC_UPDATE interrupt.
- * @ginfo: Pointer to the CSG interface used by the @group
+ * @group_id: CSG index.
  * @group: Pointer to the GPU command queue group.
  * @req:   CSG_REQ register value corresponding to @group.
  * @ack:   CSG_ACK register value corresponding to @group.
  */
-void kbase_csf_handle_csg_sync_update(struct kbase_device *const kbdev,
-				      struct kbase_csf_cmd_stream_group_info *ginfo,
+void kbase_csf_handle_csg_sync_update(struct kbase_device *const kbdev, u32 group_id,
 				      struct kbase_queue_group *group, u32 req, u32 ack);
 
 /**
@@ -568,4 +589,157 @@ void kbase_csf_process_queue_kick(struct kbase_queue *queue);
  */
 void kbase_csf_process_protm_event_request(struct kbase_queue_group *group);
 
+/**
+ * kbase_csf_glb_fatal_worker - Worker function for handling GLB FATAL error
+ *
+ * @data: Pointer to a work_struct embedded in kbase device.
+ *
+ * Handle the GLB fatal error
+ */
+void kbase_csf_glb_fatal_worker(struct work_struct *const data);
+
+/**
+ * kbase_csf_queue_oom_state_str() - Helper function to get string
+ *                                   for kbase queue OoM tracking state.
+ * @state: kbase OoM track state
+ *
+ * Return: string representation of kbase OoM track state
+ */
+static inline const char *kbase_csf_queue_oom_state_str(enum kbase_csf_queue_oom_state state)
+{
+	switch (state) {
+	case KBASE_CSF_QUEUE_OOM_NONE:
+		return "KBASE_CSF_QUEUE_OOM_NONE";
+	case KBASE_CSF_QUEUE_OOM_PENDING:
+		return "KBASE_CSF_QUEUE_OOM_PENDING";
+	case KBASE_CSF_QUEUE_OOM_COMPLETE:
+		return "KBASE_CSF_QUEUE_OOM_COMPLETE";
+	case KBASE_CSF_QUEUE_OOM_ERROR_ABORT:
+		return "KBASE_CSF_QUEUE_OOM_ERROR_ABORT";
+	default:
+		return "[UnknownState]";
+	}
+}
+
+/**
+ * kbase_csf_cs_get_pending_oom - Get the data for the pending OoM event.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ * @queue: Pointer to the queue to process.
+ * @slot_id: Slot index where the CSG is residing.
+ *
+ * The OoM data and the request state is saved in the queue's OoM tracking
+ * structure.
+ *
+ * Return: 0 on success,
+ *         -EINVAL if slot_id is invalid, or tiler OoM state is incorrect.
+ *         -EBUSY if tiler OoM is already in KBASE_CSF_QUEUE_OOM_PENDING state.
+ */
+int kbase_csf_cs_get_pending_oom(struct kbase_device *kbdev, struct kbase_queue *queue,
+				 int const slot_id);
+
+/**
+ * kbase_csf_program_cs_oom_prepared_chunk - Program the prepared OoM chunk to CSF.
+ *
+ * @queue: Pointer to the queue to process.
+ * @slot_id: Slot index where the CSG is residing.
+ * @cs_oom_req: Value for CS_REQ reg to clear the pending Tiler OoM request.
+ *
+ */
+void kbase_csf_program_cs_oom_prepared_chunk(struct kbase_queue *queue, u32 slot_id,
+					     u32 cs_oom_req);
+
+/**
+ * kbase_csf_cs_prepare_pending_oom_tiler_heap_chunk - Prepare the chunk for
+ * the pending Tiler OoM event.
+ *
+ * @queue: Pointer to the queue to process.
+ *
+ * The pointer to the allocated chunk is saved in the queue's OoM tracking data and
+ * the OoM tracking state is updated.
+ *
+ * Return: 0 on success,
+ *         -EINVAL if tiler OoM tracking state is incorrect.
+ *         negative error code on allocation failure.
+ */
+int kbase_csf_cs_prepare_pending_oom_tiler_heap_chunk(struct kbase_queue *queue);
+
+/**
+ * kbase_csf_free_oom_tiler_heap_chunk - Free the allocated tiler OoM chunk
+ *
+ * @queue: Pointer to the queue to process.
+ *
+ * This function should be used to free the allocated chunk if the chunk can't be
+ * programmed to FW. OoM tracking data and state are updated.
+ *
+ * Return: 0 on success,
+ *         -EINVAL if tiler OoM tracking state is incorrect.
+ *         negative error code on freeing failure.
+ */
+int kbase_csf_free_oom_tiler_heap_chunk(struct kbase_queue *queue);
+
+/**
+ * kbase_csf_handle_pending_oom_interrupt() - Handler for a tiler heap OoM request IRQ.
+ *
+ * @queue:    Pointer to queue for which OoM event was received.
+ * @group_id: CSG index.
+ *
+ * Get pending OoM request and enqueue the OoM event work.
+ *
+ * Return: 0 on success,
+ *         -EBUSY when trying to enqueue an already-queued OoM work.
+ */
+int kbase_csf_handle_pending_oom_interrupt(struct kbase_queue *const queue, u32 group_id);
+
+/**
+ * kbase_csf_report_cs_fault_info() - Assmble the CS fault event information.
+ *
+ * @queue:   Pointer to queue for which a fault event was received.
+ * @slot_id: On-slot CSG index, where the queue fault was raised.
+ * @atomic_ctx: Calling from an interrupt handler, or from a kthread.
+ *
+ * Assembles the CS fault information and prints it out in a meaningful way in the log. The
+ * function is expected to be only called when the caller is notified with a valid CS fault
+ * event and the queue/bound-csg resides in the given slot.
+ */
+void kbase_csf_report_cs_fault_info(struct kbase_queue *const queue, u32 slot_id, bool atomic_ctx);
+
+/**
+ * kbase_csf_report_cs_fatal_info() - Assmble the CS fatal information.
+ *
+ * @queue:    Pointer to queue for which fatal event was received.
+ * @slot_id: On-slot CSG index, where the queue fatal error was raised.
+ * @atomic_ctx: Calling from an interrupt handler, or from a kthread.
+ *
+ * Assembles the CS fatal information and prints it out in a meaningful way in the log. The
+ * function is expected to be only called when the caller is notified with a valid CS fatal
+ * error event and the queue/bound-csg resides in the given slot.
+ *
+ * Return: the extracted CS_FATAL_EXCEPTION_TYPE.
+ */
+u32 kbase_csf_report_cs_fatal_info(struct kbase_queue *const queue, u32 slot_id, bool atomic_ctx);
+
+/**
+ * kbase_csf_dev_has_ne - Report whether the device has Neural Engine support.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: true on Neural Engine supported, otherwise false.
+ */
+static inline bool kbase_csf_dev_has_ne(struct kbase_device *kbdev)
+{
+	return kbdev->gpu_props.gpu_features.neural_engine;
+}
+
+/**
+ * kbase_csf_dev_has_rtu - Report whether the device has Ray Traversal support.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: true if Ray Traversal supported, otherwise false.
+ */
+static inline bool kbase_csf_dev_has_rtu(struct kbase_device *kbdev)
+{
+	return kbdev->gpu_props.gpu_features.ray_traversal;
+}
 #endif /* _KBASE_CSF_H_ */

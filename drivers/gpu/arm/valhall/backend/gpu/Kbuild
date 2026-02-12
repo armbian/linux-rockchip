@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -32,16 +32,6 @@ valhall_kbase-y += \
     backend/gpu/mali_kbase_time.o \
     backend/gpu/mali_kbase_l2_mmu_config.o \
     backend/gpu/mali_kbase_clk_rate_trace_mgr.o
-
-ifeq ($(MALI_USE_CSF),0)
-    valhall_kbase-y += \
-        backend/gpu/mali_kbase_instr_backend.o \
-        backend/gpu/mali_kbase_jm_as.o \
-        backend/gpu/mali_kbase_debug_job_fault_backend.o \
-        backend/gpu/mali_kbase_jm_hw.o \
-        backend/gpu/mali_kbase_jm_rb.o \
-        backend/gpu/mali_kbase_js_backend.o
-endif
 
 
 valhall_kbase-$(CONFIG_MALI_VALHALL_DEVFREQ) += \

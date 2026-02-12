@@ -146,11 +146,8 @@ static int kbasep_timeline_io_packet_pending(struct kbase_timeline *timeline,
  */
 static int kbasep_timeline_has_header_data(struct kbase_timeline *timeline)
 {
-	return timeline->obj_header_btc || timeline->aux_header_btc
-#if MALI_USE_CSF
-	       || timeline->csf_tl_reader.tl_header.btc
-#endif
-		;
+	return timeline->obj_header_btc || timeline->aux_header_btc ||
+	       timeline->csf_tl_reader.tl_header.btc;
 }
 
 /**
@@ -172,7 +169,7 @@ static inline int copy_stream_header(char __user *buffer, size_t size, ssize_t *
 	const size_t offset = hdr_size - *hdr_btc;
 	size_t copy_size;
 
-	if (check_sub_overflow((size_t)size, (size_t)*copy_len, &copy_size))
+	if (WARN_ON(check_sub_overflow((size_t)size, (size_t)*copy_len, &copy_size)))
 		return -1;
 
 	copy_size = MIN(copy_size, *hdr_btc);
@@ -217,12 +214,10 @@ static inline int kbasep_timeline_copy_headers(struct kbase_timeline *timeline, 
 	if (copy_stream_header(buffer, size, copy_len, aux_desc_header, aux_desc_header_size,
 			       &timeline->aux_header_btc))
 		return -1;
-#if MALI_USE_CSF
 	if (copy_stream_header(buffer, size, copy_len, timeline->csf_tl_reader.tl_header.data,
 			       timeline->csf_tl_reader.tl_header.size,
 			       &timeline->csf_tl_reader.tl_header.btc))
 		return -1;
-#endif
 	return 0;
 }
 
