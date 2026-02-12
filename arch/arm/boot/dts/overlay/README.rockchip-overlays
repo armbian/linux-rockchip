@@ -1,0 +1,21 @@
+This document describes overlays provided in the kernel packages
+For generic Armbian overlays documentation please see
+https://docs.armbian.com/User-Guide_Armbian_overlays/
+
+### Platform:
+
+rockchip (Rockchip)
+with vendor-kernel
+
+### Provided overlays:
+
+for RK3506:
+- disable-ethernet0, disable-ethernet1
+
+### Overlay details:
+
+### rk3506-disable-ethernet0
+Disables `end0` ethernet adapter (`gmac0`, `mdio0`) to save power.
+
+### rk3506-disable-ethernet1
+Disables `end1` ethernet adapter (`gmac1`, `mdio1`) to save power.
