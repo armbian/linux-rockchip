@@ -3765,6 +3765,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 {
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
+	void *data = hdmi->plat_data->phy_data;
 	u32 val;
 
 	if (hdmi->update) {
@@ -3799,6 +3800,8 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 						    HDMTX_EMP_MEM_LEN_LEN);
 				hdmi_writel(hdmi, val, RK_PLUS_GRF_CON0);
 			}
+			if (hdmi->plat_data->set_emp_bypass)
+				hdmi->plat_data->set_emp_bypass(data, true);
 			hdmi_modb(hdmi, PKTSCHED_EMP_EXTMEM_TX_EN,
 				  PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
 		} else {
@@ -3807,6 +3810,8 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 						    HDMTX_EMP_MEM_LEN_LEN);
 				hdmi_writel(hdmi, val, RK_PLUS_GRF_CON0);
 			}
+			if (hdmi->plat_data->set_emp_bypass)
+				hdmi->plat_data->set_emp_bypass(data, false);
 			hdmi_modb(hdmi, 0, PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
 		}
 	}
