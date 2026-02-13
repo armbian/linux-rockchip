@@ -1567,8 +1567,6 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_mipi_mode;
 	struct vop_reg grf_mipi_pin_pol;
 	struct vop_reg grf_mipi_1to4_en;
-	struct vop_reg grf_emp_mem_len_en;
-	struct vop_reg grf_emp_mem_len_bypass;
 };
 
 struct vop_wb_regs {
@@ -1868,7 +1866,6 @@ struct vop2_data {
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *sys_grf;
 	const struct vop_grf_ctrl *grf;
-	const struct vop_grf_ctrl *vo0_grf;
 	const struct vop_grf_ctrl *vo1_grf;
 	const struct vop_grf_ctrl *ioc_grf;
 	const struct vop_dump_regs *dump_regs;
