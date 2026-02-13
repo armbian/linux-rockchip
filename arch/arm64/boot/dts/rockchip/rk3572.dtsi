@@ -2505,7 +2505,6 @@
 			iommus = <&vop_mmu>;
 			power-domains = <&power RK3572_PD_VOP_PRE>;
 			rockchip,ioc-grf = <&ioc_grf>;
-			rockchip,vo0-grf = <&vo_grf>;
 			status = "disabled";
 
 			vop_out: ports {
