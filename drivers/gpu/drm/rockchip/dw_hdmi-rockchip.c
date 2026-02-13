@@ -142,6 +142,8 @@
 
 #define RK3576_VO0_GRF_SOC_CON1		0x0004
 #define RK3576_HDMITX_FRL_MOD		BIT(0)
+#define RK3576_HDMI_EMP_MEM_LEN_BYPASS	BIT(13)
+#define RK3576_HDMI_EMP_MEM_LEN_EN	BIT(14)
 #define RK3576_HDMI_HDCP14_MEM_EN	BIT(15)
 
 #define RK3576_VO0_GRF_SOC_CON8		0x0020
@@ -256,6 +258,7 @@ struct rockchip_hdmi_chip_ops {
 	irqreturn_t (*hdmi_thread)(int irq, void *dev_id);
 	void (*set_hdcp14_mem)(struct rockchip_hdmi *hdmi, bool enable);
 	void (*set_hdcp2_enable)(struct rockchip_hdmi *hdmi, bool enable);
+	void (*set_emp_bypass_enable)(struct rockchip_hdmi *hdmi, bool enable);
 };
 
 /**
@@ -2934,6 +2937,34 @@ static void rk3576_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
 	regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON14, val);
 }
 
+static void rk3572_set_emp_bypass_enable(struct rockchip_hdmi *hdmi, bool enable)
+{
+	u32 val;
+
+	if (enable)
+		val = HIWORD_UPDATE(RK3576_HDMI_EMP_MEM_LEN_EN | RK3576_HDMI_EMP_MEM_LEN_BYPASS,
+				    RK3576_HDMI_EMP_MEM_LEN_EN | RK3576_HDMI_EMP_MEM_LEN_BYPASS);
+	else
+		val = HIWORD_UPDATE(0, RK3576_HDMI_EMP_MEM_LEN_EN |
+				    RK3576_HDMI_EMP_MEM_LEN_BYPASS);
+
+	regmap_write(hdmi->vo0_regmap, RK3572_VO0_GRF_SOC_CON0, val);
+}
+
+static void rk3576_set_emp_bypass_enable(struct rockchip_hdmi *hdmi, bool enable)
+{
+	u32 val;
+
+	if (enable)
+		val = HIWORD_UPDATE(RK3576_HDMI_EMP_MEM_LEN_EN | RK3576_HDMI_EMP_MEM_LEN_BYPASS,
+				    RK3576_HDMI_EMP_MEM_LEN_EN | RK3576_HDMI_EMP_MEM_LEN_BYPASS);
+	else
+		val = HIWORD_UPDATE(0, RK3576_HDMI_EMP_MEM_LEN_EN |
+				    RK3576_HDMI_EMP_MEM_LEN_BYPASS);
+
+	regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON1, val);
+}
+
 static void rk3588_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
 {
 	u32 val;
@@ -4341,6 +4372,14 @@ static bool dw_hdmi_rockchip_get_emp_status(void *data)
 	return hdmi->dynamic_hdr_en;
 };
 
+static void dw_hdmi_rockchip_set_emp_bypass(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (hdmi->chip_data->ops->set_emp_bypass_enable)
+		hdmi->chip_data->ops->set_emp_bypass_enable(hdmi, enable);
+};
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -5737,6 +5776,7 @@ static const struct rockchip_hdmi_chip_ops rk3576_hdmi_chip_ops = {
 	.hdmi_thread = rk3576_hdmi_thread,
 	.set_hdcp14_mem = rk3576_set_hdcp14_mem,
 	.set_hdcp2_enable = rk3576_set_hdcp2_enable,
+	.set_emp_bypass_enable = rk3576_set_emp_bypass_enable,
 };
 
 struct rockchip_hdmi_chip_data rk3576_hdmi_chip_data = {
@@ -5774,6 +5814,7 @@ static const struct rockchip_hdmi_chip_ops rk3572_hdmi_chip_ops = {
 	.hdmi_thread = rk3572_hdmi_thread,
 	.set_hdcp14_mem = rk3572_set_hdcp14_mem,
 	.set_hdcp2_enable = rk3572_set_hdcp2_enable,
+	.set_emp_bypass_enable = rk3572_set_emp_bypass_enable,
 };
 
 struct rockchip_hdmi_chip_data rk3572_hdmi_chip_data = {
@@ -5960,6 +6001,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_hdrvivid_vsdb;
 	plat_data->wait_vblank = dw_hdmi_wait_vblank;
 	plat_data->get_emp_status = dw_hdmi_rockchip_get_emp_status;
+	plat_data->set_emp_bypass = dw_hdmi_rockchip_set_emp_bypass;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);

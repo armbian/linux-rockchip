@@ -316,6 +316,7 @@ struct dw_hdmi_plat_data {
 	void (*sda_delay_cal)(void *data, u8 *sda_dlyn, u8 *sda_div);
 	void (*set_cec_wakeup)(void *data, bool enable);
 	bool (*get_emp_status)(void *data);
+	void (*set_emp_bypass)(void *data, bool enable);
 	int (*get_hdrvivid_vsdb)(void *data, const struct edid *edid,
 				  struct drm_connector *connector, int ext_block_num);
 	void (*wait_vblank)(void *data);
