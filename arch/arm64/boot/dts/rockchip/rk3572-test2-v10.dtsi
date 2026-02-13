@@ -50,6 +50,16 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc3v3_pcie1: vcc3v3-pcie1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie0";
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
 	vcc5v0_usb2_host: vcc5v0-usb2-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb2_host";
@@ -85,6 +95,10 @@
 };
 
 &combphy1_psu {
+	status = "okay";
+};
+
+&combphy2_ps {
 	status = "okay";
 };
 
@@ -157,6 +171,12 @@
 	status = "okay";
 };
 
+&pcie1 {
+	reset-gpios = <&gpio4 RK_PB7 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie1>;
+	status = "okay";
+};
+
 &pinctrl {
 	usb {
 		usb3_switch_default: usb3-switch-default {
@@ -184,6 +204,10 @@
 };
 
 &sai4 {
+	status = "okay";
+};
+
+&sata0 {
 	status = "okay";
 };
 
