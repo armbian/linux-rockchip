@@ -162,6 +162,7 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dcin>;
+		status = "disabled";
 	};
 
 	vcc_3v3_s0: vcc-3v3-s0 {
@@ -388,9 +389,10 @@
 
 	/*
 	 * Solder R1851 and R1860 registers to make this slot
-	 * work according to the schematic of page 17.
+	 * work according to the schematic of page 17. Then disable
+	 * sai1 node, enable this pcie1 node as well as vcc3v3_pcie1 node.
 	 */
-	status = "okay";
+	status = "disabled";
 };
 
 &pdm0 {
