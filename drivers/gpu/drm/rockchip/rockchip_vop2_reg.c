@@ -6610,11 +6610,6 @@ static const struct vop_grf_ctrl rk3572_ioc_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3572_IOC_GRF_GPIO3_IOC_MISC2, 0x1, 1),
 };
 
-static const struct vop_grf_ctrl rk3572_vo0_grf_ctrl = {
-	.grf_emp_mem_len_en = VOP_REG(RK3572_VO_GRF_SOC_CON0, 0x1, 14),
-	.grf_emp_mem_len_bypass = VOP_REG(RK3572_VO_GRF_SOC_CON0, 0x1, 13),
-};
-
 static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
 	.wb_cfg_done = VOP_REG_MASK(RK3572_WB_CFG_DONE, 0x1, 0),
@@ -6722,11 +6717,6 @@ static const struct vop_grf_ctrl rk3576_ioc_grf_ctrl = {
 	.grf_bt656_clk_inv = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 9),
 	.grf_bt1120_clk_inv = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 9),
 	.grf_dclk_inv = VOP_REG(RK3576_VCCIO_IOC_MISC_CON8, 0x1, 9),
-};
-
-static const struct vop_grf_ctrl rk3576_vo0_grf_ctrl = {
-	.grf_emp_mem_len_en = VOP_REG(RK3576_VO0_GRF_SOC_CON1, 0x1, 14),
-	.grf_emp_mem_len_bypass = VOP_REG(RK3576_VO0_GRF_SOC_CON1, 0x1, 13),
 };
 
 static const struct vop2_ctrl rk3576_vop_ctrl = {
@@ -7417,7 +7407,6 @@ static const struct vop2_data rk3572_vop = {
 	.max_input = { 4096, 4096 },
 	.max_output = { 4096, 4096 },
 	.ioc_grf = &rk3572_ioc_grf_ctrl,
-	.vo0_grf = &rk3572_vo0_grf_ctrl,
 	.ctrl = &rk3572_vop_ctrl,
 	.axi_intr = rk3572_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3572_vop_axi_intr),
@@ -7444,7 +7433,6 @@ static const struct vop2_data rk3576_vop = {
 	.max_input = { 4096, 4096 },
 	.max_output = { 4096, 4096 },
 	.ioc_grf = &rk3576_ioc_grf_ctrl,
-	.vo0_grf = &rk3576_vo0_grf_ctrl,
 	.ctrl = &rk3576_vop_ctrl,
 	.axi_intr = rk3576_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3576_vop_axi_intr),

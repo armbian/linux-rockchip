@@ -1089,7 +1089,6 @@ struct vop2 {
 	uint32_t *regsbak;
 	struct regmap *grf;
 	struct regmap *sys_grf;
-	struct regmap *vo0_grf;
 	struct regmap *vo1_grf;
 	struct regmap *sys_pmu;
 	struct regmap *ioc_grf;
@@ -6599,11 +6598,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		VOP_MODULE_SET(vop2, vp, cubic_lut_en, 0);
 	}
 
-	if (vp_data->feature & VOP_FEATURE_DYNAMIC_METADATA_EMP) {
+	if (vp_data->feature & VOP_FEATURE_DYNAMIC_METADATA_EMP)
 		VOP_CTRL_SET(vop2, metadata_lut_en, 0);
-		VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
-		VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
-	}
 
 	if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
 		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
@@ -12868,8 +12864,6 @@ void vop3_setup_dynamic_metadata_for_emp(struct vop2_video_port *vp, uint32_t *d
 	VOP_CTRL_SET(vop2, metadata_mst, metadata_mst);
 	VOP_CTRL_SET(vop2, metadata_lut_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 1);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 1);
 }
 
 static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id,
@@ -13075,8 +13069,6 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	uint8_t adapt_mode;
 
 	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	/* If hdr extend data is null, exit hdr mode */
 	if (!vcstate->hdr_ext_data || vp->bypass_mode) {
@@ -15139,8 +15131,6 @@ static void vop3_setup_plane_ext_data(struct vop2_video_port *vp,
 	if (!vp->sdr2hdr_en)
 		VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 0);
 	VOP_CTRL_SET(vop2, metadata_lut_en, 0);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_en, 0);
-	VOP_GRF_SET(vop2, vo0_grf, grf_emp_mem_len_bypass, 0);
 
 	vp->hdr_en = false;
 	vp->hdr_in = false;
@@ -19505,7 +19495,6 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
-	vop2->vo0_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo0-grf");
 	vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
 	vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
 	vop2->ioc_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,ioc-grf");
