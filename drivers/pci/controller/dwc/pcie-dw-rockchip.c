@@ -427,8 +427,15 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 				 * we keep on accessing devices in unstable link status. Given
 				 * that LTSSM max timeout is 24ms per period, we can wait a bit
 				 * more for Gen switch.
+				 *
+				 * As per PCIe r6.0, sec 6.6.1, a Downstream Port that supports Link
+				 * speeds greater than 5.0 GT/s, software must wait a minimum of 100 ms
+				 * after Link training completes before sending a Configuration Request.
 				 */
-				msleep(50);
+				if (pci->link_gen < 3)
+					msleep(50);
+				else
+					msleep(100);
 				/* In case link drop after linkup, double check it */
 				if (dw_pcie_link_up(pci)) {
 					dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
