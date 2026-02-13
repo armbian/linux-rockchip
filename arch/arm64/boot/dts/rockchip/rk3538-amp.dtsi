@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+#define CPU_GET_AFFINITY(cpu, cluster)		((cpu) << 8)
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru CLK_AON_N100>, <&cru OSC_CLK_N100>,
+			<&cru SCLK_UART1>, <&cru PCLK_UART1>,
+			<&cru CLK_TIMER4>, <&cru CLK_TIMER5>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1m2_xfer_pins>;
+
+		amp-cpu-aff-maskbits = /bits/ 64 <0x000 0x1 0x100 0x2 0x200 0x4 0x300 0x8>;
+		amp-irqs = /bits/ 64 <GIC_AMP_IRQ_CFG_ROUTE(87, 0xd0, CPU_GET_AFFINITY(3, 0))>;
+		status = "okay";
+	};
+};
+
+&reserved_memory {
+	amp_reserved: amp@10000000 {
+		reg = <0x10000000 0x02000000>;
+		no-map;
+	};
+
+	mcu_reserved: mcu@12000000 {
+		reg = <0x12000000 0x200000>;
+		no-map;
+	};
+};
