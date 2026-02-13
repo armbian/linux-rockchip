@@ -1340,6 +1340,44 @@ static void rockchip_pd_qos_init(struct rockchip_pm_domain *pd)
 	}
 }
 
+static void rockchip_pd_cpu_qos_init(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *qos_node;
+	struct regmap *qos_regmap;
+	int i, num_qos = 0;
+	u32 val;
+
+	num_qos = of_count_phandle_with_args(np, "pm_qos", NULL);
+
+	for (i = 0; i < num_qos; i++) {
+		qos_node = of_parse_phandle(np, "pm_qos", i);
+		if (!qos_node) {
+			dev_err(dev, "failed to get qos node %d\n", i);
+			continue;
+		}
+		if (!of_device_is_available(qos_node))
+			goto put_qos_node;
+		qos_regmap = syscon_node_to_regmap(qos_node);
+		if (IS_ERR(qos_regmap)) {
+			dev_err(dev, "failed to get regmap %d\n", i);
+			goto put_qos_node;
+		}
+		if (!of_property_read_u32(qos_node, "priority-init", &val))
+			regmap_write(qos_regmap, QOS_PRIORITY, val);
+		if (!of_property_read_u32(qos_node, "mode-init", &val))
+			regmap_write(qos_regmap, QOS_MODE, val);
+		if (!of_property_read_u32(qos_node, "bandwidth-init", &val))
+			regmap_write(qos_regmap, QOS_BANDWIDTH, val);
+		if (!of_property_read_u32(qos_node, "saturation-init", &val))
+			regmap_write(qos_regmap, QOS_SATURATION, val);
+		if (!of_property_read_u32(qos_node, "extcontrol-init", &val))
+			regmap_write(qos_regmap, QOS_EXTCONTROL, val);
+put_qos_node:
+		of_node_put(qos_node);
+	}
+}
+
 static int rockchip_pd_add_alwasy_on_flag(struct rockchip_pm_domain *pd)
 {
 	int error;
@@ -1936,6 +1974,8 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	 * setup (clocks, register initialization).
 	 */
 	guard(mutex)(&dmc_pmu_mutex);
+
+	rockchip_pd_cpu_qos_init(dev);
 
 	for_each_available_child_of_node_scoped(np, node) {
 		error = rockchip_pm_add_one_domain(pmu, node);
