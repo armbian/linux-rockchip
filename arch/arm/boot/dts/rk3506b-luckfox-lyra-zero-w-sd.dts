@@ -9,7 +9,7 @@
 
 / {
 	model = "Luckfox Lyra Zero W";
-	compatible = "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
+	compatible = "rockchip,rk3506b-lyra-zero", "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";

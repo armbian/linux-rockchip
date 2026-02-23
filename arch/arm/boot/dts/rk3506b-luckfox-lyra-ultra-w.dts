@@ -9,7 +9,7 @@
 
 / {
 	model = "Luckfox Lyra Ultra W";
-	compatible = "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
+	compatible = "rockchip,rk3506b-lyra-ultra", "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
 
 	//acodec_sound: acodec-sound {
 	//	compatible = "simple-audio-card";

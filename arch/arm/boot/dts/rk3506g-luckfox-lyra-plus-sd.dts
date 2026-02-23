@@ -9,7 +9,7 @@
 
 / {
 	model = "Luckfox Lyra Plus";
-	compatible = "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
+	compatible = "rockchip,rk3506g-lyra-plus", "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
 };
 
 /**********display**********/

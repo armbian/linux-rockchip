@@ -10,7 +10,28 @@ with vendor-kernel
 ### Provided overlays:
 
 for RK3506:
-- disable-ethernet0, disable-ethernet1
+- disable-ethernet0
+- disable-ethernet1
+
+for Forlinx OK3506-S12:
+- spi0-1cs-spidev
+- spi0-2cs-spidev
+- spi1-1cs-spidev
+- spi1-2cs-spidev
+
+for Luckfox Lyra Plus:
+- spi0-1cs-spidev
+- spi0-1cs_rmio13-spidev
+- spi0-2cs-spidev
+
+for Luckfox Lyra Ultra W:
+- spi0-1cs-spidev
+
+for Luckfox Lyra Zero W:
+- spi0-1cs-spidev
+- spi0-2cs-spidev
+- spi1-1cs-spidev
+- spi1-2cs-spidev
 
 ### Overlay details:
 
@@ -19,3 +40,51 @@ Disables `end0` ethernet adapter (`gmac0`, `mdio0`) to save power.
 
 ### rk3506-disable-ethernet1
 Disables `end1` ethernet adapter (`gmac1`, `mdio1`) to save power.
+
+### forlinx-ok3506-s12-spi0-1cs-spidev
+Enables SPI0 spidev on forlinx-ok3506-s12 with one chipselect.
+Compatible with Raspberry Pi 'spi0-1cs' hats.
+
+### forlinx-ok3506-s12-spi0-2cs-spidev
+Enables SPI0 spidev on forlinx-ok3506-s12 with two chipselects.
+Compatible with Raspberry Pi 'spi0-2cs' hats.
+
+### forlinx-ok3506-s12-spi1-1cs-spidev
+Enables SPI1 spidev on forlinx-ok3506-s12 with one chipselect.
+Compatible with Raspberry Pi 'spi1-1cs' hats.
+
+### forlinx-ok3506-s12-spi1-2cs-spidev
+Enables SPI1 spidev on forlinx-ok3506-s12 with two chipselects.
+Compatible with Raspberry Pi 'spi1-2cs' hats.
+
+### luckfox-lyra-plus-spi0-1cs-spidev
+Enables SPI0 spidev on luckfox-lyra-plus with one chipselect (CS0 = RM_IO8).
+Retains pin-compatibility with Luckfox Pico Plus.
+
+### luckfox-lyra-plus-spi0-1cs_rmio13-spidev
+Enables SPI0 spidev on luckfox-lyra-plus with CS0 on RM_IO13.
+For Waveshare Pi Pico LoRa Hat which uses RM_IO13 as CS.
+
+### luckfox-lyra-plus-spi0-2cs-spidev
+Enables SPI0 spidev on luckfox-lyra-plus with two chipselects.
+Retains pin-compatibility with Luckfox Pico Plus.
+
+### luckfox-lyra-ultra-w-spi0-1cs-spidev
+Enables SPI0 spidev on luckfox-lyra-ultra-w with one chipselect.
+Retains pin-compatibility with Luckfox Pico Ultra.
+
+### luckfox-lyra-zero-w-spi0-1cs-spidev
+Enables SPI0 spidev on luckfox-lyra-zero-w with one chipselect.
+Compatible with Raspberry Pi 'spi0-1cs' hats.
+
+### luckfox-lyra-zero-w-spi0-2cs-spidev
+Enables SPI0 spidev on luckfox-lyra-zero-w with two chipselects.
+Compatible with Raspberry Pi 'spi0-2cs' hats.
+
+### luckfox-lyra-zero-w-spi1-1cs-spidev
+Enables SPI1 spidev on luckfox-lyra-zero-w with one chipselect.
+Compatible with Raspberry Pi 'spi1-1cs' hats.
+
+### luckfox-lyra-zero-w-spi1-2cs-spidev
+Enables SPI1 spidev on luckfox-lyra-zero-w with two chipselects.
+Compatible with Raspberry Pi 'spi1-2cs' hats.

@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Compatible with waveshare LoRa Hat for Pi Pico (CS0 = RM_IO13)
+ * Enable spidev on SPI0 with explicit RM_IO pinmux:
+ * MOSI = RM_IO6, MISO = RM_IO5, CLK = RM_IO7, CS0 = RM_IO13
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable SPI0 spidev on luckfox-lyra-plus (CS0 = RM_IO13)";
+		compatible = "rockchip,rk3506g-lyra-plus";
+		category = "spi";
+		exclusive = "spi0", "RM_IO5", "RM_IO6", "RM_IO7", "RM_IO13";
+		description = "Enable SPI0 spidev using RM_IO6(MOSI), RM_IO5(MISO), RM_IO7(CLK), RM_IO13(CS0).";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io7_spi0_clk &rm_io5_spi0_miso &rm_io6_spi0_mosi &rm_io13_spi0_csn0>;
+
+	spi@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		status = "okay";
+	};
+};

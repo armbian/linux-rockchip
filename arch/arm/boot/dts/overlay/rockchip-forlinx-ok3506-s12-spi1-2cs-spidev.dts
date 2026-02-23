@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Enable spidev on SPI1 with standard RM_IO pinmux:
+ * MOSI = RM_IO9, MISO = RM_IO10, CLK = RM_IO8, CS0 = RM_IO14, CS1 = RM_IO7
+ * Compatible with Raspberry Pi 'spi1-2cs' hats
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable SPI1 spidev on forlinx-ok3506-s12 with two chipselects";
+		compatible = "forlinx,ok3506";
+		category = "spi";
+		exclusive = "spi1", "RM_IO7", "RM_IO8", "RM_IO9", "RM_IO10", "RM_IO14";
+		description = "Enable SPI1 spidev using RM_IO9(MOSI), RM_IO10(MISO), RM_IO8(CLK), RM_IO14(CS0), RM_IO7(CS1).";
+	};
+};
+
+&spi1 {
+	status = "okay";
+	num-cs = <2>;
+
+	spi@0 {
+		status = "okay";
+	};
+
+	spi@1 {
+		compatible = "rockchip,spidev";
+		reg = <1>;
+		spi-max-frequency = <50000000>;
+		status = "okay";
+	};
+};
