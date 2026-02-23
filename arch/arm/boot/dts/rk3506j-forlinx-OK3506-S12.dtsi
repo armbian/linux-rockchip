@@ -202,24 +202,24 @@
 };
 
 &spi0 {
-	status = "okay";
+	status = "disabled";
 
 	spi@0 {
 		compatible = "rockchip,spidev";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
 &spi1 {
-	status = "okay";
+	status = "disabled";
 
 	spi@0 {
 		compatible = "rockchip,spidev";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
