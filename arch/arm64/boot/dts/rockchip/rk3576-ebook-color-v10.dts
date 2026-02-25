@@ -51,48 +51,7 @@
 	panel,disable_logo = <1>;
 };
 
-&i2c5 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5m2_xfer>;
-
-	wacom: wacom@9 {
-		compatible = "wacom,w9013";
-		reg = <0x09>;
-		pwr-supply = <&vcc_emr>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wacom_gpio>;
-		gpio_detect = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
-		gpio_intr = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
-		gpio_rst = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-		revert_x = <0>;
-		revert_y = <1>;
-		xy_exchange = <1>;
-	};
-};
-
 &i2c9 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c9m2_xfer>;
-
-	focaltech: focaltech@38 {
-		status = "disabled";
-		compatible = "rockchip,fts_ts";
-		reg = <0x38>;
-		power-supply = <&vcc_emr>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touch_gpio>;
-		t_irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-		t_rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		focaltech,display-coords =  <0 0 1404 1872>;
-		focaltech,have-key;
-		focaltech,key-number = <1>;
-		focaltech,keys = <158>;
-		focaltech,key-x-coords = <2000>;
-		focaltech,key-y-coords = <2000>;
-	};
-
 	tsc@24 {
 		status = "okay";
 		compatible = "parade,pt_i2c_adapter";
@@ -102,7 +61,7 @@
 		parade,adapter_id = "pt_i2c_adapter";
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-
+		cytp-supply = <&vcc_tpemr>;
 		parade,core {
 			parade,name = "pt_core";
 
@@ -193,4 +152,14 @@
 			};
 		};
 	};
+};
+
+&touchscreen_ft5726 {
+	status = "disabled";
+};
+
+&wacom {
+	revert_x = <0>;
+	revert_y = <1>;
+	xy_exchange = <1>;
 };
