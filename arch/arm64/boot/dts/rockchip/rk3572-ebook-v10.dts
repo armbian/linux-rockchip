@@ -133,13 +133,13 @@
 		regulator-max-microvolt = <3800000>;
 	};
 
-	vcc_emr: vcc-emr {
+	vcc_tpemr: vcc-tpemr {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc_emr_en>;
-		regulator-name = "vcc_emr";
+		pinctrl-0 = <&vcc_tpemr_en>;
+		regulator-name = "vcc_tpemr";
 		regulator-boot-on;
 		startup-delay-us = <10000>;
 		regulator-min-microvolt = <3300000>;
@@ -432,7 +432,7 @@
 	wacom: wacom@9 {
 		compatible = "wacom,w9013";
 		reg = <0x09>;
-		pwr-supply = <&vcc_emr>;
+		pwr-supply = <&vcc_tpemr>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wacom_gpio>;
 		gpio_detect = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
@@ -449,21 +449,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c9m2_xfer_pins>;
 
-	focaltech: focaltech@38 {
+	touchscreen_ft5726: ft5726@38 {
 		status = "okay";
-		compatible = "rockchip,fts_ts";
+		compatible = "focaltech,ft5726";
 		reg = <0x38>;
-		power-supply = <&vcc_emr>;
+		vdd-supply = <&vcc_tpemr>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		t_irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
 		t_rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		focaltech,display-coords =  <0 0 1404 1872>;
-		focaltech,have-key;
-		focaltech,key-number = <1>;
-		focaltech,keys = <158>;
-		focaltech,key-x-coords = <2000>;
-		focaltech,key-y-coords = <2000>;
+		t_irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		focaltech,max-touch-number = <5>;
+		focaltech,display-coords =  <0 0 1872 1404>;
+		focaltech,revert_x_flag = <1>;
+		focaltech,revert_y_flag = <1>;
+		focaltech,exchange_x_y_flag = <0>;
 	};
 };
 
@@ -564,7 +563,7 @@
 					<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		vcc_emr_en: vcc-emr-en {
+		vcc_tpemr_en: vcc-tpemr-en {
 			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

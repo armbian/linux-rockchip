@@ -37,10 +37,6 @@
 	panel,height-mm = <210>;
 };
 
-&focaltech {
-	status = "disabled";
-};
-
 &i2c9 {
 	tsc@24 {
 		status = "okay";
@@ -51,7 +47,7 @@
 		parade,adapter_id = "pt_i2c_adapter";
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		cytp-supply = <&vcc_emr>;
+		cytp-supply = <&vcc_tpemr>;
 		parade,core {
 			parade,name = "pt_core";
 
@@ -142,6 +138,10 @@
 			};
 		};
 	};
+};
+
+&touchscreen_ft5726 {
+	status = "disabled";
 };
 
 &wacom {
