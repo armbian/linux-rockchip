@@ -8,6 +8,7 @@
 #include "rk3572-evb1-v10.dtsi"
 #include "rk3572-linux.dtsi"
 #include "rk3572-evb1-cam-csi0.dtsi"
+#include "rk3572-evb1-cam-csi1.dtsi"
 
 / {
 	model = "Rockchip RK3572 EVB1 V10 Board";
