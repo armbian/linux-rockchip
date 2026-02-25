@@ -114,12 +114,28 @@ struct rockchip_pmu_info {
 
 #define SHAPING_NBPKTMAX0	0x0
 
+struct rockchip_perf_config {
+	u32 offset;
+	u32 mask;
+	u32 w_mask;
+	u32 value;
+	bool is_need_init;
+};
+
+struct rockchip_domain_perf {
+	struct regmap *regmap;
+	struct rockchip_perf_config *perf_cfgs;
+	u32 num_cfg;
+	bool is_need_init;
+};
+
 struct rockchip_pm_domain {
 	struct generic_pm_domain genpd;
 	const struct rockchip_domain_info *info;
 	struct rockchip_pmu *pmu;
 	int num_qos;
 	int num_shaping;
+	int num_perf;
 	struct regmap **qos_regmap;
 	struct regmap **shaping_regmap;
 	u32 *qos_save_regs[MAX_QOS_REGS_NUM];
@@ -133,7 +149,9 @@ struct rockchip_pm_domain {
 	bool is_qos_saved;
 	bool is_qos_need_init;
 	bool is_shaping_need_init;
+	bool is_perf_need_init;
 	struct regulator *supply;
+	struct rockchip_domain_perf *perf;
 };
 
 struct rockchip_pmu {
@@ -783,6 +801,75 @@ int rockchip_pmu_idle_request(struct device *dev, bool idle)
 }
 EXPORT_SYMBOL(rockchip_pmu_idle_request);
 
+static int rockchip_pmu_save_perf(struct rockchip_pm_domain *pd)
+{
+	struct rockchip_domain_perf *perf;
+	struct rockchip_perf_config *cfg;
+	int i, j;
+
+	for (i = 0; i < pd->num_perf; i++) {
+		perf = &pd->perf[i];
+		for (j = 0; j < perf->num_cfg; j++) {
+			cfg = &perf->perf_cfgs[j];
+			regmap_read(perf->regmap, cfg->offset, &cfg->value);
+		}
+	}
+
+	return 0;
+}
+
+static int rockchip_pmu_restore_perf(struct rockchip_pm_domain *pd)
+{
+	struct rockchip_domain_perf *perf;
+	struct rockchip_perf_config *cfg;
+	int i, j;
+
+	for (i = 0; i < pd->num_perf; i++) {
+		perf = &pd->perf[i];
+		for (j = 0; j < perf->num_cfg; j++) {
+			cfg = &perf->perf_cfgs[j];
+			if (cfg->w_mask)
+				regmap_write(perf->regmap, cfg->offset,
+					     cfg->w_mask | cfg->value);
+			else
+				regmap_update_bits(perf->regmap, cfg->offset,
+						   cfg->mask, cfg->value);
+		}
+	}
+
+	return 0;
+}
+
+static void rockchip_pmu_init_perf(struct rockchip_pm_domain *pd)
+{
+	struct rockchip_domain_perf *perf;
+	struct rockchip_perf_config *cfg;
+	int i, j;
+
+	if (!pd->is_perf_need_init)
+		return;
+
+	for (i = 0; i < pd->num_perf; i++) {
+		perf = &pd->perf[i];
+		if (!perf->is_need_init)
+			continue;
+		for (j = 0; j < perf->num_cfg; j++) {
+			cfg = &perf->perf_cfgs[j];
+			if (!cfg->is_need_init)
+				continue;
+			if (cfg->w_mask)
+				regmap_write(perf->regmap, cfg->offset,
+					     cfg->w_mask | cfg->value);
+			else
+				regmap_update_bits(perf->regmap, cfg->offset,
+						   cfg->mask, cfg->value);
+		}
+		perf->is_need_init = false;
+	}
+
+	pd->is_perf_need_init = false;
+}
+
 static int rockchip_pmu_save_shaping(struct rockchip_pm_domain *pd)
 {
 	int i;
@@ -805,6 +892,12 @@ static int rockchip_pmu_restore_shaping(struct rockchip_pm_domain *pd)
 	return 0;
 }
 
+static void rockchip_pd_free_shaping_init(struct rockchip_pm_domain *pd)
+{
+	kfree(pd->shaping_is_need_init);
+	pd->shaping_is_need_init = NULL;
+}
+
 static void rockchip_pmu_init_shaping(struct rockchip_pm_domain *pd)
 {
 	int i;
@@ -817,8 +910,7 @@ static void rockchip_pmu_init_shaping(struct rockchip_pm_domain *pd)
 			regmap_write(pd->shaping_regmap[i], SHAPING_NBPKTMAX0,
 				     pd->shaping_save_regs[i]);
 
-	kfree(pd->shaping_is_need_init);
-	pd->shaping_is_need_init = NULL;
+	rockchip_pd_free_shaping_init(pd);
 	pd->is_shaping_need_init = false;
 }
 
@@ -845,6 +937,8 @@ static int rockchip_pmu_save_qos(struct rockchip_pm_domain *pd)
 			    QOS_EXTCONTROL,
 			    &pd->qos_save_regs[4][i]);
 	}
+
+	rockchip_pmu_save_perf(pd);
 
 	return rockchip_pmu_save_shaping(pd);
 }
@@ -873,6 +967,8 @@ static int rockchip_pmu_restore_qos(struct rockchip_pm_domain *pd)
 			     pd->qos_save_regs[4][i]);
 	}
 
+	rockchip_pmu_restore_perf(pd);
+
 	return rockchip_pmu_restore_shaping(pd);
 }
 
@@ -880,6 +976,7 @@ static void rockchip_pmu_init_qos(struct rockchip_pm_domain *pd)
 {
 	int i;
 
+	rockchip_pmu_init_perf(pd);
 	rockchip_pmu_init_shaping(pd);
 
 	if (!pd->is_qos_need_init)
@@ -1178,7 +1275,8 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			rockchip_pmu_wait_fw_shift_ready(pd);
 			if (pd->is_qos_saved)
 				rockchip_pmu_restore_qos(pd);
-			if (pd->is_qos_need_init || pd->is_shaping_need_init)
+			if (pd->is_qos_need_init || pd->is_shaping_need_init ||
+			    pd->is_perf_need_init)
 				rockchip_pmu_init_qos(pd);
 		}
 
@@ -1325,7 +1423,8 @@ static void rockchip_pd_qos_init(struct rockchip_pm_domain *pd)
 		kfree(pd->shaping_is_need_init);
 		pd->shaping_is_need_init = NULL;
 	}
-	if (!pd->is_qos_need_init && !pd->is_shaping_need_init)
+	if (!pd->is_qos_need_init && !pd->is_shaping_need_init &&
+	    !pd->is_perf_need_init)
 		return;
 
 	is_pd_on = rockchip_pmu_domain_is_on(pd);
@@ -1466,10 +1565,116 @@ static int rockchip_pd_of_get_shaping(struct rockchip_pm_domain *pd,
 err_put_node:
 	of_node_put(shaping_node);
 err_free_init:
-	kfree(pd->shaping_is_need_init);
-	pd->shaping_is_need_init = NULL;
+	rockchip_pd_free_shaping_init(pd);
 
 	return error;
+}
+
+static int rockchip_pd_parse_perf_table(struct device *dev,
+					struct device_node *node,
+					struct rockchip_domain_perf *perf)
+{
+	char *prop_name = "rockchip,perf-cfg";
+	struct rockchip_perf_config *cfg;
+	const struct property *prop;
+	u32 is_need_init = 0, w_mask_en = 0;
+	int count, i;
+
+	prop = of_find_property(node, prop_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(node, prop_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 5)
+		return -EINVAL;
+
+	cfg = devm_kcalloc(dev, count / 5, sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 5; i++) {
+		of_property_read_u32_index(node, prop_name, 5 * i,
+					   &cfg[i].offset);
+		of_property_read_u32_index(node, prop_name, 5 * i + 1,
+					   &cfg[i].mask);
+		of_property_read_u32_index(node, prop_name, 5 * i + 2,
+					   &w_mask_en);
+		if (w_mask_en)
+			cfg[i].w_mask = cfg[i].mask << 16;
+		of_property_read_u32_index(node, prop_name, 5 * i + 3,
+					   &cfg[i].value);
+		of_property_read_u32_index(node, prop_name, 5 * i + 4,
+					   &is_need_init);
+		if (is_need_init) {
+			cfg[i].is_need_init = true;
+			perf->is_need_init = true;
+		}
+	}
+
+	perf->perf_cfgs = cfg;
+	perf->num_cfg = count / 5;
+
+	return 0;
+}
+
+static int rockchip_pd_of_get_perf(struct rockchip_pm_domain *pd,
+				      struct device_node *node)
+{
+	struct rockchip_pmu *pmu = pd->pmu;
+	struct device_node *perf_node;
+	struct rockchip_domain_perf *perf;
+	int num_perf = 0, index_perf = 0;
+	int i;
+
+	num_perf = of_count_phandle_with_args(node, "pm_perf", NULL);
+
+	for (i = 0; i < num_perf; i++) {
+		perf_node = of_parse_phandle(node, "pm_perf", i);
+		if (perf_node && of_device_is_available(perf_node))
+			pd->num_perf++;
+		of_node_put(perf_node);
+	}
+
+	if (pd->num_perf <= 0)
+		return 0;
+
+	pd->perf = devm_kcalloc(pmu->dev, pd->num_perf, sizeof(*pd->perf),
+				GFP_KERNEL);
+	if (!pd->perf)
+		return -ENOMEM;
+
+	for (i = 0; i < num_perf; i++) {
+		perf_node = of_parse_phandle(node, "pm_perf", i);
+		if (!perf_node || !of_device_is_available(perf_node))
+			continue;
+		if (index_perf >= pd->num_perf) {
+			of_node_put(perf_node);
+			return -EINVAL;
+		}
+		perf = &pd->perf[index_perf++];
+		perf->regmap = syscon_node_to_regmap(perf_node->parent);
+		if (IS_ERR(perf->regmap)) {
+			of_node_put(perf_node);
+			return -ENODEV;
+		}
+
+		if (rockchip_pd_parse_perf_table(pmu->dev, perf_node, perf)) {
+			of_node_put(perf_node);
+			return -ENODEV;
+		}
+
+		if (perf->is_need_init)
+			pd->is_perf_need_init = true;
+		of_node_put(perf_node);
+	}
+
+	return 0;
 }
 
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
@@ -1650,6 +1855,10 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (error)
 		goto err_unprepare_clocks;
 
+	error = rockchip_pd_of_get_perf(pd, node);
+	if (error)
+		goto err_free_shaping_init;
+
 	if (of_property_read_bool(node, "rockchip,always-on"))
 		pd->is_always_on = true;
 
@@ -1666,7 +1875,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (pd_info->always_on || pd_info->keepon_startup || pd->is_always_on) {
 		error = rockchip_pd_add_alwasy_on_flag(pd);
 		if (error)
-			goto err_unprepare_clocks;
+			goto err_free_shaping_init;
 	}
 	rockchip_pd_qos_init(pd);
 
@@ -1678,6 +1887,8 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pmu->genpd_data.domains[id] = &pd->genpd;
 	return 0;
 
+err_free_shaping_init:
+	rockchip_pd_free_shaping_init(pd);
 err_unprepare_clocks:
 	kfree(pd->qos_is_need_init[0]);
 	pd->qos_is_need_init[0] = NULL;
