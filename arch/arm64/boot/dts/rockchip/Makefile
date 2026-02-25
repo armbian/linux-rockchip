@@ -578,6 +578,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c-spi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-nanopi-rev01.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-blueberry-r58-4x4.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-recomputer-rk3576-devkit.dtb
 
 subdir-y := $(dts-dirs) overlay
 
