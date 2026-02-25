@@ -1028,6 +1028,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		v4l2_err(v4l2_dev, "Failed to register media device:%d\n", ret);
 		goto err_unreg_v4l2_dev;
 	}
+	lockdep_set_subclass(&isp_dev->media_dev.graph_mutex, RK_MEDIA_GRAPH_MUTEX_SUBCLASS_ISP);
 
 	pm_runtime_enable(dev);
 	/* create & register platefom subdev (from of_node) */

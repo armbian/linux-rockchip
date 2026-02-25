@@ -351,6 +351,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 		v4l2_err(v4l2_dev, "register media device failed:%d\n", ret);
 		goto err_unreg_v4l2_dev;
 	}
+	lockdep_set_subclass(&vpss_dev->media_dev.graph_mutex, RK_MEDIA_GRAPH_MUTEX_SUBCLASS_VPSS);
 
 	ret = rkvpss_register_platform_subdevs(vpss_dev);
 	if (ret < 0)

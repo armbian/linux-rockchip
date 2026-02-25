@@ -4,6 +4,8 @@
 #ifndef _RKISP_VPSS_H
 #define _RKISP_VPSS_H
 
+#include "isp_external.h"
+
 #define RKISP_VPSS_CMD_SOF \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_vpss_sof)
 

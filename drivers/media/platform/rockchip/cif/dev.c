@@ -3165,6 +3165,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 			 ret);
 		goto err_unreg_v4l2_dev;
 	}
+	lockdep_set_subclass(&cif_dev->media_dev.graph_mutex, RK_MEDIA_GRAPH_MUTEX_SUBCLASS_VICAP);
 
 	/* create & register platefom subdev (from of_node) */
 	ret = rkcif_register_platform_subdevs(cif_dev);

@@ -45,7 +45,7 @@
 #include "isp_stats.h"
 #include "isp_mipi_luma.h"
 #include "procfs.h"
-#include "isp_external.h"
+#include "isp_vicap.h"
 #include "isp_pdaf.h"
 #include "isp_sditf.h"
 #include "version.h"

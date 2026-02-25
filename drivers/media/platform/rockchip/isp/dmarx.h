@@ -6,7 +6,7 @@
 
 #include "capture.h"
 #include "common.h"
-#include "isp_external.h"
+#include "isp_vicap.h"
 
 #define DMA_VDEV_NAME DRIVER_NAME	"_dmapath"
 #define DMARX0_VDEV_NAME DRIVER_NAME	"_rawrd0_m"

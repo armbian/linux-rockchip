@@ -47,7 +47,7 @@
 #include <media/media-entity.h>
 
 #include "common.h"
-#include "isp_external.h"
+#include "isp_vicap.h"
 #include "regs.h"
 #include "rkisp_tb_helper.h"
 #include "isp_params_v35.h"

@@ -17,7 +17,7 @@
 #include <media/v4l2-mc.h>
 #include <linux/rk-camera-module.h>
 #include "hw.h"
-#include "../isp/isp_external.h"
+#include "../isp/isp_vicap.h"
 
 #define RKISP0_DEVNAME "rkisp0"
 #define RKISP1_DEVNAME "rkisp1"

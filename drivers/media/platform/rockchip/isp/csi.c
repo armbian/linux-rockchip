@@ -12,7 +12,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include "dev.h"
-#include "isp_external.h"
+#include "isp_vicap.h"
 #include "regs.h"
 
 void rkisp_get_remote_mipi_sensor(struct rkisp_device *dev,
