@@ -577,9 +577,10 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 			 * PLL LPF R1 adjust = 1001
 			 * PLL KVCO adjust = 000 (min)
 			 * PLL KVCO fine tuning signals = 01
+			 * CKRCV termination resister adjust 11: Hi-Z
 			 */
-			rockchip_combphy_updatel(priv, GENMASK(2, 0),
-						 BIT(29) | (0x7 << 4 | 0x9 << 7), 0x108);
+			rockchip_combphy_updatel(priv, GENMASK(21, 20) | GENMASK(10, 7) | GENMASK(2, 0),
+						 BIT(29) | (0x3 << 20 | 0x9 << 7 | 0x7 << 4), 0x108);
 			rockchip_combphy_updatel(priv, GENMASK(12, 10), 0x2 << 10, 0x18);
 		}
 	}
@@ -1132,10 +1133,13 @@ static int rk3572_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 			writel(0x0c, priv->mmio + (0x1b << 2));
 
-			/* Set up su_trim: T3_P1 650mv */
+			/*
+			 * Set up su_trim: T3_P1 650mv
+			 * CKRCV termination resister adjust 11: Hi-Z
+			 */
 			writel(0x90, priv->mmio + (0xa << 2));
 			writel(0x43, priv->mmio + (0xb << 2));
-			writel(0x88, priv->mmio + (0xc << 2));
+			writel(0xb8, priv->mmio + (0xc << 2));
 			writel(0x56, priv->mmio + (0xd << 2));
 		}
 	}
@@ -1349,10 +1353,13 @@ static int rk3576_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 			writel(0x0c, priv->mmio + (0x1b << 2));
 
-			/* Set up su_trim: T3_P1 650mv */
+			/*
+			 * Set up su_trim: T3_P1 650mv
+			 * CKRCV termination resister adjust 11: Hi-Z
+			 */
 			writel(0x90, priv->mmio + (0xa << 2));
 			writel(0x43, priv->mmio + (0xb << 2));
-			writel(0x88, priv->mmio + (0xc << 2));
+			writel(0xb8, priv->mmio + (0xc << 2));
 			writel(0x56, priv->mmio + (0xd << 2));
 		}
 	}
@@ -1582,12 +1589,15 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val = 0x0c;
 			writel(val, priv->mmio + (0x1b << 2));
 
-			/* Set up su_trim: T3_P1 650mv */
+			/*
+			 * Set up su_trim: T3_P1 650mv
+			 * CKRCV termination resister adjust 11: Hi-Z
+			 */
 			val = 0x90;
 			writel(val, priv->mmio + (0xa << 2));
 			val = 0x43;
 			writel(val, priv->mmio + (0xb << 2));
-			val = 0x88;
+			val = 0xb8;
 			writel(val, priv->mmio + (0xc << 2));
 			val = 0x56;
 			writel(val, priv->mmio + (0xd << 2));
