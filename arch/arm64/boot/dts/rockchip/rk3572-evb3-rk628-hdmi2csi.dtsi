@@ -1,0 +1,206 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	hdmiin_sound: hdmiin-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,bitclock-master = <&rk628_csi>;
+		rockchip,card-name = "rockchip,rk628hdmiin";
+		rockchip,codec = <&rk628_csi>;
+		rockchip,cpu = <&sai0>;
+		rockchip,frame-master = <&rk628_csi>;
+		rockchip,jack-det;
+		rockchip,mclk-fs = <128>;
+	};
+
+	/* Dummy Codec for HDMI Audio */
+	rk628_dc: rk628-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	rkvtunnel: rkvtunnel {
+		status = "okay";
+		compatible = "rockchip,video-tunnel";
+	};
+};
+
+/* MIPI CSI-2 DPHY 0 */
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi_mipi_in: endpoint@1 {
+				reg = <1>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&hdmiin_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+/* I2C5 Controller - Connected to RK628 */
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m0_xfer_pins>;
+
+	/* RK628 HDMI-to-CSI Bridge */
+	rk628_csi: rk628_csi@50 {
+		status = "okay";
+		reg = <0x50>;
+		compatible = "rockchip,rk628-csi-v4l2";
+		cec-enable;
+		continues-clk = <1>;
+		/* Enable GPIO: Active High */
+		enable-gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_HIGH>;
+		/* Interrupts & Pinctrl */
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628_pin>;
+		/* Plugin Detection */
+		plugin-det-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
+		/* Power & Reset */
+		power-domains = <&power RK3572_PD_VI>;
+		/* Reset GPIO: Active Low (Fixed) */
+		reset-gpios = <&gpio2 RK_PA1 GPIO_ACTIVE_LOW>;
+
+		/* Audio */
+		#sound-dai-cells = <0>;
+
+		/* Camera Module Info */
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-lens-name = "RK628-CSI";
+		rockchip,camera-module-name = "HDMI-MIPI";
+
+		multi-dev-info {
+			combine-idx = <0>;
+			dev-idx-l = <0>;
+			dev-idx-r = <2>;
+			dev-num = <2>;
+			pixel-offset = <0>;
+		};
+
+		port {
+			hdmiin_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&hdmi_mipi_in>;
+			};
+		};
+	};
+};
+
+/* MIPI CSI-2 Controller */
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+/* Pin Control */
+&pinctrl {
+	hdmiin {
+		rk628_pin: rk628-pin {
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+				 <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,
+				 <2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,
+				 <2 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	i2c5 {
+		/omit-if-no-ref/
+		i2c5m0_xfer_pins: i2c5m0-xfer-pins {
+			rockchip,pins =
+				/* i2c5_scl_m0 */
+				<2 RK_PA5 11 &pcfg_pull_up_smt>,
+				/* i2c5_sda_m0 */
+				<2 RK_PA4 11 &pcfg_pull_up_smt>;
+		};
+	};
+};
+
+/* ISP / VICAP Pipeline */
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+/* Audio SAI0 */
+&sai0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai0m1_lrck_pins
+		     &sai0m1_sclk_pins
+		     &sai0m1_sdi0_pins>;
+};
