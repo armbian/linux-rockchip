@@ -266,10 +266,13 @@
 };
 
 /*
- * The pins of rk730_sound and backlight_mcu are multiplexed
+ * The pin of hp-con-gpio on rk730_sound and backlight_mcu are
+ * multiplexed. To ensure audio-video synchronization during video
+ * playback, rk730_sound cannot be disabled, so only the hp-con-gpio
+ * property is removed.
  */
 &rk730_sound {
-	status = "disabled";
+	/delete-property/ hp-con-gpio;
 };
 
 /*
