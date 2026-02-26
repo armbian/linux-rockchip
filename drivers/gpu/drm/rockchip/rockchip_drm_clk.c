@@ -64,6 +64,43 @@ static long rockchip_rk3568_drm_dclk_round_rate(struct clk *dclk, unsigned long 
 	return round_rate;
 }
 
+static long rockchip_rk3572_vopl_drm_dclk_round_rate(struct clk *dclk, unsigned long rate)
+{
+	struct clk_hw *hw;
+	struct clk_hw *p_hw;
+	unsigned long round_rate;
+	const char *name;
+
+	hw = __clk_get_hw(dclk);
+	if (!hw)
+		return -EINVAL;
+
+	p_hw = clk_hw_get_parent(hw);
+	if (!p_hw)
+		return -EINVAL;
+
+	name = clk_hw_get_name(p_hw);
+
+	if (!strcmp(name, "dclk_ebc_frac_src")) {
+		round_rate = rate;
+	} else {
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+
+		name = clk_hw_get_name(p_hw);
+		if (!strcmp(name, "vpll"))
+			round_rate = rate;
+		else
+			round_rate = clk_round_rate(dclk, rate);
+	}
+
+	return round_rate;
+}
+
 static long rockchip_rk3576_vopl_drm_dclk_round_rate(struct clk *dclk, unsigned long rate)
 {
 	struct clk_hw *hw;
@@ -223,6 +260,69 @@ static int rockchip_rk3568_drm_dclk_set_rate(struct clk *dclk, unsigned long rat
 		clk_set_rate(dclk, rate);
 	} else {
 		clk_set_rate(dclk, rate);
+	}
+
+	pr_debug("%s:request rate = %ld, %s = %ld %s = %ld\n", __func__, rate,
+		 clk_hw_get_name(hw), clk_hw_get_rate(hw),
+		 clk_hw_get_name(p_hw), clk_hw_get_rate(p_hw));
+
+	return 0;
+}
+
+/*
+ * The rk3572 ebc setting clk rule.
+ * The dclk_ebc can select dclk_ebc_frac_src, use digital decimal divider,
+ * the recommended frequency is less than 60M.
+ * The dclk_ebc can select dclk_ebc_int_src.
+ * The dclk_ebc_int_src can select gpll or cpll, can only choose the nearest
+ * frequency division(gpll:1188M,cpll:1000M),
+ * and can't support accurate frequency setting.
+ * The dclk_ebc_int_src can select vpll, the vpll is ebc exclusive.
+ *
+ */
+static int rockchip_rk3572_vopl_drm_dclk_set_rate(struct clk *dclk, unsigned long rate)
+{
+	struct clk_hw *hw;
+	struct clk_hw *p_hw;
+	unsigned long pll_rate;
+	const char *name;
+	int div = 0;
+
+	hw = __clk_get_hw(dclk);
+	if (!hw)
+		return -EINVAL;
+
+	p_hw = clk_hw_get_parent(hw);
+	if (!p_hw)
+		return -EINVAL;
+
+	name = clk_hw_get_name(p_hw);
+	if (!strcmp(name, "dclk_ebc_frac_src")) {
+		clk_set_rate(p_hw->clk, rate);
+		clk_set_rate(dclk, rate);
+	} else {
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+
+		name = clk_hw_get_name(p_hw);
+		if (!strcmp(name, "vpll")) {
+			pll_rate = clk_hw_get_rate(p_hw);
+			if (pll_rate >= VOP2_PLL_LIMIT_FREQ && pll_rate % rate == 0) {
+				clk_set_rate(dclk, rate);
+			} else {
+				div = DIV_ROUND_UP(VOP2_PLL_LIMIT_FREQ, rate);
+				if (div % 2)
+					div += 1;
+				clk_set_rate(p_hw->clk, rate * div);
+				clk_set_rate(dclk, rate);
+			}
+		} else {
+			clk_set_rate(dclk, rate);
+		}
 	}
 
 	pr_debug("%s:request rate = %ld, %s = %ld %s = %ld\n", __func__, rate,
@@ -406,6 +506,9 @@ long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long r
 	case VOP_VERSION_RK3572:
 		round_rate = rockchip_rk3576_drm_dclk_round_rate(dclk, rate);
 		break;
+	case VOP_VERSION_RK3572_LITE:
+		round_rate = rockchip_rk3572_vopl_drm_dclk_round_rate(dclk, rate);
+		break;
 	case VOP_VERSION_RK3576_LITE:
 		round_rate = rockchip_rk3576_vopl_drm_dclk_round_rate(dclk, rate);
 		break;
@@ -437,6 +540,9 @@ int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate
 	case VOP_VERSION_RK3576:
 	case VOP_VERSION_RK3572:
 		ret = rockchip_rk3576_drm_dclk_set_rate(dclk, rate);
+		break;
+	case VOP_VERSION_RK3572_LITE:
+		ret = rockchip_rk3572_vopl_drm_dclk_set_rate(dclk, rate);
 		break;
 	case VOP_VERSION_RK3576_LITE:
 		ret = rockchip_rk3576_vopl_drm_dclk_set_rate(dclk, rate);
