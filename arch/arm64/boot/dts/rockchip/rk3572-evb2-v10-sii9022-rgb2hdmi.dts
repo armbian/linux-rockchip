@@ -22,6 +22,20 @@
 	status = "disabled";
 };
 
+/*
+ * The pins of i2c6 and i2c8 are multiplexed
+ */
+&i2c6 {
+	status = "disabled";
+};
+
+/*
+ * The devices on i2c7 have pins multiplexed with sii9022
+ */
+&i2c7 {
+	status = "disabled";
+};
+
 &i2c8 {
 	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c8m2_xfer_pins>;
@@ -87,4 +101,18 @@
 
 &rgb_in_vp1 {
 	status = "okay";
+};
+
+/*
+ * The pins of rkcif and lcdc are multiplexed
+ */
+&rkcif {
+	status = "disabled";
+};
+
+/*
+ * The pins of vcc_mipicsi0 and sii9022 are multiplexed
+ */
+&vcc_mipicsi0 {
+	status = "disabled";
 };
