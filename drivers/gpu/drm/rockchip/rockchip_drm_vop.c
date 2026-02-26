@@ -2209,6 +2209,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, afbdc_en, 0);
 	VOP_CTRL_SET(vop, out_dresetn, 0);
 	vop_disable_all_planes(vop);
+	memset(&vop->active_tv_state, 0, sizeof(vop->active_tv_state));
 
 	/*
 	 * Vop standby will take effect at end of current frame,
