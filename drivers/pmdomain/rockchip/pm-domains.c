@@ -1438,32 +1438,33 @@ static int rockchip_pd_of_get_shaping(struct rockchip_pm_domain *pd,
 				goto err_free_init;
 			}
 			if (of_device_is_available(shaping_node)) {
+				if (num_shaping_reg >= pd->num_shaping) {
+					error = -EINVAL;
+					goto err_put_node;
+				}
 				pd->shaping_regmap[num_shaping_reg] =
 					syscon_node_to_regmap(shaping_node);
 				if (IS_ERR(pd->shaping_regmap[num_shaping_reg])) {
-					of_node_put(shaping_node);
-					error =  -ENODEV;
-					goto err_free_init;
+					error = -ENODEV;
+					goto err_put_node;
 				}
 				if (!of_property_read_u32(shaping_node,
 							  "shaping-init",
 							  &val)) {
-					pd->shaping_save_regs[i] = val;
-					pd->shaping_is_need_init[i] = true;
+					pd->shaping_save_regs[num_shaping_reg] = val;
+					pd->shaping_is_need_init[num_shaping_reg] = true;
 					pd->is_shaping_need_init = true;
 				}
 				num_shaping_reg++;
 			}
 			of_node_put(shaping_node);
-			if (num_shaping_reg > pd->num_shaping) {
-				error =  -EINVAL;
-				goto err_free_init;
-			}
 		}
 	}
 
 	return 0;
 
+err_put_node:
+	of_node_put(shaping_node);
 err_free_init:
 	kfree(pd->shaping_is_need_init);
 	pd->shaping_is_need_init = NULL;
