@@ -200,6 +200,7 @@ enum quirk_case {
 	VSI_SEND	= BIT(0),	/* must send Vendor‑Specific Infoframe */
 	DELAY		= BIT(1),	/* extra delay needed (ms) */
 	INFO_ORDER	= BIT(2),	/* change the order of Infoframe sending */
+	RECONNECT	= BIT(3),	/* force reconnect on same-clock mode switch */
 };
 
 static const struct hdmi_quirk {
@@ -213,6 +214,9 @@ static const struct hdmi_quirk {
 	/* QA55QN700BJXXZ */
 	{ { 0x4C, 0x2D, 0x22, 0x72, 0x00, 0x0E, 0x00, 0x01, 0x01, 0x20, },
 	  INFO_ORDER, 0, },
+	/* KONKA 638 */
+	{ { 0x2D, 0xE1, 0x30, 0x00, 0x02, 0x00, 0x00, 0x00, 0x2F, 0x19, },
+	  RECONNECT, 50, },
 };
 
 enum frl_mask {
@@ -1516,6 +1520,17 @@ static bool hdmi_has_quirk(const u8 *vendor_info, u32 flags)
 		return false;
 
 	return quirk->quirk_case & flags;
+}
+
+static void hdmi_quirk_delay(u8 *vendor_info, u32 flags)
+{
+	const struct hdmi_quirk *quirk = get_hdmi_quirk(vendor_info);
+
+	if (!quirk)
+		return;
+
+	if (quirk->quirk_case & flags)
+		msleep(quirk->delay);
 }
 
 #define HDMI_AVI_V3_PAYLOAD_LEN		HDMI_AVI_INFOFRAME_SIZE
@@ -2822,6 +2837,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 				hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 			}
 		}
+		hdmi_quirk_delay(hdmi->vendor_info, RECONNECT);
 		/* HDMI Initialization Step F - Configure AVI InfoFrame */
 		hdmi_config_AVI(hdmi, connector);
 		hdmi_config_vendor_specific_infoframe(hdmi, connector);
@@ -3724,10 +3740,15 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			if (hdmi->hdmi_changed_status == HDMI_VSIF_CHANGED)
 				return 0;
 
-			hdmi->update = true;
-			hdmi_writel(hdmi, 1, PKTSCHED_PKT_CONTROL0);
-			hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
-			mdelay(50);
+			if (hdmi_has_quirk(hdmi->vendor_info, RECONNECT)) {
+				crtc_state->mode_changed = true;
+			} else {
+				hdmi->update = true;
+				hdmi_writel(hdmi, 1, PKTSCHED_PKT_CONTROL0);
+				hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN,
+					  PKTSCHED_PKT_EN);
+				mdelay(50);
+			}
 		} else if (!hdmi->disabled) {
 			hdmi->update = false;
 			crtc_state->mode_changed = true;
