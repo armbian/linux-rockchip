@@ -378,9 +378,9 @@
 		pinctrl-names = "default", "pmic-sleep",
 				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int_l>;
-		pinctrl-1 = <&soc_slppin_slp>, <&rk809_slppin_slp>;
-		pinctrl-2 = <&soc_slppin_gpio>, <&rk809_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_gpio>, <&rk809_slppin_null>;
+		pinctrl-1 = <&soc_slppin_slp>;
+		pinctrl-2 = <&soc_slppin_gpio>;
+		pinctrl-3 = <&soc_slppin_gpio>;
 		rockchip,system-power-controller;
 		pmic-reset-func = <0>;
 		wakeup-source;

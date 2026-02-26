@@ -283,7 +283,7 @@
 		pinctrl-0 = <&pmic_int>;
 		pinctrl-1 = <&soc_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>;
-		pinctrl-3 = <&soc_slppin_gpio>, <&rk817_slppin_null>;
+		pinctrl-3 = <&soc_slppin_gpio>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
