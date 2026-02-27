@@ -199,11 +199,14 @@
 		status = "disabled";
 	};
 
-	vcc_phy: vcc-phy-regulator {
+	vbus_typec: vbus-typec-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc_phy";
-		regulator-always-on;
-		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_typec0_en>;
+		regulator-name = "vbus_typec";
+		vin-supply = <&vcc5v0_sys>;
 	};
 
 	vbus_typec: vbus-typec-regulator {
@@ -214,6 +217,13 @@
 		pinctrl-0 = <&vcc5v0_typec0_en>;
 		regulator-name = "vbus_typec";
 		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	vcc5v0_sys: vccsys {
@@ -779,6 +789,14 @@
 		layout = <3>;
 	};
 
+	vm149c: vm149c@c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
 		status = "okay";
@@ -791,6 +809,8 @@
 		pwdn-gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
+
+		lens-focus = <&vm149c>;
 
 		port {
 			ucam_out0: endpoint {
@@ -846,16 +866,53 @@
 	i2c-scl-falling-time-ns = <11>;
 	clock-frequency = <100000>;
 
-	fusb0: fusb30x@22 {
-		compatible = "fairchild,fusb302";
+	usbc0: fusb302@22 {
+		compatible = "fcs,fusb302";
 		reg = <0x22>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&fusb0_int>;
-		int-n-gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
-		vbus-5v-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vbus_typec>;
 		status = "okay";
-	};
 
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				usbc0_role_sw: endpoint@0 {
+					remote-endpoint = <&dwc3_0_role_switch>;
+				};
+			};
+		};
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			sink-pdos =
+				<PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+			source-pdos =
+				<PDO_FIXED(5000, 1500, PDO_FIXED_USB_COMM)>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&tcphy0_orientation_switch>;
+					};
+				};
+			};
+		};
+	};
 };
 
 &i2s1 {
@@ -934,6 +991,7 @@
 				remote-endpoint = <&ucam_out0>;
 				data-lanes = <1 2>;
 			};
+
 			mipi_in_ucam2: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&ucam_out2>;
@@ -979,6 +1037,7 @@
 	status = "okay";
 	assigned-clocks = <&cru PLL_NPLL>, <&cru SCLK_CIF_OUT_SRC>, <&cru SCLK_CIF_OUT>;
 	assigned-clock-rates = <594000000>, <594000000>, <37125000>;
+
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1077,7 +1136,6 @@
 
 &u2phy0 {
 	status = "okay";
-	extcon = <&fusb0>;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -1172,6 +1230,13 @@
 		charger_ok_int: charger-ok-int {
 			rockchip,pins =
 				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
+			};
+	};
+
+	camera {
+		cam_pwren_high: cam-pwren-high {
+			rockchip,pins =
+				<4 RK_PC5 RK_FUNC_GPIO &pcfg_output_high>;
 			};
 	};
 
@@ -1270,8 +1335,8 @@
 			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-	vcc5v0_typec0_en: vcc5v0-typec0-en {
-		rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		vcc5v0_typec0_en: vcc5v0-typec0-en {
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
