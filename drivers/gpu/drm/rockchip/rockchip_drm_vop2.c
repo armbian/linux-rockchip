@@ -715,6 +715,11 @@ struct vop2_video_port {
 	bool dovi_hdr_in;
 
 	/**
+	 * @luma_avg_en: Set when luma avg statistics enabled.
+	 */
+	bool luma_avg_en;
+
+	/**
 	 * -----------------
 	 * |      |       |
 	 * | Left | Right |
@@ -901,6 +906,10 @@ struct vop2_video_port {
 	 * @output_dclk_prop: vp max output dclk prop
 	 */
 	struct drm_property *output_dclk_prop;
+	/**
+	 * @luma_avg_prop: vp luma avg data and control prop
+	 */
+	struct drm_property *luma_avg_prop;
 
 	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
@@ -10166,11 +10175,36 @@ static int vop2_pixel_shift_sysfs_fini(struct device *dev, struct drm_crtc *crtc
 	return 0;
 }
 
+static void vop2_luma_avg_control(struct drm_crtc *crtc, bool enable)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int i;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		if (&vop2->vps[i] == vp)
+			vop2->vps[i].luma_avg_en = !!enable;
+		else
+			vop2->vps[i].luma_avg_en = false;
+	}
+
+	if (enable) {
+		VOP_CTRL_SET(vop2, yavg_regdone_imd, 1);
+		VOP_CTRL_SET(vop2, yavg_port_sel, vp->id);
+		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, is_yuv_output(vcstate->bus_format));
+		VOP_CTRL_SET(vop2, yavg_div_width, 0x100000 / crtc->state->mode.hdisplay);
+		VOP_CTRL_SET(vop2, yavg_div_height, 0x100000 / crtc->state->mode.vdisplay);
+		VOP_CTRL_SET(vop2, yavg_en, 1);
+	} else {
+		VOP_CTRL_SET(vop2, yavg_en, 0);
+	}
+}
+
 static ssize_t luma_avg_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct drm_crtc *crtc = dev_get_drvdata(dev);
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	int enable;
@@ -10187,16 +10221,7 @@ static ssize_t luma_avg_store(struct device *dev, struct device_attribute *attr,
 		return count;
 	}
 
-	if (enable) {
-		VOP_CTRL_SET(vop2, yavg_regdone_imd, 1);
-		VOP_CTRL_SET(vop2, yavg_port_sel, vp->id);
-		VOP_CTRL_SET(vop2, yavg_yuv_mode_en, is_yuv_output(vcstate->bus_format));
-		VOP_CTRL_SET(vop2, yavg_div_width, 0x100000 / crtc->state->mode.hdisplay);
-		VOP_CTRL_SET(vop2, yavg_div_height, 0x100000 / crtc->state->mode.vdisplay);
-		VOP_CTRL_SET(vop2, yavg_en, 1);
-	} else {
-		VOP_CTRL_SET(vop2, yavg_en, 0);
-	}
+	vop2_luma_avg_control(crtc, !!enable);
 
 	return count;
 }
@@ -12611,6 +12636,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		vop2_cfg_done(crtc);
 		vop2_wait_for_fs_by_done_bit_status(vp);
 	}
+
+	if (vp->luma_avg_en)
+		vop2_luma_avg_control(crtc, true);
 
 	/*
 	 * In RK3588 VOP, HDMI1/eDP1 MUX1 module's reset signal should be released
@@ -16732,6 +16760,11 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == vp->luma_avg_prop) {
+		*val = VOP_CTRL_GET(vop2, yavg_frame_out);
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
 	return -EINVAL;
@@ -16899,6 +16932,11 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 								&replaced);
 		vcstate->dimming_changed |= replaced;
 		return ret;
+	}
+
+	if (property == vp->luma_avg_prop) {
+		vop2_luma_avg_control(crtc, !!val);
+		return 0;
 	}
 
 	DRM_ERROR("failed to set vop2 crtc property %s\n", property->name);
@@ -18070,6 +18108,15 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	}
 	vp->output_dclk_prop = prop;
 	drm_object_attach_property(&crtc->base, vp->output_dclk_prop, 0);
+
+	prop = drm_property_create_range(vop2->drm_dev, 0, "LUMA_AVG",
+					 0, 255);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create LUMA_AVG prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->luma_avg_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->luma_avg_prop, 0);
 
 	return 0;
 }
