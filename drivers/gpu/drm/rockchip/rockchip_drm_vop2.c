@@ -7327,49 +7327,12 @@ static int vop3_msmart_grid_linear_yuv_format_check(struct drm_plane *plane,
 
 /*
  * For RK3572 MSMART0/1, the min actual width limit as follow:
- * XR30/AR30/XB30/AB30, XR24/AR24/XB24/AB24: actual_w > 4
- * RG24/BG24: actual_w > 5
- * RG16/BG16, AR15/AB15/XR15/XB15: actual_w > 8
- * NV12/NV21, NV16/NV61, NV24/NV42: actual_w > 16
- * NV15, NV20, NV30: actual_w > 12
+ * NV12/NV21, NV16/NV61, NV24/NV42: actual_w >= 17
+ * Others: actual_w >= 16
  */
 static int vop3_msmart_min_width_check(struct drm_plane *plane, uint32_t format, uint32_t actual_w)
 {
 	switch (format) {
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ABGR8888:
-		if (actual_w <= 4) {
-			drm_err(plane->dev, "%s %p4cc actual width %d <= 4\n", plane->name,
-				&format, actual_w);
-			return -EINVAL;
-		}
-		break;
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_BGR888:
-		if (actual_w <= 5) {
-			drm_err(plane->dev, "%s %p4cc actual width %d <= 5\n", plane->name,
-				&format, actual_w);
-			return -EINVAL;
-		}
-		break;
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_BGR565:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ABGR1555:
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_XBGR1555:
-		if (actual_w <= 8) {
-			drm_err(plane->dev, "%s %p4cc actual width %d <= 8\n", plane->name,
-				&format, actual_w);
-			return -EINVAL;
-		}
-		break;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
@@ -7382,16 +7345,12 @@ static int vop3_msmart_min_width_check(struct drm_plane *plane, uint32_t format,
 			return -EINVAL;
 		}
 		break;
-	case DRM_FORMAT_NV15:
-	case DRM_FORMAT_NV20:
-	case DRM_FORMAT_NV30:
-		if (actual_w <= 12) {
-			drm_err(plane->dev, "%s %p4cc actual width %d <= 12\n", plane->name,
+	default:
+		if (actual_w <= 15) {
+			drm_err(plane->dev, "%s %p4cc actual width %d <= 15\n", plane->name,
 				&format, actual_w);
 			return -EINVAL;
 		}
-		break;
-	default:
 		break;
 	};
 
