@@ -1146,6 +1146,8 @@ static int rk3572_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
 		rockchip_combphy_updatel(priv, GENMASK(4, 4), BIT(4), 0x7 << 2);
+		/* PLL control SSC module period should be set */
+		rockchip_combphy_updatel(priv, GENMASK(5, 5), BIT(5), 0x20 << 2);
 
 		if (priv->mode == PHY_TYPE_PCIE && rate == 24000000) {
 			/* Xin24M T0_1 650mV */
@@ -1159,6 +1161,13 @@ static int rk3572_combphy_cfg(struct rockchip_combphy_priv *priv)
 			writel(0x40, priv->mmio + (0x0e << 2));
 			writel(0x5f, priv->mmio + (0x0f << 2));
 			writel(0x10, priv->mmio + (0x20 << 2));
+			/* ssc_cnt: 0101111101 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x5f, 0xf << 2);
+		} else if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			/* ssc_cnt: 1000110001 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x8c, 0xf << 2);
 		}
 	}
 
@@ -1366,6 +1375,8 @@ static int rk3576_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
 		rockchip_combphy_updatel(priv, GENMASK(4, 4), BIT(4), 0x7 << 2);
+		/* PLL control SSC module period should be set */
+		rockchip_combphy_updatel(priv, GENMASK(5, 5), BIT(5), 0x20 << 2);
 
 		if (priv->mode == PHY_TYPE_PCIE && rate == 24000000) {
 			/* Xin24M T0_1 650mV */
@@ -1379,6 +1390,13 @@ static int rk3576_combphy_cfg(struct rockchip_combphy_priv *priv)
 			writel(0x40, priv->mmio + (0x0e << 2));
 			writel(0x5f, priv->mmio + (0x0f << 2));
 			writel(0x10, priv->mmio + (0x20 << 2));
+			/* ssc_cnt: 0101111101 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x5f, 0xf << 2);
+		} else if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			/* ssc_cnt: 1000110001 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x8c, 0xf << 2);
 		}
 	}
 
@@ -1606,6 +1624,8 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
 		rockchip_combphy_updatel(priv, GENMASK(4, 4), BIT(4), 0x7 << 2);
+		/* PLL control SSC module period should be set */
+		rockchip_combphy_updatel(priv, GENMASK(5, 5), BIT(5), 0x20 << 2);
 
 		if (priv->mode == PHY_TYPE_PCIE && rate == 24000000) {
 			/* Xin24M T0_1 650mV */
@@ -1619,6 +1639,13 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			writel(0x40, priv->mmio + (0x0e << 2));
 			writel(0x5f, priv->mmio + (0x0f << 2));
 			writel(0x10, priv->mmio + (0x20 << 2));
+			/* ssc_cnt: 0101111101 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x5f, 0xf << 2);
+		} else if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			/* ssc_cnt: 1000110001 & 31.5KHz */
+			rockchip_combphy_updatel(priv, GENMASK(7, 6), 0x1, 0xe << 2);
+			rockchip_combphy_updatel(priv, GENMASK(7, 0), 0x8c, 0xf << 2);
 		}
 	}
 
