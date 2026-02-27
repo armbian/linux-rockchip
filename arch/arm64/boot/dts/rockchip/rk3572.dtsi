@@ -4608,6 +4608,8 @@
 			num-cs = <2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi0m0_csn0_pins &spi0m0_csn1_pins &spi0m0_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -4622,6 +4624,8 @@
 			num-cs = <2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi1m0_csn0_pins &spi1m0_csn1_pins &spi1m0_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -4636,6 +4640,8 @@
 			num-cs = <2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi2m0_csn0_pins &spi2m0_csn1_pins &spi2m0_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -4650,6 +4656,8 @@
 			num-cs = <2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi3m0_csn0_pins &spi3m0_csn1_pins &spi3m0_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -4664,6 +4672,8 @@
 			num-cs = <2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi4m0_csn0_pins &spi4m0_csn1_pins &spi4m0_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
