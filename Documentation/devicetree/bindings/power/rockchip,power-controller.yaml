@@ -135,6 +135,14 @@ $defs:
           A number of phandles to clocks that need to be enabled
           while power domain switches state.
 
+      pm_perf:
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
+        description: |
+          A number of phandles to perf blocks which need to be saved and
+          restored while power domain switches state.
+
       pm_qos:
         $ref: /schemas/types.yaml#/definitions/phandle-array
         items:
@@ -338,3 +346,42 @@ examples:
             };
         };
     };
+
+  - |
+    #include <dt-bindings/clock/rockchip,rk3572-cru.h>
+    #include <dt-bindings/power/rockchip,rk3572-power-controller.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        npu_grf: syscon@26020000 {
+            compatible = "rockchip,rk3572-npu-grf", "syscon";
+            reg = <0x0 0x26020000 0x0 0x2000>;
+
+            perf_npu: perf-npu {
+                              /* offset mask w_mask_en value is_init */
+                rockchip,perf-cfg = <0x4  0x1    0x1 0x0 0x0>,
+                                    <0x40 0xffff 0x1 0x0 0x0>;
+            };
+        };
+
+        power-management@26550000 {
+            compatible = "rockchip,rk3572-pmu", "syscon", "simple-mfd";
+            reg = <0x0 0x26550000 0x0 0x1000>;
+
+                power-controller {
+                    compatible = "rockchip,rk3572-power-controller";
+                    #power-domain-cells = <1>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    /* These power domains are grouped by VD_NPU */
+                    power-domain@RK3572_PD_NPU {
+                        reg = <RK3572_PD_NPU>;
+                        pm_perf = <&perf_npu>;
+                        #power-domain-cells = <0>;
+                    };
+                };
+            };
+        };
