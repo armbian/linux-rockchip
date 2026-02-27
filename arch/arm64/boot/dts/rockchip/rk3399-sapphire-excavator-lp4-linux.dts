@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd.
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
 
 /dts-v1/;
 
@@ -446,6 +449,14 @@
 		};
 	};
 
+	vm149c: vm149c@c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
 		status = "okay";
@@ -458,6 +469,8 @@
 		pwdn-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
+
+		lens-focus = <&vm149c>;
 
 		port {
 			ucam_out0: endpoint {
