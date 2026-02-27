@@ -2107,7 +2107,7 @@
 			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irq_jpegd";
 			clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
-			clock-names = "aclk_jpeg", "hclk_jpeg";
+			clock-names = "aclk_vcodec", "hclk_vcodec";
 			rockchip,normal-rates = <600000000>, <0>;
 			assigned-clocks = <&cru ACLK_JPEG>;
 			assigned-clock-rates = <600000000>;
@@ -2128,7 +2128,7 @@
 			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irq_jpege";
 			clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
-			clock-names = "aclk_jpeg", "hclk_jpeg";
+			clock-names = "aclk_vcodec", "hclk_vcodec";
 			rockchip,normal-rates = <600000000>, <0>;
 			assigned-clocks = <&cru ACLK_JPEG>;
 			assigned-clock-rates = <600000000>;
