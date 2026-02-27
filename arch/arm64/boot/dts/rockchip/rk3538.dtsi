@@ -233,7 +233,7 @@
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <900000>;
+		rockchip,low-temp-min-volt = <950000>;
 
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
@@ -304,7 +304,7 @@
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <900000>;
+		rockchip,low-temp-min-volt = <950000>;
 
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
