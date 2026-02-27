@@ -115,6 +115,9 @@
 			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
 			rockchip,csi2 = <&mipi2_csi2_hw>;
 		};
+		rkcif_dvp {
+			status = "disabled";
+		};
 	};
 
 	cif_sensor: cif_sensor {
