@@ -3079,6 +3079,18 @@ config VIDEO_TP2855
 	  To compile this driver as a module, choose M here: the
 	  module will be called tp2855.
 
+config VIDEO_TP2860
+	tristate "TechPoint tp2860 driver support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the TechPoint TP2855 1-channel
+	  Analog Video Decoder to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tp2860.
+
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_DEV && I2C
