@@ -317,21 +317,23 @@ examples:
             power: power-controller {
                 compatible = "rockchip,rk3562-power-controller";
                 #power-domain-cells = <1>;
-                ##address-cells = <1>;
-                ##size-cells = <0>;
+                #address-cells = <1>;
+                #size-cells = <0>;
 
                 /* These power domains are grouped by VD_GPU */
-                pd_gpu@RK3562_PD_GPU {
+                power-domain@RK3562_PD_GPU {
                     reg = <RK3562_PD_GPU>;
                     pm_qos = <&qos_gpu>;
                     pm_shaping = <&shaping_gpu>;
+                    #power-domain-cells = <0>;
                 };
 
                 /* These power domains are grouped by VD_LOGIC */
-                pd_php@RK3562_PD_PHP {
+                power-domain@RK3562_PD_PHP {
                     reg = <RK3562_PD_PHP>;
                     pm_qos = <&qos_pcie>, <&qos_usb3>;
                     pm_shaping = <&shaping_pcie>, <&shaping_usb3>;
+                    #power-domain-cells = <0>;
                 };
             };
         };
