@@ -24,7 +24,6 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc5v0_device>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_drd0_pwren>;
 	};
@@ -36,7 +35,6 @@
 		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_3v3_s3>;
 	};
 
 	vcc5v0_usb3_host: vcc5v0-usb3-host {
@@ -48,7 +46,6 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc5v0_device>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_drd1_pwren>;
 	};
@@ -60,7 +57,6 @@
 		regulator-always-on;
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <900000>;
-		vin-supply = <&vcc5v0_sys_s5>;
 	};
 };
 

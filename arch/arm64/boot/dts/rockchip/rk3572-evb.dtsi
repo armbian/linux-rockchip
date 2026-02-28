@@ -220,7 +220,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc12v_dcin>;
 	};
 
 	vcc5v0_device: vcc5v0-device {
@@ -230,7 +229,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc12v_dcin>;
 	};
 
 	vcc_ldo_s3: vcc-ldo-s3 {
@@ -240,7 +238,6 @@
 		regulator-always-on;
 		regulator-min-microvolt = <2100000>;
 		regulator-max-microvolt = <2100000>;
-		vin-supply = <&vcc5v0_sys_s5>;
 	};
 
 	vcc3v3_rtc_s5: vcc3v3-rtc-s5 {
@@ -250,7 +247,6 @@
 		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc5v0_sys_s5>;
 	};
 };
 
