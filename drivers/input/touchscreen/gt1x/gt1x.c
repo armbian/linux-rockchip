@@ -824,7 +824,7 @@ static void __exit gt1x_ts_exit(void)
 	i2c_del_driver(&gt1x_ts_driver);
 }
 
-module_init(gt1x_ts_init);
+late_initcall(gt1x_ts_init);
 module_exit(gt1x_ts_exit);
 
 MODULE_DESCRIPTION("GTP Series Driver");
