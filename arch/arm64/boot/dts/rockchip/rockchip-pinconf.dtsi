@@ -20,6 +20,12 @@
 	};
 
 	/omit-if-no-ref/
+	pcfg_pull_none_input_dis: pcfg-pull-none-input-dis {
+		bias-disable;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
 	pcfg_pull_none_drv_level_0: pcfg-pull-none-drv-level-0 {
 		bias-disable;
 		drive-strength = <0>;
@@ -113,6 +119,118 @@
 	pcfg_pull_none_drv_level_15: pcfg-pull-none-drv-level-15 {
 		bias-disable;
 		drive-strength = <15>;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_0_input_dis: pcfg-pull-none-drv-level-0-input-dis {
+		bias-disable;
+		drive-strength = <0>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_1_input_dis: pcfg-pull-none-drv-level-1-input-dis {
+		bias-disable;
+		drive-strength = <1>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_2_input_dis: pcfg-pull-none-drv-level-2-input-dis {
+		bias-disable;
+		drive-strength = <2>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_3_input_dis: pcfg-pull-none-drv-level-3-input-dis {
+		bias-disable;
+		drive-strength = <3>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_4_input_dis: pcfg-pull-none-drv-level-4-input-dis {
+		bias-disable;
+		drive-strength = <4>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_5_input_dis: pcfg-pull-none-drv-level-5-input-dis {
+		bias-disable;
+		drive-strength = <5>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_6_input_dis: pcfg-pull-none-drv-level-6-input-dis {
+		bias-disable;
+		drive-strength = <6>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_7_input_dis: pcfg-pull-none-drv-level-7-input-dis {
+		bias-disable;
+		drive-strength = <7>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_8_input_dis: pcfg-pull-none-drv-level-8-input-dis {
+		bias-disable;
+		drive-strength = <8>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_9_input_dis: pcfg-pull-none-drv-level-9-input-dis {
+		bias-disable;
+		drive-strength = <9>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_10_input_dis: pcfg-pull-none-drv-level-10-input-dis {
+		bias-disable;
+		drive-strength = <10>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_11_input_dis: pcfg-pull-none-drv-level-11-input-dis {
+		bias-disable;
+		drive-strength = <11>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_12_input_dis: pcfg-pull-none-drv-level-12-input-dis {
+		bias-disable;
+		drive-strength = <12>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_13_input_dis: pcfg-pull-none-drv-level-13-input-dis {
+		bias-disable;
+		drive-strength = <13>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_14_input_dis: pcfg-pull-none-drv-level-14-input-dis {
+		bias-disable;
+		drive-strength = <14>;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_15_input_dis: pcfg-pull-none-drv-level-15-input-dis {
+		bias-disable;
+		drive-strength = <15>;
+		input-disable;
 	};
 
 	/omit-if-no-ref/
@@ -391,6 +509,13 @@
 	};
 
 	/omit-if-no-ref/
+	pcfg_output_high_pull_none_input_dis: pcfg-output-high-pull-none-input-dis {
+		output-high;
+		bias-disable;
+		input-disable;
+	};
+
+	/omit-if-no-ref/
 	pcfg_output_low: pcfg-output-low {
 		output-low;
 	};
@@ -411,5 +536,12 @@
 	pcfg_output_low_pull_none: pcfg-output-low-pull-none {
 		output-low;
 		bias-disable;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_low_pull_none_input_dis: pcfg-output-low-pull-none-input-dis {
+		output-low;
+		bias-disable;
+		input-disable;
 	};
 };
