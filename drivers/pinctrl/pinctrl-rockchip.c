@@ -5209,12 +5209,13 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return rc;
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
-			if (info->ctrl->ie_calc_reg)
-				rockchip_set_input_enable(bank, pin - bank->pin_base,
-							  arg);
-
-			if (!arg)
+			if (!arg) {
+				if (info->ctrl->ie_calc_reg)
+					rockchip_set_input_enable(bank,
+								  pin - bank->pin_base,
+								  arg);
 				return 0;
+			}
 
 			rc = rockchip_set_mux(bank, pin - bank->pin_base,
 					      RK_FUNC_GPIO);
