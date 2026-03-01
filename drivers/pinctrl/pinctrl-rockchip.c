@@ -4369,7 +4369,7 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 	if (ret)
 		return ret;
 
-	if (ctrl->type == RV1126 || ctrl->type == RK3572 || ctrl->type == RK3588) {
+	if (ctrl->type == RV1126 || ctrl->type == RK3588) {
 		rmask_bits = RV1126_DRV_BITS_PER_PIN;
 		ret = strength;
 		goto config;
@@ -4380,6 +4380,20 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		   ctrl->type == RK3568) {
 		rmask_bits = RK3568_DRV_BITS_PER_PIN;
 		ret = (1 << (strength + 1)) - 1;
+		goto config;
+	} else if (ctrl->type == RK3572) {
+		rmask_bits = RK3572_DRV_BITS_PER_PIN;
+		if ((bank->bank_num == 0 && pin_num < 12) ||
+		    (bank->bank_num == 4 && (pin_num == 24 || pin_num == 25))) {
+			/* only support 4 drive strength levels */
+			if (strength > 3)
+				return -EINVAL;
+			ret = ((strength & BIT(1)) >> 1) | ((strength & BIT(0)) << 1);
+		} else {
+			ret = ((strength & BIT(2)) >> 2) |
+			      ((strength & BIT(0)) << 2) |
+			      (strength & BIT(1));
+		}
 		goto config;
 	} else if (ctrl->type == RK3576) {
 		rmask_bits = RK3576_DRV_BITS_PER_PIN;
