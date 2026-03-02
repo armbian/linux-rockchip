@@ -164,7 +164,7 @@
 				regulator-boot-on;
 				regulator-initial-mode = <0x2>;
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -413,7 +413,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <850000>;
 				};
 			};
 
