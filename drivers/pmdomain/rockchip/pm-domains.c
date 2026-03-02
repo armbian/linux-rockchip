@@ -2065,13 +2065,22 @@ static void rockchip_pd_keepon_do_release(void)
 	}
 }
 
-static int __init rockchip_pd_keepon_release(void)
+static void rockchip_pd_protect_complete_work_function(struct work_struct *work)
 {
 	rockchip_pd_keepon_do_release();
+}
+
+static DECLARE_DELAYED_WORK(pd_protect_complete_work,
+			    rockchip_pd_protect_complete_work_function);
+
+static int __init rockchip_pd_protect_complete(void)
+{
+	schedule_delayed_work(&pd_protect_complete_work,
+			      msecs_to_jiffies(29000));
 
 	return 0;
 }
-late_initcall_sync(rockchip_pd_keepon_release);
+late_initcall_sync(rockchip_pd_protect_complete);
 #endif
 
 static void __iomem *pd_base;
