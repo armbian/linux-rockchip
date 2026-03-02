@@ -19,6 +19,7 @@ properties:
       - rockchip,fspi
       - rockchip,rk3506-fspi
       - rockchip,rk3538-fspi
+      - rockchip,rv1103b-fspi
       - rockchip,rv1126b-fspi
       - rockchip,sfc
 
