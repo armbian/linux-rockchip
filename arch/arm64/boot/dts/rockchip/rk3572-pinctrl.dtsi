@@ -806,9 +806,7 @@
 				/* fspi1_d6_m1 */
 				<2 RK_PC5 2 &pcfg_pull_none>,
 				/* fspi1_d7_m1 */
-				<2 RK_PC4 2 &pcfg_pull_none>,
-				/* fspi1_dqs_m1 */
-				<2 RK_PD4 2 &pcfg_pull_none>;
+				<2 RK_PC4 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
@@ -823,6 +821,13 @@
 			rockchip,pins =
 				/* fspi1m1_csn1 */
 				<2 RK_PD7 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		fspi1_pins: fspi1-pins {
+			rockchip,pins =
+				/* fspi1_dqs */
+				<2 RK_PD4 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
@@ -2758,16 +2763,16 @@
 		};
 
 		/omit-if-no-ref/
-		sai4m1_sdi_pins: sai4m1-sdi-pins {
+		sai4m1_sdi0_pins: sai4m1-sdi0-pins {
 			rockchip,pins =
-				/* sai4m1_sdi */
+				/* sai4_sdi0_m1 */
 				<1 RK_PB6 4 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		sai4m1_sdo_pins: sai4m1-sdo-pins {
+		sai4m1_sdo0_pins: sai4m1-sdo0-pins {
 			rockchip,pins =
-				/* sai4m1_sdo */
+				/* sai4_sdo0_m1 */
 				<1 RK_PB7 4 &pcfg_pull_none>;
 		};
 	};
@@ -2776,6 +2781,10 @@
 		/omit-if-no-ref/
 		sata0m0_sata_pins: sata0m0-sata-pins {
 			rockchip,pins =
+				/* sata0_cpdet_m0 */
+				<1 RK_PC3 14 &pcfg_pull_none>,
+				/* sata0_cppod_m0 */
+				<1 RK_PC2 14 &pcfg_pull_none>,
 				/* sata0_mpswit_m0 */
 				<1 RK_PD6 14 &pcfg_pull_none>;
 		};
@@ -2813,17 +2822,6 @@
 				<4 RK_PA0 14 &pcfg_pull_none>,
 				/* sata1_mpswit_m1 */
 				<3 RK_PD7 14 &pcfg_pull_none>;
-		};
-	};
-
-	sata30 {
-		/omit-if-no-ref/
-		sata30m0_sata_pins: sata30m0-sata-pins {
-			rockchip,pins =
-				/* sata30_cpdet_m0 */
-				<1 RK_PC3 14 &pcfg_pull_none>,
-				/* sata30_cppod_m0 */
-				<1 RK_PC2 14 &pcfg_pull_none>;
 		};
 	};
 
@@ -3082,14 +3080,14 @@
 		spdifm4_rx0_pins: spdifm4-rx0-pins {
 			rockchip,pins =
 				/* spdif_rx0_m4 */
-				<4 RK_PA0 4 &pcfg_pull_none>;
+				<4 RK_PA0 6 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
 		spdifm4_tx0_pins: spdifm4-tx0-pins {
 			rockchip,pins =
 				/* spdif_tx0_m4 */
-				<4 RK_PA1 4 &pcfg_pull_none>;
+				<4 RK_PA1 6 &pcfg_pull_none>;
 		};
 	};
 
@@ -3390,7 +3388,7 @@
 		spi3m1_csn1_pins: spi3m1-csn1-pins {
 			rockchip,pins =
 				/* spi3m1_csn1 */
-				<3 RK_PD7 10 &pcfg_pull_none>;
+				<3 RK_PD3 10 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
@@ -4268,6 +4266,10 @@
 		/omit-if-no-ref/
 		vo_ebc_pins: vo-ebc-pins {
 			rockchip,pins =
+				/* vo_ebc_border0 */
+				<4 RK_PA0 4 &pcfg_pull_none>,
+				/* vo_ebc_border1 */
+				<4 RK_PA1 4 &pcfg_pull_none>,
 				/* vo_ebc_gdclk */
 				<3 RK_PD5 4 &pcfg_pull_none>,
 				/* vo_ebc_gdoe */
