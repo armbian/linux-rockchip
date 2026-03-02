@@ -235,6 +235,7 @@ struct rockchip_sfc_powergood {
 
 struct rockchip_sfc_data {
 	struct rockchip_sfc_powergood powergood;
+	bool dma_incr16_invalid;
 };
 
 struct rockchip_sfc {
@@ -386,7 +387,10 @@ static int rockchip_sfc_init(struct rockchip_sfc *sfc)
 
 	if (readl(sfc->regbase + SFC_VER) & SFC_CAP_X8) {
 		sfc->support_octa = true;
-		writel(SFC_DMA_BURST_INCR16, sfc->regbase + SFC_DMA_CTRL);
+		if (sfc->data && sfc->data->dma_incr16_invalid)
+			writel(SFC_DMA_BURST_INCR8, sfc->regbase + SFC_DMA_CTRL);
+		else
+			writel(SFC_DMA_BURST_INCR16, sfc->regbase + SFC_DMA_CTRL);
 	}
 
 	return 0;
@@ -1082,6 +1086,7 @@ static const struct rockchip_sfc_data rk3538_fspi_data = {
 		.grf_offset = 0x170,
 		.bits_mask = BIT(0),
 	},
+	.dma_incr16_invalid = true,
 };
 
 static const struct rockchip_sfc_data rv1103b_fspi_data = {
@@ -1090,6 +1095,7 @@ static const struct rockchip_sfc_data rv1103b_fspi_data = {
 		.grf_offset = 0x60030,
 		.bits_mask = BIT(3),
 	},
+	.dma_incr16_invalid = true,
 };
 
 static const struct rockchip_sfc_data rv1126b_fspi_data = {
