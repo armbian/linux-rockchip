@@ -771,7 +771,6 @@ rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 }
 EXPORT_SYMBOL_GPL(rockchip_register_restart_notifier);
 
-#ifdef MODULE
 static struct clk **protect_clocks;
 static unsigned int protect_nclocks;
 
@@ -822,6 +821,24 @@ void rockchip_clk_unprotect(void)
 
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_unprotect);
+
+#ifndef MODULE
+static void clocks_init_complete_work_function(struct work_struct *work)
+{
+	rockchip_clk_unprotect();
+}
+
+static DECLARE_DELAYED_WORK(clocks_init_complete_work,
+			    clocks_init_complete_work_function);
+
+static int __init rockchip_clocks_init_complete(void)
+{
+	schedule_delayed_work(&clocks_init_complete_work,
+			      msecs_to_jiffies(28000));
+	return 0;
+}
+late_initcall_sync(rockchip_clocks_init_complete);
+#else
 
 void rockchip_clk_disable_unused(void)
 {
