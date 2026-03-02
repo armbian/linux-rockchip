@@ -944,8 +944,13 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 		return ret;
 	}
 
-	if (rockchip_sfc_tuning_required(sfc, mem, cs))
+	if (rockchip_sfc_tuning_required(sfc, mem, cs)) {
 		rockchip_sfc_tuning(sfc, mem, op);
+	} else if (mem->spi->max_speed_hz != sfc->speed[cs]) {
+		if (rockchip_sfc_clk_set_rate(sfc, mem->spi->max_speed_hz))
+			goto out;
+		sfc->speed[cs] = mem->spi->max_speed_hz;
+	}
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
 	rockchip_sfc_set_cs_gpio(sfc, cs, true);
