@@ -6115,6 +6115,19 @@ static void rkcif_add_fence_to_vb_done(struct rkcif_stream *stream,
 	struct v4l2_device *v4l2_dev = &cif_dev->v4l2_dev;
 
 	spin_lock_irqsave(&stream->fence_lock, lock_flags);
+
+	/* signal old fence if exists (previous frame not signaled yet) */
+	if (stream->rkcif_fence) {
+		v4l2_dbg(2, rkcif_debug, v4l2_dev, "%s: signal old fence:%p, fd:%d\n",
+			__func__, stream->rkcif_fence->fence,
+			stream->rkcif_fence->fence_fd);
+		dma_fence_signal(stream->rkcif_fence->fence);
+		dma_fence_put(stream->rkcif_fence->fence);
+		kfree(stream->rkcif_fence);
+		stream->rkcif_fence = NULL;
+	}
+
+	/* get new fence from qbuf list */
 	if (!list_empty(&stream->qbuf_fence_list_head)) {
 		vb_fence = list_first_entry(&stream->qbuf_fence_list_head,
 					    struct rkcif_fence, fence_list);
@@ -6123,11 +6136,8 @@ static void rkcif_add_fence_to_vb_done(struct rkcif_stream *stream,
 		vb_fence = NULL;
 	}
 
-	if (vb_fence)
-		list_add_tail(&vb_fence->fence_list, &stream->done_fence_list_head);
-	spin_unlock_irqrestore(&stream->fence_lock, lock_flags);
-
 	if (vb_fence) {
+		stream->rkcif_fence = vb_fence;
 		/*  pass the fence_fd to userspace through timecode.userbits */
 		vb_done->timecode.userbits[0] = vb_fence->fence_fd & 0xff;
 		vb_done->timecode.userbits[1] = (vb_fence->fence_fd & 0xff00) >> 8;
@@ -6140,41 +6150,7 @@ static void rkcif_add_fence_to_vb_done(struct rkcif_stream *stream,
 		memset(vb_done->timecode.userbits, 0xff, sizeof(vb_done->timecode.userbits));
 		v4l2_err(v4l2_dev, "%s: failed to get fence fd!\n", __func__);
 	}
-}
-
-static void rkcif_dqbuf_get_done_fence(struct rkcif_stream *stream)
-{
-	unsigned long lock_flags = 0;
-	struct rkcif_fence *done_fence;
-	struct v4l2_device *v4l2_dev = &stream->cifdev->v4l2_dev;
-
-	spin_lock_irqsave(&stream->fence_lock, lock_flags);
-	if (!list_empty(&stream->done_fence_list_head)) {
-		done_fence = list_first_entry(&stream->done_fence_list_head,
-				struct rkcif_fence, fence_list);
-		list_del(&done_fence->fence_list);
-	} else {
-		done_fence = NULL;
-	}
 	spin_unlock_irqrestore(&stream->fence_lock, lock_flags);
-
-	if (done_fence) {
-		spin_lock_irqsave(&stream->fence_lock, lock_flags);
-		if (stream->rkcif_fence) {
-			dma_fence_signal(stream->rkcif_fence->fence);
-			dma_fence_put(stream->rkcif_fence->fence);
-			v4l2_dbg(2, rkcif_debug, v4l2_dev, "%s: signal fence:%p, old_fd:%d\n",
-				 __func__,
-				 stream->rkcif_fence->fence,
-				 stream->rkcif_fence->fence_fd);
-			kfree(stream->rkcif_fence);
-			stream->rkcif_fence = NULL;
-		}
-		stream->rkcif_fence = done_fence;
-		spin_unlock_irqrestore(&stream->fence_lock, lock_flags);
-		v4l2_dbg(3, rkcif_debug, v4l2_dev, "%s: fence:%p, fence_fd:%d\n",
-			 __func__, done_fence->fence, done_fence->fence_fd);
-	}
 }
 
 static void rkcif_fence_signal(struct rkcif_stream *stream)
@@ -6199,7 +6175,7 @@ static void rkcif_fence_signal(struct rkcif_stream *stream)
 static void rkcif_free_fence(struct rkcif_stream *stream)
 {
 	unsigned long lock_flags = 0;
-	struct rkcif_fence *vb_fence, *done_fence;
+	struct rkcif_fence *vb_fence;
 	struct v4l2_device *v4l2_dev = &stream->cifdev->v4l2_dev;
 	struct files_struct *files = current->files;
 	LIST_HEAD(local_list);
@@ -6227,23 +6203,6 @@ static void rkcif_free_fence(struct rkcif_stream *stream)
 			close_fd(vb_fence->fence_fd);
 		}
 		kfree(vb_fence);
-	}
-
-	spin_lock_irqsave(&stream->fence_lock, lock_flags);
-	list_replace_init(&stream->done_fence_list_head, &local_list);
-	spin_unlock_irqrestore(&stream->fence_lock, lock_flags);
-
-	while (!list_empty(&local_list)) {
-		done_fence = list_first_entry(&local_list, struct rkcif_fence, fence_list);
-		list_del(&done_fence->fence_list);
-		v4l2_dbg(2, rkcif_debug, v4l2_dev, "%s: free done_fence fd:%d\n",
-			 __func__, done_fence->fence_fd);
-		dma_fence_put(done_fence->fence);
-		if (files) {
-			put_unused_fd(done_fence->fence_fd);
-			close_fd(done_fence->fence_fd);
-		}
-		kfree(done_fence);
 	}
 }
 
@@ -9583,7 +9542,6 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	spin_lock_init(&stream->fence_lock);
 	rkcif_fence_context_init(&stream->fence_ctx);
 	INIT_LIST_HEAD(&stream->qbuf_fence_list_head);
-	INIT_LIST_HEAD(&stream->done_fence_list_head);
 	stream->low_latency = false;
 	stream->rkcif_fence = NULL;
 	stream->rounding_bit = 0;
@@ -10889,8 +10847,10 @@ static int rkcif_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct rkcif_stream *stream = video_drvdata(file);
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
-	if (stream->low_latency)
-		rkcif_dqbuf_get_done_fence(stream);
+	if (stream->low_latency && stream->rkcif_fence)
+		v4l2_dbg(2, rkcif_debug, &stream->cifdev->v4l2_dev, "%s: fence:%p, fence fd:%d\n",
+			__func__, stream->rkcif_fence->fence,
+			stream->rkcif_fence->fence_fd);
 
 	return ret;
 }
