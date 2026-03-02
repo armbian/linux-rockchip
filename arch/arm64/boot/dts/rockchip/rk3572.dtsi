@@ -426,6 +426,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
 		};
@@ -435,6 +436,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x1>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
 		};
@@ -444,6 +446,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x2>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
 		};
@@ -453,6 +456,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x3>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
 		};
@@ -462,6 +466,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
 			operating-points-v2 = <&cluster1_opp_table>;
 		};
@@ -471,6 +476,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
 			operating-points-v2 = <&cluster1_opp_table>;
 		};
@@ -480,6 +486,7 @@
 			compatible = "arm,cortex-a73";
 			reg = <0x200>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster2_opp_table>;
 		};
@@ -489,6 +496,7 @@
 			compatible = "arm,cortex-a73";
 			reg = <0x201>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster2_opp_table>;
 		};
