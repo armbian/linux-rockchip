@@ -1061,7 +1061,11 @@ static void fiq_debugger_fiq(struct fiq_glue_handler *h,
 {
 	struct fiq_debugger_state *state =
 		container_of(h, struct fiq_debugger_state, handler);
+#ifndef CONFIG_THREAD_INFO_IN_TASK
 	unsigned int this_cpu = THREAD_INFO(svc_sp)->cpu;
+#else
+	unsigned int this_cpu = raw_smp_processor_id();
+#endif
 	bool need_irq;
 
 	need_irq = fiq_debugger_handle_uart_interrupt(state, this_cpu, regs,
@@ -1101,7 +1105,7 @@ static irqreturn_t fiq_debugger_uart_irq(int irq, void *dev)
 	fiq_debugger_handle_wakeup(state);
 
 	/* handle the debugger irq in regular context */
-	not_done = fiq_debugger_handle_uart_interrupt(state, smp_processor_id(),
+	not_done = fiq_debugger_handle_uart_interrupt(state, raw_smp_processor_id(),
 #ifdef CONFIG_NO_GKI
 					      get_irq_regs(),
 #else
