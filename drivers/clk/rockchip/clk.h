@@ -1549,23 +1549,12 @@ static inline void rockchip_register_softrst_lut(struct device_node *np,
 #endif
 extern void (*rk_dump_cru)(void);
 
-#if IS_MODULE(CONFIG_COMMON_CLK_ROCKCHIP)
 int rockchip_clk_protect(struct rockchip_clk_provider *ctx,
 			 unsigned int *clocks, unsigned int nclocks);
 void rockchip_clk_unprotect(void);
+#if IS_MODULE(CONFIG_COMMON_CLK_ROCKCHIP)
 void rockchip_clk_disable_unused(void);
 #else
-static inline int rockchip_clk_protect(struct rockchip_clk_provider *ctx,
-				       unsigned int *clocks,
-				       unsigned int nclocks)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void rockchip_clk_unprotect(void)
-{
-}
-
 static inline void rockchip_clk_disable_unused(void)
 {
 }
