@@ -649,7 +649,6 @@ struct rkcif_stream {
 	struct rkcif_fence_context	fence_ctx;
 	struct rkcif_fence		*rkcif_fence;
 	struct list_head		qbuf_fence_list_head;
-	struct list_head		done_fence_list_head;
 	spinlock_t			fence_lock;
 	u32				rounding_bit;
 	int				frame_loss;
