@@ -1061,6 +1061,20 @@ static void rv1126b_dump_cru(void)
 	}
 }
 
+static int protect_clocks[] = {
+	CLK_PWM0,
+	PCLK_PWM0,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
+	CLK_PWM3,
+	PCLK_PWM3,
+	DCLK_VOP,
+	ACLK_VOP,
+	HCLK_VOP,
+};
+
 static void __init rv1126b_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1117,6 +1131,8 @@ static void __init rv1126b_clk_init(struct device_node *np)
 	writel_relaxed(PVTPLL_SRC_SEL_PVTPLL, reg_base + RV1126B_VICLKSEL_CON(0));
 	writel_relaxed(PVTPLL_SRC_SEL_PVTPLL, reg_base + RV1126B_VEPUCLKSEL_CON(0));
 	writel_relaxed(PVTPLL_SRC_SEL_PVTPLL, reg_base + RV1126B_VCPCLKSEL_CON(0));
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rv1126b_cru, "rockchip,rv1126b-cru", rv1126b_clk_init);
