@@ -321,7 +321,7 @@
 		disp_timings0: display-timings {
 			native-mode = <&dsi_timing0>;
 			dsi_timing0: timing0 {
-				clock-frequency = <170500000>;
+				clock-frequency = <168000000>;
 				hactive = <1200>;
 				vactive = <1920>;
 				hback-porch = <40>;
@@ -582,6 +582,11 @@
 
 &rkvenc_mmu {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
 };
 
 &route_dsi {
