@@ -987,25 +987,9 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	       (s_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL((hsd_scale_mode))));
 
 	*bRGA_SRC_INFO = reg;
-	if (msg->src.rd_mode == RGA_RKFBC_MODE || msg->src.rd_mode == RGA_AFBC32x8_MODE) {
-		*bRGA_FBCIN_HEAD_BASE = head_base_addr;
-		*bRGA_FBCIN_PAYL_BASE = payload_base_addr;
-		*bRGA_FBCIN_HEAD_VIR_INFO = stride;
 
-		if (msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
-		    msg->alpha_rop_flag & 1) {
-			*bRGA_FBCIN_OFF = ALIGN_DOWN(msg->src.x_offset, 32) |
-					  (ALIGN_DOWN(msg->src.y_offset, 8) << 16);
-			*bRGA_FBCIN_OVERLAP_OFF = (msg->src.x_offset % 32) |
-						  (msg->src.y_offset % 8 << 8);
-			*bRGA_SRC_ACT_INFO =
-				(ALIGN(msg->src.act_w + msg->src.x_offset % 32, 32) - 1) |
-				((ALIGN(msg->src.act_h + msg->src.y_offset % 8, 8) - 1) << 16);
-		} else {
-			*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
-			*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
-		}
-	} else {
+	switch (msg->src.rd_mode) {
+	case RGA_RASTER_MODE:
 		*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
 		if (disable_uv_channel_en == 1) {
 			/*
@@ -1041,10 +1025,39 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		}
 
 		*bRGA_SRC_VIR_INFO = (stride >> 2) | ((mask_stride >> 2) << 16);
+		*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
 
-		*bRGA_SRC_ACT_INFO =
-			(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
-			tile_x_offset << 14 | tile_y_offset << 30;
+		break;
+	case RGA_TILE4x4_MODE:
+		*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
+		*bRGA_SRC_BASE1 = 0;
+		*bRGA_SRC_BASE2 = 0;
+
+		*bRGA_SRC_VIR_INFO = stride >> 2;
+		*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
+				     tile_x_offset << 14 | tile_y_offset << 30;
+		break;
+	case RGA_RKFBC_MODE:
+	case RGA_AFBC32x8_MODE:
+		*bRGA_FBCIN_HEAD_BASE = head_base_addr;
+		*bRGA_FBCIN_PAYL_BASE = payload_base_addr;
+		*bRGA_FBCIN_HEAD_VIR_INFO = stride;
+
+		if (msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+		    msg->alpha_rop_flag & 1) {
+			*bRGA_FBCIN_OFF = ALIGN_DOWN(msg->src.x_offset, 32) |
+					  (ALIGN_DOWN(msg->src.y_offset, 8) << 16);
+			*bRGA_FBCIN_OVERLAP_OFF = (msg->src.x_offset % 32) |
+						  (msg->src.y_offset % 8 << 8);
+			*bRGA_SRC_ACT_INFO =
+				(ALIGN(msg->src.act_w + msg->src.x_offset % 32, 32) - 1) |
+				((ALIGN(msg->src.act_h + msg->src.y_offset % 8, 8) - 1) << 16);
+		} else {
+			*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
+			*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+		}
+
+		break;
 	}
 
 	RGA2_reg_get_param(base, msg);
