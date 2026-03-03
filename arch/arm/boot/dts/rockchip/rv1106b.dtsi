@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1103b.dtsi"
+
+/ {
+	compatible = "rockchip,rv1106b";
+
+	aliases {
+		/delete-property/ ethernet0;
+	};
+};
+
+/delete-node/ &gmac;
