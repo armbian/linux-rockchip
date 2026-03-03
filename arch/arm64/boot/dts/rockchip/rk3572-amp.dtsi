@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+#define CPU_GET_AFFINITY(cpuId, clusterId) (((cpuId) << 0) | ((clusterId) << 8))
+#define CPU0_AFF CPU_GET_AFFINITY(0, 0)
+#define CPU1_AFF CPU_GET_AFFINITY(1, 0)
+#define CPU2_AFF CPU_GET_AFFINITY(2, 0)
+#define CPU3_AFF CPU_GET_AFFINITY(3, 0)
+#define CPU4_AFF CPU_GET_AFFINITY(0, 1)
+#define CPU5_AFF CPU_GET_AFFINITY(1, 1)
+#define CPU6_AFF CPU_GET_AFFINITY(0, 2)
+#define CPU7_AFF CPU_GET_AFFINITY(1, 2)
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru CLK_BUSMCU_ROOT>, <&cru CLK_BUSMCU_CORE_AON>,
+			 <&cru CLK_MCU_AXI_INTEGRITY>, <&cru SCLK_UART5>, <&cru PCLK_UART5>,
+			 <&cru CLK_TIMER10>, <&cru CLK_TIMER11>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5m2_xfer_pins>;
+
+		amp-cpu-aff-maskbits = /bits/ 64 <0x0 0x1 0x1 0x2 0x2 0x4 0x3 0x8 0x100 0x10
+						 0x101 0x20 0x200 0x40 0x201 0x80>;
+		amp-irqs = /bits/ 64 <GIC_AMP_IRQ_CFG_ROUTE(161, 0xd0, CPU3_AFF)>;
+		status = "okay";
+	};
+
+	rpmsg: rpmsg@45200000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox0 0 &mailbox3 0>;
+		rockchip,vdev-nums = <1>;
+		/* CPU3: link-id 0x03; MCU: link-id 0x04; */
+		rockchip,link-id = <0x03>;
+		reg = <0x0 0x45200000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+		status = "okay";
+	};
+};
+
+&mailbox0 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&mailbox3 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&reserved_memory {
+	amp_reserved: amp@43000000 {
+		reg = <0x0 0x43000000 0x0 0x02000000>;
+		no-map;
+	};
+
+	mcu_reserved: mcu@45000000 {
+		reg = <0x0 0x45000000 0x0 0x200000>;
+		no-map;
+	};
+
+	amp_shmem_reserved: amp-shmem@45200000 {
+		reg = <0x0 0x45200000 0x0 0x200000>;
+		no-map;
+	};
+
+	rpmsg_reserved: rpmsg@45400000 {
+		reg = <0x0 0x45400000 0x0 0x200000>;
+		no-map;
+	};
+
+	rpmsg_dma_reserved: rpmsg-dma@45600000 {
+		compatible = "shared-dma-pool";
+		reg = <0x0 0x45600000 0x0 0x200000>;
+		no-map;
+	};
+};
