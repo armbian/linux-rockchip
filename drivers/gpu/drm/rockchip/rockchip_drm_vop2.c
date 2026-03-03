@@ -16053,10 +16053,10 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 		return;
 
 	/*
-	 * rk3538 must disable sharp when all win is disabled, Otherwise
+	 * rk3538/rk3572 must disable sharp when all win is disabled, Otherwise
 	 * will display unexpected horizontal stripes.
 	 */
-	if ((!vp->enabled_win_mask && (vop2->version == VOP_VERSION_RK3538)) || vp->bypass_mode) {
+	if ((!vp->enabled_win_mask && (vop2->version >= VOP_VERSION_RK3572)) || vp->bypass_mode) {
 		writel(0x0, vop2->sharp_res.regs);
 		vcstate->sharp_en = false;
 
