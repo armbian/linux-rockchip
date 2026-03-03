@@ -44,6 +44,12 @@
 #define RKNPU3_PC_MASK_TRIGGER_OFFSET 0x003c
 #define RKNPU3_PC_MASK_TRIGGER_VALUE 0x0
 
+#define RKNPU3_NN_DCACHE_CTRL_OFFSET 0x2604
+#define RKNPU3_NN_DCACHE_DISABLE_VALUE 0x3000
+#define RKNPU3_NN_ENTRY_ADDR_OFFSET 0x2608
+#define RKNPU3_NN_TASK_TRIGGER_OFFSET 0x2600
+#define RKNPU3_NN_TASK_TRIGGER_VALUE 0x1
+
 /* FPGA debug registers (only used in rknpu3_core.c) */
 #ifdef FPGA_PLATFORM
 #define RKNPU3_FPGA_SET_AXI_OFFSET_OFFSET 0x2404
@@ -61,11 +67,13 @@
  * @core_id: Core ID
  * @entry_dma_addr: Entry DMA address (bin_kaddr DMA address + entry_point)
  * @enable_cycle_count: Whether to enable cycle counting
+ * @disable_nn_dcache: Whether to disable NN dcache
  *
  * Return: 0 on success, negative error code on failure
  */
 static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core_id,
-				uint32_t entry_dma_addr, uint32_t enable_cycle_count)
+				uint32_t entry_dma_addr, uint32_t enable_cycle_count,
+				uint32_t disable_nn_dcache)
 {
 	void __iomem *base_addr;
 	int ret;
@@ -86,9 +94,14 @@ static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core
 		rknpu3_reg_write(base_addr, RKNPU3_CYCLE_COUNT_START_OFFSET,
 				 RKNPU3_CYCLE_COUNT_START_VALUE);
 
-	LOG_DEV_DEBUG(rknpu3_dev->dev, "submit task to core %d, entry_dma_addr: 0x%x\n", core_id, entry_dma_addr);
-	rknpu3_reg_write(base_addr, 0x2608, entry_dma_addr);
-	rknpu3_reg_write(base_addr, 0x2600, 0x1);
+	LOG_DEV_DEBUG(rknpu3_dev->dev, "submit task to core %d, entry_dma_addr: 0x%x\n",
+		      core_id, entry_dma_addr);
+	if (disable_nn_dcache == 1)
+		rknpu3_reg_write(base_addr, RKNPU3_NN_DCACHE_CTRL_OFFSET,
+				 RKNPU3_NN_DCACHE_DISABLE_VALUE);
+	rknpu3_reg_write(base_addr, RKNPU3_NN_ENTRY_ADDR_OFFSET, entry_dma_addr);
+	rknpu3_reg_write(base_addr, RKNPU3_NN_TASK_TRIGGER_OFFSET,
+			 RKNPU3_NN_TASK_TRIGGER_VALUE);
 	return 0;
 }
 
@@ -173,7 +186,8 @@ static void rknpu3_irq_submit_next(struct rknpu3_device *dev, int core_id)
 
 	/* Submit to hardware */
 	ret = rknpu3_hw_submit_task(dev, core_id, entry_dma_addr,
-				    task->enable_cycle_count);
+				    task->enable_cycle_count,
+				    task->disable_nn_dcache);
 	if (ret) {
 		LOG_DEV_ERROR(dev->dev, "submit task %d to core %d failed\n",
 			      task->task_id, core_id);
@@ -448,7 +462,8 @@ int rknpu3_core_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core_id,
 
 	/* Submit task to NPU */
 	ret = rknpu3_hw_submit_task(rknpu3_dev, core_id, entry_dma_addr,
-				    task->enable_cycle_count);
+				    task->enable_cycle_count,
+				    task->disable_nn_dcache);
 	if (ret) {
 		rknpu3_core_set_idle(rknpu3_dev, core_id);
 		task->state = RKNPU3_TASK_STATE_ERROR;

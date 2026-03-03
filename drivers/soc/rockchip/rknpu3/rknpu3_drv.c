@@ -20,7 +20,10 @@
 #include <linux/string.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
+
+#ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_iommu.h>
+#endif
 
 /* IOMMU poll timeout for power off */
 #define NPU_MMU_DISABLED_POLL_PERIOD_US		1000
@@ -153,6 +156,8 @@ int rknpu3_power_get(struct rknpu3_device *rknpu3_dev)
 {
 	int ret = 0;
 
+	cancel_delayed_work_sync(&rknpu3_dev->power_off_work);
+
 	mutex_lock(&rknpu3_dev->power_lock);
 	if (atomic_inc_return(&rknpu3_dev->power_refcount) == 1)
 		ret = rknpu3_power_on(rknpu3_dev);
@@ -186,7 +191,7 @@ int rknpu3_power_put_delay(struct rknpu3_device *rknpu3_dev)
 
 	mutex_lock(&rknpu3_dev->power_lock);
 	if (atomic_read(&rknpu3_dev->power_refcount) == 1)
-		queue_delayed_work(
+		mod_delayed_work(
 			rknpu3_dev->power_off_wq, &rknpu3_dev->power_off_work,
 			msecs_to_jiffies(rknpu3_dev->power_put_delay));
 	else
@@ -201,6 +206,7 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 	struct device *dev = rknpu3_dev->dev;
 	int ret = -EINVAL;
 
+#ifndef FPGA_PLATFORM
 	LOG_DEV_DEBUG(dev, "rknpu3_power_on\n");
 
 	/* Enable regulators */
@@ -221,6 +227,7 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 			goto err_disable_vdd;
 		}
 	}
+#endif
 
 	/* Enable clocks */
 	if (rknpu3_dev->num_clks > 0) {
@@ -231,8 +238,10 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 		}
 	}
 
+#ifndef FPGA_PLATFORM
 	/* Lock devfreq during power state changes */
 	rknpu3_devfreq_lock(rknpu3_dev);
+#endif
 
 	/* Enable runtime PM */
 	ret = pm_runtime_get_sync(dev);
@@ -253,7 +262,9 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 		}
 	}
 
+#ifndef FPGA_PLATFORM
 	rknpu3_devfreq_unlock(rknpu3_dev);
+#endif
 
 	LOG_DEV_DEBUG(dev, "power on success\n");
 	return 0;
@@ -265,22 +276,27 @@ err_devfreq_unlock:
 err_disable_mem:
 	if (rknpu3_dev->mem)
 		regulator_disable(rknpu3_dev->mem);
+#ifndef FPGA_PLATFORM
 err_disable_vdd:
 	if (rknpu3_dev->vdd)
 		regulator_disable(rknpu3_dev->vdd);
+#endif
 	return ret;
 }
 
 static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 {
 	struct device *dev = rknpu3_dev->dev;
-	int ret;
+	int ret = 0;
+
+#ifndef FPGA_PLATFORM
 	bool val;
 
 	LOG_DEV_DEBUG(dev, "rknpu3_power_off\n");
 
 	/* Lock devfreq during power state changes */
 	rknpu3_devfreq_lock(rknpu3_dev);
+#endif
 
 	/* Release runtime PM */
 	pm_runtime_put_sync(dev);
@@ -292,6 +308,7 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 	 * If the PD/VD/CLK is closed, the register access will crash.
 	 * As a workaround, it's safe to close pd stuff until iommu disabled.
 	 */
+#ifndef FPGA_PLATFORM
 	if (rknpu3_dev->iommu_en && rknpu3_dev->iommu_dev) {
 		pm_runtime_put_sync(rknpu3_dev->iommu_dev);
 		ret = readx_poll_timeout(rockchip_iommu_is_enabled, rknpu3_dev->iommu_dev, val,
@@ -300,24 +317,29 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 		if (ret) {
 			LOG_DEV_ERROR(dev, "iommu still enabled, power on again\n");
 			pm_runtime_get_sync(dev);
-			return ret;
+			goto out_devfreq_unlock;
 		}
 	}
-
+out_devfreq_unlock:
 	rknpu3_devfreq_unlock(rknpu3_dev);
+	if (ret)
+		return ret;
+#endif
 
 	/* Disable clocks */
 	if (rknpu3_dev->num_clks > 0)
 		clk_bulk_disable_unprepare(rknpu3_dev->num_clks, rknpu3_dev->clks);
 
+#ifndef FPGA_PLATFORM
 	/* Disable regulators */
 	if (rknpu3_dev->mem)
 		regulator_disable(rknpu3_dev->mem);
 
 	if (rknpu3_dev->vdd)
 		regulator_disable(rknpu3_dev->vdd);
+#endif
 
-	return 0;
+	return ret;
 }
 
 static long rknpu3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -606,6 +628,7 @@ static int rknpu3_probe(struct platform_device *pdev)
 		LOG_DEV_INFO(dev, "found %d clocks\n", rknpu3_dev->num_clks);
 	}
 
+#ifndef FPGA_PLATFORM
 	/* Get power regulators */
 	rknpu3_dev->vdd = devm_regulator_get_optional(dev, "rknpu");
 	if (IS_ERR(rknpu3_dev->vdd)) {
@@ -628,6 +651,7 @@ static int rknpu3_probe(struct platform_device *pdev)
 		rknpu3_dev->mem = NULL;
 		LOG_DEV_INFO(dev, "no mem regulator found\n");
 	}
+#endif
 
 	/* Detect IOMMU device (but don't enable PM yet) */
 	if (of_property_read_bool(dev->of_node, "iommus")) {
@@ -786,11 +810,13 @@ static int rknpu3_probe(struct platform_device *pdev)
 		goto err_task_deinit;
 	}
 
+#ifndef FPGA_PLATFORM
 	/* Initialize devfreq */
 	ret = rknpu3_devfreq_init(rknpu3_dev);
 	if (ret && ret != -EOPNOTSUPP)
 		LOG_DEV_WARN(dev, "devfreq init failed: %d, continue without devfreq\n",
 			     ret);
+#endif
 
 	/*
 	 * Set power refcount to 1 (currently powered on from probe),
@@ -851,8 +877,10 @@ static void rknpu3_remove(struct platform_device *pdev)
 	if (rknpu3_dev->power_off_wq)
 		destroy_workqueue(rknpu3_dev->power_off_wq);
 
+#ifndef FPGA_PLATFORM
 	/* Remove devfreq */
 	rknpu3_devfreq_remove(rknpu3_dev);
+#endif
 
 	misc_deregister(&rknpu3_dev->miscdev);
 
@@ -901,6 +929,7 @@ static void rknpu3_remove(struct platform_device *pdev)
 
 MODULE_DEVICE_TABLE(of, rknpu3_of_match);
 
+#ifndef FPGA_PLATFORM
 #ifdef CONFIG_PM_SLEEP
 static int rknpu3_suspend(struct device *dev)
 {
@@ -946,6 +975,7 @@ static const struct dev_pm_ops rknpu3_pm_ops = {
 #endif
 	SET_RUNTIME_PM_OPS(rknpu3_runtime_suspend, rknpu3_runtime_resume, NULL)
 };
+#endif
 
 static struct platform_driver rknpu3_driver = {
 	.probe = rknpu3_probe,
@@ -953,7 +983,9 @@ static struct platform_driver rknpu3_driver = {
 	.driver = {
 		.name = "RKNPU3",
 		.of_match_table = rknpu3_of_match,
+#ifndef FPGA_PLATFORM
 		.pm = &rknpu3_pm_ops,
+#endif
 	},
 };
 

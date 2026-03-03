@@ -13,10 +13,10 @@
 
 #define DRIVER_NAME "RKNPU3"
 #define DRIVER_DESC "Rockchip RKNPU3 driver"
-#define DRIVER_DATE "20260123"
+#define DRIVER_DATE "20260303"
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0
-#define DRIVER_PATCHLEVEL 0
+#define DRIVER_PATCHLEVEL 1
 #define RKNPU3_DEVICE_NAME "rknpu3"
 
 /* Log macros */

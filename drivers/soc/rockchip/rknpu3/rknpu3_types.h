@@ -24,9 +24,11 @@
 #include <linux/devfreq.h>
 #include <linux/workqueue.h>
 
+#ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#endif
 
 #include "rknpu3_ioctl.h"
 
@@ -189,7 +191,9 @@ struct rknpu3_device {
 	struct thermal_cooling_device *devfreq_cooling;
 	struct devfreq *devfreq;
 	unsigned long ondemand_freq;
+#ifndef FPGA_PLATFORM
 	struct rockchip_opp_info opp_info;
+#endif
 	unsigned long current_freq;
 	unsigned long current_volt;
 

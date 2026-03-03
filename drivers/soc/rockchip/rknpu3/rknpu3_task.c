@@ -274,6 +274,7 @@ int rknpu3_tasks_submit(struct rknpu3_device *rknpu3_dev,
 
 		/* Setup task */
 		task_obj->enable_cycle_count = task_submit->enable_cycle_count;
+		task_obj->disable_nn_dcache = task_submit->disable_nn_dcache;
 		if (rknpu3_dev->next_task_id == 0)
 			rknpu3_dev->next_task_id = 1;
 		task_obj->task_id = rknpu3_dev->next_task_id++;

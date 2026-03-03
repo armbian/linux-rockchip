@@ -14,6 +14,9 @@
 #else
 #include <sys/ioctl.h>
 #include <errno.h>
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
 #endif
 
 /* NPU alignment and CPU cacheline alignment */
@@ -140,6 +143,7 @@ struct rknpu3_mem_import {
  * @bin_kaddr: Binary buffer kernel virtual address (userspace set)
  * @bin_dma_addr: Binary buffer local DMA address (userspace set)
  * @enable_cycle_count: Whether to enable cycle counting (kernel set)
+ * @disable_nn_dcache: Whether to disable NN dcache (kernel set)
  * @reserved: Reserved fields for alignment
  */
 struct rknpu3_task {
@@ -151,7 +155,8 @@ struct rknpu3_task {
 	__u64 bin_kaddr;
 	__u32 bin_dma_addr;
 	__u32 enable_cycle_count;
-	__u32 reserved[7];
+	__u32 disable_nn_dcache;
+	__u32 reserved[6];
 } __packed;
 
 /**
@@ -163,6 +168,7 @@ struct rknpu3_task {
  * @task_array_kaddr: Task array kernel virtual address (userspace set)
  * @start_time_us: Start time in microseconds (kernel filled)
  * @exec_time_us: Execution time in microseconds (kernel filled)
+ * @disable_nn_dcache: Whether to disable NN dcache (userspace set)
  * @reserved: Reserved fields for alignment
  */
 struct rknpu3_task_submit {
@@ -173,7 +179,8 @@ struct rknpu3_task_submit {
 	__u64 task_array_kaddr;
 	__u64 start_time_us;
 	__u64 exec_time_us;
-	__u32 reserved[6];
+	__u32 disable_nn_dcache;
+	__u32 reserved[5];
 } __packed;
 
 /**

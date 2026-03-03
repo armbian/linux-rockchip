@@ -11,7 +11,10 @@
 #include <linux/iommu.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+
+#ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_iommu.h>
+#endif
 
 #include "rknpu3_reset.h"
 #include "rknpu3_drv.h"
@@ -29,9 +32,11 @@
 int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 {
 	void __iomem *base_addr;
+#ifndef FPGA_PLATFORM
 	struct iommu_domain *domain = NULL;
 	uint32_t local_id;
 	int ret;
+#endif
 
 	if (core_id >= RKNPU3_GLOBAL_CORE_NUM)
 		return -EINVAL;
@@ -43,8 +48,10 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 
 #ifdef FPGA_PLATFORM
 	rknpu3_reg_write(base_addr, RKNPU3_RESET_OFFSET, RKNPU3_RESET_VALUE);
+	udelay(5);
 	rknpu3_reg_write(base_addr, RKNPU3_RESET_OFFSET, RKNPU3_USE_RKRV_VALUE);
 	rknpu3_reg_write(base_addr, RKNPU3_RESET_OFFSET, RKNPU3_UNRESET_VALUE);
+	udelay(5);
 #else
 	local_id = rknpu3_core_to_local_idx(core_id);
 
@@ -64,12 +71,12 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 	if (rknpu3_dev->srst_a_nrv[local_id])
 		reset_control_assert(rknpu3_dev->srst_a_nrv[local_id]);
 
+	udelay(5);
+
 	/* Configure to use RKRV */
 	if (rknpu3_dev->npu_grf && !IS_ERR(rknpu3_dev->npu_grf))
 		regmap_write(rknpu3_dev->npu_grf, NPU_GRF_USE_RKRV_OFFSET,
 			NPU_GRF_USE_RKRV_VALUE);
-
-	udelay(5);
 
 	/* Deassert reset */
 	if (rknpu3_dev->srst_a_nrv[local_id])
@@ -110,13 +117,16 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 int rknpu3_reset_init(struct rknpu3_device *rknpu3_dev)
 {
 	const struct rknpu3_config *config;
+#ifndef FPGA_PLATFORM
 	int i;
+#endif
 
 	if (!rknpu3_dev || !rknpu3_dev->config)
 		return -EINVAL;
 
 	config = rknpu3_dev->config;
 
+#ifndef FPGA_PLATFORM
 	/* Get reset control for each core */
 	for (i = 0; i < config->num_resets && i < rknpu3_dev->num_cores; i++) {
 		if (config->resets[i].srst_a_npu_name) {
@@ -145,6 +155,7 @@ int rknpu3_reset_init(struct rknpu3_device *rknpu3_dev)
 			}
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -207,7 +218,9 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 	struct rknrv_boot_params *boot_params;
 	uint32_t pc, entry_point_addr, raw_status;
 	uint32_t local_addr;
+#ifndef FPGA_PLATFORM
 	int ret;
+#endif
 	unsigned long flags;
 	struct rknpu3_core_status *status;
 	uint64_t now_us;
@@ -261,10 +274,12 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 	/* Release lock */
 	spin_unlock_irqrestore(&rknpu3_dev->dev_lock, flags);
 
+#ifndef FPGA_PLATFORM
 	/* Hardware reset core implementation */
 	ret = rknpu3_hw_core_reset(rknpu3_dev, global_core_id);
 	if (ret != 0)
 		return RKNPU3_ERROR_OPERATION_FAILED;
+#endif
 
 	return RKNPU3_SUCCESS;
 }

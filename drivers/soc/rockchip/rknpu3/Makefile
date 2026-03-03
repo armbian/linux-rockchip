@@ -9,5 +9,6 @@ rknpu3-y := rknpu3_drv.o \
             rknpu3_reset.o \
             rknpu3_task.o \
             rknpu3_memory.o \
-            rknpu3_pqueue.o \
-            rknpu3_devfreq.o
+            rknpu3_pqueue.o
+
+rknpu3-$(CONFIG_PM_DEVFREQ) += rknpu3_devfreq.o
