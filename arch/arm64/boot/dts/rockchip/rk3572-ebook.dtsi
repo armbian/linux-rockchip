@@ -63,9 +63,9 @@
 		 * 2: controlled by PWRCTRL2
 		 * 3: controlled by PWRCTRL3
 		 */
-		dvs-suspend-control-by = <0 0 0 0 0 2 0 0 0 2
-					  0 0 2 0 0
-					  2 2 0 0 0 0>;
+		//dvs-suspend-control-by = <0 0 0 0 0 2 0 0 0 2
+		//			  0 0 2 0 0
+		//			  2 2 0 0 0 0>;
 
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,
@@ -189,6 +189,7 @@
 				regulator-name = "vdd_logic_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <800000>;
 					regulator-changeable-in-suspend;
 				};
 			};
@@ -224,6 +225,7 @@
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <1200000>;
 					regulator-changeable-in-suspend;
 				};
 			};
@@ -376,30 +378,28 @@
 	};
 };
 
-/*
 &rockchip_suspend {
 	rockchip,sleep-debug-en = <1>;
 
 	rockchip,regulator-off-in-mem-lite =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
-		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vcca1v2_s0>, <&vcc3v3_sd_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>,
+		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
 	rockchip,regulator-on-in-mem-lite =
-		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>;
+		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>, <&vdd_logic_s0>;
 
 	rockchip,regulator-off-in-mem =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
-		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vcca1v2_s0>, <&vcc3v3_sd_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>,
+		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
 	rockchip,regulator-on-in-mem =
-		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>;
+		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>, <&vdd_logic_s0>;
 
 	rockchip,regulator-off-in-mem-ultra =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
-		<&vcc_1v8>, <&vdd_ddr_s0>, <&vcc_1v8_s3>, <&saradc_avdd1v8>, <&vcca1v2_s0>, <&vcc3v3_sd_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vddq_ddr_s0>,
+		<&vcc_1v8>, <&vdd_ddr_s0>, <&vcc_1v8_s3>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdd_0v75_s3>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
-	rockchip,regulator-on-in-mem-ultra = <&vdd2_ddr_s4>, <&vcca1v8_pldo6_s4>;
+	rockchip,regulator-on-in-mem-ultra = <&vdd2_ddr_s4>, <&vcca1v8_pldo6_s4>, <&vdd_logic_s0>;
 
 	status = "okay";
 };
-*/
