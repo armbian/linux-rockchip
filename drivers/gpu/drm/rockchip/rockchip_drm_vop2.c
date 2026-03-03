@@ -16794,14 +16794,14 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	int ret;
 
 	if (property == mode_config->tv_left_margin_property) {
-		if (vcstate->sharp_en) {
-			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+		if (vcstate->sharp_en && val != 100) {
+			DRM_ERROR("sharp is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 
 		if (vop2_is_left_right_or_odd_even_mode(vcstate) &&
-		    vop2->version == VOP_VERSION_RK3576) {
-			DRM_ERROR("split is enabled, failed to set %s\n", property->name);
+		    vop2->version == VOP_VERSION_RK3576 && val != 100) {
+			DRM_ERROR("split is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 		vcstate->left_margin = val;
@@ -16809,14 +16809,14 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	}
 
 	if (property == mode_config->tv_right_margin_property) {
-		if (vcstate->sharp_en) {
-			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+		if (vcstate->sharp_en && val != 100) {
+			DRM_ERROR("sharp is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 
 		if (vop2_is_left_right_or_odd_even_mode(vcstate) &&
-		    vop2->version == VOP_VERSION_RK3576) {
-			DRM_ERROR("split is enabled, failed to set %s\n", property->name);
+		    vop2->version == VOP_VERSION_RK3576 && val != 100) {
+			DRM_ERROR("split is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 		vcstate->right_margin = val;
@@ -16824,14 +16824,14 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	}
 
 	if (property == mode_config->tv_top_margin_property) {
-		if (vcstate->sharp_en) {
-			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+		if (vcstate->sharp_en && val != 100) {
+			DRM_ERROR("sharp is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 
 		if (vop2_is_left_right_or_odd_even_mode(vcstate) &&
-		    vop2->version == VOP_VERSION_RK3576) {
-			DRM_ERROR("split is enabled, failed to set %s\n", property->name);
+		    vop2->version == VOP_VERSION_RK3576 && val != 100) {
+			DRM_ERROR("split is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 		vcstate->top_margin = val;
@@ -16839,20 +16839,19 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	}
 
 	if (property == mode_config->tv_bottom_margin_property) {
-		if (vcstate->sharp_en) {
-			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+		if (vcstate->sharp_en && val != 100) {
+			DRM_ERROR("sharp is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 
 		if (vop2_is_left_right_or_odd_even_mode(vcstate) &&
-		    vop2->version == VOP_VERSION_RK3576) {
-			DRM_ERROR("split is enabled, failed to set %s\n", property->name);
+		    vop2->version == VOP_VERSION_RK3576 && val != 100) {
+			DRM_ERROR("split is enabled, failed to set %s as %llu\n", property->name, val);
 			return 0;
 		}
 		vcstate->bottom_margin = val;
 		return 0;
 	}
-
 
 	if (property == private->bg_prop) {
 		vcstate->background = val;
