@@ -2982,7 +2982,9 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	if (req->src.rd_mode == RGA_TILE4x4_MODE ||
 	    req->dst.rd_mode == RGA_TILE4x4_MODE ||
 	    req->src.rd_mode == RGA_RKFBC_MODE ||
-	    req->src.rd_mode == RGA_AFBC32x8_MODE)
+	    req->src.rd_mode == RGA_AFBC32x8_MODE ||
+	    req->dst.rd_mode == RGA_AFBC32x8_MODE ||
+	    req->src1.rd_mode == RGA_AFBC32x8_MODE)
 		/* force select to tile mode */
 		req->rotate_mode |= 1 << 6;
 
