@@ -1353,6 +1353,115 @@ static void rk805_of_property_prepare(struct rk808 *rk808, struct device *dev)
 }
 
 /*
+ * Helper function to check if a reboot command matches any in the given list
+ * and configure the PMIC for register-only reset if matched.
+ */
+static bool rk8xx_check_and_set_reg_reset(struct device *dev,
+					  struct rk808 *rk808,
+					  const char *cmd,
+					  const char * const cmd_list[],
+					  int cmd_count)
+{
+	bool handled = false;
+	int pmic_id;
+	int i, ret = 0;
+
+	for (i = 0; i < cmd_count; i++) {
+		if (!strcmp(cmd, cmd_list[i])) {
+			dev_info(dev,
+				 "Reboot command '%s' matched, configuring register-only reset\n",
+				 cmd);
+			handled = true;
+			break;
+		}
+	}
+
+	if (!handled)
+		return false;
+
+	/* Configure PMIC based on variant */
+	switch (rk808->variant) {
+	case RK805_ID:
+		ret = regmap_read(rk808->regmap, RK808_ID_LSB, &pmic_id);
+		if (ret) {
+			dev_err(dev, "reboot: failed to read RK808_ID_LSB\n");
+			return false;
+		}
+
+		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
+			ret = regmap_update_bits(rk808->regmap,
+						 RK805B_SYS_CFG2,
+						 RK805B_RST_FUNC_MSK,
+						 RK805B_RST_FUNC_REG);
+			if (ret)
+				dev_err(dev, "reboot: failed to set RK805B_SYS_CFG2\n");
+			else
+				dev_info(dev, "reboot: RK805B register reset mode configured\n");
+		}
+		break;
+	case RK809_ID:
+	case RK817_ID:
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_RST_FUNC_MSK,
+					 RK817_RST_FUNC_REG);
+		if (ret)
+			dev_err(dev, "reboot: failed to set RK817_RST_FUNC_REG\n");
+		else
+			dev_info(dev, "reboot: RK817/RK809 register reset mode configured\n");
+		break;
+	default:
+		/* Other variants don't support register-only reset */
+		dev_dbg(dev, "PMIC variant 0x%lx doesn't support register-only reset\n",
+			rk808->variant);
+		handled = false;
+		break;
+	}
+
+	return handled;
+}
+
+/*
+ * Helper function to check reboot command against both extended and built-in
+ * command lists Returns true if command is matched and register-only reset is
+ * configured
+ */
+static bool rk8xx_check_all_commands_and_set_reg_reset(struct device *dev,
+						       struct rk808 *rk808,
+						       const char *cmd)
+{
+	struct cmd_list {
+		const char * const *list;
+		int count;
+	} cmd_lists[2];
+	int num_lists = 0;
+	bool handled = false;
+	int i;
+
+	/* Build array of command lists to check */
+	if (rk808->ext_reg_only_cmds) {
+		cmd_lists[num_lists].list = rk808->ext_reg_only_cmds;
+		cmd_lists[num_lists].count = rk808->num_ext_reg_only_cmds;
+		num_lists++;
+	}
+
+	cmd_lists[num_lists].list = pmic_rst_reg_only_cmd;
+	cmd_lists[num_lists].count = ARRAY_SIZE(pmic_rst_reg_only_cmd);
+	num_lists++;
+
+	/* Check all command lists in order */
+	for (i = 0; i < num_lists; i++) {
+		handled = rk8xx_check_and_set_reg_reset(dev, rk808, cmd,
+							cmd_lists[i].list,
+							cmd_lists[i].count);
+		if (handled)
+			break;
+	}
+
+	return handled;
+}
+
+/*
  * Common reboot notifier handler function
  * When system restart, there are two rst actions of PMIC sleep if
  * board hardware support:
@@ -1373,39 +1482,23 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 	struct rk808_reboot_data_t *data;
 	bool handled = false;
 	struct device *dev;
-	int pmic_id;
-	int ret, i;
 
 	data = container_of(nb, struct rk808_reboot_data_t, reboot_notifier);
 	dev = &data->rk808->i2c->dev;
 
 	dev_info(dev, "PMIC reboot notifier called for variant 0x%lx, action: %lu, cmd: %s\n",
 		 data->rk808->variant, action, cmd ? (char *)cmd : "NULL");
+
 	/* Execute specific reboot handling based on PMIC variant */
 	switch (data->rk808->variant) {
 	case RK805_ID:
 		if (action != SYS_RESTART || !cmd)
 			return NOTIFY_OK;
-		ret = regmap_read(data->rk808->regmap, RK808_ID_LSB, &pmic_id);
-		if (ret)
-			dev_err(dev, "reboot: force RK805_ID_LSB error!\n");
-		/* RK805B rst_fun config */
-		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
-			for (i = 0; i < ARRAY_SIZE(pmic_rst_reg_only_cmd); i++) {
-				if (!strcmp(cmd, pmic_rst_reg_only_cmd[i])) {
-					ret = regmap_update_bits(data->rk808->regmap,
-								 RK805B_SYS_CFG2,
-								 RK805B_RST_FUNC_MSK,
-								 RK805B_RST_FUNC_REG);
-					if (ret)
-						dev_err(dev, "reboot: force RK805B_SYS_CFG2 error!\n");
-					else
-						dev_info(dev, "reboot: force RK805B_SYS_CFG2 ok!\n");
-					handled = true;
-					break;
-				}
-			}
-		}
+
+		/* Check all command lists (extended from DT and built-in) */
+		handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
+								     data->rk808,
+								     cmd);
 		break;
 	case RK809_ID:
 	case RK817_ID:
@@ -1432,26 +1525,16 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 				     RK817_POWER_EN_REG(3),
 				     value | 0xf0);
 		} else {
-			dev_info(dev, "reboot: not restore POWER_EN\n");
+			dev_info(dev, "reboot: not restoring POWER_EN\n");
 		}
 
 		if (action != SYS_RESTART || !cmd)
 			return NOTIFY_OK;
 
-		for (i = 0; i < ARRAY_SIZE(pmic_rst_reg_only_cmd); i++) {
-			if (!strcmp(cmd, pmic_rst_reg_only_cmd[i])) {
-				ret = regmap_update_bits(data->rk808->regmap,
-							 RK817_SYS_CFG(3),
-							 RK817_RST_FUNC_MSK,
-							 RK817_RST_FUNC_REG);
-				if (ret)
-					dev_err(dev, "reboot: force RK817_RST_FUNC_REG error!\n");
-				else
-					dev_info(dev, "reboot: force RK817_RST_FUNC_REG ok!\n");
-				handled = true;
-				break;
-			}
-		}
+		/* Check all command lists (extended from DT and built-in) */
+		handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
+								     data->rk808,
+								     cmd);
 		break;
 	case RK801_ID:
 	case RK808_ID:
@@ -1462,6 +1545,7 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 			data->rk808->variant, action, cmd ? (char *)cmd : "NULL");
 		handled = true;
 		break;
+
 	default:
 		dev_warn(dev, "Unhandled PMIC variant 0x%lx in reboot notifier\n",
 			 data->rk808->variant);
@@ -1536,6 +1620,48 @@ static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 
 	regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3), msk, val);
 	dev_info(dev, "support pmic reset mode:%d,%d\n", ret, func);
+}
+
+static int rk8xx_parse_dt(struct rk808 *rk808)
+{
+	struct device *dev = &rk808->i2c->dev;
+	int i, ret;
+
+	ret = device_property_read_string_array(dev, "rockchip,pmic-reg-only-cmds",
+						NULL, 0);
+	if (ret > 0) {
+		rk808->num_ext_reg_only_cmds = ret;
+		rk808->ext_reg_only_cmds = devm_kzalloc(dev,
+							ret * sizeof(char *),
+							GFP_KERNEL);
+		if (!rk808->ext_reg_only_cmds)
+			return -ENOMEM;
+
+		/* Read strings into array */
+		device_property_read_string_array(dev, "rockchip,pmic-reg-only-cmds",
+						  rk808->ext_reg_only_cmds, ret);
+
+		dev_info(dev,
+			 "Loaded %d extended register-only reset commands from DT\n",
+			 ret);
+
+		/* Debug: print all extended commands */
+		for (i = 0; i < ret; i++) {
+			dev_info(dev, "  Extended command[%d]: %s\n",
+				 i, rk808->ext_reg_only_cmds[i]);
+		}
+	} else if (ret == -EINVAL) {
+		/* Property doesn't exist, this is normal */
+		rk808->num_ext_reg_only_cmds = 0;
+		rk808->ext_reg_only_cmds = NULL;
+	} else if (ret < 0) {
+		/* Read error */
+		dev_err(dev,
+			"Failed to read rockchip,pmic-reg-only-cmds property: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static struct kobject *rk8xx_kobj;
@@ -1758,6 +1884,9 @@ static int rk808_probe(struct i2c_client *client)
 
 	if (of_property_prepare_fn)
 		of_property_prepare_fn(rk808, &client->dev);
+	ret = rk8xx_parse_dt(rk808);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < nr_pre_init_regs; i++) {
 		ret = regmap_update_bits(rk808->regmap,

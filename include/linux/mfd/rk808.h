@@ -1415,6 +1415,9 @@ struct rk808 {
 	bool is_primary;                               /* Whether this is the primary PMIC */
 	/* Syscore operations */
 	bool syscore_registered;                       /* Whether syscore is registered */
+
+	const char **ext_reg_only_cmds;
+	int num_ext_reg_only_cmds;
 };
 
 struct rk808_pmic_entry {
