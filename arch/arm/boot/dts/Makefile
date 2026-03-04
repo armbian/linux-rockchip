@@ -1130,6 +1130,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1103g-evb-v11.dtb \
 	rv1103g-evb-v11-sii902x-bt6562hdmi.dtb \
 	rv1103g-evb2-v10.dtb \
+	rv1103g-luckfox-pico-mini.dtb \
 	rv1103g-rmsl311-dloc-sl-v10.dtb \
 	rv1103g-scaner-v10.dtb \
 	rv1106g-38x38-ipc-v10.dtb \
@@ -1164,6 +1165,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb2-v12-nofastae-spi-nor.dtb \
 	rv1106g-evb2-v12-spi-nand-tb.dtb \
 	rv1106g-evb2-v12-wakeup.dtb \
+	rv1106g-luckfox-pico-pro-max.dtb \
 	rv1106g-smart-door-lock-rmsl-v10.dtb \
 	rv1106g-smart-door-lock-rmsl-v12.dtb \
 	rv1106g-uvc-demo-v10.dtb \
@@ -1245,8 +1247,11 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3308hs-voice-module-board-v10-aarch32.dtb \
 	rk3502g-evb1-v10.dtb \
 	rk3503g-evb1-v10.dtb \
+	rk3506b-armsom-forge1.dtb \
 	rk3506b-evb1-v10.dtb \
 	rk3506b-test2-v10.dtb \
+	rk3506b-luckfox-lyra-ultra-w.dtb \
+	rk3506b-luckfox-lyra-zero-w-sd.dtb \
 	rk3506g-demo-display-control.dtb \
 	rk3506g-evb1-v10.dtb \
 	rk3506g-evb1-v10-amp.dtb \
@@ -1258,9 +1263,11 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
 	rk3506g-evb1-v10-sii9022-rgb2hdmi.dtb \
 	rk3506g-evb2-v10.dtb \
+	rk3506g-luckfox-lyra-plus-sd.dtb \
 	rk3506g-iotest-v10.dtb \
 	rk3506g-iotest-v10-pdm.dtb \
 	rk3506g-test1-v10-audio.dtb \
+	rk3506j-forlinx-OK3506-S12_nand-microsd.dtb \
 	rk3518-evb1-ddr4-v10.dtb \
 	rk3528-demo4-ddr4-v10.dtb \
 	rk3528-evb1-ddr4-v10.dtb \
@@ -1749,3 +1756,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-vegman-n110.dtb \
 	aspeed-bmc-vegman-rx20.dtb \
 	aspeed-bmc-vegman-sx20.dtb
+
+subdir-y := $(dts-dirs) overlay
+
+# Armbian: Incremental: assuming overlay targets are already in the Makefile

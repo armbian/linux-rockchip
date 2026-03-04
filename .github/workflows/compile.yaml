@@ -1,0 +1,70 @@
+name: Build kernel on PR
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  Build:
+    name: Compile and upload kernel
+    runs-on: rockchip
+    if: ${{ github.repository_owner == 'armbian' }}
+    env:
+      OCI_TARGET_BASE: "ghcr.io/${{ github.repository }}/" # This is picked up by the Docker launcher automatically
+    steps:
+      # Login to ghcr.io, for later uploading rootfs to ghcr.io
+      - name: Docker Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # GitHub username or org
+          password: ${{ secrets.GITHUB_TOKEN }} # GitHub actions builtin token. repo has to have pkg access.
+
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          ref: main
+          fetch-depth: 1
+          clean: false
+
+      - name: Build arm64 kernel at ${{ github.event.pull_request.head.sha }}
+        id: kernel-arm64
+        run: |
+
+          rm -rf output/debs/*
+          mkdir -p userpatches/extensions/
+          cat <<- EOF > userpatches/extensions/pull-request.sh
+          function post_family_config__force_commit_for_rk3588() {
+              KERNELBRANCH="commit:${{ github.event.pull_request.head.sha }}"
+          }
+          EOF
+          bash ./compile.sh kernel \
+          SHARE_LOG=yes \
+          BOARD=orangepi5 \
+          BRANCH=vendor \
+          ENABLE_EXTENSIONS="pull-request"
+
+      - name: Build armhf kernel at ${{ github.event.pull_request.head.sha }}
+        id: kernel-armhf
+        run: |
+
+          mkdir -p userpatches/extensions/
+          cat <<- EOF > userpatches/extensions/pull-request.sh
+          function post_family_config__force_commit_for_rk3588() {
+              KERNELBRANCH="commit:${{ github.event.pull_request.head.sha }}"
+          }
+          EOF
+          bash ./compile.sh kernel \
+          SHARE_LOG=yes \
+          BOARD=armsom-forge1 \
+          BRANCH=vendor \
+          ENABLE_EXTENSIONS="pull-request"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rockchip-vendor
+          path: output/debs/*.deb
+          retention-days: 5

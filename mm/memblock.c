@@ -888,6 +888,10 @@ int __init_memblock memblock_phys_free(phys_addr_t base, phys_addr_t size)
 	return memblock_remove_range(&memblock.reserved, base, size);
 }
 
+#ifdef CONFIG_ARCH_KEEP_MEMBLOCK
+EXPORT_SYMBOL_GPL(memblock_free);
+#endif
+
 int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size - 1;

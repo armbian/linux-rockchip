@@ -1,0 +1,29 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable spidev on SPI3-M0 over CS0";
+		compatible = "radxa,cm3-io", "radxa,cm3-rpi-cm4-io", "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io";
+		category = "misc";
+		exclusive = "GPIO3_D1", "GPIO3_D2", "GPIO3_D3", "GPIO4_A6", "GPIO4_B0", "GPIO4_B2", "GPIO4_B3";
+		description = "Enable spidev on SPI3-M0 over CS0.";
+	};
+};
+
+&spi3 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi3m0_cs0 &spi3m0_pins>;
+	pinctrl-1 = <&spi3m0_cs0 &spi3m0_pins_hs>;
+	max-freq = <50000000>;
+
+	spidev@0 {
+		compatible = "rockchip,spidev";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+	};
+};

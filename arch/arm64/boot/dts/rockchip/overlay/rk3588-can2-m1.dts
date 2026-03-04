@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&can2>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&can2m1_pins>;
+		};
+	};
+};

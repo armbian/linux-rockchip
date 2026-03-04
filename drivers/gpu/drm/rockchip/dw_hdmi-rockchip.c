@@ -1078,7 +1078,7 @@ static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
 	hdmi->link_cfg.allm_supported = hdmi->hdmi21_data.allm_supported;
 
 	if (!max_frl_rate || (tmdsclk < HDMI20_MAX_RATE && mode.clock < HDMI20_MAX_RATE)) {
-		dev_dbg(hdmi->dev, "use tmds mode\n");
+		dev_info_once(hdmi->dev, "use tmds mode\n");
 		hdmi->link_cfg.frl_mode = false;
 		return;
 	}

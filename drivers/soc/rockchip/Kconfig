@@ -294,6 +294,7 @@ endif
 
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"
+	default n
 	depends on NO_GKI
 	select ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK if SMP
 	help
@@ -302,6 +303,7 @@ config ROCKCHIP_THUNDER_BOOT
 
 config ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
 	bool "Defer free large memblock to Buddy allocator"
+	depends on ROCKCHIP_THUNDER_BOOT
 	depends on SMP
 	depends on NO_GKI
 	help

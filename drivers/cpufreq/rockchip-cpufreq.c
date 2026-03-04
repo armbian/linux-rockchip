@@ -17,6 +17,7 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpuidle.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,6 +34,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/workqueue.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 
@@ -53,6 +55,11 @@ struct cluster_info {
 	unsigned long volt, mem_volt;
 };
 static LIST_HEAD(cluster_info_list);
+
+#define CPUFREQ_DEFER_DELAY_MS	100
+#define CPUFREQ_DEFER_RETRIES	50
+static struct delayed_work cpufreq_defer_work;
+static int cpufreq_defer_retry_count;
 
 static struct cluster_info *rockchip_cluster_info_lookup(int cpu);
 
@@ -927,7 +934,7 @@ static struct notifier_block rockchip_cpufreq_panic_notifier_block = {
 	.notifier_call = rockchip_cpufreq_panic_notifier,
 };
 
-static int __init rockchip_cpufreq_driver_init(void)
+static int rockchip_cpufreq_do_init(void)
 {
 	struct cluster_info *cluster, *pos;
 	struct cpufreq_dt_platform_data pdata = {0};
@@ -947,6 +954,9 @@ static int __init rockchip_cpufreq_driver_init(void)
 
 		ret = rockchip_cpufreq_cluster_init(cpu, cluster);
 		if (ret) {
+			kfree(cluster);
+			if (ret == -EPROBE_DEFER)
+				goto release_cluster_info;
 			pr_err("Failed to initialize dvfs info cpu%d\n", cpu);
 			goto release_cluster_info;
 		}
@@ -995,7 +1005,44 @@ release_cluster_info:
 	}
 	return ret;
 }
-module_init(rockchip_cpufreq_driver_init);
+
+static void rockchip_cpufreq_defer_work_func(struct work_struct *work)
+{
+	int ret;
+
+	ret = rockchip_cpufreq_do_init();
+	if (ret == -EPROBE_DEFER) {
+		if (++cpufreq_defer_retry_count < CPUFREQ_DEFER_RETRIES) {
+			pr_debug("cpufreq: regulator not ready, retry %d/%d\n",
+				 cpufreq_defer_retry_count, CPUFREQ_DEFER_RETRIES);
+			schedule_delayed_work(&cpufreq_defer_work,
+					      msecs_to_jiffies(CPUFREQ_DEFER_DELAY_MS));
+		} else {
+			pr_err("cpufreq: gave up waiting for regulator after %d retries\n",
+			       CPUFREQ_DEFER_RETRIES);
+		}
+	} else if (ret) {
+		pr_err("cpufreq: initialization failed with error %d\n", ret);
+	}
+}
+
+static int __init rockchip_cpufreq_driver_init(void)
+{
+	int ret;
+
+	ret = rockchip_cpufreq_do_init();
+	if (ret == -EPROBE_DEFER) {
+		pr_info("cpufreq: regulator not ready, deferring initialization\n");
+		INIT_DELAYED_WORK(&cpufreq_defer_work,
+				  rockchip_cpufreq_defer_work_func);
+		schedule_delayed_work(&cpufreq_defer_work,
+				      msecs_to_jiffies(CPUFREQ_DEFER_DELAY_MS));
+		return 0;
+	}
+
+	return ret;
+}
+late_initcall(rockchip_cpufreq_driver_init);
 
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip cpufreq driver");

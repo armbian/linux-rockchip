@@ -1,0 +1,26 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable FIQ Debugger on UART3-M0";
+		compatible = "radxa,rock-3b", "radxa,rock-3c", "radxa,e25";
+		category = "misc";
+		exclusive = "GPIO1_A0", "GPIO1_A1";
+		description = "Enable FIQ Debugger on UART3-M0.
+On Radxa ROCK 3B this is RX pin 3 & TX pin 5.
+On Radxa ROCK 3C this is RX pin 3 & TX pin 5.
+On Radxa E25 this is RX pin 3 & TX pin 5.";
+	};
+};
+
+&fiq_debugger {
+	status = "okay";
+	rockchip,serial-id = <3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m0_xfer>;
+};
+
+&uart3 {
+	status = "disabled";
+};

@@ -217,6 +217,7 @@ struct rk_hdmirx_dev {
 	struct v4l2_ctrl *audio_present_ctrl;
 	struct v4l2_dv_timings timings;
 	struct gpio_desc *hdmirx_det_gpio;
+	struct v4l2_ctrl *content_type;
 	struct work_struct work_wdt_config;
 	struct delayed_work delayed_work_hotplug;
 	struct delayed_work delayed_work_res_change;
@@ -995,6 +996,36 @@ static bool hdmirx_check_timing_valid(struct v4l2_bt_timings *bt)
 	return true;
 }
 
+static void hdmirx_get_avi_infoframe(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	union hdmi_infoframe frame = {};
+	int err, i, b, itr = 0;
+
+	u8 aviif[3 + 7 * 4];
+	u32 val;
+
+	aviif[itr++] = HDMI_INFOFRAME_TYPE_AVI;
+	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
+	aviif[itr++] = val & 0xff;
+	aviif[itr++] = (val >> 8) & 0xff;
+	for (i = 0; i < 7; i++) {
+		val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0 + 4 * i);
+		for (b = 0; b < 4; b++)
+			aviif[itr++] = (val >> (8 * b)) & 0xff;
+	}
+	err = hdmi_infoframe_unpack(&frame, aviif, sizeof(aviif));
+	if (err) {
+		v4l2_err(v4l2_dev, "failed to unpack AVI infoframe\n");
+		return;
+	}
+	if (frame.avi.itc) {
+		v4l2_ctrl_s_ctrl(hdmirx_dev->content_type, frame.avi.content_type);
+	} else {
+		v4l2_ctrl_s_ctrl(hdmirx_dev->content_type, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+	}
+}
+
 static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		struct v4l2_dv_timings *timings, bool from_dma)
 {
@@ -1029,6 +1060,7 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	bt->pixelclock = tmds_clk;
 	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
 		bt->pixelclock *= 2;
+	hdmirx_get_avi_infoframe(hdmirx_dev);
 	hdmirx_get_timings(hdmirx_dev, bt, from_dma);
 
 	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%llu, pix_clk:%d\n", tmds_clk, pix_clk);
@@ -1535,9 +1567,7 @@ static void hdmirx_phy_config(struct rk_hdmirx_dev *hdmirx_dev)
 		dev_err(dev, "%s wait pddq ack failed!\n", __func__);
 
 	hdmirx_update_bits(hdmirx_dev, PHY_CONFIG, HDMI_DISABLE, 0);
-	if (wait_reg_bit_status(hdmirx_dev, PHY_STATUS, HDMI_DISABLE_ACK, 0,
-				false, 50))
-		dev_err(dev, "%s wait hdmi disable ack failed!\n", __func__);
+	wait_reg_bit_status(hdmirx_dev, PHY_STATUS, HDMI_DISABLE_ACK, 0, false, 50);
 
 	hdmirx_tmds_clk_ratio_config(hdmirx_dev);
 }
@@ -1682,7 +1712,9 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 			hdmirx_phy_config(hdmirx_dev);
 
 		if (!tx_5v_power_present(hdmirx_dev)) {
-			v4l2_err(v4l2_dev, "%s HDMI pull out, return!\n", __func__);
+			v4l2_ctrl_s_ctrl(hdmirx_dev->content_type, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+			v4l2_dbg(1, debug, v4l2_dev,
+				 "%s HDMI pull out, return!\n", __func__);
 			return -1;
 		}
 
@@ -1694,6 +1726,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 				__func__, hdmirx_dev->tmds_clk_ratio);
 		v4l2_err(v4l2_dev, "%s mu_st:%#x, scdc_st:%#x, dma_st10:%#x\n",
 				__func__, mu_status, scdc_status, dma_st10);
+		v4l2_ctrl_s_ctrl(hdmirx_dev->content_type, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
 
 		return -1;
 	}
@@ -1766,6 +1799,34 @@ static int hdmirx_enum_input(struct file *file, void *priv,
 	input->std = 0;
 	strscpy(input->name, "hdmirx", sizeof(input->name));
 	input->capabilities = V4L2_IN_CAP_DV_TIMINGS;
+
+	return 0;
+}
+
+static int hdmirx_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int hdmirx_s_input(struct file *file, void *priv, unsigned int i)
+{
+	return i == 0 ? 0 : -EINVAL;
+}
+
+static int hdmirx_g_parm(struct file *file, void *priv,
+		struct v4l2_streamparm *parm)
+{
+	struct hdmirx_stream *stream = video_drvdata(file);
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	struct v4l2_fract fps;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	fps = v4l2_calc_timeperframe(&hdmirx_dev->timings);
+	parm->parm.capture.timeperframe.numerator = fps.numerator;
+	parm->parm.capture.timeperframe.denominator = fps.denominator;
 
 	return 0;
 }
@@ -2590,8 +2651,11 @@ static const struct v4l2_ioctl_ops hdmirx_v4l2_ioctl_ops = {
 	.vidioc_query_dv_timings = hdmirx_query_dv_timings,
 	.vidioc_dv_timings_cap = hdmirx_dv_timings_cap,
 	.vidioc_enum_input = hdmirx_enum_input,
+	.vidioc_g_input = hdmirx_g_input,
+	.vidioc_s_input = hdmirx_s_input,
 	.vidioc_g_edid = hdmirx_get_edid,
 	.vidioc_s_edid = hdmirx_set_edid,
+	.vidioc_g_parm = hdmirx_g_parm,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
@@ -3200,7 +3264,7 @@ static irqreturn_t hdmirx_dma_irq_handler(int irq, void *dev_id)
 
 static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
-	dev_info(hdmirx_dev->dev, "%s: %d", __func__, en);
+	//dev_info(hdmirx_dev->dev, "%s: %d", __func__, en);
 	if (en) {
 		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
 				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
@@ -3585,8 +3649,8 @@ static int hdmirx_audio_startup(struct device *dev, void *data)
 
 	if (tx_5v_power_present(hdmirx_dev) && hdmirx_dev->audio_present)
 		return 0;
-	dev_err(dev, "%s: device is no connected or audio is off\n", __func__);
-	return -ENODEV;
+	dev_dbg(dev, "%s: device is no connected or audio is off\n", __func__);
+	return 0;
 }
 
 static void hdmirx_audio_shutdown(struct device *dev, void *data)
@@ -4884,7 +4948,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	strscpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
 
 	hdl = &hdmirx_dev->hdl;
-	v4l2_ctrl_handler_init(hdl, 3);
+	v4l2_ctrl_handler_init(hdl, 4);
 	hdmirx_dev->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl,
 			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
@@ -4897,6 +4961,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 			&hdmirx_ctrl_audio_present, NULL);
 	if (hdmirx_dev->audio_present_ctrl)
 		hdmirx_dev->audio_present_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
+	hdmirx_dev->content_type = v4l2_ctrl_new_std_menu(hdl, NULL,
+			V4L2_CID_DV_RX_IT_CONTENT_TYPE,
+			V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
+			0,
+			V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+
 	if (hdl->error) {
 		dev_err(dev, "v4l2 ctrl handler init failed!\n");
 		ret = hdl->error;

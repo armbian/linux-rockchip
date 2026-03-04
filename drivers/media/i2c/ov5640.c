@@ -19,12 +19,18 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/version.h>
+#include <linux/rk-camera-module.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
+
+#define OV5640_LANES			2
 
 /* min/typical/max system clock (xclk) frequencies */
 #define OV5640_XCLK_MIN  6000000
@@ -118,6 +124,8 @@
 #define OV5640_REG_SDE_CTRL4		0x5584
 #define OV5640_REG_SDE_CTRL5		0x5585
 #define OV5640_REG_AVG_READOUT		0x56a1
+
+#define OV5640_NAME			"ov5640"
 
 enum ov5640_mode_id {
 	OV5640_MODE_QQVGA_160_120 = 0,
@@ -465,6 +473,11 @@ struct ov5640_dev {
 
 	bool pending_mode_change;
 	bool streaming;
+
+	u32 module_index;
+	const char *module_facing;
+	const char *module_name;
+	const char *len_name;
 };
 
 static inline struct ov5640_dev *to_ov5640_dev(struct v4l2_subdev *sd)
@@ -3747,16 +3760,60 @@ static int ov5640_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static void ov5640_get_module_inf(struct ov5640_dev *sensor,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strscpy(inf->base.sensor, OV5640_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sensor->module_name,
+		sizeof(inf->base.module));
+	strscpy(inf->base.lens, sensor->len_name, sizeof(inf->base.lens));
+}
+
+static long ov5640_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct ov5640_dev *sensor = to_ov5640_dev(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+	        ov5640_get_module_inf(sensor, (struct rkmodule_inf *)arg);
+	        break;
+	default:
+	        ret = -ENOIOCTLCMD;
+	        break;
+	}
+
+	return ret;
+}
+
+static int ov5640_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+				struct v4l2_mbus_config *config)
+{
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2.num_data_lanes = OV5640_LANES;
+
+	return 0;
+}
+
+static int ov5640_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	*status = 0;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops ov5640_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+	.ioctl = ov5640_ioctl,
 };
 
 static const struct v4l2_subdev_video_ops ov5640_video_ops = {
 	.g_frame_interval = ov5640_g_frame_interval,
 	.s_frame_interval = ov5640_s_frame_interval,
 	.s_stream = ov5640_s_stream,
+	.g_input_status = ov5640_g_input_status,
 };
 
 static const struct v4l2_subdev_pad_ops ov5640_pad_ops = {
@@ -3767,6 +3824,7 @@ static const struct v4l2_subdev_pad_ops ov5640_pad_ops = {
 	.get_selection = ov5640_get_selection,
 	.enum_frame_size = ov5640_enum_frame_size,
 	.enum_frame_interval = ov5640_enum_frame_interval,
+	.get_mbus_config = ov5640_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov5640_subdev_ops = {
@@ -3809,12 +3867,21 @@ static int ov5640_check_chip_id(struct ov5640_dev *sensor)
 	return 0;
 }
 
-static int ov5640_probe(struct i2c_client *client)
+static int ov5640_probe(struct i2c_client *client,
+			const struct i2c_device_id *did)
 {
 	struct device *dev = &client->dev;
+	struct device_node *np = dev->of_node;
 	struct fwnode_handle *endpoint;
 	struct ov5640_dev *sensor;
+	struct v4l2_subdev *sd;
+	char facing[2];
 	int ret;
+
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
@@ -3859,6 +3926,19 @@ static int ov5640_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
+	ret = of_property_read_u32(np, RKMODULE_CAMERA_MODULE_INDEX,
+				   &sensor->module_index);
+	ret |= of_property_read_string(np, RKMODULE_CAMERA_MODULE_FACING,
+				       &sensor->module_facing);
+	ret |= of_property_read_string(np, RKMODULE_CAMERA_MODULE_NAME,
+				       &sensor->module_name);
+	ret |= of_property_read_string(np, RKMODULE_CAMERA_LENS_NAME,
+				       &sensor->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
+
 	/* get system clock (xclk) */
 	sensor->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(sensor->xclk)) {
@@ -3886,7 +3966,8 @@ static int ov5640_probe(struct i2c_client *client)
 	if (IS_ERR(sensor->reset_gpio))
 		return PTR_ERR(sensor->reset_gpio);
 
-	v4l2_i2c_subdev_init(&sensor->sd, client, &ov5640_subdev_ops);
+	sd = &sensor->sd;
+	v4l2_i2c_subdev_init(sd, client, &ov5640_subdev_ops);
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
@@ -3920,6 +4001,15 @@ static int ov5640_probe(struct i2c_client *client)
 	if (ret)
 		goto err_pm_runtime;
 
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(sensor->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 sensor->module_index, facing,
+		 OV5640_NAME, dev_name(sd->dev));
 	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret)
 		goto err_pm_runtime;
@@ -3977,12 +4067,12 @@ MODULE_DEVICE_TABLE(of, ov5640_dt_ids);
 
 static struct i2c_driver ov5640_i2c_driver = {
 	.driver = {
-		.name  = "ov5640",
+		.name  = OV5640_NAME,
 		.of_match_table	= ov5640_dt_ids,
 		.pm = &ov5640_pm_ops,
 	},
 	.id_table = ov5640_id,
-	.probe_new = ov5640_probe,
+	.probe = ov5640_probe,
 	.remove   = ov5640_remove,
 };
 

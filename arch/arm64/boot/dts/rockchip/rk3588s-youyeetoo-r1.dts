@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-yyt-common.dtsi"
+
+/ {
+    model = "Youyeetoo R1";
+    compatible = "youyeetoo,r1", "rockchip,rk3588";
+
+    /* AUDIO - ES8388 chip, but only works with ES8323 driver */
+
+	es8323_sound: es8323-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8323";
+        hp-det-gpio = <&gpio1 RK_PC0 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 3>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s0_8ch>;
+		rockchip,codec = <&es8323>;
+        rockchip,audio-routing =
+            "Headphone", "LOUT1",
+            "Headphone", "ROUT1",
+            "Speaker", "LOUT1",
+            "Speaker", "ROUT1",
+            "Headphone", "Headphone Power",
+            "Speaker", "Speaker Power",
+            "LINPUT1", "Headset Mic",
+            "RINPUT1", "Headset Mic",
+            "LINPUT2", "Main Mic",
+            "RINPUT2", "Main Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
+		};
+	};
+
+    /* BLUETOOTH */
+    wireless_bluetooth: wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+        clocks = <&hym8563>;
+        clock-names = "ext_clock";
+        status = "okay";
+    };
+
+    /* WIFI */
+    wireless_wlan: wireless-wlan {
+        compatible = "wlan-platdata";
+        wifi_chip_type = "rtl8852be";
+        pinctrl-names = "default";
+        pinctrl-0 = <&wifi_host_wake_irq>;
+        WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+    };
+
+    /* FAN */
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		cooling-levels = <100 160 190 200 215 235 255>;
+		pwms = <&pwm6 0 40000 0>;
+        fan-supply = <&vcc12v_dcin>;
+	};
+
+    /* If hdmirx node is disabled, delete the reserved-memory node here. */
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Reserve 256MB memory for hdmirx-controller@fdee0000 */
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 (256 * 0x100000) 0x0 (256 * 0x100000)>;
+			linux,cma-default;
+		};
+	};
+};
+
+/* AUDIO */
+&i2s0_8ch {
+	status = "okay";
+	pinctrl-0 = <&i2s0_lrck
+		     &i2s0_sclk
+		     &i2s0_sdi0
+		     &i2s0_sdo0>;
+};
+
+/* PWM */
+&pwm6{
+     pinctrl-0 = <&pwm6m0_pins>;
+     pinctrl-names = "active";
+     status = "okay";
+};
+
+&pwm7{
+     pinctrl-0 = <&pwm7m0_pins>;
+     pinctrl-names = "active";
+     status = "okay";
+};
+

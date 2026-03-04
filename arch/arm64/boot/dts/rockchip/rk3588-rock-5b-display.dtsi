@@ -1,0 +1,193 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Radxa Limited.
+ *
+ */
+
+/ {
+	compatible = "radxa,rock-5b", "rockchip,rk3588";
+
+	vcc_lcd_mipi1: vcc-lcd-mipi1 {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd_mipi1";
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	dsi1_backlight: dsi1-backlight {
+		status = "disabled";
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+		enable-gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsi1_backlight_en>;
+	};
+};
+
+&pwm2 {
+	status = "disabled";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm2m2_pins>;
+};
+
+&dsi1 {
+	status = "disabled";
+	rockchip,lane-rate = <480>;
+
+	dsi1_panel: panel@0 {
+		status = "disabled";
+		compatible ="chongzhou,cz101b4001";
+		reg = <0>;
+		backlight = <&dsi1_backlight>;
+
+		vdd-supply = <&vcc_lcd_mipi1>;
+		vccio-supply = <&vcc_1v8_s0>;
+		reset-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsi1_lcd_rst_gpio>;
+     	
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi1: endpoint {
+					remote-endpoint = <&dsi1_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi1>;
+			};
+		};
+	};
+};
+
+&mipi_dcphy1 {
+	status = "disabled";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "disabled";
+};
+
+&i2c6 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6m0_xfer>;
+	clock-frequency = <400000>;
+
+	gt9xx: gt9xx@14 {
+		status = "disabled";
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gt9xx_gpio>;
+		touch-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		max-x = <800>;
+		max-y = <1280>;
+		tp-size = <9112>;
+		tp-supply = <&vcc_lcd_mipi1>;
+	};
+
+	focaltech: focaltech@38 {
+		status = "disabled";
+		compatible = "focaltech,fts";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&focaltech_gpio>;
+		focaltech,irq-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+		focaltech,reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		focaltech,display-coords = <0 0 799 1279>;
+	};
+};
+
+&pinctrl {
+
+	dsi1-lcd {
+		dsi1_lcd_rst_gpio: dsi1-lcd-rst-gpio {
+			rockchip,pins =
+				<2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		dsi1_backlight_en: dsi1-backlight-en {
+			rockchip,pins =
+				<2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	gt9xx {
+		gt9xx_gpio: gt9xx-gpio {
+			rockchip,pins =
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	focaltech {
+		focaltech_gpio: focaltech-gpio {
+		    rockchip,pins =
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

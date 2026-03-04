@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Joshua Riek <jjriek@verizon.net>
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-turing-rk1.dtsi"
+
+/ {
+	model = "Turing Machines RK1";
+	compatible = "turing,rk1", "rockchip,rk3588";
+
+	chosen {
+		stdout-path = "serial9:115200n8";
+	};
+};

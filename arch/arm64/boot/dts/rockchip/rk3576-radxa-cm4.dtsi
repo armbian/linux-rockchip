@@ -1,0 +1,374 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2024 Radxa Computer (Shenzhen) Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
+#include <dt-bindings/sensor-dev.h>
+#include "rk3576.dtsi"
+#include "rk3576-linux.dtsi"
+#include "rk3576-rk806.dtsi"
+
+/ {
+	model = "Radxa CM4";
+	compatible = "radxa,cm4", "rockchip,rk3576";
+
+	vcc_2v0_pldo_s3: vcc-2v0-pldo-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_2v0_pldo_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <2000000>;
+		regulator-max-microvolt = <2000000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v1_nldo_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8_s0: vcc-1v8-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_1v8_s3>;
+	};
+
+	vcc_3v3_s0: vcc-3v3-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	hdmi_sound: hdmi-sound {
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-hdmi0";
+		rockchip,cpu = <&sai6>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
+	};
+
+	wifi_chip_en: wifi-chip-en {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_chip_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+		gpio = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_chip_en_gpio>;
+	};
+
+	leds: leds {
+		compatible = "gpio-leds";
+		pwr_led: pwr-led {
+			gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_big_s0>;
+};
+
+&crypto {
+	status = "okay";
+};
+
+&dmc {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
+};
+
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
+&jpegd {
+	status = "okay";
+};
+
+&jpege {
+	status = "okay";
+};
+
+&jpeg_mmu {
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&rga2_core0 {
+	status = "okay";
+};
+
+&rga2_core0_mmu {
+	status = "okay";
+};
+
+&rga2_core1 {
+	status = "okay";
+};
+
+&rga2_core1_mmu {
+	status = "okay";
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
+&rkvenc_ccu {
+	status = "okay";
+};
+
+&rkvenc0 {
+	status = "okay";
+};
+
+&rkvenc0_mmu {
+	status = "okay";
+};
+
+&rkvenc1 {
+	status = "okay";
+};
+
+&rkvenc1_mmu {
+	status = "okay";
+
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+
+	rockchip,sleep-io-ret-config = <
+		(0
+		| RKPM_VCCIO3_RET_EN
+		)
+	>;
+
+	rockchip,regulator-on-before-mem = <&vdd_npu_s0>;
+};
+
+&vdd_logic_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+	};
+};
+
+&vcca_1v8_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcca_1v8_s0>;
+};
+
+&tsadc {
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
+&vdpp {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+	vop-supply = <&vdd_logic_s0>;
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VP2_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi>;
+	clock-names = "hdmi0_phy_pll";
+};
+
+&hdmi {
+	status = "okay";
+	enable-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+	cec-enable = "true";
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi {
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
+};
+
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER0>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp1 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER1>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART1>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_ESMART2 | 1 << ROCKCHIP_VOP2_ESMART3)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART2>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
+};
+
+&gmac0 {
+	/* Use rgmii-rxid mode to disable rx delay inside Soc */
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth0m0_miim
+		     &eth0m0_tx_bus2
+		     &eth0m0_rx_bus2
+		     &eth0m0_rgmii_clk
+		     &eth0m0_rgmii_bus
+		     &ethm0_clk0_25m_out>;
+
+	tx_delay = <0x21>;
+	/* rx_delay = <0x3f>; */
+
+	phy-handle = <&rgmii_phy0>;
+	status = "okay";
+};
+
+&mdio0 {
+	rgmii_phy0: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+		clocks = <&cru REFCLKO25M_GMAC0_OUT>;
+	};
+};
+
+&sai6 {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	phy-supply = <&vcc_3v3_s0>;
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&combphy1_psu {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6m3_xfer>;
+
+	eeprom:	at24c16@50 {
+		status = "okay";
+		compatible = "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&pinctrl {
+	wifi {
+		wifi_chip_en_gpio: wifi-chip-en-gpio {
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

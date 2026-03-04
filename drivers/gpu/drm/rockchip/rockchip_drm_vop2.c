@@ -2735,7 +2735,7 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 	if (!rockchip_afbc(plane, modifier) &&
 	    !rockchip_rfbc(plane, modifier) &&
 	    !rockchip_tiled(plane, modifier)) {
-		DRM_ERROR("%s unsupported format modifier 0x%llx\n", plane->name, modifier);
+		DRM_DEBUG("%s unsupported format modifier 0x%llx\n", plane->name, modifier);
 
 		return false;
 	}
@@ -6360,9 +6360,10 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 
 	if (drm_rect_width(src) >> 16 < 4 || drm_rect_height(src) >> 16 < 4 ||
 	    drm_rect_width(dest) < 4 || drm_rect_width(dest) < 4) {
-		DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
-			  drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
-			  drm_rect_width(dest), drm_rect_height(dest));
+		if (plane->type != DRM_PLANE_TYPE_CURSOR)
+			DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
+				  drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
+				  drm_rect_width(dest), drm_rect_height(dest));
 		pstate->visible = false;
 		return 0;
 	}

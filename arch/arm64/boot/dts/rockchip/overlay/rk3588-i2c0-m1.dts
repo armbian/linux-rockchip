@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable I2C0-M1";
+		compatible = "radxa,rock-5b";
+		category = "misc";
+		exclusive = "GPIO4_C6", "GPIO4_C5";
+		description = "Enable I2C0-M1.\nOn Radxa ROCK 5B this is SDA pin 27 and this is SCL pin 28.";
+	};
+
+	fragment@0 {
+		target = <&i2c0>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c0m1_xfer>;
+		};
+	};
+};

@@ -1,0 +1,188 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+#include <dt-bindings/power/rk3576-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+    fragment@0 {
+        target = <&i2c4>;
+        __overlay__ {
+            status = "okay";
+            pinctrl-names = "default";
+            pinctrl-0 = <&i2c4m3_xfer>;
+            ov13850_1: ov13850_1@10 {
+                status = "okay";
+                compatible = "ovti,ov13850";
+                reg = <0x10>;
+                clocks = <&cru CLK_MIPI_CAMERAOUT_M2>;
+                clock-names = "xvclk";
+                pinctrl-names = "default";
+                pinctrl-0 = <&cam_clk2m0_clk2>;
+                pwdn-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+                reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+                rockchip,camera-module-index = <1>;
+                rockchip,camera-module-facing = "back";
+                rockchip,camera-module-name = "ZC-OV13850R2A-V1";
+                rockchip,camera-module-lens-name = "Largan-50064B31";
+                port {
+                    ov13850_out1: endpoint {
+                        remote-endpoint = <&mipidphy3_in_ucam3>;
+                        data-lanes = <1 2 3 4>;
+                    };
+                };
+            };
+        };
+    };
+
+    fragment@1 {
+        target = <&csi2_dphy0_hw>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@2 {
+        target = <&csi2_dphy1_hw>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@3 {
+        target = <&csi2_dphy3>;
+        __overlay__ {
+            status = "okay";
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    mipidphy3_in_ucam3: endpoint@1 {
+                        reg = <1>;
+                        remote-endpoint = <&ov13850_out1>;
+                        data-lanes = <1 2 3 4>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    csidphy3_out: endpoint@0 {
+                        reg = <0>;
+                        remote-endpoint = <&mipi4_csi2_input>;
+                    };
+                };
+            };
+        };
+    };
+
+    fragment@4 {
+        target = <&mipi3_csi2>;
+        __overlay__ {
+            status = "okay";
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    mipi4_csi2_input: endpoint@1 {
+                        reg = <1>;
+                        remote-endpoint = <&csidphy3_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    mipi3_csi2_output: endpoint@0 {
+                        reg = <0>;
+                        remote-endpoint = <&cif_mipi_in3>;
+                    };
+                };
+            };
+        };
+    };
+
+    fragment@5 {
+        target = <&rkcif>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@6 {
+        target = <&rkcif_mipi_lvds3>;
+        __overlay__ {
+            status = "okay";
+            port {
+                cif_mipi_in3: endpoint {
+                    remote-endpoint = <&mipi3_csi2_output>;
+                };
+            };
+        };
+    };
+
+    fragment@7 {
+        target = <&rkcif_mipi_lvds3_sditf>;
+        __overlay__ {
+            status = "okay";
+            port {
+                mipi_lvds3_sditf: endpoint {
+                    remote-endpoint = <&isp_vir0_in1>;
+                };
+            };
+        };
+    };
+
+    fragment@8 {
+        target = <&rkcif_mmu>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@9 {
+        target = <&rkisp>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@10 {
+        target = <&rkisp_mmu>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@11 {
+        target = <&rkisp_vir0>;
+        __overlay__ {
+            status = "okay";
+            port {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                isp_vir0_in1: endpoint@0 {
+                    reg = <0>;
+                    remote-endpoint = <&mipi_lvds3_sditf>;
+                };
+            };
+        };
+    };
+};

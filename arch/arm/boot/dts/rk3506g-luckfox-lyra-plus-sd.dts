@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506-luckfox-lyra.dtsi"
+
+/ {
+	model = "Luckfox Lyra Plus";
+	compatible = "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
+};
+
+/**********display**********/
+&cma {
+	size = <0x200000>;
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+/**********ethernet**********/
+&gmac1 {
+	phy-mode = "rmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 20000 100000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth_rmii1_miim_pins &eth_rmii1_tx_bus2_pins &eth_rmii1_rx_bus2_pins &eth_rmii1_clk_pins>;
+
+	phy-handle = <&rmii_phy1>;
+	status = "okay";
+};
+
+&mdio1 {
+	rmii_phy1: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+};
+
+/**********usb**********/
+&usb20_otg0 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb20_otg1 {
+	dr_mode = "host";
+	status = "okay";
+};

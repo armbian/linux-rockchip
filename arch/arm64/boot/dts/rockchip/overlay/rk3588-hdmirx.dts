@@ -1,0 +1,12 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&hdmirx_ctrler>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

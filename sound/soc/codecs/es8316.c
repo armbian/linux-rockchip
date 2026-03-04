@@ -32,6 +32,30 @@ static const unsigned int supported_mclk_lrck_ratios[] = {
 	256, 384, 400, 512, 768, 1024
 };
 
+static const struct reg_default es8316_reg_defaults[] = {
+	{0x00, 0x03}, {0x01, 0x03}, {0x02, 0x00}, {0x03, 0x20},
+	{0x04, 0x11}, {0x05, 0x00}, {0x06, 0x11}, {0x07, 0x00},
+	{0x08, 0x00}, {0x09, 0x01}, {0x0a, 0x00}, {0x0b, 0x00},
+	{0x0c, 0xf8}, {0x0d, 0x3f}, {0x0e, 0x00}, {0x0f, 0x00},
+	{0x10, 0x01}, {0x11, 0xfc}, {0x12, 0x28}, {0x13, 0x00},
+	{0x14, 0x00}, {0x15, 0x33}, {0x16, 0x00}, {0x17, 0x00},
+	{0x18, 0x88}, {0x19, 0x06}, {0x1a, 0x22}, {0x1b, 0x03},
+	{0x1c, 0x0f}, {0x1d, 0x00}, {0x1e, 0x80}, {0x1f, 0x80},
+	{0x20, 0x00}, {0x21, 0x00}, {0x22, 0xc0}, {0x23, 0x00},
+	{0x24, 0x01}, {0x25, 0x08}, {0x26, 0x10}, {0x27, 0xc0},
+	{0x28, 0x00}, {0x29, 0x1c}, {0x2a, 0x00}, {0x2b, 0xb0},
+	{0x2c, 0x32}, {0x2d, 0x03}, {0x2e, 0x00}, {0x2f, 0x11},
+	{0x30, 0x10}, {0x31, 0x00}, {0x32, 0x00}, {0x33, 0xc0},
+	{0x34, 0xc0}, {0x35, 0x1f}, {0x36, 0xf7}, {0x37, 0xfd},
+	{0x38, 0xff}, {0x39, 0x1f}, {0x3a, 0xf7}, {0x3b, 0xfd},
+	{0x3c, 0xff}, {0x3d, 0x1f}, {0x3e, 0xf7}, {0x3f, 0xfd},
+	{0x40, 0xff}, {0x41, 0x1f}, {0x42, 0xf7}, {0x43, 0xfd},
+	{0x44, 0xff}, {0x45, 0x1f}, {0x46, 0xf7}, {0x47, 0xfd},
+	{0x48, 0xff}, {0x49, 0x1f}, {0x4a, 0xf7}, {0x4b, 0xfd},
+	{0x4c, 0xff}, {0x4d, 0x00}, {0x4e, 0x00}, {0x4f, 0xff},
+	{0x50, 0x00}, {0x51, 0x00}, {0x52, 0x00}, {0x53, 0x00},
+};
+
 struct es8316_priv {
 	struct mutex lock;
 	struct clk *mclk;
@@ -43,6 +67,7 @@ struct es8316_priv {
 	unsigned int allowed_rates[NR_SUPPORTED_MCLK_LRCK_RATIOS];
 	struct snd_pcm_hw_constraint_list sysclk_constraints;
 	bool jd_inverted;
+	int pwr_count;
 };
 
 /*
@@ -207,158 +232,214 @@ static const struct snd_kcontrol_new es8316_dacsrc_mux_controls =
 	SOC_DAPM_ENUM("Route", es8316_dacsrc_mux_enum);
 
 static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("Bias", ES8316_SYS_PDN, 3, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Analog power", ES8316_SYS_PDN, 4, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Mic Bias", ES8316_SYS_PDN, 5, 1, NULL, 0),
-
+	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC"),
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
 
-	/* Input Mux */
+	SND_SOC_DAPM_MICBIAS("micbias", SND_SOC_NOPM, 0, 0),
+	/* Input MUX */
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_analog_in_mux_controls),
+		&es8316_analog_in_mux_controls),
 
-	SND_SOC_DAPM_SUPPLY("ADC Vref", ES8316_SYS_PDN, 1, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC bias", ES8316_SYS_PDN, 2, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC Clock", ES8316_CLKMGR_CLKSW, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line input PGA", ES8316_ADC_PDN_LINSEL,
-			 7, 1, NULL, 0),
+		7, 1, NULL, 0),
+
+	/* ADCs */
 	SND_SOC_DAPM_ADC("Mono ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
+
+	/* Dmic MUX */
 	SND_SOC_DAPM_MUX("Digital Mic Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_dmic_src_controls),
+		&es8316_dmic_src_controls),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture",  1,
-			     ES8316_SERDATA_ADC, 6, 1),
+		ES8316_SERDATA_ADC, 6, 0),
+
 	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+		SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("DAC Source Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_dacsrc_mux_controls),
-
-	SND_SOC_DAPM_SUPPLY("DAC Vref", ES8316_SYS_PDN, 0, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC Clock", ES8316_CLKMGR_CLKSW, 2, 0, NULL, 0),
+	/*  DACs DATA SRC MUX */
+	SND_SOC_DAPM_MUX("DAC SRC Mux", SND_SOC_NOPM, 0, 0,
+		&es8316_dacsrc_mux_controls),
+	/*  DACs  */
 	SND_SOC_DAPM_DAC("Right DAC", NULL, ES8316_DAC_PDN, 0, 1),
 	SND_SOC_DAPM_DAC("Left DAC", NULL, ES8316_DAC_PDN, 4, 1),
 
 	/* Headphone Output Side */
-	SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_left_hpmux_controls),
-	SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0,
-			 &es8316_right_hpmux_controls),
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", ES8316_HPMIX_PDN,
-			   5, 1, &es8316_out_left_mix[0],
-			   ARRAY_SIZE(es8316_out_left_mix)),
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", ES8316_HPMIX_PDN,
-			   1, 1, &es8316_out_right_mix[0],
-			   ARRAY_SIZE(es8316_out_right_mix)),
-	SND_SOC_DAPM_PGA("Left Headphone Mixer Out", ES8316_HPMIX_PDN,
-			 4, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Headphone Mixer Out", ES8316_HPMIX_PDN,
-			 0, 1, NULL, 0),
+	/* hpmux for hp mixer */
+	SND_SOC_DAPM_MUX("Left Hp mux", SND_SOC_NOPM, 0, 0,
+		&es8316_left_hpmux_controls),
+	SND_SOC_DAPM_MUX("Right Hp mux", SND_SOC_NOPM, 0, 0,
+		&es8316_right_hpmux_controls),
+	/* Output mixer  */
+	SND_SOC_DAPM_MIXER("Left Hp mixer", ES8316_HPMIX_PDN,
+		4, 1, &es8316_out_left_mix[0],
+		ARRAY_SIZE(es8316_out_left_mix)),
+	SND_SOC_DAPM_MIXER("Right Hp mixer", ES8316_HPMIX_PDN,
+		0, 1, &es8316_out_right_mix[0],
+		ARRAY_SIZE(es8316_out_right_mix)),
+	SND_SOC_DAPM_MIXER("Left Hp mixer", SND_SOC_NOPM,
+		4, 1, &es8316_out_left_mix[0],
+		ARRAY_SIZE(es8316_out_left_mix)),
+	SND_SOC_DAPM_MIXER("Right Hp mixer", SND_SOC_NOPM,
+		0, 1, &es8316_out_right_mix[0],
+		ARRAY_SIZE(es8316_out_right_mix)),
 
-	SND_SOC_DAPM_OUT_DRV("Left Headphone Charge Pump", ES8316_CPHP_OUTEN,
-			     6, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("Right Headphone Charge Pump", ES8316_CPHP_OUTEN,
-			     2, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Charge Pump", ES8316_CPHP_PDN2,
-			    5, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Charge Pump Clock", ES8316_CLKMGR_CLKSW,
-			    4, 0, NULL, 0),
+	/* Output charge pump */
 
-	SND_SOC_DAPM_OUT_DRV("Left Headphone Driver", ES8316_CPHP_OUTEN,
-			     5, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("Right Headphone Driver", ES8316_CPHP_OUTEN,
-			     1, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Headphone Out", ES8316_CPHP_PDN1, 2, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP L", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP R", SND_SOC_NOPM,
+		0, 0, NULL, 0),
 
-	/* pdn_Lical and pdn_Rical bits are documented as Reserved, but must
-	 * be explicitly unset in order to enable HP output
-	 */
-	SND_SOC_DAPM_SUPPLY("Left Headphone ical", ES8316_CPHP_ICAL_VOL,
-			    7, 1, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("Right Headphone ical", ES8316_CPHP_ICAL_VOL,
-			    3, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP L", ES8316_CPHP_OUTEN,
+		6, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPCP R", ES8316_CPHP_OUTEN,
+		2, 0, NULL, 0),
 
+	/* Output Driver */
+	SND_SOC_DAPM_PGA("HPVOL L", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPVOL R", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+
+	/* Output Driver */
+	SND_SOC_DAPM_PGA("HPVOL L", ES8316_CPHP_OUTEN,
+		5, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPVOL R", ES8316_CPHP_OUTEN,
+		1, 0, NULL, 0),
+	/* Output Lines */
 	SND_SOC_DAPM_OUTPUT("HPOL"),
 	SND_SOC_DAPM_OUTPUT("HPOR"),
 };
 
 static const struct snd_soc_dapm_route es8316_dapm_routes[] = {
-	/* Recording */
-	{"MIC1", NULL, "Mic Bias"},
-	{"MIC2", NULL, "Mic Bias"},
-	{"MIC1", NULL, "Bias"},
-	{"MIC2", NULL, "Bias"},
-	{"MIC1", NULL, "Analog power"},
-	{"MIC2", NULL, "Analog power"},
+	/*
+	* record route map
+	*/
+	{"MIC1", NULL, "micbias"},
+	{"MIC2", NULL, "micbias"},
+	{"DMIC", NULL, "micbias"},
 
 	{"Differential Mux", "lin1-rin1", "MIC1"},
 	{"Differential Mux", "lin2-rin2", "MIC2"},
 	{"Line input PGA", NULL, "Differential Mux"},
 
-	{"Mono ADC", NULL, "ADC Clock"},
-	{"Mono ADC", NULL, "ADC Vref"},
-	{"Mono ADC", NULL, "ADC bias"},
 	{"Mono ADC", NULL, "Line input PGA"},
 
-	/* It's not clear why, but to avoid recording only silence,
-	 * the DAC clock must be running for the ADC to work.
-	 */
-	{"Mono ADC", NULL, "DAC Clock"},
-
 	{"Digital Mic Mux", "dmic disable", "Mono ADC"},
+	{"Digital Mic Mux", "dmic data at high level", "DMIC"},
+	{"Digital Mic Mux", "dmic data at low level", "DMIC"},
 
 	{"I2S OUT", NULL, "Digital Mic Mux"},
+	/*
+	* playback route map
+	*/
+	{"DAC SRC Mux", "LDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "LDATA TO LDAC, LDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "RDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"DAC SRC Mux", "RDATA TO LDAC, LDATA TO RDAC", "I2S IN"},
 
-	/* Playback */
-	{"DAC Source Mux", "LDATA TO LDAC, RDATA TO RDAC", "I2S IN"},
+	{"Left DAC", NULL, "DAC SRC Mux"},
+	{"Right DAC", NULL, "DAC SRC Mux"},
 
-	{"Left DAC", NULL, "DAC Clock"},
-	{"Right DAC", NULL, "DAC Clock"},
+	{"Left Hp mux", "lin1-rin1", "MIC1"},
+	{"Left Hp mux", "lin2-rin2", "MIC2"},
+	{"Left Hp mux", "lin-rin with Boost", "Differential Mux"},
+	{"Left Hp mux", "lin-rin with Boost and PGA", "Line input PGA"},
 
-	{"Left DAC", NULL, "DAC Vref"},
-	{"Right DAC", NULL, "DAC Vref"},
+	{"Right Hp mux", "lin1-rin1", "MIC1"},
+	{"Right Hp mux", "lin2-rin2", "MIC2"},
+	{"Right Hp mux", "lin-rin with Boost", "Differential Mux"},
+	{"Right Hp mux", "lin-rin with Boost and PGA", "Line input PGA"},
 
-	{"Left DAC", NULL, "DAC Source Mux"},
-	{"Right DAC", NULL, "DAC Source Mux"},
+	{"Left Hp mixer", "LLIN Switch", "Left Hp mux"},
+	{"Left Hp mixer", "Left DAC Switch", "Left DAC"},
 
-	{"Left Headphone Mux", "lin-rin with Boost and PGA", "Line input PGA"},
-	{"Right Headphone Mux", "lin-rin with Boost and PGA", "Line input PGA"},
+	{"Right Hp mixer", "RLIN Switch", "Right Hp mux"},
+	{"Right Hp mixer", "Right DAC Switch", "Right DAC"},
 
-	{"Left Headphone Mixer", "LLIN Switch", "Left Headphone Mux"},
-	{"Left Headphone Mixer", "Left DAC Switch", "Left DAC"},
+	{"HPCP L", NULL, "Left Hp mixer"},
+	{"HPCP R", NULL, "Right Hp mixer"},
 
-	{"Right Headphone Mixer", "RLIN Switch", "Right Headphone Mux"},
-	{"Right Headphone Mixer", "Right DAC Switch", "Right DAC"},
+	{"HPVOL L", NULL, "HPCP L"},
+	{"HPVOL R", NULL, "HPCP R"},
 
-	{"Left Headphone Mixer Out", NULL, "Left Headphone Mixer"},
-	{"Right Headphone Mixer Out", NULL, "Right Headphone Mixer"},
-
-	{"Left Headphone Charge Pump", NULL, "Left Headphone Mixer Out"},
-	{"Right Headphone Charge Pump", NULL, "Right Headphone Mixer Out"},
-
-	{"Left Headphone Charge Pump", NULL, "Headphone Charge Pump"},
-	{"Right Headphone Charge Pump", NULL, "Headphone Charge Pump"},
-
-	{"Left Headphone Charge Pump", NULL, "Headphone Charge Pump Clock"},
-	{"Right Headphone Charge Pump", NULL, "Headphone Charge Pump Clock"},
-
-	{"Left Headphone Driver", NULL, "Left Headphone Charge Pump"},
-	{"Right Headphone Driver", NULL, "Right Headphone Charge Pump"},
-
-	{"HPOL", NULL, "Left Headphone Driver"},
-	{"HPOR", NULL, "Right Headphone Driver"},
-
-	{"HPOL", NULL, "Left Headphone ical"},
-	{"HPOR", NULL, "Right Headphone ical"},
-
-	{"Headphone Out", NULL, "Bias"},
-	{"Headphone Out", NULL, "Analog power"},
-	{"HPOL", NULL, "Headphone Out"},
-	{"HPOR", NULL, "Headphone Out"},
+	{"HPOL", NULL, "HPVOL L"},
+	{"HPOR", NULL, "HPVOL R"},
 };
+
+static int es8316_reset(struct snd_soc_component *component)
+{
+	snd_soc_component_write(component, ES8316_RESET, 0x3F);
+	usleep_range(5000, 5500);
+	return snd_soc_component_write(component, ES8316_RESET, 0x03);
+}
+
+static int es8316_init_regs(struct snd_soc_component *component)
+{
+	snd_soc_component_write(component, ES8316_RESET, 0x3f);
+	usleep_range(5000, 5500);
+	snd_soc_component_write(component, ES8316_RESET, 0x00);
+	snd_soc_component_write(component, ES8316_SYS_VMIDSEL, 0xFF);
+	msleep(30);
+	snd_soc_component_write(component, ES8316_CLKMGR_CLKSEL, 0x08);
+	snd_soc_component_write(component, ES8316_CLKMGR_ADCOSR, 0x20);
+	snd_soc_component_write(component, ES8316_CLKMGR_ADCDIV1, 0x11);
+	snd_soc_component_write(component, ES8316_CLKMGR_ADCDIV2, 0x00);
+	snd_soc_component_write(component, ES8316_CLKMGR_DACDIV1, 0x11);
+	snd_soc_component_write(component, ES8316_CLKMGR_DACDIV2, 0x00);
+	snd_soc_component_write(component, ES8316_CLKMGR_CPDIV, 0x00);
+	snd_soc_component_write(component, ES8316_SERDATA1, 0x04);
+	snd_soc_component_write(component, ES8316_CLKMGR_CLKSW, 0x7F);
+	snd_soc_component_write(component, ES8316_CAL_TYPE, 0x0F);
+	snd_soc_component_write(component, ES8316_CAL_HPLIV, 0x90);
+	snd_soc_component_write(component, ES8316_CAL_HPRIV, 0x90);
+	snd_soc_component_write(component, ES8316_ADC_VOLUME, 0x00);
+	snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL, 0xC0);
+	snd_soc_component_write(component, ES8316_ADC_D2SEPGA, 0x00);
+	snd_soc_component_write(component, ES8316_ADC_DMIC, 0x08);
+	snd_soc_component_write(component, ES8316_DAC_SET2, 0x20);
+	snd_soc_component_write(component, ES8316_DAC_SET3, 0x00);
+	snd_soc_component_write(component, ES8316_DAC_VOLL, 0x00);
+	snd_soc_component_write(component, ES8316_DAC_VOLR, 0x00);
+	snd_soc_component_write(component, ES8316_SERDATA_ADC, 0x00);
+	snd_soc_component_write(component, ES8316_SERDATA_DAC, 0x00);
+	snd_soc_component_write(component, ES8316_SYS_VMIDLOW, 0x11);
+	snd_soc_component_write(component, ES8316_SYS_VSEL, 0xFC);
+	snd_soc_component_write(component, ES8316_SYS_REF, 0x28);
+	snd_soc_component_write(component, ES8316_SYS_LP1, 0x04);
+	snd_soc_component_write(component, ES8316_SYS_LP2, 0x0C);
+	snd_soc_component_write(component, ES8316_DAC_PDN, 0x11);
+	snd_soc_component_write(component, ES8316_HPMIX_SEL, 0x00);
+	snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x88);
+	snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x00);
+	snd_soc_component_write(component, ES8316_HPMIX_VOL, 0xBB);
+	snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x10);
+	snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x30);
+	snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x02);
+	snd_soc_component_write(component, ES8316_CPHP_ICAL_VOL, 0x00);
+	snd_soc_component_write(component, ES8316_GPIO_SEL, 0x00);
+	snd_soc_component_write(component, ES8316_GPIO_DEBOUNCE, 0x02);
+	snd_soc_component_write(component, ES8316_TESTMODE, 0xA0);
+	snd_soc_component_write(component, ES8316_TEST1, 0x00);
+	snd_soc_component_write(component, ES8316_TEST2, 0x00);
+	snd_soc_component_write(component, ES8316_SYS_PDN, 0x00);
+	snd_soc_component_write(component, ES8316_RESET, 0xC0);
+	msleep(50);
+	snd_soc_component_write(component, ES8316_ADC_PGAGAIN, 0xA0);
+	snd_soc_component_write(component, ES8316_ADC_D2SEPGA, 0x01);
+	/* adc ds mode, HPF enable */
+	snd_soc_component_write(component, ES8316_ADC_DMIC, 0x08);
+	snd_soc_component_write(component, ES8316_ADC_ALC1, 0xcd);
+	snd_soc_component_write(component, ES8316_ADC_ALC2, 0x08);
+	snd_soc_component_write(component, ES8316_ADC_ALC3, 0xa0);
+	snd_soc_component_write(component, ES8316_ADC_ALC4, 0x05);
+	snd_soc_component_write(component, ES8316_ADC_ALC5, 0x06);
+	snd_soc_component_write(component, ES8316_ADC_ALC_NG, 0x61);
+	return 0;
+}
 
 static int es8316_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
@@ -451,13 +532,86 @@ static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	if (es8316->sysclk_constraints.list)
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_RATE,
 					   &es8316->sysclk_constraints);
 
+	snd_soc_component_write(component, ES8316_RESET, 0xC0);
+	snd_soc_component_write(component, ES8316_SYS_PDN, 0x00);
+	/* es8316: both playback and capture need dac mclk */
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW,
+			    ES8316_CLKMGR_MCLK_DIV_MASK |
+			    ES8316_CLKMGR_DAC_MCLK_MASK,
+			    ES8316_CLKMGR_MCLK_DIV_NML |
+			    ES8316_CLKMGR_DAC_MCLK_EN);
+	es8316->pwr_count++;
+
+	if (playback) {
+		snd_soc_component_write(component, ES8316_SYS_LP1, 0x3F);
+		snd_soc_component_write(component, ES8316_SYS_LP2, 0x1F);
+		snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x88);
+		snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x00);
+		snd_soc_component_write(component, ES8316_HPMIX_VOL, 0xBB);
+		snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x10);
+		snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x30);
+		snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x02);
+		snd_soc_component_write(component, ES8316_DAC_PDN, 0x00);
+		snd_soc_component_write(component, ES8316_CPHP_OUTEN, 0x66);
+		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW,
+				    ES8316_CLKMGR_DAC_MCLK_MASK |
+				    ES8316_CLKMGR_DAC_ANALOG_MASK,
+				    ES8316_CLKMGR_DAC_MCLK_EN |
+				    ES8316_CLKMGR_DAC_ANALOG_EN);
+		msleep(50);
+	} else {
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL, 0x30);
+		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW,
+				    ES8316_CLKMGR_ADC_MCLK_MASK |
+				    ES8316_CLKMGR_ADC_ANALOG_MASK,
+				    ES8316_CLKMGR_ADC_MCLK_EN |
+				    ES8316_CLKMGR_ADC_ANALOG_EN);
+	}
+
 	return 0;
+}
+
+static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+
+	if (playback) {
+		snd_soc_component_write(component, ES8316_CPHP_OUTEN, 0x00);
+		snd_soc_component_write(component, ES8316_DAC_PDN, 0x11);
+		snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x03);
+		snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x22);
+		snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x06);
+		snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x00);
+		snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x33);
+		snd_soc_component_write(component, ES8316_HPMIX_VOL, 0x00);
+		snd_soc_component_write(component, ES8316_SYS_PDN, 0x00);
+		snd_soc_component_write(component, ES8316_SYS_LP1, 0xFF);
+		snd_soc_component_write(component, ES8316_SYS_LP2, 0xFF);
+		snd_soc_component_update_bits (component, ES8316_CLKMGR_CLKSW,
+				    ES8316_CLKMGR_DAC_ANALOG_MASK,
+				    ES8316_CLKMGR_DAC_ANALOG_DIS);
+	} else {
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL, 0xC0);
+		snd_soc_component_update_bits (component, ES8316_CLKMGR_CLKSW,
+				    ES8316_CLKMGR_ADC_MCLK_MASK |
+				    ES8316_CLKMGR_ADC_ANALOG_MASK,
+				    ES8316_CLKMGR_ADC_MCLK_DIS |
+				    ES8316_CLKMGR_ADC_ANALOG_DIS);
+	}
+
+	if (--es8316->pwr_count == 0) {
+		snd_soc_component_write(component, ES8316_CLKMGR_CLKSW, 0xF3);
+	}
 }
 
 static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -505,10 +659,13 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_component_update_bits(component, ES8316_SERDATA_DAC,
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		snd_soc_component_update_bits(component, ES8316_SERDATA_DAC,
+				    ES8316_SERDATA2_LEN_MASK, wordlen);
+	else
+		snd_soc_component_update_bits(component, ES8316_SERDATA_ADC,
 			    ES8316_SERDATA2_LEN_MASK, wordlen);
-	snd_soc_component_update_bits(component, ES8316_SERDATA_ADC,
-			    ES8316_SERDATA2_LEN_MASK, wordlen);
+
 	snd_soc_component_update_bits(component, ES8316_SERDATA1, 0x1f, bclk_divider);
 	snd_soc_component_update_bits(component, ES8316_CLKMGR_ADCDIV1, 0x0f, lrck_divider >> 8);
 	snd_soc_component_update_bits(component, ES8316_CLKMGR_ADCDIV2, 0xff, lrck_divider & 0xff);
@@ -534,6 +691,7 @@ static const struct snd_soc_dai_ops es8316_ops = {
 	.set_sysclk = es8316_set_dai_sysclk,
 	.mute_stream = es8316_mute,
 	.no_capture_mute = 1,
+	.shutdown = es8316_pcm_shutdown,
 };
 
 static struct snd_soc_dai_driver es8316_dai = {
@@ -722,12 +880,58 @@ static int es8316_set_jack(struct snd_soc_component *component,
 	return 0;
 }
 
+static int es8316_set_bias_level(struct snd_soc_component *component,
+				 enum snd_soc_bias_level level)
+{
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		if (IS_ERR(es8316->mclk))
+			break;
+
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(es8316->mclk);
+		} else {
+			ret = clk_prepare_enable(es8316->mclk);
+			if (ret)
+				return ret;
+		}
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		snd_soc_component_write(component, ES8316_CPHP_OUTEN, 0x00);
+		snd_soc_component_write(component, ES8316_DAC_PDN, 0x11);
+		snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x03);
+		snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x22);
+		snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x06);
+		snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x00);
+		snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x33);
+		snd_soc_component_write(component, ES8316_HPMIX_VOL, 0x00);
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL, 0xC0);
+		snd_soc_component_write(component, ES8316_SYS_LP1, 0x3F);
+		snd_soc_component_write(component, ES8316_SYS_LP2, 0x1F);
+		snd_soc_component_write(component, ES8316_RESET, 0x00);
+		break;
+	}
+
+	return 0;
+}
+
 static int es8316_probe(struct snd_soc_component *component)
 {
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	es8316->component = component;
+	es8316->pwr_count = 0;
 
 	es8316->mclk = devm_clk_get_optional(component->dev, "mclk");
 	if (IS_ERR(es8316->mclk)) {
@@ -743,24 +947,33 @@ static int es8316_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* Reset codec and enable current state machine */
-	snd_soc_component_write(component, ES8316_RESET, 0x3f);
-	usleep_range(5000, 5500);
-	snd_soc_component_write(component, ES8316_RESET, ES8316_RESET_CSM_ON);
-	msleep(30);
+	ret = snd_soc_component_read(component, ES8316_CLKMGR_ADCDIV2);
+	if (!ret) {
+		es8316_reset(component); /* UPDATED BY DAVID,15-3-5 */
+		ret = snd_soc_component_read(component, ES8316_CLKMGR_ADCDIV2);
+		if (!ret) {
+			es8316_init_regs(component);
+			snd_soc_component_write(component, ES8316_GPIO_SEL, 0x00);
+			/* max debance time, enable interrupt, low active */
+			snd_soc_component_write(component,
+				      ES8316_GPIO_DEBOUNCE, 0xf3);
 
-	/*
-	 * Documentation is unclear, but this value from the vendor driver is
-	 * needed otherwise audio output is silent.
-	 */
-	snd_soc_component_write(component, ES8316_SYS_VMIDSEL, 0xff);
-
-	/*
-	 * Documentation for this register is unclear and incomplete,
-	 * but here is a vendor-provided value that improves volume
-	 * and quality for Intel CHT platforms.
-	 */
-	snd_soc_component_write(component, ES8316_CLKMGR_ADCOSR, 0x32);
+			/* es8316_set_bias_level(codec, SND_SOC_BIAS_OFF); */
+			snd_soc_component_write(component, ES8316_CPHP_OUTEN, 0x00);
+			snd_soc_component_write(component, ES8316_DAC_PDN, 0x11);
+			snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x03);
+			snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x22);
+			snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x06);
+			snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x00);
+			snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x33);
+			snd_soc_component_write(component, ES8316_HPMIX_VOL, 0x00);
+			snd_soc_component_write(component, ES8316_SYS_LP1, 0xFF);
+			snd_soc_component_write(component, ES8316_SYS_LP2, 0xFF);
+			snd_soc_component_write(component, ES8316_CLKMGR_CLKSW, 0xF3);
+			snd_soc_component_write(component,
+				      ES8316_ADC_PDN_LINSEL, 0xC0);
+		}
+	}
 
 	return 0;
 }
@@ -770,14 +983,39 @@ static void es8316_remove(struct snd_soc_component *component)
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
 	clk_disable_unprepare(es8316->mclk);
+
+	es8316_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
 static int es8316_resume(struct snd_soc_component *component)
 {
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	regcache_cache_only(es8316->regmap, false);
 	regcache_sync(es8316->regmap);
+
+	es8316_reset(component); /* UPDATED BY DAVID,15-3-5 */
+	ret = snd_soc_component_read(component, ES8316_CLKMGR_ADCDIV2);
+	if (!ret) {
+		es8316_init_regs(component);
+		snd_soc_component_write(component, ES8316_GPIO_SEL, 0x00);
+		/* max debance time, enable interrupt, low active */
+		snd_soc_component_write(component, ES8316_GPIO_DEBOUNCE, 0xf3);
+		/* es8316_set_bias_level(component, SND_SOC_BIAS_OFF); */
+		snd_soc_component_write(component, ES8316_CPHP_OUTEN, 0x00);
+		snd_soc_component_write(component, ES8316_DAC_PDN, 0x11);
+		snd_soc_component_write(component, ES8316_CPHP_LDOCTL, 0x03);
+		snd_soc_component_write(component, ES8316_CPHP_PDN2, 0x22);
+		snd_soc_component_write(component, ES8316_CPHP_PDN1, 0x06);
+		snd_soc_component_write(component, ES8316_HPMIX_SWITCH, 0x00);
+		snd_soc_component_write(component, ES8316_HPMIX_PDN, 0x33);
+		snd_soc_component_write(component, ES8316_HPMIX_VOL, 0x00);
+		snd_soc_component_write(component, ES8316_SYS_LP1, 0xFF);
+		snd_soc_component_write(component, ES8316_SYS_LP2, 0xFF);
+		snd_soc_component_write(component, ES8316_CLKMGR_CLKSW, 0xF3);
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL, 0xC0);
+	}
 
 	return 0;
 }
@@ -798,6 +1036,7 @@ static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.resume			= es8316_resume,
 	.suspend		= es8316_suspend,
 	.set_jack		= es8316_set_jack,
+	.set_bias_level		= es8316_set_bias_level,
 	.controls		= es8316_snd_controls,
 	.num_controls		= ARRAY_SIZE(es8316_snd_controls),
 	.dapm_widgets		= es8316_dapm_widgets,
@@ -825,6 +1064,8 @@ static const struct regmap_config es8316_regmap = {
 	.max_register = 0x53,
 	.volatile_table	= &es8316_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = es8316_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(es8316_reg_defaults),
 };
 
 static int es8316_i2c_probe(struct i2c_client *i2c_client)
