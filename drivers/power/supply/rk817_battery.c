@@ -51,7 +51,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define MAX_INTERPOLATE		1000
 /* Maximum Resolution Precision of Percentage: 0.001% */
 #define MAX_PERCENTAGE		(100 * 1000)
-#define MAX_INT			0x7FFF
+#define MIN_PERCENTAGE		(0)
+#define MAX_INT			0x7FFFFFFF
 #define OCV_SAMP_MIN_MSK	0x0c
 #define OCV_SAMP_8MIN		(0x00 << 2)
 #define MINUTE(x)	\
@@ -505,6 +506,8 @@ struct battery_platform_data {
 	int contact_res;
 	int get_contact_res_by_soft;
 	int nominal_voltage;
+	/* Minimum Discharge Capacity */
+	u32 min_discharge_cap;
 };
 
 struct rk817_battery_device {
@@ -1241,6 +1244,10 @@ static int rk817_bat_soc2vol(struct rk817_battery_device *battery, int rsoc)
 
 	ocv_table = battery->pdata->ocv_table;
 
+	if (rsoc > MAX_PERCENTAGE)
+		rsoc = MAX_PERCENTAGE;
+	if (rsoc < MIN_PERCENTAGE)
+		rsoc = MIN_PERCENTAGE;
 	ocv_soc = ocv_table[rsoc / OCV_TABLE_STEP];
 	ocv_soc += (((ocv_table[rsoc / OCV_TABLE_STEP + 1] - ocv_table[rsoc / OCV_TABLE_STEP]) *
 		(rsoc % OCV_TABLE_STEP)) + OCV_TABLE_STEP / 2) / OCV_TABLE_STEP;
@@ -1986,6 +1993,11 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 	DBG("expected_voltage: %ld\n", expected_voltage);
 
 	expected_rsoc = rk817_bat_vol2soc(battery, expected_voltage);
+	DBG("expected_voltage2expected_rsoc: %d min_discharge_cap: %d\n",
+	    expected_rsoc, battery->pdata->min_discharge_cap);
+	if ((battery->pdata->min_discharge_cap > 0) &&
+	    (expected_rsoc > MAX_PERCENTAGE - battery->pdata->min_discharge_cap))
+		expected_rsoc = MAX_PERCENTAGE - battery->pdata->min_discharge_cap;
 	battery->delta_rsoc = expected_rsoc;
 
 	DBG("expected_voltage: %ld, RSOC: %d expected_rsoc: %d delta_rsoc: %d\n",
@@ -2360,6 +2372,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	pdata->fake_full_soc = 100;
 	pdata->sample_res = DEFAULT_SAMPLE_RES;
 	pdata->charge_stay_awake = 0;
+	pdata->min_discharge_cap = 0;
 
 	/* parse necessary param */
 	if (!of_find_property(np, "ocv_table", &length)) {
@@ -2452,6 +2465,10 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 		if ((pdata->nominal_voltage > 4500) || (pdata->nominal_voltage < 3600))
 			pdata->nominal_voltage = 0;
 	}
+
+	ret = of_property_read_u32(np, "min_discharge_capacity", &pdata->min_discharge_cap);
+	if (ret < 0)
+		dev_info(dev, "min_discharge_capacity missing!\n");
 
 	if (battery->chip_id == RK809_ID) {
 		ret = of_property_read_u32(np, "bat_res_up",
