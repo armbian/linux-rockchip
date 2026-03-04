@@ -30,6 +30,8 @@
 
 		interrupt-parent = <&gpio0>;
 		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_ctrl2>;
 
 		//for rk3576 have ultra sleep circuit design
 		pwrctrl3_output = <0>;
@@ -55,17 +57,6 @@
 		vb-shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
 					2 2 2 2 2
 					1 0 1 0 0 2>;
-		/* DVS control:
-		 * This configuration is tightly bound to the hardware
-		 * and requires ATF (Arm Trusted Firmware) support
-		 * 0: no effect
-		 * 1: controlled by PWRCTRL1
-		 * 2: controlled by PWRCTRL2
-		 * 3: controlled by PWRCTRL3
-		 */
-		//dvs-suspend-control-by = <0 0 0 0 0 2 0 0 0 2
-		//			  0 0 2 0 0
-		//			  2 2 0 0 0 0>;
 
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,
@@ -220,12 +211,12 @@
 			vdd_ddr_s0: DCDC_REG10 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <550000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <850000>;
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <1200000>;
+					regulator-suspend-microvolt = <850000>;
 					regulator-changeable-in-suspend;
 				};
 			};
@@ -368,6 +359,16 @@
 	};
 };
 
+&pinctrl {
+	rk806_slp_pinctrl {
+		pmic_ctrl2: pmic-ctrl2 {
+			rockchip,pins =
+				/* pwr_ctrl2 */
+				<0 RK_PA4 9 &pcfg_pull_none>;
+		};
+	};
+};
+
 &reserved_memory {
 	waveform_reserved: waveform@50800000 {
 		reg = <0x0 0x50800000 0x0 0x100000>;
@@ -381,25 +382,46 @@
 &rockchip_suspend {
 	rockchip,sleep-debug-en = <1>;
 
+	sleep-mode-config-mem-lite = <
+		(0
+		| RKPM_SLP_ARMOFF_LOGOFF
+		| RKPM_SLP_PMU_PMUALIVE_32K
+		| RKPM_SLP_PMIC_RK806
+		)
+	>;
+
+	rockchip,sleep-pin-config = <
+		(0
+		| RKPM_SLEEP_PIN1_EN
+		)
+		(0)
+	>;
+
+	rockchip,sleep-io-ret-config = <
+		(0
+		| RKPM_VCCIO3_RET_EN
+		)
+	>;
+
 	rockchip,regulator-off-in-mem-lite =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
 		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
 	rockchip,regulator-on-in-mem-lite =
-		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>, <&vdd_logic_s0>;
+		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>;
 
 	rockchip,regulator-off-in-mem =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
 		<&vcc_1v8>, <&vdd_ddr_s0>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
 	rockchip,regulator-on-in-mem =
-		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>, <&vdd_logic_s0>;
+		<&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vdd2_ddr_s4>, <&vcc_1v8_s3>, <&vcca1v8_pldo6_s4>, <&vdd_0v75_s3>;
 
 	rockchip,regulator-off-in-mem-ultra =
-		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vddq_ddr_s0>,
+		<&vdd_cpu_lit_s0>, <&vdd_npu_gpu_s0>, <&vdd_cpu_big_s0>, <&vcc_3v3_s3>, <&vcc_ldo_s3>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
 		<&vcc_1v8>, <&vdd_ddr_s0>, <&vcc_1v8_s3>, <&saradc_avdd1v8>, <&vdda_1v2_s0>, <&vcc3v3_sd_s0>,
 		<&vccio_sd_s0>, <&vdd_0v75_s3>, <&vdda_0v85_s0>, <&vdda_hdmi_s0>, <&vdda_ddr_pll>, <&vdda_0v75_s0>;
-	rockchip,regulator-on-in-mem-ultra = <&vdd2_ddr_s4>, <&vcca1v8_pldo6_s4>, <&vdd_logic_s0>;
+	rockchip,regulator-on-in-mem-ultra = <&vdd2_ddr_s4>, <&vcca1v8_pldo6_s4>;
 
 	status = "okay";
 };
