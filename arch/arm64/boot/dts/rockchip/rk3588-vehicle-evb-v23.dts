@@ -840,6 +840,11 @@
 	};
 };
 
+&rk806master {
+	/* 2700mv-3400mv */
+	shutdown_voltage_threshold = <3400>;
+};
+
 &spi4 {
 	status = "disabled";
 };

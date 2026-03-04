@@ -524,6 +524,11 @@
 	};
 };
 
+&rk806 {
+	/* 2700mv-3400mv */
+	shutdown_voltage_threshold = <3400>;
+};
+
 &rkvpss {
 	status = "okay";
 };
