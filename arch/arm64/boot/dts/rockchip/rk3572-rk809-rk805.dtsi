@@ -108,6 +108,8 @@
 		rockchip,shutdown-priority = <0>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
+		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
+				"userrequested,recovery";
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -355,6 +357,8 @@
 		rockchip,shutdown-priority = <0>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
+		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
+				"userrequested,recovery";
 		/* 0: active low, 1:active high */
 		sleep-pin-polarity = <1>;
 		status = "okay";
