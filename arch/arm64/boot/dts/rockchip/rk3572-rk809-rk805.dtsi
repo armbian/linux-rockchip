@@ -62,7 +62,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <2300000>;
 		regulator-max-microvolt = <2300000>;
-		vin-supply = <&vcc_sys>;
 	};
 
 	vcc_ufs_s0: vcc-ufs-s0 {
@@ -72,7 +71,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_sys>;
 	};
 
 	vcc1v8_ufs_vccq2_s0: vcc1v8-ufs-vccq2-s0 {
@@ -82,7 +80,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc_sys>;
 	};
 
 	vdd2_ddr_s3: vdd2-ddr-s3 {
@@ -92,7 +89,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1050000>;
 		regulator-max-microvolt = <1050000>;
-		vin-supply = <&vcc_sys>;
 	};
 };
 
