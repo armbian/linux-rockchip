@@ -151,6 +151,8 @@ struct rockchip_pcie {
 	u32				ib_target_size[PCIE_BAR_MAX_NUM];
 	void				*ib_target_base[PCIE_BAR_MAX_NUM];
 	bool				ib_using_devm[PCIE_BAR_MAX_NUM];
+	u16				device_id;
+	u16				class_code;
 
 	/* object */
 	struct dma_trx_obj		*dma_obj;
@@ -394,6 +396,12 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		dev_err(dev, "Invalid *num-lanes*, num=%d\n", rockchip->pci.num_lanes);
 		return -EINVAL;
 	}
+
+	if (of_property_read_u16(np, "rockchip,device-id", &rockchip->device_id))
+		rockchip->device_id = 0x356a;
+
+	if (of_property_read_u16(np, "rockchip,class-code", &rockchip->class_code))
+		rockchip->class_code = 0x1200; /* Processing Accelerators */
 
 	return 0;
 }
@@ -985,8 +993,8 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	dw_pcie_writel_dbi(pci, PCIE_TYPE0_STATUS_COMMAND_REG, 0x6);
 
 	/* Enable bar and setting vid/did */
-	dw_pcie_writew_dbi(&rockchip->pci, PCI_DEVICE_ID, 0x356a);
-	dw_pcie_writew_dbi(&rockchip->pci, PCI_CLASS_DEVICE, 0x0580);
+	dw_pcie_writew_dbi(&rockchip->pci, PCI_DEVICE_ID, rockchip->device_id);
+	dw_pcie_writew_dbi(&rockchip->pci, PCI_CLASS_DEVICE, rockchip->class_code);
 
 	reg = dw_pcie_find_capability(&rockchip->pci, PCI_CAP_ID_EXP);
 	if (!reg) {
