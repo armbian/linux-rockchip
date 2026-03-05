@@ -94,8 +94,10 @@ struct dwmac_rk_lb_priv {
 #define DMA_CHANX_BASE_ADDR(x)	(DMA_CHAN_BASE_ADDR + \
 				((x) * DMA_CHAN_BASE_OFFSET))
 #define DMA_CHAN_TX_CONTROL(x)	(DMA_CHANX_BASE_ADDR(x) + 0x4)
-#define DMA_CHAN_STATUS_ERI	BIT(11)
+#define DMA_CHAN0_STATUS	0x1160
+#define DMA_CHAN_STATUS_RI	BIT(6)
 #define DMA_CHAN_STATUS_ETI	BIT(10)
+#define DMA_CHAN_STATUS_ERI	BIT(11)
 
 #define	STMMAC_ALIGN(x) __ALIGN_KERNEL(x, SMP_CACHE_BYTES)
 #define MAX_DELAYLINE 0x7f
@@ -463,66 +465,6 @@ static struct sk_buff *dwmac_rk_get_skb(struct stmmac_priv *priv,
 	return skb;
 }
 
-static int dwmac_rk_loopback_validate(struct stmmac_priv *priv,
-				      struct dwmac_rk_lb_priv *lb_priv,
-				      struct sk_buff *skb)
-{
-	struct dwmac_rk_hdr *shdr;
-	struct ethhdr *ehdr;
-	struct udphdr *uhdr;
-	struct tcphdr *thdr;
-	struct iphdr *ihdr;
-	int ret = -EAGAIN;
-
-	if (skb->len >= DWMAC_RK_TEST_PKT_MAX_SIZE)
-		goto out;
-
-	if (lb_priv->actual_size != skb->len)
-		goto out;
-
-	ehdr = (struct ethhdr *)(skb->data);
-	if (!ether_addr_equal(ehdr->h_dest, lb_priv->packet->dst))
-		goto out;
-
-	if (!ether_addr_equal(ehdr->h_source, priv->dev->dev_addr))
-		goto out;
-
-	ihdr = (struct iphdr *)(skb->data + ETH_HLEN);
-
-	if (lb_priv->packet->tcp) {
-		if (ihdr->protocol != IPPROTO_TCP)
-			goto out;
-
-		thdr = (struct tcphdr *)((u8 *)ihdr + 4 * ihdr->ihl);
-		if (thdr->dest != htons(lb_priv->packet->dport))
-			goto out;
-
-		shdr = (struct dwmac_rk_hdr *)((u8 *)thdr + sizeof(*thdr));
-	} else {
-		if (ihdr->protocol != IPPROTO_UDP)
-			goto out;
-
-		uhdr = (struct udphdr *)((u8 *)ihdr + 4 * ihdr->ihl);
-		if (uhdr->dest != htons(lb_priv->packet->dport))
-			goto out;
-
-		shdr = (struct dwmac_rk_hdr *)((u8 *)uhdr + sizeof(*uhdr));
-	}
-
-	if (shdr->magic != cpu_to_be64(DWMAC_RK_TEST_PKT_MAGIC))
-		goto out;
-
-	if (lb_priv->id != shdr->id)
-		goto out;
-
-	if (lb_priv->tx != shdr->tx || lb_priv->rx != shdr->rx)
-		goto out;
-
-	ret = 0;
-out:
-	return ret;
-}
-
 static inline int dwmac_rk_rx_fill(struct stmmac_priv *priv,
 				   struct dwmac_rk_lb_priv *lb_priv)
 {
@@ -602,6 +544,11 @@ static int dwmac_rk_rx_validate(struct stmmac_priv *priv,
 	}
 
 	frame_len = priv->hw->desc->get_rx_frame_len(p, coe);
+	dma_unmap_single(priv->device,
+			 lb_priv->rx_skbuff_dma,
+			 lb_priv->dma_buf_sz,
+			 DMA_FROM_DEVICE);
+
 	/*  check if frame_len fits the preallocated memory */
 	if (frame_len > lb_priv->dma_buf_sz) {
 		pr_err("%s: frame_len long: %d\n", __func__, frame_len);
@@ -609,14 +556,10 @@ static int dwmac_rk_rx_validate(struct stmmac_priv *priv,
 	}
 
 	frame_len -= ETH_FCS_LEN;
-	prefetch(skb->data - NET_IP_ALIGN);
-	skb_put(skb, frame_len);
-	dma_unmap_single(priv->device,
-			 lb_priv->rx_skbuff_dma,
-			 lb_priv->dma_buf_sz,
-			 DMA_FROM_DEVICE);
+	if (lb_priv->actual_size != frame_len)
+		return -EAGAIN;
 
-	return dwmac_rk_loopback_validate(priv, lb_priv, skb);
+	return 0;
 }
 
 static int dwmac_rk_get_desc_status(struct stmmac_priv *priv,
@@ -637,7 +580,8 @@ static int dwmac_rk_get_desc_status(struct stmmac_priv *priv,
 	if (unlikely(rx_status & dma_own))
 		return -EBUSY;
 
-	usleep_range(100, 150);
+	if (rx_status != good_frame)
+		return -EINVAL;
 
 	return 0;
 }
@@ -754,11 +698,11 @@ static int __dwmac_rk_loopback_run(struct stmmac_priv *priv,
 		usleep_range(100, 150);
 		delay--;
 		if (priv->plat->has_gmac4) {
-			status = readl(priv->ioaddr + DMA_CHAN_STATUS(0));
-			finish = (status & DMA_CHAN_STATUS_ERI) && (status & DMA_CHAN_STATUS_ETI);
+			status = readl(priv->ioaddr + DMA_CHAN0_STATUS);
+			finish = status & (DMA_CHAN_STATUS_ERI | DMA_CHAN_STATUS_RI);
 		} else {
 			status = readl(priv->ioaddr + DMA_STATUS);
-			finish = (status & DMA_STATUS_ERI) && (status & DMA_STATUS_ETI);
+			finish = status & (DMA_STATUS_ERI | DMA_STATUS_RI);
 		}
 
 		if (finish) {
@@ -767,7 +711,7 @@ static int __dwmac_rk_loopback_run(struct stmmac_priv *priv,
 				break;
 			}
 		}
-	} while (delay <= 0);
+	} while (delay > 0);
 	writel((status & 0x1ffff), priv->ioaddr + DMA_STATUS);
 
 stop:
@@ -1012,7 +956,7 @@ static int dwmac_rk_init_dma_desc_rings(struct net_device *dev, gfp_t flags,
 
 	lb_priv->rx_skbuff = NULL;
 	stmmac_init_rx_desc(priv, lb_priv->dma_rx,
-				     priv->use_riwt, priv->mode,
+				     false, priv->mode,
 				     true, lb_priv->dma_buf_sz);
 
 	stmmac_init_tx_desc(priv, lb_priv->dma_tx,
