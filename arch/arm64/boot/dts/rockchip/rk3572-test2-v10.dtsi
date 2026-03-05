@@ -205,6 +205,16 @@
 	status = "okay";
 };
 
+&sdmmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0m1_bus4_pins &sdmmc0m1_clk_pins &sdmmc0m1_cmd_pins &sdmmc0m1_det_pins>;
+	/*
+	 * If using sdmmc0, please solder on R1916, R1917, R1920, R1922,
+	 * R1925, R1927 and R1950. Then disconnect registers from R1900 to R1903
+	 */
+	status = "disabled";
+};
+
 &u2phy0 {
 	status = "okay";
 };
