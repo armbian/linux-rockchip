@@ -690,6 +690,9 @@ enum rk805_reg {
 #define RK805B_RST_FUNC_DEV		(0) /* reset the dev */
 #define RK805B_RST_FUNC_REG		(0x1 << 6) /* reset the reg only */
 
+#define RK805B_VB_UV_SEL_MSK		(0x7 << 5)
+#define RK805B_VB_UV_SEL_SFT		(5)
+
 #define RK805_NUM_REGULATORS		7
 
 #define RK805_PWRON_FALL_RISE_INT_EN	0x0
@@ -1301,6 +1304,9 @@ enum rk809_reg_id {
 #define RK817_SLPPOL_H			BIT(5)
 #define RK817_SLPPOL_L			(0)
 
+#define RK817_VB_UV_SEL_MSK		(0x7 << 4)
+#define RK817_VB_UV_SEL_SFT		(4)
+
 /* gpio&int 0xfe */
 #define RK817_INT_POL_MSK		BIT(1)
 #define RK817_INT_POL_H			BIT(1)
@@ -1358,6 +1364,18 @@ enum {
 	RK816_ID = 0x8160,
 	RK817_ID = 0x8170,
 	RK818_ID = 0x8180,
+};
+
+/* system shut down voltage select */
+enum rk8xx_uv_sel {
+	VB_UV_SEL_2700,
+	VB_UV_SEL_2800,
+	VB_UV_SEL_2900,
+	VB_UV_SEL_3000,
+	VB_UV_SEL_3100,
+	VB_UV_SEL_3200,
+	VB_UV_SEL_3300,
+	VB_UV_SEL_3400,
 };
 
 struct rk808_pin_info {
@@ -1418,6 +1436,9 @@ struct rk808 {
 
 	const char **ext_reg_only_cmds;
 	int num_ext_reg_only_cmds;
+
+	bool force_shutdown_enable;
+	int shutdown_voltage_threshold;
 };
 
 struct rk808_pmic_entry {

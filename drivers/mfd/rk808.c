@@ -1589,6 +1589,164 @@ static int rk808_register_reboot_notifier(struct rk808 *rk808)
 	return 0;
 }
 
+/**
+ * rk805b_configure_shutdown_voltage_threshold - Configure the battery under-voltage
+ *                                               shutdown threshold for RK805B.
+ * @rk808: Pointer to the main RK808 PMIC data structure.
+ *
+ * This function programs the RK805B_THERMAL_REG register to set the voltage level
+ * at which the PMIC will force a system shutdown when the battery voltage drops
+ * below the configured threshold. The threshold is read from the device tree property
+ * `rockchip,shutdown-voltage-threshold-mv` (in millivolts).
+ *
+ * The valid threshold range is 2700mV to 3400mV. Values are programmed in steps of
+ * 100mV starting from 2700mV (register value 0).
+ *
+ * If `rk808->force_shutdown_enable` is false or the threshold is invalid,
+ * the function does nothing.
+ *
+ * Return: 0 on success, or a negative error code from regmap_update_bits.
+ */
+static int rk805b_configure_shutdown_voltage_threshold(struct rk808 *rk808)
+{
+	int vb_uv_sel;
+	int ret = 0;
+
+	if (!rk808->force_shutdown_enable)
+		return 0;
+
+	if (rk808->shutdown_voltage_threshold <= 2700)
+		vb_uv_sel = VB_UV_SEL_2700;
+	else
+		vb_uv_sel = (rk808->shutdown_voltage_threshold - 2700) / 100;
+
+	ret = regmap_update_bits(rk808->regmap,
+				 RK805_THERMAL_REG,
+				 RK805B_VB_UV_SEL_MSK,
+				 (vb_uv_sel << RK805B_VB_UV_SEL_SFT));
+	if (ret) {
+		dev_err(&rk808->i2c->dev,
+			"Failed to set RK805B shutdown voltage threshold (0x%x)\n",
+			RK805_THERMAL_REG);
+	}
+	return ret;
+}
+
+/**
+ * rk817_configure_shutdown_voltage_threshold - Configure the battery under-voltage
+ *                                               shutdown threshold for RK809/RK817.
+ * @rk808: Pointer to the main RK808 PMIC data structure.
+ *
+ * This function programs the RK817_SYS_CFG(0) register to set the voltage level
+ * at which the PMIC will force a system shutdown when the battery voltage drops
+ * below the configured threshold. The threshold is read from the device tree property
+ * `rockchip,shutdown-voltage-threshold-mv` (in millivolts).
+ *
+ * The valid threshold range is 2700mV to 3400mV. Values are programmed in steps of
+ * 100mV starting from 2700mV (register value 0).
+ *
+ * If `rk808->force_shutdown_enable` is false or the threshold is invalid,
+ * the function does nothing.
+ *
+ * Return: 0 on success, or a negative error code from regmap_update_bits.
+ */
+static int rk817_configure_shutdown_voltage_threshold(struct rk808 *rk808)
+{
+	int vb_uv_sel;
+	int ret = 0;
+
+	if (!rk808->force_shutdown_enable)
+		return 0;
+
+	if (rk808->shutdown_voltage_threshold <= 2700)
+		vb_uv_sel = VB_UV_SEL_2700;
+	else
+		vb_uv_sel = (rk808->shutdown_voltage_threshold - 2700) / 100;
+
+	ret = regmap_update_bits(rk808->regmap,
+				 RK817_SYS_CFG(0),
+				 RK817_VB_UV_SEL_MSK,
+				 (vb_uv_sel << RK817_VB_UV_SEL_SFT));
+	if (ret) {
+		dev_err(&rk808->i2c->dev,
+			"Failed to set RK817 shutdown voltage threshold (0x%x)\n",
+			RK817_SYS_CFG(0));
+	}
+	return ret;
+}
+
+/*
+ * rk808_setup_system_power_control - Configure a PMIC as a system-wide power controller.
+ * @rk808: Pointer to the main RK808 PMIC data structure.
+ * @np: Device tree node pointer for the PMIC device.
+ * @entry: Pointer to the PMIC's global registry entry.
+ *
+ * This function completes the setup for a PMIC that is designated as the
+ * system power controller (via the 'rockchip,system-power-controller' DT property).
+ * Its responsibilities include:
+ * 1. Registering the appropriate shutdown/reboot prepare handler based on the PMIC variant.
+ * 2. Inserting the PMIC into a globally managed, sorted list for coordinated shutdown.
+ *
+ * Return: 0 on success, or a negative error code from registering the sys-off handler.
+ */
+static int rk808_setup_system_power_control(struct rk808 *rk808,
+					    struct device_node *np,
+					    struct rk808_pmic_entry *entry)
+{
+	struct device *dev = &rk808->i2c->dev;
+	int ret = 0;
+
+	/* 1. Register the appropriate shutdown prepare handler based on PMIC variant */
+	switch (rk808->variant) {
+	case RK801_ID:
+		ret = devm_register_sys_off_handler(dev,
+						    SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    rk801_device_shutdown_prepare,
+						    rk808);
+		break;
+	case RK805_ID:
+		ret = rk805b_configure_shutdown_voltage_threshold(rk808);
+		if (ret)
+			return ret;
+
+		ret = devm_register_sys_off_handler(dev,
+						    SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    rk805_device_shutdown_prepare,
+						    rk808);
+		break;
+	case RK809_ID:
+	case RK817_ID:
+		ret = rk817_configure_shutdown_voltage_threshold(rk808);
+		if (ret)
+			return ret;
+		ret = devm_register_sys_off_handler(dev,
+						    SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    rk817_shutdown_prepare,
+						    rk808);
+		break;
+	default:
+		/* Other variants may not require or have a specific sys-off handler yet */
+		dev_dbg(dev, "No specific sys-off handler for variant 0x%lx\n",
+			rk808->variant);
+		break;
+	}
+
+	if (ret) {
+		dev_err(dev, "failed to register sys-off handler: %d\n", ret);
+		/* On registration failure, do NOT add it to the global management list */
+		return ret;
+	}
+
+	/* 2. Insert the PMIC entry into the global, sorted management list */
+	rk808_pmic_list_insert_sorted(entry);
+	dev_info(dev, "Registered as system power controller (variant: 0x%lx)\n",
+		 rk808->variant);
+
+	return 0;
+}
 static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 {
 	u32 inner;
@@ -1659,6 +1817,21 @@ static int rk8xx_parse_dt(struct rk808 *rk808)
 		dev_err(dev,
 			"Failed to read rockchip,pmic-reg-only-cmds property: %d\n", ret);
 		return ret;
+	}
+
+	rk808->force_shutdown_enable = true;
+	ret = device_property_read_u32(dev,
+				       "rockchip,shutdown-voltage-threshold-mv",
+				       &rk808->shutdown_voltage_threshold);
+	if (ret < 0) {
+		rk808->force_shutdown_enable = false;
+		dev_info(dev, "rockchip,shutdown-voltage-threshold-mv missing!\n");
+	} else {
+		if ((rk808->shutdown_voltage_threshold > 3400) ||
+		     (rk808->shutdown_voltage_threshold < 2700)) {
+			dev_err(dev, "rockchip,shutdown-voltage-threshold-mv out [2700 3400]!\n");
+			rk808->shutdown_voltage_threshold = 2700;
+		}
 	}
 
 	return 0;
@@ -1931,48 +2104,9 @@ static int rk808_probe(struct i2c_client *client)
 	}
 
 	if (of_property_read_bool(np, "rockchip,system-power-controller")) {
-		switch (rk808->variant) {
-		case RK801_ID:
-			ret = devm_register_sys_off_handler(&client->dev,
-							    SYS_OFF_MODE_POWER_OFF_PREPARE,
-							    SYS_OFF_PRIO_DEFAULT,
-							    rk801_device_shutdown_prepare,
-							    rk808);
-			if (ret) {
-				dev_err(&client->dev, "failed to register sys-off handler: %d\n",
-					ret);
-				return ret;
-			}
-			break;
-		case RK805_ID:
-			ret = devm_register_sys_off_handler(&client->dev,
-							    SYS_OFF_MODE_POWER_OFF_PREPARE,
-							    SYS_OFF_PRIO_DEFAULT,
-							    rk805_device_shutdown_prepare,
-							    rk808);
-			if (ret) {
-				dev_err(&client->dev, "failed to register sys-off handler: %d\n",
-					ret);
-				return ret;
-			}
-			break;
-		case RK809_ID:
-		case RK817_ID:
-			ret = devm_register_sys_off_handler(&client->dev,
-							    SYS_OFF_MODE_POWER_OFF_PREPARE,
-							    SYS_OFF_PRIO_DEFAULT,
-							    rk817_shutdown_prepare,
-							    rk808);
-			if (ret) {
-				dev_err(&client->dev, "failed to register sys-off handler: %d\n",
-					ret);
-				return ret;
-			}
-			break;
-		default:
-			break;
-		}
-		rk808_pmic_list_insert_sorted(entry);
+		ret = rk808_setup_system_power_control(rk808, np, entry);
+		if (ret)
+			return ret;
 	}
 
 	ret = rk808_register_reboot_notifier(rk808);
