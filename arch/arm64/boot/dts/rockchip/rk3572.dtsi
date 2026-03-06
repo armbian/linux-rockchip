@@ -3243,11 +3243,13 @@
 		shaping_pcie0: shaping@2780a408 {
 			compatible = "syscon";
 			reg = <0x0 0x2780a408 0x0 0x4>;
+			shaping-init = <0x5>;
 		};
 
 		shaping_pcie1: shaping@2780a488 {
 			compatible = "syscon";
 			reg = <0x0 0x2780a488 0x0 0x4>;
+			shaping-init = <0x5>;
 		};
 
 		qos_vepu: qos@2780b000 {
