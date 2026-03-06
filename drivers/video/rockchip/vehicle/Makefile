@@ -25,5 +25,8 @@ video_rkvehicle-$(CONFIG_VIDEO_REVERSE_TP2825) += \
 video_rkvehicle-$(CONFIG_VIDEO_REVERSE_TP2855) += \
 			vehicle_ad_tp2855.o
 
+video_rkvehicle-$(CONFIG_VIDEO_REVERSE_TP2860) += \
+			vehicle_ad_tp2860.o
+
 video_rkvehicle-$(CONFIG_VIDEO_REVERSE_AD7181) += \
 			vehicle_ad_7181.o

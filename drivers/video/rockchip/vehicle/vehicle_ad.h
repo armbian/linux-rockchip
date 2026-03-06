@@ -10,6 +10,7 @@
 #include "vehicle_cfg.h"
 #include <linux/rk-camera-module.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 
 enum vehicle_ad_fix_format {
 	AD_FIX_FORMAT_AUTO_DETECT = 0,
@@ -63,6 +64,7 @@ struct vehicle_ad_dev {
 	u8 last_detect_status;
 	int drop_frames;
 	struct clk	*xvclk;
+	struct regulator_bulk_data *supplies;
 };
 
 int vehicle_generic_sensor_write(struct vehicle_ad_dev *ad, char reg, char *pval);

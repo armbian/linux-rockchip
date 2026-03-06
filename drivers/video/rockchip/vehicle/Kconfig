@@ -18,6 +18,11 @@ config VIDEO_REVERSE_TP2855
 	help
 	  Say y if use tp2855.
 
+config VIDEO_REVERSE_TP2860
+	bool "tp2860 for reverse sensor"
+	help
+	  Say y if use tp2860.
+
 config VIDEO_REVERSE_NVP6324
 	bool "nvp6324 for reverse sensor"
 	help

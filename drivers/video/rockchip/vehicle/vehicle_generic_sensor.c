@@ -18,6 +18,7 @@
 #include "vehicle_ad_7181.h"
 #include "vehicle_ad_tp2855.h"
 #include "vehicle_ad_tp2825.h"
+#include "vehicle_ad_tp2860.h"
 #include "vehicle_ad_gc2145.h"
 #include "vehicle_ad_nvp6324.h"
 #include "vehicle_ad_nvp6188.h"
@@ -27,6 +28,7 @@
 #include "../../../../drivers/media/i2c/nvp6188.h"
 #include "../../../../drivers/media/i2c/max96714.h"
 #include "../../../../drivers/media/i2c/tp2855.h"
+#include "../../../../drivers/media/i2c/tp2860.h"
 
 struct vehicle_sensor_ops {
 	const char *name;
@@ -38,6 +40,7 @@ struct vehicle_sensor_ops {
 	int (*sensor_check_id_cb)(struct vehicle_ad_dev *ad);
 	void (*sensor_set_channel)(struct vehicle_ad_dev *ad, int channel);
 	int (*sensor_mod_init)(void);
+	int (*sensor_configure_regulators)(struct vehicle_ad_dev *ad, struct device_node *cp);
 };
 static struct vehicle_sensor_ops *sensor_cb;
 
@@ -135,6 +138,22 @@ static struct vehicle_sensor_ops sensor_cb_series[] = {
 		.sensor_set_channel = tp2855_channel_set,
 #ifdef CONFIG_VIDEO_TP2855
 		.sensor_mod_init = tp2855_sensor_mod_init
+#endif
+#endif
+	},
+	{
+		.name = "tp2860",
+#ifdef CONFIG_VIDEO_REVERSE_TP2860
+		.sensor_init = tp2860_ad_init,
+		.sensor_deinit = tp2860_ad_deinit,
+		.sensor_stream = tp2860_stream,
+		.sensor_get_cfg = tp2860_ad_get_cfg,
+		.sensor_check_cif_error = tp2860_ad_check_cif_error,
+		.sensor_check_id_cb = tp2860_check_id,
+		.sensor_set_channel = tp2860_channel_set,
+		.sensor_configure_regulators = tp2860_configure_regulators,
+#ifdef CONFIG_VIDEO_TP2860
+		.sensor_mod_init = tp2860_sensor_mod_init
 #endif
 #endif
 	}
@@ -365,6 +384,15 @@ int vehicle_parse_sensor(struct vehicle_ad_dev *ad)
 		for (i = 0; i < ARRAY_SIZE(sensor_cb_series); i++) {
 			if (!strcmp(ad->ad_name, sensor_cb_series[i].name))
 				sensor_cb = sensor_cb_series + i;
+		}
+
+		if (sensor_cb->sensor_configure_regulators) {
+			VEHICLE_INFO("%s: ad_name:%s, config regulators.\n",
+					__func__, ad->ad_name);
+			ret = sensor_cb->sensor_configure_regulators(ad, cp);
+			if (ret)
+				VEHICLE_DGERR("%s: Failed to get power regulators\n",
+						ad->ad_name);
 		}
 
 		VEHICLE_DG("%s: ad_chl=%d,,ad_addr=%x,fix_for=%d\n", ad->ad_name,
