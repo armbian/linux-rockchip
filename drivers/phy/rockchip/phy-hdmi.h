@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#define PHY_MODE_HDMI	20
+
 enum phy_hdmi_mode {
 	PHY_HDMI_MODE_TMDS,
 	PHY_HDMI_MODE_FRL,
