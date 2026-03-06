@@ -151,8 +151,7 @@
 				regulator-max-microvolt = <800000>;
 				regulator-name = "vdd_logic_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -184,7 +183,7 @@
 				regulator-max-microvolt = <850000>;
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <800000>;
 				};
 			};
