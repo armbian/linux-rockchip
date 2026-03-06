@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb1-v10.dtsi"
+#include "rk3572-android.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB1 V10 PCIE Board";
+	compatible = "rockchip,rk3572-evb1-v10-pcie", "rockchip,rk3572";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
+
