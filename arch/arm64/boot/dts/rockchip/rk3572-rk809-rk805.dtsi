@@ -106,6 +106,7 @@
 
 		rockchip,system-power-controller;
 		rockchip,shutdown-priority = <0>;
+		rockchip,shutdown-voltage-threshold-mv = <3100>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
 		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
@@ -355,6 +356,7 @@
 		rockchip,system-power-controller;
 		wakeup-source;
 		rockchip,shutdown-priority = <0>;
+		rockchip,shutdown-voltage-threshold-mv = <2700>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
 		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
