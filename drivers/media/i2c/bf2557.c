@@ -3,6 +3,10 @@
  * bf2557 driver
  *
  * Copyright (C) 2026 Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X01 first version.
+ * V0.0X01.0X02
+ * 1. change default mirror/flip state.
+ * 2. not support dynamic mirror/flip, so delete related set ctrl method.
  *
  */
 
@@ -31,7 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN	V4L2_CID_GAIN
@@ -46,18 +50,22 @@
 #define MIPI_FREQ	426000000LL
 
 #define BF2557_MIRROR_NORMAL	0
-#define BF2557_MIRROR_H		0
-#define BF2557_MIRROR_V		1
+#define BF2557_MIRROR_H		1
+#define BF2557_MIRROR_V		0
 #define BF2557_MIRROR_HV	0
 
 #if BF2557_MIRROR_NORMAL
 #define BF2557_MIRROR		0x00
+#define BF2557_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SBGGR10_1X10
 #elif BF2557_MIRROR_H
 #define BF2557_MIRROR		0x02
+#define BF2557_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGBRG10_1X10
 #elif BF2557_MIRROR_V
 #define BF2557_MIRROR		0x01
+#define BF2557_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG10_1X10
 #elif BF2557_MIRROR_HV
 #define BF2557_MIRROR		0x03
+#define BF2557_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SRGGB10_1X10
 #else
 #define BF2557_MIRROR		0x00
 #endif
@@ -103,7 +111,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define BF2557_NAME				"bf2557"
-#define BF2557_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG10_1X10
 
 static const char * const bf2557_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -304,7 +311,7 @@ static const struct bf2557_mode supported_modes_2lane[] = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
-		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.bus_fmt = BF2557_MEDIA_BUS_FMT,
 		.exp_def = 0x07C0,
 		.hts_def = 0x728 * 3,
 		.vts_def = 0x7D8,
@@ -479,7 +486,7 @@ static int bf2557_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = mode->bus_fmt;
+		fmt->format.code = BF2557_MEDIA_BUS_FMT;
 		fmt->format.field = V4L2_FIELD_NONE;
 		/* format info: width/height/data type/virctual channel */
 		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
@@ -1089,27 +1096,6 @@ static int bf2557_set_ctrl(struct v4l2_ctrl *ctrl)
 					BF2557_REG_VTS_L,
 					val & 0xff);
 		break;
-	case V4L2_CID_HFLIP:
-		dev_info(&client->dev, "set mirror value 0x%x\n", ctrl->val);
-
-		if (ctrl->val)
-			bf2557->flip_mirror |= MIRROR_BIT_MASK;
-		else
-			bf2557->flip_mirror &= ~MIRROR_BIT_MASK;
-
-		ret |= bf2557_write_reg(bf2557->client, BF2557_FLIP_MIRROR_REG,
-					 bf2557->flip_mirror);
-		break;
-	case V4L2_CID_VFLIP:
-		dev_info(&client->dev, "set flip value 0x%x\n", ctrl->val);
-		if (ctrl->val)
-			bf2557->flip_mirror |= FLIP_BIT_MASK;
-		else
-			bf2557->flip_mirror &= ~FLIP_BIT_MASK;
-
-		ret |= bf2557_write_reg(bf2557->client, BF2557_FLIP_MIRROR_REG,
-					 bf2557->flip_mirror);
-		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
 			 __func__, ctrl->id, ctrl->val);
@@ -1172,12 +1158,6 @@ static int bf2557_initialize_controls(struct bf2557 *bf2557)
 				V4L2_CID_ANALOGUE_GAIN, BF2557_AGAIN_MIN,
 				BF2557_AGAIN_MAX, BF2557_AGAIN_STEP,
 				BF2557_AGAIN_DEFAULT);
-	bf2557->h_flip = v4l2_ctrl_new_std(handler, &bf2557_ctrl_ops,
-					   V4L2_CID_HFLIP, 0, 1, 1, 0);
-
-	bf2557->v_flip = v4l2_ctrl_new_std(handler, &bf2557_ctrl_ops,
-					   V4L2_CID_VFLIP, 0, 1, 1, 0);
-
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&bf2557->client->dev,
