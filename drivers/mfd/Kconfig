@@ -1334,6 +1334,15 @@ config MFD_RK808
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
 
+config MFD_RK808_SYSFS
+	bool "Enable RK808 debug sysfs interface"
+	depends on MFD_RK808
+	default n
+	help
+	  When enabled, this creates a sysfs debug node for RK808 series PMICs,
+	  allowing direct register read/write via echo commands. It is recommended
+	  to enable this only during debugging stages.
+
 config MFD_RK8XX
 	tristate
 	select MFD_CORE

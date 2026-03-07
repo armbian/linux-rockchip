@@ -1439,6 +1439,12 @@ struct rk808 {
 
 	bool force_shutdown_enable;
 	int shutdown_voltage_threshold;
+
+#ifdef CONFIG_MFD_RK808_SYSFS
+	struct kobject *sysfs_kobj;
+	struct kobj_attribute dbg_attr;
+	char sysfs_dir_name[32];
+#endif
 };
 
 struct rk808_pmic_entry {
