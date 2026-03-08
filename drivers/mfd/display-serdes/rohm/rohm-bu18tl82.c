@@ -12,18 +12,12 @@
 
 #define PINCTRL_GROUP(a, b, c) { .name = a, .pins = b, .num_pins = c}
 
-static bool bu18tl82_volatile_reg(struct device *dev, unsigned int reg)
-{
-	return true;
-}
-
 static struct regmap_config bu18tl82_regmap_config = {
 	.name = "bu18tl82",
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x0700,
-	.volatile_reg = bu18tl82_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 };
 
 static struct pinctrl_pin_desc bu18tl82_pins_desc[] = {
@@ -132,7 +126,7 @@ static void bu18tl82_enable_hwint(struct serdes *serdes, int enable)
 	SERDES_DBG_CHIP("%s: %s enable=%d\n", __func__, serdes->chip_data->name, enable);
 }
 
-static int bu18tl82_bridge_init(struct serdes *serdes)
+static int bu18tl82_chip_init(struct serdes *serdes)
 {
 	if (serdes->enable_gpio) {
 		gpiod_direction_output(serdes->enable_gpio, 1);
@@ -412,7 +406,7 @@ struct serdes_chip_data serdes_bu18tl82_data = {
 	.sequence_init	= 1,
 	.bridge_type	= TYPE_BRIDGE_BRIDGE,
 	.connector_type	= DRM_MODE_CONNECTOR_eDP,
-	.chip_init	= bu18tl82_bridge_init,
+	.chip_init	= bu18tl82_chip_init,
 	.regmap_config	= &bu18tl82_regmap_config,
 	.pinctrl_info	= &bu18tl82_pinctrl_info,
 	.bridge_ops	= &bu18tl82_bridge_ops,

@@ -13,6 +13,7 @@
 
 #include <linux/bitfield.h>
 
+#define MAX96789_CHIP_ID	0x80
 #define GPIO_A_REG(gpio)	(0x02be + ((gpio) * 3))
 #define GPIO_B_REG(gpio)	(0x02bf + ((gpio) * 3))
 #define GPIO_C_REG(gpio)	(0x02c0 + ((gpio) * 3))

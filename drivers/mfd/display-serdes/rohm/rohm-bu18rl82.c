@@ -12,18 +12,12 @@
 
 #define PINCTRL_GROUP(a, b, c) { .name = a, .pins = b, .num_pins = c}
 
-static bool bu18rl82_volatile_reg(struct device *dev, unsigned int reg)
-{
-	return true;
-}
-
 static struct regmap_config bu18rl82_regmap_config = {
 	.name = "bu18rl82",
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x0700,
-	.volatile_reg = bu18rl82_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 };
 
 static struct pinctrl_pin_desc bu18rl82_pins_desc[] = {
@@ -141,7 +135,7 @@ static void bu18rl82_enable_hwint(struct serdes *serdes, int enable)
 			serdes->chip_data->name, enable);
 }
 
-static int bu18rl82_bridge_init(struct serdes *serdes)
+static int bu18rl82_chip_init(struct serdes *serdes)
 {
 	bu18rl82_bridge_swrst(serdes);
 
@@ -410,7 +404,7 @@ struct serdes_chip_data serdes_bu18rl82_data = {
 	.serdes_id	= ROHM_ID_BU18RL82,
 	.bridge_type	= TYPE_BRIDGE_BRIDGE,
 	.connector_type	= DRM_MODE_CONNECTOR_LVDS,
-	.chip_init	= bu18rl82_bridge_init,
+	.chip_init	= bu18rl82_chip_init,
 	.regmap_config	= &bu18rl82_regmap_config,
 	.pinctrl_info	= &bu18rl82_pinctrl_info,
 	.bridge_ops	= &bu18rl82_bridge_ops,

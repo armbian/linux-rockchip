@@ -636,19 +636,73 @@ int serdes_set_pinctrl_sleep(struct serdes *serdes)
 }
 EXPORT_SYMBOL_GPL(serdes_set_pinctrl_sleep);
 
-int serdes_device_suspend(struct serdes *serdes)
+int serdes_device_poweron(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if (!IS_ERR(serdes->vpower)) {
-		ret = regulator_disable(serdes->vpower);
-		if (ret) {
-			dev_err(serdes->dev, "fail to disable vpower regulator\n");
-			return ret;
-		}
+	if (!serdes->num_supplies)
+		return 0;
+
+	if (serdes->power_enabled)
+		return 0;
+
+	ret = regulator_bulk_enable(serdes->num_supplies, serdes->supplies);
+	if (ret < 0) {
+		dev_err(serdes->dev, "serdes %s enable %d regulators failed: %d\n",
+			serdes->chip_data->name, serdes->num_supplies, ret);
+		return ret;
 	}
 
-	return ret;
+	serdes->power_enabled = true;
+
+	SERDES_DBG_MFD("%s serdes %s power enabled\n",
+		       dev_name(serdes->dev), serdes->chip_data->name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(serdes_device_poweron);
+
+int serdes_device_poweroff(struct serdes *serdes)
+{
+	int ret = 0;
+
+	if (!serdes->num_supplies)
+		return 0;
+
+	if (!serdes->power_enabled)
+		return 0;
+
+	ret = regulator_bulk_disable(serdes->num_supplies, serdes->supplies);
+	if (ret < 0) {
+		dev_err(serdes->dev, "serdes %s disable %d regulators failed: %d\n",
+			serdes->chip_data->name, serdes->num_supplies, ret);
+		return ret;
+	}
+
+	serdes->power_enabled = false;
+
+	SERDES_DBG_MFD("%s serdes %s power disabled\n",
+		       dev_name(serdes->dev), serdes->chip_data->name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(serdes_device_poweroff);
+
+int serdes_device_suspend(struct serdes *serdes)
+{
+	int ret;
+
+	if (serdes->enable_gpio)
+		gpiod_direction_output(serdes->enable_gpio, 0);
+
+	ret = serdes_device_poweroff(serdes);
+	if (ret)
+		return ret;
+
+	SERDES_DBG_CHIP("%s serdes %s suspend\n",
+			dev_name(serdes->dev), serdes->chip_data->name);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(serdes_device_suspend);
 
@@ -656,51 +710,19 @@ int serdes_device_resume(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if (!IS_ERR(serdes->vpower)) {
-		ret = regulator_enable(serdes->vpower);
-		if (ret) {
-			dev_err(serdes->dev, "fail to enable vpower regulator\n");
-			return ret;
-		}
+	serdes_device_poweron(serdes);
+
+	if (serdes->chip_data->serdes_type == TYPE_SER) {
+		if (serdes->chip_data->chip_init)
+			serdes->chip_data->chip_init(serdes);
+		ret = serdes_i2c_set_sequence(serdes);
 	}
+
+	SERDES_DBG_CHIP("%s serdes %s resume\n",
+			dev_name(serdes->dev), serdes->chip_data->name);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(serdes_device_resume);
-
-void serdes_device_poweroff(struct serdes *serdes)
-{
-	int ret = 0;
-
-	if ((!IS_ERR_OR_NULL(serdes->pinctrl_node)) && (!IS_ERR_OR_NULL(serdes->pins_sleep))) {
-		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_sleep);
-		if (ret)
-			dev_err(serdes->dev, "could not set sleep pins\n");
-	}
-
-	if (!IS_ERR(serdes->vpower)) {
-		ret = regulator_disable(serdes->vpower);
-		if (ret)
-			dev_err(serdes->dev, "fail to disable vpower regulator\n");
-	}
-
-}
-EXPORT_SYMBOL_GPL(serdes_device_poweroff);
-
-int serdes_device_shutdown(struct serdes *serdes)
-{
-	int ret = 0;
-
-	if (!IS_ERR(serdes->vpower)) {
-		ret = regulator_disable(serdes->vpower);
-		if (ret) {
-			dev_err(serdes->dev, "fail to disable vpower regulator\n");
-			return ret;
-		}
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(serdes_device_shutdown);
 
 MODULE_LICENSE("GPL");

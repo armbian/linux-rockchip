@@ -29,9 +29,6 @@ static int serdes_panel_split_prepare(struct drm_panel *panel)
 	if (serdes->chip_data->panel_ops && serdes->chip_data->panel_ops->prepare)
 		ret = serdes->chip_data->panel_ops->prepare(serdes);
 
-	serdes_set_pinctrl_sleep(serdes);
-	serdes_set_pinctrl_init(serdes);
-
 	SERDES_DBG_MFD("%s: %s\n", __func__, serdes->chip_data->name);
 
 	return ret;
@@ -58,6 +55,9 @@ static int serdes_panel_split_enable(struct drm_panel *panel)
 	struct serdes_panel_split *serdes_panel_split = to_serdes_panel_split(panel);
 	struct serdes *serdes = serdes_panel_split->parent;
 	int ret = 0;
+
+	serdes_set_pinctrl_sleep(serdes);
+	serdes_set_pinctrl_init(serdes);
 
 	if (serdes->chip_data->panel_ops && serdes->chip_data->panel_ops->enable)
 		ret = serdes->chip_data->panel_ops->enable(serdes);
