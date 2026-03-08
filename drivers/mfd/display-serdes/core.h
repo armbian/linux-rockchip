@@ -119,6 +119,9 @@ enum serdes_debug_mode {
 #define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-241025"
 #define MAX_NUM_SERDES_SPLIT 8
 
+#define MAX_NUM_SERDES_SUPPLIES			4
+#define MAXIM_SERDES_REG_CHIP_ID		0x0D
+
 struct serdes;
 enum ser_link_mode {
 	SER_DUAL_LINK,
@@ -197,7 +200,8 @@ struct serdes_chip_split_ops {
 	int (*set_i2c_addr)(struct serdes *serdes, int address, int link);
 };
 
-struct serdes_check_reg_ops {
+struct serdes_check_state_ops {
+	int (*check_hw)(struct serdes *serdes);
 	int (*check_reg)(struct serdes *serdes);
 };
 
@@ -237,7 +241,7 @@ struct serdes_chip_data {
 	struct serdes_chip_pinctrl_ops *pinctrl_ops;
 	struct serdes_chip_gpio_ops *gpio_ops;
 	struct serdes_chip_split_ops *split_ops;
-	struct serdes_check_reg_ops *check_ops;
+	struct serdes_check_state_ops *check_ops;
 	struct serdes_chip_pm_ops *pm_ops;
 	struct serdes_chip_irq_ops *irq_ops;
 };
@@ -389,7 +393,9 @@ struct serdes {
 	/* serdes power and reset pin */
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *enable_gpio;
-	struct regulator *vpower;
+	int num_supplies;
+	struct regulator_bulk_data supplies[MAX_NUM_SERDES_SUPPLIES];
+	bool power_enabled;
 
 	/* serdes irq pin */
 	struct gpio_desc *lock_gpio;
@@ -456,8 +462,9 @@ int serdes_set_pinctrl_init(struct serdes *serdes);
 int serdes_set_pinctrl_sleep(struct serdes *serdes);
 int serdes_device_suspend(struct serdes *serdes);
 int serdes_device_resume(struct serdes *serdes);
-void serdes_device_poweroff(struct serdes *serdes);
-int serdes_device_shutdown(struct serdes *serdes);
+int serdes_device_poweron(struct serdes *serdes);
+int serdes_device_poweroff(struct serdes *serdes);
+
 int serdes_irq_init(struct serdes *serdes);
 void serdes_irq_exit(struct serdes *serdes);
 

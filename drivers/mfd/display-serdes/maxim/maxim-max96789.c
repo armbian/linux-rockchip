@@ -10,33 +10,12 @@
 #include "../core.h"
 #include "maxim-max96789.h"
 
-static bool max96789_volatile_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case 0x0002:
-	case 0x0010:
-	case 0x0013:
-	case 0x0053:
-	case 0x0057:
-	case 0x02be ... 0x02fc:
-	case 0x0311:
-	case 0x032a:
-	case 0x0330 ... 0x0331:
-	case 0x0385 ... 0x0387:
-	case 0x03a4 ... 0x03ae:
-		return false;
-	default:
-		return true;
-	}
-}
-
 static struct regmap_config max96789_regmap_config = {
 	.name = "max96789",
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x2000,
-	.volatile_reg = max96789_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 };
 
 static struct pinctrl_pin_desc max96789_pins_desc[] = {
@@ -155,11 +134,6 @@ static struct serdes_chip_pinctrl_info max96789_pinctrl_info = {
 	.num_functions = ARRAY_SIZE(max96789_functions_desc),
 };
 
-static int max96789_bridge_init(struct serdes *serdes)
-{
-	return 0;
-}
-
 static bool max96789_bridge_link_locked(struct serdes *serdes)
 {
 	u32 val = 0, i;
@@ -191,6 +165,27 @@ static bool max96789_bridge_link_locked(struct serdes *serdes)
 	SERDES_DBG_CHIP("%s: serdes reg locked 0x%x\n", __func__, val);
 
 	return true;
+}
+
+static int max96789_bridge_init(struct serdes *serdes)
+{
+	bool status;
+	int loop = 0;
+	struct device *dev = serdes->dev;
+
+	for (loop = 0; loop < 3; loop++) {
+		if (loop != 0)
+			msleep(20);
+
+		status = max96789_bridge_link_locked(serdes);
+		if (status)
+			break;
+	}
+
+	if (!status)
+		dev_err(dev, "serdes %s link unlocked\n", serdes->chip_data->name);
+
+	return 0;
 }
 
 static int max96789_bridge_attach(struct serdes *serdes)
@@ -267,6 +262,9 @@ static int max96789_chip_init(struct serdes *serdes)
 		gpiod_direction_output(serdes->enable_gpio, 1);
 		msleep(50);
 	}
+
+	SERDES_DBG_CHIP("%s serdes %s chip init\n",
+			dev_name(serdes->dev), serdes->chip_data->name);
 
 	return 0;
 }
@@ -654,6 +652,34 @@ static const struct check_reg_data max96789_improtant_reg[10] = {
 	},
 };
 
+static int max96789_check_hw_state(struct serdes *serdes)
+{
+	int ret = 0, retry = 0;
+	unsigned int chipid = 0;
+	struct device *dev = serdes->dev;
+
+	for (retry = 0; retry < 10; retry++) {
+		if (retry != 0) {
+			SERDES_DBG_CHIP("check serdes %s hw state retry=%d",
+					serdes->chip_data->name, retry);
+			msleep(20);
+		}
+
+		ret = serdes_reg_read(serdes, MAXIM_SERDES_REG_CHIP_ID, &chipid);
+		if (ret)
+			continue;
+
+		if (chipid == MAX96789_CHIP_ID) {
+			dev_info(dev, "%s is Detected\n", serdes->chip_data->name);
+			return 0;
+		}
+	}
+
+	dev_err(dev, "serdes %s check hw state error, ret=%d\n", serdes->chip_data->name, ret);
+
+	return -ENODEV;
+}
+
 static int max96789_check_reg(struct serdes *serdes)
 {
 	int i =  0, ret = 0;
@@ -674,7 +700,8 @@ static int max96789_check_reg(struct serdes *serdes)
 	return 0;
 }
 
-static struct serdes_check_reg_ops max96789_check_reg_ops = {
+static struct serdes_check_state_ops max96789_check_ops = {
+	.check_hw  = max96789_check_hw_state,
 	.check_reg = max96789_check_reg,
 };
 
@@ -720,7 +747,7 @@ struct serdes_chip_data serdes_max96789_data = {
 	.pinctrl_ops	= &max96789_pinctrl_ops,
 	.gpio_ops	= &max96789_gpio_ops,
 	.split_ops	= &max96789_split_ops,
-	.check_ops	= &max96789_check_reg_ops,
+	.check_ops	= &max96789_check_ops,
 	.pm_ops		= &max96789_pm_ops,
 	.irq_ops	= &max96789_irq_ops,
 };

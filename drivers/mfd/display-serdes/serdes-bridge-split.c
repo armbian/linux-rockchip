@@ -157,8 +157,6 @@ static void serdes_bridge_split_pre_enable(struct drm_bridge *bridge)
 	if (serdes_bridge_split->panel)
 		ret = drm_panel_prepare(serdes_bridge_split->panel);
 
-	serdes_set_pinctrl_init(serdes);
-
 	SERDES_DBG_MFD("%s: %s ret=%d\n", __func__, dev_name(serdes->dev), ret);
 }
 
@@ -170,6 +168,8 @@ static void serdes_bridge_split_enable(struct drm_bridge *bridge)
 
 	if (serdes->chip_data->bridge_ops->enable)
 		ret = serdes->chip_data->bridge_ops->enable(serdes);
+
+	serdes_set_pinctrl_init(serdes);
 
 	if (serdes_bridge_split->panel)
 		ret = drm_panel_enable(serdes_bridge_split->panel);

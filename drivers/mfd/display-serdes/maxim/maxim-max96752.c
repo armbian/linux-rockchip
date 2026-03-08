@@ -231,7 +231,6 @@ static struct serdes_chip_bridge_ops max96752_bridge_ops = {
 	.disable = max96752_bridge_post_disable,
 };
 
-
 static int max96752_pinctrl_set_mux(struct serdes *serdes,
 				    unsigned int function, unsigned int group)
 {
@@ -590,7 +589,7 @@ static int max96752_check_reg(struct serdes *serdes)
 	return 0;
 }
 
-static struct serdes_check_reg_ops max96752_check_reg_ops = {
+static struct serdes_check_state_ops max96752_check_ops = {
 	.check_reg = max96752_check_reg,
 };
 
@@ -635,7 +634,7 @@ struct serdes_chip_data serdes_max96752_data = {
 	.bridge_ops	= &max96752_bridge_ops,
 	.pinctrl_ops	= &max96752_pinctrl_ops,
 	.split_ops	= &max96752_split_ops,
-	.check_ops	= &max96752_check_reg_ops,
+	.check_ops	= &max96752_check_ops,
 	.gpio_ops	= &max96752_gpio_ops,
 	.pm_ops		= &max96752_pm_ops,
 	.irq_ops	= &max96752_irq_ops,
