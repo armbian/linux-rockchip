@@ -531,6 +531,10 @@ static int ufs_rockchip_restore_link(struct ufs_hba *hba, bool is_store)
 		return 0;
 	}
 
+	reset_control_assert(host->rst);
+	udelay(1);
+	reset_control_deassert(host->rst);
+
 	/* Enable controller */
 	err = ufshcd_hba_enable(hba);
 	if (err)
@@ -588,10 +592,6 @@ static int ufs_rockchip_runtime_resume(struct device *dev)
 		dev_err(hba->dev, "failed to enable ref out clock %d\n", err);
 		return err;
 	}
-
-	reset_control_assert(host->rst);
-	udelay(1);
-	reset_control_deassert(host->rst);
 
 	return ufs_rockchip_restore_link(hba, false);
 }
