@@ -1197,11 +1197,17 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 		writel(0, dev->base_addr + ISP39_LDCH_OUT_SIZE);
 		writel(0x3801, dev->base_addr + ISP33_BAY3D_CTRL1);
 	}
+	/* disable mi write axi-id polling default */
+	if (dev->isp_ver >= ISP_V33) {
+		val = readl(dev->base_addr + ISP3X_MI_WR_CTRL2);
+		val |= ISP3X_MI_WR_ID_POLL_DIS;
+		writel(val, dev->base_addr + ISP3X_MI_WR_CTRL2);
+	}
 }
 
 static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 {
-	u32 val = !on ? 0 :
+	u32 val = !on ? CIF_ICCL_MI_CLK :
 		CIF_ICCL_ISP_CLK | CIF_ICCL_CP_CLK | CIF_ICCL_MRSZ_CLK |
 		CIF_ICCL_SRSZ_CLK | CIF_ICCL_JPEG_CLK | CIF_ICCL_MI_CLK |
 		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
