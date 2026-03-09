@@ -4836,10 +4836,14 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 static
 void rkisp_params_cfgsram_v351s(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
-	u32 id = params_vdev->dev->unite_index;
+	u32 val, id = params_vdev->dev->unite_index;
 	struct isp351s_isp_params_cfg *params = params_vdev->isp351s_params + id;
 
 	if (is_reset) {
+		/* bug: drc gain_shift_bit write only */
+		val = isp3_param_read_cache(params_vdev, ISP3X_DRC_CTRL0, id);
+		isp3_param_write(params_vdev, val, ISP3X_DRC_CTRL0, id);
+
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP32_SHP_FST_FRAME, id);
 		isp_sharp_cfg_noise_curve(params_vdev, &params->others.sharp_cfg, id, true);
 		params->others.enh_cfg.iir_wr = true;

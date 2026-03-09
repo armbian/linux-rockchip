@@ -215,6 +215,8 @@ struct rkisp_device {
 	char name[128];
 	void *sw_base_addr;
 	void *sw_vpsl_base_addr;
+	u32 sw_base_size;
+	u32 sw_vpsl_base_size;
 	struct rkisp_hw_dev *hw_dev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
