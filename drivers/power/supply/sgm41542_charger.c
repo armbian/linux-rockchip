@@ -246,6 +246,7 @@ enum sgm415xx_chip_id {
 	SGM41512SX_PN_ID,
 	SGM41513_PN_ID,
 	SGM41513X_PN_ID,
+	SGM41542S_PN_ID,
 	SGM41542_PN_ID,
 	SGM415XX_MAX_PN_ID,
 };
@@ -253,6 +254,7 @@ enum sgm415xx_chip_id {
 enum sgm415xx_vendor_id {
 	SGM41513_CHIP_VENDOR_ID = 0x0,
 	SGM41513X_CHIP_VENDOR_ID = 0x1,
+	SGM41542S_CHIP_VENDOR_ID = 0xA,
 	SGM41542_CHIP_VENDOR_ID = 0xD,
 	SGM41512SX_CHIP_VENDOR_ID = 0xE,
 	SGM41512S_CHIP_VENDOR_ID = 0xF
@@ -264,6 +266,7 @@ static const unsigned int BOOST_VOLT_LIMIT[] = {
 };
 
 static const unsigned int BOOST_CURRENT_LIMIT[SGM415XX_MAX_PN_ID][2] = {
+	{500000, 1200000},
 	{500000, 1200000},
 	{500000, 1200000},
 	{500000, 1200000},
@@ -299,6 +302,7 @@ static struct sgm_vendor_info s_chg_vendor[] = {
 	[SGM41513_PN_ID]   = { "sgm41513", SGM41513_CHIP_VENDOR_ID },
 	[SGM41513X_PN_ID]  = { "sgm41513D", SGM41513X_CHIP_VENDOR_ID },
 	[SGM41542_PN_ID]   = { "sgm41542", SGM41542_CHIP_VENDOR_ID },
+	[SGM41542S_PN_ID]   = { "sgm41542s", SGM41542S_CHIP_VENDOR_ID },
 };
 
 static const struct of_device_id sgm4154x_of_match[] = {
@@ -307,6 +311,7 @@ static const struct of_device_id sgm4154x_of_match[] = {
 	{ .compatible = "sgm,sgm41513", .data = &s_chg_vendor[SGM41513_PN_ID] },
 	{ .compatible = "sgm,sgm41513x", .data = &s_chg_vendor[SGM41513X_PN_ID] },
 	{ .compatible = "sgm,sgm41542", .data = &s_chg_vendor[SGM41542_PN_ID] },
+	{ .compatible = "sgm,sgm41542s", .data = &s_chg_vendor[SGM41542S_PN_ID] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sgm4154x_of_match);
@@ -1525,6 +1530,7 @@ static const struct i2c_device_id sgm4154x_i2c_ids[] = {
 	{ "sgm41513", 0 },
 	{ "sgm41513x", 0 },
 	{ "sgm41542", 0 },
+	{ "sgm41542s", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, sgm4154x_i2c_ids);
