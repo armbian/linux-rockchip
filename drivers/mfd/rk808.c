@@ -1780,6 +1780,73 @@ static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 	dev_info(dev, "support pmic reset mode:%d,%d\n", ret, func);
 }
 
+/*
+ * rk8xx_pinctrl_parse_dt - Parse pinctrl states from Device Tree for RK8xx PMIC
+ * @rk808: Pointer to the main RK808 PMIC data structure
+ *
+ * This function attempts to obtain and configure the pinctrl states for the PMIC.
+ * It is designed to be resilient: failure to obtain the pinctrl handle or any
+ * specific state is treated as a non-fatal condition (the feature is simply disabled),
+ * with appropriate debug messages logged.
+ *
+ * Return: 0 on success (or if pinctrl is not available/fully configured),
+ *         or a negative error code on critical resource allocation failure.
+ */
+static int rk8xx_pinctrl_parse_dt(struct rk808 *rk808)
+{
+	struct device *dev = &rk808->i2c->dev;
+	struct pinctrl_state *default_st;
+	int ret;
+
+	/* 1. Allocate the pin info structure */
+	rk808->pins = devm_kzalloc(dev, sizeof(struct rk808_pin_info), GFP_KERNEL);
+	if (!rk808->pins)
+		return -ENOMEM;
+
+	/* 2. Obtain the pinctrl handle */
+	rk808->pins->p = devm_pinctrl_get(dev);
+	if (IS_ERR(rk808->pins->p)) {
+		/* pinctrl is an optional feature for this driver.
+		 * If not available, free the allocated structure and continue.
+		 */
+		dev_info(dev, "no pinctrl handle available\n");
+		devm_kfree(dev, rk808->pins);
+		rk808->pins = NULL;
+		return 0;
+	}
+
+	/* 3. Look up and activate the default state (if it exists) */
+	default_st = pinctrl_lookup_state(rk808->pins->p, PINCTRL_STATE_DEFAULT);
+	if (!IS_ERR(default_st)) {
+		ret = pinctrl_select_state(rk808->pins->p, default_st);
+		if (ret)
+			dev_info(dev, "failed to activate default pinctrl state\n");
+	} else {
+		dev_info(dev, "no default pinctrl state\n");
+	}
+
+	/* 4. Look up optional, PMIC-specific states */
+	rk808->pins->power_off = pinctrl_lookup_state(rk808->pins->p, "pmic-power-off");
+	if (IS_ERR(rk808->pins->power_off)) {
+		rk808->pins->power_off = NULL;
+		dev_info(dev, "no power-off pinctrl state\n");
+	}
+
+	rk808->pins->sleep = pinctrl_lookup_state(rk808->pins->p, "pmic-sleep");
+	if (IS_ERR(rk808->pins->sleep)) {
+		rk808->pins->sleep = NULL;
+		dev_info(dev, "no sleep pinctrl state\n");
+	}
+
+	rk808->pins->reset = pinctrl_lookup_state(rk808->pins->p, "pmic-reset");
+	if (IS_ERR(rk808->pins->reset)) {
+		rk808->pins->reset = NULL;
+		dev_info(dev, "no reset pinctrl state\n");
+	}
+
+	return 0;
+}
+
 static int rk8xx_parse_dt(struct rk808 *rk808)
 {
 	struct device *dev = &rk808->i2c->dev;
@@ -1833,6 +1900,10 @@ static int rk8xx_parse_dt(struct rk808 *rk808)
 			rk808->shutdown_voltage_threshold = 2700;
 		}
 	}
+
+	ret = rk8xx_pinctrl_parse_dt(rk808);
+	if (ret)
+		return ret;
 
 	return 0;
 }
