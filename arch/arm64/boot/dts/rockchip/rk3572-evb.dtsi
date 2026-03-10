@@ -281,7 +281,7 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		reset-delay-ms = <10>;
-		enable-delay-ms = <10>;
+		enable-delay-ms = <20>;
 		prepare-delay-ms = <10>;
 		init-delay-ms = <10>;
 		unprepare-delay-ms = <10>;
