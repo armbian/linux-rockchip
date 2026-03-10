@@ -16020,14 +16020,6 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				continue;
 			}
 
-			if (stream->is_finish_stop_dma && stream->is_wait_stop_complete) {
-				stream->is_wait_stop_complete = false;
-				complete(&stream->stop_complete);
-			}
-
-			if (stream->is_finish_stop_dma)
-				stream->is_finish_stop_dma = false;
-
 			if (stream->crop_dyn_en)
 				rkcif_dynamic_crop(stream);
 
@@ -16154,6 +16146,14 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			} else {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 			}
+
+			if (stream->is_finish_stop_dma && stream->is_wait_stop_complete) {
+				stream->is_wait_stop_complete = false;
+				complete(&stream->stop_complete);
+			}
+
+			if (stream->is_finish_stop_dma)
+				stream->is_finish_stop_dma = false;
 
 			if (cif_dev->chip_id >= CHIP_RV1106_CIF)
 				rkcif_modify_frame_skip_config(stream);
