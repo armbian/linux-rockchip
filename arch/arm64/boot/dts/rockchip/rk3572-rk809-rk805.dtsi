@@ -100,6 +100,10 @@
 		reg = <0x20>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+
+		pinctrl-names = "pmic-sleep";
+		pinctrl-0 = <&soc_slppin_slp>;
+
 		rockchip,system-power-controller;
 		rockchip,shutdown-priority = <0>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
@@ -402,7 +406,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 				};
 			};
 

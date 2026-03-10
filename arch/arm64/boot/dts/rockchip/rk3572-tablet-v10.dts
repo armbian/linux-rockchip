@@ -548,6 +548,14 @@
 		};
 	};
 
+	pmic {
+		soc_slppin_slp: soc_slppin_slp {
+			rockchip,pins =
+				/* pwr_ctrl1 */
+				<0 RK_PA3 9 &pcfg_pull_none>;
+		};
+	};
+
 	sensor {
 		sensor_gpio: sensor-gpio {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
