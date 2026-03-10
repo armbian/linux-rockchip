@@ -18,3 +18,7 @@
 &i2s3_2ch {
 	status = "okay";
 };
+
+&os04a10 {
+	status = "disabled";
+};
