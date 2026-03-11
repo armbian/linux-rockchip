@@ -392,8 +392,6 @@ PNAME(mux_500m_250m_100m_24m_p)		= { "clk_cpll_div2", "clk_cpll_div4", "clk_cpll
 PNAME(mux_175m_116m_58m_24m_p)		= { "clk_spll_div4", "clk_spll_div6", "clk_spll_div12", "xin24m" };
 PNAME(mux_116m_58m_24m_p)		= { "clk_spll_div6", "clk_spll_div12", "xin24m" };
 PNAME(clk_uart_src_p)			= { "gpll", "cpll", "aupll", "xin24m", "clk_uart_frac_0", "clk_uart_frac_1", "clk_uart_frac_2" };
-PNAME(mux_24m_frac_int_mclki_p)		= { "xin24m", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2", "clk_audio_frac_3", "clk_audio_int_0", "clk_audio_int_1", "clk_audio_int_2", "sai0_mclk_in", "sai1_mclk_in", "sai2_mclk_in", "sai3_mclk_in", "sai4_mclk_in" };
-PNAME(mux_24m_frac_int_mclki_sclki_p)	= { "xin24m", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2", "clk_audio_frac_3", "clk_audio_int_0", "clk_audio_int_1", "clk_audio_int_2", "sai0_mclk_in", "sai1_mclk_in", "sai2_mclk_in", "sai3_mclk_in", "sai4_mclk_in", "sai0_sclk_in", "sai1_sclk_in", "sai2_sclk_in", "sai3_sclk_in", "sai4_sclk_in" };
 PNAME(ref_pulse_p)			= { "usb0_sof_clk", "usb1_sof_clk", "gmac0_ptp_pps", "gmac1_ptp_pps", "asrc_ref_pulse" };
 PNAME(lrck_asrc_src_p)			= { "asrc_sai0_fs_inter", "asrc_sai1_fs_inter", "asrc_sai2_fs_inter", "asrc_sai3_fs_inter", "asrc_sai4_fs_inter", "asrc_sai5_fs_inter", "asrc_pdm0_clk", "asrc_spdifrx0_clk", "asrc_spdifrx1_clk", "mclk_asrc0_src_0", "mclk_asrc1_src_1" };
 PNAME(lrck_asrc_dst_p)			= { "asrc_sai0_fs_inter", "asrc_sai1_fs_inter", "asrc_sai2_fs_inter", "asrc_sai3_fs_inter", "asrc_sai4_fs_inter", "asrc_sai5_fs_inter", "asrc_pdm0_clk", "asrc_spdiftx0_clk", "asrc_spdiftx1_clk", "asrc_spdiftx2_clk", "mclk_asrc0_src_0", "mclk_asrc1_src_1" };
@@ -423,6 +421,10 @@ PNAME(pclk_phpsubsys_root_p)		= { "clk_cpll_div10_phpphy", "xin24m" };
 PNAME(mux_armclkl1_p)			= { "lpll_dummy", "gpll", "litcore1pvtpll" };
 PNAME(sclk_apb2asb_src_p)		= { "spll", "clk_gpll_div2", "clk_cpll_div2", "clk_gpll_div3", "clk_gpll_div4" };
 PNAME(sclk_apb2asb_p)			= { "sclk_apb2asb_src", "clk_gpll_div6", "clk_cpll_div10", "xin24m" };
+PNAME(mux_24m_frac_int_mclki_p)		= { "xin24m", "clk_audio_int_0", "clk_audio_int_1", "clk_audio_int_2", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2", "clk_audio_frac_3", "sai0_mclk_in", "sai1_mclk_in", "sai2_mclk_in", "sai3_mclk_in", "sai4_mclk_in" };
+PNAME(mux_24m_frac_int_mclki_sclki_p)	= { "xin24m", "clk_audio_int_0", "clk_audio_int_1", "clk_audio_int_2", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2", "clk_audio_frac_3", "sai0_mclk_in", "sai1_mclk_in", "sai2_mclk_in", "sai3_mclk_in", "sai4_mclk_in", "sai0_sclk_in", "sai1_sclk_in", "sai2_sclk_in", "sai3_sclk_in", "sai4_sclk_in" };
+static u32 mux_24m_frac_int_mclki_idx[]	= { 0, 5, 6, 7, 1, 2, 3, 4, 8, 9, 10, 11, 12};
+static u32 mux_24m_frac_int_mclki_sclki_idx[]	= { 0, 5, 6, 7, 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
 
 static struct rockchip_pll_clock rk3572_pll_clks[] __initdata = {
 	[bpll] = PLL(pll_rk3588_core, PLL_BPLL, "bpll", mux_pll_p,
@@ -563,8 +565,8 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_AUDIO_INT_2, "clk_audio_int_2", "aupll", 0,
 			RK3572_CLKSEL_CON(30), 5, 5, DFLAGS,
 			RK3572_CLKGATE_CON(3), 1, GFLAGS),
-	COMPOSITE(CLK_PDM0_SRC_TOP, "clk_pdm0_src_top", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(31), 9, 4, MFLAGS, 0, 9, DFLAGS,
+	COMPOSITE_MUXTBL(CLK_PDM0_SRC_TOP, "clk_pdm0_src_top", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(31), 9, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 9, DFLAGS,
 			RK3572_CLKGATE_CON(3), 3, GFLAGS),
 	COMPOSITE_NOMUX(CLK_GMAC0_125M_SRC, "clk_gmac0_125m_src", "cpll", 0,
 			RK3572_CLKSEL_CON(33), 10, 5, DFLAGS,
@@ -572,11 +574,11 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_GMAC1_125M_SRC, "clk_gmac1_125m_src", "cpll", 0,
 			RK3572_CLKSEL_CON(34), 0, 5, DFLAGS,
 			RK3572_CLKGATE_CON(3), 8, GFLAGS),
-	COMPOSITE(MCLK_ASRC0_SRC_0, "mclk_asrc0_src_0", mux_24m_frac_int_mclki_sclki_p, 0,
-			RK3572_CLKSEL_CON(34), 10, 5, MFLAGS, 5, 5, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_ASRC0_SRC_0, "mclk_asrc0_src_0", mux_24m_frac_int_mclki_sclki_p, 0,
+			RK3572_CLKSEL_CON(34), 10, 5, MFLAGS, mux_24m_frac_int_mclki_sclki_idx, 5, 5, DFLAGS,
 			RK3572_CLKGATE_CON(3), 11, GFLAGS),
-	COMPOSITE(MCLK_ASRC1_SRC_1, "mclk_asrc1_src_1", mux_24m_frac_int_mclki_sclki_p, 0,
-			RK3572_CLKSEL_CON(35), 5, 5, MFLAGS, 0, 5, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_ASRC1_SRC_1, "mclk_asrc1_src_1", mux_24m_frac_int_mclki_sclki_p, 0,
+			RK3572_CLKSEL_CON(35), 5, 5, MFLAGS, mux_24m_frac_int_mclki_sclki_idx, 0, 5, DFLAGS,
 			RK3572_CLKGATE_CON(3), 12, GFLAGS),
 	COMPOSITE(REF_CLK0_OUT_PLL, "ref_clk0_out_pll", gpll_cpll_spll_aupll_bpll_24m_p, 0,
 			RK3572_CLKSEL_CON(38), 8, 3, MFLAGS, 0, 8, DFLAGS,
@@ -611,8 +613,8 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE(CAM_CLK2_OUT_IOUT, "cam_clk2_out_iout", mux_24m_spll_gpll_cpll_p, 0,
 			RK3572_CLKSEL_CON(46), 8, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(6), 1, GFLAGS),
-	COMPOSITE(MCLK_PDM0_SRC_TOP, "mclk_pdm0_src_top", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(47), 9, 4, MFLAGS, 0, 9, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_PDM0_SRC_TOP, "mclk_pdm0_src_top", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(47), 9, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 9, DFLAGS,
 			RK3572_CLKGATE_CON(6), 10, GFLAGS),
 	COMPOSITE_NODIV(HCLK_AUDIO_ROOT, "hclk_audio_root", mux_200m_100m_50m_24m_p, CLK_IS_CRITICAL,
 			RK3572_CLKSEL_CON(49), 0, 2, MFLAGS,
@@ -627,8 +629,8 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE(CLK_ASRC_2CH_1, "clk_asrc_2ch_1", gpll_cpll_aupll_p, 0,
 			RK3572_CLKSEL_CON(49), 14, 2, MFLAGS, 9, 5, DFLAGS,
 			RK3572_CLKGATE_CON(7), 8, GFLAGS),
-	COMPOSITE(MCLK_SAI0, "mclk_sai0", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(51), 11, 4, MFLAGS, 3, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SAI0, "mclk_sai0", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(51), 11, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 3, 8, DFLAGS,
 			RK3572_CLKGATE_CON(7), 12, GFLAGS),
 	GATE(HCLK_SAI0, "hclk_sai0", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(7), 13, GFLAGS),
@@ -637,18 +639,18 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE(MCLK_SPDIF_RX0, "mclk_spdif_rx0", gpll_cpll_aupll_p, 0,
 			RK3572_CLKSEL_CON(52), 5, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3572_CLKGATE_CON(7), 15, GFLAGS),
-	COMPOSITE(MCLK_SAI1, "mclk_sai1", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(54), 8, 4, MFLAGS, 0, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SAI1, "mclk_sai1", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(54), 8, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(8), 5, GFLAGS),
 	GATE(HCLK_SAI1, "hclk_sai1", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(8), 6, GFLAGS),
-	COMPOSITE(MCLK_SAI2, "mclk_sai2", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(56), 8, 4, MFLAGS, 0, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SAI2, "mclk_sai2", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(56), 8, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(8), 8, GFLAGS),
 	GATE(HCLK_SAI2, "hclk_sai2", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(8), 10, GFLAGS),
-	COMPOSITE(MCLK_SAI3, "mclk_sai3", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(58), 8, 4, MFLAGS, 0, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SAI3, "mclk_sai3", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(58), 8, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(8), 12, GFLAGS),
 	GATE(HCLK_SAI3, "hclk_sai3", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(8), 14, GFLAGS),
@@ -669,13 +671,13 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 			RK3572_CLKGATE_CON(9), 3, GFLAGS),
 	GATE(HCLK_SPDIF_TX0, "hclk_spdif_tx0", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(9), 6, GFLAGS),
-	COMPOSITE(MCLK_SPDIF_TX0, "mclk_spdif_tx0", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(61), 8, 4, MFLAGS, 0, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SPDIF_TX0, "mclk_spdif_tx0", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(61), 8, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(9), 7, GFLAGS),
 	GATE(HCLK_SPDIF_TX1, "hclk_spdif_tx1", "hclk_audio_root", 0,
 			RK3572_CLKGATE_CON(9), 8, GFLAGS),
-	COMPOSITE(MCLK_SPDIF_TX1, "mclk_spdif_tx1", mux_24m_frac_int_mclki_p, 0,
-			RK3572_CLKSEL_CON(62), 8, 4, MFLAGS, 0, 8, DFLAGS,
+	COMPOSITE_MUXTBL(MCLK_SPDIF_TX1, "mclk_spdif_tx1", mux_24m_frac_int_mclki_p, 0,
+			RK3572_CLKSEL_CON(62), 8, 4, MFLAGS, mux_24m_frac_int_mclki_idx, 0, 8, DFLAGS,
 			RK3572_CLKGATE_CON(9), 9, GFLAGS),
 	COMPOSITE_NODIV(HCLK_BUS_ROOT, "hclk_bus_root", mux_200m_100m_50m_24m_p, CLK_IS_CRITICAL,
 			RK3572_CLKSEL_CON(64), 0, 2, MFLAGS,
