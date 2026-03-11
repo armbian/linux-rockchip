@@ -254,6 +254,15 @@ static const struct spinand_info hyf_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&hyf4gq4uaacbe_ooblayout, hyf1gq4udacae_ecc_get_status)),
+	SPINAND_INFO("HYFQ512NAC",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x2B),
+		     NAND_MEMORG(1, 2048, 64, 64, 512, 10, 1, 1, 1),
+		     NAND_ECCREQ(4, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&hyf1gq4udacae_ooblayout, hyf1gq4udacae_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops hyf_spinand_manuf_ops = {
