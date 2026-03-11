@@ -56,6 +56,7 @@ struct rk730_priv {
 	unsigned int sysclk;
 	atomic_t mix_mode;
 	bool fixed_mclk_fs;
+	bool force_bias_on;
 };
 
 /* ADC Digital Volume */
@@ -1067,6 +1068,7 @@ static int rk730_reset(struct snd_soc_component *component)
 static int rk730_probe(struct snd_soc_component *component)
 {
 	struct rk730_priv *rk730 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int ret = 0;
 
 	regcache_mark_dirty(rk730->regmap);
@@ -1081,6 +1083,12 @@ static int rk730_probe(struct snd_soc_component *component)
 	}
 
 	rk730_reset(component);
+	if (rk730->force_bias_on) {
+		snd_soc_dapm_force_enable_pin(dapm, "ANA LDO");
+		snd_soc_dapm_force_enable_pin(dapm, "HK VAG BUF");
+		snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+		snd_soc_dapm_sync(dapm);
+	}
 
 	return ret;
 }
@@ -1223,6 +1231,9 @@ static int rk730_i2c_probe(struct i2c_client *i2c)
 
 	rk730->fixed_mclk_fs =
 		device_property_read_bool(&i2c->dev, "rockchip,mclk-fs-fixed");
+
+	rk730->force_bias_on =
+		device_property_read_bool(&i2c->dev, "rockchip,force-bias-on");
 
 	i2c_set_clientdata(i2c, rk730);
 
