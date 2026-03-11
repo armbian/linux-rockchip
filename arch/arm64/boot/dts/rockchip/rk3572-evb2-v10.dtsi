@@ -314,6 +314,7 @@
 		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sai1m0_mclk_pins>;
+		rockchip,force-bias-on;
 	};
 };
 
