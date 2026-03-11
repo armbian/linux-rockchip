@@ -1378,4 +1378,11 @@ struct rk808 {
 	struct rk808_pin_info *pins;
 	struct rk808_pwrctrl pwrctrl;
 };
+
+#if IS_REACHABLE(CONFIG_MFD_RK808)
+int rk8xx_suspend_sync(void);
+#else
+static inline int rk8xx_suspend_sync(void) { return -ENODEV; }
+#endif
+
 #endif /* __LINUX_REGULATOR_RK808_H */

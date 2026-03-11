@@ -1699,6 +1699,19 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 	return ret;
 }
 
+int rk8xx_suspend_sync(void)
+{
+#ifdef CONFIG_PM_SLEEP
+	if (!rk808_i2c_client)
+		return -ENODEV;
+
+	return rk8xx_suspend(&rk808_i2c_client->dev);
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL_GPL(rk8xx_suspend_sync);
+
 static int __maybe_unused rk8xx_resume(struct device *dev)
 {
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
