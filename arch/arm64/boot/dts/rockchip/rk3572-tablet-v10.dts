@@ -384,6 +384,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_pins>;
 		vbus-supply = <&vbus5v0_typec>;
+		io-channels = <&saradc 7>;
+		io-channel-names = "vsafe0v-detect";
 		status = "okay";
 
 		usb_con: connector {
