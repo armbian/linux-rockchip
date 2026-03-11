@@ -1879,19 +1879,19 @@
 
 			assigned-clocks =
 				<&cru CLK_AUDIO_FRAC_1_SRC>, <&cru PLL_CPLL>,
-				<&cru PLL_AUPLL>, <&cru CLK_UART_FRAC_0>,
-				<&cru CLK_UART_FRAC_1>, <&cru CLK_UART_FRAC_2>,
-				<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
-				<&cru CLK_AUDIO_FRAC_2>, <&cru CLK_AUDIO_INT_0>,
-				<&cru CLK_AUDIO_INT_1>, <&cru CLK_GPU>;
+				<&cru CLK_UART_FRAC_0>, <&cru CLK_UART_FRAC_1>,
+				<&cru CLK_UART_FRAC_2>, <&cru CLK_AUDIO_FRAC_0>,
+				<&cru CLK_AUDIO_FRAC_1>, <&cru CLK_AUDIO_FRAC_2>,
+				<&cru CLK_AUDIO_INT_0>, <&cru CLK_AUDIO_INT_1>,
+				<&cru CLK_GPU>;
 			assigned-clock-parents = <&cru PLL_AUPLL>;
 			assigned-clock-rates =
 				<0>, <1000000000>,
-				<786432000>, <18432000>,
-				<96000000>, <128000000>,
-				<45158400>, <49152000>,
+				<18432000>, <96000000>,
+				<128000000>, <45158400>,
 				<49152000>, <49152000>,
-				<24576000>, <200000000>;
+				<49152000>, <24576000>,
+				<200000000>;
 		};
 
 		bigcore_pvtpll: syscon@260f8000 {
