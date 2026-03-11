@@ -274,6 +274,7 @@ static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 				       dfi_regs + i * dfi->ddrmon_stride + ctrl0);
 			break;
 		case ROCKCHIP_DDRTYPE_LPDDR5:
+		case ROCKCHIP_DDRTYPE_LPDDR5X:
 			if (dfi->dram_dynamic_info_reg)
 				regmap_read(dfi->regmap_pmu, dfi->dram_dynamic_info_reg, &val_6);
 			dfi->lp5_bank_mode = READ_LP5_BANK_MODE(val_6);
@@ -424,7 +425,8 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 	if ((dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR4) ||
 	    (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR4X))
 		access *= 8;
-	else if (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5)
+	else if ((dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5) ||
+		 (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5X))
 		access *= 16 / (4 << dfi->lp5_ckr);
 	else
 		access *= 4;
@@ -815,6 +817,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	case ROCKCHIP_DDRTYPE_LPDDR4:
 	case ROCKCHIP_DDRTYPE_LPDDR4X:
 	case ROCKCHIP_DDRTYPE_LPDDR5:
+	case ROCKCHIP_DDRTYPE_LPDDR5X:
 		dfi->burst_len = 16;
 		break;
 	}
@@ -1011,6 +1014,8 @@ static int rk3572_dfi_init(struct rockchip_dfi *dfi)
 
 	regmap_read(regmap_pmu, RK3572_PMU1_GRF_OS_REG2, &reg2);
 	regmap_read(regmap_pmu, RK3572_PMU1_GRF_OS_REG3, &reg3);
+
+	dfi->dram_dynamic_info_reg = RK3572_PMU1_GRF_OS_REG6;
 
 	/* lower 3 bits of the DDR type */
 	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
