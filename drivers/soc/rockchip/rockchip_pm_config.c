@@ -11,6 +11,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/mfd/rk808.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -147,7 +148,7 @@ static int rockchip_pm_virt_pwroff_prepare(struct sys_off_data *data)
 	int error, i;
 
 	regulator_suspend_prepare(PM_SUSPEND_MEM);
-
+	rk8xx_suspend_sync();
 	cpus_offline();
 
 	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, RK_PM_VIRT_PWROFF_EN, 1);
