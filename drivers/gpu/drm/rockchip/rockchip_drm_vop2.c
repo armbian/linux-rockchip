@@ -11046,14 +11046,29 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	}
 
 	/*
-	 * BCSH[R2Y] -> POST Linebuffer[post scale] -> the background R2Y will be deal by post_dsp_out_r2y
+	 * The platform supported ACM:
+	 *   RK3528/RK3576:
+	 *     overlay-> post scale -> CSC_R2Y -> ACM -> CSC_Y2R
 	 *
-	 * POST Linebuffer[post scale] -> ACM[R2Y] -> the background R2Y will be deal by ACM[R2Y]
+	 *   From RK3572/RK3538:
+	 *     overlay-> CSC_R2Y -> post scale -> ACM -> CSC_Y2R
+	 *
+	 * The platform support BCSH:
+	 *   overlay-> CSC_R2Y -> BCSH -> CSC_Y2R -> post sclae
 	 */
-	if (vp_data->feature & VOP_FEATURE_POST_ACM)
-		VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, vcstate->yuv_overlay);
-	else
+	if ((vp_data->feature & VOP_FEATURE_POST_ACM)) {
+		if (vop2->version <= VOP_VERSION_RK3576) {
+			VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, vcstate->yuv_overlay);
+		} else {
+			if (vcstate->post_y2r_en || vcstate->acm_en ||
+			    is_yuv_output(vcstate->bus_format))
+				VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, 1);
+			else
+				VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, 0);
+		}
+	} else {
 		VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, is_yuv_output(vcstate->bus_format));
+	}
 }
 
 /*
@@ -16177,47 +16192,7 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	if (vcstate->splice_mode)
 		vop2_dither_setup(vcstate, &splice_vp->rockchip_crtc.crtc);
 
-	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
-	/* From rk3538/rk3572, the WIN CSC will convert the data to YUV full range
-	 * when at yuv overlay mode.
-	 */
-	VOP_MODULE_SET(vop2, vp, yuv_full_range_overlay_mode, 1);
-
-	/*
-	 * userspace specified background.
-	 */
-	if (vcstate->background) {
-		r = (vcstate->background & 0xff0000) >> 16;
-		g = (vcstate->background & 0xff00) >> 8;
-		b = (vcstate->background & 0xff);
-		r <<= 2;
-		g <<= 2;
-		b <<= 2;
-		val = (r << 20) | (g << 10) | b;
-	} else {
-		if (vcstate->yuv_overlay) {
-			/* From rk3538/rk3572, the background should be set to
-			 * full range when at yuv overlay mode.
-			 */
-			if (vp->regs->yuv_full_range_overlay_mode.mask)
-				val = 0x20000200;
-			else
-				val = 0x20010200;
-		} else {
-			val = 0;
-		}
-	}
-
-	VOP_MODULE_SET(vop2, vp, dsp_background, val);
-	if (vcstate->splice_mode) {
-		VOP_MODULE_SET(vop2, splice_vp, overlay_mode, vcstate->yuv_overlay);
-		VOP_MODULE_SET(vop2, splice_vp, dsp_background, val);
-	}
-
 	vop2_tv_config_update(crtc, old_crtc_state);
-
-	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
-		vop2_post_config(crtc);
 
 	if (vp_data->feature & VOP_FEATURE_DOVI)
 		vop2_dovi_enable(crtc);
@@ -16240,6 +16215,52 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && vp->acm_state_changed)
 		vop3_post_acm_config(crtc, &vp->acm_info);
 
+	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
+		vop2_post_config(crtc);
+
+	/*
+	 * userspace specified background.
+	 */
+	if (vcstate->background) {
+		r = (vcstate->background & 0xff0000) >> 16;
+		g = (vcstate->background & 0xff00) >> 8;
+		b = (vcstate->background & 0xff);
+		r <<= 2;
+		g <<= 2;
+		b <<= 2;
+		val = (r << 20) | (g << 10) | b;
+	} else {
+		if (vop2->version <= VOP_VERSION_RK3576) {
+			if (vcstate->yuv_overlay)
+				val = 0x20010200;/* limit range */
+			else
+				val = 0;
+		} else {
+			if (vp->enabled_win_mask) {/* background connector at bg_mix */
+				if (vcstate->yuv_overlay)
+					val = 0x20000200;/* full range */
+				else
+					val = 0;
+			} else {/* background connector after r2y->post_scale */
+				if (vcstate->post_y2r_en || vcstate->acm_en ||
+				    is_yuv_output(vcstate->bus_format))
+					val = 0x20000200;/* full range */
+				else
+					val = 0;
+			}
+		}
+	}
+
+	VOP_MODULE_SET(vop2, vp, dsp_background, val);
+	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
+	if (vcstate->splice_mode) {
+		VOP_MODULE_SET(vop2, splice_vp, dsp_background, val);
+		VOP_MODULE_SET(vop2, splice_vp, overlay_mode, vcstate->yuv_overlay);
+	}
+	/* From rk3538/rk3572, the WIN CSC will convert the data to YUV full range
+	 * when at yuv overlay mode.
+	 */
+	VOP_MODULE_SET(vop2, vp, yuv_full_range_overlay_mode, 1);
 }
 
 static void vop2_sleep_scan_line_time(struct vop2_video_port *vp, int scan_line)
