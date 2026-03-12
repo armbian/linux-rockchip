@@ -150,7 +150,6 @@
 		 * - PDN (power down when low)
 		 */
 		post-power-on-delay-ms = <200>;
-		reset-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc1v8_lcd: vcc1v8-lcd {
@@ -506,15 +505,15 @@
 
 &pinctrl {
 	wifi{
-		wifi_power_en: wifi_power_en {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		wifi_power_en: wifi-power-en {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		wifi_host_wake_irq: wifi_host_wake_irq {
+		wifi_host_wake_irq: wifi-host-wake-irq{
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		wifi_chip_wake_irq: wifi_chip_wake_irq {
+		wifi_chip_wake_irq: wifi-chip-wake-irq {
 			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
@@ -599,6 +598,11 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
+	rockchip,sleep-io-ret-config = <
+		(0
+		| RKPM_VCCIO3_RET_EN
+		)
+	>;
 };
 
 &route_dsi {

@@ -223,7 +223,6 @@
 		 * - PDN (power down when low)
 		 */
 		post-power-on-delay-ms = <500>;
-		reset-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
 	};
 
 	seekwcn_boot: seekwcn-boot {
@@ -660,7 +659,7 @@
 		};
 
 		wifi_chipen_gpio: wifi-chipen-gpio {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		wifi_poweren_gpio: wifi-poweren-gpio {
