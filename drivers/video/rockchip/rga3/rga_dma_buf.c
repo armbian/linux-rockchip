@@ -93,6 +93,11 @@ int rga_dma_map_sgt(struct sg_table *sgt, struct rga_dma_buffer *buffer,
 	if (ret <= 0) {
 		rga_err("dma_map_sg failed! ret = %d\n", ret);
 		return ret < 0 ? ret : -EINVAL;
+	} else if (ret > 1) {
+		rga_err("dma_map_sg mapped more than one segment! orig_nents = %d, nents = %d\n",
+			sgt->orig_nents, ret);
+		dma_unmap_sg(map_dev, sgt->sgl, sgt->orig_nents, dir);
+		return -EINVAL;
 	}
 	sgt->nents = ret;
 
