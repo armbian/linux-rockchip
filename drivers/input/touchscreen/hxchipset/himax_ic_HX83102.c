@@ -231,6 +231,139 @@ static void hx83102_mcu_dd_reg_en(struct himax_ts_data *ts, bool enable)
 	ts->core_fp.fp_dd_reg_write(ts, 0xB9, 0, 4, data, 0);
 }
 
+static void hx83102_mcu_flash_programming(struct himax_ts_data *ts, uint8_t *FW_content,
+					  int start_addr, int length)
+{
+	int page_prog_start = 0, i = 0, j = 0, k = 0, retry_cnt = 0;
+	uint8_t tmp_data[DATA_LEN_4];
+	uint8_t buring_data[FLASH_RW_MAX_LEN];
+
+	I("%s", __func__);
+	ts->core_fp.fp_interface_on(ts);
+
+	himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_flash_speed, DATA_LEN_4,
+				 ts->ic_incell.pflash_op->data_spi200_cmd_8, 0);
+
+	himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_fifo_rst, DATA_LEN_4,
+				 ts->ic_incell.pflash_op->data_spi200_txfifo_rst, 0);
+
+	retry_cnt = 0;
+	do {
+		himax_mcu_register_read(ts, ts->ic_incell.pflash_op->addr_spi200_fifo_rst,
+					 DATA_LEN_4, tmp_data, 0);
+		if (retry_cnt > 50) {
+			E("%s: Polling SPI Status Active FAIL", __func__);
+			return;
+		}
+		retry_cnt++;
+	} while (((tmp_data[0] & 0x04) >> 2) == 1);
+
+	himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_trans_fmt, DATA_LEN_4,
+				 ts->ic_incell.pflash_op->data_spi200_trans_fmt, 0);
+
+	for (page_prog_start = start_addr; page_prog_start < start_addr + length;
+	     page_prog_start += FLASH_RW_MAX_LEN) {
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_trans_ctrl,
+					 DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_trans_ctrl_2, 0);
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_cmd, DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_cmd_2, 0);
+
+		retry_cnt = 0;
+		do {
+			himax_mcu_register_read(ts, ts->ic_incell.pflash_op->addr_spi200_rst_status,
+						4, tmp_data, 0);
+			if (retry_cnt > 50) {
+				E("%s: Polling FAIL", __func__);
+				return;
+			}
+			retry_cnt++;
+		} while ((tmp_data[0] & 0x01) == 1);
+
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_trans_ctrl,
+					 DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_trans_ctrl_6, 0);
+
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_cmd, DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_cmd_1, 0);
+
+		retry_cnt = 0;
+		do {
+			himax_mcu_register_read(ts, ts->ic_incell.pflash_op->addr_spi200_rst_status,
+						DATA_LEN_4, tmp_data, 0);
+			if (retry_cnt > 50) {
+				E("%s: Polling FAIL", __func__);
+				return;
+			}
+			retry_cnt++;
+		} while ((tmp_data[0] & 0x01) == 1);
+
+		himax_mcu_register_read(ts, ts->ic_incell.pflash_op->addr_spi200_data, DATA_LEN_4,
+					tmp_data, 0);
+		if (((tmp_data[0] & 0x02) >> 1) == 0) {
+			I("%s:SPI 0x8000002c = %d\n", __func__, tmp_data[0]);
+			break;
+		}
+
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_trans_ctrl,
+					 DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_trans_ctrl_4, 0);
+
+		if (page_prog_start < 0x100) {
+			tmp_data[3] = 0x00;
+			tmp_data[2] = 0x00;
+			tmp_data[1] = 0x00;
+			tmp_data[0] = (uint8_t)page_prog_start;
+		} else if (page_prog_start >= 0x100 && page_prog_start < 0x10000) {
+			tmp_data[3] = 0x00;
+			tmp_data[2] = 0x00;
+			tmp_data[1] = (uint8_t)(page_prog_start >> 8);
+			tmp_data[0] = (uint8_t)page_prog_start;
+		} else if (page_prog_start >= 0x10000 && page_prog_start < 0x1000000) {
+			tmp_data[3] = 0x00;
+			tmp_data[2] = (uint8_t)(page_prog_start >> 16);
+			tmp_data[1] = (uint8_t)(page_prog_start >> 8);
+			tmp_data[0] = (uint8_t)page_prog_start;
+		}
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_addr, DATA_LEN_4,
+					 tmp_data, 0);
+
+		for (i = 0; i < ADDR_LEN_4; i++)
+			buring_data[i] = ts->ic_incell.pflash_op->addr_spi200_data[i];
+
+		himax_mcu_register_write(ts, ts->ic_incell.pflash_op->addr_spi200_cmd, DATA_LEN_4,
+					 ts->ic_incell.pflash_op->data_spi200_cmd_6, 0);
+
+		for (j = 0; j < 16; j++) {
+			for (i = (page_prog_start + (j * 16)), k = 0;
+			     i < (page_prog_start + (j * 16)) + 16; i++, k++)
+
+				buring_data[k + ADDR_LEN_4] = FW_content[i - start_addr];
+
+			if (himax_bus_write(ts, addr_AHB_address_byte_0, buring_data,
+					    ADDR_LEN_4 + 16, HIMAX_I2C_RETRY_TIMES) < 0) {
+				E("%s: i2c access fail!\n", __func__);
+				return;
+			}
+
+			retry_cnt = 0;
+			do {
+				himax_mcu_register_read(
+					ts, ts->ic_incell.pflash_op->addr_spi200_rst_status,
+					DATA_LEN_4, tmp_data, 0);
+				if (retry_cnt > 50) {
+					E("%s: Polling FAIL", __func__);
+					return;
+				}
+				retry_cnt++;
+			} while ((tmp_data[2] & 0x40) == 0);
+		}
+
+		if (!ts->core_fp.fp_wait_wip(ts, 1))
+			E("%s:Flash_Programming Fail\n", __func__);
+	}
+}
+
 static void hx83102_func_re_init(struct himax_ts_data *ts)
 {
 	ts->core_fp.fp_sense_on = hx83102_sense_on;
@@ -239,6 +372,7 @@ static void hx83102_func_re_init(struct himax_ts_data *ts)
 	ts->core_fp.fp_ic_id_read = hx83102_mcu_ic_id_read;
 	ts->core_fp.fp_dd_clk_set = hx83102_mcu_dd_clk_set;
 	ts->core_fp.fp_dd_reg_en = hx83102_mcu_dd_reg_en;
+	ts->core_fp.fp_flash_programming = hx83102_mcu_flash_programming;
 }
 
 bool hx83102_chip_detect(struct himax_ts_data *ts)
