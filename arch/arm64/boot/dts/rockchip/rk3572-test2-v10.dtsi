@@ -215,6 +215,10 @@
 	status = "disabled";
 };
 
+&uart4 {
+	status = "okay";
+};
+
 &u2phy0 {
 	status = "okay";
 };

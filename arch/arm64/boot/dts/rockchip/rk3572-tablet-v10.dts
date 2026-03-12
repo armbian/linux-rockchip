@@ -668,6 +668,10 @@
 	status = "okay";
 };
 
+&uart4 {
+	status = "okay";
+};
+
 &ufs {
 	reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
 	status = "okay";

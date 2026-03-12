@@ -508,6 +508,10 @@
 	status = "okay";
 };
 
+&uart4 {
+	status = "okay";
+};
+
 &u2phy0 {
 	orientation-switch;
 	status = "okay";
