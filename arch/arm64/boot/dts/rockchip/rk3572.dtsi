@@ -3932,7 +3932,7 @@
 			rockchip,php-grf = <&ioc_grf>;
 			clocks = <&cru CLK_GMAC1_125M_SRC>, <&cru CLK_GMAC1_RMII_CRU>,
 				 <&cru PCLK_GMAC1>, <&cru ACLK_GMAC1>,
-				 <&cru CLK_GMAC1_PTP_REF_SRC>;
+				 <&cru CLK_GMAC1_PTP_REF>;
 			clock-names = "stmmaceth", "clk_mac_ref",
 				      "pclk_mac", "aclk_mac",
 				      "ptp_ref";
