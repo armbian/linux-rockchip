@@ -411,6 +411,7 @@
 &i2c1 {
 	status = "okay";
 	pinctrl-0 = <&i2c1m1_xfer_pins>;
+	clock-frequency = <400000>;
 
 	himax_ts@48 {
 		status = "okay";
@@ -423,6 +424,7 @@
 		himax,display-coords    = <0 1200 0 1920>;
 		himax,irq-gpio          = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 		//himax,rst-gpio          = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+		himax,tp-fw-bin         = "Himax_firmware.bin";
 		rockchip,panel-notifier = <&dsi_panel>;
 		report_type             = <1>;
 		report_orientation      = <180>;
