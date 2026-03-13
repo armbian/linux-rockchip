@@ -108,6 +108,12 @@ config MTD_SPI_NAND_MICRON
 	help
 	  Add support for various MICRON SPI Nand flash chips
 
+config MTD_SPI_NAND_MK
+	bool "MK SPI flash support"
+	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
+	help
+	  Add support for various MK SPI Nand flash chips
+
 config MTD_SPI_NAND_PARAGON
 	bool "PARAGON SPI flash support"
 	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
