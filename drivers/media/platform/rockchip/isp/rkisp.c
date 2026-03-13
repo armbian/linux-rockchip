@@ -1048,7 +1048,11 @@ run_next:
 		 cur_frame_id, dma2frm + 1, val, is_try);
 	if (!hw->is_shutdown) {
 		rkisp_aiisp_l2(dev, true);
-		rkisp_unite_write(dev, CSI2RX_CTRL0, val, true);
+		if (dev->isp_ver > ISP_V30 &&
+		    dev->isp_sdev.in_fmt.fmt_type == FMT_YUV)
+			rkisp_unite_write(dev, MI_RD_START, 1, true);
+		else
+			rkisp_unite_write(dev, CSI2RX_CTRL0, val, true);
 		if (dev->is_aiisp_en &&
 		    dev->is_aiisp_sync && !dev->is_aiisp_first_frame) {
 			/* isp FE(fn) and BE(fn-1) start read together */
@@ -2119,6 +2123,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		irq_mask |= CIF_ISP_DATA_LOSS;
 		if (dev->isp_inp == INP_DMARX_ISP)
 			acq_prop = CIF_ISP_ACQ_PROP_DMA_YUV;
+		else if (dev->isp_inp & INP_RAWRD2)
+			isp_ctrl = CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601;
 	}
 
 	/* Set up input acquisition properties */
@@ -2324,7 +2330,7 @@ static int rkisp_config_path(struct rkisp_device *dev)
 	if (dev->isp_ver == ISP_V32)
 		dpcl |= BIT(0);
 
-	rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true);
+	rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, false);
 	return ret;
 }
 
@@ -2350,14 +2356,6 @@ static int rkisp_config_cif(struct rkisp_device *dev)
 	return 0;
 }
 
-static bool rkisp_is_need_3a(struct rkisp_device *dev)
-{
-	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
-
-	return isp_sdev->in_fmt.fmt_type == FMT_BAYER &&
-	       isp_sdev->out_fmt.fmt_type == FMT_YUV;
-}
-
 static void rkisp_start_3a_run(struct rkisp_device *dev)
 {
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
@@ -2367,8 +2365,7 @@ static void rkisp_start_3a_run(struct rkisp_device *dev)
 	};
 	int ret = 1000;
 
-	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20 ||
-	    !params_vdev->is_subs_evt)
+	if (dev->isp_ver == ISP_V20 || !params_vdev->is_subs_evt)
 		return;
 
 	v4l2_event_queue(vdev, &ev);
@@ -2398,7 +2395,7 @@ static void rkisp_stop_3a_run(struct rkisp_device *dev)
 	};
 	int ret = 1000;
 
-	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20 ||
+	if (dev->isp_ver == ISP_V20 ||
 	    !params_vdev->is_subs_evt || dev->hw_dev->is_shutdown)
 		return;
 
@@ -3074,6 +3071,8 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 		pixm.width = mf->width;
 		pixm.height = mf->height;
 		pixm.pixelformat = rkisp_mbus_pixelcode_to_v4l2(mf->code);
+		if (pixm.pixelformat == V4L2_PIX_FMT_YUYV && isp_dev->isp_ver > ISP_V30)
+			pixm.pixelformat = V4L2_PIX_FMT_NV16;
 		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
 		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
 		if (isp_dev->isp_ver == ISP_V20 || isp_dev->isp_ver == ISP_V30)
@@ -4550,7 +4549,8 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
-		rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, arg);
+		if (!isp_dev->is_rdbk_no_trigger)
+			rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, arg);
 		break;
 	case RKISP_CMD_GET_ISP_INFO:
 		rkisp_get_info(isp_dev, arg);
