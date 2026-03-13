@@ -324,6 +324,7 @@ struct rkisp_device {
 	bool is_wait_aiq;
 	bool is_wait_aiq_isp_end;
 	bool is_first_frame;
+	bool is_rdbk_no_trigger;
 
 	struct rkisp_vicap_input vicap_in;
 	struct rkisp_vicap_sof vicap_sof;

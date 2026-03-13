@@ -15,6 +15,10 @@
 
 #define CIF_ISP_REQ_BUFS_MIN 0
 
+static bool rkisp_rdbk_no_trigger;
+module_param_named(rdbk_no_trigger, rkisp_rdbk_no_trigger, bool, 0644);
+MODULE_PARM_DESC(rdbk_no_trigger, "rkisp rdbk no using ioctl: RKISP_CMD_TRIGGER_READ_BACK");
+
 static const struct capture_fmt dmarx_fmts[] = {
 	/* bayer raw */
 	{
@@ -246,6 +250,15 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.fmt_type = FMT_BAYER,
 		.bpp = { 16 },
 		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV16,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.uv_swap = 0,
+		.write_format = CIF_MI_DMA_CTRL_READ_FMT_SPLANAR,
+		.output_format = CIF_MI_DMA_CTRL_FMT_YUV422,
 	}
 };
 
@@ -369,6 +382,24 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	u32 val;
 
+	if (stream->out_isp_fmt.fourcc == V4L2_PIX_FMT_NV16) {
+		val = stream->out_fmt.plane_fmt[0].bytesperline;
+		val /= DIV_ROUND_UP(stream->out_isp_fmt.bpp[0], 8);
+		rkisp_write(dev, CIF_MI_DMA_Y_LLENGTH, val, false);
+		val = stream->out_fmt.width;
+		rkisp_write(dev, CIF_MI_DMA_Y_PIC_WIDTH, val, false);
+		val = stream->out_fmt.width * stream->out_fmt.height;
+		rkisp_write(dev, CIF_MI_DMA_Y_PIC_SIZE, val, false);
+		val = stream->out_isp_fmt.write_format |
+		      stream->out_isp_fmt.output_format |
+		      CIF_MI_DMA_CTRL_BURST_LEN_LUM_16 |
+		      CIF_MI_DMA_CTRL_BURST_LEN_CHROM_16;
+		rkisp_write(dev, CIF_MI_DMA_CTRL, val, false);
+		val = CIF_VI_DPCL_DMA_SW_YCNR;
+		rkisp_set_bits(dev, CIF_VI_DPCL, CIF_VI_DPCL_DMA_SW_MASK, val, false);
+		return 0;
+	}
+
 	val = rkisp_read(dev, CSI2RX_DATA_IDS_1, true);
 	val &= ~SW_CSI_ID0(0xff);
 	switch (stream->out_isp_fmt.fourcc) {
@@ -429,35 +460,42 @@ static void update_rawrd(struct rkisp_stream *stream)
 	void __iomem *base = dev->base_addr;
 	struct capture_fmt *fmt = &stream->out_isp_fmt;
 	u32 offs, offs_h = stream->out_fmt.width / 2 - dev->hw_dev->unite_extend_pixel;
-	u32 val = 0;
+	u32 val = 0, y_reg;
 
 	if (stream->curr_buf) {
+		if (fmt->fourcc == V4L2_PIX_FMT_NV16) {
+			y_reg = CIF_MI_DMA_Y_PIC_START_AD;
+
+			val = stream->curr_buf->buff_addr[RKISP_PLANE_CB];
+			rkisp_write(dev, CIF_MI_DMA_CB_PIC_START_AD, val, false);
+		} else {
+			y_reg = stream->config->mi.y_base_ad_init;
+		}
+
+		val = 0;
 		if (dev->vicap_in.merge_num > 1) {
 			val = stream->out_fmt.plane_fmt[0].bytesperline;
 			val /= dev->vicap_in.merge_num;
 			val *= dev->vicap_in.index;
 		}
 		val += stream->curr_buf->buff_addr[RKISP_PLANE_Y];
-		rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
+		rkisp_write(dev, y_reg, val, false);
 
 		if (stream->memory)
 			offs_h *= DIV_ROUND_UP(fmt->bpp[0], 8);
 		else
 			offs_h = offs_h * fmt->bpp[0] / 8;
 		if (dev->unite_div > ISP_UNITE_DIV1)
-			rkisp_idx_write(dev, stream->config->mi.y_base_ad_init,
-					val + offs_h, ISP_UNITE_RIGHT, false);
+			rkisp_idx_write(dev, y_reg, val + offs_h, ISP_UNITE_RIGHT, false);
 		if (dev->unite_div == ISP_UNITE_DIV4) {
 			offs = stream->out_fmt.plane_fmt[0].bytesperline *
 			       (stream->out_fmt.height / 2 - dev->hw_dev->unite_extend_pixel);
-			rkisp_idx_write(dev, stream->config->mi.y_base_ad_init,
-					val + offs, ISP_UNITE_LEFT_B, false);
+			rkisp_idx_write(dev, y_reg, val + offs, ISP_UNITE_LEFT_B, false);
 			offs += offs_h;
-			rkisp_idx_write(dev, stream->config->mi.y_base_ad_init,
-					val + offs, ISP_UNITE_RIGHT_B, false);
+			rkisp_idx_write(dev, y_reg, val + offs, ISP_UNITE_RIGHT_B, false);
 		}
 		stream->frame_end = false;
-		if (stream->id == RKISP_STREAM_RAWRD2 && stream->out_isp_fmt.fmt_type == FMT_YUV) {
+		if (stream->id == RKISP_STREAM_RAWRD2 && dev->is_rdbk_no_trigger) {
 			struct vb2_v4l2_buffer *vbuf = &stream->curr_buf->vb;
 			struct isp2x_csi_trigger trigger = {
 				.frame_timestamp = vbuf->vb2_buf.timestamp,
@@ -658,6 +696,7 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s %s count %d, size %d\n",
 		 stream->vnode.vdev.name, v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 
+	dev->is_rdbk_no_trigger = rkisp_rdbk_no_trigger;
 	return 0;
 }
 
@@ -775,6 +814,7 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 	if (stream->id == RKISP_STREAM_RAWRD2 &&
 	    stream->ispdev->isp_ver >= ISP_V20)
 		kfifo_reset(&stream->ispdev->rdbk_kfifo);
+	stream->ispdev->is_rdbk_no_trigger = false;
 }
 
 static int dmarx_start_streaming(struct vb2_queue *queue,

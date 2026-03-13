@@ -109,11 +109,13 @@
 #define CIF_VI_DPCL_DMA_SW_IE			(2 << 4)
 #define CIF_VI_DPCL_DMA_SW_JPEG			(3 << 4)
 #define CIF_VI_DPCL_DMA_SW_ISP			(4 << 4)
+#define CIF_VI_DPCL_DMA_SW_YCNR			(5 << 4)
 #define CIF_VI_DPCL_IF_SEL_PARALLEL		(0 << 8)
 #define CIF_VI_DPCL_IF_SEL_SMIA			(1 << 8)
 #define CIF_VI_DPCL_IF_SEL_MIPI			(2 << 8)
 #define CIF_VI_DPCL_DMA_IE_MUX_DMA		BIT(10)
 #define CIF_VI_DPCL_DMA_SP_MUX_DMA		BIT(11)
+#define CIF_VI_DPCL_DMA_SW_MASK			GENMASK(6, 4)
 
 /* ISP_IMSC - ISP_MIS - ISP_RIS - ISP_ICR - ISP_ISR */
 #define CIF_ISP_OFF				BIT(0)
@@ -1794,7 +1796,7 @@ static inline void stream_data_path(struct rkisp_stream *stream)
 		dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
 
 	if (dpcl)
-		rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true);
+		rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, false);
 }
 
 static inline void mp_set_uv_swap(void __iomem *base)
