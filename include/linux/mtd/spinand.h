@@ -279,6 +279,7 @@ extern const struct spinand_manufacturer jsc_spinand_manufacturer;
 extern const struct spinand_manufacturer kingston_spinand_manufacturer;
 extern const struct spinand_manufacturer macronix_spinand_manufacturer;
 extern const struct spinand_manufacturer micron_spinand_manufacturer;
+extern const struct spinand_manufacturer mk_spinand_manufacturer;
 extern const struct spinand_manufacturer paragon_spinand_manufacturer;
 extern const struct spinand_manufacturer silicongo_spinand_manufacturer;
 extern const struct spinand_manufacturer skyhigh_spinand_manufacturer;

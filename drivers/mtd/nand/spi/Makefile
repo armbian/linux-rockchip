@@ -19,6 +19,7 @@ spinand-$(CONFIG_MTD_SPI_NAND_JSC)		+= jsc.o
 spinand-$(CONFIG_MTD_SPI_NAND_KINGSTON)		+= kingston.o
 spinand-$(CONFIG_MTD_SPI_NAND_MACRONIX)		+= macronix.o
 spinand-$(CONFIG_MTD_SPI_NAND_MICRON)		+= micron.o
+spinand-$(CONFIG_MTD_SPI_NAND_MK)		+= mk.o
 spinand-$(CONFIG_MTD_SPI_NAND_PARAGON)		+= paragon.o
 spinand-$(CONFIG_MTD_SPI_NAND_SILICONGO)	+= silicongo.o
 spinand-$(CONFIG_MTD_SPI_NAND_SKYHIGH)		+= skyhigh.o
