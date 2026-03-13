@@ -14,6 +14,178 @@
 #include "rga_hw_config.h"
 #include "rga_debugger.h"
 
+struct rga_shadow_node {
+	int page_idx;
+	struct page *orig_page;
+	struct page *shadow_page;
+	size_t offset;
+	size_t len;
+	struct list_head node;
+};
+
+static void rga_shadow_list_init(struct rga_virt_addr *virt_addr)
+{
+	INIT_LIST_HEAD(&virt_addr->shadow_list);
+}
+
+static void rga_shadow_free_node(struct rga_virt_addr *virt_addr,
+				 struct rga_shadow_node *shadow)
+{
+	virt_addr->pages[shadow->page_idx] = shadow->orig_page;
+	__free_page(shadow->shadow_page);
+	list_del(&shadow->node);
+	kfree(shadow);
+}
+
+static int rga_shadow_add_node(struct rga_virt_addr *virt_addr,
+			       int page_idx, size_t offset, size_t len)
+{
+	struct rga_shadow_node *shadow;
+
+	shadow = kzalloc(sizeof(*shadow), GFP_KERNEL);
+	if (!shadow) {
+		rga_err("shadow_page alloc node failed\n");
+		return -ENOMEM;
+	}
+
+	shadow->shadow_page = alloc_page(GFP_KERNEL | GFP_DMA32);
+	if (!shadow->shadow_page) {
+		rga_err("shadow_page alloc page failed\n");
+		kfree(shadow);
+		return -ENOMEM;
+	}
+
+	shadow->page_idx = page_idx;
+	shadow->orig_page = virt_addr->pages[page_idx];
+	shadow->offset = offset;
+	shadow->len = len;
+
+	virt_addr->pages[page_idx] = shadow->shadow_page;
+	list_add_tail(&shadow->node, &virt_addr->shadow_list);
+
+	return 0;
+}
+
+static void rga_shadow_release(struct rga_virt_addr *virt_addr)
+{
+	struct rga_shadow_node *shadow, *tmp;
+
+	if (!virt_addr || list_empty(&virt_addr->shadow_list))
+		return;
+
+	list_for_each_entry_safe(shadow, tmp, &virt_addr->shadow_list, node)
+		rga_shadow_free_node(virt_addr, shadow);
+}
+
+static int rga_shadow_setup(struct rga_virt_addr *virt_addr)
+{
+	int ret;
+	int head_idx;
+	int tail_idx;
+	size_t head_len;
+	size_t tail_len;
+	size_t total;
+	size_t head_offset;
+	size_t cache_align = dma_get_cache_alignment();
+	bool need_head = false;
+	bool need_tail = false;
+
+	if (!virt_addr || virt_addr->page_count <= 0 || virt_addr->size == 0)
+		return 0;
+
+	head_idx = 0;
+	tail_idx = virt_addr->page_count - 1;
+	total = virt_addr->size;
+	head_offset = virt_addr->offset;
+
+	head_len = min_t(size_t, PAGE_SIZE - head_offset, total);
+	tail_len = (virt_addr->offset + total) - (tail_idx * PAGE_SIZE);
+
+	need_head = !IS_ALIGNED(head_offset, cache_align);
+	need_tail = !IS_ALIGNED(virt_addr->offset + total, cache_align) ||
+		    tail_len < (2 * ARCH_DMA_MINALIGN);
+
+	if (tail_idx == head_idx) {
+		if (need_head || need_tail) {
+			ret = rga_shadow_add_node(virt_addr, head_idx, head_offset, total);
+			if (ret)
+				goto err_release;
+		}
+	} else {
+		if (need_head) {
+			ret = rga_shadow_add_node(virt_addr, head_idx, head_offset, head_len);
+			if (ret)
+				goto err_release;
+		}
+
+		if (need_tail) {
+			ret = rga_shadow_add_node(virt_addr, tail_idx, 0, tail_len);
+			if (ret)
+				goto err_release;
+		}
+	}
+
+	virt_addr->shadow_head = need_head;
+	virt_addr->shadow_tail = need_tail;
+
+	return 0;
+
+err_release:
+	rga_shadow_release(virt_addr);
+	return ret;
+}
+
+static inline bool rga_shadow_active(struct rga_virt_addr *virt_addr)
+{
+	return virt_addr && !list_empty(&virt_addr->shadow_list);
+}
+
+static void rga_shadow_sync_data(struct rga_virt_addr *virt_addr, bool to_shadow)
+{
+	struct rga_shadow_node *shadow;
+
+	list_for_each_entry(shadow, &virt_addr->shadow_list, node) {
+		void *orig_vaddr;
+		void *shadow_vaddr;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+		orig_vaddr = kmap_local_page(shadow->orig_page);
+		shadow_vaddr = kmap_local_page(shadow->shadow_page);
+#else
+		orig_vaddr = kmap_atomic(shadow->orig_page);
+		shadow_vaddr = kmap_atomic(shadow->shadow_page);
+#endif
+
+		if (to_shadow) {
+			memcpy(shadow_vaddr + shadow->offset,
+			       orig_vaddr + shadow->offset,
+			       shadow->len);
+		} else {
+			memcpy(orig_vaddr + shadow->offset,
+			       shadow_vaddr + shadow->offset,
+			       shadow->len);
+		}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+		kunmap_local(shadow_vaddr);
+		kunmap_local(orig_vaddr);
+#else
+		kunmap_atomic(shadow_vaddr);
+		kunmap_atomic(orig_vaddr);
+#endif
+	}
+}
+
+static inline void rga_shadow_copy_to_shadow(struct rga_virt_addr *virt_addr)
+{
+	rga_shadow_sync_data(virt_addr, true);
+}
+
+static inline void rga_shadow_copy_from_shadow(struct rga_virt_addr *virt_addr)
+{
+	rga_shadow_sync_data(virt_addr, false);
+}
+
 static void rga_current_mm_read_lock(struct mm_struct *mm)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
@@ -227,6 +399,8 @@ static void rga_free_virt_addr(struct rga_virt_addr **virt_addr_p)
 	if (virt_addr == NULL)
 		return;
 
+	rga_shadow_release(virt_addr);
+
 	for (i = 0; i < virt_addr->result; i++)
 		put_page(virt_addr->pages[i]);
 
@@ -304,8 +478,20 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	virt_addr->offset = offset;
 	virt_addr->result = result;
 
+	rga_shadow_list_init(virt_addr);
+
+	ret = rga_shadow_setup(virt_addr);
+	if (ret < 0) {
+		rga_err("shadow_setup failed, va = 0x%lx ret = %d\n",
+			(unsigned long)virt_addr->addr, ret);
+		goto out_free_virt_addr;
+	}
+
 	return 0;
 
+out_free_virt_addr:
+	kfree(virt_addr);
+	*virt_addr_p = NULL;
 out_put_and_free_pages:
 	for (i = 0; i < result; i++)
 		put_page(pages[i]);
@@ -1003,6 +1189,22 @@ struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer)
 	return buffer->dma_buffer->sgt;
 }
 
+static void rga_mm_dump_shadow_page(struct rga_internal_buffer *dump_buffer)
+{
+	struct rga_virt_addr *virt_addr;
+	struct rga_shadow_node *shadow;
+
+	virt_addr = dump_buffer->virt_addr;
+
+	rga_buf_log(dump_buffer, "shadow_page active, head = %d, tail = %d\n",
+			virt_addr->shadow_head, virt_addr->shadow_tail);
+
+	list_for_each_entry(shadow, &virt_addr->shadow_list, node)
+		rga_buf_log(dump_buffer,
+			"shadow_page[%d], offset = %zu, len = %zu\n",
+			shadow->page_idx, shadow->offset, shadow->len);
+}
+
 void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 {
 	rga_buf_log(dump_buffer, "type = %s, refcount = %d mm_flag = 0x%x\n",
@@ -1053,6 +1255,10 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 		if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 			rga_buf_log(dump_buffer, "is contiguous, pa = 0x%lx\n",
 				(unsigned long)dump_buffer->phys_addr);
+
+		if (rga_shadow_active(dump_buffer->virt_addr))
+			rga_mm_dump_shadow_page(dump_buffer);
+
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		rga_buf_log(dump_buffer, "pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
@@ -1356,6 +1562,7 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 	ktime_t timestamp = ktime_get();
+	bool has_shadow = rga_shadow_active(buffer->virt_addr);
 
 	scheduler = buffer->scheduler;
 	if (scheduler == NULL) {
@@ -1363,6 +1570,9 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 			__func__, __LINE__, job->core);
 		return -EFAULT;
 	}
+
+	if (has_shadow && (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
+		rga_shadow_copy_to_shadow(buffer->virt_addr);
 
 	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
 		if (scheduler->data->mmu == RGA_IOMMU) {
@@ -1405,6 +1615,7 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 	ktime_t timestamp = ktime_get();
+	bool has_shadow = rga_shadow_active(buffer->virt_addr);
 
 	scheduler = buffer->scheduler;
 	if (scheduler == NULL) {
@@ -1438,6 +1649,9 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 
 		dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
 	}
+
+	if (has_shadow && (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
+		rga_shadow_copy_from_shadow(buffer->virt_addr);
 
 	if (DEBUGGER_EN(TIME))
 		rga_job_log(job, "handle[%d], %s, flush CPU cache for CPU cost %lld us\n",

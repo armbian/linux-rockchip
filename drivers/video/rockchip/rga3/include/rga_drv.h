@@ -202,6 +202,11 @@ struct rga_virt_addr {
 	/* The offset of the first page of the virtual address */
 	size_t offset;
 
+	/* Shadow page list for cache-safe DMA */
+	struct list_head shadow_list;
+	bool shadow_head;
+	bool shadow_tail;
+
 	int result;
 };
 
