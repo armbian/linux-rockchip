@@ -111,6 +111,8 @@
 		pmic-reset-func = <0>;
 		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
 				"userrequested,recovery";
+		/* select internal feedback resistor */
+		fb-inner-reg-idxs = <2>;
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -162,9 +164,11 @@
 			};
 
 			vdd_logic_s0: DCDC_REG3 {
-				regulator-name = "vcc_logic_s0";
+				regulator-name = "vdd_logic_s0";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <850000>;
 				regulator-initial-mode = <0x2>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
