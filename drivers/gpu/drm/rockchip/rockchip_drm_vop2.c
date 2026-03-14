@@ -12156,6 +12156,15 @@ static bool vop2_is_left_right_or_odd_even_mode(struct rockchip_crtc_state *vcst
 	return true;
 }
 
+static void vop2_toggle_dclk(struct vop2_video_port *vp)
+{
+	clk_prepare_enable(vp->dclk);
+	if (!clk_get_rate(vp->dclk))
+		clk_set_rate(vp->dclk, 148500000);
+	udelay(20);
+	clk_disable_unprepare(vp->dclk);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -12672,17 +12681,25 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	 * on, for example, vidoe port0 dclk source select hdmi phy pll. To fix
 	 * this issue, enable video port0 dclk for a few monent when active a video
 	 * port which attach to eDP/HDMI.
+	 * The hdmiedp0_pix_clk_div and hdmiedp0_dclk_div module attach reset signal to
+	 * dclk_vp0_reset. The hdmiedp1_pix_clk_div and hdmiedp1_dclk_div module attach
+	 * reset signal to dclk_vp1_reset. If the hdmiedp1_pix_clk_div and
+	 * hdmiedp1_dclk_div module is used. The dclk_vp1 should enable a few moment to
+	 * release the dclk_vp1_reset. If the hdmiedp0_pixel_clk_div and
+	 * hdmiedp0_dclk_div module is used. The dclk_vp0 should do the same work.
 	 */
 	if (vop2->version == VOP_VERSION_RK3588) {
 		if (vp->id != 0 && (vp->output_if & (VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_HDMI0 |
 						     VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
 			struct vop2_video_port *vp0 = &vop2->vps[0];
 
-			clk_prepare_enable(vp0->dclk);
-			if (!clk_get_rate(vp0->dclk))
-				clk_set_rate(vp0->dclk, 148500000);
-			udelay(20);
-			clk_disable_unprepare(vp0->dclk);
+			vop2_toggle_dclk(vp0);
+		}
+
+		if (vp->id != 1 && (vp->output_if & (VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
+			struct vop2_video_port *vp1 = &vop2->vps[1];
+
+			vop2_toggle_dclk(vp1);
 		}
 	}
 out:
