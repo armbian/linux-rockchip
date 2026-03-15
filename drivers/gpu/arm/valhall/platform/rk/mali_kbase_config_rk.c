@@ -517,7 +517,7 @@ static int rk3572_gpu_set_read_margin(struct device *dev,
 		return 0;
 
 	dev_dbg(dev, "set rm to %d\n", rm);
-	regmap_write(opp_info->grf, 0xc, 0x02000200);
+	regmap_write(opp_info->grf, 0xc, 0x00800080);
 	regmap_write(opp_info->grf, 0, 0x001c0000 | (rm << 2));
 	regmap_write(opp_info->grf, 0x4, 0x001c0000 | (rm << 2));
 
