@@ -9,6 +9,7 @@
 
 &i2c0 {
 	status = "okay";
+	clock-frequency = <400000>;
 
 	rk806: pmic@23 {
 		compatible = "rockchip,rk806";
