@@ -723,27 +723,67 @@ static int rk806_set_voltage(struct regulator_dev *rdev,
 			     int req_min_uV, int req_max_uV,
 			     unsigned int *selector)
 {
+	int dts_min_uV = 0, dts_max_uV = 0;
+	const struct linear_range *range;
+	int voltage, i, ret = -EINVAL;
+	unsigned int sel;
+	bool found;
 	int vsel_reg;
 	int mode;
-	int ret;
-	int sel;
 
-	if (req_min_uV == req_max_uV)
-		req_max_uV = rdev->constraints->max_uV;
-	ret = regulator_map_voltage_linear_range(rdev, req_min_uV, req_max_uV);
-	if (ret >= 0) {
-		*selector = ret;
-		sel = ret;
-	} else {
+	if (rdev->constraints) {
+		dts_min_uV = rdev->constraints->min_uV;
+		dts_max_uV = rdev->constraints->max_uV;
+	}
+
+	/*
+	 * Direct implementation of regulator_map_voltage_linear_range
+	 * logic with relaxed validation
+	 */
+	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
+		range = &rdev->desc->linear_ranges[i];
+
+		/* Find the smallest selector that is greater than or equal to req_min_uV */
+		ret = linear_range_get_selector_high(range, req_min_uV, &sel, &found);
+		if (ret)
+			continue;
+
+		/* Get the actual voltage corresponding to this selector */
+		voltage = rdev->desc->ops->list_voltage(rdev, sel);
+
+		*selector = sel;
+		/* For voltage range requests, maintain strict validation */
+		if (voltage >= req_min_uV && voltage <= req_max_uV)
+			break;
+
+		/*
+		 * If the actual voltage differs from the requested voltage,
+		 * issue a warning
+		 */
+		dev_warn(rdev_get_dev(rdev), "%s: Requested %d uV (DTS config: %d-%d uV) adjusted to %d uV (selector=%u)\n",
+			 rdev->desc->name, req_min_uV, dts_min_uV, dts_max_uV, voltage, sel);
+
+		/* Check if the actual voltage is within DTS constraints */
+		if (dts_max_uV > 0 && (voltage < dts_min_uV || voltage > dts_max_uV)) {
+			dev_warn(rdev_get_dev(rdev), "%s: WARNING: Actual voltage %d uV is outside DTS constraint range [%d, %d] uV.\n",
+				 rdev->desc->name, voltage, dts_min_uV, dts_max_uV);
+		}
+	}
+
+	if (i == rdev->desc->n_linear_ranges) {
+		/* No suitable selector found in any range */
 		return -EINVAL;
 	}
 
+	/* Continue with register setting and DVS operations */
 	vsel_reg = rk806_get_write_vsel_register(rdev);
 
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
 	ret = regmap_update_bits(rdev->regmap, vsel_reg,
 				 rdev->desc->vsel_mask, sel);
+	if (ret)
+		return ret;
 
 	mode = get_dvs_mode(rdev);
 	if (mode == RK806_DVS_NOT_SUPPORT)
