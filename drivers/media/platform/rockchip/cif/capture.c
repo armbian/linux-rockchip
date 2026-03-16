@@ -5165,22 +5165,25 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
 			     channel->crop_st_y << 16 | channel->crop_st_x);
 
-	if (mode == RKCIF_STREAM_MODE_CAPTURE) {
-		if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
-			rkcif_buf_init_interlace(stream, channel->id);
-		else
-			rkcif_assign_new_buffer_pingpong(stream,
-							 RKCIF_YUV_ADDR_STATE_INIT,
-							 channel->id);
-	} else if (mode == RKCIF_STREAM_MODE_TOISP ||
-		 mode == RKCIF_STREAM_MODE_TOISP_RDBK) {
-		rkcif_assign_new_buffer_pingpong_toisp(stream,
-						       RKCIF_YUV_ADDR_STATE_INIT,
-						       channel->id);
-	} else if (mode == RKCIF_STREAM_MODE_ROCKIT) {
-		rkcif_assign_new_buffer_pingpong_rockit(stream,
-							RKCIF_YUV_ADDR_STATE_INIT,
-							channel->id);
+	if (!(capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
+	      index < capture_info->multi_dev.dev_num - 1)) {
+		if (mode == RKCIF_STREAM_MODE_CAPTURE) {
+			if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
+				rkcif_buf_init_interlace(stream, channel->id);
+			else
+				rkcif_assign_new_buffer_pingpong(stream,
+								 RKCIF_YUV_ADDR_STATE_INIT,
+								 channel->id);
+		} else if (mode == RKCIF_STREAM_MODE_TOISP ||
+			 mode == RKCIF_STREAM_MODE_TOISP_RDBK) {
+			rkcif_assign_new_buffer_pingpong_toisp(stream,
+							       RKCIF_YUV_ADDR_STATE_INIT,
+							       channel->id);
+		} else if (mode == RKCIF_STREAM_MODE_ROCKIT) {
+			rkcif_assign_new_buffer_pingpong_rockit(stream,
+								RKCIF_YUV_ADDR_STATE_INIT,
+								channel->id);
+		}
 	}
 
 	if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
@@ -5189,19 +5192,6 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
 				     channel->crop_st_y << 16 |
 				     (channel->crop_st_x + capture_info->multi_dev.pixel_offset));
-
-	if (!(capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
-	      index < capture_info->multi_dev.dev_num - 1)) {
-		if (mode == RKCIF_STREAM_MODE_CAPTURE)
-			rkcif_assign_new_buffer_pingpong(stream,
-						 RKCIF_YUV_ADDR_STATE_INIT,
-						 channel->id);
-		else if (mode == RKCIF_STREAM_MODE_TOISP ||
-			 mode == RKCIF_STREAM_MODE_TOISP_RDBK)
-			rkcif_assign_new_buffer_pingpong_toisp(stream,
-						       RKCIF_YUV_ADDR_STATE_INIT,
-						       channel->id);
-	}
 
 	val = channel->virtual_width;
 	if (dev->chip_id >= CHIP_RV1103B_CIF && dev->sditf[0] &&
@@ -5441,22 +5431,25 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 	rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
 			     channel->crop_st_y << 16 | channel->crop_st_x);
 
-	if (mode == RKCIF_STREAM_MODE_CAPTURE) {
-		if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
-			rkcif_buf_init_interlace(stream, channel->id);
-		else
-			rkcif_assign_new_buffer_pingpong(stream,
-							 RKCIF_YUV_ADDR_STATE_INIT,
-							 channel->id);
-	} else if (mode == RKCIF_STREAM_MODE_TOISP ||
-		 mode == RKCIF_STREAM_MODE_TOISP_RDBK) {
-		rkcif_assign_new_buffer_pingpong_toisp(stream,
-						       RKCIF_YUV_ADDR_STATE_INIT,
-						       channel->id);
-	} else if (mode == RKCIF_STREAM_MODE_ROCKIT) {
-		rkcif_assign_new_buffer_pingpong_rockit(stream,
-							RKCIF_YUV_ADDR_STATE_INIT,
-							channel->id);
+	if (!(capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
+	      index < capture_info->multi_dev.dev_num - 1)) {
+		if (mode == RKCIF_STREAM_MODE_CAPTURE) {
+			if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
+				rkcif_buf_init_interlace(stream, channel->id);
+			else
+				rkcif_assign_new_buffer_pingpong(stream,
+								 RKCIF_YUV_ADDR_STATE_INIT,
+								 channel->id);
+		} else if (mode == RKCIF_STREAM_MODE_TOISP ||
+			 mode == RKCIF_STREAM_MODE_TOISP_RDBK) {
+			rkcif_assign_new_buffer_pingpong_toisp(stream,
+							       RKCIF_YUV_ADDR_STATE_INIT,
+							       channel->id);
+		} else if (mode == RKCIF_STREAM_MODE_ROCKIT) {
+			rkcif_assign_new_buffer_pingpong_rockit(stream,
+								RKCIF_YUV_ADDR_STATE_INIT,
+								channel->id);
+		}
 	}
 
 	if (capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
@@ -5465,19 +5458,6 @@ static int rkcif_csi_channel_set_rv1126b(struct rkcif_stream *stream,
 		rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
 				     channel->crop_st_y << 16 |
 				     (channel->crop_st_x + capture_info->multi_dev.pixel_offset));
-
-	if (!(capture_info->mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
-	      index < capture_info->multi_dev.dev_num - 1)) {
-		if (mode == RKCIF_STREAM_MODE_CAPTURE)
-			rkcif_assign_new_buffer_pingpong(stream,
-						 RKCIF_YUV_ADDR_STATE_INIT,
-						 channel->id);
-		else if (mode == RKCIF_STREAM_MODE_TOISP ||
-			 mode == RKCIF_STREAM_MODE_TOISP_RDBK)
-			rkcif_assign_new_buffer_pingpong_toisp(stream,
-						       RKCIF_YUV_ADDR_STATE_INIT,
-						       channel->id);
-	}
 
 	val = channel->virtual_width;
 	if (dev->sditf[0] &&
