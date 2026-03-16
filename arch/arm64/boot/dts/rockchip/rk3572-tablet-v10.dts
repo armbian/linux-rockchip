@@ -142,14 +142,6 @@
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_power_en>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		post-power-on-delay-ms = <200>;
 	};
 
 	vcc1v8_lcd: vcc1v8-lcd {

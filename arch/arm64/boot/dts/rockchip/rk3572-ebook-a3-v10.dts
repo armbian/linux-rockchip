@@ -215,14 +215,6 @@
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_chipen_gpio>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		post-power-on-delay-ms = <500>;
 	};
 
 	seekwcn_boot: seekwcn-boot {
