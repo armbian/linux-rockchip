@@ -279,7 +279,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	/* get pages from virtual address. */
 	ret = rga_get_user_pages(pages, viraddr >> PAGE_SHIFT, count, writeFlag, mm);
 	if (ret < 0) {
-		rga_err("failed to get pages from virtual adrees: 0x%lx\n",
+		rga_err("failed to get pages from virtual address: 0x%lx\n",
 		       (unsigned long)viraddr);
 		ret = -EINVAL;
 		goto out_free_pages;
