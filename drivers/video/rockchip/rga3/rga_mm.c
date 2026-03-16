@@ -990,7 +990,7 @@ int rga_mm_lookup_flag(struct rga_mm *mm_session, uint64_t handle)
 dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer)
 {
 	if (rga_mm_is_invalid_dma_buffer(buffer->dma_buffer))
-		return 0;
+		return DMA_MAPPING_ERROR;
 
 	return buffer->dma_buffer->iova + buffer->dma_buffer->offset;
 }
@@ -1366,13 +1366,15 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 
 	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
 		if (scheduler->data->mmu == RGA_IOMMU) {
-			if (rga_mm_is_invalid_dma_buffer(buffer->dma_buffer)) {
-				rga_job_err(job, "invalid dma-buffer with IOMMU device!\n");
+			dma_addr_t iova = rga_mm_lookup_iova(buffer);
+
+			if (dma_mapping_error(buffer->dma_buffer->map_dev, iova)) {
+				rga_job_err(job, "invalid iova for dma-buffer with IOMMU device!\n");
 				return -EFAULT;
 			}
 
 			dma_sync_single_for_device(buffer->dma_buffer->map_dev,
-				buffer->dma_buffer->iova, buffer->dma_buffer->size, dir);
+				iova, buffer->size, dir);
 		} else {
 			dma_sync_single_for_device(scheduler->dev,
 				buffer->phys_addr, buffer->size, dir);
@@ -1413,13 +1415,15 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 
 	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
 		if (scheduler->data->mmu == RGA_IOMMU) {
-			if (rga_mm_is_invalid_dma_buffer(buffer->dma_buffer)) {
-				rga_job_err(job, "invalid dma-buffer with IOMMU device!\n");
+			dma_addr_t iova = rga_mm_lookup_iova(buffer);
+
+			if (dma_mapping_error(buffer->dma_buffer->map_dev, iova)) {
+				rga_job_err(job, "invalid iova for dma-buffer with IOMMU device!\n");
 				return -EFAULT;
 			}
 
 			dma_sync_single_for_cpu(buffer->dma_buffer->map_dev,
-				buffer->dma_buffer->iova, buffer->dma_buffer->size, dir);
+				iova, buffer->size, dir);
 		} else {
 			dma_sync_single_for_cpu(scheduler->dev,
 				buffer->phys_addr, buffer->size, dir);
@@ -1459,6 +1463,10 @@ static int rga_mm_get_buffer_info(struct rga_job *job,
 		}
 
 		addr = rga_mm_lookup_iova(internal_buffer);
+		if (dma_mapping_error(internal_buffer->dma_buffer->map_dev, (dma_addr_t)addr)) {
+			rga_job_err(job, "invalid iova for dma-buffer with IOMMU device!\n");
+			return -EFAULT;
+		}
 
 		break;
 	case RGA_MMU:
