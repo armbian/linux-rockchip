@@ -12,6 +12,7 @@
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3572.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "rockchip,rk3572";
@@ -430,6 +431,8 @@
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <120>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -470,6 +473,8 @@
 			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
 			operating-points-v2 = <&cluster1_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <120>;
 		};
 
 		cpu_l5: cpu@101 {
@@ -490,6 +495,8 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster2_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <260>;
 		};
 
 		cpu_b1: cpu@201 {
@@ -1590,15 +1597,48 @@
 		littlecore_thermal: littlecore-thermal {
 			polling-delay-passive = <20>;
 			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <850>; /* milliwatts */
 			thermal-sensors = <&tsadc 3>;
 
 			trips {
+				threshold: trip-point-0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
 				littlecore_crit: littlecore-crit {
 					/* millicelsius */
 					temperature = <115000>;
 					/* millicelsius */
 					hysteresis = <2000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&cpu_l4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map2 {
+					trip = <&target>;
+					cooling-device = <&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map3 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -5295,6 +5335,8 @@
 				      "clk_gpu_stacks", "clk_gpu";
 			power-domains = <&power RK3572_PD_GPU>;
 			operating-points-v2 = <&gpu_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <715>;
 
 			upthreshold = <30>;
 			downdifferential = <10>;
