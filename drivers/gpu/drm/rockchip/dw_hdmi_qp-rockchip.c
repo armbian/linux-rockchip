@@ -37,6 +37,7 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
+#include "../../../phy/rockchip/phy-hdmi.h"
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
@@ -1790,11 +1791,8 @@ static int _dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_dw_hdmi_qp *
 			DRM_DEV_ERROR(hdmi->dev, "failed to enable link_clk %d\n", ret);
 			return ret;
 		}
-
-		hdmi->phy->power_count++;
 	} else {
 		clk_disable_unprepare(hdmi->link_clk);
-		hdmi->phy->power_count--;
 	}
 
 	return 0;
@@ -2447,7 +2445,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	max_tmds_clock = min(max_tmds_clock, hdmi->max_tmdsclk);
 
-	if (hdmi->link_cfg.rate_per_lane && mode.clock > 600000)
+	if (hdmi->link_cfg.rate_per_lane && tmdsclock > 600000)
 		max_tmds_clock = hdmi->link_cfg.frl_lanes * hdmi->link_cfg.rate_per_lane * 1000000;
 
 	if (tmdsclock > max_tmds_clock) {
@@ -2539,27 +2537,27 @@ dw_hdmi_get_lane_cfg_by_frl_rate(struct rockchip_dw_hdmi_qp *hdmi, u64 rate,
 				 u8 *rate_per_lane, u8 *lanes)
 {
 	switch (rate) {
-	case 48000000:
+	case 48000000000:
 		*rate_per_lane = 12;
 		*lanes = 4;
 		break;
-	case 40000000:
+	case 40000000000:
 		*rate_per_lane = 10;
 		*lanes = 4;
 		break;
-	case 32000000:
+	case 32000000000:
 		*rate_per_lane = 8;
 		*lanes = 4;
 		break;
-	case 24000000:
+	case 24000000000:
 		*rate_per_lane = 6;
 		*lanes = 4;
 		break;
-	case 18000000:
+	case 18000000000:
 		*rate_per_lane = 6;
 		*lanes = 3;
 		break;
-	case 9000000:
+	case 9000000000:
 		*rate_per_lane = 3;
 		*lanes = 3;
 		break;
@@ -2616,6 +2614,8 @@ static int dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	int color_depth;
 	u8 fva_factor = hdmi->fva_factor_m1_val + 1;
 	bool secondary = false;
+	enum phy_hdmi_mode phy_hdmi_mode;
+	struct phy_configure_opts_hdmi phy_cfg = {0};
 
 	/*
 	 * There are two hdmi but only one encoder in split mode,
@@ -2632,80 +2632,84 @@ secondary:
 				       &hdmi->enc_out_encoding, &s->eotf);
 
 	s->bus_format = bus_format;
-	if (!strcmp(hdmi->plat_data->phy_name, "samsung_hdptx_phy")) {
-		if (hdmi->vrr_cap.vrr_mode) {
-			s->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
-			s->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
-		} else {
-			s->max_refresh_rate = 0;
-			s->min_refresh_rate = 0;
-		}
-
-		if (hdmi->enable_gaming_vrr) {
-			s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
-			s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
-			s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
-			s->hdmi_vrr.refresh_rate_ready_to_change = true;
-		}
-
-		s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
-
-		if (hdmi->vrr_state != hdmi->old_vrr_state) {
-			hdmi->old_vrr_state = hdmi->vrr_state;
-			rockchip_hdmi_qms_vrr_state(hdmi, s);
-		}
-
-		color_depth = rockchip_drm_bus_fmt_color_depth(bus_format);
-		tmdsclk = rockchip_drm_hdmi_get_tmdsclock(hdmi->output_bus_format,
-							  mode.crtc_clock * fva_factor);
-		if (rockchip_drm_bus_fmt_is_yuv420(hdmi->output_bus_format))
-			tmdsclk /= 2;
-		hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
-
-		if (hdmi->link_cfg.frl_mode) {
-			/* if current frl training failed, set lower frl rate */
-			if (hdmi->force_frl_rate) {
-				u8 rate_per_lane, frl_lanes;
-
-				dw_hdmi_get_lane_cfg_by_frl_rate(hdmi, hdmi->force_frl_rate,
-								 &rate_per_lane, &frl_lanes);
-
-				if (hdmi->link_cfg.rate_per_lane > rate_per_lane)
-					hdmi->link_cfg.rate_per_lane = rate_per_lane;
-
-				if (hdmi->link_cfg.frl_lanes > frl_lanes)
-					hdmi->link_cfg.frl_lanes = frl_lanes;
-			/* 40G is preferred */
-			} else if (hdmi->link_cfg.rate_per_lane >= 12 ||
-				   !hdmi->link_cfg.rate_per_lane) {
-				hdmi->link_cfg.frl_lanes = 4;
-				hdmi->link_cfg.rate_per_lane = 10;
-			}
-			bus_width = hdmi->link_cfg.frl_lanes *
-				hdmi->link_cfg.rate_per_lane * 1000000;
-			/* 10 bit color depth and frl mode */
-			if (color_depth == 10)
-				bus_width |=
-					COLOR_DEPTH_10BIT | HDMI_FRL_MODE;
-			else
-				bus_width |= HDMI_FRL_MODE;
-		} else {
-			bus_width =
-				rockchip_drm_hdmi_get_tmdsclock(hdmi->output_bus_format,
-								mode.crtc_clock * fva_factor * 10);
-			if (rockchip_drm_bus_fmt_is_yuv420(hdmi->output_bus_format))
-				bus_width /= 2;
-
-			if (color_depth == 10 &&
-			    !rockchip_drm_bus_fmt_is_yuv422(hdmi->output_bus_format))
-				bus_width |= COLOR_DEPTH_10BIT;
-		}
-	}
-
 	hdmi->phy_bus_width = bus_width;
 
-	if (hdmi->phy)
-		phy_set_bus_width(hdmi->phy, bus_width);
+	if (hdmi->vrr_cap.vrr_mode) {
+		s->max_refresh_rate = HDMI_MAX_VRR_REFRESH_RATE;
+		s->min_refresh_rate = HDMI_MIN_VRR_REFRESH_RATE;
+	} else {
+		s->max_refresh_rate = 0;
+		s->min_refresh_rate = 0;
+	}
+
+	if (hdmi->enable_gaming_vrr) {
+		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
+		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
+		s->hdmi_vrr.refresh_rate_ready_to_change = true;
+	}
+
+	s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
+
+	if (hdmi->vrr_state != hdmi->old_vrr_state) {
+		hdmi->old_vrr_state = hdmi->vrr_state;
+		rockchip_hdmi_qms_vrr_state(hdmi, s);
+	}
+
+	color_depth = rockchip_drm_bus_fmt_color_depth(bus_format);
+	tmdsclk = rockchip_drm_hdmi_get_tmdsclock(hdmi->output_bus_format,
+						  mode.crtc_clock * fva_factor);
+	if (rockchip_drm_bus_fmt_is_yuv420(hdmi->output_bus_format))
+		tmdsclk /= 2;
+	if (mode.flags & DRM_MODE_FLAG_DBLCLK)
+		tmdsclk *= 2;
+	hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
+
+	if (hdmi->link_cfg.frl_mode) {
+		/* if current frl training failed, set lower frl rate */
+		if (hdmi->force_frl_rate) {
+			u8 rate_per_lane, frl_lanes;
+
+			dw_hdmi_get_lane_cfg_by_frl_rate(hdmi, hdmi->force_frl_rate,
+							 &rate_per_lane, &frl_lanes);
+
+			if (hdmi->link_cfg.rate_per_lane > rate_per_lane)
+				hdmi->link_cfg.rate_per_lane = rate_per_lane;
+
+			if (hdmi->link_cfg.frl_lanes > frl_lanes)
+				hdmi->link_cfg.frl_lanes = frl_lanes;
+		/* 40G is preferred */
+		} else if (hdmi->link_cfg.rate_per_lane >= 12 ||
+			   !hdmi->link_cfg.rate_per_lane) {
+			hdmi->link_cfg.frl_lanes = 4;
+			hdmi->link_cfg.rate_per_lane = 10;
+		}
+
+		phy_cfg.bpc = color_depth;
+		phy_cfg.frl.lanes = hdmi->link_cfg.frl_lanes;
+		phy_cfg.frl.rate_per_lane = hdmi->link_cfg.rate_per_lane;
+		phy_hdmi_mode = PHY_HDMI_MODE_FRL;
+	} else {
+		bus_width = rockchip_drm_hdmi_get_tmdsclock(hdmi->output_bus_format,
+							    mode.crtc_clock * fva_factor);
+		if (rockchip_drm_bus_fmt_is_yuv420(hdmi->output_bus_format))
+			bus_width /= 2;
+
+		phy_cfg.tmds_char_rate = bus_width * 1000;
+		phy_hdmi_mode = PHY_HDMI_MODE_TMDS;
+
+		if (color_depth == 10 &&
+		    !rockchip_drm_bus_fmt_is_yuv422(hdmi->output_bus_format))
+			phy_cfg.bpc = 10;
+		else
+			phy_cfg.bpc = 8;
+	}
+
+	if (hdmi->phy) {
+		phy_set_mode_ext(hdmi->phy, PHY_MODE_HDMI, phy_hdmi_mode);
+		phy_configure(hdmi->phy, (void *)&phy_cfg);
+		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
+	}
 
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 	s->tv_state = &conn_state->tv;
@@ -3063,7 +3067,7 @@ static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 static int dw_hdmi_link_clk_set(void *data, u32 rate, bool enable)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
-	u64 phy_clk = hdmi->phy_bus_width;
+	u64 phy_clk;
 	int ret;
 
 	if (enable) {
@@ -3073,24 +3077,24 @@ static int dw_hdmi_link_clk_set(void *data, u32 rate, bool enable)
 			return ret;
 		}
 
-		if (!strcmp(hdmi->plat_data->phy_name, "samsung_hdptx_phy"))  {
-			if (((phy_clk & DATA_RATE_MASK) <= 6000000) &&
-			    (phy_clk & COLOR_DEPTH_10BIT))
-				phy_clk = (phy_clk & DATA_RATE_MASK) * 10 * 8;
-			else
-				phy_clk = (phy_clk & DATA_RATE_MASK) * 100;
-		} else {
+		/*
+		 * In frl mode, the unit for frl rate requirements
+		 * is GHz, but the output rate of the HDMI PHY PLL
+		 * needs to be set to GHz / 10.
+		 */
+		if (hdmi->link_cfg.frl_mode)
+			phy_clk = (u64)hdmi->link_cfg.rate_per_lane * hdmi->link_cfg.frl_lanes
+				* 100000000ULL;
+		else
 			phy_clk = rate;
-		}
 
 		/*
-		 * To be compatible with vop dclk usage scenarios, hdmi phy pll clk
-		 * is set according to dclk rate.
-		 * But phy pll actual frequency will varies according to the color depth.
-		 * So we should get the actual frequency or clk_set_rate may not change
-		 * pll frequency when 8/10 bit switch.
+		 * When HDMI outputs YUV420, the dclk frequency output from the hdptx-phy
+		 * PLL to the VOP is only half of the pixel clock. Therefore, the link clock
+		 * frequency configured for the HDMI controller should also be set to half of
+		 * the pixel clock.
 		 */
-		clk_get_rate(hdmi->link_clk);
+		phy_clk = clk_round_rate(hdmi->link_clk, phy_clk);
 		clk_set_rate(hdmi->link_clk, phy_clk);
 	} else {
 		clk_disable_unprepare(hdmi->link_clk);
@@ -3166,20 +3170,59 @@ static u32 dw_hdmi_rockchip_get_refclk_rate(void *data)
 	return clk_get_rate(hdmi->hdmitx_ref);
 }
 
-static void dw_hdmi_rockchip_force_frl_rate(void *data, u8 rate)
+static void dw_hdmi_rockchip_get_frl_mode(u8 rate, u8 *lanes, u8 *rate_per_lane)
+{
+	switch (rate) {
+	case 48:
+		*lanes = 4;
+		*rate_per_lane = 12;
+		break;
+	case 40:
+		*lanes = 4;
+		*rate_per_lane = 10;
+		break;
+	case 32:
+		*lanes = 4;
+		*rate_per_lane = 8;
+		break;
+	case 24:
+		*lanes = 4;
+		*rate_per_lane = 6;
+		break;
+	case 18:
+		*lanes = 3;
+		*rate_per_lane = 6;
+		break;
+	case 9:
+		*lanes = 3;
+		*rate_per_lane = 3;
+		break;
+	case 0:
+		*lanes = 0;
+		*rate_per_lane = 0;
+		break;
+	default:
+		DRM_ERROR("Unknown frl rate :%d GHz\n", rate);
+		break;
+	}
+}
+
+static void dw_hdmi_rockchip_force_frl_rate(void *data, u8 rate_ghz)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
-	u64 bus_width = rate * 1000000;
+	struct phy_configure_opts_hdmi phy_cfg = {0};
 
-	if (!bus_width) {
-		hdmi->force_frl_rate = 0;
+	if (!hdmi->link_cfg.frl_mode)
 		return;
-	}
-	hdmi->phy_bus_width &= ~DATA_RATE_MASK;
-	hdmi->phy_bus_width |= bus_width;
-	hdmi->force_frl_rate = bus_width;
 
-	phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
+	phy_cfg.bpc = 8;
+	phy_cfg.frl.lanes = hdmi->link_cfg.frl_lanes;
+	phy_cfg.frl.rate_per_lane = hdmi->link_cfg.rate_per_lane;
+	dw_hdmi_rockchip_get_frl_mode(rate_ghz, &phy_cfg.frl.lanes,
+				      &phy_cfg.frl.rate_per_lane);
+
+	hdmi->force_frl_rate = (u64)rate_ghz * 1000000000;
+	phy_configure(hdmi->phy, (void *)&phy_cfg);
 }
 
 static u8 mode_color_caps_init(struct drm_connector *connector, struct drm_display_mode *mode,
@@ -4133,7 +4176,8 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 	if (hdmi->link_cfg.dsc_mode)
 		dw_hdmi_qp_dsc_configure(hdmi, s, crtc->state);
 
-	phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
@@ -4498,13 +4542,13 @@ static void dw_hdmi_rk3588_phy_set_mode(struct dw_hdmi_qp *dw_hdmi, void *data,
 	if (!hdmi->phy)
 		return;
 
-	/* set phy earc/frl mode */
-	if (enable)
-		hdmi->phy_bus_width |= mode_mask;
-	else
-		hdmi->phy_bus_width &= ~mode_mask;
-
-	phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
+	/* set phy frl mode */
+	if (mode_mask & HDMI_MODE_FRL_MASK) {
+		if (enable)
+			phy_set_mode_ext(hdmi->phy, PHY_MODE_HDMI, PHY_HDMI_MODE_FRL);
+		else
+			phy_set_mode_ext(hdmi->phy, PHY_MODE_HDMI, PHY_HDMI_MODE_TMDS);
+	}
 }
 
 static void dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe)

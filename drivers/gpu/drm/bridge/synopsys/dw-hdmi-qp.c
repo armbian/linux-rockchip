@@ -2477,8 +2477,6 @@ static int dw_hdmi_qp_flt_ltsl(struct dw_hdmi_qp *hdmi)
 	return -EINVAL;
 }
 
-#define HDMI_MODE_FRL_MASK     BIT(30)
-
 static int hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 			    struct dw_hdmi_link_config *link_cfg,
 			    const struct drm_connector *connector)
