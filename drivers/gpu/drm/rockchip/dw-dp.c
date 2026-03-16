@@ -1642,7 +1642,7 @@ static int dw_dp_status_show(struct seq_file *s, void *data)
 			if (!dp->mst_enc[i].active)
 				seq_printf(s, "DP Stream%d: inactive\n", i);
 			else
-				dw_dp_dump_video_info(s, dp, 0);
+				dw_dp_dump_video_info(s, dp, i);
 		}
 	} else {
 		if (!dp->bridge.encoder->crtc) {
