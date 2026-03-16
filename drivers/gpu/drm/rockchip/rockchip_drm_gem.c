@@ -572,10 +572,14 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
 	/*
-	 * Set vm_pgoff (used as a fake buffer offset by DRM) to 0 and map the
-	 * whole buffer from the start.
+	 * Remove the fake offset used by DRM for object lookup.
+	 * This leaves the actual within-object page offset, allowing
+	 * userspace to mmap a sub-region of the buffer (e.g. via dma-buf).
+	 *
+	 * For the native DRM chardev path (e.g., /dev/dri/card0) sub-region
+	 * offsets are forbidden, so this is equivalent to setting it to 0.
 	 */
-	vma->vm_pgoff = 0;
+	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
 
 	/*
 	 * We allocated a struct page table for rk_obj, so clear
