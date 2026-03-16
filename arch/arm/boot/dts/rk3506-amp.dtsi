@@ -14,7 +14,7 @@
 
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";
-		clocks = <&cru HCLK_M0>, <&cru STCLK_M0>,
+		clocks = <&cru HCLK_M0>, <&cru STCLK_M0>, <&cru PCLK_INTMUX>,
 			<&cru SCLK_UART4>, <&cru PCLK_UART4>,
 			<&cru PCLK_TIMER>, <&cru CLK_TIMER0_CH5>;
 
@@ -40,9 +40,10 @@
 	rpmsg: rpmsg@3c00000 {
 		compatible = "rockchip,rpmsg";
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		/* CPU2: mailbox2; MCU: mailbox3;*/
 		mboxes = <&mailbox0 0 &mailbox2 0>;
 		rockchip,vdev-nums = <1>;
-		/* CPU2: link-id 0x02; */
+		/* CPU2: link-id 0x02; MCU: link-id 0x03;*/
 		rockchip,link-id = <0x02>;
 		reg = <0x3c00000 0x20000>;
 		memory-region = <&rpmsg_dma_reserved>;
