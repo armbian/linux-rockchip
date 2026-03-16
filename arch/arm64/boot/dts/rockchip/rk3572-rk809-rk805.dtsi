@@ -94,6 +94,7 @@
 
 &i2c0 {
 	status = "okay";
+	clock-frequency = <400000>;
 
 	rk809b: rk809b@20 {
 		compatible = "rockchip,rk809";
