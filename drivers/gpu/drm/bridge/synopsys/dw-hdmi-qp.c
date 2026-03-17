@@ -201,6 +201,7 @@ enum quirk_case {
 	DELAY		= BIT(1),	/* extra delay needed (ms) */
 	INFO_ORDER	= BIT(2),	/* change the order of Infoframe sending */
 	RECONNECT	= BIT(3),	/* force reconnect on same-clock mode switch */
+	FORCE_HDCP_1X	= BIT(4),	/* only supports HDCP 1.x despite register report */
 };
 
 static const struct hdmi_quirk {
@@ -219,7 +220,10 @@ static const struct hdmi_quirk {
 	  RECONNECT, 50, },
 	/* TCL 848C */
 	{ { 0x50, 0x6C, 0x48, 0x08, 0x11, 0x10, 0x01, 0x00, 0x10, 0x1C, },
-	  RECONNECT, 50, },
+	  BIT(RECONNECT), 50, },
+	/* Haier TV */
+	{ { 0x22, 0x45, 0x30, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2D, 0x1A, },
+	  FORCE_HDCP_1X, 0, },
 };
 
 enum frl_mask {
@@ -2595,7 +2599,8 @@ static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
 		return;
 
 	/* sink support hdcp2.x */
-	if (is_sink_hdcp2_supported(hdmi)) {
+	if (is_sink_hdcp2_supported(hdmi) &&
+	    !hdmi_has_quirk(hdmi->vendor_info, FORCE_HDCP_1X)) {
 		if (hdmi->plat_data->set_hdcp2_enable)
 			hdmi->plat_data->set_hdcp2_enable(data, true);
 
