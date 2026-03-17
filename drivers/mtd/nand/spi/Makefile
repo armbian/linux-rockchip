@@ -5,6 +5,7 @@ obj-$(CONFIG_MTD_SPI_NAND) += spinand.o
 spinand-$(CONFIG_MTD_SPI_NAND_ALLIANCEMEMORY)	+= alliancememory.o
 spinand-$(CONFIG_MTD_SPI_NAND_ATO)		+= ato.o
 spinand-$(CONFIG_MTD_SPI_NAND_BIWIN)		+= biwin.o
+spinand-$(CONFIG_MTD_SPI_NAND_CHUCUN)		+= chucun.o
 spinand-$(CONFIG_MTD_SPI_NAND_DOSILICON)	+= dosilicon.o
 spinand-$(CONFIG_MTD_SPI_NAND_ESMT)		+= esmt.o
 spinand-$(CONFIG_MTD_SPI_NAND_ETRON)		+= etron.o
