@@ -709,6 +709,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 {
 	int ret;
 	uint32_t mm_flag = 0;
+	size_t real_offset = 0;
+	size_t map_offset = 0;
+	size_t map_size = 0;
 	phys_addr_t phys_addr = 0;
 	struct sg_table *sgt;
 	struct rga_virt_addr *virt_addr;
@@ -741,10 +744,35 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		goto put_current_mm;
 	}
 
+	/*
+	 *   When shadow_page active, construct an sg_table with an
+	 * offset of 0 and full page coverage or end-of-page coverage
+	 * so that each sg entry is aligned with the page. This prevents
+	 * dma_map_sg from falling back to the swiotlb bounce buffer
+	 * due to a small, non-cacheline-aligned head or tail fragment.
+	 *
+	 * The actual data start is recovered later via iova + real_offset.
+	 */
+	if (rga_shadow_active(virt_addr)) {
+		if (virt_addr->shadow_head) {
+			real_offset = virt_addr->offset;
+			map_offset = 0;
+			map_size = (size_t)virt_addr->page_count << PAGE_SHIFT;
+		} else {
+			map_offset = virt_addr->offset;
+			real_offset = 0;
+			map_size = ((virt_addr->page_count - 1) << PAGE_SHIFT) + virt_addr->offset;
+		}
+	} else {
+		real_offset = 0;
+		map_offset = virt_addr->offset;
+		map_size = virt_addr->size;
+	}
+
 	sgt = rga_alloc_sgt(virt_addr->pages,
 			    virt_addr->page_count,
-			    virt_addr->offset,
-			    virt_addr->size, GFP_KERNEL);
+			    map_offset,
+			    map_size, GFP_KERNEL);
 	if (IS_ERR(sgt)) {
 		rga_err("alloc sgt error!\n");
 		ret = PTR_ERR(sgt);
@@ -761,6 +789,8 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 			ret = -EFAULT;
 			goto free_sgt;
 		}
+
+		phys_addr += real_offset;
 
 		mm_flag |= RGA_MEM_PHYSICAL_CONTIGUOUS;
 	} else if (scheduler->data->mmu == RGA_NONE_MMU) {
@@ -807,11 +837,13 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	if (scheduler->data->mmu == RGA_IOMMU)
 		buffer->iova = buffer->dma_addr;
 
+	buffer->offset = real_offset;
+
 	internal_buffer->virt_addr = virt_addr;
 	internal_buffer->dma_buffer = buffer;
 	internal_buffer->mm_flag = mm_flag;
 	internal_buffer->phys_addr = phys_addr;
-	internal_buffer->size = buffer->size - buffer->offset;
+	internal_buffer->size = virt_addr->size;
 	internal_buffer->scheduler = scheduler;
 
 	return 0;
@@ -1207,10 +1239,11 @@ static void rga_mm_dump_shadow_page(struct rga_internal_buffer *dump_buffer)
 
 void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 {
-	rga_buf_log(dump_buffer, "type = %s, refcount = %d mm_flag = 0x%x\n",
+	rga_buf_log(dump_buffer, "type = %s, refcount = %d mm_flag = 0x%x, size = %ld\n",
 		rga_get_memory_type_str(dump_buffer->type),
 		kref_read(&dump_buffer->refcount),
-		dump_buffer->mm_flag);
+		dump_buffer->mm_flag,
+		dump_buffer->size);
 
 	switch (dump_buffer->type) {
 	case RGA_DMA_BUFFER:
