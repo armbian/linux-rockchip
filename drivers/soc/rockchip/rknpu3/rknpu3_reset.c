@@ -20,6 +20,7 @@
 #include "rknpu3_drv.h"
 #include "rknpu3_utils.h"
 #include "rknpu3_config.h"
+#include "rknpu3_task.h"
 #include "boot_params.h"
 
 /**
@@ -38,10 +39,11 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 	int ret;
 #endif
 
-	if (core_id >= RKNPU3_GLOBAL_CORE_NUM)
+	if (!rknpu3_dev)
 		return -EINVAL;
-
-	if (!rknpu3_dev || !rknpu3_dev->base[core_id])
+	if (core_id >= rknpu3_dev->num_cores)
+		return -EINVAL;
+	if (!rknpu3_dev->base[core_id])
 		return -EINVAL;
 
 	base_addr = rknpu3_dev->base[core_id];
@@ -55,7 +57,7 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 #else
 	local_id = rknpu3_core_to_local_idx(core_id);
 
-	if (local_id >= RKNPU3_LOCAL_CORE_NUM) {
+	if (local_id >= rknpu3_dev->num_cores) {
 		dev_err(rknpu3_dev->dev, "invalid core_id %u for reset\n", core_id);
 		return -EINVAL;
 	}
@@ -182,13 +184,15 @@ int rknpu3_core_module_reset(struct rknpu3_device *rknpu3_dev)
 
 	if (rknpu3_dev == NULL)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
 
 	/* Acquire lock (interrupt safe) */
 	spin_lock_irqsave(&rknpu3_dev->dev_lock, flags);
 
 	/* Reset core status */
 	reset_time = rknpu3_get_time_us();
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < rknpu3_dev->num_cores; i++) {
 		rknpu3_dev->core_status[i].is_available = true;
 		rknpu3_dev->core_status[i].current_task_id = 0;
 		rknpu3_dev->core_status[i].current_task = NULL;
@@ -229,7 +233,7 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 	if (rknpu3_dev == NULL)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
-	if (core_id >= RKNPU3_LOCAL_CORE_NUM)
+	if (core_id >= rknpu3_dev->num_cores)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
 	global_core_id = rknpu3_core_to_global_id(core_id);
@@ -262,7 +266,7 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 		status->busy_time_accum_us += (now_us - status->last_state_change_time);
 
 	/* Initialize core status */
-	rknpu3_dev->core_status[core_id].is_available = true;
+	rknpu3_dev->core_status[core_id].is_available = false;
 	rknpu3_dev->core_status[core_id].current_task_id = 0;
 	rknpu3_dev->core_status[core_id].current_task = NULL;
 	/* Reset utilization statistics fields */
@@ -280,6 +284,13 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 	if (ret != 0)
 		return RKNPU3_ERROR_OPERATION_FAILED;
 #endif
+
+	spin_lock_irqsave(&rknpu3_dev->dev_lock, flags);
+	rknpu3_dev->core_status[core_id].is_available = true;
+	spin_unlock_irqrestore(&rknpu3_dev->dev_lock, flags);
+
+	wake_up(&rknpu3_dev->wait_queue);
+	rknpu3_task_schedule(rknpu3_dev);
 
 	return RKNPU3_SUCCESS;
 }

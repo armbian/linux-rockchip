@@ -30,12 +30,16 @@ int rknpu3_task_module_init(struct rknpu3_device *rknpu3_dev,
 			   struct rknpu3_config *config)
 {
 	struct device *dev;
+	uint32_t core_count;
 	uint32_t i;
 
 	if (!rknpu3_dev || !config)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
 
 	dev = rknpu3_dev->dev;
+	core_count = rknpu3_dev->num_cores;
 
 	/* Allocate global task queue */
 	rknpu3_dev->global_queue = devm_kzalloc(dev, sizeof(struct rknpu3_pqueue),
@@ -46,14 +50,14 @@ int rknpu3_task_module_init(struct rknpu3_device *rknpu3_dev,
 	rknpu3_pqueue_init(rknpu3_dev->global_queue, "global_queue");
 
 	/* Allocate core queue pointer array */
-	rknpu3_dev->core_queues = devm_kcalloc(dev, RKNPU3_LOCAL_CORE_NUM,
+	rknpu3_dev->core_queues = devm_kcalloc(dev, core_count,
 					       sizeof(struct rknpu3_pqueue *),
 					       GFP_KERNEL);
 	if (!rknpu3_dev->core_queues)
 		return RKNPU3_ERROR_NO_MEMORY;
 
 	/* Allocate and initialize each core's task queue */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < core_count; i++) {
 		char queue_name[32];
 
 		rknpu3_dev->core_queues[i] = devm_kzalloc(dev,
@@ -80,18 +84,23 @@ int rknpu3_task_module_init(struct rknpu3_device *rknpu3_dev,
  */
 int rknpu3_task_module_reset(struct rknpu3_device *rknpu3_dev)
 {
+	uint32_t core_count;
 	uint32_t i;
 	struct rknpu3_task *task;
 
 	if (rknpu3_dev == NULL)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
+
+	core_count = rknpu3_dev->num_cores;
 
 	/* Clear global queue */
 	while (!rknpu3_pqueue_is_empty(rknpu3_dev->global_queue))
 		rknpu3_pqueue_pop(rknpu3_dev->global_queue, &task);
 
 	/* Clear each core's queue */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < core_count; i++) {
 		while (!rknpu3_pqueue_is_empty(rknpu3_dev->core_queues[i]))
 			rknpu3_pqueue_pop(rknpu3_dev->core_queues[i], &task);
 	}
@@ -111,14 +120,19 @@ int rknpu3_task_module_reset(struct rknpu3_device *rknpu3_dev)
 int rknpu3_task_module_deinit(struct rknpu3_device *rknpu3_dev)
 {
 	struct rknpu3_task *task;
+	uint32_t core_count;
 	uint32_t i;
 
 	if (!rknpu3_dev)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
+	core_count = (rknpu3_dev->num_cores > 0 &&
+		      rknpu3_dev->num_cores <= RKNPU3_MAX_CORES) ?
+		     rknpu3_dev->num_cores : 0;
+
 	/* Clear remaining tasks from core queues */
 	if (rknpu3_dev->core_queues) {
-		for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+		for (i = 0; i < core_count; i++) {
 			if (!rknpu3_dev->core_queues[i])
 				continue;
 			while (!rknpu3_pqueue_is_empty(rknpu3_dev->core_queues[i]))
@@ -150,10 +164,15 @@ int rknpu3_task_get(struct rknpu3_device *rknpu3_dev, uint32_t task_id,
 		   struct rknpu3_task **task)
 {
 	int ret;
+	uint32_t core_count;
 	uint32_t i;
 
 	if (rknpu3_dev == NULL || task == NULL)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
+
+	core_count = rknpu3_dev->num_cores;
 
 	/* First search in global queue */
 	ret = rknpu3_pqueue_find(rknpu3_dev->global_queue, task_id, task);
@@ -161,7 +180,7 @@ int rknpu3_task_get(struct rknpu3_device *rknpu3_dev, uint32_t task_id,
 		return RKNPU3_SUCCESS;
 
 	/* Then search in each core queue */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < core_count; i++) {
 		ret = rknpu3_pqueue_find(rknpu3_dev->core_queues[i], task_id, task);
 		if (ret == RKNPU3_SUCCESS)
 			return RKNPU3_SUCCESS;
@@ -203,7 +222,7 @@ static int rknpu3_push_to_core_queue(struct rknpu3_device *rknpu3_dev,
 {
 	int ret;
 
-	if (core_id >= RKNPU3_LOCAL_CORE_NUM) {
+	if (core_id >= rknpu3_dev->num_cores) {
 		LOG_DEV_ERROR(rknpu3_dev->dev, "invalid core: %d\n", core_id);
 		return RKNPU3_ERROR_INVALID_PARAM;
 	}
@@ -304,7 +323,7 @@ int rknpu3_tasks_submit(struct rknpu3_device *rknpu3_dev,
 			"task submit - Global queue: %d/%d\n",
 			rknpu3_pqueue_size(rknpu3_dev->global_queue),
 			rknpu3_pqueue_get_available_nodes(rknpu3_dev->global_queue));
-		for (uint32_t j = 0; j < RKNPU3_LOCAL_CORE_NUM; j++) {
+		for (uint32_t j = 0; j < rknpu3_dev->num_cores; j++) {
 			LOG_DEV_INFO(rknpu3_dev->dev, "Core[%d]: %d/%d\n", j,
 				rknpu3_pqueue_size(rknpu3_dev->core_queues[j]),
 				rknpu3_pqueue_get_available_nodes(rknpu3_dev->core_queues[j]));
@@ -319,7 +338,7 @@ int rknpu3_tasks_submit(struct rknpu3_device *rknpu3_dev,
 		/* Print queue status on failure */
 		LOG_DEV_INFO(rknpu3_dev->dev, "Queue status on submit failure:\n");
 		rknpu3_pqueue_debug_info(rknpu3_dev->global_queue, "global");
-		for (uint32_t j = 0; j < RKNPU3_LOCAL_CORE_NUM; j++) {
+		for (uint32_t j = 0; j < rknpu3_dev->num_cores; j++) {
 			char core_name[16];
 
 			snprintf(core_name, sizeof(core_name), "core%d", j);
@@ -415,8 +434,11 @@ static int rknpu3_try_assign_global_task(struct rknpu3_device *dev,
 					 unsigned long *flags)
 {
 	struct rknpu3_task *task;
+	uint32_t core_count;
 	uint32_t task_id, i, core_id;
 	int ret;
+
+	core_count = dev->num_cores;
 
 	if (rknpu3_pqueue_peek(dev->global_queue, &task) != RKNPU3_SUCCESS)
 		return -1;
@@ -434,7 +456,7 @@ static int rknpu3_try_assign_global_task(struct rknpu3_device *dev,
 	}
 
 	/* Find available core */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < core_count; i++) {
 		if (!dev->core_status[i].is_available)
 			continue;
 
@@ -494,15 +516,20 @@ static int rknpu3_try_assign_global_task(struct rknpu3_device *dev,
 int rknpu3_task_schedule(struct rknpu3_device *rknpu3_dev)
 {
 	unsigned long flags;
+	uint32_t core_count;
 	uint32_t i;
 
 	if (!rknpu3_dev)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
+
+	core_count = rknpu3_dev->num_cores;
 
 	spin_lock_irqsave(&rknpu3_dev->dev_lock, flags);
 
 	/* Process core queues */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++)
+	for (i = 0; i < core_count; i++)
 		rknpu3_schedule_core_queue(rknpu3_dev, i, &flags);
 
 	/* Process global queue */
@@ -562,11 +589,17 @@ static void rknpu3_handle_timeout(struct rknpu3_device *dev,
 				  uint32_t start, uint32_t count,
 				  uint32_t pending_mask)
 {
-	uint64_t reset_bin_kaddr[RKNPU3_LOCAL_CORE_NUM] = {0};
-	bool reset_core[RKNPU3_LOCAL_CORE_NUM] = {false};
+	uint64_t reset_bin_kaddr[RKNPU3_MAX_CORES] = {0};
+	bool reset_core[RKNPU3_MAX_CORES] = {false};
+	uint32_t core_count;
 	struct rknpu3_task *task;
 	unsigned long flags;
 	uint32_t core_id, i;
+
+	if (dev->num_cores <= 0 || dev->num_cores > RKNPU3_MAX_CORES)
+		return;
+
+	core_count = dev->num_cores;
 
 	spin_lock_irqsave(&dev->dev_lock, flags);
 
@@ -582,7 +615,7 @@ static void rknpu3_handle_timeout(struct rknpu3_device *dev,
 
 		task->state = RKNPU3_TASK_STATE_ERROR;
 
-		if (core_id >= RKNPU3_LOCAL_CORE_NUM)
+		if (core_id >= core_count)
 			continue;
 
 		/* Mark core for reset */
@@ -592,7 +625,6 @@ static void rknpu3_handle_timeout(struct rknpu3_device *dev,
 		}
 
 		/* Reset core status */
-		dev->core_status[core_id].is_available = true;
 		dev->core_status[core_id].current_task_id = 0;
 		dev->core_status[core_id].current_task = NULL;
 
@@ -603,7 +635,7 @@ static void rknpu3_handle_timeout(struct rknpu3_device *dev,
 	spin_unlock_irqrestore(&dev->dev_lock, flags);
 
 	/* Reset cores outside lock */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < core_count; i++) {
 		if (reset_core[i])
 			rknpu3_core_reset(dev, i, reset_bin_kaddr[i]);
 	}
@@ -626,7 +658,7 @@ static void rknpu3_cleanup_completed_tasks(struct rknpu3_device *dev,
 			continue;
 
 		core_id = task->core_id;
-		if (core_id < RKNPU3_LOCAL_CORE_NUM)
+		if (core_id < dev->num_cores)
 			rknpu3_pqueue_remove(dev->core_queues[core_id],
 					     task->task_id);
 	}
@@ -656,6 +688,8 @@ int rknpu3_tasks_wait(struct rknpu3_device *rknpu3_dev,
 	if (task_submit->task_count == 0 || task_submit->task_array_kaddr == 0)
 		return RKNPU3_ERROR_INVALID_PARAM;
 	if (task_submit->timeout_ms == 0)
+		return RKNPU3_ERROR_INVALID_PARAM;
+	if (task_submit->task_count > RKNPU3_MAX_PENDING_TASKS)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
 	tasks = (struct rknpu3_task *)(task_submit->task_array_kaddr);

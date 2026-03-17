@@ -78,13 +78,14 @@ static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core
 	void __iomem *base_addr;
 	int ret;
 
-	if (core_id >= RKNPU3_GLOBAL_CORE_NUM)
+	if (!rknpu3_dev)
 		return -EINVAL;
-
-	if (!rknpu3_dev || !rknpu3_dev->base[core_id])
+	if (core_id >= rknpu3_dev->num_cores)
 		return -EINVAL;
 
 	base_addr = rknpu3_dev->base[core_id];
+	if (!base_addr)
+		return -EINVAL;
 
 	ret = rknpu3_hw_core_reset(rknpu3_dev, core_id);
 	if (ret)
@@ -233,10 +234,14 @@ static irqreturn_t rknpu3_irq_handler(int irq, void *param, int core_id)
 	struct rknpu3_task *task;
 	unsigned long flags;
 
-	if (core_id < 0)
+	if (!rknpu3_dev)
+		return IRQ_NONE;
+	if (core_id < 0 || core_id >= rknpu3_dev->num_cores)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&rknpu3_dev->dev_lock, flags);
+
+	rknpu3_hw_clear_irq(rknpu3_dev, core_id);
 
 	task = rknpu3_dev->core_status[core_id].current_task;
 	if (!task) {
@@ -257,7 +262,6 @@ static irqreturn_t rknpu3_irq_handler(int irq, void *param, int core_id)
 
 unlock:
 	spin_unlock_irqrestore(&rknpu3_dev->dev_lock, flags);
-	rknpu3_hw_clear_irq(rknpu3_dev, core_id);
 
 	return IRQ_HANDLED;
 }
@@ -441,7 +445,7 @@ int rknpu3_core_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core_id,
 	if (!rknpu3_dev || !task)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
-	if (core_id >= RKNPU3_LOCAL_CORE_NUM)
+	if (core_id >= rknpu3_dev->num_cores)
 		return RKNPU3_ERROR_INVALID_PARAM;
 
 	/* Prepare entry address */
@@ -495,15 +499,17 @@ int rknpu3_core_get_load(struct rknpu3_device *rknpu3_dev, struct rknpu3_load *l
 
 	if (rknpu3_dev == NULL || load == NULL)
 		return RKNPU3_ERROR_INVALID_PARAM;
+	if (rknpu3_dev->num_cores <= 0 || rknpu3_dev->num_cores > RKNPU3_MAX_CORES)
+		return RKNPU3_ERROR_INVALID_PARAM;
 
 	current_time = rknpu3_get_time_us();
-	load->actual_core_count = RKNPU3_LOCAL_CORE_NUM;
+	load->actual_core_count = rknpu3_dev->num_cores;
 
 	/* Acquire lock (interrupt safe) */
 	spin_lock_irqsave(&rknpu3_dev->dev_lock, flags);
 
 	/* Calculate utilization (duty cycle) for each core */
-	for (i = 0; i < RKNPU3_LOCAL_CORE_NUM; i++) {
+	for (i = 0; i < rknpu3_dev->num_cores; i++) {
 		core_status = &rknpu3_dev->core_status[i];
 		core_util = &load->core_load[i];
 

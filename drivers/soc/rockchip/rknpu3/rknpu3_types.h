@@ -35,6 +35,9 @@
 /* Maximum core count */
 #define RKNPU3_MAX_CORES 8
 
+/* Maximum pending tasks per submission */
+#define RKNPU3_MAX_PENDING_TASKS 32
+
 /**
  * struct rknpu3_core_status - Core status structure
  * @core_id: Core ID
