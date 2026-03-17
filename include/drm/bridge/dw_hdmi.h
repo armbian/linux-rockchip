@@ -192,7 +192,7 @@ struct dw_hdmi_qp_phy_ops {
 	void (*setup_hpd)(struct dw_hdmi_qp *hdmi, void *data);
 	void (*set_mode)(struct dw_hdmi_qp *dw_hdmi, void *data,
 			 u32 mode_mask, bool enable);
-	void (*set_ffe)(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe);
+	void (*set_ffe)(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe_lv, u8 ffe_mode);
 };
 
 struct dw_hdmi_property_ops {
