@@ -2220,6 +2220,9 @@ static int dw_hdmi_qp_flt_lts3(struct dw_hdmi_qp *hdmi, u8 rate)
 	u8 src_test_cfg = 0;
 	u32 value;
 	u8 ffe_lv = 0;
+	u8 ffe_mode = 0;
+	u8 ffe_mode_prev = 0;
+	bool ffe_test = false;
 
 	/* we set max 2s timeout */
 	i = 4000;
@@ -2246,6 +2249,21 @@ static int dw_hdmi_qp_flt_lts3(struct dw_hdmi_qp *hdmi, u8 rate)
 				DRM_DEV_DEBUG_DRIVER(hdmi->dev, "flt go into test mode\n");
 				hdmi->flt_no_timeout = true;
 			}
+
+			if (ffe_test) {
+				ffe_mode = (src_test_cfg >> 1) & 0x3;
+
+				if (ffe_mode != ffe_mode_prev) {
+					hdmi->phy.ops->set_ffe(hdmi, hdmi->phy.data, ffe_lv,
+							       ffe_mode);
+					ffe_mode_prev = ffe_mode;
+				} else if (ffe_mode_prev) {
+					hdmi->phy.ops->set_ffe(hdmi, hdmi->phy.data, ffe_lv,
+							       ffe_mode);
+				} else {
+					hdmi->phy.ops->set_ffe(hdmi, hdmi->phy.data, ffe_lv, 0x3);
+				}
+			}
 		}
 
 		if (!(val & SCDC_CONFIG_0)) {
@@ -2270,6 +2288,13 @@ static int dw_hdmi_qp_flt_lts3(struct dw_hdmi_qp *hdmi, u8 rate)
 			DRM_DEV_DEBUG_DRIVER(hdmi->dev, "ln0:0x%x,ln1:0x%x,ln2:0x%x,ln3:0x%x\n",
 					     ln0, ln1, ln2, ln3);
 
+			/* goto ffe test case */
+			if ((ln0 == 4 && ln1 == 2 && ln2 == 2 && ln3 == 2) ||
+			    (ln0 == 2 && ln1 == 4 && ln2 == 2 && ln3 == 2) ||
+			    (ln0 == 2 && ln1 == 2 && ln2 == 4 && ln3 == 2) ||
+			    (ln0 == 2 && ln1 == 2 && ln2 == 2 && ln3 == 4))
+				ffe_test = true;
+
 			if (!ln0 && !ln1 && !ln2 && !ln3) {
 				dev_info(hdmi->dev, "Training finish, go to ltsp\n");
 				mutex_lock(&hdmi->audio_mutex);
@@ -2281,13 +2306,17 @@ static int dw_hdmi_qp_flt_lts3(struct dw_hdmi_qp *hdmi, u8 rate)
 					ret = LTSL;
 				}
 				mutex_unlock(&hdmi->audio_mutex);
-			} else if ((ln0 == 0xf) | (ln1 == 0xf) | (ln2 == 0xf) | (ln3 == 0xf)) {
+			} else if ((ln0 == 0xf) || (ln1 == 0xf) || (ln2 == 0xf) || (ln3 == 0xf)) {
 				dev_err(hdmi->dev, "goto lts4\n");
 				ret = LTS4;
-			} else if ((ln0 == 0xe) | (ln1 == 0xe) | (ln2 == 0xe) | (ln3 == 0xe)) {
+			} else if ((ln0 == 0xe) || (ln1 == 0xe) || (ln2 == 0xe) || (ln3 == 0xe)) {
 				dev_info(hdmi->dev, "goto ffe\n");
 				if (ffe_lv < 3) {
-					hdmi->phy.ops->set_ffe(hdmi, hdmi->phy.data, ++ffe_lv);
+					ffe_mode_prev = 0x3;
+					ffe_mode = 0x3;
+					ffe_lv++;
+					hdmi->phy.ops->set_ffe(hdmi, hdmi->phy.data, ffe_lv,
+							       ffe_mode);
 				} else {
 					dev_err(hdmi->dev, "ffe level out of range\n");
 					ret = LTSL;

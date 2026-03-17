@@ -4551,14 +4551,22 @@ static void dw_hdmi_rk3588_phy_set_mode(struct dw_hdmi_qp *dw_hdmi, void *data,
 	}
 }
 
-static void dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe)
+static void
+dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe_lv, u8 ffe_mode)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
+	struct phy_configure_opts_hdmi phy_cfg = {0};
 
 	if (!hdmi->phy)
 		return;
 
-	phy_set_mode_ext(hdmi->phy, 0, ffe);
+	phy_cfg.bpc = 8;
+	phy_cfg.frl.lanes = hdmi->link_cfg.frl_lanes;
+	phy_cfg.frl.rate_per_lane = hdmi->link_cfg.rate_per_lane;
+	phy_cfg.frl.ffe_lv = ffe_lv;
+	phy_cfg.frl.ffe_mode = ffe_mode;
+
+	phy_configure(hdmi->phy, (void *)&phy_cfg);
 }
 
 static const struct dw_hdmi_qp_phy_ops rk3538_hdmi_phy_ops = {
