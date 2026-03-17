@@ -100,6 +100,16 @@ config ROCKCHIP_DRM_TVE
 	  Choose this option to enable support for Rockchip TVE controllers.
 	  say Y to enable its driver.
 
+config ROCKCHIP_DW_DP
+	bool "Rockchip specific extensions for Synopsys DW DP"
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  to enable Synopsys DesignWare Cores based DisplayPort transmit
+	  controller support on Rockchip SoC, If you want to enable DP on
+	  rk3588 based SoC, you should select this option.
+
 config ROCKCHIP_DW_HDMI
 	bool "Rockchip specific extensions for Synopsys DW HDMI"
 	select DRM_DISPLAY_HDCP_HELPER
@@ -125,17 +135,9 @@ config ROCKCHIP_DW_MIPI_DSI2
 	select GENERIC_PHY_MIPI_DPHY
 	help
 	  This selects support for Rockchip SoC specific extensions
-	  for the Synopsys DesignWare dsi2 driver. If you want to
-	  enable MIPI DSI2 on RK3576 or RK3588  based SoC, you should
+	  for the Synopsys DesignWare DSI2 driver. If you want to
+	  enable MIPI DSI on RK3576 or RK3588 based SoC, you should
 	  select this option.
-
-config ROCKCHIP_DW_DP
-	bool "Rockchip specific extensions for Synopsys DW DPTX"
-	select DRM_DISPLAY_HDCP_HELPER
-	select DRM_DISPLAY_HDMI_HELPER
-	help
-	  Choose this option for Synopsys DesignWare Cores DisplayPort
-	  transmit controller support on Rockchip SoC.
 
 config ROCKCHIP_INNO_HDMI
 	bool "Rockchip specific extensions for Innosilicon HDMI"
