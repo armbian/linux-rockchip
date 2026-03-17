@@ -94,6 +94,10 @@
 #define RK_TCPC_STS_CC1				GENMASK(1, 0)
 
 #define RK_TCPC_STS1				0x08
+#define RK_TCPC_STS_ATTACHED_DB_SRC		0x0d
+#define RK_TCPC_STS_DETACH_DB_SNK		0x07
+#define RK_TCPC_STS_ATTACHED_DB_SNK		0x06
+#define RK_TCPC_STS_TYPEC_STATE			GENMASK(7, 3)
 #define RK_TCPC_STS_VBUS			BIT(1)
 #define RK_TCPC_STS_VSAFE0V			BIT(0)
 
@@ -585,11 +589,6 @@ static int tcpm_init(struct tcpc_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	/* Set Rp default as 80uA */
-	ret = rk_tcpc_write8(chip, RK_TCPC_CTRL2, RK_TCPC_CTRL2_CC_RP_DEF);
-	if (ret < 0)
-		return ret;
-
 	/* Disable HW debounce */
 	ret = rk_tcpc_write8(chip, RK_TCPC_DB_CTRL, RK_TCPC_DB_HW_DISABLE);
 	if (ret < 0)
@@ -632,7 +631,7 @@ static int tcpm_get_vbus(struct tcpc_dev *dev)
 
 	chip->vbus_present = !!(reg & RK_TCPC_STS_VBUS);
 	ret = chip->vbus_present;
-	rk_tcpc_log(chip, "vbus present %d", chip->vbus_present);
+	rk_tcpc_log(chip, "sts1(08h) : %02x, vbus present %d", reg, chip->vbus_present);
 
 	mutex_unlock(&chip->lock);
 	return ret;
@@ -689,27 +688,42 @@ static int tcpm_get_cc(struct tcpc_dev *dev, enum typec_cc_status *cc1,
 		       enum typec_cc_status *cc2)
 {
 	struct rk_tcpc_chip *chip = container_of(dev, struct rk_tcpc_chip, tcpc_dev);
-	u8 reg, togdone;
+	u8 sts, sts1, togdone, state;
+	u16 reg;
 	int ret;
 
-	ret = rk_tcpc_read8(chip, RK_TCPC_STS, &reg);
+	ret = rk_tcpc_block_read(chip, RK_TCPC_STS, (u8 *)&reg, 2);
 	if (ret < 0)
 		return ret;
 
-	rk_tcpc_log(chip, "status(07h): %02x", reg);
+	sts = reg & 0x00FF;
+	sts1 = reg >> 8;
 
-	togdone = FIELD_GET(RK_TCPC_STS_TOGSS, reg);
+	rk_tcpc_log(chip, "status(07h) : %02x, status1(08h) : %02x", sts, sts1);
+
+	/* Escape CC Open state during PD transfer */
+	state = FIELD_GET(RK_TCPC_STS_TYPEC_STATE, sts1);
+	if (((sts & 0xf) == 0) &&
+	    (state == RK_TCPC_STS_ATTACHED_DB_SNK || state == RK_TCPC_STS_DETACH_DB_SNK)) {
+		*cc1 = chip->cc1;
+		*cc2 = chip->cc2;
+
+		rk_tcpc_log(chip, "keep the previous cc value");
+		return 0;
+	}
+
+	togdone = FIELD_GET(RK_TCPC_STS_TOGSS, sts);
 	switch (togdone) {
 	case RK_TCPC_STS_TOGSS_RD:
 		rk_tcpc_log(chip, "presenting Rd");
-		*cc1 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC1, reg), true);
-		*cc2 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC2, reg), true);
+		*cc1 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC1, sts), true);
+		*cc2 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC2, sts), true);
 		break;
 
 	case RK_TCPC_STS_TOGSS_RP:
 		rk_tcpc_log(chip, "presenting Rp");
-		*cc1 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC1, reg), false);
-		*cc2 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC2, reg), false);
+		*cc1 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC1, sts), false);
+		*cc2 = rk_tcpc_sts_to_cc(FIELD_GET(RK_TCPC_STS_CC2, sts), false);
 		break;
 
 	case RK_TCPC_STS_TOGSS_RUNNING:
