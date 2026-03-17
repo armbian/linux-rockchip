@@ -3052,6 +3052,12 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 		}
 	}
 
+	if (format == DRM_FORMAT_Y210 &&
+	    !rockchip_afbc(plane, modifier) && !rockchip_rfbc(plane, modifier)) {
+		drm_dbg_kms(vop2, "Only support Y210 format with fbc\n");
+		return false;
+	}
+
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
 
