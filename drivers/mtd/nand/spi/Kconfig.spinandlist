@@ -23,6 +23,12 @@ config MTD_SPI_NAND_BIWIN
 	help
 	  Add support for various BIWIN SPI Nand flash chips
 
+config MTD_SPI_NAND_CHUCUN
+	bool "CHUCUN SPI flash support"
+	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
+	help
+	  Add support for various CHUCUN SPI Nand flash chips
+
 config MTD_SPI_NAND_DOSILICON
 	bool "DOSILICON SPI flash support"
 	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
