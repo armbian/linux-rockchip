@@ -3428,6 +3428,8 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 			}
 		}
 		rkisp_isp_stop(isp_dev);
+		if (isp_dev->is_aiisp_en && isp_dev->params_vdev.ops->aiisp_switch)
+			isp_dev->params_vdev.ops->aiisp_switch(&isp_dev->params_vdev, false);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		rkisp_stop_3a_run(isp_dev);
