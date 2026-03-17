@@ -328,6 +328,9 @@
 #define FRL_3G3L_RATE			900000000
 #define FRL_6G3L_RATE			1800000000
 #define FRL_8G4L_RATE			3200000000
+#define FFE_CFG_TAB_LEN			4
+#define FFE_PRE_SHOOT_ENABLE_MASK	BIT(0)
+#define FFE_DE_EMPHASIS_ENABLE_MASK	BIT(1)
 
 enum dp_link_rate {
 	DP_BW_RBR,
@@ -430,6 +433,11 @@ struct rk_hdptx_phy {
 	unsigned int link_rate;
 	unsigned int lanes;
 	bool dp_mode;
+};
+
+struct ffe_cfg {
+	u8 pre_shoot;
+	u8 de_emphasis;
 };
 
 static const struct lcpll_config rk_hdptx_frl_lcpll_cfg[] = {
@@ -1078,6 +1086,13 @@ static const struct tx_pll_ctrl tx_pll_ctrl_extra[4] = {
 	{ 0x65, 0x01, 0x60, 0x00, 0x10, 0x01, 0x13, 0x18, 0x1c, 0x0d }, /* R243 */
 	{ 0x87, 0x01, 0x21, 0x00, 0x00, 0x02, 0x03, 0x08, 0x0d, 0x1c }, /* R324 */
 	{ 0x5a, 0x00, 0x32, 0x00, 0x00, 0x01, 0x01, 0x01, 0x0e, 0x1a }, /* R432 */
+};
+
+static const struct ffe_cfg ffe_cfg_table[FFE_CFG_TAB_LEN] = {
+	{ 0x3, 0x4 },
+	{ 0x3, 0x6 },
+	{ 0x3, 0x8 },
+	{ 0x3, 0x9 },
 };
 
 static bool rk_hdptx_phy_is_rw_reg(struct device *dev, unsigned int reg)
@@ -1942,6 +1957,9 @@ static int rk_hdptx_phy_verify_hdmi_config(struct rk_hdptx_phy *hdptx,
 
 		if (hdmi_out)
 			hdmi_out->rate = frl_rate;
+
+		if (hdmi_in->frl.ffe_lv >= FFE_CFG_TAB_LEN)
+			return -EINVAL;
 	} else {
 		if (!hdmi_in->tmds_char_rate || hdmi_in->tmds_char_rate > HDMI20_MAX_RATE)
 			return -EINVAL;
@@ -2429,6 +2447,45 @@ static int rk_hdptx_phy_set_mode(struct phy *phy, enum phy_mode mode, int submod
 	return 0;
 }
 
+static void rk_hdptx_phy_configure_ffe(struct phy *phy, u8 ffe_lv, u8 ffe_mode)
+{
+	struct rk_hdptx_phy *hdptx = phy_get_drvdata(phy);
+	u8 pre_shoot;
+	u8 de_emphasis;
+
+	if (ffe_lv >= FFE_CFG_TAB_LEN) {
+		dev_err(&phy->dev, "invalid ffe level: %d\n", ffe_lv);
+		return;
+	}
+
+	pre_shoot = ffe_cfg_table[ffe_lv].pre_shoot;
+	de_emphasis = ffe_cfg_table[ffe_lv].de_emphasis;
+
+	if (!(ffe_mode & FFE_PRE_SHOOT_ENABLE_MASK))
+		pre_shoot = 0;
+
+	if (!(ffe_mode & FFE_DE_EMPHASIS_ENABLE_MASK))
+		de_emphasis = 0;
+
+	regmap_update_bits(hdptx->regmap, LANE_REG(0304), LN_TX_DRV_POST_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK, de_emphasis));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0404), LN_TX_DRV_POST_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK, de_emphasis));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0504), LN_TX_DRV_POST_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK, de_emphasis));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0604), LN_TX_DRV_POST_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK, de_emphasis));
+
+	regmap_update_bits(hdptx->regmap, LANE_REG(0305), LN_TX_DRV_PRE_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, pre_shoot));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0405), LN_TX_DRV_PRE_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, pre_shoot));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0505), LN_TX_DRV_PRE_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, pre_shoot));
+	regmap_update_bits(hdptx->regmap, LANE_REG(0605), LN_TX_DRV_PRE_LVL_CTRL_MASK,
+			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, pre_shoot));
+}
+
 static int rk_hdptx_phy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	struct rk_hdptx_phy *hdptx = phy_get_drvdata(phy);
@@ -2442,8 +2499,11 @@ static int rk_hdptx_phy_configure(struct phy *phy, union phy_configure_opts *opt
 			dev_err(hdptx->dev, "invalid hdmi params for phy configure\n");
 		} else {
 			hdptx->restrict_rate_change = true;
-			dev_dbg(hdptx->dev, "%s rate=%llu bpc=%u\n", __func__,
-				hdptx->hdmi_cfg.rate, hdptx->hdmi_cfg.bpc);
+			dev_dbg(hdptx->dev, "%s rate=%llu bpc=%u ffe_lv=%u ffe_mode=%u\n",
+				__func__, hdptx->hdmi_cfg.rate, hdptx->hdmi_cfg.bpc,
+				opts_hdmi->frl.ffe_lv, opts_hdmi->frl.ffe_mode);
+			rk_hdptx_phy_configure_ffe(phy, opts_hdmi->frl.ffe_lv,
+						   opts_hdmi->frl.ffe_mode);
 		}
 
 		return ret;
