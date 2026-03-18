@@ -1922,6 +1922,7 @@
 			clock-names = "aclk", "iface";
 			#iommu-cells = <0>;
 			rockchip,disable-device-link-resume;
+			rockchip,disable-first-mmu-reset;
 			rockchip,shootdown-entire;
 			rockchip,enable-pagefault-fake-mode;
 			status = "disabled";
