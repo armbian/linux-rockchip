@@ -364,6 +364,13 @@ config REGULATOR_DB8500_PRCMU
 	  This driver supports the voltage domain regulators controlled by the
 	  DB8500 PRCMU
 
+config REGULATOR_DW9807
+	tristate "Dongwood DW9807 regulator"
+	depends on I2C
+	help
+	  This driver supports DW9807 current regulator chips.
+	  If building into module, its name is dw9807.ko.
+
 config REGULATOR_FAN53555
 	tristate "Fairchild FAN53555 Regulator"
 	depends on I2C
