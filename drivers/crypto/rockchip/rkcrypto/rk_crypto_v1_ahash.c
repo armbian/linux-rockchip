@@ -354,7 +354,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 	ctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
 					       CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
-		CRYPTO_MSG(rk_dev->dev, "Could not load fallback driver.\n");
+		CRYPTO_MSG("Could not load fallback driver.\n");
 		return PTR_ERR(ctx->fallback_tfm);
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
