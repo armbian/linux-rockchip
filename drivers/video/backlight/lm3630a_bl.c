@@ -619,10 +619,49 @@ static const struct of_device_id lm3630a_match_table[] = {
 
 MODULE_DEVICE_TABLE(of, lm3630a_match_table);
 
+#ifdef CONFIG_PM_SLEEP
+static int lm3630a_pm_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm3630a_chip *pchip = i2c_get_clientdata(client);
+
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (PM_SUSPEND_MEM_LITE == mem_sleep_current)
+		return 0;
+#endif
+	gpiod_set_value(pchip->enable_gpio, 0);
+
+	return 0;
+}
+
+static int lm3630a_pm_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm3630a_chip *pchip = i2c_get_clientdata(client);
+
+#ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
+	if (PM_SUSPEND_MEM_LITE == mem_sleep_current)
+		return 0;
+#endif
+	gpiod_set_value(pchip->enable_gpio, 1);
+	lm3630a_chip_init(pchip);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops lm3630a_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend = lm3630a_pm_suspend,
+	.resume = lm3630a_pm_resume,
+#endif
+};
+
 static struct i2c_driver lm3630a_i2c_driver = {
 	.driver = {
 		   .name = LM3630A_NAME,
 		   .of_match_table = lm3630a_match_table,
+		   .pm = &lm3630a_pm_ops,
 		   },
 	.probe = lm3630a_probe,
 	.remove = lm3630a_remove,
