@@ -21,6 +21,8 @@ enum phy_hdmi_mode {
  * @tmds_char_rate: HDMI TMDS Character Rate in Hertz.
  * @frl.rate_per_lane: HDMI FRL Rate per Lane in Gbps.
  * @frl.lanes: HDMI FRL lanes count.
+ * @frl.ffe_lv: HDMI FRL TxFFE level.
+ * @frl.ffe_lv: HDMI FRL TxFFE mode.
  *
  * This structure is used to represent the configuration state of a HDMI phy.
  */
@@ -31,6 +33,8 @@ struct phy_configure_opts_hdmi {
 		struct {
 			u8 rate_per_lane;
 			u8 lanes;
+			u8 ffe_lv;
+			u8 ffe_mode;
 		} frl;
 	};
 };
