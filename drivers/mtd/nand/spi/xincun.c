@@ -133,7 +133,7 @@ static const struct spinand_info xincun_6c_spinand_table[] = {
 		     SPINAND_ECCINFO(&xcsp2aapk_ooblayout, xcsp2aapk_ecc_get_status)),
 	SPINAND_INFO("XCSP2AXPK-IT",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0xA1),
-		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 20, 1, 1, 1),
 		     NAND_ECCREQ(9, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
