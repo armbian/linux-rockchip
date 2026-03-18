@@ -105,6 +105,7 @@ struct fusb302_chip {
 	bool vbus_on;
 	bool charge_on;
 	bool vbus_present;
+	bool wakeup;
 	enum typec_cc_polarity cc_polarity;
 	enum typec_cc_status cc1;
 	enum typec_cc_status cc2;
@@ -1769,7 +1770,8 @@ static int fusb302_probe(struct i2c_client *client,
 		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
 	}
-	enable_irq_wake(chip->gpio_int_n_irq);
+	chip->wakeup = device_property_read_bool(dev, "wakeup-source");
+	device_init_wakeup(dev, true);
 	i2c_set_clientdata(client, chip);
 
 	return ret;
@@ -1788,7 +1790,7 @@ static void fusb302_remove(struct i2c_client *client)
 {
 	struct fusb302_chip *chip = i2c_get_clientdata(client);
 
-	disable_irq_wake(chip->gpio_int_n_irq);
+	device_init_wakeup(chip->dev, false);
 	free_irq(chip->gpio_int_n_irq, chip);
 	kthread_destroy_worker(chip->irq_worker);
 	cancel_delayed_work_sync(&chip->bc_lvl_handler);
@@ -1809,6 +1811,11 @@ static int fusb302_pm_suspend(struct device *dev)
 
 	/* Make sure any pending irq_work is finished before the bus suspends */
 	kthread_flush_worker(chip->irq_worker);
+	if (device_may_wakeup(dev) && (!chip->vbus_on || chip->wakeup))
+		enable_irq_wake(chip->gpio_int_n_irq);
+	else
+		disable_irq(chip->gpio_int_n_irq);
+
 	return 0;
 }
 
@@ -1819,6 +1826,11 @@ static int fusb302_pm_resume(struct device *dev)
 	u8 pwr;
 	int ret = 0;
 
+	if (device_may_wakeup(dev) && (!chip->vbus_on || chip->wakeup))
+		disable_irq_wake(chip->gpio_int_n_irq);
+	else
+		enable_irq(chip->gpio_int_n_irq);
+	
 	/*
 	 * When the power of fusb302 is lost or i2c read failed in PM S/R
 	 * process, we must reset the tcpm port first to ensure the devices
