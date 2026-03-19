@@ -74,6 +74,12 @@
 				remote-endpoint = <&imx766_out>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			csi_dphy_input10: endpoint@11 {
+				reg = <11>;
+				remote-endpoint = <&os12d40_out>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -292,6 +298,28 @@
 		port {
 			ox03c10_out: endpoint {
 				remote-endpoint = <&csi_dphy_input8>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	os12d40: os12d40@36 {
+		compatible = "ovti,os12d40";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			os12d40_out: endpoint {
+				remote-endpoint = <&csi_dphy_input10>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
