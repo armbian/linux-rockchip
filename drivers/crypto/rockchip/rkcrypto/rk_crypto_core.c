@@ -858,6 +858,14 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
+	rk_dev->block_virt = dmam_alloc_coherent(dev, AES_BLOCK_SIZE,
+						 &rk_dev->block_dma, GFP_KERNEL);
+	if (!rk_dev->block_virt) {
+		err = -ENOMEM;
+		dev_err(dev, "dmam_alloc_coherent for block buffer failed.\n");
+		goto err_crypto;
+	}
+
 	rk_dev->vir_max = RK_BUFFER_SIZE;
 
 	rk_dev->addr_aad = (void *)__get_free_page(GFP_KERNEL);
@@ -903,6 +911,19 @@ err_register_alg:
 	tasklet_kill(&rk_dev->queue_task);
 	tasklet_kill(&rk_dev->done_task);
 err_crypto:
+	if (!rk_dev)
+		return err;
+
+	if (rk_dev->addr_aad) {
+		free_page((unsigned long)rk_dev->addr_aad);
+		rk_dev->addr_aad = NULL;
+	}
+
+	if (rk_dev->addr_vir) {
+		free_pages((unsigned long)rk_dev->addr_vir, RK_BUFFER_ORDER);
+		rk_dev->addr_vir = NULL;
+	}
+
 	return err;
 }
 

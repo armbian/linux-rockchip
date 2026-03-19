@@ -106,7 +106,7 @@ static void rk_ctr128_calc(uint8_t *counter, uint32_t data_len)
 	u32 i;
 	u32 chunksize = AES_BLOCK_SIZE;
 
-	for (i = 0; i < DIV_ROUND_UP(data_len, chunksize); i++)
+	for (i = 0; i < data_len / chunksize; i++)
 		rk_ctr128_inc(counter);
 }
 
@@ -126,7 +126,7 @@ static uint32_t rk_get_new_iv(struct rk_cipher_ctx *ctx, u32 mode, bool is_enc, 
 
 	switch (mode) {
 	case CIPHER_MODE_CTR:
-		rk_ctr128_calc(iv, alg_ctx->count);
+		rk_ctr128_calc(iv, alg_ctx->count + alg_ctx->processed_bytes % AES_BLOCK_SIZE);
 		break;
 	case CIPHER_MODE_CBC:
 	case CIPHER_MODE_CFB:
@@ -264,6 +264,11 @@ int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 		goto out_rx;
 
 	if (alg_ctx->left_bytes) {
+		/* alg_ctx->count may be updated by load_data() below,
+		 * save it first for accurate processed_bytes tracking.
+		 */
+		unsigned int seg_count = alg_ctx->count;
+
 		rk_update_iv(rk_dev);
 		if (alg_ctx->aligned) {
 			err = rk_crypto_sg_walk_nents(&alg_ctx->sg_src, &alg_ctx->sg_dst,
@@ -272,6 +277,8 @@ int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 				goto out_rx;
 		}
 		err = rk_set_data_start(rk_dev);
+		if (!err)
+			alg_ctx->processed_bytes += seg_count;
 	} else {
 		if (alg_ctx->is_aead) {
 			u8 hard_tag[RK_MAX_TAG_SIZE];
@@ -315,6 +322,7 @@ int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 		} else {
 			rk_iv_copyback(rk_dev);
 		}
+		alg_ctx->processed_bytes += alg_ctx->count;
 	}
 out_rx:
 	return err;
