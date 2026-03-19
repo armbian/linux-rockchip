@@ -11,8 +11,8 @@
 		ebc_tcon = <&ebc>;
 		memory-region = <&display_reserved>;
 		waveform-region = <&waveform_reserved>;
-		//nvmem-cells = <&cpu_code>;
-		//nvmem-cell-names = "cpu-code";
+		nvmem-cells = <&cpu_code>;
+		nvmem-cell-names = "cpu-code";
 		status = "okay";
 	};
 };
