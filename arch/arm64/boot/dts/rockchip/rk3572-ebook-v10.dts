@@ -522,7 +522,7 @@
 
 	gsensor {
 		mxc6655xa_irq_pin: mxc6655xa_irq_pin {
-			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
