@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3572-test2-v10-linux.dts"
+#include "rk3572-test2-cam-dvp.dtsi"
+
+&pdm0 {
+	status = "disabled";
+};

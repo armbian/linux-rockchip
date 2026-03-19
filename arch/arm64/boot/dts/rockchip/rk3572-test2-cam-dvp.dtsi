@@ -1,0 +1,168 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	vcc_dvp: vcc-dvp-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dvp_pwr>;
+		regulator-name = "vcc_dvp";
+		enable-active-high;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-0 = <&i2c3m0_xfer_pins>;
+
+	ar0230: ar0230@10 {
+		compatible = "aptina,ar0230";
+		reg = <0x10>;
+		status = "okay";
+		clocks = <&cru CLK_CIFOUT_OUT>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&vi_cif_pins>;
+		avdd-supply = <&vcc_dvp>;
+		power-domains = <&power RK3572_PD_VI>;
+		reset-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT0836-PT2";
+		rockchip,camera-module-lens-name = "YT-2929";
+		port {
+			ar0230_out: endpoint {
+				remote-endpoint = <&cif_para_in1>;
+			};
+		};
+	};
+
+	gc2145: gc2145@3c {
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru CLK_CIFOUT_OUT>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&vi_cif_pins>;
+		avdd-supply = <&vcc_dvp>;
+		power-domains = <&power RK3572_PD_VI>;
+		reset-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&cif_para_in2>;
+			};
+		};
+	};
+
+	tp9930: tp9930@44 {
+		status = "okay";
+		compatible = "techpoint,tp9930";
+		reg = <0x44>;
+		clocks = <&cru CLK_CIFOUT_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3572_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vi_cif_pins>;
+		reset-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			cam_para_out1: endpoint {
+				remote-endpoint = <&cif_para_in>;
+				bus-width = <16>;
+			};
+		};
+	};
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Parallel bus endpoint */
+		cif_para_in: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&cam_para_out1>;
+			bus-width = <16>;
+		};
+
+		cif_para_in1: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&ar0230_out>;
+		};
+
+		cif_para_in2: endpoint@3 {
+			reg = <3>;
+			remote-endpoint = <&gc2145_out>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkcif_dvp_sditf {
+	status = "okay";
+
+	port {
+		dvp_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dvp_sditf>;
+		};
+	};
+};
+
+&pinctrl {
+	cam {
+		dvp_pwr: dvp-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
