@@ -259,7 +259,6 @@ out_i2c_err:
 }
 
 static const struct backlight_ops lm3630a_bank_a_ops = {
-	.options = BL_CORE_SUSPENDRESUME,
 	.update_status = lm3630a_bank_a_update_status,
 	.get_brightness = lm3630a_bank_a_get_brightness,
 };
@@ -339,7 +338,6 @@ out_i2c_err:
 }
 
 static const struct backlight_ops lm3630a_bank_b_ops = {
-	.options = BL_CORE_SUSPENDRESUME,
 	.update_status = lm3630a_bank_b_update_status,
 	.get_brightness = lm3630a_bank_b_get_brightness,
 };
