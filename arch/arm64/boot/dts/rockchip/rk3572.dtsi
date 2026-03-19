@@ -433,6 +433,13 @@
 			operating-points-v2 = <&cluster0_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l0>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -443,6 +450,13 @@
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l0>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -453,6 +467,13 @@
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l0>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -463,6 +484,13 @@
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l0>;
 		};
 
 		cpu_l4: cpu@100 {
@@ -475,6 +503,13 @@
 			operating-points-v2 = <&cluster1_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l1>;
 		};
 
 		cpu_l5: cpu@101 {
@@ -485,6 +520,13 @@
 			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
 			operating-points-v2 = <&cluster1_opp_table>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l1>;
 		};
 
 		cpu_b0: cpu@200 {
@@ -497,6 +539,13 @@
 			operating-points-v2 = <&cluster2_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <260>;
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_b>;
 		};
 
 		cpu_b1: cpu@201 {
@@ -507,6 +556,40 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster2_opp_table>;
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_b>;
+		};
+
+		l2_cache_l0: l2-cache-cluster0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x80000>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+		};
+
+		l2_cache_l1: l2-cache-cluster1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x40000>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+		};
+
+		l2_cache_b: l2-cache-cluster2 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x80000>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
 		};
 	};
 
