@@ -91,6 +91,8 @@ struct rk_crypto_dev {
 	void				*addr_vir;
 	u32				vir_max;
 	void				*addr_aad;
+	void				*block_virt;
+	dma_addr_t			block_dma;
 	int				aad_max;
 	struct scatterlist		src[2];
 	struct scatterlist		dst[2];
@@ -154,6 +156,7 @@ struct rk_alg_ctx {
 	unsigned int			assoclen;
 	unsigned int			count;
 	unsigned int			left_bytes;
+	unsigned int			processed_bytes;
 
 	dma_addr_t			addr_in;
 	dma_addr_t			addr_out;

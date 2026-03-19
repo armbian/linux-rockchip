@@ -173,16 +173,6 @@ static bool is_force_fallback(struct rk_crypto_algt *algt, uint32_t key_len)
 	return false;
 }
 
-static bool is_calc_need_round_up(struct skcipher_request *req)
-{
-	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
-	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
-
-	return (algt->mode == CIPHER_MODE_CFB ||
-			algt->mode == CIPHER_MODE_OFB ||
-			algt->mode == CIPHER_MODE_CTR) ? true : false;
-}
-
 static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
@@ -352,8 +342,12 @@ static int crypto_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 		skcipher_request_cast(rk_dev->async_req);
 	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
 	struct crypto_lli_desc *lli_head, *lli_tail, *lli_aad;
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
+	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
 	u32 calc_len = alg_ctx->count;
 	u32 start_flag = CRYPTO_DMA_START;
+	uint32_t block_remainder = alg_ctx->processed_bytes % AES_BLOCK_SIZE;
+	dma_addr_t dma_lli_addr;
 	int ret;
 
 	if (alg_ctx->aligned)
@@ -368,13 +362,6 @@ static int crypto_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	lli_head = hw_info->hw_desc.lli_head;
 	lli_tail = hw_info->hw_desc.lli_tail;
 	lli_aad  = hw_info->hw_desc.lli_aad;
-
-	/*
-	 *	the data length is not aligned will use addr_vir to calculate,
-	 *	so crypto v2 could round up data length to chunk_size
-	 */
-	if (!alg_ctx->is_aead && is_calc_need_round_up(req))
-		calc_len = round_up(calc_len, alg_ctx->chunk_size);
 
 	CRYPTO_TRACE("calc_len = %u, cryptlen = %u, assoclen= %u, is_aead = %d",
 		     calc_len, alg_ctx->total, alg_ctx->assoclen, alg_ctx->is_aead);
@@ -404,12 +391,33 @@ static int crypto_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 
 	rk_crypto_dump_hw_desc(&hw_info->hw_desc);
 
+	dma_lli_addr = alg_ctx->is_aead ? hw_info->hw_desc.lli_aad_dma :
+					  hw_info->hw_desc.lli_head_dma;
+
+	if (algt->mode == CIPHER_MODE_CTR && block_remainder) {
+		struct crypto_lli_desc *lli_ctr = hw_info->hw_desc.lli_ctr;
+
+		lli_ctr->src_addr     = rk_dev->block_dma;
+		lli_ctr->src_len      = block_remainder;
+		lli_ctr->dst_addr     = rk_dev->block_dma;
+		lli_ctr->dst_len      = block_remainder;
+		lli_ctr->dma_ctrl     = 0;
+		lli_ctr->reserve      = 0;
+		lli_ctr->next_addr    = hw_info->hw_desc.lli_head_dma;
+		lli_ctr->user_define  = lli_head->user_define;
+		lli_head->user_define = 0;
+
+		if (lli_head == lli_tail) {
+			lli_ctr->user_define &= (~((u32)LLI_USER_STRING_LAST));
+			lli_head->user_define |= LLI_USER_STRING_LAST;
+		}
+
+		dma_lli_addr = hw_info->hw_desc.lli_ctr_dma;
+	}
+
 	dma_wmb();
 
-	if (alg_ctx->is_aead)
-		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_aad_dma);
-	else
-		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
+	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, dma_lli_addr);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_CTL, start_flag | (start_flag << WRITE_MASK));
 
