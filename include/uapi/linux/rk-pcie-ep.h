@@ -90,7 +90,12 @@ struct pcie_ep_obj_info {
 	} devmode;
 	__u32 msi_data[PCIE_EP_OBJ_INFO_MSI_DATA_NUM];
 	__u8 err_event[0x20];
-	__u8 rsvd0[0x1B0];
+	__u8 rsvd0[0x4];
+	__u64 ep_bar0_phy_addr;
+	__u64 ep_bar1_phy_addr;
+	__u64 ep_bar2_phy_addr;
+	__u64 ep_bar5_phy_addr;
+	__u8 rsvd1[0x18C];
 
 	__u32 irq_type_rc;					/* Generate in ep isr, valid only for rc, clear in rc */
 	struct pcie_ep_obj_irq_dma_status dma_status_rc;	/* Generate in ep isr, valid only for rc, clear in rc */
@@ -99,8 +104,8 @@ struct pcie_ep_obj_info {
 	__u32 irq_user_data_rc;					/* Generate in ep, valid only for rc, No need to clear */
 	__u32 irq_user_data_ep;					/* Generate in rc, valid only for ep, No need to clear */
 	__u32 irq_rc_msi_en;
-	__u8 rsvd1[0xE0];
-	__u8 rsvd2_user[0x100];
+	__u8 rsvd2[0xE0];
+	__u8 rsvd_user[0x100];
 };
 
 /*
