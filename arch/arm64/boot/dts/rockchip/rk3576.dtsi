@@ -2043,6 +2043,14 @@
 	npu_grf: syscon@26018000 {
 		compatible = "rockchip,rk3576-npu-grf", "syscon";
 		reg = <0x0 0x26018000 0x0 0x2000>;
+
+		perf_npu: perf-npu {
+			/* offset mask w_mask_en value is_init */
+			rockchip,perf-cfg = <0x6c 0x1ff 0x1 0x101 0x1>,
+					    <0x70 0x1ff 0x1 0x101 0x1>,
+					    <0x74 0x1ff 0x1 0x101 0x1>,
+					    <0x78 0x1ff 0x1 0x101 0x1>;
+		};
 	};
 
 	vo0_grf: syscon@2601a000 {
@@ -2370,6 +2378,7 @@
 						     <&shaping_npu_nsp1>,
 						     <&shaping_npu_m0ro>,
 						     <&shaping_npu_m1ro>;
+					pm_perf = <&perf_npu>;
 
 					power-domain@RK3576_PD_NPU0 {
 						reg = <RK3576_PD_NPU0>;
