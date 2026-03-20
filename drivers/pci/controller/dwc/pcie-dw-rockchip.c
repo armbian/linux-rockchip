@@ -25,6 +25,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-wlan.h>
 #include <linux/aspm_ext.h>
+#include <linux/completion.h>
 
 #include "pcie-designware.h"
 #include "../../pci.h"
@@ -142,7 +143,8 @@ struct rk_pcie {
 	bool				hp_no_link;
 	bool				is_lpbk;
 	bool				is_comp;
-	bool				finish_probe;
+	bool				probe_ok;
+	struct completion	probe_done;
 	bool				keep_power_in_suspend;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
@@ -1625,6 +1627,8 @@ static int rk_pcie_really_probe(void *p)
 		goto release_driver;
 	}
 
+	init_completion(&rk_pcie->probe_done);
+
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci) {
 		ret = -ENOMEM;
@@ -1710,7 +1714,9 @@ static int rk_pcie_really_probe(void *p)
 	/* 7. framework misc settings */
 	device_init_wakeup(dev, true);
 	device_enable_async_suspend(dev); /* Enable async system PM for multiports SoC */
-	rk_pcie->finish_probe = true;
+	rk_pcie->probe_ok = true;
+
+	complete_all(&rk_pcie->probe_done);
 
 	return 0;
 
@@ -1725,8 +1731,11 @@ unconfig_hardware_io:
 	pm_runtime_disable(dev);
 	rk_pcie_hardware_io_unconfig(rk_pcie);
 release_driver:
-	if (rk_pcie)
-		rk_pcie->finish_probe = true;
+	if (rk_pcie) {
+		rk_pcie->probe_ok = false;
+
+		complete_all(&rk_pcie->probe_done);
+	}
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
 		device_release_driver(dev);
 
@@ -1756,24 +1765,24 @@ static int rk_pcie_remove(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
 		/* rk_pcie_really_probe hasn't been called yet, trying to get drvdata */
-		while (!rk_pcie && time_before(start, start + timeout)) {
+		while (!rk_pcie && time_before(jiffies, start + timeout)) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(msecs_to_jiffies(200));
 			rk_pcie = dev_get_drvdata(dev);
 		}
 
-		/* check again to see if probe path fails or hasn't been finished */
-		start = jiffies;
-		while ((rk_pcie && !rk_pcie->finish_probe) && time_before(start, start + timeout)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(msecs_to_jiffies(200));
-		};
+		if (!rk_pcie) {
+			dev_dbg(dev, "%s: rk_pcie is NULL after timeout\n", __func__);
+			return 0;
+		}
 
-		/*
-		 * Timeout should not happen as it's longer than regular probe actually.
-		 * But probe maybe fail, so need to double check bridge bus.
-		 */
-		if (!rk_pcie || !rk_pcie->finish_probe || !rk_pcie->pci->pp.bridge->bus) {
+		if (!wait_for_completion_timeout(&rk_pcie->probe_done, timeout)) {
+			dev_warn(dev, "%s: timeout waiting for threaded probe\n", __func__);
+			return 0;
+		}
+
+		if (!rk_pcie->probe_ok || !rk_pcie->pci || !rk_pcie->pci->pp.bridge ||
+			!rk_pcie->pci->pp.bridge->bus) {
 			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
 			return 0;
 		}
