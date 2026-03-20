@@ -130,7 +130,6 @@ int rga_dma_fence_add_callback(struct dma_fence *fence, dma_fence_func_t func, v
 
 	ret = dma_fence_add_callback(fence, &waiter->waiter, func);
 	if (ret == -ENOENT) {
-		rga_err("'input fence' has been already signaled.");
 		goto err_free_waiter;
 	} else if (ret == -EINVAL) {
 		rga_err("%s: failed to add callback to dma_fence, err: %d\n", __func__, ret);

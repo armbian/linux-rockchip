@@ -619,7 +619,10 @@ static int rga_request_add_acquire_fence_callback(int acquire_fence_fd,
 
 	ret = rga_dma_fence_add_callback(acquire_fence, cb_func, (void *)request);
 	if (ret < 0) {
-		if (ret != -ENOENT)
+		if (ret == -ENOENT)
+			/* The acquire fence has been signaled after the status check. */
+			ret = 1;
+		else
 			rga_req_err(request, "%s: failed to add fence callback\n", __func__);
 
 		mutex_lock(&request_manager->lock);
@@ -1283,8 +1286,8 @@ int rga_request_submit(struct rga_request *request)
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		release_fence = rga_dma_fence_alloc();
 		if (IS_ERR_OR_NULL(release_fence)) {
-			rga_req_err(request, "Can not alloc release fence!\n");
-			ret = IS_ERR(release_fence) ? PTR_ERR(release_fence) : -EINVAL;
+			ret = IS_ERR(release_fence) ? PTR_ERR(release_fence) : -EFAULT;
+			rga_req_err(request, "Can not alloc release fence!, ret = %d\n", ret);
 			goto err_abort_request;
 		}
 
@@ -1303,8 +1306,8 @@ int rga_request_submit(struct rga_request *request)
 				/* acquire fence has been signaled */
 				goto request_commit;
 			} else {
-				rga_req_err(request, "Failed to add callback with acquire fence fd[%d]!\n",
-				       request->acquire_fence_fd);
+				rga_req_err(request, "Failed to add callback with acquire fence fd[%d]!, ret = %d\n",
+					request->acquire_fence_fd, ret);
 
 				rga_dma_fence_put(request->release_fence);
 				request->release_fence = NULL;
