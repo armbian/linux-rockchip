@@ -125,7 +125,7 @@
 	};
 
 	seekwcn_boot:seekwcn_boot {
-		compatible = "seekwave,sv6160";
+		compatible = "seekwave,sv6160lite";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>,<&wifi_chip_wake_irq>;
 		sv6160_path = "/vendor/bin/sv6160.bin";
@@ -187,10 +187,8 @@
 
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
-		wifi_chip_type = "ap6275p";
+		wifi_chip_type = "SWT6621S";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
 		WIFI,poweren-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};

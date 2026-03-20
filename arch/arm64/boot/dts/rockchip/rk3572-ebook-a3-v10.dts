@@ -219,7 +219,7 @@
 
 	seekwcn_boot: seekwcn-boot {
 		status = "okay";
-		compatible = "seekwave,sv6160";
+		compatible = "seekwave,sv6160lite";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_wake_gpio>;
 		sv6160_path = "/vendor/bin/sv6160.bin";
@@ -278,6 +278,14 @@
 		regulator-name = "vcc_wifi";
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "SWT6621S";
+		pinctrl-names = "default";
+		WIFI,poweren-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
