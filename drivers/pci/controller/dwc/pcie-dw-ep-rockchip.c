@@ -379,6 +379,11 @@ static int rockchip_pcie_get_io_resource(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+	rockchip->obj_info->ep_bar0_phy_addr = rockchip->ib_target_address[0];
+	rockchip->obj_info->ep_bar1_phy_addr = rockchip->ib_target_address[1];
+	rockchip->obj_info->ep_bar2_phy_addr = rockchip->ib_target_address[2];
+	rockchip->obj_info->ep_bar5_phy_addr = rockchip->ib_target_address[5];
+
 	rockchip->pci.link_gen = of_pci_get_max_link_speed(np);
 	if (rockchip->pci.link_gen < 0) {
 		dev_err(dev, "missing max-link-speed property\n");
