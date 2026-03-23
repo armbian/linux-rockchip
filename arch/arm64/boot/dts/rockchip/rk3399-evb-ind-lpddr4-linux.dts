@@ -79,6 +79,8 @@
 	test-power {
 		status = "okay";
 	};
+
+	/delete-node/ wireless-bluetooth;
 };
 
 &backlight {
@@ -315,6 +317,24 @@
 
 &tc358749x_sound {
 	status = "disabled";
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rk809 1>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
 };
 
 &vcca_0v9 {

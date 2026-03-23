@@ -156,7 +156,21 @@
 };
 
 &uart8 {
-	status = "disabled";
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart8m1_xfer &uart8m1_ctsn &uart8m1_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&hym8563>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
 };
 
 &usbdp_phy1 {
@@ -219,9 +233,7 @@
 	status = "disabled";
 };
 
-&wireless_bluetooth {
-	status = "disabled";
-};
+/delete-node/ &wireless_bluetooth;
 
 &wireless_wlan {
 	status = "disabled";

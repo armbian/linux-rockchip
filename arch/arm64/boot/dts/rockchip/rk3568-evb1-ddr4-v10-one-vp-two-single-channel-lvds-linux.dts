@@ -14,6 +14,24 @@
 	compatible = "rockchip,rk3568-evb1-ddr4-v10-one-vp-two-single-channel-lvds", "rockchip,rk3568";
 };
 
+&uart8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart8m0_xfer &uart8m0_ctsn &uart8m0_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rk809 1>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
 &vp0 {
 	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
 };
@@ -21,3 +39,5 @@
 &vp1 {
 	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER1>;
 };
+
+/delete-node/ &wireless_bluetooth;

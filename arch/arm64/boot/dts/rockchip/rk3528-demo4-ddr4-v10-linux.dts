@@ -16,3 +16,20 @@
 &sdmmc {
 	status = "okay";
 };
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer &uart2m0_ctsn &uart2m0_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+
+		host-wakeup-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
+/delete-node/ &wireless_bluetooth;

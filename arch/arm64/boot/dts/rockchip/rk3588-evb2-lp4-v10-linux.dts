@@ -13,3 +13,23 @@
 	model = "Rockchip RK3588 EVB2 LP4 V10 Board";
 	compatible = "rockchip,rk3588-evb2-lp4-v10", "rockchip,rk3588";
 };
+
+&uart9 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart9m0_xfer &uart9m0_ctsn &uart9m0_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&hym8563>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
+/delete-node/ &wireless_bluetooth;

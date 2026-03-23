@@ -233,20 +233,6 @@
 		WIFI,host_wake-gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
-
-	wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		clocks = <&rk809 1>;
-		clock-names = "ext_clock";
-		uart_rts-gpios = <&gpio2 RK_PC3 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart0_rts>, <&bt_irq_gpio>;
-		pinctrl-1 = <&uart0_gpios>;
-		BT,reset-gpios    = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
-		BT,wake-gpios     = <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
-		BT,wake_host-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
 };
 
 &cdn_dp {
@@ -1103,9 +1089,21 @@
 };
 
 &uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts>;
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rk809 1>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
 };
 
 &usb_host0_ehci {

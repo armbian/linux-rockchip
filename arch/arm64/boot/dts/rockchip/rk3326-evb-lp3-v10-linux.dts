@@ -17,6 +17,7 @@
         };
 
 	/delete-node/ test-power;
+	/delete-node/ wireless-bluetooth;
 };
 
 &cif_new {
@@ -155,6 +156,24 @@
 			reg = <0>;
 			remote-endpoint = <&dphy_rx0_out>;
 		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rk817 1>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
 	};
 };
 

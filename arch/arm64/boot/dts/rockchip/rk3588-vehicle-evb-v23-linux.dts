@@ -21,6 +21,24 @@
 	/delete-node/vendor_storage;
 };
 
+&uart7 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7m1_xfer &uart7m1_ctsn &uart7m1_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&hym8563>;
+		clock-names = "txco";
+
+		device-wakeup-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
 &vop {
 	/delete-property/ support-multi-area;
 };
@@ -56,3 +74,5 @@
 	logo,uboot = "logo.bmp";
 	logo,kernel = "logo.bmp";
 };
+
+/delete-node/ &wireless_bluetooth;
