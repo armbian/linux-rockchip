@@ -14,6 +14,7 @@
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/ktime.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -108,8 +109,18 @@
 #define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
 #define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
 #define PCIE_CLIENT_DBF_EN		0xffff0007
+#define PCIE_CLIENT_INTR_STATUS_PTM	0x480
+#define PCIE_CLIENT_INTR_MASK_PTM	0x484
+#define PCIE_CLIENT_INTR_EN_PTM		0x488
+#define PTM_CONTEXT_VALID_FALL		BIT(1)
+#define PTM_CONTEXT_VALID_RAISE		BIT(0)
 
 #define PCIE_TYPE0_HDR_DBI2_OFFSET	0x100000
+
+#define PCIE_PTM_RES_CONTROL_OFF	0x284
+#define PCIE_PTM_RES_CCONTEXT_VALID	BIT(0)
+#define PCIE_PTM_RES_LOCAL_LSB_OFF	0x28c
+#define PCIE_PTM_RES_LOCAL_MSB_OFF	0x290
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
 #define RK_PCIE_L2_TMOUT_US		5000
@@ -847,6 +858,20 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t rk_pcie_ptm_irq_handler(int irq, void *arg)
+{
+	struct rk_pcie *rk_pcie = arg;
+	struct dw_pcie *pci = rk_pcie->pci;
+	u32 val;
+
+	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_PTM);
+	if (val & (PTM_CONTEXT_VALID_FALL | PTM_CONTEXT_VALID_RAISE))
+		dw_pcie_writel_dbi(pci, PCIE_PTM_RES_CONTROL_OFF, PCIE_PTM_RES_CCONTEXT_VALID);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_PTM, val);
+
+	return IRQ_HANDLED;
+}
+
 static int rk_pcie_request_sys_irq(struct rk_pcie *rk_pcie,
 					struct platform_device *pdev)
 {
@@ -863,6 +888,18 @@ static int rk_pcie_request_sys_irq(struct rk_pcie *rk_pcie,
 			       IRQF_SHARED, "pcie-sys", rk_pcie);
 	if (ret) {
 		dev_err(rk_pcie->pci->dev, "failed to request PCIe subsystem IRQ\n");
+		return ret;
+	}
+
+	/* Optional ptm irq */
+	irq = platform_get_irq_byname(pdev, "ptm");
+	if (irq < 0)
+		return 0;
+
+	ret = devm_request_irq(rk_pcie->pci->dev, irq, rk_pcie_ptm_irq_handler,
+			       IRQF_SHARED, "pcie-ptm", rk_pcie);
+	if (ret) {
+		dev_err(rk_pcie->pci->dev, "failed to request PCIe PTM IRQ\n");
 		return ret;
 	}
 
@@ -1523,6 +1560,7 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 {
 	struct dw_pcie *pci = rk_pcie->pci;
 	u32 val;
+	u64 ptm_timer1_ns, ptm_timer2_ns;
 
 	dw_pcie_dbi_ro_wr_en(pci);
 
@@ -1581,6 +1619,41 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	/* Disable BAR0 BAR1 */
 	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
 	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
+
+	/*
+	 * Program PTM responder local clock with 64-bit nanosecond timestamp.
+	 *
+	 * Write Strategy: MSB-first with carry detection
+	 *
+	 * Why MSB first?
+	 *   - MSB increments only every ~71 minutes (2^32 nanoseconds)
+	 *   - LSB changes every nanosecond
+	 *   - Writing MSB first + LSB last maximizes timestamp precision
+	 *
+	 * Carry Handling:
+	 *   - If MSB carries during the write window, detect and re-sync
+	 *   - This ensures timestamp consistency even in rare edge cases
+	 */
+
+	local_irq_disable();
+	ptm_timer1_ns = ktime_get_ns();
+	dw_pcie_writel_dbi(pci, PCIE_PTM_RES_LOCAL_MSB_OFF, ptm_timer1_ns >> 32);
+	ptm_timer2_ns = ktime_get_ns();
+	if ((ptm_timer2_ns >> 32) > (ptm_timer1_ns >> 32))
+		dw_pcie_writel_dbi(pci, PCIE_PTM_RES_LOCAL_MSB_OFF, ptm_timer2_ns >> 32);
+	ptm_timer2_ns = ktime_get_ns();
+	dw_pcie_writel_dbi(pci, PCIE_PTM_RES_LOCAL_LSB_OFF, ptm_timer2_ns);
+	dw_pcie_writel_dbi(pci, PCIE_PTM_RES_CONTROL_OFF, PCIE_PTM_RES_CCONTEXT_VALID);
+	local_irq_enable();
+
+	/* Enable PTM context valid fall irq and unmask it, with upper 16bit write mask */
+	val = PTM_CONTEXT_VALID_FALL | PTM_CONTEXT_VALID_RAISE |
+		PTM_CONTEXT_VALID_FALL << 16 | PTM_CONTEXT_VALID_RAISE << 16;
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_EN_PTM, val);
+	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_PTM);
+	val &= ~(PTM_CONTEXT_VALID_FALL | PTM_CONTEXT_VALID_RAISE);
+	val |= PTM_CONTEXT_VALID_FALL << 16 | PTM_CONTEXT_VALID_RAISE << 16;
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_PTM, val);
 
 	return 0;
 }
