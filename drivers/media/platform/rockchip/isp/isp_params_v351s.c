@@ -5157,12 +5157,14 @@ rkisp_params_info2ddr_cfg_v351s(struct rkisp_isp_params_vdev *params_vdev, void 
 	for (val = 0; val < cfg->buf_cnt; val++)
 		cfg->buf_fd[val] = -1;
 
+	priv->buf_info_w_offs = 0;
+	priv->buf_info_v_offs = 0;
 	switch (cfg->owner) {
 	case RKISP_INFO2DRR_OWNER_NULL:
-		rkisp_clear_reg_cache_bits(dev, ISP3X_RAWAWB_CTRL,
-					   ISP32_RAWAWB_2DDR_PATH_EN);
-		rkisp_clear_reg_cache_bits(dev, ISP3X_GAIN_CTRL,
-					   ISP3X_GAIN_2DDR_EN);
+		for (i = 0; i < dev->unite_div; i++) {
+			rkisp_idx_clear_reg_cache_bits(dev, ISP3X_RAWAWB_CTRL, ISP32_RAWAWB_2DDR_PATH_EN, i);
+			rkisp_idx_clear_reg_cache_bits(dev, ISP3X_GAIN_CTRL, ISP3X_GAIN_2DDR_EN, i);
+		}
 		priv->buf_info_owner = cfg->owner;
 		return 0;
 	case RKISP_INFO2DRR_OWNER_GAIN:
@@ -5182,6 +5184,10 @@ rkisp_params_info2ddr_cfg_v351s(struct rkisp_isp_params_vdev *params_vdev, void 
 			vsize = cfg->vsize;
 		else
 			vsize = dev->isp_sdev.in_crop.height / val;
+		if (dev->unite_div == ISP_UNITE_DIV2)
+			priv->buf_info_w_offs = wsize / 2 - dev->hw_dev->unite_extend_pixel / 8;
+		if (dev->unite_div == ISP_UNITE_DIV4)
+			priv->buf_info_v_offs = (vsize / 2 - dev->hw_dev->unite_extend_pixel / val) * wsize;
 		break;
 	case RKISP_INFO2DRR_OWNER_AWB:
 		ctrl = cfg->u.awb.awb2ddr_sel ? ISP32_RAWAWB_2DDR_PATH_DS : 0;
@@ -5198,6 +5204,10 @@ rkisp_params_info2ddr_cfg_v351s(struct rkisp_isp_params_vdev *params_vdev, void 
 			vsize = cfg->vsize;
 		else
 			vsize = dev->isp_sdev.in_crop.height / val;
+		if (dev->unite_div == ISP_UNITE_DIV2)
+			priv->buf_info_w_offs = wsize / 2;
+		if (dev->unite_div == ISP_UNITE_DIV4)
+			priv->buf_info_v_offs = vsize / 2 * wsize;
 		break;
 	default:
 		dev_err(dev->dev, "%s no support owner:%d\n", __func__, cfg->owner);
@@ -5228,12 +5238,19 @@ rkisp_params_info2ddr_cfg_v351s(struct rkisp_isp_params_vdev *params_vdev, void 
 		cfg->buf_fd[i] = buf->dma_fd;
 	}
 	buf = &priv->buf_info[0];
-	isp3_param_write(params_vdev, buf->dma_addr, ISP3X_MI_GAIN_WR_BASE, 0);
-	isp3_param_write(params_vdev, buf->size, ISP3X_MI_GAIN_WR_SIZE, 0);
-	isp3_param_write(params_vdev, wsize, ISP3X_MI_GAIN_WR_LENGTH, 0);
+	for (i = 0; i < dev->unite_div; i++) {
+		val = buf->dma_addr;
+		if (i > ISP_UNITE_RIGHT)
+			val += priv->buf_info_v_offs;
+		if (i == ISP_UNITE_RIGHT || i == ISP_UNITE_RIGHT_B)
+			val += priv->buf_info_w_offs;
+		isp3_param_write(params_vdev, val, ISP3X_MI_GAIN_WR_BASE, i);
+		isp3_param_write(params_vdev, buf->size, ISP3X_MI_GAIN_WR_SIZE, i);
+		isp3_param_write(params_vdev, wsize, ISP3X_MI_GAIN_WR_LENGTH, i);
+		rkisp_idx_set_reg_cache_bits(dev, reg, mask, ctrl, i);
+	}
 	if (dev->hw_dev->is_single)
 		rkisp_write(dev, ISP3X_MI_WR_CTRL2, ISP3X_GAINSELF_UPD, true);
-	rkisp_set_reg_cache_bits(dev, reg, mask, ctrl);
 
 	priv->buf_info_idx = 0;
 	priv->buf_info_cnt = cfg->buf_cnt;

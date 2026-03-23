@@ -135,6 +135,8 @@ struct rkisp_isp_params_val_v33 {
 	struct rkisp_dummy_buffer buf_info[RKISP_INFO2DDR_BUF_MAX];
 	u32 buf_info_owner;
 	u32 buf_info_cnt;
+	u32 buf_info_w_offs;
+	u32 buf_info_v_offs;
 	int buf_info_idx;
 
 	struct rkisp_dummy_buffer buf_3dnr_wgt;
