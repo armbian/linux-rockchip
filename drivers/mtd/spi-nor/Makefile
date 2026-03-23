@@ -23,6 +23,7 @@ spi-nor-$(CONFIG_MTD_SPI_NOR_WINBOND)		+= winbond.o
 spi-nor-$(CONFIG_MTD_SPI_NOR_XILINX)		+= xilinx.o
 spi-nor-$(CONFIG_MTD_SPI_NOR_XMC)		+= xmc.o
 spi-nor-$(CONFIG_MTD_SPI_NOR_XTX)		+= xtx.o
+spi-nor-$(CONFIG_MTD_SPI_NOR_ZBIT)		+= zbit.o
 spi-nor-$(CONFIG_DEBUG_FS)	+= debugfs.o
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor.o
 
