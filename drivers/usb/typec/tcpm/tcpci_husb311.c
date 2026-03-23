@@ -418,6 +418,7 @@ static int husb311_pm_resume(struct device *dev)
 	 */
 	ret = husb311_read8(chip, HUSB311_TCPC_FILTER, &filter);
 	if (filter != 0x0F || ret < 0 || is_partner_altmode_device_registered(dev)) {
+		chip->suspended = 0;
 		ret = husb311_sw_reset(chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);
