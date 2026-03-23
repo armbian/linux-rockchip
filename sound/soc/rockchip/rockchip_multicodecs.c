@@ -276,12 +276,13 @@ static void adc_jack_handler(struct work_struct *work)
 		snd_soc_jack_report(jack_headset,
 				    snd_soc_jack_get_type(jack_headset, adc),
 				    SND_JACK_HEADSET);
-		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
 
 		if (snd_soc_jack_get_type(jack_headset, adc) == SND_JACK_HEADSET) {
 			extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_MICROPHONE, true);
 			if (mc_data->poller)
 				mc_keys_poller_start(mc_data->poller);
+		} else {
+			extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
 		}
 	}
 };
