@@ -437,6 +437,8 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 	const struct cif_input_fmt *in_fmt;
 	struct v4l2_rect rect;
 	struct csi_channel_info csi_info;
+	struct rkmodule_capture_info *capture_info;
+	int i;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_SCALE_BLC:
@@ -522,6 +524,21 @@ static long rkcif_scale_ioctl_default(struct file *file, void *fh,
 			scale_vdev->is_compact = false;
 			scale_vdev->is_high_align = false;
 		}
+		break;
+	case RKMODULE_SET_CAPTURE_MODE:
+		capture_info = (struct rkmodule_capture_info *)arg;
+		if (capture_info->mode == RKMODULE_ONE_CH_TO_MULTI_ISP) {
+			for (i = 0; i < capture_info->one_to_multi.isp_num; i++) {
+				if (capture_info->one_to_multi.frame_pattern[i] == 0 ||
+				    capture_info->one_to_multi.frame_pattern[i] > 32)
+					return -EINVAL;
+			}
+		}
+		mutex_lock(&dev->stream_lock);
+		dev->stream[0].channel_info.capture_info = *capture_info;
+		mutex_unlock(&dev->stream_lock);
+		v4l2_info(&dev->v4l2_dev,
+			  "set capture mode %d\n", dev->stream[0].channel_info.capture_info.mode);
 		break;
 	default:
 		return -EINVAL;
