@@ -182,8 +182,8 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_device *dev = stats_vdev->dev;
 	struct rkisp_isp_params_val_v39 *priv_val;
 	struct rkisp_dummy_buffer *buf;
-	int idx, buf_fd = -1;
-	u32 reg = 0, ctrl, mask;
+	int i, idx, buf_fd = -1;
+	u32 reg = 0, ctrl, mask, val;
 
 	if (dev->is_aiisp_en)
 		return;
@@ -191,8 +191,8 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	priv_val = dev->params_vdev.priv_val;
 	if (!priv_val->buf_info_owner && priv_val->buf_info_idx >= 0) {
 		priv_val->buf_info_idx = -1;
-		rkisp_clear_bits(dev, ISP3X_GAIN_CTRL, ISP3X_GAIN_2DDR_EN, false);
-		rkisp_clear_bits(dev, ISP3X_RAWAWB_CTRL, ISP32_RAWAWB_2DDR_PATH_EN, false);
+		rkisp_unite_clear_bits(dev, ISP3X_GAIN_CTRL, ISP3X_GAIN_2DDR_EN, false);
+		rkisp_unite_clear_bits(dev, ISP3X_RAWAWB_CTRL, ISP32_RAWAWB_2DDR_PATH_EN, false);
 		return;
 	}
 
@@ -234,6 +234,8 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		if (buf_fd == -1)
 			return;
 	}
+	if (dev->unite_index != dev->unite_div - 1)
+		return;
 	/* get next unused buf to hw */
 	for (idx = 0; idx < priv_val->buf_info_cnt; idx++) {
 		buf = &priv_val->buf_info[idx];
@@ -242,15 +244,22 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 	if (idx == priv_val->buf_info_cnt) {
-		rkisp_clear_bits(dev, reg, ctrl, false);
+		rkisp_unite_clear_bits(dev, reg, ctrl, false);
 		priv_val->buf_info_idx = -1;
 	} else {
 		buf = &priv_val->buf_info[idx];
-		rkisp_write(dev, ISP3X_MI_GAIN_WR_BASE, buf->dma_addr, false);
+		for (i = 0; i < dev->unite_div; i++) {
+			val = buf->dma_addr;
+			if (i > ISP_UNITE_RIGHT)
+				val += priv_val->buf_info_v_offs;
+			if (i == ISP_UNITE_RIGHT || i == ISP_UNITE_RIGHT_B)
+				val += priv_val->buf_info_w_offs;
+			rkisp_idx_write(dev, ISP3X_MI_GAIN_WR_BASE, val, i, false);
+		}
 		if (dev->hw_dev->is_single)
 			rkisp_write(dev, ISP3X_MI_WR_CTRL2, ISP3X_GAINSELF_UPD, true);
 		if (priv_val->buf_info_idx < 0)
-			rkisp_set_bits(dev, reg, 0, ctrl, false);
+			rkisp_unite_set_bits(dev, reg, 0, ctrl, false);
 		priv_val->buf_info_idx = idx;
 	}
 }
@@ -394,6 +403,9 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 				cur_stat_buf = (void *)cur_stat_buf + size / dev->unite_div;
 				cur_stat_buf->frame_id = cur_frame_id;
 				cur_stat_buf->params_id = params_vdev->cur_frame_id;
+				cur_stat_buf->stat.info2ddr.buf_fd = -1;
+				cur_stat_buf->stat.info2ddr.owner = 0;
+				cur_stat_buf->stat.buf_bay3d_iir_index = -1;
 			}
 		}
 
@@ -439,10 +451,9 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev)
 	rkisp_stats_get_dhaz_stats(stats_vdev, cur_stat_buf);
 	if (!dev->is_aiisp_en)
 		rkisp_stats_get_bay3d_stats(stats_vdev, cur_stat_buf);
-
-	if (cur_buf && cur_stat_buf) {
+	if (cur_stat_buf)
 		rkisp_stats_info2ddr(stats_vdev, cur_stat_buf);
-
+	if (cur_buf && cur_stat_buf) {
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0, size);
 		cur_buf->vb.sequence = cur_frame_id;
 		cur_buf->vb.vb2_buf.timestamp = ns;
