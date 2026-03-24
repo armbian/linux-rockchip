@@ -23,7 +23,6 @@
 		compatible = "regulator-fixed";
 		regulator-name = "max96712_dphy3_vcc1v2";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		startup-delay-us = <850>;
@@ -34,7 +33,6 @@
 		compatible = "regulator-fixed";
 		regulator-name = "max96712_dphy3_vcc1v8";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		startup-delay-us = <200>;
