@@ -435,7 +435,7 @@ static int max96749_deselect(struct serdes *serdes, int link)
 		serdes_panel = container_of(panel, struct serdes_panel, panel);
 		deser = serdes_panel->parent;
 
-		serdes_reg_write(deser, 0x10, 0x00);
+		serdes_reg_write(deser, 0x10, 0x11);
 		serdes_set_bits(serdes, 0x45, DUAL_LINK_MODE,
 						FIELD_PREP(DUAL_LINK_MODE, 0));
 
