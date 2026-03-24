@@ -1113,10 +1113,12 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned char apll_cfg3_val;
-	unsigned char dtop_digen_sr_lmt0;
+	unsigned char sr_val;  /* Sample rate value for DACSRT/ADCSRT */
 	unsigned int ret = 0;
 
-	DBG("%s : pre sample rate = %d, cur sample rate = %dHz\n", __func__, rk817->rate, rate);
+	DBG("%s : pre rate = %d, cur sample rate = %dHz, stream = %s\n",
+	    __func__, rk817->rate, rate,
+	    substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK" : "CAPTURE");
 
 	if (rk817->chip_ver <= 0x4) {
 		DBG("%s: 0x4 and previous versions\n", __func__);
@@ -1131,21 +1133,21 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	switch (rate) {
 	case 8000:
 		apll_cfg3_val = 0x03;
-		dtop_digen_sr_lmt0 = 0x00;
+		sr_val = 0x00;
 		break;
 	case 16000:
 		apll_cfg3_val = 0x06;
-		dtop_digen_sr_lmt0 = 0x01;
+		sr_val = 0x01;
 		break;
 	case 96000:
 		apll_cfg3_val = 0x18;
-		dtop_digen_sr_lmt0 = 0x03;
+		sr_val = 0x03;
 		break;
 	case 32000:
 	case 44100:
 	case 48000:
 		apll_cfg3_val = 0x0c;
-		dtop_digen_sr_lmt0 = 0x02;
+		sr_val = 0x02;
 		break;
 	default:
 		pr_err("Unsupported rate: %d\n", rate);
@@ -1156,6 +1158,13 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	 * Note that: If you use the ALSA hooks plugin, entering hw_params()
 	 * is before playback/capture_path_put, therefore, we need to configure
 	 * APLL_CFG3/DTOP_DIGEN_CLKE/DDAC_SR_LMT0 for different sample rates.
+	 *
+	 * Since playback and I2S capture share the same I2S clock (BCLK/LRCK),
+	 * they use the same sample rate registers. Configure when rate changes.
+	 *
+	 * PDM capture uses independent clock path and does not use APLL or
+	 * the sample rate registers, so it skips configuration to avoid
+	 * affecting concurrent playback.
 	 */
 	if ((rk817->rate != rate) &&
 	    !((substream->stream == SNDRV_PCM_STREAM_CAPTURE) && rk817->pdmdata_out_enable)) {
@@ -1165,14 +1174,17 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 				 __func__, __LINE__, rk817->stereo_sysclk);
 		snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, apll_cfg3_val);
 		snd_soc_component_update_bits(component, RK817_CODEC_DDAC_SR_LMT0,
-					      DACSRT_MASK, dtop_digen_sr_lmt0);
+					      DACSRT_MASK, sr_val);
+		snd_soc_component_update_bits(component, RK817_CODEC_DADC_SR_ACL0,
+					      ADCSRT_MASK, sr_val);
+
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			rk817_restart_dac_digital_clk_and_apll(component);
 		else
 			rk817_restart_adc_digital_clk_and_apll(component);
-	}
 
-	rk817->rate = rate;
+		rk817->rate = rate;
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
