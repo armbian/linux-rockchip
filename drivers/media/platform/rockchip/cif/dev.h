@@ -517,14 +517,14 @@ struct rkcif_sync_cfg {
 	u32 group;
 };
 
-enum rkcif_toisp_buf_update_state {
-	RKCIF_TOISP_BUF_ROTATE,
-	RKCIF_TOISP_BUF_THESAME,
-	RKCIF_TOISP_BUF_LOSS,
+enum rkcif_buf_update_state {
+	RKCIF_BUF_ROTATE,
+	RKCIF_BUF_THESAME,
+	RKCIF_BUF_LOSS,
 };
 
-struct rkcif_toisp_buf_state {
-	enum rkcif_toisp_buf_update_state state;
+struct rkcif_buf_state {
+	enum rkcif_buf_update_state state;
 	int check_cnt;
 	bool is_early_update;
 };
@@ -640,7 +640,7 @@ struct rkcif_stream {
 	atomic_t			buf_cnt;
 	struct completion		stop_complete;
 	struct completion		start_complete;
-	struct rkcif_toisp_buf_state	toisp_buf_state;
+	struct rkcif_buf_state		buf_state;
 	u32				skip_frame;
 	u32				cur_skip_frame;
 	int				thunderboot_skip_interval;

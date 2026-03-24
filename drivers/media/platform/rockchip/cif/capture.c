@@ -2360,7 +2360,7 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 			v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "%s %d, stream[%d] lack buf %d\n",
 				 __func__, __LINE__, buf_stream->id, buf_stream->lack_buf_cnt);
 		}
-		 buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+		 buf_stream->buf_state.state = RKCIF_BUF_LOSS;
 	}
 
 	if (!buf_stream->next_buf_toisp) {
@@ -2377,7 +2377,7 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 			}
 		} else if (buf_stream->curr_buf_toisp) {
 			buf_stream->next_buf_toisp = buf_stream->curr_buf_toisp;
-			buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_THESAME;
+			buf_stream->buf_state.state = RKCIF_BUF_THESAME;
 			if (buf_stream->lack_buf_cnt < 2) {
 				buf_stream->lack_buf_cnt++;
 				v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "%s %d, stream[%d] lack buf %d\n",
@@ -2498,13 +2498,13 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (stream->cur_skip_frame)
 		goto out_get_buf;
-	memset(&buf_stream->toisp_buf_state, 0, sizeof(stream->toisp_buf_state));
+	memset(&buf_stream->buf_state, 0, sizeof(buf_stream->buf_state));
 	if (!list_empty(&buf_stream->rx_buf_head)) {
 		if (buf_stream->curr_buf_toisp && buf_stream->next_buf_toisp &&
 		    buf_stream->curr_buf_toisp != buf_stream->next_buf_toisp)
-			buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_ROTATE;
+			buf_stream->buf_state.state = RKCIF_BUF_ROTATE;
 		else
-			buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+			buf_stream->buf_state.state = RKCIF_BUF_LOSS;
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 			active_buf = buf_stream->curr_buf_toisp;
 
@@ -2621,14 +2621,14 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 				buf_stream->next_buf_toisp = buf_stream->curr_buf_toisp;
 				buffer = buf_stream->curr_buf_toisp;
 			}
-			buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_THESAME;
+			buf_stream->buf_state.state = RKCIF_BUF_THESAME;
 			if (stream->cifdev->rdbk_debug)
 				v4l2_info(&stream->cifdev->v4l2_dev,
 					  "stream[%d] hold buf %x\n",
 					  stream->id,
 					  (u32)buf_stream->next_buf_toisp->dummy.dma_addr);
 		} else {
-			buf_stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+			buf_stream->buf_state.state = RKCIF_BUF_LOSS;
 
 			active_buf = buf_stream->curr_buf_toisp;
 			buf_stream->curr_buf_toisp = NULL;
@@ -2757,11 +2757,11 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 	    dev->switch_info.switch_dev->switch_info.is_init_buf)
 		buf_stream = &dev->switch_info.switch_dev->stream[stream->id];
 
-	if (buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_ROTATE ||
-	    (buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_THESAME &&
-	     buf_stream->toisp_buf_state.check_cnt >= 1) ||
-	    (buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_LOSS &&
-	     buf_stream->toisp_buf_state.check_cnt >= 2)) {
+	if (buf_stream->buf_state.state == RKCIF_BUF_ROTATE ||
+	    (buf_stream->buf_state.state == RKCIF_BUF_THESAME &&
+	     buf_stream->buf_state.check_cnt >= 1) ||
+	    (buf_stream->buf_state.state == RKCIF_BUF_LOSS &&
+	     buf_stream->buf_state.check_cnt >= 2)) {
 		if ((dev->rdbk_debug > 2 &&
 		    stream->frame_idx < 15) ||
 		    rkcif_debug == 3) {
@@ -2773,7 +2773,7 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 				  "stream[%d] addr check not equal 0x%x 0x%x state %d chech_cnt %d\n",
 				  stream->id,
 				  cur_dma_addr,
-				  next_dma_addr, buf_stream->toisp_buf_state.state, buf_stream->toisp_buf_state.check_cnt);
+				  next_dma_addr, buf_stream->buf_state.state, buf_stream->buf_state.check_cnt);
 		}
 		return;
 	}
@@ -2781,18 +2781,18 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 		 "stream[%d] addr check  0x%x 0x%x state %d chech_cnt %d\n",
 		 stream->id,
 		 cur_dma_addr,
-		 next_dma_addr, buf_stream->toisp_buf_state.state, buf_stream->toisp_buf_state.check_cnt);
+		 next_dma_addr, buf_stream->buf_state.state, buf_stream->buf_state.check_cnt);
 	if (stream->frame_phase == 0)
 		stream->frame_phase = CIF_CSI_FRAME0_READY;
 	frame_phase = stream->frame_phase;
 
-	if (buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_LOSS &&
-	    buf_stream->toisp_buf_state.check_cnt == 0)
+	if (buf_stream->buf_state.state == RKCIF_BUF_LOSS &&
+	    buf_stream->buf_state.check_cnt == 0)
 		is_dual_update = true;
 
-	if ((buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_LOSS ||
-	     buf_stream->toisp_buf_state.state == RKCIF_TOISP_BUF_THESAME) &&
-	    buf_stream->toisp_buf_state.check_cnt == 0)
+	if ((buf_stream->buf_state.state == RKCIF_BUF_LOSS ||
+	     buf_stream->buf_state.state == RKCIF_BUF_THESAME) &&
+	    buf_stream->buf_state.check_cnt == 0)
 		rkcif_check_force_update_buf(buf_stream);
 
 	if ((dev->rdbk_debug > 2 &&
@@ -2903,7 +2903,7 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 			rkcif_write_register(dev, frm_addr_y, buff_addr_y);
 		}
 	}
-	buf_stream->toisp_buf_state.check_cnt++;
+	buf_stream->buf_state.check_cnt++;
 }
 
 static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
@@ -3511,13 +3511,13 @@ static int rkcif_get_new_buffer_wake_up_mode_rdbk(struct rkcif_stream *stream)
 	bool is_dual_update = false;
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
-	memset(&stream->toisp_buf_state, 0, sizeof(stream->toisp_buf_state));
+	memset(&stream->buf_state, 0, sizeof(stream->buf_state));
 	if (!list_empty(&stream->rx_buf_head)) {
 		if (stream->curr_buf_toisp && stream->next_buf_toisp &&
 		    stream->curr_buf_toisp != stream->next_buf_toisp) {
-			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_ROTATE;
+			stream->buf_state.state = RKCIF_BUF_ROTATE;
 		} else {
-			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+			stream->buf_state.state = RKCIF_BUF_LOSS;
 			is_dual_update = true;
 		}
 		if (stream->line_int_cnt % 2) {
@@ -3566,10 +3566,10 @@ static int rkcif_get_new_buffer_wake_up_mode_rdbk(struct rkcif_stream *stream)
 					  "stream[%d] hold buf %x\n",
 					  stream->id,
 					  (u32)stream->next_buf_toisp->dummy.dma_addr);
-			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_THESAME;
+			stream->buf_state.state = RKCIF_BUF_THESAME;
 		} else {
 			ret = -EINVAL;
-			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+			stream->buf_state.state = RKCIF_BUF_LOSS;
 			stream->curr_buf_toisp = NULL;
 			stream->next_buf_toisp = NULL;
 		}
