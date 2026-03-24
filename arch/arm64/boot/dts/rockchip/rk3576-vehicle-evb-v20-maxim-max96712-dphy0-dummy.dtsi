@@ -17,22 +17,20 @@
 		compatible = "regulator-fixed";
 		regulator-name = "max96712_dphy0_vcc1v2";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		startup-delay-us = <850>;
-		vin-supply = <&vcc_2v0_pldo_s3>;
+		vin-supply = <&vcc5v0_buck>;
 	};
 
 	max96712_dphy0_vcc1v8: max96712-dphy0-vcc1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "max96712_dphy0_vcc1v8";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		startup-delay-us = <200>;
-		vin-supply = <&vcc_2v0_pldo_s3>;
+		vin-supply = <&vcc_3v3_s0>;
 	};
 
 	max96712_dphy0_pwdn_regulator: max96712-dphy0-pwdn-regulator {
