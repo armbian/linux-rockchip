@@ -1213,6 +1213,7 @@ enum rk809_reg_id {
 
 #define RK817_SYS_STS			0xf0
 #define RK817_PLUG_IN_STS		(0x1 << 6)
+#define RK817_PWRON_STS			(0x1 << 7)
 
 #define RK817_SYS_CFG(i)		(0xf1 + (i))
 
@@ -1440,6 +1441,7 @@ struct rk808 {
 	bool force_shutdown_enable;
 	int shutdown_voltage_threshold;
 
+	bool need_reg_reset;
 #ifdef CONFIG_MFD_RK808_SYSFS
 	struct kobject *sysfs_kobj;
 	struct kobj_attribute dbg_attr;

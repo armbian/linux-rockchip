@@ -1158,6 +1158,74 @@ static int (*rk808_get_shutdown_func(long variant))(struct rk808 *)
 	}
 }
 
+static int rk8xx_apply_reg_reset_config(struct rk808 *rk808)
+{
+	int pmic_id, value;
+	int ret = 0;
+
+	if (!rk808->need_reg_reset) {
+		dev_info(&rk808->i2c->dev, "No register reset required for PMIC variant 0x%lx\n",
+			 rk808->variant);
+		return 0;
+	}
+	/* Configure PMIC based on variant */
+	switch (rk808->variant) {
+	case RK805_ID:
+		ret = regmap_read(rk808->regmap, RK808_ID_LSB, &pmic_id);
+		if (ret) {
+			dev_err(&rk808->i2c->dev, "reboot: failed to read RK808_ID_LSB\n");
+			return false;
+		}
+
+		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
+			ret = regmap_update_bits(rk808->regmap,
+						 RK805B_SYS_CFG2,
+						 RK805B_RST_FUNC_MSK,
+						 RK805B_RST_FUNC_REG);
+			if (ret)
+				dev_err(&rk808->i2c->dev, "reboot: failed to set RK805B_SYS_CFG2\n");
+			else
+				dev_info(&rk808->i2c->dev, "reboot: RK805B register reset mode configured\n");
+		}
+		break;
+	case RK809_ID:
+	case RK817_ID:
+		/*
+		 * Poll the RK817_SYS_STS register, waiting for the power key to be
+		 * released (RK817_PWRON_STS bit set). The polling interval is 10 us,
+		 * and the total timeout is 12 seconds. If a timeout occurs, an error
+		 * message is logged with the last read register value.
+		 */
+		dev_info(&rk808->i2c->dev, "Polling RK817_SYS_STS for power key release\n");
+		ret = regmap_read_poll_timeout(rk808->regmap, RK817_SYS_STS, value,
+					       (value & RK817_PWRON_STS),
+					       10,
+					       12 * 1000 * 1000);
+		if (ret)
+			dev_err(&rk808->i2c->dev,
+				"Timeout waiting for power key release (RK817_SYS_STS=0x%x)\n",
+				value);
+
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_RST_FUNC_MSK,
+					 RK817_RST_FUNC_REG);
+		if (ret)
+			dev_err(&rk808->i2c->dev, "reboot: failed to set RK817_RST_FUNC_REG\n");
+		else
+			dev_info(&rk808->i2c->dev, "reboot: RK817/RK809 register reset mode configured\n");
+		break;
+	default:
+		/* Other variants don't support register-only reset */
+		dev_dbg(&rk808->i2c->dev, "PMIC variant 0x%lx doesn't support register-only reset\n",
+			rk808->variant);
+		rk808->need_reg_reset = false;
+		break;
+	}
+
+	return ret;
+}
+
 static void rk808_syscore_shutdown(void)
 {
 	struct rk808_pmic_entry *entry, *tmp;
@@ -1173,6 +1241,18 @@ static void rk808_syscore_shutdown(void)
 	mutex_lock(&rk808_pmic_mutex);
 
 	list_for_each_entry_safe(entry, tmp, &rk808_pmic_list, list) {
+		if (!entry->rk808) {
+			pr_warn("RK808: Invalid PMIC entry\n");
+			continue;
+		}
+
+		if (system_state == SYSTEM_RESTART) {
+			ret = rk8xx_apply_reg_reset_config(entry->rk808);
+			if (ret)
+				pr_err("RK808: Failed to apply register reset config for variant 0x%lx: %d\n",
+				       entry->rk808->variant, ret);
+		}
+
 		if (entry->priority == 0) {
 			pr_info("RK808: Skipping PMIC variant 0x%lx (priority=0)\n",
 				entry->rk808->variant);
@@ -1180,8 +1260,9 @@ static void rk808_syscore_shutdown(void)
 			continue;
 		}
 
-		if (!entry->rk808 || !entry->rk808->shutdown) {
-			pr_warn("RK808: Invalid PMIC entry\n");
+		if (entry->rk808->shutdown) {
+			pr_warn("RK808: No shutdown function for PMIC variant 0x%lx\n",
+				entry->rk808->variant);
 			continue;
 		}
 
@@ -1374,69 +1455,32 @@ static void rk805_of_property_prepare(struct rk808 *rk808, struct device *dev)
 
 /*
  * Helper function to check if a reboot command matches any in the given list
- * and configure the PMIC for register-only reset if matched.
+ * and set a flag for later PMIC register-only reset configuration.
  */
-static bool rk8xx_check_and_set_reg_reset(struct device *dev,
-					  struct rk808 *rk808,
-					  const char *cmd,
-					  const char * const cmd_list[],
-					  int cmd_count)
+static bool rk8xx_check_reg_reset_cmd(struct device *dev,
+				      struct rk808 *rk808,
+				      const char *cmd,
+				      const char * const cmd_list[],
+				      int cmd_count)
 {
 	bool handled = false;
-	int pmic_id;
-	int i, ret = 0;
+	int i;
+
+	rk808->need_reg_reset = false;
 
 	for (i = 0; i < cmd_count; i++) {
 		if (!strcmp(cmd, cmd_list[i])) {
 			dev_info(dev,
-				 "Reboot command '%s' matched, configuring register-only reset\n",
+				 "Reboot command '%s' matched, will configure register-only reset later\n",
 				 cmd);
+			rk808->need_reg_reset = true;
 			handled = true;
 			break;
 		}
 	}
 
 	if (!handled)
-		return false;
-
-	/* Configure PMIC based on variant */
-	switch (rk808->variant) {
-	case RK805_ID:
-		ret = regmap_read(rk808->regmap, RK808_ID_LSB, &pmic_id);
-		if (ret) {
-			dev_err(dev, "reboot: failed to read RK808_ID_LSB\n");
-			return false;
-		}
-
-		if ((pmic_id & RK805B_CHIP_VER_MSK) >= RK805B_CHIP_VER_NUM) {
-			ret = regmap_update_bits(rk808->regmap,
-						 RK805B_SYS_CFG2,
-						 RK805B_RST_FUNC_MSK,
-						 RK805B_RST_FUNC_REG);
-			if (ret)
-				dev_err(dev, "reboot: failed to set RK805B_SYS_CFG2\n");
-			else
-				dev_info(dev, "reboot: RK805B register reset mode configured\n");
-		}
-		break;
-	case RK809_ID:
-	case RK817_ID:
-		ret = regmap_update_bits(rk808->regmap,
-					 RK817_SYS_CFG(3),
-					 RK817_RST_FUNC_MSK,
-					 RK817_RST_FUNC_REG);
-		if (ret)
-			dev_err(dev, "reboot: failed to set RK817_RST_FUNC_REG\n");
-		else
-			dev_info(dev, "reboot: RK817/RK809 register reset mode configured\n");
-		break;
-	default:
-		/* Other variants don't support register-only reset */
-		dev_dbg(dev, "PMIC variant 0x%lx doesn't support register-only reset\n",
-			rk808->variant);
-		handled = false;
-		break;
-	}
+		dev_info(dev, "Reboot command '%s' not matched for register reset\n", cmd);
 
 	return handled;
 }
@@ -1471,7 +1515,7 @@ static bool rk8xx_check_all_commands_and_set_reg_reset(struct device *dev,
 
 	/* Check all command lists in order */
 	for (i = 0; i < num_lists; i++) {
-		handled = rk8xx_check_and_set_reg_reset(dev, rk808, cmd,
+		handled = rk8xx_check_reg_reset_cmd(dev, rk808, cmd,
 							cmd_lists[i].list,
 							cmd_lists[i].count);
 		if (handled)
@@ -1489,11 +1533,12 @@ static bool rk8xx_check_all_commands_and_set_reg_reset(struct device *dev,
  *	0b'00: reset the PMIC itself completely.
  *	0b'01: reset the 'RST' related register only.
  *
- * In the case of 0b'00, PMIC reset itself which triggers SoC NPOR-reset
- * at the same time, so the command: reboot load/bootload/recovery, etc
- * is not effect any more.
- *
- * Here we check if this reboot cmd is what we expect for 0b'01.
+ * To use mode 0b‘01 for specific commands (e.g., reboot loader), we need to
+ * program the PMIC accordingly before shutdown. This function:
+ * 1. Checks the reboot command against a list to decide if register-only reset is needed.
+ * 2. For RK817/RK809, restores the POWER_EN registers from saved values.
+ * 3. Sets a flag (`need_reg_reset`) if register-only reset is required.
+ * The actual register programming is done later in `rk8xx_apply_reg_reset_config`.
  */
 static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 					 unsigned long action, void *cmd)
@@ -1514,11 +1559,6 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 	case RK805_ID:
 		if (action != SYS_RESTART || !cmd)
 			return NOTIFY_OK;
-
-		/* Check all command lists (extended from DT and built-in) */
-		handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
-								     data->rk808,
-								     cmd);
 		break;
 	case RK809_ID:
 	case RK817_ID:
@@ -1551,10 +1591,6 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 		if (action != SYS_RESTART || !cmd)
 			return NOTIFY_OK;
 
-		/* Check all command lists (extended from DT and built-in) */
-		handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
-								     data->rk808,
-								     cmd);
 		break;
 	case RK801_ID:
 	case RK808_ID:
@@ -1572,8 +1608,12 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 		break;
 	}
 
+	/* Check all command lists (extended from DT and built-in) */
+	handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
+							     data->rk808,
+							     cmd);
 	if (handled) {
-		dev_info(dev, "PMIC reboot notifier handled successfully\n");
+		dev_info(dev, "PMIC reboot command check completed, will apply in syscore_shutdown\n");
 		return NOTIFY_OK;
 	}
 
