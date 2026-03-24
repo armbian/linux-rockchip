@@ -5430,14 +5430,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
 
-		/*
-		 * After vop initialization, keep sw_sharp_enable always on.
-		 * Only enable/disable sharp submodule to avoid black screen.
-		 */
-		if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled &&
-		    (vop2->version == VOP_VERSION_RK3576))
-			writel(0x1, vop2->sharp_res.regs);
-
 		/* disable immediately enable bit for dp */
 		VOP_CTRL_SET(vop2, dp0_regdone_imd_en, 0);
 		VOP_CTRL_SET(vop2, dp1_regdone_imd_en, 0);
@@ -5485,6 +5477,14 @@ static void vop2_initial(struct drm_crtc *crtc)
 	}
 
 	vop2_debug_irq_enable(crtc);
+
+	/*
+	 * After vop initialization, keep sw_sharp_enable always on.
+	 * Only enable/disable sharp submodule to avoid black screen.
+	 */
+	if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled &&
+	    (vop2->version == VOP_VERSION_RK3576))
+		writel(0x1, vop2->sharp_res.regs);
 
 	vop2->enable_count++;
 
