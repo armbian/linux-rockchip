@@ -74,6 +74,10 @@
  *
  * V3.11.00
  *     1. compatible with kernel-6.12
+ *
+ * V3.12.00
+ *     1. if local_power_off_enable == 0, add power control when suspend and resume.
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -101,7 +105,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x11, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x12, 0x00)
 
 #define MAXIM2C_NAME			"maxim2c"
 
@@ -395,7 +399,7 @@ static int maxim2c_device_power_on(maxim2c_t *maxim2c)
 	ret = regulator_bulk_enable(MAXIM2C_NUM_SUPPLIES, maxim2c->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = regulator_enable(maxim2c->pwdn_regulator);
@@ -407,19 +411,24 @@ static int maxim2c_device_power_on(maxim2c_t *maxim2c)
 	return 0;
 }
 
-static void maxim2c_device_power_off(maxim2c_t *maxim2c)
+static int maxim2c_device_power_off(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
 	int ret = 0;
 
 	ret = regulator_disable(maxim2c->pwdn_regulator);
-	if (ret < 0)
-		dev_warn(dev, "Unable to turn pwdn regulator off\n");
+	if (ret < 0) {
+		dev_err(dev, "Unable to turn pwdn regulator off\n");
+		return ret;
+	}
 
 	ret = regulator_bulk_disable(MAXIM2C_NUM_SUPPLIES, maxim2c->supplies);
 	if (ret < 0) {
-		dev_warn(dev, "Failed to disable regulators\n");
+		dev_err(dev, "Failed to disable regulators\n");
+		return ret;
 	}
+
+	return 0;
 }
 
 static int maxim2c_runtime_resume(struct device *dev)
@@ -447,9 +456,7 @@ static int maxim2c_runtime_suspend(struct device *dev)
 
 	dev_info(dev, "maxim2c runtime suspend\n");
 
-	maxim2c_device_power_off(maxim2c);
-
-	return 0;
+	return maxim2c_device_power_off(maxim2c);
 }
 
 static int __maybe_unused maxim2c_resume(struct device *dev)
@@ -463,6 +470,12 @@ static int __maybe_unused maxim2c_resume(struct device *dev)
 		return 0;
 
 	dev_info(dev, "maxim2c resume\n");
+
+	ret = maxim2c_device_power_on(maxim2c);
+	if (ret) {
+		dev_err(dev, "device power on error\n");
+		return ret;
+	}
 
 #if MAXIM2C_TEST_PATTERN
 	ret = maxim2c_pattern_hw_init(maxim2c);
@@ -486,11 +499,18 @@ static int __maybe_unused maxim2c_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
+	int ret = 0;
 
 	if (maxim2c->local_power_off_enable != 0)
 		return 0;
 
 	dev_info(dev, "maxim2c suspend\n");
+
+	ret = maxim2c_device_power_off(maxim2c);
+	if (ret) {
+		dev_err(dev, "device power off error\n");
+		return ret;
+	}
 
 	return 0;
 }
