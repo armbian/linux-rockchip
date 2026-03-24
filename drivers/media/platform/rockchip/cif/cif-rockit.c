@@ -201,6 +201,9 @@ int rkcif_rockit_buf_queue(struct rockit_rkcif_cfg *input_rockit_cfg)
 	list_add_tail(&rkcif_buf->cif_buf.queue, &stream->rockit_buf_head);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
+	atomic_inc(&stream->buf_cnt);
+	if (stream->state == RKCIF_STATE_READY)
+		stream->total_buf_num++;
 	if (stream->lack_buf_cnt)
 		rkcif_check_buffer_update_pingpong_rockit(stream, stream->id);
 	return 0;
@@ -248,8 +251,13 @@ int rkcif_rockit_buf_done(struct rkcif_stream *stream, struct rkcif_buffer *buf)
 	else
 		rockit_rkcif_cfg->is_empty = false;
 
-	if (rockit_rkcif_cfg->rkcif_rockit_mpibuf_done)
+	if (rockit_rkcif_cfg->rkcif_rockit_mpibuf_done) {
 		rockit_rkcif_cfg->rkcif_rockit_mpibuf_done(rockit_rkcif_cfg);
+		atomic_dec(&stream->buf_cnt);
+	} else {
+		v4l2_err(&dev->v4l2_dev, "%s %d, stream[%d] rockit buf done 0x%x fail, %p\n",
+			 __func__, __LINE__, stream->id, rkcif_buf->cif_buf.buff_addr[0], rockit_rkcif_cfg->rkcif_rockit_mpibuf_done);
+	}
 
 	return 0;
 }
@@ -282,6 +290,10 @@ static int rkcif_rockit_buf_free(struct rkcif_stream *stream)
 	stream->curr_buf_rockit = NULL;
 	stream->next_buf_rockit = NULL;
 	INIT_LIST_HEAD(&stream->rockit_buf_head);
+
+	atomic_set(&stream->buf_cnt, 0);
+	stream->total_buf_num = 0;
+
 	return 0;
 }
 

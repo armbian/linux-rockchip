@@ -3816,8 +3816,13 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 	}
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
+	memset(&stream->buf_state, 0, sizeof(stream->buf_state));
 	if (!list_empty(&stream->rockit_buf_head)) {
-
+		if (stream->curr_buf_rockit && stream->next_buf_rockit &&
+		    stream->curr_buf_rockit != stream->next_buf_rockit)
+			stream->buf_state.state = RKCIF_BUF_ROTATE;
+		else
+			stream->buf_state.state = RKCIF_BUF_LOSS;
 		if (!dummy_buf->is_allocated &&
 		    stream->curr_buf_rockit == stream->next_buf_rockit &&
 		    (rkcif_get_interlace_mode(stream) != RKCIF_INTERLACE_SOFT ||
@@ -3879,11 +3884,13 @@ static int rkcif_assign_new_buffer_update_rockit(struct rkcif_stream *stream,
 			}
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
+			stream->buf_state.state = RKCIF_BUF_THESAME;
 		} else {
 			stream->curr_buf_rockit = NULL;
 			stream->next_buf_rockit = NULL;
 			if (stream->lack_buf_cnt < 2)
 				stream->lack_buf_cnt++;
+			stream->buf_state.state = RKCIF_BUF_LOSS;
 		}
 	}
 	stream->frame_phase_cache = stream->frame_phase;
@@ -3950,14 +3957,29 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 
 	if (stream->state != RKCIF_STATE_STREAMING ||
 	    rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT ||
-	    rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
+	    rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO ||
+	    stream->buf_state.state == RKCIF_BUF_ROTATE ||
+	    (stream->buf_state.state == RKCIF_BUF_THESAME &&
+	     stream->buf_state.check_cnt >= 1) ||
+	    (stream->buf_state.state == RKCIF_BUF_LOSS &&
+	     stream->buf_state.check_cnt >= 2))
 		return;
 
+	frame_phase = stream->frame_phase_cache;
+	if (stream->buf_state.state == RKCIF_BUF_LOSS) {
+		if (stream->buf_state.check_cnt == 0) {
+			is_dual_update_buf = true;
+		} else {
+			if (frame_phase == CIF_CSI_FRAME0_READY)
+				frame_phase = CIF_CSI_FRAME1_READY;
+			else
+				frame_phase = CIF_CSI_FRAME0_READY;
+		}
+	}
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (stream->curr_buf_rockit == stream->next_buf_rockit ||
 	    stream->curr_buf_rockit == NULL ||
 	    stream->next_buf_rockit == NULL) {
-		frame_phase = stream->frame_phase_cache;
 		if (!stream->is_line_wake_up ||
 		    (stream->is_line_wake_up && stream->frame_idx < 2)) {
 			if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
@@ -3980,12 +4002,10 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 				frm_addr_y = frm1_addr_y;
 				frm_addr_uv = frm1_addr_uv;
 			}
-			if (!stream->dma_en && stream->curr_buf_rockit == NULL && stream->next_buf_rockit == NULL)
-				is_dual_update_buf = true;
 			if (!list_empty(&stream->rockit_buf_head)) {
 				if (frame_phase == CIF_CSI_FRAME0_READY) {
 					stream->curr_buf_rockit = list_first_entry(&stream->rockit_buf_head,
-									    struct rkcif_buffer, queue);
+										   struct rkcif_buffer, queue);
 					if (stream->curr_buf_rockit) {
 						list_del(&stream->curr_buf_rockit->queue);
 						buffer = stream->curr_buf_rockit;
@@ -3994,7 +4014,7 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 						stream->next_buf_rockit = buffer;
 				} else if (frame_phase == CIF_CSI_FRAME1_READY) {
 					stream->next_buf_rockit = list_first_entry(&stream->rockit_buf_head,
-								    struct rkcif_buffer, queue);
+										   struct rkcif_buffer, queue);
 					if (stream->next_buf_rockit) {
 						list_del(&stream->next_buf_rockit->queue);
 						buffer = stream->next_buf_rockit;
@@ -4039,7 +4059,7 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 			if (stream->curr_buf_rockit == stream->next_buf_rockit) {
 				if (stream->frame_phase_cache == CIF_CSI_FRAME0_READY) {
 					stream->curr_buf_rockit = list_first_entry(&stream->rockit_buf_head,
-									    struct rkcif_buffer, queue);
+										   struct rkcif_buffer, queue);
 					v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 						 "%s %d, stream[%d] buf idx %d\n",
 						 __func__, __LINE__, stream->id, stream->curr_buf_rockit->vb.vb2_buf.index);
@@ -4047,7 +4067,7 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 						list_del(&stream->curr_buf_rockit->queue);
 				} else if (stream->frame_phase_cache == CIF_CSI_FRAME1_READY) {
 					stream->next_buf_rockit = list_first_entry(&stream->rockit_buf_head,
-									    struct rkcif_buffer, queue);
+										   struct rkcif_buffer, queue);
 					v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
 						 "%s %d, stream[%d] buf idx %d\n",
 						 __func__, __LINE__, stream->id, stream->next_buf_rockit->vb.vb2_buf.index);
