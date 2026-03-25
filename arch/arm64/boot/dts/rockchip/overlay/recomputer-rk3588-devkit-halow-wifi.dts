@@ -1,0 +1,52 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
+#include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+
+		
+	fragment@0 {
+		target = <&spi1>;
+		__overlay__ {
+            spidev@0 {
+                compatible = "spidev";
+                reg = <0>;
+                status = "disabled";
+            };
+
+            m6108: mm6108@0 {
+            	compatible = "morse,mm610x-spi";
+            	reg = <0>;
+            	spi-max-frequency = <50000000>;
+            	spi-irq-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+            	// reset-gpios = <&gpio_xten 4 GPIO_ACTIVE_HIGH>;
+            	// power-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>, <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+            	status = "okay";
+            };
+		};
+	};
+
+
+	fragment@1 {
+		target = <&gpio4>;
+		__overlay__ {
+			lte_reset_hog: lte-reset-hog {
+				gpio-hog;
+				gpios = <RK_PB3 GPIO_ACTIVE_HIGH>;
+				output-high;              
+				line-name = "lte_reset";
+		};
+	};
+};
+
+};
+

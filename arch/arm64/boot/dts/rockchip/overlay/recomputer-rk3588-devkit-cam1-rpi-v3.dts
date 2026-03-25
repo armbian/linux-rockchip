@@ -1,0 +1,95 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable recomputer rk3588 cam1 rpi v3";
+		compatible = "seeed studio,recomputer rk3588 devkit";
+		category = "camera";
+		exclusive = "recomputer-rk3588-cam1";
+		description = "Enable CAM1 Raspberry Pi Camera v3 (IMX708).";
+	};
+
+	fragment@0 {
+		target = <&cam1_rst>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@1 {
+		target = <&cam1_pwr>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@2 {
+		target = <&clk_cam_24m_1>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@3 {
+		target = <&i2c6>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@4 {
+		target = <&imx219_1>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@5 {
+		target = <&dw9817_1>;
+		__overlay__ {
+			status = "okay";
+			VDD-supply = <&cam1_rst>;
+		};
+	};
+
+	fragment@6 {
+		target = <&imx708_1>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@7 {
+		target = <&csi2_dphy3>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@8 {
+		target = <&mipi4_csi2>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@9 {
+		target = <&rkcif_mipi_lvds4>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@10 {
+		target = <&rkcif_mipi_lvds4_sditf>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@11 {
+		target = <&rkisp1_vir1>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@12 {
+		target = <&rkcif>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@13 {
+		target = <&rkcif_mmu>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@14 {
+		target = <&rkisp1>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@15 {
+		target = <&isp1_mmu>;
+		__overlay__ { status = "okay"; };
+	};
+};

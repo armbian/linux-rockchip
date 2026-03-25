@@ -1,0 +1,435 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Luckfox Technology Co., Ltd.
+ *
+ */
+
+/ {
+	/* Camera reset/power rails */
+	cam0_rst: cam0-rst {
+		compatible = "regulator-fixed";
+		regulator-name = "cam0_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	cam1_rst: cam1-rst {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	cam0_pwr: cam0-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "cam0_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	cam1_pwr: cam1-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	/* Camera clocks */
+	clk_cam_24m: external-camera-clock-24m {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "clk_cam_24m";
+		#clock-cells = <0>;
+	};
+
+	clk_cam_24m_1: external-camera-clock-24m-1 {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "clk_cam_24m_1";
+		#clock-cells = <0>;
+	};
+};
+
+/* cam0: i2c3 */
+&i2c3 {
+	status = "disabled";
+	pinctrl-0 = <&i2c3m1_xfer>;
+
+	imx219_0: imx219@10 {
+		status = "disabled";
+		
+		compatible = "sony,imx219";
+		reg = <0x10>;
+		clocks = <&clk_cam_24m>;
+		clock-names = "xvclk";
+		vana-supply = <&cam0_pwr>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "rpi-camera-v2";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			imx219_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* Raspberry Pi Camera v3 (IMX708 + VCM) */
+	dw9817_0: dw9817@c {
+		compatible = "dongwoon,dw9817-vcm";
+		status = "disabled";
+		reg = <0x0c>;
+		VDD-supply = <&cam0_rst>;
+		rockchip,camera-module-index = <0>;
+		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-rated-current = <85>;
+		rockchip,vcm-step-mode = <5>;
+		rockchip,camera-module-facing = "front";
+	};
+
+	imx708_0: imx708@1a {
+		status = "disabled";
+		compatible = "sony,imx708";
+		reg = <0x1a>;
+		clocks = <&clk_cam_24m>;
+		clock-names = "xclk";
+		vana1-supply = <&cam0_pwr>;
+		pinctrl-names = "default";
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "rpi-camera-v3";
+		rockchip,camera-module-lens-name = "default";
+		lens-focus = <&dw9817_0>;
+
+		port {
+			imx708_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
+};
+
+/* cam1: i2c6 */
+&i2c6 {
+	status = "disabled";
+
+	imx219_1: imx219@10 {
+		status = "disabled";
+		compatible = "sony,imx219";
+		reg = <0x10>;
+		clocks = <&clk_cam_24m_1>;
+		clock-names = "xvclk";
+		vana-supply = <&cam1_pwr>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "rpi-camera-v2";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			imx219_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* Raspberry Pi Camera v3 (IMX708 + VCM) */
+	dw9817_1: dw9817@c {
+		compatible = "dongwoon,dw9817-vcm";
+		status = "disabled";
+		reg = <0x0c>;
+		VDD-supply = <&cam1_rst>;
+		rockchip,camera-module-index = <1>;
+		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-rated-current = <85>;
+		rockchip,vcm-step-mode = <5>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	imx708_1: imx708@1a {
+		status = "disabled";
+		compatible = "sony,imx708";
+		reg = <0x1a>;
+		clocks = <&clk_cam_24m_1>;
+		clock-names = "xclk";
+		vana1-supply = <&cam1_pwr>;
+		pinctrl-names = "default";
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "rpi-camera-v3";
+		rockchip,camera-module-lens-name = "default";
+		lens-focus = <&dw9817_1>;
+
+		port {
+			imx708_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam3>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&csi2_dphy0 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&imx219_out0>;
+				data-lanes = <1 2>;
+			};
+
+			 mipi_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx708_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy3 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&imx219_out1>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam3: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx708_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input_1>;
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&mipi2_csi2 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi2_in0>;
+			};
+		};
+	};
+};
+
+&mipi4_csi2 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input_1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output_1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in1>;
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&rkcif_mipi_lvds2 {
+	status = "disabled";
+
+	port {
+		cif_mipi2_in0: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds4 {
+	status = "disabled";
+
+	port {
+		cif_mipi4_in1: endpoint {
+			remote-endpoint = <&mipi4_csi2_output_1>;
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&rkcif_mipi_lvds2_sditf {
+	status = "disabled";
+
+	port {
+		mipi_lvds2_sditf: endpoint {
+			remote-endpoint = <&isp0_vir0>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf {
+	status = "disabled";
+
+	port {
+		mipi_lvds4_sditf: endpoint {
+			remote-endpoint = <&isp1_vir1>;
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&rkisp0_vir0 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds2_sditf>;
+		};
+	};
+};
+
+&rkisp1_vir1 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf>;
+		};
+	};
+};
+
+/*-----------------------------------------------------------------------*/
+
+&rkcif {
+	status = "disabled";
+};
+
+&rkcif_mmu {
+	status = "disabled";
+};
+
+&rkisp0 {
+	status = "disabled";
+};
+
+&isp0_mmu {
+	status = "disabled";
+};
+
+&rkisp1 {
+	status = "disabled";
+};
+
+&isp1_mmu {
+	status = "disabled";
+};
+
+/*-----------------------------------------------------------------------*/
