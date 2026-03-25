@@ -22,6 +22,7 @@ Linux Tracing Technologies
    events-msr
    mmiotrace
    events-pci
+   events-pci-controller
    histogram
    histogram-design
    boottime-trace
