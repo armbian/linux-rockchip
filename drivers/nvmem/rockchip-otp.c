@@ -854,10 +854,10 @@ static int rockchip_otp_read(void *context, unsigned int offset,
 	}
 
 	ret = rockchip_otp_lock(otp);
-	if (ret)
-		return ret;
-	ret = otp->data->reg_read(context, offset, val, bytes);
-	rockchip_otp_unlock(otp);
+	if (!ret) {
+		ret = otp->data->reg_read(context, offset, val, bytes);
+		rockchip_otp_unlock(otp);
+	}
 
 	clk_bulk_disable_unprepare(otp->data->num_clks, otp->clks);
 
@@ -868,17 +868,28 @@ static int rockchip_otp_write(void *context, unsigned int offset, void *val,
 			      size_t bytes)
 {
 	struct rockchip_otp *otp = context;
-	int ret = -EINVAL;
+	int ret;
+
+	if (!otp->data || !otp->data->reg_write)
+		return -EINVAL;
+
+	if (rockchip_otp_wr_magic != ROCKCHIP_OTP_WR_MAGIC)
+		return -EINVAL;
+
+	ret = clk_bulk_prepare_enable(otp->data->num_clks, otp->clks);
+	if (ret < 0) {
+		dev_err(otp->dev, "failed to prepare/enable clks\n");
+		return ret;
+	}
 
 	ret = rockchip_otp_lock(otp);
-	if (ret)
-		return ret;
-	if (rockchip_otp_wr_magic == ROCKCHIP_OTP_WR_MAGIC &&
-	    otp->data && otp->data->reg_write) {
+	if (!ret) {
 		ret = otp->data->reg_write(context, offset, val, bytes);
 		rockchip_otp_wr_magic = 0;
+		rockchip_otp_unlock(otp);
 	}
-	rockchip_otp_unlock(otp);
+
+	clk_bulk_disable_unprepare(otp->data->num_clks, otp->clks);
 
 	return ret;
 }
