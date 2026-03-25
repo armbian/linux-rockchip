@@ -557,8 +557,8 @@
 		];
 
 		panel-exit-sequence = [
-			05 00 01 28
-			05 00 01 10
+			05 05 01 28
+			05 78 01 10
 		];
 
 		disp_timings0: display-timings {
