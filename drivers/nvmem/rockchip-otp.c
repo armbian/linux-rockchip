@@ -89,6 +89,11 @@
 #define RK3538_OTPC_SBPI_CTRL		0x01F8
 #define RK3538_OTPC_SBPI_CMD_VALID_PRE	0x02C0
 #define RK3538_OTPC_USER_Q		0x02D8
+#define RK3538_OTP_ECC_RO_SIZE		0x90
+#define RK3538_OTP_NOECC_RO_OFFSET	RK3538_OTP_ECC_RO_SIZE
+#define RK3538_OTP_NOECC_RO_SIZE	0x10
+#define RK3538_OTP_ECC_RW_OFFSET	(RK3538_OTP_NOECC_RO_OFFSET + RK3538_OTP_NOECC_RO_SIZE)
+#define RK3538_OTP_SIZE			0xc0
 
 #define RK3568_NBYTES			2
 
@@ -489,8 +494,8 @@ static int rk3538_otp_ecc_enable(struct rockchip_otp *otp, bool enable)
 	return ret;
 }
 
-static int rk3538_otp_read(void *context, unsigned int offset, void *val,
-			   size_t bytes)
+static int rk3538_otp_read_common(void *context, unsigned int offset, void *val,
+				  size_t bytes, bool ecc_enable)
 {
 	struct rockchip_otp *otp = context;
 	unsigned int addr_start, addr_end, addr_offset, addr_len;
@@ -509,14 +514,8 @@ static int rk3538_otp_read(void *context, unsigned int offset, void *val,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = clk_bulk_prepare_enable(otp->num_clks, otp->clks);
-	if (ret < 0) {
-		dev_err(otp->dev, "failed to prepare/enable clks\n");
-		goto out;
-	}
-
 	writel(OTPC_LOCK | OTPC_LOCK_MASK, otp->base + RK3538_OTPC_LOCK_CTRL);
-	ret = rk3538_otp_ecc_enable(otp, true);
+	ret = rk3538_otp_ecc_enable(otp, ecc_enable);
 	if (ret < 0) {
 		dev_err(otp->dev, "rockchip_otp_ecc_enable err\n");
 		goto unlock;
@@ -534,11 +533,13 @@ static int rk3538_otp_read(void *context, unsigned int offset, void *val,
 			dev_err(otp->dev, "timeout during read setup\n");
 			goto read_end;
 		}
-		otp_qp = readl(otp->base + RK3538_OTPC_USER_QP);
-		if (((otp_qp & 0xc0) == 0xc0) || (otp_qp & 0x20)) {
-			ret = -EIO;
-			dev_err(otp->dev, "ecc check error during read setup\n");
-			goto read_end;
+		if (ecc_enable) {
+			otp_qp = readl(otp->base + RK3538_OTPC_USER_QP);
+			if (((otp_qp & 0xc0) == 0xc0) || (otp_qp & 0x20)) {
+				ret = -EIO;
+				dev_err(otp->dev, "ecc check error during read setup\n");
+				goto read_end;
+			}
 		}
 		out_value = readl(otp->base + RK3538_OTPC_USER_Q);
 		memcpy(&buf[i], &out_value, RK3568_NBYTES);
@@ -550,9 +551,51 @@ read_end:
 	writel(0x0 | OTPC_USE_USER_MASK, otp->base + RK3538_OTPC_USER_CTRL);
 unlock:
 	writel(OTPC_LOCK_MASK, otp->base + RK3538_OTPC_LOCK_CTRL);
-	clk_bulk_disable_unprepare(otp->num_clks, otp->clks);
-out:
 	kfree(buf);
+
+	return ret;
+}
+
+static int rk3538_otp_read(void *context, unsigned int offset, void *val,
+			   size_t bytes)
+{
+	struct rockchip_otp *otp = context;
+	u8 *buf = val;
+	size_t rbytes;
+	int ret = 0;
+
+	if (offset >= otp->data->size)
+		return -ENOMEM;
+	if (offset + bytes > otp->data->size)
+		bytes = otp->data->size - offset;
+
+	ret = clk_bulk_prepare_enable(otp->num_clks, otp->clks);
+	if (ret < 0) {
+		dev_err(otp->dev, "failed to prepare/enable clks\n");
+		return ret;
+	}
+
+	while (bytes) {
+		if (offset < RK3538_OTP_NOECC_RO_OFFSET) {
+			rbytes = min_t(size_t, bytes, RK3538_OTP_NOECC_RO_OFFSET - offset);
+			ret = rk3538_otp_read_common(context, offset, buf, rbytes, true);
+		} else if (offset < RK3538_OTP_ECC_RW_OFFSET) {
+			rbytes = min_t(size_t, bytes, RK3538_OTP_ECC_RW_OFFSET - offset);
+			ret = rk3538_otp_read_common(context, offset, buf, rbytes, false);
+		} else {
+			rbytes = bytes;
+			ret = rk3538_otp_read_common(context, offset, buf, rbytes, true);
+		}
+
+		if (ret)
+			break;
+
+		offset += rbytes;
+		buf += rbytes;
+		bytes -= rbytes;
+	}
+
+	clk_bulk_disable_unprepare(otp->num_clks, otp->clks);
 
 	return ret;
 }
@@ -939,7 +982,7 @@ static const char * const rk3538_otp_clocks[] = {
 };
 
 static const struct rockchip_data rk3538_data = {
-	.size = 0x90,
+	.size = RK3538_OTP_SIZE,
 	.clocks = rk3538_otp_clocks,
 	.num_clks = ARRAY_SIZE(rk3538_otp_clocks),
 	.reg_read = rk3538_otp_read,
