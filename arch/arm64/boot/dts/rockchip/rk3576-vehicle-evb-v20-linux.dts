@@ -414,7 +414,7 @@
 };
 
 /*edp*/
-&i2c3_max96752 {
+&i2c3_max96745 {
 	vpower-supply = <&lcd1_vcc5v_buck>;
 };
 
@@ -448,11 +448,12 @@
 /*dsi*/
 &i2c8_max96789 {
 	route-enable;
+	vpower-supply = <&lcd3_vcc5v_buck>;
 };
 
 &i2c8_max96752 {
 	use-reg-check-work;
-	vpower-supply = <&lcd3_vcc5v_buck>;
+	vpower-supply = <&lcd3_vcc12v_buck>;
 };
 
 &dp2lvds_backlight0 {
