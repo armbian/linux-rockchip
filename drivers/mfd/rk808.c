@@ -31,6 +31,8 @@ static const char * const pmic_rst_reg_only_cmd[] = {
 	"loader", "bootloader", "fastboot", "recovery",
 	"ums", "panic", "watchdog", "charge",
 };
+/* Default command string used when the reboot command pointer is NULL */
+static const char pmic_null_reset_cmd[] = "null-rst";
 
 /* Global variables definition */
 static LIST_HEAD(rk808_pmic_list);                  /* Global PMIC registry list */
@@ -1543,6 +1545,7 @@ static bool rk8xx_check_all_commands_and_set_reg_reset(struct device *dev,
 static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 					 unsigned long action, void *cmd)
 {
+	const char *match_cmd = cmd ? (const char *)cmd : pmic_null_reset_cmd;
 	int value, power_en_active0, power_en_active1;
 	struct rk808_reboot_data_t *data;
 	bool handled = false;
@@ -1557,7 +1560,7 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 	/* Execute specific reboot handling based on PMIC variant */
 	switch (data->rk808->variant) {
 	case RK805_ID:
-		if (action != SYS_RESTART || !cmd)
+		if (action != SYS_RESTART)
 			return NOTIFY_OK;
 		break;
 	case RK809_ID:
@@ -1588,7 +1591,7 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 			dev_info(dev, "reboot: not restoring POWER_EN\n");
 		}
 
-		if (action != SYS_RESTART || !cmd)
+		if (action != SYS_RESTART)
 			return NOTIFY_OK;
 
 		break;
@@ -1611,7 +1614,7 @@ static int rk808_reboot_notifier_handler(struct notifier_block *nb,
 	/* Check all command lists (extended from DT and built-in) */
 	handled = rk8xx_check_all_commands_and_set_reg_reset(dev,
 							     data->rk808,
-							     cmd);
+							     match_cmd);
 	if (handled) {
 		dev_info(dev, "PMIC reboot command check completed, will apply in syscore_shutdown\n");
 		return NOTIFY_OK;
