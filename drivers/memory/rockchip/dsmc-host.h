@@ -491,6 +491,62 @@ struct dsmc_cs_map {
 	struct dsmc_map region_map[DSMC_LB_MAX_RGN];
 };
 
+enum dsmc_local_dma_transfer_direction {
+	LOCAL_DMA_WRITE_TO_LBC = 0,	/* AHB -> LBC (write to local bus) */
+	LOCAL_DMA_READ_FROM_LBC = 1,	/* LBC -> AHB (read from local bus) */
+};
+
+enum dsmc_local_dma_burst_type {
+	LOCAL_DMA_BURST_SINGLE = 0,
+	LOCAL_DMA_BURST_INCR4  = 3,
+	LOCAL_DMA_BURST_INCR8  = 5,
+	LOCAL_DMA_BURST_INCR16 = 7,
+};
+
+#define LOCAL_DMA_TRANSFER_UNIT_BYTES 8
+
+#define LOCAL_DMA_BYTES_TO_TRANS_LEN(size) \
+	(((size) + LOCAL_DMA_TRANSFER_UNIT_BYTES - 1) / LOCAL_DMA_TRANSFER_UNIT_BYTES)
+
+#define LOCAL_DMA_NODE_CONFIG(node, dir, burst, peri_en, size, is_last, \
+			      ahb_addr, lbc_addr, next_ptr) \
+	do { \
+		(node)->ll_ctl_f.ll_rdwr = (dir); \
+		(node)->ll_ctl_f.ll_burst = (burst); \
+		(node)->ll_ctl_f.p_trans_en = (peri_en); \
+		(node)->ll_ctl_f.ll_trans_len = LOCAL_DMA_BYTES_TO_TRANS_LEN(size); \
+		(node)->ll_ctl_f.is_ll_last = (is_last); \
+		(node)->ll_ahb_addr = (ahb_addr); \
+		(node)->ll_lbc_addr = (lbc_addr); \
+		(node)->next = (uint64_t)(next_ptr); \
+	} while (0)
+
+/* AHB -> LBC (write to local bus) */
+#define LOCAL_DMA_WRITE_NODE(node, ahb_addr, lbc_addr, size, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_WRITE_TO_LBC, LOCAL_DMA_BURST_INCR16, \
+			      0, size, is_last, ahb_addr, lbc_addr, NULL)
+
+/* LBC -> AHB (read from local bus) */
+#define LOCAL_DMA_READ_NODE(node, lbc_addr, ahb_addr, size, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_READ_FROM_LBC, LOCAL_DMA_BURST_INCR16, \
+			      0, size, is_last, ahb_addr, lbc_addr, NULL)
+
+#define LOCAL_DMA_WRITE_NODE_BURST(node, ahb_addr, lbc_addr, size, burst, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_WRITE_TO_LBC, burst, \
+			      0, size, is_last, ahb_addr, lbc_addr, NULL)
+
+#define LOCAL_DMA_READ_NODE_BURST(node, lbc_addr, ahb_addr, size, burst, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_READ_FROM_LBC, burst, \
+			      0, size, is_last, ahb_addr, lbc_addr, NULL)
+
+#define LOCAL_DMA_WRITE_NODE_WITH_PERI(node, ahb_addr, lbc_addr, size, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_WRITE_TO_LBC, LOCAL_DMA_BURST_INCR16, \
+			      1, size, is_last, ahb_addr, lbc_addr, NULL)
+
+#define LOCAL_DMA_READ_NODE_WITH_PERI(node, lbc_addr, ahb_addr, size, is_last) \
+	LOCAL_DMA_NODE_CONFIG(node, LOCAL_DMA_READ_FROM_LBC, LOCAL_DMA_BURST_INCR16, \
+			      1, size, is_last, ahb_addr, lbc_addr, NULL)
+
 /**
  * struct dsmc_local_dma_link_list - DSMC local DMA linked list node
  *
@@ -501,17 +557,17 @@ struct dsmc_cs_map {
  * @ll_ctl: Complete value of linked list control register.
  *	@ll_rdwr: Transfer direction: 0=dsmc write (AHB->LBC), 1=dsmc read (LBC->AHB).
  *	@ll_burst: Burst type: defines burst length.
- *		0: Single, 1: INCR4, 2: INCR8, 3: INCR16
+ *		0: Single, 3: INCR4, 5: INCR8, 7: INCR16
  *		And the burst size is fixed to 8Byte.
  *	@p_trans_en: Peripheral transfer enable.
 		1: use peripheral request mode(external interrupt pin).
- *	@ll_trans_len: Transfer length for this node.
+ *	@ll_trans_len: Transfer length for this node, unit 8 Byte.
  *	@is_ll_last: End of list flag: 1=last node in the list.
  * @ll_ahb_addr: Complete value of AHB address register.
  *	@ahb_addr: The AHB address of DMA transfer(source or destination).
  * @ll_lbc_addr: Complete value of LBC address register.
  *	@lbc_addr: The LocalBus address of DMA transfer(source or destination).
- * @next: Pointer to next list node.
+ * @next: Physical address of the next linked list node
  */
 struct dsmc_local_dma_link_list {
 	union {
@@ -539,7 +595,7 @@ struct dsmc_local_dma_link_list {
 			uint64_t reserved:32;
 		} ll_lbc_addr_f;
 	};
-	struct dsmc_local_dma_link_list *next;
+	uint64_t next;
 };
 
 /**
@@ -664,6 +720,29 @@ static inline void dsmc_modify_reg(struct rockchip_dsmc *dsmc, uint32_t offset,
 	value &= ~clrbits;
 	value |= setbits;
 	writel(value, dsmc->regs + offset);
+}
+
+static inline int dsmc_local_dma_node_link_to_phys(struct dsmc_local_dma_link_list *node,
+						   phys_addr_t next_phys)
+{
+	if (!node) {
+		pr_err("%s: node is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	node->next = (uint64_t)next_phys;
+	return 0;
+}
+
+static inline int dsmc_local_dma_node_set_last(struct dsmc_local_dma_link_list *node)
+{
+	if (!node) {
+		pr_err("%s: node is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	node->ll_ctl_f.is_ll_last = 1;
+	return 0;
 }
 
 int rockchip_dsmc_ctrller_init(struct rockchip_dsmc *dsmc, uint32_t cs);
