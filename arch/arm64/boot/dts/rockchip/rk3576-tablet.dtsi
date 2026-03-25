@@ -688,12 +688,12 @@
 				};
 			};
 
-			vcca3v3_codec: PLDO_REG4 {
+			vcca3v0_codec: PLDO_REG4 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcca3v3_codec";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "vcca3v0_codec";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
