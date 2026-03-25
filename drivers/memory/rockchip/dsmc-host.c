@@ -285,7 +285,6 @@ static int dsmc_parse_dt_regions(struct platform_device *pdev, struct device_nod
 				of_node_put(child_node);
 				goto release_region_node;
 			}
-			rgn->dummy_clk_num--;
 
 			if (of_property_read_u32(child_node, "rockchip,cs0-be-ctrled",
 						&rgn->cs0_be_ctrled)) {

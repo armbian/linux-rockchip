@@ -280,10 +280,10 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		if (!slv_rgn->status)
 			continue;
 
-		if (slv_rgn->dummy_clk_num == 1)
+		if (slv_rgn->dummy_clk_num == 2)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x1 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
-		else if (slv_rgn->dummy_clk_num == 0)
+		else if (slv_rgn->dummy_clk_num == 1)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x0 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
 		else
@@ -416,16 +416,19 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 			       (MCR_CRT_CR_SPACE << MCR_CRT_SHIFT));
 	}
 
-	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
+	for (i = 0; i < DSMC_LB_MAX_RGN && (!ret); i++) {
 		slv_rgn = &cfg->slv_rgn[i];
 		if (!slv_rgn->status)
 			continue;
 		ret = dsmc_slv_cmn_rgn_config(dsmc, slv_rgn, i, cs);
-		if (ret)
+	}
+
+	for (i = 0; i < DSMC_LB_MAX_RGN && (!ret); i++) {
+		slv_rgn = &cfg->slv_rgn[i];
+		if (slv_rgn->status) {
+			ret = dsmc_slv_cmn_config(dsmc, slv_rgn, i, cs);
 			break;
-		ret = dsmc_slv_cmn_config(dsmc, slv_rgn, i, cs);
-		if (ret)
-			break;
+		}
 	}
 
 	for (i = 0; i < DSMC_MAX_SLAVE_NUM; i++)
