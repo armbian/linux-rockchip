@@ -310,65 +310,65 @@
 		dsmc_bus16_pins: dsmc-bus16-pins {
 			rockchip,pins =
 				/* dsmc_clkn */
-				<3 RK_PD6 2 &pcfg_pull_none>,
+				<3 RK_PD6 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_clkp */
-				<3 RK_PD5 2 &pcfg_pull_none>,
+				<3 RK_PD5 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_csn0 */
-				<3 RK_PD3 2 &pcfg_pull_none>,
+				<3 RK_PD3 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_csn1 */
-				<3 RK_PB0 2 &pcfg_pull_none>,
+				<3 RK_PB0 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_csn2 */
-				<3 RK_PD1 2 &pcfg_pull_none>,
+				<3 RK_PD1 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_csn3 */
-				<3 RK_PD2 2 &pcfg_pull_none>,
+				<3 RK_PD2 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data0 */
-				<3 RK_PD4 2 &pcfg_pull_none>,
+				<3 RK_PD4 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data1 */
-				<3 RK_PD0 2 &pcfg_pull_none>,
+				<3 RK_PD0 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data2 */
-				<3 RK_PC7 2 &pcfg_pull_none>,
+				<3 RK_PC7 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data3 */
-				<3 RK_PC6 2 &pcfg_pull_none>,
+				<3 RK_PC6 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data4 */
-				<3 RK_PC5 2 &pcfg_pull_none>,
+				<3 RK_PC5 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data5 */
-				<3 RK_PC4 2 &pcfg_pull_none>,
+				<3 RK_PC4 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data6 */
-				<3 RK_PC1 2 &pcfg_pull_none>,
+				<3 RK_PC1 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data7 */
-				<3 RK_PC0 2 &pcfg_pull_none>,
+				<3 RK_PC0 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data8 */
-				<3 RK_PB5 2 &pcfg_pull_none>,
+				<3 RK_PB5 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data9 */
-				<3 RK_PB4 2 &pcfg_pull_none>,
+				<3 RK_PB4 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data10 */
-				<3 RK_PB3 2 &pcfg_pull_none>,
+				<3 RK_PB3 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data11 */
-				<3 RK_PB2 2 &pcfg_pull_none>,
+				<3 RK_PB2 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data12 */
-				<3 RK_PB1 2 &pcfg_pull_none>,
+				<3 RK_PB1 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data13 */
-				<3 RK_PA7 2 &pcfg_pull_none>,
+				<3 RK_PA7 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data14 */
-				<3 RK_PA6 2 &pcfg_pull_none>,
+				<3 RK_PA6 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_data15 */
-				<3 RK_PA5 2 &pcfg_pull_none>,
+				<3 RK_PA5 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_dqs0 */
-				<3 RK_PB7 2 &pcfg_pull_none>,
+				<3 RK_PB7 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_dqs1 */
-				<3 RK_PB6 2 &pcfg_pull_none>,
+				<3 RK_PB6 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_int0 */
-				<4 RK_PA0 2 &pcfg_pull_none>,
+				<4 RK_PA0 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_int1 */
-				<3 RK_PC2 2 &pcfg_pull_none>,
+				<3 RK_PC2 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_int2 */
-				<4 RK_PA1 2 &pcfg_pull_none>,
+				<4 RK_PA1 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_int3 */
-				<3 RK_PC3 2 &pcfg_pull_none>,
+				<3 RK_PC3 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_rdyn */
-				<3 RK_PA4 2 &pcfg_pull_none>,
+				<3 RK_PA4 2 &pcfg_pull_none_smt_dis>,
 				/* dsmc_resetn */
-				<3 RK_PD7 2 &pcfg_pull_none>;
+				<3 RK_PD7 2 &pcfg_pull_none_smt_dis>;
 		};
 	};
 
