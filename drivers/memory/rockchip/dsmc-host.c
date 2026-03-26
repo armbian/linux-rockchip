@@ -151,6 +151,13 @@ static __maybe_unused int rk3572_dsmc_platform_init(struct platform_device *pdev
 		return ret;
 	}
 
+	dsmc->hclk = devm_clk_get_enabled(dev, "hclk_dsmc");
+	if (IS_ERR(dsmc->hclk)) {
+		ret = PTR_ERR(dsmc->hclk);
+		dev_err(dev, "Can't get and enable hclk clk: %d\n", ret);
+		return ret;
+	}
+
 	return ret;
 }
 

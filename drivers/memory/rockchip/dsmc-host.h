@@ -588,6 +588,7 @@ struct rockchip_dsmc {
 	struct clk *pclk_root;
 	struct clk *pclk_subsys_root;
 	struct clk *aclk;
+	struct clk *hclk;
 	struct clk *pclk;
 	struct clk *clk_sys;
 	struct device *dev;
