@@ -5323,22 +5323,6 @@
 			status = "disabled";
 		};
 
-		hdptxphy_hdmi: hdmiphy@2c310000 {
-			compatible = "rockchip,rk3572-hdptx-phy-hdmi",
-				     "rockchip,rk3588-hdptx-phy-hdmi";
-			reg = <0x0 0x2c310000 0x0 0x2000>;
-			clocks = <&cru CLK_VOSUBSYS_REF>, <&cru PCLK_HDPTXPHY>;
-			clock-names = "ref", "apb";
-			clock-output-names = "clk_hdmiphy_pixel0";
-			#clock-cells = <0>;
-			resets = <&cru SRST_PRESETN_HDPTXPHY>, <&cru SRST_RESETN_HDPTX_INIT>,
-				 <&cru SRST_RESETN_HDPTX_CMN>, <&cru SRST_RESETN_HDPTX_LANE>;
-			reset-names = "apb", "init", "cmn", "lane";
-			rockchip,grf = <&hdptxphy_grf>;
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
 		csi2_dphy0_hw: csi2-dphy0-hw@2c330000 {
 			compatible = "rockchip,rk3572-csi2-dphy-hw";
 			reg = <0x0 0x2c330000 0x0 0x10000>;
