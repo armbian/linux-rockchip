@@ -277,11 +277,11 @@
 	status = "okay";
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "okay";
 };
 
-&hdptxphy_hdmi1 {
+&hdptxphy1 {
 	status = "okay";
 };
 

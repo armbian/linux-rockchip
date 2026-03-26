@@ -357,7 +357,7 @@
 	pinctrl-0 = <&hdmim1_rx &hdmirx_det>;
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "okay";
 };
 

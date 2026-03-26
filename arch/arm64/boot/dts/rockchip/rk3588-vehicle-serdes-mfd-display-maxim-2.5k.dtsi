@@ -428,11 +428,11 @@
 	status = "disabled";
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "disabled";
 };
 
-&hdptxphy_hdmi1 {
+&hdptxphy1 {
 	status = "okay";
 };
 
@@ -2471,7 +2471,7 @@
 //dp0
 &vp0 {
 	assigned-clocks = <&cru DCLK_VOP0>;
-	assigned-clock-parents = <&hdptxphy_hdmi1>;
+	assigned-clock-parents = <&hdptxphy1>;
 };
 
 //edp
@@ -2483,7 +2483,7 @@
 //dp1
 &vp2 {
 	assigned-clocks = <&cru DCLK_VOP2>;
-	assigned-clock-parents = <&hdptxphy_hdmi1>;
+	assigned-clock-parents = <&hdptxphy1>;
 };
 
 //dsi0

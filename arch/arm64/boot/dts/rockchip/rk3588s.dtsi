@@ -5962,7 +5962,7 @@
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>,
-			 <&hdptxphy_hdmi0>;
+			 <&hdptxphy0>;
 		clock-names = "pclk",
 			      "hpd",
 			      "earc",
@@ -5982,7 +5982,7 @@
 		reg-io-width = <4>;
 		rockchip,grf = <&sys_grf>;
 		rockchip,vo1_grf = <&vo1_grf>;
-		phys = <&hdptxphy_hdmi0>;
+		phys = <&hdptxphy0>;
 		phy-names = "hdmi";
 		#sound-dai-cells = <0>;
 		status = "disabled";
