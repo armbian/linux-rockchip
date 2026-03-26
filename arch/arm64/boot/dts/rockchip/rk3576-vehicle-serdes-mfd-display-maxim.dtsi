@@ -221,11 +221,6 @@
 	status = "okay";
 };
 
-&hdptxphy_hdmi {
-	status = "disabled";
-};
-
-
 &i2c8 {
 	status = "okay";
 	pinctrl-names = "default";
