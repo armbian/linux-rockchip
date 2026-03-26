@@ -7891,6 +7891,8 @@
 			 <&cru SRST_HDPTX0_CMN>, <&cru SRST_HDPTX0_LANE>;
 		reset-names = "apb", "init", "cmn", "lane";
 		rockchip,grf = <&hdptxphy0_grf>;
+		clock-output-names = "clk_hdmiphy_pixel0";
+		#clock-cells = <0>;
 		#phy-cells = <0>;
 		status = "disabled";
 	};
