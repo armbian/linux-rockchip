@@ -253,9 +253,16 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	uint32_t value = 0, i;
 	struct regions_config *slv_rgn;
+	struct device *dev = dsmc->dev;
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
 	writel(dsmc->cfg.clk_mode, dsmc->regs + DSMC_CLK_MD);
+	if (dsmc->cfg.version >= DSMC_VERSION_4_0) {
+		if ((!cfg->rcshi) || (!cfg->wcshi)) {
+			dev_err(dev, "mtr.rcshi or mtr.wcshi cannot set 0!\n");
+			return -EINVAL;
+		}
+	}
 	writel(MTR_CFG(cfg->rcshi, cfg->wcshi, cfg->rcss, cfg->wcss,
 		       cfg->rcsh, cfg->wcsh,
 		       calc_ltcy_value(cfg->rd_latency),
@@ -1152,7 +1159,9 @@ int rockchip_dsmc_lb_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	int ret = 0;
 
-	dsmc_ctrller_cfg_for_lb(dsmc, cs);
+	ret = dsmc_ctrller_cfg_for_lb(dsmc, cs);
+	if (ret)
+		return ret;
 	ret = dsmc_lb_cmn_config(dsmc, cs);
 	if (ret)
 		return ret;
