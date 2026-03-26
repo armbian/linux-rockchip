@@ -44,10 +44,6 @@
 	status = "okay";
 };
 
-&hdptxphy_hdmi {
-	status = "disabled";
-};
-
 &sai4 {
 	status = "okay";
 };

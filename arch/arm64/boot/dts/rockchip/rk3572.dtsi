@@ -3089,7 +3089,7 @@
 				 <&cru DCLK_VP0>,
 				 <&cru DCLK_VP1>,
 				 <&cru HCLK_VO_ROOT>,
-				 <&hdptxphy_hdmi>;
+				 <&hdptxphy>;
 			clock-names = "pclk",
 				      "hpd",
 				      "earc",
@@ -3109,7 +3109,7 @@
 			reg-io-width = <4>;
 			rockchip,grf = <&sys_grf>;
 			rockchip,vo0_grf = <&vo_grf>;
-			phys = <&hdptxphy_hdmi>;
+			phys = <&hdptxphy>;
 			phy-names = "hdmi";
 			#sound-dai-cells = <0>;
 			status = "disabled";
