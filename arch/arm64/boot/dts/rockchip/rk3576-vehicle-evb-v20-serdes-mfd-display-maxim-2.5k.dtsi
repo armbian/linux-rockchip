@@ -216,12 +216,7 @@
 	status = "disabled";
 };
 
-
 &hdptxphy {
-	status = "disabled";
-};
-
-&hdptxphy_hdmi {
 	status = "okay";
 };
 
@@ -1700,7 +1695,7 @@
 
 &vp0 {
 	assigned-clocks = <&cru DCLK_VP0>;
-	assigned-clock-parents = <&hdptxphy_hdmi>;
+	assigned-clock-parents = <&hdptxphy>;
 };
 
 //dsi

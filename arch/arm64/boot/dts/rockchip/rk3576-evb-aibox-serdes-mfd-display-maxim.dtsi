@@ -208,10 +208,6 @@
 };
 
 &hdptxphy {
-	status = "disabled";
-};
-
-&hdptxphy_hdmi {
 	status = "okay";
 };
 

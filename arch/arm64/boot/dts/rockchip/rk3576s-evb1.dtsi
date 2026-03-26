@@ -243,7 +243,7 @@
 	status = "okay";
 };
 
-&hdptxphy_hdmi {
+&hdptxphy {
 	status = "okay";
 };
 

@@ -256,7 +256,7 @@
 };
 
 &display_subsystem {
-	clocks = <&hdptxphy_hdmi>;
+	clocks = <&hdptxphy>;
 	clock-names = "hdmi0_phy_pll";
 };
 

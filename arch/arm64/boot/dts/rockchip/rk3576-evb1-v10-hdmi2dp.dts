@@ -69,10 +69,6 @@
 	status = "okay";
 };
 
-&hdptxphy_hdmi {
-	status = "disabled";
-};
-
 &route_dsi {
 	status = "disabled";
 };
