@@ -1093,8 +1093,28 @@ static int rk730_probe(struct snd_soc_component *component)
 	return ret;
 }
 
+static int rk730_suspend(struct snd_soc_component *component)
+{
+	struct rk730_priv *rk730 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(rk730->regmap, true);
+	regcache_mark_dirty(rk730->regmap);
+	return 0;
+}
+
+static int rk730_resume(struct snd_soc_component *component)
+{
+	struct rk730_priv *rk730 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(rk730->regmap, false);
+	rk730_reset(component);
+	return regcache_sync(rk730->regmap);
+}
+
 static const struct snd_soc_component_driver rk730_component_driver = {
 	.probe			= rk730_probe,
+	.suspend		= rk730_suspend,
+	.resume			= rk730_resume,
 	.set_bias_level		= rk730_set_bias_level,
 	.controls		= rk730_snd_controls,
 	.num_controls		= ARRAY_SIZE(rk730_snd_controls),
