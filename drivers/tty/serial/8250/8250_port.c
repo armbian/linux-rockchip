@@ -1963,8 +1963,11 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
 		int dma_err = -1;
 
-		if (up->dma && up->dma->rxchan)
+		if (up->dma && up->dma->rxchan) {
 			dma_err = handle_rx_dma(up, iir);
+			/* Clear lsr_saved_flags here, because it's not updated in handle_rx_dma */
+			up->lsr_saved_flags = 0;
+		}
 
 		if (!up->dma || dma_err)
 			status = serial8250_rx_chars(up, status);
