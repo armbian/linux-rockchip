@@ -1223,7 +1223,6 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 	int value, chip_ver;
 	int i;
 
-	rk806_field_write(rk806, RST_FUN, 0x00);
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 
 	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
@@ -1279,8 +1278,6 @@ static int __maybe_unused rk806_resume(struct device *dev)
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 	rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
 	rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
-
-	rk806_field_write(rk806, RST_FUN, 0x01);
 
 	return 0;
 }
