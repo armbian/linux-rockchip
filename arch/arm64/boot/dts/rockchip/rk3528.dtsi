@@ -1520,12 +1520,15 @@
 	};
 
 	hdcp2: hdcp2@ff8c0000 {
-		compatible = "rockchip,rk3528-hdmi-hdcp2";
+		compatible = "rockchip,rk3528-hdcp";
 		reg = <0x0 0xff8c0000 0x0 0x2000>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_HDCP>, <&cru PCLK_HDCP>,
-			 <&cru HCLK_HDCP>;
-		clock-names ="aclk_hdcp2", "pclk_hdcp2", "hdcp2_clk_hdmi";
+			 <&cru HCLK_HDCP>, <&cru HCLK_HDCP_KEY>;
+		clock-names ="aclk_hdcp2", "pclk_hdcp2", "hdcp2_clk_hdmi", "hclk_hdcp_key";
+		resets = <&cru SRST_PRESETN_HDCP>, <&cru SRST_HRESETN_HDCP>,
+			 <&cru SRST_ARESETN_HDCP>, <&cru SRST_HRESETN_HDCP_KEY>;
+		reset-names = "hdcp", "h_hdcp", "a_hdcp", "hdcp_key";
 		status = "disabled";
 	};
 
