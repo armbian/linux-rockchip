@@ -1196,59 +1196,38 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dsmc->clk_sys = devm_clk_get(dev, "clk_sys");
+	dsmc->clk_sys = devm_clk_get_enabled(dev, "clk_sys");
 	if (IS_ERR(dsmc->clk_sys)) {
 		dev_err(dev, "Can't get clk_sys clk\n");
 		return PTR_ERR(dsmc->clk_sys);
 	}
 
-	dsmc->aclk = devm_clk_get(dev, "aclk_dsmc");
+	dsmc->aclk = devm_clk_get_enabled(dev, "aclk_dsmc");
 	if (IS_ERR(dsmc->aclk)) {
 		dev_err(dev, "Can't get aclk_dsmc clk\n");
 		return PTR_ERR(dsmc->aclk);
 	}
 
-	dsmc->pclk = devm_clk_get(dev, "pclk");
+	dsmc->pclk = devm_clk_get_enabled(dev, "pclk");
 	if (IS_ERR(dsmc->pclk)) {
 		dev_err(dev, "Can't get pclk clk\n");
 		return PTR_ERR(dsmc->pclk);
 	}
-	dsmc->aclk_root = devm_clk_get(dev, "aclk_root");
+	dsmc->aclk_root = devm_clk_get_enabled(dev, "aclk_root");
 	if (IS_ERR(dsmc->aclk_root)) {
 		dev_err(dev, "Can't get aclk_root clk\n");
 		return PTR_ERR(dsmc->aclk_root);
 	}
 
-	ret = clk_prepare_enable(dsmc->aclk_root);
-	if (ret) {
-		dev_err(dev, "Can't prepare enable dsmc aclk_root: %d\n", ret);
-		goto out;
-	}
-	ret = clk_prepare_enable(dsmc->aclk);
-	if (ret) {
-		dev_err(dev, "Can't prepare enable dsmc aclk: %d\n", ret);
-		goto err_dis_aclk_root;
-	}
-	ret = clk_prepare_enable(dsmc->pclk);
-	if (ret) {
-		dev_err(dev, "Can't prepare enable dsmc pclk: %d\n", ret);
-		goto err_dis_aclk;
-	}
-	ret = clk_prepare_enable(dsmc->clk_sys);
-	if (ret) {
-		dev_err(dev, "Can't prepare enable dsmc clk_sys: %d\n", ret);
-		goto err_dis_pclk;
-	}
-
 	ret = clk_set_rate(dsmc->aclk_root, dsmc->cfg.freq_hz);
 	if (ret) {
 		dev_err(dev, "Failed to set dsmc aclk_root rate\n");
-		goto err_dis_all_clk;
+		return ret;
 	}
 	ret = clk_set_rate(dsmc->clk_sys, dsmc->cfg.ctrl_freq_hz);
 	if (ret) {
 		dev_err(dev, "Failed to set dsmc sys rate\n");
-		goto err_dis_all_clk;
+		return ret;
 	}
 
 	pm_runtime_enable(dev);
@@ -1256,7 +1235,7 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "%s: pm_runtime_get failed(%d)\n", __func__, ret);
 		pm_runtime_disable(dev);
-		goto err_dis_all_clk;
+		goto out;
 	}
 
 	ret = rockchip_dsmc_dma_request(dev, dsmc);
@@ -1319,17 +1298,10 @@ err_release_dma:
 		dma_release_channel(dsmc->dma_req[0]);
 	if (dsmc->dma_req[1])
 		dma_release_channel(dsmc->dma_req[1]);
+
 err_dis_pm:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-err_dis_all_clk:
-	clk_disable_unprepare(dsmc->clk_sys);
-err_dis_pclk:
-	clk_disable_unprepare(dsmc->pclk);
-err_dis_aclk:
-	clk_disable_unprepare(dsmc->aclk);
-err_dis_aclk_root:
-	clk_disable_unprepare(dsmc->aclk_root);
 
 out:
 	return ret;
@@ -1365,23 +1337,6 @@ static void rk_dsmc_remove(struct platform_device *pdev)
 
 	priv = platform_get_drvdata(pdev);
 	dsmc = &priv->dsmc;
-
-	if (dsmc->aclk_root) {
-		clk_disable_unprepare(dsmc->aclk_root);
-		dsmc->aclk_root = NULL;
-	}
-	if (dsmc->aclk) {
-		clk_disable_unprepare(dsmc->aclk);
-		dsmc->aclk = NULL;
-	}
-	if (dsmc->pclk) {
-		clk_disable_unprepare(dsmc->pclk);
-		dsmc->pclk = NULL;
-	}
-	if (dsmc->clk_sys) {
-		clk_disable_unprepare(dsmc->clk_sys);
-		dsmc->clk_sys = NULL;
-	}
 
 	release_dsmc_mem(dev, dsmc);
 
