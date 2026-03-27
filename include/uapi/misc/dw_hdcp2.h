@@ -38,6 +38,7 @@ enum {
 enum dw_hdcp_event {
 	DW_HDCP_SET_HDMI_BYPASS_EVENT = 0x01,
 	DW_HDCP_GET_HDMI_BYPASS_EVENT,
+	DW_HDCP_GET_HDMI_CONNECT_STATUS,
 	DW_HDCP_EVENT_MAX
 };
 
@@ -159,6 +160,7 @@ struct hl_drv_ioc_intf_info {
 struct hdcp_event {
 	__u8 port;
 	__u8 bypass;
+	__u8 connect_status;
 };
 
 #define RK_DRV_IOC_GET_HDCP_BYPASS _IOWR('H', RK_DRV_NR_GET_HDCP_BYPASS, struct hdcp_event)
