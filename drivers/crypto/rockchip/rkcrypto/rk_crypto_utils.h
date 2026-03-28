@@ -48,6 +48,9 @@ bool rk_crypto_check_dmafd(struct scatterlist *sgl, size_t nents);
 
 u64 rk_crypto_hw_desc_maxlen(struct scatterlist *sg, u64 len, u32 *max_nents);
 
+int rk_crypto_sg_walk_nents(struct scatterlist **sg_src, struct scatterlist **sg_dst,
+			    unsigned int nents, struct device *dev);
+
 int rk_crypto_hw_desc_alloc(struct device *dev, struct rk_hw_desc *hw_desc);
 
 int rk_crypto_hw_desc_init(struct rk_hw_desc *hw_desc,

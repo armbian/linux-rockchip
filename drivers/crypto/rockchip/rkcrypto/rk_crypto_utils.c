@@ -185,6 +185,47 @@ exit:
 	return total > len ? len : total;
 }
 
+/**
+ * rk_crypto_sg_walk_nents - move sg cursor(s) forward by @nents entries
+ * @sg_src: in/out source scatterlist cursor
+ * @sg_dst: in/out destination (NULL for hash / src-only path)
+ * @nents: how many sg entries the previous dma segment covered (e.g. map_nents)
+ * @warn_on_lack: use dev_warn instead of dev_err on short chain
+ *
+ * After a multi-LLI DMA chunk, the next chunk starts at a later sg entry;
+ * this walks @nents links. When @sg_dst is NULL, only @sg_src is advanced.
+ */
+int rk_crypto_sg_walk_nents(struct scatterlist **sg_src, struct scatterlist **sg_dst,
+			    unsigned int nents, struct device *dev)
+{
+	unsigned int i;
+	struct scatterlist *src = *sg_src;
+	struct scatterlist *dst = sg_dst ? *sg_dst : NULL;
+
+	for (i = 0; i < nents; i++) {
+		if (sg_is_last(src)) {
+			dev_err(dev, "[%s:%d] Lack of data\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+		src = sg_next(src);
+
+		if (dst) {
+			if (sg_is_last(dst)) {
+				dev_err(dev, "[%s:%d] Lack of data\n", __func__, __LINE__);
+				return -ENOMEM;
+			}
+			dst = sg_next(dst);
+		}
+	}
+
+	*sg_src = src;
+
+	if (sg_dst)
+		*sg_dst = dst;
+
+	return 0;
+}
+
 int rk_crypto_hw_desc_alloc(struct device *dev, struct rk_hw_desc *hw_desc)
 {
 	u32 lli_cnt = RK_DEFAULT_LLI_CNT;
