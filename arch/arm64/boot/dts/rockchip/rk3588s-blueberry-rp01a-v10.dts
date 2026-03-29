@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3588s-blueberry-rp01a.dtsi"
+
+/ {
+	model = "Rockchip RK3588S Blueberry V10 Board";
+	compatible = "rockchip,rk3588s-Blueberry-v10", "rockchip,rk3588";
+	/delete-node/ chosen;
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm3 0 50000 0>;
+		cooling-levels = <1 50 100 150 200 255>;
+		//cooling-levels = <0 255 255 255 255 255>;
+		rockchip,temp-trips = <
+			50000	1
+			55000	2
+			60000	3
+			65000	4
+			70000	5
+		>;
+		enable-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan0_enable_gpio>;
+		status = "okay";
+	};
+
+};
+
+
+
+&pwm3 {
+	pinctrl-0 = <&pwm3m0_pins>;
+	status = "okay";
+};
+&pcie2x1l2{
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	rockchip,skip-scan-in-resume;
+	status = "okay";
+};
+
+&combphy0_ps{
+	status = "okay";
+};
+
+&uart3 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&uart3m0_xfer>;
+ 	status = "okay";
+};
+
+
+/*
+&rkcif {
+       status = "okay";
+};
+
+&rkcif_mmu {
+       status = "okay";
+};
+
+&rkisp0 {
+       status = "okay";
+};
+
+&isp0_mmu {
+       status = "okay";
+};
+
+&rkisp0_vir0 {
+       status = "okay";
+
+};
+*/
+
+
+&pinctrl {
+	FAN {
+		fan0_enable_gpio: fan0_enable_gpio-int {
+			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
