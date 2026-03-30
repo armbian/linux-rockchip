@@ -1,0 +1,100 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable recomputer rk3576 cam0 rpi v3";
+		compatible = "seeed,recomputer rk3576 devkit";
+		category = "camera";
+		exclusive = "recomputer-rk3576-cam0";
+		description = "Enable CAM0 Raspberry Pi Camera v3 (IMX708) pipeline.";
+	};
+
+	fragment@0 {
+		target = <&cam0_pwr>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@1 {
+		target = <&clk_cam_24m>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@2 {
+		target = <&i2c7>;
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c7m1_xfer>;
+		};
+	};
+
+	fragment@3 {
+		target = <&imx219_0>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@4 {
+		target = <&dw9817_0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@5 {
+		target = <&imx708_0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@6 {
+		target = <&csi2_dcphy0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@7 {
+		target = <&mipi0_csi2>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@8 {
+		target = <&rkcif_mipi_lvds>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@9 {
+		target = <&rkcif_mipi_lvds_sditf>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@10 {
+		target = <&rkisp_vir0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@11 {
+		target = <&rkcif>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@12 {
+		target = <&rkcif_mmu>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@13 {
+		target = <&rkisp>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@14 {
+		target = <&rkisp_mmu>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@15 {
+		target = <&rkvpss>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@16 {
+		target = <&rkvpss_mmu>;
+		__overlay__ { status = "okay"; };
+	};
+};
