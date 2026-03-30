@@ -753,12 +753,12 @@
 	};
 
 
-	// eeprom:	at24c256@57 {
-	// 	status = "okay";
-	// 	compatible = "atmel,24c256";
-	// 	reg = <0x57>;
-	// 	pagesize = <16>;
-	// };
+	eeprom:	at24c256@57 {
+		status = "okay";
+		compatible = "atmel,24c256";
+		reg = <0x57>;
+		pagesize = <16>;
+	};
 
 	pcf8563: pcf8563@51 {
 		compatible = "nxp,pcf8563";

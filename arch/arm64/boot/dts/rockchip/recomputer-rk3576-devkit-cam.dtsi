@@ -5,27 +5,9 @@
  */
 
 / {
-    cam_ircut0: cam_ircut0 {
-        status = "okay";
-        compatible = "rockchip,ircut";
-        led-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
-        // ircut-open-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-        // ircut-close-gpios  = <&gpio4 RK_PC7 GPIO_ACTIVE_HIGH>;
-        rockchip,camera-module-index = <0>;
-        rockchip,camera-module-facing = "front";
-    };
-
-    cam_ircut1: cam_ircut1 {
-        status = "okay";
-        compatible = "rockchip,ircut";
-        led-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
-        // ircut-open-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-        // ircut-close-gpios  = <&gpio4 RK_PC7 GPIO_ACTIVE_HIGH>;
-        rockchip,camera-module-index = <1>;
-        rockchip,camera-module-facing = "back";
-    };
 
     cam0_pwr: cam0-pwr {
+        status = "disabled";
         compatible = "regulator-fixed";
         regulator-name = "cam0_pwr";
         regulator-min-microvolt = <3300000>;
@@ -37,6 +19,7 @@
     };
 
     cam1_pwr: cam1-pwr {
+        status = "disabled";
         compatible = "regulator-fixed";
         regulator-name = "cam1_pwr";
         regulator-min-microvolt = <3300000>;
@@ -47,7 +30,31 @@
         regulator-always-on;        
     };
     
+
+	cam0_rst: cam0-rst {
+		compatible = "regulator-fixed";
+		regulator-name = "cam0_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	cam1_rst: cam1-rst {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
     clk_cam_24m: external-camera-clock-24m {
+        status = "disabled";
         compatible = "fixed-clock";
         clock-frequency = <24000000>;
         clock-output-names = "clk_cam_24m";
@@ -55,23 +62,10 @@
     };
 
     clk_cam_24m_1: external-camera-clock-24m-1 {
+        status = "disabled";
         compatible = "fixed-clock";
         clock-frequency = <24000000>;
         clock-output-names = "clk_cam_24m_1";
-        #clock-cells = <0>;
-    };
-
-    clk_cam_25m: external-camera-clock-25m {
-        compatible = "fixed-clock";
-        clock-frequency = <25000000>;
-        clock-output-names = "clk_cam_25m";
-        #clock-cells = <0>;
-    };
-
-    clk_cam_25m_1: external-camera-clock-25m-1 {
-        compatible = "fixed-clock";
-        clock-frequency = <25000000>;
-        clock-output-names = "clk_cam_25m_1";
         #clock-cells = <0>;
     };
 
@@ -79,33 +73,11 @@
 
 // cam0: i2c7
 &i2c7 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&i2c7m1_xfer>;
 
-	imx415_0: imx415_0@37 {
-		status = "okay";
-		compatible = "sony,imx415";
-		reg = <0x37>;
-		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		// pinctrl-0 = <&cam0_reset_gpio>;
-		power-domains = <&power RK3576_PD_VI>;
-		// reset-gpios = <&gpio3 RK_PD7 GPIO_ACTIVE_LOW>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-OT2022-PX1";
-		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&cam_ircut0>;
-		port {
-			imx415_out0: endpoint {
-				remote-endpoint = <&mipi_in_ucam0>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-
     imx219_0: imx219@10 {
+        status = "disabled";
         compatible = "sony,imx219";
         reg = <0x10>;
         clocks = <&clk_cam_24m>;
@@ -126,9 +98,11 @@
 
 
 	dw9817_0: dw9817@c {
-		compatible = "dongwoon,dw9817";
-		status = "okay";
+		compatible = "dongwoon,dw9800w";
+		status = "disabled";
 		reg = <0x0c>;
+		VDD-supply = <&cam0_rst>;
+		power-supply = <&cam0_pwr>;
 		rockchip,camera-module-index = <0>;
 		rockchip,vcm-start-current = <10>;
 		rockchip,vcm-rated-current = <85>;
@@ -138,6 +112,7 @@
 	};
 
 	imx708_0: imx708@1a {
+		status = "disabled";
 		compatible = "sony,imx708";
 		reg = <0x1a>;
 		clocks = <&clk_cam_24m>;
@@ -159,72 +134,14 @@
             };
 		};
 	};
-
-	/**************raspberry pi cam v1**************/
- 	ad5398_0: ad5398@c {
-		compatible = "adi,ad5398";
-		status = "okay";
-		reg = <0x0c>;
-		rockchip,camera-module-index = <0>;
-		rockchip,vcm-start-current = <10>;
-		rockchip,vcm-rated-current = <85>;
-		rockchip,vcm-step-mode = <5>;
-		rockchip,camera-module-facing = "front";
-	};
-
-	ov5647_0: ov5647@36 {
-		compatible = "ovti,ov5647";
-		status = "okay";
-		reg = <0x36>;
-		clocks = <&clk_cam_25m>;
-		vana1-supply = <&cam0_pwr>;
-		// pwdn-gpios = <&gpio_xten  0  GPIO_ACTIVE_HIGH>; 
-
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "rpi-camera-v1p3";
-		rockchip,camera-module-lens-name = "default";
-		lens-focus = <&ad5398_0>;
-		port {
-			ov5647_out0: endpoint {
-				remote-endpoint = <&mipi_in_ucam6>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-
-
 };
 
 // cam1: i2c2
 &i2c2 {
-	status = "okay";
-
-	imx415_1: imx415_1@37 {
-		compatible = "sony,imx415";
-		reg = <0x37>;
-		clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		// pinctrl-0 = <&cam1_reset_gpio>;
-		power-domains = <&power RK3576_PD_VI>;
-        // reset-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
-		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "CMK-OT2022-PX1";
-		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&cam_ircut1>;
-		port {
-			imx415_out1: endpoint {
-				remote-endpoint = <&mipi_in_ucam1>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
+	status = "disabled";
 
     imx219_1: imx219@10 {
+        status = "disabled";
         compatible = "sony,imx219";
         reg = <0x10>;
 
@@ -246,9 +163,11 @@
 
  /**************raspberry pi cam v3**************/
 	dw9817_1: dw9817@c {
-		compatible = "dongwoon,dw9817";
-		status = "okay";
+		compatible = "dongwoon,dw9800w";
+		status = "disabled";
 		reg = <0x0c>;
+		VDD-supply = <&cam1_rst>;
+		power-supply = <&cam1_pwr>;
 		rockchip,camera-module-index = <1>;
 		rockchip,vcm-start-current = <10>;
 		rockchip,vcm-rated-current = <85>;
@@ -258,6 +177,7 @@
 	};
 
 	imx708_1: imx708@1a {
+		status = "disabled";
 		compatible = "sony,imx708";
 		reg = <0x1a>;
 		clocks = <&clk_cam_24m_1>;
@@ -279,48 +199,12 @@
             };
 		};
 	};
-
- /**************raspberry pi cam v1**************/
- 	ad5398_1: ad5398@c {
-		compatible = "adi,ad5398";
-		status = "okay";
-		reg = <0x0c>;
-		rockchip,camera-module-index = <1>;
-		rockchip,vcm-start-current = <10>;
-		rockchip,vcm-rated-current = <85>;
-		rockchip,vcm-step-mode = <5>;
-		rockchip,camera-module-facing = "front";
-	};
-
-	ov5647_1: ov5647@36 {
-		compatible = "ovti,ov5647";
-		status = "okay";
-		reg = <0x36>;
-		clocks = <&clk_cam_25m_1>;
-		vana1-supply = <&cam1_pwr>;
-		// pwdn-gpios = <&gpio1  RK_PD1  GPIO_ACTIVE_HIGH>; 
-
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "rpi-camera-v1p3";
-		rockchip,camera-module-lens-name = "default";
-		lens-focus = <&ad5398_1>;
-		port {
-			ov5647_out1: endpoint {
-				remote-endpoint = <&mipi_in_ucam7>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-
 };
 
 /*-----------------------------------------------------------------------*/
 
 &csi2_dcphy0 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -330,11 +214,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi_in_ucam0: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&imx415_out0>;
-				data-lanes = <1 2 3 4>;
-			};
 			mipi_in_ucam2: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&imx219_out0>;
@@ -344,12 +223,6 @@
 			mipi_in_ucam4: endpoint@3 {
 				reg = <3>;
 				remote-endpoint = <&imx708_out0>;
-				data-lanes = <1 2>;
-			};
-
-			mipi_in_ucam6: endpoint@4 {
-				reg = <4>;
-				remote-endpoint = <&ov5647_out0>;
 				data-lanes = <1 2>;
 			};
 
@@ -368,7 +241,7 @@
 };
 
 &csi2_dphy0 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -378,11 +251,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi_in_ucam1: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&imx415_out1>;
-				data-lanes = <1 2 3 4>;
-			};
 			mipi_in_ucam3: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&imx219_out1>;
@@ -393,12 +261,6 @@
 				remote-endpoint = <&imx708_out1>;
 				data-lanes = <1 2>;
 			};
-			mipi_in_ucam7: endpoint@4 {
-				reg = <4>;
-				remote-endpoint = <&ov5647_out1>;
-				data-lanes = <1 2>;
-			};
-
 		};
 		port@1 {
 			reg = <1>;
@@ -420,7 +282,7 @@
 /*-----------------------------------------------------------------------*/
 
 &mipi0_csi2 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -451,7 +313,7 @@
 };
 
 &mipi1_csi2 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -484,7 +346,7 @@
 /*-----------------------------------------------------------------------*/
 
 &rkcif_mipi_lvds {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		cif_mipi_in0: endpoint {
@@ -494,7 +356,7 @@
 };
 
 &rkcif_mipi_lvds1 {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		cif_mipi_in1: endpoint {
@@ -506,7 +368,7 @@
 /*-----------------------------------------------------------------------*/
 
 &rkcif_mipi_lvds_sditf {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		mipi_lvds_sditf: endpoint {
@@ -516,7 +378,7 @@
 };
 
 &rkcif_mipi_lvds1_sditf {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		mipi_lvds1_sditf: endpoint {
@@ -528,7 +390,7 @@
 /*-----------------------------------------------------------------------*/
 
 &rkisp_vir0 {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		#address-cells = <1>;
@@ -542,7 +404,7 @@
 };
 
 &rkisp_vir1 {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		#address-cells = <1>;
@@ -558,27 +420,27 @@
 /*-----------------------------------------------------------------------*/
 
 &rkcif {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkcif_mmu {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkisp {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkisp_mmu {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkvpss {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkvpss_mmu {
-	status = "okay";
+	status = "disabled";
 };
 
 

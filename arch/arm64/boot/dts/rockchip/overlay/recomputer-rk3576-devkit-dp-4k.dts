@@ -1,0 +1,72 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Route recomputer rk3576 devkit HDMI to VP1 and DP to VP0";
+		compatible = "seeed,recomputer rk3576 devkit";
+		category = "display";
+		description = "Switch display routing so HDMI uses VP1 and DP uses VP0.";
+	};
+
+	fragment@0 {
+		target = <&hdmi_in_vp0>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@1 {
+		target = <&hdmi_in_vp1>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@2 {
+		target = <&hdmi_in_vp2>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@3 {
+		target = <&hdmi_in_vopl>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@4 {
+		target = <&route_hdmi>;
+		__overlay__ {
+			status = "okay";
+			connect = <&vp1_out_hdmi>;
+		};
+	};
+
+	fragment@5 {
+		target = <&dp0_in_vp0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@6 {
+		target = <&dp0_in_vp1>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@7 {
+		target = <&dp0_in_vp2>;
+		__overlay__ { status = "disabled"; };
+	};
+
+	fragment@8 {
+		target = <&route_dp0>;
+		__overlay__ {
+			status = "okay";
+			connect = <&vp0_out_dp0>;
+		};
+	};
+
+	fragment@9 {
+		target = <&vp0>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@10 {
+		target = <&vp1>;
+		__overlay__ { status = "okay"; };
+	};
+};
