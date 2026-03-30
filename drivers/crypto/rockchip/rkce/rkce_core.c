@@ -40,8 +40,8 @@ struct rkce_hardware {
 #define RST_TIMEOUT_MS		100
 #define TD_PUSH_TIMEOUT_MS	1000
 
-#define IP_VERSION_MASK		(0xfU >> 28)
-#define IP_VERSION_RKCE		(0x1U >> 28)
+#define IP_VERSION_MASK		(0xfU << 28)
+#define IP_VERSION_RKCE		(0x1U << 28)
 #define GET_IP_VERSION(ver)	((ver) & IP_VERSION_MASK)
 
 #define IS_SYMM_TD(td_type)	((td_type) == RKCE_TD_TYPE_SYMM || \
