@@ -178,6 +178,7 @@ struct rk_tcpc_chip {
 	bool charge_on;
 	bool vbus_present;
 	bool suspended;
+	bool vsafe0v_det_en;
 
 	enum typec_cc_status cc1;
 	enum typec_cc_status cc2;
@@ -795,6 +796,9 @@ static bool tcpm_is_vbus_vsafe0v(struct tcpc_dev *dev)
 	u8 reg;
 	int ret;
 
+	if (!chip->vsafe0v_det_en)
+		return true;
+
 	/*
 	 * [TD.4.7.2.V.11] PUT remains in Attached.SNK
 	 * [TD.4.7.2.V.12 ~ V.14] PUT maintain USB communication
@@ -802,7 +806,7 @@ static bool tcpm_is_vbus_vsafe0v(struct tcpc_dev *dev)
 	if (chip->vsafe0v_chan) {
 		ret = iio_read_channel_processed(chip->vsafe0v_chan, &vol);
 		if (ret < 0)
-			return false;
+			return true;
 
 		rk_tcpc_log(chip, "vsafe0v vol: %d", vol);
 
@@ -811,9 +815,9 @@ static bool tcpm_is_vbus_vsafe0v(struct tcpc_dev *dev)
 
 	ret = rk_tcpc_read8(chip, RK_TCPC_STS1, &reg);
 	if (ret < 0)
-		return false;
+		return true;
 
-	rk_tcpc_log(chip, "vsafe0v(08h): 0x%02x", reg);
+	rk_tcpc_log(chip, "vsafe0v(08h) : 0x%02x", reg);
 
 	return !!(reg & RK_TCPC_STS_VSAFE0V);
 }
@@ -1201,7 +1205,9 @@ static int rk_tcpc_probe(struct i2c_client *client)
 	mutex_init(&chip->lock);
 	INIT_DELAYED_WORK(&chip->pm_work, rk_tcpc_pm_work);
 
-	if (device_property_present(chip->dev, "io-channels")) {
+	chip->vsafe0v_det_en = device_property_present(chip->dev, "rockchip,vsafe0v-det");
+
+	if (chip->vsafe0v_det_en && device_property_present(chip->dev, "io-channels")) {
 		chip->vsafe0v_chan = devm_iio_channel_get(chip->dev, "vsafe0v-detect");
 		if (IS_ERR(chip->vsafe0v_chan))
 			return dev_err_probe(chip->dev, PTR_ERR(chip->vsafe0v_chan),
