@@ -59,6 +59,7 @@ struct rockchip_grf_reg_field {
  * @edp_mode: grf register field of edp_mode
  * @mem_clk_auto_gating: grf register field of mem_clk_auto_gating
  * @chip_type: specific chip type
+ * @max_dclk_khz: the maximum supported dclk rate
  * @ssc: check if SSC is supported by source
  * @audio: check if audio is supported by source
  * @split_mode: check if split mode is supported
@@ -73,6 +74,7 @@ struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field edp_mode;
 	const struct rockchip_grf_reg_field mem_clk_auto_gating;
 	u32	chip_type;
+	u32	max_dclk_khz;
 	bool	ssc;
 	bool	audio;
 	bool	split_mode;
@@ -371,6 +373,12 @@ rockchip_dp_drm_encoder_mode_valid(struct drm_encoder *encoder,
 	if (!vm.hfront_porch || !vm.hback_porch || !vm.vfront_porch || !vm.vback_porch) {
 		DRM_DEV_ERROR(dp->dev, "front porch or back porch can not be 0\n");
 		return MODE_BAD;
+	}
+
+	if (mode->clock > dp->data->max_dclk_khz) {
+		dev_err(dp->dev, "clock[%dkHz] exceeds limit[%dkHz]\n",
+			mode->clock, dp->data->max_dclk_khz);
+		return MODE_CLOCK_HIGH;
 	}
 
 	return MODE_OK;
@@ -906,6 +914,7 @@ static const struct rockchip_dp_chip_data rk3399_edp[] = {
 		.chip_type = RK3399_EDP,
 		.lcdc_sel = GRF_REG_FIELD(0x6250, 5, 5),
 		.ssc = true,
+		.max_dclk_khz = 350000,
 	},
 	{ /* sentinel */ }
 };
@@ -915,6 +924,7 @@ static const struct rockchip_dp_chip_data rk3288_dp[] = {
 		.chip_type = RK3288_DP,
 		.lcdc_sel = GRF_REG_FIELD(0x025c, 5, 5),
 		.ssc = true,
+		.max_dclk_khz = 350000,
 	},
 	{ /* sentinel */ }
 };
@@ -924,6 +934,7 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 		.chip_type = RK3568_EDP,
 		.ssc = true,
 		.audio = true,
+		.max_dclk_khz = 350000,
 	},
 	{ /* sentinel */ }
 };
@@ -940,6 +951,7 @@ static const struct rockchip_dp_chip_data rk3572_edp[] = {
 		.format_yuv = true,
 		.support_dp_mode = true,
 		.max_bpc = 10,
+		.max_dclk_khz = 600000,
 	},
 	{ /* sentinel */ }
 };
@@ -956,6 +968,7 @@ static const struct rockchip_dp_chip_data rk3576_edp[] = {
 		.format_yuv = true,
 		.support_dp_mode = true,
 		.max_bpc = 10,
+		.max_dclk_khz = 600000,
 	},
 	{ /* sentinel */ }
 };
@@ -972,6 +985,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.format_yuv = true,
 		.support_dp_mode = true,
 		.max_bpc = 10,
+		.max_dclk_khz = 600000,
 	},
 	{
 		.chip_type = RK3588_EDP,
@@ -984,6 +998,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.format_yuv = true,
 		.support_dp_mode = true,
 		.max_bpc = 10,
+		.max_dclk_khz = 600000,
 	},
 	{ /* sentinel */ }
 };
