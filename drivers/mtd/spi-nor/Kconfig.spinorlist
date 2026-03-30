@@ -143,6 +143,12 @@ config MTD_SPI_NOR_XTX
 	help
 	  Add support for various XTX SPI flash chips (XT25xxx)
 
+config MTD_SPI_NOR_ZBIT
+	bool "ZBIT SPI flash support"
+	default y if MTD_SPI_NOR_DEVICE_AUTOSELECT
+	help
+	  Add support for various ZBIT SPI flash chips (XT25xxx)
+
 endmenu
 
 endif # MTD_SPI_NOR

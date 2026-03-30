@@ -1822,6 +1822,9 @@ static const struct spi_nor_manufacturer *manufacturers[] = {
 #ifdef CONFIG_MTD_SPI_NOR_XTX
 	&spi_nor_xtx,
 #endif
+#ifdef CONFIG_MTD_SPI_NOR_ZBIT
+	&spi_nor_zbit,
+#endif
 };
 
 static const struct flash_info *spi_nor_match_id(struct spi_nor *nor,
