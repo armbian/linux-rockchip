@@ -23,10 +23,10 @@
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
+		rockchip,uboot-charge-on = <1>;
 		rockchip,android-charge-on = <0>;
-		rockchip,uboot-low-power-voltage = <3450>;
-		rockchip,screen-on-voltage = <3500>;
+		rockchip,uboot-low-power-voltage = <3200>;
+		rockchip,screen-on-voltage = <3200>;
 		rockchip,auto-wakeup-interval = <5>;
 		rockchip,uboot-exit-charge-level = <2>;
 		rockchip,uboot-exit-charge-voltage = <3500>;
@@ -94,7 +94,7 @@
 
 &i2c0 {
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <1000000>;
 
 	rk809b: rk809b@20 {
 		compatible = "rockchip,rk809";
