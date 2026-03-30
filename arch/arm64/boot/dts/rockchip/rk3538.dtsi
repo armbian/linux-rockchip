@@ -1568,6 +1568,9 @@
 			macphy_txamp: macphy-txamp@5a {
 				reg = <0x5a 0x2>;
 			};
+			vdac_out_current: vdac-out-current@5f {
+				reg = <0x5f 0x1>;
+			};
 			macphy_adc_offset: macphy-adc-offset@60 {
 				reg = <0x60 0x2>;
 			};
@@ -1941,6 +1944,8 @@
 				      "pclk_vdac",
 				      "dclk",
 				      "dclk_4x";
+			nvmem-cells = <&vdac_out_current>;
+			nvmem-cell-names = "out-current";
 			rockchip,lumafilter0 = <0x0ff80006>;
 			rockchip,lumafilter1 = <0x00090010>;
 			rockchip,lumafilter2 = <0x0ffb0fd8>;
