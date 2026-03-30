@@ -40,6 +40,11 @@ properties:
     description:
       Properties for USB-C connector that attached to the TCPC.
 
+  rockchip,vsafe0v-det:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      When set, detect whether the VBUS voltage is below 800mV for TCPM.
+
 required:
   - compatible
   - reg
