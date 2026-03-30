@@ -263,7 +263,7 @@ static int rkce_crypto_register(struct rkce_dev *rk_dev, struct rkce_algt **algt
 
 err_cipher_algs:
 	for (k = 0; k < i; k++) {
-		struct rkce_algt *cur_algt = algts[i];
+		struct rkce_algt *cur_algt = algts[k];
 
 		if (cur_algt->type == RKCE_ALGO_TYPE_CIPHER)
 			crypto_unregister_skcipher_wrap(&cur_algt->alg.cipher);
