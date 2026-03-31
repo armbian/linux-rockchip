@@ -1224,6 +1224,9 @@ struct vop2_video_port_regs {
 	struct vop_reg calc_aclk_cnt;
 
 	/* dsp vcnt */
+	struct vop_reg post_buf_empty_dsp_vcnt;
+	struct vop_reg post_buf_empty_dsp_vcnt_en;
+	struct vop_reg post_buf_empty_dsp_vcnt_clr;
 	struct vop_reg dsp_vcnt;
 };
 

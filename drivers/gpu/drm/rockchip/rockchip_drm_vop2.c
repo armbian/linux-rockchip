@@ -5485,6 +5485,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 	if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled &&
 	    (vop2->version == VOP_VERSION_RK3576))
 		writel(0x1, vop2->sharp_res.regs);
+	VOP_MODULE_SET(vop2, vp, post_buf_empty_dsp_vcnt_en, 1);
 
 	vop2->enable_count++;
 
@@ -17347,8 +17348,11 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & POST_BUF_EMPTY_INTR) {
+			u32 post_buf_empty_line = vop2_read_vcnt(vp);
+
 			vop2_handle_post_buf_empty(crtc);
-			DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY irq err at vp%d\n", vp->id);
+			DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY irq err at vp%u line %u\n",
+						  vp->id, post_buf_empty_line);
 			active_irqs &= ~POST_BUF_EMPTY_INTR;
 			ret = IRQ_HANDLED;
 		}
@@ -17567,7 +17571,16 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	}
 
 	if (active_irqs & POST_BUF_EMPTY_INTR) {
-		DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY_INTR irq err at vp%d\n", vp->id);
+		u32 post_buf_empty_line;
+
+		if (vp->regs->post_buf_empty_dsp_vcnt.mask) {
+			post_buf_empty_line = VOP_MODULE_GET(vop2, vp, post_buf_empty_dsp_vcnt);
+			VOP_MODULE_SET(vop2, vp, post_buf_empty_dsp_vcnt_clr, 1);
+		} else {
+			post_buf_empty_line = vop2_read_vcnt(vp);
+		}
+		DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY_INTR irq err at vp%u line %u\n",
+					  vp->id, post_buf_empty_line);
 		active_irqs &= ~POST_BUF_EMPTY_INTR;
 		ret = IRQ_HANDLED;
 	}

@@ -1639,6 +1639,9 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 	.calc_aclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x1, 15),
 
+	.post_buf_empty_dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 0),
+	.post_buf_empty_dsp_vcnt_en = VOP_REG(RK3572_VP0_STATUS, 0x1, 14),
+	.post_buf_empty_dsp_vcnt_clr = VOP_REG(RK3572_VP0_STATUS, 0x1, 15),
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
 };
 
@@ -2148,6 +2151,9 @@ static const struct vop2_video_port_regs rk3572_vop_vp0_regs = {
 	.calc_aclk_cnt = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP0_POST_CLK_CNT, 0x1, 15),
 
+	.post_buf_empty_dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 0),
+	.post_buf_empty_dsp_vcnt_en = VOP_REG(RK3572_VP0_STATUS, 0x1, 14),
+	.post_buf_empty_dsp_vcnt_clr = VOP_REG(RK3572_VP0_STATUS, 0x1, 15),
 	.dsp_vcnt = VOP_REG(RK3572_VP0_STATUS, 0x1fff, 16),
 };
 
@@ -2245,6 +2251,9 @@ static const struct vop2_video_port_regs rk3572_vop_vp1_regs = {
 	.calc_aclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0xffff, 16),
 	.calc_clk_en = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x1, 15),
 
+	.post_buf_empty_dsp_vcnt = VOP_REG(RK3572_VP1_STATUS, 0x1fff, 0),
+	.post_buf_empty_dsp_vcnt_en = VOP_REG(RK3572_VP1_STATUS, 0x1, 14),
+	.post_buf_empty_dsp_vcnt_clr = VOP_REG(RK3572_VP1_STATUS, 0x1, 15),
 	.dsp_vcnt = VOP_REG(RK3572_VP1_STATUS, 0x1fff, 16),
 };
 
