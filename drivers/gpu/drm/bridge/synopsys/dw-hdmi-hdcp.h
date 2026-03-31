@@ -28,13 +28,11 @@ struct hdcp_keys {
 };
 
 struct dw_hdcp {
-	bool enable;
 	int retry_times;
 	int remaining_times;
 	char *seeds;
 	int invalidkey;
 	char *invalidkeys;
-	int hdcp2_enable;
 	int status;
 	u32 reg_io_width;
 
