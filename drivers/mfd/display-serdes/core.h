@@ -466,7 +466,6 @@ int serdes_device_poweron(struct serdes *serdes);
 int serdes_device_poweroff(struct serdes *serdes);
 
 int serdes_irq_init(struct serdes *serdes);
-void serdes_irq_exit(struct serdes *serdes);
 
 void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...);
 void serdes_debugfs_init(void);
