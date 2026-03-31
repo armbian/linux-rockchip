@@ -1700,6 +1700,7 @@ analogix_dp_atomic_connector_get_property(struct drm_connector *connector,
 static void analogix_dp_config_mode_info(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
+	struct video_info *video_info = &dp->video_info;
 	struct drm_display_info *di = &connector->display_info;
 	struct drm_display_mode *mode;
 	struct rockchip_drm_private *private = connector->dev->dev_private;
@@ -1737,12 +1738,14 @@ static void analogix_dp_config_mode_info(struct drm_connector *connector)
 			mode_info->vrr_max_fps =
 				min_t(u32, dp->plat_data->max_refresh_rate, refresh_rate) * 1000;
 			mode_info->vrr_fps_step = 1000;
+			video_info->force_stream_valid = true;
 		} else if (di->monitor_range.min_vfreq && di->monitor_range.max_vfreq) {
 			mode_info->vrr_support = 1;
 			mode_info->vrr_min_fps = di->monitor_range.min_vfreq * 1000;
 			mode_info->vrr_max_fps =
 				min_t(u32, di->monitor_range.max_vfreq, refresh_rate) * 1000;
 			mode_info->vrr_fps_step = 1000;
+			video_info->force_stream_valid = true;
 		}
 		i++;
 	}
@@ -2427,8 +2430,6 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 
 	video_info->video_bist_enable =
 		of_property_read_bool(dp_node, "analogix,video-bist-enable");
-	video_info->force_stream_valid =
-		of_property_read_bool(dp_node, "analogix,force-stream-valid");
 
 	prop = of_find_property(dp_node, "data-lanes", &len);
 	if (!prop) {
