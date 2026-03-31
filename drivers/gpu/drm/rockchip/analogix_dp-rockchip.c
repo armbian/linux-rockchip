@@ -383,6 +383,11 @@ rockchip_dp_drm_encoder_mode_valid(struct drm_encoder *encoder,
 		return MODE_CLOCK_HIGH;
 	}
 
+	if (mode->vtotal > 4095) {
+		dev_err(dp->dev, "vtotal[%d] exceeds limit[4095]\n", mode->vtotal);
+		return MODE_BAD_VVALUE;
+	}
+
 	return MODE_OK;
 }
 
