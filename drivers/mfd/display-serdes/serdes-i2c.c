@@ -415,10 +415,8 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	mutex_init(&serdes->io_lock);
 	dev_set_drvdata(serdes->dev, serdes);
 	ret = serdes_irq_init(serdes);
-	if (ret != 0) {
-		serdes_irq_exit(serdes);
+	if (ret)
 		return ret;
-	}
 
 	of_property_read_u32(dev->of_node, "id-serdes-bridge-split",
 			     &serdes->id_serdes_bridge_split);
