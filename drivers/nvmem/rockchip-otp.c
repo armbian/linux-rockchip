@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include "rockchip-otp.h"
 
 /* OTP Register Offsets */
 #define OTPC_SBPI_CTRL			0x0020
@@ -172,6 +173,8 @@
 /* Timeout (ms) for the trylock of hardware spinlocks */
 #define ROCKCHIP_OTP_HWLOCK_TIMEOUT    5000
 
+static DEFINE_MUTEX(rockchip_otp_mutex);
+
 static unsigned int rockchip_otp_wr_magic;
 module_param(rockchip_otp_wr_magic, uint, 0644);
 MODULE_PARM_DESC(rockchip_otp_wr_magic, "magic for enable otp write func.");
@@ -186,7 +189,6 @@ struct rockchip_otp {
 	struct reset_control *rst;
 	struct nvmem_config *config;
 	const struct rockchip_data *data;
-	struct mutex mutex;
 	struct hwspinlock *hwlock;
 	DECLARE_BITMAP(wp_mask, ROCKCHIP_OTP_WP_MASK_NBITS);
 };
@@ -875,12 +877,12 @@ static int rv1126_otp_oem_write(void *context, unsigned int offset, void *val,
 
 static int rockchip_otp_lock(struct rockchip_otp *otp)
 {
-	mutex_lock(&otp->mutex);
+	mutex_lock(&rockchip_otp_mutex);
 
 	if (otp->hwlock) {
 		if (hwspin_lock_timeout_raw(otp->hwlock, ROCKCHIP_OTP_HWLOCK_TIMEOUT)) {
 			dev_err(otp->dev, "timeout get the hwspinlock\n");
-			mutex_unlock(&otp->mutex);
+			mutex_unlock(&rockchip_otp_mutex);
 			return -ETIMEDOUT;
 		}
 	}
@@ -893,11 +895,23 @@ static void rockchip_otp_unlock(struct rockchip_otp *otp)
 	if (otp->hwlock)
 		hwspin_unlock_raw(otp->hwlock);
 
-	mutex_unlock(&otp->mutex);
+	mutex_unlock(&rockchip_otp_mutex);
 }
 
-static int rockchip_otp_read(void *context, unsigned int offset, void *val,
-			     size_t bytes)
+void rockchip_otp_mutex_lock(void)
+{
+	mutex_lock(&rockchip_otp_mutex);
+}
+EXPORT_SYMBOL_GPL(rockchip_otp_mutex_lock);
+
+void rockchip_otp_mutex_unlock(void)
+{
+	mutex_unlock(&rockchip_otp_mutex);
+}
+EXPORT_SYMBOL_GPL(rockchip_otp_mutex_unlock);
+
+static int rockchip_otp_read(void *context, unsigned int offset,
+			     void *val, size_t bytes)
 {
 	struct rockchip_otp *otp = context;
 	int ret = -EINVAL;
@@ -1163,7 +1177,6 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	if (!otp)
 		return -ENOMEM;
 
-	mutex_init(&otp->mutex);
 	otp->data = data;
 	otp->dev = dev;
 	otp->base = devm_platform_ioremap_resource(pdev, 0);
