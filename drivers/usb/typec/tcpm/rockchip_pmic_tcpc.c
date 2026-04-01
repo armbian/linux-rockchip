@@ -330,6 +330,12 @@ static const struct regmap_config rk_tcpc_regmap_cfg = {
 	.max_register = RK_TCPC_REG_OFFSET_MAX,
 };
 
+static bool rk_tcpc_cc_is_open(enum typec_cc_status cc1, enum typec_cc_status cc2)
+{
+	return ((cc1 == TYPEC_CC_OPEN && (cc2 == TYPEC_CC_OPEN || cc2 == TYPEC_CC_RA)) ||
+		(cc2 == TYPEC_CC_OPEN && (cc1 == TYPEC_CC_OPEN || cc1 == TYPEC_CC_RA)));
+}
+
 static int rk_tcpc_write8(struct rk_tcpc_chip *chip, unsigned int reg, u8 val)
 {
 	int ret = 0;
@@ -469,7 +475,7 @@ static int rk_tcpc_enable_rx(struct rk_tcpc_chip *chip, bool enable)
 	return 0;
 }
 
-static int rk_tcpc_set_lpmode(struct rk_tcpc_chip *chip)
+static int __rk_tcpc_set_lpmode(struct rk_tcpc_chip *chip)
 {
 	u8 reg = 0;
 	int ret;
@@ -498,6 +504,24 @@ static int rk_tcpc_set_lpmode(struct rk_tcpc_chip *chip)
 		return ret;
 
 	return 0;
+}
+
+static int rk_tcpc_set_lpmode(struct rk_tcpc_chip *chip)
+{
+	int ret = 0;
+
+	mutex_lock(&chip->lock);
+
+	if (!chip->suspended && rk_tcpc_cc_is_open(chip->cc1, chip->cc2)) {
+		ret = __rk_tcpc_set_lpmode(chip);
+		if (!ret) {
+			chip->suspended = 1;
+			rk_tcpc_log(chip, "enter lp mode");
+		}
+	}
+
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static enum typec_cc_status rk_tcpc_sts_to_cc(u8 sts, bool sink)
@@ -1086,28 +1110,11 @@ static void rk_tcpc_init_tcpc_dev(struct tcpc_dev *rk_tcpc_dev)
 static void rk_tcpc_pm_work(struct work_struct *work)
 {
 	struct rk_tcpc_chip *chip = container_of(work, struct rk_tcpc_chip, pm_work.work);
-	int ret;
-
-	mutex_lock(&chip->lock);
 
 	rk_tcpc_log(chip, "pm work: cc1=%s, cc2=%s",
 		    cc_status_name[chip->cc1], cc_status_name[chip->cc2]);
 
-	if ((chip->cc1 == TYPEC_CC_OPEN && (chip->cc2 == TYPEC_CC_OPEN || chip->cc2 == TYPEC_CC_RA)) ||
-	    (chip->cc2 == TYPEC_CC_OPEN && (chip->cc1 == TYPEC_CC_OPEN || chip->cc1 == TYPEC_CC_RA))) {
-		if (chip->suspended)
-			goto exit;
-
-		ret = rk_tcpc_set_lpmode(chip);
-		if (ret)
-			goto exit;
-
-		chip->suspended = 1;
-		rk_tcpc_log(chip, "enter LPM");
-	}
-
-exit:
-	mutex_unlock(&chip->lock);
+	rk_tcpc_set_lpmode(chip);
 }
 
 static irqreturn_t rk_tcpc_irq_work(int irq, void *dev_id)
@@ -1296,21 +1303,7 @@ static void rk_tcpc_remove(struct i2c_client *client)
 
 static int rk_tcpc_pm_suspend(struct device *dev)
 {
-	struct rk_tcpc_chip *chip = dev->driver_data;
-	int ret = 0;
-
-	mutex_lock(&chip->lock);
-
-	if (!chip->suspended) {
-		ret = rk_tcpc_set_lpmode(chip);
-		if (ret)
-			goto exit;
-		chip->suspended = 1;
-	}
-
-exit:
-	mutex_unlock(&chip->lock);
-	return ret;
+	return rk_tcpc_set_lpmode(dev->driver_data);
 }
 
 static int rk_tcpc_pm_resume(struct device *dev)
