@@ -7293,7 +7293,6 @@ static const char * const rk3572_crc_sources[] = {
 	"Cluster1-win0",
 	"Cluster1-win1",
 	"Msmart0-win0",
-	"Msmart1-win0",
 };
 
 static const char * const rk3576_crc_sources[] = {
