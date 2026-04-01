@@ -2453,6 +2453,9 @@ static void rk_hdptx_phy_configure_ffe(struct phy *phy, u8 ffe_lv, u8 ffe_mode)
 	u8 pre_shoot;
 	u8 de_emphasis;
 
+	if (hdptx->hdmi_cfg.mode != PHY_HDMI_MODE_FRL)
+		return;
+
 	if (ffe_lv >= FFE_CFG_TAB_LEN) {
 		dev_err(&phy->dev, "invalid ffe level: %d\n", ffe_lv);
 		return;
