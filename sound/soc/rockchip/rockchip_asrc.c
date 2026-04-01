@@ -45,6 +45,7 @@
 #define DEFAULT_SAMPLE_RATE		48000
 #define ASRC_DEFAULT_CLK		200000000
 #define ASRC_LRCK_SOURCE_FREQ_DEFAULT	98304000
+#define CLK_PPM				(1000)
 
 /* Platform Definition */
 /* rk3576 */
@@ -1305,11 +1306,16 @@ static struct clk *rockchip_asrc_get_clk_parent(struct clk *clk, char *clk_names
 
 static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 {
-	int dst_lrck_div = 0, src_lrck_div = 0;
+	int dst_lrck_div = 0, src_lrck_div = 0, remainder = 0;
 
 	switch (asrc->src_link_dai_id) {
 	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
-		src_lrck_div = asrc->lrck_src_freq / asrc->sample_rate;
+		if (asrc->lrck_src_freq % asrc->sample_rate < CLK_PPM)
+			remainder = 0;
+		else
+			remainder = 1;
+
+		src_lrck_div = asrc->lrck_src_freq / asrc->sample_rate + remainder;
 		break;
 	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
 		src_lrck_div = 128;
@@ -1320,7 +1326,12 @@ static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
 
 	switch (asrc->dst_link_dai_id) {
 	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
-		dst_lrck_div = asrc->lrck_dst_freq / asrc->resample_rate;
+		if (asrc->lrck_dst_freq % asrc->resample_rate < CLK_PPM)
+			remainder = 0;
+		else
+			remainder = 1;
+
+		dst_lrck_div = asrc->lrck_dst_freq / asrc->resample_rate + remainder;
 		break;
 	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
 		dst_lrck_div = 128;
