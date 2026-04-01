@@ -281,7 +281,6 @@ static const struct rk_timing_priv rk3576_timing = {
 struct rk35xx_priv {
 	struct reset_control *reset;
 	const struct rk_timing_priv *timing;
-	enum dwcmshc_rk_type devtype;
 	u8 txclk_tapnum;
 	u32 acpi_en;
 };
@@ -904,11 +903,6 @@ static int dwcmshc_rk35xx_init(struct device *dev, struct sdhci_host *host,
 	priv = devm_kzalloc(dev, sizeof(struct rk35xx_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	if (of_device_is_compatible(dev->of_node, "rockchip,rk3588-dwcmshc"))
-		priv->devtype = DWCMSHC_RK3588;
-	else
-		priv->devtype = DWCMSHC_RK3568;
 
 	priv->reset = devm_reset_control_array_get_optional_exclusive(mmc_dev(host->mmc));
 	if (IS_ERR(priv->reset)) {
