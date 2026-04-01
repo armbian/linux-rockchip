@@ -430,6 +430,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
@@ -449,6 +450,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <64>;
@@ -466,6 +468,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <64>;
@@ -483,6 +486,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <669>;
 			clocks = <&scmi_clk ARMCLK_L0>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <64>;
@@ -500,6 +504,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
@@ -519,6 +524,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <563>;
 			clocks = <&scmi_clk ARMCLK_L1>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <64>;
@@ -536,6 +542,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster2_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <260>;
@@ -555,6 +562,7 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			operating-points-v2 = <&cluster2_opp_table>;
 			i-cache-size = <0x10000>;
 			i-cache-line-size = <64>;
@@ -563,6 +571,19 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_b>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			CPU_SLEEP: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <120>;
+				exit-latency-us = <250>;
+				min-residency-us = <900>;
+			};
 		};
 
 		l2_cache_l0: l2-cache-cluster0 {
