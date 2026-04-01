@@ -1907,6 +1907,11 @@
 		npu_grf: syscon@26020000 {
 			compatible = "rockchip,rk3572-npu-grf", "syscon";
 			reg = <0x0 0x26020000 0x0 0x2000>;
+			perf_npu: perf-npu {
+						/* offset mask w_mask_en value is_init */
+				rockchip,perf-cfg = <0x4  0x1    0x1 0x1    0x1>,
+						    <0x40 0xffff 0x1 0xff01 0x1>;
+			};
 		};
 
 		vo_grf: syscon@26022000 {
@@ -2215,6 +2220,7 @@
 				/* These power domains are grouped by VD_NPU */
 				power-domain@RK3572_PD_NPU {
 					reg = <RK3572_PD_NPU>;
+					pm_perf = <&perf_npu>;
 					pm_qos = <&qos_rknn>;
 				};
 				/* These power domains are grouped by VD_GPU */
