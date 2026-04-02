@@ -270,6 +270,8 @@ static int serdes_get_init_seq(struct serdes *serdes)
 	const void *data;
 	int err, len, ret = 0;
 
+	serdes_device_poweron(serdes);
+
 	data = of_get_property(np, "serdes-init-sequence", &len);
 	if (!data) {
 		dev_err(dev, "failed to get serdes-init-sequence\n");
@@ -346,8 +348,6 @@ static int serdes_configure_regulators(struct serdes *serdes)
 		return ret;
 	}
 
-	serdes_device_poweron(serdes);
-
 	return 0;
 }
 
@@ -408,15 +408,15 @@ static int serdes_i2c_probe(struct i2c_client *client,
 		return dev_err_probe(dev, ret,
 				     "failed to register serdes extcon device\n");
 
-	ret = serdes_get_init_seq(serdes);
-	if (ret)
-		dev_err(dev, "failed to write serdes register with i2c\n");
-
 	mutex_init(&serdes->io_lock);
 	dev_set_drvdata(serdes->dev, serdes);
 	ret = serdes_irq_init(serdes);
 	if (ret)
 		return ret;
+
+	ret = serdes_get_init_seq(serdes);
+	if (ret)
+		dev_err(dev, "failed to write serdes register with i2c\n");
 
 	of_property_read_u32(dev->of_node, "id-serdes-bridge-split",
 			     &serdes->id_serdes_bridge_split);
@@ -485,6 +485,8 @@ static int serdes_i2c_remove(struct i2c_client *client)
 		cancel_delayed_work_sync(&serdes->mfd_delay_work);
 		destroy_workqueue(serdes->mfd_wq);
 	}
+
+	serdes_device_poweroff(serdes);
 
 	serdes_destroy_debugfs(serdes);
 	return 0;
