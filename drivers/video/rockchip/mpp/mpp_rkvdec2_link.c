@@ -387,7 +387,7 @@ struct rkvdec_link_info rkvdec_link_vdpu384b_hw_info = {
 	.ip_time_base = 0x54,
 	.en_base = 0x40,
 	.ip_en_base = 0x58,
-	.ip_en_val = 0x81000000,
+	.ip_en_val = 0x01000000,
 };
 
 static void rkvdec2_link_free_task(struct kref *ref);

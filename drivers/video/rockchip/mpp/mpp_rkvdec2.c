@@ -2074,6 +2074,7 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	struct mpp_dev *mpp = NULL;
 	const struct of_device_id *match = NULL;
 	irq_handler_t irq_proc = NULL;
+	struct rkvdec_link_info *link_info = NULL;
 	int ret = 0;
 
 	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
@@ -2086,8 +2087,14 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_rkvdec2_dt_match, pdev->dev.of_node);
-		if (match)
+		if (match) {
 			mpp->var = (struct mpp_dev_var *)match->data;
+			/* use MMU v2.0 only on RK3538 */
+			if (of_device_is_compatible(pdev->dev.of_node, "rockchip,rkv-decoder-rk3538")) {
+				link_info = mpp->var->hw_info->link_info;
+				link_info->ip_en_val = 0x81000000;
+			}
+		}
 	}
 
 	ret = mpp_dev_probe(mpp, pdev);
