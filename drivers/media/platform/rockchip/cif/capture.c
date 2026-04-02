@@ -6498,6 +6498,10 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 			free_reserved_area(phys_to_virt(resmem_free_start),
 					   phys_to_virt(resmem_free_end),
 					   -1, "rkisp_thunderboot");
+			v4l2_info(&stream->cifdev->v4l2_dev,
+				  "free_reserved_area done: start=0x%x, end=0x%x, pages=%llu\n",
+				  (u32)resmem_free_start, (u32)resmem_free_end,
+				  (unsigned long long)(resmem_free_end - resmem_free_start) / PAGE_SIZE);
 			if (dev->is_rtt_suspend)
 				dev->resmem_size = rtt_min_size;
 			else
@@ -6505,7 +6509,6 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		}
 		atomic_set(&stream->buf_cnt, 0);
 		stream->total_buf_num = 0;
-		stream->rx_buf_num = 0;
 
 		return;
 	}
@@ -6521,8 +6524,60 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		buf = &stream->rx_buf[i];
 		if (!buf->dummy.is_allocated)
 			continue;
-		if (stream->is_m_online_fb_res && buf == stream->last_buf_toisp) {
-			/* todo, release left buf*/
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) &&
+		    stream->is_m_online_fb_res && buf == stream->last_buf_toisp) {
+			struct csi_channel_info *channel = &dev->channels[0];
+			u32 right_half_size = channel->virtual_width * channel->height;
+			phys_addr_t free_start, free_end;
+			phys_addr_t aligned_start, aligned_end;
+
+			/* Release the reserved memory of the second half of the buffer.
+			 * The buffer was originally allocated for full frame size,
+			 * now we only need the right half size as reconfigured by
+			 * rkcif_reinit_right_half_config.
+			 *
+			 * Use free_reserved_area to free the second half memory,
+			 * and update buf->shmem.shm_size so that when the program
+			 * exits, rkcif_free_reserved_mem_buf can correctly free
+			 * the remaining first half memory.
+			 *
+			 * IMPORTANT: Both free_start and free_end must be page-aligned
+			 * to avoid memory leaks. free_reserved_area() internally aligns
+			 * start up and end down to page boundaries, so we must ensure
+			 * the freed range has proper page-aligned boundaries.
+			 */
+			if (buf->shmem.shm_size > right_half_size) {
+				free_start = buf->shmem.shm_start + right_half_size;
+				free_end = buf->shmem.shm_start + buf->shmem.shm_size;
+
+				/* Align start up and end down to page boundaries */
+				aligned_start = PAGE_ALIGN(free_start);
+				aligned_end = free_end & PAGE_MASK;
+
+				/* Only free if there's at least one page to release */
+				if (aligned_end > aligned_start) {
+					free_reserved_area(phys_to_virt(aligned_start),
+							   phys_to_virt(aligned_end),
+							   -1, "rkisp_thunderboot");
+					v4l2_info(&dev->v4l2_dev,
+						  "stream[%d] free right half done: orig_start=0x%pa orig_end=0x%pa aligned_start=0x%pa aligned_end=0x%pa pages=%llu\n",
+						  stream->id, &free_start, &free_end,
+						  &aligned_start, &aligned_end,
+						  (unsigned long long)(aligned_end - aligned_start) / PAGE_SIZE);
+				} else {
+					v4l2_info(&dev->v4l2_dev,
+						  "stream[%d] right half: no pages to free (aligned_end <= aligned_start)\n",
+						  stream->id);
+				}
+
+				/*
+				 * Update shm_size to the page-aligned right_half_size
+				 * to ensure the second free in rkcif_free_reserved_mem_buf
+				 * is also page-aligned.
+				 */
+				buf->shmem.shm_size = PAGE_ALIGN(right_half_size);
+				buf->dummy.size = buf->shmem.shm_size;
+			}
 			stream->is_m_online_fb_res = false;
 			v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "_%d_ stream[%d] add 0x%x to list %p\n",
 				 __LINE__, stream->id, (u32)buf->dummy.dma_addr, &stream->rx_buf_head);
@@ -6541,7 +6596,6 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		atomic_dec(&stream->buf_cnt);
 		stream->total_buf_num--;
 	}
-	stream->rx_buf_num = 0;
 
 	spin_unlock_irqrestore(&dev->buffree_lock, flags);
 
