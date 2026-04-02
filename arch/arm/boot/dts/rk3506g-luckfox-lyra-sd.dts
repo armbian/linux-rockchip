@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506-luckfox-lyra.dtsi"
+
+/ {
+	model = "Luckfox Lyra";
+	compatible = "rockchip,rk3506g-demo-display-control", "rockchip,rk3506";
+};
+
+/**********display**********/
+&cma {
+	size = <0x200000>;
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+/**********ethernet**********/
+&gmac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
+
+/**********usb**********/
+&usb20_otg0 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb20_otg1 {
+	dr_mode = "host";
+	status = "okay";
+};
