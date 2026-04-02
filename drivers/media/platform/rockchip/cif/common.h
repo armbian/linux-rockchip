@@ -25,7 +25,7 @@ void rkcif_free_common_dummy_buf(struct rkcif_device *dev, struct rkcif_dummy_bu
 
 int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf);
 void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf);
-void rkcif_free_reserved_mem(u32 start, u32 size);
+void rkcif_free_reserved_mem_area(struct rkcif_device *dev, struct rkcif_rx_buffer *buf);
 
 #endif /* _RKCIF_COMMON_H */
 

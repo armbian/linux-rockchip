@@ -3298,6 +3298,32 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 
 	cif_dev->resmem_pa = r.start;
 	cif_dev->resmem_size = resource_size(&r);
+
+	/*
+	 * Ensure resmem_pa and resmem_size are page-aligned.
+	 * free_reserved_area() requires page-aligned addresses,
+	 * so we align at initialization to avoid leaks during free.
+	 *
+	 * This may waste a small amount of reserved memory at the
+	 * start/end if the original addresses are not page-aligned.
+	 */
+	if (!PAGE_ALIGNED(cif_dev->resmem_pa) ||
+	    !PAGE_ALIGNED(cif_dev->resmem_size)) {
+		phys_addr_t orig_pa = cif_dev->resmem_pa;
+		phys_addr_t orig_end = cif_dev->resmem_pa + cif_dev->resmem_size;
+		unsigned long wasted;
+
+		cif_dev->resmem_pa = PAGE_ALIGN(orig_pa);
+		cif_dev->resmem_size = (orig_end & PAGE_MASK) - cif_dev->resmem_pa;
+		wasted = (orig_pa & ~PAGE_MASK) + (orig_end & ~PAGE_MASK);
+
+		dev_info(dev,
+			 "reserved memory aligned: orig 0x%pa size 0x%x, aligned 0x%pa size 0x%x, wasted %lu bytes\n",
+			 &orig_pa, (u32)(orig_end - orig_pa),
+			 &cif_dev->resmem_pa, (u32)cif_dev->resmem_size,
+			 wasted);
+	}
+
 	cif_dev->resmem_addr = dma_map_single(dev, phys_to_virt(r.start),
 					      sizeof(struct rkisp_thunderboot_resmem_head),
 					      DMA_BIDIRECTIONAL);

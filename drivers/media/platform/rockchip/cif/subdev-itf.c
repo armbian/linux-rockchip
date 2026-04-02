@@ -101,7 +101,7 @@ static void sditf_buffree_work(struct work_struct *work)
 		if (rx_buf) {
 			list_del(&rx_buf->list_free);
 			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
-			rkcif_free_reserved_mem(rx_buf->shmem.shm_start, rx_buf->shmem.shm_size);
+			rkcif_free_reserved_mem_area(priv->cif_dev, rx_buf);
 			memset(rx_buf, 0, sizeof(*rx_buf));
 		}
 	}

@@ -353,13 +353,34 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 
 	if (dev->pre_buf_num)
 		reserved_mem = SHARED_MEM_RESERVED_HEAD_SIZE;
-	dma_addr = reserved_mem + dev->resmem_pa + dummy->size * buf->buf_idx;
-	if (dma_addr + dummy->size > dev->resmem_pa + dev->resmem_size)
+	/*
+	 * Calculate buffer start address. Use PAGE_ALIGN for dummy->size
+	 * to ensure each buffer starts at a page-aligned boundary.
+	 * resmem_pa is already page-aligned from dev.c initialization.
+	 * This is critical for free_reserved_area() which requires
+	 * page-aligned addresses to avoid memory leaks.
+	 */
+	dummy->dma_addr = reserved_mem + dev->resmem_pa +
+			   PAGE_ALIGN(dummy->size) * buf->buf_idx;
+
+	if (dummy->dma_addr + PAGE_ALIGN(dummy->size) > dev->resmem_pa + dev->resmem_size) {
+		v4l2_err(&dev->v4l2_dev,
+			 "reserved memory overflow: dma_addr=0x%pa size=0x%x resmem_pa=0x%pa resmem_size=0x%zx\n",
+			 &dummy->dma_addr, dummy->size,
+			 &dev->resmem_pa, dev->resmem_size);
 		return -EINVAL;
-	buf->dbufs.dma = dma_addr;
+	}
+
+	buf->dbufs.dma = dummy->dma_addr;
 	buf->dbufs.is_resmem = true;
-	buf->shmem.shm_start = dma_addr;
-	buf->shmem.shm_size = dummy->size;
+	buf->shmem.shm_start = dummy->dma_addr;
+	buf->shmem.shm_size = PAGE_ALIGN(dummy->size);
+
+	v4l2_info(&dev->v4l2_dev,
+		  "alloc buf[%d]: orig_size=0x%x aligned_size=0x%x start=0x%pa\n",
+		  buf->buf_idx, dummy->size,
+		  buf->shmem.shm_size, &buf->shmem.shm_start);
+
 	dummy->dbuf = rkcif_shm_alloc(&buf->shmem);
 	buf->dbufs.dbuf = dummy->dbuf;
 	if (dev->hw_dev->iommu_en) {
@@ -447,12 +468,36 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	buf->dummy.is_allocated = false;
 }
 
-void rkcif_free_reserved_mem(u32 start, u32 size)
+void rkcif_free_reserved_mem_area(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
 {
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
-	free_reserved_area(phys_to_virt(start),
-			   phys_to_virt(start + size),
-			   -1, "rkisp_thunderboot");
+	phys_addr_t start, end;
+
+	start = buf->shmem.shm_start;
+	end = buf->shmem.shm_start + buf->shmem.shm_size;
+
+	/*
+	 * Both shm_start and shm_size should already be page-aligned
+	 * from allocation and first free. Add sanity check for debugging.
+	 */
+	if (WARN_ON(!PAGE_ALIGNED(start) || !PAGE_ALIGNED(end))) {
+		v4l2_err(&dev->v4l2_dev,
+			 "BUG: buf not page-aligned! start=0x%pa end=0x%pa\n",
+			 &start, &end);
+		/* Force align to avoid leak */
+		start = PAGE_ALIGN(start);
+		end = end & PAGE_MASK;
+	}
+
+	if (end > start) {
+		free_reserved_area(phys_to_virt(start),
+				   phys_to_virt(end),
+				   -1, "rkisp_thunderboot");
+		v4l2_info(&dev->v4l2_dev,
+			  "free buf done: start=0x%pa end=0x%pa pages=%llu\n",
+			  &start, &end,
+			  (unsigned long long)(end - start) / PAGE_SIZE);
+	}
 #endif
 }
 
