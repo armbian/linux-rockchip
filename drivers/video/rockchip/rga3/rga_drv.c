@@ -831,15 +831,12 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 		ret = rga_request_submit(request);
 		if (ret < 0) {
 			rga_err("request[%d] submit failed!\n", user_request.id);
-			return -EFAULT;
-		}
-
-		if (request->sync_mode == RGA_BLIT_ASYNC) {
+		} else if (request->sync_mode == RGA_BLIT_ASYNC) {
 			user_request.release_fence_fd = request->release_fence_fd;
 			if (copy_to_user((struct rga_req *)arg,
 					 &user_request, sizeof(user_request))) {
 				rga_err("copy_to_user failed\n");
-				return -EFAULT;
+				ret = -EFAULT;
 			}
 		}
 	}
@@ -848,7 +845,7 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 	rga_request_put(request);
 	mutex_unlock(&request_manager->lock);
 
-	return 0;
+	return ret;
 }
 
 static long rga_ioctl_request_cancel(unsigned long arg)
