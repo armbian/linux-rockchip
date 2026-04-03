@@ -123,7 +123,7 @@ int rknpu3_pqueue_push(struct rknpu3_pqueue *queue, struct rknpu3_task *task)
 	spin_lock_irqsave(&queue->spinlock, flags);
 
 	/* Check if queue is full */
-	if (queue->size >= RKNPU3_PQUEUE_MAX_NODES) {
+	if (queue->size >= queue->pool_size) {
 		/* Queue full, release lock and return error */
 		spin_unlock_irqrestore(&queue->spinlock, flags);
 		pr_warn("%s: queue is full, size=%d\n", __func__, queue->size);
@@ -459,7 +459,7 @@ void rknpu3_pqueue_debug_info(struct rknpu3_pqueue *queue, const char *name)
 		linked_count++;
 		_current = _current->next;
 		/* Prevent infinite loop */
-		if (linked_count > RKNPU3_PQUEUE_MAX_NODES) {
+		if (linked_count > queue->size) {
 			pr_info("Queue %s: Potential infinite loop detected!\n",
 				name ? name : "unknown");
 			break;

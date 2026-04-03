@@ -13,7 +13,7 @@
 #include "rknpu3_ioctl.h"
 
 /* Pre-allocated node count */
-#define RKNPU3_PQUEUE_MAX_NODES 32
+#define RKNPU3_PQUEUE_MAX_NODES 1024
 
 /**
  * struct pq_node - Priority queue node structure
