@@ -386,7 +386,6 @@ struct serdes {
 	struct device *dev;
 	enum serdes_type type;
 	struct regmap *regmap;
-	struct regulator *supply;
 	struct extcon_dev *extcon;
 	atomic_t conn_trigger;
 
