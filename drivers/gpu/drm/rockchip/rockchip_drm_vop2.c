@@ -10284,7 +10284,6 @@ static int vop2_crtc_late_register(struct drm_crtc *crtc)
 {
 	struct drm_minor *minor = crtc->dev->primary;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	const struct vop2_video_port_data *vp_data = NULL;
 	struct vop2 *vop2 = vp->vop2;
 	int ret, i;
 	char name[12];
@@ -10308,8 +10307,7 @@ static int vop2_crtc_late_register(struct drm_crtc *crtc)
 		rockchip_drm_debugfs_add_aclk_rate(crtc, vp->debugfs);
 	if (vp->regs->calc_dclk_cnt.mask)
 		rockchip_drm_debugfs_add_dclk_rate(crtc, vp->debugfs);
-	vp_data = &vop2->data->vp[vp->id];
-	if (vp_data->feature & VOP_FEATURE_DOVI)
+	if (vop2->data->vp[vp->id].feature & VOP_FEATURE_DOVI)
 		rockchip_drm_debugfs_add_dovi_mode(crtc, vp->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
