@@ -203,6 +203,9 @@ static int hyn_input_dev_init(struct hyn_ts_data *ts_data)
 		return -ENOMEM;
 	}
 	input_dev->name = HYN_DRIVER_NAME;
+	input_dev->phys =
+		devm_kasprintf(ts_data->dev, GFP_KERNEL, "hyn_ts-%s/input0",
+			       dev_name(ts_data->dev));
 	input_dev->id.bustype = ts_data->bus_type;
 	input_dev->dev.parent = ts_data->dev;
 	input_set_drvdata(input_dev, ts_data);
