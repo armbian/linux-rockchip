@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
+	rockchip-ebyte-ecb41-pge-spi0-1cs-spidev.dtbo \
+	rockchip-ebyte-ecb41-pge-spi0-2cs-spidev.dtbo \
+	rockchip-ebyte-ecb41-pge-spi1-1cs-spidev.dtbo \
 	rockchip-forlinx-ok3506-s12-spi0-1cs-spidev.dtbo \
 	rockchip-forlinx-ok3506-s12-spi0-2cs-spidev.dtbo \
 	rockchip-forlinx-ok3506-s12-spi1-1cs-spidev.dtbo \
