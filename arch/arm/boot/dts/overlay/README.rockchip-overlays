@@ -13,6 +13,11 @@ for RK3506:
 - disable-ethernet0
 - disable-ethernet1
 
+for Ebyte ECB41-PGE:
+- spi0-1cs-spidev
+- spi0-2cs-spidev
+- spi1-1cs-spidev
+
 for Forlinx OK3506-S12:
 - spi0-1cs-spidev
 - spi0-2cs-spidev
@@ -41,6 +46,18 @@ Disables `end0` ethernet adapter (`gmac0`, `mdio0`) to save power.
 
 ### rk3506-disable-ethernet1
 Disables `end1` ethernet adapter (`gmac1`, `mdio1`) to save power.
+
+### ebyte-ecb41-pge-spi0-1cs-spidev
+Enables SPI0 spidev on ebyte-ecb41-pge with one chipselect.
+Compatible with Raspberry Pi 'spi0-1cs' hats.
+
+### ebyte-ecb41-pge-spi0-2cs-spidev
+Enables SPI0 spidev on ebyte-ecb41-pge with two chipselects.
+Compatible with Raspberry Pi 'spi0-2cs' hats.
+
+### ebyte-ecb41-pge-spi1-1cs-spidev
+Enables SPI1 spidev on ebyte-ecb41-pge with one chipselect.
+Compatible with Raspberry Pi 'spi1-1cs' hats.
 
 ### forlinx-ok3506-s12-spi0-1cs-spidev
 Enables SPI0 spidev on forlinx-ok3506-s12 with one chipselect.
