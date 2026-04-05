@@ -15,13 +15,16 @@
 #include <linux/dma-buf.h>
 #include <linux/iosys-map.h>
 #include <linux/version.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>
-
+#include <linux/dma-map-ops.h>
+#include <linux/iommu.h>
 #include "rknpu3_memory.h"
 #include "rknpu3_drv.h"
 #include "rknpu3_config.h"
 #include "rknpu3_core.h"
+#include "rknpu3_pqueue.h"
 #include "rknpu3_utils.h"
 
 /* Import DMA_BUF namespace - required for Linux 5.16+ */
@@ -47,9 +50,10 @@ MODULE_IMPORT_NS(DMA_BUF);
  * @cpu_addr: CPU virtual address
  * @dma_addr: DMA address
  * @size: Buffer size
- * @is_uncached: Whether buffer is uncached
- * @sgt: Scatter-gather table for exported buffer
- * @sgt_mapped: Whether sgt is mapped
+ * @is_uncached: Whether explicit cache sync can be skipped
+ * @dma_attrs: DMA allocation attributes
+ * @attach: Self attachment used to build DMA-mapped sg table
+ * @sgt: DMA-mapped scatter-gather table for exported buffer
  * @lock: Mutex for concurrent access protection
  */
 struct rknpu3_dma_buf_priv {
@@ -59,12 +63,72 @@ struct rknpu3_dma_buf_priv {
 	dma_addr_t dma_addr;
 	size_t size;
 	bool is_uncached;
+	unsigned long dma_attrs;
+	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
-	bool sgt_mapped;
 	struct mutex lock;
 	uint32_t core_id;
 	bool stats_updated;
 };
+
+static void rknpu3_dma_buf_cleanup_attachment(struct dma_buf *dmabuf,
+					      struct rknpu3_dma_buf_priv *priv)
+{
+	if (!priv || !priv->attach)
+		return;
+
+	if (priv->sgt) {
+		dma_buf_unmap_attachment_unlocked(priv->attach, priv->sgt,
+						  DMA_BIDIRECTIONAL);
+		priv->sgt = NULL;
+	}
+
+	dma_buf_detach(dmabuf, priv->attach);
+	priv->attach = NULL;
+}
+
+static bool rknpu3_memory_requires_phys_contig(struct rknpu3_device *dev)
+{
+	return !dev->iommu_en;
+}
+
+static int rknpu3_memory_resolve_attrs(struct rknpu3_device *dev, u32 flags,
+				       unsigned long *dma_attrs,
+				       bool *is_uncached)
+{
+	unsigned long attrs = 0;
+
+	if ((flags & RKNPU3_MEM_TYPE_LAYOUT_MASK) ==
+	    RKNPU3_MEM_TYPE_LAYOUT_MASK)
+		return -EINVAL;
+
+	if ((flags & RKNPU3_MEM_TYPE_CACHE_MASK) == RKNPU3_MEM_TYPE_CACHE_MASK)
+		return -EINVAL;
+
+	if ((flags & RKNPU3_MEM_TYPE_NON_CONTIGUOUS) &&
+	    rknpu3_memory_requires_phys_contig(dev))
+		return -EINVAL;
+
+	if (flags & RKNPU3_MEM_TYPE_UNCACHED) {
+		*is_uncached = true;
+	} else if (flags & RKNPU3_MEM_TYPE_WRITE_COMBINE) {
+		*is_uncached = false;
+		attrs |= DMA_ATTR_WRITE_COMBINE;
+	} else {
+		// default is cached
+		*is_uncached = false;
+	}
+
+	if (rknpu3_memory_requires_phys_contig(dev))
+		attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
+	else if (flags & RKNPU3_MEM_TYPE_NON_CONTIGUOUS)
+		attrs |= DMA_ATTR_ALLOC_SINGLE_PAGES;
+
+	*dma_attrs = attrs;
+
+	return 0;
+}
+
 
 /**
  * struct rknpu3_imported_buf - Imported external DMA-BUF private data
@@ -140,15 +204,37 @@ static struct sg_table *rknpu3_dma_buf_map(struct dma_buf_attachment *attach,
 	if (sgt->sgl)
 		return sgt;
 
-	ret = dma_get_sgtable_attrs(priv->dev, sgt, priv->cpu_addr, priv->dma_addr,
-				    priv->size, 0);
+	ret = dma_get_sgtable_attrs(priv->dev, sgt, priv->cpu_addr,
+				    priv->dma_addr, priv->size,
+				    priv->dma_attrs);
 	if (ret) {
 		LOG_DEV_ERROR(priv->dev, "dma_get_sgtable failed: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 
-	/* Map to attached device's address space */
-	ret = dma_map_sgtable(attach->dev, sgt, dir, 0);
+
+	if (attach->dev == priv->dev) {
+		struct scatterlist *sg;
+		dma_addr_t dma_offset = priv->dma_addr;
+		int i;
+
+		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
+			sg_dma_address(sg) = dma_offset;
+			sg_dma_len(sg) = sg->length;
+			dma_offset += sg->length;
+		}
+
+		sgt->nents = sgt->orig_nents;
+
+		LOG_DEV_DEBUG(priv->dev,
+			      "dma_buf self-mapped: dma_addr=0x%llx size=%zu nents=%u\n",
+			      (u64)priv->dma_addr, priv->size, sgt->nents);
+
+		return sgt;
+	}
+
+	/* External device: create a real IOMMU mapping. */
+	ret = dma_map_sgtable(attach->dev, sgt, dir, attach->dma_map_attrs);
 	if (ret) {
 		LOG_DEV_ERROR(priv->dev, "dma_map_sgtable failed: %d\n", ret);
 		sg_free_table(sgt);
@@ -171,8 +257,12 @@ static void rknpu3_dma_buf_unmap(struct dma_buf_attachment *attach,
 	if (!sgt || !sgt->sgl)
 		return;
 
-	/* Unmap */
-	dma_unmap_sgtable(attach->dev, sgt, dir, 0);
+	/*
+	 * Self-attachment: no dma_map_sgtable() was called during map, so
+	 * there is no IOMMU mapping to tear down here.
+	 */
+	if (attach->dev != priv->dev)
+		dma_unmap_sgtable(attach->dev, sgt, dir, attach->dma_map_attrs);
 
 	/* Release sg_table */
 	sg_free_table(sgt);
@@ -192,7 +282,8 @@ static void rknpu3_dma_buf_release(struct dma_buf *dmabuf)
 
 	rknpu3_dev = priv->rknpu3_dev;
 
-	LOG_DEV_DEBUG(priv->dev, "dma_buf releasing: dma_addr=0x%llx size=%zu\n",
+	LOG_DEV_DEBUG(priv->dev,
+		      "dma_buf releasing: dma_addr=0x%llx size=%zu\n",
 		      (u64)priv->dma_addr, priv->size);
 
 	/*
@@ -207,27 +298,19 @@ static void rknpu3_dma_buf_release(struct dma_buf *dmabuf)
 			if (rknpu3_dev->used_memory >= priv->size)
 				rknpu3_dev->used_memory -= priv->size;
 			if (priv->core_id < rknpu3_dev->num_cores &&
-			    rknpu3_dev->core_memory_usage[priv->core_id] >= priv->size)
-				rknpu3_dev->core_memory_usage[priv->core_id] -= priv->size;
+			    rknpu3_dev->core_memory_usage[priv->core_id] >=
+				    priv->size)
+				rknpu3_dev->core_memory_usage[priv->core_id] -=
+					priv->size;
 		}
 		spin_unlock_irqrestore(&rknpu3_dev->dev_lock, flags);
 	}
 
-	/* Release DMA memory */
-	if (priv->is_uncached)
-		dma_free_coherent(priv->dev, priv->size, priv->cpu_addr,
-				  priv->dma_addr);
-	else
-		dma_free_wc(priv->dev, priv->size, priv->cpu_addr, priv->dma_addr);
+	rknpu3_dma_buf_cleanup_attachment(dmabuf, priv);
 
-	if (priv->sgt) {
-		if (priv->sgt_mapped)
-			dma_unmap_sgtable(priv->dev, priv->sgt, DMA_BIDIRECTIONAL,
-					  0);
-		sg_free_table(priv->sgt);
-		kfree(priv->sgt);
-		priv->sgt = NULL;
-	}
+	/* Release DMA memory */
+	dma_free_attrs(priv->dev, priv->size, priv->cpu_addr, priv->dma_addr,
+		       priv->dma_attrs);
 
 	/* Destroy mutex */
 	mutex_destroy(&priv->lock);
@@ -236,7 +319,8 @@ static void rknpu3_dma_buf_release(struct dma_buf *dmabuf)
 }
 
 /* dma_buf operation: mmap */
-static int rknpu3_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
+static int rknpu3_dma_buf_mmap(struct dma_buf *dmabuf,
+			       struct vm_area_struct *vma)
 {
 	struct rknpu3_dma_buf_priv *priv = dmabuf->priv;
 	unsigned long vm_size = vma->vm_end - vma->vm_start;
@@ -252,24 +336,21 @@ static int rknpu3_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vm
 	}
 
 	/* Choose mapping method based on memory type */
-	if (priv->is_uncached)
-		ret = dma_mmap_coherent(priv->dev, vma, priv->cpu_addr,
-					priv->dma_addr, priv->size);
-	else
-		ret = dma_mmap_wc(priv->dev, vma, priv->cpu_addr,
-				  priv->dma_addr, priv->size);
+	ret = dma_mmap_attrs(priv->dev, vma, priv->cpu_addr, priv->dma_addr,
+			     priv->size, priv->dma_attrs);
 
 	if (ret)
 		LOG_DEV_ERROR(priv->dev, "dma_mmap failed: %d\n", ret);
 	else
-		LOG_DEV_DEBUG(priv->dev, "dma_buf mmapped: vm_size=%lu\n", vm_size);
+		LOG_DEV_DEBUG(priv->dev, "dma_buf mmapped: vm_size=%lu\n",
+			      vm_size);
 
 	return ret;
 }
 
 /* dma_buf operation: begin_cpu_access - cache sync before CPU access */
 static int rknpu3_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-					enum dma_data_direction dir)
+					   enum dma_data_direction dir)
 {
 	struct rknpu3_dma_buf_priv *priv = dmabuf->priv;
 
@@ -284,13 +365,15 @@ static int rknpu3_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	/* For cached memory, invalidate cache to read device-written data */
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
-		if (priv->sgt && priv->sgt_mapped)
+		if (priv->sgt) {
 			dma_sync_sgtable_for_cpu(priv->dev, priv->sgt, dir);
-		else
-			dma_sync_single_for_cpu(priv->dev, priv->dma_addr,
-						priv->size, dir);
-		LOG_DEV_DEBUG(priv->dev, "sync for cpu: dir=%d size=%zu\n",
-			      dir, priv->size);
+			LOG_DEV_DEBUG(priv->dev, "sync for cpu: dir=%d size=%zu\n",
+				      dir, priv->size);
+		} else {
+			LOG_DEV_WARN(priv->dev,
+				     "begin_cpu_access: sgt is NULL, skip sync (dir=%d size=%zu)\n",
+				     dir, priv->size);
+		}
 	}
 
 	mutex_unlock(&priv->lock);
@@ -299,7 +382,7 @@ static int rknpu3_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 /* dma_buf operation: end_cpu_access - cache sync after CPU access */
 static int rknpu3_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-					enum dma_data_direction dir)
+					 enum dma_data_direction dir)
 {
 	struct rknpu3_dma_buf_priv *priv = dmabuf->priv;
 
@@ -314,13 +397,16 @@ static int rknpu3_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	/* For cached memory, flush cache to make CPU modifications visible to device */
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL) {
-		if (priv->sgt && priv->sgt_mapped)
+		if (priv->sgt) {
 			dma_sync_sgtable_for_device(priv->dev, priv->sgt, dir);
-		else
-			dma_sync_single_for_device(priv->dev, priv->dma_addr,
-						   priv->size, dir);
-		LOG_DEV_DEBUG(priv->dev, "sync for device: dir=%d size=%zu\n",
-			      dir, priv->size);
+			LOG_DEV_DEBUG(priv->dev,
+				      "sync for device: dir=%d size=%zu\n",
+				      dir, priv->size);
+		} else {
+			LOG_DEV_WARN(priv->dev,
+				     "end_cpu_access: sgt is NULL, skip sync (dir=%d size=%zu)\n",
+				     dir, priv->size);
+		}
 	}
 
 	mutex_unlock(&priv->lock);
@@ -351,7 +437,8 @@ static int rknpu3_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	return 0;
 }
 
-static void rknpu3_dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static void rknpu3_dma_buf_vunmap(struct dma_buf *dmabuf,
+				  struct dma_buf_map *map)
 {
 }
 #else
@@ -402,14 +489,16 @@ int rknpu3_memory_module_init(struct rknpu3_device *dev)
 
 		if (reserved_size) {
 			dev->total_memory = reserved_size;
-			LOG_DEV_INFO(dev->dev, "using reserved memory: %llu bytes\n",
+			LOG_DEV_INFO(dev->dev,
+				     "using reserved memory: %llu bytes\n",
 				     (unsigned long long)reserved_size);
 		} else {
 			dev->total_memory = 0;
 		}
 	} else {
 		dev->total_memory = 0;
-		LOG_DEV_INFO(dev->dev, "IOMMU mode: no reserved memory limit\n");
+		LOG_DEV_INFO(dev->dev,
+			     "IOMMU mode: no reserved memory limit\n");
 	}
 	dev->used_memory = 0;
 
@@ -420,23 +509,31 @@ int rknpu3_memory_module_init(struct rknpu3_device *dev)
 	return 0;
 }
 
-int rknpu3_memory_alloc(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_create)
+int rknpu3_memory_alloc(struct rknpu3_device *dev,
+			struct rknpu3_mem_create *mem_create)
 {
 	void *cpu_addr;
 	dma_addr_t dma_addr;
+	unsigned long dma_attrs;
 	unsigned long flags;
 	struct rknpu3_dma_buf_priv *priv = NULL;
 	struct dma_buf *dmabuf = NULL;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	int fd = -1;
 	int ret = 0;
+	bool is_uncached;
+	struct dma_buf_attachment *attach = NULL;
+	struct sg_table *sgt = NULL;
 
 	if (!dev || !mem_create || !mem_create->size)
 		return -EINVAL;
 
-	if (!(mem_create->flags & RKNPU3_MEM_TYPE_CONTIGUOUS)) {
-		LOG_DEV_ERROR(dev->dev, "Only contiguous memory supported\n");
-		return -EINVAL;
+	ret = rknpu3_memory_resolve_attrs(dev, mem_create->flags, &dma_attrs,
+					  &is_uncached);
+	if (ret) {
+		LOG_DEV_ERROR(dev->dev, "invalid memory flags: 0x%x\n",
+			      mem_create->flags);
+		return ret;
 	}
 
 	/* Only check memory limit in reserved memory mode */
@@ -447,27 +544,25 @@ int rknpu3_memory_alloc(struct rknpu3_device *dev, struct rknpu3_mem_create *mem
 		new_used = dev->used_memory + mem_create->size;
 		if (new_used > dev->total_memory) {
 			spin_unlock_irqrestore(&dev->dev_lock, flags);
-			LOG_DEV_ERROR(dev->dev,
-				      "Out of reserved memory: used=%llu size=%llu total=%llu\n",
-				      (unsigned long long)dev->used_memory,
-				      (unsigned long long)mem_create->size,
-				      (unsigned long long)dev->total_memory);
+			LOG_DEV_ERROR(
+				dev->dev,
+				"Out of reserved memory: used=%llu size=%llu total=%llu\n",
+				(unsigned long long)dev->used_memory,
+				(unsigned long long)mem_create->size,
+				(unsigned long long)dev->total_memory);
 			return -ENOMEM;
 		}
 		spin_unlock_irqrestore(&dev->dev_lock, flags);
 	}
 
-	/* Use DMA API to allocate memory */
-	if (mem_create->flags & RKNPU3_MEM_TYPE_UNCACHED)
-		cpu_addr = dma_alloc_coherent(dev->dev, mem_create->size,
-					      &dma_addr, GFP_KERNEL);
-	else
-		cpu_addr = dma_alloc_wc(dev->dev, mem_create->size,
-					&dma_addr, GFP_KERNEL);
+	cpu_addr = dma_alloc_attrs(dev->dev, mem_create->size, &dma_addr,
+				   GFP_KERNEL, dma_attrs);
 
 	if (!cpu_addr) {
-		LOG_DEV_ERROR(dev->dev, "Failed to allocate memory: size=%llu\n",
-			      mem_create->size);
+		LOG_DEV_ERROR(
+			dev->dev,
+			"Failed to allocate memory: size=%llu attrs=0x%lx\n",
+			mem_create->size, dma_attrs);
 		return -ENOMEM;
 	}
 
@@ -483,35 +578,14 @@ int rknpu3_memory_alloc(struct rknpu3_device *dev, struct rknpu3_mem_create *mem
 	priv->cpu_addr = cpu_addr;
 	priv->dma_addr = dma_addr;
 	priv->size = mem_create->size;
-	priv->is_uncached = !!(mem_create->flags & RKNPU3_MEM_TYPE_UNCACHED);
+	priv->is_uncached = is_uncached || dev_is_dma_coherent(dev->dev) ||
+			    !!(dma_attrs & DMA_ATTR_WRITE_COMBINE);
+	priv->dma_attrs = dma_attrs;
+	priv->attach = NULL;
 	priv->sgt = NULL;
-	priv->sgt_mapped = false;
 	priv->core_id = mem_create->core_id;
 	priv->stats_updated = false;
 	mutex_init(&priv->lock);
-	priv->sgt = kzalloc(sizeof(*priv->sgt), GFP_KERNEL);
-	if (!priv->sgt) {
-		ret = -ENOMEM;
-		goto err_free_priv;
-	}
-	ret = dma_get_sgtable_attrs(dev->dev, priv->sgt, cpu_addr, dma_addr,
-				    mem_create->size, 0);
-	if (ret) {
-		LOG_DEV_WARN(dev->dev, "dma_get_sgtable failed: %d\n", ret);
-		kfree(priv->sgt);
-		priv->sgt = NULL;
-	} else {
-		ret = dma_map_sgtable(dev->dev, priv->sgt, DMA_BIDIRECTIONAL,
-				      0);
-		if (ret) {
-			LOG_DEV_WARN(dev->dev, "dma_map_sgtable failed: %d\n", ret);
-			sg_free_table(priv->sgt);
-			kfree(priv->sgt);
-			priv->sgt = NULL;
-		} else {
-			priv->sgt_mapped = true;
-		}
-	}
 
 	/* Export as dma_buf */
 	exp_info.ops = &rknpu3_dma_buf_ops;
@@ -526,12 +600,29 @@ int rknpu3_memory_alloc(struct rknpu3_device *dev, struct rknpu3_mem_create *mem
 		goto err_free_priv;
 	}
 
+	attach = dma_buf_attach(dmabuf, dev->dev);
+	if (IS_ERR(attach)) {
+		ret = PTR_ERR(attach);
+		LOG_DEV_ERROR(dev->dev, "Failed to attach dma_buf: %d\n", ret);
+		goto err_put_dmabuf;
+	}
+
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sgt)) {
+		ret = PTR_ERR(sgt);
+		LOG_DEV_ERROR(dev->dev, "Failed to map dma_buf: %d\n", ret);
+		goto err_detach_dmabuf;
+	}
+
+	priv->attach = attach;
+	priv->sgt = sgt;
+
 	/* Get file descriptor */
-	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
+	fd = dma_buf_fd(dmabuf, O_CLOEXEC | O_RDWR);
 	if (fd < 0) {
 		ret = fd;
 		LOG_DEV_ERROR(dev->dev, "Failed to get dma_buf fd: %d\n", ret);
-		goto err_put_dmabuf;
+		goto err_unmap_dmabuf;
 	}
 
 	/* Update memory usage statistics */
@@ -545,39 +636,34 @@ int rknpu3_memory_alloc(struct rknpu3_device *dev, struct rknpu3_mem_create *mem
 	mem_create->virt_kaddr = (uint64_t)(uintptr_t)cpu_addr;
 	mem_create->dma_buf_fd = fd;
 
-	LOG_DEV_DEBUG(dev->dev,
-		     "memory allocated: size=%llu core_id=%d flags=0x%x dma_addr=0x%llx virt_kaddr=0x%llx dma_buf_fd=%d iommu=%d\n",
-		     (unsigned long long)mem_create->size, mem_create->core_id,
-		     mem_create->flags, (unsigned long long)mem_create->dma_addr,
-		     (unsigned long long)mem_create->virt_kaddr,
-		     mem_create->dma_buf_fd, dev->iommu_en);
+	LOG_DEV_DEBUG(
+		dev->dev,
+		"memory allocated: size=%llu core_id=%d flags=0x%x dma_addr=0x%llx virt_kaddr=0x%llx dma_buf_fd=%d iommu=%d\n",
+		(unsigned long long)mem_create->size, mem_create->core_id,
+		mem_create->flags, (unsigned long long)mem_create->dma_addr,
+		(unsigned long long)mem_create->virt_kaddr,
+		mem_create->dma_buf_fd, dev->iommu_en);
 	return 0;
 
+err_unmap_dmabuf:
+	dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
+err_detach_dmabuf:
+	dma_buf_detach(dmabuf, attach);
 err_put_dmabuf:
 	dma_buf_put(dmabuf);
 	return ret;
 
 err_free_priv:
-	if (priv) {
-		if (priv->sgt) {
-			if (priv->sgt_mapped)
-				dma_unmap_sgtable(priv->dev, priv->sgt, DMA_BIDIRECTIONAL, 0);
-			sg_free_table(priv->sgt);
-			kfree(priv->sgt);
-		}
-		mutex_destroy(&priv->lock);
-	}
+	mutex_destroy(&priv->lock);
 	kfree(priv);
-
 err_free_dma:
-	if (mem_create->flags & RKNPU3_MEM_TYPE_UNCACHED)
-		dma_free_coherent(dev->dev, mem_create->size, cpu_addr, dma_addr);
-	else
-		dma_free_wc(dev->dev, mem_create->size, cpu_addr, dma_addr);
+	dma_free_attrs(dev->dev, mem_create->size, cpu_addr, dma_addr,
+		       dma_attrs);
 	return ret;
 }
 
-int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_create)
+int rknpu3_memory_free(struct rknpu3_device *dev,
+		       struct rknpu3_mem_create *mem_create)
 {
 	struct dma_buf *dmabuf;
 	struct rknpu3_dma_buf_priv *priv;
@@ -598,9 +684,10 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
 	 * again to avoid underflow.
 	 */
 	if (mem_create->dma_buf_fd < 0) {
-		LOG_DEV_DEBUG(dev->dev,
-			      "memory free: invalid fd=%d, skipping stats update\n",
-			      mem_create->dma_buf_fd);
+		LOG_DEV_DEBUG(
+			dev->dev,
+			"memory free: invalid fd=%d, skipping stats update\n",
+			mem_create->dma_buf_fd);
 		return 0;
 	}
 
@@ -621,9 +708,10 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
 	 * If it's not ours, don't touch priv or update stats.
 	 */
 	if (dmabuf->ops != &rknpu3_dma_buf_ops) {
-		LOG_DEV_WARN(dev->dev,
-			     "memory free: dma_buf not created by rknpu, fd=%d\n",
-			     mem_create->dma_buf_fd);
+		LOG_DEV_WARN(
+			dev->dev,
+			"memory free: dma_buf not created by rknpu, fd=%d\n",
+			mem_create->dma_buf_fd);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
@@ -658,9 +746,10 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
 	 */
 	if (priv->stats_updated) {
 		spin_unlock_irqrestore(&dev->dev_lock, flags);
-		LOG_DEV_DEBUG(dev->dev,
-			      "memory free: stats already updated, fd=%d size=%zu\n",
-			      mem_create->dma_buf_fd, size);
+		LOG_DEV_DEBUG(
+			dev->dev,
+			"memory free: stats already updated, fd=%d size=%zu\n",
+			mem_create->dma_buf_fd, size);
 		dma_buf_put(dmabuf);
 		return 0;
 	}
@@ -671,7 +760,8 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
 	if (dev->used_memory >= size)
 		dev->used_memory -= size;
 	else
-		LOG_DEV_WARN(dev->dev, "memory usage underflow: used=%llu size=%zu\n",
+		LOG_DEV_WARN(dev->dev,
+			     "memory usage underflow: used=%llu size=%zu\n",
 			     (unsigned long long)dev->used_memory, size);
 
 	/* Update corresponding core's memory usage */
@@ -679,18 +769,23 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
 		if (dev->core_memory_usage[core_id] >= size)
 			dev->core_memory_usage[core_id] -= size;
 		else
-			LOG_DEV_WARN(dev->dev,
-				     "core %u memory usage underflow: used=%llu size=%zu\n",
-				     core_id,
-				     (unsigned long long)dev->core_memory_usage[core_id],
-				     size);
+			LOG_DEV_WARN(
+				dev->dev,
+				"core %u memory usage underflow: used=%llu size=%zu\n",
+				core_id,
+				(unsigned long long)
+					dev->core_memory_usage[core_id],
+				size);
 	}
 
-	LOG_DEV_DEBUG(dev->dev, "memory freed: total_used=%llu core_%u_used=%llu, size=%zu, fd=%d\n",
-		      (unsigned long long)dev->used_memory, core_id,
-		      (unsigned long long)(core_id < dev->num_cores ?
-					   dev->core_memory_usage[core_id] : 0),
-		      size, mem_create->dma_buf_fd);
+	LOG_DEV_DEBUG(
+		dev->dev,
+		"memory freed: total_used=%llu core_%u_used=%llu, size=%zu, fd=%d\n",
+		(unsigned long long)dev->used_memory, core_id,
+		(unsigned long long)(core_id < dev->num_cores ?
+					     dev->core_memory_usage[core_id] :
+					     0),
+		size, mem_create->dma_buf_fd);
 
 	spin_unlock_irqrestore(&dev->dev_lock, flags);
 
@@ -712,8 +807,8 @@ int rknpu3_memory_free(struct rknpu3_device *dev, struct rknpu3_mem_create *mem_
  * Reference: drivers/rknpu/rknpu3_mem.c rknpu3_dma_buf_sync()
  */
 static void rknpu3_dma_buf_sync(struct device *dev, struct sg_table *sgt,
-			       u32 offset, u32 length,
-			       enum dma_data_direction dir, bool for_cpu)
+				u32 offset, u32 length,
+				enum dma_data_direction dir, bool for_cpu)
 {
 	struct scatterlist *sg;
 	dma_addr_t sg_dma_addr;
@@ -756,7 +851,8 @@ static void rknpu3_dma_buf_sync(struct device *dev, struct sg_table *sgt,
 	}
 }
 
-int rknpu3_memory_sync(struct rknpu3_session *session, struct rknpu3_mem_sync *mem_sync)
+int rknpu3_memory_sync(struct rknpu3_session *session,
+		       struct rknpu3_mem_sync *mem_sync)
 {
 	struct rknpu3_device *dev;
 	struct dma_buf *dmabuf = NULL;
@@ -790,14 +886,14 @@ int rknpu3_memory_sync(struct rknpu3_session *session, struct rknpu3_mem_sync *m
 			sgt = imported->sgt;
 			if (mem_sync->flags & RKNPU3_MEM_SYNC_TO_DEVICE)
 				rknpu3_dma_buf_sync(dev->dev, sgt,
-						   mem_sync->offset,
-						   mem_sync->size,
-						   DMA_TO_DEVICE, false);
+						    mem_sync->offset,
+						    mem_sync->size,
+						    DMA_TO_DEVICE, false);
 			if (mem_sync->flags & RKNPU3_MEM_SYNC_FROM_DEVICE)
 				rknpu3_dma_buf_sync(dev->dev, sgt,
-						   mem_sync->offset,
-						   mem_sync->size,
-						   DMA_FROM_DEVICE, true);
+						    mem_sync->offset,
+						    mem_sync->size,
+						    DMA_FROM_DEVICE, true);
 			mutex_unlock(&session->imported_bufs_lock);
 			return 0;
 		}
@@ -818,19 +914,25 @@ int rknpu3_memory_sync(struct rknpu3_session *session, struct rknpu3_mem_sync *m
 
 				/* For write-combine memory, sync via sgt */
 				sgt = priv->sgt;
-				if (sgt && priv->sgt_mapped) {
-					if (mem_sync->flags & RKNPU3_MEM_SYNC_TO_DEVICE)
-						rknpu3_dma_buf_sync(dev->dev, sgt,
-								   mem_sync->offset,
-								   mem_sync->size,
-								   DMA_TO_DEVICE,
-								   false);
-					if (mem_sync->flags & RKNPU3_MEM_SYNC_FROM_DEVICE)
-						rknpu3_dma_buf_sync(dev->dev, sgt,
-								   mem_sync->offset,
-								   mem_sync->size,
-								   DMA_FROM_DEVICE,
-								   true);
+				if (sgt) {
+					if (mem_sync->flags &
+					    RKNPU3_MEM_SYNC_TO_DEVICE)
+						rknpu3_dma_buf_sync(
+							dev->dev, sgt,
+							mem_sync->offset,
+							mem_sync->size,
+							DMA_TO_DEVICE, false);
+					if (mem_sync->flags &
+					    RKNPU3_MEM_SYNC_FROM_DEVICE)
+						rknpu3_dma_buf_sync(
+							dev->dev, sgt,
+							mem_sync->offset,
+							mem_sync->size,
+							DMA_FROM_DEVICE, true);
+				} else {
+					LOG_DEV_WARN(dev->dev,
+						     "memory_sync: sgt is NULL for dma_buf_fd=%d, skip sync\n",
+						     mem_sync->dma_buf_fd);
 				}
 			}
 			dma_buf_put(dmabuf);
@@ -864,7 +966,7 @@ void rknpu3_memory_module_deinit(struct rknpu3_device *dev)
 }
 
 int rknpu3_memory_get_all_core_usage(struct rknpu3_device *dev,
-				    struct rknpu3_mem_usage *usage)
+				     struct rknpu3_mem_usage *usage)
 {
 	unsigned long flags;
 	int i;
@@ -894,7 +996,7 @@ int rknpu3_memory_get_all_core_usage(struct rknpu3_device *dev,
 }
 
 int rknpu3_memory_import_dmabuf(struct rknpu3_session *session,
-			       struct rknpu3_mem_import *mem_import)
+				struct rknpu3_mem_import *mem_import)
 {
 	struct rknpu3_device *dev;
 	struct dma_buf *dmabuf = NULL;
@@ -945,8 +1047,9 @@ int rknpu3_memory_import_dmabuf(struct rknpu3_session *session,
 	}
 
 	if (!dev->iommu_en && sgt->nents > 1) {
-		LOG_DEV_ERROR(dev->dev,
-			      "Non-IOMMU mode requires contiguous DMA buffer\n");
+		LOG_DEV_ERROR(
+			dev->dev,
+			"Non-IOMMU mode requires contiguous DMA buffer\n");
 		ret = -EINVAL;
 		goto err_unmap;
 	}
@@ -970,15 +1073,16 @@ int rknpu3_memory_import_dmabuf(struct rknpu3_session *session,
 	ret = dma_buf_vmap_unlocked(dmabuf, &imported->map);
 	if (ret == 0) {
 		imported->cpu_addr = imported->map.is_iomem ?
-				     imported->map.vaddr_iomem :
-				     imported->map.vaddr;
+					     imported->map.vaddr_iomem :
+					     imported->map.vaddr;
 		imported->mapped = true;
 	} else {
 		imported->cpu_addr = NULL;
 		imported->mapped = false;
-		LOG_DEV_WARN(dev->dev,
-			     "dma_buf_vmap_unlocked failed: %d, cpu access not available\n",
-			     ret);
+		LOG_DEV_WARN(
+			dev->dev,
+			"dma_buf_vmap_unlocked failed: %d, cpu access not available\n",
+			ret);
 		/* Don't block, continue without cpu_addr */
 	}
 
@@ -1009,7 +1113,8 @@ err_put_dmabuf:
 	return ret;
 }
 
-int rknpu3_memory_release_imported(struct rknpu3_session *session, uint64_t handle)
+int rknpu3_memory_release_imported(struct rknpu3_session *session,
+				   uint64_t handle)
 {
 	struct rknpu3_device *dev;
 	struct rknpu3_imported_buf *imported = NULL;
@@ -1039,7 +1144,8 @@ int rknpu3_memory_release_imported(struct rknpu3_session *session, uint64_t hand
 
 	if (!found) {
 		LOG_DEV_WARN(dev->dev,
-			     "Invalid imported buffer handle: 0x%llx\n", handle);
+			     "Invalid imported buffer handle: 0x%llx\n",
+			     handle);
 		return -EINVAL;
 	}
 
@@ -1056,8 +1162,8 @@ int rknpu3_memory_release_imported(struct rknpu3_session *session, uint64_t hand
 
 	/* Unmap DMA */
 	if (imported->sgt && imported->attach)
-		dma_buf_unmap_attachment_unlocked(imported->attach, imported->sgt,
-					 DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(
+			imported->attach, imported->sgt, DMA_BIDIRECTIONAL);
 
 	/* Detach */
 	if (imported->attach && imported->dmabuf)
@@ -1090,19 +1196,22 @@ void rknpu3_session_release_all_imports(struct rknpu3_session *session)
 
 	mutex_lock(&session->imported_bufs_lock);
 	list_for_each_entry_safe(imported, tmp, &session->imported_bufs, node) {
-		LOG_DEV_WARN(dev->dev,
-			     "Auto-releasing leaked imported buffer: size=%zu dma_addr=0x%llx\n",
-			     imported->size, (u64)imported->dma_addr);
+		LOG_DEV_WARN(
+			dev->dev,
+			"Auto-releasing leaked imported buffer: size=%zu dma_addr=0x%llx\n",
+			imported->size, (u64)imported->dma_addr);
 
 		list_del_init(&imported->node);
 		imported->in_list = false;
 
 		/* Unmap kernel virtual address */
 		if (imported->mapped && imported->dmabuf)
-			dma_buf_vunmap_unlocked(imported->dmabuf, &imported->map);
+			dma_buf_vunmap_unlocked(imported->dmabuf,
+						&imported->map);
 		if (imported->sgt && imported->attach)
-			dma_buf_unmap_attachment_unlocked(imported->attach, imported->sgt,
-						 DMA_BIDIRECTIONAL);
+			dma_buf_unmap_attachment_unlocked(imported->attach,
+							  imported->sgt,
+							  DMA_BIDIRECTIONAL);
 		if (imported->attach && imported->dmabuf)
 			dma_buf_detach(imported->dmabuf, imported->attach);
 		if (imported->dmabuf)

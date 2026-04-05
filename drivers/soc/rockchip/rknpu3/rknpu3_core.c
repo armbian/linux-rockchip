@@ -87,7 +87,7 @@ static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core
 	if (!base_addr)
 		return -EINVAL;
 
-	ret = rknpu3_hw_core_reset(rknpu3_dev, core_id);
+	ret = rknpu3_hw_core_reset(rknpu3_dev, core_id, false);
 	if (ret)
 		return ret;
 

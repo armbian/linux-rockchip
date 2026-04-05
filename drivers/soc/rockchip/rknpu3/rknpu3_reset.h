@@ -61,9 +61,11 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
  * rknpu3_hw_core_reset() - Hardware reset NPU core
  * @rknpu3_dev: RKNPU device
  * @core_id: Global core ID
+ * @full_reset: Whether to reset srst_a_npu and reinitialize IOMMU
  *
  * Return: 0 on success, negative error code on failure
  */
-int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id);
+int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id,
+			 bool full_reset);
 
 #endif /* __RKNPU3_RESET_H__ */

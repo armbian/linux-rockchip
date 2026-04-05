@@ -27,10 +27,12 @@
  * rknpu3_hw_core_reset() - Hardware reset NPU core
  * @rknpu3_dev: RKNPU device
  * @core_id: Global core ID
+ * @full_reset: Whether to reset srst_a_npu and reinitialize IOMMU
  *
  * Return: 0 on success, negative error code on failure
  */
-int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
+int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id,
+			 bool full_reset)
 {
 	void __iomem *base_addr;
 #ifndef FPGA_PLATFORM
@@ -68,7 +70,7 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 	}
 
 	/* Assert reset via reset controller */
-	if (rknpu3_dev->srst_a_npu[local_id])
+	if (full_reset && rknpu3_dev->srst_a_npu[local_id])
 		reset_control_assert(rknpu3_dev->srst_a_npu[local_id]);
 	if (rknpu3_dev->srst_a_nrv[local_id])
 		reset_control_assert(rknpu3_dev->srst_a_nrv[local_id]);
@@ -83,11 +85,11 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 	/* Deassert reset */
 	if (rknpu3_dev->srst_a_nrv[local_id])
 		reset_control_deassert(rknpu3_dev->srst_a_nrv[local_id]);
-	if (rknpu3_dev->srst_a_npu[local_id])
+	if (full_reset && rknpu3_dev->srst_a_npu[local_id])
 		reset_control_deassert(rknpu3_dev->srst_a_npu[local_id]);
 
-	/* Reset clears IOMMU page table, need to re-attach IOMMU */
-	if (rknpu3_dev->iommu_en)
+	/* Full reset clears IOMMU page table, need to re-attach IOMMU */
+	if (full_reset && rknpu3_dev->iommu_en)
 		domain = iommu_get_domain_for_dev(rknpu3_dev->dev);
 
 	if (domain) {
@@ -101,7 +103,9 @@ int rknpu3_hw_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id)
 		if (ret)
 			return ret;
 
-		dev_dbg(rknpu3_dev->dev, "IOMMU re-enabled after reset\n");
+		dev_dbg(rknpu3_dev->dev,
+			"IOMMU re-enabled after %sreset\n",
+			full_reset ? "full " : "");
 	}
 
 	/* Clear interrupt */
@@ -280,7 +284,7 @@ int rknpu3_core_reset(struct rknpu3_device *rknpu3_dev, uint32_t core_id, uint64
 
 #ifndef FPGA_PLATFORM
 	/* Hardware reset core implementation */
-	ret = rknpu3_hw_core_reset(rknpu3_dev, global_core_id);
+	ret = rknpu3_hw_core_reset(rknpu3_dev, global_core_id, true);
 	if (ret != 0)
 		return RKNPU3_ERROR_OPERATION_FAILED;
 #endif

@@ -760,23 +760,21 @@ static int rknpu3_probe(struct platform_device *pdev)
 				     rknpu3_dev->nbuf_size);
 		}
 
-		/* IOMMU mode doesn't use reserved memory to avoid address conflicts */
-		rknpu3_dev->reserved_mem_attached = false;
-		LOG_DEV_INFO(dev, "IOMMU mode: skip reserved memory binding\n");
-	} else {
-		/* Only init reserved memory in non-IOMMU mode */
-		ret = of_reserved_mem_device_init(dev);
-		if (ret) {
-			if (ret != -ENODEV) {
-				LOG_DEV_ERROR(dev,
-					      "failed to init reserved memory: %d\n", ret);
-				goto err_power_off;
-			}
-			LOG_DEV_INFO(dev, "no reserved memory configured\n");
-		} else {
-			rknpu3_dev->reserved_mem_attached = true;
-			LOG_DEV_INFO(dev, "reserved memory attached\n");
+	}
+
+	rknpu3_dev->reserved_mem_attached = false;
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		if (ret != -ENODEV) {
+			LOG_DEV_ERROR(dev,
+				"failed to init reserved memory: %d\n", ret);
+			goto err_power_off;
 		}
+		LOG_DEV_INFO(dev, "no reserved memory configured\n");
+	} else {
+		rknpu3_dev->reserved_mem_attached = true;
+		LOG_DEV_INFO(dev, "reserved memory attached%s\n",
+			rknpu3_dev->iommu_en ? " with IOMMU enabled" : "");
 	}
 
 	/* Initialize memory management module */
