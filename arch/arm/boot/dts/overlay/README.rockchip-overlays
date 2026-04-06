@@ -28,6 +28,7 @@ for Luckfox Lyra Ultra W:
 - spi0-1cs-spidev
 
 for Luckfox Lyra Zero W:
+- ipex-antenna
 - spi0-1cs-spidev
 - spi0-2cs-spidev
 - spi1-1cs-spidev
@@ -72,6 +73,9 @@ Retains pin-compatibility with Luckfox Pico Plus.
 ### luckfox-lyra-ultra-w-spi0-1cs-spidev
 Enables SPI0 spidev on luckfox-lyra-ultra-w with one chipselect.
 Retains pin-compatibility with Luckfox Pico Ultra.
+
+### luckfox-lyra-zero-w-ipex-antenna
+Switches wifi/bluetooth from the onboard antenna to the external IPEX connector.
 
 ### luckfox-lyra-zero-w-spi0-1cs-spidev
 Enables SPI0 spidev on luckfox-lyra-zero-w with one chipselect.

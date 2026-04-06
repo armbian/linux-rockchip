@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Switch wifi/bluetooth antenna from onboard to external IPEX connector
+ * on Luckfox Lyra Zero W.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable IPEX antenna on luckfox-lyra-zero-w";
+		compatible = "rockchip,rk3506b-lyra-zero";
+		category = "misc";
+		description = "Switch wifi/bluetooth from onboard antenna to external IPEX connector (GPIO1_C7 low).";
+	};
+};
+
+&gpio1 {
+	ant-sel-hog {
+		output-low;
+	};
+};

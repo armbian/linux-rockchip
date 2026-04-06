@@ -99,6 +99,21 @@
 	status = "okay";
 };
 
+/**********gpio**********/
+&gpio1 {
+	/*
+	 * Antenna selection GPIO
+	 * output-high = Onboard antenna selected
+	 * output-low = External (ipex) antenna selected
+	 */
+	ant-sel-hog {
+		gpio-hog;
+		gpios = <RK_PC7 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "ant-sel";
+	};
+};
+
 /**********pinctrl**********/
 &pinctrl {
 	lcd {
