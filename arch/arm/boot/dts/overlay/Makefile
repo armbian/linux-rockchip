@@ -8,6 +8,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rockchip-luckfox-lyra-plus-spi0-1cs-spidev.dtbo \
 	rockchip-luckfox-lyra-plus-spi0-2cs-spidev.dtbo \
 	rockchip-luckfox-lyra-ultra-w-spi0-1cs-spidev.dtbo \
+	rockchip-luckfox-lyra-zero-w-ipex-antenna.dtbo \
 	rockchip-luckfox-lyra-zero-w-spi0-1cs-spidev.dtbo \
 	rockchip-luckfox-lyra-zero-w-spi0-2cs-spidev.dtbo \
 	rockchip-luckfox-lyra-zero-w-spi1-1cs-spidev.dtbo \
