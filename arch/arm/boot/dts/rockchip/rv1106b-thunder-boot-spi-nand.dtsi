@@ -8,6 +8,8 @@
 	thunder_boot_spi_nand: thunder-boot-spi-nand@20d40000 {
 		compatible = "rockchip,thunder-boot-sfc";
 		reg = <0x20d40000 0x4000>;
+		clocks = <&cru SCLK_SFC_2X>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
 		memory-region-src = <&ramdisk_c>;
 		memory-region-dst = <&ramdisk_r>;
 		status = "disabled";
