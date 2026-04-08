@@ -121,6 +121,7 @@ static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 {
 	struct share_params_ddrclk *p;
 	struct arm_smccc_res res;
+	int ret;
 
 	p = (struct share_params_ddrclk *)ddr_data.params;
 	if (p)
@@ -128,13 +129,14 @@ static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE);
+	ret = res.a0;
 
 	if ((int)res.a1 == SIP_RET_SET_RATE_TIMEOUT) {
 		if (ddr_data.dmcfreq_wait_complete)
-			ddr_data.dmcfreq_wait_complete();
+			ret = ddr_data.dmcfreq_wait_complete();
 	}
 
-	return res.a0;
+	return ret;
 }
 
 static unsigned long rockchip_ddrclk_sip_recalc_rate_v2
