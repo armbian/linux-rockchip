@@ -340,6 +340,7 @@ static int rk_drm_get_lcdc_type(void)
 static int rockchip_ddr_set_rate(unsigned long target_rate)
 {
 	struct arm_smccc_res res;
+	int ret;
 
 	ddr_psci_param->hz = target_rate;
 	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
@@ -349,11 +350,12 @@ static int rockchip_ddr_set_rate(unsigned long target_rate)
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE);
+	ret = res.a0;
 
 	if ((int)res.a1 == SIP_RET_SET_RATE_TIMEOUT)
-		rockchip_dmcfreq_wait_complete();
+		ret = rockchip_dmcfreq_wait_complete();
 
-	return res.a0;
+	return ret;
 }
 
 static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
@@ -493,8 +495,8 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 
 	rockchip_dmcfreq_write_unlock();
 	if (ret) {
-		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
-			ret);
+		dev_err(dev, "Failed to set rate, Request %lu, Current %lu\n",
+			new_freq, clk_get_rate(clk));
 		goto restore_voltage;
 	}
 
@@ -1140,10 +1142,11 @@ static irqreturn_t wait_dcf_complete_irq(int irqno, void *dev_id)
 int rockchip_dmcfreq_wait_complete(void)
 {
 	struct arm_smccc_res res;
+	int ret = 0;
 
 	if (!wait_ctrl.wait_en) {
 		pr_err("%s: Do not support time out!\n", __func__);
-		return 0;
+		return -1;
 	}
 	wait_ctrl.wait_flag = -1;
 
@@ -1161,13 +1164,15 @@ int rockchip_dmcfreq_wait_complete(void)
 		res = sip_smc_dram(0, 0, ROCKCHIP_SIP_CONFIG_MCU_START);
 		if (res.a0) {
 			pr_err("rockchip_sip_config_mcu_start error:%lx\n", res.a0);
-			return -ENOMEM;
+			ret = -1;
+			goto out;
 		}
 	}
 
 	wait_event_timeout(wait_ctrl.wait_wq, (wait_ctrl.wait_flag == 0),
 			   msecs_to_jiffies(wait_ctrl.wait_time_out_ms));
 
+out:
 	/*
 	 * If waiting for wait_ctrl.complt_irq times out, clear the IRQ and stop the MCU by
 	 * sip_smc_dram(DRAM_POST_SET_RATE).
@@ -1175,14 +1180,17 @@ int rockchip_dmcfreq_wait_complete(void)
 	if (wait_ctrl.dcf_en == 2 && wait_ctrl.wait_flag != 0) {
 		pr_err_ratelimited("%s: waiting for wait_ctrl.complt_irq times out.\n", __func__);
 		res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_POST_SET_RATE);
-		if (res.a0)
+		if (res.a0) {
 			pr_err("%s: dram post set rate error:%lx\n", __func__, res.a0);
+			ret = -1;
+			goto out;
+		}
 	}
 
 	cpu_latency_qos_update_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
 	disable_irq(wait_ctrl.complt_irq);
 
-	return 0;
+	return ret;
 }
 
 static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfreq)
