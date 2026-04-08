@@ -198,7 +198,7 @@
 		uart_rts_gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart1_rts>;
-		pinctrl-1 = <&uart1_rts_gpio>;
+		pinctrl-1 = <&uart1_gpios>;
 		BT,reset_gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
@@ -1113,6 +1113,12 @@
 	touchscreen-int {
 		tp_int: tp-int {
 			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart1_gpios: uart1-gpios {
+			rockchip,pins = <1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
