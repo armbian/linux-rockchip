@@ -1349,7 +1349,9 @@ static bool rga_mm_is_need_mmu(struct rga_job *job, struct rga_internal_buffer *
 	return false;
 }
 
-static int rga_mm_set_mmu_flag(struct rga_job *job)
+static int rga_mm_set_mmu_flag(struct rga_job *job,
+			       struct rga_job_task_buffers *buffers,
+			       struct rga_req *req)
 {
 	struct rga_mmu_t *mmu_info;
 	int src_mmu_en;
@@ -1357,12 +1359,12 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	int dst_mmu_en;
 	int els_mmu_en;
 
-	src_mmu_en = rga_mm_is_need_mmu(job, job->src_buffer.addr);
-	src1_mmu_en = rga_mm_is_need_mmu(job, job->src1_buffer.addr);
-	dst_mmu_en = rga_mm_is_need_mmu(job, job->dst_buffer.addr);
-	els_mmu_en = rga_mm_is_need_mmu(job, job->els_buffer.addr);
+	src_mmu_en = rga_mm_is_need_mmu(job, buffers->src_buffer.addr);
+	src1_mmu_en = rga_mm_is_need_mmu(job, buffers->src1_buffer.addr);
+	dst_mmu_en = rga_mm_is_need_mmu(job, buffers->dst_buffer.addr);
+	els_mmu_en = rga_mm_is_need_mmu(job, buffers->els_buffer.addr);
 
-	mmu_info = &job->rga_command_base.mmu_info;
+	mmu_info = &req->mmu_info;
 	memset(mmu_info, 0x0, sizeof(*mmu_info));
 	if (src_mmu_en)
 		mmu_info->mmu_flag |= (0x1 << 8);
@@ -1934,14 +1936,14 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	return 0;
 }
 
-static int rga_mm_get_handle_info(struct rga_job *job)
+static int rga_mm_get_handle_info(struct rga_job *job,
+				  struct rga_job_task_buffers *buffers,
+				  struct rga_req *req)
 {
 	int ret = 0;
-	struct rga_req *req = NULL;
 	struct rga_mm *mm = NULL;
 	enum dma_data_direction dir;
 
-	req = &job->rga_command_base;
 	mm = rga_drvdata->mm;
 
 	switch (req->render_mode) {
@@ -1993,7 +1995,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 
 	if (likely(req->src.yrgb_addr > 0)) {
 		ret = rga_mm_get_channel_handle_info(mm, job, &req->src,
-						     &job->src_buffer,
+						     &buffers->src_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
 			rga_job_err(job, "Can't get src buffer info from handle!\n");
@@ -2003,7 +2005,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 
 	if (likely(req->dst.yrgb_addr > 0)) {
 		ret = rga_mm_get_channel_handle_info(mm, job, &req->dst,
-						     &job->dst_buffer,
+						     &buffers->dst_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
 			rga_job_err(job, "Can't get dst buffer info from handle!\n");
@@ -2021,7 +2023,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 			req->pat.format = req->dst.format;
 
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->src1_buffer,
+							     &buffers->src1_buffer,
 							     DMA_TO_DEVICE);
 			if (ret < 0) {
 				rga_job_err(job, "Can't get comps(t-1) buffer info from handle!\n");
@@ -2041,7 +2043,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 			req->pat.format = req->dst.format;
 
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->els_buffer,
+							     &buffers->els_buffer,
 							     DMA_BIDIRECTIONAL);
 			if (ret < 0) {
 				rga_job_err(job, "Can't get pattern/comps(t) buffer info from handle!\n");
@@ -2059,11 +2061,11 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 				dir = DMA_TO_DEVICE;
 
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->src1_buffer,
+							     &buffers->src1_buffer,
 							     dir);
 		} else {
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->els_buffer,
+							     &buffers->els_buffer,
 							     DMA_BIDIRECTIONAL);
 		}
 		if (ret < 0) {
@@ -2072,23 +2074,24 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 		}
 	}
 
-	rga_mm_set_mmu_flag(job);
+	rga_mm_set_mmu_flag(job, buffers, req);
 
 	return 0;
 }
 
-static void rga_mm_put_handle_info(struct rga_job *job)
+static void rga_mm_put_handle_info(struct rga_job *job,
+				   struct rga_job_task_buffers *buffers,
+				   struct rga_req *req)
 {
 	struct rga_mm *mm = rga_drvdata->mm;
-	struct rga_req *req = &job->rga_command_base;
 
-	rga_mm_put_channel_handle_info(mm, job, &job->src_buffer, DMA_NONE);
-	rga_mm_put_channel_handle_info(mm, job, &job->dst_buffer, DMA_FROM_DEVICE);
-	rga_mm_put_channel_handle_info(mm, job, &job->src1_buffer, DMA_NONE);
+	rga_mm_put_channel_handle_info(mm, job, &buffers->src_buffer, DMA_NONE);
+	rga_mm_put_channel_handle_info(mm, job, &buffers->dst_buffer, DMA_FROM_DEVICE);
+	rga_mm_put_channel_handle_info(mm, job, &buffers->src1_buffer, DMA_NONE);
 	if (req->cfa_enable)
-		rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_FROM_DEVICE);
+		rga_mm_put_channel_handle_info(mm, job, &buffers->els_buffer, DMA_FROM_DEVICE);
 	else
-		rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_NONE);
+		rga_mm_put_channel_handle_info(mm, job, &buffers->els_buffer, DMA_NONE);
 }
 
 static void rga_mm_put_channel_external_buffer(struct rga_job_buffer *job_buffer)
@@ -2145,19 +2148,21 @@ static int rga_mm_get_channel_external_buffer(int mmu_flag,
 	return 0;
 }
 
-static void rga_mm_put_external_buffer(struct rga_job *job)
+static void rga_mm_put_external_buffer(struct rga_job *job, struct rga_job_task_buffers *buffers)
 {
-	if (job->src_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->src_buffer);
-	if (job->src1_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->src1_buffer);
-	if (job->dst_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->dst_buffer);
-	if (job->els_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->els_buffer);
+	if (buffers->src_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&buffers->src_buffer);
+	if (buffers->src1_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&buffers->src1_buffer);
+	if (buffers->dst_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&buffers->dst_buffer);
+	if (buffers->els_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&buffers->els_buffer);
 }
 
-static int rga_mm_get_external_buffer(struct rga_job *job)
+static int rga_mm_get_external_buffer(struct rga_job *job,
+				      struct rga_job_task_buffers *buffers,
+				      struct rga_req *req)
 {
 	int ret = -EINVAL;
 	int mmu_flag;
@@ -2167,20 +2172,20 @@ static int rga_mm_get_external_buffer(struct rga_job *job)
 	struct rga_img_info_t *dst = NULL;
 	struct rga_img_info_t *els = NULL;
 
-	if (job->rga_command_base.render_mode != COLOR_FILL_MODE)
-		src0 = &job->rga_command_base.src;
+	if (req->render_mode != COLOR_FILL_MODE)
+		src0 = &req->src;
 
-	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
-		src1 = job->rga_command_base.bsfilter_flag ?
-		       &job->rga_command_base.pat : NULL;
+	if (req->render_mode != UPDATE_PALETTE_TABLE_MODE)
+		src1 = req->bsfilter_flag ?
+		       &req->pat : NULL;
 	else
-		els = &job->rga_command_base.pat;
+		els = &req->pat;
 
-	dst = &job->rga_command_base.dst;
+	dst = &req->dst;
 
 	if (likely(src0)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, src0, &job->src_buffer);
+		mmu_flag = ((req->mmu_info.mmu_flag >> 8) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, src0, &buffers->src_buffer);
 		if (ret < 0) {
 			rga_job_err(job, "Cannot get src0 channel buffer!\n");
 			return ret;
@@ -2188,8 +2193,8 @@ static int rga_mm_get_external_buffer(struct rga_job *job)
 	}
 
 	if (likely(dst)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, dst, &job->dst_buffer);
+		mmu_flag = ((req->mmu_info.mmu_flag >> 10) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, dst, &buffers->dst_buffer);
 		if (ret < 0) {
 			rga_job_err(job, "Cannot get dst channel buffer!\n");
 			goto error_put_buffer;
@@ -2197,8 +2202,8 @@ static int rga_mm_get_external_buffer(struct rga_job *job)
 	}
 
 	if (src1) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, src1, &job->src1_buffer);
+		mmu_flag = ((req->mmu_info.mmu_flag >> 9) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, src1, &buffers->src1_buffer);
 		if (ret < 0) {
 			rga_job_err(job, "Cannot get src1 channel buffer!\n");
 			goto error_put_buffer;
@@ -2206,8 +2211,8 @@ static int rga_mm_get_external_buffer(struct rga_job *job)
 	}
 
 	if (els) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, els, &job->els_buffer);
+		mmu_flag = ((req->mmu_info.mmu_flag >> 11) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, els, &buffers->els_buffer);
 		if (ret < 0) {
 			rga_job_err(job, "Cannot get els channel buffer!\n");
 			goto error_put_buffer;
@@ -2216,7 +2221,7 @@ static int rga_mm_get_external_buffer(struct rga_job *job)
 
 	return 0;
 error_put_buffer:
-	rga_mm_put_external_buffer(job);
+	rga_mm_put_external_buffer(job, buffers);
 	return ret;
 }
 
@@ -2305,37 +2310,35 @@ error_free_buffer:
 	return ret;
 }
 
-static void rga_mm_unmap_buffer_info(struct rga_job *job)
+static void rga_mm_unmap_buffer_info(struct rga_job *job, struct rga_job_task_buffers *buffers)
 {
-	if (job->src_buffer.addr)
-		rga_mm_unmap_channel_job_buffer(job, &job->src_buffer, DMA_NONE);
-	if (job->dst_buffer.addr)
-		rga_mm_unmap_channel_job_buffer(job, &job->dst_buffer, DMA_FROM_DEVICE);
-	if (job->src1_buffer.addr)
-		rga_mm_unmap_channel_job_buffer(job, &job->src1_buffer, DMA_NONE);
-	if (job->els_buffer.addr)
-		rga_mm_unmap_channel_job_buffer(job, &job->els_buffer, DMA_NONE);
-
-	rga_mm_put_external_buffer(job);
+	if (buffers->src_buffer.addr)
+		rga_mm_unmap_channel_job_buffer(job, &buffers->src_buffer, DMA_NONE);
+	if (buffers->dst_buffer.addr)
+		rga_mm_unmap_channel_job_buffer(job, &buffers->dst_buffer, DMA_FROM_DEVICE);
+	if (buffers->src1_buffer.addr)
+		rga_mm_unmap_channel_job_buffer(job, &buffers->src1_buffer, DMA_NONE);
+	if (buffers->els_buffer.addr)
+		rga_mm_unmap_channel_job_buffer(job, &buffers->els_buffer, DMA_NONE);
+	rga_mm_put_external_buffer(job, buffers);
 }
 
-static int rga_mm_map_buffer_info(struct rga_job *job)
+static int rga_mm_map_buffer_info(struct rga_job *job,
+				  struct rga_job_task_buffers *buffers,
+				  struct rga_req *req)
 {
 	int ret = 0;
-	struct rga_req *req = NULL;
 	enum dma_data_direction dir;
 
-	ret = rga_mm_get_external_buffer(job);
+	ret = rga_mm_get_external_buffer(job, buffers, req);
 	if (ret < 0) {
 		rga_job_err(job, "failed to get external buffer from job_cmd!\n");
 		return ret;
 	}
 
-	req = &job->rga_command_base;
-
-	if (likely(job->src_buffer.ex_addr)) {
+	if (likely(buffers->src_buffer.ex_addr)) {
 		ret = rga_mm_map_channel_job_buffer(job, &req->src,
-						    &job->src_buffer,
+						    &buffers->src_buffer,
 						    DMA_TO_DEVICE, false);
 		if (ret < 0) {
 			rga_job_err(job, "src channel map job buffer failed!");
@@ -2343,9 +2346,9 @@ static int rga_mm_map_buffer_info(struct rga_job *job)
 		}
 	}
 
-	if (likely(job->dst_buffer.ex_addr)) {
+	if (likely(buffers->dst_buffer.ex_addr)) {
 		ret = rga_mm_map_channel_job_buffer(job, &req->dst,
-						    &job->dst_buffer,
+						    &buffers->dst_buffer,
 						    DMA_TO_DEVICE, true);
 		if (ret < 0) {
 			rga_job_err(job, "dst channel map job buffer failed!");
@@ -2353,14 +2356,14 @@ static int rga_mm_map_buffer_info(struct rga_job *job)
 		}
 	}
 
-	if (job->src1_buffer.ex_addr) {
+	if (buffers->src1_buffer.ex_addr) {
 		if (req->bsfilter_flag)
 			dir = DMA_BIDIRECTIONAL;
 		else
 			dir = DMA_TO_DEVICE;
 
 		ret = rga_mm_map_channel_job_buffer(job, &req->pat,
-						    &job->src1_buffer,
+						    &buffers->src1_buffer,
 						    dir, false);
 		if (ret < 0) {
 			rga_job_err(job, "src1 channel map job buffer failed!");
@@ -2368,9 +2371,9 @@ static int rga_mm_map_buffer_info(struct rga_job *job)
 		}
 	}
 
-	if (job->els_buffer.ex_addr) {
+	if (buffers->els_buffer.ex_addr) {
 		ret = rga_mm_map_channel_job_buffer(job, &req->pat,
-						    &job->els_buffer,
+						    &buffers->els_buffer,
 						    DMA_BIDIRECTIONAL, false);
 		if (ret < 0) {
 			rga_job_err(job, "els channel map job buffer failed!");
@@ -2378,11 +2381,11 @@ static int rga_mm_map_buffer_info(struct rga_job *job)
 		}
 	}
 
-	rga_mm_set_mmu_flag(job);
+	rga_mm_set_mmu_flag(job, buffers, req);
 	return 0;
 
 error_unmap_buffer:
-	rga_mm_unmap_buffer_info(job);
+	rga_mm_unmap_buffer_info(job, buffers);
 
 	return ret;
 }
@@ -2492,29 +2495,28 @@ error_free_buffer:
 	return ret;
 }
 
-static void rga_mm_free_fake_buffer(struct rga_job *job)
+static void rga_mm_free_fake_buffer(struct rga_job *job, struct rga_job_task_buffers *buffers)
 {
-	if (job->src_buffer.addr)
-		rga_mm_free_channel_fake_buffer(job, &job->src_buffer, DMA_NONE);
-	if (job->dst_buffer.addr)
-		rga_mm_free_channel_fake_buffer(job, &job->dst_buffer, DMA_FROM_DEVICE);
-	if (job->src1_buffer.addr)
-		rga_mm_free_channel_fake_buffer(job, &job->src1_buffer, DMA_NONE);
-	if (job->els_buffer.addr)
-		rga_mm_free_channel_fake_buffer(job, &job->els_buffer, DMA_NONE);
+	if (buffers->src_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &buffers->src_buffer, DMA_NONE);
+	if (buffers->dst_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &buffers->dst_buffer, DMA_FROM_DEVICE);
+	if (buffers->src1_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &buffers->src1_buffer, DMA_NONE);
+	if (buffers->els_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &buffers->els_buffer, DMA_NONE);
 }
 
-static int rga_mm_alloc_fake_buffer(struct rga_job *job)
+static int rga_mm_alloc_fake_buffer(struct rga_job *job,
+				    struct rga_job_task_buffers *buffers,
+				    struct rga_req *req)
 {
 	int ret = 0;
-	struct rga_req *req = NULL;
 	enum dma_data_direction dir;
-
-	req = &job->rga_command_base;
 
 	if (req->src.yrgb_addr != 0 || req->src.uv_addr != 0) {
 		ret = rga_mm_alloc_channel_fake_buffer(job, &req->src,
-						       &job->src_buffer, DMA_TO_DEVICE);
+						       &buffers->src_buffer, DMA_TO_DEVICE);
 		if (ret < 0) {
 			rga_job_err(job, "%s src channel map job buffer failed!", __func__);
 			goto error_free_fake_buffer;
@@ -2523,14 +2525,14 @@ static int rga_mm_alloc_fake_buffer(struct rga_job *job)
 
 	if (req->dst.yrgb_addr != 0 || req->dst.uv_addr != 0) {
 		ret = rga_mm_alloc_channel_fake_buffer(job, &req->dst,
-						       &job->dst_buffer, DMA_TO_DEVICE);
+						       &buffers->dst_buffer, DMA_TO_DEVICE);
 		if (ret < 0) {
 			rga_job_err(job, "%s dst channel map job buffer failed!", __func__);
 			goto error_free_fake_buffer;
 		}
 	}
 
-	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE &&
+	if (req->render_mode != UPDATE_PALETTE_TABLE_MODE &&
 	    (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0)) {
 		if (req->bsfilter_flag)
 			dir = DMA_BIDIRECTIONAL;
@@ -2538,37 +2540,39 @@ static int rga_mm_alloc_fake_buffer(struct rga_job *job)
 			dir = DMA_TO_DEVICE;
 
 		ret = rga_mm_alloc_channel_fake_buffer(job, &req->pat,
-						       &job->src1_buffer, dir);
+						       &buffers->src1_buffer, dir);
 		if (ret < 0) {
 			rga_job_err(job, "%s src1 channel map job buffer failed!", __func__);
 			goto error_free_fake_buffer;
 		}
 	} else if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0) {
 		ret = rga_mm_alloc_channel_fake_buffer(job, &req->pat,
-						       &job->els_buffer, DMA_TO_DEVICE);
+						       &buffers->els_buffer, DMA_TO_DEVICE);
 		if (ret < 0) {
 			rga_job_err(job, "%s els channel map job buffer failed!", __func__);
 			goto error_free_fake_buffer;
 		}
 	}
 
-	rga_mm_set_mmu_flag(job);
+	rga_mm_set_mmu_flag(job, buffers, req);
 
 	return 0;
 
 error_free_fake_buffer:
-	rga_mm_free_fake_buffer(job);
+	rga_mm_free_fake_buffer(job, buffers);
 
 	return ret;
 }
 
-int rga_mm_map_job_info(struct rga_job *job)
+static int rga_mm_map_task_info(struct rga_job *job,
+				struct rga_job_task_buffers *buffers,
+				struct rga_req *req)
 {
 	int ret;
 	ktime_t timestamp = ktime_get();
 
 	if (job->flags & RGA_JOB_DEBUG_FAKE_BUFFER) {
-		ret = rga_mm_alloc_fake_buffer(job);
+		ret = rga_mm_alloc_fake_buffer(job, buffers, req);
 		if (ret < 0)
 			return ret;
 
@@ -2583,7 +2587,7 @@ int rga_mm_map_job_info(struct rga_job *job)
 	}
 
 	if (job->flags & RGA_JOB_USE_HANDLE) {
-		ret = rga_mm_get_handle_info(job);
+		ret = rga_mm_get_handle_info(job, buffers, req);
 		if (ret < 0) {
 			rga_job_err(job, "failed to get buffer from handle\n");
 			return ret;
@@ -2593,7 +2597,7 @@ int rga_mm_map_job_info(struct rga_job *job)
 			rga_job_log(job, "get buffer_handle info cost %lld us\n",
 				ktime_us_delta(ktime_get(), timestamp));
 	} else {
-		ret = rga_mm_map_buffer_info(job);
+		ret = rga_mm_map_buffer_info(job, buffers, req);
 		if (ret < 0) {
 			rga_job_err(job, "failed to map buffer\n");
 			return ret;
@@ -2607,12 +2611,14 @@ int rga_mm_map_job_info(struct rga_job *job)
 	return 0;
 }
 
-void rga_mm_unmap_job_info(struct rga_job *job)
+static void rga_mm_unmap_task_info(struct rga_job *job,
+				   struct rga_job_task_buffers *buffers,
+				   struct rga_req *req)
 {
 	ktime_t timestamp = ktime_get();
 
 	if (job->flags & RGA_JOB_DEBUG_FAKE_BUFFER) {
-		rga_mm_free_fake_buffer(job);
+		rga_mm_free_fake_buffer(job, buffers);
 
 		if (DEBUGGER_EN(TIME))
 			rga_job_log(job, "free fake buffer cost %lld us\n",
@@ -2622,17 +2628,62 @@ void rga_mm_unmap_job_info(struct rga_job *job)
 	}
 
 	if (job->flags & RGA_JOB_USE_HANDLE) {
-		rga_mm_put_handle_info(job);
+		rga_mm_put_handle_info(job, buffers, req);
 
 		if (DEBUGGER_EN(TIME))
 			rga_job_log(job, "put buffer_handle info cost %lld us\n",
 				ktime_us_delta(ktime_get(), timestamp));
 	} else {
-		rga_mm_unmap_buffer_info(job);
+		rga_mm_unmap_buffer_info(job, buffers);
 
 		if (DEBUGGER_EN(TIME))
 			rga_job_log(job, "unmap buffer cost %lld us\n",
 				ktime_us_delta(ktime_get(), timestamp));
+	}
+}
+
+int rga_mm_map_job_info(struct rga_job *job)
+{
+	int ret = 0;
+	int i;
+	struct rga_job_task_buffers *task_buffers;
+	struct rga_req *req;
+
+	for (i = 0; i < job->task_count; i++) {
+		req = &job->task_list[i];
+		task_buffers = &job->task_buffers[i];
+
+		ret = rga_mm_map_task_info(job, task_buffers, req);
+		if (ret < 0) {
+			rga_job_err(job, "task[%d] failed to map job info\n", i);
+			goto err_unmap_job_info;
+		}
+	}
+
+	return 0;
+
+err_unmap_job_info:
+	for (; i > 0; i--) {
+		task_buffers = &job->task_buffers[i - 1];
+		req = &job->task_list[i - 1];
+
+		rga_mm_unmap_task_info(job, task_buffers, req);
+	}
+
+	return ret;
+}
+
+void rga_mm_unmap_job_info(struct rga_job *job)
+{
+	int i;
+	struct rga_job_task_buffers *task_buffers;
+	struct rga_req *req;
+
+	for (i = 0; i < job->task_count; i++) {
+		task_buffers = &job->task_buffers[i];
+		req = &job->task_list[i];
+
+		rga_mm_unmap_task_info(job, task_buffers, req);
 	}
 }
 

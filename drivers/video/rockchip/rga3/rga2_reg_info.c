@@ -3300,65 +3300,108 @@ static int rga2_align_check(struct rga_job *job, struct rga2_req *req)
 	return 0;
 }
 
-static void print_debug_info(struct rga_job *job, struct rga2_req *req)
+static void print_debug_info(struct rga_job *job, struct rga2_req *req, int task_index)
 {
-	rga_job_log(job, "render_mode:%s,bitblit_mode=%d,rotate_mode:%s\n",
-		rga_get_render_mode_str(req->render_mode), req->bitblt_mode,
+	rga_job_log(job, "task[%d]: render_mode:%s,bitblit_mode=%d,rotate_mode:%s\n",
+		task_index, rga_get_render_mode_str(req->render_mode), req->bitblt_mode,
 		rga_get_rotate_mode_str(req->rotate_mode));
 
-	rga_job_log(job, "src: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-		 (unsigned long)req->src.yrgb_addr,
-		 (unsigned long)req->src.uv_addr,
-		 (unsigned long)req->src.v_addr,
-		 req->src.act_w, req->src.act_h,
-		 req->src.vir_w, req->src.vir_h);
-	rga_job_log(job, "src: xoff=%d yoff=%d format=%s\n",
+	rga_job_log(job, "task[%d]: src: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
+		task_index,
+		(unsigned long)req->src.yrgb_addr,
+		(unsigned long)req->src.uv_addr,
+		(unsigned long)req->src.v_addr,
+		req->src.act_w, req->src.act_h,
+		req->src.vir_w, req->src.vir_h);
+	rga_job_log(job, "task[%d]: src: xoff=%d yoff=%d format=%s\n",
+		task_index,
 		req->src.x_offset, req->src.y_offset,
-		 rga_get_format_name(req->src.format));
+		rga_get_format_name(req->src.format));
 
 	if (req->src1.yrgb_addr != 0 || req->src1.uv_addr != 0
 		|| req->src1.v_addr != 0) {
-		rga_job_log(job, "src1: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-			 (unsigned long)req->src1.yrgb_addr,
-			 (unsigned long)req->src1.uv_addr,
-			 (unsigned long)req->src1.v_addr,
-			 req->src1.act_w, req->src1.act_h,
-			 req->src1.vir_w, req->src1.vir_h);
-		rga_job_log(job, "src1: xoff=%d yoff=%d format=%s\n",
-			req->src1.x_offset, req->src1.y_offset,
-			 rga_get_format_name(req->src1.format));
+		rga_job_log(job, "task[%d]: src1: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
+			task_index,
+			(unsigned long)req->src1.yrgb_addr,
+			(unsigned long)req->src1.uv_addr,
+			(unsigned long)req->src1.v_addr,
+			req->src1.act_w, req->src1.act_h,
+			req->src1.vir_w, req->src1.vir_h);
+		rga_job_log(job, "task[%d]: src1: xoff=%d yoff=%d format=%s\n",
+			task_index, req->src1.x_offset, req->src1.y_offset,
+			rga_get_format_name(req->src1.format));
 	}
 
-	rga_job_log(job, "dst: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-		 (unsigned long)req->dst.yrgb_addr,
-		 (unsigned long)req->dst.uv_addr,
-		 (unsigned long)req->dst.v_addr,
-		 req->dst.act_w, req->dst.act_h,
-		 req->dst.vir_w, req->dst.vir_h);
-	rga_job_log(job, "dst: xoff=%d yoff=%d format=%s\n",
+	rga_job_log(job, "task[%d]: dst: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
+		task_index, (unsigned long)req->dst.yrgb_addr,
+		(unsigned long)req->dst.uv_addr,
+		(unsigned long)req->dst.v_addr,
+		req->dst.act_w, req->dst.act_h,
+		req->dst.vir_w, req->dst.vir_h);
+	rga_job_log(job, "task[%d]: dst: xoff=%d yoff=%d format=%s\n",
+		task_index,
 		req->dst.x_offset, req->dst.y_offset,
-		 rga_get_format_name(req->dst.format));
+		rga_get_format_name(req->dst.format));
 
-	rga_job_log(job, "mmu: src=%.2x src1=%.2x dst=%.2x els=%.2x\n",
+	rga_job_log(job, "task[%d]: mmu: src=%.2x src1=%.2x dst=%.2x els=%.2x\n",
+		task_index,
 		req->mmu_info.src0_mmu_flag, req->mmu_info.src1_mmu_flag,
 		req->mmu_info.dst_mmu_flag, req->mmu_info.els_mmu_flag);
-	rga_job_log(job, "alpha: flag %x mode=%s\n",
+	rga_job_log(job, "task[%d]: alpha: flag %x mode=%s\n",
+		task_index,
 		req->alpha_rop_flag, rga_get_blend_mode_str(req->alpha_config.mode));
-	rga_job_log(job, "alpha: pre_multi=[%d,%d] pixl=[%d,%d] glb=[%d,%d]\n",
+	rga_job_log(job, "task[%d]: alpha: pre_multi=[%d,%d] pixl=[%d,%d] glb=[%d,%d]\n",
+		task_index,
 		req->alpha_config.fg_pre_multiplied, req->alpha_config.bg_pre_multiplied,
 		req->alpha_config.fg_pixel_alpha_en, req->alpha_config.bg_pixel_alpha_en,
 		req->alpha_config.fg_global_alpha_en, req->alpha_config.bg_global_alpha_en);
-	rga_job_log(job, "alpha: fg_global_alpha=%x bg_global_alpha=%x\n",
+	rga_job_log(job, "task[%d]: alpha: fg_global_alpha=%x bg_global_alpha=%x\n",
+		task_index,
 		req->alpha_config.fg_global_alpha_value, req->alpha_config.bg_global_alpha_value);
-	rga_job_log(job, "yuv2rgb mode is %x\n", req->yuv2rgb_mode);
+	rga_job_log(job, "task[%d]: yuv2rgb mode is %x\n", task_index, req->yuv2rgb_mode);
 }
 
-static int rga2_init_reg(struct rga_job *job)
+static int rga2_init_sys_reg(struct rga_job *job)
 {
-	struct rga2_req req;
+	int i;
+	struct rga_req *user_req = NULL;
+
+	/* set default full_csc_clip values */
+	job->full_csc_clip.y.max = 0xff;
+	job->full_csc_clip.y.min = 0x0;
+	job->full_csc_clip.uv.max = 0xff;
+	job->full_csc_clip.uv.min = 0x0;
+
+	for (i = 0; i < job->task_count; i++) {
+		user_req = &job->task_list[i];
+
+		if (user_req->full_csc.flag & 0x1) {
+			if (user_req->feature.full_csc_clip_en) {
+				memcpy(&job->full_csc_clip, &user_req->full_csc_clip,
+				       sizeof(job->full_csc_clip));
+			}
+			memcpy(&job->full_csc, &user_req->full_csc, sizeof(job->full_csc));
+
+			/* only need to set once */
+			break;
+		}
+	}
+
+	memcpy(&job->pre_intr_info, &job->task_list[0].pre_intr_info,
+	       sizeof(job->pre_intr_info));
+
+	return 0;
+}
+
+static int rga2_init_cmd_reg(struct rga_job *job)
+{
 	int ret = 0;
+	int i;
+	uint32_t *cmd_base = NULL;
+	struct rga_req *user_req = NULL;
+	struct rga_job_task_buffers *task_buffers = NULL;
+	struct rga2_req req;
 	struct rga_scheduler_t *scheduler = NULL;
-	ktime_t timestamp = ktime_get();
 
 	scheduler = job->scheduler;
 	if (unlikely(scheduler == NULL)) {
@@ -3366,78 +3409,80 @@ static int rga2_init_reg(struct rga_job *job)
 		return -EINVAL;
 	}
 
-	memset(&req, 0x0, sizeof(req));
+	for (i = 0; i < job->task_count; i++) {
+		user_req = &job->task_list[i];
+		cmd_base = (uint32_t *)job->cmd_buf->vaddr + i * scheduler->data->cmd_reg_size;
+		task_buffers = &job->task_buffers[i];
 
-	rga_cmd_to_rga2_cmd(scheduler, &job->rga_command_base, &req);
-	if (req.full_csc_en) {
-		memcpy(&job->full_csc, &job->rga_command_base.full_csc, sizeof(job->full_csc));
-		if (job->rga_command_base.feature.full_csc_clip_en) {
-			memcpy(&job->full_csc_clip, &job->rga_command_base.full_csc_clip,
-			       sizeof(job->full_csc_clip));
-		} else {
-			job->full_csc_clip.y.max = 0xff;
-			job->full_csc_clip.y.min = 0x0;
-			job->full_csc_clip.uv.max = 0xff;
-			job->full_csc_clip.uv.min = 0x0;
+		memset(&req, 0x0, sizeof(req));
+
+		rga_cmd_to_rga2_cmd(scheduler, user_req, &req);
+
+		/* for debug */
+		if (DEBUGGER_EN(MSG))
+			print_debug_info(job, &req, i);
+
+		/* check value if legal */
+		ret = rga2_check_param(job, scheduler->data, &req);
+		if (ret == -EINVAL) {
+			rga_job_err(job, "req argument is invalid\n");
+			return ret;
 		}
 
-	} else {
-		job->full_csc_clip.y.max = 0xff;
-		job->full_csc_clip.y.min = 0x0;
-		job->full_csc_clip.uv.max = 0xff;
-		job->full_csc_clip.uv.min = 0x0;
-	}
-	memcpy(&job->pre_intr_info, &job->rga_command_base.pre_intr_info,
-	       sizeof(job->pre_intr_info));
+		rga2_align_check(job, &req);
 
-	/* for debug */
-	if (DEBUGGER_EN(MSG))
-		print_debug_info(job, &req);
+		/* RGA2 mmu set */
+		if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1) ||
+			(req.mmu_info.dst_mmu_flag & 1) || (req.mmu_info.els_mmu_flag & 1)) {
+			if (scheduler->data->mmu != RGA_MMU) {
+				rga_job_err(job, "core[%d] has no MMU, please use physically contiguous memory.\n",
+					scheduler->core);
+				rga_job_err(job, "mmu_flag[src, src1, dst, els] = [0x%x, 0x%x, 0x%x, 0x%x]\n",
+					req.mmu_info.src0_mmu_flag, req.mmu_info.src1_mmu_flag,
+					req.mmu_info.dst_mmu_flag, req.mmu_info.els_mmu_flag);
+				return -EINVAL;
+			}
 
-	/* check value if legal */
-	ret = rga2_check_param(job, scheduler->data, &req);
-	if (ret == -EINVAL) {
-		rga_job_err(job, "req argument is inval\n");
-		return ret;
-	}
+			ret = rga_set_mmu_base(job, task_buffers, &req);
+			if (ret < 0) {
+				rga_job_err(job, "%s, [%d] set mmu info error\n", __func__,
+					__LINE__);
+				return -EFAULT;
+			}
+		}
 
-	rga2_align_check(job, &req);
+		/* In slave mode, the current frame completion interrupt must be enabled. */
+		if (scheduler->data->mmu == RGA_IOMMU && job->task_count == 1)
+			req.CMD_fin_int_enable = 1;
 
-	/* RGA2 mmu set */
-	if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1) ||
-	    (req.mmu_info.dst_mmu_flag & 1) || (req.mmu_info.els_mmu_flag & 1)) {
-		if (scheduler->data->mmu != RGA_MMU) {
-			rga_job_err(job, "core[%d] has no MMU, please use physically contiguous memory.\n",
-				scheduler->core);
-			rga_job_err(job, "mmu_flag[src, src1, dst, els] = [0x%x, 0x%x, 0x%x, 0x%x]\n",
-				req.mmu_info.src0_mmu_flag, req.mmu_info.src1_mmu_flag,
-				req.mmu_info.dst_mmu_flag, req.mmu_info.els_mmu_flag);
+		ret = rga2_gen_reg_info(scheduler, (uint8_t *)cmd_base, &req);
+		if (ret < 0) {
+			rga_job_err(job, "gen reg info error\n");
 			return -EINVAL;
 		}
-
-		ret = rga_set_mmu_base(job, &req);
-		if (ret < 0) {
-			rga_job_err(job, "%s, [%d] set mmu info error\n", __func__,
-				 __LINE__);
-			return -EFAULT;
-		}
 	}
 
-	/* In slave mode, the current frame completion interrupt must be enabled. */
-	if (scheduler->data->mmu == RGA_IOMMU)
-		req.CMD_fin_int_enable = 1;
+	return 0;
+}
 
-	ret = rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_buf->vaddr, &req);
-	if (ret < 0) {
-		rga_job_err(job, "gen reg info error\n");
-		return -EINVAL;
-	}
+static int rga2_init_reg(struct rga_job *job)
+{
+	int ret;
+	ktime_t timestamp = ktime_get();
+
+	ret = rga2_init_sys_reg(job);
+	if (ret < 0)
+		return ret;
+
+	ret = rga2_init_cmd_reg(job);
+	if (ret < 0)
+		return ret;
 
 	if (DEBUGGER_EN(TIME))
 		rga_job_log(job, "generate register cost time %lld us\n",
 			ktime_us_delta(ktime_get(), timestamp));
 
-	return ret;
+	return 0;
 }
 
 static void rga2_dump_read_back_sys_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
@@ -3613,20 +3658,18 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 
 static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
-	int i;
+	int i, j;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
 	uint32_t *cmd;
 	unsigned long flags;
 	ktime_t now = ktime_get();
 
-	cmd = job->cmd_buf->vaddr;
-
 	/*
 	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
 	 * so the iommu device needs to use the slave mode.
 	 */
-	if (scheduler->data->mmu != RGA_IOMMU)
+	if (scheduler->data->mmu != RGA_IOMMU || job->task_count > 1)
 		master_mode_en = true;
 	else
 		master_mode_en = false;
@@ -3637,12 +3680,16 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		if (scheduler->data->version > 0)
 			rga2_dump_read_back_other_reg(job, scheduler);
 
-		rga_job_log(job, "CMD_REG\n");
-		for (i = 0; i < ALIGN_DOWN(scheduler->data->cmd_reg_size, 4) / 4; i++)
-			rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
-				RGA2_CMD_REG_BASE + i * 0x10,
-				cmd[0 + i * 4], cmd[1 + i * 4],
-				cmd[2 + i * 4], cmd[3 + i * 4]);
+		for (i = 0; i < job->task_count; i++) {
+			cmd = (uint32_t *)job->cmd_buf->vaddr + i * scheduler->data->cmd_reg_size;
+			rga_job_log(job, "CMD_REG task[%d]\n", i);
+
+			for (j = 0; j < ALIGN_DOWN(scheduler->data->cmd_reg_size, 4) / 4; j++)
+				rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+					RGA2_CMD_REG_BASE + j * 0x10,
+					cmd[0 + j * 4], cmd[1 + j * 4],
+					cmd[2 + j * 4], cmd[3 + j * 4]);
+		}
 		rga2_dump_read_back_iommu_reg(scheduler->running_job, scheduler);
 	}
 
@@ -3683,13 +3730,18 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		/* set cmd_addr */
 		rga_write(job->cmd_buf->dma_addr, RGA2_CMD_BASE, scheduler);
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
-		rga_write(rga_read(RGA2_CMD_CTRL, scheduler) | m_RGA2_CMD_CTRL_CMD_LINE_ST_P,
+
+		rga_write(s_RGA2_MAX_RD_OUTSTANDING(RGA2_MAX_RD_OUTSTANDING) |
+			  s_RGA2_CMD_CTRL_INCR_NUM(job->task_count - 1) |
+			  s_RGA2_CMD_CTRL_STOP(0) |
+			  m_RGA2_CMD_CTRL_CMD_LINE_ST_P,
 			  RGA2_CMD_CTRL, scheduler);
 	} else {
 		/* slave mode */
 		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(0) | m_RGA2_SYS_CTRL_CMD_OP_ST_P;
 
 		/* set cmd_reg */
+		cmd = job->cmd_buf->vaddr;
 		for (i = 0; i < scheduler->data->cmd_reg_size; i++)
 			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
@@ -3746,17 +3798,24 @@ static int rga2_get_version(struct rga_scheduler_t *scheduler)
 
 static int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
-	if (job->rga_command_base.osd_info.enable) {
-		if (scheduler->data->version == 0) {
-			job->rga_command_base.osd_info.cur_flags0 =
-				rga_read(RGA2_OSD_CUR_FLAGS0, scheduler);
-			job->rga_command_base.osd_info.cur_flags1 =
-				rga_read(RGA2_OSD_CUR_FLAGS1, scheduler);
-		} else {
-			job->rga_command_base.osd_info.cur_flags0 =
-				rga_read(RGA2_FIXED_OSD_CUR_FLAGS0, scheduler);
-			job->rga_command_base.osd_info.cur_flags1 =
-				rga_read(RGA2_FIXED_OSD_CUR_FLAGS1, scheduler);
+	int i;
+	struct rga_req *user_req = NULL;
+
+	for (i = 0; i < job->task_count; i++) {
+		user_req = &job->task_list[i];
+
+		if (user_req->osd_info.enable) {
+			if (scheduler->data->version == 0) {
+				user_req->osd_info.cur_flags0 =
+					rga_read(RGA2_OSD_CUR_FLAGS0, scheduler);
+				user_req->osd_info.cur_flags1 =
+					rga_read(RGA2_OSD_CUR_FLAGS1, scheduler);
+			} else {
+				user_req->osd_info.cur_flags0 =
+					rga_read(RGA2_FIXED_OSD_CUR_FLAGS0, scheduler);
+				user_req->osd_info.cur_flags1 =
+					rga_read(RGA2_FIXED_OSD_CUR_FLAGS1, scheduler);
+			}
 		}
 	}
 
@@ -3785,6 +3844,8 @@ static void rga2_clear_intr(struct rga_scheduler_t *scheduler)
 
 static int rga2_irq(struct rga_scheduler_t *scheduler)
 {
+	uint32_t cmd_cur_num;
+	uint32_t cmd_ctrl;
 	struct rga_job *job = scheduler->running_job;
 
 	/* The hardware interrupt top-half don't need to lock the scheduler. */
@@ -3805,14 +3866,22 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 	}
 
 	scheduler->ops->read_status(job, scheduler);
+	if (v_RGA2_SYS_CTRL_CMD_MODE(rga_read(RGA2_SYS_CTRL, scheduler)) == 0)
+		cmd_cur_num = 1;
+	else
+		cmd_cur_num = v_RGA2_STATUS1_SW_CMD_CUR_NUM(job->cmd_status);
 
-	if (DEBUGGER_EN(INT_FLAG))
+	if (DEBUGGER_EN(INT_FLAG)) {
+		rga_job_log(job, "current cmd %d/%d\n", cmd_cur_num,
+			v_RGA2_STATUS1_SW_CMD_TOTAL_NUM(job->cmd_status) + 1);
 		rga_job_log(job, "irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
 			job->intr_status, job->hw_status, job->cmd_status,
 			job->work_cycle, job->work_cycle);
+	}
 
 	if (job->intr_status & m_RGA2_INT_ERROR_FLAG_MASK) {
 		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
+		job->finished_count = cmd_cur_num > 0 ? cmd_cur_num - 1 : 0;
 
 		rga_job_err(job, "irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
 			job->intr_status, job->hw_status, job->cmd_status,
@@ -3821,7 +3890,45 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 		scheduler->ops->soft_reset(scheduler);
 	} else if (job->intr_status &
 		   (m_RGA2_INT_CUR_CMD_DONE_INT_FLAG | m_RGA2_INT_ALL_CMD_DONE_INT_FLAG)) {
-		set_bit(RGA_JOB_STATE_FINISH, &job->state);
+		if (job->task_count == 1) {
+			set_bit(RGA_JOB_STATE_FINISH, &job->state);
+			job->finished_count = cmd_cur_num;
+		} else {
+			cmd_ctrl = rga_read(RGA2_CMD_CTRL, scheduler);
+
+			if ((cmd_ctrl & m_RGA2_CMD_CTRL_STOP) > 0 &&
+			    v_RGA2_STATUS1_SW_CMD_CUR_NUM(job->cmd_status) < job->task_count) {
+				/*
+				 *  In addition to continue hardware running,
+				 * INCR_VALID_P will also increment the total
+				 * task count by INCR_NUM.
+				 */
+				cmd_ctrl = ((cmd_ctrl & (~m_RGA2_CMD_CTRL_INCR_NUM)) |
+					   s_RGA2_CMD_CTRL_INCR_NUM(0));
+
+				rga_write(rga_read(RGA2_INT, scheduler) |
+					  m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
+					  m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR,
+					  RGA2_INT, scheduler);
+				rga_write(cmd_ctrl |
+					  m_RGA2_CMD_CTRL_INCR_VALID_P,
+					  RGA2_CMD_CTRL, scheduler);
+
+				return IRQ_HANDLED;
+			}
+
+			if ((job->intr_status & m_RGA2_INT_ALL_CMD_DONE_INT_FLAG) == 0) {
+				/* clear current frame done interrupt */
+				rga_write(rga_read(RGA2_INT, scheduler) |
+					  m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR,
+					  RGA2_INT, scheduler);
+
+				return IRQ_HANDLED;
+			}
+
+			set_bit(RGA_JOB_STATE_FINISH, &job->state);
+			job->finished_count = cmd_cur_num;
+		}
 	}
 
 	rga2_clear_intr(scheduler);

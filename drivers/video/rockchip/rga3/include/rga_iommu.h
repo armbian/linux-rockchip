@@ -61,7 +61,9 @@ struct rga_mmu_base {
 };
 
 int rga_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag);
-int rga_set_mmu_base(struct rga_job *job, struct rga2_req *req);
+int rga_set_mmu_base(struct rga_job *job,
+		     struct rga_job_task_buffers *task_buffers,
+		     struct rga2_req *req);
 unsigned int *rga_mmu_buf_get(struct rga_mmu_base *mmu_base, uint32_t size);
 
 struct rga_mmu_base *rga_mmu_base_init(size_t size);

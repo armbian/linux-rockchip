@@ -85,6 +85,8 @@
 #define s_RGA3_SYS_CTRL_ACLK_SRESET(x)				((x & 0x1) << 3)
 #define s_RGA3_SYS_CTRL_CMD_MODE(x)				((x & 0x1) << 1)
 
+#define v_RGA3_SYS_CTRL_CMD_MODE(x)				(((x) >> 1) & 0x1)
+
 /* TODO: RGA3_INT_EN/RGA3_INT_RAW/RGA3_INT_MSK/RGA3_INT_CLR */
 #define m_RGA3_INT_WIN1_VOR_FIFO_REN_ERR			(0x1 << 29)
 #define m_RGA3_INT_WIN1_VOR_FIFO_WEN_ERR			(0x1 << 28)
@@ -147,12 +149,19 @@
 #define m_RGA3_CMD_CTRL_CMD_INCR_VALID_P			(0x1 << 1)
 #define m_RGA3_CMD_CTRL_CMD_LINE_ST_P				(0x1 << 0)
 
+#define s_RGA3_CMD_CTRL_CMD_INCR_NUM(x)				(((x) & 0x3ff) << 3)
+#define s_RGA3_CMD_CTRL_CMD_STOP_MODE(x)			(((x) & 0x1) << 2)
+
+#define v_RGA3_CMD_CTRL_CMD_INCR_NUM(x)				(((x) >> 3) & 0x3ff)
+
 /* RGA3_RO_SRST */
 #define m_RGA3_RO_SRST_RO_RST_DONE				(0x3f << 0)
 
 /* RGA3_CMD_STATE */
 #define m_RGA3_CMD_STATE_CMD_CNT_CUR				(0xfff << 16)
 #define m_RGA3_CMD_STATE_CMD_WORKING				(0x1 << 0)
+
+#define v_RGA3_CMD_STATE_CMD_CNT_CUR(x)				(((x) >> 16) & 0xfff)
 
 /* RGA3_WIN0_RD_CTRL */
 #define m_RGA3_WIN0_RD_CTRL_SW_WIN0_ENABLE			(0x1 << 0)

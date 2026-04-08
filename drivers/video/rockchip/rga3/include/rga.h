@@ -138,6 +138,7 @@ enum {
 	RGA_10BIT_INCOMPACT		= 0x1,
 };
 
+/* MPI context flags(request flags) */
 enum {
 	RGA_CONTEXT_NONE		= 0x0,
 	RGA_CONTEXT_SRC_FIX_ENABLE	= 0x1 << 0,
@@ -153,6 +154,9 @@ enum {
 	RGA_CONTEXT_DST_MASK		= RGA_CONTEXT_DST_FIX_ENABLE |
 					  RGA_CONTEXT_DST_CACHE_INFO,
 };
+
+/* request flags */
+#define RGA_REQUEST_FLAGS_EXEC_SEQUENTIAL	BIT(6)
 
 /* RGA feature */
 enum {
