@@ -867,6 +867,7 @@ void rga_request_task_debug_info(struct seq_file *m, struct rga_req *req)
 #ifdef CONFIG_NO_GKI
 static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 				  const char *channel_name,
+				  int task_index,
 				  int plane_id,
 				  int core)
 {
@@ -941,16 +942,16 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 
 	if (dump_buffer->memory_parm.width == 0 &&
 	    dump_buffer->memory_parm.height == 0)
-		snprintf(file_name, 100, "%s/%d_core%d_%s_plane%d_%s_size%zu_%s.bin",
+		snprintf(file_name, 100, "%s/%d_task%d_core%d_%s_plane%d_%s_size%zu_%s.bin",
 			 g_dump_path,
-			 RGA_DEBUG_DUMP_IMAGE, core, channel_name, plane_id,
+			 RGA_DEBUG_DUMP_IMAGE, task_index, core, channel_name, plane_id,
 			 rga_get_memory_type_str(dump_buffer->type),
 			 size,
 			 rga_get_format_name(dump_buffer->memory_parm.format));
 	else
-		snprintf(file_name, 100, "%s/%d_core%d_%s_plane%d_%s_w%d_h%d_%s.bin",
+		snprintf(file_name, 100, "%s/%d_task%d_core%d_%s_plane%d_%s_w%d_h%d_%s.bin",
 			 g_dump_path,
-			 RGA_DEBUG_DUMP_IMAGE, core, channel_name, plane_id,
+			 RGA_DEBUG_DUMP_IMAGE, task_index, core, channel_name, plane_id,
 			 rga_get_memory_type_str(dump_buffer->type),
 			 dump_buffer->memory_parm.width,
 			 dump_buffer->memory_parm.height,
@@ -986,22 +987,31 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 
 static inline void rga_dump_channel_image(struct rga_job_buffer *job_buffer,
 					  const char *channel_name,
+					  int task_index,
 					  int core)
 {
 	if (job_buffer->y_addr)
-		rga_dump_image_to_file(job_buffer->y_addr, channel_name, 0, core);
+		rga_dump_image_to_file(job_buffer->y_addr, channel_name, task_index, 0, core);
 	if (job_buffer->uv_addr)
-		rga_dump_image_to_file(job_buffer->uv_addr, channel_name, 1, core);
+		rga_dump_image_to_file(job_buffer->uv_addr, channel_name, task_index, 1, core);
 	if (job_buffer->v_addr)
-		rga_dump_image_to_file(job_buffer->v_addr, channel_name, 2, core);
+		rga_dump_image_to_file(job_buffer->v_addr, channel_name, task_index, 2, core);
 }
 
 void rga_dump_job_image(struct rga_job *dump_job)
 {
-	rga_dump_channel_image(&dump_job->src_buffer, "src", dump_job->core);
-	rga_dump_channel_image(&dump_job->src1_buffer, "src1", dump_job->core);
-	rga_dump_channel_image(&dump_job->dst_buffer, "dst", dump_job->core);
-	rga_dump_channel_image(&dump_job->els_buffer, "els", dump_job->core);
+	int i;
+
+	for (i = 0; i < dump_job->task_count; i++) {
+		rga_dump_channel_image(&dump_job->task_buffers[i].src_buffer,
+				       "src", i, dump_job->core);
+		rga_dump_channel_image(&dump_job->task_buffers[i].src1_buffer,
+				       "src1", i, dump_job->core);
+		rga_dump_channel_image(&dump_job->task_buffers[i].dst_buffer,
+				       "dst", i, dump_job->core);
+		rga_dump_channel_image(&dump_job->task_buffers[i].els_buffer,
+				       "els", i, dump_job->core);
+	}
 
 	if (RGA_DEBUG_DUMP_IMAGE > 0)
 		RGA_DEBUG_DUMP_IMAGE--;

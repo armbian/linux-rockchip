@@ -1927,61 +1927,65 @@ static int rga3_check_param(struct rga_job *job, const struct rga_hw_data *data,
 	return 0;
 }
 
-static void print_debug_info(struct rga_job *job, struct rga3_req *req)
+static void print_debug_info(struct rga_job *job, struct rga3_req *req, int task_index)
 {
-	rga_job_log(job, "render_mode:%s, bitblit_mode=%d, rotate_mode:%x\n",
-		rga_get_render_mode_str(req->render_mode), req->bitblt_mode,
+	rga_job_log(job, "task[%d]: render_mode:%s, bitblit_mode=%d, rotate_mode:%x\n",
+		task_index, rga_get_render_mode_str(req->render_mode), req->bitblt_mode,
 		req->rotate_mode);
-	rga_job_log(job, "win0: y = %lx uv = %lx v = %lx src_w = %d src_h = %d\n",
-		req->win0.yrgb_addr, req->win0.uv_addr, req->win0.v_addr,
+	rga_job_log(job, "task[%d]: win0: y = %lx uv = %lx v = %lx src_w = %d src_h = %d\n",
+		task_index, req->win0.yrgb_addr, req->win0.uv_addr, req->win0.v_addr,
 		req->win0.src_act_w, req->win0.src_act_h);
-	rga_job_log(job, "win0: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
-		req->win0.vir_w, req->win0.vir_h,
+	rga_job_log(job, "task[%d]: win0: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
+		task_index, req->win0.vir_w, req->win0.vir_h,
 		req->win0.x_offset, req->win0.y_offset,
 		rga_get_format_name(req->win0.format));
-	rga_job_log(job, "win0: dst_w = %d, dst_h = %d, rd_mode = %d\n",
-		req->win0.dst_act_w, req->win0.dst_act_h, req->win0.rd_mode);
-	rga_job_log(job, "win0: rot_mode = %d, en = %d, compact = %d, endian = %d\n",
-		req->win0.rotate_mode, req->win0.enable,
+	rga_job_log(job, "task[%d]: win0: dst_w = %d, dst_h = %d, rd_mode = %d\n",
+		task_index, req->win0.dst_act_w, req->win0.dst_act_h, req->win0.rd_mode);
+	rga_job_log(job, "task[%d]: win0: rot_mode = %d, en = %d, compact = %d, endian = %d\n",
+		task_index, req->win0.rotate_mode, req->win0.enable,
 		req->win0.is_10b_compact, req->win0.is_10b_endian);
 
 	if (req->win1.yrgb_addr != 0 || req->win1.uv_addr != 0
 		|| req->win1.v_addr != 0) {
-		rga_job_log(job, "win1: y = %lx uv = %lx v = %lx src_w = %d src_h = %d\n",
-			req->win1.yrgb_addr, req->win1.uv_addr,
+		rga_job_log(job, "task[%d]: win1: y = %lx uv = %lx v = %lx src_w = %d src_h = %d\n",
+			task_index, req->win1.yrgb_addr, req->win1.uv_addr,
 			req->win1.v_addr, req->win1.src_act_w,
 			req->win1.src_act_h);
-		rga_job_log(job, "win1: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
-			req->win1.vir_w, req->win1.vir_h,
+		rga_job_log(job, "task[%d]: win1: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
+			task_index, req->win1.vir_w, req->win1.vir_h,
 			req->win1.x_offset, req->win1.y_offset,
 			rga_get_format_name(req->win1.format));
-		rga_job_log(job, "win1: dst_w = %d, dst_h = %d, rd_mode = %d\n",
-			req->win1.dst_act_w, req->win1.dst_act_h,
+		rga_job_log(job, "task[%d]: win1: dst_w = %d, dst_h = %d, rd_mode = %d\n",
+			task_index, req->win1.dst_act_w, req->win1.dst_act_h,
 			req->win1.rd_mode);
-		rga_job_log(job, "win1: rot_mode = %d, en = %d, compact = %d, endian = %d\n",
-			req->win1.rotate_mode, req->win1.enable,
+		rga_job_log(job, "task[%d]: win1: rot_mode = %d, en = %d, compact = %d, endian = %d\n",
+			task_index, req->win1.rotate_mode, req->win1.enable,
 			req->win1.is_10b_compact, req->win1.is_10b_endian);
 	}
 
-	rga_job_log(job, "wr: y = %lx uv = %lx v = %lx vw = %d vh = %d\n",
-		req->wr.yrgb_addr, req->wr.uv_addr, req->wr.v_addr,
+	rga_job_log(job, "task[%d]: wr: y = %lx uv = %lx v = %lx vw = %d vh = %d\n",
+		task_index, req->wr.yrgb_addr, req->wr.uv_addr, req->wr.v_addr,
 		req->wr.vir_w, req->wr.vir_h);
-	rga_job_log(job, "wr: ovlp_xoff = %d ovlp_yoff = %d format = %s rdmode = %d\n",
-		req->wr.x_offset, req->wr.y_offset,
+	rga_job_log(job, "task[%d]: wr: ovlp_xoff = %d ovlp_yoff = %d format = %s rdmode = %d\n",
+		task_index, req->wr.x_offset, req->wr.y_offset,
 		rga_get_format_name(req->wr.format), req->wr.rd_mode);
 
-	rga_job_log(job, "mmu: win0 = %.2x win1 = %.2x wr = %.2x\n",
+	rga_job_log(job, "task[%d]: mmu: win0 = %.2x win1 = %.2x wr = %.2x\n",
+		task_index,
 		req->mmu_info.src0_mmu_flag, req->mmu_info.src1_mmu_flag,
 		req->mmu_info.dst_mmu_flag);
-	rga_job_log(job, "alpha: flag %x mode=%s\n",
+	rga_job_log(job, "task[%d]: alpha: flag %x mode=%s\n",
+		task_index,
 		req->alpha_rop_flag, rga_get_blend_mode_str(req->alpha_config.mode));
-	rga_job_log(job, "alpha: pre_multi=[%d,%d] pixl=[%d,%d] glb=[%d,%d]\n",
+	rga_job_log(job, "task[%d]: alpha: pre_multi=[%d,%d] pixl=[%d,%d] glb=[%d,%d]\n",
+		task_index,
 		req->alpha_config.fg_pre_multiplied, req->alpha_config.bg_pre_multiplied,
 		req->alpha_config.fg_pixel_alpha_en, req->alpha_config.bg_pixel_alpha_en,
 		req->alpha_config.fg_global_alpha_en, req->alpha_config.bg_global_alpha_en);
-	rga_job_log(job, "alpha: fg_global_alpha=%x bg_global_alpha=%x\n",
+	rga_job_log(job, "task[%d]: alpha: fg_global_alpha=%x bg_global_alpha=%x\n",
+		task_index,
 		req->alpha_config.fg_global_alpha_value, req->alpha_config.bg_global_alpha_value);
-	rga_job_log(job, "yuv2rgb mode is %x\n", req->yuv2rgb_mode);
+	rga_job_log(job, "task[%d]: yuv2rgb mode is %x\n", task_index, req->yuv2rgb_mode);
 }
 
 static int rga3_align_check(struct rga_job *job, struct rga3_req *req)
@@ -2007,8 +2011,11 @@ static int rga3_align_check(struct rga_job *job, struct rga3_req *req)
 
 static int rga3_init_reg(struct rga_job *job)
 {
-	struct rga3_req req;
 	int ret = 0;
+	int i;
+	uint32_t *cmd_base = NULL;
+	struct rga_req *user_req = NULL;
+	struct rga3_req req;
 	struct rga_scheduler_t *scheduler = NULL;
 	ktime_t timestamp = ktime_get();
 
@@ -2018,26 +2025,31 @@ static int rga3_init_reg(struct rga_job *job)
 		return -EINVAL;
 	}
 
-	memset(&req, 0x0, sizeof(req));
+	for (i = 0; i < job->task_count; i++) {
+		user_req = &job->task_list[i];
+		cmd_base = (uint32_t *)job->cmd_buf->vaddr + i * scheduler->data->cmd_reg_size;
 
-	rga_cmd_to_rga3_cmd(&job->rga_command_base, &req);
+		memset(&req, 0x0, sizeof(req));
 
-	/* for debug */
-	if (DEBUGGER_EN(MSG))
-		print_debug_info(job, &req);
+		rga_cmd_to_rga3_cmd(user_req, &req);
 
-	/* check value if legal */
-	ret = rga3_check_param(job, scheduler->data, &req);
-	if (ret == -EINVAL) {
-		rga_job_err(job, "req argument is inval\n");
-		return ret;
-	}
+		/* for debug */
+		if (DEBUGGER_EN(MSG))
+			print_debug_info(job, &req, i);
 
-	rga3_align_check(job, &req);
+		/* check value if legal */
+		ret = rga3_check_param(job, scheduler->data, &req);
+		if (ret == -EINVAL) {
+			rga_job_err(job, "req argument is inval\n");
+			return ret;
+		}
 
-	if (rga3_gen_reg_info((uint8_t *) job->cmd_buf->vaddr, &req) == -1) {
-		rga_job_err(job, "RKA: gen reg info error\n");
-		return -EINVAL;
+		rga3_align_check(job, &req);
+
+		if (rga3_gen_reg_info((uint8_t *) cmd_base, &req) == -1) {
+			rga_job_err(job, "RKA: gen reg info error\n");
+			return -EINVAL;
+		}
 	}
 
 	if (DEBUGGER_EN(TIME))
@@ -2112,19 +2124,18 @@ static void rga3_dump_read_back_iommu_reg(struct rga_job *job, struct rga_schedu
 
 static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
-	int i;
+	int i, j;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
+	uint32_t int_en;
 	uint32_t *cmd;
 	ktime_t now = ktime_get();
-
-	cmd = job->cmd_buf->vaddr;
 
 	/*
 	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
 	 * so the iommu device needs to use the slave mode.
 	 */
-	if (scheduler->data->mmu != RGA_IOMMU)
+	if (scheduler->data->mmu != RGA_IOMMU || job->task_count > 1)
 		master_mode_en = true;
 	else
 		master_mode_en = false;
@@ -2132,19 +2143,26 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(REG)) {
 		rga3_dump_read_back_sys_reg(job, scheduler);
 
-		rga_job_log(job, "CMD_REG\n");
-		for (i = 0; i < ALIGN_DOWN(scheduler->data->cmd_reg_size, 4) / 4; i++)
-			rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
-				RGA3_CMD_REG_BASE + i * 0x10,
-				cmd[0 + i * 4], cmd[1 + i * 4],
-				cmd[2 + i * 4], cmd[3 + i * 4]);
+		for (i = 0; i < job->task_count; i++) {
+			cmd = (uint32_t *)job->cmd_buf->vaddr + i * scheduler->data->cmd_reg_size;
+			rga_job_log(job, "CMD_REG task[%d]\n", i);
+
+			for (j = 0; j < ALIGN_DOWN(scheduler->data->cmd_reg_size, 4) / 4; j++)
+				rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+					RGA3_CMD_REG_BASE + j * 0x10,
+					cmd[0 + j * 4], cmd[1 + j * 4],
+					cmd[2 + j * 4], cmd[3 + j * 4]);
+		}
 
 		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
 	/* All CMD finish int */
-	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
-		  RGA3_INT_EN, scheduler);
+	if (master_mode_en)
+		int_en = m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK;
+	else
+		int_en = m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK;
+	rga_write(int_en, RGA3_INT_EN, scheduler);
 
 	if (master_mode_en) {
 		/* master mode */
@@ -2152,11 +2170,15 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 		rga_write(job->cmd_buf->dma_addr, RGA3_CMD_ADDR, scheduler);
 		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
-		rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
+		rga_write(s_RGA3_CMD_CTRL_CMD_INCR_NUM(job->task_count - 1) |
+			  s_RGA3_CMD_CTRL_CMD_STOP_MODE(0) |
+			  m_RGA3_CMD_CTRL_CMD_LINE_ST_P,
+			  RGA3_CMD_CTRL, scheduler);
 	} else {
 		/* slave mode */
 		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
 
+		cmd = job->cmd_buf->vaddr;
 		for (i = 0; i < scheduler->data->cmd_reg_size; i++)
 			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
@@ -2224,6 +2246,7 @@ static void rga3_clear_intr(struct rga_scheduler_t *scheduler)
 
 static int rga3_irq(struct rga_scheduler_t *scheduler)
 {
+	uint32_t cmd_cur_num;
 	struct rga_job *job = scheduler->running_job;
 
 	if (job == NULL) {
@@ -2241,19 +2264,51 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 	}
 
 	scheduler->ops->read_status(job, scheduler);
+	if (v_RGA3_SYS_CTRL_CMD_MODE(rga_read(RGA3_SYS_CTRL, scheduler)) == 0)
+		cmd_cur_num = 1;
+	else
+		cmd_cur_num = v_RGA3_CMD_STATE_CMD_CNT_CUR(job->cmd_status);
 
-	if (DEBUGGER_EN(INT_FLAG))
+	if (DEBUGGER_EN(INT_FLAG)) {
+		rga_job_log(job, "current cmd %d/%zu\n", cmd_cur_num, job->task_count);
 		rga_job_log(job, "irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
 			job->intr_status, job->hw_status, job->cmd_status);
+	}
 
-	if (job->intr_status & (m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH)) {
-		set_bit(RGA_JOB_STATE_FINISH, &job->state);
-	} else if (job->intr_status & m_RGA3_INT_ERROR_MASK) {
+	if (job->intr_status & m_RGA3_INT_ERROR_MASK) {
 		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
+		job->finished_count = cmd_cur_num > 0 ? cmd_cur_num - 1 : 0;
 
 		rga_job_err(job, "irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
 		       job->intr_status, job->hw_status, job->cmd_status);
+
 		scheduler->ops->soft_reset(scheduler);
+	} else if (job->intr_status & (m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH)) {
+		if (job->task_count == 1) {
+			set_bit(RGA_JOB_STATE_FINISH, &job->state);
+			job->finished_count = cmd_cur_num;
+		} else {
+			if (rga_read(RGA3_CMD_CTRL, scheduler) & m_RGA3_CMD_CTRL_CMD_STOP_MODE &&
+			    v_RGA3_CMD_STATE_CMD_CNT_CUR(job->cmd_status) < job->task_count) {
+				rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH,
+					  RGA3_INT_CLR, scheduler);
+				rga_write(rga_read(RGA3_CMD_CTRL, scheduler) |
+					  m_RGA3_CMD_CTRL_CMD_INCR_VALID_P,
+					  RGA3_CMD_CTRL, scheduler);
+
+				return IRQ_HANDLED;
+			}
+
+			if ((job->intr_status & m_RGA3_INT_CMD_LINE_FINISH) == 0) {
+				/* clear current frame done interrupt */
+				rga_write(m_RGA3_INT_FRM_DONE, RGA3_INT_CLR, scheduler);
+
+				return IRQ_HANDLED;
+			}
+
+			set_bit(RGA_JOB_STATE_FINISH, &job->state);
+			job->finished_count = cmd_cur_num;
+		}
 	}
 
 	rga3_clear_intr(scheduler);

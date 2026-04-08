@@ -15,8 +15,16 @@
 
 static void rga_job_free(struct rga_job *job)
 {
-	if (job->cmd_buf)
-		rga_dma_buf_pool_free(job->scheduler->cmd_buf_pool, job->cmd_buf);
+	if (job->cmd_buf) {
+		if (job->task_count > 1)
+			rga_dma_free(job->cmd_buf);
+		else
+			rga_dma_buf_pool_free(job->scheduler->cmd_buf_pool, job->cmd_buf);
+		job->cmd_buf = NULL;
+	}
+
+	kfree(job->task_buffers);
+	job->task_buffers = NULL;
 
 	kfree(job);
 }
@@ -47,14 +55,12 @@ static int rga_job_cleanup(struct rga_job *job)
 	return 0;
 }
 
-static int rga_job_judgment_support_core(struct rga_job *job)
+static int rga_job_judgment_support_core(struct rga_job *job, struct rga_req *req)
 {
 	int ret = 0;
 	uint32_t mm_flag;
-	struct rga_req *req;
 	struct rga_mm *mm;
 
-	req = &job->rga_command_base;
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
 		rga_job_err(job, "rga mm is null!\n");
@@ -108,8 +114,9 @@ out_finish:
 	return ret;
 }
 
-static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
+static struct rga_job *rga_job_alloc(struct rga_req *task_list, size_t task_count)
 {
+	int i;
 	struct rga_job *job = NULL;
 
 	job = kzalloc(sizeof(*job), GFP_KERNEL);
@@ -122,13 +129,16 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	job->timestamp.init = ktime_get();
 	job->pid = current->pid;
 
-	job->rga_command_base = *rga_command_base;
+	job->task_list = task_list;
+	job->task_count = task_count;
 
-	if (rga_command_base->priority > 0) {
-		if (rga_command_base->priority > RGA_SCHED_PRIORITY_MAX)
-			job->priority = RGA_SCHED_PRIORITY_MAX;
-		else
-			job->priority = rga_command_base->priority;
+	for (i = 0; i < task_count; i++) {
+		if (task_list[i].priority > 0) {
+			if (task_list[i].priority > RGA_SCHED_PRIORITY_MAX)
+				job->priority = RGA_SCHED_PRIORITY_MAX;
+			else if (task_list[i].priority > job->priority)
+				job->priority = task_list[i].priority;
+		}
 	}
 
 	if (DEBUGGER_EN(INTERNAL_MODE)) {
@@ -138,10 +148,12 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 		return job;
 	}
 
-	if (job->rga_command_base.handle_flag & 1) {
-		job->flags |= RGA_JOB_USE_HANDLE;
-
-		rga_job_judgment_support_core(job);
+	for (i = 0; i < task_count; i++) {
+		if (task_list[i].handle_flag & 1) {
+			job->flags |= RGA_JOB_USE_HANDLE;
+			rga_job_judgment_support_core(job, &task_list[i]);
+			break;
+		}
 	}
 
 	return job;
@@ -401,19 +413,18 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	return scheduler;
 }
 
-int rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
+int rga_job_commit(struct rga_req *task_list, size_t task_count, struct rga_request *request)
 {
 	int ret;
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
 
-	job = rga_job_alloc(rga_command_base);
+	job = rga_job_alloc(task_list, task_count);
 	if (!job) {
 		rga_err("failed to alloc rga job!\n");
 		return -ENOMEM;
 	}
 
-	job->use_batch_mode = request->use_batch_mode;
 	job->request_id = request->id;
 	job->session = request->session;
 	job->mm = request->current_mm;
@@ -424,18 +435,36 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request
 		goto err_free_job;
 	}
 
-	job->cmd_buf = rga_dma_buf_pool_alloc(scheduler->cmd_buf_pool);
-	if (job->cmd_buf == NULL) {
-		rga_job_err(job, "failed to alloc command buffer.\n");
-		ret = -ENOMEM;
-		goto err_free_job;
-	}
-
 	/* Memory mapping needs to keep pd enabled. */
 	ret = rga_power_enable(scheduler);
 	if (ret < 0) {
 		rga_job_err(job, "power enable failed");
-		goto err_free_cmd_buf;
+		goto err_free_job;
+	}
+
+	if (job->task_count > 1) {
+		job->cmd_buf = rga_dma_alloc_coherent(job->scheduler,
+			job->task_count * scheduler->data->cmd_reg_size * sizeof(uint32_t));
+		if (job->cmd_buf == NULL) {
+			rga_job_err(job, "Failed to allocate coherent memory for multi-task.\n");
+			ret = -ENOMEM;
+			goto err_power_disable;
+		}
+	} else {
+		job->cmd_buf = rga_dma_buf_pool_alloc(scheduler->cmd_buf_pool);
+		if (job->cmd_buf == NULL) {
+			rga_job_err(job, "failed to alloc command buffer.\n");
+			ret = -ENOMEM;
+			goto err_power_disable;
+		}
+	}
+
+	job->task_buffers =
+		kzalloc(sizeof(struct rga_job_task_buffers) * job->task_count, GFP_KERNEL);
+	if (!job->task_buffers) {
+		rga_job_err(job, "Failed to allocate memory for channel buffers.\n");
+		ret = -ENOMEM;
+		goto err_power_disable;
 	}
 
 	ret = rga_mm_map_job_info(job);
@@ -463,10 +492,6 @@ err_unmap_job_info:
 
 err_power_disable:
 	rga_power_disable(scheduler);
-
-err_free_cmd_buf:
-	rga_dma_buf_pool_free(scheduler->cmd_buf_pool, job->cmd_buf);
-	job->cmd_buf = NULL;
 
 err_free_job:
 	rga_job_free(job);
@@ -752,7 +777,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 				list_move(&job->head, &list_to_free);
 				scheduler->job_count--;
 
-				todo_abort_count++;
+				todo_abort_count += job->task_count;
 			}
 		}
 
@@ -775,7 +800,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 
 				rga_req_err(request, "reset core[%d] by request abort",
 					scheduler->core);
-				running_abort_count++;
+				running_abort_count += job->task_count - job->finished_count;
 			}
 		}
 
@@ -923,22 +948,41 @@ int rga_request_commit(struct rga_request *request)
 	int ret;
 	int i = 0;
 
-	if (DEBUGGER_EN(MSG))
+	if (DEBUGGER_EN(MSG)) {
 		rga_req_log(request, "commit process: %s\n", request->session->pname);
+		rga_req_log(request, "flags = %#x, task_count = %d\n",
+			request->flags, request->task_count);
+	}
 
-	for (i = 0; i < request->task_count; i++) {
-		struct rga_req *req = &(request->task_list[i]);
-
+	if (request->flags & RGA_REQUEST_FLAGS_EXEC_SEQUENTIAL) {
 		if (DEBUGGER_EN(MSG)) {
-			rga_req_log(request, "commit task[%d]:\n", i);
-			rga_dump_req(request, req);
+			for (i = 0; i < request->task_count; i++) {
+				rga_req_log(request, "commit task[%d]:\n", i);
+				rga_dump_req(request, &(request->task_list[i]));
+			}
 		}
 
-		ret = rga_job_commit(req, request);
+		ret = rga_job_commit(request->task_list, request->task_count, request);
 		if (ret < 0) {
-			rga_req_err(request, "task[%d] job_commit failed.\n", i);
+			rga_req_err(request, "task_list job_commit failed.\n");
 
 			return ret;
+		}
+	} else {
+		for (i = 0; i < request->task_count; i++) {
+			struct rga_req *req = &(request->task_list[i]);
+
+			if (DEBUGGER_EN(MSG)) {
+				rga_req_log(request, "commit task[%d]:\n", i);
+				rga_dump_req(request, req);
+			}
+
+			ret = rga_job_commit(req, 1, request);
+			if (ret < 0) {
+				rga_req_err(request, "task[%d] job_commit failed.\n", i);
+
+				return ret;
+			}
 		}
 	}
 
@@ -1021,12 +1065,10 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 	spin_lock_irqsave(&request->lock, flags);
 
-	if (job->ret < 0) {
-		request->failed_task_count++;
+	request->failed_task_count += job->task_count - job->finished_count;
+	request->finished_task_count += job->finished_count;
+	if (job->ret < 0)
 		request->ret = job->ret;
-	} else {
-		request->finished_task_count++;
-	}
 
 	failed_count = request->failed_task_count;
 	finished_count = request->finished_task_count;
@@ -1127,7 +1169,6 @@ struct rga_request *rga_request_config(struct rga_user_request *user_request)
 
 	spin_lock_irqsave(&request->lock, flags);
 
-	request->use_batch_mode = true;
 	request->task_list = task_list;
 	request->task_count = user_request->task_num;
 	request->sync_mode = user_request->sync_mode;
@@ -1187,7 +1228,6 @@ struct rga_request *rga_request_kernel_config(struct rga_user_request *user_requ
 
 	spin_lock_irqsave(&request->lock, flags);
 
-	request->use_batch_mode = true;
 	request->task_list = task_list;
 	request->task_count = user_request->task_num;
 	request->sync_mode = user_request->sync_mode;
@@ -1353,7 +1393,7 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
 
-	ret = rga_job_commit(req, request);
+	ret = rga_job_commit(req, 1, request);
 	if (ret < 0) {
 		rga_req_err(request, "failed to commit job!\n");
 		goto err_abort_request;

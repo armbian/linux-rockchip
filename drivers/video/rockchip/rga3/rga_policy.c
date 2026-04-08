@@ -297,23 +297,18 @@ static bool rga_check_rotate(struct rga_job *job, const struct rga_hw_data *data
 	return true;
 }
 
-int rga_job_assign(struct rga_job *job)
+static int rga_task_assign(struct rga_job *job, struct rga_req *rga_base)
 {
-	struct rga_img_info_t *src0 = &job->rga_command_base.src;
-	struct rga_img_info_t *src1 = &job->rga_command_base.pat;
-	struct rga_img_info_t *dst = &job->rga_command_base.dst;
-
-	struct rga_req *rga_base = &job->rga_command_base;
+	struct rga_img_info_t *src0 = &rga_base->src;
+	struct rga_img_info_t *src1 = &rga_base->pat;
+	struct rga_img_info_t *dst = &rga_base->dst;
 	const struct rga_hw_data *data;
 	struct rga_scheduler_t *scheduler = NULL;
 
 	int feature;
-	int core = RGA_NONE_CORE;
 	int optional_cores = RGA_NONE_CORE;
 	int specified_cores = RGA_NONE_CORE;
 	int i;
-	int min_of_job_count = -1;
-	unsigned long flags;
 	int need_swap = false;
 
 	/* assigned by userspace */
@@ -475,6 +470,35 @@ int rga_job_assign(struct rga_job *job)
 	if (optional_cores == 0) {
 		rga_job_err(job, "no core match\n");
 		return -1;
+	}
+
+	return optional_cores;
+}
+
+int rga_job_assign(struct rga_job *job)
+{
+	int i;
+	int ret;
+	int core = RGA_NONE_CORE;
+	int optional_cores = RGA_CORE_MASK;
+	int min_of_job_count = -1;
+	unsigned long flags;
+	struct rga_req *user_req;
+	struct rga_scheduler_t *scheduler;
+
+	for (i = 0; i < job->task_count; i++) {
+		user_req = &job->task_list[i];
+
+		ret = rga_task_assign(job, user_req);
+		if (ret < 0) {
+			rga_job_err(job, "failed to assign task %d\n", i);
+			return ret;
+		}
+
+		if (DEBUGGER_EN(MSG))
+			rga_job_log(job, "task[%d] assign optional cores = %#x\n", i, ret);
+
+		optional_cores &= ret;
 	}
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
