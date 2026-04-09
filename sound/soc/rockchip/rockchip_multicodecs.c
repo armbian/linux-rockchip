@@ -235,6 +235,12 @@ static void adc_jack_handler(struct work_struct *work)
 		if (mc_data->poller)
 			mc_keys_poller_stop(mc_data->poller);
 
+		if (mc_data->last_key) {
+			input_report_key(mc_data->input, mc_data->last_key, 0);
+			input_sync(mc_data->input);
+			mc_data->last_key = 0;
+		}
+
 		return;
 	}
 	if (!mc_data->adc) {
