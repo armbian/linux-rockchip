@@ -2157,6 +2157,8 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
+	sys_ctrl = 0;
+
 	/* All CMD finish int */
 	if (master_mode_en)
 		int_en = m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK;
@@ -2165,24 +2167,26 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(int_en, RGA3_INT_EN, scheduler);
 
 	if (master_mode_en) {
-		/* master mode */
-		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
-
 		rga_write(job->cmd_buf->dma_addr, RGA3_CMD_ADDR, scheduler);
-		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+		/* master mode */
+		rga_write(sys_ctrl | s_RGA3_SYS_CTRL_CMD_MODE(1), RGA3_SYS_CTRL, scheduler);
 		rga_write(s_RGA3_CMD_CTRL_CMD_INCR_NUM(job->task_count - 1) |
 			  s_RGA3_CMD_CTRL_CMD_STOP_MODE(0) |
 			  m_RGA3_CMD_CTRL_CMD_LINE_ST_P,
 			  RGA3_CMD_CTRL, scheduler);
 	} else {
 		/* slave mode */
-		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
+		rga_write(sys_ctrl | s_RGA3_SYS_CTRL_CMD_MODE(0), RGA3_SYS_CTRL, scheduler);
+		rga_write(0, RGA3_CMD_ADDR, scheduler);
+		rga_write(0, RGA3_CMD_CTRL, scheduler);
 
 		cmd = job->cmd_buf->vaddr;
 		for (i = 0; i < scheduler->data->cmd_reg_size; i++)
 			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
-		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+		rga_write(sys_ctrl |
+			  s_RGA3_SYS_CTRL_CMD_MODE(0) |
+			  m_RGA3_SYS_CTRL_RGA_SART, RGA3_SYS_CTRL, scheduler);
 	}
 
 	if (DEBUGGER_EN(TIME))
