@@ -1044,7 +1044,11 @@ static int rk3572_dfi_init(struct rockchip_dfi *dfi)
 	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
 	dfi->ddrmon_ctrl_single = true;
 
-	dfi->count_rate = 1;
+	if ((dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5) ||
+	    (dfi->ddr_type == ROCKCHIP_DDRTYPE_LPDDR5X))
+		dfi->count_rate = 1;
+	else
+		dfi->count_rate = 2;
 
 	dfi->num_clks = 1;
 
