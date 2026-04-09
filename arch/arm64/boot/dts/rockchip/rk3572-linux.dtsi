@@ -30,10 +30,20 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
 &display_subsystem {
 	memory-region = <&drm_logo>, <&drm_cubic_lut>;
 	memory-region-names = "drm-logo", "drm-cubic-lut";
 	/* devfreq = <&dmc>; */
+};
+
+&dmc {
+	center-supply = <&vdd_ddr_s0>;
+	mem-supply = <&vdd_logic_s0>;
+	status = "okay";
 };
 
 &reserved_memory {

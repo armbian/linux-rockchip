@@ -205,17 +205,7 @@
 	cpu-supply = <&vdd_cpu_big_s0>;
 };
 
-&dfi {
-	status = "okay";
-};
-
 &display_subsystem {
-	status = "okay";
-};
-
-&dmc {
-	center-supply = <&vdd_ddr_s0>;
-	mem-supply = <&vdd_logic_s0>;
 	status = "okay";
 };
 
