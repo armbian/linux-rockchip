@@ -2053,6 +2053,18 @@
 		};
 	};
 
+	hdcp2: hdcp2@fe080000 {
+		compatible = "rockchip,rk356x-hdcp";
+		reg = <0x0 0xfe080000 0x0 0x2000>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_HDCP>, <&cru PCLK_HDCP>,
+			 <&cru HCLK_HDCP>, <&cru ACLK_VOP_PRE>;
+		clock-names ="aclk_hdcp2", "pclk_hdcp2", "hdcp2_clk_hdmi", "aclk_vop_pre";
+		resets = <&cru SRST_P_HDCP>, <&cru SRST_H_HDCP>, <&cru SRST_A_HDCP>;
+		reset-names = "hdcp", "h_hdcp", "a_hdcp";
+		status = "disabled";
+	};
+
 	hdmi: hdmi@fe0a0000 {
 		compatible = "rockchip,rk3568-dw-hdmi";
 		reg = <0x0 0xfe0a0000 0x0 0x20000>;
