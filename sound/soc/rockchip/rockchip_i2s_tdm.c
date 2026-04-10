@@ -3260,7 +3260,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 #ifdef HAVE_SYNC_RESET
 	bool sync;
 #endif
-	int ret, val, i, irq;
+	int ret, val, i, irq, gpio;
 
 	i2s_tdm = devm_kzalloc(&pdev->dev, sizeof(*i2s_tdm), GFP_KERNEL);
 	if (!i2s_tdm)
@@ -3273,17 +3273,15 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		i2s_tdm->resume_deferred_ms = val;
 
 	/*
-	 * Should use flag GPIOD_ASIS not to reclaim LRCK pin as GPIO function,
-	 * because we use the same PIN and just read EXT_PORT value which show
-	 * the pin status.
+	 * Use of_get_named_gpio() + gpio_to_desc() instead of
+	 * devm_gpiod_get_optional() to avoid triggering pinctrl
+	 * gpio_request_enable which would switch the pin mux from I2S LRCK
+	 * function to GPIO. We only need to read the EXT_PORT register value
+	 * to observe the LRCK pin level, keeping the original mux.
 	 */
-	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck",
-							 GPIOD_ASIS);
-	if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
-		ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
-		dev_err(i2s_tdm->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
-		return ret;
-	}
+	gpio = of_get_named_gpio(node, "i2s-lrck-gpio", 0);
+	if (gpio_is_valid(gpio))
+		i2s_tdm->i2s_lrck_gpio = gpio_to_desc(gpio);
 
 	spin_lock_init(&i2s_tdm->lock);
 	i2s_tdm->soc_data = device_get_match_data(&pdev->dev);
