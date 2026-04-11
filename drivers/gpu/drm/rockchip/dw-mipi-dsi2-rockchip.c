@@ -536,7 +536,8 @@ static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
 			drm_panel_disable(dsi2->panel);
 	}
 
-	rockchip_drm_crtc_standby(encoder->crtc, 1);
+	if (new_crtc_state && new_crtc_state->self_refresh_active)
+		rockchip_drm_crtc_standby(encoder->crtc, 1);
 
 	dw_mipi_dsi2_disable(dsi2);
 
@@ -547,7 +548,8 @@ static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	dw_mipi_dsi2_post_disable(dsi2);
 
-	rockchip_drm_crtc_standby(encoder->crtc, 0);
+	if (new_crtc_state && new_crtc_state->self_refresh_active)
+		rockchip_drm_crtc_standby(encoder->crtc, 0);
 
 	if (dsi2->slave)
 		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
@@ -1051,7 +1053,8 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (crtc)
 		old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 
-	rockchip_drm_crtc_standby(encoder->crtc, 1);
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2) || !dsi2->auto_calc_mode)
+		rockchip_drm_crtc_standby(encoder->crtc, 1);
 
 	ret = dw_mipi_dsi2_encoder_mode_set(dsi2, state);
 	if (ret) {
@@ -1076,7 +1079,8 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	dw_mipi_dsi2_enable(dsi2);
 
-	rockchip_drm_crtc_standby(encoder->crtc, 0);
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2) || !dsi2->auto_calc_mode)
+		rockchip_drm_crtc_standby(encoder->crtc, 0);
 
 	if (dsi2->slave)
 		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
