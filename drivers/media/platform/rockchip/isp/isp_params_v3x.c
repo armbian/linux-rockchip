@@ -3460,16 +3460,29 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 		 const struct isp3x_bay3d_cfg *arg, u32 id)
 {
 	struct rkisp_device *dev = params_vdev->dev;
-	u32 i, value;
+	u32 i, value, w, width = dev->isp_sdev.in_crop.width;
+
+	width = ALIGN(width, 16);
+	if (dev->hw_dev->unite)
+		width = ALIGN(width / 2 + dev->hw_dev->unite_extend_pixel, 16);
 
 	value = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, id);
 	if (value & BIT(1) && !arg->bypass_en)
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_RAW3D_FST_FRAME, id);
 	value &= ISP3X_MODULE_EN;
 
-	if (dev->rd_mode == HDR_NORMAL ||
-	    dev->rd_mode == HDR_RDBK_FRAME1)
+	/* need to config h_size_bay3dmi for hdr and normal multiplexing */
+	if (dev->rd_mode == HDR_NORMAL || dev->rd_mode == HDR_RDBK_FRAME1) {
 		value |= BIT(13); //bandwidth save
+		w = width * 3 / 4;
+	} else {
+		w = width;
+	}
+	if (!arg->glbpk_en)
+		w += width / 8;
+	if (dev->hw_dev->dev_link_num > 1)
+		isp3_param_set_bits(params_vdev, ISP3X_ISP_ACQ_H_SIZE, w << 16, id);
+
 	value |= (arg->loswitch_protect & 0x1) << 12 |
 		 (arg->glbpk_en & 0x1) << 11 |
 		 (arg->logaus3_bypass_en & 0x1) << 10 |
