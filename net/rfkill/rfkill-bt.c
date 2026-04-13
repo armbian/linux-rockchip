@@ -854,10 +854,6 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_gpio;
 
-	ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name,
-				   "rts");
-	if (ret)
-		goto fail_gpio;
 
 	wake_lock_init(&rfkill->bt_irq_wl, WAKE_LOCK_SUSPEND,
 		       "rfkill_rk_irq_wl");
