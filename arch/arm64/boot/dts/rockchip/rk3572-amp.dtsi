@@ -18,9 +18,9 @@
 / {
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";
-		clocks = <&cru CLK_BUSMCU_ROOT>, <&cru CLK_BUSMCU_CORE_AON>,
+		clocks = <&cru CLK_BUSMCU_ROOT>, <&cru CLK_BUSMCU_CORE_AON>, <&cru CLK_MTIME_TOGGLE_A>,
 			 <&cru CLK_MCU_AXI_INTEGRITY>, <&cru SCLK_UART5>, <&cru PCLK_UART5>,
-			 <&cru CLK_TIMER10>, <&cru CLK_TIMER11>;
+			 <&cru PCLK_BUSTIMER1>, <&cru CLK_TIMER10>, <&cru CLK_TIMER11>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5m2_xfer_pins>;
