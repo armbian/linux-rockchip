@@ -1457,8 +1457,11 @@ static int pcie_rkep_request_irq(struct pcie_rkep *pcie_rkep, u32 irq_type)
 	int nvec, ret = -EINVAL, i;
 
 	nvec = pci_alloc_irq_vectors(pcie_rkep->pdev, 1, RKEP_NUM_IRQ_VECTORS, irq_type);
-	if (nvec < 0)
+	if (nvec < 0) {
+		dev_err(&pcie_rkep->pdev->dev, "fail to allocate interrupt, irq_type=%d ret=%d\n",
+			irq_type, nvec);
 		return nvec;
+	}
 
 	if (nvec != RKEP_NUM_IRQ_VECTORS)
 		dev_err(&pcie_rkep->pdev->dev, "only allocate %d irq interrupt, irq_type=%d\n", nvec, irq_type);
