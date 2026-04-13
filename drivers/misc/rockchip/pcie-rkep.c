@@ -1469,6 +1469,7 @@ static int pcie_rkep_request_irq(struct pcie_rkep *pcie_rkep, u32 irq_type)
 	return ret;
 }
 
+#ifdef CONFIG_NO_GKI
 static int rkep_loadfile(struct device *dev, char *path, void __iomem *bar, int pos)
 {
 	struct file *p_file = NULL;
@@ -1515,6 +1516,7 @@ static ssize_t rkep_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 static DEVICE_ATTR_WO(rkep);
+#endif /* CONFIG_NO_GKI */
 
 static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1653,7 +1655,9 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_save_state(pdev);
 
+#ifdef CONFIG_NO_GKI
 	device_create_file(&pdev->dev, &dev_attr_rkep);
+#endif
 
 	return 0;
 err_register_obj:
@@ -1682,7 +1686,9 @@ static void pcie_rkep_remove(struct pci_dev *pdev)
 	if (pcie_rkep->dma_obj)
 		pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 
+#ifdef CONFIG_NO_GKI
 	device_remove_file(&pdev->dev, &dev_attr_rkep);
+#endif
 	__free_pages(pcie_rkep->user_pages, get_order(RKEP_USER_MEM_SIZE));
 	pcie_rkep_release_irq(pcie_rkep);
 
