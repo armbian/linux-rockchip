@@ -359,7 +359,7 @@ static int onxq000_device_init(struct onxq000 *onxq000)
 	return 0;
 }
 
-static int onxq000_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int onxq000_i2c_probe(struct i2c_client *client)
 {
 	struct onxq000 *onxq000 = NULL;
 
