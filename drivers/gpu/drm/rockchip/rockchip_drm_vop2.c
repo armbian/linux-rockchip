@@ -7857,12 +7857,10 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_atomic
  * The background value is 10 bit, convert from 8 bit to 10 bit here,
  * and the bit[31] is bg_en control bit.
  */
-static void vop2_plane_setup_background(struct drm_plane *plane)
+static void vop2_plane_setup_background(struct vop2 *vop2, struct vop2_win *win,
+					struct drm_plane_state *pstate)
 {
-	struct drm_plane_state *pstate = plane->state;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
-	struct vop2_win *win = to_vop2_win(plane);
-	struct vop2 *vop2 = win->vop2;
 	uint32_t r, g, b, bg_val;
 
 	if (win->regs->background.mask == 0)
@@ -8629,7 +8627,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_WIN_SET(vop2, win, yrgb_vir, stride);
 
 	vop2_setup_scale(vop2, win, actual_w, actual_h, dsp_w, dsp_h, pstate);
-	vop2_plane_setup_background(&win->base);
+	vop2_plane_setup_background(vop2, win, pstate);
 	vop2_plane_setup_color_key(&win->base);
 	VOP_WIN_SET(vop2, win, act_info, act_info);
 	VOP_WIN_SET(vop2, win, dsp_info, dsp_info);
