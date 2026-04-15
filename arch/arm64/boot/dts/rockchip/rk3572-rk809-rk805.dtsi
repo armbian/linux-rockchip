@@ -135,6 +135,10 @@
 			status = "okay";
 		};
 
+		uboot,sysreset-rk8xx {
+			status = "okay";
+		};
+
 		regulators {
 			vdd_cpu_lit_s0: DCDC_REG1 {
 				regulator-name = "vdd_cpu_lit_s0";
@@ -383,6 +387,10 @@
 
 		pwrkey {
 			status = "disabled";
+		};
+
+		uboot,sysreset-rk8xx {
+			status = "okay";
 		};
 
 		regulators {
