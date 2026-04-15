@@ -21,7 +21,7 @@ extern unsigned char fiq_glue, fiq_glue_end;
 extern void fiq_glue_setup(void *func, void *data, void *sp,
 			   fiq_return_handler_t fiq_return_handler);
 
-static struct fiq_handler fiq_debbuger_fiq_handler = {
+static struct fiq_handler fiq_debugger_fiq_handler = {
 	.name = "fiq_glue",
 };
 DEFINE_PER_CPU(void *, fiq_stack);
@@ -61,7 +61,7 @@ int fiq_glue_register_handler(struct fiq_glue_handler *handler)
 		per_cpu(fiq_stack, cpu) = stack;
 	}
 
-	ret = claim_fiq(&fiq_debbuger_fiq_handler);
+	ret = claim_fiq(&fiq_debugger_fiq_handler);
 	if (WARN_ON(ret))
 		goto err_claim_fiq;
 
