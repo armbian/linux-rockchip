@@ -131,7 +131,7 @@ static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	LOG_DEV_INFO(dev, "bin=%d\n", *bin);
+	LOG_DEV_DEBUG(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -167,7 +167,7 @@ static int rv1126b_npu_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	LOG_DEV_INFO(dev, "bin=%d\n", *bin);
+	LOG_DEV_DEBUG(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
