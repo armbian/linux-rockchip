@@ -254,10 +254,61 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+
+	gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+		rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+	};
+
+	hynitron: hynitron@5a {
+		status = "okay";
+		compatible = "hyn,3240";
+		reg = <0x5a>;
+
+		pinctrl-names = "ts_active","ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+
+		power-supply = <&vcc3v3_lcd>;
+		max-touch-number = <5>;
+		display-coords = <0 0 1080 1920>;
+		pos-swap = <0>;
+		posx-reverse = <0>;
+		posy-reverse = <0>;
+	};
+};
+
 &pinctrl {
 	display {
 		edp_panel_reset: edp-panel-reset {
 			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	touch {
+		ts_int_active: ts_int_active {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_reset_active: ts_reset_active {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_int_suspend: ts_int_suspend {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		ts_reset_suspend: ts_reset_suspend {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
