@@ -3808,7 +3808,7 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 
 static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 {
-	unsigned int color = MEDIA_BUS_FMT_RGB888_1X24;
+	unsigned int color = MEDIA_BUS_FMT_YUV8_1X24;
 	int video_mapping, colorspace;
 	enum drm_connector_status connect_status =
 		hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
