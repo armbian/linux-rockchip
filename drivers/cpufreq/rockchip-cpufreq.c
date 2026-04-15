@@ -95,7 +95,7 @@ static int px30_get_soc_info(struct device *dev, struct device_node *np,
 		*bin = value;
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -138,7 +138,7 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 			*bin = 2;
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 next:
 	if (!process)
@@ -154,7 +154,7 @@ next:
 			*process = 0;
 	}
 	if (*process >= 0)
-		dev_info(dev, "process=%d\n", *process);
+		dev_dbg(dev, "process=%d\n", *process);
 
 out:
 	return ret;
@@ -204,7 +204,7 @@ static int rk3399_get_soc_info(struct device *dev, struct device_node *np,
 
 out:
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -296,7 +296,7 @@ static int rk3576_cpu_get_soc_info(struct device *dev, struct device_node *np,
 
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -363,7 +363,7 @@ static int rk3588_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -503,7 +503,7 @@ static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 			*bin = 0;
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
