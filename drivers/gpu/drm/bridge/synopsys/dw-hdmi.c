@@ -3815,7 +3815,7 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
 
-	if (connect_status == connector_status_connected) {
+	if (connect_status == connector_status_connected && hdmi->initialized) {
 		video_mapping = (hdmi_readb(hdmi, HDMI_TX_INVID0) &
 				  HDMI_TX_INVID0_VIDEO_MAPPING_MASK);
 		colorspace = (hdmi_readb(hdmi, HDMI_FC_AVICONF0) &
