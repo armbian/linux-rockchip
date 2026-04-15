@@ -977,7 +977,7 @@ static int __maybe_unused rv1126_get_soc_info(struct device *dev,
 			*bin = 0;
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
