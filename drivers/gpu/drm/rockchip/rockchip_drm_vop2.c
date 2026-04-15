@@ -7880,36 +7880,19 @@ static void vop2_plane_setup_background(struct vop2 *vop2, struct vop2_win *win,
  * The color key is 10 bit, so all format should
  * convert to 10 bit here.
  */
-static void vop2_plane_setup_color_key(struct drm_plane *plane)
+static void vop2_plane_setup_color_key(struct vop2 *vop2, struct vop2_win *win,
+				       struct drm_plane_state *pstate)
 {
-	struct drm_plane_state *pstate;
-	struct vop2_plane_state *vpstate;
-	struct drm_framebuffer *fb;
-	struct vop2_win *win = to_vop2_win(plane);
-	struct vop2_win *left_win = NULL;
-	struct vop2 *vop2 = win->vop2;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t color_key_en = 0;
 	uint32_t color_key;
 	uint32_t r = 0;
 	uint32_t g = 0;
 	uint32_t b = 0;
 
-	if (win->splice_mode_right) {
-		pstate = win->left_win->base.state;
-		left_win = win->left_win;
-	} else {
-		pstate = plane->state;
-	}
-
-	vpstate = to_vop2_plane_state(pstate);
-	if (!vpstate)
-		return;
-	fb = pstate->fb;
-
 	if (!(vpstate->color_key & VOP_COLOR_KEY_MASK) || fb->format->is_yuv) {
 		VOP_WIN_SET(vop2, win, color_key_en, 0);
-		if (left_win)
-			VOP_WIN_SET(vop2, left_win, color_key_en, 0);
 		return;
 	}
 
@@ -7943,10 +7926,6 @@ static void vop2_plane_setup_color_key(struct drm_plane *plane)
 	color_key = (r << 20) | (g << 10) | b;
 	VOP_WIN_SET(vop2, win, color_key_en, color_key_en);
 	VOP_WIN_SET(vop2, win, color_key, color_key);
-	if (left_win) {
-		VOP_WIN_SET(vop2, left_win, color_key_en, color_key_en);
-		VOP_WIN_SET(vop2, left_win, color_key, color_key);
-	}
 }
 
 static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
@@ -8613,7 +8592,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 	vop2_setup_scale(vop2, win, actual_w, actual_h, dsp_w, dsp_h, pstate);
 	vop2_plane_setup_background(vop2, win, pstate);
-	vop2_plane_setup_color_key(&win->base);
+	vop2_plane_setup_color_key(vop2, win, pstate);
 	VOP_WIN_SET(vop2, win, act_info, act_info);
 	VOP_WIN_SET(vop2, win, dsp_info, dsp_info);
 	VOP_WIN_SET(vop2, win, dsp_st, dsp_st);
