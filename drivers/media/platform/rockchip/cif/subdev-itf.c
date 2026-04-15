@@ -1289,25 +1289,27 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+/*
+ * When ISP returns a buffer, drop the extra tools-path refcount if any.
+ * No lock here: caller already holds stream->vbq_lock (same scope as rx_buf_head).
+ */
 static int sditf_check_toolbuf_return(struct rkcif_stream *stream, struct rkcif_rx_buffer *rx_buf)
 {
-	struct rkcif_tools_vdev *tools_vdev = stream->tools_vdev;
-	unsigned long flags;
+	int old_cnt;
+	bool ret = true;
 
-	if (tools_vdev && tools_vdev->state == RKCIF_STATE_STREAMING &&
-	    !tools_vdev->is_cap_scale) {
-		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-
+	old_cnt = rx_buf->use_cnt;
+	if (rx_buf->use_cnt) {
+		rx_buf->use_cnt--;
+		v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
+			 "check_toolbuf: buf 0x%x use_cnt %d->%d, return %d\n",
+			 (u32)rx_buf->dummy.dma_addr, old_cnt, rx_buf->use_cnt,
+			 rx_buf->use_cnt ? 0 : 1);
 		if (rx_buf->use_cnt)
-			rx_buf->use_cnt--;
-		if (rx_buf->use_cnt) {
-			spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
-			return false;
-		}
-		spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+			ret = false;
 	}
 
-	return true;
+	return ret;
 }
 
 static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
