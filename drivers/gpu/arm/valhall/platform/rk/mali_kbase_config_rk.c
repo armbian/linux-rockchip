@@ -575,7 +575,7 @@ static int rk3588_gpu_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }

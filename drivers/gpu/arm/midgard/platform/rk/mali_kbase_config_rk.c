@@ -455,7 +455,7 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 		dev_err(dev, "Failed to get bin config\n");
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_dbg(dev, "bin=%d\n", *bin);
 
 out:
 	return ret;

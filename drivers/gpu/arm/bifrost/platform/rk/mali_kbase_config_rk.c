@@ -548,14 +548,14 @@ static int rk3576_gpu_get_soc_info(struct device *dev, struct device_node *np,
 			*bin = 3;
 		} else {
 			*bin = 0;
-			dev_info(dev, "bin=%d (3)\n", *bin);
+			dev_dbg(dev, "bin=%d (3)\n", *bin);
 			return 0;
 		}
 	}
 
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
@@ -616,7 +616,7 @@ static int rk3588_gpu_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	dev_dbg(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
