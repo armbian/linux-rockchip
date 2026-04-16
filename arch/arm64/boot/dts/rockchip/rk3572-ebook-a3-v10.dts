@@ -340,6 +340,7 @@
 	panel,disable_logo = <0>;
 	panel,rearrange = <0>;
 	panel,sdoe = <1>;
+	panel,lel-keep-clk = <0>;
 };
 
 &gpu {
