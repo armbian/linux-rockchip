@@ -10,6 +10,7 @@
 #include <dt-bindings/power/rockchip,rk3572-power-controller.h>
 #include <dt-bindings/reset/rockchip,rk3572-cru.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-csu.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3572.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -1040,6 +1041,32 @@
 		compatible = "rockchip,rk3572-csi2-dphy";
 		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
+	};
+
+	csu: csu {
+		compatible = "rockchip,rk3572-csu";
+		rockchip,clock = <CSU_VOP_ACLK AUTOCS_VOP_ROOT_ACLK_ID>;
+		rockchip,bus =
+			<AUTOCS_LITCORE0_ID             0x00000040 0x1000>,
+			<AUTOCS_LITCORE1_ID             0x00000040 0x1000>,
+			<AUTOCS_BIGCORE_ID              0x00000040 0x1000>,
+			<AUTOCS_CCI_ID                  0x00000040 0x1fff>,
+			<AUTOCS_VOP_ROOT_ACLK_ID        0x000004ff 0x8fff>,
+			<AUTOCS_VOP_ROOT_HCLK_ID        0x00000040 0x1fff>,
+			<AUTOCS_TOP_BIU_ACLK_ID         0x00000040 0x1fff>,
+			<AUTOCS_TOP_BIU_HCLK_ID         0x00000040 0x1fff>,
+			<AUTOCS_TOP_MID_BIU_ACLK_ID     0x00000040 0x1fff>,
+			<AUTOCS_BUS_ROOT_HCLK_ID        0x00000040 0x1fff>,
+			<AUTOCS_BUS_ROOT_PCLK_ID        0x00000040 0x1fff>,
+			<AUTOCS_PHP_ROOT_ACLK_ID        0x00000040 0x9fff>,
+			<AUTOCS_VO_ROOT_PCLK_ID         0x00000040 0x1fff>,
+			<AUTOCS_CENTER_ROOT_ACLK_ID     0x00000040 0x1fff>,
+			<AUTOCS_CENTER_ROOT_HCLK_ID     0x00000040 0x1fff>,
+			<AUTOCS_CENTER_LOW_ROOT_ACLK_ID 0x00000040 0x1fff>,
+			<AUTOCS_DDR_ROOT_PCLK_ID        0x00000040 0x1fff>,
+			<AUTOCS_NVM0_ROOT_ACLK_ID       0x00000040 0x1fff>,
+			<AUTOCS_NVM0_ROOT_HCLK_ID       0x00000040 0x1fff>,
+			<AUTOCS_NVM1_ROOT_HCLK_ID       0x00000040 0x1fff>;
 	};
 
 	display_subsystem: display-subsystem {
@@ -2978,6 +3005,8 @@
 			rockchip,aclk-normal-mode-rates = <500000000>;
 			rockchip,aclk-reset-mode-rates = <594000000>;
 			rockchip,aclk-advanced-mode-rates = <702000000>;
+			rockchip,csu = <&csu CSU_VOP_ACLK>;
+			rockchip,csu-names = "aclk";
 			iommus = <&vop_mmu>;
 			power-domains = <&power RK3572_PD_VOP_PRE>;
 			rockchip,ioc-grf = <&ioc_grf>;
