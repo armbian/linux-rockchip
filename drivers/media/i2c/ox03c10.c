@@ -26,6 +26,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/crc32.h>
+#include <linux/limits.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -4207,20 +4208,38 @@ ox03c10_find_best_fit(struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
-	int cur_best_fit = 0;
-	int cur_best_fit_dist = -1;
+	int best_idx = -1;
+	int min_reso_dist = INT_MAX;
 	unsigned int i, len = ARRAY_SIZE(supported_modes);
 
 	for (i = 0; i < len; i++) {
+		if (fmt->format.code != supported_modes[i].bus_fmt)
+			continue;
 		dist = ox03c10_get_reso_dist(&supported_modes[i], framefmt);
-		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
-		    fmt->format.code == supported_modes[i].bus_fmt) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
+		if (dist < min_reso_dist) {
+			min_reso_dist = dist;
+			best_idx = i;
 		}
 	}
+	if (best_idx >= 0)
+		return &supported_modes[best_idx];
 
-	return &supported_modes[cur_best_fit];
+	/* No bus_fmt match: pick closest resolution (any format). */
+	pr_debug("ox03c10: find_best_fit: no bus_fmt for code=0x%x req=%ux%u, closest reso\n",
+		 fmt->format.code, framefmt->width, framefmt->height);
+	min_reso_dist = INT_MAX;
+	for (i = 0; i < len; i++) {
+		dist = ox03c10_get_reso_dist(&supported_modes[i], framefmt);
+		if (dist < min_reso_dist) {
+			min_reso_dist = dist;
+			best_idx = i;
+		}
+	}
+	pr_debug("ox03c10: find_best_fit: relaxed idx=%d fmt=0x%x %ux%u\n",
+		 best_idx, supported_modes[best_idx].bus_fmt,
+		 supported_modes[best_idx].width,
+		 supported_modes[best_idx].height);
+	return &supported_modes[best_idx];
 }
 
 static const struct ox03c10_mode *
@@ -4238,13 +4257,50 @@ ox03c10_find_operating_mode(int operating_mode)
 	return &supported_modes[cur_best_fit];
 }
 
+/**
+ * ox03c10_log_cur_mode_change - log cur_mode transition (dynamic debug).
+ * @caller: short caller id (e.g. "set_fmt") for the log line prefix.
+ * @old_mode: previous mode; may be NULL (printed as zeros).
+ */
+static void ox03c10_log_cur_mode_change(struct ox03c10 *ox03c10,
+					const char *caller,
+					const struct ox03c10_mode *old_mode)
+{
+	const struct ox03c10_mode *new_mode = ox03c10->cur_mode;
+
+	if (!new_mode) {
+		dev_warn(&ox03c10->client->dev, "%s: cur_mode is NULL\n", caller);
+		return;
+	}
+
+	dev_dbg(&ox03c10->client->dev,
+		"%s: old %ux%u hdr=%u op=%u exp=%u sm=%u bpp=%u\n", caller,
+		old_mode ? old_mode->width : 0, old_mode ? old_mode->height : 0,
+		old_mode ? old_mode->hdr_mode : 0,
+		old_mode ? old_mode->hdr_operating_mode : 0,
+		old_mode ? old_mode->exp_mode : 0,
+		old_mode ? old_mode->single_mode : 0,
+		old_mode ? old_mode->bpp : 0);
+	dev_dbg(&ox03c10->client->dev,
+		"%s: new %ux%u hdr=%u op=%u exp=%u sm=%u bpp=%u\n", caller,
+		new_mode->width, new_mode->height, new_mode->hdr_mode,
+		new_mode->hdr_operating_mode, new_mode->exp_mode,
+		new_mode->single_mode, new_mode->bpp);
+}
+
 static int ox03c10_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct ox03c10 *ox03c10 = to_ox03c10(sd);
 	const struct ox03c10_mode *mode;
+	const struct ox03c10_mode *old_mode;
 	s64 h_blank, vblank_def;
+
+	dev_dbg(&ox03c10->client->dev,
+		"set_fmt: which=%u pad=%u req=%ux%u code=0x%x\n",
+		 fmt->which, fmt->pad, fmt->format.width, fmt->format.height,
+		 fmt->format.code);
 
 	mutex_lock(&ox03c10->mutex);
 
@@ -4261,7 +4317,10 @@ static int ox03c10_set_fmt(struct v4l2_subdev *sd,
 		return -ENOTTY;
 #endif
 	} else {
+		old_mode = ox03c10->cur_mode;
 		ox03c10->cur_mode = mode;
+		if (old_mode != mode)
+			ox03c10_log_cur_mode_change(ox03c10, "set_fmt", old_mode);
 		h_blank = mode->hts_def - mode->width;
 		__v4l2_ctrl_modify_range(ox03c10->hblank, h_blank,
 					 h_blank, 1, h_blank);
@@ -4271,8 +4330,8 @@ static int ox03c10_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 	}
 
-	dev_err(&ox03c10->client->dev,
-			"Set format done!(cur_mode:%d)\n", mode->hdr_mode);
+	dev_dbg(&ox03c10->client->dev, "set_fmt done hdr_mode=%d\n",
+		mode->hdr_mode);
 
 	mutex_unlock(&ox03c10->mutex);
 
@@ -4684,12 +4743,12 @@ static int ox03c10_set_wb_gain(struct ox03c10 *ox03c10,
 					 OX03C10_REG_VALUE_16BIT, wb_gain.gb_gain & 0xffff);
 		ret |= ox03c10_write_reg(ox03c10->client, reg_rgain,
 					 OX03C10_REG_VALUE_16BIT, wb_gain.r_gain & 0xffff);
-		dev_info(&ox03c10->client->dev,
-			 "write wb gain, type:%d, b:0x%x, gb:0x%x, gr:0x%x, r:0x%x\n",
-			 wb_gain_group->wb_gain_type[i],
-			 wb_gain.b_gain, wb_gain.gb_gain,
-			 wb_gain.gr_gain, wb_gain.r_gain);
 #ifdef DEBUG
+		dev_dbg(&ox03c10->client->dev,
+			"wb_gain wr type=%d b=0x%x gb=0x%x gr=0x%x r=0x%x\n",
+			wb_gain_group->wb_gain_type[i],
+			wb_gain.b_gain, wb_gain.gb_gain,
+			wb_gain.gr_gain, wb_gain.r_gain);
 		ret |= ox03c10_read_reg(ox03c10->client, reg_bgain,
 					OX03C10_REG_VALUE_16BIT, &bgain);
 		ret |= ox03c10_read_reg(ox03c10->client, reg_gbgain,
@@ -4698,9 +4757,9 @@ static int ox03c10_set_wb_gain(struct ox03c10 *ox03c10,
 					OX03C10_REG_VALUE_16BIT, &grgain);
 		ret |= ox03c10_read_reg(ox03c10->client, reg_rgain,
 					OX03C10_REG_VALUE_16BIT, &rgain);
-		dev_info(&ox03c10->client->dev,
-			 "read wb gain, type %d, b:0x%x, gb:0x%x, gr:0x%x, r:0x%x\n",
-			 wb_gain_group->wb_gain_type[i], bgain, gbgain, grgain, rgain);
+		dev_dbg(&ox03c10->client->dev,
+			"wb_gain rd type=%d b=0x%x gb=0x%x gr=0x%x r=0x%x\n",
+			wb_gain_group->wb_gain_type[i], bgain, gbgain, grgain, rgain);
 #endif
 	}
 	return ret;
@@ -4744,16 +4803,15 @@ static int ox03c10_set_blc(struct ox03c10 *ox03c10,
 		blc_val = blc_group->blc[i];
 		ret = ox03c10_write_reg(ox03c10->client, reg_blc,
 					OX03C10_REG_VALUE_16BIT, blc_val & 0x3ff);
-		dev_info(&ox03c10->client->dev,
-			 "write blc, type:%d, blc_val:0x%x\n",
-			 blc_group->blc_type[i],
-			 blc_val);
+		dev_dbg(&ox03c10->client->dev,
+			"write blc, type:%d, blc_val:0x%x\n",
+			blc_group->blc_type[i],
+			blc_val);
 #ifdef DEBUG
 		ret |= ox03c10_read_reg(ox03c10->client, reg_blc,
 					OX03C10_REG_VALUE_16BIT, &blc_val);
-		dev_info(&ox03c10->client->dev,
-			 "read blc, type %d, blc_val:0x%x\n",
-			 blc_group->blc_type[i], blc_val);
+		dev_dbg(&ox03c10->client->dev, "blc rd type=%d val=0x%x\n",
+			blc_group->blc_type[i], blc_val);
 #endif
 	}
 	if (blc_group->reg_num > RKMODULE_REG_LIST_MAX) {
@@ -4786,27 +4844,62 @@ static int ox03c10_get_channel_info(struct ox03c10 *ox03c10, struct rkmodule_cha
 static int ox03c10_select_exp_mode(struct ox03c10 *ox03c10, u32 exp_mode)
 {
 	int ret = -EINVAL;
-	u32 i, h, w, hdr_mode;
+	u32 i, h, w, hdr_mode, bpp;
+	int bpp_match_idx = -1;
+	int fallback_idx = -1;
+	const struct ox03c10_mode *old_mode;
+	struct device *dev = &ox03c10->client->dev;
+
+	dev_dbg(dev, "select_exp_mode: exp=%u cur %ux%u hdr=%u op=%u bpp=%u\n",
+		exp_mode,
+		ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->bpp : 0);
 
 	w = ox03c10->cur_mode->width;
 	h = ox03c10->cur_mode->height;
 	hdr_mode = ox03c10->cur_mode->hdr_mode;
+	bpp = ox03c10->cur_mode->bpp;
+
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 		if (w == supported_modes[i].width &&
 		    h == supported_modes[i].height &&
 		    supported_modes[i].hdr_mode == hdr_mode &&
 		    supported_modes[i].exp_mode == exp_mode) {
-			ox03c10->cur_mode = &supported_modes[i];
-			w = ox03c10->cur_mode->hts_def - ox03c10->cur_mode->width;
-			h = ox03c10->cur_mode->vts_def - ox03c10->cur_mode->height;
-			__v4l2_ctrl_modify_range(ox03c10->hblank, w, w, 1, w);
-			__v4l2_ctrl_modify_range(ox03c10->vblank, h,
-				OX03C10_VTS_MAX - ox03c10->cur_mode->height, 1, h);
-			ret = 0;
-			break;
+			if (supported_modes[i].bpp == bpp) {
+				bpp_match_idx = i;
+				break;
+			}
+			if (fallback_idx < 0)
+				fallback_idx = i;
 		}
 	}
-	return ret;
+
+	if (bpp_match_idx >= 0) {
+		i = (u32)bpp_match_idx;
+	} else if (fallback_idx >= 0) {
+		i = (u32)fallback_idx;
+		dev_dbg(dev,
+			"select_exp_mode: bpp fallback exp=%u cur_bpp=%u -> bpp=%u idx=%u\n",
+			exp_mode, bpp, supported_modes[i].bpp, i);
+	} else {
+		dev_dbg(dev,
+			"select_exp_mode: no match exp=%u %ux%u hdr=%u bpp=%u\n",
+			exp_mode, w, h, hdr_mode, bpp);
+		return ret;
+	}
+
+	old_mode = ox03c10->cur_mode;
+	ox03c10->cur_mode = &supported_modes[i];
+	ox03c10_log_cur_mode_change(ox03c10, "select_exp_mode", old_mode);
+	w = ox03c10->cur_mode->hts_def - ox03c10->cur_mode->width;
+	h = ox03c10->cur_mode->vts_def - ox03c10->cur_mode->height;
+	__v4l2_ctrl_modify_range(ox03c10->hblank, w, w, 1, w);
+	__v4l2_ctrl_modify_range(ox03c10->vblank, h,
+		OX03C10_VTS_MAX - ox03c10->cur_mode->height, 1, h);
+	return 0;
 }
 
 static int ox03c10_select_cmps_mode(struct ox03c10 *ox03c10, u32 cmps_mode)
@@ -4815,6 +4908,16 @@ static int ox03c10_select_cmps_mode(struct ox03c10 *ox03c10, u32 cmps_mode)
 	u32 i, h, w, hdr_mode, exp_mode;
 	int best_fit = -1;
 	int bit_width = 0;
+	const struct ox03c10_mode *old_mode;
+
+	dev_dbg(&ox03c10->client->dev,
+		"select_cmps_mode: cmps=%u cur %ux%u hdr=%u op=%u exp=%u\n",
+		cmps_mode,
+		ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->exp_mode : 0);
 
 	w = ox03c10->cur_mode->width;
 	h = ox03c10->cur_mode->height;
@@ -4845,7 +4948,9 @@ static int ox03c10_select_cmps_mode(struct ox03c10 *ox03c10, u32 cmps_mode)
 		}
 	}
 	if (best_fit >= 0) {
-		ox03c10->cur_mode = &supported_modes[i];
+		old_mode = ox03c10->cur_mode;
+		ox03c10->cur_mode = &supported_modes[best_fit];
+		ox03c10_log_cur_mode_change(ox03c10, "select_cmps_mode", old_mode);
 		w = ox03c10->cur_mode->hts_def - ox03c10->cur_mode->width;
 		h = ox03c10->cur_mode->vts_def - ox03c10->cur_mode->height;
 		__v4l2_ctrl_modify_range(ox03c10->hblank, w, w, 1, w);
@@ -4860,6 +4965,15 @@ static int ox03c10_select_expand_single_mode(struct ox03c10 *ox03c10, u32 single
 {
 	int ret = -EINVAL;
 	u32 i, h, w, hdr_mode;
+	const struct ox03c10_mode *old_mode;
+
+	dev_dbg(&ox03c10->client->dev,
+		"select_expand_single_mode: sm=%u cur %ux%u hdr=%u op=%u\n",
+		single_mode,
+		ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+		ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0);
 
 	w = ox03c10->cur_mode->width;
 	h = ox03c10->cur_mode->height;
@@ -4869,7 +4983,9 @@ static int ox03c10_select_expand_single_mode(struct ox03c10 *ox03c10, u32 single
 		    h == supported_modes[i].height &&
 		    supported_modes[i].hdr_mode == hdr_mode) {
 			if (supported_modes[i].single_mode == single_mode) {
+				old_mode = ox03c10->cur_mode;
 				ox03c10->cur_mode = &supported_modes[i];
+				ox03c10_log_cur_mode_change(ox03c10, "select_expand_single_mode", old_mode);
 				w = ox03c10->cur_mode->hts_def - ox03c10->cur_mode->width;
 				h = ox03c10->cur_mode->vts_def - ox03c10->cur_mode->height;
 				__v4l2_ctrl_modify_range(ox03c10->hblank, w, w, 1, w);
@@ -4908,11 +5024,9 @@ static int ox03c10_set_lenc(struct ox03c10 *ox03c10,
 		ret |= ox03c10_write_reg(ox03c10->client, 0x5aa0 + i,
 					 OX03C10_REG_VALUE_08BIT, lenc_gain->r[i]);
 #ifdef DEBUG
-		dev_info(&ox03c10->client->dev,
-			 "write lenc, g:0x%x,0x%x b:0x%x,0x%x r:0x%x,0x%x\n",
-			 0x5a20 + i, lenc_gain->g[i],
-			 0x5a60 + i, lenc_gain->b[i],
-			 0x5aa0 + i, lenc_gain->r[i]);
+		dev_dbg(&ox03c10->client->dev,
+			"lenc i=%d g=0x%x b=0x%x r=0x%x\n", i,
+			lenc_gain->g[i], lenc_gain->b[i], lenc_gain->r[i]);
 #endif
 	}
 	return ret;
@@ -5099,28 +5213,23 @@ static int ox03c10_get_merge_curve(struct ox03c10 *ox03c10,
 			merge_curve->wgtcurve[curve_num].val[i] = 8 * new_weights[i][i];
 
 #ifdef DEBUG
-		dev_info(&ox03c10->client->dev,
-			 "\n original weight %d\n", curve_num);
-		dev_info(&ox03c10->client->dev,
-			 "ori_idx_lluma: %d %d %d %d %d\n",
-			 ori_idx_lluma[0], ori_idx_lluma[1], ori_idx_lluma[2],
-			 ori_idx_lluma[3], ori_idx_lluma[4]);
-		dev_info(&ox03c10->client->dev,
-			 "ori_idx_sluma: %d %d %d %d %d\n",
-			 ori_idx_sluma[0], ori_idx_sluma[1], ori_idx_sluma[2],
-			 ori_idx_sluma[3], ori_idx_sluma[4]);
+		dev_dbg(&ox03c10->client->dev, "merge wgt curve=%d\n", curve_num);
+		dev_dbg(&ox03c10->client->dev,
+			"ori_idx_lluma %d %d %d %d %d\n",
+			ori_idx_lluma[0], ori_idx_lluma[1], ori_idx_lluma[2],
+			ori_idx_lluma[3], ori_idx_lluma[4]);
+		dev_dbg(&ox03c10->client->dev,
+			"ori_idx_sluma %d %d %d %d %d\n",
+			ori_idx_sluma[0], ori_idx_sluma[1], ori_idx_sluma[2],
+			ori_idx_sluma[3], ori_idx_sluma[4]);
 		for (int i = 0; i < 5; i++)
-			dev_info(&ox03c10->client->dev,
-				 "%d %d %d %d %d\n",
-				 ori_weights[i][0], ori_weights[i][1],
-				 ori_weights[i][2], ori_weights[i][3], ori_weights[i][4]);
-
-		dev_info(&ox03c10->client->dev,
-			 "\n finnal weight %d (x=y):\n", curve_num);
+			dev_dbg(&ox03c10->client->dev,
+				"ori_w[%d] %d %d %d %d %d\n", i,
+				ori_weights[i][0], ori_weights[i][1],
+				ori_weights[i][2], ori_weights[i][3], ori_weights[i][4]);
 		for (int i = 0; i < 17; i++)
-			dev_info(&ox03c10->client->dev,
-				 "x=y=%d: weight=%d\n", i * 64,
-				 merge_curve->wgtcurve[curve_num].val[i]);
+			dev_dbg(&ox03c10->client->dev, "wgt x=y=%d val=%d\n", i * 64,
+				merge_curve->wgtcurve[curve_num].val[i]);
 #endif
 	}
 
@@ -5169,6 +5278,13 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
+		dev_dbg(&ox03c10->client->dev,
+			"ioctl_set_hdr_cfg: hdr_mode=%u cur=%ux%u cur_hdr=%u cur_hdr_op=%u\n",
+			 hdr->hdr_mode,
+			 ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+			 ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+			 ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+			 ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0);
 		if (ox03c10->cur_mode->hdr_mode == HDR_CIS_MERGE)
 			hdr->hdr_mode = ox03c10->cur_mode->hdr_mode;
 		w = ox03c10->cur_mode->width;
@@ -5177,7 +5293,9 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
 			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+				const struct ox03c10_mode *old_mode = ox03c10->cur_mode;
 				ox03c10->cur_mode = &supported_modes[i];
+				ox03c10_log_cur_mode_change(ox03c10, "ioctl_set_hdr_cfg", old_mode);
 				break;
 			}
 		}
@@ -5234,6 +5352,17 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_EXP_MODE:
 		ret = ox03c10_select_exp_mode(ox03c10, *(u32 *)arg);
+		if (ret)
+			dev_dbg(&ox03c10->client->dev,
+				"SET_EXP_MODE failed ret=%ld req_exp=%u cur: %ux%u code=0x%x hdr=%u hdr_op=%u exp=%u bpp=%u\n",
+				ret, *(u32 *)arg,
+				ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->bus_fmt : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->exp_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->bpp : 0);
 		break;
 	case RKMODULE_GET_WB_GAIN_INFO:
 		wb_gain_info = (struct rkmodule_wb_gain_info *)arg;
@@ -5246,6 +5375,17 @@ static long ox03c10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_CMPS_MODE:
 		ret = ox03c10_select_cmps_mode(ox03c10, *(u32 *)arg);
+		if (ret)
+			dev_dbg(&ox03c10->client->dev,
+				"SET_CMPS_MODE failed ret=%ld req_cmps=%u cur: %ux%u code=0x%x hdr=%u hdr_op=%u exp=%u bpp=%u\n",
+				ret, *(u32 *)arg,
+				ox03c10->cur_mode ? ox03c10->cur_mode->width : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->height : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->bus_fmt : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->hdr_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->hdr_operating_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->exp_mode : 0,
+				ox03c10->cur_mode ? ox03c10->cur_mode->bpp : 0);
 		break;
 	case RKMODULE_SET_EXPAND_SINGLE_MODE:
 		ret = ox03c10_select_expand_single_mode(ox03c10, *(u32 *)arg);
