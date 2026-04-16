@@ -1307,6 +1307,25 @@ static int sditf_check_toolbuf_return(struct rkcif_stream *stream, struct rkcif_
 	return ret;
 }
 
+static inline void sditf_dump_rx_buf_state(struct rkcif_stream *stream,
+					   struct rkcif_rx_buffer *rx_buf,
+					   const char *tag,
+					   u32 seq)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	bool on_list = rx_buf->in_rx_list;
+
+	v4l2_warn(&dev->v4l2_dev,
+		  "%s: s[%d] seq=%u buf=%p dma=0x%x in_isp=%d use_cnt=%d on_list=%d curr=%d next=%d rdbk[L/M/S]=%d/%d/%d\n",
+		  tag, stream->id, seq, rx_buf, (u32)rx_buf->dummy.dma_addr,
+		  rx_buf->in_isp, rx_buf->use_cnt, on_list,
+		  stream->curr_buf_toisp == rx_buf,
+		  stream->next_buf_toisp == rx_buf,
+		  dev->rdbk_rx_buf[RDBK_L] == rx_buf,
+		  dev->rdbk_rx_buf[RDBK_M] == rx_buf,
+		  dev->rdbk_rx_buf[RDBK_S] == rx_buf);
+}
+
 static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			     void *buf, unsigned int *size)
 {
@@ -1368,6 +1387,13 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "type %d buf back to vicap 0x%x, is_switch %d\n",
 		 dbufs->type, (u32)rx_buf->dummy.dma_addr, dbufs->is_switch);
 	spin_lock_irqsave(&stream->vbq_lock, flags);
+	if (unlikely(!rx_buf->in_isp)) {
+		v4l2_warn(&cif_dev->v4l2_dev,
+			  "stream[%d] unexpected rx return, dma=0x%x seq=%u\n",
+			  stream->id, (u32)rx_buf->dummy.dma_addr, dbufs->sequence);
+		sditf_dump_rx_buf_state(stream, rx_buf, "unexpected_rx_return", dbufs->sequence);
+	}
+	rx_buf->in_isp = false;
 	stream->last_rx_buf_idx = dbufs->sequence + 1;
 	atomic_inc(&stream->buf_cnt);
 
@@ -1388,9 +1414,18 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	    (!dbufs->is_switch || (dbufs->is_switch && dbufs->type != BUF_SHORT)) &&
 	    stream->state == RKCIF_STATE_STREAMING &&
 	    sditf_check_toolbuf_return(stream, rx_buf)) {
+		if (rx_buf->in_rx_list) {
+			atomic_dec(&stream->buf_cnt);
+			v4l2_warn(&cif_dev->v4l2_dev,
+				  "stream[%d] skip duplicate return enqueue, dma=0x%x seq=%u\n",
+				  stream->id, (u32)rx_buf->dummy.dma_addr, dbufs->sequence);
+			sditf_dump_rx_buf_state(stream, rx_buf, "dup_return_enqueue", dbufs->sequence);
+			goto out_unlock;
+		}
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "+%d+ stream[%d] add 0x%x to list %p\n",
 			 __LINE__, stream->id, (u32)rx_buf->dummy.dma_addr, &stream->rx_buf_head);
 		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
+		rx_buf->in_rx_list = true;
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&
 		    (!stream->is_hold_stream_off)) {
@@ -1423,6 +1458,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 				cif_dev->hw_dev->mem_ops->prepare(rx_buf->dummy.mem_priv);
 		}
 	}
+out_unlock:
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	if (dbufs->is_switch && dbufs->type == BUF_SHORT) {

@@ -494,6 +494,8 @@ struct rkcif_rx_buffer {
 	u64 fe_timestamp;
 	bool is_init[RKCIF_MAX_DEV];
 	int use_cnt;
+	bool in_isp;
+	bool in_rx_list;
 };
 
 enum rkcif_dma_en_mode {
@@ -651,7 +653,12 @@ struct rkcif_stream {
 	struct list_head		qbuf_fence_list_head;
 	spinlock_t			fence_lock;
 	u32				rounding_bit;
-	int				frame_loss;
+	/* SOF arrived but FE missing (sum with fe_no_out = total loss) */
+	u64				frame_loss_fs_no_fe;
+	/* FE arrived but buffer not delivered (sum with fs_no_fe = total loss) */
+	u64				frame_loss_fe_no_out;
+	/* Buffers output to app/ISP path */
+	u64				frame_out_cnt;
 	struct kfifo			exp_kfifo;
 	struct kfifo			gain_kfifo;
 	struct kfifo			vts_kfifo;
