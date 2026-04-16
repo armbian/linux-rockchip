@@ -86,8 +86,8 @@ static bool rga_check_csc(const struct rga_hw_data *data, struct rga_req *rga_ba
 		break;
 	}
 
-
-	if ((rga_base->full_csc.flag & 0x1) && !(data->feature & RGA_FULL_CSC))
+	if ((rga_base->full_csc.flag & 0x1) &&
+	    !(data->feature & (RGA_FULL_CSC | RGA_FULL_CSC_10BIT)))
 		return false;
 
 	return true;
