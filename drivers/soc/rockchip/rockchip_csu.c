@@ -28,6 +28,7 @@ struct csu_clk {
 struct csu_data {
 	int (*csu_disable)(struct csu_clk *clk, bool disable);
 	int (*csu_set_div)(struct csu_clk *clk, unsigned int div);
+	int (*csu_set_threshold)(struct csu_clk *clk, u32 wait_th, u32 idle_th);
 };
 
 struct rockchip_csu {
@@ -133,6 +134,39 @@ static int rk3562_csu_disable(struct csu_clk *clk, bool disable)
 	return ret;
 }
 
+static int rk3572_csu_disable(struct csu_clk *clk, bool disable)
+{
+	struct csu_bus *bus = NULL;
+	unsigned int en_mask = 0;
+	int ret = 0;
+
+	bus = rockchip_csu_get_bus(clk->bus_id);
+	if (!bus)
+		return -EINVAL;
+
+	mutex_lock(&csu_lock);
+
+	if (disable)
+		bus->disable_count++;
+	else if (bus->disable_count > 0)
+		bus->disable_count--;
+
+	if (bus->disable_count)
+		en_mask = bus->en_mask & ~RK3572_CSU_EN_MASK;
+	else
+		en_mask = bus->en_mask | RK3572_CSU_EN_MASK;
+
+	ret = rockchip_csu_sip_config(rk_csu->dev, bus->id, bus->cfg_val, en_mask);
+	if (ret)
+		dev_err(rk_csu->dev, "csu sip config disable error\n");
+	else
+		bus->en_mask = en_mask;
+
+	mutex_unlock(&csu_lock);
+
+	return ret;
+}
+
 static int csu_disable(struct csu_clk *clk, bool disable)
 {
 	if (!rk_csu || IS_ERR_OR_NULL(clk))
@@ -180,6 +214,51 @@ static int rk3562_csu_set_div(struct csu_clk *clk, unsigned int div)
 	return ret;
 }
 
+static int rk3572_csu_set_div(struct csu_clk *clk, unsigned int div)
+{
+	struct csu_bus *bus;
+	unsigned int div_reg_val, old_en_mask;
+	int ret;
+
+	switch (div) {
+	case 2:
+		div_reg_val = 0x3;
+		break;
+	case 4:
+		div_reg_val = 0x2;
+		break;
+	case 8:
+		div_reg_val = 0x1;
+		break;
+	case 16:
+		div_reg_val = 0x0;
+		break;
+	default:
+		dev_err(rk_csu->dev, "csu div only support 2/4/8/16\n");
+		return -EINVAL;
+	}
+
+	bus = rockchip_csu_get_bus(clk->bus_id);
+	if (!bus)
+		return -EINVAL;
+
+	mutex_lock(&csu_lock);
+
+	old_en_mask = bus->en_mask;
+	bus->en_mask &= ~RK3572_CSU_DIV_MASK;
+	bus->en_mask |= (div_reg_val << RK3572_CSU_DIV_SHIFT);
+
+	ret = rockchip_csu_sip_config(rk_csu->dev, bus->id, bus->cfg_val, bus->en_mask);
+	if (ret) {
+		bus->en_mask = old_en_mask;
+		dev_err(rk_csu->dev, "csu sip config div error\n");
+	}
+
+	mutex_unlock(&csu_lock);
+
+	return ret;
+}
+
 int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
 {
 	if (!rk_csu || IS_ERR_OR_NULL(clk))
@@ -190,6 +269,43 @@ int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
 	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rockchip_csu_set_div);
+
+static int rk3572_csu_set_threshold(struct csu_clk *clk, u32 wait_th, u32 idle_th)
+{
+	struct csu_bus *bus;
+	unsigned int old_cfg_val;
+	int ret;
+
+	bus = rockchip_csu_get_bus(clk->bus_id);
+	if (!bus)
+		return -EINVAL;
+
+	mutex_lock(&csu_lock);
+
+	old_cfg_val = bus->cfg_val;
+	bus->cfg_val = (idle_th & 0xFFFF) | ((wait_th & 0xFFFF) << RK3572_CSU_WAIT_TH_SHIFT);
+
+	ret = rockchip_csu_sip_config(rk_csu->dev, bus->id, bus->cfg_val, bus->en_mask);
+	if (ret) {
+		bus->cfg_val = old_cfg_val;
+		dev_err(rk_csu->dev, "csu sip config threshold error\n");
+	}
+
+	mutex_unlock(&csu_lock);
+
+	return ret;
+}
+
+int rockchip_csu_set_threshold(struct csu_clk *clk, u32 wait_th, u32 idle_th)
+{
+	if (!rk_csu || IS_ERR_OR_NULL(clk))
+		return 0;
+	if (rk_csu->data && rk_csu->data->csu_set_threshold)
+		return rk_csu->data->csu_set_threshold(clk, wait_th, idle_th);
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(rockchip_csu_set_threshold);
 
 static int rockchip_csu_parse_clk(struct rockchip_csu *csu)
 {
@@ -348,8 +464,15 @@ static const struct csu_data rk3562_csu_data = {
 	.csu_set_div = rk3562_csu_set_div,
 };
 
+static const struct csu_data rk3572_csu_data = {
+	.csu_disable = rk3572_csu_disable,
+	.csu_set_div = rk3572_csu_set_div,
+	.csu_set_threshold = rk3572_csu_set_threshold,
+};
+
 static const struct of_device_id rockchip_csu_of_match[] = {
 	{ .compatible = "rockchip,rk3562-csu", .data = &rk3562_csu_data },
+	{ .compatible = "rockchip,rk3572-csu", .data = &rk3572_csu_data },
 	{ },
 };
 
