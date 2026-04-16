@@ -560,6 +560,10 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 	unsigned long flags;
 	u32 time_val = 0;
 	u32 remainder = 0;
+	u64 frame_loss_total[RKCIF_MAX_STREAM_MIPI] = { 0 };
+	u64 frame_loss_fs_no_fe[RKCIF_MAX_STREAM_MIPI] = { 0 };
+	u64 frame_loss_fe_no_out[RKCIF_MAX_STREAM_MIPI] = { 0 };
+	int i;
 
 	if (atomic_read(&pipe->stream_cnt) < 1)
 		return;
@@ -616,7 +620,11 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->channels[0].width, dev->channels[0].height,
 			   dev->channels[0].crop_st_x, dev->channels[0].crop_st_y);
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
-		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx - 1);
+		seq_printf(f, "\tframe amount:%d %d %d %d\n",
+			   READ_ONCE(dev->stream[0].frame_idx) - 1,
+			   READ_ONCE(dev->stream[1].frame_idx) - 1,
+			   READ_ONCE(dev->stream[2].frame_idx) - 1,
+			   READ_ONCE(dev->stream[3].frame_idx) - 1);
 		if (dev->inf_id == RKCIF_MIPI_LVDS) {
 			time_val = div_u64(stream->readout.early_time, 1000);
 			time_val = div_u64_rem(time_val, 1000, &remainder);
@@ -677,6 +685,17 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->irq_stats.frm_end_cnt[1],
 			   dev->irq_stats.frm_end_cnt[2],
 			   dev->irq_stats.frm_end_cnt[3]);
+		seq_printf(f, "\t\t\tframe out:%llu %llu %llu %llu\n",
+			   READ_ONCE(dev->stream[0].frame_out_cnt),
+			   READ_ONCE(dev->stream[1].frame_out_cnt),
+			   READ_ONCE(dev->stream[2].frame_out_cnt),
+			   READ_ONCE(dev->stream[3].frame_out_cnt));
+		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
+			frame_loss_fs_no_fe[i] = READ_ONCE(dev->stream[i].frame_loss_fs_no_fe);
+			frame_loss_fe_no_out[i] = READ_ONCE(dev->stream[i].frame_loss_fe_no_out);
+			frame_loss_total[i] = frame_loss_fs_no_fe[i] +
+					      frame_loss_fe_no_out[i];
+		}
 		seq_printf(f, "irq time: %llu ns\n", dev->hw_dev->irq_time);
 		seq_printf(f, "dma enable: 0x%x 0x%x 0x%x 0x%x\n",
 			   dev->stream[0].dma_en, dev->stream[1].dma_en,
@@ -691,12 +710,23 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->stream[1].total_buf_num,
 			   dev->stream[2].total_buf_num,
 			   dev->stream[3].total_buf_num);
-		if (dev->chip_id >= CHIP_RK3576_CIF)
-			seq_printf(f, "frame loss: %d %d %d %d\n",
-				   dev->stream[0].frame_loss,
-				   dev->stream[1].frame_loss,
-				   dev->stream[2].frame_loss,
-				   dev->stream[3].frame_loss);
+		if (dev->chip_id >= CHIP_RK3576_CIF) {
+			seq_printf(f, "frame loss: %llu %llu %llu %llu\n",
+				   frame_loss_total[0],
+				   frame_loss_total[1],
+				   frame_loss_total[2],
+				   frame_loss_total[3]);
+			seq_printf(f, "frame loss (fs_no_fe): %llu %llu %llu %llu\n",
+				   frame_loss_fs_no_fe[0],
+				   frame_loss_fs_no_fe[1],
+				   frame_loss_fs_no_fe[2],
+				   frame_loss_fs_no_fe[3]);
+			seq_printf(f, "frame loss (fe_no_out): %llu %llu %llu %llu\n",
+				   frame_loss_fe_no_out[0],
+				   frame_loss_fe_no_out[1],
+				   frame_loss_fe_no_out[2],
+				   frame_loss_fe_no_out[3]);
+		}
 		if (dev->sditf[0])
 			rkcif_show_toisp_info(dev, f);
 		if (dev->reg_dbg)
