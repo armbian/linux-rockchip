@@ -13,11 +13,14 @@
 / {
 
 	fragment@0 {
-		target = <&i2c3>;
+		target = <&uart3>;
 		__overlay__ {
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart3m1_xfer>;
 		};
 	};
+
 
 };
 

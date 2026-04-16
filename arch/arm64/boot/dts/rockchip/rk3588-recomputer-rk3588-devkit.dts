@@ -27,6 +27,20 @@
 
 	/delete-node/ chosen;
 
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		status = "okay";
+
+		volumeup-key {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "volume up";
+			press-threshold-microvolt = <1750>;
+		};
+	};
+
 	vcc12v0_sys: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v0_sys";
@@ -340,14 +354,14 @@
 	no-sdio;
 	no-sd;
 	non-removable;
-	max-frequency = <200000000>;
+	max-frequency = <150000000>;
 	mmc-hs200-1_8v;
 	status = "okay";
 };
 
 
 &sdmmc {
-        max-frequency = <200000000>;
+        max-frequency = <115000000>;
         pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_det &sdmmc_bus4>;
         pinctrl-names = "default";
         no-sdio;

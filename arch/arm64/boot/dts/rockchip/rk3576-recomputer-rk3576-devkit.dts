@@ -24,6 +24,20 @@
 
 	/delete-node/ chosen;
 
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		status = "okay";
+
+		volumeup-key {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "volume up";
+			press-threshold-microvolt = <1750>;
+		};
+	};
+
 	fan0: pwm-fan {
 		status = "okay";
 		compatible = "pwm-fan";
@@ -152,6 +166,8 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
 		gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr_en>;
@@ -491,7 +507,7 @@
 	no-sdio;
 	no-sd;
 	non-removable;
-	max-frequency = <200000000>;
+	max-frequency = <100000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	full-pwr-cycle-in-suspend;
@@ -529,6 +545,7 @@
 &hdmi {
 	status = "okay";
 	cec-enable;
+	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 	ddc-i2c-scl-high-time-ns = <4812>;
 	ddc-i2c-scl-low-time-ns = <5000>;
 };
@@ -669,7 +686,7 @@
 };
 
 &sdmmc {
-        max-frequency = <200000000>;
+        max-frequency = <100000000>;
         pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
         pinctrl-names = "default";
         no-sdio;
