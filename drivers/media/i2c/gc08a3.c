@@ -2,11 +2,15 @@
 /*
  * gc08a3 driver
  *
- * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2026 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 init first version.
+ * V0.0X01.0X02
+ * 1. support rk otp spec.
+ * 2. add mirror/flip control support.
  */
 
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -31,8 +35,9 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
+#include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -71,10 +76,14 @@
 #define GC08A3_REG_GAIN_H		0x0204
 #define GC08A3_REG_GAIN_L		0x0205
 
-#define GC08A3_AGAIN_MIN			0x400
-#define GC08A3_AGAIN_MAX			0x4000
+#define GC08A3_AGAIN_MIN		0x400
+#define GC08A3_AGAIN_MAX		0x4000
 #define GC08A3_AGAIN_STEP		1
 #define GC08A3_AGAIN_DEFAULT		0x800
+
+#define GC08A3_FLIP_MIRROR_REG		0x0101
+#define GC08A3_MIRROR_BIT_MASK		BIT(0)
+#define GC08A3_FLIP_BIT_MASK		BIT(1)
 
 #define GC08A3_REG_VTS_H		0x0340
 #define GC08A3_REG_VTS_L		0x0341
@@ -83,6 +92,7 @@
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
+#define RK_OTP
 
 #define GC08A3_NAME			"gc08a3"
 #define GC08A3_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
@@ -136,6 +146,8 @@ struct gc08a3 {
 	struct v4l2_ctrl	*digi_gain;
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			streaming;
@@ -151,52 +163,42 @@ struct gc08a3 {
 	const char		*len_name;
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
+	u8			flip;
+#ifdef RK_OTP
+	struct otp_info		*otp;
+#endif
 };
 
 #define to_gc08a3(sd) container_of(sd, struct gc08a3, subdev)
 
-#undef GC08A3_MIRROR_NORMAL
-#undef GC08A3_MIRROR_H
-#undef GC08A3_MIRROR_V
-#undef GC08A3_MIRROR_HV
 
-/* SENSOR MIRROR FLIP INFO */
-#define GC08A3_MIRROR_NORMAL	0
-#define GC08A3_MIRROR_H		1
-#define GC08A3_MIRROR_V		0
-#define GC08A3_MIRROR_HV	0
+#define GC08A3_MIRROR_NORMAL		0x00
+#define GC08A3_MIRROR_H			0x01
+#define GC08A3_MIRROR_V			0x02
+#define GC08A3_MIRROR_HV		0x03
 
-#if GC08A3_MIRROR_NORMAL
-	#define GC08A3_MIRROR	0x00
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x03
-#elif GC08A3_MIRROR_H
-	#define GC08A3_MIRROR	0x01
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x09
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x04
-#elif GC08A3_MIRROR_V
-	#define GC08A3_MIRROR	0x02
-	#define FULL_STARTY	0x07
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x04
-	#define BINNING_STARTX	0x03
-#elif GC08A3_MIRROR_HV
-	#define GC08A3_MIRROR	0x03
-	#define FULL_STARTY	0x07
-	#define FULL_STARTX	0x09
-	#define BINNING_STARTY	0x04
-	#define BINNING_STARTX	0x04
-#else
-	#define GC08A3_MIRROR	0x00
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x03
-#endif
+#define GC08A3_STARTY_REG		0x0352
+#define GC08A3_STARTX_REG		0x0354
+#define FULL_STARTY_NORMAL		0x06
+#define FULL_STARTX_NORMAL		0x08
+#define BINNING_STARTY_NORMAL		0x03
+#define BINNING_STARTX_NORMAL		0x03
+
+#define FULL_STARTY_MIRROR_H		0x06
+#define FULL_STARTX_MIRROR_H		0x09
+#define BINNING_STARTY_MIRROR_H		0x03
+#define BINNING_STARTX_MIRROR_H		0x04
+
+#define FULL_STARTY_MIRROR_V		0x07
+#define FULL_STARTX_MIRROR_V		0x08
+#define BINNING_STARTY_MIRROR_V		0x04
+#define BINNING_STARTX_MIRROR_V		0x03
+
+#define FULL_STARTY_MIRROR_HV		0x07
+#define FULL_STARTX_MIRROR_HV		0x09
+#define BINNING_STARTY_MIRROR_HV	0x04
+#define BINNING_STARTX_MIRROR_HV	0x04
+
 
 /*
  * Xclk 24Mhz
@@ -230,7 +232,7 @@ static const struct regval gc08a3_global_regs_4lane[] = {
 	{0x0074, 0x0a},
 	{0x0059, 0x11},
 	{0x0070, 0x05},
-	{0x0101, GC08A3_MIRROR},
+	{0x0101, 0x00},
 
 	/*analog*/
 	{0x0344, 0x00},
@@ -625,9 +627,9 @@ static const struct regval gc08a3_3264x2448_regs_4lane[] = {
 	/*out window*/
 	{0x009a, 0x00},
 	{0x0351, 0x00},
-	{0x0352, FULL_STARTY},
+	{0x0352, 0x06},
 	{0x0353, 0x00},
-	{0x0354, FULL_STARTX},
+	{0x0354, 0x08},
 	{0x034c, 0x0c},
 	{0x034d, 0xc0},
 	{0x034e, 0x09},
@@ -815,9 +817,9 @@ static const struct regval gc08a3_1280x720_regs_4lane[] = {
 	/*out window*/
 	{0x009a, 0x00},
 	{0x0351, 0x00},
-	{0x0352, BINNING_STARTY},
+	{0x0352, 0x03},
 	{0x0353, 0x00},
-	{0x0354, BINNING_STARTX},
+	{0x0354, 0x03},
 	{0x034c, 0x05},
 	{0x034d, 0x00},
 	{0x034e, 0x02},
@@ -1003,9 +1005,9 @@ static const struct regval gc08a3_1280x800_regs_4lane[] = {
 	/*out window*/
 	{0x009a, 0x00},
 	{0x0351, 0x00},
-	{0x0352, BINNING_STARTY},
+	{0x0352, 0x03},
 	{0x0353, 0x00},
-	{0x0354, BINNING_STARTX},
+	{0x0354, 0x03},
 	{0x034c, 0x05},
 	{0x034d, 0x00},
 	{0x034e, 0x03},
@@ -1308,9 +1310,93 @@ static int gc08a3_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#ifdef RK_OTP
+static void gc08a3_get_otp(struct otp_info *otp,
+			   struct rkmodule_inf *inf)
+{
+	u32 i, j;
+	u32 w, h;
+
+	/* awb */
+	if (otp->awb_data.flag) {
+		inf->awb.flag = 1;
+		inf->awb.r_value = otp->awb_data.r_ratio;
+		inf->awb.b_value = otp->awb_data.b_ratio;
+		inf->awb.gr_value = otp->awb_data.g_ratio;
+		inf->awb.gb_value = 0x0;
+
+		inf->awb.golden_r_value = otp->awb_data.r_golden;
+		inf->awb.golden_b_value = otp->awb_data.b_golden;
+		inf->awb.golden_gr_value = otp->awb_data.g_golden;
+		inf->awb.golden_gb_value = 0x0;
+	}
+
+	/* lsc */
+	if (otp->lsc_data.flag) {
+		inf->lsc.flag = 1;
+		inf->lsc.width = otp->basic_data.size.width;
+		inf->lsc.height = otp->basic_data.size.height;
+		inf->lsc.table_size = otp->lsc_data.table_size;
+
+		for (i = 0; i < 289; i++) {
+			inf->lsc.lsc_r[i] = (otp->lsc_data.data[i * 2] << 8) |
+						 otp->lsc_data.data[i * 2 + 1];
+			inf->lsc.lsc_gr[i] = (otp->lsc_data.data[i * 2 + 578] << 8) |
+						  otp->lsc_data.data[i * 2 + 579];
+			inf->lsc.lsc_gb[i] = (otp->lsc_data.data[i * 2 + 1156] << 8) |
+						  otp->lsc_data.data[i * 2 + 1157];
+			inf->lsc.lsc_b[i] = (otp->lsc_data.data[i * 2 + 1734] << 8) |
+						 otp->lsc_data.data[i * 2 + 1735];
+		}
+	}
+
+	/* pdaf */
+	if (otp->pdaf_data.flag) {
+		inf->pdaf.flag = 1;
+		inf->pdaf.gainmap_width = otp->pdaf_data.gainmap_width;
+		inf->pdaf.gainmap_height = otp->pdaf_data.gainmap_height;
+		inf->pdaf.dcc_mode = otp->pdaf_data.dcc_mode;
+		inf->pdaf.dcc_dir = otp->pdaf_data.dcc_dir;
+		inf->pdaf.dccmap_width = otp->pdaf_data.dccmap_width;
+		inf->pdaf.dccmap_height = otp->pdaf_data.dccmap_height;
+		w = otp->pdaf_data.gainmap_width;
+		h = otp->pdaf_data.gainmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.gainmap[i * w + j] =
+					(otp->pdaf_data.gainmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.gainmap[(i * w + j) * 2 + 1];
+			}
+		}
+		w = otp->pdaf_data.dccmap_width;
+		h = otp->pdaf_data.dccmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.dccmap[i * w + j] =
+					(otp->pdaf_data.dccmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.dccmap[(i * w + j) * 2 + 1];
+			}
+		}
+	}
+
+	/* af */
+	if (otp->af_data.flag) {
+		inf->af.flag = 1;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp->af_data.af_inf;
+		inf->af.af_otp[0].vcm_end = otp->af_data.af_macro;
+		inf->af.af_otp[0].vcm_dir = 0;
+	}
+
+}
+#endif
+
 static void gc08a3_get_module_inf(struct gc08a3 *gc08a3,
 				struct rkmodule_inf *inf)
 {
+#ifdef RK_OTP
+	struct otp_info *otp = gc08a3->otp;
+#endif
 	strscpy(inf->base.sensor,
 		GC08A3_NAME,
 		sizeof(inf->base.sensor));
@@ -1320,6 +1406,10 @@ static void gc08a3_get_module_inf(struct gc08a3 *gc08a3,
 	strscpy(inf->base.lens,
 		gc08a3->len_name,
 		sizeof(inf->base.lens));
+#ifdef RK_OTP
+	if (otp)
+		gc08a3_get_otp(otp, inf);
+#endif
 }
 
 static void gc08a3_set_module_inf(struct gc08a3 *gc08a3,
@@ -1453,6 +1543,75 @@ static long gc08a3_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+static int gc08a3_set_flip(struct gc08a3 *gc08a3)
+{
+	int ret = 0;
+	u8  val = 0, starty = 0, startx = 0;
+
+	if (gc08a3->cur_mode->width > 1280) {
+		switch (gc08a3->flip & 0x03) {
+		case GC08A3_MIRROR_NORMAL:
+			starty = FULL_STARTY_NORMAL;
+			startx = FULL_STARTX_NORMAL;
+			break;
+		case GC08A3_MIRROR_H:
+			starty = FULL_STARTY_MIRROR_H;
+			startx = FULL_STARTX_MIRROR_H;
+			break;
+		case GC08A3_MIRROR_V:
+			starty = FULL_STARTY_MIRROR_V;
+			startx = FULL_STARTX_MIRROR_V;
+			break;
+		case GC08A3_MIRROR_HV:
+			starty = FULL_STARTY_MIRROR_HV;
+			startx = FULL_STARTX_MIRROR_HV;
+			break;
+		default:
+			starty = FULL_STARTY_NORMAL;
+			startx = FULL_STARTX_NORMAL;
+			break;
+		}
+	} else {
+		switch (gc08a3->flip & 0x03) {
+		case GC08A3_MIRROR_NORMAL:
+			starty = BINNING_STARTY_NORMAL;
+			startx = BINNING_STARTX_NORMAL;
+			break;
+		case GC08A3_MIRROR_H:
+			starty = BINNING_STARTY_MIRROR_H;
+			startx = BINNING_STARTX_MIRROR_H;
+			break;
+		case GC08A3_MIRROR_V:
+			starty = BINNING_STARTY_MIRROR_V;
+			startx = BINNING_STARTX_MIRROR_V;
+			break;
+		case GC08A3_MIRROR_HV:
+			starty = BINNING_STARTY_MIRROR_HV;
+			startx = BINNING_STARTX_MIRROR_HV;
+			break;
+		default:
+			starty = BINNING_STARTY_NORMAL;
+			startx = BINNING_STARTX_NORMAL;
+			break;
+		}
+	}
+	ret = gc08a3_write_reg(gc08a3->client, GC08A3_STARTY_REG, starty);
+	ret |= gc08a3_write_reg(gc08a3->client, GC08A3_STARTX_REG, startx);
+
+	ret |= gc08a3_read_reg(gc08a3->client, GC08A3_FLIP_MIRROR_REG, &val);
+	if (gc08a3->flip & GC08A3_MIRROR_BIT_MASK)
+		val |= GC08A3_MIRROR_BIT_MASK;
+	else
+		val &= ~GC08A3_MIRROR_BIT_MASK;
+	if (gc08a3->flip & GC08A3_FLIP_BIT_MASK)
+		val |= GC08A3_FLIP_BIT_MASK;
+	else
+		val &= ~GC08A3_FLIP_BIT_MASK;
+	ret |= gc08a3_write_reg(gc08a3->client, GC08A3_FLIP_MIRROR_REG, val);
+
+	return ret;
+}
+
 static int __gc08a3_start_stream(struct gc08a3 *gc08a3)
 {
 	int ret;
@@ -1463,8 +1622,13 @@ static int __gc08a3_start_stream(struct gc08a3 *gc08a3)
 
 	/* In case these controls are set before streaming */
 	mutex_unlock(&gc08a3->mutex);
-	ret = v4l2_ctrl_handler_setup(&gc08a3->ctrl_handler);
+	ret |= v4l2_ctrl_handler_setup(&gc08a3->ctrl_handler);
 	mutex_lock(&gc08a3->mutex);
+
+	ret |= gc08a3_set_flip(gc08a3);
+	if (ret)
+		return ret;
+
 	ret |= gc08a3_write_reg(gc08a3->client,
 		GC08A3_REG_CTRL_MODE,
 		GC08A3_MODE_STREAMING);
@@ -1828,11 +1992,11 @@ static int gc08a3_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
-		dev_info(&client->dev, "set exposure value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
 		ret = gc08a3_set_exposure_reg(gc08a3, ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		dev_info(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		ret = gc08a3_set_gain_reg(gc08a3, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
@@ -1845,6 +2009,20 @@ static int gc08a3_set_ctrl(struct v4l2_ctrl *ctrl)
 					GC08A3_REG_VTS_L,
 					(ctrl->val + gc08a3->cur_mode->height)
 					& 0xff);
+		break;
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			gc08a3->flip |= GC08A3_MIRROR_BIT_MASK;
+		else
+			gc08a3->flip &= ~GC08A3_MIRROR_BIT_MASK;
+		dev_info(&client->dev, "set hflip 0x%x\n", ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			gc08a3->flip |= GC08A3_FLIP_BIT_MASK;
+		else
+			gc08a3->flip &= ~GC08A3_FLIP_BIT_MASK;
+		dev_info(&client->dev, "set vflip 0x%x\n", ctrl->val);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1871,7 +2049,7 @@ static int gc08a3_initialize_controls(struct gc08a3 *gc08a3)
 
 	handler = &gc08a3->ctrl_handler;
 	mode = gc08a3->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &gc08a3->mutex;
@@ -1908,6 +2086,12 @@ static int gc08a3_initialize_controls(struct gc08a3 *gc08a3)
 				V4L2_CID_ANALOGUE_GAIN, GC08A3_AGAIN_MIN,
 				GC08A3_AGAIN_MAX, GC08A3_AGAIN_STEP,
 				GC08A3_AGAIN_DEFAULT);
+	gc08a3->h_flip = v4l2_ctrl_new_std(handler, &gc08a3_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	gc08a3->v_flip = v4l2_ctrl_new_std(handler, &gc08a3_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	gc08a3->flip = 0;
 
 	if (handler->error) {
 		ret = handler->error;
@@ -2009,6 +2193,12 @@ static int gc08a3_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+#ifdef RK_OTP
+	struct device_node *eeprom_ctrl_node;
+	struct i2c_client *eeprom_ctrl_client = NULL;
+	struct v4l2_subdev *eeprom_ctrl;
+	struct otp_info *otp_ptr;
+#endif
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -2090,6 +2280,42 @@ static int gc08a3_probe(struct i2c_client *client,
 	ret = gc08a3_check_sensor_id(gc08a3, client);
 	if (ret)
 		goto err_power_off;
+
+#ifdef RK_OTP
+	eeprom_ctrl_node = of_parse_phandle(node, "eeprom-ctrl", 0);
+	if (eeprom_ctrl_node) {
+		eeprom_ctrl_client =
+			of_find_i2c_device_by_node(eeprom_ctrl_node);
+		of_node_put(eeprom_ctrl_node);
+		if (IS_ERR_OR_NULL(eeprom_ctrl_client)) {
+			dev_err(dev, "can not get node\n");
+			goto continue_probe;
+		}
+		eeprom_ctrl = i2c_get_clientdata(eeprom_ctrl_client);
+		if (IS_ERR_OR_NULL(eeprom_ctrl)) {
+			dev_err(dev, "can not get eeprom i2c client\n");
+		} else {
+			otp_ptr = devm_kzalloc(dev, sizeof(*otp_ptr), GFP_KERNEL);
+			if (!otp_ptr) {
+				dev_err(dev, "otp_ptr alloc failed!\n");
+				put_device(&eeprom_ctrl_client->dev);
+				ret = -ENOMEM;
+				goto err_power_off;
+			}
+			ret = v4l2_subdev_call(eeprom_ctrl,
+				core, ioctl, 0, otp_ptr);
+			if (!ret) {
+				gc08a3->otp = otp_ptr;
+			} else {
+				gc08a3->otp = NULL;
+				devm_kfree(dev, otp_ptr);
+				dev_warn(dev, "can not get otp info, skip!\n");
+			}
+		}
+		put_device(&eeprom_ctrl_client->dev);
+	}
+continue_probe:
+#endif
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &gc08a3_internal_ops;
@@ -2176,8 +2402,8 @@ static struct i2c_driver gc08a3_i2c_driver = {
 		.pm = &gc08a3_pm_ops,
 		.of_match_table = of_match_ptr(gc08a3_of_match),
 	},
-	.probe		= &gc08a3_probe,
-	.remove		= &gc08a3_remove,
+	.probe		= gc08a3_probe,
+	.remove		= gc08a3_remove,
 	.id_table	= gc08a3_match_id,
 };
 
