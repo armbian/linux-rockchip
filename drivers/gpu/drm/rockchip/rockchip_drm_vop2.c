@@ -4728,7 +4728,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 			VOP_MODULE_SET(vop2, wb, vir_stride_en, 1);
 			VOP_MODULE_SET(vop2, wb, post_empty_stop_en, 1);
 			if (one_frame_mode) {
-				if (vop2->version >= VOP_VERSION_RK3572)
+				if (vop2->version == VOP_VERSION_RK3576)
 					VOP_MODULE_SET(vop2, wb, auto_gating, 0);
 				VOP_MODULE_SET(vop2, wb, one_frame_mode, 1);
 				vop2_write_reg_uncached(vop2, &wb->regs->enable, 1);
