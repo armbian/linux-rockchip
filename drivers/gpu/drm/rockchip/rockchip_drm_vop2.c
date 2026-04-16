@@ -5499,6 +5499,16 @@ static void vop2_initial(struct drm_crtc *crtc)
 	    (vop2->version == VOP_VERSION_RK3576))
 		writel(0x1, vop2->sharp_res.regs);
 	VOP_MODULE_SET(vop2, vp, post_buf_empty_dsp_vcnt_en, 1);
+	if (vop2->data->vp[vp->id].urgency) {
+		u8 urgen_thl = vop2->data->vp[vp->id].urgency->urgen_thl;
+		u8 urgen_thh = vop2->data->vp[vp->id].urgency->urgen_thh;
+
+		VOP_MODULE_SET(vop2, vp, axi0_port_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, axi1_port_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, post_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, post_urgency_thl, urgen_thl);
+		VOP_MODULE_SET(vop2, vp, post_urgency_thh, urgen_thh);
+	}
 
 	vop2->enable_count++;
 
@@ -12586,16 +12596,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 1);
 	VOP_MODULE_SET(vop2, vp, line_flag_or_en, 1);
-	if (vop2->data->vp[vp->id].urgency) {
-		u8 urgen_thl = vop2->data->vp[vp->id].urgency->urgen_thl;
-		u8 urgen_thh = vop2->data->vp[vp->id].urgency->urgen_thh;
 
-		VOP_MODULE_SET(vop2, vp, axi0_port_urgency_en, 1);
-		VOP_MODULE_SET(vop2, vp, axi1_port_urgency_en, 1);
-		VOP_MODULE_SET(vop2, vp, post_urgency_en, 1);
-		VOP_MODULE_SET(vop2, vp, post_urgency_thl, urgen_thl);
-		VOP_MODULE_SET(vop2, vp, post_urgency_thh, urgen_thh);
-	}
 	if (vcstate->dsc_enable) {
 		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
 			vop2_crtc_enable_dsc(crtc, old_cstate, 0);
