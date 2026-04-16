@@ -270,6 +270,22 @@
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START(x)	((x & 0x1fff) << 0)
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP(x)	((x & 0x1fff) << 16)
 
+/* RGA_FULL_CSC COEF */
+#define m_RGA2_FULL_CSC_COEF				(0x1fff << 0)
+#define m_RGA2_FULL_CSC_CLIP_MAX			(0xff << 16)
+#define m_RGA2_FULL_CSC_CLIP_MIN			(0xff << 24)
+#define m_RGA2_FULL_CSC_10BIT_CLIP			(0x3ff << 16) // repeat with CLIP_MAX/CLIP_MIN
+
+#define s_RGA2_FULL_CSC_COEF(x)				((x) & 0x1fff << 0)
+#define s_RGA2_FULL_CSC_CLIP_MAX(x)			(((x) & 0xff) << 16)
+#define s_RGA2_FULL_CSC_CLIP_MIN(x)			(((x) & 0xff) << 24)
+#define s_RGA2_FULL_CSC_10BIT_CLIP(x)			(((x) & 0x3ff) << 16) // repeat with CLIP_MAX/CLIP_MIN
+
+/* RGA_FULL_CSC OFFSET */
+#define m_RGA2_FULL_CSC_OFFSET				(0x1fffff << 0)
+
+#define s_RGA2_FULL_CSC_OFFSET(x)			(((x) & 0x1fffff) << 0)
+
 /* RGA BACKDOOR0 */
 #define m_RGA2_HSDBIL_VSP_FIX_DIS			(0x1 << 0)
 #define m_RGA2_HSP_LEFT_COPY_DIS			(0x1 << 1)
