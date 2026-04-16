@@ -1650,6 +1650,7 @@ struct vop2_ctrl {
 	struct vop_reg dma0_timeout_cnt;
 	struct vop_reg dma1_timeout_en;
 	struct vop_reg dma1_timeout_cnt;
+	struct vop_reg fbc_timeout_en;
 	struct vop_reg rkmmu_v2_en;
 	struct vop_reg rkmmu_v2_sel_axi;
 	struct vop_reg rkmmu1_v2_en;

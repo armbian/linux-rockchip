@@ -5416,6 +5416,14 @@ static void vop2_initial(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop2, auto_cs_mode, 1);
 
 		/*
+		 * On RK3538/RK3572, the bit width of fbc_timeout_cnt is insufficient,
+		 * resulting in poor latency tolerance, Otherwise, POST_BUF_EMPTY error
+		 * may occur at poor system bandwidth conditions.
+		 */
+		if (vop2->version == VOP_VERSION_RK3538 || vop2->version == VOP_VERSION_RK3572)
+			VOP_CTRL_SET(vop2, fbc_timeout_en, 0);
+
+		/*
 		 * This is unused and error init value for rk3528/rk3562 vp1, if less of this config,
 		 * vp1 can't display normally.
 		 */

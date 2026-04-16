@@ -6462,6 +6462,7 @@ static const struct vop2_ctrl rk3538_vop_ctrl = {
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
 	.auto_cs_en = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 5),
 	.auto_cs_mode = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 15),
+	.fbc_timeout_en = VOP_REG_MASK(RK3572_FBC_TIMEOUT_CTRL, 0x1, 31),
 
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
@@ -6646,6 +6647,7 @@ static const struct vop2_ctrl rk3572_vop_ctrl = {
 	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
 	.auto_cs_en = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 5),
 	.auto_cs_mode = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 15),
+	.fbc_timeout_en = VOP_REG_MASK(RK3572_FBC_TIMEOUT_CTRL, 0x1, 31),
 	.rkmmu_v2_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL, 0x1, 1),
 	.rkmmu1_v2_en = VOP_REG_MASK(RK3572_SYS1_AXI1_MMU_CTRL, 0x1, 1),
 	.mmu0_qos_en = VOP_REG_MASK(RK3572_SYS0_AXI0_MMU_CTRL2_IMD, 0x1, 0),
