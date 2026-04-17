@@ -100,6 +100,7 @@ struct dw_hdmi_qp_cec {
 	struct cec_notifier *notify;
 	int irq;
 	int wake_irq;
+	spinlock_t cec_lock;
 	struct mutex wake_lock;
 	struct input_dev *devinput;
 	struct miscdevice misc_dev;
@@ -139,9 +140,13 @@ static void dw_hdmi_qp_wakeup_mod(struct dw_hdmi_qp_cec *cec, u32 val, u32 mask,
 static int dw_hdmi_qp_cec_log_addr(struct cec_adapter *adap, u8 logical_addr)
 {
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
+	unsigned long flags;
 
-	if (!cec->cec_enable)
+	spin_lock_irqsave(&cec->cec_lock, flags);
+	if (!cec->cec_enable) {
+		spin_unlock_irqrestore(&cec->cec_lock, flags);
 		return 0;
+	}
 
 	if (logical_addr == CEC_LOG_ADDR_INVALID)
 		cec->addresses = 0;
@@ -149,6 +154,7 @@ static int dw_hdmi_qp_cec_log_addr(struct cec_adapter *adap, u8 logical_addr)
 		cec->addresses |= BIT(logical_addr) | BIT(15);
 
 	dw_hdmi_qp_write(cec, cec->addresses, CEC_ADDR);
+	spin_unlock_irqrestore(&cec->cec_lock, flags);
 
 	return 0;
 }
@@ -159,9 +165,13 @@ static int dw_hdmi_qp_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
 	unsigned int i;
 	u32 val;
+	unsigned long flags;
 
-	if (!cec->cec_enable)
+	spin_lock_irqsave(&cec->cec_lock, flags);
+	if (!cec->cec_enable) {
+		spin_unlock_irqrestore(&cec->cec_lock, flags);
 		return 0;
+	}
 
 	for (i = 0; i < msg->len; i++) {
 		if (!(i % 4))
@@ -179,6 +189,7 @@ static int dw_hdmi_qp_cec_transmit(struct cec_adapter *adap, u8 attempts,
 
 	dw_hdmi_qp_write(cec, msg->len - 1, CEC_TX_CNT);
 	dw_hdmi_qp_write(cec, CEC_CTRL_START, CEC_TX_CONTROL);
+	spin_unlock_irqrestore(&cec->cec_lock, flags);
 
 	return 0;
 }
@@ -187,11 +198,21 @@ static irqreturn_t dw_hdmi_qp_cec_hardirq(int irq, void *data)
 {
 	struct cec_adapter *adap = data;
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
-	u32 stat = dw_hdmi_qp_read(cec, CEC_INT_STATUS);
+	unsigned long flags;
+	u32 stat;
 	irqreturn_t ret = IRQ_HANDLED;
 
-	if (stat == 0)
-		return IRQ_NONE;
+	spin_lock_irqsave(&cec->cec_lock, flags);
+	if (!cec->cec_enable) {
+		spin_unlock_irqrestore(&cec->cec_lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	stat = dw_hdmi_qp_read(cec, CEC_INT_STATUS);
+	if (stat == 0) {
+		spin_unlock_irqrestore(&cec->cec_lock, flags);
+		return IRQ_HANDLED;
+	}
 
 	dw_hdmi_qp_write(cec, stat, CEC_INT_CLEAR);
 
@@ -233,6 +254,7 @@ static irqreturn_t dw_hdmi_qp_cec_hardirq(int irq, void *data)
 
 		ret = IRQ_WAKE_THREAD;
 	}
+	spin_unlock_irqrestore(&cec->cec_lock, flags);
 
 	return ret;
 }
@@ -256,13 +278,17 @@ static irqreturn_t dw_hdmi_qp_cec_thread(int irq, void *data)
 static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 {
 	struct dw_hdmi_qp_cec *cec = cec_get_drvdata(adap);
+	unsigned long flags;
 
 	if (!enable) {
 		if (!cec->cec_enable)
 			return 0;
+
+		spin_lock_irqsave(&cec->cec_lock, flags);
 		dw_hdmi_qp_write(cec, 0, CEC_INT_MASK_N);
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		if (cec->wake_irq > 0 && cec->wake_en && cec->standby_en) {
+			spin_unlock_irqrestore(&cec->cec_lock, flags);
 			cec->ops->set_wakeup(cec->hdmi, true);
 			dw_hdmi_qp_wakeup_mod(cec, __ffs(cec->addresses), DST_PAT, CEC_LADR_PAT);
 			dw_hdmi_qp_wakeup_write(cec, 0xffffffff, CEC_IS);
@@ -278,14 +304,17 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 		} else {
 			cec->addresses = 0;
 			dw_hdmi_qp_write(cec, cec->addresses, CEC_ADDR);
-			cec->ops->disable(cec->hdmi);
 			cec->cec_enable = false;
+			spin_unlock_irqrestore(&cec->cec_lock, flags);
+
+			cec->ops->disable(cec->hdmi);
 		}
 	} else {
 		unsigned int irqs;
 
 		if (cec->cec_enable)
 			return 0;
+
 		if (cec->wake_irq > 0) {
 			cec->ops->set_wakeup(cec->hdmi, false);
 			dw_hdmi_qp_wakeup_write(cec, 0xffff0000, CEC_IE);
@@ -294,18 +323,21 @@ static int dw_hdmi_qp_cec_enable(struct cec_adapter *adap, bool enable)
 		}
 
 		cec->ops->enable(cec->hdmi);
+
+		spin_lock_irqsave(&cec->cec_lock, flags);
 		cec->cec_enable = true;
 
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		dw_hdmi_qp_write(cec, 1, CEC_LOCK_CONTROL);
 
-		dw_hdmi_qp_cec_log_addr(cec->adap, CEC_LOG_ADDR_INVALID);
-
 		irqs = CEC_STAT_LINE_ERR | CEC_STAT_NACK | CEC_STAT_EOM |
 		       CEC_STAT_DONE;
 		dw_hdmi_qp_write(cec, ~0, CEC_INT_CLEAR);
 		dw_hdmi_qp_write(cec, irqs, CEC_INT_MASK_N);
+		spin_unlock_irqrestore(&cec->cec_lock, flags);
+		dw_hdmi_qp_cec_log_addr(cec->adap, CEC_LOG_ADDR_INVALID);
 	}
+
 	return 0;
 }
 
@@ -488,6 +520,7 @@ static int dw_hdmi_qp_cec_probe(struct platform_device *pdev)
 	cec->irq = data->irq;
 	cec->wake_irq = data->wake_irq;
 	cec->cec_wakeup_mem = data->cec_wakeup_mem;
+	spin_lock_init(&cec->cec_lock);
 	mutex_init(&cec->wake_lock);
 
 	platform_set_drvdata(pdev, cec);
@@ -525,7 +558,7 @@ static int dw_hdmi_qp_cec_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, cec->irq,
 					dw_hdmi_qp_cec_hardirq,
-					dw_hdmi_qp_cec_thread, IRQF_SHARED,
+					dw_hdmi_qp_cec_thread, IRQF_ONESHOT,
 					"dw-hdmi-qp-cec", cec->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cec request irq thread failed\n");
