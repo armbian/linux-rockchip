@@ -434,7 +434,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		sw = msg->src.act_w;
 		sh = msg->src.act_h;
 
-		if ((rotate_mode == 1) | (rotate_mode == 3)) {
+		if ((rotate_mode == 1) || (rotate_mode == 3)) {
 			dw = msg->dst.act_h;
 			dh = msg->dst.act_w;
 		} else {
