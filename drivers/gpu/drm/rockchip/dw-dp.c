@@ -5218,6 +5218,7 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 static int dw_dp_link_retrain(struct dw_dp *dp)
 {
 	struct drm_device *dev = dp->bridge.dev;
+	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
@@ -5235,7 +5236,12 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 		drm_modeset_backoff(&ctx);
 	}
 
+	if (bridge->encoder->crtc)
+		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	ret = dw_dp_link_train(dp);
+	if (bridge->encoder->crtc)
+		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, true);
+
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
