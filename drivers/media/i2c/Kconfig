@@ -2263,6 +2263,16 @@ config VIDEO_SC501AI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC501AI camera.
 
+config VIDEO_SC501CS
+	tristate "SmartSens SC501CS sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC501CS camera.
+
 config VIDEO_SC530AI
 	tristate "SmartSens SC530AI sensor support"
 	depends on I2C && VIDEO_DEV

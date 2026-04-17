@@ -272,6 +272,7 @@ obj-$(CONFIG_VIDEO_SC465SL) += sc465sl.o
 obj-$(CONFIG_VIDEO_SC485SL) += sc485sl.o
 obj-$(CONFIG_VIDEO_SC500AI) += sc500ai.o
 obj-$(CONFIG_VIDEO_SC501AI) += sc501ai.o
+obj-$(CONFIG_VIDEO_SC501CS) += sc501cs.o
 obj-$(CONFIG_VIDEO_SC530AI) += sc530ai.o
 obj-$(CONFIG_VIDEO_SC5336) += sc5336.o
 obj-$(CONFIG_VIDEO_SC635HAI) += sc635hai.o
