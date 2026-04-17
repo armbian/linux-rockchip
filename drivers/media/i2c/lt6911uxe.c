@@ -6,15 +6,16 @@
  *
  * Author: Jianwei Fan <jianwei.fan@rock-chips.com>
  *
- * V0.0X01.0X00 first version.
- * V0.0X01.0X01 support DPHY 4K60.
- * V0.0X01.0X02 support BGR888 format.
- * V0.0X01.0X03 add more timing support.
- * V0.0X01.0X04
- *  1.fix some errors.
- *  2.add dphy timing reg.
- * V0.0X01.0X05 add dual mipi mode support
- * V0.0X01.0X06 add yuv420 8bit
+ * Version history:
+ * 0.1.0 - Initial version
+ * 0.1.1 - Support DPHY 4K60
+ * 0.1.2 - Support BGR888 format
+ * 0.1.3 - Add more timing support
+ * 0.1.4 - Fix errors and add DPHY timing registers
+ * 0.1.5 - Add dual MIPI mode support
+ * 0.1.6 - Add YUV420 8-bit support
+ * 0.1.7 - Add HDR10 static metadata support
+ * 0.1.8 - Add color range/space ioctl and 10-bit bus format detection
  *
  */
 // #define DEBUG
@@ -36,6 +37,7 @@
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/compat.h>
+#include <linux/unaligned.h>
 #include <media/v4l2-controls_rockchip.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -43,7 +45,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 1, 8)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -76,6 +78,16 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define I2C_DISABLE		0x0
 
 #define INT_TYPE		0xe084
+#define INT_TYPE_NOSIGNAL	0
+#define INT_TYPE_FORMAT_CHANGE	1
+#define INT_TYPE_HDR_CHANGE	7
+/*
+ * HDR metadata buffer size read from LT6911UXE register 0xE085.
+ * The I2C read always returns 32 bytes; layout varies by firmware:
+ * - CTA-861-G format: payload starts at offset 0 or 3 (26 bytes, little-endian)
+ * - Register format: header at offsets 0-6, payload from offset 7 (big-endian)
+ */
+#define HDR_METADATA_SIZE	32
 #define PCLK_H			0xe085
 #define PCLK_M			0xe086
 #define PCLK_L			0xe087
@@ -94,6 +106,46 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define BYTE_PCLK_L		0xe094
 #define LNAE_NUM		0xe095
 #define BUS_FMT			0xe096
+
+/* AVI InfoFrame register and bit field definitions (CTA-861-G) */
+#define LT6911UXE_AVI_INFO_REG		0xE0A9
+#define AVI_VIDEO_FORMAT_MASK		0xE0
+#define AVI_VIDEO_FORMAT_SHIFT		5
+#define AVI_VIC_MASK			0x7F
+#define AVI_COLORIMETRY_MASK		0xC0
+#define AVI_COLORIMETRY_SHIFT		6
+#define AVI_EXT_COLORIMETRY_MASK	0x70
+#define AVI_EXT_COLORIMETRY_SHIFT	4
+#define AVI_RGB_QUANT_RANGE_MASK	0x0C
+#define AVI_RGB_QUANT_RANGE_SHIFT	2
+#define AVI_YCC_QUANT_RANGE_MASK	0xC0
+#define AVI_YCC_QUANT_RANGE_SHIFT	6
+#define AVI_RGB_QUANT_DEFAULT		0
+
+/* HDR Metadata InfoFrame offsets (CTA-861-G Type1) */
+#define HDR_EOTF_OFFSET			0
+#define HDR_METADATA_TYPE_OFFSET	1
+#define HDR_DISPLAY_PRIMARIES_OFFSET	2
+#define HDR_WHITE_POINT_OFFSET		14
+#define HDR_MAX_LUMINANCE_OFFSET	18
+#define HDR_MIN_LUMINANCE_OFFSET	20
+#define HDR_MAX_CLL_OFFSET		22
+#define HDR_MAX_FALL_OFFSET		24
+
+/* HDR Metadata register format offsets (LT6911UXE) */
+#define HDR_REG_EOTF_OFFSET		4
+#define HDR_REG_METADATA_TYPE_OFFSET	5
+#define HDR_REG_PRIMARIES_OFFSET	7
+#define HDR_REG_WHITE_POINT_OFFSET	19
+#define HDR_REG_MAX_LUMINANCE_OFFSET	23
+#define HDR_REG_MIN_LUMINANCE_OFFSET	25
+#define HDR_REG_MAX_CLL_OFFSET		27
+#define HDR_REG_MAX_FALL_OFFSET		29
+#define AVI_RGB_QUANT_LIMIT		1
+#define AVI_RGB_QUANT_FULL		2
+#define AVI_YCC_QUANT_LIMIT		0
+#define AVI_YCC_QUANT_FULL		1
+#define AVI_COLORIMETRY_EXTENDED	3
 
 #define HS_HALF_H		0xe098
 #define HS_HALF_L		0xe099
@@ -176,6 +228,26 @@ static const char * const bus_format_str[] = {
 	"UNKNOWN",
 };
 
+/* AVI InfoFrame video format field values (CTA-861-G) */
+enum lt6911uxe_avi_bus_fmt {
+	LT6911UXE_BUS_FMT_RGB	= 0,	/* RGB */
+	LT6911UXE_BUS_FMT_YUV422	= 1,	/* YUV 4:2:2 */
+	LT6911UXE_BUS_FMT_YUV444	= 2,	/* YUV 4:4:4 */
+	LT6911UXE_BUS_FMT_YUV420	= 3,	/* YUV 4:2:0 */
+};
+
+/* Output color space values for LT6911UXE operation mode */
+enum lt6911uxe_optm_cs {
+	LT6911UXE_OPM_CS_UNKNOWN		= 0,	/* Unknown color space */
+	LT6911UXE_OPM_CS_XV_YCC_709		= 1,	/* xvYCC 709 */
+	LT6911UXE_OPM_CS_XV_YCC_601		= 8,	/* xvYCC 601 */
+	LT6911UXE_OPM_CS_RGB			= 9,	/* RGB */
+	LT6911UXE_OPM_CS_XV_YCC_2020		= 10,	/* BT.2020 YUV */
+	LT6911UXE_OPM_CS_RGB_2020		= 11,	/* BT.2020 RGB */
+	LT6911UXE_OPM_CS_RGB_ADOBE		= 12,	/* Adobe RGB */
+	LT6911UXE_OPM_CS_YUV_ADOBE		= 13,	/* Adobe YUV */
+};
+
 #define LT6911UXE_NAME			"LT6911UXE"
 
 static const s64 link_freq_menu_items[] = {
@@ -238,6 +310,10 @@ struct lt6911uxe {
 	u8 bus_fmt;
 	bool rgb_out;
 	u32 cur_fps;
+	struct hdr_metadata_infoframe hdr_metadata;
+	bool hdr_metadata_valid;
+	bool is_10bit;
+	bool hdr_support;
 };
 
 static const struct v4l2_dv_timings_cap lt6911uxe_timings_cap = {
@@ -584,9 +660,10 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 };
 
 static void lt6911uxe_format_change(struct v4l2_subdev *sd);
+static void lt6911uxe_handle_hdr_change(struct v4l2_subdev *sd);
 static int lt6911uxe_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
 static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
-				struct v4l2_dv_timings *timings);
+				  struct v4l2_dv_timings *timings);
 
 static inline struct lt6911uxe *to_lt6911uxe(struct v4l2_subdev *sd)
 {
@@ -716,8 +793,8 @@ static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 	i2c_wr(sd, reg, &val, 1);
 }
 
-static __maybe_unused void i2c_wr8_and_or(struct v4l2_subdev *sd, u16 reg, u32 mask,
-			   u8 val)
+static __maybe_unused void i2c_wr8_and_or(struct v4l2_subdev *sd, u16 reg,
+					  u32 mask, u8 val)
 {
 	u8 val_p;
 
@@ -795,11 +872,12 @@ static inline unsigned int fps_calc(const struct v4l2_bt_timings *t)
 		return 0;
 
 	return DIV_ROUND_CLOSEST((unsigned int)t->pixelclock,
-			V4L2_DV_BT_FRAME_HEIGHT(t) * V4L2_DV_BT_FRAME_WIDTH(t));
+				 V4L2_DV_BT_FRAME_HEIGHT(t) *
+				 V4L2_DV_BT_FRAME_WIDTH(t));
 }
 
 static bool lt6911uxe_rcv_supported_res(struct v4l2_subdev *sd, u32 width,
-		u32 height)
+					u32 height)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	u32 i;
@@ -821,7 +899,7 @@ static bool lt6911uxe_rcv_supported_res(struct v4l2_subdev *sd, u32 width,
 }
 
 static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
-				     struct v4l2_dv_timings *timings)
+					  struct v4l2_dv_timings *timings)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
@@ -920,15 +998,6 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 		bt->interlaced = V4L2_DV_PROGRESSIVE;
 	}
 
-	if (lt6911uxe->bus_fmt == YUV420_8Bit) {
-		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UV8_1X8;
-	} else {
-		if (lt6911uxe->rgb_out)
-			lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_BGR888_1X24;
-		else
-			lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
-	}
-
 	if (!lt6911uxe_rcv_supported_res(sd, bt->width, bt->height)) {
 		lt6911uxe->nosignal = true;
 		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
@@ -936,7 +1005,9 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 
 	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%u, fps:%d, bus fmt:%s\n",
 			hact, vact, htotal, vtotal, pixel_clock,
-			lt6911uxe->cur_fps, bus_format_str[lt6911uxe->bus_fmt]);
+			lt6911uxe->cur_fps,
+			(lt6911uxe->bus_fmt < ARRAY_SIZE(bus_format_str)) ?
+			bus_format_str[lt6911uxe->bus_fmt] : "UNKNOWN");
 	v4l2_info(sd, "byte_clk:%u, mipi_clk:%u, mipi_data_rate:%u\n",
 			byte_clk, mipi_clk, mipi_data_rate);
 	v4l2_info(sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, inerlaced:%d\n",
@@ -970,12 +1041,19 @@ static void lt6911uxe_delayed_work_res_change(struct work_struct *work)
 	int_type = i2c_rd8(sd, INT_TYPE);
 	v4l2_dbg(1, debug, sd, "%s: int type: 0x%x\n", __func__, int_type);
 	switch (int_type) {
-	case 0:
+	case INT_TYPE_NOSIGNAL:
 		lt6911uxe->nosignal = true;
+		mutex_lock(&lt6911uxe->confctl_mutex);
+		lt6911uxe->is_10bit = false;
+		lt6911uxe->hdr_metadata_valid = false;
+		mutex_unlock(&lt6911uxe->confctl_mutex);
 		v4l2_event_queue(sd->devnode, &evt_signal_lost);
 		break;
-	case 1:
+	case INT_TYPE_FORMAT_CHANGE:
 		lt6911uxe_format_change(sd);
+		break;
+	case INT_TYPE_HDR_CHANGE:
+		lt6911uxe_handle_hdr_change(sd);
 		break;
 	default:
 		v4l2_dbg(1, debug, sd, "%s: unsupported handle int type\n", __func__);
@@ -1018,46 +1096,530 @@ static int lt6911uxe_update_controls(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
+static inline int enable_stream(struct v4l2_subdev *sd, bool enable)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
-	if (enable)
+	if (enable) {
+		if (lt6911uxe->is_10bit && lt6911uxe->rgb_out) {
+			v4l2_err(sd, "%s: unsupported 10bit RGB format!\n",
+				 __func__);
+			return -EINVAL;
+		}
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, ENABLE_STREAM);
-	else
+	} else {
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, DISABLE_STREAM);
+	}
 	msleep(20);
 
-	v4l2_dbg(2, debug, sd, "%s: %sable\n",
-			__func__, enable ? "en" : "dis");
+	v4l2_dbg(2, debug, sd, "%s: %sable\n", __func__, enable ? "en" : "dis");
+
+	return 0;
+}
+
+/**
+ * lt6911uxe_parse_hdr_metadata_cta_le - parse HDR metadata in CTA-861-G little-endian format
+ * @buf: raw metadata buffer
+ * @meta: output metadata structure
+ *
+ * CTA-861-G: HDR Metadata InfoFrame static Type1 payload is 26 bytes:
+ * PB0=EOTF(low 3bit), PB1=Static_Metadata_Descriptor_ID(=0),
+ * followed by primaries/white/luminance as little-endian u16.
+ *
+ * Return: 0 on success, -EINVAL on failure
+ */
+static int lt6911uxe_parse_hdr_metadata_cta_le(const u8 *buf,
+					       struct hdr_metadata_infoframe *meta)
+{
+	u8 eotf, metadata_type;
+
+	if (!buf || !meta)
+		return -EINVAL;
+
+	eotf = buf[HDR_EOTF_OFFSET] & 0x7;
+	metadata_type = buf[HDR_METADATA_TYPE_OFFSET];
+
+	/*
+	 * CTA-861-G defines EOTF values 0-3:
+	 * 0: Traditional gamma - SDR luminance range
+	 * 1: Traditional gamma - HDR luminance range
+	 * 2: SMPTE ST2084 (PQ)
+	 * 3: HLG (Hybrid Log-Gamma)
+	 * Values 4-7 are reserved and invalid.
+	 */
+	if (eotf >= 4)
+		return -EINVAL;
+	if (metadata_type != HDMI_STATIC_METADATA_TYPE1)
+		return -EINVAL;
+
+	meta->eotf = eotf;
+	meta->metadata_type = metadata_type;
+
+	meta->display_primaries[0].x =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET);
+	meta->display_primaries[0].y =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET + 2);
+	meta->display_primaries[1].x =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET + 4);
+	meta->display_primaries[1].y =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET + 6);
+	meta->display_primaries[2].x =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET + 8);
+	meta->display_primaries[2].y =
+		get_unaligned_le16(buf + HDR_DISPLAY_PRIMARIES_OFFSET + 10);
+	meta->white_point.x =
+		get_unaligned_le16(buf + HDR_WHITE_POINT_OFFSET);
+	meta->white_point.y =
+		get_unaligned_le16(buf + HDR_WHITE_POINT_OFFSET + 2);
+	meta->max_display_mastering_luminance =
+		get_unaligned_le16(buf + HDR_MAX_LUMINANCE_OFFSET);
+	meta->min_display_mastering_luminance =
+		get_unaligned_le16(buf + HDR_MIN_LUMINANCE_OFFSET);
+	meta->max_cll = get_unaligned_le16(buf + HDR_MAX_CLL_OFFSET);
+	meta->max_fall = get_unaligned_le16(buf + HDR_MAX_FALL_OFFSET);
+
+	return 0;
+}
+
+/**
+ * lt6911uxe_parse_hdr_metadata_reg - parse HDR metadata in LT6911 register format
+ * @buf: raw metadata buffer
+ * @meta: output metadata structure
+ *
+ * LT6911 register static format per datasheet:
+ *  buf[4]   : EOTF(low 3bit)
+ *  buf[5]   : Static_Metadata_Descriptor_ID (must be 0 for TYPE1)
+ *  buf[6]   : Data Byte 3 -> Static_Metadata_Descriptor(unused)
+ *  buf[7..] : primaries/white/luminance as big-endian u16
+ *
+ * Multi-byte fields are parsed as big-endian u16 per datasheet.
+ *
+ * Return: 0 on success, -EINVAL on failure
+ */
+static int lt6911uxe_parse_hdr_metadata_reg(const u8 *buf,
+					    struct hdr_metadata_infoframe *meta)
+{
+	u8 eotf, metadata_type;
+
+	if (!buf || !meta)
+		return -EINVAL;
+
+	eotf = buf[HDR_REG_EOTF_OFFSET] & 0x7;
+	metadata_type = buf[HDR_REG_METADATA_TYPE_OFFSET] & 0x7;
+
+	/*
+	 * CTA-861-G defines EOTF values 0-3:
+	 * 0: Traditional gamma - SDR luminance range
+	 * 1: Traditional gamma - HDR luminance range
+	 * 2: SMPTE ST2084 (PQ)
+	 * 3: HLG (Hybrid Log-Gamma)
+	 * Values 4-7 are reserved and invalid.
+	 *
+	 * Static_Metadata_Descriptor_ID must be 0 for TYPE1.
+	 * Per CTA-861-G, only value 0 is defined; values 1-255 are reserved.
+	 */
+	if (eotf >= 4)
+		return -EINVAL;
+	if (metadata_type != 0)
+		return -EINVAL;
+
+	meta->eotf = eotf;
+	meta->metadata_type = metadata_type;
+
+	meta->display_primaries[0].x =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET);
+	meta->display_primaries[0].y =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET + 2);
+	meta->display_primaries[1].x =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET + 4);
+	meta->display_primaries[1].y =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET + 6);
+	meta->display_primaries[2].x =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET + 8);
+	meta->display_primaries[2].y =
+		get_unaligned_be16(buf + HDR_REG_PRIMARIES_OFFSET + 10);
+	meta->white_point.x =
+		get_unaligned_be16(buf + HDR_REG_WHITE_POINT_OFFSET);
+	meta->white_point.y =
+		get_unaligned_be16(buf + HDR_REG_WHITE_POINT_OFFSET + 2);
+	meta->max_display_mastering_luminance =
+		get_unaligned_be16(buf + HDR_REG_MAX_LUMINANCE_OFFSET);
+	meta->min_display_mastering_luminance =
+		get_unaligned_be16(buf + HDR_REG_MIN_LUMINANCE_OFFSET);
+	meta->max_cll =
+		get_unaligned_be16(buf + HDR_REG_MAX_CLL_OFFSET);
+	meta->max_fall =
+		get_unaligned_be16(buf + HDR_REG_MAX_FALL_OFFSET);
+
+	return 0;
+}
+
+/**
+ * lt6911uxe_parse_hdr_metadata - parse HDR static metadata from LT6911UXE
+ * @buf: raw 32-byte buffer read from register 0xE085
+ * @meta: output metadata structure
+ *
+ * LT6911UXE maps HDMI RX raw bytes to a contiguous I2C register space.
+ * The exact layout depends on firmware version; this function tries
+ * known layouts in order of reliability:
+ *
+ *   1) CTA-861-G byte stream starting at buf[0] (little-endian)
+ *   2) CTA-861-G byte stream starting at buf[3] (skip 3-byte InfoFrame header)
+ *   3) LT6911 register format per datasheet (EOTF at buf[4], big-endian)
+ *
+ * Validation is strict (EOTF < 4, metadata_type == 0) but random data
+ * may still pass. CTA format is tried first as it has a lower
+ * false-positive rate. Register format is last resort since buf[4]/buf[5]
+ * may coincidentally satisfy the checks.
+ *
+ * For better reliability, future versions could:
+ *   - Cross-validate primaries values (must be in valid chromaticity range)
+ *   - Use device tree or firmware version to determine layout
+ *
+ * Return: 0 on success, -EINVAL if no layout matches
+ */
+static int lt6911uxe_parse_hdr_metadata(const u8 *buf,
+					struct hdr_metadata_infoframe *meta,
+					struct v4l2_subdev *sd)
+{
+	if (lt6911uxe_parse_hdr_metadata_cta_le(buf, meta) == 0) {
+		v4l2_dbg(3, debug, sd, "%s: parsed as CTA-861-G (offset 0)\n",
+			 __func__);
+		return 0;
+	}
+	if (lt6911uxe_parse_hdr_metadata_cta_le(buf + 3, meta) == 0) {
+		v4l2_dbg(3, debug, sd, "%s: parsed as CTA-861-G (offset 3)\n",
+			 __func__);
+		return 0;
+	}
+
+	if (lt6911uxe_parse_hdr_metadata_reg(buf, meta) == 0) {
+		v4l2_dbg(3, debug, sd, "%s: parsed as register format\n",
+			 __func__);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static void lt6911uxe_read_hdr_metadata(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	struct hdr_metadata_infoframe meta = { 0 };
+	u8 buf[HDR_METADATA_SIZE] = { 0 };
+	int ret;
+
+	/*
+	 * PCLK_H(0xE085): also used for HDR metadata (32B) when
+	 * INT_TYPE_HDR_CHANGE. Verify INT_TYPE before reading to avoid
+	 * getting PCLK data instead of HDR metadata.
+	 *
+	 * Note: There is a TOCTOU window between reading INT_TYPE and
+	 * reading the metadata buffer. If INT_TYPE changes between the
+	 * two reads, we may get PCLK data instead. This is acceptable
+	 * because: (a) the metadata parser validates the data, (b) this
+	 * function runs in workqueue context with sufficient delay after
+	 * the interrupt, making the window very small.
+	 */
+	if (i2c_rd8(sd, INT_TYPE) != INT_TYPE_HDR_CHANGE) {
+		mutex_lock(&lt6911uxe->confctl_mutex);
+		lt6911uxe->hdr_metadata_valid = false;
+		mutex_unlock(&lt6911uxe->confctl_mutex);
+		return;
+	}
+
+	i2c_rd(sd, 0xE085, buf, sizeof(buf));
+
+	ret = lt6911uxe_parse_hdr_metadata(buf, &meta, sd);
+	mutex_lock(&lt6911uxe->confctl_mutex);
+	if (!ret) {
+		lt6911uxe->hdr_metadata = meta;
+		lt6911uxe->hdr_metadata_valid = true;
+		v4l2_dbg(1, debug, sd, "%s: HDR metadata cached\n", __func__);
+	} else {
+		lt6911uxe->hdr_metadata_valid = false;
+		v4l2_dbg(1, debug, sd,
+			 "%s: HDR metadata parse failed: %d, raw 32B: %*ph\n",
+			 __func__, ret, (int)sizeof(buf), buf);
+	}
+	mutex_unlock(&lt6911uxe->confctl_mutex);
+}
+
+static int lt6911uxe_get_color_info(struct v4l2_subdev *sd,
+				    int *color_range, int *color_space)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	u8 buf[6] = { 0 };
+	u8 video_format, colorimetry, ext_colorimetry;
+	u8 rgb_quant_range, ycc_quant_range;
+	u8 vic;
+
+	if (!color_range || !color_space)
+		return -EINVAL;
+
+	if (lt6911uxe->nosignal) {
+		*color_range = HDMIRX_DEFAULT_RANGE;
+		*color_space = HDMIRX_XVYCC601;
+		return 0;
+	}
+
+	/*
+	 * Note: i2c_rd returns void. On I2C failure, buf remains zeroed
+	 * (initialized above). The AVI InfoFrame parsing below will use
+	 * these zeroed values, which may produce incorrect results.
+	 * This is acceptable because:
+	 * 1) I2C failures are rare in normal operation
+	 * 2) The zeroed data will produce invalid colorimetry values
+	 *    that callers can detect if needed
+	 * 3) Adding error handling would require significant refactoring
+	 *    of the i2c_rd helper functions
+	 */
+
+	i2c_rd(sd, LT6911UXE_AVI_INFO_REG, buf, sizeof(buf));
+
+	/* Note: i2c_rd returns void; buf is zero-initialized as fallback */
+
+	video_format = (buf[1] & AVI_VIDEO_FORMAT_MASK) >> AVI_VIDEO_FORMAT_SHIFT;
+	colorimetry = (buf[2] & AVI_COLORIMETRY_MASK) >> AVI_COLORIMETRY_SHIFT;
+	ext_colorimetry = (buf[3] & AVI_EXT_COLORIMETRY_MASK) >> AVI_EXT_COLORIMETRY_SHIFT;
+	rgb_quant_range = (buf[3] & AVI_RGB_QUANT_RANGE_MASK) >> AVI_RGB_QUANT_RANGE_SHIFT;
+	ycc_quant_range = (buf[4] & AVI_YCC_QUANT_RANGE_MASK) >> AVI_YCC_QUANT_RANGE_SHIFT;
+	vic = buf[1] & AVI_VIC_MASK;
+
+	if (rgb_quant_range == AVI_RGB_QUANT_DEFAULT)
+		rgb_quant_range = (vic >= 2) ? AVI_RGB_QUANT_LIMIT : AVI_RGB_QUANT_FULL;
+
+	if (video_format == LT6911UXE_BUS_FMT_RGB) {
+		if (rgb_quant_range == AVI_RGB_QUANT_LIMIT)
+			*color_range = HDMIRX_LIMIT_RANGE;
+		else if (rgb_quant_range == AVI_RGB_QUANT_FULL)
+			*color_range = HDMIRX_FULL_RANGE;
+		else
+			*color_range = HDMIRX_DEFAULT_RANGE;
+	} else {
+		if (ycc_quant_range == AVI_YCC_QUANT_LIMIT)
+			*color_range = HDMIRX_LIMIT_RANGE;
+		else if (ycc_quant_range == AVI_YCC_QUANT_FULL)
+			*color_range = HDMIRX_FULL_RANGE;
+		else
+			*color_range = HDMIRX_DEFAULT_RANGE;
+	}
+
+	if (colorimetry == AVI_COLORIMETRY_EXTENDED) {
+		switch (ext_colorimetry) {
+		case 0:
+			*color_space = HDMIRX_XVYCC601;
+			break;
+		case 1:
+			*color_space = HDMIRX_XVYCC709;
+			break;
+		case 2:
+			*color_space = HDMIRX_SYCC601;
+			break;
+		case 3:
+			*color_space = HDMIRX_ADOBE_YCC601;
+			break;
+		case 4:
+			*color_space = HDMIRX_ADOBE_RGB;
+			break;
+		case 5:
+			*color_space = HDMIRX_BT2020_YCC_CONST_LUM;
+			break;
+		case 6:
+			*color_space = HDMIRX_BT2020_RGB_OR_YCC;
+			break;
+		default:
+			*color_space = HDMIRX_XVYCC601;
+			break;
+		}
+	} else {
+		switch (colorimetry) {
+		case 0:
+		case 1:
+			*color_space = HDMIRX_XVYCC601;
+			break;
+		case 2:
+			*color_space = HDMIRX_XVYCC709;
+			break;
+		default:
+			*color_space = HDMIRX_XVYCC601;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static enum lt6911uxe_avi_bus_fmt lt6911uxe_hdmi_bus_fmt_from_avi(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	u8 buf[2] = { 0 };
+
+	if (lt6911uxe->nosignal)
+		return LT6911UXE_BUS_FMT_YUV422;
+
+	i2c_rd(sd, LT6911UXE_AVI_INFO_REG, buf, sizeof(buf));
+
+	switch ((buf[1] & AVI_VIDEO_FORMAT_MASK) >> AVI_VIDEO_FORMAT_SHIFT) {
+	case 0:
+		return LT6911UXE_BUS_FMT_RGB;
+	case 1:
+		return LT6911UXE_BUS_FMT_YUV422;
+	case 2:
+		return LT6911UXE_BUS_FMT_YUV444;
+	case 3:
+		return LT6911UXE_BUS_FMT_YUV420;
+	default:
+		return LT6911UXE_BUS_FMT_YUV422;
+	}
+}
+
+static enum lt6911uxe_optm_cs lt6911uxe_csc_color_space_convert(u8 in_color_space,
+						  enum lt6911uxe_avi_bus_fmt format)
+{
+	switch (in_color_space) {
+	case HDMIRX_XVYCC601:
+	case HDMIRX_SYCC601:
+		return LT6911UXE_OPM_CS_XV_YCC_601;
+	case HDMIRX_XVYCC709:
+		return LT6911UXE_OPM_CS_XV_YCC_709;
+	case HDMIRX_BT2020_YCC_CONST_LUM:
+		return LT6911UXE_OPM_CS_XV_YCC_2020;
+	case HDMIRX_RGB:
+		return LT6911UXE_OPM_CS_RGB;
+	case HDMIRX_BT2020_RGB_OR_YCC:
+		if (format == LT6911UXE_BUS_FMT_RGB)
+			return LT6911UXE_OPM_CS_RGB_2020;
+		return LT6911UXE_OPM_CS_XV_YCC_2020;
+	case HDMIRX_ADOBE_YCC601:
+		return LT6911UXE_OPM_CS_YUV_ADOBE;
+	case HDMIRX_ADOBE_RGB:
+		return LT6911UXE_OPM_CS_RGB_ADOBE;
+	default:
+		return LT6911UXE_OPM_CS_UNKNOWN;
+	}
+}
+
+static enum lt6911uxe_optm_cs lt6911uxe_get_output_color_space(bool rgb_out,
+							       enum lt6911uxe_optm_cs input_cs)
+{
+	switch (input_cs) {
+	case LT6911UXE_OPM_CS_XV_YCC_601:
+	case LT6911UXE_OPM_CS_XV_YCC_709:
+	case LT6911UXE_OPM_CS_RGB:
+		return rgb_out ? LT6911UXE_OPM_CS_RGB : LT6911UXE_OPM_CS_XV_YCC_709;
+	case LT6911UXE_OPM_CS_XV_YCC_2020:
+	case LT6911UXE_OPM_CS_RGB_2020:
+		return rgb_out ? LT6911UXE_OPM_CS_RGB_2020 : LT6911UXE_OPM_CS_XV_YCC_2020;
+	case LT6911UXE_OPM_CS_RGB_ADOBE:
+	case LT6911UXE_OPM_CS_YUV_ADOBE:
+		return rgb_out ? LT6911UXE_OPM_CS_RGB_ADOBE : LT6911UXE_OPM_CS_XV_YCC_709;
+	default:
+		return LT6911UXE_OPM_CS_XV_YCC_709;
+	}
+}
+
+static void lt6911uxe_update_mbus_format(struct lt6911uxe *lt6911uxe)
+{
+	mutex_lock(&lt6911uxe->confctl_mutex);
+	lt6911uxe->is_10bit = false;
+
+	if (lt6911uxe->hdr_support && lt6911uxe->hdr_metadata_valid &&
+	    !lt6911uxe->rgb_out) {
+		u8 eotf = lt6911uxe->hdr_metadata.eotf & 0x7;
+
+		/*
+		 * Only ST2084 (PQ) is treated as 10-bit HDR.
+		 * Note: HLG (HDMI_EOTF_BT_2100_HLG, value 3) is also an HDR
+		 * format per CTA-861-G, but this driver currently only
+		 * supports ST2084 for 10-bit output. HLG support may be
+		 * added in future versions.
+		 */
+		if (eotf == HDMI_EOTF_SMPTE_ST2084)
+			lt6911uxe->is_10bit = true;
+	}
+
+	if (!lt6911uxe->is_10bit && !lt6911uxe->rgb_out) {
+		if (lt6911uxe->bus_fmt == RGB_10Bit ||
+		    lt6911uxe->bus_fmt == YUV444_10Bit ||
+		    lt6911uxe->bus_fmt == YUV422_10Bit ||
+		    lt6911uxe->bus_fmt == YUV420_10Bit)
+			lt6911uxe->is_10bit = true;
+	}
+
+	if (lt6911uxe->is_10bit)
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_YUYV10_2X10;
+	else if (lt6911uxe->bus_fmt == YUV420_8Bit)
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UV8_1X8;
+	else if (lt6911uxe->rgb_out)
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_BGR888_1X24;
+	else
+		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
+	mutex_unlock(&lt6911uxe->confctl_mutex);
+}
+
+static void lt6911uxe_notify_source_change(struct v4l2_subdev *sd)
+{
+	static const struct v4l2_event lt6911uxe_ev_fmt = {
+		.type = V4L2_EVENT_SOURCE_CHANGE,
+		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+	};
+
+	if (sd->devnode)
+		v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
+}
+
+static void lt6911uxe_handle_hdr_change(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+
+	if (!lt6911uxe->hdr_support)
+		return;
+
+	lt6911uxe_read_hdr_metadata(sd);
+	lt6911uxe_update_mbus_format(lt6911uxe);
+
+	v4l2_dbg(1, debug, sd,
+		 "%s: hdr_valid=%d, is_10bit=%d, mbus_fmt_code=0x%x\n",
+		 __func__, lt6911uxe->hdr_metadata_valid,
+		 lt6911uxe->is_10bit, lt6911uxe->mbus_fmt_code);
+
+	lt6911uxe_notify_source_change(sd);
 }
 
 static void lt6911uxe_format_change(struct v4l2_subdev *sd)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct v4l2_dv_timings timings;
-	const struct v4l2_event lt6911uxe_ev_fmt = {
-		.type = V4L2_EVENT_SOURCE_CHANGE,
-		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
-	};
 
 	if (lt6911uxe_get_detected_timings(sd, &timings)) {
+		/* Disable path cannot return error (no 10bit RGB check) */
 		enable_stream(sd, false);
 		v4l2_dbg(1, debug, sd, "%s: No signal\n", __func__);
+		mutex_lock(&lt6911uxe->confctl_mutex);
+		lt6911uxe->hdr_metadata_valid = false;
+		mutex_unlock(&lt6911uxe->confctl_mutex);
+		return;
 	}
 
+	lt6911uxe_update_mbus_format(lt6911uxe);
+
+	v4l2_dbg(1, debug, sd, "%s: is_10bit: %d, mbus_fmt_code: 0x%x\n",
+		 __func__, lt6911uxe->is_10bit, lt6911uxe->mbus_fmt_code);
+
 	if (!v4l2_match_dv_timings(&lt6911uxe->timings, &timings, 0, false)) {
+		/* Disable path cannot return error (no 10bit RGB check) */
 		enable_stream(sd, false);
 		/* automatically set timing rather than set by user */
 		lt6911uxe_s_dv_timings(sd, 0, &timings);
 		v4l2_print_dv_timings(sd->name,
 				"Format_change: New format: ",
 				&timings, false);
-		if (sd->devnode && !lt6911uxe->i2c_client->irq)
-			v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
+		if (!lt6911uxe->i2c_client->irq)
+			lt6911uxe_notify_source_change(sd);
 	}
-	if (sd->devnode && lt6911uxe->i2c_client->irq)
-		v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
+	if (lt6911uxe->i2c_client->irq)
+		lt6911uxe_notify_source_change(sd);
 }
 
 static int lt6911uxe_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
@@ -1110,8 +1672,23 @@ static void lt6911uxe_work_i2c_poll(struct work_struct *work)
 	struct lt6911uxe *lt6911uxe = container_of(work,
 			struct lt6911uxe, work_i2c_poll);
 	struct v4l2_subdev *sd = &lt6911uxe->sd;
+	u32 int_type;
 
-	lt6911uxe_format_change(sd);
+	int_type = i2c_rd8(sd, INT_TYPE);
+
+	/*
+	 * Dispatch based on interrupt type. Each poll cycle handles one
+	 * event type (if/else if chain). Note: HDR change is checked first
+	 * in the if/else chain, but this does not provide true prioritization
+	 * since only one event is handled per poll cycle.
+	 */
+	if (int_type == INT_TYPE_HDR_CHANGE)
+		lt6911uxe_handle_hdr_change(sd);
+	else if (int_type == INT_TYPE_FORMAT_CHANGE)
+		lt6911uxe_format_change(sd);
+	else if (int_type != INT_TYPE_NOSIGNAL)
+		v4l2_dbg(1, debug, sd, "%s: unknown int_type 0x%x\n",
+			 __func__, int_type);
 }
 
 static int lt6911uxe_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
@@ -1232,17 +1809,18 @@ static int lt6911uxe_s_stream(struct v4l2_subdev *sd, int on)
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct i2c_client *client = lt6911uxe->i2c_client;
 
-	dev_info(&client->dev, "%s: on: %d, %dx%d%s%d\n", __func__, on,
+	dev_dbg(&client->dev, "%s: on: %d, %dx%d%s%d, is_10bit: %d\n",
+		__func__, on,
 		lt6911uxe->timings.bt.width, lt6911uxe->timings.bt.height,
-		lt6911uxe->timings.bt.interlaced ? "I" : "P", lt6911uxe->cur_fps);
-	enable_stream(sd, on);
+		lt6911uxe->timings.bt.interlaced ? "I" : "P",
+		lt6911uxe->cur_fps, lt6911uxe->is_10bit);
 
-	return 0;
+	return enable_stream(sd, on);
 }
 
 static int lt6911uxe_enum_mbus_code(struct v4l2_subdev *sd,
-			struct v4l2_subdev_state *sd_state,
-			struct v4l2_subdev_mbus_code_enum *code)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
@@ -1259,8 +1837,8 @@ static int lt6911uxe_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_frame_size_enum *fse)
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
@@ -1279,8 +1857,8 @@ static int lt6911uxe_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_enum_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_frame_interval_enum *fie)
+					 struct v4l2_subdev_state *sd_state,
+					 struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
@@ -1297,7 +1875,7 @@ static int lt6911uxe_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_get_reso_dist(const struct lt6911uxe_mode *mode,
-				struct v4l2_dv_timings *timings)
+				   struct v4l2_dv_timings *timings)
 {
 	struct v4l2_bt_timings *bt = &timings->bt;
 	u32 cur_fps, dist_fps;
@@ -1346,6 +1924,8 @@ static int lt6911uxe_get_format_bpp(struct v4l2_subdev *sd)
 	switch (code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		return 16;
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		return 20;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return 24;
 	case MEDIA_BUS_FMT_UV8_1X8:
@@ -1398,8 +1978,8 @@ static int lt6911uxe_get_mipi_freq_idx(struct v4l2_subdev *sd)
 }
 
 static int lt6911uxe_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_state *sd_state,
-			struct v4l2_subdev_format *format)
+			     struct v4l2_subdev_state *sd_state,
+			     struct v4l2_subdev_format *format)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	int mipi_freq_idx;
@@ -1416,10 +1996,8 @@ static int lt6911uxe_get_fmt(struct v4l2_subdev *sd,
 
 	mipi_freq_idx = lt6911uxe_get_mipi_freq_idx(sd);
 
-	__v4l2_ctrl_s_ctrl_int64(lt6911uxe->pixel_rate,
-				LT6911UXE_PIXEL_RATE);
-	__v4l2_ctrl_s_ctrl(lt6911uxe->link_freq,
-				mipi_freq_idx);
+	__v4l2_ctrl_s_ctrl_int64(lt6911uxe->pixel_rate, LT6911UXE_PIXEL_RATE);
+	__v4l2_ctrl_s_ctrl(lt6911uxe->link_freq, mipi_freq_idx);
 
 	v4l2_dbg(1, debug, sd, "%s: mipi_freq_idx(%d)", __func__, mipi_freq_idx);
 
@@ -1449,6 +2027,10 @@ static int lt6911uxe_set_fmt(struct v4l2_subdev *sd,
 	switch (code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		if (lt6911uxe->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_2X8)
+			break;
+		return -EINVAL;
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		if (lt6911uxe->mbus_fmt_code == MEDIA_BUS_FMT_YUYV10_2X10)
 			break;
 		return -EINVAL;
 	case MEDIA_BUS_FMT_BGR888_1X24:
@@ -1501,9 +2083,13 @@ static void lt6911uxe_get_module_inf(struct lt6911uxe *lt6911uxe,
 static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
-	long ret = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
-	struct rkmodule_capture_info  *capture_info;
+	struct rkmodule_capture_info *capture_info;
+	struct hdr_metadata_infoframe meta;
+	int color_range, color_space;
+	enum lt6911uxe_avi_bus_fmt hdmi_bus_fmt;
+	enum lt6911uxe_optm_cs input_cs;
+	long ret = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1539,6 +2125,60 @@ static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
 		*(int *)arg = !lt6911uxe->nosignal;
 		break;
+	case RK_HDMIRX_CMD_GET_HDR_METADATA:
+		mutex_lock(&lt6911uxe->confctl_mutex);
+		if (lt6911uxe->nosignal) {
+			/* No signal - metadata not available */
+			ret = -ENODATA;
+		} else if (!lt6911uxe->hdr_metadata_valid) {
+			/* Signal present but metadata invalid */
+			ret = -EINVAL;
+		} else {
+			meta = lt6911uxe->hdr_metadata;
+			memcpy(arg, &meta, sizeof(meta));
+		}
+		mutex_unlock(&lt6911uxe->confctl_mutex);
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_RANGE:
+		ret = lt6911uxe_get_color_info(sd, &color_range, &color_space);
+		if (ret) {
+			*(int *)arg = HDMIRX_DEFAULT_RANGE;
+			ret = 0;
+		} else {
+			*(int *)arg = color_range;
+		}
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+		ret = lt6911uxe_get_color_info(sd, &color_range, &color_space);
+		if (ret) {
+			*(int *)arg = HDMIRX_XVYCC601;
+			ret = 0;
+		} else {
+			*(int *)arg = color_space;
+		}
+		break;
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_RANGE:
+		ret = lt6911uxe_get_color_info(sd, &color_range, &color_space);
+		if (ret) {
+			*(int *)arg = HDMIRX_DEFAULT_RANGE;
+			ret = 0;
+		} else {
+			*(int *)arg = color_range;
+		}
+		break;
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_SPACE:
+		ret = lt6911uxe_get_color_info(sd, &color_range, &color_space);
+		if (ret) {
+			*(int *)arg = LT6911UXE_OPM_CS_XV_YCC_709;
+			ret = 0;
+			break;
+		}
+		hdmi_bus_fmt = lt6911uxe_hdmi_bus_fmt_from_avi(sd);
+		input_cs = lt6911uxe_csc_color_space_convert(color_space,
+							      hdmi_bus_fmt);
+		*(int *)arg = lt6911uxe_get_output_color_space(lt6911uxe->rgb_out,
+							       input_cs);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1573,19 +2213,19 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 				  unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct rkmodule_inf *inf;
-	long ret;
-	int *seq;
 	struct rkmodule_csi_dphy_param *dphy_param;
-	struct rkmodule_capture_info  *capture_info;
+	struct rkmodule_capture_info *capture_info;
+	struct hdr_metadata_infoframe *hdmi_metadata;
+	int *seq, status;
+	long ret = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
-		if (!inf) {
-			ret = -ENOMEM;
-			return ret;
-		}
+		if (!inf)
+			return -ENOMEM;
 
 		ret = lt6911uxe_ioctl(sd, cmd, inf);
 		if (!ret) {
@@ -1597,10 +2237,8 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKMODULE_GET_HDMI_MODE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
-		if (!seq) {
-			ret = -ENOMEM;
-			return ret;
-		}
+		if (!seq)
+			return -ENOMEM;
 
 		ret = lt6911uxe_ioctl(sd, cmd, seq);
 		if (!ret) {
@@ -1612,10 +2250,8 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
-		if (!dphy_param) {
-			ret = -ENOMEM;
-			return ret;
-		}
+		if (!dphy_param)
+			return -ENOMEM;
 
 		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
 		if (!ret)
@@ -1626,10 +2262,8 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
-		if (!dphy_param) {
-			ret = -ENOMEM;
-			return ret;
-		}
+		if (!dphy_param)
+			return -ENOMEM;
 
 		ret = lt6911uxe_ioctl(sd, cmd, dphy_param);
 		if (!ret) {
@@ -1641,10 +2275,8 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKMODULE_GET_CAPTURE_MODE:
 		capture_info = kzalloc(sizeof(*capture_info), GFP_KERNEL);
-		if (!capture_info) {
-			ret = -ENOMEM;
-			return ret;
-		}
+		if (!capture_info)
+			return -ENOMEM;
 
 		ret = lt6911uxe_ioctl(sd, cmd, capture_info);
 		if (!ret) {
@@ -1655,6 +2287,27 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(capture_info);
 		break;
 	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
+		status = !lt6911uxe->nosignal;
+		if (copy_to_user(up, &status, sizeof(status)))
+			ret = -EFAULT;
+		break;
+	case RK_HDMIRX_CMD_GET_HDR_METADATA:
+		hdmi_metadata = kzalloc(sizeof(*hdmi_metadata), GFP_KERNEL);
+		if (!hdmi_metadata)
+			return -ENOMEM;
+
+		ret = lt6911uxe_ioctl(sd, cmd, hdmi_metadata);
+		if (!ret) {
+			ret = copy_to_user(up, hdmi_metadata, sizeof(*hdmi_metadata));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(hdmi_metadata);
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_RANGE:
+	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_RANGE:
+	case RK_HDMIRX_CMD_GET_OUTPUT_COLOR_SPACE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
 			ret = -ENOMEM;
@@ -1869,6 +2522,9 @@ static int lt6911uxe_probe_of(struct lt6911uxe *lt6911uxe)
 	if (of_property_read_bool(dev->of_node, "output-rgb"))
 		lt6911uxe->rgb_out = true;
 
+	if (of_property_read_bool(dev->of_node, "hdr-support"))
+		lt6911uxe->hdr_support = true;
+
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
@@ -2006,6 +2662,10 @@ static int lt6911uxe_probe(struct i2c_client *client)
 		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_BGR888_1X24;
 	else
 		lt6911uxe->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
+	lt6911uxe->hdr_metadata_valid = false;
+	memset(&lt6911uxe->hdr_metadata, 0, sizeof(lt6911uxe->hdr_metadata));
+	lt6911uxe->is_10bit = false;
+	/* hdr_support is set from device tree in probe_of */
 
 	err = lt6911uxe_get_multi_dev_info(lt6911uxe);
 	if (err)
