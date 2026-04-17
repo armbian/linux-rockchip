@@ -76,6 +76,7 @@ struct multicodecs_data {
 	struct mclk_rate_entry *mclk_rate_map;
 	int mclk_rate_map_count;
 	bool codec_hp_det;
+	bool headset_unplugging;
 	u32 num_keys;
 	u32 last_key;
 	u32 keyup_voltage;
@@ -159,6 +160,10 @@ static void mc_keys_poll(struct input_dev *input)
 	u32 diff, closest = 0xffffffff;
 	int keycode = 0;
 
+	/* Suppress spurious key events during headset unplug */
+	if (mc_data->headset_unplugging)
+		return;
+
 	ret = iio_read_channel_processed(mc_data->adc, &value);
 	if (unlikely(ret < 0)) {
 		/* Forcibly release key if any was pressed */
@@ -233,6 +238,9 @@ static void adc_jack_handler(struct work_struct *work)
 	struct snd_soc_jack *jack_headset = mc_data->jack_headset;
 	int adc, ret = 0;
 
+	/* Reset unplugging flag before processing jack state */
+	mc_data->headset_unplugging = false;
+
 	if (!gpiod_get_value(mc_data->hp_det_gpio)) {
 		snd_soc_jack_report(jack_headset, 0, SND_JACK_HEADSET);
 		extcon_set_state_sync(mc_data->extcon,
@@ -281,6 +289,10 @@ static void adc_jack_handler(struct work_struct *work)
 static irqreturn_t headset_det_irq_thread(int irq, void *data)
 {
 	struct multicodecs_data *mc_data = (struct multicodecs_data *)data;
+
+	/* Immediately mark unplugging to suppress spurious key events */
+	if (!gpiod_get_value(mc_data->hp_det_gpio))
+		mc_data->headset_unplugging = true;
 
 	queue_delayed_work(system_power_efficient_wq, &mc_data->handler, msecs_to_jiffies(200));
 
