@@ -109,7 +109,7 @@ static void rga_mpi_scale_protect(struct rga_req *msg)
 	sw = msg->src.act_w;
 	sh = msg->src.act_h;
 
-	if ((rotate_mode == 1) | (rotate_mode == 3)) {
+	if ((rotate_mode == 1) || (rotate_mode == 3)) {
 		dw = msg->dst.act_h;
 		dh = msg->dst.act_w;
 	} else {
