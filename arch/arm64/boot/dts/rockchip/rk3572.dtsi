@@ -1120,6 +1120,10 @@
 		nvmem-cells = <&logic_leakage>;
 		nvmem-cell-names = "leakage";
 
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <775000>;
+
 		rockchip,leakage-voltage-sel = <
 			1	12	0
 			13	16	1
