@@ -12152,6 +12152,9 @@ static bool rkcif_is_triggered_monitoring(struct rkcif_device *dev)
 		ret = timer->is_csi2_err_occurred;
 	}
 
+	if (READ_ONCE(dev->is_toisp_reset))
+		ret = true;
+
 	return ret;
 }
 
@@ -16624,8 +16627,20 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			}
 			cif_dev->irq_stats.csi_size_err_cnt++;
 			cif_dev->err_state |= RKCIF_ERR_SIZE;
-			if (cif_dev->sditf[0] && cif_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
+			if (cif_dev->sditf[0] &&
+			    cif_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
+				/*
+				 * Defer immediate MIPI reset; reuse is_toisp_reset
+				 * (RKISP_VICAP_CMD_SET_RESET). Monitor picks it up in
+				 * rkcif_detect_reset_event() as RKCIF_RESET_SRC_ERR_ISP;
+				 * cleared in rkcif_init_reset_work() and on stream on.
+				 */
+				WRITE_ONCE(cif_dev->is_toisp_reset, true);
+				v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+					 "csi size err: request toisp reset via monitor\n");
 				return;
+			}
+
 			if (cif_dev->channels[0].capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
 				tmp_csi_host_idx = cif_dev->csi_host_idx;
 				for (i = 0; i < channel->capture_info.multi_dev.dev_num; i++) {
