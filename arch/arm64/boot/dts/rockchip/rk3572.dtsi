@@ -2514,6 +2514,7 @@
 			clock-names = "aclk", "iface";
 			#iommu-cells = <0>;
 			power-domains = <&power RK3572_PD_NPU>;
+			rockchip,shootdown-entire;
 			status = "disabled";
 		};
 
