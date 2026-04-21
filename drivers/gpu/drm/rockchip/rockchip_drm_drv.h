@@ -261,6 +261,12 @@ struct rockchip_drm_sub_dev {
 	int (*loader_protect)(struct rockchip_drm_sub_dev *sub_dev, bool on);
 	void (*update_vfp_for_vrr)(struct drm_connector *connector, struct drm_display_mode *mode,
 				   int vfp);
+	/*
+	 * Using for gaming vrr that timing switching HDMI_GAMING_VRR.
+	 * Notify the HDMI controller to enable gaming vrr.
+	 */
+	void (*vrr_enable)(struct rockchip_drm_sub_dev *sub_dev,
+			   struct drm_crtc_state *crtc_state);
 };
 
 struct rockchip_sdr2hdr_state {
@@ -886,6 +892,7 @@ struct rockchip_drm_mode_color_caps {
 	u64 color_caps;
 };
 
+void rockchip_connector_vrr_enable(struct drm_crtc *crtc, struct drm_crtc_state *new_crtc_state);
 void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_display_mode *mode,
 					   int vfp);
 int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,

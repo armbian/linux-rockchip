@@ -1843,6 +1843,30 @@ static int dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_drm_sub_dev *
 	return 0;
 }
 
+static void dw_hdmi_rockchip_vrr_enable(struct rockchip_drm_sub_dev *sub_dev,
+					struct drm_crtc_state *crtc_state)
+{
+	struct rockchip_dw_hdmi_qp *hdmi =
+		container_of(sub_dev, struct rockchip_dw_hdmi_qp, sub_dev);
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+
+	if (crtc_state->vrr_enabled && hdmi->next_tfr_val) {
+		DRM_WARN("qms-vrr is enabled, can't set gaming vrr\n");
+		return;
+	}
+
+	dw_hdmi_qp_set_gaming_vrr_enable(hdmi->hdmi_qp, crtc_state->vrr_enabled);
+
+	if (crtc_state->vrr_enabled) {
+		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
+		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
+	} else {
+		s->max_refresh_rate = 0;
+		s->min_refresh_rate = 0;
+	}
+}
+
 static void rk3572_set_link_mode(struct rockchip_dw_hdmi_qp *hdmi)
 {
 	int val;
@@ -2687,6 +2711,10 @@ secondary:
 		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
 		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
 		s->hdmi_vrr.refresh_rate_ready_to_change = true;
+	} else if (crtc_state->vrr_enabled) {
+		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
+		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
 	}
 
 	s->hdmi_vrr.fva_factor_m1_val = hdmi->fva_factor_m1_val;
@@ -3018,6 +3046,8 @@ dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
 	ret = drm_property_replace_global_blob(connector->dev, &hdmi->hdmi_vrr_cap_ptr,
 					       size, &hdmi->vrr_cap,
 					       &connector->base, property);
+
+	drm_connector_set_vrr_capable_property(connector, !!hdmi->vrr_cap.gaming_vrr_rate_max);
 
 	return ret;
 }
@@ -3925,6 +3955,8 @@ static void dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, 
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 	drm_object_attach_property(&connector->base, private->mode_info_prop, 0);
+
+	drm_connector_attach_vrr_capable_property(connector);
 }
 
 static void dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector, void *data)
@@ -5013,6 +5045,7 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 	} else if (plat_data->connector) {
 		hdmi->sub_dev.connector = plat_data->connector;
 		hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
+		hdmi->sub_dev.vrr_enable = dw_hdmi_rockchip_vrr_enable;
 		if (secondary && (device_property_read_bool(secondary->dev, "split-mode") ||
 				  device_property_read_bool(secondary->dev, "rockchip,split-mode")))
 			hdmi->sub_dev.of_node = secondary->dev->of_node;

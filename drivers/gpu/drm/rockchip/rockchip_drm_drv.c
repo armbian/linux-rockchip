@@ -882,6 +882,22 @@ void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_dis
 }
 EXPORT_SYMBOL(rockchip_connector_update_vfp_for_vrr);
 
+/* Used for HDMI_GAMING_VRR mode, notify the HDMI controller to enable gaming-VRR */
+void rockchip_connector_vrr_enable(struct drm_crtc *crtc, struct drm_crtc_state *new_crtc_state)
+{
+	struct rockchip_drm_sub_dev *sub_dev;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->connector && sub_dev->connector->state->crtc == crtc) {
+			if (sub_dev->vrr_enable)
+				sub_dev->vrr_enable(sub_dev, new_crtc_state);
+		}
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+EXPORT_SYMBOL(rockchip_connector_vrr_enable);
+
 static void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 {
 	mutex_lock(&rockchip_drm_sub_dev_lock);
