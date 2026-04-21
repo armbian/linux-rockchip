@@ -202,7 +202,7 @@ struct rknpu3_device {
 
 	/* Power management */
 	struct mutex power_lock;
-	atomic_t power_refcount;
+	int power_refcount;
 	struct delayed_work power_off_work;
 	struct workqueue_struct *power_off_wq;
 	unsigned long power_put_delay;

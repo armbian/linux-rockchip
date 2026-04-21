@@ -76,6 +76,7 @@ static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core
 				uint32_t disable_nn_dcache)
 {
 	void __iomem *base_addr;
+	struct iommu_domain *domain;
 	int ret;
 
 	if (!rknpu3_dev)
@@ -90,6 +91,10 @@ static int rknpu3_hw_submit_task(struct rknpu3_device *rknpu3_dev, uint32_t core
 	ret = rknpu3_hw_core_reset(rknpu3_dev, core_id, false);
 	if (ret)
 		return ret;
+
+	domain = iommu_get_domain_for_dev(rknpu3_dev->dev);
+	if (domain)
+		iommu_flush_iotlb_all(domain);
 
 	if (enable_cycle_count)
 		rknpu3_reg_write(base_addr, RKNPU3_CYCLE_COUNT_START_OFFSET,

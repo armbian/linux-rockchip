@@ -141,26 +141,32 @@ static void rknpu3_power_off_delay_work(struct work_struct *power_off_work)
 			     struct rknpu3_device, power_off_work);
 
 	mutex_lock(&rknpu3_dev->power_lock);
-	if (atomic_dec_if_positive(&rknpu3_dev->power_refcount) == 0) {
-		ret = rknpu3_power_off(rknpu3_dev);
-		if (ret)
-			atomic_inc(&rknpu3_dev->power_refcount);
+	/* refcount==1 means idle; decrement to 0 and power off */
+	if (rknpu3_dev->power_refcount > 0) {
+		if (--rknpu3_dev->power_refcount == 0) {
+			ret = rknpu3_power_off(rknpu3_dev);
+			if (ret)
+				rknpu3_dev->power_refcount++;
+		}
 	}
 	mutex_unlock(&rknpu3_dev->power_lock);
 
 	if (ret)
-		rknpu3_power_put_delay(rknpu3_dev);
+		mod_delayed_work(rknpu3_dev->power_off_wq,
+				 &rknpu3_dev->power_off_work,
+				 msecs_to_jiffies(rknpu3_dev->power_put_delay));
 }
 
 int rknpu3_power_get(struct rknpu3_device *rknpu3_dev)
 {
 	int ret = 0;
 
-	cancel_delayed_work_sync(&rknpu3_dev->power_off_work);
-
 	mutex_lock(&rknpu3_dev->power_lock);
-	if (atomic_inc_return(&rknpu3_dev->power_refcount) == 1)
+	if (++rknpu3_dev->power_refcount == 1) {
 		ret = rknpu3_power_on(rknpu3_dev);
+		if (ret)
+			rknpu3_dev->power_refcount--;
+	}
 	mutex_unlock(&rknpu3_dev->power_lock);
 
 	return ret;
@@ -171,15 +177,14 @@ int rknpu3_power_put(struct rknpu3_device *rknpu3_dev)
 	int ret = 0;
 
 	mutex_lock(&rknpu3_dev->power_lock);
-	if (atomic_dec_if_positive(&rknpu3_dev->power_refcount) == 0) {
-		ret = rknpu3_power_off(rknpu3_dev);
-		if (ret)
-			atomic_inc(&rknpu3_dev->power_refcount);
+	if (rknpu3_dev->power_refcount > 0) {
+		if (--rknpu3_dev->power_refcount == 0) {
+			ret = rknpu3_power_off(rknpu3_dev);
+			if (ret)
+				rknpu3_dev->power_refcount++;
+		}
 	}
 	mutex_unlock(&rknpu3_dev->power_lock);
-
-	if (ret)
-		rknpu3_power_put_delay(rknpu3_dev);
 
 	return ret;
 }
@@ -190,12 +195,14 @@ int rknpu3_power_put_delay(struct rknpu3_device *rknpu3_dev)
 		return rknpu3_power_put(rknpu3_dev);
 
 	mutex_lock(&rknpu3_dev->power_lock);
-	if (atomic_read(&rknpu3_dev->power_refcount) == 1)
-		mod_delayed_work(
-			rknpu3_dev->power_off_wq, &rknpu3_dev->power_off_work,
-			msecs_to_jiffies(rknpu3_dev->power_put_delay));
-	else
-		atomic_dec_if_positive(&rknpu3_dev->power_refcount);
+	/* More than one ioctl in flight: decrement toward idle */
+	if (rknpu3_dev->power_refcount > 1)
+		rknpu3_dev->power_refcount--;
+	/* Back to idle: reset the power_put_delay deadline from now */
+	if (rknpu3_dev->power_refcount == 1)
+		mod_delayed_work(rknpu3_dev->power_off_wq,
+				 &rknpu3_dev->power_off_work,
+				 msecs_to_jiffies(rknpu3_dev->power_put_delay));
 	mutex_unlock(&rknpu3_dev->power_lock);
 
 	return 0;
@@ -252,16 +259,6 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 		goto err_devfreq_unlock;
 	}
 
-	/* Enable IOMMU runtime PM if present */
-	if (rknpu3_dev->iommu_dev) {
-		ret = pm_runtime_get_sync(rknpu3_dev->iommu_dev);
-		if (ret < 0) {
-			LOG_DEV_WARN(dev, "failed to power on IOMMU: %d\n", ret);
-			pm_runtime_put_noidle(rknpu3_dev->iommu_dev);
-			/* Continue without IOMMU - not fatal */
-		}
-	}
-
 #ifndef FPGA_PLATFORM
 	rknpu3_devfreq_unlock(rknpu3_dev);
 #endif
@@ -290,8 +287,6 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 	int ret = 0;
 
 #ifndef FPGA_PLATFORM
-	bool val;
-
 	LOG_DEV_DEBUG(dev, "rknpu3_power_off\n");
 
 	/* Lock devfreq during power state changes */
@@ -301,29 +296,8 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 	/* Release runtime PM */
 	pm_runtime_put_sync(dev);
 
-	/*
-	 * Because IOMMU's runtime suspend callback is asynchronous,
-	 * So it may be executed after the NPU is turned off after PD/CLK/VD,
-	 * and the runtime suspend callback has a register access.
-	 * If the PD/VD/CLK is closed, the register access will crash.
-	 * As a workaround, it's safe to close pd stuff until iommu disabled.
-	 */
 #ifndef FPGA_PLATFORM
-	if (rknpu3_dev->iommu_en && rknpu3_dev->iommu_dev) {
-		pm_runtime_put_sync(rknpu3_dev->iommu_dev);
-		ret = readx_poll_timeout(rockchip_iommu_is_enabled, rknpu3_dev->iommu_dev, val,
-					 !val, NPU_MMU_DISABLED_POLL_PERIOD_US,
-					 NPU_MMU_DISABLED_POLL_TIMEOUT_US);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "iommu still enabled, power on again\n");
-			pm_runtime_get_sync(dev);
-			goto out_devfreq_unlock;
-		}
-	}
-out_devfreq_unlock:
 	rknpu3_devfreq_unlock(rknpu3_dev);
-	if (ret)
-		return ret;
 #endif
 
 	/* Disable clocks */
@@ -683,8 +657,6 @@ static int rknpu3_probe(struct platform_device *pdev)
 
 	/* Enable runtime PM for device and IOMMU */
 	pm_runtime_enable(dev);
-	if (rknpu3_dev->iommu_dev)
-		pm_runtime_enable(rknpu3_dev->iommu_dev);
 
 	/* Initialize power management workqueue (must be before power_on) */
 	rknpu3_dev->power_put_delay = 30000;  /* Default 30 second delay */
@@ -816,12 +788,8 @@ static int rknpu3_probe(struct platform_device *pdev)
 			     ret);
 #endif
 
-	/*
-	 * Set power refcount to 1 (currently powered on from probe),
-	 * then use delayed power off to safely turn off power after probe.
-	 */
-	atomic_set(&rknpu3_dev->power_refcount, 1);
-	rknpu3_power_put_delay(rknpu3_dev);
+	/* Power off after probe; first ioctl will power back on via power_get */
+	rknpu3_power_off(rknpu3_dev);
 
 	LOG_DEV_INFO(dev, "%s Driver v%s (%s) loaded successfully\n",
 		     DRIVER_NAME,
@@ -852,7 +820,6 @@ err_destroy_wq:
 	destroy_workqueue(rknpu3_dev->power_off_wq);
 err_pm_disable:
 	if (rknpu3_dev->iommu_dev) {
-		pm_runtime_disable(rknpu3_dev->iommu_dev);
 		put_device(rknpu3_dev->iommu_dev);
 		rknpu3_dev->iommu_dev = NULL;
 	}
@@ -905,8 +872,8 @@ static void rknpu3_remove(struct platform_device *pdev)
 
 	/* Power off if still powered on */
 	mutex_lock(&rknpu3_dev->power_lock);
-	if (atomic_read(&rknpu3_dev->power_refcount) > 0) {
-		atomic_set(&rknpu3_dev->power_refcount, 0);
+	if (rknpu3_dev->power_refcount > 0) {
+		rknpu3_dev->power_refcount = 0;
 		mutex_unlock(&rknpu3_dev->power_lock);
 		rknpu3_power_off(rknpu3_dev);
 	} else {
@@ -915,7 +882,6 @@ static void rknpu3_remove(struct platform_device *pdev)
 
 	/* Clean up IOMMU device */
 	if (rknpu3_dev->iommu_dev) {
-		pm_runtime_disable(rknpu3_dev->iommu_dev);
 		put_device(rknpu3_dev->iommu_dev);
 		rknpu3_dev->iommu_dev = NULL;
 	}
