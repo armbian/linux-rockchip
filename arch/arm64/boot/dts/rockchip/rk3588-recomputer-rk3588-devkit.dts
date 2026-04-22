@@ -205,7 +205,7 @@
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		pwms = <&pwm2 0 50000 0>;
-		cooling-levels = <0 50 100 150 200 255>;
+		cooling-levels = <25 45 60 75 100 130 170 210 255>;
 		// cooling-levels = <0 255>;
 
         interrupt-parent = <&gpio3>;
@@ -219,12 +219,15 @@
 		// >;
 
 		rockchip,temp-trips = <
-			40000   1
-			45000   2
-			50000   3
-			55000   4
-			60000   5
-		>;
+			38000	1
+			44000	2
+			50000	3
+			56000	4
+			62000	5
+			68000	6
+			74000	7
+			80000	8
+        >;
  
 		status = "okay";
 	};
@@ -378,7 +381,7 @@
 
 
 &sdio {
-	max-frequency = <150000000>;
+	max-frequency = <100000000>;
 	supports-sdio;
 	bus-width = <4>;
 	disable-wp;

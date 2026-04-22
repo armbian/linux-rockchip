@@ -42,7 +42,7 @@
 		status = "okay";
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		cooling-levels = <0 50 100 150 200 255>;
+		cooling-levels = <25 45 60 75 100 130 170 210 255>;
 		fan-supply = <&vcc_sys>;
 		pwms = <&pwm0_2ch_0 0 60000 0>;
 
@@ -53,10 +53,14 @@
 		pinctrl-0 = <&fan_tach>;
 
 		rockchip,temp-trips = <
-            20000    1
-            25000    2
-            30000    3
-            35000    5
+			38000	1
+			44000	2
+			50000	3
+			56000	4
+			62000	5
+			68000	6
+			74000	7
+			80000	8
         >;
 	};
 
@@ -758,7 +762,7 @@
 		interrupt-controller;
 		gpio-line-names =
 		"MIPI_DPHY_CSI0_IO1"	,"USB_USB30_PWREN_H",
-		"USB_HOST_PWREN_H"	,"PCIe_SX1261_RST_3V3",
+		"USB_HOST_PWREN_H"	,"BRD_ID_WP",
 		"LTE_RESET"	,"P05",
 		"P06"	,"LoRaWan_sx1262_CS",
 		"USER_LED_R"	,"USER_LED_B",
