@@ -18170,14 +18170,16 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	vp->output_dclk_prop = prop;
 	drm_object_attach_property(&crtc->base, vp->output_dclk_prop, 0);
 
-	prop = drm_property_create_range(vop2->drm_dev, 0, "LUMA_AVG",
-					 0, 255);
-	if (!prop) {
-		DRM_DEV_ERROR(vop2->dev, "create LUMA_AVG prop for vp%d failed\n", vp->id);
-		return -ENOMEM;
+	if (vop2->data->ctrl->yavg_en.mask) {
+		prop = drm_property_create_range(vop2->drm_dev, 0, "LUMA_AVG",
+						 0, 255);
+		if (!prop) {
+			DRM_DEV_ERROR(vop2->dev, "create LUMA_AVG prop for vp%d failed\n", vp->id);
+			return -ENOMEM;
+		}
+		vp->luma_avg_prop = prop;
+		drm_object_attach_property(&crtc->base, vp->luma_avg_prop, 0);
 	}
-	vp->luma_avg_prop = prop;
-	drm_object_attach_property(&crtc->base, vp->luma_avg_prop, 0);
 
 	return 0;
 }
