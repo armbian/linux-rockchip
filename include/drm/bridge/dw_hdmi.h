@@ -322,6 +322,8 @@ struct dw_hdmi_plat_data {
 	int (*get_hdrvivid_vsdb)(void *data, const struct edid *edid,
 				  struct drm_connector *connector, int ext_block_num);
 	void (*wait_vblank)(void *data);
+	void (*get_ycc_quant_range_selectable)(void *data, const struct edid *edid,
+					       int ext_block_num);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
@@ -411,7 +413,6 @@ void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
 			      struct device *codec_dev);
-void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi, struct drm_connector *conn);
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val);
 bool dw_hdmi_qp_get_output_whether_hdmi(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_get_output_type_cap(struct dw_hdmi_qp *hdmi);
