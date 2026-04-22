@@ -396,10 +396,12 @@
 		regulators {
 			vdd_npu_s0: DCDC_REG1 {
 				regulator-name = "vdd_npu_s0";
+				regulator-boot-on;
+				regulator-init-microvolt = <750000>;
 				regulator-min-microvolt = <712500>;
 				regulator-max-microvolt = <1450000>;
-				regulator-always-on;
-				regulator-boot-on;
+				regulator-ramp-delay = <12500>;
+				regulator-enable-ramp-delay = <400>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -407,10 +409,12 @@
 
 			vdd_gpu_s0: DCDC_REG2 {
 				regulator-name = "vdd_gpu_s0";
+				regulator-boot-on;
+				regulator-init-microvolt = <750000>;
 				regulator-min-microvolt = <712500>;
 				regulator-max-microvolt = <1050000>;
-				regulator-always-on;
-				regulator-boot-on;
+				regulator-ramp-delay = <12500>;
+				regulator-enable-ramp-delay = <400>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
