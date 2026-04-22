@@ -9556,7 +9556,18 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 		}
 		drm_crtc_vblank_on(crtc);
 		if (is_vop3(vop2)) {
-			if (vp_data->feature & (VOP_FEATURE_POST_ACM))
+			/*
+			 * According to IC design, ACM and MCU display interfaces are
+			 * mutually exclusive. When the MCU display interface is enabled,
+			 * the ACM configuration must not be initialized during the loader
+			 * protect.
+			 *
+			 * Otherwise, once ACM is enabled, the output of the MCU sync and
+			 * data pins will be stuck high, which will cause the MCU panel
+			 * to fail to initialize and display properly.
+			 */
+			if ((vp_data->feature & VOP_FEATURE_POST_ACM) &&
+			    !vp->mcu_timing.mcu_pix_total)
 				vop2_crtc_get_inital_acm_info(crtc);
 			if (data && (vp_data->feature & VOP_FEATURE_POST_CSC))
 				memcpy(&vp->csc_info, data, sizeof(struct post_csc));
@@ -11069,7 +11080,7 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	 * The platform support BCSH:
 	 *   overlay-> CSC_R2Y -> BCSH -> CSC_Y2R -> post sclae
 	 */
-	if ((vp_data->feature & VOP_FEATURE_POST_ACM)) {
+	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && !vp->mcu_timing.mcu_pix_total) {
 		if (vop2->version <= VOP_VERSION_RK3576) {
 			VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y, vcstate->yuv_overlay);
 		} else {
@@ -12620,7 +12631,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	 * When enable ACM[bypass = 0] will lead to timing error,
 	 * so enable ACM by default.
 	 */
-	if (vp_data->feature & VOP_FEATURE_POST_ACM) {
+	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && !vp->mcu_timing.mcu_pix_total) {
 		writel(0, vop2->acm_res.regs + RK3528_ACM_CTRL);
 		VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
 	}
@@ -16249,7 +16260,8 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 		}
 	}
 
-	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && vp->acm_state_changed)
+	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && vp->acm_state_changed &&
+	    !vp->mcu_timing.mcu_pix_total)
 		vop3_post_acm_config(crtc, &vp->acm_info);
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
@@ -18601,7 +18613,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 
 		if (vp_data->feature & (VOP_FEATURE_VIVID_HDR | VOP_FEATURE_DOVI))
 			vop2_crtc_create_hdr_property(vop2, crtc);
-		if (vp_data->feature & VOP_FEATURE_POST_ACM)
+		if ((vp_data->feature & VOP_FEATURE_POST_ACM) && !vp->mcu_timing.mcu_pix_total)
 			vop2_crtc_create_post_acm_property(vop2, crtc);
 		if (vp_data->feature & VOP_FEATURE_POST_CSC)
 			vop2_crtc_create_post_csc_property(vop2, crtc);
