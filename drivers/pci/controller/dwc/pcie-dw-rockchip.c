@@ -38,6 +38,11 @@
 #include "../../hotplug/gpiophp.h"
 #include "../../../regulator/internal.h"
 
+#if IS_ENABLED(CONFIG_NO_GKI)
+#include <linux/workqueue.h>
+#include <trace/events/pci_controller.h>
+#endif
+
 #define RK_PCIE_DBG			0
 
 #define PCIE_DMA_OFFSET			0x380000
@@ -108,7 +113,13 @@
 #define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1 0x32c
 #define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
 #define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
-#define PCIE_CLIENT_DBF_EN		0xffff0007
+#define PCIE_CLIENT_DBG_EN		0xffff0007
+#define PCIE_CLIENT_DBG_DIS		0xffff0000
+#define PCIE_DBG_FIFO_RATE_MASK		GENMASK(22, 20)
+#define PCIE_DBG_FIFO_L1SUB_MASK	GENMASK(10, 8)
+#define PCIE_DBG_LTSSM_HISTORY_CNT	64
+#define PCIE_LTSSM_STATUS_MASK		GENMASK(5, 0)
+
 #define PCIE_CLIENT_INTR_STATUS_PTM	0x480
 #define PCIE_CLIENT_INTR_MASK_PTM	0x484
 #define PCIE_CLIENT_INTR_EN_PTM		0x488
@@ -172,6 +183,7 @@ struct rk_pcie {
 	u8				slot_power_limit_scale;
 	u32				rasdes_off;
 	u32				linkcap_off;
+	struct delayed_work		trace_work;
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
@@ -239,6 +251,185 @@ static inline void rk_pcie_link_status_clear(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG, 0x0);
 }
 
+#if IS_ENABLED(CONFIG_TRACING) && IS_ENABLED(CONFIG_NO_GKI)
+enum rk_pcie_ltssm {
+	/* Need to align with PCIE_PORT_DEBUG0 bits 0:5 */
+	RK_PCIE_LTSSM_DETECT_QUIET = 0x0,
+	RK_PCIE_LTSSM_DETECT_ACT = 0x1,
+	RK_PCIE_LTSSM_POLL_ACTIVE = 0x2,
+	RK_PCIE_LTSSM_POLL_COMPLIANCE = 0x3,
+	RK_PCIE_LTSSM_POLL_CONFIG = 0x4,
+	RK_PCIE_LTSSM_PRE_DETECT_QUIET = 0x5,
+	RK_PCIE_LTSSM_DETECT_WAIT = 0x6,
+	RK_PCIE_LTSSM_CFG_LINKWD_START = 0x7,
+	RK_PCIE_LTSSM_CFG_LINKWD_ACEPT = 0x8,
+	RK_PCIE_LTSSM_CFG_LANENUM_WAI = 0x9,
+	RK_PCIE_LTSSM_CFG_LANENUM_ACEPT = 0xa,
+	RK_PCIE_LTSSM_CFG_COMPLETE = 0xb,
+	RK_PCIE_LTSSM_CFG_IDLE = 0xc,
+	RK_PCIE_LTSSM_RCVRY_LOCK = 0xd,
+	RK_PCIE_LTSSM_RCVRY_SPEED = 0xe,
+	RK_PCIE_LTSSM_RCVRY_RCVRCFG = 0xf,
+	RK_PCIE_LTSSM_RCVRY_IDLE = 0x10,
+	RK_PCIE_LTSSM_L0 = 0x11,
+	RK_PCIE_LTSSM_L0S = 0x12,
+	RK_PCIE_LTSSM_L123_SEND_EIDLE = 0x13,
+	RK_PCIE_LTSSM_L1_IDLE = 0x14,
+	RK_PCIE_LTSSM_L2_IDLE = 0x15,
+	RK_PCIE_LTSSM_L2_WAKE = 0x16,
+	RK_PCIE_LTSSM_DISABLED_ENTRY = 0x17,
+	RK_PCIE_LTSSM_DISABLED_IDLE = 0x18,
+	RK_PCIE_LTSSM_DISABLED = 0x19,
+	RK_PCIE_LTSSM_LPBK_ENTRY = 0x1a,
+	RK_PCIE_LTSSM_LPBK_ACTIVE = 0x1b,
+	RK_PCIE_LTSSM_LPBK_EXIT = 0x1c,
+	RK_PCIE_LTSSM_LPBK_EXIT_TIMEOUT = 0x1d,
+	RK_PCIE_LTSSM_HOT_RESET_ENTRY = 0x1e,
+	RK_PCIE_LTSSM_HOT_RESET = 0x1f,
+	RK_PCIE_LTSSM_RCVRY_EQ0 = 0x20,
+	RK_PCIE_LTSSM_RCVRY_EQ1 = 0x21,
+	RK_PCIE_LTSSM_RCVRY_EQ2 = 0x22,
+	RK_PCIE_LTSSM_RCVRY_EQ3 = 0x23,
+
+	/* Vendor glue drivers provide pseudo L1 substates from get_ltssm() */
+	RK_PCIE_LTSSM_L1_1 = 0x141,
+	RK_PCIE_LTSSM_L1_2 = 0x142,
+
+	RK_PCIE_LTSSM_UNKNOWN = 0xFFFFFFFF,
+};
+
+static const char *rk_pcie_ltssm_status_string(enum rk_pcie_ltssm ltssm)
+{
+	const char *str;
+
+	switch (ltssm) {
+#define RK_PCIE_LTSSM_NAME(n) case n: str = #n; break
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DETECT_QUIET);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DETECT_ACT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_POLL_ACTIVE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_POLL_COMPLIANCE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_POLL_CONFIG);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_PRE_DETECT_QUIET);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DETECT_WAIT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_LINKWD_START);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_LINKWD_ACEPT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_LANENUM_WAI);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_LANENUM_ACEPT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_COMPLETE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_CFG_IDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_LOCK);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_SPEED);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_RCVRCFG);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_IDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L0);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L0S);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L123_SEND_EIDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L1_IDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L2_IDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L2_WAKE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DISABLED_ENTRY);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DISABLED_IDLE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_DISABLED);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_LPBK_ENTRY);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_LPBK_ACTIVE);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_LPBK_EXIT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_LPBK_EXIT_TIMEOUT);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_HOT_RESET_ENTRY);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_HOT_RESET);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_EQ0);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_EQ1);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_EQ2);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_RCVRY_EQ3);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L1_1);
+	RK_PCIE_LTSSM_NAME(RK_PCIE_LTSSM_L1_2);
+	default:
+		str = "RK_PCIE_LTSSM_UNKNOWN";
+		break;
+	}
+
+	return str + strlen("RK_PCIE_LTSSM_");
+}
+
+static void rockchip_pcie_ltssm_trace_work(struct work_struct *work)
+{
+	struct rk_pcie *rockchip = container_of(work, struct rk_pcie, trace_work.work);
+	struct dw_pcie *pci = rockchip->pci;
+	enum rk_pcie_ltssm state;
+	u32 i, l1ss, prev_val = RK_PCIE_LTSSM_UNKNOWN, rate, val;
+
+	if (!trace_pcie_ltssm_state_transition_enabled())
+		goto skip_trace;
+
+	for (i = 0; i < PCIE_DBG_LTSSM_HISTORY_CNT; i++) {
+		val = rk_pcie_readl_apb(rockchip, PCIE_CLIENT_DBG_FIFO_STATUS);
+		rate = FIELD_GET(PCIE_DBG_FIFO_RATE_MASK, val);
+		l1ss = FIELD_GET(PCIE_DBG_FIFO_L1SUB_MASK, val);
+		val = FIELD_GET(PCIE_LTSSM_STATUS_MASK, val);
+
+		/*
+		 * Hardware Mechanism: The ring FIFO employs two tracking
+		 * counters:
+		 * - 'last-read-point': maintains the user's last read position
+		 * - 'last-valid-point': tracks the HW's last state update
+		 *
+		 * Software Handling: When two consecutive LTSSM states are
+		 * identical, it indicates invalid subsequent data in the FIFO.
+		 * In this case, we skip the remaining entries. The dual counter
+		 * design ensures that on the next state transition, reading can
+		 * resume from the last user position.
+		 */
+		if ((i > 0 && val == prev_val) || val > RK_PCIE_LTSSM_RCVRY_EQ3)
+			break;
+
+		state = prev_val = val;
+		if (val == RK_PCIE_LTSSM_L1_IDLE) {
+			if (l1ss == 2)
+				state = RK_PCIE_LTSSM_L1_2;
+			else if (l1ss == 1)
+				state = RK_PCIE_LTSSM_L1_1;
+		}
+
+		trace_pcie_ltssm_state_transition(dev_name(pci->dev),
+				rk_pcie_ltssm_status_string(state),
+				((rate + 1) > pci->max_link_speed) ?
+				PCI_SPEED_UNKNOWN : PCIE_SPEED_2_5GT + rate);
+	}
+
+skip_trace:
+	schedule_delayed_work(&rockchip->trace_work, msecs_to_jiffies(5000));
+}
+
+static void rockchip_pcie_ltssm_trace(struct rk_pcie *rockchip,
+				      bool enable)
+{
+	if (enable) {
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0,
+				   PCIE_CLIENT_DBG_TRANSITION_DATA);
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1,
+				   PCIE_CLIENT_DBG_TRANSITION_DATA);
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0,
+				   PCIE_CLIENT_DBG_TRANSITION_DATA);
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1,
+				   PCIE_CLIENT_DBG_TRANSITION_DATA);
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_MODE_CON,
+				   PCIE_CLIENT_DBG_EN);
+
+		INIT_DELAYED_WORK(&rockchip->trace_work,
+				  rockchip_pcie_ltssm_trace_work);
+		schedule_delayed_work(&rockchip->trace_work, 0);
+	} else {
+		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_MODE_CON,
+				   PCIE_CLIENT_DBG_DIS);
+		cancel_delayed_work_sync(&rockchip->trace_work);
+	}
+}
+#else
+static void rockchip_pcie_ltssm_trace(struct rk_pcie *rockchip,
+				      bool enable)
+{
+}
+#endif
+
 static inline void rk_pcie_disable_ltssm(struct rk_pcie *rk_pcie)
 {
 	rk_pcie_writel_apb(rk_pcie, 0x0, 0xc0008);
@@ -275,7 +466,7 @@ static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1,
 			   PCIE_CLIENT_DBG_TRANSITION_DATA);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_MODE_CON,
-			   PCIE_CLIENT_DBF_EN);
+			   PCIE_CLIENT_DBG_EN);
 }
 
 static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
@@ -415,6 +606,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 				(rk_pcie->perst_inactive_ms + 1) * 1000);
 		}
 
+		rockchip_pcie_ltssm_trace(rk_pcie, true);
 		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 		/*
@@ -472,6 +664,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		rk_pcie->hp_no_link = true;
 		return 0;
 	} else {
+		rockchip_pcie_ltssm_trace(rk_pcie, false);
 		return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
 	}
 }
@@ -1833,6 +2026,7 @@ static void rk_pcie_remove(struct platform_device *pdev)
 
 	dw_pcie_host_deinit(&rk_pcie->pci->pp);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
+	rockchip_pcie_ltssm_trace(rk_pcie, false);
 	destroy_workqueue(rk_pcie->hot_rst_wq);
 	if (IS_ENABLED(CONFIG_PCIE_DW_ROCKCHIP_RC_DMATEST))
 		pcie_dw_dmatest_unregister(rk_pcie->dma_obj);
