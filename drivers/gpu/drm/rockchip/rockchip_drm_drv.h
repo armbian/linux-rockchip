@@ -976,6 +976,7 @@ int rockchip_drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 						      struct drm_property_blob **blob,
 						      uint64_t blob_id, ssize_t expected_size,
 						      ssize_t expected_elem_size, bool *replaced);
+bool rockchip_drm_yuv_range_sel_supported(const struct edid *edid, int ext_block_num);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
