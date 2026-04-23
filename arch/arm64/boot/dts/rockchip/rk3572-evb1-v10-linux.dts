@@ -15,6 +15,10 @@
 	compatible = "rockchip,rk3572-evb1-v10", "rockchip,rk3572";
 };
 
+&pcie0 {
+	status = "okay";
+};
+
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -29,6 +33,16 @@
 		shutdown-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
 		max-speed = <1500000>;
 	};
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
 };
 
 /delete-node/ &wireless_bluetooth;
