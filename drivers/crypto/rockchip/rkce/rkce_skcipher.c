@@ -232,9 +232,13 @@ int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void
 	if (is_algt_aead(ctx->algt)) {
 		struct aead_request *tmp_req = (struct aead_request *)ctx->req;
 		struct rkce_cipher_request_ctx *rctx = aead_request_ctx(tmp_req);
+		uint32_t skip = rctx->assoclen + rctx->cryptlen;
+		bool is_enc = rctx->is_enc;
 
 		if (result != -ETIMEDOUT)
 			rkce_monitor_del(rctx->td_head);
+
+		rkce_aead_unprepare_req(engine, ctx->req);
 
 		if (!result) {
 			rk_debug("dst = %p, nents %u, tag = %p, authsize = %u,offset = %u\n",
@@ -242,14 +246,14 @@ int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void
 				sg_nents(tmp_req->dst),
 				td_buf->tag,
 				ctx->authsize,
-				rctx->assoclen + rctx->cryptlen);
+				skip);
 
-			if (rctx->is_enc) {
+			if (is_enc) {
 				if (!sg_pcopy_from_buffer(tmp_req->dst,
 							sg_nents(tmp_req->dst),
 							td_buf->tag,
 							ctx->authsize,
-							rctx->assoclen + rctx->cryptlen))
+							skip))
 					result = -EBADMSG;
 
 			} else {
@@ -258,13 +262,11 @@ int rkce_cipher_request_callback(void *rkce_hw, int result, uint32_t td_id, void
 				if (!sg_pcopy_to_buffer(tmp_req->src,
 							sg_nents(tmp_req->src),
 							auth_data, ctx->authsize,
-							rctx->assoclen + rctx->cryptlen) ||
+							skip) ||
 				crypto_memneq(auth_data, td_buf->tag, ctx->authsize))
 					result = -EBADMSG;
 			}
 		}
-
-		rkce_aead_unprepare_req(engine, ctx->req);
 
 		crypto_finalize_aead_request(engine, ctx->req, result);
 	} else {
