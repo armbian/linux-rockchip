@@ -174,6 +174,11 @@ static const struct i2c_device_id gyro_iam20680_id[] = {
 	{}
 };
 
+static const struct of_device_id gyro_iam20680_of_match[] = {
+	{.compatible = "invensense,iam20680_gyro"},
+	{}
+};
+
 static struct i2c_driver gyro_iam20680_driver = {
 	.probe = gyro_iam20680_probe,
 	.remove = (void *)gyro_iam20680_remove,
@@ -181,6 +186,7 @@ static struct i2c_driver gyro_iam20680_driver = {
 	.id_table = gyro_iam20680_id,
 	.driver = {
 		.name = "gyro_iam20680",
+		.of_match_table = gyro_iam20680_of_match,
 	#ifdef CONFIG_PM
 		.pm = &sensor_pm_ops,
 	#endif

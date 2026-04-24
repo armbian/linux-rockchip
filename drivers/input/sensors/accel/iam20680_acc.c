@@ -219,6 +219,11 @@ static const struct i2c_device_id gsensor_iam20680_id[] = {
 	{}
 };
 
+static const struct of_device_id gsensor_iam20680_of_match[] = {
+	{.compatible = "invensense,iam20680_acc"},
+	{}
+};
+
 static struct i2c_driver gsensor_iam20680_driver = {
 	.probe = gsensor_iam20680_probe,
 	.remove = (void *)gsensor_iam20680_remove,
@@ -226,6 +231,7 @@ static struct i2c_driver gsensor_iam20680_driver = {
 	.id_table = gsensor_iam20680_id,
 	.driver = {
 		.name = "gsensor_iam20680",
+		.of_match_table = gsensor_iam20680_of_match,
 #ifdef CONFIG_PM
 		.pm = &sensor_pm_ops,
 #endif
