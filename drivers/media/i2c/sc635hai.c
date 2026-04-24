@@ -2245,7 +2245,6 @@ static void __sc635hai_power_off(struct sc635hai *sc635hai)
 
 	if (!IS_ERR(sc635hai->pwdn_gpio))
 		gpiod_set_value_cansleep(sc635hai->pwdn_gpio, 0);
-	clk_disable_unprepare(sc635hai->xvclk);
 	if (!IS_ERR(sc635hai->reset_gpio))
 		gpiod_set_value_cansleep(sc635hai->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(sc635hai->pins_sleep)) {
