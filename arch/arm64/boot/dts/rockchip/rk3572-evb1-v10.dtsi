@@ -375,8 +375,8 @@
 	vpcie3v3-supply = <&vcc3v3_pcie0>;
 
 	/*
-	 * Disable usb_drd1_dwc3 if enabling pcie0 and set U1800 and
-	 * U1801 to high state according to the schematic of page 18.
+	 * Disable usb_drd1_dwc3 or change it to usb2.0 if enabling pcie0 and
+	 * set U1800 and U1801 to high state according to the schematic of page 18.
 	 */
 	status = "disabled";
 };
