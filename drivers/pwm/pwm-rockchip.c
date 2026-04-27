@@ -1445,6 +1445,8 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 				       enum rockchip_pwm_global_ctrl_cmd cmd)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	struct pwm_state curstate;
+	unsigned long delay_us;
 	u32 arbiter = 0;
 	u32 val = 0;
 	int ret = 0;
@@ -1512,8 +1514,18 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 		writel_relaxed(PWM_CLK_EN(false), pc->base + ENABLE);
 		writel_relaxed(GLOBAL_PWM_EN(false), pc->base + GLOBAL_CTRL);
 
-		if (test_and_clear_bit(0, &pc->is_clk_enabled))
+		if (test_and_clear_bit(0, &pc->is_clk_enabled)) {
+			/*
+			 * For pwm v4, the disable operation of global ctrl mode, which
+			 * sets polarity to inactive state, will not take effect until
+			 * the end of current period. Therefore, it makes sense to delay
+			 * one period before disabling the dclk.
+			 */
+			pwm_get_state(pwm, &curstate);
+			delay_us = DIV_ROUND_UP_ULL(curstate.period, NSEC_PER_USEC);
+			fsleep(delay_us);
 			clk_disable(pc->clk);
+		}
 
 		break;
 	default:
