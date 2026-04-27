@@ -1187,6 +1187,8 @@ struct vop2 {
 
 	/* aclk auto cs div */
 	u32 csu_div;
+	/* aclk auto cs threshold */
+	u32 csu_threshold;
 	/* must put at the end of the struct */
 	struct vop2_win win[];
 };
@@ -1796,10 +1798,30 @@ static int vop2_set_aclk_rate(struct drm_crtc *crtc,
 	vop2->aclk_mode = aclk_mode;
 
 	if (vop2->csu_aclk && vop_bw_info) {
-		if (vop2->version == VOP_VERSION_RK3562)
+		if (vop2->version == VOP_VERSION_RK3562) {
 			csu_div = rk3562_vop2_get_csu_div(crtc);
-		else
+		} else if (vop2->version == VOP_VERSION_RK3572) {
+			u32 csu_threshold = 0;
+
+			csu_div = 4; /* use div4 by default */
+			/*
+			 * csu_threshold control entering AutoCS after some cycles when VOP is idle,
+			 * measured by origin clkin[VOP aclk].
+			 */
+			if (vop2->aclk_mode == ROCKCHIP_VOP_ACLK_ADVANCED_MODE)
+				csu_threshold = 0x4ff;
+			else
+				csu_threshold = 0x40;
+			if (csu_threshold != vop2->csu_threshold) {
+				rockchip_csu_set_threshold(vop2->csu_aclk, 0, csu_threshold);
+				rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CLK,
+						 "Set aclk auto cs threshold from %d to %d",
+						 vop2->csu_threshold, csu_threshold);
+			}
+			vop2->csu_threshold = csu_threshold;
+		} else if (vop2->version == VOP_VERSION_RK3576) {
 			csu_div = rk3576_vop2_get_csu_div(crtc, vop_bw_info);
+		}
 		if (csu_div != vop2->csu_div) {
 			rockchip_csu_set_div(vop2->csu_aclk, csu_div);
 			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CLK,
@@ -2898,6 +2920,7 @@ static void vop2_set_system_status(struct vop2 *vop2, bool is_enabled)
 {
 	unsigned int nports = hweight8(vop2->active_display_mask);
 
+	/* DMC */
 	if (is_enabled) {
 		if (nports == 2)
 			rockchip_set_system_status(SYS_STATUS_MULTIVP);
@@ -2909,6 +2932,12 @@ static void vop2_set_system_status(struct vop2 *vop2, bool is_enabled)
 		else if (nports == 1)
 			rockchip_clear_system_status(SYS_STATUS_MULTIVP);
 	}
+
+	/* VOP aclk auto CS */
+	if (nports >= 2)
+		rockchip_csu_disable(vop2->csu_aclk);
+	else
+		rockchip_csu_enable(vop2->csu_aclk);
 }
 
 static bool vop2_win_rb_swap(uint32_t format)
