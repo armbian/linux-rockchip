@@ -3643,7 +3643,7 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 			  RGA2_DST_CSC_01, scheduler);
 		rga_write(s_RGA2_FULL_CSC_COEF(job->full_csc.coe_y.b_u),
 			  RGA2_DST_CSC_02, scheduler);
-		rga_write(s_RGA2_FULL_CSC_OFFSET(job->full_csc.coe_y.off),
+		rga_write(s_RGA2_FULL_CSC_OFFSET_10BIT(job->full_csc.coe_y.off),
 			  RGA2_DST_CSC_OFF0, scheduler);
 
 		/* U coefficient */
@@ -3655,7 +3655,7 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 			  RGA2_DST_CSC_11, scheduler);
 		rga_write(s_RGA2_FULL_CSC_COEF(job->full_csc.coe_u.b_u),
 			  RGA2_DST_CSC_12, scheduler);
-		rga_write(s_RGA2_FULL_CSC_OFFSET(job->full_csc.coe_u.off),
+		rga_write(s_RGA2_FULL_CSC_OFFSET_10BIT(job->full_csc.coe_u.off),
 			  RGA2_DST_CSC_OFF1, scheduler);
 
 		/* V coefficient */
@@ -3665,7 +3665,7 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 			  RGA2_DST_CSC_21, scheduler);
 		rga_write(s_RGA2_FULL_CSC_COEF(job->full_csc.coe_v.b_u),
 			  RGA2_DST_CSC_22, scheduler);
-		rga_write(s_RGA2_FULL_CSC_OFFSET(job->full_csc.coe_v.off),
+		rga_write(s_RGA2_FULL_CSC_OFFSET_10BIT(job->full_csc.coe_v.off),
 			  RGA2_DST_CSC_OFF2, scheduler);
 	} else {
 		/* Y coefficient */
