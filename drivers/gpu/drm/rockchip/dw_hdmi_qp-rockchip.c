@@ -4910,13 +4910,10 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 
 	hdmi->phy = devm_phy_optional_get(dev, "hdmi");
 	if (IS_ERR(hdmi->phy)) {
-		hdmi->phy = devm_phy_optional_get(dev, "hdmi_phy");
-		if (IS_ERR(hdmi->phy)) {
-			ret = PTR_ERR(hdmi->phy);
-			if (ret != -EPROBE_DEFER)
-				DRM_DEV_ERROR(hdmi->dev, "failed to get phy\n");
-			return ret;
-		}
+		ret = PTR_ERR(hdmi->phy);
+		if (ret != -EPROBE_DEFER)
+			DRM_DEV_ERROR(hdmi->dev, "failed to get phy\n");
+		return ret;
 	}
 
 	hdmi->hdmi_qp = dw_hdmi_qp_bind(pdev, &hdmi->encoder, plat_data);
