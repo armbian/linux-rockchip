@@ -396,7 +396,7 @@ static void rockchip_pcie_ltssm_trace_work(struct work_struct *work)
 	}
 
 skip_trace:
-	schedule_delayed_work(&rockchip->trace_work, msecs_to_jiffies(5000));
+	mod_delayed_work(system_wq, &rockchip->trace_work, msecs_to_jiffies(5000));
 }
 
 static void rockchip_pcie_ltssm_trace(struct rk_pcie *rockchip,
@@ -413,10 +413,7 @@ static void rockchip_pcie_ltssm_trace(struct rk_pcie *rockchip,
 				   PCIE_CLIENT_DBG_TRANSITION_DATA);
 		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_MODE_CON,
 				   PCIE_CLIENT_DBG_EN);
-
-		INIT_DELAYED_WORK(&rockchip->trace_work,
-				  rockchip_pcie_ltssm_trace_work);
-		schedule_delayed_work(&rockchip->trace_work, 0);
+		mod_delayed_work(system_wq, &rockchip->trace_work, 0);
 	} else {
 		rk_pcie_writel_apb(rockchip, PCIE_CLIENT_DBG_FIFO_MODE_CON,
 				   PCIE_CLIENT_DBG_DIS);
@@ -1882,6 +1879,9 @@ static int rk_pcie_really_probe(void *p)
 	rk_pcie->intx = 0xffffffff;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
+#if IS_ENABLED(CONFIG_TRACING) && IS_ENABLED(CONFIG_NO_GKI)
+	INIT_DELAYED_WORK(&rk_pcie->trace_work, rockchip_pcie_ltssm_trace_work);
+#endif
 	platform_set_drvdata(pdev, rk_pcie);
 
 	/* 3. firmware resource */
