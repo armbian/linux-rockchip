@@ -283,8 +283,10 @@
 
 /* RGA_FULL_CSC OFFSET */
 #define m_RGA2_FULL_CSC_OFFSET				(0x1fffff << 0)
+#define m_RGA2_FULL_CSC_OFFSET_10BIT			(0x7fffff << 0)
 
 #define s_RGA2_FULL_CSC_OFFSET(x)			(((x) & 0x1fffff) << 0)
+#define s_RGA2_FULL_CSC_OFFSET_10BIT(x)			(((x) & 0x7fffff) << 0)
 
 /* RGA BACKDOOR0 */
 #define m_RGA2_HSDBIL_VSP_FIX_DIS			(0x1 << 0)
