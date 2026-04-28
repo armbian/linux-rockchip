@@ -1710,7 +1710,7 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		if (drm_mode_is_420(&connector->display_info, mode) &&
 		    max_tmds_clock < (mode->clock / 2) && is_hdmi2_mode(mode))
 			return MODE_BAD;
-	};
+	}
 
 	if (encoder->crtc) {
 		s = to_rockchip_crtc_state(encoder->crtc->state);
@@ -3586,14 +3586,14 @@ dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
 					     &connector->base, property);
 
 	return ret;
-};
+}
 
 static bool dw_hdmi_rockchip_get_emp_status(void *data)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 
 	return hdmi->dynamic_hdr_en;
-};
+}
 
 static void dw_hdmi_rockchip_set_emp_bypass(void *data, bool enable)
 {
@@ -3601,7 +3601,7 @@ static void dw_hdmi_rockchip_set_emp_bypass(void *data, bool enable)
 
 	if (hdmi->chip_data->ops->set_emp_bypass_enable)
 		hdmi->chip_data->ops->set_emp_bypass_enable(hdmi, enable);
-};
+}
 
 static void dw_hdmi_qp_get_ycc_quant_range_selectable(void *data, const struct edid *edid,
 						      int ext_block_num)
