@@ -17,12 +17,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_of.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/display/drm_dsc.h>
-#include <drm/drm_edid.h>
-#include <drm/display/drm_hdcp_helper.h>
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/display/drm_dsc.h>
+#include <drm/display/drm_hdcp_helper.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
