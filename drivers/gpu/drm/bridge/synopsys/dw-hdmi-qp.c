@@ -487,7 +487,7 @@ static int hdmi_match_frl_n_table(struct dw_hdmi_qp *hdmi,
 	const struct dw_hdmi_audio_frl_n *frl_n = NULL;
 	int i = 0, n = 0;
 
-	for (i = 0; ARRAY_SIZE(common_frl_n_table); i++) {
+	for (i = 0; i < ARRAY_SIZE(common_frl_n_table); i++) {
 		if (r_bit == common_frl_n_table[i].r_bit) {
 			frl_n = &common_frl_n_table[i];
 			break;
