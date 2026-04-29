@@ -18,7 +18,9 @@
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip,rv1126b-acodec";
 		rockchip,format = "i2s";
-		rockchip,mclk-fs-mapping = <256 1024>;
+		rockchip,mclk-rate-map = <8000 32768000>,
+					 <12000 49152000>,
+					 <11025 45158400>;
 		rockchip,cpu = <&sai2>;
 		rockchip,codec = <&audio_codec_pmu>, <&audio_codec>, <&acdcdig_dsm>;
 	};
