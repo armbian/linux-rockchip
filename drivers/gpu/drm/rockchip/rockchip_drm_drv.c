@@ -1842,7 +1842,7 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 
 u16 rockchip_hdmi_vrr_tfr_match_to_vrefresh(u8 tfr)
 {
-	if (tfr < 0 || tfr >= TFR_MAX) {
+	if (tfr >= TFR_MAX) {
 		DRM_ERROR("qms-vrr tfr is out of range\n");
 		return 0;
 	}
