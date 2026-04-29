@@ -716,7 +716,7 @@ int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 	if (!crtc)
 		return -ENODEV;
 
-	if (mstimeout <= 0)
+	if (!mstimeout)
 		return -EINVAL;
 
 	priv = crtc->dev->dev_private;
