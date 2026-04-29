@@ -41,7 +41,7 @@ config ROCKCHIP_DRM_SELF_TEST
 	bool "Rockchip DRM self test case"
 	depends on ROCKCHIP_DRM_DIRECT_SHOW
 	help
-	  This offer setf test demo to display image at kernel space.
+	  This offers a self-test demo to display image in kernel space.
 
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
@@ -197,8 +197,8 @@ config ROCKCHIP_RK3066_HDMI
 config ROCKCHIP_VCONN
 	bool "Rockchip Virtual connector driver for HDMI/DP/DSI"
 	help
-	  This selects support virtual HDMI/DP/DSI drived by
-	  rockchip vop, This is used for some test.
+	  This selects support for virtual HDMI/DP/DSI driven by
+	  Rockchip VOP, this is used for some test case.
 
 config DRM_ROCKCHIP_VKMS
 	bool "Rockchip virtual Kernel Mode-Setting driver"
@@ -208,7 +208,7 @@ config DRM_ROCKCHIP_VKMS
 	  gem driver to allocate memory).
 
 config ROCKCHIP_DW_HDCP2
-	tristate "Synopsis Designware HDCP2 interface"
+	tristate "Synopsys Designware HDCP2 interface"
 	help
 	  Choose this option to enable support for the Synopsys
 	  Designware HDCP2 Controller.
