@@ -1480,7 +1480,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 		scheduler->data = &rga3_data;
 	} else if (scheduler->core == RGA2_SCHEDULER_CORE0 ||
 		   scheduler->core == RGA2_SCHEDULER_CORE1) {
-		if (!strcmp(scheduler->version.str, "3.3.87975")) {
+		if (!strcmp(scheduler->version.str, "3.2.63318")) {
+			scheduler->data = &rga2e_data;
+			rga_hw_set_issue_mask(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST);
+		} else if (!strcmp(scheduler->version.str, "3.3.87975")) {
 			scheduler->data = &rga2e_1106_data;
 		} else if (!strcmp(scheduler->version.str, "3.6.92812") ||
 			 !strcmp(scheduler->version.str, "3.7.93215")) {
