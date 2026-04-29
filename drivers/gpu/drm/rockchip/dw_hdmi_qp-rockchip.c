@@ -3575,15 +3575,14 @@ dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 	u8 *sink_data = hdmi->hdrvivid_vsvdb;
 	struct drm_property *property = hdmi->hdrvivid_vsdb;
-	struct drm_property_blob *blob = hdmi->hdrvivid_vsdb_ptr;
 
 	if (!edid || !connector)
 		return -ENOMEM;
 
 	rockchip_drm_parse_hdrvivid(sink_data, edid, ext_block_num);
 
-	ret = drm_property_replace_hdmi_blob(connector->dev, &blob, 28, sink_data,
-					     &connector->base, property);
+	ret = drm_property_replace_hdmi_blob(connector->dev, &hdmi->hdrvivid_vsdb_ptr, 28,
+					     sink_data, &connector->base, property);
 
 	return ret;
 }
