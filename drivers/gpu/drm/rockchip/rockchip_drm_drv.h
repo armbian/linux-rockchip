@@ -293,7 +293,7 @@ struct rockchip_bcsh_state {
 
 struct rockchip_crtc {
 	struct drm_crtc crtc;
-	/* @frme_count: the frame num of commit buf */
+	/* @frame_count: the frame num of commit buf */
 	u32 frame_count;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	/**
