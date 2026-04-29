@@ -1195,7 +1195,6 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 static
 u8 *find_edid_extension(const struct edid *edid, int ext_id, int ext_block_num, int *ext_index)
 {
-	struct edid;
 	u8 *edid_ext = NULL;
 	int i;
 
