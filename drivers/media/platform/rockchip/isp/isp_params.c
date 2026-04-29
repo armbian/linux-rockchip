@@ -316,6 +316,11 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
 	params_vdev->rdbk_times = 0;
+	if (dev->isp_ver == ISP_V30) {
+		struct rkisp_isp_params_val_v3x *priv = params_vdev->priv_val;
+
+		tasklet_disable(&priv->lsc_tasklet);
+	}
 	if (params_vdev->is_first_cfg) {
 		rkisp_params_stream_stop(params_vdev);
 		params_vdev->is_first_cfg = false;
@@ -340,6 +345,7 @@ static int
 rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 {
 	struct rkisp_isp_params_vdev *params_vdev = queue->drv_priv;
+	struct rkisp_device *dev = params_vdev->dev;
 	unsigned long flags = 0;
 
 	v4l2_dbg(1, rkisp_debug, &params_vdev->dev->v4l2_dev,
@@ -347,6 +353,11 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	params_vdev->hdrtmo_en = false;
 	params_vdev->afaemode_en = false;
 	params_vdev->cur_buf = NULL;
+	if (dev->isp_ver == ISP_V30) {
+		struct rkisp_isp_params_val_v3x *priv = params_vdev->priv_val;
+
+		tasklet_enable(&priv->lsc_tasklet);
+	}
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = true;
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
