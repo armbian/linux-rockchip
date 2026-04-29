@@ -3919,11 +3919,6 @@ static void dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		hdmi->hdr_panel_metadata_property = NULL;
 	}
 
-	if (hdmi->hdr_panel_dovi_vsdb) {
-		drm_property_destroy(connector->dev, hdmi->hdr_panel_dovi_vsdb);
-		hdmi->hdr_panel_dovi_vsdb = NULL;
-	}
-
 	if (hdmi->output_hdmi_dvi) {
 		drm_property_destroy(connector->dev, hdmi->output_hdmi_dvi);
 		hdmi->output_hdmi_dvi = NULL;
