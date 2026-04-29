@@ -95,7 +95,6 @@ config ROCKCHIP_DIMMING_PANEL
 
 config ROCKCHIP_DRM_TVE
 	bool "Rockchip TVE support"
-	depends on DRM_ROCKCHIP
 	help
 	  Choose this option to enable support for Rockchip TVE controllers.
 	  say Y to enable its driver.
