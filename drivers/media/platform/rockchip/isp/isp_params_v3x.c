@@ -4492,11 +4492,7 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 
 static void rkisp_save_first_param_v3x(struct rkisp_isp_params_vdev *params_vdev, void *param)
 {
-	struct rkisp_isp_params_val_v3x *priv_val =
-		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-
 	memcpy(params_vdev->isp3x_params, param, params_vdev->vdev_fmt.fmt.meta.buffersize);
-	tasklet_enable(&priv_val->lsc_tasklet);
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp3x_params);
 }
 
@@ -4684,7 +4680,6 @@ rkisp_params_stream_stop_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	u32 id, i;
 
 	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-	tasklet_disable(&priv_val->lsc_tasklet);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds);
