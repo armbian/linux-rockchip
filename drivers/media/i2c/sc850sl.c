@@ -2156,7 +2156,7 @@ static int __sc850sl_power_on(struct sc850sl *sc850sl)
 
 	if (!IS_ERR(sc850sl->pwdn_gpio))
 		gpiod_set_value_cansleep(sc850sl->pwdn_gpio, 1);
-	usleep_range(4000, 6000);
+	usleep_range(20000, 21000);
 	return 0;
 err_clk:
 	if (!IS_ERR(sc850sl->reset_gpio))
