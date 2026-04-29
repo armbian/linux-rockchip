@@ -2607,8 +2607,10 @@ static bool is_sink_hdcp2_supported(struct dw_hdmi_qp *hdmi)
 	int ret;
 
 	ret = hdcp_ddc_read(hdmi->ddc, HDMI_HDCP_ADDR, HDMI_HDCP2_VERSION, &bcaps);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(hdmi->dev, "get hdcp2.x capable failed:%d\n", ret);
+		return false;
+	}
 
 	if (bcaps & HDMI_HDCP2_SUPPORT)
 		return true;
