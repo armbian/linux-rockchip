@@ -47,7 +47,9 @@
 #define IBIFIFO_NUM_CPU		0x004C
 #define DMA_CONF		0x0050
 #define CLKDIV_OD		0x0054
+#define CLKDIV_FM_H		0x0054
 #define CLKDIV_PP		0x0058
+#define CLKDIV_FM_L		0x0058
 #define CLKDIV_FM		0x005C
 #define TIME_CONF_PPOD		0x0060
 #define TIME_CONF_FM		0x0064
@@ -56,6 +58,10 @@
 #define BUS_FLT_CONF		0x0070
 #define REG_READY_CONF		0x0074
 #define FLUSH_CTL		0x0078
+#define CLKDIV_PP_H		0x0080
+#define CLKDIV_PP_L		0x0084
+#define CLKDIV_OD_H		0x0088
+#define CLKDIV_OD_L		0x008C
 #define INT_EN			0x0090
 #define INT_STATUS		0x0094
 #define IBI_CONF		0x009C
@@ -83,6 +89,9 @@
 #define MODULE_CTL_FM_START_EN_SHIFT	(1)
 #define MODULE_CTL_FM_START_EN		(0x1 << MODULE_CTL_FM_START_EN_SHIFT)
 
+#define MODULE_CTL_VERSION_NUM_SHIFT	(16)
+#define MODULE_CTL_VERSION_NUM		GENMASK(31, 16)
+
 #define MODULE_CONF_MODULE_EN_SHIFT	(0)
 #define MODULE_CONF_MODULE_EN		I3C_BIT(MODULE_CONF_MODULE_EN_SHIFT)
 #define MODULE_CONF_MODULE_DIS		I3C_CLR_BIT(MODULE_CONF_MODULE_EN_SHIFT)
@@ -97,10 +106,13 @@
 #define MODULE_CONF_ODDAA_EN		I3C_BIT(MODULE_CONF_ODDAA_EN_SHIFT)
 
 #define MODULE_ADDRACK_PPOD_RST_SHIFT	(6)
-#define MODULE_ADDRACK_PPOD_RST		(0x1 << MODULE_ADDRACK_PPOD_RST_SHIFT)
+#define MODULE_ADDRACK_PPOD_RST		I3C_BIT(MODULE_ADDRACK_PPOD_RST_SHIFT)
+
+#define MODULE_ARBIT_MEET_FLAG_SHIFT	(12)
+#define MODULE_ARBIT_MEET_FLAG		I3C_BIT(MODULE_ARBIT_MEET_FLAG_SHIFT)
 
 #define CLKSTALL_SHIFT			(0)
-#define CLKSTALL_ENABLE		(0x1 << CLKSTALL_SHIFT)
+#define CLKSTALL_ENABLE			(0x1 << CLKSTALL_SHIFT)
 #define CLKSTALL_BEFORE_ACK_SHIFT	(1)
 #define CLKSTALL_BEFORE_ACK_ENABLE	(0x1 << CLKSTALL_BEFORE_ACK_SHIFT)
 #define CLKSTALL_BEFORE_READ_SHIFT	(3)
@@ -267,31 +279,33 @@
 
 #define DMA_CONF_ENABLED		(DMA_CONF_NORDMA_RX_EN | DMA_CONF_NORDMA_TX_EN | \
 					DMA_CONF_TX_HSIZE_ERR_IRQEN | DMA_CONF_RX_HSIZE_ERR_IRQEN | \
-					DMA_CONF_RX_PAD_EN)
+					DMA_CONF_RX_PAD_EN | 0xFFFF0000)
 
 #define DMA_TXFIFO_TRIG_SHIFT		(0)
-#define DMA_TXFIFO_TRIG_MASK		(0xF << DMA_TXFIFO_TRIG_SHIFT)
 #define DMA_RXFIFO_TRIG_SHIFT		(4)
-#define DMA_RXFIFO_TRIG_MASK		(0xF << DMA_RXFIFO_TRIG_SHIFT)
+#define DMA_TX_START_THLD_SHIFT		(12)
 #define DMA_TXFIFO_TRIG_MASK_SHIFT	(16)
-#define DMA_TXFIFO_TRIG_MASK_MASK	(0xF << DMA_TXFIFO_TRIG_MASK_SHIFT)
+#define DMA_TXFIFO_TRIG_MASK		(0xF << DMA_TXFIFO_TRIG_MASK_SHIFT)
 #define DMA_RXFIFO_TRIG_MASK_SHIFT	(20)
-#define DMA_RXFIFO_TRIG_MASK_MASK	(0xF << DMA_RXFIFO_TRIG_MASK_SHIFT)
+#define DMA_RXFIFO_TRIG_MASK		(0xF << DMA_RXFIFO_TRIG_MASK_SHIFT)
+#define DMA_TX_START_THLD_MASK_SHIFT	(28)
+#define DMA_TX_START_THLD_MASK		(0xF << DMA_TX_START_THLD_MASK_SHIFT)
 
-#define DMA_TXFIFO_TRIG(trig)		((((trig) - 1) << DMA_TXFIFO_TRIG_SHIFT) | DMA_TXFIFO_TRIG_MASK_MASK)
-#define DMA_RXFIFO_TRIG(trig)		((((trig) - 1) << DMA_RXFIFO_TRIG_SHIFT) | DMA_RXFIFO_TRIG_MASK_MASK)
+#define DMA_TXFIFO_TRIG(trig)		(((((trig) > 0) ? ((trig) - 1) : 0) << DMA_TXFIFO_TRIG_SHIFT) | DMA_TXFIFO_TRIG_MASK)
+#define DMA_RXFIFO_TRIG(trig)		(((((trig) > 0) ? ((trig) - 1) : 0) << DMA_RXFIFO_TRIG_SHIFT) | DMA_RXFIFO_TRIG_MASK)
+#define DMA_TX_START_THLD(thld)		(((thld) << DMA_TX_START_THLD_SHIFT) | DMA_TX_START_THLD_MASK)
 
 #define CPU_TXFIFO_TRIG_CPU_SHIFT	(0)
 #define CPU_TXFIFO_TRIG_CPU_MASK	(0xF << CPU_TXFIFO_TRIG_CPU_SHIFT)
 #define CPU_RXFIFO_TRIG_CPU_SHIFT	(4)
 #define CPU_RXFIFO_TRIG_CPU_MASK	(0xF << CPU_RXFIFO_TRIG_CPU_SHIFT)
 #define CPU_TXFIFO_TRIG_MASK_SHIFT	(16)
-#define CPU_TXFIFO_TRIG_MASK_MASK	(0xF << CPU_TXFIFO_TRIG_MASK_SHIFT)
+#define CPU_TXFIFO_TRIG_MASK		(0xF << CPU_TXFIFO_TRIG_MASK_SHIFT)
 #define CPU_RXFIFO_TRIG_MASK_SHIFT	(20)
-#define CPU_RXFIFO_TRIG_MASK_MASK	(0xF << CPU_RXFIFO_TRIG_MASK_SHIFT)
+#define CPU_RXFIFO_TRIG_MASK		(0xF << CPU_RXFIFO_TRIG_MASK_SHIFT)
 
-#define IRQ_TXFIFO_TRIG(x)		((((x) - 1) << CPU_TXFIFO_TRIG_CPU_SHIFT) | CPU_TXFIFO_TRIG_MASK_MASK)
-#define IRQ_RXFIFO_TRIG(x)		((((x) - 1) << CPU_RXFIFO_TRIG_CPU_SHIFT) | CPU_RXFIFO_TRIG_MASK_MASK)
+#define IRQ_TXFIFO_TRIG(x)		((((x) - 1) << CPU_TXFIFO_TRIG_CPU_SHIFT) | CPU_TXFIFO_TRIG_MASK)
+#define IRQ_RXFIFO_TRIG(x)		((((x) - 1) << CPU_RXFIFO_TRIG_CPU_SHIFT) | CPU_RXFIFO_TRIG_MASK)
 
 #define TXFIFO_SPACE2FULL_SHIFT		(8)
 #define TXFIFO_SPACE2FULL_MASK		(0x1F << TXFIFO_SPACE2FULL_SHIFT)
@@ -331,15 +345,23 @@
 
 #define I3C_BUS_THIGH_MAX_NS		41
 #define SCL_I3C_TIMING_CNT_MIN		12
-#define I3C_BUS_I2C_FM_TLOW_MIN_NS	1300
+#define SCL_I3C_TIMING_HCNT_MIN_V1	9
+#define SCL_I3C_TIMING_LCNT_MIN_V1	10
+#define I3C_BUS_I2C_FM_TLOW_MIN_NS	(1300 + 50) /* Add a 50 ns tolerance */
 #define I3C_BUS_I2C_FM_SCL_RATE		400000
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
 #define I3C_BUS_I2C_FMP_SCL_RAISE_NS	120
+#define SCL_I2C_TIMING_CNT_MIN		24
+#define SCL_I2C_TIMING_HCNT_MIN_V1	38
+#define SCL_I2C_TIMING_LCNT_MIN_V1	40
 
-#define SCL_I3C_CLKDIV_HCNT(x)		((x) & GENMASK(15, 0))
-#define SCL_I3C_CLKDIV_LCNT(x)		(((x) << 16) & GENMASK(31, 16))
-#define SCL_I2C_CLKDIV_HCNT(x)		((x) & GENMASK(15, 0))
-#define SCL_I2C_CLKDIV_LCNT(x)		(((x) << 16) & GENMASK(31, 16))
+#define SCL_I3C_CLKDIV_HCNT_V0(x)	((x) & GENMASK(15, 0))
+#define SCL_I3C_CLKDIV_LCNT_V0(x)	(((x) << 16) & GENMASK(31, 16))
+#define SCL_I2C_CLKDIV_HCNT_V0(x)	((x) & GENMASK(15, 0))
+#define SCL_I2C_CLKDIV_LCNT_V0(x)	(((x) << 16) & GENMASK(31, 16))
+
+#define SCL_I3C_CLKDIV_CNT_V1(a, b, c, d)	((a) | ((b) << 8) | ((c) << 16) | ((d) << 24))
+#define SCL_I2C_CLKDIV_CNT_V1(x, y, z)		((x) | ((y) << 8) | ((z) << 20))
 
 #define I2C_SLV_HOLD_SCL_CONF		0xfffffff0
 
@@ -368,7 +390,8 @@
 #define CMD_FIFO_CCC(x)			((x) & GENMASK(6, 0))
 #define CMDR_XFER_BYTES(x)		(((x) & GENMASK(19, 8)) >> 8)
 
-#define DATAFIFO_DEPTH			16
+#define DATAFIFO_DEPTH_V0		16
+#define DATAFIFO_DEPTH_V1		32
 #define CMDFIFO_DEPTH			11
 #define IBIFIFO_DEPTH			16
 #define CMD_FIFO_PL_LEN_MAX		4096
@@ -388,10 +411,18 @@
 #define DMA_RX_MAX_BURST_SIZE		0x4
 #define DMA_RX_MAX_BURST_LEN		0x8
 
+#define DAA_ASSIGN_SET_EN		BIT(4)
+#define DAA_HJ_FLAG			BIT(16)
+
 #define CLKSTALL_NUM			(0x4 << CLKSTALL_NUM_SHIFT)
 
 #define WAIT_TIMEOUT			1000 /* ms */
 #define TX_IDLE_WAIT_TIMEOUT		10 /* ms */
+
+enum rockchip_i3c_version {
+	RK_I3C_VERSION0 = 0,
+	RK_I3C_VERSION1
+};
 
 enum rockchip_i3c_xfer_mode {
 	ROCKCHIP_I3C_POLL,
@@ -471,6 +502,15 @@ struct rockchip_i3c_i2c_dev_data {
 	struct i3c_generic_ibi_pool *ibi_pool;
 };
 
+struct rockchip_i3c_master;
+struct rockchip_i3c_master_priv {
+	u8 xfer_mode;
+	int (*i3c_clk_cfg)(struct rockchip_i3c_master *master);
+	int (*i2c_clk_cfg)(struct rockchip_i3c_master *master);
+	int (*i3c_master_do_daa_conf)(struct rockchip_i3c_master *master,
+				      u32 conf, u32 ncmd);
+};
+
 struct rockchip_i3c_master {
 	struct i3c_master_controller base;
 	struct device *dev;
@@ -502,8 +542,10 @@ struct rockchip_i3c_master {
 	} ibi;
 	struct work_struct hj_work;
 	struct rockchip_i3c_master_caps caps;
+	struct rockchip_i3c_master_priv priv;
 
 	u32 free_pos;
+	u32 i2c_active_dev;
 	bool daa_done;
 	unsigned int maxdevs;
 	struct rockchip_i3c_dat_entry devs[ROCKCHIP_I3C_MAX_DEVS];
@@ -621,7 +663,7 @@ static void rockchip_i3c_master_disable(struct rockchip_i3c_master *master)
 static void rockchip_i3c_master_enable(struct rockchip_i3c_master *master)
 {
 	writel_relaxed(MODULE_CONF_MODULE_EN | MODULE_CONF_ODDAA_EN |
-		       MODULE_ADDRACK_PPOD_RST,
+		       MODULE_ADDRACK_PPOD_RST | MODULE_ARBIT_MEET_FLAG,
 		       master->regs + MODULE_CONF);
 }
 
@@ -724,7 +766,7 @@ static u8 *rockchip_i3c_master_get_dma_safe_buf(struct rockchip_i3c_master *mast
 	return mem;
 }
 
-static void rockchip_i3c_maste_cleanup_dma(struct rockchip_i3c_master *master)
+static void rockchip_i3c_master_cleanup_dma(struct rockchip_i3c_master *master)
 {
 	struct rockchip_i3c_xfer *xfer = master->xferqueue.cur;
 	int i;
@@ -768,7 +810,7 @@ static void rockchip_i3c_master_dma_irq_callback(void *data)
 	struct rockchip_i3c_master *master = data;
 	struct rockchip_i3c_xfer *xfer;
 
-	rockchip_i3c_maste_cleanup_dma(master);
+	rockchip_i3c_master_cleanup_dma(master);
 	xfer = master->xferqueue.cur;
 	xfer->xferred = true;
 	complete(&xfer->comp);
@@ -826,8 +868,6 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 	for (i = 0; i < xfer->ncmds; i++) {
 		cmd = &xfer->cmds[i];
 		if (cmd->fifo_cmd & CMD_RNW) {
-			u8 rx_burst = xfer->rx_burst_size * xfer->rx_burst_len;
-
 			rx_num_word += DIV_ROUND_UP(cmd->rx_len, 4);
 			dma_addr = dma_map_single(master->dma_rx->device->dev,
 						  cmd->rx_buf, cmd->rx_len,
@@ -837,8 +877,7 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 				return -EINVAL;
 			}
 
-			sg_dma_len(&master->rx_sg[xfer->rx_sg_len]) =
-				DIV_ROUND_UP(cmd->rx_len, rx_burst) * rx_burst;
+			sg_dma_len(&master->rx_sg[xfer->rx_sg_len]) = cmd->rx_len;
 			sg_dma_address(&master->rx_sg[xfer->rx_sg_len]) = dma_addr;
 			xfer->rx_sg_len++;
 		} else {
@@ -850,8 +889,7 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 				return -EINVAL;
 			}
 
-			sg_dma_len(&master->tx_sg[xfer->tx_sg_len]) =
-				DIV_ROUND_UP(cmd->tx_len, xfer->tx_trig * 4) * 4 * xfer->tx_trig;
+			sg_dma_len(&master->tx_sg[xfer->tx_sg_len]) = cmd->tx_len;
 			sg_dma_address(&master->tx_sg[xfer->tx_sg_len]) = dma_addr;
 			xfer->tx_sg_len++;
 		}
@@ -890,7 +928,7 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 		cookie = dmaengine_submit(rxdesc);
 		if (dma_submit_error(cookie)) {
 			dev_err(master->dev, "submitting dma rx failed\n");
-			rockchip_i3c_maste_cleanup_dma(master);
+			rockchip_i3c_master_cleanup_dma(master);
 			return -EINVAL;
 		}
 		dma_async_issue_pending(master->dma_rx);
@@ -905,8 +943,8 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 		};
 
 		dmaengine_slave_config(master->dma_tx, &txconf);
-		/* should match the DMA burst size */
-		writel_relaxed(DMA_TXFIFO_TRIG(xfer->tx_trig),
+		/* should match the DMA burst size, DMA get one byte to send start signal */
+		writel_relaxed(DMA_TXFIFO_TRIG(xfer->tx_trig) | DMA_TX_START_THLD(1),
 			       master->regs + FIFO_TRIG_DMA);
 		writel_relaxed(tx_num_word, master->regs + TXFIFO_NUM_DMA);
 
@@ -929,7 +967,7 @@ static int rockchip_i3c_master_prepate_dma_sg(struct rockchip_i3c_master *master
 		cookie = dmaengine_submit(txdesc);
 		if (dma_submit_error(cookie)) {
 			dev_err(master->dev, "submitting dma tx failed\n");
-			rockchip_i3c_maste_cleanup_dma(master);
+			rockchip_i3c_master_cleanup_dma(master);
 			return -EINVAL;
 		}
 		dma_async_issue_pending(master->dma_tx);
@@ -1006,8 +1044,14 @@ static int rockchip_i3c_master_data_isr(struct rockchip_i3c_master *master, u32 
 	unsigned int fifo_status = readl_relaxed(master->regs + FIFO_STATUS);
 	unsigned int rx_num_word = RXFIFO_SPACE2EMPTY_NUMWORD(fifo_status);
 	unsigned int tx_num_word = TXFIFO_SPACE2FULL_NUMWORD(fifo_status);
+	struct rockchip_i3c_xfer *xfer;
 
-	struct rockchip_i3c_xfer *xfer = master->xferqueue.cur;
+	if (!rx_num_word && !tx_num_word)
+		return 0;
+
+	xfer = master->xferqueue.cur;
+	if (!xfer)
+		return 0;
 
 	if (xfer->rx_num_word > 0 && rx_num_word > 0)
 		rockchip_i3c_master_data_isr_read(master, xfer, rx_num_word);
@@ -1021,15 +1065,17 @@ static int rockchip_i3c_master_data_isr(struct rockchip_i3c_master *master, u32 
 static int rockchip_i3c_master_prepare_irq(struct rockchip_i3c_master *master,
 					   struct rockchip_i3c_xfer *xfer)
 {
+	u32 trig = master->caps.datafifodepth / 2;
+
 	/* At first, init global values with 0 */
 	xfer->cur_tx_cmd = xfer->cur_rx_cmd = 0;
 	xfer->cur_tx_len = xfer->cur_rx_len = 0;
 
 	writel_relaxed(I2C_SLV_HOLD_SCL_CONF, master->regs + SLVSCL_CONF_I2C);
 	/* tx fifo trig */
-	writel_relaxed(IRQ_TXFIFO_TRIG(DATAFIFO_DEPTH), master->regs + FIFO_TRIG_CPU);
+	writel_relaxed(IRQ_TXFIFO_TRIG(trig), master->regs + FIFO_TRIG_CPU);
 	/* rx fifo trig */
-	writel_relaxed(IRQ_RXFIFO_TRIG(DATAFIFO_DEPTH), master->regs + FIFO_TRIG_CPU);
+	writel_relaxed(IRQ_RXFIFO_TRIG(trig), master->regs + FIFO_TRIG_CPU);
 
 	/* clean DMA conf */
 	writel_relaxed(0x0, master->regs + DMA_CONF);
@@ -1038,7 +1084,7 @@ static int rockchip_i3c_master_prepare_irq(struct rockchip_i3c_master *master,
 	writel_relaxed(xfer->rx_num_word, master->regs + RXFIFO_NUM_CPU);
 
 	if (xfer->tx_num_word > 0)
-		rockchip_i3c_master_data_isr_write(master, xfer, DATAFIFO_DEPTH);
+		rockchip_i3c_master_data_isr_write(master, xfer, master->caps.datafifodepth);
 
 	return 0;
 }
@@ -1350,16 +1396,22 @@ static int rockchip_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	int txslots = 0, rxslots = 0, i, ret;
 	unsigned long timeleft;
 
+	if (!nxfers)
+		return -EINVAL;
+
 	for (i = 0; i < nxfers; i++) {
 		if (xfers[i].len > CMD_FIFO_PL_LEN_MAX)
 			return -EOPNOTSUPP;
 	}
 
-	if (!nxfers)
-		return -EINVAL;
-
-	if (nxfers > master->caps.cmdfifodepth)
-		return -EOPNOTSUPP;
+	/* If use PRIVATE_TRANSFER_WITH7E, nxfers should less than cmdfifodepth */
+	if (master->priv.xfer_mode == PRIVATE_TRANSFER_WITH7E) {
+		if ((nxfers + 1) > master->caps.cmdfifodepth)
+			return -EOPNOTSUPP;
+	} else {
+		if (nxfers > master->caps.cmdfifodepth)
+			return -EOPNOTSUPP;
+	}
 
 	rockchip_xfer = rockchip_i3c_master_alloc_xfer(master, nxfers);
 	if (!rockchip_xfer)
@@ -1382,10 +1434,10 @@ static int rockchip_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	else
 		return -EOPNOTSUPP;
 
-	/* Use without 7E defaultly, if use PRIVATE_TRANSFER_WITH7E,
-	 * the nxfers should less than "cmdfifodepth - 1".
+	/* if MODULE_ARBIT_MEET_FLAG enabled, use PRIVATE_TRANSFER_WITH7E,
+	 * then nxfers should less than "cmdfifodepth", else use without 7E defaultly.
 	 */
-	rockchip_xfer->mode = PRIVATE_TRANSFER_WITHOUT7E;
+	rockchip_xfer->mode = master->priv.xfer_mode;
 	if (rockchip_xfer->xfer_mode == ROCKCHIP_I3C_DMA) {
 		rockchip_xfer->rx_trig = DMA_TRIG_LEVEL;
 		rockchip_xfer->tx_trig = DMA_TRIG_LEVEL;
@@ -1454,7 +1506,7 @@ static int rockchip_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 					       msecs_to_jiffies(WAIT_TIMEOUT));
 	if (!timeleft) {
 		if (rockchip_xfer->xfer_mode == ROCKCHIP_I3C_DMA)
-			rockchip_i3c_maste_cleanup_dma(master);
+			rockchip_i3c_master_cleanup_dma(master);
 		rockchip_i3c_master_unqueue_xfer(master, rockchip_xfer);
 	} else {
 		if (rockchip_xfer->xfer_mode == ROCKCHIP_I3C_DMA) {
@@ -1608,7 +1660,7 @@ static int rockchip_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 					       msecs_to_jiffies(WAIT_TIMEOUT));
 	if (!timeleft) {
 		if (xfer->xfer_mode == ROCKCHIP_I3C_DMA)
-			rockchip_i3c_maste_cleanup_dma(master);
+			rockchip_i3c_master_cleanup_dma(master);
 		rockchip_i3c_master_unqueue_xfer(master, xfer);
 	} else {
 		if (xfer->xfer_mode == ROCKCHIP_I3C_DMA) {
@@ -1727,6 +1779,8 @@ static int rockchip_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	data->id = slot;
 	master->devs[slot].addr = dev->addr;
 	master->free_pos &= ~BIT(slot);
+	if (master->i2c_active_dev < slot + 1)
+		master->i2c_active_dev = slot + 1;
 
 	i2c_dev_set_master_data(dev, data);
 
@@ -1752,18 +1806,42 @@ static void rockchip_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 	rockchip_i3c_master_disable(master);
 }
 
+static int rockchip_i3c_master_do_daa_conf_v0(struct rockchip_i3c_master *master,
+					      u32 conf, u32 ncmd)
+{
+	u32 num = 0;
+
+	if (conf)
+		num = ffs(conf) - 1;
+
+	writel_relaxed(DAA_ASSIGN_SET_EN | num, master->regs + DAA_CONF);
+	if (ncmd > master->caps.cmdfifodepth - 1)
+		return master->caps.cmdfifodepth - 1;
+	else
+		return ncmd;
+}
+
+static int rockchip_i3c_master_do_daa_conf_v1(struct rockchip_i3c_master *master,
+					      u32 conf, u32 ncmd)
+{
+	conf |= DAA_HJ_FLAG;
+	writel_relaxed(conf, master->regs + DAA_CONF);
+
+	return (ncmd > 0) ? 1 : 0;
+}
+
 static int rockchip_i3c_master_do_daa(struct i3c_master_controller *m)
 {
 	struct rockchip_i3c_master *master = to_rockchip_i3c_master(m);
+	int ret = 0, pos, n = 0, last, ncmd = 0, active = 0;
 	struct rockchip_i3c_xfer *xfer;
-	int ret = 0, pos, n = 0, last, i;
+	u32 daa_status, conf = 0;
 	u32 olddevs, newdevs;
 	u8 last_addr = 0;
-	u32 daa_status;
 
 	olddevs = ~(master->free_pos);
 	/* Prepare DAT before launching DAA */
-	for (pos = 1; pos < master->maxdevs; pos++) {
+	for (pos = master->i2c_active_dev + 1; pos < master->maxdevs; pos++, n++) {
 		if (olddevs & BIT(pos))
 			continue;
 
@@ -1774,10 +1852,14 @@ static int rockchip_i3c_master_do_daa(struct i3c_master_controller *m)
 		last_addr = ret;
 		master->devs[pos].addr = ret;
 		writel_relaxed(ret, master->regs + DEV_ID_RR0(n));
-		n++;
+		conf |= BIT(n);
+		ncmd++;
 	}
 
-	xfer = rockchip_i3c_master_alloc_xfer(master, n);
+	ncmd = master->priv.i3c_master_do_daa_conf(master, conf, ncmd);
+	if (ncmd <= 0)
+		return -EINVAL;
+	xfer = rockchip_i3c_master_alloc_xfer(master, ncmd);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -1788,34 +1870,32 @@ static int rockchip_i3c_master_do_daa(struct i3c_master_controller *m)
 	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(WAIT_TIMEOUT)))
 		rockchip_i3c_master_unqueue_xfer(master, xfer);
 
-	for (i = 0; i < n; i++)
-		xfer->cmds[i].error = rockchip_i3c_master_cmd_get_err(&xfer->cmds[i]);
-
 	daa_status = readl_relaxed(master->regs + DAA_STATUS);
 	last = daa_status & DAA_ASSIGNED_CNT_MASK;
 	if (last >= 1)
 		ret = 0;
 	else
 		ret = xfer->ret;
-	if (!ret)
+	if (!ret && last)
 		master->daa_done = true;
+	else
+		goto daa_failed;
 
-	newdevs = GENMASK(master->maxdevs - last, 0);
-	newdevs &= ~olddevs;
+	newdevs = GENMASK(last - 1, 0);
+	newdevs &= conf;
+	for (pos = master->i2c_active_dev + 1; pos < master->maxdevs; pos++, active++) {
+		if (olddevs & BIT(pos))
+			continue;
 
-	for (pos = 1, n = 0; pos < master->maxdevs; pos++) {
-		if (n >= last)
+		if (active >= last)
 			break;
 
-		if (newdevs & BIT(pos)) {
-			if (!xfer->cmds[n].error)
-				i3c_master_add_i3c_dev_locked(m, master->devs[pos].addr);
-			n++;
-		}
+		if (newdevs & BIT(active))
+			i3c_master_add_i3c_dev_locked(m, master->devs[pos].addr);
 	}
 
+daa_failed:
 	rockchip_i3c_master_free_xfer(xfer);
-
 	return ret;
 }
 
@@ -2021,7 +2101,7 @@ static void rockchip_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_recycle_slot(data->ibi_pool, slot);
 }
 
-static int rockchip_i3c_clk_cfg(struct rockchip_i3c_master *master)
+static int rockchip_i3c_clk_cfg_v0(struct rockchip_i3c_master *master)
 {
 	unsigned long rate, period;
 	u32 scl_timing;
@@ -2032,7 +2112,7 @@ static int rockchip_i3c_clk_cfg(struct rockchip_i3c_master *master)
 		return -EINVAL;
 
 	period = DIV_ROUND_UP(1000000000, rate);
-	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, period);
+	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, period) - 1;
 	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
 		hcnt = SCL_I3C_TIMING_CNT_MIN;
 
@@ -2044,7 +2124,7 @@ static int rockchip_i3c_clk_cfg(struct rockchip_i3c_master *master)
 	hcnt = DIV_ROUND_UP(hcnt, 4) - 1;
 	lcnt = DIV_ROUND_UP(lcnt, 4) - 1;
 
-	scl_timing = SCL_I3C_CLKDIV_HCNT(hcnt) | SCL_I3C_CLKDIV_LCNT(lcnt);
+	scl_timing = SCL_I3C_CLKDIV_HCNT_V0(hcnt) | SCL_I3C_CLKDIV_LCNT_V0(lcnt);
 	writel_relaxed(scl_timing, master->regs + CLKDIV_PP);
 
 	od_lcnt = max_t(u8, DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS * rate, 1000000000),
@@ -2056,13 +2136,74 @@ static int rockchip_i3c_clk_cfg(struct rockchip_i3c_master *master)
 	od_lcnt = max_t(u8, DIV_ROUND_UP(2 * I3C_BUS_I2C_FMP_SCL_RAISE_NS * rate, 1000000000),
 			od_lcnt);
 	od_lcnt = DIV_ROUND_UP(od_lcnt, 4) - 1;
-	scl_timing = SCL_I3C_CLKDIV_HCNT(hcnt) | SCL_I3C_CLKDIV_LCNT(od_lcnt);
+	scl_timing = SCL_I3C_CLKDIV_HCNT_V0(hcnt) | SCL_I3C_CLKDIV_LCNT_V0(od_lcnt);
 	writel_relaxed(scl_timing, master->regs + CLKDIV_OD);
 
 	return 0;
 }
 
-static int rockchip_i2c_clk_cfg(struct rockchip_i3c_master *master)
+static int rockchip_i3c_clk_cfg_v1(struct rockchip_i3c_master *master)
+{
+	int hcnt0 = 1, hcnt1 = 1, hcnt2 = 1, hcnt3 = 1;
+	int lcnt0 = 1, lcnt1 = 1, lcnt2 = 1, lcnt3 = 1;
+	unsigned int scl_timing_h, scl_timing_l;
+	int hcnt, lcnt, od_lcnt;
+	unsigned long rate;
+
+	rate = clk_get_rate(master->clk);
+	if (!rate)
+		return -EINVAL;
+
+	/* PP div */
+	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS * rate, 1000000000) - 1;
+	if (hcnt < SCL_I3C_TIMING_HCNT_MIN_V1)
+		hcnt = SCL_I3C_TIMING_HCNT_MIN_V1;
+	lcnt = DIV_ROUND_UP(rate, master->base.bus.scl_rate.i3c) - hcnt;
+	if (lcnt < SCL_I3C_TIMING_LCNT_MIN_V1)
+		lcnt = SCL_I3C_TIMING_LCNT_MIN_V1;
+
+	od_lcnt = lcnt;
+	hcnt -= 4;
+	lcnt -= 4;
+	hcnt2 = (hcnt - (hcnt0 + hcnt1)) / 2;
+	hcnt3 = hcnt - hcnt0 - hcnt1 - hcnt2;
+	lcnt2 = (lcnt - (lcnt0 + lcnt1)) / 2;
+	lcnt3 = lcnt - lcnt0 - lcnt1 - lcnt2;
+
+	scl_timing_h = SCL_I3C_CLKDIV_CNT_V1(hcnt0, hcnt1, hcnt2, hcnt3);
+	scl_timing_l = SCL_I3C_CLKDIV_CNT_V1(lcnt0, lcnt1, lcnt2, lcnt3);
+	writel_relaxed(scl_timing_h, master->regs + CLKDIV_PP_H);
+	writel_relaxed(scl_timing_l, master->regs + CLKDIV_PP_L);
+
+	/* OD div */
+	od_lcnt = max_t(u8, DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS * rate, 1000000000),
+			od_lcnt);
+	/* The scl raise time must be calculated for OD mode, as default
+	 * FM+ mode's max raise time is 120ns, can't exceed 1/2 scl_low
+	 * time for default.
+	 */
+	od_lcnt = max_t(u8, DIV_ROUND_UP(2 * I3C_BUS_I2C_FMP_SCL_RAISE_NS * rate, 1000000000),
+			od_lcnt);
+	od_lcnt -= 4;
+	hcnt2 = (hcnt - (hcnt0 + hcnt1)) / 2;
+	hcnt3 = hcnt - hcnt0 - hcnt1 - hcnt2;
+	lcnt2 = (od_lcnt - (lcnt0 + lcnt1)) / 2;
+	lcnt3 = od_lcnt - lcnt0 - lcnt1 - lcnt2;
+
+	scl_timing_h = SCL_I3C_CLKDIV_CNT_V1(hcnt0, hcnt1, hcnt2, hcnt3);
+	scl_timing_l = SCL_I3C_CLKDIV_CNT_V1(lcnt0, lcnt1, lcnt2, lcnt3);
+	writel_relaxed(scl_timing_h, master->regs + CLKDIV_OD_H);
+	writel_relaxed(scl_timing_l, master->regs + CLKDIV_OD_L);
+
+	return 0;
+}
+
+static int rockchip_i3c_clk_cfg(struct rockchip_i3c_master *master)
+{
+	return master->priv.i3c_clk_cfg(master);
+}
+
+static int rockchip_i2c_clk_cfg_v0(struct rockchip_i3c_master *master)
 {
 	unsigned long rate, period;
 	int hcnt, lcnt;
@@ -2076,10 +2217,51 @@ static int rockchip_i2c_clk_cfg(struct rockchip_i3c_master *master)
 	lcnt = DIV_ROUND_UP(DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, period), 4) - 1;
 	/* Use FM mode for default */
 	hcnt = DIV_ROUND_UP(DIV_ROUND_UP(rate, I3C_BUS_I2C_FM_SCL_RATE), 4) - lcnt - 1;
-	scl_timing = SCL_I2C_CLKDIV_HCNT(hcnt) | SCL_I2C_CLKDIV_LCNT(lcnt);
+	if (hcnt < SCL_I2C_TIMING_CNT_MIN)
+		hcnt = SCL_I2C_TIMING_CNT_MIN;
+	scl_timing = SCL_I2C_CLKDIV_HCNT_V0(hcnt) | SCL_I2C_CLKDIV_LCNT_V0(lcnt);
 	writel_relaxed(scl_timing, master->regs + CLKDIV_FM);
 
 	return 0;
+}
+
+static int rockchip_i2c_clk_cfg_v1(struct rockchip_i3c_master *master)
+{
+	unsigned int scl_timing_h, scl_timing_l;
+	int hcnt0 = 1, hcnt2 = 1, hcnt3 = 1;
+	int lcnt0 = 1, lcnt2 = 1, lcnt3 = 1;
+	unsigned long rate;
+	int hcnt, lcnt;
+
+	rate = clk_get_rate(master->clk);
+	if (!rate)
+		return -EINVAL;
+
+	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS * rate, 1000000000);
+	if (lcnt < SCL_I2C_TIMING_LCNT_MIN_V1)
+		lcnt = SCL_I2C_TIMING_LCNT_MIN_V1;
+	/* Use FM mode for default */
+	hcnt = DIV_ROUND_UP(rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt - 4;
+	if (hcnt < SCL_I2C_TIMING_HCNT_MIN_V1)
+		hcnt = SCL_I2C_TIMING_HCNT_MIN_V1;
+
+	hcnt2 = (hcnt - (32 * hcnt0)) / 2;
+	hcnt3 = hcnt - (32 * hcnt0) - hcnt2;
+	lcnt -= 4;
+	lcnt2 = (lcnt - (32 * lcnt0)) / 2;
+	lcnt3 = lcnt - (32 * lcnt0) - lcnt2;
+
+	scl_timing_h = SCL_I2C_CLKDIV_CNT_V1(hcnt0, hcnt2, hcnt3);
+	scl_timing_l = SCL_I2C_CLKDIV_CNT_V1(lcnt0, lcnt2, lcnt3);
+	writel_relaxed(scl_timing_h, master->regs + CLKDIV_FM_H);
+	writel_relaxed(scl_timing_l, master->regs + CLKDIV_FM_L);
+
+	return 0;
+}
+
+static int rockchip_i2c_clk_cfg(struct rockchip_i3c_master *master)
+{
+	return master->priv.i2c_clk_cfg(master);
 }
 
 static int rockchip_i3c_master_bus_init(struct i3c_master_controller *m)
@@ -2180,6 +2362,16 @@ static void rockchip_i3c_master_hj(struct work_struct *work)
 	i3c_master_do_daa(&master->base);
 }
 
+static unsigned int rockchip_i3c_master_get_ver(struct rockchip_i3c_master *i3c)
+{
+	unsigned int version;
+
+	version = readl_relaxed(i3c->regs + MODULE_CTL) & MODULE_CTL_VERSION_NUM;
+	version >>= MODULE_CTL_VERSION_NUM_SHIFT;
+
+	return version;
+}
+
 static int rockchip_i3c_probe(struct platform_device *pdev)
 {
 	struct rockchip_i3c_master *i3c;
@@ -2254,8 +2446,21 @@ static int rockchip_i3c_probe(struct platform_device *pdev)
 
 	/* Information regarding the FIFOs depth */
 	i3c->caps.cmdfifodepth = CMDFIFO_DEPTH;
-	i3c->caps.datafifodepth = DATAFIFO_DEPTH;
 	i3c->caps.ibififodepth = IBIFIFO_DEPTH;
+
+	if (rockchip_i3c_master_get_ver(i3c) == RK_I3C_VERSION0) {
+		i3c->caps.datafifodepth = DATAFIFO_DEPTH_V0;
+		i3c->priv.i3c_clk_cfg = rockchip_i3c_clk_cfg_v0;
+		i3c->priv.i2c_clk_cfg = rockchip_i2c_clk_cfg_v0;
+		i3c->priv.i3c_master_do_daa_conf = rockchip_i3c_master_do_daa_conf_v0;
+		i3c->priv.xfer_mode = PRIVATE_TRANSFER_WITHOUT7E;
+	} else {
+		i3c->caps.datafifodepth = DATAFIFO_DEPTH_V1;
+		i3c->priv.i3c_clk_cfg = rockchip_i3c_clk_cfg_v1;
+		i3c->priv.i2c_clk_cfg = rockchip_i2c_clk_cfg_v1;
+		i3c->priv.i3c_master_do_daa_conf = rockchip_i3c_master_do_daa_conf_v1;
+		i3c->priv.xfer_mode = PRIVATE_TRANSFER_WITH7E;
+	}
 
 	/* Device ID0 is reserved to describe this master. */
 	i3c->maxdevs = ROCKCHIP_I3C_MAX_DEVS;
