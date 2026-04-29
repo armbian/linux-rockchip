@@ -383,6 +383,15 @@
 	};
 };
 
+&rknpu {
+	rknpu-supply = <&vdd_npu_gpu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
 &rockchip_suspend {
 	rockchip,sleep-debug-en = <1>;
 

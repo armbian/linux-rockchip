@@ -568,6 +568,15 @@
 	status = "okay";
 };
 
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
 &rkvdec {
 	status = "okay";
 };
