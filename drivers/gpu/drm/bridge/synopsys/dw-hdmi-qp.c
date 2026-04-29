@@ -5231,7 +5231,11 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 		}
 	}
 
-	hdmi->workqueue = create_workqueue("dw_hdmi_flt_queue");
+	hdmi->workqueue = alloc_workqueue("dw_hdmi_flt_queue", WQ_UNBOUND, 1);
+	if (!hdmi->workqueue) {
+		ret = -ENOMEM;
+		goto err_ddc;
+	}
 	INIT_WORK(&hdmi->flt_work, dw_hdmi_qp_flt_work);
 
 	return hdmi;
