@@ -759,9 +759,10 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 			map_offset = 0;
 			map_size = (size_t)virt_addr->page_count << PAGE_SHIFT;
 		} else {
-			map_offset = virt_addr->offset;
 			real_offset = 0;
-			map_size = ((virt_addr->page_count - 1) << PAGE_SHIFT) + virt_addr->offset;
+			map_offset = virt_addr->offset;
+			map_size =
+				((size_t)virt_addr->page_count << PAGE_SHIFT) - virt_addr->offset;
 		}
 	} else {
 		real_offset = 0;
