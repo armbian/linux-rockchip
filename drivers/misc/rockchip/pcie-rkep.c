@@ -199,8 +199,8 @@ static bool pcie_rkep_is_link_lost(struct pci_dev *pdev)
 {
 	u32 bar0, bar4;
 
-	pcie_capability_read_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
-	pcie_capability_read_dword(pdev, PCI_BASE_ADDRESS_4, &bar4);
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_4, &bar4);
 	if ((bar0 == 0xffffffff || bar0 == 0) && (bar4 == 0xffffffff || bar4 == 0))
 		return true;
 	else
