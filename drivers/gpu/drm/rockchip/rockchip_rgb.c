@@ -299,14 +299,13 @@ static void rockchip_rgb_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_crtc_state *new_crtc_state = NULL;
 
 	new_crtc = drm_atomic_get_new_crtc_for_encoder(state, encoder);
-	/* No crtc means we're doing a full shutdown */
-	if (!new_crtc)
-		return;
-
-	new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
-	/* Entering self-refresh, do nothing */
-	if (new_crtc_state && new_crtc_state->self_refresh_active)
-		return;
+	/* No crtc indicates full power off */
+	if (new_crtc) {
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+		/* Entering self-refresh, do nothing */
+		if (new_crtc_state && new_crtc_state->self_refresh_active)
+			return;
+	}
 
 	if (rgb->panel) {
 		drm_panel_disable(rgb->panel);
