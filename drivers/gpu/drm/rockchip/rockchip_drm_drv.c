@@ -2270,25 +2270,33 @@ static int rockchip_gem_pool_init(struct drm_device *drm)
 	struct resource res;
 	int ret;
 
+	/*
+	 * secure-memory-region is optional
+	 */
 	node = of_parse_phandle(np, "secure-memory-region", 0);
 	if (!node)
-		return -ENXIO;
+		return 0;
 
 	ret = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (ret)
 		return ret;
 	start = res.start;
 	size = resource_size(&res);
 	if (!size)
-		return -ENOMEM;
+		return -EINVAL;
 
 	private->secure_buffer_pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!private->secure_buffer_pool)
 		return -ENOMEM;
 
-	gen_pool_add(private->secure_buffer_pool, start, size, -1);
+	ret = gen_pool_add(private->secure_buffer_pool, start, size, -1);
+	if (ret) {
+		gen_pool_destroy(private->secure_buffer_pool);
+		private->secure_buffer_pool = NULL;
+	}
 
-	return 0;
+	return ret;
 }
 
 static void rockchip_gem_pool_destroy(struct drm_device *drm)
@@ -2299,6 +2307,7 @@ static void rockchip_gem_pool_destroy(struct drm_device *drm)
 		return;
 
 	gen_pool_destroy(private->secure_buffer_pool);
+	private->secure_buffer_pool = NULL;
 }
 
 static void rockchip_drm_sysfs_dev_release(struct device *dev)
@@ -2812,16 +2821,22 @@ static int rockchip_drm_bind(struct device *dev)
 
 	ret = rockchip_drm_init_iommu(drm_dev);
 	if (ret)
-		goto err_unbind_all;
+		goto err_kms_helper_poll_fini;
 
-	rockchip_gem_pool_init(drm_dev);
+	ret = rockchip_gem_pool_init(drm_dev);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Failed to init gem pool\n");
+		goto err_drm_init_iommu;
+	}
+
+	/* reserved memory is optional */
 	ret = of_reserved_mem_device_init(drm_dev->dev);
 	if (ret)
 		DRM_DEBUG_KMS("No reserved memory region assign to drm\n");
 
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
-		goto err_kms_helper_poll_fini;
+		goto err_reserved_mem_device;
 
 	drm_for_each_encoder(encoder, drm_dev)
 		rockchip_drm_fix_encoder_possible_clones(encoder);
@@ -2844,10 +2859,13 @@ err_drm_fbdev_fini:
 	rockchip_drm_fbdev_fini(drm_dev);
 err_drm_dev_unregister:
 	drm_dev_unregister(drm_dev);
-err_kms_helper_poll_fini:
+err_reserved_mem_device:
+	of_reserved_mem_device_release(dev);
 	rockchip_gem_pool_destroy(drm_dev);
-	drm_kms_helper_poll_fini(drm_dev);
+err_drm_init_iommu:
 	rockchip_iommu_cleanup(drm_dev);
+err_kms_helper_poll_fini:
+	drm_kms_helper_poll_fini(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
 err_mode_config_cleanup:
