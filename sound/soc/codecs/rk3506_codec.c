@@ -421,7 +421,7 @@ static const struct snd_kcontrol_new rk3506_codec_dapm_controls[] = {
 			     PGA_GAIN_MIN,
 			     PGA_GAIN_MAX,
 			     0, adc_pga_gain_tlv),
-	SOC_SINGLE("ADC Switch", AUDIO_ADC_AGC0, 0, 1, 0),
+	SOC_SINGLE("ADC Switch", AUDIO_ADC_ADC0, 0, 1, 0),
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_rk3506 = {
