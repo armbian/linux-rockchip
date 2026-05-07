@@ -3319,6 +3319,8 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+	dma_set_max_seg_size(dev, UINT_MAX);
+
 	ret = component_master_add_with_match(dev, &rockchip_drm_ops, match);
 	if (ret < 0)
 		goto err;
