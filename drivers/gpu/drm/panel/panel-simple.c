@@ -1049,7 +1049,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	panel->sub_dev.of_node = dev->of_node;
 	panel->sub_dev.loader_protect = panel_simple_loader_protect;
-	rockchip_drm_register_sub_dev(&panel->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dev, &panel->sub_dev);
 
 	return 0;
 
@@ -1093,8 +1093,6 @@ static void panel_simple_shutdown(struct device *dev)
 static void panel_simple_remove(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
-
-	rockchip_drm_unregister_sub_dev(&panel->sub_dev);
 
 	drm_panel_remove(&panel->base);
 	panel_simple_shutdown(dev);

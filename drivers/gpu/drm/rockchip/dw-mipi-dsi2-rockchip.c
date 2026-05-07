@@ -1715,7 +1715,7 @@ static int dw_mipi_dsi2_register_sub_dev(struct dw_mipi_dsi2 *dsi2,
 	dsi2->sub_dev.connector = connector;
 	dsi2->sub_dev.of_node = dev->of_node;
 	dsi2->sub_dev.loader_protect = dw_mipi_dsi2_encoder_loader_protect;
-	rockchip_drm_register_sub_dev(&dsi2->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dsi2->dev, &dsi2->sub_dev);
 
 	return 0;
 }
@@ -1814,8 +1814,6 @@ static void dw_mipi_dsi2_unbind(struct device *dev, struct device *master,
 	struct dw_mipi_dsi2 *dsi2 = dev_get_drvdata(dev);
 
 	if (dsi2->sub_dev.connector) {
-		rockchip_drm_unregister_sub_dev(&dsi2->sub_dev);
-
 		if (dsi2->connector.funcs)
 			dsi2->connector.funcs->destroy(&dsi2->connector);
 	}

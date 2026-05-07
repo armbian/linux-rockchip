@@ -822,21 +822,13 @@ static int rk618_dsi_bridge_attach(struct drm_bridge *bridge,
 
 	dsi->sub_dev.connector = &dsi->connector;
 	dsi->sub_dev.of_node = dsi->dev->of_node;
-	rockchip_drm_register_sub_dev(&dsi->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dsi->dev, &dsi->sub_dev);
 
 	return 0;
 }
 
-static void rk618_dsi_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk618_dsi *dsi = bridge_to_dsi(bridge);
-
-	rockchip_drm_unregister_sub_dev(&dsi->sub_dev);
-}
-
 static const struct drm_bridge_funcs rk618_dsi_bridge_funcs = {
 	.attach = rk618_dsi_bridge_attach,
-	.detach = rk618_dsi_bridge_detach,
 	.mode_set = rk618_dsi_bridge_mode_set,
 	.enable = rk618_dsi_bridge_enable,
 	.disable = rk618_dsi_bridge_disable,

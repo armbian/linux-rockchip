@@ -4750,7 +4750,7 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 	dp->sub_dev.of_node = dp->dev->of_node;
 	dp->sub_dev.loader_protect = dw_dp_loader_protect;
 	dp->sub_dev.update_vfp_for_vrr = dw_dp_update_vfp_for_vrr;
-	rockchip_drm_register_sub_dev(&dp->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dp->dev, &dp->sub_dev);
 
 	return 0;
 }

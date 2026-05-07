@@ -4928,7 +4928,7 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 
 		hdmi->sub_dev.connector = connector;
 		hdmi->sub_dev.of_node = dev->of_node;
-		rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+		devm_rockchip_drm_register_sub_dev(dev, &hdmi->sub_dev);
 	} else if (plat_data->connector) {
 		hdmi->sub_dev.connector = plat_data->connector;
 		hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
@@ -4938,7 +4938,7 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 		else
 			hdmi->sub_dev.of_node = hdmi->dev->of_node;
 
-		rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+		devm_rockchip_drm_register_sub_dev(dev, &hdmi->sub_dev);
 	}
 
 	if (plat_data->split_mode && secondary) {
@@ -4958,7 +4958,7 @@ err_conn:
 	if (plat_data->connector) {
 		hdmi->sub_dev.connector = plat_data->connector;
 		hdmi->sub_dev.of_node = dev->of_node;
-		rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+		devm_rockchip_drm_register_sub_dev(dev, &hdmi->sub_dev);
 	}
 
 	return ret;
@@ -4972,9 +4972,6 @@ static void dw_hdmi_qp_rockchip_unbind(struct device *dev, struct device *master
 	cancel_work_sync(&hdmi->qms_vrr_work);
 	flush_workqueue(hdmi->workqueue);
 	destroy_workqueue(hdmi->workqueue);
-
-	if (hdmi->sub_dev.connector)
-		rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
 
 	dw_hdmi_qp_unbind(hdmi->hdmi_qp);
 

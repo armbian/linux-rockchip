@@ -348,7 +348,7 @@ static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 		sdev->connector = connector;
 		sdev->of_node = dp->dev->of_node;
 		sdev->loader_protect = rockchip_dp_loader_protect;
-		rockchip_drm_register_sub_dev(sdev);
+		devm_rockchip_drm_register_sub_dev(dp->dev, sdev);
 	}
 
 	return 0;
@@ -357,11 +357,7 @@ static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 static void rockchip_dp_bridge_detach(struct analogix_dp_plat_data *plat_data,
 				      struct drm_bridge *bridge)
 {
-	struct rockchip_dp_device *dp = pdata_encoder_to_dp(plat_data);
-	struct rockchip_drm_sub_dev *sdev = &dp->sub_dev;
 
-	if (sdev->connector)
-		rockchip_drm_unregister_sub_dev(sdev);
 }
 
 static enum drm_mode_status

@@ -1124,7 +1124,7 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge,
 
 	hdmi->sub_dev.connector = &hdmi->connector;
 	hdmi->sub_dev.of_node = hdmi->dev->of_node;
-	rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+	devm_rockchip_drm_register_sub_dev(hdmi->dev, &hdmi->sub_dev);
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
 	if (endpoint && of_device_is_available(endpoint)) {
@@ -1150,16 +1150,8 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge,
 	return 0;
 }
 
-static void rk618_hdmi_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk618_hdmi *hdmi = bridge_to_hdmi(bridge);
-
-	rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
-}
-
 static const struct drm_bridge_funcs rk618_hdmi_bridge_funcs = {
 	.attach = rk618_hdmi_bridge_attach,
-	.detach = rk618_hdmi_bridge_detach,
 	.mode_set = rk618_hdmi_bridge_mode_set,
 	.enable = rk618_hdmi_bridge_enable,
 	.disable = rk618_hdmi_bridge_disable,

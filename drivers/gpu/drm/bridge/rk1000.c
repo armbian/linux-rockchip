@@ -320,16 +320,9 @@ static int rk1000_bridge_attach(struct drm_bridge *bridge,
 
 	rk1000->sub_dev.connector = &rk1000->connector;
 	rk1000->sub_dev.of_node = rk1000->dev->of_node;
-	rockchip_drm_register_sub_dev(&rk1000->sub_dev);
+	devm_rockchip_drm_register_sub_dev(rk1000->dev, &rk1000->sub_dev);
 
 	return ret;
-}
-
-static void rk1000_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk1000_tve *rk1000 = bridge_to_rk1000(bridge);
-
-	rockchip_drm_unregister_sub_dev(&rk1000->sub_dev);
 }
 
 static struct drm_bridge_funcs rk1000_bridge_funcs = {
@@ -337,7 +330,6 @@ static struct drm_bridge_funcs rk1000_bridge_funcs = {
 	.disable = rk1000_bridge_disable,
 	.mode_set = rk1000_bridge_mode_set,
 	.attach = rk1000_bridge_attach,
-	.detach = rk1000_bridge_detach,
 };
 
 static int rk1000_probe(struct i2c_client *client)

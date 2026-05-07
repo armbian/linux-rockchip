@@ -183,7 +183,7 @@ static int rk618_rgb_bridge_attach(struct drm_bridge *bridge,
 
 		rgb->sub_dev.connector = &rgb->connector;
 		rgb->sub_dev.of_node = rgb->dev->of_node;
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
+		devm_rockchip_drm_register_sub_dev(rgb->dev, &rgb->sub_dev);
 	} else {
 		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge, 0);
 		if (ret) {
@@ -195,16 +195,8 @@ static int rk618_rgb_bridge_attach(struct drm_bridge *bridge,
 	return 0;
 }
 
-static void rk618_rgb_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk618_rgb *rgb = bridge_to_rgb(bridge);
-
-	rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
-}
-
 static const struct drm_bridge_funcs rk618_rgb_bridge_funcs = {
 	.attach = rk618_rgb_bridge_attach,
-	.detach = rk618_rgb_bridge_detach,
 	.enable = rk618_rgb_bridge_enable,
 	.disable = rk618_rgb_bridge_disable,
 };

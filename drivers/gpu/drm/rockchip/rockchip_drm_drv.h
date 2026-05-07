@@ -902,8 +902,8 @@ void rockchip_drm_crtc_standby(struct drm_crtc *crtc, bool standby);
 void rockchip_drm_crtc_output_post_enable(struct drm_crtc *crtc, int intf);
 void rockchip_drm_crtc_output_pre_disable(struct drm_crtc *crtc, int intf);
 
-void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
-void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
+int devm_rockchip_drm_register_sub_dev(struct device *dev,
+				       struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
 void rockchip_drm_te_handle(struct drm_crtc *crtc);

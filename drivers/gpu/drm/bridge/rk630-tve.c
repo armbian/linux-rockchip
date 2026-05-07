@@ -437,17 +437,10 @@ static int rk630_tve_bridge_attach(struct drm_bridge *bridge,
 		dev_err(tve->dev, "rk630 attach failed ret:%d", ret);
 	tve->sub_dev.connector = &tve->connector;
 	tve->sub_dev.of_node = tve->dev->of_node;
-	rockchip_drm_register_sub_dev(&tve->sub_dev);
+	devm_rockchip_drm_register_sub_dev(tve->dev, &tve->sub_dev);
 	tve->connector.interlace_allowed = 1;
 
 	return ret;
-}
-
-static void rk1000_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk630_tve *tve = bridge_to_tve(bridge);
-
-	rockchip_drm_unregister_sub_dev(&tve->sub_dev);
 }
 
 static struct drm_bridge_funcs rk630_tve_bridge_funcs = {
@@ -455,7 +448,6 @@ static struct drm_bridge_funcs rk630_tve_bridge_funcs = {
 	.disable = rk630_tve_bridge_disable,
 	.mode_set = rk630_tve_bridge_mode_set,
 	.attach = rk630_tve_bridge_attach,
-	.detach = rk1000_bridge_detach,
 };
 
 static int rk630_tve_probe(struct platform_device *pdev)

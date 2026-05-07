@@ -783,7 +783,7 @@ static int rockchip_dimming_panel_probe(struct spi_device *spi)
 
 	dimming_panel->sub_dev.of_node = dev->of_node;
 	dimming_panel->sub_dev.loader_protect = rockchip_dimming_panel_loader_protect;
-	rockchip_drm_register_sub_dev(&dimming_panel->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dev, &dimming_panel->sub_dev);
 
 	return 0;
 
@@ -802,8 +802,6 @@ static void rockchip_dimming_panel_remove(struct spi_device *spi)
 {
 	struct rockchip_dimming_panel *dimming_panel = dev_get_drvdata(&spi->dev);
 	struct device *dimming_dev = dimming_panel->dimming_dev;
-
-	rockchip_drm_unregister_sub_dev(&dimming_panel->sub_dev);
 
 	kthread_destroy_worker(dimming_panel->dimming_worker);
 

@@ -185,21 +185,13 @@ static int rk618_lvds_bridge_attach(struct drm_bridge *bridge,
 
 	lvds->sub_dev.connector = &lvds->connector;
 	lvds->sub_dev.of_node = lvds->dev->of_node;
-	rockchip_drm_register_sub_dev(&lvds->sub_dev);
+	devm_rockchip_drm_register_sub_dev(lvds->dev, &lvds->sub_dev);
 
 	return 0;
 }
 
-static void rk618_lvds_bridge_detach(struct drm_bridge *bridge)
-{
-	struct rk618_lvds *lvds = bridge_to_lvds(bridge);
-
-	rockchip_drm_unregister_sub_dev(&lvds->sub_dev);
-}
-
 static const struct drm_bridge_funcs rk618_lvds_bridge_funcs = {
 	.attach = rk618_lvds_bridge_attach,
-	.detach = rk618_lvds_bridge_detach,
 	.enable = rk618_lvds_bridge_enable,
 	.disable = rk618_lvds_bridge_disable,
 };

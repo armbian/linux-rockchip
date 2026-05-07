@@ -787,7 +787,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		lvds->sub_dev.of_node = lvds->dev->of_node;
 		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
 		drm_object_attach_property(&connector->base, private->connector_id_prop, lvds->id);
-		rockchip_drm_register_sub_dev(&lvds->sub_dev);
+		devm_rockchip_drm_register_sub_dev(dev, &lvds->sub_dev);
 	}
 
 	return 0;
@@ -804,8 +804,6 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 
-	if (lvds->sub_dev.connector)
-		rockchip_drm_unregister_sub_dev(&lvds->sub_dev);
 	if (lvds->panel)
 		drm_connector_cleanup(&lvds->connector);
 

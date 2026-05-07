@@ -1062,7 +1062,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		rgb->sub_dev.of_node = rgb->dev->of_node;
 		rgb->sub_dev.loader_protect = rockchip_rgb_encoder_loader_protect;
 		drm_object_attach_property(&connector->base, private->connector_id_prop, rgb->id);
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
+		devm_rockchip_drm_register_sub_dev(dev, &rgb->sub_dev);
 	}
 
 	rockchip_rgb_drm_self_refresh_helper_init(rgb);
@@ -1083,8 +1083,6 @@ static void rockchip_rgb_unbind(struct device *dev, struct device *master,
 
 	rockchip_rgb_drm_self_refresh_helper_cleanup(rgb);
 
-	if (rgb->sub_dev.connector)
-		rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
 	if (rgb->panel)
 		drm_connector_cleanup(&rgb->connector);
 

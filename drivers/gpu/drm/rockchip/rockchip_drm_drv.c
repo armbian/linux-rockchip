@@ -882,21 +882,32 @@ void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_dis
 }
 EXPORT_SYMBOL(rockchip_connector_update_vfp_for_vrr);
 
-void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+static void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 {
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_add_tail(&sub_dev->list, &rockchip_drm_sub_dev_list);
 	mutex_unlock(&rockchip_drm_sub_dev_lock);
 }
-EXPORT_SYMBOL(rockchip_drm_register_sub_dev);
 
-void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+static void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 {
 	mutex_lock(&rockchip_drm_sub_dev_lock);
 	list_del(&sub_dev->list);
 	mutex_unlock(&rockchip_drm_sub_dev_lock);
 }
-EXPORT_SYMBOL(rockchip_drm_unregister_sub_dev);
+
+static void devm_rockchip_drm_sub_dev_release(void *data)
+{
+	rockchip_drm_unregister_sub_dev(data);
+}
+
+int devm_rockchip_drm_register_sub_dev(struct device *dev,
+					struct rockchip_drm_sub_dev *sub_dev)
+{
+	rockchip_drm_register_sub_dev(sub_dev);
+	return devm_add_action_or_reset(dev, devm_rockchip_drm_sub_dev_release, sub_dev);
+}
+EXPORT_SYMBOL(devm_rockchip_drm_register_sub_dev);
 
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
 {
