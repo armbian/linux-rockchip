@@ -30,7 +30,7 @@
 	panel,fel = <16>;
 	panel,mirror = <0>;
 	panel,panel_16bit = <1>;
-	panel,panel_color = <7>;
+	panel,panel_color = <0x1002>;
 	panel,sdoe_mode = <1>;
 	panel,sdce_width = <1>;
 	panel,width-mm = <166>;
