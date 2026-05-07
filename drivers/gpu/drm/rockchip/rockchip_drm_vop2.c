@@ -3903,13 +3903,13 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 	struct drm_plane_state *pstate = &vpstate->base;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
 	struct vop2 *vop2 = vp->vop2;
-	int is_input_yuv = pstate->fb->format->is_yuv;
-	int is_output_yuv = vcstate->yuv_overlay;
 	struct vop2_win *win = to_vop2_win(pstate->plane);
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
 	int csc_y2r_bit_depth = CSC_10BIT_DEPTH;
 	int input_color_range = pstate->color_range;
+	bool is_input_yuv = pstate->fb->format->is_yuv;
+	bool is_output_yuv = vcstate->yuv_overlay;
 
 	if (win->feature & WIN_FEATURE_Y2R_13BIT_DEPTH)
 		csc_y2r_bit_depth = CSC_13BIT_DEPTH;
@@ -3989,6 +3989,7 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 
 	if (win->csc_coe_offset) {
 		struct post_csc_convert_mode convert_mode = {};
+		bool dci_color_swap = false;
 
 		convert_mode.is_input_yuv = is_input_yuv;
 		convert_mode.intput_color_encoding = pstate->color_encoding;
@@ -4013,7 +4014,16 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 		else if (!is_input_yuv && is_output_yuv)
 			vpstate->r2y_en = 1;
 
-		if (vop3_csc_is_r2r_y2y_mode(convert_mode, NULL)) {
+		/*
+		 * When DCI is enabled, if DCI CSC performs an R2Y conversion
+		 * and it is YUV overlay, the plane CSC needs to perform a
+		 * YUV to VYU swap.
+		 */
+		if (vop2->version >= VOP_VERSION_RK3572 && vpstate->dci_en &&
+		    !pstate->fb->format->is_yuv && vcstate->yuv_overlay)
+			dci_color_swap = true;
+
+		if (vop3_csc_is_r2r_y2y_mode(convert_mode, NULL) || dci_color_swap) {
 			if (!convert_mode.is_input_yuv) {
 				convert_mode.swap_channels = RK_PQ_CSC_V2_R2Y_R2R;
 				vpstate->r2y_en = 1;
@@ -8401,9 +8411,15 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			format = vop2_convert_format(fb->format->format);
 	}
 
-	vop2_plane_setup_csc_mode(vp, vpstate);
+	/*
+	 * The plane CSC mode setting depends on the value of
+	 * vpstate->dci_en (set by vop3_dci_config). Therefore,
+	 * vop2_plane_setup_csc_mode must be kept after vop3_dci_config.
+	 */
 	if (win->feature & WIN_FEATURE_DCI)
 		vop3_dci_config(win, vpstate);
+
+	vop2_plane_setup_csc_mode(vp, vpstate);
 
 	afbc_half_block_en = vop2_afbc_half_block_enable(vop2, vpstate);
 
