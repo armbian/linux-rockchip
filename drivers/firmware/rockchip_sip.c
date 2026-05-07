@@ -390,6 +390,22 @@ int sip_smc_cci_config(u32 func, u32 id, u32 cfg)
 }
 EXPORT_SYMBOL_GPL(sip_smc_cci_config);
 
+int sip_smc_access_cpu_reg(u32 func, u32 id, unsigned long *val)
+{
+	struct arm_smccc_res res;
+
+	if (val == NULL)
+		return SIP_RET_INVALID_PARAMS;
+
+	res = __invoke_sip_fn_smc(SIP_ACCESS_CPU_REG, func, id, *val);
+
+	if (func == RK_CPU_REG_READ)
+		*val = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_access_cpu_reg);
+
 /************************** fiq debugger **************************************/
 /*
  * AArch32 is not allowed to call SMC64(ATF framework does not support), so we
