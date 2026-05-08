@@ -218,13 +218,16 @@ static int rockchip_dp_match_by_id(struct device *dev, const void *data)
 static struct rockchip_dp_device *
 rockchip_dp_find_by_id(struct device_driver *drv, unsigned int id)
 {
+	struct rockchip_dp_device *dp = NULL;
 	struct device *dev;
 
 	dev = driver_find_device(drv, NULL, &id, rockchip_dp_match_by_id);
-	if (!dev)
-		return NULL;
+	if (dev) {
+		dp = dev_get_drvdata(dev);
+		put_device(dev);
+	}
 
-	return dev_get_drvdata(dev);
+	return dp;
 }
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
