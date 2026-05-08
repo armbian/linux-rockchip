@@ -484,6 +484,22 @@ config VIDEO_GC8034
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc8034.
 
+config VIDEO_GC8602
+	tristate "GalaxyCore GC8602 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on PM
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC8602 CMOS image sensor with MIPI CSI-2
+	  interface. The driver supports 3840x2160 10-bit Bayer output in
+	  linear and HDR modes through the V4L2 sub-device API.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc8602.
+
 config VIDEO_GC8613
 	tristate "GalaxyCore GC8613 sensor support"
 	depends on I2C && VIDEO_DEV
