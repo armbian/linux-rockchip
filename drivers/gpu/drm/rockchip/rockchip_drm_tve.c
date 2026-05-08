@@ -712,51 +712,52 @@ static int tve_parse_dt(struct device_node *np, struct rockchip_tve *tve)
 	} else if (val > 1) {
 		dev_err(tve->dev, "tve mode value invalid\n");
 		return -EINVAL;
+	} else {
+		tve->preferred_mode = val;
 	}
-	tve->preferred_mode = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter0", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter0 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter1", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter1 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter2", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter2 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter3", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter3 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter4", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter4 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter5", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter5 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter6", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter6 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter7", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter7 = val;
 
 	ret = of_property_read_u32(np, "rockchip,tve-upsample", &val);
-	if (val > DCLK_UPSAMPLEx4 || ret < 0)
+	if (ret < 0 || val > DCLK_UPSAMPLEx4)
 		return -EINVAL;
 	tve->upsample_mode = val;
 
@@ -803,41 +804,42 @@ static int tve_parse_dt_legacy(struct device_node *np, struct rockchip_tve *tve)
 	} else if (val > 1) {
 		dev_err(tve->dev, "tve mode value invalid\n");
 		return -EINVAL;
+	} else {
+		tve->preferred_mode = val;
 	}
-	tve->preferred_mode = val;
 
 	ret = of_property_read_u32(np, "rockchip,saturation", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->saturation = val;
 
 	ret = of_property_read_u32(np, "rockchip,brightcontrast", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->brightcontrast = val;
 
 	ret = of_property_read_u32(np, "rockchip,adjtiming", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->adjtiming = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter0", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter0 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter1", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter1 = val;
 
 	ret = of_property_read_u32(np, "rockchip,lumafilter2", &val);
-	if (val == 0 || ret < 0)
+	if (ret < 0 || val == 0)
 		return -EINVAL;
 	tve->lumafilter2 = val;
 
 	ret = of_property_read_u32(np, "rockchip,daclevel", &val);
-	if (val == 0 || ret < 0) {
+	if (ret < 0 || val == 0) {
 		return -EINVAL;
 	} else {
 		tve->daclevel = val;
@@ -867,7 +869,7 @@ static int tve_parse_dt_legacy(struct device_node *np, struct rockchip_tve *tve)
 
 	if (tve->soc_type == SOC_RK322X || tve->soc_type == SOC_RK3328) {
 		ret = of_property_read_u32(np, "rockchip,dac1level", &val);
-		if ((val == 0) || (ret < 0))
+		if (ret < 0 || val == 0)
 			return -EINVAL;
 		tve->dac1level = val;
 	}
