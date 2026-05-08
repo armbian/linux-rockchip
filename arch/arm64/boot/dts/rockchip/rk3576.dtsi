@@ -1228,8 +1228,8 @@
 		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "complete";
 		devfreq-events = <&dfi>;
-		clocks = <&scmi_clk SCLK_DDR>;
-		clock-names = "dmc_clk";
+		clocks = <&scmi_clk SCLK_DDR>, <&cru PCLK_MAILBOX0>;
+		clock-names = "dmc_clk", "pclk_mailbox";
 		operating-points-v2 = <&dmc_opp_table>;
 		vop-bw-dmc-level = <
 		/* min_bw(MB/s) max_bw(MB/s) freq_level */
