@@ -111,6 +111,7 @@ struct rockchip_dmcfreq {
 	struct dmcfreq_common_info info;
 	struct rockchip_dmcfreq_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
+	struct clk *pclk_mailbox;
 	struct devfreq_event_dev **edev;
 	struct mutex lock;
 	struct dram_timing *timing;
@@ -419,6 +420,15 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 		return ret;
 	dev_pm_opp_put(opp);
 
+	/* MCU notifies CPU via mailbox after DDR rate change */
+	if (dmcfreq->pclk_mailbox) {
+		ret = clk_prepare_enable(dmcfreq->pclk_mailbox);
+		if (ret) {
+			dev_err(dev, "Failed to prepare and enable pclk_mailbox\n");
+			return ret;
+		}
+	}
+
 	/*
 	 * We need to prevent cpu hotplug from happening while a dmc freq rate
 	 * change is happening.
@@ -558,6 +568,8 @@ out:
 	}
 cpus_unlock:
 	cpus_read_unlock();
+	if (dmcfreq->pclk_mailbox)
+		clk_disable_unprepare(dmcfreq->pclk_mailbox);
 
 	return ret;
 }
@@ -1982,6 +1994,13 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 
 	/* start mcu with sip_smc_dram */
 	wait_ctrl.dcf_en = 2;
+
+	/* rk3572/rk3576/rk3588 need pclk_mailbox for MCU notification */
+	dmcfreq->pclk_mailbox = devm_clk_get(&pdev->dev, "pclk_mailbox");
+	if (IS_ERR(dmcfreq->pclk_mailbox)) {
+		dev_err(&pdev->dev, "Cannot get the clk pclk_mailbox\n");
+		return PTR_ERR(dmcfreq->pclk_mailbox);
+	}
 
 	init_waitqueue_head(&wait_ctrl.wait_wq);
 	wait_ctrl.wait_en = 1;
