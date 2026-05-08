@@ -432,7 +432,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 
 	ret = drm_of_encoder_active_endpoint(dp->dev->of_node, encoder, &endpoint);
 	if (ret < 0)
-		return;
+		goto out_pm_put;
 
 	remote_port_parent = of_graph_get_remote_port_parent(endpoint.local_node);
 	if (remote_port_parent) {
@@ -450,6 +450,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 	if (ret != 0)
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg lcdc_sel: %d\n", ret);
 
+out_pm_put:
 	pm_runtime_mark_last_busy(dp->dev);
 	pm_runtime_put_autosuspend(dp->dev);
 }
