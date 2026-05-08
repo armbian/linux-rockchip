@@ -60,7 +60,7 @@ struct rockchip_dimming_panel {
 	 *        send init command sequence after reset deassert
 	 * @vsync_hold: the time (in microseconds) that it takes for the panel to
 	 *              hold the vsync signal high
-	 * @vysnc_back: the time (in microseconds) that it takes for the panel to
+	 * @vsync_back: the time (in microseconds) that it takes for the panel to
 	 *              delay the vsync signal
 	 */
 	struct {
@@ -355,7 +355,7 @@ out:
 	kthread_queue_delayed_work(dimming_panel->dimming_worker,
 				   &dimming_panel->dimming_delayed_work,
 				   msecs_to_jiffies(delay_ms));
-};
+}
 
 static int rockchip_dimming_panel_regulator_enable(struct rockchip_dimming_panel *dimming_panel)
 {
