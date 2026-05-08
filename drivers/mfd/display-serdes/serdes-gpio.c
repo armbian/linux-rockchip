@@ -104,28 +104,39 @@ static void serdes_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	struct serdes *serdes = serdes_gpio->parent->parent;
 	int i = 0;
 	int ret = 0;
+	int gpio;
+	const char *level;
+	struct gpio_desc *desc;
 
 	for (i = 0; i < chip->ngpio; i++) {
-		int gpio = i + chip->base;
-		const char *level;
 
-		seq_printf(s, "gpio-%02d ", gpio);
+		if (!gpiochip_is_requested(chip, i))
+			continue;
+
+		gpio = i + chip->base;
+		desc = gpiochip_get_desc(chip, i);
+		if (IS_ERR(desc))
+			continue;
 
 		if (serdes->chip_data->gpio_ops->get_level)
 			ret = serdes->chip_data->gpio_ops->get_level(serdes, i);
+		else
+			ret = 0;
+
 		switch (ret) {
 		case SERDES_GPIO_LEVEL_HIGH:
-			level = "level-high";
+			level = "hi";
 			break;
 		case SERDES_GPIO_LEVEL_LOW:
-			level = "level-low";
+			level = "lo";
 			break;
 		default:
 			level = "invalid level";
 			break;
 		}
 
-		seq_printf(s, " %s\n", level);
+		seq_printf(s, " gpio-%-3d (%-20.20s|%-20.20s) %s\n",
+			   gpio, desc->name ?: "", desc->label, level);
 	}
 }
 #else
