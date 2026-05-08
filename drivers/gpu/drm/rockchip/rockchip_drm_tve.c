@@ -995,7 +995,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm_dev = data;
 	struct device_node *np = dev->of_node;
-	const struct of_device_id *match;
 	const struct rockchip_tve_data *tve_data;
 	struct rockchip_tve *tve;
 	struct resource *res;
@@ -1006,12 +1005,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	tve = devm_kzalloc(dev, sizeof(*tve), GFP_KERNEL);
 	if (!tve)
 		return -ENOMEM;
-
-	match = of_match_node(rockchip_tve_dt_ids, np);
-	if (!match) {
-		dev_err(tve->dev, "tve can't match node\n");
-		return -EINVAL;
-	}
 
 	tve->dev = &pdev->dev;
 	tve_data = of_device_get_match_data(dev);
@@ -1131,7 +1124,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 
 	pm_runtime_enable(dev);
 	dev_set_drvdata(dev, tve);
-	dev_dbg(tve->dev, "%s tv encoder probe ok\n", match->compatible);
+	dev_dbg(tve->dev, "tv encoder probe ok\n");
 
 	return 0;
 
