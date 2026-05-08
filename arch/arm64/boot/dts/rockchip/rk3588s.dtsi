@@ -2256,8 +2256,8 @@
 		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "complete";
 		devfreq-events = <&dfi>;
-		clocks = <&scmi_clk 4>;
-		clock-names = "dmc_clk";
+		clocks = <&scmi_clk 4>, <&cru PCLK_MAILBOX1>;
+		clock-names = "dmc_clk", "pclk_mailbox";
 		operating-points-v2 = <&dmc_opp_table>;
 		upthreshold = <40>;
 		downdifferential = <20>;
