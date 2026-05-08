@@ -110,6 +110,7 @@ struct rkxx_remotectl_drvdata {
 	int handle_cpu_id;
 	int wakeup;
 	int support_psci;
+	bool disable_rc;
 	int pwm_pwrkey_capture;
 	unsigned long period;
 	unsigned long temp_period;
@@ -705,16 +706,13 @@ static void rk_pwm_clk_ctrl_v4(struct platform_device *pdev, int work_mode)
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
 	int val;
 
-	if (work_mode == IR_WORK_MODE) {
+	if (work_mode != IR_WORK_MODE && !ddata->disable_rc &&
+	    ddata->minor_version >= 1) {
+		val = CLK_SCALE(0) | CLK_SRC_SEL(CLK_SRC_RC);
+	} else {
 		val = CLK_SCALE(32);
-		/* select clk_pwm as root clock source */
 		if (ddata->minor_version >= 1)
 			val |= CLK_SRC_SEL(CLK_SRC_PWM);
-	} else {
-		val = CLK_SCALE(0);
-		/* select rc as root clock source */
-		if (ddata->minor_version >= 1)
-			val |= CLK_SRC_SEL(CLK_SRC_RC);
 	}
 
 	writel_relaxed(val, ddata->base + PWM_REG_CLK_CTRL_V4);
@@ -953,6 +951,8 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	}
 	ddata->irq = irq;
 	ddata->wakeup = 1;
+
+	ddata->disable_rc = of_property_read_bool(np, "rockchip,disable-rc");
 
 	if (ddata->pwm_data->pwm_version < 4) {
 		irq_flags = IRQF_NO_SUSPEND | IRQF_SHARED;
