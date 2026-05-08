@@ -2237,10 +2237,6 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 {
 	struct hdmi_avi_infoframe frame;
 	u8 val;
-	bool is_hdmi2;
-	const struct drm_display_info *info = &connector->display_info;
-
-	is_hdmi2 = info->hdmi.scdc.supported || (info->color_formats & DRM_COLOR_FORMAT_YCBCR420);
 
 	/* Initialise info frame from DRM mode */
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
@@ -2256,9 +2252,24 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 			drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
 							   hdmi->hdmi_data.quant_range);
 	} else {
+		/*
+		 * When the quant_range value is set to default, since the YCC quantization
+		 * range field in the AVI InfoFrame does not define a default mode, the output
+		 * range must be explicitly set to either Full Range or Limited Range based
+		 * on resolution.
+		 */
+		if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_DEFAULT) {
+			if (drm_match_cea_mode(mode) > 1)
+				frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+			else
+				frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_FULL;
+		} else if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_FULL) {
+			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_FULL;
+		} else {
+			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+		}
+
 		frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-		frame.ycc_quantization_range =
-			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
 	if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
@@ -2296,15 +2307,6 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 		frame.extended_colorimetry =
 				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
 		break;
-	}
-
-	if (!hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
-		frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
-	} else {
-		if (is_hdmi2 && frame.quantization_range == HDMI_QUANTIZATION_RANGE_FULL)
-			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_FULL;
-		else
-			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
 	/*
@@ -3263,6 +3265,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			hdmi->plat_data->get_yuv422_format(connector, edid, ext_block_num);
 		if (hdmi->plat_data->get_colorimetry)
 			hdmi->plat_data->get_colorimetry(data, edid, ext_block_num);
+		if (hdmi->plat_data->get_ycc_quant_range_selectable)
+			hdmi->plat_data->get_ycc_quant_range_selectable(data, edid, ext_block_num);
 		hdmi->support_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		list_for_each_entry(mode, &connector->probed_modes, head) {
@@ -3526,11 +3530,36 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 						     property, val);
 }
 
+static void dw_hdmi_set_quant_range(struct dw_hdmi *hdmi)
+{
+	void *data = hdmi->plat_data->phy_data;
+	u32 old_quant_range = hdmi->hdmi_data.quant_range;
+
+	if (!hdmi->bridge_is_on)
+		return;
+
+	if (hdmi->update)
+		return;
+
+	if (hdmi->plat_data->get_quant_range)
+		hdmi->hdmi_data.quant_range = hdmi->plat_data->get_quant_range(data);
+
+	if (old_quant_range != hdmi->hdmi_data.quant_range) {
+		hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
+		mdelay(50);
+		dw_hdmi_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
+		mdelay(50);
+		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
+	}
+}
+
 static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 					    struct drm_atomic_state *state)
 {
 	struct dw_hdmi *hdmi =
 		container_of(connector, struct dw_hdmi, connector);
+
+	dw_hdmi_set_quant_range(hdmi);
 
 	if (hdmi->update) {
 		dw_hdmi_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
@@ -3540,17 +3569,6 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		hdmi->update = false;
 	}
 }
-
-void dw_hdmi_set_quant_range(struct dw_hdmi *hdmi)
-{
-	if (!hdmi->bridge_is_on)
-		return;
-
-	hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
-	dw_hdmi_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
-	hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
-}
-EXPORT_SYMBOL_GPL(dw_hdmi_set_quant_range);
 
 void dw_hdmi_set_output_type(struct dw_hdmi *hdmi, u64 val)
 {
@@ -4535,6 +4553,15 @@ static int dw_hdmi_status_show(struct seq_file *s, void *v)
 		seq_puts(s, "YUV420");
 	else
 		seq_puts(s, "UNKNOWN");
+
+	seq_puts(s, "\tColor Range: ");
+	if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_FULL)
+		seq_puts(s, "FULL_RANGE");
+	else if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
+		seq_puts(s, "LIMITED_RANGE");
+	else
+		seq_puts(s, "DEFAULT_RANGE");
+
 	val =  hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format);
 	seq_printf(s, "\t\tColor Depth: %d bit\n", val);
 	seq_puts(s, "Colorimetry: ");

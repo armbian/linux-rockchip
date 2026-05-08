@@ -150,6 +150,7 @@ struct rockchip_hdmi {
 	bool hpd_wake_en;
 	u8 force_output;
 	bool hpd_stat;
+	bool ycc_quant_range_selectable;
 
 	unsigned long bus_format;
 	unsigned long output_bus_format;
@@ -181,6 +182,7 @@ struct rockchip_hdmi {
 	unsigned int colorimetry;
 	unsigned int hdmi_quant_range;
 	unsigned int phy_bus_width;
+	unsigned int quant_range_val;
 	enum rk_if_color_format hdmi_output;
 	struct rockchip_drm_sub_dev sub_dev;
 
@@ -1193,6 +1195,15 @@ dw_hdmi_rockchip_check_color(struct drm_connector_state *conn_state,
 		return false;
 }
 
+static enum hdmi_quantization_range
+dw_hdmi_get_default_quant_range(struct drm_display_mode *mode)
+{
+	if (drm_match_cea_mode(mode) > 1)
+		return HDMI_QUANTIZATION_RANGE_LIMITED;
+
+	return HDMI_QUANTIZATION_RANGE_FULL;
+}
+
 static int
 dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
@@ -1200,6 +1211,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_display_info *info = &conn_state->connector->display_info;
 	unsigned int colorformat, bus_width;
 	struct drm_display_mode mode = {};
 	unsigned int output_mode;
@@ -1230,13 +1242,60 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	s->dsc_enable = 0;
 
 	s->color_encoding = hdmi->colorimetry;
+	/*
+	 * Per the CEA-861 specification, when the EDID does not declare support
+	 * for selectable quantization range, CEA video resolutions shall default to
+	 * Limited Range, while non-CEA (IT) resolutions shall default to Full Range.
+	 * Note that 640x480p (VIC 1) must be treated as a non-CEA resolutions.
+	 */
+	if (colorformat == RK_IF_FORMAT_RGB) {
+		/*
+		 * When edid supports selectable quantization range and userspace
+		 * did not specify the output range, RGB output prefer
+		 * set to Full Range. This aligns with typical RGB workloads (e.g., UI),
+		 * which generally expect Full Range quantization.
+		 */
+		if (info->rgb_quant_range_selectable) {
+			if (hdmi->quant_range_val == HDMI_QUANTIZATION_RANGE_DEFAULT)
+				hdmi->hdmi_quant_range = HDMI_QUANTIZATION_RANGE_FULL;
+			else
+				hdmi->hdmi_quant_range = hdmi->quant_range_val;
+		} else {
+			if (hdmi->quant_range_val != HDMI_QUANTIZATION_RANGE_DEFAULT)
+				DRM_WARN("sink can't support rgb range select\n");
 
-	if (colorformat == RK_IF_FORMAT_RGB)
-		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ?
-					DRM_COLOR_YCBCR_LIMITED_RANGE : DRM_COLOR_YCBCR_FULL_RANGE;
-	else
-		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_FULL ?
-					DRM_COLOR_YCBCR_FULL_RANGE : DRM_COLOR_YCBCR_LIMITED_RANGE;
+			hdmi->hdmi_quant_range = dw_hdmi_get_default_quant_range(&mode);
+		}
+
+		/*
+		 * VOP can guarantee RGB full range output, while the HDMI controller
+		 * supports full-to-limited CSC. Therefore, in RGB scenarios, always
+		 * let VOP output full range.
+		 */
+		s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	} else {
+		/*
+		 * When edid supports selectable quantization range and userspace
+		 * not specify the output range, YUV output prefer set to Limited Range.
+		 * This aligns with typical YUV workloads (e.g., video playback), source
+		 * material are predominantly mastered in Limited Range.
+		 */
+		if (hdmi->ycc_quant_range_selectable) {
+			if (hdmi->quant_range_val == HDMI_QUANTIZATION_RANGE_DEFAULT)
+				hdmi->hdmi_quant_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+			else
+				hdmi->hdmi_quant_range = hdmi->quant_range_val;
+		} else {
+			if (hdmi->quant_range_val != HDMI_QUANTIZATION_RANGE_DEFAULT)
+				DRM_WARN("sink can't support yuv range select\n");
+
+			hdmi->hdmi_quant_range = dw_hdmi_get_default_quant_range(&mode);
+		}
+
+		s->color_range = hdmi->hdmi_quant_range ==
+			HDMI_QUANTIZATION_RANGE_FULL ? DRM_COLOR_YCBCR_FULL_RANGE :
+			DRM_COLOR_YCBCR_LIMITED_RANGE;
+	}
 
 	return 0;
 }
@@ -1524,6 +1583,15 @@ static void dw_hdmi_rockchip_crtc_pre_disable(void *data, struct drm_crtc *crtc)
 	rockchip_drm_crtc_output_pre_disable(crtc, VOP_OUTPUT_IF_HDMI0);
 }
 
+static void dw_hdmi_get_ycc_quant_range_selectable(void *data, const struct edid *edid,
+						   int ext_block_num)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	hdmi->ycc_quant_range_selectable =
+		rockchip_drm_yuv_range_sel_supported(edid, ext_block_num);
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -1796,11 +1864,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		hdmi->hdmi_output = val;
 		return 0;
 	} else if (property == hdmi->quant_range) {
-		u64 quant_range = hdmi->hdmi_quant_range;
-
-		hdmi->hdmi_quant_range = val;
-		if (quant_range != hdmi->hdmi_quant_range)
-			dw_hdmi_set_quant_range(hdmi->hdmi);
+		hdmi->quant_range_val = val;
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
 		return 0;
@@ -1886,7 +1950,7 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 			*val |= BIT(RK_IF_FORMAT_YCBCR420);
 		return 0;
 	} else if (property == hdmi->quant_range) {
-		*val = hdmi->hdmi_quant_range;
+		*val = hdmi->quant_range_val;
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
 		*val = state->hdr_output_metadata ?
@@ -2302,6 +2366,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_crtc_pre_disable;
 	plat_data->crtc_post_enable =
 		dw_hdmi_rockchip_crtc_post_enable;
+	plat_data->get_ycc_quant_range_selectable = dw_hdmi_get_ycc_quant_range_selectable;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	encoder = &hdmi->encoder;
@@ -2327,6 +2392,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	hdmi->unsupported_yuv_input = plat_data->unsupported_yuv_input;
 	hdmi->unsupported_deep_color = plat_data->unsupported_deep_color;
+	hdmi->quant_range_val = HDMI_QUANTIZATION_RANGE_DEFAULT;
 
 	ret = rockchip_hdmi_parse_dt(hdmi);
 	if (ret) {
