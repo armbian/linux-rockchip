@@ -695,25 +695,27 @@ static int rockchip_dimming_panel_of_get_data(struct rockchip_dimming_panel *dim
 
 	dimming_panel->cmd_element_size = dimming_panel->zone_max;
 	data = of_get_property(np, "command-header", &len);
-	if (data) {
-		dimming_panel->cmd_header = devm_kzalloc(dev, len, GFP_KERNEL);
-		if (!dimming_panel->cmd_header)
-			return -ENOMEM;
+	if (!data)
+		return dev_err_probe(dev, -EINVAL, "failed to get command header\n");
 
-		memcpy(dimming_panel->cmd_header, data, len);
-		dimming_panel->cmd_header_len = len;
-	}
+	dimming_panel->cmd_header = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!dimming_panel->cmd_header)
+		return -ENOMEM;
+
+	memcpy(dimming_panel->cmd_header, data, len);
+	dimming_panel->cmd_header_len = len;
 	dimming_panel->cmd_element_size += dimming_panel->cmd_header_len / element_bytes;
 
 	data = of_get_property(np, "command-tail", &len);
-	if (data) {
-		dimming_panel->cmd_tail = devm_kzalloc(dev, len, GFP_KERNEL);
-		if (!dimming_panel->cmd_tail)
-			return -ENOMEM;
+	if (!data)
+		return dev_err_probe(dev, -EINVAL, "failed to get command tail\n");
 
-		memcpy(dimming_panel->cmd_tail, data, len);
-		dimming_panel->cmd_tail_len = len;
-	}
+	dimming_panel->cmd_tail = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!dimming_panel->cmd_tail)
+		return -ENOMEM;
+
+	memcpy(dimming_panel->cmd_tail, data, len);
+	dimming_panel->cmd_tail_len = len;
 	dimming_panel->cmd_element_size += dimming_panel->cmd_tail_len / element_bytes;
 
 	return 0;
