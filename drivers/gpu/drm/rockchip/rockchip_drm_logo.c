@@ -257,6 +257,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 		return -ENOMEM;
 
 	ret = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (ret)
 		return ret;
 	if (private->domain)
@@ -304,6 +305,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 		return -ENOMEM;
 
 	ret = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (ret)
 		return ret;
 	start = ALIGN_DOWN(res.start, pg_size);
