@@ -625,8 +625,6 @@ static int rockchip_vkms_bind(struct device *dev, struct device *master, void *d
 
 	np = of_find_compatible_node(NULL, NULL, "rockchip,vkms");
 	if (np) {
-		of_node_put(np);
-
 		of_property_read_u32(np, "rockchip,vkms-crtc-num", &rockchip_vkms->crtc_num);
 		if (rockchip_vkms->crtc_num > VKMS_MAX_CRTC) {
 			DRM_ERROR("rockchip,vkms-crtc-num = %d in dts exceeds VKMS_MAX_CRTC(%d)\n",
@@ -643,6 +641,8 @@ static int rockchip_vkms_bind(struct device *dev, struct device *master, void *d
 				DRM_ERROR("vkms-conn-disconnected index %d exceeds crtc_num(%d)\n",
 					  i, rockchip_vkms->crtc_num);
 		}
+
+		of_node_put(np);
 	}
 
 	rockchip_vkms->dev = dev;
