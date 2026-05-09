@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <drm/drm_of.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/component.h>
@@ -320,16 +321,9 @@ rockchip_virtual_connector_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static void rockchip_virtual_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_funcs rockchip_virtual_connector_funcs = {
 	.detect = rockchip_virtual_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = rockchip_virtual_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -360,22 +354,24 @@ static int rockchip_virtual_connector_register(struct rockchip_vconn *vconn)
 		encoder = &vconn_dev->encoder;
 		connector = &vconn_dev->connector;
 		encoder->possible_crtcs = vconn_dev->vp_id_mask;
-		drm_encoder_helper_add(encoder, &rockchip_virtual_encoder_helper_funcs);
-		ret = drm_simple_encoder_init(vconn->drm_dev, encoder, vconn_dev->encoder_type);
+		ret = drmm_encoder_init(vconn->drm_dev, encoder, NULL,
+					vconn_dev->encoder_type, NULL);
 		if (ret < 0) {
 			dev_err(vconn->dev, "failed to register encoder for output%d",
 				ffs(vconn_dev->if_id) - 1);
 			return ret;
 		}
+		drm_encoder_helper_add(encoder, &rockchip_virtual_encoder_helper_funcs);
 
-		drm_connector_helper_add(connector, &rockchip_virtual_connector_helper_funcs);
-		ret = drm_connector_init(vconn->drm_dev, connector,
-					 &rockchip_virtual_connector_funcs, vconn_dev->output_type);
+		ret = drmm_connector_init(vconn->drm_dev, connector,
+					  &rockchip_virtual_connector_funcs,
+					  vconn_dev->output_type, NULL);
 		if (ret) {
 			dev_err(vconn->dev, "Failed to initialize connector for output%d\n",
 				ffs(vconn_dev->if_id) - 1);
 			return ret;
 		}
+		drm_connector_helper_add(connector, &rockchip_virtual_connector_helper_funcs);
 
 		drm_connector_attach_encoder(connector, encoder);
 	}
@@ -433,7 +429,7 @@ static int rockchip_vconn_device_create(struct rockchip_vconn *vconn,
 
 	id = rockchip_vconn_parse_vp_id(vconn, name);
 	if (id >= 0) {
-		vconn_dev = devm_kzalloc(vconn->dev, sizeof(*vconn_dev), GFP_KERNEL);
+		vconn_dev = drmm_kzalloc(vconn->drm_dev, sizeof(*vconn_dev), GFP_KERNEL);
 		if (!vconn_dev)
 			return -ENOMEM;
 		vconn_dev->vconn = vconn;
@@ -463,7 +459,7 @@ static int rockchip_virtual_connectors_create(struct rockchip_vconn *vconn)
 		return ret;
 
 	for (i = 0; i < count; i++) {
-		vconn_dev = devm_kzalloc(vconn->dev, sizeof(*vconn_dev), GFP_KERNEL);
+		vconn_dev = drmm_kzalloc(vconn->drm_dev, sizeof(*vconn_dev), GFP_KERNEL);
 		if (!vconn_dev)
 			return -ENOMEM;
 		snprintf(propname, sizeof(propname), "virtual%d-disconnected", i);
@@ -490,7 +486,7 @@ static int rockchip_virtual_connector_bind(struct device *dev, struct device *ma
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	vconn = devm_kzalloc(&pdev->dev, sizeof(*vconn), GFP_KERNEL);
+	vconn = drmm_kzalloc(drm, sizeof(*vconn), GFP_KERNEL);
 	if (!vconn)
 		return -ENOMEM;
 	vconn->dev = dev;
@@ -538,9 +534,7 @@ static int rockchip_virtual_connector_bind(struct device *dev, struct device *ma
 
 	platform_set_drvdata(pdev, vconn);
 
-	rockchip_virtual_connector_register(vconn);
-
-	return 0;
+	return rockchip_virtual_connector_register(vconn);
 }
 
 static void rockchip_virtual_connector_unbind(struct device *dev, struct device *master,
