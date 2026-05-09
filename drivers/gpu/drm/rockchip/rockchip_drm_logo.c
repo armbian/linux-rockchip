@@ -301,17 +301,21 @@ static int init_loader_memory(struct drm_device *drm_dev)
 		return 0;
 
 	node = of_parse_phandle(np, "memory-region", idx);
-	if (!node)
-		return -ENOMEM;
+	if (!node) {
+		ret = -ENOMEM;
+		goto err_unmap_logo;
+	}
 
 	ret = of_address_to_resource(node, 0, &res);
 	of_node_put(node);
 	if (ret)
-		return ret;
+		goto err_unmap_logo;
 	start = ALIGN_DOWN(res.start, pg_size);
 	size = resource_size(&res);
-	if (!size)
-		return 0;
+	if (!size) {
+		ret = -ENOMEM;
+		goto err_unmap_logo;
+	}
 	if (!IS_ALIGNED(res.start, PAGE_SIZE) || !IS_ALIGNED(size, PAGE_SIZE))
 		DRM_ERROR("Reserved drm cubic memory should be aligned as:0x%lx, current is:start[%pad] size[%pad]\n",
 			  PAGE_SIZE, &res.start, &size);
@@ -319,8 +323,10 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	private->cubic_lut_kvaddr = phys_to_virt(start);
 	if (private->domain) {
 		private->clut_reserved_node = kmalloc(sizeof(struct drm_mm_node), GFP_KERNEL);
-		if (!private->clut_reserved_node)
-			return -ENOMEM;
+		if (!private->clut_reserved_node) {
+			ret = -ENOMEM;
+			goto err_unmap_logo;
+		}
 
 		ret = rockchip_drm_reserve_vm(drm_dev, &private->mm, private->clut_reserved_node, size, start);
 		if (ret)
@@ -341,6 +347,9 @@ err_free_clut:
 	rockchip_drm_release_reserve_vm(drm_dev, private->clut_reserved_node);
 	kfree(private->clut_reserved_node);
 	private->clut_reserved_node = NULL;
+err_unmap_logo:
+	if (private->domain)
+		iommu_unmap(private->domain, logo->dma_addr, ALIGN(logo->size, pg_size));
 err_free_logo:
 	rockchip_drm_release_reserve_vm(drm_dev, &logo->logo_reserved_node);
 	kfree(logo);
