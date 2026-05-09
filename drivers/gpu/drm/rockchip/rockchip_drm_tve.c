@@ -266,9 +266,7 @@ static void tve_set_mode(struct rockchip_tve *tve)
 
 			tve_writel(TV_FREQ_SC,	0x2A098ACB);
 			tve_writel(TV_SYNC_TIMING, 0x00C28381);
-			tve_writel(TV_ADJ_TIMING, (0xc << 28) | 0x06c00800 | 0x80);
 			tve_writel(TV_ACT_ST,	0x001500F6);
-			tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
 
 			tve_writel(TV_ADJ_TIMING, tve->adjtiming);
 			tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
