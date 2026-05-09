@@ -518,7 +518,7 @@ static int rockchip_virtual_connector_bind(struct device *dev, struct device *ma
 				     ROCKCHIP_OUT_MODE_AAAA, MEDIA_BUS_FMT_RGB888_1X24,
 				     VOP_OUTPUT_IF_eDP0);
 
-	rockchip_vconn_device_create(vconn, "edp0", DRM_MODE_CONNECTOR_eDP,
+	rockchip_vconn_device_create(vconn, "edp1", DRM_MODE_CONNECTOR_eDP,
 				     ROCKCHIP_OUT_MODE_AAAA, MEDIA_BUS_FMT_RGB888_1X24,
 				     VOP_OUTPUT_IF_eDP1);
 
