@@ -5916,9 +5916,9 @@ static int dw_dp_single_audio_init(struct dw_dp *dp, struct dw_dp_audio *audio)
 	int ret;
 
 	audio->extcon = devm_extcon_dev_allocate(dp->dev, dw_dp_cable);
-		if (IS_ERR(audio->extcon))
-			return dev_err_probe(dp->dev, PTR_ERR(audio->extcon),
-			       "failed to allocate extcon device\n");
+	if (IS_ERR(audio->extcon))
+		return dev_err_probe(dp->dev, PTR_ERR(audio->extcon),
+				     "failed to allocate extcon device\n");
 
 	ret = devm_extcon_dev_register(dp->dev, audio->extcon);
 	if (ret)
