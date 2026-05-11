@@ -1582,7 +1582,6 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 	struct cmd_header *header;
 	const void *data;
 	char *d;
-	uint8_t *dsc_packed_pps;
 	int len;
 	u32 version_major, version_minor;
 
@@ -1632,12 +1631,25 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 			return -EINVAL;
 
 		if (header->cmd_type == MIPI_DSI_PICTURE_PARAMETER_SET) {
-			dsc_packed_pps = devm_kmemdup(dsi2->dev, d,
-						      header->payload_length, GFP_KERNEL);
-			if (!dsc_packed_pps)
+			u8 max_pps_length = sizeof(struct drm_dsc_picture_parameter_set);
+			/*
+			 * PPS payload length may be less than
+			 * sizeof(struct drm_dsc_picture_parameter_set),
+			 * allocate full size buffer and copy only the
+			 * actual payload bytes.
+			 */
+			if (header->payload_length > max_pps_length) {
+				dev_err(dsi2->dev, "dsc pps length %u is too large, max %u\n",
+					header->payload_length, max_pps_length);
+
+				return -EINVAL;
+			}
+
+			pps = devm_kzalloc(dsi2->dev, max_pps_length, GFP_KERNEL);
+			if (!pps)
 				return -ENOMEM;
 
-			pps = (struct drm_dsc_picture_parameter_set *)dsc_packed_pps;
+			memcpy(pps, d, header->payload_length);
 			break;
 		}
 
