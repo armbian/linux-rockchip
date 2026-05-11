@@ -3166,7 +3166,7 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 	} else if (dp->hotplug.state == GPIO_STATE_UNPLUG) {
 		if (hpd) {
 			dw_dp_dbg(dp, "hpd state unplug to plug\n");
-			cancel_delayed_work_sync(&dp->hotplug.state_work);
+			cancel_delayed_work(&dp->hotplug.state_work);
 			dp->hotplug.long_hpd = false;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
