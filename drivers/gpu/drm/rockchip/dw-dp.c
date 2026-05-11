@@ -3897,7 +3897,7 @@ dw_dp_mst_connector_atomic_best_encoder(struct drm_connector *connector,
 	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
 										    connector);
 
-	if (!conn_state->crtc)
+	if (!conn_state || !conn_state->crtc)
 		return NULL;
 
 	dw_dp_mst_assigned_encoder(dp, state, conn_state->crtc);
