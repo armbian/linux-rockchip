@@ -893,9 +893,13 @@ static bool cqhci_is_idle(struct cqhci_host *cq_host, int *ret)
 static int cqhci_wait_for_idle(struct mmc_host *mmc)
 {
 	struct cqhci_host *cq_host = mmc->cqe_private;
-	int ret;
+	int ret, timed_out;
 
-	wait_event(cq_host->wait_queue, cqhci_is_idle(cq_host, &ret));
+	timed_out = !wait_event_timeout(cq_host->wait_queue,
+					cqhci_is_idle(cq_host, &ret),
+					msecs_to_jiffies(10000));
+	if (timed_out)
+		return -ETIMEDOUT;
 
 	return ret;
 }
