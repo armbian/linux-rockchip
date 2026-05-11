@@ -1140,6 +1140,12 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 {
 	u32 max_bw, req_bw;
 
+	if (!rate || !lanes || !mode->clock) {
+		dev_err_ratelimited(dp->dev, "invalid parameters: rate=%u, lanes=%u, clock=%u\n",
+			rate, lanes, mode->clock);
+		return false;
+	}
+
 	req_bw = mode->clock * bpp / 8;
 	max_bw = lanes * rate;
 	/*
