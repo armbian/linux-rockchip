@@ -1234,11 +1234,22 @@ static bool rk_hdptx_phy_clk_pll_calc(unsigned long long rate,
 	unsigned long k = 0, lc, k_sub, lc_sub;
 	unsigned int fvco, sdc;
 	u32 mdiv, sdiv, n = 8;
+	bool low_rate = rate < 74250000;
+	u32 sdiv_start = low_rate ? 1 : 16;
+	u32 sdiv_end = low_rate ? 16 : 1;
 
 	if (fout > 0xfffffff)
 		return false;
 
-	for (sdiv = 16; sdiv >= 1; sdiv--) {
+	/*
+	 * The Fvco range is from 2GHz to 4GHz. In low TMDS frequency
+	 * scenarios (below 74.25MHz), Fvco is preferred to be close
+	 * to 2GHz. In the PLL calculation formula, the smaller the SDIV,
+	 * the smaller the Fvco. Therefore, in low TMDS frequency scenarios,
+	 * the SDIV value is iterated from small to large.
+	 */
+	for (sdiv = sdiv_start; low_rate ? (sdiv <= sdiv_end) : (sdiv >= sdiv_end);
+	     low_rate ? sdiv++ : sdiv--) {
 		if (sdiv % 2 && sdiv != 1)
 			continue;
 
@@ -1275,7 +1286,7 @@ static bool rk_hdptx_phy_clk_pll_calc(unsigned long long rate,
 		break;
 	}
 
-	if (sdiv < 1)
+	if (low_rate ? (sdiv > sdiv_end) : (sdiv < sdiv_end))
 		return false;
 
 	if (cfg) {
