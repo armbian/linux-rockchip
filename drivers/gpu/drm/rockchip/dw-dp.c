@@ -5161,7 +5161,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			*num_output_fmts = j;
 		else
 			dev_warn(dp->dev,
-				 "Not support color format:%d, auto select color formatt\n",
+				 "Not support color format:%d, auto select color format\n",
 				 dp_state->color_format);
 	}
 
