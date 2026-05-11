@@ -484,7 +484,7 @@ static void rockchip_tve_encoder_disable(struct drm_encoder *encoder)
 
 	mutex_lock(&tve->suspend_lock);
 
-	dev_dbg(tve->dev, "tve encoder enable\n");
+	dev_dbg(tve->dev, "tve encoder disable\n");
 	cvbs_set_disable(tve);
 
 	mutex_unlock(&tve->suspend_lock);
