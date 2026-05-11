@@ -804,6 +804,7 @@ static int inno_hdmi_phy_clk_is_prepared(struct clk_hw *hw)
 static int inno_hdmi_phy_clk_prepare(struct clk_hw *hw)
 {
 	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
+	int ret;
 
 	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228)
 		inno_update_bits(inno, 0xe0, PRE_PLL_POWER_MASK,
@@ -811,7 +812,16 @@ static int inno_hdmi_phy_clk_prepare(struct clk_hw *hw)
 	else
 		inno_update_bits(inno, 0xa0, 1, 0);
 
-	return 0;
+	/*
+	 * If pixclock has been previously configured, restore the saved rate;
+	 * otherwise, default to 74.25MHz.
+	 */
+	if (inno->pixclock)
+		ret = inno_hdmi_phy_clk_set_rate(hw, inno->pixclock, FREF);
+	else
+		ret = inno_hdmi_phy_clk_set_rate(hw, 74250000, FREF);
+
+	return ret;
 }
 
 static void inno_hdmi_phy_clk_unprepare(struct clk_hw *hw)
@@ -871,6 +881,10 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	dev_dbg(inno->dev, "%s rate %lu tmdsclk %u\n",
 		__func__, rate, tmdsclock);
+
+	/* Get the current hardware actual PLL frequency configuration */
+	inno->tmdsclock = inno_hdmi_phy_clk_recalc_rate(hw, parent_rate);
+	inno->tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, inno->tmdsclock);
 
 	if (inno->tmdsclock == tmdsclock)
 		return 0;
