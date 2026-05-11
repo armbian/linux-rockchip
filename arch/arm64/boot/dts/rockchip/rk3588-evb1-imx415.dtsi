@@ -31,6 +31,12 @@
 				remote-endpoint = <&imx415_out0>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&sc850sl_out>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -66,6 +72,30 @@
 		port {
 			imx415_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	sc850sl: sc850sl@30 {
+		compatible = "smartsens,sc850sl";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim0_camera1_clk>;
+		power-domains = <&power RK3588_PD_VI>;
+		pwdn-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		lens-focus = <&cam_ircut0>;
+		port {
+			sc850sl_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
