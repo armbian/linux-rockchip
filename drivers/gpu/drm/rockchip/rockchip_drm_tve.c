@@ -3,7 +3,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/hdmi.h>
 #include <linux/mutex.h>
 #include <linux/mfd/syscon.h>
 #include <linux/nvmem-consumer.h>
