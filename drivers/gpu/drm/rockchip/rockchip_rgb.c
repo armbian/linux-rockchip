@@ -145,9 +145,6 @@ struct rockchip_mcu_panel {
 	struct gpio_desc *te_gpio;
 
 	struct device_node *np_crtc;
-
-	bool prepared;
-	bool enabled;
 };
 
 struct rockchip_rgb {
@@ -426,8 +423,8 @@ static int rockchip_rgb_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_
 	if (rgb->np_mcu_panel) {
 		struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
 
-		mcu_panel->prepared = true;
-		mcu_panel->enabled = true;
+		mcu_panel->base.enabled = on;
+		mcu_panel->base.prepared = on;
 
 		return 0;
 	}
@@ -778,17 +775,12 @@ static int rockchip_mcu_panel_disable(struct drm_panel *panel)
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
 	int ret = 0;
 
-	if (!mcu_panel->enabled)
-		return 0;
-
 	if (mcu_panel->desc->delay.disable)
 		msleep(mcu_panel->desc->delay.disable);
 
 	ret = rockchip_mcu_panel_xfer_mcu_cmd_seq(mcu_panel, mcu_panel->desc->exit_seq);
 	if (ret)
 		DRM_DEV_ERROR(panel->dev, "failed to send exit cmds seq\n");
-
-	mcu_panel->enabled = false;
 
 	return 0;
 }
@@ -797,16 +789,11 @@ static int rockchip_mcu_panel_unprepare(struct drm_panel *panel)
 {
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
 
-	if (!mcu_panel->prepared)
-		return 0;
-
 	gpiod_direction_output(mcu_panel->reset_gpio, 1);
 	gpiod_direction_output(mcu_panel->enable_gpio, 0);
 
 	if (mcu_panel->desc->delay.unprepare)
 		msleep(mcu_panel->desc->delay.unprepare);
-
-	mcu_panel->prepared = false;
 
 	return 0;
 }
@@ -815,9 +802,6 @@ static int rockchip_mcu_panel_prepare(struct drm_panel *panel)
 {
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
 	unsigned int delay;
-
-	if (mcu_panel->prepared)
-		return 0;
 
 	gpiod_direction_output(mcu_panel->enable_gpio, 1);
 
@@ -835,8 +819,6 @@ static int rockchip_mcu_panel_prepare(struct drm_panel *panel)
 	if (mcu_panel->desc->delay.init)
 		msleep(mcu_panel->desc->delay.init);
 
-	mcu_panel->prepared = true;
-
 	return 0;
 }
 
@@ -845,17 +827,12 @@ static int rockchip_mcu_panel_enable(struct drm_panel *panel)
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
 	int ret = 0;
 
-	if (mcu_panel->enabled)
-		return 0;
-
 	ret = rockchip_mcu_panel_xfer_mcu_cmd_seq(mcu_panel, mcu_panel->desc->init_seq);
 	if (ret)
 		DRM_DEV_ERROR(panel->dev, "failed to send init cmds seq\n");
 
 	if (mcu_panel->desc->delay.enable)
 		msleep(mcu_panel->desc->delay.enable);
-
-	mcu_panel->enabled = true;
 
 	return 0;
 }
