@@ -88,7 +88,7 @@ static int cdn_dp_mailbox_read(struct cdn_dp_device *dp)
 	return readl(dp->regs + MAILBOX0_RD_DATA) & 0xff;
 }
 
-static int cdp_dp_mailbox_write(struct cdn_dp_device *dp, u8 val)
+static int cdn_dp_mailbox_write(struct cdn_dp_device *dp, u8 val)
 {
 	int ret, full;
 
@@ -167,13 +167,13 @@ static int cdn_dp_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
 	header[3] = size & 0xff;
 
 	for (i = 0; i < 4; i++) {
-		ret = cdp_dp_mailbox_write(dp, header[i]);
+		ret = cdn_dp_mailbox_write(dp, header[i]);
 		if (ret)
 			return ret;
 	}
 
 	for (i = 0; i < size; i++) {
-		ret = cdp_dp_mailbox_write(dp, message[i]);
+		ret = cdn_dp_mailbox_write(dp, message[i]);
 		if (ret)
 			return ret;
 	}
@@ -385,7 +385,7 @@ int cdn_dp_set_firmware_active(struct cdn_dp_device *dp, bool enable)
 	msg[4] = enable ? FW_ACTIVE : FW_STANDBY;
 
 	for (i = 0; i < sizeof(msg); i++) {
-		ret = cdp_dp_mailbox_write(dp, msg[i]);
+		ret = cdn_dp_mailbox_write(dp, msg[i]);
 		if (ret)
 			goto err_set_firmware_active;
 	}
