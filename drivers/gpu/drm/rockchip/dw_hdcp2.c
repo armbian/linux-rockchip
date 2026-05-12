@@ -374,10 +374,7 @@ static long dw_hdcp_hpi_write(struct hl_device *hl_dev, void __user *arg)
 		return -EINVAL;
 
 	iowrite32(reg.value, hl_dev->hpi + reg.offset);
-#ifdef TROOT_GRIFFIN
-	if ((reg.offset == 0x38) && ((reg.value & 0x000000ff) == 0x08))
-		hl_dev->code_loaded = false;
-#endif
+
 	return 0;
 }
 
