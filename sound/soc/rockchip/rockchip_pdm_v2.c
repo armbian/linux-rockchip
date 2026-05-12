@@ -37,6 +37,25 @@
 #define RK3576_PDM			0x2302
 #define RV1126B_PDM			0x2411
 
+#define PDM_SELECT_LINE0_1	0 /* select line 0 & 1 as a group, and 2 & 3 as another group */
+#define PDM_SELECT_LINE0_2	1 /* select line 0 & 2 as a group, and 1 & 3 as another group */
+#define PDM_SELECT_LINE0_3	2 /* select line 0 & 3 as a group, and 1 & 2 as another group */
+
+/* Data select in one group */
+#define PDM_DATA_01_LL	0 /* select line 0 left channel as left, line 1 left channel as right */
+#define PDM_DATA_01_LR	1 /* select line 0 left channel as left, line 1 right channel as right */
+#define PDM_DATA_01_RL	2 /* select line 0 right channel as left, line 1 left channel as right */
+#define PDM_DATA_01_RR	3 /* select line 0 right channel as left, line 1 right channel as right */
+#define PDM_DATA_10_LL	4 /* select line 1 left channel as left, line 0 left channel as right */
+#define PDM_DATA_10_LR	5 /* select line 1 left channel as left, line 0 right channel as right */
+#define PDM_DATA_10_RL	6 /* select line 1 right channel as left, line 0 left channel as right */
+#define PDM_DATA_10_RR	7 /* select line 1 right channel as left, line 0 right channel as right */
+
+#define PDM_OLOC_PARA_MAX	(3)
+#define PDM_OLOC_MODE		(0)
+#define PDM_OLOC_PATH0		(1)
+#define PDM_OLOC_PATH1		(2)
+
 struct rk_pdm_v2_clkref {
 	unsigned int sr;
 	unsigned int clk;
@@ -76,6 +95,7 @@ struct rk_pdm_v2_dev {
 	unsigned int quirks;
 	unsigned int version;
 	unsigned int data_shift[PDM_V2_CHANNEL_MAX];
+	unsigned int split_en;
 };
 
 static int get_pdm_v2_clkref(struct rk_pdm_v2_dev *pdm, unsigned int sr)
@@ -301,10 +321,16 @@ static int rockchip_pdm_v2_hw_params(struct snd_pcm_substream *substream,
 		val |= PDM_V2_PATH2_EN;
 		fallthrough;
 	case 4:
-		val |= PDM_V2_PATH1_EN;
+		if (pdm->split_en)
+			val |= PDM_V2_PATH3_EN | PDM_V2_PATH2_EN;
+		else
+			val |= PDM_V2_PATH1_EN;
 		fallthrough;
 	case 2:
-		val |= PDM_V2_PATH0_EN;
+		if (pdm->split_en)
+			val |= PDM_V2_PATH1_EN | PDM_V2_PATH0_EN;
+		else
+			val |= PDM_V2_PATH0_EN;
 		break;
 	default:
 		dev_err(pdm->dev, "invalid channel: %d\n",
@@ -768,6 +794,40 @@ static int rockchip_pdm_v2_path_parse(struct rk_pdm_v2_dev *pdm, struct device_n
 	return 0;
 }
 
+static int rockchip_pdm_v2_one_line_one_channel_parse(struct rk_pdm_v2_dev *pdm,
+						      struct device_node *node)
+{
+	unsigned int oloc[PDM_OLOC_PARA_MAX];
+	int cnt = 0, ret = 0;
+
+	cnt = of_count_phandle_with_args(node, "rockchip,one-line-one-channel",
+					 NULL);
+	if (cnt != PDM_OLOC_PARA_MAX)
+		return -EINVAL;
+
+	ret = of_property_read_u32_array(node, "rockchip,one-line-one-channel",
+					 oloc, cnt);
+	if (ret)
+		return ret;
+
+	if (oloc[0] > PDM_SELECT_LINE0_3 || oloc[1] > PDM_DATA_10_RR || oloc[2] > PDM_DATA_10_RR) {
+		dev_err(pdm->dev, "invalid OLOC parameter: %u %u %u\n", oloc[0], oloc[1], oloc[2]);
+
+		return -EINVAL;
+	}
+
+	regmap_update_bits(pdm->regmap, PDM_V2_CTRL,
+			   PDM_V2_PATH1_MSK | PDM_V2_PATH0_MSK |
+			   PDM_V2_PATH_MODE_SELECT_MSK | PDM_V2_SPLIT_MSK,
+			   PDM_V2_SPLIT_EN | PDM_V2_PATH_MODE(oloc[PDM_OLOC_MODE]) |
+			   PDM_V2_PATH0(oloc[PDM_OLOC_PATH0]) |
+			   PDM_V2_PATH1(oloc[PDM_OLOC_PATH1]));
+
+	pdm->split_en = 1;
+
+	return 0;
+}
+
 static int rockchip_pdm_v2_keep_clk_always_on(struct rk_pdm_v2_dev *pdm)
 {
 	unsigned int upsamplerate, mclk;
@@ -971,6 +1031,7 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	if (ret != 0 && ret != -ENOENT)
 		goto err_hclk;
 
+	rockchip_pdm_v2_one_line_one_channel_parse(pdm, node);
 	ret = rockchip_pdm_v2_parse_quirks(pdm);
 	if (ret)
 		goto err_hclk;
