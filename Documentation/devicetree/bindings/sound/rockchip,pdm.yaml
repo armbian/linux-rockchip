@@ -64,6 +64,20 @@ properties:
     items:
       - const: pdm-m
 
+  rockchip,one-line-one-channel:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      Defines the mapping of one PDM SDI to one PDM PATH.
+      Support tying different PDM SDIs left or right channel
+      to PDM PATH, and only support 2 or 4 channels.
+    items:
+      - description: choose which two lines to form a path
+        enum: [0, 1, 2]
+      - description: select lines left or right channel for path 0
+        enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+      - description: select lines left or right channel for path 1
+        enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+
   rockchip,path-map:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description:
