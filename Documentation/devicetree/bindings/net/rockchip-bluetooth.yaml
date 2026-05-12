@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/rockchip-bluetooth.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip RK960/RK962 Bluetooth Controllers
+
+maintainers:
+  - Xiao Yao <xiaoyao@rock-chips.com>
+
+description:
+  Rockchip RK960 and RK962 are UART-attached Bluetooth controllers using the
+  standard H4 transport together with Rockchip vendor commands for bootloader
+  upload, firmware download and runtime configuration.
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk960-bt
+      - rockchip,rk962-bt
+
+  shutdown-gpios:
+    maxItems: 1
+    description: GPIO specifier for the BT_REG_ON / BT_NSHUTDOWN line used to
+      power on the controller.
+
+  reset-gpios:
+    maxItems: 1
+    description: Optional dedicated reset GPIO for the controller.
+
+  max-speed:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The maximum baud rate the controller operates at.
+
+  local-bd-address:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 6
+    maxItems: 6
+    description: see Documentation/devicetree/bindings/net/bluetooth.txt
+
+  rockchip,init-speed:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Initial UART baud rate used before switching to max-speed.
+      If omitted, the driver defaults to 115200.
+
+  rockchip,enable-lpm:
+    type: boolean
+    description: Enable the controller low-power mode after firmware startup.
+
+  rockchip,sco-data-path:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    enum: [0, 1]
+    description: Select SCO routing, 0 for Voice over HCI and 1 for hardware
+      PCM.
+
+  rockchip,sco-voice-setting:
+    $ref: /schemas/types.yaml#/definitions/uint16
+    description: Voice Setting value sent with HCI_Write_Voice_Setting. If
+      omitted, the driver defaults to 0x0060.
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    uart2 {
+        uart-has-rtscts;
+
+        bluetooth {
+            compatible = "rockchip,rk960-bt";
+            max-speed = <1500000>;
+            reset-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+        };
+    };
