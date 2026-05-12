@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rv1103b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-evb2-cam.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 BGA Board";
+	compatible = "rockchip,rv1106b-evb2-v10-bga", "rockchip,rv1106b";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+		power-key {
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label = "GPIO Key Power";
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+	};
+
+	ir-light-ctl {
+		compatible = "rockchip,light-ctl";
+		status = "okay";
+		/* LED_PWM_IR: PWM2_CH0 → GPIO2_A6 */
+		pwms = <&pwm2_4ch_0 0 10000 1>;
+		rockchip,module-index = <0>;
+	};
+
+	white-light-ctl {
+		compatible = "rockchip,light-ctl";
+		status = "okay";
+		/* LED_PWM_WHITE: PWM1_CH2 → GPIO2_A5 */
+		pwms = <&pwm1_4ch_2 0 10000 1>;
+		rockchip,module-index = <1>;
+	};
+};
+
+/* 1. SDMMC0_PWREN: GPIO0_B1 → GPIO0_A0 */
+&vcc3v3_sd {
+	gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+};
+
+/* 2. SPK_CTRL: GPIO0_B4 → GPIO0_B5 */
+&acodec {
+	pa-ctl-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+};
+
+/* 3/5. Camera: MIPI_RST GPIO0_B5→GPIO0_B4, MIPI_PWD0 GPIO2_A6→GPIO2_B0 */
+&imx415 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&jx_k17 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&os04a10 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc200ai {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc3336 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc3338 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc4336 {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc4336p {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc401ai {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc450ai {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc530ai {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+&sc850sl {
+	reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+/* 8. Enable ethernet */
+&gmac {
+	status = "okay";
+};
+
+&rmii_phy {
+	bgs,increment = <0>;
+};
+
+/* PWM pinmux for LEDs */
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+/* 6. LED_PWM_IR: pwm2m1_ch0 → GPIO2_A6 */
+&pwm2_4ch_0 {
+	pinctrl-0 = <&pwm2m1_ch0_pins>;
+	status = "okay";
+};
+
+/* 7. LED_PWM_WHITE: pwm1m1_ch2 → GPIO2_A5 */
+&pwm1_4ch_2 {
+	pinctrl-0 = <&pwm1m1_ch2_pins>;
+	status = "okay";
+};
