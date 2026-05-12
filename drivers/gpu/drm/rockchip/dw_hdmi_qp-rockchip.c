@@ -2961,7 +2961,6 @@ dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 	struct drm_property *property = hdmi->hdmi_vrr_cap;
-	struct drm_property_blob *blob = hdmi->hdmi_vrr_cap_ptr;
 	size_t size = sizeof(struct hdmi_vrr_capacity);
 	int ret;
 
@@ -2977,7 +2976,8 @@ dw_hdmi_rockchip_get_edid_hdmi21_info(void *data, const struct edid *edid,
 
 	dw_hdmi_rockchip_get_vrr_range(hdmi);
 
-	ret = drm_property_replace_global_blob(connector->dev, &blob, size, &hdmi->vrr_cap,
+	ret = drm_property_replace_global_blob(connector->dev, &hdmi->hdmi_vrr_cap_ptr,
+					       size, &hdmi->vrr_cap,
 					       &connector->base, property);
 
 	return ret;
