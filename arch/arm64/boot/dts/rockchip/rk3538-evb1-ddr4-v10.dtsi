@@ -291,6 +291,20 @@
 	rockchip,pol-pattern = <0>;
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_NORMAL_MODE
+		| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		| RKPM_SLP_OSC_DIS
+		| RKPM_SLP_32K_EXT
+		)
+	>;
+};
+
 &sai1 {
 	status = "okay";
 	pinctrl-names = "default";
