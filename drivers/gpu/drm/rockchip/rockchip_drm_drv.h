@@ -230,7 +230,7 @@ struct rockchip_drm_mode_info {
 	u32 fva_support;
 
 	/**
-	 *@reserved: reserved for future version
+	 * @reserved: reserved for future version
 	 */
 	u32 reserved[10];
 };
@@ -245,11 +245,11 @@ struct rockchip_drm_modes_info {
 	 */
 	u32 mode_count;
 	/**
-	 *@reserved: reserved for future version
+	 * @reserved: reserved for future version
 	 */
 	u32 reserved[10];
 	/**
-	 * @mode_info: a array of mode info
+	 * @mode_info: an array of mode info
 	 */
 	struct rockchip_drm_mode_info mode_info[];
 };
