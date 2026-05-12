@@ -263,6 +263,8 @@ enum {
 	GPIO_SET_VIRT_EN = 3,
 	GPIO_SET_STORE_ST = 4,
 	GPIO_CLEAR_STORE_ST = 5,
+	GPIO_GET_INT_DIV_INFO = 6,
+	GPIO_SET_INT_DIV_INFO = 7,
 };
 
 /* SIP_CPU_PM_CFG child configs */
