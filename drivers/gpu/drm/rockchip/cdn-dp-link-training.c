@@ -149,7 +149,7 @@ static u32 cdn_dp_select_chaneq_pattern(struct cdn_dp_device *dp)
 	if (drm_dp_tps3_supported(dp->dpcd))
 		training_pattern = DP_TRAINING_PATTERN_3;
 	else
-		DRM_DEBUG_KMS("5.4 Gbps link rate without sink TPS3 support\n");
+		DRM_DEBUG_KMS("sink TPS3 not supported, falling back to TPS2\n");
 
 	return training_pattern;
 }
