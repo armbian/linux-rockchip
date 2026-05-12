@@ -20,7 +20,7 @@
 #define HCIUARTGETFLAGS		_IOR('U', 204, int)
 
 /* UART protocols */
-#define HCI_UART_MAX_PROTO	12
+#define HCI_UART_MAX_PROTO	13
 
 #define HCI_UART_H4	0
 #define HCI_UART_BCSP	1
@@ -34,6 +34,7 @@
 #define HCI_UART_AG6XX	9
 #define HCI_UART_NOKIA	10
 #define HCI_UART_MRVL	11
+#define HCI_UART_RK96X	12
 
 #define HCI_UART_RAW_DEVICE	0
 #define HCI_UART_RESET_ON_INIT	1
@@ -200,4 +201,9 @@ int ag6xx_deinit(void);
 #ifdef CONFIG_BT_HCIUART_MRVL
 int mrvl_init(void);
 int mrvl_deinit(void);
+#endif
+
+#ifdef CONFIG_BT_HCIUART_ROCKCHIP
+int rkbt_init(void);
+int rkbt_deinit(void);
 #endif

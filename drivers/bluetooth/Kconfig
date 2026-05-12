@@ -23,6 +23,10 @@ config BT_MTK
 	tristate
 	select FW_LOADER
 
+config BT_ROCKCHIP
+	tristate
+	select FW_LOADER
+
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB
@@ -261,6 +265,20 @@ config BT_HCIUART_MRVL
 	  devices with UART interface.
 
 	  Say Y here to compile support for HCI MRVL protocol.
+
+config BT_HCIUART_ROCKCHIP
+	bool "Rockchip RK960/RK962 protocol support"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	select BT_HCIUART_H4
+	select BT_ROCKCHIP
+	help
+	  The Rockchip RK960/RK962 protocol support enables Bluetooth HCI
+	  over serial port interface for Rockchip RK960 and RK962 Bluetooth
+	  controllers.  The driver uploads the proprietary RKUART bootloader
+	  and firmware images found in /lib/firmware/rockchip/.
+
+	  Say Y here to compile support for Rockchip RK96x protocol.
 
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
