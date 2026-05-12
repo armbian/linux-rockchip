@@ -786,9 +786,9 @@ fail:
 
 static void rockchip_gpio_get_ver(struct rockchip_pin_bank *bank)
 {
-	int id = readl(bank->reg_base + gpio_regs_v2.version_id);
+	bank->version_id = readl(bank->reg_base + gpio_regs_v2.version_id);
 
-	switch (id) {
+	switch (bank->version_id) {
 	case GPIO_TYPE_V2:
 	case GPIO_TYPE_V2_1:
 		bank->gpio_regs = &gpio_regs_v2;
@@ -962,8 +962,12 @@ static int rockchip_gpio_set_irq_pins(const struct device *dev, int index,
 
 		if (!bank->irq_pins[index])
 			return 0;
-		res = sip_smc_gpio_config(GPIO_SET_GROUP_INFO, bank->bank_num,
-					  index, bank->irq_pins[index]);
+		if (bank->version_id < GPIO_TYPE_V2_6_2)
+			res = sip_smc_gpio_config(GPIO_SET_GROUP_INFO, bank->bank_num,
+						  index, bank->irq_pins[index]);
+		else
+			res = sip_smc_gpio_config(GPIO_SET_INT_DIV_INFO, bank->bank_num,
+						  index, bank->irq_pins[index]);
 
 		switch (res.a0) {
 		case SIP_RET_SUCCESS:
@@ -981,7 +985,10 @@ static int rockchip_gpio_set_irq_pins(const struct device *dev, int index,
 			break;
 		}
 	}
-	res = sip_smc_gpio_config(GPIO_GET_GROUP_INFO, bank->bank_num, index, 0);
+	if (bank->version_id < GPIO_TYPE_V2_6_2)
+		res = sip_smc_gpio_config(GPIO_GET_GROUP_INFO, bank->bank_num, index, 0);
+	else
+		res = sip_smc_gpio_config(GPIO_GET_INT_DIV_INFO, bank->bank_num, index, 0);
 	if (res.a0 == 0)
 		bank->irq_pins[index] = res.a1;
 

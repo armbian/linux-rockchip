@@ -346,6 +346,7 @@ struct rockchip_pin_bank {
 	int				cpu_affinity[RK_GPIO_IRQ_MAX_NUM];
 	u32				saved_masks;
 	u32				pin_base;
+	u32				version_id;
 	u8				nr_pins;
 	char				*name;
 	u8				bank_num;
