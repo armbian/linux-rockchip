@@ -55,7 +55,6 @@
 #define RK3506_GPIO2_IOC_GPIO2B4_SEL_MASK	GENMASK(3, 0)
 #define RK3506_GPIO2_IOC_DSM_AUD_RN_M1		(2 << 0)
 #define RK3506_GPIO2_IOC_GPIO2B4		(0 << 0)
-
 #define RK3506_GRF_SOC_CON0		(0x0)
 #define RK3506_DSM_SEL			(9)
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
@@ -64,9 +63,11 @@
 #define RV1126B_AUDIO_CON0		(0x40)
 #define RV1126B_DSM_SEL			(15)
 #define RV1126B_DSM_IOC_CON		(0x40ca0)
-#define RV1126B_DSM_FUNC		(0xffff0000)
-#define RV1126B_DSM_GPIO		(0xfffff993)
+#define RV1126B_DSM_FUNC		(0xffff0003)
+#define RV1126B_DSM_GPIO		(0xfffff990)
 
+#define RKDSM_L_CHANNELS		BIT(0)
+#define RKDSM_R_CHANNELS		BIT(1)
 #define RKDSM_VOL_VAL_MAX		(0xff)
 
 enum {
@@ -78,6 +79,9 @@ struct rk_dsm_soc_data {
 	int (*init)(struct device *dev);
 	void (*deinit)(struct device *dev);
 	int (*iomux_switch)(struct device *dev, int type);
+	u32 dsm_ioc_reg;
+	u32 dsm_func;
+	u32 dsm_gpio;
 };
 
 struct rk_dsm_vols {
@@ -808,6 +812,57 @@ static const struct rk_dsm_soc_data rk3562_data = {
 	.deinit = rk3562_soc_deinit,
 };
 
+static void rk_dsm_detect_channels(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+	struct device_node *np = dev->of_node;
+	struct device_node *pinctrl_np;
+	const char *name;
+	int i;
+
+	rd->iomuxes.audm_en = 0;
+	for (i = 0; ; i++) {
+		pinctrl_np = of_parse_phandle(np, "pinctrl-0", i);
+		if (!pinctrl_np)
+			break;
+
+		name = kbasename(pinctrl_np->full_name);
+		if (strstr(name, "-ln-") || strstr(name, "-lp-"))
+			rd->iomuxes.audm_en |= RKDSM_L_CHANNELS;
+		if (strstr(name, "-rn-") || strstr(name, "-rp-"))
+			rd->iomuxes.audm_en |= RKDSM_R_CHANNELS;
+		of_node_put(pinctrl_np);
+	}
+
+	if (!rd->iomuxes.audm_en)
+		rd->iomuxes.audm_en = RKDSM_L_CHANNELS | RKDSM_R_CHANNELS;
+
+	dev_info(dev, "dsm channels: %s%s\n",
+		 rd->iomuxes.audm_en & RKDSM_L_CHANNELS ? "L" : "",
+		 rd->iomuxes.audm_en & RKDSM_R_CHANNELS ? "R" : "");
+}
+
+static int rk_dsm_gpio_iomux_switch(struct device *dev, int type)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+	const struct rk_dsm_soc_data *data = rd->data;
+
+	if (type == RKDSM_ON_FUNC) {
+		u32 val = data->dsm_func & ~(RKDSM_L_CHANNELS | RKDSM_R_CHANNELS);
+
+		if (rd->iomuxes.audm_en & RKDSM_L_CHANNELS)
+			val |= RKDSM_L_CHANNELS;
+		if (rd->iomuxes.audm_en & RKDSM_R_CHANNELS)
+			val |= RKDSM_R_CHANNELS;
+
+		regmap_write(rd->ioc_grf, data->dsm_ioc_reg, val);
+	} else if (type == RKDSM_ON_GPIO) {
+		regmap_write(rd->ioc_grf, data->dsm_ioc_reg, data->dsm_gpio);
+	}
+
+	return 0;
+}
+
 static int rk3576_soc_init(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
@@ -837,6 +892,9 @@ static int rv1126b_soc_init(struct device *dev)
 	rd->ioc_grf = syscon_regmap_lookup_by_phandle(node, "rockchip,ioc-grf");
 	if (IS_ERR(rd->ioc_grf))
 		return PTR_ERR(rd->ioc_grf);
+
+	rk_dsm_detect_channels(dev);
+
 	/* enable internal codec to sai2 */
 	return regmap_write(rd->grf, RV1126B_AUDIO_CON0,
 			    BIT(RV1126B_DSM_SEL) << 16 | BIT(RV1126B_DSM_SEL));
@@ -849,22 +907,13 @@ static void rv1126b_soc_deinit(struct device *dev)
 	regmap_write(rd->grf, RV1126B_AUDIO_CON0, BIT(RV1126B_DSM_SEL) << 16);
 }
 
-static int rv1126b_soc_iomux_switch(struct device *dev, int type)
-{
-	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
-
-	if (type == RKDSM_ON_GPIO)
-		regmap_write(rd->ioc_grf, RV1126B_DSM_IOC_CON, RV1126B_DSM_GPIO);
-	else if (type == RKDSM_ON_FUNC)
-		regmap_write(rd->ioc_grf, RV1126B_DSM_IOC_CON, RV1126B_DSM_FUNC);
-
-	return 0;
-}
-
 static const struct rk_dsm_soc_data rv1126b_data = {
 	.init = rv1126b_soc_init,
 	.deinit = rv1126b_soc_deinit,
-	.iomux_switch = rv1126b_soc_iomux_switch,
+	.iomux_switch = rk_dsm_gpio_iomux_switch,
+	.dsm_ioc_reg = RV1126B_DSM_IOC_CON,
+	.dsm_func = RV1126B_DSM_FUNC,
+	.dsm_gpio = RV1126B_DSM_GPIO,
 };
 
 #ifdef CONFIG_OF
