@@ -47,10 +47,12 @@
 #define PDM_V2_RX_CLR_DONE		(0x0 << 0)
 
 /* PDM_V2_CTRL */
-#define PDM_V2_PATH0_MODE_SELECT	(0x3 << 22)
-#define PDM_V2_PATH_0_1			(0x0 << 22)
-#define PDM_V2_PATH_0_2			(0x1 << 22)
-#define PDM_V2_PATH_0_3			(0x2 << 22)
+#define PDM_V2_PATH1_MSK		(0x7 << 27)
+#define PDM_V2_PATH1(x)			((x) << 27)
+#define PDM_V2_PATH0_MSK		(0x7 << 24)
+#define PDM_V2_PATH0(x)			((x) << 24)
+#define PDM_V2_PATH_MODE_SELECT_MSK	(0x3 << 22)
+#define PDM_V2_PATH_MODE(x)		((x) << 22)
 #define PDM_V2_SPLIT_MSK		(0x1 << 21)
 #define PDM_V2_SPLIT_EN			(0x1 << 21)
 #define PDM_V2_SPLIT_DIS		(0x0 << 21)
