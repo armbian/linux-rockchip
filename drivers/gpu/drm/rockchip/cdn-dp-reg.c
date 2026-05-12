@@ -312,21 +312,21 @@ int cdn_dp_get_aux_status(struct cdn_dp_device *dp)
 	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX,
 				  DPTX_GET_LAST_AUX_STAUS, 0, NULL);
 	if (ret)
-		goto err_get_hpd;
+		goto err_get_aux_status;
 
 	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 					      DPTX_GET_LAST_AUX_STAUS,
 					      sizeof(status));
 	if (ret)
-		goto err_get_hpd;
+		goto err_get_aux_status;
 
 	ret = cdn_dp_mailbox_read_receive(dp, &status, sizeof(status));
 	if (ret)
-		goto err_get_hpd;
+		goto err_get_aux_status;
 
 	return status;
 
-err_get_hpd:
+err_get_aux_status:
 	DRM_DEV_ERROR(dp->dev, "get aux status failed: %d\n", ret);
 	return ret;
 }
