@@ -1252,8 +1252,11 @@ static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 	connector->funcs->destroy(connector);
 
 	pm_runtime_disable(dev);
-	if (dp->fw_loaded)
+	if (dp->fw_loaded) {
 		release_firmware(dp->fw);
+		dp->fw = NULL;
+		dp->fw_loaded = false;
+	}
 	drm_edid_free(dp->drm_edid);
 	dp->drm_edid = NULL;
 }
