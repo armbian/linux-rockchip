@@ -20,6 +20,7 @@ static void cdn_dp_set_signal_levels(struct cdn_dp_device *dp)
 	u8 pre_emphasis = (dp->train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT;
 	unsigned int lane;
+	int ret;
 
 	for (lane = 0; lane < dp->max_lanes; lane++) {
 		phy_cfg.dp.voltage[lane] = swing;
@@ -31,7 +32,9 @@ static void cdn_dp_set_signal_levels(struct cdn_dp_device *dp)
 	phy_cfg.dp.set_lanes = false;
 	phy_cfg.dp.set_rate = false;
 	phy_cfg.dp.set_voltages = true;
-	phy_configure(port->phy, &phy_cfg);
+	ret = phy_configure(port->phy, &phy_cfg);
+	if (ret)
+		DRM_ERROR("failed to set phy signal levels: %d\n", ret);
 }
 
 static int cdn_dp_set_pattern(struct cdn_dp_device *dp, uint8_t dp_train_pat)
