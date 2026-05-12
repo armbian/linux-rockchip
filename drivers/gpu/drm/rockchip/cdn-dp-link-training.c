@@ -90,7 +90,7 @@ static int cdn_dp_set_pattern(struct cdn_dp_device *dp, uint8_t dp_train_pat)
 	else
 		ret = cdn_dp_reg_write(dp, DPTX_ENHNCD, 0);
 	if (ret)
-		DRM_ERROR("failed to set DPTX_ENHNCD, error: %x\n", ret);
+		DRM_ERROR("failed to set DPTX_ENHNCD, error: %d\n", ret);
 
 	return ret;
 }
