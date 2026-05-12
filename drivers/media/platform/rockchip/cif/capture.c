@@ -2217,7 +2217,10 @@ static inline void rkcif_count_sof_unpaired_loss(struct rkcif_stream *stream)
 	    ((cif_dev->hdr.hdr_mode == HDR_X2 &&
 	      stream->id == RKCIF_STREAM_MIPI_ID1) ||
 	     (cif_dev->hdr.hdr_mode == HDR_X3 &&
-	      stream->id == RKCIF_STREAM_MIPI_ID2)))
+	      stream->id == RKCIF_STREAM_MIPI_ID2) ||
+	     ((cif_dev->hdr.hdr_mode == NO_HDR ||
+	       cif_dev->hdr.hdr_mode == HDR_CIS_MERGE) &&
+	      stream->id == RKCIF_STREAM_MIPI_ID0)))
 		return;
 
 	if (stream->fs_cnt_in_single_frame > 0) {
