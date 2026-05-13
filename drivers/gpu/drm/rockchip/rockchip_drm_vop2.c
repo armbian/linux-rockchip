@@ -8727,6 +8727,22 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	}
 
 	/*
+	 * RK3572 Cluster0 and Cluster1 share a single AFBC decoder.
+	 * Cluster1 with afbc format should not be enabled before Cluster0.
+	 */
+	if (vop2->version == VOP_VERSION_RK3572 && !vop2->disable_afbc_mask) {
+		struct vop2_win *cluster0_win = vop2_find_win_by_phys_id(vop2, ROCKCHIP_VOP2_CLUSTER0);
+
+		if ((win->phys_id == ROCKCHIP_VOP2_CLUSTER1 && vpstate->afbc_en) &&
+		    (cluster0_win && !VOP_WIN_GET(vop2, cluster0_win, enable)) &&
+		    !(vp->win_mask & BIT(ROCKCHIP_VOP2_CLUSTER0))) {
+			vop2_plane_atomic_disable(plane, state);
+			DRM_WARN("Cluster1 should not be enabled before Cluster0\n");
+			return;
+		}
+	}
+
+	/*
 	 * This means this window is moved from another vp
 	 * so the VOP2_PORT_SEL register is changed and
 	 * take effect by vop2_wait_for_port_mux_done
