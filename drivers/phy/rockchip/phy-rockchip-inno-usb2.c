@@ -1072,6 +1072,7 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 	case PHY_MODE_USB_DEVICE:
 		/* Disable VBUS supply */
 		rockchip_set_vbus_power(rport, false);
+		extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, false);
 		/* For vbus always on, set EXTCON_USB to true. */
 		if (rport->vbus_always_on)
@@ -1478,6 +1479,14 @@ static void rockchip_run_chg_detect_machine(struct rockchip_usb2phy_port *rport)
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
 	bool is_dcd, tmout, vout;
 	unsigned long delay;
+
+	/* Skip charger detection in DRD host mode to avoid false detection. */
+	if (extcon_get_state(rphy->edev, EXTCON_USB_HOST) > 0) {
+		rphy->chg_state = USB_CHG_STATE_UNDEFINED;
+		rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
+		dev_dbg(&rport->phy->dev, "host mode active, skip charger detection\n");
+		return;
+	}
 
 	dev_dbg(&rport->phy->dev, "chg detection work state = %d\n",
 		rphy->chg_state);
