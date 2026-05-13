@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572s-evb1-v10.dtsi"
+#include "rk3572-android.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+
+/ {
+	model = "Rockchip RK3572S EVB1 V10 Board";
+	compatible = "rockchip,rk3572s-evb1-v10", "rockchip,rk3572s";
+};

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572s-evb1-v10.dtsi"
+#include "rk3572-linux.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+#include "rk3572-evb1-cam-csi1.dtsi"
+
+/ {
+	model = "Rockchip RK3572S EVB1 V10 Board";
+	compatible = "rockchip,rk3572s-evb1-v10", "rockchip,rk3572s";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4m1_xfer_pins &uart4m1_ctsn_pins &uart4m1_rtsn_pins>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+
+		device-wakeup-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
+
+/delete-node/ &wireless_bluetooth;
