@@ -352,8 +352,10 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	if (pdata->host_ops && pdata->host_ops->attach) {
 		ret = pdata->host_ops->attach(pdata->priv_data, device);
-		if (ret < 0)
+		if (ret < 0) {
+			drm_bridge_remove(&dsi->bridge);
 			return ret;
+		}
 	}
 
 	return 0;
