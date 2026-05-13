@@ -2809,7 +2809,7 @@ static int rockchip_drm_bind(struct device *dev)
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
-		goto err_mode_config_cleanup;
+		goto err_free;
 
 	rockchip_attach_connector_property(drm_dev);
 	ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
@@ -2879,11 +2879,7 @@ err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
-err_mode_config_cleanup:
-	drm_mode_config_cleanup(drm_dev);
 err_free:
-	drm_dev->dev_private = NULL;
-	dev_set_drvdata(dev, NULL);
 	drm_dev_put(drm_dev);
 	return ret;
 }
@@ -2902,11 +2898,8 @@ static void rockchip_drm_unbind(struct device *dev)
 
 	drm_atomic_helper_shutdown(drm_dev);
 	component_unbind_all(dev, drm_dev);
-	drm_mode_config_cleanup(drm_dev);
 	rockchip_iommu_cleanup(drm_dev);
 
-	drm_dev->dev_private = NULL;
-	dev_set_drvdata(dev, NULL);
 	drm_dev_put(drm_dev);
 }
 
