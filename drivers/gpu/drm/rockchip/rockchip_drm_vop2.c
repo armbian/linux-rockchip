@@ -1073,6 +1073,9 @@ struct vop2 {
 	 */
 	uint8_t sync_vp_mask;
 
+	/* Mask to disable AFBC support per window */
+	u32 disable_afbc_mask;
+
 	unsigned long aclk_current_freq;
 	enum rockchip_drm_vop_aclk_mode aclk_mode;
 
@@ -17894,6 +17897,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) | BIT(DRM_MODE_BLEND_PREMULTI) |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 	unsigned int max_width, max_height;
+	const uint64_t *format_modifiers;
 	int ret;
 
 	/*
@@ -17916,9 +17920,15 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	if (vop3_ignore_plane(vop2, win))
 		return -EACCES;
 
+	if (vop2->disable_afbc_mask & BIT(win->phys_id)) {
+		format_modifiers = NULL;
+		win->feature &= ~WIN_FEATURE_AFBDC;
+	} else {
+		format_modifiers = win->format_modifiers;
+	}
 	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs,
 				       &vop2_plane_funcs, win->formats, win->nformats,
-				       win->format_modifiers, win->type, win->name);
+				       format_modifiers, win->type, win->name);
 	if (ret) {
 		DRM_DEV_ERROR(vop2->dev, "failed to initialize plane %d\n", ret);
 		return ret;
@@ -19522,7 +19532,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *vop_out_node;
 	struct device_node *mcu_timing_node;
 	u8 enabled_vp_mask = 0;
-	char *plane_mask_string;
+	char *plane_mask_string, *disable_afbc_plane_string;
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
@@ -19593,6 +19603,25 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	ret = of_property_read_u8(dev->of_node, "esmart_lb_mode", &vop2->esmart_lb_mode);
 	if (ret < 0 || vop2->esmart_lb_mode >= VOP3_ESMART_LB_MODE_MAX)
 		vop2->esmart_lb_mode = vop2->data->esmart_lb_mode;
+
+	/*
+	 * Disable AFBC support for specific windows via DTS.
+	 * This avoids the Cluster0/Cluster1 enable order constraint on RK3572.
+	 *
+	 * example:
+	 * &vop {
+	 *     rockchip,disable-afbc-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1)>;
+	 * };
+	 */
+	of_property_read_u32(dev->of_node, "rockchip,disable-afbc-mask", &vop2->disable_afbc_mask);
+	if (vop2->disable_afbc_mask) {
+		disable_afbc_plane_string = vop2_plane_mask_to_string(vop2->disable_afbc_mask);
+		if (disable_afbc_plane_string) {
+			DRM_DEV_INFO(dev, "AFBC disabled for windows: %s[0x%x]\n",
+				     disable_afbc_plane_string, vop2->disable_afbc_mask);
+			kfree(disable_afbc_plane_string);
+		}
+	}
 
 	ret = vop2_win_init(vop2);
 	if (ret)
