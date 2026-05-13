@@ -12,7 +12,7 @@ maintainers:
 properties:
   compatible:
     enum:
-      - rockchip,rk809b2-tcpc
+      - rockchip,rk809c-tcpc
       - rockchip,rk817b2-tcpc
 
   reg:
