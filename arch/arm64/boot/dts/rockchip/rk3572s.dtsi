@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3572.dtsi"
+
+/ {
+	compatible = "rockchip,rk3572s";
+
+	aliases {
+		/delete-property/ ethernet0;
+		/delete-property/ ethernet1;
+	};
+};
+
+&display_subsystem {
+	ports = <&vop_out>;
+};
+
+&power {
+	power-domain@RK3572_PD_NPU {
+		/delete-property/ pm_perf;
+		/delete-property/ pm_qos;
+	};
+	power-domain@RK3572_PD_DSMC {
+		/delete-property/ pm_qos;
+	};
+	power-domain@RK3572_PD_PHP {
+		pm_qos = <&qos_pcie0>,
+			 <&qos_ufshc>,
+			 <&qos_usb0>,
+			 <&qos_usb1>;
+		pm_shaping = <&shaping_pcie0>;
+	};
+	power-domain@RK3572_PD_IMG {
+		pm_qos = <&qos_rga>,
+			 <&qos_jpeg>,
+			 <&qos_vdpp>;
+		pm_shaping = <&shaping_rga>,
+			     <&shaping_jpeg>,
+			     <&shaping_vdpp>;
+	};
+	power-domain@RK3572_PD_VOP {
+		pm_qos = <&qos_vop_m0>;
+		pm_shaping = <&shaping_vop_m0>;
+		power-domain@RK3572_PD_NVM0 {
+			reg = <RK3572_PD_NVM0>;
+			pm_qos = <&qos_emmc>,
+				 <&qos_fspi0>,
+				 <&qos_sdmmc1>;
+		};
+	};
+};
+
+&rkvdec {
+	rockchip,normal-rates = <300000000>, <200000000>, <300000000>, <600000000>;
+	assigned-clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru HCLK_RKVDEC>,
+			  <&cru CLK_RKVDEC_CORE>, <&cru CLK_RKVDEC_HEVC_CA>;
+	assigned-clock-rates = <300000000>, <200000000>, <300000000>, <600000000>;
+};
+
+&rkvenc {
+	rockchip,normal-rates = <400000000>, <0>, <600000000>;
+	assigned-clocks = <&cru ACLK_RKVENC>, <&cru CLK_RKVENC_CORE>;
+	assigned-clock-rates = <400000000>, <600000000>;
+};
+
+&route_dsi {
+	connect = <&vp0_out_dsi>;
+};
+
+&route_edp {
+	connect = <&vp0_out_edp>;
+};
+
+&route_rgb {
+	connect = <&vp0_out_rgb>;
+};
+
+/delete-node/ &can0;
+/delete-node/ &can1;
+/delete-node/ &can2;
+/delete-node/ &can3;
+/delete-node/ &dsi_in_vopl;
+/delete-node/ &dsi_in_vp1;
+/delete-node/ &dsmc;
+/delete-node/ &dsmc_grf;
+/delete-node/ &dsmc_slave;
+/delete-node/ &edp_in_vopl;
+/delete-node/ &edp_in_vp1;
+/delete-node/ &ebc;
+/delete-node/ &gmac0;
+/delete-node/ &gmac1;
+/delete-node/ &hdmi_in_vopl;
+/delete-node/ &hdmi_in_vp1;
+/delete-node/ &npu_grf;
+/delete-node/ &npu_opp_table;
+/delete-node/ &pcie1;
+/delete-node/ &qos_can0;
+/delete-node/ &qos_can1;
+/delete-node/ &qos_can2;
+/delete-node/ &qos_dsmc;
+/delete-node/ &qos_ebc;
+/delete-node/ &qos_gmac0;
+/delete-node/ &qos_gmac1;
+/delete-node/ &qos_pcie1;
+/delete-node/ &qos_rknn;
+/delete-node/ &qos_sata0;
+/delete-node/ &qos_sata1;
+/delete-node/ &qos_vop_m1ro;
+/delete-node/ &rgb_in_vopl;
+/delete-node/ &rgb_in_vp1;
+/delete-node/ &rknpu;
+/delete-node/ &rknpu_mmu;
+/delete-node/ &sata0;
+/delete-node/ &sata1;
+/delete-node/ &shaping_ebc;
+/delete-node/ &shaping_pcie1;
+/delete-node/ &shaping_vop_m1ro;
+/delete-node/ &vopl;
+/delete-node/ &vp1;
