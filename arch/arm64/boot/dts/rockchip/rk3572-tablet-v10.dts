@@ -364,8 +364,8 @@
 &i2c0 {
 	status = "okay";
 
-	usbc0: rk809b2-tcpc@22 {
-		compatible = "rockchip,rk809b2-tcpc", "rockchip,rk817b2-tcpc";
+	usbc0: rk809c-tcpc@22 {
+		compatible = "rockchip,rk809c-tcpc", "rockchip,rk817b2-tcpc";
 		reg = <0x22>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
