@@ -44,22 +44,35 @@ static int rga_set_feature(struct rga_req *rga_base)
 	return feature;
 }
 
-static bool rga_check_csc(const struct rga_hw_data *data, struct rga_req *rga_base)
+static bool rga_check_csc(struct rga_job *job,
+			  const struct rga_hw_data *data, struct rga_req *rga_base)
 {
 	switch (rga_base->yuv2rgb_mode & RGA_Y2R_MASK) {
 	case RGA_Y2R_BT601_LIMIT:
-		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT601L))
+		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT601L)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported yuv(BT.601 limit range) -> rgb, mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	case RGA_Y2R_BT601_FULL:
-		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT601F))
+		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT601F)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported yuv(BT.601 full range) -> rgb, mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	case RGA_Y2R_BT709_LIMIT:
-		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT709))
+		if (!(data->csc_y2r_mode & RGA_MODE_CSC_BT709)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported yuv(BT.709 limit range) -> rgb, mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	default:
@@ -68,18 +81,30 @@ static bool rga_check_csc(const struct rga_hw_data *data, struct rga_req *rga_ba
 
 	switch (rga_base->yuv2rgb_mode & RGA_R2Y_MASK) {
 	case RGA_R2Y_BT601_LIMIT:
-		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT601L))
+		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT601L)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported rgb -> yuv(BT.601 limit range), mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	case RGA_R2Y_BT601_FULL:
-		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT601F))
+		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT601F)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported rgb -> yuv(BT.601 full range), mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	case RGA_R2Y_BT709_LIMIT:
-		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT709))
+		if (!(data->csc_r2y_mode & RGA_MODE_CSC_BT709)) {
+			if (DEBUGGER_EN(MSG))
+				rga_job_log(job, "unsupported rgb -> yuv(BT.709 limit range), mode[%#x]\n",
+					    rga_base->yuv2rgb_mode);
 			return false;
+		}
 
 		break;
 	default:
@@ -95,6 +120,9 @@ static bool rga_check_csc(const struct rga_hw_data *data, struct rga_req *rga_ba
 		if (data == &rga3_data &&
 		    (rga_base->yuv2rgb_mode & RGA_R2Y_MASK) == RGA_R2Y_BT709_LIMIT)
 			return true;
+
+		if (DEBUGGER_EN(MSG))
+			rga_job_log(job, "unsupported full csc\n");
 
 		return false;
 	}
@@ -457,7 +485,7 @@ static int rga_task_assign(struct rga_job *job, struct rga_req *rga_base)
 			continue;
 		}
 
-		if (!rga_check_csc(data, rga_base)) {
+		if (!rga_check_csc(job, data, rga_base)) {
 			if (DEBUGGER_EN(MSG))
 				rga_job_log(job, "%s(%#x), break on rga_check_csc",
 					rga_get_core_name(scheduler->core),
