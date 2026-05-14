@@ -581,7 +581,7 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
 				       struct rfkill_rk_platform_data *data)
 {
 	struct device_node *node = dev->of_node;
-	int error;
+	int error, gpio;
 	const char *port_name;
 
 	if (!node)
@@ -603,8 +603,10 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
 		data->power_toggle = false;
 	}
 
-	error = rkgpiod_request(dev, "uart_rts", GPIOD_ASIS, &data->rts_gpio);
-	if (!error) {
+	gpio = of_get_named_gpio(node, "uart_rts-gpios", 0);
+	if (gpio_is_valid(gpio))
+		data->rts_gpio.io = gpio_to_desc(gpio);
+	if (data->rts_gpio.io) {
 		data->pinctrl = devm_pinctrl_get(dev);
 		if (!IS_ERR(data->pinctrl)) {
 			data->rts_gpio.default_state =
