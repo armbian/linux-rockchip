@@ -369,6 +369,83 @@
 	status = "okay";
 };
 
+/*
+ * Override base GPU OPPs to add opp-supported-hw for bin 0.
+ * Without this the OPP framework rejects all OPPs because
+ * rockchip,supported-hw is set (bin-based matching) but the
+ * generic OPP entries lack opp-supported-hw.
+ */
+&gpu_opp_table {
+	/delete-node/ opp-300000000;
+	/delete-node/ opp-400000000;
+	/delete-node/ opp-500000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-700000000;
+	/delete-node/ opp-800000000;
+	/delete-node/ opp-900000000;
+
+	opp-300000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <712500 712500 875000>;
+	};
+	opp-400000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <712500 712500 875000>;
+	};
+	opp-500000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <712500 712500 875000>;
+	};
+	opp-600000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <712500 712500 875000>;
+	};
+	opp-700000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <700000000>;
+		opp-microvolt = <712500 712500 875000>;
+		opp-microvolt-L0 = <750000 750000 875000>;
+		opp-microvolt-L1 = <750000 750000 875000>;
+		opp-microvolt-L2 = <737500 737500 875000>;
+		opp-microvolt-L3 = <725000 725000 875000>;
+		opp-microvolt-L4 = <725000 725000 875000>;
+	};
+	opp-800000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <812500 812500 875000>;
+		opp-microvolt-L1 = <812500 812500 875000>;
+		opp-microvolt-L2 = <800000 800000 875000>;
+		opp-microvolt-L3 = <787500 787500 875000>;
+		opp-microvolt-L4 = <775000 775000 875000>;
+		opp-microvolt-L5 = <762500 762500 875000>;
+		opp-microvolt-L6 = <750000 750000 875000>;
+		opp-microvolt-L7 = <737500 737500 875000>;
+		opp-microvolt-L8 = <725000 725000 875000>;
+		opp-microvolt-L9 = <725000 725000 875000>;
+		opp-microvolt-L10 = <725000 725000 875000>;
+	};
+	opp-900000000 {
+		opp-supported-hw = <0x01 0xffff>;
+		opp-hz = /bits/ 64 <900000000>;
+		opp-microvolt = <875000 875000 875000>;
+		opp-microvolt-L1 = <875000 875000 875000>;
+		opp-microvolt-L2 = <862500 862500 875000>;
+		opp-microvolt-L3 = <850000 850000 875000>;
+		opp-microvolt-L4 = <837500 837500 875000>;
+		opp-microvolt-L5 = <825000 825000 875000>;
+		opp-microvolt-L6 = <812500 812500 875000>;
+		opp-microvolt-L7 = <800000 800000 875000>;
+		opp-microvolt-L8 = <787500 787500 875000>;
+		opp-microvolt-L9 = <775000 775000 875000>;
+		opp-microvolt-L10 = <762500 762500 875000>;
+	};
+};
+
 &iep {
 	status = "okay";
 };
