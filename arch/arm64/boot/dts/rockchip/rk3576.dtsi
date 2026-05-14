@@ -398,7 +398,6 @@
 
 		nvmem-cells = <&cpul_leakage>, <&cpul_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
 		rockchip,pvtm-voltage-sel-hw = <
@@ -662,7 +661,6 @@
 
 		nvmem-cells = <&cpub_leakage>, <&cpub_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
 		rockchip,pvtm-voltage-sel-hw = <
@@ -951,7 +949,6 @@
 
 		nvmem-cells = <&log_leakage>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,leakage-voltage-sel = <
 			1	10	0
@@ -1184,7 +1181,6 @@
 
 		nvmem-cells = <&log_leakage>, <&logic_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,early-min-microvolt = <0 750000>; /* <vdd_ddr vdd_logic> */
 
@@ -2443,7 +2439,6 @@
 
 		nvmem-cells = <&npu_leakage>, <&npu_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
 		rockchip,pvtm-voltage-sel-hw = <
@@ -2689,7 +2684,6 @@
 
 		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
 		rockchip,pvtm-voltage-sel-hw = <
@@ -3527,7 +3521,6 @@
 
 		nvmem-cells = <&log_leakage>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,early-min-microvolt = <750000>; /* vdd_logic */
 
