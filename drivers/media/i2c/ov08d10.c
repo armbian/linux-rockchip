@@ -9,6 +9,7 @@
  * 1. add delays in setting to fix probability reg write failed.
  * 2. remove duplicate global register setting.
  * V0.0X01.0X02 fix wrong no ioctl return value
+ * V0.0X01.0X03 fix select fault register page for vblank set.
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -38,7 +39,7 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1248,7 +1249,7 @@ static int ov08d10_set_ctrl(struct v4l2_ctrl *ctrl)
 		dev_dbg(&client->dev, "set vb value 0x%x\n", ctrl->val);
 		ret = ov08d10_write_reg(ov08d10->client,
 					OV08D10_REG_SET_PAGE,
-					OV08D10_SET_PAGE_ZERO);
+					0x01);
 		ret |= ov08d10_write_reg(ov08d10->client,
 					OV08D10_REG_VBLANK_H,
 					( ctrl->val >> 8) & 0xff);
