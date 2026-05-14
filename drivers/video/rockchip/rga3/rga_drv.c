@@ -1078,7 +1078,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	case RGA_IOC_GET_DRVIER_VERSION:
 		/* Driver version */
-		driver_version.major = DRIVER_MAJOR_VERISON;
+		driver_version.major = DRIVER_MAJOR_VERSION;
 		driver_version.minor = DRIVER_MINOR_VERSION;
 		driver_version.revision = DRIVER_REVISION_VERSION;
 		strncpy((char *)driver_version.str, DRIVER_VERSION, sizeof(driver_version.str));
