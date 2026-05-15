@@ -253,7 +253,7 @@ static ssize_t status_show(struct device *device,
 	int status = HDMIRX_HDCP_DISABLED;
 	struct rk_hdmirx_hdcp *hdcp = g_hdmirx_hdcp;
 	u32 val;
-	int dectypt, n = 0;
+	int decrypt, n = 0;
 
 	if (!hdcp)
 		return 0;
@@ -262,8 +262,8 @@ static ssize_t status_show(struct device *device,
 		return snprintf(buf, PAGE_SIZE, "HDCP Disable\n");
 
 	if (hdcp->enable == HDCP_2X_ENABLE) {
-		dectypt = hdmirx_hdcp_read(hdcp, HDCP2_STATUS) & BIT(0);
-		if (dectypt) {
+		decrypt = hdmirx_hdcp_read(hdcp, HDCP2_STATUS) & BIT(0);
+		if (decrypt) {
 			val = hdmirx_hdcp_read(hdcp, HDCP2_ESM_P0_GPIO_OUT);
 			if (val & BIT(2))
 				n += snprintf(buf + n, PAGE_SIZE - n,
@@ -273,7 +273,7 @@ static ssize_t status_show(struct device *device,
 					      "HDCP2.3: Authenticated failed\n");
 			return n;
 		}
-		n += snprintf(buf, PAGE_SIZE, "HDCP2.3: No dectypted\n");
+		n += snprintf(buf, PAGE_SIZE, "HDCP2.3: Not decrypted\n");
 	}
 
 	status = hdcp->status;
