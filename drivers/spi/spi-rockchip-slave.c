@@ -173,7 +173,7 @@ struct rockchip_spi {
 	void __iomem *regs;
 	dma_addr_t dma_addr_rx;
 	dma_addr_t dma_addr_tx;
-	u32 *dma_buf;
+	u8 *dma_buf;
 	dma_addr_t dma_phys;
 	u32 dma_cyclic_period_count;
 
@@ -870,7 +870,9 @@ static int rockchip_spi_slave_misc_init_cyclic(struct rockchip_spi *rs, int leng
 	if (ret)
 		goto free_spi_transfer;
 
-	rockchip_spi_slave_prepare_cyclic_dma(rs, rs->ctlr, xfer);
+	ret = rockchip_spi_slave_prepare_cyclic_dma(rs, rs->ctlr, xfer);
+	if (ret)
+		goto free_spi_transfer;
 
 	/* Record for check */
 	rs->transfer_size = xfer->len;
@@ -935,7 +937,7 @@ static long rockchip_spi_slave_misc_ioctl(struct file *file, unsigned int cmd,
 
 	mutex_unlock(&rs->lock);
 
-	return 0;
+	return ret;
 }
 
 static ssize_t rockchip_spi_slave_misc_read(struct file *file, char __user *buf,
@@ -945,11 +947,14 @@ static ssize_t rockchip_spi_slave_misc_read(struct file *file, char __user *buf,
 	struct spi_controller *ctlr = rs->ctlr;
 	size_t to_copy, copied = 0;
 	int ret = 0;
-	size_t period_size = n > rs->dma_cyclic_period_count ?
-			     n / rs->dma_cyclic_period_count : n;
+
+	size_t period_size = rs->transfer_size > rs->dma_cyclic_period_count ?
+			     rs->transfer_size / rs->dma_cyclic_period_count :
+			     rs->transfer_size;
 	size_t cur_index;
 	struct dma_tx_state state;
 	size_t data_available;
+	size_t read_safety_margin;
 
 	mutex_lock(&rs->lock);
 
@@ -963,6 +968,14 @@ static ssize_t rockchip_spi_slave_misc_read(struct file *file, char __user *buf,
 	dmaengine_tx_status(ctlr->dma_rx, ctlr->dma_rx->cookie, &state);
 
 	cur_index = (period_size - state.residue) % period_size;
+
+	read_safety_margin = rockchip_spi_slave_calc_burst_size(rs,
+					rs->transfer_size / rs->n_bytes);
+	if (cur_index >= read_safety_margin)
+		cur_index -= read_safety_margin;
+	else
+		cur_index = period_size - (read_safety_margin - cur_index);
+
 	if (cur_index < rs->read_pos)
 		data_available = period_size - rs->read_pos + cur_index;
 	else
