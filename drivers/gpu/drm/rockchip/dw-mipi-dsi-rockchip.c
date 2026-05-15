@@ -1619,7 +1619,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	dsi->pdata.host_ops = &dw_mipi_dsi_rockchip_host_ops;
 	dsi->pdata.priv_data = dsi;
 
-	if (dsi->cdata->soc_type == RK3568 || dsi->cdata->soc_type == RK3572)
+	if (dsi->cdata->soc_type == RK3568)
 		dsi->pdata.stream_standby = dw_mipi_dsi_rockchip_stream_standby;
 
 	platform_set_drvdata(pdev, dsi);
