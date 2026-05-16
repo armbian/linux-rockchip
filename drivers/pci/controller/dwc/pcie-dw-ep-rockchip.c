@@ -160,11 +160,10 @@ struct rockchip_pcie {
 	struct dma_trx_obj		*dma_obj;
 	phys_addr_t			dbi_base_physical;
 	struct pcie_ep_obj_info		*obj_info;
-	enum pcie_ep_mmap_resource	cur_mmap_res;
-	struct mutex			file_mutex;
+	struct mutex			ctrl_mutex; /* Protect common resource like custom MSI */
 	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	wait_queue_head_t wq_head;
-	struct rockchip_pcie_misc_dev	*pcie_dev;
+	struct miscdevice		dev;
 
 	/* interrupt */
 	int				irq;
@@ -181,9 +180,14 @@ struct rockchip_pcie {
 	u32				comp_prst[2];
 };
 
-struct rockchip_pcie_misc_dev {
-	struct miscdevice dev;
+struct pcie_file {
+	struct mutex file_mutex;
 	struct rockchip_pcie *pcie;
+	int cur_mmap_res;
+	u64 cur_mmap_addr;
+
+	/* memory manager */
+	struct list_head cont_buffer_list;
 };
 
 static const struct of_device_id rockchip_pcie_ep_of_match[] = {
@@ -685,11 +689,11 @@ static int rockchip_pcie_raise_irq_user(struct rockchip_pcie *rockchip, u32 inde
 		return -EINVAL;
 	}
 
-	mutex_lock(&rockchip->file_mutex);
+	mutex_lock(&rockchip->ctrl_mutex);
 	rockchip->obj_info->irq_type_rc = OBJ_IRQ_USER;
 	rockchip->obj_info->irq_user_data_rc = index;
 	rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
-	mutex_unlock(&rockchip->file_mutex);
+	mutex_unlock(&rockchip->ctrl_mutex);
 
 	return 0;
 }
@@ -1361,17 +1365,40 @@ static void rockchip_pcie_deinit_dma_trx(struct rockchip_pcie *rockchip)
 static int pcie_ep_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *miscdev = file->private_data;
-	struct rockchip_pcie_misc_dev *pcie_misc_dev;
+	struct rockchip_pcie *pcie;
+	struct pcie_file *pcie_file = NULL;
 
-	pcie_misc_dev = container_of(miscdev, struct rockchip_pcie_misc_dev, dev);
-	file->private_data = pcie_misc_dev->pcie;
+	pcie = container_of(miscdev, struct rockchip_pcie, dev);
+
+	pcie_file = kzalloc(sizeof(*pcie_file), GFP_KERNEL);
+	if (!pcie_file)
+		return -ENOMEM;
+
+	pcie_file->pcie = pcie;
+
+	mutex_init(&pcie_file->file_mutex);
+	INIT_LIST_HEAD(&pcie_file->cont_buffer_list);
+
+	file->private_data = pcie_file;
+
+	return 0;
+}
+
+static int pcie_ep_release(struct inode *inode, struct file *file)
+{
+	struct pcie_file *pcie_file = (struct pcie_file *)file->private_data;
+
+	mutex_destroy(&pcie_file->file_mutex);
+	kfree(pcie_file);
+	file->private_data = NULL;
 
 	return 0;
 }
 
 static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct rockchip_pcie *rockchip = (struct rockchip_pcie *)file->private_data;
+	struct pcie_file *pcie_file = (struct pcie_file *)file->private_data;
+	struct rockchip_pcie *rockchip = pcie_file->pcie;
 	struct pcie_ep_dma_cache_cfg cfg;
 	void __user *uarg = (void __user *)arg;
 	struct pcie_ep_obj_poll_virtual_id_cfg poll_cfg;
@@ -1416,7 +1443,7 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			return -EINVAL;
 		}
 
-		rockchip->cur_mmap_res = mmap_res;
+		pcie_file->cur_mmap_res = mmap_res;
 		break;
 	case PCIE_EP_RAISE_IRQ_USER:
 		ret = copy_from_user(&index, uarg, sizeof(index));
@@ -1454,12 +1481,13 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct rockchip_pcie *rockchip = (struct rockchip_pcie *)file->private_data;
+	struct pcie_file *pcie_file = (struct pcie_file *)file->private_data;
+	struct rockchip_pcie *rockchip = pcie_file->pcie;
 	size_t size = vma->vm_end - vma->vm_start;
 	int err;
 	unsigned long addr;
 
-	switch (rockchip->cur_mmap_res) {
+	switch (pcie_file->cur_mmap_res) {
 	case PCIE_EP_MMAP_RESOURCE_DBI:
 		if (size > PCIE_DBI_SIZE) {
 			dev_warn(rockchip->pci.dev, "dbi mmap size is out of limitation\n");
@@ -1496,11 +1524,11 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 		addr = rockchip->ib_target_address[5];
 		break;
 	default:
-		dev_err(rockchip->pci.dev, "cur mmap_res %d is unsurreport\n", rockchip->cur_mmap_res);
+		dev_err(rockchip->pci.dev, "cur mmap_res %d is unsupported\n", pcie_file->cur_mmap_res);
 		return -EINVAL;
 	}
 
-	if (rockchip->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2)
+	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	else
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -1517,6 +1545,7 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 static const struct file_operations pcie_ep_ops = {
 	.owner = THIS_MODULE,
 	.open = pcie_ep_open,
+	.release = pcie_ep_release,
 	.unlocked_ioctl = pcie_ep_ioctl,
 	.mmap = pcie_ep_mmap,
 };
@@ -1524,26 +1553,17 @@ static const struct file_operations pcie_ep_ops = {
 static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 {
 	int ret;
-	struct rockchip_pcie_misc_dev *pcie_dev;
 
-	pcie_dev = devm_kzalloc(rockchip->pci.dev, sizeof(struct rockchip_pcie_misc_dev),
-				GFP_KERNEL);
-	if (!pcie_dev)
-		return -ENOMEM;
+	rockchip->dev.minor = MISC_DYNAMIC_MINOR;
+	rockchip->dev.name = "pcie_ep";
+	rockchip->dev.fops = &pcie_ep_ops;
+	rockchip->dev.parent = rockchip->pci.dev;
 
-	pcie_dev->dev.minor = MISC_DYNAMIC_MINOR;
-	pcie_dev->dev.name = "pcie_ep";
-	pcie_dev->dev.fops = &pcie_ep_ops;
-	pcie_dev->dev.parent = rockchip->pci.dev;
-
-	ret = misc_register(&pcie_dev->dev);
+	ret = misc_register(&rockchip->dev);
 	if (ret) {
 		dev_err(rockchip->pci.dev, "pcie: failed to register misc device.\n");
 		return ret;
 	}
-
-	pcie_dev->pcie = rockchip;
-	rockchip->pcie_dev = pcie_dev;
 
 	dev_info(rockchip->pci.dev, "register misc device pcie_ep\n");
 
@@ -1552,7 +1572,7 @@ static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 
 static void rockchip_pcie_delete_misc(struct rockchip_pcie *rockchip)
 {
-	misc_deregister(&rockchip->pcie_dev->dev);
+	misc_deregister(&rockchip->dev);
 }
 
 #define RAS_DES_EVENT(ss, v) \
@@ -1718,7 +1738,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 	rockchip->pci.dev = dev;
 	rockchip->pci.ops = &dw_pcie_ops;
-	mutex_init(&rockchip->file_mutex);
+	mutex_init(&rockchip->ctrl_mutex);
 	platform_set_drvdata(pdev, rockchip);
 
 	ret = rockchip_pcie_get_resource(pdev, rockchip);
@@ -1778,6 +1798,7 @@ static void rockchip_pcie_ep_remove(struct platform_device *pdev)
 {
 	struct rockchip_pcie *rockchip = platform_get_drvdata(pdev);
 
+	mutex_destroy(&rockchip->ctrl_mutex);
 	rockchip_pcie_debugfs_exit(rockchip);
 	rockchip_pcie_delete_misc(rockchip);
 	rockchip_pcie_deinit_dma_trx(rockchip);
