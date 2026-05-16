@@ -510,6 +510,19 @@ choice
 
 endchoice
 
+config LCD_VK2C21
+	tristate "Vinka VK2C21 segment LCD controller"
+	depends on GPIOLIB
+	depends on OF
+	help
+	  Say Y or M here to add support for the Vinka VK2C21 segment LCD
+	  controller found on various Rockchip-based SBCs (e.g. Mekotronics
+	  R58X).  The chip communicates via I2C but is often wired without
+	  pull-up resistors, so this driver bit-bangs I2C in push-pull mode
+	  directly via GPIO.
+
+	  The display text is controlled via sysfs.
+
 endif # AUXDISPLAY
 
 config PANEL
