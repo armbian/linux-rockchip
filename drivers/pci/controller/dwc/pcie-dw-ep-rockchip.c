@@ -123,12 +123,14 @@
 #define PCIE_DBI_SIZE			0x400000
 
 /* PCIe EP object */
-#define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00000001
+#define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00030300
 
 #define PCIE_BAR_MAX_NUM		6
 #define PCIE_HOTRESET_TMOUT_US		10000
 
 #define PCIE_WAKE_DELAY_US		2000 /* 2 ms */
+
+#define DMA_MAX_SIZE			0x10000000
 
 struct rockchip_pcie {
 	struct dw_pcie			pci;
@@ -188,6 +190,13 @@ struct pcie_file {
 
 	/* memory manager */
 	struct list_head cont_buffer_list;
+};
+
+struct pcie_ep_continuous_buffer_req {
+	struct list_head cont_buffer_list;
+	dma_addr_t dma_addr;
+	void *vir_addr;
+	u32 size;
 };
 
 static const struct of_device_id rockchip_pcie_ep_of_match[] = {
@@ -1362,6 +1371,81 @@ static void rockchip_pcie_deinit_dma_trx(struct rockchip_pcie *rockchip)
 		pcie_dw_dmatest_unregister(rockchip->dma_obj);
 }
 
+static int rkep_mem_continuous_buffer_alloc(struct pcie_file *pcie_file,
+					    struct pcie_ep_continuous_buffer_param *param)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req;
+	struct rockchip_pcie *pcie = pcie_file->pcie;
+	dma_addr_t dma_addr;
+	void *vir_addr;
+	int ret = 0;
+
+	if (param->size > DMA_MAX_SIZE || param->size == 0)
+		return -EINVAL;
+
+	vir_addr = dma_alloc_coherent(pcie->pci.dev, param->size, &dma_addr, GFP_KERNEL);
+	if (!vir_addr)
+		return -ENOMEM;
+
+	buffer_req = kzalloc(sizeof(*buffer_req), GFP_KERNEL);
+	if (!buffer_req) {
+		dma_free_coherent(pcie->pci.dev, param->size, vir_addr, dma_addr);
+		return -ENOMEM;
+	}
+
+	buffer_req->vir_addr = vir_addr;
+	buffer_req->dma_addr = dma_addr;
+	buffer_req->size = param->size;
+
+	param->dma_addr = dma_addr;
+
+	mutex_lock(&pcie_file->file_mutex);
+	list_add(&buffer_req->cont_buffer_list, &pcie_file->cont_buffer_list);
+	mutex_unlock(&pcie_file->file_mutex);
+
+	return ret;
+}
+
+static int rkep_mem_continuous_buffer_free(struct pcie_file *pcie_file,
+					   struct pcie_ep_continuous_buffer_param *param)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req, *tmp;
+	struct rockchip_pcie *pcie = pcie_file->pcie;
+	int ret = -ENOENT;
+
+	mutex_lock(&pcie_file->file_mutex);
+	list_for_each_entry_safe(buffer_req, tmp, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		if (buffer_req->dma_addr == param->dma_addr && buffer_req->size == param->size) {
+			list_del(&buffer_req->cont_buffer_list);
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&pcie_file->file_mutex);
+	if (ret == 0) {
+		dma_free_coherent(pcie->pci.dev, buffer_req->size, buffer_req->vir_addr, buffer_req->dma_addr);
+		kfree(buffer_req);
+	}
+
+	return ret;
+}
+
+static void *rkep_mem_continuous_buffer_to_virt(struct pcie_file *pcie_file, uint64_t dma_addr, uint32_t size)
+{
+	struct pcie_ep_continuous_buffer_req *buffer_req;
+
+	mutex_lock(&pcie_file->file_mutex);
+	list_for_each_entry(buffer_req, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		if (buffer_req->dma_addr == dma_addr && buffer_req->size >= size) {
+			mutex_unlock(&pcie_file->file_mutex);
+			return buffer_req->vir_addr;
+		}
+	}
+	mutex_unlock(&pcie_file->file_mutex);
+
+	return NULL;
+}
+
 static int pcie_ep_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *miscdev = file->private_data;
@@ -1387,6 +1471,15 @@ static int pcie_ep_open(struct inode *inode, struct file *file)
 static int pcie_ep_release(struct inode *inode, struct file *file)
 {
 	struct pcie_file *pcie_file = (struct pcie_file *)file->private_data;
+	struct rockchip_pcie *pcie = pcie_file->pcie;
+	struct pcie_ep_continuous_buffer_req *buffer_req, *tmp;
+
+	list_for_each_entry_safe(buffer_req, tmp, &pcie_file->cont_buffer_list, cont_buffer_list) {
+		dma_free_coherent(pcie->pci.dev, buffer_req->size,
+				  buffer_req->vir_addr, buffer_req->dma_addr);
+		list_del(&buffer_req->cont_buffer_list);
+		kfree(buffer_req);
+	}
 
 	mutex_destroy(&pcie_file->file_mutex);
 	kfree(pcie_file);
@@ -1403,6 +1496,7 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	void __user *uarg = (void __user *)arg;
 	struct pcie_ep_obj_poll_virtual_id_cfg poll_cfg;
 	enum pcie_ep_mmap_resource mmap_res;
+	struct pcie_ep_continuous_buffer_param cont_buf_param;
 	int ret, index;
 
 	switch (cmd) {
@@ -1473,6 +1567,29 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		if (copy_to_user(uarg, &poll_cfg, sizeof(poll_cfg)))
 			return -EFAULT;
 		break;
+	case PCIE_EP_CONTINUOUS_BUFFER_ALLOC:
+		if (copy_from_user(&cont_buf_param, uarg, sizeof(cont_buf_param)))
+			return -EFAULT;
+		ret = rkep_mem_continuous_buffer_alloc(pcie_file, &cont_buf_param);
+		if (ret) {
+			dev_err(rockchip->pci.dev, "buffer alloc failed, ret=%d\n", ret);
+			return ret;
+		}
+		if (copy_to_user(uarg, &cont_buf_param, sizeof(cont_buf_param))) {
+			rkep_mem_continuous_buffer_free(pcie_file, &cont_buf_param);
+			return -EFAULT;
+		}
+		break;
+	case PCIE_EP_CONTINUOUS_BUFFER_FREE:
+		if (copy_from_user(&cont_buf_param, uarg, sizeof(cont_buf_param)))
+			return -EFAULT;
+		return rkep_mem_continuous_buffer_free(pcie_file, &cont_buf_param);
+	case PCIE_EP_SET_MMAP_RESOURCE_CONTINUOUS_BUFFER:
+		if (copy_from_user(&cont_buf_param, uarg, sizeof(cont_buf_param)))
+			return -EFAULT;
+		pcie_file->cur_mmap_res = PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER;
+		pcie_file->cur_mmap_addr = cont_buf_param.dma_addr;
+		break;
 	default:
 		break;
 	}
@@ -1486,6 +1603,7 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 	size_t size = vma->vm_end - vma->vm_start;
 	int err;
 	unsigned long addr;
+	void *vir_addr;
 
 	switch (pcie_file->cur_mmap_res) {
 	case PCIE_EP_MMAP_RESOURCE_DBI:
@@ -1523,19 +1641,31 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		addr = rockchip->ib_target_address[5];
 		break;
+	case PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER:
+		addr = pcie_file->cur_mmap_addr;
+		break;
 	default:
 		dev_err(rockchip->pci.dev, "cur mmap_res %d is unsupported\n", pcie_file->cur_mmap_res);
 		return -EINVAL;
 	}
 
-	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2)
+	if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2) {
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	else
+		err = remap_pfn_range(vma, vma->vm_start,
+				      __phys_to_pfn(addr),
+				      size, vma->vm_page_prot);
+	} else if (pcie_file->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_CONTINUOUS_BUFFER) {
+		vir_addr = rkep_mem_continuous_buffer_to_virt(pcie_file, addr, (uint32_t)size);
+		if (!vir_addr)
+			return -ENOMEM;
+		err = dma_mmap_coherent(rockchip->pci.dev, vma, vir_addr, addr, size);
+	} else {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		err = remap_pfn_range(vma, vma->vm_start,
+				      __phys_to_pfn(addr),
+				      size, vma->vm_page_prot);
+	}
 
-	err = remap_pfn_range(vma, vma->vm_start,
-			      __phys_to_pfn(addr),
-			      size, vma->vm_page_prot);
 	if (err)
 		return -EAGAIN;
 
@@ -1558,6 +1688,12 @@ static int rockchip_pcie_add_misc(struct rockchip_pcie *rockchip)
 	rockchip->dev.name = "pcie_ep";
 	rockchip->dev.fops = &pcie_ep_ops;
 	rockchip->dev.parent = rockchip->pci.dev;
+
+	ret = dma_set_mask_and_coherent(rockchip->pci.dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_err(rockchip->pci.dev, "failed to set dma mask and coherent");
+		return ret;
+	}
 
 	ret = misc_register(&rockchip->dev);
 	if (ret) {
