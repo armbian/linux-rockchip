@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/auxdisplay/vinka,vk2c21.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Vinka VK2C21 Segment LCD Controller
+
+maintainers:
+  - Ricardo Pardini <ricardo@pardini.net>
+
+description: |
+  The Vinka VK2C21 (and pin-compatible VK2C21A/VK2C21B) is a memory-mapping
+  segment LCD controller that communicates over I2C.  It can drive up to
+  128 segments (e.g. 32 SEG × 4 COM in 1/3 bias mode).
+
+  Many low-cost SBCs wire this chip to GPIO pins without I2C pull-up
+  resistors, making the standard i2c-gpio (open-drain) driver unusable.
+  This driver therefore bit-bangs I2C in push-pull mode directly via GPIO,
+  requiring no external pull-ups.
+
+properties:
+  compatible:
+    const: vinka,vk2c21
+
+  sda-gpios:
+    description: GPIO line used for I2C SDA (data).
+    maxItems: 1
+
+  scl-gpios:
+    description: GPIO line used for I2C SCL (clock).
+    maxItems: 1
+
+  clock-frequency:
+    description: Desired I2C clock frequency in Hz.
+    default: 100000
+    minimum: 1000
+    maximum: 400000
+
+required:
+  - compatible
+  - sda-gpios
+  - scl-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/pinctrl/rockchip.h>
+
+    / {
+        segment-lcd {
+            compatible = "vinka,vk2c21";
+            sda-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+            scl-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+            clock-frequency = <100000>;
+        };
+    };
