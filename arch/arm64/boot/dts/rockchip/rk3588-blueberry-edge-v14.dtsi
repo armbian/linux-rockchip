@@ -71,7 +71,7 @@
 		rockchip,codec = <&hdmirx_ctrler 0>;
 		rockchip,jack-det;
 	};
-	
+
 
 	leds: leds {
 		compatible = "gpio-leds";
@@ -108,14 +108,6 @@
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
-	};	
-
-	vk2c21_lcd {
-		compatible = "lcd_vk2c21";
-		i2c_scl = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;  
-		i2c_sda = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>; 
-		
-		status = "disabled";//"okay";  //zxLog_2022.9.20 for maozhuo time-lcd show;
 	};
 
 	pcie30_avdd0v75: pcie30-avdd0v75 {
@@ -154,7 +146,7 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc3v3_pcie30_en>;		
+		pinctrl-0 = <&vcc3v3_pcie30_en>;
 		gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;    //hugsun gpio1_c4
 		startup-delay-us = <10000>;
 		vin-supply = <&vcc12v_dcin>;
@@ -212,13 +204,13 @@
 		power-on_gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		reset_gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>; //GPIO_C4
 	};
-	
+
 	ext_cam_clk: external-camera-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
 		clock-output-names = "CLK_CAMERA_24MHZ";
 		#clock-cells = <0>;
-	};	
+	};
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
@@ -753,7 +745,7 @@
 	};
 };
 
-&vdd_log_s0 {  //fox.luo@2022.05.26 don't wake up 
+&vdd_log_s0 {  //fox.luo@2022.05.26 don't wake up
         regulator-state-mem {
         regulator-on-in-suspend;
         regulator-suspend-microvolt = <750000>;
@@ -857,12 +849,12 @@
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
-		
+
 		wifi_poweren_gpio: wifi-poweren-gpio {
 			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
-		};		
+		};
 	};
-	
+
 	buttons {
 		pwrbtn: pwrbtn {
 			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -904,20 +896,20 @@
 			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-	
+
 	hdmiin {
 		lt6911uxc_pin: lt6911uxc-pin {
 			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,
 					<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
 					<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
-	};		
+	};
 
 	pcie {
 		vcc3v3_pcie30_en: vcc3v3-pcie30-en {
 			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};	
-	
+		};
+
 	};
 };
 
