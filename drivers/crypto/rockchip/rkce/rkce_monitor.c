@@ -57,6 +57,7 @@ static void timeout_work_handler(struct work_struct *work)
 			monitor_data->callback(monitor_data->hardware,
 					       -ETIMEDOUT, 0, monitor_data->td);
 			list_del(&monitor_data->list);
+			kfree(monitor_data);
 		}
 	}
 
