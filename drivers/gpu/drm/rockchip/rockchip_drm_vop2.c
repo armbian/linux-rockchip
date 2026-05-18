@@ -1217,6 +1217,7 @@ static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp);
 static int vop2_clk_reset(struct reset_control *rstc);
 static inline bool vop2_cluster_window(struct vop2_win *win);
 static inline bool vop2_cluster_sub_window(struct vop2_win *win);
+static inline bool vop2_multi_area_window(struct vop2_win *win);
 static inline bool vop2_multi_area_sub_window(struct vop2_win *win);
 static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_port *vp,
 							   u32 current_line,
@@ -3083,6 +3084,11 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 	return vop2_convert_afbc_format(format) >= 0 ||
 	       vop2_convert_tiled_format(format) >= 0 ||
 	       vop3_convert_tiled_format(format, 0) >= 0;
+}
+
+static inline bool vop2_multi_area_window(struct vop2_win *win)
+{
+	return (win->feature & WIN_FEATURE_MULTI_AREA);
 }
 
 static inline bool vop2_multi_area_sub_window(struct vop2_win *win)
@@ -17816,7 +17822,7 @@ static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 	drm_for_each_plane(plane, vop2->drm_dev) {
 		struct vop2_win *win = to_vop2_win(plane);
 
-		if (win->parent || vop2_cluster_window(win))
+		if (win->parent || !vop2_multi_area_window(win))
 			continue;
 
 		if (vop2->shared_mode_res.shared_mode)
