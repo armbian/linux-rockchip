@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 
 #include "rkce_core.h"
@@ -33,6 +34,7 @@ struct rkce_chn_info {
 
 struct rkce_hardware {
 	struct RKCE_REG		*rkce_reg;
+	spinlock_t		lock;
 
 	struct rkce_chn_info	chn[RKCE_TD_TYPE_MAX];
 };
@@ -311,6 +313,7 @@ void *rkce_hardware_alloc(void __iomem *reg_base)
 	if (!hardware)
 		return NULL;
 
+	spin_lock_init(&hardware->lock);
 	hardware->rkce_reg = reg_base;
 
 	if (rkce_init(hardware) != 0) {
@@ -365,6 +368,7 @@ int rkce_push_td(void *rkce_hw, void *td)
 	int ret = RKCE_SUCCESS;
 	struct RKCE_REG *rkce_reg;
 	uint32_t td_type;
+	unsigned long flags;
 	struct rkce_hardware *hardware = rkce_hw;
 
 	CHECK_RKCE_INITED(rkce_hw);
@@ -390,14 +394,22 @@ int rkce_push_td(void *rkce_hw, void *td)
 		if (ret)
 			goto exit;
 
+		spin_lock_irqsave(&hardware->lock, flags);
+
 		RKCE_WRITE(rkce_reg->SYMM_INT_EN, 0x3f);
 
 		/* set task desc address */
 		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
+
+		hardware->chn[RKCE_TD_TYPE_SYMM].int_st = 0;
+		hardware->chn[RKCE_TD_TYPE_SYMM].td_id  = 0;
+		hardware->chn[RKCE_TD_TYPE_SYMM].result = 0;
 		hardware->chn[RKCE_TD_TYPE_SYMM].td_virt = td;
 
 		/* tell rkce to load task desc address as symm td */
 		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_SYMM_TLR_MASK);
+
+		spin_unlock_irqrestore(&hardware->lock, flags);
 	} else if (IS_HASH_TD(td_type)) {
 		rk_debug("rkce hash push td virt(%p), phys(%08x)\n",
 			 td, rkce_cma_virt2phys(td));
@@ -411,14 +423,22 @@ int rkce_push_td(void *rkce_hw, void *td)
 		if (ret)
 			goto exit;
 
+		spin_lock_irqsave(&hardware->lock, flags);
+
 		RKCE_WRITE(rkce_reg->HASH_INT_EN, 0x3f);
 
 		/* set task desc address */
 		RKCE_WRITE(rkce_reg->TD_ADDR, rkce_cma_virt2phys(td));
+
+		hardware->chn[RKCE_TD_TYPE_HASH].int_st = 0;
+		hardware->chn[RKCE_TD_TYPE_HASH].td_id  = 0;
+		hardware->chn[RKCE_TD_TYPE_HASH].result = 0;
 		hardware->chn[RKCE_TD_TYPE_HASH].td_virt = td;
 
 		/* tell rkce to load task desc address as hash td */
 		RKCE_WRITE(rkce_reg->TD_LOAD_CTRL, 0xffff0000 | RKCE_TD_LOAD_CTRL_HASH_TLR_MASK);
+
+		spin_unlock_irqrestore(&hardware->lock, flags);
 	} else {
 		return -RKCE_INVAL;
 	}
@@ -592,20 +612,26 @@ int rkce_init_hash_td(struct rkce_hash_td *td, struct rkce_hash_td_buf *buf)
 int rkce_irq_callback_set(void *rkce_hw, enum rkce_td_type td_type, request_cb_func cb_func)
 {
 	struct rkce_hardware *hardware = rkce_hw;
+	int ret = RKCE_SUCCESS;
+	unsigned long flags;
 
 	CHECK_RKCE_INITED(rkce_hw);
 
 	if (!cb_func)
 		return -RKCE_INVAL;
 
+	spin_lock_irqsave(&hardware->lock, flags);
+
 	if (td_type == RKCE_TD_TYPE_SYMM)
 		hardware->chn[RKCE_TD_TYPE_SYMM].cb_func = cb_func;
 	else if (td_type == RKCE_TD_TYPE_HASH)
 		hardware->chn[RKCE_TD_TYPE_HASH].cb_func = cb_func;
 	else
-		return -RKCE_INVAL;
+		ret = -RKCE_INVAL;
 
-	return RKCE_SUCCESS;
+	spin_unlock_irqrestore(&hardware->lock, flags);
+
+	return ret;
 }
 
 void rkce_irq_handler(void *rkce_hw)
@@ -613,12 +639,15 @@ void rkce_irq_handler(void *rkce_hw)
 	struct rkce_chn_info *cur_chn;
 	struct RKCE_REG *rkce_reg;
 	struct rkce_hardware *hardware = rkce_hw;
+	unsigned long flags;
 
 	CHECK_RKCE_INITED(rkce_hw);
 
 	rkce_reg = GET_RKCE_REG(rkce_hw);
 
 	if (RKCE_READ(rkce_reg->SYMM_INT_ST)) {
+		spin_lock_irqsave(&hardware->lock, flags);
+
 		cur_chn = &(hardware->chn[RKCE_TD_TYPE_SYMM]);
 		cur_chn->int_st = RKCE_READ(rkce_reg->SYMM_INT_ST);
 		cur_chn->td_id  = RKCE_READ(rkce_reg->SYMM_TD_ID);
@@ -628,9 +657,12 @@ void rkce_irq_handler(void *rkce_hw)
 
 		cur_chn->result = (cur_chn->int_st == RKCE_SYMM_INT_ST_TD_DONE_MASK) ?
 				  RKCE_SUCCESS : cur_chn->int_st;
+		spin_unlock_irqrestore(&hardware->lock, flags);
 	}
 
 	if (RKCE_READ(rkce_reg->HASH_INT_ST)) {
+		spin_lock_irqsave(&hardware->lock, flags);
+
 		cur_chn = &(hardware->chn[RKCE_TD_TYPE_HASH]);
 		cur_chn->int_st = RKCE_READ(rkce_reg->HASH_INT_ST);
 		cur_chn->td_id  = RKCE_READ(rkce_reg->HASH_TD_ID);
@@ -640,6 +672,7 @@ void rkce_irq_handler(void *rkce_hw)
 
 		cur_chn->result = (cur_chn->int_st == RKCE_HASH_INT_ST_TD_DONE_MASK) ?
 				  RKCE_SUCCESS : cur_chn->int_st;
+		spin_unlock_irqrestore(&hardware->lock, flags);
 	}
 }
 
@@ -653,6 +686,13 @@ void rkce_irq_thread(void *rkce_hw)
 
 	for (i = 0; i < ARRAY_SIZE(hardware->chn); i++) {
 		struct rkce_chn_info *cur_chn = &(hardware->chn[i]);
+		void *td_virt_snap;
+		uint32_t td_id_snap;
+		int result_snap;
+		request_cb_func cb_snap;
+		unsigned long flags;
+
+		spin_lock_irqsave(&hardware->lock, flags);
 
 		if (cur_chn->result) {
 			is_fault = true;
@@ -660,20 +700,37 @@ void rkce_irq_thread(void *rkce_hw)
 				i, cur_chn->int_st, cur_chn->td_id, cur_chn->td_virt);
 		}
 
-		if (cur_chn->int_st == 0 || !(cur_chn->cb_func))
+		if (cur_chn->int_st == 0) {
+			spin_unlock_irqrestore(&hardware->lock, flags);
 			continue;
+		}
 
-		rk_debug("##################### finalize td %p, result = %d\n",
-			 cur_chn->td_virt, cur_chn->result);
+		if (!cur_chn->cb_func) {
+			cur_chn->result = 0;
+			cur_chn->int_st = 0;
+			cur_chn->td_id = 0;
+			cur_chn->td_virt = NULL;
+			spin_unlock_irqrestore(&hardware->lock, flags);
+			continue;
+		}
 
-		if (cur_chn->cb_func && cur_chn->td_virt)
-			cur_chn->cb_func(rkce_hw, cur_chn->result,
-					 cur_chn->td_id, cur_chn->td_virt);
+		td_virt_snap = cur_chn->td_virt;
+		td_id_snap   = cur_chn->td_id;
+		result_snap  = cur_chn->result;
+		cb_snap      = cur_chn->cb_func;
 
 		cur_chn->result  = 0;
 		cur_chn->int_st  = 0;
 		cur_chn->td_id   = 0;
 		cur_chn->td_virt = NULL;
+
+		spin_unlock_irqrestore(&hardware->lock, flags);
+
+		rk_debug("##################### finalize td %p, result = %d\n",
+			 td_virt_snap, result_snap);
+
+		if (cb_snap && td_virt_snap)
+			cb_snap(rkce_hw, result_snap, td_id_snap, td_virt_snap);
 	}
 
 	if (is_fault)
