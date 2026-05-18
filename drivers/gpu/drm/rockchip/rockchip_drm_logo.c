@@ -1232,7 +1232,7 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 	}
 
 	if (list_empty(&mode_set_list)) {
-		dev_warn(drm_dev->dev, "can't not find any logo display\n");
+		dev_warn(drm_dev->dev, "can't find any logo display\n");
 		ret = -ENXIO;
 		goto err_free_state;
 	}
