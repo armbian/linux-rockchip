@@ -569,6 +569,10 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 		.data = (void *)&rk3572_cpu_opp_data,
 	},
 	{
+		.compatible = "rockchip,rk3572s",
+		.data = (void *)&rk3572_cpu_opp_data,
+	},
+	{
 		.compatible = "rockchip,rk3576",
 		.data = (void *)&rk3576_cpu_opp_data,
 	},
