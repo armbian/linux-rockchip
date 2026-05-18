@@ -140,6 +140,10 @@ static const struct of_device_id rockchip_npu_of_match[] = {
 		.compatible = "rockchip,rk3572",
 		.data = (void *)&rk3572_npu_opp_data,
 	},
+	{
+		.compatible = "rockchip,rk3572s",
+		.data = (void *)&rk3572_npu_opp_data,
+	},
 	{},
 };
 
