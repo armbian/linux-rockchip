@@ -616,9 +616,9 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 	GATE(PCLK_UART2, "pclk_uart2", "pclk_cpu", 0, RK2928_CLKGATE_CON(9), 14, GFLAGS),
 	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_cpu", 0, RK2928_CLKGATE_CON(9), 15, GFLAGS),
 	GATE(PCLK_GRF, "pclk_grf", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 0, GFLAGS),
-	GATE(0, "pclk_cru", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 1, GFLAGS),
-	GATE(0, "pclk_sgrf", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 2, GFLAGS),
-	GATE(0, "pclk_sim", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 3, GFLAGS),
+	GATE(0, "pclk_cru", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 4, GFLAGS),
+	GATE(0, "pclk_sgrf", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 6, GFLAGS),
+	GATE(0, "pclk_sim", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 10, GFLAGS),
 
 	GATE(0, "pclk_ddrphy", "pclk_phy_pre", CLK_IS_CRITICAL, RK2928_CLKGATE_CON(10), 3, GFLAGS),
 	GATE(0, "pclk_acodecphy", "pclk_phy_pre", CLK_IS_CRITICAL, RK2928_CLKGATE_CON(10), 5, GFLAGS),
