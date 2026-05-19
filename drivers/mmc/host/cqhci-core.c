@@ -654,6 +654,29 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	cq_host->slot[tag].flags = 0;
 
 	cq_host->qcnt += 1;
+
+	/*
+	 * The HALT status field in the CQHCI_CTL register reflects only the
+	 * software-configured halt state. Internally, however, the controller's
+	 * actual halt condition is a combination of this software state and a
+	 * shadow halt flag managed by the CQE error-state machine.
+	 *
+	 * When an error occurs on any slot, the CQE sets this internal shadow
+	 * halt flag. If not cleared, subsequent access to the CQE will result
+	 * in a slave error response.
+	 *
+	 * Crucially, even if the HALT field in the CTL register reads as 0, the
+	 * internal shadow flag may still be active. To ensure proper operation,
+	 * we explicitly write 0 to the CTL register to clear both the software
+	 * and shadow halt states.
+	 *
+	 * Although this behavior appears to be IP-specific, writing 0 to the CTL
+	 * register is benign and introduces no side effects across all controller
+	 * implementations. Therefore, it is safe and recommended to apply this
+	 * workaround unconditionally.
+	 */
+	cqhci_writel(cq_host, 0, CQHCI_CTL);
+
 	/* Make sure descriptors are ready before ringing the doorbell */
 	wmb();
 	cqhci_writel(cq_host, 1 << tag, CQHCI_TDBR);
