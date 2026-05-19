@@ -179,7 +179,7 @@ PNAME(mux_emmc_p)		= { "clk_emmc_div", "clk_emmc_div50" };
 PNAME(mux_sdmmc_p)		= { "clk_sdmmc_div", "clk_sdmmc_div50" };
 PNAME(mux_gmac_p)		= { "clk_gmac_src", "gmac_clkin" };
 PNAME(mux_gmac_rmii_sel_p)	= { "clk_gmac_rx_tx_div20", "clk_gmac_rx_tx_div2" };
-PNAME(mux_rtc32k_pmu_p)		= { "xin32k", "pmu_pvtm_32k", "clk_rtc32k_frac", };
+PNAME(mux_rtc32k_pmu_p)		= { "xin32k", "pmu_pvtm_32k", "clk_rtc32k_frac" };
 PNAME(mux_wifi_pmu_p)		= { "xin24m", "clk_wifi_pmu_src" };
 PNAME(mux_uart0_pmu_p)		= { "clk_uart0_pmu_src", "clk_uart0_np5", "clk_uart0_frac" };
 PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_ref24m_pmu" };
@@ -335,7 +335,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(0, "clk_core_ddrc", "clk_ddrphy1x", CLK_IGNORE_UNUSED,
 			PX30_CLKGATE_CON(1), 6, GFLAGS),
 	GATE(0, "aclk_cmd_buff", "clk_ddrphy1x", CLK_IGNORE_UNUSED,
-			PX30_CLKGATE_CON(1), 6, GFLAGS),
+			PX30_CLKGATE_CON(1), 2, GFLAGS),
 	GATE(0, "clk_ddrmon", "clk_ddrphy1x", CLK_IGNORE_UNUSED,
 			PX30_CLKGATE_CON(1), 11, GFLAGS),
 
