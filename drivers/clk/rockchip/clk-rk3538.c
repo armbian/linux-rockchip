@@ -61,20 +61,20 @@ static struct rockchip_pll_rate_table rk3538_pll_rates[] = {
 #define RK3538_DIV_ACLK_CORE_SHIFT	10
 #define RK3538_DIV_PCLK_CORE_MASK	0x1f
 #define RK3538_DIV_PCLK_CORE_SHIFT	3
-#define RK3538_DIV_perip_core_MASK	0x7
-#define RK3538_DIV_perip_core_SHIFT	12
-#define RK3538_DIV_sclk_core_MASK	0xf
-#define RK3538_DIV_sclk_core_SHIFT	8
+#define RK3538_DIV_PERIP_CORE_MASK	0x7
+#define RK3538_DIV_PERIP_CORE_SHIFT	12
+#define RK3538_DIV_SCLK_CORE_MASK	0xf
+#define RK3538_DIV_SCLK_CORE_SHIFT	8
 
 #define RK3538_CLKSEL30(_pclk_core, _perip_core, _sclk_core)				\
 {											\
 	.reg = RK3538_CLKSEL_CON(39),							\
 	.val = HIWORD_UPDATE(_pclk_core - 1, RK3538_DIV_PCLK_CORE_MASK,			\
 			     RK3538_DIV_PCLK_CORE_SHIFT) |				\
-	       HIWORD_UPDATE(_perip_core - 1, RK3538_DIV_perip_core_MASK,		\
-			     RK3538_DIV_perip_core_SHIFT) |				\
-	       HIWORD_UPDATE(_sclk_core - 1, RK3538_DIV_sclk_core_MASK,			\
-			     RK3538_DIV_sclk_core_SHIFT),				\
+	       HIWORD_UPDATE(_perip_core - 1, RK3538_DIV_PERIP_CORE_MASK,		\
+			     RK3538_DIV_PERIP_CORE_SHIFT) |				\
+	       HIWORD_UPDATE(_sclk_core - 1, RK3538_DIV_SCLK_CORE_MASK,			\
+			     RK3538_DIV_SCLK_CORE_SHIFT),				\
 }
 
 #define RK3538_CLKSEL31(_aclk_core)							\
@@ -132,7 +132,7 @@ PNAME(mclk_sai0_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_au
 PNAME(mclk_sai1_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai1_from_io" };
 PNAME(mclk_sai2_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai2_from_io" };
 PNAME(mclk_sai3_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1" };
-PNAME(mclk_spdif_tx_src_p)		= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai0_from_io", "mclk_sai1_from_io", "mclk_sai2_from_io"};
+PNAME(mclk_spdif_tx_src_p)		= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai0_from_io", "mclk_sai1_from_io", "mclk_sai2_from_io" };
 PNAME(mclk_pdm_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai0_from_io", "mclk_sai1_from_io", "mclk_sai2_from_io" };
 PNAME(clkout_pdm_src_p)			= { "xin24m", "clk_cm_frac_0", "clk_cm_frac_1", "clk_audio_frac_0", "clk_audio_frac_1", "mclk_sai0_from_io", "mclk_sai1_from_io", "mclk_sai2_from_io" };
 PNAME(mux_ref_pulse_p)			= { "usb_sof_clk", "mac_ptp_pps", "gmac_ptp_pps" };
@@ -219,33 +219,33 @@ static struct rockchip_clk_branch rk3538_clk_branches[] __initdata = {
 	MUX(CLK_CM_FRAC_0_SRC, "clk_cm_frac_0_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(0), 12, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_CM_FRAC_0, "clk_cm_frac_0", "clk_cm_frac_0_src", 0,
-			RK3576_CLKSEL_CON(13), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 7, GFLAGS),
+			RK3538_CLKSEL_CON(13), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 7, GFLAGS),
 	MUX(CLK_CM_FRAC_1_SRC, "clk_cm_frac_1_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(0), 14, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_CM_FRAC_1, "clk_cm_frac_1", "clk_cm_frac_1_src", 0,
-			RK3576_CLKSEL_CON(14), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 8, GFLAGS),
+			RK3538_CLKSEL_CON(14), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 8, GFLAGS),
 	MUX(CLK_UART_FRAC_0_SRC, "clk_uart_frac_0_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(2), 10, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_UART_FRAC_0, "clk_uart_frac_0", "clk_uart_frac_0_src", 0,
-			RK3576_CLKSEL_CON(15), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 9, GFLAGS),
+			RK3538_CLKSEL_CON(15), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 9, GFLAGS),
 	MUX(CLK_UART_FRAC_1_SRC, "clk_uart_frac_1_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(2), 12, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_UART_FRAC_1, "clk_uart_frac_1", "clk_uart_frac_1_src", 0,
-			RK3576_CLKSEL_CON(16), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 10, GFLAGS),
+			RK3538_CLKSEL_CON(16), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 10, GFLAGS),
 	MUX(CLK_AUDIO_FRAC_0_SRC, "clk_audio_frac_0_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(3), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
-			RK3576_CLKSEL_CON(17), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 11, GFLAGS),
+			RK3538_CLKSEL_CON(17), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 11, GFLAGS),
 	MUX(CLK_AUDIO_FRAC_1_SRC, "clk_audio_frac_1_src", mux_24m_gpll_cpll_p, 0,
 			RK3538_CLKSEL_CON(3), 2, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
-			RK3576_CLKSEL_CON(18), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3576_CLKGATE_CON(0), 12, GFLAGS),
+			RK3538_CLKSEL_CON(18), CLK_FRAC_DIVIDER_NO_LIMIT,
+			RK3538_CLKGATE_CON(0), 12, GFLAGS),
 	COMPOSITE(SCLK_UART0_SRC, "sclk_uart0_src", sclk_uart_src_p, 0,
 			RK3538_CLKSEL_CON(3), 9, 3, MFLAGS, 4, 5, DFLAGS,
 			RK3538_CLKGATE_CON(0), 13, GFLAGS),
@@ -823,11 +823,11 @@ static struct rockchip_clk_branch rk3538_clk_branches[] __initdata = {
 
 static struct rockchip_clk_branch rk3538_armclk01 __initdata =
 	MUX(ARMCLK01, "armclk01", mux_armclk_p, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
-			RV1126B_CORECLKSEL_CON(31), 2, 1, MFLAGS);
+			RK3538_CLKSEL_CON(31), 2, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3538_armclk23 __initdata =
 	MUX(ARMCLK23, "armclk23", mux_armclk_p, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
-			RV1126B_CORECLKSEL_CON(31), 3, 1, MFLAGS);
+			RK3538_CLKSEL_CON(31), 3, 1, MFLAGS);
 
 static void __iomem *rk3538_cru_base;
 
