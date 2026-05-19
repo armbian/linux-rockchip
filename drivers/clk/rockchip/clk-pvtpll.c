@@ -478,8 +478,8 @@ static const struct clk_ops rv1126b_npu_pvtpll_ops = {
 	.disable = rv1126b_pvtpll_disable,
 };
 
-static int clock_pvtpll_regitstor(struct device *dev,
-				  struct rockchip_clock_pvtpll *pvtpll)
+static int clock_pvtpll_register(struct device *dev,
+				 struct rockchip_clock_pvtpll *pvtpll)
 {
 	struct clk_init_data init = {};
 
@@ -900,7 +900,7 @@ static int rockchip_clock_pvtpll_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pvtpll);
 
-	error = clock_pvtpll_regitstor(&pdev->dev, pvtpll);
+	error = clock_pvtpll_register(&pdev->dev, pvtpll);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register clock: %d\n", error);
 		return error;
@@ -945,7 +945,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_clock_pvtpll_pm_ops, NULL,
 
 static struct platform_driver rockchip_clock_pvtpll_driver = {
 	.driver = {
-		.name = "rockchip-clcok-pvtpll",
+		.name = "rockchip-clock-pvtpll",
 		.pm = pm_sleep_ptr(&rockchip_clock_pvtpll_pm_ops),
 		.of_match_table = rockchip_clock_pvtpll_match,
 	},
