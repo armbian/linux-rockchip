@@ -336,7 +336,7 @@
 #define SRST_CORE_L1		193
 #define SRST_CORE_L2		194
 #define SRST_CORE_L3		195
-#define SRST_CORE_L0_PO		195
+#define SRST_CORE_L0_PO		196
 #define SRST_CORE_L1_PO		197
 #define SRST_CORE_L2_PO		198
 #define SRST_CORE_L3_PO		199
