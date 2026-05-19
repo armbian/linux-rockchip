@@ -327,7 +327,7 @@
 #define SRST_H_BUS_BIU			84
 #define SRST_P_BUS_BIU			85
 #define SRST_A_SYSTEM			86
-#define SRST_H_SySTEM			87
+#define SRST_H_SYSTEM			87
 #define SRST_A_DMAC0			88
 #define SRST_A_DMAC1			89
 #define SRST_H_M0			90
