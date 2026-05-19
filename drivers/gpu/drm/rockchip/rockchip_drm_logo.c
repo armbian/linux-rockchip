@@ -313,8 +313,8 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	start = ALIGN_DOWN(res.start, pg_size);
 	size = resource_size(&res);
 	if (!size) {
-		ret = -ENOMEM;
-		goto err_unmap_logo;
+		dev_dbg(drm_dev->dev, "Cubic LUT not enabled, skip its memory init and continue logo display\n");
+		return 0;
 	}
 	if (!IS_ALIGNED(res.start, PAGE_SIZE) || !IS_ALIGNED(size, PAGE_SIZE))
 		DRM_ERROR("Reserved drm cubic memory should be aligned as:0x%lx, current is:start[%pad] size[%pad]\n",
