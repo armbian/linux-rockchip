@@ -286,7 +286,7 @@
 #define SRST_PHYNIU		80
 #define SRST_HDMIPHY		81
 #define SRST_VDAC		82
-#define SRST_ACODEC_p		83
+#define SRST_ACODEC_P		83
 #define SRST_SARADC		85
 #define SRST_SARADC_P		86
 #define SRST_GRF_DDR		87
