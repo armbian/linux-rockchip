@@ -754,6 +754,8 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 		addr = pci_resource_start(dev, 2);
 		break;
 	case PCIE_EP_MMAP_RESOURCE_BAR4:
+		if (!pcie_rkep->bar4)
+			return -EINVAL;
 		bar_size = pci_resource_len(dev, 4);
 		if (size > bar_size) {
 			dev_warn(&pcie_rkep->pdev->dev, "bar4 mmap size is out of limitation\n");
@@ -857,6 +859,8 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 					   DMA_TO_DEVICE);
 		break;
 	case PCIE_EP_DMA_XFER_BLOCK:
+		if (!pcie_rkep->bar4)
+			return -EINVAL;
 		ret = copy_from_user(&dma, uarg, sizeof(dma));
 		if (ret) {
 			dev_err(&pcie_rkep->pdev->dev,
@@ -870,6 +874,8 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		}
 		break;
 	case PCIE_EP_DMA_MSI_DETECT:
+		if (!pcie_rkep->bar4)
+			return -EINVAL;
 		/*
 		 * Enabling the corresponding interrupt via EP will enable the corresponding MSI
 		 * behavior notification RC.
@@ -1539,13 +1545,10 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_dbg(&pdev->dev, "get bar2 address is %p\n", pcie_rkep->bar2);
 
 	pcie_rkep->bar4 = pci_iomap(pdev, 4, 0);
-	if (!pcie_rkep->bar4) {
-		dev_err(&pdev->dev, "pci_iomap bar4 failed\n");
-		ret = -ENOMEM;
-		goto err_pci_iomap;
-	}
-
-	dev_dbg(&pdev->dev, "get bar4 address is %p\n", pcie_rkep->bar4);
+	if (pcie_rkep->bar4)
+		dev_dbg(&pdev->dev, "get bar4 address is %p\n", pcie_rkep->bar4);
+	else
+		dev_info(&pdev->dev, "no bar4\n");
 
 	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &link_status);
 	pcie_rkep_get_pci_link_data(pcie_rkep, link_status);
@@ -1573,15 +1576,18 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_register_irq;
 
-	pcie_rkep->dma_obj = pcie_dw_dmatest_register(&pdev->dev, dmatest_irq);
-	if (IS_ERR(pcie_rkep->dma_obj)) {
-		dev_err(&pcie_rkep->pdev->dev, "failed to prepare dmatest\n");
-		ret = -EINVAL;
-		goto err_register_obj;
+	if (pcie_rkep->bar4) {
+		pcie_rkep->dma_obj = pcie_dw_dmatest_register(&pdev->dev, dmatest_irq);
+		if (IS_ERR(pcie_rkep->dma_obj)) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to prepare dmatest\n");
+			ret = PTR_ERR(pcie_rkep->dma_obj);
+			pcie_rkep->dma_obj = NULL;
+			goto err_register_obj;
+		}
 	}
 
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (pcie_rkep->dma_obj) {
-		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 		pcie_rkep->dma_obj->start_dma_func = pcie_rkep_start_dma_dwc;
 		pcie_rkep->dma_obj->config_dma_func = pcie_rkep_config_dma_dwc;
 		pcie_rkep->dma_obj->get_dma_status = pcie_rkep_get_dma_status;
