@@ -242,6 +242,25 @@ static int pcie_rkep_get_pci_link_data(struct pcie_rkep *pcie_rkep, u16 link_sta
 	return 0;
 }
 
+static int rkep_ep_slot_reset(struct pcie_rkep *pcie_rkep)
+{
+	int ret = 0;
+	struct pci_dev *pdev = pcie_rkep->pdev;
+
+	mutex_lock(&pcie_rkep->dev_lock_mutex);
+	if (pcie_rkep_wait_for_link_up(pdev)) {
+		pci_restore_state(pdev);
+		pci_set_master(pdev);
+		pci_save_state(pdev);
+	} else {
+		dev_warn(&pdev->dev, "%s failed\n", __func__);
+		ret = -ETIMEDOUT;
+	}
+	mutex_unlock(&pcie_rkep->dev_lock_mutex);
+
+	return ret;
+}
+
 static int rkep_ep_dma_xfer(struct pcie_rkep *pcie_rkep, struct pcie_ep_dma_block_req *dma)
 {
 	int ret;
@@ -991,11 +1010,18 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	case PCIE_EP_RESET_CTRL:
 #ifdef CONFIG_PCIEASPM_EXT
 		dev_info(&pcie_rkep->pdev->dev, "reset controller\n");
-		return rockchip_dw_pcie_pm_ctrl_for_user(pcie_rkep->pdev, ROCKCHIP_PCIE_PM_CTRL_RESET);
+		ret = rockchip_dw_pcie_pm_ctrl_for_user(pcie_rkep->pdev, ROCKCHIP_PCIE_PM_CTRL_RESET);
+		if (ret) {
+			dev_warn(&pcie_rkep->pdev->dev, "reset controller failed, ret %d\n", ret);
+			return ret;
+		}
+		return rkep_ep_slot_reset(pcie_rkep);
 #else
 		dev_warn(&pcie_rkep->pdev->dev, "reset controller not support\n");
 		return -EINVAL;
 #endif
+	case PCIE_EP_RESET_SLOT:
+		return rkep_ep_slot_reset(pcie_rkep);
 	case PCIE_EP_ELBI_DATA_COMPARE_AND_SWAP:
 		if (copy_from_user(&elbi_cas_para, uarg, sizeof(elbi_cas_para))) {
 			dev_err(&pcie_rkep->pdev->dev, "failed to get copy from user\n");
@@ -1696,14 +1722,14 @@ static pci_ers_result_t pcie_rkep_error_detected(struct pci_dev *pdev,
 
 static pci_ers_result_t pcie_rkep_slot_reset(struct pci_dev *pdev)
 {
+	struct pcie_rkep *pcie_rkep = pci_get_drvdata(pdev);
+
 	dev_info(&pdev->dev, "restart after slot reset\n");
 
-	if (pcie_rkep_wait_for_link_up(pdev)) {
-		pci_restore_state(pdev);
+	if (rkep_ep_slot_reset(pcie_rkep) == 0)
 		return PCI_ERS_RESULT_RECOVERED;
-	} else {
+	else
 		return PCI_ERS_RESULT_DISCONNECT;
-	}
 }
 
 static const struct pci_error_handlers pcie_rkep_err_handler = {
