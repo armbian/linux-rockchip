@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include "rk3572-android.dtsi"
+
+/ {
+	firmware {
+		firmware_android: android {};
+	};
+};
