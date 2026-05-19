@@ -251,11 +251,6 @@
 	status = "okay";
 };
 
-&display_subsystem {
-	clocks = <&hdptxphy>;
-	clock-names = "hdmi0_phy_pll";
-};
-
 &dsi {
 	status = "disabled";
 	//rockchip,lane-rate = <1000>;
