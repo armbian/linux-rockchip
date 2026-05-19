@@ -362,7 +362,7 @@ PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(gpll_cpll_24m_p)			= { "gpll", "cpll", "xin24m" };
 PNAME(gpll_cpll_aupll_p)		= { "gpll", "cpll", "aupll", "xin24m" };
 PNAME(gpll_cpll_aupll_24m_p)		= { "gpll", "cpll", "aupll" };
-PNAME(gpll_cpll_aupll_bpll_p)		= { "gpll", "cpll", "spll", "aupll", "bpll_dummy" };
+PNAME(gpll_cpll_aupll_bpll_p)		= { "gpll", "cpll", "aupll", "bpll_dummy" };
 PNAME(gpll_spll_aupll_bpll_p)		= { "gpll", "spll", "aupll", "bpll_dummy" };
 PNAME(gpll_cpll_spll_aupll_bpll_p)	= { "gpll", "cpll", "spll", "aupll", "bpll_dummy" };
 PNAME(gpll_cpll_spll_aupll_bpll_24m_p)	= { "gpll", "cpll", "spll", "aupll", "bpll_dummy", "xin24m" };
@@ -1033,7 +1033,7 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 			RK3572_CLKGATE_CON(27), 3, GFLAGS),
 	GATE(CLK_DBG_TOGGLE_A_DDR, "clk_dbg_toggle_a_ddr", "clk_32k", 0,
 			RK3572_CLKGATE_CON(27), 4, GFLAGS),
-	GATE(PCLK_DDR_MON, "pclk_ddr_mon", "pclK_ddr_root", 0,
+	GATE(PCLK_DDR_MON, "pclk_ddr_mon", "pclk_ddr_root", 0,
 			RK3572_CLKGATE_CON(23), 1, GFLAGS),
 
 	/* pd_npu */
