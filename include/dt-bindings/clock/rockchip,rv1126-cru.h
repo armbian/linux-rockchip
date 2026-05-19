@@ -415,8 +415,8 @@
 #define SRST_PDBUS_NIU3_H	22
 #define SRST_PDBUS_HOLD_NIU1_A	23
 #define SRST_DBG_NIU_P		24
-#define SRST_PDCORE_NIIU_H	25
-#define SRST_MUC_NIU		26
+#define SRST_PDCORE_NIU_H	25
+#define SRST_MCU_NIU		26
 #define SRST_DCF_A		29
 #define SRST_DCF_P		30
 #define SRST_SYSTEM_SRAM_A	31
