@@ -1174,6 +1174,8 @@
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>, <&vopl_out>;
+		clocks = <&hdptxphy>;
+		clock-names = "hdmi0_phy_pll";
 
 		route {
 			route_dsi: route-dsi {
