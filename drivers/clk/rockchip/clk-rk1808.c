@@ -319,7 +319,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	GATE(0, "aclk_gic2core", "aclk_gic_pre", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(1), 4, GFLAGS),
 	GATE(0, "aclk_spinlock", "aclk_gic_pre", CLK_IGNORE_UNUSED,
-			RK1808_CLKGATE_CON(1), 4, GFLAGS),
+			RK1808_CLKGATE_CON(1), 5, GFLAGS),
 
 	COMPOSITE(0, "aclk_vpu_pre", mux_gpll_cpll_p, 0,
 			RK1808_CLKSEL_CON(16), 7, 1, MFLAGS, 0, 5, DFLAGS,
