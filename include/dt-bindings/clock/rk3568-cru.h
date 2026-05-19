@@ -464,7 +464,7 @@
 #define SCLK_EMMC_DRV		400
 #define SCLK_EMMC_SAMPLE	401
 #define PCLK_EDPPHY_GRF		402
-#define CLK_HDMI_CEC            403
+#define CLK_HDMI_CEC		403
 #define CLK_I2S0_8CH_TX		404
 #define CLK_I2S0_8CH_RX		405
 #define CLK_I2S1_8CH_TX		406
@@ -869,7 +869,7 @@
 #define SRST_S_UART9		415
 
 /* cru_softrst_con26 */
-#define SRST_P_GRF 416
+#define SRST_P_GRF		416
 #define SRST_P_GRF_VCCIO12	417
 #define SRST_P_GRF_VCCIO34	418
 #define SRST_P_GRF_VCCIO567	419
