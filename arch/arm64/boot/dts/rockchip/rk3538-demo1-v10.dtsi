@@ -109,7 +109,7 @@
 		compatible = "bluetooth-platdata";
 		BT,reset_gpio    = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 
