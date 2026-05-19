@@ -71,10 +71,10 @@
 		};
 	};
 
-	rk730_sound: rk730-sound {
+	rk730_es7202_sound: rk730-es7202-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-rk730";
+		rockchip,card-name = "rk730-es7202";
 		hp-det-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 3>;
 		io-channel-names = "adc-detect";
