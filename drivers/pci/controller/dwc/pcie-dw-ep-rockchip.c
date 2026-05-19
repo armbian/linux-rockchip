@@ -76,6 +76,8 @@
 /* PCIe DBI Registers */
 #define PCIE_TYPE0_STATUS_COMMAND_REG	0x4
 
+#define PCIE_CAP_LINK_CONTROL2_LINK_STATUS	0xa0
+
 #define PCIE_TYPE0_HDR_DBI2_OFFSET	0x100000
 
 #define PCIE_ELBI_LOCAL_BASE		0x200e00
@@ -172,6 +174,11 @@ struct rockchip_pcie {
 	/* debugfs */
 	struct dentry			*debugfs;
 	u32				rasdes_off;
+
+	/* test */
+	bool				is_signal_test;
+	bool				is_comp;
+	u32				comp_prst[2];
 };
 
 struct rockchip_pcie_misc_dev {
@@ -459,6 +466,26 @@ static int rockchip_pcie_get_resource(struct platform_device *pdev,
 						"perst_irq", rockchip);
 		if (ret)
 			dev_err(&pdev->dev, "Failed to request PERST IRQ\n");
+	}
+
+	/*
+	 * Force into compliance mode
+	 * comp_prst is a two dimensional array of which the first element
+	 * stands for speed mode, and the second one is preset value encoding:
+	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
+	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
+	 */
+	if (!device_property_read_u32_array(&pdev->dev, "rockchip,compliance-mode",
+					    rockchip->comp_prst, 2)) {
+		WARN_ON_ONCE(rockchip->comp_prst[0] > 3 || rockchip->comp_prst[1] > 10);
+		if (!rockchip->comp_prst[0])
+			dev_info(&pdev->dev, "Auto compliance mode for SMA tool.\n");
+		else
+			dev_info(&pdev->dev, "compliance mode for soldered board Gen%d, P%d.\n",
+				 rockchip->comp_prst[0], rockchip->comp_prst[1]);
+
+		rockchip->is_comp = true;
+		rockchip->is_signal_test = true;
 	}
 
 	return ret;
@@ -989,6 +1016,14 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	rockchip_pcie_hide_broken_ats_cap(pci);
 
 	dw_pcie_dbi_ro_wr_en(&rockchip->pci);
+
+	/* Enable compliance transmitter setting for manual Gen setting */
+	if (rockchip->is_comp && rockchip->comp_prst[0]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+		val |= BIT(4) | rockchip->comp_prst[0] | (rockchip->comp_prst[1] << 12);
+		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+	}
+
 	/* Enable bus master and memory space */
 	dw_pcie_writel_dbi(pci, PCIE_TYPE0_STATUS_COMMAND_REG, 0x6);
 
@@ -1052,7 +1087,10 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	rockchip_pcie_writel_apb(rockchip, reg, PCIE_CLIENT_INTR_STATUS_MISC);
 	rockchip_pcie_enable_debug(rockchip);
 
-	retries = 1000;
+	if (rockchip->is_signal_test)
+		retries = 10;
+	else
+		retries = 1000;
 	for (i = 0; i < retries; i++) {
 		if (dw_pcie_link_up(&rockchip->pci)) {
 			/*
@@ -1696,6 +1734,10 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	}
 
 	ret = rockchip_pcie_config_host(rockchip);
+
+	if (rockchip->is_signal_test)
+		return 0;
+
 	if (ret) {
 		dev_err(dev, "Failed to config host!\n");
 		goto deinit_host;
