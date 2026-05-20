@@ -899,6 +899,7 @@ config DRM_PANEL_SIMPLE
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
 	select VIDEOMODE_HELPERS
+	select SPI_GPIO if SPI_MASTER && ARCH_ROCKCHIP
 	help
 	  DRM panel driver for dumb non-eDP panels that need at most a regulator
 	  and a GPIO to be powered up. Optionally a backlight can be attached so
