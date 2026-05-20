@@ -1,12 +1,14 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+
 / {
 	metadata {
 		title = "Route recomputer rk3576 devkit HDMI to VP1 and DP to VP0";
 		compatible = "seeed,recomputer rk3576 devkit";
 		category = "display";
-		description = "Switch display routing so HDMI uses VP1 and DP uses VP0.";
+		description = "Switch display routing so HDMI uses VP1 and DP uses VP0. Sets dclk_vp0_src parent to vpll for 4K@60Hz pixel clock support.";
 	};
 
 	fragment@0 {
@@ -68,5 +70,18 @@
 	fragment@10 {
 		target = <&vp1>;
 		__overlay__ { status = "okay"; };
+	};
+
+	/* Set dclk_vp0_src parent to vpll so DP on VP0 can achieve 4K@60Hz.
+	 * Without this, DP falls back to gpll/cpll which can only provide
+	 * ~396MHz (via divider), far below the 533.25MHz needed for 4K@60Hz.
+	 * With vpll, the driver reprograms vpll to 1066.5MHz and divides by 2.
+	 */
+	fragment@11 {
+		target = <&vop>;
+		__overlay__ {
+			assigned-clocks = <&cru DCLK_VP0_SRC>;
+			assigned-clock-parents = <&cru PLL_VPLL>;
+		};
 	};
 };
