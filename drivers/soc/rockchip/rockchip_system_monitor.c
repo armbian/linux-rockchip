@@ -849,11 +849,14 @@ static int monitor_device_parse_status_config(struct device_node *np,
 	return ret;
 }
 
-static int monitor_device_parse_early_min_volt(struct device_node *np,
-					       struct monitor_dev_info *info)
+static int monitor_device_parse_early_regulator_config(struct device_node *np,
+						       struct monitor_dev_info *info)
 {
 	const char *prop_name = "rockchip,early-min-microvolt";
 	int count = 0, ret = 0;
+
+	if (of_property_read_bool(np, "rockchip,early-regulator-enable"))
+		info->early_regulator_enable = true;
 
 	count = of_property_count_u32_elems(np, prop_name);
 	if (count <= 0)
@@ -882,7 +885,7 @@ static int monitor_device_parse_dt(struct device *dev,
 
 	ret = monitor_device_parse_wide_temp_config(np, info);
 	ret &= monitor_device_parse_status_config(np, info);
-	ret &= monitor_device_parse_early_min_volt(np, info);
+	ret &= monitor_device_parse_early_regulator_config(np, info);
 
 	of_node_put(np);
 
@@ -1271,14 +1274,22 @@ rockchip_system_monitor_early_regulator_init(struct monitor_dev_info *info)
 		return;
 
 	for (i = 0; i < opp_info->regulator_count; i++) {
-		if (!info->early_min_volt[i] || i >= 2)
+		if (i >= 2 || (!info->early_min_volt[i] && !info->early_regulator_enable))
 			continue;
 		rdev = opp_info->regulators[i]->rdev;
 		reg = regulator_get(NULL, get_rdev_name(rdev));
-		if (!IS_ERR_OR_NULL(reg)) {
-			info->early_reg[i] = reg;
+		if (IS_ERR_OR_NULL(reg))
+			continue;
+		info->early_reg[i] = reg;
+		if (info->early_min_volt[i]) {
 			reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt[i];
 			reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
+		}
+		if (info->early_regulator_enable) {
+			int err = regulator_enable(reg);
+
+			if (err)
+				dev_err(info->dev, "failed to enable regulator: %d\n", err);
 		}
 	}
 }
@@ -1296,15 +1307,19 @@ rockchip_system_monitor_early_regulator_uninit(struct monitor_dev_info *info)
 		return;
 
 	for (i = 0; i < opp_info->regulator_count; i++) {
-		if (!info->early_reg[i] || i >= 2)
+		if (i >= 2 || !info->early_reg[i])
 			continue;
-		rdev = info->early_reg[i]->rdev;
-		min_uV = rdev->constraints->min_uV;
-		max_uV = rdev->constraints->max_uV;
-		ret = regulator_set_voltage(info->early_reg[i], min_uV, max_uV);
-		if (ret)
-			dev_err(&rdev->dev,
-				"%s: failed to set volt\n", __func__);
+		if (info->early_min_volt[i]) {
+			rdev = info->early_reg[i]->rdev;
+			min_uV = rdev->constraints->min_uV;
+			max_uV = rdev->constraints->max_uV;
+			ret = regulator_set_voltage(info->early_reg[i], min_uV, max_uV);
+			if (ret)
+				dev_err(&rdev->dev,
+					"%s: failed to set volt\n", __func__);
+		}
+		if (info->early_regulator_enable)
+			regulator_disable(info->early_reg[i]);
 		regulator_put(info->early_reg[i]);
 		info->early_reg[i] = NULL;
 	}

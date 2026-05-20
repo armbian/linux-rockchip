@@ -89,6 +89,8 @@ struct temp_opp_table {
  * @low_temp:		Low temperature trip point, in millicelsius
  * @high_temp:		High temperature trip point, in millicelsius
  * @temp_hysteresis:	A low hysteresis value on low_temp, in millicelsius
+ * @early_regulator_enable:	True if regulators should be enabled during
+ *				early kernel startup
  * @is_low_temp:	True if current temperature less than low_temp
  * @is_high_temp:	True if current temperature greater than high_temp
  * @is_low_temp_enabled:	True if device node contains low temperature
@@ -121,6 +123,7 @@ struct monitor_dev_info {
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;
+	bool early_regulator_enable;
 	bool is_low_temp;
 	bool is_high_temp;
 	bool is_low_temp_enabled;
