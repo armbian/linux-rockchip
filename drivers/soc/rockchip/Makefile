@@ -47,3 +47,5 @@ obj-$(CONFIG_RK_DMABUF_PROCFS) += rk_dmabuf_procfs.o
 obj-$(CONFIG_RK_MEMBLOCK_PROCFS) += rk_memblock_procfs.o
 obj-$(CONFIG_RK_ZONEINFO_PROCFS) += rk_zoneinfo_procfs.o
 obj-$(CONFIG_ROCKCHIP_MINIDUMP)	+= minidump/
+obj-$(CONFIG_PREEMPT_RT) += rockchip_rt.o
+obj-$(CONFIG_XENOMAI) += rockchip_rt.o
