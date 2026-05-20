@@ -25,6 +25,10 @@
 	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
 };
 
+&gpu_opp_table {
+	rockchip,early-regulator-enable;
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -360,6 +364,10 @@
 			};
 		};
 	};
+};
+
+&npu_opp_table {
+	rockchip,early-regulator-enable;
 };
 
 &pinctrl {
