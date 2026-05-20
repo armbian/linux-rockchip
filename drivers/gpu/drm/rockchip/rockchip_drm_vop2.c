@@ -3091,7 +3091,7 @@ static inline bool vop2_multi_area_sub_window(struct vop2_win *win)
 
 static inline bool vop2_cluster_window(struct vop2_win *win)
 {
-	return  (win->feature & (WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_CLUSTER_SUB));
+	return (win->feature & (WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_CLUSTER_SUB));
 }
 
 static inline bool vop2_cluster_sub_window(struct vop2_win *win)
@@ -3101,12 +3101,17 @@ static inline bool vop2_cluster_sub_window(struct vop2_win *win)
 
 static inline bool vop2_cursor_window(struct vop2_win *win)
 {
-	return  (win->feature & WIN_FEATURE_HW_CURSOR);
+	return (win->feature & WIN_FEATURE_HW_CURSOR);
 }
 
 static inline bool vop2_msmart_window(struct vop2_win *win)
 {
-	return  (win->feature & WIN_FEATURE_MSMART);
+	return (win->feature & WIN_FEATURE_MSMART);
+}
+
+static inline bool vop2_sub_window(struct vop2_win *win)
+{
+	return vop2_cluster_sub_window(win) || vop2_multi_area_sub_window(win);
 }
 
 static inline bool vop2_has_feature(struct vop2 *vop2, uint64_t feature)
@@ -7829,10 +7834,12 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_atomic
 	vp = to_vop2_video_port(crtc);
 
 	vop2_win_disable(win, false);
-	vp->enabled_win_mask &= ~BIT(win->phys_id);
+	if (!vop2_sub_window(win))
+		vp->enabled_win_mask &= ~BIT(win->phys_id);
 	if (win->splice_win) {
 		vop2_win_disable(win->splice_win, false);
-		vp->enabled_win_mask &= ~BIT(win->splice_win->phys_id);
+		if (!vop2_sub_window(win->splice_win))
+			vp->enabled_win_mask &= ~BIT(win->splice_win->phys_id);
 	}
 
 	spin_unlock(&vop2->reg_lock);
@@ -8634,7 +8641,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_WIN_SET(vop2, win, dither_up, dither_up);
 
 	VOP_WIN_SET(vop2, win, enable, 1);
-	vp->enabled_win_mask |= BIT(win->phys_id);
+	if (!vop2_sub_window(win))
+		vp->enabled_win_mask |= BIT(win->phys_id);
 	if (vop2_cluster_window(win)) {
 		lb_mode = vop2_get_cluster_lb_mode(win, vpstate);
 		VOP_CLUSTER_SET(vop2, win, lb_mode, lb_mode);
@@ -9507,8 +9515,8 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 					pd->vp_mask |= BIT(vp->id);
 					pd = pd->parent;
 				}
-
-				vp->enabled_win_mask |= BIT(win->phys_id);
+				if (!vop2_sub_window(win))
+					vp->enabled_win_mask |= BIT(win->phys_id);
 				crtc_state = drm_atomic_get_crtc_state(crtc->state->state, crtc);
 				vcstate = to_rockchip_crtc_state(crtc_state);
 				vp->output_if = vcstate->output_if;
@@ -9523,7 +9531,8 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 					splice_vp->win_mask |=  BIT(splice_win->phys_id);
 					splice_win->vp_mask = BIT(splice_vp->id);
 					vop2->active_vp_mask |= BIT(splice_vp->id);
-					vp->enabled_win_mask |= BIT(splice_win->phys_id);
+					if (!vop2_sub_window(splice_win))
+						vp->enabled_win_mask |= BIT(splice_win->phys_id);
 
 					if (splice_win->pd &&
 					    VOP_WIN_GET(vop2, splice_win, enable)) {
