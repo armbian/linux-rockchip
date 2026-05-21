@@ -1054,7 +1054,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	for (;;) {
 		timeout_loop++;
-		if (analogix_dp_is_slave_video_stream_clock_on(dp) == 0)
+		if (analogix_dp_is_slave_video_stream_clock_on(dp))
 			break;
 		if (timeout_loop > DP_TIMEOUT_LOOP_COUNT) {
 			dev_err(dp->dev, "Timeout of slave video streamclk ok\n");
@@ -1082,7 +1082,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	for (;;) {
 		timeout_loop++;
-		if (analogix_dp_is_video_stream_on(dp) == 0) {
+		if (analogix_dp_is_video_stream_on(dp)) {
 			done_count++;
 			if (done_count > 10)
 				break;
@@ -2769,7 +2769,7 @@ int analogix_dp_runtime_resume(struct analogix_dp_device *dp)
 		return ret;
 	}
 
-	if (dp->plat_data->power_on && analogix_dp_is_video_stream_on(dp))
+	if (dp->plat_data->power_on && !analogix_dp_is_video_stream_on(dp))
 		dp->plat_data->power_on(dp->plat_data);
 
 	analogix_dp_phy_power_on(dp);

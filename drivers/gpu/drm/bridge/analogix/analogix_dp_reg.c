@@ -810,7 +810,7 @@ void analogix_dp_set_video_color_format(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_3, reg);
 }
 
-int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
+bool analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -821,7 +821,7 @@ int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 
 	if (!(reg & DET_STA)) {
 		dev_dbg(dp->dev, "Input stream clock not detected.\n");
-		return -EINVAL;
+		return false;
 	}
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_2);
@@ -832,10 +832,10 @@ int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 
 	if (reg & CHA_STA) {
 		dev_dbg(dp->dev, "Input stream clk is changing\n");
-		return -EINVAL;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 void analogix_dp_set_video_cr_mn(struct analogix_dp_device *dp,
@@ -913,7 +913,7 @@ void analogix_dp_start_video(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_1, reg);
 }
 
-int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
+bool analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -923,10 +923,10 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
 	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_3);
 	if (!(reg & STRM_VALID)) {
 		dev_dbg(dp->dev, "Input video stream is not detected.\n");
-		return -EINVAL;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp)
