@@ -81,6 +81,15 @@ static int spi004_sdeg_ecc_get_status(struct spinand_device *spinand, u8 status)
 }
 
 static const struct spinand_info kingston_spinand_table[] = {
+	SPINAND_INFO("SPI001-SEEG",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x75),
+		     NAND_MEMORG(1, 2048, 256, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(1, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&spi004_sdeg_ooblayout, spi004_sdeg_ecc_get_status)),
 	SPINAND_INFO("SPI004-SDEG",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x53),
 		     NAND_MEMORG(1, 4096, 256, 64, 2048, 40, 1, 1, 1),
