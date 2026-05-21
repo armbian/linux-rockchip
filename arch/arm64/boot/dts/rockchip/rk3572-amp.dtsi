@@ -60,11 +60,6 @@
 };
 
 &reserved_memory {
-	amp_reserved: amp@43000000 {
-		reg = <0x0 0x43000000 0x0 0x02000000>;
-		no-map;
-	};
-
 	mcu_reserved: mcu@45000000 {
 		reg = <0x0 0x45000000 0x0 0x200000>;
 		no-map;
@@ -83,6 +78,11 @@
 	rpmsg_dma_reserved: rpmsg-dma@45600000 {
 		compatible = "shared-dma-pool";
 		reg = <0x0 0x45600000 0x0 0x200000>;
+		no-map;
+	};
+
+	amp_reserved: amp@45800000 {
+		reg = <0x0 0x45800000 0x0 0x02000000>;
 		no-map;
 	};
 };
