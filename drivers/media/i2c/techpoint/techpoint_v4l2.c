@@ -283,7 +283,7 @@ static void __techpoint_power_off(struct techpoint *techpoint)
 	if (!IS_ERR(techpoint->reset_gpio))
 		gpiod_set_value_cansleep(techpoint->reset_gpio, 1);
 
-	if (IS_ERR(techpoint->xvclk))
+	if (!IS_ERR(techpoint->xvclk))
 		clk_disable_unprepare(techpoint->xvclk);
 
 	if (!IS_ERR_OR_NULL(techpoint->pins_sleep)) {
