@@ -29,7 +29,7 @@ rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cm
 struct rockchip_drm_logo_fb {
 	struct drm_framebuffer fb;
 	struct rockchip_logo *logo;
-	struct rockchip_gem_object rk_obj;
+	struct rockchip_gem_object *rk_obj;
 	/*
 	 * Used for delayed logo fb release
 	 */

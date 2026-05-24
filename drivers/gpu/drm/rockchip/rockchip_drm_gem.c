@@ -19,6 +19,7 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
+#include "rockchip_drm_logo.h"
 
 static u32 bank_bit_first = 12;
 static u32 bank_bit_mask = 0x7;
@@ -737,6 +738,10 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 		}
 		drm_free_large(rk_obj->pages);
 		rockchip_gem_destroy(obj, rk_obj->sgt);
+	} else if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_LOGO) {
+#ifndef MODULE
+		rockchip_free_loader_memory(obj->dev);
+#endif
 	} else {
 		rockchip_gem_free_buf(rk_obj);
 	}
