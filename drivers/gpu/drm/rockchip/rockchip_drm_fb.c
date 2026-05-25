@@ -24,7 +24,13 @@
 
 static bool is_rockchip_logo_fb(struct drm_framebuffer *fb)
 {
-	return fb->flags & ROCKCHIP_DRM_MODE_LOGO_FB ? true : false;
+	struct rockchip_gem_object *rk_obj;
+
+	if (!fb->obj[0])
+		return false;
+
+	rk_obj = to_rockchip_obj(fb->obj[0]);
+	return rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_LOGO;
 }
 
 static void __rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
@@ -134,7 +140,6 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 		return ERR_PTR(ret);
 	}
 
-	fb->flags |= ROCKCHIP_DRM_MODE_LOGO_FB;
 	rockchip_logo_fb->logo = logo;
 	fb->obj[0] = &rockchip_logo_fb->rk_obj->base;
 	fb->obj[0]->funcs = &rockchip_gem_object_funcs;
