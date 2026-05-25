@@ -10,7 +10,6 @@
 #include <drm/drm_framebuffer.h>
 #include "rockchip_drm_gem.h"
 
-#define ROCKCHIP_DRM_MODE_LOGO_FB	(1<<31) /* used for kernel logo, follow the define: DRM_MODE_FB_MODIFIERS at drm_mode.h */
 struct drm_framebuffer *
 rockchip_drm_framebuffer_init(struct drm_device *dev,
 			      const struct drm_mode_fb_cmd2 *mode_cmd,
