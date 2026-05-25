@@ -1838,6 +1838,10 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idfall_det_clr,
 				true);
+
+		if (!property_enabled(rphy->grf, &rport->port_cfg->idfall_det_en))
+			goto out;
+
 		/*
 		 * if id fall det, switch to host if ID Detector pin is floating
 		 * or iddig status is low.
@@ -1848,6 +1852,10 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	} else if (property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idrise_det_clr,
 				true);
+
+		if (!property_enabled(rphy->grf, &rport->port_cfg->idrise_det_en))
+			goto out;
+
 		cable_vbus_state = false;
 	}
 
@@ -1859,6 +1867,7 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 
 	rockchip_set_vbus_power(rport, cable_vbus_state);
 
+out:
 	mutex_unlock(&rport->mutex);
 
 	return IRQ_HANDLED;
