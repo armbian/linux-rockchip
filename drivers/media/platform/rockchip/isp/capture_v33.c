@@ -1161,7 +1161,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 irq)
 							struct rkisp_buffer, queue);
 			list_del(&stream->next_buf->queue);
 			stream->ops->update_mi(stream);
-		} else if (dev->hw_dev->is_single &&
+		} else if (dev->hw_dev->is_single && !stream->is_async_cfg &&
 			   stream->next_buf && !stream->curr_buf) {
 			if (stream->ops->is_stream_stopped(stream)) {
 				stream->ops->enable_mi(stream);
@@ -1181,6 +1181,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 irq)
 		/* check frame loss */
 		if (stream->ops->is_stream_stopped(stream))
 			stream->dbg.frameloss++;
+		stream->is_async_cfg = false;
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
@@ -1647,6 +1648,7 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 	bool async = (dev->isp_state & ISP_STOP) ? false : true;
 	int ret;
 
+	stream->is_async_cfg = async;
 	/*
 	 * can't be async now, otherwise the latter started stream fails to
 	 * produce mi interrupt.

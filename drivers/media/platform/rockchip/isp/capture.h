@@ -310,6 +310,7 @@ struct rkisp_stream {
 	bool need_scl_upd;
 	bool is_attach_info;
 	bool is_en_latter;
+	bool is_async_cfg;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
