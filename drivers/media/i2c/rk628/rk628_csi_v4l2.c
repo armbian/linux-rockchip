@@ -3372,7 +3372,6 @@ static const struct dev_pm_ops rk628_csi_pm_ops = {
 static int rk628_csi_probe_of(struct rk628_csi *csi)
 {
 	struct device *dev = csi->dev;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	struct device_node *ep;
 	int ret = -EINVAL;
 	bool hdcp1x_enable = false, i2s_enable_default = false;
@@ -3470,25 +3469,21 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 		continues_clk = true;
 
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!ep) {
-		dev_err(dev, "missing endpoint node\n");
-		ret = -EINVAL;
-		return ret;
+	if (ep) {
+		csi->csi_lanes_in_use = of_property_count_u32_elems(ep, "data-lanes");
+		of_node_put(ep);
+		ep = NULL;
 	}
+	if (csi->csi_lanes_in_use <= 0 || csi->csi_lanes_in_use > 4) {
+		u32 lanes = 0;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
-	if (ret) {
-		dev_err(dev, "failed to parse endpoint\n");
-		goto put_node;
+		of_property_read_u32(dev->of_node, "data-lanes", &lanes);
+		csi->csi_lanes_in_use = lanes;
 	}
-
-	if (endpoint.bus_type != V4L2_MBUS_CSI2_DPHY ||
-	    endpoint.bus.mipi_csi2.num_data_lanes == 0) {
-		dev_err(dev, "missing CSI-2 properties in endpoint\n");
-		goto free_endpoint;
+	if (csi->csi_lanes_in_use <= 0 || csi->csi_lanes_in_use > 4) {
+		dev_info(dev, "missing data-lanes in endpoint or device node, set default\n");
+		csi->csi_lanes_in_use = 4;
 	}
-
-	csi->csi_lanes_in_use = endpoint.bus.mipi_csi2.num_data_lanes;
 	csi->enable_hdcp = hdcp1x_enable;
 	csi->hdcp.enable = hdcp1x_enable;
 	csi->i2s_enable_default = i2s_enable_default;
@@ -3504,14 +3499,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	csi->avi_rcv_rdy = false;
 	csi->user_color_range = COLOR_RANGE_AUTO;
 
-	ret = 0;
-
-free_endpoint:
-	v4l2_fwnode_endpoint_free(&endpoint);
-put_node:
-	of_node_put(ep);
-
-	return ret;
+	return 0;
 }
 
 static const struct rk628_plat_data rk628_csi_data = {
@@ -3835,6 +3823,7 @@ static int rk628_csi_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(sd, client, &rk628_csi_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	i2c_set_clientdata(client, sd);
 
 	/* i2c access, read chip id*/
 	err = rk628_i2c_read(csi->rk628, CSITX_CSITX_VERSION, &val);
