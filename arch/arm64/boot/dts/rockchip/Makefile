@@ -583,6 +583,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-recomputer-rk3588-devkit.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-blueberry-rp01a-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6-lts-plus.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6-plus.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-easepi-a2.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-easepi-r2.dtb
 
 subdir-y := $(dts-dirs) overlay
 
