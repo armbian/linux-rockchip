@@ -285,7 +285,7 @@
 			label = "green:sys";
 			linux,default-trigger = "heartbeat";
 		};
-		
+
 	};
 
 	vcc3v3_nvme: vcc3v3-nvme-regulator {
@@ -1012,20 +1012,6 @@
 	status = "okay";
 };
 
-&usbdrd_dwc3 {
-	dr_mode = "peripheral";
-	extcon = <&usb2phy0>;
-	phys = <&u2phy0_otg>; /* only USB2.0 */
-	phy-names = "usb2-phy"; /* only USB2.0 */
-	maximum-speed = "high-speed"; /* only USB2.0 */
-	snps,dis_u2_susphy_quirk; /* only USB2.0 */
-	status = "okay";
-};
-
-&usbdrd30 {
-	status = "okay";
-};
-
 &usbhost_dwc3 {
 	status = "okay";
 };
@@ -1166,7 +1152,7 @@
 	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pcie@10,0 {
+	pcie@10 {
 		reg = <0x00100000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
