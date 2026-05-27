@@ -50,6 +50,10 @@ struct rockchip_gem_object *
 rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 			   bool alloc_kmap, unsigned int flags);
 
+struct rockchip_gem_object *
+rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size,
+			  unsigned int flags);
+
 void rockchip_gem_free_object(struct drm_gem_object *obj);
 
 int rockchip_gem_dumb_create(struct drm_file *file_priv,
@@ -78,7 +82,5 @@ int rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
 				      enum dma_data_direction dir);
 
 void rockchip_gem_get_ddr_info(void);
-
-extern const struct drm_gem_object_funcs rockchip_gem_object_funcs;
 
 #endif /* _ROCKCHIP_DRM_GEM_H */

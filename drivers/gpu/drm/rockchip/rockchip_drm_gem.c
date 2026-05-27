@@ -610,7 +610,7 @@ static void rockchip_gem_release_object(struct rockchip_gem_object *rk_obj)
 	kfree(rk_obj);
 }
 
-const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
+static const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
 	.free = rockchip_gem_free_object,
 	.export = rockchip_drm_gem_prime_export,
 	.get_sg_table = rockchip_gem_prime_get_sg_table,
@@ -620,7 +620,7 @@ const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
 	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
-static struct rockchip_gem_object *
+struct rockchip_gem_object *
 rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size,
 			  unsigned int flags)
 {
