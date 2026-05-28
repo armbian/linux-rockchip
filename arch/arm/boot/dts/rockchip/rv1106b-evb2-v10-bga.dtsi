@@ -12,20 +12,6 @@
 	model = "Rockchip RV1106B EVB2 V10 BGA Board";
 	compatible = "rockchip,rv1106b-evb2-v10-bga", "rockchip,rv1106b";
 
-	gpio-keys {
-		compatible = "gpio-keys";
-		autorepeat;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwr_key>;
-		power-key {
-			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
-			label = "GPIO Key Power";
-			debounce-interval = <100>;
-			wakeup-source;
-		};
-	};
-
 	ir-light-ctl {
 		compatible = "rockchip,light-ctl";
 		status = "okay";
@@ -40,6 +26,15 @@
 		/* LED_PWM_WHITE: PWM1_CH2 → GPIO2_A5 */
 		pwms = <&pwm1_4ch_2 0 10000 1>;
 		rockchip,module-index = <1>;
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "rk962";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -121,9 +116,9 @@
 		};
 	};
 
-	buttons {
-		pwr_key: pwr-key {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
