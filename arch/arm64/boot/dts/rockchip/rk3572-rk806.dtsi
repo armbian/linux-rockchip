@@ -179,7 +179,7 @@
 			vdd_ddr_s0: DCDC_REG10 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <750000>;
+				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <850000>;
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
