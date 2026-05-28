@@ -3930,20 +3930,20 @@ static int rk628_csi_probe(struct i2c_client *client)
 	if (IS_ERR(csi->classdev)) {
 		err = PTR_ERR(csi->classdev);
 		v4l2_err(sd, "create device class failed\n");
-		goto err_hdl;
+		goto err_async;
 	}
 
 	csi->extcon = devm_extcon_dev_allocate(dev, rk628_csi_extcon_cable);
 	if (IS_ERR(csi->extcon)) {
 		err = PTR_ERR(csi->extcon);
 		v4l2_err(sd, "allocate extcon failed\n");
-		goto err_hdl;
+		goto err_async;
 	}
 
 	err = devm_extcon_dev_register(dev, csi->extcon);
 	if (err) {
 		v4l2_err(sd, "failed to register extcon: %d\n", err);
-		goto err_hdl;
+		goto err_async;
 	}
 
 	INIT_DELAYED_WORK(&csi->delayed_work_enable_hotplug,
@@ -4023,6 +4023,8 @@ err_work_queues:
 	cancel_delayed_work(&csi->delayed_work_enable_hotplug);
 	cancel_delayed_work(&csi->delayed_work_res_change);
 	rk628_hdmirx_audio_destroy(csi->audio_info);
+err_async:
+	v4l2_async_unregister_subdev(sd);
 err_hdl:
 	mutex_destroy(&csi->confctl_mutex);
 	media_entity_cleanup(&sd->entity);
