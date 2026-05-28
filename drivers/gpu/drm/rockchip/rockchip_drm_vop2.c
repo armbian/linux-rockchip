@@ -2190,13 +2190,14 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	uint32_t val = 0;
 
 	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID) {
-		if (vop2->version < VOP_VERSION_RK3572) {
-			val = vp->win_cfg_done_bits;
-			VOP_CTRL_SET(vop2, win_cfg_done, val);
-		}
-		VOP_CTRL_SET(vop2, wb_cfg_done, 1);
-		VOP_MODULE_SET(vop2, vp, sys_cfg_done, 1);
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "win cfg_done_bits:0x%x\n", val);
+		if (vop2->version < VOP_VERSION_RK3572)
+			VOP_CTRL_SET(vop2, win_cfg_done, vp->win_cfg_done_bits);
+		val = RK3568_VOP2_GLB_CFG_DONE_EN | RK3568_VOP2_WB_CFG_DONE |
+		      (RK3568_VOP2_WB_CFG_DONE << 16) | BIT(vp_data->reg_done_bit) |
+		      (BIT(vp_data->reg_done_bit) << 16);
+		vop2_writel(vop2, 0, val);
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "win cfg_done_bits:0x%x\n",
+				 vp->win_cfg_done_bits);
 	} else if (vop2->version >= VOP_VERSION_RK3572) {
 		VOP_MODULE_SET(vop2, vp, cfg_done, 1);
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done\n");
