@@ -1975,8 +1975,9 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 	status = rk817_bat_get_charge_status(battery);
 	current_avg = rk817_bat_get_avg_current(battery);
 	soc2vol = rk817_bat_soc2vol(battery, battery->rsoc);
-	is_discharging = (status == CHRG_OFF) || ((status == CC_OR_CV_CHRG) && (current_avg < 0)) ||
-		    ((status == CHARGE_FINISH) && (current_avg < FINISH_CURR_THRESD));
+	is_discharging = (status == CHRG_OFF) ||
+			 ((status == CC_OR_CV_CHRG) && (battery->sm_remain_cap >= battery->remain_cap)) ||
+			 ((status == CHARGE_FINISH) && (current_avg < FINISH_CURR_THRESD));
 
 	if (soc2vol > battery->voltage_avg)
 		expected_voltage = battery->pdata->pwroff_vol +
@@ -2952,10 +2953,9 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	long cap_change;
 	long ydsoc = 0;
 
-	rk817_bat_calc_sm_linek(battery);
-
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 	old_cap = battery->sm_remain_cap;
+	rk817_bat_calc_sm_linek(battery);
 
 	DBG("smooth: smooth_soc = %d, dsoc = %d, battery->sm_linek = %d\n",
 	    battery->smooth_soc, battery->dsoc, battery->sm_linek);
