@@ -575,6 +575,43 @@ static int dw_hdcp_get_hdmi_hdcp_bypass(struct dw_hdcp *hdcp, void __user *arg)
 	return 0;
 }
 
+static int dw_hdcp_set_hdmi_hdcp14(struct dw_hdcp *hdcp, void __user *arg)
+{
+	int ret;
+	struct hdcp_event hdcp_event;
+	const struct dw_hdcp_cfg *cfg = hdcp->cfgs;
+	int i;
+
+	if (!arg)
+		return -EINVAL;
+
+	if (cfg->protocol_type != HL_HDCP_PROTOCOL_HDMI) {
+		dev_err(hdcp->dev, "incorrect protocol type:%d\n", cfg->protocol_type);
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&hdcp_event, arg, sizeof(hdcp_event)))
+		return -EFAULT;
+
+	for (i = 0; i < cfg->port_num; i++) {
+		if (hdcp_event.port == cfg->port_cfg[i].port_id)
+			break;
+	}
+
+	if (i >= cfg->port_num) {
+		dev_err(hdcp->dev, "incorrect hdcp port:%d\n", hdcp_event.port);
+		return -ERANGE;
+	}
+
+	ret = dw_hdcp_notify_event(DW_HDCP_SET_HDMI_HDCP14_EVENT, (void *)&hdcp_event);
+	if (ret != NOTIFY_OK) {
+		dev_err(hdcp->dev, "set hdmi hdcp14 notify failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static long dw_hdcp_hld_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	struct hl_device *hl_dev;
@@ -619,6 +656,8 @@ static long dw_hdcp_hld_ioctl(struct file *f, unsigned int cmd, unsigned long ar
 		return dw_hdcp_set_hdmi_hdcp_bypass(hdcp, data);
 	case RK_DRV_IOC_GET_HDCP_BYPASS:
 		return dw_hdcp_get_hdmi_hdcp_bypass(hdcp, data);
+	case RK_DRV_IOC_SET_HDCP14:
+		return dw_hdcp_set_hdmi_hdcp14(hdcp, data);
 
 	default:
 		return -EINVAL;
