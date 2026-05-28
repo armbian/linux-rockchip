@@ -1262,7 +1262,6 @@
 
 		nvmem-cells = <&log_leakage>, <&logic_opp_info>, <&specification_serial_number>;
 		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
-		rockchip,supported-hw;
 
 		rockchip,early-min-microvolt = <0 750000>; /* <vdd_ddr vdd_logic> */
 
