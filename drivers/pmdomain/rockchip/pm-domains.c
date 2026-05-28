@@ -2714,7 +2714,7 @@ static const struct rockchip_pmu_info rk3572_pmu = {
 	.ack_offset = 0x120,
 	.repair_status_offset = 0x570,
 	.clk_ungate_offset = 0x150,
-	.vd_offset = 0x224,
+	.vd_offset = 0x220,
 	.fw_status_offset = 0x140,
 
 	.num_domains = ARRAY_SIZE(rk3572_pm_domains),
