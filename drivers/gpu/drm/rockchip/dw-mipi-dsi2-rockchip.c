@@ -1497,6 +1497,10 @@ static int dw_mipi_dsi2_connector_init(struct dw_mipi_dsi2 *dsi2)
 
 	drm_connector_helper_add(connector,
 				 &dw_mipi_dsi2_connector_helper_funcs);
+
+	if (dsi2->panel)
+		drm_connector_set_orientation_from_panel(connector, dsi2->panel);
+
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
