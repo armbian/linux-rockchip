@@ -280,6 +280,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-lontium-hdmiin.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-pcie.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-rk628-hdmi2csi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-tp9951-ahd2csi-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb1-v10-vopl-dsi-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-dsmc-master.dtb

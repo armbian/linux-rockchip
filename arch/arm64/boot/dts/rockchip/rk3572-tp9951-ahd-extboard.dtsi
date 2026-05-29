@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ * RK3572 + Techpoint TP9951 AHD-to-MIPI bridge extboard.
+ *
+ * TP9951 (i2c4@0x45, 2-lane) -> csi2_dphy0 -> mipi0_csi2
+ *   -> rkcif_mipi_lvds (raw CIF, ISP/VPSS disabled).
+ */
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy0_in_tp9951: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&tp9951_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m3_xfer_pins>, <&cam_clk0m0_clk0_pins>;
+
+	tp9951: tp9951@45 {
+		compatible = "techpoint,tp9951";
+		status = "okay";
+		reg = <0x45>;
+		clocks = <&cru CAM_CLK0_OUT_IOUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3572_PD_VI>;
+		power-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&vcc_mipicsi0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "tp9951";
+		rockchip,camera-module-lens-name = "tp9951";
+
+		port {
+			tp9951_out: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_tp9951>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "disabled";
+};
+
+&rkisp {
+	status = "disabled";
+};
+
+&rkisp_mmu {
+	status = "disabled";
+};
+
+&rkisp_vir0 {
+	status = "disabled";
+};
+
+&rkisp_vir0_sditf {
+	status = "disabled";
+};
+
+&rkvpss {
+	status = "disabled";
+};
+
+&rkvpss_mmu {
+	status = "disabled";
+};
+
+&rkvpss_vir0 {
+	status = "disabled";
+};
