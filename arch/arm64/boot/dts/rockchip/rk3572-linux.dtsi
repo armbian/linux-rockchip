@@ -73,3 +73,7 @@
 &rng {
 	status = "okay";
 };
+
+&vop {
+	rockchip,disable-afbc-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1)>;
+};
