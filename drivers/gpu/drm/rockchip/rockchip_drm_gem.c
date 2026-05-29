@@ -608,7 +608,7 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	return ret;
 }
 
-static void rockchip_gem_release_object(struct rockchip_gem_object *rk_obj)
+void rockchip_gem_release_object(struct rockchip_gem_object *rk_obj)
 {
 	drm_gem_object_release(&rk_obj->base);
 	kfree(rk_obj);

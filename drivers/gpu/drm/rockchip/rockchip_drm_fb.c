@@ -137,8 +137,7 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 		DRM_DEV_ERROR(dev->dev,
 			      "Failed to initialize rockchip logo fb: %d\n",
 			      ret);
-		drm_gem_object_release(&rockchip_logo_fb->rk_obj->base);
-		kfree(rockchip_logo_fb->rk_obj);
+		rockchip_gem_release_object(rockchip_logo_fb->rk_obj);
 		kfree(rockchip_logo_fb);
 		return ERR_PTR(ret);
 	}
