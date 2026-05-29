@@ -17,7 +17,7 @@
 #include "rk3576.dtsi"
 #include "rk3576-linux.dtsi"
 #include "rk3576-rk806.dtsi"
-#include "recomputer-rk3576-devkit-cam.dtsi"
+#include "recomputer-rk3576-io-board-cam.dtsi"
 / {
 	model = "Seeed Studio ReComputer RK3576 Dev Kit";
 	compatible = "seeed,recomputer rk3576 devkit", "rockchip,rk3576";
