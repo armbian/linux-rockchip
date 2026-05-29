@@ -76,8 +76,13 @@ static int rk_spdifrx_runtime_suspend(struct device *dev)
 {
 	struct rk_spdifrx_dev *spdifrx = dev_get_drvdata(dev);
 
+	regcache_cache_only(spdifrx->regmap, true);
 	clk_disable_unprepare(spdifrx->mclk);
 	clk_disable_unprepare(spdifrx->hclk);
+
+	reset_control_assert(spdifrx->reset);
+	udelay(1);
+	reset_control_deassert(spdifrx->reset);
 
 	return 0;
 }
@@ -99,7 +104,16 @@ static int rk_spdifrx_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	return 0;
+	regcache_cache_only(spdifrx->regmap, false);
+	regcache_mark_dirty(spdifrx->regmap);
+
+	ret = regcache_sync(spdifrx->regmap);
+	if (ret) {
+		clk_disable_unprepare(spdifrx->mclk);
+		clk_disable_unprepare(spdifrx->hclk);
+	}
+
+	return ret;
 }
 
 static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
@@ -334,6 +348,36 @@ static int rk_spdifrx_wait_time_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rk_spdifrx_usync_threshold_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+	unsigned int val;
+
+	pm_runtime_resume_and_get(spdifrx->dev);
+	regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
+	pm_runtime_put(spdifrx->dev);
+
+	ucontrol->value.integer.value[0] = (val & SPDIFRX_CDRST_NOSTRTHR_MASK) >> 16;
+
+	return 0;
+}
+
+static int rk_spdifrx_usync_threshold_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+
+	pm_runtime_resume_and_get(spdifrx->dev);
+	regmap_update_bits(spdifrx->regmap, SPDIFRX_CDRST, SPDIFRX_CDRST_NOSTRTHR_MASK,
+			   SPDIFRX_CDRST_NOSTRTHR(ucontrol->value.integer.value[0]));
+	pm_runtime_put(spdifrx->dev);
+
+	return 0;
+}
+
 static int rk_spdifrx_sync_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
@@ -401,6 +445,17 @@ static int rk_spdifrx_wait_time_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rk_spdifrx_usync_threshold_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 0xffff;
+
+	return 0;
+}
+
 static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -448,7 +503,13 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.get = rk_spdifrx_wait_time_get,
 		.put = rk_spdifrx_wait_time_put,
 	},
-	SOC_SINGLE("RK SPDIFRX USYNC THRESHOLD CNT", SPDIFRX_CDRST, 16, 0xffff, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "RK SPDIFRX USYNC THRESHOLD CNT",
+		.info = rk_spdifrx_usync_threshold_info,
+		.get = rk_spdifrx_usync_threshold_get,
+		.put = rk_spdifrx_usync_threshold_put,
+	},
 };
 
 static struct snd_kcontrol_new rk_spdifrx_v2312_controls[] = {
@@ -486,7 +547,10 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 					       rk_spdifrx_v2508_controls,
 					       ARRAY_SIZE(rk_spdifrx_v2508_controls));
 
+	pm_runtime_resume_and_get(spdifrx->dev);
 	rk_spdifrx_parse_quirks(spdifrx);
+	pm_runtime_put(spdifrx->dev);
+
 	spdifrx->need_reset = true;
 
 	return 0;
@@ -600,11 +664,17 @@ static bool rk_spdifrx_precious_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static const struct reg_default rk_spdifrx_reg_defaults[] = {
+	{ SPDIFRX_CDRTIME, 0x03ff03ff },
+};
+
 static const struct regmap_config rk_spdifrx_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = SPDIFRX_BURSTINFO,
+	.reg_defaults = rk_spdifrx_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rk_spdifrx_reg_defaults),
 	.writeable_reg = rk_spdifrx_wr_reg,
 	.readable_reg = rk_spdifrx_rd_reg,
 	.volatile_reg = rk_spdifrx_volatile_reg,
@@ -1019,6 +1089,7 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 				schedule_work(&spdifrx->xrun_work);
 			}
 
+			pm_runtime_resume_and_get(spdifrx->dev);
 			if (spdifrx->version >= SPDIFRX_VER_2505) {
 				regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
 				mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
@@ -1033,6 +1104,7 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 				else
 					count = mincnt;
 			}
+			pm_runtime_put(spdifrx->dev);
 
 			if (count > 0)
 				spdifrx->info.sample_rate_cal =
@@ -1065,8 +1137,10 @@ static void rk_spdifrx_xrun_work(struct work_struct *work)
 	int ret;
 	u32 val;
 
+	pm_runtime_resume_and_get(spdifrx->dev);
 	ret = regmap_read_poll_timeout(spdifrx->regmap, SPDIFRX_CDR, val,
 				       ((val & SPDIFRX_CDR_CS_MASK) >> 9) == 0x3, 300, 3000);
+	pm_runtime_put(spdifrx->dev);
 	if (!ret) {
 		if (spdifrx->substream) {
 			snd_pcm_stop_xrun(spdifrx->substream);
@@ -1168,8 +1242,14 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 				   SPDIFRX_CFGR_MONITOR_EN_MASK,
 				   SPDIFRX_CFGR_MONITOR_THR(0xa) |
 				   SPDIFRX_CFGR_MONITOR_EN);
+		regmap_update_bits(spdifrx->regmap, SPDIFRX_CDRST,
+				   SPDIFRX_CDRST_MONITOR_CNT_MASK,
+				   SPDIFRX_CDRST_MONITOR_CNT(0x3ff));
 		spdifrx->fs_monitor = true;
 	}
+
+	regmap_update_bits(spdifrx->regmap, SPDIFRX_CDRST, SPDIFRX_CDRST_NOSTRTHR_MASK,
+			   SPDIFRX_CDRST_NOSTRTHR(0x3ff));
 
 	clk_disable_unprepare(spdifrx->hclk);
 
