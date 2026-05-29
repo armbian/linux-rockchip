@@ -56,6 +56,8 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size,
 
 void rockchip_gem_free_object(struct drm_gem_object *obj);
 
+void rockchip_gem_release_object(struct rockchip_gem_object *obj);
+
 int rockchip_gem_dumb_create(struct drm_file *file_priv,
 			     struct drm_device *dev,
 			     struct drm_mode_create_dumb *args);
