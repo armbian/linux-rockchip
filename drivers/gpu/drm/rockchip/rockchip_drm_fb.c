@@ -123,8 +123,9 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 
 	rockchip_logo_fb->rk_obj = rockchip_gem_alloc_object(dev, logo->size, 0);
 	if (IS_ERR(rockchip_logo_fb->rk_obj)) {
+		ret = PTR_ERR(rockchip_logo_fb->rk_obj);
 		kfree(rockchip_logo_fb);
-		return ERR_CAST(rockchip_logo_fb->rk_obj);
+		return ERR_PTR(ret);
 	}
 
 	fb = &rockchip_logo_fb->fb;
@@ -135,7 +136,8 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 		DRM_DEV_ERROR(dev->dev,
 			      "Failed to initialize rockchip logo fb: %d\n",
 			      ret);
-		drm_gem_object_put(&rockchip_logo_fb->rk_obj->base);
+		drm_gem_object_release(&rockchip_logo_fb->rk_obj->base);
+		kfree(rockchip_logo_fb->rk_obj);
 		kfree(rockchip_logo_fb);
 		return ERR_PTR(ret);
 	}
