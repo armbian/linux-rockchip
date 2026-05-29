@@ -3690,6 +3690,13 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 		rtl8125a_config_eee_mac(tp);
 
 	rtl_disable_rxdvgate(tp);
+
+	/* Board-specific LED policy for Seeed boards:
+	 * LED0 (yellow): blink on traffic at all link speeds
+	 * LED3 (green): solid on at all link speeds
+	 */
+	RTL_W16(tp, 0x18, 0x022B);
+	RTL_W16(tp, 0x96, 0x002B);
 }
 
 static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
