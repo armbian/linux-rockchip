@@ -507,6 +507,8 @@ struct dw_dp {
 	struct list_head mst_conn_list;
 	struct rockchip_dp_aux_client *aux_client;
 
+	struct edid *cached_edid;
+
 	struct drm_info_list *debugfs_files;
 	struct typec_mux_dev *mux;
 };
@@ -1461,10 +1463,24 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	if (!num_modes) {
 		edid = drm_bridge_get_edid(&dp->bridge, connector);
 		if (edid) {
+			kfree(dp->cached_edid);
+			dp->cached_edid = kmemdup(edid,
+					(edid->extensions + 1) * EDID_LENGTH,
+					GFP_KERNEL);
 			drm_connector_update_edid_property(connector, edid);
 			num_modes = drm_add_edid_modes(connector, edid);
 			dw_dp_update_hdr_property(connector);
 			kfree(edid);
+		} else if (dp->cached_edid) {
+			dev_warn(dp->dev, "EDID read failed, using cached EDID\n");
+			edid = kmemdup(dp->cached_edid,
+				       (dp->cached_edid->extensions + 1) * EDID_LENGTH,
+				       GFP_KERNEL);
+			if (edid) {
+				drm_connector_update_edid_property(connector, edid);
+				num_modes = drm_add_edid_modes(connector, edid);
+				kfree(edid);
+			}
 		}
 	}
 
@@ -3121,6 +3137,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	unsigned long timeout = msecs_to_jiffies(10);
 	u32 status, value;
 	ssize_t ret = 0;
+	int retry;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -3150,11 +3167,37 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 		value = FIELD_PREP(I2C_ADDR_ONLY, 1);
 	value |= FIELD_PREP(AUX_CMD_TYPE, msg->request);
 	value |= FIELD_PREP(AUX_ADDR, msg->address);
-	regmap_write(dp->regmap, DPTX_AUX_CMD, value);
+	for (retry = 0; retry < 2; retry++) {
+		reinit_completion(&dp->complete);
+		regmap_write(dp->regmap, DPTX_AUX_CMD, value);
 
-	status = wait_for_completion_timeout(&dp->complete, timeout);
+		status = wait_for_completion_timeout(&dp->complete, timeout);
+		if (status)
+			break;
+
+		/* AUX timeout: reset AUX module and retry. On USB-C
+		 * DP Alt Mode setups the AUX channel gets stuck after
+		 * prolonged main link transmission. Reinitializing the
+		 * completion and resetting the AUX module restores
+		 * native AUX functionality for link training.
+		 */
+		if (retry == 0) {
+			dev_warn(dp->dev, "AUX timeout, resetting (cmd=0x%x addr=0x%x)\n",
+				 msg->request, msg->address);
+			regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL,
+					   AUX_RESET, AUX_RESET);
+			usleep_range(10, 20);
+			regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL,
+					   AUX_RESET, 0);
+			usleep_range(100, 200);
+			dw_dp_aux_init(dp);
+		}
+	}
+
 	if (!status) {
-		dev_dbg(dp->dev, "timeout waiting for AUX reply\n");
+		regmap_read(dp->regmap, DPTX_AUX_STATUS, &value);
+		dev_info(dp->dev, "AUX timeout after recovery: cmd=0x%x addr=0x%x size=%d, AUX_STATUS=0x%x\n",
+			 msg->request, msg->address, msg->size, value);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -4544,6 +4587,8 @@ out:
 		return status;
 	}
 	if (status == connector_status_disconnected) {
+		kfree(dp->cached_edid);
+		dp->cached_edid = NULL;
 		if (dp->is_mst) {
 			dev_info(dp->dev, "MST device may have disappeared\n");
 			dp->is_mst = false;
