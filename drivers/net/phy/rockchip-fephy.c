@@ -58,6 +58,11 @@
 
 #define DEFAULT_TXAMP				0x9
 
+enum rockchip_fephy_version {
+	RK_FEPHY_VERSION0 = 0,
+	RK_FEPHY_VERSION1
+};
+
 enum {
 	GROUP_CFG0 = 0,
 	GROUP_WOL,
@@ -78,6 +83,10 @@ struct rockchip_fephy_priv {
 	int mdix_offset;
 	int current_group;
 	struct regmap *regs;
+	bool idle;
+	struct mutex lock;
+	struct delayed_work service_task;
+	enum rockchip_fephy_version version;
 };
 
 static int rockchip_fephy_group_read(struct phy_device *phydev, u8 group, u32 reg)
@@ -238,10 +247,22 @@ static int rockchip_fephy_fix_offset_v1(struct phy_device *phydev)
 	return ret;
 }
 
+static void rockchip_fephy_enable_low_power_state(struct phy_device *phydev, bool enable)
+{
+	struct rockchip_fephy_priv *priv = phydev->priv;
+
+	if (enable)
+		regmap_write(priv->regs, 0xb0, 0xffff801f);
+	else
+		regmap_write(priv->regs, 0xb0, 0xffff01f0);
+
+	priv->idle = enable;
+}
+
 static int rockchip_fephy_config_init(struct phy_device *phydev)
 {
 	struct rockchip_fephy_priv *priv = phydev->priv;
-	int ret, val = 0;
+	int ret;
 
 	/* LED Control, default:0x7f */
 	ret = phy_write(phydev, MII_LED_CTRL, 0x7aa);
@@ -280,18 +301,17 @@ static int rockchip_fephy_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	/* Enable low-power mode when the network cable is unplugged */
-	regmap_write(priv->regs, 0xb0, 0xffff801f);
-
-	/* Get version */
-	ret = regmap_read(priv->regs, 0xfc, &val);
-	if (ret)
-		return ret;
-
-	if (val == 0x100)
+	if (priv->version == RK_FEPHY_VERSION1) {
+		mutex_lock(&priv->lock);
+		/* Enable low-power mode at init for V1*/
+		rockchip_fephy_enable_low_power_state(phydev, true);
+		schedule_delayed_work(&priv->service_task, msecs_to_jiffies(2000));
+		mutex_unlock(&priv->lock);
 		return rockchip_fephy_fix_offset_v1(phydev);
-	else
+	} else {
+		priv->version = RK_FEPHY_VERSION0;
 		return rockchip_fephy_fix_offset_v0(phydev);
+	}
 }
 
 static int rockchip_fephy_config_aneg(struct phy_device *phydev)
@@ -305,14 +325,25 @@ static void rockchip_feph_link_change_notify(struct phy_device *phydev)
 	int ret;
 
 	if (priv->old_link && !phydev->link) {
-		priv->old_link = 0;
 		ret = rockchip_fephy_group_write(phydev, GROUP_CFG0, 0xa, 0x6664);
 		if (ret)
 			return;
+
+		mutex_lock(&priv->lock);
+		priv->old_link = 0;
+		if (priv->version == RK_FEPHY_VERSION1)
+			schedule_delayed_work(&priv->service_task, msecs_to_jiffies(0));
+		mutex_unlock(&priv->lock);
 	} else if (!priv->old_link && phydev->link) {
 		int gain;
 
+		mutex_lock(&priv->lock);
 		priv->old_link = 1;
+		/* Disable low-power mode when the network cable is plugged */
+		if (priv->version == RK_FEPHY_VERSION1)
+			rockchip_fephy_enable_low_power_state(phydev, false);
+		mutex_unlock(&priv->lock);
+
 		/* read gain level */
 		gain = rockchip_fephy_group_read(phydev, GROUP_CFG0, 0x0);
 		if (gain < 0)
@@ -381,6 +412,35 @@ static irqreturn_t rockchip_fephy_wol_irq_thread(int irq, void *dev_id)
 	phy_read(priv->phydev, MII_INT_STATUS);
 
 	return IRQ_HANDLED;
+}
+
+static void rockchip_fephy_service_task(struct work_struct *work)
+{
+	struct rockchip_fephy_priv *priv = container_of(work, struct rockchip_fephy_priv,
+							service_task.work);
+
+	if (!priv->phydev || !priv->phydev->attached_dev)
+		return;
+
+	mutex_lock(&priv->lock);
+	if (!priv->phydev->link) {
+		unsigned int delay_time;
+
+		if (!priv->idle) {
+			/* Enable low-power mode for 2000ms */
+			rockchip_fephy_enable_low_power_state(priv->phydev, true);
+			delay_time = 2000;
+		} else {
+			/* Disable low-power mode for 300ms */
+			rockchip_fephy_enable_low_power_state(priv->phydev, false);
+			delay_time = 300;
+		}
+		schedule_delayed_work(&priv->service_task, msecs_to_jiffies(delay_time));
+	} else {
+		/* Disable low-power mode when the network cable is plugged */
+		rockchip_fephy_enable_low_power_state(priv->phydev, false);
+	}
+	mutex_unlock(&priv->lock);
 }
 
 static void rockchip_fephy_dump_cfg1_group_regs(struct phy_device *phydev, int group, char *buf)
@@ -735,7 +795,7 @@ static DEVICE_ATTR_RW(phy_param);
 static int rockchip_fephy_probe(struct phy_device *phydev)
 {
 	struct rockchip_fephy_priv *priv;
-	int ret;
+	int ret, val;
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -784,6 +844,15 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 		priv->mdix_offset = 0;
 	}
 
+	ret = regmap_read(priv->regs, 0xfc, &val);
+	if (!ret && val == 0x100) {
+		priv->version = RK_FEPHY_VERSION1;
+		mutex_init(&priv->lock);
+		INIT_DELAYED_WORK(&priv->service_task, rockchip_fephy_service_task);
+	} else {
+		priv->version = RK_FEPHY_VERSION0;
+	}
+
 	ret = device_create_file(&phydev->mdio.dev, &dev_attr_phy_param);
 	if (ret)
 		return ret;
@@ -793,6 +862,12 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 
 static void rockchip_fephy_remove(struct phy_device *phydev)
 {
+	struct rockchip_fephy_priv *priv = phydev->priv;
+
+	if (priv->version == RK_FEPHY_VERSION1) {
+		cancel_delayed_work_sync(&priv->service_task);
+		mutex_destroy(&priv->lock);
+	}
 	device_remove_file(&phydev->mdio.dev, &dev_attr_phy_param);
 }
 
@@ -804,6 +879,10 @@ static int rockchip_fephy_suspend(struct phy_device *phydev)
 		rockchip_fephy_wol_enable(phydev);
 		enable_irq(priv->wol_irq);
 	}
+
+	/* reschedule at resume */
+	if (priv->version == RK_FEPHY_VERSION1)
+		cancel_delayed_work_sync(&priv->service_task);
 
 	return genphy_suspend(phydev);
 }
