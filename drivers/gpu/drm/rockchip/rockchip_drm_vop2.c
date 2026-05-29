@@ -15975,8 +15975,10 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	} else if (!vcstate->yuv_overlay) {
 		/* if there are yuv planes, choose max plane's range */
 		if (max_yuv_pstate) {
-			/* Todo RGB limit range plane */
-			convert_mode.is_input_full_range = true;
+			if (post_r2y_en && !vop2_is_full_range_csc_mode(vcstate->post_csc_mode))
+				convert_mode.is_input_full_range = false;
+			else
+				convert_mode.is_input_full_range = true;
 		} else {
 			if (rgb_limited_plane)
 				convert_mode.is_input_full_range = false;
