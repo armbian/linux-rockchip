@@ -97,7 +97,7 @@ enum {
 #define REG_INT_STOP      BIT(5) /* STOP condition generated */
 #define REG_INT_NAKRCV    BIT(6) /* NACK received */
 #define REG_INT_SLV_HDSCL BIT(7) /* slave hold scl */
-#define REG_INT_ALL       0x3ff
+#define REG_INT_ALL       0xfff
 
 /* Disable i2c all irqs */
 #define IEN_ALL_DISABLE   0
@@ -1606,8 +1606,8 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 
 		if (time_left == 0) {
 			ipd = i2c_readl(i2c, REG_IPD);
-			dev_err(i2c->dev, "timeout, ipd: 0x%02x, state: %d\n",
-				ipd, i2c->state);
+			dev_err(i2c->dev, "timeout, ipd: 0x%02x, state: %d, dev addr: 0x%02x\n",
+				ipd, i2c->state, msgs[i].addr);
 
 			/* Force a STOP condition without interrupt */
 			rk3x_i2c_disable_irq(i2c);
