@@ -25,6 +25,8 @@
 		mmc2 = &sdhci;
 	};
 
+	/delete-node/ chosen;
+
 	adc-keys-0 {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
