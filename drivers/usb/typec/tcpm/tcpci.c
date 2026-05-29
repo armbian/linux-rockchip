@@ -710,7 +710,7 @@ static int tcpci_init(struct tcpc_dev *tcpc)
 
 irqreturn_t tcpci_irq(struct tcpci *tcpci)
 {
-	u16 status;
+	u16 status = 0;
 	int ret;
 	int irq_ret;
 	unsigned int raw;
@@ -731,6 +731,7 @@ process_status:
 		tcpm_cc_change(tcpci->port);
 
 	if (status & TCPC_ALERT_POWER_STATUS) {
+		raw = 0;
 		regmap_read(tcpci->regmap, TCPC_POWER_STATUS_MASK, &raw);
 		/*
 		 * If power status mask has been reset, then the TCPC
@@ -744,8 +745,8 @@ process_status:
 
 	if (status & TCPC_ALERT_RX_STATUS) {
 		struct pd_message msg;
-		unsigned int cnt, payload_cnt;
-		u16 header;
+		unsigned int cnt = 0, payload_cnt;
+		u16 header = 0;
 
 		regmap_read(tcpci->regmap, TCPC_RX_BYTE_CNT, &cnt);
 		/*
@@ -776,6 +777,7 @@ process_status:
 	}
 
 	if (tcpci->data->vbus_vsafe0v && (status & TCPC_ALERT_EXTENDED_STATUS)) {
+		raw = 0;
 		ret = regmap_read(tcpci->regmap, TCPC_EXTENDED_STATUS, &raw);
 		if (!ret && (raw & TCPC_EXTENDED_STATUS_VSAFE0V))
 			tcpm_vbus_change(tcpci->port);
@@ -791,6 +793,7 @@ process_status:
 	else if (status & TCPC_ALERT_TX_FAILED)
 		tcpm_pd_transmit_complete(tcpci->port, TCPC_TX_FAILED);
 
+	status = 0; /* Reset status before re-reading to avoid infinite loop */
 	tcpci_read16(tcpci, TCPC_ALERT, &status);
 
 	if (status & tcpci->alert_mask)
