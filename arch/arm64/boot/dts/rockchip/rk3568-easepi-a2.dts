@@ -18,10 +18,6 @@
 / {
 	compatible = "easepi,a2", "rockchip,rk3568";
 	model = "EasePi A2";
-	kdebug = "0";
-	hwmodel_id = "A2";
-	hw_support = "hdmi";
-	eth_order = "0000:01:00.0";
 
 	aliases {
 		mmc0 = &sdmmc0;
@@ -37,21 +33,20 @@
 	};
 
 	chosen: chosen {
-		power-key-factory-reset;
-		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 rootpart=mmcblk1p3 rw rootwait autoresize=mmcblk1p4";
+		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0";
 	};
 
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
 		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
+		keyup-threshold-microvolt = <1750000>;
 		poll-interval = <100>;
 
 		vol-up-key {
 			label = "volume up";
 			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <175000>;
+			press-threshold-microvolt = <1750>;
 		};
 
 		vol-down-key {
@@ -307,76 +302,6 @@
 		pinctrl-0 = <&vcc3v3_nvme_en>;
 	};
 
-};
-
-&gmac0 {
-	phy-mode = "rgmii";
-	clock_in_out = "input";
-
-	snps,reset-gpio = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
-
-	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
-	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>, <&cru CLK_MAC0_2TOP>;
-	assigned-clock-rates = <0>, <125000000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim
-		     &gmac0_tx_bus2
-		     &gmac0_rx_bus2
-		     &gmac0_rgmii_clk
-		     &gmac0_rgmii_bus>;
-
-	tx_delay = <0x3c>;
-	rx_delay = <0x2f>;
-
-	phy-handle = <&rgmii_phy0>;
-	status = "okay";
-};
-
-&gmac1 {
-	phy-mode = "rgmii";
-	clock_in_out = "input";
-
-	snps,reset-gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
-
-	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
-	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru CLK_MAC1_2TOP>;
-	assigned-clock-rates = <0>, <125000000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim
-		     &gmac1m1_tx_bus2
-		     &gmac1m1_rx_bus2
-		     &gmac1m1_rgmii_clk
-		     &gmac1m1_rgmii_bus>;
-
-	tx_delay = <0x4f>;
-	rx_delay = <0x26>;
-
-	phy-handle = <&rgmii_phy1>;
-	status = "okay";
-};
-
-&mdio0 {
-	rgmii_phy0: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
-		realtek,led-data = <0xAC10>;
-	};
-};
-
-&mdio1 {
-	rgmii_phy1: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
-		realtek,led-data = <0xAC10>;
-	};
 };
 
 &combphy0_us {
@@ -778,20 +703,6 @@
 	status = "okay";
 };
 
-&nandc0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "disabled";
-
-	nand@0 {
-		reg = <0>;
-		nand-bus-width = <8>;
-		nand-ecc-mode = "hw";
-		nand-ecc-strength = <16>;
-		nand-ecc-step-size = <1024>;
-	};
-};
-
 &pinctrl {
 	ir-receiver {
 		ir_receiver_pin: ir-receiver-pin {
@@ -1155,21 +1066,16 @@
 	status = "okay";
 };
 
-/* fix mali warning */
-&gpu {
-	power-off-delay-ms = <200>;
-};
-
 &pcie2x1 {
 	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pcie@10 {
-		reg = <0x00100000 0 0 0 0>;
+	pcie@0,0 {
+		reg = <0x00000000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		pcie_eth0: pcie-eth@10,0 {
+		pcie_eth0: pcie@00,0 {
 			compatible = "pci10ec,8125";
 			reg = <0x000000 0 0 0 0>;
 
