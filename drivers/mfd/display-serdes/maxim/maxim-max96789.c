@@ -639,7 +639,7 @@ static struct serdes_chip_split_ops max96789_split_ops = {
 	.deselect = max96789_deselect,
 };
 
-static const struct check_reg_data max96789_improtant_reg[10] = {
+static const struct check_reg_data max96789_important_reg[10] = {
 	{
 		"MAX96789 LINK LOCK",
 		{ 0x0013, (1 << 3) },
@@ -685,16 +685,21 @@ static int max96789_check_reg(struct serdes *serdes)
 	int i =  0, ret = 0;
 	unsigned int val = 0;
 
-	for (i = 0; i < ARRAY_SIZE(max96789_improtant_reg); i++) {
-		if (!max96789_improtant_reg[i].seq.reg)
+	for (i = 0; i < ARRAY_SIZE(max96789_important_reg); i++) {
+		if (!max96789_important_reg[i].seq.reg)
 			break;
 
-		ret = serdes_reg_read(serdes, max96789_improtant_reg[i].seq.reg, &val);
-		if (!ret && !(val & max96789_improtant_reg[i].seq.def)
-		    && (!atomic_read(&serdes->flag_early_suspend)))
+		ret = serdes_reg_read(serdes, max96789_important_reg[i].seq.reg, &val);
+		if (ret)
+			return ret;
+
+		if (!(val & max96789_important_reg[i].seq.def)
+		    && (!atomic_read(&serdes->flag_early_suspend))) {
 			dev_info(serdes->dev, "warning %s %s reg[0x%x] = 0x%x\n", __func__,
-				 max96789_improtant_reg[i].name,
-				 max96789_improtant_reg[i].seq.reg, val);
+				 max96789_important_reg[i].name,
+				 max96789_important_reg[i].seq.reg, val);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
