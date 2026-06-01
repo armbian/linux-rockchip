@@ -10226,6 +10226,25 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	ret = vop2_clk_set_parent_extend(vp, vcstate, true);
 	if (ret < 0)
 		goto out;
+
+	/*
+	 * For RK3576 MIPI/DSI output, switch dclk_src parent from vpll
+	 * to cpll. This prevents DP's vpll reprogramming from breaking
+	 * DSI pixel clock when both displays are active.
+	 * cpll at 1000MHz supports 720x1280@60 exactly (1000/12=83.33MHz).
+	 */
+	if (vop2->version == VOP_VERSION_RK3576 &&
+	    (vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1))) {
+		struct clk_hw *dclk_hw = __clk_get_hw(vp->dclk);
+		if (dclk_hw) {
+			struct clk_hw *src_hw = clk_hw_get_parent(dclk_hw);
+			if (src_hw) {
+				struct clk *cpll = __clk_lookup("cpll");
+				if (cpll)
+					clk_set_parent(src_hw->clk, cpll);
+			}
+		}
+	}
 	if (dclk)
 		dclk_rate = dclk->rate;
 	else
