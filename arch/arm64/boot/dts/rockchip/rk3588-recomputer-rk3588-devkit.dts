@@ -893,6 +893,11 @@
 /* phy1 - right ethernet port PCIE20_1_TXP */
 &pcie2x1l0 {
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	/* r8125 Ethernet LED configuration:
+	 * LED0 (yellow): blink on traffic at all link speeds
+	 * LED3 (green): solid on at all link speeds
+	 */
+	realtek,led-data = <0x18 0x022B 0x96 0x002B>;
 	vpcie3v3-supply = <&vcc5v0_usb_eth>;
 	status = "okay";
 };
@@ -907,6 +912,11 @@
 /* phy0 - left ethernet port PCIE20_0_TXP */
 &pcie2x1l2 {
 	reset-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+	/* r8125 Ethernet LED configuration:
+	 * LED0 (yellow): blink on traffic at all link speeds
+	 * LED3 (green): solid on at all link speeds
+	 */
+	realtek,led-data = <0x18 0x022B 0x96 0x002B>;
 	vpcie3v3-supply = <&vcc5v0_usb_eth>;
 	status = "okay";
 };
