@@ -4776,6 +4776,13 @@ void dw_hdmi_qp_register_debugfs(struct dw_hdmi_qp *hdmi)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_register_debugfs);
 
+void dw_hdmi_qp_phy_init(struct dw_hdmi_qp *hdmi)
+{
+	if (hdmi->phy.ops->init)
+		hdmi->phy.ops->init(hdmi->phy.data);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_phy_init);
+
 static void dw_hdmi_qp_hdcp14_get_mem(struct dw_hdmi_qp *hdmi, u8 *data, u32 len)
 {
 	u32 ksv_len, i, val;
