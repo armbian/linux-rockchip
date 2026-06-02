@@ -347,10 +347,12 @@ static int husb311_pm_suspend(struct device *dev)
 	struct husb311_chip *chip = dev->driver_data;
 	struct i2c_client *client = to_i2c_client(dev);
 
-	if (device_may_wakeup(dev) && (!chip->vbus_on || chip->wakeup))
+	disable_irq(client->irq);
+
+	if (device_may_wakeup(dev) && (!chip->vbus_on || chip->wakeup)) {
+		dev_dbg(chip->dev, "enable irq wake\n");
 		enable_irq_wake(client->irq);
-	else
-		disable_irq(client->irq);
+	}
 
 	if (!chip->suspended) {
 		chip->suspended = 1;
@@ -406,10 +408,12 @@ static int husb311_pm_resume(struct device *dev)
 	int ret = 0;
 	u8 filter;
 
-	if (device_may_wakeup(dev) && irqd_is_wakeup_set(irq_get_irq_data(client->irq)))
+	if (device_may_wakeup(dev) && irqd_is_wakeup_set(irq_get_irq_data(client->irq))) {
+		dev_dbg(chip->dev, "disable irq wake\n");
 		disable_irq_wake(client->irq);
-	else
-		enable_irq(client->irq);
+	}
+
+	enable_irq(client->irq);
 
 	/*
 	 * When the power of husb311 is lost or i2c read failed in PM S/R
