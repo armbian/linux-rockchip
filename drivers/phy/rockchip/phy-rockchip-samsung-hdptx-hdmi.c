@@ -6,6 +6,7 @@
  */
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -2046,11 +2047,160 @@ static int rockchip_hdptx_phy_set_mode(struct phy *phy, enum phy_mode mode,
 	return 0;
 }
 
+struct rockchip_hdptx_reg_range {
+	unsigned int start;
+	unsigned int end;
+	const char *name;
+};
+
+static const struct rockchip_hdptx_reg_range rockchip_hdptx_debug_reg_ranges[] = {
+	{ 0x0000, 0x029c, "CMN" },
+	{ 0x0400, 0x04a4, "Sideband" },
+	{ 0x0800, 0x08a4, "Lane Top" },
+	{ 0x0c00, 0x0cb4, "Lane 0" },
+	{ 0x1000, 0x10b4, "Lane 1" },
+	{ 0x1400, 0x14b4, "Lane 2" },
+	{ 0x1800, 0x18b4, "Lane 3" },
+};
+
+static int rockchip_hdptx_phy_regs_show(struct seq_file *s, void *data)
+{
+	struct rockchip_hdptx_phy *hdptx = s->private;
+	unsigned int reg;
+	u32 val;
+	int i, ret;
+
+	if (!pm_runtime_get_if_in_use(hdptx->dev)) {
+		seq_puts(s, "PHY clocks are not enabled\n");
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rockchip_hdptx_debug_reg_ranges); i++) {
+		const struct rockchip_hdptx_reg_range *range = &rockchip_hdptx_debug_reg_ranges[i];
+
+		seq_printf(s, "--- %s Registers ---\n", range->name);
+		for (reg = range->start; reg <= range->end; reg += 4) {
+			ret = regmap_read(hdptx->regmap, reg, &val);
+			if (ret) {
+				seq_printf(s, "0x%04x: read error %d\n", reg, ret);
+				continue;
+			}
+			seq_printf(s, "0x%04x: 0x%02x\n", reg, val);
+		}
+		seq_puts(s, "\n");
+	}
+
+	pm_runtime_put(hdptx->dev);
+	return 0;
+}
+
+static int rockchip_hdptx_phy_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rockchip_hdptx_phy_regs_show, inode->i_private);
+}
+
+static ssize_t rockchip_hdptx_phy_regs_write(struct file *file, const char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	struct rockchip_hdptx_phy *hdptx;
+	char buf[64];
+	unsigned int reg, val;
+	int ret;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	/* Accept format: <reg_offset> <value> (both in hex, e.g. "0x0051 0x00000087") */
+	if (sscanf(buf, "%x %x", &reg, &val) != 2) {
+		/* Also try decimal format: "<reg> <val>" */
+		if (sscanf(buf, "%i %i", &reg, &val) != 2)
+			return -EINVAL;
+	}
+
+	hdptx = ((struct seq_file *)file->private_data)->private;
+
+	if (!pm_runtime_get_if_in_use(hdptx->dev))
+		return -EACCES;
+
+	ret = regmap_write(hdptx->regmap, reg, val);
+	pm_runtime_put(hdptx->dev);
+
+	if (ret) {
+		dev_err(hdptx->dev, "debugfs: regmap_write(0x%04x, 0x%08x) failed: %d\n",
+			reg, val, ret);
+		return ret;
+	}
+
+	dev_info(hdptx->dev, "debugfs: wrote reg 0x%04x = 0x%08x\n", reg, val);
+	return count;
+}
+
+static const struct file_operations rockchip_hdptx_phy_regs_fops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_hdptx_phy_regs_open,
+	.read = seq_read,
+	.write = rockchip_hdptx_phy_regs_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int rockchip_hdptx_phy_register_debugfs(struct rockchip_hdptx_phy *hdptx)
+{
+	struct dentry *dri_dir, *card_dir, *connector_dir;
+	char name[16], conn_name[16];
+	int i;
+
+	dri_dir = debugfs_lookup("dri", NULL);
+	if (IS_ERR_OR_NULL(dri_dir)) {
+		dev_warn(hdptx->dev, "debugfs: 'dri' directory not found\n");
+		return -ENODEV;
+	}
+
+	snprintf(conn_name, sizeof(conn_name), "hdmi%d", hdptx->id);
+
+	for (i = 0; i < 8; i++) {
+		snprintf(name, sizeof(name), "%d", i);
+		card_dir = debugfs_lookup(name, dri_dir);
+		if (!card_dir)
+			continue;
+
+		connector_dir = debugfs_lookup(conn_name, card_dir);
+		dput(card_dir);
+
+		if (connector_dir) {
+			debugfs_create_file("phy", 0600, connector_dir, hdptx,
+					    &rockchip_hdptx_phy_regs_fops);
+			dput(connector_dir);
+			dput(dri_dir);
+			return 0;
+		}
+	}
+
+	dput(dri_dir);
+	dev_warn(hdptx->dev, "debugfs: '%s' not found under dri\n", conn_name);
+	return -ENODEV;
+}
+
+static int rockchip_hdptx_phy_init(struct phy *phy)
+{
+	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
+
+	rockchip_hdptx_phy_register_debugfs(hdptx);
+
+	return 0;
+}
+
 static const struct phy_ops rockchip_hdptx_phy_ops = {
 	.owner	   = THIS_MODULE,
 	.power_on  = rockchip_hdptx_phy_power_on,
 	.power_off = rockchip_hdptx_phy_power_off,
 	.set_mode  = rockchip_hdptx_phy_set_mode,
+	.init      = rockchip_hdptx_phy_init,
 };
 
 static const struct of_device_id rockchip_hdptx_phy_of_match[] = {
