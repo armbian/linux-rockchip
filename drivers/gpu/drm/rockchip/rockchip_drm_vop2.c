@@ -9846,10 +9846,13 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_display_mode tmp;
 	struct rockchip_crtc_state *state = to_rockchip_crtc_state(crtc->state);
 	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	struct drm_plane *plane;
 	unsigned long aclk_rate;
+	u64 dividend, dclk_rate_kHz;
+	u32 actual_fps_x100;
 
 	DEBUG_PRINT("Video Port%d: %s\n", vp->id, crtc_state->active ? "ACTIVE" : "DISABLED");
 
@@ -9865,6 +9868,15 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	else
 		aclk_rate = clk_get_rate(vop2->aclk);
 
+	/* Calculate refresh rate multiplied by 100 to keep two decimal precision */
+	drm_mode_copy(&tmp, mode);
+	tmp.clock *= 100;
+	dclk_rate_kHz = clk_get_rate(vp->dclk) / 1000;
+	/* The expected crtc_clock and actual hardware dclk may have integer multiple relation */
+	dclk_rate_kHz *= DIV64_U64_ROUND_CLOSEST((u64)mode->crtc_clock, dclk_rate_kHz);
+	dividend = mul_u32_u32(drm_mode_vrefresh(&tmp), dclk_rate_kHz);
+	actual_fps_x100 = div64_u64(dividend, (u64)mode->crtc_clock);
+
 	vop2_dump_connector_on_crtc(crtc, s);
 	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
 		    drm_get_bus_format_name(state->bus_format));
@@ -9878,11 +9890,11 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    state->post_r2y_en ? csc_mode_to_string(vop2, state->post_csc_mode) : "off",
 		    state->sharp_en, state->acm_en, state->post_y2r_en ?
 		    csc_mode_to_string(vop2, state->post_csc_y2r_mode) : "off");
-	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
+	DEBUG_PRINT("    Display mode: %dx%d%s%u.%02u\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
-		    drm_mode_vrefresh(mode));
-	DEBUG_PRINT("\tdclk[%d kHz] real_dclk[%d kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
-		    mode->clock, mode->crtc_clock, aclk_rate / 1000,
+		    actual_fps_x100 / 100, actual_fps_x100 % 100);
+	DEBUG_PRINT("\tdclk[%d kHz] crtc_dclk[%d kHz] real_dclk[%lu kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
+		    mode->clock, mode->crtc_clock, clk_get_rate(vp->dclk) / 1000, aclk_rate / 1000,
 		    mode->type, mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
 		    mode->hsync_end, mode->htotal);
