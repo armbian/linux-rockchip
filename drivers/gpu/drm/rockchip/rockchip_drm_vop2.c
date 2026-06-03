@@ -3891,6 +3891,68 @@ static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
 	return false;
 }
 
+static void vop2_plane_setup_r2y_csc_mode(struct vop2_video_port *vp,
+					  struct vop2_plane_state *vpstate)
+{
+	struct drm_plane_state *pstate = &vpstate->base;
+	struct drm_crtc *crtc = pstate->crtc;
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_plane *plane;
+	struct vop2_win *win;
+	struct drm_rect *dest;
+	struct drm_plane_state *pstate_poll;
+	struct vop2_plane_state *vpstate_poll;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
+	u32 max_yuv_plane = 0, plane_area;
+	enum drm_color_encoding r2y_csc_color_encoding;
+	enum drm_color_range r2y_csc_color_range;
+	enum drm_color_encoding max_yuv_plane_color_encoding = DRM_COLOR_YCBCR_BT601;
+
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		win = to_vop2_win(plane);
+
+		pstate_poll = win->base.state;
+
+		if (!pstate_poll || !pstate_poll->fb)
+			continue;
+
+		vpstate_poll = to_vop2_plane_state(pstate_poll);
+		dest = &vpstate_poll->dest;
+
+		if (pstate_poll->fb->format->is_yuv) {
+			plane_area = drm_rect_width(dest) * drm_rect_height(dest);
+			/* find yuv plane with largest area */
+			if (max_yuv_plane < plane_area) {
+				max_yuv_plane = plane_area;
+				max_yuv_plane_color_encoding =
+					pstate_poll->color_encoding;
+			}
+		}
+	}
+
+	vpstate->r2y_en = 1;
+	r2y_csc_color_encoding = vcstate->color_encoding;
+	r2y_csc_color_range = vcstate->color_range;
+
+	if ((vop2->version == VOP_VERSION_RK3528 ||
+	     vop2->version == VOP_VERSION_RK3576) && max_yuv_plane) {
+		r2y_csc_color_encoding = max_yuv_plane_color_encoding;
+		r2y_csc_color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+	}
+
+	vpstate->csc_mode = vop2_convert_csc_mode(r2y_csc_color_encoding,
+						  r2y_csc_color_range,
+						  CSC_10BIT_DEPTH);
+
+	/*
+	 * VOP YUV overlay only can support YUV limit range input for Soc before RK3572,
+	 * so force select BT601L to do R2Y.
+	 */
+	if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
+	    vop2->version < VOP_VERSION_RK3572)
+		vpstate->csc_mode = CSC_BT601L;
+}
+
 /*
  * colorspace path:
  *      Input        Win csc                     Output
@@ -4071,18 +4133,7 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 								  input_color_range,
 								  csc_y2r_bit_depth);
 		} else if (!is_input_yuv && is_output_yuv) {
-			vpstate->r2y_en = 1;
-			vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
-								  vcstate->color_range,
-								  CSC_10BIT_DEPTH);
-
-			/**
-			 * VOP YUV overlay only can support YUV limit range input for Soc before RK3572,
-			 * so force select BT601L todo R2Y.
-			 */
-			if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
-			    vop2->version < VOP_VERSION_RK3572)
-				vpstate->csc_mode = CSC_BT601L;
+			vop2_plane_setup_r2y_csc_mode(vp, vpstate);
 		}
 	}
 }
