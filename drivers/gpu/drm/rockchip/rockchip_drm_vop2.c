@@ -16330,6 +16330,16 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 		}
 	}
 
+	/*
+	 * When RK3588 dolby core is enabled and no layer is enabled, it is
+	 * necessary to ensure that a normal black screen image is displayed
+	 * by enabling DSP_BG_DISPLAY_EN.
+	 */
+	if (vop2->version == VOP_VERSION_RK3588) {
+		if (vop2_is_dovi_mode(vp) && !vp->enabled_win_mask)
+			val |= RK3588_VP0_DSP_BG_DISPLAY_EN;
+	}
+
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
 	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
 	if (vcstate->splice_mode) {
