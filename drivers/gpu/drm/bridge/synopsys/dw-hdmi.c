@@ -2134,9 +2134,9 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi,
 	return dw_hdmi_phy_power_on(hdmi);
 }
 
-static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
-			    const struct drm_display_info *display,
-			    const struct drm_display_mode *mode)
+static int dw_hdmi_phy_enable(struct dw_hdmi *hdmi, void *data,
+			      const struct drm_display_info *display,
+			      const struct drm_display_mode *mode)
 {
 	int ret;
 
@@ -2202,7 +2202,7 @@ void dw_hdmi_phy_setup_hpd(struct dw_hdmi *hdmi, void *data)
 EXPORT_SYMBOL_GPL(dw_hdmi_phy_setup_hpd);
 
 static const struct dw_hdmi_phy_ops dw_hdmi_synopsys_phy_ops = {
-	.init = dw_hdmi_phy_init,
+	.enable = dw_hdmi_phy_enable,
 	.disable = dw_hdmi_phy_disable,
 	.read_hpd = dw_hdmi_phy_read_hpd,
 	.update_hpd = dw_hdmi_phy_update_hpd,
@@ -3113,14 +3113,18 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 	hdmi_video_sample(hdmi);
 
 	/* HDMI Enable phy output */
-	if (!hdmi->phy.enabled ||
-	    hdmi->hdmi_data.video_mode.previous_pixelclock !=
+	if (!hdmi->phy.enabled || hdmi->hdmi_data.video_mode.previous_pixelclock !=
 	    hdmi->hdmi_data.video_mode.mpixelclock ||
 	    hdmi->hdmi_data.video_mode.previous_tmdsclock !=
 	    hdmi->hdmi_data.video_mode.mtmdsclock) {
-		ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data,
-					  &connector->display_info,
-					  &hdmi->previous_mode);
+		if (hdmi->phy.ops->enable)
+			ret = hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &connector->display_info,
+						    &hdmi->previous_mode);
+		else if (hdmi->phy.ops->init)
+			ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &connector->display_info,
+						  &hdmi->previous_mode);
+		else
+			ret = -EOPNOTSUPP;
 		if (ret)
 			return ret;
 		hdmi->phy.enabled = true;

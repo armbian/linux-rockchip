@@ -1997,9 +1997,9 @@ dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
 }
 
 static int
-dw_hdmi_rockchip_genphy_init(struct dw_hdmi *dw_hdmi, void *data,
-			     const struct drm_display_info *display,
-			     const struct drm_display_mode *mode)
+dw_hdmi_rockchip_genphy_enable(struct dw_hdmi *dw_hdmi, void *data,
+			       const struct drm_display_info *display,
+			       const struct drm_display_mode *mode)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
@@ -2075,7 +2075,7 @@ static void dw_hdmi_rk3328_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 }
 
 static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
-	.init		= dw_hdmi_rockchip_genphy_init,
+	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_phy_read_hpd,
 	.update_hpd	= dw_hdmi_phy_update_hpd,
@@ -2118,7 +2118,7 @@ static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_phy_ops rk3328_hdmi_phy_ops = {
-	.init		= dw_hdmi_rockchip_genphy_init,
+	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_rk3328_read_hpd,
 	.update_hpd	= dw_hdmi_phy_update_hpd,
@@ -2132,7 +2132,7 @@ dw_hdmi_rk3528_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
 }
 
 static const struct dw_hdmi_phy_ops rk3528_hdmi_phy_ops = {
-	.init		= dw_hdmi_rockchip_genphy_init,
+	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_rk3528_read_hpd,
 	.update_hpd	= dw_hdmi_phy_update_hpd,
