@@ -183,8 +183,8 @@ struct dw_hdmi_phy_ops {
 };
 
 struct dw_hdmi_qp_phy_ops {
-	int (*init)(struct dw_hdmi_qp *hdmi, void *data,
-		    struct drm_display_mode *mode);
+	int (*enable)(struct dw_hdmi_qp *hdmi, void *data,
+		      struct drm_display_mode *mode);
 	void (*disable)(struct dw_hdmi_qp *hdmi, void *data);
 	enum drm_connector_status (*read_hpd)(struct dw_hdmi_qp *hdmi,
 					      void *data);
