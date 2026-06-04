@@ -111,7 +111,7 @@
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
 		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
-				"userrequested,recovery", "null-rst", "";
+				"userrequested,recovery", "cts-test", "null-rst", "";
 		/* select internal feedback resistor */
 		fb-inner-reg-idxs = <2>;
 
@@ -369,7 +369,7 @@
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
 		rockchip,pmic-reg-only-cmds = "shell", "userrequested",
-				"userrequested,recovery", "null-rst", "";
+				"userrequested,recovery", "cts-test", "null-rst", "";
 		/* 0: active low, 1:active high */
 		sleep-pin-polarity = <1>;
 		status = "okay";
