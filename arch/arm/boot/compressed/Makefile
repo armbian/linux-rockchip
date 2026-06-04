@@ -85,7 +85,7 @@ libfdt_objs := fdt_rw.o fdt_ro.o fdt_wip.o fdt.o
 
 ifeq ($(CONFIG_ARM_ATAG_DTB_COMPAT),y)
 CFLAGS_REMOVE_atags_to_fdt.o += -Wframe-larger-than=${CONFIG_FRAME_WARN}
-CFLAGS_atags_to_fdt.o += -Wframe-larger-than=1280
+CFLAGS_atags_to_fdt.o += -Wframe-larger-than=1400
 OBJS	+= $(libfdt_objs) atags_to_fdt.o
 endif
 ifeq ($(CONFIG_USE_OF),y)
