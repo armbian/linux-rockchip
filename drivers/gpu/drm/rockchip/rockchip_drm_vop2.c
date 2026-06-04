@@ -15718,7 +15718,12 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 					 vcstate->tv_state->brightness);
 	contrast = interpolate(0, 0, 100, 511, vcstate->tv_state->contrast);
 	saturation = interpolate(0, 0, 100, 511, vcstate->tv_state->saturation);
-	hue = interpolate(0, -30, 100, 30, vcstate->tv_state->hue);
+	/*
+	 * BCSH uses clockwise as positive hue angle while CSC uses
+	 * counter-clockwise. Unify to counter-clockwise as positive
+	 * direction: invert the configured hue parameter for BCSH.
+	 */
+	hue = interpolate(0, 30, 100, -30, vcstate->tv_state->hue);
 
 	/*
 	 *  a:[-30~0]:
