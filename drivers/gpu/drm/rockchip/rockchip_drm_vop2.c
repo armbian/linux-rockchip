@@ -13029,6 +13029,10 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, uint8_t win_phys_id,
 	uint8_t adapt_mode = 0;
 
 	if (vop2->version < VOP_VERSION_RK3572) {
+		vp->hdr_en = false;
+		vp->hdr_in = false;
+		vp->hdr_out = false;
+		vp->sdr2hdr_en = false;
 		vpstate->hdr_in = false;
 		vpstate->hdr2sdr_en = false;
 
