@@ -13270,8 +13270,9 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	case HDR_HDR10:
 	case HDR_HLGSTATIC:
 	case HDR_HDRVIVID:
+	case HDR_HDR10PLUS:
 		/*
-		 * hdr module support hdr10, hlg, vividhdr
+		 * hdr module support hdr10, hdr10+, hlg, vividhdr
 		 * sdr2hdr module support hdrnone for sdr2hdr
 		 */
 		vop3_setup_hdr_data(vp, win_phys_id, 0);
