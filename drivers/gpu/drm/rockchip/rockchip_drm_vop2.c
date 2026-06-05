@@ -8454,7 +8454,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		rk3588_vop2_win_cfg_axi(win);
 
 	if (is_vop3(vop2)) {
-		if (!win->parent && !vop2_cluster_window(win))
+		if (!win->parent && vop2_multi_area_window(win))
 			VOP_WIN_SET(vop2, win, scale_engine_num, win->scale_engine_num);
 
 		/* Only esmart win0 and cluster win0 need to enter config vp id and win dly num */
@@ -17857,10 +17857,44 @@ static int rk3576_shared_mode_esmart_scale_engine(int phy_id)
 	}
 }
 
+static int vop3_get_esmart_scale_engine_by_lb_mode(struct vop2 *vop2, int phy_id)
+{
+	const struct vop2_scale_engine *scale_engine = vop2->data->scale_engine;
+	int i;
+
+	/* Find the scale engine configurations according to the esmart lb mode */
+	scale_engine += vop2->esmart_lb_mode * VOP2_MAX_MULTI_AREA_WIN;
+
+	for (i = 0; i < VOP2_MAX_MULTI_AREA_WIN; i++) {
+		if (scale_engine[i].plane_phy_id == phy_id)
+			return scale_engine[i].scale_engine_num;
+	}
+
+	return 0;
+}
+
+/**
+ * RK3528/RK3562/RK3576 platforms require configuring the scale engine number
+ * for each esmart window during driver initialization. The configuration
+ * follows these rules:
+ *
+ * 1. The scale engine number must be unique for each esmart window.
+ * 2. Valid scale engine numbers are determined by the esmart lb mode:
+ *    - VOP3_ESMART_8K_MODE supports 0
+ *    - VOP3_ESMART_4K_4K_MODE supports 0, 1
+ *    - VOP3_ESMART_4K_2K_2K_MODE supports 0, 1, 2
+ *    - VOP3_ESMART_2K_2K_2K_2K_MODE supports 0, 1, 2, 3
+ *    - VOP3_ESMART_4K_4K_4K_MODE supports 0, 1, 2
+ *    - VOP3_ESMART_4K_4K_2K_2K_MODE supports 0, 1, 2, 3
+ * 3. Scale engine number is static and fixed at init time, cannot be changed
+ *    dynamically.
+ */
 static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 {
-	u8 scale_engine_num = 0;
 	struct drm_plane *plane = NULL;
+
+	if (!vop2->data->scale_engine)
+		return;
 
 	drm_for_each_plane(plane, vop2->drm_dev) {
 		struct vop2_win *win = to_vop2_win(plane);
@@ -17871,7 +17905,7 @@ static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 		if (vop2->shared_mode_res.shared_mode)
 			win->scale_engine_num = rk3576_shared_mode_esmart_scale_engine(win->phys_id);
 		else
-			win->scale_engine_num = scale_engine_num++;
+			win->scale_engine_num = vop3_get_esmart_scale_engine_by_lb_mode(vop2, win->phys_id);
 	}
 }
 
@@ -19585,7 +19619,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	 * };
 	 */
 	ret = of_property_read_u8(dev->of_node, "esmart_lb_mode", &vop2->esmart_lb_mode);
-	if (ret < 0)
+	if (ret < 0 || vop2->esmart_lb_mode >= VOP3_ESMART_LB_MODE_MAX)
 		vop2->esmart_lb_mode = vop2->data->esmart_lb_mode;
 
 	/*
