@@ -118,6 +118,8 @@
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
 
+#define VOP2_MAX_MULTI_AREA_WIN		4
+
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
 	BCSH_OUT_MODE_BLUE,
@@ -157,6 +159,7 @@ enum vop3_esmart_lb_mode {
 	VOP3_ESMART_2K_2K_2K_2K_MODE,
 	VOP3_ESMART_4K_4K_4K_MODE,
 	VOP3_ESMART_4K_4K_2K_2K_MODE,
+	VOP3_ESMART_LB_MODE_MAX,
 };
 
 /**
@@ -1828,6 +1831,11 @@ struct vop2_esmart_lb_map {
 	u8 lb_map_value;
 };
 
+struct vop2_scale_engine {
+	u8 plane_phy_id;
+	u8 scale_engine_num;
+};
+
 /**
  * VOP2 data structe
  *
@@ -1877,6 +1885,7 @@ struct vop2_data {
 	uint32_t dump_regs_size;
 	const struct vop2_vp_plane_mask *plane_mask;
 	uint32_t plane_mask_base;
+	const struct vop2_scale_engine *scale_engine;
 
 	unsigned int win_size;
 };

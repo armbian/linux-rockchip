@@ -7318,6 +7318,51 @@ static const char * const rk3576_crc_sources[] = {
 	"encoder",
 };
 
+static const struct vop2_scale_engine rk3528_scale_engine[VOP3_ESMART_LB_MODE_MAX][VOP2_MAX_MULTI_AREA_WIN] = {
+	/* VOP3_ESMART_8K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{},
+		{},
+		{},
+	},
+	/* VOP3_ESMART_4K_4K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{ ROCKCHIP_VOP2_ESMART2, 1 },
+		{},
+		{},
+	},
+	/* VOP3_ESMART_4K_2K_2K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{ ROCKCHIP_VOP2_ESMART2, 1 },
+		{ ROCKCHIP_VOP2_ESMART3, 2 },
+		{},
+	},
+	/* VOP3_ESMART_2K_2K_2K_2K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{ ROCKCHIP_VOP2_ESMART1, 1 },
+		{ ROCKCHIP_VOP2_ESMART2, 2 },
+		{ ROCKCHIP_VOP2_ESMART3, 3 },
+	},
+	/* VOP3_ESMART_4K_4K_4K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{ ROCKCHIP_VOP2_ESMART1, 1 },
+		{ ROCKCHIP_VOP2_ESMART2, 2 },
+		{},
+	},
+	/* VOP3_ESMART_4K_4K_2K_2K_MODE */
+	{
+		{ ROCKCHIP_VOP2_ESMART0, 0 },
+		{ ROCKCHIP_VOP2_ESMART1, 1 },
+		{ ROCKCHIP_VOP2_ESMART2, 2 },
+		{ ROCKCHIP_VOP2_ESMART3, 3 },
+	},
+};
+
 static const struct vop2_data rk3528_vop = {
 	.version = VOP_VERSION_RK3528,
 	.nr_vps = 2,
@@ -7335,6 +7380,7 @@ static const struct vop2_data rk3528_vop = {
 	.dump_regs = rk3528_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3528_dump_regs),
 	.plane_mask_base = RK3528_PLANE_MASK_BASE,
+	.scale_engine = rk3528_scale_engine[0],
 };
 
 static const char * const rk3538_crc_sources[] = {
@@ -7389,6 +7435,7 @@ static const struct vop2_data rk3562_vop = {
 	.dump_regs = rk3562_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3562_dump_regs),
 	.plane_mask_base = RK3562_PLANE_MASK_BASE,
+	.scale_engine = rk3528_scale_engine[0],
 };
 
 static const struct vop2_data rk3568_vop = {
@@ -7460,6 +7507,7 @@ static const struct vop2_data rk3576_vop = {
 	.plane_mask_base = RK3576_PLANE_MASK_BASE,
 	.crc_sources = rk3576_crc_sources,
 	.crc_sources_num = ARRAY_SIZE(rk3576_crc_sources),
+	.scale_engine = rk3528_scale_engine[0],
 };
 
 static const struct vop2_data rk3588_vop = {
