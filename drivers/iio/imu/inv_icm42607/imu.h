@@ -37,6 +37,11 @@ enum imu_position_id {
 	IMU_D_MAX
 };
 
+enum imu_bus_type {
+	IMU_BUS_I2C = 0,
+	IMU_BUS_SPI,
+};
+
 struct imu_3axis_data {
 	int16_t raw[3];
 	s64 ts;
@@ -53,6 +58,8 @@ struct imu_info {
 	int (*read_asix_one)(void *ctrbp, int addr, int *datap);
 	int (*set_accel_offset)(void *ctrbp, int offset, int axis);
 	int (*set_gyro_offset)(void *ctrbp, int offset, int axis);
+	int (*spi_bus_setup)(void *ctrbp);
+	int (*i2c_bus_setup)(void *ctrbp);
 };
 
 struct imu_ctrb {
@@ -67,6 +74,7 @@ struct imu_ctrb {
 	int debugon;
 	int position;
 	bool irq_enable;
+	enum imu_bus_type bus_type;
 };
 
 struct imu_sensor {

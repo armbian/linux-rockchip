@@ -50,7 +50,7 @@ static int invimu_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 		dev_err(&client->dev, "Failed to register i2c regmap: %p\n", regmap);
 		return PTR_ERR(regmap);
 	}
-	return invimu_core_probe(&client->dev, regmap, client->irq, false);
+	return invimu_core_probe(&client->dev, regmap, client->irq, IMU_BUS_I2C);
 }
 
 static int invimu_suspend(struct device *dev)
@@ -64,7 +64,7 @@ static int invimu_resume(struct device *dev)
 	int ret;
 	struct imu_ctrb *ctrb = dev_get_drvdata(dev);
 
-	ret = invimu_chip_init(ctrb, false);
+	ret = invimu_chip_init(ctrb);
 	dev_info(dev, "inv_imu resume:%d\n", ret);
 	return ret;
 }

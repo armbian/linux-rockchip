@@ -178,7 +178,7 @@ static void invimu_work_handler(struct work_struct *work)
 	schedule_delayed_work(&ctrb->pollingwork, msecs_to_jiffies(IMU_POLLING_TIME_MS));
 }
 
-int invimu_chip_init(struct imu_ctrb *ctrb, bool use_spi)
+int invimu_chip_init(struct imu_ctrb *ctrb)
 {
 	if (ctrb == NULL)
 		return -1;
@@ -213,7 +213,8 @@ HWCIMU_PARSE_DT_ERR:
 	return -ENODEV;
 }
 
-int invimu_core_probe(struct device *dev, struct regmap *regmap, int irq, bool use_spi)
+int invimu_core_probe(struct device *dev,
+		      struct regmap *regmap, int irq, enum imu_bus_type bus_type)
 {
 	int i, ret = 0;
 	struct imu_ctrb *ctrb;
@@ -229,6 +230,7 @@ int invimu_core_probe(struct device *dev, struct regmap *regmap, int irq, bool u
 	ctrb->regmap = regmap;
 	ctrb->irq = irq;
 	ctrb->debugon = 0;
+	ctrb->bus_type = bus_type;
 	dev_info(ctrb->dev, "probe start\n");
 
 	info = icm42607_chip_probe(ctrb);
@@ -238,7 +240,7 @@ int invimu_core_probe(struct device *dev, struct regmap *regmap, int irq, bool u
 	}
 	ctrb->chipinfo = info;
 
-	ret = invimu_chip_init(ctrb, use_spi);
+	ret = invimu_chip_init(ctrb);
 	if (ret) {
 		dev_err(ctrb->dev, "chip err\n");
 		return ret;

@@ -228,6 +228,24 @@ static int icm42607_set_default_register(struct imu_ctrb *ctrb)
 	return s ? -EIO : 0;
 }
 
+static int icm42607_spi_bus_setup(void *ctrbp)
+{
+	struct imu_ctrb *ctrb = (struct imu_ctrb *)ctrbp;
+
+	/* disable I2C bus, use SPI only */
+	return regmap_update_bits(ctrb->regmap, REG_INTF_CONFIG0,
+				  BIT_SIFS_CFG_MASK, BIT_SIFS_CFG_SPI_ONLY);
+}
+
+static int icm42607_i2c_bus_setup(void *ctrbp)
+{
+	struct imu_ctrb *ctrb = (struct imu_ctrb *)ctrbp;
+
+	/* disable SPI bus, use I2C only */
+	return regmap_update_bits(ctrb->regmap, REG_INTF_CONFIG0,
+				  BIT_SIFS_CFG_MASK, BIT_SIFS_CFG_I2C_ONLY);
+}
+
 static int icm42607_chip_init(void *ctrbp)
 {
 	struct imu_ctrb *ctrb = (struct imu_ctrb *)ctrbp;
@@ -258,6 +276,21 @@ static int icm42607_chip_init(void *ctrbp)
 	ret = regmap_write(ctrb->regmap, REG_INTF_CONFIG1, val);
 	if (ret)
 		return ret;
+
+	/* Call bus_setup to configure interface (SPI/I2C) */
+	if (ctrb->bus_type == IMU_BUS_SPI && ctrb->chipinfo->spi_bus_setup) {
+		ret = ctrb->chipinfo->spi_bus_setup(ctrb);
+		if (ret) {
+			dev_err(ctrb->dev, "spi_bus_setup fail(%d)\n", ret);
+			return ret;
+		}
+	} else if (ctrb->bus_type == IMU_BUS_I2C && ctrb->chipinfo->i2c_bus_setup) {
+		ret = ctrb->chipinfo->i2c_bus_setup(ctrb);
+		if (ret) {
+			dev_err(ctrb->dev, "i2c_bus_setup fail(%d)\n", ret);
+			return ret;
+		}
+	}
 
 	return icm42607_mode_set(ctrb, IMU_POWER_MODE_DOWN);
 }
@@ -400,6 +433,8 @@ static const struct imu_info icm42607_info = {
 	.read_asix_one = icm42607_read_asix_one,
 	.set_accel_offset = icm42607_set_accel_offset,
 	.set_gyro_offset = icm42607_set_gyro_offset,
+	.spi_bus_setup = icm42607_spi_bus_setup,
+	.i2c_bus_setup = icm42607_i2c_bus_setup,
 };
 
 struct imu_info *icm42607_chip_probe(struct imu_ctrb *ctrb)
