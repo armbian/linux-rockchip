@@ -36,6 +36,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_file.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -318,7 +319,6 @@ struct dw_hdmi {
 
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
-	struct dentry *debugfs_dir;
 	unsigned int sample_non_pcm;
 	unsigned int sample_width;
 	unsigned int sample_rate;
@@ -5032,20 +5032,23 @@ static const struct file_operations dw_hdmi_phy_fops = {
 	.release = single_release,
 };
 
-static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
+void dw_hdmi_register_debugfs(struct dw_hdmi *hdmi)
 {
-	hdmi->debugfs_dir = debugfs_create_dir("dw-hdmi", NULL);
-	if (IS_ERR(hdmi->debugfs_dir)) {
-		dev_err(dev, "failed to create debugfs dir!\n");
+	struct dentry *debugfs_dir;
+
+	debugfs_dir = debugfs_create_dir("hdmi0", hdmi->bridge.dev->primary->debugfs_root);
+	if (IS_ERR(debugfs_dir)) {
+		dev_err(hdmi->dev, "failed to create debugfs dir!\n");
 		return;
 	}
-	debugfs_create_file("status", 0400, hdmi->debugfs_dir,
+	debugfs_create_file("status", 0400, debugfs_dir,
 			    hdmi, &dw_hdmi_status_fops);
-	debugfs_create_file("ctrl", 0400, hdmi->debugfs_dir,
+	debugfs_create_file("ctrl", 0600, debugfs_dir,
 			    hdmi, &dw_hdmi_ctrl_fops);
-	debugfs_create_file("phy", 0400, hdmi->debugfs_dir,
+	debugfs_create_file("phy", 0600, debugfs_dir,
 			    hdmi, &dw_hdmi_phy_fops);
 }
+EXPORT_SYMBOL_GPL(dw_hdmi_register_debugfs);
 
 static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi, u32 val)
 {
@@ -5565,8 +5568,6 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 
 	drm_bridge_add(&hdmi->bridge);
 
-	dw_hdmi_register_debugfs(dev, hdmi);
-
 	if (of_property_read_bool(np, "scramble-low-rates"))
 		hdmi->scramble_low_rates = true;
 
@@ -5598,8 +5599,6 @@ void dw_hdmi_remove(struct dw_hdmi *hdmi)
 	cancel_delayed_work(&hdmi->work);
 	flush_workqueue(hdmi->workqueue);
 	destroy_workqueue(hdmi->workqueue);
-
-	debugfs_remove_recursive(hdmi->debugfs_dir);
 
 	dw_hdcp_unregister_notifier(&hdmi->hdcp2_nb);
 
