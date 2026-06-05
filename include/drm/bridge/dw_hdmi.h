@@ -418,5 +418,6 @@ void dw_hdmi_cec_wake_ops_register(struct dw_hdmi *hdmi,
 int dw_hdmi_qp_register_audio(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_register_cec(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_register_hdcp(struct dw_hdmi_qp *hdmi);
+void dw_hdmi_qp_register_debugfs(struct dw_hdmi_qp *hdmi);
 
 #endif /* __IMX_HDMI_H__ */
