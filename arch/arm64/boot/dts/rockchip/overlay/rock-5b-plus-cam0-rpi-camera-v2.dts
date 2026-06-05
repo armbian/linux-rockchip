@@ -1,0 +1,9 @@
+#include "rock-5b-rpi-camera-v2.dts"
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera V2 on CAM0";
+		compatible = "radxa,rock-5b-plus";
+		description = "Enable Raspberry Pi Camera V2 on CAM0.";
+	};
+};
