@@ -97,8 +97,8 @@
 #define SW_FEC_EN_SHD                   BIT(31)
 
 /* FEC_RD_VIR_STRIDE */
-#define FEC_RD_VIR_STRIDE_Y(x)          ((x) & 0x3fff)
-#define FEC_RD_VIR_STRIDE_C(x)          (((x) & 0x3fff) << 16)
+#define FEC_RD_VIR_STRIDE_Y(x)          ((x) & 0xffff)
+#define FEC_RD_VIR_STRIDE_C(x)          (((x) & 0xffff) << 16)
 
 /* FEC_BG_VALUE */
 #define SW_BG_Y_VALUE(y)                ((y & 0xff))
@@ -114,8 +114,8 @@
 #define Sw_FEC_SRC_HEIGHT(x)            (((x) & 0x1fff) << 16)
 
 /* FEC_WR_VIR_STRIDE */
-#define FEC_WR_VIR_STRIDE_Y(x)          ((x) & 0x3fff)
-#define FEC_WR_VIR_STRIDE_C(x)          (((x) & 0x3fff) << 16)
+#define FEC_WR_VIR_STRIDE_Y(x)          ((x) & 0xffff)
+#define FEC_WR_VIR_STRIDE_C(x)          (((x) & 0xffff) << 16)
 
 /* FEC_WR_FBCE_HEAD_OFFSET */
 #define SW_FEC_WR_FBCE_HEAD_OFFSET(x)   ((x) << 4)

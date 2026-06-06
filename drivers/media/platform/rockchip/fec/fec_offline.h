@@ -87,6 +87,7 @@ struct rkfec_offline_dev {
 	struct rkfec_debug_info debug;
 	struct rkfec_pix_format in_fmt;
 	struct rkfec_pix_format out_fmt;
+	struct rkfec_plane_cfg plane_cfg;
 };
 
 /*
@@ -102,6 +103,12 @@ struct rkfec_offline_buf {
 	int fd;
 	unsigned int memory;
 };
+
+static inline bool rkfec_planes_enabled(const struct rkfec_plane planes[RKFEC_MAX_PLANES])
+{
+	return planes[0].bytesperline || planes[0].offset ||
+	       planes[1].bytesperline || planes[1].offset;
+}
 
 int rkfec_register_offline(struct rkfec_hw_dev *hw);
 void rkfec_unregister_offline(struct rkfec_hw_dev *hw);

@@ -25,6 +25,10 @@ static int rkfec_user_debug;
 module_param_named(user_debug, rkfec_user_debug, int, 0644);
 MODULE_PARM_DESC(user_debug, "Debug level (0-6)");
 
+#define RKFEC_VIR_STRIDE_MAX		0xffff
+#define RKFEC_STRIDE_UNIT		4
+#define RKFEC_FBCE_HEAD_OFFSET_MAX	0x0fffffff
+
 #if IS_LINUX_VERSION_AT_LEAST_6_1
 	#define GET_SG_TABLE(mem_ops, off_buf) mem_ops->cookie(&(off_buf)->vb, (off_buf)->mem)
 #else
@@ -72,6 +76,85 @@ static void rkfec_dvfs(struct rkfec_offline_dev *ofl, int width)
 		 target_rate);
 out:
 	mutex_unlock(&hw->dev_lock);
+}
+
+static int rkfec_validate_vir_stride(struct rkfec_offline_dev *ofl,
+				     const char *name, u32 bytesperline)
+{
+	if (!bytesperline || bytesperline % RKFEC_STRIDE_UNIT) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s bytesperline %u is not %u-byte aligned\n",
+			 name, bytesperline, RKFEC_STRIDE_UNIT);
+		return -EINVAL;
+	}
+
+	if (bytesperline / RKFEC_STRIDE_UNIT > RKFEC_VIR_STRIDE_MAX) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s bytesperline %u exceeds register range\n",
+			 name, bytesperline);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rkfec_validate_plane(struct rkfec_offline_dev *ofl,
+				const char *name,
+				const struct rkfec_plane *plane,
+				u32 rows, size_t size)
+{
+	u64 offset;
+	u64 end;
+	int ret;
+
+	if (!plane->bytesperline) {
+		v4l2_err(&ofl->v4l2_dev, "%s invalid bytesperline %u\n",
+			 name, plane->bytesperline);
+		return -EINVAL;
+	}
+
+	ret = rkfec_validate_vir_stride(ofl, name, plane->bytesperline);
+	if (ret)
+		return ret;
+
+	offset = plane->offset;
+	end = offset + (u64)plane->bytesperline * rows;
+	if (end > size || end < offset) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "%s outside dmabuf: offset %llu stride %u rows %u size %zu\n",
+			 name, offset, plane->bytesperline, rows, size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rkfec_calc_fbce_head_offset(struct rkfec_offline_dev *ofl,
+				       const struct rkfec_plane_cfg *cfg,
+				       u32 *fbce_head_offset)
+{
+	const struct rkfec_plane *head = &cfg->out_planes[0];
+	const struct rkfec_plane *data = &cfg->out_planes[1];
+	u32 row_group = head->offset / head->bytesperline;
+	u64 data_row_offset = (u64)row_group * data->bytesperline;
+	u64 offset;
+
+	if ((u64)data->offset < data_row_offset) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "invalid fbce offsets: data %u < row offset %llu\n",
+			 data->offset, data_row_offset);
+		return -EINVAL;
+	}
+
+	offset = data->offset - data_row_offset;
+	if (offset > RKFEC_FBCE_HEAD_OFFSET_MAX) {
+		v4l2_err(&ofl->v4l2_dev,
+			 "fbce head offset %llu exceeds register range\n", offset);
+		return -EINVAL;
+	}
+
+	*fbce_head_offset = (u32)offset;
+	return 0;
 }
 
 #if IS_LINUX_VERSION_AT_LEAST_6_1
@@ -294,6 +377,10 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 	/* Calculate byte offset based on pixel offset */
 	u32 in_y_start = 0, in_uv_start = 0, out_y_start = 0, out_uv_start = 0;
 	u32 y_base, c_base;
+	struct rkfec_plane_cfg plane_cfg = ofl->plane_cfg;
+	/* Any non-zero plane config field signals explicit byte layout. */
+	bool use_in_planes  = rkfec_planes_enabled(plane_cfg.in_planes);
+	bool use_out_planes = rkfec_planes_enabled(plane_cfg.out_planes);
 	void __iomem *base = ofl->hw->base_addr;
 	int ret = -EINVAL;
 	ktime_t t = 0;
@@ -312,6 +399,13 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 		 "in: stride %d, offset %d, out: stride %d, offset %d\n",
 		 buf->buf_cfg.in_stride, buf->buf_cfg.in_offs,
 		 buf->buf_cfg.out_stride, buf->buf_cfg.out_offs);
+
+	if (buf->buf_cfg.in_stride < 0 || buf->buf_cfg.out_stride < 0 ||
+	    buf->buf_cfg.in_stride > RKFEC_VIR_STRIDE_MAX * RKFEC_STRIDE_UNIT ||
+	    buf->buf_cfg.out_stride > RKFEC_VIR_STRIDE_MAX * RKFEC_STRIDE_UNIT) {
+		v4l2_err(&ofl->v4l2_dev, "invalid stride\n");
+		return -EINVAL;
+	}
 
 	if (hw->fec_ver == RKFEC_V20) {
 		if (hw->soft_reset)
@@ -407,42 +501,135 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 		return -EINVAL;
 	}
 
+	if (!use_in_planes) {
+		ret = rkfec_validate_vir_stride(ofl, "input stride", in_stride);
+		if (ret)
+			return ret;
+	}
+
+	if (!use_out_planes) {
+		ret = rkfec_validate_vir_stride(ofl, "output y stride", out_stride_y);
+		if (ret)
+			return ret;
+
+		ret = rkfec_validate_vir_stride(ofl, "output c stride", out_stride_uv);
+		if (ret)
+			return ret;
+	}
+
 	/* input picture buf */
 	off_buf = buf_add(file, buf->buf_cfg.in_pic_fd, buf->buf_cfg.in_size);
 	if (!off_buf)
 		return -ENOMEM;
 
+	if (use_in_planes) {
+		ret = rkfec_validate_plane(ofl, "input plane[0]",
+					   &plane_cfg.in_planes[0], in_h,
+					   off_buf->dbuf->size);
+		if (ret)
+			goto free_buf;
+
+		ret = rkfec_validate_plane(ofl, "input plane[1]",
+					   &plane_cfg.in_planes[1],
+					   DIV_ROUND_UP(in_h, 2),
+					   off_buf->dbuf->size);
+		if (ret)
+			goto free_buf;
+	}
+
 	sg_talbe = GET_SG_TABLE(mem_ops, off_buf);
 	if (!sg_talbe)
 		goto free_buf;
 	y_base = sg_dma_address(sg_talbe->sgl);
-	c_base = y_base + in_uv_offset;
-	writel(y_base + in_y_start, base + RKFEC_RD_Y_BASE);
-	writel(c_base + in_uv_start, base + RKFEC_RD_C_BASE);
+	if (use_in_planes) {
+		writel(y_base + plane_cfg.in_planes[0].offset,
+		       base + RKFEC_RD_Y_BASE);
+		writel(y_base + plane_cfg.in_planes[1].offset,
+		       base + RKFEC_RD_C_BASE);
+	} else {
+		c_base = y_base + in_uv_offset;
+		writel(y_base + in_y_start,  base + RKFEC_RD_Y_BASE);
+		writel(c_base + in_uv_start, base + RKFEC_RD_C_BASE);
+	}
 
 	/* output picture buf */
 	off_buf = buf_add(file, buf->buf_cfg.out_pic_fd, buf->buf_cfg.out_size);
 	if (!off_buf)
 		goto free_buf;
 
+	if (use_out_planes) {
+		if (buf->out_fourcc == V4L2_PIX_FMT_FBC0) {
+			u32 fbc_rows = DIV_ROUND_UP(out_h, 4);
+
+			ret = rkfec_validate_plane(ofl, "output fbce head",
+						   &plane_cfg.out_planes[0],
+						   fbc_rows, off_buf->dbuf->size);
+			if (ret)
+				goto free_buf;
+
+			ret = rkfec_validate_plane(ofl, "output fbce data",
+						   &plane_cfg.out_planes[1],
+						   fbc_rows, off_buf->dbuf->size);
+			if (ret)
+				goto free_buf;
+		} else {
+			u32 c_rows = buf->out_fourcc == V4L2_PIX_FMT_QUAD ?
+				     out_h : DIV_ROUND_UP(out_h, 2);
+
+			ret = rkfec_validate_plane(ofl, "output plane[0]",
+						   &plane_cfg.out_planes[0], out_h,
+						   off_buf->dbuf->size);
+			if (ret)
+				goto free_buf;
+
+			ret = rkfec_validate_plane(ofl, "output plane[1]",
+						   &plane_cfg.out_planes[1], c_rows,
+						   off_buf->dbuf->size);
+			if (ret)
+				goto free_buf;
+		}
+	}
+
 	sg_talbe = GET_SG_TABLE(mem_ops, off_buf);
 	if (!sg_talbe)
 		goto free_buf;
-	if (buf->out_fourcc == V4L2_PIX_FMT_FBC0) {
+	y_base = sg_dma_address(sg_talbe->sgl);
+	if (use_out_planes) {
+		if (buf->out_fourcc == V4L2_PIX_FMT_FBC0) {
+			u32 fbce_head_offset;
+
+			ret = rkfec_calc_fbce_head_offset(ofl, &plane_cfg,
+							    &fbce_head_offset);
+			if (ret)
+				goto free_buf;
+
+			writel(fbce_head_offset << 4, base + RKFEC_WR_FBCE_HEAD_OFFSET);
+			writel(y_base + plane_cfg.out_planes[1].offset,
+			       base + RKFEC_WR_Y_BASE);
+			writel(y_base + plane_cfg.out_planes[0].offset,
+			       base + RKFEC_WR_C_BASE);
+		} else {
+			writel(y_base + plane_cfg.out_planes[0].offset,
+			       base + RKFEC_WR_Y_BASE);
+			writel(y_base + plane_cfg.out_planes[1].offset,
+			       base + RKFEC_WR_C_BASE);
+		}
+	} else if (buf->out_fourcc == V4L2_PIX_FMT_FBC0) {
 		c_base = sg_dma_address(sg_talbe->sgl);
 		y_base = c_base + out_uv_offset;
 
 		if (buf->buf_cfg.out_offs > 0)
-			writel((out_uv_offset + out_y_start)  << 4,
+			writel((out_uv_offset + out_y_start) << 4,
 			       base + RKFEC_WR_FBCE_HEAD_OFFSET);
 		else
 			writel(out_uv_offset << 4, base + RKFEC_WR_FBCE_HEAD_OFFSET);
+		writel(y_base + out_y_start,  base + RKFEC_WR_Y_BASE);
+		writel(c_base + out_uv_start, base + RKFEC_WR_C_BASE);
 	} else {
-		y_base = sg_dma_address(sg_talbe->sgl);
 		c_base = y_base + out_uv_offset;
+		writel(y_base + out_y_start,  base + RKFEC_WR_Y_BASE);
+		writel(c_base + out_uv_start, base + RKFEC_WR_C_BASE);
 	}
-	writel(y_base + out_y_start, base + RKFEC_WR_Y_BASE);
-	writel(c_base + out_uv_start, base + RKFEC_WR_C_BASE);
 
 	/* lut buf */
 	off_buf = buf_add(file, buf->buf_cfg.lut_fd, buf->buf_cfg.lut_size * BYTES_PER_LUT_POINT);
@@ -460,9 +647,27 @@ static int fec_running(struct file *file, struct rkfec_in_out *buf)
 	writel(val, base + RKFEC_CTRL);
 
 	//stride
-	val = FEC_RD_VIR_STRIDE_Y(in_stride / 4) | FEC_RD_VIR_STRIDE_C(in_stride / 4);
+	if (use_in_planes) {
+		val = FEC_RD_VIR_STRIDE_Y(plane_cfg.in_planes[0].bytesperline / 4) |
+		      FEC_RD_VIR_STRIDE_C(plane_cfg.in_planes[1].bytesperline / 4);
+	} else {
+		val = FEC_RD_VIR_STRIDE_Y(in_stride / 4) |
+		      FEC_RD_VIR_STRIDE_C(in_stride / 4);
+	}
 	writel(val, base + RKFEC_RD_VIR_STRIDE);
-	val = FEC_WR_VIR_STRIDE_Y(out_stride_y / 4) | FEC_WR_VIR_STRIDE_C(out_stride_uv / 4);
+
+	if (use_out_planes) {
+		if (buf->out_fourcc == V4L2_PIX_FMT_FBC0) {
+			val = FEC_WR_VIR_STRIDE_Y(plane_cfg.out_planes[1].bytesperline / 4) |
+			      FEC_WR_VIR_STRIDE_C(plane_cfg.out_planes[0].bytesperline / 4);
+		} else {
+			val = FEC_WR_VIR_STRIDE_Y(plane_cfg.out_planes[0].bytesperline / 4) |
+			      FEC_WR_VIR_STRIDE_C(plane_cfg.out_planes[1].bytesperline / 4);
+		}
+	} else {
+		val = FEC_WR_VIR_STRIDE_Y(out_stride_y / 4) |
+		      FEC_WR_VIR_STRIDE_C(out_stride_uv / 4);
+	}
 	writel(val, base + RKFEC_WR_VIR_STRIDE);
 	//with height lut_size
 	val = SW_FEC_SRC_WIDTH(buf->in_width) | Sw_FEC_SRC_HEIGHT(buf->in_height);
@@ -597,6 +802,9 @@ static long rkfec_ofl_ioctl(struct file *file, void *fh,
 	case RKFEC_CMD_BUF_ALLOC:
 		buf_alloc(file, arg);
 		break;
+	case RKFEC_CMD_PLANE_CFG:
+		ofl->plane_cfg = *(struct rkfec_plane_cfg *)arg;
+		break;
 	case RKFEC_CMD_BUF_ADD:
 		buf = buf_add(file, *(int *)arg, 0);
 		if (!buf)
@@ -652,6 +860,7 @@ static int ofl_release(struct file *file)
 	ret = v4l2_fh_release(file);
 	if (!ret) {
 		buf_del(file, 0, true);
+		memset(&ofl->plane_cfg, 0, sizeof(ofl->plane_cfg));
 		mutex_lock(&ofl->hw->dev_lock);
 		pm_runtime_put_sync(ofl->hw->dev);
 		mutex_unlock(&ofl->hw->dev_lock);

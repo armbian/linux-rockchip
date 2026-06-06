@@ -106,11 +106,24 @@ static int offline_fec_show(struct seq_file *p, void *v)
 	seq_printf(p, "%-10s Cnt:%d ErrCnt:%d\n", "Interrupt", ofl->isr_cnt,
 		   ofl->err_cnt);
 
-	seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d Offset(%d) Sizeimage(%d)\n", "Input",
-		   ofl->in_fmt.pixelformat, ofl->in_fmt.pixelformat >> 8,
-		   ofl->in_fmt.pixelformat >> 16, ofl->in_fmt.pixelformat >> 24,
-		   ofl->in_fmt.width, ofl->in_fmt.height, ofl->in_fmt.offset,
-		   ofl->in_fmt.sizeimage);
+	if (rkfec_planes_enabled(ofl->plane_cfg.in_planes))
+		seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d PlaneOffset(P0:%u P1:%u) PlaneStride(P0:%u P1:%u) Sizeimage(%d)\n",
+			   "Input",
+			   ofl->in_fmt.pixelformat, ofl->in_fmt.pixelformat >> 8,
+			   ofl->in_fmt.pixelformat >> 16, ofl->in_fmt.pixelformat >> 24,
+			   ofl->in_fmt.width, ofl->in_fmt.height,
+			   ofl->plane_cfg.in_planes[0].offset,
+			   ofl->plane_cfg.in_planes[1].offset,
+			   ofl->plane_cfg.in_planes[0].bytesperline,
+			   ofl->plane_cfg.in_planes[1].bytesperline,
+			   ofl->in_fmt.sizeimage);
+	else
+		seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d OffsetX(%d) Sizeimage(%d)\n",
+			   "Input",
+			   ofl->in_fmt.pixelformat, ofl->in_fmt.pixelformat >> 8,
+			   ofl->in_fmt.pixelformat >> 16, ofl->in_fmt.pixelformat >> 24,
+			   ofl->in_fmt.width, ofl->in_fmt.height, ofl->in_fmt.offset,
+			   ofl->in_fmt.sizeimage);
 
 	seq_printf(p, "%-10s (frame:%d rate:%dms state:%s time:%dms frameloss:%d frm_oversdtim_cnt:%d)\n",
 		   "Fec offline",
@@ -121,19 +134,37 @@ static int offline_fec_show(struct seq_file *p, void *v)
 		   ofl->debug.frameloss,
 		   ofl->debug.frame_timeout_cnt);
 
-	seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d Offset(%d) Sizeimage(%d) (frame:%d rate:%dms frameloss:%d\n",
-		   "Output",
-		   ofl->out_fmt.pixelformat,
-		   ofl->out_fmt.pixelformat >> 8,
-		   ofl->out_fmt.pixelformat >> 16,
-		   ofl->out_fmt.pixelformat >> 24,
-		   ofl->out_fmt.width,
-		   ofl->out_fmt.height,
-		   ofl->out_fmt.offset,
-		   ofl->out_fmt.sizeimage,
-		   ofl->curr_frame.fe_seq,
-		   (u32)(ofl->curr_frame.fe_timestamp - ofl->prev_frame.fe_timestamp) / 1000 / 1000,
-		   ofl->debug.frameloss);
+	if (rkfec_planes_enabled(ofl->plane_cfg.out_planes))
+		seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d PlaneOffset(P0:%u P1:%u) PlaneStride(P0:%u P1:%u) Sizeimage(%d) (frame:%d rate:%dms frameloss:%d)\n",
+			   "Output",
+			   ofl->out_fmt.pixelformat,
+			   ofl->out_fmt.pixelformat >> 8,
+			   ofl->out_fmt.pixelformat >> 16,
+			   ofl->out_fmt.pixelformat >> 24,
+			   ofl->out_fmt.width,
+			   ofl->out_fmt.height,
+			   ofl->plane_cfg.out_planes[0].offset,
+			   ofl->plane_cfg.out_planes[1].offset,
+			   ofl->plane_cfg.out_planes[0].bytesperline,
+			   ofl->plane_cfg.out_planes[1].bytesperline,
+			   ofl->out_fmt.sizeimage,
+			   ofl->curr_frame.fe_seq,
+			   (u32)(ofl->curr_frame.fe_timestamp - ofl->prev_frame.fe_timestamp) / 1000 / 1000,
+			   ofl->debug.frameloss);
+	else
+		seq_printf(p, "%-10s Format:%c%c%c%c Size:%dx%d OffsetX(%d) Sizeimage(%d) (frame:%d rate:%dms frameloss:%d)\n",
+			   "Output",
+			   ofl->out_fmt.pixelformat,
+			   ofl->out_fmt.pixelformat >> 8,
+			   ofl->out_fmt.pixelformat >> 16,
+			   ofl->out_fmt.pixelformat >> 24,
+			   ofl->out_fmt.width,
+			   ofl->out_fmt.height,
+			   ofl->out_fmt.offset,
+			   ofl->out_fmt.sizeimage,
+			   ofl->curr_frame.fe_seq,
+			   (u32)(ofl->curr_frame.fe_timestamp - ofl->prev_frame.fe_timestamp) / 1000 / 1000,
+			   ofl->debug.frameloss);
 
 	offline_fec_show_hw(p, hw);
 

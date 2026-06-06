@@ -11,6 +11,9 @@
  *
  * v0.1.0:
  * 1. First version;
+ *
+ * v0.2.0:
+ * 1. Add mplane byte offset UAPI;
  */
 
 #define RKFEC_DRIVER_VERSION RKFEC_API_VERSION
