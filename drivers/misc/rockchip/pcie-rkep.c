@@ -1439,7 +1439,6 @@ static int pcie_rkep_request_irq(struct pcie_rkep *pcie_rkep, u32 irq_type)
 {
 	int nvec, ret = -EINVAL, i;
 
-	/* Using msi as default */
 	nvec = pci_alloc_irq_vectors(pcie_rkep->pdev, 1, RKEP_NUM_IRQ_VECTORS, irq_type);
 	if (nvec < 0) {
 		dev_err(&pcie_rkep->pdev->dev, "fail to allocate interrupt, ret=%d\n", nvec);
@@ -1463,9 +1462,9 @@ static int pcie_rkep_request_irq(struct pcie_rkep *pcie_rkep, u32 irq_type)
 
 	if (ret) {
 		pcie_rkep_release_irq(pcie_rkep);
-		dev_err(&pcie_rkep->pdev->dev, "fail to allocate msi interrupt\n");
+		dev_err(&pcie_rkep->pdev->dev, "fail to allocate interrupt, type=%d\n", irq_type);
 	} else {
-		dev_err(&pcie_rkep->pdev->dev, "success to request msi irq\n");
+		dev_info(&pcie_rkep->pdev->dev, "success to request irq, type=%d\n", irq_type);
 	}
 
 	return ret;
@@ -1599,8 +1598,11 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	init_waitqueue_head(&pcie_rkep->wq_head);
 	ret = pcie_rkep_request_irq(pcie_rkep, PCI_IRQ_MSI);
-	if (ret)
-		goto err_register_irq;
+	if (ret) {
+		ret = pcie_rkep_request_irq(pcie_rkep, PCI_IRQ_LEGACY);
+		if (ret)
+			goto err_register_irq;
+	}
 
 	if (pcie_rkep->bar4) {
 		pcie_rkep->dma_obj = pcie_dw_dmatest_register(&pdev->dev, dmatest_irq);
