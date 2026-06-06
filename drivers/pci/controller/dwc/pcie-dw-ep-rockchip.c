@@ -52,6 +52,9 @@
 #define  PCIE_LTSSM_APP_DLY2_DONE	BIT(3)
 #define  PCIE_LTSSM_ENABLE_ENHANCE      BIT(4)
 
+#define PCIE_CLIENT_MSG_GEN_CON		0x34
+#define  PCIE_LEGACY_INT_REQ		BIT(1)
+
 #define PCIE_CLIENT_MSI_GEN_CON		0x38
 #define  PCIe_CLIENT_MSI_OBJ_IRQ	0	/* rockchip ep object special irq */
 
@@ -121,6 +124,9 @@
 
 #define PCIE_DBI_SIZE			0x400000
 
+/* assertion time of INTx in usec */
+#define PCL_INTX_WIDTH_USEC		100
+
 /* PCIe EP object */
 #define PCIE_EP_OBJ_INFO_DRV_VERSION	0x00030300
 
@@ -170,6 +176,7 @@ struct rockchip_pcie {
 	int				irq;
 	struct workqueue_struct		*hot_rst_wq;
 	struct work_struct		hot_rst_work;
+	u32				irq_pci_type;
 
 	/* debugfs */
 	struct dentry			*debugfs;
@@ -684,9 +691,41 @@ static void rockchip_pcie_elbi_clear(struct rockchip_pcie *rockchip)
 	}
 }
 
+static bool rockchip_pcie_check_legacy_intx_en(struct rockchip_pcie *rockchip)
+{
+	struct dw_pcie *pci = &rockchip->pci;
+
+	return !(dw_pcie_readl_dbi(pci, PCI_COMMAND) & PCI_COMMAND_INTX_DISABLE);
+}
+
 static void rockchip_pcie_raise_msi_irq(struct rockchip_pcie *rockchip, u8 interrupt_num)
 {
 	rockchip_pcie_writel_apb(rockchip, BIT(interrupt_num), PCIE_CLIENT_MSI_GEN_CON);
+}
+
+static void rockchip_pcie_raise_legacy_irq(struct rockchip_pcie *rockchip)
+{
+	rockchip_pcie_writel_apb(rockchip, (PCIE_LEGACY_INT_REQ << 16) | PCIE_LEGACY_INT_REQ, PCIE_CLIENT_MSG_GEN_CON);
+	udelay(PCL_INTX_WIDTH_USEC);
+	rockchip_pcie_writel_apb(rockchip, PCIE_LEGACY_INT_REQ << 16, PCIE_CLIENT_MSG_GEN_CON);
+}
+
+static int rockchip_pcie_trigger_irq(struct rockchip_pcie *rockchip)
+{
+	if (rockchip->irq_pci_type == 0) {
+		if (rockchip_pcie_check_legacy_intx_en(rockchip))
+			rockchip->irq_pci_type = PCI_IRQ_LEGACY;
+		else
+			rockchip->irq_pci_type = PCI_IRQ_MSI;
+	}
+
+	dev_dbg(rockchip->pci.dev, "raise  irq_user type=%d", rockchip->irq_pci_type);
+	if (rockchip->irq_pci_type == PCI_IRQ_LEGACY)
+		rockchip_pcie_raise_legacy_irq(rockchip);
+	else
+		rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
+
+	return 0;
 }
 
 static int rockchip_pcie_raise_irq_user(struct rockchip_pcie *rockchip, u32 index)
@@ -700,7 +739,7 @@ static int rockchip_pcie_raise_irq_user(struct rockchip_pcie *rockchip, u32 inde
 	mutex_lock(&rockchip->ctrl_mutex);
 	rockchip->obj_info->irq_type_rc = OBJ_IRQ_USER;
 	rockchip->obj_info->irq_user_data_rc = index;
-	rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
+	rockchip_pcie_trigger_irq(rockchip);
 	mutex_unlock(&rockchip->ctrl_mutex);
 
 	return 0;
@@ -835,7 +874,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 		rockchip->obj_info->irq_type_rc = OBJ_IRQ_DMA;
 		rockchip->obj_info->dma_status_rc.wr |= wr_status.asdword;
 		rockchip->obj_info->dma_status_rc.rd |= rd_status.asdword;
-		rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
+		rockchip_pcie_trigger_irq(rockchip);
 
 		rockchip->obj_info->irq_type_ep = OBJ_IRQ_DMA;
 		rockchip->obj_info->dma_status_ep.wr |= wr_status.asdword;
