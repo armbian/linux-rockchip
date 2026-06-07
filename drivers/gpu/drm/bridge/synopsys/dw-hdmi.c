@@ -3056,7 +3056,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 		hdmi->hdmi_data.enc_in_encoding =
 			hdmi->plat_data->input_bus_encoding;
 	else
-		hdmi->hdmi_data.enc_in_encoding = V4L2_YCBCR_ENC_DEFAULT;
+		hdmi->hdmi_data.enc_in_encoding = DRM_MODE_COLORIMETRY_DEFAULT;
 
 
 	if (hdmi->plat_data->get_quant_range)
@@ -3809,7 +3809,8 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 {
 	unsigned int color = MEDIA_BUS_FMT_YUV8_1X24;
-	int video_mapping, colorspace;
+	unsigned int colorimetry = 0;
+	int video_mapping = 0, colorspace = 0;
 	enum drm_connector_status connect_status =
 		hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 	const struct dw_hdmi_property_ops *ops =
@@ -3820,6 +3821,8 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 				  HDMI_TX_INVID0_VIDEO_MAPPING_MASK);
 		colorspace = (hdmi_readb(hdmi, HDMI_FC_AVICONF0) &
 			      HDMI_FC_AVICONF0_PIX_FMT_MASK);
+		colorimetry = (hdmi_readb(hdmi, HDMI_FC_AVICONF1) &
+			       HDMI_FC_AVICONF1_COLORIMETRY_MASK);
 		switch (video_mapping) {
 		case 0x01:
 			color = MEDIA_BUS_FMT_RGB888_1X24;
@@ -3855,8 +3858,25 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 				video_mapping);
 		}
 
+		switch (colorimetry) {
+		case HDMI_FC_AVICONF1_COLORIMETRY_SMPTE:
+			colorimetry = DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
+			break;
+		case HDMI_FC_AVICONF1_COLORIMETRY_ITUR:
+			colorimetry = DRM_MODE_COLORIMETRY_BT709_YCC;
+			break;
+		case HDMI_FC_AVICONF1_COLORIMETRY_EXTENDED_INFO:
+			colorimetry = DRM_MODE_COLORIMETRY_BT2020_RGB;
+			break;
+		default:
+			colorimetry = DRM_MODE_COLORIMETRY_DEFAULT;
+			break;
+		}
+
 		hdmi->hdmi_data.enc_in_bus_format = color;
 		hdmi->hdmi_data.enc_out_bus_format = color;
+		hdmi->hdmi_data.enc_in_encoding = colorimetry;
+		hdmi->hdmi_data.enc_out_encoding = colorimetry;
 		/*
 		 * input format will be set as yuv444 when output
 		 * format is yuv420
@@ -3870,8 +3890,7 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 	}
 
 	if (ops && ops->attach_properties)
-		return ops->attach_properties(&hdmi->connector,
-					      color, hdmi->version,
+		return ops->attach_properties(&hdmi->connector, color, colorimetry, hdmi->version,
 					      hdmi->plat_data->phy_data, 0);
 }
 

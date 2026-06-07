@@ -2761,7 +2761,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi->hdmi_data.enc_in_encoding =
 			hdmi->plat_data->input_bus_encoding;
 	else
-		hdmi->hdmi_data.enc_in_encoding = V4L2_YCBCR_ENC_DEFAULT;
+		hdmi->hdmi_data.enc_in_encoding = DRM_MODE_COLORIMETRY_DEFAULT;
 
 	if (hdmi->plat_data->get_quant_range)
 		hdmi->hdmi_data.quant_range =
@@ -3408,8 +3408,9 @@ static u64 dw_hdmi_qp_get_color_fmt(struct dw_hdmi_qp *hdmi)
 
 static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 {
-	u32 val;
+	u32 val = 0;
 	u64 color = MEDIA_BUS_FMT_YUV8_1X24;
+	u32 reg_val = 0, colorimetry = 0, ec = 0;
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
 	enum drm_connector_status connect_status =
@@ -3424,6 +3425,33 @@ static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 			hdmi->allm_enable = true;
 		else
 			hdmi->allm_enable = false;
+
+		/* get uboot colorimetry */
+		reg_val = hdmi_readl(hdmi, PKT_AVI_CONTENTS1);
+		colorimetry = (reg_val >> 22) & 0x3;
+
+		if (colorimetry == HDMI_COLORIMETRY_EXTENDED) {
+			ec = (reg_val >> 28) & 0x7;
+			switch (ec) {
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_601:
+				val = DRM_MODE_COLORIMETRY_SMPTE_170M_YCC;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_709:
+				val = DRM_MODE_COLORIMETRY_BT709_YCC;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				val = DRM_MODE_COLORIMETRY_BT2020_RGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_RESERVED:
+				val = DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65;
+				break;
+			default:
+				val = DRM_MODE_COLORIMETRY_DEFAULT;
+				break;
+			}
+		} else {
+			val = colorimetry;
+		}
 	}
 
 	/*
@@ -3436,7 +3464,7 @@ static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 		color = MEDIA_BUS_FMT_YUYV8_1X16;
 
 	if (ops && ops->attach_properties)
-		return ops->attach_properties(&hdmi->connector, color, 0,
+		return ops->attach_properties(&hdmi->connector, color, val, 0,
 					      hdmi->plat_data->phy_data, hdmi->allm_enable);
 }
 

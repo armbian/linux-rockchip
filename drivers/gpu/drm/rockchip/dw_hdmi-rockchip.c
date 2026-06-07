@@ -1561,9 +1561,8 @@ static const struct drm_prop_enum_list output_type_cap_list[] = {
 };
 
 static void
-dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
-				   unsigned int color, int version,
-				   void *data, bool allm_en)
+dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, unsigned int color,
+				   unsigned int colorimetry, int version, void *data, bool allm_en)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	struct drm_property *prop;
@@ -1574,6 +1573,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 
 	hdmi->bus_format = color;
 	hdmi->prev_bus_format = color;
+	hdmi->enc_out_encoding = colorimetry;
 
 	if (hdmi->hdmi_output == RK_IF_FORMAT_YCBCR422) {
 		if (hdmi->colordepth == 12)

@@ -194,9 +194,8 @@ struct dw_hdmi_qp_phy_ops {
 };
 
 struct dw_hdmi_property_ops {
-	void (*attach_properties)(struct drm_connector *connector,
-				  unsigned int color, int version,
-				  void *data, bool allm_en);
+	void (*attach_properties)(struct drm_connector *connector, unsigned int color,
+				  unsigned int colorimetry, int version, void *data, bool allm_en);
 	void (*destroy_properties)(struct drm_connector *connector,
 				   void *data);
 	int (*set_property)(struct drm_connector *connector,
