@@ -4778,13 +4778,14 @@ static int dw_hdmi_status_show(struct seq_file *s, void *v)
 	seq_printf(s, "\t\tColor Depth: %d bit\n", val);
 	seq_puts(s, "Colorimetry: ");
 	switch (hdmi->hdmi_data.enc_out_encoding) {
-	case V4L2_YCBCR_ENC_601:
+	case DRM_MODE_COLORIMETRY_SMPTE_170M_YCC:
 		seq_puts(s, "ITU.BT601");
 		break;
-	case V4L2_YCBCR_ENC_709:
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
 		seq_puts(s, "ITU.BT709");
 		break;
-	case V4L2_YCBCR_ENC_BT2020:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
 		seq_puts(s, "ITU.BT2020");
 		break;
 	default: /* Carries no data */
