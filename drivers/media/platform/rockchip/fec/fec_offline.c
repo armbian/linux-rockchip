@@ -774,12 +774,21 @@ free_buf:
 	return ret;
 }
 
+static int rkfec_query_version(struct rkfec_version *version)
+{
+	version->api_version = RKFEC_API_VERSION;
+	version->in_out_size = sizeof(struct rkfec_in_out);
+
+	return 0;
+}
+
 static long rkfec_ofl_ioctl(struct file *file, void *fh,
 		bool valid_prio,
 		unsigned int cmd, void *arg)
 {
 	struct rkfec_offline_dev *ofl = video_drvdata(file);
 	struct rkfec_offline_buf *buf = NULL;
+	struct rkfec_version *version;
 	long ret = 0;
 
 	ofl->pm_need_wait = true;
@@ -804,6 +813,10 @@ static long rkfec_ofl_ioctl(struct file *file, void *fh,
 		break;
 	case RKFEC_CMD_PLANE_CFG:
 		ofl->plane_cfg = *(struct rkfec_plane_cfg *)arg;
+		break;
+	case RKFEC_CMD_QUERY_VERSION:
+		version = arg;
+		ret = rkfec_query_version(version);
 		break;
 	case RKFEC_CMD_BUF_ADD:
 		buf = buf_add(file, *(int *)arg, 0);

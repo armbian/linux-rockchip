@@ -8,9 +8,10 @@
 #define _UAPI_RK_FEC_CONFIG_H
 
 #include <linux/types.h>
+#include <linux/version.h>
 #include <linux/v4l2-controls.h>
 
-#define RKFEC_API_VERSION		KERNEL_VERSION(0, 2, 0)
+#define RKFEC_API_VERSION		KERNEL_VERSION(0, 3, 0)
 
 #define FEC_BUF_CNT		3
 /* Number of bytes per point in the LUT */
@@ -31,6 +32,9 @@
 
 #define RKFEC_CMD_PLANE_CFG \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 11, struct rkfec_plane_cfg)
+
+#define RKFEC_CMD_QUERY_VERSION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkfec_version)
 
 #define RKFEC_MAX_PLANES	2
 
@@ -145,6 +149,11 @@ struct rkfec_in_out {
 	struct rkfec_core_ctrl core_ctrl;
 	struct rkfec_bg_val bg_val;
 } __attribute__ ((packed));
+
+struct rkfec_version {
+	__u32 api_version;
+	__u32 in_out_size;
+} __attribute__((packed));
 
 struct rkfec_buf {
 	int size;
