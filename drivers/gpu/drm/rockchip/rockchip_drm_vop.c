@@ -4879,7 +4879,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 		brightness = interpolate(0, -32, 100, 31, s->tv_state->brightness);
 
 	if ((VOP_MAJOR(vop->version) == 3) ||
-	    (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 6)) { /* px30 vopb */
+	    vop->version == VOP_VERSION_PX30_BIG || vop->version >= VOP_VERSION_RV1126) {
 		contrast = interpolate(0, 0, 100, 511, s->tv_state->contrast);
 		saturation = interpolate(0, 0, 100, 511, s->tv_state->saturation);
 		/*
