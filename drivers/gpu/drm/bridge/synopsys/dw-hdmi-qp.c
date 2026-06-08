@@ -1694,6 +1694,137 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	hdmi_modb(hdmi, PKTSCHED_AVI_TX_EN, PKTSCHED_AVI_TX_EN, PKTSCHED_PKT_EN);
 }
 
+/*
+ * The DW HDMI QP IP stores the AVI infoframe across the PKT_AVI_CONTENTS
+ * registers. PKT_AVI_CONTENTS0 holds version (bits [15:8]) and length
+ * (bits [23:16]), while PKT_AVI_CONTENTS1..N hold the raw infoframe bytes
+ * starting from byte 3 (checksum) in little-endian dword order.
+ *
+ * This function reconstructs the raw AVI infoframe buffer in the
+ * standard format expected by hdmi_infoframe_unpack().
+ * AVI version 4 has a 14-byte payload; version 2/3 have 13 bytes.
+ * Returns the total buffer length or a negative error code.
+ */
+
+static int dw_hdmi_qp_read_avi_infoframe(struct dw_hdmi_qp *hdmi,
+					  u8 *buffer, size_t buf_size)
+{
+	u8 version, length;
+	int i, j, total_len, bytes_to_read;
+	u32 val;
+
+	val = hdmi_readl(hdmi, PKT_AVI_CONTENTS0);
+	version = (val >> 8) & 0xFF;
+	length = (val >> 16) & 0xFF;
+
+	/*
+	 * A valid AVI infoframe has length 13 (version 2/3) or 14
+	 * (version 4).  Guard against bogus hardware values.
+	 */
+	if (length < HDMI_AVI_INFOFRAME_SIZE || length > HDMI_AVI_V4_PAYLOAD_LEN)
+		return -EINVAL;
+
+	total_len = HDMI_INFOFRAME_HEADER_SIZE + length;
+	if (total_len > buf_size)
+		return -ENOSPC;
+
+	buffer[0] = HDMI_INFOFRAME_TYPE_AVI;
+	buffer[1] = version;
+	buffer[2] = length;
+
+	/*
+	 * PKT_AVI_CONTENTS1..N hold the checksum byte (buffer[3])
+	 * followed by the payload bytes. Each register packs 4 bytes
+	 * in little-endian order.
+	 */
+	bytes_to_read = 1 + length; /* checksum + payload */
+	for (i = 0; i < 7 && bytes_to_read > 0; i++) {
+		val = hdmi_readl(hdmi, PKT_AVI_CONTENTS1 + i * 4);
+		for (j = 0; j < 4 && bytes_to_read > 0; j++, bytes_to_read--) {
+			buffer[HDMI_INFOFRAME_HEADER_SIZE - 1 + i * 4 + j] =
+				(val >> (j * 8)) & 0xFF;
+		}
+	}
+
+	return total_len;
+}
+
+static void dw_hdmi_qp_dev_print_hex_dump(const struct device *dev,
+					   const char *level,
+					   const char *prefix_str,
+					   int prefix_type,
+					   int rowsize, int groupsize,
+					   const void *buf, size_t len,
+					   bool ascii)
+{
+	char dev_prefix[64];
+
+	snprintf(dev_prefix, sizeof(dev_prefix), "%s %s: %s",
+		 dev_driver_string(dev), dev_name(dev), prefix_str);
+	print_hex_dump(level, dev_prefix, prefix_type, rowsize, groupsize,
+		       buf, len, ascii);
+}
+
+static void dw_hdmi_qp_dump_avi_infoframe(struct dw_hdmi_qp *hdmi)
+{
+	u8 buffer[HDMI_INFOFRAME_SIZE(AVI) + 1]; /* v4 needs 18 bytes */
+	u8 orig_version, orig_length;
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = dw_hdmi_qp_read_avi_infoframe(hdmi, buffer, sizeof(buffer));
+	if (ret < 0) {
+		dev_dbg(hdmi->dev, "failed to read AVI infoframe: %d\n", ret);
+		return;
+	}
+
+	dw_hdmi_qp_dev_print_hex_dump(hdmi->dev, KERN_INFO, "AVI infoframe raw: ",
+				       DUMP_PREFIX_NONE, 16, 1,
+				       buffer, ret, false);
+
+	orig_version = buffer[1];
+	orig_length = buffer[2];
+
+	/*
+	 * hdmi_infoframe_unpack() only accepts version-2 / length-13
+	 * AVI frames. Temporarily rewrite the header so the kernel
+	 * helpers can parse the common fields. The payload layout is
+	 * identical for versions 2–4.
+	 */
+	buffer[1] = 2;
+	buffer[2] = HDMI_AVI_INFOFRAME_SIZE;
+
+	if (orig_version >= 3)
+		hdmi_infoframe_set_checksum(buffer, HDMI_AVI_INFO_V3_LEN);
+	ret = hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer));
+	if (ret) {
+		dev_dbg(hdmi->dev, "failed to unpack AVI infoframe\n");
+		return;
+	}
+
+	/*
+	 * hdmi_infoframe_unpack() only accepts version 2 which vic
+	 * is only 7 bits. If mode vic >= 128 must use avi version 3 or 4
+	 * which vic is 8 bits
+	 */
+	if (orig_version >= 3)
+		frame.avi.video_code = buffer[7];
+
+	hdmi_infoframe_log(KERN_INFO, hdmi->dev, &frame);
+
+	/*
+	 * HDMI 2.1 AVI version 4 payload byte 14 carries the
+	 * Additional Colorimetry Extension (ACE).
+	 */
+	if (orig_version >= 4 && orig_length >= HDMI_AVI_V4_PAYLOAD_LEN) {
+		u8 ace_byte = buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_V4_PAYLOAD_LEN - 1];
+		u8 ace = (ace_byte >> 4) & 0xf;
+
+		dev_info(hdmi->dev, "    Additional Colorimetry Extension: %s (0x%x)\n", ace == 0 ?
+			 "DCI-P3 RGB (D65)" : ace == 1 ? "DCI-P3 RGB (Theater)" : "Reserved", ace);
+	}
+}
+
 #define VSI_PKT_TYPE		0x81
 #define VSI_PKT_VERSION		1
 #define HDMI_FORUM_OUI		0xc45dd8
@@ -3925,6 +4056,9 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 				hdmi->plat_data->set_emp_bypass(data, false);
 			hdmi_modb(hdmi, 0, PKTSCHED_EMP_EXTMEM_TX_EN, PKTSCHED_PKT_EN);
 		}
+
+		if (drm_debug_enabled(DRM_UT_DRIVER))
+			dw_hdmi_qp_dump_avi_infoframe(hdmi);
 	}
 }
 
