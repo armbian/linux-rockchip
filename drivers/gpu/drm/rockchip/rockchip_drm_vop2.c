@@ -2195,7 +2195,8 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 
 	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID) {
 		if (vop2->version < VOP_VERSION_RK3572)
-			VOP_CTRL_SET(vop2, win_cfg_done, vp->win_cfg_done_bits);
+			vop2_writel(vop2, RK3588_SYS_WIN_REG_CFG_DONE,
+				    vp->win_cfg_done_bits | (vp->win_cfg_done_bits << 16));
 		val = RK3568_VOP2_GLB_CFG_DONE_EN | RK3568_VOP2_WB_CFG_DONE |
 		      (RK3568_VOP2_WB_CFG_DONE << 16) | BIT(vp_data->reg_done_bit) |
 		      (BIT(vp_data->reg_done_bit) << 16);
