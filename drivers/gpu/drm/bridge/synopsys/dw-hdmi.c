@@ -2541,6 +2541,135 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, (frame.right_bar >> 8) & 0xff, HDMI_FC_AVISRB1);
 }
 
+/*
+ * The DW HDMI (non-QP) IP stores the AVI infoframe across byte-level
+ * FC_AVICONF registers. This function reads them back, converts the
+ * DW-specific bit layout to the standard AVI infoframe format, and
+ * computes the checksum so that hdmi_infoframe_unpack() can parse it.
+ */
+static int dw_hdmi_read_avi_infoframe(struct dw_hdmi *hdmi,
+				      u8 *buffer, size_t buf_size)
+{
+	u8 aviconf0, aviconf1, aviconf2, avivid, aviconf3, prconf;
+	int total_len = HDMI_INFOFRAME_SIZE(AVI);
+
+	if (total_len > buf_size)
+		return -ENOSPC;
+
+	memset(buffer, 0, buf_size);
+
+	buffer[0] = HDMI_INFOFRAME_TYPE_AVI;
+	buffer[1] = 2;
+	buffer[2] = HDMI_AVI_INFOFRAME_SIZE;
+	buffer[3] = 0; /* checksum placeholder */
+
+	aviconf0 = hdmi_readb(hdmi, HDMI_FC_AVICONF0);
+	aviconf1 = hdmi_readb(hdmi, HDMI_FC_AVICONF1);
+	aviconf2 = hdmi_readb(hdmi, HDMI_FC_AVICONF2);
+	avivid   = hdmi_readb(hdmi, HDMI_FC_AVIVID);
+	aviconf3 = hdmi_readb(hdmi, HDMI_FC_AVICONF3);
+	prconf   = hdmi_readb(hdmi, HDMI_FC_PRCONF);
+
+	/*
+	 * PB0 (Data Byte 1): DW FC_AVICONF0 bit layout differs from
+	 * the standard — colorspace and scan info are swapped, and the
+	 * active-format-info-present bit (A0) is at a different
+	 * position.  Bar data bits are identical.
+	 *
+	 * DW FC_AVICONF0  bit layout → standard PB0:
+	 *   [1:0] colorspace     → [6:5]
+	 *   [3:2] bar data       → [3:2]  (identical)
+	 *   [5:4] scan info      → [1:0]
+	 *   [6]   active fmt info→ [4]
+	 */
+	buffer[4] = ((aviconf0 & 0x03) << 5) |	/* colorspace [1:0] → [6:5] */
+		    (aviconf0 & 0x0c) |		/* bar data   [3:2] → [3:2] */
+		    ((aviconf0 & 0x30) >> 4) |	/* scan info  [5:4] → [1:0] */
+		    ((aviconf0 & 0x40) >> 2);	/* act fmt info [6]→ [4] */
+
+	/* PB1 (Data Byte 2): DW FC_AVICONF1 matches the standard layout */
+	buffer[5] = aviconf1;
+
+	/* PB2 (Data Byte 3): DW FC_AVICONF2 matches the standard layout */
+	buffer[6] = aviconf2;
+
+	/* PB3 (Data Byte 4): VIC */
+	buffer[7] = avivid;
+
+	/*
+	 * PB4 (Data Byte 5): DW FC_AVICONF3 holds YCC quant range at
+	 * [3:2] and content type at [1:0]; the standard expects them
+	 * at [7:6] and [5:4] respectively.  Pixel repetition lives in
+	 * the separate FC_PRCONF register.
+	 */
+	buffer[8] = ((aviconf3 & 0x0c) << 4) |	/* YCC quant  [3:2] → [7:6] */
+		    ((aviconf3 & 0x03) << 4) |	/* content type [1:0]→ [5:4] */
+		    (prconf & 0x0f);		/* pixel repeat from PRCONF[3:0] */
+
+	/* PB5–PB12 (Data Bytes 6–13): bar values */
+	buffer[9]  = hdmi_readb(hdmi, HDMI_FC_AVIETB0);
+	buffer[10] = hdmi_readb(hdmi, HDMI_FC_AVIETB1);
+	buffer[11] = hdmi_readb(hdmi, HDMI_FC_AVISBB0);
+	buffer[12] = hdmi_readb(hdmi, HDMI_FC_AVISBB1);
+	buffer[13] = hdmi_readb(hdmi, HDMI_FC_AVIELB0);
+	buffer[14] = hdmi_readb(hdmi, HDMI_FC_AVIELB1);
+	buffer[15] = hdmi_readb(hdmi, HDMI_FC_AVISRB0);
+	buffer[16] = hdmi_readb(hdmi, HDMI_FC_AVISRB1);
+
+	/* Compute checksum: buffer[3] = 256 - sum(buffer[0..total_len-1]) */
+	{
+		u8 csum = 0;
+		int i;
+
+		for (i = 0; i < total_len; i++)
+			csum += buffer[i];
+		buffer[3] = 256 - csum;
+	}
+
+	return total_len;
+}
+
+static void dw_hdmi_dev_print_hex_dump(const struct device *dev,
+				       const char *level,
+				       const char *prefix_str,
+				       int prefix_type,
+				       int rowsize, int groupsize,
+				       const void *buf, size_t len,
+				       bool ascii)
+{
+	char dev_prefix[64];
+
+	snprintf(dev_prefix, sizeof(dev_prefix), "%s %s: %s",
+		 dev_driver_string(dev), dev_name(dev), prefix_str);
+	print_hex_dump(level, dev_prefix, prefix_type, rowsize, groupsize,
+		       buf, len, ascii);
+}
+
+static void dw_hdmi_dump_avi_infoframe(struct dw_hdmi *hdmi)
+{
+	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = dw_hdmi_read_avi_infoframe(hdmi, buffer, sizeof(buffer));
+	if (ret < 0) {
+		dev_dbg(hdmi->dev, "failed to read AVI infoframe: %d\n", ret);
+		return;
+	}
+
+	dw_hdmi_dev_print_hex_dump(hdmi->dev, KERN_INFO, "AVI infoframe raw: ",
+				   DUMP_PREFIX_NONE, 16, 1,
+				   buffer, ret, false);
+
+	ret = hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer));
+	if (ret) {
+		dev_dbg(hdmi->dev, "failed to unpack AVI infoframe\n");
+		return;
+	}
+
+	hdmi_infoframe_log(KERN_INFO, hdmi->dev, &frame);
+}
+
 static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi *hdmi,
 						  const struct drm_connector *connector,
 						  const struct drm_display_mode *mode)
@@ -3737,6 +3866,9 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->update = false;
 	}
+
+	if (!hdmi->disabled && drm_debug_enabled(DRM_UT_DRIVER))
+		dw_hdmi_dump_avi_infoframe(hdmi);
 }
 
 void dw_hdmi_set_output_type(struct dw_hdmi *hdmi, u64 val)
