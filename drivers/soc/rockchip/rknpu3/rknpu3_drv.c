@@ -133,6 +133,26 @@ static int rknpu3_get_driver_version(uint32_t *version_code)
 static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev);
 static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev);
 
+#ifndef FPGA_PLATFORM
+static int rknpu3_wait_iommu_disabled(struct rknpu3_device *rknpu3_dev)
+{
+	struct device *dev = rknpu3_dev->dev;
+	bool enabled;
+	int ret;
+
+	if (!rknpu3_dev->iommu_en)
+		return 0;
+
+	ret = read_poll_timeout(rockchip_iommu_is_enabled, enabled, !enabled,
+				NPU_MMU_DISABLED_POLL_PERIOD_US,
+				NPU_MMU_DISABLED_POLL_TIMEOUT_US, false, dev);
+	if (ret)
+		LOG_DEV_ERROR(dev, "timed out waiting for IOMMU disabled\n");
+
+	return ret;
+}
+#endif
+
 static void rknpu3_power_off_delay_work(struct work_struct *power_off_work)
 {
 	int ret = 0;
@@ -251,11 +271,10 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev)
 #endif
 
 	/* Enable runtime PM */
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		LOG_DEV_ERROR(dev,
 			      "failed to get pm runtime for rknpu: %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		goto err_devfreq_unlock;
 	}
 
@@ -294,9 +313,25 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 #endif
 
 	/* Release runtime PM */
-	pm_runtime_put_sync(dev);
+	ret = pm_runtime_put_sync_suspend(dev);
+	if (ret < 0) {
+		LOG_DEV_ERROR(dev, "failed to put pm runtime for rknpu: %d\n", ret);
+		goto err_devfreq_unlock;
+	}
 
 #ifndef FPGA_PLATFORM
+	ret = rknpu3_wait_iommu_disabled(rknpu3_dev);
+	if (ret) {
+		int resume_ret;
+
+		resume_ret = pm_runtime_resume_and_get(dev);
+		if (resume_ret < 0)
+			LOG_DEV_ERROR(dev,
+				      "failed to restore pm runtime for rknpu: %d\n",
+				      resume_ret);
+		goto err_devfreq_unlock;
+	}
+
 	rknpu3_devfreq_unlock(rknpu3_dev);
 #endif
 
@@ -313,6 +348,12 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 		regulator_disable(rknpu3_dev->vdd);
 #endif
 
+	return ret;
+
+err_devfreq_unlock:
+#ifndef FPGA_PLATFORM
+	rknpu3_devfreq_unlock(rknpu3_dev);
+#endif
 	return ret;
 }
 
