@@ -3902,7 +3902,7 @@ static int dw_dp_mst_connector_detect(struct drm_connector *connector,
 	if (drm_connector_is_unregistered(connector))
 		return connector_status_disconnected;
 
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST, &dpcd);
+	ret = drm_dp_dpcd_readb(&mst_conn->port->aux, DP_DPRX_FEATURE_ENUMERATION_LIST, &dpcd);
 	if (ret < 0)
 		return connector_status_disconnected;
 
