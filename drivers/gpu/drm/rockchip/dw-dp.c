@@ -347,6 +347,7 @@ struct dw_dp_video {
 	u8 color_format;
 	u8 bpc;
 	u8 bpp;
+	int eotf_type;
 };
 
 enum audio_format {
@@ -510,7 +511,6 @@ struct dw_dp {
 
 	struct rockchip_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
-	int eotf_type;
 
 	u8 pixel_mode;
 	u32 max_link_rate;
@@ -2648,9 +2648,8 @@ static void dw_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	sdp->flags |= DPTX_SDP_VERTICAL_INTERVAL;
 }
 
-static int dw_dp_send_vsc_sdp(struct dw_dp *dp, int stream_id)
+static int dw_dp_send_vsc_sdp(struct dw_dp *dp, struct dw_dp_video *video, int stream_id)
 {
-	struct dw_dp_video *video = &dp->video;
 	struct drm_dp_vsc_sdp vsc = {};
 	struct dw_dp_sdp sdp = {};
 
@@ -2675,13 +2674,13 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp, int stream_id)
 	}
 
 	if (video->color_format == DRM_COLOR_FORMAT_RGB444) {
-		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		if (dw_dp_is_hdr_eotf(video->eotf_type))
 			vsc.colorimetry = DP_COLORIMETRY_BT2020_RGB;
 		else
 			vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
 		vsc.dynamic_range = DP_DYNAMIC_RANGE_VESA;
 	} else {
-		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		if (dw_dp_is_hdr_eotf(video->eotf_type))
 			vsc.colorimetry = DP_COLORIMETRY_BT2020_YCC;
 		else
 			vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
@@ -2732,7 +2731,8 @@ static ssize_t dw_dp_hdr_metadata_infoframe_sdp_pack(struct dw_dp *dp,
 	return sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE;
 }
 
-static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp, int stream_id)
+static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp, struct drm_connector *conn,
+						 int stream_id)
 {
 	struct hdmi_drm_infoframe drm_infoframe = {};
 	struct dw_dp_sdp sdp = {};
@@ -2740,7 +2740,7 @@ static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp, int stream_id
 	int ret;
 
 	sdp.stream_id = stream_id;
-	conn_state = dp->connector.state;
+	conn_state = conn->state;
 
 	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
 	if (ret) {
@@ -2770,10 +2770,9 @@ static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, int stream_id, u8 pixel_
 	return 0;
 }
 
-static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp, int stream_id)
+static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp, struct dw_dp_video *video, int stream_id)
 {
 	struct dw_dp_link *link = &dp->link;
-	struct dw_dp_video *video = &dp->video;
 
 	if (dp->is_mst) {
 		struct dw_dp_mst_conn *mst_conn = dp->mst_enc[stream_id].mst_conn;
@@ -2789,20 +2788,21 @@ static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp, int stream_id)
 	if (video->color_format == DRM_COLOR_FORMAT_YCBCR420)
 		return true;
 
-	if (dw_dp_is_hdr_eotf(dp->eotf_type))
+	if (dw_dp_is_hdr_eotf(video->eotf_type))
 		return true;
 
 	return false;
 }
 
-static int dw_dp_video_set_msa(struct dw_dp *dp, struct drm_display_mode *mode, int stream_id,
+static int dw_dp_video_set_msa(struct dw_dp *dp, struct dw_dp_video *video,
+			       struct drm_display_mode *mode, int stream_id,
 			       u8 color_format, u8 bpc)
 {
 	u32 vstart = mode->crtc_vtotal - mode->crtc_vsync_start;
 	u32 hstart = mode->crtc_htotal - mode->crtc_hsync_start;
 	u16 misc = 0;
 
-	if (dw_dp_video_need_vsc_sdp(dp, stream_id))
+	if (dw_dp_video_need_vsc_sdp(dp, video, stream_id))
 		misc |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	switch (color_format) {
@@ -3025,7 +3025,8 @@ static int dw_dp_video_mst_ts_calculate(struct dw_dp *dp, struct dw_dp_video *vi
 	return 0;
 }
 
-static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int stream_id)
+static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video,
+			      struct drm_connector *conn, int stream_id)
 {
 	struct dw_dp_link *link = &dp->link;
 	struct drm_display_mode *mode = &video->mode;
@@ -3044,7 +3045,7 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	if (ret)
 		return ret;
 
-	ret = dw_dp_video_set_msa(dp, mode, stream_id, color_format, bpc);
+	ret = dw_dp_video_set_msa(dp, video, mode, stream_id, color_format, bpc);
 	if (ret)
 		return ret;
 
@@ -3128,18 +3129,18 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 		     FIELD_PREP(HBLANK_INTERVAL_EN, 1) |
 		     FIELD_PREP(HBLANK_INTERVAL, hblank_interval));
 
-	if (dp->branch_ycbcr_444_to_422)
+	if (!dp->is_mst && dp->branch_ycbcr_444_to_422)
 		drm_dp_dpcd_writeb(&dp->aux, DP_PROTOCOL_CONVERTER_CONTROL_1,
 				   DP_CONVERSION_TO_YCBCR420_ENABLE);
 	/* Video stream enable */
 	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), VIDEO_STREAM_ENABLE,
 			   FIELD_PREP(VIDEO_STREAM_ENABLE, 1));
 
-	if (dw_dp_video_need_vsc_sdp(dp, stream_id))
-		dw_dp_send_vsc_sdp(dp, stream_id);
+	if (dw_dp_video_need_vsc_sdp(dp, video, stream_id))
+		dw_dp_send_vsc_sdp(dp, video, stream_id);
 
-	if (dw_dp_is_hdr_eotf(dp->eotf_type))
-		dw_dp_send_hdr_metadata_infoframe_sdp(dp, stream_id);
+	if (dw_dp_is_hdr_eotf(video->eotf_type))
+		dw_dp_send_hdr_metadata_infoframe_sdp(dp, conn, stream_id);
 
 	return 0;
 }
@@ -3334,7 +3335,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	int refresh_rate;
 
-	dp->eotf_type = dw_dp_get_eotf(conn_state);
+	video->eotf_type = dw_dp_get_eotf(conn_state);
 	switch (video->color_format) {
 	case DRM_COLOR_FORMAT_YCBCR420:
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
@@ -3368,7 +3369,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_format = video->bus_format;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
-	s->eotf = dp->eotf_type;
+	s->eotf = video->eotf_type;
 
 	if (video->color_format == DRM_COLOR_FORMAT_RGB444)
 		s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
@@ -4221,7 +4222,7 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (ret < 0)
 		dev_err(dp->dev, "failed to check act status:%d\n", ret);
 
-	ret = dw_dp_video_enable(dp, &mst_enc->video, mst_enc->stream_id);
+	ret = dw_dp_video_enable(dp, &mst_enc->video, &mst_conn->connector, mst_enc->stream_id);
 	if (ret < 0)
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 
@@ -4881,7 +4882,7 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
-	ret = dw_dp_video_enable(dp, &dp->video, 0);
+	ret = dw_dp_video_enable(dp, &dp->video, connector, 0);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 		return;
@@ -5055,8 +5056,9 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	u32 *output_fmts;
 	u32 default_fmt = MEDIA_BUS_FMT_RGB888_1X24;
 	unsigned int i, j = 0;
+	int eotf_type;
 
-	dp->eotf_type = dw_dp_get_eotf(conn_state);
+	eotf_type = dw_dp_get_eotf(conn_state);
 	dp->branch_ycbcr_444_to_422 = false;
 
 	if (dp->split_mode || dp->dual_connector_split)
@@ -5115,7 +5117,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->max_rate))
 			continue;
 
-		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 8)
+		if (dw_dp_is_hdr_eotf(eotf_type) && fmt->bpc < 8)
 			continue;
 
 		if (dp->dfp.max_bpc && fmt->bpc > dp->dfp.max_bpc)
@@ -5138,7 +5140,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		dev_warn(dp->dev, "Not support bus format found, use rgb format\n");
 		dev_info(dp->dev, "max bpc:%d, max fmt:%x, lanes:%d, rate:%d, eotf:%d\n",
 			 conn_state->max_bpc, di->color_formats, link->lanes, link->max_rate,
-			 dp->eotf_type);
+			 eotf_type);
 	}
 
 	if (dp_state->bpc != 0) {
