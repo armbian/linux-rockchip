@@ -15284,9 +15284,6 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 			vop2_wait_for_scan_timing_max_to_assigned_line(vp, current_line, assigned_line);
 	}
 
-	if (vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576)
-		vop2_crtc_update_vrr(crtc);
-
 	/* Process cluster sub windows overlay. */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
@@ -16524,6 +16521,10 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 		vop2_crtc_enable_line_flag_event(crtc, vcstate->line_flag);
 	else
 		vop2_crtc_disable_line_flag_event(crtc);
+
+	if (vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576 ||
+	    vop2->version == VOP_VERSION_RK3572)
+		vop2_crtc_update_vrr(crtc);
 
 	spin_lock_irqsave(&vop2->irq_lock, flags);
 	vop2_wb_commit(crtc);
