@@ -2089,11 +2089,23 @@ enum vop_fbc_compress_mode {
 
 static inline uint16_t scl_cal_scale(int src, int dst, int shift)
 {
+	/*
+	 * A workaround to avoid zero div.
+	 */
+	if (dst < 2)
+		dst = 2;
+
 	return ((src * 2 - 3) << (shift - 1)) / (dst - 1);
 }
 
 static inline uint16_t scl_cal_scale2(int src, int dst)
 {
+	/*
+	 * A workaround to avoid zero div.
+	 */
+	if (dst < 2)
+		dst = 2;
+
 	return ((src - 1) << 12) / (dst - 1);
 }
 
