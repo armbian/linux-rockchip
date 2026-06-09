@@ -1151,7 +1151,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 
 		s->max_refresh_rate = dsi2->max_refresh_rate;
 		s->min_refresh_rate = dsi2->min_refresh_rate;
-		s->vrr_type = ROCKCHIP_VRR_DCLK_MODE;
+		s->vrr_mode = ROCKCHIP_VRR_DCLK_MODE;
 	}
 
 	if (dw_mipi_dsi2_is_cmd_mode(dsi2)) {

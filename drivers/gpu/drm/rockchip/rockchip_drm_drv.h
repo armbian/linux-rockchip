@@ -177,10 +177,33 @@ enum rockchip_drm_vop_aclk_mode {
 	ROCKCHIP_VOP_ACLK_MAX_MODE,
 };
 
-enum rockchip_drm_vrr_type {
+enum rockchip_drm_vrr_mode {
 	ROCKCHIP_VRR_VFP_MODE = 0,
 	ROCKCHIP_VRR_HFP_MODE = 1,
 	ROCKCHIP_VRR_DCLK_MODE = 2,
+};
+
+enum rockchip_hdmi_vrr_type {
+	HDMI_VRR_OFF = 0,
+	HDMI_QMS_VRR,
+	/*
+	 * Gaming VRR: The refresh rate is dynamically derived from the rate
+	 * at which userspace submits new frames, with no fixed target.
+	 * VOP timing switches take effect within the same frame to minimize
+	 * latency.
+	 */
+	HDMI_GAMING_VRR,
+	/*
+	 * TFRSYNC (Target Frame Rate Sync) VRR: Userspace sets a specific
+	 * target refresh rate via the CRTC "variable refresh rate" property,
+	 * and the driver adjusts VFP to match that rate. Internally reuses
+	 * the gaming-VRR infrastructure (VFP-based timing adjustment), but
+	 * unlike gaming-VRR the rate is explicitly specified rather than
+	 * derived from commit cadence. After hdmi sending the EMP packet
+	 * to enable gaming-VRR it takes 6 VSYNC cycles before the new refresh
+	 * rate can be set and take effect.
+	 */
+	HDMI_TFRSYNC_VRR,
 };
 
 #define ROCKCHIP_MULTI_REFRESH_RATE_TABLE_COUNT 30
@@ -444,6 +467,7 @@ struct rockchip_hdmi_vrr_state {
 	u8 next_tfr_val;
 	u8 fva_factor_m1_val;
 	unsigned int vrr_frame_cnt;
+	enum rockchip_hdmi_vrr_type vrr_type;
 	const struct mvrr_const_val *mconst_val;
 };
 
@@ -543,7 +567,7 @@ struct rockchip_crtc_state {
 	int min_refresh_rate;
 	int shift_x;
 	int shift_y;
-	int vrr_type;
+	enum rockchip_drm_vrr_mode vrr_mode;
 };
 
 #define to_rockchip_crtc_state(s) \

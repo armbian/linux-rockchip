@@ -9785,7 +9785,7 @@ static int vop2_vrr_info_dump(struct drm_crtc *crtc, struct seq_file *s)
 
 	DEBUG_PRINT("\tCurrent refresh rate: %d\n", vcstate->request_refresh_rate);
 
-	switch (vcstate->vrr_type) {
+	switch (vcstate->vrr_mode) {
 	case ROCKCHIP_VRR_DCLK_MODE:
 		DEBUG_PRINT("\tType: DCLK\n");
 		current_pixel_clock = mode->crtc_clock * vcstate->request_refresh_rate /
@@ -12914,6 +12914,15 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 		new_crtc_state->mode_changed |=
 			vop2_dovi_mode_changed(crtc, state);
 
+	if (new_vcstate->hdmi_vrr.next_tfr_val)
+		new_vcstate->hdmi_vrr.vrr_type = HDMI_QMS_VRR;
+	else if (output_if_is_hdmi(new_vcstate->output_if) && new_vcstate->request_refresh_rate &&
+		 (new_vcstate->request_refresh_rate >= new_vcstate->min_refresh_rate &&
+		  new_vcstate->request_refresh_rate <= new_vcstate->max_refresh_rate))
+		new_vcstate->hdmi_vrr.vrr_type = HDMI_TFRSYNC_VRR;
+	else
+		new_vcstate->hdmi_vrr.vrr_type = HDMI_VRR_OFF;
+
 	return 0;
 }
 
@@ -14848,7 +14857,7 @@ static void vop2_crtc_vfp_seamless_switch(struct drm_crtc *crtc)
 	 * If next_tfr_val is 0, it indicates that current mode is hdmi
 	 * gaming-vrr/fva, or eDP/DSI vrr.
 	 */
-	if (hdmi_vrr->next_tfr_val) {
+	if (vcstate->hdmi_vrr.vrr_type == HDMI_QMS_VRR) {
 		brr_vic = drm_match_cea_mode(adjust_mode);
 		if (!brr_vic) {
 			DRM_ERROR("qms vrr can't support resolution:\n");
@@ -14916,7 +14925,7 @@ static void vop2_crtc_update_vrr(struct drm_crtc *crtc)
 		return;
 	}
 
-	switch (vcstate->vrr_type) {
+	switch (vcstate->vrr_mode) {
 	case ROCKCHIP_VRR_DCLK_MODE:
 		vop2_crtc_dclk_seamless_switch(crtc);
 		break;

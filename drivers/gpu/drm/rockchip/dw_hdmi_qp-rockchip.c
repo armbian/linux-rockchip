@@ -1858,7 +1858,7 @@ static void dw_hdmi_rockchip_vrr_enable(struct rockchip_drm_sub_dev *sub_dev,
 	dw_hdmi_qp_set_gaming_vrr_enable(hdmi->hdmi_qp, crtc_state->vrr_enabled);
 
 	if (crtc_state->vrr_enabled) {
-		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
 		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
 	} else {
@@ -2632,12 +2632,12 @@ static void rockchip_hdmi_qms_vrr_state(struct rockchip_dw_hdmi_qp *hdmi,
 	case VRR_GOTO_ENABLE:
 	case VRR_RATE_CHANGED:
 		vcstate->hdmi_vrr.m_const = 0;
-		vcstate->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		vcstate->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		queue_work(hdmi->workqueue, &hdmi->qms_vrr_work);
 		break;
 	case VRR_GOTO_DISABLE:
 		vcstate->hdmi_vrr.m_const = 0;
-		vcstate->vrr_type = 0;
+		vcstate->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		vcstate->hdmi_vrr.next_tfr_val = hdmi->brr_tfr;
 		vcstate->hdmi_vrr.refresh_rate_ready_to_change = true;
 		queue_work(hdmi->workqueue, &hdmi->qms_vrr_work);
@@ -2707,12 +2707,12 @@ secondary:
 	}
 
 	if (hdmi->enable_gaming_vrr) {
-		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
 		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
 		s->hdmi_vrr.refresh_rate_ready_to_change = true;
 	} else if (crtc_state->vrr_enabled) {
-		s->vrr_type = ROCKCHIP_VRR_VFP_MODE;
+		s->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
 		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
 	}
