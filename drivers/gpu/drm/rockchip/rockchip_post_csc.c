@@ -1101,17 +1101,6 @@ static int csc_calc_default_output_coef(const struct post_csc_convert_mode *conv
 	return 0;
 }
 
-static inline s32 pq_csc_simple_round(s32 x, s32 n)
-{
-	s32 value = 0;
-
-	if (n == 0)
-		return x;
-
-	value = (abs(x) + (1 << (n - 1))) >> (n);
-	return (((x) >= 0) ? value : -value);
-}
-
 static void rockchip_swap_color_channel(const struct post_csc_convert_mode *mode,
 					struct post_csc_coef *csc_simple_coef,
 					struct rk_pq_csc_coef *out_matrix,
