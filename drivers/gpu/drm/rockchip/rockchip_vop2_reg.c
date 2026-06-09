@@ -43,7 +43,7 @@ static const uint32_t formats_for_cluster[] = {
 	DRM_FORMAT_BGR565,
 	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
-	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
+	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only */
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
 };
 
@@ -71,7 +71,7 @@ static const uint32_t formats_for_rk3528_cluster[] = {
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
-	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
+	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only */
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
 };
 
@@ -99,7 +99,7 @@ static const uint32_t formats_for_rk3576_cluster[] = {
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
-	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
+	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only */
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
 	DRM_FORMAT_VUY888,	/* yuv444 non-Linear mode only */
 	DRM_FORMAT_VUY101010,	/* yuv444_10bit non-Linear mode only */
@@ -1087,7 +1087,7 @@ static const struct dsc_error_info dsc_ecw[] = {
 	{0x0070ffff, "picture height error"},
 	{0x0080ffff, "picture width error"},
 	{0x0090ffff, "number of slices error"},
-	{0x00c0ffff, "slice height Error "},
+	{0x00c0ffff, "slice height error"},
 	{0x00d0ffff, "slice width error"},
 	{0x00e0ffff, "second line BPG offset error"},
 	{0x00f0ffff, "non second line BPG offset error"},
@@ -1649,7 +1649,7 @@ static const struct vop2_video_port_regs rk3538_vop_vp0_regs = {
 
 /*
  * RK3538 VP0 has 8 lines post linebuffer, If the number of post line buffers in a
- * full state is less 4, the urgency signal will be set to 1, If the number of post
+ * full state is less than 4, the urgency signal will be set to 1, If the number of post
  * line buffers in a full state is over 6, the urgency signal will be set to 0.
  */
 static const struct vop_urgency rk3538_vp0_urgency = {
@@ -2265,7 +2265,7 @@ static const struct vop2_video_port_regs rk3572_vop_vp1_regs = {
 };
 
 /*
- * RK3572 VP0 has 6 lines post linebuffer, when full post line buffer is less 2,
+ * RK3572 VP0 has 6 lines post linebuffer, when full post line buffer is less than 2,
  * the urgency signal will be set to 1, when full post line buffer is over 4, the
  * urgency signal will be set to 0.
  */
@@ -2641,7 +2641,7 @@ static const struct vop3_ovl_regs rk3576_vop_vp0_ovl_regs = {
 };
 
 /*
- * RK3576 VP0 has 8 lines post linebuffer, when full post line buffer is less 4,
+ * RK3576 VP0 has 8 lines post linebuffer, when full post line buffer is less than 4,
  * the urgency signal will be set to 1, when full post line buffer is over 6, the
  * urgency signal will be set to 0.
  */
@@ -2822,7 +2822,7 @@ static const struct vop2_video_port_regs rk3588_vop_vp0_regs = {
 /*
  * VP1 can splice with VP0 to output hdisplay > 4096,
  * VP1 has a another HDR10 controller, but share the
- * same eotf curve with VP1.
+ * same eotf curve with VP0.
  */
 static const struct vop2_video_port_regs rk3588_vop_vp1_regs = {
 	.cfg_done = VOP_REG_MASK(RK3568_REG_CFG_DONE, 0x1, 1),
@@ -3109,7 +3109,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 };
 
 /*
- * HDMI/eDP infterface pixclk and dclk are independent of each other.
+ * HDMI/eDP interface pixclk and dclk are independent of each other.
  * MIPI and DP interface pixclk and dclk are the same in itself.
  */
 static const struct vop2_connector_if_data rk3588_conn_if_data[] = {
@@ -3175,7 +3175,6 @@ static const struct vop2_connector_if_data rk3588_conn_if_data[] = {
 	 .if_div_yuv420_shift = 2,
 	 .bus_div_shift = 1,
 	 .pixel_clk_div_shift = 1,
-
 	},
 
 	{
@@ -3188,7 +3187,6 @@ static const struct vop2_connector_if_data rk3588_conn_if_data[] = {
 	 .if_div_yuv420_shift = 2,
 	 .bus_div_shift = 1,
 	 .pixel_clk_div_shift = 1,
-
 	},
 
 	{
@@ -3227,7 +3225,6 @@ static const struct vop2_connector_if_data rk3588_conn_if_data[] = {
 	 .pixel_clk_div_shift = 0,
 	},
 };
-
 
 const struct vop2_layer_regs rk3568_vop_layer0_regs = {
 	.layer_sel = VOP_REG(RK3568_OVL_LAYER_SEL, 0x7, 0)
@@ -5873,12 +5870,12 @@ const struct vop2_power_domain_regs rk3588_dsc_4k_pd_regs = {
 
 /*
  * There are 7 internal power domains on rk3588 vop,
- * Cluster0/1/2/3 each have on pd, and PD_CLUSTER0 as parent,
+ * Cluster0/1/2/3 each have one pd, and PD_CLUSTER0 as parent,
  * that means PD_CLUSTER0 should turn on first before
  * PD_CLUSTER1/2/3 turn on.
  *
  * Esmart1/2/3 share one pd PD_ESMART, and Esmart0 has no PD
- * DSC_8K/DSC_4K each have on pd.
+ * DSC_8K/DSC_4K each have one pd.
  */
 static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
 	{
@@ -5972,7 +5969,7 @@ const struct vop2_power_domain_regs rk3588_mem_pg_wb_regs = {
 /*
  * All power gates will power on when PD_VOP is turn on.
  * Corresponding mem_pwr_ack_bypass bit should be enabled
- * if power gate powe down before PD_VOP.
+ * if power gate power down before PD_VOP.
  * power gates take effect immediately, this means there
  * is no synchronization between vop frame scanout, so
  * we can only enable a power gate before we enable
@@ -7108,10 +7105,10 @@ static const struct vop_dump_regs rk3588_dump_regs[] = {
 	 BIT(ROCKCHIP_VOP2_ESMART0)  | BIT(ROCKCHIP_VOP2_ESMART1)  | \
 	 BIT(ROCKCHIP_VOP2_SMART0)   | BIT(ROCKCHIP_VOP2_SMART1))
 #define RK3572_PLANE_MASK_BASE \
-		(BIT(ROCKCHIP_VOP2_CLUSTER0) | BIT(ROCKCHIP_VOP2_CLUSTER1) | \
-		 BIT(ROCKCHIP_VOP2_ESMART0)  | BIT(ROCKCHIP_VOP2_ESMART1)  | \
-		 BIT(ROCKCHIP_VOP2_MSMART0)  | BIT(ROCKCHIP_VOP2_MSMART1)  | \
-		 BIT(ROCKCHIP_VOP2_CURSOR0)  | BIT(ROCKCHIP_VOP2_CURSOR1))
+	(BIT(ROCKCHIP_VOP2_CLUSTER0) | BIT(ROCKCHIP_VOP2_CLUSTER1) | \
+	 BIT(ROCKCHIP_VOP2_ESMART0)  | BIT(ROCKCHIP_VOP2_ESMART1)  | \
+	 BIT(ROCKCHIP_VOP2_MSMART0)  | BIT(ROCKCHIP_VOP2_MSMART1)  | \
+	 BIT(ROCKCHIP_VOP2_CURSOR0)  | BIT(ROCKCHIP_VOP2_CURSOR1))
 
 #define RK3576_PLANE_MASK_BASE \
 	(BIT(ROCKCHIP_VOP2_CLUSTER0) | BIT(ROCKCHIP_VOP2_CLUSTER1) | \
