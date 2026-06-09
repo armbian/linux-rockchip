@@ -1708,8 +1708,8 @@ struct vop2_ctrl {
 	struct vop_reg dp2_pin_pol;
 
 	/* This will be reference by win_phy_id */
-	struct vop_reg win_vp_id[16];
-	struct vop_reg win_dly[16];
+	struct vop_reg win_vp_id[ROCKCHIP_MAX_LAYER];
+	struct vop_reg win_dly[ROCKCHIP_MAX_LAYER];
 
 	/* connector mux */
 	struct vop_reg rgb_mux;
