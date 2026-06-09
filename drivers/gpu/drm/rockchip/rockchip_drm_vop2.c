@@ -3874,7 +3874,7 @@ static bool vop3_csc_is_r2r_y2y_mode(struct post_csc_convert_mode convert_mode,
 	if (convert_mode.is_input_full_range != convert_mode.is_output_full_range)
 		return true;
 
-	if (convert_mode.intput_color_encoding != convert_mode.output_color_encoding)
+	if (convert_mode.input_color_encoding != convert_mode.output_color_encoding)
 		return true;
 
 	return false;
@@ -4008,7 +4008,7 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 		bool dci_color_swap = false;
 
 		convert_mode.is_input_yuv = is_input_yuv;
-		convert_mode.intput_color_encoding = pstate->color_encoding;
+		convert_mode.input_color_encoding = pstate->color_encoding;
 		convert_mode.is_input_full_range = pstate->color_range;
 		convert_mode.pixel_depth = 10;
 		convert_mode.coef_precision = win_data->csc_coe_bits;
@@ -4017,7 +4017,7 @@ static void vop2_plane_setup_csc_mode(struct vop2_video_port *vp,
 
 		convert_mode.is_output_yuv = is_output_yuv;
 		/* apart from bt2020, vop process recommends using bt709. */
-		if (convert_mode.intput_color_encoding != DRM_COLOR_YCBCR_BT2020)
+		if (convert_mode.input_color_encoding != DRM_COLOR_YCBCR_BT2020)
 			convert_mode.output_color_encoding = DRM_COLOR_YCBCR_BT709;
 		else
 			convert_mode.output_color_encoding = DRM_COLOR_YCBCR_BT2020;
@@ -8158,8 +8158,8 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 		convert_mode.is_input_full_range =
 			pstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? true : false;
 		convert_mode.is_output_full_range = true;
-		convert_mode.intput_color_encoding = pstate->color_encoding;
-		convert_mode.output_color_encoding = convert_mode.intput_color_encoding;
+		convert_mode.input_color_encoding = pstate->color_encoding;
+		convert_mode.output_color_encoding = convert_mode.input_color_encoding;
 		convert_mode.is_input_yuv = pstate->fb->format->is_yuv;
 		convert_mode.is_output_yuv = true;
 		convert_mode.pixel_depth = 10;
@@ -15668,9 +15668,9 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 				r2y_convert_mode.is_output_full_range = vcstate->color_range;
 
 			if (has_bt2020_plane)
-				r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT2020;
+				r2y_convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT2020;
 			else
-				r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT709;
+				r2y_convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT709;
 
 			r2y_convert_mode.output_color_encoding = vcstate->color_encoding;
 
@@ -15711,13 +15711,13 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 
 			if (!vcstate->post_r2y_en) {
 				if (has_bt2020_plane)
-					y2r_convert_mode.intput_color_encoding =
+					y2r_convert_mode.input_color_encoding =
 						DRM_COLOR_YCBCR_BT2020;
 				else
-					y2r_convert_mode.intput_color_encoding =
+					y2r_convert_mode.input_color_encoding =
 						DRM_COLOR_YCBCR_BT709;
 			} else {
-				y2r_convert_mode.intput_color_encoding =
+				y2r_convert_mode.input_color_encoding =
 					r2y_convert_mode.output_color_encoding;
 			}
 
@@ -15925,11 +15925,11 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		 * In all other scenarios, the csc of the layer is output in bt709 colorspace.
 		 */
 		if (cgc_enabled)
-			r2y_convert_mode.intput_color_encoding = vcstate->color_encoding;
+			r2y_convert_mode.input_color_encoding = vcstate->color_encoding;
 		else if (has_bt2020_plane)
-			r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT2020;
+			r2y_convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT2020;
 		else
-			r2y_convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT709;
+			r2y_convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT709;
 
 		if (post_r2y_en)
 			r2y_convert_mode.is_output_yuv = true;
@@ -15952,7 +15952,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 			r2y_convert_mode.output_color_encoding = vcstate->color_encoding;
 		else
 			r2y_convert_mode.output_color_encoding =
-				r2y_convert_mode.intput_color_encoding;
+				r2y_convert_mode.input_color_encoding;
 
 		r2y_convert_mode.pixel_depth = 10;
 		r2y_convert_mode.coef_precision = 10;
@@ -16034,17 +16034,17 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	 * When all layers are rgb, the value of input_color_encoding
 	 * has no actual utility, however, the plane csc only supports
 	 * limited range under bt709. Therefore, in this scene, the colorspace
-	 * of plane csc is selected as bt601. The intput_color_encoding
+	 * of plane csc is selected as bt601. The input_color_encoding
 	 * is consistent with colorspace of plane csc, which is DRM_COLOR_YCBCR_BT601.
 	 * If there are any yuv planes, value of post-csc input_color_encoding
 	 * selects the value of the yuv plane with the largest area.
 	 */
 	if (r2y_csc_supported)
-		convert_mode.intput_color_encoding = r2y_convert_mode.output_color_encoding;
+		convert_mode.input_color_encoding = r2y_convert_mode.output_color_encoding;
 	else if (!max_yuv_pstate)
-		convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT601;
+		convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT601;
 	else
-		convert_mode.intput_color_encoding = max_yuv_plane_color_encoding;
+		convert_mode.input_color_encoding = max_yuv_plane_color_encoding;
 
 	convert_mode.pixel_depth = 10;
 	convert_mode.coef_precision = 10;

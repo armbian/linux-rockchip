@@ -638,7 +638,7 @@ static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mod
 	if (!csc_mode_coef)
 		return NULL;
 
-	input_color_space = get_color_space_type(convert_mode->intput_color_encoding,
+	input_color_space = get_color_space_type(convert_mode->input_color_encoding,
 						 is_input_yuv);
 	output_color_space = get_color_space_type(convert_mode->output_color_encoding,
 						  is_output_yuv);
@@ -665,8 +665,8 @@ static const struct rk_pq_csc_coef *csc_get_csc_coef(struct post_csc_convert_mod
 		 * colorspace of post-csc, then csc matrix is found based
 		 * on colorspace of post-csc output.
 		 */
-		convert_mode->intput_color_encoding = convert_mode->output_color_encoding;
-		input_color_space = get_color_space_type(convert_mode->intput_color_encoding,
+		convert_mode->input_color_encoding = convert_mode->output_color_encoding;
+		input_color_space = get_color_space_type(convert_mode->input_color_encoding,
 							 is_input_yuv);
 		output_color_space = get_color_space_type(convert_mode->output_color_encoding,
 							  is_output_yuv);
@@ -1177,7 +1177,7 @@ int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_s
 		DRM_ERROR("pixel_depth=%d, coef_precision=%d\n",
 			  convert_mode->pixel_depth, convert_mode->coef_precision);
 		DRM_ERROR("input: colorspace=%d, yuv=%d, full_range=%d\n",
-			  convert_mode->intput_color_encoding, convert_mode->is_input_yuv,
+			  convert_mode->input_color_encoding, convert_mode->is_input_yuv,
 			  convert_mode->is_input_full_range);
 		DRM_ERROR("output: colorspace=%d, yuv=%d, full_range=%d\n",
 			  convert_mode->output_color_encoding, convert_mode->is_output_yuv,

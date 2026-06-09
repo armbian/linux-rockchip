@@ -794,7 +794,7 @@ enum rk_pq_csc_swap_type {
 };
 
 struct post_csc_convert_mode {
-	enum drm_color_encoding intput_color_encoding;
+	enum drm_color_encoding input_color_encoding;
 	enum drm_color_encoding output_color_encoding;
 	bool is_input_yuv;
 	bool is_output_yuv;
