@@ -12597,13 +12597,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		val = vtotal << 16 | (vtotal + vsync_len);
 		VOP_MODULE_SET(vop2, vp, vs_st_end_f1, val);
 		VOP_MODULE_SET(vop2, vp, dsp_interlace, 1);
-		VOP_MODULE_SET(vop2, vp, dsp_filed_pol, 1);
+		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 1);
 		VOP_MODULE_SET(vop2, vp, p2i_en, 1);
 		vtotal += vtotal + 1;
 		act_end = vact_end_f1;
 	} else {
 		VOP_MODULE_SET(vop2, vp, dsp_interlace, 0);
-		VOP_MODULE_SET(vop2, vp, dsp_filed_pol, 0);
+		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 0);
 		VOP_MODULE_SET(vop2, vp, p2i_en, 0);
 		act_end = vact_end;
 	}

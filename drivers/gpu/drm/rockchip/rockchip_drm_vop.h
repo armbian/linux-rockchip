@@ -1036,7 +1036,7 @@ struct vop2_video_port_regs {
 	struct vop_reg out_mode;
 	struct vop_reg standby;
 	struct vop_reg dsp_interlace;
-	struct vop_reg dsp_filed_pol;
+	struct vop_reg dsp_field_pol;
 	struct vop_reg dsp_data_swap;
 	struct vop_reg dsp_x_mir_en;
 	struct vop_reg post_dsp_out_r2y;
