@@ -314,16 +314,11 @@ static int vop2_clk_init(struct vop2 *vop2)
 	struct vop2_clk_branch *branch = rk3588_vop_clk_branches;
 	unsigned int nr_clk = ARRAY_SIZE(rk3588_vop_clk_branches);
 	unsigned int idx;
-	struct vop2_clk *clk, *n;
 
 	INIT_LIST_HEAD(&vop2->clk_list_head);
 
 	if (vop2->version != VOP_VERSION_RK3588)
 		return 0;
-
-	list_for_each_entry_safe(clk, n, &vop2->clk_list_head, list) {
-		list_del(&clk->list);
-	}
 
 	for (idx = 0; idx < nr_clk; idx++, branch++)
 		vop2_clk_register(vop2, branch);
