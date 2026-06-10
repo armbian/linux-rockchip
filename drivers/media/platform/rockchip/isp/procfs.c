@@ -1063,8 +1063,11 @@ static void isp33_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x) bypass:%d lp_en:%d\n", "ENH", (val & 1) ? "ON" : "OFF",
 		   val, !!(val & BIT(1)), !!(val & BIT(2)));
 	val = rkisp_read(dev, ISP33_HIST_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "HIST", (val & 1) ? "ON" : "OFF",
-		   val, !!(val & BIT(1)));
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d block:0x%x thumb:0x%x\n",
+		   "HIST", (val & 1) ? "ON" : "OFF",
+		   val, !!(val & BIT(1)),
+		   rkisp_read(dev, ISP33_HIST_BLOCK_SIZE, false),
+		   rkisp_read(dev, ISP33_HIST_THUMB_SIZE, false));
 	val = rkisp_read(dev, ISP33_HSV_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "HSV", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_LDCH_STS, false);
@@ -1223,8 +1226,11 @@ static void isp35_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x) bypass:%d lp_en:%d\n", "ENH", (val & 1) ? "ON" : "OFF",
 		   val, !!(val & BIT(1)), !!(val & BIT(2)));
 	val = rkisp_read(dev, ISP33_HIST_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "HIST", (val & 1) ? "ON" : "OFF",
-		   val, !!(val & BIT(1)));
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d block:0x%x thumb:0x%x\n",
+		   "HIST", (val & 1) ? "ON" : "OFF",
+		   val, !!(val & BIT(1)),
+		   rkisp_read(dev, ISP33_HIST_BLOCK_SIZE, false),
+		   rkisp_read(dev, ISP33_HIST_THUMB_SIZE, false));
 	val = rkisp_read(dev, ISP33_HSV_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "HSV", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_LDCH_STS, false);

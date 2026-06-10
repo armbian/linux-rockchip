@@ -2751,10 +2751,15 @@ isp_hist_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = arg->saturate_scale;
 	isp3_param_write(params_vdev, value, ISP33_HIST_UV_SCL, id);
 
-	thumb_row = arg->thumb_row > ISP33_HIST_THUMB_ROW_MAX ?
-		    ISP33_HIST_THUMB_ROW_MAX : arg->thumb_row & ~1;
-	thumb_col = arg->thumb_col > ISP33_HIST_THUMB_COL_MAX ?
-		    ISP33_HIST_THUMB_COL_MAX : arg->thumb_col & ~1;
+	thumb_row = arg->thumb_row > ISP35_HIST_THUMB_ROW_MAX ?
+		    ISP35_HIST_THUMB_ROW_MAX : arg->thumb_row & ~1;
+	thumb_col = arg->thumb_col > ISP35_HIST_THUMB_COL_MAX ?
+		    ISP35_HIST_THUMB_COL_MAX : arg->thumb_col & ~1;
+	if ((ctrl & ISP35_MODULE_EN) && (thumb_row * thumb_col != priv->hist_blk_num[id])) {
+		dev_err(dev->dev, "hist thumb size:%d no support dynamic change to %dx%d\n",
+			priv->hist_blk_num[id], thumb_col, thumb_row);
+		return;
+	}
 	blk_het = ALIGN(h / thumb_row, 2);
 	blk_wid = ALIGN(w / thumb_col, 2);
 	priv->hist_blk_num[id] = thumb_row * thumb_col;

@@ -2140,6 +2140,11 @@ isp_hist_config(struct rkisp_isp_params_vdev *params_vdev,
 		    ISP33_HIST_THUMB_ROW_MAX : arg->thumb_row & ~1;
 	thumb_col = arg->thumb_col > ISP33_HIST_THUMB_COL_MAX ?
 		    ISP33_HIST_THUMB_COL_MAX : arg->thumb_col & ~1;
+	if ((ctrl & ISP33_MODULE_EN) && (thumb_row * thumb_col != priv_val->hist_blk_num)) {
+		dev_err(dev->dev, "hist thumb size:%d no support dynamic change to %dx%d\n",
+			priv_val->hist_blk_num, thumb_col, thumb_row);
+		return;
+	}
 	blk_het = ALIGN(h / thumb_row, 2);
 	blk_wid = ALIGN(w / thumb_col, 2);
 	priv_val->hist_blk_num = thumb_row * thumb_col;
