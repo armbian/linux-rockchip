@@ -3993,7 +3993,7 @@ static void dw_dp_mst_enable(struct dw_dp *dp)
 			   FIELD_PREP(ENABLE_MST_MODE, 1));
 }
 
-__maybe_unused static void dw_dp_mst_disable(struct dw_dp *dp)
+static void dw_dp_mst_disable(struct dw_dp *dp)
 {
 	regmap_update_bits(dp->regmap, DPTX_CCTL, ENABLE_MST_MODE,
 			   FIELD_PREP(ENABLE_MST_MODE, 0));
@@ -4300,8 +4300,10 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	dw_dp_video_disable(dp, mst_enc->stream_id);
 	dw_dp_sdp_disalbe(dp, mst_enc->stream_id);
-	if (!dp->active_mst_links)
+	if (!dp->active_mst_links) {
+		dw_dp_mst_disable(dp);
 		dw_dp_link_disable(dp);
+	}
 
 	pm_runtime_mark_last_busy(dp->dev);
 	pm_runtime_put_autosuspend(dp->dev);
