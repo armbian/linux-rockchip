@@ -84,8 +84,8 @@
 		status = "okay";
 	};
 
-	/* AUDIO - ES8388 chip, but only works with ES8323 driver */
-	es8323_sound: es8323-sound {
+	/* AUDIO - ES8388 */
+	es8388_sound: analog-sound {
 		compatible = "rockchip,multicodecs-card";
 		hp-det-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_LOW>;
 		io-channel-names = "adc-detect";
@@ -107,8 +107,8 @@
 			"LINPUT2", "Main Mic",
 			"RINPUT1", "Headset Mic",
 			"RINPUT2", "Headset Mic";
-		rockchip,card-name = "rockchip-es8323";
-		rockchip,codec = <&es8323>;
+		rockchip,card-name = "rockchip-es8388";
+		rockchip,codec = <&es8388>;
 		rockchip,cpu = <&i2s0_8ch>;
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
@@ -605,9 +605,9 @@
 &i2c7 {
 	status = "okay";
 
-	/* Audio codec: ES8388 chip, but only works with ES8323 driver */
-	es8323: es8323@11 {
-		compatible = "everest,es8323";
+	/* Audio codec: ES8388 */
+	es8388: es8388@11 {
+		compatible = "everest,es8388", "everest,es8328";
 		reg = <0x11>;
 		#sound-dai-cells = <0>;
 		assigned-clock-rates = <12288000>;
