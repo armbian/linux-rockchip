@@ -1062,6 +1062,17 @@ struct vop2 {
 	bool iommu_fault_in_progress;
 
 	/**
+	 * @cluster_once_enabled:
+	 * RK3572 Cluster0 and Cluster1 share one AFBC decoder.
+	 * Cluster1 with AFBC must not be enabled before Cluster0's first enable.
+	 * This flag tracks whether Cluster0 has ever been enabled since VOP power-on,
+	 * so the restriction can be relaxed after the first enable sequence.
+	 *
+	 * Reset on VOP disable for correctness across suspend/resume.
+	 */
+	bool cluster_once_enabled;
+
+	/**
 	 * @sync_vp_mask: Bitmask of video ports with the display synchronization function;
 	 *
 	 * If the VP0 and VP1 are synchronized via DT configs:
@@ -6148,6 +6159,8 @@ static void vop2_disable(struct drm_crtc *crtc)
 	}
 	if (vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576)
 		vop2_power_off_all_pd(vop2);
+	else if (vop2->version == VOP_VERSION_RK3572)
+		vop2->cluster_once_enabled = false;
 
 	/*
 	 * Reset AXI to get a clean state, which is conducive to recovering
@@ -8695,11 +8708,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 
 		if ((win->phys_id == ROCKCHIP_VOP2_CLUSTER1 && vpstate->afbc_en) &&
 		    (cluster0_win && !VOP_WIN_GET(vop2, cluster0_win, enable)) &&
-		    !(vp->win_mask & BIT(ROCKCHIP_VOP2_CLUSTER0))) {
-			vop2_plane_atomic_disable(plane, state);
+		    !(vp->win_mask & BIT(ROCKCHIP_VOP2_CLUSTER0)) && vop2->cluster_once_enabled == false)
 			DRM_WARN("Cluster1 should not be enabled before Cluster0\n");
-			return;
-		}
+
+		if (win->phys_id == ROCKCHIP_VOP2_CLUSTER0 && vpstate->afbc_en)
+			vop2->cluster_once_enabled = true;
 	}
 
 	/*
