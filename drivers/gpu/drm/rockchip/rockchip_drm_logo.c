@@ -265,7 +265,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	start = ALIGN_DOWN(res.start, pg_size);
 	size = resource_size(&res);
 	if (!size)
-		return -ENOMEM;
+		return 0;
 	if (!IS_ALIGNED(res.start, PAGE_SIZE) || !IS_ALIGNED(size, PAGE_SIZE))
 		DRM_ERROR("Reserved logo memory should be aligned as:0x%lx, current is:start[%pad] size[%pad]\n",
 			  PAGE_SIZE, &res.start, &size);
@@ -1143,6 +1143,11 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 
 	if (init_loader_memory(drm_dev)) {
 		dev_warn(drm_dev->dev, "failed to parse loader memory\n");
+		return;
+	}
+
+	if (!private->logo) {
+		dev_dbg(drm_dev->dev, "Logo display is disabled\n");
 		return;
 	}
 
