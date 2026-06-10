@@ -4840,8 +4840,14 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 		 *  a:[0~30]
 		 *    sin_hue = sin(a)*256;
 		 *    cos_hue = cos(a)*256;
+		 *
+		 * BCSH uses clockwise as positive hue angle while CSC(in VOP2
+		 * and VOP3) uses counter-clockwise. Unify to counter-clockwise
+		 * as positive direction: invert the configured hue parameter
+		 * for BCSH.
 		 */
-		hue = interpolate(0, -30, 100, 30, s->tv_state->hue);
+
+		hue = interpolate(0, 30, 100, -30, s->tv_state->hue);
 		sin_hue = fixp_sin32(hue) >> 23;
 		cos_hue = fixp_cos32(hue) >> 23;
 		VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x100);
@@ -4856,8 +4862,13 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 		 *  a:[0~30]
 		 *    sin_hue = sin(a)*128;
 		 *    cos_hue = cos(a)*128;
+		 *
+		 * BCSH uses clockwise as positive hue angle while CSC(in VOP2
+		 * and VOP3) uses counter-clockwise. Unify to counter-clockwise
+		 * as positive direction: invert the configured hue parameter
+		 * for BCSH.
 		 */
-		hue = interpolate(0, -30, 100, 30, s->tv_state->hue);
+		hue = interpolate(0, 30, 100, -30, s->tv_state->hue);
 		sin_hue = fixp_sin32(hue) >> 24;
 		cos_hue = fixp_cos32(hue) >> 24;
 		VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x80);
