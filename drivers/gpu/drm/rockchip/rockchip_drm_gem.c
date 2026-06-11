@@ -423,7 +423,7 @@ static int rockchip_gem_alloc_secure(struct rockchip_gem_object *rk_obj)
 err_free_pages:
 	drm_free_large(rk_obj->pages);
 err_buf_free:
-	gen_pool_free(private->secure_buffer_pool, paddr, rk_obj->base.size);
+	gen_pool_free(private->secure_buffer_pool, rk_obj->dma_handle, rk_obj->base.size);
 
 	return ret;
 }
