@@ -87,14 +87,14 @@ enum drm_rockchip_gem_cpu_acquire_type {
 	DRM_ROCKCHIP_GEM_CPU_ACQUIRE_EXCLUSIVE = 0x1,
 };
 
-enum rockchip_crtc_feture {
+enum rockchip_crtc_feature {
 	ROCKCHIP_DRM_CRTC_FEATURE_ALPHA_SCALE,
 	ROCKCHIP_DRM_CRTC_FEATURE_HDR10,
 	ROCKCHIP_DRM_CRTC_FEATURE_DOVI,
 	ROCKCHIP_DRM_CRTC_FEATURE_VIVID_HDR,
 };
 
-enum rockchip_plane_feture {
+enum rockchip_plane_feature {
 	ROCKCHIP_DRM_PLANE_FEATURE_SCALE,
 	ROCKCHIP_DRM_PLANE_FEATURE_ALPHA,
 	ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR,
