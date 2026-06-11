@@ -202,7 +202,7 @@
 	status = "okay";
 
 	wifi@1 {
-		compatible = "brcm,bcm4329-fmac";
+		compatible = "realtek,rtl8821cs";
 		reg = <1>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_HIGH>;
@@ -220,7 +220,7 @@
 	status = "okay";
 
 	bluetooth {
-		compatible = "realtek,rtl8822cs-bt";
+		compatible = "realtek,rtl8821cs-bt";
 		clocks = <&pmucru CLK_RTC_32K>;
 		clock-names = "txco";
 		device-wakeup-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
