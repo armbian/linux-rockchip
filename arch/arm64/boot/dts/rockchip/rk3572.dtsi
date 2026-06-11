@@ -2404,6 +2404,7 @@
 			power-domains = <&power RK3572_PD_NPU>;
 			operating-points-v2 = <&npu_opp_table>;
 			iommus = <&rknpu_mmu>;
+			memory-region = <&rknpu_nbuf>;
 			rockchip,grf = <&npu_grf>;
 			status = "disabled";
 		};
@@ -5557,6 +5558,11 @@
 				opp-microvolt-L6 = <775000 775000 850000>;
 				opp-microvolt-L7 = <762500 762500 850000>;
 			};
+		};
+
+		rknpu_nbuf: rknpu-nbuf@3ff00000 {
+			reg = <0x0 0x3ff00000 0x0 0x60000>;
+			iommu-addresses = <&rknpu 0x0 0x3ff00000 0x0 0x60000>;
 		};
 
 		sram: sram@3ff88000 {

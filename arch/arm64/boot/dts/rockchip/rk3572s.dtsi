@@ -113,6 +113,7 @@
 /delete-node/ &rgb_in_vp1;
 /delete-node/ &rknpu;
 /delete-node/ &rknpu_mmu;
+/delete-node/ &rknpu_nbuf;
 /delete-node/ &sata0;
 /delete-node/ &sata1;
 /delete-node/ &shaping_ebc;
