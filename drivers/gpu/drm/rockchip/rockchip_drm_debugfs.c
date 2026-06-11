@@ -331,7 +331,7 @@ static ssize_t rockchip_drm_debugfs_regs_write(struct file *file, const char __u
 		return -EINVAL;
 
 	kbuf[len] = 0;
-	if (sscanf(kbuf, "%lx %x", &address, &val) == -1)
+	if (sscanf(kbuf, "%lx %x", &address, &val) != 2)
 		return -EFAULT;
 
 	if (priv->crtc_funcs[pipe]->regs_write)
@@ -371,7 +371,7 @@ static int rockchip_drm_debugfs_aclk_rate_show(struct seq_file *s, void *data)
 	unsigned long rate;
 
 	if (!priv->crtc_funcs[pipe]->crtc_get_aclk_rate) {
-		seq_puts(s, "Not support aet rate\n");
+		seq_puts(s, "Not support get aclk rate\n");
 		return 0;
 	}
 
