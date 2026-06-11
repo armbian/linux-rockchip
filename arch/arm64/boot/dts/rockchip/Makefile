@@ -585,6 +585,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6-lts-plus.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nanopc-t6-plus.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-easepi-a2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-easepi-r2.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-box-X88PRO-npu.dtb
 
 subdir-y := $(dts-dirs) overlay
 
