@@ -183,11 +183,6 @@ struct rknpu3_device {
 	struct iommu_domain *iommu_domain;
 	struct device *iommu_dev;
 
-	/* NBUF (NPU internal buffer) mapping */
-	phys_addr_t nbuf_phyaddr;
-	size_t nbuf_size;
-	bool nbuf_mapped;
-
 	/* Devfreq frequency management */
 	struct monitor_dev_info *mdev_info;
 	struct ipa_power_model_data *model_data;

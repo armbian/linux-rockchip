@@ -704,49 +704,19 @@ static int rknpu3_probe(struct platform_device *pdev)
 				     domain->geometry.aperture_end);
 		}
 
-		/*
-		 * Map NBUF physical address to same IOVA (identity mapping)
-		 * NBUF is NPU internal buffer at fixed physical address
-		 * Physical: 0x3ff00000 - 0x3ff60000 (384KB)
-		 * IOVA:     0x3ff00000 - 0x3ff60000 (same)
-		 */
-		rknpu3_dev->nbuf_phyaddr = 0x3ff00000;
-		rknpu3_dev->nbuf_size = 0x60000;  /* 384KB */
-		rknpu3_dev->nbuf_mapped = false;
-
-		ret = iommu_map(domain, rknpu3_dev->nbuf_phyaddr,
-				rknpu3_dev->nbuf_phyaddr, rknpu3_dev->nbuf_size,
-				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
-		if (ret) {
-			LOG_DEV_ERROR(dev,
-				      "Failed to map NBUF: phys=0x%llx size=0x%zx ret=%d\n",
-				      (u64)rknpu3_dev->nbuf_phyaddr,
-				      rknpu3_dev->nbuf_size, ret);
-			/* Continue without NBUF mapping - not fatal */
-		} else {
-			rknpu3_dev->nbuf_mapped = true;
-			LOG_DEV_INFO(dev,
-				     "NBUF mapped: phys=0x%llx iova=0x%llx size=0x%zx\n",
-				     (u64)rknpu3_dev->nbuf_phyaddr,
-				     (u64)rknpu3_dev->nbuf_phyaddr,
-				     rknpu3_dev->nbuf_size);
-		}
-
-	}
-
-	rknpu3_dev->reserved_mem_attached = false;
-	ret = of_reserved_mem_device_init(dev);
-	if (ret) {
-		if (ret != -ENODEV) {
-			LOG_DEV_ERROR(dev,
-				"failed to init reserved memory: %d\n", ret);
-			goto err_power_off;
-		}
-		LOG_DEV_INFO(dev, "no reserved memory configured\n");
 	} else {
-		rknpu3_dev->reserved_mem_attached = true;
-		LOG_DEV_INFO(dev, "reserved memory attached%s\n",
-			rknpu3_dev->iommu_en ? " with IOMMU enabled" : "");
+		ret = of_reserved_mem_device_init(dev);
+		if (ret) {
+			if (ret != -ENODEV) {
+				LOG_DEV_ERROR(dev, "failed to init reserved memory: %d\n", ret);
+				goto err_power_off;
+			}
+
+			LOG_DEV_INFO(dev, "no reserved memory configured\n");
+		} else {
+			rknpu3_dev->reserved_mem_attached = true;
+			LOG_DEV_INFO(dev, "reserved memory attached\n");
+		}
 	}
 
 	/* Initialize memory management module */
@@ -808,12 +778,6 @@ err_memory_deinit:
 err_reserved_mem_release:
 	if (rknpu3_dev->reserved_mem_attached)
 		of_reserved_mem_device_release(dev);
-	/* Unmap NBUF if it was mapped */
-	if (rknpu3_dev->nbuf_mapped && rknpu3_dev->iommu_domain) {
-		iommu_unmap(rknpu3_dev->iommu_domain,
-			    rknpu3_dev->nbuf_phyaddr, rknpu3_dev->nbuf_size);
-		rknpu3_dev->nbuf_mapped = false;
-	}
 err_power_off:
 	rknpu3_power_off(rknpu3_dev);
 err_destroy_wq:
@@ -860,15 +824,6 @@ static void rknpu3_remove(struct platform_device *pdev)
 
 	if (rknpu3_dev->reserved_mem_attached)
 		of_reserved_mem_device_release(dev);
-
-	/* Unmap NBUF if it was mapped */
-	if (rknpu3_dev->nbuf_mapped && rknpu3_dev->iommu_domain) {
-		iommu_unmap(rknpu3_dev->iommu_domain,
-			    rknpu3_dev->nbuf_phyaddr, rknpu3_dev->nbuf_size);
-		rknpu3_dev->nbuf_mapped = false;
-		LOG_DEV_INFO(dev, "NBUF unmapped: iova=0x%llx size=0x%zx\n",
-			     (u64)rknpu3_dev->nbuf_phyaddr, rknpu3_dev->nbuf_size);
-	}
 
 	/* Power off if still powered on */
 	mutex_lock(&rknpu3_dev->power_lock);
