@@ -485,7 +485,7 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 			if (!rk_obj->kvaddr) {
 				DRM_ERROR("failed to vmap() buffer\n");
 				ret = -ENOMEM;
-				goto err_iommu_free;
+				goto err_free;
 			}
 		}
 	}
@@ -493,7 +493,7 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 	if (private->domain) {
 		ret = rockchip_gem_iommu_map(rk_obj);
 		if (ret < 0)
-			goto err_free;
+			goto err_vunmap;
 	} else if (is_vop_enabled()) {
 		WARN_ON(!rk_obj->dma_handle);
 		rk_obj->dma_addr = rk_obj->dma_handle;
@@ -501,9 +501,9 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 
 	return 0;
 
-err_iommu_free:
-	if (private->domain)
-		rockchip_gem_iommu_unmap(rk_obj);
+err_vunmap:
+	if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SHMEM && alloc_kmap)
+		vunmap(rk_obj->kvaddr);
 err_free:
 	if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SECURE)
 		rockchip_gem_free_secure(rk_obj);
