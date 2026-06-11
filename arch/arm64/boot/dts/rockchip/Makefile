@@ -147,6 +147,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-test2-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-toybrick-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-toybrick-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562j-core-ddr4-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-box-X88PRO-npu.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-box-demo-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb-mipitest-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb1-ddr4-v10.dtb
