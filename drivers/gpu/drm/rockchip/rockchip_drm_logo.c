@@ -109,7 +109,7 @@ find_sub_dev_by_bridge(struct drm_device *drm_dev, struct device_node *node)
 
 	port = of_graph_get_port_by_id(np_encoder, 1);
 	if (!port) {
-		dev_err(drm_dev->dev, "can't found port point!\n");
+		dev_err(drm_dev->dev, "can't find port point!\n");
 		goto err_put_encoder;
 	}
 
@@ -117,7 +117,7 @@ find_sub_dev_by_bridge(struct drm_device *drm_dev, struct device_node *node)
 		np_connector = of_graph_get_remote_port_parent(endpoint);
 		if (!np_connector) {
 			dev_err(drm_dev->dev,
-				"can't found connector node, please init!\n");
+				"can't find connector node, please init!\n");
 			goto err_put_port;
 		}
 		if (!of_device_is_available(np_connector)) {
@@ -129,7 +129,7 @@ find_sub_dev_by_bridge(struct drm_device *drm_dev, struct device_node *node)
 		}
 	}
 	if (!np_connector) {
-		dev_err(drm_dev->dev, "can't found available connector node!\n");
+		dev_err(drm_dev->dev, "can't find available connector node!\n");
 		goto err_put_port;
 	}
 
@@ -842,7 +842,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 	num_modes = rockchip_drm_fill_connector_modes(connector, 7680, 7680, set->force_output);
 	if (!num_modes) {
-		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
+		dev_err(drm_dev->dev, "connector[%s] can't find any modes\n",
 			connector->name);
 		ret = -EINVAL;
 		goto error_conn;
@@ -877,7 +877,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	if (!found) {
 		ret = -EINVAL;
 		connector->status = connector_status_disconnected;
-		dev_err(drm_dev->dev, "connector[%s] can't found any match mode\n",
+		dev_err(drm_dev->dev, "connector[%s] can't find any match mode\n",
 			connector->name);
 		DRM_INFO("%s support modes:\n\n", connector->name);
 		list_for_each_entry(mode, &connector->modes, head) {
