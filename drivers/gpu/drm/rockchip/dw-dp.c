@@ -4228,6 +4228,8 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, true);
 	drm_dp_add_payload_part2(&dp->mst_mgr, payload);
+	extcon_set_state_sync(mst_enc->audio->extcon, EXTCON_DISP_DP, true);
+	dw_dp_audio_handle_plugged_change(mst_enc->audio, true);
 }
 
 static void dw_dp_link_disable(struct dw_dp *dp)
@@ -4310,6 +4312,9 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 		dw_dp_mst_disable(dp);
 		dw_dp_link_disable(dp);
 	}
+
+	extcon_set_state_sync(mst_enc->audio->extcon, EXTCON_DISP_DP, false);
+	dw_dp_audio_handle_plugged_change(mst_enc->audio, false);
 
 	pm_runtime_mark_last_busy(dp->dev);
 	pm_runtime_put_autosuspend(dp->dev);
