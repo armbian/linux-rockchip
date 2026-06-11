@@ -27,6 +27,8 @@
 #include "vehicle_gpio.h"
 #include "vehicle_main.h"
 
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_GPIO, format, ## __VA_ARGS__)
+
 static void gpio_det_work_func(struct work_struct *work)
 {
 	struct gpio_detect *gpiod = container_of(work, struct gpio_detect,

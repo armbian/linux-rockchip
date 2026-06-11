@@ -7,21 +7,47 @@
 #ifndef __VEHICLE_CFG
 #define __VEHICLE_CFG
 #include <media/v4l2-mediabus.h>
+#include <linux/bits.h>
 #include <linux/rk-camera-module.h>
 
 /* Driver information */
 #define VEHICLE_DRIVER_NAME		"Vehicle"
 
-static int vehicle_debug;
-#define VEHICLE_DG(format, ...) do {	\
-	if (vehicle_debug)	\
-		pr_info("%s(%d): " format, __func__, __LINE__, ## __VA_ARGS__);	\
+/* debug level bitmask (set via vehicle_debug module parameter):
+ * 0x01 - sensor/AD
+ * 0x02 - cif
+ * 0x04 - flinger
+ * 0x08 - vehicle (main)
+ * 0x10 - gpio
+ * 0x1f - all modules
+ *
+ * Each .c file MUST define VEHICLE_DG (or an alias) locally, e.g.:
+ *   #define VEHICLE_DG(format, ...) \
+ *	VEHICLE_DBG(VEHICLE_DBG_XXX, format, ## __VA_ARGS__)
+ *   #define SENSOR_DG(format, ...) \
+ *	VEHICLE_DBG(VEHICLE_DBG_SENSOR, format, ## __VA_ARGS__)
+ */
+#define VEHICLE_DBG_SENSOR	BIT(0)
+#define VEHICLE_DBG_CIF	BIT(1)
+#define VEHICLE_DBG_FLINGER	BIT(2)
+#define VEHICLE_DBG_VEHICLE	BIT(3)
+#define VEHICLE_DBG_GPIO	BIT(4)
+#define VEHICLE_DBG_ALL	GENMASK(4, 0)
+
+extern int vehicle_debug;
+
+#define VEHICLE_DBG(mod, format, ...) do {	\
+	if (vehicle_debug & (mod))	\
+		pr_info("%s %s(%d): " format, VEHICLE_DRIVER_NAME,	\
+			__func__, __LINE__, ## __VA_ARGS__);	\
 	} while (0)
 
 #define VEHICLE_DGERR(format, ...)  \
-	pr_info("%s %s(%d):" format, VEHICLE_DRIVER_NAME, __func__, __LINE__, ## __VA_ARGS__)
+	pr_info("%s %s(%d): " format, VEHICLE_DRIVER_NAME,	\
+		__func__, __LINE__, ## __VA_ARGS__)
 #define VEHICLE_INFO(format, ...)  \
-	pr_info("%s %s(%d):" format, VEHICLE_DRIVER_NAME, __func__, __LINE__, ## __VA_ARGS__)
+	pr_info("%s %s(%d): " format, VEHICLE_DRIVER_NAME,	\
+		__func__, __LINE__, ## __VA_ARGS__)
 
 #define MAX_BUF_NUM (6)
 

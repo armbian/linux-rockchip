@@ -43,6 +43,8 @@
 #include "../../../gpu/drm/rockchip/rockchip_drm_direct_show.h"
 #include "../drivers/video/rockchip/rga3/include/rga_drv.h"
 
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_FLINGER, format, ## __VA_ARGS__)
+
 static int vehicle_dump_cif;
 static int vehicle_dump_rga;
 static int vehicle_dump_vop;

@@ -24,6 +24,8 @@
 #include "vehicle_ad_nvp6188.h"
 #include "vehicle_ad_max96714.h"
 #include <linux/moduleparam.h>
+
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_SENSOR, format, ## __VA_ARGS__)
 #include "../../../../drivers/media/i2c/jaguar1_drv/jaguar1_v4l2.h"
 #include "../../../../drivers/media/i2c/nvp6188.h"
 #include "../../../../drivers/media/i2c/max96714.h"

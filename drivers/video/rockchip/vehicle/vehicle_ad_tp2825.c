@@ -86,7 +86,7 @@ struct rk_sensor_reg {
 #define SEQCMD_END  0xFF000000
 #define SensorEnd   {SEQCMD_END, 0x00}
 
-#define SENSOR_DG VEHICLE_DG
+#define SENSOR_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_SENSOR, format, ## __VA_ARGS__)
 
 /* Preview resolution setting*/
 static struct rk_sensor_reg sensor_preview_data_ntsc[] = {

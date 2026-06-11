@@ -41,7 +41,13 @@
 #include "../../../media/platform/rockchip/cif/dev.h"
 #include "../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_VEHICLE, format, ## __VA_ARGS__)
+
 #define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x02)
+
+int vehicle_debug;
+module_param(vehicle_debug, int, 0644);
+MODULE_PARM_DESC(vehicle_debug, "debug level bitmask: 0x1:sensor 0x2:cif 0x4:flinger 0x8:vehicle 0x10:gpio 0x1f:all");
 
 static bool flinger_inited;
 static bool TEST_GPIO = true;

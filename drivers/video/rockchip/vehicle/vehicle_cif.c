@@ -43,7 +43,8 @@
 #include <linux/bits.h>
 #include "vehicle_samsung_dcphy_common.h"
 
-#define CIF_DG VEHICLE_DG
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_CIF, format, ## __VA_ARGS__)
+#define CIF_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_CIF, format, ## __VA_ARGS__)
 #define CIF_ERR VEHICLE_DGERR
 
 static struct vehicle_cif *g_cif;
@@ -4187,7 +4188,7 @@ static void vehicle_cif_dvp_dump_regs(struct vehicle_cif *cif)
 {
 	int val;
 
-	if (!vehicle_debug)
+	if (!(vehicle_debug & VEHICLE_DBG_CIF))
 		return;
 
 	val = rkcif_read_reg(cif, CIF_REG_DVP_CTRL);
@@ -4267,7 +4268,7 @@ static void vehicle_cif_csi2_dump_regs(struct vehicle_cif *cif)
 	void __iomem *csi2_base = cif->csi2_base;
 	struct csi2_dphy_hw *hw = cif->dphy_hw;
 
-	if (!vehicle_debug)
+	if (!(vehicle_debug & VEHICLE_DBG_CIF))
 		return;
 
 	/* 1. dump csi2-dphy regs */

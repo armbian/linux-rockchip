@@ -31,6 +31,8 @@
 #include "vehicle_ad.h"
 #include "vehicle_ad_nvp6188.h"
 
+#define VEHICLE_DG(format, ...) VEHICLE_DBG(VEHICLE_DBG_SENSOR, format, ## __VA_ARGS__)
+
 enum {
 	CVSTD_720P60 = 0,
 	CVSTD_720P50,
