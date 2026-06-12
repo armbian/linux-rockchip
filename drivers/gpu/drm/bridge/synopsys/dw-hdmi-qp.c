@@ -1661,11 +1661,12 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	hdmi_writel(hdmi, val, PKT_AVI_CONTENTS0);
 
 	for (i = 0; i < 4; i++) {
+		val = 0;
+
 		for (j = 0; j < 4; j++) {
-			if (i * 4 + j >= 14)
+			if (i * 4 + j > frame.length)
 				break;
-			if (!j)
-				val = buff[i * 4 + j + 3];
+
 			val |= buff[i * 4 + j + 3] << (8 * j);
 		}
 
