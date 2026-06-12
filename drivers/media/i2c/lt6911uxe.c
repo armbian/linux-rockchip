@@ -20,6 +20,7 @@
 // #define DEBUG
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
@@ -178,6 +179,11 @@ static const char * const bus_format_str[] = {
 
 #define LT6911UXE_NAME			"LT6911UXE"
 
+/* Firmware update definitions */
+#define FW_FILE			"LT6911UXE.bin"
+#define LT6911UXE_SRAM_PAGE_SIZE	256
+#define FW_BUFF_SIZE		(32 * 1024)	/* 32KB Firmware area size */
+
 static const s64 link_freq_menu_items[] = {
 	LT6911UXE_LINK_FREQ_1250M,
 	LT6911UXE_LINK_FREQ_1100M,
@@ -209,6 +215,7 @@ struct lt6911uxe {
 	struct v4l2_ctrl *pixel_rate;
 	struct delayed_work delayed_work_hotplug;
 	struct delayed_work delayed_work_res_change;
+	struct delayed_work delayed_work_fw_update;
 	struct v4l2_dv_timings timings;
 	struct clk *xvclk;
 	struct gpio_desc *reset_gpio;
@@ -219,6 +226,7 @@ struct lt6911uxe {
 	const char *module_facing;
 	const char *module_name;
 	const char *len_name;
+	const char *fw_name;
 	const struct lt6911uxe_mode *cur_mode;
 	const struct lt6911uxe_mode *support_modes;
 	struct rkmodule_multi_dev_info multi_dev_info;
@@ -734,6 +742,559 @@ static void lt6911uxe_i2c_disable(struct v4l2_subdev *sd)
 {
 	i2c_wr8(sd, I2C_EN_REG, I2C_DISABLE);
 }
+
+/* ===== Firmware update functions ===== */
+
+static void lt6911uxe_reset(struct lt6911uxe *lt6911uxe);
+
+/*
+ * Low-level I2C access for firmware update.
+ * These functions use 8-bit register addresses (no page-select prefix),
+ * matching the vendor driver's regmap behavior. The page register (0xFF)
+ * must be set before calling these.
+ */
+static int fw_i2c_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	struct i2c_client *client = lt6911uxe->i2c_client;
+	u8 buf[2] = { reg, val };
+	struct i2c_msg msg = {
+		.addr = client->addr,
+		.flags = 0,
+		.len = 2,
+		.buf = buf,
+	};
+	unsigned short old_flags;
+	int ret;
+
+	/* Temporarily clear SCCB flag for firmware update operations.
+	 * SCCB inserts STOP between register and data bytes, breaking
+	 * the flash controller's auto-increment and command sequences.
+	 */
+	old_flags = client->flags;
+	client->flags &= ~I2C_CLIENT_SCCB;
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	client->flags = old_flags;
+	if (ret != 1) {
+		v4l2_err(sd, "%s: reg=0x%02x, val=0x%02x, ret=%d\n",
+			 __func__, reg, val, ret);
+		return ret < 0 ? ret : -EIO;
+	}
+	return 0;
+}
+
+static int fw_i2c_read(struct v4l2_subdev *sd, u8 reg)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	struct i2c_client *client = lt6911uxe->i2c_client;
+	u8 reg_buf[1] = { reg };
+	u8 val;
+	struct i2c_msg msgs[2] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = reg_buf,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &val,
+		},
+	};
+	unsigned short old_flags;
+	int ret;
+
+	old_flags = client->flags;
+	client->flags &= ~I2C_CLIENT_SCCB;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	client->flags = old_flags;
+	if (ret != 2) {
+		v4l2_err(sd, "%s: reg=0x%02x, ret=%d\n", __func__, reg, ret);
+		return ret < 0 ? ret : -EIO;
+	}
+	return val;
+}
+
+struct crc_info {
+	u8 width;
+	u32 poly;
+	u32 crc_init;
+	u32 xor_out;
+	bool ref_in;
+	bool ref_out;
+};
+
+static u32 fw_bits_reverse(u32 in_val, u8 bits)
+{
+	u32 out_val = 0;
+	u8 i;
+
+	for (i = 0; i < bits; i++) {
+		if (in_val & (1 << i))
+			out_val |= 1 << (bits - 1 - i);
+	}
+
+	return out_val;
+}
+
+static u32 fw_get_crc(struct crc_info *type, const u8 *buf, u32 buf_len)
+{
+	u8 width = type->width;
+	u32 poly = type->poly;
+	u32 crc = type->crc_init;
+	u32 xor_out = type->xor_out;
+	bool ref_in = type->ref_in;
+	bool ref_out = type->ref_out;
+	u8 n;
+	u32 bits;
+	u32 data;
+	u8 i;
+
+	n = (width < 8) ? 0 : (width - 8);
+	crc = (width < 8) ? (crc << (8 - width)) : crc;
+	bits = (width < 8) ? 0x80 : (1 << (width - 1));
+	poly = (width < 8) ? (poly << (8 - width)) : poly;
+
+	while (buf_len--) {
+		data = *(buf++);
+		if (ref_in)
+			data = fw_bits_reverse(data, 8);
+		crc ^= (data << n);
+		for (i = 0; i < 8; i++) {
+			if (crc & bits)
+				crc = (crc << 1) ^ poly;
+			else
+				crc = crc << 1;
+		}
+	}
+	crc = (width < 8) ? (crc >> (8 - width)) : crc;
+	if (ref_out)
+		crc = fw_bits_reverse(crc, width);
+	crc ^= xor_out;
+
+	return crc & ((2 << (width - 1)) - 1);
+}
+
+static u8 fw_calculate_crc(const u8 *data, u32 len)
+{
+	struct crc_info type = {
+		.width = 8,
+		.poly = 0x31,
+		.crc_init = 0,
+		.xor_out = 0,
+		.ref_out = false,
+		.ref_in = false,
+	};
+	u32 crc_size = FW_BUFF_SIZE - 1;
+	u8 default_val = 0xFF;
+
+	type.crc_init = fw_get_crc(&type, data, len);
+
+	crc_size -= len;
+	while (crc_size--)
+		type.crc_init = fw_get_crc(&type, &default_val, 1);
+
+	return type.crc_init;
+}
+
+static void fw_set_page(struct v4l2_subdev *sd, u8 page)
+{
+	fw_i2c_write(sd, 0xFF, page);
+}
+
+static void fw_config_parameters(struct v4l2_subdev *sd)
+{
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0xEE, 0x01);
+	fw_i2c_write(sd, 0x5E, 0xC1);
+	fw_i2c_write(sd, 0x58, 0x00);
+	fw_i2c_write(sd, 0x59, 0x50);
+	fw_i2c_write(sd, 0x5A, 0x10);
+	fw_i2c_write(sd, 0x5A, 0x00);
+	fw_i2c_write(sd, 0x58, 0x21);
+}
+
+static void __maybe_unused fw_wren(struct v4l2_subdev *sd)
+{
+	fw_set_page(sd, 0xE1);
+	fw_i2c_write(sd, 0x03, 0x2E);
+	fw_i2c_write(sd, 0x03, 0xEE);
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0x5A, 0x04);
+	fw_i2c_write(sd, 0x5A, 0x00);
+}
+
+static void fw_wrdi(struct v4l2_subdev *sd)
+{
+	fw_i2c_write(sd, 0x5A, 0x08);
+	fw_i2c_write(sd, 0x5A, 0x00);
+}
+
+static void fw_block_erase(struct v4l2_subdev *sd)
+{
+	u32 erase_addr = 0;
+
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0x5A, 0x04);
+	fw_i2c_write(sd, 0x5A, 0x00);
+	fw_i2c_write(sd, 0x5B, (erase_addr & 0xFF0000) >> 16);
+	fw_i2c_write(sd, 0x5C, (erase_addr & 0xFF00) >> 8);
+	fw_i2c_write(sd, 0x5D, erase_addr & 0xFF);
+	fw_i2c_write(sd, 0x5A, 0x01);
+	fw_i2c_write(sd, 0x5A, 0x00);
+
+	fw_set_page(sd, 0xE1);
+	fw_i2c_write(sd, 0x03, 0x3f);
+	fw_i2c_write(sd, 0x03, 0xff);
+
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0x5E, 0x40);
+	fw_i2c_write(sd, 0x56, 0x05);
+	fw_i2c_write(sd, 0x55, 0x25);
+	fw_i2c_write(sd, 0x55, 0x01);
+	fw_i2c_write(sd, 0x58, 0x21);
+
+	msleep(500);
+	v4l2_info(sd, "Block Erase End\n");
+}
+
+static void __maybe_unused fw_reset_fifo(struct v4l2_subdev *sd)
+{
+	u8 val;
+
+	fw_set_page(sd, 0xE1);
+	val = fw_i2c_read(sd, 0x08);
+	val &= 0xBF;
+	fw_i2c_write(sd, 0x08, val);
+	val |= 0x40;
+	fw_i2c_write(sd, 0x08, val);
+}
+
+static int fw_write_data(struct v4l2_subdev *sd, const u8 *pfile,
+			 u16 filesize)
+{
+	int page, num, i;
+
+	page = (filesize % LT6911UXE_SRAM_PAGE_SIZE) ?
+		(filesize / LT6911UXE_SRAM_PAGE_SIZE + 1) :
+		(filesize / LT6911UXE_SRAM_PAGE_SIZE);
+
+	if (page * LT6911UXE_SRAM_PAGE_SIZE > 32 * 1024) {
+		v4l2_err(sd, "File size is out of range!\n");
+		return -1;
+	}
+
+	v4l2_info(sd, "Writing to SRAM: %d pages, total size = %u bytes\n",
+		  page, filesize);
+
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0xEE, 0x01);
+
+	for (num = 0; num < page; num++) {
+		fw_i2c_write(sd, 0x55, 0x80);
+		fw_i2c_write(sd, 0x5E, 0xC0);
+		fw_i2c_write(sd, 0x58, 0x21);
+
+		for (i = 0; i < LT6911UXE_SRAM_PAGE_SIZE; i++) {
+			if ((num * LT6911UXE_SRAM_PAGE_SIZE + i) < filesize)
+				fw_i2c_write(sd, 0x59,
+					pfile[num * LT6911UXE_SRAM_PAGE_SIZE + i]);
+			else
+				fw_i2c_write(sd, 0x59, 0xFF);
+		}
+
+		fw_i2c_write(sd, 0x5A, 0x04);
+		fw_i2c_write(sd, 0x5A, 0x00);
+		fw_i2c_write(sd, 0x5A, 0x30);
+		fw_i2c_write(sd, 0x5A, 0x00);
+		usleep_range(150, 200);
+	}
+
+	fw_wrdi(sd);
+	v4l2_info(sd, "Write Data end\n");
+	return 0;
+}
+
+static int fw_upgrade_judgment(struct v4l2_subdev *sd, u8 fw_crc)
+{
+	u8 read_flash_crc;
+	u32 addr = FW_BUFF_SIZE - 1;
+
+	fw_config_parameters(sd);
+
+	/* Flash to FIFO */
+	fw_i2c_write(sd, 0x5E, 0x5F);
+	fw_i2c_write(sd, 0x5A, 0x20);
+	fw_i2c_write(sd, 0x5A, 0x00);
+	fw_i2c_write(sd, 0x5B, (addr & 0xFF0000) >> 16);
+	fw_i2c_write(sd, 0x5C, (addr & 0xFF00) >> 8);
+	fw_i2c_write(sd, 0x5D, addr & 0xFF);
+	fw_i2c_write(sd, 0x5A, 0x10);
+	fw_i2c_write(sd, 0x5A, 0x00);
+
+	/* FIFO to I2C */
+	fw_i2c_write(sd, 0x58, 0x21);
+	read_flash_crc = fw_i2c_read(sd, 0x5f);
+	usleep_range(1000, 2000);
+
+	/* WRDI */
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0x5A, 0x08);
+	fw_i2c_write(sd, 0x5A, 0x00);
+
+	v4l2_info(sd, "Read Flash CRC: 0x%02x, FW CRC: 0x%02x\n",
+		  read_flash_crc, fw_crc);
+
+	if (fw_crc == read_flash_crc)
+		return 0; /* NOT_UPGRADE */
+
+	return 1; /* UPGRADE */
+}
+
+static int fw_firmware_upgrade(struct v4l2_subdev *sd, const u8 *fw_buffer)
+{
+	int ret;
+
+	fw_config_parameters(sd);
+	fw_block_erase(sd);
+	msleep(100);
+
+	ret = fw_write_data(sd, fw_buffer, FW_BUFF_SIZE);
+	if (ret < 0) {
+		v4l2_err(sd, "Failed to write firmware data: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static bool fw_is_upgrade_success(struct v4l2_subdev *sd, u8 fw_crc)
+{
+	u8 read_flash_crc;
+	u32 addr = FW_BUFF_SIZE - 1;
+
+	fw_config_parameters(sd);
+
+	/* Flash to FIFO */
+	fw_i2c_write(sd, 0x5E, 0x5F);
+	fw_i2c_write(sd, 0x5A, 0x20);
+	fw_i2c_write(sd, 0x5A, 0x00);
+	fw_i2c_write(sd, 0x5B, (addr & 0xFF0000) >> 16);
+	fw_i2c_write(sd, 0x5C, (addr & 0xFF00) >> 8);
+	fw_i2c_write(sd, 0x5D, addr & 0xFF);
+	fw_i2c_write(sd, 0x5A, 0x10);
+	fw_i2c_write(sd, 0x5A, 0x00);
+
+	/* FIFO to I2C */
+	fw_i2c_write(sd, 0x58, 0x21);
+	read_flash_crc = fw_i2c_read(sd, 0x5f);
+	usleep_range(1000, 2000);
+
+	/* WRDI */
+	fw_set_page(sd, 0xE0);
+	fw_i2c_write(sd, 0x5A, 0x08);
+	fw_i2c_write(sd, 0x5A, 0x00);
+
+	if (fw_crc == read_flash_crc) {
+		v4l2_info(sd, "Upgrade is success.\n");
+		return true;
+	}
+	v4l2_err(sd, "Upgrade is failure. CRC: expected 0x%02x, got 0x%02x\n",
+		 fw_crc, read_flash_crc);
+	return false;
+}
+
+static u64 fw_read_version(struct v4l2_subdev *sd)
+{
+	u64 version = 0;
+
+	/*
+	 * Use i2c_rd8 (16-bit address) instead of fw_i2c_read (8-bit address).
+	 * After flash operations, the chip's page register may not be reliable,
+	 * but 16-bit addressing always works for normal registers.
+	 */
+	version = (version << 8) | i2c_rd8(sd, 0xE080);
+	version = (version << 8) | i2c_rd8(sd, 0xE081);
+	version = (version << 8) | i2c_rd8(sd, 0xE082);
+	version = (version << 8) | i2c_rd8(sd, 0xE083);
+
+	return version;
+}
+
+static int lt6911uxe_firmware_update(struct v4l2_subdev *sd)
+{
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	struct device *dev = &lt6911uxe->i2c_client->dev;
+	const struct firmware *fw;
+	u8 *fw_buffer;
+	u8 fw_crc;
+	u64 old_version;
+	int ret;
+
+	ret = request_firmware(&fw, lt6911uxe->fw_name, dev);
+	if (ret) {
+		dev_info(dev, "Firmware file %s not found, skip update (%d)\n",
+			 lt6911uxe->fw_name, ret);
+		return 0;
+	}
+
+	dev_info(dev, "Firmware loaded, size: %zu bytes\n", fw->size);
+
+	if (fw->size > FW_BUFF_SIZE - 1) {
+		dev_err(dev, "Firmware size exceeds 32KB limit\n");
+		release_firmware(fw);
+		return -EINVAL;
+	}
+
+	fw_buffer = kzalloc(FW_BUFF_SIZE, GFP_KERNEL);
+	if (!fw_buffer) {
+		release_firmware(fw);
+		return -ENOMEM;
+	}
+
+	memcpy(fw_buffer, fw->data, fw->size);
+	memset(fw_buffer + fw->size, 0xFF, FW_BUFF_SIZE - fw->size - 1);
+	fw_crc = fw_calculate_crc(fw->data, fw->size);
+	fw_buffer[FW_BUFF_SIZE - 1] = fw_crc;
+	dev_info(dev, "Firmware CRC: 0x%02X\n", fw_crc);
+
+	/*
+	 * Power-cycle the chip to reset the flash controller to a clean state.
+	 * This is critical after a failed upgrade or when the flash controller
+	 * is in an unknown state. The timing follows the vendor driver.
+	 */
+	v4l2_info(sd, "Power cycling chip before firmware update\n");
+	gpiod_set_value(lt6911uxe->power_gpio, 0);
+	msleep(200);
+	gpiod_set_value(lt6911uxe->power_gpio, 1);
+	msleep(1000);
+
+	lt6911uxe_i2c_enable(sd);
+
+	/*
+	 * Read old version before flash operations. Flash read/write switches
+	 * the chip into flash controller mode which makes normal registers
+	 * unavailable, so we must read the version first.
+	 */
+	old_version = fw_read_version(sd);
+
+	ret = fw_upgrade_judgment(sd, fw_crc);
+	if (ret == 1) {
+		dev_info(dev, "Old version: 0x%llx, CRC differs, need upgrade\n",
+			 old_version);
+		ret = fw_firmware_upgrade(sd, fw_buffer);
+		if (ret < 0) {
+			dev_err(dev, "Firmware upgrade failed\n");
+			lt6911uxe_i2c_disable(sd);
+			kfree(fw_buffer);
+			release_firmware(fw);
+			return ret;
+		}
+		/*
+		 * Reset to exit flash write mode, then verify CRC.
+		 * After fw_is_upgrade_success, WRDI has exited flash
+		 * mode. Read version immediately, matching vendor flow.
+		 */
+		lt6911uxe_reset(lt6911uxe);
+		msleep(500);
+		lt6911uxe_i2c_enable(sd);
+		if (!fw_is_upgrade_success(sd, fw_crc)) {
+			lt6911uxe_i2c_disable(sd);
+			kfree(fw_buffer);
+			release_firmware(fw);
+			return -EIO;
+		}
+		dev_info(dev, "Current version: 0x%llx\n", fw_read_version(sd));
+		lt6911uxe_i2c_disable(sd);
+	} else {
+		dev_info(dev, "CRC matches, no need to update\n");
+		lt6911uxe_i2c_disable(sd);
+	}
+
+	lt6911uxe_reset(lt6911uxe);
+	msleep(500);
+
+	kfree(fw_buffer);
+	release_firmware(fw);
+
+	return 0;
+}
+
+/* ===== End of firmware update functions ===== */
+
+#define FW_UPDATE_DELAY_MS	10000
+
+static void lt6911uxe_delayed_fw_update(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct lt6911uxe *lt6911uxe = container_of(dwork,
+			struct lt6911uxe, delayed_work_fw_update);
+	struct v4l2_subdev *sd = &lt6911uxe->sd;
+
+	lt6911uxe_firmware_update(sd);
+}
+
+/* ===== sysfs attribute for manual firmware update ===== */
+
+static ssize_t fw_update_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	unsigned long val;
+	int ret;
+
+	if (kstrtoul(buf, 10, &val) || val != 1) {
+		dev_err(dev, "echo 1 to trigger firmware update\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&lt6911uxe->confctl_mutex);
+	ret = lt6911uxe_firmware_update(sd);
+	mutex_unlock(&lt6911uxe->confctl_mutex);
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static ssize_t fw_version_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	u64 version;
+
+	mutex_lock(&lt6911uxe->confctl_mutex);
+	lt6911uxe_i2c_enable(sd);
+	version = fw_read_version(sd);
+	lt6911uxe_i2c_disable(sd);
+	mutex_unlock(&lt6911uxe->confctl_mutex);
+
+	return sprintf(buf, "0x%08llx\n", version);
+}
+
+static DEVICE_ATTR_WO(fw_update);
+static DEVICE_ATTR_RO(fw_version);
+
+static struct attribute *lt6911uxe_fw_attrs[] = {
+	&dev_attr_fw_update.attr,
+	&dev_attr_fw_version.attr,
+	NULL,
+};
+
+static const struct attribute_group lt6911uxe_fw_attr_group = {
+	.name = "firmware",
+	.attrs = lt6911uxe_fw_attrs,
+};
+
+/* ===== End of sysfs attribute ===== */
 
 static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 {
@@ -1840,6 +2401,9 @@ static int lt6911uxe_probe_of(struct lt6911uxe *lt6911uxe)
 		return -EINVAL;
 	}
 
+	if (of_property_read_string(node, "firmware-name", &lt6911uxe->fw_name))
+		lt6911uxe->fw_name = FW_FILE;
+
 	lt6911uxe->power_gpio = devm_gpiod_get_optional(dev, "power",
 			GPIOD_OUT_LOW);
 	if (IS_ERR(lt6911uxe->power_gpio)) {
@@ -2014,6 +2578,9 @@ static int lt6911uxe_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
+	INIT_DELAYED_WORK(&lt6911uxe->delayed_work_fw_update,
+			  lt6911uxe_delayed_fw_update);
+
 	mutex_init(&lt6911uxe->confctl_mutex);
 	err = lt6911uxe_init_v4l2_ctrls(lt6911uxe);
 	if (err)
@@ -2093,6 +2660,19 @@ static int lt6911uxe_probe(struct i2c_client *client,
 	}
 
 	schedule_delayed_work(&lt6911uxe->delayed_work_res_change, msecs_to_jiffies(50));
+
+	err = sysfs_create_group(&dev->kobj, &lt6911uxe_fw_attr_group);
+	if (err)
+		dev_err(dev, "failed to create sysfs firmware group\n");
+
+	/*
+	 * Schedule delayed firmware update to avoid blocking probe.
+	 * Waiting 10s ensures vendor/etc/firmware is mounted and the
+	 * system boot is not delayed by the upgrade process.
+	 */
+	schedule_delayed_work(&lt6911uxe->delayed_work_fw_update,
+			      msecs_to_jiffies(FW_UPDATE_DELAY_MS));
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 
@@ -2118,12 +2698,14 @@ static void lt6911uxe_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
+	sysfs_remove_group(&client->dev.kobj, &lt6911uxe_fw_attr_group);
 	if (!lt6911uxe->i2c_client->irq) {
 		del_timer_sync(&lt6911uxe->timer);
 		flush_work(&lt6911uxe->work_i2c_poll);
 	}
 	cancel_delayed_work_sync(&lt6911uxe->delayed_work_hotplug);
 	cancel_delayed_work_sync(&lt6911uxe->delayed_work_res_change);
+	cancel_delayed_work_sync(&lt6911uxe->delayed_work_fw_update);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
