@@ -304,7 +304,7 @@ struct rockchip_dw_hdmi_qp {
 	struct drm_property *hdr_panel_dovi_vsdb;
 	struct drm_property *vsif_data;
 	struct drm_property *hdr10_plus_vsdb;
-	struct drm_property *gaming_vrr_enable;
+	struct drm_property *tfrsync_vrr_enable;
 	struct drm_property *next_tfr;
 	struct drm_property *fva_factor_m1;
 	struct drm_property *hdmi_vrr_cap;
@@ -327,7 +327,7 @@ struct rockchip_dw_hdmi_qp {
 	unsigned int quant_range_val;
 	unsigned int phy_bus_width;
 	unsigned int enable_allm;
-	unsigned int enable_gaming_vrr;
+	unsigned int enable_tfrsync_vrr;
 	u8 next_tfr_val;
 	u8 fva_factor_m1_val;
 	enum hdmi_vrr_state vrr_state;
@@ -1296,8 +1296,8 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 
 static int rockchip_hdmi_set_qms_next_tfr(struct rockchip_dw_hdmi_qp *hdmi, u64 val)
 {
-	if (val && hdmi->enable_gaming_vrr) {
-		DRM_WARN("vrr-gaming is enabled, can't set next_tfr\n");
+	if (val && hdmi->enable_tfrsync_vrr) {
+		DRM_WARN("tfrsync-vrr is enabled, can't set next_tfr\n");
 		return 0;
 	}
 
@@ -2706,7 +2706,7 @@ secondary:
 		s->min_refresh_rate = 0;
 	}
 
-	if (hdmi->enable_gaming_vrr) {
+	if (hdmi->enable_tfrsync_vrr) {
 		s->vrr_mode = ROCKCHIP_VRR_VFP_MODE;
 		s->max_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_max;
 		s->min_refresh_rate = hdmi->vrr_cap.gaming_vrr_rate_min;
@@ -3717,17 +3717,7 @@ static const struct drm_prop_enum_list output_type_cap_list[] = {
 	{ 1, "HDMI" },
 };
 
-static const struct drm_prop_enum_list allm_enable_list[] = {
-	{ 0, "disable" },
-	{ 1, "enable" },
-};
-
-static const struct drm_prop_enum_list dynamic_hdr_enable_list[] = {
-	{ 0, "disable" },
-	{ 1, "enable" },
-};
-
-static const struct drm_prop_enum_list gaming_vrr_enable_list[] = {
+static const struct drm_prop_enum_list generic_enable_list[] = {
 	{ 0, "disable" },
 	{ 1, "enable" },
 };
@@ -3825,8 +3815,9 @@ static void dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, 
 					   hdmi->hdmi21_data.allm_supported);
 	}
 
-	prop = drm_property_create_enum(connector->dev, 0, "allm_enable", allm_enable_list,
-					ARRAY_SIZE(allm_enable_list));
+	prop = drm_property_create_enum(connector->dev, 0, "allm_enable",
+					generic_enable_list,
+					ARRAY_SIZE(generic_enable_list));
 	if (prop) {
 		hdmi->allm_enable = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
@@ -3840,12 +3831,15 @@ static void dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, 
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
+	/*
+	 * To interface with user space, the name of gaming_vrr_enable
+	 * will not be changed for the time being.
+	 */
 	prop = drm_property_create_enum(connector->dev, 0,
-					"gaming_vrr_enable",
-					gaming_vrr_enable_list,
-					ARRAY_SIZE(gaming_vrr_enable_list));
+					"gaming_vrr_enable", generic_enable_list,
+					ARRAY_SIZE(generic_enable_list));
 	if (prop) {
-		hdmi->gaming_vrr_enable = prop;
+		hdmi->tfrsync_vrr_enable = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
@@ -3882,9 +3876,8 @@ static void dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, 
 	}
 
 	prop = drm_property_create_enum(connector->dev, 0,
-					"dynamic_hdr_enable",
-					dynamic_hdr_enable_list,
-					ARRAY_SIZE(dynamic_hdr_enable_list));
+					"dynamic_hdr_enable", generic_enable_list,
+					ARRAY_SIZE(generic_enable_list));
 	if (prop) {
 		hdmi->dynamic_hdr_enable = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
@@ -4035,9 +4028,9 @@ static void dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		hdmi->hdr10_plus_vsdb = NULL;
 	}
 
-	if (hdmi->gaming_vrr_enable) {
-		drm_property_destroy(connector->dev, hdmi->gaming_vrr_enable);
-		hdmi->gaming_vrr_enable = NULL;
+	if (hdmi->tfrsync_vrr_enable) {
+		drm_property_destroy(connector->dev, hdmi->tfrsync_vrr_enable);
+		hdmi->tfrsync_vrr_enable = NULL;
 	}
 
 	if (hdmi->next_tfr) {
@@ -4128,14 +4121,14 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector, struct drm_connec
 	} else if (property == hdmi->dynamic_hdr_enable) {
 		hdmi->dynamic_hdr_en = val;
 		return 0;
-	} else if (property == hdmi->gaming_vrr_enable) {
+	} else if (property == hdmi->tfrsync_vrr_enable) {
 		if (val && hdmi->next_tfr_val) {
-			DRM_WARN("vrr-qms is enabled, can't set gaming vrr\n");
+			DRM_WARN("qms-vrr is enabled, can't set tfrsync-vrr\n");
 			return 0;
 		}
 
-		hdmi->enable_gaming_vrr = val;
-		dw_hdmi_qp_set_gaming_vrr_enable(hdmi->hdmi_qp, hdmi->enable_gaming_vrr);
+		hdmi->enable_tfrsync_vrr = val;
+		dw_hdmi_qp_set_gaming_vrr_enable(hdmi->hdmi_qp, hdmi->enable_tfrsync_vrr);
 		return 0;
 	} else if (property == hdmi->next_tfr) {
 		return rockchip_hdmi_set_qms_next_tfr(hdmi, val);
@@ -4231,8 +4224,8 @@ static int dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 	} else if (property == hdmi->hdr10_plus_vsdb) {
 		*val = (hdmi->hdr10_plus_vsdb_ptr) ? hdmi->hdr10_plus_vsdb_ptr->base.id : 0;
 		return 0;
-	} else if (property == hdmi->gaming_vrr_enable) {
-		*val = hdmi->enable_gaming_vrr;
+	} else if (property == hdmi->tfrsync_vrr_enable) {
+		*val = hdmi->enable_tfrsync_vrr;
 		return 0;
 	} else if (property == hdmi->next_tfr) {
 		*val = hdmi->next_tfr_val;
