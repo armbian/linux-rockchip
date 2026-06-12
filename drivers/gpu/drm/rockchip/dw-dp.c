@@ -3467,6 +3467,15 @@ static int dw_dp_aux_read_data(struct dw_dp *dp, u8 *buffer, size_t size)
 	return size;
 }
 
+static void dw_dp_aux_reset(struct dw_dp *dp)
+{
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, AUX_RESET,
+			   FIELD_PREP(AUX_RESET, 1));
+	udelay(10);
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, AUX_RESET,
+			   FIELD_PREP(AUX_RESET, 0));
+}
+
 static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 				  struct drm_dp_aux_msg *msg)
 {
@@ -3509,12 +3518,14 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	status = wait_for_completion_timeout(&dp->complete, timeout);
 	if (!status) {
 		dw_dp_dbg(dp, "timeout waiting for AUX reply\n");
+		dw_dp_aux_reset(dp);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
 
 	regmap_read(dp->regmap, DPTX_AUX_STATUS, &value);
 	if (value & AUX_TIMEOUT) {
+		dw_dp_aux_reset(dp);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
