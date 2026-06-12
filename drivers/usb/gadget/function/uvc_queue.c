@@ -52,6 +52,7 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	struct uvc_device *uvc = container_of(video, struct uvc_device, video);
 	struct f_uvc_opts *opts = fi_to_f_uvc_opts(uvc->func.fi);
+	struct usb_gadget *gadget = uvc->func.config->cdev->gadget;
 #endif
 	unsigned int req_size;
 	unsigned int nreq;
@@ -64,17 +65,25 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 	sizes[0] = video->imagesize;
 
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	/* set bulk max_payload_size to actual imagesize */
-	if (video->max_payload_size)
-		uvc->video.max_payload_size = video->imagesize;
+	/*
+	 * Set max payload size based on USB speed : for SuperSpeed and above
+	 * use the full image size, otherwise (e.g., High-Speed)
+	 * use the streaming bulk HS max payload value.
+	 */
+	if (video->max_payload_size) {
+		if (gadget->speed >= USB_SPEED_SUPER)
+			uvc->video.max_payload_size = video->imagesize;
+		else if (opts)
+			uvc->video.max_payload_size = opts->streaming_bulk_hs_maxpayload;
+	}
 
 	if (opts && opts->uvc_num_request > 0)
 		video->uvc_num_requests = opts->uvc_num_request;
 	else
 		video->uvc_num_requests = 4;
 
-	uvcg_info(&uvc->func, "set uvc_num_requests to %d\n",
-		  video->uvc_num_requests);
+	uvcg_info(&uvc->func, "set max_payload_size to %d, set uvc_num_requests to %d\n",
+		  uvc->video.max_payload_size, video->uvc_num_requests);
 
 	return 0;
 #endif

@@ -826,6 +826,10 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 		opts->streaming_maxpacket = clamp(opts->streaming_maxpacket,
 						  1U, 1024U);
 		opts->streaming_maxburst = min(opts->streaming_maxburst, 15U);
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		opts->streaming_bulk_hs_maxpayload = clamp(opts->streaming_bulk_hs_maxpayload,
+							   131072U, 1048576U);
+#endif
 	}
 
 	/* For SS, wMaxPacketSize has to be 1024 if bMaxBurst is not 0 */

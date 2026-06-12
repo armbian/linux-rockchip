@@ -2794,6 +2794,7 @@ UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, 3072);
 UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, 15);
 UVCG_OPTS_ATTR(pm_qos_latency, pm_qos_latency, PM_QOS_LATENCY_ANY);
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+UVCG_OPTS_ATTR(streaming_bulk_hs_maxpayload, streaming_bulk_hs_maxpayload, 1048576);
 UVCG_OPTS_ATTR(uvc_num_request, uvc_num_request, 64);
 UVCG_OPTS_ATTR(uvc_zero_copy, uvc_zero_copy, 1);
 #endif
@@ -2849,6 +2850,7 @@ static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_streaming_maxburst,
 	&f_uvc_opts_attr_pm_qos_latency,
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	&f_uvc_opts_attr_streaming_bulk_hs_maxpayload,
 	&f_uvc_opts_attr_uvc_num_request,
 	&f_uvc_opts_attr_uvc_zero_copy,
 #endif

@@ -27,6 +27,7 @@ struct f_uvc_opts {
 	unsigned int					streaming_maxpacket;
 	unsigned int					streaming_maxburst;
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	unsigned int					streaming_bulk_hs_maxpayload;
 	unsigned int					uvc_num_request;
 	unsigned int					uvc_zero_copy;
 #endif
