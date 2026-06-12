@@ -212,7 +212,7 @@
 		nvmem-cells = <&cpu_leakage>, <&cpu01_opp_info>, <&cpu_mbist_vmin>;
 		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin";
 
-		rockchip,video-4k-freq = <1200000>;
+		rockchip,video-4k-freq = <1416000>;
 		rockchip,pvtm-voltage-sel = <
 			0	1269	0
 			1270	1289	1
@@ -347,7 +347,7 @@
 		nvmem-cells = <&cpu_leakage>, <&cpu23_opp_info>, <&cpu_mbist_vmin>;
 		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin";
 
-		rockchip,video-4k-freq = <1200000>;
+		rockchip,video-4k-freq = <1416000>;
 		rockchip,pvtm-voltage-sel = <
 			0	1269	0
 			1270	1289	1
