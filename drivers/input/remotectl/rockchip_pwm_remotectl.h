@@ -132,6 +132,7 @@ enum pwm_div {
 #define	CLK_SCALE(v)			HIWORD_UPDATE(v, 4, 12)
 #define	CLK_SRC_SEL(v)			HIWORD_UPDATE(v, 13, 14)
 #define	CLK_SRC_PWM			0
+#define	CLK_SRC_OSC			1
 #define	CLK_SRC_RC			2
 
 /* INTSTS */

@@ -110,6 +110,8 @@ struct rkxx_remotectl_drvdata {
 	int handle_cpu_id;
 	int wakeup;
 	int support_psci;
+	bool disable_rc;
+	u32 work_clk_src;
 	int pwm_pwrkey_capture;
 	unsigned long period;
 	unsigned long temp_period;
@@ -656,8 +658,8 @@ static int rk_pwm_pwrkey_wakeup_init(struct platform_device *pdev)
 			goto end;
 	} else {
 		rockchip_pwm_set_pwrmatch_v4(ddata);
-		if (ddata->minor_version >= 1)
-			nstime = 1000000000 / 32768;
+		if (ddata->minor_version >= 1 && !ddata->disable_rc)
+			nstime = DIV_ROUND_CLOSEST(1000000000, 32768);
 	}
 	rockchip_pwrmatch_set_nec_param(ddata, nstime);
 	rockchip_pwrmatch_set_pwrkey(ddata);
@@ -706,15 +708,27 @@ static void rk_pwm_clk_ctrl_v4(struct platform_device *pdev, int work_mode)
 	int val;
 
 	if (work_mode == IR_WORK_MODE) {
-		val = CLK_SCALE(32);
-		/* select clk_pwm as root clock source */
-		if (ddata->minor_version >= 1)
-			val |= CLK_SRC_SEL(CLK_SRC_PWM);
-	} else {
+		if (ddata->work_clk_src == CLK_SRC_RC) {
+			val = CLK_SCALE(0);
+			if (ddata->minor_version >= 1)
+				val |= CLK_SRC_SEL(CLK_SRC_RC);
+		} else {
+			val = CLK_SCALE(32);
+			if (ddata->minor_version >= 1)
+				val |= CLK_SRC_SEL(ddata->work_clk_src);
+		}
+	} else if (!ddata->disable_rc && ddata->minor_version >= 1) {
+		val = CLK_SCALE(0) | CLK_SRC_SEL(CLK_SRC_RC);
+	} else if (ddata->minor_version < 1) {
 		val = CLK_SCALE(0);
-		/* select rc as root clock source */
+	} else if (ddata->work_clk_src == CLK_SRC_RC) {
+		val = CLK_SCALE(0);
 		if (ddata->minor_version >= 1)
 			val |= CLK_SRC_SEL(CLK_SRC_RC);
+	} else {
+		val = CLK_SCALE(32);
+		if (ddata->minor_version >= 1)
+			val |= CLK_SRC_SEL(ddata->work_clk_src);
 	}
 
 	writel_relaxed(val, ddata->base + PWM_REG_CLK_CTRL_V4);
@@ -868,6 +882,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	struct clk *clk;
 	struct cpumask cpumask;
+	const char *clk_src_name = "pwm";
 	unsigned long irq_flags = IRQF_NO_SUSPEND;
 	int num;
 	int irq;
@@ -900,17 +915,55 @@ static int rk_pwm_probe(struct platform_device *pdev)
 
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
-	clk = devm_clk_get_enabled(&pdev->dev, "pwm");
-	if (IS_ERR(clk)) {
-		clk = devm_clk_get_enabled(&pdev->dev, NULL);
-		if (IS_ERR(clk))
-			return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get bus clk\n");
-	}
-	pwm_freq = clk_get_rate(clk);
 
+	ddata->work_clk_src = CLK_SRC_PWM;
+
+	/*
+	 * Enable pclk before any MMIO. VERSION/clk-src decision for V4
+	 * depends on register access.
+	 */
 	clk = devm_clk_get_optional_enabled(&pdev->dev, "pclk");
 	if (IS_ERR(clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Can't get periph clk\n");
+
+	if (ddata->pwm_data->pwm_version >= 4) {
+		int version = readl_relaxed(ddata->base + PWM_REG_VERSION_V4);
+
+		ddata->minor_version = (version & MINOR_VERSION_MASK) >>
+				       MINOR_VERSION_SHIFT;
+		ddata->disable_rc = of_property_read_bool(np, "rockchip,disable-rc");
+		/*
+		 * CLK_SRC_SEL exists only from minor v1.0; ignore clk-src
+		 * on older V4 IP to keep nstime aligned with the real source.
+		 */
+		if (ddata->minor_version >= 1 &&
+		    !of_property_read_string(np, "rockchip,clk-src",
+					     &clk_src_name)) {
+			if (!strcmp(clk_src_name, "osc")) {
+				ddata->work_clk_src = CLK_SRC_OSC;
+			} else if (!strcmp(clk_src_name, "rc")) {
+				ddata->work_clk_src = CLK_SRC_RC;
+			} else if (strcmp(clk_src_name, "pwm")) {
+				dev_warn(&pdev->dev,
+					 "invalid rockchip,clk-src '%s', fallback to pwm\n",
+					 clk_src_name);
+				clk_src_name = "pwm";
+			}
+		}
+	}
+
+	clk = devm_clk_get_enabled(&pdev->dev, clk_src_name);
+	if (IS_ERR(clk)) {
+		clk = devm_clk_get_enabled(&pdev->dev, "pwm");
+		if (IS_ERR(clk)) {
+			clk = devm_clk_get_enabled(&pdev->dev, NULL);
+			if (IS_ERR(clk))
+				return dev_err_probe(&pdev->dev, PTR_ERR(clk),
+						     "Can't get bus clk\n");
+		}
+		ddata->work_clk_src = CLK_SRC_PWM;
+	}
+	pwm_freq = clk_get_rate(clk);
 
 	clk = devm_clk_get_optional_enabled(&pdev->dev, "rc");
 	if (IS_ERR(clk))
@@ -998,7 +1051,8 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		goto error_irq;
 	}
-	pwm_freq = pwm_freq / 64;
+	if (ddata->work_clk_src != CLK_SRC_RC)
+		pwm_freq = pwm_freq / 64;
 	if (pwm_freq > 0)
 		ddata->pwm_freq_nstime = DIV_ROUND_CLOSEST(1000000000, pwm_freq);
 	else
@@ -1035,8 +1089,9 @@ static int remotectl_suspend(struct device *dev)
 
 	if (ddata->pwm_pwrkey_capture) {
 		ddata->pwrkey_wakeup = 0;
+		if (ddata->pwm_data->pwm_version >= 4)
+			rk_pwm_clk_ctrl_v4(pdev, IR_SUSPEND_MODE);
 		ddata->pwm_data->funcs.int_ctrl(pdev, IR_SUSPEND_MODE);
-		rk_pwm_clk_ctrl_v4(pdev, IR_SUSPEND_MODE);
 	}
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu, &cpumask);
@@ -1064,8 +1119,9 @@ static int remotectl_resume(struct device *dev)
 		if (state == REMOTECTL_PWRKEY_WAKEUP)
 			rk_pwm_wakeup(ddata->input);
 	}  else if (ddata->pwm_pwrkey_capture) {
+		if (ddata->pwm_data->pwm_version >= 4)
+			rk_pwm_clk_ctrl_v4(pdev, IR_WORK_MODE);
 		ddata->pwm_data->funcs.int_ctrl(pdev, IR_WORK_MODE);
-		rk_pwm_clk_ctrl_v4(pdev, IR_WORK_MODE);
 		if (ddata->pwrkey_wakeup == 0)
 			return 0;
 		ddata->pwrkey_wakeup = 0;
