@@ -1246,6 +1246,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506g-iotest-v10.dtb \
 	rk3506g-iotest-v10-pdm.dtb \
 	rk3506g-test1-v10-audio.dtb \
+	rk3506g-vanxoak-hd-rk3506g-evb.dtb \
 	rk3506j-forlinx-OK3506-S12_nand-microsd.dtb \
 	rk3528-demo4-ddr4-v10.dtb \
 	rk3528-evb1-ddr4-v10.dtb \
