@@ -15711,7 +15711,8 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 		 * So use DRM_COLOR_YCBCR_LIMITED_RANGE here.
 		 */
 		vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
-							       DRM_COLOR_YCBCR_LIMITED_RANGE, CSC_10BIT_DEPTH);
+							       DRM_COLOR_YCBCR_LIMITED_RANGE,
+							       CSC_10BIT_DEPTH);
 	}
 
 	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
