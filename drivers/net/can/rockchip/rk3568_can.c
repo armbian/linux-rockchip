@@ -1017,7 +1017,7 @@ static int rk3568_can_probe(struct platform_device *pdev)
 
 	rcan->mode = (unsigned long)of_device_get_match_data(&pdev->dev);
 
-	if ((cpu_is_rk3566() || cpu_is_rk3568()) && (rockchip_get_cpu_version() == 3))
+	if ((cpu_is_rk3566() || cpu_is_rk3568()) && (rockchip_get_cpu_version() >= 3))
 		rcan->mode = ROCKCHIP_RK3568_CAN_MODE_V2;
 
 	rcan->base = addr;
