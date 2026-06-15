@@ -2379,6 +2379,20 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		rockchip_hdmi_colorspace_to_color_encoding(conn_state->colorspace,
 							   hdmi->edid_colorimetry, vic);
 
+	if (hdmi->vsif_data_ptr) {
+		u8 *vsif_byte = (u8 *)hdmi->vsif_data_ptr->data;
+
+		/*
+		 * When a dovi source device transmits dovi video operating in
+		 * source-led processing, it must set AVI Infoframe (Version 2 or 3)
+		 * Data Byte 2 C1,C0 = 0b11, and Data Byte 3 EC2, EC1, EC0 = 0b110,
+		 * indicating use of either ITU-R BT.2020 RGB' or ITU-R BT.2020 YCbCr
+		 * colorimetry. Even if BT.2020 support is not declared in EDID.
+		 */
+		if (vsif_byte[6] == 0x00 && vsif_byte[5] == 0xd0 && vsif_byte[4] == 0x46)
+			hdmi->colorimetry = DRM_COLOR_YCBCR_BT2020;
+	}
+
 	*enc_out_encoding = rockchip_hdmi_color_encoding_to_colorspace(hdmi->colorimetry);
 	if ((conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf & BIT(*eotf) &&
 	     *eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR) &&
