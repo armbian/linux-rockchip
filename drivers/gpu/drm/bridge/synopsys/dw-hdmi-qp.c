@@ -1551,6 +1551,7 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	struct hdmi_avi_infoframe frame;
 	const struct drm_display_mode *mode = dw_hdmi_qp_connector_get_mode(connector);
 	u32 val, i, j;
+	int ret;
 	u8 buff[AVI_BUF_SIZE];
 	enum hdmi_quantization_range rgb_quant_range = hdmi->hdmi_data.quant_range;
 	enum hdmi_additional_colorimetry_extension additional_colorimetry = 0;
@@ -1625,7 +1626,11 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
 
-	hdmi_avi_infoframe_pack_only(&frame, buff, AVI_BUF_SIZE);
+	ret = hdmi_avi_infoframe_pack_only(&frame, buff, AVI_BUF_SIZE);
+	if (ret < 0) {
+		DRM_ERROR("Failed to pack AVI infoframe: %d\n", ret);
+		return;
+	}
 
 	/* only avi version 4 support DCI-P3 */
 	if (frame.extended_colorimetry == HDMI_EXTENDED_COLORIMETRY_RESERVED) {
@@ -1649,6 +1654,18 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	} else if (is_hdmi2_sink(connector) && hdmi_quirk_vsi(connector, hdmi->vendor_info)) {
 		buff[7] = hdmi->vic;
 		hdmi_infoframe_set_checksum(buff, HDMI_AVI_INFO_V3_LEN);
+	}
+
+	/*
+	 * Ensure payload won't overflow buff[]. buff[] layout:
+	 * [0..HDMI_AVI_HEADER_LEN-1] = header, [HDMI_AVI_HEADER_LEN..] = payload.
+	 * The loop accesses buff[i * 4 + j + 3] where i * 4 + j <= frame.length,
+	 * so the max index is frame.length + 3 (== HDMI_AVI_HEADER_LEN + frame.length - 1),
+	 * which must be < AVI_BUF_SIZE.
+	 */
+	if (frame.length > AVI_BUF_SIZE - HDMI_AVI_HEADER_LEN) {
+		DRM_ERROR("frame.length:%d is out of range\n", frame.length);
+		return;
 	}
 
 	/*
