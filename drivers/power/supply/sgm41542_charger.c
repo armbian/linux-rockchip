@@ -324,7 +324,7 @@ static int sgm4154x_set_term_curr(struct sgm4154x_device *sgm, int uA)
 	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
 	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
 		for (reg_val = 1; reg_val < 16; reg_val++) {
-			if (uA >= ITERM_CURRENT_STABLE[reg_val])
+			if (uA <= ITERM_CURRENT_STABLE[reg_val])
 				break;
 		}
 		reg_val -= 1;
@@ -355,7 +355,7 @@ static int sgm4154x_set_prechrg_curr(struct sgm4154x_device *sgm, int uA)
 	if (sgm->device_id == SGM41512S_PN_ID || sgm->device_id == SGM41512SX_PN_ID ||
 	    sgm->device_id == SGM41513_PN_ID || sgm->device_id == SGM41513X_PN_ID) {
 		for (reg_val = 1; reg_val < 16; reg_val++) {
-			if (uA >= IPRECHG_CURRENT_STABLE[reg_val])
+			if (uA <= IPRECHG_CURRENT_STABLE[reg_val])
 				break;
 		}
 		reg_val -= 1;
