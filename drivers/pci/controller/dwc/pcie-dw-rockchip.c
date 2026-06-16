@@ -1001,6 +1001,9 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 	union int_clear clears;
 	u32 reg;
 
+	if (!rk_pcie->dbi_base)
+		return IRQ_HANDLED;
+
 	status.asdword = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 					   PCIE_DMA_WR_INT_STATUS);
 	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++) {
@@ -1053,6 +1056,9 @@ static irqreturn_t rk_pcie_ptm_irq_handler(int irq, void *arg)
 	struct rk_pcie *rk_pcie = arg;
 	struct dw_pcie *pci = rk_pcie->pci;
 	u32 val;
+
+	if (!rk_pcie->dbi_base)
+		return IRQ_HANDLED;
 
 	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_PTM);
 	if (val & (PTM_CONTEXT_VALID_FALL | PTM_CONTEXT_VALID_RAISE))
@@ -1955,6 +1961,7 @@ static int rk_pcie_really_probe(void *p)
 	return 0;
 
 deinit_irq_and_wq:
+	rk_pcie->dbi_base = NULL;
 	destroy_workqueue(rk_pcie->hot_rst_wq);
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);
@@ -1998,6 +2005,7 @@ static void rk_pcie_remove(struct platform_device *pdev)
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
 	unsigned long timeout = msecs_to_jiffies(10000), start = jiffies;
 
+	rk_pcie->dbi_base = NULL;
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
 		/* rk_pcie_really_probe hasn't been called yet, trying to get drvdata */
 		while (!rk_pcie && time_before(start, start + timeout)) {
