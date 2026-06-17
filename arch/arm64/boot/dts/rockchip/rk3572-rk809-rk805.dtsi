@@ -14,10 +14,10 @@
 		precharge-current-microamp = <180000>;
 		precharge-upper-limit-microvolt = <3600000>;
 		charge-term-current-microamp = <300000>;
-		constant-charge-current-max-microamp = <10000000>;
-		constant-charge-voltage-max-microvolt = <4400000>;
+		constant-charge-current-max-microamp = <3000000>;
+		constant-charge-voltage-max-microvolt = <4200000>;
 		factory-internal-resistance-micro-ohms = <80>;
-		voltage-max-design-microvolt = <4400000>;
+		voltage-max-design-microvolt = <4200000>;
 		voltage-min-design-microvolt = <3000000>;
 	};
 
