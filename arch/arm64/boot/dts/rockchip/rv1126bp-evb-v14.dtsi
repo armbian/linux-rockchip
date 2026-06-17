@@ -564,6 +564,7 @@
 	pinctrl-0 = <&sdmmc1_clk_pins &sdmmc1_cmd_pins &sdmmc1_bus4_pins>;
 	keep-power-in-suspend;
 	non-removable;
+	no-low-pwr;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	sd-uhs-sdr104;
 	status = "okay";
