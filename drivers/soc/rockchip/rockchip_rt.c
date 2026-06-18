@@ -43,6 +43,7 @@ static void rk3572_set_cci_qos(void)
 
 static void rk3576_disable_a72_prefetch(void *arg)
 {
+#ifdef CONFIG_ARM64
 	unsigned long val;
 	int ret;
 
@@ -57,6 +58,9 @@ static void rk3576_disable_a72_prefetch(void *arg)
 	val = read_sysreg(CORTEX_A72_CPUACTLR_EL1);
 	pr_info("%s: cpu%d updated CORTEX_A72_CPUACTLR_EL1: %lx\n",
 		__func__, smp_processor_id(), val);
+#else
+	pr_warn("%s: A72 prefetch disable not supported on ARM32\n", __func__);
+#endif
 }
 
 static void rk3576_disable_a72_prefetch_all(void)
