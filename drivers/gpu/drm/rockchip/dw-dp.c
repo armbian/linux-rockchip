@@ -6287,7 +6287,7 @@ static int dw_dp_typec_mux_set(struct typec_mux_dev *mux, struct typec_mux_state
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
 
-		if (!data) {
+		if (!data || state->mode < TYPEC_STATE_MODAL) {
 			dw_dp_dbg(dp, "hotunplug from the usbdp\n");
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = false;
