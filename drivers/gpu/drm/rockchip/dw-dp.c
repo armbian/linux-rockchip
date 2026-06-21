@@ -3507,6 +3507,7 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 		value = FIELD_PREP(I2C_ADDR_ONLY, 1);
 	value |= FIELD_PREP(AUX_CMD_TYPE, msg->request);
 	value |= FIELD_PREP(AUX_ADDR, msg->address);
+	reinit_completion(&dp->complete);
 	regmap_write(dp->regmap, DPTX_AUX_CMD, value);
 
 	status = wait_for_completion_timeout(&dp->complete, timeout);
