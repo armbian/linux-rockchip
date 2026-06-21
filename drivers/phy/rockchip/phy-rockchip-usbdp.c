@@ -1509,6 +1509,10 @@ static int rk_udphy_typec_mux_set(struct typec_mux_dev *mux,
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
 
+		if (data)
+			dev_dbg(udphy->dev, "received DP status: 0x%08x, conf: 0x%08x mode:%lu\n",
+				data->status, data->conf, state->mode);
+
 		if (!data || state->mode < TYPEC_STATE_MODAL) {
 			rk_udphy_dp_hpd_event_trigger(udphy, false);
 		} else if (data->status & DP_STATUS_IRQ_HPD) {
