@@ -1509,7 +1509,7 @@ static int usbdp_typec_mux_set(struct typec_mux_dev *mux,
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
 
-		if (!data) {
+		if (!data || state->mode < TYPEC_STATE_MODAL) {
 			udphy_dp_hpd_event_trigger(udphy, false);
 		} else if (data->status & DP_STATUS_IRQ_HPD) {
 			udphy_dp_hpd_event_trigger(udphy, false);
