@@ -84,10 +84,10 @@
 	rockchip,data-sync-bypass;
 	pinctrl-names = "default";
 	/*
-	 * rgb3x8_pins_m0/rgb3x8_pins_m1 for RGB3x8(8bit)
-	 * rgb565_pins for RGB565(16bit)
+	 * mcu_rgb3x8_pins_m0/mcu_rgb3x8_pins_m1 for RGB3x8(8bit)
+	 * mcu_rgb565_pins for RGB565(16bit)
 	 */
-	pinctrl-0 = <&rgb565_pins>;
+	pinctrl-0 = <&mcu_rgb565_pins>;
 
 	/*
 	 * 320x480 RGB/MCU screen K350C4516T
