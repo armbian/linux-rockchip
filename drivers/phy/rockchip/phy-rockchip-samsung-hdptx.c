@@ -9,6 +9,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -2569,12 +2570,137 @@ static int rk_hdptx_phy_validate(struct phy *phy, enum phy_mode mode,
 	return rk_hdptx_phy_verify_dp_config(hdptx, &opts->dp);
 }
 
+struct rk_hdptx_reg_range {
+	unsigned int start;
+	unsigned int end;
+	const char *name;
+};
+
+static const struct rk_hdptx_reg_range rk_hdptx_debug_reg_ranges[] = {
+	{ 0x0000, 0x029c, "CMN" },
+	{ 0x0400, 0x04a4, "Sideband" },
+	{ 0x0800, 0x08a4, "Lane Top" },
+	{ 0x0c00, 0x0cb4, "Lane 0" },
+	{ 0x1000, 0x10b4, "Lane 1" },
+	{ 0x1400, 0x14b4, "Lane 2" },
+	{ 0x1800, 0x18b4, "Lane 3" },
+};
+
+static int rk_hdptx_phy_regs_show(struct seq_file *s, void *data)
+{
+	struct rk_hdptx_phy *hdptx = s->private;
+	const struct rk_hdptx_reg_range *range;
+	unsigned int reg;
+	u32 val;
+	int i, ret;
+
+	if (!pm_runtime_get_if_in_use(hdptx->dev)) {
+		seq_puts(s, "PHY clocks are not enabled\n");
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rk_hdptx_debug_reg_ranges); i++) {
+		range = &rk_hdptx_debug_reg_ranges[i];
+
+		seq_printf(s, "--- %s Registers ---\n", range->name);
+		for (reg = range->start; reg <= range->end; reg += 4) {
+			ret = regmap_read(hdptx->regmap, reg, &val);
+			if (ret) {
+				seq_printf(s, "0x%04x: read error %d\n", reg, ret);
+				continue;
+			}
+			seq_printf(s, "0x%04x: 0x%02x\n", reg, val);
+		}
+		seq_puts(s, "\n");
+	}
+
+	pm_runtime_put(hdptx->dev);
+	return 0;
+}
+
+static int rk_hdptx_phy_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk_hdptx_phy_regs_show, inode->i_private);
+}
+
+static ssize_t rk_hdptx_phy_regs_write(struct file *file, const char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	struct rk_hdptx_phy *hdptx;
+	char buf[64];
+	unsigned int reg, val;
+	int ret;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	/* Accept format: <reg_offset> <value> (both in hex, e.g. "0x0051 0x00000087") */
+	if (sscanf(buf, "%x %x", &reg, &val) != 2) {
+		/* Also try decimal format: "<reg> <val>" */
+		if (sscanf(buf, "%i %i", &reg, &val) != 2)
+			return -EINVAL;
+	}
+
+	hdptx = ((struct seq_file *)file->private_data)->private;
+
+	if (!pm_runtime_get_if_in_use(hdptx->dev))
+		return -EACCES;
+
+	ret = regmap_write(hdptx->regmap, reg, val);
+	pm_runtime_put(hdptx->dev);
+
+	if (ret) {
+		dev_err(hdptx->dev, "debugfs: regmap_write(0x%04x, 0x%08x) failed: %d\n",
+			reg, val, ret);
+		return ret;
+	}
+
+	dev_info(hdptx->dev, "debugfs: wrote reg 0x%04x = 0x%08x\n", reg, val);
+	return count;
+}
+
+static const struct file_operations rk_hdptx_phy_regs_fops = {
+	.owner = THIS_MODULE,
+	.open = rk_hdptx_phy_regs_open,
+	.read = seq_read,
+	.write = rk_hdptx_phy_regs_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int rk_hdptx_phy_register_debugfs(struct phy *phy)
+{
+	struct rk_hdptx_phy *hdptx = phy_get_drvdata(phy);
+
+	if (!phy->debugfs) {
+		dev_err(hdptx->dev, "phy debugfs is null\n");
+		return -ENODEV;
+	}
+
+	debugfs_create_file("phy", 0600, phy->debugfs, hdptx, &rk_hdptx_phy_regs_fops);
+
+	return 0;
+}
+
+static int rk_hdptx_phy_init(struct phy *phy)
+{
+	rk_hdptx_phy_register_debugfs(phy);
+
+	return 0;
+}
+
 static const struct phy_ops rk_hdptx_phy_ops = {
 	.power_on  = rk_hdptx_phy_power_on,
 	.power_off = rk_hdptx_phy_power_off,
 	.set_mode = rk_hdptx_phy_set_mode,
 	.configure = rk_hdptx_phy_configure,
 	.validate  = rk_hdptx_phy_validate,
+	.init      = rk_hdptx_phy_init,
 	.owner	   = THIS_MODULE,
 };
 
@@ -2934,6 +3060,14 @@ static int rk_hdptx_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(hdptx->phy))
 		return dev_err_probe(dev, PTR_ERR(hdptx->phy),
 				     "Failed to create HDMI PHY\n");
+
+	/*
+	 * Don't use the PHY framework's debugfs directory node; after removal,
+	 * hdptx->phy->debugfs will be repurposed by the HDMI controller to pass
+	 * HDMI debug nodes: /sys/kernel/debug/dri/X/hdmiX/
+	 */
+	debugfs_remove(hdptx->phy->debugfs);
+	hdptx->phy->debugfs = NULL;
 
 	phy_set_drvdata(hdptx->phy, hdptx);
 	phy_set_bus_width(hdptx->phy, 8);
