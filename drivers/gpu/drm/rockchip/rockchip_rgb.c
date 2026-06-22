@@ -1282,8 +1282,19 @@ static const struct rockchip_rgb_data rk3568_rgb = {
 
 static void rk3572_rgb_enable(struct rockchip_rgb *rgb)
 {
-	regmap_write(rgb->grf, RK3572_GRF_IOC_MISC2,
-		     RK3572_VOP_MCU_SEL(rgb->data_sync_bypass));
+	int delayline_num;
+	u32 val;
+
+	if (rgb->data_sync_bypass) {
+		regmap_write(rgb->grf, RK3572_GRF_IOC_MISC2, RK3572_VOP_MCU_SEL(1));
+		return;
+	}
+
+	val = RK3572_VOP_MCU_SEL(0);
+	delayline_num = rockchip_rgb_get_delayline_num(rgb);
+	if (delayline_num >= 0)
+		val |= RK3572_VOP_DLL_SEL(1) | RK3572_VOP_DCLK_DELAYLINE(delayline_num);
+	regmap_write(rgb->grf, RK3572_GRF_IOC_MISC2, val);
 }
 
 static const struct rockchip_rgb_funcs rk3572_rgb_funcs = {
@@ -1291,6 +1302,9 @@ static const struct rockchip_rgb_funcs rk3572_rgb_funcs = {
 };
 
 static const struct rockchip_rgb_data rk3572_rgb = {
+	.bt1120_delayline_num = 0x2,
+	.bt656_delayline_num = 0x2,
+	.rgb_delayline_num = 0x4,
 	.funcs = &rk3572_rgb_funcs,
 };
 
