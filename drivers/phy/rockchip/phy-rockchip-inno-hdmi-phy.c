@@ -350,7 +350,19 @@ static const struct phy_config rk3328_phy_cfg[] = {
 };
 
 static const struct phy_config rk3528_phy_cfg[] = {
-	/* tmdsclk bias-clk bias-data voltage-clk voltage-data pre-emphasis-data */
+	/*
+	 * phy_config regs[] layout:
+	 *   [0]: bias clk
+	 *   [1]: bias data
+	 *   [2]: voltage clk
+	 *   [3]: voltage data
+	 *   [4]: pre-emphasis
+	 *   [5..6]: term refs ctrl
+	 *   [7]: term res clk val
+	 *   [8]: term res data val
+	 *   [9]: ref res ctrl
+	 *   [10..13]: reserved
+	 */
 	{	165000000, {
 			0x02, 0x04, 0x0f, 0x0f, 0x00, 0x76, 0x83, 0x0a, 0x0a,
 			0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1549,6 +1561,9 @@ inno_hdmi_phy_rk3528_power_on(struct inno_hdmi_phy *inno,
 	inno_write(inno, 0xc9, phy_cfg->regs[8]);
 	inno_write(inno, 0xca, phy_cfg->regs[8]);
 	inno_write(inno, 0xcb, phy_cfg->regs[8]);
+
+	/* set Reference resistor control*/
+	inno_update_bits(inno, 0xb0, BIT(1), phy_cfg->regs[9] ? BIT(1) : 0);
 
 	/* set TMDS sync detection counter length */
 	temp = 47520000000;
