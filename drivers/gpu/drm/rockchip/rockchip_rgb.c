@@ -160,7 +160,7 @@ struct rockchip_rgb {
 	bool data_sync_bypass;
 	bool phy_enabled;
 	bool support_psr;
-	const struct rockchip_rgb_funcs *funcs;
+	const struct rockchip_rgb_data *plat_data;
 	struct rockchip_drm_sub_dev sub_dev;
 };
 
@@ -256,6 +256,7 @@ static void rockchip_rgb_encoder_atomic_enable(struct drm_encoder *encoder,
 					       struct drm_atomic_state *state)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	const struct rockchip_rgb_data *plat_data = rgb->plat_data;
 	struct rockchip_crtc_state *s;
 	struct drm_crtc *new_crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -273,8 +274,8 @@ static void rockchip_rgb_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	pinctrl_pm_select_default_state(rgb->dev);
 
-	if (rgb->funcs && rgb->funcs->enable)
-		rgb->funcs->enable(rgb);
+	if (plat_data && plat_data->funcs && plat_data->funcs->enable)
+		plat_data->funcs->enable(rgb);
 
 	if (rgb->phy && !rgb->phy_enabled) {
 		phy_power_on(rgb->phy);
@@ -294,6 +295,7 @@ static void rockchip_rgb_encoder_atomic_disable(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	const struct rockchip_rgb_data *plat_data = rgb->plat_data;
 	struct drm_crtc *old_crtc, *new_crtc;
 	struct rockchip_crtc_state *s;
 	struct drm_crtc_state *new_crtc_state = NULL;
@@ -317,8 +319,8 @@ static void rockchip_rgb_encoder_atomic_disable(struct drm_encoder *encoder,
 		rgb->phy_enabled = false;
 	}
 
-	if (rgb->funcs && rgb->funcs->disable)
-		rgb->funcs->disable(rgb);
+	if (plat_data && plat_data->funcs && plat_data->funcs->disable)
+		plat_data->funcs->disable(rgb);
 
 	pinctrl_pm_select_sleep_state(rgb->dev);
 
@@ -1093,7 +1095,6 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_rgb *rgb;
-	const struct rockchip_rgb_data *rgb_data;
 	struct fwnode_handle *fwnode_mcu_panel;
 	int ret, id;
 
@@ -1120,13 +1121,12 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dev->of_node, "rockchip,delayline-num", &rgb->delayline_num))
 		rgb->delayline_num = -1;
 
-	rgb_data = of_device_get_match_data(dev);
-	if (rgb_data) {
-		rgb->funcs = rgb_data->funcs;
+	rgb->plat_data = of_device_get_match_data(dev);
+	if (rgb->plat_data) {
 		if (rgb->np_mcu_panel)
-			rgb->max_dclk_rate = rgb_data->mcu_max_dclk_rate;
+			rgb->max_dclk_rate = rgb->plat_data->mcu_max_dclk_rate;
 		else
-			rgb->max_dclk_rate = rgb_data->rgb_max_dclk_rate;
+			rgb->max_dclk_rate = rgb->plat_data->rgb_max_dclk_rate;
 	}
 	rgb->id = id;
 	rgb->dev = dev;
