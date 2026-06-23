@@ -1,0 +1,257 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * Simple reference DSI panel DT overlay.
+ * Works with JD9366-based 800x1280 panels.
+ * Verified on SQ101P-X4EI451-84H501 and YDP1010BT003-V1.
+ */
+
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			lcd_3v3: regulator-lcd-3v3 {
+				compatible = "regulator-fixed";
+				enable-active-high;
+				gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcd_3v3_pin>;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "lcd_3v3";
+				vin-supply = <&vcc_3v3>;
+			};
+
+			backlight_dsi: backlight-dsi {
+				compatible = "gpio-backlight";
+				gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>; /* This enabled fixed 24v VLED */
+				default-on;
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcd_vled_pin>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&dsi>;
+
+		__overlay__ {
+			status = "okay";
+
+			panel-dsi@0 {
+				reg = <0>;
+				compatible = "simple-panel-dsi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcd_reset_pin>;
+				backlight = <&backlight_dsi>;
+				power-supply = <&lcd_3v3>;
+				reset-gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
+
+				reset-delay-ms = <120>;
+				enable-delay-ms = <120>;
+				prepare-delay-ms = <120>;
+				init-delay-ms = <120>;
+				unprepare-delay-ms = <60>;
+				disable-delay-ms = <60>;
+
+				dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+					MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+				dsi,format = <MIPI_DSI_FMT_RGB888>;
+				dsi,lanes = <4>;
+
+				panel-init-sequence = [
+					23 00 02 30 01
+					39 00 05 78 49 61 02 00
+					23 00 02 30 02
+					23 00 02 31 12
+					23 00 02 32 08
+					23 00 02 33 3f
+					23 00 02 3c 04
+					23 00 02 3d 78
+					23 00 02 3e 43
+					23 00 02 3f 30
+					23 00 02 42 a2
+					23 00 02 43 f0
+					23 00 02 44 01
+					23 00 02 46 17
+					23 00 02 49 c0
+					23 00 02 6d 30
+					23 00 02 6e 21
+					39 00 0d 41 5b 5b 03 03 5b 5b 02 02 03 03 03 03
+					39 00 0c 5a 00 00 34 34 31 31 23 23 24 24 23
+					39 00 0c 5b 23 0b 0b 09 09 0f 0f 0d 0d 06 06
+					39 00 0c 5c 00 00 34 34 31 31 23 23 24 24 23
+					39 00 0c 5d 23 0a 0a 08 08 0e 0e 0c 0c 05 05
+					39 00 0c 5e 00 00 31 31 34 34 23 23 24 24 23
+					39 00 0c 5f 23 0c 0c 0e 0e 08 08 0a 0a 05 05
+					39 00 0c 60 00 00 31 31 34 34 23 23 24 24 23
+					39 00 0c 61 23 0d 0d 0f 0f 09 09 0b 0b 06 06
+					39 00 04 64 ff ff 3f
+					39 00 04 65 ff ff 3f
+					39 00 04 6f 03 00 00
+					39 00 04 70 03 00 00
+					39 00 04 71 00 00 80
+					39 00 04 72 00 00 00
+					39 00 03 4c 22 22
+					23 00 02 73 2a
+					39 00 03 4e 00 00
+					39 00 03 50 00 00
+					39 00 03 55 ff ff
+					39 00 03 56 ff ff
+					39 00 03 57 00 00
+					39 00 03 58 ff ff
+					39 00 03 66 ff ff
+					39 00 03 67 ff ff
+					23 00 02 4a 3f
+					23 00 02 30 08
+					23 00 02 31 65
+					23 00 02 33 05
+					23 00 02 40 50
+					23 00 02 41 80
+					23 00 02 42 1a
+					23 00 02 47 0a
+					23 00 02 48 0d
+					23 00 02 50 17
+					23 00 02 5a 20
+					23 00 02 5b 00
+					23 00 02 5c 53
+					23 00 02 62 04
+					23 00 02 65 5f
+					23 00 02 73 01
+					23 00 02 30 0a
+					23 00 02 32 ff
+					23 00 02 33 28
+					23 00 02 3f 53
+					23 00 02 40 15
+					23 00 02 47 20
+					23 00 02 48 80
+					23 00 02 49 03
+					23 00 02 30 0b
+					39 00 03 33 00 3d
+					39 00 03 3c 00 bf
+					23 00 02 43 b1
+					23 00 02 44 31
+					39 00 06 3e 00 10 1e 27 2f
+					39 00 0f 3f 54 6f 73 7c 77 91 90 99 a8 a5 ae b5 c5 b8
+					39 00 0a 40 52 52 53 7f 00 10 1e 27 2f
+					39 00 0f 41 54 6f 73 7c 77 91 98 99 a8 a5 ae b5 c5 b8
+					39 00 05 42 52 52 53 7f
+					23 00 02 45 70
+					23 00 02 46 3b
+					23 00 02 48 7c
+					23 00 02 49 1e
+					23 00 02 4a 3a
+					23 00 02 30 0c
+					23 00 02 32 62
+					23 00 02 71 77
+					23 00 02 30 0d
+					23 00 02 4c 74
+					23 00 02 30 00
+					05 78 01 11
+					05 0a 01 29
+					23 00 02 35 00
+				];
+
+				panel-exit-sequence = [
+					05 00 01 28
+					05 00 01 10
+				];
+
+				display-timings {
+					native-mode = <&dsi0_timing0>;
+					dsi0_timing0: timing0 {
+						clock-frequency = <76106880>;
+						hactive = <800>;
+						vactive = <1280>;
+						hback-porch = <28>;
+						hfront-porch = <40>;
+						vback-porch = <20>;
+						vfront-porch = <140>;
+						hsync-len = <8>;
+						vsync-len = <8>;
+						hsync-active = <0>;
+						vsync-active = <0>;
+						de-active = <0>;
+						pixelclk-active = <0>;
+					};
+				};
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						panel_in_dsi: endpoint {
+							remote-endpoint = <&dsi_out_panel>;
+						};
+					};
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&dsi_in_vp0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&video_phy>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&route_dsi>;
+
+		__overlay__ {
+			status = "okay";
+			connect = <&vp0_out_dsi>;
+		};
+	};
+
+	fragment@5 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			display {
+				lcd_3v3_pin: lcd-3v3-pin {
+					rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+
+				lcd_vled_pin: lcd-vled-pin {
+					rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+
+				lcd_reset_pin: lcd-reset-pin {
+					rockchip,pins = <0 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+};

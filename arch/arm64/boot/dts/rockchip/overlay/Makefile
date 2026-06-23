@@ -139,6 +139,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rockchip-rk3588-panthor-gpu.dtbo \
 	rk3528-rock-2-enable-pcie.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
+	rk3562-kickpi-k3b-demo-dsi-panel.dtbo \
 	rk3576-can1-m1.dtbo \
 	rk3576-i2c0-m1.dtbo \
 	rk3576-i2c1-m0.dtbo \
