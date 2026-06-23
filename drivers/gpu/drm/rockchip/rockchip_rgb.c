@@ -1222,8 +1222,12 @@ static void rk3506_rgb_enable(struct rockchip_rgb *rgb)
 	struct drm_crtc *crtc = rgb->encoder.crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
-	regmap_write(rgb->grf, RK3506_GRF_SOC_CON2,
-		     RK3506_GRF_VOP_DATA_BYPASS(rgb->data_sync_bypass ? 0x3 : 0x0));
+	if (rgb->data_sync_bypass) {
+		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DATA_BYPASS(0x3));
+		return;
+	}
+	regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DATA_BYPASS(0));
+
 	if (s->output_if & VOP_OUTPUT_IF_BT1120 || s->output_if & VOP_OUTPUT_IF_BT656)
 		regmap_write(rgb->grf, RK3506_GRF_SOC_CON2, RK3506_GRF_VOP_DLL_SEL(0x20));
 	else
@@ -1275,8 +1279,12 @@ static const struct rockchip_rgb_data rk3568_rgb = {
 
 static void rk3576_rgb_enable(struct rockchip_rgb *rgb)
 {
-	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8,
-		     RK3576_VOP_MCU_SEL(rgb->data_sync_bypass));
+	if (rgb->data_sync_bypass) {
+		regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8, RK3576_VOP_MCU_SEL(1));
+		return;
+	}
+	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8, RK3576_VOP_MCU_SEL(0));
+
 	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8, RK3576_VOP_DLL_SEL(true));
 	regmap_write(rgb->grf, RK3576_IOC_GRF_MISC_CON8,
 		     RK3576_VOP_DCLK_DELAYLINE(rgb->delayline_num >= 0 ?
@@ -1310,13 +1318,16 @@ static void rv1126b_rgb_enable(struct rockchip_rgb *rgb)
 	struct drm_crtc *crtc = rgb->encoder.crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
+	if (rgb->data_sync_bypass) {
+		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_MCU_SEL(1));
+		return;
+	}
+	regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_MCU_SEL(0));
+
 	if (s->output_if & VOP_OUTPUT_IF_BT1120 || s->output_if & VOP_OUTPUT_IF_BT656) {
 		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_SEL(1));
 		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_NUM(0x15));
 	}
-
-	regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON,
-		     RV1126B_VOP_MCU_SEL(rgb->data_sync_bypass));
 
 	if (rgb->delayline_num >= 0) {
 		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_SEL(1));
