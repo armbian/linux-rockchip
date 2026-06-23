@@ -232,6 +232,7 @@ struct dw_mipi_dsi2_plat_data {
 	const u32 max_vfp;
 	const u32 max_vsync;
 	const u32 max_vbp;
+	const u32 vrr_mode;
 };
 
 struct dw_mipi_dsi2 {
@@ -1155,7 +1156,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 
 		s->max_refresh_rate = dsi2->max_refresh_rate;
 		s->min_refresh_rate = dsi2->min_refresh_rate;
-		s->vrr_mode = ROCKCHIP_VRR_DCLK_MODE;
+		s->vrr_mode = dsi2->pdata->vrr_mode;
 	}
 
 	if (dw_mipi_dsi2_is_cmd_mode(dsi2)) {
@@ -2269,6 +2270,7 @@ static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
 	.max_vfp = 8191,
 	.max_vsync = 1023,
 	.max_vbp = 1023,
+	.vrr_mode = ROCKCHIP_VRR_VFP_MODE,
 };
 
 static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
@@ -2280,6 +2282,7 @@ static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
 	.max_vfp = 1023,
 	.max_vsync = 1023,
 	.max_vbp = 1023,
+	.vrr_mode = ROCKCHIP_VRR_DCLK_MODE,
 };
 
 static const struct of_device_id dw_mipi_dsi2_dt_ids[] = {
