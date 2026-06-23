@@ -1095,6 +1095,11 @@
 		clocks = <&scmi_clk SCLK_DDR>, <&cru PCLK_MAILBOX0>;
 		clock-names = "dmc_clk", "pclk_mailbox";
 		operating-points-v2 = <&dmc_opp_table>;
+		vop-bw-dmc-level = <
+		/* min_bw(MB/s) max_bw(MB/s) freq_level */
+			0	999	DMC_FREQ_LEVEL_LOW
+			1000	99999	DMC_FREQ_LEVEL_MID_LOW
+		>;
 		upthreshold = <40>;
 		downdifferential = <20>;
 		system-status-level = <
