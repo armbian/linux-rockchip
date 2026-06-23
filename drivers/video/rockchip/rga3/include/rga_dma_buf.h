@@ -29,6 +29,13 @@ struct rga_dma_buf_pool {
 	struct rga_scheduler_t *scheduler;
 };
 
+/*
+ * Fallback for kernels < 5.0 where DMA_MAPPING_ERROR is not globally defined.
+ */
+#ifndef DMA_MAPPING_ERROR
+#define DMA_MAPPING_ERROR (~(dma_addr_t)0)
+#endif
+
 #ifndef for_each_sgtable_sg
 /*
  * Loop over each sg element in the given sg_table object.
