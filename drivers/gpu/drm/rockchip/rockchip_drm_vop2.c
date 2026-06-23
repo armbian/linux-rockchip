@@ -7749,10 +7749,12 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	}
 
 	if (vop2_msmart_window(win)) {
-		ret = vop3_msmart_min_width_check(plane, fb->format->format,
-						  drm_rect_width(src) >> 16);
-		if (ret)
-			return ret;
+		if (vpstate->msmart_data && vpstate->msmart_data->data) {
+			ret = vop3_msmart_min_width_check(plane, fb->format->format,
+							  drm_rect_width(src) >> 16);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (rockchip_afbc(plane, fb->modifier) || rockchip_rfbc(plane, fb->modifier))
