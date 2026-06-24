@@ -21,13 +21,9 @@
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 
-#ifndef FPGA_PLATFORM
-#include <soc/rockchip/rockchip_iommu.h>
-#endif
-
-/* IOMMU poll timeout for power off */
-#define NPU_MMU_DISABLED_POLL_PERIOD_US		1000
-#define NPU_MMU_DISABLED_POLL_TIMEOUT_US	20000
+/* IOMMU poll timeout for runtime suspend */
+#define NPU_MMU_SUSPEND_POLL_PERIOD_US		1000
+#define NPU_MMU_SUSPEND_POLL_TIMEOUT_US		20000
 
 #include "rknpu3_drv.h"
 #include "rknpu3_core.h"
@@ -134,20 +130,21 @@ static int rknpu3_power_on(struct rknpu3_device *rknpu3_dev);
 static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev);
 
 #ifndef FPGA_PLATFORM
-static int rknpu3_wait_iommu_disabled(struct rknpu3_device *rknpu3_dev)
+static int rknpu3_wait_iommu_suspended(struct rknpu3_device *rknpu3_dev)
 {
 	struct device *dev = rknpu3_dev->dev;
-	bool enabled;
+	bool suspended;
 	int ret;
 
-	if (!rknpu3_dev->iommu_en)
+	if (!rknpu3_dev->iommu_en || !rknpu3_dev->iommu_dev)
 		return 0;
 
-	ret = read_poll_timeout(rockchip_iommu_is_enabled, enabled, !enabled,
-				NPU_MMU_DISABLED_POLL_PERIOD_US,
-				NPU_MMU_DISABLED_POLL_TIMEOUT_US, false, dev);
+	ret = read_poll_timeout(pm_runtime_status_suspended, suspended, suspended,
+				NPU_MMU_SUSPEND_POLL_PERIOD_US,
+				NPU_MMU_SUSPEND_POLL_TIMEOUT_US, false,
+				rknpu3_dev->iommu_dev);
 	if (ret)
-		LOG_DEV_ERROR(dev, "timed out waiting for IOMMU disabled\n");
+		LOG_DEV_ERROR(dev, "timed out waiting for IOMMU suspend\n");
 
 	return ret;
 }
@@ -320,7 +317,7 @@ static int rknpu3_power_off(struct rknpu3_device *rknpu3_dev)
 	}
 
 #ifndef FPGA_PLATFORM
-	ret = rknpu3_wait_iommu_disabled(rknpu3_dev);
+	ret = rknpu3_wait_iommu_suspended(rknpu3_dev);
 	if (ret) {
 		int resume_ret;
 
