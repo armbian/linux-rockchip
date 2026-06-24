@@ -1412,8 +1412,7 @@ int dw_hdmi_qp_set_earc(struct dw_hdmi_qp *hdmi)
 	hdmi->phy.ops->set_mode(hdmi, hdmi->phy.data, HDMI_PHY_EARC_MASK,
 				true);
 
-	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data,
-				  &hdmi->previous_mode);
+	ret = hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 	if (ret)
 		return ret;
 
@@ -2398,7 +2397,7 @@ static int dw_hdmi_qp_flt_lts4(struct dw_hdmi_qp *hdmi, u8 *rate)
 		hdmi->plat_data->link_clk_set(data, 0, true);
 
 	/* enable phy */
-	hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+	hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 
 	*rate = actual_rate;
 	/* set new rate */
@@ -2537,7 +2536,7 @@ static int hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, 0, OPMODE_FRL, LINK_CONFIG0);
 		hdmi_modb(hdmi, 0, OPMODE_FRL_4LANES, LINK_CONFIG0);
 		if (!hdmi->update) {
-			ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+			ret = hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 			if (!ret)
 				hdmi->disabled = false;
 		}
@@ -2556,7 +2555,7 @@ static int hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 
 	hdmi_modb(hdmi, 1, OPMODE_FRL, LINK_CONFIG0);
 
-	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+	ret = hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 	if (!ret) {
 		hdmi->disabled = false;
 		/* wait phy output stable then start flt */
@@ -2917,7 +2916,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
 		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);
 		hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
-		hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+		hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 		dev_info(hdmi->dev, "%s DVI mode\n", __func__);
 	}
 
@@ -3285,7 +3284,7 @@ void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable)
 			hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 		}
 
-		hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+		hdmi->phy.ops->enable(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 		hdmi->disabled = false;
 		msleep(50);
 		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);

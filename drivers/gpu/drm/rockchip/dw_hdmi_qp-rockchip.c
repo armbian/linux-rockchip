@@ -4303,8 +4303,8 @@ static void dw_hdmi_qp_rockchip_phy_disable(struct dw_hdmi_qp *dw_hdmi, void *da
 		phy_power_off(hdmi->phy);
 }
 
-static int dw_hdmi_qp_rockchip_genphy_init(struct dw_hdmi_qp *dw_hdmi, void *data,
-					   struct drm_display_mode *mode)
+static int dw_hdmi_qp_rockchip_phy_enable(struct dw_hdmi_qp *dw_hdmi, void *data,
+					  struct drm_display_mode *mode)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 
@@ -4644,7 +4644,7 @@ dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe_l
 }
 
 static const struct dw_hdmi_qp_phy_ops rk3538_hdmi_phy_ops = {
-	.init		= dw_hdmi_qp_rockchip_genphy_init,
+	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3538_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3538_setup_hpd,
@@ -4682,7 +4682,7 @@ static const struct dw_hdmi_plat_data rk3538_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3576_hdmi_phy_ops = {
-	.init		= dw_hdmi_qp_rockchip_genphy_init,
+	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3576_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3576_setup_hpd,
@@ -4723,7 +4723,7 @@ static const struct dw_hdmi_plat_data rk3576_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3572_hdmi_phy_ops = {
-	.init		= dw_hdmi_qp_rockchip_genphy_init,
+	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3572_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3572_setup_hpd,
@@ -4765,7 +4765,7 @@ static const struct dw_hdmi_plat_data rk3572_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
-	.init		= dw_hdmi_qp_rockchip_genphy_init,
+	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3588_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3588_setup_hpd,
