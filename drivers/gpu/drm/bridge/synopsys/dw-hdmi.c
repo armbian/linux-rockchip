@@ -5068,12 +5068,20 @@ struct dentry *dw_hdmi_register_debugfs(struct dw_hdmi *hdmi)
 			    hdmi, &dw_hdmi_status_fops);
 	debugfs_create_file("ctrl", 0600, debugfs_dir,
 			    hdmi, &dw_hdmi_ctrl_fops);
-	debugfs_create_file("phy", 0600, debugfs_dir,
-			    hdmi, &dw_hdmi_phy_fops);
+
+	if (!hdmi->plat_data->phy_force_vendor)
+		debugfs_create_file("phy", 0600, debugfs_dir, hdmi, &dw_hdmi_phy_fops);
 
 	return debugfs_dir;
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_register_debugfs);
+
+void dw_hdmi_phy_init(struct dw_hdmi *hdmi)
+{
+	if (hdmi->phy.ops->init)
+		hdmi->phy.ops->init(hdmi, hdmi->phy.data, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_phy_init);
 
 static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi, u32 val)
 {

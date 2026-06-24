@@ -2068,7 +2068,16 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = container_of(encoder, struct rockchip_hdmi, encoder);
 
-	dw_hdmi_register_debugfs(hdmi->hdmi);
+	/*
+	 * The HDMI PHY driver clears the debugfs node registered by the PHY
+	 * framework during probe so that the HDMI controller can pass its
+	 * HDMI debugfs directory (/sys/kernel/debug/dri/0/hdmiX/) to the
+	 * PHY driver via phy->debugfs.
+	 */
+	if (!hdmi->phy->debugfs)
+		hdmi->phy->debugfs = dw_hdmi_register_debugfs(hdmi->hdmi);
+	dw_hdmi_phy_init(hdmi->hdmi);
+
 	return 0;
 }
 
@@ -2076,6 +2085,15 @@ static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 	.late_register = dw_hdmi_encoder_late_register,
 };
+
+static int dw_hdmi_rockchip_phy_init(struct dw_hdmi *dw_hdmi, void *data,
+				     const struct drm_display_info *display,
+				     const struct drm_display_mode *mode)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return phy_init(hdmi->phy);
+}
 
 static void
 dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
@@ -2165,6 +2183,7 @@ static void dw_hdmi_rk3328_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 }
 
 static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
+	.init		= dw_hdmi_rockchip_phy_init,
 	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_phy_read_hpd,
@@ -2208,6 +2227,7 @@ static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_phy_ops rk3328_hdmi_phy_ops = {
+	.init		= dw_hdmi_rockchip_phy_init,
 	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_rk3328_read_hpd,
@@ -2222,6 +2242,7 @@ dw_hdmi_rk3528_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
 }
 
 static const struct dw_hdmi_phy_ops rk3528_hdmi_phy_ops = {
+	.init		= dw_hdmi_rockchip_phy_init,
 	.enable		= dw_hdmi_rockchip_genphy_enable,
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_rk3528_read_hpd,
