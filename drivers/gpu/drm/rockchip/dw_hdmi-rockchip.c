@@ -2066,6 +2066,9 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
  */
 static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 {
+	struct rockchip_hdmi *hdmi = container_of(encoder, struct rockchip_hdmi, encoder);
+
+	dw_hdmi_register_debugfs(hdmi->hdmi);
 	return 0;
 }
 
