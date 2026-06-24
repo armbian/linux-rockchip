@@ -4285,7 +4285,15 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 	dw_hdmi_qp_register_audio(hdmi->hdmi_qp);
 	dw_hdmi_qp_register_cec(hdmi->hdmi_qp);
 	dw_hdmi_qp_register_hdcp(hdmi->hdmi_qp);
-	dw_hdmi_qp_register_debugfs(hdmi->hdmi_qp);
+	/*
+	 * The HDMI PHY driver clears the debugfs node registered by the PHY
+	 * framework during probe so that the HDMI controller can pass its
+	 * HDMI debugfs directory (/sys/kernel/debug/dri/0/hdmiX/) to the
+	 * PHY driver via phy->debugfs.
+	 */
+	if (!hdmi->phy->debugfs)
+		hdmi->phy->debugfs = dw_hdmi_qp_register_debugfs(hdmi->hdmi_qp);
+	dw_hdmi_qp_phy_init(hdmi->hdmi_qp);
 
 	return 0;
 }
@@ -4311,6 +4319,13 @@ static int dw_hdmi_qp_rockchip_phy_enable(struct dw_hdmi_qp *dw_hdmi, void *data
 	dw_hdmi_qp_rockchip_phy_disable(dw_hdmi, data);
 
 	return phy_power_on(hdmi->phy);
+}
+
+static int dw_hdmi_qp_rockchip_phy_init(void *data)
+{
+	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
+
+	return phy_init(hdmi->phy);
 }
 
 static
@@ -4644,6 +4659,7 @@ dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe_l
 }
 
 static const struct dw_hdmi_qp_phy_ops rk3538_hdmi_phy_ops = {
+	.init		= dw_hdmi_qp_rockchip_phy_init,
 	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3538_read_hpd,
@@ -4682,6 +4698,7 @@ static const struct dw_hdmi_plat_data rk3538_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3576_hdmi_phy_ops = {
+	.init		= dw_hdmi_qp_rockchip_phy_init,
 	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3576_read_hpd,
@@ -4723,6 +4740,7 @@ static const struct dw_hdmi_plat_data rk3576_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3572_hdmi_phy_ops = {
+	.init		= dw_hdmi_qp_rockchip_phy_init,
 	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3572_read_hpd,
@@ -4765,6 +4783,7 @@ static const struct dw_hdmi_plat_data rk3572_hdmi_drv_data = {
 };
 
 static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
+	.init		= dw_hdmi_qp_rockchip_phy_init,
 	.enable		= dw_hdmi_qp_rockchip_phy_enable,
 	.disable	= dw_hdmi_qp_rockchip_phy_disable,
 	.read_hpd	= dw_hdmi_rk3588_read_hpd,

@@ -4807,6 +4807,10 @@ struct dentry *dw_hdmi_qp_register_debugfs(struct dw_hdmi_qp *hdmi)
 
 	snprintf(buf, sizeof(buf), "hdmi%d", hdmi->plat_data->id);
 	debugfs_dir = debugfs_create_dir(buf, hdmi->bridge.dev->primary->debugfs_root);
+	if (IS_ERR(debugfs_dir)) {
+		dev_err(hdmi->dev, "failed to create debugfs dir!\n");
+		return NULL;
+	}
 
 	debugfs_create_file("status", 0400, debugfs_dir, hdmi, &dw_hdmi_status_fops);
 	debugfs_create_file("ctrl", 0600, debugfs_dir, hdmi, &dw_hdmi_ctrl_fops);
@@ -4814,6 +4818,13 @@ struct dentry *dw_hdmi_qp_register_debugfs(struct dw_hdmi_qp *hdmi)
 	return debugfs_dir;
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_register_debugfs);
+
+void dw_hdmi_qp_phy_init(struct dw_hdmi_qp *hdmi)
+{
+	if (hdmi->phy.ops->init)
+		hdmi->phy.ops->init(hdmi->phy.data);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_phy_init);
 
 static void dw_hdmi_qp_hdcp14_get_mem(struct dw_hdmi_qp *hdmi, u8 *data, u32 len)
 {
