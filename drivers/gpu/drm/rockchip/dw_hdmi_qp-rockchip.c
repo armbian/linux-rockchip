@@ -4285,6 +4285,7 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 	dw_hdmi_qp_register_audio(hdmi->hdmi_qp);
 	dw_hdmi_qp_register_cec(hdmi->hdmi_qp);
 	dw_hdmi_qp_register_hdcp(hdmi->hdmi_qp);
+	dw_hdmi_qp_register_debugfs(hdmi->hdmi_qp);
 
 	return 0;
 }
