@@ -2318,13 +2318,14 @@ static int dw_dp_link_clock_recovery(struct dw_dp *dp)
 	struct dw_dp_link *link = &dp->link;
 	u8 status[DP_LINK_STATUS_SIZE];
 	unsigned int tries = 0;
-	int ret;
+	unsigned int max_retries = 50;
+	int ret, i;
 
 	ret = dw_dp_link_train_set_pattern(dp, DP_TRAINING_PATTERN_1);
 	if (ret)
 		return ret;
 
-	for (;;) {
+	for (i = 0; i < max_retries; i++) {
 		ret = dw_dp_link_train_update_vs_emph(dp);
 		if (ret)
 			return ret;
