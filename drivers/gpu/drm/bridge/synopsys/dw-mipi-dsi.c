@@ -895,6 +895,9 @@ static void dw_mipi_dsi_bridge_post_atomic_disable(struct drm_bridge *bridge,
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 0);
+
+	if (pdata->crtc_pre_disable)
+		pdata->crtc_pre_disable(pdata->priv_data, bridge->encoder->crtc);
 }
 
 static void dw_mipi_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
@@ -1037,6 +1040,9 @@ static void dw_mipi_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 0);
+
+	if (pdata->crtc_post_enable)
+		pdata->crtc_post_enable(pdata->priv_data, bridge->encoder->crtc);
 
 	if (dsi->panel)
 		drm_panel_enable(dsi->panel);

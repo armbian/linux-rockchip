@@ -58,6 +58,8 @@ struct dw_mipi_dsi_plat_data {
 	const struct dw_mipi_dsi_phy_ops *phy_ops;
 	const struct dw_mipi_dsi_host_ops *host_ops;
 	void (*stream_standby)(void *priv_data, bool standby);
+	void (*crtc_post_enable)(void *priv_data, struct drm_crtc *crtc);
+	void (*crtc_pre_disable)(void *priv_data, struct drm_crtc *crtc);
 
 	void *priv_data;
 };
