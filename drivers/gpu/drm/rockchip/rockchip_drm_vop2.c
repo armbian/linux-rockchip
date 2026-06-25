@@ -2536,6 +2536,7 @@ static void vop2_win_multi_area_disable(struct vop2_win *parent)
 static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 {
 	struct vop2 *vop2 = win->vop2;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(win->base.state);
 	struct vop2_video_port *vp = NULL;
 	uint32_t vp_id;
 
@@ -2606,6 +2607,11 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			vp = &vop2->vps[vp_id];
 			if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID)
 				vp->win_cfg_done_bits |= BIT(win->reg_done_bit);
+
+			if (vpstate->cgc_en) {
+				vpstate->cgc_en = false;
+				VOP_MODULE_SET(vop2, vp, cgc_path_en, 0);
+			}
 		}
 	}
 
