@@ -435,7 +435,7 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
 
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->input_dev, id);
-    input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, id);
+    input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
     input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
     input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
     input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, w);
@@ -465,7 +465,7 @@ static void gtp_touch_up(struct goodix_ts_data* ts, s32 id)
 {
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->input_dev, id);
-    input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
+    input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
     GTP_DEBUG("Touch id[%2d] release!", id);
 #else
     input_report_key(ts->input_dev, BTN_TOUCH, 0);
@@ -508,8 +508,7 @@ static void gtp_pen_init(struct goodix_ts_data *ts)
     input_set_abs_params(ts->pen_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
     input_set_abs_params(ts->pen_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
     input_set_abs_params(ts->pen_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-    input_set_abs_params(ts->pen_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
-    
+
     ts->pen_dev->name = "goodix-pen";
     ts->pen_dev->id.bustype = BUS_I2C;
     
@@ -517,6 +516,8 @@ static void gtp_pen_init(struct goodix_ts_data *ts)
     if (ret)
     {
         GTP_ERROR("Register %s input device failed", ts->pen_dev->name);
+        input_free_device(ts->pen_dev);
+        ts->pen_dev = NULL;
         return;
     }
 }
@@ -525,14 +526,17 @@ static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(gtp_i2c_connect_client);
 
+    if (!ts->pen_dev)
+        return;
+
 	if (gtp_change_x2y)
 		GTP_SWAP(x, y);
 
-    
+
     input_report_key(ts->pen_dev, BTN_TOOL_PEN, 1);
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->pen_dev, id);
-    input_report_abs(ts->pen_dev, ABS_MT_TRACKING_ID, id);
+    input_mt_report_slot_state(ts->pen_dev, MT_TOOL_PEN, true);
     input_report_abs(ts->pen_dev, ABS_MT_POSITION_X, x);
     input_report_abs(ts->pen_dev, ABS_MT_POSITION_Y, y);
     input_report_abs(ts->pen_dev, ABS_MT_PRESSURE, w);
@@ -552,14 +556,17 @@ static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 static void gtp_pen_up(s32 id)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(gtp_i2c_connect_client);
-    
+
+    if (!ts->pen_dev)
+        return;
+
     input_report_key(ts->pen_dev, BTN_TOOL_PEN, 0);
-    
+
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->pen_dev, id);
-    input_report_abs(ts->pen_dev, ABS_MT_TRACKING_ID, -1);
+    input_mt_report_slot_state(ts->pen_dev, MT_TOOL_PEN, false);
 #else
-    
+
     input_report_key(ts->pen_dev, BTN_TOUCH, 0);
 #endif
 
@@ -1007,11 +1014,17 @@ static void goodix_ts_work_func(struct work_struct *work)
     if (pen_active)
     {
         pen_active = 0;
+#if GTP_ICS_SLOT_REPORT
+        input_mt_sync_frame(ts->pen_dev);
+#endif
         input_sync(ts->pen_dev);
     }
     else
 #endif
     {
+#if GTP_ICS_SLOT_REPORT
+        input_mt_sync_frame(ts->input_dev);
+#endif
         input_sync(ts->input_dev);
     }
 
@@ -2081,6 +2094,7 @@ static s8 gtp_request_input_dev(struct i2c_client *client,
     input_mt_init_slots(ts->input_dev, 16, INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);     // in case of "out of memory"
 #else
     ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+    input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 #endif
     __set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
 
@@ -2106,7 +2120,6 @@ static s8 gtp_request_input_dev(struct i2c_client *client,
     input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
     input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-    input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 
     sprintf(phys, "input/ts");
     ts->input_dev->name = goodix_ts_name;
