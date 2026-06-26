@@ -5510,6 +5510,7 @@
 			      "dclk_vp2",
 			      "dclk_vp3";
 		rockchip,aclk-normal-mode-rates = <500000000>;
+		rockchip,aclk-reset-mode-rates = <500000000>;
 		rockchip,aclk-advanced-mode-rates = <750000000>;
 		operating-points-v2 = <&vop_opp_table>;
 		iommus = <&vop_mmu>;
