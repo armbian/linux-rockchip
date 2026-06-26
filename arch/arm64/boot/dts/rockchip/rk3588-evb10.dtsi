@@ -484,6 +484,7 @@
 		goodix,rst-gpio = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio3 RK_PC0 IRQ_TYPE_LEVEL_LOW>;
 		power-supply = <&vcc3v3_lcd_n>;
+		gtp_ics_slot_report;
 	};
 
 	hynitron: hynitron@5a {

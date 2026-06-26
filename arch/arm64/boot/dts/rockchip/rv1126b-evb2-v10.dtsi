@@ -310,6 +310,7 @@
 		pinctrl-0 = <&touch_gpio>;
 		goodix,rst-gpio = <&gpio5 RK_PD6 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio3 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
+		gtp_ics_slot_report;
 	};
 
 	hynitron: hynitron@5a {

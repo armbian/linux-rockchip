@@ -509,6 +509,7 @@
 		goodix,rst-gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PB0 IRQ_TYPE_LEVEL_LOW>;
 		power-supply = <&vcc3v3_lcd_n>;
+		gtp_ics_slot_report;
 	};
 
 	gsl3673: gsl3673@40 {

@@ -491,6 +491,7 @@
 		 * when mipi panel is connected to dsi1.
 		 */
 		power-supply = <&vcc3v3_lcd_n>;
+		gtp_ics_slot_report;
 	};
 
 	hynitron: hynitron@5a {

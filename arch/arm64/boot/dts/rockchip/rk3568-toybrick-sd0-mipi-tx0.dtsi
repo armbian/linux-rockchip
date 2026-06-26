@@ -44,6 +44,7 @@
 		pinctrl-0 = <&touch_pin>;
 		goodix,rst-gpio = <&gpio4 RK_PC3 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio4 RK_PC2 IRQ_TYPE_LEVEL_LOW>;
+		gtp_ics_slot_report;
 	};
 
 	hynitron: hynitron@5a {

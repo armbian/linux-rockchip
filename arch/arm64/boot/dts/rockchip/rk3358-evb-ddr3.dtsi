@@ -773,6 +773,7 @@
 		power-supply = <&vcc3v3_lcd>;
 		goodix,rst-gpio = <&gpio3 RK_PB5 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		gtp_ics_slot_report;
 	};
 };
 
