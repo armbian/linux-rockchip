@@ -167,9 +167,9 @@ void gt1x_touch_down(s32 x, s32 y, s32 size, s32 id)
 
 	if (gt1x_ics_slot_report) {
 		input_mt_slot(input_dev, id);
+		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 		input_report_abs(input_dev, ABS_MT_PRESSURE, size);
 		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, size);
-		input_report_abs(input_dev, ABS_MT_TRACKING_ID, id);
 		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
 		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
 	} else {
@@ -200,7 +200,7 @@ void gt1x_touch_up(s32 id)
 {
 	if (gt1x_ics_slot_report) {
 		input_mt_slot(input_dev, id);
-		input_report_abs(input_dev, ABS_MT_TRACKING_ID, -1);
+		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
 	} else {
 		input_report_key(input_dev, BTN_TOUCH, 0);
 		input_mt_sync(input_dev);
@@ -503,7 +503,8 @@ static s8 gt1x_request_input_dev(void)
 #endif
 	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
+	if (!gt1x_ics_slot_report)
+		input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 
 	input_set_abs_params(input_dev, ABS_X, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 255, 0, 0);
@@ -518,6 +519,8 @@ static s8 gt1x_request_input_dev(void)
 	ret = input_register_device(input_dev);
 	if (ret) {
 		GTP_ERROR("Register %s input device failed", input_dev->name);
+		input_free_device(input_dev);
+		input_dev = NULL;
 		return -ENODEV;
 	}
 
@@ -579,6 +582,7 @@ static int gt1x_ts_probe(struct i2c_client *client)
 	ret = gt1x_request_input_dev();
 	if (ret < 0) {
 		GTP_ERROR("GTP request input dev failed");
+		goto init_err;
 	}
 
 	ret = gt1x_request_irq();
@@ -609,6 +613,10 @@ static int gt1x_ts_probe(struct i2c_client *client)
 #endif
 	gt1x_register_powermanger();
 	return 0;
+
+init_err:
+	destroy_workqueue(gt1x_wq);
+	return ret;
 }
 
 /**

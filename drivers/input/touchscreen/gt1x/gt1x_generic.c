@@ -1206,7 +1206,8 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 
 	/* start handle current event and pre-event */
 #if GTP_HAVE_STYLUS_KEY
-	if (CHK_BIT(cur_event, BIT_STYLUS_KEY) || CHK_BIT(pre_event, BIT_STYLUS_KEY)) {
+	if (pen_dev &&
+	    (CHK_BIT(cur_event, BIT_STYLUS_KEY) || CHK_BIT(pre_event, BIT_STYLUS_KEY))) {
 		/*
 		 * 0x10 -- stylus key0 down
 		 * 0x20 -- stylus key1 down
@@ -1309,13 +1310,18 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 	}
 
 	/* start sync input report */
-	if (CHK_BIT(cur_event, BIT_STYLUS_KEY | BIT_STYLUS)
-			|| CHK_BIT(pre_event, BIT_STYLUS_KEY | BIT_STYLUS)) {
+	if (pen_dev &&
+	    (CHK_BIT(cur_event, BIT_STYLUS_KEY | BIT_STYLUS)
+			|| CHK_BIT(pre_event, BIT_STYLUS_KEY | BIT_STYLUS))) {
+		if (gt1x_ics_slot_report)
+			input_mt_sync_frame(pen_dev);
 		input_sync(pen_dev);
 	}
 
 	if (CHK_BIT(cur_event, BIT_TOUCH_KEY | BIT_TOUCH)
 			|| CHK_BIT(pre_event, BIT_TOUCH_KEY | BIT_TOUCH)) {
+		if (gt1x_ics_slot_report)
+			input_mt_sync_frame(dev);
 		input_sync(dev);
 	}
 
@@ -1356,7 +1362,11 @@ static void gt1x_pen_init(void)
 	input_set_abs_params(pen_dev, ABS_MT_POSITION_Y, 0, gt1x_abs_y_max, 0, 0);
 	input_set_abs_params(pen_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(pen_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(pen_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
+
+	if (gt1x_ics_slot_report)
+		input_mt_init_slots(pen_dev, 1, INPUT_MT_DIRECT);
+	else
+		input_set_abs_params(pen_dev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 
 	pen_dev->name = "goodix-pen";
 	pen_dev->phys = "input/ts";
@@ -1365,12 +1375,16 @@ static void gt1x_pen_init(void)
 	ret = input_register_device(pen_dev);
 	if (ret) {
 		GTP_ERROR("Register %s input device failed", pen_dev->name);
+		input_free_device(pen_dev);
+		pen_dev = NULL;
 		return;
 	}
 }
 
 void gt1x_pen_down(s32 x, s32 y, s32 size, s32 id)
 {
+	if (!pen_dev)
+		return;
 	input_report_key(pen_dev, BTN_TOOL_PEN, 1);
 #if GTP_CHANGE_X2Y
 	GTP_SWAP(x, y);
@@ -1378,9 +1392,9 @@ void gt1x_pen_down(s32 x, s32 y, s32 size, s32 id)
 
 	if (gt1x_ics_slot_report) {
 		input_mt_slot(pen_dev, id);
+		input_mt_report_slot_state(pen_dev, MT_TOOL_PEN, true);
 		input_report_abs(pen_dev, ABS_MT_PRESSURE, size);
 		input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, size);
-		input_report_abs(pen_dev, ABS_MT_TRACKING_ID, id);
 		input_report_abs(pen_dev, ABS_MT_POSITION_X, x);
 		input_report_abs(pen_dev, ABS_MT_POSITION_Y, y);
 	} else {
@@ -1402,10 +1416,12 @@ void gt1x_pen_down(s32 x, s32 y, s32 size, s32 id)
 
 void gt1x_pen_up(s32 id)
 {
+	if (!pen_dev)
+		return;
 	input_report_key(pen_dev, BTN_TOOL_PEN, 0);
 	if (gt1x_ics_slot_report) {
 		input_mt_slot(pen_dev, id);
-		input_report_abs(pen_dev, ABS_MT_TRACKING_ID, -1);
+		input_mt_report_slot_state(pen_dev, MT_TOOL_PEN, false);
 	} else {
 		input_report_key(pen_dev, BTN_TOUCH, 0);
 		input_mt_sync(pen_dev);
@@ -1660,7 +1676,8 @@ static int gt1x_ps_init(void)
 	err = input_register_device(gt1x_ps_dev->input_dev);
 	if (err) {
 		GTP_ERROR("Failed to register proximity input device: %s!", gt1x_ps_dev->input_dev->name);
-		goto err_register_dev;
+		input_free_device(gt1x_ps_dev->input_dev);
+		goto err_exit;
 	}
 	/* register sysfs interface  */
 	if (!sysfs_rootdir) {
@@ -1693,7 +1710,7 @@ static int gt1x_ps_init(void)
 err_create_file:
 	kobject_put(gt1x_ps_dev->kobj);
 err_register_dev:
-	input_free_device(gt1x_ps_dev->input_dev);
+	input_unregister_device(gt1x_ps_dev->input_dev);
 #endif  /* End PLATFROM_MTK */
 
 err_exit:
