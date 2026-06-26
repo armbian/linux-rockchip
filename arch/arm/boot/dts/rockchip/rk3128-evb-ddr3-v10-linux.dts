@@ -769,6 +769,7 @@
 		pinctrl-0 = <&tp_rst>, <&tp_irq>;
 		goodix,rst-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
 		goodix,irq-gpio = <&gpio1 RK_PB0 GPIO_ACTIVE_LOW>;
+		gtp_ics_slot_report;
 	};
 
 	mma7660: mma7660@4c {

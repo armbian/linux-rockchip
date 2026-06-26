@@ -556,6 +556,7 @@
 		power-invert = <1>;
 		goodix,irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_LEVEL_LOW>;
 		status = "okay";
+		gtp_ics_slot_report;
 	};
 
 	sensor7660@4c {
