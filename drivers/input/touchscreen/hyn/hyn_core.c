@@ -221,9 +221,9 @@ static int hyn_input_dev_init(struct hyn_ts_data *ts_data)
 	input_mt_init_slots(input_dev, dt->max_touch_num+1, INPUT_MT_DIRECT);
 #else
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,  dt->max_touch_num, 0, 0);
 #endif
 
-	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,  dt->max_touch_num, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, dt->x_resolution,0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, dt->y_resolution,0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
@@ -245,7 +245,6 @@ static void release_all_finger(struct hyn_ts_data *ts_data)
 			if (ts_data->report_id_flg & (1UL<<i)) {
 				// HYN_INFO("release %d",i);
 				input_mt_slot(ts_data->input_dev, i);
-				input_report_abs(ts_data->input_dev, ABS_MT_TRACKING_ID, -1);
 				input_mt_report_slot_state(ts_data->input_dev, MT_TOOL_FINGER, false);
 			}
 		}
@@ -274,7 +273,6 @@ static void touch_updata(u8 idx,u8 event)
 		input_report_key(dev, BTN_TOUCH, 1);
 		input_mt_slot(dev, rep_frame->pos_info[idx].pos_id);
 		input_mt_report_slot_state(dev, MT_TOOL_FINGER, 1);
-		input_report_abs(dev, ABS_MT_TRACKING_ID, rep_frame->pos_info[idx].pos_id);
 		input_report_abs(dev, ABS_MT_POSITION_X, rep_frame->pos_info[idx].pos_x);
 		input_report_abs(dev, ABS_MT_POSITION_Y, rep_frame->pos_info[idx].pos_y);
 		input_report_abs(dev, ABS_MT_TOUCH_MAJOR, zpress>>3);
@@ -283,7 +281,6 @@ static void touch_updata(u8 idx,u8 event)
 	}
 	else{
 		input_mt_slot(dev, rep_frame->pos_info[idx].pos_id);
-		input_report_abs(dev, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(dev, MT_TOOL_FINGER, 0);
 	}
 #else

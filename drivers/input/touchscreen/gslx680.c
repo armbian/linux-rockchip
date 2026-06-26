@@ -1520,7 +1520,6 @@ static int gsl_ts_suspend(struct i2c_client *dev, pm_message_t mesg)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else
@@ -1555,7 +1554,6 @@ static int gsl_ts_resume(struct i2c_client *dev)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else
@@ -1598,7 +1596,6 @@ static int gsl_ts_early_suspend(struct tp_device *tp_d)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else
@@ -1631,7 +1628,6 @@ static int gsl_ts_late_resume(struct tp_device *tp_d)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else
@@ -1668,7 +1664,6 @@ static void gsl_ts_early_suspend(struct early_suspend *h)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else
@@ -1702,7 +1697,6 @@ static void gsl_ts_late_resume(struct early_suspend *h)
 #ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 #else

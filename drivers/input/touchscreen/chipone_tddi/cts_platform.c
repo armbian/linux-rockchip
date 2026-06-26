@@ -816,13 +816,14 @@ int cts_init_platform_data(struct cts_platform_data *pdata,
 
     input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
     input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-    input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,
-            CFG_CTS_MAX_TOUCH_NUM * 2, 0, 0);
 
     input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 #ifdef CONFIG_CTS_SLOTPROTOCOL
     input_mt_init_slots(input_dev, CFG_CTS_MAX_TOUCH_NUM, 0);
+#else
+    input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,
+            CFG_CTS_MAX_TOUCH_NUM * 2, 0, 0);
 #endif /* CONFIG_CTS_SLOTPROTOCOL */
     __set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
     __set_bit(EV_ABS, input_dev->evbit);

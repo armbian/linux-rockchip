@@ -1120,7 +1120,8 @@ static int elan_request_pen_input_dev(struct elan_ts_data *ts)
 		
 		input_set_abs_params(ts->pen_idev, ABS_TILT_X, -90, 90, 0, 0);
 		input_set_abs_params(ts->pen_idev, ABS_TILT_Y, -90, 90, 0, 0);
-	}	
+		input_set_abs_params(ts->pen_idev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);
+	}
 
 	ts->pen_idev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) | BIT_MASK(EV_SYN);
 
@@ -1130,8 +1131,7 @@ static int elan_request_pen_input_dev(struct elan_ts_data *ts)
 	__set_bit(BTN_STYLUS2, ts->pen_idev->keybit);
 	__set_bit(INPUT_PROP_DIRECT, ts->pen_idev->propbit);
 	__set_bit(BTN_TOUCH, ts->pen_idev->keybit);
-	input_set_abs_params(ts->pen_idev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);
-	
+
 	ts->pen_idev->name = "elan_pen";
 	ts->pen_idev->phys = "input/ts";
 	ts->pen_idev->id.bustype = BUS_I2C;
@@ -1177,18 +1177,18 @@ static int elan_request_finger_input_dev(struct elan_ts_data *ts)
 		input_set_abs_params(ts->finger_idev, ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0);
 	} else {
 		__set_bit(BTN_TOOL_FINGER, ts->finger_idev->keybit);
+		input_set_abs_params(ts->finger_idev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 	}
-	
+
 	dev_info(&ts->client->dev,
 			"[elan] %s: x resolution: %d, y resolution: %d\n",
 			__func__, ts->fw_info.finger_xres, ts->fw_info.finger_yres);
-			
-	ts->finger_idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);													
+
+	ts->finger_idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(ts->finger_idev, ABS_MT_POSITION_X, 0, ts->hw_info.screen_x, 0, 0);
 	input_set_abs_params(ts->finger_idev, ABS_MT_POSITION_Y, 0, ts->hw_info.screen_y, 0, 0);
 //	input_set_abs_params(ts->finger_idev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 //	input_set_abs_params(ts->finger_idev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ts->finger_idev, ABS_MT_TRACKING_ID, 0, 255, 0, 0);
 
 	ts->finger_idev->name = ELAN_TS_NAME;
 	ts->finger_idev->phys = "input/ts";

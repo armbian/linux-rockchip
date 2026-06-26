@@ -767,7 +767,7 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 		y = SCREEN_MAX_Y - y - 1;
 #ifdef REPORT_DATA_ANDROID_4_0
 	input_mt_slot(ts->input, id);
-	input_report_abs(ts->input, ABS_MT_TRACKING_ID, id);
+	input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 	input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, pressure);
 	input_report_abs(ts->input, ABS_MT_POSITION_X, x);
 	input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
@@ -882,7 +882,6 @@ static void gslX680_ts_worker(struct work_struct *work)
 		if ((touches == 0) || ((id_state_old_flag[i] != 0) && (id_state_flag[i] == 0)))	{
 		#ifdef REPORT_DATA_ANDROID_4_0
 			input_mt_slot(ts->input, i);
-			input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 		#endif
 			id_sign[i] = 0;
@@ -1096,7 +1095,6 @@ static int gsl_ts_suspend(struct device *dev)
 	#ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else
@@ -1128,7 +1126,6 @@ static int gsl_ts_resume(struct device *dev)
 	#ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else

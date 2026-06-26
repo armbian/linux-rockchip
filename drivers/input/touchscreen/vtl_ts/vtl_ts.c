@@ -320,8 +320,7 @@ static void vtl_ts_report_xy_coord(struct ts_info *ts)
 		}
 		//#endif	
 			input_mt_slot(input_dev, xy_data->point[id].id - 1);
-			input_report_abs(input_dev, ABS_MT_TRACKING_ID, xy_data->point[id].id-1);
-			//input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
+			input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 			input_report_abs(input_dev, ABS_MT_POSITION_X, x);
 			input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
 			input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, 1);
@@ -337,10 +336,10 @@ static void vtl_ts_report_xy_coord(struct ts_info *ts)
 
 	for ( id = 0; id < touch_point_number; id++ ) //up
 	{
-		if ( release & (0x01<<id) ) 
+		if ( release & (0x01<<id) )
 		{
 			input_mt_slot(input_dev, id);
-			input_report_abs(input_dev, ABS_MT_TRACKING_ID, -1);
+			input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
 			sync = 1;
 		}
 	}
@@ -369,8 +368,7 @@ int vtl_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		for(i=0;i<ts->config_info.touch_point_number;i++)
 		{
 			input_mt_slot(ts->driver->input_dev,i);
-			input_report_abs(ts->driver->input_dev, ABS_MT_TRACKING_ID, -1);
-			//input_mt_report_slot_state(ts->driver->input_dev, MT_TOOL_FINGER, false);
+			input_mt_report_slot_state(ts->driver->input_dev, MT_TOOL_FINGER, false);
 		}
 		input_sync(ts->driver->input_dev);
 	}
@@ -392,8 +390,7 @@ int vtl_ts_resume(struct i2c_client *client)
 		for(i=0;i<ts->config_info.touch_point_number;i++)
 		{
 			input_mt_slot(ts->driver->input_dev,i);
-			input_report_abs(ts->driver->input_dev, ABS_MT_TRACKING_ID, -1);
-			//input_mt_report_slot_state(ts->driver->input_dev, MT_TOOL_FINGER, false);
+			input_mt_report_slot_state(ts->driver->input_dev, MT_TOOL_FINGER, false);
 		}
 		input_sync(ts->driver->input_dev);
 		if(vtl_first_init_flag==0)
@@ -501,7 +498,6 @@ static int vtl_ts_init_input_dev(struct ts_info *ts)
 	input_mt_init_slots(input_dev, TOUCH_POINT_NUM,0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, ts->config_info.screen_max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, ts->config_info.screen_max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,ts->config_info.touch_point_number, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 

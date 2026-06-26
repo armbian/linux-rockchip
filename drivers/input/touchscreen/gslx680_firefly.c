@@ -649,7 +649,7 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 
 #ifdef REPORT_DATA_ANDROID_4_0
 	input_mt_slot(ts->input, id);
-	input_report_abs(ts->input, ABS_MT_TRACKING_ID, id);
+	input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 	input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, pressure);
 	input_report_abs(ts->input, ABS_MT_POSITION_X, x);
 	input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
@@ -752,7 +752,6 @@ static void gslX680_ts_worker(struct work_struct *work)
 		if ((touches == 0) || ((id_state_old_flag[i] != 0) && (id_state_flag[i] == 0))) {
 		#ifdef REPORT_DATA_ANDROID_4_0
 			input_mt_slot(ts->input, i);
-			input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 		#endif
 			id_sign[i] = 0;
@@ -893,7 +892,6 @@ static int rk_ts_early_suspend(struct tp_device *tp_d)
 	#ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else
@@ -923,7 +921,6 @@ static int rk_ts_early_resume(struct tp_device *tp_d)
 	#ifdef REPORT_DATA_ANDROID_4_0
 	for (i = 1; i <= MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else

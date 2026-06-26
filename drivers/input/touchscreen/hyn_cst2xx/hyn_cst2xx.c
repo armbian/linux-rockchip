@@ -727,7 +727,6 @@ static void cst2xx_touch_down(struct input_dev *input_dev, s32 id,s32 x,s32 y,s3
 #ifdef ICS_SLOT_REPORT
 	input_mt_slot(input_dev, id);
 	input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, 1);
-	input_report_abs(input_dev, ABS_MT_TRACKING_ID, id);
 	input_report_abs(input_dev, ABS_MT_POSITION_X, x);
 	input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
 	input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, temp_w);
@@ -1385,7 +1384,6 @@ CLR_POINT:
 	#ifdef ICS_SLOT_REPORT
 		for(i=0; i<=MAX_CONTACTS; i++) {
 			input_mt_slot(ts->input, i);
-			input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 		}
 	#else
@@ -1647,7 +1645,6 @@ static int hyn_ts_suspend(struct device *dev)
 	#ifdef ICS_SLOT_REPORT
 	for(i=1; i<=MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else
@@ -1673,7 +1670,6 @@ static int hyn_ts_resume(struct device *dev)
 	#ifdef ICS_SLOT_REPORT
 	for(i=1; i<=MAX_CONTACTS; i++) {
 		input_mt_slot(ts->input, i);
-		input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
 	}
 	#else
