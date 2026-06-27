@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,11 +20,14 @@
  */
 
 #include <mali_kbase.h>
-#include <mali_kbase_io.h>
 #include <mali_kbase_defs.h>
 #include "mali_kbase_ctx_sched.h"
 #include "tl/mali_kbase_tracepoints.h"
+#if MALI_USE_CSF
 #include "mali_kbase_reset_gpu.h"
+#else
+#include <mali_kbase_hwaccess_jm.h>
+#endif
 
 /* Helper for ktrace */
 #if KBASE_KTRACE_ENABLE
@@ -108,7 +111,7 @@ int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx)
 	lockdep_assert_held(&kbdev->mmu_hw_mutex);
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	WARN_ON(!kbase_io_is_gpu_powered(kbdev));
+	WARN_ON(!kbdev->pm.backend.gpu_powered);
 
 	if (atomic_inc_return(&kctx->refcount) == 1) {
 		int const free_as = kbasep_ctx_sched_find_as_for_ctx(kctx);
@@ -124,10 +127,14 @@ int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx)
 				if (prev_kctx) {
 					WARN_ON(atomic_read(&prev_kctx->refcount) != 0);
 					kbase_mmu_disable(prev_kctx);
+					KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(kbdev,
+										prev_kctx->id);
 					prev_kctx->as_nr = KBASEP_AS_NR_INVALID;
 				}
 				kctx->as_nr = free_as;
 				kbdev->as_to_kctx[free_as] = kctx;
+				KBASE_TLSTREAM_TL_KBASE_CTX_ASSIGN_AS(kbdev, kctx->id,
+								      (u32)free_as);
 				kbase_mmu_update(kbdev, &kctx->mmu, kctx->as_nr);
 			}
 		} else {
@@ -148,12 +155,19 @@ void kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx)
 	struct kbase_device *const kbdev = kctx->kbdev;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+#if MALI_USE_CSF
 	/* We expect the context to be active when this function is called,
 	 * except for the case where a page fault is reported for it during
 	 * the GPU reset sequence, in which case we can expect the refcount
 	 * to be 0.
 	 */
 	WARN_ON(!atomic_read(&kctx->refcount) && !kbase_reset_gpu_is_active(kbdev));
+#else
+	/* We expect the context to be active (and thus refcount should be non-zero)
+         * when this function is called
+         */
+	WARN_ON(!atomic_read(&kctx->refcount));
+#endif
 	if (likely((kctx->as_nr >= 0) && (kctx->as_nr < BASE_MAX_NR_AS)))
 		WARN_ON(kbdev->as_to_kctx[kctx->as_nr] != kctx);
 	else
@@ -174,9 +188,13 @@ void kbase_ctx_sched_release_ctx(struct kbase_context *kctx)
 		if (likely((kctx->as_nr >= 0) && (kctx->as_nr < BASE_MAX_NR_AS))) {
 			kbdev->as_free |= (1u << kctx->as_nr);
 			if (kbase_ctx_flag(kctx, KCTX_AS_DISABLED_ON_FAULT)) {
+				KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(kbdev, kctx->id);
 				kbdev->as_to_kctx[kctx->as_nr] = NULL;
 				kctx->as_nr = KBASEP_AS_NR_INVALID;
 				kbase_ctx_flag_clear(kctx, KCTX_AS_DISABLED_ON_FAULT);
+#if !MALI_USE_CSF
+				kbase_backend_slot_kctx_purge_locked(kbdev, kctx);
+#endif
 			}
 		}
 	}
@@ -191,9 +209,7 @@ void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx)
 
 	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
 	kbase_ctx_sched_remove_ctx_nolock(kctx);
-
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 }
@@ -208,9 +224,10 @@ void kbase_ctx_sched_remove_ctx_nolock(struct kbase_context *kctx)
 	WARN_ON(atomic_read(&kctx->refcount) != 0);
 
 	if ((kctx->as_nr >= 0) && (kctx->as_nr < BASE_MAX_NR_AS)) {
-		if (kbase_io_is_gpu_powered(kbdev))
+		if (kbdev->pm.backend.gpu_powered)
 			kbase_mmu_disable(kctx);
 
+		KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(kbdev, kctx->id);
 		kbdev->as_to_kctx[kctx->as_nr] = NULL;
 		kctx->as_nr = KBASEP_AS_NR_INVALID;
 	}
@@ -223,17 +240,19 @@ void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)
 	lockdep_assert_held(&kbdev->mmu_hw_mutex);
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	WARN_ON(!kbase_io_is_gpu_powered(kbdev));
+	WARN_ON(!kbdev->pm.backend.gpu_powered);
 
 	kbdev->mmu_unresponsive = false;
 
 	for (i = 0; i != kbdev->nr_hw_address_spaces; ++i) {
 		struct kbase_context *kctx;
 
+#if MALI_USE_CSF
 		if ((i == MCU_AS_NR) && kbdev->csf.firmware_inited) {
 			kbase_mmu_update(kbdev, &kbdev->csf.mcu_mmu, MCU_AS_NR);
 			continue;
 		}
+#endif
 		kctx = kbdev->as_to_kctx[i];
 		if (kctx) {
 			if (atomic_read(&kctx->refcount)) {
@@ -246,6 +265,7 @@ void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)
 				 * AS before, clear it.
 				 */
 				if (kctx->as_nr != KBASEP_AS_NR_INVALID) {
+					KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(kbdev, kctx->id);
 					kbdev->as_to_kctx[kctx->as_nr] = NULL;
 					kctx->as_nr = KBASEP_AS_NR_INVALID;
 				}
@@ -372,6 +392,7 @@ void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx)
 	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
 }
 
+#if MALI_USE_CSF
 bool kbase_ctx_sched_inc_refcount_if_as_valid(struct kbase_context *kctx)
 {
 	struct kbase_device *kbdev;
@@ -405,3 +426,4 @@ bool kbase_ctx_sched_inc_refcount_if_as_valid(struct kbase_context *kctx)
 
 	return added_ref;
 }
+#endif

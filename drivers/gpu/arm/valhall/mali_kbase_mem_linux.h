@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,14 +44,14 @@ struct kbase_hwc_dma_mapping {
  * @flags:        bitmask of BASE_MEM_* flags to convey special requirements &
  *                properties for the new allocation.
  * @gpu_va:       Start address of the memory region which was allocated from GPU
- *                virtual address space. If the BASEP_MEM_FLAG_MAP_FIXED is set
+ *                virtual address space. If the BASE_MEM_FLAG_MAP_FIXED is set
  *                then this parameter shall be provided by the caller.
  * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  *
  * Return: 0 on success or error code
  */
 struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages, u64 commit_pages,
-					u64 extension, base_mem_alloc_flags *flags, u64 *gpu_va,
+					u64 extension, u64 *flags, u64 *gpu_va,
 					enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 /**
@@ -84,8 +84,7 @@ int kbase_mem_query(struct kbase_context *kctx, u64 gpu_addr, u64 query, u64 *co
  * Return: 0 on success or error code
  */
 int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
-		     void __user *phandle, u32 padding, u64 *gpu_va, u64 *va_pages,
-		     base_mem_alloc_flags *flags);
+		     void __user *phandle, u32 padding, u64 *gpu_va, u64 *va_pages, u64 *flags);
 
 /**
  * kbase_mem_alias - Create a new allocation for GPU, aliasing one or more
@@ -100,7 +99,7 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
  *
  * Return: 0 on failure or otherwise the GPU VA for the alias
  */
-u64 kbase_mem_alias(struct kbase_context *kctx, base_mem_alloc_flags *flags, u64 stride, u64 nents,
+u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride, u64 nents,
 		    struct base_mem_aliasing_info *ai, u64 *num_pages);
 
 /**
@@ -113,8 +112,8 @@ u64 kbase_mem_alias(struct kbase_context *kctx, base_mem_alloc_flags *flags, u64
  *
  * Return: 0 on success or error code
  */
-int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, base_mem_alloc_flags flags,
-			   base_mem_alloc_flags mask);
+int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned int flags,
+			   unsigned int mask);
 
 /**
  * kbase_mem_commit - Change the physical backing size of a region

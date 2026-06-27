@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2025 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,9 @@
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase.h>
 
+#if MALI_USE_CSF
 #include "backend/gpu/mali_kbase_pm_internal.h"
+#endif
 
 static int int_id_overrides_show(struct seq_file *sfile, void *data)
 {
@@ -41,7 +43,11 @@ static int int_id_overrides_show(struct seq_file *sfile, void *data)
 	for (i = 0; i < GPU_SYSC_ALLOC_COUNT; ++i) {
 		uint j;
 
+#if MALI_USE_CSF
 		u32 reg = kbase_reg_read32(kbdev, GPU_SYSC_ALLOC_OFFSET(i));
+#else /* MALI_USE_CSF */
+		u32 reg = 0;
+#endif /* MALI_USE_CSF */
 
 		for (j = 0; j < sizeof(u32); ++j) {
 			u8 r_val = 0;
@@ -79,6 +85,8 @@ static ssize_t int_id_overrides_write(struct file *file, const char __user *ubuf
 	struct seq_file *sfile = file->private_data;
 	struct kbase_device *kbdev = sfile->private;
 	char raw_str[128];
+	char *token;
+	char *raw_ptr;
 	unsigned int id;
 	unsigned int r_val;
 	unsigned int w_val;
@@ -91,7 +99,15 @@ static ssize_t int_id_overrides_write(struct file *file, const char __user *ubuf
 		return -EINVAL;
 	raw_str[count] = '\0';
 
-	if (sscanf(raw_str, "%u %x %x", &id, &r_val, &w_val) != 3)
+	raw_ptr = raw_str;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 10, &id) < 0)
+		return -EINVAL;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 16, &r_val) < 0)
+		return -EINVAL;
+	token = strsep(&raw_ptr, " ");
+	if (token == NULL || kstrtou32(token, 16, &w_val) < 0)
 		return -EINVAL;
 
 	if (kbase_pbha_record_settings(kbdev, true, id, r_val, w_val))
@@ -114,6 +130,7 @@ static int int_id_overrides_open(struct inode *in, struct file *file)
 	return single_open(file, int_id_overrides_show, in->i_private);
 }
 
+#if MALI_USE_CSF
 /**
  * propagate_bits_show - Read PBHA bits from L2_CONFIG out to debugfs.
  *
@@ -200,6 +217,7 @@ static const struct file_operations pbha_propagate_bits_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif /* MALI_USE_CSF */
 
 static const struct file_operations pbha_int_id_overrides_fops = {
 	.owner = THIS_MODULE,
@@ -225,8 +243,10 @@ void kbase_pbha_debugfs_init(struct kbase_device *kbdev)
 
 		debugfs_create_file("int_id_overrides", mode, debugfs_pbha_dir, kbdev,
 				    &pbha_int_id_overrides_fops);
-		if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_PBHA_HWU))
+#if MALI_USE_CSF
+		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PBHA_HWU))
 			debugfs_create_file("propagate_bits", mode, debugfs_pbha_dir, kbdev,
 					    &pbha_propagate_bits_fops);
+#endif /* MALI_USE_CSF */
 	}
 }

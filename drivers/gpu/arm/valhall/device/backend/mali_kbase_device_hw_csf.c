@@ -30,6 +30,15 @@
 #include <mali_kbase_ctx_sched.h>
 #include <mmu/mali_kbase_mmu_faults_decoder.h>
 
+bool kbase_is_gpu_removed(struct kbase_device *kbdev)
+{
+	if (!IS_ENABLED(CONFIG_MALI_ARBITER_SUPPORT))
+		return false;
+
+
+	return (KBASE_REG_READ(kbdev, GPU_CONTROL_ENUM(GPU_ID)) == 0);
+}
+
 /**
  * kbase_report_gpu_fault - Report a GPU fault of the device.
  *
@@ -80,16 +89,9 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 {
 	u32 power_changed_mask = (POWER_CHANGED_ALL | MCU_STATUS_GPU_IRQ);
 	struct kbase_csf_scheduler *scheduler = &kbdev->csf.scheduler;
-	bool is_legacy_gpu_irq_mask = true;
 
-	if (kbdev->pm.backend.has_host_pwr_iface) {
-		power_changed_mask = MCU_STATUS_GPU_IRQ;
-		is_legacy_gpu_irq_mask = false;
-	}
 
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ, NULL, val);
-
-
 	if (val & GPU_FAULT)
 		kbase_gpu_fault_interrupt(kbdev);
 
@@ -103,9 +105,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		 */
 		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_MASK),
-				  kbase_reg_gpu_irq_all(is_legacy_gpu_irq_mask) &
-					  ~GPU_PROTECTED_FAULT);
-
+				  GPU_IRQ_REG_ALL & ~GPU_PROTECTED_FAULT);
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 		kbase_csf_scheduler_spin_lock(kbdev, &flags);
@@ -134,19 +134,18 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		val &= ~GPU_PROTECTED_FAULT;
 	}
 
-	if (!kbdev->pm.backend.has_host_pwr_iface) {
-		if (val & RESET_COMPLETED)
-			kbase_pm_reset_done(kbdev);
-	}
+	if (val & RESET_COMPLETED)
+		kbase_pm_reset_done(kbdev);
 
 	/* Defer clearing CLEAN_CACHES_COMPLETED to kbase_clean_caches_done.
 	 * We need to acquire hwaccess_lock to avoid a race condition with
-	 * kbase_gpu_cache_flush_and_busy_wait.
+	 * kbase_gpu_cache_flush_and_busy_wait
 	 */
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, val & ~CLEAN_CACHES_COMPLETED);
 	kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_CLEAR), val & ~CLEAN_CACHES_COMPLETED);
 
-	if (IS_ENABLED(CONFIG_PM) && (val & DOORBELL_MIRROR)) {
+#ifdef KBASE_PM_RUNTIME
+	if (val & DOORBELL_MIRROR) {
 		unsigned long flags;
 
 		dev_dbg(kbdev->dev, "Doorbell mirror interrupt received");
@@ -205,6 +204,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		}
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	}
+#endif
 
 	/* kbase_pm_check_transitions (called by kbase_pm_power_changed) must
 	 * be called after the IRQ has been cleared. This is because it might
@@ -228,7 +228,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 		 * cores.
 		 */
 		if (kbdev->pm.backend.l2_always_on ||
-		    kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_TTRX_921))
+		    kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TTRX_921))
 			kbase_pm_power_changed(kbdev);
 	}
 
@@ -239,31 +239,3 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 }
 KBASE_EXPORT_TEST_API(kbase_gpu_interrupt);
 
-void kbase_pwr_interrupt(struct kbase_device *kbdev, u32 val)
-{
-	KBASE_KTRACE_ADD(kbdev, CORE_PWR_IRQ, NULL, val);
-
-	if (val & PWR_IRQ_RESET_COMPLETED)
-		kbase_pm_reset_done(kbdev);
-
-	if (val & PWR_IRQ_COMMAND_NOT_ALLOWED_MASK)
-		dev_err(kbdev->dev,
-			"Issued power control command violated power domain dependencies");
-
-	if (val & PWR_IRQ_COMMAND_INVALID_MASK)
-		dev_err(kbdev->dev, "Issued power control command was invalid");
-
-	kbase_reg_write32(kbdev, HOST_POWER_ENUM(PWR_IRQ_CLEAR), val);
-
-	/* kbase_pm_check_transitions (called by kbase_pm_power_changed) must
-	 * be called after the IRQ has been cleared. This is because it might
-	 * trigger further power transitions and we don't want to miss the
-	 * interrupt raised to notify us that these further transitions have
-	 * finished. The same applies to kbase_clean_caches_done() - if another
-	 * clean was queued, it might trigger another clean, which might
-	 * generate another interrupt which shouldn't be missed.
-	 */
-
-	if (val & PWR_IRQ_POWER_CHANGED_ALL)
-		kbase_pm_power_changed(kbdev);
-}

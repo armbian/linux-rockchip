@@ -53,6 +53,29 @@ struct kbase_device;
 int kbase_pm_init(struct kbase_device *kbdev);
 
 /**
+ * kbase_pm_powerup - Power up GPU after all modules have been initialized
+ *                    and interrupt handlers installed.
+ *
+ * @kbdev:     The kbase device structure for the device (must be a valid pointer)
+ * @flags:     Flags to pass on to kbase_pm_init_hw
+ *
+ * Return: 0 if powerup was successful.
+ */
+int kbase_pm_powerup(struct kbase_device *kbdev, unsigned int flags);
+
+/**
+ * kbase_pm_halt - Halt the power management framework.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Should ensure that no new interrupts are generated,
+ * but allow any currently running interrupt handlers to complete successfully.
+ * The GPU is forced off by the time this function returns, regardless of
+ * whether or not the active power policy asks for the GPU to be powered off.
+ */
+void kbase_pm_halt(struct kbase_device *kbdev);
+
+/**
  * kbase_pm_term - Terminate the power management framework.
  *
  * @kbdev:     The kbase device structure for the device (must be a valid pointer)
@@ -97,10 +120,12 @@ enum kbase_pm_suspend_handler {
 	 * (e.g. guarantee it's going to be idled very soon after)
 	 */
 	KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE,
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 	/** Special case when Arbiter has notified we can use GPU.
 	 * Active count should always start at 0 in this case.
 	 */
 	KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED,
+#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 };
 
 /**
@@ -123,8 +148,8 @@ int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev,
 					   enum kbase_pm_suspend_handler suspend_handler);
 
 /**
- * kbase_pm_context_active_handle_suspend_locked - Same as kbase_pm_context_active_handle_suspend()
- *                          except that pm.lock and scheduler.lock (for CSF) is held by the caller.
+ * kbase_pm_context_active_handle_suspend_locked - Same as kbase_pm_context_active_handle_suspend(),
+ *                                                 except that pm.lock is held by the caller.
  *
  * @kbdev:     The kbase device structure for the device (must be a valid pointer)
  * @suspend_handler: The handler code for how to handle a suspend that might occur
@@ -209,7 +234,7 @@ void kbase_pm_vsync_callback(int buffer_updated, void *data);
  * kbase components to complete the suspend.
  *
  * Despite kbase_pm_suspend(), it will ignore to update Arbiter
- * status if there is one.
+ * status if MALI_ARBITER_SUPPORT is enabled.
  *
  * @note the mechanisms used here rely on all user-space threads being frozen
  * by the OS before we suspend. Otherwise, an IOCTL could occur that powers up
@@ -233,10 +258,11 @@ int kbase_pm_driver_suspend(struct kbase_device *kbdev);
  * Also called when using VM arbiter, when GPU access has been granted.
  *
  * Despite kbase_pm_resume(), it will ignore to update Arbiter
- * status if there is one.
+ * status if MALI_ARBITER_SUPPORT is enabled.
  */
 void kbase_pm_driver_resume(struct kbase_device *kbdev, bool arb_gpu_start);
 
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
 /**
  * kbase_pm_handle_gpu_lost() - Handle GPU Lost for the VM
  * @kbdev: Device pointer
@@ -247,18 +273,6 @@ void kbase_pm_driver_resume(struct kbase_device *kbdev, bool arb_gpu_start);
  * Kill any running tasks and put the driver into a GPU powered-off state.
  */
 void kbase_pm_handle_gpu_lost(struct kbase_device *kbdev);
-
-/**
- * kbase_pm_handle_gpu_poweroff_wait_work - Work item for
- *                                          gpu_poweroff_wait_work.
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
- *
- * This function synchronises the GPU power state with that of the PM state
- * machine to either power on -or off- the GPU as required.
- * It is normally executed as part of the gpu_poweroff_wait_work work item, but
- * could also be called directly in kbase_csf_scheduler_kthread().
- */
-void kbase_pm_handle_gpu_poweroff_wait_work(struct kbase_device *kbdev);
+#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
 #endif /* _KBASE_PM_H_ */

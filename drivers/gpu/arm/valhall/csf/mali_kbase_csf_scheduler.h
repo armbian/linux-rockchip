@@ -223,8 +223,6 @@ void kbase_csf_scheduler_early_term(struct kbase_device *kbdev);
  *                             queue groups.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- * @skip_suspension: Flag to indicate that suspension of CSGs need to be skipped.
- *                   Passed as true for the GPU lost event.
  *
  * This function will first iterate through all the active/scheduled GPU
  * command queue groups and suspend them (to avoid losing work for groups
@@ -240,7 +238,7 @@ void kbase_csf_scheduler_early_term(struct kbase_device *kbdev);
  * Should be called either after initiating the GPU reset or when MCU reset is
  * expected to follow such as GPU_LOST case.
  */
-void kbase_csf_scheduler_reset(struct kbase_device *kbdev, bool skip_suspension);
+void kbase_csf_scheduler_reset(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_enable_tick_timer - Enable the scheduler tick timer.
@@ -523,14 +521,6 @@ void kbase_csf_scheduler_enqueue_protm_event_work(struct kbase_queue_group *grou
 void kbase_csf_scheduler_enqueue_kcpuq_work(struct kbase_kcpu_command_queue *queue);
 
 /**
- * kbase_csf_scheduler_enqueue_power_off_work() - Wake up kbase_csf_scheduler_kthread() to process
- *                                                a pending power off work item.
- *
- * @kbdev: The KBase device
- */
-void kbase_csf_scheduler_enqueue_power_off_work(struct kbase_device *kbdev);
-
-/**
  * kbase_csf_scheduler_wait_for_kthread_pending_work - Wait until a pending work has completed in
  *                                                     kbase_csf_scheduler_kthread().
  *
@@ -539,15 +529,6 @@ void kbase_csf_scheduler_enqueue_power_off_work(struct kbase_device *kbdev);
  */
 void kbase_csf_scheduler_wait_for_kthread_pending_work(struct kbase_device *kbdev,
 						       atomic_t *pending);
-
-/**
- * kbase_csf_scheduler_check_group_sync_update_cb - callback for enqueuing sync_updates
- *
- * @param: context for the callback
- *
- * Return: KBASE_CSF_EVENT_CALLBACK_KEEP, the callback should remain registered.
- */
-enum kbase_csf_event_callback_action kbase_csf_scheduler_check_group_sync_update_cb(void *param);
 
 /**
  * kbase_csf_scheduler_invoke_tick() - Invoke the scheduling tick
@@ -610,6 +591,7 @@ static inline bool kbase_csf_scheduler_queue_has_trace(struct kbase_queue *queue
 	return (queue->trace_buffer_size && queue->trace_buffer_base);
 }
 
+#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_csf_scheduler_reval_idleness_post_sleep() - Check GPU's idleness after
  *                                                   putting MCU to sleep state
@@ -644,6 +626,7 @@ void kbase_csf_scheduler_reval_idleness_post_sleep(struct kbase_device *kbdev);
  * Return: 0 if all the CSGs were suspended, otherwise an error code.
  */
 int kbase_csf_scheduler_handle_runtime_suspend(struct kbase_device *kbdev);
+#endif
 
 /**
  * kbase_csf_scheduler_process_gpu_idle_event() - Process GPU idle IRQ
@@ -695,6 +678,7 @@ u32 kbase_csf_scheduler_get_nr_active_csgs_locked(struct kbase_device *kbdev);
  */
 void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
 
+#ifdef KBASE_PM_RUNTIME
 /**
  * kbase_csf_scheduler_force_sleep() - Forcefully put the Scheduler to sleeping
  *                                     state.
@@ -707,6 +691,6 @@ void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
  * This function is only used for testing purpose.
  */
 void kbase_csf_scheduler_force_sleep(struct kbase_device *kbdev);
-
+#endif
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

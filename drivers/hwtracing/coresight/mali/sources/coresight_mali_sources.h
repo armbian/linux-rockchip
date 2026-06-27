@@ -57,7 +57,7 @@ int coresight_mali_sources_probe(struct platform_device *pdev);
  *
  * @pdev: Pointer to a platform device
  *
- * Return: 0 always. Or nothing from Linux v6.11.
+ * Return: 0 if success. Error code on failure. Or nothing from Linux v6.11.
  */
 #if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 int coresight_mali_sources_remove(struct platform_device *pdev);

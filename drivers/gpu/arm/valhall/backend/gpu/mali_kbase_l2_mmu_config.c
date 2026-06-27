@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,6 @@
 #include <mali_kbase_config_defaults.h>
 #include <device/mali_kbase_device.h>
 #include "mali_kbase_l2_mmu_config.h"
-#include <mali_kbase_io.h>
 
 /**
  * struct l2_mmu_config_limit_region - L2 MMU limit field
@@ -99,7 +98,7 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 	if (kbase_reg_is_valid(kbdev, GPU_CONTROL_ENUM(L2_MMU_CONFIG)))
 		mmu_config = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(L2_MMU_CONFIG));
 
-	if (!kbase_io_has_gpu(kbdev))
+	if (kbase_is_gpu_removed(kbdev))
 		return -EIO;
 
 	mmu_config &= ~(limit.read.mask | limit.write.mask);
