@@ -5256,12 +5256,17 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 	struct drm_device *dev = dp->bridge.dev;
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_modeset_acquire_ctx ctx;
+	unsigned int old_rate, old_lanes;
+	struct dw_dp_link *link = &dp->link;
 	int ret;
 
 	if (!dw_dp_needs_link_retrain(dp))
 		return 0;
 
 	dw_dp_dbg(dp, "Retraining link\n");
+
+	old_rate = link->rate;
+	old_lanes = link->lanes;
 
 	drm_modeset_acquire_init(&ctx, 0);
 	for (;;) {
@@ -5275,8 +5280,18 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 	if (bridge->encoder->crtc)
 		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	ret = dw_dp_link_train(dp);
-	if (bridge->encoder->crtc)
+	if (bridge->encoder->crtc) {
+		if (!ret && (link->rate != old_rate || link->lanes != old_lanes)) {
+			dw_dp_dbg(dp, "Link parameters changed: lanes %u -> %u, rate %u -> %u\n",
+				  old_lanes, link->lanes, old_rate, link->rate);
+			ret = dw_dp_video_enable(dp, &dp->video, &dp->connector, 0);
+			if (ret)
+				dev_err(dp->dev,
+					"failed to reconfigure video after link retraining: %d\n",
+					ret);
+		}
 		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, true);
+	}
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
