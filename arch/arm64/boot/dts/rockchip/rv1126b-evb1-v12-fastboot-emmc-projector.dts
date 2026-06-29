@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126b-evb1-v11-fastboot-emmc-projector.dts"
+#include "rv1126b-evb1-v12.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB1 V12 Fastboot Board";
+	compatible = "rockchip,rv1126b-evb1-v12-fastboot", "rockchip,rv1126b";
+};

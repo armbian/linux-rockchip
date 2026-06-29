@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126b.dtsi"
+#include "rv1126b-evb.dtsi"
+#include "rv1126b-evb-5x-cam.dtsi"
+#include "rv1126b-evb1-v12.dtsi"
+
+/ {
+	model = "Rockchip RV1126B EVB1 V12 5X CAM Board";
+	compatible = "rockchip,rv1126b-evb1-v12-5x-cam", "rockchip,rv1126b";
+};
