@@ -105,6 +105,7 @@
 		pinctrl-names = "pmic-sleep";
 		pinctrl-0 = <&soc_slppin_slp>;
 
+		rockchip,clk-32k-always-on;
 		rockchip,system-power-controller;
 		rockchip,shutdown-priority = <0>;
 		rockchip,shutdown-voltage-threshold-mv = <2800>;
@@ -361,6 +362,7 @@
 
 		#clock-cells = <1>;
 		clock-output-names = "rk805-clkout1", "rk805-clkout2";
+		rockchip,clk-32k-always-on;
 
 		rockchip,system-power-controller;
 		wakeup-source;
