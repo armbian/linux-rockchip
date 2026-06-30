@@ -269,6 +269,7 @@ static int serdes_get_init_seq(struct serdes *serdes)
 	struct device_node *np = dev->of_node;
 	const void *data;
 	int err, len, ret = 0;
+	u32 mode;
 
 	serdes_device_poweron(serdes);
 
@@ -302,6 +303,12 @@ static int serdes_get_init_seq(struct serdes *serdes)
 
 	/* init ser register(not des register) more early if uboot logo disabled */
 	serdes->route_enable = of_property_read_bool(dev->of_node, "route-enable");
+	if (!serdes->route_enable) {
+		err = serdes_get_route_mode(dev->of_node, &mode);
+		if (!err && mode != SERDES_FBD_CONFIG_FROM_NONE)
+			serdes->route_enable = true;
+	}
+
 	if ((!serdes->route_enable) && (serdes->chip_data->serdes_type == TYPE_SER)) {
 		if (serdes->chip_data->chip_init)
 			serdes->chip_data->chip_init(serdes);
@@ -577,13 +584,16 @@ static int __init serdes_i2c_init(void)
 {
 	int ret;
 
+	serdes_debugfs_init();
+	serdes_route_bind(serdes_of_match);
+
 	ret = i2c_add_driver(&serdes_i2c_driver);
 	if (ret != 0) {
 		pr_err("Failed to register serdes I2C driver: %d\n", ret);
+		serdes_debugfs_exit();
+		serdes_route_unbind();
 		return ret;
 	}
-
-	serdes_debugfs_init();
 
 	return 0;
 }
@@ -592,6 +602,7 @@ static void __exit serdes_i2c_exit(void)
 {
 	i2c_del_driver(&serdes_i2c_driver);
 	serdes_debugfs_exit();
+	serdes_route_unbind();
 }
 
 subsys_initcall(serdes_i2c_init);

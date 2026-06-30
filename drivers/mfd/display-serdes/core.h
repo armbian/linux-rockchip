@@ -122,6 +122,12 @@ enum serdes_debug_mode {
 #define MAX_NUM_SERDES_SUPPLIES			4
 #define MAXIM_SERDES_REG_CHIP_ID		0x0D
 
+#define SERDES_FBD_CONFIG_FROM_NONE		0
+#define SERDES_FBD_CONFIG_FROM_UBOOT		1
+
+#define SERDES_CHECK_DEPTH			2
+#define SERDES_ATTACH_DEPTH			4
+
 struct serdes;
 enum ser_link_mode {
 	SER_DUAL_LINK,
@@ -444,6 +450,13 @@ struct serdes {
 	struct serdes_chip_data *chip_data;
 };
 
+struct serdes_route_entry {
+	struct list_head list;
+	struct device_node *prev_node;
+	struct device_node *node;
+	u32 fbd_mode;
+};
+
 /* Device I/O API */
 int serdes_reg_read(struct serdes *serdes, unsigned int reg, unsigned int *val);
 int serdes_reg_write(struct serdes *serdes, unsigned int reg, unsigned int val);
@@ -473,6 +486,9 @@ void serdes_debugfs_exit(void);
 void serdes_create_debugfs(struct serdes *serdes);
 void serdes_destroy_debugfs(struct serdes *serdes);
 int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link);
+void serdes_route_bind(const struct of_device_id *match);
+void serdes_route_unbind(void);
+int serdes_get_route_mode(struct device_node *node, u32 *mode);
 
 extern struct serdes_chip_data serdes_bu18tl82_data;
 extern struct serdes_chip_data serdes_bu18rl82_data;
