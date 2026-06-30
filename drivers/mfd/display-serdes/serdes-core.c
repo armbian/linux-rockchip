@@ -10,7 +10,11 @@
 #include "core.h"
 
 static unsigned long serdes_log_level;
+
 static struct dentry *serdes_debugfs_root;
+static LIST_HEAD(serdes_route_list);
+static DEFINE_MUTEX(serdes_route_lock);
+static const struct of_device_id *serdes_match;
 
 static const struct mfd_cell serdes_bu18tl82_devs[] = {
 	{
@@ -724,5 +728,262 @@ int serdes_device_resume(struct serdes *serdes)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(serdes_device_resume);
+
+static bool serdes_node_match(struct device_node *node)
+{
+	struct device_node *parent;
+	const struct of_device_id *id;
+	const struct of_device_id *match = serdes_match;
+
+	if (!node || !match)
+		return false;
+
+	parent = of_get_parent(node);
+	if (parent) {
+		id = of_match_node(match, parent);
+		of_node_put(parent);
+		if (id)
+			return true;
+	}
+
+	return false;
+}
+
+static int serdes_node_add(struct device_node *prev_node,
+			   struct device_node *node, u32 fbd_mode)
+{
+	struct serdes_route_entry *entry;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	entry->prev_node = of_node_get(prev_node);
+	entry->node = of_node_get(node);
+	entry->fbd_mode = fbd_mode;
+
+	list_add_tail(&entry->list, &serdes_route_list);
+	SERDES_DBG_MFD("%s: prev_node=%s node=%s fbd=%d\n", __func__,
+		 of_node_full_name(prev_node), of_node_full_name(node),
+		 fbd_mode);
+
+	return 0;
+}
+
+static bool serdes_check_route(struct device_node *node, int depth)
+{
+	u32 reg;
+	bool result = false;
+	struct device_node *ports, *port;
+
+	if (!node || depth <= 0)
+		return false;
+
+	if (serdes_node_match(node))
+		return true;
+
+	ports = of_get_child_by_name(node, "ports");
+	if (!ports)
+		return false;
+
+	for_each_child_of_node(ports, port) {
+		struct device_node *next_node;
+
+		if (of_property_read_u32(port, "reg", &reg))
+			continue;
+		if (reg == 0)
+			continue;
+
+		next_node = of_graph_get_remote_node(node, reg, 0);
+		if (!next_node)
+			continue;
+
+		if (serdes_check_route(next_node, depth - 1)) {
+			result = true;
+			of_node_put(next_node);
+			of_node_put(port);
+			break;
+		}
+		of_node_put(next_node);
+	}
+
+	of_node_put(ports);
+	return result;
+}
+
+static void serdes_route_attach(struct device_node *prev_node,
+				struct device_node *node, u32 fbd_mode, int depth)
+{
+	u32 reg;
+	struct device_node *ports, *port;
+
+	if (!node || depth <= 0)
+		return;
+
+	if (serdes_node_add(prev_node, node, fbd_mode)) {
+		pr_err("%s: serdes node %s add fail\n",
+		       __func__, of_node_full_name(node));
+		return;
+	}
+
+	ports = of_get_child_by_name(node, "ports");
+	if (!ports)
+		return;
+
+	for_each_child_of_node(ports, port) {
+		struct device_node *next_node;
+
+		if (of_property_read_u32(port, "reg", &reg))
+			continue;
+		if (reg == 0)
+			continue;
+
+		next_node = of_graph_get_remote_node(node, reg, 0);
+		if (!next_node)
+			continue;
+
+		serdes_route_attach(node, next_node, fbd_mode, depth - 1);
+		of_node_put(next_node);
+	}
+
+	of_node_put(ports);
+}
+
+void serdes_route_bind(const struct of_device_id *match)
+{
+	u32 phandle;
+	u32 fbd_mode;
+	struct device_node *route_node, *node;
+	struct device_node *conn, *conn_port, *bridge_first;
+	struct device_node *ep_node, *port_node, *port_parent_node;
+	int ret;
+
+	mutex_lock(&serdes_route_lock);
+	if (!list_empty(&serdes_route_list)) {
+		mutex_unlock(&serdes_route_lock);
+		return;
+	}
+
+	route_node = of_find_node_by_path("/display-subsystem/route");
+	if (!route_node) {
+		mutex_unlock(&serdes_route_lock);
+		return;
+	}
+
+	serdes_match = match;
+	for_each_child_of_node(route_node, node) {
+		if (of_device_is_available(node))
+			fbd_mode = SERDES_FBD_CONFIG_FROM_UBOOT;
+		else
+			fbd_mode = SERDES_FBD_CONFIG_FROM_NONE;
+
+		ret = of_property_read_u32(node, "connect", &phandle);
+		if (ret) {
+			pr_warn("%s: can't find connect node's handle\n", __func__);
+			continue;
+		}
+
+		ep_node = of_find_node_by_phandle(phandle);
+		if (!ep_node) {
+			pr_warn("%s: can't find endpoint node from phandle\n", __func__);
+			continue;
+		}
+
+		port_node = of_get_parent(ep_node);
+		if (!port_node)
+			goto put_ep;
+
+		port_parent_node = of_get_parent(port_node);
+		if (!port_parent_node)
+			goto put_port;
+
+		if (!strstr(of_node_full_name(port_parent_node), "ports"))
+			goto put_parent;
+
+		conn_port = of_graph_get_remote_port(ep_node);
+		if (!conn_port)
+			goto put_parent;
+
+		conn = of_graph_get_port_parent(conn_port);
+		if (!conn)
+			goto put_conn_port;
+
+		if (!of_device_is_available(conn))
+			goto put_conn;
+
+		bridge_first = of_graph_get_remote_node(conn, 1, 0);
+		if (!bridge_first) {
+			bridge_first = of_graph_get_remote_node(conn, 2, 0);
+			if (!bridge_first)
+				goto put_conn;
+		}
+
+		if (!serdes_check_route(bridge_first, SERDES_CHECK_DEPTH))
+			goto put_bridge_first;
+
+		serdes_route_attach(conn, bridge_first, fbd_mode, SERDES_ATTACH_DEPTH);
+put_bridge_first:
+		of_node_put(bridge_first);
+put_conn:
+		of_node_put(conn);
+put_conn_port:
+		of_node_put(conn_port);
+put_parent:
+		of_node_put(port_parent_node);
+put_port:
+		of_node_put(port_node);
+put_ep:
+		of_node_put(ep_node);
+	}
+
+	of_node_put(route_node);
+	mutex_unlock(&serdes_route_lock);
+}
+EXPORT_SYMBOL_GPL(serdes_route_bind);
+
+void serdes_route_unbind(void)
+{
+	struct serdes_route_entry *entry, *tmp;
+
+	mutex_lock(&serdes_route_lock);
+	list_for_each_entry_safe(entry, tmp, &serdes_route_list, list) {
+		of_node_put(entry->prev_node);
+		of_node_put(entry->node);
+		list_del(&entry->list);
+		kfree(entry);
+	}
+	serdes_match = NULL;
+	mutex_unlock(&serdes_route_lock);
+}
+EXPORT_SYMBOL_GPL(serdes_route_unbind);
+
+int serdes_get_route_mode(struct device_node *node, u32 *mode)
+{
+	struct serdes_route_entry *entry;
+	struct device_node *parent;
+
+	if (!node || !mode)
+		return -EINVAL;
+
+	mutex_lock(&serdes_route_lock);
+	list_for_each_entry(entry, &serdes_route_list, list) {
+		parent = of_get_parent(entry->node);
+		if (!parent)
+			continue;
+
+		if (parent == node) {
+			*mode = entry->fbd_mode;
+			of_node_put(parent);
+			mutex_unlock(&serdes_route_lock);
+			return 0;
+		}
+
+		of_node_put(parent);
+	}
+	mutex_unlock(&serdes_route_lock);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(serdes_get_route_mode);
 
 MODULE_LICENSE("GPL");
