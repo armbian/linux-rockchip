@@ -6694,7 +6694,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
 	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 	bool dual_channel = !!(vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE);
-	unsigned long flags;
 	int ret;
 
 	WARN_ON(vp->event);
@@ -6860,11 +6859,11 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vcstate->output_type = 0;
 	vcstate->hdmi_vrr.m_const = 0;
 	vcstate->hdmi_vrr.next_tfr_val = 0;
-	spin_lock_irqsave(&vop2->irq_lock, flags);
+	spin_lock_irq(&vop2->irq_lock);
 	vcstate->hdmi_vrr.refresh_rate_ready_to_change = false;
 	vcstate->hdmi_vrr.emp_frame_gap = 0;
 	vcstate->hdmi_vrr.vrr_type = HDMI_VRR_OFF;
-	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+	spin_unlock_irq(&vop2->irq_lock);
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	vp->enabled_win_mask = 0;
