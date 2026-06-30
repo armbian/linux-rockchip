@@ -902,6 +902,16 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 {
 	int phy_reg;
 
+#ifdef CONFIG_MAXIO_PHY
+	/*
+	 * An MDIO connects to multiple PHYs requiring write before read.
+	 * And this is also required for KICKPI K3B,
+	 * otherwise, the STMicro MAC will throw a DMA reset error.
+	 * MII_PHYSID2 is a read-only register and writine to it has no effect.
+	 */
+	mdiobus_write(bus, addr, MII_PHYSID2, 0);
+#endif
+
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
 	if (phy_reg < 0) {

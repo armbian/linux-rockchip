@@ -50,6 +50,9 @@
 #include "dwxgmac2.h"
 #include "hwif.h"
 
+#define MAXIO_PHY_MAE0621A_Q2C_ID 0x7b744411
+#define MAXIO_PHY_MAE0621A_Q3C_ID 0x7b744412
+
 /* As long as the interface is active, we keep the timestamping counter enabled
  * with fine resolution and binary rollover. This avoid non-monotonic behavior
  * (clock jumps) when changing timestamping settings at runtime.
@@ -7731,6 +7734,16 @@ int stmmac_resume(struct device *dev)
 
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv, &priv->dma_conf);
+
+	/*
+	 * Provide RX CLK for Rockchip's DWMAC otherwise the controller will
+	 * fail to initialize with "DMA engine initialization failed".
+	 */
+	if (ndev->phydev->drv->config_init) {
+		if (ndev->phydev->phy_id == MAXIO_PHY_MAE0621A_Q2C_ID ||
+		    ndev->phydev->phy_id == MAXIO_PHY_MAE0621A_Q3C_ID)
+			ndev->phydev->drv->config_init(ndev->phydev);
+	}
 
 	stmmac_hw_setup(ndev, false);
 	stmmac_init_coalesce(priv);
