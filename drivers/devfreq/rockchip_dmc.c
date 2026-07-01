@@ -165,7 +165,6 @@ struct rockchip_dmcfreq {
 
 	bool is_fixed;
 	bool is_set_rate_direct;
-	bool is_in_suspend;
 	bool is_delayed_freq_scaling;
 
 	unsigned int touchboostpulse_duration_val;
@@ -2567,20 +2566,23 @@ static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct devfreq *devfreq = dmcfreq->info.devfreq;
 
-	mutex_lock(&devfreq->lock);
-	update_devfreq(devfreq);
-	mutex_unlock(&devfreq->lock);
+	mutex_lock(&dmcfreq->lock);
+	if (!dmcfreq->info.is_in_suspend) {
+		mutex_lock(&devfreq->lock);
+		update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+	mutex_unlock(&dmcfreq->lock);
 }
 
-static int rockchip_dmcfreq_system_status_notifier_locked(struct rockchip_dmcfreq *dmcfreq,
-							  unsigned long status)
+static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
+						   unsigned long status,
+						   void *ptr)
 {
+	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
 	bool is_fixed = false;
-
-	if (dmcfreq->is_in_suspend)
-		return NOTIFY_DONE;
 
 	if (dmcfreq->fixed_rate && (is_dualview(status) || is_isp(status))) {
 		if (dmcfreq->is_fixed)
@@ -2661,20 +2663,6 @@ next:
 	rockchip_dmcfreq_update_target(dmcfreq);
 
 	return NOTIFY_OK;
-}
-
-static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
-						   unsigned long status,
-						   void *ptr)
-{
-	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
-	int ret;
-
-	mutex_lock(&dmcfreq->lock);
-	ret = rockchip_dmcfreq_system_status_notifier_locked(dmcfreq, status);
-	mutex_unlock(&dmcfreq->lock);
-
-	return ret;
 }
 
 static int rockchip_dmcfreq_panic_notifier(struct notifier_block *nb,
@@ -3409,6 +3397,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->dev->init_name = "dmc";
 	data->info.dev = dev;
 	mutex_init(&data->lock);
+	data->info.dmcfreq_lock = &data->lock;
 	INIT_LIST_HEAD(&data->video_info_list);
 
 	ret = rockchip_dmcfreq_get_event(data);
@@ -3571,7 +3560,7 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	mutex_lock(&dmcfreq->lock);
 	ret = rockchip_dmcfreq_suspend_locked(dmcfreq);
 	if (!ret)
-		dmcfreq->is_in_suspend = true;
+		dmcfreq->info.is_in_suspend = true;
 	mutex_unlock(&dmcfreq->lock);
 
 	return ret;
@@ -3587,7 +3576,7 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 
 	mutex_lock(&dmcfreq->lock);
 	ret = rockchip_dmcfreq_resume_locked(dmcfreq);
-	dmcfreq->is_in_suspend = false;
+	dmcfreq->info.is_in_suspend = false;
 	mutex_unlock(&dmcfreq->lock);
 
 	return ret;

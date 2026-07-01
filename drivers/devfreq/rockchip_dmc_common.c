@@ -136,9 +136,13 @@ next:
 	common_info->vop_req_rate = target;
 
 	if (target > vop_last_rate) {
-		mutex_lock(&common_info->devfreq->lock);
-		update_devfreq(common_info->devfreq);
-		mutex_unlock(&common_info->devfreq->lock);
+		mutex_lock(common_info->dmcfreq_lock);
+		if (!common_info->is_in_suspend) {
+			mutex_lock(&common_info->devfreq->lock);
+			update_devfreq(common_info->devfreq);
+			mutex_unlock(&common_info->devfreq->lock);
+		}
+		mutex_unlock(common_info->dmcfreq_lock);
 	}
 }
 EXPORT_SYMBOL(rockchip_dmcfreq_vop_bandwidth_update);

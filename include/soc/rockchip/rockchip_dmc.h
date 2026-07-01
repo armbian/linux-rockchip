@@ -14,6 +14,7 @@
 #define __SOC_ROCKCHIP_DMC_H
 
 #include <linux/devfreq.h>
+#include <linux/mutex.h>
 
 /* for lcdc_type */
 #define SCREEN_NULL		0
@@ -47,6 +48,7 @@ struct rl_map_table {
 struct dmcfreq_common_info {
 	struct device *dev;
 	struct devfreq *devfreq;
+	struct mutex *dmcfreq_lock;
 	struct freq_map_table *vop_bw_tbl;
 	struct freq_map_table *vop_frame_bw_tbl;
 	struct rl_map_table *vop_pn_rl_tbl;
@@ -56,6 +58,7 @@ struct dmcfreq_common_info {
 	unsigned int read_latency;
 	unsigned int auto_freq_en;
 	unsigned int stall_time_ns;
+	bool is_in_suspend;
 	bool is_msch_rl_work_started;
 	int (*set_msch_readlatency)(unsigned int rl);
 };
