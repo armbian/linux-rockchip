@@ -1846,24 +1846,24 @@ static void rkisp_config_cmsk_single(struct rkisp_device *dev,
 
 	if (mp_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_MP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL1, mp_en, false);
 		val = cfg->win[0].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL4, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL1, mp_en, false);
 
 	if (sp_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_SP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL2, sp_en, false);
 		val = cfg->win[1].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL5, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL2, sp_en, false);
 
 	if (bp_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_BP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL3, bp_en, false);
 		val = cfg->win[2].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL6, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL3, bp_en, false);
 
 	for (i = 0; i < win_max; i++) {
 		if (!(mp_en & BIT(i)) && !(sp_en & BIT(i)) && !(bp_en & BIT(i)))
@@ -1905,9 +1905,9 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 	u32 height = dev->isp_sdev.out_crop.height;
 	u32 w = width / 2;
 	u32 i, val, h_offs, h_size, ctrl;
-	u8 mp_en = cfg->win[0].win_en;
-	u8 sp_en = cfg->win[1].win_en;
-	u8 bp_en = cfg->win[2].win_en;
+	u32 mp_en = cfg->win[0].win_en;
+	u32 sp_en = cfg->win[1].win_en;
+	u32 bp_en = cfg->win[2].win_en;
 	u32 win_max = (dev->isp_ver == ISP_V30) ?
 		RKISP_CMSK_WIN_MAX_V30 : RKISP_CMSK_WIN_MAX;
 
@@ -1958,48 +1958,52 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 	ctrl = 0;
 	if (left.win[0].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_MP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL1, left.win[0].win_en, false);
 		val = left.win[0].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL4, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL1, left.win[0].win_en, false);
 	if (left.win[1].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_SP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL2, left.win[1].win_en, false);
 		val = left.win[1].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL5, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL2, left.win[1].win_en, false);
 	if (left.win[2].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_BP;
-		rkisp_write(dev, ISP3X_CMSK_CTRL3, left.win[2].win_en, false);
 		val = left.win[2].mode;
 		rkisp_write(dev, ISP3X_CMSK_CTRL6, val, false);
 	}
+	rkisp_write(dev, ISP3X_CMSK_CTRL3, left.win[2].win_en, false);
 	if (ctrl) {
 		val = ISP_PACK_2SHORT(w, height);
 		rkisp_write(dev, ISP3X_CMSK_PIC_SIZE, val, false);
 		ctrl |= ISP3X_SW_CMSK_EN | ISP3X_SW_CMSK_ORDER_MODE;
 	}
 	rkisp_write(dev, ISP3X_CMSK_CTRL0, ctrl, false);
+	val = rkisp_read(dev, ISP3X_CMSK_CTRL0, true);
+	if (dev->hw_dev->is_single &&
+	    ((val & ISP32_SW_CMSK_EN_PATH) != (val & ISP32_SW_CMSK_EN_PATH_SHD)))
+		rkisp_write(dev, ISP3X_CMSK_CTRL0, val | ISP3X_SW_CMSK_FORCE_UPD, true);
 
 	ctrl = 0;
 	if (right.win[0].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_MP;
-		rkisp_idx_write(dev, ISP3X_CMSK_CTRL1, right.win[0].win_en, ISP_UNITE_RIGHT, false);
 		val = right.win[0].mode;
 		rkisp_idx_write(dev, ISP3X_CMSK_CTRL4, val, ISP_UNITE_RIGHT, false);
 	}
+	rkisp_idx_write(dev, ISP3X_CMSK_CTRL1, right.win[0].win_en, ISP_UNITE_RIGHT, false);
 	if (right.win[1].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_SP;
-		rkisp_idx_write(dev, ISP3X_CMSK_CTRL2, right.win[1].win_en, ISP_UNITE_RIGHT, false);
 		val = right.win[1].mode;
 		rkisp_idx_write(dev, ISP3X_CMSK_CTRL5, val, ISP_UNITE_RIGHT, false);
 	}
+	rkisp_idx_write(dev, ISP3X_CMSK_CTRL2, right.win[1].win_en, ISP_UNITE_RIGHT, false);
 	if (right.win[2].win_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_BP;
-		rkisp_idx_write(dev, ISP3X_CMSK_CTRL3, right.win[2].win_en, ISP_UNITE_RIGHT, false);
 		val = right.win[2].mode;
 		rkisp_idx_write(dev, ISP3X_CMSK_CTRL6, val, ISP_UNITE_RIGHT, false);
 	}
+	rkisp_idx_write(dev, ISP3X_CMSK_CTRL3, right.win[2].win_en, ISP_UNITE_RIGHT, false);
 	if (ctrl) {
 		val = ISP_PACK_2SHORT(w, height);
 		rkisp_idx_write(dev, ISP3X_CMSK_PIC_SIZE, val, ISP_UNITE_RIGHT, false);
@@ -2011,7 +2015,7 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 	if (dev->hw_dev->is_single &&
 	    ((val & ISP32_SW_CMSK_EN_PATH) != (val & ISP32_SW_CMSK_EN_PATH_SHD)))
 		rkisp_idx_write(dev, ISP3X_CMSK_CTRL0, val | ISP3X_SW_CMSK_FORCE_UPD,
-				ISP_UNITE_RIGHT, false);
+				ISP_UNITE_RIGHT, true);
 }
 
 static void rkisp_config_cmsk(struct rkisp_device *dev)
