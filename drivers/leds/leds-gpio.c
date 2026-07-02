@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include "leds.h"
 
 struct gpio_led_data {
@@ -23,6 +24,9 @@ struct gpio_led_data {
 	struct gpio_desc *gpiod;
 	u8 can_sleep;
 	u8 blinking;
+	u8 pending_initial_on;
+	unsigned int initial_on_delay_ms;
+	struct delayed_work initial_on_work;
 	gpio_blink_set_t platform_gpio_blink_set;
 };
 
@@ -37,6 +41,9 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 {
 	struct gpio_led_data *led_dat = cdev_to_gpio_led_data(led_cdev);
 	int level;
+
+	if (led_dat->pending_initial_on)
+		return;
 
 	if (value == LED_OFF)
 		level = 0;
@@ -62,10 +69,42 @@ static int gpio_led_set_blocking(struct led_classdev *led_cdev,
 	return 0;
 }
 
+static void gpio_led_initial_on_work(struct work_struct *work)
+{
+	struct gpio_led_data *led_dat = container_of(to_delayed_work(work),
+						     struct gpio_led_data, initial_on_work);
+
+	mutex_lock(&led_dat->cdev.led_access);
+
+	if (!led_dat->pending_initial_on)
+		goto unlock;
+
+	led_dat->pending_initial_on = 0;
+	led_dat->cdev.brightness = led_dat->cdev.max_brightness;
+	gpio_led_set(&led_dat->cdev, led_dat->cdev.brightness);
+
+unlock:
+	mutex_unlock(&led_dat->cdev.led_access);
+}
+
+static void gpio_led_cancel_initial_on_work(void *data)
+{
+	struct gpio_led_data *led_dat = data;
+
+	if (!led_dat->pending_initial_on)
+		return;
+
+	cancel_delayed_work_sync(&led_dat->initial_on_work);
+	led_dat->pending_initial_on = 0;
+}
+
 static int gpio_blink_set(struct led_classdev *led_cdev,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
 	struct gpio_led_data *led_dat = cdev_to_gpio_led_data(led_cdev);
+
+	if (led_dat->pending_initial_on)
+		return 0;
 
 	led_dat->blinking = 1;
 	return led_dat->platform_gpio_blink_set(led_dat->gpiod, GPIO_LED_BLINK,
@@ -109,6 +148,12 @@ static int create_gpio_led(const struct gpio_led *template,
 		led_dat->platform_gpio_blink_set = blink_set;
 		led_dat->cdev.blink_set = gpio_blink_set;
 	}
+
+	led_dat->initial_on_delay_ms = 0;
+	if (fwnode)
+		fwnode_property_read_u32(fwnode, "initial-on-delay-ms",
+					 &led_dat->initial_on_delay_ms);
+
 	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP) {
 		state = gpiod_get_value_cansleep(led_dat->gpiod);
 		if (state < 0)
@@ -116,7 +161,15 @@ static int create_gpio_led(const struct gpio_led *template,
 	} else {
 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
 	}
-	led_dat->cdev.brightness = state;
+	if (led_dat->initial_on_delay_ms && state) {
+		led_dat->pending_initial_on = 1;
+		led_dat->cdev.brightness = LED_OFF;
+		state = 0;
+	} else {
+		led_dat->pending_initial_on = 0;
+		led_dat->cdev.brightness = state;
+	}
+
 	led_dat->cdev.max_brightness = 1;
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
@@ -136,6 +189,20 @@ static int create_gpio_led(const struct gpio_led *template,
 		init_data.fwnode = fwnode;
 		ret = devm_led_classdev_register_ext(parent, &led_dat->cdev,
 						     &init_data);
+	}
+
+	if (ret < 0)
+		return ret;
+
+	if (led_dat->pending_initial_on) {
+		INIT_DELAYED_WORK(&led_dat->initial_on_work, gpio_led_initial_on_work);
+		ret = devm_add_action_or_reset(parent, gpio_led_cancel_initial_on_work,
+					       led_dat);
+		if (ret)
+			return ret;
+
+		schedule_delayed_work(&led_dat->initial_on_work,
+				      msecs_to_jiffies(led_dat->initial_on_delay_ms));
 	}
 
 	return ret;
@@ -326,6 +393,8 @@ static void gpio_led_shutdown(struct platform_device *pdev)
 
 	for (i = 0; i < priv->num_leds; i++) {
 		struct gpio_led_data *led = &priv->leds[i];
+
+		gpio_led_cancel_initial_on_work(led);
 
 		if (!(led->cdev.flags & LED_RETAIN_AT_SHUTDOWN))
 			gpio_led_set(&led->cdev, LED_OFF);
