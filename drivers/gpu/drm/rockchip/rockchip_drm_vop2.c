@@ -3594,6 +3594,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	uint16_t cbcr_src_h = src_h / vsub;
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
 	uint16_t cbcr_hor_scl_mode, cbcr_ver_scl_mode;
+	uint16_t hsu_filter_mode, hsd_filter_mode, vsu_filter_mode, vsd_filter_mode;
 	uint16_t hscl_filter_mode, vscl_filter_mode;
 	uint8_t xgt2 = 0, xgt4 = 0;
 	uint8_t ygt2 = 0, ygt4 = 0;
@@ -3601,6 +3602,18 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 
 	if (!win->regs->scl)
 		return;
+
+	if (pstate->scaling_filter == DRM_SCALING_FILTER_NEAREST_NEIGHBOR) {
+		hsu_filter_mode = VOP2_SCALE_UP_NRST_NBOR;
+		hsd_filter_mode = VOP2_SCALE_DOWN_NRST_NBOR;
+		vsu_filter_mode = VOP2_SCALE_UP_NRST_NBOR;
+		vsd_filter_mode = VOP2_SCALE_DOWN_NRST_NBOR;
+	} else {
+		hsu_filter_mode = win_data->hsu_filter_mode;
+		hsd_filter_mode = win_data->hsd_filter_mode;
+		vsu_filter_mode = win_data->vsu_filter_mode;
+		vsd_filter_mode = win_data->vsd_filter_mode;
+	}
 
 	if (is_vop3(vop2)) {
 		if (vop2_cluster_window(win) &&
@@ -3642,7 +3655,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			src_h >>= 1;
 		}
 	} else {
-		if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
+		if (vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
 			if (dst_h < mode->hdisplay >> 1) {
 				if (src_h >= (6 * dst_h)) {
 					ygt4 = 1;
@@ -3660,7 +3673,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 					src_h >>= 1;
 				}
 			}
-		} else if (win_data->vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
+		} else if (vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
 			/* avg vsd filter mode can't support ygt */
 			if (src_h >= (4 * dst_h)) {
 				ygt4 = 1;
@@ -3679,14 +3692,14 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		vp->has_scale_down_layer = true;
 
 	if (yrgb_hor_scl_mode == SCALE_UP)
-		hscl_filter_mode = win_data->hsu_filter_mode;
+		hscl_filter_mode = hsu_filter_mode;
 	else
-		hscl_filter_mode = win_data->hsd_filter_mode;
+		hscl_filter_mode = hsd_filter_mode;
 
 	if (yrgb_ver_scl_mode == SCALE_UP)
-		vscl_filter_mode = win_data->vsu_filter_mode;
+		vscl_filter_mode = vsu_filter_mode;
 	else
-		vscl_filter_mode = win_data->vsd_filter_mode;
+		vscl_filter_mode = vsd_filter_mode;
 
 	/*
 	 * RK3568 VOP Esmart/Smart dsp_w should be even pixel
@@ -3780,18 +3793,18 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 					ygt4 = 1;
 				else if ((cbcr_src_h >= 100 * dst_h / 65) && (cbcr_src_h < 100 * dst_h / 35))
 					ygt2 = 1;
-			} else if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME &&
+			} else if (vsd_filter_mode == VOP2_SCALE_DOWN_ZME &&
 				   dst_h < mode->hdisplay >> 1) {
 				if (cbcr_src_h >= (6 * dst_h))
 					ygt4 = 1;
 				else if (cbcr_src_h >= (3 * dst_h))
 					ygt2 = 1;
-			} else if (win_data->vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
+			} else if (vsd_filter_mode == VOP2_SCALE_DOWN_ZME) {
 				if (cbcr_src_h >= (8 * dst_h))
 					ygt4 = 1;
 				else if (cbcr_src_h >= (4 * dst_h))
 					ygt2 = 1;
-			} else if (win_data->vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
+			} else if (vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
 				/* avg vsd filter mode can't support ygt */
 				if (cbcr_src_h >= (4 * dst_h))
 					ygt4 = 1;
@@ -18284,6 +18297,17 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_plane_create_alpha_property(&win->base);
 	drm_plane_create_blend_mode_property(&win->base, blend_caps);
 	drm_plane_create_zpos_property(&win->base, win->win_id, 0, vop2->registered_num_wins - 1);
+	/*
+	 * Skip scaling filter property on:
+	 * 1. windows without scaling capability
+	 * 2. esmart sub-windows
+	 * 3. cluster windows on RK3568/RK3588 (hardware doesn't support NEAREST_NEIGHBOR filter)
+	 */
+	if (win->regs->scl && !vop2_multi_area_sub_window(win) &&
+	    (!vop2_cluster_window(win) || is_vop3(vop2)))
+		drm_plane_create_scaling_filter_property(&win->base,
+							 BIT(DRM_SCALING_FILTER_DEFAULT) |
+							 BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 	vop2_plane_create_name_property(vop2, win);
 	vop2_plane_create_feature_property(vop2, win);
 	if (win->feature & WIN_FEATURE_DCI)
