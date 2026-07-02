@@ -128,6 +128,8 @@ struct cw_battery {
 	int cycle;
 	int soh;
 	int fw_version;
+	int charge_counter;
+	int charge_full_design;
 };
 
 /* CW221X iic read function */
@@ -530,6 +532,7 @@ static int cw_init_data(struct cw_battery *cw_bat)
 	ret += cw_get_current(cw_bat);
 	ret += cw_get_cycle_count(cw_bat);
 	ret += cw_get_soh(cw_bat);
+	cw_bat->charge_full_design = 10 * 1000 * 1000;
 
 	cw_printk("chip_id = %d vol = %d  cur = %ld cap = %d temp = %d  fw_version = %d\n",
 		  cw_bat->chip_id, cw_bat->voltage, cw_bat->cw_current,
@@ -731,6 +734,8 @@ static void cw_bat_work(struct work_struct *work)
 	if (ret < 0)
 		dev_err(cw_bat->dev, "i2c read error when update data");
 	if (cw_bat->ui_soc != soc) {
+		cw_bat->charge_counter +=
+			(cw_bat->ui_soc - soc) * cw_bat->charge_full_design / 100;
 		soc = cw_bat->ui_soc;
 		power_supply_changed(cw_bat->cw_bat);
 	}
@@ -766,6 +771,9 @@ static int cw_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = cw_bat->cycle;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = cw_bat->charge_counter;
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = cw_bat->ui_soc;
 		break;
@@ -793,7 +801,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		val->intval = 10 * 1000 * 1000;/* uAh */
+		val->intval = cw_bat->charge_full_design;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
@@ -825,6 +833,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_HEALTH,
