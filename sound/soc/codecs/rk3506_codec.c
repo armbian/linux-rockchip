@@ -35,6 +35,8 @@
 #define RV1126B_ADC_SDI0_IF_SEL		7
 #define RV1126B_ADC_SDI1_IF_SEL		11
 
+#define ACODEC_ADC_STABLE_MS		80
+
 struct rk3506_codec_soc_data {
 	int (*init)(struct device *dev);
 	void (*deinit)(struct device *dev);
@@ -49,6 +51,7 @@ struct rk3506_codec_priv {
 	struct clk *pclk;
 	struct clk *mclk;
 	struct snd_soc_component *component;
+	unsigned int stable_ms;
 };
 
 static unsigned int samplerate_to_bit(unsigned int samplerate)
@@ -81,13 +84,15 @@ static unsigned int samplerate_to_bit(unsigned int samplerate)
 
 static void rk3506_codec_power_on(struct snd_soc_component *component)
 {
+	struct rk3506_codec_priv *rk3506 = snd_soc_component_get_drvdata(component);
+
 	snd_soc_component_update_bits(component, AUDIO_ADC_LDO,
 				      ADC_IP_MSK, ADC_IP_EN);
 	snd_soc_component_update_bits(component, AUDIO_ADC_PGA0,
 				      PGA_PWD_MSK, PGA_PWD_EN);
 	snd_soc_component_update_bits(component, AUDIO_ADC_ADC0,
 				      ADC_PWD_MSK | ADC_DEM_CTRL, ADC_PWD_EN | ADC_DEM_DWA);
-	udelay(10);
+	msleep(rk3506->stable_ms);
 }
 
 static void rk3506_codec_power_off(struct snd_soc_component *component)
@@ -548,6 +553,10 @@ static int rk3506_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't get acodec mclk\n");
 		return -EINVAL;
 	}
+
+	rk3506->stable_ms = ACODEC_ADC_STABLE_MS;
+	of_property_read_u32(pdev->dev.of_node, "rockchip,acodec-stable-ms",
+			     &rk3506->stable_ms);
 
 	ret = clk_prepare_enable(rk3506->pclk);
 	if (ret < 0) {
