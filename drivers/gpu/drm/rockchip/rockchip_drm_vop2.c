@@ -3449,15 +3449,15 @@ static int vop2_get_cluster_lb_mode(struct vop2_win *win, struct vop2_plane_stat
  * ygt4 enable: dst get one line from four line of the src.
  *
  */
-#define VOP2_BILI_SCL_DN(src, dst)	(((src - 1) << 12) / (dst - 1))
-#define VOP2_COMMON_SCL(src, dst)	(((src - 1) << 16) / (dst - 1))
+#define VOP2_BILI_SCL_DN(src, dst)	((((src) - 1) << 12) / ((dst) - 1))
+#define VOP2_COMMON_SCL(src, dst)	((((src) - 1) << 16) / ((dst) - 1))
 
 #define VOP2_BILI_SCL_FAC_CHECK(src, dst, fac)	 \
-				(fac * (dst - 1) >> 12 < (src - 1))
+				(((fac) * ((dst) - 1) >> 12) < ((src) - 1))
 #define VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac) \
-				(fac * (dst - 1) >> 16 < (src - 1))
+				(((fac) * ((dst) - 1) >> 16) < ((src) - 1))
 #define VOP3_COMMON_HOR_SCL_FAC_CHECK(src, dst, fac) \
-					(fac * (dst - 1) >> 16 < (src - 1))
+				(((fac) * ((dst) - 1) >> 16) < ((src) - 1))
 
 static uint16_t vop2_scale_factor(enum scale_mode mode,
 				  int32_t filter_mode,
