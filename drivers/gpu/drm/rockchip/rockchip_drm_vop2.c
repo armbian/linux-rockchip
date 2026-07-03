@@ -3448,6 +3448,7 @@ static int vop2_get_cluster_lb_mode(struct vop2_win *win, struct vop2_plane_stat
  *
  */
 #define VOP2_BILI_SCL_DN(src, dst)	((((src) - 1) << 12) / ((dst) - 1))
+#define VOP2_AVG_SCL_DN(src, dst)	(((dst) << 17) / (2 * (src) - 1))
 #define VOP2_COMMON_SCL(src, dst)	((((src) - 1) << 16) / ((dst) - 1))
 
 #define VOP2_BILI_SCL_FAC_CHECK(src, dst, fac)	 \
@@ -3473,13 +3474,17 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 	if (dst < 2)
 		dst = 2;
 
-	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL)) {
-		fac = VOP2_BILI_SCL_DN(src, dst);
-		for (i = 0; i < 100; i++) {
-			if (VOP2_BILI_SCL_FAC_CHECK(src, dst, fac))
-				break;
-			fac -= 1;
-			DRM_DEBUG("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+	if (mode == SCALE_DOWN) {
+		if (filter_mode == VOP2_SCALE_DOWN_AVG) {
+			fac = VOP2_AVG_SCL_DN(src, dst);
+		} else {
+			fac = VOP2_BILI_SCL_DN(src, dst);
+			for (i = 0; i < 100; i++) {
+				if (VOP2_BILI_SCL_FAC_CHECK(src, dst, fac))
+					break;
+				fac -= 1;
+				DRM_DEBUG("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+			}
 		}
 	} else {
 		fac = VOP2_COMMON_SCL(src, dst);
