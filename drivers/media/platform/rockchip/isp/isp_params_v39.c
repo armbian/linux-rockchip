@@ -4139,7 +4139,7 @@ rkisp_params_check_bigmode_v39(struct rkisp_isp_params_vdev *params_vdev)
 	bool is_bigmode = false;
 
 	ispdev->multi_mode = 0;
-	ispdev->multi_index = ispdev->dev_id;
+	ispdev->multi_index = 0;
 	if (!hw->is_single)
 		hw->is_frm_buf = true;
 using_frm_buf:
