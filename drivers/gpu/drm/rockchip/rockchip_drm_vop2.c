@@ -3633,6 +3633,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	 * dst_h / src_h is at [0.35, 0)     ygt2=0; ygt4=1;
 	 */
 	if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+		/* rk3528 does not support avg, so no need to consider ygt at avg filter mode here */
 		if (src_h >= (100 * dst_h / 35)) {
 			ygt4 = 1;
 			src_h >>= 2;
@@ -3659,7 +3660,8 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 					src_h >>= 1;
 				}
 			}
-		} else {
+		} else if (win_data->vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
+			/* avg vsd filter mode can't support ygt */
 			if (src_h >= (4 * dst_h)) {
 				ygt4 = 1;
 				src_h >>= 2;
@@ -3773,6 +3775,7 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		    (!vpstate->afbc_en && !vpstate->tiled_en) ||
 		    win_data->vsd_pre_filter_mode == VOP3_PRE_SCALE_DOWN_GT) {
 			if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+				/* rk3528 does not support avg, so no need to consider ygt at avg filter mode here */
 				if (cbcr_src_h >= (100 * dst_h / 35))
 					ygt4 = 1;
 				else if ((cbcr_src_h >= 100 * dst_h / 65) && (cbcr_src_h < 100 * dst_h / 35))
@@ -3788,7 +3791,8 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 					ygt4 = 1;
 				else if (cbcr_src_h >= (4 * dst_h))
 					ygt2 = 1;
-			} else {
+			} else if (win_data->vsd_filter_mode != VOP2_SCALE_DOWN_AVG) {
+				/* avg vsd filter mode can't support ygt */
 				if (cbcr_src_h >= (4 * dst_h))
 					ygt4 = 1;
 				else if (cbcr_src_h >= (2 * dst_h))
