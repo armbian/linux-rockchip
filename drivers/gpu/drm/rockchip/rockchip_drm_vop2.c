@@ -3455,8 +3455,6 @@ static int vop2_get_cluster_lb_mode(struct vop2_win *win, struct vop2_plane_stat
 				(((fac) * ((dst) - 1) >> 12) < ((src) - 1))
 #define VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac) \
 				(((fac) * ((dst) - 1) >> 16) < ((src) - 1))
-#define VOP3_COMMON_HOR_SCL_FAC_CHECK(src, dst, fac) \
-				(((fac) * ((dst) - 1) >> 16) < ((src) - 1))
 
 static uint16_t vop2_scale_factor(enum scale_mode mode,
 				  int32_t filter_mode,
@@ -3468,9 +3466,10 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 	if (mode == SCALE_NONE)
 		return 0;
 
-	/*
-	 * A workaround to avoid zero div.
-	 */
+	/* A workaround to avoid (src - 1) causing unsigned underflow to 0xFFFFFFFF */
+	if (src == 0)
+		src = 1;
+	/* A workaround to avoid zero div. */
 	if (dst < 2)
 		dst = 2;
 
@@ -3490,51 +3489,6 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 		fac = VOP2_COMMON_SCL(src, dst);
 		for (i = 0; i < 100; i++) {
 			if (VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac))
-				break;
-			fac -= 1;
-			DRM_DEBUG("up fac cali:  src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
-		}
-	}
-
-	return fac;
-}
-
-static bool vop3_scale_up_fac_check(uint32_t src, uint32_t dst, uint32_t fac, bool is_hor)
-{
-	if (is_hor)
-		return VOP3_COMMON_HOR_SCL_FAC_CHECK(src, dst, fac);
-	return VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac);
-}
-
-static uint16_t vop3_scale_factor(enum scale_mode mode,
-				  uint32_t src, uint32_t dst, bool is_hor)
-{
-	uint32_t fac = 0;
-	int i = 0;
-
-	if (mode == SCALE_NONE)
-		return 0;
-
-	/*
-	 * A workaround to avoid zero div.
-	 */
-	if ((dst == 1) || (src == 1)) {
-		dst = dst + 1;
-		src = src + 1;
-	}
-
-	if (mode == SCALE_DOWN) {
-		fac = VOP2_BILI_SCL_DN(src, dst);
-		for (i = 0; i < 100; i++) {
-			if (VOP2_BILI_SCL_FAC_CHECK(src, dst, fac))
-				break;
-			fac -= 1;
-			DRM_DEBUG("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
-		}
-	} else {
-		fac = VOP2_COMMON_SCL(src, dst);
-		for (i = 0; i < 100; i++) {
-			if (vop3_scale_up_fac_check(src, dst, fac, is_hor))
 				break;
 			fac -= 1;
 			DRM_DEBUG("up fac cali:  src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
@@ -3712,13 +3666,13 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		}
 	}
 
+	val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode, src_w, dst_w);
+	VOP_SCL_SET(vop2, win, scale_yrgb_x, val);
+	val = vop2_scale_factor(yrgb_ver_scl_mode, vscl_filter_mode, src_h, dst_h);
+	VOP_SCL_SET(vop2, win, scale_yrgb_y, val);
+
 	if (is_vop3(vop2)) {
 		bool xgt_en = false, xavg_en = false;
-
-		val = vop3_scale_factor(yrgb_hor_scl_mode, src_w, dst_w, true);
-		VOP_SCL_SET(vop2, win, scale_yrgb_x, val);
-		val = vop3_scale_factor(yrgb_ver_scl_mode, src_h, dst_h, false);
-		VOP_SCL_SET(vop2, win, scale_yrgb_y, val);
 
 		if (win_data->hsd_pre_filter_mode == VOP3_PRE_SCALE_DOWN_AVG)
 			xavg_en = xgt2 || xgt4;
@@ -3750,11 +3704,6 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		VOP_SCL_SET(vop2, win, xgt_en, xgt_en);
 		VOP_SCL_SET(vop2, win, xavg_en, xavg_en);
 		VOP_SCL_SET(vop2, win, xgt_mode, xgt2 ? 0 : 1);
-	} else {
-		val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode, src_w, dst_w);
-		VOP_SCL_SET(vop2, win, scale_yrgb_x, val);
-		val = vop2_scale_factor(yrgb_ver_scl_mode, vscl_filter_mode, src_h, dst_h);
-		VOP_SCL_SET(vop2, win, scale_yrgb_y, val);
 	}
 
 	/* vop2 and linear mode only can support gt */
