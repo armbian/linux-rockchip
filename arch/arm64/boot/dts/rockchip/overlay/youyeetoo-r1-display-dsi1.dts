@@ -203,7 +203,7 @@
 				reset-gpio = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 				max-x = <1024>;
 				max-y = <600>;
-				tp-size = <911>;
+				tp-size = <2059>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&touch_gpio>;
 				status = "okay";
