@@ -7,22 +7,22 @@
 
 /*
  * Youyeetoo YY3588 - RK3588
- * 7" 1024x600 LCD on DSI1 (TPC2059 panel, GT911 touch)
+ * 7" 1024x600 LCD on DSI0 (TPC2059 panel, GT911 touch)
  */
 
 / {
 	metadata {
-		title = "Enable DSI1 Display on Youyeetoo YY3588";
+		title = "Enable DSI0 Display on Youyeetoo YY3588";
 		compatible = "youyeetoo,yy3588";
 		category = "display";
-		description = "Enable 7 inch 1024x600 MIPI DSI1 display with GT911 touchscreen";
+		description = "Enable 7 inch 1024x600 MIPI DSI0 display with GT911 touchscreen";
 	};
 
 	fragment@0 {
 		target-path = "/";
 
 		__overlay__ {
-			backlight_dsi1: backlight-dsi1 {
+			backlight_dsi0: backlight-dsi0 {
 				compatible = "pwm-backlight";
 				brightness-levels = <
 					0  20  20  21  21  22  22  23
@@ -59,7 +59,7 @@
 					248 249 250 251 252 253 254 255
 				>;
 				default-brightness-level = <200>;
-				pwms = <&pwm0 0 25000 0>;
+				pwms = <&pwm1 0 25000 0>;
 				power-supply = <&vcc5v0_sys>;
 				status = "okay";
 			};
@@ -76,30 +76,30 @@
 	};
 
 	fragment@1 {
-		target = <&pwm0>;
+		target = <&pwm1>;
 
 		__overlay__ {
 			status = "okay";
 			pinctrl-names = "active";
-			pinctrl-0 = <&pwm0m0_pins>;
+			pinctrl-0 = <&pwm1m0_pins>;
 		};
 	};
 
 	fragment@2 {
-		target = <&dsi1>;
+		target = <&dsi0>;
 
 		__overlay__ {
 			status = "okay";
 			rockchip,lane-rate = <1000>;
 
-			dsi1_panel: panel@0 {
+			dsi0_panel: panel@0 {
 				status = "okay";
 				compatible = "simple-panel-dsi";
 				reg = <0>;
-				backlight = <&backlight_dsi1>;
+				backlight = <&backlight_dsi0>;
 				power-supply = <&vcc3v3_lcd_n>;
-				reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
-				enable-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
+				enable-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
 				reset-delay-ms = <60>;
 				enable-delay-ms = <60>;
 				prepare-delay-ms = <60>;
@@ -110,7 +110,7 @@
 				dsi,format = <MIPI_DSI_FMT_RGB888>;
 				dsi,lanes  = <4>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&lcd_dsi1_rst_gpio>;
+				pinctrl-0 = <&lcd_dsi0_rst_gpio>;
 
 				panel-init-sequence = [
 					15 00 02 80 ac
@@ -127,9 +127,9 @@
 					05 00 01 10
 				];
 
-				disp_timings1: display-timings {
-					native-mode = <&dsi1_timing0>;
-					dsi1_timing0: timing0 {
+				disp_timings0: display-timings {
+					native-mode = <&dsi0_timing0>;
+					dsi0_timing0: timing0 {
 						clock-frequency = <51668640>;
 						hactive = <1024>;
 						vactive = <600>;
@@ -152,8 +152,8 @@
 
 					port@0 {
 						reg = <0>;
-						panel_in_dsi1: endpoint {
-							remote-endpoint = <&dsi1_out_panel>;
+						panel_in_dsi: endpoint {
+							remote-endpoint = <&dsi_out_panel>;
 						};
 					};
 				};
@@ -165,8 +165,8 @@
 
 				port@1 {
 					reg = <1>;
-					dsi1_out_panel: endpoint {
-						remote-endpoint = <&panel_in_dsi1>;
+					dsi_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi>;
 					};
 				};
 			};
@@ -174,16 +174,16 @@
 	};
 
 	fragment@3 {
-		target = <&route_dsi1>;
+		target = <&route_dsi0>;
 
 		__overlay__ {
 			status = "okay";
-			connect = <&vp3_out_dsi1>;
+			connect = <&vp3_out_dsi0>;
 		};
 	};
 
 	fragment@4 {
-		target = <&dsi1_in_vp2>;
+		target = <&dsi0_in_vp2>;
 
 		__overlay__ {
 			status = "disabled";
@@ -191,7 +191,7 @@
 	};
 
 	fragment@5 {
-		target = <&dsi1_in_vp3>;
+		target = <&dsi0_in_vp3>;
 
 		__overlay__ {
 			status = "okay";
@@ -199,7 +199,7 @@
 	};
 
 	fragment@6 {
-		target = <&mipi_dcphy1>;
+		target = <&mipi_dcphy0>;
 
 		__overlay__ {
 			status = "okay";
@@ -207,24 +207,26 @@
 	};
 
 	fragment@7 {
-		target = <&i2c6>;
+		target = <&i2c5>;
 
 		__overlay__ {
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5m0_xfer>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			gt9xx_dsi1: gt9xx@5d {
+			gt9xx_dsi0: gt9xx@5d {
 				compatible = "goodix,gt9xx";
 				reg = <0x5d>;
-				touch-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-				reset-gpio = <&gpio2 RK_PB3 GPIO_ACTIVE_HIGH>;
+				touch-gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
+				reset-gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 				max-x = <1024>;
 				max-y = <600>;
 				tp-size = <2059>;
 				tp-supply = <&vcc_3v3_s0>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&touch_dsi1_gpio>;
+				pinctrl-0 = <&touch_dsi0_gpio>;
 				status = "okay";
 			};
 		};
@@ -235,16 +237,16 @@
 
 		__overlay__ {
 			lcd {
-				lcd_dsi1_rst_gpio: lcd-dsi1-rst-gpio {
+				lcd_dsi0_rst_gpio: lcd-dsi0-rst-gpio {
 					rockchip,pins =
-						<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
-						<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+						<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,
+						<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 				};
 
-				touch_dsi1_gpio: touch-dsi1-gpio {
+				touch_dsi0_gpio: touch-dsi0-gpio {
 					rockchip,pins =
-						<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
-						<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+						<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,
+						<2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 				};
 			};
 		};
