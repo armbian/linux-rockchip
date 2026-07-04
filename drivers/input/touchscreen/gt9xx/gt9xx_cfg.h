@@ -67,4 +67,14 @@ static u8 gtp_dat_7[] = {
 	#include "WGJ10187_GT910_Config_20140623_104014_0X41.cfg"
 };
 
+static u8 gtp_dat_tpc2059[] = {
+	/* <1024, 600> TPC2059 7.0 (Youyeetoo R1 / YY3588 DSI kit) */
+	#include "TPC2059-7.0-Config_20241122_143209.cfg"
+};
+
+static u8 gtp_dat_gt928[] = {
+	/* <1920, 1080> 11.6 eDP (Youyeetoo YY3588 eDP kit) */
+	#include "GT928_Config_20190318_111541.cfg"
+};
+
 #endif /* _GOODIX_GT9XX_CFG_H_ */
