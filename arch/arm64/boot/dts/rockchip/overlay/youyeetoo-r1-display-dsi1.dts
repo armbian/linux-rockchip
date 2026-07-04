@@ -52,7 +52,7 @@
 					248 249 250 251 252 253 254 255
 				>;
 				default-brightness-level = <200>;
-				pwms = <&pwm11 0 25000 0>;
+				pwms = <&pwm11 0 25000 1>;
 				status = "okay";
 				power-supply = <&vcc5v0_sys>;
 			};
