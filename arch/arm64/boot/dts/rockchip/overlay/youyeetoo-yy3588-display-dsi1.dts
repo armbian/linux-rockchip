@@ -15,7 +15,7 @@
 		title = "Enable DSI1 Display on Youyeetoo YY3588";
 		compatible = "youyeetoo,yy3588";
 		category = "display";
-		description = "Enable 7 inch 1024x600 MIPI DSI1 display with GT911 touchscreen";
+		description = "Enable 7 inch 1024x600 MIPI DSI1 display with GT911 touchscreen. Enable this overlay only with the panel connected or the display subsystem stalls at boot";
 	};
 
 	fragment@0 {
