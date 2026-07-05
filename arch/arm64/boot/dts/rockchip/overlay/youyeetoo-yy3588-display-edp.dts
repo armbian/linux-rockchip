@@ -14,7 +14,7 @@
 		title = "Enable eDP Display on Youyeetoo YY3588";
 		compatible = "youyeetoo,yy3588";
 		category = "display";
-		description = "Enable 11.6 inch 1920x1080 eDP display with GT928 touchscreen";
+		description = "Enable 11.6 inch 1920x1080 eDP display with GT928 touchscreen. The panel HPD line is not wired (force-hpd), enable this overlay only with the panel connected or the display subsystem stalls at boot";
 	};
 
 	fragment@0 {
@@ -84,6 +84,9 @@
 				height-mm = <144>;
 				status = "okay";
 
+				/* BOE QV116FHB-N81 datasheet typical timing. The EDID
+				 * preferred 147.7MHz mode flickers on this eDP link.
+				 */
 				panel-timing {
 					clock-frequency = <141500000>;
 					hactive = <1920>;
@@ -161,7 +164,7 @@
 		target = <&edp1_in_vp1>;
 
 		__overlay__ {
-			status = "okay";
+			status = "disabled";
 		};
 	};
 
@@ -169,7 +172,7 @@
 		target = <&edp1_in_vp2>;
 
 		__overlay__ {
-			status = "disabled";
+			status = "okay";
 		};
 	};
 
@@ -178,7 +181,26 @@
 
 		__overlay__ {
 			status = "okay";
-			connect = <&vp1_out_edp1>;
+			connect = <&vp2_out_edp1>;
+		};
+	};
+
+	/* dp0 owns VP2 in the board DTS; hand it VP1 so eDP can use VP2,
+	 * matching the vendor VOP port mux arrangement.
+	 */
+	fragment@10 {
+		target = <&dp0_in_vp2>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@11 {
+		target = <&dp0_in_vp1>;
+
+		__overlay__ {
+			status = "okay";
 		};
 	};
 
