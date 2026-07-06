@@ -48,7 +48,7 @@ struct rl_map_table {
 struct dmcfreq_common_info {
 	struct device *dev;
 	struct devfreq *devfreq;
-	struct mutex *dmcfreq_lock;
+	struct mutex lock;
 	struct freq_map_table *vop_bw_tbl;
 	struct freq_map_table *vop_frame_bw_tbl;
 	struct rl_map_table *vop_pn_rl_tbl;
@@ -81,6 +81,7 @@ int rockchip_dmcfreq_vop_bandwidth_init(struct dmcfreq_common_info *info);
 int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info);
 void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info);
 unsigned int rockchip_dmcfreq_get_stall_time_ns(void);
+void rockchip_dmcfreq_update_target(struct dmcfreq_common_info *info);
 #else
 static inline void rockchip_dmcfreq_lock(void)
 {
@@ -128,6 +129,10 @@ static inline unsigned int
 rockchip_dmcfreq_get_stall_time_ns(void)
 {
 	return 0;
+}
+
+static inline void rockchip_dmcfreq_update_target(struct dmcfreq_common_info *info)
+{
 }
 #endif
 

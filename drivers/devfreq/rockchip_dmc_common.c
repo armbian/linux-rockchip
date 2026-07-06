@@ -135,17 +135,29 @@ next:
 	vop_last_rate = common_info->vop_req_rate;
 	common_info->vop_req_rate = target;
 
-	if (target > vop_last_rate) {
-		mutex_lock(common_info->dmcfreq_lock);
-		if (!common_info->is_in_suspend) {
-			mutex_lock(&common_info->devfreq->lock);
-			update_devfreq(common_info->devfreq);
-			mutex_unlock(&common_info->devfreq->lock);
-		}
-		mutex_unlock(common_info->dmcfreq_lock);
-	}
+	if (target > vop_last_rate)
+		rockchip_dmcfreq_update_target(common_info);
 }
 EXPORT_SYMBOL(rockchip_dmcfreq_vop_bandwidth_update);
+
+void rockchip_dmcfreq_update_target(struct dmcfreq_common_info *info)
+{
+	struct devfreq *devfreq;
+
+	if (!info || !info->devfreq)
+		return;
+
+	devfreq = info->devfreq;
+
+	mutex_lock(&info->lock);
+	if (!info->is_in_suspend) {
+		mutex_lock(&devfreq->lock);
+		update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+	mutex_unlock(&info->lock);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_update_target);
 
 int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info)
 {
