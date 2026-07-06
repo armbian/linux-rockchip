@@ -545,7 +545,7 @@
 };
 
 &ufs {
-	status = "disabled";
+	status = "okay";
 };
 
 &u2phy0 {
