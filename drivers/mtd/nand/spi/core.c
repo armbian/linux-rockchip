@@ -1269,6 +1269,9 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 #ifdef CONFIG_MTD_SPI_NAND_TOSHIBA
 	&toshiba_spinand_manufacturer,
 #endif
+#ifdef CONFIG_MTD_SPI_NAND_UNILC
+	&unilc_spinand_manufacturer,
+#endif
 #ifdef CONFIG_MTD_SPI_NAND_UNIM
 	&unim_spinand_manufacturer,
 	&unim_zl_spinand_manufacturer,

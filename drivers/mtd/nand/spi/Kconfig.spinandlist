@@ -162,6 +162,12 @@ config MTD_SPI_NAND_TOSHIBA
 	help
 	  Add support for various TOSHIBA SPI Nand flash chips
 
+config MTD_SPI_NAND_UNILC
+	bool "UNILC SPI flash support"
+	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
+	help
+	  Add support for various UNILC SPI Nand flash chips
+
 config MTD_SPI_NAND_UNIM
 	bool "UNIM SPI flash support"
 	default y if MTD_SPI_NAND_DEVICE_AUTOSELECT
