@@ -150,7 +150,7 @@ void rockchip_dmcfreq_update_target(struct dmcfreq_common_info *info)
 	devfreq = info->devfreq;
 
 	mutex_lock(&info->lock);
-	if (!info->is_in_suspend) {
+	if (!info->is_in_suspend && !info->is_gov_stopped) {
 		mutex_lock(&devfreq->lock);
 		update_devfreq(devfreq);
 		mutex_unlock(&devfreq->lock);

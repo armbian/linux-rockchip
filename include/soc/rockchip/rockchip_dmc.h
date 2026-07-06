@@ -59,6 +59,7 @@ struct dmcfreq_common_info {
 	unsigned int auto_freq_en;
 	unsigned int stall_time_ns;
 	bool is_in_suspend;
+	bool is_gov_stopped;
 	bool is_msch_rl_work_started;
 	int (*set_msch_readlatency)(unsigned int rl);
 };

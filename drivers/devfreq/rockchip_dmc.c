@@ -2881,17 +2881,24 @@ static int devfreq_dmc_ondemand_handler(struct devfreq *devfreq,
 					unsigned int event, void *data)
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(devfreq->dev.parent);
+	struct dmcfreq_common_info *info = &dmcfreq->info;
 
-	if (!dmcfreq->info.auto_freq_en)
+	if (!info->auto_freq_en)
 		return 0;
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
 		devfreq_monitor_start(devfreq);
+		mutex_lock(&info->lock);
+		info->is_gov_stopped = false;
+		mutex_unlock(&info->lock);
 		break;
 
 	case DEVFREQ_GOV_STOP:
 		devfreq_monitor_stop(devfreq);
+		mutex_lock(&info->lock);
+		info->is_gov_stopped = true;
+		mutex_unlock(&info->lock);
 		break;
 
 	case DEVFREQ_GOV_UPDATE_INTERVAL:
