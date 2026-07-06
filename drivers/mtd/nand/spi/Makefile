@@ -15,6 +15,7 @@ spinand-$(CONFIG_MTD_SPI_NAND_GIGADEVICE)	+= gigadevice.o
 spinand-$(CONFIG_MTD_SPI_NAND_GSTO)		+= gsto.o
 spinand-$(CONFIG_MTD_SPI_NAND_HIKSEMI)		+= hiksemi.o
 spinand-$(CONFIG_MTD_SPI_NAND_HYF)		+= hyf.o
+spinand-$(CONFIG_MTD_SPI_NAND_ICTHINK)		+= icthink.o
 spinand-$(CONFIG_MTD_SPI_NAND_ISSI)		+= issi.o
 spinand-$(CONFIG_MTD_SPI_NAND_JSC)		+= jsc.o
 spinand-$(CONFIG_MTD_SPI_NAND_KINGSTON)		+= kingston.o
