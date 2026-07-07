@@ -191,6 +191,8 @@
  */
 #define VOP2_HDMI_EMP_FRAME_GAP		3
 
+#define VOP2_READ_POLL_DELAY_US		10
+
 enum vop2_data_format {
 	VOP2_FMT_ARGB8888 = 0,
 	VOP2_FMT_RGB888_YUV444,
@@ -1517,7 +1519,8 @@ static int vop2_crtc_sync(struct drm_crtc *crtc, unsigned long crtc_mask)
 	}
 
 	ret = readx_poll_timeout_atomic(vop2_wait_vps_standby, vop2, status,
-					status, 0, timeout_ms * 1000 * 3 / 2);
+					status, VOP2_READ_POLL_DELAY_US,
+					timeout_ms * 1000 * 3 / 2);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "Wait vps standby timeout\n");
 
@@ -1984,7 +1987,7 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	 * shouldn't exceed microseconds range.
 	 */
 	ret = readx_poll_timeout_atomic(vop2_fs_irq_is_pending, vp, pending,
-					!pending, 0, 10 * 1000);
+					!pending, VOP2_READ_POLL_DELAY_US, 10 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "VOP vblank IRQ stuck for 10 ms\n");
 
@@ -2012,7 +2015,7 @@ static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp)
 	int ret;
 
 	ret = readx_poll_timeout_atomic(vop2_vp_done_bit_status, vp, done_bit,
-					done_bit, 0, 100 * 1000);
+					done_bit, VOP2_READ_POLL_DELAY_US, 100 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait vp%d done bit status timeout, vcnt: %d\n",
 			      vp->id, vop2_read_vcnt(vp));
@@ -2033,7 +2036,8 @@ static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
 	 * is done.
 	 */
 	ret = readx_poll_timeout_atomic(vop2_read_port_mux, vop2, port_mux_cfg,
-					port_mux_cfg == vop2->port_mux_cfg, 0, 50 * 1000);
+					port_mux_cfg == vop2->port_mux_cfg,
+					VOP2_READ_POLL_DELAY_US, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
 			      port_mux_cfg, vop2->port_mux_cfg);
@@ -2053,7 +2057,7 @@ static void vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
 	 * Spin until the previous layer configuration is done.
 	 */
 	ret = readx_poll_timeout_atomic(vop2_read_layer_cfg, vop2, atv_layer_cfg,
-					atv_layer_cfg == cfg, 0, 50 * 1000);
+					atv_layer_cfg == cfg, VOP2_READ_POLL_DELAY_US, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait layer cfg done timeout: 0x%x--0x%x\n",
 			      atv_layer_cfg, cfg);
@@ -2347,7 +2351,8 @@ static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
 	int val;
 	int ret;
 
-	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, !val, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val,
+					!val, VOP2_READ_POLL_DELAY_US, 50 * 1000);
 
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait pd%d off timeout power_ctrl: 0x%x\n",
@@ -2360,7 +2365,8 @@ static void vop2_wait_power_domain_on(struct vop2_power_domain *pd)
 	int val;
 	int ret;
 
-	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, val, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val,
+					val, VOP2_READ_POLL_DELAY_US, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait pd%d on timeout power_ctrl: 0x%x\n",
 			      ffs(pd->data->id) - 1, vop2_readl(vop2, 0x34));
@@ -3884,7 +3890,8 @@ static void vop2_disable_all_planes_for_crtc(struct drm_crtc *crtc)
 	if (need_wait_win_disabled) {
 		vop2_cfg_done(crtc);
 		ret = readx_poll_timeout_atomic(vop2_is_allwin_disabled, crtc,
-						active, active, 0, 500 * 1000);
+						active, active, VOP2_READ_POLL_DELAY_US,
+						500 * 1000);
 		if (ret)
 			DRM_DEV_ERROR(vop2->dev, "wait win close timeout\n");
 	}
@@ -5985,7 +5992,8 @@ static void vop2_wait_for_dovi_metadata_copy_finish(struct vop2_dovi_core *dovi_
 	int ret;
 
 	ret = readx_poll_timeout_atomic(vop2_read_dovi_metadata_copy_finish,
-					dovi_core, finish, finish == true, 0, 10 * 1000);
+					dovi_core, finish, finish == true,
+					VOP2_READ_POLL_DELAY_US, 10 * 1000);
 	if (ret)
 		DRM_DEV_DEBUG(vop2->dev, "Wait dovi%d metadata copy finish timeout: 0x%x\n",
 			      dovi_core->id, vop2_readl(vop2, dovi_core->regs->metadata_copy_finish.offset));
@@ -6006,7 +6014,8 @@ static void vop2_wait_for_dovi_core_enabled(struct vop2_dovi_core *dovi_core)
 	int ret;
 
 	ret = readx_poll_timeout_atomic(vop2_read_dovi_core_enable,
-					dovi_core, enable, enable == true, 0, 10 * 1000);
+					dovi_core, enable, enable == true,
+					VOP2_READ_POLL_DELAY_US, 10 * 1000);
 	if (ret)
 		DRM_DEV_DEBUG(vop2->dev, "Wait dovi%d metadata copy finish timeout: 0x%x\n",
 			      dovi_core->id, vop2_readl(vop2, dovi_core->regs->metadata_copy_finish.offset));
@@ -16560,7 +16569,8 @@ static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_por
 	if (vop2_read_vcnt(vp) < wait_line)
 		return;
 
-	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt < wait_line, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt,
+					vcnt < wait_line, VOP2_READ_POLL_DELAY_US, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait scan timing from FS to the assigned wait line: %d, vcnt:%d, ret:%d\n",
 			      wait_line, vcnt, ret);
@@ -16582,7 +16592,8 @@ static void vop2_wait_for_scan_timing_from_the_assigned_line(struct vop2_video_p
 	if (vop2_read_vcnt(vp) > wait_line)
 		return;
 
-	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt > wait_line, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt,
+					vcnt > wait_line, VOP2_READ_POLL_DELAY_US, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait scan timing from the assigned wait line: %d, vcnt:%d, ret:%d\n",
 			      wait_line, vcnt, ret);
