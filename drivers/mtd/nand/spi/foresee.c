@@ -147,6 +147,7 @@ static const struct spinand_info foresee_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&fsxxndxxg_ooblayout, NULL)),
+	/* F35SQB512M the same configuration */
 	SPINAND_INFO("F35SQA512M",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x70),
 		     NAND_MEMORG(1, 2048, 64, 64, 512, 20, 1, 1, 1),
