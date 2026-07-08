@@ -1983,7 +1983,22 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 static bool vop2_vp_done_bit_status(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
-	u32 done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(vp->id);
+	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+	u32 done_bits;
+
+	/*
+	 * The CFG_DONE status location differs by platform:
+	 * 1. VPs with a reserved physical plane: global RK3568_REG_CFG_DONE,
+	 *    bit position from vp_data->reg_done_bit.
+	 * 2. rk3572 and later VOP3: per-VP module field via VOP_MODULE_GET.
+	 * 3. Older platforms: global RK3568_REG_CFG_DONE, bit position vp->id.
+	 */
+	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID)
+		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(vp_data->reg_done_bit);
+	else if (vop2->version >= VOP_VERSION_RK3572)
+		done_bits = VOP_MODULE_GET(vop2, vp, cfg_done);
+	else
+		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(vp->id);
 
 	/*
 	 * When done bit is 0, indicate current frame is take effect.
