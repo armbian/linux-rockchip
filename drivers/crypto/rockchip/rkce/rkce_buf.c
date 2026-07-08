@@ -152,7 +152,7 @@ uint32_t rkce_cma_virt2phys(void *buf)
 
 	list_for_each_safe(pos, q, &g_buf_list) {
 		cma_buf = list_entry(pos, struct rkce_cma_buf_data, list);
-		if (cma_buf->virt <= buf && buf <= cma_buf->virt + cma_buf->size) {
+		if (cma_buf->virt <= buf && buf < cma_buf->virt + cma_buf->size) {
 			phys = cma_buf->phys + (buf - cma_buf->virt);
 			goto exit;
 		}
@@ -180,7 +180,7 @@ void *rkce_cma_phys2virt(uint32_t phys)
 		cma_buf = list_entry(pos, struct rkce_cma_buf_data, list);
 		rk_debug("phys = %x, [%x, %x]\n ",
 			 phys, cma_buf->phys, cma_buf->phys + cma_buf->size);
-		if (cma_buf->phys <= phys && phys <= cma_buf->phys + cma_buf->size) {
+		if (cma_buf->phys <= phys && phys < cma_buf->phys + cma_buf->size) {
 			rk_debug("cma_buf->virt = %p phys = %x, cma_buf->phys = %x, diff = %x\n",
 				cma_buf->virt, phys, cma_buf->phys, (phys - cma_buf->phys));
 			virt = cma_buf->virt + (phys - cma_buf->phys);
