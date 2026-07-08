@@ -905,37 +905,6 @@
 	vqmmc-supply = <&vccio_sd_s0>;
 };
 
-&sfc {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	max-freq = <100000000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&fspim1_pins>;
-	status = "okay";
-
-	spi_flash: spi-flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0x0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		spi-max-frequency = <100000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <1>;
-		status = "okay";
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			loader@0 {
-				label = "loader";
-				reg = <0x0 0x1000000>;
-			};
-		};
-	};
-};
-
 &spdif_tx2 {
 	status = "okay";
 };
