@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rv1106b-evb2-v10-bga.dtsi"
+
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K rootwait";
+	};
+};
+
+&emmc {
+	no-sdio;
+	no-sd;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	status = "okay";
+};
