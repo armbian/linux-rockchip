@@ -705,13 +705,16 @@ static void rk628_hdmirx_get_timing(struct rk628 *rk628)
 	modetclk_hz = rk628_cru_clk_get_rate(rk628, CGU_CLK_CPLL) / 24;
 	rk628_i2c_read(rk628, HDMI_RX_HDMI_CKM_RESULT, &val);
 	tmdsclk_cnt = val & 0xffff;
+	tmdsclk_cnt = ((tmdsclk_cnt + 5) / 10) * 10;
+
 	tmp_data = tmdsclk_cnt;
 	/* rk628d modet clk is always 49.5m, rk628f's freq changes with ref clock */
 	if (rk628->version != RK628D_VERSION)
-		tmp_data = ((tmp_data * modetclk_hz) + MODETCLK_CNT_NUM / 2);
+		tmp_data = tmp_data * modetclk_hz;
 	else
-		tmp_data = ((tmp_data * MODETCLK_HZ) + MODETCLK_CNT_NUM / 2);
-	do_div(tmp_data, MODETCLK_CNT_NUM);
+		tmp_data = tmp_data * MODETCLK_HZ;
+
+	tmp_data = DIV_ROUND_CLOSEST_ULL(tmp_data, MODETCLK_CNT_NUM);
 	tmds_clk = tmp_data;
 	if (!(htotal && vtotal)) {
 		dev_info(rk628->dev, "timing err, htotal:%d, vtotal:%d\n", htotal, vtotal);
