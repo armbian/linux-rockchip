@@ -1057,8 +1057,6 @@ struct vop2 {
 
 	bool merge_irq;
 
-	bool enable_reserved_plane;
-
 	bool iommu_fault_in_progress;
 
 	/**
@@ -19820,12 +19818,10 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 				vop2->vps[vp_id].primary_plane_phy_id = primary_plane_phy_id;
 			else
 				vop2->vps[vp_id].primary_plane_phy_id = ROCKCHIP_VOP2_PHY_ID_INVALID;
-			if (!of_property_read_u32(child, "rockchip,reserved-plane", &reserved_plane_phy_id)) {
+			if (!of_property_read_u32(child, "rockchip,reserved-plane", &reserved_plane_phy_id))
 				vop2->vps[vp_id].reserved_plane_phy_id = reserved_plane_phy_id;
-				vop2->enable_reserved_plane = true;
-			} else {
+			else
 				vop2->vps[vp_id].reserved_plane_phy_id = ROCKCHIP_VOP2_PHY_ID_INVALID;
-			}
 			vop2->vps[vp_id].xmirror_en = of_property_read_bool(child, "xmirror-enable");
 
 			ret = of_clk_set_defaults(child, false);
