@@ -768,7 +768,8 @@ static int system_heap_create(void)
 	}
 
 	for (i = 0; i < NUM_ORDERS; i++) {
-		dma32_pools[i] = dmabuf_page_pool_create(order_flags[i] | GFP_DMA32, orders[i]);
+		dma32_pools[i] = dmabuf_page_pool_create((order_flags[i] & ~__GFP_HIGHMEM) |
+							 GFP_DMA32, orders[i]);
 
 		if (!dma32_pools[i]) {
 			int j;
