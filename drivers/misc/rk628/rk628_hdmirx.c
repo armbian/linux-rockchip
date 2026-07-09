@@ -17,7 +17,6 @@
 #define POLL_INTERVAL_MS			1000
 #define MODETCLK_CNT_NUM			1000
 #define MODETCLK_HZ				49500000
-#define RXPHY_CFG_MAX_TIMES			1
 
 static u8 debug;
 
@@ -842,12 +841,12 @@ static void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628)
 
 static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 {
-	u32 i, cnt, val, status, vs;
+	u32 cnt = 0, val, status = 0, vs;
 	u32 width, height, frame_width, frame_height, tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs;
 	struct rk628_display_mode *src_mode;
 	struct rk628_hdmirx *hdmirx = rk628->hdmirx;
 	u32 f;
-	bool signal_input, timing_detected;
+	bool timing_detected;
 
 	src_mode = rk628_display_get_src_mode(rk628);
 	f = src_mode->clock;
@@ -887,109 +886,97 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 	if (hdmirx->is_hdmi2 && !rk628->plugin_det_gpio)
 		rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10001f13);
 
-	for (i = 0; i < RXPHY_CFG_MAX_TIMES; i++) {
-		if (rk628->version == RK628D_VERSION)
-			rk628d_hdmirx_phy_power_on(rk628, f);
-		else if (rk628->version == RK628F_VERSION)
-			rk628f_hdmirx_phy_power_on(rk628);
+	if (rk628->version == RK628D_VERSION)
+		rk628d_hdmirx_phy_power_on(rk628, f);
+	else if (rk628->version == RK628F_VERSION)
+		rk628f_hdmirx_phy_power_on(rk628);
 
-		signal_input = false;
-
-		cnt = 0;
-
-		do {
-			if (signal_input || rk628->plugin_det_gpio ||
-			    rk628->version == RK628D_VERSION)
-				cnt++;
-			msleep(100);
-			rk628_i2c_read(rk628, HDMI_RX_MD_HACT_PX, &val);
-			width = val & 0xffff;
-			rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
-			frame_width = (val >> 16) & 0xffff;
-
-			rk628_i2c_read(rk628, HDMI_RX_MD_VAL, &val);
-			height = val & 0xffff;
-			rk628_i2c_read(rk628, HDMI_RX_MD_VTL, &val);
-			frame_height = val & 0xffff;
-
-			rk628_i2c_read(rk628, HDMI_RX_HDMI_CKM_RESULT, &val);
-			tmdsclk_cnt = val & 0xffff;
-			rk628_i2c_read(rk628, HDMI_RX_MD_HT0, &val);
-			modetclk_cnt_hs = val & 0xffff;
-			rk628_i2c_read(rk628, HDMI_RX_MD_VSC, &val);
-			modetclk_cnt_vs = val & 0xffff;
-
-			if (frame_width) {
-				vs = (tmdsclk_cnt * modetclk_cnt_vs + MODETCLK_CNT_NUM / 2) /
-					MODETCLK_CNT_NUM;
-				vs = (vs + frame_width / 2) / frame_width;
-			} else {
-				vs = 0;
-			}
-
-			if (width && height && frame_width && frame_height && tmdsclk_cnt &&
-			    modetclk_cnt_hs && modetclk_cnt_vs && vs)
-				timing_detected = true;
-			else
-				timing_detected = false;
-
-			rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
-			status = val;
-
-			dev_info(rk628->dev,
-				 "tmdsclk_cnt:%d, modetclk_cnt_hs:%d, modetclk_cnt_vs:%d,vs:%d\n",
-				 tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, vs);
-			dev_info(rk628->dev,
-				 "read wxh:%dx%d, total:%dx%d, SCDC_REGS1:%#x, cnt:%d\n",
-				 width, height, frame_width,
-				 frame_height, status, cnt);
-
-			/* no signal input, wait */
-			if (status & 0xf00)
-				signal_input = true;
-
-			if (cnt >= 15)
-				break;
-		} while (((status & 0xfff) != 0xf00) || !timing_detected);
-
-		if (((status & 0xfff) != 0xf00) || (((status >> 16) > 0xc000) &&
-		    rk628->version != RK628D_VERSION)) {
-			dev_info(rk628->dev, "%s hdmi rxphy lock failed, retry:%d, status:0x%x\n",
-				 __func__, i, status);
-			if (((status >> 16) > 0xc000))
-				dev_info(rk628->dev, "((status >> 16) > 0xc000)\n");
-			continue;
-		} else {
-			rk628_hdmirx_get_timing(rk628);
-
-			if (hdmirx->mode.flags & DRM_MODE_FLAG_INTERLACE) {
-				dev_info(rk628->dev, "interlace mode is unsupported\n");
-				continue;
-			}
-
-			if (hdmirx->mode.clock == 0)
-				return -EINVAL;
-
-			src_mode->clock = hdmirx->mode.clock;
-			src_mode->hdisplay = hdmirx->mode.hdisplay;
-			src_mode->hsync_start = hdmirx->mode.hstart;
-			src_mode->hsync_end = hdmirx->mode.hend;
-			src_mode->htotal = hdmirx->mode.htotal;
-
-			src_mode->vdisplay = hdmirx->mode.vdisplay;
-			src_mode->vsync_start = hdmirx->mode.vstart;
-			src_mode->vsync_end = hdmirx->mode.vend;
-			src_mode->vtotal = hdmirx->mode.vtotal;
-			src_mode->flags = hdmirx->mode.flags;
-
+	do {
+		cnt++;
+		if (cnt >= 15)
 			break;
-		}
-	}
 
-	if (i == RXPHY_CFG_MAX_TIMES) {
+		msleep(100);
+		rk628_i2c_read(rk628, HDMI_RX_MD_HACT_PX, &val);
+		width = val & 0xffff;
+		rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
+		frame_width = (val >> 16) & 0xffff;
+
+		rk628_i2c_read(rk628, HDMI_RX_MD_VAL, &val);
+		height = val & 0xffff;
+		rk628_i2c_read(rk628, HDMI_RX_MD_VTL, &val);
+		frame_height = val & 0xffff;
+
+		rk628_i2c_read(rk628, HDMI_RX_HDMI_CKM_RESULT, &val);
+		tmdsclk_cnt = val & 0xffff;
+		rk628_i2c_read(rk628, HDMI_RX_MD_HT0, &val);
+		modetclk_cnt_hs = val & 0xffff;
+		rk628_i2c_read(rk628, HDMI_RX_MD_VSC, &val);
+		modetclk_cnt_vs = val & 0xffff;
+
+		if (frame_width) {
+			vs = (tmdsclk_cnt * modetclk_cnt_vs + MODETCLK_CNT_NUM / 2) /
+				MODETCLK_CNT_NUM;
+			vs = (vs + frame_width / 2) / frame_width;
+		} else {
+			vs = 0;
+		}
+
+		if (width && height && frame_width && frame_height && tmdsclk_cnt &&
+		    modetclk_cnt_hs && modetclk_cnt_vs && vs)
+			timing_detected = true;
+		else
+			timing_detected = false;
+
+		rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+		status = val;
+
+		dev_info(rk628->dev,
+			 "tmdsclk_cnt:%d, modetclk_cnt_hs:%d, modetclk_cnt_vs:%d,vs:%d\n",
+			 tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, vs);
+		dev_info(rk628->dev,
+			 "read wxh:%dx%d, total:%dx%d, SCDC_REGS1:%#x, cnt:%d\n",
+			 width, height, frame_width,
+			 frame_height, status, cnt);
+	} while (((status & 0xfff) != 0xf00) || !timing_detected);
+
+	if (cnt >= 15) {
+		dev_info(rk628->dev, "%s hdmi rxphy lock timeout, status:0x%x\n",
+			 __func__, status);
 		hdmirx->phy_lock = false;
 		return -1;
 	}
+
+	if (((status >> 16) > 0xc000) && rk628->version != RK628D_VERSION) {
+		dev_info(rk628->dev, "%s hdmi rxphy lock failed, status:0x%x, status>>16 > 0xc000\n",
+			 __func__, status);
+		hdmirx->phy_lock = false;
+		return -1;
+	}
+
+	rk628_hdmirx_get_timing(rk628);
+
+	if (hdmirx->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		dev_info(rk628->dev, "interlace mode is unsupported\n");
+		hdmirx->phy_lock = false;
+		return -1;
+	}
+
+	if (hdmirx->mode.clock == 0)
+		return -EINVAL;
+
+	src_mode->clock = hdmirx->mode.clock;
+	src_mode->hdisplay = hdmirx->mode.hdisplay;
+	src_mode->hsync_start = hdmirx->mode.hstart;
+	src_mode->hsync_end = hdmirx->mode.hend;
+	src_mode->htotal = hdmirx->mode.htotal;
+
+	src_mode->vdisplay = hdmirx->mode.vdisplay;
+	src_mode->vsync_start = hdmirx->mode.vstart;
+	src_mode->vsync_end = hdmirx->mode.vend;
+	src_mode->vtotal = hdmirx->mode.vtotal;
+	src_mode->flags = hdmirx->mode.flags;
+
 	hdmirx->phy_lock = true;
 
 	return 0;
