@@ -181,7 +181,7 @@ static bool icmpv6_global_allow(struct net *net, int type,
 	if (icmpv6_mask_allow(net, type))
 		return true;
 
-	if (icmp_global_allow()) {
+	if (icmp_global_allow(net)) {
 		*apply_ratelimit = true;
 		return true;
 	}
@@ -231,7 +231,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		__ICMP6_INC_STATS(net, ip6_dst_idev(dst),
 				  ICMP6_MIB_RATELIMITHOST);
 	else
-		icmp_global_consume();
+		icmp_global_consume(net);
 	dst_release(dst);
 	return res;
 }
@@ -676,6 +676,9 @@ int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type,
 
 	if (!skb2)
 		return 1;
+
+	/* Remove debris left by IPv4 stack. */
+	memset(IP6CB(skb2), 0, sizeof(*IP6CB(skb2)));
 
 	skb_dst_drop(skb2);
 	skb_pull(skb2, nhs);
