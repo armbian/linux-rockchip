@@ -393,6 +393,7 @@ struct vop2_win {
 	const char *name;
 	struct vop2 *vop2;
 	struct vop2_win *parent;
+	struct vop2_win *source_win;
 	struct drm_plane base;
 
 	/*
@@ -8327,6 +8328,37 @@ static int vop3_msmart_grid_update(struct drm_plane *plane, struct drm_plane_sta
 	return 0;
 }
 
+static struct vop2_win *vop2_mirror_win_get_src(struct vop2_win *win)
+{
+	static const struct {
+		const char *mirror;
+		const char *main;
+	} mirror_map[] = {
+		{ "Cluster1-win0", "Cluster0-win0" },
+		{ "Cluster1-win1", "Cluster0-win1" },
+		{ "Esmart1-win0",  "Esmart0-win0"  },
+		{ "Esmart1-win1",  "Esmart0-win1"  },
+		{ "Esmart1-win2",  "Esmart0-win2"  },
+		{ "Esmart1-win3",  "Esmart0-win3"  },
+		{ "Smart1-win0",   "Smart0-win0"   },
+		{ "Smart1-win1",   "Smart0-win1"   },
+		{ "Smart1-win2",   "Smart0-win2"   },
+		{ "Smart1-win3",   "Smart0-win3"   },
+	};
+	struct vop2 *vop2 = win->vop2;
+	int i;
+
+	if (!vop2_is_mirror_win(win))
+		return NULL;
+
+	for (i = 0; i < ARRAY_SIZE(mirror_map); i++) {
+		if (!strcmp(win->name, mirror_map[i].mirror))
+			return vop2_find_win_by_name(vop2, mirror_map[i].main);
+	}
+
+	return NULL;
+}
+
 static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, struct drm_rect *dst,
 				   struct drm_plane_state *pstate)
 {
@@ -8547,6 +8579,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		else
 			VOP_AFBC_SET(vop2, win, block_split_en, 0);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
+		if (win->source_win)
+			VOP_AFBC_SET(vop2, win->source_win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
 		VOP_AFBC_SET(vop2, win, transform_offset, transform_offset);
 		if (is_vop3(vop2) && vop2->version != VOP_VERSION_RK3528 && vpstate->ymirror_en)
@@ -8611,6 +8645,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	}
 
 	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
+	if (win->source_win)
+		VOP_WIN_SET(vop2, win->source_win, yrgb_mst, yrgb_mst);
 
 	rb_swap = vop2_win_rb_swap(fb->format->format);
 	uv_swap = vop2_win_uv_swap(fb->format->format);
@@ -8670,6 +8706,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 		VOP_WIN_SET(vop2, win, uv_vir, uv_stride);
 		VOP_WIN_SET(vop2, win, uv_mst, uv_mst);
+		if (win->source_win)
+			VOP_WIN_SET(vop2, win->source_win, uv_mst, uv_mst);
 	}
 
 	/* tile 4x4 m0 format, y and uv is packed together */
@@ -18983,6 +19021,14 @@ static int vop2_win_init(struct vop2 *vop2)
 	}
 
 	vop2->registered_num_wins = num_wins;
+
+	if (soc_is_rk3566()) {
+		for (i = 0; i < num_wins; i++) {
+			win = &vop2->win[i];
+			if (vop2_is_mirror_win(win))
+				win->source_win = vop2_mirror_win_get_src(win);
+		}
+	}
 
 	if (!is_vop3(vop2)) {
 		for (i = 0; i < vop2_data->nr_layers; i++) {
