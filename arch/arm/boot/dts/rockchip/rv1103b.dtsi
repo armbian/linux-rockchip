@@ -728,7 +728,7 @@
 	};
 
 	sdmmc1: mmc@20650000 {
-		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3576-dw-mshc";
 		reg = <0x20650000 0x4000>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC1>, <&cru CCLK_SDMMC1>;
@@ -1361,7 +1361,7 @@
 	};
 
 	sdmmc0: mmc@20d20000 {
-		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3576-dw-mshc";
 		reg = <0x20d20000 0x4000>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC0>, <&cru CCLK_SDMMC0>;
@@ -1381,7 +1381,7 @@
 	};
 
 	emmc: mmc@20d30000 {
-		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1103b-dw-mshc", "rockchip,rk3576-dw-mshc";
 		reg = <0x20d30000 0x4000>;
 		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_EMMC>, <&cru CCLK_EMMC>;
