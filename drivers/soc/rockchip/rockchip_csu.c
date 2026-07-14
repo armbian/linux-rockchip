@@ -25,10 +25,16 @@ struct csu_clk {
 	unsigned int bus_id;
 };
 
+struct csu_data {
+	int (*csu_disable)(struct csu_clk *clk, bool disable);
+	int (*csu_set_div)(struct csu_clk *clk, unsigned int div);
+};
+
 struct rockchip_csu {
 	struct device *dev;
 	struct csu_bus *bus;
 	struct csu_clk *clk;
+	const struct csu_data *data;
 	unsigned int bus_cnt;
 	unsigned int clk_cnt;
 };
@@ -96,19 +102,15 @@ struct csu_clk *rockchip_csu_get(struct device *dev, const char *name)
 }
 EXPORT_SYMBOL(rockchip_csu_get);
 
-static int csu_disable(struct csu_clk *clk, bool disable)
+static int rk3562_csu_disable(struct csu_clk *clk, bool disable)
 {
 	struct csu_bus *bus = NULL;
 	unsigned int en_mask = 0;
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(clk))
-		return 0;
-	if (clk->bus_id >= rk_csu->bus_cnt)
-		return 0;
 	bus = rockchip_csu_get_bus(clk->bus_id);
 	if (!bus)
-		return 0;
+		return -EINVAL;
 
 	mutex_lock(&csu_lock);
 
@@ -131,6 +133,16 @@ static int csu_disable(struct csu_clk *clk, bool disable)
 	return ret;
 }
 
+static int csu_disable(struct csu_clk *clk, bool disable)
+{
+	if (!rk_csu || IS_ERR_OR_NULL(clk))
+		return 0;
+	if (rk_csu->data && rk_csu->data->csu_disable)
+		return rk_csu->data->csu_disable(clk, disable);
+
+	return -EOPNOTSUPP;
+}
+
 int rockchip_csu_enable(struct csu_clk *clk)
 {
 	return csu_disable(clk, false);
@@ -143,19 +155,15 @@ int rockchip_csu_disable(struct csu_clk *clk)
 }
 EXPORT_SYMBOL(rockchip_csu_disable);
 
-int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
+static int rk3562_csu_set_div(struct csu_clk *clk, unsigned int div)
 {
 	struct csu_bus *bus = NULL;
 	unsigned int cfg_val = 0;
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(clk))
-		return 0;
-	if (clk->bus_id >= rk_csu->bus_cnt)
-		return 0;
 	bus = rockchip_csu_get_bus(clk->bus_id);
 	if (!bus)
-		return 0;
+		return -EINVAL;
 
 	mutex_lock(&csu_lock);
 
@@ -170,6 +178,16 @@ int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
 	mutex_unlock(&csu_lock);
 
 	return ret;
+}
+
+int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
+{
+	if (!rk_csu || IS_ERR_OR_NULL(clk))
+		return 0;
+	if (rk_csu->data && rk_csu->data->csu_set_div)
+		return rk_csu->data->csu_set_div(clk, div);
+
+	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rockchip_csu_set_div);
 
@@ -325,8 +343,13 @@ static int rockchip_csu_bus_node(struct rockchip_csu *csu)
 	return 0;
 }
 
+static const struct csu_data rk3562_csu_data = {
+	.csu_disable = rk3562_csu_disable,
+	.csu_set_div = rk3562_csu_set_div,
+};
+
 static const struct of_device_id rockchip_csu_of_match[] = {
-	{ .compatible = "rockchip,rk3562-csu", },
+	{ .compatible = "rockchip,rk3562-csu", .data = &rk3562_csu_data },
 	{ },
 };
 
@@ -352,8 +375,10 @@ static int rockchip_csu_probe(struct platform_device *pdev)
 		ret = rockchip_csu_bus_table(csu);
 	else
 		ret = rockchip_csu_bus_node(csu);
-	if (!ret)
+	if (!ret) {
+		csu->data = device_get_match_data(&pdev->dev);
 		rk_csu = csu;
+	}
 
 	return ret;
 }
