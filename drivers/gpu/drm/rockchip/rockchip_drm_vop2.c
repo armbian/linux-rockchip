@@ -6017,8 +6017,8 @@ static void vop2_wait_for_dovi_core_enabled(struct vop2_dovi_core *dovi_core)
 					dovi_core, enable, enable == true,
 					VOP2_READ_POLL_DELAY_US, 10 * 1000);
 	if (ret)
-		DRM_DEV_DEBUG(vop2->dev, "Wait dovi%d metadata copy finish timeout: 0x%x\n",
-			      dovi_core->id, vop2_readl(vop2, dovi_core->regs->metadata_copy_finish.offset));
+		DRM_DEV_DEBUG(vop2->dev, "Wait dovi%d core enable timeout: 0x%x\n",
+			      dovi_core->id, vop2_readl(vop2, dovi_core->regs->enable.offset));
 }
 
 static void vop2_load_dovi_coe_table(struct drm_crtc *crtc)
