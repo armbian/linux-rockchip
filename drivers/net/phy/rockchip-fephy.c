@@ -120,6 +120,8 @@ static int rockchip_fephy_get_txamp_from_nvmem(struct phy_device *phydev)
 		phydev_err(phydev, "failed to get txamp cell: %ld, use default\n",
 			   PTR_ERR(cell));
 	} else {
+		int ret;
+
 		buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
 		if (!IS_ERR(buf)) {
@@ -129,9 +131,12 @@ static int rockchip_fephy_get_txamp_from_nvmem(struct phy_device *phydev)
 				/* For some cases, if it's an odd number, add 3 */
 				if (txamp_type == 0x8 && (priv->txamp & 1))
 					priv->txamp += 3;
+				ret = 0;
+			} else {
+				ret = -EINVAL;
 			}
 			kfree(buf);
-			return 0;
+			return ret;
 		}
 		phydev_err(phydev, "failed to get nvmem buf, use default\n");
 	}
@@ -151,15 +156,20 @@ static int rockchip_fephy_get_adc_offset_from_nvmem(struct phy_device *phydev)
 		phydev_err(phydev, "failed to get offset cell: %ld, use default\n",
 			   PTR_ERR(cell));
 	} else {
+		int ret;
+
 		buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
 		if (!IS_ERR(buf)) {
 			if (len == 2) {
 				priv->mdi_offset = buf[0] & 0x7f;
 				priv->mdix_offset = buf[1] & 0x7f;
+				ret = 0;
+			} else {
+				ret = -EINVAL;
 			}
 			kfree(buf);
-			return 0;
+			return ret;
 		}
 		phydev_err(phydev, "failed to get nvmem buf, use default\n");
 	}
@@ -546,7 +556,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	case GROUP_WOL: /* WOL register group */
 		val = rockchip_fephy_group_write(phydev, GROUP_WOL, reg, rval);
@@ -554,7 +564,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	case GROUP_CFG0_READ: /* CFG0_read register group */
 		val = rockchip_fephy_group_write(phydev, GROUP_CFG0_READ, reg, rval);
@@ -562,7 +572,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	case GROUP_BIST: /* BIST register group */
 		val = rockchip_fephy_group_write(phydev, GROUP_BIST, reg, rval);
@@ -570,7 +580,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	case GROUP_AFE: /* AFE register group */
 		val = rockchip_fephy_group_write(phydev, GROUP_AFE, reg, rval);
@@ -578,7 +588,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	case GROUP_CFG1: /* CFG1 register group */
 		val = rockchip_fephy_group_write(phydev, GROUP_CFG1, reg, rval);
@@ -586,7 +596,7 @@ rockchip_fephy_phy_write_priv_reg(struct phy_device *phydev, int group, int reg,
 			pr_err("group%d %2d write error: %d\n", group, reg, val);
 			return;
 		}
-		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, val);
+		pr_info("write group%d reg_%02d: 0x%x\n", group, reg, rval);
 		break;
 	default:
 		pr_err("error group num: %d\n", group);
@@ -765,7 +775,7 @@ static int rockchip_fephy_probe(struct phy_device *phydev)
 		return PTR_ERR(priv->pclk);
 
 	ret = rockchip_fephy_get_txamp_from_nvmem(phydev);
-	if (ret)
+	if (ret || !priv->txamp)
 		priv->txamp = DEFAULT_TXAMP;
 
 	ret = rockchip_fephy_get_adc_offset_from_nvmem(phydev);
