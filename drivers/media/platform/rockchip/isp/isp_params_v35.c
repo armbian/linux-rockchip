@@ -4467,6 +4467,7 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			isp3_param_write(params_vdev, value, ISP3X_MI_GAIN_WR_SIZE, id);
 			value = priv->buf_gain[0].dma_addr;
 			isp3_param_write(params_vdev, value, ISP3X_MI_GAIN_WR_BASE, id);
+			isp3_param_write(params_vdev, 0, ISP35_AIISP_GAIN_RD_HV_SIZE, id);
 			if (!params_vdev->is_hdr) {
 				isp3_param_write(params_vdev, value, ISP3X_MI_RAW0_RD_BASE, id);
 				isp3_param_write(params_vdev, 0, ISP32_MI_RAW0_RD_SIZE, id);
@@ -6879,11 +6880,9 @@ rkisp_params_aiisp_switch_v35(struct rkisp_isp_params_vdev *params_vdev, bool on
 			 ISP35_AIPRE_IIR_EN | ISP35_AIPRE_GAIN_EN |
 			 ISP35_AIPRE_IIR2DDR_EN | ISP35_AIPRE_GIAN2DDR_EN);
 		val |= ISP35_AIPRE_ITS_FORCE_UPD;
-		rkisp_write(dev, ISP35_AI_CTRL, val, true);
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
 		val &= ~ISP35_AIPRE_ITS_FORCE_UPD;
-		rkisp_write(dev, ISP35_AI_CTRL, val, true);
-		if (!dev->hw_dev->is_single)
-			rkisp_write(dev, ISP35_AI_CTRL, val, false);
+		rkisp_write(dev, ISP35_AI_CTRL, val, false);
 
 		if (priv->pbuf_bay3d_iir_rec) {
 			val = priv->pbuf_bay3d_iir_rec->dma_addr;
