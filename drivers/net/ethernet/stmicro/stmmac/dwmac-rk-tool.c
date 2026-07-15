@@ -675,7 +675,7 @@ static int dwmac_rk_xmit(struct sk_buff *skb, struct net_device *dev,
 	unsigned int nopaged_len = skb_headlen(skb);
 	int csum_insertion = 0;
 	struct dma_desc *desc;
-	unsigned int des;
+	dma_addr_t des;
 
 	priv->hw->mac->reset_eee_mode(priv->hw);
 
