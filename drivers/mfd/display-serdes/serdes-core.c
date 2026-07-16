@@ -540,13 +540,13 @@ void serdes_create_debugfs(struct serdes *serdes)
 	debugfs_create_file("debug", 0664, serdes->debugfs_dentry, serdes,
 				     &debug_fops);
 }
-EXPORT_SYMBOL(serdes_create_debugfs);
+EXPORT_SYMBOL_GPL(serdes_create_debugfs);
 
 void serdes_destroy_debugfs(struct serdes *serdes)
 {
 	debugfs_remove_recursive(serdes->debugfs_dentry);
 }
-EXPORT_SYMBOL(serdes_destroy_debugfs);
+EXPORT_SYMBOL_GPL(serdes_destroy_debugfs);
 
 void serdes_debugfs_init(void)
 {
@@ -555,13 +555,13 @@ void serdes_debugfs_init(void)
 	debugfs_create_file("log_level", 0664, serdes_debugfs_root, NULL,
 				     &log_level_fops);
 }
-EXPORT_SYMBOL(serdes_debugfs_init);
+EXPORT_SYMBOL_GPL(serdes_debugfs_init);
 
 void serdes_debugfs_exit(void)
 {
 	debugfs_remove_recursive(serdes_debugfs_root);
 }
-EXPORT_SYMBOL(serdes_debugfs_exit);
+EXPORT_SYMBOL_GPL(serdes_debugfs_exit);
 
 void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...)
 {
@@ -579,7 +579,7 @@ void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...)
 
 	va_end(args);
 }
-EXPORT_SYMBOL(serdes_dev_dbg);
+EXPORT_SYMBOL_GPL(serdes_dev_dbg);
 
 int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link)
 {
@@ -604,7 +604,7 @@ int serdes_set_i2c_address(struct serdes *serdes, u32 reg_use, int link)
 
 	return ret;
 }
-EXPORT_SYMBOL(serdes_set_i2c_address);
+EXPORT_SYMBOL_GPL(serdes_set_i2c_address);
 
 int serdes_set_pinctrl_init(struct serdes *serdes)
 {
