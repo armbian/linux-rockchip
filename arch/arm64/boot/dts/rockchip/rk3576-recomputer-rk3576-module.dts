@@ -185,7 +185,7 @@
 
 	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
-		wifi_chip_type = "fcs960k";
+		wifi_chip_type = "wq9201s";
 		clocks = <&xin32k>;
 		clock-names = "ext_clock";
 		pinctrl-names = "default";
@@ -196,6 +196,8 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
+		clocks = <&xin32k>;
+		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart4m1_rtsn>;
@@ -233,7 +235,8 @@
 		io-channel-names = "adc-detect";
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
-		hp-det-gpio = <&gpio2 RK_PD4 GPIO_ACTIVE_LOW>;
+		hp-det-gpio = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
+		hp-con-gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
 		rockchip,pre-power-on-delay-ms = <30>;
 		rockchip,post-power-down-delay-ms = <40>;
 		rockchip,format = "i2s";
@@ -247,8 +250,7 @@
             "AMIC", "Main Mic",
             "AMIC", "Headset Mic";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-
+		pinctrl-0 = <&hp_det &hp_con>;
 	};
 
 	gpio-leds {
@@ -745,7 +747,7 @@
 
 /* wifi */
 &sdio {
-	max-frequency = <100000000>;
+	max-frequency = <200000000>;
 	no-sd;
 	no-mmc;
 	bus-width = <4>;
@@ -754,6 +756,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
+	vqmmc-supply = <&vcc_1v8_s3>;
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1m0_bus4 &sdmmc1m0_clk &sdmmc1m0_cmd>;
@@ -795,7 +798,7 @@
 };
 
 &i2c0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&i2c0m1_xfer>;
 };
 
@@ -822,8 +825,30 @@
 };
 
 &i2c3 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&i2c3m1_xfer>;
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5m2_xfer>;
+
+	es8311: es8311@18 {
+		status = "okay";
+		compatible = "everest,es8311";
+		reg = <0x18>;
+		#sound-dai-cells = <0>;
+		adc-pga-gain = <6>;     /* 18dB */
+		adc-volume = <0xbf>;    /* 0dB */
+		dac-volume = <0xbf>;    /* 0dB */
+		aec-mode = "adc left, adc right";
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sai1m0_mclk>;
+	};
 
 	/* Typec Controller Fusb302 */
 	usbc0: fusb302@22 {
@@ -893,35 +918,13 @@
 	};
 };
 
-&i2c4 {
-	status = "okay";
-	pinctrl-0 = <&i2c4m2_xfer>;
-};
-
 &i2c6 {
 	status = "okay";
 	pinctrl-0 = <&i2c6m3_xfer>;
-
-	es8311: es8311@18 {
-		status = "okay";
-		compatible = "everest,es8311";
-		reg = <0x18>;
-		#sound-dai-cells = <0>;
-		adc-pga-gain = <6>;     /* 18dB */
-		adc-volume = <0xbf>;    /* 0dB */
-		dac-volume = <0xbf>;    /* 0dB */
-		aec-mode = "adc left, adc right";
-		clocks = <&mclkout_sai1>;
-		clock-names = "mclk";
-		assigned-clocks = <&mclkout_sai1>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sai1m0_mclk>;
-	};
 };
 
 &i2c7 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&i2c7m1_xfer>;
 };
 
@@ -1088,7 +1091,7 @@
 			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		hp_con: hp-con {
-			rockchip,pins = <2 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
