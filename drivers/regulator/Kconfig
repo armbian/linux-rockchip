@@ -849,6 +849,13 @@ config REGULATOR_MPQ7920
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MPQ8655
+	tristate "MPS MPQ8655 regulator driver"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  This driver supports the MPQ8655 voltage regulator.
+
 config REGULATOR_MT6311
 	tristate "MediaTek MT6311 PMIC"
 	depends on I2C
