@@ -32,6 +32,7 @@
 
 #define CODEC_DRV_NAME			"rv1106-acodec"
 
+/* rv1106 & rv1103 */
 #define PERI_GRF_PERI_CON1		0x004
 #define ACODEC_AD2DA_LOOP_MSK		(1 << 23)
 #define ACODEC_AD2DA_LOOP_EN		(1 << 7)
@@ -44,6 +45,29 @@
 #define ACODEC_EN			(1 << 6)
 #define ACODEC_DIS			(0 << 6)
 
+/* rv1103b */
+#define RV1103B_SYS_GRF_AUDIO_CON0		0x50020
+#define AUDIO_CON0_MUX_MSK			((0x3 << 19) | (0x3 << 21) | (0x3 << 23) | (0x3 << 25))
+#define AUDIO_CON0_MUX_SEL_ACODEC		((0x3 << 3) | (0x3 << 5) | (0x3 << 7) | (0x3 << 9))
+#define AUDIO_CON0_DAC_SEL_SDO_GND		(0x0 << 9)
+#define AUDIO_CON0_DAC_SEL_SDO_SAI		(0x3 << 9)
+#define AUDIO_CON0_DAC_SEL_SCLKLRCLK_GND	(0x0 << 7)
+#define AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI	(0x3 << 7)
+#define AUDIO_CON0_ADC_SEL_SCLKLRCLK_GND	(0x0 << 5)
+#define AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI	(0x3 << 5)
+#define AUDIO_CON0_SAI_SEL_SDI_GND		(0x0 << 3)
+#define AUDIO_CON0_SAI_SEL_SDI_IO		(0x2 << 3)
+#define AUDIO_CON0_SAI_SEL_SDI_ACODEC		(0x3 << 3)
+
+#define RV1103B_SYS_GRF_AUDIO_CON1		0x50024
+#define AUDIO_CON1_MUX_MSK			((0x7 << 16) | (0x3 << 21))
+#define AUDIO_CON1_IO_SEL_SDO_GND		(0x0 << 5)
+#define AUDIO_CON1_IO_SEL_SDO_SAI		(0x2 << 5)
+#define AUDIO_CON1_IO_SEL_SCLKLRCLK_GND		(0x0 << 0)
+#define AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI		(0x4 << 0)
+#define AUDIO_CON1_IO_SEL_EN			(AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI)
+#define AUDIO_CON1_IO_SEL_DIS			(AUDIO_CON1_IO_SEL_SDO_GND | AUDIO_CON1_IO_SEL_SCLKLRCLK_GND)
+
 #define LR(b, x, v)			(((1 << b) & x) ? v : 0)
 #define L(x, v)				LR(0, x, v)
 #define R(x, v)				LR(1, x, v)
@@ -55,6 +79,7 @@
 
 enum soc_id_e {
 	SOC_RV1103 = 0x1103,
+	SOC_RV1103B = 0x1103b,
 	SOC_RV1106 = 0x1106,
 };
 
@@ -79,6 +104,7 @@ struct rv1106_codec_priv {
 	struct clk *mclk_cpu;
 	struct gpio_desc *pa_ctl_gpio;
 	struct snd_soc_component *component;
+	struct rv1106_codec_soc_data *sc;
 
 	enum adc_mode_e adc_mode;
 	enum soc_id_e soc_id;
@@ -111,6 +137,9 @@ struct rv1106_codec_priv {
 	unsigned int init_alc_gain;
 	unsigned int init_lineout_gain;
 
+	/* Only for rv1103b codec, specify audio mux path */
+	unsigned int audio_mux_sel;
+
 	bool adc_enable;
 	bool dac_enable;
 	bool micbias_enable;
@@ -119,6 +148,11 @@ struct rv1106_codec_priv {
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *dbg_codec;
 #endif
+};
+
+struct rv1106_codec_soc_data {
+	int (*i2s_route)(struct rv1106_codec_priv *rv1106);
+	int soc_id;
 };
 
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_gain_tlv,
@@ -196,6 +230,10 @@ static int rv1106_codec_dac_vcm_manual_get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_dac_vcm_manual_put(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol);
+static int rv1103b_codec_audio_mux_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol);
+static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol);
 
 static const char *offon_text[2] = {
 	[0] = "Off",
@@ -211,6 +249,15 @@ static const char *noneoffon_text[3] = {
 static const char *mute_text[2] = {
 	[0] = "Work",
 	[1] = "Mute",
+};
+
+static const char *audio_mux_text[6] = {
+	[0] = "Path0",  /* Playback: To Acodec Lineout, Capture: From Acodec Mic Only */
+	[1] = "Path1",  /* Playback: To Acodec Lineout, Capture: From SAI SDI Only */
+	[2] = "Path2",  /* Playback: To Acodec Lineout + SAI SDO, Capture: From Acodec Mic Only */
+	[3] = "Path3",  /* Playback: To Acodec Lineout + SAI SDO, Capture: From SAI SDI Only */
+	[4] = "Path4",  /* Playback: To SAI SDO Only, Capture: From Acodec Mic Only */
+	[5] = "Path5",  /* Playback: To SAI SDO Only, Capture: From SAI SDI Only */
 };
 
 /* ADC MICBIAS Volt */
@@ -284,6 +331,10 @@ static const struct soc_enum rv1106_dac_vcm_maunal_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(noneoffon_text), noneoffon_text),
 };
 
+static const struct soc_enum rv1103b_audio_mux_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(audio_mux_text), audio_mux_text),
+};
+
 /* ALC AGC Approximate Sample Rate */
 #define AGC_ASR_NUM				8
 
@@ -310,6 +361,116 @@ static const char *agc_asr_text[AGC_ASR_NUM] = {
 static const struct soc_enum rv1106_agc_asr_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(agc_asr_text), agc_asr_text),
 	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+};
+
+static const struct snd_kcontrol_new rv1103b_codec_dapm_controls[] = {
+	/* ADC MIC */
+	SOC_SINGLE_EXT_TLV("ADC MIC Left Gain",
+			   ACODEC_ADC_ANA_CTL2,
+			   ACODEC_ADC_L_MIC_GAIN_SFT,
+			   ACODEC_ADC_MIC_GAIN_MAX,
+			   0,
+			   rv1106_codec_mic_gain_get,
+			   rv1106_codec_mic_gain_put,
+			   rv1106_codec_adc_mic_gain_tlv),
+
+	/* ADC ALC */
+	SOC_SINGLE_RANGE_TLV("ADC ALC Left Volume",
+			     ACODEC_ADC_ANA_CTL4,
+			     ACODEC_ADC_L_ALC_GAIN_SFT,
+			     ACODEC_ADC_L_ALC_GAIN_MIN,
+			     ACODEC_ADC_L_ALC_GAIN_MAX,
+			     0, rv1106_codec_adc_alc_gain_tlv),
+
+	/* ADC Digital Volume */
+	SOC_SINGLE_RANGE_TLV("ADC Digital Left Volume",
+			     ACODEC_ADC_L_DIG_VOL,
+			     ACODEC_ADC_L_DIG_VOL_SFT,
+			     ACODEC_ADC_L_DIG_VOL_MIN,
+			     ACODEC_ADC_L_DIG_VOL_MAX,
+			     0, rv1106_codec_adc_dig_gain_tlv),
+
+	/* ADC High Pass Filter */
+	SOC_ENUM_EXT("ADC HPF Cut-off", rv1106_hpf_enum_array[0],
+		     rv1106_codec_hpf_get, rv1106_codec_hpf_put),
+
+	/* ALC AGC Group */
+	SOC_SINGLE_RANGE_TLV("ALC AGC Left Volume",
+			     ACODEC_ADC_PGA_AGC_L_CTL3,
+			     ACODEC_AGC_PGA_GAIN_SFT,
+			     ACODEC_AGC_PGA_GAIN_MIN,
+			     ACODEC_AGC_PGA_GAIN_MAX,
+			     0, rv1106_codec_alc_agc_gain_tlv),
+
+	/* ALC AGC MAX */
+	SOC_SINGLE_RANGE_TLV("ALC AGC Left Max Volume",
+			     ACODEC_ADC_PGA_AGC_L_CTL9,
+			     ACODEC_AGC_MAX_GAIN_PGA_SFT,
+			     ACODEC_AGC_MAX_GAIN_PGA_MIN,
+			     ACODEC_AGC_MAX_GAIN_PGA_MAX,
+			     0, rv1106_codec_alc_agc_max_gain_tlv),
+
+	/* ALC AGC MIN */
+	SOC_SINGLE_RANGE_TLV("ALC AGC Left Min Volume",
+			     ACODEC_ADC_PGA_AGC_L_CTL9,
+			     ACODEC_AGC_MIN_GAIN_PGA_SFT,
+			     ACODEC_AGC_MIN_GAIN_PGA_MIN,
+			     ACODEC_AGC_MIN_GAIN_PGA_MAX,
+			     0, rv1106_codec_alc_agc_min_gain_tlv),
+
+	/* ALC AGC Switch */
+	SOC_ENUM_EXT("ALC AGC Left Switch", rv1106_agc_enum_array[0],
+		     rv1106_codec_agc_get, rv1106_codec_agc_put),
+
+	/* ALC AGC Approximate Sample Rate */
+	SOC_ENUM_EXT("AGC Left Approximate Sample Rate", rv1106_agc_asr_enum_array[0],
+		     rv1106_codec_agc_asr_get, rv1106_codec_agc_asr_put),
+
+	/* ADC Mode */
+	SOC_ENUM_EXT("ADC Mode", rv1106_adc_mode_enum_array[0],
+		     rv1106_codec_adc_mode_get, rv1106_codec_adc_mode_put),
+
+	/* ADC MICBIAS Voltage */
+	SOC_ENUM_EXT("ADC MICBIAS Voltage", rv1106_micbias_volts_enum_array[0],
+		     rv1106_codec_micbias_volts_get, rv1106_codec_micbias_volts_put),
+
+	/* ADC Main MICBIAS Switch */
+	SOC_ENUM_EXT("ADC Main MICBIAS", rv1106_main_micbias_enum_array[0],
+		     rv1106_codec_main_micbias_get, rv1106_codec_main_micbias_put),
+
+	/* ADC MIC Mute/Work Switch */
+	SOC_ENUM_EXT("ADC MIC Left Switch", rv1106_mic_mute_enum_array[0],
+		     rv1106_codec_mic_mute_get, rv1106_codec_mic_mute_put),
+
+	/* DAC LINEOUT */
+	SOC_SINGLE_RANGE_TLV("DAC LINEOUT Volume",
+			     ACODEC_DAC_ANA_CTL2,
+			     ACODEC_DAC_LINEOUT_GAIN_SFT,
+			     ACODEC_DAC_LINEOUT_GAIN_MIN,
+			     ACODEC_DAC_LINEOUT_GAIN_MAX,
+			     0, rv1106_codec_dac_lineout_gain_tlv),
+
+	/* DAC HPMIX */
+	SOC_SINGLE_EXT_TLV("DAC HPMIX Volume",
+			   ACODEC_DAC_HPMIX_CTL,
+			   ACODEC_DAC_HPMIX_GAIN_SFT,
+			   ACODEC_DAC_HPMIX_GAIN_MAX,
+			   0,
+			   rv1106_codec_hpmix_gain_get,
+			   rv1106_codec_hpmix_gain_put,
+			   rv1106_codec_dac_hpmix_gain_tlv),
+
+	/* DAC Control Manually */
+	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_maunal_enum_array[0],
+		     rv1106_codec_dac_ctrl_manual_get, rv1106_codec_dac_ctrl_manual_put),
+
+	/* DAC VCM Manually */
+	SOC_ENUM_EXT("DAC VCM Manually", rv1106_dac_vcm_maunal_enum_array[0],
+		     rv1106_codec_dac_vcm_manual_get, rv1106_codec_dac_vcm_manual_put),
+
+	/* Audio Mux Select */
+	SOC_ENUM_EXT("Audio Mux Select", rv1103b_audio_mux_enum_array[0],
+		     rv1103b_codec_audio_mux_get, rv1103b_codec_audio_mux_put),
 };
 
 static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
@@ -495,6 +656,38 @@ static int check_adc_mode(struct rv1106_codec_priv *rv1106)
 	return 0;
 }
 
+static int set_adc_mode(struct rv1106_codec_priv *rv1106)
+{
+	unsigned int lr = using_adc_lr(rv1106->adc_mode);
+	bool is_diff = using_adc_diff(rv1106->adc_mode);
+
+	dev_dbg(rv1106->plat_dev, "%s: soc_id: 0x%x lr: %d is_diff: %d\n",
+		__func__, rv1106->soc_id, lr, is_diff);
+
+	if (rv1106->soc_id == SOC_RV1103 && rv1106->adc_mode == DIFF_ADCL) {
+		/* The ADCL is differential mode on rv1103 */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   ACODEC_ADC_L_MODE_SEL_MSK,
+				   ACODEC_ADC_L_FULL_DIFFER2);
+	} else if (rv1106->soc_id != SOC_RV1103 && is_diff) {
+		/* The differential mode is default except rv1103 */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
+				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
+				   L(lr, ACODEC_ADC_L_FULL_DIFFER) |
+				   R(lr, ACODEC_ADC_R_FULL_DIFFER));
+	} else {
+		/* The single-end mode */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
+				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
+				   L(lr, ACODEC_ADC_L_SINGLE_END) |
+				   R(lr, ACODEC_ADC_R_SINGLE_END));
+	}
+
+	return 0;
+}
+
 static int rv1106_codec_adc_mode_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
@@ -511,16 +704,15 @@ static int rv1106_codec_adc_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
-	unsigned int last_mode = rv1106->adc_mode;
 
-	rv1106->adc_mode = ucontrol->value.integer.value[0];
 	if (check_adc_mode(rv1106)) {
 		dev_err(rv1106->plat_dev,
 			"%s - something error checking ADC mode\n", __func__);
-		rv1106->adc_mode = last_mode;
 		return 0;
 	}
 
+	set_adc_mode(rv1106);
+	rv1106->adc_mode = ucontrol->value.integer.value[0];
 	return 0;
 }
 
@@ -1295,13 +1487,6 @@ static int rv1106_codec_power_off(struct rv1106_codec_priv *rv1106)
 	return 0;
 }
 
-static int rv1106_codec_adc_i2s_route(struct rv1106_codec_priv *rv1106)
-{
-	regmap_write(rv1106->grf, PERI_GRF_PERI_CON1,
-		     ACODEC_MSK | ACODEC_EN);
-	return 0;
-}
-
 static int check_micbias(int volt)
 {
 	switch (volt) {
@@ -1482,15 +1667,109 @@ static int rv1106_codec_dac_vcm_manual_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rv1103b_codec_audio_mux_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+
+	if (rv1106->soc_id != SOC_RV1103B) {
+		pr_err("soc_id: %x doesn't support get audio mux\n", rv1106->soc_id);
+		return 0;
+	}
+
+	ucontrol->value.integer.value[0] = rv1106->audio_mux_sel;
+	return 0;
+}
+
+static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+	unsigned int value = ucontrol->value.integer.value[0];
+
+	if (rv1106->soc_id != SOC_RV1103B) {
+		pr_err("soc_id: %x doesn't support set audio mux\n", rv1106->soc_id);
+		return 0;
+	}
+
+	switch (value) {
+	case 0:
+		/* Playback: To Acodec Lineout, Capture: From Acodec Mic Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK | AUDIO_CON0_MUX_SEL_ACODEC);
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK | AUDIO_CON1_IO_SEL_DIS);
+		break;
+	case 1:
+		/* Playback: To Acodec Lineout, Capture: From SAI SDI Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK |
+			     (AUDIO_CON0_DAC_SEL_SDO_SAI |
+			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_SAI_SEL_SDI_IO));
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI);
+		break;
+	case 2:
+		/* Playback: To Acodec Lineout + SAI SDO, Capture: From Acodec Mic Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK | AUDIO_CON0_MUX_SEL_ACODEC);
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK |
+			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
+		break;
+	case 3:
+		/* Playback: To Acodec Lineout + SAI SDO, Capture: From SAI SDI Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK |
+			     (AUDIO_CON0_DAC_SEL_SDO_SAI |
+			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_SAI_SEL_SDI_IO));
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK |
+			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
+		break;
+	case 4:
+		/* Playback: To SAI SDO Only, Capture: From Acodec Mic Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK |
+			     (AUDIO_CON0_DAC_SEL_SDO_GND |
+			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_SAI_SEL_SDI_ACODEC));
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK |
+			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
+		break;
+	case 5:
+		/* Playback: To SAI SDO Only, Capture: From SAI SDI Only */
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+			     AUDIO_CON0_MUX_MSK |
+			     (AUDIO_CON0_DAC_SEL_SDO_GND |
+			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_SAI |
+			      AUDIO_CON0_SAI_SEL_SDI_IO));
+		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+			     AUDIO_CON1_MUX_MSK |
+			     (AUDIO_CON1_IO_SEL_SDO_SAI | AUDIO_CON1_IO_SEL_SCLKLRCLK_SAI));
+		break;
+	default:
+		break;
+	}
+
+	rv1106->audio_mux_sel = value;
+	return 0;
+}
+
 static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 {
 	unsigned int lr = using_adc_lr(rv1106->adc_mode);
-	bool is_diff = using_adc_diff(rv1106->adc_mode);
 	unsigned int agc_func_en;
 	int ret;
-
-	dev_dbg(rv1106->plat_dev, "%s: soc_id: 0x%x lr: %d is_diff: %d\n",
-		__func__, rv1106->soc_id, lr, is_diff);
 
 	ret = check_adc_mode(rv1106);
 	if (ret < 0) {
@@ -1501,26 +1780,7 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 	}
 
 	/* vendor step 00 */
-	if (rv1106->soc_id == SOC_RV1103 && rv1106->adc_mode == DIFF_ADCL) {
-		/* The ADCL is differential mode on rv1103 */
-		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-				   ACODEC_ADC_L_MODE_SEL_MSK,
-				   ACODEC_ADC_L_FULL_DIFFER2);
-	} else if (rv1106->soc_id == SOC_RV1106 && is_diff) {
-		/* The differential mode on rv1106 */
-		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
-				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
-				   L(lr, ACODEC_ADC_L_FULL_DIFFER) |
-				   R(lr, ACODEC_ADC_R_FULL_DIFFER));
-	} else {
-		/* The single-end mode */
-		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
-				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
-				   L(lr, ACODEC_ADC_L_SINGLE_END) |
-				   R(lr, ACODEC_ADC_R_SINGLE_END));
-	}
+	set_adc_mode(rv1106);
 
 	/* vendor step 01 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
@@ -1912,6 +2172,8 @@ static int rv1106_codec_check_micbias(struct rv1106_codec_priv *rv1106,
 
 static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 {
+	int ret = 0;
+
 	rv1106->adc_mode = DIFF_ADCL;
 	rv1106->dac_ctrl_manual = 0;
 	rv1106->dac_vcm_manual = 0;
@@ -1920,8 +2182,24 @@ static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 	rv1106->agc_r = 0;
 	rv1106->agc_asr_l = AGC_ASR_96KHZ;
 	rv1106->agc_asr_r = AGC_ASR_96KHZ;
+	rv1106->audio_mux_sel = 0;
+	if (rv1106->soc_id == SOC_RV1103B) {
+		ret = snd_soc_add_component_controls(
+			rv1106->component, rv1103b_codec_dapm_controls,
+			ARRAY_SIZE(rv1103b_codec_dapm_controls));
+	} else {
+		ret = snd_soc_add_component_controls(
+			rv1106->component, rv1106_codec_dapm_controls,
+			ARRAY_SIZE(rv1106_codec_dapm_controls));
+	}
 
-	return 0;
+	if (ret < 0) {
+		dev_err(rv1106->plat_dev,
+			"soc_id: %x add controls failed, ret=%d'\n",
+			rv1106->soc_id, ret);
+	}
+
+	return ret;
 }
 
 static int rv1106_codec_prepare(struct rv1106_codec_priv *rv1106)
@@ -1967,8 +2245,6 @@ static const struct snd_soc_component_driver soc_codec_dev_rv1106 = {
 	.suspend = rv1106_suspend,
 	.resume = rv1106_resume,
 	.set_bias_level = rv1106_set_bias_level,
-	.controls = rv1106_codec_dapm_controls,
-	.num_controls = ARRAY_SIZE(rv1106_codec_dapm_controls),
 };
 
 /* Set the default value or reset value */
@@ -2198,9 +2474,43 @@ static const struct file_operations rv1106_codec_reg_debugfs_fops = {
 };
 #endif /* CONFIG_DEBUG_FS */
 
+static int rv1103b_codec_adc_i2s_route(struct rv1106_codec_priv *rv1106)
+{
+	/* Playback: To Acodec Lineout, Capture: From Acodec Mic Only by default */
+	regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON0,
+		     AUDIO_CON0_MUX_MSK | AUDIO_CON0_MUX_SEL_ACODEC);
+	regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
+		     AUDIO_CON1_MUX_MSK | AUDIO_CON1_IO_SEL_DIS);
+
+	return 0;
+}
+
+static int rv1106_codec_adc_i2s_route(struct rv1106_codec_priv *rv1106)
+{
+	regmap_write(rv1106->grf, PERI_GRF_PERI_CON1,
+		     ACODEC_MSK | ACODEC_EN);
+	return 0;
+}
+
+static const struct rv1106_codec_soc_data rv1103_data = {
+	.soc_id = SOC_RV1103,
+	.i2s_route = rv1106_codec_adc_i2s_route,
+};
+
+static const struct rv1106_codec_soc_data rv1103b_data = {
+	.soc_id = SOC_RV1103B,
+	.i2s_route = rv1103b_codec_adc_i2s_route,
+};
+
+static const struct rv1106_codec_soc_data rv1106_data = {
+	.soc_id = SOC_RV1106,
+	.i2s_route = rv1106_codec_adc_i2s_route,
+};
+
 static const struct of_device_id rv1106_codec_of_match[] = {
-	{ .compatible = "rockchip,rv1103-codec", .data = (void *)SOC_RV1103},
-	{ .compatible = "rockchip,rv1106-codec", .data = (void *)SOC_RV1106},
+	{ .compatible = "rockchip,rv1103-codec", .data = &rv1103_data },
+	{ .compatible = "rockchip,rv1103b-codec", .data = &rv1103b_data },
+	{ .compatible = "rockchip,rv1106-codec", .data = &rv1106_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rv1106_codec_of_match);
@@ -2217,7 +2527,11 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 	if (!rv1106)
 		return -ENOMEM;
 
-	rv1106->soc_id = (enum soc_id_e)device_get_match_data(&pdev->dev);
+	rv1106->sc = (struct rv1106_codec_soc_data *)device_get_match_data(&pdev->dev);
+	if (!rv1106->sc)
+		return -EINVAL;
+
+	rv1106->soc_id = rv1106->sc->soc_id;
 	dev_info(&pdev->dev, "current soc_id: rv%x\n", rv1106->soc_id);
 
 	rv1106->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -2314,11 +2628,13 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 
 	rv1106_codec_check_micbias(rv1106, np);
 
-	ret = rv1106_codec_adc_i2s_route(rv1106);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to route ADC to i2s: %d\n",
-			ret);
-		goto failed;
+	if (rv1106->sc->i2s_route) {
+		ret = rv1106->sc->i2s_route(rv1106);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to route ADC to i2s: %d\n",
+				ret);
+			goto failed;
+		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
