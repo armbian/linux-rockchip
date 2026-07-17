@@ -12301,6 +12301,265 @@ static void vop2_toggle_dclk(struct vop2_video_port *vp)
 	clk_disable_unprepare(vp->dclk);
 }
 
+static int vop2_output_if_config(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	struct vop2_clk *if_pixclk = NULL;
+	struct vop2_clk *if_dclk = NULL;
+	bool dclk_inv, yc_swap = false;
+	int ret, port_mux;
+	u32 val;
+
+	dclk_inv = (vcstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
+	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : BIT(VSYNC_POSITIVE);
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_RGB) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
+		VOP_CTRL_SET(vop2, rgb_en, 1);
+		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, rgb_pin_pol, val);
+		VOP_GRF_SET(vop2, sys_grf, grf_dclk_inv, dclk_inv);
+		VOP_GRF_SET(vop2, ioc_grf, grf_dclk_inv, dclk_inv);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_BT1120) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
+		if (vop2->version == VOP_VERSION_RK3588) {
+			VOP_CTRL_SET(vop2, bt1120_en, 3);
+		} else {
+			VOP_CTRL_SET(vop2, rgb_en, 1);
+			VOP_CTRL_SET(vop2, bt1120_en, 1);
+		}
+		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
+		VOP_GRF_SET(vop2, sys_grf, grf_bt1120_clk_inv, !dclk_inv);
+		VOP_GRF_SET(vop2, ioc_grf, grf_bt1120_clk_inv, !dclk_inv);
+		VOP_CTRL_SET(vop2, bt1120_dclk_pol, !dclk_inv);
+		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
+		VOP_CTRL_SET(vop2, bt1120_yc_swap, yc_swap);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_BT656) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
+		if (vop2->version == VOP_VERSION_RK3588) {
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		} else {
+			VOP_CTRL_SET(vop2, rgb_en, 1);
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		}
+		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
+		VOP_GRF_SET(vop2, sys_grf, grf_bt656_clk_inv, !dclk_inv);
+		VOP_GRF_SET(vop2, ioc_grf, grf_bt656_clk_inv, !dclk_inv);
+		VOP_CTRL_SET(vop2, bt656_dclk_pol, !dclk_inv);
+		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
+		VOP_CTRL_SET(vop2, bt656_yc_swap, yc_swap);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS0) {
+		VOP_CTRL_SET(vop2, lvds0_en, 1);
+		VOP_CTRL_SET(vop2, lvds0_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, lvds_pin_pol, val);
+		VOP_CTRL_SET(vop2, lvds_dclk_pol, dclk_inv);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS1) {
+		VOP_CTRL_SET(vop2, lvds1_en, 1);
+		VOP_CTRL_SET(vop2, lvds1_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, lvds_pin_pol, val);
+		VOP_CTRL_SET(vop2, lvds_dclk_pol, dclk_inv);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_MIPI0, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+		VOP_CTRL_SET(vop2, mipi0_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, mipi0_dclk_out_en, 1);
+		if (if_pixclk)
+			VOP_CTRL_SET(vop2, mipi0_pixclk_div, if_pixclk->div_val);
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
+			VOP_CTRL_SET(vop2, mipi0_ds_mode, 1);
+
+		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
+		VOP_CTRL_SET(vop2, mipi0_en, 1);
+		VOP_CTRL_SET(vop2, mipi0_mux, port_mux);
+		/*
+		 * RK3576 DSI CTRL hsync/vsync polarity is positive and can't update,
+		 * so set VOP hsync/vsync polarity as positive by default.
+		 */
+		if (vop2->version == VOP_VERSION_RK3576)
+			val = BIT(HSYNC_POSITIVE) | BIT(VSYNC_POSITIVE);
+		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
+		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
+		if (vcstate->hold_mode) {
+			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
+			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
+		}
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_MIPI1, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+		if (if_pixclk)
+			VOP_CTRL_SET(vop2, mipi1_pixclk_div, if_pixclk->div_val);
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
+			VOP_CTRL_SET(vop2, mipi1_ds_mode, 1);
+
+		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
+
+		VOP_CTRL_SET(vop2, mipi1_en, 1);
+		VOP_CTRL_SET(vop2, mipi1_mux, port_mux);
+		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
+		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
+		if (vcstate->hold_mode) {
+			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
+			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
+		}
+	}
+
+	if (vop2_is_left_right_or_odd_even_mode(vcstate))
+		vop2_setup_dual_channel_if(crtc);
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_eDP0, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+		VOP_CTRL_SET(vop2, edp0_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, edp0_dclk_out_en, 1);
+		if (if_pixclk && if_dclk) {
+			VOP_CTRL_SET(vop2, edp0_pixclk_div, if_pixclk->div_val);
+			VOP_CTRL_SET(vop2, edp0_dclk_div, if_dclk->div_val);
+		}
+
+		VOP_CTRL_SET(vop2, edp0_en, 1);
+		VOP_CTRL_SET(vop2, edp0_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, edp_pin_pol, val);
+		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
+		VOP_GRF_SET(vop2, grf, grf_edp0_en, 1);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_eDP1) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_eDP1, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+		if (if_pixclk && if_dclk) {
+			VOP_CTRL_SET(vop2, edp1_pixclk_div, if_pixclk->div_val);
+			VOP_CTRL_SET(vop2, edp1_dclk_div, if_dclk->div_val);
+		}
+
+		VOP_CTRL_SET(vop2, edp1_en, 1);
+		VOP_CTRL_SET(vop2, edp1_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, edp_pin_pol, val);
+		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
+		VOP_GRF_SET(vop2, grf, grf_edp1_en, 1);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP0) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP0, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, dp0_dclk_out_en, 1);
+		VOP_CTRL_SET(vop2, dp0_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, dp0_dclk_pol, 0);
+		VOP_CTRL_SET(vop2, dp0_pin_pol, val);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP1) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP1, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, dp1_dclk_out_en, 1);
+		VOP_CTRL_SET(vop2, dp1_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, dp1_dclk_pol, 0);
+		VOP_CTRL_SET(vop2, dp1_pin_pol, val);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP2) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP2, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		VOP_CTRL_SET(vop2, dp2_dclk_out_en, 1);
+		VOP_CTRL_SET(vop2, dp2_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, dp2_dclk_pol, 0);
+		VOP_CTRL_SET(vop2, dp2_pin_pol, val);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_HDMI0, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+		VOP_CTRL_SET(vop2, hdmi0_regdone_imd_en, 1);
+		VOP_CTRL_SET(vop2, hdmi0_dclk_out_en, 1);
+		if (if_pixclk && if_dclk) {
+			VOP_CTRL_SET(vop2, hdmi0_pixclk_div, if_pixclk->div_val);
+			VOP_CTRL_SET(vop2, hdmi0_dclk_div, if_dclk->div_val);
+		}
+
+		if (vcstate->dsc_enable)
+			VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 1);
+
+		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
+		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 1);
+		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi0_pin_pol, val);
+
+		VOP_CTRL_SET(vop2, hdmi0_en, 1);
+		VOP_CTRL_SET(vop2, hdmi0_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, hdmi_pin_pol, val);
+		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
+	}
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1) {
+		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_HDMI1, &if_pixclk, &if_dclk);
+		if (ret < 0)
+			return ret;
+
+		if (if_pixclk && if_dclk) {
+			VOP_CTRL_SET(vop2, hdmi1_pixclk_div, if_pixclk->div_val);
+			VOP_CTRL_SET(vop2, hdmi1_dclk_div, if_dclk->div_val);
+		}
+
+		if (vcstate->dsc_enable)
+			VOP_GRF_SET(vop2, grf, grf_hdmi1_dsc_en, 1);
+
+		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
+		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 1);
+		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi1_pin_pol, val);
+
+		VOP_CTRL_SET(vop2, hdmi1_en, 1);
+		VOP_CTRL_SET(vop2, hdmi1_mux, vp_data->id);
+		VOP_CTRL_SET(vop2, hdmi_pin_pol, val);
+		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
+	}
+
+	return 0;
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -12324,16 +12583,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
-	bool dclk_inv, yc_swap = false;
 	int act_end;
 	uint32_t val;
 	char clk_name[32];
-	struct vop2_clk *if_pixclk = NULL;
-	struct vop2_clk *if_dclk = NULL;
 	struct vop2_clk *dclk, *dclk_out, *dclk_core;
 	unsigned long dclk_rate;
 	int splice_en = 0;
-	int port_mux;
 	int ret;
 	char *output_if_string;
 
@@ -12393,250 +12648,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	if (vcstate->mode_update)
 		vop2_disable_all_planes_for_crtc(crtc);
 
-	dclk_inv = (vcstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
-	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : BIT(VSYNC_POSITIVE);
-
 	vp->output_if = vcstate->output_if;
 	vp->dclk_div = 1;
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_RGB) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, rgb_en, 1);
-		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, rgb_pin_pol, val);
-		VOP_GRF_SET(vop2, sys_grf, grf_dclk_inv, dclk_inv);
-		VOP_GRF_SET(vop2, ioc_grf, grf_dclk_inv, dclk_inv);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_BT1120) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
-		if (vop2->version == VOP_VERSION_RK3588) {
-			VOP_CTRL_SET(vop2, bt1120_en, 3);
-		} else {
-			VOP_CTRL_SET(vop2, rgb_en, 1);
-			VOP_CTRL_SET(vop2, bt1120_en, 1);
-		}
-		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_GRF_SET(vop2, sys_grf, grf_bt1120_clk_inv, !dclk_inv);
-		VOP_GRF_SET(vop2, ioc_grf, grf_bt1120_clk_inv, !dclk_inv);
-		VOP_CTRL_SET(vop2, bt1120_dclk_pol, !dclk_inv);
-		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
-		VOP_CTRL_SET(vop2, bt1120_yc_swap, yc_swap);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_BT656) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_RGB, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, rgb_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, rgb_dclk_out_en, 1);
-		if (vop2->version == VOP_VERSION_RK3588) {
-			VOP_CTRL_SET(vop2, bt656_en, 1);
-		} else {
-			VOP_CTRL_SET(vop2, rgb_en, 1);
-			VOP_CTRL_SET(vop2, bt656_en, 1);
-		}
-		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
-		VOP_GRF_SET(vop2, sys_grf, grf_bt656_clk_inv, !dclk_inv);
-		VOP_GRF_SET(vop2, ioc_grf, grf_bt656_clk_inv, !dclk_inv);
-		VOP_CTRL_SET(vop2, bt656_dclk_pol, !dclk_inv);
-		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
-		VOP_CTRL_SET(vop2, bt656_yc_swap, yc_swap);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS0) {
-		VOP_CTRL_SET(vop2, lvds0_en, 1);
-		VOP_CTRL_SET(vop2, lvds0_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, lvds_pin_pol, val);
-		VOP_CTRL_SET(vop2, lvds_dclk_pol, dclk_inv);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS1) {
-		VOP_CTRL_SET(vop2, lvds1_en, 1);
-		VOP_CTRL_SET(vop2, lvds1_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, lvds_pin_pol, val);
-		VOP_CTRL_SET(vop2, lvds_dclk_pol, dclk_inv);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_MIPI0, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-		VOP_CTRL_SET(vop2, mipi0_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, mipi0_dclk_out_en, 1);
-		if (if_pixclk)
-			VOP_CTRL_SET(vop2, mipi0_pixclk_div, if_pixclk->div_val);
-
-		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
-			VOP_CTRL_SET(vop2, mipi0_ds_mode, 1);
-
-		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
-		VOP_CTRL_SET(vop2, mipi0_en, 1);
-		VOP_CTRL_SET(vop2, mipi0_mux, port_mux);
-		/*
-		 * RK3576 DSI CTRL hsync/vsync polarity is positive and can't update,
-		 * so set VOP hsync/vsync polarity as positive by default.
-		 */
-		if (vop2->version == VOP_VERSION_RK3576)
-			val = BIT(HSYNC_POSITIVE) | BIT(VSYNC_POSITIVE);
-		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
-		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
-		if (vcstate->hold_mode) {
-			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
-			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
-		}
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_MIPI1, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-		if (if_pixclk)
-			VOP_CTRL_SET(vop2, mipi1_pixclk_div, if_pixclk->div_val);
-
-		if (vcstate->output_flags & ROCKCHIP_OUTPUT_MIPI_DS_MODE)
-			VOP_CTRL_SET(vop2, mipi1_ds_mode, 1);
-
-		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
-
-		VOP_CTRL_SET(vop2, mipi1_en, 1);
-		VOP_CTRL_SET(vop2, mipi1_mux, port_mux);
-		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
-		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
-		if (vcstate->hold_mode) {
-			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
-			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
-		}
-	}
-
-	if (vop2_is_left_right_or_odd_even_mode(vcstate))
-		vop2_setup_dual_channel_if(crtc);
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_eDP0, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-		VOP_CTRL_SET(vop2, edp0_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, edp0_dclk_out_en, 1);
-		if (if_pixclk && if_dclk) {
-			VOP_CTRL_SET(vop2, edp0_pixclk_div, if_pixclk->div_val);
-			VOP_CTRL_SET(vop2, edp0_dclk_div, if_dclk->div_val);
-		}
-
-		VOP_CTRL_SET(vop2, edp0_en, 1);
-		VOP_CTRL_SET(vop2, edp0_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, edp_pin_pol, val);
-		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
-		VOP_GRF_SET(vop2, grf, grf_edp0_en, 1);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_eDP1) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_eDP1, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-		if (if_pixclk && if_dclk) {
-			VOP_CTRL_SET(vop2, edp1_pixclk_div, if_pixclk->div_val);
-			VOP_CTRL_SET(vop2, edp1_dclk_div, if_dclk->div_val);
-		}
-
-		VOP_CTRL_SET(vop2, edp1_en, 1);
-		VOP_CTRL_SET(vop2, edp1_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, edp_pin_pol, val);
-		VOP_CTRL_SET(vop2, edp_dclk_pol, dclk_inv);
-		VOP_GRF_SET(vop2, grf, grf_edp1_en, 1);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP0) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP0, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, dp0_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp0_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, dp0_dclk_pol, 0);
-		VOP_CTRL_SET(vop2, dp0_pin_pol, val);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP1) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP1, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, dp1_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp1_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, dp1_dclk_pol, 0);
-		VOP_CTRL_SET(vop2, dp1_pin_pol, val);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP2) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP2, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		VOP_CTRL_SET(vop2, dp2_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp2_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, dp2_dclk_pol, 0);
-		VOP_CTRL_SET(vop2, dp2_pin_pol, val);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_HDMI0, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-		VOP_CTRL_SET(vop2, hdmi0_regdone_imd_en, 1);
-		VOP_CTRL_SET(vop2, hdmi0_dclk_out_en, 1);
-		if (if_pixclk && if_dclk) {
-			VOP_CTRL_SET(vop2, hdmi0_pixclk_div, if_pixclk->div_val);
-			VOP_CTRL_SET(vop2, hdmi0_dclk_div, if_dclk->div_val);
-		}
-
-		if (vcstate->dsc_enable)
-			VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 1);
-
-		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
-		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 1);
-		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi0_pin_pol, val);
-
-		VOP_CTRL_SET(vop2, hdmi0_en, 1);
-		VOP_CTRL_SET(vop2, hdmi0_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, hdmi_pin_pol, val);
-		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
-	}
-
-	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1) {
-		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_HDMI1, &if_pixclk, &if_dclk);
-		if (ret < 0)
-			goto out;
-
-		if (if_pixclk && if_dclk) {
-			VOP_CTRL_SET(vop2, hdmi1_pixclk_div, if_pixclk->div_val);
-			VOP_CTRL_SET(vop2, hdmi1_dclk_div, if_dclk->div_val);
-		}
-
-		if (vcstate->dsc_enable)
-			VOP_GRF_SET(vop2, grf, grf_hdmi1_dsc_en, 1);
-
-		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
-		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 1);
-		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi1_pin_pol, val);
-
-		VOP_CTRL_SET(vop2, hdmi1_en, 1);
-		VOP_CTRL_SET(vop2, hdmi1_mux, vp_data->id);
-		VOP_CTRL_SET(vop2, hdmi_pin_pol, val);
-		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
-	}
+	ret = vop2_output_if_config(crtc);
+	if (ret < 0)
+		goto out;
 
 	VOP_MODULE_SET(vop2, vp, splice_en, splice_en);
 
