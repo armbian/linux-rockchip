@@ -29,6 +29,24 @@
 		};
 	};
 
+	pdm_codec: dummy-codec {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	pdm_mic_array: pdm-mic-array {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&pdm_codec>;
+		};
+	};
+
 	aw88166_sound: aw88166-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
@@ -549,7 +567,7 @@
 &i2c8 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c8m4_xfer>;
+	pinctrl-0 = <&i2c8m0_xfer>;
 
 	ti_ina226: ti_ina226@40 {
 		compatible = "ti,ina226";
@@ -830,6 +848,18 @@
 };
 
 &sata2 {
+	status = "okay";
+};
+
+&pdm0 {
+	pinctrl-0 = <&pdm0m0_clk1
+		     &pdm0m0_sdi0
+		     &pdm0m0_sdi1
+		     &pdm0m0_sdi2
+		     &pdm0m0_sdi3>;
+	pinctrl-1 = <&pdm0m0_idle>;
+	pinctrl-2 = <&pdm0m0_clk1>;
+	rockchip,path-map = <0 1 2 3>;
 	status = "okay";
 };
 
