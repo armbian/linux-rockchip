@@ -139,6 +139,7 @@ struct sditf_priv {
 extern struct platform_driver rkcif_subdev_driver;
 void sditf_change_to_online(struct sditf_priv *priv);
 void sditf_disable_immediately(struct sditf_priv *priv);
+void sditf_flip_apply_pending(struct rkcif_device *cif_dev);
 void sditf_event_exposure_notifier(struct sditf_priv *priv,
 					   struct sditf_effect_exp *effect_exp);
 void sditf_event_inc_sof(struct sditf_priv *priv);

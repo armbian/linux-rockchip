@@ -1140,11 +1140,13 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 				sditf_channel_disable(priv, 1);
 		}
 	}
-	if (priv->cif_dev->switch_info.is_use_switch)
-		priv->cif_dev->switch_info.is_active = false;
+	/*
+	 * Do not set is_toisp_off here: toisp registers take effect on next FS.
+	 * Online toisp GPIO/is_active are aligned in sditf_enable_immediately.
+	 */
 }
 
-static void sditf_enable_immediately(struct sditf_priv *priv)
+static void sditf_toisp_hw_enable(struct sditf_priv *priv)
 {
 	if (priv->toisp_inf.link_mode == TOISP0) {
 		if (priv->cif_dev->chip_id >= CHIP_RV1103B_CIF)
@@ -1165,11 +1167,96 @@ static void sditf_enable_immediately(struct sditf_priv *priv)
 				sditf_channel_enable(priv, 1);
 		}
 	}
-	if (priv->cif_dev->switch_info.is_use_switch) {
-		rkcif_switch_change(priv->cif_dev, !!priv->cif_dev->switch_info.gpio_val);
-		priv->cif_dev->switch_info.is_active = true;
-	}
+}
+
+/* Bind switch GPIO/is_active with toisp enable to avoid FE ping-pong race. */
+static void sditf_switch_before_toisp(struct rkcif_device *cif_dev, int gpio_val)
+{
+	struct rkcif_device *partner;
+
+	if (!cif_dev->switch_info.is_use_switch)
+		return;
+
+	mutex_lock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+	rkcif_switch_change(cif_dev, !!gpio_val);
+	cif_dev->switch_info.is_active = true;
+	partner = cif_dev->switch_info.switch_dev;
+	if (partner)
+		partner->switch_info.is_active = false;
+	mutex_unlock(&cif_dev->hw_dev->switch_mutex_lock[cif_dev->switch_info.host_idx]);
+
+	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+		 "switch before toisp, gpio %d\n", gpio_val);
+}
+
+static void sditf_enable_toisp(struct sditf_priv *priv)
+{
+	struct rkcif_device *cif_dev = priv->cif_dev;
+
+	sditf_switch_before_toisp(cif_dev, cif_dev->switch_info.gpio_val);
+	sditf_toisp_hw_enable(priv);
 	WRITE_ONCE(priv->is_toisp_off, false);
+}
+
+static void sditf_enable_immediately(struct sditf_priv *priv)
+{
+	struct rkcif_device *cif_dev = priv->cif_dev;
+
+	/* Defer toisp enable while flip is in progress; apply on flip_end. */
+	if (cif_dev->is_in_flip) {
+		cif_dev->flip_pending.toisp_enable = true;
+		cif_dev->flip_pending.priv = priv;
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+			 "defer toisp enable (in flip)\n");
+		return;
+	}
+	sditf_enable_toisp(priv);
+}
+
+void sditf_flip_apply_pending(struct rkcif_device *cif_dev)
+{
+	struct rkcif_flip_pending *p = &cif_dev->flip_pending;
+	struct rkcif_stream *stream;
+	unsigned long flags;
+	int i;
+
+	if (!p->toisp_enable && !p->dma_mask && !p->change_to_online)
+		return;
+
+	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+		 "flip_apply_pending change_online %d toisp_en %d dma_mask 0x%x\n",
+		 p->change_to_online, p->toisp_enable, p->dma_mask);
+
+	/*
+	 * Enable before change_to_online: the latter early-returns when
+	 * is_toisp_off (set by FE / flip_start disable). Enabling first
+	 * clears the flag so deferred mode_src / thunderboot restore runs.
+	 */
+	if (p->priv &&
+	    (p->toisp_enable ||
+	     (p->change_to_online && READ_ONCE(p->priv->is_toisp_off))))
+		sditf_enable_toisp(p->priv);
+
+	if (p->change_to_online && p->priv)
+		sditf_change_to_online(p->priv);
+
+	/* Clear flip flag before dma restore so enable_dma won't re-defer. */
+	spin_lock_irqsave(&cif_dev->stream[0].vbq_lock, flags);
+	cif_dev->is_in_flip = false;
+	spin_unlock_irqrestore(&cif_dev->stream[0].vbq_lock, flags);
+
+	for (i = 0; i < RKCIF_MULTI_STREAMS_NUM; i++) {
+		if (!(p->dma_mask & BIT(i)))
+			continue;
+		stream = &cif_dev->stream[i];
+		stream->to_en_dma = p->to_en_dma[i];
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+			 "flip apply pending dma, stream[%d] to_en_dma 0x%x\n",
+			 i, stream->to_en_dma);
+		rkcif_enable_dma_capture(stream, true);
+	}
+
+	memset(p, 0, sizeof(*p));
 }
 
 static int sditf_start_stream(struct sditf_priv *priv)
@@ -1272,6 +1359,7 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 			ret = sditf_stop_stream(priv);
 			sditf_free_buf(priv);
 			priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
+			WRITE_ONCE(priv->is_stopping, false);
 		}
 
 	}

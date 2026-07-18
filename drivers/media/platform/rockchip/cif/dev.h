@@ -973,10 +973,19 @@ struct rkcif_switch_info {
 	bool is_active;
 	bool is_init;
 	bool is_init_buf;
+	bool is_stream_pause;
 	int host_idx;
 	int gpio_val;
 	struct gpio_desc *gpio_pin;
 	struct rkcif_device *switch_dev;
+};
+
+struct rkcif_flip_pending {
+	bool toisp_enable;
+	bool change_to_online;
+	struct sditf_priv *priv;
+	u32 dma_mask;
+	u32 to_en_dma[RKCIF_MULTI_STREAMS_NUM];
 };
 
 /*
@@ -1011,6 +1020,11 @@ struct rkcif_device {
 	atomic_t			sensor_off;
 	atomic_t			sd_power_cnt;
 	struct mutex			stream_lock; /* lock between streams */
+	/*
+	 * Serialize FLIP_* vs QUICK_STREAM/AOV across stream_lock drop in wait.
+	 * Lock order (never reverse): quick_flip_lock -> stream_lock -> spinlocks
+	 */
+	struct mutex			quick_flip_lock;
 	struct mutex			scale_lock; /* lock between scale dev */
 	struct mutex			tools_lock; /* lock between tools dev */
 	enum rkcif_workmode		workmode;
@@ -1073,6 +1087,7 @@ struct rkcif_device {
 	bool				is_camera_over_bridge;
 	bool				is_thunderboot_start;
 	bool				is_in_flip;
+	struct rkcif_flip_pending	flip_pending;
 	bool				is_support_get_exp;
 	bool				is_detect_group_sync;
 	int				rdbk_debug;
@@ -1225,6 +1240,8 @@ void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 					       int channel_id);
 
 int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr);
+int rkcif_quick_stream_on_locked(struct rkcif_device *dev, bool is_intr,
+				 bool stream_lock_held);
 
 void rkcif_flip_end_wait_work(struct work_struct *work);
 void rkcif_reinit_right_half_config(struct rkcif_stream *stream);

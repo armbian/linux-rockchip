@@ -2981,6 +2981,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->inf_id = inf_id;
 
 	mutex_init(&cif_dev->stream_lock);
+	mutex_init(&cif_dev->quick_flip_lock);
 	mutex_init(&cif_dev->scale_lock);
 	mutex_init(&cif_dev->tools_lock);
 	spin_lock_init(&cif_dev->hdr_lock);
