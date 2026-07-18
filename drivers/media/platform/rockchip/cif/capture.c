@@ -7590,7 +7590,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			} else {
 				stream->stopping = true;
 			}
-		} else if ((dev->sditf[0] && (!dev->sditf[0]->is_toisp_off)) ||
+		} else if ((dev->sditf[0] && (!READ_ONCE(dev->sditf[0]->is_toisp_off))) ||
 			(stream->cifdev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP && stream->id != 0)) {
 			stream->stopping = true;
 		} else {
@@ -14695,7 +14695,7 @@ static bool rkcif_check_frame_active(struct rkcif_device *cif_dev)
 {
 	if (cif_dev->sditf[0] &&
 	    cif_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
-	    cif_dev->sditf[0]->is_toisp_off &&
+	    READ_ONCE(cif_dev->sditf[0]->is_toisp_off) &&
 	    cif_dev->sditf[0]->is_multi_online)
 		return false;
 
@@ -15207,9 +15207,9 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 	struct rkisp_vicap_sof sof = {0};
 
 	v4l2_dbg(5, rkcif_debug, &priv->cif_dev->v4l2_dev,
-		 "toisp_off %d\n", priv->is_toisp_off);
+		 "toisp_off %d\n", READ_ONCE(priv->is_toisp_off));
 
-	if (priv->is_toisp_off)
+	if (READ_ONCE(priv->is_toisp_off))
 		return;
 
 	for (i = 0; i < TOISP_CH_MAX; i++) {
@@ -15328,7 +15328,7 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					  stream->frame_idx - 1);
 			if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE ||
 			    priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_MULTI)
-				priv->is_toisp_off = true;
+				WRITE_ONCE(priv->is_toisp_off, true);
 
 			rkcif_deal_readout_time(stream);
 
@@ -15643,7 +15643,7 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 					if (tmp_dev->sditf[0] &&
 					    tmp_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
 					    tmp_dev->sditf[0]->is_multi_online) {
-						if (!tmp_dev->sditf[0]->is_toisp_off)
+						if (!READ_ONCE(tmp_dev->sditf[0]->is_toisp_off))
 							tmp_dev->stream[0].frame_idx++;
 					} else {
 						tmp_dev->stream[0].frame_idx = sync_config->frame_idx;
@@ -16060,7 +16060,7 @@ int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode)
 	}
 
 	if (priv && priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
-		priv->is_toisp_off = true;
+		WRITE_ONCE(priv->is_toisp_off, true);
 
 	if (suspend_cnt == 0)
 		goto out_suspend;
@@ -17076,9 +17076,11 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				rkcif_modify_frame_skip_config(stream);
 			if (stream->is_change_toisp) {
 				stream->is_change_toisp = false;
-				if (cif_dev->hdr.hdr_mode == NO_HDR ||
-				    (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
-				    (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))
+				if (cif_dev->sditf[0] &&
+				    !READ_ONCE(cif_dev->sditf[0]->is_stopping) &&
+				    (cif_dev->hdr.hdr_mode == NO_HDR ||
+				     (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+				     (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id == 2)))
 					sditf_change_to_online(cif_dev->sditf[0]);
 				rkcif_modify_line_int(stream, false);
 				stream->is_line_inten = false;
