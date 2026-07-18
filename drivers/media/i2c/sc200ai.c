@@ -17,6 +17,7 @@
  *	1. add support wakeup & sleep for aov function
  *	2. using 60fps output default
  * V0.0X01.0X09 fix poweroff issue.
+ * V0.0X01.0X0A fix stream fail
  */
 
 // #define DEBUG
@@ -42,7 +43,7 @@
 #include "cam-tb-setup.h"
 #include "cam-sleep-wakeup.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x09)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0a)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -52,7 +53,7 @@
 #define SC200AI_BITS_PER_SAMPLE		10
 #define SC200AI_LINK_FREQ_371		371250000// 742.5Mbps
 
-#define PIXEL_RATE_WITH_371M_10BIT		(SC200AI_LINK_FREQ_371 * 2 * \
+#define PIXEL_RATE_WITH_371M_10BIT	(SC200AI_LINK_FREQ_371 * 2 * \
 					SC200AI_LANES / SC200AI_BITS_PER_SAMPLE)
 
 #define SC200AI_XVCLK_FREQ		27000000
@@ -203,7 +204,7 @@ static const struct regval sc200ai_global_regs[] = {
  * max_framerate 60fps
  * mipi_datarate per lane 1008Mbps, 4lane
  */
-static const struct regval sc200ai_linear_10_1920x1080_60fps_regs[] = {
+static const struct regval __maybe_unused sc200ai_linear_10_1920x1080_60fps_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
@@ -345,7 +346,7 @@ static const struct regval sc200ai_linear_10_1920x1080_60fps_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 371.25Mbps, 2lane
  */
-static const struct regval sc200ai_linear_10_1920x1080_30fps_regs[] = {
+static const struct regval __maybe_unused sc200ai_linear_10_1920x1080_30fps_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
@@ -614,6 +615,7 @@ static const struct regval sc200ai_hdr_10_1920x1080_regs[] = {
 };
 
 static const struct sc200ai_mode supported_modes[] = {
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 	{
 		.width = 1920,
 		.height = 1080,
@@ -628,7 +630,9 @@ static const struct sc200ai_mode supported_modes[] = {
 		.reg_list = sc200ai_linear_10_1920x1080_60fps_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = 0,
-	}, {
+	},
+#else
+	{
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -642,7 +646,9 @@ static const struct sc200ai_mode supported_modes[] = {
 		.reg_list = sc200ai_linear_10_1920x1080_30fps_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = 0,
-	}, {
+	},
+#endif
+	{
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -714,6 +720,14 @@ static int sc200ai_write_array(struct i2c_client *client,
 					SC200AI_REG_VALUE_08BIT, regs[i].val);
 
 	return ret;
+}
+
+static int __maybe_unused sc200ai_write_array_wrapper(struct i2c_client *client,
+						      void *buf)
+{
+	const struct regval *table = buf;
+
+	return sc200ai_write_array(client, table);
 }
 
 /* Read registers up to 4 at a time */
@@ -1618,7 +1632,7 @@ static int __maybe_unused sc200ai_suspend(struct device *dev)
 
 	cam_sw_write_array_cb_init(sc200ai->cam_sw_inf, client,
 				   (void *)sc200ai->cur_mode->reg_list,
-				   (sensor_write_array)sc200ai_write_array);
+				   sc200ai_write_array_wrapper);
 	cam_sw_prepare_sleep(sc200ai->cam_sw_inf);
 
 	return 0;
@@ -2172,8 +2186,8 @@ static struct i2c_driver sc200ai_i2c_driver = {
 		.pm = &sc200ai_pm_ops,
 		.of_match_table = of_match_ptr(sc200ai_of_match),
 	},
-	.probe		= &sc200ai_probe,
-	.remove		= &sc200ai_remove,
+	.probe		= sc200ai_probe,
+	.remove		= sc200ai_remove,
 	.id_table	= sc200ai_match_id,
 };
 
