@@ -12560,18 +12560,14 @@ static int vop2_output_if_config(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+static void vop2_post_timing_config(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct drm_crtc_state *old_cstate = drm_atomic_get_old_crtc_state(state, crtc);
-	struct vop2_video_port *splice_vp;
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	const struct vop_intr *intr = vp_data->intr;
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
-	struct rockchip_dsc_sink_cap *dsc_sink_cap = &vcstate->dsc_sink_cap;
 	u16 hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
 	u16 hdisplay = adjusted_mode->crtc_hdisplay;
 	u16 htotal = adjusted_mode->crtc_htotal;
@@ -12582,9 +12578,62 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
+	u32 val, act_end;
+
+	VOP_MODULE_SET(vop2, vp, htotal_pw, (htotal << 16) | hsync_len);
+	val = hact_st << 16;
+	val |= hact_end;
+	VOP_MODULE_SET(vop2, vp, hact_st_end, val);
+
+	val = vact_st << 16;
+	val |= vact_end;
+	VOP_MODULE_SET(vop2, vp, vact_st_end, val);
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		u16 vact_st_f1 = vtotal + vact_st + 1;
+		u16 vact_end_f1 = vact_st_f1 + vdisplay;
+
+		val = vact_st_f1 << 16 | vact_end_f1;
+		VOP_MODULE_SET(vop2, vp, vact_st_end_f1, val);
+
+		val = vtotal << 16 | (vtotal + vsync_len);
+		VOP_MODULE_SET(vop2, vp, vs_st_end_f1, val);
+		VOP_MODULE_SET(vop2, vp, dsp_interlace, 1);
+		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 1);
+		VOP_MODULE_SET(vop2, vp, p2i_en, 1);
+		vtotal += vtotal + 1;
+		act_end = vact_end_f1;
+	} else {
+		VOP_MODULE_SET(vop2, vp, dsp_interlace, 0);
+		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 0);
+		VOP_MODULE_SET(vop2, vp, p2i_en, 0);
+		act_end = vact_end;
+	}
+
+	if (vp->xmirror_en)
+		VOP_MODULE_SET(vop2, vp, dsp_x_mir_en, 1);
+
+	VOP_INTR_SET(vop2, intr, line_flag_num[0], act_end);
+	VOP_INTR_SET(vop2, intr, line_flag_num[1], act_end);
+
+	VOP_MODULE_SET(vop2, vp, dsp_vtotal, vtotal);
+	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
+}
+
+static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_crtc_state *old_cstate = drm_atomic_get_old_crtc_state(state, crtc);
+	struct vop2_video_port *splice_vp;
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	struct rockchip_dsc_sink_cap *dsc_sink_cap = &vcstate->dsc_sink_cap;
+	u16 hdisplay = adjusted_mode->crtc_hdisplay;
+	u16 vdisplay = adjusted_mode->crtc_vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
-	int act_end;
-	uint32_t val;
 	char clk_name[32];
 	struct vop2_clk *dclk, *dclk_out, *dclk_core;
 	unsigned long dclk_rate;
@@ -12657,44 +12706,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	VOP_MODULE_SET(vop2, vp, splice_en, splice_en);
 
-	VOP_MODULE_SET(vop2, vp, htotal_pw, (htotal << 16) | hsync_len);
-	val = hact_st << 16;
-	val |= hact_end;
-	VOP_MODULE_SET(vop2, vp, hact_st_end, val);
+	vop2_post_timing_config(crtc);
 
-	val = vact_st << 16;
-	val |= vact_end;
-	VOP_MODULE_SET(vop2, vp, vact_st_end, val);
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		u16 vact_st_f1 = vtotal + vact_st + 1;
-		u16 vact_end_f1 = vact_st_f1 + vdisplay;
-
-		val = vact_st_f1 << 16 | vact_end_f1;
-		VOP_MODULE_SET(vop2, vp, vact_st_end_f1, val);
-
-		val = vtotal << 16 | (vtotal + vsync_len);
-		VOP_MODULE_SET(vop2, vp, vs_st_end_f1, val);
-		VOP_MODULE_SET(vop2, vp, dsp_interlace, 1);
-		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 1);
-		VOP_MODULE_SET(vop2, vp, p2i_en, 1);
-		vtotal += vtotal + 1;
-		act_end = vact_end_f1;
-	} else {
-		VOP_MODULE_SET(vop2, vp, dsp_interlace, 0);
-		VOP_MODULE_SET(vop2, vp, dsp_field_pol, 0);
-		VOP_MODULE_SET(vop2, vp, p2i_en, 0);
-		act_end = vact_end;
-	}
-
-	if (vp->xmirror_en)
-		VOP_MODULE_SET(vop2, vp, dsp_x_mir_en, 1);
-
-	VOP_INTR_SET(vop2, intr, line_flag_num[0], act_end);
-	VOP_INTR_SET(vop2, intr, line_flag_num[1], act_end);
-
-	VOP_MODULE_SET(vop2, vp, dsp_vtotal, vtotal);
-	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
 	/*
 	 * when display interface support vrr, config vtotal
 	 * valid immediately except HDMI QMS-VRR and TFRSYNC-VRR.
