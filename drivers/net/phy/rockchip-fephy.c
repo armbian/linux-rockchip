@@ -801,10 +801,17 @@ static int rockchip_fephy_suspend(struct phy_device *phydev)
 static int rockchip_fephy_resume(struct phy_device *phydev)
 {
 	struct rockchip_fephy_priv *priv = phydev->priv;
+	int ret;
 
 	if (priv->wol_irq > 0) {
 		rockchip_fephy_wol_disable(phydev);
 		disable_irq(priv->wol_irq);
+	}
+
+	if (phydev->mac_managed_pm) {
+		ret = rockchip_fephy_config_init(phydev);
+		if (ret)
+			return ret;
 	}
 
 	return genphy_resume(phydev);
