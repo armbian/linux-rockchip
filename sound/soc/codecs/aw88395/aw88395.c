@@ -451,7 +451,7 @@ static struct aw88395 *aw88395_malloc_init(struct i2c_client *i2c)
 	return aw88395;
 }
 
-static void aw88395_hw_reset(struct aw88395 *aw88395)
+static void aw88395_hw_reset(struct aw88395 *aw88395, struct device *dev)
 {
 	if (aw88395->reset_gpio) {
 		gpiod_set_value_cansleep(aw88395->reset_gpio, 0);
@@ -459,7 +459,7 @@ static void aw88395_hw_reset(struct aw88395 *aw88395)
 		gpiod_set_value_cansleep(aw88395->reset_gpio, 1);
 		usleep_range(AW88395_1000_US, AW88395_1000_US + 10);
 	} else {
-		dev_err(aw88395->aw_pa->dev, "%s failed", __func__);
+		dev_err(dev, "%s failed", __func__);
 	}
 }
 
@@ -525,10 +525,11 @@ static int aw88395_i2c_probe(struct i2c_client *i2c)
 
 	aw88395->reset_gpio = devm_gpiod_get_optional(&i2c->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(aw88395->reset_gpio))
-		dev_info(&i2c->dev, "reset gpio not defined\n");
+		return dev_err_probe(&i2c->dev, PTR_ERR(aw88395->reset_gpio),
+				     "failed to get reset GPIO\n");
 
 	/* hardware reset */
-	aw88395_hw_reset(aw88395);
+	aw88395_hw_reset(aw88395, &i2c->dev);
 
 	aw88395->regmap = devm_regmap_init_i2c(i2c, &aw88395_remap_config);
 	if (IS_ERR(aw88395->regmap)) {
@@ -565,11 +566,18 @@ static const struct i2c_device_id aw88395_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, aw88395_i2c_id);
 
+static const struct of_device_id aw88395_of_match[] = {
+	{ .compatible = "awinic,aw88395" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, aw88395_of_match);
+
 static struct i2c_driver aw88395_i2c_driver = {
 	.driver = {
 		.name = AW88395_I2C_NAME,
+		.of_match_table = aw88395_of_match,
 	},
-	.probe = aw88395_i2c_probe,
+	.probe_new = aw88395_i2c_probe,
 	.id_table = aw88395_i2c_id,
 };
 module_i2c_driver(aw88395_i2c_driver);

@@ -148,12 +148,31 @@ static int aw_check_soc_app_num(struct aw_device *aw_dev, struct aw_bin *bin, in
 	return 0;
 }
 
-static void aw_get_single_bin_header(struct aw_bin *bin)
+static int aw_check_bin_header_count(struct aw_device *aw_dev, struct aw_bin *bin)
 {
+	if (bin->all_bin_parse_num >= BIN_NUM_MAX) {
+		dev_err(aw_dev->dev, "bin header count[%u] exceeds maximum[%u]\n",
+			bin->all_bin_parse_num, BIN_NUM_MAX);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int aw_get_single_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
+{
+	int ret;
+
+	ret = aw_check_bin_header_count(aw_dev, bin);
+	if (ret < 0)
+		return ret;
+
 	memcpy((void *)&bin->header_info[bin->all_bin_parse_num], bin->p_addr, DATA_LEN);
 
 	bin->header_info[bin->all_bin_parse_num].header_len = HEADER_LEN;
 	bin->all_bin_parse_num += 1;
+
+	return 0;
 }
 
 static int aw_parse_one_of_multi_bins(struct aw_device *aw_dev, unsigned int bin_num,
@@ -162,6 +181,11 @@ static int aw_parse_one_of_multi_bins(struct aw_device *aw_dev, unsigned int bin
 	struct bin_header_info aw_bin_header_info;
 	unsigned int bin_start_addr;
 	unsigned int valid_data_len;
+	int ret;
+
+	ret = aw_check_bin_header_count(aw_dev, bin);
+	if (ret < 0)
+		return ret;
 
 	if (bin->info.len < sizeof(struct bin_header_info)) {
 		dev_err(aw_dev->dev, "bin_header_info size[%d] overflow file size[%d]\n",
@@ -192,12 +216,18 @@ static int aw_get_multi_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
 	unsigned int bin_num, i;
 	int ret;
 
+	ret = aw_check_bin_header_count(aw_dev, bin);
+	if (ret < 0)
+		return ret;
+
 	bin_num = le32_to_cpup((void *)(bin->p_addr + VALID_DATA_ADDR_OFFSET));
 	if (bin->multi_bin_parse_num == 1)
 		bin->header_info[bin->all_bin_parse_num].valid_data_addr =
 							VALID_DATA_ADDR_OFFSET;
 
-	aw_get_single_bin_header(bin);
+	ret = aw_get_single_bin_header(aw_dev, bin);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < bin_num; i++) {
 		dev_dbg(aw_dev->dev, "aw_bin_parse enter multi bin for is %d\n", i);
@@ -212,6 +242,11 @@ static int aw_get_multi_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
 static int aw_parse_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
 {
 	unsigned int bin_data_type;
+	int ret;
+
+	ret = aw_check_bin_header_count(aw_dev, bin);
+	if (ret < 0)
+		return ret;
 
 	if (bin->info.len < sizeof(struct bin_header_info)) {
 		dev_err(aw_dev->dev, "bin_header_info size[%d] overflow file size[%d]\n",
@@ -231,8 +266,7 @@ static int aw_parse_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
 		if (!bin->multi_bin_parse_num)
 			bin->header_info[bin->all_bin_parse_num].valid_data_addr =
 								VALID_DATA_ADDR_OFFSET;
-		aw_get_single_bin_header(bin);
-		return 0;
+		return aw_get_single_bin_header(aw_dev, bin);
 	case DATA_TYPE_MULTI_BINS:
 		bin->multi_bin_parse_num += 1;
 		dev_dbg(aw_dev->dev, "%s bin->multi_bin_parse_num is %d\n", __func__,
