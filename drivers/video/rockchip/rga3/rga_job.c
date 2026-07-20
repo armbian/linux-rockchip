@@ -26,6 +26,9 @@ static void rga_job_free(struct rga_job *job)
 	kfree(job->task_buffers);
 	job->task_buffers = NULL;
 
+	kfree(job->task_list);
+	job->task_list = NULL;
+
 	kfree(job);
 }
 
@@ -123,14 +126,18 @@ static struct rga_job *rga_job_alloc(struct rga_req *task_list, size_t task_coun
 	if (!job)
 		return NULL;
 
+	job->task_list = kmemdup(task_list, sizeof(*job->task_list) * task_count, GFP_KERNEL);
+	if (!job->task_list) {
+		kfree(job);
+		return NULL;
+	}
+	job->task_count = task_count;
+
 	INIT_LIST_HEAD(&job->head);
 	kref_init(&job->refcount);
 
 	job->timestamp.init = ktime_get();
 	job->pid = current->pid;
-
-	job->task_list = task_list;
-	job->task_count = task_count;
 
 	for (i = 0; i < task_count; i++) {
 		if (task_list[i].priority > 0) {
