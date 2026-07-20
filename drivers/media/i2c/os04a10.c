@@ -10,6 +10,7 @@
  * V0.0X01.0X03 support enum sensor fmt
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 support get dcg ratio from sensor
+ * V0.0X01.0X06 support HDR2X exposure DCG.
  */
 
 #include <linux/clk.h>
@@ -34,7 +35,7 @@
 #include <linux/of_graph.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -142,6 +143,7 @@ struct os04a10_mode {
 	u32 link_freq_idx;
 	u32 bpp;
 	u32 vc[PAD_MAX];
+	u32 exp_mode;
 };
 
 struct os04a10 {
@@ -273,10 +275,6 @@ static const struct regval os04a10_global_regs[] = {
 	{0x364f, 0x0e},
 	{0x3650, 0xff},
 	{0x3651, 0xff},
-	{0x365a, 0x00},
-	{0x365b, 0x00},
-	{0x365c, 0x00},
-	{0x365d, 0x00},
 	{0x3661, 0x07},
 	{0x3663, 0x20},
 	{0x3665, 0x12},
@@ -287,12 +285,8 @@ static const struct regval os04a10_global_regs[] = {
 	{0x366f, 0x00},
 	{0x3673, 0x2a},
 	{0x3681, 0x80},
-	{0x3700, 0x2d},
-	{0x3701, 0x22},
 	{0x3702, 0x25},
-	{0x3705, 0x00},
 	{0x3707, 0x0a},
-	{0x3708, 0x36},
 	{0x3709, 0x57},
 	{0x3714, 0x01},
 	{0x371c, 0x00},
@@ -318,14 +312,9 @@ static const struct regval os04a10_global_regs[] = {
 	{0x37bb, 0x88},
 	{0x37be, 0x48},
 	{0x37bf, 0x01},
-	{0x37c0, 0x01},
-	{0x37c4, 0x72},
-	{0x37c5, 0x72},
-	{0x37c6, 0x72},
 	{0x37ca, 0x21},
 	{0x37cd, 0x90},
 	{0x37cf, 0x02},
-	{0x37d0, 0x00},
 	{0x37d8, 0x01},
 	{0x37dc, 0x00},
 	{0x37dd, 0x00},
@@ -349,10 +338,7 @@ static const struct regval os04a10_global_regs[] = {
 	{0x3826, 0x00},
 	{0x3827, 0x00},
 	{0x3858, 0x3c},
-	{0x3865, 0x02},
-	{0x3866, 0x00},
 	{0x3867, 0x00},
-	{0x3868, 0x02},
 	{0x3900, 0x13},
 	{0x3940, 0x13},
 	{0x3980, 0x13},
@@ -442,10 +428,18 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x3605, 0x7f},
 	{0x3606, 0x80},
 	{0x362d, 0x0e},
+	{0x365a, 0x00},
+	{0x365b, 0x00},
+	{0x365c, 0x00},
+	{0x365d, 0x00},
 	{0x3662, 0x02},
 	{0x3667, 0xd4},
 	{0x3671, 0x08},
+	{0x3700, 0x2d},
+	{0x3701, 0x22},
 	{0x3703, 0x20},
+	{0x3705, 0x00},
+	{0x3708, 0x36},
 	{0x3706, 0x72},
 	{0x370a, 0x01},
 	{0x370b, 0x14},
@@ -454,7 +448,12 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x3756, 0x9d},
 	{0x3757, 0x9d},
 	{0x376c, 0x04},
+	{0x37c0, 0x01},
+	{0x37c4, 0x72},
+	{0x37c5, 0x72},
+	{0x37c6, 0x72},
 	{0x37cc, 0x13},
+	{0x37d0, 0x00},
 	{0x37d1, 0x72},
 	{0x37d2, 0x01},
 	{0x37d3, 0x14},
@@ -477,6 +476,9 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x3833, 0x40},
 	{0x384c, 0x02},
 	{0x384d, 0xdc},
+	{0x3865, 0x02},
+	{0x3866, 0x00},
+	{0x3868, 0x02},
 	{0x3c5a, 0x55},
 	{0x4004, 0x00},
 	{0x4001, 0x2f},
@@ -513,10 +515,18 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{0x3605, 0xff},
 	{0x3606, 0x01},
 	{0x362d, 0x09},
+	{0x365a, 0x00},
+	{0x365b, 0x00},
+	{0x365c, 0x00},
+	{0x365d, 0x00},
 	{0x3662, 0x00},
 	{0x3667, 0xd4},
 	{0x3671, 0x08},
+	{0x3700, 0x2d},
+	{0x3701, 0x22},
 	{0x3703, 0x28},
+	{0x3705, 0x00},
+	{0x3708, 0x36},
 	{0x3706, 0xf0},
 	{0x370a, 0x03},
 	{0x370b, 0x15},
@@ -525,7 +535,12 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{0x3756, 0xe7},
 	{0x3757, 0xe7},
 	{0x376c, 0x00},
+	{0x37c0, 0x01},
+	{0x37c4, 0x72},
+	{0x37c5, 0x72},
+	{0x37c6, 0x72},
 	{0x37cc, 0x15},
+	{0x37d0, 0x00},
 	{0x37d1, 0xf0},
 	{0x37d2, 0x03},
 	{0x37d3, 0x15},
@@ -548,6 +563,9 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{0x3833, 0x40},
 	{0x384c, 0x05},
 	{0x384d, 0xc4},
+	{0x3865, 0x02},
+	{0x3866, 0x00},
+	{0x3868, 0x02},
 	{0x3c5a, 0xe5},
 	{0x4001, 0x2f},
 	{0x4004, 0x01},
@@ -575,7 +593,7 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
+static const struct regval os04a10_hdr10bit_2sta_2688x1520_regs[] = {
 	{0x0305, 0x3c},
 	{0x0308, 0x04},
 	{0x0317, 0x09},
@@ -584,10 +602,18 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	{0x3605, 0x7f},
 	{0x3606, 0x80},
 	{0x362d, 0x0e},
+	{0x365a, 0x00},
+	{0x365b, 0x00},
+	{0x365c, 0x00},
+	{0x365d, 0x00},
 	{0x3662, 0x02},
 	{0x3667, 0x54},
 	{0x3671, 0x09},
+	{0x3700, 0x2d},
+	{0x3701, 0x22},
 	{0x3703, 0x20},
+	{0x3705, 0x00},
+	{0x3708, 0x36},
 	{0x3706, 0x72},
 	{0x370a, 0x01},
 	{0x370b, 0x14},
@@ -596,7 +622,12 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	{0x3756, 0x9d},
 	{0x3757, 0x9d},
 	{0x376c, 0x04},
+	{0x37c0, 0x01},
+	{0x37c4, 0x72},
+	{0x37c5, 0x72},
+	{0x37c6, 0x72},
 	{0x37cc, 0x13},
+	{0x37d0, 0x00},
 	{0x37d1, 0x72},
 	{0x37d2, 0x01},
 	{0x37d3, 0x14},
@@ -621,6 +652,9 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	{0x3833, 0x41},
 	{0x384c, 0x02},
 	{0x384d, 0xdc},
+	{0x3865, 0x02},
+	{0x3866, 0x00},
+	{0x3868, 0x02},
 	{0x3c5a, 0x55},
 	{0x4001, 0xef},
 	{0x4004, 0x00},
@@ -648,7 +682,7 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
+static const struct regval os04a10_hdr12bit_2sta_2688x1520_regs[] = {
 	{0x0305, 0x6c},
 	{0x0308, 0x05},
 	{0x0317, 0x0a},
@@ -657,10 +691,18 @@ static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
 	{0x3605, 0xff},
 	{0x3606, 0x01},
 	{0x362d, 0x09},
+	{0x365a, 0x00},
+	{0x365b, 0x00},
+	{0x365c, 0x00},
+	{0x365d, 0x00},
 	{0x3662, 0x00},
 	{0x3667, 0x54},
 	{0x3671, 0x09},
+	{0x3700, 0x2d},
+	{0x3701, 0x22},
 	{0x3703, 0x28},
+	{0x3705, 0x00},
+	{0x3708, 0x36},
 	{0x3706, 0xf0},
 	{0x370a, 0x03},
 	{0x370b, 0x15},
@@ -669,7 +711,12 @@ static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
 	{0x3756, 0xe7},
 	{0x3757, 0xe7},
 	{0x376c, 0x00},
+	{0x37c0, 0x01},
+	{0x37c4, 0x72},
+	{0x37c5, 0x72},
+	{0x37c6, 0x72},
 	{0x37cc, 0x15},
+	{0x37d0, 0x00},
 	{0x37d1, 0xf0},
 	{0x37d2, 0x03},
 	{0x37d3, 0x15},
@@ -692,6 +739,9 @@ static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
 	{0x3833, 0x41},
 	{0x384c, 0x05},
 	{0x384d, 0xc4},
+	{0x3865, 0x02},
+	{0x3866, 0x00},
+	{0x3868, 0x02},
 	{0x3c5a, 0xe5},
 	{0x4001, 0xef},
 	{0x4004, 0x01},
@@ -719,7 +769,94 @@ static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
+static const struct regval os04a10_hdr12bit_dcg_2688x1520_regs[] = {
+	{0x0305, 0x5c},
+	{0x0308, 0x04},
+	{0x0317, 0x0a},
+	{0x0325, 0xd8},
+	{0x032e, 0x02},
+	{0x3605, 0xff},
+	{0x3606, 0x01},
+	{0x362d, 0x09},
+	{0x365a, 0x7f},
+	{0x365b, 0x67},
+	{0x365c, 0x34},
+	{0x365d, 0x1a},
+	{0x3662, 0x00},
+	{0x3667, 0xd4},
+	{0x3671, 0x09},
+	{0x3700, 0x23},
+	{0x3701, 0x1c},
+	{0x3703, 0x28},
+	{0x3705, 0x01},
+	{0x3706, 0x00},
+	{0x3708, 0x35},
+	{0x370a, 0x03},
+	{0x370b, 0x15},
+	{0x3719, 0x24},
+	{0x371b, 0x1f},
+	{0x3756, 0xe7},
+	{0x3757, 0xe7},
+	{0x376c, 0x01},
+	{0x37c0, 0xc8},
+	{0x37c4, 0x63},
+	{0x37c5, 0x63},
+	{0x37c6, 0x63},
+	{0x37cc, 0x15},
+	{0x37d0, 0x01},
+	{0x37d1, 0x00},
+	{0x37d2, 0x03},
+	{0x37d3, 0x15},
+	{0x37d4, 0x01},
+	{0x37d5, 0x00},
+	{0x37d6, 0x03},
+	{0x37d7, 0x15},
+	{0x3801, 0x00},
+	{0x3803, 0x00},
+	{0x3805, 0x8f},
+	{0x3807, 0xff},
+	{0x3809, 0x80},
+	{0x380b, 0xf0},
+	{0x380c, 0x0b},
+	{0x380d, 0x88},
+	{0x380e, 0x06},
+	{0x380f, 0x58},
+	{0x381c, 0x00},
+	{0x3820, 0x02},
+	{0x3833, 0x40},
+	{0x384c, 0x05},
+	{0x384d, 0xc4},
+	{0x3865, 0x01},
+	{0x3866, 0xa0},
+	{0x3868, 0x20},
+	{0x3c5a, 0xe5},
+	{0x4001, 0x2f},
+	{0x4004, 0x01},
+	{0x4005, 0x00},
+	{0x400a, 0x03},
+	{0x400b, 0x27},
+	{0x402e, 0x01},
+	{0x402f, 0x00},
+	{0x4031, 0x80},
+	{0x4032, 0x9f},
+	{0x4288, 0xcf},
+	{0x430b, 0xff},
+	{0x430c, 0xff},
+	{0x4507, 0x02},
+	{0x480e, 0x04},
+	{0x4813, 0xe4},
+	{0x4837, 0x0e},
+	{0x484b, 0x27},
+	{0x5000, 0x7f},
+	{0x5001, 0x0d},
+	{0x5782, 0x60},
+	{0x5783, 0xf0},
+	{0x5788, 0x60},
+	{0x5789, 0xf0},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval os04a10_hdr12bit_2sta_2560x1440_regs[] = {
 	{0x0305, 0x6c},
 	{0x0308, 0x05},
 	{0x0317, 0x0a},
@@ -728,10 +865,18 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
 	{0x3605, 0xff},
 	{0x3606, 0x01},
 	{0x362d, 0x09},
+	{0x365a, 0x00},
+	{0x365b, 0x00},
+	{0x365c, 0x00},
+	{0x365d, 0x00},
 	{0x3662, 0x00},
 	{0x3667, 0x54},
 	{0x3671, 0x09},
+	{0x3700, 0x2d},
+	{0x3701, 0x22},
 	{0x3703, 0x28},
+	{0x3705, 0x00},
+	{0x3708, 0x36},
 	{0x3706, 0xf0},
 	{0x370a, 0x03},
 	{0x370b, 0x15},
@@ -740,7 +885,12 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
 	{0x3756, 0xe7},
 	{0x3757, 0xe7},
 	{0x376c, 0x00},
+	{0x37c0, 0x01},
+	{0x37c4, 0x72},
+	{0x37c5, 0x72},
+	{0x37c6, 0x72},
 	{0x37cc, 0x15},
+	{0x37d0, 0x00},
 	{0x37d1, 0xf0},
 	{0x37d2, 0x03},
 	{0x37d3, 0x15},
@@ -763,6 +913,9 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
 	{0x3833, 0x41},
 	{0x384c, 0x05},
 	{0x384d, 0xa0},
+	{0x3865, 0x02},
+	{0x3866, 0x00},
+	{0x3868, 0x02},
 	{0x3c5a, 0xe5},
 	{0x4001, 0xef},
 	{0x4004, 0x00},
@@ -1165,6 +1318,28 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs_2lane[] = {
  */
 static const struct os04a10_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 225000,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x0b88,
+		.vts_def = 0x0658,
+		.global_reg_list = os04a10_global_regs,
+		.reg_list = os04a10_hdr12bit_dcg_2688x1520_regs,
+		.hdr_mode = HDR_X2,
+		.link_freq_idx = 1,
+		.bpp = 12,
+		.vc[PAD0] = 1,
+		.vc[PAD1] = 0,//L->csi wr0
+		.vc[PAD2] = 1,
+		.vc[PAD3] = 1,//M->csi wr2
+		.exp_mode = EXP_HDR2_DCG,
+	},
+	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2688,
 		.height = 1520,
@@ -1181,6 +1356,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.link_freq_idx = 0,
 		.bpp = 10,
 		.vc[PAD0] = 0,
+		.exp_mode = EXP_NORMAL,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -1196,7 +1372,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.vts_def = 0x0658,
 		/*.vts_def = 0x0cb0,*/
 		.global_reg_list = os04a10_global_regs,
-		.reg_list = os04a10_hdr10bit_2688x1520_regs,
+		.reg_list = os04a10_hdr10bit_2sta_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.link_freq_idx = 0,
 		.bpp = 10,
@@ -1204,6 +1380,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.vc[PAD1] = 0,//L->csi wr0
 		.vc[PAD2] = 1,
 		.vc[PAD3] = 1,//M->csi wr2
+		.exp_mode = EXP_HDR2_STA,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -1222,6 +1399,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.link_freq_idx = 1,
 		.bpp = 12,
 		.vc[PAD0] = 0,
+		.exp_mode = EXP_NORMAL,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -1235,7 +1413,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.hts_def = 0x05c4 * 2,
 		.vts_def = 0x0658,
 		.global_reg_list = os04a10_global_regs,
-		.reg_list = os04a10_hdr12bit_2688x1520_regs,
+		.reg_list = os04a10_hdr12bit_2sta_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.link_freq_idx = 1,
 		.bpp = 12,
@@ -1243,6 +1421,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.vc[PAD1] = 0,//L->csi wr0
 		.vc[PAD2] = 1,
 		.vc[PAD3] = 1,//M->csi wr2
+		.exp_mode = EXP_HDR2_STA,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -1256,7 +1435,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.hts_def = 0x05a0 * 2,
 		.vts_def = 0x05dc,
 		.global_reg_list = os04a10_global_regs,
-		.reg_list = os04a10_hdr12bit_2560x1440_regs,
+		.reg_list = os04a10_hdr12bit_2sta_2560x1440_regs,
 		.hdr_mode = HDR_X2,
 		.link_freq_idx = 1,
 		.bpp = 12,
@@ -1264,6 +1443,7 @@ static const struct os04a10_mode supported_modes[] = {
 		.vc[PAD1] = 0,//L->csi wr0
 		.vc[PAD2] = 1,
 		.vc[PAD3] = 1,//M->csi wr2
+		.exp_mode = EXP_HDR2_STA,
 	},
 };
 
@@ -1285,6 +1465,7 @@ static const struct os04a10_mode supported_modes_2lane[] = {
 		.link_freq_idx = 0,
 		.bpp = 10,
 		.vc[PAD0] = 0,
+		.exp_mode = EXP_NORMAL,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -1308,6 +1489,7 @@ static const struct os04a10_mode supported_modes_2lane[] = {
 		.vc[PAD1] = 0,//L->csi wr0
 		.vc[PAD2] = 1,
 		.vc[PAD3] = 1,//M->csi wr2
+		.exp_mode = EXP_HDR2_STA,
 	},
 };
 
@@ -1646,24 +1828,26 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	}
 	ret = os04a10_read_reg(os04a10->client, OS04A10_REG_HCG_SWITCH,
 			       OS04A10_REG_VALUE_08BIT, &gain_switch);
-
-	if (os04a10->long_hcg && l_cg_mode == GAIN_MODE_LCG) {
-		gain_switch |= 0x10;
-		os04a10->long_hcg = false;
-		is_need_switch++;
-	} else if (!os04a10->long_hcg && l_cg_mode == GAIN_MODE_HCG) {
-		gain_switch &= 0xef;
-		os04a10->long_hcg = true;
-		is_need_switch++;
-	}
-	if (os04a10->middle_hcg && m_cg_mode == GAIN_MODE_LCG) {
-		gain_switch |= 0x20;
-		os04a10->middle_hcg = false;
-		is_need_switch++;
-	} else if (!os04a10->middle_hcg && m_cg_mode == GAIN_MODE_HCG) {
-		gain_switch &= 0xdf;
-		os04a10->middle_hcg = true;
-		is_need_switch++;
+	if (os04a10->cur_mode->exp_mode != EXP_HDR2_DCG &&
+		os04a10->cur_mode->exp_mode != EXP_HDR3_DCG_VS) {
+		if (os04a10->long_hcg && l_cg_mode == GAIN_MODE_LCG) {
+			gain_switch |= 0x10;
+			os04a10->long_hcg = false;
+			is_need_switch++;
+		} else if (!os04a10->long_hcg && l_cg_mode == GAIN_MODE_HCG) {
+			gain_switch &= 0xef;
+			os04a10->long_hcg = true;
+			is_need_switch++;
+		}
+		if (os04a10->middle_hcg && m_cg_mode == GAIN_MODE_LCG) {
+			gain_switch |= 0x20;
+			os04a10->middle_hcg = false;
+			is_need_switch++;
+		} else if (!os04a10->middle_hcg && m_cg_mode == GAIN_MODE_HCG) {
+			gain_switch &= 0xdf;
+			os04a10->middle_hcg = true;
+			is_need_switch++;
+		}
 	}
 	if (l_a_gain > 248) {
 		l_d_gain = l_a_gain * 1024 / 248;
@@ -1702,10 +1886,13 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 		OS04A10_REG_DGAIN_MID_H,
 		OS04A10_REG_VALUE_24BIT,
 		(m_d_gain << 6) & 0xfffc0);
-	ret |= os04a10_write_reg(os04a10->client,
-		OS04A10_REG_EXP_MID_H,
-		OS04A10_REG_VALUE_16BIT,
-		m_exp_time);
+	if (os04a10->cur_mode->exp_mode != EXP_HDR2_DCG &&
+		os04a10->cur_mode->exp_mode != EXP_HDR3_DCG_VS) {
+		ret |= os04a10_write_reg(os04a10->client,
+			OS04A10_REG_EXP_MID_H,
+			OS04A10_REG_VALUE_16BIT,
+			m_exp_time);
+	}
 	if (os04a10->cur_mode->hdr_mode == HDR_X3) {
 		//3 stagger
 		ret |= os04a10_write_reg(os04a10->client,
@@ -1835,6 +2022,59 @@ undo:
 }
 #endif
 
+static int os04a10_select_exp_mode(struct os04a10 *os04a10, u32 exp_mode)
+{
+	u32 i;
+	u32 w = os04a10->cur_mode->width;
+	u32 h = os04a10->cur_mode->height;
+	u32 hdr_mode = os04a10->cur_mode->hdr_mode;
+	u32 bus_fmt = os04a10->cur_mode->bus_fmt;
+	u8 lanes = os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int bus_fmt_match_idx = -1;
+	int fallback_idx = -1;
+	const struct os04a10_mode *mode;
+
+	for (i = 0; i < os04a10->cfg_num; i++) {
+		if (w == os04a10->supported_modes[i].width &&
+		    h == os04a10->supported_modes[i].height &&
+		    os04a10->supported_modes[i].hdr_mode == hdr_mode &&
+		    os04a10->supported_modes[i].exp_mode == exp_mode) {
+			if (os04a10->supported_modes[i].bus_fmt == bus_fmt) {
+				bus_fmt_match_idx = i;
+				break;
+			}
+			if (fallback_idx < 0)
+				fallback_idx = i;
+		}
+	}
+
+	if (bus_fmt_match_idx >= 0) {
+		i = (u32)bus_fmt_match_idx;
+	} else if (fallback_idx >= 0) {
+		i = (u32)fallback_idx;
+		dev_dbg(&os04a10->client->dev,
+			"select_exp_mode: bus_fmt fallback exp=%u cur_fmt=0x%x -> fmt=0x%x idx=%u\n",
+			exp_mode, bus_fmt,
+			os04a10->supported_modes[i].bus_fmt, i);
+	} else {
+		return -EINVAL;
+	}
+
+	os04a10->cur_mode = &os04a10->supported_modes[i];
+	mode = os04a10->cur_mode;
+	w = mode->hts_def - mode->width;
+	h = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os04a10->hblank, w, w, 1, w);
+	__v4l2_ctrl_modify_range(os04a10->vblank, h,
+		OS04A10_VTS_MAX - mode->height, 1, h);
+	__v4l2_ctrl_s_ctrl_int64(os04a10->pixel_rate,
+		(u32)link_freq_menu_items[mode->link_freq_idx] /
+			mode->bpp * 2 * lanes);
+	__v4l2_ctrl_s_ctrl(os04a10->link_freq,
+			   mode->link_freq_idx);
+	return 0;
+}
+
 static long os04a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct os04a10 *os04a10 = to_os04a10(sd);
@@ -1857,8 +2097,8 @@ static long os04a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = os04a10->cur_mode->height;
 		for (i = 0; i < os04a10->cfg_num; i++) {
 			if (w == os04a10->supported_modes[i].width &&
-			h == os04a10->supported_modes[i].height &&
-			os04a10->supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			    h == os04a10->supported_modes[i].height &&
+			    os04a10->supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
 				os04a10->cur_mode = &os04a10->supported_modes[i];
 				break;
 			}
@@ -1895,6 +2135,22 @@ static long os04a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr_cfg = (struct rkmodule_hdr_cfg *)arg;
 		hdr_cfg->esp.mode = HDR_NORMAL_VC;
 		hdr_cfg->hdr_mode = os04a10->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_GET_EXP_MODE:
+		*(u32 *)arg = os04a10->cur_mode->exp_mode;
+		break;
+	case RKMODULE_SET_EXP_MODE:
+		ret = os04a10_select_exp_mode(os04a10, *(u32 *)arg);
+		if (ret)
+			dev_dbg(&os04a10->client->dev,
+				"SET_EXP_MODE failed ret=%ld req_exp=%u cur: %ux%u code=0x%x hdr=%u exp=%u bpp=%u\n",
+				ret, *(u32 *)arg,
+				os04a10->cur_mode ? os04a10->cur_mode->width : 0,
+				os04a10->cur_mode ? os04a10->cur_mode->height : 0,
+				os04a10->cur_mode ? os04a10->cur_mode->bus_fmt : 0,
+				os04a10->cur_mode ? os04a10->cur_mode->hdr_mode : 0,
+				os04a10->cur_mode ? os04a10->cur_mode->exp_mode : 0,
+				os04a10->cur_mode ? os04a10->cur_mode->bpp : 0);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = os04a10_set_conversion_gain(os04a10, (u32 *)arg);
@@ -1941,6 +2197,7 @@ static long os04a10_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	u32 cg = 0;
 	u32 stream = 0;
+	u32 exp_mode = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2025,6 +2282,19 @@ static long os04a10_compat_ioctl32(struct v4l2_subdev *sd,
 				return -EFAULT;
 		}
 		kfree(dcg);
+		break;
+	case RKMODULE_GET_EXP_MODE:
+		ret = os04a10_ioctl(sd, cmd, &exp_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &exp_mode, sizeof(exp_mode));
+			if (ret)
+				return -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_EXP_MODE:
+		if (copy_from_user(&exp_mode, up, sizeof(u32)))
+			return -EFAULT;
+		ret = os04a10_ioctl(sd, cmd, &exp_mode);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2712,7 +2982,7 @@ static int os04a10_probe(struct i2c_client *client)
 	}
 
 	for (i = 0; i < os04a10->cfg_num; i++) {
-		if (hdr_mode == supported_modes[i].hdr_mode) {
+		if (hdr_mode == os04a10->supported_modes[i].hdr_mode) {
 			os04a10->cur_mode = &os04a10->supported_modes[i];
 			break;
 		}
