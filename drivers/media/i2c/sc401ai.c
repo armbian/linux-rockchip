@@ -10,6 +10,7 @@
  * V0.0X01.0X04 add enum_frame_interval function.
  * V0.0X01.0X05 add quick stream on/off
  * V0.0X01.0X06 support thunder boot function.
+ * V0.0X01.0X07 fix gain threshold boundary handling.
  */
 
 #include <linux/clk.h>
@@ -34,7 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -45,11 +46,11 @@
 #define SC401AI_LINK_FREQ_315		157500000// 315Mbps
 #define SC401AI_LINK_FREQ_630		315000000// 630Mbps
 
-#define PIXEL_RATE_WITH_315M_10BIT		(SC401AI_LINK_FREQ_315 * 2 * \
+#define PIXEL_RATE_WITH_315M_10BIT	(SC401AI_LINK_FREQ_315 * 2 * \
 					4 / SC401AI_BITS_PER_SAMPLE)
-#define PIXEL_RATE_WITH_630M_10BIT		(SC401AI_LINK_FREQ_630 * 2 * \
+#define PIXEL_RATE_WITH_630M_10BIT	(SC401AI_LINK_FREQ_630 * 2 * \
 					2 / SC401AI_BITS_PER_SAMPLE)
-#define PIXEL_RATE_WITH_MAX			(SC401AI_LINK_FREQ_630 * 2 * \
+#define PIXEL_RATE_WITH_MAX		(SC401AI_LINK_FREQ_630 * 2 * \
 					2 / SC401AI_BITS_PER_SAMPLE)
 
 #define SC401AI_XVCLK_FREQ		27000000
@@ -543,42 +544,43 @@ static int sc401ai_set_gain_reg(struct sc401ai *sc401ai, u32 gain)
 	else if (gain > SC401AI_GAIN_MAX * 16)
 		gain = SC401AI_GAIN_MAX * 16;
 
-	if (gain < 1504) {               // start again
+	if (gain < 1504) {		/* start again 1.0x --1.469x 1024 * 1.469 ≈ 1504 */
 		Dcg_gainx100 = 100;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x03;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 3008) {
+	} else if (gain < 3008) {	/* 1.469x --2.938x 1024 * 2.938 ≈ 3008 */
 		Dcg_gainx100 = 147;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x23;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 6017) {
+	} else if (gain < 6017) {	/* 2.938x --5.876x 1024 * 5.876 ≈ 6017 */
 		Dcg_gainx100 = 147;
 		Coarse_gain = 2;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x27;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 12034) {
+	} else if (gain < 12034) {	/* 5.876x --11.752x 1024 * 11.752 ≈ 12034 */
 		Dcg_gainx100 = 147;
 		Coarse_gain = 4;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x2f;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 23879) {           // end again
+	} else if (gain < 23879) {	/* 11.752x --23.320x 1024 * 23.320 ≈ 23879 */
+		/* end again */
 		Dcg_gainx100 = 147;
 		Coarse_gain = 8;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x3f;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain < 23879 * 2) {         // start dgain
+	} else if (gain < 23879 * 2) {	/* start dgain */
 		Dcg_gainx100 = 147;
 		Coarse_gain = 8;
 		DIG_gain = 1;
