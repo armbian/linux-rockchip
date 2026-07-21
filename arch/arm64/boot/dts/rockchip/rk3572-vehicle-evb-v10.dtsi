@@ -5,7 +5,7 @@
  */
 
 #include "rk3572-vehicle.dtsi"
-#include "rk3572-vehicle-evb-v10-audio.dtsi"
+#include "rk3572-vehicle-evb-audio.dtsi"
 #include "rk3572-rk806.dtsi"
 
 / {
@@ -215,20 +215,6 @@
 
 &i2c3 {
 	status = "okay";
-#if 0
-	es8388: es8388@10 {
-		status = "disabled";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
-		reg = <0x10>;
-		clocks = <&mclkout_sai1>;
-		clock-names = "mclk";
-		assigned-clocks = <&mclkout_sai1>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sai1m0_mclk_pins>;
-	};
-#endif
 };
 
 &i2c5 {
@@ -495,17 +481,6 @@
 &route_hdmi {
 	status = "disabled";
 	connect = <&vp0_out_hdmi>;
-};
-
-&sai1 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&sai1m0_lrck_pins
-		     &sai1m0_sclk_pins
-		     &sai1m0_sdi0_pins
-		     &sai1m0_sdi1_pins
-		     &sai1m0_sdi2_pins
-		     &sai1m0_sdo0_pins>;
 };
 
 &saradc {

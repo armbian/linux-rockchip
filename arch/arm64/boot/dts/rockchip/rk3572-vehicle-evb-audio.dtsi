@@ -5,14 +5,7 @@
  */
 
 / {
-
-	dummy_codec0: dummy-codec@0 {
-		status = "okay";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-	};
-
-	dummy_codec1: dummy-codec@1 {
+	dummy_codec: dummy-codec {
 		status = "okay";
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
@@ -27,7 +20,7 @@
 	sound0 {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,tdm";
+		simple-audio-card,name = "rockchip,ivi";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,cpu {
@@ -36,25 +29,23 @@
 			dai-tdm-slot-width = <32>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&dummy_codec0>;
+			sound-dai = <&rk2116>;
 		};
 	};
 
 	sound1 {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,low-latency";
+		simple-audio-card,name = "rockchip,cluster";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,bitclock-master = <&dummy_clk1>;
-		simple-audio-card,frame-master = <&dummy_clk1>;
 		simple-audio-card,cpu {
-			sound-dai = <&sai4>;
-			dai-tdm-slot-num = <8>;
+			sound-dai = <&sai0>;
+			dai-tdm-slot-num = <2>;
 			dai-tdm-slot-width = <32>;
 		};
-		dummy_clk1: simple-audio-card,codec {
-			sound-dai = <&dummy_codec1>;
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
 		};
 	};
 
@@ -73,15 +64,25 @@
 	};
 };
 
+&sai0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai0m2_lrck_pins
+			&sai0m2_sclk_pins
+			&sai0m2_sdo0_pins>;
+};
+
 &sai1 {
 	status = "okay";
 	rockchip,tdm-tx-lanes = <1>;
 	rockchip,tdm-rx-lanes = <1>;
+	rockchip,sai-rx-route = <2 3 0 1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck_pins
 			&sai1m0_sclk_pins
-			&sai1m0_sdi0_pins
-			&sai1m0_sdo0_pins>;
+			&sai1m0_sdi2_pins
+			&sai1m0_sdo0_pins
+			&sai1m0_sdo1_pins>;
 };
 
 &sai2 {
@@ -93,23 +94,26 @@
 			&sai2m0_sdo_pins>;
 };
 
-&sai4 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&sai4m0_lrck_pins
-			&sai4m0_sclk_pins
-			&sai4m0_sdi0_pins
-			&sai4m0_sdo0_pins>;
-};
-
 &spi0 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0m0_csn0_pins &spi0m0_pins>;
-	spi-dev@0 {
-		compatible = "rockchip,spidev";
-		reg = <0x0>;
-		spi-max-frequency = <50000000>;
-		spi-lsb-first;
+
+	/*
+	 * RK2116 multifunction SPI device (Audio Codec + embedded SPI NOR Flash)
+	 *
+	 * - "rockchip,rk2116" : Dedicated audio driver for normal operation.
+	 * - "jedec,spi-nor"   : Generic SPI NOR Flash driver for firmware upgrade.
+	 *
+	 * Driver switch    : Performed at runtime via sysfs bind/unbind.
+	 */
+	rk2116: rk2116@0 {
+		status = "okay";
+		compatible = "rockchip,rk2116", "jedec,spi-nor";
+		spi-max-frequency = <5000000>;
+		reg = <0>;
+
+		#sound-dai-cells = <0>;
+		spk-ctl-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
 	};
 };

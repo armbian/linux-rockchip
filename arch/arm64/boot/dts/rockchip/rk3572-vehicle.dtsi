@@ -83,15 +83,6 @@
 		default-brightness-level = <200>;
 	};
 
-	hdmi_sound: hdmi-sound {
-		compatible = "rockchip,hdmi";
-		rockchip,mclk-fs = <128>;
-		rockchip,card-name = "rockchip-hdmi";
-		rockchip,cpu = <&sai4>;
-		rockchip,codec = <&hdmi>;
-		rockchip,jack-det;
-	};
-
 	leds: leds {
 		compatible = "gpio-leds";
 		work_led: work {
@@ -287,12 +278,6 @@
 &route_dsi {
 	status = "okay";
 	connect = <&vp1_out_dsi>;
-};
-
-&sai4 {
-	status = "okay";
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
 };
 
 &sdhci {
