@@ -333,6 +333,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-pdm.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-projector.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-rk621-hdmi2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-rk628-hdmi2csi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-thunderboot.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-tp2815-ahd2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb2-v10-linux.dtb
