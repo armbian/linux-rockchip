@@ -614,13 +614,15 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		src0_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_XRGB_8888:
-		src0_format = 0x1;
+		/* RGA2 aswap does not support RGBX, so the RGBA format is used instead. */
+		src0_format = 0x0;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		msg->src_trans_mode &= 0x07;
 		break;
 	case RGA_FORMAT_XBGR_8888:
-		src0_format = 0x1;
+		/* RGA2 aswap does not support RGBX, so the RGBA format is used instead. */
+		src0_format = 0x0;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
