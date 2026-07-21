@@ -512,6 +512,7 @@ struct vop2_win {
 	/* capacity of msmart layer */
 	uint32_t max_grids;
 	uint32_t max_grids_per_row;
+	uint32_t min_grids;
 
 	struct vop_reg crc_enable;
 	uint32_t crc_value_offset;
@@ -7477,8 +7478,14 @@ static int vop3_msmart_grid_check(struct drm_plane *plane, struct drm_atomic_sta
 
 	msmart_data = (struct msmart_data *)vpstate->msmart_data->data;
 	if (msmart_data->active_grid_num  > win->max_grids) {
-		drm_err(plane->dev, "config too much msmart grid: %d, the max grids is %d\n",
+		drm_err(plane->dev, "config too much msmart grids: %d, the max grids are %d\n",
 			msmart_data->active_grid_num, win->max_grids);
+		return -EINVAL;
+	}
+
+	if (msmart_data->active_grid_num < win->min_grids) {
+		drm_err(plane->dev, "config too few msmart grids: %d, the min grids are %d\n",
+			msmart_data->active_grid_num, win->min_grids);
 		return -EINVAL;
 	}
 
@@ -19166,6 +19173,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->max_downscale_factor = win_data->max_downscale_factor;
 		win->max_grids = win_data->max_grids;
 		win->max_grids_per_row = win_data->max_grids_per_row;
+		win->min_grids = win_data->min_grids;
 		win->hsu_filter_mode = win_data->hsu_filter_mode;
 		win->hsd_filter_mode = win_data->hsd_filter_mode;
 		win->vsu_filter_mode = win_data->vsu_filter_mode;

@@ -1421,6 +1421,7 @@ struct vop2_win_data {
 	/* capacity of msmart layer */
 	const uint32_t max_grids;
 	const uint32_t max_grids_per_row;
+	const uint32_t min_grids;
 };
 
 struct vop2_dovi_core_data {

@@ -5454,6 +5454,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .max_grids = 64,
 	  .max_grids_per_row = 8,
+	  .min_grids = 2,
 	  .feature = WIN_FEATURE_MSMART | WIN_FEATURE_CGC,
 	},
 
@@ -5488,6 +5489,7 @@ static const struct vop2_win_data rk3572_vop_win_data[] = {
 	  .max_downscale_factor = 8,
 	  .max_grids = 36,
 	  .max_grids_per_row = 6,
+	  .min_grids = 2,
 	  .feature = WIN_FEATURE_MSMART | WIN_FEATURE_CGC,
 	},
 };
