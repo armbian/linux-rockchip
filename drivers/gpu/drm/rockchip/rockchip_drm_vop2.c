@@ -5970,12 +5970,6 @@ static void vop2_dovi_post_disable(struct drm_crtc *crtc)
 	vp->dovi_hdr_en = false;
 	vp->dovi_hdr_in = false;
 
-	/**
-	 * The burr of the vsync signal maybe lead to core1 work abnormally,
-	 * so add aclk reset when exit from dovi mode.
-	 */
-	vop2_clk_reset(vop2->axi_rst);
-
 	drm_info(vop2, "vp%d dovi disabled\n", vp->id);
 }
 
