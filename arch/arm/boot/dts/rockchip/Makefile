@@ -5,6 +5,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1103b-evb1-v10-amp.dtb \
 	rv1103b-evb1-v10-dual-cam.dtb \
 	rv1103b-evb1-v10-external-codec.dtb \
+	rv1103b-evb1-v10-fastboot-emmc.dtb \
 	rv1103b-evb1-v10-thunderboot-spi-nand.dtb \
 	rv1103b-evb1-v10-thunderboot-spi-nor.dtb \
 	rv1103b-evb1-v10-spi-nor.dtb \
