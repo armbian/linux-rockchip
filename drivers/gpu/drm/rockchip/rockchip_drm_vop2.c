@@ -1984,17 +1984,18 @@ static bool vop2_vp_done_bit_status(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+	u32 sys_cfg_done_shift = vp_data->regs->sys_cfg_done.shift;
 	u32 done_bits;
 
 	/*
 	 * The CFG_DONE status location differs by platform:
 	 * 1. VPs with a reserved physical plane: global RK3568_REG_CFG_DONE,
-	 *    bit position from vp_data->reg_done_bit.
+	 *    bit position from vp_data->regs->sys_cfg_done.shift.
 	 * 2. rk3572 and later VOP3: per-VP module field via VOP_MODULE_GET.
 	 * 3. Older platforms: global RK3568_REG_CFG_DONE, bit position vp->id.
 	 */
 	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID)
-		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(vp_data->reg_done_bit);
+		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(sys_cfg_done_shift);
 	else if (vop2->version >= VOP_VERSION_RK3572)
 		done_bits = VOP_MODULE_GET(vop2, vp, cfg_done);
 	else
@@ -2243,6 +2244,7 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	const struct vop2_video_port_data *vp_data = &vp->vop2->data->vp[vp->id];
 	struct vop2 *vop2 = vp->vop2;
+	uint32_t sys_cfg_done_shift = vp_data->regs->sys_cfg_done.shift;
 	uint32_t val = 0;
 
 	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID) {
@@ -2250,8 +2252,8 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 			vop2_writel(vop2, RK3588_SYS_WIN_REG_CFG_DONE,
 				    vp->win_cfg_done_bits | (vp->win_cfg_done_bits << 16));
 		val = RK3568_VOP2_GLB_CFG_DONE_EN | RK3568_VOP2_WB_CFG_DONE |
-		      (RK3568_VOP2_WB_CFG_DONE << 16) | BIT(vp_data->reg_done_bit) |
-		      (BIT(vp_data->reg_done_bit) << 16);
+		      (RK3568_VOP2_WB_CFG_DONE << 16) | BIT(sys_cfg_done_shift) |
+		      (BIT(sys_cfg_done_shift) << 16);
 		vop2_writel(vop2, 0, val);
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "win cfg_done_bits:0x%x\n",
 				 vp->win_cfg_done_bits);
