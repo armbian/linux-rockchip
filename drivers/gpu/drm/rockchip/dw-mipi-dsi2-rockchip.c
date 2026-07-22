@@ -2262,7 +2262,7 @@ static const u32 rk3588_dsi1_grf_reg_fields[MAX_FIELDS] = {
 	[IPI_FORMAT]		= GRF_REG_FIELD(0x0004,  0,  3),
 };
 
-static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
+static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data __maybe_unused = {
 	.dsc = false,
 	.dsi0_grf_reg_fields = rk3576_dsi_grf_reg_fields,
 	.dphy_max_bit_rate_per_lane = 2500000000ULL,
@@ -2273,7 +2273,7 @@ static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
 	.vrr_mode = ROCKCHIP_VRR_VFP_MODE,
 };
 
-static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
+static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data __maybe_unused = {
 	.dsc = true,
 	.dsi0_grf_reg_fields = rk3588_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3588_dsi1_grf_reg_fields,
