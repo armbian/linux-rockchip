@@ -226,6 +226,7 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	time64_t now, alarm, interval;
 	u8 buf[4];
 	int ret;
+	u8 cnt;
 
 	ret = i2c_smbus_write_byte_data(client, HYM8563_TMR_CNT, 0);
 	if (ret < 0)
@@ -241,23 +242,52 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	alarm = rtc_tm_to_time64(alm_tm);
 	now = rtc_tm_to_time64(&tm);
 	interval = alarm - now;
+	if (interval <= 0) {
+		ret = -EINVAL;
+		return ret;
+	}
 
 	/* store alarm tm_sec */
 	hym8563->alarm_tm_sec = alm_tm->tm_sec;
 
 	dev_info(dev, "%s: now:    %ptR\n", __func__, &tm);
 	dev_info(dev, "%s: expired:%ptR\n", __func__, alm_tm);
-	if (interval < HYM8563_TMR_MAXCNT) {
+	if (interval <= HYM8563_TMR_MAXCNT) {
 		hym8563->alarm_or_timer_irq = 1;
-		/* set timer */
-		i2c_smbus_write_byte_data(client, HYM8563_TMR_CNT, (u8)interval);
-		dev_info(&client->dev, "%s: set %dm%ds timer, interval=%ds\n",
-			 __func__, ((u8)interval)/60, ((u8)interval)%60, (u8)interval);
+		/* 1Hz timer, max 255s */
+		ret = i2c_smbus_write_byte_data(client, HYM8563_TMR_CNT, (u8)interval);
+		if (ret < 0)
+			return ret;
+		ret = i2c_smbus_write_byte_data(client, HYM8563_TMR_CTL,
+						HYM8563_TMR_CTL_ENABLE | HYM8563_TMR_CTL_1);
+		if (ret < 0)
+			return ret;
+		dev_info(&client->dev, "%s: set 1Hz timer, %ds\n",
+			 __func__, (u8)interval);
+	} else if (interval <= HYM8563_TMR_MAXCNT * 60) {
+		u64 tmp;
+
+		hym8563->alarm_or_timer_irq = 1;
+		/* 1/60Hz timer, max 255*60=15300s (~4.25h) */
+		tmp = interval + 59;
+		do_div(tmp, 60);
+		cnt = (u8)tmp;
+
+		ret = i2c_smbus_write_byte_data(client, HYM8563_TMR_CNT, cnt);
+		if (ret < 0)
+			return ret;
+		ret = i2c_smbus_write_byte_data(client, HYM8563_TMR_CTL,
+						HYM8563_TMR_CTL_ENABLE | HYM8563_TMR_CTL_1_60);
+		if (ret < 0)
+			return ret;
+		dev_info(&client->dev, "%s: set 1/60Hz timer, cnt=%u (~%lds)\n",
+			 __func__, cnt, (unsigned long)cnt * 60);
 	} else {
 		hym8563->alarm_or_timer_irq = 0;
+		dev_warn(dev, "%s: interval %llds > %ds, alarm mode unreliable\n",
+			 __func__, interval, HYM8563_TMR_MAXCNT * 60);
 		/* set alarm */
 		alm_tm->tm_sec = 0;
-		dev_info(dev, "%s: set alarm %ptR\n", __func__, alm_tm);
 	}
 
 	buf[0] = (alm_tm->tm_min < 60 && alm_tm->tm_min >= 0) ?
