@@ -13658,6 +13658,17 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
 
+static inline void vop2_write_alpha_ctrl(struct vop2 *vop2,
+					 u32 src_color_off, u32 dst_color_off,
+					 u32 src_alpha_off, u32 dst_alpha_off,
+					 const struct vop2_alpha *alpha)
+{
+	vop2_writel(vop2, src_color_off, alpha->src_color_ctrl.val);
+	vop2_writel(vop2, dst_color_off, alpha->dst_color_ctrl.val);
+	vop2_writel(vop2, src_alpha_off, alpha->src_alpha_ctrl.val);
+	vop2_writel(vop2, dst_alpha_off, alpha->dst_alpha_ctrl.val);
+}
+
 static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
 {
 	struct vop2_video_port *vp;
@@ -13769,10 +13780,8 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 		alpha.dst_color_ctrl.bits.blend_mode = ALPHA_GLOBAL;
 
 	alpha.src_color_ctrl.bits.src_dst_swap = swap;
-	vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-	vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-	vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-	vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+	vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset, dst_color_ctrl_offset,
+			      src_alpha_ctrl_offset, dst_alpha_ctrl_offset, &alpha);
 }
 
 static void vop2_setup_alpha(struct vop2_video_port *vp,
@@ -13909,10 +13918,10 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 			alpha.src_color_ctrl.bits.alpha_en = false;
 
 		offset = (mixer_id + i - 1) * 0x10;
-		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+				      dst_color_ctrl_offset + offset,
+				      src_alpha_ctrl_offset + offset,
+				      dst_alpha_ctrl_offset + offset, &alpha);
 	}
 
 	if (bottom_layer_alpha_en || vp->hdr_en || (vop2_is_dovi_mode(vp) && vp->nr_layers > 1)) {
@@ -13957,10 +13966,10 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	for (; i < hweight32(vp->win_mask); i++) {
 		offset = (mixer_id + i - 1) * 0x10;
 
-		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+				      dst_color_ctrl_offset + offset,
+				      src_alpha_ctrl_offset + offset,
+				      dst_alpha_ctrl_offset + offset, &alpha);
 	}
 }
 
@@ -14026,10 +14035,10 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 		/* config vp1 overlay alpha */
 		for (i = 1; i < vop2->data->nr_layers; i++) {
 			offset = (i - 1) * 0x10;
-			vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-			vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-			vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-			vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+			vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+					      dst_color_ctrl_offset + offset,
+					      src_alpha_ctrl_offset + offset,
+					      dst_alpha_ctrl_offset + offset, &alpha);
 		}
 
 		/* config vp0 extra alpha */
@@ -14039,10 +14048,10 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 		src_alpha_ctrl_offset = ovl_regs->extra_mix_regs->src_alpha_ctrl.offset;
 		dst_alpha_ctrl_offset = ovl_regs->extra_mix_regs->dst_alpha_ctrl.offset;
 
-		vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+				      dst_color_ctrl_offset,
+				      src_alpha_ctrl_offset,
+				      dst_alpha_ctrl_offset, &alpha);
 
 		if (vp_data->feature & VOP_FEATURE_HW_CURSOR) {
 			ovl_regs = vop2->data->vp[1].ovl_regs;
@@ -14060,10 +14069,10 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 			alpha_config.dst_glb_alpha_value = 0xff;
 			vop2_parse_alpha(&alpha_config, &alpha);
 
-			vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-			vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-			vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-			vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+			vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+					      dst_color_ctrl_offset,
+					      src_alpha_ctrl_offset,
+					      dst_alpha_ctrl_offset, &alpha);
 		}
 
 		VOP_MODULE_SET(vop2, vp, port_extra_en, 1);/* enable port0_extra_alpha_en */
@@ -14084,10 +14093,10 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 		src_alpha_ctrl_offset = ovl_regs->extra_mix_regs->src_alpha_ctrl.offset;
 		dst_alpha_ctrl_offset = ovl_regs->extra_mix_regs->dst_alpha_ctrl.offset;
 
-		vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+				      dst_color_ctrl_offset,
+				      src_alpha_ctrl_offset,
+				      dst_alpha_ctrl_offset, &alpha);
 		VOP_MODULE_SET(vop2, vp, port_extra_en, 0);/* disable port0_extra_alpha_en */
 	}
 }
@@ -14150,10 +14159,10 @@ static void rk3572_cursor_alpha(struct vop2_video_port *vp,
 	}
 	vop2_parse_alpha(&alpha_config, &alpha);
 
-	vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-	vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-	vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-	vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+	vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+			      dst_color_ctrl_offset,
+			      src_alpha_ctrl_offset,
+			      dst_alpha_ctrl_offset, &alpha);
 }
 
 static void rk3572_cgc_alpha(struct vop2_video_port *vp,
@@ -14200,10 +14209,10 @@ static void rk3572_cgc_alpha(struct vop2_video_port *vp,
 	alpha_config.dst_glb_alpha_value = 0xff;
 	vop2_parse_alpha(&alpha_config, &alpha);
 
-	vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-	vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-	vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-	vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+	vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+			      dst_color_ctrl_offset,
+			      src_alpha_ctrl_offset,
+			      dst_alpha_ctrl_offset, &alpha);
 }
 
 static void vop3_setup_alpha(struct vop2_video_port *vp,
@@ -14340,10 +14349,10 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		}
 
 		offset = (i - 1) * 0x10;
-		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+				      dst_color_ctrl_offset + offset,
+				      src_alpha_ctrl_offset + offset,
+				      dst_alpha_ctrl_offset + offset, &alpha);
 	}
 
 	/* To deal with bottom_layer_global_alpha when only have one esmart layer at
@@ -14360,10 +14369,10 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 			alpha_config.dst_glb_alpha_value = bottom_layer_global_alpha;
 			vop2_parse_alpha(&alpha_config, &alpha);
 			offset = (i - 1) * 0x10;
-			vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-			vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-			vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-			vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+			vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+					      dst_color_ctrl_offset + offset,
+					      src_alpha_ctrl_offset + offset,
+					      dst_alpha_ctrl_offset + offset, &alpha);
 			i++;
 		}
 	}
@@ -14381,10 +14390,10 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 	for (; i < nr_layers; i++) {
 		offset = (i - 1) * 0x10;
 
-		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset + offset,
+				      dst_color_ctrl_offset + offset,
+				      src_alpha_ctrl_offset + offset,
+				      dst_alpha_ctrl_offset + offset, &alpha);
 	}
 
 	if (ovl_regs->extra_mix_regs)
@@ -14413,10 +14422,10 @@ static void vop3_setup_alpha(struct vop2_video_port *vp,
 		dst_color_ctrl_offset = ovl_regs->hdr_mix_regs->dst_color_ctrl.offset;
 		src_alpha_ctrl_offset = ovl_regs->hdr_mix_regs->src_alpha_ctrl.offset;
 		dst_alpha_ctrl_offset = ovl_regs->hdr_mix_regs->dst_alpha_ctrl.offset;
-		vop2_writel(vop2, src_color_ctrl_offset, alpha.src_color_ctrl.val);
-		vop2_writel(vop2, dst_color_ctrl_offset, alpha.dst_color_ctrl.val);
-		vop2_writel(vop2, src_alpha_ctrl_offset, alpha.src_alpha_ctrl.val);
-		vop2_writel(vop2, dst_alpha_ctrl_offset, alpha.dst_alpha_ctrl.val);
+		vop2_write_alpha_ctrl(vop2, src_color_ctrl_offset,
+				      dst_color_ctrl_offset,
+				      src_alpha_ctrl_offset,
+				      dst_alpha_ctrl_offset, &alpha);
 	}
 
 	if (bottom_layer_alpha_en) {
