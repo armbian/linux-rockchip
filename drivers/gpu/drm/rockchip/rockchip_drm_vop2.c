@@ -13957,7 +13957,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	for (; i < hweight32(vp->win_mask); i++) {
 		offset = (mixer_id + i - 1) * 0x10;
 
-		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
+		vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
 		vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
 		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
 		vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
