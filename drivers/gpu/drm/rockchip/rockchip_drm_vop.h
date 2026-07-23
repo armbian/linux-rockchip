@@ -289,9 +289,11 @@ struct vop_afbc {
 	struct vop_reg dsp_offset;
 	struct vop_reg transform_offset;
 	struct vop_reg hdr_ptr;
+	struct vop_reg hdr_ptr_high;
 	struct vop_reg half_block_en;
 	struct vop_reg pld_offset_en;
 	struct vop_reg pld_ptr_offset;
+	struct vop_reg pld_ptr_offset_high;
 	struct vop_reg pld_range_en;
 	struct vop_reg pld_ptr_range;
 	struct vop_reg compress_mode;
@@ -929,6 +931,7 @@ struct vop2_cluster_regs {
 	struct vop_reg dci_dma_rid;
 	struct vop_reg dci_dma_rlen;
 	struct vop_reg dci_dma_mst;
+	struct vop_reg dci_dma_mst_high;
 	struct vop_reg debug_point_h;
 	struct vop_reg debug_point_v;
 	struct vop_reg debug_mode;
@@ -994,9 +997,12 @@ struct vop2_win_regs {
 	struct vop_reg multi_grid_en; /* for msmart layer */
 	struct vop_reg multi_grid_num; /* for msmart layer */
 	struct vop_reg multi_grid_mst; /* for msmart layer */
+	struct vop_reg multi_grid_mst_high; /* for msmart layer */
 	struct vop_reg frm_reset_en;
 	struct vop_reg yrgb_mst;
+	struct vop_reg yrgb_mst_high;
 	struct vop_reg uv_mst;
+	struct vop_reg uv_mst_high;
 	struct vop_reg yrgb_vir;
 	struct vop_reg uv_vir;
 	struct vop_reg yuv_clip;
@@ -1084,6 +1090,7 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
 	struct vop_reg hdr_lut_mst;
+	struct vop_reg hdr_lut_mst_high;
 	struct vop_reg hdr_lut_fetch_done;
 	struct vop_reg hdrvivid_en;
 	struct vop_reg hdrvivid_bypass_en;
@@ -1139,6 +1146,7 @@ struct vop2_video_port_regs {
 	struct vop_reg cubic_lut_en;
 	struct vop_reg cubic_lut_update_en;
 	struct vop_reg cubic_lut_mst;
+	struct vop_reg cubic_lut_mst_high;
 
 	/* cru */
 	struct vop_reg dclk_core_div;
@@ -1266,6 +1274,7 @@ struct vop2_dovi_regs {
 
 	/* core1 and core2 */
 	struct vop_reg lut_mst;
+	struct vop_reg lut_mst_high;
 	struct vop_reg lut_update;
 
 	/* core3 */
@@ -1320,7 +1329,9 @@ struct vop2_wb_regs {
 	struct vop_reg r2y_en;
 	struct vop_reg y2r_en;
 	struct vop_reg yrgb_mst;
+	struct vop_reg yrgb_mst_high;
 	struct vop_reg uv_mst;
+	struct vop_reg uv_mst_high;
 	struct vop_reg vp_id;
 	struct vop_reg fifo_throd;
 	struct vop_reg scale_x_factor;
@@ -1662,6 +1673,7 @@ struct vop2_ctrl {
 	struct vop_reg metadata_rid;
 	struct vop_reg metadata_size;
 	struct vop_reg metadata_mst;
+	struct vop_reg metadata_mst_high;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg auto_cs_en;
 	struct vop_reg auto_cs_mode;

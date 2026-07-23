@@ -79,14 +79,39 @@
 			REG_SET(x, name, 0, win->regs->cluster->name, v, true); \
 	} while (0)
 
+#define VOP_CLUSTER_SET64(x, win, name, v) \
+	do { \
+		u64 __v = (v); \
+		if (win->regs->cluster) { \
+			REG_SET(x, name, 0, win->regs->cluster->name, lower_32_bits(__v), true); \
+			REG_SET(x, name##_high, 0, win->regs->cluster->name##_high, upper_32_bits(__v), true); \
+		} \
+	} while (0)
+
 #define VOP_AFBC_SET(x, win, name, v) \
 	do { \
 		if (win->regs->afbc) \
 			REG_SET(x, name, win->offset, win->regs->afbc->name, v, true); \
 	} while (0)
 
+#define VOP_AFBC_SET64(x, win, name, v) \
+	do { \
+		u64 __v = (v); \
+		if (win->regs->afbc) { \
+			REG_SET(x, name, win->offset, win->regs->afbc->name, lower_32_bits(__v), true); \
+			REG_SET(x, name##_high, win->offset, win->regs->afbc->name##_high, upper_32_bits(__v), true); \
+		} \
+	} while (0)
+
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), v, true)
+
+#define VOP_WIN_SET64(x, win, name, v) \
+	do { \
+		u64 __v = (v); \
+		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), lower_32_bits(__v), true); \
+		REG_SET(x, name##_high, win->offset, VOP_WIN_NAME(win, name##_high), upper_32_bits(__v), true); \
+	} while (0)
 
 #define VOP_SCL_SET(x, win, name, v) \
 	do { \
@@ -96,6 +121,13 @@
 
 #define VOP_CTRL_SET(x, name, v) \
 		REG_SET(x, name, 0, (x)->data->ctrl->name, v, false)
+
+#define VOP_CTRL_SET64(x, name, v) \
+	do { \
+		u64 __v = (v); \
+		REG_SET(x, name, 0, (x)->data->ctrl->name, lower_32_bits(__v), false); \
+		REG_SET(x, name##_high, 0, (x)->data->ctrl->name##_high, upper_32_bits(__v), false); \
+	} while (0)
 
 #define VOP_CTRL_GET(x, name) vop2_read_reg(x, 0, &(x)->data->ctrl->name)
 
@@ -107,6 +139,13 @@
 
 #define VOP_MODULE_SET(vop2, module, name, v) \
 		REG_SET(vop2, name, 0, module->regs->name, v, false)
+
+#define VOP_MODULE_SET64(vop2, module, name, v) \
+	do { \
+		u64 __v = (v); \
+		REG_SET(vop2, name, 0, module->regs->name, lower_32_bits(__v), false); \
+		REG_SET(vop2, name##_high, 0, module->regs->name##_high, upper_32_bits(__v), false); \
+	} while (0)
 
 #define VOP_WIN_DATA_SET(vop2, win_data, name, v) \
 		REG_SET(vop2, name, 0, win_data->name, v, false)
@@ -4820,8 +4859,8 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		 */
 		VOP_MODULE_SET(vop2, wb, vp_id, wb_state->vp_id);
 		VOP_MODULE_SET(vop2, wb, format, wb_state->format);
-		VOP_MODULE_SET(vop2, wb, yrgb_mst, wb_state->yrgb_addr);
-		VOP_MODULE_SET(vop2, wb, uv_mst, wb_state->uv_addr);
+		VOP_MODULE_SET64(vop2, wb, yrgb_mst, wb_state->yrgb_addr);
+		VOP_MODULE_SET64(vop2, wb, uv_mst, wb_state->uv_addr);
 		VOP_MODULE_SET(vop2, wb, fifo_throd, fifo_throd);
 		VOP_MODULE_SET(vop2, wb, scale_x_factor, wb_state->scale_x_factor);
 		VOP_MODULE_SET(vop2, wb, scale_x_en, wb_state->scale_x_en);
@@ -5125,7 +5164,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 	}
 
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
-	VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
+	VOP_MODULE_SET64(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
@@ -5134,7 +5173,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
 		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 
-		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_mst, cubic_lut_mst);
+		VOP_MODULE_SET64(vop2, splice_vp, cubic_lut_mst, cubic_lut_mst);
 		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_update_en, 1);
 		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_en, 1);
 	}
@@ -6073,7 +6112,7 @@ static void vop2_load_dovi_coe_table(struct drm_crtc *crtc)
 	const struct vop2_dovi_core_data *dovi_core_data;
 	struct vop2_dovi_core *dovi_core;
 	u32 *dovi_lut_kvaddr;
-	u32 dovi_lut_mst;
+	dma_addr_t dovi_lut_mst;
 	int i = 0, j = 0;
 	u32 offset = vp->rockchip_crtc.frame_count % 2 ? 0 : VOP2_DOVI_TONE_SCA_AXI_TAB_SIZE;
 
@@ -6123,10 +6162,11 @@ static void vop2_load_dovi_coe_table(struct drm_crtc *crtc)
 			continue;
 
 		if (dovi_core->id == 1)
-			VOP_MODULE_SET(vop2, dovi_core, lut_mst, dovi_lut_mst);
+			VOP_MODULE_SET64(vop2, dovi_core, lut_mst, dovi_lut_mst);
 
 		if (dovi_core->id == 2)
-			VOP_MODULE_SET(vop2, dovi_core, lut_mst, dovi_lut_mst + VOP2_DOVI_CORE1_LUT_SIZE);
+			VOP_MODULE_SET64(vop2, dovi_core, lut_mst,
+					 dovi_lut_mst + VOP2_DOVI_CORE1_LUT_SIZE);
 	}
 
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
@@ -8222,7 +8262,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 
 	memcpy(dci_lut_kvaddr, dci_data->dci_lut_data, ROCKCHIP_VOP_DCI_LUT_LENGTH);
 
-	VOP_CLUSTER_SET(vop2, win, dci_dma_mst, dci_lut_mst);
+	VOP_CLUSTER_SET64(vop2, win, dci_dma_mst, dci_lut_mst);
 	/* dci dma rid */
 	VOP_CLUSTER_SET(vop2, win, dci_dma_rid, win_data->dci_rid_id);
 	VOP_CLUSTER_SET(vop2, win, dci_dma_rlen, 0);
@@ -8380,7 +8420,7 @@ static int vop3_msmart_grid_update(struct drm_plane *plane, struct drm_plane_sta
 
 	VOP_WIN_SET(vop2, win, multi_grid_en, 1);
 	VOP_WIN_SET(vop2, win, multi_grid_num, msmart_data->active_grid_num - 1);
-	VOP_WIN_SET(vop2, win, multi_grid_mst, msmart_lut_mst);
+	VOP_WIN_SET64(vop2, win, multi_grid_mst, msmart_lut_mst);
 
 	return 0;
 }
@@ -8604,7 +8644,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			VOP_AFBC_SET(vop2, win, block_split_en, 1);
 		else
 			VOP_AFBC_SET(vop2, win, block_split_en, 0);
-		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
+		VOP_AFBC_SET64(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
 		VOP_AFBC_SET(vop2, win, transform_offset, transform_offset);
 		if (is_vop3(vop2) && vop2->version != VOP_VERSION_RK3528 && vpstate->ymirror_en)
@@ -8620,7 +8660,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_AFBC_SET(vop2, win, rotate_90, vpstate->rotate_90_en);
 
 		VOP_AFBC_SET(vop2, win, pld_offset_en, 1); /* use relative address by default */
-		VOP_AFBC_SET(vop2, win, pld_ptr_offset, vpstate->yrgb_mst);
+		VOP_AFBC_SET64(vop2, win, pld_ptr_offset, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pld_range_en, 1);
 		VOP_AFBC_SET(vop2, win, pld_ptr_range, vpstate->fb_size);
 		VOP_AFBC_SET(vop2, win, compress_mode,
@@ -8668,7 +8708,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_WIN_SET(vop2, win, frm_reset_en, 1);
 	}
 
-	VOP_WIN_SET(vop2, win, yrgb_mst, yrgb_mst);
+	VOP_WIN_SET64(vop2, win, yrgb_mst, yrgb_mst);
 
 	rb_swap = vop2_win_rb_swap(fb->format->format);
 	uv_swap = vop2_win_uv_swap(fb->format->format);
@@ -8727,7 +8767,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		}
 
 		VOP_WIN_SET(vop2, win, uv_vir, uv_stride);
-		VOP_WIN_SET(vop2, win, uv_mst, uv_mst);
+		VOP_WIN_SET64(vop2, win, uv_mst, uv_mst);
 	}
 
 	/* tile 4x4 m0 format, y and uv is packed together */
@@ -9714,7 +9754,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 			struct loader_cubic_lut *cubic_lut = &private->cubic_lut[vp->id];
 
 			cubic_lut_mst = cubic_lut->offset + private->cubic_lut_dma_addr;
-			VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
+			VOP_MODULE_SET64(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 		}
 	} else {
 		vop2_crtc_atomic_disable(crtc, crtc->state->state);
@@ -13166,7 +13206,7 @@ void vop3_setup_dynamic_metadata_for_emp(struct vop2_video_port *vp, uint32_t *d
 
 	VOP_CTRL_SET(vop2, metadata_rid, vp_data->metadata_rid);
 	VOP_CTRL_SET(vop2, metadata_size, len * 4 - 1);
-	VOP_CTRL_SET(vop2, metadata_mst, metadata_mst);
+	VOP_CTRL_SET64(vop2, metadata_mst, metadata_mst);
 	VOP_CTRL_SET(vop2, metadata_lut_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 }
@@ -13417,7 +13457,7 @@ static void vop3_setup_hdr_data(struct vop2_video_port *vp, uint8_t win_phys_id,
 
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
+	VOP_MODULE_SET64(vop2, vp, hdr_lut_mst, tone_lut_mst);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 
@@ -15396,7 +15436,7 @@ static void vop3_setup_vp_cgc_s2h(struct vop2_video_port *vp)
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_auto_gating_en, 0);
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, tone_lut_mst);
+	VOP_MODULE_SET64(vop2, vp, hdr_lut_mst, tone_lut_mst);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 }
@@ -15418,7 +15458,7 @@ static void vop3_setup_cgc(struct vop2_video_port *vp, struct vop2_win *win,
 	VOP_MODULE_SET(vop2, vp, cgc_layer_sel, layer);
 	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_mode, 1);
-	VOP_MODULE_SET(vop2, vp, hdr_lut_mst, lut_mst);
+	VOP_MODULE_SET64(vop2, vp, hdr_lut_mst, lut_mst);
 	VOP_MODULE_SET(vop2, vp, hdr_lut_update_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
 
