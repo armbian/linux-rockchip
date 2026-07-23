@@ -193,6 +193,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
 	imply SND_SOC_RK1000
+	imply SND_SOC_RK2116_SPI
 	imply SND_SOC_RK312X
 	imply SND_SOC_RK3228
 	imply SND_SOC_RK3308
@@ -1552,6 +1553,17 @@ config SND_SOC_PEB2466
 config SND_SOC_RK1000
 	tristate "Rockchip RK1000 CODEC"
 	depends on MFD_RK1000
+
+config SND_SOC_RK2116
+	tristate
+
+config SND_SOC_RK2116_SPI
+	tristate "Rockchip RK2116 audio DSP (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_RK2116
+	select REGMAP
+	help
+	  Enable support for Rockchip RK2116 DSP.
 
 config SND_SOC_RK312X
 	select REGMAP_MMIO
