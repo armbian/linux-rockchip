@@ -8280,98 +8280,160 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 
 int rkcif_update_sensor_info(struct rkcif_stream *stream)
 {
+	struct rkcif_device *cifdev = stream->cifdev;
 	struct rkcif_sensor_info *sensor, *terminal_sensor;
 	struct v4l2_subdev *sensor_sd;
+	struct v4l2_subdev *terminal_sd = NULL;
+	struct media_entity *entity;
+	struct media_pad *local;
+	struct v4l2_mbus_config sensor_mbus;
+	struct v4l2_mbus_config terminal_mbus;
+	struct v4l2_subdev_frame_interval fi;
+	int dsi_input_en = 0;
+	int dsi_mode = 0;
+	int hdmi_input_en = 0;
+	bool have_sensor_mbus = false;
+	bool have_terminal_mbus = false;
 	int ret = 0;
+
+	/*
+	 * get_mbus_config zero-fills mbus via v4l2 core wrapper; skip while
+	 * streaming so IRQ handlers do not observe a transient cleared mbus.
+	 */
+	if (atomic_read(&cifdev->pipe.stream_cnt) != 0)
+		return 0;
+
+	/*
+	 * Need an enabled media link and registered mdev before walking the
+	 * graph / calling get_mbus_config. HAL may open before link setup.
+	 */
+	entity = &stream->vnode.vdev.entity;
+	if (!entity->graph_obj.mdev || !entity->pads || !entity->num_pads) {
+		v4l2_dbg(1, rkcif_debug, &cifdev->v4l2_dev,
+			 "%s: stream[%d] media entity not ready\n",
+			 __func__, stream->id);
+		return -ENODEV;
+	}
+
+	local = &entity->pads[0];
+	if (!media_pad_remote_pad_first(local)) {
+		v4l2_dbg(1, rkcif_debug, &cifdev->v4l2_dev,
+			 "%s: stream[%d] media link not enabled\n",
+			 __func__, stream->id);
+		return -ENODEV;
+	}
 
 	sensor_sd = get_remote_sensor(stream, NULL);
 	if (!sensor_sd) {
-		v4l2_err(&stream->cifdev->v4l2_dev,
+		v4l2_err(&cifdev->v4l2_dev,
 			 "%s: stream[%d] get remote sensor_sd failed!\n",
 			 __func__, stream->id);
 		return -ENODEV;
 	}
 
-	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
+	sensor = sd_to_sensor(cifdev, sensor_sd);
 	if (!sensor) {
-		v4l2_err(&stream->cifdev->v4l2_dev,
+		v4l2_err(&cifdev->v4l2_dev,
 			 "%s: stream[%d] get remote sensor failed!\n",
 			 __func__, stream->id);
 		return -ENODEV;
 	}
-	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,
-			       0, &sensor->mbus);
+
+	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config, 0, &sensor_mbus);
 	if (ret && ret != -ENOIOCTLCMD) {
-		v4l2_err(&stream->cifdev->v4l2_dev,
-			 "%s: get remote %s mbus failed!\n", __func__, sensor->sd->name);
+		v4l2_err(&cifdev->v4l2_dev,
+			 "%s: get remote %s mbus failed!\n",
+			 __func__, sensor->sd->name);
 		return ret;
 	}
+	if (!ret)
+		have_sensor_mbus = true;
 
-	stream->cifdev->active_sensor = sensor;
-
-	terminal_sensor = &stream->cifdev->terminal_sensor;
-	get_remote_terminal_sensor(stream, &terminal_sensor->sd);
-	if (terminal_sensor->sd) {
-		ret = v4l2_subdev_call(terminal_sensor->sd, pad, get_mbus_config,
-				       0, &terminal_sensor->mbus);
-		if (ret && ret != -ENOIOCTLCMD) {
-			v4l2_err(&stream->cifdev->v4l2_dev,
-				 "%s: get terminal %s mbus failed!\n",
-				 __func__, terminal_sensor->sd->name);
-			return ret;
-		}
-		terminal_sensor->fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		if (terminal_sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
-			terminal_sensor->fi.stream = stream->id;
-		else
-			terminal_sensor->fi.stream = 0;
-		ret = v4l2_subdev_call_state_active(terminal_sensor->sd, pad,
-				       get_frame_interval, &terminal_sensor->fi);
-		if (ret) {
-			v4l2_err(&stream->cifdev->v4l2_dev,
-				 "%s: get terminal %s get_frame_interval failed!\n",
-				 __func__, terminal_sensor->sd->name);
-			return ret;
-		}
-		if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl, RKMODULE_GET_CSI_DSI_INFO,
-					&terminal_sensor->dsi_input_en)) {
-			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
-				"%s: get terminal %s CSI/DSI sel failed, default csi input!\n",
-				__func__, terminal_sensor->sd->name);
-			terminal_sensor->dsi_input_en = 0;
-		}
-		if (terminal_sensor->dsi_input_en) {
-			if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl,
-					RKMODULE_GET_DSI_MODE, &terminal_sensor->dsi_mode)) {
-				v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
-					"%s: get terminal %s DSI mode failed, set video mode!\n",
-					__func__, terminal_sensor->sd->name);
-				terminal_sensor->dsi_mode = 0;
-			}
-		} else {
-			terminal_sensor->dsi_mode = 0;
-		}
-		if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl, RKMODULE_GET_HDMI_MODE,
-					&terminal_sensor->hdmi_input_en)) {
-			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
-				"%s: get terminal %s hdmiin, default!\n",
-				__func__, terminal_sensor->sd->name);
-			terminal_sensor->hdmi_input_en = 0;
-		}
-	} else {
-		v4l2_err(&stream->cifdev->v4l2_dev,
+	get_remote_terminal_sensor(stream, &terminal_sd);
+	if (!terminal_sd) {
+		v4l2_err(&cifdev->v4l2_dev,
 			 "%s: stream[%d] get remote terminal sensor failed!\n",
 			 __func__, stream->id);
 		return -ENODEV;
 	}
 
+	ret = v4l2_subdev_call(terminal_sd, pad, get_mbus_config, 0, &terminal_mbus);
+	if (ret && ret != -ENOIOCTLCMD) {
+		v4l2_err(&cifdev->v4l2_dev,
+			 "%s: get terminal %s mbus failed!\n",
+			 __func__, terminal_sd->name);
+		return ret;
+	}
+	if (!ret)
+		have_terminal_mbus = true;
+
+	memset(&fi, 0, sizeof(fi));
+	fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	if (terminal_sd->flags & V4L2_SUBDEV_FL_STREAMS)
+		fi.stream = stream->id;
+	else
+		fi.stream = 0;
+	ret = v4l2_subdev_call_state_active(terminal_sd, pad,
+					    get_frame_interval, &fi);
+	if (ret) {
+		v4l2_err(&cifdev->v4l2_dev,
+			 "%s: get terminal %s get_frame_interval failed!\n",
+			 __func__, terminal_sd->name);
+		return ret;
+	}
+
+	if (v4l2_subdev_call(terminal_sd, core, ioctl, RKMODULE_GET_CSI_DSI_INFO,
+			     &dsi_input_en)) {
+		v4l2_dbg(1, rkcif_debug, &cifdev->v4l2_dev,
+			 "%s: get terminal %s CSI/DSI sel failed, default csi input!\n",
+			 __func__, terminal_sd->name);
+		dsi_input_en = 0;
+	}
+
+	if (dsi_input_en) {
+		if (v4l2_subdev_call(terminal_sd, core, ioctl,
+				     RKMODULE_GET_DSI_MODE, &dsi_mode)) {
+			v4l2_dbg(1, rkcif_debug, &cifdev->v4l2_dev,
+				 "%s: get terminal %s DSI mode failed, set video mode!\n",
+				 __func__, terminal_sd->name);
+			dsi_mode = 0;
+		}
+	} else {
+		dsi_mode = 0;
+	}
+
+	if (v4l2_subdev_call(terminal_sd, core, ioctl, RKMODULE_GET_HDMI_MODE,
+			     &hdmi_input_en)) {
+		v4l2_dbg(1, rkcif_debug, &cifdev->v4l2_dev,
+			 "%s: get terminal %s hdmiin, default!\n",
+			 __func__, terminal_sd->name);
+		hdmi_input_en = 0;
+	}
+
+	/*
+	 * Commit only after all required queries succeed, so callers that gate
+	 * on !active_sensor can retry instead of keeping a half-updated state.
+	 */
+	terminal_sensor = &cifdev->terminal_sensor;
+	if (have_sensor_mbus)
+		sensor->mbus = sensor_mbus;
+	cifdev->active_sensor = sensor;
+
+	if (have_terminal_mbus)
+		terminal_sensor->mbus = terminal_mbus;
+	terminal_sensor->fi = fi;
+	terminal_sensor->sd = terminal_sd;
+	terminal_sensor->dsi_input_en = dsi_input_en;
+	terminal_sensor->dsi_mode = dsi_mode;
+	terminal_sensor->hdmi_input_en = hdmi_input_en;
 
 	if (terminal_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
 	    terminal_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
 		terminal_sensor->lanes = terminal_sensor->mbus.bus.mipi_csi2.num_data_lanes;
 	else if (terminal_sensor->mbus.type == V4L2_MBUS_CCP2)
 		terminal_sensor->lanes = terminal_sensor->mbus.bus.mipi_csi1.data_lane;
-	return ret;
+
+	return 0;
 }
 
 static int rkcif_dvp_get_output_type_mask(struct rkcif_stream *stream)
@@ -16672,7 +16734,6 @@ static void rkcif_sync_sof_to_isp(struct rkcif_stream *stream)
 void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *stream;
-	struct v4l2_mbus_config *mbus;
 	struct csi_channel_info *channel = &cif_dev->channels[0];
 	unsigned int intstat, i = 0xff;
 	unsigned long flags;
@@ -16688,10 +16749,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 	if (!cif_dev->active_sensor)
 		return;
 
-	mbus = &cif_dev->active_sensor->mbus;
-	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus->type == V4L2_MBUS_CSI2_CPHY ||
-	    mbus->type == V4L2_MBUS_CCP2) {
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
 		int mipi_id;
 		u32 lastline = 0;
 
