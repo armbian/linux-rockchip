@@ -5401,6 +5401,9 @@
 			clock-output-names = "clk_hdmiphy_pixel0";
 			#clock-cells = <0>;
 			#phy-cells = <0>;
+			rockchip,phy-table =
+				/bits/ 64 <600000000>,
+				/bits/ 8 <0x2f 0x00 0x00 0x1d 0x08 0x2f 0x00 0x00 0x1d 0x08>;
 			status = "disabled";
 		};
 
