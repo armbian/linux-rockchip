@@ -4776,6 +4776,57 @@ static uint32_t vop2_read_and_clear_wb_irqs(struct vop2 *vop2)
 	return val;
 }
 
+static void vop2_wb_load_csc_coe(struct vop2 *vop2, struct rockchip_crtc_state *vcstate,
+				 struct vop2_plane_state *vpstate, bool y2r, bool r2y)
+{
+	struct post_csc_convert_mode convert_mode = {};
+	struct post_csc_coef csc_coef = {};
+	uint32_t csc_coe_offset;
+
+	csc_coe_offset = vop2->data->wb->csc_coe_offset;
+	if (!csc_coe_offset || (!y2r && !r2y))
+		return;
+
+	convert_mode.plat = vop2->version;
+	convert_mode.pixel_depth = 8;
+	convert_mode.coef_precision = 10;
+	convert_mode.swap_channels = RK_PQ_CSC_SWAP_NONE;
+	convert_mode.is_output_full_range = true;
+	convert_mode.output_color_encoding = DRM_COLOR_YCBCR_BT709;
+
+	if (vpstate) {
+		/*
+		 * writeback source is plane.
+		 * plane -> plane csc -> writeback csc -> output
+		 *
+		 * For RK3572, plane csc output is always full range,
+		 * and plane csc output color encoding is
+		 * BT.709 or BT.2020.
+		 */
+		if (vpstate->base.color_encoding == DRM_COLOR_YCBCR_BT2020)
+			convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT2020;
+		else
+			convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT709;
+		convert_mode.is_input_full_range = true;
+	} else {
+		/* writeback source is vp */
+		convert_mode.input_color_encoding = vcstate->color_encoding;
+		convert_mode.is_input_full_range =
+			vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE;
+	}
+
+	if (y2r) {
+		convert_mode.is_input_yuv = true;
+		convert_mode.is_output_yuv = false;
+	} else {
+		convert_mode.is_input_yuv = false;
+		convert_mode.is_output_yuv = true;
+	}
+
+	rockchip_calc_post_csc(NULL, &csc_coef, &convert_mode);
+	vop2_load_csc_coe(vop2, csc_coe_offset, &csc_coef);
+}
+
 static void vop2_wb_commit(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
@@ -4785,7 +4836,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	struct vop2_wb_connector_state *wb_state;
-	struct vop2_plane_state *vpstate;
+	struct vop2_plane_state *vpstate = NULL;
 	unsigned long flags;
 	uint32_t fifo_throd;
 	uint8_t r2y, y2r;
@@ -4868,27 +4919,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, wb, r2y_en, r2y);
 		VOP_MODULE_SET(vop2, wb, y2r_en, y2r);
 
-		if (vop2->version >= VOP_VERSION_RK3572) {
-			if (y2r) {
-				vop2_writel(vop2, RK3572_WB_CSC_COE01_00, 0x400);
-				vop2_writel(vop2, RK3572_WB_CSC_COE10_02, 0x0400064d);
-				vop2_writel(vop2, RK3572_WB_CSC_COE12_11, 0xfe21ff40);
-				vop2_writel(vop2, RK3572_WB_CSC_COE21_20, 0x076c0400);
-				vop2_writel(vop2, RK3572_WB_CSC_COE22, 0x0);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET0, 0xfffcd980);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET1, 0x14F80);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET2, 0xfffc4a00);
-			} else if (r2y) {
-				vop2_writel(vop2, RK3572_WB_CSC_COE01_00, 0x02dc00da);
-				vop2_writel(vop2, RK3572_WB_CSC_COE10_02, 0xff8b004a);
-				vop2_writel(vop2, RK3572_WB_CSC_COE12_11, 0x0200fe75);
-				vop2_writel(vop2, RK3572_WB_CSC_COE21_20, 0xfe2f0200);
-				vop2_writel(vop2, RK3572_WB_CSC_COE22, 0xffd1);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET0, 0x0);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET1, 0x20000);
-				vop2_writel(vop2, RK3572_WB_CSC_OFFSET2, 0x20000);
-			}
-		}
+		vop2_wb_load_csc_coe(vop2, vcstate, vpstate, y2r, r2y);
 
 		/*
 		 * From rk3576, VOP writeback can support oneshot mode, and

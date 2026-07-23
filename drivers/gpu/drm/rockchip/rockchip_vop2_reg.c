@@ -1218,6 +1218,7 @@ static const struct vop2_wb_data rk3572_vop_wb_data = {
 	.fifo_depth =  1920 * 4 / 16,
 	.num_plane_source = ARRAY_SIZE(rk3572_wb_plane_source),
 	.plane_source = rk3572_wb_plane_source,
+	.csc_coe_offset = RK3572_WB_CSC_COE01_00,
 	.regs = &rk3572_vop_wb_regs,
 };
 

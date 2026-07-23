@@ -1476,6 +1476,7 @@ struct vop2_wb_data {
 	uint32_t num_plane_source;
 	const struct drm_prop_enum_list *plane_source;
 	uint32_t fifo_depth;
+	uint32_t csc_coe_offset;
 };
 
 struct vop3_ovl_mix_regs {
