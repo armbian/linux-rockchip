@@ -235,6 +235,12 @@ struct rockchip_sfc {
 	struct rockchip_sfc_data *data;
 };
 
+static inline bool is_invalid_id(const u8 *id)
+{
+	return ((0xFF == id[0] && 0xFF == id[1]) ||
+		(0x00 == id[0] && 0x00 == id[1]));
+}
+
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
 {
 	int err;
@@ -713,13 +719,19 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 	rockchip_sfc_clk_set_rate(sfc, SFC_DLL_THRESHOLD_RATE);
 	op.data.buf.in = &id;
 	rockchip_sfc_exec_op_bypass(sfc, mem, &op);
-	if ((0xFF == id[0] && 0xFF == id[1]) ||
-	    (0x00 == id[0] && 0x00 == id[1])) {
-		dev_dbg(sfc->dev, "no dev, dll by pass\n");
-		rockchip_sfc_clk_set_rate(sfc, sfc->speed[cs]);
-		sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
+	if (is_invalid_id(id)) {
+		/* Some SPI Nands only support access via addr 0.*/
+		op.addr.nbytes = 1;
+		op.addr.val = 0;
+		op.addr.buswidth = 1;
+		rockchip_sfc_exec_op_bypass(sfc, mem, &op);
+		if (is_invalid_id(id)) {
+			dev_dbg(sfc->dev, "no dev, dll by pass\n");
+			rockchip_sfc_clk_set_rate(sfc, sfc->speed[cs]);
+			sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
 
-		return;
+			return;
+		}
 	}
 
 	rockchip_sfc_clk_set_rate(sfc, sfc->speed[cs]);
