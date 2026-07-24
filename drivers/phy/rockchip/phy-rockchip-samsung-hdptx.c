@@ -1469,6 +1469,45 @@ static int rk_hdptx_pll_cmn_config(struct rk_hdptx_phy *hdptx)
 	return rk_hdptx_frl_lcpll_cmn_config(hdptx);
 }
 
+/*
+ * Write the per-lane TX driver-strength registers (LANE_REG 0303~0307)
+ * shared by the DP and HDMI paths.
+ */
+static void rk_hdptx_lane_write_drv_ctrl(struct rk_hdptx_phy *hdptx,
+					 const struct tx_drv_ctrl *ctrl, u8 lane)
+{
+	bool is_dp = phy_get_mode(hdptx->phy) == PHY_MODE_DP;
+	u32 offset = lane * 0x400;
+	u32 mask, val;
+
+	mask = OVRD_LN_TX_DRV_LVL_CTRL_MASK | LN_TX_DRV_LVL_CTRL_MASK;
+	val = FIELD_PREP(OVRD_LN_TX_DRV_LVL_CTRL_MASK, 0x1) |
+	      FIELD_PREP(LN_TX_DRV_LVL_CTRL_MASK, ctrl->tx_drv_lvl_ctrl);
+	regmap_update_bits(hdptx->regmap, LANE_REG(0303) + offset, mask, val);
+
+	mask = OVRD_LN_TX_DRV_POST_LVL_CTRL_MASK | LN_TX_DRV_POST_LVL_CTRL_MASK;
+	val = FIELD_PREP(OVRD_LN_TX_DRV_POST_LVL_CTRL_MASK, 0x1) |
+	      FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK, ctrl->tx_drv_post_lvl_ctrl);
+	regmap_update_bits(hdptx->regmap, LANE_REG(0304) + offset, mask, val);
+
+	mask = OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK | LN_TX_DRV_PRE_LVL_CTRL_MASK;
+	val = FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK, 0x1) |
+	      FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, ctrl->tx_drv_pre_lvl_ctrl);
+	regmap_update_bits(hdptx->regmap, LANE_REG(0305) + offset, mask, val);
+
+	mask = LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK |
+	       LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK | LN_ANA_TX_DRV_ACCDRV_EN_MASK;
+	val = FIELD_PREP(LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK, ctrl->ana_tx_drv_idrv_idn_ctrl) |
+	      FIELD_PREP(LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK, ctrl->ana_tx_drv_idrv_iup_ctrl) |
+	      FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_EN_MASK, ctrl->ana_tx_drv_accdrv_en);
+	regmap_update_bits(hdptx->regmap, LANE_REG(0306) + offset, mask, val);
+
+	mask = LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK | LN_ANA_TX_DRV_ACCDRV_CTRL_MASK;
+	val = FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK, is_dp ? 0x1 : 0x0) |
+	      FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_CTRL_MASK, ctrl->ana_tx_drv_accdrv_ctrl);
+	regmap_update_bits(hdptx->regmap, LANE_REG(0307) + offset, mask, val);
+}
+
 static int rk_hdptx_frl_lcpll_mode_config(struct rk_hdptx_phy *hdptx)
 {
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_sb_init_seq);
@@ -2360,39 +2399,7 @@ static void rk_hdptx_phy_set_voltage(struct rk_hdptx_phy *hdptx,
 		break;
 	}
 
-	regmap_update_bits(hdptx->regmap, LANE_REG(0303) + offset,
-			   OVRD_LN_TX_DRV_LVL_CTRL_MASK | LN_TX_DRV_LVL_CTRL_MASK,
-			   FIELD_PREP(OVRD_LN_TX_DRV_LVL_CTRL_MASK, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_LVL_CTRL_MASK,
-				      ctrl->tx_drv_lvl_ctrl));
-	regmap_update_bits(hdptx->regmap, LANE_REG(0304) + offset,
-			   OVRD_LN_TX_DRV_POST_LVL_CTRL_MASK |
-			   LN_TX_DRV_POST_LVL_CTRL_MASK,
-			   FIELD_PREP(OVRD_LN_TX_DRV_POST_LVL_CTRL_MASK, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL_MASK,
-				      ctrl->tx_drv_post_lvl_ctrl));
-	regmap_update_bits(hdptx->regmap, LANE_REG(0305) + offset,
-			   OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK |
-			   LN_TX_DRV_PRE_LVL_CTRL_MASK,
-			   FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK,
-				      ctrl->tx_drv_pre_lvl_ctrl));
-	regmap_update_bits(hdptx->regmap, LANE_REG(0306) + offset,
-			   LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK |
-			   LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK |
-			   LN_ANA_TX_DRV_ACCDRV_EN_MASK,
-			   FIELD_PREP(LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK,
-				      ctrl->ana_tx_drv_idrv_idn_ctrl) |
-			   FIELD_PREP(LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK,
-				      ctrl->ana_tx_drv_idrv_iup_ctrl) |
-			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_EN_MASK,
-				      ctrl->ana_tx_drv_accdrv_en));
-	regmap_update_bits(hdptx->regmap, LANE_REG(0307) + offset,
-			   LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK |
-			   LN_ANA_TX_DRV_ACCDRV_CTRL_MASK,
-			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK, 0x1) |
-			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_CTRL_MASK,
-				      ctrl->ana_tx_drv_accdrv_ctrl));
+	rk_hdptx_lane_write_drv_ctrl(hdptx, ctrl, lane);
 
 	regmap_update_bits(hdptx->regmap, LANE_REG(030a) + offset,
 			   LN_ANA_TX_JEQ_EN_MASK,
