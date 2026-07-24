@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/backlight.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -41,6 +42,8 @@
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_panel.h>
+
+#include "../rockchip/rockchip_drm_drv.h"
 
 /**
  * struct panel_delay - Describes delays for a simple panel.
@@ -244,6 +247,10 @@ struct panel_edp {
 	struct drm_display_mode override_mode;
 
 	enum drm_panel_orientation orientation;
+
+#if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
+	struct rockchip_drm_sub_dev sub_dev;
+#endif
 };
 
 static inline struct panel_edp *to_panel_edp(struct drm_panel *panel)
@@ -831,6 +838,44 @@ exit:
 	return 0;
 }
 
+#if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
+static int panel_edp_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
+{
+	struct panel_edp *p = container_of(sub_dev, struct panel_edp, sub_dev);
+	int ret;
+
+	/*
+	 * The PWM backlight uses pwm_backlight_initial_power_state() to sync
+	 * hardware state during probe. eDP AUX backlight unconditionally invokes
+	 * backlight_disable() on init, leading to software/hardware state mismatch
+	 * if bootloader already enables the AUX backlight.
+	 *
+	 * For eDP AUX backlight, explicit backlight enable/disable preserves
+	 * bootloader backlight state. If eDP panel uses PWM backlight, this also
+	 * has no adverse impact.
+	 */
+	if (on) {
+		ret = pm_runtime_resume_and_get(p->base.dev);
+		if (ret < 0)
+			return ret;
+		p->base.prepared = true;
+
+		backlight_enable(p->base.backlight);
+		p->base.enabled = true;
+	} else {
+		backlight_disable(p->base.backlight);
+		p->base.enabled = false;
+
+		ret = pm_runtime_put_sync_suspend(p->base.dev);
+		if (ret < 0)
+			return ret;
+		p->base.prepared = false;
+	}
+
+	return 0;
+}
+#endif
+
 static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 			   struct drm_dp_aux *aux)
 {
@@ -931,6 +976,12 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	}
 
 	drm_panel_add(&panel->base);
+
+#if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
+	panel->sub_dev.of_node = dev->of_node;
+	panel->sub_dev.loader_protect = panel_edp_loader_protect;
+	devm_rockchip_drm_register_sub_dev(dev, &panel->sub_dev);
+#endif
 
 	return 0;
 
