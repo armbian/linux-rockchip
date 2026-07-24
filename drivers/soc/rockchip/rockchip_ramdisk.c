@@ -239,6 +239,7 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 	disk->first_minor	= 0;
 	disk->minors		= 1;
 	disk->fops		= &rd_fops;
+	disk->flags		|= GENHD_FL_NO_PART;
 	disk->private_data	= rd;
 	sprintf(disk->disk_name, "rd%d", minor);
 	set_capacity(disk, rd->mem_size >> SECTOR_SHIFT);
