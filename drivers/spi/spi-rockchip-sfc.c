@@ -824,6 +824,7 @@ static int rockchip_sfc_tuning_prepared(struct rockchip_sfc *sfc, struct spi_mem
 		if (sfc->tuning_stage[cs] == SFC_TUNING_STAGE_SDR_HS)
 			return -EINVAL;
 
+		rockchip_sfc_set_delay_lines(sfc, 0, cs);
 		rockchip_sfc_clk_set_rate(sfc, SFC_DLL_THRESHOLD_RATE);
 		if (rockchip_sfc_tuning_read_id(sfc, mem, sfc->tune_pattern,
 						SFC_TUNING_ITEM_SIZE)) {
