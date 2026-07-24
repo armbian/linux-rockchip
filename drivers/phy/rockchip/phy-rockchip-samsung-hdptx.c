@@ -268,7 +268,9 @@
 #define LN_TX_DRV_POST_LVL_CTRL_MASK	GENMASK(3, 0)
 /* LANE_REG(0305) */
 #define OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK	BIT(6)
-#define LN_TX_DRV_PRE_LVL_CTRL_MASK	GENMASK(5, 2)
+#define LN_TX_DRV_PRE_LVL_CTRL_MASK		GENMASK(5, 2)
+#define OVRD_LN_TX_DRV_IDRV_EN_MASK		BIT(1)
+#define LN_TX_DRV_IDRV_EN_MASK			BIT(0)
 /* LANE_REG(0306) */
 #define LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK	GENMASK(7, 5)
 #define LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK	GENMASK(4, 2)
@@ -735,9 +737,29 @@ static const struct reg_sequence rk_hdptx_tmds_lntop_lowbr_seq[] = {
 	REG_SEQ0(LNTOP_REG(0205), 0x1f),
 };
 
+/* HDMI frl mode per-lane TX driver-strength parameters (same for all lanes). */
+static const struct tx_drv_ctrl rk_hdptx_frl_tx_drv_ctrl = {
+	.tx_drv_lvl_ctrl			= 0x0f,
+	.tx_drv_post_lvl_ctrl			= 0x04,
+	.ana_tx_drv_idrv_idn_ctrl		= 0x7,
+	.ana_tx_drv_idrv_iup_ctrl		= 0x7,
+	.ana_tx_drv_accdrv_en			= 0x0,
+	.ana_tx_drv_accdrv_ctrl			= 0x4,
+	.tx_drv_pre_lvl_ctrl			= 0x03,
+};
+
+/* HDMI tmds mode per-lane TX driver-strength parameters. */
+static const struct tx_drv_ctrl rk_hdptx_tmds_tx_drv_ctrl = {
+	.tx_drv_lvl_ctrl			= 0x0f,
+	.tx_drv_post_lvl_ctrl			= 0x00,
+	.ana_tx_drv_idrv_idn_ctrl		= 0x0,
+	.ana_tx_drv_idrv_iup_ctrl		= 0x7,
+	.ana_tx_drv_accdrv_en			= 0x0,
+	.ana_tx_drv_accdrv_ctrl			= 0x4,
+	.tx_drv_pre_lvl_ctrl			= 0x00,
+};
+
 static const struct reg_sequence rk_hdptx_common_lane_init_seq[] = {
-	REG_SEQ0(LANE_REG(0303), 0x0c),
-	REG_SEQ0(LANE_REG(0307), 0x20),
 	REG_SEQ0(LANE_REG(030a), 0x17),
 	REG_SEQ0(LANE_REG(030b), 0x77),
 	REG_SEQ0(LANE_REG(030c), 0x77),
@@ -749,8 +771,6 @@ static const struct reg_sequence rk_hdptx_common_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(031b), 0x01),
 	REG_SEQ0(LANE_REG(031f), 0x15),
 	REG_SEQ0(LANE_REG(0320), 0xa0),
-	REG_SEQ0(LANE_REG(0403), 0x0c),
-	REG_SEQ0(LANE_REG(0407), 0x20),
 	REG_SEQ0(LANE_REG(040a), 0x17),
 	REG_SEQ0(LANE_REG(040b), 0x77),
 	REG_SEQ0(LANE_REG(040c), 0x77),
@@ -762,8 +782,6 @@ static const struct reg_sequence rk_hdptx_common_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(041b), 0x01),
 	REG_SEQ0(LANE_REG(041f), 0x15),
 	REG_SEQ0(LANE_REG(0420), 0xa0),
-	REG_SEQ0(LANE_REG(0503), 0x0c),
-	REG_SEQ0(LANE_REG(0507), 0x20),
 	REG_SEQ0(LANE_REG(050a), 0x17),
 	REG_SEQ0(LANE_REG(050b), 0x77),
 	REG_SEQ0(LANE_REG(050c), 0x77),
@@ -775,8 +793,6 @@ static const struct reg_sequence rk_hdptx_common_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(051b), 0x01),
 	REG_SEQ0(LANE_REG(051f), 0x15),
 	REG_SEQ0(LANE_REG(0520), 0xa0),
-	REG_SEQ0(LANE_REG(0603), 0x0c),
-	REG_SEQ0(LANE_REG(0607), 0x20),
 	REG_SEQ0(LANE_REG(060a), 0x17),
 	REG_SEQ0(LANE_REG(060b), 0x77),
 	REG_SEQ0(LANE_REG(060c), 0x77),
@@ -795,26 +811,6 @@ static const struct reg_sequence rk_hdptx_frl_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(0412), 0x3c),
 	REG_SEQ0(LANE_REG(0512), 0x3c),
 	REG_SEQ0(LANE_REG(0612), 0x3c),
-	REG_SEQ0(LANE_REG(0303), 0x2f),
-	REG_SEQ0(LANE_REG(0403), 0x2f),
-	REG_SEQ0(LANE_REG(0503), 0x2f),
-	REG_SEQ0(LANE_REG(0603), 0x2f),
-	REG_SEQ0(LANE_REG(0305), 0x03),
-	REG_SEQ0(LANE_REG(0405), 0x03),
-	REG_SEQ0(LANE_REG(0505), 0x03),
-	REG_SEQ0(LANE_REG(0605), 0x03),
-	REG_SEQ0(LANE_REG(0306), 0xfc),
-	REG_SEQ0(LANE_REG(0406), 0xfc),
-	REG_SEQ0(LANE_REG(0506), 0xfc),
-	REG_SEQ0(LANE_REG(0606), 0xfc),
-	REG_SEQ0(LANE_REG(0305), 0x4f),
-	REG_SEQ0(LANE_REG(0405), 0x4f),
-	REG_SEQ0(LANE_REG(0505), 0x4f),
-	REG_SEQ0(LANE_REG(0605), 0x4f),
-	REG_SEQ0(LANE_REG(0304), 0x14),
-	REG_SEQ0(LANE_REG(0404), 0x14),
-	REG_SEQ0(LANE_REG(0504), 0x14),
-	REG_SEQ0(LANE_REG(0604), 0x14),
 	/* Keep Inter-Pair Skew in the limits */
 	REG_SEQ0(LANE_REG(031e), 0x02),
 	REG_SEQ0(LANE_REG(041e), 0x02),
@@ -827,18 +823,6 @@ static const struct reg_sequence rk_hdptx_tmds_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(0412), 0x00),
 	REG_SEQ0(LANE_REG(0512), 0x00),
 	REG_SEQ0(LANE_REG(0612), 0x00),
-	REG_SEQ0(LANE_REG(0303), 0x2f),
-	REG_SEQ0(LANE_REG(0403), 0x2f),
-	REG_SEQ0(LANE_REG(0503), 0x2f),
-	REG_SEQ0(LANE_REG(0603), 0x2f),
-	REG_SEQ0(LANE_REG(0305), 0x03),
-	REG_SEQ0(LANE_REG(0405), 0x03),
-	REG_SEQ0(LANE_REG(0505), 0x03),
-	REG_SEQ0(LANE_REG(0605), 0x03),
-	REG_SEQ0(LANE_REG(0306), 0x1c),
-	REG_SEQ0(LANE_REG(0406), 0x1c),
-	REG_SEQ0(LANE_REG(0506), 0x1c),
-	REG_SEQ0(LANE_REG(0606), 0x1c),
 	/* Keep Inter-Pair Skew in the limits */
 	REG_SEQ0(LANE_REG(031e), 0x02),
 	REG_SEQ0(LANE_REG(041e), 0x02),
@@ -1474,9 +1458,11 @@ static int rk_hdptx_pll_cmn_config(struct rk_hdptx_phy *hdptx)
  * shared by the DP and HDMI paths.
  */
 static void rk_hdptx_lane_write_drv_ctrl(struct rk_hdptx_phy *hdptx,
-					 const struct tx_drv_ctrl *ctrl, u8 lane)
+					 const struct tx_drv_ctrl *ctrl, u8 lane,
+					 enum phy_mode mode)
 {
-	bool is_dp = phy_get_mode(hdptx->phy) == PHY_MODE_DP;
+	bool is_hdmi = mode == PHY_MODE_HDMI;
+	bool is_frl = is_hdmi && hdptx->hdmi_cfg.rate > HDMI20_MAX_RATE;
 	u32 offset = lane * 0x400;
 	u32 mask, val;
 
@@ -1491,36 +1477,51 @@ static void rk_hdptx_lane_write_drv_ctrl(struct rk_hdptx_phy *hdptx,
 	regmap_update_bits(hdptx->regmap, LANE_REG(0304) + offset, mask, val);
 
 	mask = OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK | LN_TX_DRV_PRE_LVL_CTRL_MASK;
-	val = FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK, 0x1) |
-	      FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, ctrl->tx_drv_pre_lvl_ctrl);
+	val = FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL_MASK, ctrl->tx_drv_pre_lvl_ctrl);
+	if (is_hdmi) {
+		mask |= OVRD_LN_TX_DRV_IDRV_EN_MASK | LN_TX_DRV_IDRV_EN_MASK;
+		val |= FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK, is_frl) |
+		       FIELD_PREP(OVRD_LN_TX_DRV_IDRV_EN_MASK, 0x1) |
+		       FIELD_PREP(LN_TX_DRV_IDRV_EN_MASK, 0x1);
+	} else {
+		val |= FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL_MASK, 0x1);
+	}
 	regmap_update_bits(hdptx->regmap, LANE_REG(0305) + offset, mask, val);
 
-	mask = LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK |
-	       LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK | LN_ANA_TX_DRV_ACCDRV_EN_MASK;
+	mask = LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK | LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK |
+	       LN_ANA_TX_DRV_ACCDRV_EN_MASK;
 	val = FIELD_PREP(LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK, ctrl->ana_tx_drv_idrv_idn_ctrl) |
 	      FIELD_PREP(LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK, ctrl->ana_tx_drv_idrv_iup_ctrl) |
 	      FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_EN_MASK, ctrl->ana_tx_drv_accdrv_en);
 	regmap_update_bits(hdptx->regmap, LANE_REG(0306) + offset, mask, val);
 
 	mask = LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK | LN_ANA_TX_DRV_ACCDRV_CTRL_MASK;
-	val = FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK, is_dp ? 0x1 : 0x0) |
+	val = FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_POL_SEL_MASK, !is_hdmi) |
 	      FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_CTRL_MASK, ctrl->ana_tx_drv_accdrv_ctrl);
 	regmap_update_bits(hdptx->regmap, LANE_REG(0307) + offset, mask, val);
 }
 
 static int rk_hdptx_frl_lcpll_mode_config(struct rk_hdptx_phy *hdptx)
 {
+	int lane;
+
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_sb_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_frl_lntop_init_seq);
 
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_lane_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_frl_lane_init_seq);
 
+	for (lane = 0; lane < 4; lane++)
+		rk_hdptx_lane_write_drv_ctrl(hdptx, &rk_hdptx_frl_tx_drv_ctrl, lane,
+					     PHY_MODE_HDMI);
+
 	return rk_hdptx_post_enable_lane(hdptx);
 }
 
 static int rk_hdptx_tmds_ropll_mode_config(struct rk_hdptx_phy *hdptx)
 {
+	int lane;
+
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_sb_init_seq);
 
 	regmap_write(hdptx->regmap, LNTOP_REG(0200), 0x06);
@@ -1537,6 +1538,10 @@ static int rk_hdptx_tmds_ropll_mode_config(struct rk_hdptx_phy *hdptx)
 
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_lane_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_tmds_lane_init_seq);
+
+	for (lane = 0; lane < 4; lane++)
+		rk_hdptx_lane_write_drv_ctrl(hdptx, &rk_hdptx_tmds_tx_drv_ctrl, lane,
+					     PHY_MODE_HDMI);
 
 	return rk_hdptx_post_enable_lane(hdptx);
 }
@@ -2399,7 +2404,7 @@ static void rk_hdptx_phy_set_voltage(struct rk_hdptx_phy *hdptx,
 		break;
 	}
 
-	rk_hdptx_lane_write_drv_ctrl(hdptx, ctrl, lane);
+	rk_hdptx_lane_write_drv_ctrl(hdptx, ctrl, lane, PHY_MODE_DP);
 
 	regmap_update_bits(hdptx->regmap, LANE_REG(030a) + offset,
 			   LN_ANA_TX_JEQ_EN_MASK,
