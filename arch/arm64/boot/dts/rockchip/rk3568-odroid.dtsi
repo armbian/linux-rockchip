@@ -91,6 +91,7 @@
 	status = "disabled";
 
 	/delete-node/ gt1x@14;
+	/delete-node/ hynitron@5a;
 };
 
 &i2c2 {
