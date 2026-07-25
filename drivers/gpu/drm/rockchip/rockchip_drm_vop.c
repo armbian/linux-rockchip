@@ -54,6 +54,8 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_rgb.h"
 
+#define VOP_READ_POLL_DELAY_US		10
+
 #define VOP_REG_SUPPORT(vop, reg) \
 		(reg.mask && \
 		 (!reg.major || \
@@ -1234,7 +1236,7 @@ static void vop_disable_all_planes(struct vop *vop)
 	vop_cfg_done(vop);
 	ret = readx_poll_timeout_atomic(vop_is_allwin_disabled,
 					vop, active, active,
-					0, 500 * 1000);
+					VOP_READ_POLL_DELAY_US, 500 * 1000);
 	if (ret)
 		dev_err(vop->dev, "wait win close timeout\n");
 }
@@ -4141,7 +4143,7 @@ static void vop_wait_for_fs_by_done_bit_status(struct vop *vop, u32 vrefresh)
 	int ret;
 
 	ret = readx_poll_timeout_atomic(vop_done_bit_status, vop, done_bit,
-					done_bit, 0, timeout_us * 3 / 2);
+					done_bit, VOP_READ_POLL_DELAY_US, timeout_us * 3 / 2);
 	if (ret)
 		DRM_DEV_ERROR(vop->dev, "wait done bit status timeout\n");
 }
@@ -4995,7 +4997,7 @@ static void vop_wait_for_irq_handler(struct vop *vop)
 	 * shouldn't exceed microseconds range.
 	 */
 	ret = readx_poll_timeout_atomic(vop_fs_irq_is_pending, vop, pending,
-					!pending, 0, 10 * 1000);
+					!pending, VOP_READ_POLL_DELAY_US, 10 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop->dev, "VOP vblank IRQ stuck for 10 ms\n");
 
