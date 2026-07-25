@@ -17868,6 +17868,7 @@ static irqreturn_t vop3_sys_isr(int irq, void *data)
 		if (active_irqs & WB_COMPLETE_INTR) {
 			active_irqs &= ~WB_COMPLETE_INTR;
 			vop3_writeback_complete(vop2);
+			ret = IRQ_HANDLED;
 		}
 		/* Unhandled irqs are spurious. */
 		if (active_irqs)
