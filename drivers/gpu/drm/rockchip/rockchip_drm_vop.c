@@ -5487,6 +5487,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 		if (active_irqs & VOPL_WB_COMPLETE_INTR) {
 			active_irqs &= ~VOPL_WB_COMPLETE_INTR;
 			vop_wb_complete(vop);
+			ret = IRQ_HANDLED;
 		}
 		if (active_irqs)
 			DRM_ERROR("Unknown writeback IRQs: %02x\n", active_irqs);
