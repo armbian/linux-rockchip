@@ -262,7 +262,7 @@
 	status = "okay";
 
 	#sound-dai-cells = <1>;
-	edid-version = <3>;
+	edid-version = <2>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
