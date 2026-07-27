@@ -2695,7 +2695,7 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 			v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "%s %d, stream[%d] lack buf %d\n",
 				 __func__, __LINE__, buf_stream->id, buf_stream->lack_buf_cnt);
 		}
-		 buf_stream->buf_state.state = RKCIF_BUF_LOSS;
+		buf_stream->buf_state.state = RKCIF_BUF_LOSS;
 	}
 
 	if (!buf_stream->next_buf_toisp) {
@@ -3130,6 +3130,16 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 		stream->frame_phase = CIF_CSI_FRAME0_READY;
 	frame_phase = stream->frame_phase;
 
+	/*
+	 * LOSS first-window recovery: fill both ping-pong slots with the
+	 * first returned buffer. Decide is_dual_update from LOSS state
+	 * before dequeue; the dual-update itself is gated on buffer
+	 * presence (need a buffer to fill both slots).
+	 */
+	if (buf_stream->buf_state.state == RKCIF_BUF_LOSS &&
+	    buf_stream->buf_state.check_cnt == 0)
+		is_dual_update = true;
+
 	if ((buf_stream->buf_state.state == RKCIF_BUF_LOSS ||
 	     buf_stream->buf_state.state == RKCIF_BUF_THESAME) &&
 	    buf_stream->buf_state.check_cnt == 0)
@@ -3210,18 +3220,16 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 						 (u32)buf_stream->next_buf_toisp->dummy.dma_addr);
 			}
 		}
-		if (buf_stream->lack_buf_cnt)
+		/*
+		 * Gate on buffer: sister helpers decrement unconditionally
+		 * in the !list_empty path. Here frame_phase may match
+		 * neither ping-pong slot, so only count a recovery when
+		 * a buffer was actually dequeued.
+		 */
+		if (buffer && buf_stream->lack_buf_cnt)
 			buf_stream->lack_buf_cnt--;
 	}
-	/*
-	 * Decide dual-update from source condition:
-	 * only enter when LOSS-recovery first window is active and this
-	 * update cycle did not dequeue a fresh rx buffer.
-	 */
-	is_dual_update = (buf_stream->buf_state.state == RKCIF_BUF_LOSS &&
-			  buf_stream->buf_state.check_cnt == 0 &&
-			  !buffer);
-	if (is_dual_update) {
+	if (is_dual_update && buffer) {
 		struct rkcif_rx_buffer *old_curr = buf_stream->curr_buf_toisp;
 		struct rkcif_rx_buffer *old_next = buf_stream->next_buf_toisp;
 		bool dump_dual = ((dev->rdbk_debug > 1 &&
@@ -16139,61 +16147,32 @@ static void rkcif_clean_buffer_state(struct rkcif_stream *stream)
 			stream->next_buf = NULL;
 		}
 	} else {
-		if (priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
-			if (stream->curr_buf_toisp == stream->next_buf_toisp) {
-				if (stream->curr_buf_toisp) {
-					if (!stream->curr_buf_toisp->in_rx_list) {
-						stream->curr_buf_toisp->in_isp = false;
-						list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
-						stream->curr_buf_toisp->in_rx_list = true;
-					}
-				}
-			} else {
-				if (stream->curr_buf_toisp) {
-					if (!stream->curr_buf_toisp->in_rx_list) {
-						stream->curr_buf_toisp->in_isp = false;
-						list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
-						stream->curr_buf_toisp->in_rx_list = true;
-					}
-				}
-				if (stream->next_buf_toisp) {
-					if (!stream->next_buf_toisp->in_rx_list) {
-						stream->next_buf_toisp->in_isp = false;
-						list_add_tail(&stream->next_buf_toisp->list, &stream->rx_buf_head);
-						stream->next_buf_toisp->in_rx_list = true;
-					}
-				}
+		if (stream->curr_buf_toisp == stream->next_buf_toisp) {
+			if (stream->curr_buf_toisp &&
+			    !stream->curr_buf_toisp->in_rx_list &&
+			    stream->curr_buf_toisp->dummy.is_allocated) {
+				stream->curr_buf_toisp->in_isp = false;
+				list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
+				stream->curr_buf_toisp->in_rx_list = true;
 			}
-			stream->curr_buf_toisp = NULL;
-			stream->next_buf_toisp = NULL;
 		} else {
-			if (stream->curr_buf_toisp == stream->next_buf_toisp) {
-				if (stream->curr_buf_toisp) {
-					if (!stream->curr_buf_toisp->in_rx_list) {
-						stream->curr_buf_toisp->in_isp = false;
-						list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
-						stream->curr_buf_toisp->in_rx_list = true;
-					}
-				}
-			} else {
-				if (stream->curr_buf_toisp) {
-					if (!stream->curr_buf_toisp->in_rx_list) {
-						stream->curr_buf_toisp->in_isp = false;
-						list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
-						stream->curr_buf_toisp->in_rx_list = true;
-					}
-				}
-				if (stream->next_buf_toisp) {
-					if (!stream->next_buf_toisp->in_rx_list) {
-						stream->next_buf_toisp->in_isp = false;
-						list_add_tail(&stream->next_buf_toisp->list, &stream->rx_buf_head);
-						stream->next_buf_toisp->in_rx_list = true;
-					}
-				}
+			if (stream->curr_buf_toisp &&
+			    !stream->curr_buf_toisp->in_rx_list &&
+			    stream->curr_buf_toisp->dummy.is_allocated) {
+				stream->curr_buf_toisp->in_isp = false;
+				list_add_tail(&stream->curr_buf_toisp->list, &stream->rx_buf_head);
+				stream->curr_buf_toisp->in_rx_list = true;
 			}
-			stream->curr_buf_toisp = NULL;
-			stream->next_buf_toisp = NULL;
+			if (stream->next_buf_toisp &&
+			    !stream->next_buf_toisp->in_rx_list &&
+			    stream->next_buf_toisp->dummy.is_allocated) {
+				stream->next_buf_toisp->in_isp = false;
+				list_add_tail(&stream->next_buf_toisp->list, &stream->rx_buf_head);
+				stream->next_buf_toisp->in_rx_list = true;
+			}
 		}
+		stream->curr_buf_toisp = NULL;
+		stream->next_buf_toisp = NULL;
 	}
 
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);

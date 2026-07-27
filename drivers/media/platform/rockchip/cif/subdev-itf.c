@@ -100,8 +100,17 @@ static void sditf_buffree_work(struct work_struct *work)
 					  struct rkcif_rx_buffer, list_free);
 		if (rx_buf) {
 			list_del(&rx_buf->list_free);
-			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
-			rkcif_free_reserved_mem_area(priv->cif_dev, rx_buf);
+			/*
+			 * rkcif_free_reserved_mem_buf() already returns
+			 * early if !is_allocated, but
+			 * rkcif_free_reserved_mem_area() does not, and
+			 * the buf helper clears is_allocated on success.
+			 * Guard both so reserved area is not freed twice.
+			 */
+			if (rx_buf->dummy.is_allocated) {
+				rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
+				rkcif_free_reserved_mem_area(priv->cif_dev, rx_buf);
+			}
 			memset(rx_buf, 0, sizeof(*rx_buf));
 		}
 	}
@@ -1433,6 +1442,20 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 				  "stream[%d] skip duplicate return enqueue, dma=0x%x seq=%u\n",
 				  stream->id, (u32)rx_buf->dummy.dma_addr, dbufs->sequence);
 			sditf_dump_rx_buf_state(stream, rx_buf, "dup_return_enqueue", dbufs->sequence);
+			goto out_unlock;
+		}
+		/*
+		 * Do not use dma_addr==0 as invalid: IOMMU may map to 0.
+		 * is_allocated is set by alloc paths (incl. reserved/thunderboot
+		 * which may not set mem_priv).
+		 */
+		if (!rx_buf->dummy.is_allocated) {
+			atomic_dec(&stream->buf_cnt);
+			v4l2_warn(&cif_dev->v4l2_dev,
+				  "stream[%d] reject already-freed rx_buf, dma=0x%x seq=%u\n",
+				  stream->id, (u32)rx_buf->dummy.dma_addr, dbufs->sequence);
+			sditf_dump_rx_buf_state(stream, rx_buf, "unallocated_rx_return",
+						dbufs->sequence);
 			goto out_unlock;
 		}
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "+%d+ stream[%d] add 0x%x to list %p\n",
