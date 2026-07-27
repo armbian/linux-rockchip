@@ -68,16 +68,6 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		uart_rts_gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart2m0_rtsn_pins>;
-		pinctrl-1 = <&uart2_gpios>;
-		BT,power_gpio = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -469,12 +459,6 @@
 		};
 	};
 
-	wireless-bluetooth {
-		uart2_gpios: uart2-gpios {
-			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
 	wireless-wlan {
 		wifi_wake_host: wifi-wake-host {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -573,7 +557,15 @@
 &uart2 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2m0_xfer_pins &uart2m0_ctsn_pins>;
+	pinctrl-0 = <&uart2m0_xfer_pins &uart2m0_ctsn_pins &uart2m0_rtsn_pins>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "rockchip,rk960-bt";
+		max-speed = <1500000>;
+		shutdown-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &usb2phy_host {
