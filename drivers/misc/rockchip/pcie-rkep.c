@@ -34,7 +34,7 @@
 #endif
 
 #define DRV_NAME "pcie-rkep"
-#define DRV_VERSION 0x00030300
+#define DRV_VERSION 0x00030301
 
 #ifndef PCI_VENDOR_ID_ROCKCHIP
 #define PCI_VENDOR_ID_ROCKCHIP          0x1d87
@@ -101,7 +101,7 @@
 
 #define PCIE_ELBI_REG_NUM		0x2
 
-#define RKEP_EP_ELBI_TIEMOUT_US		100000
+#define RKEP_EP_ELBI_TIMEOUT_US		100000
 
 #define PCIE_RK3568_RC_DBI_BASE		0xf6000000
 #define PCIE_RK3588_RC_DBI_BASE		0xf5000000
@@ -165,7 +165,6 @@ static bool pcie_rkep_wait_for_link_up(struct pci_dev *pdev)
 	int timeout = 1000;
 	bool ret;
 	u16 lnk_status;
-	bool active = true;
 	struct pci_dev *bridge;
 
 	bridge = pci_upstream_bridge(pdev);
@@ -179,12 +178,11 @@ static bool pcie_rkep_wait_for_link_up(struct pci_dev *pdev)
 	 * If the link fails to activate, either the device was physically
 	 * removed or the link is permanently failed.
 	 */
-	if (active)
-		msleep(20);
+	msleep(20);
 	for (;;) {
 		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &lnk_status);
 		ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
-		if (ret == active)
+		if (ret)
 			break;
 		if (timeout <= 0)
 			break;
@@ -201,10 +199,8 @@ static bool pcie_rkep_is_link_lost(struct pci_dev *pdev)
 
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_4, &bar4);
-	if ((bar0 == 0xffffffff || bar0 == 0) && (bar4 == 0xffffffff || bar4 == 0))
-		return true;
-	else
-		return false;
+	return (bar0 == 0xffffffff || bar0 == 0) &&
+	       (bar4 == 0xffffffff || bar4 == 0);
 }
 
 static int pcie_rkep_get_pci_link_data(struct pcie_rkep *pcie_rkep, u16 link_status)
@@ -339,7 +335,7 @@ static int rkep_ep_raise_elbi_irq(struct pcie_file *pcie_file, u32 interrupt_num
 	index = interrupt_num / 16;
 	off = interrupt_num % 16;
 
-	for (i = 0; i < RKEP_EP_ELBI_TIEMOUT_US; i += gap_us) {
+	for (i = 0; i < RKEP_EP_ELBI_TIMEOUT_US; i += gap_us) {
 		pci_read_config_dword(pcie_rkep->pdev, PCIE_CFG_ELBI_APP_OFFSET + 4 * index, &val);
 		if (val & BIT(off))
 			usleep_range(gap_us, gap_us + 10);
