@@ -46,11 +46,23 @@ rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct isp39_dhaz_stat *dhaz;
 	int value, i, j, timeout;
 
-	if (!pbuf)
-		return 0;
-
 	value = isp3_stats_read(stats_vdev, ISP3X_DHAZ_CTRL);
 	if (value & ISP_DHAZ_ENMUX) {
+		if (dev->hw_dev->is_frm_buf) {
+			/* STAB_FRAME and PRE_FRAME no save to frm_buf,
+			 * recovery by software read and write.
+			 */
+			value = rkisp_read(dev, ISP39_DHAZ_STAB_FRAME, true);
+			rkisp_idx_write(dev, ISP39_DHAZ_STAB_FRAME, value,
+					dev->unite_index, false);
+			value = rkisp_read(dev, ISP39_DHAZ_PRE_FRAME, true);
+			rkisp_idx_write(dev, ISP39_DHAZ_PRE_FRAME, value,
+					dev->unite_index, false);
+		}
+
+		if (!pbuf)
+			return 0;
+
 		dhaz = &pbuf->stat.dhaz;
 
 		value = isp3_stats_read(stats_vdev, ISP39_DHAZ_ADP_RD0);

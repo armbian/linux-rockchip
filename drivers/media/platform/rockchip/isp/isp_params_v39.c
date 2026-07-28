@@ -14,6 +14,9 @@
 #define ISP39_SELF_FORCE_UPD			BIT(31)
 #define ISP39_REG_WR_MASK			BIT(31) //disable write protect
 
+#define ISP39_DHAZ_HIST_EN			BIT(8)
+#define ISP39_DHAZ_ENHANCE_EN			BIT(20)
+
 #define ISP39_AUTO_BIGMODE_WIDTH		2688
 #define ISP39_NOBIG_OVERFLOW_SIZE		(2688 * 1536)
 
@@ -2391,7 +2394,6 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		!!arg->enhance_en << 20 | !!arg->soft_wr_en << 25 |
 		!!arg->round_en << 26 | !!arg->color_deviate_en << 27 |
 		!!arg->enh_luma_en << 28;
-	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
 
 	value = ISP_PACK_4BYTE(arg->dc_min_th, arg->dc_max_th,
 			       arg->yhist_th, arg->yblk_th);
@@ -2503,11 +2505,24 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 				ISP39_DHAZ_THUMB_ROW_MAX : arg->thumb_row & ~1;
 	thumb_col = arg->thumb_col > ISP39_DHAZ_THUMB_COL_MAX ?
 				ISP39_DHAZ_THUMB_COL_MAX : arg->thumb_col & ~1;
-	if (dev->hw_dev->dev_link_num > 1 && thumb_row > 4 &&
-	    !dev->hw_dev->is_frm_buf && thumb_col > 4) {
+	if (dev->hw_dev->dev_link_num > 1 && dev->hw_dev->is_frm_buf) {
+		/* DHAZ_DDR_SIZE=ceil(w/32)*ceil(ceil(h/32)/4)-1
+		 * max ram size for w=4352 h=6048, set max ddr_size=0x197f
+		 * to circumvent max resolution to run first for multi-sensor.
+		 * and fix thumb to 4x4, it does not support dynamic switching.
+		 */
+		isp3_param_write(params_vdev, 0x197f, ISP39_DHAZ_DDR_SIZE, id);
 		thumb_row = 4;
 		thumb_col = 4;
+
+		value = ISP39_DHAZ_HIST_EN | ISP39_DHAZ_ENHANCE_EN;
+		if ((ctrl & value) != value) {
+			ctrl |= value;
+			dev_warn(dev->dev, "dhaz enhance/hist should en together, please check iq config\n");
+		}
 	}
+	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
+
 	blk_het = ALIGN(h / thumb_row, 2);
 	blk_wid = ALIGN(w / thumb_col, 2);
 	priv_val->dhaz_blk_num = thumb_row * thumb_col;
