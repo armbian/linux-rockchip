@@ -2571,6 +2571,7 @@
 		clock-names = "usr", "sbpi", "apb", "phy";
 		resets = <&cru SRST_OTPPHY>;
 		reset-names = "otp_phy";
+		rockchip,otp-cache;
 
 		/* Data cells */
 		cpu_code: cpu-code@2 {
