@@ -35,7 +35,7 @@
 	vehicle_dummy: vehicle-dummy {
 		status = "okay";
 		compatible = "rockchip,vehicle-dummy-adc";
-		io-channels = <&saradc 4>, <&saradc 5>, <&saradc 6>;
+		io-channels = <&saradc 4>, <&saradc 7>, <&saradc 5>;
 		io-channel-names = "gear", "turn_left", "turn_right";
 	};
 
