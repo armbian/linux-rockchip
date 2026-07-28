@@ -527,8 +527,6 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 		inno->pll.postdiv = best_postdiv;
 		inno->pll.rate = best_freq;
 		inno->pll.lowfre_en = best_postdiv ? true : false;
-		dev_dbg(inno->dev, "best_prediv:%d best_fbdiv:%d best_postdiv:%d fvco:%llu\n",
-			best_prediv, best_fbdiv, best_postdiv, fvco);
 	}
 
 	return best_freq;
@@ -667,7 +665,7 @@ static void inno_mipi_dphy_max_2_5ghz_pll_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
 			PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE(inno->pll.lowfre_en));
 	if (inno->pll.lowfre_en)
-		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x2a,
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1e,
 				REG_POSTDIV_MASK, REG_POSTDIV(inno->pll.postdiv));
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
 			CLOCK_LANE_VOD_RANGE_SET_MASK,
@@ -1149,6 +1147,9 @@ static int inno_dsidphy_configure(struct phy *phy,
 
 	cfg->hs_clk_rate = inno->pll.rate;
 	opts->mipi_dphy.hs_clk_rate = inno->pll.rate;
+
+	dev_dbg(inno->dev, "prediv:%u, fbdiv:%u, postdiv:%d, lowfre_en:%d\n",
+		inno->pll.prediv, inno->pll.fbdiv, inno->pll.postdiv, inno->pll.lowfre_en);
 
 	return 0;
 }
