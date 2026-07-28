@@ -24,6 +24,7 @@
 
 #define DRIVER_NAME			"rk-dma"
 #define DMA_MAX_SIZE			(0x1000000)
+#define LLI_BLOCK_SIZE			(SZ_4K)
 #define RK_DMA_VER(major, minor)	(((major) << 16) | ((minor) << 0))
 
 #define RK_MAX_BURST_LEN		16
@@ -40,11 +41,18 @@
 
 #define RK_DMA_CMN_GROUP_SIZE		0x100
 #define RK_DMA_LCH_GROUP_SIZE		0x40
+#define RK_DMA_CMN_GROUP_SIZE_V10	0x40
+#define RK_DMA_PCH_GROUP_SIZE_V10	0x40
 
 #define RK_DMA_CMN_REG(x)		(d->base + (x))
 #define RK_DMA_LCH_REG(x)		(l->base + (x))
 #define RK_DMA_LCHn_REG(n, x)		(d->base + RK_DMA_CMN_GROUP_SIZE + \
 					 (RK_DMA_LCH_GROUP_SIZE * (n)) + (x))
+#define RK_DMA_LCHn_REG_V10(n, x)	(d->base + RK_DMA_CMN_GROUP_SIZE_V10 + \
+					 (RK_DMA_LCH_GROUP_SIZE * (n)) + (x))
+#define RK_DMA_PCHn_REG_V10(n, x)	(d->base + RK_DMA_CMN_GROUP_SIZE_V10 + \
+					 (RK_DMA_LCH_GROUP_SIZE * (d->dma_channels)) + \
+					 (RK_DMA_PCH_GROUP_SIZE_V10 * (n)) + (x))
 
 /* RK_DMA Common Register Define */
 #define RK_DMA_CMN_VER			RK_DMA_CMN_REG(0x0000) /* Address Offset: 0x0000 */
@@ -55,12 +63,17 @@
 #define RK_DMA_CMN_DYNCTL		RK_DMA_CMN_REG(0x0014) /* Address Offset: 0x0014 */
 #define RK_DMA_CMN_IS0			RK_DMA_CMN_REG(0x0018) /* Address Offset: 0x0018 */
 #define RK_DMA_CMN_IS1			RK_DMA_CMN_REG(0x001c) /* Address Offset: 0x001C */
+/* Offset 0x0020 is PERISEL0 on v1.0 and IE0 on newer controllers. */
+#define RK_DMA_CMN_PERISEL0_V10		RK_DMA_CMN_REG(0x0020) /* Address Offset: 0x0020 */
 #define RK_DMA_CMN_IE0			RK_DMA_CMN_REG(0x0020) /* Address Offset: 0x0020 */
 #define RK_DMA_CMN_IE1			RK_DMA_CMN_REG(0x0024) /* Address Offset: 0x0024 */
 #define RK_DMA_CMN_CAP0			RK_DMA_CMN_REG(0x0030) /* Address Offset: 0x0030 */
 #define RK_DMA_CMN_CAP1			RK_DMA_CMN_REG(0x0034) /* Address Offset: 0x0034 */
 #define RK_DMA_CMN_PCH_EN		RK_DMA_CMN_REG(0x0040) /* Address Offset: 0x0040 */
 #define RK_DMA_CMN_PCH_SEN		RK_DMA_CMN_REG(0x0044) /* Address Offset: 0x0044 */
+
+/* RK_DMA v1.0 Physical Channel Register Define */
+#define RK_DMA_PCHn_CTL_V10(n)		RK_DMA_PCHn_REG_V10(n, 0x0000)
 
 /* RK_DMA_Logic Channel Register Define */
 #define RK_DMA_LCH_CTL0			RK_DMA_LCH_REG(0x0000) /* Address Offset: 0x0000 */
@@ -151,10 +164,15 @@
 #define CMN_PCH_S_EN(n)			HIWORD_UPDATE(1, (n), (n))
 #define CMN_PCH_S_DIS(n)		HIWORD_UPDATE(0, (n), (n))
 
+/* PCH_CTL */
+#define PCH_CTL_CH_EN			HIWORD_UPDATE(1, 0, 0)
+
 /* LCH_CTL0 */
 #define LCH_CTL0_CH_EN_MASK		BIT(0)
 #define LCH_CTL0_CH_EN			BIT(0)
 #define LCH_CTL0_CH_DIS			0
+#define LCH_CTL_CH_EN_V10		HIWORD_UPDATE(1, 0, 0)
+#define LCH_CTL_CH_DIS_V10		HIWORD_UPDATE(0, 0, 0)
 
 /* LCH_CTL1 */
 #define LCH_CTL1_WFE_ID_MASK		GENMASK(5, 0)
@@ -392,21 +410,34 @@ struct rk_lli {
 	u32 dar;
 	u32 block_ts;
 	u32 llp_nxt;
-	u16 sar_high;
-	u16 dar_high;
-	u16 llp_nxt_high;
-	u16 lli_idx;
-	u32 trf_cfg;
-	u32 block_cs;
-	u32 sar_reload;
-	u32 dar_reload;
-	u16 sar_reload_high;
-	u16 dar_reload_high;
-	u8  stride_ch_num;
-	u8  stride_ch_size;
-	u16 rsv0;
-	u32 stride_inc;
-	u32 rsv1;
+	union {
+		struct {
+			u16 sar_high;
+			u16 dar_high;
+			u16 llp_nxt_high;
+			u16 lli_idx;
+			u32 trf_cfg;
+			u32 block_cs;
+			u32 sar_reload;
+			u32 dar_reload;
+			u16 sar_reload_high;
+			u16 dar_reload_high;
+			u8  stride_ch_num;
+			u8  stride_ch_size;
+			u16 rsv0;
+			u32 stride_inc;
+			u32 rsv1;
+		} v11;
+		struct {
+			u32 llp_cur;
+			u32 trf_cfg;
+			u32 block_cs;
+			u32 rsv;
+			u32 sar_reload;
+			u32 dar_reload;
+			u32 rsvd[4];
+		} v10;
+	};
 } __aligned(32);
 
 struct rk_desc_hw {
@@ -473,6 +504,46 @@ struct rk_dma_dev {
 	spinlock_t		lock; /* lock for ch and lch */
 };
 
+static bool rk_dma_is_v10(struct rk_dma_dev *d)
+{
+	return d->version <= RK_DMA_VER(1, 0);
+}
+
+static void __iomem *rk_dma_lch_base(struct rk_dma_dev *d, u32 id)
+{
+	if (rk_dma_is_v10(d))
+		return RK_DMA_LCHn_REG_V10(id, 0);
+
+	return RK_DMA_LCHn_REG(id, 0);
+}
+
+static void rk_dma_lli_set_next(struct rk_dma_dev *d, struct rk_lli *lli,
+				dma_addr_t addr)
+{
+	lli->llp_nxt = lower_32_bits(addr);
+	if (!rk_dma_is_v10(d))
+		lli->v11.llp_nxt_high = upper_32_bits(addr);
+}
+
+static void rk_dma_lli_set_addr(struct rk_dma_dev *d, struct rk_lli *lli,
+				dma_addr_t src, dma_addr_t dst)
+{
+	lli->sar = lower_32_bits(src);
+	lli->dar = lower_32_bits(dst);
+	if (!rk_dma_is_v10(d)) {
+		lli->v11.sar_high = upper_32_bits(src);
+		lli->v11.dar_high = upper_32_bits(dst);
+	}
+}
+
+static void rk_dma_lli_set_cfg(struct rk_dma_dev *d, struct rk_lli *lli, u32 cfg)
+{
+	if (rk_dma_is_v10(d))
+		lli->v10.trf_cfg = cfg;
+	else
+		lli->v11.trf_cfg = cfg;
+}
+
 static struct rk_dma_chan *to_rk_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct rk_dma_chan, vc.chan);
@@ -500,15 +571,26 @@ static void rk_dma_lch_dump_lli(struct rk_dma_lch *l, struct rk_dma_dev *d)
 		return;
 
 	for (i = 0; i < ds->desc_num; i++) {
+		u32 cfg;
+		u16 sar_high = 0, dar_high = 0, llp_nxt_high = 0;
+
 		lli = ds->desc_hw[i].lli;
 		lli_hw = ds->desc_hw[i].lli_hw;
+		if (rk_dma_is_v10(d)) {
+			cfg = lli->v10.trf_cfg;
+		} else {
+			cfg = lli->v11.trf_cfg;
+			sar_high = lli->v11.sar_high;
+			dar_high = lli->v11.dar_high;
+			llp_nxt_high = lli->v11.llp_nxt_high;
+		}
 
 		dev_dbg(d->slave.dev, "LCH%u-%u: LLI: %pad, NXT: 0x%08x%08x\n",
-			l->id, i, &lli_hw, lli->llp_nxt_high, lli->llp_nxt);
+			l->id, i, &lli_hw, llp_nxt_high, lli->llp_nxt);
 		dev_dbg(d->slave.dev, "LCH%u-%u: CT0: 0x%08x, CT1: 0x%08x, CFG: 0x%08x\n",
-			l->id, i, lli->trf_ctl0, lli->trf_ctl1, lli->trf_cfg);
+			l->id, i, lli->trf_ctl0, lli->trf_ctl1, cfg);
 		dev_dbg(d->slave.dev, "LCH%u-%u: SAR: 0x%08x%08x, DAR: 0x%08x%08x, LEN: 0x%08x\n",
-			l->id, i, lli->sar_high, lli->sar, lli->dar_high, lli->dar, lli->block_ts);
+			l->id, i, sar_high, lli->sar, dar_high, lli->dar, lli->block_ts);
 	}
 }
 #else
@@ -520,17 +602,20 @@ static void rk_dma_terminate_chan(struct rk_dma_lch *l, struct rk_dma_dev *d)
 {
 	rk_dma_lch_dump_reg(l, d);
 
-	writel(LCH_CTL0_CH_DIS, RK_DMA_LCH_CTL0);
+	writel(rk_dma_is_v10(d) ? LCH_CTL_CH_DIS_V10 : LCH_CTL0_CH_DIS,
+	       RK_DMA_LCH_CTL0);
 	writel(0x0, RK_DMA_LCH_IE);
 	writel(readl(RK_DMA_LCH_IS), RK_DMA_LCH_IS);
 }
 
-static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds)
+static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds,
+			    struct rk_dma_dev *d)
 {
 	struct rk_dma_lch *l = c->lch;
 	u32 ie = LCH_IE_ERR_ALL;
 
-	writel(LCH_CTL0_CH_EN, RK_DMA_LCH_CTL0);
+	writel(rk_dma_is_v10(d) ? LCH_CTL_CH_EN_V10 : LCH_CTL0_CH_EN,
+	       RK_DMA_LCH_CTL0);
 
 	if (c->cyclic)
 		ie |= LCH_IE_BLOCK_DONE_IE_EN;
@@ -540,7 +625,8 @@ static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds)
 	writel(ie, RK_DMA_LCH_IE);
 
 	writel(lower_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA);
-	writel(upper_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA_HIGH);
+	if (!rk_dma_is_v10(d))
+		writel(upper_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA_HIGH);
 	writel(LCH_TRF_CMD_DST_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_SRC_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_TT_FC(ds->dir) | LCH_TRF_CMD_DMA_START,
@@ -591,8 +677,12 @@ static int rk_dma_init(struct rk_dma_dev *d)
 		writel(0xffffffff, RK_DMA_CMN_IE1);
 	}
 
-	for (i = 0; i < pch; i++)
-		writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
+	for (i = 0; i < pch; i++) {
+		if (rk_dma_is_v10(d))
+			writel(PCH_CTL_CH_EN, RK_DMA_PCHn_CTL_V10(i));
+		else
+			writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
+	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(addrwidth));
 	if (ret) {
@@ -627,7 +717,7 @@ static int rk_dma_start_txd(struct rk_dma_chan *c, struct rk_dma_dev *d)
 		c->lch->ds_run = ds;
 		c->lch->ds_done = NULL;
 		/* start dma */
-		rk_dma_set_desc(c, ds);
+		rk_dma_set_desc(c, ds, d);
 		rk_dma_lch_dump_lli(c->lch, d);
 		return 0;
 	}
@@ -772,7 +862,8 @@ static void rk_dma_free_chan_resources(struct dma_chan *chan)
 	c->ctl1 = 0;
 }
 
-static int rk_dma_lch_get_bytes_xfered(struct rk_dma_lch *l)
+static int rk_dma_lch_get_bytes_xfered(struct rk_dma_lch *l,
+				       struct rk_dma_dev *d)
 {
 	struct rk_dma_desc_sw *ds = l->ds_run;
 	u64 base, cur;
@@ -783,11 +874,19 @@ static int rk_dma_lch_get_bytes_xfered(struct rk_dma_lch *l)
 
 	/* cmd_entry holds the current LLI being processed */
 	if (ds->dir == DMA_MEM_TO_DEV) {
-		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->sar_high, ds->desc_hw[1].lli->sar);
-		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->sar_high, ds->desc_hw[0].lli->sar);
+		base = ds->desc_hw[1].lli->sar;
+		cur  = ds->desc_hw[0].lli->sar;
+		if (!rk_dma_is_v10(d)) {
+			base = RK_DMA_ADDR64(ds->desc_hw[1].lli->v11.sar_high, base);
+			cur = RK_DMA_ADDR64(ds->desc_hw[0].lli->v11.sar_high, cur);
+		}
 	} else {
-		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->dar_high, ds->desc_hw[1].lli->dar);
-		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->dar_high, ds->desc_hw[0].lli->dar);
+		base = ds->desc_hw[1].lli->dar;
+		cur  = ds->desc_hw[0].lli->dar;
+		if (!rk_dma_is_v10(d)) {
+			base = RK_DMA_ADDR64(ds->desc_hw[1].lli->v11.dar_high, base);
+			cur = RK_DMA_ADDR64(ds->desc_hw[0].lli->v11.dar_high, cur);
+		}
 	}
 
 	bytes = cur - base;
@@ -813,6 +912,7 @@ static enum dma_status rk_dma_tx_status(struct dma_chan *chan,
 					struct dma_tx_state *state)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
+	struct rk_dma_dev *d = to_rk_dma(chan->device);
 	struct rk_dma_lch *l;
 	struct virt_dma_desc *vd;
 	unsigned long flags;
@@ -837,7 +937,7 @@ static enum dma_status rk_dma_tx_status(struct dma_chan *chan,
 	} else if ((!l) || (!l->ds_run)) {
 		bytes = 0;
 	} else {
-		bytes = l->ds_run->size - rk_dma_lch_get_bytes_xfered(l);
+		bytes = l->ds_run->size - rk_dma_lch_get_bytes_xfered(l, d);
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 	dma_set_residue(state, bytes);
@@ -872,27 +972,22 @@ static void rk_dma_issue_pending(struct dma_chan *chan)
 		rk_dma_task(d);
 }
 
-static void rk_dma_fill_desc(struct rk_dma_desc_sw *ds, dma_addr_t dst,
+static void rk_dma_fill_desc(struct rk_dma_dev *d, struct rk_dma_desc_sw *ds, dma_addr_t dst,
 			     dma_addr_t src, size_t len, u32 num, u32 cc0, u32 cc1, u32 ccfg)
 {
 	/* assign llp_nxt for cmd_entry */
 	if (num == 0) {
-		ds->desc_hw[0].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
-		ds->desc_hw[0].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
-		ds->desc_hw[0].lli->trf_cfg = ccfg;
+		rk_dma_lli_set_next(d, ds->desc_hw[0].lli, ds->desc_hw[1].lli_hw);
+		rk_dma_lli_set_cfg(d, ds->desc_hw[0].lli, ccfg);
 
 		return;
 	}
 
-	if ((num + 1) < ds->desc_num) {
-		ds->desc_hw[num].lli->llp_nxt = lower_32_bits(ds->desc_hw[num + 1].lli_hw);
-		ds->desc_hw[num].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[num + 1].lli_hw);
-	}
+	if ((num + 1) < ds->desc_num)
+		rk_dma_lli_set_next(d, ds->desc_hw[num].lli,
+				    ds->desc_hw[num + 1].lli_hw);
 
-	ds->desc_hw[num].lli->sar = lower_32_bits(src);
-	ds->desc_hw[num].lli->sar_high = upper_32_bits(src);
-	ds->desc_hw[num].lli->dar = lower_32_bits(dst);
-	ds->desc_hw[num].lli->dar_high = upper_32_bits(dst);
+	rk_dma_lli_set_addr(d, ds->desc_hw[num].lli, src, dst);
 	ds->desc_hw[num].lli->block_ts = BLOCK_TS(len);
 	ds->desc_hw[num].lli->trf_ctl0 = cc0;
 	ds->desc_hw[num].lli->trf_ctl1 = cc1;
@@ -901,6 +996,26 @@ static void rk_dma_fill_desc(struct rk_dma_desc_sw *ds, dma_addr_t dst,
 static void rk_dma_pool_free(struct rk_dma_dev *d, struct rk_dma_desc_sw *ds)
 {
 	int i;
+	struct rk_lli *lli;
+	dma_addr_t lli_hw;
+
+	if (rk_dma_is_v10(d)) {
+		lli = ds->desc_hw[0].lli;
+		lli_hw = ds->desc_hw[0].lli_hw;
+		if (!lli)
+			return;
+
+		if (d->gpool)
+			gen_pool_free(d->gpool, (unsigned long)lli, LLI_BLOCK_SIZE);
+		else
+			dma_pool_free(d->pool, lli, lli_hw);
+
+		for (i = 0; i < ds->desc_num; i++) {
+			ds->desc_hw[i].lli = NULL;
+			ds->desc_hw[i].lli_hw = 0;
+		}
+		return;
+	}
 
 	for (i = 0; i < ds->desc_num; i++) {
 		if (!ds->desc_hw[i].lli)
@@ -923,6 +1038,25 @@ static int rk_dma_pool_alloc(struct rk_dma_dev *d, struct rk_dma_desc_sw *ds)
 	dma_addr_t lli_hw;
 	int i;
 
+	if (rk_dma_is_v10(d)) {
+		if (ds->desc_num > LLI_BLOCK_SIZE / sizeof(*lli))
+			return -EINVAL;
+
+		if (d->gpool)
+			lli = gen_pool_dma_zalloc_align(d->gpool, LLI_BLOCK_SIZE,
+							&lli_hw, LLI_BLOCK_SIZE);
+		else
+			lli = dma_pool_zalloc(d->pool, GFP_NOWAIT, &lli_hw);
+		if (!lli)
+			return -ENOMEM;
+
+		for (i = 0; i < ds->desc_num; i++) {
+			ds->desc_hw[i].lli = lli + i;
+			ds->desc_hw[i].lli_hw = lli_hw + i * sizeof(*lli);
+		}
+		return 0;
+	}
+
 	for (i = 0; i < ds->desc_num; i++) {
 		if (d->gpool)
 			lli = gen_pool_dma_zalloc(d->gpool, sizeof(*lli), &lli_hw);
@@ -944,8 +1078,8 @@ static int rk_dma_pool_alloc(struct rk_dma_dev *d, struct rk_dma_desc_sw *ds)
 static struct rk_dma_desc_sw *rk_alloc_desc_resource(int num, struct dma_chan *chan)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
-	struct rk_dma_desc_sw *ds;
 	struct rk_dma_dev *d = to_rk_dma(chan->device);
+	struct rk_dma_desc_sw *ds;
 	int ret;
 
 	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
@@ -990,6 +1124,26 @@ static enum rk_dma_burst_width rk_dma_burst_width(enum dma_slave_buswidth width)
 	}
 }
 
+static void rk_dma_set_perisel(struct rk_dma_chan *c,
+			       enum dma_transfer_direction dir)
+{
+	struct rk_dma_dev *d = to_rk_dma(c->vc.chan.device);
+	unsigned long flags;
+	u64 perisel;
+
+	if (!rk_dma_is_v10(d))
+		return;
+
+	spin_lock_irqsave(&d->lock, flags);
+	perisel = readq(RK_DMA_CMN_PERISEL0_V10);
+	if (dir == DMA_MEM_TO_DEV)
+		perisel |= BIT_ULL(c->id);
+	else
+		perisel &= ~BIT_ULL(c->id);
+	writeq(perisel, RK_DMA_CMN_PERISEL0_V10);
+	spin_unlock_irqrestore(&d->lock, flags);
+}
+
 static int rk_pre_config(struct dma_chan *chan, enum dma_transfer_direction dir)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
@@ -998,6 +1152,8 @@ static int rk_pre_config(struct dma_chan *chan, enum dma_transfer_direction dir)
 	enum rk_dma_burst_width src_width;
 	enum rk_dma_burst_width dst_width;
 	u32 maxburst = 0;
+
+	rk_dma_set_perisel(c, dir);
 
 	switch (dir) {
 	case DMA_MEM_TO_MEM:
@@ -1075,6 +1231,7 @@ static struct dma_async_tx_descriptor *rk_dma_prep_memcpy(
 	size_t len, unsigned long flags)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
+	struct rk_dma_dev *d = to_rk_dma(chan->device);
 	struct rk_dma_desc_sw *ds;
 	size_t copy = 0;
 	int num = 0;
@@ -1098,20 +1255,19 @@ static struct dma_async_tx_descriptor *rk_dma_prep_memcpy(
 	ds->dir = DMA_MEM_TO_MEM;
 
 	/* the first one used as cmd entry */
-	rk_dma_fill_desc(ds, dst, src, copy, 0, c->ctl0, c->ctl1, c->ccfg);
+	rk_dma_fill_desc(d, ds, dst, src, copy, 0, c->ctl0, c->ctl1, c->ccfg);
 	num = 1;
 
 	do {
 		copy = min_t(size_t, len, DMA_MAX_SIZE);
-		rk_dma_fill_desc(ds, dst, src, copy, num++, c->ctl0, c->ctl1, c->ccfg);
+		rk_dma_fill_desc(d, ds, dst, src, copy, num++, c->ctl0, c->ctl1, c->ccfg);
 
 		src += copy;
 		dst += copy;
 		len -= copy;
 	} while (len);
 
-	ds->desc_hw[num - 1].lli->llp_nxt = 0;
-	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;
+	rk_dma_lli_set_next(d, ds->desc_hw[num - 1].lli, 0);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 
 	c->cyclic = 0;
@@ -1124,6 +1280,7 @@ rk_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, unsigned in
 		     enum dma_transfer_direction dir, unsigned long flags, void *context)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
+	struct rk_dma_dev *d = to_rk_dma(chan->device);
 	struct rk_dma_desc_sw *ds;
 	size_t len, avail, total = 0;
 	struct scatterlist *sg;
@@ -1148,7 +1305,7 @@ rk_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, unsigned in
 
 	c->cyclic = 0;
 	/* the first one used as cmd entry */
-	rk_dma_fill_desc(ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
+	rk_dma_fill_desc(d, ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
 	num = 1;
 
 	for_each_sg(sgl, sg, sglen, i) {
@@ -1167,15 +1324,14 @@ rk_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, unsigned in
 				dst = addr;
 			}
 
-			rk_dma_fill_desc(ds, dst, src, len, num++, c->ctl0, c->ctl1, c->ccfg);
+			rk_dma_fill_desc(d, ds, dst, src, len, num++, c->ctl0, c->ctl1, c->ccfg);
 
 			addr += len;
 			avail -= len;
 		} while (avail);
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = 0;	/* end of link */
-	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;	/* end of link */
+	rk_dma_lli_set_next(d, ds->desc_hw[num - 1].lli, 0); /* end of link */
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 	ds->size = total;
 	ds->dir = dir;
@@ -1188,6 +1344,7 @@ rk_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_le
 		       unsigned long flags)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
+	struct rk_dma_dev *d = to_rk_dma(chan->device);
 	struct rk_dma_desc_sw *ds;
 	dma_addr_t src = 0, dst = 0;
 	int num_periods = buf_len / period_len;
@@ -1207,7 +1364,7 @@ rk_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_le
 		return NULL;
 
 	/* the first one used as cmd entry */
-	rk_dma_fill_desc(ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
+	rk_dma_fill_desc(d, ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
 	num = 1;
 
 	while (buf < buf_len) {
@@ -1218,14 +1375,14 @@ rk_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_le
 			src = c->dev_addr;
 			dst = dma_addr;
 		}
-		rk_dma_fill_desc(ds, dst, src, period_len, num++, c->ctl0, c->ctl1, c->ccfg);
+		rk_dma_fill_desc(d, ds, dst, src, period_len, num++, c->ctl0, c->ctl1, c->ccfg);
 		dma_addr += period_len;
 		buf += period_len;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
-	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
-	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
+	rk_dma_lli_set_next(d, ds->desc_hw[num - 1].lli, ds->desc_hw[1].lli_hw);
+	if (!rk_dma_is_v10(d))
+		ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = buf_len;
 	ds->dir = dir;
 	return vchan_tx_prep(&c->vc, &ds->vd, flags);
@@ -1236,6 +1393,7 @@ rk_dma_prep_interleaved_dma(struct dma_chan *chan, struct dma_interleaved_templa
 			   unsigned long flags)
 {
 	struct rk_dma_chan *c = to_rk_chan(chan);
+	struct rk_dma_dev *d = to_rk_dma(chan->device);
 	struct rk_dma_desc_sw *ds;
 	size_t size, src_icg, dst_icg, period_bytes, full_period_bytes, full_buffer_bytes;
 	size_t nump = 0, numf = 0;
@@ -1284,19 +1442,19 @@ rk_dma_prep_interleaved_dma(struct dma_chan *chan, struct dma_interleaved_templa
 	c->ctl0 |= TRF_CTL0_MSIZE(size);
 	c->ccfg |= TRF_CFG_STRIDE_EN | TRF_CFG_STRIDE_MODE_TRANS;
 	if (xt->dir == DMA_MEM_TO_DEV) {
-		ds->desc_hw[0].lli->stride_inc = STRIDE_INC(src_icg);
+		ds->desc_hw[0].lli->v11.stride_inc = STRIDE_INC(src_icg);
 		dma_addr = xt->src_start;
 		full_period_bytes = (size + src_icg) * nump;
 		full_buffer_bytes = (size + src_icg) * numf;
 	} else {
-		ds->desc_hw[0].lli->stride_inc = STRIDE_INC(dst_icg);
+		ds->desc_hw[0].lli->v11.stride_inc = STRIDE_INC(dst_icg);
 		dma_addr = xt->dst_start;
 		full_period_bytes = (size + dst_icg) * nump;
 		full_buffer_bytes = (size + dst_icg) * numf;
 	}
 
 	/* the first one used as cmd entry */
-	rk_dma_fill_desc(ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
+	rk_dma_fill_desc(d, ds, dst, src, 0, 0, c->ctl0, c->ctl1, c->ccfg);
 	num = 1;
 
 	while (num < (num_periods + 1)) {
@@ -1307,12 +1465,11 @@ rk_dma_prep_interleaved_dma(struct dma_chan *chan, struct dma_interleaved_templa
 			src = c->dev_addr;
 			dst = dma_addr;
 		}
-		rk_dma_fill_desc(ds, dst, src, period_bytes, num++, c->ctl0, c->ctl1, c->ccfg);
+		rk_dma_fill_desc(d, ds, dst, src, period_bytes, num++, c->ctl0, c->ctl1, c->ccfg);
 		dma_addr += full_period_bytes;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
-	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
+	rk_dma_lli_set_next(d, ds->desc_hw[num - 1].lli, ds->desc_hw[1].lli_hw);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = full_buffer_bytes;
 	ds->dir = xt->dir;
@@ -1550,14 +1707,22 @@ static struct dma_chan *rk_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 
 static int rk_dma_pool_create(struct rk_dma_dev *d, struct device *dev)
 {
+	size_t size = sizeof(struct rk_lli);
+	size_t align = SZ_64;
+
 	d->gpool = of_gen_pool_get(dev->of_node, "sram", 0);
 	if (d->gpool) {
 		dev_info(dev, "Use sram for dma desc\n");
 		return 0;
 	}
 
-	/* A DMA memory pool for LLIs, align on 64-bytes boundary */
-	d->pool = dmam_pool_create(DRIVER_NAME, dev, sizeof(struct rk_lli), SZ_64, 0);
+	if (rk_dma_is_v10(d)) {
+		/* RK DMA v1.0 requires the command entry to be 4KiB aligned. */
+		size = LLI_BLOCK_SIZE;
+		align = LLI_BLOCK_SIZE;
+	}
+
+	d->pool = dmam_pool_create(DRIVER_NAME, dev, size, align, 0);
 	if (!d->pool)
 		return -ENOMEM;
 
@@ -1603,10 +1768,6 @@ static int rk_dma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rk_dma_pool_create(d, &pdev->dev);
-	if (ret)
-		return ret;
-
 	spin_lock_init(&d->lock);
 	INIT_LIST_HEAD(&d->chan_pending);
 	INIT_LIST_HEAD(&d->slave.channels);
@@ -1614,16 +1775,12 @@ static int rk_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, d->slave.cap_mask);
 	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	dma_cap_set(DMA_PRIVATE, d->slave.cap_mask);
-	dma_cap_set(DMA_INTERLEAVE, d->slave.cap_mask);
-	dma_cap_set(DMA_REPEAT, d->slave.cap_mask);
-	dma_cap_set(DMA_LOAD_EOT, d->slave.cap_mask);
 	d->slave.dev = &pdev->dev;
 	d->slave.device_free_chan_resources = rk_dma_free_chan_resources;
 	d->slave.device_tx_status = rk_dma_tx_status;
 	d->slave.device_prep_dma_memcpy = rk_dma_prep_memcpy;
 	d->slave.device_prep_slave_sg = rk_dma_prep_slave_sg;
 	d->slave.device_prep_dma_cyclic = rk_dma_prep_dma_cyclic;
-	d->slave.device_prep_interleaved_dma = rk_dma_prep_interleaved_dma;
 	d->slave.device_issue_pending = rk_dma_issue_pending;
 	d->slave.device_config = rk_dma_config;
 	d->slave.device_terminate_all = rk_dma_terminate_all;
@@ -1643,7 +1800,20 @@ static int rk_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dma_init(d);
+	ret = rk_dma_init(d);
+	if (ret)
+		goto err_disable_clk;
+
+	if (!rk_dma_is_v10(d)) {
+		dma_cap_set(DMA_INTERLEAVE, d->slave.cap_mask);
+		dma_cap_set(DMA_REPEAT, d->slave.cap_mask);
+		dma_cap_set(DMA_LOAD_EOT, d->slave.cap_mask);
+		d->slave.device_prep_interleaved_dma = rk_dma_prep_interleaved_dma;
+	}
+
+	ret = rk_dma_pool_create(d, &pdev->dev);
+	if (ret)
+		goto err_disable_clk;
 
 	/* init lch channel */
 	d->lch = devm_kcalloc(&pdev->dev, d->dma_channels, sizeof(struct rk_dma_lch), GFP_KERNEL);
@@ -1656,7 +1826,7 @@ static int rk_dma_probe(struct platform_device *pdev)
 		struct rk_dma_lch *l = &d->lch[i];
 
 		l->id = i;
-		l->base = RK_DMA_LCHn_REG(i, 0);
+		l->base = rk_dma_lch_base(d, i);
 	}
 
 	/* init virtual channel */
