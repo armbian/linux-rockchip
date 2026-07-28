@@ -22,6 +22,15 @@
 		bootargs = "earlycon=uart8250,mmio32,0x2ad40000 console=ttyFIQ0 rcupdate.rcu_expedited=1 rcu_nocbs=all spidev.bufsiz=131072";
 	};
 
+	vehicle_acc_suspend: vehicle-acc-suspend {
+		compatible = "rockchip,vehicle-dummy-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&acckey_vehicle_gpio>;
+		acckey-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
+		wakeup-source;
+		status = "okay";
+	};
+
 	vehicle_dummy: vehicle-dummy {
 		status = "okay";
 		compatible = "rockchip,vehicle-dummy-adc";
@@ -488,6 +497,12 @@
 };
 
 &pinctrl {
+	acckey-gpio-vehicle {
+		acckey_vehicle_gpio: acckey-vehicle-gpio {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	touch {
 		//dsi-i2c8
 		touch_gpio_dsi: touch-gpio-dsi {
