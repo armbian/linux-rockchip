@@ -237,6 +237,7 @@ struct vehicle_gpio {
 	struct delayed_work irq_work;
 	struct workqueue_struct *vehicle_wq;
 	struct delayed_work vehicle_delay_work;
+	struct delayed_work vehicle_delay_acc_work;
 
 	enum vehicle_hw_type type;
 	struct device *dev;
@@ -244,6 +245,8 @@ struct vehicle_gpio {
 	struct vehicle *parent;
 	struct regmap *regmap;
 	int irq;
+	int acckey_gpio_irq;
+	bool acckey_irq_wake_enabled;
 
 	struct gpio_desc  *gear_gpio_park;
 	struct gpio_desc  *gear_gpio_reverse;

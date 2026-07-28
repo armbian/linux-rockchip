@@ -9,10 +9,62 @@
 
 #include "core.h"
 
+static irqreturn_t vehicle_acckey_gpio_irq_handler(int irq, void *dev_id)
+{
+	struct vehicle_gpio *vgpio = dev_id;
+
+	mod_delayed_work(system_wq, &vgpio->vehicle_delay_acc_work,
+			 msecs_to_jiffies(20));
+
+	return IRQ_HANDLED;
+}
+
+static void vehicle_acckey_gpio_work(struct work_struct *work)
+{
+	struct vehicle_gpio *vgpio = container_of(work, struct vehicle_gpio,
+						      vehicle_delay_acc_work.work);
+	int value;
+
+	value = gpiod_get_value_cansleep(vgpio->power_req_state_gpio);
+	if (value < 0) {
+		dev_err(vgpio->dev, "failed to read acckey gpio: %d\n", value);
+		return;
+	}
+
+	if (value)
+		vehicle_set_property(VEHICLE_POWER_STATE_REQ, 0,
+				     POWER_REQ_STATE_SHUTDOWN_PREPARE,
+				     POWER_REQ_PARAM_SLEEP_IMMEDIATELY);
+}
+
 static int vehicle_gpio_init_io(struct vehicle_gpio *vehicle_gpio)
 {
 	int err = 0;
 	struct device *dev = vehicle_gpio->dev;
+
+	INIT_DELAYED_WORK(&vehicle_gpio->vehicle_delay_acc_work,
+			  vehicle_acckey_gpio_work);
+	vehicle_gpio->acckey_gpio_irq = -EINVAL;
+	vehicle_gpio->power_req_state_gpio = devm_gpiod_get_optional(dev, "acckey", GPIOD_IN);
+	if (IS_ERR(vehicle_gpio->power_req_state_gpio)) {
+		dev_err(dev, "failed to get gpio power request state\n");
+		err = PTR_ERR(vehicle_gpio->power_req_state_gpio);
+	} else if (vehicle_gpio->power_req_state_gpio) {
+		vehicle_gpio->acckey_gpio_irq = gpiod_to_irq(vehicle_gpio->power_req_state_gpio);
+	}
+
+	if (vehicle_gpio->acckey_gpio_irq >= 0) {
+		err = devm_request_threaded_irq(dev, vehicle_gpio->acckey_gpio_irq,
+						vehicle_acckey_gpio_irq_handler, NULL,
+						IRQF_TRIGGER_FALLING,
+						"vehicle-acckey-gpio", vehicle_gpio);
+		if (err)
+			dev_err(dev, "Failed to request irq for acckey-gpio: %d\n", err);
+		else if (enable_irq_wake(vehicle_gpio->acckey_gpio_irq))
+			dev_warn(dev, "Failed to enable wake for acckey-gpio\n");
+		else
+			vehicle_gpio->acckey_irq_wake_enabled = true;
+	}
 
 	vehicle_gpio->gear_gpio_reverse = devm_gpiod_get_optional(dev, "reverse", GPIOD_IN);
 	if (IS_ERR(vehicle_gpio->gear_gpio_reverse)) {
@@ -188,6 +240,9 @@ static int vehicle_gpio_remove(struct platform_device *pdev)
 {
 	struct vehicle_gpio *vehicle_gpio = platform_get_drvdata(pdev);
 
+	if (vehicle_gpio->acckey_irq_wake_enabled)
+		disable_irq_wake(vehicle_gpio->acckey_gpio_irq);
+	cancel_delayed_work_sync(&vehicle_gpio->vehicle_delay_acc_work);
 	destroy_workqueue(vehicle_gpio->vehicle_wq);
 	return 0;
 }
