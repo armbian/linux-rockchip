@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/unaligned.h>
@@ -1026,6 +1027,37 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
+static int ili210x_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev))
+		return 0;
+
+	priv->stop = true;
+	disable_irq(client->irq);
+
+	return 0;
+}
+
+static int ili210x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev))
+		return 0;
+
+	priv->stop = false;
+	enable_irq(client->irq);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ili210x_pm_ops,
+				ili210x_suspend, ili210x_resume);
+
 static const struct i2c_device_id ili210x_i2c_id[] = {
 	{ "ili210x", (long)&ili210x_chip },
 	{ "ili2117", (long)&ili211x_chip },
@@ -1049,6 +1081,7 @@ static struct i2c_driver ili210x_ts_driver = {
 		.name = "ili210x_i2c",
 		.dev_groups = ili210x_groups,
 		.of_match_table = ili210x_dt_ids,
+		.pm = pm_sleep_ptr(&ili210x_pm_ops),
 	},
 	.id_table = ili210x_i2c_id,
 	.probe = ili210x_i2c_probe,
