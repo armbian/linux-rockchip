@@ -727,9 +727,8 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 
 	/* for external phy only a the mipi_dphy_config is necessary */
 	if (dsi->phy) {
-		target_pclk = DIV_ROUND_CLOSEST_ULL(target_mbps * lanes, bpp);
-		phy_mipi_dphy_get_default_config(target_pclk * USEC_PER_SEC,
-						 bpp, lanes,
+		target_pclk = DIV_ROUND_CLOSEST_ULL((u64)target_mbps * lanes * USEC_PER_SEC, bpp);
+		phy_mipi_dphy_get_default_config(target_pclk, bpp, lanes,
 						 &dsi->phy_opts.mipi_dphy);
 		ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
 		if (ret) {
