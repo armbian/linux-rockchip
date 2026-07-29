@@ -1160,6 +1160,8 @@ static int yt8011_probe(struct phy_device *phydev)
 	struct device *dev = &phydev->mdio.dev;
 	struct yt8011_priv *priv;
 	int chip_config;
+	struct device_node *np = dev->of_node;
+	const char *vddio_conf;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1172,6 +1174,27 @@ static int yt8011_probe(struct phy_device *phydev)
 	 */
 	chip_config = ytphy_read_ext(phydev, 0x9030);
 	priv->chip_mode = chip_config & 0x1;
+
+	if (!np) {
+		dev_err(&phydev->mdio.dev, "Device Tree node is missing\n");
+		priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+	} else {
+		if (of_property_read_string(np, "motorcomm,vddio", &vddio_conf)) {
+			dev_err(&phydev->mdio.dev, "Missing 'motorcomm,vddio' property in DTS, using 3v3 default\n");
+			priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+		} else {
+			if (!strcasecmp(vddio_conf, "1v8")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_1V8;
+			} else if (!strcasecmp(vddio_conf, "2v5")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_2V5;
+			} else if (!strcasecmp(vddio_conf, "3v3")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+			} else {
+				dev_err(&phydev->mdio.dev, "Invalid 'motorcomm,vddio' value, using 3v3 default\n");
+				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -1637,32 +1660,9 @@ static int yt8512_led_init(struct phy_device *phydev)
 
 static int yt8011_config_init(struct phy_device *phydev)
 {
-	struct yt8011_priv *priv = phydev->priv;
-	struct device_node *np = phydev->mdio.dev.of_node;
-	const char *vddio_conf;
-
+	int ret;
 	phydev->autoneg = AUTONEG_DISABLE;
 
-	if (!np) {
-		dev_err(&phydev->mdio.dev, "Device Tree node is missing\n");
-		priv->vddio = YT8011_RGMII_DVDDIO_3V3;
-	} else {
-		if (of_property_read_string(np, "motorcomm,vddio", &vddio_conf)) {
-			dev_err(&phydev->mdio.dev, "Missing 'motorcomm,vddio' property in DTS, using 3v3 default\n");
-			priv->vddio = YT8011_RGMII_DVDDIO_3V3;
-		} else {
-			if (!strcasecmp(vddio_conf, "1v8")) {
-				priv->vddio = YT8011_RGMII_DVDDIO_1V8;
-			} else if (!strcasecmp(vddio_conf, "2v5")) {
-				priv->vddio = YT8011_RGMII_DVDDIO_2V5;
-			} else if (!strcasecmp(vddio_conf, "3v3")) {
-				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
-			} else {
-				dev_err(&phydev->mdio.dev, "Invalid 'motorcomm,vddio' value, using 3v3 default\n");
-				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
-			}
-		}
-	}
 	/* UTP */
 	ytphy_write_ext(phydev, 0x9000, 0x0);
 
@@ -1689,9 +1689,30 @@ static int yt8011_config_init(struct phy_device *phydev)
 	ytphy_write_ext(phydev, 0x9098, 0x01ff);
 	yt8011_config_vddio(phydev);
 
-	ytphy_soft_reset(phydev);
+	ret = ytphy_soft_reset(phydev);
+	if (ret < 0)
+		return ret;
 
 	netdev_info(phydev->attached_dev, "%s done, phy addr: %d\n", __func__, phydev->mdio.addr);
+
+	return 0;
+}
+
+static int yt8011_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = yt8011_config_init(phydev);
+	if (ret < 0) {
+		dev_err(&phydev->mdio.dev, "yt8011_config_init failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = genphy_resume(phydev);
+	if (ret < 0) {
+		dev_err(&phydev->mdio.dev, "genphy_resume failed: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -3528,6 +3549,8 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.config_init	= yt8011_config_init,
 		.read_status	= yt8011_read_status,
 		.soft_reset	= yt8011_soft_reset,
+		.suspend	= genphy_suspend,
+		.resume		= yt8011_resume,
 	}, {
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8511),
 		.name		= "YT8511 Gigabit Ethernet",
