@@ -57,7 +57,7 @@ int rga_set_mmu_base(struct rga_job *job,
 	if (task_buffers->src_buffer.page_table) {
 		rga_dma_sync_flush_range(task_buffers->src_buffer.page_table,
 					 (task_buffers->src_buffer.page_table +
-					  task_buffers->src_buffer.page_count),
+					  task_buffers->src_buffer.nr_pages),
 					 job->scheduler);
 		req->mmu_info.src0_base_addr = virt_to_phys(task_buffers->src_buffer.page_table);
 	}
@@ -65,7 +65,7 @@ int rga_set_mmu_base(struct rga_job *job,
 	if (task_buffers->src1_buffer.page_table) {
 		rga_dma_sync_flush_range(task_buffers->src1_buffer.page_table,
 					 (task_buffers->src1_buffer.page_table +
-					  task_buffers->src1_buffer.page_count),
+					  task_buffers->src1_buffer.nr_pages),
 					 job->scheduler);
 		req->mmu_info.src1_base_addr = virt_to_phys(task_buffers->src1_buffer.page_table);
 	}
@@ -73,7 +73,7 @@ int rga_set_mmu_base(struct rga_job *job,
 	if (task_buffers->dst_buffer.page_table) {
 		rga_dma_sync_flush_range(task_buffers->dst_buffer.page_table,
 					 (task_buffers->dst_buffer.page_table +
-					  task_buffers->dst_buffer.page_count),
+					  task_buffers->dst_buffer.nr_pages),
 					 job->scheduler);
 		req->mmu_info.dst_base_addr = virt_to_phys(task_buffers->dst_buffer.page_table);
 
@@ -86,7 +86,7 @@ int rga_set_mmu_base(struct rga_job *job,
 	if (task_buffers->els_buffer.page_table) {
 		rga_dma_sync_flush_range(task_buffers->els_buffer.page_table,
 					 (task_buffers->els_buffer.page_table +
-					  task_buffers->els_buffer.page_count),
+					  task_buffers->els_buffer.nr_pages),
 					 job->scheduler);
 		req->mmu_info.els_base_addr = virt_to_phys(task_buffers->els_buffer.page_table);
 	}

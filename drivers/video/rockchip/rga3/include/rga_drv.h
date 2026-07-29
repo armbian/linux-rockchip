@@ -195,7 +195,7 @@ struct rga_virt_addr {
 
 	struct page **pages;
 	int pages_order;
-	int page_count;
+	int nr_pages;
 	/* Actual effective size */
 	unsigned long size;
 
@@ -279,7 +279,7 @@ struct rga_job_buffer {
 
 	uint32_t *page_table;
 	int order;
-	int page_count;
+	int nr_pages;
 };
 
 struct rga_job_task_buffers {

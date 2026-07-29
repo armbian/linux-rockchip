@@ -45,7 +45,7 @@
 #define rga_buf_err(buf, fmt, args...) \
 	pr_err("%-6d %-6d: handle[%d]: " fmt, buf->session->tgid, current->pid, buf->handle, ##args)
 
-#define RGA_GET_PAGE_COUNT(size) (((size) >> PAGE_SHIFT) + (((size) & (~PAGE_MASK)) ? 1 : 0))
+#define RGA_GET_NR_PAGES(size) (((size) >> PAGE_SHIFT) + (((size) & (~PAGE_MASK)) ? 1 : 0))
 
 bool rga_is_rgb_format(uint32_t format);
 bool rga_is_yuv_format(uint32_t format);

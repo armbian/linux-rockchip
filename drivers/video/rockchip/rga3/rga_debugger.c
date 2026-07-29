@@ -909,7 +909,7 @@ static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 		kvaddr += dump_buffer->dma_buffer->offset;
 		break;
 	case RGA_VIRTUAL_ADDRESS:
-		kvaddr = vmap(dump_buffer->virt_addr->pages, dump_buffer->virt_addr->page_count,
+		kvaddr = vmap(dump_buffer->virt_addr->pages, dump_buffer->virt_addr->nr_pages,
 			      VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 		if (!kvaddr) {
 			pr_err("dump_vaddr vmap error!, 0x%lx\n",
