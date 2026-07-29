@@ -1503,7 +1503,7 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 		nr_pages = yrgb_nr_pages + uv_nr_pages + v_nr_pages;
 
 		if (nr_pages <= 0) {
-			rga_job_err(job, "page count cal error! yrba = %d, uv = %d, v = %d\n",
+			rga_job_err(job, "page count cal error! yrgb = %d, uv = %d, v = %d\n",
 				yrgb_nr_pages, uv_nr_pages, v_nr_pages);
 			return -EFAULT;
 		}
@@ -1562,9 +1562,9 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 			img_offset = job_buf->addr->virt_addr->offset;
 
 		nr_pages = RGA_GET_NR_PAGES(img_size + img_offset);
-		if (nr_pages < 0) {
-			rga_job_err(job, "page count cal error! yrba = %d, uv = %d, v = %d\n",
-				yrgb_nr_pages, uv_nr_pages, v_nr_pages);
+		if (nr_pages <= 0) {
+			rga_job_err(job, "page count cal error! nr_pages = %d\n",
+				nr_pages);
 			return -EFAULT;
 		}
 
