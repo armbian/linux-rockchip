@@ -241,23 +241,23 @@ static int rv1103b_codec_audio_mux_get(struct snd_kcontrol *kcontrol,
 static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol);
 
-static const char *offon_text[2] = {
+static const char * const offon_text[2] = {
 	[0] = "Off",
 	[1] = "On",
 };
 
-static const char *noneoffon_text[3] = {
+static const char * const noneoffon_text[3] = {
 	[0] = "None",
 	[1] = "Off",
 	[2] = "On",
 };
 
-static const char *mute_text[2] = {
+static const char * const mute_text[2] = {
 	[0] = "Work",
 	[1] = "Mute",
 };
 
-static const char *audio_mux_text[] = {
+static const char * const audio_mux_text[] = {
 	[0] = "Path0",  /* MST: Playback: To Acodec Lineout, Capture: From Acodec Mic Only */
 	[1] = "Path1",  /* MST: Playback: To Acodec Lineout, Capture: From SAI SDI Only */
 	[2] = "Path2",  /* MST: Playback: To Acodec Lineout + SAI SDO, Capture: From Acodec Mic Only */
@@ -279,7 +279,7 @@ static const char *audio_mux_text[] = {
 #define MICBIAS_VREFx0_95		6
 #define MICBIAS_VREFx0_975		7
 
-static const char *micbias_volts_enum_array[MICBIAS_VOLT_NUM] = {
+static const char * const micbias_volts_enum_array[MICBIAS_VOLT_NUM] = {
 	[MICBIAS_VREFx0_8] = "VREFx0_8",
 	[MICBIAS_VREFx0_825] = "VREFx0_825",
 	[MICBIAS_VREFx0_85] = "VREFx0_85",
@@ -290,7 +290,7 @@ static const char *micbias_volts_enum_array[MICBIAS_VOLT_NUM] = {
 	[MICBIAS_VREFx0_975] = "VREFx0_975",
 };
 
-static const char *adc_mode_enum_array[ADC_MODE_NUM] = {
+static const char * const adc_mode_enum_array[ADC_MODE_NUM] = {
 	[DIFF_ADCL] = "DiffadcL",
 	[SING_ADCL] = "SingadcL",
 	[DIFF_ADCR] = "DiffadcR",
@@ -354,7 +354,7 @@ static const struct soc_enum rv1103b_audio_mux_enum_array[] = {
 #define AGC_ASR_12KHZ				6
 #define AGC_ASR_8KHZ				7
 
-static const char *agc_asr_text[AGC_ASR_NUM] = {
+static const char * const agc_asr_text[AGC_ASR_NUM] = {
 	[AGC_ASR_96KHZ] = "96KHz",
 	[AGC_ASR_48KHZ] = "48KHz",
 	[AGC_ASR_44_1KHZ] = "44.1KHz",
@@ -650,11 +650,11 @@ static bool using_adc_diff(enum adc_mode_e adc_mode)
 		return false;
 }
 
-static int check_adc_mode(struct rv1106_codec_priv *rv1106)
+static int check_adc_mode(struct rv1106_codec_priv *rv1106,
+			  enum adc_mode_e adc_mode)
 {
 	if (rv1106->soc_id == SOC_RV1103 &&
-	    (rv1106->adc_mode == DIFF_ADCLR ||
-	     rv1106->adc_mode == DIFF_ADCR)) {
+	    (adc_mode == DIFF_ADCLR || adc_mode == DIFF_ADCR)) {
 		dev_err(rv1106->plat_dev,
 			"%s: Differential mode rv1103 only supports 'DiffadcL'\n", __func__);
 		return -EINVAL;
@@ -711,16 +711,26 @@ static int rv1106_codec_adc_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+	enum adc_mode_e adc_mode = ucontrol->value.integer.value[0];
+	int ret;
 
-	if (check_adc_mode(rv1106)) {
+	if (adc_mode == rv1106->adc_mode)
+		return 0;
+
+	ret = check_adc_mode(rv1106, adc_mode);
+	if (ret < 0) {
 		dev_err(rv1106->plat_dev,
 			"%s - something error checking ADC mode\n", __func__);
-		return 0;
+		return ret;
 	}
 
-	set_adc_mode(rv1106);
-	rv1106->adc_mode = ucontrol->value.integer.value[0];
-	return 0;
+	rv1106->adc_mode = adc_mode;
+	ret = set_adc_mode(rv1106);
+	if (ret < 0)
+		return ret;
+
+	/* Report that the control value changed. */
+	return 1;
 }
 
 static int rv1106_codec_agc_get(struct snd_kcontrol *kcontrol,
@@ -1681,8 +1691,9 @@ static int rv1103b_codec_audio_mux_get(struct snd_kcontrol *kcontrol,
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
 
 	if (rv1106->soc_id != SOC_RV1103B) {
-		pr_err("soc_id: %x doesn't support get audio mux\n", rv1106->soc_id);
-		return 0;
+		dev_err(rv1106->plat_dev,
+			"soc_id: %x doesn't support get audio mux\n", rv1106->soc_id);
+		return -ENODEV;
 	}
 
 	ucontrol->value.integer.value[0] = rv1106->audio_mux_sel;
@@ -1697,8 +1708,9 @@ static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
 	unsigned int value = ucontrol->value.integer.value[0];
 
 	if (rv1106->soc_id != SOC_RV1103B) {
-		pr_err("soc_id: %x doesn't support set audio mux\n", rv1106->soc_id);
-		return 0;
+		dev_err(rv1106->plat_dev,
+			"soc_id: %x doesn't support set audio mux\n", rv1106->soc_id);
+		return -ENODEV;
 	}
 
 	switch (value) {
@@ -1775,7 +1787,7 @@ static int rv1103b_codec_audio_mux_put(struct snd_kcontrol *kcontrol,
 			     (AUDIO_CON0_DAC_SEL_SDO_SAI |
 			      AUDIO_CON0_DAC_SEL_SCLKLRCLK_IO |
 			      AUDIO_CON0_ADC_SEL_SCLKLRCLK_IO |
-			      AUDIO_CON0_SAI_SEL_SDI_IO|
+			      AUDIO_CON0_SAI_SEL_SDI_IO |
 			      AUDIO_CON0_SAI_SEL_SCLKLRCLK_IO));
 		regmap_write(rv1106->grf, RV1103B_SYS_GRF_AUDIO_CON1,
 			     AUDIO_CON1_MUX_MSK |
@@ -1795,7 +1807,7 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 	unsigned int agc_func_en;
 	int ret;
 
-	ret = check_adc_mode(rv1106);
+	ret = check_adc_mode(rv1106, rv1106->adc_mode);
 	if (ret < 0) {
 		dev_err(rv1106->plat_dev,
 			"%s - something error checking ADC mode: %d\n",
@@ -2219,7 +2231,7 @@ static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 
 	if (ret < 0) {
 		dev_err(rv1106->plat_dev,
-			"soc_id: %x add controls failed, ret=%d'\n",
+			"soc_id: %x add controls failed, ret=%d\n",
 			rv1106->soc_id, ret);
 	}
 
