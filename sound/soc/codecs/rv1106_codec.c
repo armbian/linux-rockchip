@@ -329,12 +329,12 @@ static const struct soc_enum rv1106_mic_mute_enum_array[] = {
 };
 
 /* DAC Control Manually */
-static const struct soc_enum rv1106_dac_pa_ctrl_maunal_enum_array[] = {
+static const struct soc_enum rv1106_dac_pa_ctrl_manual_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(noneoffon_text), noneoffon_text),
 };
 
 /* DAC VCM Manually */
-static const struct soc_enum rv1106_dac_vcm_maunal_enum_array[] = {
+static const struct soc_enum rv1106_dac_vcm_manual_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(noneoffon_text), noneoffon_text),
 };
 
@@ -468,11 +468,11 @@ static const struct snd_kcontrol_new rv1103b_codec_dapm_controls[] = {
 			   rv1106_codec_dac_hpmix_gain_tlv),
 
 	/* DAC Control Manually */
-	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_maunal_enum_array[0],
+	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_manual_enum_array[0],
 		     rv1106_codec_dac_ctrl_manual_get, rv1106_codec_dac_ctrl_manual_put),
 
 	/* DAC VCM Manually */
-	SOC_ENUM_EXT("DAC VCM Manually", rv1106_dac_vcm_maunal_enum_array[0],
+	SOC_ENUM_EXT("DAC VCM Manually", rv1106_dac_vcm_manual_enum_array[0],
 		     rv1106_codec_dac_vcm_manual_get, rv1106_codec_dac_vcm_manual_put),
 
 	/* Audio Mux Select */
@@ -622,11 +622,11 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 			   rv1106_codec_dac_hpmix_gain_tlv),
 
 	/* DAC Control Manually */
-	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_maunal_enum_array[0],
+	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_manual_enum_array[0],
 		     rv1106_codec_dac_ctrl_manual_get, rv1106_codec_dac_ctrl_manual_put),
 
 	/* DAC VCM Manually */
-	SOC_ENUM_EXT("DAC VCM Manually", rv1106_dac_vcm_maunal_enum_array[0],
+	SOC_ENUM_EXT("DAC VCM Manually", rv1106_dac_vcm_manual_enum_array[0],
 		     rv1106_codec_dac_vcm_manual_get, rv1106_codec_dac_vcm_manual_put),
 };
 
