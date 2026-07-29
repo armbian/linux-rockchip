@@ -950,8 +950,6 @@ void rockchip_drm_crtc_standby(struct drm_crtc *crtc, bool standby);
 void rockchip_drm_crtc_output_post_enable(struct drm_crtc *crtc, int intf);
 void rockchip_drm_crtc_output_pre_disable(struct drm_crtc *crtc, int intf);
 
-int devm_rockchip_drm_register_sub_dev(struct device *dev,
-				       struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
 void rockchip_drm_te_handle(struct drm_crtc *crtc);
@@ -962,6 +960,8 @@ const char *rockchip_drm_get_color_range_name(enum drm_color_range range);
 #if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_get_sub_dev_type(void);
 u32 rockchip_drm_get_scan_line_time_ns(void);
+int devm_rockchip_drm_register_sub_dev(struct device *dev,
+				       struct rockchip_drm_sub_dev *sub_dev);
 #else
 static inline int rockchip_drm_get_sub_dev_type(void)
 {
@@ -971,6 +971,12 @@ static inline int rockchip_drm_get_sub_dev_type(void)
 static inline u32 rockchip_drm_get_scan_line_time_ns(void)
 {
 	return 0;
+}
+
+static inline int devm_rockchip_drm_register_sub_dev(struct device *dev,
+						     struct rockchip_drm_sub_dev *sub_dev)
+{
+	return -ENOSYS;
 }
 #endif
 
