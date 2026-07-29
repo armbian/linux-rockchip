@@ -298,7 +298,7 @@ out:
 	return ret;
 }
 
-static int rga_get_user_pages(struct page **pages, unsigned long Memory,
+static int rga_get_user_pages(struct page **pages, unsigned long uaddr,
 			      uint32_t pageCount, int writeFlag,
 			      struct mm_struct *current_mm)
 {
@@ -306,25 +306,30 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 	int32_t ret = 0;
 	int32_t result;
 
+	if (!PAGE_ALIGNED(uaddr)) {
+		rga_err("uaddr is not page aligned: 0x%lx\n", uaddr);
+		return -EINVAL;
+	}
+
 	rga_current_mm_read_lock(current_mm);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
-	result = get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+	result = get_user_pages(current, current_mm, uaddr,
 				pageCount, writeFlag ? FOLL_WRITE : 0,
 				pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
-	result = get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+	result = get_user_pages(current, current_mm, uaddr,
 				pageCount, writeFlag ? FOLL_WRITE : 0, 0, pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	result = get_user_pages_remote(current, current_mm,
-				       Memory << PAGE_SHIFT,
+				       uaddr,
 				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
-	result = get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
+	result = get_user_pages_remote(current_mm, uaddr,
 				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
 #else
-	result = get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
+	result = get_user_pages_remote(current_mm, uaddr,
 				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL);
 #endif
 
@@ -335,7 +340,7 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 			for (i = 0; i < result; i++)
 				put_page(pages[i]);
 
-		ret = rga_get_user_pages_from_vma(pages, Memory << PAGE_SHIFT,
+		ret = rga_get_user_pages_from_vma(pages, uaddr,
 						  pageCount, current_mm);
 		if (ret < 0 && result > 0) {
 			rga_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
@@ -426,7 +431,7 @@ static void rga_free_virt_addr(struct rga_virt_addr **virt_addr_p)
 }
 
 static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
-			       uint64_t viraddr,
+			       uint64_t uaddr,
 			       struct rga_memory_parm *memory_parm,
 			       int writeFlag,
 			       struct mm_struct *mm)
@@ -449,7 +454,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 					      memory_parm->format,
 					      NULL, NULL, NULL);
 
-	offset = viraddr & (~PAGE_MASK);
+	offset = uaddr & (~PAGE_MASK);
 	count = RGA_GET_PAGE_COUNT(img_size + offset);
 	if (!count) {
 		rga_err("failed to calculating buffer size! img_size = %d, count = %d, offset = %ld\n",
@@ -462,15 +467,15 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	pages = (struct page **)rga_get_free_pages(GFP_KERNEL,
 		&order, count * sizeof(struct page *));
 	if (pages == NULL) {
-		rga_err("%s can not alloc pages for viraddr pages\n", __func__);
+		rga_err("%s can not alloc pages\n", __func__);
 		return -ENOMEM;
 	}
 
 	/* get pages from virtual address. */
-	ret = rga_get_user_pages(pages, viraddr >> PAGE_SHIFT, count, writeFlag, mm);
+	ret = rga_get_user_pages(pages, uaddr & PAGE_MASK, count, writeFlag, mm);
 	if (ret < 0) {
 		rga_err("failed to get pages from virtual address: 0x%lx\n",
-		       (unsigned long)viraddr);
+		       (unsigned long)uaddr);
 		ret = -EINVAL;
 		goto out_free_pages;
 	} else if (ret > 0) {
@@ -486,7 +491,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	}
 	virt_addr = *virt_addr_p;
 
-	virt_addr->addr = viraddr;
+	virt_addr->addr = uaddr;
 	virt_addr->pages = pages;
 	virt_addr->pages_order = order;
 	virt_addr->page_count = count;
