@@ -1031,7 +1031,7 @@ unsigned long rga_get_free_pages(gfp_t gfp_mask, unsigned int *order, unsigned l
 
 	cur_order = get_order(size);
 	if (cur_order > max_order) {
-		rga_err("Can not alloc pages with order[%d] for viraddr pages, max_order = %d\n",
+		rga_err("Can not alloc pages with order[%d], max_order = %d\n",
 			cur_order, max_order);
 		return 0;
 	}

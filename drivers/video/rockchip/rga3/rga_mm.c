@@ -214,8 +214,8 @@ static void rga_current_mm_assert_locked(struct mm_struct *mm)
 #endif
 }
 
-static int rga_get_user_pages_from_vma(struct page **pages, unsigned long user_address,
-				       uint32_t pageCount, struct mm_struct *current_mm)
+static int rga_get_user_pages_from_vma(struct page **pages, unsigned long uaddr,
+				       uint32_t nr_pages, struct mm_struct *current_mm)
 {
 	int ret = 0;
 	size_t i;
@@ -225,8 +225,8 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long user_a
 
 	rga_current_mm_assert_locked(current_mm);
 
-	for (i = 0; i < pageCount; i++) {
-		cur_addr = user_address + (i << PAGE_SHIFT);
+	for (i = 0; i < nr_pages; i++) {
+		cur_addr = uaddr + (i << PAGE_SHIFT);
 
 		if (vma == NULL || cur_addr >= vma->vm_end) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
@@ -294,12 +294,12 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long user_a
 	return 0;
 out:
 	rga_err("Only get buffer %d byte from vma, but current image required %d byte",
-		(int)(i << PAGE_SHIFT), (int)(pageCount << PAGE_SHIFT));
+		(int)(i << PAGE_SHIFT), (int)(nr_pages << PAGE_SHIFT));
 	return ret;
 }
 
 static int rga_get_user_pages(struct page **pages, unsigned long uaddr,
-			      uint32_t pageCount, int writeFlag,
+			      uint32_t nr_pages, int write_flag,
 			      struct mm_struct *current_mm)
 {
 	uint32_t i;
@@ -316,24 +316,24 @@ static int rga_get_user_pages(struct page **pages, unsigned long uaddr,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 	result = get_user_pages(current, current_mm, uaddr,
-				pageCount, writeFlag ? FOLL_WRITE : 0,
+				nr_pages, write_flag ? FOLL_WRITE : 0,
 				pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	result = get_user_pages(current, current_mm, uaddr,
-				pageCount, writeFlag ? FOLL_WRITE : 0, 0, pages, NULL);
+				nr_pages, write_flag ? FOLL_WRITE : 0, 0, pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	result = get_user_pages_remote(current, current_mm,
 				       uaddr,
-				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
+				       nr_pages, write_flag ? FOLL_WRITE : 0, pages, NULL, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
 	result = get_user_pages_remote(current_mm, uaddr,
-				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL, NULL);
+				       nr_pages, write_flag ? FOLL_WRITE : 0, pages, NULL, NULL);
 #else
 	result = get_user_pages_remote(current_mm, uaddr,
-				       pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL);
+				       nr_pages, write_flag ? FOLL_WRITE : 0, pages, NULL);
 #endif
 
-	if (result > 0 && result >= pageCount) {
+	if (result > 0 && result >= nr_pages) {
 		ret = result;
 	} else {
 		if (result > 0)
@@ -341,10 +341,10 @@ static int rga_get_user_pages(struct page **pages, unsigned long uaddr,
 				put_page(pages[i]);
 
 		ret = rga_get_user_pages_from_vma(pages, uaddr,
-						  pageCount, current_mm);
+						  nr_pages, current_mm);
 		if (ret < 0 && result > 0) {
 			rga_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
-				(int)(result * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
+				(int)(result * PAGE_SIZE), (int)(nr_pages * PAGE_SIZE));
 		}
 	}
 
@@ -433,7 +433,7 @@ static void rga_free_virt_addr(struct rga_virt_addr **virt_addr_p)
 static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 			       uint64_t uaddr,
 			       struct rga_memory_parm *memory_parm,
-			       int writeFlag,
+			       int write_flag,
 			       struct mm_struct *mm)
 {
 	int i;
@@ -472,7 +472,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	}
 
 	/* get pages from virtual address. */
-	ret = rga_get_user_pages(pages, uaddr & PAGE_MASK, count, writeFlag, mm);
+	ret = rga_get_user_pages(pages, uaddr & PAGE_MASK, count, write_flag, mm);
 	if (ret < 0) {
 		rga_err("failed to get pages from virtual address: 0x%lx\n",
 		       (unsigned long)uaddr);
@@ -1408,11 +1408,11 @@ static int rga_mm_set_mmu_flag(struct rga_job *job,
 
 static int rga_mm_sgt_to_page_table(struct sg_table *sg,
 				    uint32_t *page_table,
-				    int32_t pageCount,
+				    int32_t nr_pages,
 				    int32_t use_dma_address)
 {
 	uint32_t i;
-	unsigned long Address;
+	unsigned long addr;
 	uint32_t mapped_size = 0;
 	uint32_t len;
 	struct scatterlist *sgl = sg->sgl;
@@ -1439,24 +1439,24 @@ static int rga_mm_sgt_to_page_table(struct sg_table *sg,
 			 * address that is mapped to meet the device address
 			 * requirements.
 			 */
-			Address = sg_dma_address(sgl);
+			addr = sg_dma_address(sgl);
 		else
-			Address = sg_phys(sgl);
+			addr = sg_phys(sgl);
 
-		Address &= PAGE_MASK;
+		addr &= PAGE_MASK;
 
 		for (i = 0; i < len; i++) {
-			if (mapped_size + i >= pageCount) {
+			if (mapped_size + i >= nr_pages) {
 				break_flag = 1;
 				break;
 			}
-			page_table[mapped_size + i] = (uint32_t)(Address + (i << PAGE_SHIFT));
+			page_table[mapped_size + i] = (uint32_t)(addr + (i << PAGE_SHIFT));
 		}
 		if (break_flag)
 			break;
 		mapped_size += len;
 		sg_num += 1;
-	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount) && (sg_num < sg->orig_nents));
+	} while ((sgl = sg_next(sgl)) && (mapped_size < nr_pages) && (sg_num < sg->orig_nents));
 
 	return 0;
 }
