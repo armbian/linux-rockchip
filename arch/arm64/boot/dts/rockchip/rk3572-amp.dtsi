@@ -20,7 +20,8 @@
 		compatible = "rockchip,amp";
 		clocks = <&cru CLK_BUSMCU_ROOT>, <&cru CLK_BUSMCU_CORE_AON>, <&cru CLK_MTIME_TOGGLE_A>,
 			 <&cru CLK_MCU_AXI_INTEGRITY>, <&cru SCLK_UART5>, <&cru PCLK_UART5>,
-			 <&cru PCLK_BUSTIMER1>, <&cru CLK_TIMER10>, <&cru CLK_TIMER11>;
+			 <&cru PCLK_BUSTIMER1>, <&cru CLK_TIMER10>, <&cru CLK_TIMER11>,
+			 <&cru TCLK_WDT0>, <&cru PCLK_WDT0>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5m2_xfer_pins>;
@@ -31,7 +32,18 @@
 			/* MAILBOX */
 			GIC_AMP_IRQ_CFG_ROUTE(102, 0xd0, CPU3_AFF)
 			/* UART5 */
-			GIC_AMP_IRQ_CFG_ROUTE(161, 0xd0, CPU3_AFF)>;
+			GIC_AMP_IRQ_CFG_ROUTE(161, 0xd0, CPU3_AFF)
+			/* TIMER */
+			GIC_AMP_IRQ_CFG_ROUTE(69, 0xd0, CPU3_AFF)
+			GIC_AMP_IRQ_CFG_ROUTE(70, 0xd0, CPU3_AFF)
+			/* WDT0 */
+			GIC_AMP_IRQ_CFG_ROUTE(57, 0xd0, CPU3_AFF)
+			/* GPIOx_EXP3 */
+			GIC_AMP_IRQ_CFG_ROUTE(139, 0xd0, CPU3_AFF)
+			GIC_AMP_IRQ_CFG_ROUTE(143, 0xd0, CPU3_AFF)
+			GIC_AMP_IRQ_CFG_ROUTE(147, 0xd0, CPU3_AFF)
+			GIC_AMP_IRQ_CFG_ROUTE(151, 0xd0, CPU3_AFF)
+			GIC_AMP_IRQ_CFG_ROUTE(155, 0xd0, CPU3_AFF)>;
 
 		status = "okay";
 	};
@@ -41,7 +53,6 @@
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
 		mboxes = <&mailbox0 0 &mailbox3 0>;
 		rockchip,vdev-nums = <1>;
-		/* CPU3: link-id 0x03; MCU: link-id 0x04; */
 		rockchip,link-id = <0x03>;
 		reg = <0x0 0x45400000 0x0 0x20000>;
 		memory-region = <&rpmsg_dma_reserved>;
@@ -83,6 +94,11 @@
 
 	amp_reserved: amp@45800000 {
 		reg = <0x0 0x45800000 0x0 0x02000000>;
+		no-map;
+	};
+
+	amp_vuart_reserved: amp_vuart@47800000 {
+		reg = <0x0 0x47800000 0x0 0x20000>;
 		no-map;
 	};
 };
