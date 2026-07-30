@@ -348,34 +348,50 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 	struct dma_buf_attachment *dba;
 	struct sg_table *sgt;
 	dma_addr_t dma;
+	dma_addr_t buf_start;
+	u32 aligned_size;
+	u32 max_bufs;
 	int ret = 0;
 
 	/*
-	 * Calculate buffer start address from resmem_buf_pa (already skips
-	 * SHARED_MEM_RESERVED_HEAD_SIZE). Use PAGE_ALIGN for dummy->size so
-	 * each buffer starts on a page boundary; required by free_reserved_area().
+	 * resmem_buf_pa already skips SHARED_MEM_RESERVED_HEAD_SIZE.
+	 * Stride must be PAGE_ALIGN'd so each buffer starts on a page
+	 * boundary (required by free_reserved_area()).
 	 */
-	dummy->dma_addr = dev->resmem_buf_pa +
-			   PAGE_ALIGN(dummy->size) * buf->buf_idx;
+	aligned_size = PAGE_ALIGN(dummy->size);
+	if (!aligned_size || aligned_size > dev->resmem_buf_size)
+		return -EINVAL;
 
-	if (dummy->dma_addr + PAGE_ALIGN(dummy->size) >
-	    dev->resmem_buf_pa + dev->resmem_buf_size) {
+	/*
+	 * Use integer quota instead of end-address compare alone:
+	 * start == resmem_buf_pa + resmem_buf_size is already OOB, but a
+	 * mistaken "start > end" check would still accept that index.
+	 */
+	max_bufs = dev->resmem_buf_size / aligned_size;
+	if (buf->buf_idx >= max_bufs) {
+		buf_start = dev->resmem_buf_pa +
+			    (dma_addr_t)aligned_size * buf->buf_idx;
+		dummy->dma_addr = buf_start;
 		v4l2_err(&dev->v4l2_dev,
-			 "reserved memory overflow: dma_addr=0x%pa size=0x%x resmem_buf_pa=0x%pa resmem_buf_size=0x%zx\n",
+			 "reserved memory overflow: dma_addr=0x%pa size=0x%x resmem_buf_pa=0x%pa resmem_buf_size=0x%zx max_bufs=%u idx=%d\n",
 			 &dummy->dma_addr, dummy->size,
-			 &dev->resmem_buf_pa, dev->resmem_buf_size);
+			 &dev->resmem_buf_pa, dev->resmem_buf_size,
+			 max_bufs, buf->buf_idx);
 		return -EINVAL;
 	}
+
+	dummy->dma_addr = dev->resmem_buf_pa +
+			  (dma_addr_t)aligned_size * buf->buf_idx;
 
 	buf->dbufs.dma = dummy->dma_addr;
 	buf->dbufs.is_resmem = true;
 	buf->shmem.shm_start = dummy->dma_addr;
-	buf->shmem.shm_size = PAGE_ALIGN(dummy->size);
+	buf->shmem.shm_size = aligned_size;
 
 	v4l2_info(&dev->v4l2_dev,
 		  "alloc buf[%d]: orig_size=0x%x aligned_size=0x%x start=0x%pa\n",
 		  buf->buf_idx, dummy->size,
-		  buf->shmem.shm_size, &buf->shmem.shm_start);
+		  aligned_size, &buf->shmem.shm_start);
 
 	dummy->dbuf = rkcif_shm_alloc(&buf->shmem);
 	buf->dbufs.dbuf = dummy->dbuf;
