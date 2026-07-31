@@ -603,6 +603,14 @@ static int sc231hai_write_array(struct i2c_client *client,
 	return ret;
 }
 
+static int __maybe_unused sc231hai_write_array_wrapper(struct i2c_client *client,
+						       void *buf)
+{
+	const struct regval *table = buf;
+
+	return sc231hai_write_array(client, table);
+}
+
 /* Read registers up to 4 at a time */
 static int sc231hai_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 			     u32 *val)
@@ -902,7 +910,7 @@ static int sc231hai_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&sc231hai->mutex);
 		return -ENOTTY;
@@ -928,7 +936,7 @@ static int sc231hai_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sc231hai->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&sc231hai->mutex);
 		return -ENOTTY;
@@ -996,15 +1004,17 @@ static int sc231hai_enable_test_pattern(struct sc231hai *sc231hai, u32 pattern)
 }
 
 static int sc231hai_g_frame_interval(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc231hai *sc231hai = to_sc231hai(sd);
-	const struct sc231hai_mode *mode = sc231hai->cur_mode;
 
+	mutex_lock(&sc231hai->mutex);
 	if (sc231hai->streaming)
 		fi->interval = sc231hai->cur_fps;
 	else
-		fi->interval = mode->max_fps;
+		fi->interval = sc231hai->cur_mode->max_fps;
+	mutex_unlock(&sc231hai->mutex);
 
 	return 0;
 }
@@ -1033,15 +1043,13 @@ static const struct sc231hai_mode *sc231hai_find_mode(struct sc231hai *sc231hai,
 }
 
 static int sc231hai_s_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct sc231hai *sc231hai = to_sc231hai(sd);
 	const struct sc231hai_mode *mode = NULL;
 	struct v4l2_fract *fract = &fi->interval;
 	int fps;
-
-	if (sc231hai->streaming)
-		return -EBUSY;
 
 	if (fi->pad != 0)
 		return -EINVAL;
@@ -1050,16 +1058,27 @@ static int sc231hai_s_frame_interval(struct v4l2_subdev *sd,
 		v4l2_err(sd, "error param, check interval param\n");
 		return -EINVAL;
 	}
+
+	mutex_lock(&sc231hai->mutex);
+
+	if (sc231hai->streaming) {
+		mutex_unlock(&sc231hai->mutex);
+		return -EBUSY;
+	}
+
 	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
 	mode = sc231hai_find_mode(sc231hai, fps);
 	if (mode == NULL) {
 		v4l2_err(sd, "couldn't match fi\n");
+		mutex_unlock(&sc231hai->mutex);
 		return -EINVAL;
 	}
 
 	sc231hai->cur_mode = mode;
 
 	sc231hai_set_rates(sc231hai);
+
+	mutex_unlock(&sc231hai->mutex);
 
 	return 0;
 }
@@ -1612,7 +1631,7 @@ static int sc231hai_suspend(struct device *dev)
 
 	cam_sw_write_array_cb_init(sc231hai->cam_sw_info, client,
 				   (void *)sc231hai->cur_mode->reg_list,
-				   (sensor_write_array)sc231hai_write_array);
+				   sc231hai_write_array_wrapper);
 	cam_sw_prepare_sleep(sc231hai->cam_sw_info);
 
 	return 0;
@@ -1647,7 +1666,7 @@ static int sc231hai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sc231hai *sc231hai = to_sc231hai(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 	const struct sc231hai_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&sc231hai->mutex);
@@ -1701,8 +1720,6 @@ static const struct v4l2_subdev_core_ops sc231hai_core_ops = {
 
 static const struct v4l2_subdev_video_ops sc231hai_video_ops = {
 	.s_stream = sc231hai_s_stream,
-	.g_frame_interval = sc231hai_g_frame_interval,
-	.s_frame_interval = sc231hai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc231hai_pad_ops = {
@@ -1712,6 +1729,8 @@ static const struct v4l2_subdev_pad_ops sc231hai_pad_ops = {
 	.get_fmt = sc231hai_get_fmt,
 	.set_fmt = sc231hai_set_fmt,
 	.get_mbus_config = sc231hai_g_mbus_config,
+	.get_frame_interval = sc231hai_g_frame_interval,
+	.set_frame_interval = sc231hai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops sc231hai_subdev_ops = {
@@ -1941,8 +1960,7 @@ static int sc231hai_configure_regulators(struct sc231hai *sc231hai)
 				       sc231hai->supplies);
 }
 
-static int sc231hai_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int sc231hai_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
