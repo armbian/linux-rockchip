@@ -591,22 +591,8 @@ static int rknpu_release(struct inode *inode, struct file *file)
 			"Fd close free rknpu_obj: %#llx, rknpu_obj->dma_addr: %#llx\n",
 			(__u64)(uintptr_t)entry, (__u64)entry->dma_addr);
 
-		if (entry->kv_addr) {
-			struct iosys_map map =
-				IOSYS_MAP_INIT_VADDR(entry->kv_addr);
-			dma_buf_vunmap_unlocked(entry->dmabuf, &map);
-			entry->kv_addr = NULL;
-		}
-
-		dma_buf_unmap_attachment_unlocked(entry->attachment, entry->sgt,
-						  DMA_BIDIRECTIONAL);
-		dma_buf_detach(entry->dmabuf, entry->attachment);
-
-		if (!entry->owner)
-			dma_buf_put(entry->dmabuf);
-
 		list_del(&entry->head);
-		kfree(entry);
+		rknpu_mem_object_free(entry);
 	}
 
 	kfree(session);

@@ -38,6 +38,8 @@ struct rknpu_mem_object {
 	unsigned int owner;
 };
 
+void rknpu_mem_object_free(struct rknpu_mem_object *rknpu_obj);
+
 int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 			   unsigned int cmd, unsigned long data);
 int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, struct file *file,

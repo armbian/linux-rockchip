@@ -5,6 +5,7 @@
  */
 
 #include <linux/version.h>
+#include <linux/fdtable.h>
 #include <linux/rk-dma-heap.h>
 
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
@@ -70,6 +71,27 @@ static int kern_addr_valid(unsigned long addr)
 #endif
 #endif
 
+void rknpu_mem_object_free(struct rknpu_mem_object *rknpu_obj)
+{
+	if (rknpu_obj->kv_addr) {
+		struct iosys_map map =
+			IOSYS_MAP_INIT_VADDR(rknpu_obj->kv_addr);
+		dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
+		rknpu_obj->kv_addr = NULL;
+	}
+
+	dma_buf_unmap_attachment_unlocked(rknpu_obj->attachment,
+					  rknpu_obj->sgt, DMA_BIDIRECTIONAL);
+	dma_buf_detach(rknpu_obj->dmabuf, rknpu_obj->attachment);
+
+	if (!rknpu_obj->owner)
+		dma_buf_put(rknpu_obj->dmabuf);
+	else
+		rk_dma_heap_buffer_free(rknpu_obj->dmabuf);
+
+	kfree(rknpu_obj);
+}
+
 int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 			   unsigned int cmd, unsigned long data)
 {
@@ -81,6 +103,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 	struct rknpu_mem_object *rknpu_obj = NULL;
 	struct rknpu_session *session = NULL;
 	int fd;
+	bool fd_installed = false;
 	unsigned int in_size = _IOC_SIZE(cmd);
 	unsigned int k_size = sizeof(struct rknpu_mem_create);
 	char *k_data = (char *)&args;
@@ -126,12 +149,15 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 		rknpu_obj->dmabuf = dmabuf;
 		rknpu_obj->owner = 1;
 
+		get_dma_buf(dmabuf);
 		fd = dma_buf_fd(dmabuf, O_CLOEXEC | O_RDWR);
 		if (fd < 0) {
 			LOG_ERROR("dmabuf fd get failed\n");
 			ret = -EFAULT;
+			dma_buf_put(dmabuf);
 			goto err_free_dma_buf;
 		}
+		fd_installed = true;
 	}
 
 	attachment = dma_buf_attach(dmabuf, rknpu_dev->dev);
@@ -195,7 +221,8 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 	return 0;
 
 err_unmap_kv_addr:
-	dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
+	if (rknpu_obj->kv_addr)
+		dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
 	rknpu_obj->kv_addr = NULL;
 
 err_detach_dma_buf:
@@ -203,6 +230,8 @@ err_detach_dma_buf:
 	dma_buf_detach(dmabuf, attachment);
 
 err_free_dma_buf:
+	if (fd_installed)
+		close_fd(fd);
 	if (rknpu_obj->owner)
 		rk_dma_heap_buffer_free(dmabuf);
 	else
@@ -257,23 +286,8 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, struct file *file,
 	}
 	spin_unlock(&rknpu_dev->lock);
 
-	if (rknpu_obj == entry) {
-		if (rknpu_obj->kv_addr) {
-			struct iosys_map map =
-				IOSYS_MAP_INIT_VADDR(rknpu_obj->kv_addr);
-			dma_buf_vunmap_unlocked(rknpu_obj->dmabuf, &map);
-			rknpu_obj->kv_addr = NULL;
-		}
-
-		dma_buf_unmap_attachment_unlocked(rknpu_obj->attachment, rknpu_obj->sgt,
-						  DMA_BIDIRECTIONAL);
-		dma_buf_detach(rknpu_obj->dmabuf, rknpu_obj->attachment);
-
-		if (!rknpu_obj->owner)
-			dma_buf_put(rknpu_obj->dmabuf);
-
-		kfree(rknpu_obj);
-	}
+	if (rknpu_obj == entry)
+		rknpu_mem_object_free(rknpu_obj);
 
 	return 0;
 }
