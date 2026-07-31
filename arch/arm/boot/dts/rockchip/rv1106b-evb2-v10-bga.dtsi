@@ -93,6 +93,12 @@
 
 &rmii_phy {
 	bgs,increment = <0>;
+	/*
+	 * GPIO2_A6 is routed to IR PWM and GPIO2_A7 to MIPI_PWDN1, so the
+	 * integrated PHY LED pinmux cannot be used on this board.
+	 */
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
 };
 
 &sc200ai {
