@@ -1508,6 +1508,13 @@ static int dwc3_core_init(struct dwc3 *dwc)
 				reg &= ~DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
 		}
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		if (dwc->loa_filter_en_quirk) {
+			reg |= DWC3_GUCTL1_LOA_FILTER_EN;
+			dev_info(dwc->dev, "enable loa filter for port babble\n");
+		}
+#endif
+
 		dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
 	}
 
@@ -1843,6 +1850,11 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 
 	dwc->dis_split_quirk = device_property_read_bool(dev,
 				"snps,dis-split-quirk");
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	dwc->loa_filter_en_quirk = device_property_read_bool(dev,
+				"snps,loa-filter-en-quirk");
+#endif
 
 	dwc->lpm_nyet_threshold = lpm_nyet_threshold;
 	dwc->tx_de_emphasis = tx_de_emphasis;
