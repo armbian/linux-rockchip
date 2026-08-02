@@ -3,6 +3,7 @@
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 
 #include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -33,9 +34,69 @@ static void panfrost_reset_fini(struct panfrost_device *pfdev)
 	reset_control_assert(pfdev->rstc);
 }
 
+static bool panfrost_is_extra_clock(int index, const char *id)
+{
+	/*
+	 * The first clock is the GPU core clock handled through pfdev->clock.
+	 * The optional "bus" clock is kept on the existing dedicated path.
+	 */
+	return (index > 0) && id && (strcmp(id, "bus") != 0);
+}
+
+static int panfrost_extra_clocks_init(struct panfrost_device *pfdev)
+{
+	struct device_node *np = pfdev->dev->of_node;
+	int count, i;
+
+	if (!np)
+		return 0;
+
+	count = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	if (count == -ENOENT)
+		return 0;
+	if (count < 0)
+		return count;
+	if (count <= 1)
+		return 0;
+
+	pfdev->extra_clocks = devm_kcalloc(pfdev->dev, count - 1,
+					   sizeof(*pfdev->extra_clocks),
+					   GFP_KERNEL);
+	if (!pfdev->extra_clocks)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		const char *id;
+		struct clk *clk;
+
+		if (of_property_read_string_index(np, "clock-names", i, &id))
+			continue;
+
+		if (!panfrost_is_extra_clock(i, id))
+			continue;
+
+		clk = devm_clk_get_optional(pfdev->dev, id);
+		if (IS_ERR(clk)) {
+			dev_err(pfdev->dev, "get %s failed %ld\n",
+				id, PTR_ERR(clk));
+			return PTR_ERR(clk);
+		}
+
+		if (!clk)
+			continue;
+
+		pfdev->extra_clocks[pfdev->num_extra_clocks].id = id;
+		pfdev->extra_clocks[pfdev->num_extra_clocks].clk = clk;
+		pfdev->num_extra_clocks++;
+	}
+
+	return 0;
+}
+
 static int panfrost_clk_init(struct panfrost_device *pfdev)
 {
 	int err;
+	int i;
 	unsigned long rate;
 
 	pfdev->clock = devm_clk_get(pfdev->dev, NULL);
@@ -68,8 +129,26 @@ static int panfrost_clk_init(struct panfrost_device *pfdev)
 			goto disable_clock;
 	}
 
+	err = panfrost_extra_clocks_init(pfdev);
+	if (err)
+		goto disable_bus_clock;
+
+	for (i = 0; i < pfdev->num_extra_clocks; i++) {
+		rate = clk_get_rate(pfdev->extra_clocks[i].clk);
+		dev_info(pfdev->dev, "%s rate = %lu\n",
+			 pfdev->extra_clocks[i].id,
+			 rate);
+	}
+
+	err = clk_bulk_prepare_enable(pfdev->num_extra_clocks,
+				      pfdev->extra_clocks);
+	if (err)
+		goto disable_bus_clock;
+
 	return 0;
 
+disable_bus_clock:
+	clk_disable_unprepare(pfdev->bus_clock);
 disable_clock:
 	clk_disable_unprepare(pfdev->clock);
 
@@ -78,6 +157,7 @@ disable_clock:
 
 static void panfrost_clk_fini(struct panfrost_device *pfdev)
 {
+	clk_bulk_disable_unprepare(pfdev->num_extra_clocks, pfdev->extra_clocks);
 	clk_disable_unprepare(pfdev->bus_clock);
 	clk_disable_unprepare(pfdev->clock);
 }
