@@ -57,6 +57,8 @@ enum {
 	RK860X_CHIP_ID_01,
 	RK860X_CHIP_ID_02,
 	RK860X_CHIP_ID_03,
+	RK860X_CHIP_ID_04,
+	RK860X_CHIP_ID_05,
 };
 
 struct rk860x_platform_data {
@@ -303,7 +305,7 @@ static const struct regulator_ops rk860x_regulator_ops = {
 
 /* For 00,01 options:
  * VOUT = 0.7125V + NSELx * 12.5mV, from 0.7125 to 1.5V.
- * For 02,03 options:
+ * For 02,03,04,05 options:
  * VOUT = 0.5V + NSELx * 6.25mV, from 0.5 to 1.5V.
  */
 static int rk860x_device_setup(struct rk860x_device_info *di,
@@ -335,6 +337,8 @@ static int rk860x_device_setup(struct rk860x_device_info *di,
 		break;
 	case RK860X_CHIP_ID_02:
 	case RK860X_CHIP_ID_03:
+	case RK860X_CHIP_ID_04:
+	case RK860X_CHIP_ID_05:
 		di->vsel_min = 500000;
 		di->vsel_step = 6250;
 		di->n_voltages = RK860X_NVOLTAGES_160;
@@ -461,6 +465,14 @@ static const struct of_device_id rk860x_dt_ids[] = {
 		.compatible = "rockchip,rk8603",
 		.data = (void *)RK860X_CHIP_ID_03
 	},
+	{
+		.compatible = "rockchip,rk8604",
+		.data = (void *)RK860X_CHIP_ID_04
+	},
+	{
+		.compatible = "rockchip,rk8605",
+		.data = (void *)RK860X_CHIP_ID_05
+	},
 
 	{ }
 };
@@ -534,6 +546,8 @@ static int rk860x_regulator_probe(struct i2c_client *client)
 		break;
 	case RK860X_CHIP_ID_02:
 	case RK860X_CHIP_ID_03:
+	case RK860X_CHIP_ID_04:
+	case RK860X_CHIP_ID_05:
 		if ((val & DIE_ID) != 0xa) {
 			dev_err(&client->dev, "Failed to match chip ID!\n");
 			return -EINVAL;
@@ -586,6 +600,8 @@ static const struct i2c_device_id rk860x_id[] = {
 	{ .name = "rk8601", .driver_data = RK860X_CHIP_ID_01 },
 	{ .name = "rk8602", .driver_data = RK860X_CHIP_ID_02 },
 	{ .name = "rk8603", .driver_data = RK860X_CHIP_ID_03 },
+	{ .name = "rk8604", .driver_data = RK860X_CHIP_ID_04 },
+	{ .name = "rk8605", .driver_data = RK860X_CHIP_ID_05 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, rk860x_id);
