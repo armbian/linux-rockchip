@@ -259,6 +259,13 @@ properties:
       When set, run the SOF/ITP counter based on ref_clk.
     type: boolean
 
+  snps,loa-filter-en-quirk:
+    description:
+      When set, the USB 2.0 port babble is checked at least three consecutive
+      times before the port is disabled. This prevents false triggering of the
+      babble condition when using low quality cables.
+    type: boolean
+
   snps,resume-hs-terminations:
     description:
       Fix the issue of HS terminations CRC error on resume by enabling this
