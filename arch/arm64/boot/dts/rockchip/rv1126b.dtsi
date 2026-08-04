@@ -2877,6 +2877,7 @@
 		snps,dis-del-phy-power-chg-quirk;
 		snps,dis-tx-ipgap-linecheck-quirk;
 		snps,dis_rxdet_inp3_quirk;
+		snps,loa-filter-en-quirk;
 		snps,parkmode-disable-hs-quirk;
 		snps,parkmode-disable-ss-quirk;
 		snps,usb2-gadget-lpm-disable;
