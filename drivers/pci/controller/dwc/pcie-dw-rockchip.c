@@ -1615,6 +1615,7 @@ static void rk_pcie_set_power_limit(struct rk_pcie *rk_pcie)
 {
 	int curr;
 	u32 reg, val;
+	static const char * const scale_unit[4] = { "W", "0.1W", "0.01W", "mW" };
 
 	/* Get power limit from firmware(if possible) or regulator API */
 	if (!rk_pcie->slot_power_limit) {
@@ -1628,22 +1629,23 @@ static void rk_pcie_set_power_limit(struct rk_pcie *rk_pcie)
 		rk_pcie->slot_power_limit_scale = 3; /* 0.001x */
 		curr = curr / 1000; /* convert to mA */
 		rk_pcie->slot_power_limit = curr * 3300;
-		rk_pcie->slot_power_limit_value = rk_pcie->slot_power_limit / 1000; /* milliwatt */
+		val = rk_pcie->slot_power_limit / 1000; /* milliwatt */
 
 		/* Double check limit value is in valid range (0 ~ 0xEF) */
-		while (rk_pcie->slot_power_limit_value > 0xef) {
+		while (val > 0xef) {
 			if (!rk_pcie->slot_power_limit_scale) {
 				dev_warn(rk_pcie->pci->dev, "invalid power supply\n");
 				return;
 			}
 			rk_pcie->slot_power_limit_scale--;
-			rk_pcie->slot_power_limit_value = rk_pcie->slot_power_limit_value / 10;
+			val = val / 10;
 		}
+		rk_pcie->slot_power_limit_value = val;
 	}
 
-	dev_info(rk_pcie->pci->dev, "Slot power limit %u.%uW\n",
-		 rk_pcie->slot_power_limit / 1000,
-		 (rk_pcie->slot_power_limit / 100) % 10);
+	dev_info(rk_pcie->pci->dev, "Slot power limit %u (%s)\n",
+		 rk_pcie->slot_power_limit_value,
+		 scale_unit[rk_pcie->slot_power_limit_scale]);
 
 	/* Config slot capabilities register */
 	reg = dw_pcie_find_capability(rk_pcie->pci, PCI_CAP_ID_EXP);
@@ -1656,7 +1658,7 @@ static void rk_pcie_set_power_limit(struct rk_pcie *rk_pcie)
 	val &= ~(PCI_EXP_SLTCAP_SPLV | PCI_EXP_SLTCAP_SPLS);
 	val |= FIELD_PREP(PCI_EXP_SLTCAP_SPLV, rk_pcie->slot_power_limit_value) |
 	       FIELD_PREP(PCI_EXP_SLTCAP_SPLS, rk_pcie->slot_power_limit_scale);
-	dw_pcie_writew_dbi(rk_pcie->pci, reg + PCI_EXP_SLTCAP, val);
+	dw_pcie_writel_dbi(rk_pcie->pci, reg + PCI_EXP_SLTCAP, val);
 }
 
 static int rk_pcie_hardware_io_config(struct rk_pcie *rk_pcie)
