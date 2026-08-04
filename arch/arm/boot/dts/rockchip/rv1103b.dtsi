@@ -1321,6 +1321,7 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,loa-filter-en-quirk;
 			snps,usb2-gadget-lpm-disable;
 			snps,usb2-lpm-disable;
 			snps,parkmode-disable-hs-quirk;
