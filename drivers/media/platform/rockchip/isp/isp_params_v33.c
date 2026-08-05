@@ -664,7 +664,7 @@ isp_awbgain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	if (en)
 		val |= CIF_ISP_CTRL_ISP_AWB_ENA;
 	else
-		val &= CIF_ISP_CTRL_ISP_AWB_ENA;
+		val &= ~CIF_ISP_CTRL_ISP_AWB_ENA;
 	isp3_param_write(params_vdev, val, ISP3X_ISP_CTRL0, id);
 }
 
