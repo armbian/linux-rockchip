@@ -386,12 +386,16 @@ static void rkcif_show_reg_vicap(struct rkcif_device *dev, struct seq_file *f)
 
 static void rkcif_show_reg_csi2(struct rkcif_device *dev, struct seq_file *f)
 {
-	struct csi2_dev *csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
+	struct csi2_dev *csi2;
 	struct csi2_hw *csi2_hw = NULL;
 	int i, j;
 	int csi_idx = 0;
 	u32 buf[24];
 
+	if (!dev->active_sensor || !dev->active_sensor->sd)
+		return;
+
+	csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
 	for (j = 0; j < csi2->csi_info.csi_num; j++) {
 		csi_idx = csi2->csi_info.csi_idx[j];
 		csi2_hw = csi2->csi2_hw[csi_idx];
@@ -462,6 +466,9 @@ static void rkcif_show_reg_dphys(struct rkcif_device *dev, struct seq_file *f)
 	int j;
 	int csi_idx = 0;
 
+	if (!dev->active_sensor)
+		return;
+
 	p = &dev->pipe;
 	for (j = 0; j < p->num_subdevs; j++) {
 		if (p->subdevs[j] != dev->terminal_sensor.sd &&
@@ -515,8 +522,9 @@ static void rkcif_show_reg_dbg(struct rkcif_device *dev, struct seq_file *f)
 
 	rkcif_show_reg_vicap(dev, f);
 	if (dev->inf_id == RKCIF_MIPI_LVDS) {
-		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
-		    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
+		if (dev->active_sensor &&
+		    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
+		     dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)) {
 			for (i = 0; i < 10; i++) {
 				rkcif_show_reg_csi2(dev, f);
 				usleep_range(2000, 4000);
@@ -528,7 +536,12 @@ static void rkcif_show_reg_dbg(struct rkcif_device *dev, struct seq_file *f)
 
 static void rkcif_show_mipi_csi2_error_info(struct rkcif_device *dev, struct seq_file *f)
 {
-	struct csi2_dev *csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
+	struct csi2_dev *csi2;
+
+	if (!dev->active_sensor || !dev->active_sensor->sd)
+		return;
+
+	csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
 
 	seq_puts(f, "\nMipi error info:\n");
 	seq_printf(f, "\terr sot sync:%u\n",
@@ -568,7 +581,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 	if (atomic_read(&pipe->stream_cnt) < 1)
 		return;
 
-	if (sensor) {
+	if (sensor->sd) {
 		seq_puts(f, "Input Info:\n");
 
 		seq_printf(f, "\tsrc subdev:%s\n", sensor->sd->name);

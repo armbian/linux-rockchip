@@ -118,10 +118,14 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 	}
 
 	get_remote_terminal_sensor(&csi2->sd, &terminal_sensor_sd);
-	ret = v4l2_subdev_call(terminal_sensor_sd, core, ioctl,
-				RKMODULE_GET_CSI_DSI_INFO, &csi2->dsi_input_en);
-	if (ret) {
-		v4l2_dbg(1, csi2_debug, &csi2->sd, "get CSI/DSI sel failed, default csi!\n");
+	if (terminal_sensor_sd) {
+		ret = v4l2_subdev_call(terminal_sensor_sd, core, ioctl,
+					RKMODULE_GET_CSI_DSI_INFO, &csi2->dsi_input_en);
+		if (ret) {
+			v4l2_dbg(1, csi2_debug, &csi2->sd, "get CSI/DSI sel failed, default csi!\n");
+			csi2->dsi_input_en = 0;
+		}
+	} else {
 		csi2->dsi_input_en = 0;
 	}
 

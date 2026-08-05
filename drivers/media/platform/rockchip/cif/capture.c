@@ -1093,11 +1093,14 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_stream *stream, struct v4l2_rect
 	int ret;
 	u32 i;
 
+	if (!sd)
+		return NULL;
+
 	fmt.pad = 0;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.reserved[0] = 0;
 	fmt.format.field = V4L2_FIELD_NONE;
-	if (dev->terminal_sensor.sd->flags & V4L2_SUBDEV_FL_STREAMS)
+	if (sd->flags & V4L2_SUBDEV_FL_STREAMS)
 		fmt.stream = stream->id;
 	else
 		fmt.stream = 0;
@@ -2742,24 +2745,24 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 
 void rkcif_dphy_quick_stream(struct rkcif_device *dev, int on)
 {
+	struct rkcif_sensor_info *active_sensor = dev->active_sensor;
 	struct rkcif_pipeline *p = NULL;
 	int j = 0;
 
-	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY ||
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
-		p = &dev->pipe;
-		for (j = 0; j < p->num_subdevs; j++) {
-			if (p->subdevs[j] != dev->terminal_sensor.sd &&
-			    p->subdevs[j] != dev->active_sensor->sd) {
-				v4l2_subdev_call(p->subdevs[j], core, ioctl,
-						 RKMODULE_SET_QUICK_STREAM, &on);
-				break;
-			}
+	if (dev->inf_id != RKCIF_MIPI_LVDS || !active_sensor)
+		return;
+
+	p = &dev->pipe;
+	for (j = 0; j < p->num_subdevs; j++) {
+		if (p->subdevs[j] != dev->terminal_sensor.sd &&
+		    p->subdevs[j] != active_sensor->sd) {
+			v4l2_subdev_call(p->subdevs[j], core, ioctl,
+					 RKMODULE_SET_QUICK_STREAM, &on);
+			break;
 		}
-		v4l2_subdev_call(dev->active_sensor->sd, core, ioctl,
-				 RKMODULE_SET_QUICK_STREAM, &on);
 	}
+	v4l2_subdev_call(active_sensor->sd, core, ioctl,
+			 RKMODULE_SET_QUICK_STREAM, &on);
 }
 
 static u32 rkcif_get_sof(struct rkcif_device *cif_dev);
@@ -7310,9 +7313,13 @@ void rkcif_do_soft_reset(struct rkcif_device *dev)
 	int tmp_csi_host_idx = 0;
 	int i = 0;
 
-	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY ||
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
+	/*
+	 * Use inf_id (set at probe) rather than active_sensor->mbus: runtime
+	 * resume / soft reset can run before sensor info is ready (e.g. ISP
+	 * params open), and active_sensor may stay NULL when terminal sensor
+	 * is missing.
+	 */
+	if (dev->inf_id == RKCIF_MIPI_LVDS) {
 		if (channel->capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE) {
 			tmp_csi_host_idx = dev->csi_host_idx;
 			for (i = 0; i < channel->capture_info.multi_dev.dev_num; i++) {
@@ -10576,6 +10583,8 @@ static int rkcif_g_selection(struct file *file, void *fh,
 
 	if (s->target == V4L2_SEL_TGT_CROP_BOUNDS) {
 		sensor_sd = get_remote_sensor(stream, &pad);
+		if (!sensor_sd || !dev->terminal_sensor.sd)
+			return -ENODEV;
 
 		sd_sel.pad = pad;
 		sd_sel.target = s->target;
@@ -10895,8 +10904,9 @@ int rkcif_quick_stream_on(struct rkcif_device *dev, bool is_intr)
 		mutex_lock(&dev->stream_lock);
 		rkcif_dphy_quick_stream(dev, on);
 		if (atomic_read(&dev->sensor_off)) {
-			v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-					 RKMODULE_SET_QUICK_STREAM, &on);
+			if (dev->terminal_sensor.sd)
+				v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+						 RKMODULE_SET_QUICK_STREAM, &on);
 			atomic_set(&dev->sensor_off, 0);
 		}
 		mutex_unlock(&dev->stream_lock);
@@ -11157,8 +11167,9 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				}
 				mutex_lock(&stream->cifdev->stream_lock);
 				rkcif_dphy_quick_stream(dev, stream_param->on);
-				v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-						 RKMODULE_SET_QUICK_STREAM, &stream_param->on);
+				if (dev->terminal_sensor.sd)
+					v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+							 RKMODULE_SET_QUICK_STREAM, &stream_param->on);
 				atomic_inc(&stream->cifdev->sensor_off);
 				mutex_unlock(&stream->cifdev->stream_lock);
 			}
@@ -11970,6 +11981,8 @@ void rkcif_unregister_lvds_subdev(struct rkcif_device *dev)
 {
 	struct v4l2_subdev *sd = &dev->lvds_subdev.sd;
 
+	if (!sd->v4l2_dev)
+		return;
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 }
@@ -12051,6 +12064,8 @@ void rkcif_unregister_dvp_sof_subdev(struct rkcif_device *dev)
 {
 	struct v4l2_subdev *sd = &dev->dvp_sof_subdev.sd;
 
+	if (!sd->v4l2_dev)
+		return;
 	v4l2_device_unregister_subdev(sd);
 }
 
@@ -12383,18 +12398,11 @@ static void rkcif_cal_csi_crop_width_vwidth(struct rkcif_stream *stream,
 static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
-	struct v4l2_mbus_config *mbus;
 	const struct cif_output_fmt *fmt;
 	u32 raw_width, crop_width = 64, crop_vwidth = 64,
 	    crop_height = 64, crop_x = 0, crop_y = 0;
 
-	if (!cif_dev->active_sensor)
-		return;
-
-	mbus = &cif_dev->active_sensor->mbus;
-	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus->type == V4L2_MBUS_CSI2_CPHY ||
-	    mbus->type == V4L2_MBUS_CCP2) {
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
 		struct csi_channel_info *channel = &cif_dev->channels[stream->id];
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && cif_dev->chip_id < CHIP_RK3576_CIF)
@@ -17368,18 +17376,11 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *stream;
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
-	struct v4l2_mbus_config *mbus;
 	unsigned int intstat = 0x0, i = 0xff;
 	unsigned long flags;
 	int ret = 0;
 
-	if (!cif_dev->active_sensor)
-		return;
-
-	mbus = &cif_dev->active_sensor->mbus;
-	if ((mbus->type == V4L2_MBUS_CSI2_DPHY ||
-	     mbus->type == V4L2_MBUS_CSI2_CPHY ||
-	     mbus->type == V4L2_MBUS_CCP2) &&
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS &&
 	    (cif_dev->chip_id == CHIP_RK1808_CIF ||
 	     cif_dev->chip_id == CHIP_RV1126_CIF ||
 	     cif_dev->chip_id == CHIP_RK3568_CIF)) {
@@ -17712,10 +17713,9 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *stream;
-	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
 	unsigned int intstat, i = 0xff;
 
-	if (mbus->type == V4L2_MBUS_CCP2 &&
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS &&
 	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE) {
 		int mipi_id;
 		u32 lastline = 0;

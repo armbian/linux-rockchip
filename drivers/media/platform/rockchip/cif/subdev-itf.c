@@ -493,14 +493,18 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		    priv->cif_dev->chip_id < CHIP_RV1103B_CIF)
 			return -EINVAL;
 
-		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
-				       core, ioctl,
-				       RKMODULE_GET_SYNC_MODE,
-				       &sync_type);
-		if (ret || sync_type == NO_SYNC_MODE)
+		if (!cif_dev->terminal_sensor.sd) {
 			mode->input.multi_sync = 0;
-		else
-			mode->input.multi_sync = 1;
+		} else {
+			ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKMODULE_GET_SYNC_MODE,
+					       &sync_type);
+			if (ret || sync_type == NO_SYNC_MODE)
+				mode->input.multi_sync = 0;
+			else
+				mode->input.multi_sync = 1;
+		}
 		memcpy(&priv->mode_src, mode, sizeof(*mode));
 
 		if (cif_dev->switch_info.is_use_switch)
@@ -1270,8 +1274,9 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		rkcif_update_unite_extend_pixel(cif_dev);
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
-			"%s, toisp mode %d, hdr %d, set power %d\n",
-			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
+			"%s, toisp mode %d, hdr %d, set power %d, active_sensor %p\n",
+			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on,
+			cif_dev->active_sensor);
 		mutex_lock(&cif_dev->stream_lock);
 		if (on) {
 			ret = pm_runtime_resume_and_get(cif_dev->dev);

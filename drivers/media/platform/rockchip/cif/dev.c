@@ -1540,11 +1540,13 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			is_streaming = sync_config->slave.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
-					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-							       RKMODULE_SET_QUICK_STREAM, &on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					if (dev->terminal_sensor.sd) {
+						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+								       RKMODULE_SET_QUICK_STREAM, &on);
+						if (ret)
+							dev_info(dev->dev,
+								 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					}
 				} else {
 					for (j = 0; j < dev->sditf_cnt; j++)
 						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
@@ -1567,11 +1569,13 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			is_streaming = sync_config->ext_master.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
-					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-							       RKMODULE_SET_QUICK_STREAM, &on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					if (dev->terminal_sensor.sd) {
+						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+								       RKMODULE_SET_QUICK_STREAM, &on);
+						if (ret)
+							dev_info(dev->dev,
+								 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					}
 				} else {
 					for (j = 0; j < dev->sditf_cnt; j++)
 						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
@@ -1593,11 +1597,13 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			is_streaming = sync_config->int_master.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
-					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-							       RKMODULE_SET_QUICK_STREAM, &on);
-					if (ret)
-						dev_info(hw->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					if (dev->terminal_sensor.sd) {
+						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+								       RKMODULE_SET_QUICK_STREAM, &on);
+						if (ret)
+							dev_info(hw->dev,
+								 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					}
 				} else {
 					for (j = 0; j < dev->sditf_cnt; j++)
 						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
@@ -1619,11 +1625,13 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			is_streaming = sync_config->soft_sync.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
-					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-							       RKMODULE_SET_QUICK_STREAM, &on);
-					if (ret)
-						dev_info(hw->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					if (dev->terminal_sensor.sd) {
+						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+								       RKMODULE_SET_QUICK_STREAM, &on);
+						if (ret)
+							dev_info(hw->dev,
+								 "set RKMODULE_SET_QUICK_STREAM failed\n");
+					}
 				} else {
 					for (j = 0; j < dev->sditf_cnt; j++)
 						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
@@ -2643,8 +2651,9 @@ static void rkcif_set_sensor_stream(struct work_struct *work)
 						    sensor_work);
 
 	mutex_lock(&cif_dev->stream_lock);
-	if ((atomic_read(&cif_dev->sensor_off) && sensor_work->on == 0) ||
-	    (!atomic_read(&cif_dev->sensor_off) && sensor_work->on == 1)) {
+	if (cif_dev->terminal_sensor.sd &&
+	    ((atomic_read(&cif_dev->sensor_off) && sensor_work->on == 0) ||
+	     (!atomic_read(&cif_dev->sensor_off) && sensor_work->on == 1))) {
 		v4l2_subdev_call(cif_dev->terminal_sensor.sd,
 				core, ioctl,
 				RKMODULE_SET_QUICK_STREAM,
@@ -2865,6 +2874,8 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 			__func__, __LINE__);
 		return;
 	}
+	if (!dev->terminal_sensor.sd)
+		return;
 	priv = dev->sditf[id];
 	if (stream->frame_idx != 0)
 		sditf_event_inc_sof(priv);
@@ -3196,12 +3207,13 @@ int rkcif_plat_uninit(struct rkcif_device *cif_dev)
 {
 	int stream_num = 0;
 
-	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)
-		rkcif_unregister_lvds_subdev(cif_dev);
-
-	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_BT656 ||
-	    cif_dev->active_sensor->mbus.type == V4L2_MBUS_PARALLEL)
-		rkcif_unregister_dvp_sof_subdev(cif_dev);
+	/*
+	 * Do not use active_sensor here: remove can run without ever
+	 * streaming / updating sensor info. Unregister helpers are
+	 * idempotent when the subdev was never registered.
+	 */
+	rkcif_unregister_lvds_subdev(cif_dev);
+	rkcif_unregister_dvp_sof_subdev(cif_dev);
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);
