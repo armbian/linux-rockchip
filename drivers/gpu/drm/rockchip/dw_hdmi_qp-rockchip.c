@@ -3833,12 +3833,8 @@ static void dw_hdmi_rockchip_attach_properties(struct drm_connector *connector, 
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	/*
-	 * To interface with user space, the name of gaming_vrr_enable
-	 * will not be changed for the time being.
-	 */
 	prop = drm_property_create_enum(connector->dev, 0,
-					"gaming_vrr_enable", generic_enable_list,
+					"tfrsync_vrr_enable", generic_enable_list,
 					ARRAY_SIZE(generic_enable_list));
 	if (prop) {
 		hdmi->tfrsync_vrr_enable = prop;
