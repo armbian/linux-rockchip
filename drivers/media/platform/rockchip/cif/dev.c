@@ -1509,14 +1509,61 @@ static int rkcif_pipeline_close(struct rkcif_pipeline *p)
 	return 0;
 }
 
+static void rkcif_quick_stream_one_dev(struct rkcif_device *dev, int on,
+				       bool *is_streaming, const char *role,
+				       int idx)
+{
+	int ret;
+	int j;
+
+	if (*is_streaming)
+		goto out;
+
+	if (dev->sditf_cnt == 1) {
+		/*
+		 * Skip without marking is_streaming when terminal_sensor is
+		 * not ready yet, so a later entry can retry.
+		 */
+		if (!dev->terminal_sensor.sd)
+			goto out;
+
+		ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+				       RKMODULE_SET_QUICK_STREAM, &on);
+		if (ret)
+			dev_info(dev->dev,
+				 "set RKMODULE_SET_QUICK_STREAM failed\n");
+	} else {
+		for (j = 0; j < dev->sditf_cnt; j++) {
+			ret = v4l2_subdev_call(dev->sditf[j]->sensor_sd, core,
+					       ioctl, RKMODULE_SET_QUICK_STREAM,
+					       &on);
+			if (ret)
+				dev_info(dev->dev,
+					 "set RKMODULE_SET_QUICK_STREAM failed\n");
+		}
+	}
+	*is_streaming = true;
+
+out:
+	v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+		 "quick stream in sync mode, %s[%d]\n", role, idx);
+}
+
+static void rkcif_quick_stream_sync_devs(struct rkcif_sync_dev *sync_devs,
+					 int on, const char *role)
+{
+	int i;
+
+	for (i = 0; i < sync_devs->count; i++)
+		rkcif_quick_stream_one_dev(sync_devs->cif_dev[i], on,
+					   &sync_devs->is_streaming[i],
+					   role, i);
+}
+
 void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 {
 	struct rkcif_hw *hw = cif_dev->hw_dev;
-	struct rkcif_device *dev = NULL;
-	int i = 0, j = 0;
 	int on = 1;
-	int ret = 0;
-	bool is_streaming = false;
 	struct rkcif_multi_sync_config *sync_config;
 
 	if (!cif_dev->sync_cfg.type)
@@ -1535,119 +1582,14 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 	    sync_config->mode == RKCIF_SOFT_SYNC ||
 	    sync_config->mode == RKCIF_EXT_MASTER ||
 	    sync_config->mode == RKCIF_EXT_SLAVE) {
-		for (i = 0; i < sync_config->slave.count; i++) {
-			dev = sync_config->slave.cif_dev[i];
-			is_streaming = sync_config->slave.is_streaming[i];
-			if (!is_streaming) {
-				if (dev->sditf_cnt == 1) {
-					if (dev->terminal_sensor.sd) {
-						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-								       RKMODULE_SET_QUICK_STREAM, &on);
-						if (ret)
-							dev_info(dev->dev,
-								 "set RKMODULE_SET_QUICK_STREAM failed\n");
-					}
-				} else {
-					for (j = 0; j < dev->sditf_cnt; j++)
-						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
-									core,
-									ioctl,
-									RKMODULE_SET_QUICK_STREAM,
-									&on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
-				}
-				sync_config->slave.is_streaming[i] = true;
-			}
-			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
-				 "quick stream in sync mode, slave_dev[%d]\n", i);
-
-		}
-		for (i = 0; i < sync_config->ext_master.count; i++) {
-			dev = sync_config->ext_master.cif_dev[i];
-			is_streaming = sync_config->ext_master.is_streaming[i];
-			if (!is_streaming) {
-				if (dev->sditf_cnt == 1) {
-					if (dev->terminal_sensor.sd) {
-						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-								       RKMODULE_SET_QUICK_STREAM, &on);
-						if (ret)
-							dev_info(dev->dev,
-								 "set RKMODULE_SET_QUICK_STREAM failed\n");
-					}
-				} else {
-					for (j = 0; j < dev->sditf_cnt; j++)
-						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
-									core,
-									ioctl,
-									RKMODULE_SET_QUICK_STREAM,
-									&on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
-				}
-				sync_config->ext_master.is_streaming[i] = true;
-			}
-			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
-				 "quick stream in sync mode, ext_master_dev[%d]\n", i);
-		}
-		for (i = 0; i < sync_config->int_master.count; i++) {
-			dev = sync_config->int_master.cif_dev[i];
-			is_streaming = sync_config->int_master.is_streaming[i];
-			if (!is_streaming) {
-				if (dev->sditf_cnt == 1) {
-					if (dev->terminal_sensor.sd) {
-						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-								       RKMODULE_SET_QUICK_STREAM, &on);
-						if (ret)
-							dev_info(hw->dev,
-								 "set RKMODULE_SET_QUICK_STREAM failed\n");
-					}
-				} else {
-					for (j = 0; j < dev->sditf_cnt; j++)
-						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
-									core,
-									ioctl,
-									RKMODULE_SET_QUICK_STREAM,
-									&on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
-				}
-				sync_config->int_master.is_streaming[i] = true;
-			}
-			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
-				 "quick stream in sync mode, int_master_dev[%d]\n", i);
-		}
-		for (i = 0; i < sync_config->soft_sync.count; i++) {
-			dev = sync_config->soft_sync.cif_dev[i];
-			is_streaming = sync_config->soft_sync.is_streaming[i];
-			if (!is_streaming) {
-				if (dev->sditf_cnt == 1) {
-					if (dev->terminal_sensor.sd) {
-						ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
-								       RKMODULE_SET_QUICK_STREAM, &on);
-						if (ret)
-							dev_info(hw->dev,
-								 "set RKMODULE_SET_QUICK_STREAM failed\n");
-					}
-				} else {
-					for (j = 0; j < dev->sditf_cnt; j++)
-						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
-									core,
-									ioctl,
-									RKMODULE_SET_QUICK_STREAM,
-									&on);
-					if (ret)
-						dev_info(dev->dev,
-							 "set RKMODULE_SET_QUICK_STREAM failed\n");
-				}
-				sync_config->soft_sync.is_streaming[i] = true;
-			}
-			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
-				 "quick stream in sync mode, soft_sync[%d]\n", i);
-		}
+		rkcif_quick_stream_sync_devs(&sync_config->slave, on,
+					     "slave_dev");
+		rkcif_quick_stream_sync_devs(&sync_config->ext_master, on,
+					     "ext_master_dev");
+		rkcif_quick_stream_sync_devs(&sync_config->int_master, on,
+					     "int_master_dev");
+		rkcif_quick_stream_sync_devs(&sync_config->soft_sync, on,
+					     "soft_sync");
 	}
 	mutex_unlock(&hw->dev_lock);
 }
