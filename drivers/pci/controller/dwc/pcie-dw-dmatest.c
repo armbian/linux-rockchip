@@ -512,4 +512,4 @@ module_param_cb(dmatest, &pcie_dw_dmatest_ops, &pcie_dw_dmatest, 0644);
 MODULE_PARM_DESC(dmatest, "test rockchip pcie dma module");
 
 MODULE_AUTHOR("Jon Lin");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual MIT/GPL");
