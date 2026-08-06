@@ -27,6 +27,11 @@
 
 	/delete-node/ chosen;
 
+	aliases {
+		ethernet0 = &rtl_eth0;
+		ethernet1 = &rtl_eth1;
+	};
+
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
@@ -890,16 +895,31 @@
     status = "okay";
 };
 
-/* phy1 - right ethernet port PCIE20_1_TXP */
+/* phy1 - right ethernet port PCIE20_1_TXP, marked ETH1 on the enclosure */
 &pcie2x1l0 {
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-	/* r8125 Ethernet LED configuration:
-	 * LED0 (yellow): blink on traffic at all link speeds
-	 * LED3 (green): solid on at all link speeds
-	 */
-	realtek,led-data = <0x18 0x022B 0x96 0x002B>;
 	vpcie3v3-supply = <&vcc5v0_usb_eth>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x200000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x21 0x2f>;
+
+		rtl_eth1: ethernet@0,0 {
+			compatible = "pci10ec,8125";
+			reg = <0x210000 0 0 0 0>;
+			local-mac-address = [00 00 00 00 00 00];
+			/* r8125 Ethernet LED configuration:
+			 * LED0 (yellow): blink on traffic at all link speeds
+			 * LED3 (green): solid on at all link speeds
+			 */
+			realtek,led-data = <0x18 0x022B 0x96 0x002B>;
+		};
+	};
 };
 
 /* phy2 - M.KEY socket  PCIE20_2_TXP */
@@ -909,16 +929,31 @@
 	status = "okay";
 };
 
-/* phy0 - left ethernet port PCIE20_0_TXP */
+/* phy0 - left ethernet port PCIE20_0_TXP, marked ETH0 on the enclosure */
 &pcie2x1l2 {
 	reset-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
-	/* r8125 Ethernet LED configuration:
-	 * LED0 (yellow): blink on traffic at all link speeds
-	 * LED3 (green): solid on at all link speeds
-	 */
-	realtek,led-data = <0x18 0x022B 0x96 0x002B>;
 	vpcie3v3-supply = <&vcc5v0_usb_eth>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x400000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x41 0x4f>;
+
+		rtl_eth0: ethernet@0,0 {
+			compatible = "pci10ec,8125";
+			reg = <0x410000 0 0 0 0>;
+			local-mac-address = [00 00 00 00 00 00];
+			/* r8125 Ethernet LED configuration:
+			 * LED0 (yellow): blink on traffic at all link speeds
+			 * LED3 (green): solid on at all link speeds
+			 */
+			realtek,led-data = <0x18 0x022B 0x96 0x002B>;
+		};
+	};
 };
 
 
