@@ -436,7 +436,7 @@
 #define AW88166_CALI_RE_MAX			(15000)
 #define AW88166_CALI_RE_MIN			(4000)
 #define AW88166_VOLUME_STEP_DB			(64)
-#define AW88166_VOL_DEFAULT_VALUE		(0)
+#define AW88166_VOL_DEFAULT_VALUE		(128)
 #define AW88166_DSP_RE_TO_SHOW_RE(re, shift)	(((re) * (1000)) >> (shift))
 #define AW88166_SHOW_RE_TO_DSP_RE(re, shift)	(((re) << shift) / (1000))
 
@@ -452,7 +452,7 @@
 #define AW88166_CRC_FW_BASE_ADDR		(0x4C0)
 #define AW88166_DEV_SYSST_CHECK_MAX		(10)
 #define AW88166_START_RETRIES			(5)
-#define AW88166_START_WORK_DELAY_MS		(0)
+#define AW88166_START_WORK_DELAY_MS		(100)
 #define FADE_TIME_MAX				100000
 #define FADE_TIME_MIN				0
 #define AW88166_CHIP_ID			(0x2066)

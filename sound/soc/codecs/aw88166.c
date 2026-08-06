@@ -7,6 +7,7 @@
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //
 
+#include <linux/clk.h>
 #include <linux/crc32.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
@@ -163,12 +164,14 @@ static void aw_dev_get_int_status(struct aw_device *aw_dev, unsigned short *int_
 	unsigned int reg_val;
 	int ret;
 
+	*int_status = 0;
 	ret = regmap_read(aw_dev->regmap, AW88166_SYSINT_REG, &reg_val);
-	if (ret)
+	if (ret) {
 		dev_err(aw_dev->dev, "read interrupt reg fail, ret=%d", ret);
-	else
-		*int_status = reg_val;
+		return;
+	}
 
+	*int_status = reg_val;
 	dev_dbg(aw_dev->dev, "read interrupt reg=0x%04x", *int_status);
 }
 
@@ -992,30 +995,44 @@ static int aw_dev_dsp_update_fw(struct aw_device *aw_dev,
 static int aw_dev_check_sram(struct aw_device *aw_dev)
 {
 	unsigned int reg_val;
+	int ret;
 
 	mutex_lock(&aw_dev->dsp_lock);
 	/* read dsp_rom_check_reg */
-	aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_ROM_CHECK_ADDR, &reg_val);
+	ret = aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_ROM_CHECK_ADDR, &reg_val);
+	if (ret)
+		goto error;
+
 	if (reg_val != AW88166_DSP_ROM_CHECK_DATA) {
 		dev_err(aw_dev->dev, "check dsp rom failed, read[0x%x] != check[0x%x]\n",
 						reg_val, AW88166_DSP_ROM_CHECK_DATA);
+		ret = -EPERM;
 		goto error;
 	}
 
 	/* check dsp_cfg_base_addr */
-	aw_dev_dsp_write_16bit(aw_dev, AW88166_DSP_CFG_ADDR, AW88166_DSP_ODD_NUM_BIT_TEST);
-	aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_CFG_ADDR, &reg_val);
+	ret = aw_dev_dsp_write_16bit(aw_dev, AW88166_DSP_CFG_ADDR,
+				     AW88166_DSP_ODD_NUM_BIT_TEST);
+	if (ret)
+		goto error;
+
+	ret = aw_dev_dsp_read_16bit(aw_dev, AW88166_DSP_CFG_ADDR, &reg_val);
+	if (ret)
+		goto error;
+
 	if (reg_val != AW88166_DSP_ODD_NUM_BIT_TEST) {
 		dev_err(aw_dev->dev, "check dsp cfg failed, read[0x%x] != write[0x%x]\n",
 						reg_val, AW88166_DSP_ODD_NUM_BIT_TEST);
+		ret = -EPERM;
 		goto error;
 	}
 	mutex_unlock(&aw_dev->dsp_lock);
 
 	return 0;
+
 error:
 	mutex_unlock(&aw_dev->dsp_lock);
-	return -EPERM;
+	return ret;
 }
 
 static void aw_dev_select_memclk(struct aw_device *aw_dev, unsigned char flag)
@@ -1124,9 +1141,9 @@ static int aw_dev_update_reg_container(struct aw88166 *aw88166,
 	usleep_range(AW88166_1000_US, AW88166_1000_US + 10);
 
 	if (aw_dev->prof_cur != aw_dev->prof_index)
-		vol_desc->ctl_volume = 0;
-	else
-		aw_dev_set_volume(aw_dev, vol_desc->ctl_volume);
+		vol_desc->ctl_volume = AW88166_VOL_DEFAULT_VALUE;
+
+	aw_dev_set_volume(aw_dev, vol_desc->ctl_volume);
 
 	return 0;
 }
@@ -1315,7 +1332,7 @@ static void aw88166_start(struct aw88166 *aw88166, bool sync_start)
 	else
 		queue_delayed_work(system_wq,
 			&aw88166->start_work,
-			AW88166_START_WORK_DELAY_MS);
+			msecs_to_jiffies(AW88166_START_WORK_DELAY_MS));
 }
 
 static int aw_dev_check_sysint(struct aw_device *aw_dev)
@@ -1370,10 +1387,36 @@ static int aw88166_stop(struct aw_device *aw_dev)
 	return 0;
 }
 
+static int aw88166_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
+{
+	struct snd_soc_component *component = dai->component;
+	struct aw88166 *aw88166 = snd_soc_component_get_drvdata(component);
+
+	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
+	if (mute)
+		cancel_delayed_work_sync(&aw88166->start_work);
+
+	mutex_lock(&aw88166->lock);
+	if (mute)
+		aw88166_stop(aw88166->aw_pa);
+	else
+		aw88166_start(aw88166, AW88166_ASYNC_START);
+	mutex_unlock(&aw88166->lock);
+
+	return 0;
+}
+
+static const struct snd_soc_dai_ops aw88166_dai_ops = {
+	.mute_stream = aw88166_mute_stream,
+};
+
 static struct snd_soc_dai_driver aw88166_dai[] = {
 	{
 		.name = "aw88166-aif",
 		.id = 1,
+		.ops = &aw88166_dai_ops,
 		.playback = {
 			.stream_name = "Speaker_Playback",
 			.channels_min = 1,
@@ -1753,10 +1796,12 @@ static int aw88166_playback_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct aw88166 *aw88166 = snd_soc_component_get_drvdata(component);
 
+	if (event == SND_SOC_DAPM_POST_PMD)
+		cancel_delayed_work_sync(&aw88166->start_work);
+
 	mutex_lock(&aw88166->lock);
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		aw88166_start(aw88166, AW88166_ASYNC_START);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		aw88166_stop(aw88166->aw_pa);
@@ -1880,6 +1925,7 @@ static int aw88166_init(struct aw88166 *aw88166, struct i2c_client *i2c, struct 
 static int aw88166_i2c_probe(struct i2c_client *i2c)
 {
 	struct aw88166 *aw88166;
+	struct clk *mclk;
 	int ret;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
@@ -1892,6 +1938,11 @@ static int aw88166_i2c_probe(struct i2c_client *i2c)
 	mutex_init(&aw88166->lock);
 
 	i2c_set_clientdata(i2c, aw88166);
+
+	mclk = devm_clk_get_optional_enabled(&i2c->dev, "mclk");
+	if (IS_ERR(mclk))
+		return dev_err_probe(&i2c->dev, PTR_ERR(mclk),
+				     "failed to get or enable mclk\n");
 
 	aw88166->reset_gpio = devm_gpiod_get_optional(&i2c->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(aw88166->reset_gpio))
@@ -1920,9 +1971,16 @@ static const struct i2c_device_id aw88166_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, aw88166_i2c_id);
 
+static const struct of_device_id aw88166_of_match[] = {
+	{ .compatible = "awinic,aw88166" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, aw88166_of_match);
+
 static struct i2c_driver aw88166_i2c_driver = {
 	.driver = {
 		.name = AW88166_I2C_NAME,
+		.of_match_table = aw88166_of_match,
 	},
 	.probe = aw88166_i2c_probe,
 	.id_table = aw88166_i2c_id,
