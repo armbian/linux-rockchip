@@ -2241,11 +2241,6 @@ static const struct vop2_video_port_regs rk3572_vop_vp1_regs = {
 
 	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 21),
 	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 29),
-	.axi0_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL0_IMD, 0x1, 25),
-	.axi1_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL1_IMD, 0x1, 25),
-	.post_urgency_en = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0x1, 8),
-	.post_urgency_thl = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0xf, 16),
-	.post_urgency_thh = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0xf, 20),
 
 	.calc_dclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0x7fff, 0),
 	.calc_aclk_cnt = VOP_REG(RK3576_VP1_POST_CLK_CNT, 0xffff, 16),
