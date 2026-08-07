@@ -547,6 +547,7 @@ int rk806_device_init(struct rk806 *rk806);
 int rk806_device_exit(struct rk806 *rk806);
 int rk806_core_suspend(struct device *dev);
 int rk806_core_resume(struct device *dev);
+void rk806_core_shutdown(struct device *dev);
 int rk806_field_write(struct rk806 *rk806,
 		      enum rk806_fields field_id,
 		      unsigned int val);

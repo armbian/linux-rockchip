@@ -128,6 +128,11 @@ static void rk806_spi_remove(struct spi_device *spi)
 	rk806_device_exit(rk806);
 }
 
+static void rk806_spi_shutdown(struct spi_device *spi)
+{
+	rk806_core_shutdown(&spi->dev);
+}
+
 static DEFINE_SIMPLE_DEV_PM_OPS(rk806_spi_pm_ops, rk806_core_suspend, rk806_core_resume);
 
 static const struct spi_device_id rk806_spi_id_table[] = {
@@ -145,6 +150,7 @@ static struct spi_driver rk806_spi_driver = {
 	},
 	.probe		= rk806_spi_probe,
 	.remove		= rk806_spi_remove,
+	.shutdown	= rk806_spi_shutdown,
 	.id_table	= rk806_spi_id_table,
 };
 module_spi_driver(rk806_spi_driver);

@@ -46,6 +46,11 @@ static void rk806_remove(struct i2c_client *client)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(rk806_i2c_pm_ops, rk806_core_suspend, rk806_core_resume);
 
+static void rk806_i2c_shutdown(struct i2c_client *client)
+{
+	rk806_core_shutdown(&client->dev);
+}
+
 static struct i2c_driver rk806_i2c_driver = {
 	.driver = {
 		.name = "rk806",
@@ -54,6 +59,7 @@ static struct i2c_driver rk806_i2c_driver = {
 	},
 	.probe    = rk806_i2c_probe,
 	.remove   = rk806_remove,
+	.shutdown = rk806_i2c_shutdown,
 };
 module_i2c_driver(rk806_i2c_driver);
 

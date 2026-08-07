@@ -981,9 +981,60 @@ EXPORT_SYMBOL_GPL(rk806_device_init);
 int rk806_core_suspend(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev);
+	struct rk806_platform_data *pdata = rk806->pdata;
+	int value, chip_ver;
+	int i;
 
 	disable_irq(rk806->irq);
 	enable_irq_wake(rk806->irq);
+
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+
+	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
+
+	if (!pdata->dvs_control_suspend || !pdata->support_dvs_control_suspend) {
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
+
+		for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+			rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_PWRCTRL1);
+	} else {
+		chip_ver = rk806_field_read(rk806, CHIP_VER);
+		for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++) {
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL1) {
+				if (chip_ver & 0x08)
+					rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
+				else
+					rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
+			}
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL2)
+				rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_DVS_FUN);
+			if (pdata->dvs_control_suspend[i] == CTR_BY_PWRCTRL3)
+				rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_DVS_FUN);
+		}
+
+		for (i = 0; i <= RK806_ID_PLDO6 - RK806_ID_PLDO1; i++) {
+			value = rk806_field_read(rk806, PLDO1_ON_VSEL + i);
+			rk806_field_write(rk806, PLDO1_SLP_VSEL + i, value);
+		}
+
+		for (i = RK806_ID_DCDC1; i <= RK806_ID_NLDO5; i++)
+			rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i,
+					  pdata->dvs_control_suspend[i]);
+
+		rk806_field_write(rk806, PLDO1_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO6]);
+		rk806_field_write(rk806, PLDO2_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO1]);
+		rk806_field_write(rk806, PLDO3_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO2]);
+		rk806_field_write(rk806, PLDO4_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO3]);
+		rk806_field_write(rk806, PLDO5_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO4]);
+		rk806_field_write(rk806, PLDO6_VSEL_CTR_SEL,
+				  pdata->dvs_control_suspend[RK806_ID_PLDO5]);
+	}
 
 	return 0;
 }
@@ -992,6 +1043,14 @@ EXPORT_SYMBOL_GPL(rk806_core_suspend);
 int rk806_core_resume(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev);
+	int i;
+
+	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
+
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+	rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
+	rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
 
 	enable_irq(rk806->irq);
 	disable_irq_wake(rk806->irq);
@@ -999,6 +1058,31 @@ int rk806_core_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rk806_core_resume);
+
+void rk806_core_shutdown(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	if (system_state != SYSTEM_POWER_OFF)
+		return;
+
+	disable_irq(rk806->irq);
+	rk806_shutdown_requence_config(rk806);
+	if (rk806->pdata->shutown_by_pwrctrln == 2) {
+		rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
+		rk806_field_write(rk806, PWRCTRL2_POL, POL_HIGH);
+		rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_POWOFF_FUN);
+	} else if (rk806->pdata->shutown_by_pwrctrln == 3) {
+		rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
+		rk806_field_write(rk806, PWRCTRL3_POL, POL_HIGH);
+		rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_POWOFF_FUN);
+	} else {
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+		rk806_field_write(rk806, PWRCTRL1_POL, POL_HIGH);
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_POWOFF_FUN);
+	}
+}
+EXPORT_SYMBOL_GPL(rk806_core_shutdown);
 
 int rk806_device_exit(struct rk806 *rk806)
 {
