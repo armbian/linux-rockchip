@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3588-evb7-v11-linux.dts"
+#include "rk3588-thunderboot.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB7 V11 ThunderBoot Board";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_debug=0 initcall_nr_threads=8 earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0 root=/dev/rd0 rootfstype=erofs rootflags=dax ro rootwait init=/sbin/init rcupdate.rcu_expedited=1 rcu_nocbs=all";
+	};
+};

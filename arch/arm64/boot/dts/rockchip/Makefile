@@ -412,6 +412,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v11-linux-ipc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-rk628-hdmi2csi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-v11-thunderboot.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb10-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb10-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nvr-demo-v10.dtb
