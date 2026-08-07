@@ -2157,7 +2157,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
-	sys_ctrl = m_RGA3_SYS_CTRL_RGA_LGC_CLK_ON | m_RGA3_SYS_CTRL_FRMEND_AUTO_RSTN_EN;
+	sys_ctrl = m_RGA3_SYS_CTRL_FRMEND_AUTO_RSTN_EN;
 
 	/* All CMD finish int */
 	if (master_mode_en)
