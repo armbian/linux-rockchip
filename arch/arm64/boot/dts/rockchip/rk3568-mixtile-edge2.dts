@@ -534,6 +534,8 @@
 		wakeup-source;
 		#clock-cells = <1>;
 		clock-output-names = "rk808-clkout1", "rk808-clkout2";
+		/* clkout2 is the 32.768kHz LPO for the AP6275S WiFi/BT module */
+		rockchip,clk-32k-always-on;
 		//fb-inner-reg-idxs = <2>;
 		/* 1: rst regs (default in codes), 0: rst the pmic */
 		pmic-reset-func = <0>;
