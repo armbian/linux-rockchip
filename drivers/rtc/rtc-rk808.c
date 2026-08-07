@@ -492,7 +492,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id rk8xx_rtc_id_table[] = {
 	{ "rk805-rtc", 0 },
-	{ "rk809-rtc", 0 },
+	{ "rk808-rtc", 0 },
 	{ "rk816-rtc", 0 },
 	{ "rk817-rtc", 0 },
 	{ "rk818-rtc", 0 },

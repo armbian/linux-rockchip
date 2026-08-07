@@ -126,9 +126,9 @@ static int rk805_pwrkey_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id rk8xx_pwrkey_id_table[] = {
+	{ "rk801-pwrkey", 0 },
 	{ "rk805-pwrkey", 0 },
 	{ "rk806-pwrkey", 0 },
-	{ "rk809-pwrkey", 0 },
 	{ "rk816-pwrkey", 0 },
 	{ "rk817-pwrkey", 0 },
 	{ "rk818-pwrkey", 0 },

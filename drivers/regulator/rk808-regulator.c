@@ -1779,7 +1779,7 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 
 static const struct platform_device_id rk8xx_regulator_id_table[] = {
 	{ "rk805-regulator", 0 },
-	{ "rk809-regulator", 0 },
+	{ "rk808-regulator", 0 },
 	{ "rk816-regulator", 0 },
 	{ "rk817-regulator", 0 },
 	{ "rk818-regulator", 0 },
