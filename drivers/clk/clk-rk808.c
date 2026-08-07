@@ -201,11 +201,11 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id rk8xx_clk_id_table[] = {
-	{ "rk805-clk", 0 },
-	{ "rk809-clk", 0 },
-	{ "rk816-clk", 0 },
-	{ "rk817-clk", 0 },
-	{ "rk818-clk", 0 },
+	{ "rk805-clkout", 0 },
+	{ "rk808-clkout", 0 },
+	{ "rk816-clkout", 0 },
+	{ "rk817-clkout", 0 },
+	{ "rk818-clkout", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, rk8xx_clk_id_table);
