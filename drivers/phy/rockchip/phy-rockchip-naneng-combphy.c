@@ -72,8 +72,16 @@ struct rockchip_combphy_cfg {
 	const int num_clks;
 	const struct clk_bulk_data *clks;
 	const struct rockchip_combphy_grfcfg *grfcfg;
+	bool disable_u3_on_phy_timeout;
 	bool force_det_out; /* Tx detect Rx errata */
+	bool set_usb_mode_on_u3_disable;
 	int (*combphy_cfg)(struct rockchip_combphy_priv *priv);
+};
+
+enum rockchip_combphy_u3_port {
+	ROCKCHIP_COMBPHY_U3_PORT_NONE = -1,
+	ROCKCHIP_COMBPHY_U3_PORT0 = 0,
+	ROCKCHIP_COMBPHY_U3_PORT1 = 1,
 };
 
 struct rockchip_combphy_priv {
@@ -88,6 +96,7 @@ struct rockchip_combphy_priv {
 	struct reset_control *apb_rst;
 	struct reset_control *phy_rst;
 	const struct rockchip_combphy_cfg *cfg;
+	enum rockchip_combphy_u3_port u3_port;
 };
 
 static void rockchip_combphy_updatel(struct rockchip_combphy_priv *priv,
@@ -126,6 +135,41 @@ static u32 rockchip_combphy_is_ready(struct rockchip_combphy_priv *priv)
 	return val;
 }
 
+static const struct combphy_reg *
+rockchip_combphy_get_u3_port_reg(struct rockchip_combphy_priv *priv)
+{
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
+
+	switch (priv->u3_port) {
+	case ROCKCHIP_COMBPHY_U3_PORT0:
+		return &cfg->u3otg0_port_en;
+	case ROCKCHIP_COMBPHY_U3_PORT1:
+		return &cfg->u3otg1_port_en;
+	default:
+		return NULL;
+	}
+}
+
+static int rockchip_combphy_disable_u3_port(struct rockchip_combphy_priv *priv,
+					    const struct combphy_reg *port_en)
+{
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
+	int ret;
+
+	if (!port_en)
+		return -EINVAL;
+
+	ret = rockchip_combphy_param_write(priv->pipe_grf, port_en, false);
+	if (ret)
+		return ret;
+
+	if (priv->cfg->set_usb_mode_on_u3_disable)
+		ret = rockchip_combphy_param_write(priv->phy_grf,
+						   &cfg->usb_mode_set, true);
+
+	return ret;
+}
+
 static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
 {
 	int ret = 0;
@@ -150,15 +194,12 @@ static int rockchip_combphy_usb3_init(struct rockchip_combphy_priv *priv)
 	int ret = 0;
 
 	if (device_property_present(priv->dev, "rockchip,dis-u3otg0-port")) {
-		ret = rockchip_combphy_param_write(priv->pipe_grf,
-						   &cfg->u3otg0_port_en, false);
+		ret = rockchip_combphy_disable_u3_port(priv,
+						       &cfg->u3otg0_port_en);
 		return ret;
 	} else if (device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
-		ret = rockchip_combphy_param_write(priv->pipe_grf,
-						   &cfg->u3otg1_port_en, false);
-		if (of_device_is_compatible(priv->dev->of_node, "rockchip,rk3576-naneng-combphy"))
-			rockchip_combphy_param_write(priv->phy_grf,
-						     &cfg->usb_mode_set, true);
+		ret = rockchip_combphy_disable_u3_port(priv,
+						       &cfg->u3otg1_port_en);
 		return ret;
 	} else {
 		if (cfg->u3otg0_clamp_dis.enable)
@@ -257,14 +298,36 @@ static int rockchip_combphy_init(struct phy *phy)
 	if (priv->mode == PHY_TYPE_USB3 &&
 	    !device_property_present(priv->dev, "rockchip,dis-u3otg0-port") &&
 	    !device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
+		const struct combphy_reg *port_en;
+
 		ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready,
 						priv, val,
 						val == cfg->pipe_phy_status.enable,
 						10, 1000);
-		if (ret)
+		if (ret) {
 			dev_warn(priv->dev, "wait phy status ready timeout\n");
+
+			if (!priv->cfg->disable_u3_on_phy_timeout)
+				goto out;
+
+			port_en = rockchip_combphy_get_u3_port_reg(priv);
+			if (!port_en) {
+				dev_warn(priv->dev,
+					 "skip U3 fallback because no U3 port is assigned\n");
+				goto out;
+			}
+
+			ret = rockchip_combphy_disable_u3_port(priv, port_en);
+			if (ret)
+				dev_warn(priv->dev,
+					 "failed to disable U3 port after PHY timeout: %d\n", ret);
+			else
+				dev_warn(priv->dev,
+					 "disable U3 port and fall back to U2 because PHY is not ready\n");
+		}
 	}
 
+out:
 	return 0;
 
 err_clk:
@@ -349,7 +412,19 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 {
 	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
 	int ret, mac_id;
+	u32 port;
 	u32 vals[4];
+
+	priv->u3_port = ROCKCHIP_COMBPHY_U3_PORT_NONE;
+	ret = device_property_read_u32(dev, "rockchip,u3-port-num", &port);
+	if (!ret) {
+		if (port > ROCKCHIP_COMBPHY_U3_PORT1) {
+			dev_err(dev, "invalid USB3 port number %u\n", port);
+			return -EINVAL;
+		}
+
+		priv->u3_port = port;
+	}
 
 	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
 	if (ret == -EPROBE_DEFER)
@@ -379,14 +454,9 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 	}
 
 	if (device_property_present(dev, "rockchip,dis-u3otg0-port")) {
-		rockchip_combphy_param_write(priv->pipe_grf,
-					     &cfg->u3otg0_port_en, false);
+		rockchip_combphy_disable_u3_port(priv, &cfg->u3otg0_port_en);
 	} else if (device_property_present(dev, "rockchip,dis-u3otg1-port")) {
-		rockchip_combphy_param_write(priv->pipe_grf,
-					     &cfg->u3otg1_port_en, false);
-		if (of_device_is_compatible(dev->of_node, "rockchip,rk3576-naneng-combphy"))
-			rockchip_combphy_param_write(priv->phy_grf,
-						     &cfg->usb_mode_set, true);
+		rockchip_combphy_disable_u3_port(priv, &cfg->u3otg1_port_en);
 	}
 
 	if (!device_property_read_u32(dev, "rockchip,sgmii-mac-sel", &mac_id) &&
@@ -462,6 +532,7 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->mode = PHY_NONE;
 	priv->cfg = phy_cfg;
+	priv->u3_port = ROCKCHIP_COMBPHY_U3_PORT_NONE;
 
 	ret = rockchip_combphy_parse_dt(dev, priv);
 	if (ret)
@@ -629,6 +700,8 @@ static const struct rockchip_combphy_cfg rk3528_combphy_cfgs = {
 	.clks		= rk3528_clks,
 	.grfcfg		= &rk3528_combphy_grfcfgs,
 	.combphy_cfg	= rk3528_combphy_cfg,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static int rk3562_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -789,6 +862,8 @@ static const struct rockchip_combphy_cfg rk3562_combphy_cfgs = {
 	.grfcfg		= &rk3562_combphy_grfcfgs,
 	.combphy_cfg	= rk3562_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -988,6 +1063,8 @@ static const struct rockchip_combphy_cfg rk3568_combphy_cfgs = {
 	.grfcfg		= &rk3568_combphy_grfcfgs,
 	.combphy_cfg	= rk3568_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static int rk3572_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -1217,6 +1294,8 @@ static const struct rockchip_combphy_cfg rk3572_combphy_cfgs = {
 	.grfcfg		= &rk3572_combphy_grfcfgs,
 	.combphy_cfg	= rk3572_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static int rk3576_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -1447,6 +1526,8 @@ static const struct rockchip_combphy_cfg rk3576_combphy_cfgs = {
 	.grfcfg		= &rk3576_combphy_grfcfgs,
 	.combphy_cfg	= rk3576_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = true,
 };
 
 static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -1692,6 +1773,8 @@ static const struct rockchip_combphy_cfg rk3588_combphy_cfgs = {
 	.grfcfg		= &rk3588_combphy_grfcfgs,
 	.combphy_cfg	= rk3588_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = false,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static int rv1126b_combphy_cfg(struct rockchip_combphy_priv *priv)
@@ -1811,6 +1894,8 @@ static const struct rockchip_combphy_cfg rv1126b_combphy_cfgs = {
 	.grfcfg		= &rv1126b_combphy_grfcfgs,
 	.combphy_cfg	= rv1126b_combphy_cfg,
 	.force_det_out	= true,
+	.disable_u3_on_phy_timeout = true,
+	.set_usb_mode_on_u3_disable = false,
 };
 
 static const struct of_device_id rockchip_combphy_of_match[] = {
