@@ -73,6 +73,15 @@ properties:
     description:
       Some additional pipe settings are accessed through GRF regs.
 
+  rockchip,u3-port-num:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    description:
+      Selects which USB 3.0 port enable bit this combo PHY instance
+      controls. Use 0 for u3otg0 and 1 for u3otg1. Needed when multiple
+      USB 3.0 controller ports share a GRF register and each PHY instance
+      must toggle its own enable bit.
+
   "#phy-cells":
     const: 1
 
