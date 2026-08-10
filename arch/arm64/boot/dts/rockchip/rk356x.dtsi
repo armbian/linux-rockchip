@@ -3445,6 +3445,7 @@
 		reset-names = "combphy-apb", "combphy";
 		rockchip,pipe-grf = <&pipegrf>;
 		rockchip,pipe-phy-grf = <&pipe_phy_grf1>;
+		rockchip,u3-port-num = <1>;
 		#phy-cells = <1>;
 		status = "disabled";
 	};
