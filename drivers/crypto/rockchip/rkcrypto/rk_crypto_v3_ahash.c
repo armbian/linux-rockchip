@@ -335,11 +335,6 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 
 		lli_head->user_define |= LLI_USER_CIPHER_START;
 		lli_head->user_define |= LLI_USER_STRING_START;
-
-		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
-		CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL,
-			     (CRYPTO_HASH_ENABLE << CRYPTO_WRITE_MASK_SHIFT) |
-			     CRYPTO_HASH_ENABLE);
 	}
 
 	if (is_final && alg_ctx->left_bytes == 0)
@@ -353,6 +348,11 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	dma_wmb();
 
 	/* enable crypto irq */
+	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
+	CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL,
+		     (CRYPTO_HASH_ENABLE << CRYPTO_WRITE_MASK_SHIFT) |
+		     CRYPTO_HASH_ENABLE);
+
 	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_INT_EN, 0x7f);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_CTL, dma_ctl | dma_ctl << CRYPTO_WRITE_MASK_SHIFT);
