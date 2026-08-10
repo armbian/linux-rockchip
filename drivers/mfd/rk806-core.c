@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/rockchip/rockchip_pm_config.h>
 #include <linux/spi/spi.h>
 
 #define TSD_TEMP_140	0x00
@@ -978,15 +979,19 @@ int rk806_device_init(struct rk806 *rk806)
 }
 EXPORT_SYMBOL_GPL(rk806_device_init);
 
-int rk806_core_suspend(struct device *dev)
+/*
+ * Configure the RK806 to enter sleep mode by setting PWRCTRL1_FUN to
+ * PWRCTRL_SLP_FUN and programming the VSEL control selectors for all
+ * power rails. This is the minimum register configuration required to
+ * enter sleep; it does NOT touch IRQ state, so it is safe to call from
+ * both the PM suspend path and the shutdown path.
+ */
+static void rk806_configure_sleep_mode(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev);
 	struct rk806_platform_data *pdata = rk806->pdata;
 	int value, chip_ver;
 	int i;
-
-	disable_irq(rk806->irq);
-	enable_irq_wake(rk806->irq);
 
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 
@@ -1035,6 +1040,16 @@ int rk806_core_suspend(struct device *dev)
 		rk806_field_write(rk806, PLDO6_VSEL_CTR_SEL,
 				  pdata->dvs_control_suspend[RK806_ID_PLDO5]);
 	}
+}
+
+int rk806_core_suspend(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	disable_irq(rk806->irq);
+	enable_irq_wake(rk806->irq);
+
+	rk806_configure_sleep_mode(dev);
 
 	return 0;
 }
@@ -1065,6 +1080,11 @@ void rk806_core_shutdown(struct device *dev)
 
 	if (system_state != SYSTEM_POWER_OFF)
 		return;
+
+	if (rockchip_virtual_poweroff_enabled()) {
+		rk806_configure_sleep_mode(dev);
+		return;
+	}
 
 	disable_irq(rk806->irq);
 	rk806_shutdown_requence_config(rk806);
