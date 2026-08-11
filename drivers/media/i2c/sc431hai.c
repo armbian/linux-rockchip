@@ -1787,8 +1787,7 @@ static int sc431hai_configure_regulators(struct sc431hai *sc431hai)
 				       sc431hai->supplies);
 }
 
-static int sc431hai_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc431hai_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
