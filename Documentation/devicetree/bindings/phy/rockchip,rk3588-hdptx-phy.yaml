@@ -57,6 +57,19 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Some PHY related data is accessed through GRF regs.
 
+  rockchip,phy-table:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description:
+      Optional TMDS and FRL lane tuning table. Each entry contains a link rate, 5 raw register
+      values for lane 3, and 5 shared by lanes 0 through 2. Lane 3 is the TMDS clock lane or the
+      fourth FRL data lane. Register order is 0303 swing, 0304 de-emphasis, 0305 pre-shoot, 0306
+      drive current, and 0307 acceleration-driver control and polarity; override and polarity bits
+      are ignored. Entries must be sorted by ascending rate. Rates up to 600 MHz select TMDS mode
+      and higher rates select FRL mode; the first same-mode entry not below the requested rate is
+      used. Each entry is packed as an 8-byte big-endian rate followed by 10 register bytes, so
+      the total property length must be a multiple of 18 bytes. Define the rate with "/bits/ 64"
+      and the register values with "/bits/ 8". If absent, the driver uses its default settings.
+
 required:
   - compatible
   - reg
@@ -90,5 +103,14 @@ examples:
                  <&cru SRST_HDPTX0_LCPLL>;
         reset-names = "phy", "apb", "init", "cmn", "lane", "ropll", "lcpll";
         rockchip,grf = <&hdptxphy_grf>;
+        rockchip,phy-table =
+          /bits/ 64 <165000000>,
+          /bits/ 8 <0x2f 0x03 0x03 0x1d 0x08 0x2f 0x03 0x03 0x1d 0x08>,
+          /bits/ 64 <340000000>,
+          /bits/ 8 <0x2f 0x03 0x03 0x1d 0x08 0x2f 0x03 0x03 0x1d 0x08>,
+          /bits/ 64 <600000000>,
+          /bits/ 8 <0x2f 0x03 0x03 0x1d 0x08 0x2f 0x03 0x03 0x1d 0x08>,
+          /bits/ 64 <4800000000>,
+          /bits/ 8 <0x2f 0x14 0x4f 0xfc 0x08 0x2f 0x14 0x4f 0xfc 0x08>;
       };
     };
