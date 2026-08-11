@@ -21,6 +21,7 @@
 #include <linux/rational.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/unaligned.h>
 
 #include "phy-hdmi.h"
 
@@ -393,6 +394,24 @@ struct tx_drv_ctrl {
 	u8 tx_jeq_odd_ctrl;
 };
 
+#define HDPTX_PHY_TAB_REGS_PER_LANE	5
+#define HDPTX_PHY_LANES_0_2_COUNT	3
+#define HDPTX_PHY_LANE3			3
+#define HDPTX_PHY_TAB_ENTRY_SIZE	(sizeof(__be64) + 2 * HDPTX_PHY_TAB_REGS_PER_LANE)
+
+/*
+ * Each DTS entry carries separate configurations for lane 3 and lanes 0~2.
+ * Lane 3 is the clock lane in TMDS mode and the fourth data lane in FRL mode.
+ * The PHY mode distinguishes HDMI from DP, while the rate distinguishes
+ * TMDS from FRL.
+ */
+struct hdptx_phy_config {
+	u64 rate;
+	enum phy_mode mode;
+	struct tx_drv_ctrl lane3;
+	struct tx_drv_ctrl lanes_0_2;
+};
+
 enum rk_hdptx_reset {
 	RST_APB = 0,
 	RST_INIT,
@@ -436,6 +455,10 @@ struct rk_hdptx_phy {
 	unsigned int link_rate;
 	unsigned int lanes;
 	bool dp_mode;
+
+	/* optional DTS phy-table for hdmi/edp configuration */
+	struct hdptx_phy_config *phy_cfg;
+	int phy_cfg_count;
 };
 
 struct ffe_cfg {
@@ -829,6 +852,56 @@ static const struct reg_sequence rk_hdptx_tmds_lane_init_seq[] = {
 	REG_SEQ0(LANE_REG(051e), 0x02),
 	REG_SEQ0(LANE_REG(061e), 0x0a),
 };
+
+static void rk_hdptx_parse_lane_drv_ctrl(const u8 *regs, struct tx_drv_ctrl *ctrl)
+{
+	u8 reg;
+
+	/* Decode registers 0303~0307 and discard the OVRD bits. */
+	reg = regs[0];
+	ctrl->tx_drv_lvl_ctrl = FIELD_GET(LN_TX_DRV_LVL_CTRL_MASK, reg);
+
+	reg = regs[1];
+	ctrl->tx_drv_post_lvl_ctrl = FIELD_GET(LN_TX_DRV_POST_LVL_CTRL_MASK, reg);
+
+	reg = regs[2];
+	ctrl->tx_drv_pre_lvl_ctrl = FIELD_GET(LN_TX_DRV_PRE_LVL_CTRL_MASK, reg);
+
+	reg = regs[3];
+	ctrl->ana_tx_drv_idrv_idn_ctrl = FIELD_GET(LN_ANA_TX_DRV_IDRV_IDN_CTRL_MASK, reg);
+	ctrl->ana_tx_drv_idrv_iup_ctrl = FIELD_GET(LN_ANA_TX_DRV_IDRV_IUP_CTRL_MASK, reg);
+	ctrl->ana_tx_drv_accdrv_en = FIELD_GET(LN_ANA_TX_DRV_ACCDRV_EN_MASK, reg);
+
+	reg = regs[4];
+	ctrl->ana_tx_drv_accdrv_ctrl = FIELD_GET(LN_ANA_TX_DRV_ACCDRV_CTRL_MASK, reg);
+	/* 0307[6] pol_sel is set by the helper per mode. */
+}
+
+static int rk_hdptx_parse_phy_table(struct rk_hdptx_phy *hdptx, const u8 *phy_table,
+				    int num_entries)
+{
+	const u8 *entry;
+	int i;
+
+	for (i = 0; i < num_entries; i++) {
+		entry = &phy_table[i * HDPTX_PHY_TAB_ENTRY_SIZE];
+
+		hdptx->phy_cfg[i].rate = get_unaligned_be64(entry);
+		hdptx->phy_cfg[i].mode = PHY_MODE_HDMI;
+
+		rk_hdptx_parse_lane_drv_ctrl(&entry[sizeof(__be64)], &hdptx->phy_cfg[i].lane3);
+		rk_hdptx_parse_lane_drv_ctrl(&entry[sizeof(__be64) + HDPTX_PHY_TAB_REGS_PER_LANE],
+					     &hdptx->phy_cfg[i].lanes_0_2);
+
+		/* The table must be sorted ascending by rate. */
+		if (i && hdptx->phy_cfg[i].rate < hdptx->phy_cfg[i - 1].rate) {
+			dev_err(hdptx->dev, "phy-table must be sorted ascending by rate\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
 
 struct tx_pll_ctrl {
 	u8 mdiv;
@@ -1501,6 +1574,46 @@ static void rk_hdptx_lane_write_drv_ctrl(struct rk_hdptx_phy *hdptx,
 	regmap_update_bits(hdptx->regmap, LANE_REG(0307) + offset, mask, val);
 }
 
+static void rk_hdptx_phy_apply_lane_cfg(struct rk_hdptx_phy *hdptx, enum phy_mode mode)
+{
+	struct hdptx_phy_config *cfg;
+	bool is_frl = hdptx->hdmi_cfg.rate > HDMI20_MAX_RATE;
+	bool cfg_is_frl;
+	bool found = false;
+	int lane;
+
+	if (!hdptx->phy_cfg)
+		return;
+
+	/*
+	 * Pick the first entry for the requested PHY mode and HDMI rate range
+	 * whose rate is not below the requested rate. The table is sorted by
+	 * rate in probe().
+	 */
+	for (cfg = hdptx->phy_cfg; cfg < hdptx->phy_cfg + hdptx->phy_cfg_count; cfg++) {
+		if (cfg->mode != mode)
+			continue;
+		cfg_is_frl = cfg->rate > HDMI20_MAX_RATE;
+		if (mode == PHY_MODE_HDMI && cfg_is_frl != is_frl)
+			continue;
+		if (hdptx->hdmi_cfg.rate <= cfg->rate) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_warn(hdptx->dev, "no phy-table %s entry covers rate %llu Hz\n",
+			 is_frl ? "FRL" : "TMDS", hdptx->hdmi_cfg.rate);
+		return;
+	}
+
+	for (lane = 0; lane < HDPTX_PHY_LANES_0_2_COUNT; lane++)
+		rk_hdptx_lane_write_drv_ctrl(hdptx, &cfg->lanes_0_2, lane, mode);
+
+	rk_hdptx_lane_write_drv_ctrl(hdptx, &cfg->lane3, HDPTX_PHY_LANE3, mode);
+}
+
 static int rk_hdptx_frl_lcpll_mode_config(struct rk_hdptx_phy *hdptx)
 {
 	int lane;
@@ -1514,6 +1627,9 @@ static int rk_hdptx_frl_lcpll_mode_config(struct rk_hdptx_phy *hdptx)
 	for (lane = 0; lane < 4; lane++)
 		rk_hdptx_lane_write_drv_ctrl(hdptx, &rk_hdptx_frl_tx_drv_ctrl, lane,
 					     PHY_MODE_HDMI);
+
+	/* Override with DTS-configured lane settings if present */
+	rk_hdptx_phy_apply_lane_cfg(hdptx, PHY_MODE_HDMI);
 
 	return rk_hdptx_post_enable_lane(hdptx);
 }
@@ -1542,6 +1658,9 @@ static int rk_hdptx_tmds_ropll_mode_config(struct rk_hdptx_phy *hdptx)
 	for (lane = 0; lane < 4; lane++)
 		rk_hdptx_lane_write_drv_ctrl(hdptx, &rk_hdptx_tmds_tx_drv_ctrl, lane,
 					     PHY_MODE_HDMI);
+
+	/* Override with DTS-configured lane settings if present */
+	rk_hdptx_phy_apply_lane_cfg(hdptx, PHY_MODE_HDMI);
 
 	return rk_hdptx_post_enable_lane(hdptx);
 }
@@ -3005,7 +3124,8 @@ static int rk_hdptx_phy_probe(struct platform_device *pdev)
 	struct rk_hdptx_phy *hdptx;
 	struct resource *res;
 	void __iomem *regs;
-	int ret, id;
+	const u8 *phy_table;
+	int ret, id, phy_table_len, phy_table_size;
 
 	hdptx = devm_kzalloc(dev, sizeof(*hdptx), GFP_KERNEL);
 	if (!hdptx)
@@ -3082,6 +3202,30 @@ static int rk_hdptx_phy_probe(struct platform_device *pdev)
 	 */
 	debugfs_remove(hdptx->phy->debugfs);
 	hdptx->phy->debugfs = NULL;
+
+	if (of_property_present(dev->of_node, "rockchip,phy-table")) {
+		phy_table = of_get_property(dev->of_node, "rockchip,phy-table", &phy_table_len);
+		if (!phy_table || phy_table_len <= 0 || phy_table_len % HDPTX_PHY_TAB_ENTRY_SIZE) {
+			dev_err(dev, "Invalid phy cfg table format!\n");
+			return -EINVAL;
+		}
+
+		phy_table_size = phy_table_len / HDPTX_PHY_TAB_ENTRY_SIZE;
+
+		hdptx->phy_cfg = devm_kcalloc(dev, phy_table_size,
+					      sizeof(*hdptx->phy_cfg), GFP_KERNEL);
+		if (!hdptx->phy_cfg)
+			return -ENOMEM;
+		hdptx->phy_cfg_count = phy_table_size;
+
+		ret = rk_hdptx_parse_phy_table(hdptx, phy_table, phy_table_size);
+		if (ret)
+			return ret;
+
+		dev_info(dev, "use DTS phy-table config (%d entries)\n", phy_table_size);
+	} else {
+		dev_dbg(dev, "use default hdmi phy lane config\n");
+	}
 
 	phy_set_drvdata(hdptx->phy, hdptx);
 	phy_set_bus_width(hdptx->phy, 8);
