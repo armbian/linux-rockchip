@@ -453,6 +453,15 @@ rkisp_params_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
+static int rkisp_params_link_validate(struct media_link *link)
+{
+	return 0;
+}
+
+static const struct media_entity_operations rkisp_params_media_ops = {
+	.link_validate = rkisp_params_link_validate,
+};
+
 static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *dev = params_vdev->dev;
@@ -695,6 +704,7 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
 	vdev->vfl_dir = VFL_DIR_TX;
+	vdev->entity.ops = &rkisp_params_media_ops;
 	rkisp_params_init_vb2_queue(vdev->queue, params_vdev);
 	ret = rkisp_init_params_vdev(params_vdev);
 	if (ret < 0)

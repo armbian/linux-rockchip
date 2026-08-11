@@ -1162,6 +1162,15 @@ static const struct v4l2_ioctl_ops rkisp_dmarx_ioctl = {
 	.vidioc_default = rkisp_ioctl_default,
 };
 
+static int rkisp_dmarx_link_validate(struct media_link *link)
+{
+	return 0;
+}
+
+static const struct media_entity_operations rkisp_dmarx_media_ops = {
+	.link_validate = rkisp_dmarx_link_validate,
+};
+
 static void rkisp_unregister_dmarx_video(struct rkisp_stream *stream)
 {
 	media_entity_cleanup(&stream->vnode.vdev.entity);
@@ -1191,6 +1200,7 @@ static int rkisp_register_dmarx_video(struct rkisp_stream *stream)
 			    V4L2_CAP_STREAMING;
 	vdev->vfl_dir = VFL_DIR_TX;
 	node->pad.flags = MEDIA_PAD_FL_SOURCE;
+	vdev->entity.ops = &rkisp_dmarx_media_ops;
 
 	rkisp_init_vb2_queue(&node->buf_queue, stream,
 		V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
