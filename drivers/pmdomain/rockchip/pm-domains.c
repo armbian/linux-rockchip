@@ -737,8 +737,6 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 	bool is_idle;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_FPGA))
-		return 0;
 	if (pd_info->req_mask == 0)
 		return 0;
 	else if (pd_info->req_w_mask)
@@ -918,8 +916,6 @@ static int rockchip_pmu_save_qos(struct rockchip_pm_domain *pd)
 {
 	int i;
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_FPGA))
-		return 0;
 	for (i = 0; i < pd->num_qos; i++) {
 		regmap_read(pd->qos_regmap[i],
 			    QOS_PRIORITY,
@@ -947,8 +943,6 @@ static int rockchip_pmu_restore_qos(struct rockchip_pm_domain *pd)
 {
 	int i;
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_FPGA))
-		return 0;
 	for (i = 0; i < pd->num_qos; i++) {
 		regmap_write(pd->qos_regmap[i],
 			     QOS_PRIORITY,
@@ -1176,8 +1170,6 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 	u32 pd_pwr_offset = pd->info->pwr_offset;
 	bool is_on, is_mem_on = false;
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_FPGA))
-		return;
 	if (pd->info->pwr_mask == 0)
 		return;
 
@@ -1879,10 +1871,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	}
 	rockchip_pd_qos_init(pd);
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_FPGA) && (pd->genpd.flags & GENPD_FLAG_ALWAYS_ON))
-		pm_genpd_init(&pd->genpd, NULL, GENPD_STATE_ON);
-	else
-		pm_genpd_init(&pd->genpd, NULL, !rockchip_pmu_domain_is_on(pd));
+	pm_genpd_init(&pd->genpd, NULL, !rockchip_pmu_domain_is_on(pd));
 
 	pmu->genpd_data.domains[id] = &pd->genpd;
 	return 0;
