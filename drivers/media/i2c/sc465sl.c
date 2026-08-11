@@ -2569,8 +2569,7 @@ static int sc465sl_setup_clocks_and_gpios(struct sc465sl *sc465sl)
 	return 0;
 }
 
-static int sc465sl_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sc465sl_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sc465sl *sc465sl;
