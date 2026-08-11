@@ -872,8 +872,7 @@ static void find_terminal_resolution(struct gh2dpk *gh2dpk)
 		gh2dpk->cur_mode = &supported_modes[0];
 }
 
-static int gh2dpk_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gh2dpk_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
