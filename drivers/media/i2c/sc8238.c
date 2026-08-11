@@ -1708,8 +1708,7 @@ static int sc8238_configure_regulators(struct sc8238 *sc8238)
 				       SC8238_NUM_SUPPLIES, sc8238->supplies);
 }
 
-static int sc8238_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sc8238_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
