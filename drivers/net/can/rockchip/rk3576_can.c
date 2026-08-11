@@ -143,6 +143,9 @@ enum {
 	ROCKCHIP_RK3576_CAN = 0,
 	ROCKCHIP_RK3572_CAN,
 	ROCKCHIP_RV1126B_CAN,
+	ROCKCHIP_RK3576_CANFD,
+	ROCKCHIP_RK3572_CANFD,
+	ROCKCHIP_RV1126B_CANFD,
 };
 
 #define DATE_LENGTH_12_BYTE	(0x9)
@@ -248,6 +251,9 @@ enum {
 #define NBTP_NTSEG1_MASK	(0xff << NBTP_NTSEG1_SHIFT)
 
 /* Data Bit Timing & Prescaler Register (DBTP) */
+#define DBTP_BRS_TSEG1_SHIFT	24
+#define DBTP_BRS_TSEG1_MASK	(0xff << DBTP_BRS_TSEG1_SHIFT)
+#define DBTP_BRS_MODE		BIT(23)
 #define DBTP_MODE_3_SAMPLES	BIT(21)
 #define DBTP_DSJW_SHIFT		17
 #define DBTP_DSJW_MASK		(0xf << DBTP_DSJW_SHIFT)
@@ -265,6 +271,9 @@ enum {
 
 #define RX_DMA_ENABLE		BIT(9)
 
+#define TX_FD_ENABLE		BIT(5)
+#define TX_FD_BRS_ENABLE	BIT(4)
+
 #define TX_FORMAT_SHIFT		7
 #define TX_FORMAT_MASK		(0x1 << TX_FORMAT_SHIFT)
 #define TX_RTR_SHIFT		6
@@ -278,6 +287,10 @@ enum {
 #define RX_RTR_MASK		(0x1 << RX_RTR_SHIFT)
 #define RX_DLC_SHIFT		24
 #define RX_DLC_MASK		(0xF << RX_DLC_SHIFT)
+#define RX_FDF_SHIFT		21
+#define RX_FDF_MASK		(0x1 << RX_FDF_SHIFT)
+#define RX_BRS_SHIFT		20
+#define RX_BRS_MASK		(0x1 << RX_BRS_SHIFT)
 #define RX_ISM_LEN_SHIFT	8
 #define RX_ISM_LEN_MASK		(0xF << RX_ISM_LEN_SHIFT)
 
@@ -338,6 +351,8 @@ enum {
 
 #define CANBUSOFF_RCY_SLOW	200 /* ms */
 #define CANBUSOFF_RCY_FAST	30 /* ms */
+
+#define CAN_FD_TDC_MIN_BITRATE	2200000
 
 #define DRV_NAME		"rk3576_can"
 
@@ -450,6 +465,7 @@ static int rk3576_can_set_bittiming(struct net_device *ndev)
 {
 	struct rk3576_can *rcan = netdev_priv(ndev);
 	const struct can_bittiming *bt = &rcan->can.bittiming;
+	const struct can_bittiming *dbt = &rcan->can.data_bittiming;
 	u16 brp, sjw, tseg1, tseg2;
 	u32 reg_btp;
 
@@ -465,6 +481,43 @@ static int rk3576_can_set_bittiming(struct net_device *ndev)
 		reg_btp |= NBTP_MODE_3_SAMPLES;
 
 	rk3576_can_write(rcan, CAN_NBTP, reg_btp);
+
+	if (rcan->can.ctrlmode & CAN_CTRLMODE_FD) {
+		reg_btp = 0;
+		brp = (dbt->brp >> 1) - 1;
+		sjw = dbt->sjw - 1;
+		tseg1 = dbt->prop_seg + dbt->phase_seg1 - 1;
+		tseg2 = dbt->phase_seg2 - 1;
+
+		if (dbt->bitrate > CAN_FD_TDC_MIN_BITRATE) {
+			u32 tdco;
+
+			/* Equation based on ROCKCHIP_CANFD User Manual's
+			 * Transmitter Delay Compensation Section
+			 */
+			tdco = ((1 + 1 + tseg1) * (brp + 1)) - 2;
+			/* Max valid TDCO value is 63 */
+			if (tdco > 63)
+				tdco = 63;
+			rk3576_can_write(rcan, CAN_TDCR,
+					 (tdco << TDCR_TDCO_SHIFT) |
+					 TDCR_TDC_ENABLE);
+		} else {
+			rk3576_can_write(rcan, CAN_TDCR, 0);
+		}
+
+		reg_btp |= (brp << DBTP_DBRP_SHIFT) |
+			   (sjw << DBTP_DSJW_SHIFT) |
+			   (tseg1 << DBTP_DTSEG1_SHIFT) |
+			   (tseg2 << DBTP_DTSEG2_SHIFT) |
+			   DBTP_BRS_MODE |
+			   ((tseg1 / 2) << DBTP_BRS_TSEG1_SHIFT);
+
+		if (rcan->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
+			reg_btp |= DBTP_MODE_3_SAMPLES;
+
+		rk3576_can_write(rcan, CAN_DBTP, reg_btp);
+	}
 
 	netdev_dbg(ndev, "%s NBTP=0x%08x, DBTP=0x%08x, TDCR=0x%08x\n", __func__,
 		   rk3576_can_read(rcan, CAN_NBTP),
@@ -659,7 +712,7 @@ static netdev_tx_t rk3576_can_start_xmit(struct sk_buff *skb,
 					 struct net_device *ndev)
 {
 	struct rk3576_can *rcan = netdev_priv(ndev);
-	struct can_frame *cf = (struct can_frame *)skb->data;
+	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
 	u32 id, dlc;
 	u32 cmd = CAN_TX0_REQ;
 	u32 tx_fifo = CAN_TXFIC, tx_id = CAN_TXID, tx_data = CAN_TXDAT0;
@@ -670,28 +723,15 @@ static netdev_tx_t rk3576_can_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(ndev);
 
-	if (rcan->mode == ROCKCHIP_RK3572_CAN)
+	if (rcan->mode == ROCKCHIP_RK3572_CAN ||
+	    rcan->mode == ROCKCHIP_RK3572_CANFD)
 		cmd = CAN_TX0_REQ | CAN_TX0_REQ_MASK;
-
-	if (rk3576_can_read(rcan, CAN_CMD) & CAN_TX0_REQ) {
-		cmd = CAN_TX1_REQ;
-		if (rcan->mode == ROCKCHIP_RV1126B_CAN) {
-			tx_fifo = CAN_BUF1_TXFIC;
-			tx_id = CAN_BUF1_TXID;
-			tx_data = CAN_BUF1_TXDAT0;
-		} else if (rcan->mode == ROCKCHIP_RK3572_CAN) {
-			tx_fifo = CAN_BUF1_TXFIC;
-			tx_id = CAN_BUF1_TXID;
-			tx_data = CAN_BUF1_TXDAT0;
-			cmd = CAN_TX1_REQ | CAN_TX1_REQ_MASK;
-		}
-	}
 
 	/* Watch carefully on the bit sequence */
 	if (cf->can_id & CAN_EFF_FLAG) {
 		/* Extended CAN ID format */
 		id = cf->can_id & CAN_EFF_MASK;
-		dlc = cf->can_dlc & TX_DLC_MASK;
+		dlc = can_fd_len2dlc(cf->len) & TX_DLC_MASK;
 		dlc |= TX_FORMAT_MASK;
 
 		/* Extended frames remote TX request */
@@ -700,17 +740,23 @@ static netdev_tx_t rk3576_can_start_xmit(struct sk_buff *skb,
 	} else {
 		/* Standard CAN ID format */
 		id = cf->can_id & CAN_SFF_MASK;
-		dlc = cf->can_dlc & TX_DLC_MASK;
+		dlc = can_fd_len2dlc(cf->len) & TX_DLC_MASK;
 
 		/* Standard frames remote TX request */
 		if (cf->can_id & CAN_RTR_FLAG)
 			dlc |= TX_RTR_MASK;
 	}
 
+	if ((rcan->can.ctrlmode & CAN_CTRLMODE_FD) && can_is_canfd_skb(skb)) {
+		dlc |= TX_FD_ENABLE;
+		if (cf->flags & CANFD_BRS)
+			dlc |= TX_FD_BRS_ENABLE;
+	}
+
 	rk3576_can_write(rcan, tx_id, id);
 	rk3576_can_write(rcan, tx_fifo, dlc);
 
-	for (i = 0; i < can_cc_dlc2len(cf->can_dlc & TX_DLC_MASK); i += 4)
+	for (i = 0; i < can_fd_dlc2len(dlc & TX_DLC_MASK); i += 4)
 		rk3576_can_write(rcan, tx_data + i,
 				 *(u32 *)(cf->data + i));
 
@@ -725,12 +771,13 @@ static int rk3576_can_rx(struct net_device *ndev, u32 addr)
 {
 	struct rk3576_can *rcan = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
-	struct can_frame *cf;
+	struct canfd_frame *cf;
 	struct sk_buff *skb;
 	u32 id_rk3576_can, dlc;
 	int i = 0;
 	u32 __maybe_unused ts, ret;
 	u32 data[16] = {0};
+	bool is_fd;
 
 	if (rcan->use_dma) {
 		dlc = readl(rcan->rxbuf + addr * rcan->rx_max_data);
@@ -744,15 +791,32 @@ static int rk3576_can_rx(struct net_device *ndev, u32 addr)
 			data[i] = rk3576_can_read(rcan, addr);
 	}
 
+	is_fd = (dlc & RX_FDF_MASK) && (rcan->can.ctrlmode & CAN_CTRLMODE_FD);
+
+	/* FD frame received while controller is in classic mode: drop */
+	if ((dlc & RX_FDF_MASK) && !is_fd) {
+		stats->rx_dropped++;
+		return 1;
+	}
+
 	/* create zero'ed CAN frame buffer */
-	skb = alloc_can_skb(ndev, (struct can_frame **)&cf);
+	if (is_fd)
+		skb = alloc_canfd_skb(ndev, &cf);
+	else
+		skb = alloc_can_skb(ndev, (struct can_frame **)&cf);
 	if (!skb) {
 		stats->rx_dropped++;
 		return 1;
 	}
 
-	/* Change CAN data length format to SocketCAN data format */
-	cf->can_dlc = can_cc_dlc2len((dlc & RX_DLC_MASK) >> RX_DLC_SHIFT);
+	/* Change CANFD data length format to SocketCAN data format */
+	if (is_fd) {
+		cf->len = can_fd_dlc2len((dlc & RX_DLC_MASK) >> RX_DLC_SHIFT);
+		if (dlc & RX_BRS_MASK)
+			cf->flags |= CANFD_BRS;
+	} else {
+		cf->len = can_cc_dlc2len((dlc & RX_DLC_MASK) >> RX_DLC_SHIFT);
+	}
 
 	/* Change CAN ID format to SocketCAN ID format */
 	if (dlc & RX_FORMAT_MASK) {
@@ -769,13 +833,13 @@ static int rk3576_can_rx(struct net_device *ndev, u32 addr)
 	}
 
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
-		/* Change CAN data format to SocketCAN data format */
-		for (i = 0; i < cf->can_dlc; i += 4)
+		/* Change CANFD data format to SocketCAN data format */
+		for (i = 0; i < cf->len; i += 4)
 			*(u32 *)(cf->data + i) = data[i / 4];
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	return 1;
@@ -807,11 +871,14 @@ static int rk3576_can_rx_poll(struct napi_struct *napi, int quota)
 	} else {
 		quota = (rk3576_can_read(rcan, CAN_STR_STATE) & rcan->rx_fifo_mask) >>
 			rcan->rx_fifo_shift;
-		quota = quota / rcan->rx_max_data;
+		quota = DIV_ROUND_UP(quota, rcan->rx_max_data);
 		cnt = (rk3576_can_read(rcan, CAN_STR_STATE) & INTM_CNT_MASK) >> INTM_CNT_SHIFT;
-		if (quota != cnt)
-			quota = ((rk3576_can_read(rcan, CAN_STR_STATE) & rcan->rx_fifo_mask) >>
-				rcan->rx_fifo_shift) / rcan->rx_max_data;
+		if (quota != cnt) {
+			quota = (rk3576_can_read(rcan, CAN_STR_STATE) & rcan->rx_fifo_mask) >>
+				rcan->rx_fifo_shift;
+			quota = DIV_ROUND_UP(quota, rcan->rx_max_data);
+		}
+		quota = min_t(int, quota, rcan->rx_fifo_depth);
 
 		while (work_done < quota)
 			work_done += rk3576_can_rx(ndev, CAN_RXFRD);
@@ -839,6 +906,7 @@ static int rk3576_can_rx_dma(struct rk3576_can *rcan)
 	quota = (rk3576_can_read(rcan, CAN_STR_STATE) & rcan->rx_fifo_mask) >>
 		rcan->rx_fifo_shift;
 	rcan->quota = DIV_ROUND_UP(quota, rcan->rx_max_data);
+	rcan->quota = min_t(int, rcan->quota, rcan->rx_fifo_depth);
 	if (rcan->quota == 0) {
 		rk3576_can_write(rcan, CAN_INT_MASK, INT_ENABLE);
 		return 1;
@@ -872,7 +940,7 @@ static int rk3576_can_err(struct net_device *ndev, u32 isr)
 	txerr = rk3576_can_read(rcan, CAN_TXERRORCNT);
 	sta_reg = rk3576_can_read(rcan, CAN_STATE);
 
-	if (skb) {
+	if (likely(skb)) {
 		cf->data[6] = txerr;
 		cf->data[7] = rxerr;
 	}
@@ -880,19 +948,19 @@ static int rk3576_can_err(struct net_device *ndev, u32 isr)
 	if (isr & BUS_OFF_INT) {
 		rcan->can.state = CAN_STATE_BUS_OFF;
 		rcan->can.can_stats.bus_off++;
-		cf->can_id |= CAN_ERR_BUSOFF;
+		if (likely(skb))
+			cf->can_id |= CAN_ERR_BUSOFF;
 	} else if (isr & PASSIVE_ERR_INT) {
 		rcan->can.can_stats.error_passive++;
 		rcan->can.state = CAN_STATE_ERROR_PASSIVE;
 		/* error passive state */
-		cf->can_id |= CAN_ERR_CRTL;
-		cf->data[1] = (txerr > rxerr) ?
-					CAN_ERR_CRTL_TX_WARNING :
-					CAN_ERR_CRTL_RX_WARNING;
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
-	}
-	if (sta_reg & ERR_WARNING_STATE) {
+		if (likely(skb)) {
+			cf->can_id |= CAN_ERR_CRTL;
+			cf->data[1] = (txerr > rxerr) ?
+						CAN_ERR_CRTL_TX_PASSIVE :
+						CAN_ERR_CRTL_RX_PASSIVE;
+		}
+	} else if (sta_reg & ERR_WARNING_STATE) {
 		rcan->can.can_stats.error_warning++;
 		rcan->can.state = CAN_STATE_ERROR_WARNING;
 		/* error warning state */
@@ -901,12 +969,14 @@ static int rk3576_can_err(struct net_device *ndev, u32 isr)
 			cf->data[1] = (txerr > rxerr) ?
 				CAN_ERR_CRTL_TX_WARNING :
 				CAN_ERR_CRTL_RX_WARNING;
-			cf->data[6] = txerr;
-			cf->data[7] = rxerr;
 		}
 	}
 
 	if (isr & BUSOFF_RCY_INT) {
+		rk3576_can_write(rcan, CAN_MODE,
+				 rk3576_can_read(rcan, CAN_MODE) | MODE_RETT);
+		rk3576_can_write(rcan, CAN_MODE,
+				 rk3576_can_read(rcan, CAN_MODE) & (~MODE_RETT));
 		rk3576_can_write(rcan, CAN_INT_MASK, 0xffff);
 		rk3576_can_write(rcan, CAN_INT, isr);
 		napi_schedule(&rcan->napi);
@@ -919,10 +989,11 @@ static int rk3576_can_err(struct net_device *ndev, u32 isr)
 		can_free_echo_skb(ndev, 0, NULL);
 		netif_start_queue(ndev);
 	}
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
-	netif_rx(skb);
-
+	if (likely(skb)) {
+		stats->rx_packets++;
+		stats->rx_bytes += cf->can_dlc;
+		netif_rx(skb);
+	}
 	return 0;
 }
 
@@ -1124,12 +1195,24 @@ static const struct of_device_id rk3576_can_of_match[] = {
 		.data = (void *)ROCKCHIP_RK3576_CAN
 	},
 	{
+		.compatible = "rockchip,rk3576-canfd",
+		.data = (void *)ROCKCHIP_RK3576_CANFD
+	},
+	{
 		.compatible = "rockchip,rk3572-can",
 		.data = (void *)ROCKCHIP_RK3572_CAN
 	},
 	{
+		.compatible = "rockchip,rk3572-canfd",
+		.data = (void *)ROCKCHIP_RK3572_CANFD
+	},
+	{
 		.compatible = "rockchip,rv1126b-can",
 		.data = (void *)ROCKCHIP_RV1126B_CAN
+	},
+	{
+		.compatible = "rockchip,rv1126b-canfd",
+		.data = (void *)ROCKCHIP_RV1126B_CANFD
 	},
 	{},
 };
@@ -1206,15 +1289,34 @@ static int rk3576_can_probe(struct platform_device *pdev)
 	rcan->can.clock.freq = clk_get_rate(rcan->clks[0].clk);
 	rcan->dev = &pdev->dev;
 	rcan->can.state = CAN_STATE_STOPPED;
-
 	rcan->can.bittiming_const = &rk3576_can_bittiming_const;
 	rcan->can.data_bittiming_const = &rk3576_can_data_bittiming_const;
 	rcan->can.do_set_mode = rk3576_can_set_mode;
 	rcan->can.do_get_berr_counter = rk3576_can_get_berr_counter;
 	rcan->can.do_set_bittiming = rk3576_can_set_bittiming;
 	rcan->can.do_set_data_bittiming = rk3576_can_set_bittiming;
-	rcan->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_LISTENONLY;
+
+	switch (rcan->mode) {
+	case ROCKCHIP_RK3576_CAN:
+	case ROCKCHIP_RV1126B_CAN:
+	case ROCKCHIP_RK3572_CAN:
+		rcan->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
+					       CAN_CTRLMODE_LISTENONLY;
+		rcan->rx_max_data = 4;
+		break;
+	case ROCKCHIP_RK3576_CANFD:
+	case ROCKCHIP_RV1126B_CANFD:
+	case ROCKCHIP_RK3572_CANFD:
+		ndev->mtu = CANFD_MTU;
+		rcan->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
+					       CAN_CTRLMODE_LISTENONLY |
+					       CAN_CTRLMODE_FD;
+		rcan->rx_max_data = 18;
+		break;
+	default:
+		err = -EINVAL;
+		goto err_free;
+	}
 
 	rcan->rx_fifo_shift = INTM_LEFT_CNT_SHIFT;
 	rcan->rx_fifo_mask = INTM_LEFT_CNT_MASK;
@@ -1226,18 +1328,7 @@ static int rk3576_can_probe(struct platform_device *pdev)
 	if (rcan->auto_retx_cnt > RETX_TIME_LIMIT_CNT_MAX)
 		rcan->auto_retx_cnt = RETX_TIME_LIMIT_CNT_MAX;
 
-	/* rx-max-data only 4 Words or 18 words are supported */
-	if (device_property_read_u32_array(&pdev->dev, "rockchip,rx-max-data", &val, 1))
-		rcan->rx_max_data = 18;
-	else
-		rcan->rx_max_data = val;
-
-	if (rcan->rx_max_data != 4 && rcan->rx_max_data != 18) {
-		rcan->rx_max_data = 18;
-		dev_warn(&pdev->dev, "rx_max_data is invalid, set to 18 words!\n");
-	}
 	rcan->rx_fifo_depth = SRAM_MAX_DEPTH / rcan->rx_max_data;
-
 	rcan->rxchan = dma_request_chan(&pdev->dev, "rx");
 	if (IS_ERR(rcan->rxchan)) {
 		dev_warn(&pdev->dev, "Failed to request rxchan\n");
