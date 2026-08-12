@@ -106,9 +106,9 @@
 #define RV1106_VOCRU_GATE_CON_NUM	4
 
 #define RV1106_CORECRU_GATE_CON(i)	(0x800 + (i) * 4)
-#define RV1106_COERCRU_CLKSEL_CON(i)	(0x300 + (i) * 4)
+#define RV1106_CORECRU_CLKSEL_CON(i)	(0x300 + (i) * 4)
 #define RV1106_CORECRU_GATE_CON_NUM	2
-#define RV1106_COERCRU_SFTRST_CON(i)	(0xa00 + (i) * 4)
+#define RV1106_CORECRU_SFTRST_CON(i)	(0xa00 + (i) * 4)
 
 /* grf */
 #define RV1106_PMUGRF_SOC_CON(i)	((i) * 4)

@@ -326,7 +326,7 @@ static void pm_pll_wait_lock(u32 pll_id)
 	if (readl_relaxed(cru_base + RV1106_CRU_PLL_CON(pll_id, 1)) & CRU_PLLCON1_PWRDOWN)
 		return;
 
-	while (delay-- >= 0) {
+	while (--delay >= 0) {
 		if (readl_relaxed(cru_base + RV1106_CRU_PLL_CON(pll_id, 1)) &
 		    CRU_PLLCON1_LOCK_STATUS)
 			break;
@@ -334,7 +334,7 @@ static void pm_pll_wait_lock(u32 pll_id)
 		rkpm_raw_udelay(1);
 	}
 
-	if (delay <= 0) {
+	if (delay < 0) {
 		rkpm_printstr("Can't wait pll lock: ");
 		rkpm_printhex(pll_id);
 		rkpm_printch('\n');
@@ -359,7 +359,7 @@ static void gic400_restore(void)
 	rkpm_gicv2_cpu_restore(gicd_base, gicc_base, &gicc_ctx_save);
 }
 
-static void uart_wrtie_byte(uint8_t byte)
+static void uart_write_byte(uint8_t byte)
 {
 	writel_relaxed(byte, uartdbg_base + 0x0);
 
@@ -370,9 +370,9 @@ static void uart_wrtie_byte(uint8_t byte)
 void rkpm_printch(int c)
 {
 	if (c == '\n')
-		uart_wrtie_byte('\r');
+		uart_write_byte('\r');
 
-	uart_wrtie_byte(c);
+	uart_write_byte(c);
 }
 
 #define RV1106_DUMP_GPIO_INTEN(id)							\
@@ -498,14 +498,14 @@ static void hpmcu_start(void)
 	writel(0xff000, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_START);
 	writel(0xffc00, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_END);
 	/* Reset the hp mcu */
-	writel(0x1e001e, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	writel(0x1e001e, corecru_base + RV1106_CORECRU_SFTRST_CON(1));
 	/* set the mcu addr */
 	writel(RV1106_HPMCU_BOOT_ADDR,
 	       coresgrf_base + RV1106_CORESGRF_HPMCU_BOOTADDR);
 	dsb(sy);
 
 	/* release the mcu */
-	writel(0x1e0000, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	writel(0x1e0000, corecru_base + RV1106_CORECRU_SFTRST_CON(1));
 	dsb(sy);
 }
 
@@ -1238,11 +1238,13 @@ static int __init rv1106_suspend_init(struct device_node *np)
 		is_rv1106 = 1;
 
 	dev_reg_base = ioremap(RV1106_DEV_REG_BASE, RV1106_DEV_REG_SIZE);
-	if (dev_reg_base)
+	if (dev_reg_base) {
 		pr_info("%s map dev_reg 0x%x -> 0x%x\n",
 			__func__, RV1106_DEV_REG_BASE, (u32)dev_reg_base);
-	else
+	} else {
 		pr_err("%s: can't map dev_reg(0x%x)\n", __func__, RV1106_DEV_REG_BASE);
+		return -ENOMEM;
+	}
 
 	gicd_base = dev_reg_base + RV1106_GIC_OFFSET + 0x1000;
 	gicc_base = dev_reg_base + RV1106_GIC_OFFSET + 0x2000;
