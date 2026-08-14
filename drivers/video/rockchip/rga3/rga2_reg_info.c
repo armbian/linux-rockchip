@@ -148,18 +148,32 @@ static void rga2_scale_down_bilinear_protect(u32 *param_fix, u32 *src_fix,
 	*src_fix = final_steps + 1;
 }
 
-static void rag2_scale_down_average_protect(u32 *param_fix, u32 param,
+static void rga2_scale_down_average_protect(u32 *param_fix, u32 param,
 					    u32 src, u32 dst)
 {
+	u32 drop_pos;
+
 	/* division Loss */
 	param = param + 1;
 
 	/*
 	 *   Ensure that the (src - 1) drop point is to the left of the last
 	 * point of the dst.
+	 *   When crossing tiles, if the final landing point is
+	 * exactly at (src - 1), no pixel should remain in the next tile.
 	 */
-	while ((param * (src - 1)) > (dst << 16))
-		param--;
+	while (param > 0) {
+		drop_pos = param * (src - 1);
+
+		if (drop_pos > (dst << RGA2_AVERAGE_PREC) ||
+		    ((drop_pos == (dst << RGA2_AVERAGE_PREC)) &&
+		     (src % RGA2_TILE_SIZE == 1)))
+			param--;
+		else
+			break;
+	}
+
+	WARN_ON(param == 0);
 
 	*param_fix = param;
 }
@@ -214,7 +228,7 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 				s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH((src_fix - 1)));
 		} else {
 			param_x = (dw << 16) / sw;
-			rag2_scale_down_average_protect(&param_x, param_x, sw, dw);
+			rga2_scale_down_average_protect(&param_x, param_x, sw, dw);
 
 			*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
 		}
@@ -252,7 +266,7 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 				s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT((src_fix - 1)));
 		} else {
 			param_y = (dh << 16) / sh;
-			rag2_scale_down_average_protect(&param_y, param_y, sh, dh);
+			rga2_scale_down_average_protect(&param_y, param_y, sh, dh);
 
 			*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
 		}
