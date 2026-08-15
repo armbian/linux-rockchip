@@ -1,0 +1,444 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * R69 TV box (PCB silkscreen XR821_V1.1) — Rockchip RK3518, RK3528 family.
+ *
+ * The vendor derived this box from Rockchip's EVB1 DDR4 V10 reference design and its
+ * compatible still says so, so this includes that board and overrides what differs.
+ *
+ * Checked against the box's own factory device tree, carved from its eMMC: this file
+ * compiles to a tree content-identical to that blob plus the changes below. The
+ * overrides that follow are the box's own hardware, and carry no reasons because the
+ * blob carries none; these are the deliberate departures from it.
+ *
+ *   compatible         board name first; rk3528a last, as rkmpp has no rk3518 entry
+ *                      and cannot otherwise find the VPU
+ *   model              name the box, keeping the vendor string
+ *   gpu@ff700000       interrupt-names and clocks in the form mainline lima expects,
+ *                      not the vendor Mali blob's
+ *   serial@ff9f0000    enabled with uart0m0_xfer, for the ttyS0 console
+ *   uart2              bluetooth serdev child, aicsemi,aic8800-bt
+ *   pwm@ffa90030       remote_support_psci 0 -> 1, so the remote wakes the box
+ *   watchdog@ffac0000  enabled, for systemd's RuntimeWatchdogSec
+ *   leds               power/standby labels, active-low, and retain-state-* in place
+ *                      of the vendor's invert-on-shutdown
+ *   chosen             dropped; u-boot supplies bootargs, and the vendor string names
+ *                      ttyFIQ0
+ *   fiq-debugger       disabled; it owns ff9f0000 otherwise
+ */
+/dts-v1/;
+#include "rk3528-evb1-ddr4-v10.dtsi"
+#include "rk3528-linux.dtsi"
+
+/* nodes the reference board has and this box does not */
+/delete-node/ &chosen;
+/delete-node/ &{/cpu0-opp-table/opp-1008000000};
+/delete-node/ &{/cpu0-opp-table/opp-1608000000};
+/delete-node/ &{/cpu0-opp-table/opp-1800000000};
+/delete-node/ &{/cpu0-opp-table/opp-2016000000};
+/delete-node/ &{/cpu0-opp-table/opp-408000000};
+/delete-node/ &{/cpu0-opp-table/opp-600000000};
+/delete-node/ &{/cpu0-opp-table/opp-816000000};
+/delete-node/ &{/dmc-opp-table/opp-920000000};
+/delete-node/ &rgmii_phy;
+/delete-node/ &{/gpu-opp-table/opp-300000000};
+/delete-node/ &{/gpu-opp-table/opp-500000000};
+/delete-node/ &{/gpu-opp-table/opp-600000000};
+/delete-node/ &pcie2x1;
+/delete-node/ &uart2m1_gpios;
+/delete-node/ &vdd_cpu;
+/delete-node/ &vdd_gpu;
+/delete-node/ &vdd_logic;
+
+&{/} {
+	compatible = "r69-xr821,rk3518-tvbox", "rockchip,rk3518-evb1-ddr4-v10", "rockchip,rk3518", "rockchip,rk3528a";
+	model = "R69 XR821_V1.1 (Rockchip RK3518 EVB1 DDR4 V10 Board)";
+};
+
+&{/aliases} {
+	/delete-property/ ethernet1;
+};
+
+&cpu0_opp_table {
+	rockchip,pvtm-voltage-sel = <0x00 0x58c 0x00 0x582 0x5a4 0x01 0x5a5 0x5c2 0x02 0x5c3 0x5e5 0x03 0x5e6 0x608 0x04 0x609 0x62b 0x05 0x62c 0x653 0x06 0x654 0x699 0x07 0x69a 0x6d0 0x08 0x6d1 0x707 0x09 0x708 0x270f 0x0a>;
+	rockchip,pvtm-freq = <0x159b40>;
+	rockchip,pvtm-volt = <0xe7ef0>;
+	rockchip,video-1080p-freq = <0x124f80>;
+};
+
+&{/cpu0-opp-table/opp-1200000000} {
+	/delete-property/ opp-microvolt-L0;
+	/delete-property/ opp-microvolt-L1;
+	/delete-property/ opp-microvolt-L2;
+	/delete-property/ opp-microvolt-L3;
+	/delete-property/ opp-microvolt-L4;
+	/delete-property/ opp-microvolt-L5;
+	/delete-property/ opp-microvolt-L6;
+	opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+};
+
+&{/cpu0-opp-table/opp-1416000000} {
+	/delete-property/ opp-microvolt-L10;
+	/delete-property/ opp-microvolt-L11;
+	/delete-property/ opp-microvolt-L5;
+	/delete-property/ opp-microvolt-L6;
+	/delete-property/ opp-microvolt-L7;
+	/delete-property/ opp-microvolt-L8;
+	/delete-property/ opp-microvolt-L9;
+	opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+	opp-microvolt-L1 = <0xe7ef0 0xe7ef0 0xf4240>;
+	opp-microvolt-L2 = <0xe4e1c 0xe4e1c 0xf4240>;
+	opp-microvolt-L3 = <0xe1d48 0xe1d48 0xf4240>;
+	opp-microvolt-L4 = <0xdec74 0xdec74 0xf4240>;
+	opp-microvolt-L0 = <0xeafc4 0xeafc4 0xf4240>;
+};
+
+&{/cpuinfo} {
+	nvmem-cells = <&otp_id &otp_cpu_version &cpu_code &cpu_code1>;
+	nvmem-cell-names = "id", "cpu-version", "cpu-code", "cpu-code1";
+};
+
+&route_hdmi {
+	logo,mode = "fullscreen";
+	charge_logo,mode = "fullscreen";
+};
+
+&route_tve {
+	logo,mode = "fullscreen";
+	charge_logo,mode = "fullscreen";
+};
+
+&dmc {
+	center-supply = <&vdd_cpu>;
+};
+
+&{/dmc-opp-table/opp-1056000000} {
+	/delete-property/ opp-microvolt-L0;
+	/delete-property/ opp-microvolt-L1;
+	/delete-property/ opp-microvolt-L2;
+	/delete-property/ opp-microvolt-L3;
+	/delete-property/ opp-microvolt-L4;
+	opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+};
+
+&gmac1 {
+	/delete-property/ clock_in_out;
+	/delete-property/ phy-handle;
+	/delete-property/ phy-mode;
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	/delete-property/ snps,reset-active-low;
+	/delete-property/ snps,reset-delays-us;
+	/delete-property/ snps,reset-gpio;
+	/delete-property/ tx_delay;
+	status = "disabled";
+};
+
+&{/fiq-debugger} {
+	status = "disabled";
+};
+
+&gpu_bus {
+	/delete-property/ bus-supply;
+	status = "disabled";
+};
+
+&gpu_opp_table {
+	rockchip,pvtm-voltage-sel = <0x00 0x329 0x00 0x32a 0x33e 0x01 0x33f 0x352 0x02 0x353 0x370 0x03 0x371 0x37a 0x04 0x37b 0x38e 0x05 0x38f 0x3a2 0x06 0x3a3 0x3b6 0x07 0x3b7 0x3ca 0x08 0x3cb 0x3e3 0x09 0x3e8 0x270f 0x0a>;
+	rockchip,pvtm-volt = <0xe7ef0>;
+};
+
+&{/gpu-opp-table/opp-700000000} {
+	/delete-property/ clock-latency-ns;
+	/delete-property/ opp-microvolt-L1;
+	/delete-property/ opp-microvolt-L2;
+	/delete-property/ opp-microvolt-L3;
+	/delete-property/ opp-microvolt-L4;
+	/delete-property/ opp-microvolt-L5;
+	/delete-property/ opp-microvolt-L6;
+	/delete-property/ opp-microvolt-L7;
+	/delete-property/ opp-microvolt-L8;
+};
+
+&{/gpu-opp-table/opp-800000000} {
+	/delete-property/ clock-latency-ns;
+	/delete-property/ opp-microvolt-L6;
+	/delete-property/ opp-microvolt-L7;
+	/delete-property/ opp-microvolt-L8;
+	opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+	opp-microvolt-L1 = <0xe7ef0 0xe7ef0 0xf4240>;
+	opp-microvolt-L2 = <0xe4e1c 0xe4e1c 0xf4240>;
+	opp-microvolt-L3 = <0xe1d48 0xe1d48 0xf4240>;
+	opp-microvolt-L4 = <0xdec74 0xdec74 0xf4240>;
+	opp-microvolt-L5 = <0xdbba0 0xdbba0 0xf4240>;
+	opp-microvolt-L0 = <0xeafc4 0xeafc4 0xf4240>;
+};
+
+&gpu {
+	mali-supply = <&vdd_cpu>;
+};
+
+&hdmi {
+	rockchip,cts-manual;
+};
+
+&i2c6 {
+	status = "disabled";
+};
+
+&sdhci {
+	/delete-property/ mmc-hs400-1_8v;
+	/delete-property/ mmc-hs400-enhanced-strobe;
+	max-frequency = <0x5f5e100>;
+	mmc-hs200-1_8v;
+	mmc-hs200-enhanced-strobe;
+};
+
+&sdio0 {
+	/delete-property/ bus-width;
+	/delete-property/ cap-sd-highspeed;
+	/delete-property/ cap-sdio-irq;
+	/delete-property/ disable-wp;
+	/delete-property/ keep-power-in-suspend;
+	/delete-property/ mmc-pwrseq;
+	/delete-property/ no-mmc;
+	/delete-property/ no-sd;
+	/delete-property/ non-removable;
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	/delete-property/ sd-uhs-sdr104;
+	/delete-property/ supports-sdio;
+	max-frequency = <0x8f0d180>;
+	status = "disabled";
+};
+
+&sdio1 {
+	max-frequency = <0x5f5e100>;
+	status = "okay";
+	no-sd;
+	no-mmc;
+	supports-sdio;
+	bus-width = <0x04>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio1_bus4 &sdio1_cmd &sdio1_clk>;
+	sd-uhs-sdr104;
+};
+
+&sdmmc {
+	/delete-property/ rockchip,default-sample-phase;
+	/delete-property/ sd-uhs-sdr104;
+	/delete-property/ sd-uhs-sdr12;
+	/delete-property/ sd-uhs-sdr25;
+	/delete-property/ sd-uhs-sdr50;
+	/delete-property/ vqmmc-supply;
+	status = "okay";
+};
+
+&mpp_srv {
+	rockchip,iommu-shared-mask = <0x420a>;
+};
+
+&wifi_32k {
+	rockchip,pins = <0x03 0x13 0x01 &pcfg_pull_none>;
+};
+
+&wifi_enable_h {
+	rockchip,pins = <0x03 0x0a 0x00 &pcfg_pull_none>;
+};
+
+&wifi_host_wake_irq {
+	rockchip,pins = <0x03 0x0b 0x00 &pcfg_pull_down>;
+};
+
+&pwm3 {
+	remote_support_psci = <0x01>;
+};
+
+&{/pwm@ffa90030/ir_key1} {
+	rockchip,usercode = <0xfb05>;
+	rockchip,key_table = <0xbb 0x1c 0xe5 0x9e 0x5b 0x8a 0x4d 0x8d 0xba 0x67 0xb9 0x6c 0xb8 0x69 0xb7 0x6a 0xd2 0x66 0xfd 0x73 0xfc 0x72 0xf7 0x74 0xf6 0x71 0xb5 0x8b 0xe4 0x0e 0xff 0x68 0xfe 0x6d 0xd0 0x184 0x04 0x40 0x14 0x41 0x4c 0x3d 0x4b 0x42>;
+};
+
+&{/pwm@ffa90030/ir_key2} {
+	rockchip,usercode = <0xfe02>;
+	rockchip,key_table = <0xec 0x1c 0xe6 0x9e 0xe9 0x67 0xe5 0x6c 0xae 0x69 0xaf 0x6a 0xee 0x66 0xe7 0x73 0xef 0x72 0xbf 0x74 0xbe 0x44 0xff 0x8b 0xbd 0x0e 0xbc 0xda 0xf0 0x8c 0xb3 0x184 0xb1 0x02 0xf2 0x03 0xf3 0x04 0xb5 0x05 0xf6 0x06 0xf7 0x07 0xb9 0x08 0xfa 0x09 0xfb 0x0a 0xb4 0xa5 0xb0 0xa3 0xfd 0xb7 0xdb 0xb4 0xd9 0xb5 0xf8 0xb6 0xfe 0x0b>;
+};
+
+&{/pwm@ffa90030/ir_key3} {
+	rockchip,usercode = <0xfe01>;
+	rockchip,key_table = <0xfd 0xb7 0xf8 0xb6 0xde 0xb4 0xda 0x01 0xfa 0x04>;
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&pwm5 {
+	status = "okay";
+};
+
+&pwm7 {
+	status = "okay";
+};
+
+&sai3 {
+	assigned-clocks = <&cru 0x184>;
+	assigned-clock-rates = <0x5dc000>;
+	rockchip,always-on;
+};
+
+&sai1 {
+	status = "disabled";
+};
+
+&sdio_pwrseq {
+	reset-gpios = <&gpio3 0x0a 0x01>;
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0m0_xfer>;
+};
+
+&uart2 {
+	pinctrl-0 = <&uart2m0_xfer &uart2m0_ctsn>;
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "host";
+};
+
+&vcc5v0_otg {
+	gpio = <&gpio4 0x12 0x00>;
+};
+
+&vop {
+	esmart_lb_mode = [03];
+	support-multi-area;
+};
+
+&wdt {
+	status = "okay";
+};
+
+&wireless_bluetooth {
+	/delete-property/ BT,wake_host_irq;
+	uart_rts_gpios = <&gpio3 0x02 0x01>;
+	pinctrl-0 = <&uart2m0_rtsn>;
+	pinctrl-1 = <&uart2m0_gpios>;
+	BT,reset_gpio = <&gpio3 0x11 0x00>;
+	BT,wake_gpio = <&gpio3 0x0c 0x00>;
+};
+
+&wireless_wlan {
+	wifi_chip_type = "AIC8800";
+	WIFI,host_wake_irq = <0xa8 0x0b 0x00>;
+};
+
+&dmc_opp_table {
+	opp-324000000 {
+		opp-hz = <0x00 0x134fd900>;
+		opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+	};
+};
+
+&dmc_opp_table {
+	opp-666000000 {
+		opp-hz = <0x00 0x27b25a80>;
+		opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+	};
+};
+
+&dmc_opp_table {
+	opp-780000000 {
+		opp-hz = <0x00 0x2e7ddb00>;
+		opp-microvolt = <0xdbba0 0xdbba0 0xf4240>;
+	};
+};
+
+&{/} {
+	fd650 {
+		compatible = "fdhisi,fd650";
+		sda-gpio = <&gpio4 0x08 0x00>;
+		scl-gpio = <&gpio4 0x09 0x00>;
+		status = "okay";
+	};
+};
+
+&{/} {
+	leds {
+		compatible = "gpio-leds";
+		power_led: power {
+			label = "power";
+			gpios = <&gpio4 0x11 0x01>;
+			default-state = "on";
+			retain-state-shutdown;
+			retain-state-suspended;
+		};
+		standby_led: standby {
+			label = "standby";
+			gpios = <&gpio4 0x0b 0x01>;
+			default-state = "off";
+			retain-state-shutdown;
+			retain-state-suspended;
+		};
+	};
+};
+
+&otp {
+	cpu_code1: cpu-code1@52 {
+		reg = <0x52 0x02>;
+	};
+};
+
+&pinctrl {
+	leds {
+		led_power_pin: led-power-pin {
+			rockchip,pins = <0x04 0x0b 0x00 &pcfg_pull_none>;
+		};
+	};
+};
+
+&{/pinctrl/wireless-bluetooth} {
+	uart2m0_gpios: uart2m0-gpios {
+		rockchip,pins = <0x03 0x02 0x00 &pcfg_pull_none>;
+	};
+};
+
+&reserved_memory {
+	cma {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x00 0x800000>;
+		linux,cma-default;
+	};
+};
+
+&uart2 {
+	bluetooth {
+		compatible = "aicsemi,aic8800-bt";
+		max-speed = <0x16e360>;
+	};
+};
+
+&{/} {
+	vdd_cpu: vdd_logic: vdd_gpu: vdd-cpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 0x00 0x1388 0x01>;
+		regulator-name = "vdd_cpu";
+		regulator-min-microvolt = <0xb6210>;
+		regulator-max-microvolt = <0x125368>;
+		regulator-init-microvolt = <0xe8aa8>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <0xfa>;
+		pwm-supply = <&vcc5v0_sys>;
+		status = "okay";
+	};
+};
