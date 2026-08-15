@@ -27,6 +27,7 @@
 
 #include <soc/rockchip/rockchip_dmc.h>
 
+#include "rockchip_drm_crc.h"
 #include "rockchip_drm_debugfs.h"
 
 #define ROCKCHIP_MAX_FB_BUFFER	3
@@ -809,6 +810,55 @@ struct rockchip_crtc_funcs {
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode, struct dmcfreq_vop_info *vop_bw_info);
 	int (*get_crc)(struct drm_crtc *crtc);
 	void (*iommu_fault_handler)(struct drm_crtc *crtc, struct iommu_domain *iommu);
+	/*
+	 * region CRC accessors for the crc_region/crc_key/crc_freeze debugfs
+	 * interface; NULL when the CRTC driver has no region CRC support.
+	 */
+	const struct rockchip_crtc_crc_funcs *crc_funcs;
+};
+
+/**
+ * struct rockchip_crtc_crc_funcs - region CRC access callbacks
+ *
+ * Snapshot functions copy the current config/counters under the CRTC
+ * driver's lock; set functions validate, commit and reprogram the
+ * hardware block.
+ */
+struct rockchip_crtc_crc_funcs {
+	int (*get_region_count)(struct drm_crtc *crtc);
+	bool (*source_active)(struct drm_crtc *crtc);
+	/*
+	 * Latch the per-source target block from the source name currently
+	 * selected through crc/control, so the get/set callbacks below
+	 * address the right per-source arrays.  verify_crc_source must stay
+	 * free of side effects (crc_control_show calls it on every table
+	 * entry), so the target is latched here instead — by the debugfs
+	 * layer, which snapshots crc->source under crc->lock before calling.
+	 * @source_name is NULL when no source has been set yet (selects the
+	 * CRTC block, same as "auto"/"crtc").
+	 */
+	void (*resolve_target)(struct drm_crtc *crtc, const char *source_name);
+	void (*get_region)(struct drm_crtc *crtc,
+			   struct rockchip_crc_region snap[ROCKCHIP_CRC_REGION_NR],
+			   u32 mismatch_cnt[ROCKCHIP_CRC_REGION_NR],
+			   u32 freeze_cnt[ROCKCHIP_CRC_REGION_NR]);
+	void (*get_key)(struct drm_crtc *crtc,
+			u32 key_values[ROCKCHIP_CRC_KEY_VALUE_NR], u32 *key_tie);
+	void (*get_freeze)(struct drm_crtc *crtc,
+			   bool freeze_en[ROCKCHIP_CRC_REGION_NR],
+			   u32 freeze_cnt[ROCKCHIP_CRC_REGION_NR],
+			   u32 *freeze_num, bool *global_freeze_en,
+			   u32 *global_freeze_cnt);
+	/*
+	 * Validates @region and commits it; returns -EINVAL when it would
+	 * mix COLOR and ALPHA key modes with other enabled regions of the
+	 * same block (the shared KEY_VALUE pool cannot serve both formats).
+	 */
+	int (*set_region)(struct drm_crtc *crtc, int idx,
+			  const struct rockchip_crc_region *region);
+	void (*set_key)(struct drm_crtc *crtc, const u32 *vals, int n,
+			u32 tie_val, bool tie_set);
+	void (*set_freeze)(struct drm_crtc *crtc, u32 freeze_num, int global_en);
 };
 
 struct rockchip_dclk_pll {

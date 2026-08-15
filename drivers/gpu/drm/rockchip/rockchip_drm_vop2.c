@@ -60,6 +60,7 @@
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
+#include "rockchip_drm_crc.h"
 #include "rockchip_vop_reg.h"
 #include "rockchip_post_csc.h"
 
@@ -139,6 +140,14 @@
 
 #define VOP_MODULE_SET(vop2, module, name, v) \
 		REG_SET(vop2, name, 0, module->regs->name, v, false)
+
+/* CRC block register access (works for both VP and win CRC blocks) */
+#define VOP_CRC_SET(vop2, crc, name, v) \
+		REG_SET(vop2, name, 0, crc->name, v, false)
+
+/* indexed variant for per-region registers */
+#define VOP_CRC_SET_I(vop2, crc, name, i, v) \
+		REG_SET(vop2, name, 0, crc->name[i], v, false)
 
 #define VOP_MODULE_SET64(vop2, module, name, v) \
 	do { \
@@ -445,6 +454,41 @@ struct vop2_plane_state {
 	struct drm_property_blob *ext_data;
 };
 
+/*
+ * Software mirror of one CRC block (region config, key pool, counters),
+ * shared by vop2_crc_config() and the IRQ handler under vop2->irq_lock.
+ * Embedded in both struct vop2_win and struct vop2_video_port so each
+ * source owns an independent state.
+ */
+struct vop2_crc_state {
+	struct rockchip_crc_region regions[ROCKCHIP_CRC_REGION_NR];
+	u32 key_values[ROCKCHIP_CRC_KEY_VALUE_NR];
+	u32 key_tie;
+	u32 key_value_en;
+	u32 mismatch_cnt[ROCKCHIP_CRC_REGION_NR];
+	u32 freeze_cnt[ROCKCHIP_CRC_REGION_NR];
+	bool global_freeze_en;
+	u32 freeze_num;
+	u32 global_freeze_cnt;
+};
+
+/*
+ * Resolved per-source CRC configuration pointers.  Filled by
+ * vop2_crc_resolve_target() so that callers
+ * don't need long parameter lists.
+ */
+struct vop2_crc_src {
+	struct rockchip_crc_region *regions;
+	u32 *key_values;
+	u32 *key_tie;
+	u32 *key_value_en;
+	u32 *mismatch_cnt;
+	u32 *freeze_cnt;
+	u32 *freeze_num;
+	u32 *global_freeze_cnt;
+	bool *global_freeze_en;
+};
+
 struct vop2_win {
 	const char *name;
 	struct vop2 *vop2;
@@ -555,6 +599,7 @@ struct vop2_win {
 
 	struct vop_reg crc_enable;
 	uint32_t crc_value_offset;
+	const struct vop2_crc_regs *crc;
 
 	const struct vop2_win_regs *regs;
 	const uint64_t *format_modifiers;
@@ -592,6 +637,9 @@ struct vop2_win {
 	 * @rk_plane_extend_data_prop: plane extend data interaction with userspace
 	 */
 	struct drm_property *rk_plane_extend_data_prop;
+
+	/* per-plane CRC block region/key/mismatch/freeze config (independent per win) */
+	struct vop2_crc_state crc_state;
 };
 
 struct vop2_cluster {
@@ -1019,6 +1067,53 @@ struct vop2_video_port {
 	u32 win_cfg_done_bits;
 
 	struct vop2_win *crc_source_win;
+
+	/*
+	 * @crc_target_win: window selected through crc/control but not yet
+	 * activated by a crc/data open.  Latched by
+	 * vop2_crc_set_target_win() (called from the debugfs layer after
+	 * snapshotting crc->source under crc->lock) so that region/key config
+	 * written before activation targets the right block without reading
+	 * crtc->crc.source from irq_lock context, which cannot take
+	 * crc->lock.
+	 */
+	struct vop2_win *crc_target_win;
+
+	/* CRTC CRC block config (independent from each plane's own config) */
+	struct vop2_crc_state crc_state;
+
+	/*
+	 * @crc_active: register descriptor of the CRC block currently
+	 * serviced by this VP (NULL = none).  Points at the CRTC block
+	 * (vp->regs->crc) or at the selected plane's block
+	 * (crc_source_win->crc).  The software config/counters it pairs
+	 * with are resolved via vop2_crc_resolve_target().
+	 */
+	const struct vop2_crc_regs *crc_active;
+
+	/*
+	 * @vop_enabled: guarded by vop2->irq_lock.  True while this VP's
+	 * VOP registers are accessible: set by vop2_crtc_atomic_enable()
+	 * once vop2_initial() has taken the runtime PM reference, cleared
+	 * by vop2_crtc_atomic_disable() after quiescing the CRC block and
+	 * before vop2_disable() powers the VOP off.  Debugfs writers read
+	 * crtc->state->active without any lock shared with the disable
+	 * path (which does not hold irq_lock either), so this flag is what
+	 * stops vop2_crc_config()/vop2_crc_disable() from touching the
+	 * registers of an unpowered VOP.
+	 */
+	bool vop_enabled;
+
+	/*
+	 * @crc_encoder_source: the active CRC source is the encoder (DP
+	 * sink) CRC: its 3-word entries are added over AUX by
+	 * drm_dp_aux_crc_work, so get_crc() must skip the VOP readout —
+	 * the legacy single-u32 readout would under-fill the entry and
+	 * leak stack data into crc/data.  Latched under irq_lock by
+	 * vop2_crtc_set_crc_source(); sampled with READ_ONCE like
+	 * crc_source_win above.
+	 */
+	bool crc_encoder_source;
 };
 
 struct vop2_extend_pll {
@@ -1673,6 +1768,498 @@ static struct vop2_win *vop2_find_win_by_name(struct vop2 *vop2, const char *nam
 	}
 
 	return NULL;
+}
+
+/*
+ * Resolve the arrays that region/key configuration should target: the
+ * active source's arrays (crc_source_win set), otherwise the source
+ * selected via crc/control but not yet activated (crc_target_win).
+ * Falls back to CRTC arrays when no plane is selected.
+ *
+ * crtc->crc.source must not be read here: the DRM core replaces and
+ * frees it under crtc->crc.lock (a control write racing a crc/data
+ * close can kfree the string while this runs under irq_lock), so the
+ * resolution is latched in crc_target_win by the debugfs layer's
+ * resolve_target() callback instead.
+ */
+static void vop2_crc_resolve_target(struct vop2_video_port *vp,
+				    struct vop2_crc_src *s)
+{
+	struct vop2_win *win = vp->crc_source_win ?: vp->crc_target_win;
+
+	if (win) {
+		s->regions = win->crc_state.regions;
+		s->key_values = win->crc_state.key_values;
+		s->key_tie = &win->crc_state.key_tie;
+		s->key_value_en = &win->crc_state.key_value_en;
+		s->mismatch_cnt = win->crc_state.mismatch_cnt;
+		s->freeze_cnt = win->crc_state.freeze_cnt;
+		s->freeze_num = &win->crc_state.freeze_num;
+		s->global_freeze_en = &win->crc_state.global_freeze_en;
+		s->global_freeze_cnt = &win->crc_state.global_freeze_cnt;
+		return;
+	}
+
+	s->regions = vp->crc_state.regions;
+	s->key_values = vp->crc_state.key_values;
+	s->key_tie = &vp->crc_state.key_tie;
+	s->key_value_en = &vp->crc_state.key_value_en;
+	s->mismatch_cnt = vp->crc_state.mismatch_cnt;
+	s->freeze_cnt = vp->crc_state.freeze_cnt;
+	s->freeze_num = &vp->crc_state.freeze_num;
+	s->global_freeze_en = &vp->crc_state.global_freeze_en;
+	s->global_freeze_cnt = &vp->crc_state.global_freeze_cnt;
+}
+
+/*
+ * Build the per-region enable mask (bit i = region i) from the
+ * user-configured regions.
+ */
+static u32 vop2_crc_region_mask(struct rockchip_crc_region *regions, int nr)
+{
+	u32 mask = 0;
+	int i;
+
+	for (i = 0; i < nr; i++)
+		if (regions[i].enable)
+			mask |= BIT(i);
+
+	return mask;
+}
+
+/* per-region interrupt status/enable bit positions inside one CRC block */
+static u32 vop2_crc_err_bit(const struct vop2_crc_regs *crc, int i)
+{
+	return BIT(i * crc->irq_stride + crc->err_bit_off);
+}
+
+static u32 vop2_crc_freeze_bit(const struct vop2_crc_regs *crc, int i)
+{
+	return BIT(i * crc->irq_stride + crc->freeze_bit_off);
+}
+
+/*
+ * INT_CLR is write-1-to-clear and carries no write_mask (unlike INT_EN),
+ * so the field bits must be shifted into place by hand; @bits comes from
+ * INT_STATUS (same layout) or int_clr.mask to clear everything.
+ */
+static void vop2_crc_int_clr(struct vop2 *vop2,
+			     const struct vop2_crc_regs *crc, u32 bits)
+{
+	vop2_writel(vop2, crc->int_clr.offset,
+		    (bits & crc->int_clr.mask) << crc->int_clr.shift);
+}
+
+/*
+ * The per-region interrupt bits are computed as BIT(i * irq_stride + off)
+ * and combined into a u32, and global_freeze_bit is used as BIT() too:
+ * every bit of a block must stay below 32.  A larger value would silently
+ * truncate to unrelated bits on 64-bit (and is UB in BIT() on 32-bit).
+ */
+static bool vop2_crc_irq_bits_valid(const struct vop2_crc_regs *crc, int nr)
+{
+	unsigned int max_off = max(crc->err_bit_off, crc->freeze_bit_off);
+
+	if ((nr - 1) * crc->irq_stride + max_off >= 32)
+		return false;
+
+	return crc->global_freeze_bit < 32;
+}
+
+/*
+ * Convert an ARGB8888 key value to the VOP CRC expanded word format:
+ * (R<<22)|(G<<12)|(B<<2), matching how pixels are fed into the CRC engine.
+ */
+static u32 vop2_crc_key_argb_to_expand(u32 argb)
+{
+	u8 r = (argb >> 16) & 0xff;
+	u8 g = (argb >> 8) & 0xff;
+	u8 b = argb & 0xff;
+
+	return (r << 22) | (g << 12) | (b << 2);
+}
+
+/*
+ * Read the per-frame CRC values of one block into @crcs:
+ * crcs[0] = global (always on), crcs[1..N] = region0..N-1.
+ */
+static void vop2_crc_read_frame_values(struct vop2 *vop2,
+				       const struct vop2_crc_regs *crc,
+				       u32 crcs[1 + ROCKCHIP_CRC_REGION_NR])
+{
+	int i;
+
+	crcs[0] = vop2_readl(vop2, crc->global_value.offset);
+	for (i = 0; i < vop2->data->crc_region_nr; i++)
+		crcs[1 + i] = vop2_readl(vop2, crc->region_value[i].offset);
+}
+
+/*
+ * Config the CRC block of the currently selected source.  Resolves the
+ * per-source region/key/freeze arrays via vop2_crc_resolve_target(), then
+ * writes KEY_VALUE, KEY_TIE, COORD, expected values, FREEZE_NUM, INT_EN
+ * and CRC_CTRL fields for all enabled regions.  Also enables global full-
+ * screen CRC (bit30) so the global value is always available.
+ *
+ * Concurrency: shared CRC state (config arrays, counters) is protected by
+ * vop2->irq_lock.  It is held here across the register programming (the
+ * writes go through vop2_mask_write RMW, and the IRQ handler holds the
+ * same lock while servicing a block) and by every writer that updates the
+ * arrays.  vop2_cfg_done() and vop2_wait_for_fs_by_done_bit_status() must
+ * stay outside the lock: the RK3568 cfg_done path
+ * (rk3568_vop2_cfg_done -> vop2_pending_done_bits) busy-waits for a frame
+ * start via readx_poll_timeout_atomic for up to 100 ms, which must not
+ * run in an irqsave section with irq_lock held.  Because of that wait the
+ * function takes the lock twice, in two critical sections around the
+ * frame-start wait: the second one must re-sample crc_active/vop_enabled,
+ * which set_crc_source()/atomic_disable() may have changed in between.
+ */
+static void vop2_crc_config(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_crc_regs *crc, *crc_first;
+	struct vop2_crc_src s;
+	u32 int_en = 0;
+	u32 key_en = 0;
+	u32 key_mode = 0;
+	u32 err_en = 0;
+	u32 freeze_en = 0;
+	bool has_color_key = false;
+	unsigned long flags;
+	int i;
+
+	if (!vop2->data->crc_region_nr)
+		return;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	/*
+	 * Sample the block under the lock: set_crc_source detaches it here.
+	 * vop_enabled must be checked under the same lock: it is cleared by
+	 * atomic_disable() before vop2_disable() drops the runtime PM
+	 * reference, and the callers that read crtc->state->active outside
+	 * this lock cannot fence that power-off on their own.
+	 */
+	crc = vp->crc_active;
+	if (!crc || !vp->vop_enabled) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return;
+	}
+	crc_first = crc;
+
+	vop2_crc_resolve_target(vp, &s);
+	VOP_CRC_SET(vop2, crc, global_chkout, 1);
+	VOP_CRC_SET(vop2, crc, freeze_num, *s.freeze_num);
+	VOP_CRC_SET(vop2, crc, key_tie, *s.key_tie);
+	VOP_CRC_SET(vop2, crc, key_value_en, *s.key_value_en);
+
+	/*
+	 * KEY_VALUE0~3 are shared across all regions of a CRC block. When any
+	 * region uses COLOR mode the values must be in expanded-word format
+	 * (matching the CRC pixel stream). Since the registers are shared, this
+	 * conversion applies to all slots — mixing COLOR and ALPHA key modes
+	 * within the same block is not supported.
+	 */
+	for (i = 0; i < vop2->data->crc_region_nr; i++) {
+		if (s.regions[i].enable &&
+		    s.regions[i].key_mode == ROCKCHIP_CRC_KEY_COLOR) {
+			has_color_key = true;
+			break;
+		}
+	}
+
+	for (i = 0; i < ROCKCHIP_CRC_KEY_VALUE_NR; i++) {
+		u32 kv = s.key_values[i];
+
+		if (has_color_key)
+			kv = vop2_crc_key_argb_to_expand(kv);
+		VOP_CRC_SET_I(vop2, crc, key_value, i, kv);
+	}
+
+	for (i = 0; i < vop2->data->crc_region_nr; i++) {
+		struct rockchip_crc_region *r = &s.regions[i];
+		u32 coord0, coord1;
+
+		if (!r->enable)
+			continue;
+
+		coord0 = (r->x1 & 0xffff) | ((r->y1 & 0xffff) << 16);
+		coord1 = (r->x2 & 0xffff) | ((r->y2 & 0xffff) << 16);
+		VOP_CRC_SET_I(vop2, crc, coord0, i, coord0);
+		VOP_CRC_SET_I(vop2, crc, coord1, i, coord1);
+
+		if (r->check_en) {
+			VOP_CRC_SET_I(vop2, crc, expect, i, r->expected_crc);
+			int_en |= vop2_crc_err_bit(crc, i);
+			err_en |= BIT(i);
+		}
+
+		if (r->freeze_en) {
+			int_en |= vop2_crc_freeze_bit(crc, i);
+			freeze_en |= BIT(i);
+		}
+
+		if (r->key_mode != ROCKCHIP_CRC_KEY_OFF) {
+			key_en |= BIT(i);
+			if (r->key_mode == ROCKCHIP_CRC_KEY_COLOR)
+				key_mode |= BIT(i);
+		}
+	}
+
+	if (*s.global_freeze_en) {
+		int_en |= BIT(crc->global_freeze_bit);
+		VOP_CRC_SET(vop2, crc, global_freeze, 1);
+	} else {
+		VOP_CRC_SET(vop2, crc, global_freeze, 0);
+	}
+
+	/* shadowed enable/mask fields, latched at the next frame start */
+	VOP_CRC_SET(vop2, crc, region_chkout,
+		    vop2_crc_region_mask(s.regions, vop2->data->crc_region_nr));
+	VOP_CRC_SET(vop2, crc, region_key, key_en);
+	VOP_CRC_SET(vop2, crc, region_key_mode, key_mode);
+	VOP_CRC_SET(vop2, crc, region_freeze, freeze_en);
+	VOP_CRC_SET(vop2, crc, region_err, err_en);
+
+	/*
+	 * INT_EN is not shadowed: it takes effect the moment it is written,
+	 * while everything above only latches at the next frame start (via
+	 * vop2_cfg_done() below).  Arming before the latch would let an
+	 * event of the still-running old configuration fire immediately and
+	 * be reported against the new software arrays.  So: disarm now,
+	 * latch and wait for the frame start, then drop whatever the
+	 * transition frames latched and arm — from that point on every
+	 * event belongs to the new configuration.  Same pattern as the
+	 * gamma reload (load_lut -> vop2_cfg_done ->
+	 * vop2_wait_for_fs_by_done_bit_status).
+	 */
+	VOP_CRC_SET(vop2, crc, int_en, 0);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	vop2_cfg_done(&vp->rockchip_crtc.crtc);
+	vop2_wait_for_fs_by_done_bit_status(vp);
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	/*
+	 * Re-sample under the lock: set_crc_source() may have detached the
+	 * block (or atomic_disable() cleared vop_enabled) while the unlock
+	 * window above was waiting for the frame start.  The int_en mask
+	 * was computed from crc_first's bit layout; if the active block has
+	 * switched to a different one (different irq_stride/err_bit_off),
+	 * writing the old mask would arm the wrong interrupt bits — bail
+	 * out and let the new source's own vop2_crc_config() arm it.
+	 */
+	crc = vp->crc_active;
+	if (!crc || !vp->vop_enabled || crc != crc_first) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return;
+	}
+
+	vop2_crc_int_clr(vop2, crc, crc->int_clr.mask);
+	VOP_CRC_SET(vop2, crc, int_en, int_en);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+static void vop2_crc_disable(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_crc_regs *crc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	/*
+	 * Sample the block under the lock: set_crc_source detaches it here.
+	 * Also require the VOP to be powered: this is reached from
+	 * set_crc_source(NULL) after a crc/data close, which may happen long
+	 * after the CRTC was disabled and the VOP powered off — skipping the
+	 * MMIO quiesce is fine there, the block is re-armed from the software
+	 * arrays on the next atomic_enable().
+	 */
+	crc = vp->crc_active;
+	if (!crc || !vp->vop_enabled) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return;
+	}
+
+	VOP_CRC_SET(vop2, crc, int_en, 0);
+	/* leave no sticky event behind for the next configuration */
+	vop2_crc_int_clr(vop2, crc, crc->int_clr.mask);
+	VOP_CRC_SET(vop2, crc, region_chkout, 0);
+	VOP_CRC_SET(vop2, crc, region_key, 0);
+	VOP_CRC_SET(vop2, crc, region_key_mode, 0);
+	VOP_CRC_SET(vop2, crc, region_freeze, 0);
+	VOP_CRC_SET(vop2, crc, region_err, 0);
+	VOP_CRC_SET(vop2, crc, global_freeze, 0);
+	VOP_CRC_SET(vop2, crc, global_chkout, 0);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	vop2_cfg_done(&vp->rockchip_crtc.crtc);
+}
+
+/*
+ * Attach/detach the CRC block serviced by this VP.  crc_active and
+ * crc_source_win are read by the IRQ handler and by every
+ * vop2_crc_resolve_target() call under vop2->irq_lock, so all updates
+ * must hold the same lock.  vop2_crc_config()/vop2_crc_disable() take
+ * irq_lock internally and must stay outside of it.
+ *
+ * crc_target_win is cleared on every attach/detach so that a stale
+ * pre-activation target left by a previous plane source selection does
+ * not misroute the CRTC source's config through vop2_crc_resolve_target()
+ * (which falls back to crc_target_win when crc_source_win is NULL).
+ */
+static void vop2_crc_set_target(struct vop2_video_port *vp,
+				const struct vop2_crc_regs *crc,
+				struct vop2_win *win)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vp->crc_active = crc;
+	vp->crc_source_win = win;
+	vp->crc_target_win = NULL;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+}
+
+/*
+ * Update vp->vop_enabled under irq_lock, pairing with the check inside
+ * vop2_crc_config()/vop2_crc_disable().  Called from atomic_enable()
+ * (VOP powered) and atomic_disable() (before vop2_disable() powers it
+ * off).
+ */
+static void vop2_crc_set_vop_enabled(struct vop2_video_port *vp, bool en)
+{
+	struct vop2 *vop2 = vp->vop2;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	vp->vop_enabled = en;
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+/*
+ * Service the CRC interrupt status of a block: per-region ERR/FREEZE bits
+ * and the global FREEZE bit. Accumulate counts, report (rate-limited) and clear.
+ *
+ * The block descriptor, the source name and the config are sampled under
+ * irq_lock: vop2_crtc_set_crc_source() detaches the block (crc_active /
+ * crc_source_win cleared) under the same lock, so sampling before it would
+ * risk dereferencing a detached descriptor.  The process-context writers
+ * (debugfs handlers, set_crc_source re-arm) update the same arrays under
+ * this lock.  The rate-limited warnings are emitted after unlocking.
+ */
+static bool vop2_crc_irq_handler_block(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_crc_regs *crc;
+	const char *name = "crtc";
+	struct vop2_crc_src s;
+	u32 mismatch_exp[ROCKCHIP_CRC_REGION_NR] = {};
+	u32 mismatch_hw[ROCKCHIP_CRC_REGION_NR] = {};
+	u32 mismatch_got[ROCKCHIP_CRC_REGION_NR] = {};
+	u32 status;
+	u32 freeze_num = 0;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+
+	/*
+	 * Re-check under the lock: set_crc_source() may have detached the
+	 * block since the caller's unlocked fast-path check.
+	 */
+	crc = vp->crc_active;
+	if (!crc) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return false;
+	}
+
+	status = vop2_read_reg(vop2, 0, &crc->int_status);
+	if (!status) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return false;
+	}
+
+	freeze_num = vop2_read_reg(vop2, 0, &crc->freeze_num);
+
+	if (vp->crc_source_win)
+		name = vp->crc_source_win->name;
+
+	vop2_crc_resolve_target(vp, &s);
+
+	for (i = 0; i < vop2->data->crc_region_nr; i++) {
+		if (status & vop2_crc_err_bit(crc, i)) {
+			s.mismatch_cnt[i]++;
+			mismatch_exp[i] = s.regions[i].expected_crc;
+			mismatch_hw[i] = vop2_readl(vop2, crc->expect[i].offset);
+			mismatch_got[i] = vop2_readl(vop2, crc->region_value[i].offset);
+		}
+		if (status & vop2_crc_freeze_bit(crc, i))
+			s.freeze_cnt[i]++;
+	}
+
+	if (status & BIT(crc->global_freeze_bit))
+		(*s.global_freeze_cnt)++;
+
+	/* write-1-to-clear (no write-mask on INT_CLR, unlike INT_EN) */
+	vop2_crc_int_clr(vop2, crc, status);
+
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	for (i = 0; i < vop2->data->crc_region_nr; i++) {
+		if (status & vop2_crc_err_bit(crc, i))
+			dev_warn_ratelimited(vop2->dev, "CRC mismatch on %s region%d: expected %#010x (hw %#010x), got %#010x\n",
+					     name, i, mismatch_exp[i], mismatch_hw[i],
+					     mismatch_got[i]);
+		if (status & vop2_crc_freeze_bit(crc, i))
+			dev_warn_ratelimited(vop2->dev, "CRC freeze on %s region%d (same image for at least %u frames)\n",
+					     name, i, freeze_num);
+	}
+
+	if (status & BIT(crc->global_freeze_bit))
+		dev_warn_ratelimited(vop2->dev, "CRC freeze on %s global (same image for at least %u frames)\n",
+				     name, freeze_num);
+
+	return true;
+}
+
+/*
+ * Top-level CRC interrupt handler, called from the VOP ISR. Only the currently
+ * active CRC block (crc_active != NULL) can fire, so check that one. Returns
+ * IRQ_HANDLED if a CRC mismatch interrupt was serviced.
+ */
+static irqreturn_t vop2_crc_irq_handler(struct vop2 *vop2)
+{
+	struct vop2_video_port *vp;
+	irqreturn_t ret = IRQ_NONE;
+	int i;
+
+	if (!vop2->data->crc_region_nr)
+		return IRQ_NONE;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		if (!vp->crc_active)
+			continue;
+		if (vop2_crc_irq_handler_block(vp))
+			ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+/*
+ * Per-VP variant for the vop3 VP irq: the interrupt is routed to this VP,
+ * so only its own CRC block needs to be checked.
+ */
+static irqreturn_t vop2_crc_irq_handler_vp(struct vop2_video_port *vp)
+{
+	if (!vp->vop2->data->crc_region_nr || !vp->crc_active)
+		return IRQ_NONE;
+
+	return vop2_crc_irq_handler_block(vp) ? IRQ_HANDLED : IRQ_NONE;
 }
 
 /*
@@ -6901,6 +7488,26 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		vcstate->dsc_enable = false;
 	}
 
+	/*
+	 * Quiesce the region CRC block before the video port stops scanning,
+	 * so no stale mismatch/freeze interrupt fires on a disabled CRTC.
+	 * Keep crc_active/crc_source_win so the block can be re-armed on enable.
+	 */
+	if (vop2->data->crc_region_nr && vp->crc_active)
+		vop2_crc_disable(vp);
+
+	/*
+	 * Mark the CRC block inaccessible before the power-down below
+	 * (vop2_disable() -> pm_runtime_put_sync()): debugfs writers read
+	 * crtc->state->active without any lock shared with this path, so
+	 * vop2_crc_config()/vop2_crc_disable() fence on this flag instead.
+	 * Cleared after the quiesce above so the block is still disarmed
+	 * while the VOP is powered; the PSR enter path returns before this
+	 * point and keeps the VOP (and the flag) alive.
+	 */
+	if (vop2->data->crc_region_nr)
+		vop2_crc_set_vop_enabled(vp, false);
+
 	if (vp->output_if & VOP_OUTPUT_IF_eDP0) {
 		VOP_GRF_SET(vop2, grf, grf_edp0_en, 0);
 		VOP_CTRL_SET(vop2, edp0_data1_sel, 0);
@@ -10514,6 +11121,241 @@ static int vop2_crtc_sysfs_fini(struct device *dev, struct drm_crtc *crtc)
 
 #undef DEBUG_PRINT
 
+
+/*
+ * Region CRC data access, exported to the debugfs interface through the
+ * rockchip_crtc_crc_funcs callbacks.  All hardware/lock handling stays
+ * here; the debugfs side only parses input and prints snapshots.
+ */
+static int vop2_crc_get_region_count(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	return vp->vop2->data->crc_region_nr;
+}
+
+/*
+ * Latch crc_target_win from the source name snapshotted by the debugfs
+ * layer under crc->lock.  NULL (no source set, or "auto"/"crtc") selects
+ * the CRTC block's arrays; a plane name selects that window's arrays.
+ * When crc/data is open crc_source_win takes priority, so a stale
+ * crc_target_win is harmless — but latching it here keeps the pre-activation
+ * path (region/key config before crc/data open) consistent with crc->source.
+ */
+static void vop2_crc_set_target_win(struct drm_crtc *crtc, const char *source_name)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_win *win = source_name ?
+		vop2_find_win_by_name(vp->vop2, source_name) : NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vp->crc_target_win = win;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+}
+
+static bool vop2_crc_source_active(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	unsigned long flags;
+	bool active;
+
+	/*
+	 * Sample under irq_lock like crc_active: it is latched/cleared
+	 * alongside it by set_crc_source(), and the encoder source is
+	 * active too (crc_encoder_source) — its regions run in the DP
+	 * sink, but the config arrays are still the ones shown here.
+	 */
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	active = vp->crc_active || vp->crc_encoder_source;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+
+	return active;
+}
+
+static void vop2_crc_get_region(struct drm_crtc *crtc,
+				struct rockchip_crc_region snap[ROCKCHIP_CRC_REGION_NR],
+				u32 mismatch_cnt[ROCKCHIP_CRC_REGION_NR],
+				u32 freeze_cnt[ROCKCHIP_CRC_REGION_NR])
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_crc_src src;
+	unsigned long flags;
+	int nr = vop2->data->crc_region_nr;
+
+	/* snapshot under irq_lock: the IRQ handler bumps the counters and
+	 * debugfs writers update the regions under it
+	 */
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+	memcpy(snap, src.regions, nr * sizeof(*snap));
+	memcpy(mismatch_cnt, src.mismatch_cnt, nr * sizeof(*mismatch_cnt));
+	memcpy(freeze_cnt, src.freeze_cnt, nr * sizeof(*freeze_cnt));
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+static void vop2_crc_get_key(struct drm_crtc *crtc,
+			     u32 key_values[ROCKCHIP_CRC_KEY_VALUE_NR], u32 *key_tie)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_crc_src src;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+	memcpy(key_values, src.key_values, ROCKCHIP_CRC_KEY_VALUE_NR * sizeof(*key_values));
+	*key_tie = *src.key_tie;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+}
+
+static void vop2_crc_get_freeze(struct drm_crtc *crtc,
+				bool freeze_en[ROCKCHIP_CRC_REGION_NR],
+				u32 freeze_cnt[ROCKCHIP_CRC_REGION_NR],
+				u32 *freeze_num, bool *global_freeze_en,
+				u32 *global_freeze_cnt)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_crc_src src;
+	unsigned long flags;
+	int nr = vop2->data->crc_region_nr;
+	int i;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+	*freeze_num = *src.freeze_num;
+	*global_freeze_en = *src.global_freeze_en;
+	*global_freeze_cnt = *src.global_freeze_cnt;
+	for (i = 0; i < nr; i++) {
+		freeze_en[i] = src.regions[i].freeze_en;
+		freeze_cnt[i] = src.freeze_cnt[i];
+	}
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+static int vop2_crc_set_region(struct drm_crtc *crtc, int idx,
+			       const struct rockchip_crc_region *region)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_crc_src src;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+
+	/*
+	 * The KEY_VALUE0~3 pool is shared by all regions of a block and
+	 * exists in one format only (expanded-word when any COLOR region
+	 * is active), so COLOR and ALPHA keys cannot be mixed within the
+	 * same block; reject the write instead of silently corrupting the
+	 * other regions' key values.
+	 */
+	for (i = 0; i < vp->vop2->data->crc_region_nr; i++) {
+		if (i == idx || !src.regions[i].enable)
+			continue;
+		if (src.regions[i].key_mode != ROCKCHIP_CRC_KEY_OFF &&
+		    region->key_mode != ROCKCHIP_CRC_KEY_OFF &&
+		    src.regions[i].key_mode != region->key_mode) {
+			spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+			return -EINVAL;
+		}
+	}
+
+	src.regions[idx] = *region;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+
+	/*
+	 * Reprogram the active CRC block; if not active, the config is
+	 * picked up by set_crc_source when crc/data is opened.  Skip when
+	 * the CRTC is off: the block was quiesced by atomic_disable() and
+	 * the VOP may be unpowered — atomic_enable() re-arms it from the
+	 * arrays.  crtc->state is read safely here: the debugfs writer
+	 * holds crtc->mutex across the call (see rockchip_drm_crc.c).
+	 */
+	if (READ_ONCE(vp->crc_active) && crtc->state->active)
+		vop2_crc_config(vp);
+
+	return 0;
+}
+
+static void vop2_crc_set_key(struct drm_crtc *crtc, const u32 *vals, int n, u32 tie_val,
+			     bool tie_set)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_crc_src src;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+
+	/*
+	 * The pool is fully replaced only when plain values are given, so
+	 * writing "key-tie=VAL" alone keeps the current pool/en bits;
+	 * when values are written, unused slots are cleared so they don't
+	 * show stale values in crc_key (hardware never consumes them,
+	 * key_value_en only arms the written ones).
+	 */
+	if (n > 0) {
+		int j;
+
+		memset(src.key_values, 0, sizeof(src.key_values[0]) * ROCKCHIP_CRC_KEY_VALUE_NR);
+		memcpy(src.key_values, vals, n * sizeof(src.key_values[0]));
+
+		*src.key_value_en = 0;
+		for (j = 0; j < n; j++)
+			*src.key_value_en |= BIT(j);
+	}
+	if (tie_set)
+		*src.key_tie = tie_val;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+
+	/*
+	 * Reprogram only while the CRTC is on (the VOP may be unpowered).
+	 * crtc->state is read safely: the debugfs writer holds
+	 * crtc->mutex across the call (see rockchip_drm_crc.c).
+	 */
+	if (READ_ONCE(vp->crc_active) && crtc->state->active)
+		vop2_crc_config(vp);
+}
+
+static void vop2_crc_set_freeze(struct drm_crtc *crtc, u32 freeze_num,
+				int global_en)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_crc_src src;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp->vop2->irq_lock, flags);
+	vop2_crc_resolve_target(vp, &src);
+	*src.freeze_num = freeze_num;
+	/* global_en < 0 means the "global=" keyword was absent: keep current */
+	if (global_en >= 0)
+		*src.global_freeze_en = !!global_en;
+	spin_unlock_irqrestore(&vp->vop2->irq_lock, flags);
+
+	/*
+	 * Reprogram only while the CRTC is on (the VOP may be unpowered).
+	 * crtc->state is read safely: the debugfs writer holds
+	 * crtc->mutex across the call (see rockchip_drm_crc.c).
+	 */
+	if (READ_ONCE(vp->crc_active) && crtc->state->active)
+		vop2_crc_config(vp);
+}
+
+static const struct rockchip_crtc_crc_funcs vop2_crtc_crc_funcs = {
+	.get_region_count = vop2_crc_get_region_count,
+	.source_active = vop2_crc_source_active,
+	.resolve_target = vop2_crc_set_target_win,
+	.get_region = vop2_crc_get_region,
+	.get_key = vop2_crc_get_key,
+	.get_freeze = vop2_crc_get_freeze,
+	.set_region = vop2_crc_set_region,
+	.set_key = vop2_crc_set_key,
+	.set_freeze = vop2_crc_set_freeze,
+};
+
 static struct drm_info_list vop2_debugfs_files[] = {
 	{ "gamma_lut", vop2_gamma_show, 0, NULL },
 	{ "cubic_lut", vop2_cubic_lut_show, 0, NULL },
@@ -10548,6 +11390,8 @@ static int vop2_crtc_late_register(struct drm_crtc *crtc)
 		rockchip_drm_debugfs_add_dclk_rate(crtc, vp->debugfs);
 	if (vop2->data->vp[vp->id].feature & VOP_FEATURE_DOVI)
 		rockchip_drm_debugfs_add_dovi_mode(crtc, vp->debugfs);
+	if (vop2->data->crc_region_nr)
+		rockchip_drm_crc_debugfs_init(crtc, vp->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vp->debugfs_files[i].data = vop2;
@@ -10921,7 +11765,10 @@ static int vop2_crtc_get_crc(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_crc_regs *crc;
+	struct vop2_win *win;
 	u32 crc32 = 0;
+	unsigned long flags;
 
 	if (!crtc->crc.opened)
 		return 0;
@@ -10929,16 +11776,61 @@ static int vop2_crtc_get_crc(struct drm_crtc *crtc)
 	if (!vop2_data->crc_sources)
 		return -ENODEV;
 
-	if (vp->crc_source_win) {
-		/* This plane is not attach to current vp or disabled */
-		if (!(vp->enabled_win_mask & BIT(vp->crc_source_win->phys_id)))
-			return 0;
-		crc32 = vop2_readl(vop2, vp->crc_source_win->crc_value_offset);
-	} else {
-		crc32 = VOP_MODULE_GET(vop2, vp, crc_val);
+	/*
+	 * Sample crc_encoder_source / crc_source_win / crc_active together
+	 * under irq_lock: set_crc_source() updates all three under the same
+	 * lock in two critical sections (clear first, then latch the new
+	 * source).  Reading them individually with READ_ONCE could observe
+	 * the in-between state (encoder_source still false, source_win
+	 * already NULL, crc_active NULL) and reach the non-region
+	 * path, which reads one word — but the encoder source's values_cnt
+	 * is 3, so drm_crtc_add_crc_entry() would memcpy 12 bytes from a
+	 * 4-byte stack variable, leaking kernel stack data.
+	 */
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	if (vp->crc_encoder_source) {
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+		return 0;
 	}
+	win = vp->crc_source_win;
+	crc = vp->crc_active;
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 
-	drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, &crc32);
+	if (win) {
+		/* This plane is not attach to current vp or disabled */
+		if (!(vp->enabled_win_mask & BIT(win->phys_id)))
+			return 0;
+
+		if (vop2_data->crc_region_nr) {
+			u32 crcs[1 + ROCKCHIP_CRC_REGION_NR];
+
+			if (!win->crc)
+				return 0;
+
+			vop2_crc_read_frame_values(vop2, win->crc, crcs);
+			drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, crcs);
+		} else {
+			crc32 = vop2_readl(vop2, win->crc_value_offset);
+			drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, &crc32);
+		}
+	} else if (vop2_data->crc_region_nr && crc) {
+		u32 crcs[1 + ROCKCHIP_CRC_REGION_NR];
+
+		vop2_crc_read_frame_values(vop2, crc, crcs);
+		drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, crcs);
+	} else if (!vop2_data->crc_region_nr) {
+		crc32 = VOP_MODULE_GET(vop2, vp, crc_val);
+		drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, &crc32);
+	}
+	/*
+	 * else: region-capable VOP with no block attached — the source is
+	 * being switched (crc_source_win already cleared, crc_active not yet
+	 * latched by a concurrent set_crc_source) or is the encoder, whose
+	 * entries are added by the DP controller.  values_cnt for these
+	 * sources is 1 + crc_region_nr, so feeding the single crc32 word to
+	 * drm_crtc_add_crc_entry() would over-read the stack buffer; skip
+	 * the frame instead.
+	 */
 
 	return 0;
 }
@@ -11028,6 +11920,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.set_aclk = vop2_set_aclk_rate,
 	.get_crc = vop2_crtc_get_crc,
 	.iommu_fault_handler = vop2_iommu_fault_handler,
+	.crc_funcs = &vop2_crtc_crc_funcs,
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	.crtc_get_aclk_rate = vop2_crtc_get_aclk_rate,
 	.crtc_get_dclk_rate = vop2_crtc_get_dclk_rate,
@@ -12794,6 +13687,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	}
 
 	vop2_initial(crtc);
+	/*
+	 * The VOP registers are accessible now (vop2_initial() takes the
+	 * runtime PM reference on the first enable): allow the CRC block
+	 * programming below and any debugfs-triggered reconfiguration.
+	 */
+	if (vop2->data->crc_region_nr)
+		vop2_crc_set_vop_enabled(vp, true);
 	vcstate->vdisplay = vdisplay;
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
 	if (vcstate->mode_update)
@@ -12935,6 +13835,18 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		vop2_cfg_done(crtc);
 		vop2_wait_for_fs_by_done_bit_status(vp);
 	}
+
+	/*
+	 * Re-arm the region CRC block if a source was active before the
+	 * CRTC was disabled: the VOP may have lost power and the CRC
+	 * registers with it.  Must run past the standby release above:
+	 * vop2_crc_config() waits for its cfg_done to latch at a frame
+	 * start, and in standby the VP is not scanning, so the done bit
+	 * would never clear (100 ms timeout on every enable).  Same
+	 * discipline as the gamma reload wait just above.
+	 */
+	if (vop2->data->crc_region_nr && vp->crc_active)
+		vop2_crc_config(vp);
 
 	if (vp->luma_avg_en)
 		vop2_luma_avg_control(crtc, true);
@@ -17023,48 +17935,172 @@ static int vop2_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_na
 	const struct vop2_data *vop2_data = vp->vop2->data;
 	const char * const *crc_sources = vop2_data->crc_sources;
 	uint8_t crc_sources_num = vop2_data->crc_sources_num;
+	const char *src;
+	const struct vop2_crc_regs *crc = NULL;
+	unsigned long flags;
 	struct vop2_win *win;
 	int ret = 0;
 
+	/*
+	 * Stop path of a region-capable VOP: the started source is latched
+	 * in crc_active/crc_source_win, so quiesce from there instead of
+	 * re-reading crtc->crc.source — the DRM core clears crc->opened
+	 * before calling here, so a concurrent control write may have
+	 * replaced (and freed) the string meanwhile.
+	 *
+	 * crc_active == NULL after a successful open means the encoder
+	 * source is active (its CRC runs in the DP controller, not in the
+	 * VOP); stop it without touching crc.source either.  Drop the
+	 * encoder latch too: this path returns before the common reset
+	 * below, and get_crc() must stop skipping entries.
+	 */
+	if (!source_name && vop2->data->crc_region_nr) {
+		if (vp->crc_active) {
+			/* crtc/plane source: quiesce the VOP CRC block */
+			vop2_crc_disable(vp);
+			vop2_crc_set_target(vp, NULL, NULL);
+			return 0;
+		}
+		/*
+		 * No VOP block active: stop the encoder source only if it
+		 * was actually started.  crtc_crc_release() always calls
+		 * set_crc_source(NULL), so this path is reached even when
+		 * no source was ever opened — calling analogix_dp_stop_crc()
+		 * unconditionally would error on a DP connector whose CRC
+		 * was never started.
+		 */
+		if (!vp->crc_encoder_source)
+			return 0;
+		spin_lock_irqsave(&vop2->irq_lock, flags);
+		vp->crc_encoder_source = false;
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+#ifdef CONFIG_DRM_ANALOGIX_DP
+		{
+			struct drm_connector *connector;
+
+			connector = vop2_get_edp_connector(vop2);
+			if (!connector)
+				return -EINVAL;
+			return analogix_dp_stop_crc(connector);
+		}
+#else
+		return -ENODEV;
+#endif
+	}
+
+	/*
+	 * Only computed past the stop path above: reading crtc->crc.source
+	 * there would race a concurrent control write replacing the string,
+	 * contradicting the comment above.
+	 */
+	src = source_name ?: crtc->crc.source;
+
+	/*
+	 * NULL means crc/data was opened before any source was ever written
+	 * through crc/control (the DRM core passes crc->source unchanged and
+	 * only crc_control_write() ever sets it): nothing to select, reject
+	 * instead of dereferencing it in the strcmp() calls below.
+	 */
+	if (!src)
+		return -EINVAL;
+
+	/*
+	 * crc_source_win is read by the IRQ handler under irq_lock; the
+	 * encoder latch is reset with it for every source switch so a
+	 * stale skip never outlives its source.
+	 */
+	spin_lock_irqsave(&vop2->irq_lock, flags);
 	vp->crc_source_win = NULL;
-	if (crc_sources)
-		ret = match_string(crc_sources, crc_sources_num, crtc->crc.source);
-	/* use crtc crc */
-	if (crc_sources && (!strcmp(crtc->crc.source, "auto") ||
-	    !strcmp(crtc->crc.source, "crtc"))) {
-		if (source_name &&
-		    match_string(crc_sources, crc_sources_num, source_name) >= 0) {
-			VOP_MODULE_SET(vop2, vp, crc_en, 1);
-			ret = 0;
-		} else if (!source_name) {
-			VOP_MODULE_SET(vop2, vp, crc_en, 0);
+	vp->crc_encoder_source = false;
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	if (crc_sources && src)
+		ret = match_string(crc_sources, crc_sources_num, src);
+
+	/* use crtc crc: global full-screen always on, regions layered per config */
+	if (crc_sources && (!strcmp(src, "auto") ||
+	    !strcmp(src, "crtc"))) {
+		crc = vp->regs->crc;
+		if (vop2->data->crc_region_nr && !crc) {
+			DRM_DEV_ERROR(vop2->dev, "CRC block not configured\n");
+			return -EINVAL;
+		}
+		if (source_name) {
+			if (vop2->data->crc_region_nr) {
+				vop2_crc_set_target(vp, crc, NULL);
+				vop2_crc_config(vp);
+			} else {
+				VOP_MODULE_SET(vop2, vp, crc_en, 1);
+			}
 			ret = 0;
 		} else {
-			ret = -EINVAL;
+			if (vop2->data->crc_region_nr) {
+				vop2_crc_disable(vp);
+				vop2_crc_set_target(vp, NULL, NULL);
+			} else {
+				VOP_MODULE_SET(vop2, vp, crc_en, 0);
+			}
+			ret = 0;
 		}
-	} else if (!crc_sources || !strcmp(crtc->crc.source, "encoder")) {/* use encoder crc */
+	} else if (!crc_sources || !strcmp(src, "encoder")) {/* use encoder crc */
 #ifdef CONFIG_DRM_ANALOGIX_DP
 		struct drm_connector *connector;
 
 		connector = vop2_get_edp_connector(vop2);
 		if (!connector)
 			return -EINVAL;
-		if (source_name && strcmp(source_name, "auto") == 0)
+		/*
+		 * "auto" is the vop1-compatible name (the only one on VOPs
+		 * without a crc_sources table); "encoder" is the explicit
+		 * name on table VOPs, already accepted by
+		 * verify_crc_source with values_cnt == 3.
+		 */
+		if (source_name && (!strcmp(source_name, "auto") ||
+				    !strcmp(source_name, "encoder"))) {
+			/*
+			 * Latch before the (millisecond-scale) AUX
+			 * programming: crc->opened is already true, so a
+			 * concurrent atomic commit may call get_crc() at any
+			 * point from here on.  A latch left set by a failed
+			 * start is harmless: the open fails, get_crc()'s
+			 * first guard returns early, and the next
+			 * set_crc_source() resets it.
+			 */
+			spin_lock_irqsave(&vop2->irq_lock, flags);
+			vp->crc_encoder_source = true;
+			spin_unlock_irqrestore(&vop2->irq_lock, flags);
 			ret = analogix_dp_start_crc(connector);
-		else if (!source_name)
+		} else if (!source_name) {
 			ret = analogix_dp_stop_crc(connector);
-		else
+		} else {
 			ret = -EINVAL;
+		}
 #else
 		return -ENODEV;
 #endif
 	} else if (crc_sources && ret >= 0) {
-		win = vop2_find_win_by_name(vop2, crc_sources[ret]);
+		win = vop2_find_win_by_name(vop2, src);
 		if (!win)
 			return -ENODEV;
+		crc = win->crc;
+		if (vop2->data->crc_region_nr && !crc) {
+			DRM_DEV_ERROR(vop2->dev, "CRC block not configured for %s\n",
+				      win->name);
+			return -EINVAL;
+		}
 
-		vp->crc_source_win = win;
-		VOP_WIN_DATA_SET(vop2, win, crc_enable, !!source_name);
+		if (vop2->data->crc_region_nr) {
+			if (source_name) {
+				vop2_crc_set_target(vp, crc, win);
+				vop2_crc_config(vp);
+			} else {
+				vop2_crc_disable(vp);
+				vop2_crc_set_target(vp, NULL, NULL);
+			}
+		} else {
+			vop2_crc_set_target(vp, NULL, source_name ? win : NULL);
+			VOP_WIN_DATA_SET(vop2, win, crc_enable, !!source_name);
+		}
 
 		return 0;
 	}
@@ -17090,13 +18126,41 @@ static int vop2_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source
 	}
 
 	/*
-	 * The number of CRC values from encoder is 3 words;
-	 * The number of CRC values from VOP is 1 words;
+	 * Reject sources without a CRC block early: set_crc_source() would
+	 * fail on the later crc/data open (-EINVAL), silently stranding any
+	 * region/key config accepted through debugfs.  Plane sources need
+	 * win->crc; the crtc/auto sources need the CRTC block (vp->regs->crc).
+	 *
+	 * This function must be free of side effects: crc_control_show
+	 * ("cat crc/control") calls it on every table entry, so latching the
+	 * target here would leave it pointing at the last entry.  The target
+	 * is latched by rockchip_crc_resolve() in the debugfs layer instead,
+	 * which snapshots crc->source under crc->lock before calling
+	 * resolve_target().
 	 */
-	if (crc_sources && source_name && strcmp(source_name, "encoder") != 0)
-		*values_cnt = 1;
-	else
+	if (vop2_data->crc_region_nr) {
+		struct vop2_win *win = source_name ?
+			vop2_find_win_by_name(vp->vop2, source_name) : NULL;
+
+		if (win && !win->crc)
+			return -EINVAL;
+		if (!win && source_name && strcmp(source_name, "encoder") != 0 &&
+		    !vp->regs->crc)
+			return -EINVAL;
+	}
+
+	/*
+	 * The number of CRC values from encoder is 3 words;
+	 * On a region-capable VOP, crtc/plane sources report [global + region0..3]
+	 * = 1 + crc_region_nr words (global is always on, regions layered on top);
+	 * Other (non region-capable) VOP/CRTC sources report 1 word.
+	 */
+	if (crc_sources && source_name && strcmp(source_name, "encoder") != 0) {
+		*values_cnt = vop2_data->crc_region_nr ?
+			      1 + vop2_data->crc_region_nr : 1;
+	} else {
 		*values_cnt = 3;
+	}
 
 	return 0;
 }
@@ -17885,6 +18949,9 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	if (vop2->data->nr_dscs)
 		vop2_dsc_isr(vop2);
 
+	if (vop2_data->crc_region_nr && vop2_crc_irq_handler(vop2) == IRQ_HANDLED)
+		ret = IRQ_HANDLED;
+
 	vop2_core_clks_disable(vop2);
 out:
 	pm_runtime_put(vop2->dev);
@@ -18091,6 +19158,9 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	/* Unhandled irqs are spurious. */
 	if (active_irqs)
 		DRM_ERROR("Unknown video_port%d IRQs: %02x\n", vp->id, active_irqs);
+
+	if (vop2_crc_irq_handler_vp(vp) == IRQ_HANDLED)
+		ret = IRQ_HANDLED;
 
 	vop2_core_clks_disable(vop2);
 out:
@@ -19342,6 +20412,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->csc_coe_bits = win_data->csc_coe_bits;
 		win->crc_enable = win_data->crc_enable;
 		win->crc_value_offset = win_data->crc_value_offset;
+		win->crc = win_data->crc;
 
 		if (win_data->pd_id)
 			win->pd = vop2_find_pd_by_id(vop2, win_data->pd_id);
@@ -19999,6 +21070,41 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
 		return -ENODEV;
+
+	/*
+	 * The per-source region/counter arrays are statically sized to
+	 * ROCKCHIP_CRC_REGION_NR; a larger platform value would overflow every
+	 * loop over them, so reject it once here instead of clamping at
+	 * each use site.
+	 */
+	if (vop2_data->crc_region_nr > ROCKCHIP_CRC_REGION_NR)
+		return -EINVAL;
+
+	/*
+	 * Same for the interrupt bit layout of every CRC block the platform
+	 * data declares (VP blocks and window blocks): reject once here
+	 * instead of losing interrupts silently in vop2_crc_err_bit().
+	 */
+	if (vop2_data->crc_region_nr) {
+		for (i = 0; i < vop2_data->nr_vps; i++) {
+			const struct vop2_video_port_regs *regs = vop2_data->vp[i].regs;
+
+			if (regs && regs->crc &&
+			    !vop2_crc_irq_bits_valid(regs->crc, vop2_data->crc_region_nr)) {
+				dev_err(dev, "video port %d: CRC irq bits exceed 32\n", i);
+				return -EINVAL;
+			}
+		}
+		for (i = 0; i < vop2_data->win_size; i++) {
+			const struct vop2_crc_regs *crc = vop2_data->win[i].crc;
+
+			if (crc && !vop2_crc_irq_bits_valid(crc, vop2_data->crc_region_nr)) {
+				dev_err(dev, "%s: CRC irq bits exceed 32\n",
+					vop2_data->win[i].name);
+				return -EINVAL;
+			}
+		}
+	}
 
 	for (i = 0; i < vop2_data->win_size; i++) {
 		const struct vop2_win_data *win_data = &vop2_data->win[i];

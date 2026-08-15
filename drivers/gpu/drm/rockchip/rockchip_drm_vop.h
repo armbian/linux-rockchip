@@ -11,6 +11,7 @@
 #include <drm/drm_modes.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_crc.h"
 
 /*
  * major: IP major version, used for IP structure
@@ -1032,6 +1033,43 @@ struct vop2_win_regs {
 	struct vop_reg crc_check_val;
 };
 
+/**
+ * struct vop2_crc_regs - CRC register field descriptors for one CRC block.
+ *
+ * Each CRC block (CRTC or ESMART layer) has an identical register layout;
+ * only the base address differs.  Fields are accessed via VOP_CRC_SET()
+ * and VOP_CRC_SET_I() (for indexed per-region fields), using the standard
+ * &struct vop_reg mechanism.
+ */
+struct vop2_crc_regs {
+	struct vop_reg region_chkout;
+	struct vop_reg region_key;
+	struct vop_reg region_key_mode;
+	struct vop_reg region_freeze;
+	struct vop_reg region_err;
+	struct vop_reg key_value_en;
+	struct vop_reg global_chkout;
+	struct vop_reg global_freeze;
+	struct vop_reg freeze_num;
+	struct vop_reg int_en;
+	struct vop_reg int_clr;
+	struct vop_reg int_status;
+	struct vop_reg int_raw_status;
+	struct vop_reg global_value;
+	/* per-region registers (indexed 0..ROCKCHIP_CRC_REGION_NR-1) */
+	struct vop_reg coord0[ROCKCHIP_CRC_REGION_NR];
+	struct vop_reg coord1[ROCKCHIP_CRC_REGION_NR];
+	struct vop_reg expect[ROCKCHIP_CRC_REGION_NR];
+	struct vop_reg key_tie;
+	struct vop_reg key_value[ROCKCHIP_CRC_KEY_VALUE_NR];
+	struct vop_reg region_value[ROCKCHIP_CRC_REGION_NR];
+	/* interrupt status bit encoding */
+	u8 irq_stride;
+	u8 err_bit_off;
+	u8 freeze_bit_off;
+	u8 global_freeze_bit;
+};
+
 struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
 	struct vop_reg sys_cfg_done;
@@ -1228,6 +1266,7 @@ struct vop2_video_port_regs {
 	struct vop_reg crc_val;
 	struct vop_reg crc_check_en;
 	struct vop_reg crc_check_val;
+	const struct vop2_crc_regs *crc;
 
 	/* clk calc*/
 	struct vop_reg calc_clk_en;
@@ -1409,6 +1448,7 @@ struct vop2_win_data {
 	struct vop_rect max_output;
 	const struct vop_reg crc_enable;
 	const uint32_t crc_value_offset;
+	const struct vop2_crc_regs *crc;
 
 	/*
 	 * vertical/horizontal scale up/down filter mode
@@ -1874,6 +1914,7 @@ struct vop2_data {
 	bool delayed_pd;
 	uint8_t esmart_lb_mode_num;
 	uint8_t crc_sources_num;
+	uint8_t crc_region_nr;
 	const struct vop2_esmart_lb_map *esmart_lb_mode_map;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
