@@ -1139,7 +1139,7 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(HCLK_NVM0_ROOT, "hclk_nvm0_root", mux_200m_100m_50m_24m_p, 0,
 			RK3572_CLKSEL_CON(113), 0, 2, MFLAGS,
 			RK3572_CLKGATE_CON(42), 0, GFLAGS),
-	COMPOSITE(ACLK_NVM0_ROOT, "aclk_nvm0_root", gpll_cpll_p, 0,
+	COMPOSITE(ACLK_NVM0_ROOT, "aclk_nvm0_root", gpll_cpll_p, CLK_IS_CRITICAL,
 			RK3572_CLKSEL_CON(113), 7, 1, MFLAGS, 2, 5, DFLAGS,
 			RK3572_CLKGATE_CON(42), 1, GFLAGS),
 	COMPOSITE_NODIV(PCLK_NVM0_ROOT, "pclk_nvm0_root", mux_100m_50m_24m_p, 0,
