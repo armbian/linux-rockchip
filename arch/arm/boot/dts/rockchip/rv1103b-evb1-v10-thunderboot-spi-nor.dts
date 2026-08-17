@@ -105,6 +105,16 @@
 };
 
 &pinctrl {
+	ircut {
+		ircut_a_pins: ircut-a-pins {
+			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		ircut_b_pins: ircut-b-pins {
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	sdmmc {
 		/omit-if-no-ref/
 		sdmmc_pwren: sdmmc-pwren {
