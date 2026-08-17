@@ -422,14 +422,6 @@
 };
 
 &hdptxphy1 {
-	status = "okay";
-};
-
-&hdptxphy0 {
-	status = "disabled";
-};
-
-&hdptxphy1 {
 	status = "disabled";
 };
 

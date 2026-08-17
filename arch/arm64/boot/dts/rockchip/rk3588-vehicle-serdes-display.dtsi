@@ -625,14 +625,6 @@
 	status = "okay";
 };
 
-&hdptxphy0 {
-	status = "disabled";
-};
-
-&hdptxphy1 {
-	status = "disabled";
-};
-
 &i2c2 {
 	status = "okay";
 	pinctrl-names = "default";
