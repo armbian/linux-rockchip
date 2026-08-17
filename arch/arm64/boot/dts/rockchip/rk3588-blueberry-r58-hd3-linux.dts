@@ -325,7 +325,32 @@
 	pinctrl-0 = <&DP0_HPDIN_gpio>;
 	hpd-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	split-mode;
+	/* Board drives fixed LT bridge panels, not an EDID monitor: expose the
+	 * driver's fixed mode list instead of EDID modes. Opt-in gate for the
+	 * dw-dp change in armbian/linux-rockchip#410 (no-op without it). */
+	rockchip,dp-fixed-modes;
 	status = "okay";
+};
+
+/*
+ * Mekotronics R58-HD fixed-output opt-ins for the display changes in
+ * armbian/linux-rockchip#410. These properties gate the (otherwise global)
+ * driver behaviour to THIS board only:
+ *   rockchip,hdmi-skip-ddc-edid - HDMI-QP: skip the DDC EDID read (fixed panels)
+ *   rockchip,dp-fixed-modes     - DP: use the fixed mode list, ignore EDID
+ * With un-gated drivers these are simply ignored, so they are safe to carry now.
+ * (rockchip,split-right on &hdmi1 lives in the board .dtsi.)
+ */
+&hdmi0 {
+	rockchip,hdmi-skip-ddc-edid;
+};
+
+&hdmi1 {
+	rockchip,hdmi-skip-ddc-edid;
+};
+
+&dp1 {
+	rockchip,dp-fixed-modes;
 };
 
 &lt6911_sound {
