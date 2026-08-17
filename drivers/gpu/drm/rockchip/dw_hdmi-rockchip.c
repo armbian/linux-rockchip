@@ -2719,18 +2719,16 @@ secondary:
 
 	if (hdmi->plat_data->split_mode) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
-		//@caco 20250625
-		//if (hdmi->plat_data->right && hdmi->id)
-		//	s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 		if (device_property_read_bool(hdmi->dev, "rockchip,split-right")) {
-            s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
+			/* board wires the right panel to the swapped controller */
+			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 			s->output_if_left_panel |= hdmi->id ? VOP_OUTPUT_IF_HDMI0 : VOP_OUTPUT_IF_HDMI1;
-            dev_info(hdmi->dev, "split Enabling data swap for right display (hdmi%d)\n", hdmi->id);
-        }
-		else {
-		    s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
+			dev_info(hdmi->dev, "split: data swap for right display (hdmi%d)\n", hdmi->id);
+		} else {
+			/* upstream default: swap only for the right controller instance */
+			if (hdmi->plat_data->right && hdmi->id)
+				s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 			s->output_if_left_panel |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
-            dev_info(hdmi->dev, "split Enabling data swap for right display (hdmi%d)\n", hdmi->id);
 		}
 		s->output_if |= VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1;
 		

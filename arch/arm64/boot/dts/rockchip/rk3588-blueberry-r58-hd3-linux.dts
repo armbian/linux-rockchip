@@ -93,7 +93,7 @@
 		reg = <0>;
 		backlight = <&backlight_mipi0>;
 		//power-supply = <&vcc3v3_mipi_lcd_power>;
-		reset-gpios =  <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>; 
+		reset-gpios =  <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>; 
 		//enable-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 		reset-delay-ms = <100>;
 		enable-delay-ms = <10>;
@@ -190,7 +190,7 @@
 		reg = <0>;
 		backlight = <&backlight_mipi1>;
 		//power-supply = <&vcc3v3_mipi_lcd_power>;
-		reset-gpios =  <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>; 
+		reset-gpios =  <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>; 
 		//enable-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 		reset-delay-ms = <100>;
 		enable-delay-ms = <10>;

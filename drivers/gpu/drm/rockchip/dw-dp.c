@@ -1512,9 +1512,9 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 					(edid->extensions + 1) * EDID_LENGTH,
 					GFP_KERNEL);
 			drm_connector_update_edid_property(connector, edid);
-			//fox.luo@2024.03.20 set fixed resolution
-			//num_modes = drm_add_edid_modes(connector, edid);
-			for (i = 0; i < ARRAY_SIZE(dw_dp_default_modes); i++) {
+			if (!device_property_read_bool(dp->dev, "rockchip,dp-fixed-modes")) {
+				num_modes = drm_add_edid_modes(connector, edid);
+			} else for (i = 0; i < ARRAY_SIZE(dw_dp_default_modes); i++) {
 			       const struct drm_display_mode *ptr =
 			               &dw_dp_default_modes[i];
 
