@@ -6863,9 +6863,9 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 			else
 				rtt_min_size = stream->pixm.plane_fmt[0].sizeimage;
 			if (dev->is_rtt_suspend)
-				resmem_free_start = dev->resmem_pa + rtt_min_size;
+				resmem_free_start = dev->resmem_buf_pa + rtt_min_size;
 			else
-				resmem_free_start = dev->resmem_pa + stream->pixm.plane_fmt[0].sizeimage;
+				resmem_free_start = dev->resmem_buf_pa + stream->pixm.plane_fmt[0].sizeimage;
 			resmem_free_end = dev->resmem_pa + dev->resmem_size;
 			v4l2_info(&stream->cifdev->v4l2_dev,
 				  "free reserved mem start 0x%x, end 0x%x, share_head_size 0x%x, nr_buf_size 0x%x\n",
@@ -6878,9 +6878,10 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 				  (u32)resmem_free_start, (u32)resmem_free_end,
 				  (unsigned long long)(resmem_free_end - resmem_free_start) / PAGE_SIZE);
 			if (dev->is_rtt_suspend)
-				dev->resmem_size = rtt_min_size;
+				dev->resmem_size = SHARED_MEM_RESERVED_HEAD_SIZE + rtt_min_size;
 			else
-				dev->resmem_size = stream->pixm.plane_fmt[0].sizeimage;
+				dev->resmem_size = SHARED_MEM_RESERVED_HEAD_SIZE + stream->pixm.plane_fmt[0].sizeimage;
+			dev->resmem_buf_size = dev->resmem_size - SHARED_MEM_RESERVED_HEAD_SIZE;
 		}
 		atomic_set(&stream->buf_cnt, 0);
 		stream->total_buf_num = 0;
