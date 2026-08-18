@@ -3273,6 +3273,7 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 	cif_dev->is_thunderboot = false;
 	cif_dev->is_rtt_suspend = false;
 	cif_dev->is_aov_reserved = false;
+	cif_dev->is_resmem_head_freed = false;
 	/* Get reserved memory region from Device-tree */
 	np = of_parse_phandle(dev->of_node, "memory-region-thunderboot", 0);
 	if (!np) {

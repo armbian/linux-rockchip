@@ -1064,6 +1064,7 @@ struct rkcif_device {
 	bool				is_support_tools;
 	bool				is_rtt_suspend;
 	bool				is_aov_reserved;
+	bool				is_resmem_head_freed;
 	bool				sensor_state_change;
 	bool				is_toisp_reset;
 	bool				use_hw_interlace;

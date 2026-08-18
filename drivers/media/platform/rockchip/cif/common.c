@@ -495,3 +495,33 @@ void rkcif_free_reserved_mem_area(struct rkcif_device *dev, struct rkcif_rx_buff
 #endif
 }
 
+void rkcif_free_resmem_head(struct rkcif_device *dev)
+{
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+	phys_addr_t start, end;
+
+	if (dev->is_resmem_head_freed || !SHARED_MEM_RESERVED_HEAD_SIZE ||
+	    !dev->resmem_pa ||
+	    dev->resmem_size < SHARED_MEM_RESERVED_HEAD_SIZE)
+		return;
+
+	/*
+	 * Always free a fixed HEAD from current resmem_pa. Do not use
+	 * resmem_buf_pa here: HDR thunderboot may have advanced it.
+	 */
+	start = dev->resmem_pa;
+	end = start + SHARED_MEM_RESERVED_HEAD_SIZE;
+	if (dev->resmem_addr) {
+		dma_unmap_single(dev->dev, dev->resmem_addr,
+				 sizeof(struct rkisp_thunderboot_resmem_head),
+				 DMA_BIDIRECTIONAL);
+		dev->resmem_addr = 0;
+	}
+	free_reserved_area(phys_to_virt(start), phys_to_virt(end),
+			   -1, "rkisp_thunderboot_head");
+	dev->resmem_size -= SHARED_MEM_RESERVED_HEAD_SIZE;
+	dev->resmem_pa = end;
+	dev->is_resmem_head_freed = true;
+#endif
+}
+

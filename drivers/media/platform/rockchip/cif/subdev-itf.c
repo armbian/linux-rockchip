@@ -394,6 +394,7 @@ static void sditf_free_buf(struct sditf_priv *priv)
 		cif_dev->wait_line_bak = 0;
 		cif_dev->is_thunderboot = false;
 	}
+	rkcif_free_resmem_head(cif_dev);
 	priv->is_buf_init = false;
 	if (cif_dev->switch_info.is_use_switch)
 		cif_dev->switch_info.is_init_buf = false;
@@ -1094,6 +1095,8 @@ void sditf_change_to_online(struct sditf_priv *priv)
 			cur_stream = &cif_dev->stream[i];
 			cur_stream->cur_stream_mode = RKCIF_STREAM_MODE_TOISP;
 		}
+		if (!cif_dev->is_rtt_suspend)
+			rkcif_free_resmem_head(cif_dev);
 	}
 }
 
