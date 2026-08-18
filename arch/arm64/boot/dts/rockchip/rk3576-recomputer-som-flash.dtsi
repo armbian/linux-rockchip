@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * reComputer RK3576 SoM storage variant: SPI NOR flash
+ *
+ * U40 SPI NOR (SOP-8, quad, 3V3) on shared FSPI0 pads, wired
+ * through R591-R596 (stuffed on this variant; eMMC U36 not mounted):
+ *   CS  = FSPI0_CSN0, CLK = FSPI0_CLK,
+ *   D0-D3 = FSPI0_D0..D3 (IO0 SI / IO1 SO / IO2 WP / IO3 HOLD)
+ * Flash part is selectable at stuffing time; capacity is probed
+ * at runtime, no fixed partition map (add one to match the SKU).
+ *
+ * Copyright (c) 2026 Seeed Studio
+ */
+
+/* eMMC pads are reused by SFC0 on this variant */
+&sdhci {
+	status = "disabled";
+};
+
+&sfc0 {
+	status = "okay";
+	max-freq = <50000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi0_pins>;
+
+	spi_flash: spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		status = "okay";
+	};
+};
