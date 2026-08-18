@@ -472,7 +472,9 @@ endif
 endif
 
 ARCH ?= arm64
-BCMDHD_ROOT = $(src)
+# Overridable so that the per-bus object directories (../bcmdhd_sdio,
+# ../bcmdhd_pcie) can point this back at the shared sources.
+BCMDHD_ROOT ?= $(src)
 #$(warning "BCMDHD_ROOT=$(BCMDHD_ROOT)")
 EXTRA_CFLAGS = $(DHDCFLAGS)
 EXTRA_CFLAGS += -DDHD_COMPILED=\"$(BCMDHD_ROOT)\"
