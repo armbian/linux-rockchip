@@ -137,7 +137,6 @@ static struct rga_job *rga_job_alloc(struct rga_req *task_list, size_t task_coun
 	kref_init(&job->refcount);
 
 	job->timestamp.init = ktime_get();
-	job->pid = current->pid;
 
 	for (i = 0; i < task_count; i++) {
 		if (task_list[i].priority > 0) {
@@ -435,6 +434,9 @@ int rga_job_commit(struct rga_req *task_list, size_t task_count, struct rga_requ
 	job->request_id = request->id;
 	job->session = request->session;
 	job->mm = request->current_mm;
+
+	/* Use the submitting task's pid, not current (async runs on a workqueue). */
+	job->pid = request->pid;
 
 	scheduler = rga_job_schedule(job);
 	if (IS_ERR(scheduler)) {
