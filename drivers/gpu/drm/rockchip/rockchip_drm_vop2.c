@@ -10394,6 +10394,47 @@ static int vop2_crtc_get_initial_acm_info(struct drm_crtc *crtc)
 	return 0;
 }
 
+static void vop2_crtc_get_initial_sharp_info(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc_state *crtc_state;
+	struct drm_property_blob *blob;
+	struct rockchip_crtc_state *vcstate;
+	struct post_sharp post_sharp = {};
+	u32 *regs;
+	u32 sharp_regs_len;
+	int i;
+
+	if (!vop2->sharp_res.regs || !(readl(vop2->sharp_res.regs) & BIT(0)))
+		return;
+
+	crtc_state = drm_atomic_get_crtc_state(crtc->state->state, crtc);
+	if (IS_ERR_OR_NULL(crtc_state))
+		return;
+	vcstate = to_rockchip_crtc_state(crtc_state);
+
+	post_sharp.plat = vop2->version;
+	if (post_sharp.plat == VOP_VERSION_RK3576 || post_sharp.plat == VOP_VERSION_RK3538) {
+		sharp_regs_len = ARRAY_SIZE(post_sharp.regs_v1.regs);
+		regs = post_sharp.regs_v1.regs;
+	} else {
+		sharp_regs_len = ARRAY_SIZE(post_sharp.regs_v2.regs);
+		regs = post_sharp.regs_v2.regs;
+	}
+
+	for (i = 0; i < sharp_regs_len; i++)
+		regs[i] = readl(vop2->sharp_res.regs + i * 4);
+
+	blob = drm_property_create_blob(vop2->drm_dev, sizeof(struct post_sharp), &post_sharp);
+	if (IS_ERR_OR_NULL(blob)) {
+		dev_err(vop2->dev, "failed to create post sharp blob for vp%d\n", vp->id);
+		return;
+	}
+	drm_property_blob_put(vcstate->post_sharp_data);
+	vcstate->post_sharp_data = blob;
+}
+
 static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -10491,6 +10532,8 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 				vop2_crtc_get_initial_acm_info(crtc);
 			if (data && (vp_data->feature & VOP_FEATURE_POST_CSC))
 				memcpy(&vp->csc_info, data, sizeof(struct post_csc));
+			if (vp_data->feature & VOP_FEATURE_POST_SHARP)
+				vop2_crtc_get_initial_sharp_info(crtc);
 		}
 		if (private->cubic_lut[vp->id].enable) {
 			dma_addr_t cubic_lut_mst;
