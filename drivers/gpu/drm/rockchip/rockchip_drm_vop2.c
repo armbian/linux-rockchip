@@ -9631,7 +9631,7 @@ static void vop2_crtc_disable_line_flag_event(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
-static int vop2_crtc_get_inital_acm_info(struct drm_crtc *crtc)
+static int vop2_crtc_get_initial_acm_info(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -9776,7 +9776,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 			 */
 			if ((vp_data->feature & VOP_FEATURE_POST_ACM) &&
 			    !vp->mcu_timing.mcu_pix_total)
-				vop2_crtc_get_inital_acm_info(crtc);
+				vop2_crtc_get_initial_acm_info(crtc);
 			if (data && (vp_data->feature & VOP_FEATURE_POST_CSC))
 				memcpy(&vp->csc_info, data, sizeof(struct post_csc));
 		}
