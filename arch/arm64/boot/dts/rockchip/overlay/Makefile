@@ -152,6 +152,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3576-pwm1-ch0-m3.dtbo \
 	rk3576-pwm2-ch6-m2.dtbo \
 	rk3576-pwm2-ch7-m2.dtbo \
+	rk3576-raspi-7inch-touchscreen-i2c6-m3.dtbo \
 	rk3576-spi4-m0-cs1-spidev.dtbo \
 	rk3576-uart2-m2.dtbo \
 	rk3576-uart6-m3.dtbo \
