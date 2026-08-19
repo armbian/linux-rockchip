@@ -323,6 +323,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3568-uart9-m1.dtbo \
 	rk3568-w1-gpio3-a5.dtbo \
 	rk3568-w1-gpio3-d1.dtbo \
+	recomputer-rk3576-ioboard-raspi-7inch-touchscreen.dtbo \
 	recomputer-rk3576-devkit-raspi-7inch-touchscreen.dtbo \
 	recomputer-rk3576-devkit-40pin-pwm2-ch6.dtbo \
 	recomputer-rk3576-devkit-40pin-can0.dtbo \
