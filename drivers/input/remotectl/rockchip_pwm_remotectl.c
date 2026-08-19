@@ -513,11 +513,19 @@ static int rockchip_pwm_set_pwrmatch(struct platform_device *pdev)
 		goto end;
 	}
 	ret = devm_request_irq(&pdev->dev, pwr_irq, rockchip_pwm_pwrirq,
-			IRQF_NO_SUSPEND, "rk_pwm_pwr_irq", ddata);
+			IRQF_NO_SUSPEND | IRQF_SHARED, "rk_pwm_pwr_irq", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim PWR_IRQ!!!\n");
 		goto end;
 	}
+	/*
+	 * remotectl_suspend() masks the capture channel and leaves
+	 * PWM_PWR_INT_ENABLE set, so the power key arrives here rather than on
+	 * the capture IRQ that probe arms for wake. IRQF_NO_SUSPEND keeps this
+	 * one delivered but does not make it a wake source, so mark it too.
+	 */
+	if (enable_irq_wake(pwr_irq))
+		dev_warn(&pdev->dev, "cannot set PWR_IRQ as wake source\n");
 	val = readl_relaxed(ddata->base + PWM_REG_INT_EN(pwm_id));
 	val = (val & 0xFFFFFF7F) | PWM_PWR_INT_ENABLE;
 	writel_relaxed(val, ddata->base + PWM_REG_INT_EN(pwm_id));
@@ -938,10 +946,13 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	 * with the other channels in the same PWM controller. Prefer the
 	 * dedicated one so we don't collide with the pwm-rockchip driver
 	 * bound to another channel (which claims the group IRQ without
-	 * IRQF_SHARED on v4). Fall back to index 0 for older PWM v1-v3.
+	 * IRQF_SHARED on v4). On v1 index 1 is the pwrmatch IRQ instead and
+	 * capture lives on the group IRQ, so select by version, not by probe
+	 * failure - the index 1 lookup succeeds there and returns the wrong line.
 	 */
-	irq = platform_get_irq(pdev, 1);
-	if (irq < 0)
+	if (ddata->pwm_data->pwm_version >= 4)
+		irq = platform_get_irq(pdev, 1);
+	else
 		irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
@@ -988,7 +999,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	cpumask_set_cpu(cpu_id, &cpumask);
 	irq_set_affinity_hint(irq, &cpumask);
 	ret = devm_request_irq(&pdev->dev, irq, ddata->pwm_data->funcs.irq_handler,
-			       IRQF_NO_SUSPEND, "rk_pwm_irq", ddata);
+			       IRQF_NO_SUSPEND | IRQF_SHARED, "rk_pwm_irq", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		goto error_irq;
