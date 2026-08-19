@@ -490,12 +490,16 @@ static int jpgenc_set_freq(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 static int jpgenc_irq(struct mpp_dev *mpp)
 {
-	mpp->irq_status = mpp_read(mpp, JPGENC_REG_INT_STATUS_BASE);
-	mpp_write(mpp, JPGENC_REG_INT_CLR_BASE, mpp->irq_status);
-	if (!(mpp->irq_status & JPGENC_INT_ST_ENC_DONE))
+	u32 irq_status = 0;
+
+	irq_status = mpp_read(mpp, JPGENC_REG_INT_STATUS_BASE);
+	mpp_write(mpp, JPGENC_REG_INT_CLR_BASE, irq_status);
+	if (!(irq_status & JPGENC_INT_ST_ENC_DONE))
 		return IRQ_NONE;
 
+	mpp->irq_status = irq_status;
 	mpp_write(mpp, JPGENC_REG_START_EN_BASE, 0);
+
 	return IRQ_WAKE_THREAD;
 }
 

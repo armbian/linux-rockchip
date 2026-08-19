@@ -595,9 +595,13 @@ static int jpgdec_set_freq(struct mpp_dev *mpp,
 static int jpgdec_irq(struct mpp_dev *mpp)
 {
 	u32 clr_mask = 0;
+	u32 irq_status = 0;
 
-	mpp->irq_status = mpp_read(mpp, JPGDEC_REG_INT_EN_BASE);
+	irq_status = mpp_read(mpp, JPGDEC_REG_INT_EN_BASE);
+	if (!(irq_status & JPGDEC_IRQ_RAW))
+		return IRQ_NONE;
 
+	mpp->irq_status = irq_status;
 	if (mpp->var->hw_info->hw_id == JPGDEC_HWID_VPU720) {
 		clr_mask = (~(0x00fe7f40 & mpp->irq_status)) & (0xff0180bf & mpp->irq_status);
 		mpp_debug(DEBUG_IRQ_STATUS, "irq status 0x%08x, mask 0x%08x\n",
@@ -605,8 +609,6 @@ static int jpgdec_irq(struct mpp_dev *mpp)
 		mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, clr_mask);
 	}
 
-	if (!(mpp->irq_status & JPGDEC_IRQ_RAW))
-		return IRQ_NONE;
 	mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, 0);
 
 	return IRQ_WAKE_THREAD;
