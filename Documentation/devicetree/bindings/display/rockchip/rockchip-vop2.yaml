@@ -113,6 +113,22 @@ properties:
       pll can be only used by the VP that attach this hdmi itself.
     type: boolean
 
+  rockchip,sync-vp-mask:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 11
+    description:
+      Array of the video port group bitmasks with the display
+      synchronization function. Each element is a bitmask of the VPs
+      within one group that are synchronized to start on the same
+      frame, e.g. /bits/ 8 <3 7> means both the VP0+VP1 group and the
+      VP0+VP1+VP2 group can be synchronized. A group is only
+      synchronized after all the members of it are active. A group
+      should contain at least 2 VPs and only the VPs available on the
+      SoC, and duplicated entries are ignored. Since a group contains
+      at least 2 VPs, there are at most 11 different groups among the
+      4 VPs, i.e. all the combinations of 2, 3 or 4 VPs.
+
 required:
   - compatible
   - reg
