@@ -1561,6 +1561,8 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
+	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S);
+
 	ret = pci_request_regions(pdev, DRV_NAME);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions failed %d\n", ret);
