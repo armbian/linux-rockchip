@@ -5,9 +5,11 @@
  * Rockchip USB Extcon Driver
  */
 
+#include <linux/cleanup.h>
 #include <linux/extcon-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/usb/role.h>
@@ -35,6 +37,7 @@ struct rk_usb_extcon {
 	enum typec_orientation pre_orien;
 	enum typec_orientation new_orien;
 	enum usb_role role;
+	struct mutex mutex; /* Protects orien/role state for extcon dispatch */
 	unsigned int port_cnt;
 	struct rk_usb_extcon_port ports[RK_USB_EXTCON_PORT_NUM];
 };
@@ -59,8 +62,8 @@ static void rk_usb_extcon_set_state_sync(struct rk_usb_extcon_port *port, enum u
 	extcon_sync(port->edev, EXTCON_USB_HOST);
 }
 
-static int rk_usb_extcon_role_notify(struct rk_usb_extcon *usb_ext,
-				     enum usb_role role)
+static void rk_usb_extcon_role_notify(struct rk_usb_extcon *usb_ext,
+				      enum usb_role role)
 {
 	int i;
 
@@ -93,8 +96,6 @@ static int rk_usb_extcon_role_notify(struct rk_usb_extcon *usb_ext,
 			break;
 		}
 	}
-
-	return 0;
 }
 
 static void rk_usb_extcon_role_sw_unregister(void *data)
@@ -108,13 +109,12 @@ static int rk_usb_extcon_role_sw_set(struct usb_role_switch *sw,
 				     enum usb_role role)
 {
 	struct rk_usb_extcon *usb_ext = usb_role_switch_get_drvdata(sw);
-	int ret;
+
+	guard(mutex)(&usb_ext->mutex);
 
 	dev_dbg(usb_ext->dev, "new usb role: %d\n", role);
 
-	ret = rk_usb_extcon_role_notify(usb_ext, role);
-	if (ret)
-		return ret;
+	rk_usb_extcon_role_notify(usb_ext, role);
 
 	usb_ext->role = role;
 
@@ -163,6 +163,8 @@ static void rk_usb_extcon_orien_sw_unregister(void *data)
 static int rk_usb_extcon_orien_sw_set(struct typec_switch_dev *sw, enum typec_orientation orien)
 {
 	struct rk_usb_extcon *usb_ext = typec_switch_get_drvdata(sw);
+
+	guard(mutex)(&usb_ext->mutex);
 
 	dev_dbg(usb_ext->dev, "usbc pre orien %d, new orien: %d\n", usb_ext->pre_orien, orien);
 
@@ -304,6 +306,8 @@ static int rk_usb_extcon_probe(struct platform_device *pdev)
 
 	usb_ext->dev = dev;
 	platform_set_drvdata(pdev, usb_ext);
+
+	mutex_init(&usb_ext->mutex);
 
 	index = 0;
 	for_each_available_child_of_node(np, child_np) {
