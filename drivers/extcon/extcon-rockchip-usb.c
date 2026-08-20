@@ -305,14 +305,6 @@ static int rk_usb_extcon_probe(struct platform_device *pdev)
 	usb_ext->dev = dev;
 	platform_set_drvdata(pdev, usb_ext);
 
-	ret = rk_usb_extcon_orien_sw_init(usb_ext);
-	if (ret)
-		goto err_exit;
-
-	ret = rk_usb_extcon_role_sw_init(usb_ext);
-	if (ret)
-		goto err_exit;
-
 	index = 0;
 	for_each_available_child_of_node(np, child_np) {
 		if (index >= RK_USB_EXTCON_PORT_NUM) {
@@ -347,8 +339,8 @@ static int rk_usb_extcon_probe(struct platform_device *pdev)
 		if (device_property_present(&port->dev, "extcon")) {
 			port->phy_edev = extcon_get_edev_by_phandle(&port->dev, 0);
 			if (IS_ERR(port->phy_edev)) {
-				dev_err(&port->dev, "failed to get phy extcon device\n");
-				ret = PTR_ERR(port->phy_edev);
+				ret = dev_err_probe(&port->dev, PTR_ERR(port->phy_edev),
+						    "failed to get phy extcon device\n");
 				goto put_child;
 			}
 
@@ -365,6 +357,14 @@ static int rk_usb_extcon_probe(struct platform_device *pdev)
 	}
 
 	usb_ext->port_cnt = index;
+
+	ret = rk_usb_extcon_orien_sw_init(usb_ext);
+	if (ret)
+		goto err_exit;
+
+	ret = rk_usb_extcon_role_sw_init(usb_ext);
+	if (ret)
+		goto err_exit;
 
 	return 0;
 
