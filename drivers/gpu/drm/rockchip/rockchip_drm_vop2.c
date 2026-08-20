@@ -241,6 +241,8 @@
 
 #define VOP2_READ_POLL_DELAY_US		10
 
+#define VOP2_MAX_SYNC_GROUPS		11
+
 enum vop2_data_format {
 	VOP2_FMT_ARGB8888 = 0,
 	VOP2_FMT_RGB888_YUV444,
@@ -1224,16 +1226,18 @@ struct vop2 {
 	bool cluster_once_enabled;
 
 	/**
-	 * @sync_vp_mask: Bitmask of video ports with the display synchronization function;
+	 * @sync_vp_masks: Array of the video port group bitmasks with the
+	 * display synchronization function;
 	 *
-	 * If the VP0 and VP1 are synchronized via DT configs:
-	 *   &vop {
-	 *       rockchip,sync-vp-mask = /bits/ 8 <3>;
-	 *   };
-	 *
-	 * The value of it should be the same with above DT property: 0x3.
+	 * A group of VPs can only be synchronized after all the members of
+	 * it are active. Among the fully active groups that contain the VP
+	 * just enabled, the one with the most VPs is synchronized.
 	 */
-	uint8_t sync_vp_mask;
+	u8 sync_vp_masks[VOP2_MAX_SYNC_GROUPS];
+	/**
+	 * @num_sync_vp_masks: Number of the valid entries in sync_vp_masks;
+	 */
+	u8 num_sync_vp_masks;
 
 	/* Mask to disable AFBC support per window */
 	u32 disable_afbc_mask;
@@ -1623,10 +1627,9 @@ static void vop2_crtc_standby(struct drm_crtc *crtc, bool standby)
 	}
 }
 
-static bool vop2_wait_vps_standby(struct vop2 *vop2)
+static bool vop2_wait_vps_standby(struct vop2 *vop2, unsigned long crtc_mask)
 {
 	struct vop2_video_port *vp;
-	unsigned long crtc_mask = vop2->sync_vp_mask;
 	int vp_id;
 
 	/*
@@ -1658,7 +1661,7 @@ static int vop2_crtc_sync(struct drm_crtc *crtc, unsigned long crtc_mask)
 	if (!crtc_mask)
 		return 0;
 
-	DRM_INFO("Sync crtc_mask: 0x%lx\n", crtc_mask);
+	dev_dbg(vop2->dev, "Sync crtc_mask: 0x%lx\n", crtc_mask);
 
 	for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
 		vp = &vop2->vps[vp_id];
@@ -1668,11 +1671,12 @@ static int vop2_crtc_sync(struct drm_crtc *crtc, unsigned long crtc_mask)
 		timeout_ms += DIV_ROUND_UP(1000, drm_mode_vrefresh(&state->adjusted_mode));
 	}
 
-	ret = readx_poll_timeout_atomic(vop2_wait_vps_standby, vop2, status,
-					status, VOP2_READ_POLL_DELAY_US,
-					timeout_ms * 1000 * 3 / 2);
+	ret = read_poll_timeout_atomic(vop2_wait_vps_standby, status, status,
+				       VOP2_READ_POLL_DELAY_US,
+				       timeout_ms * 1000 * 3 / 2, false,
+				       vop2, crtc_mask);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "Wait vps standby timeout\n");
+		dev_err(vop2->dev, "Wait vps standby timeout, crtc_mask: 0x%lx\n", crtc_mask);
 
 	local_irq_save(flags);
 
@@ -1683,7 +1687,42 @@ static int vop2_crtc_sync(struct drm_crtc *crtc, unsigned long crtc_mask)
 
 	local_irq_restore(flags);
 
-	return 0;
+	return ret;
+}
+
+static void vop2_crtc_sync_vps(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	u8 sync_mask = 0, mask;
+	int i;
+
+	/*
+	 * A group of VPs can only be synchronized after all the members of it
+	 * are active, and the synchronization is only triggered by the VP that
+	 * belongs to a fully active group. Among the fully active groups that
+	 * contain the VP just enabled, the one with the most VPs, which is
+	 * also the first one listed on a tie, is synchronized, so that a
+	 * re-enabled member of a larger group resynchronizes the whole group
+	 * rather than a subgroup of it.
+	 */
+	for (i = 0; i < vop2->num_sync_vp_masks; i++) {
+		mask = vop2->sync_vp_masks[i];
+
+		if (!(mask & BIT(vp->id)))
+			continue;
+
+		if ((vop2->active_vp_mask & mask) != mask)
+			continue;
+
+		if (hweight8(mask) > hweight8(sync_mask))
+			sync_mask = mask;
+	}
+
+	if (!sync_mask)
+		return;
+
+	vop2_crtc_sync(crtc, sync_mask);
 }
 
 static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
@@ -1707,10 +1746,7 @@ static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
 	if (!vp->loader_protect)
 		vop2_clk_reset(vp->dclk_rst);
 
-	if (vop2->sync_vp_mask) {
-		if ((vop2->active_vp_mask & vop2->sync_vp_mask) == vop2->sync_vp_mask)
-			vop2_crtc_sync(crtc, vop2->sync_vp_mask);
-	}
+	vop2_crtc_sync_vps(crtc);
 
 	/*
 	 * DSC has strict constraint with timing output from VOP.
@@ -18856,7 +18892,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	int vp_id;
 	int pos = 0, remaining, len;
 	char vcnt_info[128] = {};
-	unsigned long crtc_mask = vop2->sync_vp_mask;
+	unsigned long crtc_mask = vop2->active_vp_mask;
 	unsigned long flags;
 	int ret = IRQ_NONE;
 	int i;
@@ -18930,7 +18966,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & FS_FIELD_INTR) {
-			if (vop2->sync_vp_mask) {
+			if (vop2->num_sync_vp_masks) {
 				pos = scnprintf(vcnt_info, sizeof(vcnt_info),
 						"Handle VP%d vsync irq: ", vp->id);
 				for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
@@ -19124,7 +19160,7 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	int vp_id;
 	int pos = 0, remaining, len;
 	unsigned long flags;
-	unsigned long crtc_mask = vop2->sync_vp_mask;
+	unsigned long crtc_mask = vop2->active_vp_mask;
 	char vcnt_info[128] = {};
 
 	/*
@@ -19167,7 +19203,7 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_FIELD_INTR) {
-		if (vop2->sync_vp_mask) {
+		if (vop2->num_sync_vp_masks) {
 			pos = scnprintf(vcnt_info, sizeof(vcnt_info), "Handle VP%d vsync irq: ",
 					vp->id);
 			for_each_set_bit(vp_id, &crtc_mask, ROCKCHIP_MAX_CRTC) {
@@ -21110,6 +21146,59 @@ static void vop2_parse_shared_mode_resources(struct vop2 *vop2)
 	}
 }
 
+static void vop2_parse_sync_vp_masks(struct vop2 *vop2)
+{
+	struct device *dev = vop2->dev;
+	int num, i, j, k;
+	u8 mask;
+
+	num = of_property_read_variable_u8_array(dev->of_node, "rockchip,sync-vp-mask",
+						 vop2->sync_vp_masks, 1, VOP2_MAX_SYNC_GROUPS);
+	if (num < 0) {
+		if (num != -EINVAL)
+			dev_err(dev, "Failed to read sync-vp-mask: %d\n", num);
+		return;
+	}
+
+	/* Drop the invalid groups and keep only the first of the duplicated ones */
+	for (i = 0, j = 0; i < num; i++) {
+		mask = vop2->sync_vp_masks[i];
+
+		if (hweight8(mask) < 2) {
+			dev_err(dev, "sync-vp-mask 0x%x has less than 2 VPs\n", mask);
+			continue;
+		}
+
+		if (mask & ~(BIT(vop2->data->nr_vps) - 1)) {
+			dev_err(dev, "sync-vp-mask 0x%x has VPs beyond %d\n",
+				mask, vop2->data->nr_vps);
+			continue;
+		}
+
+		for (k = 0; k < j; k++) {
+			if (vop2->sync_vp_masks[k] == mask)
+				break;
+		}
+		if (k < j) {
+			dev_err(dev, "drop duplicated sync-vp-mask 0x%x\n", mask);
+			continue;
+		}
+
+		vop2->sync_vp_masks[j++] = mask;
+	}
+
+	if (!j) {
+		dev_err(dev, "no valid sync-vp-mask, disable the sync function\n");
+		return;
+	}
+
+	vop2->num_sync_vp_masks = j;
+
+	dev_info(dev, "Parse %d sync vp masks: %*ph\n",
+		 vop2->num_sync_vp_masks, vop2->num_sync_vp_masks,
+		 vop2->sync_vp_masks);
+}
+
 static int vop2_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -21441,7 +21530,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
-	of_property_read_u8(dev->of_node, "rockchip,sync-vp-mask", &vop2->sync_vp_mask);
+	vop2_parse_sync_vp_masks(vop2);
 
 	vop2_extend_clk_init(vop2);
 	spin_lock_init(&vop2->reg_lock);
