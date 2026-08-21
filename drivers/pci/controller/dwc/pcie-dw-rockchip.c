@@ -1233,6 +1233,7 @@ static int rk_pcie_init_irq_domain(struct rk_pcie *rockchip)
 	raw_spin_lock_init(&rockchip->intx_lock);
 	rockchip->irq_domain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 						     &intx_domain_ops, rockchip);
+	of_node_put(intc);
 	if (!rockchip->irq_domain) {
 		dev_err(dev, "failed to get a INTx IRQ domain\n");
 		return -EINVAL;
