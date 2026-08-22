@@ -519,13 +519,26 @@ static int pwm_fan_get_thermal_trips(struct device *dev, char *porp_name,
 	return 0;
 }
 
+/*
+ * Prevent constant speed hunting.
+ */
+#define PWM_FAN_TEMP_HYST	2000	/* millicelsius */
+
 static int pwm_fan_temp_to_state(struct pwm_fan_ctx *ctx, int temp)
 {
 	struct thermal_trips *trips = ctx->thermal_trips;
 	int i, state = 0;
 
 	for (i = 0; trips[i].state != INT_MAX; i++) {
-		if (temp >= trips[i].temp)
+		int trip_temp = trips[i].temp;
+
+		/*
+		 * Only trips at or below the state we currently occupy.
+		 */
+		if (trips[i].state <= ctx->pwm_fan_state)
+			trip_temp -= PWM_FAN_TEMP_HYST;
+
+		if (temp >= trip_temp)
 			state = trips[i].state;
 	}
 
