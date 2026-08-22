@@ -97,7 +97,7 @@ static void update_passive_instance(struct thermal_zone_device *tz,
 
 static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 {
-	int trip_temp;
+	int trip_temp, hyst = 0;
 	enum thermal_trip_type trip_type;
 	enum thermal_trend trend;
 	struct thermal_instance *instance;
@@ -106,12 +106,26 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
 	tz->ops->get_trip_type(tz, trip, &trip_type);
+	if (tz->ops->get_trip_hyst)
+		tz->ops->get_trip_hyst(tz, trip, &hyst);
 
 	trend = get_tz_trend(tz, trip);
 
+	/*
+	 * A trip engages at its temperature and only disengages once the zone
+	 * has cooled a full hysteresis band below it. With no hysteresis configured
+	 * this reduces to the previous behaviour, releasing the trip as soon as
+	 * the temperature drops below it.
+	 */
 	if (tz->temperature >= trip_temp) {
+		set_bit(trip, &tz->trips_engaged);
 		throttle = true;
 		trace_thermal_zone_trip(tz, trip, trip_type);
+	} else if (tz->temperature >= trip_temp - hyst &&
+		   test_bit(trip, &tz->trips_engaged)) {
+		throttle = true;
+	} else {
+		clear_bit(trip, &tz->trips_engaged);
 	}
 
 	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
