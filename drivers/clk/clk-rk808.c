@@ -166,19 +166,22 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 
 	init.parent_names = NULL;
 	init.num_parents = 0;
-	init.name = "rk808-clkout1";
 	init.ops = &rk808_clkout1_ops;
 	rk808_clkout->clkout1_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(dev->of_node, "clock-output-names",
-				      0, &init.name);
+	if (of_property_read_string_index(dev->of_node, "clock-output-names",
+					  0, &init.name)) {
+		init.name = devm_kasprintf(dev, GFP_KERNEL,
+					   "rk808-clkout1.%s",
+					   dev_name(pdev->dev.parent));
+		if (!init.name)
+			return -ENOMEM;
+	}
 
 	ret = devm_clk_hw_register(dev, &rk808_clkout->clkout1_hw);
 	if (ret)
 		return ret;
-
-	init.name = "rk808-clkout2";
 
 	if (of_property_read_bool(dev->of_node, "rockchip,clk-32k-always-on"))
 		init.flags |= CLK_IS_CRITICAL;
@@ -187,8 +190,14 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	rk808_clkout->clkout2_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(dev->of_node, "clock-output-names",
-				      1, &init.name);
+	if (of_property_read_string_index(dev->of_node, "clock-output-names",
+					  1, &init.name)) {
+		init.name = devm_kasprintf(dev, GFP_KERNEL,
+					   "rk808-clkout2.%s",
+					   dev_name(pdev->dev.parent));
+		if (!init.name)
+			return -ENOMEM;
+	}
 
 	ret = devm_clk_hw_register(dev, &rk808_clkout->clkout2_hw);
 	if (ret)

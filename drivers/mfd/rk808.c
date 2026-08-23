@@ -2225,7 +2225,7 @@ static int rk808_probe(struct i2c_client *client)
 		}
 	}
 
-	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_AUTO,
 				   cells, nr_cells, NULL, 0,
 				   regmap_irq_get_domain(rk808->irq_data));
 	if (ret) {
