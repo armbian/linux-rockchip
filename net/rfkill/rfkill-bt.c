@@ -127,10 +127,10 @@ static int rfkill_rk_power_key_up(void)
 	if (!power_key_dev)
 		return -ENODEV;
 
-	input_report_key(power_key_dev, KEY_POWER, 1);
+	input_report_key(power_key_dev, KEY_WAKEUP, 1);
 	input_sync(power_key_dev);
 	msleep(20);
-	input_report_key(power_key_dev, KEY_POWER, 0);
+	input_report_key(power_key_dev, KEY_WAKEUP, 0);
 	input_sync(power_key_dev);
 
 	return 0;
@@ -671,7 +671,7 @@ static int rfkill_rk_register_power_key(struct device *dev)
 	power_key_dev->id.bustype = BUS_HOST;
 
 	power_key_dev->evbit[0] = BIT_MASK(EV_KEY);
-	set_bit(KEY_POWER, power_key_dev->keybit);
+	set_bit(KEY_WAKEUP, power_key_dev->keybit);
 
 	ret = input_register_device(power_key_dev);
 	if (ret) {
