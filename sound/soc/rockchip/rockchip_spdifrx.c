@@ -15,7 +15,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <sound/asoundef.h>
 #include <sound/dmaengine_pcm.h>
@@ -49,10 +48,9 @@ struct rk_spdifrx_dev {
 	struct rk_spdifrx_info info;
 	struct snd_soc_dai *dai;
 	struct snd_pcm_substream *substream;
-	struct timer_list debounce_timer;
-	struct timer_list non_liner_timer;
-	struct timer_list fifo_timer;
-	struct work_struct xrun_work;
+	struct delayed_work debounce_work;
+	struct delayed_work non_liner_work;
+	struct delayed_work fifo_work;
 	unsigned int mclk_rate;
 	unsigned int version;
 	unsigned int wait_time;
@@ -100,6 +98,7 @@ static int rk_spdifrx_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(spdifrx->hclk);
 	if (ret) {
+		clk_disable_unprepare(spdifrx->mclk);
 		dev_err(spdifrx->dev, "hclk clock enable failed %d\n", ret);
 		return ret;
 	}
@@ -111,6 +110,7 @@ static int rk_spdifrx_runtime_resume(struct device *dev)
 	if (ret) {
 		clk_disable_unprepare(spdifrx->mclk);
 		clk_disable_unprepare(spdifrx->hclk);
+		regcache_cache_only(spdifrx->regmap, true);
 	}
 
 	return ret;
@@ -202,13 +202,15 @@ static int rk_spdifrx_trigger(struct snd_pcm_substream *substream,
 					 SPDIFRX_EN_MASK,
 					 SPDIFRX_EN);
 		if (!spdifrx->fs_monitor) {
-			mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(1000));
-			dev_dbg(spdifrx->dev, "start fifo timer\n");
+			mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work,
+					 msecs_to_jiffies(1000));
+			dev_dbg(spdifrx->dev, "start fifo work\n");
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		cancel_delayed_work(&spdifrx->fifo_work);
 		ret = regmap_update_bits(spdifrx->regmap, SPDIFRX_DMACR,
 					 SPDIFRX_DMACR_RDE_MASK,
 					 SPDIFRX_DMACR_RDE_DISABLE);
@@ -354,8 +356,12 @@ static int rk_spdifrx_usync_threshold_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
 	unsigned int val;
+	int ret;
 
-	pm_runtime_resume_and_get(spdifrx->dev);
+	ret = pm_runtime_resume_and_get(spdifrx->dev);
+	if (ret < 0)
+		return ret;
+
 	regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
 	pm_runtime_put(spdifrx->dev);
 
@@ -369,8 +375,12 @@ static int rk_spdifrx_usync_threshold_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
 	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+	int ret;
 
-	pm_runtime_resume_and_get(spdifrx->dev);
+	ret = pm_runtime_resume_and_get(spdifrx->dev);
+	if (ret < 0)
+		return ret;
+
 	regmap_update_bits(spdifrx->regmap, SPDIFRX_CDRST, SPDIFRX_CDRST_NOSTRTHR_MASK,
 			   SPDIFRX_CDRST_NOSTRTHR(ucontrol->value.integer.value[0]));
 	pm_runtime_put(spdifrx->dev);
@@ -528,6 +538,7 @@ static struct snd_kcontrol_new rk_spdifrx_v2508_controls[] = {
 static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
+	int ret;
 
 	snd_soc_dai_dma_data_set_capture(dai, &spdifrx->capture_dma_data);
 	spdifrx->dai = dai;
@@ -547,7 +558,10 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 					       rk_spdifrx_v2508_controls,
 					       ARRAY_SIZE(rk_spdifrx_v2508_controls));
 
-	pm_runtime_resume_and_get(spdifrx->dev);
+	ret = pm_runtime_resume_and_get(spdifrx->dev);
+	if (ret < 0)
+		return ret;
+
 	rk_spdifrx_parse_quirks(spdifrx);
 	pm_runtime_put(spdifrx->dev);
 
@@ -874,7 +888,8 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 			spdifrx->info.liner_pcm_last = spdifrx->info.liner_pcm;
 			dev_dbg(spdifrx->dev, "non liner data\n");
 		}
-		mod_timer(&spdifrx->non_liner_timer, jiffies + msecs_to_jiffies(100));
+		mod_delayed_work(system_unbound_wq, &spdifrx->non_liner_work,
+				 msecs_to_jiffies(100));
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
 		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NPSPICLR);
@@ -892,8 +907,8 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 
 	if (intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) {
 		spdifrx->info.sync = 0;
-		mod_timer(&spdifrx->debounce_timer, jiffies +
-			  msecs_to_jiffies(spdifrx->info.debounce_time_ms));
+		mod_delayed_work(system_unbound_wq, &spdifrx->debounce_work,
+				 msecs_to_jiffies(spdifrx->info.debounce_time_ms));
 		dev_dbg(spdifrx->dev, "NSYNC\n");
 		if (!spdifrx->fs_monitor) {
 			spdifrx->need_reset = true;
@@ -963,8 +978,8 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 
 	if (intsr & SPDIFRX_INTSR_SYNCISR_ACTIVE) {
 		spdifrx->info.sync = 1;
-		mod_timer(&spdifrx->debounce_timer, jiffies +
-			  msecs_to_jiffies(spdifrx->info.debounce_time_ms));
+		mod_delayed_work(system_unbound_wq, &spdifrx->debounce_work,
+				 msecs_to_jiffies(spdifrx->info.debounce_time_ms));
 		if (spdifrx->version >= SPDIFRX_VER_2505) {
 			regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
 			mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
@@ -1001,27 +1016,31 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
  *
  * If the actual polling duration exceeds the timeout_us by a
  * predefined threshold, the current detection result is invalidated,
- * and the system proceeds to the next scheduled timer interval.
+ * and the system proceeds to the next scheduled work interval.
  */
-static void rk_spdifrx_fifo_timer_isr(struct timer_list *timer)
+static void rk_spdifrx_fifo_work(struct work_struct *work)
 {
-	struct rk_spdifrx_dev *spdifrx = from_timer(spdifrx, timer, fifo_timer);
+	struct rk_spdifrx_dev *spdifrx = container_of(to_delayed_work(work),
+						      struct rk_spdifrx_dev, fifo_work);
 	unsigned int val, timeout_us;
 	unsigned int fifo_cnt;
 	ktime_t start, end;
 	int ret;
 
 	if (spdifrx->info.sync == 0 || spdifrx->need_reset || spdifrx->info.sample_rate_src == 0) {
-		dev_dbg(spdifrx->dev, "exit fifo timer\n");
+		dev_dbg(spdifrx->dev, "exit fifo work\n");
 		dev_dbg(spdifrx->dev, "sync: %d, need_reset: %d, sample_rate_src: %u\n",
 			spdifrx->info.sync, spdifrx->need_reset, spdifrx->info.sample_rate_src);
 		return;
 	}
 
+	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
+		return;
+
 	regmap_read(spdifrx->regmap, SPDIFRX_DMACR, &val);
 	if ((val & SPDIFRX_DMACR_RDE_MASK) == 0) {
-		dev_dbg(spdifrx->dev, "exit fifo timer: rxdma disabled\n");
-		return;
+		dev_dbg(spdifrx->dev, "exit fifo work: rxdma disabled\n");
+		goto out;
 	}
 
 	timeout_us = DIV_ROUND_UP(500000, spdifrx->info.sample_rate_src);
@@ -1041,22 +1060,28 @@ static void rk_spdifrx_fifo_timer_isr(struct timer_list *timer)
 						      fifo_cnt, 1, timeout_us);
 		end = ktime_get();
 		if (ret == -ETIMEDOUT && ktime_us_delta(end, start) < 8 * timeout_us) {
-			dev_info(spdifrx->dev, "no data to fifo, reset\n");
+			dev_dbg(spdifrx->dev, "no data to fifo, reset\n");
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = true;
 			rk_spdifrx_disable_dma(spdifrx);
-			return;
+			goto out;
 		}
 	}
-	mod_timer(&spdifrx->fifo_timer, jiffies + msecs_to_jiffies(100));
+	mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work, msecs_to_jiffies(100));
+out:
+	pm_runtime_put(spdifrx->dev);
 }
 
-static void rk_spdifrx_non_liner_timer_isr(struct timer_list *timer)
+static void rk_spdifrx_non_liner_work(struct work_struct *work)
 {
-	struct rk_spdifrx_dev *spdifrx = from_timer(spdifrx, timer, non_liner_timer);
+	struct rk_spdifrx_dev *spdifrx = container_of(to_delayed_work(work),
+						      struct rk_spdifrx_dev, non_liner_work);
 	struct snd_soc_dai *dai = spdifrx->dai;
 	struct snd_kcontrol *liner_pcm_kctl = snd_soc_card_get_kcontrol(dai->component->card,
 									"RK SPDIFRX LINER PCM");
+
+	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
+		return;
 
 	spdifrx->info.liner_pcm = 1;
 	snd_ctl_notify(dai->component->card->snd_card,
@@ -1065,11 +1090,31 @@ static void rk_spdifrx_non_liner_timer_isr(struct timer_list *timer)
 	regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 			   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_EN);
 	dev_dbg(spdifrx->dev, "liner data\n");
+
+	pm_runtime_put(spdifrx->dev);
 }
 
-static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
+static void rk_spdifrx_spurious_xrun(struct rk_spdifrx_dev *spdifrx)
 {
-	struct rk_spdifrx_dev *spdifrx = from_timer(spdifrx, timer, debounce_timer);
+	int ret;
+	u32 val;
+
+	ret = regmap_read_poll_timeout(spdifrx->regmap, SPDIFRX_CDR, val,
+				       ((val & SPDIFRX_CDR_CS_MASK) >> 9) == 0x3, 300, 3000);
+	if (!ret) {
+		if (spdifrx->substream) {
+			snd_pcm_stop_xrun(spdifrx->substream);
+			dev_dbg(spdifrx->dev, "spdifrx spurious stop xrun\n");
+		}
+	} else {
+		dev_dbg(spdifrx->dev, "reset enter sync failed\n");
+	}
+}
+
+static void rk_spdifrx_debounce_work(struct work_struct *work)
+{
+	struct rk_spdifrx_dev *spdifrx = container_of(to_delayed_work(work),
+						      struct rk_spdifrx_dev, debounce_work);
 	struct snd_soc_dai *dai = spdifrx->dai;
 	struct snd_kcontrol *sync_kctl = snd_soc_card_get_kcontrol(dai->component->card,
 								   "RK SPDIFRX SYNC STATUS");
@@ -1078,18 +1123,20 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 	u32 val;
 	u32 count, mincnt, maxcnt;
 
+	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
+		return;
+
 	if (spdifrx->info.sync == 1) {
 		if (spdifrx->need_reset && !spdifrx->fs_monitor) {
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = false;
-			schedule_work(&spdifrx->xrun_work);
+			rk_spdifrx_spurious_xrun(spdifrx);
 		} else {
 			if (spdifrx->need_reset) {
 				spdifrx->need_reset = false;
-				schedule_work(&spdifrx->xrun_work);
+				rk_spdifrx_spurious_xrun(spdifrx);
 			}
 
-			pm_runtime_resume_and_get(spdifrx->dev);
 			if (spdifrx->version >= SPDIFRX_VER_2505) {
 				regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
 				mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
@@ -1104,7 +1151,6 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 				else
 					count = mincnt;
 			}
-			pm_runtime_put(spdifrx->dev);
 
 			if (count > 0)
 				spdifrx->info.sample_rate_cal =
@@ -1129,26 +1175,8 @@ static void rk_spdifrx_debounce_timer_isr(struct timer_list *timer)
 			       SNDRV_CTL_EVENT_MASK_VALUE, &sync_kctl->id);
 		dev_dbg(spdifrx->dev, "notify usync\n");
 	}
-}
 
-static void rk_spdifrx_xrun_work(struct work_struct *work)
-{
-	struct rk_spdifrx_dev *spdifrx = container_of(work, struct rk_spdifrx_dev, xrun_work);
-	int ret;
-	u32 val;
-
-	pm_runtime_resume_and_get(spdifrx->dev);
-	ret = regmap_read_poll_timeout(spdifrx->regmap, SPDIFRX_CDR, val,
-				       ((val & SPDIFRX_CDR_CS_MASK) >> 9) == 0x3, 300, 3000);
 	pm_runtime_put(spdifrx->dev);
-	if (!ret) {
-		if (spdifrx->substream) {
-			snd_pcm_stop_xrun(spdifrx->substream);
-			dev_dbg(spdifrx->dev, "stop xrun\n");
-		}
-	} else {
-		dev_dbg(spdifrx->dev, "reset enter sync failed\n");
-	}
 }
 
 static int rk_spdifrx_wait_time_init(struct rk_spdifrx_dev *spdifrx)
@@ -1202,10 +1230,10 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 	spdifrx->info.debounce_time_ms = 100;
 	spdifrx->info.liner_pcm = 1;
 	spdifrx->info.liner_pcm_last = 1;
-	timer_setup(&spdifrx->debounce_timer, rk_spdifrx_debounce_timer_isr, 0);
-	timer_setup(&spdifrx->non_liner_timer, rk_spdifrx_non_liner_timer_isr, 0);
-	timer_setup(&spdifrx->fifo_timer, rk_spdifrx_fifo_timer_isr, 0);
-	INIT_WORK(&spdifrx->xrun_work, rk_spdifrx_xrun_work);
+
+	INIT_DELAYED_WORK(&spdifrx->debounce_work, rk_spdifrx_debounce_work);
+	INIT_DELAYED_WORK(&spdifrx->non_liner_work, rk_spdifrx_non_liner_work);
+	INIT_DELAYED_WORK(&spdifrx->fifo_work, rk_spdifrx_fifo_work);
 
 	ret = devm_request_threaded_irq(&pdev->dev, spdifrx->irq, NULL,
 					rk_spdifrx_isr,
@@ -1291,9 +1319,9 @@ static void rk_spdifrx_remove(struct platform_device *pdev)
 {
 	struct rk_spdifrx_dev *spdifrx = dev_get_drvdata(&pdev->dev);
 
-	del_timer_sync(&spdifrx->debounce_timer);
-	del_timer_sync(&spdifrx->non_liner_timer);
-	del_timer_sync(&spdifrx->fifo_timer);
+	cancel_delayed_work_sync(&spdifrx->debounce_work);
+	cancel_delayed_work_sync(&spdifrx->non_liner_work);
+	cancel_delayed_work_sync(&spdifrx->fifo_work);
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
