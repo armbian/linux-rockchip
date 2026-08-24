@@ -189,6 +189,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SGM415xx_VENDOR_ID_SHIFT	3
 
 #define DEFAULT_INPUT_CURRENT		(500 * 1000)
+#define SGM4154x_VDPM_BAT_TRACK_MASK	GENMASK(1, 0)
 
 struct sgm4154x_init_data {
 	int ichg;	/* charge current */
@@ -289,6 +290,13 @@ enum SGM4154x_VINDPM_OS {
 	VINDPM_OS_5900mV,
 	VINDPM_OS_7500mV,
 	VINDPM_OS_10500mV,
+};
+
+enum SGM4154x_VDPM_BAT_TRACK {
+	VDPM_BAT_TRACK_DIS,
+	VDPM_BAT_TRACK_200,
+	VDPM_BAT_TRACK_250,
+	VDPM_BAT_TRACK_300,
 };
 
 struct sgm_vendor_info {
@@ -1132,6 +1140,19 @@ static int sgm4154x_hw_init(struct sgm4154x_device *sgm)
 			   SGM4154x_VINDPM_INT_MASK,
 			   SGM4154x_VINDPM_INT_DIS);
 
+	/*
+	 * Dynamic VINDPM Tracking Vbat + 200mV.
+	 * Supported by all chip variants (SGM41512S/SX, SGM41513/D,
+	 * SGM41542/S). When enabled, effective VINDPM = max(static
+	 * VINDPM, Vbat + 200mV), preventing premature input collapse
+	 * under heavy system loads.
+	 */
+	ret = regmap_update_bits(sgm->regmap,
+				 SGM4154x_CHRG_CTRL_7,
+				 SGM4154x_VDPM_BAT_TRACK_MASK,
+				 VDPM_BAT_TRACK_200);
+	if (ret)
+		goto err_out;
 
 	ret = sgm4154x_set_recharge_volt(sgm, 200);
 	if (ret)
