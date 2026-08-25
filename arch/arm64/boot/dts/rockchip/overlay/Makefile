@@ -137,6 +137,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rockchip-rk3588-dmc-oc-3500mhz.dtbo \
 	rockchip-rk3588-opp-oc-24ghz.dtbo \
 	rockchip-rk3588-panthor-gpu.dtbo \
+	rockchip-rk3576-panfrost-gpu.dtbo \
 	rk3528-rock-2-enable-pcie.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
 	rk3576-can1-m1.dtbo \

@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * DT overlay for reComputer RK3576 (Mali-G52): switch the GPU from the vendor
+ * kbase KMD (CONFIG_MALI_BIFROST) to the mainline panfrost KMD
+ * (CONFIG_DRM_PANTFROST), mirroring rockchip-rk3588-panthor-gpu.
+ *
+ * fragment@0 disables the vendor gpu node; fragment@1 instantiates a parallel
+ * node for panfrost with a SoC-specific compatible ("rockchip,rk3576-mali")
+ * that only panfrost matches (kbase matches "arm,mali-bifrost", so reusing it
+ * on both nodes would make the two KMDs race for the same node when both are
+ * built as modules).
+ *
+ * With both KMDs in the kernel exactly one driver binds, picked by this
+ * overlay at boot. Remove the overlay from armbianEnv.txt to switch back to
+ * the vendor Mali KMD (install the libmali userspace separately for that
+ * path).
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/power/rk3576-power.h>
+
+/ {
+	fragment@0 {
+		target = <&gpu>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			gpu-panfrost@27800000 {
+				compatible = "rockchip,rk3576-mali";
+				reg = <0x0 0x27800000 0x0 0x20000>;
+
+				interrupts = <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "gpu", "mmu", "job";
+
+				clocks = <&cru CLK_GPU>;
+				clock-names = "core";
+				assigned-clocks = <&cru CLK_GPU>;
+				assigned-clock-rates = <198000000>;
+				power-domains = <&power RK3576_PD_GPU>;
+				operating-points-v2 = <&gpu_opp_table>;
+				mali-supply = <&vdd_gpu_s0>;
+				#cooling-cells = <2>;
+				dynamic-power-coefficient = <1625>;
+				status = "okay";
+			};
+		};
+	};
+};
