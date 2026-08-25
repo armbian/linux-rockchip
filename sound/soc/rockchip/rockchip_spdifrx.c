@@ -58,6 +58,7 @@ struct rk_spdifrx_dev {
 	bool cdr_count_avg;
 	bool need_reset;
 	bool fs_monitor;
+	bool spurious_xrun;
 };
 
 static const struct spdifrx_of_quirks {
@@ -388,6 +389,28 @@ static int rk_spdifrx_usync_threshold_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rk_spdifrx_spurious_xrun_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+
+	ucontrol->value.integer.value[0] = spdifrx->spurious_xrun;
+
+	return 0;
+}
+
+static int rk_spdifrx_spurious_xrun_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_spdifrx_dev *spdifrx = snd_soc_component_get_drvdata(compnt);
+
+	spdifrx->spurious_xrun = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
 static int rk_spdifrx_sync_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
@@ -466,6 +489,17 @@ static int rk_spdifrx_usync_threshold_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rk_spdifrx_spurious_xrun_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+
+	return 0;
+}
+
 static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -519,6 +553,13 @@ static struct snd_kcontrol_new rk_spdifrx_controls[] = {
 		.info = rk_spdifrx_usync_threshold_info,
 		.get = rk_spdifrx_usync_threshold_get,
 		.put = rk_spdifrx_usync_threshold_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "RK SPDIFRX SPURIOUS XRUN",
+		.info = rk_spdifrx_spurious_xrun_info,
+		.get = rk_spdifrx_spurious_xrun_get,
+		.put = rk_spdifrx_spurious_xrun_put,
 	},
 };
 
@@ -825,6 +866,15 @@ static int rk_spdifrx_disable_dma(struct rk_spdifrx_dev *spdifrx)
 	return ret;
 }
 
+static bool rk_spdifrx_is_locked(struct rk_spdifrx_dev *spdifrx)
+{
+	u32 val = 0;
+
+	regmap_read(spdifrx->regmap, SPDIFRX_CDR, &val);
+
+	return (val & SPDIFRX_CDR_CS_MASK) == SPDIFRX_CDR_CS_LOCKED;
+}
+
 static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 {
 	struct rk_spdifrx_dev *spdifrx = dev_id;
@@ -838,26 +888,28 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 	u32 intsr;
 	u32 val;
 	u32 count, mincnt, maxcnt;
+	bool reset_now = false;
+	bool locked;
 
 	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
 		return IRQ_NONE;
 
 	regmap_read(spdifrx->regmap, SPDIFRX_INTSR, &intsr);
+	regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, intsr);
+	locked = rk_spdifrx_is_locked(spdifrx);
 
 	if (intsr & SPDIFRX_INTSR_FSCHGISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "FS Changed\n");
 		spdifrx->need_reset = true;
-		rk_spdifrx_disable_dma(spdifrx);
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_FSCHGICLR);
+		if (spdifrx->spurious_xrun)
+			rk_spdifrx_disable_dma(spdifrx);
 	}
 
 	if (intsr & SPDIFRX_INTSR_NVLDISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "No Valid Error\n");
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NVLDICLR);
 		if (!spdifrx->fs_monitor) {
-			rk_spdifrx_reset(spdifrx);
+			reset_now = true;
 			spdifrx->need_reset = true;
-			rk_spdifrx_disable_dma(spdifrx);
 			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 					   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
 		}
@@ -867,16 +919,13 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		dev_dbg(spdifrx->dev, "CSC Changed\n");
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_BTEIE_MASK, SPDIFRX_INTEN_BTEIE_EN);
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_CSCICLR);
 	}
 
 	if (intsr & SPDIFRX_INTSR_PEISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "Parity Error\n");
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_PEICLR);
 		if (!spdifrx->fs_monitor) {
-			rk_spdifrx_reset(spdifrx);
+			reset_now = true;
 			spdifrx->need_reset = true;
-			rk_spdifrx_disable_dma(spdifrx);
 		}
 	}
 
@@ -892,20 +941,17 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 				 msecs_to_jiffies(100));
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NPSPICLR);
 	}
 
 	if (intsr & SPDIFRX_INTSR_BMDEISR_ACTIVE) {
 		dev_dbg(spdifrx->dev, "BMD Error\n");
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_BMDEICLR);
 		if (!spdifrx->fs_monitor) {
-			rk_spdifrx_reset(spdifrx);
+			reset_now = true;
 			spdifrx->need_reset = true;
-			rk_spdifrx_disable_dma(spdifrx);
 		}
 	}
 
-	if (intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) {
+	if ((intsr & SPDIFRX_INTSR_NSYNCISR_ACTIVE) && !locked) {
 		spdifrx->info.sync = 0;
 		mod_delayed_work(system_unbound_wq, &spdifrx->debounce_work,
 				 msecs_to_jiffies(spdifrx->info.debounce_time_ms));
@@ -917,7 +963,6 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 					   SPDIFRX_INTEN_NSYNCIE_MASK,
 					   SPDIFRX_INTEN_NSYNCIE_DIS);
 		}
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_NSYNCICLR);
 	}
 
 	if (intsr & SPDIFRX_INTSR_BTEISR_ACTIVE) {
@@ -971,12 +1016,11 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 
 		dev_dbg(spdifrx->dev, "BTEIE\n");
 
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_BTECLR);
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_BTEIE_MASK, SPDIFRX_INTEN_BTEIE_DIS);
 	}
 
-	if (intsr & SPDIFRX_INTSR_SYNCISR_ACTIVE) {
+	if ((intsr & SPDIFRX_INTSR_SYNCISR_ACTIVE) && locked) {
 		spdifrx->info.sync = 1;
 		mod_delayed_work(system_unbound_wq, &spdifrx->debounce_work,
 				 msecs_to_jiffies(spdifrx->info.debounce_time_ms));
@@ -994,7 +1038,13 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		dev_dbg(spdifrx->dev, "SYNC: MINCNT = %u, MAXCNT = %u\n", mincnt, maxcnt);
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_BTEIE_MASK, SPDIFRX_INTEN_BTEIE_EN);
-		regmap_write(spdifrx->regmap, SPDIFRX_INTCLR, SPDIFRX_INTCLR_SYNCICLR);
+	}
+
+	if (reset_now) {
+		dev_dbg(spdifrx->dev, "irq reset spdifrx\n");
+		rk_spdifrx_reset(spdifrx);
+		if (spdifrx->spurious_xrun)
+			rk_spdifrx_disable_dma(spdifrx);
 	}
 
 	pm_runtime_put(spdifrx->dev);
@@ -1063,7 +1113,8 @@ static void rk_spdifrx_fifo_work(struct work_struct *work)
 			dev_dbg(spdifrx->dev, "no data to fifo, reset\n");
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = true;
-			rk_spdifrx_disable_dma(spdifrx);
+			if (spdifrx->spurious_xrun)
+				rk_spdifrx_disable_dma(spdifrx);
 			goto out;
 		}
 	}
@@ -1099,12 +1150,16 @@ static void rk_spdifrx_spurious_xrun(struct rk_spdifrx_dev *spdifrx)
 	int ret;
 	u32 val;
 
+	if (!spdifrx->spurious_xrun)
+		return;
+
 	ret = regmap_read_poll_timeout(spdifrx->regmap, SPDIFRX_CDR, val,
-				       ((val & SPDIFRX_CDR_CS_MASK) >> 9) == 0x3, 300, 3000);
+				       (val & SPDIFRX_CDR_CS_MASK) == SPDIFRX_CDR_CS_LOCKED,
+				       300, 3000);
 	if (!ret) {
 		if (spdifrx->substream) {
-			snd_pcm_stop_xrun(spdifrx->substream);
 			dev_dbg(spdifrx->dev, "spdifrx spurious stop xrun\n");
+			snd_pcm_stop_xrun(spdifrx->substream);
 		}
 	} else {
 		dev_dbg(spdifrx->dev, "reset enter sync failed\n");
@@ -1128,6 +1183,7 @@ static void rk_spdifrx_debounce_work(struct work_struct *work)
 
 	if (spdifrx->info.sync == 1) {
 		if (spdifrx->need_reset && !spdifrx->fs_monitor) {
+			dev_dbg(spdifrx->dev, "debounce reset spdifrx\n");
 			rk_spdifrx_reset(spdifrx);
 			spdifrx->need_reset = false;
 			rk_spdifrx_spurious_xrun(spdifrx);
@@ -1226,6 +1282,8 @@ static int rk_spdifrx_probe(struct platform_device *pdev)
 	spdifrx->irq = platform_get_irq(pdev, 0);
 	if (spdifrx->irq < 0)
 		return spdifrx->irq;
+
+	spdifrx->spurious_xrun = device_property_read_bool(&pdev->dev, "rockchip,spurious-xrun");
 
 	spdifrx->info.debounce_time_ms = 100;
 	spdifrx->info.liner_pcm = 1;
