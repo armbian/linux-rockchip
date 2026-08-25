@@ -24,6 +24,8 @@
 
 #define QUIRK_ALWAYS_ON		BIT(0)
 #define WAIT_TIME_MS_MAX	10000
+#define FIFO_WORK_DELAY_MS	100
+#define NON_LINER_WORK_DELAY_MS	100
 
 struct rk_spdifrx_info {
 	int sync;
@@ -55,7 +57,6 @@ struct rk_spdifrx_dev {
 	unsigned int version;
 	unsigned int wait_time;
 	int irq;
-	bool cdr_count_avg;
 	bool need_reset;
 	bool fs_monitor;
 	bool spurious_xrun;
@@ -166,11 +167,6 @@ static int rk_spdifrx_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (params_rate(params) >= 44100)
-		spdifrx->cdr_count_avg = true;
-	else
-		spdifrx->cdr_count_avg = false;
-
 	return 0;
 }
 
@@ -204,8 +200,8 @@ static int rk_spdifrx_trigger(struct snd_pcm_substream *substream,
 					 SPDIFRX_EN);
 		if (!spdifrx->fs_monitor) {
 			mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work,
-					 msecs_to_jiffies(1000));
-			dev_dbg(spdifrx->dev, "start fifo work\n");
+					 msecs_to_jiffies(FIFO_WORK_DELAY_MS));
+			dev_dbg(spdifrx->dev, "trigger start fifo work\n");
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -875,6 +871,40 @@ static bool rk_spdifrx_is_locked(struct rk_spdifrx_dev *spdifrx)
 	return (val & SPDIFRX_CDR_CS_MASK) == SPDIFRX_CDR_CS_LOCKED;
 }
 
+static u32 rk_spdifrx_get_cdr_count(struct rk_spdifrx_dev *spdifrx, u32 *mincnt, u32 *maxcnt)
+{
+	u32 val, min_cnt, max_cnt, count;
+
+	if (spdifrx->version >= SPDIFRX_VER_2505) {
+		regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
+		min_cnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
+		max_cnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
+		count = (min_cnt + max_cnt) / 4;
+	} else {
+		regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
+		min_cnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
+		max_cnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
+		/*
+		 * For 8-bit CDR counters (version < SPDIFRX_VER_2505), maxcnt is
+		 * theoretically 3 * mincnt in the adjusted (+1) count domain. Average
+		 * the min/max counts only when maxcnt is still greater than 2 * mincnt
+		 * and 3 * mincnt fits within the adjusted count range (whose maximum
+		 * less than 256), indicating that maxcnt has not overflowed.
+		 */
+		if ((max_cnt > 2 * min_cnt) && (3 * min_cnt < 256))
+			count = (min_cnt + max_cnt) / 4;
+		else
+			count = min_cnt;
+	}
+
+	if (mincnt)
+		*mincnt = min_cnt;
+	if (maxcnt)
+		*maxcnt = max_cnt;
+
+	return count;
+}
+
 static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 {
 	struct rk_spdifrx_dev *spdifrx = dev_id;
@@ -938,7 +968,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 			dev_dbg(spdifrx->dev, "non liner data\n");
 		}
 		mod_delayed_work(system_unbound_wq, &spdifrx->non_liner_work,
-				 msecs_to_jiffies(100));
+				 msecs_to_jiffies(NON_LINER_WORK_DELAY_MS));
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_NVLDIE_MASK, SPDIFRX_INTEN_NVLDIE_DIS);
 	}
@@ -970,21 +1000,7 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		spdifrx->info.sample_rate_src =
 			rk_spdifrx_get_sample_rate((val & SPDIFRX_CHNSR1_SAMPLE_RATE_MASK) >> 8);
 
-		if (spdifrx->version >= SPDIFRX_VER_2505) {
-			regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
-			mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
-			maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
-			count = (mincnt + maxcnt) / 4;
-		} else {
-			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-			mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
-			maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
-			if (spdifrx->cdr_count_avg)
-				count = (mincnt + maxcnt) / 4;
-			else
-				count = mincnt;
-		}
-
+		count = rk_spdifrx_get_cdr_count(spdifrx, NULL, NULL);
 		if (count > 0)
 			spdifrx->info.sample_rate_cal =
 				rk_spdifrx_convert_sample_rate(spdifrx->mclk_rate, count);
@@ -1024,17 +1040,10 @@ static irqreturn_t rk_spdifrx_isr(int irq, void *dev_id)
 		spdifrx->info.sync = 1;
 		mod_delayed_work(system_unbound_wq, &spdifrx->debounce_work,
 				 msecs_to_jiffies(spdifrx->info.debounce_time_ms));
-		if (spdifrx->version >= SPDIFRX_VER_2505) {
-			regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
-			mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
-			maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
-		} else {
-			regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-			mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
-			maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
+		rk_spdifrx_get_cdr_count(spdifrx, &mincnt, &maxcnt);
+		if (spdifrx->version < SPDIFRX_VER_2505)
 			regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 					   SPDIFRX_INTEN_NSYNCIE_MASK, SPDIFRX_INTEN_NSYNCIE_EN);
-		}
 		dev_dbg(spdifrx->dev, "SYNC: MINCNT = %u, MAXCNT = %u\n", mincnt, maxcnt);
 		regmap_update_bits(spdifrx->regmap, SPDIFRX_INTEN,
 				   SPDIFRX_INTEN_BTEIE_MASK, SPDIFRX_INTEN_BTEIE_EN);
@@ -1074,13 +1083,30 @@ static void rk_spdifrx_fifo_work(struct work_struct *work)
 						      struct rk_spdifrx_dev, fifo_work);
 	unsigned int val, timeout_us;
 	unsigned int fifo_cnt;
+	unsigned int sample_rate;
+	unsigned int src_rate = spdifrx->info.sample_rate_src;
+	unsigned int cal_rate = spdifrx->info.sample_rate_cal;
 	ktime_t start, end;
 	int ret;
 
-	if (spdifrx->info.sync == 0 || spdifrx->need_reset || spdifrx->info.sample_rate_src == 0) {
+	/*
+	 * A sample rate reported in the channel status is more accurate than the
+	 * CDR estimate. However, some transmitters leave the channel status unset,
+	 * which is parsed as the default rate of 44.1 kHz. Prefer the CDR estimate
+	 * for that ambiguous value when available, as an unset value cannot be
+	 * distinguished from a genuine 44.1 kHz report. When both indicate
+	 * 44.1 kHz, the selected rate is unchanged. Use the reported source rate
+	 * otherwise.
+	 */
+	if (cal_rate && (src_rate == 0 || src_rate == 44100))
+		sample_rate = cal_rate;
+	else
+		sample_rate = src_rate;
+
+	if (spdifrx->info.sync == 0 || spdifrx->need_reset || sample_rate == 0) {
 		dev_dbg(spdifrx->dev, "exit fifo work\n");
-		dev_dbg(spdifrx->dev, "sync: %d, need_reset: %d, sample_rate_src: %u\n",
-			spdifrx->info.sync, spdifrx->need_reset, spdifrx->info.sample_rate_src);
+		dev_dbg(spdifrx->dev, "sync: %d, need_reset: %d, sample_rate: %u\n",
+			spdifrx->info.sync, spdifrx->need_reset, sample_rate);
 		return;
 	}
 
@@ -1093,7 +1119,7 @@ static void rk_spdifrx_fifo_work(struct work_struct *work)
 		goto out;
 	}
 
-	timeout_us = DIV_ROUND_UP(500000, spdifrx->info.sample_rate_src);
+	timeout_us = DIV_ROUND_UP(500000, sample_rate);
 	if (spdifrx->version >= SPDIFRX_VER_2312) {
 		regmap_read(spdifrx->regmap, SPDIFRX_CFGR, &val);
 		if (val & SPDIFRX_CFGR_DAT_JOIN)
@@ -1118,7 +1144,8 @@ static void rk_spdifrx_fifo_work(struct work_struct *work)
 			goto out;
 		}
 	}
-	mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work, msecs_to_jiffies(100));
+	mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work,
+			 msecs_to_jiffies(FIFO_WORK_DELAY_MS));
 out:
 	pm_runtime_put(spdifrx->dev);
 }
@@ -1176,7 +1203,7 @@ static void rk_spdifrx_debounce_work(struct work_struct *work)
 	struct snd_kcontrol *sample_kctl = snd_soc_card_get_kcontrol(dai->component->card,
 								     "RK SPDIFRX SAMPLE RATE");
 	u32 val;
-	u32 count, mincnt, maxcnt;
+	u32 count;
 
 	if (pm_runtime_resume_and_get(spdifrx->dev) < 0)
 		return;
@@ -1193,26 +1220,21 @@ static void rk_spdifrx_debounce_work(struct work_struct *work)
 				rk_spdifrx_spurious_xrun(spdifrx);
 			}
 
-			if (spdifrx->version >= SPDIFRX_VER_2505) {
-				regmap_read(spdifrx->regmap, SPDIFRX_CNTINFO, &val);
-				mincnt = (val & SPDIFRX_CNTINFO_MINCNT_MASK) + 1;
-				maxcnt = ((val & SPDIFRX_CNTINFO_MAXCNT_MASK) >> 10) + 1;
-				count = (mincnt + maxcnt) / 4;
-			} else {
-				regmap_read(spdifrx->regmap, SPDIFRX_CDRST, &val);
-				mincnt = (val & SPDIFRX_CDRST_MINCNT_MASK) + 1;
-				maxcnt = ((val & SPDIFRX_CDRST_MAXCNT_MASK) >> 8) + 1;
-				if (spdifrx->cdr_count_avg)
-					count = (mincnt + maxcnt) / 4;
-				else
-					count = mincnt;
-			}
-
+			count = rk_spdifrx_get_cdr_count(spdifrx, NULL, NULL);
 			if (count > 0)
 				spdifrx->info.sample_rate_cal =
 					rk_spdifrx_convert_sample_rate(spdifrx->mclk_rate, count);
 			else
 				spdifrx->info.sample_rate_cal = 0;
+
+			if (!spdifrx->fs_monitor) {
+				regmap_read(spdifrx->regmap, SPDIFRX_DMACR, &val);
+				if (val & SPDIFRX_DMACR_RDE_MASK) {
+					mod_delayed_work(system_unbound_wq, &spdifrx->fifo_work,
+							 msecs_to_jiffies(FIFO_WORK_DELAY_MS));
+					dev_dbg(spdifrx->dev, "debounce start fifo work\n");
+				}
+			}
 
 			snd_ctl_notify(dai->component->card->snd_card,
 				       SNDRV_CTL_EVENT_MASK_VALUE, &sample_kctl->id);
