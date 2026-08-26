@@ -413,25 +413,7 @@ static int rockchip_pdm_v2_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_kcontrol_new rk3506_controls[];
-static const struct snd_kcontrol_new rk3576_controls[];
-static const struct snd_kcontrol_new rv1126b_controls[];
-
-static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
-{
-	struct rk_pdm_v2_dev *pdm = to_info(dai);
-
-	snd_soc_dai_dma_data_set_capture(dai, &pdm->capture_dma_data);
-
-	if (pdm->version == RK3506_PDM)
-		snd_soc_add_component_controls(dai->component, rk3506_controls, 1);
-	else if (pdm->version == RK3576_PDM)
-		snd_soc_add_component_controls(dai->component, rk3576_controls, 1);
-	else if (pdm->version >= RV1126B_PDM)
-		snd_soc_add_component_controls(dai->component, rv1126b_controls, 1);
-
-	return 0;
-}
+static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai);
 
 static const struct snd_soc_dai_ops rockchip_pdm_v2_dai_ops = {
 	.probe = rockchip_pdm_v2_dai_probe,
@@ -600,6 +582,25 @@ static const struct snd_kcontrol_new rv1126b_controls[] = {
 	SOC_SINGLE("HPFL Switch", PDM_V2_FILTER_CTRL1, 1, 1, 0),
 	SOC_SINGLE("HPFR Switch", PDM_V2_FILTER_CTRL1, 0, 1, 0),
 };
+
+static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
+{
+	struct rk_pdm_v2_dev *pdm = to_info(dai);
+
+	snd_soc_dai_dma_data_set_capture(dai, &pdm->capture_dma_data);
+
+	if (pdm->version == RK3506_PDM)
+		snd_soc_add_component_controls(dai->component, rk3506_controls,
+					       ARRAY_SIZE(rk3506_controls));
+	else if (pdm->version == RK3576_PDM)
+		snd_soc_add_component_controls(dai->component, rk3576_controls,
+					       ARRAY_SIZE(rk3576_controls));
+	else if (pdm->version >= RV1126B_PDM)
+		snd_soc_add_component_controls(dai->component, rv1126b_controls,
+					       ARRAY_SIZE(rv1126b_controls));
+
+	return 0;
+}
 
 static const struct snd_soc_component_driver rockchip_pdm_v2_component = {
 	.name = "rockchip-pdm-v2",
