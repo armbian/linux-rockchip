@@ -2513,7 +2513,7 @@ static int rockchip_i2s_tdm_startup(struct snd_pcm_substream *substream,
 		return -EBUSY;
 
 	if (i2s_tdm->wait_time[stream])
-		substream->wait_time = msecs_to_jiffies(i2s_tdm->wait_time[stream]);
+		substream->wait_time = i2s_tdm->wait_time[stream];
 
 	i2s_tdm->substreams[stream] = substream;
 

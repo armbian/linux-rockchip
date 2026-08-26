@@ -1155,7 +1155,7 @@ static int rockchip_sai_startup(struct snd_pcm_substream *substream,
 		return -EBUSY;
 
 	if (sai->wait_time[stream])
-		substream->wait_time = msecs_to_jiffies(sai->wait_time[stream]);
+		substream->wait_time = sai->wait_time[stream];
 
 	sai->substreams[stream] = substream;
 
