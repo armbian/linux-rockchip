@@ -414,7 +414,7 @@ static long compass_dev_ioctl(struct file *file, unsigned int cmd, unsigned long
 	struct i2c_client *client = this_client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
-	struct akm_platform_data compass;
+	struct akm_platform_data compass = {0};
 	unsigned char sense_info[AKM_SENSOR_INFO_SIZE];
 	unsigned char sense_conf[AKM_SENSOR_CONF_SIZE];
 
