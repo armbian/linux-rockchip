@@ -4266,6 +4266,41 @@
 			logic_leakage: logic-leakage@36 {
 				reg = <0x36 0x1>;
 			};
+			bigcore_tsadc_trim_l: bigcore-tsadc-trim-l@38 {
+				reg = <0x38 0x1>;
+			};
+			bigcore_tsadc_trim_h: bigcore-tsadc-trim-h@39 {
+				reg = <0x39 0x1>;
+				bits = <0 1>;
+			};
+			litcore_tsadc_trim_l: litcore-tsadc-trim-l@3a {
+				reg = <0x3a 0x1>;
+			};
+			litcore_tsadc_trim_h: litcore-tsadc-trim-h@3b {
+				reg = <0x3b 0x1>;
+				bits = <0 1>;
+			};
+			ddr_tsadc_trim_l: ddr-tsadc-trim-l@3c {
+				reg = <0x3c 0x1>;
+			};
+			ddr_tsadc_trim_h: ddr-tsadc-trim-h@3d {
+				reg = <0x3d 0x1>;
+				bits = <0 1>;
+			};
+			gpu_npu_tsadc_trim_l: gpu-npu-tsadc-trim-l@3e {
+				reg = <0x3e 0x1>;
+			};
+			gpu_npu_tsadc_trim_h: gpu-npu-tsadc-trim-h@3f {
+				reg = <0x3f 0x1>;
+				bits = <0 1>;
+			};
+			soc_tsadc_trim_l: soc-tsadc-trim-l@40 {
+				reg = <0x40 0x1>;
+			};
+			soc_tsadc_trim_h: soc-tsadc-trim-h@41 {
+				reg = <0x41 0x1>;
+				bits = <0 1>;
+			};
 		};
 
 		sai0: sai@2a500000 {
@@ -5372,7 +5407,35 @@
 			rockchip,hw-tshut-temp = <120000>;
 			rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 			rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
+
+			tsadc@0 {
+				reg = <0>;
+				nvmem-cells = <&soc_tsadc_trim_l>, <&soc_tsadc_trim_h>;
+				nvmem-cell-names = "trim_l", "trim_h";
+			};
+			tsadc@1 {
+				reg = <1>;
+				nvmem-cells = <&gpu_npu_tsadc_trim_l>, <&gpu_npu_tsadc_trim_h>;
+				nvmem-cell-names = "trim_l", "trim_h";
+			};
+			tsadc@2 {
+				reg = <2>;
+				nvmem-cells = <&ddr_tsadc_trim_l>, <&ddr_tsadc_trim_h>;
+				nvmem-cell-names = "trim_l", "trim_h";
+			};
+			tsadc@3 {
+				reg = <3>;
+				nvmem-cells = <&litcore_tsadc_trim_l>, <&litcore_tsadc_trim_h>;
+				nvmem-cell-names = "trim_l", "trim_h";
+			};
+			tsadc@4 {
+				reg = <4>;
+				nvmem-cells = <&bigcore_tsadc_trim_l>, <&bigcore_tsadc_trim_h>;
+				nvmem-cell-names = "trim_l", "trim_h";
+			};
 		};
 
 		mipitx_dphy: phy@2c300000 {
