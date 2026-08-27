@@ -9,6 +9,7 @@
 #include <linux/iopoll.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -18,22 +19,9 @@
 
 #include <linux/platform_data/spi-rockchip.h>
 
-#define SPI_OBJ_MAX_XFER_SIZE	0x1040
-#define SPI_OBJ_APP_RAM_SIZE	0x10000
-
-#define SPI_OBJ_CTRL_MSG_SIZE	0x8
-#define SPI_OBJ_CTRL_CMD_INIT	0x99
-#define SPI_OBJ_CTRL_CMD_READ	0x3A
-#define SPI_OBJ_CTRL_CMD_WRITE	0x4B
-#define SPI_OBJ_CTRL_CMD_DUPLEX	0x5C
+#include "spidev-rkspi-obj.h"
 
 #define SPI_OBJ_DEFAULT_TIMEOUT_US	100000
-
-struct spi_obj_ctrl {
-	u16 cmd;
-	u16 addr;
-	u32 data;
-};
 
 struct spidev_rkmst_data {
 	struct device	*dev;
@@ -41,6 +29,7 @@ struct spidev_rkmst_data {
 	char *ctrlbuf;
 	char *rxbuf;
 	char *txbuf;
+	struct mutex lock;	/* protects ctrlbuf/rxbuf/txbuf */
 	struct gpio_desc *ready;
 	int ready_irqnum;
 	bool ready_status;
@@ -162,6 +151,7 @@ static int spidev_slv_write_and_read(struct spidev_rkmst_data *spidev,
 			.tx_buf = tx_buf,
 			.rx_buf = rx_buf,
 			.len = len,
+			.bits_per_word = bit_per_word,
 		};
 	struct spi_message m;
 	int ret;
@@ -263,85 +253,85 @@ static int spidev_rkmst_xfer(struct spidev_rkmst_data *spidev, void *tx,
 err_out:
 	dev_err(&spi->dev, "xfer cmd=%x addr=0x%x len=0x%x, ret=%d\n",
 		cmd, addr, len, ret);
+	/*
+	 * Slave stays in the "waiting for data" state, so the next ctrl would
+	 * be consumed as data: reset it to recover the protocol.
+	 */
+	spidev_rkmst_reset_slave(spidev);
 
 	return ret;
 }
 
-static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf,
-				       size_t n, loff_t *offset)
+static int spidev_rkmst_parse_args(char **argv, int argc, int nargs, int *args)
 {
-	struct spidev_rkmst_data *spidev;
-	struct spi_device *spi;
-	int argc = 0, i;
-	char tmp[64];
-	char *argv[16];
-	char *cmd, *data;
+	int i;
 
-	if (n >= 64)
+	if (argc < nargs)
 		return -EINVAL;
 
-	spidev = filp->private_data;
-
-	if (!spidev)
-		return -ESHUTDOWN;
-
-	spi = spidev->spi;
-	memset(tmp, 0, sizeof(tmp));
-	if (copy_from_user(tmp, buf, n))
-		return -EFAULT;
-	cmd = tmp;
-	data = tmp;
-
-	while (data < (tmp + n)) {
-		data = strstr(data, " ");
-		if (!data)
-			break;
-		*data = 0;
-		argv[argc] = ++data;
-		argc++;
-		if (argc >= 16)
-			break;
+	for (i = 0; i < nargs; i++) {
+		if (kstrtoint(argv[i], 0, &args[i]))
+			return -EINVAL;
 	}
 
-	tmp[n - 1] = 0;
+	return 0;
+}
+
+static int spidev_rkmst_check_params(struct spidev_rkmst_data *spidev,
+				     int addr, int len, int max_len, int loops)
+{
+	struct spi_device *spi = spidev->spi;
+
+	if (!spidev_obj_param_valid(addr, len, max_len)) {
+		dev_err(&spi->dev, "param invalid, addr=%d len=%d\n", addr, len);
+		return -EINVAL;
+	}
+
+	if (loops <= 0) {
+		dev_err(&spi->dev, "param invalid, loops=%d\n", loops);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static ssize_t spidev_rkmst_cmd_exec(struct spidev_rkmst_data *spidev,
+				     const char *cmd, char **argv, int argc,
+				     size_t n)
+{
+	struct spi_device *spi = spidev->spi;
+	int args[4];
+	int i;
 
 	if (!strcmp(cmd, "verbose")) {
 		int val;
 
-		if (argc < 1)
+		if (spidev_rkmst_parse_args(argv, argc, 1, &val))
 			return -EINVAL;
 
-		if (kstrtoint(argv[0], 0, &val))
-			return -EINVAL;
-
-		if (val == 1)
-			spidev->verbose = true;
-		else
-			spidev->verbose = false;
+		spidev->verbose = (val == 1);
 	} else if (!strcmp(cmd, "init")) {
-		spidev_rkmst_ctrl(spidev, SPI_OBJ_CTRL_CMD_INIT, 0x55AA, 0x1234567);
+		int ret;
+
+		ret = spidev_rkmst_ctrl(spidev, SPI_OBJ_CTRL_CMD_INIT, 0x55AA, 0x1234567);
+		if (ret)
+			return ret;
 	} else if (!strcmp(cmd, "read")) {
-		int addr, len;
+		int addr, len, ret;
 
-		if (argc < 2)
+		if (spidev_rkmst_parse_args(argv, argc, 2, args))
 			return -EINVAL;
 
-		if (kstrtoint(argv[0], 0, &addr))
-			return -EINVAL;
-		if (kstrtoint(argv[1], 0, &len))
-			return -EINVAL;
+		addr = args[0];
+		len = args[1];
 
-		if (!len) {
-			dev_err(&spi->dev, "param invalid,%s %s\n", argv[0], argv[1]);
-			return -EINVAL;
-		}
+		ret = spidev_rkmst_check_params(spidev, addr, len, 0, 1);
+		if (ret)
+			return ret;
 
-		if (addr + len > SPI_OBJ_APP_RAM_SIZE) {
-			dev_err(&spi->dev, "rxbuf print out of size\n");
-			return -EINVAL;
-		}
-
-		spidev_rkmst_xfer(spidev, NULL, spidev->rxbuf, addr, len);
+		ret = spidev_rkmst_xfer(spidev, NULL, spidev->rxbuf, addr, len);
+		if (ret)
+			return ret;
 
 		print_hex_dump(KERN_ERR, "m-r: ",
 			       DUMP_PREFIX_OFFSET,
@@ -351,105 +341,124 @@ static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf
 			       len,
 			       1);
 	} else if (!strcmp(cmd, "write")) {
-		int addr, len;
+		int addr, len, ret;
 
-		if (argc < 2)
-			return -EINVAL;
-
-		if (kstrtoint(argv[0], 0, &addr))
-			return -EINVAL;
-		if (kstrtoint(argv[1], 0, &len))
+		if (spidev_rkmst_parse_args(argv, argc, 2, args))
 			return -EINVAL;
 
-		if (!len) {
-			dev_err(&spi->dev, "param invalid,%s %s\n", argv[0], argv[1]);
-			return -EINVAL;
-		}
+		addr = args[0];
+		len = args[1];
 
-		if (addr + len > SPI_OBJ_APP_RAM_SIZE) {
-			dev_err(&spi->dev, "rxbuf print out of size\n");
-			return -EINVAL;
-		}
+		ret = spidev_rkmst_check_params(spidev, addr, len,
+						SPI_OBJ_MAX_XFER_SIZE, 1);
+		if (ret)
+			return ret;
 
 		for (i = 0; i < len; i++)
 			spidev->txbuf[i] = i & 0xFF;
 		((u32 *)spidev->txbuf)[0] = addr;
 
-		spidev_rkmst_xfer(spidev, spidev->txbuf, NULL, addr, len);
+		ret = spidev_rkmst_xfer(spidev, spidev->txbuf, NULL, addr, len);
+		if (ret)
+			return ret;
 	} else if (!strcmp(cmd, "duplex")) {
-		int addr, len;
+		int addr, len, loops, compare, ret;
+		char *tempbuf __free(kfree) = NULL;
 
-		if (argc < 2)
-			return -EINVAL;
-
-		if (kstrtoint(argv[0], 0, &addr))
-			return -EINVAL;
-		if (kstrtoint(argv[1], 0, &len))
+		if (spidev_rkmst_parse_args(argv, argc, 4, args))
 			return -EINVAL;
 
-		if (!len) {
-			dev_err(&spi->dev, "param invalid,%s %s\n", argv[0], argv[1]);
-			return -EINVAL;
+		addr = args[0];
+		len = args[1];
+		loops = args[2];
+		compare = args[3];
+
+		ret = spidev_rkmst_check_params(spidev, addr, len,
+						SPI_OBJ_MAX_XFER_SIZE, loops);
+		if (ret)
+			return ret;
+
+		tempbuf = kzalloc(len, GFP_KERNEL);
+		if (!tempbuf)
+			return -ENOMEM;
+
+		get_random_bytes(spidev->txbuf, len);
+		ret = spidev_rkmst_xfer(spidev, spidev->txbuf, spidev->rxbuf,
+					addr, len);
+		if (ret)
+			return ret;
+
+		memcpy(tempbuf, spidev->txbuf, len);
+		for (i = 0; i < loops; i++) {
+			get_random_bytes(spidev->txbuf, len);
+			ret = spidev_rkmst_xfer(spidev, spidev->txbuf,
+						spidev->rxbuf, addr, len);
+			if (ret)
+				return ret;
+
+			if (compare && memcmp(spidev->rxbuf, tempbuf, len)) {
+				dev_err(&spi->dev, "duplex autotest failed, loops=%d\n", i);
+				print_hex_dump(KERN_ERR, "m-d-r: ",
+					       DUMP_PREFIX_OFFSET,
+					       16,
+					       1,
+					       spidev->rxbuf,
+					       len,
+					       1);
+				print_hex_dump(KERN_ERR, "m-d-c: ",
+					       DUMP_PREFIX_OFFSET,
+					       16,
+					       1,
+					       tempbuf,
+					       len,
+					       1);
+				ret = -EIO;
+				return ret;
+			}
+
+			memcpy(tempbuf, spidev->txbuf, len);
 		}
+		dev_info(&spi->dev, "duplex test pass, loops=%d\n", loops);
 
-		if (addr + len > SPI_OBJ_APP_RAM_SIZE) {
-			dev_err(&spi->dev, "rxbuf print out of size\n");
-			return -EINVAL;
-		}
-
-		for (i = 0; i < len; i++)
-			spidev->txbuf[i] = i & 0xFF;
-		((u32 *)spidev->txbuf)[0] = addr;
-
-		spidev_rkmst_xfer(spidev, spidev->txbuf, spidev->rxbuf, addr, len);
-
-		print_hex_dump(KERN_ERR, "m-d: ",
-			       DUMP_PREFIX_OFFSET,
-			       16,
-			       1,
-			       spidev->rxbuf,
-			       len,
-			       1);
+		return n;
 	} else if (!strcmp(cmd, "autotest")) {
-		int addr = 0, len, loops, i;
+		int addr = 0, len, loops, ret;
 		unsigned long long bytes = 0;
 		unsigned long us = 0;
 		ktime_t start_time;
 		ktime_t end_time;
 		ktime_t cost_time;
-		char *tempbuf;
+		char *tempbuf __free(kfree) = NULL;
 
-		if (argc < 2)
+		if (spidev_rkmst_parse_args(argv, argc, 2, args))
 			return -EINVAL;
 
-		if (kstrtoint(argv[0], 0, &len))
-			return -EINVAL;
+		len = args[0];
+		loops = args[1];
 
-		if (kstrtoint(argv[1], 0, &loops))
-			return -EINVAL;
-
-		if (!len) {
-			dev_err(&spi->dev, "param invalid,%s %s\n", argv[0], argv[1]);
-			return -EINVAL;
-		}
-
-		if (len > SPI_OBJ_APP_RAM_SIZE) {
-			dev_err(&spi->dev, "rxbuf print out of size\n");
-			return -EINVAL;
-		}
+		ret = spidev_rkmst_check_params(spidev, addr, len,
+						SPI_OBJ_MAX_XFER_SIZE, loops);
+		if (ret)
+			return ret;
 
 		tempbuf = kzalloc(len, GFP_KERNEL);
 		if (!tempbuf)
 			return -ENOMEM;
 
 		get_random_bytes(tempbuf, len);
-		spidev_rkmst_xfer(spidev, tempbuf, NULL, addr, len);
+		ret = spidev_rkmst_xfer(spidev, tempbuf, NULL, addr, len);
+		if (ret)
+			return ret;
 		start_time = ktime_get();
 		for (i = 0; i < loops; i++) {
 			get_random_bytes(spidev->txbuf, len);
-			spidev_rkmst_xfer(spidev, spidev->txbuf, spidev->rxbuf, addr, len);
+			ret = spidev_rkmst_xfer(spidev, spidev->txbuf, spidev->rxbuf,
+						addr, len);
+			if (ret)
+				return ret;
+
 			if (memcmp(spidev->rxbuf, tempbuf, len)) {
-				dev_err(&spi->dev, "dulplex autotest failed, loops=%d\n", i);
+				dev_err(&spi->dev, "duplex autotest failed, loops=%d\n", i);
 				print_hex_dump(KERN_ERR, "m-d-t: ",
 					       DUMP_PREFIX_OFFSET,
 					       16,
@@ -471,25 +480,31 @@ static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf
 					       tempbuf,
 					       len,
 					       1);
-				break;
+				return -EIO;
 			}
 			memcpy(tempbuf, spidev->txbuf, len);
 		}
 		end_time = ktime_get();
 		cost_time = ktime_sub(end_time, start_time);
 		us = ktime_to_us(cost_time);
+		if (!us)
+			us = 1;
 
 		bytes = (u64)len * (u64)loops * 1000;
 		do_div(bytes, us);
 		if (i >= loops)
-			dev_err(&spi->dev, "dulplex test pass, cost=%ldus, speed=%lldKB/S, %ldus/loops\n",
+			dev_err(&spi->dev, "duplex test pass, cost=%ldus, speed=%lldKB/S, %ldus/loops\n",
 				us, bytes, us / loops);
 
 		start_time = ktime_get();
 		for (i = 0; i < loops; i++) {
 			get_random_bytes(spidev->txbuf, len);
-			spidev_rkmst_xfer(spidev, spidev->txbuf, NULL, addr, len);
-			spidev_rkmst_xfer(spidev, NULL, spidev->rxbuf, addr, len);
+			ret = spidev_rkmst_xfer(spidev, spidev->txbuf, NULL, addr, len);
+			if (ret)
+				return ret;
+			ret = spidev_rkmst_xfer(spidev, NULL, spidev->rxbuf, addr, len);
+			if (ret)
+				return ret;
 			if (memcmp(spidev->rxbuf, spidev->txbuf, len)) {
 				dev_err(&spi->dev, "read/write autotest failed, loops=%d\n", i);
 				print_hex_dump(KERN_ERR, "m-d-t: ",
@@ -506,24 +521,75 @@ static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf
 					       spidev->rxbuf,
 					       len,
 					       1);
-				break;
+				return -EIO;
 			}
 		}
 		end_time = ktime_get();
 		cost_time = ktime_sub(end_time, start_time);
 		us = ktime_to_us(cost_time);
+		if (!us)
+			us = 1;
 
 		bytes = (u64)len * (u64)loops * 2 * 1000; /* multi 2 for both write and read */
 		do_div(bytes, us);
 		if (i >= loops)
 			dev_err(&spi->dev, "read/write test pass, cost=%ldus, speed=%lldKB/S, %ldus/loops\n",
 				us, bytes, us / loops);
-		kfree(tempbuf);
+
+		return n;
 	} else {
 		dev_err(&spi->dev, "unknown command\n");
 	}
 
 	return n;
+}
+
+static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf,
+				       size_t n, loff_t *offset)
+{
+	struct spidev_rkmst_data *spidev;
+	char tmp[64];
+	char *argv[16];
+	char *cmd, *data;
+	int argc = 0;
+	ssize_t ret;
+
+	if (!n || n >= 64)
+		return -EINVAL;
+
+	spidev = filp->private_data;
+
+	if (!spidev)
+		return -ESHUTDOWN;
+
+	memset(tmp, 0, sizeof(tmp));
+	if (copy_from_user(tmp, buf, n))
+		return -EFAULT;
+	cmd = tmp;
+	data = tmp;
+
+	while (data < (tmp + n)) {
+		data = strstr(data, " ");
+		if (!data)
+			break;
+		*data = 0;
+		argv[argc] = ++data;
+		argc++;
+		if (argc >= 16)
+			break;
+	}
+
+	tmp[n - 1] = 0;
+
+	/* cmd handling shares ctrlbuf/rxbuf/txbuf, serialize concurrent writers */
+	if (mutex_lock_interruptible(&spidev->lock))
+		return -ERESTARTSYS;
+
+	ret = spidev_rkmst_cmd_exec(spidev, cmd, argv, argc, n);
+
+	mutex_unlock(&spidev->lock);
+
+	return ret;
 }
 
 static int spidev_rkmst_misc_open(struct inode *inode, struct file *filp)
@@ -568,6 +634,7 @@ static int spidev_rkmst_probe(struct spi_device *spi)
 
 	spidev->spi = spi;
 	spidev->dev = &spi->dev;
+	mutex_init(&spidev->lock);
 
 	spidev_mst_slave_ready_status(spidev, false);
 	spidev->ready = devm_gpiod_get_optional(&spi->dev, "ready", GPIOD_IN);

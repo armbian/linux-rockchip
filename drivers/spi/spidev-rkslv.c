@@ -15,22 +15,9 @@
 
 #include <soc/rockchip/rockchip-system-status.h>
 
-#define SPI_OBJ_MAX_XFER_SIZE	0x1040
-#define SPI_OBJ_APP_RAM_SIZE	0x10000
-
-#define SPI_OBJ_CTRL_MSG_SIZE	0x8
-#define SPI_OBJ_CTRL_CMD_INIT	0x99
-#define SPI_OBJ_CTRL_CMD_READ	0x3A
-#define SPI_OBJ_CTRL_CMD_WRITE	0x4B
-#define SPI_OBJ_CTRL_CMD_DUPLEX	0x5C
+#include "spidev-rkspi-obj.h"
 
 #define SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD  0x20
-
-struct spi_obj_ctrl {
-	u16 cmd;
-	u16 addr;
-	u32 data;
-};
 
 struct spidev_rkslv_data {
 	struct device	*dev;
@@ -55,6 +42,27 @@ struct spidev_rkslv_data {
 };
 
 static u32 bit_per_word = 8;
+
+static bool spidev_rkslv_ctrl_valid(u16 cmd, u16 addr, u32 len)
+{
+	/* only READ/WRITE/DUPLEX carry addr/len, let INIT and unknown pass */
+	if (cmd != SPI_OBJ_CTRL_CMD_READ && cmd != SPI_OBJ_CTRL_CMD_WRITE &&
+	    cmd != SPI_OBJ_CTRL_CMD_DUPLEX)
+		return true;
+
+	if (!len || len > SPI_OBJ_APP_RAM_SIZE ||
+	    addr > SPI_OBJ_APP_RAM_SIZE - len)
+		return false;
+
+	/*
+	 * mirror master side: WRITE/DUPLEX data phase is capped at
+	 * SPI_OBJ_MAX_XFER_SIZE, READ may reach SPI_OBJ_APP_RAM_SIZE
+	 */
+	if (cmd != SPI_OBJ_CTRL_CMD_READ && len > SPI_OBJ_MAX_XFER_SIZE)
+		return false;
+
+	return true;
+}
 
 static int spidev_slv_write(struct spidev_rkslv_data *spidev, const void *txbuf, size_t len)
 {
@@ -135,7 +143,7 @@ static ssize_t spidev_rkslv_misc_write(struct file *filp, const char __user *buf
 	char *argv[16];
 	char *cmd, *data;
 
-	if (n >= 64)
+	if (!n || n >= 64)
 		return -EINVAL;
 
 	spidev = filp->private_data;
@@ -187,13 +195,8 @@ static ssize_t spidev_rkslv_misc_write(struct file *filp, const char __user *buf
 		if (kstrtoint(argv[1], 0, &len))
 			return -EINVAL;
 
-		if (!len) {
-			dev_err(&spi->dev, "param invalid,%s %s\n", argv[0], argv[1]);
-			return -EINVAL;
-		}
-
-		if (addr + len > SPI_OBJ_APP_RAM_SIZE) {
-			dev_err(&spi->dev, "appmem print out of size\n");
+		if (!spidev_obj_param_valid(addr, len, 0)) {
+			dev_err(&spi->dev, "param invalid, addr=%d len=%d\n", addr, len);
 			return -EINVAL;
 		}
 
@@ -232,7 +235,7 @@ static int spidev_rkslv_xfer(struct spidev_rkslv_data *spidev)
 	char *ctrlbuf = spidev->ctrlbuf, *appmem = spidev->appmem, *tempbuf = spidev->tempbuf;
 	struct spi_obj_ctrl *ctrl;
 	struct spi_device *spi = spidev->spi;
-	u32 len;
+	u32 len, left;
 	int ret;
 
 	memset(spidev->ctrlbuf, 0, SPI_OBJ_CTRL_MSG_SIZE);
@@ -246,6 +249,34 @@ static int spidev_rkslv_xfer(struct spidev_rkslv_data *spidev)
 	if (spidev->verbose)
 		dev_err(&spi->dev, "ctrl cmd=%x addr=0x%x data=0x%x\n",
 			ctrl->cmd, ctrl->addr, ctrl->data);
+
+	if (!spidev_rkslv_ctrl_valid(ctrl->cmd, ctrl->addr, ctrl->data)) {
+		dev_err_ratelimited(&spi->dev, "invalid ctrl cmd=%x addr=0x%x data=0x%x\n",
+				    ctrl->cmd, ctrl->addr, ctrl->data);
+		/*
+		 * Master clocks out the data phase right after the ctrl phase:
+		 * drain it, otherwise the next ctrl read would consume the
+		 * data bytes and desynchronize the protocol until the master
+		 * timeout reset.  Only WRITE/DUPLEX carry a master data phase
+		 * and the master always clocks out at most
+		 * SPI_OBJ_MAX_XFER_SIZE bytes there (READ has no master data
+		 * phase at all), so cap the drain at SPI_OBJ_MAX_XFER_SIZE.
+		 * This is best-effort only: the length is the untrusted
+		 * ctrl->data and can mismatch what the master actually clocks
+		 * out (e.g. on protocol desync), so bail out on shutdown
+		 * instead of blocking the kthread forever.
+		 */
+		left = ctrl->data;
+		while (left && spidev->tsk_run) {
+			u32 chunk = min_t(u32, left, SPI_OBJ_MAX_XFER_SIZE);
+
+			if (spidev_slv_read(spidev, tempbuf, chunk))
+				break;
+			left -= chunk;
+		}
+
+		return -EINVAL;
+	}
 
 	switch (ctrl->cmd) {
 	case SPI_OBJ_CTRL_CMD_INIT:
@@ -381,7 +412,7 @@ static void spidev_rkslv_remove(struct spi_device *spi)
 	struct spidev_rkslv_data *spidev = dev_get_drvdata(&spi->dev);
 
 	spidev->tsk_run = false;
-	spi_slave_abort(spi);
+	spi_target_abort(spi);
 	kthread_stop(spidev->tsk);
 	misc_deregister(&spidev->misc_dev);
 }
