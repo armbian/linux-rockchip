@@ -179,6 +179,7 @@
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		pinctrl-names = "default";
+		pinctrl-0 = <&bt_irq_gpio>;
 		BT,wake-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
 		BT,wake_host-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
 		status = "okay";
@@ -493,6 +494,12 @@
 };
 
 &pinctrl {
+	wireless-bluetooth {
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	wifi {
 		wifi_power_en: wifi-power-en {
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
