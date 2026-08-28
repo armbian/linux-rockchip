@@ -1016,8 +1016,8 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 				      &val);
 		if (val) {
 			pcie_rkep->obj_info = (struct pcie_ep_obj_info *)(pcie_rkep->bar0 + val);
-			dev_info(&pcie_rkep->pdev->dev, "update magic=%x, ver=%x\n", pcie_rkep->obj_info->magic,
-										     pcie_rkep->obj_info->version);
+			dev_dbg(&pcie_rkep->pdev->dev, "update magic=%x, ver=%x\n",
+				pcie_rkep->obj_info->magic, pcie_rkep->obj_info->version);
 		}
 		break;
 	case PCIE_EP_RESET_CTRL:
