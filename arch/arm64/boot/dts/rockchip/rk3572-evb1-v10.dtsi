@@ -149,7 +149,7 @@
 		pinctrl-1 = <&uart4_gpios>;
 		BT,reset-gpios    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
 		BT,wake-gpios     = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
-		BT,wake_host-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 
