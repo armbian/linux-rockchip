@@ -494,6 +494,17 @@
 		output-high;
 		line-name = "ch344_reset";
 	};
+
+	/* EEPROM FT24C32 nWP (GPIO0_D1): low = writable, high = write-protect.
+	 * The at24 driver in this kernel does not toggle a wp-gpios line, so
+	 * hog GPIO0_D1 low to allow page writes (read/write/restore test).
+	 */
+	eeprom_wp_hog: eeprom-wp-hog {
+		gpio-hog;
+		gpios = <RK_PD1 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "eeprom_wp";
+	};
 };
 
 &gpio2 {
