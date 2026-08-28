@@ -18,6 +18,7 @@
 #include "rk628_csi.h"
 #include "rk628_dsi.h"
 #include "rk628_hdmirx.h"
+#include "rk628_gpio.h"
 #include "rk628_post_process.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
@@ -164,6 +165,19 @@ static const struct regmap_access_table rk628_dsi1_readable_table = {
 	.n_yes_ranges   = ARRAY_SIZE(rk628_dsi1_readable_ranges),
 };
 
+#define RK628_GPIO_TABLE(n) \
+	static const struct regmap_range rk628_gpio##n##_readable_ranges[] = { \
+		regmap_reg_range(GPIO##n##_BASE, GPIO##n##_BASE + GPIO_VER_ID), \
+	}; \
+	static const struct regmap_access_table rk628_gpio##n##_readable_table = { \
+		.yes_ranges     = rk628_gpio##n##_readable_ranges, \
+		.n_yes_ranges   = ARRAY_SIZE(rk628_gpio##n##_readable_ranges), \
+	}
+
+RK628_GPIO_TABLE(0);
+RK628_GPIO_TABLE(1);
+RK628_GPIO_TABLE(2);
+RK628_GPIO_TABLE(3);
 
 static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 	[RK628_DEV_GRF] = {
@@ -264,6 +278,46 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 		.val_format_endian = REGMAP_ENDIAN_LITTLE,
 		.rd_table = &rk628_csi1_readable_table,
+	},
+	[RK628_DEV_GPIO0] = {
+		.name = "gpio0",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = GPIO0_BASE + GPIO_VER_ID,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_gpio0_readable_table,
+	},
+	[RK628_DEV_GPIO1] = {
+		.name = "gpio1",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = GPIO1_BASE + GPIO_VER_ID,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_gpio1_readable_table,
+	},
+	[RK628_DEV_GPIO2] = {
+		.name = "gpio2",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = GPIO2_BASE + GPIO_VER_ID,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_gpio2_readable_table,
+	},
+	[RK628_DEV_GPIO3] = {
+		.name = "gpio3",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = GPIO3_BASE + GPIO_VER_ID,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_gpio3_readable_table,
 	},
 };
 
