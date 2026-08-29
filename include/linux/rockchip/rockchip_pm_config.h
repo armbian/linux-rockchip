@@ -22,10 +22,16 @@ struct rk_sleep_config {
 
 #if IS_REACHABLE(CONFIG_ROCKCHIP_SUSPEND_MODE)
 const struct rk_sleep_config *rockchip_get_cur_sleep_config(void);
+bool rockchip_virtual_poweroff_enabled(void);
 #else
 static inline const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 {
 	return NULL;
+}
+
+static inline bool rockchip_virtual_poweroff_enabled(void)
+{
+	return false;
 }
 #endif
 

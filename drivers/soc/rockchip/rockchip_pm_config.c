@@ -111,6 +111,13 @@ enum {
 };
 
 static u32 *virtual_pwroff_irqs;
+static u32 virtual_poweroff_en;
+
+bool rockchip_virtual_poweroff_enabled(void)
+{
+	return virtual_poweroff_en != 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_virtual_poweroff_enabled);
 
 static inline suspend_state_t get_mem_sleep_current(void)
 {
@@ -173,7 +180,8 @@ static int rockchip_pm_virt_pwroff_prepare(struct sys_off_data *data)
 static int parse_virtual_pwroff_config(struct platform_device *pdev, struct device_node *node)
 {
 	int ret = 0, cnt;
-	u32 virtual_poweroff_en = 0;
+
+	virtual_poweroff_en = 0;
 
 	if (!of_property_read_u32_array(node,
 					"rockchip,virtual-poweroff",
@@ -184,8 +192,10 @@ static int parse_virtual_pwroff_config(struct platform_device *pdev, struct devi
 						    SYS_OFF_PRIO_DEFAULT,
 						    rockchip_pm_virt_pwroff_prepare,
 						    NULL);
-		if (ret)
+		if (ret) {
 			dev_err(&pdev->dev, "failed to register sys-off handler: %d\n", ret);
+			goto out;
+		}
 	}
 
 	if (!virtual_poweroff_en)
