@@ -1748,7 +1748,7 @@ static int vop_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	rk_obj = to_rockchip_obj(obj);
 	wb_state->yrgb_addr = rk_obj->dma_addr + fb->offsets[0];
 
-	if (fb->format->is_yuv) {
+	if (fb->format->is_yuv && fb->format->num_planes > 1) {
 		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
@@ -2452,7 +2452,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
-	if (fb->format->is_yuv) {
+	if (fb->format->is_yuv && fb->format->num_planes > 1) {
 		int hsub = fb->format->hsub;
 		int vsub = fb->format->vsub;
 
@@ -2673,8 +2673,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		    (new_state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
-		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
-		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
+		if (fb->format->num_planes > 1) {
+			VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
+			VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
+		}
 		uv_swap = has_uv_swapped(fb->format->format);
 		VOP_WIN_SET(vop, win, uv_swap, uv_swap);
 	}
