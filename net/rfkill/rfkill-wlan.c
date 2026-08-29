@@ -35,6 +35,7 @@
 #include <linux/skbuff.h>
 #include <linux/fb.h>
 #include <linux/rockchip/grf.h>
+#include <linux/rockchip/rockchip_pm_config.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mmc/host.h>
@@ -872,6 +873,11 @@ static void rfkill_wlan_remove(struct platform_device *pdev)
 static void rfkill_wlan_shutdown(struct platform_device *pdev)
 {
 	LOG("Enter %s\n", __func__);
+
+	if (system_state == SYSTEM_POWER_OFF && rockchip_virtual_poweroff_enabled()) {
+		LOG("Keep WiFi power state for virtual poweroff\n");
+		return;
+	}
 
 	rockchip_wifi_power(0);
 	rfkill_set_wifi_bt_power(0);
