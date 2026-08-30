@@ -179,6 +179,18 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	vcc5v0_fan: vcc5v0-fan {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_fan";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan_en_pin>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -227,7 +239,10 @@
 		pulses-per-revolution = <2>;
 
 		#cooling-cells = <2>;
-		pwms = <&pwm8 0 250000 0>;
+		pwms = <&pwm8 0 40000 0>; /* 40000 meant for Noctua */
+		fan-supply = <&vcc5v0_fan>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan_tach_pin>; /* for the pull-up on the tacho input */
 		cooling-levels = <0 35 70 100 125 150>;
 		rockchip,temp-trips = <
 			30000   1
@@ -1059,6 +1074,16 @@ status = "okay";
 };
 
 &pinctrl {
+	fan {
+		fan_tach_pin: fan-tach-pin {
+			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		fan_en_pin: fan-en-pin {
+			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	sdmmc {
 		sd_s0_pwr: sd-s0-pwr {
 			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
