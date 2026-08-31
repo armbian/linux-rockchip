@@ -403,7 +403,7 @@ static ssize_t rga_dump_path_write(struct file *file, const char __user *ubuf,
 		return -EFAULT;
 	buf[len - 1] = '\0';
 
-	snprintf(g_dump_path, sizeof(buf), "%s", buf);
+	snprintf(g_dump_path, sizeof(g_dump_path), "%s", buf);
 	pr_info("dump path change to: %s\n", g_dump_path);
 
 	return len;
