@@ -146,7 +146,7 @@ enum {
 	RK_NPU_MCU,
 };
 
-#define RK_SIP_MCU_ID(type, id)		((type) << 8 | id)
+#define RK_SIP_MCU_ID(type, id)		((type) << 4 | id)
 
 #define RK_SIP_CFG_BUSMCU_0_ID		RK_SIP_MCU_ID(RK_BUS_MCU, 0)
 #define RK_SIP_CFG_BUSMCU_1_ID		RK_SIP_MCU_ID(RK_BUS_MCU, 1)
