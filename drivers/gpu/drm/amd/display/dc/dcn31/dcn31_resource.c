@@ -1629,6 +1629,7 @@ static struct clock_source *dcn31_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -1865,6 +1866,7 @@ static struct clock_source *dcn30_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -2209,7 +2211,7 @@ struct resource_pool *dcn31_create_resource_pool(
 	if (dcn31_resource_construct(init_data->num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
 	kfree(pool);
+	BREAK_TO_DEBUGGER();
 	return NULL;
 }
