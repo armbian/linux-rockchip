@@ -5369,13 +5369,15 @@ static void vop2_wb_load_csc_coe(struct vop2 *vop2, struct rockchip_crtc_state *
 	struct post_csc_convert_mode convert_mode = {};
 	struct post_csc_coef csc_coef = {};
 	uint32_t csc_coe_offset;
+	uint32_t csc_pixel_depth = vop2->data->wb->csc_pixel_depth ?
+					vop2->data->wb->csc_pixel_depth : 8;
 
 	csc_coe_offset = vop2->data->wb->csc_coe_offset;
 	if (!csc_coe_offset || (!y2r && !r2y))
 		return;
 
 	convert_mode.plat = vop2->version;
-	convert_mode.pixel_depth = 8;
+	convert_mode.pixel_depth = csc_pixel_depth;
 	convert_mode.coef_precision = 10;
 	convert_mode.swap_channels = RK_PQ_CSC_SWAP_NONE;
 	convert_mode.is_output_full_range = true;
