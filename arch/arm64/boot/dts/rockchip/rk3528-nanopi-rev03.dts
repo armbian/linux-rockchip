@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2024 FriendlyElec Computer Tech. Co., Ltd.
+ * Copyright (c) 2026 FriendlyElec Computer Tech. Co., Ltd.
  * (http://www.friendlyelec.com)
  */
 
@@ -9,8 +9,13 @@
 #include "rk3528-nanopi-common.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi Zero2";
-	compatible = "friendlyelec,nanopi-zero2", "rockchip,rk3528";
+	model = "FriendlyElec NanoPi R28S";
+	compatible = "friendlyelec,nanopi-r28s", "rockchip,rk3528";
+
+	aliases {
+		ethernet0 = &gmac1;
+		ethernet1 = &r8111h;
+	};
 
 	leds: gpio-leds {
 		compatible = "gpio-leds";
@@ -23,11 +28,18 @@
 			pinctrl-0 = <&sys_led_pin>;
 		};
 
-		user_led: led-1 {
+		usr_led1: led-1 {
 			gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
-			label = "user_led";
+			label = "led1";
 			pinctrl-names = "default";
-			pinctrl-0 = <&user_led_pin>;
+			pinctrl-0 = <&usr_led1_pin>;
+		};
+
+		usr_led2: led-2 {
+			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+			label = "led2";
+			pinctrl-names = "default";
+			pinctrl-0 = <&usr_led2_pin>;
 		};
 	};
 
@@ -45,24 +57,33 @@
 		};
 	};
 
-	adc2_keys: adc2-keys {
-		compatible = "adc-keys";
-		io-channels = <&saradc 1>;
-		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key1_pin>;
 
-		vol-up-key {
-			label = "volume up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
+		button@1 {
+			debounce-interval = <50>;
+			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
+			label = "K1";
+			linux,code = <BTN_1>;
+			wakeup-source;
 		};
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		post-power-on-delay-ms = <50>;
+		reset-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
 	};
 };
 
 &mach {
-	hwrev = <1>;
-	model = "NanoPi Zero2";
+	hwrev = <3>;
+	model = "NanoPi R28S";
 };
 
 &gmac1 {
@@ -101,11 +122,23 @@
 &pcie2x1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pciem1_pins>;
-	reset-gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
 	resets = <&cru SRST_RESETN_PCIE_POWER_UP>, <&cru SRST_PRESETN_PCIE>;
 	reset-names = "pcie", "periph";
 	rockchip,skip-scan-in-resume;
+	rockchip,skip-hw-retry;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x00000000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		r8111h: pcie@0,0 {
+			reg = <0x000000 0 0 0 0>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+		};
+	};
 };
 
 &combphy_pu {
@@ -134,12 +167,8 @@
 
 &pciem1_pins {
 	rockchip,pins =
-		/* pcie_clkreqn_m1 */
-		<1 RK_PA0 4 &pcfg_pull_none>,
-		/* pcie_waken_m1 */
-		<1 RK_PA1 4 &pcfg_pull_none>,
 		/* pcie_reset_gpio */
-		<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
 };
 
 &pinctrl {
@@ -148,8 +177,12 @@
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		user_led_pin: user-led-pin {
+		usr_led1_pin: usr-led1-pin {
 			rockchip,pins = <4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usr_led2_pin: usr-led2-pin {
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -157,6 +190,48 @@
 		rtc_int: rtc-int {
 			rockchip,pins = <4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
+
+	gpio-key {
+		key1_pin: key1-pin {
+			rockchip,pins = <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&sdio0 {
+	max-frequency = <150000000>;
+	no-sd;
+	no-mmc;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	vqmmc-supply = <&vdd_1v8_s3>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m1_xfer &uart2m1_ctsn &uart2m1_rtsn>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "cvte,aic8800-bt";
+		device-wake-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
