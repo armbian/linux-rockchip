@@ -1485,6 +1485,18 @@ static void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
 		return;
 
 	if (write_mask) {
+		/*
+		 * Hiword-write encodes the write-enable mask in bits [31:16], so
+		 * the data field must fit entirely within bits [15:0]. A field
+		 * beyond bit 15 (e.g. at bit 31) cannot be updated this way and
+		 * silently corrupts adjacent bits; bail out instead.
+		 */
+		if (WARN_ON_ONCE((mask << shift) & GENMASK(31, 16))) {
+			drm_err_ratelimited(vop2->drm_dev,
+					    "bad hiword field: off=0x%x mask=0x%x shift=%u\n",
+					    offset, mask, shift);
+			return;
+		}
 		v = ((v & mask) << shift) | (mask << (shift + 16));
 	} else {
 		if (!vop2->regsbak)
