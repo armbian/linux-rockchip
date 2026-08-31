@@ -944,17 +944,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	input->id.product = 0x0006;
 	input->id.version = 0x0100;
 	ddata->input = input;
-	/*
-	 * On PWM v4 (RK3588), channel 3 has a dedicated capture IRQ at
-	 * index 1, separate from the group IRQ at index 0 that is shared
-	 * with the other channels in the same PWM controller. Prefer the
-	 * dedicated one so we don't collide with the pwm-rockchip driver
-	 * bound to another channel (which claims the group IRQ without
-	 * IRQF_SHARED on v4). Fall back to index 0 for older PWM v1-v3.
-	 */
-	irq = platform_get_irq(pdev, 1);
-	if (irq < 0)
-		irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
 		return irq;
