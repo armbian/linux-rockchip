@@ -41,7 +41,23 @@
 #define VK2C21_SYS_OFF_LCD_OFF	0x00	/* System + LCD off */
 #define VK2C21_FRAME_80HZ	0x00	/* 80 Hz frame rate */
 #define VK2C21_BLINK_OFF	0x00	/* Blinking off     */
-#define VK2C21_IVA_DEFAULT	0x0F	/* VLCD selected, IVA off, R1 */
+#define VK2C21_IVA_DEFAULT	0x0F	/* VLCD selected, IVA off, R1 (external VR) */
+
+/*
+ * IVA on, SEG mode: 16 internal bias-voltage levels.
+ *   0x30 = level 0  = 1.000 x VDD (highest contrast / "brightest")
+ *   0x3F = level 15 = 0.529 x VDD (lowest contrast / "dimmest")
+ * SEG mode (vs. VLCD-output mode at 0x10..0x1F) is used because the R58X-Pro
+ * has an external resistor on the VLCD pin: in VLCD-output mode the external
+ * resistor dominates the chip's internal driver and the brightness register
+ * has no visible effect. SEG mode tells the chip to ignore the VLCD pin and
+ * generate the bias voltage purely internally.
+ * Userspace brightness is inverted (0 = dimmest, 15 = brightest) so that
+ * higher numbers look brighter, matching the usual convention.
+ */
+#define VK2C21_IVA_ON_BASE	0x30
+#define VK2C21_BRIGHTNESS_MAX	15
+#define VK2C21_BRIGHTNESS_DEFAULT	(-1)	/* IVA off, external VR in use */
 
 /* Display RAM has 10 addressable bytes (SEG/COM matrix) */
 #define VK2C21_RAM_SIZE		10
@@ -185,6 +201,7 @@ struct vk2c21_data {
 	unsigned int		half_period_ns;
 	u8			dispram[VK2C21_RAM_SIZE];
 	char			display_text[VK2C21_MAX_DIGITS + 1];
+	int			brightness;	/* -1 = IVA off / "default", 0..15 = IVA level */
 };
 
 /* ------------------------------------------------------------------ */
@@ -414,9 +431,51 @@ static ssize_t clear_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(clear);
 
+static ssize_t brightness_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct vk2c21_data *d = dev_get_drvdata(dev);
+
+	if (d->brightness == VK2C21_BRIGHTNESS_DEFAULT)
+		return sysfs_emit(buf, "default\n");
+	return sysfs_emit(buf, "%d\n", d->brightness);
+}
+
+static ssize_t brightness_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct vk2c21_data *d = dev_get_drvdata(dev);
+	int ret, level;
+	u8 iva;
+
+	if (sysfs_streq(buf, "default")) {
+		level = VK2C21_BRIGHTNESS_DEFAULT;
+		iva = VK2C21_IVA_DEFAULT;
+	} else {
+		ret = kstrtoint(buf, 0, &level);
+		if (ret)
+			return ret;
+		if (level < 0 || level > VK2C21_BRIGHTNESS_MAX)
+			return -EINVAL;
+		/* Invert: userspace 15 = brightest = IVA level 0 = 0x30 */
+		iva = VK2C21_IVA_ON_BASE + (VK2C21_BRIGHTNESS_MAX - level);
+	}
+
+	mutex_lock(&d->lock);
+	ret = vk2c21_send_cmd(d, VK2C21_IVASET, iva);
+	if (!ret)
+		d->brightness = level;
+	mutex_unlock(&d->lock);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(brightness);
+
 static struct attribute *vk2c21_sysfs_attrs[] = {
 	&dev_attr_display.attr,
 	&dev_attr_clear.attr,
+	&dev_attr_brightness.attr,
 	NULL,
 };
 
@@ -445,6 +504,7 @@ static int vk2c21_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	d->dev = dev;
+	d->brightness = VK2C21_BRIGHTNESS_DEFAULT;
 	mutex_init(&d->lock);
 	platform_set_drvdata(pdev, d);
 

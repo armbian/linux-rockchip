@@ -329,13 +329,33 @@ static int mpp_show_device_load(struct seq_file *file, void *v)
 
 		for (j = 0; j < MPP_MAX_CORE_NUM; j++) {
 			struct mpp_dev *mpp = queue->cores[j];
+			struct mpp_load_info *load_info;
+			u32 load, load_frac, util, util_frac;
 
 			if (!mpp)
 				continue;
+
+			load_info = &mpp->load_info;
+			load = load_info->load;
+			load_frac = load_info->load_frac;
+			util = load_info->utilization;
+			util_frac = load_info->utilization_frac;
+
+			/*
+			 * load_info is only refreshed by mpp_dev_load() on task
+			 * completion, so an idle device keeps reporting the last
+			 * busy interval forever. If no task has updated the stats
+			 * for more than one load_interval, the device has gone
+			 * idle: report zero instead of the stale snapshot.
+			 */
+			if (!mpp->load_en ||
+			    ktime_us_delta(ktime_get(), load_info->load_time) >
+			    (s64)srv->load_interval * 1000 * 2)
+				load = load_frac = util = util_frac = 0;
+
 			seq_printf(file, "%-25s load: %3d.%02d%% utilization: %3d.%02d%%\n",
 				   dev_name(mpp->dev),
-				   mpp->load_info.load, mpp->load_info.load_frac,
-				   mpp->load_info.utilization, mpp->load_info.utilization_frac);
+				   load, load_frac, util, util_frac);
 		}
 	}
 
