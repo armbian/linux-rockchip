@@ -9406,7 +9406,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_WIN_SET(vop2, win, format, format);
 	VOP_WIN_SET(vop2, win, format_argb1555, is_argb1555_format(fb->format->format));
 
-	if (fb->format->is_yuv) {
+	if (fb->format->is_yuv && fb->format->num_planes > 1) {
 		uv_stride = DIV_ROUND_UP(fb->pitches[1], 4);
 		if (vpstate->tiled_en) {
 			int vsub = fb->format->vsub;
