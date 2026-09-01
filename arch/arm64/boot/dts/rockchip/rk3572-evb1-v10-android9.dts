@@ -17,7 +17,7 @@
 
 &firmware_android {
 	compatible = "android,firmware";
-	boot_devices = "soc/29e00000.ufs, soc/2a010000.mmc";
+	boot_devices = "soc/29e00000.ufs,soc/2a010000.mmc";
 	vbmeta {
 		compatible = "android,vbmeta";
 		parts = "vbmeta,boot,system,vendor,dtbo";
