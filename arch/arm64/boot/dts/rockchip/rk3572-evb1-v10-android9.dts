@@ -34,6 +34,10 @@
 	};
 };
 
+&hdmi {
+	cec-enable;
+};
+
 &route_hdmi {
 	status = "okay";
 	connect = <&vp0_out_hdmi>;
