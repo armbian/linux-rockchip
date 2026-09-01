@@ -13,6 +13,8 @@
 	remote_pwm_id = <0>;
 	handle_cpu_id = <1>;
 	remote_support_psci = <0>;
+	rockchip,clk-src = "osc";
+	rockchip,disable-rc;
 	status = "okay";
 
 	ir_key1 {
