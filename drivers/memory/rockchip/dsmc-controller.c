@@ -634,7 +634,6 @@ static int dsmc_psram_cfg(struct rockchip_dsmc *dsmc, uint32_t cs)
 	return 0;
 }
 
-
 static int dsmc_psram_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	uint32_t latency;
@@ -954,13 +953,25 @@ void rockchip_dsmc_lb_dma_hw_mode_dis(struct rockchip_dsmc *dsmc)
 	uint32_t cs = dsmc->xfer.ops_cs;
 
 	if (dsmc->cfg.local_dma_en) {
-		/* clear local dma finish interrupt */
-		writel(INT_STATUS_DMA_FINISH_MASK, dsmc->regs + DSMC_INT_STATUS);
+		/*
+		 * Clear all the local dma statuses and disable the
+		 * interrupts, a status latched while the interrupts are
+		 * disabled would fire on the next transfer.
+		 */
+		writel(INT_STATUS_DMA_FINISH_MASK |
+		       INT_STATUS_DMA_TIMEOUT_MASK |
+		       INT_STATUS_DMA_ERROR_MASK,
+		       dsmc->regs + DSMC_INT_STATUS);
+		REG_CLRSETBITS(dsmc, DSMC_INT_EN,
+			       (DMA_FINISH_INT_EN_MASK << DMA_FINISH_INT_EN_SHIFT) |
+			       (DMA_TIMEOUT_INT_EN_MASK << DMA_TIMEOUT_INT_EN_SHIFT) |
+			       (DMA_ERROR_INT_EN_MASK << DMA_ERROR_INT_EN_SHIFT),
+			       0);
 	} else {
 		/* clear dsmc interrupt */
 		writel(INT_STATUS(cs), dsmc->regs + DSMC_INT_STATUS);
-		/* disable dma request */
-		writel(DMA_REQ_DIS(cs), dsmc->regs + DSMC_DMA_EN);
+		/* disable the dma request of this cs, keep the others */
+		REG_CLRSETBITS(dsmc, DSMC_DMA_EN, DMA_REQ_EN(cs), 0);
 	}
 
 	dsmc_lb_dma_clear_s2h_intrupt(dsmc, cs);

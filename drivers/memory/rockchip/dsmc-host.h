@@ -5,6 +5,8 @@
 #ifndef __ROCKCHIP_DSMC_HOST_H
 #define __ROCKCHIP_DSMC_HOST_H
 
+#include <linux/dmaengine.h>
+
 #define DSMC_FPGA_WINBOND_X8				0
 #define DSMC_FPGA_WINBOND_X16				1
 #define DSMC_FPGA_APM_X8				0
@@ -113,13 +115,11 @@
 
 /* INT_MASK */
 #define INT_MASK(cs)					(0x1 << (cs))
-#define INT_UNMASK(cs)					(0x0 << (cs))
 
 /* DMA_EN */
 #define DMA_REQ_EN_SHIFT				0
 #define DMA_REQ_EN_MASK					0x1
 #define DMA_REQ_EN(cs)					(0x1 << (cs))
-#define DMA_REQ_DIS(cs)					(0x0 << (cs))
 
 /* DSMC_DMA_MUX */
 #define DMA_REQ_MUX_MASK(req)				(0x3 << ((req) * 4))
@@ -425,6 +425,12 @@
 #define TXDMA					(1 << 1)
 #define LOCAL_DMA_STAT_TIMEOUT			(1 << 2)
 #define LOCAL_DMA_STAT_ERROR			(1 << 3)
+#define LOCAL_DMA_STAT_ERR_RX			(1 << 4)
+#define LOCAL_DMA_STAT_ERR_TX			(1 << 5)
+#define LOCAL_DMA_STAT_ERR_MASK	(LOCAL_DMA_STAT_TIMEOUT | \
+					 LOCAL_DMA_STAT_ERROR | \
+					 LOCAL_DMA_STAT_ERR_RX | \
+					 LOCAL_DMA_STAT_ERR_TX)
 
 #define MHz					1000000
 #define KHz					1000
@@ -626,6 +632,7 @@ struct dsmc_local_dma_descriptor {
 struct dsmc_transfer {
 	uint32_t ops_cs;
 	struct dma_chan *dma_chan;
+	dma_cookie_t dma_cookie;
 	phys_addr_t src_addr;
 	phys_addr_t dst_addr;
 	size_t transfer_size;

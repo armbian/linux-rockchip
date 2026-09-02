@@ -161,7 +161,6 @@ static __maybe_unused int rk3572_dsmc_platform_init(struct platform_device *pdev
 	return ret;
 }
 
-
 static const struct of_device_id dsmc_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3576)
 	{
@@ -615,11 +614,24 @@ static void dsmc_lb_dma_hw_mode_en(struct rockchip_dsmc *dsmc, uint32_t cs)
 	uint32_t burst_byte = xfer->brst_len * xfer->brst_size;
 	uint32_t dma_req_num;
 
-	/* enable local dma finish interrupt */
+	/* enable local dma finish/timeout/error interrupt */
 	if (dsmc->cfg.local_dma_en) {
+		/*
+		 * Drop any status latched while the interrupts were
+		 * disabled, it belongs to the previous transfer.
+		 */
+		writel(INT_STATUS_DMA_FINISH_MASK |
+		       INT_STATUS_DMA_TIMEOUT_MASK |
+		       INT_STATUS_DMA_ERROR_MASK,
+		       dsmc->regs + DSMC_INT_STATUS);
+
 		REG_CLRSETBITS(dsmc, DSMC_INT_EN,
-			       DMA_FINISH_INT_EN_MASK << DMA_FINISH_INT_EN_SHIFT,
-			       0x1 << DMA_FINISH_INT_EN_SHIFT);
+			       (DMA_FINISH_INT_EN_MASK << DMA_FINISH_INT_EN_SHIFT) |
+			       (DMA_TIMEOUT_INT_EN_MASK << DMA_TIMEOUT_INT_EN_SHIFT) |
+			       (DMA_ERROR_INT_EN_MASK << DMA_ERROR_INT_EN_SHIFT),
+			       (0x1 << DMA_FINISH_INT_EN_SHIFT) |
+			       (0x1 << DMA_TIMEOUT_INT_EN_SHIFT) |
+			       (0x1 << DMA_ERROR_INT_EN_SHIFT));
 	} else {
 		dma_req_num = size / burst_byte;
 		if (size % burst_byte) {
@@ -628,8 +640,8 @@ static void dsmc_lb_dma_hw_mode_en(struct rockchip_dsmc *dsmc, uint32_t cs)
 		}
 		writel(dma_req_num, dsmc->regs + DSMC_DMA_REQ_NUM(cs));
 
-		/* enable dma request */
-		writel(DMA_REQ_EN(cs), dsmc->regs + DSMC_DMA_EN);
+		/* enable the dma request of this cs, keep the others */
+		REG_CLRSETBITS(dsmc, DSMC_DMA_EN, 0, DMA_REQ_EN(cs));
 	}
 }
 
@@ -637,34 +649,76 @@ static void rockchip_dsmc_interrupt_mask(struct rockchip_dsmc *dsmc)
 {
 	uint32_t cs = dsmc->xfer.ops_cs;
 
-	/* mask dsmc interrupt */
-	writel(INT_MASK(cs), dsmc->regs + DSMC_INT_MASK);
+	/* only mask the dsmc interrupt of this cs, keep the others */
+	REG_CLRSETBITS(dsmc, DSMC_INT_MASK, 0, INT_MASK(cs));
 }
 
 static void rockchip_dsmc_interrupt_unmask(struct rockchip_dsmc *dsmc)
 {
 	uint32_t cs = dsmc->xfer.ops_cs;
 
-	/* mask dsmc interrupt */
-	writel(INT_UNMASK(cs), dsmc->regs + DSMC_INT_MASK);
+	/* only unmask the dsmc interrupt of this cs, keep the others */
+	REG_CLRSETBITS(dsmc, DSMC_INT_MASK, INT_MASK(cs), 0);
+}
+
+static void rockchip_dsmc_local_dma_abort(struct rockchip_dsmc *dsmc)
+{
+	u32 err_dir = LOCAL_DMA_STAT_ERR_RX | LOCAL_DMA_STAT_ERR_TX;
+
+	/*
+	 * Tag the failed direction before releasing the busy flags, so
+	 * the state query of the other direction is not misreported.
+	 */
+	if (dsmc->xfer.local_dma.dir == AHB_DMA_DIR_RX)
+		err_dir = LOCAL_DMA_STAT_ERR_RX;
+	else if (dsmc->xfer.local_dma.dir == AHB_DMA_DIR_TX)
+		err_dir = LOCAL_DMA_STAT_ERR_TX;
+	atomic_or(err_dir, &dsmc->xfer.state);
+
+	/*
+	 * Clean up the hardware while the busy flags are still held,
+	 * releasing them must be the last step, otherwise a new transfer
+	 * started on another cpu could reconfigure xfer->ops_cs behind
+	 * our back and the cleanup below would tear it down.
+	 */
+	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
+	rockchip_dsmc_interrupt_unmask(dsmc);
+
+	/* mark the transfer as no longer busy, keep the error flags */
+	atomic_fetch_andnot(RXDMA | TXDMA, &dsmc->xfer.state);
 }
 
 static irqreturn_t rockchip_dsmc_isr(int irq, void *dev_id)
 {
-	uint32_t int_status;
 	struct rockchip_dsmc *dsmc = dev_id;
+	uint32_t pending;
 
-	int_status = readl(dsmc->regs + DSMC_INT_STATUS);
-	if (int_status & INT_STATUS_DMA_FINISH_MASK) {
-		writel(INT_STATUS_DMA_FINISH_MASK, dsmc->regs + DSMC_INT_STATUS);
+	/*
+	 * Only the enabled sources can fire, the pending per-cs sources
+	 * (S2H notification) are acked below as nobody else handles them.
+	 */
+	pending = readl(dsmc->regs + DSMC_INT_STATUS) &
+		  readl(dsmc->regs + DSMC_INT_EN);
+	if (!pending)
+		return IRQ_NONE;
+
+	/* ack all pending sources at once to avoid a residual re-fire */
+	writel(pending, dsmc->regs + DSMC_INT_STATUS);
+
+	/* the error sources take precedence over a simultaneous finish */
+	if (pending & (INT_STATUS_DMA_TIMEOUT_MASK | INT_STATUS_DMA_ERROR_MASK)) {
+		if (pending & INT_STATUS_DMA_TIMEOUT_MASK) {
+			dev_err(dsmc->dev, "local dma transfer timeout\n");
+			atomic_or(LOCAL_DMA_STAT_TIMEOUT, &dsmc->xfer.state);
+		}
+		if (pending & INT_STATUS_DMA_ERROR_MASK) {
+			dev_err(dsmc->dev, "local dma transfer error\n");
+			atomic_or(LOCAL_DMA_STAT_ERROR, &dsmc->xfer.state);
+		}
+		rockchip_dsmc_local_dma_abort(dsmc);
+	} else if (pending & INT_STATUS_DMA_FINISH_MASK) {
 		if (dsmc->xfer.local_dma.local_dma_callback)
 			dsmc->xfer.local_dma.local_dma_callback(dsmc);
-	} else if (int_status & INT_STATUS_DMA_TIMEOUT_MASK) {
-		writel(INT_STATUS_DMA_TIMEOUT_MASK, dsmc->regs + DSMC_INT_STATUS);
-		atomic_or(LOCAL_DMA_STAT_TIMEOUT, &dsmc->xfer.state);
-	} else if (int_status & INT_STATUS_DMA_ERROR_MASK) {
-		writel(INT_STATUS_DMA_ERROR_MASK, dsmc->regs + DSMC_INT_STATUS);
-		atomic_or(LOCAL_DMA_STAT_ERROR, &dsmc->xfer.state);
 	}
 
 	return IRQ_HANDLED;
@@ -698,24 +752,63 @@ static void rockchip_dsmc_lb_dma_txcb(void *data)
 {
 	struct rockchip_dsmc *dsmc = data;
 
-	atomic_fetch_andnot(TXDMA, &dsmc->xfer.state);
+	/*
+	 * dmaengine also invokes the callback for descriptors that completed
+	 * with an error. Tag the failed direction while the busy flag is
+	 * still held, mirroring rockchip_dsmc_local_dma_abort(), otherwise
+	 * copy_to_state() reports the failed transfer as a success. In
+	 * SOFTWARE mode this callback comes from the local dma interrupt
+	 * and there is no dmaengine cookie to query.
+	 */
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE &&
+	    dmaengine_tx_status(dsmc->dma_req[dsmc->xfer.ops_cs],
+				dsmc->xfer.dma_cookie, NULL) == DMA_ERROR) {
+		dev_err(dsmc->dev, "tx dma transfer error\n");
+		atomic_or(LOCAL_DMA_STAT_ERR_TX, &dsmc->xfer.state);
+	}
+
+	/* release the busy flags last, see rockchip_dsmc_local_dma_abort() */
 	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
 	rockchip_dsmc_interrupt_unmask(dsmc);
+	atomic_fetch_andnot(TXDMA, &dsmc->xfer.state);
 }
 
 static void rockchip_dsmc_lb_dma_rxcb(void *data)
 {
 	struct rockchip_dsmc *dsmc = data;
 
-	atomic_fetch_andnot(RXDMA, &dsmc->xfer.state);
+	/*
+	 * dmaengine also invokes the callback for descriptors that completed
+	 * with an error. Tag the failed direction while the busy flag is
+	 * still held, mirroring rockchip_dsmc_local_dma_abort(), otherwise
+	 * copy_from_state() reports the failed transfer as a success. In
+	 * SOFTWARE mode this callback comes from the local dma interrupt
+	 * and there is no dmaengine cookie to query.
+	 */
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE &&
+	    dmaengine_tx_status(dsmc->dma_req[dsmc->xfer.ops_cs],
+				dsmc->xfer.dma_cookie, NULL) == DMA_ERROR) {
+		dev_err(dsmc->dev, "rx dma transfer error\n");
+		atomic_or(LOCAL_DMA_STAT_ERR_RX, &dsmc->xfer.state);
+	}
+
+	/* release the busy flags last, see rockchip_dsmc_local_dma_abort() */
 	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
 	rockchip_dsmc_interrupt_unmask(dsmc);
+	atomic_fetch_andnot(RXDMA, &dsmc->xfer.state);
 }
 
 static void rockchip_dsmc_lb_dma_sg_cb(void *data)
 {
 	struct rockchip_dsmc *dsmc = data;
 
+	/*
+	 * Match the cleanup of the rx/tx callbacks: copy_sg() also masks
+	 * the interrupt and enables the dma request, release the busy
+	 * flags last, see rockchip_dsmc_local_dma_abort().
+	 */
+	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
+	rockchip_dsmc_interrupt_unmask(dsmc);
 	atomic_fetch_andnot(RXDMA | TXDMA, &dsmc->xfer.state);
 }
 
@@ -732,10 +825,20 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 		.dst_addr_width = xfer->brst_size,
 		.dst_maxburst = xfer->brst_len,
 	};
+	int ret;
+
+	if (!dsmc->dma_req[cs]) {
+		dev_err(dev, "no tx dma channel for cs%u\n", cs);
+		return -ENXIO;
+	}
 
 	memset(&xt, 0, sizeof(xt));
 
-	dmaengine_slave_config(dsmc->dma_req[cs], &txconf);
+	ret = dmaengine_slave_config(dsmc->dma_req[cs], &txconf);
+	if (ret) {
+		dev_err(dev, "failed to config tx dma: %d\n", ret);
+		return ret;
+	}
 
 	dmaengine_config_interleaved(xfer, &xt, DMA_MEM_TO_DEV, 1);
 	txdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
@@ -748,8 +851,8 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 	txdesc->callback = rockchip_dsmc_lb_dma_txcb;
 	txdesc->callback_param = dsmc;
 
-	atomic_or(TXDMA, &dsmc->xfer.state);
-	dmaengine_submit(txdesc);
+	/* the busy flag is claimed by the caller */
+	xfer->dma_cookie = dmaengine_submit(txdesc);
 	dma_async_issue_pending(dsmc->dma_req[cs]);
 
 	/* 1 means the transfer is in progress */
@@ -769,10 +872,20 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 		.src_addr_width = xfer->brst_size,
 		.src_maxburst = xfer->brst_len,
 	};
+	int ret;
+
+	if (!dsmc->dma_req[cs]) {
+		dev_err(dev, "no rx dma channel for cs%u\n", cs);
+		return -ENXIO;
+	}
 
 	memset(&xt, 0, sizeof(xt));
 
-	dmaengine_slave_config(dsmc->dma_req[cs], &rxconf);
+	ret = dmaengine_slave_config(dsmc->dma_req[cs], &rxconf);
+	if (ret) {
+		dev_err(dev, "failed to config rx dma: %d\n", ret);
+		return ret;
+	}
 
 	dmaengine_config_interleaved(xfer, &xt, DMA_DEV_TO_MEM, 1);
 	rxdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
@@ -785,13 +898,43 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 	rxdesc->callback = rockchip_dsmc_lb_dma_rxcb;
 	rxdesc->callback_param = dsmc;
 
-	atomic_or(RXDMA, &dsmc->xfer.state);
-	dmaengine_submit(rxdesc);
+	/* the busy flag is claimed by the caller */
+	xfer->dma_cookie = dmaengine_submit(rxdesc);
 	dma_async_issue_pending(dsmc->dma_req[cs]);
 
 	/* 1 means the transfer is in progress */
 	return 1;
+}
 
+static int dsmc_xfer_claim(struct rockchip_dsmc *dsmc, u32 bit, const char *who)
+{
+	struct device *dev = dsmc->dev;
+	int old;
+
+	/*
+	 * Claim the transfer with a real test-and-set: fetch_or() followed
+	 * by a rollback on failure is not atomic, the local dma abort could
+	 * clear the busy flags in between and a third thread could acquire
+	 * the transfer before our rollback drops its fresh claim bit.
+	 */
+	do {
+		old = atomic_read(&dsmc->xfer.state);
+		if (old & (RXDMA | TXDMA)) {
+			dev_warn(dev, "%s: the transfer is busy!\n", who);
+			return -EBUSY;
+		}
+	} while (atomic_cmpxchg(&dsmc->xfer.state, old, old | bit) != old);
+
+	/* the previous transfer failed and was aborted, start a fresh one */
+	atomic_fetch_andnot(LOCAL_DMA_STAT_ERR_MASK, &dsmc->xfer.state);
+
+	return 0;
+}
+
+static void dsmc_xfer_release(struct rockchip_dsmc *dsmc, u32 bit)
+{
+	rockchip_dsmc_interrupt_unmask(dsmc);
+	atomic_fetch_andnot(bit, &dsmc->xfer.state);
 }
 
 static int dsmc_copy_sg(struct rockchip_dsmc_device *dsmc_dev,
@@ -800,19 +943,14 @@ static int dsmc_copy_sg(struct rockchip_dsmc_device *dsmc_dev,
 			uint32_t cs)
 {
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
-	struct device *dev = dsmc_dev->dsmc.dev;
-
-	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
-		dev_warn(dev, "copy_sg: the transfer is busy!\n");
-		return -EBUSY;
-	}
-	if (atomic_read(&dsmc->xfer.state) & (LOCAL_DMA_STAT_TIMEOUT | LOCAL_DMA_STAT_ERROR)) {
-		dev_warn(dev, "copy_sg: the local DMA is in wrong state!\n");
-		return -EBUSY;
-	}
+	int ret;
 
 	if (!dsmc->cfg.local_dma_en)
 		return -ENXIO;
+
+	ret = dsmc_xfer_claim(dsmc, RXDMA | TXDMA, "copy_sg");
+	if (ret)
+		return ret;
 
 	dsmc->xfer.local_dma.link_list = sg_list_phys;
 	dsmc->xfer.ops_cs = cs;
@@ -828,20 +966,32 @@ static int dsmc_copy_sg(struct rockchip_dsmc_device *dsmc_dev,
 	dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
 	dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_EN;
 
-	atomic_or(RXDMA | TXDMA, &dsmc->xfer.state);
 	dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_sg_cb;
 
 	rockchip_dsmc_interrupt_mask(dsmc);
-	rockchip_dsmc_lb_local_dma_prepare(dsmc);
+
+	ret = rockchip_dsmc_lb_local_dma_prepare(dsmc);
+	if (ret)
+		goto err_unwind;
 
 	dsmc_lb_dma_hw_mode_en(dsmc, cs);
 
-	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
-		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
-	else
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE) {
+		ret = rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+		if (ret)
+			goto err_unwind_hw;
+	} else {
 		rockchip_dsmc_lb_local_dma_start(dsmc);
+	}
 
 	return 0;
+
+err_unwind_hw:
+	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
+err_unwind:
+	dsmc_xfer_release(dsmc, RXDMA | TXDMA);
+
+	return ret;
 }
 
 static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint32_t region,
@@ -850,11 +1000,11 @@ static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, ui
 	struct dsmc_map *map = &dsmc_dev->dsmc.cs_map[cs].region_map[region];
 	struct device *dev = dsmc_dev->dsmc.dev;
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	int ret;
 
-	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
-		dev_warn(dev, "copy_from: the transfer is busy!\n");
-		return -EBUSY;
-	}
+	ret = dsmc_xfer_claim(dsmc, RXDMA, "copy_from");
+	if (ret)
+		return ret;
 
 	dsmc->xfer.src_addr = map->phys + from;
 	dsmc->xfer.dst_addr = dst_phys;
@@ -870,31 +1020,54 @@ static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, ui
 		dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
 		dsmc->xfer.local_dma.p_trans_en = P_TRANS_DIS;
 		dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_DIS;
-		rockchip_dsmc_lb_local_dma_prepare(dsmc);
-		atomic_or(RXDMA, &dsmc->xfer.state);
+		ret = rockchip_dsmc_lb_local_dma_prepare(dsmc);
+		if (ret)
+			goto err_unwind;
 		dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_rxcb;
 	} else {
-		rockchip_dsmc_lb_prepare_rx_dma(dev, dsmc, cs);
+		dsmc->xfer.local_dma.mode = DSMC_LOCAL_DMA_HARDWARE_MODE;
+		ret = rockchip_dsmc_lb_prepare_rx_dma(dev, dsmc, cs);
+		if (ret < 0)
+			goto err_unwind;
 	}
 
 	dsmc_lb_dma_hw_mode_en(dsmc, cs);
 
-	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
-		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
-	else
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE) {
+		ret = rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+		if (ret)
+			goto err_unwind_hw;
+	} else {
 		rockchip_dsmc_lb_local_dma_start(dsmc);
+	}
 
 	return 0;
+
+err_unwind_hw:
+	/*
+	 * The dmaengine descriptor was already issued, terminate the
+	 * channel or its late callback would tear down the next transfer.
+	 */
+	dmaengine_terminate_sync(dsmc->dma_req[cs]);
+	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
+err_unwind:
+	dsmc_xfer_release(dsmc, RXDMA);
+
+	return ret;
 }
 
 static int dsmc_copy_from_state(struct rockchip_dsmc_device *dsmc_dev)
 {
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	int state = atomic_read(&dsmc->xfer.state);
 
-	if (atomic_read(&dsmc->xfer.state) & RXDMA)
+	if (state & RXDMA)
 		return -EBUSY;
-	else
-		return 0;
+
+	if (state & LOCAL_DMA_STAT_ERR_RX)
+		return -EIO;
+
+	return 0;
 }
 
 static int dsmc_copy_to(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint32_t region,
@@ -903,11 +1076,11 @@ static int dsmc_copy_to(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint
 	struct dsmc_map *map = &dsmc_dev->dsmc.cs_map[cs].region_map[region];
 	struct device *dev = dsmc_dev->dsmc.dev;
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	int ret;
 
-	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
-		dev_warn(dev, "copy_to: the transfer is busy!\n");
-		return -EBUSY;
-	}
+	ret = dsmc_xfer_claim(dsmc, TXDMA, "copy_to");
+	if (ret)
+		return ret;
 
 	dsmc->xfer.src_addr = src_phys;
 	dsmc->xfer.dst_addr = map->phys + to;
@@ -923,41 +1096,68 @@ static int dsmc_copy_to(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint
 		dsmc->xfer.local_dma.peri_req_burst = PERI_REQ_BURST_WHOLE_TRANS;
 		dsmc->xfer.local_dma.p_trans_en = P_TRANS_DIS;
 		dsmc->xfer.local_dma.ll_trans_en = LL_TRANS_DIS;
-		rockchip_dsmc_lb_local_dma_prepare(dsmc);
-		atomic_or(TXDMA, &dsmc->xfer.state);
+		ret = rockchip_dsmc_lb_local_dma_prepare(dsmc);
+		if (ret)
+			goto err_unwind;
 		dsmc->xfer.local_dma.local_dma_callback = rockchip_dsmc_lb_dma_txcb;
 	} else {
-		rockchip_dsmc_lb_prepare_tx_dma(dev, dsmc, cs);
+		dsmc->xfer.local_dma.mode = DSMC_LOCAL_DMA_HARDWARE_MODE;
+		ret = rockchip_dsmc_lb_prepare_tx_dma(dev, dsmc, cs);
+		if (ret < 0)
+			goto err_unwind;
 	}
 
 	dsmc_lb_dma_hw_mode_en(dsmc, cs);
 
-	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE)
-		rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
-	else
+	if (dsmc->xfer.local_dma.mode == DSMC_LOCAL_DMA_HARDWARE_MODE) {
+		ret = rockchip_dsmc_lb_dma_trigger_by_host(dsmc, cs);
+		if (ret)
+			goto err_unwind_hw;
+	} else {
 		rockchip_dsmc_lb_local_dma_start(dsmc);
+	}
 
 	return 0;
+
+err_unwind_hw:
+	/*
+	 * The dmaengine descriptor was already issued, terminate the
+	 * channel or its late callback would tear down the next transfer.
+	 */
+	dmaengine_terminate_sync(dsmc->dma_req[cs]);
+	rockchip_dsmc_lb_dma_hw_mode_dis(dsmc);
+err_unwind:
+	dsmc_xfer_release(dsmc, TXDMA);
+
+	return ret;
 }
 
 static int dsmc_copy_to_state(struct rockchip_dsmc_device *dsmc_dev)
 {
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	int state = atomic_read(&dsmc->xfer.state);
 
-	if (atomic_read(&dsmc->xfer.state) & TXDMA)
+	if (state & TXDMA)
 		return -EBUSY;
-	else
-		return 0;
+
+	if (state & LOCAL_DMA_STAT_ERR_TX)
+		return -EIO;
+
+	return 0;
 }
 
 static int dsmc_copy_sg_state(struct rockchip_dsmc_device *dsmc_dev)
 {
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	int state = atomic_read(&dsmc->xfer.state);
 
-	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA))
+	if (state & (RXDMA | TXDMA))
 		return -EBUSY;
-	else
-		return 0;
+
+	if (state & (LOCAL_DMA_STAT_ERR_RX | LOCAL_DMA_STAT_ERR_TX))
+		return -EIO;
+
+	return 0;
 }
 
 static void dsmc_data_init(struct rockchip_dsmc *dsmc)
