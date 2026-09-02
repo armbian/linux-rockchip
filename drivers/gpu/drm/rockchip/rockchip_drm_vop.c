@@ -1748,7 +1748,7 @@ static int vop_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	rk_obj = to_rockchip_obj(obj);
 	wb_state->yrgb_addr = rk_obj->dma_addr + fb->offsets[0];
 
-	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+	if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
@@ -2452,7 +2452,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
-	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+	if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 		int hsub = fb->format->hsub;
 		int vsub = fb->format->vsub;
 
