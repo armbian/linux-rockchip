@@ -5260,7 +5260,7 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	rk_obj = to_rockchip_obj(obj);
 	wb_state->yrgb_addr = rk_obj->dma_addr + fb->offsets[0];
 
-	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+	if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
@@ -8594,7 +8594,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 	rk_obj = to_rockchip_obj(obj);
 
 	vpstate->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
-	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+	if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 		int hsub = fb->format->hsub;
 		int vsub = fb->format->vsub;
 
@@ -9034,7 +9034,7 @@ static int vop3_msmart_grid_update(struct drm_plane *plane, struct drm_plane_sta
 			offset += ALIGN_DOWN(grid->src_y >> 16, 1) * fb->pitches[0];
 		msmart_lut_kvaddr[0] = rk_obj->dma_addr + offset + fb->offsets[0];
 		stride = DIV_ROUND_UP(fb->pitches[0], 4);
-		if (fb->format->is_yuv && fb->format->num_planes > 1) {
+		if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 			hsub = fb->format->hsub;
 			vsub = fb->format->vsub;
 			if (fb->format->char_per_block[0] == 0) {
@@ -9127,7 +9127,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	if (win->splice_mode_right) {
 		splice_pixel_offset = (src->x1 - left_src->x1) >> 16;
 		splice_yrgb_offset = drm_format_info_min_pitch(fb->format, 0, splice_pixel_offset);
-		if (fb->format->is_yuv && fb->format->num_planes > 1) {
+		if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 			hsub = fb->format->hsub;
 			splice_uv_offset = drm_format_info_min_pitch(fb->format, 1, splice_pixel_offset / hsub);
 		}
@@ -9406,7 +9406,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	VOP_WIN_SET(vop2, win, format, format);
 	VOP_WIN_SET(vop2, win, format_argb1555, is_argb1555_format(fb->format->format));
 
-	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+	if (rockchip_drm_format_info_has_uv_plane(fb->format)) {
 		uv_stride = DIV_ROUND_UP(fb->pitches[1], 4);
 		if (vpstate->tiled_en) {
 			int vsub = fb->format->vsub;

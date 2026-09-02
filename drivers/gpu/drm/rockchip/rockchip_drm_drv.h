@@ -1099,6 +1099,11 @@ extern struct platform_driver dw_dp_driver;
 extern struct platform_driver vconn_platform_driver;
 extern struct platform_driver rockchip_vkms_platform_driver;
 
+static inline bool rockchip_drm_format_info_has_uv_plane(const struct drm_format_info *info)
+{
+	return info->is_yuv && info->num_planes > 1;
+}
+
 static inline struct rockchip_encoder *to_rockchip_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct rockchip_encoder, encoder);
