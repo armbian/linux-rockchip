@@ -301,7 +301,7 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 
 		if (wake_host->io) {
 			LOG("%s: set bt wake_host high!\n", __func__);
-			gpiod_direction_output(wake_host->io, 1);
+			gpiod_direction_output_raw(wake_host->io, 1);
 			msleep(20);
 		}
 		if (poweron->io) {
