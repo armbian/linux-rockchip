@@ -131,7 +131,7 @@ static int f50l2g41ka_ecc_ecc_get_status(struct spinand_device *spinand,
 static const struct spinand_info esmt_8c_spinand_table[] = {
 	SPINAND_INFO("F50L1G41LC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x2C),
-		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
 		     NAND_ECCREQ(1, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
