@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/list.h>
+#include <linux/math64.h>
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
 #include <linux/of.h>
@@ -1805,24 +1806,28 @@ static ssize_t load_show(struct device *dev, struct device_attribute *attr,
 {
 	int err;
 	struct devfreq *devfreq = to_devfreq(dev);
-	struct devfreq_dev_status stat = devfreq->last_status;
+	struct devfreq_dev_status stat;
 	unsigned long freq;
 	ssize_t len;
 
 	err = devfreq_update_stats(devfreq);
 	if (err)
 		return err;
+	stat = devfreq->last_status;
 
 	if (stat.total_time < stat.busy_time) {
 		err = devfreq_update_stats(devfreq);
 		if (err)
 			return err;
-	};
+		stat = devfreq->last_status;
+	}
 
 	if (!stat.total_time)
 		return 0;
 
-	len = sprintf(buf, "%lu", stat.busy_time * 100 / stat.total_time);
+	len = sprintf(buf, "%lu",
+		      (unsigned long)div64_ul((u64)stat.busy_time * 100,
+					      stat.total_time));
 
 	if (devfreq->profile->get_cur_freq &&
 	    !devfreq->profile->get_cur_freq(devfreq->dev.parent, &freq))
