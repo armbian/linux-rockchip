@@ -658,6 +658,24 @@ bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier)
 }
 EXPORT_SYMBOL(rockchip_drm_is_afbc);
 
+bool rockchip_drm_is_afrc(struct drm_plane *plane, u64 modifier)
+{
+	unsigned int i;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	if ((modifier & AFBC_VENDOR_AND_TYPE_MASK) != DRM_FORMAT_MOD_ARM_AFRC(0))
+		return false;
+
+	for (i = 0; i < plane->modifier_count; i++)
+		if (plane->modifiers[i] == modifier)
+			break;
+
+	return (i < plane->modifier_count) ? true : false;
+}
+EXPORT_SYMBOL(rockchip_drm_is_afrc);
+
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier)
 {
 	int i;

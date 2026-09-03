@@ -1048,6 +1048,7 @@ struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj, int fl
 long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long rate);
 int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
 bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
+bool rockchip_drm_is_afrc(struct drm_plane *plane, u64 modifier);
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
 const char *rockchip_drm_modifier_to_string(uint64_t modifier);
 void rockchip_drm_reset_iommu_fault_handler_rate_limit(void);
