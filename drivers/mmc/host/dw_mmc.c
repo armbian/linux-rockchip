@@ -3177,6 +3177,10 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	if (ret)
 		goto err_host_allocated;
 
+#ifdef CONFIG_NO_GKI
+	mmc_of_parse_clk_phase(host->dev, &host->phase_map);
+#endif
+
 	ret = dw_mci_init_slot_caps(slot);
 	if (ret)
 		goto err_host_allocated;

@@ -250,6 +250,7 @@ struct dw_mci {
 	struct pinctrl_state	*idle_state;
 
 	bool			no_low_pwr;
+	struct mmc_clk_phase_map phase_map;
 };
 
 /* DMA ops for Internal/External DMAC interface */
