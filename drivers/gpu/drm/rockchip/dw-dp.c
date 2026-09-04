@@ -277,9 +277,9 @@
 #define dw_dp_dbg(dp, fmt, ...)	\
 	drm_dbg_dp(dp->bridge.dev, "%s: " fmt, dev_name(dp->dev), ##__VA_ARGS__)
 
-//fox.luo@2024.03.20 set fixed resolution
+/* fixed mode list for panels that supply no usable EDID */
 static const struct drm_display_mode dw_dp_default_modes[] = {
-     /* 16 - 1920x1080@60Hz 16:9 */
+	/* 16 - 1920x1080@60Hz 16:9 */
 	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2008,
 		   2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),

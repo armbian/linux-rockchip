@@ -2728,7 +2728,6 @@ secondary:
 			s->output_if_left_panel |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
 		}
 		s->output_if |= VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1;
-		
 	} else if (hdmi->plat_data->dual_connector_split) {
 		s->output_if |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE;
