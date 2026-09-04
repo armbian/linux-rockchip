@@ -306,11 +306,11 @@
 		//wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart8m0_rtsn>;
+		pinctrl-0 = <&uart8m0_rtsn &bt_enable &bt_host_wake &bt_wake>;
 		pinctrl-1 = <&uart8_gpios>;
 		BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -994,6 +994,8 @@
 	supports-emmc;
 	non-removable;
 	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
 
@@ -1160,7 +1162,7 @@
 		 };
 
 		 bt_host_wake: bt-host-wake {
-			 rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
+			 rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		 };
 
 		 bt_wake: bt-wake {
