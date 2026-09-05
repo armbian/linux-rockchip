@@ -21,6 +21,7 @@
 #include <linux/of_device.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/delay.h>
 #include <linux/perf_event.h>
 
 #include <soc/rockchip/rockchip_grf.h>
@@ -32,6 +33,14 @@
 #include <soc/rockchip/rk3588_grf.h>
 
 #define DMC_MAX_CHANNELS	4
+
+/*
+ * The window limit below which the 32 bit ddrmon counters are
+ * guaranteed not to wrap (they wrap after ~4s at a 2112MHz ddr clock in 1:1:2 mode).
+ * Windows beyond it are resampled with DFI_FALLBACK_WINDOW_MS below.
+ */
+#define DFI_COUNT_WINDOW_MAX_NS		(2 * NSEC_PER_SEC)
+#define DFI_FALLBACK_WINDOW_MS		50
 
 #define HIWORD_UPDATE(val, mask)	((val) | (mask) << 16)
 
@@ -110,6 +119,7 @@ struct rockchip_dfi {
 	struct devfreq_event_dev *edev;
 	struct devfreq_event_desc desc;
 	struct dmc_count last_event_count;
+	u64 last_read_ns;
 
 	struct dmc_count last_perf_count;
 	struct dmc_count total_count;
@@ -357,7 +367,7 @@ out:
 static void rockchip_dfi_read_counters(struct rockchip_dfi *dfi, struct dmc_count *res)
 {
 	int ret;
-	u32 i;
+	u32 i, count_num;
 	unsigned long flags;
 	void __iomem *dfi_regs = dfi->regs;
 
@@ -377,9 +387,9 @@ static void rockchip_dfi_read_counters(struct rockchip_dfi *dfi, struct dmc_coun
 			readl_relaxed(dfi_regs + i * dfi->ddrmon_stride + dfi->mon_write_num);
 		res->c[i].access =
 			readl_relaxed(dfi_regs + i * dfi->ddrmon_stride + dfi->mon_access_num);
-		res->c[i].clock_cycles =
-			readl_relaxed(dfi_regs + i * dfi->ddrmon_stride + dfi->mon_count_num) *
-			dfi->count_rate;
+		count_num =
+			readl_relaxed(dfi_regs + i * dfi->ddrmon_stride + dfi->mon_count_num);
+		res->c[i].clock_cycles = (u64)count_num * dfi->count_rate;
 	}
 
 	rockchip_dfi_start_counters(dfi);
@@ -414,14 +424,31 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 {
 	struct rockchip_dfi *dfi = devfreq_event_get_drvdata(edev);
 	struct dmc_count count;
-	u32 access = 0, clock_cycles = 0;
+	u64 now, window;
+	u64 access = 0, clock_cycles = 0;
 	int i;
 
+	/*
+	 * Without a periodic poller (e.g. the userspace governor) the
+	 * window since the last read is unknown or so long that the 32
+	 * bit counters have wrapped. Restart the counters and sample a
+	 * fixed short window instead, so a single read also reports a
+	 * load consistent with the periodic polling.
+	 */
+	now = ktime_get_boottime_ns();
+	window = dfi->last_read_ns ? now - dfi->last_read_ns : 0;
+	if (!window || window > DFI_COUNT_WINDOW_MAX_NS) {
+		rockchip_dfi_read_counters(dfi, &count);
+		dfi->last_read_ns = ktime_get_boottime_ns();
+		msleep(DFI_FALLBACK_WINDOW_MS);
+	}
+
 	rockchip_dfi_read_counters(dfi, &count);
+	dfi->last_read_ns = ktime_get_boottime_ns();
 
 	/* We can only report one channel, so find the busiest one */
 	for (i = 0; i < dfi->max_channels; i++) {
-		u32 a, c;
+		u64 a, c;
 
 		if (!(dfi->channel_mask & BIT(i)))
 			continue;
