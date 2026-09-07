@@ -650,9 +650,9 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return 0;
 	case RKISP_VICAP_CMD_MULTI_ONLINE:
 		if (*(int *)arg)
-			priv->is_multi_online = true;
+			WRITE_ONCE(priv->is_multi_online, true);
 		else
-			priv->is_multi_online = false;
+			WRITE_ONCE(priv->is_multi_online, false);
 		return 0;
 	default:
 		break;
@@ -2002,7 +2002,7 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	mutex_init(&priv->mutex);
 	priv->hdr_wrap_line = 0;
 	priv->is_buf_init = false;
-	priv->is_multi_online = false;
+	WRITE_ONCE(priv->is_multi_online, false);
 	priv->effect_exp_cnt = 0;
 	return 0;
 }

@@ -9,6 +9,7 @@
 #define _RKCIF_SDITF_H
 
 #include <linux/mutex.h>
+#include <linux/compiler.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
@@ -132,9 +133,24 @@ struct sditf_priv {
 	bool is_toisp_off;
 	bool is_stopping;
 	bool is_buf_init;
+	/* Set by RKISP_VICAP_CMD_MULTI_ONLINE when multi virtual-ISP online. */
 	bool is_multi_online;
 	bool is_free_thunderboot_buf;
 };
+
+/*
+ * ONLINE_UNITE + is_multi_online: dual-cam half-passthrough with
+ * rdbk-like buf rotation across ISP time-share.
+ * Single-cam ONLINE_UNITE (!is_multi_online) follows fixed right-half
+ * buf (HDR2-online-long style) and is handled by
+ * rdbk_mode < RKISP_VICAP_RDBK_AIQ && !sditf_is_online_unite_multi().
+ */
+static inline bool sditf_is_online_unite_multi(const struct sditf_priv *priv)
+{
+	return priv &&
+	       priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE &&
+	       READ_ONCE(priv->is_multi_online);
+}
 
 extern struct platform_driver rkcif_subdev_driver;
 void sditf_change_to_online(struct sditf_priv *priv);

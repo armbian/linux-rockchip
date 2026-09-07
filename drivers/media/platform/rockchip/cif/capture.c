@@ -2942,8 +2942,27 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 				 __func__, __LINE__, buf_stream->id, buf_stream->lack_buf_cnt);
 		}
 	} else {
-		if (priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
+		/*
+		 * Pure online / single ONLINE_UNITE (!is_multi_online): same as
+		 * HDR2 online long — fixed buf seeded at init, skip empty-list
+		 * recycle (no lack++/FE s_rx/stop-dma waiting for return).
+		 *
+		 * Dual ONLINE_UNITE (is_multi_online): rotate bufs like RDBK —
+		 * fall through to lack++/s_rx_buffer/stop-dma so ISP return
+		 * can re-enable DMA across multi-ISP time-share.
+		 *
+		 * priv == NULL: skip early-out and fall into lack++/LOSS
+		 * (unreachable in TOISP; priv && matches other sites below).
+		 */
+		if (priv &&
+		    priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
+		    !sditf_is_online_unite_multi(priv))
 			goto out_get_buf;
+		if (priv && sditf_is_online_unite_multi(priv) &&
+		    stream->cifdev->rdbk_debug && stream->frame_idx < 15)
+			v4l2_info(&dev->v4l2_dev,
+				  "stream[%d] ONLINE_UNITE multi rotate, frame %d\n",
+				  stream->id, stream->frame_idx);
 		if (buf_stream->lack_buf_cnt < 2) {
 			buf_stream->lack_buf_cnt++;
 			v4l2_dbg(5, rkcif_debug, &dev->v4l2_dev, "%s %d, stream[%d] lack buf %d\n",
@@ -7155,8 +7174,26 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			buf->dbufs.is_uncompact = true;
 		if (priv && i == 0 && dev->pre_buf_num == 0) {
 			buf->dbufs.is_first = true;
-			if (priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ)
+			/*
+			 * Seed ISP at alloc for online modes, including single
+			 * ONLINE_UNITE (HDR2-online-long style fixed right buf).
+			 * Dual ONLINE_UNITE rotates on FE — keep buf on the CIF
+			 * list and do not seed here.
+			 */
+			if (priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
+			    !sditf_is_online_unite_multi(priv)) {
+				if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE &&
+				    stream->cifdev->rdbk_debug)
+					v4l2_info(&dev->v4l2_dev,
+						  "stream[%d] ONLINE_UNITE single seed fixed right buf\n",
+						  stream->id);
 				rkcif_s_rx_buffer(stream, &buf->dbufs);
+			} else if (sditf_is_online_unite_multi(priv) &&
+				   stream->cifdev->rdbk_debug) {
+				v4l2_info(&dev->v4l2_dev,
+					  "stream[%d] ONLINE_UNITE multi skip seed, rotate on FE\n",
+					  stream->id);
+			}
 		}
 		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 			"init rx_buf,dma_addr 0x%llx size: 0x%x\n",
@@ -14906,7 +14943,7 @@ static bool rkcif_check_frame_active(struct rkcif_device *cif_dev)
 	if (cif_dev->sditf[0] &&
 	    cif_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
 	    READ_ONCE(cif_dev->sditf[0]->is_toisp_off) &&
-	    cif_dev->sditf[0]->is_multi_online)
+	    READ_ONCE(cif_dev->sditf[0]->is_multi_online))
 		return false;
 
 	return true;
@@ -15860,7 +15897,7 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 					}
 					if (tmp_dev->sditf[0] &&
 					    tmp_dev->sditf[0]->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ &&
-					    tmp_dev->sditf[0]->is_multi_online) {
+					    READ_ONCE(tmp_dev->sditf[0]->is_multi_online)) {
 						if (!READ_ONCE(tmp_dev->sditf[0]->is_toisp_off))
 							tmp_dev->stream[0].frame_idx++;
 					} else {
