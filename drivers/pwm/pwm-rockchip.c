@@ -59,6 +59,10 @@
 #define PWM_CLK_SEL_MASK	(1 << PWM_CLK_SEL_SHIFT)
 #define PWM_SEL_NO_SCALED_CLOCK	(0 << PWM_CLK_SEL_SHIFT)
 #define PWM_SEL_SCALED_CLOCK	(1 << PWM_CLK_SEL_SHIFT)
+#define PWM_CLK_SRC_SEL_SHIFT	10
+#define PWM_CLK_SRC_SEL_MASK	(1 << PWM_CLK_SRC_SEL_SHIFT)
+#define PWM_SRC_SEL_CLK_PWM	(0 << PWM_CLK_SRC_SEL_SHIFT)
+#define PWM_SRC_SEL_CLK_OSC	(1 << PWM_CLK_SRC_SEL_SHIFT)
 #define PWM_PRESCELE_SHIFT	12
 #define PWM_PRESCALE_MASK	(0x3 << PWM_PRESCELE_SHIFT)
 #define PWM_SCALE_SHIFT		16
@@ -420,6 +424,7 @@ struct rockchip_pwm_data {
 	unsigned int prescaler;
 	bool supports_polarity;
 	bool supports_lock;
+	bool supports_clk_sel;
 	bool vop_pwm;
 	u8 main_version;
 	u32 enable_conf;
@@ -2378,6 +2383,7 @@ static const struct rockchip_pwm_data pwm_data_v1 = {
 	.prescaler = 2,
 	.supports_polarity = false,
 	.supports_lock = false,
+	.supports_clk_sel = false,
 	.vop_pwm = false,
 	.enable_conf = PWM_CTRL_OUTPUT_EN | PWM_CTRL_TIMER_EN,
 	.enable_conf_mask = BIT(1) | BIT(3),
@@ -2392,6 +2398,7 @@ static const struct rockchip_pwm_data pwm_data_v2 = {
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = false,
+	.supports_clk_sel = false,
 	.vop_pwm = false,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
@@ -2407,6 +2414,7 @@ static const struct rockchip_pwm_data pwm_data_vop = {
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = false,
+	.supports_clk_sel = false,
 	.vop_pwm = true,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
@@ -2415,13 +2423,30 @@ static const struct rockchip_pwm_data pwm_data_vop = {
 	.funcs = &pwm_funcs_v1,
 };
 
-static const struct rockchip_pwm_data pwm_data_v3 = {
+static const struct rockchip_pwm_data pwm_data_v3_rk3328 = {
 	.soc_type = RK3328_PWM,
 	.main_version = 0x03,
 	.regs = &pwm_regs_v2,
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = true,
+	.supports_clk_sel = false,
+	.vop_pwm = false,
+	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
+		       PWM_CONTINUOUS,
+	.enable_conf_mask = GENMASK(2, 0) | BIT(5) | BIT(8),
+	.oneshot_cnt_max = 0x100,
+	.funcs = &pwm_funcs_v3,
+};
+
+static const struct rockchip_pwm_data pwm_data_v3_rv1126 = {
+	.soc_type = RK3328_PWM,
+	.main_version = 0x03,
+	.regs = &pwm_regs_v2,
+	.prescaler = 1,
+	.supports_polarity = true,
+	.supports_lock = true,
+	.supports_clk_sel = true,
 	.vop_pwm = false,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
@@ -2437,6 +2462,7 @@ static const struct rockchip_pwm_data pwm_data_v4_rk3576 = {
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = true,
+	.supports_clk_sel = true,
 	.vop_pwm = false,
 	.oneshot_cnt_max = 0x10000,
 	.oneshot_rpt_max = 0x10000,
@@ -2452,6 +2478,7 @@ static const struct rockchip_pwm_data pwm_data_v4_rk3506 = {
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = true,
+	.supports_clk_sel = true,
 	.vop_pwm = false,
 	.oneshot_cnt_max = 0x10000,
 	.oneshot_rpt_max = 0x10000,
@@ -2467,6 +2494,7 @@ static const struct rockchip_pwm_data pwm_data_v4_rk3538 = {
 	.prescaler = 1,
 	.supports_polarity = true,
 	.supports_lock = true,
+	.supports_clk_sel = true,
 	.vop_pwm = false,
 	.oneshot_cnt_max = 0x10000,
 	.oneshot_rpt_max = 0x10000,
@@ -2479,7 +2507,8 @@ static const struct of_device_id rockchip_pwm_dt_ids[] = {
 	{ .compatible = "rockchip,rk2928-pwm", .data = &pwm_data_v1 },
 	{ .compatible = "rockchip,rk3288-pwm", .data = &pwm_data_v2 },
 	{ .compatible = "rockchip,vop-pwm", .data = &pwm_data_vop },
-	{ .compatible = "rockchip,rk3328-pwm", .data = &pwm_data_v3 },
+	{ .compatible = "rockchip,rk3328-pwm", .data = &pwm_data_v3_rk3328 },
+	{ .compatible = "rockchip,rv1126-pwm", .data = &pwm_data_v3_rv1126 },
 	{ .compatible = "rockchip,rk3576-pwm", .data = &pwm_data_v4_rk3576 },
 	{ .compatible = "rockchip,rk3506-pwm", .data = &pwm_data_v4_rk3506 },
 	{ .compatible = "rockchip,rk3538-pwm", .data = &pwm_data_v4_rk3538 },
@@ -2507,7 +2536,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long irq_flags;
 	u32 enable_conf, ctrl, feature;
-	u32 clk_src_sel = SRC_CLK_PWM;
+	u32 clk_src_sel = 0;
 	const char *clk_src_name = "pwm";
 	bool enabled;
 	int ret, count;
@@ -2529,12 +2558,31 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	if (!device_property_read_string(&pdev->dev, "rockchip,clk-src", &clk_src_name)) {
-		if (!strcmp(clk_src_name, "osc"))
-			clk_src_sel = SRC_CLK_PWM_OSC;
-		else if (!strcmp(clk_src_name, "rc"))
-			clk_src_sel = SRC_CLK_PWM_RC;
+	pc->data = device_get_match_data(&pdev->dev);
+	pc->main_version = pc->data->main_version;
+
+	if (pc->data->supports_clk_sel) {
+		clk_src_sel = pc->main_version >= 4 ? SRC_CLK_PWM : PWM_SRC_SEL_CLK_PWM;
+		if (!device_property_read_string(&pdev->dev, "rockchip,clk-src", &clk_src_name)) {
+			if (!strcmp(clk_src_name, "osc")) {
+				clk_src_sel = pc->main_version >= 4 ? SRC_CLK_PWM_OSC :
+								      PWM_SRC_SEL_CLK_OSC;
+			} else if (!strcmp(clk_src_name, "rc")) {
+				if (pc->main_version < 4) {
+					dev_warn(&pdev->dev, "Unsupported clk 'rc' for PWM v%d\n",
+						 pc->main_version);
+					clk_src_name = "pwm";
+				} else {
+					clk_src_sel = SRC_CLK_PWM_RC;
+				}
+			} else {
+				dev_warn(&pdev->dev, "Invalid clk '%s', fall back to clk 'pwm'\n",
+					 clk_src_name);
+				clk_src_name = "pwm";
+			}
+		}
 	}
+
 	pc->clk = devm_clk_get_enabled(&pdev->dev, clk_src_name);
 	if (IS_ERR(pc->clk)) {
 		pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
@@ -2570,9 +2618,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->active_state);
 	}
 
-	pc->data = device_get_match_data(&pdev->dev);
 	pc->clk_rate = clk_get_rate(pc->clk);
-	pc->main_version = pc->data->main_version;
 	if (pc->main_version < 4) {
 		pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
 	} else if (pc->main_version == 4 && rockchip_pwm_get_minor_version(pc) < 1) {
@@ -2599,9 +2645,6 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
 		return -EINVAL;
 	}
-
-	if (pc->main_version == 4)
-		writel_relaxed(CLK_SRC_SEL(clk_src_sel), pc->base + CLK_CTRL);
 
 	if (pc->freq_meter_support)
 		init_completion(&pc->freq_meter_completion);
@@ -2638,6 +2681,15 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	else
 		ctrl = readl_relaxed(pc->base + pc->data->regs->ctrl);
 	enabled = (ctrl & enable_conf) == enable_conf;
+
+	if (pc->data->supports_clk_sel) {
+		if (pc->main_version >= 4) {
+			writel_relaxed(CLK_SRC_SEL(clk_src_sel), pc->base + CLK_CTRL);
+		} else {
+			ctrl = (ctrl & ~PWM_CLK_SRC_SEL_MASK) | clk_src_sel;
+			writel_relaxed(ctrl, pc->base + pc->data->regs->ctrl);
+		}
+	}
 
 	pc->center_aligned =
 		device_property_read_bool(&pdev->dev, "center-aligned");
