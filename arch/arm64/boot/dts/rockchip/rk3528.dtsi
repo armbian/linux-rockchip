@@ -1814,100 +1814,100 @@
 	};
 
 	pwm0: pwm@ffa90000 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa90000 0x0 0x10>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_CAPTURE_PWM0>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm1: pwm@ffa90010 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa90010 0x0 0x10>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_CAPTURE_PWM0>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm2: pwm@ffa90020 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa90020 0x0 0x10>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_CAPTURE_PWM0>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm3: pwm@ffa90030 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa90030 0x0 0x10>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>, <&cru CLK_CAPTURE_PWM0>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm4: pwm@ffa98000 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa98000 0x0 0x10>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_CAPTURE_PWM1>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm5: pwm@ffa98010 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa98010 0x0 0x10>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_CAPTURE_PWM1>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm6: pwm@ffa98020 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa98020 0x0 0x10>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_CAPTURE_PWM1>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
 	pwm7: pwm@ffa98030 {
-		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
+		compatible = "rockchip,rk3528-pwm", "rockchip,rv1126-pwm";
 		reg = <0x0 0xffa98030 0x0 0x10>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm7m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
-		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>, <&cru CLK_CAPTURE_PWM1>;
+		clock-names = "pwm", "pclk", "osc";
 		status = "disabled";
 	};
 
