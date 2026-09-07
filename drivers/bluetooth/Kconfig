@@ -280,6 +280,17 @@ config BT_HCIUART_ROCKCHIP
 
 	  Say Y here to compile support for Rockchip RK96x protocol.
 
+config BT_HCIUART_AIC
+	bool "AIC H4 protocol support"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	select BT_HCIUART_H4
+	help
+	  This is a simple H4 protocol based on Marvell protocol for AIC8800
+	  Bluetooth controller to replace use of hciattach any.
+
+	  Say Y here to compile support for HCI AIC protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB
