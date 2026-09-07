@@ -30,20 +30,37 @@ properties:
           - enum:
               - rockchip,px30-pwm
               - rockchip,rk3308-pwm
+          - const: rockchip,rk3328-pwm
+      - const: rockchip,rv1126-pwm
+      - items:
+          - enum:
+              - rockchip,rk3528-pwm
+              - rockchip,rk3562-pwm
               - rockchip,rk3568-pwm
               - rockchip,rk3588-pwm
-              - rockchip,rv1126-pwm
-          - const: rockchip,rk3328-pwm
+              - rockchip,rv1106-pwm
+          - const: rockchip,rv1126-pwm
 
   reg:
     maxItems: 1
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   clock-names:
-    maxItems: 2
+    maxItems: 3
+
+  rockchip,clk-src:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [pwm, osc, rc]
+    default: pwm
+    description:
+      Select the clock source of the PWM controller. The 'pwm' clock
+      comes from the CRU, the 'osc' clock is typically the 24MHz
+      oscillator, and the 'rc' clock is the internal RC oscillator
+      which is only supported by PWM v4. If unspecified, the 'pwm'
+      clock is used.
 
   "#pwm-cells":
     enum: [2, 3]
@@ -83,15 +100,43 @@ allOf:
         - clock-names
 
     else:
-      properties:
-        clocks:
-          maxItems: 1
-          description:
-            Used both to derive the functional clock
-            for the device and as the bus clock.
+      if:
+        properties:
+          compatible:
+            contains:
+              const: rockchip,rv1126-pwm
 
-      required:
-        - clocks
+      then:
+        properties:
+          clocks:
+            minItems: 2
+            items:
+              - description: Used to derive the functional clock for the device.
+              - description: Used as the APB bus clock.
+              - description: Alternative clock source for the PWM controller,
+                  typically the 24MHz oscillator clock.
+
+          clock-names:
+            minItems: 2
+            items:
+              - const: pwm
+              - const: pclk
+              - const: osc
+
+        required:
+          - clocks
+          - clock-names
+
+      else:
+        properties:
+          clocks:
+            maxItems: 1
+            description:
+              Used both to derive the functional clock
+              for the device and as the bus clock.
+
+        required:
+          - clocks
 
 additionalProperties: false
 
