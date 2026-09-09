@@ -139,25 +139,48 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	rockchip-rk3588-panthor-gpu.dtbo \
 	rk3528-rock-2-enable-pcie.dtbo \
 	rk3566-roc-pc-sata2.dtbo \
+	rk3576-can0-m2.dtbo \
 	rk3576-can1-m1.dtbo \
+	rk3576-can1-m2.dtbo \
 	rk3576-i2c0-m1.dtbo \
 	rk3576-i2c1-m0.dtbo \
 	rk3576-i2c2-m0.dtbo \
 	rk3576-i2c3-m0.dtbo \
+	rk3576-i2c3-m1.dtbo \
+	rk3576-i2c4-m1-pullup.dtbo \
 	rk3576-i2c4-m3.dtbo \
 	rk3576-i2c5-m3.dtbo \
 	rk3576-i2c6-m0.dtbo \
 	rk3576-i2c7-m1.dtbo \
+	rk3576-i2c7-m1-pullup.dtbo \
 	rk3576-i2c8-m2.dtbo \
+	rk3576-i2c8-m2-pullup.dtbo \
+	rk3576-pwm0-ch0-m0.dtbo \
+	rk3576-pwm1-ch0-m2.dtbo \
 	rk3576-pwm1-ch0-m3.dtbo \
+	rk3576-pwm1-ch1-m2.dtbo \
+	rk3576-pwm1-ch2-m2.dtbo \
+	rk3576-pwm1-ch3-m2.dtbo \
+	rk3576-pwm1-ch4-m2.dtbo \
+	rk3576-pwm2-ch0-m2.dtbo \
+	rk3576-pwm2-ch1-m2.dtbo \
+	rk3576-pwm2-ch2-m1.dtbo \
+	rk3576-pwm2-ch3-m1.dtbo \
 	rk3576-pwm2-ch6-m2.dtbo \
 	rk3576-pwm2-ch7-m2.dtbo \
 	rk3576-raspi-7inch-touchscreen-i2c6-m3.dtbo \
+	rk3576-spi1-m1-spidev.dtbo \
+	rk3576-spi3-m0-spidev.dtbo \
 	rk3576-spi4-m0-cs1-spidev.dtbo \
+	rk3576-uart2-m1.dtbo \
 	rk3576-uart2-m2.dtbo \
+	rk3576-uart3-m0.dtbo \
+	rk3576-uart6-m0.dtbo \
 	rk3576-uart6-m3.dtbo \
 	rk3576-uart7-m0.dtbo \
+	rk3576-uart9-m0.dtbo \
 	rk3576-uart10-m2.dtbo \
+	rk3576-uart11-m1.dtbo \
 	rk3588-can0-m0.dtbo \
 	rk3588-can1-m0.dtbo \
 	rk3588-can1-m1.dtbo \
