@@ -4257,7 +4257,7 @@
 			cpul_leakage: cpul-leakage@33 {
 				reg = <0x33 0x1>;
 			};
-			gpu_leakage: npu-leakage@34 {
+			gpu_leakage: gpu-leakage@34 {
 				reg = <0x34 0x1>;
 			};
 			npu_leakage: npu-leakage@35 {
