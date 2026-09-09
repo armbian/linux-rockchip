@@ -1168,6 +1168,25 @@ static int yt8531_config_init(struct phy_device *phydev)
 	return ret;
 }
 
+/*
+ * stmmac hard-resets the PHY on every resume (stmmac_mdio_reset() in
+ * stmmac_resume()) and, because it uses MAC-managed PM, phylib never
+ * calls phy_init_hw() again: the generic resume only clears BMCR_PDOWN and
+ * the extended registers stay at their power-on defaults (measured on an
+ * Orange Pi 5B: 0xa010 = 0x6bff, 0xa012 = 0xc8 after every rtcwake -m mem
+ * instead of what config_init wrote).  Redo the init before resuming.
+ */
+static int yt8531_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = yt8531_config_init(phydev);
+	if (ret < 0)
+		return ret;
+
+	return genphy_resume(phydev);
+}
+
 static struct phy_driver motorcomm_phy_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8011),
@@ -1235,7 +1254,7 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.features      = PHY_GBIT_FEATURES,
 		.config_init   = yt8531_config_init,
 		.suspend       = genphy_suspend,
-		.resume        = genphy_resume,
+		.resume        = yt8531_resume,
 #if (YTPHY_WOL_FEATURE_ENABLE)
 		.get_wol       = &ytphy_wol_feature_get,
 		.set_wol       = &ytphy_wol_feature_set,
