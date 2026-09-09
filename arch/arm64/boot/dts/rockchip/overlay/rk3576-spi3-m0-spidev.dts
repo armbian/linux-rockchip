@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	fragment@0 {
+		target = <&spi3>;
+
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi3m0_csn0 &spi3m0_pins>;
+
+			spidev@0 {
+				compatible = "spidev";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+				status = "okay";
+			};
+		};
+	};
+};
