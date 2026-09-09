@@ -1813,6 +1813,65 @@ static void rkcif_disable_capture(struct rkcif_stream *stream)
 	stream->is_pause_stream = true;
 }
 
+/*
+ * Single-cam ONLINE_UNITE right-half needs CSI DMA in addition to
+ * capture/toisp (fixed right buf, HDR2-online-long style).
+ * Dual ONLINE_UNITE (is_multi_online) rotates like RDBK — DMA stop/restart
+ * stays on the lack-buf / ISP-return path; do not force re-enable here.
+ *
+ * HDR_CIS_MERGE maps to stream0 like NO_HDR; current flip/quick_stream
+ * call sites only enter the NO_HDR / HDR_X2@1 / HDR_X3@2 branches, so
+ * that case is unused from those paths today. hdr_mode is read from
+ * dev->hdr, consistent with the existing online paths (not priv->hdr_cfg).
+ */
+static bool rkcif_online_unite_stream_needs_dma(struct rkcif_device *dev,
+						struct rkcif_stream *stream)
+{
+	struct sditf_priv *priv = dev->sditf[0];
+
+	if (!priv || priv->mode.rdbk_mode != RKISP_VICAP_ONLINE_UNITE)
+		return false;
+	if (sditf_is_online_unite_multi(priv))
+		return false;
+	if (dev->hdr.hdr_mode == NO_HDR ||
+	    dev->hdr.hdr_mode == HDR_CIS_MERGE)
+		return stream->id == 0;
+	if (dev->hdr.hdr_mode == HDR_X2)
+		return stream->id == 1;
+	if (dev->hdr.hdr_mode == HDR_X3)
+		return stream->id == 2;
+	return false;
+}
+
+/*
+ * Re-arm single-cam ONLINE_UNITE ISP DMA after flip soft reset / resume.
+ * HW premise: CSI soft reset only resets internal logic and keeps the DMA
+ * enable registers, so rewriting the same value (or a stop-then-enable
+ * pair) restarts the DMA state machine. quick_stream re-arms before soft
+ * reset while flip_end re-arms after it; both rely on that premise. SW
+ * dma_en may still be set so enable_dma would early-return without
+ * rewriting HW; drop the bit to force a register write. Single-cam uses a
+ * fixed right-half buf — no need to check current list emptiness.
+ *
+ * Call sites run in process context with sensor/dphy already off (flip /
+ * quick-stream phases), so the dma_en / to_en_dma RMW here cannot race
+ * the irq-side RMW of the same fields. Note irq-side RMW of these fields
+ * does not uniformly hold stream_spinlock; safety comes from this phase
+ * isolation, not from that lock.
+ */
+static void rkcif_online_unite_re_enable_dma(struct rkcif_stream *stream)
+{
+	u32 dma_en_before = stream->dma_en;
+
+	stream->dma_en &= ~RKCIF_DMAEN_BY_ISP;
+	stream->to_en_dma |= RKCIF_DMAEN_BY_ISP;
+	v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+		 "ONLINE_UNITE re-enable dma stream[%d] dma_en 0x%x -> 0x%x\n",
+		 stream->id, dma_en_before,
+		 stream->dma_en | RKCIF_DMAEN_BY_ISP);
+	rkcif_enable_dma_capture(stream, true);
+}
+
 int rkcif_get_linetime(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
@@ -11024,8 +11083,18 @@ int rkcif_quick_stream_on_locked(struct rkcif_device *dev, bool is_intr,
 			    (dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
 			    (dev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
 				rkcif_enable_capture(stream);
+				/* Single ONLINE_UNITE: capture/toisp + right-half DMA */
+				if (rkcif_online_unite_stream_needs_dma(dev, stream))
+					rkcif_online_unite_re_enable_dma(stream);
 			} else {
-				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
+				/*
+				 * Also covers plain ONLINE short-exposure
+				 * streams (beyond ONLINE_UNITE); call sites
+				 * run in the sensor stop window, so the
+				 * clear-and-rewrite is safe.
+				 */
+				stream->dma_en &= ~RKCIF_DMAEN_BY_ISP;
+				stream->to_en_dma |= RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(stream, true);
 			}
 		}
@@ -11238,8 +11307,26 @@ static void rkcif_streams_restore_capture(struct rkcif_device *dev, int stream_n
 			    (dev->hdr.hdr_mode == HDR_X2 && cur_stream->id == 1) ||
 			    (dev->hdr.hdr_mode == HDR_X3 && cur_stream->id == 2)) {
 				rkcif_enable_capture(cur_stream);
+				/*
+				 * Pure online only needs capture. Single-cam
+				 * ONLINE_UNITE must also re-arm right-half DMA
+				 * after soft reset (internal logic only; regs
+				 * kept) so enable_dma actually rewrites HW.
+				 */
+				if (rkcif_online_unite_stream_needs_dma(dev, cur_stream))
+					rkcif_online_unite_re_enable_dma(cur_stream);
 			} else {
-				cur_stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
+				/*
+				 * Short HDR exposures (and unused HDR_CIS_MERGE
+				 * from these call sites): clear-and-rewrite so
+				 * a stale dma_en does not skip the HW write.
+				 * Also covers plain ONLINE short-exposure
+				 * streams (beyond ONLINE_UNITE); call sites
+				 * run in the sensor stop window, so this is
+				 * safe.
+				 */
+				cur_stream->dma_en &= ~RKCIF_DMAEN_BY_ISP;
+				cur_stream->to_en_dma |= RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(cur_stream, true);
 			}
 		}
@@ -15439,6 +15526,71 @@ static void rkcif_thunderboot_free_rx_buffer(struct rkcif_device *cif_dev)
 	}
 }
 
+/*
+ * Finish a pending toisp stop request on the frame end of the stream. Stop
+ * the capture/dma path unless stream switching is in use with other streams
+ * of the same host still pending; complete the waiters on success and keep
+ * waiting on failure so the stop is retried on the next frame end.
+ */
+static void rkcif_toisp_stop_on_fe(struct rkcif_stream *stream)
+{
+	struct rkcif_device *cif_dev = stream->cifdev;
+	struct rkcif_switch_info *switch_info = &cif_dev->switch_info;
+	bool stop_dma_now;
+	bool is_main_stream;
+	int ret = 0;
+
+	/*
+	 * With stream switching in use, only stop the hardware once no other
+	 * stream of the same host is pending (cnt == 0); otherwise skip the
+	 * stop and just mark the stream paused below.
+	 */
+	stop_dma_now = !switch_info->is_use_switch ||
+		atomic_read(&cif_dev->hw_dev->switch_stream_cnt[switch_info->host_idx]) == 0;
+	is_main_stream = cif_dev->hdr.hdr_mode == NO_HDR ||
+		(cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+		(cif_dev->hdr.hdr_mode == HDR_X3 && stream->id == 2);
+
+	if (stop_dma_now) {
+		if (is_main_stream) {
+			rkcif_disable_capture(stream);
+			/*
+			 * Single ONLINE_UNITE also owns right-half DMA. Stop it
+			 * here so streamoff_cnt pairs with the later
+			 * rkcif_online_unite_re_enable_dma (enable_dma always
+			 * atomic_dec).
+			 */
+			if (rkcif_online_unite_stream_needs_dma(cif_dev, stream)) {
+				stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+				ret = rkcif_stop_dma_capture(stream);
+			}
+		} else {
+			stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+			ret = rkcif_stop_dma_capture(stream);
+		}
+	}
+
+	/*
+	 * On failure to_stop_dma stays armed (stop does not clear it); keep
+	 * waiting for the next frame FE to retry the stop.
+	 */
+	if (ret) {
+		v4l2_warn(&cif_dev->v4l2_dev,
+			  "stream[%d] stop dma 0x%x failed %d, retry on next fe\n",
+			  stream->id, stream->to_stop_dma, ret);
+		return;
+	}
+
+	if (switch_info->is_use_switch) {
+		switch_info->is_stream_pause = true;
+		v4l2_dbg(5, rkcif_debug, &cif_dev->v4l2_dev,
+			 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
+			 atomic_read(&cif_dev->hw_dev->switch_stream_cnt[switch_info->host_idx]));
+	}
+	stream->is_wait_stop_complete = false;
+	complete(&stream->stop_complete);
+}
+
 static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					  unsigned int intstat_glb,
 					  int index)
@@ -15541,27 +15693,8 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 			} else {
 				spin_unlock_irqrestore(&stream->cifdev->stream_spinlock, flags);
 			}
-			if (stream->is_wait_stop_complete) {
-				if (!stream->cifdev->switch_info.is_use_switch ||
-				    atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]) == 0) {
-					if (stream->cifdev->hdr.hdr_mode == NO_HDR ||
-					    (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
-					    (stream->cifdev->hdr.hdr_mode == HDR_X3 && stream->id == 2)) {
-						rkcif_disable_capture(stream);
-					} else {
-						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
-						rkcif_stop_dma_capture(stream);
-					}
-				}
-				if (stream->cifdev->switch_info.is_use_switch) {
-					stream->cifdev->switch_info.is_stream_pause = true;
-					v4l2_dbg(5, rkcif_debug, &stream->cifdev->v4l2_dev,
-						 "%s %d, switch dec cnt %d\n", __func__, __LINE__,
-						 atomic_read(&stream->cifdev->hw_dev->switch_stream_cnt[stream->cifdev->switch_info.host_idx]));
-				}
-				stream->is_wait_stop_complete = false;
-				complete(&stream->stop_complete);
-			}
+			if (stream->is_wait_stop_complete)
+				rkcif_toisp_stop_on_fe(stream);
 			if (stream->cur_skip_frame && !stream->cifdev->is_in_flip &&
 			    (stream->cifdev->hdr.hdr_mode == NO_HDR ||
 			     (stream->cifdev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
