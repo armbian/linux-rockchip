@@ -235,11 +235,12 @@ enum soc_type {
 	RV1126,
 };
 
+/* Unit: MHz */
 enum phy_max_rate {
-	MAX_1GHZ = 1000 * HZ_PER_MHZ,
-	MAX_1_5GHZ = 1500 * HZ_PER_MHZ,
-	MAX_2_5GHZ = 2500 * HZ_PER_MHZ,
-	MAX_4_5GHZ = 4500 * HZ_PER_MHZ,
+	MAX_1GHZ = 1000,
+	MAX_1_5GHZ = 1500,
+	MAX_2_5GHZ = 2500,
+	MAX_4_5GHZ = 4500,
 };
 
 struct inno_video_phy_reg {
@@ -445,8 +446,8 @@ inno_dsidphy_max_2_5ghz_or_4_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 						unsigned long long rate)
 {
 	u64 prate = clk_get_rate(inno->ref_clk);
-	u64 max_rate = inno->pdata->max_rate;
-	u64 max_vco = (inno->pdata->max_rate == MAX_4_5GHZ ? 5000 : 3000) * HZ_PER_MHZ;
+	u64 max_rate = (u64)inno->pdata->max_rate * HZ_PER_MHZ;
+	u64 max_vco = (inno->pdata->max_rate == MAX_4_5GHZ ? 5000ULL : 3000ULL) * HZ_PER_MHZ;
 	u64 min_vco = 1000 * HZ_PER_MHZ;
 	u64 fvco;
 	u64 best_freq = 0;
@@ -537,7 +538,7 @@ inno_dsidphy_max_1ghz_or_1_5ghz_pll_calc_rate(struct inno_dsidphy *inno,
 					      unsigned long long rate)
 {
 	unsigned long prate = clk_get_rate(inno->ref_clk);
-	unsigned long long max_rate = inno->pdata->max_rate;
+	unsigned long long max_rate = (u64)inno->pdata->max_rate * HZ_PER_MHZ;
 	unsigned long long best_freq = 0;
 	unsigned long long fref, fout;
 	u8 min_prediv, max_prediv;
