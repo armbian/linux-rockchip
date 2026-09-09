@@ -13,6 +13,10 @@
 	compatible = "rockchip,rv1106b-evb2-v10-bga-spi-nor", "rockchip,rv1106b";
 };
 
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+};
+
 &gmac {
 	status = "disabled";
 };
