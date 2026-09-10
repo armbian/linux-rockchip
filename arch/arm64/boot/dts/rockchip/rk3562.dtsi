@@ -1431,7 +1431,7 @@
 	};
 
 	pwm0: pwm@ff230000 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230000 0x0 0x10>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -1443,7 +1443,7 @@
 	};
 
 	pwm1: pwm@ff230010 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230010 0x0 0x10>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -1455,7 +1455,7 @@
 	};
 
 	pwm2: pwm@ff230020 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230020 0x0 0x10>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -1467,7 +1467,7 @@
 	};
 
 	pwm3: pwm@ff230030 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230030 0x0 0x10>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
@@ -2470,7 +2470,7 @@
 	};
 
 	pwm4: pwm@ff700000 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700000 0x0 0x10>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2482,7 +2482,7 @@
 	};
 
 	pwm5: pwm@ff700010 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700010 0x0 0x10>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2494,7 +2494,7 @@
 	};
 
 	pwm6: pwm@ff700020 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700020 0x0 0x10>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2506,7 +2506,7 @@
 	};
 
 	pwm7: pwm@ff700030 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700030 0x0 0x10>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -2519,7 +2519,7 @@
 	};
 
 	pwm8: pwm@ff710000 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710000 0x0 0x10>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2531,7 +2531,7 @@
 	};
 
 	pwm9: pwm@ff710010 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710010 0x0 0x10>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2543,7 +2543,7 @@
 	};
 
 	pwm10: pwm@ff710020 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710020 0x0 0x10>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2555,7 +2555,7 @@
 	};
 
 	pwm11: pwm@ff710030 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710030 0x0 0x10>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
@@ -2568,7 +2568,7 @@
 	};
 
 	pwm12: pwm@ff720000 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720000 0x0 0x10>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2580,7 +2580,7 @@
 	};
 
 	pwm13: pwm@ff720010 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720010 0x0 0x10>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2592,7 +2592,7 @@
 	};
 
 	pwm14: pwm@ff720020 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720020 0x0 0x10>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
@@ -2604,7 +2604,7 @@
 	};
 
 	pwm15: pwm@ff720030 {
-		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm";
+		compatible = "rockchip,rk3562-pwm", "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720030 0x0 0x10>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
