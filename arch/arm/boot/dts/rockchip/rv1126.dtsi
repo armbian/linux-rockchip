@@ -961,7 +961,7 @@
 	};
 
 	pwm0: pwm@ff430000 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff430000 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>, <&pmucru CLK_CAPTURE_PWM0>;
@@ -973,7 +973,7 @@
 	};
 
 	pwm1: pwm@ff430010 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff430010 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>, <&pmucru CLK_CAPTURE_PWM0>;
@@ -985,7 +985,7 @@
 	};
 
 	pwm2: pwm@ff430020 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff430020 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>, <&pmucru CLK_CAPTURE_PWM0>;
@@ -997,7 +997,7 @@
 	};
 
 	pwm3: pwm@ff430030 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff430030 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>, <&pmucru CLK_CAPTURE_PWM0>;
@@ -1010,7 +1010,7 @@
 	};
 
 	pwm4: pwm@ff440000 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff440000 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>, <&pmucru CLK_CAPTURE_PWM1>;
@@ -1022,7 +1022,7 @@
 	};
 
 	pwm5: pwm@ff440010 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff440010 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>, <&pmucru CLK_CAPTURE_PWM1>;
@@ -1034,7 +1034,7 @@
 	};
 
 	pwm6: pwm@ff440020 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff440020 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>, <&pmucru CLK_CAPTURE_PWM1>;
@@ -1046,7 +1046,7 @@
 	};
 
 	pwm7: pwm@ff440030 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff440030 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>, <&pmucru CLK_CAPTURE_PWM1>;
@@ -1295,7 +1295,7 @@
 	};
 
 	pwm8: pwm@ff550000 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff550000 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_CAPTURE_PWM2>;
@@ -1307,7 +1307,7 @@
 	};
 
 	pwm9: pwm@ff550010 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff550010 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_CAPTURE_PWM2>;
@@ -1319,7 +1319,7 @@
 	};
 
 	pwm10: pwm@ff550020 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff550020 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_CAPTURE_PWM2>;
@@ -1331,7 +1331,7 @@
 	};
 
 	pwm11: pwm@ff550030 {
-		compatible = "rockchip,rv1126-pwm";
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
 		reg = <0xff550030 0x10>;
 		clock-names = "pwm", "pclk", "osc";
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>, <&cru CLK_CAPTURE_PWM2>;
