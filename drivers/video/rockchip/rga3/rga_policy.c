@@ -111,6 +111,16 @@ static bool rga_check_csc(struct rga_job *job,
 		break;
 	}
 
+	if (data == &rga3_data &&
+	    !rga_base->alpha_rop_enable &&
+	    (rga_base->yuv2rgb_mode & RGA_Y2R_MASK) &&
+	    (rga_base->yuv2rgb_mode & RGA_R2Y_MASK)) {
+		if (DEBUGGER_EN(MSG))
+			rga_job_log(job, "unsupported yuv -> rgb -> yuv, mode[%#x]\n",
+				    rga_base->yuv2rgb_mode);
+		return false;
+	}
+
 	if ((rga_base->full_csc.flag & 0x1) &&
 	    !(data->feature & (RGA_FULL_CSC | RGA_FULL_CSC_10BIT))) {
 		/*
