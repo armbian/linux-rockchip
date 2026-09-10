@@ -2803,6 +2803,7 @@
 		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		rockchip,sclk-x2-bypass;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
