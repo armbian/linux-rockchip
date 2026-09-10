@@ -440,6 +440,14 @@
 		compatible = "atmel,24c32";
 		reg = <0x50>;
 		pagesize = <32>;
+		/*
+		 * WP (GPIO0_D1, active-high): weak pull-up at probe =
+		 * write-protected by default. Unlock transiently from
+		 * userspace before writing: gpioset gpiochip0 25=0,
+		 * then =1 to re-lock.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&eeprom_wp_pu>;
 	};
 
 	pcf85063: rtc@51 {
@@ -478,6 +486,12 @@
 	rtc_pinctrl {
 		rtc_int: rtc-int {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	eeprom_pinctrl {
+		eeprom_wp_pu: eeprom-wp-pu {
+			rockchip,pins = <0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

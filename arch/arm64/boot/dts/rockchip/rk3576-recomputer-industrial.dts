@@ -114,6 +114,26 @@
 			gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
+
+		/* CAN 120R termination switch (GPIO2_A6): brightness
+		 * 1 = terminator connected, 0 = disconnected (default).
+		 * Userspace: /sys/class/leds/can-120r-en/brightness
+		 */
+		can-120r-en {
+			gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			default-state = "off";
+		};
+
+		/* Isolated 5V DCDC (IB0505S) enable (GPIO2_A4): brightness
+		 * 1 = rail on (default), 0 = rail off.
+		 * Userspace: /sys/class/leds/iso-5v-en/brightness
+		 */
+		iso-5v-en {
+			gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			default-state = "on";
+		};
 	};
 
 	/*
@@ -479,6 +499,16 @@
 };
 
 &gpio0 {
+	gpio-line-names =
+		/* GPIO0_A0-A7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO0_B0-B7 */
+		"", "", "", "", "TYPEC_INT", "CH344_RESET", "", "",
+		/* GPIO0_C0-C7 */
+		"", "", "", "USB_HUB_RESET", "EXT_WDT_WDI", "STATE_LED", "", "",
+		/* GPIO0_D0-D7 */
+		"", "EEPROM_WP", "", "", "", "", "", "";
+
 	/* USB5744 hub reset, UPR (GPIO0_C3) */
 	usb_hub_reset_hog: usb-hub-reset-hog {
 		gpio-hog;
@@ -493,38 +523,6 @@
 		gpios = <RK_PB5 GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "ch344_reset";
-	};
-
-	/* EEPROM FT24C32 nWP (GPIO0_D1): low = writable, high = write-protect.
-	 * The at24 driver in this kernel does not toggle a wp-gpios line, so
-	 * hog GPIO0_D1 low to allow page writes (read/write/restore test).
-	 */
-	eeprom_wp_hog: eeprom-wp-hog {
-		gpio-hog;
-		gpios = <RK_PD1 GPIO_ACTIVE_HIGH>;
-		output-low;
-		line-name = "eeprom_wp";
-	};
-};
-
-&gpio2 {
-	/*
-	 * CAN 120-ohm termination switch (GPIO2_A6):
-	 * low = terminator disconnected (default)
-	 */
-	can_120r_hog: can-120r-hog {
-		gpio-hog;
-		gpios = <RK_PA6 GPIO_ACTIVE_HIGH>;
-		output-low;
-		line-name = "can_120r_en";
-	};
-
-	/* Isolated 5V DCDC (IB0505S) enable, GPIO2_A4 */
-	iso_5v_hog: iso-5v-hog {
-		gpio-hog;
-		gpios = <RK_PA4 GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "5v_iso_en";
 	};
 };
 
