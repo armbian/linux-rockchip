@@ -6689,8 +6689,11 @@ extern int get_wifi_custom_mac_address(char *addr_str);
 #endif//CONFIG_USE_CUSTOMER_MAC
 #endif//CONFIG_PLATFORM_ALLWINNER
 
-#ifdef CONFIG_PLATFORM_ROCKCHIP
+#if defined(CONFIG_PLATFORM_ROCKCHIP) || IS_ENABLED(CONFIG_RFKILL_RK)
 #include <linux/rfkill-wlan.h>
+#include <asm/system_info.h>
+/* asm/system_info.h is arm/arm64 only, so gate every use of system_serial_* */
+#define RWNX_HAVE_SOC_SERIAL 1
 #endif
 #ifdef CONFIG_PLATFORM_ROCKCHIP2
 #include <linux/rfkill-wlan.h>
@@ -6745,6 +6748,7 @@ int rwnx_cfg80211_init(struct rwnx_plat *rwnx_plat, void **platform_data)
 	//struct mm_set_rf_calib_cfm cfm;
 	struct mm_get_fw_version_cfm fw_version;
 	u8_l mac_addr_efuse[ETH_ALEN];
+	const char *mac_src = "vendor storage";
 	struct aicbsp_feature_t feature;
 	struct mm_set_stack_start_cfm set_start_cfm;
 #ifdef CONFIG_TEMP_COMP
@@ -6758,7 +6762,20 @@ int rwnx_cfg80211_init(struct rwnx_plat *rwnx_plat, void **platform_data)
 	memset(fw_path, 0, 200);
 	aicbsp_get_feature(&feature, fw_path);
 
-	get_random_bytes(&dflt_mac[4], 2);
+	/* This fallback address is what a board with no MAC in efuse ends up using,
+	 * and a random tail moves it on every boot. Derive it from the SoC's OTP id
+	 * instead, keeping the vendor OUI.
+	 */
+#ifdef RWNX_HAVE_SOC_SERIAL
+	if (system_serial_high || system_serial_low) {
+		dflt_mac[3] = system_serial_high >> 8;
+		dflt_mac[4] = system_serial_high;
+		dflt_mac[5] = system_serial_low;
+	} else
+#endif
+	{
+		get_random_bytes(&dflt_mac[4], 2);
+	}
 
 	/* create a new wiphy for use with cfg80211 */
     AICWFDBG(LOGINFO, "%s sizeof(struct rwnx_hw):%d \r\n", __func__, (int)sizeof(struct rwnx_hw));
@@ -6995,9 +7012,24 @@ int rwnx_cfg80211_init(struct rwnx_plat *rwnx_plat, void **platform_data)
         memcpy(init_conf.mac_addr, dflt_mac, ETH_ALEN);
     }
 #else
-	ret = rwnx_send_get_macaddr_req(rwnx_hw, (struct mm_get_mac_addr_cfm *)mac_addr_efuse);
-	if (ret)
-		goto err_lmac_reqs;
+	ret = -ENODEV;
+#if IS_ENABLED(CONFIG_RFKILL_RK)
+	/* a MAC in vendor storage is authoritative and wins over the fallback */
+	ret = rockchip_wifi_mac_addr(mac_addr_efuse);
+#endif
+	if (ret) {
+		mac_src = "efuse";
+		ret = rwnx_send_get_macaddr_req(rwnx_hw, (struct mm_get_mac_addr_cfm *)mac_addr_efuse);
+		if (ret)
+			goto err_lmac_reqs;
+	}
+	if (!(mac_addr_efuse[0] | mac_addr_efuse[1] | mac_addr_efuse[2] | mac_addr_efuse[3])) {
+#ifdef RWNX_HAVE_SOC_SERIAL
+		mac_src = (system_serial_high || system_serial_low) ? "soc otp id" : "random";
+#else
+		mac_src = "random";
+#endif
+	}
 #endif
 
 	if (mac_addr_efuse[0] | mac_addr_efuse[1] | mac_addr_efuse[2] | mac_addr_efuse[3]) {
@@ -7010,6 +7042,7 @@ int rwnx_cfg80211_init(struct rwnx_plat *rwnx_plat, void **platform_data)
 	AICWFDBG(LOGINFO, "get macaddr: %02x:%02x:%02x:%02x:%02x:%02x\r\n",
 			mac_addr_efuse[0], mac_addr_efuse[1], mac_addr_efuse[2],
 			mac_addr_efuse[3], mac_addr_efuse[4], mac_addr_efuse[5]);
+	AICWFDBG(LOGERROR, "%s: mac %pM from %s\n", __func__, init_conf.mac_addr, mac_src);
 	memcpy(wiphy->perm_addr, init_conf.mac_addr, ETH_ALEN);
 
 	/* Reset FW */
