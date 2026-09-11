@@ -275,6 +275,11 @@ static inline bool is_invalid_id(const u8 *id)
 		(0x00 == id[0] && 0x00 == id[1]));
 }
 
+static bool rockchip_sfc_clk_is_direct(struct rockchip_sfc *sfc)
+{
+	return (sfc->version >= SFC_VER_4 && sfc->version < SFC_VER_8) || sfc->sclk_x2_bypass;
+}
+
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
 {
 	int err;
@@ -338,7 +343,7 @@ static void rockchip_sfc_set_delay_lines(struct rockchip_sfc *sfc, u16 cells, u8
 
 static int rockchip_sfc_clk_set_rate(struct rockchip_sfc *sfc, unsigned long  speed)
 {
-	if (sfc->version < SFC_VER_8 || sfc->sclk_x2_bypass)
+	if (rockchip_sfc_clk_is_direct(sfc))
 		return clk_set_rate(sfc->clk, speed);
 	else
 		return clk_set_rate(sfc->clk, speed * 2);
@@ -346,7 +351,7 @@ static int rockchip_sfc_clk_set_rate(struct rockchip_sfc *sfc, unsigned long  sp
 
 static unsigned long rockchip_sfc_clk_get_rate(struct rockchip_sfc *sfc)
 {
-	if (sfc->version < SFC_VER_8 || sfc->sclk_x2_bypass)
+	if (rockchip_sfc_clk_is_direct(sfc))
 		return clk_get_rate(sfc->clk);
 	else
 		return clk_get_rate(sfc->clk) / 2;
