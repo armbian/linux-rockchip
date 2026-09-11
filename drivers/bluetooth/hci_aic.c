@@ -117,19 +117,53 @@ static int aic_recv(struct hci_uart *hu, const void *data, int count)
 	return count;
 }
 
+static int aic_read_info(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_NAME, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Read local name failed (%ld)", PTR_ERR(skb));
+		return PTR_ERR(skb);
+	}
+
+	if (skb->len != sizeof(struct hci_rp_read_local_name)) {
+		bt_dev_err(hdev, "Local name length mismatch");
+		kfree_skb(skb);
+		return -EIO;
+	}
+
+	bt_dev_info(hdev, "%s", (char *)(skb->data + 1));
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int aic_setup(struct hci_uart *hu)
 {
 	int err;
 
-	/* The firmware might be loaded by the Wifi driver over SDIO. We wait
-	 * up to 10s for the CTS to go up. Afterward, we know that the firmware
-	 * is ready.
-	 */
-	err = serdev_device_wait_for_cts(hu->serdev, true, 10000);
+	/* Detect the bluetooth module */
+	err = serdev_device_wait_for_cts(hu->serdev, true, 500);
 	if (err) {
-		bt_dev_err(hu->hdev, "Wait for CTS failed with %d\n", err);
+		bt_dev_err(hu->hdev, "Wait for CTS failed with %d", err);
 		return err;
 	}
+
+	/* Request the Wifi driver to load firmware over SDIO */
+	err = request_module("aic8800_fdrv");
+	if (err) {
+		bt_dev_err(hu->hdev, "request_module failed: %d", err);
+		return err;
+	}
+
+	/* Wait for firmware to become ready */
+	msleep(100);
+
+	err = aic_read_info(hu->hdev);
+	if (err)
+		return err;
 
 	return 0;
 }
