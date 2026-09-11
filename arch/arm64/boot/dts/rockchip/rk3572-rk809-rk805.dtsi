@@ -466,8 +466,8 @@
 
 			vcc_3v3_micbias: LDO_REG3 {
 				regulator-name = "vcc_3v3_micbias";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
