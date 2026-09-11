@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
@@ -86,6 +87,9 @@ struct rk_priv_data {
 
 	struct csu_clk *csu_aclk;
 	struct csu_clk *csu_pclk;
+
+	/* address the bootloader supplied, kept if vendor storage has none */
+	unsigned char boot_mac[ETH_ALEN];
 };
 
 /* XPCS */
@@ -3062,6 +3066,13 @@ static void rk_get_eth_addr(void *priv, unsigned char *addr)
 	    !is_valid_ether_addr(&ethaddr[id * ETH_ALEN])) {
 		dev_err(dev, "%s: rk_vendor_read eth mac address failed (%d)\n",
 			__func__, ret);
+		/* Keep what the bootloader gave us rather than inventing a new
+		 * address the board never had.
+		 */
+		if (is_valid_ether_addr(bsp_priv->boot_mac)) {
+			ether_addr_copy(addr, bsp_priv->boot_mac);
+			goto out;
+		}
 		eth_random_addr(&ethaddr[id * ETH_ALEN]);
 		memcpy(addr, &ethaddr[id * ETH_ALEN], ETH_ALEN);
 		dev_err(dev, "%s: generate random eth mac address: %pM\n", __func__, addr);
@@ -3083,10 +3094,21 @@ out:
 	dev_err(dev, "%s: mac address: %pM\n", __func__, addr);
 }
 
+/*
+ * Vendor storage registers after this driver probes. Every GMAC waits on that
+ * one global store, so a single deadline covers them all. Deferred probe
+ * retries are frequent and the store has been seen to register within the same
+ * second, so keep the bound short: a board without vendor storage pays it once
+ * and then behaves exactly as before.
+ */
+#define RK_VENDOR_WAIT_MS	2000
+static unsigned long rk_vendor_wait_until;
+
 static int rk_gmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
+	struct rk_priv_data *bsp_priv;
 	const struct rk_gmac_ops *data;
 	int ret;
 
@@ -3104,6 +3126,24 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
+	/* An address carrying the locally-administered bit is one the bootloader
+	 * invented, not the one the board was assigned; vendor storage holds the
+	 * assigned one as LAN_MAC. That store registers after this driver probes,
+	 * so wait for it here - before anything is claimed, so a deferred retry
+	 * does not re-request resources this attempt already took.
+	 */
+	if (is_local_ether_addr(stmmac_res.mac) && !is_rk_vendor_ready()) {
+		if (!rk_vendor_wait_until)
+			rk_vendor_wait_until = jiffies +
+				msecs_to_jiffies(RK_VENDOR_WAIT_MS);
+		if (time_before(jiffies, rk_vendor_wait_until)) {
+			stmmac_remove_config_dt(pdev, plat_dat);
+			return -EPROBE_DEFER;
+		}
+		dev_warn(&pdev->dev, "vendor storage unavailable, keeping %pM\n",
+			 stmmac_res.mac);
+	}
+
 	/* If the stmmac is not already selected as gmac4,
 	 * then make sure we fallback to gmac.
 	 */
@@ -3120,6 +3160,17 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat->bsp_priv)) {
 		ret = PTR_ERR(plat_dat->bsp_priv);
 		goto err_remove_config_dt;
+	}
+
+	bsp_priv = plat_dat->bsp_priv;
+
+	/* Vendor storage was ready above, so take the assigned address from it:
+	 * blank the invented one - keeping a copy to fall back to - so
+	 * stmmac_check_ether_addr() asks rk_get_eth_addr() for LAN_MAC.
+	 */
+	if (is_local_ether_addr(stmmac_res.mac) && is_rk_vendor_ready()) {
+		ether_addr_copy(bsp_priv->boot_mac, stmmac_res.mac);
+		eth_zero_addr(stmmac_res.mac);
 	}
 
 	rk_gmac_csu_init(plat_dat);
