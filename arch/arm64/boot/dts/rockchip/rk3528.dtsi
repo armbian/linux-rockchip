@@ -2205,6 +2205,7 @@
 		clock-names = "clk_sfc", "hclk_sfc";
 		assigned-clocks = <&cru SCLK_SFC>;
 		assigned-clock-rates = <100000000>;
+		rockchip,sclk-x2-bypass;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
