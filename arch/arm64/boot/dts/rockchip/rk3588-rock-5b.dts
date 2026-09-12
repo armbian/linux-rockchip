@@ -29,8 +29,8 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		cooling-levels = <0 64 128 192 255>;
-		pwms = <&pwm1 0 60000 0>;
+		cooling-levels = <0 128 146 164 182 201 219 237 255>;
+		pwms = <&pwm1 0 25000 0>;
 	};
 
 	vcc12v_dcin: vcc12v-dcin {
