@@ -62,6 +62,7 @@ do {										\
 #define MPQ8655_READ_VOUT			0x8B	/* Read output voltage value */
 #define MPQ8655_READ_IOUT			0x8C	/* Read output current value */
 #define MPQ8655_READ_TEMPERATURE		0x8D	/* Read temperature value */
+#define MPQ8655_MFR_CTRL			0xEA	/* Phase / OSM / OCP hiccup control */
 
 #define MPQ8655_MFR_ID				0x99	/* the company identification */
 
@@ -80,6 +81,9 @@ do {										\
 #define MPQ8655_VOUT_RANGE_MASK			GENMASK(1, 0)
 #define MPQ8655_FREQ_MASK			GENMASK(2, 1)
 #define MPQ8655_PS_MODE				BIT(0)
+
+/* MFR_CTRL(EAh) bit definitions */
+#define MPQ8655_PHASE_MULTI			BIT(3)
 
 /* Default parameter settings */
 #define MPQ8655_OT_FAULT_DEFAULT		145
@@ -118,6 +122,7 @@ struct mpq8655_regulator {
 	/* Fields for DT parsed values */
 	bool switching_freq_set;	/* True if DT provided switching frequency */
 	bool ot_fault_limit_set;	/* True if DT provided overtemperature limit */
+	bool multi_phase;		/* True if multi-phase mode (MFR_CTRL[3]) */
 
 	/* Fields for external voltage divider support */
 	bool use_external_div;		/* Flag: using external voltage divider */
@@ -166,6 +171,7 @@ static bool mpq8655_16bit_volatile_reg(struct device *dev, unsigned int reg)
 	case MPQ8655_READ_TEMPERATURE:
 	case MPQ8655_VOUT_SCALE_LOOP:
 	case MPQ8655_STATUS_WORD:
+	case MPQ8655_MFR_CTRL:
 		return true;
 	default:
 		return false;
@@ -227,6 +233,7 @@ static bool mpq8655_16bit_readable_reg(struct device *dev, unsigned int reg)
 	case MPQ8655_READ_VOUT:
 	case MPQ8655_READ_IOUT:
 	case MPQ8655_READ_TEMPERATURE:
+	case MPQ8655_MFR_CTRL:
 		return true;
 	default:
 		return false;
@@ -261,6 +268,7 @@ static bool mpq8655_16bit_writeable_reg(struct device *dev, unsigned int reg)
 	case MPQ8655_IOUT_OC_WARN_LIMIT:
 	case MPQ8655_OT_FAULT_LIMIT:
 	case MPQ8655_OT_WARN_LIMIT:
+	case MPQ8655_MFR_CTRL:
 		return true;
 	default:
 		return false;
@@ -480,6 +488,53 @@ static int mpq8655_set_switching_freq(struct mpq8655_regulator *mpq8655, u32 fre
 		mpq8655->switching_freq = freq;
 		mpq_dbg(mpq8655->dev, "Switching frequency set to %ukHz\n", freq / 1000);
 	}
+unlock:
+	mutex_unlock(&mpq8655->lock);
+
+	return ret;
+}
+
+/*
+ * Enable multi-phase operation by setting MFR_CTRL(EAh) bit[3] (PHASE).
+ *
+ * MFR_CTRL bit[3] (PHASE), from the MPQ8655 datasheet:
+ *   0: single-phase operation
+ *   1: multi-phase operation
+ *
+ * The selection of this bit affects the actual ramp amplitude set through
+ * MFR_CTRL_COMP(D0h) bits[3:1], so it has to be programmed before the output
+ * voltage is changed (or before the output is enabled) to obtain the expected
+ * slew rate behaviour.
+ *
+ * The register is read-modify-written so the OSM / OCP hiccup interval bits
+ * stay untouched. Only the multi-phase bit is set; clearing the bit (to fall
+ * back to single-phase) is intentionally not supported, because the DT uses
+ * a boolean "mps,multi-phase" property whose absence already keeps the
+ * hardware default (MTP / pin strapping).
+ *
+ * Note: enabling multi-phase also requires the phases to be paralleled and
+ * phase-shifted in hardware (pin strapping / PCB design).
+ */
+static int mpq8655_enable_multi_phase(struct mpq8655_regulator *mpq8655)
+{
+	unsigned int val;
+	int ret;
+
+	mutex_lock(&mpq8655->lock);
+
+	/* Read-modify-write: keep OSM / OCP hiccup interval bits untouched. */
+	ret = mpq8655_reg_read(mpq8655, MPQ8655_MFR_CTRL, &val);
+	if (ret < 0)
+		goto unlock;
+
+	val |= MPQ8655_PHASE_MULTI;
+
+	ret = mpq8655_reg_write(mpq8655, MPQ8655_MFR_CTRL, val);
+	if (ret < 0)
+		goto unlock;
+
+	mpq_dbg(mpq8655->dev, "MFR_CTRL(EAh) phase set to multi-phase (0x%04x)\n", val);
+
 unlock:
 	mutex_unlock(&mpq8655->lock);
 
@@ -973,6 +1028,19 @@ static int mpq8655_parse_dt(struct device *dev, struct mpq8655_regulator *mpq865
 			init_uV, init_uV / 1000);
 	} /* regulators_node and regulator_node are auto-freed here */
 
+	/*
+	 * Parse the operation phase configuration (MFR_CTRL(EAh) bit[3]).
+	 *
+	 *   mps,multi-phase (boolean) -> multi-phase  (bit[3] = 1)
+	 *   absent                     -> keep hardware default (MTP / pin strapping)
+	 *
+	 * When the property is absent, MFR_CTRL(EAh) is left untouched and
+	 * the hardware default (MTP / pin strapping) is kept, so that existing
+	 * boards and pin-compatible second sources (SC812C0 / IS6608 / ES5330)
+	 * that may not implement this register are not affected.
+	 */
+	mpq8655->multi_phase = of_property_read_bool(np, "mps,multi-phase");
+
 	/* Set default VOUT_COMMAND write interval (128us per vendor requirement) */
 	mpq8655->vcmd_interval_us = 128;
 	if (of_property_read_u32(np, "mps,vout-cmd-interval-us",
@@ -1034,14 +1102,35 @@ static int mpq8655_hw_init(struct mpq8655_regulator *mpq8655)
 		}
 	}
 
-	/* Step 3: Configure external voltage divider if used. */
+	/*
+	 * Step 3: Configure multi-phase operation.
+	 *
+	 * MFR_CTRL(EAh) bit[3] selects the ramp amplitude applied from
+	 * MFR_CTRL_COMP(D0h) bits[3:1], therefore it must be programmed
+	 * before VOUT_COMMAND(21h) is written below, so that the initial
+	 * output voltage transition uses the correct ramp setting.
+	 *
+	 * The bit is only set when the DT requests multi-phase operation
+	 * (mps,multi-phase), otherwise the hardware default (MTP / pin
+	 * strapping) is kept.
+	 */
+	if (mpq8655->multi_phase) {
+		ret = mpq8655_enable_multi_phase(mpq8655);
+		if (ret < 0) {
+			dev_err(mpq8655->dev,
+				"Failed to configure multi-phase mode: %d\n", ret);
+			return ret;
+		}
+	}
+
+	/* Step 4: Configure external voltage divider if used. */
 	if (mpq8655->use_external_div) {
 		unsigned int d1_val;
 		unsigned int vout_scale_loop;
 		u16 vout_command;
 
 		/*
-		 * Step 3a: Read-modify-write MFR_CTRL_VOUT(D1h).
+		 * Step 4a: Read-modify-write MFR_CTRL_VOUT(D1h).
 		 * Clear bits[1:0] to select external voltage divider mode (2'b00).
 		 * Keep other bits unchanged (VOUT_DISCHARGE, PG_DELAY).
 		 */
@@ -1063,7 +1152,7 @@ static int mpq8655_hw_init(struct mpq8655_regulator *mpq8655)
 		}
 
 		/*
-		 * Step 3b: Set VOUT_SCALE_LOOP(29h) to match external divider ratio.
+		 * Step 4b: Set VOUT_SCALE_LOOP(29h) to match external divider ratio.
 		 *
 		 * VOUT_SCALE_LOOP = RFB2 / (RFB1 + RFB2)
 		 * The value is stored as integer with 1LSB = 0.001.
@@ -1112,7 +1201,7 @@ static int mpq8655_hw_init(struct mpq8655_regulator *mpq8655)
 			1000 * vout_scale_loop / mpq8655->kdiv_x1000;
 
 		/*
-		 * Step 3c: Set VOUT_COMMAND(21h) to the initial voltage.
+		 * Step 4c: Set VOUT_COMMAND(21h) to the initial voltage.
 		 *
 		 * VOUT_COMMAND = VREF / 2mV
 		 *              = VOUT * VOUT_SCALE_LOOP / 2mV
