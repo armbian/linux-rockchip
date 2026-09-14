@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3572-evb1-v10.dtsi"
+#include "rk3572-linux.dtsi"
+#include "rk3572-evb1-cam-csi0.dtsi"
+#include "rk3572-evb1-cam-csi1.dtsi"
+#include "rk3572-thunderboot.dtsi"
+
+/ {
+	model = "Rockchip RK3572 EVB1 V10 SPI NAND ThunderBoot Board";
+	compatible = "rockchip,rk3572-evb1-v10-spi-nand-thunderboot",
+		     "rockchip,rk3572";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_debug=0 initcall_nr_threads=0 earlycon=uart8250,mmio32,0x2c130000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax ro rootwait init=/sbin/init rcupdate.rcu_expedited=1 rcu_nocbs=all";
+	};
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4m1_xfer_pins &uart4m1_ctsn_pins &uart4m1_rtsn_pins>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+
+		device-wakeup-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		max-speed = <1500000>;
+	};
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	phys = <&u2phy1_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+	status = "okay";
+};
+
+/delete-node/ &wireless_bluetooth;
+
+&fspi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi0_pins &fspi0_csn0_pins>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&ufs {
+	status = "disabled";
+};
