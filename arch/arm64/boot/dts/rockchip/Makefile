@@ -521,6 +521,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-cm5-rpi-cm4-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-armsom-sige5.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-bananapi-m5-pro.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-blueberry-edge-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-lubancat-3-v2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-m5.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-r76s.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-radxa-cm4-io.dtb
