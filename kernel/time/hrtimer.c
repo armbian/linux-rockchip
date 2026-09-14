@@ -49,6 +49,12 @@
 
 #include "tick-internal.h"
 
+#if defined(CONFIG_ARM64) && defined(CONFIG_ARCH_ROCKCHIP)
+#include <linux/cpufeature.h>
+#include <linux/delay.h>
+extern struct static_key_false sched_asym_cpucapacity;
+#endif
+
 /*
  * Masks for selecting the soft and hard context timers from
  * cpu_base->active
@@ -1503,6 +1509,20 @@ int hrtimer_cancel(struct hrtimer *timer)
 
 		if (ret < 0)
 			hrtimer_cancel_wait_running(timer);
+#if defined(CONFIG_ARM64) && defined(CONFIG_ARCH_ROCKCHIP)
+		/*
+		 * On LL/SC-only platforms (no FEAT_LSE), the tight
+		 * retry loop below can starve the CPU running the
+		 * callback: it keeps evicting the exclusive mark that
+		 * CPU holds on the shared hrtimer base lock, so the
+		 * callback never completes and this loop spins
+		 * forever. Back off briefly to break the livelock.
+		 */
+		if (ret < 0 &&
+		    static_branch_unlikely(&sched_asym_cpucapacity) &&
+		    !cpus_have_final_cap(ARM64_HAS_LSE_ATOMICS))
+			ndelay(100);
+#endif
 	} while (ret < 0);
 	return ret;
 }
