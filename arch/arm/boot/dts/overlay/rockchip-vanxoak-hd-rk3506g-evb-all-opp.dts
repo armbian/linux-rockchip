@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable all CPU OPPs";
+		compatible = "vanxoak,hd-rk3506g-evb", "rockchip,rk3506";
+		category = "misc";
+		description = "Fake vdd_arm LDO to 1100mV to activate all CPU OPPs.";
+	};
+};
+
+&vdd_arm {
+	regulator-min-microvolt = <1100000>;
+	regulator-max-microvolt = <1100000>;
+};
