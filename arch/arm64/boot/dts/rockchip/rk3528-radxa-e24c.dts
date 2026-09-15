@@ -25,6 +25,9 @@
 	/delete-node/ chosen;
 
 	aliases {
+		/* gmac0 is unused here; gmac1 is the only ethernet */
+		/delete-property/ ethernet1;
+		ethernet0 = &gmac1;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
 		mmc2 = &sdio0;
