@@ -6988,6 +6988,22 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 					ilog2(priv->hw->multicast_filter_bins);
 		}
 
+		/*
+		 * The MAC setup callbacks claim IFF_UNICAST_FLT unconditionally,
+		 * and plat->unicast_filter_entries defaults to one whether or not
+		 * the core was synthesized with any additional MAC address
+		 * registers. On a core without them, the filter is programmed to
+		 * a register that does not exist, nothing ever matches, and the
+		 * core skips its own promiscuous fallback because the flag
+		 * promised filtering that cannot happen. Secondary unicast
+		 * addresses - a DSA user port's MAC, a macvlan - are then dropped
+		 * silently. Withdraw the promise so the core falls back instead.
+		 */
+		if (!priv->dma_cap.multi_addr) {
+			priv->hw->unicast_filter_entries = 0;
+			priv->dev->priv_flags &= ~IFF_UNICAST_FLT;
+		}
+
 		/* TXCOE doesn't work in thresh DMA mode */
 		if (priv->plat->force_thresh_dma_mode)
 			priv->plat->tx_coe = 0;
