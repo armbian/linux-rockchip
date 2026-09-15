@@ -125,6 +125,7 @@ struct thermal_cooling_device {
  * @trips:	an array of struct thermal_trip
  * @num_trips:	number of trip points the thermal zone supports
  * @trips_disabled;	bitmap for disabled trips
+ * @trips_engaged:	bitmap of trips currently holding their hysteresis band
  * @passive_delay_jiffies: number of jiffies to wait between polls when
  *			performing passive cooling.
  * @polling_delay_jiffies: number of jiffies to wait between polls when
@@ -166,6 +167,7 @@ struct thermal_zone_device {
 	struct thermal_trip *trips;
 	int num_trips;
 	unsigned long trips_disabled;	/* bitmap for disabled trips */
+	unsigned long trips_engaged;	/* bitmap for engaged trips */
 	unsigned long passive_delay_jiffies;
 	unsigned long polling_delay_jiffies;
 	int temperature;
