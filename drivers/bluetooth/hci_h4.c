@@ -25,6 +25,9 @@
 #include <linux/signal.h>
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
+#include <linux/serdev.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -51,6 +54,11 @@ static int h4_open(struct hci_uart *hu)
 	skb_queue_head_init(&h4->txq);
 
 	hu->priv = h4;
+
+	/* on the tty path this is hciattach's business */
+	if (hu->serdev)
+		serdev_device_set_flow_control(hu->serdev, true);
+
 	return 0;
 }
 
@@ -141,13 +149,123 @@ static const struct hci_uart_proto h4p = {
 	.flush		= h4_flush,
 };
 
+#ifdef CONFIG_BT_HCIUART_SERDEV
+
+/* the controller ignores commands until it has answered one */
+#define H4_QUIRK_SYNC_RESET	BIT(0)
+
+struct h4_serdev {
+	struct hci_uart hu;
+	unsigned long quirks;
+};
+
+static int h4_serdev_setup(struct hci_uart *hu)
+{
+	struct h4_serdev *h4 = serdev_device_get_drvdata(hu->serdev);
+	struct sk_buff *skb;
+	int i;
+
+	if (!(h4->quirks & H4_QUIRK_SYNC_RESET))
+		return 0;
+
+	bt_dev_info(hu->hdev, "syncing controller, a command timeout here is expected");
+
+	for (i = 0; i < 3; i++) {
+		skb = __hci_cmd_sync(hu->hdev, HCI_OP_RESET, 0, NULL, HCI_CMD_TIMEOUT);
+		if (!IS_ERR(skb)) {
+			kfree_skb(skb);
+			return 0;
+		}
+	}
+
+	bt_dev_err(hu->hdev, "no answer to HCI Reset");
+
+	return PTR_ERR(skb);
+}
+
+/* not h4p: a ->setup there would suppress the tty path's vendor detect */
+static const struct hci_uart_proto h4_serdev_proto = {
+	.id		= HCI_UART_H4,
+	.name		= "H4",
+	.open		= h4_open,
+	.close		= h4_close,
+	.recv		= h4_recv,
+	.enqueue	= h4_enqueue,
+	.dequeue	= h4_dequeue,
+	.flush		= h4_flush,
+	.setup		= h4_serdev_setup,
+};
+
+static int h4_serdev_probe(struct serdev_device *serdev)
+{
+	struct h4_serdev *h4;
+	u32 speed = 0;
+
+	h4 = devm_kzalloc(&serdev->dev, sizeof(*h4), GFP_KERNEL);
+	if (!h4)
+		return -ENOMEM;
+
+	h4->hu.serdev = serdev;
+	h4->quirks = (unsigned long)device_get_match_data(&serdev->dev);
+	serdev_device_set_drvdata(serdev, h4);
+
+	device_property_read_u32(&serdev->dev, "max-speed", &speed);
+	hci_uart_set_speeds(&h4->hu, speed, speed);
+
+	return hci_uart_register_device(&h4->hu, &h4_serdev_proto);
+}
+
+static void h4_serdev_remove(struct serdev_device *serdev)
+{
+	struct h4_serdev *h4 = serdev_device_get_drvdata(serdev);
+
+	hci_uart_unregister_device(&h4->hu);
+}
+
+static const struct of_device_id h4_serdev_of_match[] = {
+	{ .compatible = "aicsemi,aic8800-bt",
+	  .data = (void *)H4_QUIRK_SYNC_RESET },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, h4_serdev_of_match);
+
+static struct serdev_device_driver h4_serdev_driver = {
+	.probe	= h4_serdev_probe,
+	.remove	= h4_serdev_remove,
+	.driver = {
+		.name		= "hci_uart_h4",
+		.of_match_table	= h4_serdev_of_match,
+	},
+};
+
+static void h4_serdev_register(void)
+{
+	serdev_device_driver_register(&h4_serdev_driver);
+}
+
+static void h4_serdev_unregister(void)
+{
+	serdev_device_driver_unregister(&h4_serdev_driver);
+}
+
+#else
+
+static inline void h4_serdev_register(void) { }
+static inline void h4_serdev_unregister(void) { }
+
+#endif
+
 int __init h4_init(void)
 {
+	h4_serdev_register();
+
 	return hci_uart_register_proto(&h4p);
 }
 
 int __exit h4_deinit(void)
 {
+	h4_serdev_unregister();
+
 	return hci_uart_unregister_proto(&h4p);
 }
 
