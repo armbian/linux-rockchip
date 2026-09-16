@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ * RV1106B EVB2 V10 BGA Dual-Camera Fastboot (Thunder Boot) DTS
+ *
+ * Design:
+ *   - Board baseline: rv1106b-evb2-v10-bga.dtsi (BGA board GPIO mux)
+ *   - Dual-camera topology: rv1106b-thunder-boot-dual-cam.dtsi (csi_dphy/mipi_csi2/vicap)
+ *   - Boot media: rv1106b-thunder-boot-spi-nor.dtsi (SPI NOR TB)
+ *   - Pin assignment:
+ *       cam0: rst=GPIO0_B4 pwdn=GPIO2_B0 (MIPI_PWDN0)
+ *       cam1: rst=GPIO0_B4 pwdn=GPIO2_A7 (MIPI_PWDN1)
+ *   - Memory layout (consistent with V10_V11 DUAL_CAMERA non-AOV):
+ *       meta      : 0x00800000  size 0xB0000  (704K)
+ *       rkisp0    : 0x008B0000  size 0x54F000
+ *       ramdisk_r : 0x00DFF000  size 12M
+ *       ramdisk_c : 0x019FF000  size 5M
+ *       rkisp1    : 0x01EFF000  size 0x54F000
+ */
+
+/dts-v1/;
+
+#include "rv1106b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-thunder-boot-dual-cam.dtsi"
+#include "rv1106b-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 BGA Dual Camera TB Board";
+	compatible = "rockchip,rv1106b-evb2-v10-bga-dual-cam-tb", "rockchip,rv1106b";
+
+	chosen {
+		bootargs = "loglevel=0 earlycon=uart8250,mmio32,0x20540000 console=ttyFIQ0 root=/dev/rd0 rootfstype=erofs rootflags=dax snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=32K";
+	};
+};
+
+&acodec {
+	pa-ctl-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+};
+
+&fspi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer_pins>;
+	rockchip,amp-shared;
+	status = "okay";
+
+	/* cam0: main sensor SC200AI, I2C addr 0x30, BGA board rst/pwdn */
+	sc200ai: sc200ai@30 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x30>;
+		clocks = <&cru CLK_MIPI0_OUT2IO>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0_pins>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* cam1: assist sensor SC200AI, I2C addr 0x32, BGA board pwdn=GPIO2_A7, rst shared */
+	sc200ai_1: sc200ai_1@32 {
+		compatible = "smartsens,sc200ai";
+		reg = <0x32>;
+		clocks = <&cru CLK_MIPI1_OUT2IO>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk1_pins>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-stb = <1>;
+
+		port {
+			cam1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&meta {
+	/* reg offset MUST match with RTOS */
+	reg = <0x00800000 0xb0000>;
+};
+
+&rkisp_thunderboot {
+	/* reg offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+	 * e.g. 1920x1080: 0x546000(raw picture size * 2) + 0x9000 = 0x54f000
+	 * 0x008b0000 = (meta reg offset) + (meta reg size)
+	 *            = 0x00800000 + 0xb0000
+	 */
+	reg = <0x008b0000 0x54f000>;
+};
+
+&ramdisk_r {
+	reg = <0xdff000 (12 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x19ff000 (5 * 0x00100000)>;
+};
+
+&rkisp1_thunderboot {
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+	 * e.g. 1920x1080: 0x546000(raw picture size * 2) + 0x9000 = 0x54f000
+	 * 0x1eff000  = (ramdisk_c reg offset) + (ramdisk_c reg size)
+	 *            = 0x19ff000 + (5 * 0x00100000)
+	 */
+	reg = <0x1eff000 0x54f000>;
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "host";
+};
+
+&vcc3v3_sd {
+	gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+};
