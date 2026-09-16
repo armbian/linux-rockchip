@@ -7360,6 +7360,25 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 			}
 		}
 	} else {
+		struct clk *parent;
+		bool parent_is_hdmi_phy;
+		int ret;
+
+		parent = clk_get_parent(vp->dclk);
+		parent_is_hdmi_phy =
+			hdmi0_phy_pll && clk_is_match(parent, hdmi0_phy_pll->clk);
+		parent_is_hdmi_phy |=
+			hdmi1_phy_pll && clk_is_match(parent, hdmi1_phy_pll->clk);
+
+		if (parent_is_hdmi_phy && vp->dclk_parent) {
+			ret = clk_set_parent(vp->dclk, vp->dclk_parent);
+			if (ret) {
+				DRM_WARN("failed to switch vp%d dclk to default parent: %d\n",
+					 vp->id, ret);
+				return ret;
+			}
+		}
+
 		if (hdmi0_phy_pll && (BIT(vp->id) & hdmi0_phy_pll->vp_mask))
 			hdmi0_phy_pll->vp_mask &= ~BIT(vp->id);
 
