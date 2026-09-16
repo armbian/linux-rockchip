@@ -62,6 +62,6 @@
 };
 
 &sc850sl {
-	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 	pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
 };
