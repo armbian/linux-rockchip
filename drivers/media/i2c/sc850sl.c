@@ -11,6 +11,7 @@
  * V0.0X01.0X05 unified standby hw mode
  * V0.0X01.0X06 add HDRX2 mode and 1920x1080 60fps config
  * V0.0X01.0X07 restore reset polarity and power-on timing from 5.10
+ * V0.0X01.0X08 restore 20ms settle delay after pwdn for slow RC power rails
  *
  */
 
@@ -36,7 +37,7 @@
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 #include "cam-sleep-wakeup.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -2157,6 +2158,8 @@ static int __sc850sl_power_on(struct sc850sl *sc850sl)
 
 	if (!IS_ERR(sc850sl->pwdn_gpio))
 		gpiod_set_value_cansleep(sc850sl->pwdn_gpio, 1);
+	/* Wait for analog rails / RC networks to settle before I2C (check_id). */
+	usleep_range(20000, 21000);
 	return 0;
 err_clk:
 	if (!IS_ERR(sc850sl->reset_gpio))
