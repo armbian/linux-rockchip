@@ -6236,8 +6236,20 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 		   (priv->dma_cap.half_duplex) ? "Y" : "N");
 	seq_printf(seq, "\tHash Filter: %s\n",
 		   (priv->dma_cap.hash_filter) ? "Y" : "N");
-	seq_printf(seq, "\tMultiple MAC address registers: %s\n",
-		   (priv->dma_cap.multi_addr) ? "Y" : "N");
+	if (priv->plat->has_gmac4) {
+		seq_printf(seq,
+			   "\tNumber of MAC address registers (1-31): %d\n",
+			   priv->dma_cap.multi_addr);
+		seq_printf(seq,
+			   "\tAdditional 32 MAC address registers (32-63): %s\n",
+			   priv->dma_cap.additional_32_addr ? "Y" : "N");
+		seq_printf(seq,
+			   "\tAdditional 64 MAC address registers (64-127): %s\n",
+			   priv->dma_cap.additional_64_addr ? "Y" : "N");
+	} else {
+		seq_printf(seq, "\tMultiple MAC address registers: %s\n",
+			   (priv->dma_cap.multi_addr) ? "Y" : "N");
+	}
 	seq_printf(seq, "\tPCS (TBI/SGMII/RTBI PHY interfaces): %s\n",
 		   (priv->dma_cap.pcs) ? "Y" : "N");
 	seq_printf(seq, "\tSMA (MDIO) Interface: %s\n",
