@@ -59,6 +59,12 @@
 
 #include "workqueue_internal.h"
 
+#if defined(CONFIG_ARM64) && defined(CONFIG_ARCH_ROCKCHIP)
+#include <linux/cpufeature.h>
+#include <linux/delay.h>
+extern struct static_key_false sched_asym_cpucapacity;
+#endif
+
 enum worker_pool_flags {
 	/*
 	 * worker_pool flags
@@ -2182,6 +2188,19 @@ static bool work_grab_pending(struct work_struct *work, u32 cflags,
 		if (ret >= 0)
 			return ret;
 		cpu_relax();
+#if defined(CONFIG_ARM64) && defined(CONFIG_ARCH_ROCKCHIP)
+		/*
+		 * On LL/SC-only platforms (no FEAT_LSE), the retry loop can
+		 * starve the CPU running the work item: it keeps evicting
+		 * the exclusive mark that CPU holds on the shared pool lock,
+		 * so try_to_grab_pending() never succeeds and this loop
+		 * spins forever. Back off briefly to break the livelock.
+		 */
+		if (ret == -EAGAIN &&
+		    static_branch_unlikely(&sched_asym_cpucapacity) &&
+		    !cpus_have_final_cap(ARM64_HAS_LSE_ATOMICS))
+			ndelay(100);
+#endif
 	}
 }
 
