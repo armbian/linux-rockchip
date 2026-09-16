@@ -438,7 +438,7 @@
 		pinctrl-0 = <&mipim0_camera3_clk &cam0_rst &cam0_pdn>;
 		pinctrl-1 = <&cam0_rst &cam0_pdn>;
 		power-domains = <&power RK3588_PD_VI>;
-		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio1 RK_PD7 GPIO_ACTIVE_HIGH>;
 		avdd-supply = <&vcc_mipicsi0>;
 		rockchip,camera-module-index = <0>;

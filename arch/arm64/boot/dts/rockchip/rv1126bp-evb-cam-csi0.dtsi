@@ -57,7 +57,7 @@
 		reg = <0x30>;
 		clocks = <&cru CLK_MIPI0_OUT2IO>;
 		clock-names = "xvclk";
-		reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk0_pins>;
