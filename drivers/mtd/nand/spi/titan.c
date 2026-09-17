@@ -95,6 +95,15 @@ static const struct spinand_info titan_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&tm1f0xguai_ooblayout, tm1f0xguai_ecc_get_status)),
+	SPINAND_INFO("TM1F1GUAI",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x00, 0x31),
+		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&tm1f0xguai_ooblayout, tm1f0xguai_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops titan_spinand_manuf_ops = {
