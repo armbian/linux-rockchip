@@ -242,9 +242,11 @@ static const struct rockchip_grf_info rk3566_pipegrf __initconst = {
 	.num_values = ARRAY_SIZE(rk3566_defaults),
 };
 
+#define RK3588_SYS_GRF_SOC_CON6		0x0318
 #define RK3588_SYS_GRF_SOC_CON7		0x031c
 
 static const struct rockchip_grf_value rk3588_sys_grf_defaults[] __initconst = {
+	{ "jtag switching", RK3588_SYS_GRF_SOC_CON6, HIWORD_UPDATE(0, 1, 14) },
 	{ "Connect EDP hpd to IO", RK3588_SYS_GRF_SOC_CON7, HIWORD_UPDATE(0x3, 0x3, 14) },
 };
 
