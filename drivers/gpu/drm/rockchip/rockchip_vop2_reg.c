@@ -239,9 +239,16 @@ static const uint32_t formats_for_cursor[] = {
 	DRM_FORMAT_XBGR1555,
 };
 
-static const u32 formats_wb[] = {
-	DRM_FORMAT_BGR888,
+static const u32 rk3568_vop_wb_formats[] = {
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_NV12,
+};
+
+static const u32 rk3588_vop_wb_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_NV12,
 };
@@ -1172,8 +1179,8 @@ static const struct vop2_wb_regs rk3568_vop_wb_regs = {
 };
 
 static const struct vop2_wb_data rk3568_vop_wb_data = {
-	.formats = formats_wb,
-	.nformats = ARRAY_SIZE(formats_wb),
+	.formats = rk3568_vop_wb_formats,
+	.nformats = ARRAY_SIZE(rk3568_vop_wb_formats),
 	.max_output = { 1920, 1080 },
 	.fifo_depth =  1920 * 4 / 16,
 	.regs = &rk3568_vop_wb_regs,
@@ -1212,8 +1219,8 @@ static const struct vop2_wb_regs rk3572_vop_wb_regs = {
 };
 
 static const struct vop2_wb_data rk3572_vop_wb_data = {
-	.formats = formats_wb,
-	.nformats = ARRAY_SIZE(formats_wb),
+	.formats = rk3588_vop_wb_formats,
+	.nformats = ARRAY_SIZE(rk3588_vop_wb_formats),
 	.max_output = { 1920, 1080 },
 	.fifo_depth =  1920 * 4 / 16,
 	.num_plane_source = ARRAY_SIZE(rk3572_wb_plane_source),
@@ -1246,11 +1253,19 @@ static const struct vop2_wb_regs rk3576_vop_wb_regs = {
 };
 
 static const struct vop2_wb_data rk3576_vop_wb_data = {
-	.formats = formats_wb,
-	.nformats = ARRAY_SIZE(formats_wb),
+	.formats = rk3588_vop_wb_formats,
+	.nformats = ARRAY_SIZE(rk3588_vop_wb_formats),
 	.max_output = { 1920, 1080 },
 	.fifo_depth =  1920 * 4 / 16,
 	.regs = &rk3576_vop_wb_regs,
+};
+
+static const struct vop2_wb_data rk3588_vop_wb_data = {
+	.formats = rk3588_vop_wb_formats,
+	.nformats = ARRAY_SIZE(rk3588_vop_wb_formats),
+	.max_output = { 1920, 1080 },
+	.fifo_depth =  1920 * 4 / 16,
+	.regs = &rk3568_vop_wb_regs,
 };
 
 static const struct vop2_video_port_regs rk3528_vop_vp0_regs = {
@@ -7339,7 +7354,7 @@ static const struct vop2_data rk3528_vop = {
 	.axi_intr = rk3528_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3528_vop_axi_intr),
 	.vp = rk3528_vop_video_ports,
-	.wb = &rk3568_vop_wb_data,
+	.wb = &rk3588_vop_wb_data,
 	.win = rk3528_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3528_vop_win_data),
 	.dump_regs = rk3528_dump_regs,
@@ -7394,7 +7409,7 @@ static const struct vop2_data rk3562_vop = {
 	.axi_intr = rk3528_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3528_vop_axi_intr),
 	.vp = rk3562_vop_video_ports,
-	.wb = &rk3568_vop_wb_data,
+	.wb = &rk3588_vop_wb_data,
 	.win = rk3562_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3562_vop_win_data),
 	.dump_regs = rk3562_dump_regs,
@@ -7498,7 +7513,7 @@ static const struct vop2_data rk3588_vop = {
 	.vp = rk3588_vop_video_ports,
 	.conn = rk3588_conn_if_data,
 	.nr_conns = ARRAY_SIZE(rk3588_conn_if_data),
-	.wb = &rk3568_vop_wb_data,
+	.wb = &rk3588_vop_wb_data,
 	.layer = rk3568_vop_layers,
 	.win = rk3588_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3588_vop_win_data),

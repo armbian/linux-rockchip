@@ -708,7 +708,7 @@ struct vop2_dsc {
 
 enum vop2_wb_format {
 	VOP2_WB_ARGB8888,
-	VOP2_WB_BGR888,
+	VOP2_WB_RGB888,
 	VOP2_WB_RGB565,
 	VOP2_WB_YUV420SP = 4,
 	VOP2_WB_INVALID = -1,
@@ -3579,8 +3579,9 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		return VOP2_WB_ARGB8888;
+	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
-		return VOP2_WB_BGR888;
+		return VOP2_WB_RGB888;
 	case DRM_FORMAT_RGB565:
 		return VOP2_WB_RGB565;
 	case DRM_FORMAT_NV12:
@@ -3589,6 +3590,17 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 		DRM_ERROR("unsupported wb format %p4cc\n", &format);
 		return VOP2_WB_INVALID;
 	}
+}
+
+static bool vop2_wb_format_supported(struct vop2 *vop2, u32 format)
+{
+	const struct vop2_wb_data *wb = vop2->data->wb;
+	int i;
+
+	for (i = 0; i < wb->nformats; i++)
+		if (wb->formats[i] == format)
+			return true;
+	return false;
 }
 
 static void vop2_set_system_status(struct vop2 *vop2, bool is_enabled)
@@ -5285,6 +5297,11 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 						     source_width, fb->width);
 	wb_state->scale_x_en = (fb->width < source_width) ? 1 : 0;
 	wb_state->scale_y_en = (fb->height < source_height) ? 1 : 0;
+
+	if (!vop2_wb_format_supported(vop2, fb->format->format)) {
+		DRM_DEBUG_KMS("Unsupported pixel format %p4cc\n", &fb->format->format);
+		return -EINVAL;
+	}
 
 	wb_state->format = vop2_convert_wb_format(fb->format->format);
 	if (wb_state->format < 0) {
