@@ -17405,15 +17405,16 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 
 	if (r2y_csc_supported) {
 		convert_mode.is_input_full_range = r2y_convert_mode.is_output_full_range;
+	} else if (post_r2y_en) {
+		convert_mode.is_input_full_range =
+			vop2_is_full_range_csc_mode(vcstate->post_csc_mode);
 	} else if (vp->has_dci_enabled_win) {
 		convert_mode.is_input_full_range = true;
 	} else if (!vcstate->yuv_overlay) {
 		/* if there are yuv planes, choose max plane's range */
 		if (max_yuv_pstate) {
-			if (post_r2y_en && !vop2_is_full_range_csc_mode(vcstate->post_csc_mode))
-				convert_mode.is_input_full_range = false;
-			else
-				convert_mode.is_input_full_range = true;
+			/* Todo RGB limit range plane */
+			convert_mode.is_input_full_range = true;
 		} else {
 			if (rgb_limited_plane)
 				convert_mode.is_input_full_range = false;
@@ -17428,16 +17429,21 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	convert_mode.is_output_full_range = vcstate->color_range;
 	convert_mode.output_color_encoding = vcstate->color_encoding;
 	/*
-	 * When all layers are rgb, the value of input_color_encoding
-	 * has no actual utility, however, the plane csc only supports
-	 * limited range under bt709. Therefore, in this scene, the colorspace
-	 * of plane csc is selected as bt601. The input_color_encoding
-	 * is consistent with colorspace of plane csc, which is DRM_COLOR_YCBCR_BT601.
-	 * If there are any yuv planes, value of post-csc input_color_encoding
-	 * selects the value of the yuv plane with the largest area.
+	 * When the post R2Y is enabled, the post Y2R input is the post R2Y
+	 * YUV output, so the input color encoding must be the post R2Y output
+	 * encoding, that is vcstate->color_encoding. The same holds when the
+	 * r2y csc is supported, where it is taken from r2y_convert_mode.
+	 * Otherwise the post Y2R input comes from the plane csc. With only
+	 * rgb planes, the plane csc only supports limited range under bt709,
+	 * so its colorspace is selected as bt601 and input_color_encoding is
+	 * consistent with it, which is DRM_COLOR_YCBCR_BT601. If there are
+	 * any yuv planes, value of post-csc input_color_encoding selects the
+	 * value of the yuv plane with the largest area.
 	 */
 	if (r2y_csc_supported)
 		convert_mode.input_color_encoding = r2y_convert_mode.output_color_encoding;
+	else if (post_r2y_en)
+		convert_mode.input_color_encoding = vcstate->color_encoding;
 	else if (!max_yuv_pstate)
 		convert_mode.input_color_encoding = DRM_COLOR_YCBCR_BT601;
 	else
