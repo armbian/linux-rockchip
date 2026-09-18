@@ -55,31 +55,38 @@
 };
 
 &meta {
-	/* AOV: same as non-AOV, 704K meta */
 	reg = <0x00800000 0xb0000>;
 };
 
 &rkisp_thunderboot {
-	/* AOV mode: ISP0 TB memory address unchanged */
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+	 * e.g. 1920x1080: 0x546000(raw picture size) + 0x9000 = 0x54f000
+	 * 0x008b0000 = (meta's reg offset) + (meta's reg size)
+	 *            = 0x00800000 + 0xb0000
+	 */
 	reg = <0x008b0000 0x54f000>;
 };
 
 &ramdisk_r {
-	/* AOV mode: 8M (non-AOV uses 12M) */
-	reg = <0xdff000 (8 * 0x00100000)>;
+	reg = <0xdff000 (12 * 0x00100000)>;
 };
 
 &ramdisk_c {
-	/* AOV mode: 4M (non-AOV uses 5M) */
-	reg = <0x15ff000 (4 * 0x00100000)>;
+	reg = <0x19ff000 (6 * 0x00100000)>;
 };
 
 &rkisp1_thunderboot {
 	/*
-	 * 0x19ff000 = (ramdisk_c reg offset) + (ramdisk_c reg size)
-	 *           = 0x15ff000 + (4 * 0x00100000)
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *2(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+	 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+	 * e.g. 1920x1080: 0x546000(raw picture size) + 0x9000 = 0x54f000
+	 * 0x1fff000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
+	 *            = 0x19ff000 + (6 * 0x00100000)
 	 */
-	reg = <0x19ff000 0x54f000>;
+	reg = <0x1fff000 0x54f000>;
 };
 
 &rkcif_mipi_lvds {

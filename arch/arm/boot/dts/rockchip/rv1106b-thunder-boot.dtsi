@@ -65,10 +65,11 @@
 		rkisp_thunderboot: rkisp@860000 {
 			/* reg's offset MUST match with RTOS */
 			/*
-			 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
-			 * e.g. 1920x1080: 0xa8c000
+			 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) + sizeof(rkisp_thunderboot_resmem_head)
+			 * In RV1103B the size of rkisp_thunderboot_resmem_head is 0x9000, and it is 0x6000 in RV1103/RV1106
+			 * e.g. 1920x1080: 0xa8c000(size of raw picture) + 0x9000 = 0xa95000
 			 */
-			reg = <0x00860000 0xa8c000>;
+			reg = <0x00860000 0xa95000>;
 		};
 
 		rkisp1_thunderboot: rkisp1_thunderboot {
@@ -76,11 +77,11 @@
 		};
 
 		ramdisk_r: ramdisk_r {
-			reg = <0x012ec000 (10 * 0x00100000)>;
+			reg = <0x012f5000 (10 * 0x00100000)>;
 		};
 
 		ramdisk_c: ramdisk_c {
-			reg = <0x01cec000 (5 * 0x00100000)>;
+			reg = <0x01cf5000 (5 * 0x00100000)>;
 		};
 	};
 
