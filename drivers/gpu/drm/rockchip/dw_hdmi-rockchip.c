@@ -2074,7 +2074,9 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 	 * HDMI debugfs directory (/sys/kernel/debug/dri/0/hdmiX/) to the
 	 * PHY driver via phy->debugfs.
 	 */
-	if (!hdmi->phy->debugfs)
+	if (!hdmi->phy)
+		dw_hdmi_register_debugfs(hdmi->hdmi);
+	else if (!hdmi->phy->debugfs)
 		hdmi->phy->debugfs = dw_hdmi_register_debugfs(hdmi->hdmi);
 	dw_hdmi_phy_init(hdmi->hdmi);
 
