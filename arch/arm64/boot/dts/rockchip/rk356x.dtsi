@@ -3566,7 +3566,7 @@
 		reg = <0x0 0xfe8a0000 0x0 0x10000>;
 		clocks = <&pmucru CLK_USBPHY0_REF>;
 		clock-names = "phyclk";
-		clock-output-names = "usb480m_phy";
+		clock-output-names = "clk_usbphy0_480m";
 		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,usbgrf = <&usb2phy0_grf>;
 		#clock-cells = <0>;
@@ -3590,6 +3590,7 @@
 		reg = <0x0 0xfe8b0000 0x0 0x10000>;
 		clocks = <&pmucru CLK_USBPHY1_REF>;
 		clock-names = "phyclk";
+		clock-output-names = "clk_usbphy1_480m";
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,usbgrf = <&usb2phy1_grf>;
 		#clock-cells = <0>;
