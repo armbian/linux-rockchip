@@ -595,7 +595,12 @@ static int aicwf_sdio_probe(struct sdio_func *func,
 	}
 
 	host->caps |= MMC_CAP_NONREMOVABLE;
-	aicwf_rwnx_sdio_platform_init(sdiodev);
+	err = aicwf_rwnx_sdio_platform_init(sdiodev);
+	if (err) {
+		sdio_err("sdio platform init fail: %d\n", err);
+		goto fail;
+	}
+
 	aicwf_hostif_ready();
 	err = rwnx_register_hostwake_irq(sdiodev->dev);
 	if (err != 0)
@@ -2506,4 +2511,3 @@ void rwnx_deinit_wifi_suspend_node(void){
 	remove_proc_entry("wifi_suspend", 0);
 }
 #endif//CONFIG_WIFI_SUSPEND_FOR_LINUX
-
