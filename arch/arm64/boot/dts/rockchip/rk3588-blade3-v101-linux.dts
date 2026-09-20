@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3588-mixtile-blade3.dts"
+
+// DO NOT ADD ANYTHING TO THIS DTS!
+// This file only exists for backwards compatibility with existing
+// installations that boot rk3588-blade3-v101-linux.dtb.
