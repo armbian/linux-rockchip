@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rv1103b.dtsi"
+#include "rv1106b-evb2-v10.dtsi"
+#include "rv1106b-evb2-dual-cam.dtsi"
+
+/ {
+	model = "Rockchip RV1106B EVB2 V10 BGA Dual Camera Board";
+	compatible = "rockchip,rv1106b-evb2-v10-bga-dual-cam",
+		     "rockchip,rv1106b";
+
+	ir-light-ctl {
+		compatible = "rockchip,light-ctl";
+		status = "okay";
+		/* LED_PWM_IR: PWM2_CH0 -> GPIO2_A6 */
+		pwms = <&pwm2_4ch_0 0 10000 1>;
+		rockchip,module-index = <0>;
+	};
+
+	white-light-ctl {
+		compatible = "rockchip,light-ctl";
+		status = "okay";
+		/* LED_PWM_WHITE: PWM1_CH2 -> GPIO2_A5 */
+		pwms = <&pwm1_4ch_2 0 10000 1>;
+		rockchip,module-index = <1>;
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "rk962";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&acodec {
+	pa-ctl-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <115200>;
+	status = "okay";
+};
+
+/*
+ * RK_EVB2_RV1106B_DDR3P116SD4_V10:
+ *   MIPI_PWDN0 -> GPIO2_B0
+ *   MIPI_PWDN1 -> GPIO2_A7
+ *
+ * GPIO0_B4 drives the shared MIPI_RST_H circuit for both sensors.  Do not
+ * assign it as a per-sensor reset GPIO: either sensor's runtime PM sequence
+ * would otherwise reset the other sensor.
+ */
+&gc2053 {
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+&gc2053_1 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&gmac {
+	status = "okay";
+};
+
+&os04a10 {
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm1_4ch_2 {
+	pinctrl-0 = <&pwm1m1_ch2_pins>;
+	status = "okay";
+};
+
+&pwm2_4ch_0 {
+	pinctrl-0 = <&pwm2m1_ch0_pins>;
+	status = "okay";
+};
+
+&rmii_phy {
+	bgs,increment = <0>;
+	/*
+	 * GPIO2_A6 is routed to IR PWM and GPIO2_A7 to MIPI_PWDN1, so the
+	 * integrated PHY LED pinmux cannot be used on this board.
+	 */
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+};
+
+&sc200ai {
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+&sc200ai_1 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc301iot {
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+&sc301iot_1 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc4336 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&sc530ai {
+	pwdn-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
+&sc530ai_1 {
+	pwdn-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+};
+
+&vcc3v3_sd {
+	gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+};
