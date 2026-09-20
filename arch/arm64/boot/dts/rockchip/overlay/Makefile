@@ -109,6 +109,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	radxa-nx5-io-rpi-camera-v2-cam1.dtbo \
 	rk3588s-roc-pc-sata0.dtbo \
 	turing-rk1-sata2.dtbo \
+	mixtile-blade3-camera-imx415.dtbo \
 	mixtile-blade3-sata2.dtbo \
 	radxa-zero3-rpi-camera-v2.dtbo \
 	radxa-zero3-rpi-camera-v1.3.dtbo \
