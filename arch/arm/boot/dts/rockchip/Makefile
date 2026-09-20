@@ -33,6 +33,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106b-evb2-v10-bga-aov-spi-nor-tb.dtb \
 	rv1106b-evb2-v10-bga-aov-spi-nor.dtb \
 	rv1106b-evb2-v10-bga-dual-cam-aov-tb.dtb \
+	rv1106b-evb2-v10-bga-dual-cam-spi-nor.dtb \
 	rv1106b-evb2-v10-bga-dual-cam-tb.dtb \
 	rv1106b-evb2-v10-bga-emmc.dtb \
 	rv1106b-evb2-v10-bga-spi-nand.dtb \
