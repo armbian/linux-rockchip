@@ -113,6 +113,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	mixtile-blade3-sata2.dtbo \
 	mixtile-core3588e-camera-imx219-cam0.dtbo \
 	mixtile-core3588e-camera-imx219-cam1.dtbo \
+	mixtile-edge2-m2-usb3.dtbo \
 	radxa-zero3-rpi-camera-v2.dtbo \
 	radxa-zero3-rpi-camera-v1.3.dtbo \
 	radxa-zero3-external-antenna.dtbo \
