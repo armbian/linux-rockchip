@@ -1,0 +1,226 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/power/rk3588-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable IMX219 camera on CAM1";
+		compatible = "mixtile,core3588e";
+		category = "camera";
+		exclusive = "csi2_dcphy0";
+		description = "Enable a Sony IMX219 camera module on CAM1.";
+	};
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			camera1_pwdn_gpio: camera1-pwdn-gpio {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "camera1_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			};
+
+			i2cmux1:i2cmux1 {
+				compatible = "i2c-mux-gpio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				i2c-parent = <&i2c2>;
+				mux-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+
+				i2c_cam1: i2c@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c2>;
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2m4_xfer>;
+		};
+	};
+
+	fragment@2 {
+		target = <&i2cmux1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&rkcif>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&rkcif_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@5 {
+		target = <&rkisp1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&isp1_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&i2c_cam1>;
+		__overlay__ {
+			camera1_imx219: camera1-imx219@10 {
+				status = "okay";
+				compatible = "sony,imx219";
+				reg = <0x10>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+				clock-names = "xvclk";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim1_camera1_clk>;
+				power-domains = <&power RK3588_PD_VI>;
+				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "rpi-camera-v2";
+				rockchip,camera-module-lens-name = "default";
+
+				port {
+					imx219_out1: endpoint {
+						remote-endpoint = <&mipi_in_1_ucam0>;
+						data-lanes = <1 2>;
+						link-frequencies = /bits/ 64 <456000000>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&csi2_dcphy0>;
+		__overlay__ {
+			status = "okay";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					mipi_in_1_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx219_out1>;
+						data-lanes = <1 2>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					csidcphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi0_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@9 {
+		target = <&mipi_dcphy0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&mipi0_csi2>;
+		__overlay__ {
+			status = "okay";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					mipi0_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidcphy0_out>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					mipi0_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@11 {
+		target = <&rkcif_mipi_lvds>;
+		__overlay__ {
+			status = "okay";
+			port {
+				cif_mipi_in0: endpoint {
+					remote-endpoint = <&mipi0_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@12 {
+		target = <&rkcif_mipi_lvds_sditf>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi1_lvds_sditf: endpoint {
+					remote-endpoint = <&isp1_vir0>;
+				};
+			};
+		};
+	};
+
+	fragment@13 {
+		target = <&rkisp1_vir0>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp1_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi1_lvds_sditf>;
+				};
+			};
+		};
+	};
+};
