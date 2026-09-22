@@ -3859,11 +3859,11 @@ stmmac_setup_dma_desc(struct stmmac_priv *priv, unsigned int mtu)
 	dma_conf->dma_rx_size = priv->dma_conf.dma_rx_size;
 
 	if (!dma_conf->dma_tx_size)
-		dma_conf->dma_tx_size = dma_conf->dma_tx_size ? priv->plat->dma_tx_size :
+		dma_conf->dma_tx_size = priv->plat->dma_tx_size ? priv->plat->dma_tx_size :
 					DMA_DEFAULT_TX_SIZE;
 
 	if (!dma_conf->dma_rx_size)
-		dma_conf->dma_rx_size = dma_conf->dma_rx_size ? priv->plat->dma_rx_size :
+		dma_conf->dma_rx_size = priv->plat->dma_rx_size ? priv->plat->dma_rx_size :
 					DMA_DEFAULT_RX_SIZE;
 
 	/* Earlier check for TBS */
