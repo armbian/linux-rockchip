@@ -1171,7 +1171,7 @@ int rockchip_iommu_disable(struct device *dev)
 	if (!iommu)
 		return -ENODEV;
 
-	if (iommu->domain) {
+	if (iommu->domain != &rk_identity_domain) {
 		rk_domain = to_rk_domain(iommu->domain);
 		if (rk_domain->opt_ops && rk_domain->opt_ops->disable)
 			return rk_domain->opt_ops->disable(rk_domain->iommu_dev);
@@ -1250,7 +1250,7 @@ int rockchip_iommu_enable(struct device *dev)
 	if (!iommu)
 		return -ENODEV;
 
-	if (iommu->domain) {
+	if (iommu->domain != &rk_identity_domain) {
 		rk_domain = to_rk_domain(iommu->domain);
 		if (rk_domain->opt_ops && rk_domain->opt_ops->enable)
 			return rk_domain->opt_ops->enable(rk_domain->iommu_dev);
@@ -1767,7 +1767,7 @@ static void rk_iommu_shutdown(struct platform_device *pdev)
 	int i;
 	struct rk_iommu_domain *rk_domain;
 
-	if (iommu->domain) {
+	if (iommu->domain != &rk_identity_domain) {
 		rk_domain = to_rk_domain(iommu->domain);
 		if (rk_domain->opt_ops && rk_domain->opt_ops->shutdown)
 			return rk_domain->opt_ops->shutdown(pdev);
