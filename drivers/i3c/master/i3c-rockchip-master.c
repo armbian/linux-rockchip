@@ -669,13 +669,13 @@ static void rockchip_i3c_master_enable(struct rockchip_i3c_master *master)
 
 static void rockchip_i3c_master_reset_controller(struct rockchip_i3c_master *i3c)
 {
-	if (!IS_ERR_OR_NULL(i3c->reset)) {
+	if (i3c->reset) {
 		reset_control_assert(i3c->reset);
 		udelay(10);
 		reset_control_deassert(i3c->reset);
 	}
 
-	if (!IS_ERR_OR_NULL(i3c->reset_ahb)) {
+	if (i3c->reset_ahb) {
 		reset_control_assert(i3c->reset_ahb);
 		udelay(10);
 		reset_control_deassert(i3c->reset_ahb);
@@ -2391,33 +2391,31 @@ static int rockchip_i3c_probe(struct platform_device *pdev)
 	if (i3c->irq < 0)
 		return i3c->irq;
 
-	i3c->hclk = devm_clk_get(&pdev->dev, "hclk");
+	i3c->hclk = devm_clk_get_enabled(&pdev->dev, "hclk");
 	if (IS_ERR(i3c->hclk))
-		return PTR_ERR(i3c->hclk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->hclk),
+				     "Failed to get and enable hclk.\n");
 
-	i3c->clk = devm_clk_get(&pdev->dev, "i3c");
+	i3c->clk = devm_clk_get_enabled(&pdev->dev, "i3c");
 	if (IS_ERR(i3c->clk))
-		return PTR_ERR(i3c->clk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->clk),
+				     "Failed to get and enable clk.\n");
 
-	ret = clk_prepare_enable(i3c->hclk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't prepare i3c hclk: %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(i3c->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't prepare i3c bus clock: %d\n", ret);
-		goto err_hclk;
-	}
+	i3c->reset = devm_reset_control_get_optional(&pdev->dev, "i3c");
+	if (IS_ERR(i3c->reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->reset),
+				     "Failed to get i3c reset controller.\n");
+	i3c->reset_ahb = devm_reset_control_get_optional(&pdev->dev, "ahb");
+	if (IS_ERR(i3c->reset_ahb))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->reset_ahb),
+				     "Failed to get i3c ahb reset controller.\n");
+	rockchip_i3c_master_reset_controller(i3c);
 
 	i3c->dma_tx = dma_request_chan(&pdev->dev, "tx");
 	if (IS_ERR(i3c->dma_tx)) {
 		/* Check tx to see if we need defer probing driver */
-		if (PTR_ERR(i3c->dma_tx) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto err_clk;
-		}
+		if (PTR_ERR(i3c->dma_tx) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		dev_warn(&pdev->dev, "Failed to request TX DMA channel\n");
 		i3c->dma_tx = NULL;
 	}
@@ -2436,10 +2434,6 @@ static int rockchip_i3c_probe(struct platform_device *pdev)
 		i3c->dma_addr_tx = res->start + TXDATA;
 	if (i3c->dma_rx)
 		i3c->dma_addr_rx = res->start + RXDATA;
-
-	i3c->reset = devm_reset_control_get(&pdev->dev, "i3c");
-	i3c->reset_ahb = devm_reset_control_get(&pdev->dev, "ahb");
-	rockchip_i3c_master_reset_controller(i3c);
 
 	spin_lock_init(&i3c->xferqueue.lock);
 	INIT_LIST_HEAD(&i3c->xferqueue.list);
@@ -2512,10 +2506,7 @@ err_free_dma_rx:
 err_free_dma_tx:
 	if (i3c->dma_tx)
 		dma_release_channel(i3c->dma_tx);
-err_clk:
-	clk_disable_unprepare(i3c->clk);
-err_hclk:
-	clk_disable_unprepare(i3c->hclk);
+
 	return ret;
 }
 
@@ -2530,8 +2521,6 @@ static void rockchip_i3c_remove(struct platform_device *pdev)
 
 	kmem_cache_destroy(i3c->aligned_cache);
 	i3c_master_unregister(&i3c->base);
-	clk_disable_unprepare(i3c->clk);
-	clk_disable_unprepare(i3c->hclk);
 }
 
 static __maybe_unused int rockchip_i3c_suspend_noirq(struct device *dev)
