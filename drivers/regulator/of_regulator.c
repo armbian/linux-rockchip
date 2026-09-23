@@ -127,6 +127,8 @@ static int of_get_regulation_constraints(struct device *dev,
 
 	constraints->boot_on = of_property_read_bool(np, "regulator-boot-on");
 	constraints->always_on = of_property_read_bool(np, "regulator-always-on");
+	if (!of_property_read_u32(np, "regulator-init-microvolt", &pval))
+		constraints->init_uV = pval;
 	if (!constraints->always_on) /* status change should be possible. */
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_STATUS;
 
