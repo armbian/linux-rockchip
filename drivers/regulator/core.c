@@ -1521,6 +1521,7 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 	 * before their consumer probes.
 	 */
 	if (rdev->constraints->init_uV) {
+		struct ww_acquire_ctx ww_ctx;
 		int uv = rdev->constraints->init_uV;
 		bool in_range = !rdev->constraints->min_uV &&
 				!rdev->constraints->max_uV;
@@ -1533,7 +1534,15 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 			rdev_warn(rdev, "init voltage %d uV outside constraints, ignoring\n",
 				  uv);
 		} else {
-			ret = _regulator_do_set_voltage(rdev, uv, uv);
+			/* The supply is already registered and may have consumers. */
+			if (rdev->supply)
+				regulator_lock_dependent(rdev->supply->rdev,
+							 &ww_ctx);
+			ret = regulator_set_voltage_rdev(rdev, uv, uv,
+							PM_SUSPEND_ON);
+			if (rdev->supply)
+				regulator_unlock_dependent(rdev->supply->rdev,
+							   &ww_ctx);
 			if (ret < 0) {
 				rdev_err(rdev, "failed to apply init voltage: %pe\n",
 					 ERR_PTR(ret));

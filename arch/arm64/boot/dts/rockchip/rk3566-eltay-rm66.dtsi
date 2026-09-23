@@ -190,7 +190,7 @@
 		interrupts = <RK_PA3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		system-power-controller;
+		rockchip,system-power-controller;
 		wakeup-source;
 
 		rk809_codec: codec {
