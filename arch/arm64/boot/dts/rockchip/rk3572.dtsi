@@ -4555,7 +4555,7 @@
 			status = "disabled";
 		};
 
-		i3c: i3c-master@2ab40000 {
+		i3c: i3c@2ab40000 {
 			compatible = "rockchip,i3c-master";
 			reg = <0x0 0x2ab40000 0x0 0x1000>;
 			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
