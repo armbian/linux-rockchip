@@ -520,7 +520,6 @@ struct rockchip_i3c_master {
 	struct clk *hclk;
 	struct reset_control *reset;
 	struct reset_control *reset_ahb;
-	int irq;
 
 	dma_addr_t dma_addr_rx;
 	dma_addr_t dma_addr_tx;
@@ -2388,8 +2387,8 @@ static int rockchip_i3c_probe(struct platform_device *pdev)
 		return PTR_ERR(i3c->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (i3c->irq < 0)
-		return i3c->irq;
+	if (irq < 0)
+		return irq;
 
 	i3c->hclk = devm_clk_get_enabled(&pdev->dev, "hclk");
 	if (IS_ERR(i3c->hclk))
