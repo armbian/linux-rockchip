@@ -18,8 +18,8 @@
 #include "rk3568-linux.dtsi"
 
 / {
-	model = "Rockchip SBC3568 V4 Mini3568 RV2 Board";
-	compatible = "rockchip,rk3568-evb1-ddr4-v10", "rockchip,rk3568";
+	model = "Boardcon SBC3568 V4 Mini3568 RV2 Board";
+	compatible = "boardcon,rk3568-boardcon-sbc-v4", "rockchip,rk3568";
 	/delete-node/ chosen;
 	
 	adc_keys: adc-keys {
