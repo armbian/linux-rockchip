@@ -43,6 +43,14 @@ properties:
       - const: rx
       - const: tx
 
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: i3c
+      - const: ahb
+
 required:
   - compatible
   - reg
@@ -55,6 +63,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/rockchip,rk3576-cru.h>
+    #include <dt-bindings/reset/rockchip,rk3576-cru.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     i3c0: i3c@2abe0000 {
@@ -67,4 +76,6 @@ examples:
       clock-names = "hclk", "i3c";
       dmas = <&dmac0 22>, <&dmac0 23>;
       dma-names = "rx", "tx";
+      resets = <&cru SRST_I3C0>, <&cru SRST_H_I3C0>;
+      reset-names = "i3c", "ahb";
     };
