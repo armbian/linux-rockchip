@@ -214,7 +214,6 @@
   	regulator-min-microvolt = <1800000>;
   	regulator-max-microvolt = <3300000>;
   	gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
-//  	gpios-states = <1>;
   	states = <1800000 1>, 
   		       <3300000 0>; 
   	regulator-boot-on;
@@ -251,7 +250,7 @@
 		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
 		pinctrl-names = "default";
-	  pinctrl-0 = <&vcc_sata_en>;
+	  pinctrl-0 = <&pcie_m2_en>;
 	};
 
 /* SATA power en */	
@@ -263,6 +262,8 @@
     regulator-boot-on;
 		gpio = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
+		pinctrl-names = "default";
+	  pinctrl-0 = <&vcc_sata_en>;
 	};
 
 	wireless_wlan: wireless-wlan {
@@ -1126,6 +1127,12 @@
 		};
 	};
 	
+	ssd {
+		pcie_m2_en: pcie-m2-en {
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	}; 
+	
 	sata {
 		vcc_sata_en: vcc-sata-en {
 			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -1179,88 +1186,5 @@
 			<0xe7	186>,
 			<0xf0	388>,
 			<0xbe	0x175>;
-	};
-
-	ir_key2 {
-		rockchip,usercode = <0xff00>;
-		rockchip,key_table =
-			<0xf9	KEY_HOME>,
-			<0xbf	KEY_BACK>,
-			<0xfb	KEY_MENU>,
-			<0xaa	KEY_REPLY>,
-			<0xb9	KEY_UP>,
-			<0xe9	KEY_DOWN>,
-			<0xb8	KEY_LEFT>,
-			<0xea	KEY_RIGHT>,
-			<0xeb	KEY_VOLUMEDOWN>,
-			<0xef	KEY_VOLUMEUP>,
-			<0xf7	KEY_MUTE>,
-			<0xe7	KEY_POWER>,
-			<0xfc	KEY_POWER>,
-			<0xa9	KEY_VOLUMEDOWN>,
-			<0xa8	KEY_VOLUMEDOWN>,
-			<0xe0	KEY_VOLUMEDOWN>,
-			<0xa5	KEY_VOLUMEDOWN>,
-			<0xab	183>,
-			<0xb7	388>,
-			<0xe8	388>,
-			<0xf8	184>,
-			<0xaf	185>,
-			<0xed	KEY_VOLUMEDOWN>,
-			<0xee	186>,
-			<0xb3	KEY_VOLUMEDOWN>,
-			<0xf1	KEY_VOLUMEDOWN>,
-			<0xf2	KEY_VOLUMEDOWN>,
-			<0xf3	KEY_SEARCH>,
-			<0xb4	KEY_VOLUMEDOWN>,
-			<0xbe	KEY_SEARCH>;
-	};
-
-	ir_key3 {
-		rockchip,usercode = <0x1dcc>;
-		rockchip,key_table =
-			<0xee	KEY_REPLY>,
-			<0xf0	KEY_BACK>,
-			<0xf8	KEY_UP>,
-			<0xbb	KEY_DOWN>,
-			<0xef	KEY_LEFT>,
-			<0xed	KEY_RIGHT>,
-			<0xfc	KEY_HOME>,
-			<0xf1	KEY_VOLUMEUP>,
-			<0xfd	KEY_VOLUMEDOWN>,
-			<0xb7	KEY_SEARCH>,
-			<0xff	KEY_POWER>,
-			<0xf3	KEY_MUTE>,
-			<0xbf	KEY_MENU>,
-			<0xf9	0x191>,
-			<0xf5	0x192>,
-			<0xb3	388>,
-			<0xbe	KEY_1>,
-			<0xba	KEY_2>,
-			<0xb2	KEY_3>,
-			<0xbd	KEY_4>,
-			<0xf9	KEY_5>,
-			<0xb1	KEY_6>,
-			<0xfc	KEY_7>,
-			<0xf8	KEY_8>,
-			<0xb0	KEY_9>,
-			<0xb6	KEY_0>,
-			<0xb5	KEY_BACKSPACE>;
-	};
-	ir_key4 {
-		rockchip,usercode = <0xfe01>;
-		rockchip,key_table =
-			<0xbf	KEY_BACK>,
-			<0xb9	KEY_UP>,
-			<0xe9	KEY_DOWN>,
-			<0xb8	KEY_LEFT>,
-			<0xea	KEY_RIGHT>,
-			<0xf9	KEY_HOME>,
-			<0xef	KEY_VOLUMEUP>,
-			<0xeb	KEY_VOLUMEDOWN>,
-			<0xfb	KEY_SEARCH>,
-			<0xe7	KEY_POWER>,
-			<0xaa	KEY_ENTER>,
-			<0xe8	KEY_MENU>;
 	};
 };
