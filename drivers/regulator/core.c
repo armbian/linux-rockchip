@@ -1513,6 +1513,44 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 
+	/*
+	 * Apply an explicit initial voltage from the constraints (the
+	 * "regulator-init-microvolt" device tree property). Rails whose
+	 * boot voltage is the PMIC register floor (e.g. vdd_npu on
+	 * RK809 boards) rely on this to reach their operating point
+	 * before their consumer probes.
+	 */
+	if (rdev->constraints->init_uV) {
+		struct ww_acquire_ctx ww_ctx;
+		int uv = rdev->constraints->init_uV;
+		bool in_range = !rdev->constraints->min_uV &&
+				!rdev->constraints->max_uV;
+
+		if (!in_range)
+			in_range = uv >= rdev->constraints->min_uV &&
+				   uv <= rdev->constraints->max_uV;
+
+		if (!in_range) {
+			rdev_warn(rdev, "init voltage %d uV outside constraints, ignoring\n",
+				  uv);
+		} else {
+			/* The supply is already registered and may have consumers. */
+			if (rdev->supply)
+				regulator_lock_dependent(rdev->supply->rdev,
+							 &ww_ctx);
+			ret = regulator_set_voltage_rdev(rdev, uv, uv,
+							PM_SUSPEND_ON);
+			if (rdev->supply)
+				regulator_unlock_dependent(rdev->supply->rdev,
+							   &ww_ctx);
+			if (ret < 0) {
+				rdev_err(rdev, "failed to apply init voltage: %pe\n",
+					 ERR_PTR(ret));
+				return ret;
+			}
+		}
+	}
+
 	ret = machine_constraints_current(rdev, rdev->constraints);
 	if (ret != 0)
 		return ret;

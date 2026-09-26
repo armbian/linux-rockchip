@@ -30,6 +30,23 @@ properties:
     description: Reference to the GPIO connected to the pwdn pin. Active high.
     maxItems: 1
 
+  rockchip,camera-module-index:
+    description: Index of the camera module on the board.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  rockchip,camera-module-facing:
+    description: Facing of the camera module.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [back, front]
+
+  rockchip,camera-module-name:
+    description: Name of the camera module.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  rockchip,camera-module-lens-name:
+    description: Name of the camera module lens.
+    $ref: /schemas/types.yaml#/definitions/string
+
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false

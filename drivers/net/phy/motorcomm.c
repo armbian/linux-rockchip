@@ -1131,6 +1131,48 @@ static int yt8531S_config_init(struct phy_device *phydev)
 	return yt8521_config_init(phydev);
 }
 
+/* Match the RGMII clock delays requested by phy-mode. The vendor driver
+ * adjusts RX clock duty cycle but otherwise leaves the delay registers at
+ * their strap values, unlike the mainline YT8531 driver.
+ */
+static int yt8531_rgmii_delay_init(struct phy_device *phydev)
+{
+	u16 delays = 0;
+	int ret, val;
+
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		delays = 13 << 10;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		delays = 13;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		delays = (13 << 10) | 13;
+		break;
+	default:
+		return 0;
+	}
+
+	/* Bit 8 adds a separate 1.9 ns RX delay. The 0xa003 setting below
+	 * already provides the default 1.95 ns used by the mainline driver.
+	 */
+	val = ytphy_read_ext(phydev, 0xa001);
+	if (val < 0)
+		return val;
+	ret = ytphy_write_ext(phydev, 0xa001, val & ~BIT(8));
+	if (ret < 0)
+		return ret;
+
+	val = ytphy_read_ext(phydev, 0xa003);
+	if (val < 0)
+		return val;
+	val &= ~(GENMASK(13, 10) | GENMASK(3, 0));
+	return ytphy_write_ext(phydev, 0xa003, val | delays);
+}
+
 static int yt8531_config_init(struct phy_device *phydev)
 {
 	int ret = 0, val;
@@ -1140,6 +1182,10 @@ static int yt8531_config_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 #endif
+
+	ret = yt8531_rgmii_delay_init(phydev);
+	if (ret < 0)
+		return ret;
 
 	/* PHY_CLK_OUT 125M enabled (default) */
 	ret = ytphy_write_ext(phydev, 0xa012, 0xd0);
