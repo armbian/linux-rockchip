@@ -1001,6 +1001,11 @@ static void rk8xx_device_shutdown(void)
 		reg = RK818_DEVCTRL_REG;
 		bit = DEV_OFF;
 		break;
+	case RK809_ID:
+	case RK817_ID:
+		reg = RK817_SYS_CFG(3);
+		bit = DEV_OFF;
+		break;
 	default:
 		return;
 	}
@@ -1024,7 +1029,14 @@ static void rk8xx_syscore_shutdown(void)
 		return;
 	}
 
-	if (rk808->variant != RK801_ID) {
+	/* These writes use the RK808 register map; on RK809/RK817,
+	 * RK808_INT_STS_MSK_REG1 and RK808_RTC_INT_REG are codec registers
+	 * (DI2S_TXCR1 and DTOP_VUCTL), and rk817_shutdown_prepare() already
+	 * masks their RTC interrupts. Skip the writes.
+	 */
+	if (rk808->variant != RK801_ID &&
+	    rk808->variant != RK809_ID &&
+	    rk808->variant != RK817_ID) {
 		/* close rtc int when power off */
 		regmap_update_bits(rk808->regmap,
 				   RK808_INT_STS_MSK_REG1,
@@ -1447,6 +1459,7 @@ static int rk808_probe(struct i2c_client *client,
 		on_source = RK817_ON_SOURCE_REG;
 		off_source = RK817_OFF_SOURCE_REG;
 		of_property_prepare_fn = rk817_of_property_prepare;
+		device_shutdown_fn = rk8xx_device_shutdown;
 		break;
 	default:
 		dev_err(&client->dev, "Unsupported RK8XX ID %lu\n",
