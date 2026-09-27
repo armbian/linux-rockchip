@@ -2,6 +2,14 @@
 /plugin/;
 
 / {
+	metadata {
+		title = "mini-PCIe socket as SATA";
+		compatible = "mixtile,blade3";
+		category = "misc";
+		exclusive = "combphy2_psu";
+		description = "Enable SATA2 on the mini-PCIe socket.\nWhen SATA2 is enabled, PCIe cannot be enabled on the same port.";
+	};
+
 	fragment@0 {
 		target = <&pcie2x1l1>;
 

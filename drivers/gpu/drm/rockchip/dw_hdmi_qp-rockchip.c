@@ -349,6 +349,7 @@ struct rockchip_dw_hdmi_qp {
 	struct rockchip_drm_hdmi21_data hdmi21_data;
 	u32 force_bus_format;
 	u32 sda_falling_delay_ns;
+	bool hpd_inverted;
 
 	u8 hdrvivid_vsvdb[HDRVIVID_VSVDB_LEN];
 };
@@ -1248,6 +1249,9 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
 
+	if (hdmi->hpd_inverted)
+		intr_stat ^= hdmi->id ? RK3588_HDMI1_LEVEL_INT : RK3588_HDMI0_LEVEL_INT;
+
 	if (!hdmi->id) {
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR, RK3588_HDMI0_HPD_INT_CLR);
 		if (intr_stat & RK3588_HDMI0_LEVEL_INT)
@@ -1642,6 +1646,8 @@ static int rockchip_hdmi_parse_dt(struct rockchip_dw_hdmi_qp *hdmi)
 
 	if (of_property_read_u32(np, "rockchip,sda-falling-delay-ns", &hdmi->sda_falling_delay_ns))
 		hdmi->sda_falling_delay_ns = 0;
+
+	hdmi->hpd_inverted = of_property_read_bool(np, "hpd-inverted");
 
 	return ret;
 }
@@ -4486,6 +4492,9 @@ static enum drm_connector_status dw_hdmi_rk3588_read_hpd(struct dw_hdmi_qp *dw_h
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &val);
+
+	if (hdmi->hpd_inverted)
+		val ^= hdmi->id ? RK3588_HDMI1_LEVEL_INT : RK3588_HDMI0_LEVEL_INT;
 
 	if (!hdmi->id) {
 		if (val & RK3588_HDMI0_LEVEL_INT) {
