@@ -55,6 +55,14 @@
 #define DEBUG_AUTOCONF(fmt...)	do { } while (0)
 #endif
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+#if 0
+#define DEBUG_EM485(fmt...)	printk(fmt)
+#else
+#define DEBUG_EM485(fmt...)	do { } while (0)
+#endif
+#endif
+
 /*
  * Here we define the default xmit fifo size used for each type of UART.
  */
@@ -612,6 +620,11 @@ EXPORT_SYMBOL_GPL(serial8250_rpm_put);
  */
 static int serial8250_em485_init(struct uart_8250_port *p)
 {
+	
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	DEBUG_EM485("%s ttyS%d\n", __func__, p->port.line);
+#endif
+
 	if (p->em485)
 		goto deassert_rts;
 
@@ -1445,12 +1458,33 @@ void serial8250_em485_stop_tx(struct uart_8250_port *p)
 {
 	unsigned char mcr = serial8250_in_MCR(p);
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	int value = 0;
+
+	if (p->port.rs485_de_gpio) {
+		if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
+			value = 0;
+		else
+			value = 1;
+
+		gpiod_set_value(p->port.rs485_de_gpio, value);
+		DEBUG_EM485("%s ttyS%d gpio:%d\n", __func__, p->port.line, value);
+	} else {
+		if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
+			mcr |= UART_MCR_RTS;
+		else
+			mcr &= ~UART_MCR_RTS;
+		serial8250_out_MCR(p, mcr);
+		DEBUG_EM485("%s ttyS%d mcr:%02x\n", __func__, p->port.line, mcr);
+	}
+#else
+
 	if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
 		mcr |= UART_MCR_RTS;
 	else
 		mcr &= ~UART_MCR_RTS;
 	serial8250_out_MCR(p, mcr);
-
+#endif
 	/*
 	 * Empty the RX FIFO, we are not interested in anything
 	 * received during the half-duplex transmission.
@@ -1494,6 +1528,10 @@ static void __stop_tx_rs485(struct uart_8250_port *p, u64 stop_delay)
 {
 	struct uart_8250_em485 *em485 = p->em485;
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	DEBUG_EM485("%s ttyS%d\n", __func__, p->port.line);
+#endif
+
 	stop_delay += (u64)p->port.rs485.delay_rts_after_send * NSEC_PER_MSEC;
 
 	/*
@@ -1531,6 +1569,9 @@ static inline void __stop_tx(struct uart_8250_port *p)
 		 * for emptying of the shift register.
 		 */
 		if (!(lsr & UART_LSR_TEMT)) {
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+			stop_delay = p->port.frame_time + 10000;
+#else			
 			if (!(p->capabilities & UART_CAP_NOTEMT))
 				return;
 			/*
@@ -1541,6 +1582,7 @@ static inline void __stop_tx(struct uart_8250_port *p)
 			 * Roughly estimate 1 extra bit here with / 7.
 			 */
 			stop_delay = p->port.frame_time + DIV_ROUND_UP(p->port.frame_time, 7);
+#endif
 		}
 
 		__stop_tx_rs485(p, stop_delay);
@@ -1611,14 +1653,33 @@ void serial8250_em485_start_tx(struct uart_8250_port *up)
 {
 	unsigned char mcr = serial8250_in_MCR(up);
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	int value = 0;
+#endif
+
 	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
 		serial8250_stop_rx(&up->port);
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	if (up->port.rs485_de_gpio) {
+		if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
+			value = 0;
+		else
+			value = 1;
+		gpiod_set_value(up->port.rs485_de_gpio, value);
+		DEBUG_EM485("%s ttyS%d gpio:%d\n", __func__, up->port.line, value);
+		return;
+	}
+#endif
 
 	if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
 		mcr |= UART_MCR_RTS;
 	else
 		mcr &= ~UART_MCR_RTS;
 	serial8250_out_MCR(up, mcr);
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	DEBUG_EM485("%s ttyS%d mcr:%02x\n", __func__, up->port.line, mcr);
+#endif
 }
 EXPORT_SYMBOL_GPL(serial8250_em485_start_tx);
 
