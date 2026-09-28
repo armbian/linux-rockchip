@@ -4158,6 +4158,9 @@ static int hdmirx_runtime_suspend(struct device *dev)
 
 	disable_irq(hdmirx_dev->hdmi_irq);
 	disable_irq(hdmirx_dev->dma_irq);
+	/* the 5V detect handler reads DMA_CONFIG6: not while the clocks are gated */
+	if (hdmirx_dev->initialized)
+		disable_irq(hdmirx_dev->det_irq);
 	sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_DIS, RK_IRQ_HDMIRX_HDMI, 0);
 
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_hotplug);
@@ -4211,6 +4214,7 @@ static int hdmirx_runtime_resume(struct device *dev)
 	if (hdmirx_dev->initialized) {
 		enable_irq(hdmirx_dev->hdmi_irq);
 		enable_irq(hdmirx_dev->dma_irq);
+		enable_irq(hdmirx_dev->det_irq);
 		sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_EN, RK_IRQ_HDMIRX_HDMI, 0);
 	}
 
