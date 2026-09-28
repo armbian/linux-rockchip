@@ -138,7 +138,7 @@ static const struct rockchip_cpuclk_reg_data rk3328_cpuclk_data = {
 	.div_core_mask[0] = 0x1f,
 	.num_cores = 1,
 	.mux_core_alt = 1,
-	.mux_core_main = 3,
+	.mux_core_main = 0,
 	.mux_core_shift = 6,
 	.mux_core_mask = 0x3,
 };
