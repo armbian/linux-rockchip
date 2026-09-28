@@ -713,7 +713,7 @@
 
 	pcie {
 		pcie30x4_clkreqn_m1: pcie30x4-clkreqn-m1 {
-			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <4 RK_PB4 4 &pcfg_pull_up>;
 		};
 	};
 
