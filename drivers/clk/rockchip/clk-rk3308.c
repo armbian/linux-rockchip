@@ -921,7 +921,7 @@ static struct rockchip_clk_branch rk3308b_dclk_vop_frac[] __initdata = {
 
 static void __iomem *rk3308_cru_base;
 
-void rk3308_dump_cru(void)
+static void rk3308_dump_cru(void)
 {
 	if (rk3308_cru_base) {
 		pr_warn("CRU:\n");
