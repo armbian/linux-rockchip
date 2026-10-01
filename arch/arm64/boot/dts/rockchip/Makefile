@@ -527,6 +527,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-m5.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-nanopi-r76s.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-radxa-cm4-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-recomputer-rk3576-devkit.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-recomputer-rk3576-module-devkit.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-rock-4d-spi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-rock-4d.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-armsom-aim7-io.dtb
