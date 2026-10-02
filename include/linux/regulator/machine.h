@@ -164,9 +164,6 @@ struct regulation_constraints {
 
 	int uV_offset;
 
-	/* explicit initial voltage applied at registration */
-	int init_uV;
-
 	/* current output range (inclusive) - for current control */
 	int min_uA;
 	int max_uA;
