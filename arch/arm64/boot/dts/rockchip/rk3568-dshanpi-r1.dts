@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 sckiyo <sckiyo@outlook.com>
  *
+ * vdd_cpu is a fixed 0.9 V rail.
+ * The SOM has no I2C CPU regulator.
+ * The OPP core drops OPPs above 1.104 GHz.
+ *
+ * WiFi and BT on sdmmc2 and uart8 serve the soldered AP6256.
+ * The R1+ routes the same wiring to the M.2 E-key slot.
+ * PCIe cards in that slot leave the SDIO wiring unused.
+ * WiFi and BT stay on by default.
  */
 
 /dts-v1/;
@@ -9,47 +18,79 @@
 #include <dt-bindings/display/rockchip_vop.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
-#include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/input/linux-event-codes.h>
-#include <dt-bindings/sensor-dev.h>
 #include "rk3568.dtsi"
 #include "rk3568-linux.dtsi"
 
 / {
-	model = "DshanPI R1";
-	compatible = "dshanpi,r1", "rockchip,rk3568";
+	model = "100ASK DshanPi R1 / R1+";
+	compatible = "100ask,dshanpi-r1", "rockchip,rk3568";
 
-	adc_keys: adc-keys {
+	/*
+	 * Each side button is one SPST to ground on its own SARADC channel.
+	 * A grounded channel drags the other channels to about 0.2 V.
+	 * Each node has a dummy rung at 0.1 V.
+	 * The 0.2 V drag matches the dummy rung.
+	 * A real press measures 20-30 mV.
+	 */
+	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
 		io-channel-names = "buttons";
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
 
-		vol-up-key {
-			label = "volume up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
+		button-rec {
+			label = "REC";
+			linux,code = <KEY_VENDOR>;
+			press-threshold-microvolt = <50000>;
 		};
 
-		vol-down-key {
-			label = "volume down";
-			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <297500>;
+		button-rec-drag {
+			label = "rec-drag";
+			linux,code = <KEY_RESERVED>;
+			press-threshold-microvolt = <100000>;
+		};
+	};
+
+	adc-keys-1 {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		button-key1 {
+			label = "KEY1";
+			linux,code = <KEY_PROG1>;
+			press-threshold-microvolt = <50000>;
 		};
 
-		menu-key {
-			label = "menu";
-			linux,code = <KEY_MENU>;
-			press-threshold-microvolt = <980000>;
+		button-key1-drag {
+			label = "key1-drag";
+			linux,code = <KEY_RESERVED>;
+			press-threshold-microvolt = <100000>;
+		};
+	};
+
+	adc-keys-2 {
+		compatible = "adc-keys";
+		io-channels = <&saradc 2>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		button-key2 {
+			label = "KEY2";
+			linux,code = <KEY_PROG2>;
+			press-threshold-microvolt = <50000>;
 		};
 
-		back-key {
-			label = "back";
-			linux,code = <KEY_BACK>;
-			press-threshold-microvolt = <1305500>;
+		button-key2-drag {
+			label = "key2-drag";
+			linux,code = <KEY_RESERVED>;
+			press-threshold-microvolt = <100000>;
 		};
 	};
 
@@ -73,7 +114,7 @@
 		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,hp-det-gpio = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,hp-det-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,name = "rockchip,rk809-codec";
 		simple-audio-card,widgets = "Headphones", "Headphones Jack";
 		simple-audio-card,mclk-fs = <256>;
@@ -83,13 +124,6 @@
 		simple-audio-card,codec {
 			sound-dai = <&rk809_codec>;
 		};
-	};
-
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
 	};
 
 	vcc2v5_sys: vcc2v5-ddr {
@@ -141,17 +175,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc5v0_sys>;
-	};
-
-	vcc_camera: vcc-camera-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&camera_pwr>;
-		regulator-name = "vcc_camera";
-		enable-active-high;
-		regulator-always-on;
-		regulator-boot-on;
 	};
 
 	backlight: backlight {
@@ -244,21 +267,13 @@
 	};
 
 	hdmi_sound: hdmi-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
 		rockchip,card-name = "rockchip,hdmi";
 		rockchip,cpu = <&i2s0_8ch>;
 		rockchip,codec = <&hdmi>;
-	};
-
-	leds: leds {
-		compatible = "gpio-leds";
-		work_led: work {
-			gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			status = "disabled";
-		};
+		rockchip,jack-det;
 	};
 
 	pdmics: dummy-codec {
@@ -276,21 +291,6 @@
 		};
 		simple-audio-card,codec {
 			sound-dai = <&pdmics>;
-		};
-	};
-
-	rk809_sound: rk809-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rk809-codec";
-		simple-audio-card,mclk-fs = <256>;
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s1_8ch>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&rk809_codec>;
 		};
 	};
 
@@ -340,6 +340,16 @@
 		vin-supply = <&dc_12v>;
 	};
 
+	vdd_cpu: vdd-cpu {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_cpu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc5v0_usb: vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
@@ -362,6 +372,19 @@
 		vin-supply = <&vcc5v0_usb>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc5v0_host_en>;
+	};
+
+	/* Type-C VBUS switch (FUSB302 "vbus-5v", GPIO0_PA5). */
+	vcc5v0_otg: vcc5v0-otg-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_otg";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_usb>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_otg_en>;
 	};
 
 	vcc3v3_lcd0_n: vcc3v3-lcd0-n {
@@ -401,13 +424,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable_h>;
 
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
 		post-power-on-delay-ms = <200>;
+		/* WL_REG_ON / PDN of the populated module. */
 		reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 	};
 
@@ -415,7 +433,7 @@
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
 		wifi_chip_type = "ap6256";
-		status = "okay";
+		status = "disabled";
 	};
 
 	wireless_bluetooth: wireless-bluetooth {
@@ -430,7 +448,8 @@
 		BT,reset_gpio    = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		/* The serdev node under uart8 serves BT. */
+		status = "disabled";
 	};
 
 	vcc3v3_pcie20: gpio-regulator-pcie20 {
@@ -450,12 +469,9 @@
 			gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 			status = "okay";
-			};
+		};
 	};
 
-	test-power {
-		status = "okay";
-	};
 };
 
 &bus_npu {
@@ -466,15 +482,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
-};
-
-&dfi {
-	status = "okay";
-};
-
-&dmc {
-	center-supply = <&vdd_logic>;
-	status = "okay";
 };
 
 &gpu {
@@ -501,31 +508,8 @@
 	status = "disabled";
 };
 
-&hdmi_sound {
-	status = "okay";
-};
-
 &i2c0 {
 	status = "okay";
-
-	vdd_cpu: tcs4525@1c {
-		compatible = "tcs,tcs452x";
-		reg = <0x1c>;
-		vin-supply = <&vcc5v0_sys>;
-		regulator-compatible = "fan53555-reg";
-		regulator-name = "vdd_cpu";
-		regulator-min-microvolt = <712500>;
-		regulator-max-microvolt = <1390000>;
-		regulator-init-microvolt = <900000>;
-		regulator-initial-mode = <1>;
-		regulator-ramp-delay = <2300>;
-		fcs,suspend-voltage-selector = <1>;
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
-	};
 
 	rk809: pmic@20 {
 		compatible = "rockchip,rk809";
@@ -783,17 +767,13 @@
 			assigned-clock-rates = <12288000>;
 			assigned-clock-parents = <&cru I2S1_MCLKOUT_TX>, <&cru I2S1_MCLKOUT_TX>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2s1m0_mclk>;
+			pinctrl-0 = <&i2s1m0_mclk &hp_det>;
 			hp-volume = <20>;
 			spk-volume = <3>;
 			mic-in-differential;
 			status = "okay";
 		};
 	};
-};
-
-&i2c1 {
-	status = "okay";
 };
 
 &i2c5 {
@@ -874,13 +854,20 @@
 		};
 	};
 
-	cam {
-		camera_pwr: camera-pwr {
-			rockchip,pins =
-				/* camera power en */
-				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+	bluetooth {
+		bt_device_wake: bt-device-wake {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_host_wake: bt-host-wake {
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		bt_shutdown: bt-shutdown {
+			rockchip,pins = <4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
@@ -924,8 +911,10 @@
   */
 &pmu_io_domains {
 	status = "okay";
+	pmuio1-supply = <&vcc3v3_pmu>;
 	pmuio2-supply = <&vcc3v3_pmu>;
 	vccio1-supply = <&vccio_acodec>;
+	vccio2-supply = <&vcc_1v8>;
 	vccio3-supply = <&vccio_sd>;
 	vccio4-supply = <&vcc_1v8>;
 	vccio5-supply = <&vcc_3v3>;
@@ -1004,14 +993,6 @@
 	status = "okay";
 };
 
-&sfc {
-	status = "okay";
-};
-
-&spdif_8ch {
-	status = "disabled";
-};
-
 &tsadc {
 	status = "okay";
 };
@@ -1022,8 +1003,7 @@
 };
 
 &u2phy0_otg {
-	//vbus-supply = <&vcc5v0_otg>;
-	vbus-supply = <&fusb0>;	
+	phy-supply = <&vcc5v0_otg>;
 	status = "okay";
 };
 
@@ -1034,10 +1014,6 @@
 
 &u2phy1_otg {
 	phy-supply = <&vcc5v0_host>;
-	status = "okay";
-};
-
-&usb2phy0 {
 	status = "okay";
 };
 
@@ -1058,12 +1034,6 @@
 };
 
 &usb_host1_ohci {
-	status = "okay";
-};
-
-&usbdrd_dwc3 {
-	dr_mode = "otg";
-	extcon = <&usb2phy0>;
 	status = "okay";
 };
 
@@ -1106,45 +1076,14 @@
 	status = "okay";
 	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
 	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
+	disable-win-move;
 };
 
 &vop_mmu {
 	status = "okay";
 };
 
-&hdmi_sound {
-	status = "okay";
-	rockchip,jack-det;
-};
-
-&rk809_codec {
-	#sound-dai-cells = <0>;
-	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
-	clocks = <&cru I2S1_MCLKOUT>;
-	clock-names = "mclk";
-	assigned-clocks = <&cru I2S1_MCLKOUT>, <&cru I2S1_MCLK_TX_IOE>;
-	assigned-clock-rates = <12288000>;
-	assigned-clock-parents = <&cru I2S1_MCLKOUT_TX>, <&cru I2S1_MCLKOUT_TX>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2s1m0_mclk &hp_det>;
-	hp-volume = <20>;
-	spk-volume = <3>;
-	status = "okay";
-};
-
-&rk_headset {
-	status = "disabled";
-};
-
 &rockchip_suspend {
-	status = "okay";
-};
-
-&vop {
-	disable-win-move;
-};
-
-&combphy0_us {
 	status = "okay";
 };
 
@@ -1162,7 +1101,8 @@
 
 	snps,reset-gpio = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
+	/* The reset pulse is 20 ms. */
+	/* The PHY needs 100 ms after reset. */
 	snps,reset-delays-us = <0 20000 100000>;
 
 	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>, <&cru CLK_MAC0_OUT>;
@@ -1188,9 +1128,13 @@
 	phy-mode = "rgmii";
 	clock_in_out = "input";
 
-	snps,reset-gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
+	/* The carrier schematic labels this reset GPIO2_D1. */
+	/* The PHY reset is GPIO0_C1. */
+	/* The reference design calls GPIO0_C1 camera PWR. */
+	snps,reset-gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
+	/* The reset pulse is 20 ms. */
+	/* The PHY needs 100 ms after reset. */
 	snps,reset-delays-us = <0 20000 100000>;
 
 	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>, <&cru CLK_MAC1_OUT>;
@@ -1205,7 +1149,6 @@
 			&gmac1m1_rgmii_bus
 			&eth1m0_pins
 			&gmac1m1_clkinout>;
-			
 
 	tx_delay = <0x3a>;
 	rx_delay = <0x29>;
@@ -1267,44 +1210,58 @@
 &uart8 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart8m0_xfer &uart8m0_ctsn>;
+	pinctrl-0 = <&uart8m0_xfer &uart8m0_ctsn &uart8m0_rtsn>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rk809 1>;
+		clock-names = "lpo";
+		device-wakeup-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PD4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wakeup";
+		max-speed = <1500000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_device_wake &bt_host_wake &bt_shutdown>;
+		vbat-supply = <&vcc_3v3>;
+		vddio-supply = <&vcc_1v8>;
+	};
 };
 
 &i2c1 {
 	status = "okay";
 
+	/*
+	 * The BSP extcon binding deadlocks both USB3 controllers.
+	 * The tcpm binding in this tree wants fcs,int_n-gpios.
+	 */
 	fusb0: fusb30x@22 {
 		compatible = "fairchild,fusb302";
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
-		int-n-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		fcs,int_n-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
 		fusb340-switch-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
 		vbus-5v-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		status = "disabled";
 	};
-
 };
 
+/* The Type-C port runs host-only. */
+/* The port skips the FUSB302 extcon. */
 &usbdrd_dwc3 {
-	dr_mode = "otg";
-	extcon = <&fusb0>;
+	dr_mode = "host";
 	status = "okay";
 };
-  
+
 &combphy0_us {
 	status = "okay";
-	extcon = <&fusb0>;
 };
 
 &usb2phy0 {
-		status = "okay";
-		extcon = <&fusb0>;
-};
-
-&u2phy0_otg {
-		/delete-property/ vbus-supply;
-		status = "okay";
+	status = "okay";
 };
 
 &pcie2x1 {
@@ -1331,7 +1288,9 @@
 	handle_cpu_id = <1>;
 	remote_support_psci = <0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm15m1_pins>;
+	/* IR_RX sits on PWM15_IR_M0, GPIO3_C5. */
+	/* GPIO4_C3 is CAN1_TX on this board. */
+	pinctrl-0 = <&pwm15m0_pins>;
 
 	ir_key1 {
 		rockchip,usercode = <0x4040>;
@@ -1410,10 +1369,6 @@
 	};
 };
 
-&spdif_8ch {
-	status = "disabled";
-};
-
 &vp0 {
 	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
 };
@@ -1422,14 +1377,11 @@
 	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER1>;
 };
 
-&hdmi_sound {
-	status = "disabled";
-};
-
 &dmc {
-	status = "disabled";
+	center-supply = <&vdd_logic>;
+	status = "okay";
 };
 
-&dfi{
-	status = "disabled";
+&dfi {
+	status = "okay";
 };
