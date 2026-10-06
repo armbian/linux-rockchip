@@ -9,6 +9,15 @@
 	compatible = "rockchip,rk3566";
 };
 
+&gpu_opp_table {
+	/*
+	 * The opp-supported-hw masks of the common GPU OPPs are commented out
+	 * in rk356x.dtsi (for panfrost) and RK3566 has no variant-specific
+	 * OPPs, so no entry here can match a hardware mask.
+	 */
+	/delete-property/ rockchip,supported-hw;
+};
+
 &lpddr4_params {
 	/* freq info, freq_0 is final frequency, unit: MHz */
 	freq_0 = <1056>;
