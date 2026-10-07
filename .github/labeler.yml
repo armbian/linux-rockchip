@@ -1,0 +1,30 @@
+# PR path -> label rules for actions/labeler (add-only).
+# Adapted for the kernel tree (armbian/linux-rockchip); the rest of the
+# labelling automation is copied verbatim from armbian/build.
+
+"Needs review":
+- changed-files:
+  - any-glob-to-any-file: '**'
+
+"Device Tree":
+- changed-files:
+  - any-glob-to-any-file: ['arch/*/boot/dts/**']
+
+"defconfig":
+- changed-files:
+  - any-glob-to-any-file: ['arch/*/configs/**']
+
+"GitHub Actions":
+- all:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/workflows/**/*']
+
+"GitHub":
+- all:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*']
+    - all-globs-to-any-file: ['!.github/workflows/**/*']
+
+"Documentation":
+- changed-files:
+  - any-glob-to-any-file: '**/*.md'
