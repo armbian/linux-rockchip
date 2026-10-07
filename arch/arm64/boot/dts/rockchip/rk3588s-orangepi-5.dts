@@ -348,6 +348,16 @@
 	status = "okay";
 };
 
+/ {
+	aliases {
+		/* Single GbE is on gmac1; name it ethernet0 (end0) to match the
+		 * mainline DT. The SoC dtsi aliases it as ethernet1 by HW index,
+		 * which made the NIC flip end1(vendor)<->end0(mainline). */
+		ethernet0 = &gmac1;
+		/delete-property/ ethernet1;
+	};
+};
+
 &gmac1 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
