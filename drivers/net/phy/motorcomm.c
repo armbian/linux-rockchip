@@ -3516,6 +3516,21 @@ static int yt8821_resume(struct phy_device *phydev)
 	return yt8821_modify_utp_fiber_bmcr(phydev, BMCR_PDOWN, 0);
 }
 
+/*
+ * stmmac hard-resets the PHY on every resume and, with MAC-managed PM,
+ * phylib does not call phy_init_hw() again. Redo the vendor init first.
+ */
+static int yt8531_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = yt8531_config_init(phydev);
+	if (ret < 0)
+		return ret;
+
+	return genphy_resume(phydev);
+}
+
 static struct phy_driver motorcomm_phy_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8011),
@@ -3585,7 +3600,7 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.probe		= yt8531_probe,
 		.config_init	= yt8531_config_init,
 		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.resume		= yt8531_resume,
 		.get_wol	= ytphy_get_wol,
 		.set_wol	= yt8531_set_wol,
 		.link_change_notify = yt8531_link_change_notify,
