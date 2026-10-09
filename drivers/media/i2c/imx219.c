@@ -20,8 +20,10 @@
 #include <linux/i2c.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/rk-camera-module.h>
 
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
@@ -360,6 +362,11 @@ struct imx219 {
 
 	/* Two or Four lanes */
 	u8 lanes;
+
+	u32 module_index;
+	const char *module_facing;
+	const char *module_name;
+	const char *len_name;
 };
 
 static inline struct imx219 *to_imx219(struct v4l2_subdev *_sd)
@@ -952,13 +959,53 @@ static int imx219_init_state(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static void imx219_get_module_inf(struct imx219 *imx219, struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strscpy(inf->base.sensor, "imx219", sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx219->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, imx219->len_name, sizeof(inf->base.lens));
+}
+
+static long imx219_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct imx219 *imx219 = to_imx219(sd);
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		imx219_get_module_inf(imx219, arg);
+		return 0;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
+static int imx219_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	struct imx219 *imx219 = to_imx219(sd);
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2.num_data_lanes = imx219->lanes;
+
+	return 0;
+}
+
+static int imx219_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	*status = 0;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops imx219_core_ops = {
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+	.ioctl = imx219_ioctl,
 };
 
 static const struct v4l2_subdev_video_ops imx219_video_ops = {
 	.s_stream = imx219_set_stream,
+	.g_input_status = imx219_g_input_status,
 };
 
 static const struct v4l2_subdev_pad_ops imx219_pad_ops = {
@@ -967,6 +1014,7 @@ static const struct v4l2_subdev_pad_ops imx219_pad_ops = {
 	.set_fmt = imx219_set_pad_format,
 	.get_selection = imx219_get_selection,
 	.enum_frame_size = imx219_enum_frame_size,
+	.get_mbus_config = imx219_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx219_subdev_ops = {
@@ -1144,6 +1192,20 @@ static int imx219_probe(struct i2c_client *client)
 	imx219 = devm_kzalloc(&client->dev, sizeof(*imx219), GFP_KERNEL);
 	if (!imx219)
 		return -ENOMEM;
+
+	imx219->module_facing = "";
+	imx219->module_name = "";
+	imx219->len_name = "";
+	if (dev->of_node) {
+		of_property_read_u32(dev->of_node, RKMODULE_CAMERA_MODULE_INDEX,
+				     &imx219->module_index);
+		of_property_read_string(dev->of_node, RKMODULE_CAMERA_MODULE_FACING,
+					&imx219->module_facing);
+		of_property_read_string(dev->of_node, RKMODULE_CAMERA_MODULE_NAME,
+					&imx219->module_name);
+		of_property_read_string(dev->of_node, RKMODULE_CAMERA_LENS_NAME,
+					&imx219->len_name);
+	}
 
 	v4l2_i2c_subdev_init(&imx219->sd, client, &imx219_subdev_ops);
 	imx219->sd.internal_ops = &imx219_internal_ops;
