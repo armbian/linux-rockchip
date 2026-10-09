@@ -8,6 +8,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include <drm/bridge/dw_hdmi.h>
 #include <drm/drm_crtc.h>
@@ -142,9 +143,11 @@ static int snd_dw_hdmi_qp_probe(struct platform_device *pdev)
 	struct hdmi_codec_pdata pdata;
 	struct platform_device *platform;
 
+	memset(&pdata, 0, sizeof(pdata));
 	pdata.ops		= &dw_hdmi_qp_i2s_ops;
 	pdata.i2s		= 1;
 	pdata.max_i2s_channels	= 8;
+	pdata.no_i2s_capture	= 1;
 	pdata.data		= audio;
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));

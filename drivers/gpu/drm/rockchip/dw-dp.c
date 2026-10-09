@@ -5867,6 +5867,8 @@ static int dw_dp_register_audio_driver(struct dw_dp *dp, struct dw_dp_audio *aud
 		.spdif = 1,
 		.i2s = 1,
 		.max_i2s_channels = 8,
+		.no_i2s_capture = 1,
+		.no_spdif_capture = 1,
 		.data = audio,
 	};
 	struct platform_device_info pdevinfo = {

@@ -977,6 +977,7 @@ static int rk628_hdmi_audio_codec_init(struct rk628_hdmi *hdmi,
 		.i2s = 1,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 8,
+		.no_i2s_capture = 1,
 	};
 
 	hdmi->audio_enable = false;
