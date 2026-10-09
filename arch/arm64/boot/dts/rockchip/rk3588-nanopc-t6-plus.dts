@@ -9,8 +9,7 @@
 #include "rk3588-nanopc-t6.dts"
 
 /delete-node/ &rt5616;
-/delete-node/ &{/sound};
-/delete-node/ &i2s0_8ch_p0_0;
+/delete-node/ &rt5616_sound;
 
 / {
 	model = "FriendlyElec NanoPC-T6 Plus";
@@ -54,15 +53,7 @@
 		regulator-name = "vcc5v0_host_20";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc5v0_sys>;
-	};
-};
-
-&pinctrl {
-	usb {
-		vcc5v0_host20_en: vcc5v0-host20-en {
-			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
+		vin-supply = <&vcc5v0_usb>;
 	};
 };
 
