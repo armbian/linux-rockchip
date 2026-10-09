@@ -302,6 +302,9 @@ static void sensor_get_module_inf(struct sensor *sensor,
 	strscpy(inf->base.lens, sensor->len_name, sizeof(inf->base.lens));
 }
 
+int rkcam_sensor_enable_mclk(u8 i2cdev, u32 mclk_index, u32 mclk_rate);
+int rkcam_sensor_disable_mclk(u8 i2cdev, u32 mclk_index);
+
 int rkcam_sensor_enable_mclk(u8 i2cdev, u32 mclk_index, u32 mclk_rate)
 {
 	struct sensor *sensor;
