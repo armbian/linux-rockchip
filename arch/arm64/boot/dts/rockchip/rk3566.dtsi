@@ -9,6 +9,15 @@
 	compatible = "rockchip,rk3566";
 };
 
+&gpu_opp_table {
+	/*
+	 * Common GPU OPP masks in rk356x.dtsi are commented out, and RK3566
+	 * has no variant-specific OPPs, so a bare rockchip,supported-hw flag
+	 * makes every operating point fail to match.
+	 */
+	/delete-property/ rockchip,supported-hw;
+};
+
 &lpddr4_params {
 	/* freq info, freq_0 is final frequency, unit: MHz */
 	freq_0 = <1056>;
