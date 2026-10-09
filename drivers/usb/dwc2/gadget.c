@@ -4171,6 +4171,9 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 
 	case USB_ENDPOINT_XFER_BULK:
 		epctrl |= DXEPCTL_EPTYPE_BULK;
+		/* Keep OUT NAKed until start_req() installs a receive buffer. */
+		if (!dir_in)
+			epctrl |= DXEPCTL_SNAK;
 		break;
 
 	case USB_ENDPOINT_XFER_INT:
