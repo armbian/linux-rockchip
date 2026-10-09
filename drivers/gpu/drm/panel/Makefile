@@ -105,3 +105,6 @@ obj-$(CONFIG_DRM_PANEL_VISIONOX_VTDR6130) += panel-visionox-vtdr6130.o
 obj-$(CONFIG_DRM_PANEL_VISIONOX_R66451) += panel-visionox-r66451.o
 obj-$(CONFIG_DRM_PANEL_WIDECHIPS_WS2401) += panel-widechips-ws2401.o
 obj-$(CONFIG_DRM_PANEL_XINPENG_XPP055C272) += panel-xinpeng-xpp055c272.o
+obj-$(CONFIG_DRM_PANEL_RADXA_DISPLAY_8HD) += panel-radxa-display-8hd.o
+obj-$(CONFIG_DRM_PANEL_RASPITS_TC358762) += panel-raspits-tc358762.o
+obj-$(CONFIG_DRM_PANEL_INNOLUX_AFJ101_BA2131) += panel-innolux-afj101-ba2131.o
