@@ -3792,7 +3792,12 @@ irq_retry:
 		/* Reset device address to zero */
 		dwc2_clear_bit(hsotg, DCFG, DCFG_DEVADDR_MASK);
 
-		if (usb_status & GOTGCTL_BSESVLD && connected)
+		/*
+		 * Reinitialize a previously connected fixed peripheral even
+		 * when session-valid is not asserted.
+		 */
+		if (connected && ((usb_status & GOTGCTL_BSESVLD) ||
+				  hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
 			dwc2_hsotg_core_init_disconnected(hsotg, true);
 	}
 
