@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 #include <linux/bitfield.h>
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
@@ -682,6 +683,8 @@ struct rtl8169_private {
 	struct r8169_led_classdev *leds;
 
 	u32 ocp_base;
+	u32 *led_data;
+	int led_data_count;
 };
 
 typedef void (*rtl_generic_fct)(struct rtl8169_private *tp);
@@ -2723,6 +2726,50 @@ static void rtl_wol_enable_rx(struct rtl8169_private *tp)
 		rtl_disable_rxdvgate(tp);
 }
 
+/* Parse DT LED register/value pairs for RTL8125. Walk parents to the
+ * PCIe platform node that carries "realtek,led-data".
+ */
+static void rtl8125_parse_dt_led_config(struct rtl8169_private *tp)
+{
+	struct device_node *np = NULL;
+	struct device *d = &tp->pci_dev->dev;
+	int count;
+
+	while (d && !np) {
+		np = d->of_node;
+		d = d->parent;
+	}
+
+	if (!np)
+		return;
+
+	count = of_property_count_u32_elems(np, "realtek,led-data");
+	if (count < 2 || count % 2 != 0)
+		return;
+
+	tp->led_data = kmalloc_array(count, sizeof(u32), GFP_KERNEL);
+	if (!tp->led_data)
+		return;
+
+	if (of_property_read_u32_array(np, "realtek,led-data", tp->led_data, count)) {
+		kfree(tp->led_data);
+		tp->led_data = NULL;
+		return;
+	}
+	tp->led_data_count = count;
+}
+
+static void rtl8125_apply_dt_led_config(struct rtl8169_private *tp)
+{
+	int i;
+
+	if (!tp->led_data)
+		return;
+
+	for (i = 0; i < tp->led_data_count; i += 2)
+		RTL_W16(tp, tp->led_data[i], (u16)tp->led_data[i + 1]);
+}
+
 static void rtl_prepare_power_down(struct rtl8169_private *tp)
 {
 	if (tp->mac_version == RTL_GIGA_MAC_VER_32 ||
@@ -3798,6 +3845,7 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 		rtl8125b_config_eee_mac(tp);
 
 	rtl_disable_rxdvgate(tp);
+	rtl8125_apply_dt_led_config(tp);
 }
 
 static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
@@ -5138,6 +5186,8 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	rtl_release_firmware(tp);
 
+	kfree(tp->led_data);
+
 	/* restore original MAC address */
 	rtl_rar_set(tp, tp->dev->perm_addr);
 }
@@ -5608,6 +5658,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_sync(&pdev->dev);
+
+	rtl8125_parse_dt_led_config(tp);
 
 	return 0;
 }
