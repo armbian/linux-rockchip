@@ -208,7 +208,9 @@ static inline bool serial8250_set_THRI(struct uart_8250_port *up)
 		return false;
 	up->ier |= UART_IER_THRI;
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	up->ier |= UART_IER_PTIME;
+	/* PTIME asserts THRE too early for RS485 turnaround. */
+	if (!up->em485)
+		up->ier |= UART_IER_PTIME;
 #endif
 	serial_out(up, UART_IER, up->ier);
 	return true;
@@ -223,7 +225,8 @@ static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
 		return false;
 	up->ier &= ~UART_IER_THRI;
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	up->ier &= ~UART_IER_PTIME;
+	if (!up->em485)
+		up->ier &= ~UART_IER_PTIME;
 #endif
 	serial_out(up, UART_IER, up->ier);
 	return true;
