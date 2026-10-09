@@ -1137,4 +1137,12 @@ config FUEL_GAUGE_MM8013
 	  the state of charge, temperature, cycle count, actual and design
 	  capacity, etc.
 
+config NANOPI_ADC_POWER
+	tristate "Simple ADC power supply driver for NanoPi 5/6 series"
+	depends on IIO
+	help
+	  Say Y here to enable support for the simple power supply driver
+	  which uses the IIO framework to read the ADC on NanoPi 5/6 series
+	  boards.
+
 endif # POWER_SUPPLY
