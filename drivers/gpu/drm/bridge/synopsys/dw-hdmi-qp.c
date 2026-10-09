@@ -59,6 +59,13 @@
 #define SCDC_MIN_SOURCE_VERSION	0x1
 
 #define HDMI14_MAX_TMDSCLK	340000000
+
+/*
+ * A NACK is a definitive "no device at this address", not a transient error,
+ * so cap the retries instead of hammering the bus 100 times and flooding the
+ * log (e.g. a sink advertising SCDC that does not answer its 0x54 slave).
+ */
+#define DW_HDMI_QP_I2C_NACK_RETRIES	3
 #define HDMI20_MAX_TMDSCLK_KHZ	600000
 
 #define HDMI_VH0		0x20
@@ -1074,6 +1081,7 @@ static const struct hdmi_quirk *get_hdmi_quirk(u8 *vendor_id)
 static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 {
 	void *data = hdmi->plat_data->phy_data;
+	u32 ddc_i2c_rxfilter;
 	u64 scl_high_cnt, scl_low_cnt, val;
 	u8 sda_dlyn = 0, sda_div = 0;
 
@@ -1102,6 +1110,10 @@ static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 	/* Software reset */
 	hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 
+	/* Configure I2CM hold time and rxfilter */
+	if (device_property_read_u32(hdmi->dev, "ddc-i2c-rxfilter", &ddc_i2c_rxfilter) == 0)
+		hdmi_writel(hdmi, ddc_i2c_rxfilter, I2CM_CONFIG0);
+
 	hdmi_writel(hdmi, val, I2CM_SM_SCL_CONFIG0);
 	hdmi_modb(hdmi, 0, I2CM_FM_EN, I2CM_INTERFACE_CONTROL0);
 
@@ -1114,7 +1126,7 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 			    unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_qp_i2c *i2c = hdmi->i2c;
-	int stat, retry;
+	int stat, retry, nack_retry;
 	bool read_edid = false;
 
 	if (!i2c->is_regaddr) {
@@ -1129,6 +1141,7 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 
 	while (length > 0) {
 		retry = 100;
+		nack_retry = DW_HDMI_QP_I2C_NACK_RETRIES;
 		hdmi_modb(hdmi, i2c->slave_reg << 12, I2CM_ADDR,
 			  I2CM_INTERFACE_CONTROL0);
 
@@ -1171,10 +1184,13 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 
 			/* Check for error condition on the bus */
 			if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-				dev_err(hdmi->dev, "i2c read err!\n");
+				dev_dbg(hdmi->dev, "i2c read err!\n");
 				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 				hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
-				retry--;
+				if (--nack_retry <= 0) {
+					retry = 0;
+					break;
+				}
 				usleep_range(10000, 11000);
 				continue;
 			}
@@ -1216,7 +1232,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 			     unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_qp_i2c *i2c = hdmi->i2c;
-	int stat, retry;
+	int stat, retry, nack_retry;
 
 	if (!i2c->is_regaddr) {
 		/* Use the first write byte as register address */
@@ -1228,6 +1244,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 
 	while (length--) {
 		retry = 100;
+		nack_retry = DW_HDMI_QP_I2C_NACK_RETRIES;
 
 		while (retry > 0) {
 			if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) !=
@@ -1255,10 +1272,13 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 
 			/* Check for error condition on the bus */
 			if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-				dev_err(hdmi->dev, "i2c write nack!\n");
+				dev_dbg(hdmi->dev, "i2c write nack!\n");
 				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 				hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
-				retry--;
+				if (--nack_retry <= 0) {
+					retry = 0;
+					break;
+				}
 				usleep_range(10000, 11000);
 				continue;
 			}
@@ -4446,6 +4466,15 @@ void dw_hdmi_qp_cec_set_hpd(struct dw_hdmi_qp *hdmi, bool plug_in, bool change)
 	if (!plug_in)
 		cec_notifier_set_phys_addr(hdmi->cec_notifier,
 					   CEC_PHYS_ADDR_INVALID);
+       else if (hdmi->ddc) {
+               struct edid *edid = drm_get_edid(&hdmi->connector, hdmi->ddc);
+               if (edid) {
+                       if (hdmi->cec_notifier)
+                               cec_notifier_set_phys_addr_from_edid(
+                                       hdmi->cec_notifier, edid);
+                       kfree(edid);
+               }
+       }
 
 	if (hdmi->bridge.dev) {
 #if IS_REACHABLE(CONFIG_DRM_DW_HDMI_CEC)
