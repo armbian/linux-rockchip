@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3568-cru.h>
+
+/ {
+	metadata {
+		title = "Enable CAN0-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b";
+		category = "misc";
+		exclusive = "GPIO0_B4", "GPIO0_B3";
+		description = "Enable CAN1-M0.
+On Radxa ROCK 3A >= v1.3 this is RX pin 27 & TX pin 28.
+On Radxa ROCK 3B this is RX pin 27 & TX pin 28.";
+	};
+};
+
+&can0 {
+	status = "okay";
+	compatible = "rockchip,can-1.0";
+	assigned-clocks = <&cru CLK_CAN0>;
+	assigned-clock-rates = <200000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0m0_pins>;
+};

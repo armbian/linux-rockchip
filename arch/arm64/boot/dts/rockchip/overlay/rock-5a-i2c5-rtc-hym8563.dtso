@@ -1,0 +1,51 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable RTC Hym8563 on I2C-5 bus on ROCK 5A";
+		compatible = "radxa,rock-5a", "rockchip,rk3588";
+		category = "misc";
+		description = "Enable RTC Hym8563 on I2C-5 bus on ROCK 5A";
+	};
+
+	fragment@0 {
+		target = <&i2c5>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5m2_xfer>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hym8563: hym8563@51 {
+				compatible = "haoyu,hym8563";
+				reg = <0x51>;
+				#clock-cells = <0>;
+				clock-frequency = <32768>;
+				clock-output-names = "hym8563";
+				pinctrl-names = "default";
+				pinctrl-0 = <&rtc_int>;
+		
+				interrupt-parent = <&gpio0>;
+				interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			hym8563 {
+				rtc_int: rtc-int {
+					rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};

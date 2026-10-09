@@ -1,0 +1,60 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	metadata {
+		title = "Enable MCP2515 with 8MHz external clock on SPI1-M1 over CS1";
+		compatible = "unknown";
+		category = "misc";
+		description = "Provide support for Microchip MCP2515 SPI CAN controller.\nAssumes 8MHz external clock.\nUses Pin 19 (GPIOI1_B2) for INT.";
+	};
+
+	fragment@0 {
+		target = <&spi1>;
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi1m1_pins &spi1m1_cs0 &spi1m1_cs1>;
+
+			can0: mcp2515@1 {
+				compatible = "microchip,mcp2515";
+				reg = <1>;
+				spi-max-frequency = <10000000>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&mcp2515_int_pins>;
+
+				interrupt-parent = <&gpio1>;
+				interrupts = <RK_PB2 IRQ_TYPE_EDGE_FALLING>;
+
+				clocks = <&can0_osc>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&pinctrl>;
+		__overlay__ {
+			mcp2515 {
+				mcp2515_int_pins: mcp2515-int-pins {
+					rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target-path = "/";
+		__overlay__ {
+			can0_osc: can0-osc {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency  = <8000000>;
+			};
+		};
+	};
+};

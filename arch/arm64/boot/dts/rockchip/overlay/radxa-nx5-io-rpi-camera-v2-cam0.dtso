@@ -1,0 +1,238 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera v2 on CAM0";
+		compatible = "radxa,nx5-io";
+		category = "camera";
+		exclusive = "csi2_dcphy0";
+		description = "Enable Raspberry Pi Camera v2 on CAM0.";
+	};
+
+
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			camera0_pwdn_gpio: camera0-pwdn-gpio {
+				compatible = "regulator-fixed";
+				regulator-name = "camera0_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&cam0_pwdn_gpio>;
+			};
+
+			clk_cam0_24m: external-camera-clock-24m {
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "clk_cam0_24m";
+				#clock-cells = <0>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c4>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c4m2_xfer>;
+
+			camera0_imx219: camera0-imx219@10 {
+				compatible = "sony,imx219";
+				reg = <0x10>;
+
+				clocks = <&clk_cam0_24m>;
+				clock-names = "xvclk";
+
+				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "rpi-camera-v2";
+				rockchip,camera-module-lens-name = "default";
+
+				port {
+					imx219_out0: endpoint {
+						remote-endpoint = <&mipidcphy0_in_ucam0>;
+						data-lanes = <1 2>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&csi2_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidcphy0_in_ucam0: endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&imx219_out0>;
+						data-lanes = <1 2>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidcphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi0_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&mipi0_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidcphy0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi0_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif_mipi_lvds>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi0_in0: endpoint {
+					remote-endpoint = <&mipi0_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mipi_lvds_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds_sditf: endpoint {
+					remote-endpoint = <&isp1_vir0>;
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&isp1_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&rkisp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&rkisp1_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp1_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds_sditf>;
+				};
+			};
+		};
+	};
+
+	fragment@12 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			camera {
+				cam0_pwdn_gpio: cam0-pwdn-gpio {
+					rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};

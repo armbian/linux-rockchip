@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+
+	rk628_dc: rk628-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};	
+
+	rk628-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk628";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,bitclock-master = <&dailink2_master>;
+		simple-audio-card,frame-master = <&dailink2_master>;
+		status = "okay";
+		simple-audio-card,cpu {
+		sound-dai = <&i2s1_8ch>;
+		};
+		dailink2_master: simple-audio-card,codec {
+		sound-dai = <&rk628_dc>;
+		};
+	};		
+};
+
+//rk628 sound
+&i2s1_8ch {
+	status = "okay";
+	pinctrl-0 = <&i2s1m0_lrck
+		     &i2s1m0_sclk
+		     &i2s1m0_sdi0>;
+};
+
+
+&pinctrl {
+	hdmiin {
+		//mipicsi1_pwr: mipicsi1-pwr {
+		//	rockchip,pins =
+		//		/* 628H camera power en */
+		//		<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		//};
+		rk628_hdmiin_pin: rk628-hdmiin-pin {
+			rockchip,pins = 
+					<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
+					<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+/* rk628 hdmi in */
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi2_in0>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_lt6911: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lt6911_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+
+&i2c7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m2_xfer>;
+	status = "okay";
+
+		rk628_csi: rk628_csi@51 {
+		reg = <0x51>;
+		compatible = "rockchip,rk628-csi-v4l2";
+		status = "okay";	
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk628_hdmiin_pin &refclk_pins>;
+		power-domains = <&power RK3588_PD_VI>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PD1 IRQ_TYPE_EDGE_RISING>;
+		//enable-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		continues-clk = <1>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HDMI-MIPI1";
+		rockchip,camera-module-lens-name = "RK628-CSI";
+
+		multi-dev-info {
+			dev-idx-l = <2>;
+			dev-idx-r = <4>;
+			combine-idx = <2>;
+			pixel-offset = <0>;
+			dev-num = <2>;
+		};
+
+		port {
+			lt6911_out: endpoint {
+				remote-endpoint = <&mipi_in_lt6911>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+
+	port {
+		cif_mipi2_in0: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+/* rk628 hdmi in end */
+
+
+

@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+#include "rock-5t-cam1-radxa-camera-8m-219.dts"
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera v2 on CAM1";
+		description = "Enable Raspberry Pi Camera v2 on CAM1.";
+	};
+};
+
+&camera_imx219_1 {
+	rockchip,camera-module-name = "rpi-camera-v2";
+};

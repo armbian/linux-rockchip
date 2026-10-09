@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-blueberry-edge-v12.dtsi"
+#include "rk3588-linux.dtsi"
+
+/ {
+	model = "Mekotronics R58X-Pro"; // RK3588 EDGE LP4x V1.2 MeiZhuo BlueBerry Board
+	compatible = "rockchip,rk3588-blueberry-edge-v12-linux", "rockchip,rk3588";
+	/delete-node/ chosen;
+
+	lcd_vk2c21 {
+		compatible = "vinka,vk2c21";
+		sda-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		clock-frequency = <100000>;
+		status = "okay";
+	};
+};
+
+&gpio_keys{
+	vol_up {
+		debounce-interval = <0>;
+		autorepeat = <1>;
+		gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		label = "GPIO Key Vol+";
+		linux,code = <KEY_VOLUMEUP>;
+		wakeup-source;
+	};
+
+	vol_down {
+		debounce-interval = <0>;
+		autorepeat = <1>;
+		gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		label = "GPIO Key Vol-";
+		linux,code = <KEY_VOLUMEDOWN>;
+		wakeup-source;
+	};
+};

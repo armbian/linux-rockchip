@@ -1,0 +1,18 @@
+// ROCK 3C USB OTG
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Set OTG port to Peripheral mode";
+		compatible = "rockchip,rk3566", "rockchip,rk3568";
+		category = "misc";
+		exclusive = "usbdrd_dwc3-dr_mode";
+		description = "Set OTG port to Peripheral mode.Use this when you want to connect to another computer.";
+	};
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+	dr_mode = "peripheral";
+};

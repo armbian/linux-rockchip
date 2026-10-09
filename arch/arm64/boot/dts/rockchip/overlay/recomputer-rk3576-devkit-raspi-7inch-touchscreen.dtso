@@ -1,0 +1,149 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
+#include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+
+
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			touch_reg: touch_reg {
+				compatible = "regulator-fixed";
+				regulator-name = "touch_reg_1";
+				gpio = <&display_mcu 1 GPIO_ACTIVE_HIGH>;
+				startup-delay-us = <50000>;
+				enable-active-high;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c0>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c0m1_xfer>;
+
+			display_mcu: display_mcu@45 {
+				compatible = "raspberrypi,v2-touchscreen-panel-regulator";
+				reg = <0x45>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gt911: gt911@5d {
+				compatible = "goodix,gt911";
+				reg = <0x5d>;
+				AVDD28-supply = <&touch_reg>;
+				touchscreen-size-x = <720>;
+				touchscreen-size-y = <1280>;
+				touchscreen-x-mm = <90>;
+				touchscreen-y-mm = <151>;
+				// touchscreen-inverted-x;
+				// touchscreen-inverted-y;
+				// touchscreen-swapped-x-y;
+			};
+		};
+	};
+
+
+	fragment@2 {
+		target = <&dsi>;
+
+		__overlay__ {
+			status = "okay";
+
+			dsi_panel: dsi_panel@0 {
+				reg = <0>;
+				compatible = "raspberrypi,dsi-7inch";
+				reset-gpio = <&display_mcu 0 GPIO_ACTIVE_LOW>;
+				backlight = <&display_mcu>;
+				rotation = <90>;
+				port {
+					panel_in_dsi: endpoint {
+						remote-endpoint = <&dsi_out_panel>;
+					};
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					dsi_out_panel: endpoint {
+						remote-endpoint = <&panel_in_dsi>;
+					};
+				};
+			};
+
+		};
+	};
+
+
+	fragment@3 {
+		target = <&vp2>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+
+	fragment@4 {
+		target = <&dsi_in_vopl>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+
+	fragment@5 {
+		target = <&dsi_in_vp2>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&dsi_in_vp1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@7 {
+		target = <&dsi_in_vp0>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@8 {
+		target = <&route_dsi>;
+
+		__overlay__ {
+			status = "okay";
+			connect = <&vp2_out_dsi>;
+		};
+	};
+
+
+};

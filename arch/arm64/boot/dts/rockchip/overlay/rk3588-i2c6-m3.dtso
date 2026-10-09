@@ -1,0 +1,21 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable I2C6-M3";
+		compatible = "radxa,rock-5a";
+		category = "misc";
+		exclusive = "GPIO4_B0", "GPIO4_B1";
+		description = "Enable I2C6-M3.\nOn Radxa ROCK 5A this is SDA pin 32 and SCL pin 40.";
+	};
+
+	fragment@0 {
+		target = <&i2c6>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&i2c6m3_xfer>;
+		};
+	};
+};

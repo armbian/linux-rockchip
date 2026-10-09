@@ -1,0 +1,237 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/power/rk3588-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable IMX415 camera on CSI0";
+		compatible = "mixtile,blade3";
+		category = "camera";
+		exclusive = "csi2_dphy0";
+		description = "Enable a Sony IMX415 camera module on the J7 FPC connector.";
+	};
+
+	fragment@0 {
+		target-path = "/";
+
+		__overlay__ {
+			/* generated on the module from the J7 3.3V/5V pins */
+			vcc_cam_avdd: vcc-cam-avdd {
+				compatible = "regulator-fixed";
+				regulator-name = "vcc_cam_avdd";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c3>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			imx415: imx415@1a {
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+				clock-names = "xvclk";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim1_camera2_clk &cam_ctl_pins>;
+				power-domains = <&power RK3588_PD_VI>;
+				reset-gpios = <&gpio4 RK_PC3 GPIO_ACTIVE_LOW>;
+				power-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+				avdd-supply = <&vcc_cam_avdd>;
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "CMK-OT2022-PX1";
+				rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+				status = "okay";
+
+				port {
+					imx415_out0: endpoint {
+						remote-endpoint = <&mipidphy0_in_ucam0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			cam {
+				cam_ctl_pins: cam-ctl-pins {
+					rockchip,pins =
+						<4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+						<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&csi2_dphy0_hw>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&csi2_dphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidphy0_in_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx415_out0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi2_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&mipi2_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi2_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidphy0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi2_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi2_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif_mipi_lvds2>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi2_in0: endpoint {
+					remote-endpoint = <&mipi2_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@9 {
+		target = <&rkcif_mipi_lvds2_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds2_sditf: endpoint {
+					remote-endpoint = <&isp0_vir0>;
+				};
+			};
+		};
+	};
+
+	fragment@10 {
+		target = <&rkisp0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&isp0_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@12 {
+		target = <&rkisp0_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds2_sditf>;
+				};
+			};
+		};
+	};
+};

@@ -1,0 +1,29 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "Enable SATA2 on SERDES2";
+		compatible = "radxa,cm3s-io", "radxa,radxa-cm3-sodimm-io";
+		category = "misc";
+		exclusive = "vcc_ch482d", "sata2", "pcie2x1";
+		description = "Enable SATA2 on SERDES2.
+This will disable PCIe 2.0 x1.";
+	};
+};
+
+&vcc_ch482d {
+	enable-active-high;
+	gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+};
+
+&sata2 {
+	status = "okay";
+};
+
+&pcie2x1 {
+	status = "disabled";
+};

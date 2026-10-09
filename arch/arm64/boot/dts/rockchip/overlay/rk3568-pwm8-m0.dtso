@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM8-M0";
+		compatible = "radxa,rock-3c", "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO3_B1";
+		description = "Enable PWM8-M0.
+On Radxa ROCK 3C this is pin 16.
+On Radxa ZERO 3 this is pin 16.";
+	};
+};
+
+&pwm8 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm8m0_pins>;
+};
