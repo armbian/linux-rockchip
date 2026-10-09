@@ -1320,9 +1320,6 @@
 	status = "okay";
 };
 
-&usbdp_phy1_u3 {
-	status = "okay";
-};
 
 &usbdrd3_1 {
 	status = "okay";
@@ -1356,13 +1353,6 @@
 	};
 };
 
-&usbdp_phy0_u3 {
-	status = "okay";
-};
-
-&usbdp_phy0_dp {
-	status = "okay";
-};
 
 /* USB3.1 OTG0 Controller  */
 &usbdrd3_0 {

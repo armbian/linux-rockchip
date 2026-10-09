@@ -837,13 +837,6 @@
 	rockchip,dp-lane-mux = <0 1>;
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 &dp0 {
 	pinctrl-names = "default";

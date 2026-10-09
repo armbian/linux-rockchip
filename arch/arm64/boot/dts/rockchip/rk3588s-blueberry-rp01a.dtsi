@@ -82,7 +82,6 @@
 	};
 
 
-
 	es7210_sound: es7210-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -359,7 +358,6 @@
 	};
 
 
-
 };
 &i2s1_8ch {
 	
@@ -447,13 +445,6 @@
 
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 &usbdrd3_0 {
 	status = "okay";

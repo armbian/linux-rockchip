@@ -698,7 +698,7 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "otg";
 	status = "okay";
 };
@@ -707,7 +707,7 @@
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	status = "okay";
 
 	port {

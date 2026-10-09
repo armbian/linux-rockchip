@@ -1285,13 +1285,6 @@
 	status = "okay";
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 &usbdrd3_0 {
 	status = "okay";
@@ -1302,9 +1295,6 @@
 	status = "okay";
 };
 
-&usbdp_phy1_u3 {
-	status = "okay";
-};
 
 &usbdrd3_1 {
 	status = "okay";
@@ -1398,9 +1388,6 @@
 	status = "okay";
 };
 
-&usbdp_phy1_dp {
-	status = "okay";
-};
 
 &sata0 {
 	status = "okay";

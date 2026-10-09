@@ -101,7 +101,6 @@
 	};
 
 
-
 	vcc3v3_ext: vcc3v3-ext-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -205,7 +204,6 @@
 	};
 
 
-
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
@@ -236,7 +234,6 @@
  
 		status = "okay";
 	};
-
 
 
 	hdmi0_sound: hdmi0-sound {
@@ -621,7 +618,6 @@
 };
 
 
-
 &hdmi1_in_vp0 {
 	status = "disabled";
 };
@@ -727,7 +723,6 @@
 };
 
 
-
 /********************** USB *******************************/
 
 // typec 1
@@ -763,13 +758,6 @@
     };
 };
 
-&usbdp_phy0_dp {
-    status = "okay";
-};
-
-&usbdp_phy0_u3 {
-    status = "okay";
-};
 
 &usbdrd3_0 {
     status = "okay";
@@ -807,13 +795,6 @@
     status = "okay";
 };
 
-&usbdp_phy1_dp {
-    status = "okay";
-};
-
-&usbdp_phy1_u3 {
-    status = "okay";
-};
 
 &usbdrd3_1 {
     status = "okay";
@@ -957,7 +938,6 @@
 };
 
 
-
 &pcie30phy {
     rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
     status = "okay";
@@ -968,7 +948,6 @@
 	vpcie3v3-supply = <&vcc3v3_pcie30_ssd>;
 	status = "okay";
 };
-
 
 
 /************************PWM******************************/
@@ -1140,7 +1119,6 @@
 	};
 
 };
-
 
 
 &i2c7 {
@@ -1429,7 +1407,6 @@
 		regulator-suspend-microvolt = <850000>;
 	};
 };
-
 
 
 &pinctrl {

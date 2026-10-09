@@ -334,7 +334,7 @@
 	};
 };
 
-&combphy1 {
+&combphy1_usq {
 	status = "okay";
 };
 
@@ -799,9 +799,9 @@
 	};
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "peripheral";
-	phys = <&usb2phy0_otg>;
+	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
 	status = "okay";
 };
@@ -814,9 +814,9 @@
 	status = "okay";
 };
 
-&usb_host1_xhci {
+&usbhost_dwc3 {
 	phy-names = "usb2-phy", "usb3-phy";
-	phys = <&usb2phy1_host>, <&combphy1 PHY_TYPE_USB3>;
+	phys = <&u2phy1_host>, <&combphy1_usq PHY_TYPE_USB3>;
 	status = "okay";
 };
 
@@ -824,7 +824,7 @@
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	status = "okay";
 };
 
@@ -832,7 +832,7 @@
 	status = "okay";
 };
 
-&usb2phy1_host {
+&u2phy1_host {
 	status = "okay";
 };
 

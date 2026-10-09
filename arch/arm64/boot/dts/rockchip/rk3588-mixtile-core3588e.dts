@@ -231,7 +231,7 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
-&gpu_panthor {
+&gpu {
 	mali-supply = <&vdd_gpu_s0>;
 	status = "okay";
 };
@@ -486,17 +486,11 @@
 	status = "okay";
 };
 
-&usbdp_phy1_u3 {
-	status = "okay";
-};
 
 &usbdp_phy0 {
 	status = "okay";
 };
 
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 &usbdrd3_0 {
 	status = "okay";

@@ -49,7 +49,7 @@
 	};
 };
 
-&combphy2 {
+&combphy2_psq {
 	phy-supply = <&vcc3v3_sys>;
 	status = "okay";
 };
@@ -184,12 +184,12 @@
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	phy-supply = <&vbus>;
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	status = "okay";
 };
 

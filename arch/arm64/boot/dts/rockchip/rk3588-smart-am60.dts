@@ -1009,13 +1009,6 @@
 
 };
 
-&usbdp_phy0_u3 {
-	status = "okay";
-};
-
-&usbdp_phy0_dp {
-	status = "okay";
-};
 
 // USB3.0 Type-C1
 &usbdrd3_1{
@@ -1033,13 +1026,6 @@
 	status = "okay";
 };
 
-&usbdp_phy1_u3 {
-	status = "okay";
-};
-
-&usbdp_phy1_dp {
-	status = "okay";
-};
 
 // USB2.0 PHY1
 &u2phy1 {

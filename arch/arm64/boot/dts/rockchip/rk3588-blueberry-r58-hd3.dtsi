@@ -84,7 +84,6 @@
 	};
 
 
-
 	leds: leds {
 		compatible = "gpio-leds";
 		work_led: work-led {
@@ -895,27 +894,12 @@
 	status = "okay";
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 &usbdp_phy1 {
 	rockchip,dp-lane-mux = < 0 1 >;
 	status = "okay";
 };
 
-&usbdp_phy1_dp {
-	status = "okay";
-};
-
-&usbdp_phy1_u3 {
-	maximum-speed = "high-speed";
-	status = "okay";
-};
 
 &usbdrd3_0 {
 	status = "okay";

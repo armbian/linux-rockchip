@@ -167,12 +167,12 @@
 };
 
 /* connected to sata1 */
-&combphy1 {
+&combphy1_usq {
 	status = "okay";
 };
 
 /* connected to sata2 */
-&combphy2 {
+&combphy2_psq {
 	status = "okay";
 };
 
@@ -599,7 +599,7 @@
 };
 
 /* connected to usb_host0_xhci */
-&usb2phy0_otg {
+&u2phy0_otg {
 	phy-supply = <&vcc5v0_otg>;
 	status = "okay";
 };
@@ -609,13 +609,13 @@
 };
 
 /* connected to usb_host1_ehci/ohci */
-&usb2phy1_host {
+&u2phy1_host {
 	phy-supply = <&vcc5v0_host>;
 	status = "okay";
 };
 
 /* connected to usb_host0_ehci/ohci */
-&usb2phy1_otg {
+&u2phy1_otg {
 	phy-supply = <&vcc5v0_host>;
 	status = "okay";
 };
@@ -630,7 +630,7 @@
 };
 
 /* front port */
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "host";
 	status = "okay";
 };

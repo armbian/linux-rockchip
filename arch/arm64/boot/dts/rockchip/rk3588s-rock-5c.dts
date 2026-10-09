@@ -599,9 +599,6 @@
 	status = "okay";
 };
 
-&usbdp_phy0_u3 {
-	status = "okay";
-};
 
 /* PCIe */
 

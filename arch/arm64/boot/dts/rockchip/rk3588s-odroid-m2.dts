@@ -856,7 +856,7 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3_0 {
 	usb-role-switch;
 	status = "okay";
 
@@ -875,7 +875,7 @@
 	status = "okay";
 };
 
-&usb_host2_xhci {
+&usbhost_dwc3_0 {
 	status = "okay";
 };
 

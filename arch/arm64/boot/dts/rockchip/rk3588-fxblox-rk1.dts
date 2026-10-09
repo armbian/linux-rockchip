@@ -752,7 +752,6 @@
 };
 
 
-
 &u2phy3 {
 	status = "okay";
 };
@@ -1060,21 +1059,6 @@
 	};
 };
 
-&usbdp_phy0_u3 {
-	status = "okay";
-};
-
-&usbdp_phy1_u3 {
-	status = "okay";
-};
-
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy1_dp {
-	status = "okay";
-};
 
 &dp0 {
 	status = "okay";
@@ -1277,7 +1261,6 @@
 			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-
 
 
 	sdio-pwrseq {

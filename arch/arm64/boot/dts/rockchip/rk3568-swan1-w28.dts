@@ -911,7 +911,7 @@
 };
 
 &usbhost_dwc3 {
-	phys = <&usb2phy0_host>;
+	phys = <&u2phy0_host>;
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
 	extcon = <&usb2phy0>;
