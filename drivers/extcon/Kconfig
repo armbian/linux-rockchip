@@ -221,4 +221,11 @@ config EXTCON_RTK_TYPE_C
 	  The DHC (Digital Home Hub) RTD series SoC contains a type c module.
 	  This driver will detect the status of the type-c port.
 
+config EXTCON_USBC_VIRTUAL_PD
+	tristate "Virtual Type-C PD EXTCON support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable Virtual Type-C PD extcon driver support, if
+	  hardware platform designed Type-C modes separately.
+
 endif
