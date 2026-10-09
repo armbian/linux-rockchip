@@ -703,9 +703,14 @@ static int simple_get_dais_count(struct simple_util_priv *priv,
 static int simple_soc_probe(struct snd_soc_card *card)
 {
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(card);
+	char prop[128];
+	const char *hp_pin = NULL;
 	int ret;
 
-	ret = simple_util_init_hp(card, &priv->hp_jack, PREFIX);
+	snprintf(prop, sizeof(prop), "%shp-pin-name", PREFIX);
+	of_property_read_string(card->dev->of_node, prop, &hp_pin);
+
+	ret = simple_util_init_jack(card, &priv->hp_jack, 1, PREFIX, (char *)hp_pin);
 	if (ret < 0)
 		return ret;
 
