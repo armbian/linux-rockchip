@@ -10,6 +10,7 @@
 
 #include <dt-bindings/phy/phy.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
 #include <linux/gpio.h>
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
@@ -164,7 +165,8 @@ struct rk_pcie {
 	bool				hp_no_link;
 	bool				is_lpbk;
 	bool				is_comp;
-	bool				finish_probe;
+	bool				probe_ok;
+	struct completion		probe_done;
 	bool				keep_power_in_suspend;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
@@ -443,7 +445,8 @@ static int rk_pcie_link_up(struct dw_pcie *pci)
 	u32 val;
 
 	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-	if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000)
+	if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000 &&
+	    (val & GENMASK(5, 0)) == 0x11)
 		return 1;
 
 	return 0;
@@ -1132,6 +1135,10 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = rk_pcie_link_up,
 };
 
+static const struct dw_pcie_ops dw_pcie_ops_default_link_up = {
+	.start_link = rk_pcie_establish_link,
+};
+
 static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie, bool enable_dly2_en)
 {
 	u32 val;
@@ -1677,7 +1684,10 @@ static int rk_pcie_hardware_io_config(struct rk_pcie *rk_pcie)
 			return ret;
 	}
 
-	reset_control_assert(rk_pcie->rsts);
+	if (device_property_read_bool(dev, "rockchip,skip-reset-in-config")) {
+		dev_info(dev, "skip reset controller\n");
+	} else
+		reset_control_assert(rk_pcie->rsts);
 	udelay(10);
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
@@ -1873,6 +1883,7 @@ static int rk_pcie_really_probe(void *p)
 		ret = -ENOMEM;
 		goto release_driver;
 	}
+	init_completion(&rk_pcie->probe_done);
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci) {
@@ -1884,7 +1895,12 @@ static int rk_pcie_really_probe(void *p)
 	rk_pcie->pci = pci;
 	rk_pcie->intx = 0xffffffff;
 	pci->dev = dev;
-	pci->ops = &dw_pcie_ops;
+	if (device_property_read_bool(dev, "rockchip,default-link-up")) {
+		dev_info(dev, "using pcie default link_up because of rockchip,default-link-up\n");
+		pci->ops = &dw_pcie_ops_default_link_up;
+	} else {
+		pci->ops = &dw_pcie_ops;
+	}
 #if IS_ENABLED(CONFIG_TRACING) && IS_ENABLED(CONFIG_NO_GKI)
 	INIT_DELAYED_WORK(&rk_pcie->trace_work, rockchip_pcie_ltssm_trace_work);
 #endif
@@ -1956,7 +1972,8 @@ static int rk_pcie_really_probe(void *p)
 	/* 7. framework misc settings */
 	device_init_wakeup(dev, true);
 	device_enable_async_suspend(dev); /* Enable async system PM for multiports SoC */
-	rk_pcie->finish_probe = true;
+	rk_pcie->probe_ok = true;
+	complete_all(&rk_pcie->probe_done);
 
 	return 0;
 
@@ -1976,8 +1993,10 @@ unconfig_hardware_io:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 release_driver:
-	if (rk_pcie)
-		rk_pcie->finish_probe = true;
+	if (rk_pcie) {
+		rk_pcie->probe_ok = false;
+		complete_all(&rk_pcie->probe_done);
+	}
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
 		device_release_driver(dev);
 
@@ -2003,34 +2022,35 @@ static void rk_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
-	unsigned long timeout = msecs_to_jiffies(10000), start = jiffies;
+	unsigned long timeout = msecs_to_jiffies(10000);
+	unsigned long start = jiffies;
 
-	rk_pcie->dbi_base = NULL;
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
 		/* rk_pcie_really_probe hasn't been called yet, trying to get drvdata */
-		while (!rk_pcie && time_before(start, start + timeout)) {
+		while (!rk_pcie && time_before(jiffies, start + timeout)) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(msecs_to_jiffies(200));
 			rk_pcie = dev_get_drvdata(dev);
 		}
 
-		/* check again to see if probe path fails or hasn't been finished */
-		start = jiffies;
-		while ((rk_pcie && !rk_pcie->finish_probe) && time_before(start, start + timeout)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(msecs_to_jiffies(200));
-		};
+		if (!rk_pcie) {
+			dev_dbg(dev, "%s: rk_pcie is NULL after timeout\n", __func__);
+			return;
+		}
 
-		/*
-		 * Timeout should not happen as it's longer than regular probe actually.
-		 * But probe maybe fail, so need to double check bridge bus.
-		 */
-		if (!rk_pcie || !rk_pcie->pci || !rk_pcie->pci->pp.bridge ||
+		if (!wait_for_completion_timeout(&rk_pcie->probe_done, timeout)) {
+			dev_warn(dev, "%s: timeout waiting for threaded probe\n", __func__);
+			return;
+		}
+
+		if (!rk_pcie->probe_ok || !rk_pcie->pci || !rk_pcie->pci->pp.bridge ||
 		    !rk_pcie->pci->pp.bridge->bus) {
 			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
 			return;
 		}
 	}
+
+	rk_pcie->dbi_base = NULL;
 
 	dw_pcie_host_deinit(&rk_pcie->pci->pp);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
