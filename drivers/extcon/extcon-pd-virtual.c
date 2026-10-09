@@ -132,7 +132,7 @@ static void vpd_extcon_notify_clr(struct virtual_pd *vpd)
 	vpd_extcon_notify(vpd, vpd->flip, vpd->usb_ss, 0, 0, 0);
 }
 
-void vpd_irq_disable(struct virtual_pd *vpd)
+static void vpd_irq_disable(struct virtual_pd *vpd)
 {
 	unsigned long irqflags = 0;
 
@@ -146,7 +146,7 @@ void vpd_irq_disable(struct virtual_pd *vpd)
 	spin_unlock_irqrestore(&vpd->irq_lock, irqflags);
 }
 
-void vpd_irq_enable(struct virtual_pd *vpd)
+static void vpd_irq_enable(struct virtual_pd *vpd)
 {
 	unsigned long irqflags = 0;
 
@@ -364,12 +364,11 @@ static int vpd_extcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vpd_extcon_remove(struct platform_device *pdev)
+static void vpd_extcon_remove(struct platform_device *pdev)
 {
 	struct virtual_pd *vpd = platform_get_drvdata(pdev);
 
 	regulator_disable(vpd->dp_pwr);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

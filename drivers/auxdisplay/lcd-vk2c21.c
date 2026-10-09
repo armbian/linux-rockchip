@@ -536,15 +536,13 @@ static int vk2c21_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vk2c21_remove(struct platform_device *pdev)
+static void vk2c21_remove(struct platform_device *pdev)
 {
 	struct vk2c21_data *d = platform_get_drvdata(pdev);
 
 	mutex_lock(&d->lock);
 	vk2c21_send_cmd(d, VK2C21_SYSSET, VK2C21_SYS_OFF_LCD_OFF);
 	mutex_unlock(&d->lock);
-
-	return 0;
 }
 
 static void vk2c21_shutdown(struct platform_device *pdev)

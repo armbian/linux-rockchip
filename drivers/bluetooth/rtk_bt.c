@@ -1343,7 +1343,7 @@ static int rtkbt_lookup_le_device_poweron_whitelist(struct hci_dev *hdev,
 }
 #endif
 
-int rtkbt_pm_notify(struct notifier_block *notifier,
+static int rtkbt_pm_notify(struct notifier_block *notifier,
 		    ulong pm_event, void *unused)
 {
 	struct btusb_data *data;

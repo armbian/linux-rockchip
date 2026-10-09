@@ -430,7 +430,7 @@ static patch_info fw_patch_table[] = {
 
 static LIST_HEAD(dev_data_list);
 
-void util_hexdump(const u8 *buf, size_t len)
+static void util_hexdump(const u8 *buf, size_t len)
 {
 	static const char hexdigits[] = "0123456789abcdef";
 	char str[16 * 3];
@@ -1166,7 +1166,7 @@ static void merge_configs(struct list_head *head, struct list_head *head2)
 	}
 }
 
-int rtk_parse_config_file(u8 *config_buf, int filelen)
+static int rtk_parse_config_file(u8 *config_buf, int filelen)
 {
 	struct rtk_bt_vendor_config *config = (void *)config_buf;
 	u16 config_len = 0, temp = 0;
@@ -1217,7 +1217,7 @@ int rtk_parse_config_file(u8 *config_buf, int filelen)
 	return 0;;
 }
 
-uint8_t rtk_get_fw_project_id(uint8_t * p_buf)
+static uint8_t rtk_get_fw_project_id(uint8_t * p_buf)
 {
 	uint8_t opcode;
 	uint8_t len;
@@ -1301,7 +1301,7 @@ static void rtk_get_patch_entry(uint8_t * epatch_buf,
 		  tmp, (coex_ver & 0xffff));
 }
 
-int bachk(const char *str)
+static int bachk(const char *str)
 {
 	if (!str)
 		return -1;

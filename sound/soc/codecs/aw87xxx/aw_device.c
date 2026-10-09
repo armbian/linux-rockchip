@@ -263,7 +263,7 @@ void aw_dev_hw_pwr_ctrl(struct aw_device *aw_dev, bool enable)
 	}
 }
 
-int aw_dev_mute_ctrl(struct aw_device *aw_dev, bool enable)
+static int aw_dev_mute_ctrl(struct aw_device *aw_dev, bool enable)
 {
 	int ret = 0;
 
@@ -503,7 +503,7 @@ static int aw_dev_pid_9b_reg_update(struct aw_device *aw_dev,
 	return 0;
 }
 
-int aw_dev_pid_9b_pwr_on(struct aw_device *aw_dev, struct aw_data_container *data)
+static int aw_dev_pid_9b_pwr_on(struct aw_device *aw_dev, struct aw_data_container *data)
 {
 	int ret = 0;
 
