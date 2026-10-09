@@ -83,7 +83,7 @@ typedef unsigned long int aw_uint32;
 * check sum data
 *
 ********************************************************/
-int aw_check_sum(struct aw_bin *bin, int bin_num)
+static int aw_check_sum(struct aw_bin *bin, int bin_num)
 {
 	unsigned int i = 0;
 	unsigned int sum_data = 0;
@@ -119,7 +119,7 @@ int aw_check_sum(struct aw_bin *bin, int bin_num)
 	return 0;
 }
 
-int aw_check_data_version(struct aw_bin *bin, int bin_num)
+static int aw_check_data_version(struct aw_bin *bin, int bin_num)
 {
 	int i = 0;
 	DBG("enter\n");
@@ -133,7 +133,7 @@ int aw_check_data_version(struct aw_bin *bin, int bin_num)
 	return -4;
 }
 
-int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
+static int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
 {
 	unsigned int check_register_num = 0;
 	unsigned int parse_register_num = 0;
@@ -168,7 +168,7 @@ int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
 	return 0;
 }
 
-int aw_check_dsp_reg_num_v1(struct aw_bin *bin, int bin_num)
+static int aw_check_dsp_reg_num_v1(struct aw_bin *bin, int bin_num)
 {
 	unsigned int check_dsp_reg_num = 0;
 	unsigned int parse_dsp_reg_num = 0;
@@ -209,7 +209,7 @@ int aw_check_dsp_reg_num_v1(struct aw_bin *bin, int bin_num)
 	return 0;
 }
 
-int aw_check_soc_app_num_v1(struct aw_bin *bin, int bin_num)
+static int aw_check_soc_app_num_v1(struct aw_bin *bin, int bin_num)
 {
 	unsigned int check_soc_app_num = 0;
 	unsigned int parse_soc_app_num = 0;
@@ -254,7 +254,7 @@ int aw_check_soc_app_num_v1(struct aw_bin *bin, int bin_num)
 ***bin header 1_0_0
 ***
 ************************/
-void aw_get_single_bin_header_1_0_0(struct aw_bin *bin)
+static void aw_get_single_bin_header_1_0_0(struct aw_bin *bin)
 {
 	int i;
 	DBG("enter %s\n", __func__);
@@ -298,7 +298,7 @@ void aw_get_single_bin_header_1_0_0(struct aw_bin *bin)
 	bin->all_bin_parse_num += 1;
 }
 
-int aw_parse_each_of_multi_bins_1_0_0(unsigned int bin_num, int bin_serial_num,
+static int aw_parse_each_of_multi_bins_1_0_0(unsigned int bin_num, int bin_serial_num,
 				      struct aw_bin *bin)
 {
 	int ret = 0;
@@ -330,7 +330,7 @@ int aw_parse_each_of_multi_bins_1_0_0(unsigned int bin_num, int bin_serial_num,
 }
 
 /* Get the number of bins in multi bins, and set a for loop, loop processing each bin data */
-int aw_get_multi_bin_header_1_0_0(struct aw_bin *bin)
+static int aw_get_multi_bin_header_1_0_0(struct aw_bin *bin)
 {
 	int i = 0;
 	int ret = 0;

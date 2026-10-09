@@ -118,5 +118,10 @@ struct aw87xxx {
 
 int aw87xxx_update_profile(struct aw87xxx *aw87xxx, char *profile);
 int aw87xxx_esd_update_profile(struct aw87xxx *aw87xxx, char *profile);
+char *aw87xxx_show_current_profile(int dev_index);
+int aw87xxx_set_profile(int dev_index, char *profile);
+int aw87xxx_add_codec_controls(void *codec);
+int aw87xxx_awrw_write(struct aw87xxx *aw87xxx, const char *buf, size_t count);
+int aw87xxx_dtsi_dev_index_check(struct aw87xxx *cur_aw87xxx);
 
 #endif

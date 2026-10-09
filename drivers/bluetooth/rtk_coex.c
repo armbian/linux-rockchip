@@ -954,7 +954,7 @@ static const char alloc_methods[2][12] = {
 
 static const uint8_t subbands[2] = { 4, 8 };
 
-void print_sbc_header(struct sbc_frame_hdr *hdr)
+static void print_sbc_header(struct sbc_frame_hdr *hdr)
 {
 	RTKBT_DBG("syncword: %02x", hdr->syncword);
 	RTKBT_DBG("freq %skHz", sample_freqs[hdr->sampling_frequency]);
@@ -2197,7 +2197,7 @@ const char l2_dir_str[][4] = {
 	"RX", "TX",
 };
 
-void rtl_process_l2_sig(struct rtl_l2_buff *l2)
+static void rtl_process_l2_sig(struct rtl_l2_buff *l2)
 {
 	/* u8 flag; */
 	u8 code;
@@ -2405,7 +2405,7 @@ static inline int cmd_status_filter_out(u8 *buf)
 	}
 }
 
-int ev_filter_out(u8 *buf)
+static int ev_filter_out(u8 *buf)
 {
 	switch (buf[0]) {
 	case HCI_EV_INQUIRY_COMPLETE:

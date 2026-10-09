@@ -86,7 +86,7 @@ static int sensor_report_value(struct i2c_client *client)
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	struct sensor_platform_data *pdata = sensor->pdata;
 	int gpio_value = 0;
-	gpio_value = gpio_get_value(pdata->irq_pin);
+	gpio_value = gpiod_get_value(pdata->irq_pin);
 	if(gpio_value == 0)
 	{		
 		//send power key to sleep
