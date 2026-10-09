@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/vmalloc.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
@@ -729,6 +729,14 @@ int goodix_ts_irq_setup(struct goodix_ts_core *core_data);
 int goodix_ts_esd_init(struct goodix_ts_core *core);
 
 int goodix_ts_register_notifier(struct notifier_block *nb);
+int goodix_ts_unregister_notifier(struct notifier_block *nb);
+
+struct kobject *goodix_get_default_kobj(void);
+int goodix_ts_core_init(void);
+int goodix_ts_core_release(struct goodix_ts_core *core_data);
+int goodix_ts_stage2_init(struct goodix_ts_core *core_data);
+int goodix_start_later_init(struct goodix_ts_core *ts_core);
+void goodix_ts_dev_release(void);
 
 int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 			unsigned long event, void *data);

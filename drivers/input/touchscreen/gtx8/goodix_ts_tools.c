@@ -304,7 +304,7 @@ static int init_cfg_data(struct goodix_ts_config *cfg, void __user *arg)
 	}
 	cfg->reg_base = reg_addr;
 	cfg->length = length;
-	strlcpy(cfg->name, "tools-send-cfg", sizeof(cfg->name));
+	strscpy(cfg->name, "tools-send-cfg", sizeof(cfg->name));
 	cfg->delay = 50;
 	cfg->initialized = true;
 	return 0;

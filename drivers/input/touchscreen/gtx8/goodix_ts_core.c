@@ -30,6 +30,7 @@
 #include <linux/fb.h>
 #endif
 
+#include <linux/pinctrl/consumer.h>
 #include "goodix_ts_core.h"
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 38)
@@ -41,7 +42,7 @@
 #define PINCTRL_STATE_ACTIVE    "pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND   "pmx_ts_suspend"
 
-static int goodix_ts_remove(struct platform_device *pdev);
+static void goodix_ts_remove(struct platform_device *pdev);
 int goodix_start_later_init(struct goodix_ts_core *ts_core);
 void goodix_ts_dev_release(void);
 
@@ -1433,14 +1434,14 @@ static int goodix_ts_pen_dev_config(struct goodix_ts_core *core_data)
 	return 0;
 }
 
-void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
+static void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
 {
 	input_unregister_device(core_data->input_dev);
 	input_free_device(core_data->input_dev);
 	core_data->input_dev = NULL;
 }
 
-void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
+static void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
 {
 	input_unregister_device(core_data->pen_dev);
 	input_free_device(core_data->pen_dev);
@@ -2023,7 +2024,7 @@ out:
 	return r;
 }
 
-static int goodix_ts_remove(struct platform_device *pdev)
+static void goodix_ts_remove(struct platform_device *pdev)
 {
 	struct goodix_ts_core *core_data = platform_get_drvdata(pdev);
 
@@ -2037,7 +2038,6 @@ static int goodix_ts_remove(struct platform_device *pdev)
 	goodix_ts_sysfs_exit(core_data);
 	// can't free the memory for tools or gesture module
 	//kfree(core_data);
-	return 0;
 }
 
 #ifdef CONFIG_PM

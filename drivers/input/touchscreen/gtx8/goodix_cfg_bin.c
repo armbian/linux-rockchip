@@ -418,7 +418,7 @@ static int goodix_read_cfg_bin(struct device *dev, struct goodix_cfg_bin *cfg_bi
 	int i = 0, r;
 
 	/*get cfg_bin_name*/
-	strlcpy(cfg_bin_name, TS_DEFAULT_CFG_BIN, sizeof(cfg_bin_name));
+	strscpy(cfg_bin_name, TS_DEFAULT_CFG_BIN, sizeof(cfg_bin_name));
 
 	ts_info("cfg_bin_name:%s", cfg_bin_name);
 

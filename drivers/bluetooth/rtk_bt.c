@@ -30,7 +30,7 @@
 #include <linux/usb.h>
 #include <linux/dcache.h>
 #include <net/sock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "rtk_bt.h"
 #include "rtk_misc.h"

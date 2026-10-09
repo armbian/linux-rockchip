@@ -1499,10 +1499,10 @@ static int goodix_fw_update_init(struct goodix_ts_core *core_data,
 	goodix_fw_update_ctrl.mode = 0;
 	/* find a valid firmware image name */
 	if (ts_bdata && ts_bdata->fw_name)
-		strlcpy(goodix_fw_update_ctrl.fw_name, ts_bdata->fw_name,
+		strscpy(goodix_fw_update_ctrl.fw_name, ts_bdata->fw_name,
 			sizeof(goodix_fw_update_ctrl.fw_name));
 	else
-		strlcpy(goodix_fw_update_ctrl.fw_name, TS_DEFAULT_FIRMWARE,
+		strscpy(goodix_fw_update_ctrl.fw_name, TS_DEFAULT_FIRMWARE,
 			sizeof(goodix_fw_update_ctrl.fw_name));
 
 	ret = goodix_fw_sysfs_init(core_data, module);
