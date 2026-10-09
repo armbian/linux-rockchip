@@ -2299,4 +2299,14 @@ config KEEMBAY_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called keembay_wdt.
 
+config KHADAS_WATCHDOG
+	tristate "KHADAS watchdog support"
+	help
+	  Say Y here to include watchdog support embedded into Khadas boards.
+	  If the watchdog timer expires, the TPS3851 shuts down its power
+	  supplies.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called khadas_wdt.
+
 endif # WATCHDOG

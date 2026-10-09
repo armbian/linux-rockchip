@@ -23,6 +23,7 @@ obj-$(CONFIG_WATCHDOG_PRETIMEOUT_GOV_PANIC)	+= pretimeout_panic.o
 # to give you some cover.
 
 # ISA-based Watchdog Cards
+obj-$(CONFIG_KHADAS_WATCHDOG) += khadas_wdt.o
 obj-$(CONFIG_PCWATCHDOG) += pcwd.o
 obj-$(CONFIG_MIXCOMWD) += mixcomwd.o
 obj-$(CONFIG_WDT) += wdt.o
