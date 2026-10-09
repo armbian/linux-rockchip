@@ -2626,14 +2626,13 @@ Output:
     Executive outcomes. 
         0: succeed.
 *******************************************************/
-static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int goodix_ts_probe(struct i2c_client *client)
 {
     s32 ret = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
     
     struct device_node *np = client->dev.of_node;
-    enum of_gpio_flags rst_flags, pwr_flags;
     u32 val;
 	printk("%s() start\n", __func__);
 
@@ -2755,9 +2754,9 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		GTP_ERROR("failed to enable tp regulator\n");
 	msleep(20);
 
-    ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)(&ts->irq_flags));
-    ts->rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
-    ts->pwr_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
+    ts->irq_pin = of_get_named_gpio(np, "touch-gpio", 0);
+    ts->rst_pin = of_get_named_gpio(np, "reset-gpio", 0);
+    ts->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
     //ts->tp_select_pin = of_get_named_gpio_flags(np, "tp-select-gpio", 0, &tp_select_flags);
     if (of_property_read_u32(np, "max-x", &val)) {
     	dev_err(&client->dev, "no max-x defined\n");
