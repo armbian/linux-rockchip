@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Enable spidev on SPI0 with RM_IO pinmux at RPi SPI0 physical positions:
+ * MOSI = RM_IO9 (pin 19), MISO = RM_IO10 (pin 21),
+ * CLK = RM_IO8 (pin 23), CS0 = RM_IO14 (pin 24)
+ * Compatible with Raspberry Pi 'spi0-1cs' hats
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable SPI0 spidev on ebyte-ecb41-pge";
+		compatible = "ebyte,ecb41-pge";
+		category = "spi";
+		exclusive = "spi0", "RM_IO8", "RM_IO9", "RM_IO10", "RM_IO14";
+		description = "Enable SPI0 spidev using RM_IO9(MOSI), RM_IO10(MISO), RM_IO8(CLK), RM_IO14(CS0).";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io8_spi0_clk &rm_io10_spi0_miso &rm_io9_spi0_mosi &rm_io14_spi0_csn0>;
+
+	spi@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		status = "okay";
+	};
+};

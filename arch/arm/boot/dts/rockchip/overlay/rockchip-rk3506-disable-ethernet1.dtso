@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Disable ethernet1 for power optimization
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Disable Ethernet 1";
+		compatible = "rockchip,rk3506";
+		category = "misc";
+		exclusive = "gmac1";
+		description = "Disable ethernet1 (gmac1) for power optimization.";
+	};
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
