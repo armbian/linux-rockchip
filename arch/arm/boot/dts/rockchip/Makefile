@@ -225,3 +225,16 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3539-test1-lp4x-v10.dtb \
 	rk3539-test2-ddr3-v10.dtb \
 	rk3562-evb2-ddr4-v10.dtb
+
+# Armbian boards brought forward from rk-6.1-rkr7.2
+dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+	rk3506b-armsom-forge1.dtb \
+	rk3506b-luckfox-lyra-ultra-w.dtb \
+	rk3506b-luckfox-lyra-zero-w-sd.dtb \
+	rk3506g-ebyte-ecb41-pge.dtb \
+	rk3506g-luckfox-lyra-plus-sd.dtb \
+	rk3506j-forlinx-OK3506-S12_nand-microsd.dtb \
+	rv1103g-luckfox-pico-mini.dtb \
+	rv1106g-luckfox-pico-pro-max.dtb
+
+subdir-y += overlay

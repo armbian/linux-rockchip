@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Enable spidev on SPI1 with explicit RM_IO pinmux:
+ * MOSI = RM_IO16, MISO = RM_IO17, CLK = RM_IO18, CS0 = RM_IO14
+ * Compatible with Raspberry Pi 'spi1-1cs' hats
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable SPI1 spidev on luckfox-lyra-zero-w";
+		compatible = "rockchip,rk3506b-lyra-zero";
+		category = "spi";
+		exclusive = "spi1", "RM_IO14", "RM_IO16", "RM_IO17", "RM_IO18";
+		description = "Enable SPI1 spidev using RM_IO16(MOSI), RM_IO17(MISO), RM_IO18(CLK), RM_IO14(CS0).";
+	};
+};
+
+&spi1 {
+	status = "okay";
+	num-cs = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io18_spi1_clk &rm_io17_spi1_miso &rm_io16_spi1_mosi &rm_io14_spi1_csn0>;
+
+	spi@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		status = "okay";
+	};
+};

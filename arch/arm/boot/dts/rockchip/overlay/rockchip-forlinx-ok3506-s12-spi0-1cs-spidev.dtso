@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Enable spidev on SPI0 with standard RM_IO pinmux:
+ * MOSI = RM_IO17, MISO = RM_IO18, CLK = RM_IO16, CS0 = RM_IO19
+ * Compatible with Raspberry Pi 'spi0-1cs' hats
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable SPI0 spidev on forlinx-ok3506-s12";
+		compatible = "forlinx,ok3506";
+		category = "spi";
+		exclusive = "spi0", "RM_IO16", "RM_IO17", "RM_IO18", "RM_IO19";
+		description = "Enable SPI0 spidev using RM_IO17(MOSI), RM_IO18(MISO), RM_IO16(CLK), RM_IO19(CS0).";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+
+	spi@0 {
+		status = "okay";
+	};
+};
