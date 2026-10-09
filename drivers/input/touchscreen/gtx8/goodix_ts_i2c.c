@@ -243,7 +243,7 @@ static int goodix_parse_dt(struct device_node *node,
 }
 #endif
 
-int goodix_i2c_test(struct goodix_ts_device *dev)
+static int goodix_i2c_test(struct goodix_ts_device *dev)
 {
 #define TEST_ADDR  0x4100
 #define TEST_LEN   1
@@ -302,7 +302,7 @@ static int goodix_ts_dev_confirm(struct goodix_ts_device *ts_dev)
  * @len: bytes to read
  * return: 0 - read ok, < 0 - i2c transter error
  */
-int goodix_i2c_read_trans(struct goodix_ts_device *dev, unsigned int reg,
+static int goodix_i2c_read_trans(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
 {
 	struct i2c_client *client = to_i2c_client(dev->dev);
@@ -376,7 +376,7 @@ read_exit:
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
  */
-int goodix_i2c_write_trans(struct goodix_ts_device *dev, unsigned int reg,
+static int goodix_i2c_write_trans(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
 	struct i2c_client *client = to_i2c_client(dev->dev);
@@ -525,7 +525,7 @@ exit:
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
  */
-int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg,
+static int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
 	int r = -EINVAL;
@@ -551,7 +551,7 @@ exit:
  * @len: bytes to read
  * return: 0 - read ok, < 0 - i2c transter error
  */
-int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
+static int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
 {
 	int r = -EINVAL;
@@ -578,7 +578,7 @@ exit:
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
  */
-int goodix_i2c_write_trans_once(struct goodix_ts_device *dev, unsigned int reg,
+static int __maybe_unused goodix_i2c_write_trans_once(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
 	struct i2c_client *client = to_i2c_client(dev->dev);
@@ -663,7 +663,7 @@ static void goodix_cmd_init(struct goodix_ts_device *dev,
  * @cmd: pointer to command struct which cotain command data
  * Returns 0 - succeed,<0 - failed
  */
-int goodix_send_command(struct goodix_ts_device *dev,
+static int goodix_send_command(struct goodix_ts_device *dev,
 		struct goodix_ts_cmd *cmd)
 {
 	int ret;
@@ -1265,7 +1265,7 @@ exit:
  * @dev: pointer to touch device
  * Returns 0 - succeed,<0 - failed
  */
-int goodix_hw_reset(struct goodix_ts_device *dev)
+static int goodix_hw_reset(struct goodix_ts_device *dev)
 {
 	u8 data[2] = {0x00};
 	int r = 0;
@@ -1801,8 +1801,7 @@ static void goodix_pdev_release(struct device *dev)
 	ts_info("goodix pdev released");
 }
 
-static int goodix_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *dev_id)
+static int goodix_i2c_probe(struct i2c_client *client)
 {
 	struct goodix_ts_device *ts_device = NULL;
 	int r = 0;

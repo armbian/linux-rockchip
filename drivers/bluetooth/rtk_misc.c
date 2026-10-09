@@ -31,7 +31,7 @@
 #include <linux/dcache.h>
 #include <linux/in.h>
 #include <net/sock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/interrupt.h>
 #include <linux/module.h>

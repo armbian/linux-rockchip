@@ -23,7 +23,7 @@
 #include <drm/drmP.h>
 #include <uapi/linux/videodev2.h>
 #include <video/mipi_display.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"

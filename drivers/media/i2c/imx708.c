@@ -6,7 +6,7 @@
  * Based on Sony imx708 camera driver
  * Copyright (C) 2020 Raspberry Pi Ltd
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
