@@ -117,11 +117,11 @@
 	status = "okay";
 };
 
-&combphy1 {
+&combphy1_usq {
 	status = "okay";
 };
 
-&combphy2 {
+&combphy2_psq {
 	status = "okay";
 };
 
@@ -529,11 +529,11 @@
 	status = "okay";
 };
 
-&usb2phy0_host {
+&u2phy0_host {
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	status = "okay";
 };
 
@@ -550,11 +550,11 @@
 	status = "okay";
 };
 
-&usb2phy1_host {
+&u2phy1_host {
 	status = "okay";
 };
 
-&usb2phy1_otg {
+&u2phy1_otg {
 	status = "okay";
 };
 
@@ -567,7 +567,7 @@
 };
 
 /* USB3.0 Host */
-&usb_host1_xhci {
+&usbhost_dwc3 {
 	status = "okay";
 };
 

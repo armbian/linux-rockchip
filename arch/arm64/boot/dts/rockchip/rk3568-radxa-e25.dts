@@ -99,7 +99,7 @@
 	};
 };
 
-&combphy1 {
+&combphy1_usq {
 	phy-supply = <&vcc3v3_pcie30x1>;
 };
 
@@ -212,7 +212,7 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	status = "okay";
 };
 
@@ -224,17 +224,17 @@
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	phy-supply = <&vbus_typec>;
 	status = "okay";
 };
 
-&usb2phy1_host {
+&u2phy1_host {
 	phy-supply = <&vcc3v3_minipcie>;
 	status = "okay";
 };
 
-&usb2phy1_otg {
+&u2phy1_otg {
 	phy-supply = <&vcc3v3_ngff>;
 	status = "okay";
 };

@@ -659,11 +659,11 @@
 	status = "disabled";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	status = "disabled";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	status = "disabled";
 };
 

@@ -95,7 +95,7 @@
 	status = "okay";
 };
 
-&combphy1 {
+&combphy1_usq {
 	status = "okay";
 };
 
@@ -425,13 +425,13 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "host";
 	extcon = <&usb2phy0>;
 	status = "okay";
 };
 
-&usb_host1_xhci {
+&usbhost_dwc3 {
 	status = "okay";
 };
 
@@ -439,12 +439,12 @@
 	status = "okay";
 };
 
-&usb2phy0_host {
+&u2phy0_host {
 	phy-supply = <&vcc5v0_sys>;
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	phy-supply = <&vcc5v0_usb_otg>;
 	status = "okay";
 };

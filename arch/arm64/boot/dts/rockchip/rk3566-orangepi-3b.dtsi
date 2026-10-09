@@ -128,11 +128,11 @@
 	};
 };
 
-&combphy1 {
+&combphy1_usq {
 	status = "okay";
 };
 
-&combphy2 {
+&combphy2_psq {
 	status = "okay";
 };
 
@@ -176,18 +176,20 @@
 	avdd-0v9-supply = <&vdda0v9_image>;
 	avdd-1v8-supply = <&vcca1v8_image>;
 	status = "okay";
-};
 
-&hdmi_in {
-	hdmi_in_vp0: endpoint {
-		remote-endpoint = <&vp0_out_hdmi>;
+	ports {
+		port@1 {
+			reg = <1>;
+
+			hdmi_out_con: endpoint {
+				remote-endpoint = <&hdmi_con_in>;
+			};
+		};
 	};
 };
 
-&hdmi_out {
-	hdmi_out_con: endpoint {
-		remote-endpoint = <&hdmi_con_in>;
-	};
+&hdmi_in_vp0 {
+	status = "okay";
 };
 
 &hdmi_sound {
@@ -615,7 +617,7 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "host";
 	status = "okay";
 };
@@ -628,7 +630,7 @@
 	status = "okay";
 };
 
-&usb_host1_xhci {
+&usbhost_dwc3 {
 	status = "okay";
 };
 
@@ -636,12 +638,12 @@
 	status = "okay";
 };
 
-&usb2phy0_host {
+&u2phy0_host {
 	phy-supply = <&vcc5v0_usb_host>;
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	phy-supply = <&vcc5v0_usb_otg>;
 	status = "okay";
 };
@@ -650,12 +652,12 @@
 	status = "okay";
 };
 
-&usb2phy1_host {
+&u2phy1_host {
 	phy-supply = <&vcc5v0_usb_host>;
 	status = "okay";
 };
 
-&usb2phy1_otg {
+&u2phy1_otg {
 	phy-supply = <&vcc5v0_usb_host>;
 	status = "okay";
 };
@@ -668,11 +670,4 @@
 
 &vop_mmu {
 	status = "okay";
-};
-
-&vp0 {
-	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
-		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
-		remote-endpoint = <&hdmi_in_vp0>;
-	};
 };

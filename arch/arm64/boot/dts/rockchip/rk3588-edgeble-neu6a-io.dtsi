@@ -235,6 +235,6 @@
 	status = "okay";
 };
 
-&usb_host2_xhci {
+&usbhost_dwc3_0 {
 	status = "okay";
 };

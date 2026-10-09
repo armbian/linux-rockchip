@@ -198,9 +198,6 @@
 	rockchip,dp-lane-mux = < 0 1 2 3>;
 };
 
-&usbdp_phy0_dp {
-	status = "okay";
-};
 
 &dp0 {
 	status = "okay";

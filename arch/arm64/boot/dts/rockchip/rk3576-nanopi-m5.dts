@@ -203,9 +203,6 @@
 	};
 };
 
-&usbdp_phy_dp {
-	status = "disabled";
-};
 
 &vop {
 	disable-win-move;

@@ -54,7 +54,7 @@
 	status = "okay";
 };
 
-&usb_host1_xhci {
+&usbdrd_dwc3_1 {
 	dr_mode = "host";
 	status = "okay";
 };

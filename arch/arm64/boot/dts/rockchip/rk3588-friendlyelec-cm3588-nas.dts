@@ -710,7 +710,7 @@
 
 /* USB Type-C */
 /* PHYs: <&u2phy0_otg>, <&usbdp_phy0 PHY_TYPE_USB3> */
-&usb_host0_xhci {
+&usbdrd_dwc3_0 {
 	usb-role-switch;
 	status = "okay";
 
@@ -735,14 +735,14 @@
 
 /* Upper USB 3.0 Type-A (port 1) */
 /* PHYs: <&u2phy1_otg>, <&usbdp_phy1 PHY_TYPE_USB3> */
-&usb_host1_xhci {
+&usbdrd_dwc3_1 {
 	dr_mode = "host";
 	status = "okay";
 };
 
 /* Lower USB 3.0 Type-A (port 2) */
 /* PHYs: <&combphy2_psu PHY_TYPE_USB3> */
-&usb_host2_xhci {
+&usbhost_dwc3_0 {
 	status = "okay";
 };
 

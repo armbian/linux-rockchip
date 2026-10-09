@@ -483,7 +483,7 @@
 	status = "okay";
 };
 
-&usb_host0_xhci {
+&usbdrd_dwc3 {
 	dr_mode = "peripheral";
 	/* The following quirks are required since the bInterval is 1 and we
 	 * handle steady ISOC streaming. See Usecase 3 in commit 729dcffd1ed3
@@ -506,7 +506,7 @@
 	status = "okay";
 };
 
-&usb2phy0_otg {
+&u2phy0_otg {
 	status = "okay";
 };
 

@@ -216,9 +216,6 @@
 	status = "disabled";
 };
 
-&usbdp_phy_dp {
-	status = "disabled";
-};
 
 &u2phy1 {
 	status = "disabled";
