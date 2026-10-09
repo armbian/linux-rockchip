@@ -869,6 +869,11 @@ static int panthor_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 	if (!obj)
 		return -ENOENT;
 
+	if (to_panthor_bo(obj)->flags & DRM_PANTHOR_BO_NO_MMAP) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret)
 		goto out;

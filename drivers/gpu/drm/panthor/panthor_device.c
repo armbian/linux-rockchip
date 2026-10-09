@@ -22,6 +22,25 @@
 #include "panthor_regs.h"
 #include "panthor_sched.h"
 
+static int panthor_gpu_coherency_init(struct panthor_device *ptdev)
+{
+	ptdev->coherent = device_get_dma_attr(ptdev->base.dev) == DEV_DMA_COHERENT;
+
+	if (!ptdev->coherent)
+		return 0;
+
+	/*
+	 * ACE-Lite is the only coherency protocol CSF GPUs implement.
+	 * The FEATURES register reports it as a bit, not as the protocol id.
+	 */
+	if (gpu_read(ptdev, GPU_COHERENCY_FEATURES) &
+	    GPU_COHERENCY_PROT_BIT(ACE_LITE))
+		return 0;
+
+	drm_err(&ptdev->base, "Coherency not supported by the device");
+	return -EOPNOTSUPP;
+}
+
 static int panthor_clk_init(struct panthor_device *ptdev)
 {
 	ptdev->clks.core = devm_clk_get(ptdev->base.dev, NULL);
@@ -41,6 +60,12 @@ static int panthor_clk_init(struct panthor_device *ptdev)
 		return dev_err_probe(ptdev->base.dev,
 				     PTR_ERR(ptdev->clks.coregroup),
 				     "get 'coregroup' clock failed");
+
+	ptdev->clks.bus = devm_clk_get_optional(ptdev->base.dev, "bus");
+	if (IS_ERR(ptdev->clks.bus))
+		return dev_err_probe(ptdev->base.dev,
+				     PTR_ERR(ptdev->clks.bus),
+				     "get 'bus' clock failed");
 
 	drm_info(&ptdev->base, "clock rate = %lu\n", clk_get_rate(ptdev->clks.core));
 	return 0;
@@ -156,8 +181,6 @@ int panthor_device_init(struct panthor_device *ptdev)
 	struct page *p;
 	int ret;
 
-	ptdev->coherent = device_get_dma_attr(ptdev->base.dev) == DEV_DMA_COHERENT;
-
 	init_completion(&ptdev->unplug.done);
 	ret = drmm_mutex_init(&ptdev->base, &ptdev->unplug.lock);
 	if (ret)
@@ -225,6 +248,11 @@ int panthor_device_init(struct panthor_device *ptdev)
 		if (ret)
 			return ret;
 	}
+
+	/* Registers are only accessible once the GPU clocks are running. */
+	ret = panthor_gpu_coherency_init(ptdev);
+	if (ret)
+		goto err_rpm_put;
 
 	ret = panthor_gpu_init(ptdev);
 	if (ret)
@@ -425,9 +453,13 @@ int panthor_device_resume(struct device *dev)
 
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_RESUMING);
 
-	ret = clk_prepare_enable(ptdev->clks.core);
+	ret = clk_prepare_enable(ptdev->clks.bus);
 	if (ret)
 		goto err_set_suspended;
+
+	ret = clk_prepare_enable(ptdev->clks.core);
+	if (ret)
+		goto err_disable_bus_clk;
 
 	ret = clk_prepare_enable(ptdev->clks.stacks);
 	if (ret)
@@ -486,6 +518,9 @@ err_disable_stacks_clk:
 err_disable_core_clk:
 	clk_disable_unprepare(ptdev->clks.core);
 
+err_disable_bus_clk:
+	clk_disable_unprepare(ptdev->clks.bus);
+
 err_set_suspended:
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
 	return ret;
@@ -543,6 +578,7 @@ int panthor_device_suspend(struct device *dev)
 	clk_disable_unprepare(ptdev->clks.coregroup);
 	clk_disable_unprepare(ptdev->clks.stacks);
 	clk_disable_unprepare(ptdev->clks.core);
+	clk_disable_unprepare(ptdev->clks.bus);
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
 	return 0;
 

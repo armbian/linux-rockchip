@@ -6,6 +6,7 @@
 #include <linux/devfreq_cooling.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_managed.h>
 
@@ -115,6 +116,39 @@ static int panthor_devfreq_get_dev_status(struct device *dev,
 	return 0;
 }
 
+static int panthor_devfreq_config_clks(struct device *dev,
+				       struct opp_table *opp_table,
+				       struct dev_pm_opp *opp,
+				       void *data, bool scaling_down)
+{
+	struct panthor_device *ptdev = dev_get_drvdata(dev);
+	unsigned long *target = data;
+	unsigned long freq;
+	int ret = 0;
+
+	if (!pm_runtime_enabled(dev))
+		return 0;
+
+	if (target)
+		freq = *target;
+	else if (opp)
+		freq = dev_pm_opp_get_freq(opp);
+	else
+		return -EINVAL;
+
+	pm_runtime_get_noresume(dev);
+
+	if (!pm_runtime_suspended(dev)) {
+		ret = clk_set_rate(ptdev->clks.core, freq);
+		if (ret)
+			dev_err(dev, "failed to set clock rate: %lu\n", freq);
+	}
+
+	pm_runtime_put_noidle(dev);
+
+	return ret;
+}
+
 static struct devfreq_dev_profile panthor_devfreq_profile = {
 	.timer = DEVFREQ_TIMER_DELAYED,
 	.polling_ms = 50, /* ~3 frames */
@@ -131,6 +165,11 @@ int panthor_devfreq_init(struct panthor_device *ptdev)
 	 * the coupling logic deal with voltage updates.
 	 */
 	static const char * const reg_names[] = { "mali", NULL };
+	static const char * const clk_names[] = { "core", NULL };
+	struct dev_pm_opp_config config = {
+		.clk_names = clk_names,
+		.config_clks = panthor_devfreq_config_clks,
+	};
 	struct thermal_cooling_device *cooling;
 	struct device *dev = ptdev->base.dev;
 	struct panthor_devfreq *pdevfreq;
@@ -152,6 +191,10 @@ int panthor_devfreq_init(struct panthor_device *ptdev)
 
 		return ret;
 	}
+
+	ret = devm_pm_opp_set_config(dev, &config);
+	if (ret)
+		return ret;
 
 	ret = devm_pm_opp_of_add_table(dev);
 	if (ret)
