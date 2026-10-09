@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+#include "dt-bindings/usb/pd.h"
+
+/ {
+	metadata {
+		title ="Power Supply PD 12V on ROCK 5B";
+		compatible = "radxa,rock-5b", "rockchip,rk3588";
+		category = "misc";
+		description = "Power Supply PD 12V on ROCK 5B.";
+	};
+
+	fragment@0 {
+		target = <&usb_con>;
+
+		__overlay__ {
+			sink-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
+				PDO_FIXED(12000, 1500, PDO_FIXED_USB_COMM)>;
+		};
+	};
+};

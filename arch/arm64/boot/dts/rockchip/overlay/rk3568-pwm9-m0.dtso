@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PWM9-M0";
+		compatible = "radxa,rock-3a", "radxa,rock-3b", "radxa,rock-3c", "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO3_B2";
+		description = "Enable PWM9-M0.
+On Radxa ROCK 3A <= v1.2 this is pin 18.
+On Radxa ROCK 3A >= v1.3 this is pin 18.
+On Radxa ROCK 3B this is pin 18.
+On Radxa ROCK 3C this is pin 18.
+On Radxa ZERO 3 this is pin 18.";
+	};
+};
+
+&pwm9 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm9m0_pins>;
+};

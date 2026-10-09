@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+#include "rock-5t-cam1-okdo-5mp-camera.dts"
+
+/ {
+	metadata {
+		title ="Enable Raspberry Pi Camera v1.3 on CAM1";
+		description = "Enable Raspberry Pi Camera v1.3 on CAM1.";
+	};
+};
+
+&ov5647 {
+	rockchip,camera-module-name = "rpi-camera-v1p3";
+};

@@ -1,0 +1,363 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 FriendlyElec Computer Tech. Co., Ltd.
+ * (http://www.friendlyelec.com)
+ *
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3588s-nanopi-r6-common.dtsi"
+
+/ {
+	model = "FriendlyElec NanoPi M6";
+	compatible = "friendlyelec,nanopi-m6", "rockchip,rk3588";
+
+	aliases {
+		ethernet0 = &gmac1;
+	};
+
+	rt5616_sound: rt5616-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+
+		simple-audio-card,name = "realtek,rt5616-codec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,hp-det-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_LOW>;
+		simple-audio-card,hp-pin-name = "Headphone Jack";
+
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Microphone", "Microphone Jack";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR",
+			"MIC1", "Microphone Jack",
+			"Microphone Jack", "micbias1";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rt5616>;
+		};
+	};
+
+	fan: pwm-fan {
+		status = "okay";
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		fan-supply = <&vcc5v0_sys>;
+		pwms = <&pwm5 0 50000 0>;
+		cooling-levels = <0 35 64 100 150 255>;
+		rockchip,hold-time-ms = <2000>;
+		rockchip,temp-trips = <
+			50000	1
+			55000	2
+			60000	3
+			65000	4
+			70000	5
+		>;
+	};
+
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <17000>;
+		};
+	};
+
+	gpio_leds: gpio-leds {
+		compatible = "gpio-leds";
+
+		sys_led: led-0 {
+			gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+			label = "sys_led";
+			linux,default-trigger = "heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sys_led_pin>;
+		};
+
+		user_led: led-1 {
+			gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+			label = "user_led";
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_led_pin>;
+		};
+	};
+
+	vcc3v3_pcie_m2: vcc3v3-pcie30 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_m2_0_pwren>;
+		regulator-name = "vcc3v3_pcie_m2";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc5v0_host_20: vcc5v0-host-20 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_host20_en>;
+		regulator-name = "vcc5v0_host_20";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_usb>;
+	};
+
+	vbus5v0_typec: vbus5v0-typec {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec5v_pwren>;
+		regulator-name = "vbus5v0_typec";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_usb>;
+	};
+
+	pwm_backlight: pwm-backlight {
+		status = "disabled";
+		compatible = "pwm-backlight";
+	};
+};
+
+
+&pcie2x1l2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_m2_0_prsnt>;
+	prsnt-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	phys = <&combphy0_ps PHY_TYPE_PCIE>;
+	vpcie3v3-supply = <&vcc3v3_pcie_m2>;
+	status = "okay";
+};
+
+&combphy0_ps {
+	status = "okay";
+};
+
+&sata0 {
+	phys = <&combphy0_ps PHY_TYPE_SATA>;
+	target-supply = <&vcc3v3_pcie_m2>;
+	status = "disabled";
+};
+
+&pinctrl {
+	gpio-leds {
+		sys_led_pin: sys-led-pin {
+			rockchip,pins =
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		user_led_pin: lan1-led-pin {
+			rockchip,pins =
+				<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	lcd {
+		/omit-if-no-ref/
+		lcd_rst0_gpio: lcd-rst0-gpio {
+			rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		lcd_rst1_gpio: lcd-rst1-gpio {
+			rockchip,pins = <4 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		touch_dsi0_gpio: touch-dsi0-gpio {
+			rockchip,pins =
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		touch_dsi1_gpio: touch-dsi1-gpio {
+			rockchip,pins =
+				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>,
+				<4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pcie {
+		pcie_m2_0_pwren: pcie-m20-pwren {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		pcie_m2_0_prsnt: pcie-m20-prsnt {
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	usb {
+		typec5v_pwren: typec5v-pwren {
+			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_host20_en: vcc5v0-host20-en {
+			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+// EEPROM is not mounted by default.
+&i2c6 {
+	clock-frequency = <200000>;
+	status = "okay";
+
+	eeprom@53 {
+		compatible = "microchip,24c02", "atmel,24c02";
+		reg = <0x53>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+		pagesize = <16>;
+		size = <256>;
+
+		eui_48: eui-48@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
+};
+
+&i2c7 {
+	clock-frequency = <200000>;
+	status = "okay";
+
+	rt5616: rt5616@1b {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "rt5616";
+		reg = <0x1b>;
+		clocks = <&mclkout_i2s0>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_i2s0>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_mclk>;
+	};
+
+	/* connected with MIPI-CSI1 */
+};
+
+&i2s0_8ch {
+	status = "okay";
+	pinctrl-0 = <&i2s0_lrck
+		     &i2s0_sclk
+		     &i2s0_sdi0
+		     &i2s0_sdo0>;
+	rockchip,trcm-sync-tx-only;
+};
+
+&pwm5 {
+	pinctrl-0 = <&pwm5m1_pins>;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	phy-supply = <&vbus5v0_typec>;
+	status = "okay";
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host_20>;
+	status = "okay";
+};
+
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy3_host {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+/* GPIO Connector */
+&i2c1 {
+	pinctrl-0 = <&i2c1m2_xfer>;
+	status = "disabled";
+};
+
+&i2c8 {
+	pinctrl-0 = <&i2c8m2_xfer>;
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-0 = <&spi0m2_cs0 &spi0m2_pins>;
+	status = "disabled";
+
+	spidev0: spidev@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		status = "disabled";
+	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0m0_xfer>;
+	status = "disabled";
+};
+
+&uart4 {
+	pinctrl-0 = <&uart4m2_xfer>;
+	status = "disabled";
+};
+
+&uart5 {
+	pinctrl-0 = <&uart5m1_xfer>;
+	status = "okay";
+};
+
+&uart6 {
+	pinctrl-0 = <&uart6m1_xfer>;
+	status = "okay";
+};
+
+&uart7 {
+	pinctrl-0 = <&uart7m2_xfer>;
+	status = "disabled";
+};
+
+&uart8 {
+	pinctrl-0 = <&uart8m0_xfer>;
+	status = "disabled";
+};
+
+&pwm2 {
+	pinctrl-0 = <&pwm2m0_pins>;
+	status = "okay";
+};

@@ -1,0 +1,223 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+#include <dt-bindings/power/rk3576-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+/ {
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			camera_pwdn_gpio: camera-pwdn-gpio {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "camera_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&cam_pwdn_gpio>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c4>;
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4m3_xfer>;
+			imx219: imx219@10 {
+				status = "okay";
+				compatible = "sony,imx219";
+				reg = <0x10>;
+				clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+				clock-names = "xvclk";
+				pinctrl-names = "rockchip,camera_default";
+				pinctrl-0 = <&cam_clk1m1_clk1>;
+				VANA-supply = <&vcc_3v3_s0>;   /* 2.8v */
+				VDIG-supply = <&vcc_3v3_s0>;   /* 1.8v */
+				VDDL-supply = <&vcc_3v3_s0>;   /* 1.2v */
+				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "ZC-OV13850R2A-V1";
+				rockchip,camera-module-lens-name = "Largan-50064B31";
+				port {
+					imx219_out: endpoint {
+						remote-endpoint = <&mipidphy3_in_ucam3>;
+						data-lanes = <1 2>;
+						clock-noncontinuous;
+						link-frequencies = /bits/ 64 <456000000>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&csi2_dphy0_hw>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&csi2_dphy1_hw>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&csi2_dphy4>;
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidphy3_in_ucam3: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&imx219_out>;
+						data-lanes = <1 2>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidphy4_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi4_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&mipi3_csi2>;
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi4_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidphy4_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi4_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi_in4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mipi_lvds3>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi_in4: endpoint {
+					remote-endpoint = <&mipi4_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif_mipi_lvds3_sditf>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds3_sditf: endpoint {
+					remote-endpoint = <&isp_vir0_in1>;
+				};
+			};
+		};
+	};
+
+	fragment@9 {
+		target = <&rkcif_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&rkisp>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&rkisp_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@12 {
+		target = <&rkisp_vir0>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp_vir0_in1: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds3_sditf>;
+				};
+			};
+		};
+	};
+
+	fragment@13 {
+		target = <&pinctrl>;
+		__overlay__ {
+			camera {
+				cam_pwdn_gpio: cam-pwdn-gpio {
+					rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+				};
+			};
+		};
+	};
+};

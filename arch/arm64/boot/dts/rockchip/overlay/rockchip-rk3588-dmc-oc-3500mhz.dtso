@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&dmc_opp_table>;
+		__overlay__ {
+			opp-2750000000 {
+				delete-property;
+			};
+			opp-3500000000 {
+				opp-supported-hw = <0xf9 0xffff>;
+				opp-hz = /bits/ 64 <3500000000>;
+				opp-microvolt = <875000 875000 875000>,
+						<750000 750000 800000>;
+				opp-microvolt-L1 = <850000 850000 875000>,
+						   <750000 750000 800000>;
+				opp-microvolt-L2 = <837500 837500 875000>,
+						   <725000 725000 800000>;
+				opp-microvolt-L3 = <825000 825000 875000>,
+						   <700000 700000 800000>;
+			};
+		};
+	};
+};

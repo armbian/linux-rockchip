@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&spi4>;
+
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi4m2_cs0 &spi4m2_pins>;
+
+			spidev@0 {
+				compatible = "rockchip,spidev";
+				status = "okay";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+			};
+		};
+	};
+};

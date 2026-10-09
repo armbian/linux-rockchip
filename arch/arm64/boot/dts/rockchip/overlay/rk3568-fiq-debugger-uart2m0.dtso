@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable FIQ Debugger on UART2-M0";
+		compatible = "unknown";
+		category = "misc";
+		exclusive = "GPIO0_D1", "GPIO0_D0";
+		description = "Enable FIQ Debugger on UART2-M0.";
+	};
+};
+
+&fiq_debugger {
+	status = "okay";
+	rockchip,serial-id = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer>;
+};
+
+&uart2 {
+	status = "disabled";
+};

@@ -1,0 +1,31 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+
+/ {
+	metadata {
+		title = "Disabled Zero 3E Wireless";
+		compatible = "radxa,zero3";
+		category = "misc";
+		description = "Disabled Zero 3E Wireless.";
+	};
+
+	fragment@0 {
+		target = <&uart1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&sdmmc1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};

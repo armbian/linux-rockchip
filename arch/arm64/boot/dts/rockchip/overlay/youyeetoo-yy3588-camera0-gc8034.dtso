@@ -1,0 +1,227 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3588-power.h>
+
+/ {
+	metadata {
+		title = "Enable GC8034 Camera 0 on Youyeetoo YY3588";
+		compatible = "youyeetoo,yy3588";
+		category = "camera";
+		description = "Enable GC8034 8MP camera sensor on CSI0 (front camera)";
+	};
+
+	fragment@0 {
+		target = <&i2c2>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2m4_xfer>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gc8034_0: gc8034@37 {
+				status = "okay";
+				compatible = "galaxycore,gc8034";
+				reg = <0x37>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+				clock-names = "xvclk";
+				power-domains = <&power RK3588_PD_VI>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim0_camera1_clk>;
+				rockchip,grf = <&sys_grf>;
+				reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+				pwdn-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_LOW>;
+				power-gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "front";
+				rockchip,camera-module-name = "RK-CMK-8M-2-v1";
+				rockchip,camera-module-lens-name = "CK8401";
+
+				port {
+					gc8034_0_out: endpoint {
+						remote-endpoint = <&mipi_in_dcphy0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&mipi_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&csi2_dcphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi_in_dcphy0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&gc8034_0_out>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidcphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi0_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&mipi0_csi2>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidcphy0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&rkcif_mipi_lvds>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi_in0: endpoint {
+					remote-endpoint = <&mipi0_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&rkcif_mipi_lvds_sditf>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds_sditf: endpoint {
+					remote-endpoint = <&isp0_vir0_in>;
+				};
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@8 {
+		target = <&rkisp0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&isp0_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&rkisp0_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_vir0_in: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds_sditf>;
+				};
+			};
+		};
+	};
+
+	fragment@11 {
+		target = <&pinctrl>;
+
+		__overlay__ {
+			camera {
+				camera0_ctl: camera0-ctl {
+					rockchip,pins =
+						<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,
+						<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
+						<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+};

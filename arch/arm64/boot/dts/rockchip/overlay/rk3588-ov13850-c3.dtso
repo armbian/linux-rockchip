@@ -1,0 +1,94 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "rockchip,rk3588s-orangepi-5", "rockchip,rk3588";
+
+	fragment@0 {
+		target = <&csi2_dcphy1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&mipi1_csi2>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&rkcif_mipi_lvds1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&rkcif_mipi_lvds1_sditf>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@4 {
+		target = <&rkisp1_vir0>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@5 {
+		target = <&i2c2>;
+
+		__overlay__ {
+			status = "okay";
+
+			vm149c@c {
+				status = "okay";
+			};
+
+			ov13850@10 {
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@8 {
+		target = <&rkisp1>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&isp1_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

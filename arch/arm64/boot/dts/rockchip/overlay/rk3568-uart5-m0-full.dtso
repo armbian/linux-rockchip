@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable UART5-M0 with Hardware Flow Control";
+		compatible = "unknown";
+		category = "misc";
+		description = "Enable UART5-M0 with hardware flow control.";
+	};
+};
+
+&uart5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5m0_xfer &uart5m0_ctsn &uart5m0_rtsn>;
+};

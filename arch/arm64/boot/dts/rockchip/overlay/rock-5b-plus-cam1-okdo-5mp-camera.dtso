@@ -1,0 +1,178 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title ="Enable OKDO 5MP Camera on CAM1";
+		compatible = "radxa,rock-5b-plus";
+		category = "camera";
+		exclusive = "csi2_dphy4";
+		description = "Enable OKDO 5MP Camera on CAM1.";
+	};
+};
+
+&{/} {
+	clk_cam_25m_1: external-camera-clock-25m-1 {
+		status = "okay";
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		clock-output-names = "clk_cam_25m_1";
+		#clock-cells = <0>;
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m1_xfer>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ov5647: ov5647@36 {
+		status = "okay";
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&clk_cam_25m_1>;
+		pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_LOW>;
+		clock-names = "ext_cam_clk_1";
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "OKDO-5MP";
+		rockchip,camera-module-lens-name = "default";
+
+		port {
+			ov5647_out4: endpoint {
+				remote-endpoint = <&mipidphy4_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&csi2_dphy4 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidphy4_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5647_out4>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy4_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi4_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy4_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in0>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds4 {
+	status = "okay";
+
+	port {
+		cif_mipi4_in0: endpoint {
+			remote-endpoint = <&mipi4_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds4_sditf: endpoint {
+			remote-endpoint = <&isp1_vir1>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&rkisp1 {
+	status = "okay";
+};
+
+&rkisp1_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf>;
+		};
+	};
+};
+
+&pinctrl {
+	camera {
+		cam_pwdn_gpio: cam-pwdn-gpio {
+			rockchip,pins = <2 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
