@@ -5,6 +5,13 @@
 	fragment@0 {
 		target = <&gpu>;
 		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&gpu_panthor>;
+		__overlay__ {
 			status = "okay";
 			mali-supply = <&vdd_gpu_s0>;
 		};
