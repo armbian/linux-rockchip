@@ -325,7 +325,7 @@ static void rwnx_rx_statistic(struct rwnx_hw *rwnx_hw, struct hw_rxhdr *hw_rxhdr
 	cpu_raise_softirq(smp_processor_id(), NET_RX_SOFTIRQ)
 #endif /* LINUX_VERSION_CODE  */
 
-void rwnx_rx_data_skb_resend(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+static void rwnx_rx_data_skb_resend(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
 							 struct sk_buff *skb,  struct hw_rxhdr *rxhdr)
 {
 	struct sk_buff *rx_skb = skb;
@@ -1371,7 +1371,7 @@ struct reord_ctrl_info *reord_init_sta(struct aicwf_rx_priv *rx_priv, const u8 *
 	return reord_info;
 }
 
-int reord_flush_tid(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u8 tid)
+static int reord_flush_tid(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u8 tid)
 {
 	struct reord_ctrl_info *reord_info;
 	struct reord_ctrl *preorder_ctrl;
@@ -1578,7 +1578,7 @@ int reord_single_frame_ind(struct aicwf_rx_priv *rx_priv, struct recv_msdu *prfr
 	return 0;
 }
 
-bool reord_rxframes_process(struct aicwf_rx_priv *rx_priv, struct reord_ctrl *preorder_ctrl, int bforced)
+static bool reord_rxframes_process(struct aicwf_rx_priv *rx_priv, struct reord_ctrl *preorder_ctrl, int bforced)
 {
 	struct list_head *phead, *plist;
 	struct recv_msdu *prframe;
@@ -1614,7 +1614,7 @@ bool reord_rxframes_process(struct aicwf_rx_priv *rx_priv, struct reord_ctrl *pr
 	return bPktInBuf;
 }
 
-void reord_rxframes_ind(struct aicwf_rx_priv *rx_priv,
+static void reord_rxframes_ind(struct aicwf_rx_priv *rx_priv,
 	struct reord_ctrl *preorder_ctrl)
 {
 	struct list_head *phead, *plist;
@@ -1688,7 +1688,7 @@ void reord_timeout_worker(struct work_struct *work)
     return ;
 }
 
-int reord_process_unit(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u16 seq_num, u8 tid, u8 forward, u8 is_amsdu)
+static int reord_process_unit(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u16 seq_num, u8 tid, u8 forward, u8 is_amsdu)
 {
 	int ret = 0;
 	u8 *mac;
@@ -1875,7 +1875,7 @@ int reord_rxframe_enqueue(struct reord_ctrl *preorder_ctrl, struct recv_msdu *pr
 }
 #endif /* AICWF_RX_REORDER */
 
-void remove_sec_hdr_mgmt_frame(struct hw_rxhdr *hw_rxhdr, struct sk_buff *skb)
+static void remove_sec_hdr_mgmt_frame(struct hw_rxhdr *hw_rxhdr, struct sk_buff *skb)
 {
 	u8 hdr_len = 24;
 	u8 mgmt_header[24] = {0};
@@ -1896,9 +1896,9 @@ void remove_sec_hdr_mgmt_frame(struct hw_rxhdr *hw_rxhdr, struct sk_buff *skb)
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-void defrag_timeout_cb(ulong data)
+static void defrag_timeout_cb(ulong data)
 #else
-void defrag_timeout_cb(struct timer_list *t)
+static void defrag_timeout_cb(struct timer_list *t)
 #endif
 {
 	struct defrag_ctrl_info *defrag_ctrl = NULL;

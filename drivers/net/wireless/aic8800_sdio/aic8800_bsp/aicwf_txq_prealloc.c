@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include "aicsdio_txrxif.h"
 #include "aic_bsp_driver.h"
+#include "aicwf_txq_prealloc.h"
 
 struct prealloc_txq{
     int prealloced;
