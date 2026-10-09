@@ -18,7 +18,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/rk-camera-module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -109,7 +111,14 @@ struct ov5647 {
 	struct v4l2_ctrl		*hblank;
 	struct v4l2_ctrl		*vblank;
 	struct v4l2_ctrl		*exposure;
+
+	u32				module_index;
+	const char			*module_facing;
+	const char			*module_name;
+	const char			*len_name;
 };
+
+#define OV5647_LANES			2
 
 static inline struct ov5647 *to_sensor(struct v4l2_subdev *sd)
 {
@@ -866,7 +875,44 @@ static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
 #endif
 
 /* Subdev core operations registration */
+static void ov5647_get_module_inf(struct ov5647 *sensor, struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strscpy(inf->base.sensor, "ov5647", sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sensor->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, sensor->len_name, sizeof(inf->base.lens));
+}
+
+static long ov5647_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct ov5647 *sensor = to_sensor(sd);
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		ov5647_get_module_inf(sensor, arg);
+		return 0;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
+static int ov5647_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2.num_data_lanes = OV5647_LANES;
+
+	return 0;
+}
+
+static int ov5647_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	*status = 0;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
+	.ioctl			= ov5647_ioctl,
 	.subscribe_event	= v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event	= v4l2_event_subdev_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -931,6 +977,7 @@ error_unlock:
 
 static const struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
 	.s_stream =		ov5647_s_stream,
+	.g_input_status =	ov5647_g_input_status,
 };
 
 static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1079,6 +1126,7 @@ static const struct v4l2_subdev_pad_ops ov5647_subdev_pad_ops = {
 	.set_fmt		= ov5647_set_pad_fmt,
 	.get_fmt		= ov5647_get_pad_fmt,
 	.get_selection		= ov5647_get_selection,
+	.get_mbus_config	= ov5647_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov5647_subdev_ops = {
@@ -1389,6 +1437,20 @@ static int ov5647_probe(struct i2c_client *client)
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
 		return -ENOMEM;
+
+	sensor->module_facing = "";
+	sensor->module_name = "";
+	sensor->len_name = "";
+	if (np) {
+		of_property_read_u32(np, RKMODULE_CAMERA_MODULE_INDEX,
+				     &sensor->module_index);
+		of_property_read_string(np, RKMODULE_CAMERA_MODULE_FACING,
+					&sensor->module_facing);
+		of_property_read_string(np, RKMODULE_CAMERA_MODULE_NAME,
+					&sensor->module_name);
+		of_property_read_string(np, RKMODULE_CAMERA_LENS_NAME,
+					&sensor->len_name);
+	}
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		ret = ov5647_parse_dt(sensor, np);
