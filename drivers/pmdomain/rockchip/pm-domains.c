@@ -774,7 +774,8 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 
 	return 0;
 error:
-	panic("panic_on_set_idle set ...\n");
+	if (!pm_domain_always_on)
+		panic("panic_on_set_idle set ...\n");
 	return ret;
 }
 
@@ -1207,7 +1208,8 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 	return;
 
 error:
-	panic("panic_on_set_domain set ...\n");
+	if (!pm_domain_always_on)
+		panic("panic_on_set_domain set ...\n");
 }
 
 static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
