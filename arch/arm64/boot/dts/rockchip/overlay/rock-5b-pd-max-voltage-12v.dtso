@@ -1,7 +1,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "dt-bindings/usb/pd.h"
+#include <dt-bindings/usb/pd.h>
 
 / {
 	metadata {

@@ -1,7 +1,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "rock-5t-cam0-radxa-camera-8m-219.dts"
+#include "rock-5t-cam0-radxa-camera-8m-219.dtso"
 
 / {
 	metadata {

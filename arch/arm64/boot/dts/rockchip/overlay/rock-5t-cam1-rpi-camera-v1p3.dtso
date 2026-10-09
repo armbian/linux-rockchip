@@ -1,7 +1,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "rock-5t-cam1-okdo-5mp-camera.dts"
+#include "rock-5t-cam1-okdo-5mp-camera.dtso"
 
 / {
 	metadata {

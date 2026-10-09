@@ -1,4 +1,4 @@
-#include "rock-5b-rpi-camera-v2.dts"
+#include "rock-5b-rpi-camera-v2.dtso"
 
 / {
 	metadata {
