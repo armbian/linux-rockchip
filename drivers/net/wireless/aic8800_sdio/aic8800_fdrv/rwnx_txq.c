@@ -153,7 +153,7 @@ static void rwnx_txq_init(struct rwnx_txq *txq, int idx, u8 status,
  * @rwnx_hw: main driver data
  * @txq: txq to flush
  */
-void rwnx_txq_flush(struct rwnx_hw *rwnx_hw, struct rwnx_txq *txq)
+static void rwnx_txq_flush(struct rwnx_hw *rwnx_hw, struct rwnx_txq *txq)
 {
 	struct sk_buff *skb;
 

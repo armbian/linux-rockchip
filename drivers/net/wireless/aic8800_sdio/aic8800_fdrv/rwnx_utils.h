@@ -34,6 +34,8 @@ enum rwnx_dev_flag {
 struct rwnx_hw;
 struct rwnx_sta;
 
+int rwnx_init_aic(struct rwnx_hw *rwnx_hw);
+
 /**
  * struct rwnx_ipc_elem - Generic IPC buffer of fixed size
  *

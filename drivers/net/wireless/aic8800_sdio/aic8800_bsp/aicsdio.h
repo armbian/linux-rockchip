@@ -119,7 +119,21 @@ void aicwf_sdio_hal_irqhandler_func2(struct sdio_func *func);
 #if defined(CONFIG_SDIO_PWRCTRL)
 void aicwf_sdio_pwrctl_timer(struct aic_sdio_dev *sdiodev, uint duration);
 int aicwf_sdio_pwr_stctl(struct  aic_sdio_dev *sdiodev, uint target);
+int aicwf_sdio_wakeup(struct aic_sdio_dev *sdiodev);
+int aicwf_sdio_sleep_allow(struct aic_sdio_dev *sdiodev);
 #endif
+bool aicbsp_get_load_fw_in_fdrv(void);
+int aicwf_sdio_readb(struct aic_sdio_dev *sdiodev, uint regaddr, u8 *val);
+int aicwf_sdio_readb_func2(struct aic_sdio_dev *sdiodev, uint regaddr, u8 *val);
+int aicwf_sdio_writeb_func2(struct aic_sdio_dev *sdiodev, uint regaddr, u8 val);
+int aicwf_sdio_send_msg(struct aic_sdio_dev *sdiodev, u8 *buf, uint count);
+struct sk_buff *aicwf_sdio_readframes(struct aic_sdio_dev *sdiodev, u8 msg);
+void aicwf_sdio_release_func2(struct aic_sdio_dev *sdiodev);
+void get_fw_path(char *fw_path);
+int get_testmode(void);
+struct sdio_func;
+struct sdio_func *get_sdio_func(void);
+void set_irq_handler(void *fn);
 void aicwf_sdio_reg_init(struct aic_sdio_dev *sdiodev);
 int aicwf_sdio_func_init(struct aic_sdio_dev *sdiodev);
 int aicwf_sdiov3_func_init(struct aic_sdio_dev *sdiodev);

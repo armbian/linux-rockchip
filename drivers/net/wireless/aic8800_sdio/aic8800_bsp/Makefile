@@ -1,6 +1,8 @@
 CONFIG_SDIO_SUPPORT := y
 CONFIG_SDIO_PWRCTRL := y
 ccflags-y += -DCONFIG_AIC_FW_PATH=\"$(CONFIG_AIC_FW_PATH)\"
+ccflags-y += -Wno-missing-prototypes
+ccflags-y += -Wno-missing-declarations
 
 MODULE_NAME := aic8800_bsp
 ifeq ($(CONFIG_SDIO_SUPPORT), y)

@@ -21,6 +21,7 @@
 #include <linux/of_gpio.h>
 #include <linux/version.h>
 #include "aic_bsp_export.h"
+#include "rfkill.h"
 
 static struct rfkill *bt_rfk;
 static const char bt_name[] = "bluetooth";
