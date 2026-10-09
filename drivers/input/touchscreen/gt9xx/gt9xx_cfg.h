@@ -33,6 +33,11 @@ static u8 gtp_dat_gt9111[] = {
 	#include "HLS-0102-1398V1-1060-GT911_Config_20201204_V66.cfg"
 };
 
+static u8 gtp_dat_gt9272[] = {
+	/* <1200, 1920> */
+	#include "CJ080258_GT9271_Config_20230608_112016.cfg"
+};
+
 static u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */
@@ -60,6 +65,16 @@ static u8 gtp_dat_7[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1024, 600> 7.0 */
 	#include "WGJ10187_GT910_Config_20140623_104014_0X41.cfg"
+};
+
+static u8 gtp_dat_tpc2059[] = {
+	/* <1024, 600> TPC2059 7.0 (Youyeetoo R1 / YY3588 DSI kit) */
+	#include "TPC2059-7.0-Config_20241122_143209.cfg"
+};
+
+static u8 gtp_dat_gt928[] = {
+	/* <1920, 1080> 11.6 eDP (Youyeetoo YY3588 eDP kit) */
+	#include "GT928_Config_20190318_111541.cfg"
 };
 
 #endif /* _GOODIX_GT9XX_CFG_H_ */

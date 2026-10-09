@@ -1457,5 +1457,12 @@ config TOUCHSCREEN_HIMAX_HX83112B
 	  module will be called himax_hx83112b.
 
 source "drivers/input/touchscreen/hxchipset/Kconfig"
+source "drivers/input/touchscreen/gtx8/Kconfig"
+
+config TOUCHSCREEN_RASPITS_FT5426
+	tristate "Raspberry Pi 7 inch touchscreen touch control IC FT5426"
+	depends on I2C
+	help
+	  Control the FT5426 touch IC on the Raspberry Pi 7-inch panel.
 
 endif
