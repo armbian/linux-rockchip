@@ -915,10 +915,16 @@ void fxgmac_dump_rx_desc(struct fxgmac_pdata *pdata,
     unsigned int idx);
 void fxgmac_dbg_pkt(struct net_device *netdev,
     struct sk_buff *skb, bool tx_rx);
+void fxgmac_print_pkt(struct net_device *netdev,
+    struct sk_buff *skb, bool tx_rx);
 void fxgmac_get_all_hw_features(struct fxgmac_pdata *pdata);
 void fxgmac_print_all_hw_features(struct fxgmac_pdata *pdata);
 int fxgmac_drv_probe(struct device *dev,
     struct fxgmac_resources *res);
 int fxgmac_drv_remove(struct device *dev);
+void fxgmac_update_aoe_ipv4addr(struct fxgmac_pdata *pdata, u8 *ip_addr);
+void fxgmac_config_arp_offload(struct fxgmac_pdata *pdata, int en);
+void fxgmac_update_ns_offload_ipv6addr(struct fxgmac_pdata *pdata, unsigned int param);
+int fxgmac_dismiss_all_int(struct fxgmac_pdata *pdata);
 
 #endif /* __FUXI_GMAC_H__ */

@@ -3240,8 +3240,9 @@ static void fxgmac_config_rss(struct fxgmac_pdata *pdata)
     else
         ret = fxgmac_disable_rss(pdata);
 
-    if (ret)
-        DBGPRINT(MP_ERROR, ("fxgmac_config_rss: error configuring RSS\n")); 
+    if (ret) {
+        DBGPRINT(MP_ERROR, ("fxgmac_config_rss: error configuring RSS\n"));
+    } 
 }
 
 #if defined(LINUX) || defined(_WIN64) || defined(_WIN32)

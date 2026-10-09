@@ -86,6 +86,8 @@ static char * file_name = "/home/fxgmac/fxgmac_dbg.log";
 
 /* declarations */
 static void fxgmac_shutdown(struct pci_dev *pdev);
+int fxgmac_dbg_log_init(void);
+int fxgmac_dbg_log_uninit(void);
 
 /*
  * functions definitions
