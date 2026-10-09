@@ -638,6 +638,8 @@ static int analogix_dp_encoder_late_register(struct drm_encoder *encoder)
 			.spdif = 1,
 			.i2s = 1,
 			.max_i2s_channels = 8,
+			.no_i2s_capture = 1,
+			.no_spdif_capture = 1,
 		};
 
 		dp->audio_pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,

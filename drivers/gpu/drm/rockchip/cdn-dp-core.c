@@ -1008,6 +1008,8 @@ static int cdn_dp_audio_codec_init(struct cdn_dp_device *dp,
 		.spdif = 1,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 8,
+		.no_i2s_capture = 1,
+		.no_spdif_capture = 1,
 	};
 
 	dp->audio_pdev = platform_device_register_data(

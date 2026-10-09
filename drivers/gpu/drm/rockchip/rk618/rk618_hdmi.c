@@ -1338,6 +1338,8 @@ static int rk618_hdmi_audio_codec_init(struct rk618_hdmi *hdmi,
 		.spdif = 0,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 8,
+		.no_i2s_capture = 1,
+		.no_spdif_capture = 1,
 	};
 
 	if (of_property_read_string(np, "rockchip,format", &str))

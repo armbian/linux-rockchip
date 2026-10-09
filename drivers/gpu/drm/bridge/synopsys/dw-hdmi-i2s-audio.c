@@ -240,6 +240,7 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 	pdata.ops		= &dw_hdmi_i2s_ops;
 	pdata.i2s		= 1;
 	pdata.max_i2s_channels	= 8;
+	pdata.no_i2s_capture	= 1;
 	pdata.data		= audio;
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
