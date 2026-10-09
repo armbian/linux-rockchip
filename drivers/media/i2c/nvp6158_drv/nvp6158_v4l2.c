@@ -925,6 +925,7 @@ static int nvp6158_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int nvp6158_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct nvp6158 *nvp6158 = to_nvp6158(sd);
@@ -1185,7 +1186,6 @@ static const struct dev_pm_ops nvp6158_pm_ops = {
 static const struct v4l2_subdev_video_ops nvp6158_video_ops = {
 	.s_stream = nvp6158_stream,
 	.querystd = nvp6158_querystd,
-	.g_frame_interval = nvp6158_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops nvp6158_subdev_pad_ops = {
@@ -1195,6 +1195,7 @@ static const struct v4l2_subdev_pad_ops nvp6158_subdev_pad_ops = {
 	.set_fmt = nvp6158_set_fmt,
 	.get_selection = nvp6158_get_selection,
 	.enum_frame_interval = nvp6158_enum_frame_interval,
+	.get_frame_interval = nvp6158_g_frame_interval,
 	.get_mbus_config = nvp6158_g_mbus_config,
 };
 

@@ -46,12 +46,6 @@
 
 #define PISP_DMY_NAME				"pisp_dmy"
 
-struct pisp_dmy_gpio {
-	int pltfrm_gpio;
-	const char *label;
-	enum of_gpio_flags active_low;
-};
-
 struct pisp_dmy_regulator {
 	struct regulator *regulator;
 	u32 min_uV;
