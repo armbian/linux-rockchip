@@ -631,6 +631,7 @@ config FUJITSU_ES
 
 source "drivers/net/thunderbolt/Kconfig"
 source "drivers/net/hyperv/Kconfig"
+source "drivers/net/lte/Kconfig"
 
 config NETDEVSIM
 	tristate "Simulated networking device"
