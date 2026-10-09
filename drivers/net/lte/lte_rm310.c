@@ -72,8 +72,8 @@ static int modem_poweron_off(int on_off)
 	return 0;
 }
 
-static ssize_t modem_status_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t modem_status_store(const struct class *cls,
+				  const struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int new_state, ret;
@@ -98,8 +98,8 @@ static ssize_t modem_status_store(struct class *cls,
 	return count;
 }
 
-static ssize_t modem_status_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t modem_status_show(const struct class *cls,
+				 const struct class_attribute *attr,
 				 char *buf)
 {
 	return sprintf(buf, "%d\n", modem_status);
@@ -189,7 +189,7 @@ static int lte_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int lte_remove(struct platform_device *pdev)
+static void lte_remove(struct platform_device *pdev)
 {
 	struct lte_data *pdata = gpdata;
 
@@ -202,7 +202,6 @@ static int lte_remove(struct platform_device *pdev)
 	if (pdata->vbat_gpio)
 		gpiod_direction_output(pdata->vbat_gpio, 0);
 	gpdata = NULL;
-	return 0;
 }
 
 static const struct of_device_id modem_platdata_of_match[] = {
@@ -226,7 +225,7 @@ static int __init rm310_init(void)
 {
 	int ret;
 
-	modem_class = class_create(THIS_MODULE, "rk_modem");
+	modem_class = class_create("rk_modem");
 	ret =  class_create_file(modem_class, &class_attr_modem_status);
 	if (ret)
 		LOG("Fail to create class modem_status.\n");

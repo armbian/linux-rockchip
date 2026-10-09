@@ -53,8 +53,8 @@ static int lte_em05_modem_power_on_off(int on_off)
 	return 0;
 }
 
-static ssize_t modem_power_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t modem_power_store(const struct class *cls,
+				  const struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int new_state, ret;
@@ -84,8 +84,8 @@ static ssize_t modem_power_store(struct class *cls,
 	return count;
 }
 
-static ssize_t modem_power_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t modem_power_show(const struct class *cls,
+				 const struct class_attribute *attr,
 				 char *buf)
 {
 	return sprintf(buf, "%d\n", modem_power);
@@ -113,8 +113,8 @@ static int lte_em05_modem_reset(int on)
 	return 0;
 }
 
-static ssize_t modem_reset_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t modem_reset_store(const struct class *cls,
+				  const struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int new_state, ret;
@@ -140,8 +140,8 @@ static ssize_t modem_reset_store(struct class *cls,
 	return count;
 }
 
-static ssize_t modem_reset_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t modem_reset_show(const struct class *cls,
+				 const struct class_attribute *attr,
 				 char *buf)
 {
 	return sprintf(buf, "%d\n", modem_reset);
@@ -170,8 +170,8 @@ static int lte_em05_modem_airplane_mode(int enter)
 	return 0;
 }
 
-static ssize_t modem_airplane_mode_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t modem_airplane_mode_store(const struct class *cls,
+				  const struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int new_state, ret;
@@ -201,8 +201,8 @@ static ssize_t modem_airplane_mode_store(struct class *cls,
 	return count;
 }
 
-static ssize_t modem_airplane_mode_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t modem_airplane_mode_show(const struct class *cls,
+				 const struct class_attribute *attr,
 				 char *buf)
 {
 	return sprintf(buf, "%d\n", modem_airplane_mode);
@@ -290,7 +290,7 @@ static int lte_em05_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int lte_em05_remove(struct platform_device *pdev)
+static void lte_em05_remove(struct platform_device *pdev)
 {
 	struct lte_em05_data *pdata = gpdata;
 
@@ -302,8 +302,6 @@ static int lte_em05_remove(struct platform_device *pdev)
 		gpiod_direction_output(pdata->power_gpio, 0);
 
 	gpdata = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id modem_platdata_of_match[] = {
@@ -327,7 +325,7 @@ static int __init lte_em05_init(void)
 {
 	int ret;
 
-	modem_class = class_create(THIS_MODULE, "lte_em05_modem");
+	modem_class = class_create("lte_em05_modem");
 	ret =  class_create_file(modem_class, &class_attr_modem_power);
 	if (ret)
 		LOG("Fail to create class modem_power.\n");

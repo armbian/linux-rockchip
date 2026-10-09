@@ -76,8 +76,8 @@ static void fxgmac_default_config(struct fxgmac_pdata *pdata)
     // default to magic
     pdata->expansion.wol = WAKE_MAGIC;
 
-    strlcpy(pdata->drv_name, FXGMAC_DRV_NAME, sizeof(pdata->drv_name));
-    strlcpy(pdata->drv_ver, FXGMAC_DRV_VERSION, sizeof(pdata->drv_ver));
+    strscpy(pdata->drv_name, FXGMAC_DRV_NAME, sizeof(pdata->drv_name));
+    strscpy(pdata->drv_ver, FXGMAC_DRV_VERSION, sizeof(pdata->drv_ver));
 
     printk("FXGMAC_DRV_NAME:%s, FXGMAC_DRV_VERSION:%s\n", FXGMAC_DRV_NAME, FXGMAC_DRV_VERSION);
 }
