@@ -131,7 +131,10 @@ int aicwf_rwnx_sdio_platform_init(struct aic_sdio_dev *sdiodev)
 
 	rwnx_plat->sdiodev = sdiodev;
 	ret = rwnx_platform_init(rwnx_plat, &drvdata);
+	if (ret) {
+		g_rwnx_plat = NULL;
+		kfree(rwnx_plat);
+	}
 
 	return ret;
 }
-
