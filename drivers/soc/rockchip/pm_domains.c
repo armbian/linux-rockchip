@@ -1997,6 +1997,12 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* Keep RM66 bootable until the cold NPU handshake is fixed. */
+	if (of_machine_is_compatible("elron,eltay-rm66")) {
+		pm_domain_always_on = true;
+		dev_info(dev, "ELTAY RM66: enable temporary always-on workaround\n");
+	}
+
 	pmu_info = device_get_match_data(dev);
 
 	pmu = devm_kzalloc(dev,
