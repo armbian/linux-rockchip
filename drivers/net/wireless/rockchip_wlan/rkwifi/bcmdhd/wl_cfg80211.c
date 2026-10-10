@@ -4938,6 +4938,16 @@ wl_set_wpa_version(struct net_device *dev, struct cfg80211_connect_params *sme)
 	else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2)
 		val = WPA2_AUTH_PSK|
 			WPA2_AUTH_UNSPECIFIED;
+	else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_3)
+		/* WPA3 (SAE/OWE): wpa_supplicant >= 2.11 signals it with
+		 * NL80211_WPA_VERSION_3 alone, where 2.10 sent VERSION_2.
+		 * Start from the WPA2 set so wl_set_key_mgmt() refines it from
+		 * the AKM (SAE -> WPA3_AUTH_SAE_PSK) exactly as before; the old
+		 * fall-through to WPA_AUTH_DISABLED made the firmware join open
+		 * with an SAE RSN IE and the AP deauthenticated with reason 13.
+		 */
+		val = WPA2_AUTH_PSK|
+			WPA2_AUTH_UNSPECIFIED;
 	else
 		val = WPA_AUTH_DISABLED;
 
