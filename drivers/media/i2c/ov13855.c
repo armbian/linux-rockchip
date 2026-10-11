@@ -1871,6 +1871,9 @@ static int ov13855_check_sensor_id(struct ov13855 *ov13855,
 
 	ret = ov13855_read_reg(client, OV13855_REG_CHIP_ID,
 			       OV13855_REG_VALUE_24BIT, &id);
+	if (ret)
+		return ret;
+
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
