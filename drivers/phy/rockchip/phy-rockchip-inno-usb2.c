@@ -3588,15 +3588,17 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 				dev_dbg(&rport->phy->dev,
 					"iddig changed during resume\n");
 				rport->prev_iddig = iddig;
-				extcon_set_state_sync(rphy->edev,
-						      EXTCON_USB_HOST,
-						      !iddig);
-				extcon_set_state_sync(rphy->edev,
-						      EXTCON_USB_VBUS_EN,
-						      !iddig);
-				ret = rockchip_set_vbus_power(rport, !iddig);
-				if (ret)
-					return ret;
+				if (rport->mode != USB_DR_MODE_PERIPHERAL) {
+					extcon_set_state_sync(rphy->edev,
+							      EXTCON_USB_HOST,
+							      !iddig);
+					extcon_set_state_sync(rphy->edev,
+							      EXTCON_USB_VBUS_EN,
+							      !iddig);
+					ret = rockchip_set_vbus_power(rport, !iddig);
+					if (ret)
+						return ret;
+				}
 			}
 		}
 
