@@ -210,30 +210,23 @@
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		pwms = <&pwm2 0 50000 0>;
-		cooling-levels = <25 45 60 75 100 130 170 210 255>;
-		// cooling-levels = <0 255>;
+		cooling-levels = <24 28 32 40 50 60 255>;
 
-        interrupt-parent = <&gpio3>;
+		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PB6 IRQ_TYPE_EDGE_BOTH>;
 		pulses-per-revolution = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fan_tach>;
 
-		// rockchip,temp-trips = <
-		// 	25000   1
-		// >;
-
 		rockchip,temp-trips = <
-			38000	1
-			44000	2
-			50000	3
-			56000	4
+			46000	1
+			50000	2
+			54000	3
+			58000	4
 			62000	5
-			68000	6
-			74000	7
-			80000	8
-        >;
- 
+			75000	6
+		>;
+
 		status = "okay";
 	};
 
@@ -446,96 +439,6 @@
 	};
 
 };
-
-&soc_thermal {
-	polling-delay = <1000>;
-	polling-delay-passive = <2000>;
-	trips {
-		trip0: trip-point@0 {
-			temperature = <45000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip1: trip-point@1 {
-			temperature = <50000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip2: trip-point@2 {
-			temperature = <55000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip3: trip-point@3 {
-			temperature = <60000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip4: trip-point@4 {
-			temperature = <65000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip5: trip-point@5 {
-			temperature = <70000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip6: trip-point@6 {
-			temperature = <75000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		pcritical: trip-point@7 {
-			temperature = <80000>;
-			hysteresis = <1000>;
-			type = "active";
-		};
-	};
-	cooling-maps {
-		map0 {
-			trip = <&trip0>;
-			cooling-device = <&fan0 0 1>;
-			contribution = <1024>;
-		};
-		map1 {
-			trip = <&trip1>;
-			cooling-device = <&fan0 1 2>;
-			contribution = <1024>;
-		};
-		map2 {
-			trip = <&trip2>;
-			cooling-device = <&fan0 2 3>;
-			contribution = <1024>;
-		};
-		map3 {
-			trip = <&trip3>;
-			cooling-device = <&fan0 3 4>;
-			contribution = <1024>;
-		};
-		map4 {
-			trip = <&trip4>;
-			cooling-device = <&fan0 4 5>;
-			contribution = <1024>;
-		};
-		map5 {
-			trip = <&trip5>;
-			cooling-device = <&fan0 5 6>;
-			contribution = <1024>;
-		};
-		map6 {
-			trip = <&trip6>;
-			cooling-device = <&fan0 6 7>;
-			contribution = <1024>;
-		};
-		map7 {
-			trip = <&pcritical>;
-			cooling-device = <&fan0 7 8>;
-			contribution = <1024>;
-		};
-	};
-};
-
 
 /************************ uart ************************************/
 
