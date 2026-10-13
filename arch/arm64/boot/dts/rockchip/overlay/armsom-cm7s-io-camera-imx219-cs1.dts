@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/power/rk3588-power.h>
+
+/ {
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			vcc_mipidphy0: vcc-mipi-dphy0 {
+				compatible = "regulator-fixed";
+				regulator-name = "vcc_mipidphy0";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				vin-supply = <&vcc_3v3_s3>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c4>;
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4m3_xfer>;
+			imx219: imx219@10 {
+				compatible = "sony,imx219";
+				status = "okay";
+				reg = <0x10>;
+				clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+				clock-names = "xvclk";
+				assigned-clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+				assigned-clock-rates = <24000000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&mipim0_camera2_clk>;
+				power-domains = <&power RK3588_PD_VI>;
+				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "rpi-camera-v2";
+				rockchip,camera-module-lens-name = "default";
+				port {
+					imx219_out: endpoint {
+						remote-endpoint = <&mipidcphy0_in_ucam0>;
+						data-lanes = <1 2>;
+						clock-noncontinuous;
+						link-frequencies = /bits/ 64 <456000000>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi_dcphy0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&csi2_dcphy0>;
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipidcphy0_in_ucam0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&imx219_out>;
+						data-lanes = <1 2>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					csidcphy0_out: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi0_csi2_input>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&mipi0_csi2>;
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_input: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&csidcphy0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi0_csi2_output: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&cif_mipi_in0>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&rkcif>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&rkcif_mipi_lvds>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				cif_mipi_in0: endpoint {
+					remote-endpoint = <&mipi0_csi2_output>;
+				};
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&rkcif_mipi_lvds_sditf>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				mipi_lvds_sditf: endpoint {
+					remote-endpoint = <&isp0_vir0>;
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&rkcif_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@9 {
+		target = <&rkisp0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@10 {
+		target = <&isp0_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@11 {
+		target = <&rkisp0_vir0>;
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_vir0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mipi_lvds_sditf>;
+				};
+			};
+		};
+	};
+};

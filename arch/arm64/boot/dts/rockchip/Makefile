@@ -573,6 +573,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-turing-rk1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-youyeetoo-yy3588.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-yx-imb3588.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-9tripod-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-armsom-cm7s-io.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-blueberry-rp01a-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-khadas-edge2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-lubancat-4.dtb

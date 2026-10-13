@@ -7,6 +7,9 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	armsom-cm5-rpi-cm4-io-camera1.dtbo \
 	armsom-cm5-rpi-cm4-io-display.dtbo \
 	armsom-cm5-rpi-display-2.4hd.dtbo \
+	armsom-cm7s-io-camera-imx219-cs1.dtbo \
+	armsom-cm7s-io-camera-ov13850-cs0.dtbo \
+	armsom-cm7s-io-display-10hd.dtbo \
 	armsom-sige5-camera-ov13850-cs0.dtbo \
 	armsom-sige5-camera-ov13850-cs1.dtbo \
 	armsom-sige5-display-10hd.dtbo \
