@@ -296,6 +296,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-sii9022-rgb2hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb2-v10-tp2815-ahd2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-evb3-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-forlinx-ok3572-c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10-edp2dp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3572-iotest-v10-linux.dtb
