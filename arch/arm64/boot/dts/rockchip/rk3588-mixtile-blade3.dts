@@ -790,9 +790,8 @@
 			faster-pd-negotiation;
 			op-sink-microwatt = <15000000>;
 			sink-pdos =
-				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)
-				PDO_VAR(5000, 20000, 1000)
-				PDO_PPS_APDO(5000, 20000, 1000)>;
+				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				PDO_VAR(5000, 20000, 3000)>;
 			source-pdos =
 				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
 
