@@ -19,12 +19,16 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/err.h>
+#include <linux/watchdog.h>
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
+#define PCF8563_BIT_TIE		BIT(0)
 #define PCF8563_BIT_AIE		BIT(1)
+#define PCF8563_BIT_TF		BIT(2)
 #define PCF8563_BIT_AF		BIT(3)
 #define PCF8563_BITS_ST2_N	(7 << 5)
+#define PCF8563_BIT_TI_TP	BIT(4) /* 1 = INT pulses on timer expiry */
 
 #define PCF8563_REG_SC		0x02 /* datetime */
 #define PCF8563_REG_MN		0x03
@@ -348,6 +352,176 @@ static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 	return pcf8563_set_alarm_mode(to_i2c_client(dev), !!enabled);
 }
 
+#if IS_REACHABLE(CONFIG_WATCHDOG_CORE)
+/*
+ * Watchdog support
+ *
+ * On boards where the PCF8563 INT output is wired to the system reset
+ * circuit, the countdown timer can serve as an external hardware
+ * watchdog. Gated by the nxp,timer-watchdog DT property so chips used
+ * as the system RTC (INT doing alarm duty) keep their INT to themselves.
+ */
+
+static bool wdt_nowayout = WATCHDOG_NOWAYOUT;
+module_param(wdt_nowayout, bool, 0);
+MODULE_PARM_DESC(wdt_nowayout, "Watchdog cannot be stopped once started");
+
+#define PCF8563_WDT_MIN_TIMEOUT		1		/* second */
+#define PCF8563_WDT_MAX_TIMEOUT		(255 * 60)	/* 1/60 Hz source */
+#define PCF8563_WDT_DEFAULT_TIMEOUT	60
+
+static int pcf8563_wdt_program(struct i2c_client *client,
+			       unsigned int timeout, bool enable)
+{
+	unsigned char tmrc, tmr, st2;
+	int err;
+
+	if (timeout > 255) {
+		/* 1/60 Hz source, minute granularity; round up so the
+		 * hardware never expires earlier than requested. */
+		tmrc = PCF8563_TMRC_1_60;
+		tmr = DIV_ROUND_UP(timeout, 60);
+	} else {
+		tmrc = PCF8563_TMRC_1;
+		tmr = timeout;
+	}
+
+	/* load the countdown value first, then (dis)arm the timer */
+	err = pcf8563_write_block_data(client, PCF8563_REG_TMR, 1, &tmr);
+	if (err)
+		return err;
+
+	if (enable)
+		tmrc |= PCF8563_TMRC_ENABLE;
+
+	err = pcf8563_write_block_data(client, PCF8563_REG_TMRC, 1, &tmrc);
+	if (err)
+		return err;
+
+	/* (dis)arm the timer interrupt and clear a stale timer flag;
+	 * the alarm bits (AIE/AF) are left alone */
+	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, &st2);
+	if (err)
+		return err;
+
+	st2 &= ~(PCF8563_BIT_TIE | PCF8563_BIT_TF | PCF8563_BITS_ST2_N);
+	if (enable)
+		/* TI_TP=1 (pulse mode): INT self-releases after expiry, so a
+		 * level-sensitive reset circuit cannot wedge the SoC with
+		 * nobody alive to clear TF over I2C. */
+		st2 |= PCF8563_BIT_TIE | PCF8563_BIT_TI_TP;
+
+	return pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &st2);
+}
+
+static int pcf8563_wdt_start(struct watchdog_device *wdd)
+{
+	struct i2c_client *client = to_i2c_client(wdd->parent);
+
+	return pcf8563_wdt_program(client, wdd->timeout, true);
+}
+
+static int pcf8563_wdt_stop(struct watchdog_device *wdd)
+{
+	struct i2c_client *client = to_i2c_client(wdd->parent);
+
+	return pcf8563_wdt_program(client, wdd->timeout, false);
+}
+
+static int pcf8563_wdt_ping(struct watchdog_device *wdd)
+{
+	struct i2c_client *client = to_i2c_client(wdd->parent);
+	unsigned char tmr, st2, dirty;
+	int err;
+
+	/* clear a stale timer flag so INT is not kept asserted; leave TI_TP
+	 * alone -- pulse mode set at start() must survive pings */
+	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, &st2);
+	if (err)
+		return err;
+
+	dirty = st2 & (PCF8563_BIT_TF |
+		       (PCF8563_BITS_ST2_N & ~PCF8563_BIT_TI_TP));
+	if (dirty) {
+		st2 &= ~dirty;
+		err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1,
+					       &st2);
+		if (err)
+			return err;
+	}
+
+	/* rewriting the countdown value restarts the timer */
+	if (wdd->timeout > 255)
+		tmr = DIV_ROUND_UP(wdd->timeout, 60);
+	else
+		tmr = wdd->timeout;
+
+	return pcf8563_write_block_data(client, PCF8563_REG_TMR, 1, &tmr);
+}
+
+static int pcf8563_wdt_set_timeout(struct watchdog_device *wdd,
+				   unsigned int timeout)
+{
+	struct i2c_client *client = to_i2c_client(wdd->parent);
+	int ret;
+
+	wdd->timeout = timeout;
+
+	if (watchdog_active(wdd)) {
+		ret = pcf8563_wdt_program(client, timeout, true);
+		if (ret)
+			return ret;
+	}
+
+	/* Report the achieved value: above 255 s the 1/60 Hz source has
+	 * minute granularity, so the hardware expires later than asked */
+	if (timeout > 255)
+		wdd->timeout = DIV_ROUND_UP(timeout, 60) * 60;
+
+	return 0;
+}
+
+static const struct watchdog_info pcf8563_wdt_info = {
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
+	.identity = "PCF8563 countdown timer",
+};
+
+static const struct watchdog_ops pcf8563_wdt_ops = {
+	.owner = THIS_MODULE,
+	.start = pcf8563_wdt_start,
+	.stop = pcf8563_wdt_stop,
+	.ping = pcf8563_wdt_ping,
+	.set_timeout = pcf8563_wdt_set_timeout,
+};
+
+static int pcf8563_wdt_register(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct watchdog_device *wdd;
+	int err;
+
+	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
+	if (!wdd)
+		return -ENOMEM;
+
+	wdd->info = &pcf8563_wdt_info;
+	wdd->ops = &pcf8563_wdt_ops;
+	wdd->parent = dev;
+	wdd->min_timeout = PCF8563_WDT_MIN_TIMEOUT;
+	wdd->max_timeout = PCF8563_WDT_MAX_TIMEOUT;
+	wdd->timeout = PCF8563_WDT_DEFAULT_TIMEOUT;
+
+	err = watchdog_init_timeout(wdd, 0, dev); /* timeout-sec */
+	if (err)
+		dev_warn(dev, "using default watchdog timeout %u s\n",
+			 wdd->timeout);
+
+	watchdog_set_nowayout(wdd, wdt_nowayout);
+
+	return devm_watchdog_register_device(dev, wdd);
+}
+#endif /* IS_REACHABLE(CONFIG_WATCHDOG_CORE) */
+
 #ifdef CONFIG_COMMON_CLK
 /*
  * Handling of the clkout
@@ -572,6 +746,18 @@ static int pcf8563_probe(struct i2c_client *client)
 	err = devm_rtc_register_device(pcf8563->rtc);
 	if (err)
 		return err;
+
+#if IS_REACHABLE(CONFIG_WATCHDOG_CORE)
+	/*
+	 * Optionally expose the countdown timer as an external watchdog
+	 * on boards whose INT output is wired to the reset circuit.
+	 */
+	if (of_property_read_bool(client->dev.of_node, "nxp,timer-watchdog")) {
+		err = pcf8563_wdt_register(client);
+		if (err)
+			return err;
+	}
+#endif
 
 #ifdef CONFIG_COMMON_CLK
 	/* register clk in common clk framework */

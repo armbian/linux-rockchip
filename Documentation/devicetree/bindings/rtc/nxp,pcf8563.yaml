@@ -34,6 +34,19 @@ properties:
   interrupts:
     maxItems: 1
 
+  nxp,timer-watchdog:
+    type: boolean
+    description: |
+      The INT output is wired to the system reset circuit. Expose the
+      countdown timer as a watchdog device (/dev/watchdog); the timer
+      interrupt (TIE) is then owned by the watchdog and must not be used
+      by the alarm.
+
+  timeout-sec:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Watchdog timeout in seconds, used when nxp,timer-watchdog is set.
+
   start-year: true
   wakeup-source: true
 

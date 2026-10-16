@@ -283,11 +283,24 @@
 	};
 };
 
-/* I2C3_M1 (GPIO0_C6/C7): Mini PCIe SIM switch (SGM7222) + module ID */
+/* I2C3_M1 (GPIO0_C6/C7): Mini PCIe SIM switch (SGM7222) + module ID + watchdog */
 &i2c3 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m1_xfer>;
+
+	/*
+	 * PCF8563T hardware watchdog. Same 7-bit address as the SoM
+	 * PCF85063, but on a different bus; that one stays rtc0.
+	 */
+	pcf8563_wdt: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		/* INT wired to the reset circuit: expose countdown timer
+		 * as /dev/watchdog (see rtc-pcf8563 nxp,timer-watchdog) */
+		nxp,timer-watchdog;
+		timeout-sec = <30>;
+	};
 };
 
 /*

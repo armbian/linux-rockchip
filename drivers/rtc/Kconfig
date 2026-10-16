@@ -508,6 +508,10 @@ config RTC_DRV_PCF8563
 	  Philips PCF8563 RTC chip. The Epson RTC8564
 	  should work as well.
 
+	  If the WATCHDOG_CORE framework is enabled and the DT node has the
+	  nxp,timer-watchdog property (INT output wired to the system reset
+	  circuit), the countdown timer is also exposed as /dev/watchdog.
+
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
 
