@@ -1,0 +1,63 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rockchip,rk3576-cru.h>
+
+/ {
+	fragment@0 {
+		target-path = "/power-management@27380000/power-controller/power-domain@4";
+		__overlay__ {
+			clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_ROOT>;
+			#power-domain-cells = <0>;
+		};
+	};
+
+	fragment@1 {
+		target = <&gpu>;
+		__overlay__ {
+			interrupt-names = "gpu", "mmu", "job";
+			clocks = <&cru CLK_GPU>;
+			clock-names = "core";
+			operating-points-v2 = <&gpu_panfrost_opp_table>;
+		};
+	};
+
+	/* Overlays cannot delete the vendor table's opp-supported-hw masks */
+	fragment@2 {
+		target-path = "/";
+		__overlay__ {
+			gpu_panfrost_opp_table: gpu-panfrost-opp-table {
+				compatible = "operating-points-v2";
+
+				opp-300000000 {
+					opp-hz = /bits/ 64 <300000000>;
+					opp-microvolt = <712500 712500 875000>;
+				};
+				opp-400000000 {
+					opp-hz = /bits/ 64 <400000000>;
+					opp-microvolt = <712500 712500 875000>;
+				};
+				opp-500000000 {
+					opp-hz = /bits/ 64 <500000000>;
+					opp-microvolt = <712500 712500 875000>;
+				};
+				opp-600000000 {
+					opp-hz = /bits/ 64 <600000000>;
+					opp-microvolt = <712500 712500 875000>;
+				};
+				opp-700000000 {
+					opp-hz = /bits/ 64 <700000000>;
+					opp-microvolt = <750000 750000 875000>;
+				};
+				opp-800000000 {
+					opp-hz = /bits/ 64 <800000000>;
+					opp-microvolt = <812500 812500 875000>;
+				};
+				opp-900000000 {
+					opp-hz = /bits/ 64 <900000000>;
+					opp-microvolt = <875000 875000 875000>;
+				};
+			};
+		};
+	};
+};
