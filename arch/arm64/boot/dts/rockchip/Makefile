@@ -569,6 +569,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5b.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-rock-5t.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-smart-am60.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-som3588-cat.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-skysi-x5.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-turing-rk1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-youyeetoo-yy3588.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-yx-imb3588.dtb
