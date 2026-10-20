@@ -13,6 +13,56 @@ description:
   Rockchip RK806 series PMIC. This device consists of an spi or
   i2c controlled MFD that includes multiple switchable regulators.
 
+$defs:
+  shutdown-sequence:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Shutdown slots follow DCDC1-10, NLDO1-5, then PLDO1-6.
+      The vendor driver writes two bits for PLDO1-3 and PLDO6, and six bits for the other regulators.
+    items:
+      - description: DCDC1 shutdown slot.
+        maximum: 63
+      - description: DCDC2 shutdown slot.
+        maximum: 63
+      - description: DCDC3 shutdown slot.
+        maximum: 63
+      - description: DCDC4 shutdown slot.
+        maximum: 63
+      - description: DCDC5 shutdown slot.
+        maximum: 63
+      - description: DCDC6 shutdown slot.
+        maximum: 63
+      - description: DCDC7 shutdown slot.
+        maximum: 63
+      - description: DCDC8 shutdown slot.
+        maximum: 63
+      - description: DCDC9 shutdown slot.
+        maximum: 63
+      - description: DCDC10 shutdown slot.
+        maximum: 63
+      - description: NLDO1 shutdown slot.
+        maximum: 63
+      - description: NLDO2 shutdown slot.
+        maximum: 63
+      - description: NLDO3 shutdown slot.
+        maximum: 63
+      - description: NLDO4 shutdown slot.
+        maximum: 63
+      - description: NLDO5 shutdown slot.
+        maximum: 63
+      - description: PLDO1 shutdown slot.
+        maximum: 3
+      - description: PLDO2 shutdown slot.
+        maximum: 3
+      - description: PLDO3 shutdown slot.
+        maximum: 3
+      - description: PLDO4 shutdown slot.
+        maximum: 63
+      - description: PLDO5 shutdown slot.
+        maximum: 63
+      - description: PLDO6 shutdown slot.
+        maximum: 3
+
 properties:
   compatible:
     enum:
@@ -30,6 +80,55 @@ properties:
     const: 2
 
   system-power-controller: true
+
+  low_voltage_threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Low-voltage shutdown threshold in millivolts, using the vendor property name.
+    minimum: 2800
+    maximum: 3500
+    multipleOf: 100
+
+  shutdown_voltage_threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Undervoltage shutdown threshold in millivolts, using the vendor property name.
+    minimum: 2700
+    maximum: 3400
+    multipleOf: 100
+
+  shutdown_temperture_threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description: |
+      Legacy shutdown temperature in degrees Celsius, with the original property spelling.
+      The vendor driver parses this value but does not apply it.
+    enum: [140, 160]
+
+  hotdie_temperture_threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Legacy temperature selector in degrees Celsius, with the original property spelling.
+      Values of 160 or more select thermal shutdown at 160 degrees Celsius.
+      Smaller values preserve the current setting.
+
+  pmic-reset-func:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Value written to the two-bit RST_FUN register field.
+    maximum: 3
+
+  shutdown-sequence:
+    $ref: '#/$defs/shutdown-sequence'
+    description: Regulator sequence slots for normal shutdown.
+
+  vb-shutdown-sequence:
+    $ref: '#/$defs/shutdown-sequence'
+    description: Regulator sequence slots for low-voltage shutdown.
+
+  pwrkey:
+    type: object
+    description: Power-key child node. Its status controls whether the vendor driver probes the power key.
+    properties:
+      status: true
+    additionalProperties: false
 
   vcc1-supply:
     description:
@@ -95,7 +194,7 @@ properties:
     type: object
     additionalProperties: false
     patternProperties:
-      "^(dcdc-reg([1-9]|10)|pldo-reg[1-6]|nldo-reg[1-5])$":
+      "^((dcdc-reg|DCDC_REG)([1-9]|10)|(pldo-reg|PLDO_REG)[1-6]|(nldo-reg|NLDO_REG)[1-5])$":
         type: object
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
@@ -402,6 +501,56 @@ examples:
                     regulator-state-mem {
                         regulator-off-in-suspend;
                     };
+                };
+            };
+        };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@23 {
+            compatible = "rockchip,rk806";
+            reg = <0x23>;
+            interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+            low_voltage_threshold = <3000>;
+            shutdown_voltage_threshold = <2700>;
+            shutdown_temperture_threshold = <160>;
+            hotdie_temperture_threshold = <115>;
+            pmic-reset-func = <1>;
+            shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
+                                 2 2 2 2 2
+                                 1 0 1 0 0 2>;
+            vb-shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
+                                    2 2 2 2 2
+                                    1 0 1 0 0 2>;
+
+            pwrkey {
+                status = "okay";
+            };
+
+            regulators {
+                DCDC_REG1 {
+                    regulator-name = "vdd_cpu_lit_s0";
+                    regulator-min-microvolt = <550000>;
+                    regulator-max-microvolt = <950000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+                };
+
+                NLDO_REG1 {
+                    regulator-name = "vdd_0v75_s3";
+                    regulator-min-microvolt = <750000>;
+                    regulator-max-microvolt = <750000>;
+                };
+
+                PLDO_REG1 {
+                    regulator-name = "vcc_1v8_s3";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
                 };
             };
         };
