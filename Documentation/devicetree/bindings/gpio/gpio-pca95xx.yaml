@@ -91,6 +91,9 @@ properties:
   '#interrupt-cells':
     const: 2
 
+  '#address-cells':
+    const: 0
+
   reset-gpios:
     maxItems: 1
     description:
@@ -179,6 +182,7 @@ examples:
             interrupts = <1 IRQ_TYPE_EDGE_FALLING>; /* gpio6_161 */
             interrupt-controller;
             #interrupt-cells = <2>;
+            #address-cells = <0>;
             vcc-supply = <&vdds_1v8_main>;
             gpio-controller;
             #gpio-cells = <2>;
@@ -206,6 +210,7 @@ examples:
             #gpio-cells = <2>;
             interrupt-controller;
             #interrupt-cells = <2>;
+            #address-cells = <0>;
             interrupt-parent = <&gpio4>;
             interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
         };

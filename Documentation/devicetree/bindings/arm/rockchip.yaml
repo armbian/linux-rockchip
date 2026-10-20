@@ -216,6 +216,12 @@ properties:
           - const: firefly,rk3568-roc-pc
           - const: rockchip,rk3568
 
+      - description: Forlinx FET3572-C SoM
+        items:
+          - const: forlinx,ok3572-c
+          - const: forlinx,fet3572-c
+          - const: rockchip,rk3572
+
       - description: Forlinx FET3588-C SoM
         items:
           - enum:
