@@ -152,8 +152,12 @@ static int aic_setup(struct hci_uart *hu)
 		return err;
 	}
 
-	/* Request the Wifi driver to load firmware over SDIO */
-	err = request_module("aic8800_fdrv");
+	/* Request the Wifi driver to load firmware over SDIO. The DKMS
+	 * driver is aic8800_fdrv_sdio; the in-tree one was aic8800_fdrv.
+	 */
+	err = request_module("aic8800_fdrv_sdio");
+	if (err)
+		err = request_module("aic8800_fdrv");
 	if (err) {
 		bt_dev_err(hu->hdev, "request_module failed: %d", err);
 		return err;
