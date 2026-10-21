@@ -1868,6 +1868,10 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 		cable_vbus_state = false;
 	}
 
+	/* ID must not change the role of a fixed peripheral. */
+	if (rport->mode == USB_DR_MODE_PERIPHERAL)
+		goto out;
+
 	extcon_set_state(rphy->edev, EXTCON_USB_HOST, cable_vbus_state);
 	extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, cable_vbus_state);
 
@@ -2348,7 +2352,8 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
 	iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
 	if (rphy->edev_self && (rport->mode == USB_DR_MODE_HOST ||
-	    rport->mode == USB_DR_MODE_UNKNOWN || !iddig)) {
+	    rport->mode == USB_DR_MODE_UNKNOWN ||
+	    (rport->mode == USB_DR_MODE_OTG && !iddig))) {
 		/* Enable VBUS supply for otg port */
 		extcon_set_state(rphy->edev, EXTCON_USB, false);
 		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
@@ -3583,15 +3588,17 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 				dev_dbg(&rport->phy->dev,
 					"iddig changed during resume\n");
 				rport->prev_iddig = iddig;
-				extcon_set_state_sync(rphy->edev,
-						      EXTCON_USB_HOST,
-						      !iddig);
-				extcon_set_state_sync(rphy->edev,
-						      EXTCON_USB_VBUS_EN,
-						      !iddig);
-				ret = rockchip_set_vbus_power(rport, !iddig);
-				if (ret)
-					return ret;
+				if (rport->mode != USB_DR_MODE_PERIPHERAL) {
+					extcon_set_state_sync(rphy->edev,
+							      EXTCON_USB_HOST,
+							      !iddig);
+					extcon_set_state_sync(rphy->edev,
+							      EXTCON_USB_VBUS_EN,
+							      !iddig);
+					ret = rockchip_set_vbus_power(rport, !iddig);
+					if (ret)
+						return ret;
+				}
 			}
 		}
 
