@@ -3091,6 +3091,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	if (edid_blob_ptr && edid_blob_ptr->length)
 		drm_edid = drm_edid_alloc(edid_blob_ptr->data, edid_blob_ptr->length);
+	else if (device_property_read_bool(hdmi->dev, "rockchip,hdmi-skip-ddc-edid"))
+		drm_edid = NULL;	/* board supplies fixed modes; skip DDC EDID read */
 	else
 		drm_edid = drm_edid_read_ddc(connector, hdmi->ddc);
 
@@ -5426,7 +5428,8 @@ void dw_hdmi_qp_suspend(struct device *dev, struct dw_hdmi_qp *hdmi)
 		disable_irq(hdmi->earc_irq);
 
 	pinctrl_pm_select_sleep_state(dev);
-	if (!hdmi->next_bridge)
+	if (!hdmi->next_bridge &&
+	    !device_property_read_bool(hdmi->dev, "rockchip,hdmi-skip-ddc-edid"))
 		drm_connector_update_edid_property(&hdmi->connector, NULL);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_suspend);
