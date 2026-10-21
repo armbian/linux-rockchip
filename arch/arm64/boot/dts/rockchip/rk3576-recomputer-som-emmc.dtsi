@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * reComputer RK3576 SoM storage variant: eMMC (default SKU)
+ *
+ * U36 eMMC (VFBGA-153, 32/64/128GB) on shared FSPI0 pads,
+ * 8-bit bus with HS400 enhanced strobe. R591-R596 (SPI NOR
+ * series resistors) are DNP on this variant.
+ *
+ * Copyright (c) 2026 Seeed Studio
+ */
+
+/* eMMC on module (32/64/128GB, 8-bit HS400) */
+&sdhci {
+	bus-width = <8>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
+/* keep the SFC controller out of the way of the eMMC pads */
+&sfc0 {
+	status = "disabled";
+};

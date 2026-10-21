@@ -677,7 +677,8 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 
 	return ret;
 error:
-	panic("panic_on_set_idle set ...\n");
+	if (!pm_domain_always_on)
+		panic("panic_on_set_idle set ...\n");
 	return ret;
 }
 
@@ -1094,7 +1095,8 @@ static int rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 	return ret;
 
 error:
-	panic("panic_on_set_domain set ...\n");
+	if (!pm_domain_always_on)
+		panic("panic_on_set_domain set ...\n");
 	return ret;
 }
 
@@ -1993,6 +1995,12 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	if (!np) {
 		dev_err(dev, "device tree node not found\n");
 		return -ENODEV;
+	}
+
+	/* Keep RM66 bootable until the cold NPU handshake is fixed. */
+	if (of_machine_is_compatible("elron,eltay-rm66")) {
+		pm_domain_always_on = true;
+		dev_info(dev, "ELTAY RM66: enable temporary always-on workaround\n");
 	}
 
 	pmu_info = device_get_match_data(dev);

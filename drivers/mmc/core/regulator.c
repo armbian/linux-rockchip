@@ -182,7 +182,7 @@ int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios)
 	int ret, volt, min_uV, max_uV;
 
 	/* If no vqmmc supply then we can't change the voltage */
-	if (IS_ERR(mmc->supply.vqmmc))
+	if (IS_ERR_OR_NULL(mmc->supply.vqmmc))
 		return -EINVAL;
 
 	switch (ios->signal_voltage) {

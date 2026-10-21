@@ -1,0 +1,26 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	metadata {
+		title = "M.2 Key-B as USB 3.0";
+		compatible = "mixtile,edge2";
+		category = "misc";
+		exclusive = "pcie3x2";
+		description = "Route M.2 Key-B lane 1 to the USB 3.0 hub instead of PCIe.\nPCIe then trains x1 on lane 0; USB 2.0 is unaffected.";
+	};
+
+	/* Q16 inverts the mux SEL, so enable-active-high pulls SEL low and
+	 * selects the hub's USB 3.0 outputs. */
+	fragment@0 {
+		target = <&m2_lane1_sel>;
+
+		__overlay__ {
+			enable-active-high;
+			gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
