@@ -1,7 +1,1 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Old DTB name of the DshanPi R1.
- * fdtfile in armbianEnv.txt of existing installs names this file.
- */
-
-#include "rk3568-dshanpi-r1.dts"
+rk3568-dshanpi-r1.dts
