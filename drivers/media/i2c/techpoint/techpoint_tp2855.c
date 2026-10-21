@@ -46,9 +46,11 @@ static __maybe_unused const struct regval common_setting_594M_1080p_regs[] = {
 	{ 0x14, 0x33 },
 	{ 0x14, 0xb3 },
 	{ 0x14, 0x33 },
+	{ 0x45, 0x01 },
 
 	// {0x23, 0x02}, //vi test ok
 	// {0x23, 0x00},
+	{0x40, 0x04},          //add this for all channel can be change
 };
 
 static __maybe_unused const struct regval common_setting_594M_720p_1chn_2lane_regs[] = {
