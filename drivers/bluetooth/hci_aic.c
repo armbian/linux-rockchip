@@ -135,7 +135,7 @@ static int aic_read_info(struct hci_dev *hdev)
 	}
 
 	bt_dev_info(hdev, "%.*s", HCI_MAX_NAME_LENGTH,
-		   (char *)(skb->data + 1));
+		    (char *)(skb->data + 1));
 	kfree_skb(skb);
 
 	return 0;
@@ -145,22 +145,21 @@ static int aic_setup(struct hci_uart *hu)
 {
 	int err;
 
-	/* Detect the bluetooth module */
+	/* Wait up to 10 s for the module to raise CTS */
 	err = serdev_device_wait_for_cts(hu->serdev, true, 10000);
 	if (err) {
 		bt_dev_err(hu->hdev, "Wait for CTS failed with %d", err);
 		return err;
 	}
 
-	/* Request the Wifi driver to load firmware over SDIO. The DKMS
-	 * driver is aic8800_fdrv_sdio; the in-tree one was aic8800_fdrv.
+	/* The AIC8800 SDIO driver (aic8800-sdio-dkms) loads the Bluetooth
+	 * firmware over SDIO.
 	 */
 	err = request_module("aic8800_fdrv_sdio");
-	if (err)
-		err = request_module("aic8800_fdrv");
 	if (err) {
 		bt_dev_err(hu->hdev, "request_module failed: %d", err);
-		return err;
+		/* request_module() may return a positive modprobe exit code */
+		return err < 0 ? err : -ENOENT;
 	}
 
 	/* Wait for firmware to become ready */
