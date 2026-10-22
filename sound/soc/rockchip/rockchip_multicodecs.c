@@ -89,6 +89,7 @@ struct multicodecs_data {
 	int slot_width;
 	unsigned int tx_slot_mask;
 	unsigned int rx_slot_mask;
+	bool hp_det_gpio_cansleep;
 };
 
 static unsigned int headset_extcon_cable[] = {
@@ -240,8 +241,10 @@ static void adc_jack_handler(struct work_struct *work)
 
 	/* Reset unplugging flag before processing jack state */
 	mc_data->headset_unplugging = false;
-
-	if (!gpiod_get_value(mc_data->hp_det_gpio)) {
+	
+	if(!(mc_data->hp_det_gpio_cansleep ?
+    gpiod_get_value_cansleep(mc_data->hp_det_gpio) :
+    gpiod_get_value(mc_data->hp_det_gpio))) {
 		snd_soc_jack_report(jack_headset, 0, SND_JACK_HEADSET);
 		extcon_set_state_sync(mc_data->extcon,
 				EXTCON_JACK_HEADPHONE, false);
@@ -292,7 +295,9 @@ static irqreturn_t headset_det_irq_thread(int irq, void *data)
 	struct multicodecs_data *mc_data = (struct multicodecs_data *)data;
 
 	/* Immediately mark unplugging to suppress spurious key events */
-	if (!gpiod_get_value(mc_data->hp_det_gpio))
+	if(!(mc_data->hp_det_gpio_cansleep ?
+    gpiod_get_value_cansleep(mc_data->hp_det_gpio) :
+    gpiod_get_value(mc_data->hp_det_gpio)))
 		mc_data->headset_unplugging = true;
 
 	queue_delayed_work(system_power_efficient_wq, &mc_data->handler, msecs_to_jiffies(200));
@@ -1035,6 +1040,9 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 		headset_extcon_cable[cable++] = EXTCON_JACK_HEADPHONE;
 		card->resume_post = &rk_multicodecs_resume_post;
 	}
+
+	mc_data->hp_det_gpio_cansleep =
+    of_property_read_bool(np, "rockchip,hp-det-gpio-cansleep");
 
 	mc_data->extcon = devm_extcon_dev_allocate(&pdev->dev, headset_extcon_cable);
 	if (IS_ERR(mc_data->extcon)) {
