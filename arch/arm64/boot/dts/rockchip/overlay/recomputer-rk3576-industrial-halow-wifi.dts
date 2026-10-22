@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Wio-WM6108 (Morse Micro MM6108) WiFi HaLow module on the M.2 B-key slot
+ * of the reComputer RK3576 Industrial.
+ *
+ * Wiring:
+ *   - SPI3 CS0, 50 MHz
+ *   - IRQ:   GPIO2_B6
+ *   - RESET: GPIO2_B7 (M2B_PCIE_Reset)
+ *
+ * The morse-fgh100m SPI transport never toggles reset-gpios (the call is
+ * commented out in src/spi.c), and the board has no pull-up on the reset
+ * line, so the line must be hogged high to release the chip from reset.
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+	fragment@0 {
+		target = <&spi3>;
+		__overlay__ {
+			spidev@0 {
+				compatible = "spidev";
+				reg = <0>;
+				status = "disabled";
+			};
+
+			m6108: mm6108@0 {
+				compatible = "morse,mm610x-spi";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+				spi-irq-gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
+				/* reset-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>; */
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio2>;
+		__overlay__ {
+			m2b_wm6108_rst_hog: m2b-wm6108-rst-hog {
+				gpio-hog;
+				gpios = <RK_PB7 GPIO_ACTIVE_HIGH>;
+				output-high;
+				line-name = "M2B_PCIE_Reset";
+			};
+		};
+	};
+};

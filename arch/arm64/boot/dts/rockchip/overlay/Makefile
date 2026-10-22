@@ -362,6 +362,7 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	recomputer-rk3576-devkit-40pin-uart3.dtbo \
 	recomputer-rk3576-devkit-40pin-uart5.dtbo \
 	recomputer-rk3576-devkit-halow-wifi.dtbo \
+	recomputer-rk3576-industrial-halow-wifi.dtbo \
 	recomputer-rk3576-devkit-cam0-rpi-v2.dtbo \
 	recomputer-rk3576-devkit-cam0-rpi-v3.dtbo \
 	recomputer-rk3576-devkit-cam1-rpi-v2.dtbo \
