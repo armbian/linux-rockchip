@@ -1286,6 +1286,16 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart7m0_xfer &uart7m0_ctsn>;
+
+	/*
+	 * On-board AP6611S (SYN43711) combo: WiFi is on SDIO, Bluetooth is
+	 * wired to uart7m0 (TX/RX/CTS), with BT_REG_ON/BT_WAKE handled by
+	 * the "wireless-bluetooth" (rfkill-bt) node.  Attach the HCI
+	 * transport in-kernel so hci_bcm/btbcm download the patchram.
+	 */
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+	};
 };
 
 &spi4 {

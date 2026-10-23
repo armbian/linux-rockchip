@@ -302,6 +302,18 @@ static int btsdio_probe(struct sdio_func *func,
 		}
 	}
 
+	/* Synaptics (ex-Broadcom/Cypress IoT) devices soldered onto the PCB
+	 * (non-removable) use an UART connection for Bluetooth, ignore the
+	 * BT SDIO interface.
+	 */
+	if (func->vendor == SDIO_VENDOR_ID_SYNAPTICS &&
+	    !mmc_card_is_removable(func->card->host)) {
+		switch (func->device) {
+		case SDIO_DEVICE_ID_SYNAPTICS_43711_BT:
+			return -ENODEV;
+		}
+	}
+
 	data = devm_kzalloc(&func->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
