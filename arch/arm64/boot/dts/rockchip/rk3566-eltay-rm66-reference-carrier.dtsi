@@ -28,6 +28,22 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm7 0 20000000 0>;
+		cooling-levels = <0 50 100 150 200 255>;
+		rockchip,temp-trips = <
+			50000   1
+			55000   2
+			60000   3
+			65000   4
+			70000   5
+		>;
+
+		status = "okay";
+	};
+
 	/* 25 MHz oscillator feeding both CSI connectors (CAM1/CAM2). */
 	ext_cam_clk_25m: external-camera-clock-25m {
 		compatible = "fixed-clock";
@@ -148,6 +164,10 @@
 	pinctrl-0 = <&pcie20_pins>;
 	reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
+	status = "okay";
+};
+
+&pwm7 {
 	status = "okay";
 };
 
