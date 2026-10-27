@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+dtbo-$(CONFIG_ARCH_ROCKCHIP) += rk35xx-rk3566-eltay-rm66-pdm.dtbo
 dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	armsom-cm5-io-camera-imx219-cs0.dtbo \
 	armsom-cm5-io-camera-ov13850-cs1.dtbo \
