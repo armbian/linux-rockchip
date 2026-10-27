@@ -1,1 +1,20 @@
 ## Introduction
+
+### rk3566-eltay-rm66-pdm
+
+Enables two-channel PDM microphone capture on ELTAY RM66.
+The sound card name is "ELTAY RM66 PDM".
+
+- Clock: GPIO3_D6.
+- Data: GPIO3_D7.
+
+UART1 mux1 shares these pins. Do not enable both functions.
+
+With `overlay_prefix=rk35xx`, add this entry to `/boot/armbianEnv.txt`:
+
+```
+overlays=rk3566-eltay-rm66-pdm
+```
+
+Append the name if `overlays` is already set.
+Reboot after saving the changes.
