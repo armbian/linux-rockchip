@@ -411,17 +411,28 @@ static int rk3588_set_supported_hw(struct device *dev, struct device_node *np,
 				   struct rockchip_opp_info *opp_info)
 {
 	int bin = opp_info->bin;
+	int volt_sel = opp_info->volt_sel;
 
 	if (!of_property_read_bool(np, "rockchip,supported-hw"))
 		return 0;
 
 	if (bin < 0)
 		bin = 0;
+	/*
+	 * No speed grade was found (e.g. the PVTM read failed). BIT() of a
+	 * negative errno is undefined and ends up as a zero mask, which
+	 * rejects every OPP and leaves the CPUs with no cpufreq at all.
+	 * Fall back to grade 0, like rockchip_set_opp_supported_hw() does.
+	 */
+	if (volt_sel < 0) {
+		dev_warn(dev, "no speed grade, using default OPP voltages\n");
+		volt_sel = 0;
+	}
 
 	/* SoC Version */
 	opp_info->supported_hw[0] = BIT(bin);
 	/* Speed Grade */
-	opp_info->supported_hw[1] = BIT(opp_info->volt_sel);
+	opp_info->supported_hw[1] = BIT(volt_sel);
 
 	return 0;
 }
