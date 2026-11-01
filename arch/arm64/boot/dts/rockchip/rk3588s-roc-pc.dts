@@ -585,7 +585,7 @@
 &soc_thermal {
 	sustainable-power = <5000>; /* milliwatts */
 	polling-delay = <1000>;
-	polling-delay-passive = <2000>;
+	polling-delay-passive = <1000>;
 	trips {
 		trip0: trip-point@0 {
 			temperature = <55000>;
