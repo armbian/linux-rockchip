@@ -372,8 +372,13 @@
 	};
 };
 
-/* CAN1: TPT71044 isolated transceiver, GPIO4_B4/B5 (M2) */
+/*
+ * CAN1: TPT71044 isolated transceiver, GPIO4_B4/B5 (M2).
+ * Use the CAN-FD capable variant of the controller that rk3576_can
+ * exposes for "rockchip,rk3576-canfd".
+ */
 &can1 {
+	compatible = "rockchip,rk3576-canfd";
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&can1m2_pins>;
