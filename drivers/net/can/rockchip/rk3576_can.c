@@ -1019,7 +1019,13 @@ static irqreturn_t rk3576_can_interrupt(int irq, void *dev_id)
 	}
 
 	if (isr & TX_FINISH_INT) {
-		rk3576_can_write(rcan, CAN_CMD, 0);
+		/* Don't clear CAN_CMD here: netif_wake_queue() can let the
+		 * next xmit run on another CPU before this handler returns,
+		 * and writing 0 would then kill its just-armed TX0 request.
+		 * That frame would never complete and the stopped queue
+		 * would never be woken again. The request bit self-clears
+		 * when the frame is sent, so no explicit clear is needed.
+		 */
 		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
 		stats->tx_packets++;
 		netif_wake_queue(ndev);
