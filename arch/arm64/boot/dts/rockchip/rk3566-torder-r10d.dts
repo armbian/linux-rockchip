@@ -116,12 +116,12 @@
 		simple-audio-card,bitclock-inversion = <1>;
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,bt";
-		simple-audio-card,bitclock-master = <&bt_sco>;
-		simple-audio-card,frame-master = <&bt_sco>;
+		simple-audio-card,bitclock-master = <&bt_codec>;
+		simple-audio-card,frame-master = <&bt_codec>;
 		simple-audio-card,widgets = "Microphone", "RX", "Speaker", "TX";
 		simple-audio-card,routing = "BT_SCO_TX", "RX", "TX", "BT_SCO_RX";
 
-		simple-audio-card,codec {
+		bt_codec: simple-audio-card,codec {
 			sound-dai = <&bt_sco>;
 		};
 
