@@ -120,6 +120,21 @@ config VIDEO_BF3925
 	  To compile this driver as a module, choose M here: the
 	  module will be called BF3925.
 
+config VIDEO_GC02M0
+	tristate "GalaxyCore GC02M0 and GC02M1 sensor support"
+	depends on PM
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC02M0 and GC02M1 two-megapixel
+	  CMOS image sensors with a MIPI CSI-2 interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc02m0.
+
 config VIDEO_GC02M2
 	tristate "GalaxyCore GC02M2 sensor support"
 	depends on I2C && VIDEO_DEV

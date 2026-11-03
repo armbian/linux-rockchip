@@ -8512,6 +8512,13 @@ F:	kernel/futex/*
 F:	tools/perf/bench/futex*
 F:	tools/testing/selftests/futex/
 
+GALAXYCORE GC02M0 AND GC02M1 CAMERA SENSOR DRIVER
+M:	JasonYANG170 <39414350+JasonYANG170@users.noreply.github.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/galaxycore,gc02m0.yaml
+F:	drivers/media/i2c/gc02m0.c
+
 GATEWORKS SYSTEM CONTROLLER (GSC) DRIVER
 M:	Tim Harvey <tharvey@gateworks.com>
 S:	Maintained
