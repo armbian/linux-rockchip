@@ -719,6 +719,11 @@ properties:
           - const: tsd,rk3399-puma-haikou
           - const: rockchip,rk3399
 
+      - description: Torder R10D tablet
+        items:
+          - const: torder,r10d
+          - const: rockchip,rk3566
+
       - description: Tronsmart Orion R68 Meta
         items:
           - const: tronsmart,orion-r68-meta
