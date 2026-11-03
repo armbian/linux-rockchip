@@ -1322,6 +1322,8 @@ patternProperties:
     description: Topwise Communication Co., Ltd.
   "^toradex,.*":
     description: Toradex AG
+  "^torder,.*":
+    description: Torder
   "^toshiba,.*":
     description: Toshiba Corporation
   "^toumaz,.*":
