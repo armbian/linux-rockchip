@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/galaxycore,gc02m0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GalaxyCore GC02M0 and GC02M1 camera sensors
+
+maintainers:
+  - JasonYANG170 <39414350+JasonYANG170@users.noreply.github.com>
+
+description: |
+  Two-megapixel sensors with a single MIPI CSI-2 data lane and a 24 MHz clock.
+  Boards may share reset, with separate power-down lines for each sensor.
+
+properties:
+  compatible:
+    enum:
+      - galaxycore,gc02m0
+      - galaxycore,gc02m1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: xvclk
+
+  reset-gpios:
+    maxItems: 1
+
+  pwdn-gpios:
+    maxItems: 1
+    description: Power-down GPIO, with polarity matching the board wiring.
+
+  avdd-supply:
+    description: Analog power supply.
+
+  dovdd-supply:
+    description: Digital I/O power supply.
+
+  dvdd-supply:
+    description: Digital core power supply.
+
+  power-domains:
+    maxItems: 1
+
+  rockchip,camera-module-index:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Camera module index.
+
+  rockchip,camera-module-facing:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [front, back]
+    description: Camera module direction.
+
+  rockchip,camera-module-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Camera module name.
+
+  rockchip,camera-module-lens-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Camera lens name.
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+        properties:
+          data-lanes:
+            items:
+              - const: 1
+        required:
+          - data-lanes
+    required:
+      - endpoint
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - rockchip,camera-module-index
+  - rockchip,camera-module-facing
+  - rockchip,camera-module-name
+  - rockchip,camera-module-lens-name
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        camera@37 {
+            compatible = "galaxycore,gc02m0";
+            reg = <0x37>;
+            clocks = <&camera_clk>;
+            clock-names = "xvclk";
+            rockchip,camera-module-index = <0>;
+            rockchip,camera-module-facing = "back";
+            rockchip,camera-module-name = "KYT-4877-V01";
+            rockchip,camera-module-lens-name = "default";
+
+            port {
+                endpoint {
+                    remote-endpoint = <&csi_in>;
+                    data-lanes = <1>;
+                };
+            };
+        };
+    };
