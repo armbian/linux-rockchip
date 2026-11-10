@@ -100,6 +100,8 @@
 		status = "okay";
 		compatible = "simple-panel-dsi";
 		reg = <0>;
+		/* mounted rotated: landscape is the panel's left side up */
+		rotation = <270>;
 		backlight = <&backlight>;
         // power-supply = <&mipi_dsi_power>;
 		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
@@ -428,14 +430,19 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	ts@5d {
-		compatible = "goodix,gt9xx";
+	/*
+	 * Goodix GT9271. Use the goodix driver, not the vendor gt9xx one:
+	 * gt9xx reports multitouch protocol A without ABS_X/ABS_Y, which
+	 * libinput rejects, so the panel does not work as a touchscreen
+	 * in GNOME or Phosh.
+	 */
+	touchscreen@5d {
+		compatible = "goodix,gt911";
 		reg = <0x5d>;
-		tp-size = <89>;
-		max-x = <1280>;
-		max-y = <800>;
-		irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-        reset-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
 	};
 };
 
