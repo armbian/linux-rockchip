@@ -332,11 +332,11 @@
 /*
  * GMAC1: Maxio MAE0621A on carrier, RGMII M0.
  * PHY address 0x0, reset GPIO2_B4.
- * No Maxio PHY driver in the vendor kernel and the strap leaves the
- * PHY's internal RGMII delays off, so phy-mode is "rgmii" and both
- * delays come from the MAC side. Calibrated on the board: tx 0x1a /
- * rx 0x1a gives clean RX (0 crc errors) and 0% ping loss; rx 0x3f and
- * PHY-side delay modes (rgmii-rxid / rgmii-id) fail RX with CRC errors.
+ * The strap leaves the PHY's internal RGMII delays off, so phy-mode
+ * is "rgmii" and both delays come from the MAC side. With the Q3C
+ * initialization, tx 0x00..0x17 passes traffic on this board while
+ * tx 0x1a loses transmitted frames. Use tx 0x0a to retain timing
+ * margin and keep the previously calibrated rx 0x1a.
  */
 &gmac1 {
 	phy-mode = "rgmii";
@@ -353,7 +353,7 @@
 		     &eth1m0_rgmii_clk
 		     &eth1m0_rgmii_bus>;
 
-	tx_delay = <0x1a>;
+	tx_delay = <0x0a>;
 	rx_delay = <0x1a>;
 
 	phy-handle = <&rgmii_phy1>;
