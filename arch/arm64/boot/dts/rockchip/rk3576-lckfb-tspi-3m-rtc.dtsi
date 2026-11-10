@@ -1,0 +1,62 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/*-----------------------------------------------------------
+ * I2C2 Bus and Mounted Device Node Configuration
+ * status: Enable I2C2 bus
+ * pinctrl-names/pinctrl-0: Bind default I2C2 signal pin configuration
+ *----------------------------------------------------------*/
+&i2c2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m0_xfer>;
+
+	/*
+	 * HYM8563 RTC Chip Node
+	 * compatible: Device compatible string, specifies driver as haoyu,hym8563
+	 * reg: I2C address is 0x51
+	 * #clock-cells: Number of cells when providing clock resources (usually 0)
+	 * clock-frequency: RTC crystal frequency is 32.768KHz
+	 * clock-output-names: Exported clock name, for reference by other devices
+	 * pinctrl-names/pinctrl-0: Bind RTC INT interrupt pin configuration
+	 * interrupt-parent: Specify interrupt controller as gpio0
+	 * interrupts: INT interrupt pin is GPIO0 PA5, low level trigger
+	 * wakeup-source: Supports power-off wakeup function
+	 * status: Enable RTC chip
+	 */
+	hym8563: hym8563@51 {
+        status = "okay";
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "hym8563";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hym8563_int>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+	};
+};
+
+/*-----------------------------------------------------------
+ * Pin Multiplexing Configuration (Pinmux)
+ * hym8563_int sub-node under hym8563 node
+ * rockchip,pins: Specify GPIO0 PA5 for RTC INT interrupt, function is GPIO, configured with pull-up
+ *----------------------------------------------------------*/
+&pinctrl {
+	hym8563 {
+		hym8563_int: hym8563-int {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+

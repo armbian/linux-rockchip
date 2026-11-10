@@ -1,0 +1,109 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+	/*
+	 * USB3.0 Host Port Power Regulator Node
+	 * compatible: Fixed power regulator type
+	 * regulator-name: Power supply name
+	 * regulator-min/max-microvolt: Output voltage 5V
+	 * regulator-always-on: Always powered on
+	 * regulator-boot-on: Auto power on at boot
+	 * enable-active-high: Enable signal active high
+	 * gpio: Control pin, connected to GPIO0 PC3
+	 * vin-supply: Upstream power input
+	 * pinctrl-names/pinctrl-0: Bind pin multiplexing configuration
+	 */
+	vcc5v0_usb30_host: vcc5v0-usb30-host {
+        status = "okay";                                // Enable node
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb30_host";           // USB3.0 host port power
+		regulator-min-microvolt = <5000000>;            // Output 5V
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;                            // Always powered on
+		regulator-boot-on;                              // Auto power on at boot
+		enable-active-high;                             // Active high
+		gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;        // Control GPIO
+		vin-supply = <&vcc_sys>;                        // Upstream system power
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb30_host_pwr_en>;               // Bind pin configuration
+	};
+
+	/*
+	 * USB2.0 Host Port Power Regulator Node
+	 * Other properties same as above, only pin and power name differ
+	 */
+	vcc5v0_usb20_host: vcc5v0-usb20-host {
+        status = "okay";                                // Enable node
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb20_host";           // USB2.0 host port power
+		regulator-min-microvolt = <5000000>;            // Output 5V
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;        // Control GPIO2 PB5
+		vin-supply = <&vcc_sys>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb20_host_pwr_en>;
+	};
+};
+
+/*-----------------------------------------------------------
+ * USB2.0 PHY Configuration Node
+ * USB2.0 PHY Node: Controls physical layer enable and working state
+ * status: Enable PHY
+ *----------------------------------------------------------*/
+&u2phy1 {
+	status = "okay";        // Enable USB2.0 PHY
+};
+
+/*-----------------------------------------------------------
+ * USB2.0 OTG PHY Port Configuration
+ * phy-supply: Associate with host port 5V power
+ * dr_mode: Set to host mode
+ * status: Enable
+ *----------------------------------------------------------*/
+&u2phy1_otg {
+	phy-supply = <&vcc5v0_usb20_host>;   // Connect 5V host power
+	dr_mode = "host";                    // Host mode
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * USB3.0 DWC3 Host Controller Node
+ * dr_mode: Set to host mode
+ * status: Enable
+ * snps,*: Synopsys DWC3 controller related quirk parameters
+ *----------------------------------------------------------*/
+&usb_drd1_dwc3 {
+	dr_mode = "host";                    // USB3.0 host mode
+	status = "okay";
+	// snps,parkmode-disable-hs-quirk;      // Disable HS Parkmode Quirk
+	// snps,parkmode-disable-ss-quirk;      // Disable SS Parkmode Quirk
+	// snps,dis_u3_susphy_quirk;            // Disable U3 Suspend PHY Quirk
+	snps,dis_u2_susphy_quirk;            // Disable U2 Suspend PHY Quirk
+};
+
+/*-----------------------------------------------------------
+ * USB Host Related Pin Multiplexing Configuration
+ * usb30_host_pwr_en: USB3.0 host power enable pin (GPIO0 PC3)
+ * usb20_host_pwr_en: USB2.0 host power enable pin (GPIO3 PC6)
+ *----------------------------------------------------------*/
+&pinctrl {
+	usb-host {
+		usb30_host_pwr_en: usb30-host-pwr-en {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>; // GPIO0 PC3, no pull-up/down
+		};
+		usb20_host_pwr_en: usb20-host-pwr-en {
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>; // GPIO2 PB5, no pull-up/down
+		};
+	};
+};

@@ -1,0 +1,242 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+
+/*-----------------------------------------------------------
+ * Camera Power Enable
+ *----------------------------------------------------------*/
+&vcc_1v2_mipi_csi {
+	status = "okay";
+};
+
+&vcc_1v8_mipi_csi {
+    status = "okay";
+};
+
+&vcc_2v8_mipi_csi {
+    status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * Camera Link Configuration
+ *----------------------------------------------------------*/
+&i2c4 {
+	status = "okay";
+	pinctrl-0 = <&i2c4m3_xfer>;
+
+	imx415_mipi0: imx415@1a {
+        status = "okay";
+		compatible = "sony,imx415";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+        pinctrl-0 = <&cam_clk0m0_clk0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		power-domains = <&power RK3576_PD_VI>;
+
+		avdd-supply = <&vcc_mipicsi0_avdd>;
+		dovdd-supply = <&vcc_mipicsi0_dovdd>;
+		dvdd-supply = <&vcc_mipicsi0_dvdd>;
+
+		reset-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+        pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+
+		port {
+			imx415_dcphy0_out0: endpoint {
+				remote-endpoint = <&dcphy0_in_imx415>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	imx415_mipi0_0: imx415-0@37 {
+        status = "okay";
+		compatible = "sony,imx415";
+		reg = <0x37>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+        pinctrl-0 = <&cam_clk0m0_clk0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		power-domains = <&power RK3576_PD_VI>;
+
+		avdd-supply = <&vcc_mipicsi0_avdd>;
+		dovdd-supply = <&vcc_mipicsi0_dovdd>;
+		dvdd-supply = <&vcc_mipicsi0_dvdd>;
+
+		reset-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+        pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+
+		port {
+			imx415_0_dcphy0_out0: endpoint {
+				remote-endpoint = <&dcphy0_in_imx415_0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+    /* Can continue to write other cameras by referring to imx415 configuration */
+};
+
+
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dcphy0_in_imx415: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415_dcphy0_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+            
+            dcphy0_in_imx415_0: endpoint@2 {
+                reg = <2>;
+                remote-endpoint = <&imx415_0_dcphy0_out0>;
+                data-lanes = <1 2 3 4>;
+            };
+
+            /* Can continue to write other cameras by referring to imx415 configuration */
+			
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi0_in0>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi0_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir0>;
+		};
+	};
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+
+/*-----------------------------------------------------------
+ * MIPI-CSI-0 Link Virtual Interface Enable
+ *----------------------------------------------------------*/
+&rkisp_vir0_sditf {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
+
+/*-----------------------------------------------------------
+ * General Configuration
+ *----------------------------------------------------------*/
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};

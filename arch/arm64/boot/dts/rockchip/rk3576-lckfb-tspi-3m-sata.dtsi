@@ -1,0 +1,62 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+    /*
+     * SATA0 3.3V Power Management Node
+     * vcc3v3_sata0: GPIO-controlled fixed 3.3V power supply for SATA0
+     * compatible: Fixed power regulator type
+     * regulator-name: Power supply name
+     * regulator-min/max-microvolt: Output voltage 3.3V
+     * enable-active-high: Power enable signal active high
+     * regulator-always-on: Always powered on
+     * gpios: GPIO pin controlling power (GPIO0 PD3)
+     * startup-delay-us: Power-on delay (in microseconds)
+     * vin-supply: Upstream power input (vcc_sys)
+     */
+    vcc3v3_sata0: vcc3v3-sata0 {
+        compatible = "regulator-fixed";
+        regulator-name = "vcc3v3_sata0";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        enable-active-high;
+        regulator-always-on;
+        gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <5000>;
+        vin-supply = <&vcc_sys>;
+    };
+};
+
+/*-----------------------------------------------------------
+ * Combo PHY0 Node (PCIE0/SATA0 Physical Layer)
+ * Responsible for PCIE0 and SATA0 high-speed signal transceiver, must be enabled to ensure SATA/PCIE normal operation
+ *----------------------------------------------------------*/
+&combphy0_ps {
+    status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * SATA0 Controller Node
+ * vpcie3v3-supply: Specify SATA0 3.3V power source
+ * status: Enable SATA0 controller
+ *----------------------------------------------------------*/
+&sata0 {
+    vpcie3v3-supply = <&vcc3v3_sata0>;
+    status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * PCIE0 Controller Node
+ * status: Disable PCIE0 controller (only SATA0 is enabled)
+ *----------------------------------------------------------*/
+&pcie0 {
+    status = "disabled";
+};
+

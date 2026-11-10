@@ -1,0 +1,406 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/*-----------------------------------------------------------
+ * Mainboard Power Management Nodes
+ * Includes main DC input, system power, multiple LDO/PLDO/onboard power supplies
+ *----------------------------------------------------------*/
+/ {
+	vcc5v_dcin: vcc5v-dcin {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v_dcin";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v_dcin>;
+	};
+
+	vcc_2v0_pldo_s3: vcc-2v0-pldo-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_2v0_pldo_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <2000000>;
+		regulator-max-microvolt = <2000000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v1_nldo_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	/* MIPI-CSI AVDD 2.8V */ 
+	vcc_mipicsi0_avdd: vcc-mipicsi0-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi0_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi1_avdd: vcc-mipicsi1-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi1_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi3_avdd: vcc-mipicsi3-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi3_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+
+	/* MIPI-CSI DOVDD 1.8V */
+	vcc_mipicsi0_dovdd: vcc-mipicsi0-dovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi0_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi1_dovdd: vcc-mipicsi1-dovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi1_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi3_dovdd: vcc-mipicsi3-dovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi3_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+
+	/* MIPI-CSI DVDD 1.2V */
+	vcc_mipicsi0_dvdd: vcc-mipicsi0-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi0_dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi1_dvdd: vcc-mipicsi1-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi1_dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+	vcc_mipicsi3_dvdd: vcc-mipicsi3-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_mipicsi3_dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v2_mipi_csi: vcc-1v2-mipi-csi {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v2_mipi_csi";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		enable-active-high;
+		regulator-always-on;
+		gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8_mipi_csi: vcc-1v8-mipi-csi {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_mipi_csi";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		regulator-always-on;
+		gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_2v8_mipi_csi: vcc-2v8-mipi-csi {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_2v8_mipi_csi";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		regulator-always-on;
+		gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8_board: vcc-1v8-board {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_board";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_1v8_s3>;
+	};
+
+	vcc_3v3_board: vcc-3v3-board {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_board";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	vcc_3v3_sdcard: vcc-3v3-sd-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_sd_s3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	test-power {
+		status = "okay";
+	};
+};
+
+/*-----------------------------------------------------------
+ * EMMC/SD Storage Interface Nodes
+ * sdhci: Main EMMC controller (8-bit bus, non-removable)
+ * sdmmc: Onboard SD interface (4-bit bus, supports SD card hot-plug)
+ *----------------------------------------------------------*/
+&sdhci {
+	bus-width = <8>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
+&sdmmc {
+	max-frequency = <200000000>;
+	supports-emmc;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc_3v3_sdcard>;
+	vqmmc-supply = <&vccio_sd_s0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * High-Speed Combo PHY Nodes
+ * Combo PHY0/Combo PHY1
+ * Used for PCIE/SATA/USB3 high-speed physical layer transceiver
+ *----------------------------------------------------------*/
+/* PCIE0/SATA0 Combo PHY0 */
+&combphy0_ps {
+	status = "okay";
+};
+
+/* PCIE1/SATA1/USB3_OTG1 Combo PHY1 */
+&combphy1_psu {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * General Configuration
+ *----------------------------------------------------------*/
+&bus_a72 {
+	bus-supply = <&vdd_logic_s0>;
+	pvtm-supply = <&vdd_logic_s0>;
+	status = "okay";
+};
+
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_big_s0>;
+};
+
+&crypto {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
+};
+
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
+&jpegd {
+	status = "okay";
+};
+
+&jpege {
+	status = "okay";
+};
+
+&jpeg_mmu {
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&rga2_core0 {
+	status = "okay";
+};
+
+&rga2_core0_mmu {
+	status = "okay";
+};
+
+&rga2_core1 {
+	status = "okay";
+};
+
+&rga2_core1_mmu {
+	status = "okay";
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
+&rkvenc_ccu {
+	status = "okay";
+};
+
+&rkvenc0 {
+	status = "okay";
+};
+
+&rkvenc0_mmu {
+	status = "okay";
+};
+
+&rkvenc1 {
+	status = "okay";
+};
+
+&rkvenc1_mmu {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
+
+&tsadc {
+	status = "okay";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcca_1v8_s0>;
+};
+
+/*-----------------------------------------------------------
+ * Display and Video Output Related Nodes
+ * vdpp: Video Display Pre-Processing Module
+ * vop: Video Output Processor, responsible for main display pipeline
+ * vop_mmu: VOP dedicated MMU
+ *----------------------------------------------------------*/
+&vdpp {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+	vop-supply = <&vdd_logic_s0>;
+};
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VP2_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * Watchdog Timer Node
+ * wdt: System watchdog, ensures system reliability
+ *----------------------------------------------------------*/
+&wdt {
+	status = "okay";
+};
+
+

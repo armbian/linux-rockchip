@@ -134,6 +134,12 @@ dtbo-$(CONFIG_ARCH_ROCKCHIP) += \
 	youyeetoo-yy3588-camera1-gc8034.dtbo \
 	youyeetoo-yy3588-display-dsi0.dtbo \
 	youyeetoo-yy3588-display-dsi1.dtbo \
+	lckfb-tspi-3m-dsi-1200x1920-10-1inch.dtbo \
+	lckfb-tspi-3m-dsi-c41409463.dtbo \
+	lckfb-tspi-3m-dsi-c42388916.dtbo \
+	lckfb-tspi-3m-ec20-4g.dtbo \
+	lckfb-tspi-3m-pcie.dtbo \
+	lckfb-tspi-3m-sata.dtbo \
 	khadas-edge2-display-dsi0.dtbo \
 	khadas-edge2-display-dsi1.dtbo \
 	khadas-edge2-cam1.dtbo \
