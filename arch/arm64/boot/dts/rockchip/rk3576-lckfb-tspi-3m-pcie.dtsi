@@ -1,0 +1,83 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+    /*
+     * PCIE0 3.3V Power Management Node
+     * vcc3v3_pcie0: Fixed 3.3V power supply for PCIE0
+     * compatible: Fixed power regulator type
+     * regulator-name: Power supply name
+     * regulator-min/max-microvolt: Output voltage 3.3V
+     * enable-active-high: Power enable signal active high
+     * regulator-always-on: Always powered on
+     * gpios: GPIO pin controlling power
+     * startup-delay-us: Power-on delay (in microseconds)
+     * vin-supply: Upstream power input (vcc_sys)
+     */
+    vcc3v3_pcie0: vcc3v3-pcie0 {
+        compatible = "regulator-fixed";
+        regulator-name = "vcc3v3_pcie0";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        enable-active-high;
+        regulator-always-on;
+        gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <5000>;
+        vin-supply = <&vcc_sys>;
+    };
+};
+
+/*-----------------------------------------------------------
+ * Combo PHY0 Node (PCIE0/SATA0 Physical Layer)
+ * Responsible for PCIE0 and SATA0 high-speed signal transceiver, must be enabled to ensure SATA/PCIE normal operation
+ *----------------------------------------------------------*/
+&combphy0_ps {
+    status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * SATA0 Controller Node
+ * status: Disable SATA0 controller, currently only PCIE0 is enabled
+ *----------------------------------------------------------*/
+&sata0 {
+    status = "disabled";
+};
+
+/*-----------------------------------------------------------
+ * PCIE0 Controller Node
+ * reset-gpios: PCIE0 reset pin
+ * disable-gpios: PCIE0 disable pin
+ * vpcie3v3-supply: PCIE0 3.3V power source
+ * pinctrl-names/pinctrl-0: Bind PCIE0 related pin configuration
+ * status: Enable PCIE0 controller
+ *----------------------------------------------------------*/
+&pcie0 {
+	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+	disable-gpios = <&gpio4 RK_PC7 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_disable_gpio>;
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * Pin Multiplexing Configuration (Pinmux)
+ * pcie_disable_gpio: PCIE0 disable signal pin
+ *----------------------------------------------------------*/
+&pinctrl {
+	pcie {
+		pcie_disable_gpio: pcie-disable-gpio {
+			rockchip,pins = <4 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+
+

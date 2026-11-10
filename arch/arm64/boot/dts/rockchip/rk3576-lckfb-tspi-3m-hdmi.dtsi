@@ -1,0 +1,110 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+	/*
+	 * HDMI Audio Output Virtual Sound Card Node
+	 * compatible: Sound card type, rockchip HDMI
+	 * rockchip,mclk-fs: MCLK and sample rate multiplier, 128 is typically used for 48kHz series
+	 * rockchip,card-name: ALSA displayed sound card name
+	 * rockchip,cpu: Bound audio source, usually SAI/I2S controller
+	 * rockchip,codec: Bound Codec, i.e. HDMI controller itself
+	 * rockchip,jack-det: Enable hot-plug detection
+	 */
+	hdmi_sound: hdmi-sound {
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-hdmi";
+		rockchip,cpu = <&sai6>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
+        status = "okay";
+	};
+
+};
+
+
+/*-----------------------------------------------------------
+ * HDMI/eDP Combo PHY Configuration
+ * clocks: Specify HDMI PHY PLL clock to ensure high-speed signal output
+ *----------------------------------------------------------*/
+&display_subsystem {
+	clocks = <&hdptxphy>;
+	clock-names = "hdmi0_phy_pll";
+};
+
+/*-----------------------------------------------------------
+ * HDMI Controller Main Node
+ * status: Enable HDMI controller
+ * enable-gpios: HDMI power/enable pin, usually connected to external LDO or switch
+ * rockchip,sda-falling-delay-ns: SDA falling edge delay, optimize I2C/CEC communication
+ * cec-enable: Enable HDMI CEC function
+ *----------------------------------------------------------*/
+&hdmi {
+    status = "okay";
+	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+	rockchip,sda-falling-delay-ns = <360>;
+    cec-enable = "true";
+};
+
+/*-----------------------------------------------------------
+ * HDMI Three VP Path Configuration
+ * hdmi_in_vp0: Usually used for high resolution (4K@120Hz) main display
+ * hdmi_in_vp1: Used for secondary high resolution (2560x1600@60Hz)
+ * hdmi_in_vp2: Used for standard resolution (1920x1080@60Hz)
+ * Can disable unneeded VP paths according to actual needs to save resources
+ *-----------------------------------------------------------*/
+&hdmi_in_vp0 {
+	status = "okay";        // Enable VP0 - Supports up to 4K@120Hz
+};
+&hdmi_in_vp1 {
+	status = "disabled";    // Disable VP1 - Can be enabled as needed
+};
+&hdmi_in_vp2 {
+	status = "disabled";    // Disable VP2 - Can be enabled as needed
+};
+
+/*-----------------------------------------------------------
+ * HDMI PHY Node Configuration
+ * status: Enable HDMI PHY to ensure physical layer signal output
+ *----------------------------------------------------------*/
+&hdptxphy {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * HDMI Routing Node
+ * status: Enable HDMI routing
+ * connect: Configure VP0 video output to HDMI
+ *----------------------------------------------------------*/
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
+};
+
+
+/*-----------------------------------------------------------
+ * HDMI VOPL Path Configuration
+ * hdmi_in_vopl: Usually used for interfacing with VOPL (Video Output Pipeline Lite) display pipeline
+ * Can be used for special display purposes or multi-screen expansion scenarios
+ * status: Disabled by default, can be changed to "okay" if needed
+ *----------------------------------------------------------*/
+&hdmi_in_vopl {
+	status = "disabled";    // Disable VOPL path
+};
+
+
+/*-----------------------------------------------------------
+ * SAI6 (Serial Audio Interface 6) Controller Node
+ * Responsible for transmitting audio data with HDMI sound card/Codec, can also be used for microphone array or multi-channel audio
+ *----------------------------------------------------------*/
+&sai6 {
+	status = "okay";
+};

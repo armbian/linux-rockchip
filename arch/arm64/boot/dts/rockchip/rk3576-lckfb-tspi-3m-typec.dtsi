@@ -1,0 +1,205 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+    /*
+     * Type-C VBUS 5V Power Control Node
+     * Fixed voltage 5V, GPIO controlled switch, supplies Type-C VBUS
+     * enable-active-high: Active high
+     * vin-supply: Upstream power is vcc_sys
+     * pinctrl-names/pinctrl-0: Bind VBUS enable pin configuration
+     */
+    vcc5v0_typec_vbus: vcc5v0-typec-vbus {
+        compatible = "regulator-fixed";
+        regulator-name = "vcc5v0_typec_vbus";
+        enable-active-high;
+        regulator-min-microvolt = <5000000>;
+        regulator-max-microvolt = <5000000>;
+        vin-supply = <&vcc_sys>;
+		pinctrl-names = "default";
+        gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&typec_vbus_en>;
+    };
+};
+
+/*-----------------------------------------------------------
+ * I2C2 Controller Configuration
+ * status/pinctrl: Enable I2C2 and bind default pin multiplexing
+ *-----------------------------------------------------------*/
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m0_xfer>;
+
+	/*
+	 * Type-C Controller FUSB302 Chip Node
+	 * Connected via I2C address 0x22
+	 * Configure interrupt pin, bind VBUS power, port interconnection
+	 * ports: Interconnect with role switch, supports OTG role switching
+	 * usb_con: Type-C connector properties, supports dual role, PD protocol, supports DP Alt mode
+	 * sink-pdos/source-pdos: Power objects under PD protocol
+	 * mode-switch: Supports DP mode switching
+	 * altmodes: DP/other extension modes
+	 * ports: Interconnection of orientation switch and DP mux
+	 */
+	usbc0: fusb302@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PB4 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb302_int>;
+		vbus-supply = <&vcc5v0_typec_vbus>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				usbc0_role_sw: endpoint@0 {
+					remote-endpoint = <&usb_drd0_role_switch>;
+				};
+			};
+		};
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";                // Supports dual role
+			power-role = "dual";               // Supports power supply/sink switching
+			try-power-role = "sink";           // Prefer sink mode
+			op-sink-microwatt = <1000000>;     // Sink capability 1W
+			sink-pdos =
+				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>; // PD sink configuration
+			source-pdos =
+				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>; // PD source configuration
+			mode-switch = <&dp>;               // DP Alt mode switching
+
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&usbdp_phy_orientation_switch>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dp_altmode_mux: endpoint {
+						remote-endpoint = <&usbdp_phy_dp_altmode_mux>;
+					};
+				};
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------
+ * USB/DP PHY Node
+ * orientation-switch: Supports Type-C forward/reverse plug auto-switching
+ * svid: DP Alt mode protocol ID
+ * sbu1-dc-gpios/sbu2-dc-gpios: SBU channel DC control pins
+ * port: Interconnect with Type-C connector port
+ *-----------------------------------------------------------*/
+&usbdp_phy {
+	orientation-switch;
+	svid = <0xff01>;
+	sbu1-dc-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbdp_phy_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+
+		usbdp_phy_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
+		};
+	};
+};
+
+/*-----------------------------------------------------------
+ * USB3.0 OTG0 Controller Node
+ * dr_mode = "otg": Supports host/device dynamic switching
+ * usb-role-switch: Supports role switching
+ * snps,*: DWC3 controller related quirks compatibility parameters
+ * port: Interconnect with role switch
+ *-----------------------------------------------------------*/
+&usb_drd0_dwc3 {
+	dr_mode = "otg";
+	usb-role-switch;
+	snps,parkmode-disable-hs-quirk;
+	snps,parkmode-disable-ss-quirk;
+	snps,dis_u3_susphy_quirk;
+	snps,dis_u2_susphy_quirk;
+	status = "okay";
+	port {
+		usb_drd0_role_switch: endpoint {
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
+};
+
+/*-----------------------------------------------------------
+ * USB2.0 PHY Node
+ * status: Enable USB2.0 PHY
+ *-----------------------------------------------------------*/
+&u2phy0 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * USB2.0 OTG PHY Node
+ * rockchip,typec-vbus-det: Detect Type-C VBUS power
+ * status: Enable OTG PHY
+ *-----------------------------------------------------------*/
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+    status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * Type-C Related Pin Multiplexing Configuration
+ * fusb302_int: FUSB302 INT interrupt pin
+ * typec_vbus_en: Type-C VBUS enable pin
+ *-----------------------------------------------------------*/
+&pinctrl {
+	usb-typec {
+		fusb302_int: fusb302-int {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		typec_vbus_en: typec-vbus-en {
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

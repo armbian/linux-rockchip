@@ -1,0 +1,343 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/*-----------------------------------------------------------
+ * 背光控制节点
+ * backlight: PWM背光控制，支持255级亮度
+ * compatible: 采用pwm-backlight驱动
+ * pwms: PWM控制器和通道配置
+ * brightness-levels: 亮度分级表
+ * default-brightness-level: 默认亮度
+ *-----------------------------------------------------------*/
+/ {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2_8ch_2 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+};
+
+
+/*-----------------------------------------------------------
+ * PWM控制器节点
+ * pwm2_8ch_2: 多通道PWM，背光控制
+ * status: 使能
+ * pinctrl-0: 绑定PWM输出管脚
+ *-----------------------------------------------------------*/
+&pwm2_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m3_ch2>;
+};
+
+/*-----------------------------------------------------------
+ * MIPI DSI显示接口主节点
+ * dsi: 主MIPI DSI硬件节点
+ * status: 使能
+ * ports: DSI与显示panel间互连
+ *-----------------------------------------------------------*/
+&dsi {
+	status = "okay";
+	rockchip,lane-rate = <1000>;
+	dsi_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+        // power-supply = <&mipi_dsi_power>;
+		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+
+		reset-delay-ms = <100>;
+		enable-delay-ms = <120>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <100>;
+
+		// width-mm = <74>;
+		// height-mm = <133>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <4>;
+
+		panel-init-sequence = [
+			15 00 02 b0 
+			01 15 00 02 
+			c3 4f 15 00 
+			02 c4 40 15 
+			00 02 c5 40 
+			15 00 02 c6 
+			40 15 00 02 
+			c7 40 15 00 
+			02 c8 4d 15 
+			00 02 c9 52 
+			15 00 02 ca 
+			51 15 00 02 
+			cd 5d 15 00 
+			02 ce 5b 15 
+			00 02 cf 4b 
+			15 00 02 d0 
+			49 15 00 02 
+			d1 47 15 00 
+			02 d2 45 15 
+			00 02 d3 41 
+			15 00 02 d7 
+			50 15 00 02 
+			d8 40 15 00 
+			02 d9 40 15 
+			00 02 da 40 
+			15 00 02 db 
+			40 15 00 02 
+			dc 4e 15 00 
+			02 dd 52 15 
+			00 02 de 51 
+			15 00 02 e1 
+			5e 15 00 02 
+			e2 5c 15 00 
+			02 e3 4c 15 
+			00 02 e4 4a 
+			15 00 02 e5 
+			48 15 00 02 
+			e6 46 15 00 
+			02 e7 42 15 
+			00 02 b0 03 
+			15 00 02 be 
+			03 15 00 02 
+			cc 44 15 00 
+			02 c8 07 15 
+			00 02 c9 05 
+			15 00 02 ca 
+			42 15 00 02 
+			cd 3e 15 00 
+			02 cf 60 15 
+			00 02 d2 04 
+			15 00 02 d3 
+			04 15 00 02 
+			d4 01 15 00 
+			02 d5 00 15 
+			00 02 d6 03 
+			15 00 02 d7 
+			04 15 00 02 
+			d9 01 15 00 
+			02 db 01 15 
+			00 02 e4 f0 
+			15 00 02 e5 
+			0a 15 00 02 
+			b0 00 15 00 
+			02 b1 08 15 
+			00 02 bd 54 
+			15 00 02 c2 
+			06 15 00 02 
+			c4 0b 15 00 
+			02 b0 02 15 
+			00 02 c0 00 
+			15 00 02 c1 
+			0a 15 00 02 
+			c2 20 15 00 
+			02 c3 24 15 
+			00 02 c4 23 
+			15 00 02 c5 
+			29 15 00 02 
+			c6 23 15 00 
+			02 c7 1c 15 
+			00 02 c8 19 
+			15 00 02 c9 
+			17 15 00 02 
+			ca 17 15 00 
+			02 cb 18 15 
+			00 02 cc 1a 
+			15 00 02 cd 
+			1e 15 00 02 
+			ce 20 15 00 
+			02 cf 23 15 
+			00 02 d0 07 
+			15 00 02 d1 
+			00 15 00 02 
+			d2 00 15 00 
+			02 d3 0a 15 
+			00 02 d4 13 
+			15 00 02 d5 
+			1c 15 00 02 
+			d6 1a 15 00 
+			02 d7 13 15 
+			00 02 d8 17 
+			15 00 02 d9 
+			1c 15 00 02 
+			da 19 15 00 
+			02 db 17 15 
+			00 02 dc 17 
+			15 00 02 dd 
+			18 15 00 02 
+			de 1a 15 00 
+			02 df 1e 15 
+			00 02 e0 20 
+			15 00 02 e1 
+			23 15 00 02 
+			e2 07 05 78 
+			01 11 05 14 01 29];
+
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		disp_timings0: display-timings {
+			native-mode = <&dsi_timing0>;
+			dsi_timing0: timing0 {
+				clock-frequency = <120000000>;
+				hactive = <1200>;
+				vactive = <1920>;
+				hfront-porch = <42>;
+				hsync-len = <42>;
+				hback-porch = <32>;
+				vfront-porch = <35>;
+				vsync-len = <4>;
+				vback-porch = <30>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------
+ * DSI Display Routing Node
+ * route_dsi: Display video channel routing, VP2 output connected to DSI
+ *-----------------------------------------------------------*/
+&route_dsi {
+	status = "okay";
+	connect = <&vp2_out_dsi>;
+};
+
+/*-----------------------------------------------------------
+ * DSI Display Path Configuration Description
+ * dsi_in_vp0: Supports up to 4K@120Hz (main channel)
+ * dsi_in_vp1: Supports up to 2560x1600@60Hz (secondary channel)
+ * dsi_in_vp2: Supports up to 1920x1080@60Hz (third channel)
+ * Can select which path to enable according to actual needs to save resources
+ * dsi_in_vopl: VOPL Lite video pipeline, special purpose
+ *-----------------------------------------------------------*/
+&dsi_in_vp0 {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&dsi_in_vp2 {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "disabled";    // Disable third display path
+};
+
+/*-----------------------------------------------------------
+ * VP2 Video Path Node
+ * status: Enable VP2 as video source for DSI
+ *-----------------------------------------------------------*/
+&vp2 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * 触摸屏GT911节点
+ * gt911_dsi: 挂载于I2C2的触摸芯片GT911
+ * status: 使能
+ * compatible: 设备兼容类型
+ * reg: I2C地址
+ * interrupt-parent: 中断控制器
+ * interrupts: 中断管脚配置
+ * reset-gpios: 复位管脚
+ * irq-gpios: 中断信号管脚
+ * max-x/max-y: 触摸分辨率
+ * tp-size: 触摸IC封装尺寸参数
+ *-----------------------------------------------------------*/
+&i2c0 {
+    pinctrl-names = "default";
+	pinctrl-0 = <&i2c0m1_xfer>;
+	status = "okay";
+
+	gt911_dsi: gt911@5d {
+		status = "okay";
+		compatible = "goodix,gt911";
+		reg = <0x5d>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		max-x = <1280>;
+		max-y = <800>;
+        tp-size = <89>;
+	};
+};
+

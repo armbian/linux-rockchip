@@ -1,0 +1,115 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/ {
+    /*
+     * DP0 Audio Output Virtual Sound Card Node
+     * status: Enable DP0 audio
+     * compatible: Device compatible type (rockchip,hdmi for DP/HDMI common audio driver)
+     * rockchip,mclk-fs: MCLK and sample rate multiplier, 512 commonly used for high sample rates
+     * rockchip,card-name: Sound card name
+     * rockchip,cpu: Audio source, bind SPDIF TX3 controller
+     * rockchip,codec: Audio target, DP0 controller (parameter 1 usually identifies DP channel)
+     * rockchip,jack-det: Supports plug detection
+     */
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <512>;
+		rockchip,card-name = "rockchip-dp0";
+		rockchip,cpu = <&spdif_tx3>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+};
+
+/*-----------------------------------------------------------
+ * USB/DP PHY Module Related Nodes
+ * usbdp_phy_dp: DisplayPort PHY enable node
+ * usbdp_phy_u3: USB3 PHY enable node
+ *-----------------------------------------------------------*/
+&usbdp_phy_dp {
+	status = "okay";
+};
+
+&usbdp_phy_u3 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * DP Controller Main Node
+ * status: Enable DP controller
+ * svid: DisplayPort protocol ID (usually 0xff01)
+ *-----------------------------------------------------------*/
+&dp {
+	status = "okay";
+	svid = <0xff01>;
+};
+
+/*-----------------------------------------------------------
+ * DP0 Instance Node
+ * status: Enable DP0 controller (if multiple DP channels exist)
+ *-----------------------------------------------------------*/
+&dp0 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * SPDIF TX3 Audio Controller Node
+ * status: Enable SPDIF TX3 (digital audio output)
+ *-----------------------------------------------------------*/
+&spdif_tx3 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * DP0 Display Path Configuration Description
+ * dp0_in_vp0: Supports up to 4K@120Hz (main channel)
+ * dp0_in_vp1: Supports up to 2560x1600@60Hz (secondary channel)
+ * dp0_in_vp2: Supports up to 1920x1080@60Hz (third channel)
+ * Can choose which path to enable according to actual needs to save resources
+ *-----------------------------------------------------------*/
+&dp0_in_vp0 {
+ 	status = "disabled";   // Disable main display path (can be enabled if multi-screen needed)
+};
+
+&dp0_in_vp1 {
+	status = "okay";       // Enable secondary display path
+};
+
+&dp0_in_vp2 {
+	status = "disabled";   // Disable third display path
+};
+
+/*-----------------------------------------------------------
+ * DP0 Audio Sound Card Node (consistent with top definition, ensure status enabled)
+ *-----------------------------------------------------------*/
+&dp0_sound {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * DP0 Routing Node
+ * status: Enable DP0 routing
+ * connect: Connect VP1 display path output to DP0
+ *-----------------------------------------------------------*/
+&route_dp0 {
+	status = "okay";
+	connect = <&vp1_out_dp0>;
+};
+
+/*-----------------------------------------------------------
+ * VP1 Video Path Node
+ * status: Enable VP1, as video source for DP0
+ *-----------------------------------------------------------*/
+&vp1 {
+	status = "okay";
+};
+

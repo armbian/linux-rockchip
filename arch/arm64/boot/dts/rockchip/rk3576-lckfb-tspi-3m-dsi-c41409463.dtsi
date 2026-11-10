@@ -1,0 +1,424 @@
+/********************************************************************
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ * 
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2026 LCKFB <lckfb@sz-jlc.com>
+ *********************************************************************
+ * Wiki-(Chinese)：https://wiki.lckfb.com/
+ * Wiki-(English)：https://wiki.lckfb.com/en/
+ *********************************************************************/
+
+/*-----------------------------------------------------------
+ * Backlight Control Node
+ * backlight: PWM backlight control, supports 255 brightness levels
+ * compatible: Uses pwm-backlight driver
+ * pwms: PWM controller and channel configuration
+ * brightness-levels: Brightness level table
+ * default-brightness-level: Default brightness level
+ *-----------------------------------------------------------*/
+/ {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2_8ch_2 0 25000 0>;
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+};
+
+
+/*-----------------------------------------------------------
+ * PWM Controller Node
+ * pwm2_8ch_2: Multi-channel PWM, backlight control
+ * status: Enable
+ * pinctrl-0: Bind PWM output pin
+ *-----------------------------------------------------------*/
+&pwm2_8ch_2 {
+	status = "okay";
+	pinctrl-0 = <&pwm2m3_ch2>;
+};
+
+/*-----------------------------------------------------------
+ * MIPI DSI Display Interface Main Node
+ * dsi: Main MIPI DSI hardware node
+ * status: Enable
+ * ports: DSI and display panel interconnection
+ *-----------------------------------------------------------*/
+&dsi {
+	status = "okay";
+	// rockchip,lane-rate = <1000>;
+	dsi_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+        // power-supply = <&mipi_dsi_power>;
+		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+
+		reset-delay-ms = <30>;
+		enable-delay-ms = <100>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		init-delay-ms = <10>;
+
+		// width-mm = <74>;
+		// height-mm = <133>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <4>;
+
+		panel-init-sequence = [
+			39 00 04 FF 98 81 03
+			15 00 02 01 00
+			15 00 02 02 00
+			15 00 02 03 53    
+			15 00 02 04 53    
+			15 00 02 05 13
+			15 00 02 06 04
+			15 00 02 07 02
+			15 00 02 08 02
+			15 00 02 09 00
+			15 00 02 0a 00
+			15 00 02 0b 00
+			15 00 02 0c 00
+			15 00 02 0d 00
+			15 00 02 0e 00
+			15 00 02 0f 00
+			15 00 02 10 00
+			15 00 02 11 00
+			15 00 02 12 00
+			15 00 02 13 00
+			15 00 02 14 00
+			15 00 02 15 00
+			15 00 02 16 00
+			15 00 02 17 00
+			15 00 02 18 00
+			15 00 02 19 00
+			15 00 02 1a 00
+			15 00 02 1b 00
+			15 00 02 1c 00
+			15 00 02 1d 00
+			15 00 02 1e c0
+			15 00 02 1f 00
+			15 00 02 20 02
+			15 00 02 21 09
+			15 00 02 22 00
+			15 00 02 23 00
+			15 00 02 24 00
+			15 00 02 25 00
+			15 00 02 26 00
+			15 00 02 27 00
+			15 00 02 28 55
+			15 00 02 29 03
+			15 00 02 2a 00
+			15 00 02 2b 00
+			15 00 02 2c 00
+			15 00 02 2d 00
+			15 00 02 2e 00
+			15 00 02 2f 00
+			15 00 02 30 00
+			15 00 02 31 00
+			15 00 02 32 00
+			15 00 02 33 00
+			15 00 02 34 00
+			15 00 02 35 00
+			15 00 02 36 00
+			15 00 02 37 00
+			15 00 02 38 3C
+			15 00 02 39 00
+			15 00 02 3a 00
+			15 00 02 3b 00
+			15 00 02 3c 00
+			15 00 02 3d 00
+			15 00 02 3e 00
+			15 00 02 3f 00
+			15 00 02 40 00
+			15 00 02 41 00
+			15 00 02 42 00
+			15 00 02 43 00
+			15 00 02 44 00
+			
+			15 00 02 50 01
+			15 00 02 51 23
+			15 00 02 52 45
+			15 00 02 53 67
+			15 00 02 54 89
+			15 00 02 55 ab
+			15 00 02 56 01
+			15 00 02 57 23
+			15 00 02 58 45
+			15 00 02 59 67
+			15 00 02 5a 89
+			15 00 02 5b ab
+			15 00 02 5c cd
+			15 00 02 5d ef
+
+			15 00 02 5e 01
+			15 00 02 5f 0A    
+			15 00 02 60 02    
+			15 00 02 61 02    
+			15 00 02 62 08    
+			15 00 02 63 15    
+			15 00 02 64 14    
+			15 00 02 65 02    
+			15 00 02 66 11    
+			15 00 02 67 10    
+			15 00 02 68 02    
+			15 00 02 69 0F    
+			15 00 02 6a 0E    
+			15 00 02 6b 02    
+			15 00 02 6c 0D    
+			15 00 02 6d 0C    
+			15 00 02 6e 06    
+			15 00 02 6f 02    
+			15 00 02 70 02    
+			15 00 02 71 02    
+			15 00 02 72 02    
+			15 00 02 73 02    
+			15 00 02 74 02    
+			
+			15 00 02 75 0A    
+			15 00 02 76 02    
+			15 00 02 77 02    
+			15 00 02 78 06    
+			15 00 02 79 15    
+			15 00 02 7a 14    
+			15 00 02 7b 02    
+			15 00 02 7c 10    
+			15 00 02 7d 11    
+			15 00 02 7e 02    
+			15 00 02 7f 0C    
+			15 00 02 80 0D    
+			15 00 02 81 02    
+			15 00 02 82 0E    
+			15 00 02 83 0F    
+			15 00 02 84 08    
+			15 00 02 85 02    
+			15 00 02 86 02    
+			15 00 02 87 02    
+			15 00 02 88 02    
+			15 00 02 89 02    
+			15 00 02 8A 02    
+
+
+			39 00 04 FF 98 81 04
+			//15 00 02 00 00  //
+			// 15 00 02 2F 01   //bist for user debugging, screen will flash for demo test
+			15 00 02 3B C0  
+			15 00 02 6C 15
+			15 00 02 6E 30  
+			15 00 02 6F 55  
+			15 00 02 3A 24
+			15 00 02 8D 1F
+			15 00 02 87 BA
+			15 00 02 26 76
+			15 00 02 B2 D1
+			15 00 02 B5 07
+			15 00 02 35 1F
+			15 00 02 88 0B
+			15 00 02 21 09
+
+
+			39 00 04 FF 98 81 01
+			15 00 02 22 0A
+			15 00 02 31 09
+			15 00 02 40 33
+			15 00 02 53 37
+			15 00 02 55 38
+			15 00 02 50 95
+			15 00 02 51 95
+			15 00 02 60 30
+
+			15 00 02 A0 0F        
+			15 00 02 A1 17        
+			15 00 02 A2 22        
+			15 00 02 A3 19        
+			15 00 02 A4 15        
+			15 00 02 A5 28        
+			15 00 02 A6 1C        
+			15 00 02 A7 1C        
+			15 00 02 A8 78        
+			15 00 02 A9 1C        
+			15 00 02 AA 28        
+			15 00 02 AB 69        
+			15 00 02 AC 1A        
+			15 00 02 AD 19        
+			15 00 02 AE 4B        
+			15 00 02 AF 22        
+			15 00 02 B0 2A        
+			15 00 02 B1 4B        
+			15 00 02 B2 6B        
+			15 00 02 B3 3F        
+
+			15 00 02 C0 01        
+			15 00 02 C1 17        
+			15 00 02 C2 22        
+			15 00 02 C3 19        
+			15 00 02 C4 15        
+			15 00 02 C5 28        
+			15 00 02 C6 1C        
+			15 00 02 C7 1D        
+			15 00 02 C8 78        
+			15 00 02 C9 1C        
+			15 00 02 CA 28        
+			15 00 02 CB 69        
+			15 00 02 CC 1A        
+			15 00 02 CD 19        
+			15 00 02 CE 4B        
+			15 00 02 CF 22        
+			15 00 02 D0 2A        
+			15 00 02 D1 4B        
+			15 00 02 D2 6B        
+			15 00 02 D3 3F        
+			39 00 04 FF 98 81 00		
+			05 78 01 11
+			05 14 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		disp_timings0: display-timings {
+			native-mode = <&dsi_timing0>;
+			dsi_timing0: timing0 {
+
+				clock-frequency = <71000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hfront-porch = <52>;
+				hsync-len = <8>;
+				hback-porch = <48>;
+				vfront-porch = <15>;
+				vsync-len = <6>;
+				vback-porch = <16>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+};
+
+/*-----------------------------------------------------------
+ * DSI Display Routing Node
+ * route_dsi: Display video channel routing, VP2 output connected to DSI
+ *-----------------------------------------------------------*/
+&route_dsi {
+	status = "okay";
+	connect = <&vp2_out_dsi>;
+};
+
+/*-----------------------------------------------------------
+ * DSI Display Path Configuration Description
+ * dsi_in_vp0: Supports up to 4K@120Hz (main channel)
+ * dsi_in_vp1: Supports up to 2560x1600@60Hz (secondary channel)
+ * dsi_in_vp2: Supports up to 1920x1080@60Hz (third channel)
+ * Can select which path to enable according to actual needs to save resources
+ * dsi_in_vopl: VOPL Lite video pipeline, special purpose
+ *-----------------------------------------------------------*/
+&dsi_in_vp0 {
+	status = "disabled";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
+&dsi_in_vp2 {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "disabled";    // Disable third display path
+};
+
+/*-----------------------------------------------------------
+ * VP2 Video Path Node
+ * status: Enable VP2 as video source for DSI
+ *-----------------------------------------------------------*/
+&vp2 {
+	status = "okay";
+};
+
+/*-----------------------------------------------------------
+ * Touch Node
+ *-----------------------------------------------------------*/
+&i2c0 {
+    pinctrl-names = "default";
+	pinctrl-0 = <&i2c0m1_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	ts@5d {
+		compatible = "goodix,gt9xx";
+		reg = <0x5d>;
+		tp-size = <89>;
+		max-x = <1280>;
+		max-y = <800>;
+		irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+        reset-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
+	};
+};
+
