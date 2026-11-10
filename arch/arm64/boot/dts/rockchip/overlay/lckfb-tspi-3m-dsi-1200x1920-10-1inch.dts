@@ -352,9 +352,20 @@
 		interrupts = <RK_PC5 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_LOW>;
 		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int>;
 		max-x = <1280>;
 		max-y = <800>;
         tp-size = <89>;
+	};
+};
+
+/* The touch INT line needs a pull-up for the falling-edge interrupt */
+&pinctrl {
+	touch {
+		touch_int: touch-int {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
 	};
 };
 
