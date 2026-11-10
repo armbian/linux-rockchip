@@ -415,6 +415,19 @@
 	status = "okay";
 };
 
+/*
+ * I2C0 on i2c0m1 only reaches the touch controller on the MIPI DSI screen
+ * connector. Keep it enabled without a screen overlay so userspace can
+ * probe which official screen is attached (GT9271/GT911 at 0x5d, CST128
+ * at 0x38) and pick the matching overlay.
+ */
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0m1_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
 /*-----------------------------------------------------------
  * Watchdog Timer Node
  * wdt: System watchdog, ensures system reliability
