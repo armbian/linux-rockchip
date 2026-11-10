@@ -84,12 +84,14 @@
  *   This is the recommended approach for production images.
  *
  * Method B: Dynamic (device tree overlay, no recompile needed)
- *   Keep all #includes commented out, then edit /boot/ubootEnv.txt
- *   on the board and add one of the following lines, then reboot:
- *     overlays=tspi-3m-minipcie-pcie.dtbo
- *     overlays=tspi-3m-minipcie-sata.dtbo
- *     overlays=tspi-3m-minipcie-ec20.dtbo
- *   Overlay source files are in device-tree-overlays/overlays/.
+ *   Keep all #includes commented out, then edit /boot/armbianEnv.txt
+ *   on the board and set one of the following lines, then reboot:
+ *     overlays=pcie
+ *     overlays=sata
+ *     overlays=ec20-4g
+ *   This assumes overlay_prefix=lckfb-tspi-3m in the same file. The
+ *   overlays are lckfb-tspi-3m-{pcie,sata,ec20-4g}.dtbo, and their
+ *   sources are in arch/arm64/boot/dts/rockchip/overlay/.
  *
  * WARNING: Do NOT use both methods for the same mode simultaneously.
  *   If a #include is active AND its corresponding overlay is loaded,
