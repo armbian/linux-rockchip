@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Add a 1992 MHz CPU OPP at 1.2 V for RK3566.
+ * If the board limits vdd_cpu below 1.2 V, the OPP falls back to about 1.15 V.
+ * There are no opp-microvolt-L<n> values, so all leakage bins use 1.2 V.
+ * On RK3568 the stock 1992 MHz OPP keeps its per-bin voltages.
+ */
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&cpu0_opp_table>;
+
+		__overlay__ {
+			opp-1992000000 {
+				opp-supported-hw = <0xf9 0xffff>;
+				opp-hz = /bits/ 64 <1992000000>;
+				opp-microvolt = <1200000 1150000 1200000>;
+				clock-latency-ns = <40000>;
+			};
+		};
+	};
+};
