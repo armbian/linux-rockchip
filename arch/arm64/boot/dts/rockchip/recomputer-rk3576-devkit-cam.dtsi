@@ -13,9 +13,9 @@
         regulator-min-microvolt = <3300000>;
         regulator-max-microvolt = <3300000>;
         enable-active-high;
-        gpio = <&gpio_xten  0  GPIO_ACTIVE_HIGH>; 
-        regulator-boot-on;         
-        regulator-always-on;        
+        gpio = <&gpio_xten  0  GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <100000>;
+        off-on-delay-us = <500000>;
     };
 
     cam1_pwr: cam1-pwr {
@@ -25,9 +25,9 @@
         regulator-min-microvolt = <3300000>;
         regulator-max-microvolt = <3300000>;
         enable-active-high;
-        gpio = <&gpio1  RK_PD1  GPIO_ACTIVE_HIGH>; 
-        regulator-boot-on;         
-        regulator-always-on;        
+        gpio = <&gpio1  RK_PD1  GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <100000>;
+        off-on-delay-us = <500000>;
     };
     
 
@@ -91,7 +91,7 @@
         port {
             imx219_out0: endpoint {
                 remote-endpoint = <&mipi_in_ucam2>;
-                data-lanes = <1 2>;					
+                data-lanes = <1 2>;
             };
         };
     };
@@ -156,7 +156,7 @@
         port {
             imx219_out1: endpoint {
                 remote-endpoint = <&mipi_in_ucam3>;
-                data-lanes = <1 2>;					
+                data-lanes = <1 2>;
             };
         };
     };

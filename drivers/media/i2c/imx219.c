@@ -10,6 +10,7 @@
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -224,6 +225,8 @@ struct imx219 {
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct clk *clk;
+	struct regulator *vana;
+	bool powered;
 	struct v4l2_rect crop_rect;
 	int hflip;
 	int vflip;
@@ -419,6 +422,19 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		return ret;
 
+	/*
+	 * Replay the cached exposure and gain registers: the mode table does
+	 * not program them, and they may have been accepted while the sensor
+	 * was unpowered.
+	 */
+	ret = reg_write(client, 0x0157, priv->analogue_gain);
+	ret |= reg_write(client, 0x0158, priv->digital_gain >> 8);
+	ret |= reg_write(client, 0x0159, priv->digital_gain & 0xff);
+	ret |= reg_write(client, 0x015a, priv->exposure_time >> 8);
+	ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
+	if (ret)
+		return ret;
+
 	return reg_write_table(client, start);
 }
 
@@ -427,13 +443,32 @@ static int imx219_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct imx219 *priv = to_imx219(client);
+	int ret;
 
-	if (on)	{
+	if (on) {
 		dev_dbg(&client->dev, "imx219 power on\n");
-		clk_prepare_enable(priv->clk);
-	} else if (!on) {
+
+		ret = regulator_enable(priv->vana);
+		if (ret) {
+			dev_err(&client->dev, "failed to enable vana: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(priv->clk);
+		if (ret) {
+			dev_err(&client->dev, "failed to enable clock: %d\n", ret);
+			regulator_disable(priv->vana);
+			return ret;
+		}
+
+		/* IMX219 needs t4 + max(t5, t6) after power and clock are up. */
+		usleep_range(6200, 7200);
+		priv->powered = true;
+	} else {
 		dev_dbg(&client->dev, "imx219 power off\n");
+		priv->powered = false;
 		clk_disable_unprepare(priv->clk);
+		regulator_disable(priv->vana);
 	}
 
 	return 0;
@@ -538,6 +573,13 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 	u16 a_gain = 256;
 	u16 d_gain = 1;
 
+	/*
+	 * Control defaults are initialized before imx219_video_probe() powers
+	 * the sensor, and userspace may queue settings before streaming.
+	 * Always cache the values in priv; only the register access below is
+	 * skipped while the sensor is unpowered. imx219_s_stream() replays
+	 * the cached exposure and gain registers at stream start.
+	 */
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
 		priv->hflip = ctrl->val;
@@ -595,6 +637,9 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * so the exposure & gain can reflect at the same frame
 		 */
 
+		if (!priv->powered)
+			return 0;
+
 		ret = reg_write(client, 0x0157, priv->analogue_gain);
 		ret |= reg_write(client, 0x0158, priv->digital_gain >> 8);
 		ret |= reg_write(client, 0x0159, priv->digital_gain & 0xff);
@@ -603,6 +648,9 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_EXPOSURE:
 		priv->exposure_time = ctrl->val;
+
+		if (!priv->powered)
+			return 0;
 
 		ret = reg_write(client, 0x015a, priv->exposure_time >> 8);
 		ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
@@ -616,6 +664,10 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val = priv->cur_mode->vts_def;
 		if ((ctrl->val - IMX219_EXP_LINES_MARGIN) != priv->cur_vts)
 			priv->cur_vts = ctrl->val - IMX219_EXP_LINES_MARGIN;
+
+		if (!priv->powered)
+			return 0;
+
 		ret = reg_write(client, 0x0160, ((priv->cur_vts >> 8) & 0xff));
 		ret |= reg_write(client, 0x0161, (priv->cur_vts & 0xff));
 		return ret;
@@ -623,7 +675,10 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 	default:
 		return -EINVAL;
 	}
-	/* If enabled, apply settings immediately */
+	/* If enabled, apply settings immediately; else s_stream() will */
+	if (!priv->powered)
+		return 0;
+
 	reg = reg_read(client, 0x0100);
 	if ((reg & 0x1f) == 0x01)
 		imx219_s_stream(&priv->subdev, 1);
@@ -1060,6 +1115,13 @@ static int imx219_probe(struct i2c_client *client,
 		dev_info(&client->dev, "Error %ld getting clock\n",
 			 PTR_ERR(priv->clk));
 		return -EPROBE_DEFER;
+	}
+
+	/* Each CSI instance controls its own vana-supply (cam0_pwr/cam1_pwr). */
+	priv->vana = devm_regulator_get(&client->dev, "vana");
+	if (IS_ERR(priv->vana)) {
+		dev_err(&client->dev, "failed to get vana supply\n");
+		return PTR_ERR(priv->vana);
 	}
 
 	/* 1920 * 1080 by default */
