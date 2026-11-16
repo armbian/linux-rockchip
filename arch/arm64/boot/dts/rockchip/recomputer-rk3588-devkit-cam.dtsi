@@ -101,7 +101,8 @@
 		reg = <0x0c>;
 		avdd-supply = <&cam0_pwr>;
 		rockchip,camera-module-index = <0>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "front";
@@ -162,7 +163,8 @@
 		reg = <0x0c>;
 		avdd-supply = <&cam1_pwr>;
 		rockchip,camera-module-index = <1>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "back";
