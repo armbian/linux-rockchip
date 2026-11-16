@@ -597,13 +597,16 @@ static int dw9800w_check_id(struct dw9800w_device *dw9800w_dev)
 	__dw9800w_set_power(dw9800w_dev, true);
 	ret = dw9800w_read_reg(client, DW9800W_REG_CHIP_ID, 1, &pid);
 
-	if (pid != DW9800W_CHIP_ID) {
-		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", pid, ret);
-		return -ENODEV;
+	if (ret) {
+		dev_err(dev, "read chip id failed(%d)\n", ret);
+		return ret;
 	}
 
-	dev_info(&dw9800w_dev->client->dev,
-		 "Detected dw9800w vcm id:0x%x\n", DW9800W_CHIP_ID);
+	if (pid != DW9800W_CHIP_ID)
+		dev_warn(dev, "chip id 0x%02x != expected 0x%02x, continuing\n",
+			 pid, DW9800W_CHIP_ID);
+
+	dev_info(dev, "Detected dw9800w vcm id:0x%x\n", pid);
 	return 0;
 }
 static int dw9800w_probe_init(struct i2c_client *client)
