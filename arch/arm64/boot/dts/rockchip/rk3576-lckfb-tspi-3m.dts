@@ -168,7 +168,12 @@
 		#cooling-cells = <2>;
 
 		pwms = <&pwm2_8ch_3 0 500000 0>;
-		cooling-levels = <0 100 150 200 255>;
+		/*
+		 * Full speed on every active level: at this 2 kHz period the
+		 * fan whines at partial duty, and at 25 kHz it stalls below
+		 * about 78%.
+		 */
+		cooling-levels = <0 255 255 255 255>;
 		rockchip,temp-trips = <
 			0        0
 			35000    1
