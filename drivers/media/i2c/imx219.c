@@ -351,8 +351,11 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	u8 reg = 0x00;
 	int ret;
 
-	if (!enable)
+	if (!enable) {
+		if (!priv->powered)
+			return 0;
 		return reg_write_table(client, stop);
+	}
 
 	ret = reg_write_table(client, priv->cur_mode->reg_list);
 	if (ret)
@@ -425,7 +428,8 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	/*
 	 * Replay the cached exposure and gain registers: the mode table does
 	 * not program them, and they may have been accepted while the sensor
-	 * was unpowered.
+	 * was unpowered.  HFLIP/VFLIP, test pattern and crop are replayed by
+	 * the mode setup above; VBLANK is fixed per mode (read-only ctrl).
 	 */
 	ret = reg_write(client, 0x0157, priv->analogue_gain);
 	ret |= reg_write(client, 0x0158, priv->digital_gain >> 8);
@@ -680,6 +684,8 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	reg = reg_read(client, 0x0100);
+	if (reg < 0)
+		return reg;
 	if ((reg & 0x1f) == 0x01)
 		imx219_s_stream(&priv->subdev, 1);
 
