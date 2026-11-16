@@ -5,7 +5,6 @@
  */
 
 / {
-
     cam0_pwr: cam0-pwr {
         status = "disabled";
         compatible = "regulator-fixed";
@@ -29,7 +28,6 @@
         startup-delay-us = <100000>;
         off-on-delay-us = <500000>;
     };
-    
 
 	cam0_rst: cam0-rst {
 		compatible = "regulator-fixed";
@@ -101,14 +99,12 @@
 		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam0_rst>;
-		power-supply = <&cam0_pwr>;
+		avdd-supply = <&cam0_pwr>;
 		rockchip,camera-module-index = <0>;
 		rockchip,vcm-start-current = <10>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "back";
-
 	};
 
 	imx708_0: imx708@1a {
@@ -166,8 +162,7 @@
 		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam1_rst>;
-		power-supply = <&cam1_pwr>;
+		avdd-supply = <&cam1_pwr>;
 		rockchip,camera-module-index = <1>;
 		rockchip,vcm-start-current = <10>;
 		rockchip,vcm-rated-current = <85>;
