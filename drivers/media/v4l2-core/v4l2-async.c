@@ -593,10 +593,11 @@ EXPORT_SYMBOL(v4l2_async_nf_register);
 static int __v4l2_async_notifier_clr_unready_dev(
 	struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_subdev *sd, *tmp;
+	struct v4l2_subdev *sd, *sd_tmp;
+	struct v4l2_async_subdev *asd, *asd_tmp;
 	int clr_num = 0;
 
-	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
+	list_for_each_entry_safe(sd, sd_tmp, &notifier->done, async_list) {
 		struct v4l2_async_notifier *subdev_notifier =
 			v4l2_async_find_subdev_notifier(sd);
 
@@ -605,10 +606,19 @@ static int __v4l2_async_notifier_clr_unready_dev(
 					subdev_notifier);
 	}
 
-	list_for_each_entry_safe(sd, tmp, &notifier->waiting, async_list) {
-		list_del_init(&sd->async_list);
-		sd->asd = NULL;
-		sd->dev = NULL;
+	/* notifier->waiting holds asds, not subdevs: drop them properly */
+	list_for_each_entry_safe(asd, asd_tmp, &notifier->waiting, list) {
+		switch (asd->match_type) {
+		case V4L2_ASYNC_MATCH_FWNODE:
+			fwnode_handle_put(asd->match.fwnode);
+			break;
+		default:
+			break;
+		}
+		list_del_init(&asd->list);
+		list_del(&asd->asd_list);
+		v4l2_async_nf_call_destroy(notifier, asd);
+		kfree(asd);
 		clr_num++;
 	}
 
