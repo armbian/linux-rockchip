@@ -571,7 +571,7 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct imx219 *priv =
 	    container_of(ctrl->handler, struct imx219, ctrl_handler);
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
-	u8 reg;
+	int reg;
 	int ret;
 	u16 gain = 256;
 	u16 a_gain = 256;
