@@ -63,6 +63,7 @@
 					ucam_out0: endpoint {
 						remote-endpoint = <&mipi_in_ucam0>;
 						data-lanes = <1 2>;
+						link-frequencies = /bits/ 64 <456000000>;
 					};
 				};
 			};
