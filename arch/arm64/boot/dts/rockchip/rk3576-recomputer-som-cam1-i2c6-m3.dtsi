@@ -60,6 +60,7 @@
             imx219_out1: endpoint {
                 remote-endpoint = <&mipi_in_ucam3>;
                 data-lanes = <1 2>;
+                link-frequencies = /bits/ 64 <456000000>;
             };
         };
     };
