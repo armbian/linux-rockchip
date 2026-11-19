@@ -373,6 +373,13 @@
 	status = "okay";
 };
 
+/* Keep the GPU rail on: a late panfrost attach after the idle rail was
+ * dropped runs the PMU power-on handshake unpowered and panics.
+ */
+&vdd_gpu_s0 {
+	regulator-always-on;
+};
+
 &iep {
 	status = "okay";
 };

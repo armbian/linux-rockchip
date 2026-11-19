@@ -1145,6 +1145,14 @@
 	status = "okay";
 };
 
+/* Keep the GPU rail on: a late panfrost/panthor attach after the idle rail
+ * was dropped runs the PMU power-on handshake unpowered and panics.
+ * vdd_gpu_s0 and vdd_gpu_mem_s0 are labels on the same DCDC_REG1.
+ */
+&vdd_gpu_s0 {
+	regulator-always-on;
+};
+
 &rknpu {
 	rknpu-supply = <&vdd_npu_s0>;
 	mem-supply = <&vdd_npu_mem_s0>;
