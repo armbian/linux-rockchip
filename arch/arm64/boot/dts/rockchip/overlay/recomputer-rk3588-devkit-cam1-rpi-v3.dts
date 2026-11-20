@@ -37,10 +37,7 @@
 
 	fragment@5 {
 		target = <&dw9817_1>;
-		__overlay__ {
-			status = "okay";
-			VDD-supply = <&cam1_rst>;
-		};
+		__overlay__ { status = "okay"; };
 	};
 
 	fragment@6 {

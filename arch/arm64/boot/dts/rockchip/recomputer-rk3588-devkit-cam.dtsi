@@ -12,7 +12,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -23,31 +23,33 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
 	cam0_pwr: cam0-pwr {
+		status = "disabled";
 		compatible = "regulator-fixed";
 		regulator-name = "cam0_pwr";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpio = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-		regulator-always-on;
+		startup-delay-us = <100000>;
+		off-on-delay-us = <500000>;
 	};
 
 	cam1_pwr: cam1-pwr {
+		status = "disabled";
 		compatible = "regulator-fixed";
 		regulator-name = "cam1_pwr";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-		regulator-always-on;
+		startup-delay-us = <100000>;
+		off-on-delay-us = <500000>;
 	};
 
 	/* Camera clocks */
@@ -88,18 +90,20 @@
 			imx219_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
 				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
 	};
 
 	/* Raspberry Pi Camera v3 (IMX708 + VCM) */
 	dw9817_0: dw9817@c {
-		compatible = "dongwoon,dw9817-vcm";
+		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam0_rst>;
+		avdd-supply = <&cam0_pwr>;
 		rockchip,camera-module-index = <0>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "front";
@@ -149,18 +153,20 @@
 			imx219_out1: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
 				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
 	};
 
 	/* Raspberry Pi Camera v3 (IMX708 + VCM) */
 	dw9817_1: dw9817@c {
-		compatible = "dongwoon,dw9817-vcm";
+		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam1_rst>;
+		avdd-supply = <&cam1_pwr>;
 		rockchip,camera-module-index = <1>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "back";
