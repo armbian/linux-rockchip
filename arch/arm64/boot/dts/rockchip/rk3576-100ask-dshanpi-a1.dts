@@ -248,11 +248,7 @@
 		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_device>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb_host_pwren>;
 	};
 
 	vbus5v0_typec: vbus5v0-typec {
@@ -795,12 +791,8 @@
 	};
 
 	usb {
-		usb_host_pwren: usb-host-pwren {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
 		usb_otg0_pwren: usb-otg0-pwren {
-			rockchip,pins = <0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		usbc0_int: usbc0-int {
