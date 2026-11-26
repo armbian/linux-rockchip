@@ -214,7 +214,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable_h &clkm1_32k_out>;
 		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <140>;
+		post-power-on-delay-ms = <300>;
 	};
 
 	wireless_bluetooth: wireless-bluetooth {
@@ -240,33 +240,26 @@
 		status = "okay";
 	};
 
-
- 	dummy-codec {
+ 	dummy_codec: dummy-codec{
 		#sound-dai-cells = <0x00>;
 		compatible = "rockchip,dummy-codec";
 		status = "disabled";
 	};
 
-
-	pdm-mic-array {
+	pdm_mic_array: pdm-mic-array {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,pdm-mic-array";
 		status = "disabled";
 
 		simple-audio-card,codec {
-			sound-dai = <&dummy-codec>;
+			sound-dai = <&dummy_codec>;
 		};
 
 		simple-audio-card,cpu {
-			sound-dai = <0&pdm>;
+			sound-dai = <&pdm>;
 		};
 	};
 
-	
-	
-	
-	
-	
 	skykirin_led: skykirin-led {
         compatible = "skykirin-ht1628";
         spi_clk = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -295,7 +288,7 @@
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
 
-		vol-up-key {
+		button-vol-up {
 			label = "volume up";
 			linux,code = <0x73>;
 			press-threshold-microvolt = <1750>;
@@ -352,13 +345,13 @@
 		};
 	};
 
-	bt-sco {
+	bt_sco: bt-sco {
 		#sound-dai-cells = <0x01>;
 		compatible = "delta,dfbmcs320";
 		status = "disabled";
 	};
 
-	bt-sound {
+	bt_sound: bt-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,bitclock-inversion = <0x00>;
 		simple-audio-card,format = "dsp_a";
@@ -367,50 +360,50 @@
 		status = "disabled";
 
 		simple-audio-card,codec {
-			sound-dai = <&bt-sco 1>;
+			sound-dai = <&bt_sco 1>;
 		};
 
 		simple-audio-card,cpu {
-			sound-dai = <&sai>;
+			sound-dai = <&sai0>;
 		};
 	};
 
-	spdif-out {
+	spdif_out: spdif-out {
 		#sound-dai-cells = <0x00>;
 		compatible = "linux,spdif-dit";
 		status = "okay";
 	};
 
-	spdif-sound {
+	spdif_sound: spdif-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,mclk-fs = <0x80>;
 		simple-audio-card,name = "ROCKCHIP,SPDIF";
 		status = "okay";
 
 		simple-audio-card,codec {
-			sound-dai = <&spdif-out>;
+			sound-dai = <&spdif_out>;
 		};
 
 		simple-audio-card,cpu {
-			sound-dai = <&spdif>;
+			sound-dai = <&spdif_8ch>;
 		};
 	};
 
 };
 /*
 &fiq_debugger {
-    rockchip,serial-id = <0x0>; 
-    rockchip,signal-irq = <0xbc>;
+    rockchip,serial-id = <0>; 
+    rockchip,signal-irq = <188>;
     rockchip,wake-irq = <0x0>;
     interrupts = <0x0 0x121 0x4>, <0x0 0x8f 0x4>;
     interrupt-names = "fiq", "wakeup";
     pinctrl-names = "default";
     pinctrl-0 = <&uart0m1_xfer>; 
-    status = "okay";
+    status = "disabled";
 }
 */
 
-&reserved-memory {
+&reserved_memory {
 	cma {
 		compatible = "shared-dma-pool";
 		linux,cma-default;
@@ -421,8 +414,11 @@
 
 &gmac0 {
 	tx_delay = <0x30>;
-	clock_in_out = "output";
 	/* rx_delay = <0x3f>; */
+	status = "okay";
+};
+
+&pwm0 {
 	status = "okay";
 };
 
@@ -431,7 +427,7 @@
 };
 
 &pwm2 {
-	status ="disabled";
+	status ="okay";
 };
 
 &pwm3 {
@@ -555,8 +551,12 @@
 	status = "okay";
 };
 
+&spdif_8ch {
+	status = "okay";
+};
+
 &tve_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &iep {
@@ -801,7 +801,7 @@
 		interrupts = <RK_PB2 IRQ_TYPE_EDGE_FALLING>;
 		wakeup-source;
 		#clock-cells = <0>;
-		status = "disabled";
+		status = "disabled";    /* not avaliable on most boards, enabled by overlay */
 	};
 };
 
