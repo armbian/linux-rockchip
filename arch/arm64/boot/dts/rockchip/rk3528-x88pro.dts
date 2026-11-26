@@ -327,7 +327,7 @@
 	gpio_leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&ir_led &pwr_green_led>;
+		pinctrl-0 = <&pwr_green_led>;
 
 		pwr-green {
 			gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
