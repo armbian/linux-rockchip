@@ -5,7 +5,6 @@
  */
 
 / {
-
     cam0_pwr: cam0-pwr {
         status = "disabled";
         compatible = "regulator-fixed";
@@ -13,9 +12,9 @@
         regulator-min-microvolt = <3300000>;
         regulator-max-microvolt = <3300000>;
         enable-active-high;
-        gpio = <&gpio_xten  0  GPIO_ACTIVE_HIGH>; 
-        regulator-boot-on;         
-        regulator-always-on;        
+        gpio = <&gpio_xten  0  GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <100000>;
+        off-on-delay-us = <500000>;
     };
 
     cam1_pwr: cam1-pwr {
@@ -25,11 +24,10 @@
         regulator-min-microvolt = <3300000>;
         regulator-max-microvolt = <3300000>;
         enable-active-high;
-        gpio = <&gpio1  RK_PD1  GPIO_ACTIVE_HIGH>; 
-        regulator-boot-on;         
-        regulator-always-on;        
+        gpio = <&gpio1  RK_PD1  GPIO_ACTIVE_HIGH>;
+        startup-delay-us = <100000>;
+        off-on-delay-us = <500000>;
     };
-    
 
 	cam0_rst: cam0-rst {
 		compatible = "regulator-fixed";
@@ -91,7 +89,8 @@
         port {
             imx219_out0: endpoint {
                 remote-endpoint = <&mipi_in_ucam2>;
-                data-lanes = <1 2>;					
+                data-lanes = <1 2>;
+                link-frequencies = /bits/ 64 <456000000>;
             };
         };
     };
@@ -101,14 +100,13 @@
 		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam0_rst>;
-		power-supply = <&cam0_pwr>;
+		avdd-supply = <&cam0_pwr>;
 		rockchip,camera-module-index = <0>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "back";
-
 	};
 
 	imx708_0: imx708@1a {
@@ -156,7 +154,8 @@
         port {
             imx219_out1: endpoint {
                 remote-endpoint = <&mipi_in_ucam3>;
-                data-lanes = <1 2>;					
+                data-lanes = <1 2>;
+                link-frequencies = /bits/ 64 <456000000>;
             };
         };
     };
@@ -166,10 +165,10 @@
 		compatible = "dongwoon,dw9800w";
 		status = "disabled";
 		reg = <0x0c>;
-		VDD-supply = <&cam1_rst>;
-		power-supply = <&cam1_pwr>;
+		avdd-supply = <&cam1_pwr>;
 		rockchip,camera-module-index = <1>;
-		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-start-current = <37>;
+		rockchip,vcm-max-current = <85>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-facing = "back";
