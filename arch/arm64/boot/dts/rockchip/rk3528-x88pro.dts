@@ -236,7 +236,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,host_wake_irq = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;	// 39 wifi-host-wake-irq
-		WIFI,reset_gpio = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;  		// 38 rkwifi_wlan_reset
+		// WIFI,reset_gpio = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;  		// 38 rkwifi_wlan_reset
 		status = "okay";
 	};
 
@@ -328,13 +328,6 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_led &pwr_green_led>;
-
-
-		ir {
-			gpios = <&gpio4 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
-			default-state = "off";
-		};
 
 		pwr-green {
 			gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -838,10 +831,6 @@
 	};
 
 	gpio-leds {
-		ir_led: ir-led {
-			rockchip,pins = <4 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
 		pwr_green_led: pwr-green-led {
 			rockchip,pins = <4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
