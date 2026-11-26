@@ -487,6 +487,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c-spi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-radxa-e24c.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-rock-2a.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-rock-2f.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-x88pro.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-box-X88PRO-npu.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-eltay-rm66.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-eltay-rm66-bb-cm4.dtb
