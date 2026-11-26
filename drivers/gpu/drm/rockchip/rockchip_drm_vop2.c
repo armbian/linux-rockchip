@@ -11409,6 +11409,22 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
+
+		/*
+		 * A single-channel eDP output needs the VOP dclk to run at
+		 * the interface pixel clock. Pin the shared virtual dclk
+		 * before dclk_core is rounded: when the previous mode left
+		 * dclk at twice the pixel clock, dclk_core's round_rate()
+		 * otherwise drags the shared parent down to a quarter of
+		 * the pixel clock rate, which is then programmed into the
+		 * CRU by rockchip_drm_dclk_set_rate().
+		 */
+		if (K == 1) {
+			snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
+			dclk = vop2_clk_get(vop2, clk_name);
+			if (dclk)
+				clk_set_rate(dclk->hw.clk, if_pixclk->rate);
+		}
 	} else if (output_if_is_dp(conn_id)) {
 		dclk_out_rate = v_pixclk >> 2;
 		dclk_out_rate = dclk_out_rate / K;
