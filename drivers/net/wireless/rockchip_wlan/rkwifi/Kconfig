@@ -2,6 +2,10 @@
 config AP6XXX
 	tristate "ap6xxx wireless cards support"
 	depends on RFKILL_RK
+	# The SDIO and PCIe back-ends both define the same dhd_bus_*/dhd_prot_*
+	# symbols, so supporting both at once means building two separate
+	# modules, which rules out a built-in driver.
+	depends on !(BCMDHD_SDIO && BCMDHD_PCIE) || m
 	select CFG80211
 	select MAC80211
 	help
@@ -13,22 +17,28 @@ config AP6XXX
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
-choice
-	prompt "Enable Chip Interface"
+comment "Enable Chip Interface"
 	depends on BCMDHD
-	default BCMDHD_SDIO
-	help
-	  Enable Chip Interface.
 
 config BCMDHD_SDIO
 	bool "SDIO bus interface support"
 	depends on BCMDHD && MMC
+	# This used to be a choice defaulting to SDIO, so configs that select
+	# neither must keep getting SDIO, while configs that ask for PCIe only
+	# must not silently gain a second module.
+	default y if !BCMDHD_PCIE
+	help
+	  Build the SDIO bus back-end.  Selecting this together with
+	  BCMDHD_PCIE builds two independent modules, dhdsdio.ko and
+	  dhdpcie.ko, so that one kernel can serve both kinds of board.
 
 config BCMDHD_PCIE
 	bool "PCIe bus interface support"
 	depends on BCMDHD && PCI
-
-endchoice
+	help
+	  Build the PCIe bus back-end.  Selecting this together with
+	  BCMDHD_SDIO builds two independent modules, dhdsdio.ko and
+	  dhdpcie.ko, so that one kernel can serve both kinds of board.
 
 config PCIEASPM_ROCKCHIP_WIFI_EXTENSION
 	bool "Extend ASPM function"
